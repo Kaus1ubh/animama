@@ -6,7 +6,6 @@ import {
   presentGestureCatalog,
   presentGestureLoadout,
   presentUnifiedGestureList,
-  reactionStateLabel,
 } from "./animaLoadoutPresentation";
 
 const includedSource = (id: string) => ({
@@ -74,7 +73,8 @@ const builtinWave: PyGesture = {
 describe("typed Anima loadout presentation", () => {
   it("separates Included defaults from explicit Local Gesture roots", () => {
     const result = presentGestureLoadout(loadout(), [builtinWave]);
-    expect(result.starterSummary).toBe("1 active · 1 disabled");
+    expect(result.starter).toHaveLength(1);
+    expect(result.disabledStarter).toHaveLength(1);
     expect(result.custom.map((row) => row.name)).toEqual(["Sparkle wave"]);
     expect(result.disabledStarter[0]?.gesture?.source).toEqual(
       builtinWave.source,
@@ -353,11 +353,5 @@ describe("typed Anima loadout presentation", () => {
       localCount: 1,
       motionTypeCounts: { vrma: 2, anima_clip: 1 },
     });
-  });
-
-  it("uses product-facing Reaction state labels", () => {
-    expect(reactionStateLabel("starter")).toBe("Starter");
-    expect(reactionStateLabel("custom")).toBe("Custom");
-    expect(reactionStateLabel("empty")).toBe("Empty");
   });
 });

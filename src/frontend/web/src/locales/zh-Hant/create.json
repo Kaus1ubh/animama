@@ -1,0 +1,437 @@
+{
+  "actions": {
+    "back": "返回",
+    "cancel": "取消",
+    "clear": "清除",
+    "creatorHub": "建立中心",
+    "startOver": "重新開始",
+    "tryAgain": "重試"
+  },
+  "actionsStep": {
+    "cell": {
+      "apply": "套用到此格",
+      "assignment": "反應指派",
+      "description": "選擇任一反應，或將此格留空。預覽不會變更其指派。",
+      "noMatches": "沒有符合的反應。此格未變更。",
+      "preview": "預覽反應 {{name}}",
+      "search": "搜尋反應",
+      "searchPlaceholder": "搜尋反應…",
+      "showMore": "顯示更多反應",
+      "sourceFilter": "反應來源",
+      "title": "{{emotion}} · 強度 {{intensity}}"
+    },
+    "confirm": {
+      "clear": "清除所選",
+      "clearDescription": "只會清除這些選擇。空的選擇也是有效的，你已儲存的內容不會被刪除。",
+      "clearGesturesTitle": "要清除所有動作嗎？",
+      "clearReactionsTitle": "要清除所有反應嗎？",
+      "reset": "重設行為",
+      "resetDescription": "這會以目前的入門包取代動作選擇和全部 {{total}} 個反應格。虛擬形象和身分設定保持不變。",
+      "resetTitle": "要將行為重設為推薦設定嗎？"
+    },
+    "gestures": {
+      "clearAll": "清除所有動作",
+      "keptSelection": "已保留的選擇：{{id}}。它被篩選條件隱藏，或需要處理。",
+      "key": "動作 {{key}}",
+      "loadFailed": "無法載入動作。選擇未變更。",
+      "loading": "正在載入動作…",
+      "noMatches": "沒有符合的動作。隱藏的選擇會保留。",
+      "none": "未選擇任何動作。仍然可以建立你的 Anima。",
+      "preview": "預覽動作 {{name}}",
+      "retry": "重新載入動作",
+      "search": "搜尋動作",
+      "searchPlaceholder": "搜尋動作…",
+      "select": "選擇",
+      "selected": "已選擇",
+      "sourceFilter": "動作來源"
+    },
+    "reactions": {
+      "change": "變更{{emotion}}強度 {{intensity}}",
+      "clearAll": "清除所有反應",
+      "clearCell": "清除{{emotion}}強度 {{intensity}}",
+      "empty": "空",
+      "levels": "{{emotion}}反應等級",
+      "loadFailed": "無法載入反應。指派已保留。",
+      "matrix": "反應矩陣",
+      "needsAttention": "已選擇 · 需要處理",
+      "none": "全部 {{total}} 個格都是空的。仍然可以建立你的 Anima。",
+      "previewCell": "預覽{{emotion}}強度 {{intensity}}",
+      "previewLabel": "{{emotion}} · {{intensity}}",
+      "retry": "重新載入反應",
+      "revert": "還原",
+      "revertCell": "將{{emotion}}強度 {{intensity}} 還原為推薦設定"
+    },
+    "replace": {
+      "confirm": "取代選擇",
+      "description": "每個語義鍵只能使用一個動作。所選來源將取代為 {{name}}；不會刪除任何內容。",
+      "keep": "保留目前項目",
+      "title": "要取代「{{key}}」的動作嗎？"
+    },
+    "starterPack": {
+      "description": "這只是一個起點，並非必要。請明確選擇你的 Anima 能做什麼。",
+      "reset": "重設為推薦設定",
+      "summary_other": "<strong>{{count}}</strong> 個動作 · 已指派 <strong>{{reactions}}</strong> / {{total}} 個反應格",
+      "title": "推薦入門包",
+      "version": "版本 {{version}} · {{gestures}} 個推薦動作 · {{cells}} 個推薦格"
+    },
+    "tabs": {
+      "gestures": "動作（{{selected}}）",
+      "reactions": "反應（{{assigned}}/{{total}}）"
+    }
+  },
+  "avatarStep": {
+    "alreadySaved": "完全相同的檔案已在「我的內容」中。已選擇現有的虛擬形象，其名稱和中繼資料保持不變。",
+    "cancelUpload": "取消上傳",
+    "collision": {
+      "chooseNewName": "選擇新名稱",
+      "description": "使用其他名稱即可保留兩個檔案。取代會變更「我的內容」中的現有項目，且需要其目前的修訂版本。如果有執行中的 Anima 正在使用它，伺服器將拒絕取代。",
+      "item": "{{name}} · {{id}}",
+      "replace": "取代此虛擬形象",
+      "title": "此虛擬形象名稱已被使用"
+    },
+    "discardUpload": "捨棄未儲存的上傳",
+    "emptyIncluded": "沒有可用的內建虛擬形象。你可以使用「我的內容」或上傳 VRM。",
+    "emptyLocal": "「我的內容」中還沒有虛擬形象。上傳一個 VRM 來新增。",
+    "fileInput": "選擇 VRM 檔案",
+    "groupLabel": {
+      "included": "內建虛擬形象",
+      "local": "我的內容中的虛擬形象"
+    },
+    "inUse": "此虛擬形象正被執行中的 Anima 使用。請保持不變，並以新名稱儲存你的上傳。",
+    "label": "虛擬形象選擇",
+    "loadFailed": "無法載入虛擬形象。你的選擇已保留。",
+    "loading": "正在載入虛擬形象…",
+    "nameUsed": "該名稱已被使用。請輸入新名稱，或在下方明確取代符合的虛擬形象。正被執行中的 Anima 使用的虛擬形象無法在此取代。",
+    "needsAttention": "此虛擬形象需要處理。請選擇其他來源或重試。",
+    "noMatches": "沒有符合的虛擬形象。你選擇的虛擬形象未變更。",
+    "optionLabel": {
+      "included": "{{name}} 內建",
+      "local": "{{name}} 我的內容"
+    },
+    "previewing": "正在預覽 {{name}} · {{size}}",
+    "readFailed": "無法讀取此 VRM。",
+    "reselect": "你先前的檔案未儲存。請透過「上傳 VRM」再次選擇；瀏覽器在重新載入後無法還原本機檔案。",
+    "retry": "重新載入虛擬形象",
+    "save": "將虛擬形象儲存到「我的內容」",
+    "saveAs": "儲存到「我的內容」的名稱",
+    "saved": "虛擬形象已儲存到「我的內容」。即使取消建立，它也會保留。",
+    "saveFailed": "儲存失敗。你的檔案仍在這裡，可以重試。",
+    "saving": "正在儲存虛擬形象…",
+    "search": "搜尋虛擬形象",
+    "searchPlaceholder": "搜尋虛擬形象…",
+    "showMore": "顯示更多虛擬形象",
+    "upload": "上傳 VRM"
+  },
+  "completion": {
+    "degraded": "部分執行階段內容無法使用。你的 Anima 已成功建立。",
+    "description": "建立已完成。開啟第一次聊天不會再建立另一個 Anima。",
+    "filesVerified_other": "已驗證 {{completed, number}} / {{count, number}} 個檔案",
+    "openAnyway": "仍然開啟 Anima",
+    "openFailed": "無法開啟第一次聊天。",
+    "preparing": "正在準備第一次聊天…",
+    "retry": "重新開啟 Anima",
+    "title": "你的 Anima 已建立"
+  },
+  "controller": {
+    "defaultsUnavailable": "建立的預設設定無法使用。請要求安裝擁有者修復後再重試。",
+    "libraryAvatarUnavailable": "無法選擇資源庫中的虛擬形象。請在下方選擇可用的虛擬形象。",
+    "libraryAvatarUnavailableReason": "無法選擇資源庫中的虛擬形象：{{reason}} 請在下方選擇可用的虛擬形象。",
+    "lockBusy": "另一個分頁正在檢查此建立請求。請等待其完成，然後在此查看相同的結果。",
+    "locksUnavailable": "此瀏覽器無法在分頁之間安全協調建立作業。請使用已啟用本機儲存空間和 Web Locks 的新版瀏覽器。",
+    "notAvatar": "此來源不是虛擬形象。",
+    "revisionsAccepted": "已接受更新的修訂版本。建立前請重新檢查整份草稿。",
+    "starterPackRefreshFailed": "無法重新整理推薦入門包。你的行為已保留。"
+  },
+  "draft": {
+    "chooseAvatar": "請選擇可用的虛擬形象，或將你的 VRM 儲存到「我的內容」。",
+    "chooseVoice": "請為你的 Anima 選擇語音。",
+    "elevenLabsVoiceIdInvalid": "請輸入僅包含字母、數字、底線或連字號的 ElevenLabs 語音 ID。",
+    "identityInvalid": "請輸入不超過 {{limit, number}} 個 UTF-8 位元組的非空白 Markdown。",
+    "nameInvalid": "請使用 1–{{limit}} 個字元，且不含控制字元。",
+    "nameRequired": "請輸入名稱以繼續。",
+    "pocketVoiceUnavailable": "請選擇可用的 PocketTTS 語音。",
+    "reselectFile": "請重新選擇並儲存你的 VRM，或取消未儲存的上傳。",
+    "reviewNeedsAvatar": "檢查前請先選擇虛擬形象並解決入門包問題。",
+    "sourceNeedsValidation": "所選內容仍需進行精確的來源驗證。",
+    "sourcesDisagree": "所選來源對修訂版本 {{id}} 的記錄不一致。請檢查受影響的內容。",
+    "starterPackNeedsAttention": "此安裝的入門包需要處理。"
+  },
+  "effectKinds": {
+    "avatar": {
+      "create": "建立形象特效",
+      "description": "在臉上、身上或虛擬形象旁邊加入圖案。",
+      "label": "形象特效",
+      "new": "新增形象特效"
+    },
+    "particle": {
+      "create": "建立粒子特效",
+      "description": "加入爆發、拖尾和氛圍粒子。",
+      "label": "粒子特效",
+      "new": "新增粒子特效"
+    },
+    "scene": {
+      "create": "建立場景特效",
+      "description": "在你的 Anima 周圍組合背景和集中線。",
+      "label": "場景特效",
+      "new": "新增場景特效"
+    }
+  },
+  "files": {
+    "documentTooLarge": "VRM 文件超出支援的上限。",
+    "externalResources": "不允許使用外部模型資源。請匯出自給自足的 VRM。",
+    "invalidDocument": "此檔案不包含有效的 VRM 文件。",
+    "notBinary": "這不是二進位 VRM/GLB 檔案。",
+    "tooLarge": "請選擇不超過 {{limit}} MiB 的自給自足 .vrm 檔案。",
+    "unsupportedVersion": "請選擇 VRM 0.x (0.0) 或 VRM 1.0 模型。"
+  },
+  "hub": {
+    "actions": {
+      "description": "賦予你的 Anima 肢體表現、個性和情感。",
+      "gesture": {
+        "action": "建立動作",
+        "description": "編排富有表現力的動作和可重複使用的行為。",
+        "title": "動作"
+      },
+      "reaction": {
+        "action": "建立反應",
+        "description": "設計你的 Anima 可以表現的情感反應。",
+        "title": "反應"
+      },
+      "title": "行為"
+    },
+    "anima": {
+      "action": "建立 Anima",
+      "description": "建立每段對話核心的陪伴者。",
+      "title": "Anima"
+    },
+    "description": "為你的 Anima 建立角色、行為和特效。",
+    "effects": {
+      "description": "將可重複使用的特效疊加到動作和反應中。請在它們的 SFX 分頁或搭配音效選擇器中上傳聲音。",
+      "title": "特效"
+    },
+    "title": "建立"
+  },
+  "identityStep": {
+    "editorLabel": "身分設定 Markdown",
+    "placeholder": "描述他們是誰、如何說話以及重視什麼…",
+    "preview": "預覽",
+    "previewEmpty": "身分設定的預覽會顯示在這裡。",
+    "required": "· 必填",
+    "suggestion": {
+      "append": "附加建議",
+      "description": "建議會以可編輯的文字複製。只有在你選擇下方的選項後，目前的身分設定才會變更。",
+      "replace": "取代身分設定",
+      "title": "要使用虛擬形象的建議嗎？"
+    },
+    "title": "身分設定",
+    "useSuggestion": "使用虛擬形象的建議",
+    "write": "撰寫"
+  },
+  "leave": {
+    "discard": "捨棄草稿",
+    "draft": {
+      "action": "儲存草稿並離開",
+      "description": "儲存此草稿以便稍後繼續，或將其捨棄。已確認的上傳會保留在「我的內容」中。",
+      "title": "要離開你的 Anima 草稿嗎？"
+    },
+    "keepEditing": "繼續編輯",
+    "locked": {
+      "action": "離開並保留請求",
+      "description": "必須保留已凍結的請求。開始另一項建立前，請回到「查看建立結果」。離開不會取消已送出的請求。",
+      "title": "要在建立尚未確定時離開嗎？"
+    }
+  },
+  "locked": {
+    "acknowledgeStartOver": "確認並重新開始",
+    "check": {
+      "description": "原始請求已儲存。變更此草稿前請先查看其結果；重試會使用完全相同的請求，不會建立重複項目。",
+      "title": "查看你的建立結果"
+    },
+    "checking": "正在檢查…",
+    "checkResult": "查看建立結果",
+    "conflict": {
+      "description": "此鍵已用於不同的內容。編輯和自動重試已停止；原始請求已保留。",
+      "title": "建立請求衝突"
+    },
+    "creating": "正在建立你的 Anima…",
+    "deleted": {
+      "description": "原始建立已成功，但該 Anima 之後被刪除了。沒有重新建立任何內容。",
+      "title": "此 Anima 已被刪除"
+    }
+  },
+  "namePlate": {
+    "characters": "個字元",
+    "count": "{{current}} / {{limit}}",
+    "label": "名稱",
+    "placeholder": "輸入名稱"
+  },
+  "nav": {
+    "completed": "{{step}}，已完成",
+    "label": "Anima 建立進度",
+    "needsAttention": "{{step}}，需要處理"
+  },
+  "options": {
+    "loadFailed": "無法載入入門包或建立的預設設定。你的草稿已保留。",
+    "needsRepair": "推薦入門包需要修復。你的選擇沒有被不完整的包取代。",
+    "retry": "重新載入建立選項"
+  },
+  "page": {
+    "continueTo": "繼續：{{step}}",
+    "create": "建立 Anima",
+    "formLabel": "{{step}}表單",
+    "issuesLabel": "建立問題",
+    "preparingStage": "正在準備預覽區域…",
+    "reviewUpdatedSources": "檢查更新的來源",
+    "runtimeUnavailable": "本機執行階段無法使用。請在重新連線後重試。",
+    "stepCounter": "第 {{current}} 步，共 {{total}} 步",
+    "title": "建立 Anima",
+    "working": "正在處理…"
+  },
+  "picker": {
+    "avatarGroups": {
+      "aroundHead": "頭部周圍",
+      "body": "身體",
+      "cheeks": "臉頰",
+      "eyes": "眼睛",
+      "mouth": "嘴巴",
+      "wholeFace": "整張臉"
+    },
+    "choose": "選擇",
+    "kindDescription": "選擇要建立的特效類型。",
+    "noParticleTemplates": "還沒有粒子特效範本。從頭開始建立一個吧。",
+    "noPreview": "尚無預覽",
+    "previewUnavailable": "無法預覽",
+    "startFromScratch": "從頭開始",
+    "templateDescription": "從範本或從頭開始。你會得到一份未儲存的新草稿；範本不會被變更。",
+    "title": "建立特效"
+  },
+  "recovery": {
+    "appearance": {
+      "action": "不使用圖片繼續",
+      "description": "建立 Anima 時不再設定大頭貼和背景圖片。請在不使用這些草稿選擇的情況下繼續；已確認的上傳會保留在「我的內容」中，其他所有選擇也都會保留。",
+      "title": "要不使用建立器圖片繼續嗎？"
+    },
+    "checking": "正在檢查已儲存的草稿…",
+    "corrupt": {
+      "title": "你儲存的草稿需要處理"
+    },
+    "resume": {
+      "action": "繼續已儲存的草稿",
+      "description": "已為此安裝儲存了一份草稿。你可以繼續，或明確選擇重新開始。已儲存的上傳會保留在「我的內容」中。",
+      "title": "要繼續建立你的 Anima 嗎？"
+    }
+  },
+  "repair": {
+    "accept": "接受更新的修訂版本",
+    "keep": "保留固定的修訂版本",
+    "policyDescription": "這只會更新固定的入門包識別資訊和預設待機原則。你選擇的動作和反應不會被重設。",
+    "sourceDescription": "此來源及其完整相依項目將使用此處顯示的目前修訂版本。你的其他選擇保持不變。之後請重新檢查整份草稿。",
+    "title": "要接受更新的來源修訂版本嗎？"
+  },
+  "review": {
+    "actions": {
+      "edit": "編輯行為",
+      "gesturesSelected": "已選擇的動作",
+      "reactionCells": "已指派的反應格",
+      "reactionTotal": "/ {{total}}",
+      "title": "行為"
+    },
+    "avatarMissing": "缺少虛擬形象",
+    "identity": {
+      "edit": "編輯身分設定",
+      "title": "身分設定"
+    },
+    "voice": {
+      "applicationDefault": "應用程式預設值（已儲存的請求）",
+      "edit": "編輯語音",
+      "savedClone": "已儲存的語音複製",
+      "summary": "{{provider}} · {{voice}}",
+      "title": "語音"
+    },
+    "warnings": "小提醒"
+  },
+  "sources": {
+    "all": "所有來源",
+    "included": "內建",
+    "local": "我的內容"
+  },
+  "stage": {
+    "actionBytesUnavailable": "無法準備行為的已註冊檔案。",
+    "actionNotPlayed": "無法播放此行為。",
+    "actionNotPrepared": "無法準備此行為。",
+    "avatarUnavailable": "無法預覽虛擬形象。",
+    "dependencyChanged": "某個行為相依項目已變更。預覽前請先接受其更新的來源。",
+    "dependencyUnavailable": "某個行為相依項目無法使用。播放已停止。",
+    "empty": "上傳 VRM（小於 100 MB）或選擇虛擬形象，即可在這裡看到。",
+    "label": "你的 Anima 預覽",
+    "loadingAvatar": "正在載入所選虛擬形象…",
+    "noModel": "所選虛擬形象沒有已註冊的模型。",
+    "notAction": "所選來源不是行為。",
+    "preparing": "正在準備預覽…",
+    "preparingAction": "正在準備該行為及其相依項目…",
+    "retry": "重試預覽",
+    "unavailable": "無法預覽虛擬形象。你仍然可以編輯表單。",
+    "upload": "上傳 VRM 檔案",
+    "waitForAvatar": "請等待所選虛擬形象載入，或重試其預覽。",
+    "webglUnavailable": "無法使用 WebGL。請重試預覽，或繼續使用所選虛擬形象。"
+  },
+  "startOver": {
+    "description": "這會捨棄已儲存的草稿，但不會刪除你在「我的內容」中已確認的上傳。先前已刪除的建立不會被重新建立。",
+    "keep": "保留草稿",
+    "title": "要開始新草稿嗎？"
+  },
+  "steps": {
+    "actions": {
+      "description": "選擇你的 Anima 如何移動和反應。",
+      "heading": "選擇行為",
+      "label": "行為"
+    },
+    "avatar": {
+      "heading": "選擇虛擬形象",
+      "label": "虛擬形象"
+    },
+    "identity": {
+      "description": "塑造他們是誰、如何說話以及重視什麼。",
+      "heading": "定義身分設定",
+      "label": "身分設定"
+    },
+    "review": {
+      "heading": "檢查 Anima",
+      "label": "檢查"
+    },
+    "voice": {
+      "heading": "選擇語音",
+      "label": "語音"
+    }
+  },
+  "storage": {
+    "changedElsewhere": "此草稿已在另一個分頁中變更。繼續之前，請查看最新儲存的狀態。",
+    "checkBeforeDiscard": "捨棄此請求前，請先查看建立結果。",
+    "conflict": "此草稿已在另一個分頁中變更。接手編輯前請先查看。",
+    "notStarted": "除非確切的請求已安全儲存，否則不會開始建立。",
+    "pendingElsewhere": "另一個分頁中的建立正在等待處理。請查看原始建立結果。",
+    "retrySave": "重試儲存草稿",
+    "reviewLatest": "查看最新儲存的狀態",
+    "tooLarge": "已儲存的草稿超出復原上限。只有在確認不再需要它之後才重新開始。",
+    "unavailable": "草稿儲存空間無法使用。建立 Anima 前請啟用瀏覽器儲存空間。",
+    "unreadable": "此版本無法讀取已儲存的草稿。它尚未被捨棄。請確認「重新開始」以取代它。"
+  },
+  "voiceStep": {
+    "busy": "語音設定忙碌中。",
+    "chooseAnother": "此已儲存的語音無法使用。請選擇其他語音。",
+    "cloneUnavailable": "此已儲存的語音無法使用。請重新整理資源庫。",
+    "elevenLabsId": "ElevenLabs 語音 ID",
+    "elevenLabsPlaceholder": "輸入語音 ID",
+    "label": "語音設定",
+    "loadFailed": "無法載入已儲存的語音。",
+    "loading": "正在載入預設語音…",
+    "pocketVoice": "PocketTTS 語音",
+    "provider": "TTS 供應商",
+    "providers": {
+      "elevenLabs": "ElevenLabs",
+      "pocketTts": "PocketTTS"
+    },
+    "retry": "重新載入已儲存的語音",
+    "savedVoiceUnavailable": "已儲存的語音無法使用"
+  }
+}

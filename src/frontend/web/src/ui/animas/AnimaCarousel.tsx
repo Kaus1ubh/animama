@@ -2,6 +2,7 @@
 
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { useEffect, useRef, type WheelEvent } from "react";
+import { useTranslation } from "react-i18next";
 
 import type { PyAnimaListItem } from "@/lib/content/catalogTypes";
 import { getAnimaDisplayName, getAnimaInitials } from "@/lib/anima-profile";
@@ -64,6 +65,7 @@ function AnimaCarouselItem({
   registerNode: (node: HTMLButtonElement | null) => void;
   onSelect: () => void;
 }) {
+  const { t } = useTranslation("animas");
   const displayName = getAnimaDisplayName(anima);
   const presentationImage = useAnimaPresentationImage(
     anima.presentation.profile_thumbnail,
@@ -74,7 +76,7 @@ function AnimaCarouselItem({
       ref={registerNode}
       type="button"
       aria-current={selected ? "true" : undefined}
-      aria-label={`Select ${displayName}`}
+      aria-label={t("carousel.select", { name: displayName })}
       onClick={onSelect}
       className={cn(
         "group focus-visible:ring-ring/50 snap-center overflow-hidden rounded-2xl border text-left transition-[border-color,background-color,box-shadow,transform] outline-none focus-visible:ring-[3px] motion-reduce:transition-none",
@@ -130,7 +132,7 @@ function AnimaCarouselItem({
               compact ? "text-center" : "text-left",
             )}
           >
-            Loading…
+            {t("carousel.loading")}
           </span>
         ) : presentationImage.isError ? (
           <span
@@ -139,7 +141,7 @@ function AnimaCarouselItem({
               compact ? "text-center" : "text-left",
             )}
           >
-            Initials shown
+            {t("carousel.initialsShown")}
           </span>
         ) : null}
       </div>
@@ -163,6 +165,7 @@ export function AnimaCarousel({
   showNavigationButtons = true,
   className,
 }: AnimaCarouselProps) {
+  const { t } = useTranslation("animas");
   const itemNodes = useRef(new Map<string, HTMLButtonElement>());
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const canMove = animas.length > 1;
@@ -178,7 +181,7 @@ export function AnimaCarousel({
           compact ? "text-[0.65rem]" : "text-xs",
         )}
       >
-        New Anima
+        {t("carousel.newAnima")}
       </span>
     </>
   );
@@ -190,7 +193,7 @@ export function AnimaCarousel({
         "text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 flex shrink-0 flex-col items-center justify-center gap-1.5 rounded-2xl transition-[background-color,color,box-shadow] outline-none hover:bg-lime-50/90 hover:shadow-[0_0_0_2px_rgba(190,242,100,0.38)] focus-visible:ring-[3px] motion-reduce:transition-none dark:hover:bg-lime-950/20",
         newAnimaSize,
       )}
-      aria-label="Create Anima"
+      aria-label={t("carousel.create")}
     >
       {newAnimaContent}
     </button>
@@ -202,7 +205,7 @@ export function AnimaCarousel({
           "text-muted-foreground focus-visible:ring-ring/50 flex shrink-0 flex-col items-center justify-center gap-1.5 rounded-2xl outline-none focus-visible:ring-[3px]",
           newAnimaSize,
         )}
-        aria-label="Create Anima"
+        aria-label={t("carousel.create")}
       >
         {newAnimaContent}
       </button>
@@ -245,7 +248,7 @@ export function AnimaCarousel({
         compact ? "px-2 py-2" : "p-2",
         className,
       )}
-      aria-label="Anima carousel"
+      aria-label={t("carousel.label")}
       onWheel={handleWheel}
     >
       {createAction ? (
@@ -263,7 +266,7 @@ export function AnimaCarousel({
             variant="outline"
             size="icon"
             disabled={!canMove}
-            aria-label="Select previous Anima"
+            aria-label={t("carousel.previous")}
             onClick={onPrevious}
             className="bg-background/92 absolute top-1/2 left-1 z-10 -translate-y-1/2 rounded-full shadow-sm"
           >
@@ -305,7 +308,7 @@ export function AnimaCarousel({
             variant="outline"
             size="icon"
             disabled={!canMove}
-            aria-label="Select next Anima"
+            aria-label={t("carousel.next")}
             onClick={onNext}
             className={cn(
               "bg-background/92 absolute top-1/2 right-1 z-10 -translate-y-1/2 rounded-full shadow-sm",

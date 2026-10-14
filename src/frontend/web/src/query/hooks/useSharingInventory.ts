@@ -15,6 +15,7 @@ import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import type { SharingItem } from "@/lib/content-sharing/types";
 import { isNonPortable } from "@/lib/content/portability";
 import { queryKeys } from "@/query/keys";
+import { compareDisplayText } from "@animama/product-ui/i18n";
 
 /** The typed family endpoints return complete inventories; no catalog metadata decoding. */
 export function useSharingInventory(enabled: boolean) {
@@ -58,7 +59,7 @@ export function useSharingInventory(enabled: boolean) {
               portability,
             })),
         )
-        .sort((a, b) => a.name.localeCompare(b.name));
+        .sort((a, b) => compareDisplayText(a.name, b.name));
     },
   });
 }

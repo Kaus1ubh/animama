@@ -31,15 +31,20 @@ The route accepts `PyAnimaChatRequest`:
     },
     "client_context": {
         "time_zone": "America/Toronto",
-        "locale": "en-US"
+        "locale": "en-US",
+        "ui_locale": "ja"
     }
 }
 ```
 
-`client_context` is optional and used only for companion safety: the IANA
-`time_zone` sets the local calendar day for the AI notice (unknown or missing
-zones use UTC), and the BCP 47 `locale` selects the crisis-resource region when
-the owner has not chosen one.
+`client_context` is optional. For companion safety, the IANA `time_zone` sets
+the local calendar day for the AI notice (unknown or missing zones use UTC), and
+the BCP 47 `locale` (the browser's) selects the crisis-resource region when the
+owner has not chosen one. `ui_locale` is the UI Locale the client applied and is
+the conversation language: a non-English supported locale adds a reply-language
+section to the prompt and fills the turn's `tts.language_code` (ISO 639-1) for
+ElevenLabs and Gemini; English and unknown values change nothing. Safety never
+reads it ([ADR 0024](../../adr/0024-ui-locale-is-the-conversation-language.md)).
 
 `message` is trimmed by the schema and must be non-empty. `chat_id` is the
 thread identifier. The backend creates `chat-<uuid>` and `run-<uuid>` values

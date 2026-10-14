@@ -1,13 +1,16 @@
 "use client";
 
 import { useProductApiClient } from "@animama/product-ui";
+import { useFormatters } from "@animama/product-ui/i18n";
 import type { Client } from "@animama/runtime-contracts/sdk";
 import type { AvatarFacePartCorrection } from "@animama/runtime-contracts/api-types";
 import type { ThreeEvent } from "@react-three/fiber";
 import { useFrame } from "@react-three/fiber";
 import { useNavigate } from "@tanstack/react-router";
 import { Code2Icon, FolderOpenIcon, SparklesIcon } from "lucide-react";
+import type { TFunction } from "i18next";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { getI18n, useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import type { Object3D } from "three";
 
@@ -34,12 +37,10 @@ import {
 } from "@/lib/avatar/vfx/editor";
 import {
   assertAvatarEffectImageWithinLimits,
+  MAX_AVATAR_EFFECT_IMAGE_BYTES,
   MAX_AVATAR_EFFECT_IMAGE_DIMENSION,
 } from "@/lib/avatar/vfx/effect-image-limits";
-import {
-  AVATAR_FACE_PART_LABELS,
-  type AvatarFacePartRole,
-} from "@/lib/avatar/vfx/faceParts";
+import type { AvatarFacePartRole } from "@/lib/avatar/vfx/faceParts";
 import {
   isAttachmentVFXEntry,
   type AvatarVFXParsedEntry,
@@ -57,6 +58,12 @@ import { preflightContentFile, sha256File } from "@/lib/content/contentUploads";
 import { createUniqueContentName } from "@/lib/content/uniqueContentName";
 import { previewSoundForCopy } from "@/lib/content/previewSound";
 import { avatarEffectTemplate } from "@/lib/effects/effectTemplates";
+import {
+  apiErrorLine,
+  failureLine,
+  uncodedErrorText,
+  WordedError,
+} from "@/lib/errors/apiError";
 import { useAvatarFaceParts } from "@/query/hooks/useAvatarFaceParts";
 import { useAvatarEffect, useSoundEffects } from "@/query/hooks/useEffects";
 import { AvatarPreviewSurface } from "@/ui/avatar-preview/AvatarPreviewSurface";
@@ -122,10 +129,10 @@ import {
 } from "./AvatarEffectManipulator";
 import { AvatarEffectSetupFields } from "./AvatarEffectSetupFields";
 import { AvatarEffectUvPreview } from "./AvatarEffectUvPreview";
+import { facePartRoleName } from "./facePartsPanel";
 import { useAvatarEffectSave } from "./useAvatarEffectSave";
 
 const IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
-const MAX_IMAGE_BYTES = 16 * 1024 * 1024;
 /** The applied ID of the creator's own preview effect. */
 const PREVIEW_EFFECT_ID = "avatar-effect-editor-preview";
 
@@ -150,15 +157,18 @@ type PreviewStatus = {
 
 type HydrationState = PreviewStatus;
 
-const VIEW_OPTIONS: ReadonlyArray<{
+/** The preview's camera views, worded for the View control. */
+function viewOptions(t: TFunction<"effects">): ReadonlyArray<{
   value: AvatarPreviewCameraProfile;
   label: string;
-}> = [
-  { value: "portrait-close", label: "Face" },
-  { value: "portrait-three-quarter", label: "Three-quarter" },
-  { value: "portrait", label: "Portrait" },
-  { value: "full-body", label: "Full body" },
-];
+}> {
+  return [
+    { value: "portrait-close", label: t("avatar.views.face") },
+    { value: "portrait-three-quarter", label: t("avatar.views.threeQuarter") },
+    { value: "portrait", label: t("avatar.views.portrait") },
+    { value: "full-body", label: t("avatar.views.fullBody") },
+  ];
+}
 
 /**
  * Avatar Effect creator. `itemId` edits a saved item (an Included item is
@@ -172,6 +182,8 @@ export function AvatarEffectCreatorPage({
   itemId?: string;
   templateId?: string;
 }) {
+  const { t, i18n } = useTranslation("effects");
+  const formatters = useFormatters();
   const navigate = useNavigate();
   const userId = useRuntimeCacheKey();
   const apiClient = useProductApiClient();
@@ -301,17 +313,19 @@ export function AvatarEffectCreatorPage({
     avatarEffectSnapshotFingerprint(snapshot),
   );
 
+  // Text is worded when called, so a UI Locale change keeps this callback.
   const onRestore = useCallback(
     (recovered: AvatarEffectHistorySnapshot) => {
       if (templateId) {
         setTemplateDraft(recovered);
         return;
       }
+      const t = getI18n().getFixedT(null, "effects");
       setHasAttemptedSave(false);
       resetDocument(recovered.document, recovered.imageResources);
       if (!keptPreview)
         setCameraProfile(avatarEffectInitialView(recovered.document));
-      setHydration({ state: "ready", message: "Recovered local draft" });
+      setHydration({ state: "ready", message: t("creator.recoveredDraft") });
       setPreviewRevision((value) => value + 1);
     },
     [keptPreview, resetDocument, templateId],
@@ -332,15 +346,16 @@ export function AvatarEffectCreatorPage({
     [dispatch, itemId],
   );
 
-  const validation = useMemo(
-    () =>
-      validateAvatarEffectDocument(document, {
-        imageBytesAvailable: Boolean(imageResources.image),
-        otherEyeImageBytesAvailable: Boolean(imageResources.otherEyeImage),
-        modelCompatible,
-      }),
-    [document, imageResources, modelCompatible],
-  );
+  // Validation text is worded in the UI Locale, so it is rebuilt when that changes.
+  const uiLocale = i18n.resolvedLanguage;
+  const validation = useMemo(() => {
+    void uiLocale;
+    return validateAvatarEffectDocument(document, {
+      imageBytesAvailable: Boolean(imageResources.image),
+      otherEyeImageBytesAvailable: Boolean(imageResources.otherEyeImage),
+      modelCompatible,
+    });
+  }, [document, imageResources, modelCompatible, uiLocale]);
   const hasBlockingIssues = validation.some(
     (issue) => issue.severity === "error",
   );
@@ -362,14 +377,15 @@ export function AvatarEffectCreatorPage({
     onRestore,
     onSaved,
   });
+  const contentLabel = t("kinds.avatarEffect");
   const unavailableMessage = creatorItemUnavailableMessage({
     itemId,
-    label: "Avatar Effect",
+    label: contentLabel,
     item: existingQuery.data,
     readFailed: existingQuery.isError,
     loadError:
       hydration.state === "error"
-        ? (hydration.message ?? "The Avatar Effect could not be opened.")
+        ? (hydration.message ?? t("avatar.openFailed"))
         : null,
   });
   // The unavailable state has no leave dialog, so it must never block navigation.
@@ -414,8 +430,10 @@ export function AvatarEffectCreatorPage({
   const templateDraftDialog = (
     <CreatorTemplateDraftDialog
       start={templateStart}
-      contentLabel="Avatar Effect"
-      templateName={avatarEffectTemplate(templateId)?.name ?? "a template"}
+      contentLabel={contentLabel}
+      templateName={
+        avatarEffectTemplate(templateId)?.name ?? t("creator.aTemplate")
+      }
     />
   );
 
@@ -423,14 +441,10 @@ export function AvatarEffectCreatorPage({
     try {
       return await contentSave.discardChanges();
     } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "The draft could not be discarded.",
-      );
+      toast.error(failureLine(error, t("creator.discardFailed")));
       return false;
     }
-  }, [contentSave]);
+  }, [contentSave, t]);
 
   const modelPreview = useContentCreatorModelPreview({
     ownerKey: `avatar-effect-creator:${itemId ?? "new"}`,
@@ -508,7 +522,9 @@ export function AvatarEffectCreatorPage({
     const load = hydratedItemRef.current.begin(itemId);
     if (!load) return;
     const controller = new AbortController();
-    setHydration({ state: "loading", message: "Loading saved content…" });
+    // Read here so a UI Locale change does not restart the load.
+    const t = getI18n().getFixedT(null, "effects");
+    setHydration({ state: "loading", message: t("creator.loadingSaved") });
     void hydrateAvatarEffect(apiClient, {
       itemId: item.item_id,
       name: item.name,
@@ -534,10 +550,7 @@ export function AvatarEffectCreatorPage({
         if (controller.signal.aborted) return;
         setHydration({
           state: "error",
-          message:
-            error instanceof Error
-              ? error.message
-              : "The Avatar Effect could not be opened.",
+          message: failureLine(error, t("avatar.openFailed")),
         });
       });
     return () => {
@@ -621,11 +634,15 @@ export function AvatarEffectCreatorPage({
       contentSave.clearSaveErrorField("files");
       const fail = (message: string) => setImageError({ slot, message });
       if (!IMAGE_TYPES.has(source.type)) {
-        fail("Choose one PNG, JPEG, or WebP image.");
+        fail(t("avatar.image.typeInvalid"));
         return;
       }
-      if (source.size > MAX_IMAGE_BYTES) {
-        fail("The effect image must be 16 MiB or smaller.");
+      if (source.size > MAX_AVATAR_EFFECT_IMAGE_BYTES) {
+        fail(
+          t("avatar.image.tooLarge", {
+            size: formatters.fileSize(MAX_AVATAR_EFFECT_IMAGE_BYTES),
+          }),
+        );
         return;
       }
       setImageBusy(slot);
@@ -634,12 +651,15 @@ export function AvatarEffectCreatorPage({
         try {
           await assertAvatarEffectImageWithinLimits(source);
         } catch {
-          throw new Error(
-            `The effect image must be at most ${MAX_AVATAR_EFFECT_IMAGE_DIMENSION} px on each side.`,
+          throw new WordedError(
+            t("avatar.image.tooWide", {
+              pixels: MAX_AVATAR_EFFECT_IMAGE_DIMENSION,
+            }),
           );
         }
         const preflight = await preflightContentFile("image", source);
-        if (preflight.error) throw new Error(preflight.error);
+        // Preflight failures are already worded in the UI Locale.
+        if (preflight.error) throw new WordedError(preflight.error);
         // The two images are registered side by side, so their names differ.
         const logicalName =
           slot === "image"
@@ -674,11 +694,7 @@ export function AvatarEffectCreatorPage({
         );
         restartPreview();
       } catch (error) {
-        fail(
-          error instanceof Error
-            ? error.message
-            : "The image could not be read.",
-        );
+        fail(failureLine(error, t("creator.imageReadFailed")));
       } finally {
         setImageBusy(null);
       }
@@ -688,31 +704,28 @@ export function AvatarEffectCreatorPage({
       dispatch,
       document.art.image,
       document.art.otherEyeImage,
+      formatters,
       restartPreview,
+      t,
     ],
   );
 
   const importDocument = useCallback(() => {
     try {
       const parsed = parseAvatarEffectEditorExport(JSON.parse(importText));
-      if (isDirty && !window.confirm("Replace the current unsaved document?"))
-        return;
+      if (isDirty && !window.confirm(t("creator.replaceUnsaved"))) return;
       dispatch({ type: "replace", document: parsed }, NO_AVATAR_EFFECT_IMAGES);
       setLicensedSoundOmitted(false);
       setImportError(null);
       setImportOpen(false);
       restartPreview();
       if (parsed.art.image) {
-        toast.info("Reselect the imported document's images before saving.");
+        toast.info(t("avatar.import.reselectImages"));
       }
     } catch (error) {
-      setImportError(
-        error instanceof Error
-          ? error.message
-          : "The JSON could not be imported.",
-      );
+      setImportError(failureLine(error, t("creator.importFailed")));
     }
-  }, [dispatch, importText, isDirty, restartPreview]);
+  }, [dispatch, importText, isDirty, restartPreview, t]);
 
   /** Replace the document with a blank one on the plain `/new` route. */
   const resetToBlank = useCallback(async () => {
@@ -747,23 +760,13 @@ export function AvatarEffectCreatorPage({
       if (itemId) await contentSave.discardRecovery();
       else await resetToBlank();
     } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "The draft could not be discarded.",
-      );
+      toast.error(failureLine(error, t("creator.discardFailed")));
     }
-  }, [contentSave, imageBusy, itemId, resetToBlank]);
+  }, [contentSave, imageBusy, itemId, resetToBlank, t]);
 
   const startNewDocument = useCallback(async () => {
     if (contentSave.isBusy || imageBusy) return;
-    if (
-      isDirty &&
-      !window.confirm(
-        "Discard the current changes and start a new Avatar Effect?",
-      )
-    )
-      return;
+    if (isDirty && !window.confirm(t("avatar.confirmNew"))) return;
 
     try {
       // A saved item or a template draft starts over on the plain `/new` route.
@@ -783,11 +786,7 @@ export function AvatarEffectCreatorPage({
 
       await resetToBlank();
     } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "The draft could not be discarded.",
-      );
+      toast.error(failureLine(error, t("creator.discardFailed")));
     }
   }, [
     contentSave,
@@ -797,6 +796,7 @@ export function AvatarEffectCreatorPage({
     itemId,
     navigate,
     resetToBlank,
+    t,
     templateId,
     userId,
   ]);
@@ -838,7 +838,7 @@ export function AvatarEffectCreatorPage({
       : null;
   }, [facePartsVersion, previewAvatar, previewEffect]);
   const missingPartMessage = missingPart
-    ? `This Avatar has no detected ${AVATAR_FACE_PART_LABELS[missingPart]}, so the effect is not shown on it. Correct the part under Face parts, or preview another Avatar.`
+    ? t("avatar.missingPart", { part: facePartRoleName(missingPart) })
     : null;
 
   /** Rebuild the preview Avatar's parts with a correction, then re-apply the effect. */
@@ -897,7 +897,7 @@ export function AvatarEffectCreatorPage({
   if (unavailableMessage)
     return (
       <CreatorUnavailableState
-        label="Avatar Effect"
+        label={contentLabel}
         message={unavailableMessage}
       />
     );
@@ -911,7 +911,7 @@ export function AvatarEffectCreatorPage({
         <CreatorLoading
           message={
             hydration.message ??
-            (templateId ? "Loading template…" : "Loading Avatar Effect…")
+            (templateId ? t("creator.loadingTemplate") : t("avatar.loading"))
           }
         />
         {templateDraftDialog}
@@ -920,11 +920,8 @@ export function AvatarEffectCreatorPage({
   }
 
   const stageBadge = !document.art.image
-    ? "Choose an image in Setup to preview the effect."
-    : (missingPartMessage ??
-      (pickingRole
-        ? "Click a part of the avatar to add it to or remove it from the selected face part."
-        : null));
+    ? t("avatar.stage.chooseImage")
+    : (missingPartMessage ?? (pickingRole ? t("avatar.stage.picking") : null));
 
   return (
     <CreatorWorkspaceShell
@@ -935,7 +932,7 @@ export function AvatarEffectCreatorPage({
           data-playback-surface="creator-stage"
           tabIndex={0}
           role="group"
-          aria-label="Effect preview. Drag the art to move it, its corners to resize and its round handle to turn it. Arrow keys nudge it; Shift moves further."
+          aria-label={t("avatar.stage.label")}
           onKeyDown={manipulation.onKeyDown}
         >
           <AvatarPreviewSurface
@@ -954,7 +951,7 @@ export function AvatarEffectCreatorPage({
                     ref={guideCanvasRef}
                     className="pointer-events-none absolute inset-0 z-30 size-full"
                     role="img"
-                    aria-label="Placement guides"
+                    aria-label={t("avatar.guides.canvas")}
                     data-testid="avatar-effect-placement-guides"
                   />
                 ) : null}
@@ -1048,7 +1045,12 @@ export function AvatarEffectCreatorPage({
               ? validation.map((issue) => issue.message)
               : []),
             ...(missingPartMessage ? [missingPartMessage] : []),
-            ...(vfxSnapshot?.warnings ?? []),
+            // Runtime diagnostics are English; elsewhere they become detail.
+            ...(vfxSnapshot?.warnings ?? []).map((warning) =>
+              apiErrorLine(
+                uncodedErrorText(warning, t("creator.previewWarning")),
+              ),
+            ),
             ...[
               modelPreview.animaError,
               modelPreview.runtimeError,
@@ -1056,10 +1058,10 @@ export function AvatarEffectCreatorPage({
               modelPreview.modelCatalogError,
             ].filter((message): message is string => Boolean(message)),
             ...(avatarStatus.state === "error"
-              ? [avatarStatus.message ?? "Unable to load the preview Avatar."]
+              ? [avatarStatus.message ?? t("creator.previewAvatarFailed")]
               : []),
             ...(hydration.state === "error"
-              ? [hydration.message ?? "Unable to open effect."]
+              ? [hydration.message ?? t("creator.openFailed")]
               : []),
           ]}
           history={history}
@@ -1069,7 +1071,7 @@ export function AvatarEffectCreatorPage({
             hydration.state !== "ready" ||
             !contentSave.recoveryReady
           }
-          typeLabel="Avatar FX"
+          typeLabel={t("kinds.avatarFx")}
           contentType="avatar_effect"
           typeIcon={<SparklesIcon />}
           documentName={document.name}
@@ -1082,12 +1084,14 @@ export function AvatarEffectCreatorPage({
           status={
             contentSave.error
               ? {
-                  label: "Save failed",
+                  label: t("creator.status.saveFailed"),
                   tone: "error",
                   tooltip: contentSave.error,
                 }
               : {
-                  label: isDirty ? "Unsaved" : "Saved",
+                  label: isDirty
+                    ? t("creator.status.unsaved")
+                    : t("creator.status.saved"),
                   tone: isDirty ? "dirty" : "saved",
                 }
           }
@@ -1105,10 +1109,12 @@ export function AvatarEffectCreatorPage({
           saveBusy={contentSave.isBusy}
           saveLabel={
             contentSave.stage === "uploading"
-              ? `Uploading ${contentSave.uploadProgress}%`
+              ? t("creator.save.uploading", {
+                  progress: contentSave.uploadProgress / 100,
+                })
               : contentSave.stage === "validating"
-                ? "Validating"
-                : "Save"
+                ? t("creator.save.validating")
+                : t("creator.save.label")
           }
           domainActions={
             <CreatorEffectHandoffActions
@@ -1123,10 +1129,13 @@ export function AvatarEffectCreatorPage({
           }
         />
       }
-      leftPanelLabel="Setup"
-      rightPanelLabel="Inspector"
+      leftPanelLabel={t("creator.panels.setup")}
+      rightPanelLabel={t("creator.panels.inspector")}
       leftPanel={
-        <FloatingPanel title="Effect Setup" bodyClassName="overflow-y-auto">
+        <FloatingPanel
+          title={t("avatar.setupTitle")}
+          bodyClassName="overflow-y-auto"
+        >
           <AvatarEffectSetupFields
             document={document}
             imageResources={imageResources}
@@ -1153,8 +1162,8 @@ export function AvatarEffectCreatorPage({
       }
       rightPanel={
         <FloatingPanel
-          title="Inspector"
-          summary={attachmentSummary(document)}
+          title={t("creator.panels.inspector")}
+          summary={attachmentSummary(t, document)}
           bodyClassName="overflow-y-auto"
         >
           <AvatarEffectInspector
@@ -1167,11 +1176,11 @@ export function AvatarEffectCreatorPage({
       canvasControls={
         <CreatorCanvasControls
           model={{
-            label: "Model",
+            label: t("creator.model"),
             value: selectedModel?.key ?? "",
             placeholder: modelPreview.isModelCatalogPending
-              ? "Loading…"
-              : "Avatar",
+              ? t("creator.loading")
+              : t("creator.modelPlaceholder"),
             options: modelPreview.modelOptions.map((source) => ({
               value: source.key,
               label: source.displayName,
@@ -1188,9 +1197,9 @@ export function AvatarEffectCreatorPage({
             triggerClassName: "w-[170px]",
           }}
           view={{
-            label: "View",
+            label: t("creator.view"),
             value: cameraProfile,
-            options: VIEW_OPTIONS,
+            options: viewOptions(t),
             onValueChange: (value) =>
               setCameraProfile(value as AvatarPreviewCameraProfile),
             triggerClassName: "w-[120px]",
@@ -1212,7 +1221,7 @@ export function AvatarEffectCreatorPage({
                     (option) => option.key === selectedModel?.key,
                   )?.displayName ??
                   selectedModel?.displayName ??
-                  "this Avatar"
+                  t("avatar.thisAvatar")
                 }
                 version={facePartsVersion}
                 pickingRole={pickingRole}
@@ -1224,7 +1233,7 @@ export function AvatarEffectCreatorPage({
           }
           playbackControl={
             <CreatorTimelineTransport
-              label="preview"
+              label={t("creator.previewNoun")}
               playing={playing}
               onTogglePlayback={() => setPreviewPlaying(!playing)}
               onStop={() => setPreviewPlaying(false)}
@@ -1237,7 +1246,7 @@ export function AvatarEffectCreatorPage({
         <>
           {hydration.state === "error" ? (
             <CreatorInlineError
-              message={hydration.message ?? "Unable to open effect."}
+              message={hydration.message ?? t("creator.openFailed")}
             />
           ) : null}
           <CreatorRecoveryNotice
@@ -1247,7 +1256,7 @@ export function AvatarEffectCreatorPage({
             // A template route asks about its draft in a dialog instead.
             recovered={contentSave.recovered && !templateId}
             busy={contentSave.isBusy || Boolean(imageBusy)}
-            contentLabel="Avatar Effect"
+            contentLabel={contentLabel}
             onDiscardServerDraft={() => void contentSave.discardRecovery()}
             onDiscardRecovery={() => void discardRecoveredDraft()}
           />
@@ -1255,8 +1264,8 @@ export function AvatarEffectCreatorPage({
           <CreatorJsonDialog
             open={jsonOpen}
             onOpenChange={setJsonOpen}
-            title="Portable Avatar Effect JSON"
-            description="This document contains authoring values and exact dependency sources, but never local Blob URLs or capabilities."
+            title={t("avatar.json.title")}
+            description={t("avatar.json.description")}
             actions={
               <>
                 <Button
@@ -1267,15 +1276,15 @@ export function AvatarEffectCreatorPage({
                     setImportOpen(true);
                   }}
                 >
-                  <FolderOpenIcon /> Import
+                  <FolderOpenIcon /> {t("creator.json.import")}
                 </Button>
                 <Button
                   onClick={() => {
                     void navigator.clipboard.writeText(exportText);
-                    toast.success("JSON copied.");
+                    toast.success(t("creator.json.copied"));
                   }}
                 >
-                  <Code2Icon /> Copy JSON
+                  <Code2Icon /> {t("creator.json.copy")}
                 </Button>
               </>
             }
@@ -1289,14 +1298,14 @@ export function AvatarEffectCreatorPage({
           <CreatorImportDialog
             open={importOpen}
             onOpenChange={setImportOpen}
-            title="Import Avatar Effect JSON"
-            description="Paste an Animama Avatar Effect editor document. Image bytes must be reselected."
+            title={t("avatar.import.title")}
+            description={t("avatar.import.description")}
             text={importText}
             error={importError}
             onTextChange={setImportText}
             onImport={importDocument}
           />
-          <CreatorLeaveDialog guard={leaveGuard} contentLabel="Avatar Effect" />
+          <CreatorLeaveDialog guard={leaveGuard} contentLabel={contentLabel} />
           {templateDraftDialog}
         </>
       }
@@ -1305,19 +1314,22 @@ export function AvatarEffectCreatorPage({
 }
 
 /** A short plain description of where the art goes, for the Inspector header. */
-function attachmentSummary(document: AvatarEffectEditorDocument): string {
+function attachmentSummary(
+  t: TFunction<"effects">,
+  document: AvatarEffectEditorDocument,
+): string {
   const attachment = document.attachment;
   switch (attachment.kind) {
     case "face_landmark":
-      return "Floating on the face";
+      return t("avatar.summary.face_landmark");
     case "face_surface":
-      return "Painted on the face";
+      return t("avatar.summary.face_surface");
     case "body":
-      return "On the body";
+      return t("avatar.summary.body");
     case "sticker":
-      return "Sticker";
+      return t("avatar.summary.sticker");
     case "silhouette":
-      return "Silhouette fill";
+      return t("avatar.summary.silhouette");
   }
 }
 
@@ -1501,8 +1513,9 @@ async function loadAvatarEffectTemplate(
   templateId: string,
   signal: AbortSignal,
 ): Promise<AvatarEffectHydration> {
+  const t = getI18n().getFixedT(null, "effects");
   const template = avatarEffectTemplate(templateId);
-  if (!template) throw new Error("This Avatar Effect template is unavailable.");
+  if (!template) throw new WordedError(t("avatar.template.unavailable"));
   const items = await listCatalogItems(apiClient, "avatar_effect", signal);
   const item = items.find(
     (candidate) =>
@@ -1510,7 +1523,9 @@ async function loadAvatarEffectTemplate(
       candidate.logical_key === template.contentId,
   );
   if (!item)
-    throw new Error(`${template.name} is not available in this installation.`);
+    throw new WordedError(
+      t("avatar.template.notInstalled", { name: template.name }),
+    );
   return hydrateAvatarEffect(apiClient, {
     itemId: item.item_id,
     name: createUniqueContentName(
@@ -1536,10 +1551,10 @@ async function previewImageResource(
         )
       : null) ??
     (logicalName ? null : contentPreviewPrimaryFile(preview, "image"));
-  if (!file) throw new Error("The content item has no editable image file.");
+  const t = getI18n().getFixedT(null, "effects");
+  if (!file) throw new WordedError(t("avatar.open.noImage"));
   const response = await fetchContentPreviewFile(preview, file, { signal });
-  if (!response.ok)
-    throw new Error("The content image could not be downloaded.");
+  if (!response.ok) throw new WordedError(t("avatar.open.imageDownloadFailed"));
   const blob = await response.blob();
   const imageFile = new File([blob], file.filename, { type: file.media_type });
   const sha256 = file.sha256 || (await sha256File(imageFile, { signal }));

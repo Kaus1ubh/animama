@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 
-import { hostedExclusionReasons } from "@/app/runtime/route-admission";
+import { unavailableReasonText } from "@/app/runtime/route-admission";
 import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
 
 /** Backend-reported features whose UI entry points the composition can withhold. */
@@ -28,8 +29,9 @@ export function useRuntimeFeatureEnabled(
 export function useRuntimeFeatureUnavailableReason(
   capability: RuntimeFeatureCapability,
 ): string | null {
+  const { t } = useTranslation("app");
   return useRuntimeCapabilities().data?.[capability] === false
-    ? hostedExclusionReasons[capability]
+    ? unavailableReasonText(capability, t)
     : null;
 }
 

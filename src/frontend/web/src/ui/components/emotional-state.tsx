@@ -21,6 +21,8 @@ import {
   ResponsiveContainer,
   type BaseTickContentProps,
 } from "recharts";
+import { useTranslation } from "react-i18next";
+import { useFormatters } from "@animama/product-ui/i18n";
 import { type EmotionGroup } from "@/lib/emotion";
 import {
   buildEmotionPresentation,
@@ -89,7 +91,8 @@ export function EmotionSummary({
   className?: string;
   headerAction?: ReactNode;
 }) {
-  const presentation = buildEmotionPresentation(emotionalState);
+  const { t } = useTranslation("emotion");
+  const presentation = buildEmotionPresentation(emotionalState, t);
   return (
     <div className={cn("space-y-3", className)}>
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -151,6 +154,8 @@ function EmotionAxisLabel({
   onBlur: () => void;
   detailId: string;
 }) {
+  const { t } = useTranslation("emotion");
+  const formatters = useFormatters();
   const group = groups[index];
   const selectedGroup = useContext(EmotionSelectionContext);
   const pointerType = useRef<string | null>(null);
@@ -165,7 +170,18 @@ function EmotionAxisLabel({
       role="button"
       data-emotion-axis-label=""
       tabIndex={0}
-      aria-label={`${group.label}: ${group.maximum}. ${group.emotions.map((emotion) => `${emotion.label} ${emotion.value}`).join(", ")}`}
+      aria-label={t("radar.axis", {
+        group: group.label,
+        maximum: formatters.number(group.maximum),
+        emotions: formatters.list(
+          group.emotions.map((emotion) =>
+            t("radar.axisEmotion", {
+              emotion: emotion.label,
+              value: formatters.number(emotion.value),
+            }),
+          ),
+        ),
+      })}
       aria-describedby={detailId}
       onMouseEnter={() => select("pointer")}
       onPointerDown={(event) => {
@@ -226,11 +242,12 @@ const EmotionRadar = memo(function EmotionRadar({
   onClearPointer: () => void;
   detailId: string;
 }) {
+  const { t } = useTranslation("emotion");
   return (
     <div
       className="emotion-radar h-80 w-full"
       role="group"
-      aria-label="Emotion spectrum: eight groups, each showing its strongest emotion"
+      aria-label={t("radar.label")}
     >
       <ResponsiveContainer width="100%" height="100%">
         <RadarChart
@@ -279,7 +296,7 @@ const EmotionRadar = memo(function EmotionRadar({
           />
           <Radar
             dataKey="maximum"
-            name="Strongest emotion"
+            name={t("radar.series")}
             stroke={color}
             fill={color}
             fillOpacity={0.1}
@@ -303,9 +320,12 @@ export function EmotionDetails({
   className,
   showSummary = true,
 }: Omit<EmotionalStateProps, "variant"> & { showSummary?: boolean }) {
+  const { t } = useTranslation("emotion");
+  const formatters = useFormatters();
+  // `t` changes with the UI Locale, so a language switch rebuilds the labels.
   const presentation = useMemo(
-    () => buildEmotionPresentation(emotionalState),
-    [emotionalState],
+    () => buildEmotionPresentation(emotionalState, t),
+    [emotionalState, t],
   );
   const [selection, setSelection] = useState<EmotionSelection>(null);
   const select = useCallback<SelectEmotion>(
@@ -340,7 +360,7 @@ export function EmotionDetails({
   return (
     <section
       className={cn("space-y-3", className)}
-      aria-label="Emotional state"
+      aria-label={t("details.label")}
     >
       {showSummary ? <EmotionSummary emotionalState={emotionalState} /> : null}
       <div
@@ -378,14 +398,16 @@ export function EmotionDetails({
                 />
                 {selected.label}{" "}
                 <span className="text-muted-foreground tabular-nums">
-                  {formatEmotionAverage(selected.maximum)}
+                  {formatEmotionAverage(selected.maximum, formatters)}
                 </span>
               </p>
               <dl className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-1 text-xs">
                 {selected.emotions.map((emotion) => (
                   <div key={emotion.emotion} className="flex gap-1.5">
                     <dt>{emotion.label}</dt>
-                    <dd className="tabular-nums">{emotion.value}</dd>
+                    <dd className="tabular-nums">
+                      {formatters.number(emotion.value)}
+                    </dd>
                   </div>
                 ))}
               </dl>

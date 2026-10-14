@@ -1,5 +1,7 @@
 import type { PyChatClientContext } from "@animama/runtime-contracts/api-types";
 
+import { activeUiLocale } from "../../i18n/format";
+
 /** App-rendered AI notice for one turn (`safety.ai_notice`, spec R2). */
 export type ChatAiNotice = {
   type: "safety.ai_notice";
@@ -73,7 +75,11 @@ export function preferredClientLocale(): string | null {
   return locales.find((value) => /[-_][a-z]{2}\b/iu.test(value)) ?? locales[0] ?? null;
 }
 
-/** Time zone and locale sent with each chat turn for the notice day and resource region. */
+/**
+ * Context sent with each chat turn: the time zone and browser locale choose the
+ * notice day and crisis resource region; the applied UI Locale is the language
+ * the Anima replies and speaks in (ADR 0024). Safety never reads the UI Locale.
+ */
 export function currentChatClientContext(): PyChatClientContext {
   let timeZone: string | null = null;
   try {
@@ -81,5 +87,9 @@ export function currentChatClientContext(): PyChatClientContext {
   } catch {
     timeZone = null;
   }
-  return { time_zone: timeZone, locale: preferredClientLocale() };
+  return {
+    time_zone: timeZone,
+    locale: preferredClientLocale(),
+    ui_locale: activeUiLocale(),
+  };
 }

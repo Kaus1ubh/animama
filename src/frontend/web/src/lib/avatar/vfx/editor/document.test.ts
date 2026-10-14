@@ -1,4 +1,5 @@
 import type { AvatarEffectDefinitionV2 } from "@animama/runtime-contracts/api-types";
+import { getI18n } from "react-i18next";
 import { describe, expect, it } from "vitest";
 
 import conversion from "@/lib/content/fixtures/avatar-effect-conversion.json";
@@ -422,6 +423,30 @@ describe("Avatar Effect editor document", () => {
       severity: "error",
     });
     expect(issue!.message).toMatch(/^Position: /);
+  });
+
+  it("keeps the validator's English as detail outside English", async () => {
+    const document = avatarEffectEditorReducer(
+      {
+        ...createDefaultAvatarEffectDocument(),
+        art: { image, otherEyeImage: null, flipbook: null },
+      },
+      { type: "patch-attachment", patch: { offset: { x: 9, y: 0, z: 0 } } },
+    );
+    const english = validateAvatarEffectDocument(document, {
+      imageBytesAvailable: true,
+    })[0]!.message.replace(/^Position: /, "");
+    await getI18n().changeLanguage("ja");
+    try {
+      const [issue] = validateAvatarEffectDocument(document, {
+        imageBytesAvailable: true,
+      });
+      expect(issue!.message).toBe(
+        `位置: 設定の組み合わせが正しくありません。（${english}）`,
+      );
+    } finally {
+      await getI18n().changeLanguage("en");
+    }
   });
 
   it("reports missing image bytes, other-eye bytes and an impossible flipbook", () => {

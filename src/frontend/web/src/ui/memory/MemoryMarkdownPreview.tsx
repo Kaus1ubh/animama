@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 
+import { useTranslation } from "react-i18next";
 import ReactMarkdown from "react-markdown";
 import rehypeSanitize from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
@@ -13,6 +14,7 @@ import "./memory-markdown.css";
 type MemoryMarkdownPreviewProps = {
   value: string;
   children?: ReactNode;
+  /** Markdown shown for a blank value; defaults to an italic "Empty file". */
   emptyText?: string;
   className?: string;
   allowImages?: boolean;
@@ -23,12 +25,14 @@ type MemoryMarkdownPreviewProps = {
 export function MemoryMarkdownPreview({
   value,
   children,
-  emptyText = "_Empty file_",
+  emptyText,
   className,
   allowImages = true,
   externalLinks = false,
 }: MemoryMarkdownPreviewProps) {
-  const markdown = value.trim() || emptyText;
+  const { t } = useTranslation("memory");
+  const markdown =
+    value.trim() || (emptyText ?? `*${t("markdown.emptyFile")}*`);
 
   return (
     <div className={cn("flow-root max-w-none", className)}>
@@ -41,7 +45,13 @@ export function MemoryMarkdownPreview({
           components={{
             ...(!allowImages
               ? {
-                  img: ({ alt }) => <span>[Image: {alt || "not loaded"}]</span>,
+                  img: ({ alt }) => (
+                    <span>
+                      {alt
+                        ? t("markdown.image", { alt })
+                        : t("markdown.imageNotLoaded")}
+                    </span>
+                  ),
                 }
               : {}),
             ...(externalLinks

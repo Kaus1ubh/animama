@@ -1,4 +1,30 @@
+import { getI18n } from "react-i18next";
+
 import { parseContentApiErrorDetail } from "@/lib/content/contentSaveErrors";
+import { errorWording, failureLine } from "@/lib/errors/apiError";
+
+/**
+ * The message for a failure, naming the display names the server attached.
+ * A code whose advice differs when it names items (such as opening each named
+ * item in its creator) has its own named form; without names the code's own
+ * wording applies (an import refusal names no items the importer could open).
+ */
+function sharingErrorText(code: string, items: readonly string[]): string {
+  if (!items.length) return sharingMessage(code);
+  switch (code) {
+    case "package_non_portable":
+      return getI18n().t("errors:sharing.nonPortableItems", { items });
+    case "package_dependency_missing":
+      return getI18n().t("errors:sharing.dependencyMissingItems", { items });
+    case "scene_emoji_item_removed":
+      return getI18n().t("errors:sharing.sceneEmojiItems", { items });
+    default:
+      return getI18n().t("errors:sharing.withItems", {
+        message: sharingMessage(code),
+        items,
+      });
+  }
+}
 
 /** Retain an HTTP classification without exposing private backend error details. */
 export class SharingError extends Error {
@@ -11,92 +37,31 @@ export class SharingError extends Error {
     status: number | null = null,
     items: readonly string[] = [],
   ) {
-    // A message that introduces item names ends with a colon; without names
-    // it ends the sentence instead.
-    super(
-      items.length
-        ? `${sharingMessage(code)} ${items.join(", ")}.`
-        : (unnamedMessages[code] ?? sharingMessage(code).replace(/:$/, ".")),
-    );
+    super(sharingErrorText(code, items));
     this.code = code;
     this.status = status;
     this.items = items;
   }
 }
 
-const messages: Record<string, string> = {
-  package_non_portable:
-    "Some content comes with Animama for use only where it is installed, so it can't be exported or imported:",
-  package_dependency_missing:
-    "Some content uses an Included effect that was removed. Open it in its creator, map or remove those effect events, then export:",
-  scene_emoji_item_removed:
-    "Some Scene Effects use emoji, which Animama no longer provides. Open each in its creator, replace each emoji with a sticker or image or remove it, then export again:",
-  package_transport_unavailable:
-    "Animama could not be reached. Check the local app and retry.",
-  package_invalid:
-    "This ZIP does not contain a supported Animama package. Choose a ZIP exported from Animama.",
-  package_request_invalid:
-    "This package request is invalid. Review your selection and try again.",
-  package_stage_expired:
-    "This import review expired. Discard it and choose the file again.",
-  package_export_expired:
-    "This export expired. Go back and prepare a new review.",
-  package_stage_unavailable:
-    "This import is no longer available. Check its result before starting again.",
-  package_export_unavailable:
-    "This export is no longer available. Go back and prepare a new review.",
-  package_destination_changed:
-    "Your Library changed. Refresh the import review to see the new names before importing.",
-  package_prerequisite_changed:
-    "Anima settings changed. Refresh the review before importing.",
-  package_review_mismatch:
-    "The review changed. Refresh it and check the contents before importing.",
-  package_export_source_changed:
-    "Selected content changed. Refresh the summary and review it again.",
-  package_stage_disk_full:
-    "There is not enough disk space for this package. Free some space and retry.",
-  package_disk_full:
-    "There is not enough disk space for this package. Free some space and retry.",
-  package_stage_quota:
-    "Other package operations are using the temporary storage limit. Close their reviews or try again later.",
-  package_stage_limit:
-    "Two package operations are already open. Close an earlier review or wait for its cache to expire, then retry.",
-  package_part_changed:
-    "This file differs from the interrupted upload. Choose the original file or discard this import.",
-  package_size_invalid:
-    "This package exceeds the supported size or file count. Export fewer items at a time.",
-  package_stage_active:
-    "This package is still being processed. Check its progress again shortly.",
-  package_name_exhausted:
-    "An imported name cannot be suffixed safely. Rename the source content and export it again.",
-  clip_format_unsupported:
-    "This package contains a clip in an unsupported format, such as the retired animaPoseClip/1.0. Only animaPoseClip/2.0 clips can be imported or exported.",
-  package_anima_import_unavailable:
-    "Anima creation is not ready on this installation. Check the default model settings, then refresh the review.",
-};
-
-/**
- * Messages for a refusal that names no items, where the named form's advice
- * does not apply. Package import refuses an emoji item without names: the
- * importer does not have those Scene Effects to open.
- */
-const unnamedMessages: Record<string, string> = {
-  scene_emoji_item_removed:
-    "This package has Scene Effects that use emoji, which Animama no longer provides, so it can't be imported. Ask whoever exported it to replace each emoji with a sticker or image, then export again.",
-};
-
+/** Wording for a package operation code (`errors:sharing.<code>`), with a generic fallback. */
 export function sharingMessage(code: string): string {
   return (
-    messages[code] ??
-    "Animama could not finish this package operation. Your selection is preserved; retry or review the file again."
+    errorWording("sharing", code) ?? getI18n().t("errors:sharing.unexpected")
   );
 }
+/**
+ * One line for a package failure: a worded failure as it is, other English
+ * primary in English and secondary detail elsewhere (`failureLine`).
+ */
 export function sharingErrorMessage(error: unknown): string {
-  if (error instanceof Error) return error.message;
+  if (error instanceof SharingError) return error.message;
+  if (error instanceof Error)
+    return failureLine(error, getI18n().t("errors:sharing.unexpected"));
   const code = parseContentApiErrorDetail(error)?.code;
   return code
     ? sharingMessage(code)
-    : "Animama could not be reached. Check the local app and retry.";
+    : getI18n().t("errors:sharing.package_transport_unavailable");
 }
 
 /** An already removed temporary cache needs no further deletion. Other failures retain recovery. */

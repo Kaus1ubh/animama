@@ -6,6 +6,7 @@ import {
   type CSSProperties,
   type ReactNode,
 } from "react";
+import { useTranslation } from "react-i18next";
 
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/components/tabs";
@@ -40,8 +41,8 @@ export function CreatorWorkspaceShell({
   toolbar,
   leftPanel,
   rightPanel,
-  leftPanelLabel = "Setup",
-  rightPanelLabel = "Inspector",
+  leftPanelLabel,
+  rightPanelLabel,
   canvasControls,
   previewBar,
   overlays,
@@ -51,6 +52,7 @@ export function CreatorWorkspaceShell({
   busy = false,
   className,
 }: CreatorWorkspaceShellProps) {
+  const { t } = useTranslation("creator");
   const [previewExpanded, setPreviewExpanded] = useState(true);
   const rootRef = useRef<HTMLDivElement>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
@@ -118,25 +120,25 @@ export function CreatorWorkspaceShell({
           className="relative z-20 flex min-h-0 flex-1 flex-col lg:contents"
         >
           <TabsList
-            aria-label="Authoring tools"
+            aria-label={t("panel.authoringTools")}
             className="bg-background h-auto w-full shrink-0 justify-start gap-1 overflow-x-auto rounded-none border-y p-2 sm:pl-16 lg:hidden"
           >
             {leftPanel ? (
               <TabsTrigger value="setup" className="h-10 gap-1.5 text-xs">
                 <ListIcon className="size-4" />
-                {leftPanelLabel}
+                {leftPanelLabel ?? t("panel.setup")}
               </TabsTrigger>
             ) : null}
             {rightPanel ? (
               <TabsTrigger value="inspector" className="h-10 gap-1.5 text-xs">
                 <SlidersHorizontalIcon className="size-4" />
-                {rightPanelLabel}
+                {rightPanelLabel ?? t("panel.inspector")}
               </TabsTrigger>
             ) : null}
             {canvasControls || previewBar ? (
               <TabsTrigger value="preview" className="h-10 gap-1.5 text-xs">
                 <EyeIcon className="size-4" />
-                Preview
+                {t("panel.preview")}
               </TabsTrigger>
             ) : null}
           </TabsList>
@@ -184,7 +186,7 @@ export function CreatorWorkspaceShell({
                 {previewExpanded ? (
                   <div className="absolute top-3 right-3 hidden lg:block">
                     <CreatorPanelCollapseButton
-                      label="preview"
+                      label={t("panel.preview")}
                       expanded
                       collapseDirection="down"
                       onExpandedChange={setPreviewExpanded}
@@ -193,7 +195,7 @@ export function CreatorWorkspaceShell({
                 ) : (
                   <div className="hidden lg:block">
                     <CreatorCollapsedPanelHeader
-                      label="Preview"
+                      label={t("panel.preview")}
                       collapseDirection="down"
                       onExpand={() => setPreviewExpanded(true)}
                     />

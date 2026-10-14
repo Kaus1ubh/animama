@@ -1,6 +1,8 @@
 import type { Client } from "@animama/runtime-contracts/sdk";
+import { getI18n } from "react-i18next";
 import { toast } from "sonner";
 import type { PyPose } from "@animama/runtime-contracts/api-types";
+import { failureLine, WordedError } from "@/lib/errors/apiError";
 import { loadPoseContent, poseSavedIdentity } from "@/lib/content/poseContent";
 import { fetchPoseNames } from "@/query/hooks/usePoses";
 import type { ActionEditorMode } from "./actionEditorCapabilities";
@@ -24,9 +26,10 @@ export async function editActionEditorSavedPose(
   item: PyPose,
   options: CurrentGuard & { customize?: boolean } = {},
 ): Promise<boolean> {
+  const t = getI18n().getFixedT(null, "actionEditor");
   const state = usePoseCreatorStore.getState();
   if (!state.activeAvatar) {
-    toast.error("Load an Avatar Model before editing a pose.");
+    toast.error(t("savedPose.avatarRequiredToEdit"));
     return false;
   }
   if (
@@ -76,11 +79,7 @@ export async function editActionEditorSavedPose(
       options.isCurrent?.() !== false &&
       usePoseCreatorStore.getState().poseSessionToken === state.poseSessionToken
     ) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Could not load this pose. Your draft is preserved.",
-      );
+      toast.error(failureLine(error, t("savedPose.loadFailed")));
     }
     return false;
   }
@@ -111,9 +110,10 @@ export async function insertActionEditorSavedPose(
   item: PyPose,
   options: CurrentGuard & { timeSec?: number } = {},
 ): Promise<boolean> {
+  const t = getI18n().getFixedT(null, "actionEditor");
   const captured = usePoseCreatorStore.getState();
   if (!captured.activeAvatar) {
-    toast.error("Load an Avatar Model before inserting a pose.");
+    toast.error(t("savedPose.avatarRequiredToInsert"));
     return false;
   }
   const fingerprint = clipContentFingerprint(captured);
@@ -131,16 +131,11 @@ export async function insertActionEditorSavedPose(
       !current.activeAvatar ||
       current.activeAvatar !== captured.activeAvatar
     ) {
-      throw new Error(
-        "The Avatar changed or is unavailable. Wait for it to load and insert the pose again.",
-      );
+      throw new WordedError(t("savedPose.avatarChanged"));
     }
     const inserted = current.addPoseToClip(pose, item.name, { timeSec });
-    if (!inserted)
-      throw new Error(
-        "This pose or a pose already in the clip is invalid or unavailable. Reload the affected content and try again. The clip is unchanged.",
-      );
-    toast.success("Pose copied into the clip.");
+    if (!inserted) throw new WordedError(t("savedPose.insertInvalid"));
+    toast.success(t("savedPose.inserted"));
     return true;
   } catch (error) {
     if (
@@ -148,11 +143,7 @@ export async function insertActionEditorSavedPose(
       usePoseCreatorStore.getState().clipSessionToken ===
         captured.clipSessionToken
     ) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Could not insert this pose. The clip is unchanged.",
-      );
+      toast.error(failureLine(error, t("savedPose.insertFailed")));
     }
     return false;
   }

@@ -22,6 +22,11 @@ import {
 } from "./main-process/security/renderer-capability.js";
 import { createWindow } from "./main-process/window/create-window.js";
 import {
+  ShellLocale,
+  type ShellStrings,
+} from "./main-process/locale/shell-locale.js";
+import { installApplicationMenu } from "./main-process/ui/application-menu.js";
+import {
   RuntimeError,
   runtimeErrorCode,
 } from "./main-process/runtime/errors.js";
@@ -36,6 +41,7 @@ import {
 import {
   createRecoveryWindow,
   createRuntimePage,
+  reloadRecoveryWindow,
 } from "./main-process/runtime/recovery.js";
 import { RuntimeSupervisor } from "./main-process/runtime/supervisor.js";
 import { awaitDurableEncryptionKey } from "./main-process/runtime/vault.js";
@@ -97,7 +103,10 @@ else {
     app.commandLine.appendSwitch("enable-features", "GlobalShortcutsPortal");
 
   const callers = new RuntimeIpcCallers();
-  const recoveryHtml = createRuntimePage();
+  // Shell text follows the locale the app last applied, else the OS languages.
+  const shellLocale = new ShellLocale(paths.uiLocale, () =>
+    app.getPreferredSystemLanguages(),
+  );
   let supervisor: RuntimeSupervisor | undefined;
   let currentStatus: RuntimeStatus = { state: "starting", stage: "validating" };
   let desktopConfig: DesktopConfig | undefined;
@@ -192,7 +201,11 @@ else {
       recoveryWindow.focus();
       return;
     }
-    recoveryTask ??= createRecoveryWindow(preloadPath, recoveryHtml, callers)
+    recoveryTask ??= createRecoveryWindow(
+      preloadPath,
+      createRuntimePage(shellLocale.strings),
+      callers,
+    )
       .then((window) => {
         recoveryWindow = window;
         window.on("closed", () => {
@@ -264,8 +277,16 @@ else {
           );
         installSessionGuards(desktopConfig.allowedWebOrigin, desktopSession);
         installFullscreenIpc();
-        installPipIpc({ config: desktopConfig, preloadPath });
-        installQuickChatIpc({ config: desktopConfig, preloadPath });
+        installPipIpc({
+          config: desktopConfig,
+          locale: shellLocale,
+          preloadPath,
+        });
+        installQuickChatIpc({
+          config: desktopConfig,
+          locale: shellLocale,
+          preloadPath,
+        });
         installShortcutsIpc();
       }
       const desktopSession = session.fromPartition(
@@ -398,6 +419,28 @@ else {
       if (!updates) throw new RuntimeError("updates_not_configured");
       return updates.restart();
     },
+    setLocale: (locale) => shellLocale.apply(locale),
+  });
+
+  /** A menu failure must never block startup or recovery. */
+  function applyApplicationMenu(strings: ShellStrings): void {
+    try {
+      installApplicationMenu(strings, app.name);
+    } catch {
+      writeLog("error", "application_menu_failed");
+    }
+  }
+
+  // PiP and Quick Chat retitle themselves; the menu and the hidden recovery
+  // page are rebuilt so a later failure is explained in the new locale.
+  shellLocale.onChange((strings) => {
+    applyApplicationMenu(strings);
+    if (recoveryWindow && !recoveryWindow.isDestroyed())
+      void reloadRecoveryWindow(
+        recoveryWindow,
+        createRuntimePage(strings),
+        callers,
+      ).catch(() => writeLog("error", "recovery_window_failed"));
   });
 
   app.on("second-instance", () => {
@@ -441,6 +484,8 @@ else {
   void app
     .whenReady()
     .then(async () => {
+      // Replaces Electron's English default menu before any window opens.
+      applyApplicationMenu(shellLocale.strings);
       if (identityError) {
         await showRecovery();
         updateStatus({ state: "error", code: runtimeErrorCode(identityError) });

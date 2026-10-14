@@ -1,0 +1,214 @@
+{
+  "accountUsage": {
+    "units": {
+      "chats": "채팅",
+      "storageBytes": "저장 공간(바이트)",
+      "turns": "채팅 턴"
+    }
+  },
+  "actions": {
+    "retry": "다시 시도"
+  },
+  "admission": {
+    "accountUnavailable": "계정에 접근할 수 없습니다.",
+    "accountUnavailableContactOperator": "계정에 접근할 수 없습니다. 호스팅 운영자에게 문의하세요.",
+    "actions": {
+      "account": "계정",
+      "signIn": "로그인",
+      "signOut": "로그아웃",
+      "tryAgain": "다시 시도",
+      "tryRecovery": "복구 시도"
+    },
+    "ineligible": {
+      "description": "이 계정은 호스팅 Animama를 사용할 수 없습니다. 계정 접근 권한을 확인하거나 운영자에게 문의하세요.",
+      "title": "계정에 접근할 수 없습니다"
+    },
+    "loading": {
+      "title": "Animama 준비 중…"
+    },
+    "messages": {
+      "accountSetupFinishing": "계정 설정을 마무리하는 중…",
+      "accountSetupRunning": "계정을 설정하는 중…",
+      "cleanupFailed": "이 브라우저에서 이전 세션을 모두 지우지 못했습니다. 페이지를 새로고침하거나 다시 시도해 계속하세요.",
+      "incompatibleCapabilities": "이 호스팅 런타임의 기능이 앱과 호환되지 않습니다.",
+      "signInNotFinished": "로그인이 완료되지 않았습니다. 다시 시도하세요.",
+      "signInNotStarted": "로그인을 시작할 수 없습니다. 다시 시도하세요.",
+      "signOutDataRemains": "로그아웃되었지만 일부 개인 데이터를 이 브라우저에서 삭제하지 못했습니다. 다시 로그인하기 전에 페이지를 새로고침하세요.",
+      "updateRequired": "이 호스팅 런타임을 사용하려면 앱 업데이트가 필요합니다."
+    },
+    "recovery": {
+      "description": "Animama가 계정 준비를 완료하지 못했습니다. 계속하려면 복구를 시도하세요.",
+      "title": "계정 복구가 필요합니다"
+    },
+    "restricted": {
+      "description": "계정이 일시 중지되었거나 업데이트 중입니다. 계정 접근 상태를 확인하고 나중에 다시 시도하세요.",
+      "title": "계정 접근이 제한되었습니다"
+    },
+    "signInRequired": {
+      "description": "로그인하면 Anima, 채팅, 라이브러리를 사용할 수 있습니다.",
+      "title": "Animama에 로그인"
+    },
+    "signOutIncomplete": {
+      "description": "Animama가 이 화면을 닫았지만 계정이 아직 로그인된 상태일 수 있습니다. 다시 시도해 로그아웃을 완료하세요.",
+      "title": "로그아웃이 완료되지 않았습니다"
+    },
+    "unavailable": {
+      "description": "Animama가 런타임에 연결하지 못했습니다. 다시 시도하세요.",
+      "localTitle": "로컬 런타임을 사용할 수 없음",
+      "title": "런타임을 사용할 수 없음"
+    }
+  },
+  "animas": {
+    "creationUnavailable": {
+      "description": "이 Animama 런타임에서는 새 Anima를 만들 수 없습니다.",
+      "title": "Anima를 만들 수 없습니다"
+    },
+    "resolving": {
+      "description": "첫 번째 Anima를 확인하는 중…",
+      "title": "Anima 관리 화면을 여는 중"
+    },
+    "rosterFailed": {
+      "description": "이 페이지를 벗어나지 않고 Anima 목록을 다시 불러옵니다.",
+      "title": "Anima를 불러올 수 없습니다"
+    }
+  },
+  "connection": {
+    "requestNotSent": "Animama에 다시 연결하는 중입니다. 이 요청은 전송되지 않았습니다."
+  },
+  "dictation": {
+    "errors": {
+      "audioWorkletParakeet": "로컬 Parakeet 음성 인식에는 AudioWorklet 지원이 필요합니다.",
+      "audioWorkletVad": "음향 VAD에는 AudioWorklet 지원이 필요합니다.",
+      "browser": {
+        "aborted": "음성 인식이 중지되었습니다.",
+        "audioCapture": "브라우저 음성 인식에 사용할 마이크가 없습니다.",
+        "failed": "브라우저 음성 인식에 실패했습니다.",
+        "languageNotSupported": "브라우저 로컬 음성 인식이 선택한 언어를 지원하지 않습니다.",
+        "network": "브라우저 음성 인식 네트워크 오류입니다.",
+        "noSpeech": "음성이 감지되지 않았습니다.",
+        "notAllowed": "브라우저 음성 인식의 마이크 권한이 거부되었습니다.",
+        "serviceNotAllowed": "이 브라우저에서는 음성 인식 서비스가 허용되지 않습니다."
+      },
+      "browserStartFailed": "브라우저 받아쓰기를 시작하지 못했습니다",
+      "failed": "받아쓰기에 실패했습니다",
+      "localWebSpeechNotEnabled": "브라우저 로컬 음성 인식을 사용 설정할 수 없습니다",
+      "localWebSpeechUnsupported": "로컬 전용 브라우저 음성 인식은 지원되지 않습니다",
+      "offlineSpeechMissing": "받아쓰기와 음성 모드를 사용하려면 설정에서 오프라인 음성 인식을 설치하세요.",
+      "parakeetFailed": "로컬 Parakeet 음성 인식에 실패했습니다",
+      "transcriptionFailed": "로컬 Parakeet 전사에 실패했습니다",
+      "unmuteFailed": "음성 모드 음소거를 해제하지 못했습니다",
+      "webSpeechUnsupported": "이 브라우저는 Web Speech API를 지원하지 않습니다"
+    }
+  },
+  "featurePacks": {
+    "changeFailed": "팩 변경을 완료하지 못했습니다. 아래 상태를 확인한 후 다시 시도하세요.",
+    "unavailable": "기능 팩을 사용할 수 없습니다. 런타임 복구 상태를 확인하고 다시 시도하세요.",
+    "guards": {
+      "downloadRunning": "기능 팩을 변경하기 전에 모델 다운로드를 완료하거나 취소하세요.",
+      "packChangeRunning": "다운로드를 시작하기 전에 기능 팩 변경이 끝날 때까지 기다리세요."
+    }
+  },
+  "launch": {
+    "failed": {
+      "description": "Animama가 Anima 또는 저장된 선택을 불러오지 못했습니다. 다시 시도하세요.",
+      "title": "Anima를 열 수 없습니다"
+    },
+    "opening": "Anima를 여는 중…"
+  },
+  "meta": {
+    "description": "Animama, 나의 AI 아바타 컴패니언."
+  },
+  "notFound": {
+    "description": "이 주소에는 Animama 페이지가 없습니다.",
+    "eyebrow": "찾을 수 없음",
+    "title": "페이지를 찾을 수 없습니다"
+  },
+  "pageLoadError": {
+    "description": "새로고침해 최신 앱 파일을 받은 후 다시 시도하세요. 이 페이지에서 저장하지 않은 변경 사항은 사라질 수 있습니다.",
+    "reload": "페이지 새로고침",
+    "title": "페이지를 불러올 수 없습니다"
+  },
+  "pip": {
+    "close": "화면 속 화면 닫기",
+    "resize": "화면 속 화면 크기 조정",
+    "unavailable": "화면 속 화면을 사용할 수 없습니다. 이 창에서 계속 컴패니언을 사용하세요."
+  },
+  "quickChat": {
+    "incompatibleModel": "이 모델은 대화를 다른 방식으로 보관합니다. 메인 채팅을 열어 새 채팅에서 계속하세요.",
+    "toggleFailed": "빠른 채팅을 전환하지 못했습니다",
+    "unavailable": "빠른 채팅은 데스크톱 앱의 Anima 채팅에서 사용할 수 있습니다.",
+    "unknownError": "알 수 없는 데스크톱 오류입니다."
+  },
+  "runtime": {
+    "avatarPoseUnavailable": "아바타를 대기 포즈로 불러올 수 없습니다. 콘텐츠를 다시 불러와 재시도하세요.",
+    "preparationFailed": "아바타 콘텐츠를 준비할 수 없습니다."
+  },
+  "shortcuts": {
+    "configureFailed": "데스크톱 단축키를 설정하지 못했습니다.",
+    "unavailable": "데스크톱 단축키를 사용할 수 없음",
+    "unmuteFailed": "눌러서 말하기를 위해 음성 모드 음소거를 해제하지 못했습니다.",
+    "updateFailed": "데스크톱 단축키 상태를 업데이트하지 못했습니다."
+  },
+  "tts": {
+    "pocketVoiceUnavailable": "Pocket 음성을 사용할 수 없음",
+    "unavailable": "텍스트 음성 변환을 사용할 수 없음",
+    "warnings": {
+      "browserGenerateFailed": "이 답변의 브라우저 음성을 생성하지 못했습니다.",
+      "browserPlayFailed": "이 답변의 브라우저 음성을 재생하지 못했습니다.",
+      "browserUnsupported": "이 브라우저는 음성 합성을 지원하지 않습니다.",
+      "elevenLabsClosedEarly": "ElevenLabs 실시간 TTS가 재생이 끝나기 전에 종료되었습니다.",
+      "elevenLabsConnectionFailed": "이 답변에서 ElevenLabs 실시간 TTS 연결에 실패했습니다.",
+      "elevenLabsDecodeFailed": "ElevenLabs 실시간 오디오를 디코딩하지 못했습니다.",
+      "elevenLabsMissingAnima": "이 답변의 ElevenLabs TTS에는 Anima 컨텍스트가 필요합니다.",
+      "elevenLabsUnsupported": "이 브라우저 환경은 ElevenLabs TTS를 지원하지 않습니다.",
+      "finalizedDecodeFailed": "답변 오디오를 디코딩하지 못했습니다.",
+      "generic": "이 답변의 음성을 재생할 수 없습니다.",
+      "geminiMissingAnima": "이 답변의 Gemini TTS에는 Anima 컨텍스트가 필요합니다.",
+      "geminiUnsupported": "Gemini TTS에는 Web Audio API가 필요하지만 이 브라우저는 지원하지 않습니다.",
+      "pocketGenerationFailed": "PocketTTS가 이 답변의 일부를 합성하지 못했습니다.",
+      "pocketUnsupported": "이 브라우저 환경은 PocketTTS를 지원하지 않습니다."
+    }
+  },
+  "unavailable": {
+    "eyebrow": "사용할 수 없음",
+    "reasons": {
+      "animaCreation": "이 호스팅 앱에서는 Anima를 만들 수 없습니다.",
+      "chatFileUploads": "이 호스팅 앱에서는 채팅 첨부 파일을 사용할 수 없습니다.",
+      "documentProcessing": "이 호스팅 앱에서는 문서 가져오기와 OCR을 사용할 수 없습니다.",
+      "hostedSetup": "설치 설정은 로컬 앱에서 합니다. 호스팅 계정은 런타임이 준비합니다.",
+      "localFilesystemAdministration": "로컬 파일 시스템 관리에는 로컬 앱이 필요합니다.",
+      "nativeFeatures": "이 작업에는 데스크톱 앱이 필요합니다. 브라우저 전체 화면과 지원되는 브라우저의 화면 속 화면은 계속 사용할 수 있습니다.",
+      "providerCredentials": "제공자 연결과 자격 증명은 호스팅 운영자가 관리합니다."
+    },
+    "returnHome": "홈으로 돌아가기",
+    "title": "여기서는 사용할 수 없음"
+  },
+  "uploads": {
+    "failed": "파일 업로드에 실패했습니다.",
+    "fileDataUnavailable": "선택한 파일 데이터를 사용할 수 없습니다.",
+    "finalizeFailed": "파일 업로드를 완료하지 못했습니다.",
+    "finalizeFailedAfterUpload": "업로드는 완료되었지만 마무리 처리에 실패했습니다.",
+    "httpFailed": "파일 업로드에 실패했습니다(HTTP {{status}}).",
+    "initFailed": "업로드를 시작하지 못했습니다.",
+    "missingFileId": "업로드에 Anima 파일 ID가 포함되지 않았습니다.",
+    "needsAttention": "파일 업로드를 확인해야 합니다.",
+    "objectUploadFailed": "개체 업로드에 실패했습니다.",
+    "originalSaved": "원본을 저장했습니다.",
+    "originalSavedNotQueued": "원본을 저장했지만 처리가 대기열에 추가되지 않았습니다.",
+    "processingNotQueuedAfterUpload": "업로드는 완료되었지만 처리를 대기열에 추가하지 못했습니다.",
+    "processingUnavailable": "처리가 대기열에 추가되지 않았습니다. 문서 처리를 사용할 수 있게 되면 라이브러리에서 원본을 처리할 수 있습니다.",
+    "processingUnavailableDesktop": "문서 처리를 사용할 수 없습니다. 설정에서 팩을 설치한 후 라이브러리에서 파일을 처리하세요.",
+    "queuedForProcessing": "파일을 업로드하고 처리 대기열에 추가했습니다.",
+    "rejected": "이 파일은 업로드할 수 없습니다.",
+    "restrictions": {
+      "duplicate": "{{file}} 파일은 이미 추가되었습니다.",
+      "fileTypes": "업로드할 수 있는 파일 형식: {{types}}",
+      "tooLarge": "{{file}} 파일이 최대 크기({{size}})를 초과합니다.",
+      "unnamed": "이름 없는 파일"
+    }
+  },
+  "voiceDownloads": {
+    "changeFailed": "음성 다운로드 변경을 완료하지 못했습니다. 잠시 후 다시 시도하세요.",
+    "unavailable": "음성 다운로드를 사용할 수 없습니다. 음성 브라우저를 다시 열어 재시도하세요."
+  }
+}

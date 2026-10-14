@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  getAnimaMoodLabel,
   resolveAnimaIdentityContent,
   summarizeIdentityMarkdown,
 } from "./anima-management-presentation";
@@ -39,12 +38,6 @@ describe("Anima management presentation", () => {
   it("returns an empty summary when there is no readable prose", () => {
     expect(summarizeIdentityMarkdown("## Personality\n\n")).toBe("");
     expect(summarizeIdentityMarkdown(null)).toBe("");
-  });
-
-  it("labels the strongest persisted mood and defaults to Neutral", () => {
-    expect(getAnimaMoodLabel({ curiosity: 18, joy: 3 })).toBe("Curiosity");
-    expect(getAnimaMoodLabel({})).toBe("Neutral");
-    expect(getAnimaMoodLabel(null)).toBe("Neutral");
   });
 
   it("uses scoped identity memory before the Avatar seed fallback", () => {

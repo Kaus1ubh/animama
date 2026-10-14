@@ -13,13 +13,6 @@ export type PreviewSound = {
 };
 
 /**
- * Plain-language note for a copy that lost its built-in effect's licensed
- * sound. The sound plays with the built-in effect only.
- */
-export const LICENSED_SOUND_NOTE =
-  "The built-in sound plays only with the built-in effect, so this copy has no sound. You can choose one of your own.";
-
-/**
  * The accompanying sound to copy from an effect preview into an editable
  * draft. A licensed built-in sound (non-portable) stays with the built-in
  * effect: it is never copied, and `licensedOmitted` lets the creator say so.

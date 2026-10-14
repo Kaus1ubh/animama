@@ -60,10 +60,12 @@ describe("web search availability", () => {
   it("explains why search is unavailable", () => {
     expect(webSearchAvailability(toolRow, notConfigured)).toEqual({
       state: "unavailable",
+      code: "not_configured",
       reason: "Set up web search in App Settings.",
     });
     expect(webSearchAvailability(noToolRow, configured)).toEqual({
       state: "unavailable",
+      code: "tools_unsupported",
       reason: "This model can't call tools, so it can't search.",
     });
     expect(
@@ -74,6 +76,7 @@ describe("web search availability", () => {
       }),
     ).toEqual({
       state: "unavailable",
+      code: "key_missing",
       reason:
         "The Brave Search key is not set. See Web search in App Settings.",
     });
@@ -107,6 +110,7 @@ describe("web search availability", () => {
     ]);
     expect(webSearchAvailability(noToolRow, operatorSearch)).toEqual({
       state: "unavailable",
+      code: "tools_unsupported",
       reason: "This model can't call tools, so it can't search.",
     });
     // A missing operator key is not something the owner can fix in settings.

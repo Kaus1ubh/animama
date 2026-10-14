@@ -96,7 +96,7 @@
       }
     },
     "packages/runtime-contracts": {
-      "entry": ["src/{index,sdk,api-types,validators,default-client}.ts"],
+      "entry": ["src/{index,sdk,api-types,validators,default-client,locale}.ts"],
       "project": ["src/**/*.ts", "tests/**/*.mjs"],
       "ignoreIssues": {
         "src/generated/**": [
@@ -115,7 +115,7 @@
       "project": ["src/**/*.ts", "tests/**/*.mjs"]
     },
     "packages/product-ui": {
-      "entry": ["src/{index,query,chat,components,emotion,anima-profile}.ts"],
+      "entry": ["src/{index,query,chat,components,emotion,anima-profile,i18n}.ts"],
       "project": ["src/**/*.{ts,tsx}", "build-styles.mjs"]
     },
     "desktop": {

@@ -1,3 +1,4 @@
+import { getI18n } from "react-i18next";
 import { z } from "zod";
 import {
   createAnimaDraftSchema,
@@ -9,6 +10,7 @@ import {
   submissionLocksEditing,
   type CreateAnimaDraft,
 } from "./createAnimaDraft";
+import { CreatorError } from "./createAnimaErrors";
 import { upgradeDefaultAnimaIdentityMarkdown } from "./createAnimaIdentity";
 
 const recordBase = {
@@ -50,20 +52,18 @@ export type CreationStorage = Pick<
   "getItem" | "setItem" | "removeItem"
 >;
 
-export class CreationDraftConflict extends Error {
+export class CreationDraftConflict extends CreatorError {
   constructor() {
-    super(
-      "This draft changed in another tab. Review it before taking over editing.",
-    );
+    const t = getI18n().getFixedT(null, "create");
+    super(t("storage.conflict"));
   }
 }
 
 /** Route supported saved schemas explicitly; preserve unknown schemas for recovery. */
 export function migrateCreationRecord(raw: string): CreationRecord {
+  const t = getI18n().getFixedT(null, "create");
   if (raw.length > 2 * 1024 * 1024)
-    throw new Error(
-      "The saved draft exceeds the recovery limit. Start over only after confirming you no longer need it.",
-    );
+    throw new CreatorError(t("storage.tooLarge"));
   const value: unknown = JSON.parse(raw);
   const current = creationRecordSchema.safeParse(value);
   if (current.success) {
@@ -116,9 +116,7 @@ export function migrateCreationRecord(raw: string): CreationRecord {
           draft: migrateLegacyCreateAnimaDraft(legacy.data.draft),
         };
   }
-  throw new Error(
-    "This saved draft cannot be read by this version. It has not been discarded. Confirm Start over to replace it.",
-  );
+  throw new CreatorError(t("storage.unreadable"));
 }
 
 /** Owner and installation are part of the key; values contain no credentials or runtime URLs. */
@@ -187,6 +185,7 @@ export class CreateAnimaDraftStorage {
   discard(
     options: { acknowledgeDeleted?: boolean; corruptConfirmed?: boolean } = {},
   ): void {
+    const t = getI18n().getFixedT(null, "create");
     if (this.changedElsewhere()) throw new CreationDraftConflict();
     let record: CreationRecord | null = null;
     try {
@@ -202,18 +201,17 @@ export class CreateAnimaDraftStorage {
         record.draft.submission?.state === "deleted"
       )
     )
-      throw new Error("Check creation result before discarding this request.");
+      throw new CreatorError(t("storage.checkBeforeDiscard"));
     this.storage.removeItem(this.key);
     this.expected = null;
   }
 
   /** Read-and-claim only an editable draft. Pending requests can be replayed, never taken over. */
   takeOver(): CreationRecord | null {
+    const t = getI18n().getFixedT(null, "create");
     const record = this.read();
     if (record?.kind === "draft" && submissionLocksEditing(record.draft))
-      throw new Error(
-        "Creation is pending in another tab. Check the original creation result.",
-      );
+      throw new CreatorError(t("storage.pendingElsewhere"));
     if (record?.kind === "draft") this.save(record.draft);
     return record;
   }

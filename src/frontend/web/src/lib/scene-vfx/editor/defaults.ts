@@ -65,6 +65,11 @@ const BACKGROUND_TEMPLATE_SOURCES: Record<
   gloom: definition(gloomSadness),
 };
 
+/**
+ * The starting templates. Their labels are names, like Included content
+ * names: they stay as written in every UI Locale, and a draft started from a
+ * template is named after it.
+ */
 export const SCENE_EFFECT_TEMPLATE_OPTIONS: Array<{
   id: SceneEffectTemplateId;
   label: string;

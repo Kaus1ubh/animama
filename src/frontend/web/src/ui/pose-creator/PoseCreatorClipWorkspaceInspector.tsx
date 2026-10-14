@@ -2,6 +2,8 @@
 
 import { SlidersHorizontalIcon, Trash2Icon, XIcon } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 
 import {
   isAnimaPoseClipVFXEvent,
@@ -24,15 +26,19 @@ import {
   SelectValue,
 } from "@/ui/components/select";
 import { Switch } from "@/ui/components/switch";
-import {
-  ANIMA_POSE_CLIP_MUTABLE_LAYER_IDS,
-  type AnimaPoseClipMutableLayerId,
-} from "@/lib/avatar/poses/animaPoseClip/clipVocabulary";
+import { ANIMA_POSE_CLIP_MUTABLE_LAYER_IDS } from "@/lib/avatar/poses/animaPoseClip/clipVocabulary";
 import {
   findPoseCreatorClipKeyframeAtTime,
   isPoseCreatorBaseKeyframe,
-  POSE_CREATOR_CLIP_EASING_OPTIONS,
+  POSE_CREATOR_CLIP_EASINGS,
 } from "./poseCreatorClipAuthoring";
+import {
+  basePoseLabel,
+  beatLabel,
+  easeLabel,
+  mutableLayerLabel,
+  particleAnchorLabel,
+} from "./poseLabels";
 import { accompanyingEventSound } from "./poseCreatorEventCatalog";
 import { usePoseCreatorPreview } from "./PoseCreatorPreviewProvider";
 import { usePoseCreatorClipUndoGrouping } from "./usePoseCreatorUndoGrouping";
@@ -43,16 +49,6 @@ import {
 } from "@/lib/avatar/poses/animaPoseClip/schemaV2";
 
 const INHERIT_VALUE = "__inherit__";
-/** Names for the live procedural layers a Gesture can mute. */
-const MUTABLE_LAYER_LABELS: Record<AnimaPoseClipMutableLayerId, string> = {
-  breathing: "Breathing",
-  sway: "Sway",
-  bounce: "Bounce",
-  headNod: "Head nod",
-  headSideTilt: "Head tilt",
-  cursorLookAt: "Cursor look-at",
-  emotionPosture: "Emotion posture",
-};
 const NO_BASE_VALUE = "__no_base__";
 
 /** Focus the selected timeline item and common Clip settings in desktop or mobile workspaces. */
@@ -69,6 +65,7 @@ export function PoseCreatorClipWorkspaceInspector({
   /** Plain sections for selected-item controls hosted in timeline settings. */
   embedded?: boolean;
 }) {
+  const { t } = useTranslation("pose");
   const clipDraft = usePoseCreatorStore((state) => state.clipDraft);
   const clipInlineEdit = usePoseCreatorStore((state) => state.clipInlineEdit);
   const updateClipDraft = usePoseCreatorStore((state) => state.updateClipDraft);
@@ -136,10 +133,10 @@ export function PoseCreatorClipWorkspaceInspector({
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h2 className="text-foreground text-sm font-semibold">
-                  Inspector
+                  {t("clip.inspector.title")}
                 </h2>
                 <p className="text-muted-foreground mt-1 text-xs">
-                  Select a keyframe or event in the timeline to edit it.
+                  {t("clip.inspector.empty")}
                 </p>
               </div>
               <SlidersHorizontalIcon className="text-muted-foreground size-4" />
@@ -150,12 +147,12 @@ export function PoseCreatorClipWorkspaceInspector({
       {section !== "inspector" ? (
         <section>
           <h2 className="text-foreground text-sm font-semibold">
-            Clip settings
+            {t("clip.settings.title")}
           </h2>
           <div className="mt-3 space-y-3">
             {allowHumanoid ? (
               <>
-                <InspectorRow label="Base">
+                <InspectorRow label={t("clip.settings.base")}>
                   <Select
                     value={clipDraft.basePose || NO_BASE_VALUE}
                     onValueChange={(basePose) =>
@@ -166,15 +163,17 @@ export function PoseCreatorClipWorkspaceInspector({
                   >
                     <SelectTrigger
                       className="h-9 w-[176px]"
-                      aria-label="Clip base pose"
+                      aria-label={t("clip.settings.baseLabel")}
                     >
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value={NO_BASE_VALUE}>None</SelectItem>
+                      <SelectItem value={NO_BASE_VALUE}>
+                        {t("clip.settings.none")}
+                      </SelectItem>
                       {POSE_CREATOR_BASE_POSE_OPTIONS.map((option) => (
                         <SelectItem key={option.id} value={option.id}>
-                          {option.label}
+                          {basePoseLabel(t, option)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -194,14 +193,16 @@ export function PoseCreatorClipWorkspaceInspector({
                   );
                   const occupied = Boolean(frame && !checked);
                   const label =
-                    endpoint === "start" ? "Start base" : "End base";
+                    endpoint === "start"
+                      ? t("clip.settings.startBase")
+                      : t("clip.settings.endBase");
                   return (
                     <label
                       key={endpoint}
                       className="text-muted-foreground flex min-h-9 items-center justify-between gap-3 text-xs font-medium"
                       title={
                         occupied
-                          ? "Move or remove the existing endpoint pose to add a base keyframe."
+                          ? t("clip.settings.endpointOccupied")
                           : undefined
                       }
                     >
@@ -226,10 +227,10 @@ export function PoseCreatorClipWorkspaceInspector({
                 })
               : null}
 
-            <InspectorRow label="Fade in">
+            <InspectorRow label={t("clip.settings.fadeIn")}>
               <DurationInput
                 value={clipDraft.fadeIn?.duration ?? 0}
-                label="Clip fade in duration"
+                label={t("clip.settings.fadeInLabel")}
                 onChange={(duration) =>
                   updateClipDraft({
                     fadeIn: { ...clipDraft.fadeIn, duration },
@@ -238,10 +239,10 @@ export function PoseCreatorClipWorkspaceInspector({
               />
             </InspectorRow>
 
-            <InspectorRow label="Fade out">
+            <InspectorRow label={t("clip.settings.fadeOut")}>
               <DurationInput
                 value={clipDraft.fadeOut?.duration ?? 0}
-                label="Clip fade out duration"
+                label={t("clip.settings.fadeOutLabel")}
                 onChange={(duration) =>
                   updateClipDraft({
                     fadeOut: { ...clipDraft.fadeOut, duration },
@@ -254,12 +255,12 @@ export function PoseCreatorClipWorkspaceInspector({
               <fieldset className="space-y-1 pt-1">
                 <legend
                   className="text-foreground text-xs font-semibold"
-                  title="Live idle motion that chat adds on top of a Gesture. The editor preview never shows it."
+                  title={t("clip.settings.muteHelp")}
                 >
-                  Mute while playing
+                  {t("clip.settings.mute")}
                 </legend>
                 {ANIMA_POSE_CLIP_MUTABLE_LAYER_IDS.map((layerId) => {
-                  const label = MUTABLE_LAYER_LABELS[layerId];
+                  const label = mutableLayerLabel(t, layerId);
                   return (
                     <label
                       key={layerId}
@@ -283,7 +284,9 @@ export function PoseCreatorClipWorkspaceInspector({
                               ),
                           })
                         }
-                        aria-label={`Mute ${label.toLowerCase()} while playing`}
+                        aria-label={t("clip.settings.muteLayer", {
+                          layer: label,
+                        })}
                       />
                     </label>
                   );
@@ -314,6 +317,7 @@ function EventInspector({
   >["updateSelectedClipEvent"];
   onDelete: () => void;
 }) {
+  const { t } = useTranslation("pose");
   const { beginUndoGroup, endUndoGroup } = usePoseCreatorClipUndoGrouping();
   const { eventCatalog } = usePoseCreatorPreview();
   const label = resolveEventLabel(event, eventCatalog);
@@ -321,18 +325,19 @@ function EventInspector({
   return (
     <WorkspaceCard embedded={embedded}>
       <InspectorHeading
-        title="Event"
+        title={t("clip.event.title")}
         subtitle={label}
         onClose={onClose}
+        closeLabel={t("clip.event.close")}
         onDelete={onDelete}
-        deleteLabel="Delete selected event"
+        deleteLabel={t("clip.event.delete")}
         disabled={disabled}
       />
       <div className="mt-4 space-y-3">
-        <InspectorRow label="Start">
+        <InspectorRow label={t("clip.event.start")}>
           <DurationInput
             value={event.time}
-            label="Selected event start"
+            label={t("clip.event.startLabel")}
             disabled={disabled}
             onChange={(time) => onUpdate({ time })}
           />
@@ -340,7 +345,7 @@ function EventInspector({
 
         {isAnimaPoseClipVFXEvent(event) ? (
           <>
-            <InspectorRow label="End">
+            <InspectorRow label={t("clip.event.end")}>
               <Select
                 value={event.duration === undefined ? "action" : "duration"}
                 disabled={disabled}
@@ -350,22 +355,26 @@ function EventInspector({
               >
                 <SelectTrigger
                   className="h-9 w-[176px]"
-                  aria-label="Selected event end"
+                  aria-label={t("clip.event.endLabel")}
                 >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="action">With Action</SelectItem>
-                  <SelectItem value="duration">After a duration</SelectItem>
+                  <SelectItem value="action">
+                    {t("clip.event.withAction")}
+                  </SelectItem>
+                  <SelectItem value="duration">
+                    {t("clip.event.afterDuration")}
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </InspectorRow>
             {/* Its own row, so the End choice is never truncated. */}
             {event.duration !== undefined ? (
-              <InspectorRow label="Duration">
+              <InspectorRow label={t("clip.event.duration")}>
                 <DurationInput
                   value={event.duration}
-                  label="Selected event duration"
+                  label={t("clip.event.durationLabel")}
                   disabled={disabled}
                   min={0.001}
                   onChange={(duration) => onUpdate({ duration })}
@@ -377,18 +386,18 @@ function EventInspector({
 
         {event.kind === "avatar_vfx" && event.duration !== undefined ? (
           <>
-            <InspectorRow label="Fade in">
+            <InspectorRow label={t("clip.settings.fadeIn")}>
               <DurationInput
                 value={event.envelope?.intensity?.fadeIn ?? 0}
-                label="Selected event fade in"
+                label={t("clip.event.fadeInLabel")}
                 disabled={disabled}
                 onChange={(fadeIn) => onUpdate({ fadeIn })}
               />
             </InspectorRow>
-            <InspectorRow label="Fade out">
+            <InspectorRow label={t("clip.settings.fadeOut")}>
               <DurationInput
                 value={event.envelope?.intensity?.fadeOut ?? 0}
-                label="Selected event fade out"
+                label={t("clip.event.fadeOutLabel")}
                 disabled={disabled}
                 onChange={(fadeOut) => onUpdate({ fadeOut })}
               />
@@ -399,12 +408,12 @@ function EventInspector({
         {accompanyingSound &&
         (event.kind === "avatar_vfx" || event.kind === "scene_vfx") ? (
           <>
-            <InspectorRow label="Accompanying sound">
+            <InspectorRow label={t("clip.event.accompanyingSound")}>
               <ReadOnlyField>{accompanyingSound.label}</ReadOnlyField>
             </InspectorRow>
-            <InspectorRow label="Play accompanying sound">
+            <InspectorRow label={t("clip.event.playAccompanyingSound")}>
               <Switch
-                aria-label="Play accompanying sound"
+                aria-label={t("clip.event.playAccompanyingSound")}
                 checked={event.playAccompanyingSound !== false}
                 disabled={disabled}
                 onCheckedChange={(playAccompanyingSound) =>
@@ -416,7 +425,7 @@ function EventInspector({
         ) : null}
         {event.kind === "particle_vfx" ? (
           <>
-            <InspectorRow label="Anchor">
+            <InspectorRow label={t("clip.event.anchor")}>
               <Select
                 value={event.anchor ?? "root"}
                 disabled={disabled}
@@ -426,25 +435,25 @@ function EventInspector({
               >
                 <SelectTrigger
                   className="h-9 w-[176px]"
-                  aria-label="Particle VFX anchor"
+                  aria-label={t("clip.event.anchorLabel")}
                 >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {PARTICLE_VFX_ANCHORS.map((anchor) => (
                     <SelectItem key={anchor} value={anchor}>
-                      {formatIdentifier(anchor)}
+                      {particleAnchorLabel(t, anchor)}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </InspectorRow>
-            <InspectorRow label="Follow anchor">
+            <InspectorRow label={t("clip.event.followAnchor")}>
               <Switch
                 checked={event.followAnchor !== false}
                 disabled={disabled}
                 onCheckedChange={(followAnchor) => onUpdate({ followAnchor })}
-                aria-label="Follow particle VFX anchor"
+                aria-label={t("clip.event.followAnchorLabel")}
               />
             </InspectorRow>
           </>
@@ -452,7 +461,7 @@ function EventInspector({
 
         {event.kind === "sfx" ? (
           <>
-            <InspectorRow label="Volume">
+            <InspectorRow label={t("clip.event.volume")}>
               <Input
                 type="number"
                 allowEmptyNumber
@@ -472,7 +481,7 @@ function EventInspector({
                 onFocus={beginUndoGroup}
                 onBlur={endUndoGroup}
                 className="h-9 w-[176px]"
-                aria-label="SFX event volume"
+                aria-label={t("clip.event.volumeLabel")}
               />
             </InspectorRow>
           </>
@@ -503,26 +512,36 @@ export function KeyframeInspector({
   >["updateSelectedClipKeyframe"];
   onDelete: () => void;
 }) {
+  const { t } = useTranslation("pose");
   return (
     <WorkspaceCard embedded={embedded}>
       <InspectorHeading
-        title={allowHumanoid ? "Keyframe" : "Expression keyframe"}
-        subtitle={keyframe.label}
+        title={
+          allowHumanoid
+            ? t("clip.keyframe.title")
+            : t("clip.keyframe.expressionTitle")
+        }
+        subtitle={beatLabel(t, keyframe.label)}
         onClose={embedded ? undefined : onClose}
+        closeLabel={
+          allowHumanoid
+            ? t("clip.keyframe.close")
+            : t("clip.keyframe.closeExpression")
+        }
         onDelete={onDelete}
-        deleteLabel="Delete selected keyframe"
+        deleteLabel={t("clip.keyframe.delete")}
         disabled={disabled}
       />
       <div className="mt-4 space-y-3">
-        <InspectorRow label="Time">
+        <InspectorRow label={t("clip.keyframe.time")}>
           <DurationInput
             value={keyframe.time}
-            label="Selected keyframe time"
+            label={t("clip.keyframe.timeLabel")}
             disabled={disabled}
             onChange={(time) => onUpdate({ time })}
           />
         </InspectorRow>
-        <InspectorRow label="Label">
+        <InspectorRow label={t("clip.keyframe.label")}>
           <BeatLabelInput
             key={keyframe.id}
             value={keyframe.label}
@@ -530,7 +549,7 @@ export function KeyframeInspector({
             onCommit={(label) => onUpdate({ label })}
           />
         </InspectorRow>
-        <InspectorRow label="Easing">
+        <InspectorRow label={t("clip.keyframe.easing")}>
           <Select
             value={keyframe.ease ?? INHERIT_VALUE}
             disabled={disabled}
@@ -543,15 +562,17 @@ export function KeyframeInspector({
           >
             <SelectTrigger
               className="h-9 w-[176px]"
-              aria-label="Keyframe easing"
+              aria-label={t("clip.keyframe.easingLabel")}
             >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={INHERIT_VALUE}>Clip default</SelectItem>
-              {BEAT_EASE_OPTIONS.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
+              <SelectItem value={INHERIT_VALUE}>
+                {t("clip.keyframe.clipDefault")}
+              </SelectItem>
+              {BEAT_EASES.map((ease) => (
+                <SelectItem key={ease} value={ease}>
+                  {easeLabel(t, ease)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -559,7 +580,7 @@ export function KeyframeInspector({
         </InspectorRow>
         {keyframe.detail ? (
           <p className="text-muted-foreground text-xs leading-relaxed">
-            {formatBeatDetail(keyframe.detail)}
+            {formatBeatDetail(t, keyframe.detail)}
           </p>
         ) : null}
       </div>
@@ -568,30 +589,26 @@ export function KeyframeInspector({
 }
 
 /** Beat arrival eases: the smooth and hold choices, then the curve easings. */
-const BEAT_EASE_OPTIONS: readonly {
-  value: AnimaPoseClipEase;
-  label: string;
-}[] = [
-  { value: "smooth", label: "Smooth" },
-  { value: "hold", label: "Hold" },
-  ...POSE_CREATOR_CLIP_EASING_OPTIONS,
+const BEAT_EASES: readonly AnimaPoseClipEase[] = [
+  "smooth",
+  "hold",
+  ...POSE_CREATOR_CLIP_EASINGS,
 ];
 
 /** The read-only note for a beat's generated detail. */
-export function formatBeatDetail(detail: BeatDetailSummary): string {
-  const channels =
-    detail.channels === 1
-      ? "1 joint or channel"
-      : `${detail.channels} joints or channels`;
-  return `Generated detail: moves ${channels} from ${formatSeconds(
-    detail.before,
-  )} before to ${formatSeconds(
-    detail.after,
-  )} after this keyframe. It follows the keyframe when you move it or edit its pose.`;
+export function formatBeatDetail(
+  t: TFunction<"pose">,
+  detail: BeatDetailSummary,
+): string {
+  return t("clip.keyframe.detail", {
+    count: detail.channels,
+    before: formatSeconds(t, detail.before),
+    after: formatSeconds(t, detail.after),
+  });
 }
 
-function formatSeconds(value: number): string {
-  return `${Number(value.toFixed(2))} s`;
+function formatSeconds(t: TFunction<"pose">, value: number): string {
+  return t("units.seconds", { value: Number(value.toFixed(2)) });
 }
 
 /** The beat label, committed on blur or Enter (an empty label is ignored). */
@@ -604,6 +621,7 @@ function BeatLabelInput({
   disabled: boolean;
   onCommit: (label: string) => void;
 }) {
+  const { t } = useTranslation("pose");
   const [text, setText] = useState(value);
   useEffect(() => setText(value), [value]);
   const commit = () => {
@@ -613,7 +631,7 @@ function BeatLabelInput({
   return (
     <Input
       className="h-9 w-[176px]"
-      aria-label="Keyframe label"
+      aria-label={t("clip.keyframe.labelInput")}
       value={text}
       maxLength={ANIMA_POSE_CLIP_V2_LIMITS.labelLength}
       disabled={disabled}
@@ -651,6 +669,7 @@ function InspectorHeading({
   title,
   subtitle,
   onClose,
+  closeLabel,
   onDelete,
   deleteLabel,
   disabled,
@@ -658,6 +677,7 @@ function InspectorHeading({
   title: string;
   subtitle: string;
   onClose?: () => void;
+  closeLabel: string;
   onDelete: () => void;
   deleteLabel: string;
   disabled: boolean;
@@ -688,7 +708,7 @@ function InspectorHeading({
             variant="ghost"
             size="icon-sm"
             onClick={onClose}
-            aria-label={`Close ${title.toLowerCase()} inspector`}
+            aria-label={closeLabel}
           >
             <XIcon className="size-4" />
           </Button>
@@ -726,6 +746,7 @@ function DurationInput({
   min?: number;
   onChange: (value: number) => void;
 }) {
+  const { t } = useTranslation("pose");
   const { beginUndoGroup, endUndoGroup } = usePoseCreatorClipUndoGrouping();
   return (
     <div className="relative w-[176px]">
@@ -742,7 +763,7 @@ function DurationInput({
         aria-label={label}
       />
       <span className="text-muted-foreground pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-xs">
-        s
+        {t("units.secondsSuffix")}
       </span>
     </div>
   );
@@ -786,11 +807,4 @@ function resolveEventLabel(
     catalog.sfx.find((option) => option.id === event.cueId)?.label ??
     event.cueId
   );
-}
-
-function formatIdentifier(value: string): string {
-  return value
-    .replace(/([a-z])([A-Z])/g, "$1 $2")
-    .replace(/[_-]+/g, " ")
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }

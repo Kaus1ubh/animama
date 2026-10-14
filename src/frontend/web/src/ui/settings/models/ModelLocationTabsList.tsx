@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 import {
   TabsList,
   TabsTrigger,
@@ -5,7 +7,10 @@ import {
 } from "@/ui/components/tabs";
 import { cn } from "@/lib/utils";
 
-import { MODEL_LOCATION_TABS } from "./model-configuration-state";
+import {
+  MODEL_LOCATION_TABS,
+  modelLocationLabel,
+} from "./model-configuration-state";
 
 /**
  * The Cloud | Local tab strip shared by setup's AI step and App Settings →
@@ -19,13 +24,14 @@ export function ModelLocationTabsList({
   active: string;
   recommended?: string;
 }) {
+  const { t } = useTranslation("models");
   return (
     <TabsList
       variant="underline"
-      aria-label="Where models run"
+      aria-label={t("locations.tabsLabel")}
       className="gap-0"
     >
-      {MODEL_LOCATION_TABS.map(({ id, label }) => (
+      {MODEL_LOCATION_TABS.map((id) => (
         <TabsTrigger
           key={id}
           value={id}
@@ -34,13 +40,13 @@ export function ModelLocationTabsList({
         >
           {id === recommended ? (
             <span className="inline-flex items-center gap-2">
-              {label}
+              {modelLocationLabel(id)}
               <span className="bg-primary/10 text-primary text-2xs rounded-sm px-1.5 py-0.5 font-medium">
-                Recommended
+                {t("providers.recommended")}
               </span>
             </span>
           ) : (
-            label
+            modelLocationLabel(id)
           )}
         </TabsTrigger>
       ))}

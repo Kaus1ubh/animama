@@ -45,8 +45,8 @@ aliases or a sibling checkout.
 | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
 | Hosted application archive   | Complete immutable browser application, closed static/resource inventory and separately admitted non-static Included seed. |
 | Python wheel                 | Reusable backend domain/application contracts and supported provider adapters.                                             |
-| `@animama/runtime-contracts` | Runtime owner, transport and capabilities; generated API types, SDK and validators.                                        |
-| `@animama/product-ui`        | Injected product providers, Anima selection, chat session/stream behavior, transcript and composer.                        |
+| `@animama/runtime-contracts` | Runtime owner, transport and capabilities; generated API types, SDK and validators; supported UI Locales and resolution.   |
+| `@animama/product-ui`        | Injected product providers, Anima selection, chat session/stream behavior, transcript, composer and the UI Locale runtime. |
 | `@animama/discover-client`   | Inert compatibility package retained in the artifact set. Discover and local account connection are discontinued.          |
 
 Consumers pin immutable commits and complete application/wheel/npm/contract identities.

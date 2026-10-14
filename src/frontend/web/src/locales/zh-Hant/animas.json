@@ -1,0 +1,462 @@
+{
+  "actions": {
+    "cancel": "取消",
+    "done": "完成",
+    "equip": "裝備",
+    "equipped": "已裝備",
+    "loop": "循環",
+    "moreActions": "更多操作",
+    "moreActionsFor": "{{name}} 的更多操作",
+    "move": "移動",
+    "preview": "預覽",
+    "previewNamed": "預覽 {{name}}",
+    "previewUnavailable": "無法預覽",
+    "remove": "移除",
+    "replace": "替換",
+    "replay": "重播",
+    "reset": "重設",
+    "retry": "重試",
+    "save": "儲存",
+    "stop": "停止"
+  },
+  "appearance": {
+    "created": "已建立本機外觀圖片。",
+    "defaultImageName": "Anima 圖片",
+    "defaultOption": {
+      "background_image": "無圖片",
+      "profile_image": "預設虛擬形象肖像"
+    },
+    "empty": {
+      "background_image": "無背景圖片",
+      "profile_image": "將使用虛擬形象肖像"
+    },
+    "fileSize": "請選擇小於 25 MiB 的圖片。",
+    "fileType": "請選擇 PNG、JPEG 或 WebP 圖片。",
+    "fit": {
+      "contain": "符合",
+      "cover": "填滿"
+    },
+    "localImageUnavailable": "所選的本機圖片無法使用。",
+    "preparing": "正在準備本機圖片…",
+    "previewAlt": {
+      "background_image": "{{name}} 的背景預覽",
+      "profile_image": "{{name}} 的個人檔案預覽"
+    },
+    "progress": "圖片儲存進度",
+    "ready": "圖片已就緒。調整裁切後，將其儲存到此 Anima。",
+    "retrySave": "重試儲存",
+    "saveFailed": "無法更新圖片。",
+    "saving": "正在儲存…",
+    "savingProgress": "正在儲存 {{percent}}…",
+    "sceneGroups": {
+      "app": "應用程式背景",
+      "local": "我的圖片"
+    },
+    "scenes": {
+      "bedroom": "臥室",
+      "cafe": "咖啡廳",
+      "classroom": "教室",
+      "dreamy": "夢幻",
+      "none": "無",
+      "rooftop": "屋頂",
+      "sakura": "櫻花",
+      "seaside": "海邊"
+    },
+    "sections": {
+      "background_image": "背景",
+      "profile_image": "個人檔案"
+    },
+    "sourceLabel": {
+      "background_image": "背景圖片來源",
+      "profile_image": "個人檔案圖片來源"
+    },
+    "title": "外觀",
+    "updated": {
+      "background_image": "背景圖片已更新。",
+      "profile_image": "個人檔案圖片已更新。"
+    },
+    "upload": "上傳圖片",
+    "uploadFailed": "無法儲存圖片。",
+    "uploadLabel": {
+      "background_image": "上傳背景圖片",
+      "profile_image": "上傳個人檔案圖片"
+    },
+    "zoom": "縮放 {{zoom}}×"
+  },
+  "badges": {
+    "starter": "內建",
+    "starterShort": "內"
+  },
+  "carousel": {
+    "create": "建立 Anima",
+    "initialsShown": "顯示縮寫",
+    "label": "Anima 輪播",
+    "loading": "載入中…",
+    "newAnima": "新增 Anima",
+    "next": "選擇下一個 Anima",
+    "previous": "選擇上一個 Anima",
+    "select": "選擇 {{name}}"
+  },
+  "gestures": {
+    "all": "全部",
+    "clips": "片段",
+    "customFirst": "自訂優先",
+    "filter": "篩選與排序動作",
+    "listLabel": "可用動作",
+    "motionType": "動畫類型",
+    "nameAsc": "名稱 A–Z",
+    "nameDesc": "名稱 Z–A",
+    "noFilterMatch": "沒有符合所選篩選條件的動作。",
+    "noSearchMatch": "沒有符合搜尋的動作。",
+    "search": "搜尋動作",
+    "show": "顯示",
+    "showMore": "顯示更多",
+    "sortBy": "排序方式",
+    "status": "狀態",
+    "title": "動作",
+    "unequipped": "未裝備",
+    "updateAvailable": "有可用更新",
+    "updateInLibrary": "在資源庫中更新",
+    "updatesOnly": "僅顯示有更新的項目",
+    "viewInLibrary": "在資源庫中檢視",
+    "vrma": "VRMA",
+    "counts": "已裝備 {{equipped, number}} / 共 {{total, number}}",
+    "showIncluded": "顯示內建",
+    "showLocal": "顯示本機",
+    "loading": "正在載入動作…",
+    "loadFailed": "無法載入動作。",
+    "none": "沒有可用的動作。"
+  },
+  "identity": {
+    "edit": "編輯身分設定",
+    "empty": "_尚未提供身分設定內容。_",
+    "emptyStarter": "_沒有可用的初始身分設定。_",
+    "loadFailed": "無法載入目前的身分設定記憶檔案。",
+    "loading": "正在載入身分設定…"
+  },
+  "idle": {
+    "actions": "待機風格操作",
+    "activeStyle": "目前風格",
+    "cell": "{{emotion}} · {{intensity}}",
+    "choose": "選擇待機風格",
+    "defaultPool": "預設",
+    "duplicate": "複製並編輯",
+    "edit": "編輯風格",
+    "empty": "沒有排定的待機動作。程序化的呼吸與靜止動作會繼續。",
+    "filter": "篩選情緒指派",
+    "gestureCount_other": "{{count}} 個動作",
+    "inherit": "使用預設",
+    "loading": "正在載入待機風格…",
+    "mine": "我的",
+    "noCellGesture": "此儲存格沒有排定的待機動作。",
+    "noIdle": "無待機",
+    "none": "無待機風格",
+    "noResults": "找不到待機風格。",
+    "noScheduled": "無排定的待機",
+    "poolsHint": "動作池屬於此風格。如需僅供此 Anima 使用的變體，請複製它，然後在此選擇儲存的副本。",
+    "poolsTitle": "情緒與強度動作池",
+    "previewActive": "預覽目前的待機風格",
+    "search": "搜尋待機風格",
+    "showInherited": "顯示繼承的儲存格",
+    "starter": "內建",
+    "title": "待機風格",
+    "useStarter": "使用內建風格"
+  },
+  "loadout": {
+    "fallbackName": {
+      "idleStyle": "待機風格",
+      "reaction": "反應"
+    },
+    "gestureNotLocal": "此動作不在本機目錄中。",
+    "loading": "正在載入動作與反應裝備…",
+    "noPreviewSource": "此裝備項目沒有預覽來源。",
+    "previewContextLoading": "Anima 預覽環境仍在載入。",
+    "reactionNotLocal": "此反應不在本機目錄中。",
+    "review": {
+      "action": "操作：",
+      "actions": {
+        "add": "新增",
+        "leave_empty": "留空",
+        "remove": "移除",
+        "replace": "替換",
+        "revert": "還原",
+        "unchanged": "無變更",
+        "update": "更新"
+      },
+      "confirm": "確認變更",
+      "current": "目前：",
+      "description": "此變更將套用於下一次掛載的聊天執行環境。進行中的聊天會保留目前版本。",
+      "result": "結果：",
+      "title": "檢查裝備變更"
+    },
+    "title": "裝備",
+    "unavailable": "裝備無法使用。",
+    "updated": "裝備已更新。變更將在下次掛載聊天時生效。"
+  },
+  "manage": {
+    "animaFallback": "Anima",
+    "description": {
+      "gesture": "選擇可以使用此動作的 Anima。進行中的聊天會保留現有資料；開啟新聊天即可套用變更。",
+      "reaction": "選擇可以使用此反應的 Anima。進行中的聊天會保留現有資料；開啟新聊天即可套用變更。"
+    },
+    "equippedTo": "已將 {{name}} 裝備到 {{anima}}。",
+    "notEquipped": "未裝備",
+    "notLocal": "此行為不在本機目錄中。",
+    "removedFrom": "已從 {{anima}} 移除 {{name}}。",
+    "title": "裝備 {{name}}",
+    "willReplace": {
+      "gesture": "將替換目前的動作",
+      "reaction": "將替換目前的反應"
+    }
+  },
+  "management": {
+    "avatar": {
+      "preparingDescription": "正在解析此 Anima 的主要模型…",
+      "preparingTitle": "正在準備虛擬形象",
+      "retry": "重試虛擬形象",
+      "unavailableDescription": "無法載入所選的執行環境。",
+      "unavailableTitle": "無法預覽虛擬形象"
+    },
+    "customizeAppearance": "自訂 {{name}} 的外觀",
+    "emotionsTitle": "情緒狀態",
+    "error": {
+      "anima": "無法載入此 Anima。它可能已無法使用。",
+      "roster": "無法載入你擁有的 Anima 輪播。",
+      "title": "Anima 管理無法使用"
+    },
+    "gestureHint": {
+      "pinch": "拖曳 · 雙指縮放",
+      "pointer": "拖曳旋轉 · 捲動縮放",
+      "short": "拖曳 · 雙指",
+      "touch": "拖曳旋轉 · 雙指縮放"
+    },
+    "loading": {
+      "description": "正在載入角色舞台與詳細資訊…",
+      "title": "正在準備 Anima 管理"
+    },
+    "openEmotions": "開啟情緒分頁。{{feeling}}",
+    "preview": {
+      "loop": "循環預覽 {{name}}",
+      "move": "移動 {{name}} 預覽中的虛擬形象",
+      "region": "正在預覽 {{name}}",
+      "replay": "重播 {{name}} 預覽",
+      "retry": "重試 {{name}} 預覽",
+      "states": {
+        "error": "無法預覽",
+        "idle": "預覽閒置",
+        "loading": "正在載入 Anima",
+        "playing": "播放中",
+        "ready": "就緒"
+      },
+      "status": "{{name}} 預覽：{{status}}",
+      "stop": "停止 {{name}} 預覽",
+      "summary": "{{version}} · {{status}}"
+    },
+    "tabs": {
+      "emotions": "情緒",
+      "loadout": "裝備",
+      "memories": "記憶",
+      "overview": "身分設定",
+      "settings": "設定"
+    }
+  },
+  "memories": {
+    "edit": "編輯記憶",
+    "empty": "_尚未記錄任何記憶。_",
+    "loadFailed": "無法載入目前的記憶檔案。",
+    "loading": "正在載入記憶…",
+    "missing": "缺少 MEMORIES.md。",
+    "repair": "修復記憶",
+    "repairing": "正在修復記憶…"
+  },
+  "reactions": {
+    "catalogUnavailable": "反應目錄無法使用。",
+    "cellName": "{{emotion}}（{{intensity}}）",
+    "change": "變更{{emotion}}（{{intensity}}）反應",
+    "chooseFromLibrary": "從資源庫中選擇",
+    "included": "內建",
+    "intensity": {
+      "level": "{{level}} 級",
+      "mild": "輕微",
+      "moderate": "中等",
+      "strong": "強烈"
+    },
+    "leaveEmpty": "留空",
+    "levels": "{{emotion}}反應等級",
+    "loading": "正在載入反應…",
+    "local": "本機",
+    "noReaction": "無反應",
+    "noResults": "找不到反應。",
+    "retryCatalog": "重試目錄",
+    "revertToStarter": "還原為內建",
+    "search": "搜尋反應",
+    "suggestion": "{{emotion}} · {{intensity}}",
+    "title": "反應"
+  },
+  "roster": {
+    "description": "此帳戶中還沒有 Anima。帳戶準備期間，你可以瀏覽資源庫。此託管應用程式無法建立 Anima。",
+    "menu": "選單",
+    "openLibrary": "開啟資源庫",
+    "openSidebar": "開啟側邊欄",
+    "title": "你的 Anima 將顯示在這裡"
+  },
+  "stage": {
+    "avatarLabel": "{{name}} 的虛擬形象",
+    "emptyDescription": "此 Anima 目前沒有可預覽的 VRM 虛擬形象。",
+    "emptyTitle": "沒有可用的虛擬形象預覽",
+    "errors": {
+      "contentPreview": "無法預覽所選內容。",
+      "modelRestored": "無法載入所選的虛擬形象模型。已還原已儲存的模型。",
+      "noRuntimeFile": "所選的虛擬形象模型沒有可預覽的執行檔案。已還原已儲存的模型。",
+      "render": "無法將此虛擬形象算繪為 VRM 預覽。"
+    },
+    "label": "{{name}} 的互動式預覽",
+    "loading": "正在載入 Anima",
+    "localReplacement": "{{size}} • 本機替換預覽",
+    "noAvatar": "沒有可用的 VRM 虛擬形象",
+    "resetCamera": "重設預覽相機",
+    "savedAvatar": "目前儲存的虛擬形象"
+  },
+  "voices": {
+    "cloning": {
+      "change": "更換樣本",
+      "checking": "正在檢查語音複製…",
+      "clone": "複製語音",
+      "cloningVoice": "正在複製語音…",
+      "delete": {
+        "confirm": "刪除語音",
+        "description": "這會刪除儲存的複製語音和所有原始樣本。Anima 正在使用的語音必須先替換才能刪除。",
+        "title": "刪除 {{name}}？"
+      },
+      "deleted": "複製語音已刪除。",
+      "download": {
+        "attribution": "模型署名",
+        "cancel": "取消下載",
+        "cancelling": "正在取消…",
+        "close": "關閉",
+        "closingKeeps": "關閉後下載仍會繼續。",
+        "description": "安裝語音複製，然後使用所選樣本繼續。",
+        "intro": "語音複製需要一次性下載 {{size}}。你的音訊樣本會保留在此安裝中。Eve、Azelma 等已安裝的語音不需此下載即可使用。",
+        "notNow": "暫不",
+        "preparing": "正在準備…",
+        "progress": "正在下載語音複製：{{percent}}",
+        "progressLabel": "語音複製下載",
+        "progressUnknown": "正在下載語音複製…",
+        "retry": "重試下載",
+        "start": "下載並複製",
+        "title": "下載語音複製？",
+        "verifying": "下載完成。正在驗證語音複製…"
+      },
+      "downloading": "正在下載語音複製…",
+      "errors": {
+        "cancelFailed": "無法取消下載。請再試一次。",
+        "cancelled": "已取消下載。你的樣本可隨時重試。",
+        "changed": "此語音已變更。請重新整理語音庫後再試一次。",
+        "deleteFailed": "無法刪除語音。請再試一次。",
+        "inUse": "此語音正被 Anima 使用。刪除前，請為每個使用它的 Anima 選擇其他語音。",
+        "saveFailed": "無法儲存語音。你的樣本可隨時重試。"
+      },
+      "fileLabel": "上傳自訂語音樣本",
+      "hint": "WAV、MP3 或 Ogg · 最大 25 MiB。請使用單人發聲的清晰錄音；複製會使用前 10 秒。",
+      "nameLabel": "複製語音名稱",
+      "namePlaceholder": "語音名稱（選填）",
+      "operatorManaged": "此處無法使用語音複製。{{note}}",
+      "sampleFallback": "語音樣本",
+      "saved": "複製語音已儲存。可在 Anima 的語音設定中選擇它。",
+      "savingVoice": "正在儲存語音…",
+      "sectionLabel": "語音複製",
+      "title": "語音複製",
+      "upload": "上傳語音樣本"
+    },
+    "elevenLabs": {
+      "idLabel": "語音 ID",
+      "idPlaceholder": "輸入語音 ID",
+      "invalidId": "請輸入僅包含字母、數字、底線或連字號的語音 ID。",
+      "saved": "ElevenLabs 語音已儲存。",
+      "saveFailed": "無法儲存語音 ID。請再試一次。",
+      "sectionLabel": "ElevenLabs 語音"
+    },
+    "picker": {
+      "available": "可用的 PocketTTS 語音",
+      "availableState": "{{name}} 可用",
+      "availableTitle": "可用",
+      "clonesHeading": "你的複製語音",
+      "count_other": "{{count}} 個語音",
+      "custom": "自訂",
+      "customUploaded": "自訂（已上傳）",
+      "delete": "刪除 {{name}}",
+      "download": "下載 {{name}}",
+      "downloadCancel": "取消下載 {{name}}",
+      "downloaded": "{{name}} 已下載",
+      "downloadedTitle": "已下載",
+      "downloading": "正在下載 {{name}} {{percent}}",
+      "downloadingTitle": "正在下載 {{percent}}",
+      "downloadRetry": "重試下載 {{name}}",
+      "filters": {
+        "any": "所有語音",
+        "custom": "自訂語音",
+        "female": "女聲",
+        "male": "男聲"
+      },
+      "filtersRecommended": "{{filter}} · 推薦",
+      "gender": {
+        "any": "全部",
+        "female": "女聲",
+        "label": "語音性別",
+        "male": "男聲"
+      },
+      "included": "{{name}} 已內建",
+      "includedTitle": "內建",
+      "listLabel": "PocketTTS 語音",
+      "noMatch": "沒有符合這些篩選條件的語音。",
+      "notAvailable": "無法使用",
+      "pocketHeading": "PocketTTS 語音",
+      "recommended": "推薦",
+      "recommendedOnly": "僅推薦",
+      "sample": {
+        "none": "此語音沒有可用樣本",
+        "play": "播放 {{name}} 樣本",
+        "stop": "停止 {{name}} 樣本",
+        "unavailable": "{{name}}：{{reason}}"
+      },
+      "search": "搜尋語音",
+      "searchLabel": "搜尋 PocketTTS 語音",
+      "select": "選擇 {{name}}",
+      "titleWithCancel": "{{status}} · 取消下載",
+      "trigger": "PocketTTS 語音：{{name}}",
+      "verifying": "正在驗證…"
+    },
+    "pocket": {
+      "downloadFailed": "無法下載 {{voice}}。請開啟語音清單重試。",
+      "downloading": "正在下載 {{voice}}… {{percent}}",
+      "libraryFailed": "無法載入已儲存的語音。",
+      "notProvided": "{{voice}} 在此無法使用，因此回覆將使用預設語音。",
+      "savedUnavailable": "已儲存的語音無法使用",
+      "sectionLabel": "PocketTTS 語音",
+      "selectedUnavailable": "此已儲存的語音無法使用。請選擇其他語音。",
+      "selectFailed": "無法選擇 PocketTTS 語音。請重新整理後再試一次。"
+    },
+    "provider": {
+      "active": "目前的供應商",
+      "appDefault": "{{provider}}（應用程式）",
+      "browser": "瀏覽器",
+      "choose": "選擇供應商",
+      "label": "TTS 供應商",
+      "saved": "TTS 供應商已儲存。",
+      "saveFailed": "無法儲存 TTS 供應商。請再試一次。",
+      "sectionLabel": "語音供應商",
+      "speechOff": "應用程式設定中已關閉語音。"
+    },
+    "title": "語音",
+    "gemini": {
+      "available": "可用的 Gemini 語音",
+      "listLabel": "Gemini 語音",
+      "sampleNote": "每個語音首次播放時會使用你的 Gemini API 金鑰，之後會保留該樣本。",
+      "saved": "Gemini 語音已儲存。",
+      "saveFailed": "無法儲存 Gemini 語音。請再試一次。",
+      "searchLabel": "搜尋 Gemini 語音",
+      "sectionLabel": "Gemini 語音",
+      "trigger": "Gemini 語音：{{name}}"
+    }
+  }
+}

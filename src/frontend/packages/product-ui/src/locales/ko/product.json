@@ -1,0 +1,185 @@
+{
+  "chatFailure": {
+    "categories": {
+      "context_exceeded": {
+        "guidance": "컨텍스트 창이 더 큰 모델을 선택하거나, 서버가 허용한다면 $t(chatFailure.settingsPath)에서 이 모델의 창 크기를 늘리거나, 더 짧은 메시지를 보내세요.",
+        "title": "대화가 너무 길어 {{name}}의 모델로 처리할 수 없습니다."
+      }
+    },
+    "codes": {
+      "anthropic_stream_incomplete": {
+        "guidance": "{{name}}에서 응답이 끝나기 전에 종료했습니다. 메시지를 다시 보내 보세요.",
+        "title": "응답이 중단되었습니다."
+      },
+      "chat_stream_interrupted": {
+        "guidance": "Animama가 완료를 확인하기 전에 연결이 끊어졌습니다. 다시 보내기 전에 연결 상태를 확인하세요.",
+        "title": "응답이 중단되었습니다."
+      },
+      "connection_base_url_missing": {
+        "guidance": "$t(chatFailure.settingsPath)에서 기본 URL을 설정한 다음 메시지를 다시 보내세요.",
+        "title": "{{name}}에 서버 주소가 없습니다."
+      },
+      "connection_unavailable": {
+        "guidance": "다른 모델을 선택한 다음 메시지를 다시 보내세요.",
+        "title": "선택한 모델의 연결이 삭제되었습니다."
+      },
+      "gateway_request_rejected": {
+        "guidance": "설정된 애플리케이션 주소에서 Animama를 열거나 데스크톱 앱을 다시 여세요. 문제가 계속되면 설치 소유자에게 액세스 설정을 확인해 달라고 요청하세요.",
+        "title": "이 설치에서 요청을 거부했습니다."
+      },
+      "missing_api_key": {
+        "guidance": "설치 소유자에게 $t(chatFailure.settingsPath) 또는 API 키에서 키를 추가해 달라고 요청한 다음 메시지를 다시 보내세요.",
+        "title": "{{name}}에 API 키가 설정되어 있지 않습니다."
+      },
+      "model_refused": {
+        "guidance": "표현을 바꿔 다시 시도해 보세요.",
+        "title": "모델이 이 메시지에 대한 응답을 거절했습니다."
+      },
+      "openai_authentication_error": {
+        "guidance": "다시 시도하기 전에 설치 소유자에게 {{name}}에 설정된 키를 확인해 달라고 요청하세요.",
+        "title": "{{name}}에서 API 키를 거부했습니다."
+      },
+      "openai_bad_request": {
+        "guidance": "다시 시도하기 전에 $t(chatFailure.settingsPath)에서 선택한 모델과 설정을 확인하세요.",
+        "title": "{{name}}에서 이 요청을 거부했습니다."
+      },
+      "openai_connection_error": {
+        "guidance": "인터넷 연결을 확인하고 준비되면 다시 시도하세요.",
+        "guidanceLocal": "{{localServer}}이(가) 실행 중인가요? 실행한 다음 다시 시도하세요.",
+        "guidanceLocalAt": "{{localServer}}이(가) {{baseUrl}}에서 실행 중인가요? 실행한 다음 다시 시도하세요.",
+        "title": "Animama가 {{name}}에 연결하지 못했습니다."
+      },
+      "openai_not_found": {
+        "guidance": "$t(chatFailure.settingsPath)에서 모델 ID를 확인하거나 다른 모델을 선택하세요.",
+        "title": "{{name}}에서 선택한 모델을 찾을 수 없습니다."
+      },
+      "openai_overloaded": {
+        "guidance": "잠시 기다린 다음 메시지를 다시 보내세요.",
+        "title": "{{name}}을(를) 일시적으로 사용할 수 없습니다."
+      },
+      "openai_permission_denied": {
+        "guidance": "계정의 모델 액세스 권한을 확인하거나 사용 가능한 다른 모델을 선택하세요.",
+        "title": "{{name}}에서 이 모델에 대한 액세스를 거부했습니다."
+      },
+      "openai_quota_exceeded": {
+        "guidance": "다시 시도하기 전에 계정의 결제 정보와 사용 한도를 확인하세요.",
+        "title": "{{name}}의 계정이 사용 한도에 도달했습니다."
+      },
+      "openai_rate_limit": {
+        "guidance": "잠시 기다린 다음 메시지를 다시 보내세요.",
+        "title": "{{name}}에 요청이 너무 많습니다."
+      },
+      "openai_server_error": {
+        "guidance": "잠시 기다린 다음 메시지를 다시 보내세요.",
+        "guidanceLocal": "{{localServer}}에 모델이 로드되어 있는지 확인한 다음 다시 시도하세요.",
+        "title": "{{name}}에서 이 요청을 완료하지 못했습니다."
+      },
+      "openai_timeout": {
+        "guidance": "연결 상태를 확인하고 준비되면 다시 시도하세요.",
+        "guidanceLocal": "모델이 아직 로드 중일 수 있습니다. 다시 시도하거나 $t(chatFailure.settingsPath)에서 연결 시간 제한을 늘리세요.",
+        "title": "{{name}}의 응답이 너무 오래 걸렸습니다."
+      }
+    },
+    "defaultConnection": "모델 서버",
+    "hosted": {
+      "busy": {
+        "guidance": "잠시 후 다시 시도하세요.",
+        "guidanceWait": "{{wait}} 후에 다시 시도하세요.",
+        "title": "현재 Animama 사용량이 많습니다."
+      },
+      "chatLimitReached": {
+        "guidance": "기존 채팅 중 하나를 이어서 진행하세요.",
+        "title": "이 계정의 채팅 수가 한도에 도달했습니다.",
+        "titleLimit": "이 계정의 채팅 수가 한도({{limit, number}}개)에 도달했습니다."
+      },
+      "messageTooLong": {
+        "guidance": "메시지를 줄인 다음 다시 보내세요.",
+        "guidanceMaximum": "메시지는 최대 {{maximum, number}}자까지 입력할 수 있습니다.",
+        "title": "메시지가 너무 깁니다."
+      },
+      "quotaExceeded": {
+        "guidance": "한도가 초기화된 후에 다시 시도하세요.",
+        "guidanceWait": "{{wait}} 후에 초기화됩니다.",
+        "title": "이 계정의 호스팅 사용 한도에 도달했습니다."
+      },
+      "quotaInputTokens": {
+        "guidance": "새 채팅을 시작하거나 메시지를 줄이세요.",
+        "title": "대화가 너무 길어 호스팅 서비스에서 한 번에 처리할 수 없습니다."
+      },
+      "trialComplete": {
+        "guidance": "Animama를 다운로드하고 Anima와 계속 채팅하세요.",
+        "link": "Animama 다운로드",
+        "title": "Animama 체험이 종료되었습니다."
+      }
+    },
+    "network": {
+      "guidance": "연결 상태와 설치가 실행 중인지 확인한 다음 다시 시도하세요.",
+      "title": "Animama가 서비스에 연결하지 못했습니다."
+    },
+    "notice": {
+      "details": "세부 정보",
+      "errorCode": "오류 코드:",
+      "incompleteReply": "불완전한 응답",
+      "notConfirmed": "완료가 확인되지 않았습니다. 이 알림과 일부 응답은 이 채팅을 나가거나 새로고침할 때까지 여기에 유지됩니다.",
+      "restore": "메시지 복원",
+      "restoreDisabled": "진행 중인 응답이 없고 입력창이 비어 있을 때 사용할 수 있습니다.",
+      "restoreHint": "편집할 수 있도록 텍스트를 복원합니다. 자동으로 전송되지 않습니다.",
+      "retryAfter_other": "제공자가 다음 시도 전에 최소 {{count}}초 기다릴 것을 권장합니다."
+    },
+    "service": {
+      "guidance": "잠시 기다린 다음 다시 시도하세요. 문제가 계속되면 설치의 서비스를 확인하거나 다시 시작하세요.",
+      "title": "Animama 서비스를 사용할 수 없습니다."
+    },
+    "settingsPath": "앱 설정 → 모델",
+    "unknown": {
+      "guidance": "메시지를 복원하여 다시 시도하세요. 문제가 계속되면 설치 소유자에게 오류 코드를 공유하세요.",
+      "title": "메시지를 완료하지 못했습니다."
+    },
+    "wait": {
+      "day_other": "약 {{count}}일",
+      "hour_other": "약 {{count}}시간",
+      "minute_other": "약 {{count}}분",
+      "second_other": "약 {{count}}초"
+    }
+  },
+  "composer": {
+    "send": "메시지 보내기",
+    "sending": "메시지 보내는 중",
+    "speechUnavailable": "오프라인 음성 인식을 사용할 수 없습니다",
+    "stop": "중지",
+    "stopVoice": "음성 모드 중지",
+    "voiceMode": "음성 모드"
+  },
+  "conversation": {
+    "label": "대화"
+  },
+  "runStatus": {
+    "searching_web": "웹 검색 중…",
+    "summarizing_context": "이전 대화 요약 중…"
+  },
+  "session": {
+    "placeholder": {
+      "loadingAnima": "Anima를 불러오는 중…",
+      "loadingRuntime": "Anima 런타임을 불러오는 중…",
+      "ready": "무슨 생각을 하고 있나요?"
+    },
+    "toasts": {
+      "animaLoading": "Anima를 아직 불러오는 중입니다.",
+      "avatarSessionExpired": "이 아바타 세션이 만료되었습니다. 다시 불러온 후 메시지를 다시 보내세요.",
+      "chatLoadFailed": "채팅을 불러올 수 없습니다.",
+      "chatLoading": "채팅을 아직 불러오는 중입니다.",
+      "missingAnima": "Anima가 없습니다.",
+      "modelNotDirect": "이 모델은 아직 직접 채팅에 사용할 수 없습니다.",
+      "modelsLoading": "모델을 아직 불러오는 중입니다.",
+      "newChatModelFailed": "해당 모델로 새 채팅을 시작하지 못했습니다.",
+      "reloadAvatarSession": "아바타 세션 다시 불러오기",
+      "restoreModelFailed": "이 채팅의 모델을 복원하지 못했습니다.",
+      "runtimeLoading": "Anima 런타임을 아직 불러오는 중입니다.",
+      "selectModel": "채팅하기 전에 모델을 선택하세요."
+    }
+  },
+  "transcript": {
+    "emptyDescription": "채팅을 시작하면 여기에 메시지가 표시됩니다",
+    "emptyTitle": "아직 메시지가 없습니다"
+  }
+}

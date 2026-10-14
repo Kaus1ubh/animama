@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { useFormatters } from "@animama/product-ui/i18n";
 import {
   Check,
   ChevronDown,
@@ -11,8 +13,14 @@ import {
   POCKET_VOICES,
   type PocketVoiceGender,
 } from "@/lib/speech/pocket/voice-catalog";
-import { pocketVoiceLabel } from "@/lib/speech/pocket/voice-groups";
-import type { PocketVoiceAvailability } from "@/lib/speech/pocket/voice-preferences";
+import {
+  pocketVoiceAccentLabel,
+  pocketVoiceLabel,
+} from "@/lib/speech/pocket/voice-groups";
+import {
+  POCKET_TTS_CUSTOM_VOICE,
+  type PocketVoiceAvailability,
+} from "@/lib/speech/pocket/voice-preferences";
 import {
   createVoiceSamplePlayer,
   IDLE_VOICE_SAMPLE,
@@ -28,7 +36,7 @@ import {
 } from "@/ui/components/popover";
 import { Checkbox } from "@/ui/components/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/components/tabs";
-import { OPERATOR_MANAGED_MODELS_NOTE } from "@/ui/settings/operator-managed-models";
+import { operatorManagedModelsNote } from "@/ui/settings/operator-managed-models";
 import {
   VoiceSampleButton,
   type VoiceSamplePlayback,
@@ -40,7 +48,10 @@ type VoiceFilter = {
   search: string;
 };
 
-/** The list is metadata-only: browsing never initializes the speech engine. */
+/**
+ * The list is metadata-only: browsing never initializes the speech engine.
+ * Search matches the accent as shown and as authored in English.
+ */
 export function filteredPocketVoices({
   gender,
   recommended,
@@ -51,7 +62,14 @@ export function filteredPocketVoices({
     (voice) =>
       (gender === "any" || voice.gender === gender) &&
       (!recommended || voice.recommended) &&
-      `${voice.name} ${voice.accent ?? ""}`.toLocaleLowerCase().includes(query),
+      [
+        voice.name,
+        voice.accent ?? "",
+        voice.accent ? pocketVoiceAccentLabel(voice.accent) : "",
+      ]
+        .join(" ")
+        .toLocaleLowerCase()
+        .includes(query),
   );
 }
 
@@ -93,6 +111,7 @@ export function pocketVoiceNotProvided(
 
 /** A compact selected voice opens a keyboard-accessible list with independent actions. */
 export function PocketVoicePicker(props: PocketVoicePickerProps) {
+  const { t } = useTranslation("animas");
   const [open, setOpen] = useState(false);
   const [sample, setSample] = useState(IDLE_VOICE_SAMPLE);
   const player = useMemo(() => createVoiceSamplePlayer(setSample), []);
@@ -102,7 +121,11 @@ export function PocketVoicePicker(props: PocketVoicePickerProps) {
     props.clones?.find((item) => item.id === props.value) ??
     POCKET_VOICES.find((item) => item.id === props.value);
   const selectedName =
-    voice?.name ?? props.unavailableSelection ?? pocketVoiceLabel(props.value);
+    voice?.name ??
+    props.unavailableSelection ??
+    (props.value === POCKET_TTS_CUSTOM_VOICE
+      ? t("voices.picker.customUploaded")
+      : pocketVoiceLabel(props.value));
   const changeOpen = (next: boolean) => {
     player.stop();
     setOpen(next);
@@ -115,7 +138,7 @@ export function PocketVoicePicker(props: PocketVoicePickerProps) {
             variant="outline"
             disabled={props.disabled}
             className="min-w-0 flex-1 justify-between"
-            aria-label={`PocketTTS voice: ${selectedName}`}
+            aria-label={t("voices.picker.trigger", { name: selectedName })}
           >
             <span className="truncate">{selectedName}</span>
             <ChevronDown className="size-4 shrink-0 opacity-60" />
@@ -130,7 +153,7 @@ export function PocketVoicePicker(props: PocketVoicePickerProps) {
             variant="ghost"
             size="icon-sm"
             className="text-destructive hover:text-destructive"
-            aria-label={`Delete ${voice.name}`}
+            aria-label={t("voices.picker.delete", { name: voice.name })}
             disabled={props.disabled}
             onClick={() => {
               player.stop();
@@ -154,7 +177,7 @@ export function PocketVoicePicker(props: PocketVoicePickerProps) {
       <PopoverContent
         align="start"
         className="flex max-h-[var(--radix-popover-content-available-height)] w-[min(30rem,var(--radix-popover-content-available-width))] flex-col p-0"
-        aria-label="PocketTTS voices"
+        aria-label={t("voices.picker.listLabel")}
       >
         {open ? (
           <PocketVoiceList
@@ -189,6 +212,8 @@ export function PocketVoiceList({
   sample,
   player,
 }: PocketVoicePickerProps & VoiceSamplePlayback & { onSelected: () => void }) {
+  const { t } = useTranslation("animas");
+  const formatters = useFormatters();
   const [gender, setGender] = useState<VoiceFilter["gender"]>("any");
   const [recommended, setRecommended] = useState(false);
   const [search, setSearch] = useState("");
@@ -201,8 +226,20 @@ export function PocketVoiceList({
     : filteredPocketVoices({ gender, recommended, search });
   const showCustom = customOnly || (gender === "any" && !recommended);
   const query = search.trim().toLocaleLowerCase();
+  const filterLabel = customOnly
+    ? t("voices.picker.filters.custom")
+    : gender === "any"
+      ? t("voices.picker.filters.any")
+      : gender === "female"
+        ? t("voices.picker.filters.female")
+        : t("voices.picker.filters.male");
+  const customUploadedLabel = t("voices.picker.customUploaded");
+  // Match the label as shown and its English name, which voice docs use.
   const showUploaded =
-    showCustom && hasCustomVoice && "custom (uploaded)".includes(query);
+    showCustom &&
+    hasCustomVoice &&
+    (customUploadedLabel.toLocaleLowerCase().includes(query) ||
+      "custom (uploaded)".includes(query));
   const matchingClones = showCustom
     ? clones.filter((clone) =>
         clone.name
@@ -217,7 +254,7 @@ export function PocketVoiceList({
     downloadBlockedReason ||
     downloadError ||
     (voices.some((voice) => notProvided(voice.id))
-      ? OPERATOR_MANAGED_MODELS_NOTE
+      ? operatorManagedModelsNote()
       : null);
   const choose = async (id: string) => {
     try {
@@ -238,29 +275,32 @@ export function PocketVoiceList({
     >
       <div className="flex shrink-0 flex-col gap-3 border-b p-3">
         <Input
-          aria-label="Search PocketTTS voices"
-          placeholder="Search voices"
+          aria-label={t("voices.picker.searchLabel")}
+          placeholder={t("voices.picker.search")}
           value={search}
           onChange={(event) => {
             player.stop();
             setSearch(event.target.value);
           }}
         />
-        <TabsList className="grid w-full grid-cols-3" aria-label="Voice gender">
+        <TabsList
+          className="grid w-full grid-cols-3"
+          aria-label={t("voices.picker.gender.label")}
+        >
           <TabsTrigger value="any" disabled={customOnly}>
-            All
+            {t("voices.picker.gender.any")}
           </TabsTrigger>
           <TabsTrigger value="female" disabled={customOnly}>
-            Female
+            {t("voices.picker.gender.female")}
           </TabsTrigger>
           <TabsTrigger value="male" disabled={customOnly}>
-            Male
+            {t("voices.picker.gender.male")}
           </TabsTrigger>
         </TabsList>
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs">
           <label className="flex items-center gap-2">
             <Checkbox
-              aria-label="Recommended only"
+              aria-label={t("voices.picker.recommendedOnly")}
               checked={recommended && !customOnly}
               disabled={customOnly}
               onCheckedChange={(checked) => {
@@ -269,19 +309,19 @@ export function PocketVoiceList({
               }}
             />
             <span className={customOnly ? "text-muted-foreground" : undefined}>
-              Recommended only
+              {t("voices.picker.recommendedOnly")}
             </span>
           </label>
           <label className="flex items-center gap-2">
             <Checkbox
-              aria-label="Custom"
+              aria-label={t("voices.picker.custom")}
               checked={customOnly}
               onCheckedChange={(checked) => {
                 player.stop();
                 setCustomOnly(checked === true);
               }}
             />
-            Custom
+            {t("voices.picker.custom")}
           </label>
         </div>
       </div>
@@ -290,28 +330,21 @@ export function PocketVoiceList({
         aria-live="polite"
       >
         <span>
-          {customOnly
-            ? "Custom voices"
-            : gender === "any"
-              ? "All voices"
-              : gender === "female"
-                ? "Female voices"
-                : "Male voices"}
-          {recommended && !customOnly ? " · Recommended" : ""}
+          {recommended && !customOnly
+            ? t("voices.picker.filtersRecommended", { filter: filterLabel })
+            : filterLabel}
         </span>
-        <span>
-          {count} {count === 1 ? "voice" : "voices"}
-        </span>
+        <span>{t("voices.picker.count", { count })}</span>
       </div>
       <TabsContent value={tab} className="mt-0 min-h-0 overflow-y-auto">
         <div
           className="max-h-[min(22rem,45dvh)] min-h-0 overflow-y-auto overscroll-contain px-2 pb-2"
           role="list"
-          aria-label="Available PocketTTS voices"
+          aria-label={t("voices.picker.available")}
         >
           {matchingClones.length ? (
             <p className="text-muted-foreground px-3 py-2 text-xs font-semibold">
-              Your voice clones
+              {t("voices.picker.clonesHeading")}
             </p>
           ) : null}
           {matchingClones.map((clone) => (
@@ -327,7 +360,7 @@ export function PocketVoiceList({
                 type="button"
                 disabled={disabled}
                 onClick={() => void choose(clone.id)}
-                aria-label={`Select ${clone.name}`}
+                aria-label={t("voices.picker.select", { name: clone.name })}
                 aria-pressed={value === clone.id}
                 className="hover:bg-muted/40 focus-visible:ring-ring flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2 py-2.5 text-left outline-none focus-visible:ring-2 disabled:opacity-50"
               >
@@ -357,7 +390,7 @@ export function PocketVoiceList({
                   variant="ghost"
                   size="icon-sm"
                   className="text-destructive hover:text-destructive shrink-0"
-                  aria-label={`Delete ${clone.name}`}
+                  aria-label={t("voices.picker.delete", { name: clone.name })}
                   disabled={disabled}
                   onClick={() => {
                     player.stop();
@@ -374,7 +407,7 @@ export function PocketVoiceList({
           ))}
           {matchingClones.length && voices.length ? (
             <p className="text-muted-foreground px-3 py-2 text-xs font-semibold">
-              PocketTTS voices
+              {t("voices.picker.pocketHeading")}
             </p>
           ) : null}
           {voices.map((voice) => {
@@ -388,6 +421,13 @@ export function PocketVoiceList({
               download?.status === "failed" ||
               Boolean(download && retryAssetIds?.has(download.assetId));
             const progress = Math.round((download?.progress ?? 0) * 100);
+            const percent = formatters.number(progress / 100, {
+              style: "percent",
+            });
+            const downloadStatus =
+              progress === 100
+                ? t("voices.picker.verifying")
+                : t("voices.picker.downloadingTitle", { percent });
             const cancel = downloading && onRemove;
             return (
               <div
@@ -402,7 +442,7 @@ export function PocketVoiceList({
                   type="button"
                   disabled={disabled || unavailable}
                   onClick={() => void choose(voice.id)}
-                  aria-label={`Select ${voice.name}`}
+                  aria-label={t("voices.picker.select", { name: voice.name })}
                   aria-pressed={value === voice.id}
                   className="hover:bg-muted/40 focus-visible:ring-ring flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2 py-2.5 text-left outline-none focus-visible:ring-2 disabled:opacity-50"
                 >
@@ -410,9 +450,13 @@ export function PocketVoiceList({
                     <p className="truncate text-sm font-medium">{voice.name}</p>
                     <p className="text-muted-foreground text-xs">
                       {[
-                        voice.accent,
-                        voice.recommended ? "Recommended" : null,
-                        unavailable ? "Not available" : null,
+                        voice.accent
+                          ? pocketVoiceAccentLabel(voice.accent)
+                          : null,
+                        voice.recommended
+                          ? t("voices.picker.recommended")
+                          : null,
+                        unavailable ? t("voices.picker.notAvailable") : null,
                       ]
                         .filter(Boolean)
                         .join(" · ")}
@@ -444,17 +488,34 @@ export function PocketVoiceList({
                       }
                       aria-label={
                         cancel
-                          ? `Cancel download ${voice.name}`
+                          ? t("voices.picker.downloadCancel", {
+                              name: voice.name,
+                            })
                           : downloading
-                            ? `Downloading ${voice.name} ${progress}%`
+                            ? t("voices.picker.downloading", {
+                                name: voice.name,
+                                percent,
+                              })
                             : retry
-                              ? `Retry download ${voice.name}`
-                              : `Download ${voice.name}`
+                              ? t("voices.picker.downloadRetry", {
+                                  name: voice.name,
+                                })
+                              : t("voices.picker.download", {
+                                  name: voice.name,
+                                })
                       }
                       title={
                         downloading
-                          ? `${progress === 100 ? "Verifying…" : `Downloading ${progress}%`}${cancel ? " · Cancel download" : ""}`
-                          : `${retry ? "Retry download" : "Download"} ${voice.name}`
+                          ? cancel
+                            ? t("voices.picker.titleWithCancel", {
+                                status: downloadStatus,
+                              })
+                            : downloadStatus
+                          : retry
+                            ? t("voices.picker.downloadRetry", {
+                                name: voice.name,
+                              })
+                            : t("voices.picker.download", { name: voice.name })
                       }
                       onClick={() =>
                         cancel
@@ -473,13 +534,23 @@ export function PocketVoiceList({
                   ) : !voice.assetId || download?.status === "installed" ? (
                     <span
                       role="img"
-                      aria-label={`${voice.name} ${!voice.assetId ? "included" : operatorManaged ? "available" : "downloaded"}`}
+                      aria-label={
+                        !voice.assetId
+                          ? t("voices.picker.included", { name: voice.name })
+                          : operatorManaged
+                            ? t("voices.picker.availableState", {
+                                name: voice.name,
+                              })
+                            : t("voices.picker.downloaded", {
+                                name: voice.name,
+                              })
+                      }
                       title={
                         !voice.assetId
-                          ? "Included"
+                          ? t("voices.picker.includedTitle")
                           : operatorManaged
-                            ? "Available"
-                            : "Downloaded"
+                            ? t("voices.picker.availableTitle")
+                            : t("voices.picker.downloadedTitle")
                       }
                       className="text-muted-foreground flex size-8 items-center justify-center"
                     >
@@ -492,7 +563,7 @@ export function PocketVoiceList({
           })}
           {!count ? (
             <p className="text-muted-foreground px-3 py-5 text-sm">
-              No voices match these filters.
+              {t("voices.picker.noMatch")}
             </p>
           ) : null}
           {showUploaded ? (
@@ -502,7 +573,8 @@ export function PocketVoiceList({
               disabled={disabled}
               onClick={() => void choose("custom")}
             >
-              Custom (uploaded){value === "custom" ? <Check /> : null}
+              {customUploadedLabel}
+              {value === "custom" ? <Check /> : null}
             </Button>
           ) : null}
         </div>

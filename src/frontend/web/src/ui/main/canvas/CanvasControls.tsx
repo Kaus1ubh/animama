@@ -2,6 +2,7 @@
 
 import { Maximize, Minimize, PictureInPicture2, Settings } from "lucide-react";
 import { useId, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 
 import { cn } from "@/lib/utils";
 import {
@@ -87,9 +88,13 @@ export function CanvasControls({
   portalContainer,
   showBackgroundModeControl = false,
 }: CanvasControlsProps) {
+  const { t } = useTranslation("chat");
   const pipTitle = isPipSupported
-    ? "Open picture-in-picture"
-    : "Picture-in-picture isn't supported in this browser";
+    ? t("canvas.pip.open")
+    : t("canvas.pip.unsupported");
+  const fullscreenLabel = isFullscreen
+    ? t("canvas.fullscreen.exit")
+    : t("canvas.fullscreen.enter");
 
   return (
     <div
@@ -99,15 +104,15 @@ export function CanvasControls({
         <PopoverTrigger asChild>
           <button
             type="button"
-            aria-label="Open canvas settings"
-            title="Canvas settings"
+            aria-label={t("canvas.settings.open")}
+            title={t("canvas.settings.title")}
             className={ICON_BUTTON_CLASS}
           >
             <Settings className="h-4 w-4" />
           </button>
         </PopoverTrigger>
         <PopoverContent
-          aria-label="Canvas settings"
+          aria-label={t("canvas.settings.title")}
           side="bottom"
           align="end"
           sideOffset={10}
@@ -116,34 +121,47 @@ export function CanvasControls({
           className="border-border/70 bg-background/95 supports-[backdrop-filter]:bg-background/90 max-h-(--radix-popover-content-available-height) w-[22rem] max-w-[calc(100vw-1rem)] overflow-y-auto rounded-2xl p-4 shadow-lg backdrop-blur-md"
         >
           <div className="space-y-4">
-            <h2 className="text-sm font-semibold">Canvas settings</h2>
+            <h2 className="text-sm font-semibold">
+              {t("canvas.settings.title")}
+            </h2>
             <ModeSelector
-              label="Mode"
+              label={t("canvas.settings.mode")}
               value={mode}
               onChange={onModeChange}
               options={[
-                { value: "avatar-chat", label: "Avatar + Chat" },
-                { value: "avatar", label: "Avatar only" },
-                { value: "chat", label: "Chat only" },
+                {
+                  value: "avatar-chat",
+                  label: t("canvas.settings.modes.avatarChat"),
+                },
+                { value: "avatar", label: t("canvas.settings.modes.avatar") },
+                { value: "chat", label: t("canvas.settings.modes.chat") },
               ]}
             />
             {showBackgroundModeControl ? (
               <ModeSelector
-                label="PiP background"
+                label={t("canvas.settings.pipBackground")}
                 value={backgroundMode}
                 onChange={onBackgroundModeChange}
                 options={[
-                  { value: "transparent", label: "Transparent" },
-                  { value: "scene", label: "Scene" },
+                  {
+                    value: "transparent",
+                    label: t("canvas.settings.pipBackgrounds.transparent"),
+                  },
+                  {
+                    value: "scene",
+                    label: t("canvas.settings.pipBackgrounds.scene"),
+                  },
                 ]}
               />
             ) : null}
             {cameraControls}
             <section
-              aria-label="Audio"
+              aria-label={t("canvas.settings.audio")}
               className="border-border/60 space-y-3 border-t pt-3"
             >
-              <h3 className="text-sm font-medium">Audio</h3>
+              <h3 className="text-sm font-medium">
+                {t("canvas.settings.audio")}
+              </h3>
               <AudioVolumePanel />
             </section>
           </div>
@@ -152,7 +170,7 @@ export function CanvasControls({
       <span className="inline-flex" title={pipTitle}>
         <button
           type="button"
-          aria-label="Toggle picture-in-picture"
+          aria-label={t("canvas.pip.toggle")}
           onClick={onPictureInPicture}
           disabled={!isPipSupported}
           className={ICON_BUTTON_CLASS}
@@ -162,8 +180,8 @@ export function CanvasControls({
       </span>
       <button
         type="button"
-        aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
-        title={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+        aria-label={fullscreenLabel}
+        title={fullscreenLabel}
         onClick={isFullscreen ? onMinimize : onMaximize}
         className={ICON_BUTTON_CLASS}
       >

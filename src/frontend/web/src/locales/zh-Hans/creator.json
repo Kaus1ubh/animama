@@ -1,0 +1,167 @@
+{
+  "actions": {
+    "cancel": "取消",
+    "tryAgain": "重试"
+  },
+  "avatar": {
+    "loading": {
+      "model": "正在加载模型…",
+      "setup": "正在准备…"
+    },
+    "noRuntimeFile": "所选虚拟形象模型没有运行时文件。",
+    "notAuthorized": "无法获得所选虚拟形象模型的访问授权。",
+    "renderFailed": "无法渲染所选虚拟形象。"
+  },
+  "canvas": {
+    "controls": "预览控件",
+    "guides": "参考线",
+    "restart": "从头播放预览",
+    "select": "预览{{label}}",
+    "showGuides": "显示放置参考线"
+  },
+  "handoff": {
+    "gesture": "在动作中使用",
+    "reaction": "在反应中使用",
+    "useIn": "用于…"
+  },
+  "import": {
+    "ariaLabel": "创作器 JSON",
+    "confirm": "导入文档"
+  },
+  "leave": {
+    "busy": {
+      "confirm": "离开并保留恢复数据",
+      "description": "此{{label}}仍在保存中。返回时仍可使用本地恢复数据。",
+      "title": "内容正在保存，确定要离开吗？"
+    },
+    "dirty": {
+      "confirm": "丢弃并继续",
+      "description": "此{{label}}有本地编辑的更改。丢弃会删除这些更改及其浏览器恢复草稿。已保存的内容不会改变。",
+      "title": "要丢弃编辑中的更改吗？"
+    },
+    "discardFailed": "无法丢弃草稿。",
+    "discarding": "正在丢弃…",
+    "stay": "留下"
+  },
+  "load": {
+    "button": "打开",
+    "description": "打开你可编辑的本地内容。",
+    "editable": "可编辑的本地内容",
+    "empty": "还没有可编辑的特效。",
+    "loadFailed": "无法加载特效。",
+    "loading": "正在加载…",
+    "noMatches": "没有匹配的特效。",
+    "openFailed": "无法打开此特效。请重试。",
+    "opening": "正在打开…",
+    "searchLabel": "搜索{{type}}",
+    "searchPlaceholder": "搜索特效",
+    "title": "打开{{type}}",
+    "types": {
+      "avatarEffect": "形象特效",
+      "particleEffect": "粒子特效",
+      "sceneEffect": "场景特效"
+    }
+  },
+  "modelPreview": {
+    "animaModel": "{{name}}（Anima）",
+    "animasFailed": "无法加载你的 Anima。",
+    "avatar": "虚拟形象",
+    "includedFailed": "无法准备所选的内置虚拟形象。",
+    "includedListFailed": "无法加载内置虚拟形象。",
+    "noAnima": "请先创建一个 Anima，再在虚拟形象上预览此特效。",
+    "noAvatar": "所选 Anima 没有可用的虚拟形象。",
+    "releaseUnavailable": "所选虚拟形象版本已不可用。",
+    "runtimeFailed": "无法加载预览 Anima 的运行时。",
+    "unnamedAnimaModel": "你的 Anima",
+    "versions": {
+      "equipped": "已装备在预览 Anima 上",
+      "included": "内置虚拟形象"
+    }
+  },
+  "panel": {
+    "authoringTools": "创作工具",
+    "collapse": "折叠{{label}}",
+    "expand": "展开{{label}}",
+    "inspector": "检查器",
+    "preview": "预览",
+    "setup": "配置"
+  },
+  "preview": {
+    "duration": "时长",
+    "durationSeconds": "{{label}}（秒）",
+    "playing": "播放中",
+    "secondsUnit": "秒",
+    "stopped": "已停止",
+    "target": "预览",
+    "title": "预览",
+    "untilStopped": "直到停止"
+  },
+  "recovery": {
+    "discard": "丢弃恢复数据",
+    "discardServerDraft": "丢弃保留的服务器草稿",
+    "recovered": "已恢复未保存的{{label}}更改。",
+    "recoveredDraft": "已恢复本地草稿"
+  },
+  "save": {
+    "retry": "重试保存",
+    "save": "保存",
+    "stages": {
+      "hashing": "正在计算哈希",
+      "preparing": "正在准备",
+      "uploading": "正在上传",
+      "validating": "正在验证"
+    }
+  },
+  "status": {
+    "saved": "已保存",
+    "saveFailed": "保存失败",
+    "unsaved": "未保存"
+  },
+  "templateDraft": {
+    "continue": "继续草稿",
+    "description": "你有一个从{{template}}开始、尚未保存的{{label}}。可以继续编辑，或丢弃后从模板重新开始。已保存的内容不会改变。",
+    "openFailed": "无法打开模板。",
+    "seedFailed": "无法打开模板：{{reason}}",
+    "title": "要继续未保存的草稿吗？",
+    "useTemplate": "丢弃并使用模板"
+  },
+  "timeline": {
+    "defaultTarget": "片段预览",
+    "loadingResources": "正在加载预览资源",
+    "pause": "暂停",
+    "pauseTarget": "暂停{{target}}",
+    "play": "播放",
+    "playhead": "当前播放位置",
+    "playTarget": "播放{{target}}",
+    "restart": "从头播放",
+    "restartTarget": "从头播放{{target}}",
+    "stop": "停止",
+    "stopTarget": "停止{{target}}"
+  },
+  "toolbar": {
+    "documentName": "{{type}}名称",
+    "import": "导入",
+    "library": "资源库",
+    "moreActions": "更多操作",
+    "name": "名称",
+    "new": "新建",
+    "newDocument": "新{{type}}",
+    "redo": "重做",
+    "redoShortcut": "重做 · {{shortcut}}",
+    "statusDetail": "{{label}}：{{detail}}",
+    "undo": "撤销",
+    "undoShortcut": "撤销 · {{shortcut}}",
+    "viewJson": "查看 JSON"
+  },
+  "unavailable": {
+    "goToCreate": "前往创建",
+    "notFound": "找不到此{{label}}。它可能已被删除，或链接已过期。",
+    "openLibrary": "打开资源库",
+    "title": "无法打开此{{label}}",
+    "unavailable": "此{{label}}不可用。请在资源库中查看。"
+  },
+  "validation": {
+    "count_other": "{{count}} 个验证问题",
+    "title": "验证问题"
+  }
+}

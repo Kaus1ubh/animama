@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "@tanstack/react-router";
 import {
   ChevronDown,
@@ -15,6 +16,8 @@ import {
 
 import type { PyAnimaIdleStyle } from "@animama/runtime-contracts/api-types";
 import type { PyIdleStyle } from "@/lib/content/catalogTypes";
+import { useFormatters } from "@animama/product-ui/i18n";
+import { emotionLabel } from "@/lib/emotion/presentation";
 import { presentIdleStyle } from "@/lib/loadout/idleStylePresentation";
 import { LoadoutSectionDisclosure } from "@/ui/animas/LoadoutSectionDisclosure";
 import { StarterBadge } from "@/ui/animas/StarterBadge";
@@ -61,6 +64,7 @@ function ActiveStyleSelector({
   disabled: boolean;
   onSelect: (style: PyIdleStyle) => void;
 }) {
+  const { t } = useTranslation("animas");
   const [open, setOpen] = useState(false);
   const currentSource = sourceKey(style.source);
   const ready = available.filter(
@@ -100,9 +104,7 @@ function ActiveStyleSelector({
           className="h-11 min-w-0 flex-1 justify-between rounded-lg px-4 font-normal"
         >
           <span className="flex min-w-0 items-center gap-2">
-            <span className="truncate">
-              {style.name ?? "Choose an Idle Style"}
-            </span>
+            <span className="truncate">{style.name ?? t("idle.choose")}</span>
             {style.state === "starter" ? <StarterBadge /> : null}
           </span>
           <ChevronDown className="text-muted-foreground size-4" />
@@ -114,14 +116,18 @@ function ActiveStyleSelector({
         className="w-(--radix-popover-trigger-width) min-w-80 p-0"
       >
         <Command>
-          <CommandInput placeholder="Search Idle Styles" autoFocus />
+          <CommandInput placeholder={t("idle.search")} autoFocus />
           <CommandList>
-            <CommandEmpty>No Idle Styles found.</CommandEmpty>
+            <CommandEmpty>{t("idle.noResults")}</CommandEmpty>
             {mine.length ? (
-              <CommandGroup heading="Mine">{choices(mine)}</CommandGroup>
+              <CommandGroup heading={t("idle.mine")}>
+                {choices(mine)}
+              </CommandGroup>
             ) : null}
             {starters.length ? (
-              <CommandGroup heading="Starter">{choices(starters)}</CommandGroup>
+              <CommandGroup heading={t("idle.starter")}>
+                {choices(starters)}
+              </CommandGroup>
             ) : null}
           </CommandList>
         </Command>
@@ -152,6 +158,9 @@ export function IdleStyleLoadoutSection({
   onRevert: () => void;
   onLeaveEmpty: () => void;
 }) {
+  const { t } = useTranslation("animas");
+  const { t: emotionT } = useTranslation("emotion");
+  const formatters = useFormatters();
   const [sectionExpanded, setSectionExpanded] = useState(false);
   const [expandedPools, setExpandedPools] = useState<Set<string>>(
     () => new Set(["default"]),
@@ -172,7 +181,7 @@ export function IdleStyleLoadoutSection({
 
   return (
     <LoadoutSectionDisclosure
-      title="Idle Style"
+      title={t("idle.title")}
       headingId="idle-style-heading"
       contentId="idle-style-content"
       expanded={sectionExpanded}
@@ -182,7 +191,7 @@ export function IdleStyleLoadoutSection({
       <div className="space-y-5">
         <div className="space-y-2">
           <p className="text-muted-foreground text-sm font-medium">
-            Active style
+            {t("idle.activeStyle")}
           </p>
           <div className="flex flex-wrap items-center gap-2">
             <ActiveStyleSelector
@@ -196,7 +205,7 @@ export function IdleStyleLoadoutSection({
               size="icon-lg"
               variant="outline"
               disabled={disabled || !style.default_pool?.length}
-              aria-label="Preview active Idle Style"
+              aria-label={t("idle.previewActive")}
               onClick={onPreview}
             >
               <Play />
@@ -208,7 +217,7 @@ export function IdleStyleLoadoutSection({
                   size="icon-lg"
                   variant="ghost"
                   disabled={disabled}
-                  aria-label="Idle Style actions"
+                  aria-label={t("idle.actions")}
                 >
                   <EllipsisVertical />
                 </Button>
@@ -222,7 +231,7 @@ export function IdleStyleLoadoutSection({
                         params={{ idleStyleId: styleId }}
                         search={{ duplicate: false }}
                       >
-                        <Pencil /> Edit Style
+                        <Pencil /> {t("idle.edit")}
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
@@ -231,47 +240,46 @@ export function IdleStyleLoadoutSection({
                         params={{ idleStyleId: styleId }}
                         search={{ duplicate: true }}
                       >
-                        <Copy /> Duplicate and edit
+                        <Copy /> {t("idle.duplicate")}
                       </Link>
                     </DropdownMenuItem>
                   </>
                 ) : null}
                 {style.state !== "starter" ? (
                   <DropdownMenuItem onSelect={onRevert}>
-                    <RotateCcw /> Use Starter
+                    <RotateCcw /> {t("idle.useStarter")}
                   </DropdownMenuItem>
                 ) : null}
                 <DropdownMenuItem
                   disabled={style.state === "empty"}
                   onSelect={onLeaveEmpty}
                 >
-                  <VolumeX /> No Idle Style
+                  <VolumeX /> {t("idle.none")}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
           {availableLoading ? (
             <p className="text-muted-foreground flex items-center gap-1.5 text-xs">
-              <Loader2 className="size-3 animate-spin" /> Loading Idle Styles…
+              <Loader2 className="size-3 animate-spin" /> {t("idle.loading")}
             </p>
           ) : null}
           {styleId ? (
             <p className="text-muted-foreground text-xs">
-              Pools belong to this Style. Duplicate it for a variation used only
-              by this Anima, then select the saved copy here.
+              {t("idle.poolsHint")}
             </p>
           ) : null}
         </div>
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-2">
-            <h3 className="font-semibold">Emotion and intensity pools</h3>
+            <h3 className="font-semibold">{t("idle.poolsTitle")}</h3>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   type="button"
                   size="icon-sm"
                   variant="outline"
-                  aria-label="Filter emotion assignments"
+                  aria-label={t("idle.filter")}
                 >
                   <Filter />
                 </Button>
@@ -283,15 +291,14 @@ export function IdleStyleLoadoutSection({
                     setShowInherited(checked === true)
                   }
                 >
-                  Show inherited cells
+                  {t("idle.showInherited")}
                 </DropdownMenuCheckboxItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
           {style.state === "empty" ? (
             <div className="text-muted-foreground rounded-xl border px-4 py-8 text-center text-sm">
-              No scheduled idle Gestures. Procedural breathing and resting
-              continue.
+              {t("idle.empty")}
             </div>
           ) : (
             <div className="overflow-hidden rounded-xl border">
@@ -306,16 +313,25 @@ export function IdleStyleLoadoutSection({
                       onClick={() => toggle(row.key)}
                     >
                       <span className="flex-1 text-sm font-semibold">
-                        {row.label}
+                        {row.emotion && row.intensity
+                          ? t("idle.cell", {
+                              emotion: emotionLabel(row.emotion, emotionT),
+                              intensity: formatters.number(
+                                Number(row.intensity),
+                              ),
+                            })
+                          : t("idle.defaultPool")}
                       </span>
                       <span className="text-muted-foreground text-xs">
                         {row.mode === "none"
-                          ? "No idle"
+                          ? t("idle.noIdle")
                           : row.mode === "inherit"
-                            ? "Uses Default"
+                            ? t("idle.inherit")
                             : row.gestureRefs.length
-                              ? `${row.gestureRefs.length} ${row.gestureRefs.length === 1 ? "Gesture" : "Gestures"}`
-                              : "No scheduled idle"}
+                              ? t("idle.gestureCount", {
+                                  count: row.gestureRefs.length,
+                                })
+                              : t("idle.noScheduled")}
                       </span>
                       {expanded ? (
                         <ChevronDown className="size-4" />
@@ -338,7 +354,9 @@ export function IdleStyleLoadoutSection({
                               variant="outline"
                               size="icon-sm"
                               disabled={disabled}
-                              aria-label={`Preview ${row.gestureNames[index]}`}
+                              aria-label={t("actions.previewNamed", {
+                                name: row.gestureNames[index],
+                              })}
                               onClick={() => onPreviewGesture(ref)}
                             >
                               <Play />
@@ -347,7 +365,7 @@ export function IdleStyleLoadoutSection({
                         ))}
                         {!row.gestureRefs.length ? (
                           <p className="text-muted-foreground px-4 py-3 text-sm">
-                            No scheduled idle Gesture for this cell.
+                            {t("idle.noCellGesture")}
                           </p>
                         ) : null}
                       </div>

@@ -82,6 +82,33 @@ describe("settings search dropdown options", () => {
     );
     expect(options.map((option) => option.key)).toEqual(["section:Memory"]);
   });
+
+  it("matches sections and their entries by translated section labels", () => {
+    const labels: Record<(typeof sections)[number], string> = {
+      General: "一般",
+      Voice: "音声",
+      Memory: "メモリ",
+    };
+    const options = buildSettingsSearchOptions(
+      entries,
+      sections,
+      tokenizeSettingsQuery("音声"),
+      (section) => labels[section],
+    );
+    expect(options.map((option) => option.key)).toEqual([
+      "section:Voice",
+      "entry:stt",
+      "entry:tts",
+    ]);
+    expect(
+      buildSettingsSearchOptions(
+        entries,
+        sections,
+        tokenizeSettingsQuery("voice"),
+        (section) => labels[section],
+      ),
+    ).toEqual([]);
+  });
 });
 
 describe("splitHighlightedText", () => {

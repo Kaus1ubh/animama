@@ -1,3 +1,5 @@
+import type { TFunction } from "i18next";
+import { getI18n } from "react-i18next";
 import type {
   PyModelConnection,
   PyModelConnectionDetection,
@@ -24,16 +26,30 @@ import {
   roleCandidates,
 } from "@/ui/settings/models/model-configuration-state";
 
-/** Step labels for the progress list and its "Step 2 of 3" line. */
-export const SETUP_STEP_LABELS: Record<SetupStep, string> = {
-  welcome: "Welcome",
-  ai: "AI",
-  voice: "Voice",
-};
+/** A step's label in the progress list. */
+export function setupStepLabel(
+  step: SetupStep,
+  t: TFunction<"setup"> = getI18n().getFixedT(null, "setup"),
+): string {
+  switch (step) {
+    case "welcome":
+      return t("steps.welcome");
+    case "ai":
+      return t("steps.ai");
+    case "voice":
+      return t("steps.voice");
+  }
+}
 
 /** "Step 2 of 3" for a step. */
-export function setupStepPosition(step: SetupStep): string {
-  return `Step ${SETUP_STEPS.indexOf(step) + 1} of ${SETUP_STEPS.length}`;
+export function setupStepPosition(
+  step: SetupStep,
+  t: TFunction<"setup"> = getI18n().getFixedT(null, "setup"),
+): string {
+  return t("progress.position", {
+    current: SETUP_STEPS.indexOf(step) + 1,
+    total: SETUP_STEPS.length,
+  });
 }
 
 /** The neighbouring step, or null at either end. */
@@ -244,14 +260,15 @@ export function setupTtsPatch(
 
 /**
  * Setup's two provider tabs, with availability from App Settings' options.
- * A `source` names the model, linked to its public page, ahead of the
- * description.
+ * The Voice step describes each one; built-in voices link to their model's
+ * public page.
  */
-export function setupTtsOptions(options: readonly TtsProviderOption[]): Array<{
+export function setupTtsOptions(
+  options: readonly TtsProviderOption[],
+  t: TFunction<"setup"> = getI18n().getFixedT(null, "setup"),
+): Array<{
   id: SetupTtsProvider;
   label: string;
-  source?: { name: string; href: string };
-  description: string;
   disabled: boolean;
   reason?: string;
 }> {
@@ -262,20 +279,13 @@ export function setupTtsOptions(options: readonly TtsProviderOption[]): Array<{
   return [
     {
       id: "pocket_tts",
-      label: "PocketTTS (built-in)",
-      source: {
-        name: "Kyutai's Pocket TTS",
-        href: "https://github.com/kyutai-labs/pocket-tts",
-      },
-      description:
-        "speaks replies on this computer, with no key or account needed.",
+      label: t("voice.tts.pocket.label"),
       disabled: pocket?.disabled ?? true,
       reason: pocket?.reason,
     },
     {
       id: "elevenlabs",
-      label: "ElevenLabs",
-      description: "Cloud voices with your ElevenLabs API key.",
+      label: t("voice.tts.elevenLabs.label"),
       disabled: elevenlabs?.disabled ?? true,
       reason: elevenlabs?.reason,
     },

@@ -1,6 +1,7 @@
 "use client";
 
 import { Loader2, Plus } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { Button } from "@/ui/components/button";
 import { Checkbox } from "@/ui/components/checkbox";
@@ -19,6 +20,7 @@ export function MemoryManagerPanel({
   controller: MemoryManagerWorkspaceController;
   pendingEpisodeCount: number;
 }) {
+  const { t } = useTranslation("memory");
   return (
     // min-w-0 lets this row item shrink to the Work pane instead of growing
     // to the transcript's widest unbreakable content.
@@ -36,7 +38,7 @@ export function MemoryManagerPanel({
           ) : (
             <Plus className="size-4" />
           )}
-          New
+          {t("manager.new")}
         </Button>
         {pendingEpisodeCount > 0 ? (
           <Button
@@ -49,7 +51,7 @@ export function MemoryManagerPanel({
             {controller.isProcessingEpisodes ? (
               <Loader2 className="size-4 animate-spin" />
             ) : null}
-            Process episodes
+            {t("manager.processEpisodes")}
             <span className="bg-primary text-primary-foreground text-2xs rounded-full px-1.5 py-0.5">
               {pendingCountLabel(pendingEpisodeCount)}
             </span>
@@ -63,7 +65,7 @@ export function MemoryManagerPanel({
               controller.setAutoApproveDiffs(checked === true)
             }
           />
-          Auto approve
+          {t("manager.autoApprove")}
         </label>
       </div>
 

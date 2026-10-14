@@ -2,7 +2,8 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { describe, expect, it } from "vitest";
+import { getI18n } from "react-i18next";
+import { afterEach, describe, expect, it } from "vitest";
 
 import {
   DEFAULT_POCKET_VOICE,
@@ -10,6 +11,7 @@ import {
 } from "../../src/lib/speech/pocket/voice-catalog";
 import {
   groupPocketVoices,
+  pocketVoiceAccentLabel,
   pocketVoiceLabel,
 } from "../../src/lib/speech/pocket/voice-groups";
 
@@ -95,5 +97,25 @@ describe("pocketVoiceLabel", () => {
     expect(pocketVoiceLabel("caro_davy")).toBe("Caro Davy");
     expect(pocketVoiceLabel("custom")).toBe("Custom (uploaded)");
     expect(pocketVoiceLabel("legacy_voice")).toBe("legacy_voice");
+  });
+});
+
+describe("pocketVoiceAccentLabel", () => {
+  afterEach(async () => {
+    await getI18n().changeLanguage("en");
+  });
+
+  it("words every catalog accent and keeps unknown accents as authored", async () => {
+    const accents = [
+      ...new Set(
+        POCKET_VOICES.flatMap((voice) => (voice.accent ? [voice.accent] : [])),
+      ),
+    ];
+    for (const accent of accents)
+      expect(pocketVoiceAccentLabel(accent)).toBe(accent);
+    await getI18n().changeLanguage("ja");
+    for (const accent of accents)
+      expect(pocketVoiceAccentLabel(accent)).not.toBe(accent);
+    expect(pocketVoiceAccentLabel("Welsh")).toBe("Welsh");
   });
 });

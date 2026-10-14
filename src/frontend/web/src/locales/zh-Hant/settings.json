@@ -1,0 +1,445 @@
+{
+  "about": {
+    "diagnostics": {
+      "copied": "已複製診斷資訊。",
+      "copy": "複製摘要",
+      "copyFailed": "無法將診斷資訊複製到剪貼簿。",
+      "description": "複製版本、平台和元件狀態，用於錯誤回報。絕不包含金鑰、聊天和記憶。",
+      "entryLabel": "複製診斷摘要",
+      "label": "診斷"
+    },
+    "logs": {
+      "description": "開啟 Animama 的記錄檔資料夾以進行疑難排解。",
+      "label": "記錄檔",
+      "open": "開啟記錄檔資料夾",
+      "openFailed": "無法開啟記錄檔資料夾。"
+    },
+    "platform": {
+      "desktop": "桌面版",
+      "desktopOs": "桌面版（{{os}}）",
+      "web": "網頁瀏覽器"
+    },
+    "version": "版本"
+  },
+  "actions": {
+    "cancel": "取消",
+    "tryAgain": "再試一次"
+  },
+  "advanced": {
+    "avatarTransform": {
+      "help": "虛擬形象變換控制項說明",
+      "label": "啟用虛擬形象變換控制項",
+      "tooltip": "按 G 移動、按 R 旋轉、按 S 縮放虛擬形象。按 Esc 結束變換模式。在虛擬形象模式下，拖曳或捲動畫布可環繞和縮放。在虛擬形象聊天模式下，按住 Ctrl 拖曳可環繞，按 Ctrl + 捲動可縮放。",
+      "updateFailed": "無法更新虛擬形象變換控制項。"
+    },
+    "markdown": {
+      "label": "呈現助理的 Markdown",
+      "updateFailed": "無法更新 Markdown 呈現設定。"
+    }
+  },
+  "animaSettings": {
+    "choices": {
+      "appDefaultOff": "應用程式預設（關）",
+      "appDefaultOn": "應用程式預設（開）",
+      "off": "關",
+      "on": "開"
+    },
+    "headings": {
+      "emotion": "情緒",
+      "memory": "記憶"
+    },
+    "rows": {
+      "emotion_updates": {
+        "description": "在聊天中更新情緒狀態。關閉後，新的情緒反應會停止，但動作仍會播放。",
+        "tooltip": "關閉後，會保留目前的心情，動作仍會播放。"
+      },
+      "memory_influence": {
+        "description": "在聊天中讀取已儲存的記憶。關閉後，IDENTITY.md 和對話紀錄仍然有效。",
+        "tooltip": "關閉此項也會關閉記憶更新；現有的記憶不會被刪除。"
+      },
+      "memory_updates": {
+        "description": "在聊天中儲存新的記憶。關閉此項不會停止儲存聊天紀錄。",
+        "memoryOff": "此 Anima 的記憶關閉時，此項也會關閉。",
+        "tooltip": "記憶更新需要開啟記憶。"
+      }
+    },
+    "updateFailed": {
+      "emotion": "無法更新情緒設定。",
+      "memory": "無法更新記憶設定。"
+    }
+  },
+  "apiKeys": {
+    "label": "API 金鑰"
+  },
+  "appearance": {
+    "colors": {
+      "advanced": {
+        "description": "表面、線條、狀態、側邊欄和圖表的顏色。",
+        "entryGroup": "進階 · {{group}}",
+        "keywords": [
+          "顏色",
+          "進階",
+          "自訂"
+        ],
+        "label": "進階顏色"
+      },
+      "customForMode": {
+        "dark": "已為深色模式自訂。",
+        "light": "已為淺色模式自訂。"
+      },
+      "entryLabel": "{{label}}顏色",
+      "groups": {
+        "basic": "視覺風格",
+        "charts": "圖表",
+        "lines": "線條",
+        "sidebar": "側邊欄",
+        "status": "狀態",
+        "surfaces": "表面"
+      },
+      "hexDefault": "預設",
+      "hexLabel": "{{label}}顏色的十六進位值",
+      "invalidHex": "請輸入十六進位顏色，例如 #ff6600。",
+      "keywords": [
+        "顏色",
+        "主題",
+        "覆寫"
+      ],
+      "pick": "選擇{{label}}顏色",
+      "reset": "重設{{label}}顏色",
+      "resetAll": {
+        "description": {
+          "dark_other": "還原深色模式下全部 {{count}} 個自訂顏色。",
+          "light_other": "還原淺色模式下全部 {{count}} 個自訂顏色。"
+        },
+        "failed": "無法重設顏色。",
+        "keywords": [
+          "顏色",
+          "重設",
+          "預設"
+        ],
+        "label": "重設顏色",
+        "none": {
+          "dark": "深色模式下沒有自訂顏色。",
+          "light": "淺色模式下沒有自訂顏色。"
+        }
+      },
+      "tokens": {
+        "accent": "強調",
+        "background": "背景",
+        "border": "邊框",
+        "card": "卡片",
+        "chart": "圖表 {{index}}",
+        "destructive": "危險操作",
+        "foreground": "前景",
+        "input": "輸入框邊框",
+        "muted": "柔和",
+        "muted_foreground": "柔和文字",
+        "popover": "彈出框",
+        "primary": "主要",
+        "ring": "焦點環",
+        "secondary": "次要",
+        "sidebar": "側邊欄",
+        "sidebar_accent": "側邊欄強調",
+        "sidebar_border": "側邊欄邊框",
+        "sidebar_foreground": "側邊欄文字",
+        "sidebar_primary": "側邊欄主要"
+      },
+      "updateFailed": "無法更新{{label}}顏色。"
+    },
+    "theme": {
+      "group": "主題",
+      "keywords": [
+        "模式",
+        "深色",
+        "淺色",
+        "系統",
+        "深色模式"
+      ],
+      "label": "主題",
+      "modeLabel": "主題模式",
+      "modes": {
+        "dark": "深色",
+        "light": "淺色",
+        "system": "跟隨系統"
+      }
+    }
+  },
+  "audio": {
+    "volume": "音量"
+  },
+  "behavior": {
+    "appDefaultLabel": "{{label}}（應用程式預設）",
+    "blockedByMemory": "開啟記憶後才能允許記憶更新。",
+    "flags": {
+      "emotion_updates": {
+        "description": "在聊天中更新情緒狀態。",
+        "label": "情緒更新"
+      },
+      "memory_influence": {
+        "description": "在聊天中讀取已儲存的記憶。關閉此項也會關閉記憶更新。",
+        "label": "記憶"
+      },
+      "memory_updates": {
+        "description": "在聊天中儲存新的記憶。",
+        "label": "記憶更新"
+      }
+    },
+    "updateFailed": "無法更新「{{label}}」設定。"
+  },
+  "data": {
+    "reset": {
+      "confirm": "重設",
+      "confirmDescription": "主題、顏色、語音、快速鍵、預設值等應用程式設定將恢復為預設值。Anima 設定、聊天、記憶、內容、供應商金鑰和你的顯示名稱不會變更。",
+      "confirmTitle": "要重設應用程式設定嗎？",
+      "description": "將應用程式設定恢復為預設值。Anima 設定、聊天、記憶和供應商金鑰會保留。",
+      "failed": "無法重設應用程式設定。未做任何變更。",
+      "label": "重設應用程式設定",
+      "open": "重設…",
+      "resetting": "正在重設…",
+      "succeeded": "已重設應用程式設定。"
+    }
+  },
+  "featurePacks": {
+    "actions": {
+      "confirmRemove": "確認移除",
+      "install": "安裝",
+      "installCompatible": "安裝相容版本",
+      "remove": "移除"
+    },
+    "cleanupPending": "此功能包已停用，但仍有部分檔案殘留。請關閉正在使用這些檔案的應用程式，然後重試移除。",
+    "inUse": "請先完成進行中的文件工作、關閉內容預覽，並從 Anima 裝備中移除此功能包的項目，然後再試一次。",
+    "noCompatiblePack": "此應用程式的目錄中沒有相容的已發布功能包。",
+    "packs": {
+      "documentProcessing": {
+        "description": "擷取上傳的文件並建立索引。移除後會保留你的原始檔案和排隊中的工作。",
+        "name": "文件處理"
+      },
+      "expandedIncludedContent": {
+        "description": "為內建內容新增可選擇的內容。絕不會自動變更你的 Anima 的裝備。",
+        "name": "擴充內建內容"
+      }
+    },
+    "progress": "{{name}}進度",
+    "reloadWarning": "請先儲存未完成的編輯。啟用或移除功能包會短暫重新載入應用程式並關閉夥伴視窗。",
+    "sizes": "下載 {{download}} 位元組 · 安裝後 {{installed}} 位元組 · 需要 {{free}} 位元組可用空間",
+    "states": {
+      "downloading": "正在下載",
+      "failed": "失敗",
+      "installed": "已安裝",
+      "installing": "正在安裝",
+      "not_installed": "未安裝",
+      "update_available": "有可用更新",
+      "verifying": "正在驗證"
+    },
+    "title": "選用功能包"
+  },
+  "groups": {
+    "animaDefaults": "Anima 的預設值",
+    "animama": "Animama",
+    "appData": "應用程式資料",
+    "audio": "音訊",
+    "avatarControls": "虛擬形象控制項",
+    "defaultModels": "預設模型",
+    "desktopShortcuts": "桌面快速鍵",
+    "diagnostics": "診斷",
+    "messages": "訊息",
+    "microphone": "麥克風",
+    "profile": "個人資料",
+    "speechToText": "語音轉文字",
+    "textToSpeech": "文字轉語音",
+    "voiceClone": "語音複製",
+    "webSearch": "網頁搜尋"
+  },
+  "language": {
+    "description": "Animama 和 Anima 使用的語言：包括選單、訊息，以及 Anima 說話和聽懂的語言。測試版語言為機器翻譯。",
+    "keywords": [
+      "語言",
+      "地區設定",
+      "翻譯"
+    ],
+    "label": "語言",
+    "saveFailed": "無法變更語言。",
+    "systemDefaultResolved": "系統預設（{{language}}）"
+  },
+  "modal": {
+    "close": "關閉應用程式設定",
+    "description": "設定應用程式層級的語音和介面。",
+    "navigationLabel": "應用程式",
+    "title": "應用程式設定"
+  },
+  "models": {
+    "connections": "連線與模型",
+    "webSearch": "搜尋服務"
+  },
+  "profile": {
+    "displayName": {
+      "count": "{{length}}/{{max}}",
+      "fieldLabel": "顯示名稱",
+      "label": "顯示名稱",
+      "loadFailed": "Animama 無法載入本機個人資料。",
+      "loading": "正在載入顯示名稱…",
+      "placeholder": "你的名字",
+      "required": "請輸入 1 到 {{max}} 個字元的顯示名稱。",
+      "save": "儲存",
+      "saved": "已儲存顯示名稱。",
+      "saveFailed": "無法儲存你的顯示名稱。請再試一次。",
+      "unavailable": "無法使用顯示名稱"
+    }
+  },
+  "safety": {
+    "disabled": {
+      "description": "此安裝的營運者已關閉 AI 提示和危機支援。",
+      "label": "安全功能"
+    },
+    "entryLabel": "危機支援資源地區和 AI 提醒",
+    "region": {
+      "automatic": "自動",
+      "automaticResolved": "自動（{{region}}）",
+      "label": "危機支援資源地區"
+    },
+    "reminder": {
+      "ariaLabel": "AI 提醒間隔",
+      "everyHours_other": "每 {{count}} 小時",
+      "everyMinutes_other": "每 {{count}} 分鐘",
+      "label": "長時間對話中的 AI 提醒"
+    },
+    "saveFailed": "無法儲存安全設定。"
+  },
+  "search": {
+    "label": "搜尋設定",
+    "noMatch": "沒有符合「{{query}}」的設定。",
+    "placeholder": "搜尋",
+    "results": "符合的設定"
+  },
+  "sections": {
+    "about": "關於",
+    "advanced": "進階",
+    "apiKeys": "API 金鑰",
+    "appearance": "外觀",
+    "data": "資料",
+    "general": "一般",
+    "memoryEmotion": "記憶與情緒",
+    "models": "模型",
+    "safety": "安全",
+    "shortcuts": "快速鍵",
+    "voice": "語音"
+  },
+  "shortcuts": {
+    "actions": {
+      "press_to_talk": "按鍵說話",
+      "quick_chat": "快速聊天",
+      "skip_tts": "略過朗讀",
+      "toggle_voice_mode": "開關語音模式",
+      "toggle_voice_mute": "切換靜音"
+    },
+    "groupDescription": "按鍵說話也支援滑鼠按鍵。",
+    "issues": {
+      "in_use": "已被「{{action}}」使用。",
+      "modifier_required": "請選擇至少包含一個輔助鍵的快速鍵。",
+      "mouse_press_to_talk_only": "滑鼠按鍵只能用於按鍵說話。",
+      "non_modifier_key_required": "請選擇一個非輔助鍵。",
+      "unsupported_key": "請選擇支援的快速鍵。",
+      "unsupported_mouse_button": "請選擇支援的滑鼠按鍵。"
+    },
+    "mouseButton": "滑鼠按鍵 {{button}}",
+    "pressKeys": "請按鍵",
+    "pressKeysOrMouse": "請按鍵或滑鼠",
+    "pressToTalkDescription": "按住時暫時取消語音模式靜音。",
+    "record": "錄製「{{label}}」快速鍵",
+    "updateFailed": "無法更新快速鍵。"
+  },
+  "updates": {
+    "actions": {
+      "check": "檢查更新",
+      "confirmRestart": "確認重新啟動",
+      "download": "下載更新",
+      "later": "稍後",
+      "restart": "重新啟動以安裝",
+      "retryDownload": "重試下載"
+    },
+    "controlsUnavailable": "更新控制項暫時無法使用。請重新開啟設定或重新啟動 Animama。",
+    "failures": {
+      "generic": "更新未能完成。你目前的應用程式和資料已保留。請檢查網路連線後再試一次。",
+      "pack_in_use": "請先完成進行中的文件工作並關閉內容預覽，然後再試一次。",
+      "update_changed_check_again": "自你檢查以來，版本已有變更。請在下載前重新檢查。",
+      "update_install_timeout": "安裝程式未能及時完成。請結束並重新開啟 Animama；不要重設你的資料。",
+      "update_insufficient_disk": "請釋放更多磁碟空間，然後再試一次。你目前的應用程式和資料未被變更。",
+      "update_pack_operation_active": "請等待功能包變更完成，然後再試一次。",
+      "update_pack_references_blocked": "此更新無法保留你參照的擴充內建內容。請安裝相容的功能包或移除這些參照後再試一次。"
+    },
+    "progress": "更新下載",
+    "restartWarning": "請先儲存未完成的編輯。重新啟動會關閉夥伴視窗，並在安裝前停止本機服務。",
+    "sizes": "下載 {{download}} 位元組 · 需要 {{free}} 位元組可用空間",
+    "status": {
+      "available": "有可用的更新。在你核准之前不會下載任何內容。",
+      "checking": "正在檢查更新…",
+      "downloaded": "更新已下載。準備好後請重新啟動。",
+      "downloading": "正在下載已核准的更新…",
+      "idle": "啟動後會檢查更新。下載和重新啟動一律需要你的核准。",
+      "restarting": "正在完成工作並重新啟動 Animama…",
+      "up_to_date": "已是最新版本。"
+    },
+    "title": "桌面版更新",
+    "versionTitle": "Animama {{version}}"
+  },
+  "voice": {
+    "capabilitiesFailed": "無法檢查語音功能。請重新開啟設定以重試。",
+    "defaultProvidersFailed": "無法儲存預設語音供應商。",
+    "microphone": {
+      "device": "麥克風輸入裝置",
+      "sensitivity": "麥克風靈敏度",
+      "test": "測試麥克風"
+    },
+    "stt": {
+      "downloads": "離線語音下載",
+      "entryLabel": "語音轉文字供應商",
+      "label": "供應商",
+      "parakeetWebgpu": "Parakeet (WebGPU)",
+      "placeholder": "選擇供應商",
+      "preparing": "正在準備供應商預設值...",
+      "updateFailed": "無法更新語音轉文字供應商。"
+    },
+    "tts": {
+      "elevenLabs": {
+        "key": {
+          "description": "使用 ElevenLabs 語音時需要。在這台電腦上加密儲存，也可在「API 金鑰」中設定。",
+          "label": "ElevenLabs API 金鑰"
+        }
+      },
+      "enable": "啟用文字轉語音",
+      "gemini": {
+        "key": {
+          "description": "使用 Gemini 語音時需要。在這台電腦上加密儲存，也可在「API 金鑰」中設定。",
+          "label": "Gemini API 金鑰"
+        },
+        "model": {
+          "descriptions": {
+            "flash": "Gemini 的旗艦語音模型，費用較高。",
+            "flashLite": "延遲更低、費用更低的 Gemini 語音。"
+          },
+          "label": "Gemini 模型",
+          "note": "Google 會依你的 API 金鑰對 Gemini 語音計費。可在「裝備 → 語音」中為每個 Anima 選擇聲音。",
+          "placeholder": "選擇模型",
+          "updateFailed": "無法更新 Gemini 模型。"
+        }
+      },
+      "noProvider": "此環境中沒有可用的文字轉語音供應商。",
+      "provider": {
+        "ariaLabel": "文字轉語音供應商",
+        "enableFirst": "啟用文字轉語音後才能選擇供應商。",
+        "entryLabel": "預設文字轉語音供應商",
+        "label": "預設供應商",
+        "note": "用於沒有自己供應商的 Anima。可在「裝備 → 語音」中為每個 Anima 選擇供應商和聲音。",
+        "updateFailed": "無法更新文字轉語音供應商。"
+      },
+      "stream": {
+        "description": "在完整回覆準備好之前開始說話。",
+        "label": "分段串流文字轉語音",
+        "unavailable": "使用 Gemini 時無法使用。",
+        "updateFailed": "無法更新文字轉語音串流模式。"
+      },
+      "updateFailed": "無法更新文字轉語音設定。"
+    },
+    "voiceClone": "語音複製"
+  }
+}

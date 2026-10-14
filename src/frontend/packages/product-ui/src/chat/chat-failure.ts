@@ -1,9 +1,28 @@
+import type { TFunction } from "i18next";
 import { safeNavigationUrl } from "../lib/safe-url";
+import { productEnglishT } from "../i18n/product-translation";
+
+/**
+ * A catalog key in the product namespace with its parameters, resolved in the
+ * active locale when rendered. `name: null` stands for the default connection
+ * name and `waitSeconds` for a localized "about N minutes".
+ */
+export type ChatFailureCopyRef = {
+  key: string;
+  params?: Record<string, unknown>;
+};
 
 /** Safe presentation for a failed turn; never render raw provider payloads. */
 export type ChatFailure = {
+  /** English text for hosts and logs; rendering uses `copy` when present. */
   title: string;
   guidance: string;
+  /** Catalog references for the title, guidance and link label. */
+  copy?: {
+    title: ChatFailureCopyRef;
+    guidance: ChatFailureCopyRef;
+    linkLabel?: ChatFailureCopyRef;
+  };
   code: string;
   originalText: string;
   partialText: string;
@@ -26,7 +45,8 @@ function record(value: unknown): Record<string, unknown> {
  * never from the model server's response.
  */
 type FailedConnection = {
-  name: string;
+  /** `null` reads as the default connection name. */
+  name: string | null;
   /** Local server presets get "is it running?" guidance. */
   localServer: string | null;
   baseUrl: string | null;
@@ -48,97 +68,63 @@ function text(value: unknown, maxLength: number): string | null {
 function failedConnection(details: Record<string, unknown>): FailedConnection {
   const preset = text(details.connection_preset, 40);
   return {
-    name: text(details.connection_name, 80) ?? "The model server",
+    name: text(details.connection_name, 80),
     localServer: preset ? (LOCAL_SERVER_PRESETS[preset] ?? null) : null,
     baseUrl: text(details.connection_base_url, 200),
   };
 }
 
-type Description = (connection: FailedConnection) => readonly [string, string];
+type CopyPair = readonly [ChatFailureCopyRef, ChatFailureCopyRef];
+type Description = (connection: FailedConnection) => CopyPair;
 
-const MODEL_SETTINGS = "App Settings → Models";
+/** Title and guidance from `chatFailure.<group>.<code>`, with the connection's values. */
+function pair(group: string, guidanceVariant = "guidance"): Description {
+  return ({ name, localServer, baseUrl }) => {
+    const params = { name, localServer, baseUrl };
+    return [
+      { key: `chatFailure.${group}.title`, params },
+      { key: `chatFailure.${group}.${guidanceVariant}`, params },
+    ];
+  };
+}
+
+/** Local server presets get "is it running?" guidance instead of cloud guidance. */
+function localAware(group: string, withAddress = false): Description {
+  return (connection) =>
+    pair(
+      group,
+      connection.localServer
+        ? withAddress && connection.baseUrl
+          ? "guidanceLocalAt"
+          : "guidanceLocal"
+        : "guidance",
+    )(connection);
+}
 
 /** Copy for backend codes; each names the connection that failed. */
 const baseDescriptions: Record<string, Description> = {
-  missing_api_key: ({ name }) => [
-    `${name} has no API key configured.`,
-    `Ask the installation owner to add its key in ${MODEL_SETTINGS} or API Keys, then send your message again.`,
-  ],
-  openai_authentication_error: ({ name }) => [
-    `${name} rejected the API key.`,
-    `Ask the installation owner to check the key configured for ${name} before trying again.`,
-  ],
-  openai_permission_denied: ({ name }) => [
-    `${name} denied access to this model.`,
-    "Check the account's model access or select another available model.",
-  ],
-  openai_not_found: ({ name }) => [
-    `${name} couldn't find the selected model.`,
-    `Check the model ID in ${MODEL_SETTINGS} or select another model.`,
-  ],
-  openai_quota_exceeded: ({ name }) => [
-    `${name}'s account has reached its usage limit.`,
-    "Check the account's billing and usage limits before trying again.",
-  ],
-  openai_rate_limit: ({ name }) => [
-    `${name} is receiving too many requests.`,
-    "Wait a little before sending your message again.",
-  ],
-  openai_overloaded: ({ name }) => [
-    `${name} is temporarily unavailable.`,
-    "Wait a little before sending your message again.",
-  ],
-  openai_server_error: ({ name, localServer }) => [
-    `${name} couldn't complete this request.`,
-    localServer
-      ? `Check that ${localServer} has the model loaded, then try again.`
-      : "Wait a little before sending your message again.",
-  ],
-  openai_timeout: ({ name, localServer }) => [
-    `${name} took too long to respond.`,
-    localServer
-      ? `The model may still be loading. Try again, or raise the connection's timeout in ${MODEL_SETTINGS}.`
-      : "Check your connection and try again when you're ready.",
-  ],
-  openai_connection_error: ({ name, localServer, baseUrl }) => [
-    `Animama couldn't reach ${name}.`,
-    localServer
-      ? `Is ${localServer} running${baseUrl ? ` at ${baseUrl}` : ""}? Start it, then try again.`
-      : "Check your internet connection and try again when you're ready.",
-  ],
-  openai_bad_request: ({ name }) => [
-    `${name} rejected this request.`,
-    `Check the selected model and its settings in ${MODEL_SETTINGS} before trying again.`,
-  ],
-  connection_unavailable: () => [
-    "The selected model's connection was removed.",
-    "Select another model, then send your message again.",
-  ],
-  connection_base_url_missing: ({ name }) => [
-    `${name} has no server address.`,
-    `Set its base URL in ${MODEL_SETTINGS}, then send your message again.`,
-  ],
-  gateway_request_rejected: () => [
-    "This installation refused the request.",
-    "Open Animama at its configured application address, or reopen the desktop app. Ask the installation owner to check access settings if this continues.",
-  ],
-  chat_stream_interrupted: () => [
-    "The reply was interrupted.",
-    "The connection ended before Animama confirmed completion. Check your connection before sending again.",
-  ],
+  missing_api_key: pair("codes.missing_api_key"),
+  openai_authentication_error: pair("codes.openai_authentication_error"),
+  openai_permission_denied: pair("codes.openai_permission_denied"),
+  openai_not_found: pair("codes.openai_not_found"),
+  openai_quota_exceeded: pair("codes.openai_quota_exceeded"),
+  openai_rate_limit: pair("codes.openai_rate_limit"),
+  openai_overloaded: pair("codes.openai_overloaded"),
+  openai_server_error: localAware("codes.openai_server_error"),
+  openai_timeout: localAware("codes.openai_timeout"),
+  openai_connection_error: localAware("codes.openai_connection_error", true),
+  openai_bad_request: pair("codes.openai_bad_request"),
+  connection_unavailable: pair("codes.connection_unavailable"),
+  connection_base_url_missing: pair("codes.connection_base_url_missing"),
+  gateway_request_rejected: pair("codes.gateway_request_rejected"),
+  chat_stream_interrupted: pair("codes.chat_stream_interrupted"),
   // A Claude model's refusal (stop_reason "refusal"); no other model is tried.
-  model_refused: () => [
-    "The model declined to respond to this message.",
-    "Try rephrasing it.",
-  ],
+  model_refused: pair("codes.model_refused"),
 };
 
 /** A more specific reading of some failures, from the server's neutral category. */
 const categoryDescriptions: Record<string, Description> = {
-  context_exceeded: ({ name }) => [
-    `The conversation is too long for ${name}'s model.`,
-    `Choose a model with a larger context window, raise this model's window in ${MODEL_SETTINGS} if the server allows more, or send a shorter message.`,
-  ],
+  context_exceeded: pair("categories.context_exceeded"),
 };
 
 /** Anthropic codes read like their OpenAI equivalents, naming the Anthropic connection. */
@@ -164,10 +150,7 @@ const descriptions: Record<string, Description> = {
     ]),
   ),
   anthropic_context_exceeded: categoryDescriptions.context_exceeded,
-  anthropic_stream_incomplete: ({ name }) => [
-    "The reply was interrupted.",
-    `${name} ended the reply before it finished. Try sending your message again.`,
-  ],
+  anthropic_stream_incomplete: pair("codes.anthropic_stream_incomplete"),
 };
 
 /** Codes whose details may carry the provider's recommended wait. */
@@ -246,10 +229,64 @@ function positiveCount(value: unknown): number | null {
     : null;
 }
 
+function hostedPair(
+  group: string,
+  title = "title",
+  guidance = "guidance",
+  params: Record<string, unknown> = {},
+): CopyPair {
+  return [
+    { key: `chatFailure.hosted.${group}.${title}`, params },
+    { key: `chatFailure.hosted.${group}.${guidance}`, params },
+  ];
+}
+
+function describeHostedDenial(denial: HostedDenial): CopyPair {
+  const wait = waitSeconds(denial.field("retry_after_seconds"));
+  switch (denial.code) {
+    case "quota_exceeded":
+      return denial.field("limit") === "model_input_tokens"
+        ? hostedPair("quotaInputTokens")
+        : hostedPair(
+            "quotaExceeded",
+            "title",
+            wait ? "guidanceWait" : "guidance",
+            { waitSeconds: wait },
+          );
+    case "message_too_long": {
+      const maximum = positiveCount(denial.field("max_characters"));
+      return hostedPair(
+        "messageTooLong",
+        "title",
+        maximum ? "guidanceMaximum" : "guidance",
+        { maximum },
+      );
+    }
+    case "chat_limit_reached": {
+      const limit = positiveCount(denial.field("limit"));
+      return hostedPair(
+        "chatLimitReached",
+        limit ? "titleLimit" : "title",
+        "guidance",
+        {
+          limit,
+        },
+      );
+    }
+    case "trial_complete":
+      return hostedPair("trialComplete");
+    default:
+      // capacity_busy and budget_paused: temporary hosted capacity.
+      return hostedPair("busy", "title", wait ? "guidanceWait" : "guidance", {
+        waitSeconds: wait,
+      });
+  }
+}
+
 /** "about 30 seconds", "about 2 hours": the wait in its largest whole unit. */
-function approximateWait(seconds: number): string {
-  const amount = (count: number, unit: string) =>
-    `about ${count} ${unit}${count === 1 ? "" : "s"}`;
+function approximateWait(t: TFunction<"product">, seconds: number): string {
+  const amount = (count: number, unit: "second" | "minute" | "hour" | "day") =>
+    t(`chatFailure.wait.${unit}`, { count });
   if (seconds < 60) return amount(seconds, "second");
   const minutes = Math.round(seconds / 60);
   if (minutes < 60) return amount(minutes, "minute");
@@ -258,53 +295,21 @@ function approximateWait(seconds: number): string {
   return amount(Math.round(seconds / 86_400), "day");
 }
 
-function describeHostedDenial(denial: HostedDenial): readonly [string, string] {
-  const wait = waitSeconds(denial.field("retry_after_seconds"));
-  switch (denial.code) {
-    case "quota_exceeded":
-      return denial.field("limit") === "model_input_tokens"
-        ? [
-            "This conversation is too long for one hosted turn.",
-            "Start a new chat or shorten your message.",
-          ]
-        : [
-            "You've reached this account's hosted usage limit.",
-            wait
-              ? `It resets in ${approximateWait(wait)}.`
-              : "Try again after it resets.",
-          ];
-    case "message_too_long": {
-      const maximum = positiveCount(denial.field("max_characters"));
-      return [
-        "This message is too long.",
-        maximum
-          ? `Messages can be up to ${maximum.toLocaleString("en-US")} characters.`
-          : "Shorten your message, then send it again.",
-      ];
-    }
-    case "chat_limit_reached": {
-      const limit = positiveCount(denial.field("limit"));
-      return [
-        limit
-          ? `This account has reached its chat limit (${limit.toLocaleString("en-US")} chats).`
-          : "This account has reached its chat limit.",
-        "Continue one of your existing chats.",
-      ];
-    }
-    case "trial_complete":
-      return [
-        "Your Animama trial is complete.",
-        "Download Animama to keep chatting with your Animas.",
-      ];
-    default:
-      // capacity_busy and budget_paused: temporary hosted capacity.
-      return [
-        "Animama is busy right now.",
-        wait
-          ? `Try again in ${approximateWait(wait)}.`
-          : "Try again in a moment.",
-      ];
-  }
+/** Resolve a copy reference in the locale of `t`. */
+export function chatFailureCopy(
+  t: TFunction<"product">,
+  ref: ChatFailureCopyRef,
+): string {
+  const params: Record<string, unknown> = { ...ref.params };
+  if ("name" in params && !params.name)
+    params.name = t("chatFailure.defaultConnection");
+  if (typeof params.waitSeconds === "number")
+    params.wait = approximateWait(t, params.waitSeconds);
+  // Catalog keys come from the failure, so they are runtime values.
+  return (t as unknown as (key: string, options?: object) => string)(
+    ref.key,
+    params,
+  );
 }
 
 /** Normalize HTTP and in-stream errors without assuming a 403 is a provider error. */
@@ -343,18 +348,18 @@ export function describeChatFailure(
     : describe?.(failedConnection(details));
   if (!description && error instanceof TypeError) {
     description = [
-      "Animama couldn't connect to its service.",
-      "Check your connection and whether the installation is running, then try again.",
+      { key: "chatFailure.network.title" },
+      { key: "chatFailure.network.guidance" },
     ];
   } else if (!description && status && status >= 500 && status <= 599) {
     description = [
-      "Animama's service is unavailable.",
-      "Wait a little, then try again. If this continues, check or restart the installation's service.",
+      { key: "chatFailure.service.title" },
+      { key: "chatFailure.service.guidance" },
     ];
   }
   const [title, guidance] = description ?? [
-    "The message couldn't be completed.",
-    "Restore your message to try again. If this continues, share the error code with the installation owner.",
+    { key: "chatFailure.unknown.title" },
+    { key: "chatFailure.unknown.guidance" },
   ];
   const delay = details.retry_after_seconds;
   // A completed trial links to the desktop download only when its URL is safe.
@@ -362,9 +367,12 @@ export function describeChatFailure(
     denial?.code === "trial_complete"
       ? safeNavigationUrl(denial.field("download_url"))
       : null;
+  const linkLabel = { key: "chatFailure.hosted.trialComplete.link" };
+  const english = productEnglishT();
   return {
-    title,
-    guidance,
+    title: chatFailureCopy(english, title),
+    guidance: chatFailureCopy(english, guidance),
+    copy: { title, guidance, ...(downloadUrl ? { linkLabel } : {}) },
     code,
     originalText,
     partialText,
@@ -375,7 +383,12 @@ export function describeChatFailure(
       ? { retryAfterSeconds: Math.min(Math.ceil(delay), 86400) }
       : {}),
     ...(downloadUrl
-      ? { link: { label: "Download Animama", href: downloadUrl } }
+      ? {
+          link: {
+            label: chatFailureCopy(english, linkLabel),
+            href: downloadUrl,
+          },
+        }
       : {}),
   };
 }

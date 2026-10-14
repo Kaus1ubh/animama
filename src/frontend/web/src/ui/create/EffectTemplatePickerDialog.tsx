@@ -16,6 +16,8 @@ import {
   type CSSProperties,
   type ReactNode,
 } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 
 import {
   AVATAR_EFFECT_TEMPLATE_GROUPS,
@@ -23,6 +25,7 @@ import {
   EFFECT_TEMPLATE_KINDS,
   EFFECT_TEMPLATE_KIND_INFO,
   SCENE_EFFECT_TEMPLATE_IDS,
+  type AvatarEffectTemplateGroup,
   type EffectCreatorRoute,
   type EffectTemplateKind,
 } from "@/lib/effects/effectTemplates";
@@ -45,7 +48,29 @@ import {
   CREATOR_CARD_CLASS_NAME,
   CreatorIconTile,
   EFFECT_KIND_ICONS,
+  effectKindText,
 } from "@/ui/create/CreatorCards";
+
+/** Display name of an Avatar FX template group. */
+function avatarGroupLabel(
+  t: TFunction<"create">,
+  group: AvatarEffectTemplateGroup,
+): string {
+  switch (group) {
+    case "eyes":
+      return t("picker.avatarGroups.eyes");
+    case "cheeks":
+      return t("picker.avatarGroups.cheeks");
+    case "whole-face":
+      return t("picker.avatarGroups.wholeFace");
+    case "around-head":
+      return t("picker.avatarGroups.aroundHead");
+    case "mouth":
+      return t("picker.avatarGroups.mouth");
+    case "body":
+      return t("picker.avatarGroups.body");
+  }
+}
 
 /**
  * The Effects template picker: step 1 chooses a kind (Particle, Avatar or
@@ -118,6 +143,7 @@ function PickerSteps({
   initialKind: EffectTemplateKind | null;
   onChoose?: () => void;
 }) {
+  const { t } = useTranslation("create");
   const [kind, setKind] = useState<EffectTemplateKind | null>(initialKind);
   const backRef = useRef<HTMLButtonElement>(null);
   const kindRefs = useRef(new Map<EffectTemplateKind, HTMLButtonElement>());
@@ -131,7 +157,7 @@ function PickerSteps({
     previousKind.current = kind ?? previousKind.current;
   }, [kind]);
 
-  const info = kind ? EFFECT_TEMPLATE_KIND_INFO[kind] : null;
+  const info = kind ? effectKindText(t, kind) : null;
   return (
     <>
       <header className="space-y-1.5 border-b px-6 pt-5 pb-4">
@@ -144,16 +170,14 @@ function PickerSteps({
             onClick={() => setKind(null)}
           >
             <ArrowLeft className="size-4" aria-hidden="true" />
-            Back
+            {t("actions.back")}
           </Button>
         ) : null}
         <DialogTitle className="text-xl font-semibold tracking-tight">
-          {info ? `New ${info.label}` : "Create an effect"}
+          {info ? info.new : t("picker.title")}
         </DialogTitle>
         <DialogDescription>
-          {info
-            ? "Start from a template or from scratch. You get a new, unsaved draft; the template is not changed."
-            : "Choose the kind of effect to create."}
+          {info ? t("picker.templateDescription") : t("picker.kindDescription")}
         </DialogDescription>
       </header>
       <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
@@ -190,7 +214,8 @@ function KindCard({
   buttonRef: (element: HTMLButtonElement | null) => void;
   onSelect: () => void;
 }) {
-  const info = EFFECT_TEMPLATE_KIND_INFO[kind];
+  const { t } = useTranslation("create");
+  const info = effectKindText(t, kind);
   const { icon, className } = EFFECT_KIND_ICONS[kind];
   return (
     <button
@@ -208,7 +233,7 @@ function KindCard({
         {info.description}
       </span>
       <span className="text-foreground mt-4 flex items-center gap-1 text-sm font-semibold">
-        Choose
+        {t("picker.choose")}
         <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
       </span>
     </button>
@@ -225,6 +250,7 @@ function TemplateStep({
   kind: EffectTemplateKind;
   onChoose?: () => void;
 }) {
+  const { t } = useTranslation("create");
   const scratch = <StartFromScratchCard kind={kind} onChoose={onChoose} />;
   if (kind === "avatar")
     return (
@@ -232,20 +258,20 @@ function TemplateStep({
         <div className={TEMPLATE_GRID_CLASS_NAME}>{scratch}</div>
         {AVATAR_EFFECT_TEMPLATE_GROUPS.map((group) => {
           const templates = AVATAR_EFFECT_TEMPLATES.filter(
-            (template) => template.group === group.id,
+            (template) => template.group === group,
           );
           if (templates.length === 0) return null;
           return (
             <section
-              key={group.id}
-              aria-labelledby={`effect-template-group-${group.id}`}
+              key={group}
+              aria-labelledby={`effect-template-group-${group}`}
               className="space-y-3"
             >
               <h3
-                id={`effect-template-group-${group.id}`}
+                id={`effect-template-group-${group}`}
                 className="text-muted-foreground text-sm font-semibold"
               >
-                {group.label}
+                {avatarGroupLabel(t, group)}
               </h3>
               <div className={TEMPLATE_GRID_CLASS_NAME}>
                 {templates.map((template) => (
@@ -286,7 +312,7 @@ function TemplateStep({
     <div className="space-y-4">
       <div className={TEMPLATE_GRID_CLASS_NAME}>{scratch}</div>
       <p className="text-muted-foreground text-sm">
-        There are no Particle FX templates yet. Start from scratch to build one.
+        {t("picker.noParticleTemplates")}
       </p>
     </div>
   );
@@ -333,9 +359,10 @@ function StartFromScratchCard({
   kind: EffectTemplateKind;
   onChoose?: () => void;
 }) {
+  const { t } = useTranslation("create");
   return (
     <TemplateCard
-      label="Start from scratch"
+      label={t("picker.startFromScratch")}
       to={EFFECT_TEMPLATE_KIND_INFO[kind].route}
       onChoose={onChoose}
       preview={
@@ -377,6 +404,7 @@ type ThumbnailState =
 
 /** An Annie thumbnail, with loading, missing (empty) and failed states. */
 function AvatarTemplateThumbnail({ templateId }: { templateId: string }) {
+  const { t } = useTranslation("create");
   const [state, setState] = useState<ThumbnailState>({
     status: "loading",
     url: null,
@@ -428,7 +456,9 @@ function AvatarTemplateThumbnail({ templateId }: { templateId: string }) {
         <PreviewMessage
           icon={ImageOff}
           text={
-            state.status === "error" ? "Preview unavailable" : "No preview yet"
+            state.status === "error"
+              ? t("picker.previewUnavailable")
+              : t("picker.noPreview")
           }
         />
       ) : null}

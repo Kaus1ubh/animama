@@ -3,12 +3,14 @@
 import { AvatarTransformControls as TransformControls } from "@/ui/avatar-preview/AvatarTransformControls";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { getI18n } from "react-i18next";
 import { type Group, type Object3D } from "three";
 
 import type { RuntimeCatalogEntry } from "@/lib/runtime-content/types";
 import type { Avatar } from "@/lib/avatar";
 import { Avatar as AvatarRuntime } from "@/lib/avatar";
 import type { PreviewRuntimeCatalogSession } from "@/lib/content-preview/PreviewRuntimeCatalogSession";
+import { WordedError } from "@/lib/errors/apiError";
 import {
   acquireContentPreviewResource,
   logContentPreviewLifecycle,
@@ -43,6 +45,7 @@ import {
 } from "@/ui/main/canvas/transform-state";
 import { AvatarPreviewSurface } from "@/ui/avatar-preview/AvatarPreviewSurface";
 import type { SceneCameraSettings } from "@/ui/main/canvas/sceneCameraPresets";
+import { failureLine } from "@/lib/errors/apiError";
 
 const PARTICLE_PREVIEW_CAMERA: SceneCameraSettings = {
   position: { x: 0, y: 1.2, z: 2.75 },
@@ -78,10 +81,11 @@ type PreviewActorRuntimeProps = PreviewActorProps & {
   onSceneVFXChange: (entry: SceneVFXRuntimeEntry | null) => void;
 };
 
+// The preview canvas renders outside the i18next React context, so its text
+// comes from the active locale when it is produced.
 function errorMessage(error: unknown): string {
-  return error instanceof Error && error.message.trim()
-    ? error.message
-    : "The selected content could not be previewed.";
+  const t = getI18n().getFixedT(null, "actionEditor");
+  return failureLine(error, t("preview.errors.playFailed"));
 }
 
 function PreviewActor({
@@ -160,13 +164,14 @@ function PreviewActor({
   }, [avatarEntry]);
 
   useEffect(() => {
+    const t = getI18n().getFixedT(null, "actionEditor");
     const avatar = avatarRef.current;
     if (!avatar) return;
     const entry = avatarEntryRef.current;
     const logicalUrl = runtimeContentEntryUrl(entry);
     if (!logicalUrl) {
       avatarLoadRef.current = "failed";
-      onStatusChange("error", "The preview avatar model has no runtime file.");
+      onStatusChange("error", t("preview.errors.avatarNoFile"));
       return;
     }
     const generation = ++loadGenerationRef.current;
@@ -174,7 +179,7 @@ function PreviewActor({
     avatarLoadRef.current = "loading";
     setSceneObject(null);
     setAvatarReadyKey(null);
-    onStatusChange("loading", "Loading avatar…");
+    onStatusChange("loading", t("preview.loadingAvatar"));
     void (async () => {
       let download: RuntimeContentUrlLease | null = null;
       try {
@@ -182,7 +187,7 @@ function PreviewActor({
           signal: controller.signal,
         });
         if (!download)
-          throw new Error("The preview avatar could not be authorized.");
+          throw new WordedError(t("preview.errors.avatarUnauthorized"));
         controller.signal.throwIfAborted();
         await avatar.load({
           filePath: download.url,
@@ -261,6 +266,7 @@ function PreviewActor({
   useEffect(() => () => applySoundPlayer.stop(), [applySoundPlayer]);
 
   useEffect(() => {
+    const t = getI18n().getFixedT(null, "actionEditor");
     const avatar = avatarRef.current;
     if (
       !active ||
@@ -309,7 +315,7 @@ function PreviewActor({
           onStatusChange("ready");
           return;
         }
-        onStatusChange("loading", "Preparing playback…");
+        onStatusChange("loading", t("preview.preparingPlayback"));
         const didPlay = await playContentPreviewMotion({
           avatar,
           catalog,

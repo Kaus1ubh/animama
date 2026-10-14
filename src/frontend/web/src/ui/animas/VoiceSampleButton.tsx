@@ -1,4 +1,5 @@
 import { LoaderCircle, Play, Square } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import type {
   createVoiceSamplePlayer,
@@ -23,16 +24,22 @@ export function VoiceSampleButton({
   voice: VoiceSampleSource | undefined;
   compact?: boolean;
 }) {
+  const { t } = useTranslation("animas");
   const active =
     sample.voiceId === voice?.id &&
     (sample.status === "playing" || sample.status === "loading");
   const unavailable =
     voice && "sampleUnavailable" in voice ? voice.sampleUnavailable : null;
   const label = unavailable
-    ? `${voice!.name}: ${unavailable}`
+    ? t("voices.picker.sample.unavailable", {
+        name: voice!.name,
+        reason: unavailable,
+      })
     : voice
-      ? `${active ? "Stop" : "Play"} ${voice.name} sample`
-      : "No sample available for this voice";
+      ? active
+        ? t("voices.picker.sample.stop", { name: voice.name })
+        : t("voices.picker.sample.play", { name: voice.name })
+      : t("voices.picker.sample.none");
   return (
     <Button
       type="button"

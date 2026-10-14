@@ -13,6 +13,7 @@ import {
   type ReactNode,
   type Ref,
 } from "react";
+import { getI18n, useTranslation } from "react-i18next";
 import type { Object3D } from "three";
 
 import type {
@@ -21,6 +22,7 @@ import type {
 } from "@animama/runtime-contracts/sdk";
 import { Avatar } from "@/lib/avatar";
 import { acquireContentPreviewResource } from "@/lib/content-preview/lifecycle";
+import { apiErrorLine } from "@/lib/errors/apiError";
 import { VerifiedByteLoader } from "@/lib/runtime-content/VerifiedByteLoader";
 import type { SceneVFXRuntimeEntry } from "@/lib/scene-vfx/types";
 import { AvatarPreviewSurface } from "@/ui/avatar-preview/AvatarPreviewSurface";
@@ -29,6 +31,7 @@ import {
   CreateAnimaPreviewSession,
   type CreationPreviewStatus,
 } from "./CreateAnimaPreviewSession";
+import { CreatorError, creatorErrorText } from "./createAnimaErrors";
 
 export type CreationStageHandle = {
   stop: () => void;
@@ -59,14 +62,13 @@ class StageBoundary extends Component<
     this.props.onError();
   }
   render() {
-    return this.state.failed ? (
-      <p className="p-8 text-sm">
-        The Avatar preview is unavailable. Your form is still editable.
-      </p>
-    ) : (
-      this.props.children
-    );
+    return this.state.failed ? <StageUnavailable /> : this.props.children;
   }
+}
+
+function StageUnavailable() {
+  const { t } = useTranslation("create");
+  return <p className="p-8 text-sm">{t("stage.unavailable")}</p>;
 }
 
 /** Persistent stage shell: one Canvas, no floating dock, no existing-Anima runtime. */
@@ -79,6 +81,7 @@ export function CreateAnimaStage({
   suspended,
   onFinished,
 }: Props) {
+  const { t } = useTranslation("create");
   const reducedMotion = useReducedMotion() === true;
   const [visible, setVisible] = useState(true);
   const [status, setStatus] = useState<CreationPreviewStatus>("empty");
@@ -145,16 +148,15 @@ export function CreateAnimaStage({
     : avatar
       ? `${avatar.item_id}:${avatar.revision_sha256}`
       : "empty";
+  // Stable across language changes: the actor reloads its model when this changes.
   const contextError = useCallback(() => {
     stop();
-    report(
-      "error",
-      "WebGL is unavailable. Retry preview, or continue with the selected Avatar.",
-    );
+    const fixedT = getI18n().getFixedT(null, "create");
+    report("error", fixedT("stage.webglUnavailable"));
   }, [report, stop]);
   return (
     <section
-      aria-label="Your Anima preview"
+      aria-label={t("stage.label")}
       data-testid="create-anima-stage"
       className="relative h-full min-h-[340px] min-w-0 overflow-hidden bg-transparent"
     >
@@ -166,15 +168,13 @@ export function CreateAnimaStage({
               variant="outline"
               size="icon"
               className="size-24 rounded-full"
-              aria-label="Upload a VRM file"
+              aria-label={t("stage.upload")}
               disabled={suspended}
               onClick={onUpload}
             >
               <Upload className="size-10" aria-hidden="true" />
             </Button>
-            <p>
-              Upload a VRM (&lt;100 MB) or choose an Avatar to see them here.
-            </p>
+            <p>{t("stage.empty")}</p>
           </div>
         ) : (
           <StageBoundary key={retry} onError={contextError}>
@@ -209,7 +209,7 @@ export function CreateAnimaStage({
             role={status === "error" ? "alert" : "status"}
             className="bg-background/90 absolute inset-x-3 top-20 flex items-center justify-center gap-3 rounded-lg px-3 py-2 text-center text-sm"
           >
-            <span>{message || "Preparing preview…"}</span>
+            <span>{message || t("stage.preparing")}</span>
             {status === "error" ? (
               <Button
                 type="button"
@@ -220,7 +220,7 @@ export function CreateAnimaStage({
                   setRetry((value) => value + 1);
                 }}
               >
-                Retry preview
+                {t("stage.retry")}
               </Button>
             ) : null}
           </div>
@@ -267,7 +267,9 @@ function CreationStageActor({
     avatarRef.current = avatar;
     const detach = session.bind(avatar);
     let objectUrl: string | null = null;
-    report("loading", "Loading the selected Avatar…");
+    // Worded once per load; a language change must not reload the model.
+    const t = getI18n().getFixedT(null, "create");
+    report("loading", t("stage.loadingAvatar"));
     void (async () => {
       try {
         let blob: Blob;
@@ -277,8 +279,7 @@ function CreationStageActor({
           const model = preview.files.find(
             (item) => item.role === "model" || item.role === "vrm",
           );
-          if (!model)
-            throw new Error("The selected Avatar has no registered model.");
+          if (!model) throw new CreatorError(t("stage.noModel"));
           blob = (await new VerifiedByteLoader().load(model, controller.signal))
             .blob;
         }
@@ -300,9 +301,7 @@ function CreationStageActor({
         if (!controller.signal.aborted)
           report(
             "error",
-            error instanceof Error
-              ? error.message
-              : "Avatar preview is unavailable.",
+            apiErrorLine(creatorErrorText(error, t("stage.avatarUnavailable"))),
           );
       }
     })();

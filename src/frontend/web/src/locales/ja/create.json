@@ -1,0 +1,437 @@
+{
+  "actions": {
+    "back": "戻る",
+    "cancel": "キャンセル",
+    "clear": "クリア",
+    "creatorHub": "作成ハブ",
+    "startOver": "最初からやり直す",
+    "tryAgain": "再試行"
+  },
+  "actionsStep": {
+    "cell": {
+      "apply": "セルに適用",
+      "assignment": "リアクションの割り当て",
+      "description": "任意のリアクションを選ぶか、このセルを空のままにします。プレビューしても割り当ては変わりません。",
+      "noMatches": "一致するリアクションはありません。セルは変更されていません。",
+      "preview": "リアクション「{{name}}」をプレビュー",
+      "search": "リアクションを検索",
+      "searchPlaceholder": "リアクションを検索…",
+      "showMore": "さらにリアクションを表示",
+      "sourceFilter": "リアクションのソース",
+      "title": "{{emotion}} · 強度 {{intensity}}"
+    },
+    "confirm": {
+      "clear": "選択をクリア",
+      "clearDescription": "これらの選択だけがクリアされます。空の選択も有効で、保存済みのコンテンツは削除されません。",
+      "clearGesturesTitle": "すべてのジェスチャーをクリアしますか？",
+      "clearReactionsTitle": "すべてのリアクションをクリアしますか？",
+      "reset": "アクションをリセット",
+      "resetDescription": "ジェスチャーの選択と {{total}} 個すべてのリアクションセルを、現在のスターターパックで置き換えます。アバターとアイデンティティは変わりません。",
+      "resetTitle": "アクションをおすすめにリセットしますか？"
+    },
+    "gestures": {
+      "clearAll": "すべてのジェスチャーをクリア",
+      "keptSelection": "保持された選択: {{id}}。フィルターで非表示になっているか、確認が必要です。",
+      "key": "ジェスチャー {{key}}",
+      "loadFailed": "ジェスチャーを読み込めませんでした。選択は変更されていません。",
+      "loading": "ジェスチャーを読み込んでいます…",
+      "noMatches": "一致するジェスチャーはありません。非表示の選択は保持されます。",
+      "none": "ジェスチャーが選択されていません。このままでも Anima は作成できます。",
+      "preview": "ジェスチャー「{{name}}」をプレビュー",
+      "retry": "ジェスチャーを再読み込み",
+      "search": "ジェスチャーを検索",
+      "searchPlaceholder": "ジェスチャーを検索…",
+      "select": "選択",
+      "selected": "選択済み",
+      "sourceFilter": "ジェスチャーのソース"
+    },
+    "reactions": {
+      "change": "{{emotion}} の強度 {{intensity}} を変更",
+      "clearAll": "すべてのリアクションをクリア",
+      "clearCell": "{{emotion}} の強度 {{intensity}} をクリア",
+      "empty": "空",
+      "levels": "{{emotion}} のリアクションレベル",
+      "loadFailed": "リアクションを読み込めませんでした。割り当ては保持されています。",
+      "matrix": "リアクションマトリクス",
+      "needsAttention": "選択済み · 確認が必要",
+      "none": "{{total}} 個のセルがすべて空です。このままでも Anima は作成できます。",
+      "previewCell": "{{emotion}} の強度 {{intensity}} をプレビュー",
+      "previewLabel": "{{emotion}} · {{intensity}}",
+      "retry": "リアクションを再読み込み",
+      "revert": "元に戻す",
+      "revertCell": "{{emotion}} の強度 {{intensity}} をおすすめに戻す"
+    },
+    "replace": {
+      "confirm": "選択を置き換える",
+      "description": "このセマンティックキーを使えるジェスチャーは 1 つだけです。選択中のソースは {{name}} に置き換えられます。コンテンツは削除されません。",
+      "keep": "現在のものを保持",
+      "title": "「{{key}}」のジェスチャーを置き換えますか？"
+    },
+    "starterPack": {
+      "description": "出発点であり、必須ではありません。Anima ができることを正確に選んでください。",
+      "reset": "おすすめにリセット",
+      "summary_other": "ジェスチャー <strong>{{count}}</strong> 件 · リアクションセル <strong>{{reactions}}</strong> / {{total}} 割り当て済み",
+      "title": "おすすめのスターターパック",
+      "version": "バージョン {{version}} · おすすめのジェスチャー {{gestures}} 件 · おすすめのセル {{cells}} 個"
+    },
+    "tabs": {
+      "gestures": "ジェスチャー ({{selected}})",
+      "reactions": "リアクション ({{assigned}}/{{total}})"
+    }
+  },
+  "avatarStep": {
+    "alreadySaved": "まったく同じデータがすでにマイコンテンツにあります。既存のアバターが選択され、その名前とメタデータは保持されました。",
+    "cancelUpload": "アップロードをキャンセル",
+    "collision": {
+      "chooseNewName": "新しい名前を選ぶ",
+      "description": "両方のファイルを残すには、別の名前を使ってください。置き換えると既存のマイコンテンツの項目が変更され、その現在のリビジョンが必要です。稼働中の Anima が使用している場合、サーバーは置き換えを拒否します。",
+      "item": "{{name}} · {{id}}",
+      "replace": "このアバターを置き換える",
+      "title": "このアバター名はすでに使われています"
+    },
+    "discardUpload": "保存されていないアップロードを破棄",
+    "emptyIncluded": "利用できる同梱アバターはありません。マイコンテンツを使うか、VRM をアップロードできます。",
+    "emptyLocal": "マイコンテンツにはまだアバターがありません。VRM をアップロードして追加してください。",
+    "fileInput": "VRM ファイルを選択",
+    "groupLabel": {
+      "included": "同梱アバター",
+      "local": "マイコンテンツのアバター"
+    },
+    "inUse": "このアバターは稼働中の Anima が使用しています。そのまま残し、アップロードしたファイルは新しい名前で保存してください。",
+    "label": "アバターの選択",
+    "loadFailed": "アバターを読み込めませんでした。選択は保持されています。",
+    "loading": "アバターを読み込んでいます…",
+    "nameUsed": "その名前はすでに使われています。新しい名前を入力するか、下で一致するアバターを明示的に置き換えてください。稼働中の Anima が使用しているアバターはここでは置き換えられません。",
+    "needsAttention": "このアバターは確認が必要です。別のソースを選ぶか、再試行してください。",
+    "noMatches": "一致するアバターはありません。選択中のアバターは変更されていません。",
+    "optionLabel": {
+      "included": "{{name}} 同梱",
+      "local": "{{name}} マイコンテンツ"
+    },
+    "previewing": "{{name}} をプレビュー中 · {{size}}",
+    "readFailed": "この VRM を読み込めませんでした。",
+    "reselect": "前回のファイルは保存されていません。「VRM をアップロード」でもう一度選んでください。ブラウザーは再読み込み後にローカルファイルを復元できません。",
+    "retry": "アバターを再読み込み",
+    "save": "アバターをマイコンテンツに保存",
+    "saveAs": "マイコンテンツに保存する名前",
+    "saved": "アバターをマイコンテンツに保存しました。作成をキャンセルしても残ります。",
+    "saveFailed": "保存できませんでした。ファイルはそのまま残っているので、再試行できます。",
+    "saving": "アバターを保存しています…",
+    "search": "アバターを検索",
+    "searchPlaceholder": "アバターを検索…",
+    "showMore": "さらにアバターを表示",
+    "upload": "VRM をアップロード"
+  },
+  "completion": {
+    "degraded": "一部のランタイムコンテンツは利用できません。Anima は正常に作成されました。",
+    "description": "作成は完了しました。最初のチャットを開いても、別の Anima が作成されることはありません。",
+    "filesVerified_other": "{{completed, number}} / {{count, number}} 件のファイルを検証済み",
+    "openAnyway": "このまま Anima を開く",
+    "openFailed": "最初のチャットを開けませんでした。",
+    "preparing": "最初のチャットを準備しています…",
+    "retry": "Anima をもう一度開く",
+    "title": "Anima が作成されました"
+  },
+  "controller": {
+    "defaultsUnavailable": "作成の既定値を利用できません。インストールの所有者に修復を依頼してから、再試行してください。",
+    "libraryAvatarUnavailable": "ライブラリのアバターを選択できませんでした。以下から利用可能なアバターを選んでください。",
+    "libraryAvatarUnavailableReason": "ライブラリのアバターを選択できませんでした: {{reason}} 以下から利用可能なアバターを選んでください。",
+    "lockBusy": "別のタブがこの作成リクエストを確認しています。完了するまで待ってから、ここで同じ結果を確認してください。",
+    "locksUnavailable": "このブラウザーではタブ間で作成を安全に調整できません。ローカルストレージと Web Locks が有効な最新のブラウザーを使ってください。",
+    "notAvatar": "このソースはアバターではありません。",
+    "revisionsAccepted": "更新されたリビジョンを受け入れました。作成する前に下書き全体をもう一度確認してください。",
+    "starterPackRefreshFailed": "おすすめのスターターパックを更新できませんでした。アクションは保持されています。"
+  },
+  "draft": {
+    "chooseAvatar": "使用可能なアバターを選ぶか、VRM をマイコンテンツに保存してください。",
+    "chooseVoice": "Anima の音声を選んでください。",
+    "elevenLabsVoiceIdInvalid": "英数字、アンダースコア、ハイフンを使って ElevenLabs の音声 ID を入力してください。",
+    "identityInvalid": "{{limit, number}} UTF-8 バイト以内で、空ではない Markdown を入力してください。",
+    "nameInvalid": "制御文字を含まない 1～{{limit}} 文字にしてください。",
+    "nameRequired": "続けるには名前を入力してください。",
+    "pocketVoiceUnavailable": "利用可能な PocketTTS の音声を選んでください。",
+    "reselectFile": "VRM を選び直して保存するか、保存されていないアップロードをキャンセルしてください。",
+    "reviewNeedsAvatar": "確認する前に、アバターを選んでスターターパックを解決してください。",
+    "sourceNeedsValidation": "選択したコンテンツは、まだソースの厳密な検証が必要です。",
+    "sourcesDisagree": "選択したソース間でリビジョン {{id}} が一致しません。影響を受けるコンテンツを確認してください。",
+    "starterPackNeedsAttention": "このインストールのスターターパックは確認が必要です。"
+  },
+  "effectKinds": {
+    "avatar": {
+      "create": "アバターエフェクトを作成",
+      "description": "顔や体、アバターの横にアートを追加します。",
+      "label": "アバターエフェクト",
+      "new": "新しいアバターエフェクト"
+    },
+    "particle": {
+      "create": "パーティクルエフェクトを作成",
+      "description": "バースト、軌跡、雰囲気のあるパーティクルを追加します。",
+      "label": "パーティクルエフェクト",
+      "new": "新しいパーティクルエフェクト"
+    },
+    "scene": {
+      "create": "シーンエフェクトを作成",
+      "description": "Anima の周りに背景や集中線を配置します。",
+      "label": "シーンエフェクト",
+      "new": "新しいシーンエフェクト"
+    }
+  },
+  "files": {
+    "documentTooLarge": "VRM ドキュメントがサポートされている上限を超えています。",
+    "externalResources": "外部のモデルリソースは使用できません。自己完結した VRM をエクスポートしてください。",
+    "invalidDocument": "このファイルには有効な VRM ドキュメントが含まれていません。",
+    "notBinary": "これはバイナリの VRM/GLB ファイルではありません。",
+    "tooLarge": "{{limit}} MiB 以下の自己完結した .vrm ファイルを選んでください。",
+    "unsupportedVersion": "VRM 0.x (0.0) または VRM 1.0 のモデルを選んでください。"
+  },
+  "hub": {
+    "actions": {
+      "description": "Anima に動き、個性、感情を与えます。",
+      "gesture": {
+        "action": "ジェスチャーを作成",
+        "description": "表現豊かな動きや再利用できるアクションを振り付けます。",
+        "title": "ジェスチャー"
+      },
+      "reaction": {
+        "action": "リアクションを作成",
+        "description": "Anima が演じられる感情の反応をデザインします。",
+        "title": "リアクション"
+      },
+      "title": "アクション"
+    },
+    "anima": {
+      "action": "Anima を作成",
+      "description": "すべての会話の中心となるコンパニオンを作成します。",
+      "title": "Anima"
+    },
+    "description": "Anima のためのキャラクター、アクション、エフェクトを作成します。",
+    "effects": {
+      "description": "再利用できるエフェクトをジェスチャーやリアクションに重ねます。サウンドは各 SFX タブか、付随サウンドの選択画面からアップロードしてください。",
+      "title": "エフェクト"
+    },
+    "title": "作成"
+  },
+  "identityStep": {
+    "editorLabel": "アイデンティティの Markdown",
+    "placeholder": "どんな存在か、どう話すか、何を大切にしているかを書いてください…",
+    "preview": "プレビュー",
+    "previewEmpty": "アイデンティティのプレビューがここに表示されます。",
+    "required": "· 必須",
+    "suggestion": {
+      "append": "提案を追加",
+      "description": "提案は編集可能なテキストとしてコピーされます。現在のアイデンティティは、下のいずれかを選んだときにだけ変更されます。",
+      "replace": "アイデンティティを置き換える",
+      "title": "アバターの提案を使いますか？"
+    },
+    "title": "アイデンティティ",
+    "useSuggestion": "アバターの提案を使う",
+    "write": "書く"
+  },
+  "leave": {
+    "discard": "下書きを破棄",
+    "draft": {
+      "action": "下書きを保存して移動",
+      "description": "後で続けるためにこの下書きを保存するか、破棄してください。確定したアップロードはマイコンテンツに残ります。",
+      "title": "Anima の下書きから移動しますか？"
+    },
+    "keepEditing": "編集を続ける",
+    "locked": {
+      "action": "リクエストを保持して移動",
+      "description": "固定されたリクエストは保持する必要があります。別の作成を始める前に「作成結果を確認」に戻ってください。移動しても、送信済みのリクエストはキャンセルされません。",
+      "title": "作成が未確定のまま移動しますか？"
+    }
+  },
+  "locked": {
+    "acknowledgeStartOver": "確認して最初からやり直す",
+    "check": {
+      "description": "元のリクエストは保存されています。この下書きを変更する前に結果を確認してください。再試行ではまったく同じリクエストが使われるため、重複して作成されることはありません。",
+      "title": "作成結果を確認してください"
+    },
+    "checking": "確認しています…",
+    "checkResult": "作成結果を確認",
+    "conflict": {
+      "description": "このキーはすでに別の内容で使われています。編集と自動再試行は停止され、元のリクエストは保持されています。",
+      "title": "作成リクエストの競合"
+    },
+    "creating": "Anima を作成しています…",
+    "deleted": {
+      "description": "元の作成は成功しましたが、その Anima は後で削除されました。何も再作成されていません。",
+      "title": "この Anima は削除されました"
+    }
+  },
+  "namePlate": {
+    "characters": "文字",
+    "count": "{{current}} / {{limit}}",
+    "label": "名前",
+    "placeholder": "名前を入力"
+  },
+  "nav": {
+    "completed": "{{step}}、完了",
+    "label": "Anima の作成の進行状況",
+    "needsAttention": "{{step}}、確認が必要"
+  },
+  "options": {
+    "loadFailed": "スターターパックまたは作成の既定値を読み込めませんでした。下書きは保持されています。",
+    "needsRepair": "おすすめのスターターパックは修復が必要です。選択内容が不完全なパックで置き換えられることはありません。",
+    "retry": "作成オプションを再読み込み"
+  },
+  "page": {
+    "continueTo": "{{step}} へ進む",
+    "create": "Anima を作成",
+    "formLabel": "{{step}} のフォーム",
+    "issuesLabel": "作成の問題",
+    "preparingStage": "プレビュー領域を準備しています…",
+    "reviewUpdatedSources": "更新されたソースを確認",
+    "runtimeUnavailable": "ローカルランタイムを利用できません。再接続してからもう一度お試しください。",
+    "stepCounter": "ステップ {{current}} / {{total}}",
+    "title": "Anima を作成",
+    "working": "処理しています…"
+  },
+  "picker": {
+    "avatarGroups": {
+      "aroundHead": "頭の周り",
+      "body": "体",
+      "cheeks": "頬",
+      "eyes": "目",
+      "mouth": "口",
+      "wholeFace": "顔全体"
+    },
+    "choose": "選択",
+    "kindDescription": "作成するエフェクトの種類を選んでください。",
+    "noParticleTemplates": "パーティクルエフェクトのテンプレートはまだありません。最初から作成してください。",
+    "noPreview": "プレビューはまだありません",
+    "previewUnavailable": "プレビューを利用できません",
+    "startFromScratch": "最初から作成",
+    "templateDescription": "テンプレートから、または最初から始めます。新しい未保存の下書きが作成され、テンプレートは変更されません。",
+    "title": "エフェクトを作成"
+  },
+  "recovery": {
+    "appearance": {
+      "action": "画像なしで続ける",
+      "description": "プロフィール画像と背景画像は、Anima の作成中には設定しなくなりました。これらの下書きの選択なしで続けてください。確定したアップロードはマイコンテンツに残り、その他の選択はすべて保持されます。",
+      "title": "作成用の画像なしで続けますか？"
+    },
+    "checking": "保存された下書きを確認しています…",
+    "corrupt": {
+      "title": "保存された下書きは確認が必要です"
+    },
+    "resume": {
+      "action": "保存された下書きを再開",
+      "description": "このインストールの下書きが保存されています。再開するか、明示的に最初からやり直してください。保存済みのアップロードはマイコンテンツに残ります。",
+      "title": "Anima の作成を続けますか？"
+    }
+  },
+  "repair": {
+    "accept": "更新されたリビジョンを受け入れる",
+    "keep": "固定されたリビジョンを保持",
+    "policyDescription": "固定のスターターパックの識別情報と既定の待機ポリシーだけを更新します。ジェスチャーとリアクションの選択はリセットされません。",
+    "sourceDescription": "このソースとその依存関係のすべてが、ここに表示されている現在のリビジョンを使います。その他の選択は変わりません。その後、下書き全体をもう一度確認してください。",
+    "title": "更新されたソースのリビジョンを受け入れますか？"
+  },
+  "review": {
+    "actions": {
+      "edit": "アクションを編集",
+      "gesturesSelected": "選択されたジェスチャー",
+      "reactionCells": "割り当て済みのリアクションセル",
+      "reactionTotal": "/ {{total}}",
+      "title": "アクション"
+    },
+    "avatarMissing": "アバターがありません",
+    "identity": {
+      "edit": "アイデンティティを編集",
+      "title": "アイデンティティ"
+    },
+    "voice": {
+      "applicationDefault": "アプリの既定値（保存済みのリクエスト）",
+      "edit": "音声を編集",
+      "savedClone": "保存済みの音声クローン",
+      "summary": "{{provider}} · {{voice}}",
+      "title": "音声"
+    },
+    "warnings": "知っておくと便利なこと"
+  },
+  "sources": {
+    "all": "すべてのソース",
+    "included": "同梱",
+    "local": "マイコンテンツ"
+  },
+  "stage": {
+    "actionBytesUnavailable": "アクションの登録済みデータを準備できませんでした。",
+    "actionNotPlayed": "このアクションを再生できませんでした。",
+    "actionNotPrepared": "このアクションを準備できませんでした。",
+    "avatarUnavailable": "アバターのプレビューを利用できません。",
+    "dependencyChanged": "アクションの依存関係が変更されました。プレビューする前に、更新されたソースを受け入れてください。",
+    "dependencyUnavailable": "アクションの依存関係を利用できません。再生を停止しました。",
+    "empty": "VRM（100 MB 未満）をアップロードするか、アバターを選ぶとここに表示されます。",
+    "label": "Anima のプレビュー",
+    "loadingAvatar": "選択したアバターを読み込んでいます…",
+    "noModel": "選択したアバターには登録済みのモデルがありません。",
+    "notAction": "選択したソースはアクションではありません。",
+    "preparing": "プレビューを準備しています…",
+    "preparingAction": "アクションとその依存関係を準備しています…",
+    "retry": "プレビューを再試行",
+    "unavailable": "アバターのプレビューを利用できません。フォームは引き続き編集できます。",
+    "upload": "VRM ファイルをアップロード",
+    "waitForAvatar": "選択したアバターの読み込みを待つか、プレビューを再試行してください。",
+    "webglUnavailable": "WebGL を利用できません。プレビューを再試行するか、選択したアバターのまま続けてください。"
+  },
+  "startOver": {
+    "description": "保存された下書きは破棄されますが、確定したマイコンテンツのアップロードは残ります。以前に削除された作成が再作成されることはありません。",
+    "keep": "下書きを保持",
+    "title": "新しい下書きを始めますか？"
+  },
+  "steps": {
+    "actions": {
+      "description": "Anima の動き方と反応の仕方を選びます。",
+      "heading": "アクションを選ぶ",
+      "label": "アクション"
+    },
+    "avatar": {
+      "heading": "アバターを選ぶ",
+      "label": "アバター"
+    },
+    "identity": {
+      "description": "どんな存在か、どう話すか、何を大切にしているかを形づくります。",
+      "heading": "アイデンティティを決める",
+      "label": "アイデンティティ"
+    },
+    "review": {
+      "heading": "Anima を確認",
+      "label": "確認"
+    },
+    "voice": {
+      "heading": "音声を選ぶ",
+      "label": "音声"
+    }
+  },
+  "storage": {
+    "changedElsewhere": "この下書きは別のタブで変更されました。続ける前に、最後に保存された状態を確認してください。",
+    "checkBeforeDiscard": "このリクエストを破棄する前に、作成結果を確認してください。",
+    "conflict": "この下書きは別のタブで変更されました。編集を引き継ぐ前に確認してください。",
+    "notStarted": "正確なリクエストが安全に保存されない限り、作成は開始されません。",
+    "pendingElsewhere": "別のタブで作成が保留中です。元の作成結果を確認してください。",
+    "retrySave": "下書きの保存を再試行",
+    "reviewLatest": "最後に保存された状態を確認",
+    "tooLarge": "保存された下書きが復元の上限を超えています。不要であることを確認した場合にのみ、最初からやり直してください。",
+    "unavailable": "下書きの保存先を利用できません。Anima を作成する前に、ブラウザーのストレージを有効にしてください。",
+    "unreadable": "この保存された下書きは、このバージョンでは読み込めません。破棄はされていません。置き換えるには「最初からやり直す」を確定してください。"
+  },
+  "voiceStep": {
+    "busy": "音声の設定は処理中です。",
+    "chooseAnother": "この保存済みの音声は利用できません。別の音声を選んでください。",
+    "cloneUnavailable": "この保存済みの音声は利用できません。ライブラリを更新してください。",
+    "elevenLabsId": "ElevenLabs の音声 ID",
+    "elevenLabsPlaceholder": "音声 ID を入力",
+    "label": "音声の設定",
+    "loadFailed": "保存済みの音声を読み込めませんでした。",
+    "loading": "音声の既定値を読み込んでいます…",
+    "pocketVoice": "PocketTTS の音声",
+    "provider": "TTS プロバイダー",
+    "providers": {
+      "elevenLabs": "ElevenLabs",
+      "pocketTts": "PocketTTS"
+    },
+    "retry": "保存済みの音声を再読み込み",
+    "savedVoiceUnavailable": "保存済みの音声は利用できません"
+  }
+}

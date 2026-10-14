@@ -1,6 +1,7 @@
 "use client";
 
 import type { Client } from "@animama/runtime-contracts/sdk";
+import { getI18n } from "react-i18next";
 import { publicResourceUrl } from "@/lib/resource-urls";
 
 import {
@@ -14,6 +15,7 @@ import {
   POCKET_VOICE_ENCODER_CONTENT_URL,
   type PocketVoiceEncoderOptions,
 } from "./voice-cloning-encoder";
+import { PocketVoiceCloningError } from "./voice-cloning-error";
 
 const logger = createLogger("PocketVoiceCatalogBuilder");
 const DEFAULT_SAMPLE_RATE = 24000;
@@ -168,7 +170,8 @@ async function decodeAudioFileToMonoFloat32(
   const { targetSampleRate, maxVoiceSeconds } = options;
   const AudioContextCtor = getAudioContextCtor();
   if (!AudioContextCtor) {
-    throw new Error("Web Audio API is not supported in this browser.");
+    const t = getI18n().getFixedT(null, "voice");
+    throw new PocketVoiceCloningError(t("pocket.cloning.webAudioUnsupported"));
   }
 
   const audioContext = new AudioContextCtor({
@@ -433,9 +436,8 @@ export async function buildPocketVoiceCatalogFile(
   },
 ): Promise<File> {
   if (!isPocketTtsSupported()) {
-    throw new Error(
-      "PocketTTS voice catalog generation is not supported in this browser.",
-    );
+    const t = getI18n().getFixedT(null, "voice");
+    throw new PocketVoiceCloningError(t("pocket.cloning.unsupported"));
   }
 
   const sources = args.sources.filter(

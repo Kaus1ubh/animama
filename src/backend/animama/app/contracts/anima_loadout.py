@@ -40,15 +40,18 @@ class PyCatalogLoadoutSource(BaseModel):
 
 
 class PyLoadoutDiagnostic(BaseModel):
+    """A Loadout warning; clients word it from ``code`` and ``params``."""
+
     model_config = ConfigDict(extra="forbid")
 
     code: str
-    message: str
+    message: str = Field(description="English detail for logs and API clients.")
     scope: Literal["source", "target"] = "target"
+    params: dict[str, str] = Field(default_factory=dict, description="Values for the code's wording.")
 
     @classmethod
     def from_domain(cls, value: LoadoutDiagnostic) -> PyLoadoutDiagnostic:
-        return cls(code=value.code, message=value.message, scope=value.scope)
+        return cls(code=value.code, message=value.message, scope=value.scope, params=dict(value.params))
 
 
 class PyGestureIntent(BaseModel):

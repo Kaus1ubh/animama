@@ -3,10 +3,10 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
 import { useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import {
   EFFECT_TEMPLATE_KINDS,
-  EFFECT_TEMPLATE_KIND_INFO,
   type EffectTemplateKind,
 } from "@/lib/effects/effectTemplates";
 import { publicResourceUrl } from "@/lib/resource-urls";
@@ -14,7 +14,10 @@ import { cn } from "@/lib/utils";
 import { AppShellPage } from "@/ui/app/AppShellPage";
 import { RuntimeFeatureGate } from "@/ui/app/RuntimeFeatureGate";
 import { Button } from "@/ui/components/button";
-import { CREATOR_CARD_CLASS_NAME } from "@/ui/create/CreatorCards";
+import {
+  CREATOR_CARD_CLASS_NAME,
+  effectKindText,
+} from "@/ui/create/CreatorCards";
 import { EffectTemplatePickerDialog } from "@/ui/create/EffectTemplatePickerDialog";
 
 /** Illustrated header art for each creator card, served from `public/`. */
@@ -64,31 +67,35 @@ function CreatorCardArt({
 }
 
 type AvailableCreatorCard = {
-  title: string;
-  description: string;
-  action: string;
   to: "/gestures/new" | "/reactions/new";
   art: CreatorArt;
 };
 
 const ACTION_CREATORS: AvailableCreatorCard[] = [
   {
-    title: "Gesture",
-    description: "Choreograph expressive movement and reusable actions.",
-    action: "Create Gesture",
     to: "/gestures/new",
     art: { src: publicResourceUrl("illustrations/create/gesture.webp") },
   },
   {
-    title: "Reaction",
-    description: "Design emotional responses your Anima can perform.",
-    action: "Create Reaction",
     to: "/reactions/new",
     art: { src: publicResourceUrl("illustrations/create/reaction.webp") },
   },
 ];
 
 function ActionCreatorCard({ card }: { card: AvailableCreatorCard }) {
+  const { t } = useTranslation("create");
+  const text =
+    card.to === "/gestures/new"
+      ? {
+          title: t("hub.actions.gesture.title"),
+          description: t("hub.actions.gesture.description"),
+          action: t("hub.actions.gesture.action"),
+        }
+      : {
+          title: t("hub.actions.reaction.title"),
+          description: t("hub.actions.reaction.description"),
+          action: t("hub.actions.reaction.action"),
+        };
   return (
     <article
       className={cn(CREATOR_CARD_CLASS_NAME, "overflow-hidden rounded-3xl")}
@@ -96,9 +103,9 @@ function ActionCreatorCard({ card }: { card: AvailableCreatorCard }) {
       <CreatorCardArt art={card.art} className="h-40 md:h-44" />
       <div className="flex flex-1 flex-col gap-4 p-5 md:p-6">
         <div className="space-y-1.5">
-          <h3 className="text-xl font-semibold">{card.title}</h3>
+          <h3 className="text-xl font-semibold">{text.title}</h3>
           <p className="text-muted-foreground text-sm leading-6">
-            {card.description}
+            {text.description}
           </p>
         </div>
         <Button
@@ -107,7 +114,7 @@ function ActionCreatorCard({ card }: { card: AvailableCreatorCard }) {
           className="mt-auto w-fit rounded-full"
         >
           <Link to={card.to}>
-            {card.action}
+            {text.action}
             <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
           </Link>
         </Button>
@@ -116,7 +123,7 @@ function ActionCreatorCard({ card }: { card: AvailableCreatorCard }) {
   );
 }
 
-const ANIMA_CREATOR_ACTION_CLASS_NAME = "mt-7 rounded-full shadow-lg";
+const ANIMA_CREATOR_ACTION_CLASS_NAME = "relative mt-7 rounded-full shadow-lg";
 
 /**
  * The Anima creator card: an illustrated stage with a character who leans out
@@ -128,6 +135,7 @@ function AnimaCreatorCard({
 }: {
   unavailableReason?: string;
 }) {
+  const { t } = useTranslation("create");
   return (
     <section
       aria-labelledby="anima-creator-title"
@@ -165,10 +173,10 @@ function AnimaCreatorCard({
           id="anima-creator-title"
           className="text-3xl font-semibold tracking-tight md:text-4xl"
         >
-          Anima
+          {t("hub.anima.title")}
         </h2>
         <p className="text-muted-foreground text-sm leading-6 md:text-base">
-          Create the companion at the heart of every conversation.
+          {t("hub.anima.description")}
         </p>
       </div>
       {unavailableReason ? (
@@ -178,9 +186,9 @@ function AnimaCreatorCard({
             size="lg"
             disabled
             aria-describedby="anima-creator-unavailable"
-            className={cn("relative", ANIMA_CREATOR_ACTION_CLASS_NAME)}
+            className={ANIMA_CREATOR_ACTION_CLASS_NAME}
           >
-            Create Anima <ArrowRight className="size-4" />
+            {t("hub.anima.action")} <ArrowRight className="size-4" />
           </Button>
           <p
             id="anima-creator-unavailable"
@@ -190,13 +198,9 @@ function AnimaCreatorCard({
           </p>
         </>
       ) : (
-        <Button
-          asChild
-          size="lg"
-          className={cn("relative", ANIMA_CREATOR_ACTION_CLASS_NAME)}
-        >
+        <Button asChild size="lg" className={ANIMA_CREATOR_ACTION_CLASS_NAME}>
           <Link to="/animas/new">
-            Create Anima <ArrowRight className="size-4" />
+            {t("hub.anima.action")} <ArrowRight className="size-4" />
           </Link>
         </Button>
       )}
@@ -212,7 +216,8 @@ function EffectKindCard({
   kind: EffectTemplateKind;
   onOpen: (kind: EffectTemplateKind, opener: HTMLButtonElement) => void;
 }) {
-  const info = EFFECT_TEMPLATE_KIND_INFO[kind];
+  const { t } = useTranslation("create");
+  const info = effectKindText(t, kind);
   return (
     <button
       type="button"
@@ -230,7 +235,7 @@ function EffectKindCard({
           {info.description}
         </p>
         <span className="border-input bg-background text-foreground group-hover:bg-accent group-hover:text-accent-foreground mt-5 inline-flex w-fit items-center gap-1 rounded-full border px-3 py-1.5 text-sm font-medium shadow-xs transition-colors">
-          {`Create ${info.label}`}
+          {info.create}
           <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
         </span>
       </div>
@@ -249,6 +254,7 @@ export function CreateHubPage({
 }: {
   effectPickerRoute?: boolean;
 }) {
+  const { t } = useTranslation("create");
   const navigate = useNavigate();
   const [picker, setPicker] = useState<{
     open: boolean;
@@ -265,10 +271,10 @@ export function CreateHubPage({
     <AppShellPage contentClassName="max-w-6xl gap-9 py-8 md:py-10">
       <header className="space-y-2">
         <h1 className="text-4xl font-semibold tracking-tight md:text-5xl">
-          Create
+          {t("hub.title")}
         </h1>
         <p className="text-muted-foreground max-w-3xl text-base leading-7 md:text-lg">
-          Bring your Animas to life with movement, emotion and effects.
+          {t("hub.description")}
         </p>
       </header>
 
@@ -287,10 +293,10 @@ export function CreateHubPage({
             id="action-creators-title"
             className="text-2xl font-semibold tracking-tight"
           >
-            Actions
+            {t("hub.actions.title")}
           </h2>
           <p className="text-muted-foreground text-sm md:text-base">
-            Give your Anima movement, personality, and emotion.
+            {t("hub.actions.description")}
           </p>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
@@ -309,11 +315,10 @@ export function CreateHubPage({
             id="effect-creators-title"
             className="text-2xl font-semibold tracking-tight"
           >
-            Effects
+            {t("hub.effects.title")}
           </h2>
           <p className="text-muted-foreground text-sm md:text-base">
-            Layer reusable effects into Gestures and Reactions. Upload sounds in
-            their SFX tabs or the accompanying-sound pickers.
+            {t("hub.effects.description")}
           </p>
         </div>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">

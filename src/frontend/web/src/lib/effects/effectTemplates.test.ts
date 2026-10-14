@@ -48,10 +48,10 @@ describe("effect template registry", () => {
     expect(EFFECT_TEMPLATE_KINDS).toEqual(["particle", "avatar", "scene"]);
     expect(
       EFFECT_TEMPLATE_KINDS.map((kind) => EFFECT_TEMPLATE_KIND_INFO[kind]),
-    ).toMatchObject([
-      { label: "Particle FX", route: "/particle-effects/new" },
-      { label: "Avatar FX", route: "/avatar-effects/new" },
-      { label: "Scene FX", route: "/scene-effects/new" },
+    ).toEqual([
+      { route: "/particle-effects/new" },
+      { route: "/avatar-effects/new" },
+      { route: "/scene-effects/new" },
     ]);
   });
 
@@ -68,7 +68,7 @@ describe("effect template registry", () => {
   });
 
   it("groups every Avatar template under a known intent, with no empty group", () => {
-    const groups = AVATAR_EFFECT_TEMPLATE_GROUPS.map((group) => group.id);
+    const groups = AVATAR_EFFECT_TEMPLATE_GROUPS;
     for (const template of AVATAR_EFFECT_TEMPLATES)
       expect(groups).toContain(template.group);
     for (const group of groups)

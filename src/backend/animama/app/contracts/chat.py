@@ -8,10 +8,22 @@ from .dispatch import PyAnimaDispatchOptions
 
 
 class PyChatClientContext(BaseModel):
-    """Client-reported context used only for safety presentation (spec R2, R5)."""
+    """Client-reported context for one turn.
+
+    ``time_zone`` and ``locale`` serve only safety presentation (companion safety
+    spec R2, R5). ``ui_locale`` sets the conversation language (ADR 0024).
+    """
 
     time_zone: str | None = Field(default=None, max_length=64, description="IANA time zone, e.g. America/Toronto.")
     locale: str | None = Field(default=None, max_length=64, description="BCP 47 locale, e.g. en-US.")
+    ui_locale: str | None = Field(
+        default=None,
+        max_length=35,
+        description=(
+            "UI Locale the client applied, e.g. ja. A non-English supported locale sets the language "
+            "the Anima replies and speaks in; other values are ignored."
+        ),
+    )
 
 
 class PyAnimaChatRequest(BaseModel):

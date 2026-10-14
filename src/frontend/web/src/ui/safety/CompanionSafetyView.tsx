@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type {
   ChatCrisisSupport,
   CrisisContact,
@@ -20,7 +21,11 @@ function contactHref(contact: CrisisContact): string {
   return `${contact.kind === "sms" ? "sms" : "tel"}:${contact.value}`;
 }
 
-/** Deterministic crisis resources; the Anima cannot suppress or reword this (spec R4). */
+/**
+ * Deterministic crisis resources; the Anima cannot suppress or reword this (spec R4).
+ * The card's own labels follow the UI Locale; service names, descriptions and
+ * contacts are the backend's verified data and are shown as sent (spec R9).
+ */
 export function CrisisCard({
   crisis,
   onDismiss,
@@ -28,17 +33,15 @@ export function CrisisCard({
   crisis: ChatCrisisSupport;
   onDismiss: () => void;
 }) {
+  const { t } = useTranslation("safety");
   const region = crisis.resources;
   return (
     <section
       role="alert"
-      aria-label="Crisis support resources"
+      aria-label={t("crisis.label")}
       className="border-border bg-card text-card-foreground pointer-events-auto w-full max-w-xl space-y-3 rounded-2xl border p-4 text-sm shadow-sm"
     >
-      <p className="font-medium">
-        If you&apos;re thinking about suicide or self-harm, you don&apos;t have
-        to go through it alone. Trained people can help.
-      </p>
+      <p className="font-medium">{t("crisis.intro")}</p>
       {region.services.length > 0 ? (
         <ul className="space-y-2">
           {region.services.map((service) => (
@@ -68,20 +71,20 @@ export function CrisisCard({
           ))}
         </ul>
       ) : (
-        <p>Please contact a local crisis line or someone you trust.</p>
+        <p>{t("crisis.noServices")}</p>
       )}
       <p>
         {region.emergency_number
-          ? `If you're in immediate danger, call ${region.emergency_number}.`
-          : "If you're in immediate danger, call your local emergency number."}
+          ? t("crisis.emergency", { number: region.emergency_number })
+          : t("crisis.emergencyLocal")}
       </p>
       <p className="text-muted-foreground text-xs">
-        Animas are AI and are not a substitute for professional help.
+        {t("crisis.notProfessional")}
       </p>
       <div className="flex items-center justify-between gap-3">
         <SafetyProtocolDialog className="text-xs underline underline-offset-2" />
         <Button type="button" size="sm" variant="outline" onClick={onDismiss}>
-          Dismiss
+          {t("crisis.dismiss")}
         </Button>
       </div>
     </section>
@@ -96,6 +99,7 @@ export function AiNotice({
   notice: Pick<AiNoticeState, "kind" | "animaName">;
   visible: boolean;
 }) {
+  const { t } = useTranslation("safety");
   return (
     <p
       role="status"
@@ -108,7 +112,7 @@ export function AiNotice({
         visible ? "opacity-100" : "opacity-0",
       )}
     >
-      {aiNoticeText(notice)}
+      {aiNoticeText(notice, t)}
     </p>
   );
 }

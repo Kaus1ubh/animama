@@ -1,4 +1,5 @@
 import { useId, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import type { PyOpenRouterModel } from "@animama/runtime-contracts/api-types";
 import { cn } from "@/lib/utils";
@@ -31,6 +32,7 @@ export function OpenRouterModelPicker({
   disabled?: boolean;
   onSelect: (model: PyOpenRouterModel) => void;
 }) {
+  const { t } = useTranslation("models");
   const id = useId();
   const models = useOpenRouterModels(true);
   const [query, setQuery] = useState("");
@@ -44,33 +46,36 @@ export function OpenRouterModelPicker({
   const announcement = models.isError
     ? openRouterModelsErrorMessage(models.error)
     : !models.isSuccess
-      ? "Loading OpenRouter models…"
+      ? t("openRouter.loading")
       : matches.length === 0
-        ? "No models match. Change the search or show all models."
+        ? t("openRouter.noMatches")
         : "";
   const count =
     models.isSuccess && matches.length > 0
       ? matches.length > MAX_SHOWN
-        ? `Showing ${MAX_SHOWN} of ${matches.length} models; search to narrow the list.`
-        : `${matches.length} ${matches.length === 1 ? "model" : "models"} found.`
+        ? t("openRouter.showingFirst", {
+            shown: MAX_SHOWN,
+            total: matches.length,
+          })
+        : t("openRouter.found", { count: matches.length })
       : null;
 
   return (
     <div className="border-border/60 space-y-3 rounded-lg border p-3">
       <div className="space-y-2">
-        <Label htmlFor={`${id}-search`}>Find an OpenRouter model</Label>
+        <Label htmlFor={`${id}-search`}>{t("openRouter.find")}</Label>
         <Input
           id={`${id}-search`}
           type="search"
           value={query}
-          placeholder="Search by name or ID"
+          placeholder={t("openRouter.searchPlaceholder")}
           autoComplete="off"
           disabled={disabled || !models.isSuccess}
           onChange={(event) => setQuery(event.target.value)}
         />
       </div>
       <label className="flex items-center justify-between gap-3 text-sm">
-        Tool calling only
+        {t("openRouter.toolsOnly")}
         <Switch
           checked={toolsOnly}
           disabled={disabled || !models.isSuccess}
@@ -91,7 +96,7 @@ export function OpenRouterModelPicker({
       {count ? <p className="text-muted-foreground text-xs">{count}</p> : null}
       {shown.length ? (
         <ul
-          aria-label="OpenRouter models"
+          aria-label={t("openRouter.listLabel")}
           className="divide-border/60 max-h-56 divide-y overflow-y-auto"
         >
           {shown.map((model) => {
@@ -115,7 +120,7 @@ export function OpenRouterModelPicker({
                       model.context_length != null
                         ? formatContextWindow(model.context_length)
                         : null,
-                      model.supports_tools ? "Tools" : null,
+                      model.supports_tools ? t("chips.tools.label") : null,
                     ]
                       .filter(Boolean)
                       .join(" · ")}

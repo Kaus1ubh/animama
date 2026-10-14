@@ -23,6 +23,7 @@ from animama.app.chat import (
     PreparedDirectChatTurn,
     RuntimeGestureDescriptor,
 )
+from animama.app.chat.conversation_language import conversation_language, with_speech_language
 from animama.app.chat.memory_search import validate_searchable_attached_files
 from animama.app.contracts.chat import PyAnimaChatRequest
 from animama.app.model_clients import ModelClientRegistry
@@ -173,6 +174,9 @@ async def prepare_direct_chat_turn(
             request_opts=request_options,
         )
     )
+    # The Anima replies and speaks in the UI Locale the client applied (ADR 0024).
+    language = conversation_language(req.client_context.ui_locale if req.client_context is not None else None)
+    chat_options = with_speech_language(chat_options, language)
     # Companion safety (notice cadence, moderation, crisis resources) never blocks the turn.
     safety = await prepare_turn_safety(
         repositories=repositories,
@@ -260,6 +264,7 @@ async def prepare_direct_chat_turn(
         runtime_gesture_ids=target.gesture_ids,
         runtime_gesture_descriptors=target.gesture_descriptors,
         provider_moderation=safety.provider_moderation,
+        conversation_language=language,
     )
     try:
         # `prepare_turn` resolves the selected model provider, compiles memory

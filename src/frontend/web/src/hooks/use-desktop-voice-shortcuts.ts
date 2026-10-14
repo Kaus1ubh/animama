@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef } from "react";
+import { getI18n } from "react-i18next";
 import { toast } from "sonner";
 
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
@@ -83,7 +84,8 @@ export function useDesktopVoiceShortcuts({
   const reportStatusError = useCallback((message: string) => {
     if (statusErrorRef.current === message) return;
     statusErrorRef.current = message;
-    toast.error("Desktop shortcut unavailable", {
+    const t = getI18n().getFixedT(null, "app");
+    toast.error(t("shortcuts.unavailable"), {
       description: message,
     });
   }, []);
@@ -133,10 +135,9 @@ export function useDesktopVoiceShortcuts({
       callbacksRef.current.onUnmuteVoiceMic(),
     )
       .catch((error: unknown) => {
+        const t = getI18n().getFixedT(null, "app");
         reportStatusError(
-          error instanceof Error
-            ? error.message
-            : "Failed to unmute Voice Mode for Press to talk.",
+          error instanceof Error ? error.message : t("shortcuts.unmuteFailed"),
         );
       })
       .finally(() => {
@@ -164,10 +165,11 @@ export function useDesktopVoiceShortcuts({
         }
       })
       .catch((error: unknown) => {
+        const t = getI18n().getFixedT(null, "app");
         reportStatusError(
           error instanceof Error
             ? error.message
-            : "Failed to configure desktop shortcuts.",
+            : t("shortcuts.configureFailed"),
         );
       });
   }, [handleStatus, platform, reportStatusError, shortcuts]);
@@ -184,10 +186,9 @@ export function useDesktopVoiceShortcuts({
       })
       .then(handleStatus)
       .catch((error: unknown) => {
+        const t = getI18n().getFixedT(null, "app");
         reportStatusError(
-          error instanceof Error
-            ? error.message
-            : "Failed to update desktop shortcut state.",
+          error instanceof Error ? error.message : t("shortcuts.updateFailed"),
         );
       });
     return () => {

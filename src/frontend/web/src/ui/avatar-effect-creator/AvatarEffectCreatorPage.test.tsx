@@ -1,5 +1,8 @@
-import type { PropsWithChildren } from "react";
-import { renderToStaticMarkup } from "@/test/runtime-markup";
+// @vitest-environment happy-dom
+import { act, type PropsWithChildren } from "react";
+import { createRoot } from "react-dom/client";
+import { getI18n } from "react-i18next";
+import { renderToStaticMarkup, withRuntime } from "@/test/runtime-markup";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AvatarEffectCreatorPage } from "./AvatarEffectCreatorPage";
@@ -19,6 +22,9 @@ const fixture = vi.hoisted(() => ({
     data: unknown;
     isError: boolean;
   },
+  /** The `onRestore` callback the latest render gave the save hook. */
+  onRestore: undefined as unknown,
+  renders: 0,
 }));
 
 vi.mock("@tanstack/react-router", () => ({
@@ -46,23 +52,33 @@ vi.mock("@/ui/content-preview/useContentPreviewAudio", () => ({
   useContentPreviewAudio: () => ({}),
 }));
 vi.mock("./useAvatarEffectSave", () => ({
-  useAvatarEffectSave: () => ({
-    recoveryReady: false,
-    recovered: false,
-    get isBusy() {
-      return fixture.busy;
-    },
-  }),
+  useAvatarEffectSave: ({ onRestore }: { onRestore: unknown }) => {
+    fixture.onRestore = onRestore;
+    fixture.renders += 1;
+    return {
+      recoveryReady: false,
+      recovered: false,
+      get isBusy() {
+        return fixture.busy;
+      },
+    };
+  },
 }));
 vi.mock("@/ui/content-creator/useContentCreatorModelPreview", () => ({
   useContentCreatorModelPreview: () => ({ modelOptions: [] }),
 }));
+
+(
+  globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+).IS_REACT_ACT_ENVIRONMENT = true;
 
 describe("Avatar Effect creator item states", () => {
   beforeEach(() => {
     fixture.busy = false;
     fixture.blocker = undefined;
     fixture.query = { data: undefined, isError: false };
+    fixture.onRestore = undefined;
+    fixture.renders = 0;
   });
 
   it("shows loading while the item is read", () => {
@@ -112,5 +128,27 @@ describe("Avatar Effect creator item states", () => {
     renderToStaticMarkup(<AvatarEffectCreatorPage itemId="missing" />);
     expect(fixture.blocker?.shouldBlockFn(leave)).toBe(false);
     expect(fixture.blocker?.enableBeforeUnload()).toBe(false);
+  });
+
+  it("keeps its restore callback across a UI Locale change", async () => {
+    const root = createRoot(document.createElement("div"));
+    await act(async () =>
+      root.render(withRuntime(<AvatarEffectCreatorPage itemId="effect-1" />)),
+    );
+    const restore = fixture.onRestore;
+    const renders = fixture.renders;
+    try {
+      // A new callback would load and restore the recovered draft again.
+      await act(async () => {
+        await getI18n().changeLanguage("ja");
+      });
+      expect(fixture.renders).toBeGreaterThan(renders);
+      expect(fixture.onRestore).toBe(restore);
+    } finally {
+      await act(async () => {
+        await getI18n().changeLanguage("en");
+      });
+      act(() => root.unmount());
+    }
   });
 });

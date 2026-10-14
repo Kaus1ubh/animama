@@ -11,6 +11,7 @@ import {
 import { ArrowUpIcon, Loader2, Phone } from "lucide-react";
 import { useElementSize } from "../hooks/useElementSize";
 import { cn } from "../lib/utils";
+import { useProductTranslation } from "../i18n/product-translation";
 import { Button } from "./button";
 import { Textarea } from "./textarea";
 import { ShineBorder } from "./shine-border";
@@ -494,6 +495,7 @@ function ChatInputSubmit({
   onClick: onClickProp,
   ...props
 }: ChatInputSubmitProps) {
+  const { t } = useProductTranslation();
   const context = useContext(ChatInputContext);
   const loading = loadingProp ?? context.loading;
   const onStop = onStopProp ?? context.onStop;
@@ -506,15 +508,18 @@ function ChatInputSubmit({
   const isVoiceModeActive = activeMicMode === "voice";
   const hasText =
     typeof context.value === "string" && context.value.trim().length > 0;
-  const submitState = resolveChatInputSubmitState({
-    submitMode: context.submitMode ?? "text-or-voice",
-    hasText,
-    loading: Boolean(loading),
-    hasStopHandler: Boolean(onStop),
-    isVoiceModeActive,
-    disabled: Boolean(disabled),
-    voiceAvailable: context.voiceAvailable,
-  });
+  const submitState = resolveChatInputSubmitState(
+    {
+      submitMode: context.submitMode ?? "text-or-voice",
+      hasText,
+      loading: Boolean(loading),
+      hasStopHandler: Boolean(onStop),
+      isVoiceModeActive,
+      disabled: Boolean(disabled),
+      voiceAvailable: context.voiceAvailable,
+    },
+    t,
+  );
 
   const stopIcon = (
     <svg

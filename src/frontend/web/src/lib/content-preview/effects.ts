@@ -10,6 +10,8 @@ import type {
 } from "@/lib/avatar/vfx/types";
 import { applyAvatarVFXEffectById } from "@/lib/avatar/vfx/runtime";
 import { buildSceneVFXRuntimeEntry } from "@/lib/scene-vfx/runtime-state";
+import { WordedError } from "@/lib/errors/apiError";
+import { getI18n } from "react-i18next";
 import type {
   SceneVFXEntry,
   SceneVFXKind,
@@ -282,6 +284,7 @@ export async function playContentPreviewEffect(args: {
   playApplySound?: (runtimeId: string) => void | Promise<void>;
   stopApplySound?: () => void;
 }): Promise<void> {
+  const t = getI18n().getFixedT(null, "actionEditor");
   clearContentPreviewEffects(args);
 
   if (args.command.type === "particle_vfx") {
@@ -289,23 +292,22 @@ export async function playContentPreviewEffect(args: {
       args.command.runtimeId,
     );
     if (args.isCurrent?.() === false) return;
-    if (!effect)
-      throw new Error("The selected particle effect is unavailable.");
+    if (!effect) throw new WordedError(t("preview.errors.particleUnavailable"));
     const controller = args.avatar.particleVFXController;
     if (!controller)
-      throw new Error("The preview avatar cannot play particles.");
+      throw new WordedError(t("preview.errors.particlesUnsupported"));
     const didPlay = await controller.playEffect(
       buildParticlePreviewRequest(effect),
     );
-    if (!didPlay)
-      throw new Error("The selected particle effect could not play.");
+    if (!didPlay) throw new WordedError(t("preview.errors.particleFailed"));
     return;
   }
 
   if (args.command.type === "avatar_vfx") {
     const effect = await args.catalog.loadAvatarVFX(args.command.runtimeId);
     if (args.isCurrent?.() === false) return;
-    if (!effect) throw new Error("The selected avatar effect is unavailable.");
+    if (!effect)
+      throw new WordedError(t("preview.errors.avatarEffectUnavailable"));
     const didApply = await applyAvatarVFXEffectById({
       avatar: args.avatar as Avatar,
       effectId: effect.id,
@@ -313,7 +315,7 @@ export async function playContentPreviewEffect(args: {
       effectEntry: effect,
     });
     if (!didApply)
-      throw new Error("The selected avatar effect could not play.");
+      throw new WordedError(t("preview.errors.avatarEffectFailed"));
     if (effect.sound?.onApply)
       await args.playApplySound?.(effect.sound.onApply);
     return;
@@ -325,7 +327,7 @@ export async function playContentPreviewEffect(args: {
   );
   if (args.isCurrent?.() === false) return;
   if (!effect || !effect.enabled) {
-    throw new Error("The selected scene effect is unavailable.");
+    throw new WordedError(t("preview.errors.sceneEffectUnavailable"));
   }
   args.onSceneVFXChange(buildSceneVFXRuntimeEntry(effect));
   if (effect.sound?.onApply) await args.playApplySound?.(effect.sound.onApply);

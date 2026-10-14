@@ -1,5 +1,6 @@
 import { AlertTriangle, ImagePlus } from "lucide-react";
 import { useId, useRef, type ChangeEvent } from "react";
+import { useTranslation } from "react-i18next";
 
 import type {
   ParticleVFXEditorTextureFile,
@@ -82,15 +83,16 @@ export function EmitterCarriedTextures({
   onImport: (file: File) => void;
   onSupply: (reference: string, file: File) => void;
 }) {
+  const { t } = useTranslation("particles");
   const references = Object.keys(textureFiles).sort();
   const emitterMissing =
     emitter.textureUrl && missingReferences.includes(emitter.textureUrl)
       ? emitter.textureUrl
       : null;
   return (
-    <section className="grid gap-2" aria-label="This effect's textures">
+    <section className="grid gap-2" aria-label={t("texture.carried.title")}>
       <div className="text-muted-foreground text-xs font-semibold uppercase">
-        This effect&apos;s textures
+        {t("texture.carried.title")}
       </div>
       {emitterMissing ? (
         <div
@@ -99,10 +101,12 @@ export function EmitterCarriedTextures({
         >
           <AlertTriangle className="text-destructive size-4 shrink-0" />
           <span className="min-w-0 flex-1">
-            Texture {basename(emitterMissing)} is missing. Choose its PNG file.
+            {t("texture.carried.missing", { file: basename(emitterMissing) })}
           </span>
           <PngFileButton
-            label={`Choose file for ${basename(emitterMissing)}`}
+            label={t("texture.carried.chooseFile", {
+              file: basename(emitterMissing),
+            })}
             disabled={busy}
             onFile={(file) => onSupply(emitterMissing, file)}
           />
@@ -138,7 +142,10 @@ export function EmitterCarriedTextures({
                     {basename(reference)}
                   </span>
                   <span className="text-muted-foreground block truncate text-xs">
-                    {file.width}×{file.height}
+                    {t("texture.carried.dimensions", {
+                      width: file.width,
+                      height: file.height,
+                    })}
                   </span>
                 </span>
               </button>
@@ -148,14 +155,15 @@ export function EmitterCarriedTextures({
       ) : null}
       <div className="flex flex-wrap items-center gap-2">
         <PngFileButton
-          label="Import PNG texture"
+          label={t("texture.carried.import")}
           disabled={busy}
           onFile={onImport}
         />
         <span className="text-muted-foreground text-xs">
-          PNG up to {PARTICLE_TEXTURE_LIMITS.bytes / (1024 * 1024)} MiB and{" "}
-          {PARTICLE_TEXTURE_LIMITS.dimension} px. Set Atlas tiles for a sprite
-          sheet.
+          {t("texture.carried.hint", {
+            size: PARTICLE_TEXTURE_LIMITS.bytes / (1024 * 1024),
+            dimension: PARTICLE_TEXTURE_LIMITS.dimension,
+          })}
         </span>
       </div>
       {error ? (

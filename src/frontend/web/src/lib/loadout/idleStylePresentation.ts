@@ -1,10 +1,18 @@
 import type { PyAnimaIdleStyle } from "@animama/runtime-contracts/api-types";
-import { TRACKED_EMOTIONS } from "@/lib/emotion";
-import { IDLE_INTENSITIES } from "@/lib/content/idleStyleDocument";
+import { TRACKED_EMOTIONS, type TrackedEmotion } from "@/lib/emotion";
+import {
+  IDLE_INTENSITIES,
+  type IdleIntensity,
+} from "@/lib/content/idleStyleDocument";
 
+/**
+ * One pool row: the Style's Default pool (`emotion` and `intensity` null) or
+ * one emotion/intensity cell. Display labels are worded by the component.
+ */
 export type IdleStyleAssignment = {
   key: string;
-  label: string;
+  emotion: TrackedEmotion | null;
+  intensity: IdleIntensity | null;
   gestureRefs: string[];
   gestureNames: string[];
   mode: "default" | "inherit" | "pool" | "none";
@@ -25,7 +33,8 @@ export function presentIdleStyle(
   return [
     {
       key: "default",
-      label: "Default",
+      emotion: null,
+      intensity: null,
       gestureRefs: defaultPool,
       gestureNames: defaultPool.map((ref) => names.get(ref) ?? ref),
       mode: "default",
@@ -40,7 +49,8 @@ export function presentIdleStyle(
             : cell.gestures;
         return {
           key: `${emotion}:${intensity}`,
-          label: `${emotion[0]!.toUpperCase()}${emotion.slice(1)} · ${intensity}`,
+          emotion,
+          intensity,
           gestureRefs: pool,
           gestureNames: pool.map((ref) => names.get(ref) ?? ref),
           mode: cell?.mode ?? "inherit",

@@ -1,0 +1,437 @@
+{
+  "actions": {
+    "back": "返回",
+    "cancel": "取消",
+    "clear": "清除",
+    "creatorHub": "创建中心",
+    "startOver": "重新开始",
+    "tryAgain": "重试"
+  },
+  "actionsStep": {
+    "cell": {
+      "apply": "应用到此格",
+      "assignment": "反应分配",
+      "description": "选择任意反应，或将此格留空。预览不会改变其分配。",
+      "noMatches": "没有匹配的反应。此格未更改。",
+      "preview": "预览反应 {{name}}",
+      "search": "搜索反应",
+      "searchPlaceholder": "搜索反应…",
+      "showMore": "显示更多反应",
+      "sourceFilter": "反应来源",
+      "title": "{{emotion}} · 强度 {{intensity}}"
+    },
+    "confirm": {
+      "clear": "清除所选",
+      "clearDescription": "只会清除这些选择。空选择也是有效的，你已保存的内容不会被删除。",
+      "clearGesturesTitle": "清除所有动作？",
+      "clearReactionsTitle": "清除所有反应？",
+      "reset": "重置行为",
+      "resetDescription": "这会用当前入门包替换动作选择和全部 {{total}} 个反应格。虚拟形象和身份设定保持不变。",
+      "resetTitle": "将行为重置为推荐设置？"
+    },
+    "gestures": {
+      "clearAll": "清除所有动作",
+      "keptSelection": "已保留的选择：{{id}}。它被筛选条件隐藏，或需要处理。",
+      "key": "动作 {{key}}",
+      "loadFailed": "无法加载动作。选择未更改。",
+      "loading": "正在加载动作…",
+      "noMatches": "没有匹配的动作。隐藏的选择会被保留。",
+      "none": "未选择任何动作。仍然可以创建你的 Anima。",
+      "preview": "预览动作 {{name}}",
+      "retry": "重新加载动作",
+      "search": "搜索动作",
+      "searchPlaceholder": "搜索动作…",
+      "select": "选择",
+      "selected": "已选择",
+      "sourceFilter": "动作来源"
+    },
+    "reactions": {
+      "change": "更改{{emotion}}强度 {{intensity}}",
+      "clearAll": "清除所有反应",
+      "clearCell": "清除{{emotion}}强度 {{intensity}}",
+      "empty": "空",
+      "levels": "{{emotion}}反应等级",
+      "loadFailed": "无法加载反应。分配已保留。",
+      "matrix": "反应矩阵",
+      "needsAttention": "已选择 · 需要处理",
+      "none": "全部 {{total}} 个格都为空。仍然可以创建你的 Anima。",
+      "previewCell": "预览{{emotion}}强度 {{intensity}}",
+      "previewLabel": "{{emotion}} · {{intensity}}",
+      "retry": "重新加载反应",
+      "revert": "恢复",
+      "revertCell": "将{{emotion}}强度 {{intensity}} 恢复为推荐设置"
+    },
+    "replace": {
+      "confirm": "替换选择",
+      "description": "每个语义键只能使用一个动作。所选来源将替换为 {{name}}；不会删除任何内容。",
+      "keep": "保留当前项",
+      "title": "替换“{{key}}”的动作？"
+    },
+    "starterPack": {
+      "description": "这只是一个起点，并非必需。请准确选择你的 Anima 能做什么。",
+      "reset": "重置为推荐设置",
+      "summary_other": "<strong>{{count}}</strong> 个动作 · 已分配 <strong>{{reactions}}</strong> / {{total}} 个反应格",
+      "title": "推荐入门包",
+      "version": "版本 {{version}} · {{gestures}} 个推荐动作 · {{cells}} 个推荐格"
+    },
+    "tabs": {
+      "gestures": "动作（{{selected}}）",
+      "reactions": "反应（{{assigned}}/{{total}}）"
+    }
+  },
+  "avatarStep": {
+    "alreadySaved": "完全相同的文件已在“我的内容”中。已选择现有虚拟形象，其名称和元数据保持不变。",
+    "cancelUpload": "取消上传",
+    "collision": {
+      "chooseNewName": "选择新名称",
+      "description": "使用其他名称即可保留两个文件。替换会更改“我的内容”中的现有项目，并且需要其当前修订版本。如果有运行中的 Anima 正在使用它，服务器将拒绝替换。",
+      "item": "{{name}} · {{id}}",
+      "replace": "替换此虚拟形象",
+      "title": "此虚拟形象名称已被使用"
+    },
+    "discardUpload": "丢弃未保存的上传",
+    "emptyIncluded": "没有可用的内置虚拟形象。你可以使用“我的内容”或上传 VRM。",
+    "emptyLocal": "“我的内容”中还没有虚拟形象。上传一个 VRM 来添加。",
+    "fileInput": "选择 VRM 文件",
+    "groupLabel": {
+      "included": "内置虚拟形象",
+      "local": "我的内容中的虚拟形象"
+    },
+    "inUse": "此虚拟形象正被运行中的 Anima 使用。请保持其不变，并以新名称保存你的上传。",
+    "label": "虚拟形象选择",
+    "loadFailed": "无法加载虚拟形象。你的选择已保留。",
+    "loading": "正在加载虚拟形象…",
+    "nameUsed": "该名称已被使用。请输入新名称，或在下方明确替换匹配的虚拟形象。正被运行中的 Anima 使用的虚拟形象无法在此替换。",
+    "needsAttention": "此虚拟形象需要处理。请选择其他来源或重试。",
+    "noMatches": "没有匹配的虚拟形象。你选择的虚拟形象未更改。",
+    "optionLabel": {
+      "included": "{{name}} 内置",
+      "local": "{{name}} 我的内容"
+    },
+    "previewing": "正在预览 {{name}} · {{size}}",
+    "readFailed": "无法读取此 VRM。",
+    "reselect": "你之前的文件未保存。请通过“上传 VRM”再次选择；浏览器在重新加载后无法恢复本地文件。",
+    "retry": "重新加载虚拟形象",
+    "save": "将虚拟形象保存到“我的内容”",
+    "saveAs": "保存到“我的内容”的名称",
+    "saved": "虚拟形象已保存到“我的内容”。即使取消创建，它也会保留。",
+    "saveFailed": "保存失败。你的文件仍在这里，可以重试。",
+    "saving": "正在保存虚拟形象…",
+    "search": "搜索虚拟形象",
+    "searchPlaceholder": "搜索虚拟形象…",
+    "showMore": "显示更多虚拟形象",
+    "upload": "上传 VRM"
+  },
+  "completion": {
+    "degraded": "部分运行时内容不可用。你的 Anima 已成功创建。",
+    "description": "创建已完成。打开第一次聊天不会再创建另一个 Anima。",
+    "filesVerified_other": "已验证 {{completed, number}} / {{count, number}} 个文件",
+    "openAnyway": "仍然打开 Anima",
+    "openFailed": "无法打开第一次聊天。",
+    "preparing": "正在准备第一次聊天…",
+    "retry": "重新打开 Anima",
+    "title": "你的 Anima 已创建"
+  },
+  "controller": {
+    "defaultsUnavailable": "创建默认设置不可用。请让安装所有者修复后再重试。",
+    "libraryAvatarUnavailable": "无法选择资源库中的虚拟形象。请在下方选择可用的虚拟形象。",
+    "libraryAvatarUnavailableReason": "无法选择资源库中的虚拟形象：{{reason}} 请在下方选择可用的虚拟形象。",
+    "lockBusy": "另一个标签页正在检查此创建请求。请等待其完成，然后在此查看相同的结果。",
+    "locksUnavailable": "此浏览器无法在标签页之间安全协调创建。请使用启用了本地存储和 Web Locks 的新版浏览器。",
+    "notAvatar": "此来源不是虚拟形象。",
+    "revisionsAccepted": "已接受更新的修订版本。创建前请重新检查整个草稿。",
+    "starterPackRefreshFailed": "无法刷新推荐入门包。你的行为已保留。"
+  },
+  "draft": {
+    "chooseAvatar": "请选择一个可用的虚拟形象，或将你的 VRM 保存到“我的内容”。",
+    "chooseVoice": "请为你的 Anima 选择语音。",
+    "elevenLabsVoiceIdInvalid": "请输入仅包含字母、数字、下划线或连字符的 ElevenLabs 语音 ID。",
+    "identityInvalid": "请输入不超过 {{limit, number}} 个 UTF-8 字节的非空 Markdown。",
+    "nameInvalid": "请使用 1–{{limit}} 个字符，且不含控制字符。",
+    "nameRequired": "请输入名称以继续。",
+    "pocketVoiceUnavailable": "请选择可用的 PocketTTS 语音。",
+    "reselectFile": "请重新选择并保存你的 VRM，或取消未保存的上传。",
+    "reviewNeedsAvatar": "检查前请先选择虚拟形象并解决入门包问题。",
+    "sourceNeedsValidation": "所选内容仍需进行精确的来源验证。",
+    "sourcesDisagree": "所选来源对修订版本 {{id}} 的记录不一致。请检查受影响的内容。",
+    "starterPackNeedsAttention": "此安装的入门包需要处理。"
+  },
+  "effectKinds": {
+    "avatar": {
+      "create": "创建形象特效",
+      "description": "在脸上、身上或虚拟形象旁边添加图案。",
+      "label": "形象特效",
+      "new": "新建形象特效"
+    },
+    "particle": {
+      "create": "创建粒子特效",
+      "description": "添加爆发、拖尾和氛围粒子。",
+      "label": "粒子特效",
+      "new": "新建粒子特效"
+    },
+    "scene": {
+      "create": "创建场景特效",
+      "description": "在你的 Anima 周围组合背景和集中线。",
+      "label": "场景特效",
+      "new": "新建场景特效"
+    }
+  },
+  "files": {
+    "documentTooLarge": "VRM 文档超出支持的上限。",
+    "externalResources": "不允许使用外部模型资源。请导出自包含的 VRM。",
+    "invalidDocument": "此文件不包含有效的 VRM 文档。",
+    "notBinary": "这不是二进制 VRM/GLB 文件。",
+    "tooLarge": "请选择不超过 {{limit}} MiB 的自包含 .vrm 文件。",
+    "unsupportedVersion": "请选择 VRM 0.x (0.0) 或 VRM 1.0 模型。"
+  },
+  "hub": {
+    "actions": {
+      "description": "赋予你的 Anima 肢体表现、个性和情感。",
+      "gesture": {
+        "action": "创建动作",
+        "description": "编排富有表现力的动作和可复用的行为。",
+        "title": "动作"
+      },
+      "reaction": {
+        "action": "创建反应",
+        "description": "设计你的 Anima 可以表现的情感反应。",
+        "title": "反应"
+      },
+      "title": "行为"
+    },
+    "anima": {
+      "action": "创建 Anima",
+      "description": "创建每段对话核心的陪伴者。",
+      "title": "Anima"
+    },
+    "description": "为你的 Anima 创建角色、行为和特效。",
+    "effects": {
+      "description": "将可复用的特效叠加到动作和反应中。请在它们的 SFX 标签页或配套音效选择器中上传声音。",
+      "title": "特效"
+    },
+    "title": "创建"
+  },
+  "identityStep": {
+    "editorLabel": "身份设定 Markdown",
+    "placeholder": "描述他们是谁、如何说话以及重视什么…",
+    "preview": "预览",
+    "previewEmpty": "身份设定的预览将显示在这里。",
+    "required": "· 必填",
+    "suggestion": {
+      "append": "追加建议",
+      "description": "建议会作为可编辑文本复制。只有在你选择下方的选项后，当前的身份设定才会更改。",
+      "replace": "替换身份设定",
+      "title": "使用虚拟形象的建议？"
+    },
+    "title": "身份设定",
+    "useSuggestion": "使用虚拟形象的建议",
+    "write": "编写"
+  },
+  "leave": {
+    "discard": "丢弃草稿",
+    "draft": {
+      "action": "保存草稿并离开",
+      "description": "保存此草稿以便稍后继续，或将其丢弃。已确认的上传会保留在“我的内容”中。",
+      "title": "离开你的 Anima 草稿？"
+    },
+    "keepEditing": "继续编辑",
+    "locked": {
+      "action": "离开并保留请求",
+      "description": "必须保留已冻结的请求。开始另一项创建前，请返回“查看创建结果”。离开不会取消已发送的请求。",
+      "title": "在创建未确定时离开？"
+    }
+  },
+  "locked": {
+    "acknowledgeStartOver": "确认并重新开始",
+    "check": {
+      "description": "原始请求已保存。更改此草稿前请先查看其结果；重试会使用完全相同的请求，不会创建重复项。",
+      "title": "查看你的创建结果"
+    },
+    "checking": "正在检查…",
+    "checkResult": "查看创建结果",
+    "conflict": {
+      "description": "此键已用于不同的内容。编辑和自动重试已停止；原始请求已保留。",
+      "title": "创建请求冲突"
+    },
+    "creating": "正在创建你的 Anima…",
+    "deleted": {
+      "description": "原始创建已成功，但该 Anima 之后被删除了。没有重新创建任何内容。",
+      "title": "此 Anima 已被删除"
+    }
+  },
+  "namePlate": {
+    "characters": "个字符",
+    "count": "{{current}} / {{limit}}",
+    "label": "名称",
+    "placeholder": "输入名称"
+  },
+  "nav": {
+    "completed": "{{step}}，已完成",
+    "label": "Anima 创建进度",
+    "needsAttention": "{{step}}，需要处理"
+  },
+  "options": {
+    "loadFailed": "无法加载入门包或创建默认设置。你的草稿已保留。",
+    "needsRepair": "推荐入门包需要修复。你的选择没有被不完整的包替换。",
+    "retry": "重新加载创建选项"
+  },
+  "page": {
+    "continueTo": "继续：{{step}}",
+    "create": "创建 Anima",
+    "formLabel": "{{step}}表单",
+    "issuesLabel": "创建问题",
+    "preparingStage": "正在准备预览区域…",
+    "reviewUpdatedSources": "检查更新的来源",
+    "runtimeUnavailable": "本地运行时不可用。请在重新连接后重试。",
+    "stepCounter": "第 {{current}} 步，共 {{total}} 步",
+    "title": "创建 Anima",
+    "working": "正在处理…"
+  },
+  "picker": {
+    "avatarGroups": {
+      "aroundHead": "头部周围",
+      "body": "身体",
+      "cheeks": "脸颊",
+      "eyes": "眼睛",
+      "mouth": "嘴巴",
+      "wholeFace": "整张脸"
+    },
+    "choose": "选择",
+    "kindDescription": "选择要创建的特效类型。",
+    "noParticleTemplates": "还没有粒子特效模板。从头开始创建一个吧。",
+    "noPreview": "暂无预览",
+    "previewUnavailable": "预览不可用",
+    "startFromScratch": "从头开始",
+    "templateDescription": "从模板或从头开始。你将获得一个未保存的新草稿；模板不会被更改。",
+    "title": "创建特效"
+  },
+  "recovery": {
+    "appearance": {
+      "action": "不使用图片继续",
+      "description": "创建 Anima 时不再设置头像和背景图片。请在不使用这些草稿选择的情况下继续；已确认的上传会保留在“我的内容”中，其他所有选择也都会保留。",
+      "title": "不使用创建器图片继续？"
+    },
+    "checking": "正在检查已保存的草稿…",
+    "corrupt": {
+      "title": "你保存的草稿需要处理"
+    },
+    "resume": {
+      "action": "继续已保存的草稿",
+      "description": "已为此安装保存了一份草稿。你可以继续它，或明确选择重新开始。已保存的上传会保留在“我的内容”中。",
+      "title": "继续创建你的 Anima？"
+    }
+  },
+  "repair": {
+    "accept": "接受更新的修订版本",
+    "keep": "保留固定的修订版本",
+    "policyDescription": "这只会更新固定的入门包标识和默认待机策略。你选择的动作和反应不会被重置。",
+    "sourceDescription": "此来源及其完整依赖项将使用此处显示的当前修订版本。你的其他选择保持不变。之后请重新检查整个草稿。",
+    "title": "接受更新的来源修订版本？"
+  },
+  "review": {
+    "actions": {
+      "edit": "编辑行为",
+      "gesturesSelected": "已选择的动作",
+      "reactionCells": "已分配的反应格",
+      "reactionTotal": "/ {{total}}",
+      "title": "行为"
+    },
+    "avatarMissing": "缺少虚拟形象",
+    "identity": {
+      "edit": "编辑身份设定",
+      "title": "身份设定"
+    },
+    "voice": {
+      "applicationDefault": "应用默认设置（已保存的请求）",
+      "edit": "编辑语音",
+      "savedClone": "已保存的语音克隆",
+      "summary": "{{provider}} · {{voice}}",
+      "title": "语音"
+    },
+    "warnings": "温馨提示"
+  },
+  "sources": {
+    "all": "所有来源",
+    "included": "内置",
+    "local": "我的内容"
+  },
+  "stage": {
+    "actionBytesUnavailable": "无法准备行为的已注册文件。",
+    "actionNotPlayed": "无法播放此行为。",
+    "actionNotPrepared": "无法准备此行为。",
+    "avatarUnavailable": "虚拟形象预览不可用。",
+    "dependencyChanged": "某个行为依赖项已更改。预览前请先接受其更新的来源。",
+    "dependencyUnavailable": "某个行为依赖项不可用。播放已停止。",
+    "empty": "上传 VRM（小于 100 MB）或选择虚拟形象，即可在这里看到。",
+    "label": "你的 Anima 预览",
+    "loadingAvatar": "正在加载所选虚拟形象…",
+    "noModel": "所选虚拟形象没有已注册的模型。",
+    "notAction": "所选来源不是行为。",
+    "preparing": "正在准备预览…",
+    "preparingAction": "正在准备该行为及其依赖项…",
+    "retry": "重试预览",
+    "unavailable": "虚拟形象预览不可用。你仍然可以编辑表单。",
+    "upload": "上传 VRM 文件",
+    "waitForAvatar": "请等待所选虚拟形象加载，或重试其预览。",
+    "webglUnavailable": "WebGL 不可用。请重试预览，或继续使用所选虚拟形象。"
+  },
+  "startOver": {
+    "description": "这会丢弃已保存的草稿，但不会删除你在“我的内容”中已确认的上传。之前已删除的创建不会被重新创建。",
+    "keep": "保留草稿",
+    "title": "开始新草稿？"
+  },
+  "steps": {
+    "actions": {
+      "description": "选择你的 Anima 如何移动和反应。",
+      "heading": "选择行为",
+      "label": "行为"
+    },
+    "avatar": {
+      "heading": "选择虚拟形象",
+      "label": "虚拟形象"
+    },
+    "identity": {
+      "description": "塑造他们是谁、如何说话以及重视什么。",
+      "heading": "定义身份设定",
+      "label": "身份设定"
+    },
+    "review": {
+      "heading": "检查 Anima",
+      "label": "检查"
+    },
+    "voice": {
+      "heading": "选择语音",
+      "label": "语音"
+    }
+  },
+  "storage": {
+    "changedElsewhere": "此草稿已在另一个标签页中更改。继续之前，请查看最新保存的状态。",
+    "checkBeforeDiscard": "丢弃此请求前，请先查看创建结果。",
+    "conflict": "此草稿已在另一个标签页中更改。接管编辑前请先查看。",
+    "notStarted": "除非准确的请求已安全保存，否则不会开始创建。",
+    "pendingElsewhere": "另一个标签页中的创建正在等待处理。请查看原始创建结果。",
+    "retrySave": "重试保存草稿",
+    "reviewLatest": "查看最新保存的状态",
+    "tooLarge": "已保存的草稿超出了恢复上限。只有在确认不再需要它之后才重新开始。",
+    "unavailable": "草稿存储不可用。创建 Anima 前请启用浏览器存储。",
+    "unreadable": "此版本无法读取已保存的草稿。它尚未被丢弃。请确认“重新开始”以替换它。"
+  },
+  "voiceStep": {
+    "busy": "语音设置正忙。",
+    "chooseAnother": "此已保存的语音不可用。请选择其他语音。",
+    "cloneUnavailable": "此已保存的语音不可用。请刷新资源库。",
+    "elevenLabsId": "ElevenLabs 语音 ID",
+    "elevenLabsPlaceholder": "输入语音 ID",
+    "label": "语音配置",
+    "loadFailed": "无法加载已保存的语音。",
+    "loading": "正在加载默认语音…",
+    "pocketVoice": "PocketTTS 语音",
+    "provider": "TTS 提供商",
+    "providers": {
+      "elevenLabs": "ElevenLabs",
+      "pocketTts": "PocketTTS"
+    },
+    "retry": "重新加载已保存的语音",
+    "savedVoiceUnavailable": "已保存的语音不可用"
+  }
+}

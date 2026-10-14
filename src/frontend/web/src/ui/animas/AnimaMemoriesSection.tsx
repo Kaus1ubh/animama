@@ -1,5 +1,6 @@
 import { useRef, useState, type Ref } from "react";
 import { FileText } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { memoryEntryErrorMessage } from "@/lib/memory-entries/errors";
 import {
@@ -56,6 +57,7 @@ function AnimaMemoriesDocument({
   editTriggerRef: Ref<HTMLButtonElement>;
   onEdit: (entryId: string) => void;
 }) {
+  const { t } = useTranslation("animas");
   const identities = useAnimaIdentities();
   const anima = identities.data?.identities?.find(
     (item) => item.anima_id === animaId,
@@ -67,7 +69,7 @@ function AnimaMemoriesDocument({
   if (identities.isPending || (entryId && entry.isPending)) {
     return (
       <p className="text-muted-foreground py-8 text-center text-sm">
-        Loading memories…
+        {t("memories.loading")}
       </p>
     );
   }
@@ -79,9 +81,7 @@ function AnimaMemoriesDocument({
   ) {
     return (
       <div className="flex flex-col items-start gap-3">
-        <p className="text-destructive text-sm">
-          The current memories file could not be loaded.
-        </p>
+        <p className="text-destructive text-sm">{t("memories.loadFailed")}</p>
         <Button
           type="button"
           variant="outline"
@@ -91,7 +91,7 @@ function AnimaMemoriesDocument({
             if (entryId) void entry.refetch();
           }}
         >
-          Retry
+          {t("actions.retry")}
         </Button>
       </div>
     );
@@ -100,7 +100,7 @@ function AnimaMemoriesDocument({
   if (!entryId) {
     return (
       <div className="flex flex-col items-start gap-3">
-        <p className="text-muted-foreground text-sm">MEMORIES.md is missing.</p>
+        <p className="text-muted-foreground text-sm">{t("memories.missing")}</p>
         <Button
           type="button"
           variant="outline"
@@ -108,7 +108,7 @@ function AnimaMemoriesDocument({
           disabled={repair.isPending}
           onClick={() => repair.mutate({ animaId })}
         >
-          {repair.isPending ? "Repairing memories…" : "Repair memories"}
+          {repair.isPending ? t("memories.repairing") : t("memories.repair")}
         </Button>
         {repair.isError ? (
           <p role="alert" className="text-destructive text-sm">
@@ -122,7 +122,7 @@ function AnimaMemoriesDocument({
   return (
     <MemoryMarkdownPreview
       value={entry.data?.content ?? ""}
-      emptyText="_No memories recorded yet._"
+      emptyText={t("memories.empty")}
       className="text-foreground/90 [overflow-wrap:anywhere]"
     >
       {showEditAction ? (
@@ -136,7 +136,7 @@ function AnimaMemoriesDocument({
             className="bg-background/92 shadow-sm backdrop-blur-sm"
           >
             <FileText className="size-4" />
-            Edit memories
+            {t("memories.edit")}
           </Button>
         </div>
       ) : null}

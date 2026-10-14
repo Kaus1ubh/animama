@@ -1,4 +1,5 @@
 import type { QueryClient } from "@tanstack/react-query";
+import { getI18n } from "react-i18next";
 import { queryKeys } from "@/query/keys";
 import {
   credentialTarget,
@@ -6,6 +7,7 @@ import {
   type CredentialProvider,
   type CredentialStatus,
   type CredentialsBridge,
+  maxConnectionCredentials,
 } from "../../../../shared/desktop-runtime";
 
 /** Translate bounded main-process status into guidance without rendering raw errors. */
@@ -13,11 +15,12 @@ export function credentialFailureMessage(
   status: CredentialStatus,
 ): string | null {
   if (!status.error) return null;
+  const t = getI18n().getFixedT(null, "models");
   if (status.error === "connection_credentials_full")
-    return "This computer already stores the most model connection keys it allows (32). Remove the key from a connection you no longer use, then retry.";
+    return t("credentials.failure.full", { max: maxConnectionCredentials });
   return status.restartRequired
-    ? "The change could not finish. Saved key status is shown above. Open runtime recovery and retry before changing the key again."
-    : "The key change could not finish. Check the saved status and retry the change.";
+    ? t("credentials.failure.restartRequired")
+    : t("credentials.failure.retry");
 }
 
 /**

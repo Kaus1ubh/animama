@@ -1,6 +1,8 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft, Download, FileArchive, Upload } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { useFormatters } from "@animama/product-ui/i18n";
 import type { LibrarySharingFlow } from "@/lib/content-sharing/types";
 import { Button } from "@/ui/components/button";
 import {
@@ -14,10 +16,12 @@ import { ContentExportSelection } from "./ContentExportSelection";
 import { ContentExportReview } from "./ContentExportReview";
 import { ContentImportReview } from "./ContentImportReview";
 import { SharingItemRow } from "./SharingPackageDetails";
-import { sharingDropSelection, sharingSize } from "./sharingPresentation";
+import { sharingDropSelection } from "./sharingPresentation";
 
 /** Controlled sharing surface; the hook retains operations even when this closes. */
 export function LibrarySharingDialog({ flow }: { flow: LibrarySharingFlow }) {
+  const { t } = useTranslation("library");
+  const formatters = useFormatters();
   const importTrigger = useRef<HTMLButtonElement>(null);
   const exportTrigger = useRef<HTMLButtonElement>(null);
   const returnFocus = useRef<HTMLButtonElement | null>(null);
@@ -29,15 +33,24 @@ export function LibrarySharingDialog({ flow }: { flow: LibrarySharingFlow }) {
   }, [flow.open, flow.screen]);
   const fileId = useId();
   const chooseFile = () => fileInput.current?.click();
-  const title = {
-    "import-selection": "Import",
-    "export-selection": "Export",
-    "export-review": "Review export",
-    "import-upload": "Choose file",
-    "import-review": "Review import",
-    "import-recovery": "Import status",
-    complete: "Import complete",
-  }[flow.screen];
+  const title = (() => {
+    switch (flow.screen) {
+      case "import-selection":
+        return t("sharing.titles.import");
+      case "export-selection":
+        return t("sharing.titles.export");
+      case "export-review":
+        return t("sharing.titles.exportReview");
+      case "import-upload":
+        return t("sharing.titles.importUpload");
+      case "import-review":
+        return t("sharing.titles.importReview");
+      case "import-recovery":
+        return t("sharing.titles.importRecovery");
+      case "complete":
+        return t("sharing.titles.complete");
+    }
+  })();
   const isImportSelection = flow.screen === "import-selection";
   const canChooseFile = !flow.busy && !flow.commitPending;
   return (
@@ -54,7 +67,7 @@ export function LibrarySharingDialog({ flow }: { flow: LibrarySharingFlow }) {
             }}
           >
             <Download aria-hidden="true" />
-            Import
+            {t("sharing.import.button")}
           </Button>
         </DialogTrigger>
         <DialogTrigger asChild>
@@ -68,7 +81,7 @@ export function LibrarySharingDialog({ flow }: { flow: LibrarySharingFlow }) {
             }}
           >
             <Upload aria-hidden="true" />
-            Export
+            {t("sharing.export.button")}
           </Button>
         </DialogTrigger>
       </div>
@@ -88,7 +101,7 @@ export function LibrarySharingDialog({ flow }: { flow: LibrarySharingFlow }) {
           accept=".zip"
           className="sr-only"
           tabIndex={-1}
-          aria-label="Choose .zip file"
+          aria-label={t("sharing.import.chooseZip")}
           disabled={!canChooseFile}
           onChange={(event) => {
             const file = event.target.files?.[0];
@@ -108,7 +121,7 @@ export function LibrarySharingDialog({ flow }: { flow: LibrarySharingFlow }) {
               <Button
                 variant="ghost"
                 size="icon-sm"
-                aria-label="Back"
+                aria-label={t("sharing.back")}
                 disabled={flow.busy}
                 onClick={flow.back}
               >
@@ -124,7 +137,7 @@ export function LibrarySharingDialog({ flow }: { flow: LibrarySharingFlow }) {
             </DialogTitle>
           </div>
           <DialogDescription className="sr-only">
-            Review the content shared through your local Animama application.
+            {t("sharing.description")}
           </DialogDescription>
         </header>
         <div key={flow.screen} className="min-h-0 overflow-y-auto">
@@ -162,7 +175,7 @@ export function LibrarySharingDialog({ flow }: { flow: LibrarySharingFlow }) {
                 }}
               >
                 <p className="text-muted-foreground text-sm">
-                  Drop a .zip file here
+                  {t("sharing.import.dropZip")}
                 </p>
                 {dropError ? (
                   <p role="alert" className="text-destructive text-sm">
@@ -174,7 +187,7 @@ export function LibrarySharingDialog({ flow }: { flow: LibrarySharingFlow }) {
                   disabled={!canChooseFile}
                   onClick={chooseFile}
                 >
-                  Choose file
+                  {t("sharing.import.chooseFile")}
                 </Button>
               </div>
             ) : null}
@@ -195,13 +208,13 @@ export function LibrarySharingDialog({ flow }: { flow: LibrarySharingFlow }) {
                     className="text-muted-foreground mb-3 size-8"
                   />
                   <p className="font-medium break-words">
-                    {flow.stage?.filename ?? "Preparing your file…"}
+                    {flow.stage?.filename ?? t("sharing.import.preparingFile")}
                   </p>
                   {flow.progress ? (
                     <div className="mt-4 space-y-2">
                       <progress
                         className="w-full"
-                        aria-label="File upload"
+                        aria-label={t("sharing.import.fileUpload")}
                         max={flow.progress.total || 1}
                         value={flow.progress.received}
                       />
@@ -209,30 +222,34 @@ export function LibrarySharingDialog({ flow }: { flow: LibrarySharingFlow }) {
                         role="status"
                         className="text-muted-foreground text-sm"
                       >
-                        {sharingSize(flow.progress.received)} of{" "}
-                        {sharingSize(flow.progress.total)}
+                        {t("sharing.import.uploadProgress", {
+                          received: formatters.fileSize(flow.progress.received),
+                          total: formatters.fileSize(flow.progress.total),
+                        })}
                       </p>
                     </div>
                   ) : (
                     <p role="status" className="text-muted-foreground mt-2">
-                      Preparing the package for review…
+                      {t("sharing.import.preparingPackage")}
                     </p>
                   )}
                 </div>
                 {!flow.busy && !flow.commitPending ? (
                   <div className="flex flex-wrap gap-2">
-                    <Button onClick={flow.retryUpload}>Retry upload</Button>
+                    <Button onClick={flow.retryUpload}>
+                      {t("sharing.import.retryUpload")}
+                    </Button>
                     {flow.stage ? (
                       <Button variant="outline" onClick={chooseFile}>
-                        Choose file to resume
+                        {t("sharing.import.chooseToResume")}
                       </Button>
                     ) : (
                       <Button variant="outline" onClick={chooseFile}>
-                        Choose file
+                        {t("sharing.import.chooseFile")}
                       </Button>
                     )}
                     <Button variant="ghost" onClick={flow.discardImport}>
-                      Discard import
+                      {t("sharing.import.discard")}
                     </Button>
                   </div>
                 ) : null}
@@ -242,12 +259,12 @@ export function LibrarySharingDialog({ flow }: { flow: LibrarySharingFlow }) {
               <div className="space-y-4">
                 <p>
                   {flow.commitPending
-                    ? "The import may still be running. Check its status before starting another import. You can close this dialog and return later."
-                    : "Check the saved import to continue from its current state."}
+                    ? t("sharing.import.mayStillRun")
+                    : t("sharing.import.checkSaved")}
                 </p>
                 <div className="flex flex-wrap gap-2">
                   <Button onClick={flow.recover} disabled={flow.busy}>
-                    Check import status
+                    {t("sharing.import.checkStatus")}
                   </Button>
                   {!flow.commitPending ? (
                     <Button
@@ -255,7 +272,7 @@ export function LibrarySharingDialog({ flow }: { flow: LibrarySharingFlow }) {
                       onClick={flow.discardImport}
                       disabled={flow.busy}
                     >
-                      Discard import
+                      {t("sharing.import.discard")}
                     </Button>
                   ) : null}
                 </div>
@@ -265,8 +282,8 @@ export function LibrarySharingDialog({ flow }: { flow: LibrarySharingFlow }) {
               <div className="space-y-5">
                 <p>
                   {flow.result.anima_id
-                    ? "Your new Anima and its content have been installed."
-                    : "Your content has been added to the Library as independent copies."}
+                    ? t("sharing.import.completeAnima")
+                    : t("sharing.import.completeContent")}
                 </p>
                 <div className="divide-y rounded-xl border">
                   {flow.result.items
@@ -283,12 +300,12 @@ export function LibrarySharingDialog({ flow }: { flow: LibrarySharingFlow }) {
                 <div className="flex flex-wrap justify-end gap-2">
                   <Button variant="outline" asChild>
                     <Link to="/library" onClick={() => flow.setOpen(false)}>
-                      View in Library
+                      {t("sharing.import.viewInLibrary")}
                     </Link>
                   </Button>
                   {flow.result.anima_id ? (
                     <Button onClick={flow.openAnima} disabled={flow.busy}>
-                      Open Anima
+                      {t("sharing.import.openAnima")}
                     </Button>
                   ) : null}
                 </div>

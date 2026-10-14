@@ -54,20 +54,20 @@ async def test_user_settings_lifecycle_and_refresh_wakes(request_principal_overr
         assert defaults.json() == {
             "user_id": owner,
             "theme": "anima",
-            "locale": "en-US",
+            "locale": None,
             "last_active_anima_id": None,
             "preferences": {},
         }
 
-        created = await client.post(USER_SETTINGS, json={"locale": "fr-FR"})
+        created = await client.post(USER_SETTINGS, json={"locale": "ja"})
         assert created.status_code == 201
-        assert created.json()["locale"] == "fr-FR"
+        assert created.json()["locale"] == "ja"
         assert (await client.post(USER_SETTINGS, json={})).status_code == 409
 
         patched = await client.patch(USER_SETTINGS, json={"theme": "dusk", "preferences": {"chat": {"x": 1}}})
         assert patched.status_code == 200
         stored = (await client.get(USER_SETTINGS)).json()
-        assert (stored["theme"], stored["locale"], stored["preferences"]) == ("dusk", "fr-FR", {"chat": {"x": 1}})
+        assert (stored["theme"], stored["locale"], stored["preferences"]) == ("dusk", "ja", {"chat": {"x": 1}})
 
         assert (await client.delete(USER_SETTINGS)).status_code == 204
         assert (await client.get(USER_SETTINGS)).json() == defaults.json()

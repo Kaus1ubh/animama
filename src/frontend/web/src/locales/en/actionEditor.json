@@ -1,0 +1,549 @@
+{
+  "components": {
+    "avatarEffects": "Avatar Effects",
+    "particleEffects": "Particle Effects",
+    "sceneEffects": "Scene Effects",
+    "soundEffects": "Sound Effects"
+  },
+  "drag": {
+    "cancelled": "Drag cancelled.",
+    "finished": "Drag finished.",
+    "handle": "Drag {{name}} to timeline",
+    "started": "Dragging catalog item. Drop on the timeline or press Escape to cancel."
+  },
+  "effects": {
+    "addAtPlayhead": "Add {{name}} at current playhead",
+    "addAtPlayheadTitle": "Add at current playhead",
+    "added": "Added",
+    "addedTimes": "Added ×{{times}}",
+    "addToTimeline": "Add {{name}} to timeline",
+    "contentUnavailable": "Content is unavailable",
+    "differentSearch": "Try a different search.",
+    "empty": "No effects found",
+    "loadingMore": "Loading more…",
+    "mine": "Mine",
+    "play": "Play {{name}}",
+    "poses": {
+      "create": "Create Pose",
+      "createHint": "Create and save a Pose to reuse it as a Gesture keyframe.",
+      "createHintOrIncluded": "Create and save a Pose to reuse it as a Gesture keyframe, or show Included Poses.",
+      "differentSearchOrIncluded": "Try a different search, or show Included Poses.",
+      "edit": "Edit",
+      "editNamed": "Edit {{name}}",
+      "included": "Included",
+      "insert": "Insert at playhead",
+      "insertNamed": "Insert {{name}} at current playhead",
+      "loadFailed": "Could not load poses.",
+      "loading": "Loading poses…",
+      "local": "Local",
+      "noMatches": "No poses found",
+      "none": "No saved poses yet",
+      "search": "Search poses",
+      "showIncluded": "Show Included",
+      "tab": "Poses"
+    },
+    "showTimelineEvents": "Show timeline events",
+    "stop": "Stop {{name}}",
+    "summary": {
+      "added_one": "{{count}} added",
+      "added_other": "{{count}} added",
+      "effects_one": "{{count}} effect",
+      "effects_other": "{{count}} effects",
+      "poses_one": "{{count}} pose",
+      "poses_other": "{{count}} poses",
+      "posesAndEffects": "{{poses}} · {{effects}}"
+    },
+    "title": "Effects",
+    "titleWithPoses": "Poses & Effects",
+    "tryAgain": "Try again",
+    "types": {
+      "avatar": {
+        "empty": "No avatar effects are available.",
+        "loadFailed": "Could not load avatar effects",
+        "loading": "Loading avatar effects…",
+        "search": "Search avatar effects",
+        "showMore": "Show more avatar effects",
+        "tab": "Avatar FX"
+      },
+      "particle": {
+        "empty": "No particle effects are available.",
+        "loadFailed": "Could not load particle effects",
+        "loading": "Loading particle effects…",
+        "search": "Search particle effects",
+        "showMore": "Show more particle effects",
+        "tab": "Particle FX"
+      },
+      "scene": {
+        "empty": "No scene effects are available.",
+        "loadFailed": "Could not load scene effects",
+        "loading": "Loading scene effects…",
+        "search": "Search scene effects",
+        "showMore": "Show more scene effects",
+        "tab": "Scene FX"
+      },
+      "sound": {
+        "empty": "No sound effects are available.",
+        "loadFailed": "Could not load sound effects",
+        "loading": "Loading sound effects…",
+        "search": "Search sound effects",
+        "showMore": "Show more sound effects",
+        "tab": "SFX"
+      }
+    }
+  },
+  "events": {
+    "beats": {
+      "base": "Base",
+      "expression": "Expression"
+    },
+    "delete": "Delete timeline item",
+    "deleteAt": "Delete {{label}} at {{time}}",
+    "label": "Timeline events",
+    "title": "Timeline"
+  },
+  "gate": {
+    "backToLibrary": "Back to Library",
+    "loading": "Loading…",
+    "preview": "Preview",
+    "previewFailed": "This item could not be previewed.",
+    "previewOnly": "Preview only"
+  },
+  "header": {
+    "aiDescription": {
+      "guidance": "AI selection guidance",
+      "label": "AI selection description",
+      "placeholder": "Description of Gesture",
+      "short": "AI Desc.",
+      "tooltip": "Description of Gesture used by AI to determine <strong>when</strong> to invoke this gesture while chatting."
+    },
+    "confirmNew": "Discard this draft and start a new one?",
+    "import": "Import",
+    "intent": {
+      "gesture": "Gesture",
+      "reaction": "Reaction"
+    },
+    "modes": {
+      "clip": "Clip",
+      "pose": "Pose"
+    },
+    "moreActions": "More creator actions",
+    "name": "Name",
+    "nameLabel": {
+      "gesture": "gesture name",
+      "reaction": "reaction name"
+    },
+    "namePlaceholder": {
+      "gesture": "New Gesture",
+      "reaction": "New Reaction"
+    },
+    "new": "New",
+    "redo": "Redo",
+    "redoShortcut": "Redo · {{shortcut}}",
+    "save": {
+      "button": "Save",
+      "label": "Save content"
+    },
+    "saveAndEquip": {
+      "button": "Save & Equip",
+      "label": "Save and equip content"
+    },
+    "saveFailed": "Save failed: {{error}}",
+    "status": {
+      "preparing": "Preparing",
+      "saved": "Saved",
+      "saving": "Saving",
+      "unsaved": "Unsaved",
+      "updatingAnimas": "Updating Animas",
+      "uploading": "Uploading"
+    },
+    "undo": "Undo",
+    "undoShortcut": "Undo · {{shortcut}}",
+    "viewJson": "View JSON"
+  },
+  "history": {
+    "eitherShortcut": "{{shortcuts, list(type: disjunction)}}"
+  },
+  "idleStyle": {
+    "add": {
+      "choose": "Choose a Gesture",
+      "label": "Add an existing Gesture",
+      "optionClip": "{{name}} · Clip",
+      "optionVrma": "{{name}} · VRMA",
+      "search": "Search Gestures",
+      "submit": "Add to pool"
+    },
+    "cells": {
+      "caption": "Emotion pools by intensity",
+      "cellLabel": "{{emotion}} intensity {{intensity}}: {{state}}",
+      "default": "Default",
+      "defaultHint": "Unconfigured cells use Default. An empty Default schedules no idle Gestures; procedural breathing and resting continue.",
+      "defaultNeutral": "Default · neutral",
+      "emotion": "Emotion",
+      "gestures_one": "{{count}} Gesture",
+      "gestures_other": "{{count}} Gestures",
+      "label": "Idle Style cells",
+      "noIdle": "No idle",
+      "selected": "{{emotion}} · intensity {{intensity}}",
+      "useDefault": "Use Default"
+    },
+    "checkPools": "Check your Gesture pools.",
+    "copyNotice": "Saving creates an independent Local Style. The original Style stays unchanged.",
+    "createHub": "Create hub",
+    "description": "Description",
+    "gestures": {
+      "loadFailed": "Gestures could not be loaded.",
+      "loading": "Loading Gestures…"
+    },
+    "gestureUnavailable": "This Gesture is unavailable. Refresh the Library and check the Style.",
+    "intro": "Choose existing Gestures for quiet moments. Their animations, sounds and effects stay intact. Adding them here does not equip them for AI invocation.",
+    "loadFailed": "The Idle Style could not be loaded. Your existing content is unchanged.",
+    "loading": "Loading Idle Style…",
+    "name": "Name",
+    "playback": {
+      "checkFailed": "Playback could not be checked.",
+      "checking": "Checking finite playback…",
+      "finite": "Finite playback. Authored sounds and effects are preserved.",
+      "finiteFor": "Finite playback · {{seconds}} seconds. Authored sounds and effects are preserved.",
+      "retryCheck": "Retry check"
+    },
+    "pool": {
+      "behavior": "Behavior",
+      "choose": "Choose Gestures",
+      "empty": "No Gestures in this pool.",
+      "inherits": "This cell inherits the Default pool.",
+      "label": "{{cell}} pool",
+      "none": "No scheduled idle Gesture at this emotion and intensity.",
+      "previewMember": "Preview {{name}}",
+      "previewSaved": "Preview saved pool",
+      "removeMember": "Remove {{name}}"
+    },
+    "previewFailed": "Preview failed.",
+    "previewing": "Previewing {{name}}",
+    "retry": "Retry",
+    "save": "Save Idle Style",
+    "saveCopy": "Save Local copy",
+    "saved": "Idle Style saved.",
+    "savedCopy": "Local Idle Style copy saved. Select it in your Anima’s loadout to use it.",
+    "saving": "Saving…",
+    "sharedNotice": "Editing this shared Style affects every Anima using it on its next runtime refresh. Duplicate it in Loadout for a separate variation.",
+    "studio": "Creator Studio",
+    "title": {
+      "copy": "Copy Idle Style",
+      "edit": "Edit Idle Style",
+      "new": "New Idle Style"
+    }
+  },
+  "importDialog": {
+    "chooseFile": "Choose JSON file",
+    "clipImported": "Anima Pose Clip imported.",
+    "clipImportedDetail": "Anima Pose Clip imported. Map any unresolved effects or sounds below.",
+    "description": "Open an animaPoseClip/2.0 file directly or restore an Animama typed project with exact dependency pins.",
+    "failed": "The JSON could not be imported.",
+    "importPasted": "Import pasted JSON",
+    "pasteLabel": "Creator JSON import",
+    "projectImported": "Typed project imported.",
+    "projectImportedDetail": "Typed project imported with exact dependency pins.",
+    "reactionHumanoid": "Reactions cannot import humanoid pose or bone tracks.",
+    "repair": {
+      "choose": "Choose exact content",
+      "description": "Map each clip alias to an exact content item, or remove its events.",
+      "map": "Map {{alias}}",
+      "remove": "Remove event",
+      "search": "Search effects and sounds",
+      "title": "Repair referenced components"
+    },
+    "title": "Import",
+    "vrma": {
+      "description": "Not fully supported or tested. Importing switches this gesture from timeline authoring to VRMA.",
+      "label": "VRMA animation (experimental)"
+    }
+  },
+  "jsonDialog": {
+    "clip": "Clip JSON",
+    "clipCopied": "Clip JSON copied.",
+    "copy": "Copy",
+    "description": "Clip JSON is portable animaPoseClip/2.0. Typed project JSON also retains exact effect and sound references.",
+    "download": "Download",
+    "format": "JSON format",
+    "preview": "Creator JSON preview",
+    "project": "Typed project JSON",
+    "projectCopied": "Project JSON copied.",
+    "title": "Creator JSON",
+    "unavailable": "This implementation does not have Anima Pose Clip JSON."
+  },
+  "load": {
+    "button": "Load",
+    "confirmCustomize": {
+      "gesture": "Discard the current changes and customize “{{name}}” as a new gesture?",
+      "reaction": "Discard the current changes and customize “{{name}}” as a new reaction?"
+    },
+    "confirmLoad": "Discard the current changes and load “{{name}}”?",
+    "customName": "{{name}} Custom",
+    "customNotes": "Customized from Starter {{name}}.",
+    "description": "Open your content or customize an immutable Starter clip.",
+    "loading": "Loading…",
+    "mine": {
+      "detail": "Editable Local content",
+      "empty": {
+        "gesture": "No ready gestures yet.",
+        "reaction": "No ready reactions yet."
+      },
+      "label": "Mine",
+      "more": "Load more of mine"
+    },
+    "starter": {
+      "detail": "Included · Customize as new",
+      "empty": "No customizable Starter Anima Pose Clips.",
+      "label": "Starter",
+      "more": "Load more Starter clips"
+    },
+    "title": {
+      "gesture": "Load gesture",
+      "reaction": "Load reaction"
+    }
+  },
+  "loader": {
+    "downloadFailed": "This Action could not be downloaded.",
+    "effectsRemoved": {
+      "gesture": "This Gesture uses Included effects that no longer exist ({{effects, list}}). It plays without them; map their events to other effects or remove them before saving.",
+      "reaction": "This Reaction uses Included effects that no longer exist ({{effects, list}}). It plays without them; map their events to other effects or remove them before saving.",
+      "title": "Some effects were removed"
+    },
+    "noSequence": "This Action has no readable sequence.",
+    "starterUnavailable": "This Starter Anima Pose Clip is unavailable."
+  },
+  "page": {
+    "catalogUnavailable": "This effect catalog could not be loaded.",
+    "leave": {
+      "busyDescription": "Leaving now pauses the active operation. The typed recovery document remains available when you return.",
+      "busyTitle": "Leave while content is being saved?",
+      "dirtyDescription": "This Gesture or Reaction has local authoring changes. Leaving will discard them from the active workspace.",
+      "dirtyTitle": "Discard authoring changes?",
+      "discard": "Discard and continue",
+      "leaveKeep": "Leave and keep recovery",
+      "stay": "Stay"
+    },
+    "load": {
+      "failed": "This content could not be reopened.",
+      "incompletePreview": "The saved action preview was incomplete.",
+      "noSource": "This saved action has no catalog source.",
+      "starterOnly": "Only Starter Anima Pose Clips can be customized.",
+      "unavailable": "This saved action is not available."
+    },
+    "recovery": {
+      "discardFailed": "Browser recovery could not be discarded. Please retry.",
+      "restoreFailed": "Browser recovery could not be restored."
+    },
+    "save": {
+      "chooseVrma": "Choose a VRMA file before saving.",
+      "clipTooLarge": "This clip is larger than the {{size}} the app can play. Shorten it or remove keyframes.",
+      "incomplete": {
+        "gesture": "Complete the required Gesture details.",
+        "reaction": "Complete the required Reaction details."
+      },
+      "saved": {
+        "gesture": "Gesture saved.",
+        "reaction": "Reaction saved."
+      },
+      "savedDescription": "The readable Local files were updated. Active chats keep their mounted bytes until reopened.",
+      "sessionExpired": "The editable content session expired."
+    }
+  },
+  "persistence": {
+    "invalidTimeline": "The timeline contains invalid keyframes or events. Repair the highlighted timeline issues before saving."
+  },
+  "preview": {
+    "anima": {
+      "animasUnavailable": "Your Animas could not be loaded for this preview.",
+      "catalogUnavailable": "Could not load the selected Anima's preview catalog.",
+      "catalogUnavailableNamed": "Could not load {{name}}'s preview catalog.",
+      "required": "Create an Anima before previewing this content."
+    },
+    "close": "Destroy preview",
+    "closed": "Content preview closed.",
+    "createAnima": "Create Anima",
+    "dependencies": {
+      "hint": "The clip motion continues without these events. Retry the preview; if this continues, the release may reference an unavailable resource.",
+      "item": "{{label}}:",
+      "kinds": {
+        "avatarEffect": "Avatar VFX",
+        "backgroundSceneEffect": "Background Scene VFX",
+        "focusSceneEffect": "Focus Scene VFX",
+        "particleEffect": "Particle VFX",
+        "sound": "SFX"
+      },
+      "label": "Content preview dependency warning",
+      "missing": "Some included resources could not be loaded.",
+      "missingFor": "Some included resources could not be loaded for {{name}}."
+    },
+    "errors": {
+      "animationUnavailable": "The selected animation is unavailable.",
+      "avatarEffectFailed": "The selected avatar effect could not play.",
+      "avatarEffectUnavailable": "The selected avatar effect is unavailable.",
+      "avatarNoFile": "The preview avatar model has no runtime file.",
+      "avatarUnauthorized": "The preview avatar could not be authorized.",
+      "fileUnauthorized": "A private preview file is unauthorized.",
+      "idleAnimationUnavailable": "The selected idle animation is unavailable.",
+      "idlePlaybackUnavailable": "Finite idle playback is unavailable for this Gesture. Refresh the Style and try again.",
+      "invalidClosure": "The action preview returned an invalid closure.",
+      "particleFailed": "The selected particle effect could not play.",
+      "particlesUnsupported": "The preview avatar cannot play particles.",
+      "particleUnavailable": "The selected particle effect is unavailable.",
+      "playFailed": "The selected content could not be previewed.",
+      "poseClipUnavailable": "The selected pose clip is unavailable.",
+      "prepareFailed": "The selected content could not be prepared for preview.",
+      "reactionUnavailable": "The selected reaction is unavailable.",
+      "sceneEffectUnavailable": "The selected scene effect is unavailable.",
+      "soundLoadFailed": "Sound preview could not be loaded.",
+      "unsupportedComponent": "Unsupported preview component {{type}}."
+    },
+    "expand": "Expand preview",
+    "loading": "Loading preview…",
+    "loadingAvatar": "Loading avatar…",
+    "loadingResources": "Loading included resources…",
+    "loop": {
+      "button": "Loop",
+      "label": "Loop preview"
+    },
+    "minimize": "Minimize preview",
+    "moveAvatar": {
+      "button": "Move",
+      "label": "Move preview avatar",
+      "title": "Move avatar"
+    },
+    "movePanel": "Move content preview",
+    "openLoadout": "Open Anima Loadout",
+    "openLoadoutNamed": "Open {{name}} Loadout",
+    "preparingPlayback": "Preparing playback…",
+    "replay": "Replay",
+    "resetCamera": {
+      "button": "Reset",
+      "label": "Reset preview camera",
+      "title": "Reset camera"
+    },
+    "restore": "Restore preview",
+    "restoreDock": "Restore dock size",
+    "retry": "Retry",
+    "retryPreview": "Retry preview",
+    "status": {
+      "idle": "Preview",
+      "loading": "Loading preview",
+      "playing": "Playing",
+      "ready": "Ready",
+      "unavailable": "Preview unavailable"
+    },
+    "statusAnnouncement": "{{name}} preview: {{status}}.",
+    "stop": "Stop",
+    "title": "Content Preview",
+    "unavailableSentence": "Preview unavailable.",
+    "versions": {
+      "exactSaved": "Exact saved content",
+      "idleStyleGesture": "Exact saved Idle Style Gesture",
+      "localPose": "Local Pose",
+      "starterPose": "Starter Pose"
+    }
+  },
+  "project": {
+    "errors": {
+      "aliasRepeats": "Dependency alias “{{alias}}” repeats.",
+      "aliasRequired": "Dependency alias is required.",
+      "aliasTypeConflict": "Alias “{{alias}}” is used by more than one component type.",
+      "dependenciesNotArray": "Dependencies must be an array.",
+      "dependencyInvalid": "Dependency declaration is invalid.",
+      "intensity": "Suggested Reaction intensity must be 1, 2, or 3.",
+      "nameRequired": "Project name is required.",
+      "notObject": "JSON must contain an object.",
+      "sourceInvalid": "Dependency source is invalid.",
+      "sourceUnavailable": "Dependency source must select available catalog content.",
+      "unsupportedType": "Dependency “{{alias}}” has an unsupported type.",
+      "vrmaProject": "VRMA Gestures do not have Anima Pose Clip project JSON.",
+      "wrongEditor": {
+        "gesture": "This project contains a {{found}} and cannot open in the gesture editor.",
+        "reaction": "This project contains a {{found}} and cannot open in the reaction editor."
+      }
+    }
+  },
+  "reactionSettings": {
+    "emotion": "Emotion",
+    "hint": "Optional. Choose the actual emotion slot when equipping.",
+    "intensity": "Intensity",
+    "none": "None",
+    "suggestedEmotion": "Suggested emotion",
+    "suggestedIntensity": "Suggested intensity",
+    "title": "Emotion suggestion"
+  },
+  "savedPose": {
+    "avatarChanged": "The Avatar changed or is unavailable. Wait for it to load and insert the pose again.",
+    "avatarRequiredToEdit": "Load an Avatar Model before editing a pose.",
+    "avatarRequiredToInsert": "Load an Avatar Model before inserting a pose.",
+    "inserted": "Pose copied into the clip.",
+    "insertFailed": "Could not insert this pose. The clip is unchanged.",
+    "insertInvalid": "This pose or a pose already in the clip is invalid or unavailable. Reload the affected content and try again. The clip is unchanged.",
+    "loadFailed": "Could not load this pose. Your draft is preserved."
+  },
+  "scene": {
+    "loading": "Loading Avatar…",
+    "retry": "Retry",
+    "selectAvatar": "Select a preview Avatar",
+    "unavailable": "Avatar preview unavailable"
+  },
+  "time": {
+    "seconds": "{{value}}s"
+  },
+  "timeline": {
+    "expressionLane": "Expression",
+    "poseLane": "Pose"
+  },
+  "validation": {
+    "aiDescriptionRequired": "Describe when the AI should choose this Gesture.",
+    "missing": {
+      "avatarEffects": "Missing avatar VFX: {{ids, list(style: narrow)}}",
+      "particleEffects": "Missing particle VFX: {{ids, list(style: narrow)}}",
+      "poses": "Missing poses: {{ids, list(style: narrow)}}",
+      "sceneEffects": "Missing scene VFX: {{ids, list(style: narrow)}}",
+      "sounds": "Missing SFX: {{ids, list(style: narrow)}}"
+    },
+    "nameRequired": "Name is required.",
+    "reactionHumanoid": "Reactions cannot contain humanoid pose or bone tracks.",
+    "reactionTimelinesOnly": "Reactions use expression, effect, and sound timelines.",
+    "selectorRequired": "Selector ID is required.",
+    "unknownEvent": "Map or remove the unknown event ID “{{alias}}”."
+  },
+  "workspace": {
+    "capture": {
+      "failed": "Could not capture the current clip pose.",
+      "posesUnavailable": "Some clip poses are unavailable."
+    },
+    "expressions": {
+      "addKeyframe": "+ Expression",
+      "addKeyframeTitle": "Add an expression keyframe at the playhead",
+      "interpolatedAt": "Interpolated at {{time}}",
+      "keyframeAt": "Keyframe at {{time}}"
+    },
+    "hands": {
+      "hide": "Hide hand authoring",
+      "show": "Show hand authoring",
+      "title": "Hand authoring"
+    },
+    "panels": {
+      "bones": "Bones",
+      "bonesSummary": "Pose controls",
+      "expressions": "Expressions",
+      "expressionsSummary": "Avatar blendshapes"
+    },
+    "tools": {
+      "bones": "Bones",
+      "effects": "Effects",
+      "expressions": "Expressions",
+      "inspector": "Inspector",
+      "label": "Authoring tools",
+      "preview": "Preview",
+      "settings": "Settings",
+      "timeline": "Timeline"
+    },
+    "vrma": {
+      "description": "VRMA Gestures use the immersive Avatar preview but do not expose Pose, Clip, or component authoring.",
+      "label": "VRMA animation"
+    }
+  }
+}

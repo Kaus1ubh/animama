@@ -13,6 +13,7 @@ import {
   type SetStateAction,
 } from "react";
 import { useTheme } from "next-themes";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { createThemeEchoTracker } from "@/lib/theme/theme-echo-tracker";
 import {
@@ -97,6 +98,7 @@ export function SettingsProvider({
   const resolvedAnimaId = animaId ?? null;
   const userId = useRuntimeCacheKey();
   const { theme, setTheme } = useTheme();
+  const { t } = useTranslation("settings");
   const logger = useMemo(() => createLogger("Settings"), []);
 
   const userSettingsQuery = useUserSettings({ enabled: Boolean(userId) });
@@ -216,10 +218,10 @@ export function SettingsProvider({
         presentation: { render_markdown: enabled },
       }).catch((error) => {
         logger.error("Preferences", "Markdown preference update failed", error);
-        toast.error("Failed to update Markdown rendering.");
+        toast.error(t("advanced.markdown.updateFailed"));
       });
     },
-    [logger, updateUserPreferences],
+    [logger, t, updateUserPreferences],
   );
 
   const chatRequestOptions = useMemo(() => {

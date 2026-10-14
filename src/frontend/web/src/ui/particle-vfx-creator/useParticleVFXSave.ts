@@ -1,5 +1,7 @@
 "use client";
 
+import { getI18n } from "react-i18next";
+
 import {
   createParticleVFXEditorDraftFromImport,
   referencedParticleVFXTextureFiles,
@@ -30,9 +32,19 @@ export const particleVFXSaveAdapter: CreatorSaveAdapter<
   ParticleVFXRecovery
 > = {
   kind: "particle_effect",
-  defaultName: "New Particle FX",
-  savedMessage: "Particle Effect saved.",
-  pausedMessage: "Save paused. Retry will continue from the preserved draft.",
+  // Getters word these when Save reads them, so they follow the UI Locale.
+  get defaultName() {
+    const t = getI18n().getFixedT(null, "particles");
+    return t("save.defaultName");
+  },
+  get savedMessage() {
+    const t = getI18n().getFixedT(null, "particles");
+    return t("save.saved");
+  },
+  get pausedMessage() {
+    const t = getI18n().getFixedT(null, "particles");
+    return t("save.paused");
+  },
   store: particleVFXRecoveryStore,
   fingerprint: particleVFXDocumentFingerprint,
   name: (draft) => draft.catalog.label,
@@ -40,14 +52,14 @@ export const particleVFXSaveAdapter: CreatorSaveAdapter<
     ...draft,
     catalog: { ...draft.catalog, label },
   }),
-  validateName: (name) =>
-    name.length > 120
-      ? {
-          message:
-            "Give this Particle VFX a name between 1 and 120 characters.",
-          field: "name",
-        }
-      : null,
+  validateName: (name) => {
+    if (name.length <= 120) return null;
+    const t = getI18n().getFixedT(null, "particles");
+    return {
+      message: t("save.nameLength", { min: 1, max: 120 }),
+      field: "name",
+    };
+  },
   async buildPayload({ snapshot: draft, name, target, signal, progress }) {
     const packageFiles = await buildParticleVFXContentPackage({
       draft,

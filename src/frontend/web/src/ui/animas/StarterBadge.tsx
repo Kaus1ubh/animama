@@ -1,11 +1,14 @@
+import { useTranslation } from "react-i18next";
+
 /** Compact marker for content supplied by the Starter catalog. */
 export function StarterBadge() {
+  const { t } = useTranslation("animas");
   return (
     <span
-      aria-label="Starter"
+      aria-label={t("badges.starter")}
       className="border-border/60 text-muted-foreground inline-flex size-3.5 shrink-0 items-center justify-center rounded-full border text-[8px] leading-none font-medium"
     >
-      S
+      {t("badges.starterShort")}
     </span>
   );
 }

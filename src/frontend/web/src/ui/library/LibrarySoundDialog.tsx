@@ -1,5 +1,6 @@
 import { useProductApiClient } from "@animama/product-ui";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { useContentEditorSaveSource } from "@/hooks/useContentEditorSaveSource";
@@ -24,6 +25,7 @@ import {
 } from "@/ui/components/dialog";
 import { Input } from "@/ui/components/input";
 import { librarySoundSaveInput } from "./librarySoundSave";
+import { WordedError } from "@/lib/errors/apiError";
 
 /** A Library edit pins revision authority and retains its receipt across uncertain retries. */
 export function LibrarySoundDialog({
@@ -34,6 +36,7 @@ export function LibrarySoundDialog({
   onClose: () => void;
 }) {
   const apiClient = useProductApiClient();
+  const { t } = useTranslation("library");
 
   const [name, setName] = useState(item.name);
   const [file, setFile] = useState<File | null>(null);
@@ -68,9 +71,7 @@ export function LibrarySoundDialog({
         // original metadata without advancing this dialog's revision authority.
         const stored = await getCatalogItem(apiClient, item.item_id);
         if (stored.revision_sha256 !== item.revision_sha256)
-          throw new Error(
-            "This sound changed. Close and reopen it before saving.",
-          );
+          throw new WordedError(t("sound.changed"));
         const audio =
           file ??
           (await loadCreatorPreviewFile(
@@ -127,15 +128,13 @@ export function LibrarySoundDialog({
     >
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Manage sound</DialogTitle>
+          <DialogTitle>{t("sound.title")}</DialogTitle>
           <DialogDescription>
-            {editable
-              ? "Rename this sound or replace its audio in your Library."
-              : "Included sounds are read-only."}
+            {editable ? t("sound.description") : t("sound.readOnly")}
           </DialogDescription>
         </DialogHeader>
         <label className="grid gap-2 text-sm">
-          Name
+          {t("sound.name")}
           <Input
             value={name}
             maxLength={120}
@@ -149,9 +148,9 @@ export function LibrarySoundDialog({
         </label>
         {editable ? (
           <label className="grid gap-2 text-sm">
-            Replace audio
+            {t("sound.replaceAudio")}
             <span className="text-muted-foreground text-xs">
-              Use the same audio format as the current sound.
+              {t("sound.sameFormat")}
             </span>
             <Input
               type="file"
@@ -177,7 +176,7 @@ export function LibrarySoundDialog({
               disabled={busy || saved || !item.revision_sha256}
               onClick={() => setConfirmDelete(true)}
             >
-              Delete
+              {t("sound.delete")}
             </Button>
             <Button
               disabled={
@@ -189,15 +188,14 @@ export function LibrarySoundDialog({
               }
               onClick={() => void save()}
             >
-              {busy ? "Saving…" : "Save"}
+              {busy ? t("sound.saving") : t("sound.save")}
             </Button>
           </div>
         ) : null}
         {confirmDelete ? (
           <div className="grid gap-3 rounded-md border p-3">
             <p className="text-sm">
-              Delete “{item.name}”? Sounds still used by other content cannot be
-              deleted.
+              {t("sound.confirmDeleteQuestion", { name: item.name })}
             </p>
             <div className="flex flex-wrap gap-2">
               <Button
@@ -205,14 +203,14 @@ export function LibrarySoundDialog({
                 disabled={busy}
                 onClick={() => void remove()}
               >
-                Confirm delete
+                {t("sound.confirmDelete")}
               </Button>
               <Button
                 variant="outline"
                 disabled={busy}
                 onClick={() => setConfirmDelete(false)}
               >
-                Cancel
+                {t("sound.cancel")}
               </Button>
             </div>
           </div>

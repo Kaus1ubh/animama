@@ -2282,7 +2282,10 @@ export const zPyCatalogPreviewSource = z.object({
 /**
  * PyChatClientContext
  *
- * Client-reported context used only for safety presentation (spec R2, R5).
+ * Client-reported context for one turn.
+ *
+ * ``time_zone`` and ``locale`` serve only safety presentation (companion safety
+ * spec R2, R5). ``ui_locale`` sets the conversation language (ADR 0024).
  */
 export const zPyChatClientContext = z.object({
     locale: z.optional(z.union([
@@ -2291,6 +2294,10 @@ export const zPyChatClientContext = z.object({
     ])),
     time_zone: z.optional(z.union([
         z.string().max(64),
+        z.null()
+    ])),
+    ui_locale: z.optional(z.union([
+        z.string().max(35),
         z.null()
     ]))
 });
@@ -3157,10 +3164,13 @@ export const zPyLoadoutCommitResult = z.object({
 
 /**
  * PyLoadoutDiagnostic
+ *
+ * A Loadout warning; clients word it from ``code`` and ``params``.
  */
 export const zPyLoadoutDiagnostic = z.object({
     code: z.string(),
     message: z.string(),
+    params: z.optional(z.record(z.string(), z.string())),
     scope: z.optional(z.enum(['source', 'target']))
 });
 
@@ -6049,7 +6059,16 @@ export const zPyUserSettings = z.object({
         z.string(),
         z.null()
     ])),
-    locale: z.optional(z.string()).default('en-US'),
+    locale: z.optional(z.union([
+        z.enum([
+            'en',
+            'ja',
+            'ko',
+            'zh-Hans',
+            'zh-Hant'
+        ]),
+        z.null()
+    ])),
     preferences: z.optional(z.record(z.string(), z.unknown())),
     theme: z.optional(z.string()).default('anima'),
     user_id: z.string()
@@ -6064,7 +6083,13 @@ export const zPyUserSettingsUpdate = z.object({
         z.null()
     ])),
     locale: z.optional(z.union([
-        z.string(),
+        z.enum([
+            'en',
+            'ja',
+            'ko',
+            'zh-Hans',
+            'zh-Hant'
+        ]),
         z.null()
     ])),
     preferences: z.optional(z.union([

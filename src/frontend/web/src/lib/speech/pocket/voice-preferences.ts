@@ -1,3 +1,5 @@
+import { getI18n } from "react-i18next";
+
 import type { SpeechPreferences } from "@/lib/settings/preferences";
 
 export const POCKET_TTS_CUSTOM_VOICE = "custom";
@@ -30,6 +32,7 @@ export type PocketFallbackNotice = {
   /** "run" notices repeat per chat run; "session" notices show once per app session. */
   scope: "run" | "session";
   key: string;
+  /** Worded in the UI Locale when the notice is resolved. */
   message: string;
 };
 
@@ -66,6 +69,7 @@ export function resolvePocketFallbackVoice(
     ? defaultVoice
     : availableVoices[0];
   if (!configuredVoice) return { voice: fallback };
+  const t = getI18n().getFixedT(null, "voice");
   if (isPocketCustomVoice(configuredVoice)) {
     if (hasCustomVoice) return { voice: configuredVoice };
     return {
@@ -73,8 +77,7 @@ export function resolvePocketFallbackVoice(
       notice: {
         scope: "run",
         key: "pocket_custom_missing",
-        message:
-          "Custom PocketTTS voice is selected but no custom voice has been uploaded.",
+        message: t("pocket.fallback.customMissing"),
       },
     };
   }
@@ -87,7 +90,7 @@ export function resolvePocketFallbackVoice(
       notice: {
         scope: "session",
         key: `pocket_voice_unknown:${configuredVoice}`,
-        message: `The saved voice "${configuredVoice}" is no longer available, so the default voice is used. Choose another voice in Loadout → Voices.`,
+        message: t("pocket.fallback.unknownVoice", { voice: configuredVoice }),
       },
     };
   }
@@ -106,7 +109,9 @@ export function resolvePocketFallbackVoice(
             notice: {
               scope: "session" as const,
               key: `pocket_voice_download_failed:${configuredVoice}`,
-              message: `The voice "${configuredVoice}" could not be downloaded, so the default voice is used. The download is retried on the next reply or when you pick the voice again.`,
+              message: t("pocket.fallback.downloadFailed", {
+                voice: configuredVoice,
+              }),
             },
           }
         : {}),

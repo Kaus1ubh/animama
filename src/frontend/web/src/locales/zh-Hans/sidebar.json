@@ -1,0 +1,71 @@
+{
+  "animas": {
+    "empty": "还没有 Anima",
+    "filter": "筛选和排序 Anima",
+    "heading": "Anima",
+    "loadFailed": "无法加载 Anima",
+    "loading": "正在加载 Anima…",
+    "sort": {
+      "label": "排序",
+      "nameAscending": "名称：A–Z",
+      "nameDescending": "名称：Z–A",
+      "recent": "最近使用"
+    }
+  },
+  "chats": {
+    "allAnimas": "所有 Anima",
+    "empty": "还没有聊天",
+    "emptyForAnima": "此 Anima 没有聊天",
+    "filter": "筛选聊天",
+    "filterByAnima": "Anima",
+    "heading": "聊天",
+    "loadFailed": "无法加载聊天",
+    "loading": "正在加载聊天…",
+    "untitled": "未命名聊天"
+  },
+  "close": "关闭侧边栏",
+  "create": {
+    "anima": "Anima",
+    "effects": "特效",
+    "gesture": "动作",
+    "label": "创建",
+    "reaction": "反应"
+  },
+  "links": {
+    "animas": "Anima",
+    "library": "资源库",
+    "memory": "记忆",
+    "newChat": "新聊天",
+    "search": "搜索"
+  },
+  "open": "打开侧边栏",
+  "search": {
+    "close": "关闭搜索",
+    "description": "搜索已保存的聊天消息。",
+    "failed": "搜索失败。",
+    "loadMore": "加载更多",
+    "noResults": "没有匹配的消息。",
+    "open": "搜索聊天",
+    "placeholder": "搜索聊天",
+    "profileAlt": "{{name}} 的头像",
+    "searching": "正在搜索…",
+    "title": "搜索聊天"
+  },
+  "usage": {
+    "amount": "{{used}} / {{limit}}",
+    "description": "你账户的当前用量。限额由运行时执行。",
+    "loadFailed": "无法加载用量。",
+    "loading": "正在加载用量…",
+    "resets": "{{time}} 重置",
+    "retry": "重试",
+    "title": "用量和限额"
+  },
+  "user": {
+    "account": "账户",
+    "accountUnavailable": "无法访问账户。",
+    "appSettings": "应用设置",
+    "fallbackName": "你",
+    "signOut": "退出登录",
+    "usage": "用量和限额"
+  }
+}

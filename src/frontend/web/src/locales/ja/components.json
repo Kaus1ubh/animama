@@ -1,0 +1,29 @@
+{
+  "command": {
+    "description": "実行するコマンドを検索...",
+    "title": "コマンドパレット"
+  },
+  "dialog": {
+    "close": "閉じる"
+  },
+  "imageCrop": {
+    "empty": "画像が選択されていません",
+    "upload": "画像をアップロード"
+  },
+  "logo": {
+    "label": "Animama"
+  },
+  "modelSelector": {
+    "providerLogo": "{{provider}} プロバイダー",
+    "title": "モデルの選択"
+  },
+  "toaster": {
+    "closeToast": "通知を閉じる",
+    "notifications": "通知"
+  },
+  "waveform": {
+    "idle": "音声波形（待機中）",
+    "live": "ライブ音声波形",
+    "processing": "音声を処理中"
+  }
+}

@@ -3,6 +3,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import type { ChangeEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { CompanionSafetyView } from "@/ui/safety/CompanionSafetyView";
 
 import {
@@ -68,6 +69,7 @@ function focusQuickChatInput() {
 }
 
 function DesktopQuickChatRoute() {
+  const { t } = useTranslation("app");
   const { animaId } = Route.useParams();
   const platform = useRuntimePlatform();
   const isQuickChatWindow =
@@ -161,9 +163,7 @@ function DesktopQuickChatRoute() {
           micWaveformMode="synthetic"
           onDictationStart={() => sendCommand({ type: "start-dictation" })}
           onIncompatibleModelSelect={() => {
-            toast.error(
-              "That model keeps conversations differently. Open the main chat to continue in a new chat.",
-            );
+            toast.error(t("quickChat.incompatibleModel"));
           }}
           onInputChange={handleInputChange}
           onMicSessionStop={() => sendCommand({ type: "stop-mic-session" })}

@@ -98,7 +98,8 @@ review and recovery controls, and `animaPoseClip/2.0` creator round trips (a
 generated Gesture retimed, posed, saved and reopened with its detail; 1.0
 Gestures and Reactions saved as 2.0).
 Older creator journeys remain unselected until individually reviewed; listing
-them is not passing evidence.
+them is not passing evidence. The separate `pseudo` project runs only through
+`pnpm e2e:test:pseudo`; see [Pseudo-locale smoke](#pseudo-locale-smoke).
 The separate `local:verify:accountless` API journey covers bootstrap, settings,
 starter/custom Animas, private uploads, typed bytes, chat receipts and persistence.
 
@@ -307,6 +308,45 @@ needed to verify name validation. Root launch should open the last visited
 owned Anima, or Annie on a fresh installation.
 Output contains only bounded pass/fail booleans and counts, never principal or
 credential values.
+
+## Pseudo-locale smoke
+
+`pnpm e2e:test:pseudo` runs the `pseudo` project instead of the journeys, which
+stay English. It opens the app with `?ui-locale=pseudo` and fails on visible
+text or placeholders without the `⟦…⟧` pseudo markers, listing each one with
+its surface and element path. It covers the setup steps, chat, every App
+Settings section, Library, and the Gesture and Particle Effect creators. Setup
+is rendered over the completed fixture installation: the runtime context
+reports setup pending and every write is refused.
+
+The pseudo-locale exists only in development builds. The runner rejects a
+stack record with another build mode and an application that does not serve
+the Vite client. Use a disposable named development stack and the same runner
+guards as the journeys:
+
+```bash
+ANIMAMA_LLM_SKIP=1 ./reset.sh --name pseudo-a --base-port 8500
+source .animama-stack.env
+export ANIMAMA_E2E_ALLOW_MUTATIONS=1
+cd src/frontend
+pnpm e2e:test:pseudo   # Under a minute after setup.
+```
+
+These are treated as data, not interface text:
+
+- strings from `/v1` JSON loaded since the surface's last navigation, except
+  backend `message`, `detail`, `error` and `hint` prose
+- the Avatar's own expression and morph target names
+- file names, hex colours, identifiers such as `emitter-1`, and units after
+  numbers
+- form fields, `<kbd>`, `aria-hidden` subtrees and avatar initials
+- the fixed words in `e2e/helpers/pseudo-locale.ts`: product and locale names,
+  speech engine names and axis labels
+
+A label identical to loaded data is also excluded. Each surface's evidence
+lists the text it excluded, with a screenshot for the owner walkthrough. Source
+edits during a run make Vite reload the page and fail the run; rerun once
+edits settle.
 
 ## Main-Stack Journey
 

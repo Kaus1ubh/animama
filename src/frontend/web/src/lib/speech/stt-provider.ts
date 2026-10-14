@@ -1,5 +1,7 @@
 "use client";
 
+import { getI18n } from "react-i18next";
+
 import type { SttProviderPreference } from "@/lib/settings/preferences";
 import {
   getRuntimePlatformSnapshot,
@@ -22,6 +24,7 @@ const STT_PROVIDER_SET: SttProviderSet = {
   browser_local: true,
 };
 
+/** A provider choice; its text is worded in the UI Locale when it is listed. */
 export type SttProviderOption = {
   id: SttProvider;
   label: string;
@@ -142,48 +145,48 @@ export function getSttProviderOptions(
   parakeetAvailable: boolean | null = null,
   platform: RuntimePlatform = getRuntimePlatformSnapshot(),
 ): SttProviderOption[] {
+  const t = getI18n().getFixedT(null, "voice");
   const isDesktop = platform.isDesktop;
   const webSpeechSupported = isWebSpeechSupported(platform);
   const localSupported = supportsLocalWebSpeechStrict(platform);
-  const desktopBrowserReason = "Browser STT is unavailable in the desktop app.";
+  const desktopBrowserReason = t("providers.stt.browserDesktopUnavailable");
 
   const options: SttProviderOption[] = [
     {
       id: "parakeet",
       label: "Parakeet",
       description: isDesktop
-        ? "Local ONNX speech recognition in the desktop app."
-        : "Local ONNX speech recognition in this browser.",
+        ? t("providers.stt.parakeet.descriptionDesktop")
+        : t("providers.stt.parakeet.descriptionBrowser"),
       disabled: parakeetAvailable !== true,
       reason:
         parakeetAvailable === false
           ? isDesktop
-            ? "Install offline speech recognition to use dictation and Voice Mode."
-            : "Local Parakeet is currently unavailable in this browser."
+            ? t("providers.stt.parakeet.notInstalled")
+            : t("providers.stt.parakeet.unavailableBrowser")
           : undefined,
     },
     {
       id: "browser_external",
-      label: "Browser (external)",
-      description: "Browser speech recognition with vendor-managed processing.",
+      label: t("providers.stt.browserExternal.label"),
+      description: t("providers.stt.browserExternal.description"),
       disabled: !webSpeechSupported,
       reason: webSpeechSupported
         ? undefined
         : isDesktop
           ? desktopBrowserReason
-          : "Web Speech API is not supported in this browser.",
+          : t("providers.stt.browserExternal.unsupported"),
     },
     {
       id: "browser_local",
-      label: "Browser (local)",
-      description:
-        "Strict on-device browser recognition when explicitly supported.",
+      label: t("providers.stt.browserLocal.label"),
+      description: t("providers.stt.browserLocal.description"),
       disabled: !localSupported,
       reason: localSupported
         ? undefined
         : isDesktop
           ? desktopBrowserReason
-          : "Local-only Web Speech recognition is not supported in this browser.",
+          : t("providers.stt.browserLocal.unsupported"),
     },
   ];
 

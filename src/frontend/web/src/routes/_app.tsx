@@ -3,10 +3,14 @@ import {
   createFileRoute,
   useRouterState,
 } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
 
 import { useRuntimeAdmission } from "@web/app/runtime/RuntimeAdmissionProvider";
 import { FirstRunAgeConfirmation } from "@web/app/local-runtime/setup/FirstRunAgeConfirmation";
-import { unavailableRouteReason } from "@web/app/runtime/route-admission";
+import {
+  unavailableReasonText,
+  unavailableRouteReason,
+} from "@web/app/runtime/route-admission";
 import { AppShellPage } from "@/ui/app/AppShellPage";
 import { AppShell } from "@/ui/app/AppShell";
 import { ContentPreviewDockProvider } from "@/ui/content-preview/ContentPreviewDockProvider";
@@ -19,6 +23,7 @@ export const Route = createFileRoute("/_app")({
 });
 
 function ApplicationAreaLayout() {
+  const { t } = useTranslation("app");
   const { admission } = useRuntimeAdmission();
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
@@ -33,8 +38,12 @@ function ApplicationAreaLayout() {
             <SidebarShell />
             {reason ? (
               <AppShellPage>
-                <h1 className="text-lg font-semibold">Unavailable here</h1>
-                <p className="text-muted-foreground">{reason}</p>
+                <h1 className="text-lg font-semibold">
+                  {t("unavailable.title")}
+                </h1>
+                <p className="text-muted-foreground">
+                  {unavailableReasonText(reason, t)}
+                </p>
               </AppShellPage>
             ) : (
               <Outlet />

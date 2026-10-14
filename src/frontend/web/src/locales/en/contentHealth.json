@@ -1,0 +1,52 @@
+{
+  "actions": {
+    "retryLibrary": "Retry Library",
+    "retryScan": "Retry scan",
+    "scanning": "Scanning…"
+  },
+  "diagnostics": {
+    "case_collision": "Two paths differ only by letter case, so they are not portable.",
+    "empty_file": "Content files cannot be empty.",
+    "entry_too_large": "The entry exceeds the supported size limit.",
+    "file_too_large": "The file exceeds the supported size limit.",
+    "hard_link_rejected": "Hard-linked files are not scanned.",
+    "incomplete_operation": "An interrupted save left this entry incomplete. It needs to be reconciled.",
+    "invalid_gltf_asset": "VRM and VRMA files require a glTF 2 asset.",
+    "invalid_gltf_container": "The glTF data is invalid.",
+    "invalid_json_shape": "The top-level JSON value must be an object.",
+    "invalidHeader": "The {{format}} file signature is invalid.",
+    "json_too_large": "The JSON file exceeds the supported size limit.",
+    "malformed_json": "The file is not a valid UTF-8 JSON document.",
+    "missing_descriptor_file": "A file declared by this entry is missing.",
+    "missing_effect_dependency": "An Included effect this item uses was removed; it plays without it. Open it in its creator to map or remove those effect events.",
+    "missing_vrm_extension": "The file does not contain the extension its VRM or VRMA type requires.",
+    "nested_descriptor": "Content entries cannot be nested inside one another.",
+    "pocket_clone_file_size": "Voice clone files must be nonempty and at most 25 MiB.",
+    "provenance_missing": "This Included entry has no license record.",
+    "scene_emoji_item_removed": "This Scene Effect has an emoji item, which Animama no longer provides; it plays without it. Open it in its creator to replace the item with a sticker or image, or remove it.",
+    "special_file_rejected": "Only ordinary files and folders are scanned.",
+    "svg_size_limit": "SVG images must be at most 32 MiB.",
+    "symlink_rejected": "Symbolic links are not scanned.",
+    "too_many_files": "The entry contains too many files.",
+    "unreadable_file": "The file could not be read.",
+    "unreadable_path": "The file or folder could not be inspected.",
+    "unsafe_descriptor_path": "Declared file paths must stay inside the entry.",
+    "unsupported_extension": "This file type is not supported."
+  },
+  "itemStatus": {
+    "invalid": "This item did not pass validation.",
+    "missing": "The file or folder is missing.",
+    "scanRequired": "Changes are waiting to be scanned."
+  },
+  "loadFailed": "Could not load the content library. Retry to check again.",
+  "operatorManaged": "Host file scanning is managed by the operator.",
+  "scanFailed": "The scan failed. Try again.",
+  "scanRequired": {
+    "local": "Local changes need another scan.",
+    "operator": "The operator is reconciling content changes."
+  },
+  "status": {
+    "attention": "Content needs attention",
+    "unavailable": "Content library unavailable"
+  }
+}

@@ -3,8 +3,14 @@ import type {
   AvatarEffectFaceOptions,
   AvatarEffectMotion,
 } from "@animama/runtime-contracts/api-types";
+import { getI18n } from "react-i18next";
 
 import type { PyContentDependency } from "@/lib/content/catalogTypes";
+import {
+  WordedError,
+  apiErrorLine,
+  sourceLocaleActive,
+} from "@/lib/errors/apiError";
 import {
   AvatarEffectDefinitionError,
   parseAvatarEffectDefinition,
@@ -409,30 +415,97 @@ export function avatarEffectDependencies(
     : [];
 }
 
-/** Plain names for definition paths, used in validation messages. */
-const FIELD_LABELS: Array<[RegExp, string]> = [
-  [/^attachment\.offset/, "Position"],
-  [/^attachment\.scale/, "Size"],
-  [/^attachment\.size/, "Size"],
-  [/^attachment\.rotationDeg/, "Rotation"],
-  [/^attachment\.patternScale/, "Pattern size"],
-  [/^attachment\.scroll/, "Scroll speed"],
-  [/^attachment/, "Placement"],
-  [/^art\.flipbook/, "Flipbook"],
-  [/^art\.otherEyeImage/, "Other eye image"],
-  [/^art/, "Image"],
-  [/^appearance\.tint/, "Tint"],
-  [/^appearance/, "Look"],
-  [/^motion\.keyframes/, "Keyframes"],
-  [/^motion/, "Motion"],
-  [/^faceOptions/, "Face options"],
-  [/^region/, "Replaces"],
+/** A definition setting, as validation messages name it. */
+type AvatarEffectSetting =
+  | "position"
+  | "size"
+  | "rotation"
+  | "patternSize"
+  | "scrollSpeed"
+  | "placement"
+  | "flipbook"
+  | "otherEyeImage"
+  | "image"
+  | "tint"
+  | "look"
+  | "keyframes"
+  | "motion"
+  | "faceOptions"
+  | "replaces";
+
+/** The setting each definition path belongs to, most specific first. */
+const FIELD_SETTINGS: Array<[RegExp, AvatarEffectSetting]> = [
+  [/^attachment\.offset/, "position"],
+  [/^attachment\.scale/, "size"],
+  [/^attachment\.size/, "size"],
+  [/^attachment\.rotationDeg/, "rotation"],
+  [/^attachment\.patternScale/, "patternSize"],
+  [/^attachment\.scroll/, "scrollSpeed"],
+  [/^attachment/, "placement"],
+  [/^art\.flipbook/, "flipbook"],
+  [/^art\.otherEyeImage/, "otherEyeImage"],
+  [/^art/, "image"],
+  [/^appearance\.tint/, "tint"],
+  [/^appearance/, "look"],
+  [/^motion\.keyframes/, "keyframes"],
+  [/^motion/, "motion"],
+  [/^faceOptions/, "faceOptions"],
+  [/^region/, "replaces"],
 ];
 
 /** The plain label for a definition path below `definition`. */
 export function avatarEffectFieldLabel(field: string): string {
   const path = field.replace(/^definition\.?/, "");
-  return FIELD_LABELS.find(([pattern]) => pattern.test(path))?.[1] ?? "Effect";
+  const setting = FIELD_SETTINGS.find(([pattern]) => pattern.test(path))?.[1];
+  const t = getI18n().getFixedT(null, "effects");
+  switch (setting) {
+    case "position":
+      return t("avatar.settings.position");
+    case "size":
+      return t("avatar.settings.size");
+    case "rotation":
+      return t("avatar.settings.rotation");
+    case "patternSize":
+      return t("avatar.settings.patternSize");
+    case "scrollSpeed":
+      return t("avatar.settings.scrollSpeed");
+    case "placement":
+      return t("avatar.settings.placement");
+    case "flipbook":
+      return t("avatar.settings.flipbook");
+    case "otherEyeImage":
+      return t("avatar.settings.otherEyeImage");
+    case "image":
+      return t("avatar.settings.image");
+    case "tint":
+      return t("avatar.settings.tint");
+    case "look":
+      return t("avatar.settings.look");
+    case "keyframes":
+      return t("avatar.settings.keyframes");
+    case "motion":
+      return t("avatar.settings.motion");
+    case "faceOptions":
+      return t("avatar.settings.faceOptions");
+    case "replaces":
+      return t("avatar.settings.replaces");
+    case undefined:
+      return t("avatar.settings.effect");
+  }
+}
+
+/**
+ * A definition problem for one setting. The validator explains it in
+ * English: inside the sentence in English, as secondary detail elsewhere.
+ */
+function settingProblem(setting: string, detail: string | null): string {
+  const t = getI18n().getFixedT(null, "effects");
+  if (detail && sourceLocaleActive())
+    return t("avatar.validation.settingProblem", { setting, detail });
+  return apiErrorLine({
+    message: t("avatar.validation.settingInvalid", { setting }),
+    detail,
+  });
 }
 
 export function validateAvatarEffectDocument(
@@ -443,25 +516,26 @@ export function validateAvatarEffectDocument(
     modelCompatible?: boolean | null;
   },
 ): AvatarEffectValidationIssue[] {
+  const t = getI18n().getFixedT(null, "effects");
   const issues: AvatarEffectValidationIssue[] = [];
   if (document.name.trim().length > 120) {
     issues.push({
       field: "name",
       severity: "error",
-      message: "Keep the Avatar Effect name within 120 characters.",
+      message: t("avatar.validation.nameTooLong", { max: 120 }),
     });
   }
   if (!document.art.image) {
     issues.push({
       field: "art.image",
       severity: "error",
-      message: "Choose one PNG, JPEG, or WebP image.",
+      message: t("avatar.image.typeInvalid"),
     });
   } else if (!options.imageBytesAvailable) {
     issues.push({
       field: "art.image",
       severity: "error",
-      message: "Reselect the image so its bytes can be saved.",
+      message: t("avatar.validation.reselectImage"),
     });
   }
   if (
@@ -471,7 +545,7 @@ export function validateAvatarEffectDocument(
     issues.push({
       field: "art.otherEyeImage",
       severity: "error",
-      message: "Reselect the other eye image so its bytes can be saved.",
+      message: t("avatar.validation.reselectOtherEyeImage"),
     });
   }
   const flipbook = document.art.flipbook;
@@ -479,15 +553,14 @@ export function validateAvatarEffectDocument(
     issues.push({
       field: "art.flipbook.frames",
       severity: "error",
-      message: "A flipbook cannot have more frames than columns × rows.",
+      message: t("avatar.validation.flipbookFrames"),
     });
   }
   if (document.sound && !isExactContentSource(document.sound.source)) {
     issues.push({
       field: "sound",
       severity: "error",
-      message:
-        "Reselect the Sound Effect so exact catalog content can be saved.",
+      message: t("creator.validation.reselectSound"),
     });
   }
   if (!issues.some((issue) => issue.field.startsWith("art.flipbook"))) {
@@ -504,11 +577,11 @@ export function validateAvatarEffectDocument(
       const detail =
         error instanceof Error
           ? error.message.replace(/^Avatar Effect definition is invalid: /, "")
-          : "the settings are incompatible";
+          : null;
       issues.push({
         field,
         severity: "error",
-        message: `${avatarEffectFieldLabel(field)}: ${detail}`,
+        message: settingProblem(avatarEffectFieldLabel(field), detail),
       });
     }
   }
@@ -516,8 +589,7 @@ export function validateAvatarEffectDocument(
     issues.push({
       field: "previewAvatar",
       severity: "warning",
-      message:
-        "This effect is valid, but the selected Avatar does not expose the required live binding or face anchor.",
+      message: t("avatar.validation.modelIncompatible"),
     });
   }
   return issues;
@@ -544,12 +616,11 @@ export function parseAvatarEffectEditorExport(
 ): AvatarEffectEditorDocument {
   const record = object(value);
   const raw = object(record?.document);
+  const t = getI18n().getFixedT(null, "effects");
   if (record?.schema === LEGACY_AVATAR_EFFECT_EDITOR_SCHEMA)
-    throw new Error(
-      "This document uses the earlier Avatar Effect editor format, which this creator no longer opens. Open the saved effect from the Library instead.",
-    );
+    throw new WordedError(t("avatar.import.earlierFormat"));
   if (record?.schema !== AVATAR_EFFECT_EDITOR_SCHEMA || !raw)
-    throw new Error("This is not an Animama Avatar Effect editor document.");
+    throw new WordedError(t("avatar.import.notDocument"));
   const document = cloneAvatarEffectDocument(
     raw as unknown as AvatarEffectEditorDocument,
   );
@@ -558,7 +629,11 @@ export function parseAvatarEffectEditorExport(
   return document;
 }
 
-/** Open a saved `/2` definition for editing. */
+/**
+ * Open a saved `/2` definition for editing. Its errors stay English because
+ * `pnpm effects save` runs this module without i18n; the creator shows them as
+ * detail under a translated message.
+ */
 export function createAvatarEffectDocumentFromDefinition(args: {
   name: string;
   description: string;

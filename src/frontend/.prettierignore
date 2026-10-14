@@ -1,1 +1,5 @@
 shared/src/ui/components/**
+# Catalogs and generated key types are written by i18next-cli.
+web/src/locales/**
+web/src/i18n/resources.d.ts
+packages/product-ui/src/locales/**

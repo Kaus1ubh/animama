@@ -1,3 +1,4 @@
+import type { TFunction } from "i18next";
 import { ImagePlay, Sparkles, WandSparkles } from "lucide-react";
 import type { ComponentType, SVGProps } from "react";
 
@@ -26,6 +27,36 @@ export const EFFECT_KIND_ICONS: Record<
       "bg-violet-200 text-violet-950 dark:bg-violet-900 dark:text-violet-100",
   },
 };
+
+/** Display text for an effect kind's cards and picker step. */
+export function effectKindText(
+  t: TFunction<"create">,
+  kind: EffectTemplateKind,
+): { label: string; description: string; create: string; new: string } {
+  switch (kind) {
+    case "particle":
+      return {
+        label: t("effectKinds.particle.label"),
+        description: t("effectKinds.particle.description"),
+        create: t("effectKinds.particle.create"),
+        new: t("effectKinds.particle.new"),
+      };
+    case "avatar":
+      return {
+        label: t("effectKinds.avatar.label"),
+        description: t("effectKinds.avatar.description"),
+        create: t("effectKinds.avatar.create"),
+        new: t("effectKinds.avatar.new"),
+      };
+    case "scene":
+      return {
+        label: t("effectKinds.scene.label"),
+        description: t("effectKinds.scene.description"),
+        create: t("effectKinds.scene.create"),
+        new: t("effectKinds.scene.new"),
+      };
+  }
+}
 
 export function CreatorIconTile({
   icon: Icon,

@@ -78,7 +78,7 @@ describe("stage background", () => {
     const files = [
       "dreamy-pedestal-light",
       "dreamy-pedestal-dark",
-      ...STAGE_SCENES.flatMap(({ id }) => [`${id}-light`, `${id}-dark`]),
+      ...STAGE_SCENES.flatMap((id) => [`${id}-light`, `${id}-dark`]),
     ];
     await Promise.all(
       files.map((file) =>

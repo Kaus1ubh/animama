@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "motion/react";
+import { useTranslation } from "react-i18next";
+import { useFormatters } from "@animama/product-ui/i18n";
 import { getAnimaDisplayName } from "@/lib/anima-profile";
 import { cn } from "@/lib/utils";
 import { useAnimas } from "@/query/hooks/useAnimas";
@@ -19,6 +21,8 @@ import {
 const ALL_ANIMAS_FILTER = "all";
 
 export const SidebarChats = () => {
+  const { t } = useTranslation("sidebar");
+  const { compare } = useFormatters();
   const params = useParams({ strict: false });
   const { open } = useSidebar();
   const [expanded, setExpanded] = useState(true);
@@ -35,13 +39,9 @@ export const SidebarChats = () => {
     return animas
       .filter((anima) => chatAnimaIds.has(anima.id))
       .sort((left, right) =>
-        getAnimaDisplayName(left).localeCompare(
-          getAnimaDisplayName(right),
-          undefined,
-          { sensitivity: "base" },
-        ),
+        compare(getAnimaDisplayName(left), getAnimaDisplayName(right)),
       );
-  }, [animas, chats]);
+  }, [animas, chats, compare]);
   const displayedChats = useMemo(
     () =>
       animaFilter === ALL_ANIMAS_FILTER
@@ -64,14 +64,14 @@ export const SidebarChats = () => {
   return (
     <div className="group/sidebar-section mt-4">
       <SidebarSectionHeader
-        label="Chats"
+        label={t("chats.heading")}
         expanded={expanded}
         controlsId="sidebar-chats-list"
         filterActive={animaFilter !== ALL_ANIMAS_FILTER}
-        filterLabel="Filter Chats"
+        filterLabel={t("chats.filter")}
         onToggle={() => setExpanded((prev) => !prev)}
       >
-        <DropdownMenuLabel>Anima</DropdownMenuLabel>
+        <DropdownMenuLabel>{t("chats.filterByAnima")}</DropdownMenuLabel>
         <DropdownMenuRadioGroup
           value={animaFilter}
           onValueChange={setAnimaFilter}
@@ -80,7 +80,7 @@ export const SidebarChats = () => {
             value={ALL_ANIMAS_FILTER}
             className="focus:bg-muted focus:text-foreground"
           >
-            All Animas
+            {t("chats.allAnimas")}
           </DropdownMenuRadioItem>
           {chatAnimas.map((anima) => (
             <DropdownMenuRadioItem
@@ -106,23 +106,23 @@ export const SidebarChats = () => {
             <div className="flex flex-col gap-1">
               {isLoading ? (
                 <div className="text-muted-foreground px-2 py-2 text-xs">
-                  Loading chats...
+                  {t("chats.loading")}
                 </div>
               ) : isError ? (
                 <div className="text-destructive px-2 py-2 text-xs">
-                  Failed to load chats
+                  {t("chats.loadFailed")}
                 </div>
               ) : chats.length === 0 ? (
                 <div className="text-muted-foreground px-2 py-2 text-xs">
-                  No chats yet
+                  {t("chats.empty")}
                 </div>
               ) : displayedChats.length === 0 ? (
                 <div className="text-muted-foreground px-2 py-2 text-xs">
-                  No chats for this Anima
+                  {t("chats.emptyForAnima")}
                 </div>
               ) : (
                 displayedChats.map((chat) => {
-                  const title = chat.title?.trim() || "Untitled chat";
+                  const title = chat.title?.trim() || t("chats.untitled");
                   const isActive = chat.id === routeChatId;
                   const targetAnimaId = chat.anima_id;
 

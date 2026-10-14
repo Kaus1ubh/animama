@@ -1,3 +1,6 @@
+import { getI18n } from "react-i18next";
+
+import { apiErrorLine, uncodedErrorText } from "@/lib/errors/apiError";
 import { parseAnimaPoseClip } from "@/lib/avatar/poses/animaPoseClip/parseClip";
 import {
   beatDetailSummary,
@@ -143,21 +146,19 @@ export type PoseCreatorClipImportOptions = PoseCreatorClipValidationOptions & {
   fallbackBasePose: string;
 };
 
-export const POSE_CREATOR_CLIP_EASING_OPTIONS = [
-  { value: "linear", label: "Linear" },
-  { value: "easeInSine", label: "Ease in sine" },
-  { value: "easeOutSine", label: "Ease out sine" },
-  { value: "easeInOutSine", label: "Ease in-out sine" },
-  { value: "easeInCubic", label: "Ease in cubic" },
-  { value: "easeOutCubic", label: "Ease out cubic" },
-  { value: "easeInOutCubic", label: "Ease in-out cubic" },
-  { value: "back", label: "Back" },
-  { value: "elastic", label: "Elastic" },
-  { value: "bounce", label: "Bounce" },
-] as const satisfies ReadonlyArray<{
-  value: AnimaPoseClipEasing;
-  label: string;
-}>;
+/** Curve easings offered for a beat, in menu order (labels: `easeLabel`). */
+export const POSE_CREATOR_CLIP_EASINGS: readonly AnimaPoseClipEasing[] = [
+  "linear",
+  "easeInSine",
+  "easeOutSine",
+  "easeInOutSine",
+  "easeInCubic",
+  "easeOutCubic",
+  "easeInOutCubic",
+  "back",
+  "elastic",
+  "bounce",
+];
 
 const DEFAULT_CLIP_ID = "pose_creator_clip";
 export const DEFAULT_POSE_CREATOR_CLIP_NAME = "New Clip";
@@ -495,12 +496,20 @@ export function validatePoseCreatorClipDraft(
     const result = validateAnimaPoseClipV2(
       poseCreatorMotionClip(draft, draft.motion, options),
     );
+    const t = getI18n().getFixedT(null, "pose");
+    // Schema findings are English developer text: primary in English, and
+    // detail under a worded message elsewhere.
     if (!result.ok)
       for (const issue of result.issues)
         issues.push({
           severity: "error",
           code: "invalid-beat-track",
-          message: `${issue.path}: ${issue.message}`,
+          message: apiErrorLine(
+            uncodedErrorText(
+              `${issue.path}: ${issue.message}`,
+              t("clip.validation.invalidMotion", { path: issue.path }),
+            ),
+          ),
           target: issue.path,
         });
   }
@@ -512,6 +521,7 @@ function validatePoseCreatorClipDraftFields(
   draft: PoseCreatorClipDraft,
   options: PoseCreatorClipValidationOptions,
 ): PoseCreatorClipValidationIssue[] {
+  const t = getI18n().getFixedT(null, "pose");
   const issues: PoseCreatorClipValidationIssue[] = [];
   const knownPoseIds = new Set(options.knownPoseIds ?? []);
   const eventIds = new Set<string>();
@@ -520,7 +530,7 @@ function validatePoseCreatorClipDraftFields(
     issues.push({
       severity: "error",
       code: "missing-id",
-      message: "Clip id is required.",
+      message: t("clip.validation.idRequired"),
       target: "id",
     });
   }
@@ -529,7 +539,7 @@ function validatePoseCreatorClipDraftFields(
     issues.push({
       severity: "error",
       code: "invalid-duration",
-      message: "Clip duration must be greater than 0 seconds.",
+      message: t("clip.validation.durationInvalid"),
       target: "duration",
     });
   }
@@ -543,7 +553,9 @@ function validatePoseCreatorClipDraftFields(
     issues.push({
       severity: "error",
       code: "missing-base-pose-ref",
-      message: `Base pose "${draft.basePose}" is unavailable in the compatibility pose resolver.`,
+      message: t("clip.validation.basePoseUnavailable", {
+        pose: draft.basePose,
+      }),
       target: "basePose",
     });
   }
@@ -552,7 +564,7 @@ function validatePoseCreatorClipDraftFields(
     issues.push({
       severity: "error",
       code: "empty-keyframes",
-      message: "Add at least one keyframe before exporting a clip.",
+      message: t("clip.validation.empty"),
       target: "keyframes",
     });
   } else {
@@ -567,7 +579,7 @@ function validatePoseCreatorClipDraftFields(
       issues.push({
         severity: "error",
         code: "duration-shorter-than-final-keyframe",
-        message: "Clip duration is shorter than the final keyframe time.",
+        message: t("clip.validation.durationShorterThanKeyframe"),
         target: "duration",
       });
     }
@@ -578,14 +590,18 @@ function validatePoseCreatorClipDraftFields(
       issues.push({
         severity: "error",
         code: "invalid-keyframe-time",
-        message: `Keyframe "${keyframe.id}" has an invalid time.`,
+        message: t("clip.validation.keyframeInvalidTime", {
+          keyframe: keyframe.id,
+        }),
         target: keyframe.id,
       });
     } else if (keyframe.time < 0 || keyframe.time > draft.duration) {
       issues.push({
         severity: "error",
         code: "keyframe-outside-duration",
-        message: `Keyframe "${keyframe.id}" is outside the clip duration.`,
+        message: t("clip.validation.keyframeOutsideDuration", {
+          keyframe: keyframe.id,
+        }),
         target: keyframe.id,
       });
     }
@@ -604,7 +620,10 @@ function validatePoseCreatorClipDraftFields(
     issues.push({
       severity: "error",
       code: "duplicate-keyframe-time",
-      message: `Keyframes "${existing.id}" and "${keyframe.id}" share the same time.`,
+      message: t("clip.validation.keyframesShareTime", {
+        first: existing.id,
+        second: keyframe.id,
+      }),
       target: keyframe.id,
     });
   }
@@ -616,14 +635,14 @@ function validatePoseCreatorClipDraftFields(
       issues.push({
         severity: "error",
         code: "missing-event-id",
-        message: "Effect event id is required.",
+        message: t("clip.validation.eventMissingId"),
         target,
       });
     } else if (eventIds.has(event.id)) {
       issues.push({
         severity: "error",
         code: "duplicate-event-id",
-        message: `Effect event id "${event.id}" is used more than once.`,
+        message: t("clip.validation.eventDuplicateId", { event: event.id }),
         target,
       });
     }
@@ -633,14 +652,16 @@ function validatePoseCreatorClipDraftFields(
       issues.push({
         severity: "error",
         code: "invalid-event-time",
-        message: `Effect event "${event.id}" has an invalid time.`,
+        message: t("clip.validation.eventInvalidTime", { event: event.id }),
         target,
       });
     } else if (event.time < 0 || event.time > draft.duration) {
       issues.push({
         severity: "error",
         code: "event-outside-duration",
-        message: `Effect event "${event.id}" is outside the clip duration.`,
+        message: t("clip.validation.eventOutsideDuration", {
+          event: event.id,
+        }),
         target,
       });
     }
@@ -660,7 +681,9 @@ function validatePoseCreatorClipDraftFields(
         issues.push({
           severity: "error",
           code: "invalid-event-duration",
-          message: `VFX event "${event.id}" must have a positive duration.`,
+          message: t("clip.validation.vfxDurationInvalid", {
+            event: event.id,
+          }),
           target,
         });
       } else if (
@@ -671,7 +694,9 @@ function validatePoseCreatorClipDraftFields(
         issues.push({
           severity: "warning",
           code: "event-duration-exceeds-clip",
-          message: `VFX event "${event.id}" continues beyond the clip duration.`,
+          message: t("clip.validation.vfxDurationExceedsClip", {
+            event: event.id,
+          }),
           target,
         });
       }
@@ -686,7 +711,9 @@ function validatePoseCreatorClipDraftFields(
           issues.push({
             severity: "error",
             code: "event-parameter-keyframe-outside-duration",
-            message: `VFX event "${event.id}" has parameter keyframes outside its duration.`,
+            message: t("clip.validation.vfxParameterOutsideDuration", {
+              event: event.id,
+            }),
             target,
           });
           break;
@@ -703,12 +730,13 @@ function validateAvatarVFXEventDraft(
   catalogRefs: AnimaPoseClipEventCatalogRefs | undefined,
   issues: PoseCreatorClipValidationIssue[],
 ): void {
+  const t = getI18n().getFixedT(null, "pose");
   const target = getPoseCreatorClipEventValidationTarget(event.id);
   if (!event.effectId.trim()) {
     issues.push({
       severity: "error",
       code: "missing-avatar-vfx-id",
-      message: `Avatar VFX event "${event.id}" needs an effect id.`,
+      message: t("clip.validation.avatarVfxMissingId", { event: event.id }),
       target,
     });
     return;
@@ -721,7 +749,9 @@ function validateAvatarVFXEventDraft(
     issues.push({
       severity: "warning",
       code: "unknown-avatar-vfx-id",
-      message: `Avatar VFX effect "${event.effectId}" is not in the current catalog.`,
+      message: t("clip.validation.avatarVfxUnknown", {
+        effect: event.effectId,
+      }),
       target,
     });
   }
@@ -732,12 +762,13 @@ function validateSceneVFXEventDraft(
   catalogRefs: AnimaPoseClipEventCatalogRefs | undefined,
   issues: PoseCreatorClipValidationIssue[],
 ): void {
+  const t = getI18n().getFixedT(null, "pose");
   const target = getPoseCreatorClipEventValidationTarget(event.id);
   if (!event.presetId.trim()) {
     issues.push({
       severity: "error",
       code: "missing-scene-vfx-preset-id",
-      message: `Scene VFX event "${event.id}" needs a preset id.`,
+      message: t("clip.validation.sceneVfxMissingPreset", { event: event.id }),
       target,
     });
     return;
@@ -751,7 +782,9 @@ function validateSceneVFXEventDraft(
     issues.push({
       severity: "warning",
       code: "unknown-scene-vfx-preset-id",
-      message: `Scene VFX preset "${event.presetId}" is not in the current catalog.`,
+      message: t("clip.validation.sceneVfxUnknown", {
+        preset: event.presetId,
+      }),
       target,
     });
   }
@@ -762,12 +795,13 @@ function validateParticleVFXEventDraft(
   catalogRefs: AnimaPoseClipEventCatalogRefs | undefined,
   issues: PoseCreatorClipValidationIssue[],
 ): void {
+  const t = getI18n().getFixedT(null, "pose");
   const target = getPoseCreatorClipEventValidationTarget(event.id);
   if (!event.effectId.trim()) {
     issues.push({
       severity: "error",
       code: "missing-particle-vfx-id",
-      message: `Particle VFX event "${event.id}" needs an effect id.`,
+      message: t("clip.validation.particleVfxMissingId", { event: event.id }),
       target,
     });
     return;
@@ -780,7 +814,9 @@ function validateParticleVFXEventDraft(
     issues.push({
       severity: "warning",
       code: "unknown-particle-vfx-id",
-      message: `Particle VFX effect "${event.effectId}" is not in the current catalog.`,
+      message: t("clip.validation.particleVfxUnknown", {
+        effect: event.effectId,
+      }),
       target,
     });
   }
@@ -791,12 +827,13 @@ function validateSFXEventDraft(
   catalogRefs: AnimaPoseClipEventCatalogRefs | undefined,
   issues: PoseCreatorClipValidationIssue[],
 ): void {
+  const t = getI18n().getFixedT(null, "pose");
   const target = getPoseCreatorClipEventValidationTarget(event.id);
   if (!event.cueId.trim()) {
     issues.push({
       severity: "error",
       code: "missing-sfx-cue-id",
-      message: `SFX event "${event.id}" needs a cue id.`,
+      message: t("clip.validation.sfxMissingCue", { event: event.id }),
       target,
     });
     return;
@@ -809,7 +846,7 @@ function validateSFXEventDraft(
     issues.push({
       severity: "warning",
       code: "unknown-sfx-cue-id",
-      message: `SFX cue "${event.cueId}" is not in the current catalog.`,
+      message: t("clip.validation.sfxUnknown", { cue: event.cueId }),
       target,
     });
   }
@@ -821,7 +858,7 @@ function validateSFXEventDraft(
     issues.push({
       severity: "error",
       code: "invalid-sfx-volume",
-      message: `SFX event "${event.id}" volume must be between 0 and 1.`,
+      message: t("clip.validation.sfxVolume", { event: event.id }),
       target,
     });
   }

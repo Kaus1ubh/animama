@@ -1,3 +1,5 @@
+import { getI18n } from "react-i18next";
+
 import { getUnsupportedAdvancedBehaviorLabels } from "./advancedBehaviors";
 import { readJsonObject } from "./json";
 import { PARTICLE_VFX_EDITOR_TEXTURES } from "./constants";
@@ -10,7 +12,8 @@ import type {
   ParticleVFXEditorValidationIssue,
 } from "./types";
 
-const MAX_MANIFEST_BYTES = 5 * 1024 * 1024;
+const MAX_MANIFEST_MIB = 5;
+const MAX_MANIFEST_BYTES = MAX_MANIFEST_MIB * 1024 * 1024;
 /** Most emitters (Quarks particle systems) one Particle Effect may carry. */
 export const PARTICLE_VFX_MAX_EMITTERS = 16;
 const MAX_RESOURCES = 64;
@@ -25,6 +28,8 @@ export type ParticleVFXContentReadinessOptions = {
   resolvableTextureReferences?: ReadonlySet<string>;
   /** Exact retained App references that the package builder will normalize. */
   trustedLegacyTextureReferences?: ReadonlySet<string>;
+  /** UI Locale for issue messages; the active locale by default. */
+  language?: string;
 };
 
 /**
@@ -38,7 +43,8 @@ export function validateParticleVFXContentReadiness(
   draft: ParticleVFXEditorDraft,
   options: ParticleVFXContentReadinessOptions = {},
 ): ParticleVFXContentReadiness {
-  const issues = validateParticleVFXEditorDraft(draft).map(
+  const t = getI18n().getFixedT(options.language ?? null, "particles");
+  const issues = validateParticleVFXEditorDraft(draft, options.language).map(
     promoteContentBlockingIssue,
   );
   const push = (
@@ -53,16 +59,12 @@ export function validateParticleVFXContentReadiness(
     draft.catalog.id.length > 64 ||
     !RUNTIME_ID_PATTERN.test(draft.catalog.id)
   ) {
-    push(
-      "asset-runtime-id",
-      "Runtime ID must use lowercase letters, numbers, single hyphens, or underscores.",
-      "catalog.id",
-    );
+    push("asset-runtime-id", t("issues.runtimeId"), "catalog.id");
   }
   if (estimatedManifestBytes > MAX_MANIFEST_BYTES) {
     push(
       "asset-manifest-limit",
-      "Particle VFX manifest exceeds the 5 MiB content limit.",
+      t("issues.manifestLimit", { size: MAX_MANIFEST_MIB }),
       "json",
     );
   }
@@ -73,7 +75,7 @@ export function validateParticleVFXContentReadiness(
     if (!Array.isArray(resources) || resources.length > MAX_RESOURCES) {
       push(
         "asset-resource-limit",
-        `${key} must be an array with no more than ${MAX_RESOURCES} entries.`,
+        t("issues.resourceLimit", { key, max: MAX_RESOURCES }),
         key,
       );
     }
@@ -85,23 +87,19 @@ export function validateParticleVFXContentReadiness(
   if (nodeCount > MAX_NODES) {
     push(
       "asset-node-limit",
-      `Particle VFX contains more than ${MAX_NODES} object nodes.`,
+      t("issues.nodeLimit", { max: MAX_NODES }),
       "object",
     );
   }
   if (systemCount < 1 || systemCount > PARTICLE_VFX_MAX_EMITTERS) {
     push(
       "asset-system-limit",
-      `Particle VFX must contain between 1 and ${PARTICLE_VFX_MAX_EMITTERS} emitters.`,
+      t("issues.systemLimit", { min: 1, max: PARTICLE_VFX_MAX_EMITTERS }),
       "object.children",
     );
   }
   if (unsupportedNode) {
-    push(
-      "unsupported-asset-structure",
-      "Private Particle Effects support only Group and ParticleEmitter nodes.",
-      "object",
-    );
+    push("unsupported-asset-structure", t("issues.unsupportedNodes"), "object");
   }
 
   const images = Array.isArray(draft.quarksJson.images)
@@ -125,7 +123,7 @@ export function validateParticleVFXContentReadiness(
     if (!logicalReference) {
       push(
         "unsafe-texture-reference",
-        "Asset textures must use a safe package-relative path.",
+        t("issues.unsafeTextureReference"),
         `images.${index}.url`,
       );
       continue;
@@ -136,7 +134,10 @@ export function validateParticleVFXContentReadiness(
     if (priorReference && priorReference !== logicalReference) {
       push(
         "ambiguous-texture-filename",
-        `Texture paths ${priorReference} and ${logicalReference} share one portable filename.`,
+        t("issues.ambiguousTextureFilename", {
+          first: priorReference,
+          second: logicalReference,
+        }),
         `images.${index}.url`,
       );
     } else {
@@ -149,7 +150,7 @@ export function validateParticleVFXContentReadiness(
     if (!resolvable.has(logicalReference)) {
       push(
         "unresolved-texture",
-        `Texture ${logicalReference} is not available to the content entry.`,
+        t("issues.unresolvedTexture", { texture: logicalReference }),
         `images.${index}.url`,
       );
     }
@@ -157,7 +158,7 @@ export function validateParticleVFXContentReadiness(
   if (uniqueTextureReferences.length > MAX_TEXTURES) {
     push(
       "asset-resource-limit",
-      `Particle VFX references more than ${MAX_TEXTURES} unique textures.`,
+      t("issues.tooManyTextures", { max: MAX_TEXTURES }),
       "images",
     );
   }
@@ -172,7 +173,7 @@ export function validateParticleVFXContentReadiness(
   ) {
     push(
       "invalid-runtime-defaults",
-      "Default duration must be positive and no greater than a 30-second maximum duration.",
+      t("issues.invalidRuntimeDefaults", { seconds: MAX_DURATION_SECONDS }),
       "catalog.performanceBudget.maxDurationSec",
     );
   }
@@ -184,11 +185,7 @@ export function validateParticleVFXContentReadiness(
         emitter.durationSec > MAX_DURATION_SECONDS,
     )
   ) {
-    push(
-      "asset-duration-limit",
-      "Every emitter duration must fit the saved maximum duration budget.",
-      "emitters",
-    );
+    push("asset-duration-limit", t("issues.durationLimit"), "emitters");
   }
   if (
     draft.emitters.some((emitter) => emitter.looping) &&
@@ -196,7 +193,7 @@ export function validateParticleVFXContentReadiness(
   ) {
     push(
       "asset-looping-metadata",
-      "A looping emitter requires looping to be allowed in runtime defaults.",
+      t("issues.loopingMetadata"),
       "catalog.performanceBudget.loopingAllowed",
     );
   }
@@ -210,7 +207,11 @@ export function validateParticleVFXContentReadiness(
   ) {
     push(
       "particle-budget-exceeded",
-      `Estimated ${estimatedParticles} particles with a saved budget of ${budget}: both must fit the ${MAX_PARTICLES}-particle private limit.`,
+      t("issues.particleLimit", {
+        estimated: estimatedParticles,
+        budget,
+        max: MAX_PARTICLES,
+      }),
       "catalog.performanceBudget.maxParticles",
     );
   }
@@ -235,7 +236,7 @@ export function validateParticleVFXContentReadiness(
     ) {
       push(
         "unsupported-asset-structure",
-        "This emitter preserves settings outside the portable creator contract.",
+        t("issues.unportableEmitter"),
         target,
       );
     }

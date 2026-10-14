@@ -1,6 +1,7 @@
 "use client";
 
 import { EyeIcon, EyeOffIcon } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/ui/components/button";
@@ -20,6 +21,7 @@ export function PoseCreatorHelpersToggle({
   checked,
   onCheckedChange,
 }: PoseCreatorHelpersToggleProps) {
+  const { t } = useTranslation("pose");
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -32,9 +34,7 @@ export function PoseCreatorHelpersToggle({
             checked && "border-primary/40 bg-primary/8 text-primary",
           )}
           onClick={() => onCheckedChange(!checked)}
-          aria-label={
-            checked ? "Hide bone helper nodes" : "Show bone helper nodes"
-          }
+          aria-label={checked ? t("helpers.hide") : t("helpers.show")}
           aria-pressed={checked}
         >
           {checked ? (
@@ -49,10 +49,7 @@ export function PoseCreatorHelpersToggle({
         sideOffset={8}
         className="max-w-[360px] leading-relaxed whitespace-normal"
       >
-        Show bone markers and the selected bone’s rotation gizmo. Drag red,
-        green, or blue for local X, Y, or Z rotation; yellow for view-axis
-        rotation; or the center for free rotation. In Clip mode, pause playback
-        and edit an inline pose to use the gizmo.
+        {t("helpers.tooltip")}
       </TooltipContent>
     </Tooltip>
   );

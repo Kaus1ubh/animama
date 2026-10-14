@@ -10,6 +10,8 @@ import {
   useState,
   type PointerEvent as ReactPointerEvent,
 } from "react";
+import { useTranslation } from "react-i18next";
+import { useFormatters } from "@animama/product-ui/i18n";
 
 import type { AvatarBackgroundOption } from "@/lib/avatar/backgroundOptions";
 import {
@@ -99,6 +101,8 @@ export function BackgroundResizeModal({
   open,
   option,
 }: BackgroundResizeModalProps) {
+  const { t } = useTranslation("chat");
+  const formatters = useFormatters();
   const [draftCrop, setDraftCrop] = useState<AvatarBackgroundCrop | null>(null);
   const [isApplying, setIsApplying] = useState(false);
   const [stageElement, setStageElement] = useState<HTMLDivElement | null>(null);
@@ -244,10 +248,10 @@ export function BackgroundResizeModal({
           )}
         >
           <Dialog.Title className="sr-only">
-            Resize {option.label} background
+            {t("background.title", { name: option.label })}
           </Dialog.Title>
           <Dialog.Description className="sr-only">
-            Adjust the crop and zoom for the selected avatar background.
+            {t("background.description")}
           </Dialog.Description>
 
           <div className="flex items-center gap-3 border-b border-white/10 px-4 py-4 md:px-6">
@@ -260,16 +264,14 @@ export function BackgroundResizeModal({
                 "hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:outline-none",
                 "disabled:cursor-not-allowed disabled:opacity-50",
               )}
-              aria-label="Back to background settings"
+              aria-label={t("background.back")}
             >
               <ArrowLeft className="h-5 w-5" />
             </button>
 
             <div className="min-w-0">
-              <p className="text-lg font-semibold">Edit media</p>
-              <p className="text-sm text-white/70">
-                Drag to reposition and zoom to fit the live avatar canvas.
-              </p>
+              <p className="text-lg font-semibold">{t("background.heading")}</p>
+              <p className="text-sm text-white/70">{t("background.hint")}</p>
             </div>
 
             <Button
@@ -278,7 +280,7 @@ export function BackgroundResizeModal({
               disabled={isBusy || !draftCrop}
               className="ml-auto rounded-full bg-white px-5 text-black hover:bg-white/90"
             >
-              {isApplying ? "Applying..." : "Apply"}
+              {isApplying ? t("background.applying") : t("background.apply")}
             </Button>
           </div>
 
@@ -319,8 +321,11 @@ export function BackgroundResizeModal({
 
               <div className="pointer-events-none absolute right-4 bottom-4 rounded-full bg-black/55 px-3 py-1 text-xs text-white/80 backdrop-blur-sm">
                 {canvasViewport.hasSize
-                  ? `${Math.round(canvasViewport.width)} x ${Math.round(canvasViewport.height)}`
-                  : "Live canvas"}
+                  ? t("background.canvasSize", {
+                      width: Math.round(canvasViewport.width),
+                      height: Math.round(canvasViewport.height),
+                    })
+                  : t("background.liveCanvas")}
                 {" · "}
                 {formatAspectRatio(targetAspectRatio)}
               </div>
@@ -336,7 +341,7 @@ export function BackgroundResizeModal({
                 }
                 disabled={isBusy}
                 className="rounded-full text-white hover:bg-white/10 hover:text-white"
-                aria-label="Zoom out background"
+                aria-label={t("background.zoomOut")}
               >
                 <Minus className="h-4 w-4" />
               </Button>
@@ -363,13 +368,16 @@ export function BackgroundResizeModal({
                 }
                 disabled={isBusy}
                 className="rounded-full text-white hover:bg-white/10 hover:text-white"
-                aria-label="Zoom in background"
+                aria-label={t("background.zoomIn")}
               >
                 <Plus className="h-4 w-4" />
               </Button>
 
               <div className="w-14 text-right text-sm font-medium text-white/80 tabular-nums">
-                {Math.round((draftCrop?.zoom ?? 1) * 100)}%
+                {formatters.number(draftCrop?.zoom ?? 1, {
+                  style: "percent",
+                  maximumFractionDigits: 0,
+                })}
               </div>
 
               <Button
@@ -380,7 +388,7 @@ export function BackgroundResizeModal({
                 className="ml-auto rounded-full text-white hover:bg-white/10 hover:text-white"
               >
                 <RotateCcw className="h-4 w-4" />
-                Reset
+                {t("background.reset")}
               </Button>
             </div>
           </div>

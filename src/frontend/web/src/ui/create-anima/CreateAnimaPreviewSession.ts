@@ -1,4 +1,5 @@
 import type { PyTypedContentPreview } from "@animama/runtime-contracts/sdk";
+import { getI18n } from "react-i18next";
 import type { Avatar } from "@/lib/avatar";
 import { getAnimaPoseClipTimelineDuration } from "@/lib/avatar/poses/animaPoseClip";
 import { typedActionPreview } from "@/lib/content/typedPreviewAdapters";
@@ -18,6 +19,8 @@ import { AnimaRuntimeCatalog } from "@/lib/runtime-content/AnimaRuntimeCatalog";
 import { PreviewByteSession } from "@/lib/runtime-content/PreviewByteSession";
 import type { AnimaRuntimeCatalogSnapshot } from "@/lib/runtime-content/types";
 import type { SceneVFXRuntimeEntry } from "@/lib/scene-vfx/types";
+import { apiErrorLine } from "@/lib/errors/apiError";
+import { CreatorError, creatorErrorText } from "./createAnimaErrors";
 
 export type CreationPreviewStatus =
   | "empty"
@@ -141,17 +144,13 @@ export class CreateAnimaPreviewSession {
     this.controller = controller;
     const current = () =>
       generation === this.generation && !controller.signal.aborted;
+    // Status text is worded when it is reported, in the active UI Locale.
+    const t = getI18n().getFixedT(null, "create");
     if (!this.avatar?.isReady) {
-      this.onStatus(
-        "error",
-        "Wait for the selected Avatar, or retry its preview.",
-      );
+      this.onStatus("error", t("stage.waitForAvatar"));
       return;
     }
-    this.onStatus(
-      "preparing",
-      "Preparing the exact Action and its dependencies…",
-    );
+    this.onStatus("preparing", t("stage.preparingAction"));
     try {
       const preview = await load(controller.signal);
       if (!current()) return;
@@ -168,9 +167,7 @@ export class CreateAnimaPreviewSession {
         preview.files.flatMap((file) => {
           const objectUrl = bytes.files.get(file.file_ref)?.objectUrl;
           if (!objectUrl)
-            throw new Error(
-              "The Action's registered bytes could not be prepared.",
-            );
+            throw new CreatorError(t("stage.actionBytesUnavailable"));
           return [
             [file.url, objectUrl],
             [contentPreviewFileUrl(legacy, file), objectUrl],
@@ -179,7 +176,7 @@ export class CreateAnimaPreviewSession {
       );
       const target = actionPreviewTarget(legacy, preview.item.name);
       if (target.sourceType !== "resolved_action")
-        throw new Error("The selected source is not an Action.");
+        throw new CreatorError(t("stage.notAction"));
       const runtime = preparedRuntime<AnimaRuntimeCatalogSnapshot>(
         target.runtime,
         urls,
@@ -197,13 +194,11 @@ export class CreateAnimaPreviewSession {
         },
         onMissingDependencies: (missing) => {
           if (missing.length)
-            throw new Error(
-              "An Action dependency is unavailable. Playback was stopped.",
-            );
+            throw new CreatorError(t("stage.dependencyUnavailable"));
         },
       });
       if (!current()) return;
-      if (!didPlay) throw new Error("This Action could not be played.");
+      if (!didPlay) throw new CreatorError(t("stage.actionNotPlayed"));
       const clip =
         target.slot === "reaction"
           ? this.catalog.getReactionClip(target.runtimeId)
@@ -220,9 +215,7 @@ export class CreateAnimaPreviewSession {
       this.stop();
       this.onStatus(
         "error",
-        error instanceof Error
-          ? error.message
-          : "This Action could not be prepared.",
+        apiErrorLine(creatorErrorText(error, t("stage.actionNotPrepared"))),
       );
     }
   }

@@ -27,6 +27,12 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
+import { getI18n, useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
+import {
+  localeNativeName,
+  SUPPORTED_LOCALES,
+} from "@animama/runtime-contracts/locale";
 import { SafetySettingsSection } from "@/ui/settings/SafetySettingsSection";
 import { WebSearchSettings } from "@/ui/settings/web-search/WebSearchSettings";
 
@@ -45,7 +51,6 @@ import {
 } from "@/lib/settings/preferences";
 import {
   DEFAULT_DESKTOP_SHORTCUTS,
-  DESKTOP_SHORTCUT_ACTION_LABELS,
   formatDesktopShortcut,
   resolveDesktopShortcuts,
   shortcutFromKeyboardEvent,
@@ -53,13 +58,11 @@ import {
   validateDesktopShortcut,
   type DesktopShortcut,
   type DesktopShortcutAction,
+  type DesktopShortcutIssue,
   type DesktopShortcutMap,
 } from "@/lib/settings/desktop-shortcuts";
 import { useDesktopUpdates } from "@/hooks/useDesktopUpdates";
-import {
-  APPEARANCE_COLOR_GROUP_LABELS,
-  APPEARANCE_COLOR_TOKENS,
-} from "@/lib/theme/appearance-overrides";
+import { APPEARANCE_COLOR_TOKENS } from "@/lib/theme/appearance-overrides";
 import { BEHAVIOR_FLAGS } from "@/lib/settings/behavior-defaults";
 import {
   AboutVersionSetting,
@@ -81,7 +84,11 @@ import {
   AppearanceColorSetting,
   ResetColorsSetting,
   AppearanceModeSetting,
+  colorGroupLabel,
+  colorTokenLabel,
 } from "@/ui/settings/AppearanceSettings";
+import { LanguageSetting } from "@/ui/settings/LanguageSetting";
+import { SpeechLanguageNotice } from "@/ui/settings/SpeechLanguageNotice";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
 import {
   getSttProviderOptions,
@@ -131,8 +138,8 @@ import { SettingsSearch } from "@/ui/settings/SettingsSearch";
 import { ModelConnectionsSettings } from "@/ui/settings/models/ModelConnectionsSettings";
 import { modelSettingsAvailability } from "@/ui/settings/models/model-configuration-state";
 import {
-  MODEL_DEFAULTS,
   ModelDefaultSetting,
+  modelDefaultCopy,
 } from "@/ui/settings/models/ModelDefaultsSettings";
 import {
   availableSettingsSections,
@@ -177,6 +184,7 @@ function ShortcutRecorder({
   onCancelRecording,
   onKeyDown,
 }: ShortcutRecorderProps) {
+  const { t } = useTranslation("settings");
   return (
     <SettingsRow
       label={label}
@@ -195,18 +203,88 @@ function ShortcutRecorder({
             if (isRecording) onCancelRecording();
           }}
           onKeyDown={onKeyDown}
-          aria-label={`Record ${label} shortcut`}
+          aria-label={t("shortcuts.record", { label })}
         >
           <Keyboard className="h-3.5 w-3.5" />
           {isRecording
             ? allowMouseShortcut
-              ? "Press keys or mouse"
-              : "Press keys"
-            : formatDesktopShortcut(shortcut)}
+              ? t("shortcuts.pressKeysOrMouse")
+              : t("shortcuts.pressKeys")
+            : formatDesktopShortcut(shortcut, (button) =>
+                t("shortcuts.mouseButton", { button }),
+              )}
         </Button>
       }
     />
   );
+}
+
+/** Display name of a desktop shortcut action. */
+function shortcutActionLabel(
+  t: TFunction<"settings">,
+  action: DesktopShortcutAction,
+): string {
+  switch (action) {
+    case "press_to_talk":
+      return t("shortcuts.actions.press_to_talk");
+    case "quick_chat":
+      return t("shortcuts.actions.quick_chat");
+    case "toggle_voice_mode":
+      return t("shortcuts.actions.toggle_voice_mode");
+    case "toggle_voice_mute":
+      return t("shortcuts.actions.toggle_voice_mute");
+    case "skip_tts":
+      return t("shortcuts.actions.skip_tts");
+  }
+}
+
+/** Why a recorded shortcut was refused, in the UI Locale. */
+function shortcutIssueText(
+  t: TFunction<"settings">,
+  issue: DesktopShortcutIssue,
+): string {
+  switch (issue.reason) {
+    case "non_modifier_key_required":
+      return t("shortcuts.issues.non_modifier_key_required");
+    case "modifier_required":
+      return t("shortcuts.issues.modifier_required");
+    case "unsupported_key":
+      return t("shortcuts.issues.unsupported_key");
+    case "unsupported_mouse_button":
+      return t("shortcuts.issues.unsupported_mouse_button");
+    case "mouse_press_to_talk_only":
+      return t("shortcuts.issues.mouse_press_to_talk_only");
+    case "in_use":
+      return t("shortcuts.issues.in_use", {
+        action: shortcutActionLabel(t, issue.action),
+      });
+  }
+}
+
+/** Description of a Gemini speech model; model names are product names. */
+function geminiModelDescription(
+  t: TFunction<"settings">,
+  model: GeminiTtsModelId,
+): string {
+  switch (model) {
+    case "gemini-3.8-flash-lite-tts":
+      return t("voice.tts.gemini.model.descriptions.flashLite");
+    case "gemini-3.8-flash-tts":
+      return t("voice.tts.gemini.model.descriptions.flash");
+  }
+}
+
+/**
+ * Failures from the dialog's one-time speech initialization, worded when they
+ * happen so the effect does not restart when the UI Locale changes.
+ */
+function initializationFailureText(
+  failure: "capabilities" | "defaultProviders",
+): string {
+  const t = getI18n().getFixedT(null, "settings");
+  return failure === "capabilities"
+    ? t("voice.capabilitiesFailed")
+    : t("voice.defaultProvidersFailed");
 }
 
 const sections = [
@@ -224,12 +302,112 @@ const sections = [
 ] as const;
 type ApplicationSettingsSection = (typeof sections)[number];
 
+/** Catalog keys for section names; section IDs stay stable English identifiers. */
+const SECTION_LABEL_KEYS = {
+  General: "sections.general",
+  Models: "sections.models",
+  Appearance: "sections.appearance",
+  Voice: "sections.voice",
+  Shortcuts: "sections.shortcuts",
+  "Memory & Emotion": "sections.memoryEmotion",
+  Safety: "sections.safety",
+  "API Keys": "sections.apiKeys",
+  Data: "sections.data",
+  Advanced: "sections.advanced",
+  About: "sections.about",
+} as const satisfies Record<ApplicationSettingsSection, string>;
+
 /**
- * One searchable setting. Consecutive entries sharing a `group` render inside
- * one SettingsGroup; entries without a group render a self-titled panel.
+ * Stable setting group IDs. Grouping and group titles key on the ID; the
+ * displayed (translated) name comes from `settingGroupLabel`.
+ */
+type SettingGroupId =
+  | "profile"
+  | "audio"
+  | "defaultModels"
+  | "webSearch"
+  | "animama"
+  | "diagnostics"
+  | "theme"
+  | "colors"
+  | "advancedColors"
+  | "microphone"
+  | "speechToText"
+  | "textToSpeech"
+  | "voiceClone"
+  | "desktopShortcuts"
+  | "animaDefaults"
+  | "appData"
+  | "messages"
+  | "avatarControls";
+
+/** Display name of a setting group. */
+function settingGroupLabel(
+  t: TFunction<"settings">,
+  group: SettingGroupId,
+): string {
+  switch (group) {
+    case "profile":
+      return t("groups.profile");
+    case "audio":
+      return t("groups.audio");
+    case "defaultModels":
+      return t("groups.defaultModels");
+    case "webSearch":
+      return t("groups.webSearch");
+    case "animama":
+      return t("groups.animama");
+    case "diagnostics":
+      return t("groups.diagnostics");
+    case "theme":
+      return t("appearance.theme.group");
+    case "colors":
+      return colorGroupLabel(t, "basic");
+    case "advancedColors":
+      return t("appearance.colors.advanced.label");
+    case "microphone":
+      return t("groups.microphone");
+    case "speechToText":
+      return t("groups.speechToText");
+    case "textToSpeech":
+      return t("groups.textToSpeech");
+    case "voiceClone":
+      return t("groups.voiceClone");
+    case "desktopShortcuts":
+      return t("groups.desktopShortcuts");
+    case "animaDefaults":
+      return t("groups.animaDefaults");
+    case "appData":
+      return t("groups.appData");
+    case "messages":
+      return t("groups.messages");
+    case "avatarControls":
+      return t("groups.avatarControls");
+  }
+}
+
+/** Groups whose name is searchable but not shown as a heading. */
+const UNTITLED_GROUPS: ReadonlySet<SettingGroupId> = new Set(["animaDefaults"]);
+
+/** Note shown under a group heading, if the group has one. */
+function settingGroupDescription(
+  t: TFunction<"settings">,
+  group: SettingGroupId,
+): string | undefined {
+  return group === "desktopShortcuts"
+    ? t("shortcuts.groupDescription")
+    : undefined;
+}
+
+/**
+ * One searchable setting. `label`, `description` and `group` hold the displayed
+ * (translated) text that search matches, plus English `keywords`. Consecutive
+ * entries sharing a `groupId` render inside one SettingsGroup; entries without
+ * one render a self-titled panel.
  */
 type SettingEntry = SettingsSearchEntry<ApplicationSettingsSection> & {
   id: string;
+  groupId?: SettingGroupId;
   /** Hidden entries are neither rendered nor searchable (e.g. unavailable sub-options). */
   hidden?: boolean;
   /** Collapsed entries stay searchable but render only while expanded. */
@@ -253,10 +431,6 @@ const SECTION_ICONS: Record<ApplicationSettingsSection, LucideIcon> = {
 
 /** Delay before a search-revealed setting's highlight fades. */
 const REVEAL_HIGHLIGHT_MS = 1600;
-
-const GROUP_DESCRIPTIONS: Record<string, string> = {
-  "Desktop shortcuts": "Press to talk also supports a mouse button.",
-};
 
 const SELECT_TRIGGER_CLASS_NAME = "w-56";
 
@@ -290,6 +464,7 @@ const MODEL_DEFAULT_ENTRIES: ReadonlyArray<{
 
 /** Render entries in order, merging consecutive same-group entries into one group. */
 function renderSettingEntries(
+  t: TFunction<"settings">,
   entries: readonly SettingEntry[],
   highlightedEntryId: string | null,
   section: ApplicationSettingsSection,
@@ -314,26 +489,31 @@ function renderSettingEntries(
     return <SettingsGroup>{entries.map(renderItem)}</SettingsGroup>;
   }
 
-  const blocks: Array<{ key: string; group?: string; items: SettingEntry[] }> =
-    [];
+  const blocks: Array<{
+    key: string;
+    groupId?: SettingGroupId;
+    items: SettingEntry[];
+  }> = [];
   for (const entry of entries) {
     const previous = blocks.at(-1);
-    if (entry.group && previous?.group === entry.group) {
+    if (entry.groupId && previous?.groupId === entry.groupId) {
       previous.items.push(entry);
     } else {
-      blocks.push({ key: entry.id, group: entry.group, items: [entry] });
+      blocks.push({ key: entry.id, groupId: entry.groupId, items: [entry] });
     }
   }
   return (
     <div className="[&>*:not(:first-child)]:border-border/40 flex flex-col [&>*:not(:first-child)]:mt-6 [&>*:not(:first-child)]:border-t [&>*:not(:first-child)]:pt-6">
       {blocks.map((block) =>
-        block.group ? (
+        block.groupId ? (
           <SettingsGroup
             key={block.key}
             title={
-              block.group === "Defaults for Animas" ? undefined : block.group
+              UNTITLED_GROUPS.has(block.groupId)
+                ? undefined
+                : settingGroupLabel(t, block.groupId)
             }
-            description={GROUP_DESCRIPTIONS[block.group]}
+            description={settingGroupDescription(t, block.groupId)}
           >
             {block.items.map(renderItem)}
           </SettingsGroup>
@@ -345,31 +525,16 @@ function renderSettingEntries(
   );
 }
 
-const AVATAR_TRANSFORM_CONTROLS_TOOLTIP =
-  "Press G to move, R to rotate, and S to scale the avatar. Press Esc to exit a transform mode. In avatar mode, drag or scroll the canvas to orbit and zoom. In avatar-chat mode, hold Ctrl while dragging to orbit and Ctrl + scroll to zoom.";
-
 const shortcutRows: Array<{
   action: DesktopShortcutAction;
-  description?: string;
+  /** The recorder also accepts a mouse button. */
   allowMouseShortcut?: boolean;
 }> = [
-  {
-    action: "press_to_talk",
-    description: "Temporarily unmute Voice Mode while held.",
-    allowMouseShortcut: true,
-  },
-  {
-    action: "quick_chat",
-  },
-  {
-    action: "toggle_voice_mode",
-  },
-  {
-    action: "toggle_voice_mute",
-  },
-  {
-    action: "skip_tts",
-  },
+  { action: "press_to_talk", allowMouseShortcut: true },
+  { action: "quick_chat" },
+  { action: "toggle_voice_mode" },
+  { action: "toggle_voice_mute" },
+  { action: "skip_tts" },
 ];
 
 export function ApplicationSettingsModal({
@@ -377,6 +542,10 @@ export function ApplicationSettingsModal({
   onOpenChange,
 }: ApplicationSettingsModalProps) {
   const apiClient = useProductApiClient();
+  const { t } = useTranslation("settings");
+  const sectionLabels = Object.fromEntries(
+    sections.map((section) => [section, t(SECTION_LABEL_KEYS[section])]),
+  ) as Record<ApplicationSettingsSection, string>;
 
   const {
     chatMarkdownEnabled,
@@ -615,14 +784,11 @@ export function ApplicationSettingsModal({
               speech: speechPatch,
             });
           } catch {
-            toast.error("Failed to save default speech providers.");
+            toast.error(initializationFailureText("defaultProviders"));
           }
         }
       } catch {
-        if (!cancelled)
-          toast.error(
-            "Could not check speech capabilities. Reopen Settings to retry.",
-          );
+        if (!cancelled) toast.error(initializationFailureText("capabilities"));
       } finally {
         if (!cancelled) setIsInitializing(false);
       }
@@ -662,16 +828,15 @@ export function ApplicationSettingsModal({
     return () => window.clearTimeout(timer);
   }, [revealRequest]);
 
-  const sttProviderOptions = useMemo(
-    () =>
-      getSttSettingsOptions(getSttProviderOptions(parakeetAvailable, platform)),
-    [parakeetAvailable, platform],
+  // Provider options are worded in the active UI Locale, so they are rebuilt
+  // on each render (they are a few small objects) rather than memoized.
+  const sttProviderOptions = getSttSettingsOptions(
+    getSttProviderOptions(parakeetAvailable, platform),
   );
   const geminiTtsOffered = runtimeCapabilities.data?.gemini_tts != null;
-  const ttsProviderOptions = useMemo(
-    () => getTtsProviderOptions(platform, { gemini: geminiTtsOffered }),
-    [geminiTtsOffered, platform],
-  );
+  const ttsProviderOptions = getTtsProviderOptions(platform, {
+    gemini: geminiTtsOffered,
+  });
 
   const selectedSttOption = getSttSettingsSelection(
     selectedSttProvider,
@@ -687,12 +852,10 @@ export function ApplicationSettingsModal({
     (option) => option.id === selectedGeminiModelId,
   );
   // The server pushes Gemini audio whole, so streaming text chunks does not apply.
-  const streamChunksUnavailableReason =
-    selectedTtsProvider === "gemini" ? "Unavailable with Gemini." : null;
+  const streamChunksUnavailable = selectedTtsProvider === "gemini";
 
-  const firstAvailableTtsProvider = useMemo(() => {
-    return ttsProviderOptions.find((option) => !option.disabled)?.id ?? null;
-  }, [ttsProviderOptions]);
+  const firstAvailableTtsProvider =
+    ttsProviderOptions.find((option) => !option.disabled)?.id ?? null;
 
   const handleSttProviderChange = useCallback(
     (value: string) => {
@@ -720,7 +883,7 @@ export function ApplicationSettingsModal({
         .catch(() => {
           setSelectedSttProvider(previousProvider);
           setParakeetWebgpuPreferred(previousWebgpu);
-          toast.error("Failed to update STT provider.");
+          toast.error(t("voice.stt.updateFailed"));
         })
         .finally(() => setIsSaving(false));
     },
@@ -730,6 +893,7 @@ export function ApplicationSettingsModal({
       selectedSttProvider,
       parakeetWebgpuPreferred,
       sttProviderOptions,
+      t,
       updateUserPreferences,
     ],
   );
@@ -750,9 +914,7 @@ export function ApplicationSettingsModal({
           nextProvider = firstAvailableTtsProvider;
         }
         if (!nextProvider) {
-          toast.error(
-            "No supported TTS provider is available in this environment.",
-          );
+          toast.error(t("voice.tts.noProvider"));
           return;
         }
       }
@@ -787,7 +949,7 @@ export function ApplicationSettingsModal({
         .catch(() => {
           setTtsEnabled(previousEnabled);
           setSelectedTtsProvider(previousProvider);
-          toast.error("Failed to update TTS settings.");
+          toast.error(t("voice.tts.updateFailed"));
         })
         .finally(() => setIsSaving(false));
     },
@@ -799,6 +961,7 @@ export function ApplicationSettingsModal({
       selectedGeminiModelId,
       ttsEnabled,
       ttsProviderOptions,
+      t,
       updateUserPreferences,
     ],
   );
@@ -838,7 +1001,7 @@ export function ApplicationSettingsModal({
         .catch(() => {
           setSelectedTtsProvider(previousProvider);
           setTtsEnabled(previousEnabled);
-          toast.error("Failed to update TTS provider.");
+          toast.error(t("voice.tts.provider.updateFailed"));
         })
         .finally(() => setIsSaving(false));
     },
@@ -849,6 +1012,7 @@ export function ApplicationSettingsModal({
       selectedGeminiModelId,
       ttsEnabled,
       ttsProviderOptions,
+      t,
       updateUserPreferences,
     ],
   );
@@ -859,7 +1023,7 @@ export function ApplicationSettingsModal({
         isSaving ||
         isInitializing ||
         !ttsEnabled ||
-        streamChunksUnavailableReason
+        streamChunksUnavailable
       ) {
         return;
       }
@@ -872,7 +1036,7 @@ export function ApplicationSettingsModal({
       })
         .catch(() => {
           setTtsStreamChunks(previous);
-          toast.error("Failed to update TTS streaming mode.");
+          toast.error(t("voice.tts.stream.updateFailed"));
         })
         .finally(() => setIsSaving(false));
     },
@@ -881,7 +1045,8 @@ export function ApplicationSettingsModal({
       isSaving,
       ttsEnabled,
       ttsStreamChunks,
-      streamChunksUnavailableReason,
+      streamChunksUnavailable,
+      t,
       updateUserPreferences,
     ],
   );
@@ -908,7 +1073,7 @@ export function ApplicationSettingsModal({
       })
         .catch(() => {
           setSelectedGeminiModelId(previous);
-          toast.error("Failed to update Gemini model.");
+          toast.error(t("voice.tts.gemini.model.updateFailed"));
         })
         .finally(() => setIsSaving(false));
     },
@@ -918,6 +1083,7 @@ export function ApplicationSettingsModal({
       selectedGeminiModelId,
       selectedTtsProvider,
       ttsEnabled,
+      t,
       updateUserPreferences,
     ],
   );
@@ -938,7 +1104,7 @@ export function ApplicationSettingsModal({
         desktopShortcuts,
       );
       if (validationError) {
-        toast.error(validationError);
+        toast.error(shortcutIssueText(t, validationError));
         return;
       }
 
@@ -960,11 +1126,11 @@ export function ApplicationSettingsModal({
       })
         .catch(() => {
           setDesktopShortcuts(previous);
-          toast.error("Failed to update shortcut.");
+          toast.error(t("shortcuts.updateFailed"));
         })
         .finally(() => setIsSaving(false));
     },
-    [desktopShortcuts, updateUserPreferences],
+    [desktopShortcuts, t, updateUserPreferences],
   );
 
   const handleShortcutKeyDown = useCallback(
@@ -1033,7 +1199,7 @@ export function ApplicationSettingsModal({
       })
         .catch(() => {
           setAvatarTransformControlsEnabled(previous);
-          toast.error("Failed to update avatar transform controls.");
+          toast.error(t("advanced.avatarTransform.updateFailed"));
         })
         .finally(() => setIsSaving(false));
     },
@@ -1041,6 +1207,7 @@ export function ApplicationSettingsModal({
       avatarTransformControlsEnabled,
       isInitializing,
       isSaving,
+      t,
       updateUserPreferences,
     ],
   );
@@ -1054,12 +1221,19 @@ export function ApplicationSettingsModal({
     platform.isDesktop && Boolean(platform.desktopBridge.shortcuts);
   const isAudioBusy = isBusy;
 
+  /** Group fields for an entry: its stable ID and its searchable display name. */
+  const inGroup = (groupId: SettingGroupId) => ({
+    groupId,
+    group: settingGroupLabel(t, groupId),
+  });
+  const streamDescription = t("voice.tts.stream.description");
+
   const settingEntries: SettingEntry[] = [
     {
       id: "display-name",
       section: "General",
-      group: "Profile",
-      label: "Display name",
+      ...inGroup("profile"),
+      label: t("profile.displayName.label"),
       keywords: ["name", "user", "profile"],
       render: () => (
         <DisplayNameSettings
@@ -1068,9 +1242,24 @@ export function ApplicationSettingsModal({
       ),
     },
     {
+      id: "language",
+      section: "General",
+      // Sits with the display name in the Profile group.
+      ...inGroup("profile"),
+      label: t("language.label"),
+      // English terms and native names keep the picker findable from any language.
+      keywords: [
+        ...t("language.keywords", { returnObjects: true }),
+        "language",
+        "locale",
+        ...SUPPORTED_LOCALES.map(localeNativeName),
+      ],
+      render: () => <LanguageSetting />,
+    },
+    {
       id: "model-connections",
       section: "Models",
-      label: "Connections and models",
+      label: t("models.connections"),
       keywords: [
         "model",
         "connection",
@@ -1095,23 +1284,24 @@ export function ApplicationSettingsModal({
       hidden: !modelConfigurationEnabled,
       render: () => <ModelConnectionsSettings disabled={isBusy} />,
     },
-    ...MODEL_DEFAULT_ENTRIES.map(
-      ({ role, id, keywords }): SettingEntry => ({
+    ...MODEL_DEFAULT_ENTRIES.map(({ role, id, keywords }): SettingEntry => {
+      const { label, description } = modelDefaultCopy(role);
+      return {
         id,
         section: "Models",
-        group: "Default models",
-        label: MODEL_DEFAULTS[role].label,
-        description: MODEL_DEFAULTS[role].description,
+        ...inGroup("defaultModels"),
+        label,
+        description,
         keywords,
         hidden: !modelRoleSelectionEnabled,
         render: () => <ModelDefaultSetting role={role} disabled={isBusy} />,
-      }),
-    ),
+      };
+    }),
     {
       id: "web-search",
       section: "Models",
-      group: "Web search",
-      label: "Search service",
+      ...inGroup("webSearch"),
+      label: t("models.webSearch"),
       keywords: [
         "web search",
         "internet",
@@ -1126,8 +1316,8 @@ export function ApplicationSettingsModal({
     {
       id: "volume",
       section: "General",
-      group: "Audio",
-      label: "Volume",
+      ...inGroup("audio"),
+      label: t("audio.volume"),
       keywords: ["sound", "mute", "tts", "sfx", "sound effects"],
       render: () => (
         <AudioVolumePanel
@@ -1141,7 +1331,7 @@ export function ApplicationSettingsModal({
     {
       id: "provider-keys",
       section: "API Keys",
-      label: "API keys",
+      label: t("apiKeys.label"),
       keywords: [
         "api key",
         "credentials",
@@ -1162,7 +1352,7 @@ export function ApplicationSettingsModal({
     {
       id: "feature-packs",
       section: "General",
-      label: "Optional feature packs",
+      label: t("featurePacks.title"),
       keywords: ["document processing", "included content", "download"],
       hidden: !platform.isDesktop,
       render: () => (
@@ -1172,15 +1362,15 @@ export function ApplicationSettingsModal({
     {
       id: "about-version",
       section: "About",
-      group: "Animama",
-      label: "Version",
+      ...inGroup("animama"),
+      label: t("about.version"),
       keywords: ["about", "version", "platform", "build"],
       render: () => <AboutVersionSetting />,
     },
     {
       id: "updates",
       section: "About",
-      label: "Desktop updates",
+      label: t("updates.title"),
       keywords: ["update", "version", "upgrade", "restart"],
       hidden: desktopUpdates.status.state === "unavailable",
       render: () => (
@@ -1190,8 +1380,8 @@ export function ApplicationSettingsModal({
     {
       id: "open-logs",
       section: "About",
-      group: "Diagnostics",
-      label: "Open logs folder",
+      ...inGroup("diagnostics"),
+      label: t("about.logs.open"),
       keywords: ["logs", "troubleshooting", "debug", "support"],
       hidden: !platform.isDesktop || !platform.desktopBridge.runtime,
       render: () => <OpenLogsSetting />,
@@ -1199,42 +1389,73 @@ export function ApplicationSettingsModal({
     {
       id: "copy-diagnostics",
       section: "About",
-      group: "Diagnostics",
-      label: "Copy diagnostics summary",
+      ...inGroup("diagnostics"),
+      label: t("about.diagnostics.entryLabel"),
       keywords: ["diagnostics", "bug report", "support", "troubleshooting"],
       render: () => <CopyDiagnosticsSetting />,
     },
     {
       id: "appearance-mode",
       section: "Appearance",
-      group: "Theme",
-      label: "Theme",
-      keywords: ["theme", "mode", "dark", "light", "system", "dark mode"],
+      ...inGroup("theme"),
+      label: t("appearance.theme.label"),
+      keywords: [
+        ...t("appearance.theme.keywords", { returnObjects: true }),
+        "theme",
+        "mode",
+        "dark",
+        "light",
+        "system",
+        "dark mode",
+      ],
       render: () => <AppearanceModeSetting />,
     },
     ...APPEARANCE_COLOR_TOKENS.filter((token) => token.group === "basic").map(
       (token): SettingEntry => ({
         id: `appearance-${token.key}`,
         section: "Appearance",
-        group: APPEARANCE_COLOR_GROUP_LABELS.basic,
-        label: `${token.label} colour`,
-        keywords: ["theme", "color", "colour", "override", "hex"],
+        ...inGroup("colors"),
+        label: t("appearance.colors.entryLabel", {
+          label: colorTokenLabel(t, token),
+        }),
+        keywords: [
+          ...t("appearance.colors.keywords", { returnObjects: true }),
+          "theme",
+          "color",
+          "colour",
+          "override",
+          "hex",
+        ],
         render: () => <AppearanceColorSetting token={token} />,
       }),
     ),
     {
       id: "appearance-reset-colours",
       section: "Appearance",
-      group: APPEARANCE_COLOR_GROUP_LABELS.basic,
-      label: "Reset colours",
-      keywords: ["theme", "color", "colour", "reset", "default"],
+      ...inGroup("colors"),
+      label: t("appearance.colors.resetAll.label"),
+      keywords: [
+        ...t("appearance.colors.resetAll.keywords", { returnObjects: true }),
+        "theme",
+        "color",
+        "colour",
+        "reset",
+        "default",
+      ],
       render: () => <ResetColorsSetting />,
     },
     {
       id: "appearance-advanced-toggle",
       section: "Appearance",
-      label: "Advanced colours",
-      keywords: ["theme", "color", "colour", "custom", "advanced"],
+      label: t("appearance.colors.advanced.label"),
+      keywords: [
+        ...t("appearance.colors.advanced.keywords", { returnObjects: true }),
+        "theme",
+        "color",
+        "colour",
+        "custom",
+        "advanced",
+      ],
       render: () => (
         <AdvancedColorsToggleSetting
           open={advancedColorsOpen}
@@ -1246,9 +1467,22 @@ export function ApplicationSettingsModal({
       (token): SettingEntry => ({
         id: `appearance-${token.key}`,
         section: "Appearance",
-        group: `Advanced · ${APPEARANCE_COLOR_GROUP_LABELS[token.group]}`,
-        label: `${token.label} colour`,
-        keywords: ["theme", "color", "colour", "advanced", "hex"],
+        groupId: "advancedColors",
+        // The colour's own group name keeps "surfaces" or "charts" searchable.
+        group: t("appearance.colors.advanced.entryGroup", {
+          group: colorGroupLabel(t, token.group),
+        }),
+        label: t("appearance.colors.entryLabel", {
+          label: colorTokenLabel(t, token),
+        }),
+        keywords: [
+          ...t("appearance.colors.keywords", { returnObjects: true }),
+          "theme",
+          "color",
+          "colour",
+          "advanced",
+          "hex",
+        ],
         collapsed: true,
         render: () => <AppearanceColorSetting token={token} />,
       }),
@@ -1256,8 +1490,8 @@ export function ApplicationSettingsModal({
     {
       id: "microphone-device",
       section: "Voice",
-      group: "Microphone",
-      label: "Microphone input device",
+      ...inGroup("microphone"),
+      label: t("voice.microphone.device"),
       keywords: ["mic", "microphone", "input", "device", "headset", "usb"],
       render: () => (
         <MicrophoneDeviceSetting
@@ -1271,24 +1505,24 @@ export function ApplicationSettingsModal({
     {
       id: "microphone-sensitivity",
       section: "Voice",
-      group: "Microphone",
-      label: "Microphone sensitivity",
+      ...inGroup("microphone"),
+      label: t("voice.microphone.sensitivity"),
       keywords: ["mic", "voice detection", "vad", "noise", "quiet"],
       render: () => <MicrophoneSensitivitySetting disabled={isBusy} />,
     },
     {
       id: "microphone-test",
       section: "Voice",
-      group: "Microphone",
-      label: "Test microphone",
+      ...inGroup("microphone"),
+      label: t("voice.microphone.test"),
       keywords: ["mic", "level", "meter", "input level"],
       render: () => <MicrophoneTestSetting />,
     },
     {
       id: "stt-provider",
       section: "Voice",
-      group: "Speech-to-Text",
-      label: "Speech-to-Text provider",
+      ...inGroup("speechToText"),
+      label: t("voice.stt.entryLabel"),
       description: currentSttOption?.description,
       keywords: [
         "stt",
@@ -1305,7 +1539,7 @@ export function ApplicationSettingsModal({
       ],
       render: () => (
         <SettingsRow
-          label="Provider"
+          label={t("voice.stt.label")}
           description={currentSttOption?.description}
           control={
             <Select
@@ -1315,11 +1549,11 @@ export function ApplicationSettingsModal({
             >
               <SelectTrigger
                 className={SELECT_TRIGGER_CLASS_NAME}
-                aria-label="Speech-to-Text provider"
+                aria-label={t("voice.stt.entryLabel")}
               >
-                <SelectValue placeholder="Select provider">
+                <SelectValue placeholder={t("voice.stt.placeholder")}>
                   {selectedSttOption === "parakeet_webgpu"
-                    ? "Parakeet (WebGPU)"
+                    ? t("voice.stt.parakeetWebgpu")
                     : currentSttOption?.label}
                 </SelectValue>
               </SelectTrigger>
@@ -1340,9 +1574,13 @@ export function ApplicationSettingsModal({
           {currentSttOption?.reason ? (
             <p className="text-warning text-xs">{currentSttOption.reason}</p>
           ) : null}
+          <SpeechLanguageNotice
+            direction="speechToText"
+            provider={selectedSttOption}
+          />
           {isInitializing ? (
             <p className="text-muted-foreground text-xs">
-              Preparing provider defaults...
+              {t("voice.stt.preparing")}
             </p>
           ) : null}
         </SettingsRow>
@@ -1351,8 +1589,8 @@ export function ApplicationSettingsModal({
     {
       id: "stt-downloads",
       section: "Voice",
-      group: "Speech-to-Text",
-      label: "Offline speech downloads",
+      ...inGroup("speechToText"),
+      label: t("voice.stt.downloads"),
       keywords: ["parakeet", "cpu", "gpu", "download", "offline"],
       // Development stacks show how to acquire the operator's host sets.
       render: () => <VoiceDownloads section="speech-to-text" />,
@@ -1360,18 +1598,18 @@ export function ApplicationSettingsModal({
     {
       id: "tts-enabled",
       section: "Voice",
-      group: "Text-to-Speech",
-      label: "Enable Text-to-Speech",
+      ...inGroup("textToSpeech"),
+      label: t("voice.tts.enable"),
       keywords: ["tts", "text-to-speech", "speak", "voice output"],
       render: () => (
         <SettingsRow
-          label="Enable Text-to-Speech"
+          label={t("voice.tts.enable")}
           control={
             <Switch
               checked={ttsEnabled}
               onCheckedChange={handleTtsEnabledChange}
               disabled={isBusy}
-              aria-label="Enable Text-to-Speech"
+              aria-label={t("voice.tts.enable")}
             />
           }
         />
@@ -1380,25 +1618,24 @@ export function ApplicationSettingsModal({
     {
       id: "tts-stream",
       section: "Voice",
-      group: "Text-to-Speech",
-      label: "Stream chunked Text-to-Speech",
-      description: "Start speaking before the full response is ready.",
+      ...inGroup("textToSpeech"),
+      label: t("voice.tts.stream.label"),
+      description: streamDescription,
       keywords: ["tts", "streaming", "latency"],
       render: () => (
         <SettingsRow
-          label="Stream chunked Text-to-Speech"
+          label={t("voice.tts.stream.label")}
           description={
-            streamChunksUnavailableReason ??
-            "Start speaking before the full response is ready."
+            streamChunksUnavailable
+              ? t("voice.tts.stream.unavailable")
+              : streamDescription
           }
           control={
             <Switch
-              checked={streamChunksUnavailableReason ? false : ttsStreamChunks}
+              checked={streamChunksUnavailable ? false : ttsStreamChunks}
               onCheckedChange={handleTtsStreamChunksChange}
-              disabled={
-                isBusy || !ttsEnabled || Boolean(streamChunksUnavailableReason)
-              }
-              aria-label="Stream chunked Text-to-Speech"
+              disabled={isBusy || !ttsEnabled || streamChunksUnavailable}
+              aria-label={t("voice.tts.stream.label")}
             />
           }
         />
@@ -1407,8 +1644,8 @@ export function ApplicationSettingsModal({
     {
       id: "tts-provider",
       section: "Voice",
-      group: "Text-to-Speech",
-      label: "Default Text-to-Speech provider",
+      ...inGroup("textToSpeech"),
+      label: t("voice.tts.provider.entryLabel"),
       keywords: [
         "tts",
         "text-to-speech",
@@ -1419,10 +1656,10 @@ export function ApplicationSettingsModal({
       ],
       render: () => (
         <SettingsRow
-          label="Default provider"
+          label={t("voice.tts.provider.label")}
           description={
             !ttsEnabled
-              ? "Enable Text-to-Speech to select a provider."
+              ? t("voice.tts.provider.enableFirst")
               : currentTtsOption?.description
           }
           control={
@@ -1433,9 +1670,9 @@ export function ApplicationSettingsModal({
             >
               <SelectTrigger
                 className={SELECT_TRIGGER_CLASS_NAME}
-                aria-label="Text-to-Speech provider"
+                aria-label={t("voice.tts.provider.ariaLabel")}
               >
-                <SelectValue placeholder="Select provider" />
+                <SelectValue placeholder={t("voice.stt.placeholder")} />
               </SelectTrigger>
               <SelectContent>
                 {ttsProviderOptions.map((option) => (
@@ -1454,9 +1691,14 @@ export function ApplicationSettingsModal({
           {currentTtsOption?.reason && ttsEnabled ? (
             <p className="text-warning text-xs">{currentTtsOption.reason}</p>
           ) : null}
+          {ttsEnabled ? (
+            <SpeechLanguageNotice
+              direction="textToSpeech"
+              provider={selectedTtsProvider}
+            />
+          ) : null}
           <p className="text-muted-foreground text-xs">
-            Used by Animas without their own provider. Choose providers and
-            voices for each Anima in Loadout → Voices.
+            {t("voice.tts.provider.note")}
           </p>
         </SettingsRow>
       ),
@@ -1464,15 +1706,15 @@ export function ApplicationSettingsModal({
     {
       id: "elevenlabs-key",
       section: "Voice",
-      group: "Text-to-Speech",
-      label: "ElevenLabs API key",
+      ...inGroup("textToSpeech"),
+      label: t("voice.tts.elevenLabs.key.label"),
       keywords: ["tts", "elevenlabs", "api key", "voice"],
       hidden: !credentialsAvailable,
       render: () => (
         <DesktopCredentialsPanel
           providers={["elevenlabs"]}
           showTitle={false}
-          description="Needed for ElevenLabs voices. Encrypted on this computer and also in API Keys."
+          description={t("voice.tts.elevenLabs.key.description")}
           className={cn(FLAT_SETTINGS_PANEL_CLASS_NAME, "py-3")}
         />
       ),
@@ -1480,15 +1722,15 @@ export function ApplicationSettingsModal({
     {
       id: "gemini-key",
       section: "Voice",
-      group: "Text-to-Speech",
-      label: "Gemini API key",
+      ...inGroup("textToSpeech"),
+      label: t("voice.tts.gemini.key.label"),
       keywords: ["tts", "gemini", "google", "api key", "voice"],
       hidden: !credentialsAvailable || !geminiTtsOffered,
       render: () => (
         <DesktopCredentialsPanel
           providers={["gemini"]}
           showTitle={false}
-          description="Needed for Gemini voices. Encrypted on this computer and also in API Keys."
+          description={t("voice.tts.gemini.key.description")}
           className={cn(FLAT_SETTINGS_PANEL_CLASS_NAME, "py-3")}
         />
       ),
@@ -1496,14 +1738,18 @@ export function ApplicationSettingsModal({
     {
       id: "gemini-model",
       section: "Voice",
-      group: "Text-to-Speech",
-      label: "Gemini model",
+      ...inGroup("textToSpeech"),
+      label: t("voice.tts.gemini.model.label"),
       keywords: ["tts", "gemini", "google", "flash", "voice"],
       hidden: !ttsEnabled || selectedTtsProvider !== "gemini",
       render: () => (
         <SettingsRow
-          label="Gemini model"
-          description={currentGeminiModelOption?.description}
+          label={t("voice.tts.gemini.model.label")}
+          description={
+            currentGeminiModelOption
+              ? geminiModelDescription(t, currentGeminiModelOption.id)
+              : undefined
+          }
           control={
             <Select
               value={selectedGeminiModelId}
@@ -1512,9 +1758,11 @@ export function ApplicationSettingsModal({
             >
               <SelectTrigger
                 className={SELECT_TRIGGER_CLASS_NAME}
-                aria-label="Gemini model"
+                aria-label={t("voice.tts.gemini.model.label")}
               >
-                <SelectValue placeholder="Select model" />
+                <SelectValue
+                  placeholder={t("voice.tts.gemini.model.placeholder")}
+                />
               </SelectTrigger>
               <SelectContent>
                 {GEMINI_TTS_MODEL_OPTIONS.map((option) => (
@@ -1527,8 +1775,7 @@ export function ApplicationSettingsModal({
           }
         >
           <p className="text-muted-foreground text-xs">
-            Google bills Gemini speech to your API key. Choose each Anima's
-            voice in Loadout → Voices.
+            {t("voice.tts.gemini.model.note")}
           </p>
         </SettingsRow>
       ),
@@ -1536,24 +1783,29 @@ export function ApplicationSettingsModal({
     {
       id: "voice-clone",
       section: "Voice",
-      group: "Voice Clone",
-      label: "Voice Clone",
+      ...inGroup("voiceClone"),
+      label: t("voice.voiceClone"),
       keywords: ["pocket", "sample", "cloning", "download", "offline"],
       render: () => <VoiceCloneSettings />,
     },
-    ...shortcutRows.map(
-      (row): SettingEntry => ({
+    ...shortcutRows.map((row): SettingEntry => {
+      const label = shortcutActionLabel(t, row.action);
+      const description =
+        row.action === "press_to_talk"
+          ? t("shortcuts.pressToTalkDescription")
+          : undefined;
+      return {
         id: `shortcut-${row.action}`,
         section: "Shortcuts",
-        group: "Desktop shortcuts",
-        label: DESKTOP_SHORTCUT_ACTION_LABELS[row.action],
-        description: row.description,
+        ...inGroup("desktopShortcuts"),
+        label,
+        description,
         keywords: ["shortcut", "hotkey", "keyboard", "key binding"],
         hidden: !desktopShortcutsAvailable,
         render: () => (
           <ShortcutRecorder
-            label={DESKTOP_SHORTCUT_ACTION_LABELS[row.action]}
-            description={row.description}
+            label={label}
+            description={description}
             shortcut={desktopShortcuts[row.action]}
             isRecording={recordingShortcutAction === row.action}
             disabled={isBusy}
@@ -1563,14 +1815,14 @@ export function ApplicationSettingsModal({
             onKeyDown={(event) => handleShortcutKeyDown(row.action, event)}
           />
         ),
-      }),
-    ),
+      };
+    }),
     ...BEHAVIOR_FLAGS.map(
       (flag): SettingEntry => ({
         id: `behavior-${flag}`,
         section: "Memory & Emotion",
-        group: "Defaults for Animas",
-        label: behaviorLabel(flag),
+        ...inGroup("animaDefaults"),
+        label: behaviorLabel(t, flag),
         keywords: ["memory", "emotion", "default", "inherit", "anima settings"],
         render: () => <AppBehaviorSetting flag={flag} disabled={isBusy} />,
       }),
@@ -1578,7 +1830,7 @@ export function ApplicationSettingsModal({
     {
       id: "safety",
       section: "Safety",
-      label: "Crisis resources region and AI reminder",
+      label: t("safety.entryLabel"),
       keywords: [
         "safety",
         "crisis",
@@ -1601,8 +1853,8 @@ export function ApplicationSettingsModal({
     {
       id: "reset-app-settings",
       section: "Data",
-      group: "App data",
-      label: "Reset app settings",
+      ...inGroup("appData"),
+      label: t("data.reset.label"),
       keywords: ["reset", "defaults", "restore", "clear"],
       // Close so controls holding local copies reload the restored values.
       render: () => (
@@ -1612,17 +1864,17 @@ export function ApplicationSettingsModal({
     {
       id: "chat-markdown",
       section: "Advanced",
-      group: "Messages",
-      label: "Render assistant Markdown",
+      ...inGroup("messages"),
+      label: t("advanced.markdown.label"),
       keywords: ["chat", "formatting"],
       render: () => (
         <SettingsRow
-          label="Render assistant Markdown"
+          label={t("advanced.markdown.label")}
           control={
             <Switch
               checked={chatMarkdownEnabled}
               onCheckedChange={setChatMarkdownEnabled}
-              aria-label="Render assistant Markdown"
+              aria-label={t("advanced.markdown.label")}
             />
           }
         />
@@ -1631,26 +1883,26 @@ export function ApplicationSettingsModal({
     {
       id: "avatar-transform-controls",
       section: "Advanced",
-      group: "Avatar controls",
-      label: "Enable avatar transform controls",
+      ...inGroup("avatarControls"),
+      label: t("advanced.avatarTransform.label"),
       keywords: ["move", "rotate", "scale", "orbit", "zoom", "camera"],
       render: () => (
         <SettingsRow
           label={
             <span className="flex items-center gap-2">
-              Enable avatar transform controls
+              {t("advanced.avatarTransform.label")}
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
                     type="button"
                     className="text-muted-foreground hover:text-foreground focus-visible:ring-ring inline-flex h-5 w-5 items-center justify-center rounded-full transition focus-visible:ring-2 focus-visible:outline-none"
-                    aria-label="Avatar transform controls help"
+                    aria-label={t("advanced.avatarTransform.help")}
                   >
                     <Info className="h-3.5 w-3.5" />
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="top" sideOffset={6} className="max-w-xs">
-                  {AVATAR_TRANSFORM_CONTROLS_TOOLTIP}
+                  {t("advanced.avatarTransform.tooltip")}
                 </TooltipContent>
               </Tooltip>
             </span>
@@ -1660,7 +1912,7 @@ export function ApplicationSettingsModal({
               checked={avatarTransformControlsEnabled}
               onCheckedChange={handleAvatarTransformControlsChange}
               disabled={isBusy}
-              aria-label="Enable avatar transform controls"
+              aria-label={t("advanced.avatarTransform.label")}
             />
           }
         />
@@ -1688,13 +1940,14 @@ export function ApplicationSettingsModal({
       <Dialog.Portal>
         <DialogOverlay />
         <SectionedModalFrame<ApplicationSettingsSection>
-          title="App Settings"
-          description="Configure application-level voice and interface settings."
-          closeLabel="Close App Settings"
-          sidebarLabel="Application"
-          sidebarTitle="App Settings"
+          title={t("modal.title")}
+          description={t("modal.description")}
+          closeLabel={t("modal.close")}
+          sidebarLabel={t("modal.navigationLabel")}
+          sidebarTitle={t("modal.title")}
           sections={availableSections}
           sectionIcons={SECTION_ICONS}
+          sectionLabels={sectionLabels}
           activeSection={shownSection}
           onSectionChange={setActiveSection}
           avoidSidebar
@@ -1705,6 +1958,7 @@ export function ApplicationSettingsModal({
               entries={visibleEntries}
               sections={availableSections}
               sectionIcons={SECTION_ICONS}
+              sectionLabels={sectionLabels}
               onSelectSection={setActiveSection}
               onSelectEntry={handleSearchSelectEntry}
             />
@@ -1715,11 +1969,12 @@ export function ApplicationSettingsModal({
             event.preventDefault();
             setSearchQuery("");
           }}
-          headerTitle={shownSection}
+          headerTitle={sectionLabels[shownSection]}
           gridClassName="md:grid-cols-[240px_minmax(0,1fr)]"
           contentClassName="gap-6"
         >
           {renderSettingEntries(
+            t,
             visibleEntries.filter(
               (entry) =>
                 entry.section === shownSection &&

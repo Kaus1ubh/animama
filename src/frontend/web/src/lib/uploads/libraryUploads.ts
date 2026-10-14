@@ -1,11 +1,11 @@
+import { getI18n } from "react-i18next";
+
 import type { PyUserFileResponse } from "@/lib/content/catalogTypes";
 import type { LibraryUploadStatus } from "@/lib/content/librarySearch";
+import { storedUploadErrorLine } from "@/lib/user-files/upload-card-status";
 import {
   USER_FILE_ACTIVE_JOB_STATUSES,
   USER_FILE_PROCESSING_STATUSES,
-  formatFileSize,
-  formatUserFileTimestamp,
-  userFileStatusLabel,
 } from "@/lib/user-files/uploads";
 
 export const LIBRARY_UPLOAD_PAGE_SIZE = 48;
@@ -21,10 +21,13 @@ export type LibraryUploadStatusTone =
 export type LibraryUploadListRow = {
   key: string;
   name: string;
-  extension: string;
-  size: string;
+  /** Upper-case extension, or `null` when the file has none. */
+  extension: string | null;
+  /** Stored (else declared) size; format it with `useFormatters().fileSize`. */
+  sizeBytes: number | null;
   contentType: string | null;
-  createdAt: string;
+  /** ISO timestamp; format it with `useFormatters()`. */
+  createdAt: string | null;
   chunkCount: number;
   status: string;
   statusLabel: string;
@@ -40,61 +43,68 @@ export type LibraryUploadViewState =
   | "no_results"
   | "ready";
 
-function extensionLabel(value: string): string {
+function extensionLabel(value: string): string | null {
   const normalized = value.trim().replace(/^\./, "");
-  return normalized ? normalized.toLocaleUpperCase() : "FILE";
+  return normalized ? normalized.toLocaleUpperCase() : null;
+}
+
+/**
+ * Display label for a stored Upload status (also the Library status filter).
+ * An unknown future status shows as sent.
+ */
+export function libraryUploadStatusLabel(status: string): string {
+  const t = getI18n().getFixedT(null, "library");
+  switch (status) {
+    case "pending_upload":
+      return t("uploads.status.pendingUpload");
+    case "uploaded":
+      return t("uploads.status.uploaded");
+    case "processing":
+      return t("uploads.status.processing");
+    case "ready":
+      return t("uploads.status.ready");
+    case "ready_keyword_only":
+      return t("uploads.status.readyKeywordOnly");
+    case "failed":
+      return t("uploads.status.failed");
+    case "aborted":
+      return t("uploads.status.aborted");
+    case "delete_pending":
+      return t("uploads.status.deletePending");
+    case "deleted":
+      return t("uploads.status.deleted");
+    default:
+      return status.replaceAll("_", " ");
+  }
 }
 
 function uploadStatusPresentation(
   file: PyUserFileResponse,
 ): Pick<LibraryUploadListRow, "active" | "statusLabel" | "statusTone"> {
+  const t = getI18n().getFixedT(null, "library");
   const jobStatus = file.latest_processing_job?.status;
   if (jobStatus === "queued") {
-    return { active: true, statusLabel: "Queued", statusTone: "active" };
+    const statusLabel = t("uploads.status.queued");
+    return { active: true, statusLabel, statusTone: "active" };
   }
   if (jobStatus === "running") {
-    return { active: true, statusLabel: "Processing", statusTone: "active" };
+    const statusLabel = libraryUploadStatusLabel("processing");
+    return { active: true, statusLabel, statusTone: "active" };
   }
 
+  const statusLabel = libraryUploadStatusLabel(file.status);
   switch (file.status) {
     case "ready":
-      return { active: false, statusLabel: "Ready", statusTone: "success" };
+      return { active: false, statusLabel, statusTone: "success" };
     case "ready_keyword_only":
-      return {
-        active: false,
-        statusLabel: "Keyword ready",
-        statusTone: "warning",
-      };
+      return { active: false, statusLabel, statusTone: "warning" };
     case "failed":
-      return {
-        active: false,
-        statusLabel: "Failed",
-        statusTone: "destructive",
-      };
+      return { active: false, statusLabel, statusTone: "destructive" };
     case "pending_upload":
-      return {
-        active: true,
-        statusLabel: "Pending upload",
-        statusTone: "active",
-      };
     case "processing":
-      return {
-        active: true,
-        statusLabel: "Processing",
-        statusTone: "active",
-      };
-    case "uploaded":
-      return {
-        active: false,
-        statusLabel: "Uploaded",
-        statusTone: "muted",
-      };
+      return { active: true, statusLabel, statusTone: "active" };
     default:
-      return {
-        active: false,
-        statusLabel: userFileStatusLabel(file.status),
-        statusTone: "muted",
-      };
+      return { active: false, statusLabel, statusTone: "muted" };
   }
 }
 
@@ -107,16 +117,16 @@ export function presentLibraryUpload(
     key: `upload:${file.file_id}`,
     name: file.original_filename,
     extension: extensionLabel(file.normalized_extension),
-    size: formatFileSize(file.stored_size_bytes ?? file.declared_size_bytes),
+    sizeBytes: file.stored_size_bytes ?? file.declared_size_bytes ?? null,
     contentType:
       file.detected_content_type ?? file.declared_content_type ?? null,
-    createdAt: formatUserFileTimestamp(file.created_at),
+    createdAt: file.created_at ?? null,
     chunkCount: file.chunk_count ?? 0,
     status: file.status,
     statusLabel: status.statusLabel,
     statusTone: status.statusTone,
     active: status.active,
-    error: file.last_error ?? file.latest_processing_job?.last_error ?? null,
+    error: storedUploadErrorLine(file),
   };
 }
 

@@ -1,0 +1,52 @@
+{
+  "actions": {
+    "retryLibrary": "ライブラリを再試行",
+    "retryScan": "スキャンを再試行",
+    "scanning": "スキャンしています…"
+  },
+  "diagnostics": {
+    "case_collision": "大文字と小文字だけが異なる 2 つのパスがあるため、移植できません。",
+    "empty_file": "コンテンツファイルを空にすることはできません。",
+    "entry_too_large": "この項目はサポートされているサイズの上限を超えています。",
+    "file_too_large": "このファイルはサポートされているサイズの上限を超えています。",
+    "hard_link_rejected": "ハードリンクされたファイルはスキャンされません。",
+    "incomplete_operation": "保存が中断されたため、この項目は不完全です。調整が必要です。",
+    "invalid_gltf_asset": "VRM と VRMA ファイルには glTF 2 アセットが必要です。",
+    "invalid_gltf_container": "glTF データが無効です。",
+    "invalid_json_shape": "JSON の最上位の値はオブジェクトである必要があります。",
+    "invalidHeader": "{{format}} ファイルのシグネチャが無効です。",
+    "json_too_large": "JSON ファイルがサポートされているサイズの上限を超えています。",
+    "malformed_json": "このファイルは有効な UTF-8 の JSON ドキュメントではありません。",
+    "missing_descriptor_file": "この項目で宣言されたファイルが見つかりません。",
+    "missing_effect_dependency": "この項目が使用している同梱エフェクトが削除されたため、そのエフェクトなしで再生されます。クリエイターで開いて、該当するエフェクトイベントを割り当て直すか削除してください。",
+    "missing_vrm_extension": "このファイルには、VRM または VRMA の種類に必要な拡張機能が含まれていません。",
+    "nested_descriptor": "コンテンツ項目を互いに入れ子にすることはできません。",
+    "pocket_clone_file_size": "音声クローンのファイルは空でなく、25 MiB 以下である必要があります。",
+    "provenance_missing": "この同梱項目にはライセンスの記録がありません。",
+    "scene_emoji_item_removed": "このシーンエフェクトには、Animama で提供されなくなった絵文字のアイテムがあり、そのアイテムなしで再生されます。クリエイターで開いて、ステッカーや画像に置き換えるか削除してください。",
+    "special_file_rejected": "通常のファイルとフォルダーだけがスキャンされます。",
+    "svg_size_limit": "SVG 画像は 32 MiB 以下である必要があります。",
+    "symlink_rejected": "シンボリックリンクはスキャンされません。",
+    "too_many_files": "この項目に含まれるファイルが多すぎます。",
+    "unreadable_file": "ファイルを読み取れませんでした。",
+    "unreadable_path": "ファイルまたはフォルダーを調べられませんでした。",
+    "unsafe_descriptor_path": "宣言されたファイルパスは項目内にとどまる必要があります。",
+    "unsupported_extension": "この種類のファイルはサポートされていません。"
+  },
+  "itemStatus": {
+    "invalid": "この項目は検証に合格しませんでした。",
+    "missing": "ファイルまたはフォルダーが見つかりません。",
+    "scanRequired": "変更がスキャンを待っています。"
+  },
+  "loadFailed": "コンテンツライブラリを読み込めませんでした。再試行してもう一度確認してください。",
+  "operatorManaged": "ホストのファイルスキャンはオペレーターが管理しています。",
+  "scanFailed": "スキャンに失敗しました。もう一度お試しください。",
+  "scanRequired": {
+    "local": "ローカルの変更を再スキャンする必要があります。",
+    "operator": "オペレーターがコンテンツの変更を調整しています。"
+  },
+  "status": {
+    "attention": "コンテンツに対応が必要です",
+    "unavailable": "コンテンツライブラリは利用できません"
+  }
+}

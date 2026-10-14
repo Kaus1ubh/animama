@@ -1,0 +1,214 @@
+{
+  "accountUsage": {
+    "units": {
+      "chats": "Chats",
+      "storageBytes": "Storage bytes",
+      "turns": "Chat turns"
+    }
+  },
+  "actions": {
+    "retry": "Retry"
+  },
+  "admission": {
+    "accountUnavailable": "Account access is unavailable.",
+    "accountUnavailableContactOperator": "Account access is unavailable. Please contact the hosted operator.",
+    "actions": {
+      "account": "Account",
+      "signIn": "Sign in",
+      "signOut": "Sign out",
+      "tryAgain": "Try again",
+      "tryRecovery": "Try recovery"
+    },
+    "ineligible": {
+      "description": "This account is not eligible for hosted Animama. Check your account access or contact the operator.",
+      "title": "Account access is not available"
+    },
+    "loading": {
+      "title": "Preparing Animama…"
+    },
+    "messages": {
+      "accountSetupFinishing": "Finishing setting up your account…",
+      "accountSetupRunning": "Setting up your account…",
+      "cleanupFailed": "Animama could not finish clearing the previous session from this browser. Reload the page, or try again to continue.",
+      "incompatibleCapabilities": "This hosted runtime has incompatible application capabilities.",
+      "signInNotFinished": "Sign-in did not finish. Please try again.",
+      "signInNotStarted": "Sign-in could not be started. Please try again.",
+      "signOutDataRemains": "You are signed out, but some private data could not be removed from this browser. Reload the page before signing in again.",
+      "updateRequired": "This hosted runtime needs an application update."
+    },
+    "recovery": {
+      "description": "Animama could not finish preparing your account. Try recovery to continue.",
+      "title": "Your account needs recovery"
+    },
+    "restricted": {
+      "description": "Your account is paused or being updated. You can check account access and try again later.",
+      "title": "Account access is restricted"
+    },
+    "signInRequired": {
+      "description": "Sign in to access your Animas, chats and Library.",
+      "title": "Sign in to Animama"
+    },
+    "signOutIncomplete": {
+      "description": "Animama closed this view, but your account may still be signed in. Try again to finish signing out.",
+      "title": "Sign-out did not complete"
+    },
+    "unavailable": {
+      "description": "Animama could not reach the runtime. Please try again.",
+      "localTitle": "Local runtime unavailable",
+      "title": "Runtime unavailable"
+    }
+  },
+  "animas": {
+    "creationUnavailable": {
+      "description": "This Animama runtime does not offer creating new Animas.",
+      "title": "Anima creation is not available"
+    },
+    "resolving": {
+      "description": "Resolving your first owned Anima…",
+      "title": "Opening Anima management"
+    },
+    "rosterFailed": {
+      "description": "Retry the owned-Anima list without leaving this page.",
+      "title": "Your Animas could not be loaded"
+    }
+  },
+  "connection": {
+    "requestNotSent": "Animama is reconnecting. This request has not been sent."
+  },
+  "dictation": {
+    "errors": {
+      "audioWorkletParakeet": "AudioWorklet support is required for local Parakeet speech recognition.",
+      "audioWorkletVad": "AudioWorklet support is required for acoustic VAD.",
+      "browser": {
+        "aborted": "Speech recognition was stopped.",
+        "audioCapture": "No microphone is available for browser speech recognition.",
+        "failed": "Browser speech recognition failed.",
+        "languageNotSupported": "Local browser speech recognition does not support the selected language.",
+        "network": "Browser speech recognition network error.",
+        "noSpeech": "No speech detected.",
+        "notAllowed": "Microphone permission was denied for browser speech recognition.",
+        "serviceNotAllowed": "Speech recognition service is not allowed in this browser."
+      },
+      "browserStartFailed": "Failed to start browser dictation",
+      "failed": "Dictation failed",
+      "localWebSpeechNotEnabled": "Local browser speech recognition could not be enabled",
+      "localWebSpeechUnsupported": "Local-only browser speech recognition is not supported",
+      "offlineSpeechMissing": "Install offline speech recognition in Settings to use dictation and Voice Mode.",
+      "parakeetFailed": "Local Parakeet speech recognition failed",
+      "transcriptionFailed": "Local Parakeet transcription failed",
+      "unmuteFailed": "Failed to unmute voice mode",
+      "webSpeechUnsupported": "Web Speech API is not supported in this browser"
+    }
+  },
+  "featurePacks": {
+    "changeFailed": "The pack change could not finish. Review its status below, then retry.",
+    "guards": {
+      "downloadRunning": "Finish or cancel the model download before changing a feature pack.",
+      "packChangeRunning": "Wait for the feature pack change to finish before starting a download."
+    },
+    "unavailable": "Feature packs are unavailable. Check runtime recovery and retry."
+  },
+  "launch": {
+    "failed": {
+      "description": "Animama could not load your Animas or saved selection. Please try again.",
+      "title": "Your Anima could not be opened"
+    },
+    "opening": "Opening your Anima…"
+  },
+  "meta": {
+    "description": "Animama, your AI avatar companion."
+  },
+  "notFound": {
+    "description": "This address does not lead to an Animama page.",
+    "eyebrow": "Not found",
+    "title": "Page not found"
+  },
+  "pageLoadError": {
+    "description": "Reload to get the current app files and try again. Unsaved changes on this page may be lost.",
+    "reload": "Reload page",
+    "title": "The page could not load"
+  },
+  "pip": {
+    "close": "Close picture-in-picture",
+    "resize": "Resize picture-in-picture",
+    "unavailable": "Picture-in-picture is unavailable. Keep using the companion in this window."
+  },
+  "quickChat": {
+    "incompatibleModel": "That model keeps conversations differently. Open the main chat to continue in a new chat.",
+    "toggleFailed": "Failed to toggle Quick Chat",
+    "unavailable": "Quick Chat is available from an Anima chat in the desktop app.",
+    "unknownError": "Unknown desktop error."
+  },
+  "runtime": {
+    "avatarPoseUnavailable": "The avatar could not be loaded in its resting pose. Reload its content to retry.",
+    "preparationFailed": "Avatar content could not be prepared."
+  },
+  "shortcuts": {
+    "configureFailed": "Failed to configure desktop shortcuts.",
+    "unavailable": "Desktop shortcut unavailable",
+    "unmuteFailed": "Failed to unmute Voice Mode for Press to talk.",
+    "updateFailed": "Failed to update desktop shortcut state."
+  },
+  "tts": {
+    "pocketVoiceUnavailable": "Pocket voice unavailable",
+    "unavailable": "Text-to-speech unavailable",
+    "warnings": {
+      "browserGenerateFailed": "Failed to generate browser speech for this response.",
+      "browserPlayFailed": "Failed to play browser speech for this response.",
+      "browserUnsupported": "Speech synthesis is not supported in this browser.",
+      "elevenLabsClosedEarly": "ElevenLabs realtime TTS closed before playback completed.",
+      "elevenLabsConnectionFailed": "ElevenLabs realtime TTS connection failed for this response.",
+      "elevenLabsDecodeFailed": "Failed to decode ElevenLabs realtime audio.",
+      "elevenLabsMissingAnima": "ElevenLabs TTS requires an Anima context for this response.",
+      "elevenLabsUnsupported": "ElevenLabs TTS is not supported in this browser environment.",
+      "finalizedDecodeFailed": "Failed to decode the reply's audio.",
+      "geminiMissingAnima": "Gemini TTS requires an Anima context for this response.",
+      "geminiUnsupported": "Gemini TTS needs the Web Audio API, which this browser lacks.",
+      "generic": "Speech could not play for this response.",
+      "pocketGenerationFailed": "PocketTTS failed to synthesize part of this response.",
+      "pocketUnsupported": "PocketTTS is not supported in this browser environment."
+    }
+  },
+  "unavailable": {
+    "eyebrow": "Unavailable",
+    "reasons": {
+      "animaCreation": "Creating Animas is unavailable in this hosted application.",
+      "chatFileUploads": "Chat attachments are unavailable in this hosted application.",
+      "documentProcessing": "Document ingestion and OCR are unavailable in this hosted application.",
+      "hostedSetup": "Installation setup belongs to the local application. Your hosted account is prepared by the runtime.",
+      "localFilesystemAdministration": "Local filesystem administration requires the local application.",
+      "nativeFeatures": "This action requires the desktop application. Browser fullscreen and supported browser picture-in-picture remain available.",
+      "providerCredentials": "Provider connections and credentials are managed by the hosted operator."
+    },
+    "returnHome": "Return home",
+    "title": "Unavailable here"
+  },
+  "uploads": {
+    "failed": "File upload failed.",
+    "fileDataUnavailable": "Selected file data is unavailable.",
+    "finalizeFailed": "File upload could not be finalized.",
+    "finalizeFailedAfterUpload": "Upload completed, but finalize failed.",
+    "httpFailed": "File upload failed with HTTP {{status}}.",
+    "initFailed": "Upload initialization failed.",
+    "missingFileId": "The upload did not include an Anima file id.",
+    "needsAttention": "File upload needs attention.",
+    "objectUploadFailed": "Object upload failed.",
+    "originalSaved": "Original saved.",
+    "originalSavedNotQueued": "Original saved; processing was not queued.",
+    "processingNotQueuedAfterUpload": "Upload completed, but processing could not be queued.",
+    "processingUnavailable": "Processing was not queued. You can process the original from Library once document processing is available.",
+    "processingUnavailableDesktop": "Document processing is unavailable. Install the pack in Settings, then process the file from Library.",
+    "queuedForProcessing": "File uploaded and queued for processing.",
+    "rejected": "File cannot be uploaded.",
+    "restrictions": {
+      "duplicate": "{{file}} has already been added.",
+      "fileTypes": "Only these file types can be uploaded: {{types}}",
+      "tooLarge": "{{file}} exceeds the maximum size of {{size}}.",
+      "unnamed": "Unnamed file"
+    }
+  },
+  "voiceDownloads": {
+    "changeFailed": "The voice download change could not finish. Retry in a moment.",
+    "unavailable": "Voice downloads are unavailable. Reopen the voice browser to retry."
+  }
+}

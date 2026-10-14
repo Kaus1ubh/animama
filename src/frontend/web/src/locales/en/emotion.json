@@ -1,0 +1,170 @@
+{
+  "details": {
+    "label": "Emotional state"
+  },
+  "emotions": {
+    "admiration": "Admiration",
+    "amusement": "Amusement",
+    "anger": "Anger",
+    "annoyance": "Annoyance",
+    "caring": "Caring",
+    "confidence": "Confidence",
+    "confusion": "Confusion",
+    "curiosity": "Curiosity",
+    "desire": "Desire",
+    "disappointment": "Disappointment",
+    "disapproval": "Disapproval",
+    "disgust": "Disgust",
+    "embarrassment": "Embarrassment",
+    "excitement": "Excitement",
+    "fear": "Fear",
+    "gratitude": "Gratitude",
+    "grief": "Grief",
+    "joy": "Joy",
+    "love": "Love",
+    "nervousness": "Nervousness",
+    "optimism": "Optimism",
+    "remorse": "Remorse",
+    "respect": "Respect",
+    "sadness": "Sadness"
+  },
+  "feelings": {
+    "admiration": {
+      "plain": "Feeling admiring",
+      "slightly": "Feeling slightly admiring",
+      "very": "Feeling very admiring"
+    },
+    "amusement": {
+      "plain": "Feeling amused",
+      "slightly": "Feeling slightly amused",
+      "very": "Feeling very amused"
+    },
+    "anger": {
+      "plain": "Feeling angry",
+      "slightly": "Feeling slightly angry",
+      "very": "Feeling very angry"
+    },
+    "annoyance": {
+      "plain": "Feeling annoyed",
+      "slightly": "Feeling slightly annoyed",
+      "very": "Feeling very annoyed"
+    },
+    "caring": {
+      "plain": "Feeling caring",
+      "slightly": "Feeling slightly caring",
+      "very": "Feeling very caring"
+    },
+    "confidence": {
+      "plain": "Feeling confident",
+      "slightly": "Feeling slightly confident",
+      "very": "Feeling very confident"
+    },
+    "confusion": {
+      "plain": "Feeling confused",
+      "slightly": "Feeling slightly confused",
+      "very": "Feeling very confused"
+    },
+    "curiosity": {
+      "plain": "Feeling curious",
+      "slightly": "Feeling slightly curious",
+      "very": "Feeling very curious"
+    },
+    "desire": {
+      "plain": "Feeling longing",
+      "slightly": "Feeling slightly longing",
+      "very": "Feeling very longing"
+    },
+    "disappointment": {
+      "plain": "Feeling disappointed",
+      "slightly": "Feeling slightly disappointed",
+      "very": "Feeling very disappointed"
+    },
+    "disapproval": {
+      "plain": "Feeling disapproving",
+      "slightly": "Feeling slightly disapproving",
+      "very": "Feeling very disapproving"
+    },
+    "disgust": {
+      "plain": "Feeling disgusted",
+      "slightly": "Feeling slightly disgusted",
+      "very": "Feeling very disgusted"
+    },
+    "embarrassment": {
+      "plain": "Feeling embarrassed",
+      "slightly": "Feeling slightly embarrassed",
+      "very": "Feeling very embarrassed"
+    },
+    "excitement": {
+      "plain": "Feeling excited",
+      "slightly": "Feeling slightly excited",
+      "very": "Feeling very excited"
+    },
+    "fear": {
+      "plain": "Feeling afraid",
+      "slightly": "Feeling slightly afraid",
+      "very": "Feeling very afraid"
+    },
+    "gratitude": {
+      "plain": "Feeling grateful",
+      "slightly": "Feeling slightly grateful",
+      "very": "Feeling very grateful"
+    },
+    "grief": {
+      "plain": "Feeling grieving",
+      "slightly": "Feeling slightly grieving",
+      "very": "Feeling very grieving"
+    },
+    "joy": {
+      "plain": "Feeling joyful",
+      "slightly": "Feeling slightly joyful",
+      "very": "Feeling very joyful"
+    },
+    "love": {
+      "plain": "Feeling loving",
+      "slightly": "Feeling slightly loving",
+      "very": "Feeling very loving"
+    },
+    "nervousness": {
+      "plain": "Feeling nervous",
+      "slightly": "Feeling slightly nervous",
+      "very": "Feeling very nervous"
+    },
+    "neutral": "Feeling neutral",
+    "optimism": {
+      "plain": "Feeling optimistic",
+      "slightly": "Feeling slightly optimistic",
+      "very": "Feeling very optimistic"
+    },
+    "remorse": {
+      "plain": "Feeling remorseful",
+      "slightly": "Feeling slightly remorseful",
+      "very": "Feeling very remorseful"
+    },
+    "respect": {
+      "plain": "Feeling respectful",
+      "slightly": "Feeling slightly respectful",
+      "very": "Feeling very respectful"
+    },
+    "sadness": {
+      "plain": "Feeling sad",
+      "slightly": "Feeling slightly sad",
+      "very": "Feeling very sad"
+    }
+  },
+  "groups": {
+    "affection": "Affection",
+    "alarm": "Alarm",
+    "delight": "Delight",
+    "drive": "Drive",
+    "esteem": "Esteem",
+    "gloom": "Gloom",
+    "rejection": "Rejection",
+    "revulsion": "Revulsion"
+  },
+  "radar": {
+    "axis": "{{group}}: {{maximum}}. {{emotions}}",
+    "axisEmotion": "{{emotion}} {{value}}",
+    "label": "Emotion spectrum: eight groups, each showing its strongest emotion",
+    "series": "Strongest emotion"
+  }
+}

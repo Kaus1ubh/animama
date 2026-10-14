@@ -1,4 +1,5 @@
 import { preflightContentFile, sha256File } from "@/lib/content/contentUploads";
+import { WordedError } from "@/lib/errors/apiError";
 import {
   addSceneEffectImage,
   canonicalSceneEffectImageName,
@@ -152,9 +153,10 @@ export async function addSceneEffectImageFile(
   }: { label?: string; hash?: SceneEffectImageHash } = {},
 ): Promise<SceneEffectHistorySnapshot> {
   const inspection = await inspectSceneEffectImage(source);
-  if (!inspection.ok) throw new Error(inspection.message);
+  // Both refusals are already worded in the UI Locale.
+  if (!inspection.ok) throw new WordedError(inspection.message);
   const preflight = await preflightContentFile("image", source);
-  if (preflight.error) throw new Error(preflight.error);
+  if (preflight.error) throw new WordedError(preflight.error);
   const sha256 = await hash(source);
   const { document, imageResources } = getSnapshot();
   const used = sceneEffectImageMetadata(document);

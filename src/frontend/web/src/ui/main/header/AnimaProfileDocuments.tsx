@@ -1,5 +1,6 @@
 import type { ComponentProps, MouseEvent } from "react";
 import { FileText } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { useAnimaMemoriesEntry } from "@/query/hooks/useMemoryEntries";
 import { AnimaIdentitySection } from "@/ui/animas/AnimaIdentitySection";
@@ -31,6 +32,7 @@ export function AnimaProfileDocuments({
   onEdit,
   ...identityProps
 }: Props) {
+  const { t } = useTranslation("chat");
   const memories = useAnimaMemoriesEntry(
     tab === "memories" ? identityProps.animaId : null,
   );
@@ -45,14 +47,14 @@ export function AnimaProfileDocuments({
     >
       <div className="border-border/70 flex flex-wrap items-center justify-between gap-x-3 border-b">
         <TabsList
-          aria-label="Anima documents"
+          aria-label={t("profile.documents.label")}
           className="h-auto gap-1 rounded-none bg-transparent p-0"
         >
           <TabsTrigger value="identity" className={tabClass}>
-            Identity
+            {t("profile.documents.identity")}
           </TabsTrigger>
           <TabsTrigger value="memories" className={tabClass}>
-            Memories
+            {t("profile.documents.memories")}
           </TabsTrigger>
         </TabsList>
         <Button
@@ -67,7 +69,9 @@ export function AnimaProfileDocuments({
           }}
         >
           <FileText className="size-4" aria-hidden="true" />
-          {tab === "identity" ? "Edit identity" : "Edit memories"}
+          {tab === "identity"
+            ? t("profile.documents.editIdentity")
+            : t("profile.documents.editMemories")}
         </Button>
       </div>
       <TabsContent value="identity" className="mt-5">

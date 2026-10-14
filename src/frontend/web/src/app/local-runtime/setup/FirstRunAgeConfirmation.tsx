@@ -1,6 +1,7 @@
 import { Link, Navigate, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 
 import { useLocalRuntime } from "../LocalRuntimeProvider";
 import { useRuntimeAdmission } from "../../runtime/RuntimeAdmissionProvider";
@@ -61,6 +62,9 @@ export function FirstRunAgeConfirmation({ children }: { children: ReactNode }) {
   );
 }
 
+/** Why completing onboarding failed; worded at render in the UI Locale. */
+type AgeConfirmationFailure = "modelUnavailable" | "saveFailed";
+
 /** The app can prepare its avatar, but only this dialog completes onboarding. */
 function AgeConfirmation({
   ownerId,
@@ -69,6 +73,7 @@ function AgeConfirmation({
   ownerId: string;
   draft: SetupDraft;
 }) {
+  const { t } = useTranslation("setup");
   const { completeOnboarding } = useLocalRuntime();
   const navigate = useNavigate();
   const capabilities = useRuntimeCapabilities();
@@ -76,7 +81,7 @@ function AgeConfirmation({
   const queryClient = useQueryClient();
   const [declined, setDeclined] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<AgeConfirmationFailure | null>(null);
 
   const backToSetup = () => {
     writeSetupDraft(ownerId, { ...draft, awaitingAgeConfirmation: false });
@@ -108,8 +113,8 @@ function AgeConfirmation({
     } catch (cause) {
       setError(
         modelConfigurationErrorCode(cause) === "chat_model_unavailable"
-          ? "The chosen model can no longer be used. Go back to setup and choose another, or skip AI."
-          : "Setup could not be saved. Please try again.",
+          ? "modelUnavailable"
+          : "saveFailed",
       );
       setSubmitting(false);
     }
@@ -124,40 +129,38 @@ function AgeConfirmation({
         onKeyDown={(event) => event.stopPropagation()}
       >
         <DialogHeader>
-          <DialogTitle>Before you start</DialogTitle>
-          <DialogDescription>
-            Animama is for adults 18 and older. Animas are AI companions, not
-            people.
-          </DialogDescription>
+          <DialogTitle>{t("ageConfirmation.heading")}</DialogTitle>
+          <DialogDescription>{t("ageConfirmation.notice")}</DialogDescription>
         </DialogHeader>
         <Link
           to="/safety"
           className="text-muted-foreground text-xs underline underline-offset-2"
         >
-          Safety and crisis protocol
+          {t("ageConfirmation.safetyLink")}
         </Link>
         {declined ? (
           <p role="status" className="text-sm">
-            Animama is only for adults 18 and older. You can&apos;t continue to
-            chat.
+            {t("ageConfirmation.declined")}
           </p>
         ) : null}
         {error ? (
           <p role="alert" className="text-destructive text-sm">
-            {error}
+            {error === "modelUnavailable"
+              ? t("ageConfirmation.errors.modelUnavailable")
+              : t("ageConfirmation.errors.saveFailed")}
           </p>
         ) : null}
         {capabilities.isError ? (
           <div className="space-y-2">
             <p role="alert" className="text-destructive text-sm">
-              AI settings could not be checked. Please try again.
+              {t("ageConfirmation.errors.capabilitiesFailed")}
             </p>
             <Button
               variant="outline"
               disabled={capabilities.isFetching}
               onClick={() => void capabilities.refetch()}
             >
-              Retry
+              {t("ageConfirmation.retry")}
             </Button>
           </div>
         ) : null}
@@ -169,12 +172,12 @@ function AgeConfirmation({
           onClick={backToSetup}
           className="text-muted-foreground h-auto w-fit justify-start p-0 text-xs"
         >
-          Back to setup
+          {t("ageConfirmation.backToSetup")}
         </Button>
         <DialogFooter>
           {declined ? (
             <Button variant="outline" onClick={() => setDeclined(false)}>
-              Go back
+              {t("ageConfirmation.goBack")}
             </Button>
           ) : (
             <>
@@ -183,13 +186,15 @@ function AgeConfirmation({
                 disabled={submitting}
                 onClick={() => setDeclined(true)}
               >
-                I&apos;m under 18
+                {t("ageConfirmation.decline")}
               </Button>
               <Button
                 disabled={submitting || !capabilities.isSuccess}
                 onClick={() => void confirm()}
               >
-                {submitting ? "Opening…" : "I am 18 or older"}
+                {submitting
+                  ? t("ageConfirmation.opening")
+                  : t("ageConfirmation.confirm")}
               </Button>
             </>
           )}

@@ -3,6 +3,7 @@
 import * as React from "react";
 import { XIcon } from "lucide-react";
 import { Dialog as DialogPrimitive } from "radix-ui";
+import { useTranslation } from "react-i18next";
 
 import { useOptionalAppShell } from "@/ui/app/AppShell";
 import { resolveAppShellSidebarLayout } from "@/ui/app/appShellSidebarLayout";
@@ -70,6 +71,7 @@ function DialogContent({
   /** Portal target, e.g. a fullscreen element; defaults to `document.body`. */
   portalContainer?: HTMLElement | null;
 }) {
+  const { t } = useTranslation("components");
   const appShell = useOptionalAppShell();
   const sidebarInset = resolveAppShellSidebarLayout({
     behavior: "inset",
@@ -106,7 +108,7 @@ function DialogContent({
               size="icon-sm"
             >
               <XIcon />
-              <span className="sr-only">Close</span>
+              <span className="sr-only">{t("dialog.close")}</span>
             </Button>
           </DialogPrimitive.Close>
         )}
@@ -133,6 +135,7 @@ function DialogFooter({
 }: React.ComponentProps<"div"> & {
   showCloseButton?: boolean;
 }) {
+  const { t } = useTranslation("components");
   return (
     <div
       data-slot="dialog-footer"
@@ -145,7 +148,7 @@ function DialogFooter({
       {children}
       {showCloseButton && (
         <DialogPrimitive.Close asChild>
-          <Button variant="outline">Close</Button>
+          <Button variant="outline">{t("dialog.close")}</Button>
         </DialogPrimitive.Close>
       )}
     </div>

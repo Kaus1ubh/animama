@@ -1,3 +1,4 @@
+import { getI18n } from "react-i18next";
 import { describe, expect, it } from "vitest";
 
 import type {
@@ -141,6 +142,24 @@ describe("face parts panel", () => {
     expect(facePartDraftProblem(map, draft, SHA, keys)).toMatch(/face skin/);
     expect(facePartDraftProblem(map, {}, null, keys)).toMatch(/digest/);
     expect(facePartDraftProblem(map, {}, SHA, keys)).toBeNull();
+  });
+
+  it("words statuses and problems in the UI Locale", async () => {
+    const map = partMap();
+    const keys = primitives.map((primitive) => primitive.key);
+    const draft = toggleFacePartBinding(map, {}, "face_skin", "91:0:3");
+    await getI18n().changeLanguage("ja");
+    try {
+      expect(facePartRows(map, primitives)[0]).toMatchObject({
+        label: "顔の肌",
+        statusLabel: "検出・90%",
+      });
+      expect(facePartDraftProblem(map, draft, SHA, keys)).toBe(
+        "顔の肌のメッシュパーツを 1 つ以上選んでください。",
+      );
+    } finally {
+      await getI18n().changeLanguage("en");
+    }
   });
 
   it("refuses mesh parts from another Avatar", () => {

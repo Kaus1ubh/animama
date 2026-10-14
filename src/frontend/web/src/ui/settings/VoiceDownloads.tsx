@@ -1,6 +1,7 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import { useFormatters } from "@animama/product-ui/i18n";
 import { POCKET_VOICE_ENCODER_ASSET_ID } from "@/lib/speech/pocket/voice-cloning-encoder";
-import { formatFileSize } from "@/lib/user-files/uploads";
 import {
   useModelAssets,
   useOperatorManagedModelAssets,
@@ -9,7 +10,7 @@ import { useModelAssetAction } from "@/query/mutations/useModelAssetActions";
 import { VoiceCloneLibrary } from "@/ui/animas/VoiceCloneLibrary";
 import { Button } from "@/ui/components/button";
 import { OfflineSpeechDownloads } from "./OfflineSpeechDownloads";
-import { OPERATOR_MANAGED_MODELS_NOTE } from "./operator-managed-models";
+import { operatorManagedModelsNote } from "./operator-managed-models";
 import cloningAttribution from "../../../../../../models/pocket-tts-voice-cloning/ATTRIBUTION.md?raw";
 
 /** Optional downloads shared by setup and Voice settings; all install in place. */
@@ -18,16 +19,27 @@ export function VoiceDownloads({
 }: {
   section?: "all" | "speech-to-text" | "voice-clone";
 }) {
+  const { t } = useTranslation("voice");
   if (section === "speech-to-text") return <OfflineSpeechDownloads />;
   if (section === "voice-clone") return <VoiceCloningStatus />;
   return (
     <div className="space-y-6">
-      <section className="space-y-3" aria-label="Speech-to-Text">
-        <h2 className="text-sm font-semibold">Speech-to-Text</h2>
+      <section
+        className="space-y-3"
+        aria-label={t("downloads.sections.speechToText")}
+      >
+        <h2 className="text-sm font-semibold">
+          {t("downloads.sections.speechToText")}
+        </h2>
         <OfflineSpeechDownloads />
       </section>
-      <section className="space-y-3" aria-label="Voice Clone">
-        <h2 className="text-sm font-semibold">Voice Clone</h2>
+      <section
+        className="space-y-3"
+        aria-label={t("downloads.sections.voiceClone")}
+      >
+        <h2 className="text-sm font-semibold">
+          {t("downloads.sections.voiceClone")}
+        </h2>
         <VoiceCloningStatus />
       </section>
     </div>
@@ -56,6 +68,8 @@ export function VoiceCloneSettings() {
  * sample. An operator-provided encoder shows only its state.
  */
 function VoiceCloningStatus({ busy = false }: { busy?: boolean }) {
+  const { t } = useTranslation("voice");
+  const { fileSize, number } = useFormatters();
   const assets = useModelAssets({ enabled: true });
   const operatorManaged = useOperatorManagedModelAssets();
   const action = useModelAssetAction();
@@ -77,12 +91,14 @@ function VoiceCloningStatus({ busy = false }: { busy?: boolean }) {
       action: operation,
       assetId: POCKET_VOICE_ENCODER_ASSET_ID,
     });
+  const blockedReason = action.blockedReason;
+  const size = asset ? fileSize(asset.size_bytes) : "";
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-40 flex-1">
           <p className="text-muted-foreground text-xs">
-            Create named voices from your own samples.
+            {t("cloning.description")}
           </p>
         </div>
         {operatorManaged ? null : (
@@ -96,11 +112,11 @@ function VoiceCloningStatus({ busy = false }: { busy?: boolean }) {
                   busy ||
                   action.busy ||
                   action.isPending ||
-                  Boolean(action.blockedReason)
+                  Boolean(blockedReason)
                 }
                 onClick={() => change("install")}
               >
-                {retry ? "Retry cloning download" : "Download voice cloning"}
+                {retry ? t("cloning.retry") : t("cloning.download")}
               </Button>
             ) : null}
             {downloading ? (
@@ -111,7 +127,7 @@ function VoiceCloningStatus({ busy = false }: { busy?: boolean }) {
                 disabled={action.isPending}
                 onClick={() => change("remove")}
               >
-                Cancel download
+                {t("downloads.cancel")}
               </Button>
             ) : null}
             {installed ? (
@@ -128,7 +144,9 @@ function VoiceCloningStatus({ busy = false }: { busy?: boolean }) {
                   }
                 }}
               >
-                {confirmRemove ? "Confirm removal" : "Remove voice cloning"}
+                {confirmRemove
+                  ? t("downloads.confirmRemoval")
+                  : t("cloning.remove")}
               </Button>
             ) : null}
           </>
@@ -136,22 +154,29 @@ function VoiceCloningStatus({ busy = false }: { busy?: boolean }) {
       </div>
       <p role="status" className="text-muted-foreground text-xs">
         {installed
-          ? "Installed · Saved clones work without this model."
+          ? t("cloning.installed")
           : downloading
             ? progress === 1
-              ? "Verifying voice cloning…"
-              : `Downloading ${Math.round((progress ?? 0) * 100)}%`
+              ? t("cloning.verifying")
+              : t("downloads.downloading", {
+                  percent: number(progress ?? 0, {
+                    style: "percent",
+                    maximumFractionDigits: 0,
+                  }),
+                })
             : asset
               ? operatorManaged
-                ? "Not available"
-                : `${formatFileSize(asset.size_bytes)} download${retry ? " · Retry available" : ""}`
+                ? t("downloads.notAvailable")
+                : retry
+                  ? t("downloads.sizeRetry", { size })
+                  : t("downloads.size", { size })
               : assets.isError
-                ? "Voice cloning downloads are unavailable. Reopen settings to retry."
-                : "Checking voice cloning…"}
+                ? t("cloning.listUnavailable")
+                : t("cloning.checking")}
       </p>
       {operatorManaged ? (
         <p className="text-muted-foreground text-xs">
-          {OPERATOR_MANAGED_MODELS_NOTE}
+          {operatorManagedModelsNote()}
         </p>
       ) : null}
       {downloading ? (
@@ -159,23 +184,21 @@ function VoiceCloningStatus({ busy = false }: { busy?: boolean }) {
           className="w-full"
           max={1}
           value={progress}
-          aria-label="Voice cloning download progress"
+          aria-label={t("cloning.progressLabel")}
         />
       ) : null}
-      {action.blockedReason || action.isError ? (
+      {blockedReason || action.isError ? (
         <p role="alert" className="text-muted-foreground text-xs">
-          {action.blockedReason ||
-            "The cloning model change did not finish. Retry in a moment."}
+          {blockedReason || t("cloning.changeFailed")}
         </p>
       ) : null}
       {asset?.status === "failed" ? (
         <p role="status" className="text-muted-foreground text-xs">
-          The download did not finish. Check available disk space and your
-          connection, then retry.
+          {t("cloning.downloadFailed")}
         </p>
       ) : null}
       <details className="text-muted-foreground text-xs">
-        <summary className="cursor-pointer">Model attribution</summary>
+        <summary className="cursor-pointer">{t("cloning.attribution")}</summary>
         <pre className="mt-2 font-sans whitespace-pre-wrap">
           {cloningAttribution.trim()}
         </pre>

@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 
 import { useFullscreen } from "@/hooks/useFullscreen";
 import { usePictureInPicture } from "@/hooks/usePictureInPicture";
@@ -159,19 +160,15 @@ export function MainShell({
   );
 }
 
-export function RuntimeChatPlaceholder({
-  label = "Runtime chat unavailable",
-}: {
-  label?: string;
-}) {
+export function RuntimeChatPlaceholder({ label }: { label?: string }) {
+  const { t } = useTranslation("chat");
   return (
     <div className="pointer-events-auto flex h-full w-full items-end justify-center p-4">
       <div className="border-border/70 bg-background/82 text-muted-foreground mb-20 w-full max-w-3xl rounded-xl border p-4 text-sm shadow-lg backdrop-blur-md">
-        <p className="text-foreground font-medium">{label}</p>
-        <p className="mt-1">
-          The runtime shell, scene, avatar, settings, websocket, and memory
-          surfaces are active, but no chat panel was provided for this shell.
+        <p className="text-foreground font-medium">
+          {label ?? t("shell.chatUnavailable.title")}
         </p>
+        <p className="mt-1">{t("shell.chatUnavailable.description")}</p>
       </div>
     </div>
   );

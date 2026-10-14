@@ -6,6 +6,7 @@ import type {
   ReactNode,
 } from "react";
 import { useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { useElementSize } from "@/hooks/useElementSize";
 import { createLogger } from "@/lib/logger";
@@ -122,6 +123,7 @@ function ResizeHandle({
   onKeyDown,
   onReset,
 }: ResizeHandleProps) {
+  const { t } = useTranslation("memory");
   return (
     <div
       role="separator"
@@ -132,7 +134,7 @@ function ResizeHandle({
       aria-valuenow={Math.round(value)}
       aria-disabled={disabled || undefined}
       tabIndex={disabled ? -1 : 0}
-      title={`${label}. Use Left and Right Arrow keys to resize. Double-click to reset.`}
+      title={t("layout.resizeHint", { label })}
       onPointerDown={(event) => onPointerDown(divider, event)}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
@@ -166,6 +168,7 @@ export function MemoryWorkspaceSplitLayout({
   preview,
   explorerCollapsed,
 }: MemoryWorkspaceSplitLayoutProps) {
+  const { t } = useTranslation("memory");
   const [container, setContainer] = useState<HTMLDivElement | null>(null);
   const { width: containerWidth } = useElementSize(container);
   const [preference, setPreference] =
@@ -297,7 +300,7 @@ export function MemoryWorkspaceSplitLayout({
       {explorer}
       <ResizeHandle
         divider="explorer"
-        label="Resize Files and Work panes"
+        label={t("layout.resizeExplorer")}
         disabled={explorerCollapsed}
         dragging={dragging === "explorer"}
         value={layout.explorerWidth}
@@ -314,7 +317,7 @@ export function MemoryWorkspaceSplitLayout({
       {work}
       <ResizeHandle
         divider="work"
-        label="Resize Work and Preview panes"
+        label={t("layout.resizeWork")}
         dragging={dragging === "work"}
         value={layout.workWidth}
         minimum={layout.workMin}

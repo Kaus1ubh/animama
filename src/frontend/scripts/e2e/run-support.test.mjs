@@ -7,6 +7,7 @@ import test from "node:test";
 import {
   REDACTED_VALUE,
   acquireMainStackLock,
+  checkDevelopmentApplication,
   createExclusiveDirectory,
   formatGeneratedId,
   isLoopbackUrl,
@@ -16,6 +17,38 @@ import {
   resolveE2eEnvironment,
   resolveE2eLocalContentRoot,
 } from "./run-support.mjs";
+
+test("the pseudo-locale preflight accepts only a development application", async () => {
+  const page =
+    (body, status = 200) =>
+    async () =>
+      new Response(body, { status, headers: { "content-type": "text/html" } });
+  const url = "http://animama-a.localhost:8600/";
+  const vite = '<script type="module" src="/@vite/client"></script>';
+
+  const ready = await checkDevelopmentApplication({
+    url,
+    buildMode: "development",
+    fetchImpl: page(vite),
+  });
+  assert.equal(ready.status, 200);
+  await assert.rejects(
+    checkDevelopmentApplication({
+      url,
+      buildMode: "production",
+      fetchImpl: () => assert.fail("a production record needs no request"),
+    }),
+    /needs a development stack/,
+  );
+  await assert.rejects(
+    checkDevelopmentApplication({ url, fetchImpl: page("<html></html>") }),
+    /not a development \(Vite\) build/,
+  );
+  await assert.rejects(
+    checkDevelopmentApplication({ url, fetchImpl: page(vite, 503) }),
+    /returned HTTP 503/,
+  );
+});
 
 test("package binaries resolve from the declared manifest path", () => {
   assert.equal(
@@ -137,17 +170,19 @@ test("E2E overrides cannot silently replace a sourced stack target", () => {
     ANIMAMA_E2E_ALLOW_MUTATIONS: "1",
   };
   assert.throws(
-    () => resolveE2eEnvironment({
-      ...stack,
-      ANIMAMA_E2E_WEB_URL: "http://localhost:8000",
-    }),
+    () =>
+      resolveE2eEnvironment({
+        ...stack,
+        ANIMAMA_E2E_WEB_URL: "http://localhost:8000",
+      }),
     /must match the selected stack application origin/,
   );
   assert.throws(
-    () => resolveE2eEnvironment({
-      ...stack,
-      ANIMAMA_E2E_COMPOSE_PROJECT: "animama-other",
-    }),
+    () =>
+      resolveE2eEnvironment({
+        ...stack,
+        ANIMAMA_E2E_COMPOSE_PROJECT: "animama-other",
+      }),
     /must match the selected stack project/,
   );
   const expected = resolveE2eEnvironment(stack);

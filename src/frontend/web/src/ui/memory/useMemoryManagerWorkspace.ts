@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import type {
@@ -64,6 +65,7 @@ export function useMemoryManagerWorkspace({
   onRunCleared,
   onPendingEpisodesChanged,
 }: UseMemoryManagerWorkspaceOptions) {
+  const { t } = useTranslation("memory");
   const [composer, setComposer] = useState("");
   const [optimisticSubmission, setOptimisticSubmission] =
     useState<MemoryManagerOptimisticSubmission | null>(null);
@@ -317,8 +319,8 @@ export function useMemoryManagerWorkspace({
       }
       toast.error(
         effectiveRunId
-          ? "Failed to send memory-manager message."
-          : "Failed to start memory manager.",
+          ? t("manager.toasts.sendFailed")
+          : t("manager.toasts.startFailed"),
         { description: memoryManagerErrorMessage(error) },
       );
     } finally {
@@ -338,20 +340,20 @@ export function useMemoryManagerWorkspace({
       });
       toast.success(
         updated.status === "approved"
-          ? "Memory change applied."
-          : "Memory change rejected.",
+          ? t("manager.toasts.applied")
+          : t("manager.toasts.rejected"),
         {
           description:
             updated.status === "approved"
-              ? "The approved diff was committed."
+              ? t("manager.toasts.appliedDescription")
               : updated.decision_feedback
-                ? "Your feedback was sent to the Memory Manager."
-                : "No memory files were changed.",
+                ? t("manager.toasts.feedbackSent")
+                : t("manager.toasts.noFilesChanged"),
         },
       );
       onPendingEpisodesChanged();
     } catch (error) {
-      toast.error("Failed to record approval decision.", {
+      toast.error(t("manager.toasts.decisionFailed"), {
         description: memoryManagerErrorMessage(error),
       });
     }
@@ -360,21 +362,19 @@ export function useMemoryManagerWorkspace({
   const undo = async (approval: PyMemoryManagerApproval) => {
     try {
       const result = await undoApproval.mutateAsync({ approval });
-      toast.success("Memory change undone.", {
+      toast.success(t("manager.toasts.undone"), {
         description: result.deleted
-          ? "The approved file was removed as a new Version."
-          : `The earlier content was restored as Version ${result.undo_version}.`,
+          ? t("manager.toasts.undoDeleted")
+          : t("manager.toasts.undoRestored", { version: result.undo_version }),
       });
     } catch (error) {
       const stale =
         error instanceof MemoryManagerApiError && error.status === 409;
       toast.error(
-        stale
-          ? "This memory change can no longer be undone."
-          : "Failed to undo the approved memory change.",
+        stale ? t("manager.toasts.undoStale") : t("manager.toasts.undoFailed"),
         {
           description: stale
-            ? "Open Versions to inspect the latest file and explicitly Revert if needed."
+            ? t("manager.toasts.undoStaleDescription")
             : memoryManagerErrorMessage(error),
         },
       );
@@ -397,7 +397,7 @@ export function useMemoryManagerWorkspace({
       onPendingEpisodesChanged();
       return true;
     } catch (error) {
-      toast.error("Failed to complete memory-manager run.", {
+      toast.error(t("manager.toasts.completeFailed"), {
         description: memoryManagerErrorMessage(error),
       });
       return false;
@@ -421,7 +421,7 @@ export function useMemoryManagerWorkspace({
       if (error instanceof MemoryManagerApiError && error.status === 409) {
         onPendingEpisodesChanged();
       }
-      toast.error("Failed to process pending episodes.", {
+      toast.error(t("manager.toasts.processFailed"), {
         description: memoryManagerErrorMessage(error),
       });
     }
@@ -448,7 +448,7 @@ export function useMemoryManagerWorkspace({
           }),
       );
     } catch (error) {
-      toast.error("Reflection did not start.", {
+      toast.error(t("manager.toasts.reflectionFailed"), {
         description: memoryManagerErrorMessage(error),
       });
     }

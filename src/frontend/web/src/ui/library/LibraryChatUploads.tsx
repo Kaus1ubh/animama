@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { FileText, Loader2, RefreshCw, Search } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { useFormatters } from "@animama/product-ui/i18n";
 
 import type { ContentLibrarySearch } from "@/lib/content/librarySearch";
 import {
@@ -58,6 +60,22 @@ function UploadStatus({
 }
 
 function UploadRow({ row }: { row: LibraryUploadListRow }) {
+  const { t } = useTranslation("library");
+  const formatters = useFormatters();
+  const createdAt = row.createdAt ? new Date(row.createdAt) : null;
+  const facts = [
+    row.extension ?? t("uploads.genericKind"),
+    row.sizeBytes && row.sizeBytes > 0
+      ? formatters.fileSize(row.sizeBytes)
+      : null,
+    row.contentType,
+    createdAt && !Number.isNaN(createdAt.getTime())
+      ? formatters.dateTime(createdAt, {
+          dateStyle: "medium",
+          timeStyle: "short",
+        })
+      : null,
+  ];
   return (
     <div className="border-border/70 flex min-w-0 flex-wrap items-center gap-3 border-b px-4 py-3 last:border-b-0 sm:flex-nowrap">
       <span className="bg-muted text-muted-foreground flex size-9 shrink-0 items-center justify-center rounded-lg">
@@ -66,17 +84,14 @@ function UploadRow({ row }: { row: LibraryUploadListRow }) {
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium">{row.name}</p>
         <div className="text-muted-foreground mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">
-          <span>{row.extension}</span>
-          <span aria-hidden="true">·</span>
-          <span>{row.size}</span>
-          {row.contentType ? (
-            <>
-              <span aria-hidden="true">·</span>
-              <span className="max-w-52 truncate">{row.contentType}</span>
-            </>
-          ) : null}
-          <span aria-hidden="true">·</span>
-          <span>{row.createdAt}</span>
+          {facts
+            .filter((fact): fact is string => Boolean(fact))
+            .map((fact, index) => (
+              <span key={index} className="flex min-w-0 items-center gap-x-2">
+                {index > 0 ? <span aria-hidden="true">·</span> : null}
+                <span className="max-w-52 truncate">{fact}</span>
+              </span>
+            ))}
         </div>
         {row.error ? (
           <p className="text-destructive mt-1 text-xs break-words">
@@ -91,8 +106,11 @@ function UploadRow({ row }: { row: LibraryUploadListRow }) {
           tone={row.statusTone}
         />
         <Button asChild size="sm" variant="ghost" className="min-h-10 shrink-0">
-          <a href="#chat-upload-debug-tools" aria-label={`Manage ${row.name}`}>
-            Manage
+          <a
+            href="#chat-upload-debug-tools"
+            aria-label={t("uploads.manageFile", { name: row.name })}
+          >
+            {t("uploads.manage")}
           </a>
         </Button>
       </div>
@@ -107,15 +125,16 @@ function UploadEmptyState({
   filtered: boolean;
   onClearFilters: () => void;
 }) {
+  const { t } = useTranslation("library");
   return (
     <div className="border-border/70 m-4 rounded-lg border border-dashed p-8 text-center">
       <p className="font-medium">
-        {filtered ? "No matching Chat Uploads" : "No Chat Uploads yet"}
+        {filtered ? t("uploads.empty.noMatches") : t("uploads.empty.none")}
       </p>
       <p className="text-muted-foreground mt-1 text-sm">
         {filtered
-          ? "Try another filename or upload status."
-          : "Add a file through chat or the Memories Uploads manager."}
+          ? t("uploads.empty.noMatchesHint")
+          : t("uploads.empty.noneHint")}
       </p>
       {filtered ? (
         <Button
@@ -125,11 +144,11 @@ function UploadEmptyState({
           className="mt-4 min-h-10"
           onClick={onClearFilters}
         >
-          Clear filters
+          {t("uploads.empty.clearFilters")}
         </Button>
       ) : (
         <Button asChild size="sm" variant="outline" className="mt-4 min-h-10">
-          <a href="#chat-upload-debug-tools">Open Uploads manager</a>
+          <a href="#chat-upload-debug-tools">{t("uploads.openManager")}</a>
         </Button>
       )}
     </div>
@@ -144,6 +163,8 @@ export function LibraryChatUploads({
   search: ContentLibrarySearch;
   onSearchChange: (update: Partial<ContentLibrarySearch>) => void;
 }) {
+  const { t } = useTranslation("library");
+  const formatters = useFormatters();
   const files = useUserFiles({ pollActive: true });
   const [queryDraft, setQueryDraft] = useState(search.uploadQuery ?? "");
   const [visibleCount, setVisibleCount] = useState(LIBRARY_UPLOAD_PAGE_SIZE);
@@ -194,19 +215,25 @@ export function LibraryChatUploads({
                   id="library-uploads-heading"
                   className="text-base font-semibold"
                 >
-                  Chat Uploads
+                  {t("uploads.heading")}
                 </h2>
                 {!files.isPending && !files.isError ? (
                   <span className="text-muted-foreground text-xs">
                     {filtered.length === (files.data?.length ?? 0)
-                      ? `${filtered.length} ${filtered.length === 1 ? "upload" : "uploads"}`
-                      : `${filtered.length} of ${files.data?.length ?? 0}`}
+                      ? t("uploads.count", {
+                          count: filtered.length,
+                          formattedCount: formatters.number(filtered.length),
+                        })
+                      : t("uploads.filteredCount", {
+                          shown: formatters.number(filtered.length),
+                          total: formatters.number(files.data?.length ?? 0),
+                        })}
                   </span>
                 ) : null}
               </div>
               <div className="flex items-center gap-3">
                 <label className="relative block min-w-0 flex-1">
-                  <span className="sr-only">Search Chat Uploads</span>
+                  <span className="sr-only">{t("uploads.search")}</span>
                   <Search
                     className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2"
                     aria-hidden="true"
@@ -215,7 +242,7 @@ export function LibraryChatUploads({
                     value={queryDraft}
                     maxLength={80}
                     className="h-11 pl-9"
-                    placeholder="Search Chat Uploads"
+                    placeholder={t("uploads.search")}
                     onChange={(event) => setQueryDraft(event.target.value)}
                   />
                 </label>
@@ -226,7 +253,7 @@ export function LibraryChatUploads({
               </div>
             </div>
             <Button asChild size="sm" variant="outline" className="h-11">
-              <a href="#chat-upload-debug-tools">Manage uploads</a>
+              <a href="#chat-upload-debug-tools">{t("uploads.manageAll")}</a>
             </Button>
           </div>
 
@@ -237,19 +264,23 @@ export function LibraryChatUploads({
             aria-atomic="true"
           >
             {state === "loading"
-              ? "Loading Chat Uploads."
+              ? t("uploads.live.loading")
               : state === "error"
-                ? "Chat Uploads could not be loaded."
+                ? t("uploads.live.error")
                 : state === "empty"
-                  ? "No Chat Uploads yet."
+                  ? t("uploads.live.empty")
                   : state === "no_results"
-                    ? "No Chat Uploads match the current filters."
-                    : `Showing ${rows.length} of ${filtered.length} matching Chat Uploads.`}
+                    ? t("uploads.live.noResults")
+                    : t("uploads.live.showing", {
+                        count: filtered.length,
+                        shown: formatters.number(rows.length),
+                        total: formatters.number(filtered.length),
+                      })}
           </p>
 
           {state === "loading" ? (
             <p className="text-muted-foreground p-6 text-sm" role="status">
-              Loading Chat Uploads…
+              {t("uploads.loading")}
             </p>
           ) : state === "error" ? (
             <div
@@ -257,7 +288,7 @@ export function LibraryChatUploads({
               role="alert"
             >
               <p className="text-destructive text-sm">
-                Your Chat Uploads could not be loaded.
+                {t("uploads.loadFailed")}
               </p>
               <Button
                 type="button"
@@ -266,7 +297,7 @@ export function LibraryChatUploads({
                 className="min-h-10"
                 onClick={() => void files.refetch()}
               >
-                <RefreshCw className="size-4" /> Retry
+                <RefreshCw className="size-4" /> {t("uploads.retry")}
               </Button>
             </div>
           ) : state === "empty" || state === "no_results" ? (
@@ -302,7 +333,7 @@ export function LibraryChatUploads({
                       )
                     }
                   >
-                    Show more Chat Uploads
+                    {t("uploads.showMore")}
                   </Button>
                 </div>
               ) : null}

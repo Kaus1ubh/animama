@@ -1,4 +1,5 @@
 import { LoaderCircleIcon, UploadIcon } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { Button } from "@/ui/components/button";
 import {
@@ -20,8 +21,8 @@ export function CreatorImportDialog({
   text,
   error,
   busy = false,
-  ariaLabel = "Creator JSON",
-  importLabel = "Import document",
+  ariaLabel,
+  importLabel,
   onTextChange,
   onImport,
 }: {
@@ -37,6 +38,7 @@ export function CreatorImportDialog({
   onTextChange: (text: string) => void;
   onImport: () => void;
 }) {
+  const { t } = useTranslation("creator");
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[min(760px,calc(100vw-2rem))]">
@@ -49,12 +51,12 @@ export function CreatorImportDialog({
           value={text}
           onChange={(event) => onTextChange(event.target.value)}
           spellCheck={false}
-          aria-label={ariaLabel}
+          aria-label={ariaLabel ?? t("import.ariaLabel")}
         />
         {error ? <p className="text-destructive text-sm">{error}</p> : null}
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {t("actions.cancel")}
           </Button>
           <Button onClick={onImport} disabled={busy}>
             {busy ? (
@@ -62,7 +64,7 @@ export function CreatorImportDialog({
             ) : (
               <UploadIcon />
             )}
-            {importLabel}
+            {importLabel ?? t("import.confirm")}
           </Button>
         </DialogFooter>
       </DialogContent>

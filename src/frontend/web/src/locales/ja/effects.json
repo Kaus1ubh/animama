@@ -1,0 +1,865 @@
+{
+  "avatar": {
+    "attachments": {
+      "body": {
+        "description": "胸や手など、体のポイントに追従します。",
+        "label": "体につける"
+      },
+      "face_landmark": {
+        "description": "目、口、額の前に浮かぶ平らな画像です。",
+        "label": "顔の前に浮かべる"
+      },
+      "face_surface": {
+        "description": "肌や目に直接描き込むので、顔の動きに追従します。",
+        "label": "顔に描き込む"
+      },
+      "silhouette": {
+        "description": "アバターの上だけに描くパターンや色合いです。",
+        "label": "シルエットを塗りつぶす"
+      },
+      "sticker": {
+        "description": "読みやすさを保つ漫画の描き文字やステッカーです。",
+        "label": "アバターの横のステッカー"
+      }
+    },
+    "bodyPoints": {
+      "chest": "胸",
+      "head": "頭",
+      "hips": "腰",
+      "leftFoot": "左足",
+      "leftHand": "左手",
+      "neck": "首",
+      "rightFoot": "右足",
+      "rightHand": "右手",
+      "root": "足元（アバター全体）",
+      "spine": "ウエスト"
+    },
+    "confirmNew": "現在の変更を破棄して、新しいアバターエフェクトを始めますか？",
+    "faceOptions": {
+      "cleanUpEyes": "目の周りを整える",
+      "cleanUpHint": "描かれた細部を、サンプリングした肌の色で覆います。",
+      "cleanUpMouth": "口の周りを整える",
+      "closeEyes": "目を閉じる",
+      "closeEyesHint": "アートの後ろでアバターの目を閉じます。",
+      "hideEyeDetails": "目の細部を隠す",
+      "hideEyeDetailsHint": "目のハイライト、アイライン、まつげを隠します。",
+      "hidePart": "{{part, lowercase}}を隠す",
+      "hideParts": "ほかの顔パーツを隠す（{{hidden, number}}）",
+      "hidePartsHint": "エフェクトの再生中、これらのパーツを隠します。アートを描いているパーツは表示されたままです。",
+      "skinBackdrop": "肌色の下地",
+      "skinBackdropHint": "アートの透明な部分の後ろに肌の色を置きます。"
+    },
+    "flipbook": {
+      "columns": "列",
+      "description": "画像にはグリッド状にフレームが並び、順に再生されます。",
+      "fps": "1 秒あたりのフレーム数",
+      "frames": "フレーム数",
+      "loop": "繰り返す",
+      "once": "1 回だけ再生",
+      "pingpong": "往復",
+      "playback": "再生方法",
+      "rows": "行",
+      "title": "アニメーションするスプライトシート"
+    },
+    "guides": {
+      "canvas": "配置ガイド",
+      "canvasDetails": "配置ガイド: {{items, list(type: unit)}}",
+      "estimated": "{{label}}・推定"
+    },
+    "image": {
+      "tooLarge": "エフェクト画像は {{size}} 以下にしてください。",
+      "tooWide": "エフェクト画像の各辺は {{pixels, number}} px 以下にしてください。",
+      "typeInvalid": "PNG、JPEG、WebP の画像を 1 枚選んでください。"
+    },
+    "import": {
+      "description": "Animama のアバターエフェクト編集ドキュメントを貼り付けてください。画像データは選び直す必要があります。",
+      "earlierFormat": "このドキュメントは以前のアバターエフェクト編集形式で、このクリエイターでは開けなくなりました。代わりにライブラリから保存済みのエフェクトを開いてください。",
+      "notDocument": "これは Animama のアバターエフェクト編集ドキュメントではありません。",
+      "reselectImages": "保存する前に、インポートしたドキュメントの画像を選び直してください。",
+      "title": "アバターエフェクトの JSON をインポート"
+    },
+    "inspector": {
+      "axes": {
+        "down": "下",
+        "forward": "前",
+        "right": "右",
+        "sideways": "横",
+        "up": "上"
+      },
+      "blend": "ブレンド",
+      "blends": {
+        "additive": "発光（加算）",
+        "multiply": "陰影（乗算）",
+        "normal": "通常"
+      },
+      "height": "高さ",
+      "noTint": "着色なし",
+      "opacity": "不透明度（%）",
+      "placementHelp": "プレビュー上でアートをドラッグするか、角のハンドルでサイズを変え、丸いハンドルで回転させます。プレビューにフォーカスがあるときは矢印キーで少しずつ動かせます。Shift を押すと大きく動きます。",
+      "position": "位置（{{unit}}）",
+      "removeTint": "着色を外す",
+      "rotation": "回転（°）",
+      "scale": "サイズ（×）",
+      "size": "サイズ（{{unit}}）",
+      "tabs": {
+        "look": "見た目",
+        "motion": "動き",
+        "placement": "配置"
+      },
+      "tilt": "傾き（°）",
+      "tiltForward": "前に傾ける",
+      "tint": "着色",
+      "tintApplied": "アートに乗算されます（{{color}}）",
+      "tintColour": "着色の色",
+      "turnSideways": "横に向ける",
+      "width": "幅"
+    },
+    "json": {
+      "description": "このドキュメントには編集用の値と依存コンテンツの正確な参照元が含まれますが、ローカルの Blob URL や権限情報は含まれません。",
+      "title": "持ち運べるアバターエフェクト JSON"
+    },
+    "keyframes": {
+      "add": "追加",
+      "help": "サイズ、回転、位置、不透明度を時間に沿って変えます。値を空にすると前後のキーフレームから補間されます。",
+      "label": "キーフレーム {{index, number}}",
+      "moveX": "X 方向の移動（{{unit}}）",
+      "moveY": "Y 方向の移動（{{unit}}）",
+      "opacity": "不透明度（%）",
+      "order": "キーフレーム {{index, number}} はキーフレーム {{previous, number}} より後の時間にしてください。",
+      "remove": "キーフレーム {{index, number}} を削除",
+      "repeat": "キーフレームを繰り返す",
+      "scale": "サイズ（×）",
+      "time": "時間（秒）",
+      "title": "キーフレーム",
+      "turn": "回転（°）"
+    },
+    "landmarks": {
+      "eyes": "目",
+      "forehead": "額",
+      "mouth": "口",
+      "top": "頭頂",
+      "top_edge": "頭上"
+    },
+    "loading": "アバターエフェクトを読み込んでいます…",
+    "missingPart": "このアバターでは{{part, lowercase}}が検出されていないため、エフェクトは表示されません。「顔パーツ」でパーツを修正するか、別のアバターでプレビューしてください。",
+    "motion": {
+      "clockwise": "時計回り",
+      "counterclockwise": "反時計回り",
+      "direction": "向き",
+      "drift": "ドリフト",
+      "driftHint": "一定の方向に動き続けます。",
+      "driftX": "横方向（アートの幅/秒）",
+      "driftY": "上下方向（アートの高さ/秒）",
+      "largest": "最大サイズ（×）",
+      "pulse": "パルス",
+      "pulseHint": "大きくなったり小さくなったりを繰り返します。",
+      "pulsesPerSecond": "1 秒あたりのパルス数",
+      "smallest": "最小サイズ（×）",
+      "spin": "回転",
+      "spinDirection": "回転の向き",
+      "spinHint": "回り続けるか、左右に揺れます。",
+      "spinRange": "範囲（回転数）",
+      "spinRangeHint": "1 回転未満ではアートが左右に揺れます。1 回転では回り続けます。",
+      "spinSpeed": "速度（°/秒）"
+    },
+    "open": {
+      "imageDownloadFailed": "コンテンツの画像をダウンロードできませんでした。",
+      "noImage": "このコンテンツには編集できる画像ファイルがありません。"
+    },
+    "openFailed": "アバターエフェクトを開けませんでした。",
+    "pivots": {
+      "bottom": "下",
+      "bottomLeft": "左下",
+      "bottomRight": "右下",
+      "centre": "中央",
+      "left": "左",
+      "right": "右",
+      "top": "上",
+      "topLeft": "左上",
+      "topRight": "右上"
+    },
+    "positionHints": {
+      "body": "体のポイントからのセンチメートル。",
+      "face_landmark": "顔のポイントからのセンチメートル。",
+      "face_surface": "描き込むテクスチャに対する割合。",
+      "silhouette": "パターンのタイルに対する割合。",
+      "sticker": "アバターの身長に対する割合。"
+    },
+    "positions": {
+      "farLeft": "左端",
+      "farRight": "右端",
+      "left": "左",
+      "middle": "中央",
+      "right": "右"
+    },
+    "recovery": {
+      "metadataOnly": "クラッシュ復元用に画像データを保存できませんでした。この下書きを復元したら、画像を選び直してください。",
+      "needsImages": "この復元した下書きは、保存する前に画像を選び直す必要があります。",
+      "oldDraft": "このクリエイターの以前のバージョンで作られた未保存のアバターエフェクトの下書きを開けなかったため、破棄しました。",
+      "tooLarge": "この画像はブラウザーのクラッシュ復元には大きすぎます。保存が完了するまでこのタブを開いたままにしてください。"
+    },
+    "regions": {
+      "advanced": "詳細設定",
+      "automatic": "自動: {{region, lowercase}}",
+      "blush": "頬のエフェクト",
+      "body": "体のエフェクト",
+      "emote": "なし（ほかのエフェクトと一緒に再生）",
+      "eyes": "目のエフェクト",
+      "full_face": "なし（ほかの顔全体のアートと一緒に再生）",
+      "mouth": "口のエフェクト",
+      "replaces": "置き換える対象",
+      "replacesHint": "同じ場所のエフェクトが 2 つ同時に再生されると、新しいほうが古いほうを置き換えます。",
+      "silhouette": "シルエットのエフェクト",
+      "sticker": "ステッカーのエフェクト",
+      "undereye": "目の下のエフェクト"
+    },
+    "save": {
+      "chooseImage": "保存する前に画像を選んでください。",
+      "defaultName": "新しいアバターエフェクト",
+      "reselectOtherSide": "保存する前に、反対側の画像を選び直してください。",
+      "saved": "アバターエフェクトを保存しました。"
+    },
+    "settings": {
+      "effect": "エフェクト",
+      "faceOptions": "顔のオプション",
+      "flipbook": "フリップブック",
+      "image": "画像",
+      "keyframes": "キーフレーム",
+      "look": "見た目",
+      "motion": "動き",
+      "otherEyeImage": "反対側の目の画像",
+      "patternSize": "パターンのサイズ",
+      "placement": "配置",
+      "position": "位置",
+      "replaces": "置き換える対象",
+      "rotation": "回転",
+      "scrollSpeed": "スクロール速度",
+      "size": "サイズ",
+      "tint": "着色"
+    },
+    "setup": {
+      "attachTo": "取り付け先",
+      "avatarSides": "左右はアバター自身から見た向きです。",
+      "besideBody": "体",
+      "besideHead": "頭",
+      "besideThe": "隣に置く場所",
+      "bodyPoint": "体のポイント",
+      "browse": "参照",
+      "chooseImage": "画像を選ぶ",
+      "drawnFor": "アートを描いた側",
+      "faceCamera": "常にカメラのほうを向く",
+      "faceCameraHint": "オフにすると、アートは体のポイントの向きに合わせて回ります。",
+      "fill": "塗り",
+      "fillPattern": "画像をパターンとして繰り返す",
+      "fillTint": "画像の色で色付けする",
+      "image": "画像",
+      "imageHint": "PNG、JPEG、WebP・{{size}} まで",
+      "keepOriginal": "元の見た目を下に残す",
+      "keepOriginalHint": "オフにすると、アートのある部分はパーツ本来のテクスチャと置き換わります。",
+      "leftEye": "左目",
+      "leftSide": "左側",
+      "otherImage": "反対側の画像（任意）",
+      "otherImageHint": "左右反転した側にそのまま描かれます。ウインクなど左右で違うアートに使います。",
+      "paintOn": "描き込むパーツ",
+      "pivot": "顔に合わせる画像の基準点",
+      "position": "位置",
+      "replaceImage": "置き換え",
+      "rightEye": "右目",
+      "rightSide": "右側",
+      "scrollX": "X 方向のスクロール（タイル/秒）",
+      "scrollY": "Y 方向のスクロール（タイル/秒）",
+      "tileSize": "タイルのサイズ（×）",
+      "useMirroredImage": "代わりにメイン画像を左右反転して使う",
+      "where": "場所",
+      "whereOnFace": "顔のどこに描くか",
+      "whichEyes": "対象の目",
+      "whichSide": "対象の側"
+    },
+    "setupTitle": "エフェクトの設定",
+    "sides": {
+      "across": "両側にまたがる 1 枚の画像",
+      "acrossEyes": "両目にまたがる 1 枚の画像",
+      "between": "両目の間に 1 枚の画像",
+      "both": "両目",
+      "left": "左のみ",
+      "mirrored": "両側（左右反転）",
+      "mirroredEyes": "両目（左右反転）",
+      "right": "右のみ"
+    },
+    "stage": {
+      "chooseImage": "エフェクトをプレビューするには、セットアップで画像を選んでください。",
+      "label": "エフェクトのプレビュー。アートをドラッグして移動し、角でサイズを変え、丸いハンドルで回転します。矢印キーで少しずつ動かし、Shift を押すと大きく動きます。",
+      "picking": "アバターのパーツをクリックすると、選択中の顔パーツに追加または削除します。"
+    },
+    "summary": {
+      "body": "体につける",
+      "face_landmark": "顔の前に浮かべる",
+      "face_surface": "顔に描き込む",
+      "silhouette": "シルエットの塗りつぶし",
+      "sticker": "ステッカー"
+    },
+    "surfaceAreas": {
+      "blush": "頬",
+      "eyes": "目",
+      "full": "パーツ全体",
+      "mouth": "口",
+      "undereye": "目の下"
+    },
+    "targetParts": {
+      "eye_highlight": "目のハイライト",
+      "eye_iris": "目（虹彩）",
+      "eyelash": "まつげ",
+      "eyeline": "アイライン",
+      "face_skin": "顔の肌"
+    },
+    "template": {
+      "notInstalled": "{{name}} はこのインストールでは利用できません。",
+      "unavailable": "このアバターエフェクトのテンプレートは利用できません。"
+    },
+    "thisAvatar": "このアバター",
+    "units": {
+      "cm": "cm",
+      "percent": "%"
+    },
+    "uv": {
+      "artwork": "アート",
+      "baseColor": "{{material}}・ベースカラー",
+      "canvas": "選択した配置ガイド付きの {{surface}} テクスチャ",
+      "coverage": "肌の塗りつぶし範囲",
+      "help": "参照エリアは配置の目安で、アートを切り抜きません。左右はアバターに合わせます。",
+      "inactive": "エフェクトが停止中のため、ライブのアートはありません。",
+      "legend": "UV ガイドの凡例",
+      "material": "マテリアル",
+      "pivot": "基準点",
+      "reference": "参照",
+      "shadeColor": "{{material}}・陰の色",
+      "surfaceSelect": "UV プレビューのマテリアルとテクスチャ",
+      "title": "UV プレビュー"
+    },
+    "validation": {
+      "flipbookFrames": "フリップブックのフレーム数は、列 × 行を超えられません。",
+      "modelIncompatible": "このエフェクトは有効ですが、選択したアバターには必要なライブバインディングまたは顔のアンカーがありません。",
+      "nameTooLong": "アバターエフェクトの名前は {{max, number}} 文字以内にしてください。",
+      "reselectImage": "画像データを保存できるように、画像を選び直してください。",
+      "reselectOtherEyeImage": "画像データを保存できるように、反対側の目の画像を選び直してください。",
+      "settingInvalid": "{{setting}}: 設定の組み合わせが正しくありません。",
+      "settingProblem": "{{setting}}: {{detail}}"
+    },
+    "views": {
+      "face": "顔",
+      "fullBody": "全身",
+      "portrait": "バストアップ",
+      "threeQuarter": "斜め"
+    }
+  },
+  "creator": {
+    "aTemplate": "テンプレート",
+    "description": "説明",
+    "discardFailed": "下書きを破棄できませんでした。",
+    "imageReadFailed": "画像を読み込めませんでした。",
+    "importFailed": "JSON をインポートできませんでした。",
+    "json": {
+      "copied": "JSON をコピーしました。",
+      "copy": "JSON をコピー",
+      "import": "インポート"
+    },
+    "loading": "読み込み中…",
+    "loadingSaved": "保存済みのコンテンツを読み込んでいます…",
+    "loadingTemplate": "テンプレートを読み込んでいます…",
+    "model": "モデル",
+    "modelPlaceholder": "アバター",
+    "openFailed": "エフェクトを開けません。",
+    "panels": {
+      "inspector": "インスペクター",
+      "setup": "セットアップ"
+    },
+    "previewAvatarFailed": "プレビュー用のアバターを読み込めません。",
+    "previewNoun": "プレビュー",
+    "previewWarning": "プレビュー用のアバターで、このエフェクトに関する問題が報告されました。",
+    "recoveredDraft": "ローカルの下書きを復元しました",
+    "recovery": {
+      "unavailable": "ブラウザーのクラッシュ復元を利用できません。保存が完了するまでこのタブを開いたままにしてください。"
+    },
+    "replaceUnsaved": "現在の未保存のドキュメントを置き換えますか？",
+    "save": {
+      "label": "保存",
+      "paused": "保存を一時停止しました。再試行すると、保持している下書きを再利用します。",
+      "uploading": "アップロード中 {{progress, number(style: percent)}}",
+      "validating": "検証中"
+    },
+    "sound": {
+      "exact": "{{name}}・指定のコンテンツ",
+      "label": "適用時のサウンド",
+      "licensedOmitted": "同梱サウンドは同梱エフェクトでのみ再生されるため、このコピーにはサウンドがありません。自分のサウンドを選ぶことができます。",
+      "loading": "サウンドを読み込んでいます…",
+      "none": "サウンドなし"
+    },
+    "status": {
+      "saved": "保存済み",
+      "saveFailed": "保存に失敗しました",
+      "unsaved": "未保存"
+    },
+    "validation": {
+      "reselectSound": "指定のカタログコンテンツを保存できるように、効果音を選び直してください。"
+    },
+    "view": "表示"
+  },
+  "faceParts": {
+    "cancel": "キャンセル",
+    "done": "完了",
+    "edit": "編集",
+    "editPart": "{{part, lowercase}}を編集",
+    "heading": "{{model}} の顔パーツ",
+    "help": "エフェクトはこれらのパーツを使って顔と目の位置を見つけます。エフェクトが表示されない、または違う場所に出る場合は、ここでパーツを修正してください。修正はこのアバターと一緒に保存され、どこでも使われます。",
+    "meshFallback": "メッシュ",
+    "meshList": "{{items, list(style: narrow)}}",
+    "meshName": "{{name}}（{{key}}）",
+    "meshPartsFor": "{{part, lowercase}}のメッシュパーツ",
+    "noMesh": "メッシュパーツなし",
+    "noneDetected": "このアバターでは顔パーツが検出されていません。",
+    "optional": "{{part}}（任意）",
+    "pick": "アバター上で選ぶ",
+    "picking": "アバターをクリックしてパーツを追加または削除",
+    "problems": {
+      "noDigest": "このアバターのファイルダイジェストを取得できないため、修正を保存できません。",
+      "required": "{{part, lowercase}}のメッシュパーツを 1 つ以上選んでください。",
+      "unknownMesh": "この修正には、このアバターにないメッシュパーツが含まれています。キャンセルしてパーツを選び直してください。"
+    },
+    "readFailed": "このアバターの保存済みの修正を読み込めませんでした。",
+    "roles": {
+      "eye_highlight": "目のハイライト",
+      "eye_left": "左目",
+      "eye_right": "右目",
+      "eyelash": "まつげ",
+      "eyeline": "アイライン",
+      "face_skin": "顔の肌",
+      "hair": "髪"
+    },
+    "saveCorrection": "修正を保存",
+    "saveFailed": "修正を保存できませんでした。",
+    "saving": "保存中",
+    "status": {
+      "absent": "なしに設定",
+      "changed": "変更あり（未保存）",
+      "corrected": "修正済み",
+      "detected": "検出・{{confidence, number(style: percent)}}",
+      "foundByName": "名前から検出・{{confidence, number(style: percent)}}、確認してください",
+      "missing": "見つかりません",
+      "uncertain": "検出・{{confidence, number(style: percent)}}、確認してください"
+    },
+    "title": "顔パーツ",
+    "useDetected": "検出したパーツを使う"
+  },
+  "guides": {
+    "labels": {
+      "blushLeft": "左頬",
+      "blushRight": "右頬",
+      "blushSpan": "両頬にまたがる",
+      "eyeCenter": "両目の中央",
+      "eyeLeft": "左目",
+      "eyeRight": "右目",
+      "face": "顔",
+      "flattenEye": "目の塗りつぶし",
+      "flattenEyeLeft": "左目の塗りつぶし",
+      "flattenEyeRight": "右目の塗りつぶし",
+      "flattenMouth": "口の塗りつぶし",
+      "foreheadLeft": "額の左",
+      "foreheadMiddle": "額の中央",
+      "foreheadRight": "額の右",
+      "irisBoth": "両目の虹彩",
+      "irisLeft": "左目の虹彩",
+      "irisRight": "右目の虹彩",
+      "mouth": "口",
+      "skinSample": "肌色のサンプル",
+      "topEdgeLeft": "頭上の左",
+      "topEdgeLeftCorner": "頭上の左端",
+      "topEdgeMiddle": "頭上の中央",
+      "topEdgeRight": "頭上の右",
+      "topEdgeRightCorner": "頭上の右端",
+      "topLeft": "頭頂の左",
+      "topMiddle": "頭頂の中央",
+      "topRight": "頭頂の右",
+      "undereyeLeft": "左目の下",
+      "undereyeRight": "右目の下",
+      "undereyeSpan": "両目の下にまたがる"
+    },
+    "messages": {
+      "anchorWarning": "このアバターでは、この配置に使う顔のアンカーを利用できません。",
+      "estimatedAnchor": "このアバターでは、この配置に推定したアンカーを使っています。",
+      "estimatedFlatten": "このアバターでは、塗りつぶし範囲に推定した領域を使っています。",
+      "hoverAnchorUnavailable": "このアバターでは、選択した浮かべる位置のアンカーを利用できません。",
+      "landmarksUnavailable": "このアバターでは顔のランドマークを利用できません。",
+      "liveAnchorUnavailable": "アバターのライブの顔アンカーを利用できないため、空間ガイドを表示できません。",
+      "noMaterialTarget": "このアバターには対応するマテリアルの対象がありません。",
+      "noTextureSurface": "選択したマテリアルには読み取れるテクスチャがありません。",
+      "target": "対象: {{materials, list}}。",
+      "textureAnchorsUnavailable": "このアバターでは顔テクスチャのアンカーを利用できません。"
+    },
+    "selectedMaterial": "選択したマテリアル"
+  },
+  "kinds": {
+    "avatarEffect": "アバターエフェクト",
+    "avatarFx": "アバターエフェクト",
+    "sceneEffect": "シーンエフェクト",
+    "sceneFx": "シーンエフェクト"
+  },
+  "scene": {
+    "checks": {
+      "previewAvatar": "プレビュー用のアバター",
+      "ready": "保存できます",
+      "readyDetail": "シーンの設定は整っています。",
+      "states": {
+        "error": "エラー",
+        "idle": "待機中",
+        "loading": "読み込み中",
+        "ready": "準備完了"
+      },
+      "title": "チェック"
+    },
+    "common": {
+      "opacity": "不透明度"
+    },
+    "confirmNew": "現在の変更を破棄して、新しいシーンエフェクトを始めますか？",
+    "controls": {
+      "addStop": "カラーストップを追加",
+      "alternateSpin": "交互に逆回転",
+      "angle": "角度（度）",
+      "centerX": "中心 X",
+      "centerY": "中心 Y",
+      "chooseTileImage": "タイル画像を選択",
+      "colorPicker": "{{label}}の選択",
+      "fade": "フェード（ms）",
+      "flashColor": "フラッシュの色",
+      "gradientType": "グラデーションの種類",
+      "itemsShown": "表示数",
+      "keepFaceClear": "顔を隠さない",
+      "keepFaceClearHint": "静止したアイテムと上下に流れるアイテムは、頭の後ろの縦の範囲に入りません。",
+      "length": "長さ",
+      "newSeed": "新しいランダムシード",
+      "opacity": "不透明度",
+      "pulse": "脈動",
+      "rangeMax": "{{label}}（最大）",
+      "rangeMin": "{{label}}（最小）",
+      "region": "範囲（上から下）",
+      "removeScatter": "散布レイヤーを削除",
+      "removeStop": "カラーストップ {{index, number}} を削除",
+      "replaceTileImage": "タイル画像を置き換え",
+      "rotation": "回転（度）",
+      "screenColor": "スクリーンの色",
+      "screenKind": "スクリーンの種類",
+      "size": "サイズ（px）",
+      "spiky": "とがった放射状",
+      "spin": "回転速度（度/秒）",
+      "stopAt": "位置",
+      "stopColor": "カラーストップ {{index, number}} の色",
+      "stops": "カラーストップ",
+      "swaySeconds": "1 回の揺れの秒数（0 で静止）",
+      "tileSize": "タイルのサイズ（px）",
+      "turnSeconds": "1 回転あたりの秒数（0 で静止）",
+      "width": "太さ（px）"
+    },
+    "directions": {
+      "down": "下",
+      "downLeft": "左下に斜め",
+      "downRight": "右下に斜め",
+      "left": "左",
+      "right": "右",
+      "static": "静止",
+      "up": "上",
+      "upLeft": "左上に斜め",
+      "upRight": "右上に斜め"
+    },
+    "fields": {
+      "baseThickness": "基本の太さ",
+      "definition": "エフェクトの設定",
+      "description": "説明",
+      "duration": "表示時間",
+      "flashColor": "フラッシュの色",
+      "flashDuration": "フラッシュのフェード時間",
+      "flicker": "点滅のタイミング",
+      "gap": "間隔",
+      "gradientAngle": "グラデーションの角度",
+      "gradientCenterX": "グラデーションの中心 X",
+      "gradientCenterY": "グラデーションの中心 Y",
+      "gradientStop": "グラデーションのカラーストップ {{index, number}}",
+      "gradientStops": "グラデーションのカラーストップ",
+      "images": "プライベート画像",
+      "itemSize": "アイテムのサイズ",
+      "lengthVariation": "長さのばらつき",
+      "lineColor": "線の色",
+      "lineCount": "線の本数",
+      "lineOpacity": "線の不透明度",
+      "marqueeItem": "マーキーのアイテム {{index, number}}",
+      "marqueeItems": "マーキーのアイテム",
+      "marqueeOpacity": "マーキーの不透明度",
+      "maxHiddenMs": "最長の非表示時間（ミリ秒）",
+      "maxVisibleMs": "最長の表示時間（ミリ秒）",
+      "minHiddenMs": "最短の非表示時間（ミリ秒）",
+      "minVisibleMs": "最短の表示時間（ミリ秒）",
+      "name": "名前",
+      "opacityJitter": "不透明度のゆらぎ",
+      "overscan": "はみ出し幅",
+      "paddingX": "横の余白",
+      "paddingY": "縦の余白",
+      "patternColor": "パターンの色",
+      "patternOpacity": "パターンの不透明度",
+      "patternSize": "パターンのサイズ",
+      "patternSpacing": "パターンの間隔",
+      "rotationOffset": "回転のオフセット",
+      "rowGap": "行の間隔",
+      "scatter": {
+        "count": "散布 {{layer, number}} の表示数",
+        "item": "散布 {{layer, number}} のアイテム {{index, number}}",
+        "items": "散布 {{layer, number}} のアイテム",
+        "layer": "散布 {{layer, number}}",
+        "maxOpacity": "散布 {{layer, number}} の最大不透明度",
+        "maxRotation": "散布 {{layer, number}} の最大回転",
+        "maxSize": "散布 {{layer, number}} の最大サイズ",
+        "maxSpin": "散布 {{layer, number}} の最大回転速度",
+        "minOpacity": "散布 {{layer, number}} の最小不透明度",
+        "minRotation": "散布 {{layer, number}} の最小回転",
+        "minSize": "散布 {{layer, number}} の最小サイズ",
+        "minSpin": "散布 {{layer, number}} の最小回転速度",
+        "opacity": "散布 {{layer, number}} の不透明度",
+        "region": "散布 {{layer, number}} の範囲",
+        "regionBottom": "散布 {{layer, number}} の範囲の下端",
+        "regionTop": "散布 {{layer, number}} の範囲の上端",
+        "rotation": "散布 {{layer, number}} の回転",
+        "seed": "散布 {{layer, number}} のシード",
+        "size": "散布 {{layer, number}} のサイズ",
+        "speed": "散布 {{layer, number}} の速度",
+        "spin": "散布 {{layer, number}} の回転速度"
+      },
+      "scatters": "散布レイヤー",
+      "screenCenterX": "光線の中心 X",
+      "screenCenterY": "光線の中心 Y",
+      "screenColor": "スクリーンの色",
+      "screenCount": "光線または線の数",
+      "screenLength": "線の長さ",
+      "screenMaxLength": "線の最長の長さ",
+      "screenMaxWidth": "線の最大の太さ",
+      "screenMinLength": "線の最短の長さ",
+      "screenMinWidth": "線の最小の太さ",
+      "screenOpacity": "スクリーンの不透明度",
+      "screenSeed": "スクリーンのシード",
+      "screenSway": "1 回の揺れの秒数",
+      "screenThrob": "1 秒あたりの脈動回数",
+      "screenTurn": "1 回転あたりの秒数",
+      "screenWidth": "線の太さ",
+      "seed": "シード",
+      "solidColor": "単色の色",
+      "sound": "サウンド",
+      "speed": "速度",
+      "target": "対象",
+      "thicknessVariation": "太さのばらつき",
+      "tileImage": "タイル画像",
+      "tileOpacity": "タイルの不透明度",
+      "tileSize": "タイルのサイズ",
+      "tileSpeed": "タイルの速度"
+    },
+    "focus": {
+      "avatarFace": "アバターの顔",
+      "behindAvatar": "アバターの後ろ",
+      "box": {
+        "height": "高さ",
+        "width": "幅",
+        "x": "X",
+        "y": "Y"
+      },
+      "frontOfAvatar": "アバターの前",
+      "manualBox": "手動の範囲",
+      "placement": "描画位置",
+      "seed": "シード",
+      "tabs": {
+        "lines": "線",
+        "motion": "動き",
+        "style": "スタイル",
+        "target": "対象"
+      },
+      "target": "対象"
+    },
+    "gradientTypes": {
+      "linear": "線形",
+      "radial": "放射状"
+    },
+    "image": {
+      "dimensionsTooLarge": "シーン画像の各辺は {{size}} px 以下にしてください。",
+      "tooLarge": "シーン画像は {{size, number}} MiB 以下にしてください。",
+      "typeInvalid": "PNG、JPEG、WebP、または静止した SVG 画像を選んでください。",
+      "unreadable": "この画像は読み取り可能な PNG、JPEG、WebP ファイルではありません。"
+    },
+    "import": {
+      "description": "Animama のシーンエフェクト編集ドキュメントを貼り付けてください。プライベート画像のデータは選び直す必要があります。",
+      "notDocument": "これは Animama のシーンエフェクト編集ドキュメントではありません。",
+      "reselectImages": "保存する前に、インポートしたドキュメントのプライベート画像を選び直してください。",
+      "title": "シーンエフェクトの JSON をインポート",
+      "unsupportedSchema": "このシーンエフェクト編集スキーマには対応していません。"
+    },
+    "items": {
+      "addImage": "プライベート画像を追加",
+      "emojiRemoved": "Animama では絵文字のアイテムが提供されなくなりました。保存する前に、それぞれをステッカーや画像に置き換えるか削除してください。",
+      "empty": "ステッカーまたはプライベート画像を追加してください。",
+      "missingEmoji": "絵文字がありません",
+      "moveDown": "{{name}}を下へ移動",
+      "moveUp": "{{name}}を上へ移動",
+      "remove": "{{name}}を削除",
+      "title": "アイテム"
+    },
+    "json": {
+      "description": "この編集ドキュメントには、ローカルの論理画像名と依存コンテンツの正確な参照元が含まれます。Blob URL やストレージの権限情報は含まれません。",
+      "title": "持ち運べるシーンエフェクト JSON"
+    },
+    "kinds": {
+      "background": "背景",
+      "focusLines": "集中線"
+    },
+    "layers": {
+      "addScatter": "散布レイヤーを追加",
+      "enabled": "{{layer}}を有効にする",
+      "flash": "登場フラッシュ",
+      "flashSummary": "{{color}}・{{ms, number}} ms",
+      "gradient": "グラデーション",
+      "gradientSummary_other": "{{type}}・カラーストップ {{count, number}} 個",
+      "marquee": "マーキー",
+      "marqueeSummary_other": "{{count, number}} 個のアイテム・{{direction}}",
+      "pattern": "パターン",
+      "patternSummary": "{{pattern}}・{{size, number}}px",
+      "scatter": "散布 {{index, number}}",
+      "scatterSummary_other": "{{count, number}} 個のアイテム・{{shown, number}} 個表示・{{pulse}}",
+      "screen": "スクリーン",
+      "screenSummary": "{{kind}}・{{total, number}}",
+      "solid": "単色",
+      "summary": "{{layer}}レイヤー",
+      "tile": "タイル",
+      "tileNoImage": "画像なし",
+      "title": "レイヤー (前面から背面)"
+    },
+    "loading": "シーンエフェクトを読み込んでいます…",
+    "marquee": {
+      "direction": "方向",
+      "gap": "間隔",
+      "itemSize": "アイテムのサイズ",
+      "rotation": "回転",
+      "rotationOffset": "回転のオフセット（度）",
+      "rowGap": "行の間隔",
+      "speed": "速度（px/秒）",
+      "tabs": {
+        "appearance": "見た目",
+        "content": "内容",
+        "motion": "動き"
+      }
+    },
+    "open": {
+      "backgroundIncomplete": "背景レイヤーの定義が不完全です。",
+      "contentImageDownloadFailed": "コンテンツの画像 {{file}} をダウンロードできませんでした。",
+      "contentImageUnavailable": "コンテンツの画像 {{file}} を利用できません。",
+      "definitionUnavailable": "シーンエフェクトの定義を利用できません。",
+      "focusIncomplete": "集中線の定義が不完全です。",
+      "imageUnavailable": "公開版の画像 {{file}} を利用できません。",
+      "itemImageUnavailable": "マーキーのアイテム {{index, number}} の画像を利用できません。",
+      "itemInvalid": "マーキーのアイテム {{index, number}} が正しくありません。",
+      "itemKindUnsupported": "このシーンのアイテムの種類はサポートされていません。",
+      "itemUnsupported": "マーキーのアイテム {{index, number}} には対応していません。",
+      "kindUnsupported": "この種類のシーンエフェクトには対応していません。",
+      "scatterInvalid": "散布レイヤー {{index, number}} が正しくありません。"
+    },
+    "openFailed": "シーンエフェクトを開けませんでした。",
+    "pattern": {
+      "color": "色",
+      "enabled": "パターンを有効にする",
+      "kind": "パターンの種類",
+      "size": "サイズ",
+      "spacing": "間隔"
+    },
+    "patterns": {
+      "heart": "ハート",
+      "none": "なし",
+      "polkadot": "水玉",
+      "star": "星"
+    },
+    "pulses": {
+      "flicker": "ちらつき",
+      "none": "なし",
+      "pop": "ポップ",
+      "twinkle": "きらめき"
+    },
+    "recovery": {
+      "metadataOnly": "クラッシュ復元用に画像データを保存できませんでした。この下書きを復元したら、プライベート画像を選び直してください。",
+      "needsImages": "この復元した下書きは、保存する前にプライベート画像を選び直す必要があります。",
+      "tooLarge": "これらの画像はブラウザーのクラッシュ復元には大きすぎます。保存が完了するまでこのタブを開いたままにしてください。"
+    },
+    "rotationModes": {
+      "followTrack": "進行方向に合わせる",
+      "upright": "常に正立"
+    },
+    "save": {
+      "defaultName": "新しいシーンエフェクト",
+      "reselectImage": "保存する前に {{file}} を選び直してください。",
+      "saved": "シーンエフェクトを保存しました。"
+    },
+    "screenKinds": {
+      "lines": "線",
+      "rays": "光線"
+    },
+    "setup": {
+      "behavior": "エフェクトの動作",
+      "coverUi": "UI の上に重ねる",
+      "coverUiHint": "対応している場合、エフェクトをアプリの画面要素の上に重ねてプレビューします。",
+      "custom": "カスタム",
+      "dismissOnInput": "入力で閉じる",
+      "duration": "表示時間（秒）",
+      "focusLinesHint": "アバターの顔や選んだ範囲を強調します。",
+      "startingTemplate": "開始テンプレート",
+      "sticky": "表示し続ける",
+      "title": "シーンの設定"
+    },
+    "solid": {
+      "color": "単色の色",
+      "enabled": "単色を有効にする"
+    },
+    "stickers": {
+      "add": "{{name}} のステッカーを追加",
+      "extras": "その他",
+      "loadFailed": "ステッカーを読み込めませんでした。",
+      "title": "ステッカーを追加"
+    },
+    "template": {
+      "unavailable": "このシーンエフェクトのテンプレートは利用できません。"
+    },
+    "validation": {
+      "bounds": "{{setting}}は {{min, number}} から {{max, number}} の範囲にしてください。",
+      "boundsWhole": "{{setting}}は {{min, number}} から {{max, number}} の整数にしてください。",
+      "countAtMost": "{{setting}}は {{max, number}} 個までです。",
+      "countRange": "{{setting}}は {{min, number}}〜{{max, number}} 個にしてください。",
+      "definitionInvalid": "シーンエフェクトの設定が正しくありません。",
+      "descriptionTooLong": "説明は {{max, number}} 文字以内にしてください。",
+      "duplicateItemIds": "各アイテムには固有の ID が必要です。",
+      "duration": "表示時間は「表示し続ける」にするか、{{min, number}} から {{max, number}} 秒の範囲にしてください。",
+      "flashColor": "フラッシュの色は 6 桁の 16 進数で指定してください。",
+      "flickerOrder": "点滅の最短時間は最長時間を超えられません。",
+      "gradientStopColor": "グラデーションのカラーストップの色は 6 桁の 16 進数で指定してください。",
+      "imagesTooLarge": "プライベートなシーン画像は合計 {{size}} 以下にしてください。",
+      "imageType": "{{file}} は PNG、JPEG、WebP、SVG のいずれでもありません。",
+      "legacyEmoji": "{{label}} は Animama で提供されなくなった絵文字です。ステッカーや画像に置き換えるか、削除してください。",
+      "legacyEmojiUnnamed": "このアイテムは Animama で提供されなくなった絵文字です。ステッカーや画像に置き換えるか、削除してください。",
+      "lineColor": "線の色は 6 桁の 16 進数で指定してください。",
+      "manualTarget": "手動の範囲は、正規化されたビューポートの内側に収めてください。",
+      "minAboveMax": "{{setting}}: 最小値は最大値を超えられません。",
+      "nameTooLong": "シーンエフェクトの名前は {{max, number}} 文字以内にしてください。",
+      "patternColor": "パターンの色は 6 桁の 16 進数で指定してください。",
+      "reselectForPreview": "プレビューするには {{file}} を選び直してください。",
+      "reselectImage": "画像データを保存できるように、{{file}} を選び直してください。",
+      "scatterTotal": "散布レイヤーで表示できるアイテムは合計 {{max, number}} 個までです。",
+      "screenColor": "スクリーンの色は 6 桁の 16 進数で指定してください。",
+      "solidColor": "単色の色は 6 桁の 16 進数で指定してください。",
+      "stopsAscending": "グラデーションのカラーストップは位置の昇順に並べてください。",
+      "tileImage": "タイル表示する画像を選んでください。",
+      "tooManyImages": "シーンエフェクトに含められるプライベート画像は {{max, number}} 枚までです。",
+      "unusedImages": "集中線では、使われていない背景画像のデータは保存されません。"
+    },
+    "views": {
+      "fullScene": "シーン全体",
+      "portrait": "バストアップ"
+    }
+  }
+}

@@ -28,7 +28,8 @@ describe("first-use cloning download", () => {
     const html = renderToStaticMarkup(
       <VoiceCloningDownload {...props} asset={asset} />,
     );
-    expect(html).toContain("38 MB");
+    // Sizes use the shared locale formatter (binary megabytes, one decimal).
+    expect(html).toContain("37.9 MB");
     expect(html).toContain("Narrator.wav");
     expect(html).toContain("Download and clone");
     expect(html).toContain("Not now");

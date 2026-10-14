@@ -4,6 +4,7 @@ import {
   LoaderCircleIcon,
 } from "lucide-react";
 import type { ReactNode, Ref } from "react";
+import { getI18n, useTranslation } from "react-i18next";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/ui/components/button";
@@ -71,9 +72,13 @@ export function CreatorSaveNotice({
 export const CREATOR_STAGE_NOTICE_CLASS =
   "absolute top-[calc(var(--creator-header-height)+0.5rem)] right-4 left-4 z-[60] sm:left-auto sm:max-w-md lg:top-auto lg:right-[calc(var(--creator-inset)+min(var(--creator-right-panel-width),27vw)+0.75rem)] lg:bottom-[calc(var(--creator-canvas-controls-height)+2.75rem)] lg:left-[calc(var(--app-shell-sidebar-inset)+var(--creator-inset)+min(var(--creator-left-panel-width),26vw)+0.75rem)] lg:mx-auto";
 
-/** The notice every creator shows after restoring an unsaved browser draft. */
+/**
+ * The notice every creator shows after restoring an unsaved browser draft,
+ * worded in the active UI Locale when it is called (during render).
+ */
 export function creatorRecoveredMessage(contentLabel: string): string {
-  return `Recovered unsaved ${contentLabel} changes.`;
+  const t = getI18n().getFixedT(null, "creator");
+  return t("recovery.recovered", { label: contentLabel });
 }
 
 /**
@@ -87,6 +92,7 @@ export function CreatorDiscardRecoveryButton({
   disabled?: boolean;
   onDiscard: () => void;
 }) {
+  const { t } = useTranslation("creator");
   return (
     <Button
       type="button"
@@ -95,7 +101,7 @@ export function CreatorDiscardRecoveryButton({
       disabled={disabled}
       onClick={onDiscard}
     >
-      Discard recovery
+      {t("recovery.discard")}
     </Button>
   );
 }
@@ -125,6 +131,7 @@ export function CreatorRecoveryNotice({
   onDiscardRecovery: () => void;
   className?: string;
 }) {
+  const { t } = useTranslation("creator");
   if (!error && !recoveryWarning && !recovered) return null;
   return (
     <CreatorSaveNotice
@@ -136,7 +143,7 @@ export function CreatorRecoveryNotice({
       actions={
         error ? (
           <Button size="sm" variant="outline" onClick={onDiscardServerDraft}>
-            Discard preserved server draft
+            {t("recovery.discardServerDraft")}
           </Button>
         ) : recovered ? (
           <CreatorDiscardRecoveryButton

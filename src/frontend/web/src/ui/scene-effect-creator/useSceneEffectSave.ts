@@ -1,5 +1,7 @@
 "use client";
 
+import { getI18n } from "react-i18next";
+
 import { contentSaveFieldError } from "@/lib/content/contentSaveErrors";
 import {
   SCENE_EFFECT_RECOVERY_SCHEMA,
@@ -25,9 +27,19 @@ export const sceneEffectSaveAdapter: CreatorSaveAdapter<
   SceneEffectRecovery
 > = {
   kind: "scene_effect",
-  defaultName: "New Scene FX",
-  savedMessage: "Scene Effect saved.",
-  pausedMessage: "Save paused. Retry will reuse the preserved draft.",
+  // Worded when read, so they follow the UI Locale at Save time.
+  get defaultName() {
+    const t = getI18n().getFixedT(null, "effects");
+    return t("scene.save.defaultName");
+  },
+  get savedMessage() {
+    const t = getI18n().getFixedT(null, "effects");
+    return t("scene.save.saved");
+  },
+  get pausedMessage() {
+    const t = getI18n().getFixedT(null, "effects");
+    return t("creator.save.paused");
+  },
   store: sceneEffectRecoveryStore,
   fingerprint: sceneEffectSnapshotFingerprint,
   name: (snapshot) => snapshot.document.name,
@@ -42,6 +54,7 @@ export const sceneEffectSaveAdapter: CreatorSaveAdapter<
       imageResources.map((resource) => [resource.logicalName, resource]),
     );
     if (referenced.length > 0) progress("uploading");
+    const t = getI18n().getFixedT(null, "effects");
     const files: File[] = [];
     const companionPaths: string[] = [];
     for (let index = 0; index < referenced.length; index += 1) {
@@ -49,7 +62,7 @@ export const sceneEffectSaveAdapter: CreatorSaveAdapter<
       const resource = resourcesByName.get(image.logicalName);
       if (!resource)
         throw contentSaveFieldError(
-          `Reselect ${image.originalName} before saving.`,
+          t("scene.save.reselectImage", { file: image.originalName }),
           "files",
         );
       signal.throwIfAborted();
@@ -100,19 +113,22 @@ export const sceneEffectSaveAdapter: CreatorSaveAdapter<
     contentFingerprint: session.contentFingerprint,
     updatedAt,
   }),
-  fromRecovery: (record) => ({
-    snapshot: {
-      document: record.document,
-      imageResources: record.imageResources,
-    },
-    operationId: record.operationId,
-    contentFingerprint: record.contentFingerprint,
-    warning:
-      sceneEffectImageMetadata(record.document).length > 0 &&
-      record.imageResources.length === 0
-        ? "This recovered draft needs its private images reselected before Save."
-        : null,
-  }),
+  fromRecovery: (record) => {
+    const t = getI18n().getFixedT(null, "effects");
+    return {
+      snapshot: {
+        document: record.document,
+        imageResources: record.imageResources,
+      },
+      operationId: record.operationId,
+      contentFingerprint: record.contentFingerprint,
+      warning:
+        sceneEffectImageMetadata(record.document).length > 0 &&
+        record.imageResources.length === 0
+          ? t("scene.recovery.needsImages")
+          : null,
+    };
+  },
   editRoute: (itemId) => ({
     to: "/scene-effects/$sceneEffectId/edit",
     params: { sceneEffectId: itemId },

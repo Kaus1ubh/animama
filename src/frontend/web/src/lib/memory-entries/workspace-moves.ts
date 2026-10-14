@@ -1,3 +1,6 @@
+import type { TFunction } from "i18next";
+import { getI18n } from "react-i18next";
+
 import type { PyMemoryEntryHeader } from "@/lib/content/catalogTypes";
 import { isReservedUserMemoryEntry } from "@/lib/memory-entries/anima-folders";
 import {
@@ -63,7 +66,10 @@ export function memoryEntrySubtree(
   return result;
 }
 
-/** Applies client-visible destination rules before the backend revalidates. */
+/**
+ * Applies client-visible destination rules before the backend revalidates.
+ * `reason` is worded in the active UI Locale.
+ */
 export function validateMemoryMoveDestination({
   source,
   destination,
@@ -73,34 +79,29 @@ export function validateMemoryMoveDestination({
   destination: PyMemoryEntryHeader | null;
   entries: PyMemoryEntryHeader[];
 }): MemoryMoveValidation {
+  const t = getI18n().getFixedT(null, "memory");
   if (!canMoveMemoryEntry(source)) {
-    return { valid: false, reason: "This memory entry cannot be moved." };
+    return { valid: false, reason: t("move.reasons.cannotMove") };
   }
   if (!destination) {
     return source.parent_id === null || source.parent_id === undefined
-      ? { valid: false, reason: "This entry is already in Memory root." }
+      ? { valid: false, reason: t("move.reasons.alreadyInRoot") }
       : { valid: true, reason: null };
   }
   if (destination.type !== "directory" || isEpisodeLogEntry(destination)) {
-    return { valid: false, reason: "Choose an ordinary memory directory." };
+    return { valid: false, reason: t("move.reasons.chooseDirectory") };
   }
   if (isReservedUserMemoryEntry(destination)) {
-    return {
-      valid: false,
-      reason: "The animas path is reserved for Anima identities.",
-    };
+    return { valid: false, reason: t("move.reasons.reserved") };
   }
   if ((destination.anima_id ?? null) !== (source.anima_id ?? null)) {
-    return {
-      valid: false,
-      reason: "The destination is in another memory scope.",
-    };
+    return { valid: false, reason: t("move.reasons.otherScope") };
   }
   if (destination.id === source.parent_id) {
-    return { valid: false, reason: "This entry is already in that directory." };
+    return { valid: false, reason: t("move.reasons.alreadyInDirectory") };
   }
   if (destination.id === source.id) {
-    return { valid: false, reason: "A directory cannot contain itself." };
+    return { valid: false, reason: t("move.reasons.containsItself") };
   }
   if (
     source.type === "directory" &&
@@ -108,18 +109,19 @@ export function validateMemoryMoveDestination({
       (entry) => entry.id === destination.id,
     )
   ) {
-    return {
-      valid: false,
-      reason: "A directory cannot move inside one of its descendants.",
-    };
+    return { valid: false, reason: t("move.reasons.insideDescendant") };
   }
   return { valid: true, reason: null };
 }
 
-/** Builds the root-first searchable directory choices for the move dialog. */
+/**
+ * Builds the root-first searchable directory choices for the move dialog,
+ * worded with `t` (the active UI Locale by default).
+ */
 export function memoryMoveDestinations(
   entries: PyMemoryEntryHeader[],
   source: PyMemoryEntryHeader,
+  t: TFunction<"memory"> = getI18n().getFixedT(null, "memory"),
 ): MemoryMoveDestination[] {
   const rootValidation = validateMemoryMoveDestination({
     source,
@@ -147,7 +149,7 @@ export function memoryMoveDestinations(
   return [
     {
       parentId: null,
-      label: "Memory root",
+      label: t("move.root"),
       path: null,
       disabled: !rootValidation.valid,
       reason: rootValidation.reason,

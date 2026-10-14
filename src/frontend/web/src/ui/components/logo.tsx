@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { publicResourceUrl } from "@/lib/resource-urls";
 
@@ -15,10 +16,11 @@ export const LogoMark = ({ className }: { className?: string }) => {
 };
 
 export const Logo = () => {
+  const { t } = useTranslation("components");
   return (
     <Link
       to="/"
-      aria-label="Animama"
+      aria-label={t("logo.label")}
       className="text-sidebar-foreground dark:text-sidebar-foreground relative z-20 flex h-11 min-w-0 flex-1 items-center gap-1.5 rounded-md px-1.5 text-sm font-normal"
     >
       <LogoMark />
@@ -37,10 +39,11 @@ export const Logo = () => {
 };
 
 export const LogoIcon = () => {
+  const { t } = useTranslation("components");
   return (
     <Link
       to="/"
-      aria-label="Animama"
+      aria-label={t("logo.label")}
       className="text-sidebar-foreground dark:text-sidebar-foreground relative z-20 flex items-center space-x-2 py-1 text-sm font-normal"
     >
       <LogoMark />

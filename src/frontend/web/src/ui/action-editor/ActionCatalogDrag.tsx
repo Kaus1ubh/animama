@@ -25,6 +25,7 @@ import {
   type RefObject,
 } from "react";
 import { createPortal } from "react-dom";
+import { useTranslation } from "react-i18next";
 import { insertActionEditorSavedPose } from "./actionEditorSavedPose";
 import { cn } from "@/lib/utils";
 import { usePoseCreatorStore } from "@/stores/pose-creator-store";
@@ -63,6 +64,7 @@ export function ActionCatalogDragProvider({
 }: {
   children: ReactNode;
 }) {
+  const { t } = useTranslation("actionEditor");
   const apiClient = useProductApiClient();
 
   const workspace = useActionEditorWorkspace();
@@ -316,11 +318,10 @@ export function ActionCatalogDragProvider({
       }}
       accessibility={{
         announcements: {
-          onDragStart: () =>
-            "Dragging catalog item. Drop on the timeline or press Escape to cancel.",
+          onDragStart: () => t("drag.started"),
           onDragOver: () => undefined,
-          onDragEnd: () => "Drag finished.",
-          onDragCancel: () => "Drag cancelled.",
+          onDragEnd: () => t("drag.finished"),
+          onDragCancel: () => t("drag.cancelled"),
         },
       }}
     >
@@ -355,6 +356,7 @@ export function CatalogDragHandle({
   disabled?: boolean;
   children: ReactNode;
 }) {
+  const { t } = useTranslation("actionEditor");
   const access = useContext(DragAccessContext);
   const instanceId = useId();
   const enabled = Boolean(access?.enabled && !disabled);
@@ -373,7 +375,7 @@ export function CatalogDragHandle({
       {...(enabled ? listeners : {})}
       tabIndex={-1}
       aria-label={
-        enabled ? `Drag ${catalogDragName(item)} to timeline` : undefined
+        enabled ? t("drag.handle", { name: catalogDragName(item) }) : undefined
       }
       className={cn(
         "flex min-w-0 flex-1 items-center gap-2",

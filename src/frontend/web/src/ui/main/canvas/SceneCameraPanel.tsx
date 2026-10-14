@@ -2,6 +2,7 @@
 
 import { ChevronDown, RotateCcw } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/ui/components/button";
@@ -120,6 +121,7 @@ function VectorControl({
   onValueChange: (axis: keyof SceneVector3, nextValue: number) => void;
   value: SceneVector3;
 }) {
+  const { t } = useTranslation("chat");
   return (
     <div className="space-y-2">
       <FieldLabel className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
@@ -132,7 +134,10 @@ function VectorControl({
               {axis}
             </FieldLabel>
             <NumericInput
-              ariaLabel={`${label} ${axis.toUpperCase()}`}
+              ariaLabel={t("canvas.camera.axis", {
+                label,
+                axis: axis.toUpperCase(),
+              })}
               disabled={disabledAxes?.[axis] === true}
               onValueChange={(nextValue) => onValueChange(axis, nextValue)}
               precision={2}
@@ -156,12 +161,21 @@ export function SceneCameraPanel({
   onReset,
   onTargetChange,
 }: SceneCameraPanelProps) {
+  const { t } = useTranslation("chat");
+  const boneOptions = (
+    <>
+      <option value="manual">{t("canvas.camera.bones.manual")}</option>
+      <option value="hips">{t("canvas.camera.bones.hips")}</option>
+      <option value="chest">{t("canvas.camera.bones.chest")}</option>
+      <option value="head">{t("canvas.camera.bones.head")}</option>
+    </>
+  );
   return (
     <div className={cn("space-y-3", className)}>
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-3">
           <FieldLabel className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
-            Camera Y Source
+            {t("canvas.camera.positionYSource")}
           </FieldLabel>
           <Button
             type="button"
@@ -171,12 +185,12 @@ export function SceneCameraPanel({
             onClick={onReset}
           >
             <RotateCcw className="h-3.5 w-3.5" />
-            Reset
+            {t("canvas.camera.reset")}
           </Button>
         </div>
         <div className="relative">
           <select
-            aria-label="Camera Y source"
+            aria-label={t("canvas.camera.positionYSourceLabel")}
             className="border-input bg-background focus-visible:ring-ring h-8 w-full appearance-none rounded-md border pr-10 pl-3 text-xs outline-none focus-visible:ring-2"
             value={bindings.positionYBone}
             onChange={(event) =>
@@ -185,10 +199,7 @@ export function SceneCameraPanel({
               )
             }
           >
-            <option value="manual">Manual</option>
-            <option value="hips">Hips</option>
-            <option value="chest">Chest</option>
-            <option value="head">Head</option>
+            {boneOptions}
           </select>
           <ChevronDown
             aria-hidden="true"
@@ -198,17 +209,17 @@ export function SceneCameraPanel({
       </div>
       <VectorControl
         disabledAxes={{ y: bindings.positionYBone !== "manual" }}
-        label="Camera Position"
+        label={t("canvas.camera.position")}
         onValueChange={onPositionChange}
         value={settings.position}
       />
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-3">
           <FieldLabel className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
-            Field Of View
+            {t("canvas.camera.fieldOfView")}
           </FieldLabel>
           <NumericInput
-            ariaLabel="Camera field of view"
+            ariaLabel={t("canvas.camera.fieldOfViewLabel")}
             onValueChange={(nextValue) => onFovChange(clamp(nextValue, 10, 90))}
             precision={1}
             value={settings.fov}
@@ -227,11 +238,11 @@ export function SceneCameraPanel({
       </div>
       <div className="space-y-2">
         <FieldLabel className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
-          Orbit Target Y Source
+          {t("canvas.camera.orbitTargetYSource")}
         </FieldLabel>
         <div className="relative">
           <select
-            aria-label="Orbit target Y source"
+            aria-label={t("canvas.camera.orbitTargetYSourceLabel")}
             className="border-input bg-background focus-visible:ring-ring h-8 w-full appearance-none rounded-md border pr-10 pl-3 text-xs outline-none focus-visible:ring-2"
             value={bindings.orbitTargetYBone}
             onChange={(event) =>
@@ -240,10 +251,7 @@ export function SceneCameraPanel({
               )
             }
           >
-            <option value="manual">Manual</option>
-            <option value="hips">Hips</option>
-            <option value="chest">Chest</option>
-            <option value="head">Head</option>
+            {boneOptions}
           </select>
           <ChevronDown
             aria-hidden="true"
@@ -253,7 +261,7 @@ export function SceneCameraPanel({
       </div>
       <VectorControl
         disabledAxes={{ y: bindings.orbitTargetYBone !== "manual" }}
-        label="Orbit Target"
+        label={t("canvas.camera.orbitTarget")}
         onValueChange={onTargetChange}
         value={settings.orbitTarget}
       />

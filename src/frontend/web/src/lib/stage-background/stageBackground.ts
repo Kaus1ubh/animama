@@ -10,18 +10,21 @@ export type StageBackgroundVariant = "chat" | "showcase";
 
 export type StageTheme = "light" | "dark";
 
-/** App stage scenes, in dropdown order; each ships a light and a dark image. */
+/**
+ * App stage scenes, in dropdown order; each ships a light and a dark image.
+ * Display names live in the `animas` catalog (`appearance.scenes.*`).
+ */
 export const STAGE_SCENES = [
-  { id: "dreamy", label: "Dreamy" },
-  { id: "bedroom", label: "Bedroom" },
-  { id: "sakura", label: "Sakura" },
-  { id: "seaside", label: "Seaside" },
-  { id: "rooftop", label: "Rooftop" },
-  { id: "cafe", label: "Café" },
-  { id: "classroom", label: "Classroom" },
+  "dreamy",
+  "bedroom",
+  "sakura",
+  "seaside",
+  "rooftop",
+  "cafe",
+  "classroom",
 ] as const;
 
-export type StageSceneId = (typeof STAGE_SCENES)[number]["id"];
+export type StageSceneId = (typeof STAGE_SCENES)[number];
 
 /** A scene, or `"none"` for the plain theme background. */
 export type StageSceneChoice = StageSceneId | "none";
@@ -38,7 +41,7 @@ export type StageBackground =
   | { kind: "none" };
 
 function isStageSceneId(value: unknown): value is StageSceneId {
-  return STAGE_SCENES.some((scene) => scene.id === value);
+  return STAGE_SCENES.some((scene) => scene === value);
 }
 
 export function appStageBackgroundUrl(

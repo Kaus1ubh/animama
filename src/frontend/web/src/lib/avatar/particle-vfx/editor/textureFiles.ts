@@ -8,6 +8,9 @@
  * files are untrusted: their size, format and header dimensions are checked
  * against the shared limits before anything decodes them.
  */
+import { getI18n } from "react-i18next";
+
+import { WordedError } from "@/lib/errors/apiError";
 import {
   PARTICLE_TEXTURE_LIMITS,
   inspectEffectArt,
@@ -67,12 +70,18 @@ export function missingParticleVFXTextureReferences(
   );
 }
 
-function refusalMessage({ reason }: EffectArtRefusal): string {
+/** Why a texture file was refused, in the UI Locale. */
+function refusalMessage({ reason }: Pick<EffectArtRefusal, "reason">): string {
+  const t = getI18n().getFixedT(null, "particles");
   if (reason === "bytes")
-    return `Texture files must be at most ${PARTICLE_TEXTURE_LIMITS.bytes / MIB} MiB.`;
+    return t("texture.files.tooLarge", {
+      size: PARTICLE_TEXTURE_LIMITS.bytes / MIB,
+    });
   if (reason === "dimension" || reason === "pixels")
-    return `Textures must be at most ${PARTICLE_TEXTURE_LIMITS.dimension} px on each side.`;
-  return "Texture files must be PNG images.";
+    return t("texture.files.dimensionsTooLarge", {
+      size: PARTICLE_TEXTURE_LIMITS.dimension,
+    });
+  return t("texture.files.notPng");
 }
 
 /**
@@ -87,7 +96,15 @@ export async function loadParticleVFXTextureFiles(
     const read = await readParticleVFXTextureFile(await download(), {
       formats: ["png", "jpeg", "webp"],
     });
-    if (!read.ok) throw new Error(`Texture ${logicalPath}: ${read.message}`);
+    if (!read.ok) {
+      const t = getI18n().getFixedT(null, "particles");
+      throw new WordedError(
+        t("texture.files.fileRefused", {
+          texture: logicalPath,
+          reason: read.message,
+        }),
+      );
+    }
     textureFiles[logicalPath] = read.file;
   }
   return textureFiles;
@@ -142,15 +159,18 @@ export async function readParticleVFXTextureFile(
 
 /** Why the effect's textures exceed the per-effect limits, if they do. */
 function textureLimitMessage(draft: ParticleVFXEditorDraft): string | null {
+  const t = getI18n().getFixedT(null, "particles");
   const references = particleVFXTextureReferences(draft.quarksJson);
   if (references.length > PARTICLE_TEXTURE_LIMITS.count)
-    return `A Particle Effect can use at most ${PARTICLE_TEXTURE_LIMITS.count} textures.`;
+    return t("texture.files.tooMany", { max: PARTICLE_TEXTURE_LIMITS.count });
   const total = Object.values(referencedParticleVFXTextureFiles(draft)).reduce(
     (sum, file) => sum + file.blob.size,
     0,
   );
   if (total > PARTICLE_TEXTURE_LIMITS.totalBytes)
-    return `Textures in one Particle Effect must total at most ${PARTICLE_TEXTURE_LIMITS.totalBytes / MIB} MiB.`;
+    return t("texture.files.totalTooLarge", {
+      size: PARTICLE_TEXTURE_LIMITS.totalBytes / MIB,
+    });
   return null;
 }
 
@@ -277,7 +297,7 @@ export async function extractEmbeddedParticleVFXTextures(
     const blob = decodeDataUrl(image.url);
     const read = blob
       ? await readParticleVFXTextureFile(blob)
-      : { ok: false as const, message: "Texture files must be PNG images." };
+      : { ok: false as const, message: refusalMessage({ reason: "format" }) };
     if (!read.ok) {
       refused.push(read.message);
       continue;

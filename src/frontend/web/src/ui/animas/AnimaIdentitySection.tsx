@@ -1,6 +1,7 @@
 import type { MouseEvent } from "react";
 import { Link } from "@tanstack/react-router";
 import { FileText } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { Button } from "@/ui/components/button";
 import { MemoryMarkdownPreview } from "@/ui/memory/MemoryMarkdownPreview";
@@ -24,6 +25,7 @@ export function AnimaIdentitySection({
   showEditAction?: boolean;
   onEdit?: (event: MouseEvent<HTMLButtonElement>) => void;
 }) {
+  const { t } = useTranslation("animas");
   const previewClass = "text-foreground/90 [overflow-wrap:anywhere]";
   const layoutClass = "flex min-w-0 flex-col gap-3";
   const editIdentityButton = (
@@ -36,7 +38,7 @@ export function AnimaIdentitySection({
       {onEdit ? (
         <button id="anima-identity-edit-trigger" type="button" onClick={onEdit}>
           <FileText className="size-4" />
-          Edit identity
+          {t("identity.edit")}
         </button>
       ) : (
         <Link
@@ -46,7 +48,7 @@ export function AnimaIdentitySection({
           search={{ tab: "overview" }}
         >
           <FileText className="size-4" />
-          Edit identity
+          {t("identity.edit")}
         </Link>
       )}
     </Button>
@@ -61,17 +63,15 @@ export function AnimaIdentitySection({
     <div className={layoutClass}>
       {identityLoading ? (
         <p className="text-muted-foreground flex h-full items-center justify-center py-8 text-center text-sm">
-          Loading identity…
+          {t("identity.loading")}
         </p>
       ) : identityError ? (
         <div className={layoutClass}>
-          <p className="text-destructive text-sm">
-            The current identity memory file could not be loaded.
-          </p>
+          <p className="text-destructive text-sm">{t("identity.loadFailed")}</p>
           <div className={layoutClass}>
             <MemoryMarkdownPreview
               value={fallbackIdentity}
-              emptyText="_No starter identity is available._"
+              emptyText={t("identity.emptyStarter")}
               className={previewClass}
             >
               {identityActions}
@@ -82,7 +82,7 @@ export function AnimaIdentitySection({
         <div className={layoutClass}>
           <MemoryMarkdownPreview
             value={identity}
-            emptyText="_No identity content provided yet._"
+            emptyText={t("identity.empty")}
             className={previewClass}
           >
             {identityActions}

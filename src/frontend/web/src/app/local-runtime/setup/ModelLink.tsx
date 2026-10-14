@@ -1,17 +1,20 @@
 import type { ReactNode } from "react";
 import { ExternalLink } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 /**
- * A model's name linked to its public source page, for use inside a sentence.
- * Desktop opens external links in the system browser.
+ * A model's name linked to its public source page, for use inside a sentence
+ * (as a `<Trans>` component, which supplies the name). Desktop opens external
+ * links in the system browser.
  */
 export function ModelLink({
   href,
   children,
 }: {
   href: string;
-  children: ReactNode;
+  children?: ReactNode;
 }) {
+  const { t } = useTranslation("setup");
   return (
     <a
       href={href}
@@ -21,7 +24,7 @@ export function ModelLink({
     >
       {children}
       <ExternalLink className="size-3 self-center" aria-hidden />
-      <span className="sr-only"> (opens in a new window)</span>
+      <span className="sr-only"> {t("links.opensInNewWindow")}</span>
     </a>
   );
 }

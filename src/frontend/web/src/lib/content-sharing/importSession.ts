@@ -5,7 +5,10 @@ import type {
   PartAck,
   ReviewedPackageImport,
 } from "@animama/runtime-contracts/api-types";
+import { getI18n } from "react-i18next";
+
 import { isAbsentPackageStage, sharingErrorMessage } from "./errors";
+import { WordedError } from "@/lib/errors/apiError";
 
 export type ImportRecovery = {
   operation_id: string;
@@ -68,6 +71,7 @@ export class PackageImportSession {
   readonly api: ImportApi;
   readonly storage: RecoveryStore;
   constructor(api: ImportApi, storage: RecoveryStore) {
+    const t = getI18n().getFixedT(null, "library");
     this.api = api;
     this.storage = storage;
     try {
@@ -84,8 +88,7 @@ export class PackageImportSession {
         ...this.state,
         phase: "recovery",
         hasRecovery: true,
-        error:
-          "Import recovery could not be read. Restore browser storage before continuing.",
+        error: t("sharing.import.recoveryUnreadable"),
       };
     }
   }
@@ -106,15 +109,14 @@ export class PackageImportSession {
     this.update({ hasRecovery: record !== null });
   }
   private complete(result: PackageImportResult) {
+    const t = getI18n().getFixedT(null, "library");
     if (
       !this.record ||
       result.operation_id !== this.record.operation_id ||
       (this.record.review_digest &&
         result.review_digest !== this.record.review_digest)
     )
-      throw new Error(
-        "The import result did not match this operation. Keep this recovery record and check again.",
-      );
+      throw new WordedError(t("sharing.import.resultMismatch"));
     this.update({
       phase: "complete",
       result,
@@ -126,6 +128,7 @@ export class PackageImportSession {
 
   /** Upload every part on reselection, including acknowledged parts, to prove file identity. */
   async upload(file: File): Promise<void> {
+    const t = getI18n().getFixedT(null, "library");
     if (this.state.busy) return;
     if (this.record?.commit_requested) {
       await this.recover();
@@ -138,8 +141,7 @@ export class PackageImportSession {
       file.name.length > 255
     ) {
       this.update({
-        error:
-          "Choose a nonempty .zip file no larger than 4 GiB, with a filename of 255 characters or fewer.",
+        error: t("sharing.import.fileRequirements"),
       });
       return;
     }
@@ -166,9 +168,7 @@ export class PackageImportSession {
           return;
         }
         if (outcome.state === "recovery_needed")
-          throw new Error(
-            "This import needs recovery before a file can be uploaded.",
-          );
+          throw new WordedError(t("sharing.import.needsRecoveryBeforeUpload"));
         if (outcome.stage_id)
           this.save({ ...record, stage_id: outcome.stage_id });
       }
@@ -177,7 +177,7 @@ export class PackageImportSession {
         ? await this.api.status(current.stage_id)
         : await this.api.allocate(file, current.operation_id);
       if (stage.operation_id !== current.operation_id)
-        throw new Error("The stage belongs to a different import operation.");
+        throw new WordedError(t("sharing.import.stageMismatch"));
       this.save({ ...current, stage_id: stage.stage_id });
       this.update({ stage, progress: { received: 0, total: file.size } });
       if (
@@ -185,9 +185,7 @@ export class PackageImportSession {
         ["committing", "recovery_needed", "completed"].includes(stage.state)
       ) {
         this.update({ phase: "recovery", pending: true });
-        throw new Error(
-          "This import is being processed. Check its result before continuing.",
-        );
+        throw new WordedError(t("sharing.import.beingProcessed"));
       }
       if (stage.review) {
         this.save({
@@ -198,8 +196,7 @@ export class PackageImportSession {
           phase: "review",
           review: stage.review,
           progress: null,
-          error:
-            "This file already has a review. Discard it before choosing a replacement file.",
+          error: t("sharing.import.alreadyReviewed"),
         });
         return;
       }
@@ -207,13 +204,11 @@ export class PackageImportSession {
         stage.expected_size_bytes !== file.size ||
         stage.filename !== file.name
       )
-        throw new Error(
-          "Choose the same file to resume, or discard this import before choosing a different file.",
-        );
+        throw new WordedError(t("sharing.import.sameFileOrDiscard"));
       if (
         !(stage.part_size_bytes > 0 && stage.part_size_bytes <= 8 * 1024 ** 2)
       )
-        throw new Error("The upload part limit is invalid.");
+        throw new WordedError(t("sharing.import.partLimitInvalid"));
       for (
         let index = 0, offset = 0;
         offset < file.size;
@@ -234,9 +229,7 @@ export class PackageImportSession {
           ack.next_part_index < index + 1 ||
           ack.received_bytes < offset + bytes.size
         )
-          throw new Error(
-            "The upload acknowledgement is incomplete. Retry the same file.",
-          );
+          throw new WordedError(t("sharing.import.acknowledgementIncomplete"));
         this.update({
           progress: { received: offset + bytes.size, total: file.size },
         });
@@ -252,20 +245,23 @@ export class PackageImportSession {
     }
   }
   retryUpload = async (): Promise<void> => {
+    const t = getI18n().getFixedT(null, "library");
     if (this.file) await this.upload(this.file);
     else
       this.update({
-        error: "Choose the same .zip file to resume this upload.",
+        error: t("sharing.import.chooseSameZip"),
       });
   };
   private async reviewCurrent() {
-    if (!this.record?.stage_id) throw new Error("Choose a package file first.");
+    const t = getI18n().getFixedT(null, "library");
+    if (!this.record?.stage_id)
+      throw new WordedError(t("sharing.import.chooseFileFirst"));
     const review = await this.api.review(this.record.stage_id);
     if (
       review.operation_id !== this.record.operation_id ||
       review.stage_id !== this.record.stage_id
     )
-      throw new Error("The review belongs to a different import operation.");
+      throw new WordedError(t("sharing.import.reviewMismatch"));
     this.save({
       ...this.record,
       review_digest: review.review_digest,
@@ -280,6 +276,7 @@ export class PackageImportSession {
     });
   }
   async refresh(): Promise<void> {
+    const t = getI18n().getFixedT(null, "library");
     if (this.state.busy || this.record?.commit_requested) return;
     // A sealed review is immutable. Resolve/discard the old operation before
     // re-uploading retained bytes under a fresh ID and showing new collision names.
@@ -288,7 +285,7 @@ export class PackageImportSession {
     if (file) await this.upload(file);
     else
       this.update({
-        error: "Choose the .zip file again to prepare a fresh review.",
+        error: t("sharing.import.chooseAgainForReview"),
       });
   }
   async commit(): Promise<void> {
@@ -320,6 +317,7 @@ export class PackageImportSession {
     }
   }
   async recover(): Promise<void> {
+    const t = getI18n().getFixedT(null, "library");
     if (this.state.busy || !this.record) return;
     this.update({ busy: true, error: null });
     try {
@@ -327,9 +325,7 @@ export class PackageImportSession {
       const outcome = await this.api.operation(record.operation_id);
       if (outcome.state === "completed") {
         if (outcome.result?.schema_version !== 1)
-          throw new Error(
-            "This operation has an unsupported receipt. It will not be imported again.",
-          );
+          throw new WordedError(t("sharing.import.unsupportedReceipt"));
         this.complete(outcome.result);
         return;
       }
@@ -337,8 +333,7 @@ export class PackageImportSession {
         this.update({
           phase: "recovery",
           pending: true,
-          error:
-            "This import needs local storage recovery. Existing content is preserved. Check again after resolving the storage conflict.",
+          error: t("sharing.import.needsStorageRecovery"),
         });
         return;
       }
@@ -349,14 +344,13 @@ export class PackageImportSession {
         this.update({
           phase: "recovery",
           pending: false,
-          error:
-            "No active import was found. Discard this recovery record before choosing the file again.",
+          error: t("sharing.import.noActiveImport"),
         });
         return;
       }
       const stage = await this.api.status(stageId);
       if (stage.operation_id !== record.operation_id)
-        throw new Error("The import stage identity changed.");
+        throw new WordedError(t("sharing.import.stageChanged"));
       this.save({ ...record, stage_id: stageId });
       this.update({ stage });
       if (
@@ -366,8 +360,7 @@ export class PackageImportSession {
         this.update({
           phase: "recovery",
           pending: true,
-          error:
-            "Import processing is still in progress. Check its result again shortly.",
+          error: t("sharing.import.stillProcessing"),
         });
         return;
       }
@@ -386,9 +379,9 @@ export class PackageImportSession {
         },
         error: stage.review
           ? stage.state === "failed"
-            ? "This import did not complete. Prepare a fresh review before importing again."
+            ? t("sharing.import.didNotComplete")
             : null
-          : "Choose the same file to resume, or discard this import.",
+          : t("sharing.import.sameFileToResume"),
       });
     } catch (error) {
       this.update({ phase: "recovery", error: sharingErrorMessage(error) });
@@ -398,6 +391,7 @@ export class PackageImportSession {
   }
   /** Release the owned temporary stage; durable results remain in receipt authority. */
   async discard(): Promise<boolean> {
+    const t = getI18n().getFixedT(null, "library");
     if (this.state.busy || (this.state.pending && !this.state.result))
       return false;
     this.update({ busy: true, error: null });
@@ -414,9 +408,7 @@ export class PackageImportSession {
         }
         if (outcome.state === "recovery_needed") {
           this.update({ pending: true, phase: "recovery" });
-          throw new Error(
-            "The import must be recovered before it can be closed.",
-          );
+          throw new WordedError(t("sharing.import.recoverBeforeClose"));
         }
         const stageId = outcome.stage_id ?? this.record.stage_id;
         if (outcome.state !== "not_found" && stageId) discardId = stageId;
@@ -449,8 +441,7 @@ export class PackageImportSession {
   }
   /** Navigating away stops only bounded upload transport, preserving resumable ownership. */
   pause() {
-    this.uploadAbort?.abort(
-      new Error("Upload paused. Choose the same file to resume."),
-    );
+    const t = getI18n().getFixedT(null, "library");
+    this.uploadAbort?.abort(new WordedError(t("sharing.import.uploadPaused")));
   }
 }

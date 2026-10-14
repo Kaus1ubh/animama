@@ -24,9 +24,15 @@ import {
   type ChangeEvent,
   type ReactNode,
 } from "react";
+import { getI18n, Trans, useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import type { PyGesture, PyReaction } from "@/lib/content/catalogTypes";
+import {
+  apiErrorLine,
+  apiErrorText,
+  readApiError,
+} from "@/lib/errors/apiError";
 import { cn } from "@/lib/utils";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
 import { useGestures, useReactions } from "@/query/hooks/useActions";
@@ -86,6 +92,9 @@ import {
 import { useActionEditorWorkspace } from "./ActionEditorWorkspaceContext";
 import type { ActionEditorMode } from "./actionEditorCapabilities";
 
+/** A sample of the clip format; JSON syntax, so it is the same in every locale. */
+const CLIP_JSON_PLACEHOLDER = '{"schema":"animaPoseClip/2.0",…}';
+
 type HeaderHistory = Pick<
   CreatorHistoryController<unknown>,
   "canRedo" | "canUndo" | "redo" | "undo"
@@ -102,16 +111,18 @@ export function actionHeaderStatus(input: {
   hasReadyItem: boolean;
   stage: "idle" | "preparing" | "uploading" | "saving" | "updating_animas";
 }): ActionHeaderStatus {
+  const t = getI18n().getFixedT(null, "actionEditor");
   if (input.stage === "preparing")
-    return { state: "saving", label: "Preparing" };
+    return { state: "saving", label: t("header.status.preparing") };
   if (input.stage === "uploading")
-    return { state: "saving", label: "Uploading" };
-  if (input.stage === "saving") return { state: "saving", label: "Saving" };
+    return { state: "saving", label: t("header.status.uploading") };
+  if (input.stage === "saving")
+    return { state: "saving", label: t("header.status.saving") };
   if (input.stage === "updating_animas")
-    return { state: "saving", label: "Updating Animas" };
+    return { state: "saving", label: t("header.status.updatingAnimas") };
   return input.hasReadyItem && !input.dirty
-    ? { state: "saved", label: "Saved" }
-    : { state: "unsaved", label: "Unsaved" };
+    ? { state: "saved", label: t("header.status.saved") }
+    : { state: "unsaved", label: t("header.status.unsaved") };
 }
 
 /** Prevent duplicate saves and block only genuinely in-flight workflows. */
@@ -125,7 +136,8 @@ export function actionSaveDisabled(input: {
 
 /** Include the corrective Save detail in the compact indicator's name. */
 export function actionSaveErrorLabel(error: string): string {
-  return `Save failed: ${error}`;
+  const t = getI18n().getFixedT(null, "actionEditor");
+  return t("header.saveFailed", { error });
 }
 
 function HeaderTooltip({
@@ -153,6 +165,7 @@ export function ActionEditorHeader({
   history: HeaderHistory;
   onModeChange: (mode: ActionEditorMode) => void;
 }) {
+  const { t } = useTranslation("actionEditor");
   const workspace = useActionEditorWorkspace();
   const platform = useRuntimePlatform();
   const shortcuts = getCreatorHistoryShortcutLabels(platform.os);
@@ -170,7 +183,7 @@ export function ActionEditorHeader({
   const startNew = () => {
     if (
       (workspace.dirty || workspace.identityExists) &&
-      !window.confirm("Discard this draft and start a new one?")
+      !window.confirm(t("header.confirmNew"))
     ) {
       return;
     }
@@ -216,6 +229,7 @@ function ActionModeControl({
 }: {
   onModeChange: (mode: ActionEditorMode) => void;
 }) {
+  const { t } = useTranslation("actionEditor");
   const workspace = useActionEditorWorkspace();
   const gesture = workspace.document.intent === "gesture";
   const timeline = workspace.document.implementation === "anima_clip";
@@ -227,7 +241,7 @@ function ActionModeControl({
         ) : (
           <WandSparklesIcon className="size-4" />
         )}
-        {gesture ? "Gesture" : "Reaction"}
+        {gesture ? t("header.intent.gesture") : t("header.intent.reaction")}
       </div>
     );
   }
@@ -250,7 +264,7 @@ function ActionModeControl({
           >
             1
           </span>
-          Pose
+          {t("header.modes.pose")}
         </TabsTrigger>
         <TabsTrigger
           className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground h-9 gap-1.5 rounded-lg px-2 text-xs transition-none data-[state=active]:shadow-none sm:text-sm lg:h-10 2xl:px-4"
@@ -262,7 +276,7 @@ function ActionModeControl({
           >
             2
           </span>
-          Clip
+          {t("header.modes.clip")}
         </TabsTrigger>
       </TabsList>
     </Tabs>
@@ -276,18 +290,19 @@ function ActionNewButton({
   busy: boolean;
   onNew: () => void;
 }) {
+  const { t } = useTranslation("actionEditor");
   return (
     <Button
       type="button"
       variant="outline"
-      aria-label="New"
-      title="New"
+      aria-label={t("header.new")}
+      title={t("header.new")}
       className="bg-background dark:bg-background dark:hover:bg-accent disabled:text-muted-foreground col-start-2 row-start-1 hidden size-12 rounded-xl p-0 shadow-sm disabled:opacity-100 lg:inline-flex 2xl:w-auto 2xl:min-w-[82px] 2xl:px-3"
       disabled={busy}
       onClick={onNew}
     >
       <FilePlus2Icon className="size-4" />
-      <span className="hidden 2xl:inline">New</span>
+      <span className="hidden 2xl:inline">{t("header.new")}</span>
     </Button>
   );
 }
@@ -303,30 +318,34 @@ function ActionDocumentActions({
   shortcuts: { undo: string; redo: string };
   onNew: () => void;
 }) {
+  const { t } = useTranslation("actionEditor");
   const [importOpen, setImportOpen] = useState(false);
   const [jsonOpen, setJsonOpen] = useState(false);
   return (
     <>
       <div className="border-border/70 bg-background col-start-4 row-start-1 hidden h-12 shrink-0 items-center rounded-xl border px-1 shadow-sm lg:flex">
         <IconAction
-          label="Import"
+          label={t("header.import")}
           onClick={() => setImportOpen(true)}
           disabled={busy}
         >
           <UploadIcon className="size-3.5" />
         </IconAction>
-        <IconAction label="View JSON" onClick={() => setJsonOpen(true)}>
+        <IconAction
+          label={t("header.viewJson")}
+          onClick={() => setJsonOpen(true)}
+        >
           <Code2Icon className="size-3.5" />
         </IconAction>
         <IconAction
-          label={`Undo · ${shortcuts.undo}`}
+          label={t("header.undoShortcut", { shortcut: shortcuts.undo })}
           onClick={history.undo}
           disabled={busy || !history.canUndo}
         >
           <Undo2Icon className="size-3.5" />
         </IconAction>
         <IconAction
-          label={`Redo · ${shortcuts.redo}`}
+          label={t("header.redoShortcut", { shortcut: shortcuts.redo })}
           onClick={history.redo}
           disabled={busy || !history.canRedo}
         >
@@ -386,6 +405,7 @@ function MobileActions({
   onImport: () => void;
   onJson: () => void;
 }) {
+  const { t } = useTranslation("actionEditor");
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -393,7 +413,7 @@ function MobileActions({
           type="button"
           variant="outline"
           className="bg-background dark:bg-background dark:hover:bg-accent disabled:text-muted-foreground col-start-3 row-start-2 size-11 rounded-xl p-0 shadow-sm disabled:opacity-100 lg:hidden"
-          aria-label="More creator actions"
+          aria-label={t("header.moreActions")}
         >
           <MoreHorizontalIcon className="size-5" />
         </Button>
@@ -405,26 +425,30 @@ function MobileActions({
       >
         <MenuAction
           icon={FilePlus2Icon}
-          label="New"
+          label={t("header.new")}
           onSelect={onNew}
           disabled={busy}
         />
         <MenuAction
           icon={UploadIcon}
-          label="Import"
+          label={t("header.import")}
           onSelect={onImport}
           disabled={busy}
         />
-        <MenuAction icon={Code2Icon} label="View JSON" onSelect={onJson} />
+        <MenuAction
+          icon={Code2Icon}
+          label={t("header.viewJson")}
+          onSelect={onJson}
+        />
         <MenuAction
           icon={Undo2Icon}
-          label="Undo"
+          label={t("header.undo")}
           onSelect={history.undo}
           disabled={busy || !history.canUndo}
         />
         <MenuAction
           icon={Redo2Icon}
-          label="Redo"
+          label={t("header.redo")}
           onSelect={history.redo}
           disabled={busy || !history.canRedo}
         />
@@ -456,6 +480,7 @@ function MenuAction({
 }
 
 function ActionDocumentField({ status }: { status: ActionHeaderStatus }) {
+  const { t } = useTranslation("actionEditor");
   const workspace = useActionEditorWorkspace();
   const gesture = workspace.document.intent === "gesture";
   const nameInputRef = useRef<HTMLInputElement>(null);
@@ -498,7 +523,7 @@ function ActionDocumentField({ status }: { status: ActionHeaderStatus }) {
               )}
             >
               <PencilIcon className="size-3" />
-              Name&nbsp;&nbsp;&nbsp;&nbsp;
+              {t("header.name")}&nbsp;&nbsp;&nbsp;&nbsp;
             </span>
             <Input
               ref={nameInputRef}
@@ -513,8 +538,16 @@ function ActionDocumentField({ status }: { status: ActionHeaderStatus }) {
                   ),
                 );
               }}
-              placeholder={`New ${gesture ? "Gesture" : "Reaction"}`}
-              aria-label={`${workspace.document.intent} name`}
+              placeholder={
+                gesture
+                  ? t("header.namePlaceholder.gesture")
+                  : t("header.namePlaceholder.reaction")
+              }
+              aria-label={
+                gesture
+                  ? t("header.nameLabel.gesture")
+                  : t("header.nameLabel.reaction")
+              }
               aria-invalid={nameInvalid}
               className={cn(
                 "h-7 min-w-0 flex-1 border-0 bg-transparent px-2 text-sm font-medium shadow-none focus-visible:ring-0 dark:bg-transparent",
@@ -538,15 +571,18 @@ function ActionDocumentField({ status }: { status: ActionHeaderStatus }) {
                       "text-muted-foreground text-2xs ml-1 inline-flex shrink-0 items-center gap-1 font-medium",
                       aiDescriptionInvalid && "text-destructive",
                     )}
-                    aria-label="AI selection guidance"
+                    aria-label={t("header.aiDescription.guidance")}
                   >
                     <WandSparklesIcon className="size-3" />
-                    AI Desc.
+                    {t("header.aiDescription.short")}
                   </span>
                 </TooltipTrigger>
                 <TooltipContent side="bottom">
-                  Description of Gesture used by AI to determine{" "}
-                  <strong>when</strong> to invoke this gesture while chatting.
+                  <Trans
+                    t={t}
+                    i18nKey="header.aiDescription.tooltip"
+                    components={{ strong: <strong /> }}
+                  />
                 </TooltipContent>
               </Tooltip>
               <Input
@@ -557,8 +593,8 @@ function ActionDocumentField({ status }: { status: ActionHeaderStatus }) {
                     aiDescription: event.target.value,
                   }))
                 }
-                placeholder="Description of Gesture"
-                aria-label="AI selection description"
+                placeholder={t("header.aiDescription.placeholder")}
+                aria-label={t("header.aiDescription.label")}
                 aria-invalid={aiDescriptionInvalid}
                 className={cn(
                   "h-7 min-w-0 flex-1 border-0 bg-transparent px-2 text-sm font-medium shadow-none focus-visible:ring-0 dark:bg-transparent",
@@ -622,7 +658,9 @@ function ActionDocumentIndicators({ status }: { status: ActionHeaderStatus }) {
 }
 
 function ActionLoadButton() {
+  const { t } = useTranslation("actionEditor");
   const workspace = useActionEditorWorkspace();
+  const gesture = workspace.document.intent === "gesture";
   const [open, setOpen] = useState(false);
   const [loadingItemId, setLoadingItemId] = useState<string | null>(null);
   const ownedGestures = useGestures({
@@ -669,7 +707,7 @@ function ActionLoadButton() {
   const loadOwned = async (item: (typeof ownedRows)[number]) => {
     if (
       (workspace.dirty || workspace.identityExists) &&
-      !window.confirm(`Discard the current changes and load “${item.name}”?`)
+      !window.confirm(t("load.confirmLoad", { name: item.name }))
     ) {
       return;
     }
@@ -687,7 +725,9 @@ function ActionLoadButton() {
     if (
       (workspace.dirty || workspace.identityExists) &&
       !window.confirm(
-        `Discard the current changes and customize “${item.name}” as a new ${workspace.document.intent}?`,
+        gesture
+          ? t("load.confirmCustomize.gesture", { name: item.name })
+          : t("load.confirmCustomize.reaction", { name: item.name }),
       )
     ) {
       return;
@@ -709,10 +749,12 @@ function ActionLoadButton() {
           type="button"
           variant="outline"
           className="bg-background dark:bg-background dark:hover:bg-accent disabled:text-muted-foreground col-start-2 row-start-1 size-11 rounded-xl p-0 shadow-sm disabled:opacity-100 lg:col-start-3 lg:h-12 2xl:w-auto 2xl:min-w-[88px] 2xl:px-4"
-          aria-label={`Load ${workspace.document.intent}`}
+          aria-label={
+            gesture ? t("load.title.gesture") : t("load.title.reaction")
+          }
         >
           <FolderOpenIcon className="size-4" />
-          <span className="hidden 2xl:inline">Load</span>
+          <span className="hidden 2xl:inline">{t("load.button")}</span>
         </Button>
       </PopoverTrigger>
       <PopoverContent
@@ -723,40 +765,44 @@ function ActionLoadButton() {
       >
         <div className="mb-3">
           <p className="text-sm font-semibold">
-            Load {workspace.document.intent}
+            {gesture ? t("load.title.gesture") : t("load.title.reaction")}
           </p>
           <p className="text-muted-foreground text-xs">
-            Open your content or customize an immutable Starter clip.
+            {t("load.description")}
           </p>
         </div>
         <div className="max-h-80 space-y-4 overflow-y-auto pr-1">
           <ActionLoadGroup
-            label="Mine"
+            label={t("load.mine.label")}
             rows={ownedRows.map((item) => ({
               item,
-              detail: "Editable Local content",
+              detail: t("load.mine.detail"),
               loading: loadingItemId === item.item_id,
               onSelect: () => void loadOwned(item),
             }))}
             pending={ownedQuery.isPending}
-            empty={`No ready ${workspace.document.intent}s yet.`}
-            moreLabel="Load more of mine"
+            empty={
+              gesture
+                ? t("load.mine.empty.gesture")
+                : t("load.mine.empty.reaction")
+            }
+            moreLabel={t("load.mine.more")}
             hasNextPage={Boolean(ownedQuery.hasNextPage)}
             fetchingNextPage={ownedQuery.isFetchingNextPage}
             fetchNextPage={() => void ownedQuery.fetchNextPage()}
             disabled={workspace.busy || loadingItemId !== null}
           />
           <ActionLoadGroup
-            label="Starter"
+            label={t("load.starter.label")}
             rows={starterRows.map((item) => ({
               item,
-              detail: "Included · Customize as new",
+              detail: t("load.starter.detail"),
               loading: loadingItemId === item.item_id,
               onSelect: () => void customizeStarter(item),
             }))}
             pending={starterQuery.isPending}
-            empty="No customizable Starter Anima Pose Clips."
-            moreLabel="Load more Starter clips"
+            empty={t("load.starter.empty")}
+            moreLabel={t("load.starter.more")}
             hasNextPage={Boolean(starterQuery.hasNextPage)}
             fetchingNextPage={starterQuery.isFetchingNextPage}
             fetchNextPage={() => void starterQuery.fetchNextPage()}
@@ -794,6 +840,7 @@ function ActionLoadGroup({
   fetchNextPage: () => void;
   disabled: boolean;
 }) {
+  const { t } = useTranslation("actionEditor");
   return (
     <section>
       <p className="text-muted-foreground text-2xs mb-1 px-2 font-semibold tracking-[0.14em] uppercase">
@@ -821,7 +868,9 @@ function ActionLoadGroup({
           </Button>
         ))}
         {pending ? (
-          <p className="text-muted-foreground p-3 text-xs">Loading…</p>
+          <p className="text-muted-foreground p-3 text-xs">
+            {t("load.loading")}
+          </p>
         ) : null}
         {!pending && !rows.length ? (
           <p className="text-muted-foreground rounded-lg border border-dashed p-3 text-center text-xs">
@@ -846,6 +895,7 @@ function ActionLoadGroup({
 }
 
 function ActionPrimaryActions() {
+  const { t } = useTranslation("actionEditor");
   const workspace = useActionEditorWorkspace();
   const disabled = actionSaveDisabled({
     busy: workspace.busy,
@@ -860,14 +910,14 @@ function ActionPrimaryActions() {
         className="bg-background dark:bg-background dark:hover:bg-accent disabled:text-muted-foreground size-11 rounded-xl p-0 shadow-sm disabled:opacity-100 lg:h-12 lg:w-auto lg:min-w-[88px] lg:px-3"
         disabled={disabled}
         onClick={() => void workspace.save()}
-        aria-label="Save content"
+        aria-label={t("header.save.label")}
       >
         {workspace.saveStage !== "idle" ? (
           <Loader2Icon className="size-4 animate-spin motion-reduce:animate-none" />
         ) : (
           <SaveIcon className="size-4" />
         )}
-        <span className="hidden lg:inline">Save</span>
+        <span className="hidden lg:inline">{t("header.save.button")}</span>
       </Button>
       <Button
         type="button"
@@ -875,10 +925,12 @@ function ActionPrimaryActions() {
         disabled={disabled}
         variant="default"
         onClick={() => void workspace.saveAndEquip()}
-        aria-label="Save and equip content"
+        aria-label={t("header.saveAndEquip.label")}
       >
         <WandSparklesIcon className="size-4" />
-        <span className="hidden lg:inline">Save &amp; Equip</span>
+        <span className="hidden lg:inline">
+          {t("header.saveAndEquip.button")}
+        </span>
       </Button>
     </div>
   );
@@ -891,10 +943,14 @@ function ActionImportDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const { t } = useTranslation("actionEditor");
   const workspace = useActionEditorWorkspace();
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [text, setText] = useState("");
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useState<{
+    text: string;
+    failed: boolean;
+  } | null>(null);
   const unresolved = useMemo(
     () =>
       unresolvedActionReferences(
@@ -910,22 +966,26 @@ function ActionImportDialog({
         workspace.document.intent,
       );
       workspace.applyImport(imported);
-      setMessage(
-        imported.kind === "clip"
-          ? "Anima Pose Clip imported. Map any unresolved effects or sounds below."
-          : "Typed project imported with exact dependency pins.",
-      );
+      setMessage({
+        text:
+          imported.kind === "clip"
+            ? t("importDialog.clipImportedDetail")
+            : t("importDialog.projectImportedDetail"),
+        failed: false,
+      });
       toast.success(
         imported.kind === "clip"
-          ? "Anima Pose Clip imported."
-          : "Typed project imported.",
+          ? t("importDialog.clipImported")
+          : t("importDialog.projectImported"),
       );
     } catch (error) {
-      setMessage(
-        error instanceof Error
-          ? error.message
-          : "The JSON could not be imported.",
-      );
+      // Clip parsing and the browser's JSON errors are English without a code.
+      setMessage({
+        text: apiErrorLine(
+          apiErrorText(readApiError(error), null, t("importDialog.failed")),
+        ),
+        failed: true,
+      });
     }
   };
   const readFile = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -940,19 +1000,15 @@ function ActionImportDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[calc(100dvh-1rem)] gap-0 overflow-hidden p-0 sm:max-w-2xl">
         <DialogHeader className="border-border border-b px-5 py-4 pr-12">
-          <DialogTitle>Import</DialogTitle>
-          <DialogDescription>
-            Open an animaPoseClip/2.0 file directly or restore an Animama typed
-            project with exact dependency pins.
-          </DialogDescription>
+          <DialogTitle>{t("importDialog.title")}</DialogTitle>
+          <DialogDescription>{t("importDialog.description")}</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 overflow-y-auto p-4 sm:p-5">
           {workspace.document.intent === "gesture" ? (
             <label className="grid gap-2 rounded-lg border p-3 text-sm font-medium">
-              VRMA animation (experimental)
+              {t("importDialog.vrma.label")}
               <span className="text-muted-foreground text-xs font-normal">
-                Not fully supported or tested. Importing switches this gesture
-                from timeline authoring to VRMA.
+                {t("importDialog.vrma.description")}
               </span>
               <Input
                 type="file"
@@ -985,14 +1041,14 @@ function ActionImportDialog({
             className="w-full"
             onClick={() => fileRef.current?.click()}
           >
-            <UploadIcon className="size-4" /> Choose JSON file
+            <UploadIcon className="size-4" /> {t("importDialog.chooseFile")}
           </Button>
           <Textarea
             value={text}
             onChange={(event) => setText(event.target.value)}
-            placeholder='{"schema":"animaPoseClip/2.0",…}'
+            placeholder={CLIP_JSON_PLACEHOLDER}
             className="min-h-48 font-mono text-xs"
-            aria-label="Creator JSON import"
+            aria-label={t("importDialog.pasteLabel")}
           />
           <Button
             type="button"
@@ -1000,30 +1056,27 @@ function ActionImportDialog({
             disabled={!text.trim()}
             onClick={() => apply(text)}
           >
-            Import pasted JSON
+            {t("importDialog.importPasted")}
           </Button>
           {message ? (
             <p
               className={cn(
                 "text-xs",
-                message.includes("imported")
-                  ? "text-muted-foreground"
-                  : "text-destructive",
+                message.failed ? "text-destructive" : "text-muted-foreground",
               )}
               role="status"
             >
-              {message}
+              {message.text}
             </p>
           ) : null}
           {unresolved.length ? (
             <section className="space-y-3 rounded-xl border p-3">
               <div>
                 <p className="text-sm font-semibold">
-                  Repair referenced components
+                  {t("importDialog.repair.title")}
                 </p>
                 <p className="text-muted-foreground text-xs">
-                  Map each clip alias to an exact content item, or remove its
-                  events.
+                  {t("importDialog.repair.description")}
                 </p>
               </div>
               <Input
@@ -1031,7 +1084,7 @@ function ActionImportDialog({
                 onChange={(event) =>
                   workspace.setDependencyQuery(event.target.value)
                 }
-                placeholder="Search effects and sounds"
+                placeholder={t("importDialog.repair.search")}
               />
               {unresolved.map((reference) => {
                 const section = workspace.dependencySections.find(
@@ -1064,8 +1117,14 @@ function ActionImportDialog({
                           );
                       }}
                     >
-                      <SelectTrigger aria-label={`Map ${reference.alias}`}>
-                        <SelectValue placeholder="Choose exact content" />
+                      <SelectTrigger
+                        aria-label={t("importDialog.repair.map", {
+                          alias: reference.alias,
+                        })}
+                      >
+                        <SelectValue
+                          placeholder={t("importDialog.repair.choose")}
+                        />
                       </SelectTrigger>
                       <SelectContent>
                         {section?.items
@@ -1085,7 +1144,7 @@ function ActionImportDialog({
                         workspace.removeDependency(reference.alias)
                       }
                     >
-                      Remove event
+                      {t("importDialog.repair.remove")}
                     </Button>
                   </div>
                 );
@@ -1105,6 +1164,7 @@ function ActionJsonDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const { t } = useTranslation("actionEditor");
   const workspace = useActionEditorWorkspace();
   const [kind, setKind] = useState<"clip" | "project">("clip");
   const json = useMemo(() => {
@@ -1122,7 +1182,11 @@ function ActionJsonDialog({
   }, [kind, workspace.document]);
   const copy = async () => {
     await navigator.clipboard.writeText(json);
-    toast.success(`${kind === "clip" ? "Clip" : "Project"} JSON copied.`);
+    toast.success(
+      kind === "clip"
+        ? t("jsonDialog.clipCopied")
+        : t("jsonDialog.projectCopied"),
+    );
   };
   const download = () => {
     const url = URL.createObjectURL(
@@ -1138,34 +1202,31 @@ function ActionJsonDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[calc(100dvh-1rem)] gap-0 overflow-hidden p-0 sm:max-w-2xl">
         <DialogHeader className="border-border border-b px-5 py-4 pr-12">
-          <DialogTitle>Creator JSON</DialogTitle>
-          <DialogDescription>
-            Clip JSON is portable animaPoseClip/2.0. Typed project JSON also
-            retains exact effect and sound references.
-          </DialogDescription>
+          <DialogTitle>{t("jsonDialog.title")}</DialogTitle>
+          <DialogDescription>{t("jsonDialog.description")}</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 overflow-y-auto p-4 sm:p-5">
           <Select
             value={kind}
             onValueChange={(value) => setKind(value as typeof kind)}
           >
-            <SelectTrigger aria-label="JSON format">
+            <SelectTrigger aria-label={t("jsonDialog.format")}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="clip">Clip JSON</SelectItem>
-              <SelectItem value="project">Typed project JSON</SelectItem>
+              <SelectItem value="clip">{t("jsonDialog.clip")}</SelectItem>
+              <SelectItem value="project">{t("jsonDialog.project")}</SelectItem>
             </SelectContent>
           </Select>
           <Textarea
             value={json}
             readOnly
             className="min-h-[300px] font-mono text-xs"
-            aria-label="Creator JSON preview"
+            aria-label={t("jsonDialog.preview")}
           />
           {!json ? (
             <p className="text-destructive text-xs">
-              This implementation does not have Anima Pose Clip JSON.
+              {t("jsonDialog.unavailable")}
             </p>
           ) : null}
           <div className="flex justify-end gap-2">
@@ -1175,10 +1236,10 @@ function ActionJsonDialog({
               disabled={!json}
               onClick={() => void copy()}
             >
-              <CopyIcon className="size-4" /> Copy
+              <CopyIcon className="size-4" /> {t("jsonDialog.copy")}
             </Button>
             <Button type="button" disabled={!json} onClick={download}>
-              <DownloadIcon className="size-4" /> Download
+              <DownloadIcon className="size-4" /> {t("jsonDialog.download")}
             </Button>
           </div>
         </div>

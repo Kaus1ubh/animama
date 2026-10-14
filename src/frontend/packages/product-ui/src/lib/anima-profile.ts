@@ -2,6 +2,7 @@ import type {
   PyAnimaListItem,
   PyAnimaResponse,
 } from "@animama/runtime-contracts/api-types";
+import { compareDisplayText } from "../i18n/format";
 
 type AnimaProfileLike = PyAnimaResponse | PyAnimaListItem;
 
@@ -42,17 +43,9 @@ export function sortAnimasByRecent(
     const rightCreated = parseDate(right.created_at);
     if (leftCreated !== rightCreated) return rightCreated - leftCreated;
 
-    return getAnimaDisplayName(left).localeCompare(getAnimaDisplayName(right));
+    return compareDisplayText(
+      getAnimaDisplayName(left),
+      getAnimaDisplayName(right),
+    );
   });
-}
-
-export function formatAnimaTimestamp(value?: string | null): string {
-  if (!value) return "Unknown";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Unknown";
-
-  return new Intl.DateTimeFormat("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(date);
 }

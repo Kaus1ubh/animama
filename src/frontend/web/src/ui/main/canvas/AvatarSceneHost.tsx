@@ -11,6 +11,7 @@ import {
   type MutableRefObject,
   type ReactNode,
 } from "react";
+import { useTranslation } from "react-i18next";
 import { MathUtils } from "three";
 
 import { useElementSize } from "@/hooks/useElementSize";
@@ -163,6 +164,7 @@ export function AvatarSceneHost({
   sceneCameraSettingsOverride = null,
   suspendSceneRender = false,
 }: AvatarSceneHostProps) {
+  const { t } = useTranslation("chat");
   const [canvasHostElement, setCanvasHostElement] =
     useState<HTMLDivElement | null>(null);
   const [sceneAvatar, setSceneAvatar] = useState<Avatar | null>(null);
@@ -612,7 +614,7 @@ export function AvatarSceneHost({
                   />
                   <details className="group">
                     <summary className="focus-visible:ring-ring cursor-pointer rounded-sm text-sm outline-none focus-visible:ring-2">
-                      Fine-tune camera
+                      {t("canvas.camera.fineTune")}
                     </summary>
                     <SceneCameraPanel
                       className="mt-3"

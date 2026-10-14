@@ -121,6 +121,16 @@ export type FeaturePacksBridge = {
   remove(id: FeaturePackId): Promise<void>;
   onProgress(callback: (value: FeaturePackStatus) => void): () => void;
 };
+/** Main-window only: the shell follows the UI Locale the app applied. */
+export type LocaleBridge = {
+  /**
+   * Report the applied UI Locale (a canonical tag from
+   * `@animama/runtime-contracts/locale`, never the pseudo-locale). The shell
+   * caches it for its startup page and relabels its menu and window titles;
+   * main rejects other tags and other windows.
+   */
+  setApplied(locale: string): Promise<void>;
+};
 export type UpdatesBridge = {
   status(): Promise<UpdateStatus>;
   check(): Promise<UpdateStatus>;

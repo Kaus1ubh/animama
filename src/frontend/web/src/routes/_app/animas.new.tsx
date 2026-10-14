@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
 
 import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
 import { AppShellPage } from "@/ui/app/AppShellPage";
@@ -19,6 +20,7 @@ export const Route = createFileRoute("/_app/animas/new")({
  * a disabled runtime never starts creator drafts or catalog queries.
  */
 function CreateAnimaRoute() {
+  const { t } = useTranslation("app");
   const { avatar } = Route.useSearch();
   const capabilitiesLoading = useRuntimeCapabilities().isLoading;
   const animaCreation = useRuntimeFeatureEnabled("anima_creation");
@@ -27,10 +29,10 @@ function CreateAnimaRoute() {
     return (
       <AppShellPage contentClassName="max-w-xl text-center">
         <h1 className="text-lg font-semibold">
-          Anima creation is not available
+          {t("animas.creationUnavailable.title")}
         </h1>
         <p className="text-muted-foreground">
-          This Animama runtime does not offer creating new Animas.
+          {t("animas.creationUnavailable.description")}
         </p>
       </AppShellPage>
     );

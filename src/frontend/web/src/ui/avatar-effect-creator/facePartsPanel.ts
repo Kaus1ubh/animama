@@ -1,4 +1,5 @@
 import type { AvatarFacePartCorrection } from "@animama/runtime-contracts/api-types";
+import { getI18n } from "react-i18next";
 
 import {
   AVATAR_FACE_PARTS_SCHEMA,
@@ -18,15 +19,26 @@ export const REQUIRED_FACE_PARTS: ReadonlySet<AvatarFacePartRole> = new Set([
 /** Below this, detected parts are shown as uncertain. */
 export const UNCERTAIN_CONFIDENCE = 0.7;
 
-export const FACE_PART_ROLE_NAMES: Record<AvatarFacePartRole, string> = {
-  face_skin: "Face skin",
-  eye_left: "Left eye",
-  eye_right: "Right eye",
-  eye_highlight: "Eye highlights",
-  eyeline: "Eye lines",
-  eyelash: "Eyelashes",
-  hair: "Hair",
-};
+/** The display name of a face part, as the panel and its messages name it. */
+export function facePartRoleName(role: AvatarFacePartRole): string {
+  const t = getI18n().getFixedT(null, "effects");
+  switch (role) {
+    case "face_skin":
+      return t("faceParts.roles.face_skin");
+    case "eye_left":
+      return t("faceParts.roles.eye_left");
+    case "eye_right":
+      return t("faceParts.roles.eye_right");
+    case "eye_highlight":
+      return t("faceParts.roles.eye_highlight");
+    case "eyeline":
+      return t("faceParts.roles.eyeline");
+    case "eyelash":
+      return t("faceParts.roles.eyelash");
+    case "hair":
+      return t("faceParts.roles.hair");
+  }
+}
 
 /** One mesh part of the Avatar, as the part list and picking name it. */
 export type FacePartPrimitive = { key: string; name: string };
@@ -47,14 +59,13 @@ export type FacePartRow = {
 /** Edited bindings per part, before Save. */
 export type FacePartDraft = Partial<Record<AvatarFacePartRole, string[]>>;
 
-const percent = (value: number) => `${Math.round(value * 100)}%`;
-
 /** Status rows for every part of the Avatar's current part map. */
 export function facePartRows(
   map: AvatarFacePartMap,
   primitives: readonly FacePartPrimitive[],
   draft: FacePartDraft = {},
 ): FacePartRow[] {
+  const t = getI18n().getFixedT(null, "effects");
   const nameOf = (key: string) =>
     primitives.find((primitive) => primitive.key === key)?.name ?? key;
   return AVATAR_FACE_PART_ROLES.map((role) => {
@@ -71,26 +82,33 @@ export function facePartRows(
     let statusLabel: string;
     if (edited) {
       status = edited.length ? "corrected" : "missing";
-      statusLabel = edited.length ? "Changed, not saved" : "Marked absent";
+      statusLabel = edited.length
+        ? t("faceParts.status.changed")
+        : t("faceParts.status.absent");
     } else if (part.source === "corrected") {
       status = "corrected";
-      statusLabel = "Corrected";
+      statusLabel = t("faceParts.status.corrected");
     } else if (part.source === "missing" || !part.bindings.length) {
       status = "missing";
-      statusLabel = "Missing";
+      statusLabel = t("faceParts.status.missing");
     } else if (
       part.source === "names" ||
       part.confidence < UNCERTAIN_CONFIDENCE
     ) {
       status = "uncertain";
-      statusLabel = `${part.source === "names" ? "Found by name" : "Detected"} · ${percent(part.confidence)}, check it`;
+      statusLabel =
+        part.source === "names"
+          ? t("faceParts.status.foundByName", { confidence: part.confidence })
+          : t("faceParts.status.uncertain", { confidence: part.confidence });
     } else {
       status = "detected";
-      statusLabel = `Detected · ${percent(part.confidence)}`;
+      statusLabel = t("faceParts.status.detected", {
+        confidence: part.confidence,
+      });
     }
     return {
       role,
-      label: FACE_PART_ROLE_NAMES[role],
+      label: facePartRoleName(role),
       status,
       statusLabel,
       confidence: part.confidence,
@@ -124,14 +142,14 @@ export function facePartDraftProblem(
   /** The current Avatar's mesh part keys; every corrected key must be one. */
   primitiveKeys: readonly string[],
 ): string | null {
-  if (!vrmSha256)
-    return "This Avatar's file digest is unavailable, so a correction cannot be saved.";
+  const t = getI18n().getFixedT(null, "effects");
+  if (!vrmSha256) return t("faceParts.problems.noDigest");
   const known = new Set(primitiveKeys);
   if (Object.values(draft).some((keys) => keys?.some((key) => !known.has(key))))
-    return "The correction names mesh parts this Avatar does not have. Cancel and choose its parts again.";
+    return t("faceParts.problems.unknownMesh");
   for (const role of REQUIRED_FACE_PARTS) {
     if (!(draft[role] ?? map.parts[role].bindings).length)
-      return `Choose at least one mesh part for the ${FACE_PART_ROLE_NAMES[role].toLowerCase()}.`;
+      return t("faceParts.problems.required", { part: facePartRoleName(role) });
   }
   return null;
 }

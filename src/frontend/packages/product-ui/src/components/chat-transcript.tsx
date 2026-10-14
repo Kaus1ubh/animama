@@ -3,6 +3,7 @@ import { useCallback } from "react";
 import { ArrowDownIcon } from "lucide-react";
 import { StickToBottom, useStickToBottomContext } from "use-stick-to-bottom";
 
+import { useProductTranslation } from "../i18n/product-translation";
 import { cn } from "../lib/utils";
 import { Button } from "./button";
 
@@ -43,32 +44,41 @@ export type ChatTranscriptEmptyStateProps = Omit<
 
 export const ChatTranscriptEmptyState = ({
   className,
-  title = "No messages yet",
-  description = "Start a chat to see messages here",
+  title,
+  description,
   icon,
   children,
   ...props
-}: ChatTranscriptEmptyStateProps) => (
-  <div
-    className={cn(
-      "flex size-full flex-col items-center justify-center gap-3 p-8 text-center",
-      className,
-    )}
-    {...props}
-  >
-    {children ?? (
-      <>
-        {icon && <div className="text-muted-foreground">{icon}</div>}
-        <div className="space-y-1">
-          <h3 className="text-sm font-medium">{title}</h3>
-          {description && (
-            <p className="text-muted-foreground text-sm">{description}</p>
-          )}
-        </div>
-      </>
-    )}
-  </div>
-);
+}: ChatTranscriptEmptyStateProps) => {
+  const { t } = useProductTranslation();
+  const shownDescription =
+    description === undefined ? t("transcript.emptyDescription") : description;
+  return (
+    <div
+      className={cn(
+        "flex size-full flex-col items-center justify-center gap-3 p-8 text-center",
+        className,
+      )}
+      {...props}
+    >
+      {children ?? (
+        <>
+          {icon && <div className="text-muted-foreground">{icon}</div>}
+          <div className="space-y-1">
+            <h3 className="text-sm font-medium">
+              {title ?? t("transcript.emptyTitle")}
+            </h3>
+            {shownDescription && (
+              <p className="text-muted-foreground text-sm">
+                {shownDescription}
+              </p>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
 
 export type ChatTranscriptScrollButtonProps = ComponentProps<typeof Button>;
 

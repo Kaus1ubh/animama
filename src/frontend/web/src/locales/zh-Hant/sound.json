@@ -1,0 +1,38 @@
+{
+  "preview": {
+    "loadFailed": "無法載入音效預覽。",
+    "noAudio": "此音效沒有可播放的音訊。",
+    "playFailed": "無法播放音效預覽。"
+  },
+  "upload": {
+    "button": "上傳",
+    "defaultName": "音效",
+    "failed": "無法儲存音效。請再試一次。",
+    "inputLabel": "上傳音效檔案",
+    "listLabel": "音效上傳",
+    "queued": "排隊中",
+    "refresh": "重新整理目錄",
+    "refreshFailed": "目錄重新整理失敗。",
+    "retry": "重試 {{name}}",
+    "saved": "已儲存到資源庫",
+    "savedRefreshFailed": "已儲存到資源庫。{{message}}",
+    "unsupportedType": "請選擇 WAV、MP3 或 Ogg 音訊檔案。",
+    "uploading": "正在上傳…"
+  },
+  "volume": {
+    "mute": "靜音",
+    "muteAll": "全部靜音",
+    "muteAllLabel": "將所有音訊靜音",
+    "sfx": {
+      "label": "音效",
+      "mute": "將音效靜音",
+      "slider": "音效音量"
+    },
+    "title": "音量",
+    "tts": {
+      "label": "語音",
+      "mute": "將文字轉語音靜音",
+      "slider": "文字轉語音音量"
+    }
+  }
+}

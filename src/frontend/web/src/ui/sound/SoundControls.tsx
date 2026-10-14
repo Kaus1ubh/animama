@@ -1,12 +1,14 @@
 "use client";
 
+import { useTranslation } from "react-i18next";
+
 import { useSoundController } from "@/hooks/use-sound-controller";
 import { cn } from "@/lib/utils";
 import { Checkbox } from "@/ui/components/checkbox";
 import { Slider } from "@/ui/components/slider";
 
 type VolumeControlRowProps = {
-  label: "TTS" | "SFX";
+  label: string;
   value: number;
   muted: boolean;
   disabled: boolean;
@@ -35,6 +37,7 @@ function VolumeControlRow({
   onValueChange,
   onMutedChange,
 }: VolumeControlRowProps) {
+  const { t } = useTranslation("sound");
   return (
     <div className="flex items-center gap-3">
       <div className="w-16 shrink-0">
@@ -59,7 +62,7 @@ function VolumeControlRow({
           disabled={disabled || muteDisabled}
           aria-label={muteAriaLabel}
         />
-        <span>Mute</span>
+        <span>{t("volume.mute")}</span>
       </label>
       <Slider
         className="flex-1"
@@ -98,6 +101,7 @@ export function AudioVolumePanel({
     setTtsMuted,
     setTtsVolume,
   } = useSoundController();
+  const { t } = useTranslation("sound");
 
   const sfxEffectiveMuted = masterMuted || sfxMuted;
   const ttsEffectiveMuted = masterMuted || ttsMuted;
@@ -112,37 +116,39 @@ export function AudioVolumePanel({
         <div className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             {showTitle ? (
-              <p className="text-foreground text-sm font-semibold">Volume</p>
+              <p className="text-foreground text-sm font-semibold">
+                {t("volume.title")}
+              </p>
             ) : null}
             <label className="text-foreground ml-auto flex items-center gap-2 text-xs font-medium">
               <Checkbox
                 checked={masterMuted}
                 onCheckedChange={(checked) => setMasterMuted(checked === true)}
                 disabled={disabled}
-                aria-label="Mute all audio"
+                aria-label={t("volume.muteAllLabel")}
               />
-              <span>Mute all</span>
+              <span>{t("volume.muteAll")}</span>
             </label>
           </div>
           <VolumeControlRow
-            label="TTS"
+            label={t("volume.tts.label")}
             value={ttsVolume}
             muted={ttsEffectiveMuted}
             disabled={disabled}
             muteDisabled={masterMuted}
-            sliderAriaLabel="Text-to-speech volume"
-            muteAriaLabel="Mute text-to-speech"
+            sliderAriaLabel={t("volume.tts.slider")}
+            muteAriaLabel={t("volume.tts.mute")}
             onValueChange={setTtsVolume}
             onMutedChange={setTtsMuted}
           />
           <VolumeControlRow
-            label="SFX"
+            label={t("volume.sfx.label")}
             value={sfxVolume}
             muted={sfxEffectiveMuted}
             disabled={disabled}
             muteDisabled={masterMuted}
-            sliderAriaLabel="Sound effects volume"
-            muteAriaLabel="Mute sound effects"
+            sliderAriaLabel={t("volume.sfx.slider")}
+            muteAriaLabel={t("volume.sfx.mute")}
             onValueChange={setSfxVolume}
             onMutedChange={setSfxMuted}
           />

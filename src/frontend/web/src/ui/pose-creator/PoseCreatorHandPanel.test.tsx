@@ -97,6 +97,17 @@ vi.mock("react", async (importOriginal) => ({
   ...(await importOriginal<typeof import("react")>()),
   useId: () => "hand-adjustment-description",
 }));
+// The control is called directly below, outside a React render, so its
+// translation hook reads the test i18n instance instead of React context.
+vi.mock("react-i18next", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("react-i18next")>();
+  return {
+    ...actual,
+    useTranslation: (namespace: "pose") => ({
+      t: actual.getI18n().getFixedT(null, namespace),
+    }),
+  };
+});
 
 function findRange(
   node: ReactNode,

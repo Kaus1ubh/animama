@@ -1,0 +1,368 @@
+{
+  "actions": {
+    "cancel": "キャンセル",
+    "discard": "破棄",
+    "edit": "編集",
+    "remove": "削除",
+    "removing": "削除しています…",
+    "retry": "再試行",
+    "save": "保存",
+    "saving": "保存しています…",
+    "show": "表示",
+    "test": "テスト",
+    "testing": "テストしています…",
+    "undo": "元に戻す"
+  },
+  "chips": {
+    "appSearch": {
+      "description": "このアプリの検索サービスでウェブを検索します",
+      "label": "アプリ検索"
+    },
+    "builtInSearch": {
+      "description": "プロバイダー独自の検索でウェブを検索します",
+      "label": "組み込み検索",
+      "anthropicDescription": "Anthropic 独自の検索でウェブを検索します。検索ごとに Anthropic アカウントへ課金されます。"
+    },
+    "context": {
+      "description": "{{tokens, number}} トークンのコンテキストウィンドウ"
+    },
+    "embeddings": {
+      "description": "ファイルとアーカイブの検索に使う埋め込みモデル",
+      "label": "埋め込み"
+    },
+    "tools": {
+      "description": "ツールを呼び出します",
+      "label": "ツール"
+    },
+    "vision": {
+      "description": "画像を受け付けます",
+      "label": "ビジョン"
+    }
+  },
+  "connectionForm": {
+    "advanced": "詳細オプション",
+    "apiKey": "API キー",
+    "apiKeyVariable": "API キーの変数",
+    "baseUrl": "ベース URL",
+    "baseUrlHelp": "サーバーの OpenAI 互換アドレスです。通常は /v1 で終わります。",
+    "compatibility": {
+      "foldDeveloperRole": "developer メッセージを送信しない",
+      "foldDeveloperRoleHelp": "developer ロールを受け付けないサーバー向けです。各ターンのコンテキスト（記憶マップ、添付ファイル）はユーザーメッセージ冒頭のタグ付きブロックに入れ、圧縮した履歴の要約とターン内の指示はシステムメッセージに統合します。",
+      "sendOpenaiExtensions": "OpenAI 専用のリクエストフィールドを送信する",
+      "sendStreamUsage": "ストリーミング中にトークン使用量を要求する",
+      "stripFunctionStrict": "ツールから strict フラグを削除する"
+    },
+    "detect": "検出",
+    "detected_other": "{{baseUrl}} で {{count, number}} 個のモデルが見つかりました。",
+    "detecting": "検出しています…",
+    "editDescription": "Ollama、LM Studio、llama.cpp、クラウドプロバイダーなどの OpenAI 互換サーバーです。",
+    "env": {
+      "notSet": "サーバーではまだ設定されていません。API キーを設定してください。",
+      "set": "サーバーで設定済みです。",
+      "setVariable": "サーバーでこの変数に API キーを設定してください。"
+    },
+    "hideAdvanced": "詳細オプションを隠す",
+    "insecureKey": "このアドレスは別のコンピューターへの暗号化されていない http を使うため、キーが暗号化されずにネットワークを通過します。https またはローカルサーバーを使用してください。",
+    "keyNotDeleted": "接続に保存されたキーを削除できませんでした。",
+    "keyNotStored": "接続は保存されましたが、キーは保存されませんでした。{{reason}}",
+    "keyNotStoredRetry": "接続は保存されましたが、キーは保存されませんでした。「編集」から再試行してください。",
+    "name": "名前",
+    "reasoning": {
+      "deepseekThinking": "DeepSeek の thinking として送信",
+      "label": "推論の強度",
+      "omit": "送信しない",
+      "openaiEffort": "OpenAI の reasoning effort として送信"
+    },
+    "removeSavedKey": "保存されたキーを削除",
+    "serverType": "サーバーの種類",
+    "timeout": "リクエストのタイムアウト（秒）",
+    "timeoutHelp": "ローカルサーバーでは、モデルの読み込み中に時間がかかる場合があります。"
+  },
+  "connections": {
+    "addCustomServer": "カスタムサーバーを追加",
+    "added": "接続を追加しました。",
+    "addModel": "モデルを追加",
+    "addModelTo": "{{name}} にモデルを追加",
+    "connect": "接続",
+    "connecting": "接続しています…",
+    "detail": "{{host}} · {{status}}",
+    "editNamed": "{{name}} を編集",
+    "hideHidden": "非表示のモデルを隠す",
+    "loadFailed": "モデルの接続を読み込めませんでした。",
+    "modelsOf": "{{name}} のモデル",
+    "noModels": "まだモデルがありません。チャットするにはモデルを追加してください。",
+    "builtinKey": {
+      "managed": "このコンピューターで暗号化され、再表示されることはありません。アプリ設定 → API キーでも管理できます。",
+      "server": "このサーバーに設定された {{name}} キー（{{env}}）を使用します。"
+    },
+    "removed": "接続を削除しました。",
+    "removeNamed": "{{name}} を削除",
+    "saved": "接続を保存しました。",
+    "showHidden_other": "非表示のモデル {{count, number}} 個を表示",
+    "status": {
+      "checking": "確認しています…",
+      "keyMissing": "キーがありません",
+      "keyRejected": "キーが拒否されました",
+      "keySet": "キー設定済み",
+      "noKeyNeeded": "キーは不要",
+      "notReachable": "接続できません",
+      "runningAt": "{{host}} で実行中"
+    }
+  },
+  "credentials": {
+    "allFailed": "変更を完了できませんでした。ランタイムの復旧状況を確認してから再試行してください。保存されたキーはここに表示されません。",
+    "connectionKey": "モデル接続のキー",
+    "description": "クラウドでのチャットには OpenAI または Anthropic のキーを、音声には ElevenLabs または Gemini のキーを追加します。その他のモデルサーバーのキーは、アプリ設定 → モデルで各接続に入力します。キーはこのコンピューターのセキュアストレージで暗号化され、再表示されることはありません。変更は保存するとすぐに適用されます。後からアプリ設定 → API キーで変更できます。",
+    "failure": {
+      "full": "このコンピューターに保存できるモデル接続のキーは {{max, number}} 個までで、すでに上限に達しています。使わなくなった接続のキーを削除してから再試行してください。",
+      "line": "{{name}}：{{message}}",
+      "restartRequired": "変更を完了できませんでした。保存されたキーの状態は上に表示されています。キーを再度変更する前に、ランタイムの復旧を開いて再試行してください。",
+      "retry": "キーの変更を完了できませんでした。保存された状態を確認して、変更を再試行してください。"
+    },
+    "removeNamed": "{{name}} のキーを削除",
+    "replacePlaceholder": "置き換える新しいキーを入力",
+    "saveChanges_other": "{{count, number}} 件の変更を保存",
+    "saved": "保存しました。",
+    "someFailed": "一部の変更を完了できませんでした（{{names}}）。再試行してください。保存されたキーはここに表示されません。",
+    "status": {
+      "configured": "設定済み",
+      "notSet": "未設定",
+      "removing": "保存すると削除されます。"
+    },
+    "title": "API キー",
+    "unavailable": "保護された設定を利用できません。ランタイムの復旧を開いて、もう一度お試しください。",
+    "undoRemoveNamed": "{{name}} のキーの削除を取り消す"
+  },
+  "defaults": {
+    "current": "現在は {{model}} です。",
+    "currentOn": "現在は {{model}}（{{connection}}）です。",
+    "loadFailed": "モデルを読み込めませんでした。",
+    "noCapableModel": "この役割を担えるモデルがありません。必要な機能を備えたモデルを選んでください。",
+    "roleModel": "{{role}}モデル",
+    "roles": {
+      "chat": {
+        "default": "システムのデフォルト",
+        "description": "新しい Anima が最初に使うモデルです。既存の Anima はそれぞれのモデルを使い続けます。",
+        "label": "チャット"
+      },
+      "embeddings": {
+        "default": "オフ",
+        "description": "意味に基づいてファイルとアーカイブの文章を探します。変更すると保存済みのコンテンツが再度埋め込まれます。",
+        "label": "埋め込み"
+      },
+      "memoryManager": {
+        "default": "チャットと同じ",
+        "description": "会話を見直し、記憶ファイルの変更を提案します。ツール呼び出しが必要です。",
+        "label": "記憶マネージャー"
+      },
+      "utility": {
+        "default": "チャットと同じ",
+        "description": "チャットのタイトルを付け、長いチャットを圧縮します。小さく高速なモデルが適しています。",
+        "label": "圧縮"
+      }
+    },
+    "saveFailed": "{{role}}モデルを保存できませんでした。",
+    "unavailable": "選択したモデルを利用できないため、デフォルトが使われています。",
+    "unavailableChoice": "{{model}}（利用不可）"
+  },
+  "embeddings": {
+    "current": "保存済みのファイルとアーカイブはこのモデルで埋め込まれています。",
+    "off": "埋め込みはオフです。ファイルとアーカイブの検索にはキーワードが使われます。",
+    "reEmbedding_other": "{{count, number}} 件を再埋め込みしています。完了するまで検索にはキーワードが使われます。",
+    "retrying_other": "{{count, number}} 件の再埋め込みは再試行待ちです：{{reason}}"
+  },
+  "fields": {
+    "capabilities": "機能",
+    "kind": "種類",
+    "modelId": "モデル ID",
+    "structuredOutput": "構造化出力"
+  },
+  "info": {
+    "allowed": "許可",
+    "builtinDescription": "{{name}} の組み込みモデルです。詳細は変更できません。",
+    "fields": {
+      "api": "API",
+      "contextWindow": "コンテキストウィンドウ",
+      "images": "画像",
+      "memoryWrites": "記憶の書き込み",
+      "reasoning": "推論",
+      "streaming": "ストリーミング",
+      "toolCalls": "ツール呼び出し",
+      "toolsWithSchema": "スキーマ付きのツール"
+    },
+    "no": "いいえ",
+    "notAllowed": "不許可",
+    "notSet": "未設定",
+    "tokens": "{{tokens, number}} トークン",
+    "yes": "はい"
+  },
+  "keys": {
+    "encrypted": "このコンピューターで暗号化され、再表示されることはありません。保存したキーはすぐに適用されます。",
+    "replacePlaceholder": "保存済み。置き換えるには新しいキーを入力"
+  },
+  "locations": {
+    "cloud": "クラウド",
+    "local": "ローカル",
+    "tabsLabel": "モデルの実行場所"
+  },
+  "modelKinds": {
+    "chat": "チャットモデル",
+    "embedding": "埋め込みモデル"
+  },
+  "modelRow": {
+    "details": "{{name}} の詳細",
+    "hidden": "非表示"
+  },
+  "openRouter": {
+    "find": "OpenRouter のモデルを探す",
+    "found_other": "{{count, number}} 個のモデルが見つかりました。",
+    "listLabel": "OpenRouter のモデル",
+    "loading": "OpenRouter のモデルを読み込んでいます…",
+    "noMatches": "一致するモデルがありません。検索語を変えるか、すべてのモデルを表示してください。",
+    "searchPlaceholder": "名前または ID で検索",
+    "showingFirst": "{{total, number}} 個中 {{shown, number}} 個のモデルを表示しています。検索して絞り込んでください。",
+    "toolsOnly": "ツール呼び出し対応のみ"
+  },
+  "operatorManaged": {
+    "note": "音声モデルはホスティング事業者が管理しています。"
+  },
+  "optional": "（任意）",
+  "ownerModel": {
+    "addDescription": "モデルをテストして対応機能を確認してから、機能とコンテキストウィンドウを確定してください。",
+    "added": "モデルを追加しました。",
+    "addTitle": "{{name}} にモデルを追加",
+    "allowMemoryWrites": "このモデルに記憶の書き込みを許可する",
+    "api": "API：{{api}}",
+    "capabilities": {
+      "acceptsImages": "画像を受け付ける",
+      "supportsStreaming": "応答をストリーミングする",
+      "supportsTools": "ツールを呼び出す（記憶、ファイル検索）",
+      "toolsWithStructuredOutput": "ツールと応答スキーマを併用できる"
+    },
+    "contextWindow": "コンテキストウィンドウ（トークン）",
+    "contextWindowHelp": "必須です。モデルの最大値ではなく、サーバーがモデルを読み込むときのコンテキストサイズ（例：Ollama の num_ctx や llama.cpp の -c）を入力してください。長いチャットは収まるように要約されます。",
+    "contextWindowHelpAnthropic": "必須です。モデルをテストすると、Anthropic が公開しているウィンドウサイズが入力されます。長いチャットは収まるように要約されます。",
+    "copyFrom": "機能のコピー元",
+    "copyFromHelp": "組み込みモデルの新しいバージョンに便利です。",
+    "copyNothing": "なし（下で設定）",
+    "displayName": "表示名",
+    "editDescription": {
+      "chat": "{{connection}} のチャットモデルです。詳細を変更してから保存してください。",
+      "embedding": "{{connection}} の埋め込みモデルです。詳細を変更してから保存してください。"
+    },
+    "listed_other": "{{count, number}} 個のモデルが見つかりました。選択するか ID を入力してください。",
+    "listedNone": "サーバーにモデルがありません。モデル ID を入力してください。",
+    "listing": "一覧を取得しています…",
+    "listModels": "モデルを一覧表示",
+    "removed": "モデルを削除しました。",
+    "saved": "モデルを保存しました。",
+    "showInLists": "モデル一覧に表示",
+    "showNamedInLists": "{{name}} をモデル一覧に表示",
+    "testModel": "モデルをテスト",
+    "earlyCompaction": {
+      "label": "早めに圧縮",
+      "description": "プロンプトが長いコンテキスト向けの高い料金に達する前に（{{model}} では {{early, number}} トークン）、それまでの会話を要約します。オフにすると {{late, number}} トークンまで待ち、より多くの内容を原文のまま残しますが、高い料金がかかります。"
+    }
+  },
+  "probe": {
+    "contextWindow": "サーバーが報告したコンテキストウィンドウは {{tokens, number}} トークンです。",
+    "dimensions": "ベクトルは {{dimensions, number}} 次元です。",
+    "failed": "✗ {{step}}",
+    "failureReason": " — {{reason}}",
+    "passed": "✓ {{step}}",
+    "results": "テスト結果",
+    "steps": {
+      "available": "モデルを利用可能",
+      "embeddings": "埋め込み",
+      "jsonMode": "JSON モード",
+      "streaming": "ストリーミング",
+      "structuredOutput": "JSON スキーマ",
+      "toolCalls": "ツール呼び出し",
+      "toolsWithStructuredOutput": "スキーマ付きのツール"
+    }
+  },
+  "providers": {
+    "connected": "（接続済み）",
+    "custom": "カスタム",
+    "purpose": {
+      "customCloud": "OpenAI 互換の任意のクラウドサービスに接続します。",
+      "customLocal": "このコンピューターまたはネットワーク上の、OpenAI 互換の任意のサーバーに接続します。",
+      "deepseek": "DeepSeek API キーを使って DeepSeek のモデルとチャットします。",
+      "huggingface": "アクセストークンを使い、Hugging Face Inference Providers 経由でオープンモデルとチャットします。",
+      "llamacpp": "このコンピューターの llama.cpp サーバーが提供するモデルとチャットします。",
+      "lmstudio": "このコンピューターの LM Studio が提供するモデルとチャットします。",
+      "ollama": "このコンピューターの Ollama で実行中のモデルとチャットします。",
+      "openai": "API キーを使って OpenAI のモデルとチャットします。",
+      "openrouter": "1 つの OpenRouter キーで、多くのプロバイダーのモデルとチャットします。",
+      "vllm": "このコンピューターの vLLM が提供するモデルとチャットします。",
+      "anthropic": "API キーを使って Anthropic の Claude モデルとチャットします。"
+    },
+    "recommended": "おすすめ",
+    "tabsLabel": "{{location}}のプロバイダー"
+  },
+  "removal": {
+    "consequences": {
+      "animas_other": "該当する Anima では、別のモデルを選ぶまでモデルが利用不可と表示されます。",
+      "roles_other": "該当する役割はデフォルトに戻ります。"
+    },
+    "roles": {
+      "chat": "チャットのデフォルト",
+      "embeddings": "埋め込みモデル",
+      "memoryManager": "記憶マネージャーのモデル",
+      "utility": "圧縮モデル"
+    },
+    "savedKeyDeleted": "保存されたキーも削除され、復元できません。",
+    "title": "{{name}} を削除しますか？",
+    "usage": {
+      "animas": "{{animas, list}} が使用しています。",
+      "animasAndRoles": "{{animas, list}} が使用しており、{{roles, list}}としても使われています。",
+      "none": "使用されていません。",
+      "roles": "{{roles, list}}として使われています。"
+    }
+  },
+  "required": "（必須）",
+  "structuredOutput": {
+    "jsonObject": "JSON モード",
+    "jsonSchema": "JSON スキーマ（strict）",
+    "none": "なし"
+  },
+  "webSearch": {
+    "brave": {
+      "apiKey": "Brave Search API キー",
+      "envHelp": "バックエンドは Brave Search のキーを {{managed}} または {{suggested}} から読み取ります。キーがデータベースに保存されることはありません。",
+      "envNotSet": "バックエンドの環境で設定されていません。",
+      "envVariable": "キーの環境変数"
+    },
+    "destination": {
+      "brave": "モデルは検索クエリを Brave Search に送信します。Brave Search はクエリを最大 90 日間保持します。",
+      "searxng": "モデルは検索クエリをあなたの SearXNG サーバーに送信します。",
+      "searxngAt": "モデルは検索クエリを {{host}} の SearXNG サーバーに送信します。"
+    },
+    "keyNotDeleted": "保存された Brave Search のキーを削除できませんでした。",
+    "keyNotDeletedReason": "保存された Brave Search のキーを削除できませんでした。{{reason}}",
+    "keyNotStored": "Brave Search のキーは保存されませんでした。もう一度入力して保存してください。",
+    "keyNotStoredReason": "Brave Search のキーは保存されませんでした。{{reason}}",
+    "loadFailed": "ウェブ検索の設定を読み込めませんでした。",
+    "off": "オフ",
+    "saved": "ウェブ検索を保存しました。",
+    "saveToTest": "新しいキーをテストするには保存してください。",
+    "searxng": {
+      "address": "SearXNG のアドレス",
+      "deletesKey": "保存すると、保存済みの Brave Search のキーが削除され、復元できません。",
+      "help": "settings.yml の search.formats で json 形式を有効にしてください。Docker スタックからは、このコンピューター上のサーバーは 127.0.0.1 ではなく host.docker.internal になります。"
+    },
+    "service": {
+      "description": "ツールを呼び出せるモデルがウェブを検索できるようにします。組み込み検索を持つモデルは引き続きそれを使い、Anthropic のモデルはこのサービスを使用しません。",
+      "label": "検索サービス"
+    },
+    "testPassed_other": "検索できました：テストクエリで {{count, number}} 件の結果が見つかりました。",
+    "timeout": "タイムアウト（秒）",
+    "turnedOff": "ウェブ検索をオフにしました。",
+    "turnOff": {
+      "action": "ウェブ検索をオフにする",
+      "deletesKey": "検索をオフにすると保存済みのキーも削除され、復元できません。",
+      "stopsSearching": "モデルはウェブを検索しなくなります。",
+      "turningOff": "オフにしています…"
+    }
+  }
+}

@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { hostedCapabilitiesFixture } from "./runtime-fixture";
-import { unavailableRouteReason } from "./route-admission";
+import {
+  unavailableReasonText,
+  unavailableRouteReason,
+} from "./route-admission";
 import { Route as PipRoute } from "@/routes/desktop/pip/$animaId";
 import { Route as QuickChatRoute } from "@/routes/desktop/quick-chat/$animaId";
 
@@ -46,9 +49,9 @@ describe("native auxiliary route admission", () => {
   it.each(["/desktop/pip/fixture", "/desktop/quick-chat/fixture"])(
     "keeps hosted %s excluded",
     (path) => {
-      expect(unavailableRouteReason(path, hostedCapabilitiesFixture)).toContain(
-        "desktop application",
-      );
+      const reason = unavailableRouteReason(path, hostedCapabilitiesFixture);
+      expect(reason).toBe("native_features");
+      expect(unavailableReasonText(reason!)).toContain("desktop application");
     },
   );
 });

@@ -16,6 +16,8 @@ import {
 } from "lucide-react";
 import { TimelineIcon } from "@/ui/components/TimelineIcon";
 import { useEffect, useId, useMemo, useState } from "react";
+import type { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
 
 import type {
   PyContentDependency,
@@ -45,42 +47,69 @@ import { usePoseCreatorStore } from "@/stores/pose-creator-store";
 
 type EffectTab = {
   contentType: ActionComponentType;
-  label: string;
-  catalogLabel: string;
-  searchPlaceholder: string;
   icon: LucideIcon;
 };
 
 const EFFECT_TABS: EffectTab[] = [
-  {
-    contentType: "particle_effect",
-    label: "Particle FX",
-    catalogLabel: "Particle effects",
-    searchPlaceholder: "Search particle effects",
-    icon: SparklesIcon,
-  },
-  {
-    contentType: "avatar_effect",
-    label: "Avatar FX",
-    catalogLabel: "Avatar effects",
-    searchPlaceholder: "Search avatar effects",
-    icon: UserRoundIcon,
-  },
-  {
-    contentType: "scene_effect",
-    label: "Scene FX",
-    catalogLabel: "Scene effects",
-    searchPlaceholder: "Search scene effects",
-    icon: Layers3Icon,
-  },
-  {
-    contentType: "sound_effect",
-    label: "SFX",
-    catalogLabel: "Sound effects",
-    searchPlaceholder: "Search sound effects",
-    icon: Volume2Icon,
-  },
+  { contentType: "particle_effect", icon: SparklesIcon },
+  { contentType: "avatar_effect", icon: UserRoundIcon },
+  { contentType: "scene_effect", icon: Layers3Icon },
+  { contentType: "sound_effect", icon: Volume2Icon },
 ];
+
+/** The wording one effect catalog tab uses, each a whole phrase or sentence. */
+type EffectTabText = {
+  tab: string;
+  search: string;
+  loading: string;
+  loadFailed: string;
+  empty: string;
+  showMore: string;
+};
+
+function effectTabText(
+  t: TFunction<"actionEditor">,
+  contentType: ActionComponentType,
+): EffectTabText {
+  switch (contentType) {
+    case "particle_effect":
+      return {
+        tab: t("effects.types.particle.tab"),
+        search: t("effects.types.particle.search"),
+        loading: t("effects.types.particle.loading"),
+        loadFailed: t("effects.types.particle.loadFailed"),
+        empty: t("effects.types.particle.empty"),
+        showMore: t("effects.types.particle.showMore"),
+      };
+    case "avatar_effect":
+      return {
+        tab: t("effects.types.avatar.tab"),
+        search: t("effects.types.avatar.search"),
+        loading: t("effects.types.avatar.loading"),
+        loadFailed: t("effects.types.avatar.loadFailed"),
+        empty: t("effects.types.avatar.empty"),
+        showMore: t("effects.types.avatar.showMore"),
+      };
+    case "scene_effect":
+      return {
+        tab: t("effects.types.scene.tab"),
+        search: t("effects.types.scene.search"),
+        loading: t("effects.types.scene.loading"),
+        loadFailed: t("effects.types.scene.loadFailed"),
+        empty: t("effects.types.scene.empty"),
+        showMore: t("effects.types.scene.showMore"),
+      };
+    case "sound_effect":
+      return {
+        tab: t("effects.types.sound.tab"),
+        search: t("effects.types.sound.search"),
+        loading: t("effects.types.sound.loading"),
+        loadFailed: t("effects.types.sound.loadFailed"),
+        empty: t("effects.types.sound.empty"),
+        showMore: t("effects.types.sound.showMore"),
+      };
+  }
+}
 
 type ActionEditorEffectsPanelProps = {
   mobile?: boolean;
@@ -133,6 +162,7 @@ export function ActionEditorEffectsPanel({
   onEditPose,
   onCreatePose,
 }: ActionEditorEffectsPanelProps) {
+  const { t } = useTranslation("actionEditor");
   const apiClient = useProductApiClient();
 
   const [previewState, setPreviewState] = useState<{
@@ -166,6 +196,7 @@ export function ActionEditorEffectsPanel({
   const showIncludedId = useId();
   const activeTab =
     EFFECT_TABS.find((tab) => tab.contentType === activeType) ?? EFFECT_TABS[0];
+  const activeText = effectTabText(t, activeTab.contentType);
   const activeSection = sections.find(
     (section) => section.contentType === activeTab.contentType,
   );
@@ -177,7 +208,9 @@ export function ActionEditorEffectsPanel({
         pose.name.toLocaleLowerCase().includes(normalizedQuery),
     );
   }, [poseQuery, poses, showIncludedPoses]);
-  const panelLabel = showsPoses ? "Poses & Effects" : "Effects";
+  const panelLabel = showsPoses
+    ? t("effects.titleWithPoses")
+    : t("effects.title");
 
   return (
     <section
@@ -197,8 +230,13 @@ export function ActionEditorEffectsPanel({
           {!expanded ? (
             <p className="text-muted-foreground mt-1 truncate text-xs">
               {showsPoses
-                ? `${poses.length} poses · ${dependencies.length} effects`
-                : `${dependencies.length} added`}
+                ? t("effects.summary.posesAndEffects", {
+                    poses: t("effects.summary.poses", { count: poses.length }),
+                    effects: t("effects.summary.effects", {
+                      count: dependencies.length,
+                    }),
+                  })
+                : t("effects.summary.added", { count: dependencies.length })}
             </p>
           ) : null}
         </div>
@@ -213,9 +251,9 @@ export function ActionEditorEffectsPanel({
                 timelineEnabled &&
                   "border-primary/40 bg-primary/8 text-primary",
               )}
-              aria-label="Show timeline events"
+              aria-label={t("effects.showTimelineEvents")}
               aria-pressed={timelineEnabled}
-              title="Show timeline events"
+              title={t("effects.showTimelineEvents")}
               onClick={() => onTimelineEnabledChange(!timelineEnabled)}
             >
               <TimelineIcon className="size-4" />
@@ -223,7 +261,7 @@ export function ActionEditorEffectsPanel({
           ) : null}
           {!mobile && onExpandedChange ? (
             <CreatorPanelCollapseButton
-              label={panelLabel.toLocaleLowerCase()}
+              label={panelLabel}
               expanded={expanded}
               collapseDirection="up"
               onExpandedChange={onExpandedChange}
@@ -261,7 +299,7 @@ export function ActionEditorEffectsPanel({
                 value="poses"
                 className="text-2xs h-8 min-w-0 rounded-md px-1 tracking-tight data-[state=active]:shadow-sm"
               >
-                <span className="truncate">Poses</span>
+                <span className="truncate">{t("effects.poses.tab")}</span>
               </TabsTrigger>
             ) : null}
             {EFFECT_TABS.map((tab) => (
@@ -270,7 +308,9 @@ export function ActionEditorEffectsPanel({
                 value={tab.contentType}
                 className="text-2xs h-8 min-w-0 rounded-md px-1 tracking-tight data-[state=active]:shadow-sm"
               >
-                <span className="truncate">{tab.label}</span>
+                <span className="truncate">
+                  {effectTabText(t, tab.contentType).tab}
+                </span>
               </TabsTrigger>
             ))}
           </TabsList>
@@ -292,13 +332,13 @@ export function ActionEditorEffectsPanel({
                 }}
                 placeholder={
                   panelTab === "poses"
-                    ? "Search poses"
-                    : activeTab.searchPlaceholder
+                    ? t("effects.poses.search")
+                    : activeText.search
                 }
                 aria-label={
                   panelTab === "poses"
-                    ? "Search poses"
-                    : activeTab.searchPlaceholder
+                    ? t("effects.poses.search")
+                    : activeText.search
                 }
               />
             </div>
@@ -318,7 +358,7 @@ export function ActionEditorEffectsPanel({
                   setShowIncludedPoses(checked === true)
                 }
               />
-              Show Included
+              {t("effects.poses.showIncluded")}
             </label>
           ) : null}
           {previewState.error ? (
@@ -356,7 +396,7 @@ export function ActionEditorEffectsPanel({
                     className="text-muted-foreground px-3 py-6 text-center text-xs"
                     role="status"
                   >
-                    Loading {activeTab.catalogLabel.toLowerCase()}…
+                    {activeText.loading}
                   </div>
                 ) : activeSection?.errorMessage ? (
                   <div
@@ -364,7 +404,7 @@ export function ActionEditorEffectsPanel({
                     role="alert"
                   >
                     <p className="text-destructive text-xs font-medium">
-                      Could not load {activeTab.catalogLabel.toLowerCase()}
+                      {activeText.loadFailed}
                     </p>
                     <p className="text-muted-foreground text-2xs mt-1 line-clamp-2">
                       {activeSection.errorMessage}
@@ -376,7 +416,7 @@ export function ActionEditorEffectsPanel({
                       className="mt-3 h-8 text-xs"
                       onClick={() => void activeSection.retry()}
                     >
-                      Try again
+                      {t("effects.tryAgain")}
                     </Button>
                   </div>
                 ) : (
@@ -417,11 +457,9 @@ export function ActionEditorEffectsPanel({
                 !activeSection?.errorMessage &&
                 !activeSection?.items.length ? (
                   <div className="border-border/70 bg-muted/20 rounded-lg border border-dashed px-3 py-6 text-center">
-                    <p className="text-sm font-medium">No effects found</p>
+                    <p className="text-sm font-medium">{t("effects.empty")}</p>
                     <p className="text-muted-foreground mt-1 text-xs">
-                      {query
-                        ? "Try a different search."
-                        : `No ${activeTab.catalogLabel.toLowerCase()} are available.`}
+                      {query ? t("effects.differentSearch") : activeText.empty}
                     </p>
                   </div>
                 ) : null}
@@ -437,8 +475,8 @@ export function ActionEditorEffectsPanel({
                     onClick={() => void activeSection.fetchNextPage()}
                   >
                     {activeSection.isFetchingNextPage
-                      ? "Loading more…"
-                      : `Show more ${activeTab.catalogLabel.toLowerCase()}`}
+                      ? t("effects.loadingMore")
+                      : activeText.showMore}
                   </Button>
                 ) : null}
               </>
@@ -475,14 +513,19 @@ function PoseCatalog({
   onEditPose?: (pose: PyPose) => void;
   onCreatePose?: () => void;
 }) {
+  const { t } = useTranslation("actionEditor");
   if (pending)
-    return <p className="text-muted-foreground text-xs">Loading poses…</p>;
+    return (
+      <p className="text-muted-foreground text-xs">
+        {t("effects.poses.loading")}
+      </p>
+    );
   if (error)
     return (
       <div role="alert" className="text-destructive text-xs">
-        Could not load poses. {error}
+        {t("effects.poses.loadFailed")} {error}
         <Button variant="ghost" onClick={onRetry}>
-          Try again
+          {t("effects.tryAgain")}
         </Button>
       </div>
     );
@@ -505,7 +548,9 @@ function PoseCatalog({
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-xs font-medium">{pose.name}</p>
                   <p className="text-muted-foreground text-2xs">
-                    {pose.source === "included" ? "Included" : "Local"}
+                    {pose.source === "included"
+                      ? t("effects.poses.included")
+                      : t("effects.poses.local")}
                   </p>
                 </div>
               </CatalogDragHandle>
@@ -518,12 +563,14 @@ function PoseCatalog({
                     className="size-7 shrink-0 rounded-full"
                     onClick={() => onEditPose?.(pose)}
                     disabled={!onEditPose}
-                    aria-label={`Edit ${pose.name}`}
+                    aria-label={t("effects.poses.editNamed", {
+                      name: pose.name,
+                    })}
                   >
                     <PencilSparklesIcon className="size-3.5" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Edit</TooltipContent>
+                <TooltipContent>{t("effects.poses.edit")}</TooltipContent>
               </Tooltip>
               <Tooltip delayDuration={500}>
                 <TooltipTrigger asChild>
@@ -534,12 +581,14 @@ function PoseCatalog({
                     className="size-7 shrink-0 rounded-full"
                     onClick={() => onAddPose?.(pose)}
                     disabled={!onAddPose}
-                    aria-label={`Insert ${pose.name} at current playhead`}
+                    aria-label={t("effects.poses.insertNamed", {
+                      name: pose.name,
+                    })}
                   >
                     <PlusIcon className="size-3.5" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Insert at playhead</TooltipContent>
+                <TooltipContent>{t("effects.poses.insert")}</TooltipContent>
               </Tooltip>
             </div>
           ))}
@@ -547,16 +596,16 @@ function PoseCatalog({
       ) : (
         <div className="border-border/70 bg-muted/20 rounded-lg border border-dashed px-3 py-6 text-center">
           <p className="text-sm font-medium">
-            {hasQuery ? "No poses found" : "No saved poses yet"}
+            {hasQuery ? t("effects.poses.noMatches") : t("effects.poses.none")}
           </p>
           <p className="text-muted-foreground mt-1 text-xs">
             {hasQuery
               ? includedHidden
-                ? "Try a different search, or show Included Poses."
-                : "Try a different search."
+                ? t("effects.poses.differentSearchOrIncluded")
+                : t("effects.differentSearch")
               : includedHidden
-                ? "Create and save a Pose to reuse it as a Gesture keyframe, or show Included Poses."
-                : "Create and save a Pose to reuse it as a Gesture keyframe."}
+                ? t("effects.poses.createHintOrIncluded")
+                : t("effects.poses.createHint")}
           </p>
           {!hasQuery ? (
             <Button
@@ -565,7 +614,7 @@ function PoseCatalog({
               onClick={onCreatePose}
               disabled={!onCreatePose}
             >
-              Create Pose
+              {t("effects.poses.create")}
             </Button>
           ) : null}
         </div>
@@ -593,6 +642,7 @@ function EffectCatalogRow({
   onPreview?: () => void;
   onAdd: () => void;
 }) {
+  const { t } = useTranslation("actionEditor");
   return (
     <div className="border-border/70 bg-background/65 hover:bg-accent/45 group flex min-h-12 items-center gap-2 rounded-lg border px-2 py-1.5 transition-colors">
       <CatalogDragHandle
@@ -605,10 +655,14 @@ function EffectCatalogRow({
         <div className="min-w-0 flex-1">
           <p className="truncate text-xs font-medium">{item.name}</p>
           <div className="text-muted-foreground text-2xs flex items-center gap-1.5">
-            {item.origin !== "builtin" ? <span>Mine</span> : null}
+            {item.origin !== "builtin" ? (
+              <span>{t("effects.mine")}</span>
+            ) : null}
             {addedCount ? (
               <span className="bg-primary/10 text-primary rounded-full px-1.5 py-0.5 font-medium">
-                {addedCount === 1 ? "Added" : `Added ×${addedCount}`}
+                {addedCount === 1
+                  ? t("effects.added")
+                  : t("effects.addedTimes", { times: addedCount })}
               </span>
             ) : null}
           </div>
@@ -622,7 +676,11 @@ function EffectCatalogRow({
           className="size-7 shrink-0 rounded-full"
           disabled={!item.source}
           onClick={onPreview}
-          aria-label={`${previewing ? "Stop" : "Play"} ${item.name}`}
+          aria-label={
+            previewing
+              ? t("effects.stop", { name: item.name })
+              : t("effects.play", { name: item.name })
+          }
         >
           {previewing ? (
             <SquareIcon className="size-3.5" />
@@ -640,11 +698,13 @@ function EffectCatalogRow({
         onClick={onAdd}
         aria-label={
           contentType === "sound_effect"
-            ? `Add ${item.name} to timeline`
-            : `Add ${item.name} at current playhead`
+            ? t("effects.addToTimeline", { name: item.name })
+            : t("effects.addAtPlayhead", { name: item.name })
         }
         title={
-          item.source ? "Add at current playhead" : "Content is unavailable"
+          item.source
+            ? t("effects.addAtPlayheadTitle")
+            : t("effects.contentUnavailable")
         }
       >
         <PlusIcon className="size-3.5" />

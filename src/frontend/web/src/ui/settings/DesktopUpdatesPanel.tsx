@@ -1,22 +1,55 @@
 import { useState } from "react";
+import type { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
+import { useFormatters } from "@animama/product-ui/i18n";
+
+import type { UpdateStatus } from "../../../../shared/desktop-runtime";
 import { useDesktopUpdates } from "@/hooks/useDesktopUpdates";
 import { cn } from "@/lib/utils";
 import { Button } from "@/ui/components/button";
 
-const failureAdvice: Record<string, string> = {
-  update_insufficient_disk:
-    "Free more disk space, then retry. Your current app and data are unchanged.",
-  update_pack_references_blocked:
-    "This update cannot keep your referenced Expanded Included content. Install a compatible pack or remove those references before retrying.",
-  update_pack_operation_active:
-    "Wait for the feature pack change to finish, then retry.",
-  pack_in_use:
-    "Finish active document jobs and close content previews before retrying.",
-  update_changed_check_again:
-    "The release changed since you checked. Check again before downloading.",
-  update_install_timeout:
-    "The installer did not finish in time. Quit and reopen Animama; do not reset your data.",
-};
+/** Advice for an update failure code; unknown codes get the general advice. */
+function failureAdvice(t: TFunction<"settings">, code: string): string {
+  switch (code) {
+    case "update_insufficient_disk":
+      return t("updates.failures.update_insufficient_disk");
+    case "update_pack_references_blocked":
+      return t("updates.failures.update_pack_references_blocked");
+    case "update_pack_operation_active":
+      return t("updates.failures.update_pack_operation_active");
+    case "pack_in_use":
+      return t("updates.failures.pack_in_use");
+    case "update_changed_check_again":
+      return t("updates.failures.update_changed_check_again");
+    case "update_install_timeout":
+      return t("updates.failures.update_install_timeout");
+    default:
+      return t("updates.failures.generic");
+  }
+}
+
+/** The status line for the updater state. */
+function statusText(t: TFunction<"settings">, status: UpdateStatus): string {
+  switch (status.state) {
+    case "up_to_date":
+      return t("updates.status.up_to_date");
+    case "checking":
+      return t("updates.status.checking");
+    case "downloading":
+      return t("updates.status.downloading");
+    case "downloaded":
+      return t("updates.status.downloaded");
+    case "restarting":
+      return t("updates.status.restarting");
+    case "available":
+      return t("updates.status.available");
+    case "error":
+      return failureAdvice(t, status.code);
+    case "idle":
+    case "unavailable":
+      return t("updates.status.idle");
+  }
+}
 
 /** Both the startup notice and Settings use the same explicit download/restart controls. */
 export function DesktopUpdatesPanel({
@@ -26,6 +59,8 @@ export function DesktopUpdatesPanel({
   notice?: boolean;
   className?: string;
 }) {
+  const { t } = useTranslation("settings");
+  const format = useFormatters();
   const { status, pending, error, run } = useDesktopUpdates();
   const [dismissed, setDismissed] = useState<string | null>(null);
   const [confirmRestart, setConfirmRestart] = useState(false);
@@ -57,7 +92,7 @@ export function DesktopUpdatesPanel({
   const restartable = status.state === "downloaded" || retry === "restart";
   return (
     <section
-      aria-label="Desktop updates"
+      aria-label={t("updates.title")}
       className={cn(
         notice
           ? "border-border bg-background fixed right-4 bottom-4 z-50 w-[min(26rem,calc(100vw-2rem))] space-y-3 rounded-xl border p-5 shadow-lg"
@@ -66,45 +101,29 @@ export function DesktopUpdatesPanel({
       )}
     >
       <h3 className="text-base font-semibold">
-        {version ? `Animama ${version}` : "Desktop updates"}
+        {version ? t("updates.versionTitle", { version }) : t("updates.title")}
       </h3>
       <p className="text-muted-foreground text-sm" role="status">
-        {status.state === "up_to_date"
-          ? "You’re up to date."
-          : status.state === "checking"
-            ? "Checking for updates…"
-            : status.state === "downloading"
-              ? "Downloading the approved update…"
-              : status.state === "downloaded"
-                ? "Update downloaded. Restart when you’re ready."
-                : status.state === "restarting"
-                  ? "Finishing work and restarting Animama…"
-                  : status.state === "available"
-                    ? "An update is available. Nothing downloads until you approve."
-                    : status.state === "error"
-                      ? (failureAdvice[status.code] ??
-                        "The update could not finish. Your current app and data are preserved. Check your connection and retry.")
-                      : "Checks run after startup. Downloads and restarts always need your approval."}
+        {statusText(t, status)}
       </p>
       {"downloadBytes" in status ? (
         <p className="text-muted-foreground text-xs">
-          {status.downloadBytes.toLocaleString()} bytes download ·{" "}
-          {status.minimumFreeBytes.toLocaleString()} bytes free space required
+          {t("updates.sizes", {
+            download: format.number(status.downloadBytes),
+            free: format.number(status.minimumFreeBytes),
+          })}
         </p>
       ) : null}
       {status.state === "downloading" ? (
         <progress
           className="w-full"
-          aria-label="Update download"
+          aria-label={t("updates.progress")}
           max={1}
           value={status.progress}
         />
       ) : null}
       {confirmRestart ? (
-        <p className="text-sm">
-          Save unfinished edits first. Restart closes companion windows and
-          stops local services before installing.
-        </p>
+        <p className="text-sm">{t("updates.restartWarning")}</p>
       ) : null}
       <div className="flex flex-wrap gap-2">
         {!restartable && !downloadable ? (
@@ -115,7 +134,7 @@ export function DesktopUpdatesPanel({
             disabled={busy}
             onClick={() => void run("check")}
           >
-            Check for updates
+            {t("updates.actions.check")}
           </Button>
         ) : null}
         {downloadable ? (
@@ -125,7 +144,9 @@ export function DesktopUpdatesPanel({
             disabled={busy}
             onClick={() => void run("download")}
           >
-            {retry ? "Retry download" : "Download update"}
+            {retry
+              ? t("updates.actions.retryDownload")
+              : t("updates.actions.download")}
           </Button>
         ) : null}
         {restartable ? (
@@ -141,7 +162,9 @@ export function DesktopUpdatesPanel({
               }
             }}
           >
-            {confirmRestart ? "Confirm restart" : "Restart to install"}
+            {confirmRestart
+              ? t("updates.actions.confirmRestart")
+              : t("updates.actions.restart")}
           </Button>
         ) : null}
         {notice && status.state !== "restarting" ? (
@@ -154,14 +177,13 @@ export function DesktopUpdatesPanel({
               setConfirmRestart(false);
             }}
           >
-            Later
+            {t("updates.actions.later")}
           </Button>
         ) : null}
       </div>
       {error ? (
         <p role="alert" className="text-destructive text-sm">
-          Update controls are temporarily unavailable. Reopen Settings or
-          restart Animama.
+          {t("updates.controlsUnavailable")}
         </p>
       ) : null}
     </section>

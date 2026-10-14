@@ -2,6 +2,8 @@
 
 import { ChevronDownIcon, XIcon } from "lucide-react";
 import { useEffect, useId } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
@@ -17,8 +19,25 @@ import {
   type HandSegment,
 } from "@/lib/avatar/poses/anatomy/handPresets";
 import type { PoseCreatorHands } from "./usePoseCreatorHands";
+import {
+  handPresetLabel,
+  handSegmentLabel,
+  sidedHandSegmentLabel,
+} from "./poseLabels";
 
-const label = (value: string) => value[0].toUpperCase() + value.slice(1);
+function targetLabel(
+  t: TFunction<"pose">,
+  target: PoseCreatorHands["target"],
+): string {
+  switch (target) {
+    case "left":
+      return t("hands.targets.left");
+    case "right":
+      return t("hands.targets.right");
+    case "both":
+      return t("hands.targets.both");
+  }
+}
 const digits = {
   little: { x: 30, y: 72 },
   ring: { x: 66, y: 39 },
@@ -53,6 +72,7 @@ export function HandAdjustmentControl({
   hands: PoseCreatorHands;
   adjustment: HandAdjustment;
 }) {
+  const { t } = useTranslation("pose");
   const descriptionId = useId();
   const isSpread = adjustment === "spread";
   const eligible = hands.selectedAvailable.filter(
@@ -60,14 +80,17 @@ export function HandAdjustmentControl({
   );
   const disabled = !hands.canEdit || eligible.length === 0;
   const reason = !hands.canEdit
-    ? "Waiting for an editable Avatar."
+    ? t("hands.adjust.waiting")
     : eligible.length === 0
       ? isSpread
-        ? "Select base segments to adjust spread."
-        : "Select segments on the hand to adjust curl."
+        ? t("hands.adjust.selectSpread")
+        : t("hands.adjust.selectCurl")
       : isSpread
-        ? `${eligible.length} selected base ${eligible.length === 1 ? "bone" : "bones"} only.`
-        : "Release to recenter; the pose keeps your changes.";
+        ? t("hands.adjust.spreadEligible", { count: eligible.length })
+        : t("hands.adjust.release");
+  const adjustmentName = isSpread
+    ? t("hands.adjust.spread")
+    : t("hands.adjust.curl");
   return (
     <div className="space-y-1">
       <div className="flex items-center gap-3">
@@ -77,12 +100,14 @@ export function HandAdjustmentControl({
             disabled && "text-muted-foreground",
           )}
         >
-          {label(adjustment)}
+          {adjustmentName}
         </span>
         <input
           type="range"
           aria-label={
-            isSpread ? "Spread selected base bones" : "Curl selected bones"
+            isSpread
+              ? t("hands.adjust.spreadLabel")
+              : t("hands.adjust.curlLabel")
           }
           aria-describedby={descriptionId}
           disabled={disabled}
@@ -114,9 +139,13 @@ export function HandAdjustmentControl({
         />
       </div>
       <div className="text-muted-foreground text-2xs ml-15 flex justify-between">
-        <span>{isSpread ? "Bring together" : "Straighten"}</span>
+        <span>
+          {isSpread
+            ? t("hands.adjust.bringTogether")
+            : t("hands.adjust.straighten")}
+        </span>
         <span>{hands.adjustment === adjustment ? `${hands.value}°` : "0"}</span>
-        <span>{label(adjustment)}</span>
+        <span>{adjustmentName}</span>
       </div>
       <p id={descriptionId} className="text-muted-foreground text-2xs min-h-4">
         {reason}
@@ -133,19 +162,19 @@ export function PoseCreatorHandPanel({
   hands: PoseCreatorHands;
   onClose: () => void;
 }) {
+  const { t } = useTranslation("pose");
   const { end } = hands;
   useEffect(() => () => end(), [end]);
-  const sideLabel = label(hands.target);
   const selectedSegments = HAND_SEGMENTS.filter((segment) =>
     hands.selected.includes(segment.id),
   );
   return (
-    <section aria-label="Hands" className="space-y-2 p-3">
+    <section aria-label={t("hands.title")} className="space-y-2 p-3">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold">Hands</h2>
+        <h2 className="text-sm font-semibold">{t("hands.title")}</h2>
         <button
           type="button"
-          aria-label="Close Hands"
+          aria-label={t("hands.close")}
           className="text-muted-foreground hover:text-foreground focus-visible:ring-ring rounded p-1 focus-visible:ring-2"
           onClick={() => {
             hands.end();
@@ -157,7 +186,7 @@ export function PoseCreatorHandPanel({
       </div>
       <div
         role="group"
-        aria-label="Target hands"
+        aria-label={t("hands.targets.label")}
         className="border-border flex overflow-hidden rounded-lg border"
       >
         {(["left", "right", "both"] as const).map((target) => (
@@ -173,7 +202,7 @@ export function PoseCreatorHandPanel({
                 : "hover:bg-muted/70 text-muted-foreground",
             )}
           >
-            {label(target)}
+            {targetLabel(t, target)}
           </button>
         ))}
       </div>
@@ -182,11 +211,17 @@ export function PoseCreatorHandPanel({
           <button
             type="button"
             disabled={!hands.canEdit || hands.available.length === 0}
-            aria-label="Hand presets"
-            title={`Replace available finger rotations on ${hands.target === "both" ? "both hands" : `the ${hands.target} hand`}.`}
+            aria-label={t("hands.presets")}
+            title={
+              hands.target === "both"
+                ? t("hands.presetsHint.both")
+                : hands.target === "left"
+                  ? t("hands.presetsHint.left")
+                  : t("hands.presetsHint.right")
+            }
             className="border-border hover:bg-muted/60 focus-visible:ring-ring flex w-full items-center justify-between rounded-lg border px-3 py-2 text-xs focus-visible:ring-2 disabled:opacity-40"
           >
-            Hand presets
+            {t("hands.presets")}
             <ChevronDownIcon className="size-4" aria-hidden="true" />
           </button>
         </DropdownMenuTrigger>
@@ -200,23 +235,32 @@ export function PoseCreatorHandPanel({
               key={preset.id}
               onSelect={() => hands.preset(preset.id)}
             >
-              {preset.name}
+              {handPresetLabel(t, preset.id)}
             </DropdownMenuItem>
           ))}
         </DropdownMenuContent>
       </DropdownMenu>
       <div className="border-border/70 border-t pt-2">
         <div className="flex items-baseline justify-between gap-2">
-          <span className="text-xs font-medium">Select bones</span>
+          <span className="text-xs font-medium">{t("hands.selectBones")}</span>
           <span className="text-muted-foreground text-2xs">
-            {sideLabel}
-            {hands.target === "both" ? " · matching segments" : " hand"}
+            {hands.target === "both"
+              ? t("hands.scope.both")
+              : hands.target === "left"
+                ? t("hands.scope.left")
+                : t("hands.scope.right")}
           </span>
         </div>
         <svg
           viewBox="0 0 235 250"
           className="mx-auto h-48 w-full max-w-60"
-          aria-label={`${sideLabel} hand bone selection`}
+          aria-label={
+            hands.target === "both"
+              ? t("hands.selectionLabel.both")
+              : hands.target === "left"
+                ? t("hands.selectionLabel.left")
+                : t("hands.selectionLabel.right")
+          }
         >
           <g
             transform={
@@ -242,7 +286,11 @@ export function PoseCreatorHandPanel({
                   key={segment.id}
                   role="button"
                   tabIndex={disabled ? -1 : 0}
-                  aria-label={`${sideLabel} ${segment.label.toLowerCase()}`}
+                  aria-label={sidedHandSegmentLabel(
+                    t,
+                    hands.target,
+                    segment.id,
+                  )}
                   aria-pressed={selected}
                   aria-disabled={disabled}
                   transform={`translate(${position.x} ${position.y}) rotate(${position.angle} 11 16)`}
@@ -264,7 +312,11 @@ export function PoseCreatorHandPanel({
                   }}
                 >
                   <title>
-                    {`${segment.label}${!available ? " — unavailable" : ""}`}
+                    {available
+                      ? handSegmentLabel(t, segment.id)
+                      : t("hands.segmentUnavailable", {
+                          segment: handSegmentLabel(t, segment.id),
+                        })}
                   </title>
                   <rect
                     x="-3"
@@ -300,23 +352,24 @@ export function PoseCreatorHandPanel({
           </g>
         </svg>
         <p className="text-xs font-medium" aria-live="polite">
-          {hands.selectedAvailable.length}{" "}
-          {hands.selectedAvailable.length === 1 ? "bone" : "bones"} selected
+          {t("hands.selectedCount", {
+            count: hands.selectedAvailable.length,
+          })}
         </p>
         <p className="text-muted-foreground text-2xs mt-1 leading-relaxed">
           {selectedSegments.length
-            ? selectedSegments.map((segment) => segment.label).join(" · ")
-            : "Click individual segments to select."}
+            ? selectedSegments
+                .map((segment) => handSegmentLabel(t, segment.id))
+                .join(" · ")
+            : t("hands.clickSegments")}
         </p>
         {hands.unavailable.length ? (
           <p className="text-muted-foreground text-2xs mt-1">
-            Unavailable:{" "}
-            {hands.unavailable
-              .map(
-                (bone) =>
-                  `${label(bone.side)} ${bone.segment.label.toLowerCase()}`,
-              )
-              .join(", ")}
+            {t("hands.unavailable", {
+              bones: hands.unavailable.map((bone) =>
+                sidedHandSegmentLabel(t, bone.side, bone.segment.id),
+              ),
+            })}
           </p>
         ) : null}
       </div>

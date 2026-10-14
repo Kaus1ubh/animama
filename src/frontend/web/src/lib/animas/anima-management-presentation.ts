@@ -1,9 +1,3 @@
-import {
-  buildEmotionRuntimeState,
-  formatTrackedEmotionLabel,
-  normalizeEmotionStateMap,
-} from "@/lib/emotion";
-
 const PERSONALITY_HEADING = /^#{1,6}\s+personality\b/i;
 const MARKDOWN_HEADING = /^#{1,6}\s+/;
 
@@ -67,14 +61,4 @@ export function summarizeIdentityMarkdown(
     .join(" ");
 
   return summary ? truncateAtWord(summary, maximumLength) : "";
-}
-
-/** Render the strongest persisted emotion as one compact, human label. */
-export function getAnimaMoodLabel(emotionalState: unknown): string {
-  const runtimeState = buildEmotionRuntimeState(
-    normalizeEmotionStateMap(emotionalState),
-  );
-  const primaryEmotion =
-    runtimeState.dominantGroupSummary?.primaryEmotion?.emotion;
-  return primaryEmotion ? formatTrackedEmotionLabel(primaryEmotion) : "Neutral";
 }

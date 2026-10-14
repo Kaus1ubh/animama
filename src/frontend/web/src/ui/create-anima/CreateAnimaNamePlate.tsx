@@ -1,4 +1,5 @@
 import { Pencil } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { cn } from "@/lib/utils";
 import { Input } from "@/ui/components/input";
@@ -17,11 +18,12 @@ export function CreateAnimaNamePlate({
   readOnly: boolean;
   onChange: (value: string) => void;
 }) {
+  const { t } = useTranslation("create");
   const count = nameLength(value);
   const missing = value.trim().length === 0;
   const errorMessage = missing
-    ? "Enter a name to continue."
-    : `Use 1–${limit} characters without control characters.`;
+    ? t("draft.nameRequired")
+    : t("draft.nameInvalid", { limit });
   return (
     <div
       className={cn(
@@ -35,7 +37,7 @@ export function CreateAnimaNamePlate({
           htmlFor="creation-display-name"
           className="text-muted-foreground shrink-0 text-sm font-semibold"
         >
-          Name
+          {t("namePlate.label")}
         </label>
         <Input
           id="creation-display-name"
@@ -49,7 +51,7 @@ export function CreateAnimaNamePlate({
               : "creation-name-count"
           }
           autoComplete="off"
-          placeholder="Enter a name"
+          placeholder={t("namePlate.placeholder")}
           className="h-10 min-w-0 flex-1 border-0 bg-transparent px-1 text-lg font-semibold shadow-none focus-visible:ring-0"
         />
         <Pencil
@@ -63,8 +65,8 @@ export function CreateAnimaNamePlate({
             count > limit && "text-destructive",
           )}
         >
-          {count} / {limit}
-          <span className="sr-only"> characters</span>
+          {t("namePlate.count", { current: count, limit })}
+          <span className="sr-only"> {t("namePlate.characters")}</span>
         </span>
       </div>
       {invalid ? (

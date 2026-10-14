@@ -1,0 +1,390 @@
+{
+  "create": {
+    "contentLabel": "初始內容",
+    "contentPlaceholder": "# 筆記",
+    "description": "名稱只能使用檔案系統安全的字元，檔案會以 Markdown 格式儲存。",
+    "descriptionPlaceholder": "選填",
+    "directoryCreated": "已建立資料夾。",
+    "directoryNamePlaceholder": "notes",
+    "directoryTitle": "新增資料夾",
+    "failed": "無法建立記憶項目。",
+    "fileCreated": "已建立 Markdown 檔案。",
+    "fileNamePlaceholder": "notes.md 或 projects/notes.md",
+    "fileTitle": "新增 Markdown 檔案",
+    "nameOrPath": "名稱或路徑",
+    "submit": "建立"
+  },
+  "diff": {
+    "after": "之後",
+    "before": "之前",
+    "descriptionChange": {
+      "clear": "清除",
+      "replace": "取代",
+      "set": "設定"
+    },
+    "noContentChanges": "內容沒有變更。",
+    "noTextualChanges": "此版本沒有文字變更。",
+    "operations": {
+      "create": "建立",
+      "delete": "刪除",
+      "update": "更新"
+    },
+    "showLess": "收合",
+    "showLines_other": "顯示全部 {{count}} 行"
+  },
+  "editor": {
+    "deleted": "已刪除記憶項目。",
+    "deleteFailed": "無法刪除記憶項目。",
+    "editorHeading": "編輯器",
+    "fallbackTitle": "記憶檔案",
+    "loadingFile": "正在載入檔案...",
+    "saveDraftOverLatest": "以草稿覆寫最新版本"
+  },
+  "errors": {
+    "entryFailed": "記憶操作失敗。",
+    "managerFailed": "記憶管理器操作失敗。"
+  },
+  "explorer": {
+    "actions": {
+      "delete": "刪除",
+      "move": "移至…",
+      "newDirectory": "新增資料夾",
+      "newFile": "新增檔案",
+      "rename": "重新命名"
+    },
+    "actionsFor": "{{path}} 的操作",
+    "collapse": "收合檔案總管",
+    "collapseAll": "收合所有資料夾",
+    "drag": {
+      "cancelled": "已取消移動記憶。",
+      "instructions": "按空白鍵或 Enter 鍵拿起記憶項目。使用方向鍵選擇資料夾，再按空白鍵或 Enter 鍵移動。按 Esc 鍵取消。",
+      "moveInto": "移至 {{path}}。",
+      "moving": "正在將 {{source}} 移至 {{destination}}。",
+      "notOver": "目前不在有效的記憶資料夾上。",
+      "pickedUp": "已拿起 {{path}}。"
+    },
+    "empty": "還沒有記憶檔案。",
+    "episodesRoot": "經歷",
+    "expand": "展開檔案總管",
+    "expandAll": "展開所有資料夾",
+    "filter": "篩選",
+    "filterFiles": "篩選檔案",
+    "filterLabel": "篩選記憶檔案",
+    "heading": "記憶檔案",
+    "identityMissing": "此 Anima 的身分設定遺失，需要修復。",
+    "loadFailed": "無法載入記憶檔案。",
+    "loading": "正在載入檔案...",
+    "memoriesMissing": "MEMORIES.md 遺失。",
+    "needsRepair": "需要修復",
+    "newMarkdownFile": "新增 Markdown 檔案",
+    "noAnimas": "還沒有 Anima。",
+    "noEpisodes": "還沒有經歷。",
+    "noMatches": "沒有符合的記憶檔案。",
+    "otherEpisodes": "其他經歷",
+    "pendingEpisodes_other": "{{count}} 則待處理經歷",
+    "refresh": "重新整理記憶檔案",
+    "repair": "修復",
+    "repairMemories": "修復 {{name}} 的 MEMORIES.md",
+    "reservedName": "保留名稱",
+    "reservedNameHint": "此名稱保留給 Anima 身分設定使用。若要編輯，請將它重新命名，或將其內容移出。",
+    "unsavedChanges": "未儲存的變更"
+  },
+  "layout": {
+    "resizeExplorer": "調整檔案與工作窗格的大小",
+    "resizeHint": "{{label}}。使用左右方向鍵調整大小，按兩下可重設。",
+    "resizeWork": "調整工作與預覽窗格的大小"
+  },
+  "library": {
+    "blocker": {
+      "description_other": "離開記憶工作區前，請儲存或捨棄 {{count}} 份未儲存的草稿。",
+      "discardAndLeave": "捨棄並離開",
+      "saveAndLeave": "儲存並離開",
+      "stay": "留下",
+      "title": "未儲存的記憶草稿"
+    },
+    "createBlocked": {
+      "animaFolders": "Anima 資料夾只包含每個 Anima 的身分設定與記憶。",
+      "episodes": "產生的經歷中不能包含使用者建立的檔案。"
+    },
+    "delete": {
+      "directoryContents": "{{path}} 及其內容將永久刪除，其中包括 {{files}}。",
+      "directoryContentsNested": "{{path}} 及其內容將永久刪除，其中包括 {{files}}和 {{directories}}。",
+      "directoryDeleted": "已刪除資料夾。",
+      "directoryFailed": "無法刪除資料夾。",
+      "directoryTitle": "要刪除資料夾嗎？",
+      "dirtyDrafts_other": "{{count}} 份未儲存的草稿也會一併捨棄。",
+      "emptyDirectory": "{{path}} 是空的，將永久刪除。",
+      "file": "{{path}} 將永久刪除。",
+      "fileDeleted": "已刪除記憶檔案。",
+      "fileFailed": "無法刪除記憶檔案。",
+      "files_other": "{{count}} 個檔案",
+      "fileTitle": "要刪除檔案嗎？",
+      "nestedDirectories_other": "{{count}} 個子資料夾"
+    },
+    "identitiesFailed": "無法載入 Anima 身分設定。",
+    "identitiesFailedDescription": "使用者記憶仍可使用。請重新整理以重試。",
+    "modes": {
+      "manager": "記憶管理器",
+      "manual": "手動"
+    },
+    "panes": {
+      "explorerLabel": "記憶檔案總管",
+      "files": "檔案",
+      "previewLabel": "記憶預覽",
+      "work": "工作",
+      "workLabel": "記憶工作窗格"
+    },
+    "reflect": {
+      "action": "回顧",
+      "anyway": "仍要回顧",
+      "confirmDescription": "回顧會讀取 {{name}} 的 MEMORIES.md 最後儲存的版本，並忽略你未儲存的手動草稿。草稿會保持開啟，但只要儲存了草稿或回顧提案其中之一，另一個就會發生衝突。",
+      "confirmTitle": "要在有未儲存草稿的情況下回顧嗎？",
+      "label": "回顧 {{name}} 的記憶"
+    },
+    "relocate": {
+      "cannotMove": "無法移動記憶項目。",
+      "cannotRename": "無法重新命名此記憶項目。",
+      "moveConflict": "未執行移動。請重新整理後再試一次。",
+      "moved": "已移動 {{name}}。",
+      "moveFailed": "無法移動記憶項目。",
+      "moveRefreshFailed": "記憶已移動，但無法重新整理檔案總管。",
+      "moveUncertain": "無法確定移動結果。",
+      "moveUncertainDescription": "正在重新整理，之後才能再次移動。",
+      "refreshBeforeChange": "請先重新整理，再進行其他變更。",
+      "renameConflict": "未執行重新命名。請重新整理後再試一次。",
+      "renamed": "已將 {{from}} 重新命名為 {{to}}。",
+      "renameFailed": "無法重新命名記憶項目。",
+      "renameRefreshFailed": "記憶已重新命名，但無法重新整理檔案總管。",
+      "renameUncertain": "無法確定重新命名的結果。",
+      "renameUncertainDescription": "正在重新整理，之後才能再次重新命名。"
+    },
+    "removedAnimaFile": {
+      "deleted": "{{name}} 已刪除。",
+      "discarded": "{{file}} 中未儲存的變更無法儲存，已捨棄。",
+      "unavailable": "{{name}} 的 {{file}} 無法使用。"
+    },
+    "repair": {
+      "failed": "無法修復 {{name}} 的 MEMORIES.md。",
+      "fallbackName": "此 Anima",
+      "repaired": "已修復 {{name}} 的 MEMORIES.md。"
+    }
+  },
+  "manager": {
+    "approval": {
+      "approve": "核准",
+      "feedbackCount": "{{length, number}} / {{max, number}}",
+      "feedbackHint": "這會拒絕目前的差異，並將你的意見傳送給管理器。",
+      "feedbackPlaceholder": "說明需要變更的內容，例如不同的 Markdown 路徑或用字。",
+      "reject": "拒絕",
+      "rejectionFeedback": "拒絕意見",
+      "requestChanges": "要求變更",
+      "requestRevision": "要求修改記憶變更",
+      "sendFeedback": "傳送意見",
+      "status": {
+        "approved": "已核准",
+        "approvedUndone": "已核准 · 已復原",
+        "pending": "待審核",
+        "rejected": "已拒絕"
+      },
+      "undo": "復原"
+    },
+    "autoApprove": "自動核准",
+    "blocked": {
+      "busy": "記憶管理器仍在處理中。請在完成後再試一次。",
+      "loadFailed": "無法載入記憶管理器對話。請先重試。",
+      "pendingApproval": "請先在記憶管理器中核准或拒絕待處理的記憶變更。"
+    },
+    "completed": "此對話已完成。選擇「新增」以開始另一段對話。",
+    "emptyDescription": "請它建立、更新或整理記憶檔案。",
+    "emptyTitle": "開始記憶對話",
+    "episodes": {
+      "failedDescription": "這批經歷仍處於待處理狀態。準備好重試時，請重新開始處理。",
+      "failedTitle_other": "{{count}} 則經歷的審核已停止",
+      "processedDescription": "這批已完成。你可以在此對話中繼續向記憶管理器提出一般問題。",
+      "processedMoreDescription": "這批已完成。還有更多待處理經歷可在下一批處理，此對話現在已進入一般記憶管理器模式。",
+      "processedTitle_other": "已審核 {{count}} 則經歷",
+      "processingDescription": "記憶管理器正在審核這批經歷。經歷狀態只會在處理最終完成後變更。",
+      "reviewingTitle_other": "正在審核 {{count}} 則經歷",
+      "waitingDescription": "請審核下方建議的記憶變更。在管理器提供最終回覆之前，這批經歷仍處於待處理狀態。"
+    },
+    "feedback": {
+      "empty": "要求變更前請輸入意見。",
+      "tooLong": "意見不得超過 {{max, number}} 個字元。"
+    },
+    "loadFailed": "無法載入此記憶管理器對話。",
+    "loadFailedHint": "請先重試，再變更其狀態。",
+    "loadingDescription": "正在確認目前的對話。",
+    "loadingTitle": "正在載入記憶管理器",
+    "messageLabel": "記憶管理器訊息",
+    "new": "新增",
+    "placeholder": "請記憶管理器建立或更新記憶檔案",
+    "processEpisodes": "處理經歷",
+    "reflection": {
+      "activeDescription": "此回顧對 MEMORIES.md 的變更套用後，這些輪次就會計為已回顧。回覆即可進一步調整。",
+      "activeTitle": "正在回顧與 {{name}} 的 {{turns}}",
+      "completedAppliedDescription": "已套用的 MEMORIES.md 變更維持有效，這些輪次計為已回顧。",
+      "completedTitle": "已回顧與 {{name}} 的 {{turns}}",
+      "completedUnchangedDescription": "此回顧沒有套用任何變更，因此這些輪次會保留到下一次回顧。",
+      "failedAppliedDescription": "已套用的 MEMORIES.md 變更維持有效，這些輪次計為已回顧。對話在完成前已停止，原因請見下方錯誤。",
+      "failedTitle": "與 {{name}} 的 {{turns}}回顧已停止",
+      "failedUnchangedDescription": "{{name}} 的 MEMORIES.md 與這些輪次都沒有變更，因此會保留到下一次回顧。停止原因請見下方錯誤。",
+      "remaining_other": "還剩 {{count}} 輪",
+      "titleWithRemaining": "{{title}} · {{remaining}}",
+      "turns_other": "{{count}} 輪對話",
+      "waitingDescription": "請審核下方建議的 MEMORIES.md 變更。只有在套用此回顧的變更後，這些輪次才會計為已回顧。"
+    },
+    "runFailed": "記憶管理器未能完成此對話。",
+    "stopped": "記憶管理器已停止。",
+    "stoppedFallback": "對話無法繼續。選擇「新增」以重試。",
+    "toasts": {
+      "applied": "已套用記憶變更。",
+      "appliedDescription": "已提交核准的差異。",
+      "completeFailed": "無法完成記憶管理器的執行。",
+      "decisionFailed": "無法記錄核准決定。",
+      "feedbackSent": "你的意見已傳送給記憶管理器。",
+      "noFilesChanged": "沒有記憶檔案被變更。",
+      "processFailed": "無法處理待處理經歷。",
+      "reflectionFailed": "回顧未能開始。",
+      "rejected": "已拒絕記憶變更。",
+      "sendFailed": "無法傳送訊息給記憶管理器。",
+      "startFailed": "無法啟動記憶管理器。",
+      "undoDeleted": "已核准的檔案已以新版本的形式刪除。",
+      "undoFailed": "無法復原已核准的記憶變更。",
+      "undone": "已復原記憶變更。",
+      "undoRestored": "先前的內容已還原為版本 {{version}}。",
+      "undoStale": "此記憶變更已無法復原。",
+      "undoStaleDescription": "開啟版本以檢查最新檔案，必要時請手動還原。"
+    }
+  },
+  "manual": {
+    "discard": {
+      "description": "對 {{path}} 的未儲存變更將被移除。",
+      "title": "要捨棄變更嗎？"
+    },
+    "generatedEpisode": "產生的經歷",
+    "openManager": "開啟記憶管理器",
+    "readOnly": "唯讀記憶",
+    "readOnlyHint": "此檔案可以預覽，但無法手動變更。",
+    "reservedHint": "animas 路徑保留給 Anima 身分設定使用。編輯前，請將此檔案重新命名或移出。",
+    "reservedPath": "保留路徑",
+    "saveOverLatest": "覆寫最新版本",
+    "selectFile": "選擇要編輯的記憶檔案。",
+    "unsaved": "未儲存"
+  },
+  "markdown": {
+    "emptyFile": "空白檔案",
+    "image": "[圖片：{{alt}}]",
+    "imageNotLoaded": "[圖片：未載入]"
+  },
+  "move": {
+    "description": "為此記憶項目選擇新的上層資料夾。",
+    "destination": "目的地",
+    "empty": "沒有符合的資料夾。",
+    "fallbackTitle": "移動記憶項目",
+    "reasons": {
+      "alreadyInDirectory": "此項目已在該資料夾中。",
+      "alreadyInRoot": "此項目已在記憶根目錄中。",
+      "cannotMove": "此記憶項目無法移動。",
+      "chooseDirectory": "請選擇一般的記憶資料夾。",
+      "containsItself": "資料夾不能包含自己。",
+      "insideDescendant": "資料夾不能移至自己的子資料夾中。",
+      "otherScope": "目的地屬於另一個記憶範圍。",
+      "reserved": "animas 路徑保留給 Anima 身分設定使用。"
+    },
+    "root": "記憶根目錄",
+    "search": "搜尋資料夾",
+    "submit": "移到這裡",
+    "title": "移動 {{name}}"
+  },
+  "preview": {
+    "copied": "已複製 Markdown。",
+    "copyFailed": "無法將 Markdown 複製到剪貼簿。",
+    "copyLabel": "複製預覽的 Markdown",
+    "copyTitle": "複製 Markdown",
+    "generated": "自動產生",
+    "loading": "正在載入預覽...",
+    "readOnly": "唯讀",
+    "selectFile": "選擇要預覽的記憶檔案。",
+    "unsavedDraft": "未儲存的草稿",
+    "unsavedManualDraft": "未儲存的手動草稿"
+  },
+  "rename": {
+    "directoryTitle": "重新命名資料夾",
+    "fileTitle": "重新命名檔案",
+    "submit": "重新命名"
+  },
+  "shared": {
+    "blankIdentity": "Anima 身分設定不能空白。",
+    "cancel": "取消",
+    "changedElsewhere": "此記憶已在其他地方變更。",
+    "conflictNotice": "伺服器上有此檔案的較新版本。你的草稿已保留。",
+    "delete": "刪除",
+    "description": "說明",
+    "discard": "捨棄",
+    "draftSaved": "已儲存草稿。",
+    "draftStillOpen": "你的草稿仍保持開啟。",
+    "enterName": "請輸入名稱。",
+    "fileLoadFailed": "無法載入此記憶檔案。",
+    "loadingEditor": "正在載入編輯器...",
+    "memorySaved": "已儲存記憶。",
+    "name": "名稱",
+    "noDescription": "沒有說明",
+    "none": "無",
+    "optionalDescription": "說明（選填）",
+    "preview": "預覽",
+    "retry": "重試",
+    "save": "儲存",
+    "saveFailed": "無法儲存記憶。",
+    "useLatest": "使用最新版本",
+    "version": "版本 {{version}}"
+  },
+  "versions": {
+    "afterRevert": "還原後 · 版本 {{version}}",
+    "back": "返回",
+    "changesIn": "版本 {{version}} 的變更",
+    "confirmRevert": "確認還原",
+    "contentChanges": "內容變更",
+    "createdIn": "建立於版本 {{version}}",
+    "current": "目前",
+    "currentContent": "目前內容",
+    "currentVersion": "{{path}} · 目前版本 {{version}}",
+    "detailLabel": "所選版本的變更",
+    "discardAndContinue": "捨棄草稿並繼續",
+    "discardFirst": "要先捨棄手動草稿嗎？",
+    "discardFirstDescription": "此檔案有未儲存或衝突的草稿時，無法繼續還原。捨棄草稿會先還原伺服器上的目前內容，之後你再檢視最終確認。",
+    "emptyContent": "（空白）",
+    "entryFallback": "記憶項目",
+    "history": "版本記錄",
+    "keepDraft": "保留草稿",
+    "listLabel": "記憶項目版本",
+    "loadFailed": "無法載入版本記錄。",
+    "loading": "正在載入版本...",
+    "loadingChanges": "正在載入變更...",
+    "loadOlder": "載入較舊的版本",
+    "none": "沒有可用的版本。",
+    "operationLine": "{{operation}} · {{time}}",
+    "operations": {
+      "create": "已建立",
+      "delete": "已刪除",
+      "move": "已移動",
+      "revert": "已還原",
+      "undo": "已復原",
+      "update": "已更新"
+    },
+    "path": "路徑",
+    "range": "版本 {{from}} → 版本 {{to}}",
+    "revertConfirmDescription": "這只會還原內容與說明。目前的路徑、名稱、資料夾、類型與中繼資料維持不變，此次還原會記錄為新版本。",
+    "revertConfirmTitle": "要還原到版本 {{version}} 嗎？",
+    "revertConflict": "還原完成前，此記憶已變更。",
+    "revertConflictDescription": "已重新整理目前的記憶與版本。你較新的草稿已保留。",
+    "reverted": "已還原到版本 {{version}}。",
+    "revertedDescription": "還原的內容現在是版本 {{version}}。",
+    "revertFailed": "無法還原記憶。",
+    "revertTo": "還原到版本 {{version}}",
+    "selectHint": "選擇一個版本以檢視其變更。",
+    "selectVersion": "選擇版本",
+    "timeUnavailable": "時間無法取得",
+    "title": "版本",
+    "versionLoadFailed": "無法載入此版本。"
+  }
+}

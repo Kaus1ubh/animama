@@ -15,7 +15,8 @@ class ORMUserSettings(SqlalchemyBase, TimestampMixin):
 
     user_id: Mapped[str] = mapped_column(String, primary_key=True)
     theme: Mapped[str] = mapped_column(String, nullable=False, server_default=sa_text("'anima'"))
-    locale: Mapped[str] = mapped_column(String, nullable=False, server_default=sa_text("'en-US'"))
+    # UI Locale tag; NULL follows the system language. See ``domain.settings.UiLocale``.
+    locale: Mapped[str | None] = mapped_column(String, nullable=True)
     last_active_anima_id: Mapped[str | None] = mapped_column(String, nullable=True)
     preferences: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, server_default=sa_text("'{}'::jsonb"))
 

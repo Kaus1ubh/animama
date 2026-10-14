@@ -1,0 +1,252 @@
+{
+  "cloning": {
+    "attribution": "モデルの帰属表示",
+    "changeFailed": "音声クローンモデルの変更が完了しませんでした。しばらくしてから再試行してください。",
+    "checking": "音声クローンを確認しています…",
+    "description": "自分のサンプルから名前付きの音声を作成します。",
+    "download": "音声クローンをダウンロード",
+    "downloadFailed": "ダウンロードが完了しませんでした。ディスクの空き容量と接続を確認してから再試行してください。",
+    "installed": "インストール済み · 保存したクローンはこのモデルなしで使えます。",
+    "listUnavailable": "音声クローンのダウンロードを利用できません。設定を開き直して再試行してください。",
+    "progressLabel": "音声クローンのダウンロード進行状況",
+    "remove": "音声クローンを削除",
+    "retry": "クローンのダウンロードを再試行",
+    "verifying": "音声クローンを検証しています…"
+  },
+  "downloads": {
+    "cancel": "ダウンロードをキャンセル",
+    "confirmRemoval": "削除を確定",
+    "downloading": "ダウンロード中 {{percent}}",
+    "installed": "インストール済み",
+    "installedWithNote": "インストール済み · {{note}}",
+    "lowSpace": "空き容量が不足しています。ダウンロードには {{size}} の空き容量が必要です。",
+    "notAvailable": "利用不可",
+    "progressLabel": "{{label}} のダウンロード進行状況",
+    "retry": "ダウンロードを再試行",
+    "sections": {
+      "speechToText": "音声認識",
+      "voiceClone": "音声クローン"
+    },
+    "size": "{{size}} のダウンロード",
+    "sizeRetry": "{{size}} のダウンロード · 再試行できます",
+    "verifying": "ダウンロードを確認しています…",
+    "errors": {
+      "notReady": "インストールの準備ができていません。開き直してから再試行してください。",
+      "statusUnavailable": "ダウンロードの状態を取得できません。開き直してから再試行してください。"
+    }
+  },
+  "microphone": {
+    "device": {
+      "accessDenied": "マイクへのアクセスが許可されませんでした。ブラウザーまたはシステムの設定で許可してください。",
+      "allowAccess": "マイクへのアクセスを許可",
+      "label": "入力デバイス",
+      "missing": "選択したマイクが接続されていないため、システムのデフォルトを使用しています。",
+      "selectLabel": "マイクの入力デバイス",
+      "systemDefault": "システムのデフォルト",
+      "systemDefaultNamed": "システムのデフォルト ({{name}})",
+      "systemRecognizer": "ブラウザーの音声認識は常にシステムのデフォルトのマイクを使用します。",
+      "systemRecognizerNamed": "ブラウザーの音声認識は常にシステムのデフォルトのマイク ({{name}}) を使用します。",
+      "unnamed": "マイク {{number}}"
+    },
+    "meter": {
+      "label": "マイクの入力レベル (dB)",
+      "value": "{{level}} dB"
+    },
+    "sensitivity": {
+      "label": "感度",
+      "levels": {
+        "high": {
+          "description": "小さな声や短い発話も拾います。次の聞き取りから適用されます。",
+          "label": "高"
+        },
+        "low": {
+          "description": "小さな音を無視します。騒がしい場所で便利です。次の聞き取りから適用されます。",
+          "label": "低"
+        },
+        "normal": {
+          "description": "バランスの取れた音声検出です。次の聞き取りから適用されます。",
+          "label": "標準"
+        }
+      },
+      "saveFailed": "マイクの感度を更新できませんでした。",
+      "selectLabel": "マイクの感度"
+    },
+    "test": {
+      "active": "話すと入力レベルが表示されます。",
+      "idle": "入力レベルを確認します。",
+      "label": "マイクをテスト",
+      "openFailed": "マイクを開けませんでした。",
+      "start": "テスト",
+      "stop": "停止"
+    }
+  },
+  "offlineSpeech": {
+    "checking": "オフライン音声認識を確認しています…",
+    "cpu": {
+      "download": "CPU モデルをダウンロード",
+      "label": "CPU モデル",
+      "remove": "CPU モデルを削除"
+    },
+    "description": "音声入力と音声モードはこのデバイス上で文字起こしするため、音声が外部に送られることはありません。",
+    "developmentAcquire": "この開発スタックはホストから音声モデルを提供します。{{cpuCommand}} を実行し (GPU アクセラレーションには {{gpuCommand}} も実行)、{{resetCommand}} を再実行してください。",
+    "failures": {
+      "downloadFailed": "ダウンロードが完了しませんでした。インターネット接続を確認してから再試行してください。",
+      "hashInvalid": "ダウンロードしたファイルがチェックサムと一致しなかったため、破棄されました。",
+      "hostNotAllowed": "このビルドではダウンロード元が許可されていません。",
+      "insufficientSpace": "ダウンロードに必要な空き容量が不足しています。",
+      "sizeInvalid": "ダウンロードしたファイルのサイズが想定と異なるため、破棄されました。",
+      "storeFailed": "モデルを保存できませんでした。データディレクトリを確認してから再試行してください。",
+      "unknown": "ダウンロードが完了しませんでした。準備ができたら再試行してください。"
+    },
+    "gpu": {
+      "attribution": "モデルの帰属表示 (CC BY 4.0)",
+      "blocked": {
+        "checking": "WebGPU のサポートを確認しています…",
+        "missing": "このビルドでは GPU アクセラレーションを利用できません。",
+        "needsCpu": "先に CPU モデルをダウンロードしてください。",
+        "noWebgpu": "このブラウザーまたはデバイスでは WebGPU を利用できません。"
+      },
+      "description": "ライブプレビュー付きでより高速に認識します。CPU モデルと WebGPU 対応のデバイスが必要です。",
+      "download": "GPU アクセラレーションをダウンロード",
+      "fellBack": "前回は WebGPU を読み込めなかったため、音声認識に CPU を使用しました。",
+      "label": "GPU アクセラレーション",
+      "remove": "GPU アクセラレーションを削除",
+      "removeFirst": "先に GPU アクセラレーションを削除してください。",
+      "unavailableNow": "現在、GPU アクセラレーションを利用できません。"
+    },
+    "listUnavailable": "音声のダウンロードを利用できません。設定を開き直して再試行してください。",
+    "refusals": {
+      "busy": "このモデルはまだ変更中です。しばらくしてから再試行してください。",
+      "changeFailed": "変更を完了できませんでした。しばらくしてから再試行してください。",
+      "inUse": "音声認識が使用中です。削除するには音声入力と音声モードを終了してください。"
+    },
+    "title": "オフライン音声認識 (Parakeet)",
+    "turnedOff": "このサーバーではオフライン音声認識がオフになっています。"
+  },
+  "pocket": {
+    "accents": {
+      "american": "アメリカ英語",
+      "australian": "オーストラリア英語",
+      "british": "イギリス英語",
+      "canadian": "カナダ英語",
+      "english": "イングランド英語",
+      "irish": "アイルランド英語",
+      "northernIrish": "北アイルランド英語",
+      "scottish": "スコットランド英語",
+      "southAfrican": "南アフリカ英語"
+    },
+    "clones": {
+      "defaultName": "音声クローン",
+      "emptyFile": "空ではない音声ファイルを選んでください。",
+      "fileChanged": "保存された音声ファイルが変更されました。音声ライブラリを再読み込みしてください。",
+      "fileTooLarge": "各音声ファイルは 25 MiB 以下にしてください。",
+      "nameLength": "音声名は 1～120 文字で入力してください。",
+      "noOriginal": "この音声には再生できる元の録音がありません。",
+      "originalUnavailable": "元の録音は利用できません",
+      "readFailed": "保存された音声ファイルを読み込めませんでした。",
+      "unsupportedType": "WAV、MP3、Ogg のいずれかの録音を選んでください。"
+    },
+    "cloning": {
+      "unsupported": "このブラウザーは PocketTTS の音声カタログ生成に対応していません。",
+      "webAudioUnsupported": "このブラウザーは Web Audio API に対応していません。"
+    },
+    "encoder": {
+      "downloadRequired": "音声サンプルをエンコードする前に、音声クローンをダウンロードしてください。",
+      "failures": {
+        "downloadFailed": "音声クローンをダウンロードできませんでした。接続を確認して再試行してください。",
+        "hashInvalid": "音声クローンのダウンロードが検証済みのモデルと一致しなかったため、破棄されました。ダウンロードを再試行してください。",
+        "hostNotAllowed": "このビルドでは音声クローンのダウンロードを利用できません。",
+        "insufficientSpace": "音声クローンをダウンロードするための空き容量が不足しています。",
+        "sizeInvalid": "音声クローンのダウンロードのサイズが正しくなかったため、破棄されました。ダウンロードを再試行してください。",
+        "storeFailed": "音声クローンを保存できませんでした。インストールのデータディレクトリを確認して再試行してください。"
+      },
+      "interrupted": "音声クローンのダウンロードがキャンセルされたか中断されました。ダウンロードを再試行してください。",
+      "unidentified": "音声クローンのモデルを識別できませんでした。開き直して再試行してください。"
+    },
+    "fallback": {
+      "customMissing": "カスタムの PocketTTS 音声が選択されていますが、カスタム音声がアップロードされていません。",
+      "downloadFailed": "音声「{{voice}}」をダウンロードできなかったため、デフォルトの音声を使用しています。ダウンロードは次の返事のとき、または音声を選び直したときに再試行されます。",
+      "unknownVoice": "保存された音声「{{voice}}」は利用できなくなったため、デフォルトの音声を使用しています。ロードアウト → 音声 で別の音声を選んでください。"
+    },
+    "sample": {
+      "playFailed": "{{name}} のサンプルを再生できませんでした。接続を確認して、もう一度お試しください。"
+    }
+  },
+  "providers": {
+    "stt": {
+      "browserDesktopUnavailable": "デスクトップアプリではブラウザーの音声認識を利用できません。",
+      "browserExternal": {
+        "description": "処理をベンダーが管理するブラウザーの音声認識です。",
+        "label": "ブラウザー (外部)",
+        "unsupported": "このブラウザーは Web Speech API に対応していません。"
+      },
+      "browserLocal": {
+        "description": "明示的に対応している場合に限り、デバイス上だけで行うブラウザーの音声認識です。",
+        "label": "ブラウザー (ローカル)",
+        "unsupported": "このブラウザーはローカル専用の Web Speech 認識に対応していません。"
+      },
+      "parakeet": {
+        "cpuLabel": "Parakeet (CPU)",
+        "descriptionBrowser": "このブラウザー内で動作するローカルの ONNX 音声認識です。",
+        "descriptionDesktop": "デスクトップアプリ内で動作するローカルの ONNX 音声認識です。",
+        "notInstalled": "音声入力と音声モードを使うには、オフライン音声認識をインストールしてください。",
+        "unavailableBrowser": "現在、このブラウザーではローカルの Parakeet を利用できません。",
+        "webgpuDescription": "GPU 上で動作する試験的なローカル音声認識で、ライブプレビューを表示します。利用できない場合は CPU を使用します。",
+        "webgpuLabel": "Parakeet (WebGPU · 試験的)"
+      }
+    },
+    "tts": {
+      "audioWorkletUnsupported": "このブラウザーは AudioWorklet に対応していません。",
+      "browser": {
+        "description": "Web Speech API によるブラウザーの音声合成です。",
+        "desktopUnavailable": "デスクトップアプリではブラウザーの読み上げを利用できません。",
+        "label": "ブラウザー",
+        "unsupported": "このブラウザーは音声合成に対応していません。"
+      },
+      "browserOnly": "{{provider}} はブラウザー内でのみ動作します。",
+      "elevenLabs": {
+        "description": "Eleven v4 Turbo によるリアルタイムの ElevenLabs 音声です。"
+      },
+      "pocket": {
+        "description": "クライアント側で動作する PocketTTS の音声合成です。"
+      },
+      "secureContext": "{{provider}} には HTTPS または localhost (セキュアコンテキスト) が必要です。",
+      "webAudioUnsupported": "このブラウザーは Web Audio API に対応していません。",
+      "webSocketUnsupported": "このブラウザーは WebSocket に対応していません。",
+      "workersUnsupported": "このブラウザーは Web Workers に対応していません。",
+      "gemini": {
+        "description": "サーバーからストリーミングされる Gemini の音声です。"
+      }
+    }
+  },
+  "gemini": {
+    "descriptors": {
+      "bright": "明るい",
+      "upbeat": "アップビート",
+      "informative": "知的",
+      "firm": "しっかり",
+      "excitable": "エネルギッシュ",
+      "youthful": "若々しい",
+      "breezy": "軽やか",
+      "easyGoing": "気さく",
+      "breathy": "息づかいのある",
+      "clear": "クリア",
+      "smooth": "なめらか",
+      "gravelly": "しゃがれ声",
+      "soft": "やわらか",
+      "even": "落ち着いた",
+      "mature": "大人びた",
+      "forward": "はっきり",
+      "friendly": "フレンドリー",
+      "casual": "カジュアル",
+      "gentle": "やさしい",
+      "lively": "いきいき",
+      "knowledgeable": "物知り",
+      "warm": "あたたかい"
+    }
+  },
+  "languageNotice": {
+    "speechToText": "Parakeet は英語のみ聞き取れます。{{language}}の音声認識は近日対応予定です。",
+    "textToSpeech": "Pocket TTS は英語のみ話せます。Anima に{{language}}で話してもらうには、ElevenLabs または Gemini を選んでください。"
+  }
+}

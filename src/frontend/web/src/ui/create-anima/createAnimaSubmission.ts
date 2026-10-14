@@ -3,6 +3,8 @@ import type {
   AnimaSpecInput,
 } from "@animama/runtime-contracts/sdk";
 import { zAnimaCreationDiagnostic } from "@animama/runtime-contracts/validators";
+import { getI18n } from "react-i18next";
+import { CreatorError } from "./createAnimaErrors";
 import {
   canonicalJson,
   creationRequestSchema,
@@ -23,8 +25,8 @@ export function freezeCreation(
     if (canonicalJson(oldSpec) === canonicalJson(spec))
       return structuredClone(previous);
     if (draft.submission?.state !== "rejected")
-      throw new Error(
-        "Check the previous creation result before changing this request.",
+      throw new CreatorError(
+        getI18n().t("errors:creation.checkPreviousResult"),
       );
   }
   return creationRequestSchema.parse({
@@ -56,7 +58,7 @@ export function classifyCreationFailure(
     message:
       typeof raw.message === "string"
         ? raw.message
-        : "We couldn't confirm whether your Anima was created.",
+        : getI18n().t("errors:creation.creation_outcome_unknown"),
     retryable: raw.retryable === true,
     issues: Array.isArray(raw.issues)
       ? raw.issues.slice(0, 100).flatMap((issue) => {

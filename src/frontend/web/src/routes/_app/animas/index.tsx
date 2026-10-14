@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 
 import { sortAnimasByRecent } from "@/lib/anima-profile";
 import { resolveFirstOwnedAnimaId } from "@/lib/animas/anima-management-search";
@@ -19,6 +20,7 @@ export const Route = createFileRoute("/_app/animas/")({
  * the owned list is empty. Selection is derived only from the owned list.
  */
 function AnimaResolverRoute() {
+  const { t } = useTranslation("app");
   const navigate = useNavigate({ from: "/animas/" });
   const animasQuery = useAnimas();
   const { admission } = useRuntimeAdmission();
@@ -67,10 +69,10 @@ function AnimaResolverRoute() {
           <CardContent className="flex min-h-64 flex-col items-center justify-center gap-4 p-8 text-center">
             <div className="space-y-2">
               <h1 className="text-destructive font-semibold">
-                Your Animas could not be loaded
+                {t("animas.rosterFailed.title")}
               </h1>
               <p className="text-muted-foreground text-sm">
-                Retry the owned-Anima list without leaving this page.
+                {t("animas.rosterFailed.description")}
               </p>
             </div>
             <Button
@@ -81,7 +83,7 @@ function AnimaResolverRoute() {
                 void animasQuery.refetch();
               }}
             >
-              Retry
+              {t("actions.retry")}
             </Button>
           </CardContent>
         </Card>
@@ -95,10 +97,10 @@ function AnimaResolverRoute() {
         <CardContent className="flex min-h-64 items-center justify-center p-8 text-center">
           <div className="space-y-2">
             <p className="text-foreground font-medium">
-              Opening Anima management
+              {t("animas.resolving.title")}
             </p>
             <p className="text-muted-foreground text-sm">
-              Resolving your first owned Anima…
+              {t("animas.resolving.description")}
             </p>
           </div>
         </CardContent>

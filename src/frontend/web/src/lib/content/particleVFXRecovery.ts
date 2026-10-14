@@ -1,3 +1,4 @@
+import { getI18n } from "react-i18next";
 import type {
   ParticleVFXEditorCatalogDraft,
   ParticleVFXEditorTextureFile,
@@ -57,14 +58,19 @@ export const particleVFXRecoveryStore = createCreatorRecoveryStore({
   fallbackKeyPrefix: "anima.particleVfxCreator.recovery.v1",
   maxBytes: PARTICLE_VFX_RECOVERY_MAX_BYTES,
   messages: {
-    tooLarge:
-      "This effect is too large for browser crash recovery. Save can still continue.",
-    unavailable:
-      "Browser crash recovery is unavailable. Keep this tab open until Save finishes.",
-    metadataOnly: (recovery: ParticleVFXRecovery) =>
-      recovery.textures.length
-        ? "Texture files could not be stored for crash recovery. Choose the missing textures again after restoring this draft."
-        : null,
+    tooLarge: () => {
+      const t = getI18n().getFixedT(null, "library");
+      return t("content.recovery.particleTooLarge");
+    },
+    unavailable: () => {
+      const t = getI18n().getFixedT(null, "library");
+      return t("content.recovery.unavailable");
+    },
+    metadataOnly: (recovery: ParticleVFXRecovery) => {
+      if (!recovery.textures.length) return null;
+      const t = getI18n().getFixedT(null, "library");
+      return t("content.recovery.particleTexturesNotStored");
+    },
   },
   codec: {
     measure: (recovery: ParticleVFXRecovery) =>

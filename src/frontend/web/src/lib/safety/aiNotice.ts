@@ -1,3 +1,6 @@
+import type { TFunction } from "i18next";
+import { getI18n } from "react-i18next";
+
 /**
  * App-rendered AI notice timing and copy (spec R2).
  *
@@ -48,12 +51,22 @@ export function aiNoticeHideAt(notice: AiNoticeState): number | null {
   return Math.max(notice.shownAt + AI_NOTICE_MIN_VISIBLE_MS, notice.settledAt);
 }
 
-export function aiNoticeText(notice: {
-  kind: AiNoticeKind;
-  animaName: string | null | undefined;
-}): string {
-  const name = notice.animaName?.trim() || "an Anima";
-  return notice.kind === "reminder"
-    ? `A reminder: ${name} is an AI, not a person.`
-    : `You're talking with ${name}, an AI — not a person.`;
+/**
+ * The notice's wording in the UI Locale. Display only: the backend decides when
+ * a notice is due, and this text is never sent to it or to the model (spec R6).
+ * Components pass their `t` so the text follows a locale switch.
+ */
+export function aiNoticeText(
+  notice: {
+    kind: AiNoticeKind;
+    animaName: string | null | undefined;
+  },
+  t: TFunction<"safety"> = getI18n().getFixedT(null, "safety"),
+): string {
+  const name = notice.animaName?.trim();
+  if (notice.kind === "reminder")
+    return name
+      ? t("aiNotice.reminder", { name })
+      : t("aiNotice.reminderUnnamed");
+  return name ? t("aiNotice.start", { name }) : t("aiNotice.startUnnamed");
 }

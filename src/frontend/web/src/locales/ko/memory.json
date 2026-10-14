@@ -1,0 +1,390 @@
+{
+  "create": {
+    "contentLabel": "초기 내용",
+    "contentPlaceholder": "# 메모",
+    "description": "이름에는 파일 시스템에서 사용할 수 있는 문자를 쓰며, 파일은 Markdown으로 저장됩니다.",
+    "descriptionPlaceholder": "선택 사항",
+    "directoryCreated": "디렉터리를 만들었습니다.",
+    "directoryNamePlaceholder": "notes",
+    "directoryTitle": "새 디렉터리",
+    "failed": "기억 항목을 만들지 못했습니다.",
+    "fileCreated": "Markdown 파일을 만들었습니다.",
+    "fileNamePlaceholder": "notes.md 또는 projects/notes.md",
+    "fileTitle": "새 Markdown 파일",
+    "nameOrPath": "이름 또는 경로",
+    "submit": "만들기"
+  },
+  "diff": {
+    "after": "변경 후",
+    "before": "변경 전",
+    "descriptionChange": {
+      "clear": "삭제",
+      "replace": "교체",
+      "set": "설정"
+    },
+    "noContentChanges": "내용 변경 사항이 없습니다.",
+    "noTextualChanges": "이 버전에는 텍스트 변경 사항이 없습니다.",
+    "operations": {
+      "create": "생성",
+      "delete": "삭제",
+      "update": "업데이트"
+    },
+    "showLess": "간단히 보기",
+    "showLines_other": "{{count}}줄 모두 보기"
+  },
+  "editor": {
+    "deleted": "기억 항목을 삭제했습니다.",
+    "deleteFailed": "기억 항목을 삭제하지 못했습니다.",
+    "editorHeading": "편집기",
+    "fallbackTitle": "기억 파일",
+    "loadingFile": "파일을 불러오는 중...",
+    "saveDraftOverLatest": "초안으로 최신 버전 덮어쓰기"
+  },
+  "errors": {
+    "entryFailed": "기억 작업에 실패했습니다.",
+    "managerFailed": "기억 관리자 작업에 실패했습니다."
+  },
+  "explorer": {
+    "actions": {
+      "delete": "삭제",
+      "move": "이동…",
+      "newDirectory": "새 디렉터리",
+      "newFile": "새 파일",
+      "rename": "이름 변경"
+    },
+    "actionsFor": "{{path}} 작업",
+    "collapse": "파일 탐색기 접기",
+    "collapseAll": "모든 디렉터리 접기",
+    "drag": {
+      "cancelled": "기억 이동을 취소했습니다.",
+      "instructions": "Space 또는 Enter 키를 눌러 기억 항목을 집으세요. 화살표 키로 디렉터리를 고른 다음 Space 또는 Enter 키를 눌러 이동하세요. 취소하려면 Escape 키를 누르세요.",
+      "moveInto": "{{path}}(으)로 이동합니다.",
+      "moving": "{{source}}을(를) {{destination}}(으)로 이동하는 중입니다.",
+      "notOver": "올바른 기억 디렉터리 위에 있지 않습니다.",
+      "pickedUp": "{{path}}을(를) 집었습니다."
+    },
+    "empty": "아직 기억 파일이 없습니다.",
+    "episodesRoot": "에피소드",
+    "expand": "파일 탐색기 펼치기",
+    "expandAll": "모든 디렉터리 펼치기",
+    "filter": "필터",
+    "filterFiles": "파일 필터",
+    "filterLabel": "기억 파일 필터",
+    "heading": "기억 파일",
+    "identityMissing": "이 Anima의 정체성이 없어 복구가 필요합니다.",
+    "loadFailed": "기억 파일을 불러오지 못했습니다.",
+    "loading": "파일을 불러오는 중...",
+    "memoriesMissing": "MEMORIES.md가 없습니다.",
+    "needsRepair": "복구 필요",
+    "newMarkdownFile": "새 Markdown 파일",
+    "noAnimas": "아직 Anima가 없습니다.",
+    "noEpisodes": "아직 에피소드가 없습니다.",
+    "noMatches": "일치하는 기억 파일이 없습니다.",
+    "otherEpisodes": "기타 에피소드",
+    "pendingEpisodes_other": "대기 중인 에피소드 {{count}}개",
+    "refresh": "기억 파일 새로 고침",
+    "repair": "복구",
+    "repairMemories": "{{name}}의 MEMORIES.md 복구",
+    "reservedName": "예약된 이름",
+    "reservedNameHint": "이 이름은 Anima 정체성용으로 예약되어 있습니다. 편집하려면 이름을 바꾸거나 내용을 밖으로 옮기세요.",
+    "unsavedChanges": "저장되지 않은 변경 사항"
+  },
+  "layout": {
+    "resizeExplorer": "파일 및 작업 창 크기 조정",
+    "resizeHint": "{{label}}. 왼쪽/오른쪽 화살표 키로 크기를 조정하고, 두 번 클릭하면 초기화됩니다.",
+    "resizeWork": "작업 및 미리 보기 창 크기 조정"
+  },
+  "library": {
+    "blocker": {
+      "description_other": "기억 작업 공간을 떠나기 전에 저장되지 않은 초안 {{count}}개를 저장하거나 버리세요.",
+      "discardAndLeave": "버리고 나가기",
+      "saveAndLeave": "저장하고 나가기",
+      "stay": "머무르기",
+      "title": "저장되지 않은 기억 초안"
+    },
+    "createBlocked": {
+      "animaFolders": "Anima 폴더에는 각 Anima의 정체성과 기억만 들어 있습니다.",
+      "episodes": "생성된 에피소드에는 사용자가 만든 파일을 넣을 수 없습니다."
+    },
+    "delete": {
+      "directoryContents": "{{path}}와(과) 그 내용이 영구적으로 삭제됩니다. 여기에는 {{files}}이(가) 포함됩니다.",
+      "directoryContentsNested": "{{path}}와(과) 그 내용이 영구적으로 삭제됩니다. 여기에는 {{files}}와(과) {{directories}}이(가) 포함됩니다.",
+      "directoryDeleted": "디렉터리를 삭제했습니다.",
+      "directoryFailed": "디렉터리를 삭제하지 못했습니다.",
+      "directoryTitle": "디렉터리를 삭제할까요?",
+      "dirtyDrafts_other": "저장되지 않은 초안 {{count}}개도 버려집니다.",
+      "emptyDirectory": "{{path}}은(는) 비어 있으며 영구적으로 삭제됩니다.",
+      "file": "{{path}}이(가) 영구적으로 삭제됩니다.",
+      "fileDeleted": "기억 파일을 삭제했습니다.",
+      "fileFailed": "기억 파일을 삭제하지 못했습니다.",
+      "files_other": "파일 {{count}}개",
+      "fileTitle": "파일을 삭제할까요?",
+      "nestedDirectories_other": "하위 디렉터리 {{count}}개"
+    },
+    "identitiesFailed": "Anima 정체성을 불러오지 못했습니다.",
+    "identitiesFailedDescription": "사용자 기억은 계속 사용할 수 있습니다. 다시 시도하려면 새로 고치세요.",
+    "modes": {
+      "manager": "기억 관리자",
+      "manual": "수동"
+    },
+    "panes": {
+      "explorerLabel": "기억 파일 탐색기",
+      "files": "파일",
+      "previewLabel": "기억 미리 보기",
+      "work": "작업",
+      "workLabel": "기억 작업 창"
+    },
+    "reflect": {
+      "action": "회고하기",
+      "anyway": "그래도 회고하기",
+      "confirmDescription": "회고는 {{name}}의 MEMORIES.md에서 마지막으로 저장된 버전을 읽으며, 저장되지 않은 수동 초안은 무시합니다. 초안은 열린 상태로 유지되지만, 초안이나 회고 제안 중 하나를 저장하면 다른 하나와 충돌합니다.",
+      "confirmTitle": "저장되지 않은 초안이 있는 상태로 회고할까요?",
+      "label": "{{name}}의 기억 회고하기"
+    },
+    "relocate": {
+      "cannotMove": "기억 항목을 이동할 수 없습니다.",
+      "cannotRename": "이 기억 항목의 이름은 변경할 수 없습니다.",
+      "moveConflict": "이동되지 않았습니다. 새로 고친 후 다시 시도하세요.",
+      "moved": "{{name}}을(를) 이동했습니다.",
+      "moveFailed": "기억 항목을 이동하지 못했습니다.",
+      "moveRefreshFailed": "기억을 이동했지만 탐색기를 새로 고치지 못했습니다.",
+      "moveUncertain": "이동 결과를 확인할 수 없습니다.",
+      "moveUncertainDescription": "다음 이동을 시도하기 전에 새로 고치는 중입니다.",
+      "refreshBeforeChange": "다른 변경을 하기 전에 새로 고치세요.",
+      "renameConflict": "이름이 변경되지 않았습니다. 새로 고친 후 다시 시도하세요.",
+      "renamed": "{{from}}의 이름을 {{to}}(으)로 변경했습니다.",
+      "renameFailed": "기억 항목의 이름을 변경하지 못했습니다.",
+      "renameRefreshFailed": "기억의 이름을 변경했지만 탐색기를 새로 고치지 못했습니다.",
+      "renameUncertain": "이름 변경 결과를 확인할 수 없습니다.",
+      "renameUncertainDescription": "다음 이름 변경을 시도하기 전에 새로 고치는 중입니다."
+    },
+    "removedAnimaFile": {
+      "deleted": "{{name}}이(가) 삭제되었습니다.",
+      "discarded": "{{file}}의 저장되지 않은 변경 사항은 저장할 수 없어 버려졌습니다.",
+      "unavailable": "{{name}}의 {{file}}을(를) 사용할 수 없습니다."
+    },
+    "repair": {
+      "failed": "{{name}}의 MEMORIES.md를 복구하지 못했습니다.",
+      "fallbackName": "이 Anima",
+      "repaired": "{{name}}의 MEMORIES.md를 복구했습니다."
+    }
+  },
+  "manager": {
+    "approval": {
+      "approve": "승인",
+      "feedbackCount": "{{length, number}} / {{max, number}}",
+      "feedbackHint": "현재 변경 사항을 거부하고 피드백을 관리자에게 보냅니다.",
+      "feedbackPlaceholder": "다른 Markdown 경로나 표현 등 무엇을 바꿔야 하는지 설명하세요.",
+      "reject": "거부",
+      "rejectionFeedback": "거부 피드백",
+      "requestChanges": "변경 요청",
+      "requestRevision": "수정된 기억 변경 요청",
+      "sendFeedback": "피드백 보내기",
+      "status": {
+        "approved": "승인됨",
+        "approvedUndone": "승인됨 · 실행 취소됨",
+        "pending": "검토 대기 중",
+        "rejected": "거부됨"
+      },
+      "undo": "실행 취소"
+    },
+    "autoApprove": "자동 승인",
+    "blocked": {
+      "busy": "기억 관리자가 아직 작업 중입니다. 완료된 후 다시 시도하세요.",
+      "loadFailed": "기억 관리자 대화를 불러오지 못했습니다. 먼저 다시 시도하세요.",
+      "pendingApproval": "먼저 기억 관리자에서 대기 중인 기억 변경을 승인하거나 거부하세요."
+    },
+    "completed": "이 대화는 완료되었습니다. 새 대화를 시작하려면 새로 만들기를 선택하세요.",
+    "emptyDescription": "기억 파일을 만들거나 업데이트하거나 정리해 달라고 요청하세요.",
+    "emptyTitle": "기억 대화 시작",
+    "episodes": {
+      "failedDescription": "이 배치는 계속 대기 중입니다. 다시 시도할 준비가 되면 처리를 다시 시작하세요.",
+      "failedTitle_other": "에피소드 {{count}}개 검토가 중단됨",
+      "processedDescription": "이 배치가 완료되었습니다. 이 대화에서 기억 관리자에게 일반적인 질문을 계속할 수 있습니다.",
+      "processedMoreDescription": "이 배치가 완료되었습니다. 다음 배치로 처리할 대기 중인 에피소드가 더 있으며, 이 대화는 이제 일반 기억 관리자 모드입니다.",
+      "processedTitle_other": "에피소드 {{count}}개 검토 완료",
+      "processingDescription": "기억 관리자가 이 배치를 검토하고 있습니다. 에피소드 상태는 처리가 최종 완료된 후에만 바뀝니다.",
+      "reviewingTitle_other": "에피소드 {{count}}개 검토 중",
+      "waitingDescription": "아래에 제안된 기억 변경을 검토하세요. 관리자가 최종 응답을 할 때까지 배치는 대기 중으로 유지됩니다."
+    },
+    "feedback": {
+      "empty": "변경을 요청하기 전에 피드백을 입력하세요.",
+      "tooLong": "피드백은 {{max, number}}자 이하여야 합니다."
+    },
+    "loadFailed": "이 기억 관리자 대화를 불러오지 못했습니다.",
+    "loadFailedHint": "상태를 변경하기 전에 다시 시도하세요.",
+    "loadingDescription": "현재 대화를 확인하는 중입니다.",
+    "loadingTitle": "기억 관리자를 불러오는 중",
+    "messageLabel": "기억 관리자 메시지",
+    "new": "새로 만들기",
+    "placeholder": "기억 관리자에게 기억 파일을 만들거나 업데이트해 달라고 요청하세요",
+    "processEpisodes": "에피소드 처리",
+    "reflection": {
+      "activeDescription": "이 회고의 MEMORIES.md 변경이 적용되면 이 턴들은 회고된 것으로 처리됩니다. 답장하여 다듬을 수 있습니다.",
+      "activeTitle": "{{name}}와(과)의 {{turns}} 회고 중",
+      "completedAppliedDescription": "적용된 MEMORIES.md 변경은 유지되며 이 턴들은 회고된 것으로 처리됩니다.",
+      "completedTitle": "{{name}}와(과)의 {{turns}} 회고 완료",
+      "completedUnchangedDescription": "이 회고에서 적용된 변경이 없으므로 이 턴들은 다음 회고를 위해 남아 있습니다.",
+      "failedAppliedDescription": "적용된 MEMORIES.md 변경은 유지되며 이 턴들은 회고된 것으로 처리됩니다. 대화가 끝나기 전에 중단되었으며, 이유는 아래 오류에 나와 있습니다.",
+      "failedTitle": "{{name}}와(과)의 {{turns}} 회고가 중단됨",
+      "failedUnchangedDescription": "{{name}}의 MEMORIES.md와 이 턴들은 변경되지 않았으므로 다음 회고를 위해 남아 있습니다. 중단된 이유는 아래 오류에 나와 있습니다.",
+      "remaining_other": "{{count}}턴 남음",
+      "titleWithRemaining": "{{title}} · {{remaining}}",
+      "turns_other": "{{count}}턴",
+      "waitingDescription": "아래에 제안된 MEMORIES.md 변경을 검토하세요. 이 회고의 변경이 적용된 후에만 이 턴들이 회고된 것으로 처리됩니다."
+    },
+    "runFailed": "기억 관리자가 이 대화를 끝내지 못했습니다.",
+    "stopped": "기억 관리자가 중단되었습니다.",
+    "stoppedFallback": "대화를 계속할 수 없습니다. 다시 시도하려면 새로 만들기를 선택하세요.",
+    "toasts": {
+      "applied": "기억 변경을 적용했습니다.",
+      "appliedDescription": "승인된 변경 사항이 반영되었습니다.",
+      "completeFailed": "기억 관리자 실행을 완료하지 못했습니다.",
+      "decisionFailed": "승인 결정을 기록하지 못했습니다.",
+      "feedbackSent": "피드백을 기억 관리자에게 보냈습니다.",
+      "noFilesChanged": "변경된 기억 파일이 없습니다.",
+      "processFailed": "대기 중인 에피소드를 처리하지 못했습니다.",
+      "reflectionFailed": "회고가 시작되지 않았습니다.",
+      "rejected": "기억 변경을 거부했습니다.",
+      "sendFailed": "기억 관리자에게 메시지를 보내지 못했습니다.",
+      "startFailed": "기억 관리자를 시작하지 못했습니다.",
+      "undoDeleted": "승인된 파일이 새 버전으로 삭제되었습니다.",
+      "undoFailed": "승인된 기억 변경을 실행 취소하지 못했습니다.",
+      "undone": "기억 변경을 실행 취소했습니다.",
+      "undoRestored": "이전 내용이 버전 {{version}}(으)로 복원되었습니다.",
+      "undoStale": "이 기억 변경은 더 이상 실행 취소할 수 없습니다.",
+      "undoStaleDescription": "버전을 열어 최신 파일을 확인하고 필요하면 직접 되돌리세요."
+    }
+  },
+  "manual": {
+    "discard": {
+      "description": "{{path}}에 대한 저장되지 않은 변경 사항이 제거됩니다.",
+      "title": "변경 사항을 버릴까요?"
+    },
+    "generatedEpisode": "생성된 에피소드",
+    "openManager": "기억 관리자 열기",
+    "readOnly": "읽기 전용 기억",
+    "readOnlyHint": "이 파일은 미리 볼 수 있지만 직접 변경할 수는 없습니다.",
+    "reservedHint": "animas 경로는 Anima 정체성용으로 예약되어 있습니다. 편집하기 전에 이 파일의 이름을 바꾸거나 밖으로 옮기세요.",
+    "reservedPath": "예약된 경로",
+    "saveOverLatest": "최신 버전에 덮어쓰기",
+    "selectFile": "편집할 기억 파일을 선택하세요.",
+    "unsaved": "저장 안 됨"
+  },
+  "markdown": {
+    "emptyFile": "빈 파일",
+    "image": "[이미지: {{alt}}]",
+    "imageNotLoaded": "[이미지: 불러오지 않음]"
+  },
+  "move": {
+    "description": "이 기억 항목의 새 상위 디렉터리를 선택하세요.",
+    "destination": "대상",
+    "empty": "일치하는 디렉터리가 없습니다.",
+    "fallbackTitle": "기억 항목 이동",
+    "reasons": {
+      "alreadyInDirectory": "이 항목은 이미 해당 디렉터리에 있습니다.",
+      "alreadyInRoot": "이 항목은 이미 기억 루트에 있습니다.",
+      "cannotMove": "이 기억 항목은 이동할 수 없습니다.",
+      "chooseDirectory": "일반 기억 디렉터리를 선택하세요.",
+      "containsItself": "디렉터리는 자기 자신 안에 들어갈 수 없습니다.",
+      "insideDescendant": "디렉터리는 자신의 하위 디렉터리 안으로 이동할 수 없습니다.",
+      "otherScope": "대상이 다른 기억 범위에 있습니다.",
+      "reserved": "animas 경로는 Anima 정체성용으로 예약되어 있습니다."
+    },
+    "root": "기억 루트",
+    "search": "디렉터리 검색",
+    "submit": "여기로 이동",
+    "title": "{{name}} 이동"
+  },
+  "preview": {
+    "copied": "Markdown을 복사했습니다.",
+    "copyFailed": "Markdown을 클립보드에 복사하지 못했습니다.",
+    "copyLabel": "미리 보기 Markdown 복사",
+    "copyTitle": "Markdown 복사",
+    "generated": "생성됨",
+    "loading": "미리 보기를 불러오는 중...",
+    "readOnly": "읽기 전용",
+    "selectFile": "미리 볼 기억 파일을 선택하세요.",
+    "unsavedDraft": "저장되지 않은 초안",
+    "unsavedManualDraft": "저장되지 않은 수동 초안"
+  },
+  "rename": {
+    "directoryTitle": "디렉터리 이름 변경",
+    "fileTitle": "파일 이름 변경",
+    "submit": "이름 변경"
+  },
+  "shared": {
+    "blankIdentity": "Anima 정체성은 비워 둘 수 없습니다.",
+    "cancel": "취소",
+    "changedElsewhere": "이 기억이 다른 곳에서 변경되었습니다.",
+    "conflictNotice": "이 파일은 서버에 더 새로운 버전이 있습니다. 초안은 유지됩니다.",
+    "delete": "삭제",
+    "description": "설명",
+    "discard": "버리기",
+    "draftSaved": "초안을 저장했습니다.",
+    "draftStillOpen": "초안은 계속 열려 있습니다.",
+    "enterName": "이름을 입력하세요.",
+    "fileLoadFailed": "이 기억 파일을 불러오지 못했습니다.",
+    "loadingEditor": "편집기를 불러오는 중...",
+    "memorySaved": "기억을 저장했습니다.",
+    "name": "이름",
+    "noDescription": "설명 없음",
+    "none": "없음",
+    "optionalDescription": "설명(선택 사항)",
+    "preview": "미리 보기",
+    "retry": "다시 시도",
+    "save": "저장",
+    "saveFailed": "기억을 저장하지 못했습니다.",
+    "useLatest": "최신 버전 사용",
+    "version": "버전 {{version}}"
+  },
+  "versions": {
+    "afterRevert": "되돌린 후 · 버전 {{version}}",
+    "back": "뒤로",
+    "changesIn": "버전 {{version}}의 변경 사항",
+    "confirmRevert": "되돌리기 확인",
+    "contentChanges": "내용 변경 사항",
+    "createdIn": "버전 {{version}}에서 생성됨",
+    "current": "현재",
+    "currentContent": "현재 내용",
+    "currentVersion": "{{path}} · 현재 버전 {{version}}",
+    "detailLabel": "선택한 버전의 변경 사항",
+    "discardAndContinue": "초안을 버리고 계속",
+    "discardFirst": "먼저 수동 초안을 버릴까요?",
+    "discardFirstDescription": "이 파일에 저장되지 않았거나 충돌한 초안이 있는 동안에는 되돌릴 수 없습니다. 버리면 최종 확인 전에 현재 서버 내용으로 복원됩니다.",
+    "emptyContent": "(비어 있음)",
+    "entryFallback": "기억 항목",
+    "history": "버전 기록",
+    "keepDraft": "초안 유지",
+    "listLabel": "기억 항목 버전",
+    "loadFailed": "버전 기록을 불러오지 못했습니다.",
+    "loading": "버전을 불러오는 중...",
+    "loadingChanges": "변경 사항을 불러오는 중...",
+    "loadOlder": "이전 버전 불러오기",
+    "none": "사용할 수 있는 버전이 없습니다.",
+    "operationLine": "{{operation}} · {{time}}",
+    "operations": {
+      "create": "생성됨",
+      "delete": "삭제됨",
+      "move": "이동됨",
+      "revert": "되돌려짐",
+      "undo": "실행 취소됨",
+      "update": "업데이트됨"
+    },
+    "path": "경로",
+    "range": "버전 {{from}} → 버전 {{to}}",
+    "revertConfirmDescription": "내용과 설명만 복원됩니다. 현재 경로, 이름, 폴더, 종류, 메타데이터는 그대로 유지되며, 되돌리기는 새 버전으로 기록됩니다.",
+    "revertConfirmTitle": "버전 {{version}}(으)로 되돌릴까요?",
+    "revertConflict": "되돌리기가 끝나기 전에 이 기억이 변경되었습니다.",
+    "revertConflictDescription": "현재 기억과 버전을 새로 고쳤습니다. 더 새로운 초안은 유지되었습니다.",
+    "reverted": "버전 {{version}}(으)로 되돌렸습니다.",
+    "revertedDescription": "복원된 내용은 이제 버전 {{version}}입니다.",
+    "revertFailed": "기억을 되돌리지 못했습니다.",
+    "revertTo": "버전 {{version}}(으)로 되돌리기",
+    "selectHint": "변경 사항을 확인할 버전을 선택하세요.",
+    "selectVersion": "버전 선택",
+    "timeUnavailable": "시간 정보 없음",
+    "title": "버전",
+    "versionLoadFailed": "이 버전을 불러오지 못했습니다."
+  }
+}
