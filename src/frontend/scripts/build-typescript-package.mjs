@@ -3,6 +3,7 @@ import { spawn } from "node:child_process";
 import { access, copyFile, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { packageSourceDigest, SOURCE_DIGEST_FILE } from "./package-source-digest.mjs";
 
 const frontendRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const packageRoot = process.cwd();
@@ -55,6 +56,8 @@ async function normalizeDeclarationImports(directory) {
   }
 }
 
+// Digest before building so source edited mid-build reads as stale afterwards.
+const sourceDigest = await packageSourceDigest(packageRoot);
 await mkdir(outputRoot, { recursive: true });
 for (const entry of await readdir(outputRoot)) {
   await rm(join(outputRoot, entry), { recursive: true, force: true });
@@ -94,3 +97,5 @@ for (const output of result.outputFiles) {
   await writeFile(output.path, output.contents);
 }
 await copyFile(resolve(frontendRoot, "../../LICENSE"), join(outputRoot, "LICENSE"));
+// Written after the bundle, so a failed or interrupted bundle leaves no digest and never reads as current.
+await writeFile(join(outputRoot, SOURCE_DIGEST_FILE), `${sourceDigest}\n`);
