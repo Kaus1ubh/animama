@@ -133,6 +133,12 @@ and this plan does not edit it.
 
 ## Decision Log
 
+- 2026-10-14, owner (#503): supersedes the next entry and the 2026-10-12
+  Phase 3 agent decision. Ordinary PR runs and `main` pushes skip the
+  promotion suite and both selectable browser groups unless their own inputs
+  changed. Product code no longer selects them. Promotion runs (manual
+  dispatch, release callers, the weekly checkpoint and `ci:full` PRs) run
+  every suite.
 - 2026-10-12, owner: a full PR run may skip the whole-application check only
   when no packaging input changed. Unknown paths count as packaging inputs. A
   run that skipped the check cannot serve promotion.

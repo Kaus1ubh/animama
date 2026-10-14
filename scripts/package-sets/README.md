@@ -115,8 +115,8 @@ prove reproducible transitive wheel bytes or constitute a frozen consumer gate.
 
 Full validation retains unpublished package outputs in GitHub Actions for 14
 days, so a PR run's set outlives the seven-day reuse window and a `main` set can
-serve a later baseline comparison. A `selective` PR run builds no set. A
-`reused` main run uploads none; its receipt names the PR run's set instead (see
+serve a later baseline comparison. A `selective` run, an ordinary PR run or
+`main` push, builds no set. A `reused` main run uploads none; its receipt names the PR run's set instead (see
 [reuse after merging](../../docs/backend/operations/development.md#reuse-a-full-hosted-pr-result-after-merging)).
 Failure diagnostics and compact validation receipts retain 14 days. Reduced
 profiles do not produce package sets. No bucket, Cloud checkout, R2 credential
@@ -212,7 +212,7 @@ baseline retained (or the PR set a `reused` receipt names for the same tree).
 That set must be verified and come from the same producer code and toolchain.
 Otherwise it rebuilds the baseline independently. The run's
 `validation-receipt` records the path taken as `baseline_set`. A baseline that
-can neither be found nor rebuilt fails validation. A `selective` PR run builds
+can neither be found nor rebuilt fails validation. A `selective` run builds
 no set and makes no comparison.
 Contract versions must never decrease. Documentation-only JSON Schema/OpenAPI changes are compatible;
 all structural changes conservatively require a new major contract version,

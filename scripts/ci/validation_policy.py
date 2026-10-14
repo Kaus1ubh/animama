@@ -57,8 +57,9 @@ FULL = (
 )
 # Action timings are available in the job API; every command has a hashed receipt.
 UNTIMED = {"checkout", "select", "uv", "node", "baseline-checkout", "package-artifacts"}
-# Expensive work a full PR run may skip when none of its inputs changed. The
-# browser groups keep their step: the runner receives the selected groups.
+# Expensive work an ordinary run skips unless its own inputs changed; promotion
+# runs execute all of it. The browser groups keep their step: the runner
+# receives the selected groups.
 SUITES = {
     "promotion": {
         "package-build",
@@ -72,14 +73,14 @@ SUITES = {
     "browser-tooling": set(),
 }
 SUITE_REASONS = {
-    "promotion": "No packaging input changed; package build, installed and whole-application consumers, "
-    "baseline comparison and set upload run on main or promotion runs",
-    "browser-hosted": "No hosted-screen input changed",
-    "browser-tooling": "No effect or animation tooling input changed",
+    "promotion": "No packaging or consumer script changed; package build, installed and whole-application "
+    "consumers, baseline comparison and set upload run on promotion runs",
+    "browser-hosted": "No hosted-screen input changed; the hosted screens run on promotion runs",
+    "browser-tooling": "No effect or animation tooling input changed; the tooling renders run on promotion runs",
 }
 PROFILES = {
     "full": FULL,
-    # A full PR run with recorded skips; never promotion-complete.
+    # An ordinary PR or main run with recorded skips; never promotion-complete.
     "selective": FULL,
     "docs": COMMON | {"docs-tests"},
     "backend": COMMON | PYTHON | {"accountless-guards"},
@@ -195,19 +196,26 @@ def classify(changes: object, excluded_paths: Iterable[str] = ()) -> str:
 
 
 ALL_SUITES = frozenset(SUITES)
+PROMOTION = frozenset({"promotion"})
 TOOLING = frozenset({"browser-tooling"})
 HOSTED = frozenset({"browser-hosted"})
 NONE: frozenset[str] = frozenset()
-# Any packaging input selects every suite, so a PR that changes what the set
-# contains is promotion-complete (mode `full`) and can serve reuse after merge.
-# Only unpackaged paths, tooling-only and hosted-fixture-only changes narrow it.
-# Changes that alter how checks run, which dependencies resolve or what the
-# browser harness loads also select every suite.
+# Ordinary PR runs and main pushes run each suite only when its own inputs
+# changed. Promotion runs (manual dispatch, release callers, the weekly
+# checkpoint and PRs labelled ci:full) run every suite. Product code, content,
+# documentation and unrecognized paths therefore select none: the owner
+# accepted (2026-10-14, #503) that packaging, authoring-tool and hosted-screen
+# regressions they cause surface on the next promotion run. Changes to how
+# checks run, which dependencies resolve or what every browser test loads
+# still select every suite.
 EVERYTHING_PREFIXES = (
     ".github/",
     "scripts/ci/",
     "src/frontend/patches/",
     "src/frontend/web/vite-plugins/",
+    # The Vite configuration verifies and serves these speech model inputs.
+    "models/",
+    "scripts/models/",
 )
 EVERYTHING_FILES = {
     "uv.lock",
@@ -217,59 +225,25 @@ EVERYTHING_FILES = {
     "src/frontend/pnpm-workspace.yaml",
     "src/frontend/web/package.json",
     "src/frontend/web/vite.config.ts",
+    # Read by the Vite configuration as well as the hosted build.
+    "src/frontend/desktop/package.json",
 }
-# Not packaged and not loaded by a selectable browser group. The always-run
-# checks still cover them; anything not listed here is a packaging input.
-UNPACKAGED_PREFIXES = (
-    "tests/",
-    ".agents/",
-    ".claude/",
-    ".vscode/",
-    "src/frontend/e2e/",
-    # Electron-only desktop sources; the hosted build reads other desktop paths.
-    "src/frontend/desktop/src/",
-    "src/frontend/desktop/tests/",
-    "src/frontend/desktop/native/",
-    "src/frontend/desktop/scripts/native/",
-    "src/frontend/desktop/build/",
-    "src/frontend/web/tests/",
-    "scripts/evals/",
-    "scripts/public-release/",
-    "scripts/repository-cleanup/",
-)
-UNPACKAGED_FILES = {
-    "docker-compose.yml",
-    "docker-compose.development.yml",
-    "Dockerfile",
-    "reset.sh",
-    "Makefile",
-    "pytest.ini",
-    "src/frontend/playwright.config.ts",
-    "src/frontend/tsconfig.e2e.json",
-    "src/frontend/desktop/electron-builder.yml",
-    "src/frontend/desktop/README.md",
-    "src/frontend/desktop/tsconfig.json",
-    "src/frontend/desktop/vitest.config.ts",
-    "scripts/audit-typed-content.sh",
-    "scripts/backup-local.sh",
-    "scripts/restore-local.sh",
-    "scripts/local-stack-state-common.sh",
-    "scripts/validate_local_compose.py",
-    "scripts/check-repository-dependencies.py",
-    "scripts/generate_synthetic_docs.py",
-    "scripts/seed_synthetic_context.py",
-}
-# README.md is the backend wheel's package description (pyproject `readme`).
-PACKAGED_FILES = {"README.md"}
-HOSTED_FIXTURES = (
+# The promotion suite's own packaging and consumer scripts.
+PROMOTION_PREFIXES = ("scripts/package-sets/", "scripts/repository-boundary/")
+# Preview-session modules that only the authoring tools load.
+TOOLING_PREFIXES = ("src/frontend/web/src/lib/avatar/motion-authoring/preview/",)
+# The hosted composition and the fixtures its browser files mount.
+HOSTED_PREFIXES = (
     "src/frontend/web/tests/fixtures/hosted-composition/",
     "src/frontend/web/tests/fixtures/retained-screens/",
+    "src/frontend/web/src/app/hosted-runtime/",
 )
+HOSTED_FILES = {"src/frontend/web/src/main.hosted.tsx"}
 WEB_SCRIPTS = "src/frontend/web/scripts/"
 
 
 def _web_script_suites(name: str) -> frozenset[str]:
-    """Web scripts are tooling and tests; only TypeScript enters the app's type build."""
+    """Web scripts are tooling and tests; each browser file selects its own group."""
     if name.endswith(".browser.test.mjs"):
         stem = name.split("/")[-1].removesuffix(".browser.test.mjs")
         return TOOLING if stem in GROUPS["tooling"] else HOSTED if stem in GROUPS["hosted"] else NONE
@@ -279,37 +253,30 @@ def _web_script_suites(name: str) -> frozenset[str]:
         # Shared browser setup; the whole-application consumer also copies
         # fixtures/hosted-workflows-http.mjs.
         return ALL_SUITES
-    # TypeScript scripts are packaging inputs: tsconfig.scripts.json is part of
-    # the hosted build's `tsc -b`.
-    if name.startswith(("animation", "effect")) and name.endswith(".mjs"):
+    # The animation and effect tools, their preview pages and renderer stages.
+    if name.startswith(("animation", "effect")):
         return TOOLING
-    return ALL_SUITES
+    return NONE
 
 
 def _path_suites(path: str) -> frozenset[str]:
-    p = PurePosixPath(path)
     if path in EVERYTHING_FILES or path.startswith(EVERYTHING_PREFIXES):
         return ALL_SUITES
-    if path.startswith(HOSTED_FIXTURES):
-        return HOSTED
     if path.startswith(WEB_SCRIPTS):
         return _web_script_suites(path.removeprefix(WEB_SCRIPTS))
-    if path in PACKAGED_FILES:
-        return ALL_SUITES
-    if path in UNPACKAGED_FILES or path.startswith(UNPACKAGED_PREFIXES):
-        return NONE
-    # docs/safety is bundled into the web app.
-    if path.startswith("docs/") and not path.startswith("docs/safety/"):
-        return NONE
-    if len(p.parts) == 1 and p.suffix == ".md" or path in {"src/frontend/AGENTS.md", "src/frontend/electron-guide.md"}:
-        return NONE
-    # The backend, web app, packages, Included content, contracts, models,
-    # packaging scripts and unknown paths.
-    return ALL_SUITES
+    if path.startswith(PROMOTION_PREFIXES):
+        return PROMOTION
+    if path.startswith(TOOLING_PREFIXES):
+        return TOOLING
+    if path in HOSTED_FILES or path.startswith(HOSTED_PREFIXES):
+        return HOSTED
+    # The backend, web app, packages, content, contracts, docs, tests and
+    # unrecognized paths: promotion runs cover their packaging and browser groups.
+    return NONE
 
 
 def select_suites(changes: object, excluded_paths: Iterable[str] = ()) -> set[str]:
-    """Suites whose inputs a full PR run changed; uncertainty selects every suite."""
+    """Suites whose own inputs an ordinary run changed; uncertainty selects every suite."""
     if not isinstance(changes, list) or not changes or isinstance(excluded_paths, str | bytes):
         return set(ALL_SUITES)
     try:
@@ -382,14 +349,15 @@ def choose_plan(
         return _plan("docs", "Existing eligible documentation: independent focused hosted checks")
     if area in LOCAL_CHECKS and local_reviewed is True:
         return _plan(area, "Owner-reviewed exact local evidence; hosted result covers only selected checks")
-    if event_name == "pull_request":
-        # Not a promotion candidate (ci:full, manual, release and main returned above).
-        # Callers pass only special files here; changed imports do not alter packaging.
+    if event_name in {"pull_request", "push"}:
+        # An ordinary PR run or main push: promotion runs (ci:full, manual,
+        # release and the weekly checkpoint) returned above. Callers pass only
+        # special files here; changed imports do not alter suite inputs.
         special = excluded_paths if special_paths is None else special_paths
         skipped = ALL_SUITES - select_suites(changes, special)
         if skipped:
-            return _plan("selective", "Full PR validation; unchanged suites deferred to promotion runs", skipped)
-    return _plan("full", "High-risk/unknown changes or missing, stale, failed or unreviewed local evidence")
+            return _plan("selective", "Ordinary run; unselected suites run on promotion runs", skipped)
+    return _plan("full", "Validation, dependency, browser-harness or uncertain inputs select every suite")
 
 
 def _skipped_suites(rows: object) -> list[str] | None:
