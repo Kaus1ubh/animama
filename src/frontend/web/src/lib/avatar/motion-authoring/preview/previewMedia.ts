@@ -1,4 +1,7 @@
-import type { AnimaPoseClipV2 } from "@/lib/avatar/poses/animaPoseClip";
+import type {
+  AnimaPoseClipAvatarVFXOverride,
+  AnimaPoseClipV2,
+} from "@/lib/avatar/poses/animaPoseClip";
 import { parseParticleVFXRuntimeConfig } from "@/lib/avatar/particle-vfx/runtimeConfig";
 import type { ParticleVFXCatalogEntry } from "@/lib/avatar/particle-vfx/types";
 import { AvatarEffectDefinitionError } from "@/lib/avatar/vfx/definition";
@@ -89,6 +92,7 @@ export const EMPTY_PREVIEW_MEDIA: PreviewMedia = {
  */
 export class PreviewMediaProvider implements AnimaRuntimeMediaProvider {
   private avatarEffects = new Map<string, AvatarVFXParsedEntry>();
+  private avatarEffectSources = new Map<string, EffectSource>();
   private particleEffects = new Map<string, ParticleVFXCatalogEntry>();
   private sceneEffects = new Map<string, SceneVFXEntry>();
   private problems: string[] = [];
@@ -100,12 +104,14 @@ export class PreviewMediaProvider implements AnimaRuntimeMediaProvider {
   /** Replace the playable effects. Invalid definitions become `problems`. */
   setMedia(media: PreviewMedia): void {
     this.avatarEffects = new Map();
+    this.avatarEffectSources = new Map();
     this.particleEffects = new Map();
     this.sceneEffects = new Map();
     this.problems = [];
     for (const { alias, effect } of media.avatarEffects) {
       try {
         this.avatarEffects.set(alias, effectSourceEntry(effect, alias));
+        this.avatarEffectSources.set(alias, effect);
       } catch (error) {
         this.problems.push(
           `Avatar Effect “${alias}” (${effect.name}): ${describeError(error)}`,
@@ -161,8 +167,21 @@ export class PreviewMediaProvider implements AnimaRuntimeMediaProvider {
     return entry && !isAttachmentVFXEntry(entry) ? entry : null;
   }
 
-  async loadAvatarVFX(runtimeId: string): Promise<AvatarVFXParsedEntry | null> {
-    return this.avatarEffects.get(runtimeId) ?? null;
+  /** With a clip event's override, the one use; null when it cannot play. */
+  async loadAvatarVFX(
+    runtimeId: string,
+    override?: AnimaPoseClipAvatarVFXOverride,
+  ): Promise<AvatarVFXParsedEntry | null> {
+    const effect = this.avatarEffectSources.get(runtimeId);
+    if (!override || !effect) return this.avatarEffects.get(runtimeId) ?? null;
+    try {
+      return effectSourceEntry(effect, runtimeId, override);
+    } catch (error) {
+      // The review tools report problems; the clip plays on without this use.
+      const problem = `Avatar Effect “${runtimeId}” (${effect.name}) override: ${describeError(error)}`;
+      if (!this.problems.includes(problem)) this.problems.push(problem);
+      return null;
+    }
   }
 
   listSceneVFX(kind: SceneVFXKind): readonly SceneVFXEntry[] {

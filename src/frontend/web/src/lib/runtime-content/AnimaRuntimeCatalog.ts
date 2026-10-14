@@ -6,6 +6,7 @@ import type {
 import { runtimeSourceHasFiles } from "./types";
 import type { RuntimePreparationSession } from "./RuntimeMountPreparer";
 import { createLogger } from "@/lib/logger";
+import type { AnimaPoseClipAvatarVFXOverride } from "@/lib/avatar/poses/animaPoseClip";
 import type {
   AvatarMotionCatalog,
   AvatarMotionClipDescriptor,
@@ -576,9 +577,12 @@ export class AnimaRuntimeCatalog
     return this.mediaCatalog.resolveAvatarVFX(runtimeId);
   }
 
-  loadAvatarVFX(runtimeId: string): Promise<AvatarVFXParsedEntry | null> {
+  loadAvatarVFX(
+    runtimeId: string,
+    override?: AnimaPoseClipAvatarVFXOverride,
+  ): Promise<AvatarVFXParsedEntry | null> {
     if (this.pending("avatar_vfx", runtimeId)) return Promise.resolve(null);
-    return this.mediaCatalog.loadAvatarVFX(runtimeId);
+    return this.mediaCatalog.loadAvatarVFX(runtimeId, override);
   }
 
   listAvatarVFX(): readonly AvatarVFXCatalogEntry[] {

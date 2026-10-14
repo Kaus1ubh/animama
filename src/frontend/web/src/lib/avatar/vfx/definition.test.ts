@@ -4,8 +4,11 @@ import conversion from "@/lib/content/fixtures/avatar-effect-conversion.json";
 import { resolveAvatarVFXAnimationConfig } from "./animation";
 import {
   AvatarEffectDefinitionError,
+  applyAvatarEffectOverride,
   parseAvatarEffectDefinition,
+  parseAvatarEffectUse,
 } from "./definition";
+import type { AnimaPoseClipAvatarVFXOverride } from "../poses/animaPoseClip";
 import v1Snapshot from "./fixtures/included-v1-runtime-entries.json";
 import { isAttachmentVFXEntry, type AvatarVFXParsedEntry } from "./types";
 
@@ -345,5 +348,207 @@ describe("parseAvatarEffectDefinition", () => {
         { id: "x", label: "X", description: "X", assetPath: "blob:x" },
       ),
     ).toThrow(AvatarEffectDefinitionError);
+  });
+});
+
+describe("per-use Avatar Effect overrides", () => {
+  const star = {
+    schema: "animama/avatar-effect/2",
+    region: "body",
+    attachment: { kind: "body", bone: "head", offset: { x: 0.1 }, size: 0.1 },
+    art: { image: "star.png" },
+    appearance: { opacity: 0.8 },
+    motion: { pulse: { scaleMin: 0.9, scaleMax: 1.1 } },
+    soundAlias: "bell",
+  };
+  const context = {
+    id: "kira_star",
+    label: "Kira Star",
+    description: "A star.",
+    assetPath: "blob:star",
+    sound: { onApply: "bell-cue" },
+  };
+  const cues: Record<string, string> = { bell: "bell-cue", tehe: "tehe-cue" };
+  const soundCue = (alias: string) => cues[alias];
+
+  it("replaces each part the override sets, whole", () => {
+    const merged = applyAvatarEffectOverride(star, {
+      attachment: { kind: "body", bone: "leftHand", size: 0.08 },
+      motion: {},
+    });
+    expect(merged.attachment).toEqual({
+      kind: "body",
+      bone: "leftHand",
+      size: 0.08,
+    });
+    expect(merged.motion).toEqual({});
+    expect(merged.appearance?.opacity).toBe(0.8);
+    expect(merged.soundAlias).toBe("bell");
+  });
+
+  it.each([
+    [
+      "body",
+      { kind: "body", bone: "head" },
+      { kind: "body", bone: "rightHand", facing: "bone" },
+      { kind: "body", bone: "rightHand", facing: "bone" },
+      "body",
+    ],
+    [
+      "face_surface",
+      { kind: "face_surface", part: "face_skin", area: "full" },
+      {
+        kind: "face_surface",
+        part: "face_skin",
+        area: "full",
+        mode: "replace",
+      },
+      { kind: "texture", applyMode: "replace" },
+      "full_face",
+    ],
+    [
+      "face_landmark",
+      { kind: "face_landmark", landmark: "mouth" },
+      { kind: "face_landmark", landmark: "top", position: "left" },
+      { kind: "hover", hoverKind: "box_hover", placement: "top-left" },
+      "emote",
+    ],
+    [
+      "sticker",
+      { kind: "sticker" },
+      { kind: "sticker", around: "body", size: 0.1 },
+      { kind: "sticker", around: "body", size: 0.1 },
+      "sticker",
+    ],
+    [
+      "silhouette",
+      { kind: "silhouette" },
+      { kind: "silhouette", fill: "tint" },
+      { kind: "silhouette", fill: "tint" },
+      "silhouette",
+    ],
+  ])(
+    "places, styles and moves a %s use by its override",
+    (_, attachment, overridden, expected, region) => {
+      const entry = parseAvatarEffectUse(
+        {
+          schema: "animama/avatar-effect/2",
+          region,
+          attachment,
+          art: { image: "art.png" },
+        },
+        {
+          attachment:
+            overridden as AnimaPoseClipAvatarVFXOverride["attachment"],
+          appearance: { opacity: 0.4 },
+          motion: { spin: { degreesPerSecond: 90 } },
+        },
+        context,
+      );
+      expect(entry).toMatchObject({
+        ...expected,
+        appearance: { opacity: 0.4 },
+      });
+      expect(entry.animationConfig?.rotationRadiansPerSecond).toBeCloseTo(
+        Math.PI / 2,
+      );
+    },
+  );
+
+  it.each([
+    [
+      "moves mirrored other-eye art off the eyes",
+      { kind: "face_landmark", landmark: "top", position: "middle" },
+    ],
+    [
+      "drops the mirror the other-eye art needs",
+      { kind: "face_landmark", landmark: "eyes", side: "left" },
+    ],
+  ])("refuses an override that %s", (_, attachment) => {
+    const eyes = {
+      schema: "animama/avatar-effect/2",
+      region: "eyes",
+      attachment: {
+        kind: "face_landmark",
+        landmark: "eyes",
+        side: "right",
+        mirror: true,
+      },
+      art: { image: "right.png", otherEyeImage: "left.png" },
+      faceOptions: { forceBlink: true },
+    };
+    expect(() =>
+      applyAvatarEffectOverride(eyes, {
+        attachment: attachment as AnimaPoseClipAvatarVFXOverride["attachment"],
+      }),
+    ).toThrow(expect.objectContaining({ field: "override.attachment" }));
+  });
+
+  it("refuses an override whose placement the effect's face options do not fit", () => {
+    expect(() =>
+      applyAvatarEffectOverride(
+        {
+          schema: "animama/avatar-effect/2",
+          region: "eyes",
+          attachment: { kind: "face_landmark", landmark: "eyes" },
+          art: { image: "eye.png" },
+          faceOptions: { forceBlink: true },
+        },
+        { attachment: { kind: "face_landmark", landmark: "mouth" } },
+      ),
+    ).toThrow(/forceBlink/);
+  });
+
+  it("refuses an override that changes the attachment kind", () => {
+    expect(() =>
+      applyAvatarEffectOverride(star, { attachment: { kind: "sticker" } }),
+    ).toThrow(
+      expect.objectContaining({
+        code: "avatar_effect_definition_invalid",
+        field: "override.attachment.kind",
+      }),
+    );
+  });
+
+  it("parses the use with its own placement and the sound it picks", () => {
+    const entry = parseAvatarEffectUse(
+      star,
+      {
+        attachment: { kind: "body", bone: "leftHand", size: 0.08 },
+        soundAlias: "tehe",
+      },
+      context,
+      soundCue,
+    );
+    expect(entry).toMatchObject({
+      id: "kira_star",
+      kind: "body",
+      bone: "leftHand",
+      size: 0.08,
+      offset: { x: 0, y: 0, z: 0 },
+      sound: { onApply: "tehe-cue" },
+    });
+  });
+
+  it("keeps the effect's resolved sound when the use names the effect's own", () => {
+    expect(
+      parseAvatarEffectUse(
+        star,
+        { soundAlias: "bell" },
+        context,
+        () => undefined,
+      ).sound,
+    ).toEqual({ onApply: "bell-cue" });
+  });
+
+  it("keeps the effect's sound unless the use picks another, and an unknown one is silent", () => {
+    const appearance = { appearance: { opacity: 0.5 } };
+    expect(
+      parseAvatarEffectUse(star, appearance, context, soundCue).sound,
+    ).toEqual({ onApply: "bell-cue" });
+    expect(
+      parseAvatarEffectUse(star, { soundAlias: "missing" }, context, soundCue)
+        .sound,
+    ).toBeUndefined();
   });
 });

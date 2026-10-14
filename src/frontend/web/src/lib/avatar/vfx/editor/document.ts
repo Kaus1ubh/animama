@@ -13,6 +13,8 @@ import {
 } from "@/lib/errors/apiError";
 import {
   AvatarEffectDefinitionError,
+  avatarEffectAcceptsOtherEyeImage,
+  avatarEffectFaceOptionNames,
   parseAvatarEffectDefinition,
   validateAvatarEffectDefinition,
 } from "@/lib/avatar/vfx/definition";
@@ -34,6 +36,9 @@ import {
 
 type Region = AvatarEffectDefinitionV2["region"];
 type FaceOptionName = keyof AvatarEffectFaceOptions;
+
+// The attachment rules live with the definition parser, which playback shares.
+export { avatarEffectAcceptsOtherEyeImage, avatarEffectFaceOptionNames };
 
 const FACE_REGIONS: ReadonlySet<Region> = new Set([
   "eyes",
@@ -181,44 +186,6 @@ export function normalizeAvatarEffectAttachment(
     if (value === null || value === undefined) delete next[key];
   }
   return next;
-}
-
-/** Face options the runtime honours for an attachment; others are not saved. */
-export function avatarEffectFaceOptionNames(
-  attachment: AvatarEffectEditorAttachment,
-): ReadonlySet<FaceOptionName> {
-  if (attachment.kind === "face_landmark") {
-    if (attachment.landmark === "eyes")
-      return new Set([
-        "forceBlink",
-        "hideEyeDetails",
-        "faceCleanup",
-        "skinBackdrop",
-        "hideParts",
-      ]);
-    if (attachment.landmark === "mouth")
-      return new Set(["faceCleanup", "skinBackdrop"]);
-  }
-  if (attachment.kind === "face_surface") {
-    if (attachment.area === "mouth") return new Set(["faceCleanup"]);
-    if (attachment.area === "full" || attachment.area === "eyes")
-      return new Set(["hideParts"]);
-  }
-  return new Set();
-}
-
-/** Whether `art.otherEyeImage` applies: a mirrored eye or paired face placement. */
-export function avatarEffectAcceptsOtherEyeImage(
-  attachment: AvatarEffectEditorAttachment,
-): boolean {
-  if (attachment.kind === "face_landmark")
-    return attachment.landmark === "eyes" && attachment.mirror === true;
-  if (attachment.kind === "face_surface")
-    return (
-      ["eyes", "undereye", "blush"].includes(attachment.area) &&
-      attachment.mirror === true
-    );
-  return false;
 }
 
 export function cloneAvatarEffectDocument(

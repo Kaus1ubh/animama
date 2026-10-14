@@ -682,7 +682,8 @@ function applyPoseCreatorClipVFXEvent({
     const session = runtimeState.session;
     let soundCueId: string | undefined;
     void (async () => {
-      const effect = (await catalog?.loadAvatarVFX(event.effectId)) ?? null;
+      const effect =
+        (await catalog?.loadAvatarVFX(event.effectId, event.override)) ?? null;
       soundCueId = effect?.sound?.onApply;
       return applyAvatarVFXEffectById({
         avatar: activeAvatar,

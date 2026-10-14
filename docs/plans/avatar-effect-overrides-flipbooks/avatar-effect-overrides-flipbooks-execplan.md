@@ -95,11 +95,12 @@ stem, so only the left twin's users change (D-4). That removes 25 effects
   phase issues #546–#552 created; dependencies installed.
 - [x] P1: Override contract and validation (D1, D2), 2026-10-14; review
   passed at round 2. D-8 is for owner review with the PR.
-- [ ] P2: Runtime playback with overrides (D3).
+- [x] P2: Runtime playback with overrides (D3), 2026-10-14; review passed at
+  round 2.
 - [ ] P3: Action creator editing (D4).
 - [ ] P4: Library merge and Local transition (D5, D6). Gate G1.
 - [x] P5: Flipbook frame tooling and skills (F1–F3, D7), 2026-10-14; review
-  passed at round 3.
+  passed at round 3. Commits: P1 `c32edd57`, P5 `7d02443c`.
 - [ ] P6: Flipbook conversions (F4). Gates G2 and G3.
 - [ ] P7: Documentation and acceptance.
 - [ ] Final integration review.
@@ -401,6 +402,93 @@ each is removed with its own event. An override changes placement, look and
 motion on each attachment kind. A failed merge skips with a diagnostic. The
 cache never holds a merged entry.
 Checks: `pnpm web:test` (affected suites), `pnpm check`, `pnpm web:lint`.
+
+#### P2 record
+
+- Issue #547; starting SHA `7d02443c`; 2026-10-14.
+- `applyAvatarEffectOverride` and `parseAvatarEffectUse` in
+  `FE/lib/avatar/vfx/definition.ts` follow the backend merge: each part
+  replaces the effect's part whole, a kind change throws with field
+  `override.attachment.kind`, and the merged definition must still satisfy
+  the two definition-level rules (other-eye art needs a mirrored eye or paired
+  placement; face options must suit the attachment), helpers now shared from
+  `definition.ts`. Attachment-level shape rules (for example `layout` on a
+  paired face area) are not rechecked here: the backend checks them for every
+  override at Save and package import, and `parseAvatarEffectDefinition`
+  already refuses the ones playback depends on. The parse reuses
+  `parseAvatarEffectDefinition`.
+  A use keeps the effect's sound unless it sets `soundAlias`; the media catalog
+  resolves that alias only through the effect's `runtime_reference_map`, so an
+  unknown or unmounted alias is silent.
+- `AnimaRuntimeMediaProvider.loadAvatarVFX(runtimeId, override?)`: the media
+  catalog keeps each loaded effect's resolved images and sound
+  (`avatarVFXContexts`) and parses the use from the raw definition, never
+  caching it under the effect id; the preview provider keeps each alias's
+  `EffectSource` (`effectSourceEntry` takes an override). Pass-throughs:
+  `AnimaRuntimeCatalog`, `PreviewRuntimeCatalogSession`. `Avatar` and
+  `PoseCreatorClipPreviewSync` pass `event.override`; `effects:render` and
+  `effects:bench` use `PreviewMediaProvider`, so they play overrides too.
+- A use the effect cannot play resolves to null, with a warning naming the
+  field; the Avatar then reports the event as not applied and the clip
+  continues (D-3).
+- Checks (2026-10-14): `pnpm check` exit 0; scoped ESLint and prettier on the
+  changed files; vitest on `src/lib/avatar`, `src/lib/runtime-content`,
+  `src/lib/content-preview`, `src/ui/pose-creator`, `src/ui/action-editor`
+  and `tests/avatar`: 154 files, 2023 passed (1 skipped), before the per-kind
+  test; `definition.test.ts` 16/16 after it.
+
+#### Code Review #1 Findings
+
+Reviewed source: working tree on `7d02443c` (P2 files), independent
+`sdlc-reviewer`, 2026-10-14. Checks: 173 targeted vitest tests, ESLint,
+prettier, `tsc` for app and scripts, backend and frontend merge probes.
+
+- **P2-R1-F1 (required):** the frontend merge did not recheck cross-field
+  rules, so playback played merged definitions the backend refuses (mirrored
+  other-eye art moved to a box landmark or unmirrored; face options on the
+  wrong attachment). The record's "mirror the backend merge" was inaccurate.
+- P2-R1-F2 (optional): the preview provider discarded the error of a use it
+  could not play, so the review tools lost the field.
+- P2-R1-F3 (optional, tests): no `body` row in the per-kind table; `as never`
+  hid test-data types; the skip test does not assert the warning.
+- P2-R1-F4 (optional): an override naming the effect's own sound resolved
+  more strictly than the default sound.
+- Confirmed: every provider and caller, object-URL lifetimes, concurrency, no
+  merged entry cached under the effect id, no boundary violations.
+
+#### Code Review #1 Revisions
+
+- F1 accepted: `avatarEffectAcceptsOtherEyeImage` and
+  `avatarEffectFaceOptionNames` moved from `vfx/editor/document.ts` to
+  `vfx/definition.ts` (re-exported, so the creator is unchanged; avoids a
+  circular import); `applyAvatarEffectOverride` refuses a merged definition
+  that breaks either rule (field `override.attachment`); three tests. The
+  record is corrected and states why attachment-level rules are left to the
+  backend.
+- F2 accepted: the preview provider adds the error, with its field, to
+  `getProblems()`; test.
+- F3 accepted in part: `body` row added and test data typed; the warning
+  assertion is not added (logger output is not part of the contract).
+- F4 accepted: an override that names the effect's own sound keeps the
+  effect's resolved sound.
+- Verification: vitest on `src/lib/avatar`, `src/lib/runtime-content`,
+  `src/lib/content-preview`, `src/ui/pose-creator`,
+  `src/ui/avatar-effect-creator`, `src/ui/action-editor`, `tests/avatar`: 165
+  files, 2081 passed (1 skipped); `pnpm check` exit 0; scoped ESLint and
+  prettier clean. Repair budget: one round used.
+
+#### Code Review #2 Findings
+
+Targeted recheck (repair round 1), 2026-10-14: F1 holds (both probes refused
+with `override.attachment`, matching the backend rules), the record is
+accurate, F2 and F4 hold. Optional notes: `effects:render` copied the
+provider's problems before clip events loaded, so it still dropped an override
+problem; no test for an override naming the effect's own sound. Checks: 925
+vitest tests, `tsc` for app and scripts, scoped ESLint and prettier. Result:
+**pass**. Both notes applied afterwards: the render report reads
+`getProblems()` when it reports, and a test pins the own-sound case
+(`effect-render.browser.test.mjs` 4/4, `definition.test.ts` 21/21, scripts
+`tsc` clean).
 
 ### P3 — Action creator editing (D4)
 

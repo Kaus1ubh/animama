@@ -9,7 +9,10 @@ import type {
   AnimaPose,
   ResolvedAnimaPose,
 } from "@/lib/avatar/poses/animaPose";
-import type { AnimaPoseClipV2 } from "@/lib/avatar/poses/animaPoseClip";
+import type {
+  AnimaPoseClipAvatarVFXOverride,
+  AnimaPoseClipV2,
+} from "@/lib/avatar/poses/animaPoseClip";
 import type { NormalizedEmotionReactionIntensity } from "@/lib/avatar/reactionClips";
 import type { EmotionRuntimeState } from "@/lib/emotion";
 import type {
@@ -174,8 +177,11 @@ export class PreviewRuntimeCatalogSession
     return this.media.resolveAvatarVFX(runtimeId);
   }
 
-  loadAvatarVFX(runtimeId: string): Promise<AvatarVFXParsedEntry | null> {
-    return this.media.loadAvatarVFX(runtimeId);
+  loadAvatarVFX(
+    runtimeId: string,
+    override?: AnimaPoseClipAvatarVFXOverride,
+  ): Promise<AvatarVFXParsedEntry | null> {
+    return this.media.loadAvatarVFX(runtimeId, override);
   }
 
   listSceneVFX(kind: SceneVFXKind): readonly SceneVFXEntry[] {

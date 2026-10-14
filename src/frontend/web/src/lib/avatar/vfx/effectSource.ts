@@ -1,4 +1,8 @@
-import { parseAvatarEffectDefinition } from "./definition";
+import type { AnimaPoseClipAvatarVFXOverride } from "../poses/animaPoseClip/clipVocabulary";
+import {
+  parseAvatarEffectDefinition,
+  parseAvatarEffectUse,
+} from "./definition";
 import type { AvatarVFXParsedEntry } from "./types";
 
 /**
@@ -20,14 +24,16 @@ export type EffectSource = {
 /**
  * Parse a source the same way runtime catalog loading parses a stored `/2`
  * definition. `id` is the runtime id: the content id for a source applied on
- * its own, or the dependency alias a clip event names. Throws
- * `AvatarEffectDefinitionError` with the offending field.
+ * its own, or the dependency alias a clip event names. With a clip event's
+ * `override`, the entry is that one use. Throws `AvatarEffectDefinitionError`
+ * with the offending field.
  */
 export function effectSourceEntry(
   effect: EffectSource,
   id: string = effect.contentId,
+  override?: AnimaPoseClipAvatarVFXOverride,
 ): AvatarVFXParsedEntry {
-  return parseAvatarEffectDefinition(effect.definition, {
+  const context = {
     id,
     label: effect.name,
     description: effect.description || effect.name,
@@ -35,5 +41,8 @@ export function effectSourceEntry(
     ...(effect.otherImageUrl
       ? { otherEyeAssetPath: effect.otherImageUrl }
       : {}),
-  });
+  };
+  return override
+    ? parseAvatarEffectUse(effect.definition, override, context)
+    : parseAvatarEffectDefinition(effect.definition, context);
 }

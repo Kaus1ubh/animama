@@ -43,6 +43,7 @@ function fixture(player: "gesture" | "reaction") {
     avatar.setReactionClipExternalEventSink({ playSfx });
   }
   return {
+    avatar,
     sink,
     effect,
     playSfx,
@@ -64,6 +65,62 @@ const context = {
 describe.each(["gesture", "reaction"] as const)(
   "%s accompanying audio",
   (player) => {
+    it("loads the effect with the event's override", async () => {
+      const { sink, effect, loadAvatarVFX } = fixture(player);
+      const override = { appearance: { opacity: 0.5 } };
+      await sink.applyAvatarVFX?.(
+        {
+          id: "event",
+          time: 0,
+          kind: "avatar_vfx",
+          effectId: effect.id,
+          override,
+        },
+        context,
+      );
+      expect(loadAvatarVFX).toHaveBeenCalledWith(effect.id, override);
+    });
+
+    it("plays two uses of one effect together and clears each on its own", async () => {
+      const { sink, effect, loadAvatarVFX, applyHoverVFX, avatar } =
+        fixture(player);
+      loadAvatarVFX.mockImplementation(async (_id, override) => ({
+        ...effect,
+        appearance: {
+          ...effect.appearance,
+          opacity: override.appearance.opacity,
+        },
+      }));
+      const use = (id: string, opacity: number) =>
+        [
+          {
+            id,
+            time: 0,
+            kind: "avatar_vfx" as const,
+            effectId: effect.id,
+            override: { appearance: { opacity } },
+          },
+          { ...context, eventId: id, appliedId: `clip:${id}` },
+        ] as const;
+      const left = use("left", 0.4);
+      const right = use("right", 0.9);
+      await sink.applyAvatarVFX?.(...left);
+      await sink.applyAvatarVFX?.(...right);
+      expect(
+        applyHoverVFX.mock.calls.map(([request]) => [
+          request.effectId,
+          request.effectEntry.appearance.opacity,
+        ]),
+      ).toEqual([
+        ["clip:left", 0.4],
+        ["clip:right", 0.9],
+      ]);
+      const removeEffect = vi.mocked(avatar.vfxController!.removeEffect);
+      removeEffect.mockClear();
+      sink.clearAvatarVFX?.(...left);
+      expect(removeEffect.mock.calls).toEqual([["clip:left"]]);
+    });
+
     it("does not apply a visual or its sound after an idle occurrence is cancelled during loading", async () => {
       const { sink, effect, loadAvatarVFX, applyHoverVFX, playSfx } =
         fixture(player);
