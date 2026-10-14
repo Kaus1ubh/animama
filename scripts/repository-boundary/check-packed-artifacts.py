@@ -118,7 +118,7 @@ def run(command: list[str], *, cwd: Path, logs: Path, name: str, env: dict) -> N
         result = subprocess.run(command, cwd=cwd, env=env, stdout=stream, stderr=subprocess.STDOUT)
     if result.returncode:
         tail = "\n".join(output.read_text(errors="replace").splitlines()[-35:])
-        raise RuntimeError(f"{name} failed ({result.returncode}); {output}\n{tail}")
+        raise RuntimeError(f"{name} failed ({result.returncode}) after {PHASES[-1]['seconds']} s; {output}\n{tail}")
     print(f"{name}: passed in {PHASES[-1]['seconds']} s", flush=True)
 
 

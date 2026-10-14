@@ -90,7 +90,7 @@ class PackedArtifactTests(unittest.TestCase):
         packed.PHASES.clear()
         self.addCleanup(packed.PHASES.clear)
         packed.run([sys.executable, "-c", "pass"], cwd=logs, logs=logs, name="quick", env={})
-        with self.assertRaisesRegex(RuntimeError, "broken failed"):
+        with self.assertRaisesRegex(RuntimeError, r"broken failed \(3\) after [0-9.]+ s"):
             packed.run([sys.executable, "-c", "raise SystemExit(3)"], cwd=logs, logs=logs, name="broken", env={})
         self.assertEqual([phase["name"] for phase in packed.PHASES], ["quick", "broken"])
         self.assertTrue(all(phase["seconds"] >= 0 for phase in packed.PHASES))

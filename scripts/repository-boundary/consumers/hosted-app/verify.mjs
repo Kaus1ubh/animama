@@ -7,13 +7,15 @@ import { createApplicationServer } from "./server.mjs";
 import { observeBrowser } from "./measurements.mjs";
 import { STEP_TIMEOUT_MS, exerciseClipCompatibility } from "./clips.mjs";
 
-// Wall time of each journey phase in run order, from process start.
+// Wall time of each journey phase in run order, from when this script starts.
 const phases = [];
 let phaseStarted = Date.now();
 const endPhase = (name) => {
     const now = Date.now();
     phases.push({ name, seconds: (now - phaseStarted) / 1000 });
-    console.log(JSON.stringify({ timing: name, seconds: phases.at(-1).seconds }));
+    console.log(
+        JSON.stringify({ timing: name, seconds: phases.at(-1).seconds }),
+    );
     phaseStarted = now;
 };
 

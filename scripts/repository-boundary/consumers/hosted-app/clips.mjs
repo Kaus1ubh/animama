@@ -192,22 +192,6 @@ export async function exerciseClipCompatibility(
         acceptDownloads: true,
     });
     context.setDefaultTimeout(STEP_TIMEOUT_MS);
-    // This journey checks clip data, not the Gesture creator's 3D preview.
-    // Software WebGL on a two-core runner spent most of each frame drawing
-    // that preview, so every step here waited seconds for a frame. A hidden
-    // host has no size, so the preview draws nothing. The main journey in
-    // verify.mjs checks avatar rendering.
-    await context.addInitScript(() => {
-        // Init scripts run before the document has any elements.
-        const hide = () => {
-            const style = document.createElement("style");
-            style.textContent =
-                '[data-testid="action-editor-canvas"] { display: none !important; }';
-            document.head.append(style);
-        };
-        if (document.head) hide();
-        else document.addEventListener("DOMContentLoaded", hide, { once: true });
-    });
     const owner = "artifact-clip-owner",
         admission = await server.admit(owner, true);
     server.initializeClipFixtures(admission);
@@ -413,8 +397,10 @@ export async function exerciseClipCompatibility(
                 });
                 // Unload the app but keep the tab until the context closes:
                 // closing a tab that showed the app held up the next page
-                // for 15-20 seconds on a two-core runner.
+                // for 15-20 seconds on a two-core runner. A later failure
+                // has no page of this clip to capture.
                 await page.goto("about:blank");
+                page = undefined;
                 endPhase(`clip-${labels[index]}-${kind}`);
             }
         }
@@ -446,8 +432,8 @@ export async function exerciseClipCompatibility(
             ).length,
             0,
         );
-        // Sign out from the Library: the Anima page's Avatar would slow every
-        // step for the same reason as the creator's preview.
+        // Sign out from the Library: drawing the Anima page's Avatar in
+        // software WebGL slowed each step here to seconds.
         page = await context.newPage();
         await page.goto(server.origin + "/library");
         await page
