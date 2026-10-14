@@ -360,7 +360,7 @@ def skipped(plan):
 
 
 class SuiteSelectionTests(unittest.TestCase):
-    """Full PR runs skip expensive suites only when none of their inputs changed."""
+    """Ordinary runs skip each expensive suite unless its own inputs changed."""
 
     def test_paths_select_only_the_suites_they_can_affect(self):
         tooling, hosted = {"browser-tooling"}, {"browser-hosted"}
@@ -409,9 +409,6 @@ class SuiteSelectionTests(unittest.TestCase):
             "src/frontend/web/tests/fixtures/retained-screens/main.tsx": hosted,
             "src/frontend/web/src/app/hosted-runtime/hosted-composition.ts": hosted,
             "src/frontend/web/src/main.hosted.tsx": hosted,
-            # The promotion suite's own packaging and consumer scripts.
-            "scripts/package-sets/build.py": {"promotion"},
-            "scripts/repository-boundary/consumers/hosted-app/verify.mjs": {"promotion"},
             # Shared browser setup, also copied into the whole-application consumer.
             "src/frontend/web/scripts/fixtures/hosted-workflows-http.mjs": set(ALL_SUITES),
             # Read by the Vite configuration that every browser file loads.
@@ -433,6 +430,9 @@ class SuiteSelectionTests(unittest.TestCase):
             "src/frontend/web/vite.config.ts",
             "src/frontend/web/vite-plugins/app-version.ts",
             "src/frontend/patches/vite.patch",
+            # The promotion suite's own scripts: a set always comes from a full run.
+            "scripts/package-sets/build.py",
+            "scripts/repository-boundary/consumers/hosted-app/verify.mjs",
         ):
             self.assertEqual(select_suites([modified(path)]), set(ALL_SUITES), path)
         for changes in (None, [], [{}], [None], [modified("docs/a.md") | {"extra": True}], [modified("../a")]):
@@ -470,8 +470,6 @@ class SuiteSelectionTests(unittest.TestCase):
             "pull_request", event(), [modified("src/frontend/web/tests/fixtures/retained-screens/a.tsx")]
         )
         self.assertEqual((hosted["mode"], skipped(hosted)), ("selective", ["browser-tooling", "promotion"]))
-        packaging = choose_plan("pull_request", event(), [modified("scripts/package-sets/build.py")])
-        self.assertEqual((packaging["mode"], skipped(packaging)), ("selective", ["browser-hosted", "browser-tooling"]))
 
     def test_promotion_runs_and_everything_inputs_keep_full(self):
         full = sorted(BASE | PROFILES["full"])
@@ -487,7 +485,12 @@ class SuiteSelectionTests(unittest.TestCase):
         ):
             plan = choose_plan(name, value, cheap, **kwargs)
             self.assertEqual((plan["mode"], plan["required"], plan["skipped"]), ("full", full, []), name)
-        for path in ("scripts/ci/validation.py", "uv.lock", "models/browser-speech/manifest.json"):
+        for path in (
+            "scripts/ci/validation.py",
+            "uv.lock",
+            "models/browser-speech/manifest.json",
+            "scripts/package-sets/build.py",
+        ):
             for name, value in (("pull_request", event()), ("push", main_event())):
                 plan = choose_plan(name, value, [modified(path)])
                 self.assertEqual((plan["mode"], plan["required"], plan["skipped"]), ("full", full, []), path)
@@ -502,6 +505,8 @@ class SuiteSelectionTests(unittest.TestCase):
         plan = choose_plan("pull_request", event(), changes, excluded_paths=excluded, special_paths=[])
         self.assertEqual(plan["mode"], "selective")
         plan = choose_plan("pull_request", event(), changes, excluded_paths=excluded, special_paths=excluded)
+        self.assertEqual(plan["mode"], "full")
+        plan = choose_plan("push", main_event(), changes, excluded_paths=excluded, special_paths=excluded)
         self.assertEqual(plan["mode"], "full")
         self.assertEqual(choose_plan("pull_request", event(), changes, excluded_paths=excluded)["mode"], "full")
 

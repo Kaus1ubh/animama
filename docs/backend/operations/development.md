@@ -694,7 +694,7 @@ Dispatch on `main` to produce a set for promotion.
 
 | Suite | Steps | An ordinary run includes it when |
 | --- | --- | --- |
-| `promotion` | Package build, installed and whole-application consumers, baseline comparison, set upload | `scripts/package-sets/` or `scripts/repository-boundary/` changed |
+| `promotion` | Package build, installed and whole-application consumers, baseline comparison, set upload | Never: it runs only with every suite |
 | `browser-hosted` | Hosted-composition, hosted-workflows and retained-screens browser files | Their tests or fixtures, `web/src/app/hosted-runtime/` or `web/src/main.hosted.tsx` changed |
 | `browser-tooling` | Animation and effect preview, render, check and thumbnail browser files | The tools' `animation*`/`effect*` sources under `web/scripts/`, their tests or the preview-session modules changed |
 
@@ -705,10 +705,15 @@ regression caused by such a change surfaces on the next promotion run. Use
 `ci:full` on a PR whose packaging, tools or hosted screens need proof before
 merge.
 
-Every suite still runs on an ordinary run when workflow, `scripts/ci`,
-lockfile, manifest, Vite configuration or plugin, patch, model or browser-setup
-inputs change, or when links, executables or LFS inputs do. Such a run records
-`full`. `scripts/ci/validation_policy.py` owns the exact tables. Every other
+Every suite still runs on an ordinary run when the workflow, `scripts/ci`, the
+packaging and consumer scripts (`scripts/package-sets/`,
+`scripts/repository-boundary/`), the lockfiles, the root, frontend, web or
+desktop `package.json`, the Vite configuration or plugins, patches, models or
+the shared browser setup change, or when links, executables or LFS inputs do.
+Such a run records `full`, so every package set comes from a `full` run.
+Promotion runs mostly rebuild their baseline set: `main` pushes are usually
+selective and retain none. After a selective PR the `main` push is selective
+too, not `reused`. `scripts/ci/validation_policy.py` owns the exact tables. Every other
 check runs on every full or selective run, including the backend suite, Vitest,
 the remaining browser files, the web build and the accountless smoke.
 

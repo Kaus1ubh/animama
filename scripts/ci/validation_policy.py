@@ -196,7 +196,6 @@ def classify(changes: object, excluded_paths: Iterable[str] = ()) -> str:
 
 
 ALL_SUITES = frozenset(SUITES)
-PROMOTION = frozenset({"promotion"})
 TOOLING = frozenset({"browser-tooling"})
 HOSTED = frozenset({"browser-hosted"})
 NONE: frozenset[str] = frozenset()
@@ -207,10 +206,13 @@ NONE: frozenset[str] = frozenset()
 # accepted (2026-10-14, #503) that packaging, authoring-tool and hosted-screen
 # regressions they cause surface on the next promotion run. Changes to how
 # checks run, which dependencies resolve or what every browser test loads
-# still select every suite.
+# still select every suite, so a package set always comes from a `full` run.
 EVERYTHING_PREFIXES = (
     ".github/",
     "scripts/ci/",
+    # The promotion suite's own packaging and consumer scripts.
+    "scripts/package-sets/",
+    "scripts/repository-boundary/",
     "src/frontend/patches/",
     "src/frontend/web/vite-plugins/",
     # The Vite configuration verifies and serves these speech model inputs.
@@ -228,8 +230,6 @@ EVERYTHING_FILES = {
     # Read by the Vite configuration as well as the hosted build.
     "src/frontend/desktop/package.json",
 }
-# The promotion suite's own packaging and consumer scripts.
-PROMOTION_PREFIXES = ("scripts/package-sets/", "scripts/repository-boundary/")
 # Preview-session modules that only the authoring tools load.
 TOOLING_PREFIXES = ("src/frontend/web/src/lib/avatar/motion-authoring/preview/",)
 # The hosted composition and the fixtures its browser files mount.
@@ -264,8 +264,6 @@ def _path_suites(path: str) -> frozenset[str]:
         return ALL_SUITES
     if path.startswith(WEB_SCRIPTS):
         return _web_script_suites(path.removeprefix(WEB_SCRIPTS))
-    if path.startswith(PROMOTION_PREFIXES):
-        return PROMOTION
     if path.startswith(TOOLING_PREFIXES):
         return TOOLING
     if path in HOSTED_FILES or path.startswith(HOSTED_PREFIXES):
