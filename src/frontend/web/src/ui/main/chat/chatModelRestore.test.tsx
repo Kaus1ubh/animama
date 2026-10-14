@@ -49,7 +49,8 @@ describe("restoring a chat's model", () => {
     });
     const transport = {
       baseUrl: "https://chat-fixture.invalid",
-      fetch: async (request: Request) => {
+      fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
+        const request = new Request(input, init);
         const path = new URL(request.url).pathname;
         if (request.method === "PATCH" && path.endsWith("/chat-profile")) {
           await patched;
@@ -90,7 +91,7 @@ describe("restoring a chat's model", () => {
         runtime: {
           runtimeRevision: "revision",
           canChat: true,
-          remountLatest: () => {},
+          remountLatest: async () => {},
         },
         effects: textOnlyChatEffects,
         openDraftChatRoute: () => {},
