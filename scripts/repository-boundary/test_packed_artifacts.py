@@ -3,6 +3,7 @@
 import importlib.util
 import io
 import json
+import sys
 import tarfile
 import tempfile
 import unittest
@@ -83,6 +84,16 @@ class PackedArtifactTests(unittest.TestCase):
         inventory.unlink()
         with self.assertRaises(FileNotFoundError):
             packed.dependency_receipt([inventory], work)
+
+    def test_each_step_records_its_wall_time_even_when_it_fails(self):
+        logs = Path(self.temp.name)
+        packed.PHASES.clear()
+        self.addCleanup(packed.PHASES.clear)
+        packed.run([sys.executable, "-c", "pass"], cwd=logs, logs=logs, name="quick", env={})
+        with self.assertRaisesRegex(RuntimeError, "broken failed"):
+            packed.run([sys.executable, "-c", "raise SystemExit(3)"], cwd=logs, logs=logs, name="broken", env={})
+        self.assertEqual([phase["name"] for phase in packed.PHASES], ["quick", "broken"])
+        self.assertTrue(all(phase["seconds"] >= 0 for phase in packed.PHASES))
 
 
 if __name__ == "__main__":

@@ -83,6 +83,14 @@ The whole-application harness admits each new fixture owner with Text-to-Speech
 off, so only its voice journeys load Pocket TTS and its first-avatar measurements
 exclude the warm-up that the product default adds. Each browser step may take 45
 seconds, enough for a two-core CI runner; wall times are measured separately.
+The clip journey checks clip data, so it hides the Gesture creator's 3D preview
+and signs its owner out from the Library: software WebGL drawing an Avatar slowed
+each of its steps to seconds.
+
+To find slow steps, read the consumer `summary.json` `phases` (each consumer
+step's wall time, in run order) and the browser receipt's `phase_seconds` (each
+journey phase, including every clip selection). The browser log prints the same
+phase times as it runs.
 
 In both modes the route, static, shell, avatar and voice checks and their
 measurements run on the candidate. Only the open-tab late worker and rollback
