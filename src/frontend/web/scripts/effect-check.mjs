@@ -204,6 +204,24 @@ export async function builtInTextureCollisions(effect, builtInReferences) {
   return collisions;
 }
 
+const englishCatalogs = new WeakMap();
+
+/**
+ * Load the app's English catalogs into a Vite SSR loader once. The creator's
+ * validation words its issues through react-i18next's shared instance, which
+ * only the app's entry point otherwise creates.
+ */
+function loadEnglishCatalogs(server) {
+  if (!englishCatalogs.has(server))
+    englishCatalogs.set(
+      server,
+      server
+        .ssrLoadModule("/src/i18n/web-i18n.ts")
+        .then(({ createWebI18n }) => createWebI18n("en")),
+    );
+  return englishCatalogs.get(server);
+}
+
 /**
  * Report lines on a Particle Effect as the creator's Save would judge it:
  * the content readiness errors (limits, and image references that must name
@@ -211,6 +229,7 @@ export async function builtInTextureCollisions(effect, builtInReferences) {
  * against the declared budget and the runtime limit.
  */
 export async function particleSourceLines(effect, server) {
+  await loadEnglishCatalogs(server);
   const manifest = JSON.parse(await readFile(effect.manifestPath, "utf8"));
   const editor = await server.ssrLoadModule(
     "/src/lib/avatar/particle-vfx/editor/index.ts",
