@@ -948,6 +948,7 @@ export function clonePoseCreatorClipEvent(
       ...(event.playAccompanyingSound !== undefined
         ? { playAccompanyingSound: event.playAccompanyingSound }
         : {}),
+      ...(event.override ? { override: structuredClone(event.override) } : {}),
     };
   }
 

@@ -25,6 +25,7 @@ from animama.app.contracts.avatar_effect import (
     AVATAR_EFFECT_SCHEMA_V2,
     MAX_DEFINITION_BYTES as MAX_AVATAR_EFFECT_DEFINITION_BYTES,
     AvatarEffectDefinitionV2,
+    project_avatar_effect_definition,
 )
 from animama.app.contracts.content_package import NON_PORTABLE_REFERENCES_CAPABILITY
 from animama.app.contracts.scene_effect_limits import SCENE_EFFECT_LIMITS
@@ -49,6 +50,7 @@ from .avatar_effect_conversion import (
     PACKAGE_CONVERSION_HINT,
     avatar_effect_validation_error,
 )
+from .avatar_effect_overrides import check_clip_effect_overrides
 from .clip_format import (
     ANIMA_POSE_CLIP_SCHEMA,
     CLIP_FORMAT_UNSUPPORTED,
@@ -808,6 +810,7 @@ def _clip_event_dependencies(
         "scene_vfx": ("presetId", ContentKind.SCENE_EFFECT),
         "particle_vfx": ("effectId", ContentKind.PARTICLE_EFFECT),
     }
+    effects: dict[str, AvatarEffectDefinitionV2 | None] = {}
     for event in value.get("events", []):
         field, kind = targets[event["kind"]]
         selector = normalized_action_selector(event[field])
@@ -816,6 +819,10 @@ def _clip_event_dependencies(
             len(matches) == 1 and matches[0].kind is kind,
             "Action event selector must name one bundled dependency of the matching kind",
         )
+        if kind is ContentKind.AVATAR_EFFECT:
+            target = documents.get(matches[0].ref) if documents is not None else None
+            if isinstance(target, AvatarEffectDocumentV1):
+                effects[event[field]] = project_avatar_effect_definition(target.definition)[0]
         if kind is ContentKind.SCENE_EFFECT:
             target = documents.get(matches[0].ref) if documents is not None else None
             _require(
@@ -824,6 +831,7 @@ def _clip_event_dependencies(
                 and target.definition.get("kind") == event["sceneKind"],
                 "Action scene selector must resolve to the requested bundled Scene Effect primitive",
             )
+    check_clip_effect_overrides(value, effects, code="package_definition_invalid")
 
 
 def _clip(
@@ -870,7 +878,7 @@ def _clip(
         validate_clip_v2_timeline(timeline)
     except ContentDocumentError as exc:
         raise ContentDocumentError(
-            "package_definition_invalid", str(exc).replace("Gesture clip", "Action clip")
+            "package_definition_invalid", str(exc).replace("Gesture clip", "Action clip"), field=exc.field
         ) from exc
     _clip_event_dependencies(value, document, documents)
     # Tracks hold values; only the base pose names a built-in Pose.

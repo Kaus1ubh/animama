@@ -384,14 +384,14 @@ _ATTACHMENT_TAGS = frozenset({"face_surface", "face_landmark", "body", "sticker"
 _RELATIVE_PATH = re.compile(r"^([A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)*): (.+)$", re.DOTALL)
 
 
-def avatar_effect_error_path(location: tuple[Any, ...]) -> str:
-    """Map a Pydantic error location to the JSON path under ``definition``.
+def avatar_effect_error_path(location: tuple[Any, ...], *, root: str = "definition") -> str:
+    """Map a Pydantic error location to the JSON path under ``root``.
 
     Discriminated-union tags (``attachment.face_surface``) are not JSON keys, so
     they are removed: ``("attachment", "face_surface", "offset", "x")`` becomes
     ``definition.attachment.offset.x``.
     """
-    path = "definition"
+    path = root
     previous: Any = None
     for part in location:
         if previous == "attachment" and part in _ATTACHMENT_TAGS:
@@ -402,18 +402,24 @@ def avatar_effect_error_path(location: tuple[Any, ...]) -> str:
     return path
 
 
-def avatar_effect_validation_error(exc: ValidationError) -> tuple[str, str]:
+def avatar_effect_value_error(path: str, message: str) -> tuple[str, str]:
+    """Append the relative path a cross-field message starts with (``"layout: …"``) to ``path``."""
+    if match := _RELATIVE_PATH.match(message):
+        return f"{path}.{match.group(1)}", match.group(2)
+    return path, message
+
+
+def avatar_effect_validation_error(exc: ValidationError, *, root: str = "definition") -> tuple[str, str]:
     """Return ``(json_path, message)`` for the first error of a ``/2`` validation.
 
     Cross-field validators prefix their message with a path relative to the
     model that raised it, which is appended to the error location.
     """
     error = exc.errors()[0]
-    path = avatar_effect_error_path(tuple(error["loc"]))
+    path = avatar_effect_error_path(tuple(error["loc"]), root=root)
     message = str(error["msg"]).removeprefix("Value error, ")
-    if error["type"] == "value_error" and (match := _RELATIVE_PATH.match(message)):
-        path = f"{path}.{match.group(1)}"
-        message = match.group(2)
+    if error["type"] == "value_error":
+        return avatar_effect_value_error(path, message)
     return path, message
 
 
@@ -428,5 +434,6 @@ __all__ = [
     "CONVERSION_HINT",
     "avatar_effect_error_path",
     "avatar_effect_validation_error",
+    "avatar_effect_value_error",
     "convert_avatar_effect_definition",
 ]

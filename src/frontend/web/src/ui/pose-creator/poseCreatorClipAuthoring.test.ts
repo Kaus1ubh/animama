@@ -13,6 +13,7 @@ import {
   validatePoseCreatorClipDraft,
   isPoseCreatorBaseKeyframe,
   patchPoseCreatorClipEventDraft,
+  clonePoseCreatorClipEvent,
 } from "./poseCreatorClipAuthoring";
 import { insertPoseCreatorBeat } from "./poseCreatorClipMotion";
 
@@ -319,4 +320,24 @@ it("defaults every new VFX event to ending with its Action", () => {
     }),
   ];
   for (const event of events) expect(event).not.toHaveProperty("duration");
+});
+
+describe("clonePoseCreatorClipEvent", () => {
+  it("copies an avatar effect override without sharing it", () => {
+    const event = {
+      id: "star",
+      time: 0.5,
+      kind: "avatar_vfx" as const,
+      effectId: "star",
+      override: {
+        attachment: { kind: "body" as const, bone: "leftHand" as const },
+        soundAlias: "tehe",
+      },
+    };
+    const copy = clonePoseCreatorClipEvent(event);
+    expect(copy).toEqual(event);
+    expect(copy.kind === "avatar_vfx" && copy.override).not.toBe(
+      event.override,
+    );
+  });
 });
