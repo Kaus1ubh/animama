@@ -351,8 +351,9 @@ clip cleanup and `presentation.disable_vfx`.
 
 ## 7) Timing, fades and motion
 
-The effect owns its own motion: presets, keyframes and flipbook frames run on
-its own timeline from the moment it applies. Pulse multiplies scale; spin
+The effect sets its default motion (an event may override it for one use):
+presets, keyframes and flipbook frames run on its own timeline from the moment
+it applies. Pulse multiplies scale; spin
 below one turn rocks back and forth and otherwise wraps; drift moves
 continuously, in fractions of the art's size per second, with no return.
 Planes animate their transforms; composites redraw around each placement's own
@@ -780,6 +781,7 @@ per render; a silhouette adds one skinned draw per overlaid primitive (about
 | Image refused or effect skipped on load                                                                    | It exceeds the image limits; resize it.                                                                                                                                                                                    |
 | Floating art saved with a sideways or forward offset sits mirrored on a VRM 0 Avatar                       | It was saved when floating offsets followed the head's model axes. Floating offsets use the Avatar's front frame on every model; drag it back or flip the sign of `offset.x`/`offset.z`.                                   |
 | A mirrored eye moved the wrong way after conversion                                                        | `avatar_effect_offset_mirrored`: `/2` mirrors x offsets on the mirrored copy. Adjust the offset.                                                                                                                           |
+| An effect event never shows; the console warns "Avatar VFX override cannot play"                           | The event's override makes a definition the effect cannot play (Save names it: `action_effect_override_invalid`, `event.<id>.override…`). Fix that field, or use **Reset to effect** under the event's **This use**.       |
 | Works in the creator but not in chat                                                                       | The effect must be in a saved, selected Gesture or Reaction in the mounted catalog, and Disable VFX must be off.                                                                                                           |
 
 ## 12) Limitations

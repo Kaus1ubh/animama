@@ -21,8 +21,9 @@ with ``pnpm -s effects promote``. It:
 - adds licence and source-review records for the new family files and points
   Action provenance texts at the families.
 
-Mirror pairs keep their right-hand effect; only the left twin is removed. The
-run is idempotent: a second run changes nothing. It never deletes files.
+Mirror pairs keep their right-hand effect; only the left twin is removed.
+Before the variants were deleted, a second run changed nothing; the script
+never deletes files.
 
 It ran once on 2026-10-14, before the variants were deleted, and cannot run
 again now that they are gone; it records how the map and the families were made.

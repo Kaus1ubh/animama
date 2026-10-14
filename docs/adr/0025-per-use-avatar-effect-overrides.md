@@ -52,8 +52,8 @@ transform. The variants of one image often played different sounds, which
   way to remove a value; replacing whole parts reuses the existing models.
 - **Placement-only overrides.** Variants that differ in motion or sound would
   remain separate Library items.
-- **Merging only variants with the same sound** (17 effects instead of 9). It
-  keeps ADR 0022 unchanged but leaves visibly duplicate items.
+- **Merging only variants with the same sound.** It keeps ADR 0022 unchanged
+  but leaves visibly duplicate items, one per sound.
 - **Sounds as Action `sfx` events.** Licensed pack sounds are reachable only
   through effect edges and cannot be used by Local content.
 
@@ -77,3 +77,9 @@ transform. The variants of one image often played different sounds, which
   the checks Save, package import/export and clip validation share.
 - [`tests/fixtures/idle-playback-cases.json`](../../tests/fixtures/idle-playback-cases.json):
   override cases shared by the backend and frontend clip parsers.
+- [`resources/avatar-effect-merges.json`](../../src/backend/animama/resources/avatar-effect-merges.json):
+  each removed effect's family, override and sound;
+  [`tests/test_avatar_effect_merge_map.py`](../../tests/test_avatar_effect_merge_map.py)
+  proves each family with its override plays as the removed effect.
+- [`app/services/avatar_effect_merge_transition.py`](../../src/backend/animama/app/services/avatar_effect_merge_transition.py):
+  the Local content transition that rewrites Actions naming a removed effect.

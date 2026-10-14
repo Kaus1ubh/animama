@@ -102,11 +102,17 @@ effects (20 family variants and 4 left twins) and adds 5, so 75 → 56.
 - [x] P4: Library merge and Local transition (D5, D6), 2026-10-14; G1
   approved; review passed at round 2.
 - [x] P5: Flipbook frame tooling and skills (F1–F3, D7), 2026-10-14; review
-  passed at round 3. Commits: P1 `c32edd57`, P5 `7d02443c`, P2 `2c588cf8`.
+  passed at round 3.
 - [x] P6: Flipbook conversions (F4), 2026-10-14; G2 and G3 approved, 23
   promoted; review passed at round 3.
-- [ ] P7: Documentation and acceptance.
-- [ ] Final integration review.
+- [x] P7: Documentation and acceptance, 2026-10-14; the full `pnpm e2e:test`
+  is recorded in the P7 record.
+- [ ] Final integration review: round 1 found three required items, fixed
+  (see below); targeted recheck pending.
+
+Phase commits: P1 `c32edd57`, P5 `7d02443c`, P2 `2c588cf8`, P3 `31f627ce`,
+P4 `65355f18`, P6 `c15f3870`, P7 `fa7a3223` (docs) and `45a7e4cd` (gate
+fixes), and the final-review fixes after them.
 
 ## Surprises & Discoveries
 
@@ -1125,10 +1131,82 @@ Review #2 sections match. No findings. Result: **pass**.
 - Full local checks (below) and the full `pnpm e2e:test` on a purged built
   stack.
 
+#### P7 record
+
+Docs: GLOSSARY "Avatar Effect"; `docs/frontend/runtime/avatar-vfx.md` §1, §3
+step 4, §7 and §11; `sound.md`; `local-content-storage.md`;
+`typed-content-and-marketplace.md`; ADR 0025 is accepted and indexed
+(`fa7a3223`).
+
+Full local checks at `fa7a3223` (`45a7e4cd` fixed the two failures):
+- `uv run pytest -q -n auto`: 4257 passed, 29 skipped.
+- `make check`: failed at mypy, with four type errors in P4 code
+  (`avatar_effect_merges.py` and two tests). Fixed; it then passed.
+- `make audit-typed-content` and `uv run ruff check`: pass.
+- `pnpm check`, `pnpm web:lint`, `pnpm prettier:check`,
+  `pnpm desktop:check`, `pnpm build` and `pnpm openapi-ts:check`: pass.
+- `pnpm web:test`: 28 failures in `includedClipBaseline.test.ts`. They are
+  exactly the 28 Gestures P4 rewrote. Re-recording the baseline showed every
+  sample unchanged; only the file hashes moved. After the rebaseline, 4778
+  passed and 1 skipped.
+
+D4 export/import check (final review FI-R1-F2; the owner chose an API round
+trip plus a browser reopen), on the task stack:
+- Exported the Local Gesture "Fingers Crossed Custom" through
+  `/v1/content/package-exports`. The package kept both `avatar_vfx`
+  overrides, including `soundAlias`.
+- Imported it as "Fingers Crossed Custom-2" with a Local copy "Kira Star-2".
+  Both events' overrides are identical to the original's.
+- Reopened it in the Action creator in the browser pane. The left event's
+  **This use** shows Left hand, Right 14.7, Up 1.6 and Forward 8.2 cm, size
+  9 cm and rotation 10°.
+- The imported effect copy has no licensed sounds (ADR 0022), so no sound
+  choice shows and the stored `soundAlias` plays silent, as designed.
+
+Full `pnpm e2e:test` on a purged built stack: pending.
+
 ## Final integration review
 
 One full review of the combined scope against #543 acceptance, reusing still
 valid phase evidence. At most two repair rounds.
+
+#### Final Integration Review #1 Findings
+
+Independent `sdlc-reviewer`, at `fa7a3223`. No correctness, security or
+boundary defects across the phase seams.
+- **FI-R1-F1 (required):** shake_lines, drumroll_ticks and finger_gun_spark
+  descriptions told users to pair them with deleted Left twins.
+- **FI-R1-F2 (required):** D4's export and import were never exercised in
+  the browser.
+- **FI-R1-F3 (required):** the plan record was incomplete or stale:
+  - P7 progress was unchecked;
+  - phase commits were missing;
+  - the idempotence text still called the script rerunnable;
+  - the outcomes section was empty.
+- **Optional:**
+  - PR disclosure of the shipped counts (24 deleted, 75 → 56, 39 Actions)
+    against #543/#549's pre-D-9 text, and of D-8;
+  - ADR 0025's stale "17 instead of 9" and its missing evidence;
+  - §7's "owns its own motion";
+  - no troubleshooting row for an override that cannot play;
+  - the merge script docstring's contradiction;
+  - Impact Burst's held tip ring in fist-bump, the one user not rendered.
+
+#### Final Integration Review #1 Revisions
+
+- **FI-R1-F1:** accepted. The owner approved replacing the sentence with
+  "Gestures place it on either hand." in all three descriptions.
+- **FI-R1-F2:** accepted. The round trip and reopen are recorded in the P7
+  record.
+- **FI-R1-F3:** accepted. Progress, phase commits, idempotence, the P7
+  record and outcomes are updated.
+- **Optional items:**
+  - accepted: ADR 0025 (alternative reworded; merge map, equivalence test
+    and transition added to Evidence), §7 wording, a §11 row, and the script
+    docstring;
+  - PR disclosure: the PR body states the counts and D-8;
+  - Impact Burst: the owner approved the conversion; fist-bump is left for
+    the e2e and live passes.
 
 ## Validation and acceptance
 
@@ -1154,8 +1232,9 @@ Unless the owner approves a run, the PR states that no hosted checks ran.
 
 - **Contract:** an event without an override is unchanged everywhere, so
   existing content needs no migration for P1–P3.
-- **Included conversion:** the script is rerunnable (it skips users already
-  rewritten); its writes are reviewable Git changes, reverted with Git.
+- **Included conversion:** the script ran once (2026-10-14) and cannot run
+  again now that the variants are deleted; its writes are reviewable Git
+  changes, reverted with Git.
 - **Local transition:** idempotent per item and revision. Originals are
   retained under the transition operations root. A failed item keeps today's
   missing-effect behaviour.
@@ -1170,4 +1249,22 @@ Unless the owner approves a run, the PR states that no hosted checks ran.
 
 ## Outcomes & Retrospective
 
-Not started.
+Delivered (2026-10-14, pending merge approval):
+- `avatar_vfx` events can override an effect's placement, look, motion and
+  sound for one use. They are validated at Save and package boundaries,
+  played by every runtime path and edited in the Action creator's **This
+  use** panel.
+- 29 duplicate Included effects became 5 families plus the kept Steam Puffs
+  (24 deleted, 75 → 56). 39 Included Actions were rewritten, and Local
+  Actions are rewritten by a journaled transition.
+- `frames` derives boil and draw-on flipbooks. 23 Included effects were
+  converted at the owner's G2 and G3; 21 candidates stay static.
+
+Lessons:
+- Phase reviews ran targeted checks only. mypy and the Included clip
+  baseline caught P4 issues only at the P7 gate. Run `make check` and the
+  pinned baselines in the phase that changes Included content.
+- `effects promote` `replace` overwrites licence records. Follow-up:
+  "Keep licence records on effect promote replace".
+- Drafts can't be rendered inside Gestures at event time. Follow-up:
+  "Render draft effects inside Gestures by event time".
