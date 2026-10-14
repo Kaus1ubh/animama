@@ -2163,6 +2163,23 @@ owner's live session); FI-F6 deferral accepted; no blocking regression.
 - **FI-F7 remainder left:** a rare, lazy 140 KB load with no effect on the plan;
   `avatar-lipsync.md` §3 says the chunk may load for such a part.
 
+### Final checks
+
+On `43af7b23`, from a clean tree:
+
+- `pnpm --dir src/frontend/web lipsync:eval`: passes; the numbers match Phases
+  4–5 (default tier: Japanese, Korean and Chinese vowel match 49–51% at 2.9× and
+  41% live, 0% open in English silences; ElevenLabs 64–69%);
+- `make format-check`, and `make check-test` (4,195 passed, 29 skipped; mypy,
+  ruff and format clean);
+- `pnpm check`, `pnpm web:lint`, `pnpm build`, `pnpm desktop:check`;
+- `pnpm web:test`: vitest 518 files, 4,695 passed. Browser tests: 113 of 114
+  passed; the failure is main's effects-check i18n bug, as in Phase 7.
+
+On `e3fddec8` (the FI-F9 fix and records): the plan-source and debug-view tests
+(27), `pnpm check:source`, eslint and Prettier on the changed files; then
+`pnpm e2e:test:fast` on a disposable built stack: 38 passed.
+
 **Owner gates still open** (for the PR):
 
 1. **G3:** listen to the numbers-and-symbols line on Pocket, Gemini and
