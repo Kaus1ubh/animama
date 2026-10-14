@@ -19,8 +19,31 @@ from tests.anima_creation_service_support import (
     write_supplied_starter_fixture,
 )
 
-# The reviewed Library additions ship independently of the starter loadouts.
+# Library content ships in desktop core independently of the starter loadouts.
 CORE_LIBRARY_LOCATORS = (
+    "idle-styles/streamer-idle",
+    "gestures/bgm-bob",
+    "gestures/bored-wait",
+    "gestures/chat-glance",
+    "gestures/downcast-sigh",
+    "gestures/dreamy-gaze",
+    "gestures/hair-tuck-settle",
+    "gestures/happy-sway",
+    "gestures/hmm-drift",
+    "gestures/nervous-fidget",
+    "gestures/offscreen-look",
+    "gestures/simmering-huff",
+    "gestures/sleepy-nod-off",
+    "vfx/avatar/annoyed_scribble",
+    "vfx/avatar/gloomy_cloud",
+    "vfx/avatar/hearts_burst_soft",
+    "vfx/avatar/mouth_hover_w",
+    "vfx/avatar/mouth_w",
+    "vfx/avatar/music_notes",
+    "vfx/avatar/sigh_puff_droop",
+    "vfx/avatar/zzz",
+    "vfx/scene/dark",
+    "vfx/scene/light-streak",
     "gestures/double-take",
     "gestures/noted",
     "gestures/ready-lets-do-this",
@@ -44,6 +67,9 @@ CORE_LIBRARY_LOCATORS = (
     "vfx/particle/quark/snow-crystal-flurry",
     "vfx/scene/awkward-silence",
 )
+# Library Gestures reuse these real starter effects; the generated starter
+# fixture has no effects, so supply them alongside the Library.
+SHARED_STARTER_EFFECT_LOCATORS = ("vfx/avatar/angry", "vfx/avatar/sigh_puff", "vfx/avatar/sweat_drop")
 
 
 @pytest.fixture(scope="module")
@@ -51,7 +77,7 @@ def staged_core(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """Supply structural starters and the reviewed, unequipped core Library."""
     root = write_supplied_starter_fixture(tmp_path_factory.mktemp("supplied-starter-core"))
     included = Path(__file__).resolve().parents[1] / "content/included"
-    for locator in CORE_LIBRARY_LOCATORS:
+    for locator in (*CORE_LIBRARY_LOCATORS, *SHARED_STARTER_EFFECT_LOCATORS):
         shutil.copytree(included / locator, root / locator)
     return root
 
@@ -74,10 +100,10 @@ def test_reviewed_library_ships_in_core_without_equipping_starters(tmp_path: Pat
     entries = {entry["locator"]: entry for entry in inventory["entries"]}
     library = [entries[locator] for locator in CORE_LIBRARY_LOCATORS]
 
-    assert len(library) == 22
+    assert len(library) == 45
     assert {entry["partition"] for entry in library} == {"core"}
     library_files = {file for entry in library for file in entry["files"]}
-    assert len(library_files) == 52
+    assert len(library_files) == 95
     assert {file["partition"] for file in inventory["files"] if file["path"] in library_files} == {"core"}
     library_keys = {entry["logical_key"] for entry in library}
     for starter in inventory["starters"]:
@@ -90,7 +116,9 @@ def test_reviewed_library_ships_in_core_without_equipping_starters(tmp_path: Pat
     for starter in inventory["starters"]:
         expected_core.update(starter["entries"])
     assert {entry["locator"] for entry in inventory["entries"] if entry["partition"] == "core"} == expected_core
-    assert entries["gestures/bgm-bob"]["partition"] == "expanded"
+    # Desktop core matches self-host: no valid tracked Included item is left
+    # for the deferred expanded pack.
+    assert [entry["locator"] for entry in inventory["entries"] if entry["partition"] == "expanded"] == []
 
 
 @pytest.mark.parametrize("failure", ["missing", "untracked", "excluded", "non-portable", "dependency"])

@@ -36,9 +36,34 @@ from animama.domain.content_catalog import (
 )
 from animama.utils.files import path_is_link
 
-# Reviewed Library content bundled with desktop core without changing any Anima's
-# starter loadout. Resolve these exact IDs through the same typed admission gates.
+# Included Library content bundled with desktop core without changing any Anima's
+# starter loadout. Together with the starter closure and authoring Poses, these
+# roots cover every valid tracked Included item, so desktop matches self-host.
+# Resolve these exact IDs through the same typed admission gates.
 CORE_LIBRARY_ROOTS = (
+    "builtin:idle-style:streamer-idle",
+    "builtin:gesture:bgm-bob",
+    "builtin:gesture:bored-wait",
+    "builtin:gesture:chat-glance",
+    "builtin:gesture:downcast-sigh",
+    "builtin:gesture:dreamy-gaze",
+    "builtin:gesture:hair-tuck-settle",
+    "builtin:gesture:happy-sway",
+    "builtin:gesture:hmm-drift",
+    "builtin:gesture:nervous-fidget",
+    "builtin:gesture:offscreen-look",
+    "builtin:gesture:simmering-huff",
+    "builtin:gesture:sleepy-nod-off",
+    "builtin:avatar-effect:annoyed_scribble",
+    "builtin:avatar-effect:gloomy_cloud",
+    "builtin:avatar-effect:hearts_burst_soft",
+    "builtin:avatar-effect:mouth_hover_w",
+    "builtin:avatar-effect:mouth_w",
+    "builtin:avatar-effect:music_notes",
+    "builtin:avatar-effect:sigh_puff_droop",
+    "builtin:avatar-effect:zzz",
+    "builtin:scene-effect:focus:dark",
+    "builtin:scene-effect:focus:light-streak",
     "builtin:gesture:double-take",
     "builtin:gesture:noted",
     "builtin:gesture:ready-lets-do-this",

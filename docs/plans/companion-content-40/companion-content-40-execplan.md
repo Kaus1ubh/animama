@@ -2,7 +2,7 @@
 
 Source agreement: the owner approved the forty-item proposal on 2026-10-13 and requested skill-led batch authoring, four concurrent authors, and live previews before Included promotion.
 Spec authority: [#523](https://github.com/raymond-van/animama/issues/523), read back at `2026-10-14T01:22:12Z`. P1 issue: [#524](https://github.com/raymond-van/animama/issues/524). P2: [#544](https://github.com/raymond-van/animama/issues/544). P3: [#545](https://github.com/raymond-van/animama/issues/545).
-Authorized scope: save and verify the 22 retained drafts through their creators, promote the exact verified Local items to Included, and open a PR for review. The owner authorized this scope on 2026-10-14 after three review rounds. Sixteen drafts are removed and the two uncreated Gestures are deferred. Reviewed content remains silent. The owner approved the exact licence/source-review entries presented for these 22 items on 2026-10-14, and subsequently approved shipping all 22 in desktop core while keeping starter loadouts unchanged. Do not merge or release.
+Authorized scope: save and verify the 22 retained drafts through their creators, promote the exact verified Local items to Included, and open a PR for review. The owner authorized this scope on 2026-10-14 after three review rounds. Sixteen drafts are removed and the two uncreated Gestures are deferred. Reviewed content remains silent. The owner approved the exact licence/source-review entries presented for these 22 items on 2026-10-14, and subsequently approved shipping all 22 in desktop core while keeping starter loadouts unchanged. During PR review the owner also directed shipping the 23 existing expanded Included items in desktop core so it matches self-host. Do not merge or release.
 
 ## Purpose and context
 
@@ -54,7 +54,8 @@ The owner removed sixteen drafts during review. Worlds Tiniest Violin and Sneeze
 - [x] P3: Include all 22 in desktop core without changing starter loadouts; actual native stage and byte verification pass.
 - [x] P3: Finish catalogue integration and all required local checks; prepare the single PR handoff.
 - [x] Final independent receipt closure passes, including actual native staging.
-- [ ] PR publication: paused at the owner's request immediately before creation; commit/push preparation may finish. Merge remains owner-gated.
+- [x] PR publication: #557 opened without merge. Merge remains owner-gated.
+- [x] Owner-requested scope addition: ship the 23 remaining expanded Included items in desktop core so it matches self-host.
 
 ## Decision Log
 
@@ -89,6 +90,9 @@ The owner removed sixteen drafts during review. Worlds Tiniest Violin and Sneeze
 - The approved 18 effects and four Gestures were promoted successfully from their saved Local sources. Fourteen templates/thumbnails are integrated, and the tool's generic owner-authorship defaults have been replaced with the exact approved records. Existing records remain unchanged.
 
 - Packaging audit found that the existing starter/recommended closure classified all 22 additions (52 content files) as expanded inputs. The expanded pack is deferred, so those items would not appear in the packaged desktop core. The owner explicitly approved including all 22 in desktop core while keeping starter loadouts unchanged. Explicit Library roots now use the existing closure and distribution checks, retaining the separate equipped starter selection and deferred pack policy. The before/after comparison confirms exactly 22 entries/52 files move into core; the final native stage independently verifies those entries and physical bytes.
+
+- 2026-10-14, owner during PR review: desktop and self-host should ship the same Included content. Self-host bind-mounts every Included item, while desktop left 23 existing items in the deferred expanded pack: Streamer Idle and its 12 Gestures, eight Avatar Effects and two focus Scene Effects (43 files, about 1.2 MB). The owner directed adding them to desktop core in this PR. They join `CORE_LIBRARY_ROOTS` through the same admission and distribution gates, starter loadouts and receipts stay unchanged, and the closure test now fails if any valid tracked item is left in the expanded set. Their existing licence records are unchanged and remain `redistribution_review: pending`.
+- Scope-addition evidence: the focused content/backend quartet passes 55 tests and ruff passes. Content staging resolves 349 core entries (755 files), zero expanded and zero excluded; both starter receipts are byte-identical to the previous inventory. macOS arm64 runtime stage and independent audit pass (build ID `f18eb60735362245d8df7d83560b2eaddbc32d2f34c9390a58f5c3d2f99d6cef`, core inventory ID `0aaf990588fc64edcf3ea775845eae605b4d066e872e44b610e41474707a7f38`, core download 391,482,519 of 786,432,000 bytes); `runtime-packaging` and `pack-size-report` pass 74 tests. Targeted independent review found no blocking issue; its recommended doc, plan and promotion-reference corrections are applied. The build and inventory IDs under Final local acceptance describe the earlier 22-item candidate.
 
 ## Phased implementation
 
@@ -142,4 +146,4 @@ Keep drafts, original generated sources and review sidecars until the owner-appr
 
 ## Outcomes & Retrospective
 
-Implementation and local acceptance are complete for the 22 reviewed items. Creator persistence, natural first-use Gesture timing, catalogue integration and actual desktop core packaging are verified. Final independent receipt closure passes. The owner requested stopping immediately before PR creation; the prepared branch and review description are retained for that handoff. PR publication and hosted CI remain pending. No merge or release approval has been given.
+Implementation and local acceptance are complete for the 22 reviewed items. Creator persistence, natural first-use Gesture timing, catalogue integration and actual desktop core packaging are verified. Final independent receipt closure passes. PR #557 is open; the 23 previously expanded Included items were added to desktop core during its review. Hosted CI is disabled and has not run. No merge or release approval has been given.

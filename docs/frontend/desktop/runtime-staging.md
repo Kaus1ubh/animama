@@ -75,11 +75,14 @@ Each staging pass clears only `desktop/.desktop-runtime/darwin-arm64`, then:
 
 1. Resolves starter specifications, the full recommended typed dependency
    closure, authoring Poses and the explicit `CORE_LIBRARY_ROOTS` in
-   `animama/runtime/starter_content.py`. These Library roots and their dependencies
-   ship in core without entering starter loadouts or per-starter receipts. Only
-   tracked distribution inputs may enter the stage; missing or excluded required
-   roots fail staging. Optional portraits use the same presentation contract as
-   installation bootstrap.
+   `animama/runtime/starter_content.py`. These Library roots and their
+   dependencies ship in core without entering starter loadouts or per-starter
+   receipts. With the starter closure and Poses they cover every valid tracked
+   Included item, so desktop core matches self-host and the expanded input is
+   empty; add each new Included item to these roots. Only tracked distribution
+   inputs may enter the stage; missing or excluded required roots fail staging.
+   Optional portraits use the same presentation contract as installation
+   bootstrap.
 2. Builds pinned PostgreSQL 16.15 and pgvector 0.8.6 sources with portable arm64
    flags. The runtime retains required language, encoding, and text-search
    modules, but no headers, static archives, or development tools. Symbols stay
@@ -425,8 +428,9 @@ stages the same way as `runtime/content/wow-comedy-sfx` from
 `build-inputs/wow-comedy-sfx/`, required by `ANIMAMA_REQUIRE_WOW_COMEDY_SFX=1`;
 without it, built-in effects play silently. The supervisor mounts each staged
 pack as its own Included source.
-The starter closure contains all 95 non-idle authored gestures, 72 reactions and
-no required Idle Style. The 12 Streamer Idle gestures are not starters. The
+The starter closure contains 95 of the 99 non-idle authored gestures, 72
+reactions and no required Idle Style. The Streamer Idle Style and its 12
+gestures are not starters; they ship in core as Library content. The
 tracked-only staging gate still fails on an unavailable selected dependency, even
 if an ignored local copy exists. Full native stage and packaged acceptance remain
 separate checks; do not infer them from a passing content test.
