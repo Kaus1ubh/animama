@@ -221,6 +221,9 @@ Gemini or Pocket. For that reply it shows:
 
 - its audio envelope;
 - its timing evidence: words, punctuation and tags;
+- the number of tags in the text the voice received ("Text": the captured
+  speech text, which for Gemini uses Gemini's spellings, or its parts' text
+  before any is reported);
 - the live planner's CPU per second of audio and any fallback;
 - one mouth-openness curve per plan source, each the current planner
   replanning the captured reply in the worker with one combination of evidence,

@@ -229,30 +229,27 @@ Boundaries:
   - Reviews #1–#3 used the full repair budget.
   - The owner waived a further recheck for the final one-line guard (P4-R3-F1,
     2026-10-14). The final integration review still covers it.
-- [ ] Phase 5 (#542): docs, dead prompt code, live checks, full validation and the G2 pack.
+- [x] Phase 5 (#542): docs, dead prompt code, live checks, full validation and the G2 pack.
+      Review #1 was blocked (2 doc findings, fixed); see its record for the recheck.
 - [ ] Final integration review.
 - [ ] G2 owner gate.
 
-## Resume here (paused again 2026-10-14, after the Phase 4 repairs)
+## Resume here
 
-- **Workspace:**
-  - worktree `worktrees/animama/chat-model-voice-tags-b0f3d7`, branch
-    `feat/voice-audio-tags`;
-  - commits: `2337e064` (docs), `730b6a63` (p1), `dfbcbc46` (p2), `be9e4e43`
-    (p3);
-  - nothing is pushed and no PR exists.
-  - No Compose stack is running.
-- **Phase 4:** implemented in the working tree and not committed. Its changed
-  files are listed under "Phase 4 implementation notes".
-- **Next steps:**
-  1. Done (resumed 2026-10-14): Phase 4's Code Review #1 is adjudicated and
-     repaired. Next is the targeted recheck.
-  2. Done: the idle `web:test` rerun passed (see "Phase 4 results"). Next is
-     Phase 4's Code Review #2, a targeted recheck.
-  3. Done: Phase 4 is committed.
-  4. Start Phase 5: docs, dead prompt code, the Cloud draft, the G1 live
-     checks (US$0.50 approved), full validation and the G2 pack.
-  5. Final integration review, push and PR.
+The work was paused twice by the owner on 2026-10-14 and resumed each time.
+Current state:
+
+- Phases 1–4 are committed.
+- Phase 5 has been reviewed.
+- The `tags` stack is kept for G2.
+- The disposable e2e stack has been removed.
+
+Remaining:
+
+- the final integration review;
+- push and PR;
+- G2 (owner);
+- G3 (Cloud, owner).
 
 ## Surprises & Discoveries
 
@@ -1310,13 +1307,153 @@ Changes:
    listening list), what to listen and look for, and where to look in the debug
    panel.
 
+#### Phase 5 implementation notes
+
+Starting point: `162be4e5` (Phase 4).
+
+- **Dead prompt code** (owner decision, 2026-10-14):
+  - deleted `prompts/profiles.py`;
+  - deleted `build_main_structured_output_schema` and its `__all__` entry;
+  - deleted the test that only exercised that function;
+  - `docs/frontend/runtime/avatar-emotion.md` now points at
+    `main_structured_response.py`.
+- **Source review:** `licenses/source-review.json` drops `profiles.py` and adds
+  the 13 files new on this branch, following the lip-sync precedent.
+- **Docs:**
+  - backend `integrations/voice-and-speech.md`, with a new "Audio tags"
+    section, and `runtime/chat.md`;
+  - frontend `elevenlabs-tts.md`, `gemini-tts.md`, `voice.md`, `chat.md` and
+    `avatar-lipsync.md`;
+  - `GLOSSARY.md`: a new **Audio tag** entry.
+- **Cloud draft:** [cloud-issue-draft.md](cloud-issue-draft.md), an addition to
+  raymond-van/animama-cloud#100. It is not posted (G3).
+- **Dead-code check:** before deleting, a search of `src`, `tests`, `scripts` and
+  `docs` found no importer of `PROFILE_TEMPLATES`, `prompts.profiles` or
+  `build_main_structured_output_schema`. Cloud's services and tests use none of
+  them; only its tenant inventory lists `profiles.py`.
+- **`contracts/hosted-web.md`:** no change needed. It lists no `user.response`
+  fields, and the new `speech_tone_tag` is optional.
+
+#### Phase 5 live checks (G1)
+
+Run on 2026-10-14 against the `tags` stack (`./reset.sh --name tags
+--base-port 8480`, development build, debug panel on) through `chat:sse`, with
+`reasoning_effort: none` and memory updates off.
+
+| Check | Result |
+| --- | --- |
+| Gemini, `Oh my gosh, [laughs] that is so funny! [applause] [sighs] Anyway.` | Pass. Speech frames keep the written tags. `part_text`: `Oh my gosh, <laugh> that is so funny!`, then `<sigh> Anyway.`; `[applause]` dropped. 32 audio frames, `tts.done`, no tone tag. |
+| ElevenLabs, an excited reply with `[laughs]` and `[applause]` | Pass. `tts.session` names `eleven_v4_turbo`. The first speech frame carries `speech_tone_tag: [slightly excited]` (the degree comes from the stored state); later frames carry none. |
+| ElevenLabs, a reply that opens with `[whispers]` | Pass. No `speech_tone_tag`. |
+| Gemini, Japanese (`ui_locale: ja`), with a tag invited | Pass. The speech is Japanese plus `[chuckles]`, in English; `part_text` is `<chuckle>`. Without the invitation, the reply laughed in words and used no tag. |
+
+Cost:
+
+- Gemini TTS, by check: about 65 characters (first check, 2 requests), about 15
+  and 20 characters (the Japanese checks). In total about 100 characters with
+  flash-lite, well under US$0.01.
+- No ElevenLabs audio was generated: the two minted session tokens were never
+  used.
+- Six short chat-model turns were run but not priced here.
+- The total stays within the US$0.50 budget.
+
+Not run by the agent; left to G2:
+
+- ElevenLabs audio in the browser;
+- browser speech;
+- bubble and debug-panel checks in the browser.
+
+The fresh stack's first-run setup ends at the app's 18+ confirmation, an
+attestation left for the owner. The `tags` stack is kept running for G2.
+
+#### G2 owner pack
+
+Use the kept `tags` stack (`http://animama-tags.localhost:8480`, debug panel
+on), or any stack built from this branch.
+
+1. **Finish first-run setup.** Choose OpenAI (server key) and ElevenLabs, and
+   confirm the 18+ prompt.
+2. **Eleven v4 Turbo.** Settings → Voice: choose ElevenLabs and send each of
+   these.
+   - `Please say exactly this, nothing else: Oh my gosh, [laughs] that is so funny! [sighs] Anyway.`
+     A laugh and a sigh are performed and never read. The bubble shows
+     "Oh my gosh, that is so funny! Anyway."
+   - `Say exactly this, nothing else: Hmm. [long pause] Okay, [whispers] here is a secret. [excited] Now tell everyone!`
+     A pause, then a whisper for that sentence, then an excited shift.
+   - `Say exactly this, nothing else: Knock knock. [door knocks] Who's there?`
+     A sound effect.
+   - `Whisper a secret to me, then tell me how your day went.` The voice
+     whispers one sentence, then returns to the reply's tone (the Phase 2 reset
+     rule).
+   - `I just won the lottery!` The reply starts in an excited delivery, from
+     the automatic tone tag.
+   - Reload the chat. No bubble shows a tag.
+3. **Gemini.** Choose Gemini and repeat the first two lines of step 2.
+   Extras such as `[excited]` and `[door knocks]` are silently dropped.
+4. **Browser speech** (web only) **or Pocket TTS.** Repeat the first line. No
+   tag is spoken.
+5. **Debug panel → Lip-sync.** On a tagged reply, "Text" counts the tags the
+   voice received, and the mouth rests during the sound effect.
+
+Report anything heard as a word, any visible tag, or a whisper that runs past
+its sentence.
+
+#### Phase 5 results
+
+Source: the working tree on `162be4e5`.
+
+- **Backend:** `make check-test`: typed-content audit, format, lint and mypy
+  (842 files) clean; pytest 4,446 passed, 29 skipped.
+- **Import boundary:** 0 forbidden edges.
+- **Browser journeys:** `pnpm e2e:test:fast` on a disposable built stack (`tags-e2e`,
+  `ANIMAMA_LLM_SKIP=1`, production build): 38 passed in 8.2 minutes. The stack
+  and its record were removed afterwards.
+- **Frontend:** `pnpm --dir src/frontend desktop:check` and `prettier:check`:
+  pass.
+- The final frontend suite and build run in the final integration step.
+
 #### Code Review #1 Findings
 
-Pending.
+Reviewer: `sdlc-reviewer`, full initial review of the working tree on
+`162be4e5`. Result: **blocked**, on two doc findings.
+
+- **P5-R1-F1 (required).** `docs/backend/architecture/data-model.md` and
+  `http-api.md` still said snippets use the same text as the search index.
+- **P5-R1-F2 (required).** The G2 pack had no free-form whisper case to
+  exercise the Phase 2 reset rule.
+- **N1–N3 (Cloud draft).**
+  - "Pre-v4 models read tags aloud" is inaccurate: v3 performs tags.
+  - Name the two new modules for Cloud's inventory.
+  - Name where the stored emotional state comes from.
+  - Prepare the text before `reserve_graph`.
+- **N4–N7 (frontend doc wording):**
+  - the bubble rules in `chat.md`;
+  - the `speech_tone_tag` pass-through;
+  - the debug "Text" source;
+  - the tag-safe chunking note in `voice.md`.
+- **N8 (out of scope).** `prompts/structured_output.py` and
+  `is_main_structured_output_schema` look unused too, but predate this branch.
+- **N9 (plan record).** "Resume here" was stale; the Phase 5 progress, the
+  dead-code check, the `hosted-web` note and the per-check cost detail were
+  missing.
+- **N10 (hygiene).** Keep `.animama-stack-e2e.env` out of the commit. Commit the
+  Cloud draft with its inventory entry.
 
 #### Code Review #1 Revisions
 
-Pending.
+- **F1: accepted.** Both architecture docs now say snippets hide the speech's
+  audio tags and matching uses the stored speech.
+- **F2: accepted.** The G2 pack adds "Whisper a secret to me, then tell me how
+  your day went." The G2 gate text already lists the check.
+- **N1–N3: accepted** in the Cloud draft.
+- **N4–N7: accepted.**
+- **N8: noted as a possible follow-up,** outside the owner's deletion scope.
+- **N9: accepted.** This record is updated.
+- **N10: done.** The e2e record was deleted with its stack, and the draft is
+  committed together with the inventory.
+
+These are doc-only revisions. Repair round #1 is used; a targeted recheck is
+folded into the final integration review.
 
 ## Final integration review
 
