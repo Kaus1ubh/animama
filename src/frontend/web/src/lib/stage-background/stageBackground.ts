@@ -3,61 +3,80 @@ import type { SettingsPreferences } from "@/lib/settings/preferences";
 
 /**
  * Where a stage is drawn: the chat stage frames a waist-up Avatar on a wide
- * window, the showcase stage frames a full-body Avatar on a pedestal.
+ * window, the showcase stage frames a full-body Avatar on the Anima page.
  */
 export type StageBackgroundVariant = "chat" | "showcase";
 
 export type StageTheme = "light" | "dark";
 
+/** App stage scenes, in dropdown order; each ships a light and a dark image. */
+export const STAGE_SCENES = [
+  { id: "dreamy", label: "Dreamy" },
+  { id: "bedroom", label: "Bedroom" },
+  { id: "sakura", label: "Sakura" },
+  { id: "seaside", label: "Seaside" },
+  { id: "rooftop", label: "Rooftop" },
+  { id: "cafe", label: "Café" },
+  { id: "classroom", label: "Classroom" },
+] as const;
+
+export type StageSceneId = (typeof STAGE_SCENES)[number]["id"];
+
+/** A scene, or `"none"` for the plain theme background. */
+export type StageSceneChoice = StageSceneId | "none";
+
+export const DEFAULT_STAGE_SCENE: StageSceneId = "dreamy";
+
 /**
  * What to draw behind the Avatar. An Anima's bound background image wins;
- * otherwise the app stage image is used unless the Anima turned it off.
+ * otherwise its chosen app scene, unless it chose none.
  */
 export type StageBackground =
   | { kind: "bound" }
   | { kind: "app"; src: string }
   | { kind: "none" };
 
-const APP_STAGE_BACKGROUND_PATHS: Record<
-  StageBackgroundVariant,
-  Record<StageTheme, string>
-> = {
-  chat: {
-    light: "background/stage-day.webp",
-    dark: "background/stage-night.webp",
-  },
-  showcase: {
-    light: "background/stage-pedestal.webp",
-    dark: "background/stage-night.webp",
-  },
-};
+function isStageSceneId(value: unknown): value is StageSceneId {
+  return STAGE_SCENES.some((scene) => scene.id === value);
+}
 
 export function appStageBackgroundUrl(
+  scene: StageSceneId,
   variant: StageBackgroundVariant,
   theme: StageTheme,
 ): string {
-  return publicResourceUrl(APP_STAGE_BACKGROUND_PATHS[variant][theme]);
+  // The light Dreamy showcase has its own pedestal image under the Avatar.
+  const file =
+    scene === "dreamy" && variant === "showcase" && theme === "light"
+      ? "dreamy-pedestal"
+      : `${scene}-${theme}`;
+  return publicResourceUrl(`background/${file}.webp`);
 }
 
-/** Per-Anima off switch stored as `presentation.disable_background`. */
-export function isStageBackgroundDisabled(
+/**
+ * The Anima's stored `presentation.stage_background`; missing or unknown
+ * values fall back to the default scene.
+ */
+export function stageSceneChoice(
   preferences: SettingsPreferences | null | undefined,
-): boolean {
-  return preferences?.presentation?.disable_background === true;
+): StageSceneChoice {
+  const value = preferences?.presentation?.stage_background;
+  if (value === "none") return "none";
+  return isStageSceneId(value) ? value : DEFAULT_STAGE_SCENE;
 }
 
 export function resolveStageBackground({
   hasBoundImage,
-  disabled,
+  scene,
   variant,
   theme,
 }: {
   hasBoundImage: boolean;
-  disabled: boolean;
+  scene: StageSceneChoice;
   variant: StageBackgroundVariant;
   theme: StageTheme;
 }): StageBackground {
   if (hasBoundImage) return { kind: "bound" };
-  if (disabled) return { kind: "none" };
-  return { kind: "app", src: appStageBackgroundUrl(variant, theme) };
+  if (scene === "none") return { kind: "none" };
+  return { kind: "app", src: appStageBackgroundUrl(scene, variant, theme) };
 }

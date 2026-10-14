@@ -5,8 +5,8 @@ import { useTheme } from "next-themes";
 import { runtimeImagePresentation } from "@/lib/runtime-content/animaRuntimeSnapshot";
 import type { RuntimeCatalogEntry } from "@/lib/runtime-content/types";
 import {
-  isStageBackgroundDisabled,
   resolveStageBackground,
+  stageSceneChoice,
   type StageBackgroundVariant,
 } from "@/lib/stage-background/stageBackground";
 import { cn } from "@/lib/utils";
@@ -16,7 +16,7 @@ import { useSettings } from "@/ui/settings/SettingsProvider";
 
 /**
  * The image drawn behind an Anima's Avatar: its bound background image, else
- * the themed app stage image unless the Anima turned it off. Renders an
+ * the Anima's chosen app stage scene in the current theme, or nothing. Renders an
  * absolutely positioned, non-interactive layer; the caller owns stacking.
  */
 export function StageBackgroundLayer({
@@ -33,7 +33,7 @@ export function StageBackgroundLayer({
   const boundMedia = useRuntimeContentMediaUrl(boundImage);
   const background = resolveStageBackground({
     hasBoundImage: Boolean(boundImage),
-    disabled: isStageBackgroundDisabled(effectivePreferences),
+    scene: stageSceneChoice(effectivePreferences),
     variant,
     theme: resolvedTheme === "dark" ? "dark" : "light",
   });

@@ -16,8 +16,10 @@ import {
   type SettingsPreferences,
 } from "@/lib/settings/preferences";
 import {
+  STAGE_SCENES,
   appStageBackgroundUrl,
-  isStageBackgroundDisabled,
+  stageSceneChoice,
+  type StageSceneChoice,
 } from "@/lib/stage-background/stageBackground";
 import { cn } from "@/lib/utils";
 import { useAnimaLoadout } from "@/query/hooks/useAnimaLoadout";
@@ -51,12 +53,12 @@ type AppearanceConfig = {
 };
 /**
  * `itemId` selects a Local image. With no image, a background draft shows the
- * app stage image unless `backgroundOff` is set.
+ * app stage `scene` (or none).
  */
 type AppearanceDraft = {
   itemId: string;
   config: AppearanceConfig;
-  backgroundOff?: boolean;
+  scene?: StageSceneChoice;
 };
 type PendingUpload = { file: File; operationId: string };
 
@@ -64,8 +66,9 @@ const SECTION_LABELS: Record<AnimaAppearanceSection, string> = {
   profile_image: "Profile",
   background_image: "Background",
 };
-/** Select value for an explicitly disabled background; never a Local item id. */
-const NO_BACKGROUND_VALUE = "__no_background__";
+/** Select values for app scenes; never a Local item id. */
+const SCENE_VALUE_PREFIX = "scene:";
+const sceneValue = (scene: StageSceneChoice) => `${SCENE_VALUE_PREFIX}${scene}`;
 const DEFAULT_CONFIG: AppearanceConfig = {
   fit: "cover",
   focal_x: 0.5,
@@ -175,8 +178,7 @@ export function AnimaAppearanceDialog({
       profile_image: initial("profile"),
       background_image: {
         ...background,
-        backgroundOff:
-          !background.itemId && isStageBackgroundDisabled(storedPreferences),
+        scene: stageSceneChoice(storedPreferences),
       },
     });
     setPendingUpload(null);
@@ -194,14 +196,14 @@ export function AnimaAppearanceDialog({
   const defaultProfile = useAnimaPresentationImage(
     showsDefaultProfile ? profileThumbnail : null,
   );
-  const showsAppBackground =
-    use === "background" && !draft.itemId && !draft.backgroundOff;
+  const draftScene = draft.scene ?? stageSceneChoice(storedPreferences);
   const previewUrl = draft.itemId
     ? selectedPreview.url
     : showsDefaultProfile
       ? defaultProfile.url
-      : showsAppBackground
+      : use === "background" && draftScene !== "none"
         ? appStageBackgroundUrl(
+            draftScene,
             "chat",
             resolvedTheme === "dark" ? "dark" : "light",
           )
@@ -277,13 +279,16 @@ export function AnimaAppearanceDialog({
         });
       }
       if (use === "background") {
-        const backgroundOff = !draft.itemId && draft.backgroundOff === true;
-        if (backgroundOff !== isStageBackgroundDisabled(storedPreferences)) {
+        // A Local image keeps the stored scene for when it is removed.
+        if (
+          !draft.itemId &&
+          draftScene !== stageSceneChoice(storedPreferences)
+        ) {
           await updateAnimaSettings.mutateAsync({
             animaId,
             body: {
               preferences: mergePreferences(storedPreferences ?? {}, {
-                presentation: { disable_background: backgroundOff },
+                presentation: { stage_background: draftScene },
               }),
             },
           });
@@ -462,38 +467,59 @@ export function AnimaAppearanceDialog({
             <select
               className="border-input bg-background h-10 rounded-md border px-3 text-sm"
               value={
-                draft.backgroundOff && !draft.itemId
-                  ? NO_BACKGROUND_VALUE
-                  : draft.itemId
+                draft.itemId ||
+                (activeSection === "background_image"
+                  ? sceneValue(draftScene)
+                  : "")
               }
               disabled={busy || images.isPending || animaSettings.isPending}
               onChange={(event) => {
                 const value = event.target.value;
                 setDraft(
-                  value === NO_BACKGROUND_VALUE
+                  value.startsWith(SCENE_VALUE_PREFIX)
                     ? {
+                        ...draft,
                         itemId: "",
                         config: DEFAULT_CONFIG,
-                        backgroundOff: true,
+                        scene: value.slice(
+                          SCENE_VALUE_PREFIX.length,
+                        ) as StageSceneChoice,
                       }
-                    : { itemId: value, config: DEFAULT_CONFIG },
+                    : { ...draft, itemId: value, config: DEFAULT_CONFIG },
                 );
               }}
               aria-label={`${SECTION_LABELS[activeSection]} image source`}
             >
-              <option value="">
-                {activeSection === "profile_image"
-                  ? "Default Avatar portrait"
-                  : "App background"}
-              </option>
-              {activeSection === "background_image" ? (
-                <option value={NO_BACKGROUND_VALUE}>None</option>
-              ) : null}
-              {readyImages.map((image) => (
-                <option key={image.itemId} value={image.itemId}>
-                  {image.name}
-                </option>
-              ))}
+              {activeSection === "profile_image" ? (
+                <>
+                  <option value="">Default Avatar portrait</option>
+                  {readyImages.map((image) => (
+                    <option key={image.itemId} value={image.itemId}>
+                      {image.name}
+                    </option>
+                  ))}
+                </>
+              ) : (
+                <>
+                  <optgroup label="App backgrounds">
+                    {STAGE_SCENES.map((scene) => (
+                      <option key={scene.id} value={sceneValue(scene.id)}>
+                        {scene.label}
+                      </option>
+                    ))}
+                    <option value={sceneValue("none")}>None</option>
+                  </optgroup>
+                  {readyImages.length ? (
+                    <optgroup label="Your images">
+                      {readyImages.map((image) => (
+                        <option key={image.itemId} value={image.itemId}>
+                          {image.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ) : null}
+                </>
+              )}
             </select>
             <Button
               type="button"
@@ -567,9 +593,7 @@ export function AnimaAppearanceDialog({
             type="button"
             variant="ghost"
             disabled={busy || !binding}
-            onClick={() =>
-              setDraft({ ...draft, itemId: "", backgroundOff: false })
-            }
+            onClick={() => setDraft({ ...draft, itemId: "" })}
           >
             <Trash2 className="size-4" /> Remove
           </Button>
