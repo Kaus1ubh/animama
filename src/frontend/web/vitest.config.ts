@@ -34,6 +34,8 @@ export default defineConfig({
   test: {
     clearMocks: true,
     environment: "node",
+    // Fail fast when a linked package's dist was built from other source.
+    globalSetup: ["vitest.package-builds.ts"],
     globals: false,
     include: [
       "src/**/*.{test,spec}.{ts,tsx}",

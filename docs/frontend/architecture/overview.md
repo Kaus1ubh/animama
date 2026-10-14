@@ -179,6 +179,11 @@ Run from `src/frontend`:
 - `pnpm verify:tts-assets`
 - `pnpm openapi-ts`
 
+Web code and tests import `@animama/*` workspace packages from their built
+`dist`. `pnpm web:test` builds them first; before a direct `vitest run`, run
+`pnpm packages:build`. Vitest refuses to start when a linked package's `dist`
+was built from other source than the checkout's.
+
 `pnpm openapi-ts` exports the local FastAPI schema offline to a temporary file,
 generates the client, and removes the temporary schema. Client generation never
 requires a running stack or exposes FastAPI documentation over HTTP.
