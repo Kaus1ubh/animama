@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:gray-silhouette",
+  "version": 1,
+  "name": "Gray Silhouette",
+  "description": "A neutral gray silhouette fades over the Avatar for stunned or deflated reactions, keeping the original contours and faint facial detail.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "silhouette",
+    "attachment": {
+      "kind": "silhouette",
+      "fill": "tint",
+      "patternScale": 1
+    },
+    "art": {
+      "image": "manga-fill.png"
+    },
+    "appearance": {
+      "opacity": 0.9
+    },
+    "motion": {
+      "keyframes": {
+        "frames": [
+          {
+            "opacity": 0,
+            "t": 0
+          },
+          {
+            "opacity": 1,
+            "t": 0.22
+          }
+        ]
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "manga-fill.png",
+      "role": "image"
+    }
+  ]
+}

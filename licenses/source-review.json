@@ -744,6 +744,20 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "content/included/gestures/double-take/double-take.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored animaPoseClip/2.0 Gesture definition and metadata under Raymond Van's direction (animama-animation skill, #523), written from text briefs and revised from owner preview notes; no imported animation, motion-capture or VRMA data.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/gestures/double-take/double-take.meta.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored animaPoseClip/2.0 Gesture definition and metadata under Raymond Van's direction (animama-animation skill, #523), written from text briefs and revised from owner preview notes; no imported animation, motion-capture or VRMA data.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "content/included/gestures/double-thumbs-down/double-thumbs-down.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #314), re-animated from scratch to replace the owner-authored #337 conversion; owner-reviewed and approved 2026-10-09; no third-party animation data",
@@ -1465,6 +1479,20 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "content/included/gestures/noted/noted.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored animaPoseClip/2.0 Gesture definition and metadata under Raymond Van's direction (animama-animation skill, #523), written from text briefs and revised from owner preview notes; no imported animation, motion-capture or VRMA data.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/gestures/noted/noted.meta.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored animaPoseClip/2.0 Gesture definition and metadata under Raymond Van's direction (animama-animation skill, #523), written from text briefs and revised from owner preview notes; no imported animation, motion-capture or VRMA data.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "content/included/gestures/offscreen-look/offscreen-look.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #409); owner-reviewed and approved 2026-10-11; no third-party animation data",
@@ -1741,6 +1769,20 @@
       "path": "content/included/gestures/quick_talk_gesture/quick_talk_gesture.meta.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/gestures/ready-lets-do-this/ready-lets-do-this.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored animaPoseClip/2.0 Gesture definition and metadata under Raymond Van's direction (animama-animation skill, #523), written from text briefs and revised from owner preview notes; no imported animation, motion-capture or VRMA data.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/gestures/ready-lets-do-this/ready-lets-do-this.meta.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored animaPoseClip/2.0 Gesture definition and metadata under Raymond Van's direction (animama-animation skill, #523), written from text briefs and revised from owner preview notes; no imported animation, motion-capture or VRMA data.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -2210,6 +2252,20 @@
       "path": "content/included/gestures/transition_lying_to_stand/transition_lying_to_stand.meta.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/gestures/tut-tut-finger-wag/tut-tut-finger-wag.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored animaPoseClip/2.0 Gesture definition and metadata under Raymond Van's direction (animama-animation skill, #523), written from text briefs and revised from owner preview notes; no imported animation, motion-capture or VRMA data.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/gestures/tut-tut-finger-wag/tut-tut-finger-wag.meta.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored animaPoseClip/2.0 Gesture definition and metadata under Raymond Van's direction (animama-animation skill, #523), written from text briefs and revised from owner preview notes; no imported animation, motion-capture or VRMA data.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -3866,6 +3922,20 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "content/included/vfx/avatar/awkward-ellipsis/awkward-ellipsis.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored Avatar Effect definition and descriptor under Raymond Van's direction (animama-avatar-vfx skill, #523), written from text briefs and revised from owner preview notes; artwork is recorded separately.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/avatar/awkward-ellipsis/ellipsis-sheet.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored geometric artwork under Raymond Van's direction: vector art drawn by an agent-written script and rasterized to PNG (animama-effect-assets skill, #523).",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "content/included/vfx/avatar/badum_burst/badum_burst.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "AI-agent-authored effect definition under Raymond Van's direction (animama-avatar-vfx skill, #409); owner-reviewed and approved 2026-10-11; no third-party art",
@@ -3890,6 +3960,20 @@
       "path": "content/included/vfx/avatar/badum_burst_left/clap_burst.png",
       "candidate_license": "AGPL-3.0-only",
       "basis": "AI-generated by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #409); owner-reviewed and approved 2026-10-11; no third-party art",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/avatar/blank-dot-eyes/blank-dot-eyes.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored Avatar Effect definition and descriptor under Raymond Van's direction (animama-avatar-vfx skill, #523), written from text briefs and revised from owner preview notes; artwork is recorded separately.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/avatar/blank-dot-eyes/dot.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored geometric artwork under Raymond Van's direction: vector art drawn by an agent-written script and rasterized to PNG (animama-effect-assets skill, #523).",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -3946,6 +4030,48 @@
       "path": "content/included/vfx/avatar/blush_deep/blush_deep.png",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/avatar/broken-heart/broken-heart.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored Avatar Effect definition and descriptor under Raymond Van's direction (animama-avatar-vfx skill, #523), written from text briefs and revised from owner preview notes; artwork is recorded separately.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/avatar/broken-heart/heart-sheet.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored geometric artwork under Raymond Van's direction: vector art drawn by an agent-written script and rasterized to PNG (animama-effect-assets skill, #523).",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/avatar/burning-resolve-eyes/burning-resolve-eyes.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored Avatar Effect definition and descriptor under Raymond Van's direction (animama-avatar-vfx skill, #523), written from text briefs and revised from owner preview notes; artwork is recorded separately.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/avatar/burning-resolve-eyes/flames-sheet.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-generated artwork made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #523), then prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/avatar/calculating-glasses/calculating-glasses.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored Avatar Effect definition and descriptor under Raymond Van's direction (animama-avatar-vfx skill, #523), written from text briefs and revised from owner preview notes; artwork is recorded separately.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/avatar/calculating-glasses/glasses-sheet.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored geometric artwork under Raymond Van's direction: vector art drawn by an agent-written script and rasterized to PNG (animama-effect-assets skill, #523).",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -4230,6 +4356,20 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "content/included/vfx/avatar/gray-silhouette/gray-silhouette.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored Avatar Effect definition and descriptor under Raymond Van's direction (animama-avatar-vfx skill, #523), written from text briefs and revised from owner preview notes; artwork is recorded separately.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/avatar/gray-silhouette/manga-fill.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored geometric artwork under Raymond Van's direction: vector art drawn by an agent-written script and rasterized to PNG (animama-effect-assets skill, #523).",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "content/included/vfx/avatar/heart_eyes/heart_eyes.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -4454,6 +4594,20 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "content/included/vfx/avatar/knockout-x-eyes/cross.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-generated artwork made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #523), then prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/avatar/knockout-x-eyes/knockout-x-eyes.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored Avatar Effect definition and descriptor under Raymond Van's direction (animama-avatar-vfx skill, #523), written from text briefs and revised from owner preview notes; artwork is recorded separately.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "content/included/vfx/avatar/laugh_marks/laugh_marks.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "AI-agent-authored effect definition under Raymond Van's direction (animama-avatar-vfx skill, #409); owner-reviewed and approved 2026-10-11; no third-party art",
@@ -4482,6 +4636,34 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "content/included/vfx/avatar/little-devil-horns/horns.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-generated artwork made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #523), then prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/avatar/little-devil-horns/little-devil-horns.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored Avatar Effect definition and descriptor under Raymond Van's direction (animama-avatar-vfx skill, #523), written from text briefs and revised from owner preview notes; artwork is recorded separately.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/avatar/mended-heart/heart-sheet.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored geometric artwork under Raymond Van's direction: vector art drawn by an agent-written script and rasterized to PNG (animama-effect-assets skill, #523).",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/avatar/mended-heart/mended-heart.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored Avatar Effect definition and descriptor under Raymond Van's direction (animama-avatar-vfx skill, #523), written from text briefs and revised from owner preview notes; artwork is recorded separately.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "content/included/vfx/avatar/mind_blown_burst/mind_blown_burst.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "AI-agent-authored effect definition under Raymond Van's direction (animama-avatar-vfx skill, #409); owner-reviewed and approved 2026-10-11; no third-party art",
@@ -4492,6 +4674,27 @@
       "path": "content/included/vfx/avatar/mind_blown_burst/mind_blown_burst.png",
       "candidate_license": "AGPL-3.0-only",
       "basis": "AI-generated by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #409); owner-reviewed and approved 2026-10-11; no third-party art",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/avatar/money-eyes/dollar.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-generated artwork made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #523), then prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/avatar/money-eyes/money-eyes.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored Avatar Effect definition and descriptor under Raymond Van's direction (animama-avatar-vfx skill, #523), written from text briefs and revised from owner preview notes; artwork is recorded separately.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/avatar/money-eyes/other-dollar.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-generated artwork made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #523), then prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -4790,6 +4993,27 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "content/included/vfx/avatar/suspicious-side-eye/eye.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-generated artwork made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #523), then prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/avatar/suspicious-side-eye/other-eye.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-generated artwork made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #523), then prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/avatar/suspicious-side-eye/suspicious-side-eye.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored Avatar Effect definition and descriptor under Raymond Van's direction (animama-avatar-vfx skill, #523), written from text briefs and revised from owner preview notes; artwork is recorded separately.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "content/included/vfx/avatar/sweat_drop/sweat_drop.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -4870,6 +5094,48 @@
       "path": "content/included/vfx/avatar/texture_sick_2/texture_sick_2.png",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/avatar/ticking-fuse/fuse-sheet.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-generated artwork made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #523), then prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/avatar/ticking-fuse/ticking-fuse.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored Avatar Effect definition and descriptor under Raymond Van's direction (animama-avatar-vfx skill, #523), written from text briefs and revised from owner preview notes; artwork is recorded separately.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/avatar/tiny-victory-crown/crown.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-generated artwork made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #523), then prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/avatar/tiny-victory-crown/tiny-victory-crown.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored Avatar Effect definition and descriptor under Raymond Van's direction (animama-avatar-vfx skill, #523), written from text briefs and revised from owner preview notes; artwork is recorded separately.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/avatar/twitching-cat-ears/ears-sheet.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-generated artwork made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #523), then prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/avatar/twitching-cat-ears/twitching-cat-ears.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored Avatar Effect definition and descriptor under Raymond Van's direction (animama-avatar-vfx skill, #523), written from text briefs and revised from owner preview notes; artwork is recorded separately.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -5438,6 +5704,27 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "content/included/vfx/particle/quark/butterfly-flutter/butterfly-flutter.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored Particle Effect descriptor and Quarks manifest under Raymond Van's direction (animama-particle-vfx skill, #523), written from text briefs and revised from owner preview notes; artwork is recorded separately.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/butterfly-flutter/particle.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored Particle Effect descriptor and Quarks manifest under Raymond Van's direction (animama-particle-vfx skill, #523), written from text briefs and revised from owner preview notes; artwork is recorded separately.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/butterfly-flutter/textures/flutter-wingbeat-sheet.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-generated artwork made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #523), then prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "content/included/vfx/particle/quark/confetti/confetti.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -5767,6 +6054,41 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "content/included/vfx/particle/quark/musical-cascade/musical-cascade.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored Particle Effect descriptor and Quarks manifest under Raymond Van's direction (animama-particle-vfx skill, #523), written from text briefs and revised from owner preview notes; artwork is recorded separately.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/musical-cascade/particle.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored Particle Effect descriptor and Quarks manifest under Raymond Van's direction (animama-particle-vfx skill, #523), written from text briefs and revised from owner preview notes; artwork is recorded separately.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/musical-cascade/textures/cascade-beamed-notes.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-generated artwork made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #523), then prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/musical-cascade/textures/cascade-glint.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored geometric artwork under Raymond Van's direction: vector art drawn by an agent-written script and rasterized to PNG (animama-effect-assets skill, #523).",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/musical-cascade/textures/cascade-single-note.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-generated artwork made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #523), then prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "content/included/vfx/particle/quark/question-orbit/particle.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -5875,6 +6197,27 @@
       "path": "content/included/vfx/particle/quark/rain-cloud/textures/splash-glint.png",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/snow-crystal-flurry/particle.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored Particle Effect descriptor and Quarks manifest under Raymond Van's direction (animama-particle-vfx skill, #523), written from text briefs and revised from owner preview notes; artwork is recorded separately.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/snow-crystal-flurry/snow-crystal-flurry.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored Particle Effect descriptor and Quarks manifest under Raymond Van's direction (animama-particle-vfx skill, #523), written from text briefs and revised from owner preview notes; artwork is recorded separately.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/snow-crystal-flurry/textures/faceted-snow-crystal.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-generated artwork made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #523), then prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -6029,6 +6372,27 @@
       "path": "content/included/vfx/particle/quark/twinkle-shimmer/twinkle-shimmer.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/scene/awkward-silence/awkward-silence.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored Scene Effect definition and descriptor under Raymond Van's direction (animama-scene-vfx skill, #523), written from text briefs and revised from owner preview notes; artwork is recorded separately.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/scene/awkward-silence/tumbleweed.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-generated artwork made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #523), then prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/scene/awkward-silence/wind-strokes.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored geometric artwork under Raymond Van's direction: vector art drawn by an agent-written script and rasterized to PNG (animama-effect-assets skill, #523).",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -23248,6 +23612,321 @@
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "docs/plans/companion-content-40/companion-content-40-execplan.md",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Agent-assisted Animama project planning and delivery text authored under Raymond Van's direction for the companion content expansion and its review and promotion workflow (#523).",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/assets/effect-templates/awkward-ellipsis.webp",
+      "candidate_license": "LicenseRef-pixiv-VRoidPreset",
+      "basis": "Direct Animama renderer capture of Annie (owner-confirmed pixiv VRoid preset) wearing the Included Awkward Ellipsis Avatar Effect with agent-made art (#523); retained under the corresponding model terms like Annie's portrait",
+      "source": "https://vrm.dev/licenses/1.0/",
+      "revision": "Regenerated by pnpm -s effects:thumbnails; exact VRM hashes and embedded metadata in evidence",
+      "copyright": [
+        "pixiv VRoid Project",
+        "2026 Raymond Van (effect artwork)"
+      ],
+      "evidence": [
+        "licenses/third-party/art-vroid-review.json",
+        "src/frontend/web/src/assets/effect-templates/README.md"
+      ],
+      "notices": [
+        "licenses/third-party/art-NOTICES.md"
+      ],
+      "conditions": [
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/assets/effect-templates/blank-dot-eyes.webp",
+      "candidate_license": "LicenseRef-pixiv-VRoidPreset",
+      "basis": "Direct Animama renderer capture of Annie (owner-confirmed pixiv VRoid preset) wearing the Included Blank Dot Eyes Avatar Effect with agent-made art (#523); retained under the corresponding model terms like Annie's portrait",
+      "source": "https://vrm.dev/licenses/1.0/",
+      "revision": "Regenerated by pnpm -s effects:thumbnails; exact VRM hashes and embedded metadata in evidence",
+      "copyright": [
+        "pixiv VRoid Project",
+        "2026 Raymond Van (effect artwork)"
+      ],
+      "evidence": [
+        "licenses/third-party/art-vroid-review.json",
+        "src/frontend/web/src/assets/effect-templates/README.md"
+      ],
+      "notices": [
+        "licenses/third-party/art-NOTICES.md"
+      ],
+      "conditions": [
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/assets/effect-templates/broken-heart.webp",
+      "candidate_license": "LicenseRef-pixiv-VRoidPreset",
+      "basis": "Direct Animama renderer capture of Annie (owner-confirmed pixiv VRoid preset) wearing the Included Broken Heart Avatar Effect with agent-made art (#523); retained under the corresponding model terms like Annie's portrait",
+      "source": "https://vrm.dev/licenses/1.0/",
+      "revision": "Regenerated by pnpm -s effects:thumbnails; exact VRM hashes and embedded metadata in evidence",
+      "copyright": [
+        "pixiv VRoid Project",
+        "2026 Raymond Van (effect artwork)"
+      ],
+      "evidence": [
+        "licenses/third-party/art-vroid-review.json",
+        "src/frontend/web/src/assets/effect-templates/README.md"
+      ],
+      "notices": [
+        "licenses/third-party/art-NOTICES.md"
+      ],
+      "conditions": [
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/assets/effect-templates/burning-resolve-eyes.webp",
+      "candidate_license": "LicenseRef-pixiv-VRoidPreset",
+      "basis": "Direct Animama renderer capture of Annie (owner-confirmed pixiv VRoid preset) wearing the Included Burning Resolve Eyes Avatar Effect with agent-made art (#523); retained under the corresponding model terms like Annie's portrait",
+      "source": "https://vrm.dev/licenses/1.0/",
+      "revision": "Regenerated by pnpm -s effects:thumbnails; exact VRM hashes and embedded metadata in evidence",
+      "copyright": [
+        "pixiv VRoid Project",
+        "2026 Raymond Van (effect artwork)"
+      ],
+      "evidence": [
+        "licenses/third-party/art-vroid-review.json",
+        "src/frontend/web/src/assets/effect-templates/README.md"
+      ],
+      "notices": [
+        "licenses/third-party/art-NOTICES.md"
+      ],
+      "conditions": [
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/assets/effect-templates/calculating-glasses.webp",
+      "candidate_license": "LicenseRef-pixiv-VRoidPreset",
+      "basis": "Direct Animama renderer capture of Annie (owner-confirmed pixiv VRoid preset) wearing the Included Calculating Glasses Avatar Effect with agent-made art (#523); retained under the corresponding model terms like Annie's portrait",
+      "source": "https://vrm.dev/licenses/1.0/",
+      "revision": "Regenerated by pnpm -s effects:thumbnails; exact VRM hashes and embedded metadata in evidence",
+      "copyright": [
+        "pixiv VRoid Project",
+        "2026 Raymond Van (effect artwork)"
+      ],
+      "evidence": [
+        "licenses/third-party/art-vroid-review.json",
+        "src/frontend/web/src/assets/effect-templates/README.md"
+      ],
+      "notices": [
+        "licenses/third-party/art-NOTICES.md"
+      ],
+      "conditions": [
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/assets/effect-templates/gray-silhouette.webp",
+      "candidate_license": "LicenseRef-pixiv-VRoidPreset",
+      "basis": "Direct Animama renderer capture of Annie (owner-confirmed pixiv VRoid preset) wearing the Included Gray Silhouette Avatar Effect with agent-made art (#523); retained under the corresponding model terms like Annie's portrait",
+      "source": "https://vrm.dev/licenses/1.0/",
+      "revision": "Regenerated by pnpm -s effects:thumbnails; exact VRM hashes and embedded metadata in evidence",
+      "copyright": [
+        "pixiv VRoid Project",
+        "2026 Raymond Van (effect artwork)"
+      ],
+      "evidence": [
+        "licenses/third-party/art-vroid-review.json",
+        "src/frontend/web/src/assets/effect-templates/README.md"
+      ],
+      "notices": [
+        "licenses/third-party/art-NOTICES.md"
+      ],
+      "conditions": [
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/assets/effect-templates/knockout-x-eyes.webp",
+      "candidate_license": "LicenseRef-pixiv-VRoidPreset",
+      "basis": "Direct Animama renderer capture of Annie (owner-confirmed pixiv VRoid preset) wearing the Included Knockout X Eyes Avatar Effect with agent-made art (#523); retained under the corresponding model terms like Annie's portrait",
+      "source": "https://vrm.dev/licenses/1.0/",
+      "revision": "Regenerated by pnpm -s effects:thumbnails; exact VRM hashes and embedded metadata in evidence",
+      "copyright": [
+        "pixiv VRoid Project",
+        "2026 Raymond Van (effect artwork)"
+      ],
+      "evidence": [
+        "licenses/third-party/art-vroid-review.json",
+        "src/frontend/web/src/assets/effect-templates/README.md"
+      ],
+      "notices": [
+        "licenses/third-party/art-NOTICES.md"
+      ],
+      "conditions": [
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/assets/effect-templates/little-devil-horns.webp",
+      "candidate_license": "LicenseRef-pixiv-VRoidPreset",
+      "basis": "Direct Animama renderer capture of Annie (owner-confirmed pixiv VRoid preset) wearing the Included Little Devil Horns Avatar Effect with agent-made art (#523); retained under the corresponding model terms like Annie's portrait",
+      "source": "https://vrm.dev/licenses/1.0/",
+      "revision": "Regenerated by pnpm -s effects:thumbnails; exact VRM hashes and embedded metadata in evidence",
+      "copyright": [
+        "pixiv VRoid Project",
+        "2026 Raymond Van (effect artwork)"
+      ],
+      "evidence": [
+        "licenses/third-party/art-vroid-review.json",
+        "src/frontend/web/src/assets/effect-templates/README.md"
+      ],
+      "notices": [
+        "licenses/third-party/art-NOTICES.md"
+      ],
+      "conditions": [
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/assets/effect-templates/mended-heart.webp",
+      "candidate_license": "LicenseRef-pixiv-VRoidPreset",
+      "basis": "Direct Animama renderer capture of Annie (owner-confirmed pixiv VRoid preset) wearing the Included Mended Heart Avatar Effect with agent-made art (#523); retained under the corresponding model terms like Annie's portrait",
+      "source": "https://vrm.dev/licenses/1.0/",
+      "revision": "Regenerated by pnpm -s effects:thumbnails; exact VRM hashes and embedded metadata in evidence",
+      "copyright": [
+        "pixiv VRoid Project",
+        "2026 Raymond Van (effect artwork)"
+      ],
+      "evidence": [
+        "licenses/third-party/art-vroid-review.json",
+        "src/frontend/web/src/assets/effect-templates/README.md"
+      ],
+      "notices": [
+        "licenses/third-party/art-NOTICES.md"
+      ],
+      "conditions": [
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/assets/effect-templates/money-eyes.webp",
+      "candidate_license": "LicenseRef-pixiv-VRoidPreset",
+      "basis": "Direct Animama renderer capture of Annie (owner-confirmed pixiv VRoid preset) wearing the Included Money Eyes Avatar Effect with agent-made art (#523); retained under the corresponding model terms like Annie's portrait",
+      "source": "https://vrm.dev/licenses/1.0/",
+      "revision": "Regenerated by pnpm -s effects:thumbnails; exact VRM hashes and embedded metadata in evidence",
+      "copyright": [
+        "pixiv VRoid Project",
+        "2026 Raymond Van (effect artwork)"
+      ],
+      "evidence": [
+        "licenses/third-party/art-vroid-review.json",
+        "src/frontend/web/src/assets/effect-templates/README.md"
+      ],
+      "notices": [
+        "licenses/third-party/art-NOTICES.md"
+      ],
+      "conditions": [
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/assets/effect-templates/suspicious-side-eye.webp",
+      "candidate_license": "LicenseRef-pixiv-VRoidPreset",
+      "basis": "Direct Animama renderer capture of Annie (owner-confirmed pixiv VRoid preset) wearing the Included Suspicious Side-Eye Avatar Effect with agent-made art (#523); retained under the corresponding model terms like Annie's portrait",
+      "source": "https://vrm.dev/licenses/1.0/",
+      "revision": "Regenerated by pnpm -s effects:thumbnails; exact VRM hashes and embedded metadata in evidence",
+      "copyright": [
+        "pixiv VRoid Project",
+        "2026 Raymond Van (effect artwork)"
+      ],
+      "evidence": [
+        "licenses/third-party/art-vroid-review.json",
+        "src/frontend/web/src/assets/effect-templates/README.md"
+      ],
+      "notices": [
+        "licenses/third-party/art-NOTICES.md"
+      ],
+      "conditions": [
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/assets/effect-templates/ticking-fuse.webp",
+      "candidate_license": "LicenseRef-pixiv-VRoidPreset",
+      "basis": "Direct Animama renderer capture of Annie (owner-confirmed pixiv VRoid preset) wearing the Included Ticking Fuse Avatar Effect with agent-made art (#523); retained under the corresponding model terms like Annie's portrait",
+      "source": "https://vrm.dev/licenses/1.0/",
+      "revision": "Regenerated by pnpm -s effects:thumbnails; exact VRM hashes and embedded metadata in evidence",
+      "copyright": [
+        "pixiv VRoid Project",
+        "2026 Raymond Van (effect artwork)"
+      ],
+      "evidence": [
+        "licenses/third-party/art-vroid-review.json",
+        "src/frontend/web/src/assets/effect-templates/README.md"
+      ],
+      "notices": [
+        "licenses/third-party/art-NOTICES.md"
+      ],
+      "conditions": [
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/assets/effect-templates/tiny-victory-crown.webp",
+      "candidate_license": "LicenseRef-pixiv-VRoidPreset",
+      "basis": "Direct Animama renderer capture of Annie (owner-confirmed pixiv VRoid preset) wearing the Included Tiny Victory Crown Avatar Effect with agent-made art (#523); retained under the corresponding model terms like Annie's portrait",
+      "source": "https://vrm.dev/licenses/1.0/",
+      "revision": "Regenerated by pnpm -s effects:thumbnails; exact VRM hashes and embedded metadata in evidence",
+      "copyright": [
+        "pixiv VRoid Project",
+        "2026 Raymond Van (effect artwork)"
+      ],
+      "evidence": [
+        "licenses/third-party/art-vroid-review.json",
+        "src/frontend/web/src/assets/effect-templates/README.md"
+      ],
+      "notices": [
+        "licenses/third-party/art-NOTICES.md"
+      ],
+      "conditions": [
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/assets/effect-templates/twitching-cat-ears.webp",
+      "candidate_license": "LicenseRef-pixiv-VRoidPreset",
+      "basis": "Direct Animama renderer capture of Annie (owner-confirmed pixiv VRoid preset) wearing the Included Twitching Cat Ears Avatar Effect with agent-made art (#523); retained under the corresponding model terms like Annie's portrait",
+      "source": "https://vrm.dev/licenses/1.0/",
+      "revision": "Regenerated by pnpm -s effects:thumbnails; exact VRM hashes and embedded metadata in evidence",
+      "copyright": [
+        "pixiv VRoid Project",
+        "2026 Raymond Van (effect artwork)"
+      ],
+      "evidence": [
+        "licenses/third-party/art-vroid-review.json",
+        "src/frontend/web/src/assets/effect-templates/README.md"
+      ],
+      "notices": [
+        "licenses/third-party/art-NOTICES.md"
+      ],
+      "conditions": [
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+      ],
       "review": "prepared-not-release-approved"
     }
   ],

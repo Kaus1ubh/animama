@@ -19,10 +19,41 @@ from tests.anima_creation_service_support import (
     write_supplied_starter_fixture,
 )
 
+# The reviewed Library additions ship independently of the starter loadouts.
+CORE_LIBRARY_LOCATORS = (
+    "gestures/double-take",
+    "gestures/noted",
+    "gestures/ready-lets-do-this",
+    "gestures/tut-tut-finger-wag",
+    "vfx/avatar/awkward-ellipsis",
+    "vfx/avatar/blank-dot-eyes",
+    "vfx/avatar/broken-heart",
+    "vfx/avatar/burning-resolve-eyes",
+    "vfx/avatar/calculating-glasses",
+    "vfx/avatar/gray-silhouette",
+    "vfx/avatar/knockout-x-eyes",
+    "vfx/avatar/little-devil-horns",
+    "vfx/avatar/mended-heart",
+    "vfx/avatar/money-eyes",
+    "vfx/avatar/suspicious-side-eye",
+    "vfx/avatar/ticking-fuse",
+    "vfx/avatar/tiny-victory-crown",
+    "vfx/avatar/twitching-cat-ears",
+    "vfx/particle/quark/butterfly-flutter",
+    "vfx/particle/quark/musical-cascade",
+    "vfx/particle/quark/snow-crystal-flurry",
+    "vfx/scene/awkward-silence",
+)
+
 
 @pytest.fixture(scope="module")
 def staged_core(tmp_path_factory: pytest.TempPathFactory) -> Path:
-    return write_supplied_starter_fixture(tmp_path_factory.mktemp("supplied-starter-core"))
+    """Supply structural starters and the reviewed, unequipped core Library."""
+    root = write_supplied_starter_fixture(tmp_path_factory.mktemp("supplied-starter-core"))
+    included = Path(__file__).resolve().parents[1] / "content/included"
+    for locator in CORE_LIBRARY_LOCATORS:
+        shutil.copytree(included / locator, root / locator)
+    return root
 
 
 def test_tracked_checkout_packages_both_starters_without_private_animations(tmp_path: Path) -> None:
@@ -35,6 +66,95 @@ def test_tracked_checkout_packages_both_starters_without_private_animations(tmp_
     assert sorted(entry["logical_key"] for entry in poses) == sorted(INCLUDED_POSE_IDS)
     assert all(not starter["diagnostics"] for starter in inventory["starters"])
     assert not any("idle-style:starter" in root for starter in inventory["starters"] for root in starter["roots"])
+
+
+def test_reviewed_library_ships_in_core_without_equipping_starters(tmp_path: Path) -> None:
+    root = copy_tracked_included(tmp_path / "included")
+    inventory = starter_inventory(root)
+    entries = {entry["locator"]: entry for entry in inventory["entries"]}
+    library = [entries[locator] for locator in CORE_LIBRARY_LOCATORS]
+
+    assert len(library) == 22
+    assert {entry["partition"] for entry in library} == {"core"}
+    library_files = {file for entry in library for file in entry["files"]}
+    assert len(library_files) == 52
+    assert {file["partition"] for file in inventory["files"] if file["path"] in library_files} == {"core"}
+    library_keys = {entry["logical_key"] for entry in library}
+    for starter in inventory["starters"]:
+        assert not library_keys.intersection(starter["roots"])
+        assert not set(CORE_LIBRARY_LOCATORS).intersection(starter["entries"])
+        assert set(EXPECTED_STARTER_GESTURE_IDS) <= set(starter["roots"])
+        assert starter["diagnostics"] == []
+    expected_core = set(CORE_LIBRARY_LOCATORS)
+    expected_core.update(entry["locator"] for entry in inventory["entries"] if entry["kind"] == "pose")
+    for starter in inventory["starters"]:
+        expected_core.update(starter["entries"])
+    assert {entry["locator"] for entry in inventory["entries"] if entry["partition"] == "core"} == expected_core
+    assert entries["gestures/bgm-bob"]["partition"] == "expanded"
+
+
+@pytest.mark.parametrize("failure", ["missing", "untracked", "excluded", "non-portable", "dependency"])
+def test_required_library_content_fails_instead_of_silently_leaving_core(
+    staged_core: Path, tmp_path: Path, failure: str
+) -> None:
+    root = tmp_path / "included"
+    shutil.copytree(staged_core, root)
+    descriptor = root / "gestures/noted/noted.meta.json"
+    allowed_paths = None
+    if failure == "missing":
+        shutil.rmtree(descriptor.parent)
+    elif failure == "untracked":
+        allowed_paths = {
+            path.relative_to(root).as_posix() for path in root.rglob("*") if path.is_file() and path != descriptor
+        }
+    elif failure in {"excluded", "non-portable"}:
+        license_path = root / "licenses/inventory.json"
+        policy = json.loads(license_path.read_text())
+        policy["rules"].insert(
+            0,
+            {
+                "glob": "gestures/noted/**",
+                "license_id": "test-unavailable",
+                "provenance": "Explicitly unavailable test content",
+                "distribution": failure,
+            },
+        )
+        license_path.write_text(json.dumps(policy))
+    else:
+        document = json.loads(descriptor.read_text())
+        document["dependencies"] = [
+            {"ref": "builtin:avatar-effect:missing", "content_type": "avatar_effect", "alias": "missing"}
+        ]
+        descriptor.write_text(json.dumps(document))
+
+    with pytest.raises(TypedContentAdmissionError, match="source_invalid|source_unavailable"):
+        starter_inventory(root, allowed_paths=allowed_paths)
+
+
+def test_core_library_includes_required_dependencies_without_equipping_them(staged_core: Path, tmp_path: Path) -> None:
+    root = tmp_path / "included"
+    shutil.copytree(staged_core, root)
+    child = root / "vfx/avatar/library-child"
+    shutil.copytree(root / "vfx/avatar/awkward-ellipsis", child)
+    child_descriptor = child / "awkward-ellipsis.json"
+    child_document = json.loads(child_descriptor.read_text())
+    child_document["content_id"] = "builtin:avatar-effect:library-child"
+    child_document["name"] = "Library child fixture"
+    (child / "library-child.json").write_text(json.dumps(child_document))
+    child_descriptor.unlink()
+    descriptor = root / "gestures/noted/noted.meta.json"
+    document = json.loads(descriptor.read_text())
+    document["dependencies"] = [
+        {"ref": "builtin:avatar-effect:library-child", "content_type": "avatar_effect", "alias": "child"}
+    ]
+    descriptor.write_text(json.dumps(document))
+
+    inventory = starter_inventory(root)
+
+    dependency = next(entry for entry in inventory["entries"] if entry["locator"] == "vfx/avatar/library-child")
+    assert dependency["partition"] == "core"
+    assert all(dependency["locator"] not in starter["entries"] for starter in inventory["starters"])
+    assert all(dependency["logical_key"] not in starter["roots"] for starter in inventory["starters"])
 
 
 def test_supplied_fixture_core_resolves_both_starters_without_expanded_content(staged_core: Path) -> None:

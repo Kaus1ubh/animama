@@ -79,6 +79,8 @@ export type FinitePoseClipPlayback = { timeScale: number; repetitions: number };
 export type PoseControllerPlayClipOptions = {
   /** Finite idle occurrences use an authored clock and own cancellable events. */
   finitePlayback?: FinitePoseClipPlayback;
+  /** Authored timeline speed, independent of wall-clock entry/exit fades. */
+  timeScale?: number;
   fadeInDurationSec?: number | null;
 };
 
@@ -173,6 +175,7 @@ type ClipRuntimeState = {
   program: AnimaPoseClipProgram | null;
   playbackId: number;
   finitePlayback: FinitePoseClipPlayback | null;
+  timeScale: number;
   eventAbort: AbortController | null;
   elapsedSec: number;
   fadeElapsedSec: number;
@@ -377,6 +380,10 @@ export class PoseController {
     options?: PoseControllerPlayClipOptions,
   ): AvatarPoseClipSnapshot {
     const finite = options?.finitePlayback;
+    const timeScale = finite?.timeScale ?? options?.timeScale ?? 1;
+    if (!Number.isFinite(timeScale) || timeScale <= 0) {
+      throw new Error("Clip playback speed must be finite and positive.");
+    }
     // Admission combines the raw clip and Gesture config; these repetitions
     // therefore override the raw loop flag for this idle occurrence only.
     const sanitizedClip = parseAnimaPoseClip(
@@ -427,6 +434,7 @@ export class PoseController {
       program,
       playbackId: this._nextClipPlaybackId,
       finitePlayback: finite ?? null,
+      timeScale,
       eventAbort: finite ? new AbortController() : null,
       phase: fadeInDurationSec > 0 ? "fadeIn" : "playing",
       fadeInSourceSample,
@@ -477,7 +485,7 @@ export class PoseController {
       : Infinity;
     const nextElapsedSec = Math.min(
       horizon,
-      this._clipState.elapsedSec + delta * (finite?.timeScale ?? 1),
+      this._clipState.elapsedSec + delta * this._clipState.timeScale,
     );
     this._clipState.elapsedSec = nextElapsedSec;
     if (this._clipState.phase !== "playing") {
@@ -1388,6 +1396,7 @@ function createClipRuntimeState(): ClipRuntimeState {
     program: null,
     playbackId: 0,
     finitePlayback: null,
+    timeScale: 1,
     eventAbort: null,
     elapsedSec: 0,
     fadeElapsedSec: 0,

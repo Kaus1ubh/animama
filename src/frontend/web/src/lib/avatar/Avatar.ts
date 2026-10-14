@@ -179,6 +179,8 @@ export type PoseClipPlayOptions = PoseBaseReplacementOptions & {
   /** Called once after natural clip completion; stopping or replacing cancels it. */
   onFinished?: () => void;
   finitePlayback?: FinitePoseClipPlayback;
+  /** Playback-clock speed; fades retain their wall-clock duration. */
+  timeScale?: number;
   transition?: AvatarPlannerEnterPolicy;
 };
 
@@ -1184,6 +1186,7 @@ export class Avatar {
     try {
       snapshot = poseController.playAnimaPoseClip(clip, {
         finitePlayback: options?.finitePlayback,
+        timeScale: options?.timeScale,
         fadeInDurationSec: getAvatarPlannerEnterPolicyDuration(
           options?.transition,
         ),
@@ -1615,10 +1618,11 @@ export class Avatar {
     const poseControllerClipActive =
       this.poseController?.isClipActive() ?? false;
     const plannerPoseClipRuntimeActive =
-      activePlannerPoseClip?.status === "active" &&
-      (this.poseController?.isClipActive(activePlannerPoseClip.clipId) ===
-        true ||
-        this._pendingPlannerPoseClipOwnerId === activePlannerPoseClip.ownerId);
+      !!activePlannerPoseClip &&
+      (this._pendingPlannerPoseClipOwnerId === activePlannerPoseClip.ownerId ||
+        (activePlannerPoseClip.status === "active" &&
+          this.poseController?.isClipActive(activePlannerPoseClip.clipId) ===
+            true));
     const manualPoseClipActive =
       context.manualPoseClipActive ??
       (poseControllerClipActive && !plannerPoseClipRuntimeActive);
@@ -1912,24 +1916,41 @@ export class Avatar {
         }
         return;
       }
+      const gestureTimeScale =
+        current.source === "gesture"
+          ? (this._motionCatalog.getGesture(current.manifestGestureId)
+              ?.timeScale ?? 1)
+          : 1;
       const snapshot = this.playAnimaPoseClip(clip, {
         preserveProceduralOffsets: true,
         transition: action.transition,
         finitePlayback: current.finitePlayback,
+        timeScale: gestureTimeScale,
       });
-      if (snapshot.playing && current.source === "idle") {
+      if (
+        snapshot.playing &&
+        (current.source === "idle" || current.source === "gesture")
+      ) {
         const nowMs = Date.now();
+        // Use the delivered timeline, not optional metadata or a cold-cache
+        // fallback. Loading time must never consume the Gesture's playback.
+        const durationSec =
+          current.source === "idle"
+            ? current.finitePlayback!.durationSec
+            : getAnimaPoseClipTimelineDuration(clip) / gestureTimeScale;
         this._avatarPlannerState.activePlannerPoseClip = {
           ...current,
           status: "active",
           startedAtMs: nowMs,
-          expiresAtMs: nowMs + current.finitePlayback!.durationSec * 1000,
+          expiresAtMs: nowMs + durationSec * 1000,
         };
-        this._avatarPlannerState.idleStint = {
-          ...this._avatarPlannerState.idleStint,
-          activeStartedAtMs: nowMs,
-          nextDueAtMs: nowMs + current.finitePlayback!.durationSec * 1000,
-        };
+        if (current.source === "idle") {
+          this._avatarPlannerState.idleStint = {
+            ...this._avatarPlannerState.idleStint,
+            activeStartedAtMs: nowMs,
+            nextDueAtMs: nowMs + durationSec * 1000,
+          };
+        }
       }
       logger.info("AvatarPlanner", "Playing pose clip", {
         status: "playing",

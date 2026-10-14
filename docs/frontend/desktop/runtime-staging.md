@@ -73,9 +73,13 @@ type.
 
 Each staging pass clears only `desktop/.desktop-runtime/darwin-arm64`, then:
 
-1. Resolves starter specifications and the full recommended typed dependency
-   closure. Only tracked distribution inputs may enter the stage; optional
-   portraits use the same presentation contract as installation bootstrap.
+1. Resolves starter specifications, the full recommended typed dependency
+   closure, authoring Poses and the explicit `CORE_LIBRARY_ROOTS` in
+   `animama/runtime/starter_content.py`. These Library roots and their dependencies
+   ship in core without entering starter loadouts or per-starter receipts. Only
+   tracked distribution inputs may enter the stage; missing or excluded required
+   roots fail staging. Optional portraits use the same presentation contract as
+   installation bootstrap.
 2. Builds pinned PostgreSQL 16.15 and pgvector 0.8.6 sources with portable arm64
    flags. The runtime retains required language, encoding, and text-search
    modules, but no headers, static archives, or development tools. Symbols stay
@@ -83,6 +87,8 @@ Each staging pass clears only `desktop/.desktop-runtime/darwin-arm64`, then:
 3. Freezes Python 3.12.13 and the locked server dependencies with PyInstaller
    6.22.2. The build environment is separate from the repository's `.venv`.
 4. Builds Vite in `embedded-desktop` mode, without duplicate Included aliases.
+   The stage filter removes compatibility directories copied from Vite's public
+   assets; source assets and ordinary web builds retain them.
    The stage filter and independent audit reject unapproved portrait copies
    listed in `desktop/scripts/runtime/desktop-web.mjs`.
    The browser-runtime manifest verifies all 21 PocketTTS, VAD, Smart Turn and

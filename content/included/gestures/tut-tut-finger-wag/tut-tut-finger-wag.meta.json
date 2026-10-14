@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:tut-tut-finger-wag",
+  "version": 1,
+  "semantic_key": "tut_tut_finger_wag",
+  "name": "Tut-Tut Finger Wag",
+  "ai_description": "Wags a raised index finger with an exaggerated disapproving face, then softens into a playful smile. Use for teasing correction or mild admonishment.",
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [],
+  "files": [
+    {
+      "path": "tut-tut-finger-wag.json",
+      "role": "sequence"
+    }
+  ]
+}

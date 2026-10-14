@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:little-devil-horns",
+  "version": 1,
+  "name": "Little Devil Horns",
+  "description": "Two short crimson horns spring up for an impish idea or playful mischief.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "emote",
+    "attachment": {
+      "kind": "face_landmark",
+      "landmark": "top_edge",
+      "offset": {
+        "x": 0,
+        "y": 0.015,
+        "z": 0.015
+      },
+      "position": "middle",
+      "scale": {
+        "x": 2.7,
+        "y": 2.7
+      }
+    },
+    "art": {
+      "image": "horns.png"
+    },
+    "motion": {
+      "keyframes": {
+        "frames": [
+          {
+            "opacity": 0,
+            "scale": 0.5,
+            "t": 0
+          },
+          {
+            "opacity": 1,
+            "scale": 1.1,
+            "t": 0.18
+          },
+          {
+            "scale": 1,
+            "t": 0.35
+          }
+        ]
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "horns.png",
+      "role": "image"
+    }
+  ]
+}

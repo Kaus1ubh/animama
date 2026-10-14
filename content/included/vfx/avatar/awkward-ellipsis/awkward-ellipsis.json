@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:awkward-ellipsis",
+  "version": 1,
+  "name": "Awkward Ellipsis",
+  "description": "Three dots appear one by one in a small manga speech balloon beside the head, then hold for an awkward pause, a deadpan response or a joke that did not land.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "sticker",
+    "attachment": {
+      "kind": "sticker",
+      "around": "head",
+      "offset": {
+        "x": 0.125,
+        "y": 0.04
+      },
+      "rotationDeg": -4,
+      "size": 0.115
+    },
+    "art": {
+      "image": "ellipsis-sheet.png",
+      "flipbook": {
+        "columns": 4,
+        "fps": 2.5,
+        "frames": 4,
+        "loop": "once",
+        "rows": 1
+      }
+    },
+    "motion": {
+      "keyframes": {
+        "frames": [
+          {
+            "opacity": 0,
+            "scale": 0.8,
+            "t": 0
+          },
+          {
+            "opacity": 1,
+            "scale": 1.04,
+            "t": 0.18
+          },
+          {
+            "scale": 1,
+            "t": 0.3
+          }
+        ]
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "ellipsis-sheet.png",
+      "role": "image"
+    }
+  ]
+}

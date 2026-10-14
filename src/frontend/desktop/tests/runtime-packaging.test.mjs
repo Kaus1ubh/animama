@@ -280,6 +280,40 @@ describe("desktop runtime packaging", () => {
     expect(() => assertDesktopWebAssets(root)).not.toThrow();
     excludeDesktopWebAssets(root);
   });
+  it("removes copied Included compatibility directories while preserving other web assets", () => {
+    const root = fixture();
+    const aliases = [
+      "background",
+      "effects/scene-vfx",
+      "effects/sfx",
+      "effects/vfx",
+      "effects/resources",
+    ];
+    for (const alias of aliases) {
+      mkdirSync(path.join(root, alias), { recursive: true });
+      writeFileSync(path.join(root, alias, "copied.png"), "duplicate");
+    }
+    writeFileSync(path.join(root, "effects/keep.png"), "runtime asset");
+    excludeDesktopWebAssets(root);
+    for (const alias of aliases)
+      expect(existsSync(path.join(root, alias))).toBe(false);
+    expect(readFileSync(path.join(root, "effects/keep.png"), "utf8")).toBe(
+      "runtime asset",
+    );
+    expect(readFileSync(path.join(root, "data.json"), "utf8")).toBe("{}");
+    excludeDesktopWebAssets(root);
+  });
+  it.skipIf(!symlinksAvailable)(
+    "removes a compatibility symlink without changing its source assets",
+    () => {
+      const root = fixture();
+      const source = fixture();
+      symlinkSync(source, path.join(root, "background"), "dir");
+      excludeDesktopWebAssets(root);
+      expect(existsSync(path.join(root, "background"))).toBe(false);
+      expect(readFileSync(path.join(source, "data.json"), "utf8")).toBe("{}");
+    },
+  );
   it.skipIf(process.platform !== "darwin")(
     "launches the worker relative to its relocated app without a shell or PATH lookup",
     () => {

@@ -36,6 +36,33 @@ from animama.domain.content_catalog import (
 )
 from animama.utils.files import path_is_link
 
+# Reviewed Library content bundled with desktop core without changing any Anima's
+# starter loadout. Resolve these exact IDs through the same typed admission gates.
+CORE_LIBRARY_ROOTS = (
+    "builtin:gesture:double-take",
+    "builtin:gesture:noted",
+    "builtin:gesture:ready-lets-do-this",
+    "builtin:gesture:tut-tut-finger-wag",
+    "builtin:avatar-effect:awkward-ellipsis",
+    "builtin:avatar-effect:blank-dot-eyes",
+    "builtin:avatar-effect:broken-heart",
+    "builtin:avatar-effect:burning-resolve-eyes",
+    "builtin:avatar-effect:calculating-glasses",
+    "builtin:avatar-effect:gray-silhouette",
+    "builtin:avatar-effect:knockout-x-eyes",
+    "builtin:avatar-effect:little-devil-horns",
+    "builtin:avatar-effect:mended-heart",
+    "builtin:avatar-effect:money-eyes",
+    "builtin:avatar-effect:suspicious-side-eye",
+    "builtin:avatar-effect:ticking-fuse",
+    "builtin:avatar-effect:tiny-victory-crown",
+    "builtin:avatar-effect:twitching-cat-ears",
+    "builtin:particle-effect:butterfly-flutter",
+    "builtin:particle-effect:musical-cascade",
+    "builtin:particle-effect:snow-crystal-flurry",
+    "builtin:scene-effect:background:awkward-silence",
+)
+
 
 def _regular_path(root: Path, relative: str) -> Path:
     parts = PurePosixPath(relative)
@@ -181,6 +208,9 @@ def starter_inventory(included_root: Path, *, allowed_paths: set[str] | None = N
                 "diagnostics": [],
             }
         )
+
+    # Library availability is separate from the unchanged per-starter receipts.
+    core.update(resolve_roots(list(CORE_LIBRARY_ROOTS)))
 
     expanded: set[str] = set()
     for item_id, catalog_entry in sorted(visible.items()):

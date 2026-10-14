@@ -13,6 +13,18 @@ export const excludedDesktopWebAssets = Object.freeze([
 export function excludeDesktopWebAssets(webRoot) {
   for (const name of excludedDesktopWebAssets)
     rmSync(path.join(webRoot, name), { force: true });
+  // Vite still copies tracked public assets when the compatibility plugin's
+  // build aliases are disabled. Desktop resolves Included bytes through the
+  // content API, so omit these duplicate directories from generated output.
+  // The independent runtime audit separately rejects their presence.
+  for (const alias of [
+    "background",
+    "effects/scene-vfx",
+    "effects/sfx",
+    "effects/vfx",
+    "effects/resources",
+  ])
+    rmSync(path.join(webRoot, alias), { recursive: true, force: true });
 }
 
 /** The independent audit also rejects reintroduced files, including broken symlinks. */
