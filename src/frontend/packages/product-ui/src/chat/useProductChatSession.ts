@@ -400,15 +400,26 @@ export function useProductChatSession({
     };
   }, [abortAvatarRun, cancelTts, clearAvatarVisemeBridgeAll, stop]);
 
+  // Count model switches in session state instead of reading the mutation's
+  // `isPending`. A chat opened with its data cached restores its model from a
+  // mount effect; development StrictMode replays that effect, and the replay
+  // detaches the mutation observer from the running switch, so it would keep
+  // reporting the finished switch as pending.
+  const [pendingModelSwitches, setPendingModelSwitches] = useState(0);
   const selectProfileModel = useCallback(
     async (item: PyModelProviderCatalogItem) => {
       if (activeModelProviderId === item.id) return;
-      await updateAnimaChatProfile.mutateAsync({
-        animaId,
-        body: {
-          default_model_provider_id: item.id,
-        },
-      });
+      setPendingModelSwitches((count) => count + 1);
+      try {
+        await updateAnimaChatProfile.mutateAsync({
+          animaId,
+          body: {
+            default_model_provider_id: item.id,
+          },
+        });
+      } finally {
+        setPendingModelSwitches((count) => count - 1);
+      }
     },
     [activeModelProviderId, animaId, updateAnimaChatProfile],
   );
@@ -1674,6 +1685,6 @@ export function useProductChatSession({
     requestModelSwitchToNewChat,
     cancelPendingModelSwitch,
     confirmPendingModelSwitch,
-    isConfirmingModelSwitch: updateAnimaChatProfile.isPending,
+    isConfirmingModelSwitch: pendingModelSwitches > 0,
   };
 }
