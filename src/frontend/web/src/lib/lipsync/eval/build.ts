@@ -9,7 +9,7 @@ import {
   createSpeechTimingCollector,
   type TimedChar,
 } from "@/lib/speech/provider-speech-timing";
-import type { EstimatedPlannerInputs, EvalClip, EvalClipMeta } from "./clip";
+import type { EvalClip, EvalClipMeta, StressReference } from "./clip";
 import { referenceFromAlignment, type AlignedWord } from "./reference";
 
 /** Text to Dialogue socket messages as recorded: audio sample counts, alignment and turn ends. */
@@ -58,7 +58,7 @@ export function buildEvalClip(input: {
   sampleRate: number;
   timing: RecordedTiming | null;
   alignment: AlignedWord[];
-  estimated: EstimatedPlannerInputs | null;
+  stressReference: StressReference | null;
 }): EvalClip {
   return {
     ...input.meta,
@@ -67,6 +67,6 @@ export function buildEvalClip(input: {
     features: analyseSpeechAudio(input.pcm, input.sampleRate),
     timing: input.timing ? timingFromRecording(input.timing) : null,
     reference: referenceFromAlignment(input.alignment, input.meta.lang),
-    estimated: input.estimated,
+    stressReference: input.stressReference,
   };
 }

@@ -12,7 +12,6 @@ import {
 import {
   useAvatarLipSyncBridgeStore,
   type PlannedLipSyncStats,
-  type RawVisemeInputs,
 } from "./avatar-lipsync-bridge-store";
 
 /** The longest audio one capture keeps. */
@@ -38,7 +37,6 @@ export type LipSyncDebugCapture = {
   text: string | null;
   /** Speech parts (Gemini) by the sample their audio starts at. */
   parts: Array<{ sample: number; text: string }>;
-  inputs: RawVisemeInputs | null;
   /** How the live planner did on the run. */
   plannerStats: PlannedLipSyncStats | null;
   /** The played length, known once the provider has sent all the audio. */
@@ -67,26 +65,24 @@ type LipSyncDebugState = {
 let unsubscribeBridge: (() => void) | null = null;
 
 export const useLipSyncDebugStore = create<LipSyncDebugState>((set, get) => {
-  /** Copy the captured run's planner inputs, timing and length from the bridge. */
+  /** Copy the captured run's text, timing and length from the bridge. */
   const syncFromBridge = (
     bridge: ReturnType<typeof useAvatarLipSyncBridgeStore.getState>,
   ) => {
     const capture = get().capture;
     if (!capture || capture.origin === "file") return;
-    const inputs = bridge.rawVisemeInputsByRun[capture.runId];
     const timing = bridge.providerSpeechTimingByRun[capture.runId]?.chars;
     const audioDuration = bridge.speechAudioDurationsByRun[capture.runId];
     const text = bridge.speechTextByRun[capture.runId];
     const plannerStats = bridge.plannerStatsByRun[capture.runId];
     const inBridge = Boolean(
-      inputs ||
+      text ||
       timing ||
       audioDuration ||
       bridge.speechAudioStartsByRun[capture.runId],
     );
     // A cleared run keeps what was copied before.
     const next = {
-      inputs: inputs ?? capture.inputs,
       timing: timing ?? capture.timing,
       text: text ?? capture.text,
       plannerStats: plannerStats ?? capture.plannerStats,
@@ -120,7 +116,6 @@ export const useLipSyncDebugStore = create<LipSyncDebugState>((set, get) => {
         timing: [],
         text: null,
         parts: [],
-        inputs: null,
         plannerStats: null,
         audioDurationSec: null,
         seenInBridge: false,
@@ -192,7 +187,6 @@ export const useLipSyncDebugStore = create<LipSyncDebugState>((set, get) => {
           timing: file.timing,
           text: file.text,
           parts: file.parts,
-          inputs: file.estimated ? { ...file.estimated, fps: 60 } : null,
           plannerStats: null,
           audioDurationSec: file.pcm.length / file.sampleRate,
           seenInBridge: false,

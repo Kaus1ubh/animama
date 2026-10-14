@@ -949,9 +949,7 @@ Generation path:
   abbreviations spelled out ("$5.99" as "five dollars ninety-nine cents"), and
   vocal tags and emoji left out, since Pocket cannot perform them. A chunk with
   nothing left to say is dropped before it is queued, so the stream ends on the
-  last chunk Pocket speaks. While the backend still prepares English text with
-  gruut, Pocket receives gruut's text for sentences whose letters are all ASCII, and spells out
-  only what gruut left.
+  last chunk Pocket speaks.
 
 End-of-stream handling:
 

@@ -31,8 +31,12 @@ export type EvalReference = {
   vowels: Array<[number, number, number]>;
 };
 
-/** Inputs today's estimated planner receives for the line. */
-export type EstimatedPlannerInputs = {
+/**
+ * gruut 2.4.0's reading of an English line, recorded before gruut was removed:
+ * its words and their phonemes, with stress marks. The fixed reference for
+ * where beats should fall.
+ */
+export type StressReference = {
   tokenizedText: string;
   phonemizedText: string[][];
 };
@@ -64,7 +68,7 @@ export type EvalClip = EvalClipMeta & {
   /** Provider character timing on the clip clock, when the provider gives it. */
   timing: TimedChar[] | null;
   reference: EvalReference;
-  estimated: EstimatedPlannerInputs | null;
+  stressReference: StressReference | null;
   /**
    * Where each speech part's audio starts, for clips joined from several
    * parts, as a reply spoken part by part arrives. Recorded clips are one part.
@@ -83,7 +87,7 @@ export type EncodedEvalClip = EvalClipMeta & {
   };
   timing: Array<[string, number, number]> | null;
   reference: EvalReference;
-  estimated: EstimatedPlannerInputs | null;
+  stressReference: StressReference | null;
 };
 
 const round = (value: number, digits: number) => Number(value.toFixed(digits));
@@ -139,7 +143,7 @@ export function encodeEvalClip(clip: EvalClip): EncodedEvalClip {
         round(e, 3),
       ]),
     },
-    estimated: clip.estimated,
+    stressReference: clip.stressReference,
   };
 }
 
@@ -182,6 +186,6 @@ export function decodeEvalClip(encoded: EncodedEvalClip): EvalClip {
         }))
       : null,
     reference: encoded.reference,
-    estimated: encoded.estimated,
+    stressReference: encoded.stressReference,
   };
 }

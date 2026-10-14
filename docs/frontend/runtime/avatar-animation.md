@@ -733,7 +733,7 @@ Important behavior:
   - transition blending between segments,
   - post-segment decay back to neutral.
 
-See [Avatar lip-sync](avatar-lipsync.md) for provider timing and viseme inputs.
+See [Avatar lip-sync](avatar-lipsync.md) for how each reply's mouth is planned.
 
 ### `ProceduralAnimationController`
 

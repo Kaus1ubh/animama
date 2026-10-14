@@ -12,8 +12,6 @@ fixtures and never needs these tools. They make the inputs for
 - `reference`: forced-align each clip's words for scoring (`reference.json`).
   It uses torchaudio's MMS aligner, whose weights are CC-BY-NC-4.0: evaluation
   only, never shipped.
-- `estimated`: record the gruut phonemes today's estimated planner receives for
-  each line (`estimated.json`), as the chat stream builds them.
 
 Run from the repository root; see scripts/lipsync/README.md for each command's
 dependencies.
@@ -243,29 +241,10 @@ def reference(args: argparse.Namespace) -> None:
     out_path.write_text(json.dumps(result, ensure_ascii=False, indent=1))
 
 
-# --- estimated -----------------------------------------------------------------
-
-
-def estimated(args: argparse.Namespace) -> None:
-    from animama.app.gruut_text import build_gruut_sse_text
-
-    out_path = args.clips / "estimated.json"
-    result = json.loads(out_path.read_text()) if out_path.exists() else {}
-    for line in load_lines(args.only):
-        # The chat stream phonemizes the speech text with tags as written.
-        payload = build_gruut_sse_text(line["text"], lang="en_US") or {}
-        result[line["id"]] = {
-            "tokenizedText": payload.get("tokenized_text") or "",
-            "phonemizedText": payload.get("phonemized_text") or [],
-        }
-    out_path.write_text(json.dumps(result, ensure_ascii=False, indent=1))
-    print(f"estimated inputs: {len(result)} lines")
-
-
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     commands = parser.add_subparsers(dest="command", required=True)
-    for name in ("generate", "reference", "estimated"):
+    for name in ("generate", "reference"):
         command = commands.add_parser(name)
         command.add_argument("clips", type=Path, help="clip directory outside the repository")
         command.add_argument("--only", nargs="*", help="line ids")
@@ -277,10 +256,8 @@ def main() -> None:
     args = parser.parse_args()
     if args.command == "generate":
         asyncio.run(generate(args))
-    elif args.command == "reference":
-        reference(args)
     else:
-        estimated(args)
+        reference(args)
 
 
 if __name__ == "__main__":

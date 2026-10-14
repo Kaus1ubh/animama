@@ -166,7 +166,6 @@ async def test_prepare_without_a_key_is_refused(monkeypatch: pytest.MonkeyPatch)
             run_id="run-1",
             text="Hello.",
             model_id=None,
-            text_basis="gruut_text_with_ws",
             emotional_tone=None,
             emotional_state=None,
         )
@@ -180,7 +179,6 @@ async def test_prepare_falls_back_to_the_default_voice_and_model(gemini_key: Non
         run_id="run-1",
         text="Hello.",
         model_id="eleven_v4_turbo",
-        text_basis="gruut_text_with_ws",
         emotional_tone="joy",
         emotional_state={"joy": 16},
     )
@@ -199,7 +197,6 @@ async def test_prepare_keeps_a_prebuilt_voice_and_always_sets_the_style(gemini_k
         run_id="run-1",
         text="Hello.",
         model_id="gemini-3.8-flash-tts",
-        text_basis="gruut_text_with_ws",
         emotional_tone="joy",
         emotional_state=None,
     )
@@ -211,47 +208,25 @@ async def test_prepare_keeps_a_prebuilt_voice_and_always_sets_the_style(gemini_k
 
 
 @pytest.mark.parametrize(
-    ("text", "text_basis", "gruut_text", "spoken"),
+    "text",
     [
-        # Text gruut already prepared is spoken as is; gruut is not asked again.
-        ("Call one hundred.", "gruut_text_with_ws", "unused", "Call one hundred."),
-        # English visible text is verbalized by gruut, so lip-sync phonemes match the words heard.
-        ("Call 100.", "visible_text", "Call one hundred.", "Call one hundred."),
-        # Without gruut's text, it is spoken as written and Gemini reads the digits itself.
-        ("Call 100.", "visible_text", None, "Call 100."),
-        # Other languages are spoken as written; gruut is not asked.
-        ("今日は3時です。", "visible_text", "unused", "今日は3時です。"),
+        # Gemini reads numbers and symbols itself.
+        "Call 100 at 3:30 pm, it's 72°F.",
+        "今日は3時です。",
     ],
 )
 @pytest.mark.asyncio
-async def test_prepare_speaks_english_through_gruut_and_other_languages_as_written(
-    gemini_key: None,
-    monkeypatch: pytest.MonkeyPatch,
-    text: str,
-    text_basis: str,
-    gruut_text: str | None,
-    spoken: str,
-) -> None:
-    gruut_inputs: list[str] = []
-
-    def _fake_gruut(final_text: str, **_kwargs: Any) -> dict[str, Any] | None:
-        gruut_inputs.append(final_text)
-        return {"tokenized_text": gruut_text, "phonemized_text": []} if gruut_text else None
-
-    monkeypatch.setattr("animama.server.finalized_speech.build_gruut_sse_text", _fake_gruut)
-
+async def test_prepare_speaks_the_text_as_written(gemini_key: None, text: str) -> None:
     prepared = await prepare_gemini_finalized_speech(
         voice_id="Kore",
         run_id="run-1",
         text=text,
         model_id=None,
-        text_basis=text_basis,
         emotional_tone=None,
         emotional_state=None,
     )
 
-    assert prepared.text == spoken
-    assert gruut_inputs == ([text] if text_basis == "visible_text" and text.isascii() else [])
+    assert prepared.text == text
 
 
 # Streaming a segment

@@ -3,8 +3,6 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { decodeEvalClip, type EncodedEvalClip } from "./clip";
-import { evaluate } from "./evaluate";
-import { estimatedEvalSource } from "./estimated-source";
 import { pocketSpeechText } from "@/lib/speech/pocket-speech-text";
 
 const fixturesDir = path.resolve(
@@ -50,16 +48,5 @@ describe("lip-sync evaluation fixtures", () => {
       expect(line.provider).toBe("pocket");
       expect(line.text).toBe(pocketSpeechText(line.written!));
     }
-  });
-
-  it("score today's estimated planner on a few clips", () => {
-    const clips = ["s-en", "g-en-laugh", "e-ja"].map(loadClip);
-    const rows = evaluate(clips, [estimatedEvalSource], ["whole"]);
-    const main = rows.find((row) => row.set === "main" && !row.heldOut)!;
-    // Today's plan leaves the mouth open in most silent gaps and shut for Japanese.
-    expect(main.summary.openInSilenceEnglish).toBeGreaterThan(0.5);
-    const eleven = rows.find((row) => row.set === "eleven-http")!;
-    expect(eleven.summary.vowelMatchCjk).toBeLessThan(0.2);
-    expect(eleven.summary.tagsPlaced).toBe(0);
   });
 });

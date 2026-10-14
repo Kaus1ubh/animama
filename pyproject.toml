@@ -43,6 +43,7 @@ dependencies = [
     "elevenlabs>=2.39.0",
     "websockets>=15.0,<16",
     "watchfiles>=1.1,<2",
+    "regex>=2024.11.6",
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -58,7 +59,6 @@ Repository = "https://github.com/raymond-van/animama"
 Documentation = "https://github.com/raymond-van/animama/tree/main/docs/backend"
 
 [project.optional-dependencies]
-server = ["gruut>=2.4.0"]
 file-worker = [
     "docling==2.100.0",
     "torch>=2.2.2,<3",
@@ -76,10 +76,6 @@ torchvision = [{ index = "pytorch-cpu" }]
 [tool.uv]
 conflicts = [
     [
-        { extra = "server" },
-        { extra = "file-worker" },
-    ],
-    [
         { group = "dev" },
         { extra = "file-worker" },
     ],
@@ -94,10 +90,7 @@ explicit = true
 desktop-build = [
     "pyinstaller==6.22.2",
 ]
-# Backend tests exercise the server runtime (gruut lip-sync phonemes), so the
-# default development sync includes the server extra.
 dev = [
-    "animama-backend[server]",
     "pytest>=8.0.0",
     "pytest-asyncio>=0.23.0",
     "pytest-cov>=5.0.0",
@@ -177,9 +170,14 @@ exclude = ["^src/backend/animama/proposed_changes", "^src/backend/animama/exampl
 plugins = ["pydantic.mypy"]
 
 # The file-worker extra is checked at its adapter boundary without installing
-# that heavyweight runtime pack into the development environment; gruut is untyped.
+# that heavyweight runtime pack into the development environment.
 [[tool.mypy.overrides]]
-module = ["docling.*", "docling_core.*", "gruut"]
+module = ["docling.*", "docling_core.*"]
+ignore_missing_imports = true
+
+# Speech text drops emoji by Unicode property with regex, which ships no types.
+[[tool.mypy.overrides]]
+module = "regex"
 ignore_missing_imports = true
 
 # The optional system-metrics probe uses psutil's untyped distribution.

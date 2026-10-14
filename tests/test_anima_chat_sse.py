@@ -61,13 +61,14 @@ from animama.orm.user_file import ORMUserFile
 from animama.orm.user_file_chunk import ORMUserFileChunk
 from animama.product_http.chat import (
     compaction as chat_compaction,
+    sse_events as chat_sse_events,
     title as chat_title,
     tts as chat_tts,
     turn_setup as chat_turn_setup,
 )
 from animama.product_http.chat.options import resolve_chat_request_options
 from animama.product_http.chat.setup_helpers import chat_manager as product_chat_manager
-from animama.product_http.chat.sse_events import SsePreparedTtsSpeechSegment
+from animama.product_http.chat.sse_events import SsePreparedTtsSpeechSegment, SseTextState
 from animama.product_http.chat.stream import hold_chat_turn
 from animama.product_http.ports import install_product_ports
 from animama.product_http.routes import chat_turns, chats as chats_router
@@ -657,6 +658,16 @@ def _event_count(chunks: list[str], event_name: str) -> int:
     return sum(1 for chunk in chunks if f"event: {event_name}" in chunk)
 
 
+_PHONEME_FIELDS = ("tokenized_text", "phonemized_text", "tts_text", "tts_phonemized_text", "tts_text_basis")
+
+
+def _assert_no_phoneme_fields(chunks: list[str]) -> None:
+    """Frames carry the visible text only; every provider speaks it as written."""
+
+    for chunk in chunks:
+        assert not any(f'"{field}"' in chunk for field in _PHONEME_FIELDS), chunk
+
+
 def _prepared_tts_segment(
     text: str,
     *,
@@ -667,8 +678,6 @@ def _prepared_tts_segment(
     return SsePreparedTtsSpeechSegment(
         visible_text=text,
         tts_text=text.strip(),
-        tts_phonemized_text=[["PH"]],
-        text_basis="gruut_text_with_ws",
         part_index=part_index,
         part_final=False,
         paragraph_index=paragraph_index,
@@ -1082,29 +1091,6 @@ def test_chat_sse_route_is_mounted_and_dispatch_sse_is_retired() -> None:
     assert "/v1/animas/{anima_id}/dispatch:sse" not in api_paths
 
 
-def test_anima_gruut_wrapper_accepts_tokenized_text_source(monkeypatch) -> None:
-    calls: list[dict[str, Any]] = []
-
-    def _fake_build_gruut_sse_text(text: str, **kwargs: Any) -> dict[str, Any]:
-        calls.append({"text": text, **kwargs})
-        return {"tokenized_text": "Speak this.", "phonemized_text": [["S"]]}
-
-    monkeypatch.setattr(chat_turns, "build_gruut_sse_text", _fake_build_gruut_sse_text)
-
-    assert chat_turns._build_gruut_sse_text(
-        "Speak this.",
-        lang="en_US",
-        tokenized_text_source="text_with_ws",
-    ) == {"tokenized_text": "Speak this.", "phonemized_text": [["S"]]}
-    assert calls == [
-        {
-            "text": "Speak this.",
-            "lang": "en_US",
-            "tokenized_text_source": "text_with_ws",
-        }
-    ]
-
-
 def test_anima_chat_request_rejects_blank_message() -> None:
     with pytest.raises(ValidationError):
         _chat_request(message=" \n\t ")
@@ -1211,7 +1197,6 @@ def test_finalized_tts_paragraph_batcher_flushes_at_visible_char_limit() -> None
 
     assert batch is not None
     assert batch.text == f"{first} {second}"
-    assert batch.text_basis == "visible_text"
     assert batcher.pop_ready() is None
 
 
@@ -1305,7 +1290,7 @@ async def test_chat_sse_success_emits_user_response_and_completed(monkeypatch) -
 
     assert any("event: user.response" in chunk for chunk in chunks)
     assert any('"text": "Hello"' in chunk for chunk in chunks)
-    assert not any('"tts_text"' in chunk for chunk in chunks)
+    _assert_no_phoneme_fields(chunks)
     assert any("event: run.completed" in chunk for chunk in chunks)
     assert _event_count(chunks, "run.completed") == 1
     assert any('"chat_id": "chat-1"' in chunk for chunk in chunks if "event: run.completed" in chunk)
@@ -1660,18 +1645,8 @@ async def test_chat_sse_chat_options_flow_into_runtime_context(monkeypatch) -> N
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize(
-    ("response_part", "expected_gruut_call_count"),
-    [
-        ("speech", 1),
-        ("display", 1),
-    ],
-)
-async def test_chat_sse_main_structured_gruut_behavior(
-    monkeypatch,
-    response_part: str,
-    expected_gruut_call_count: int,
-) -> None:
+@pytest.mark.parametrize("response_part", ["speech", "display"])
+async def test_chat_sse_main_structured_frames_carry_visible_text_only(monkeypatch, response_part: str) -> None:
     display = "Display this." if response_part == "display" else None
     model_client = _RouteModelClient(text=_direct_structured_response(speech="Speak this.", display=display))
     _install_route_mocks(
@@ -1679,13 +1654,6 @@ async def test_chat_sse_main_structured_gruut_behavior(
         chat_options={"main_structured_response": True},
         model_client=model_client,
     )
-    gruut_calls: list[dict[str, Any]] = []
-
-    def _fake_gruut(final_text, lang="en_US", **kwargs):
-        gruut_calls.append({"text": final_text, "lang": lang, **kwargs})
-        return {"tokenized_text": final_text, "phonemized_text": [["S"], ["DH"]]}
-
-    monkeypatch.setattr("animama.product_http.routes.chat_turns._build_gruut_sse_text", _fake_gruut)
 
     response = await chat_anima_direct_sse(
         "anima-1",
@@ -1702,16 +1670,11 @@ async def test_chat_sse_main_structured_gruut_behavior(
 
     assert any('"response_format": "main_structured_json"' in chunk for chunk in chunks)
     assert any('"response_part": "speech"' in chunk for chunk in chunks)
+    assert any('"text": "Speak this."' in chunk for chunk in chunks)
     if display:
         assert any('"response_part": "display"' in chunk for chunk in chunks)
         assert any('"text": "Display this."' in chunk for chunk in chunks)
-    assert len(gruut_calls) == expected_gruut_call_count
-    assert gruut_calls == [
-        {"text": "Speak this.", "lang": "en_US"},
-    ]
-    assert any('"tokenized_text": "Speak this."' in chunk for chunk in chunks)
-    assert not any('"tokenized_text": "Display this."' in chunk for chunk in chunks)
-    assert not any('"tts_text"' in chunk for chunk in chunks)
+    _assert_no_phoneme_fields(chunks)
 
 
 @pytest.mark.asyncio
@@ -1748,13 +1711,6 @@ async def test_chat_sse_primary_structured_uses_main_structured_sse_behavior(mon
         chat_options={"disable_emotion_updates": True},
         model_client=_RouteModelClient(text=_direct_structured_response(speech="Speak this.", emotional_tone="joy")),
     )
-    gruut_calls: list[dict[str, Any]] = []
-
-    def _fake_gruut(final_text, lang="en_US", **kwargs):
-        gruut_calls.append({"text": final_text, "lang": lang, **kwargs})
-        return {"tokenized_text": final_text, "phonemized_text": [["S"], ["DH"]]}
-
-    monkeypatch.setattr("animama.product_http.routes.chat_turns._build_gruut_sse_text", _fake_gruut)
 
     response = await chat_anima_direct_sse(
         "anima-1",
@@ -1769,8 +1725,6 @@ async def test_chat_sse_primary_structured_uses_main_structured_sse_behavior(mon
     assert any('"text": "Speak this."' in chunk for chunk in chunks)
     assert not any('"response_part": "emotional_tone"' in chunk for chunk in chunks)
     assert not any('"text": "joy"' in chunk for chunk in chunks)
-    assert gruut_calls == [{"text": "Speak this.", "lang": "en_US"}]
-    assert any('"tokenized_text": "Speak this."' in chunk for chunk in chunks)
 
 
 _GEMINI_TTS_MODEL = "gemini-3.8-flash-tts"
@@ -1785,7 +1739,7 @@ def _gemini_tts_options(**values: object) -> dict[str, object]:
 def _gemini_tts_route_mocks(
     monkeypatch, *, speech: str = "First sentence. Second sentence.", **tts_values: object
 ) -> None:
-    """A joyful structured reply of ``speech`` that asks for Gemini speech; gruut keeps its text."""
+    """A joyful structured reply of ``speech`` that asks for Gemini speech."""
 
     _install_route_mocks(
         monkeypatch,
@@ -1797,12 +1751,6 @@ def _gemini_tts_route_mocks(
         emotional_state={"joy": 16},
         model_client=_RouteModelClient(text=_direct_structured_response(speech=speech, emotional_tone="joy")),
     )
-
-    def _fake_gruut(final_text, lang="en_US", **kwargs):
-        del lang, kwargs
-        return {"tokenized_text": " ".join(final_text.split()), "phonemized_text": [["S"], ["DH"]]}
-
-    monkeypatch.setattr("animama.product_http.routes.chat_turns._build_gruut_sse_text", _fake_gruut)
 
     # An attempt would surface as a ``tts.session.error`` frame, never as a provider call.
     async def _unexpected_elevenlabs(**_kwargs):
@@ -1857,10 +1805,6 @@ async def test_chat_sse_plain_text_fallback_is_spoken_with_neutral_tone(monkeypa
         chat_options={"main_structured_response": True, "tts": _gemini_tts_options()},
         model_client=model_client,
     )
-    monkeypatch.setattr(
-        "animama.product_http.routes.chat_turns._build_gruut_sse_text",
-        lambda final_text, lang="en_US", **kwargs: {"tokenized_text": final_text, "phonemized_text": [["S"]]},
-    )
     # Gemini's own preparation builds the style it would send; only its stream is faked.
     monkeypatch.setattr(runtime_credentials, "current", lambda: {GEMINI_CREDENTIAL_ENV: "gemini-key-for-tests"})
     prepare_gemini = gemini_tts_service.prepare_gemini_finalized_speech
@@ -1906,15 +1850,8 @@ async def test_chat_sse_plain_text_fallback_is_spoken_with_neutral_tone(monkeypa
 
 
 @pytest.mark.asyncio
-async def test_chat_sse_main_structured_tts_speech_includes_tts_text(monkeypatch) -> None:
+async def test_chat_sse_main_structured_tts_speech_speaks_the_visible_text(monkeypatch) -> None:
     _gemini_tts_route_mocks(monkeypatch, speech="Speak this.")
-    gruut_calls: list[dict[str, Any]] = []
-
-    def _fake_gruut(final_text, lang="en_US", **kwargs):
-        gruut_calls.append({"text": final_text, "lang": lang, **kwargs})
-        return {"tokenized_text": final_text, "phonemized_text": [["S"], ["DH"]]}
-
-    monkeypatch.setattr("animama.product_http.routes.chat_turns._build_gruut_sse_text", _fake_gruut)
     prepared_calls = _install_gemini_speech(monkeypatch, audio=lambda _prepared: "AQACAA==")
 
     response = await chat_anima_direct_sse(
@@ -1922,17 +1859,7 @@ async def test_chat_sse_main_structured_tts_speech_includes_tts_text(monkeypatch
     )
     chunks = await _collect_chunks(response)
 
-    assert gruut_calls == [
-        {"text": "Speak this.", "lang": "en_US"},
-        {
-            "text": "Speak this.",
-            "lang": "en_US",
-            "tokenized_text_source": "text_with_ws",
-        },
-    ]
-    assert any('"tokenized_text": "Speak this."' in chunk for chunk in chunks)
-    assert any('"tts_text": "Speak this."' in chunk for chunk in chunks)
-    assert any('"tts_text_basis": "gruut_text_with_ws"' in chunk for chunk in chunks)
+    _assert_no_phoneme_fields(chunks)
     assert prepared_calls == [
         {
             # The Anima names no Gemini voice, so the turn speaks with the default one.
@@ -1940,7 +1867,6 @@ async def test_chat_sse_main_structured_tts_speech_includes_tts_text(monkeypatch
             "run_id": "run-1",
             "text": "Speak this.",
             "model_id": _GEMINI_TTS_MODEL,
-            "text_basis": "gruut_text_with_ws",
             "emotional_tone": "joy",
             "emotional_state": {
                 "admiration": 0,
@@ -1980,24 +1906,6 @@ async def test_chat_sse_main_structured_tts_speech_includes_tts_text(monkeypatch
     assert '"audio_base64": "AQACAA=="' in chunks[audio_index]
 
 
-def _gruut_for_any_language(final_text, lang="en_US", **kwargs):
-    """gruut keeps the text of any script, but phonemizes only English-looking words.
-
-    Like gruut, it returns nothing for text without letters or digits.
-    """
-
-    del lang, kwargs
-    if not any(char.isalnum() for char in final_text):
-        return None
-    text = " ".join(final_text.split())
-    english_words = [word for word in text.split() if word.isascii() and any(char.isalpha() for char in word)]
-    return {"tokenized_text": text, "phonemized_text": [["a"] for _ in english_words]}
-
-
-def _gruut_unavailable(*_args, **_kwargs):
-    return None
-
-
 @pytest.mark.parametrize(
     "speech",
     [
@@ -2007,13 +1915,11 @@ def _gruut_unavailable(*_args, **_kwargs):
         "¡Hola! ¿Cómo estás hoy?",
     ],
 )
-@pytest.mark.parametrize("gruut", [_gruut_for_any_language, _gruut_unavailable], ids=["gruut", "no-gruut"])
 @pytest.mark.asyncio
-async def test_chat_sse_finalized_speech_speaks_every_language(monkeypatch, speech, gruut) -> None:
-    """No phoneme step decides what is spoken: every sentence reaches the finalized voice."""
+async def test_chat_sse_finalized_speech_speaks_every_language(monkeypatch, speech) -> None:
+    """Every sentence reaches the finalized voice as written, whatever its language."""
 
     _gemini_tts_route_mocks(monkeypatch, speech=speech)
-    monkeypatch.setattr("animama.product_http.routes.chat_turns._build_gruut_sse_text", gruut)
     prepared_calls = _install_gemini_speech(monkeypatch)
 
     response = await chat_anima_direct_sse(
@@ -2027,13 +1933,20 @@ async def test_chat_sse_finalized_speech_speaks_every_language(monkeypatch, spee
     assert "".join(call["text"] for call in prepared_calls).replace(" ", "") == speech.replace(" ", "")
 
 
-@pytest.mark.parametrize("speech", ["That’s lovely — see you at 3:30!", "Well… let me think. 😊"])
+@pytest.mark.parametrize(
+    ("speech", "spoken"),
+    [
+        ("That’s lovely — see you at 3:30!", ["That’s lovely — see you at 3:30!"]),
+        ("It's 72°F, so 5-10 minutes outside costs $5.99.", ["It's 72°F, so 5-10 minutes outside costs $5.99."]),
+        ("Well… let me think. 😊", ["Well… let me think."]),
+        ("I love it 😊 so much! 👍🏽", ["I love it so much!"]),
+    ],
+)
 @pytest.mark.asyncio
-async def test_chat_sse_english_speech_keeps_gruut_text_whatever_its_punctuation(monkeypatch, speech) -> None:
-    """Typographic punctuation and emoji do not send English past gruut's preparation."""
+async def test_chat_sse_finalized_speech_speaks_numbers_and_symbols_as_written(monkeypatch, speech, spoken) -> None:
+    """Gemini reads numbers and symbols itself, so its text is the visible sentence without emoji."""
 
     _gemini_tts_route_mocks(monkeypatch, speech=speech)
-    monkeypatch.setattr("animama.product_http.routes.chat_turns._build_gruut_sse_text", _gruut_for_any_language)
     prepared_calls = _install_gemini_speech(monkeypatch)
 
     response = await chat_anima_direct_sse(
@@ -2041,9 +1954,8 @@ async def test_chat_sse_english_speech_keeps_gruut_text_whatever_its_punctuation
     )
     chunks = await _collect_chunks(response)
 
-    assert prepared_calls
-    assert {call["text_basis"] for call in prepared_calls} == {"gruut_text_with_ws"}
-    assert any('"tts_text_basis": "gruut_text_with_ws"' in chunk for chunk in chunks)
+    assert [call["text"] for call in prepared_calls] == spoken
+    _assert_no_phoneme_fields(chunks)
     assert _event_count(chunks, "tts.done") == 1
 
 
@@ -2052,7 +1964,6 @@ async def test_chat_sse_finalized_speech_shows_but_does_not_speak_a_closing_emoj
     """An emoji after the last sentence stays visible; only words reach the voice."""
 
     _gemini_tts_route_mocks(monkeypatch, speech="See you tomorrow! 😊👋")
-    monkeypatch.setattr("animama.product_http.routes.chat_turns._build_gruut_sse_text", _gruut_for_any_language)
     prepared_calls = _install_gemini_speech(monkeypatch)
 
     response = await chat_anima_direct_sse(
@@ -2110,10 +2021,30 @@ async def test_chat_sse_finalized_speech_paragraph_chunking_batches_sentence_seg
 
     assert [event["audio_base64"] for event in _event_data_all(chunks, "tts.audio")] == ["PARAGRAPH"]
     assert _event_count(chunks, "tts.done") == 1
-    assert [(call["text"], call["text_basis"]) for call in prepared_calls] == [
-        ("First sentence. Second sentence.", "visible_text")
-    ]
+    assert [call["text"] for call in prepared_calls] == ["First sentence. Second sentence."]
     assert not any("paragraph_index" in chunk or "paragraph_break_before" in chunk for chunk in chunks)
+
+
+def test_finalized_tts_batches_leave_out_emoji_in_both_modes() -> None:
+    """A voice would read out an emoji's name, so no batch carries one."""
+
+    for mode, expected in (
+        ("sentence", ["I love it so much!", "See you soon."]),
+        ("paragraph", ["I love it so much! See you soon."]),
+    ):
+        batcher = chat_tts.FinalizedTtsSegmentBatcher(mode)
+        state = SseTextState()
+        for index, text in enumerate(("I love it 😊 so much!", " See you 👋 soon.", " ℹ️")):
+            chat_sse_events._record_tts_speech_segment(
+                state=state, value=text, is_delta=True, part_index=index, part_final=False
+            )
+        for segment in state.tts_speech_segments:
+            batcher.add_segment(segment)
+        batcher.close()
+        batches = []
+        while (batch := batcher.pop_ready()) is not None:
+            batches.append(batch.text)
+        assert batches == expected, mode
 
 
 @pytest.mark.asyncio
@@ -2131,10 +2062,7 @@ async def test_chat_sse_finalized_speech_paragraph_chunking_splits_paragraph_bre
     )
     chunks = await _collect_chunks(response)
 
-    assert [(call["text"], call["text_basis"]) for call in prepared_calls] == [
-        ("First paragraph.", "visible_text"),
-        ("Second paragraph.", "visible_text"),
-    ]
+    assert [call["text"] for call in prepared_calls] == ["First paragraph.", "Second paragraph."]
     audio_events = _event_data_all(chunks, "tts.audio")
     assert len(audio_events) == 3
     assert audio_events[0]["audio_base64"] == "FIRST"
@@ -2166,10 +2094,7 @@ async def test_chat_sse_finalized_speech_paragraph_chunking_flushes_after_four_s
     )
     chunks = await _collect_chunks(response)
 
-    assert [(call["text"], call["text_basis"]) for call in prepared_calls] == [
-        ("One. Two. Three. Four.", "visible_text"),
-        ("Five.", "visible_text"),
-    ]
+    assert [call["text"] for call in prepared_calls] == ["One. Two. Three. Four.", "Five."]
     audio_events = _event_data_all(chunks, "tts.audio")
     assert [event["audio_base64"] for event in audio_events] == ["BATCH1", "BATCH2"]
     assert [event["part_text"] for event in audio_events] == ["One. Two. Three. Four.", "Five."]

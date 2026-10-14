@@ -196,16 +196,16 @@ describe("beats against gruut's stress", () => {
   const VOWEL = /[aeiouæɑɒɔəɚɛɜɝɪʊʌ]/;
 
   it("fall mostly on syllables gruut stresses, in English", () => {
-    // gruut's readings of each English line, kept in the fixtures from Phase 1.
+    // gruut's readings of each English line, recorded in the fixtures.
     let beats = 0;
     let onStress = 0;
     for (const clip of clips) {
-      if (clip.lang !== "en" || !clip.groups.length || !clip.estimated)
-        continue;
+      const reference = clip.stressReference;
+      if (clip.lang !== "en" || !clip.groups.length || !reference) continue;
       const gruutWords =
-        clip.estimated.tokenizedText.match(/[\p{L}\p{N}'’]+/gu) ?? [];
-      if (gruutWords.length !== clip.estimated.phonemizedText.length) continue;
-      const gruut = clip.estimated.phonemizedText.map((phonemes, index) => {
+        reference.tokenizedText.match(/[\p{L}\p{N}'’]+/gu) ?? [];
+      if (gruutWords.length !== reference.phonemizedText.length) continue;
+      const gruut = reference.phonemizedText.map((phonemes, index) => {
         const vowels = phonemes.filter((phoneme) => VOWEL.test(phoneme));
         return {
           text: gruutWords[index]!.toLowerCase(),

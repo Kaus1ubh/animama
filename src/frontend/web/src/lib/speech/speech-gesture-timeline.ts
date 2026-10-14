@@ -8,9 +8,7 @@ export type SpeechGestureBeat = {
   timeSec: number;
   wordIndex: number;
   /** The beat syllable's position in its plan, which orders beats at one time. */
-  phonemeIndex: number;
-  /** The beat syllable, for diagnostics, such as a vowel. */
-  phoneme: string;
+  unitIndex: number;
 };
 
 export type SpeechGestureWordTiming = {

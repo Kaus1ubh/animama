@@ -4,11 +4,11 @@ data: {"type": "safety.ai_notice", "run_id": "run-reply", "kind": "start", "anim
 
 id: user-response-stream-speech-0-run-reply
 event: user.response
-data: {"event_id": "user-response-stream-speech-0-run-reply", "run_id": "run-reply", "node_id": "direct-chat:model-client", "text": "Good morning!", "response_format": "main_structured_json", "response_part": "speech", "is_delta": true, "part_index": 0, "part_final": false, "tokenized_text": "Good morning!", "phonemized_text": [["\u0261", "\u02c8\u028a", "d"], ["m", "\u02c8\u0254", "\u0279", "n", "\u026a", "\u014b"]]}
+data: {"event_id": "user-response-stream-speech-0-run-reply", "run_id": "run-reply", "node_id": "direct-chat:model-client", "text": "Good morning!", "response_format": "main_structured_json", "response_part": "speech", "is_delta": true, "part_index": 0, "part_final": false}
 
 id: user-response-stream-speech-1-run-reply
 event: user.response
-data: {"event_id": "user-response-stream-speech-1-run-reply", "run_id": "run-reply", "node_id": "direct-chat:model-client", "text": " Shall we have tea?", "response_format": "main_structured_json", "response_part": "speech", "is_delta": true, "part_index": 1, "part_final": true, "tokenized_text": "Shall we have tea?", "phonemized_text": [["\u0283", "\u02c8\u00e6", "l"], ["w", "\u02c8i"], ["h", "\u02c8\u00e6", "v"], ["t", "\u02c8i"]]}
+data: {"event_id": "user-response-stream-speech-1-run-reply", "run_id": "run-reply", "node_id": "direct-chat:model-client", "text": " Shall we have tea?", "response_format": "main_structured_json", "response_part": "speech", "is_delta": true, "part_index": 1, "part_final": true}
 
 id: avatar-gesture-run-reply
 event: avatar.gesture.requested

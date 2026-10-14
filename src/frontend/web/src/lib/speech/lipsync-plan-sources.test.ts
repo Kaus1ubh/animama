@@ -1,22 +1,18 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { buildVisemeAssetsFromRaw } from "@/lib/avatar/viseme-worker-client";
 import type { VowelVisemeLipSyncSegment } from "@/lib/avatar/vowelVisemeSegment";
 import { startLipSyncRun } from "@/lib/lipsync/lipsync-worker-client";
 import type { LipSyncWorkerResponse } from "@/lib/lipsync/worker-protocol";
 import {
-  ALIGNED_LIPSYNC_PLAN_SOURCE_ID,
-  ESTIMATED_LIPSYNC_PLAN_SOURCE_ID,
   lipSyncPlanSources,
   mouthOpennessCurve,
   registerLipSyncPlanSource,
+  TEXT_AUDIO_LIPSYNC_PLAN_SOURCE_ID,
+  TIMED_LIPSYNC_PLAN_SOURCE_ID,
   type LipSyncPlanInputs,
 } from "./lipsync-plan-sources";
 import { buildSpeechTimingEvidence } from "./speech-timing-evidence";
 
-vi.mock("@/lib/avatar/viseme-worker-client", () => ({
-  buildVisemeAssetsFromRaw: vi.fn(),
-}));
 vi.mock("@/lib/lipsync/lipsync-worker-client", () => ({
   startLipSyncRun: vi.fn(),
 }));
@@ -46,9 +42,6 @@ const timing = [
 ];
 const inputs: LipSyncPlanInputs = {
   runId: "run-1",
-  phonemizedText: [["h", "aɪ"]],
-  tokenizedText: "Hi",
-  fps: 60,
   audioDurationSec: 0.4,
   timing,
   evidence: buildSpeechTimingEvidence(timing),
@@ -61,16 +54,15 @@ let unregister: (() => void) | null = null;
 afterEach(() => {
   unregister?.();
   unregister = null;
-  vi.mocked(buildVisemeAssetsFromRaw).mockReset();
   vi.mocked(startLipSyncRun).mockReset();
   vi.unstubAllGlobals();
 });
 
 describe("lip-sync plan sources", () => {
-  it("lists gruut's estimate and the aligned planner, then each registered source", () => {
+  it("lists the planner's evidence combinations, then each registered source", () => {
     expect(lipSyncPlanSources().map((source) => source.id)).toEqual([
-      ESTIMATED_LIPSYNC_PLAN_SOURCE_ID,
-      ALIGNED_LIPSYNC_PLAN_SOURCE_ID,
+      TEXT_AUDIO_LIPSYNC_PLAN_SOURCE_ID,
+      TIMED_LIPSYNC_PLAN_SOURCE_ID,
     ]);
 
     unregister = registerLipSyncPlanSource({
@@ -80,8 +72,8 @@ describe("lip-sync plan sources", () => {
     });
 
     expect(lipSyncPlanSources().map((source) => source.label)).toEqual([
-      "Estimated (today)",
-      "Aligned (new)",
+      "Text and audio",
+      "With provider timing",
       "Timing (test)",
     ]);
     unregister();
@@ -102,33 +94,50 @@ describe("lip-sync plan sources", () => {
     });
 
     expect(lipSyncPlanSources().map((source) => source.label)).toEqual([
-      "Estimated (today)",
-      "Aligned (new)",
+      "Text and audio",
+      "With provider timing",
       "Second",
     ]);
     unregisterSecond();
   });
 
-  it("builds the estimated plan with today's planner at the played length", async () => {
-    const segment = segmentWith([[0, [1, 0, 0, 0, 0]]]);
-    vi.mocked(buildVisemeAssetsFromRaw).mockResolvedValue({
-      segment,
-    } as Awaited<ReturnType<typeof buildVisemeAssetsFromRaw>>);
-    const [estimated] = lipSyncPlanSources();
+  it("plans from the text and audio alone, without the timing", async () => {
+    vi.stubGlobal("Worker", class {});
+    const calls: string[] = [];
+    vi.mocked(startLipSyncRun).mockImplementation(({ onResponse }) => {
+      queueMicrotask(() =>
+        onResponse({
+          type: "plan",
+          runId: "x",
+          seq: 1,
+          fromFrame: 0,
+          frames: new Float32Array(5),
+          frameCount: 1,
+          events: [],
+          gestures: { words: [], beats: [], phrases: [] },
+          complete: true,
+          fallback: null,
+          audioSec: 0,
+          cpuMs: 0,
+        }),
+      );
+      return {
+        setText: (text, final) => calls.push(`text ${text} ${final}`),
+        startPart: (text) => calls.push(`part ${text}`),
+        pushPcm: (pcm) => calls.push(`pcm ${pcm.length}`),
+        addTiming: (chars) => calls.push(`timing ${chars.length}`),
+        endAudio: () => calls.push("end"),
+        cancel: () => calls.push("cancel"),
+      };
+    });
+    const [textAudio] = lipSyncPlanSources();
 
-    await expect(estimated.build(inputs)).resolves.toEqual({ segment });
-    expect(buildVisemeAssetsFromRaw).toHaveBeenCalledWith(
-      expect.objectContaining({
-        mode: "actual_prestart",
-        phonemizedText: inputs.phonemizedText,
-        tokenizedText: "Hi",
-        fps: 60,
-        targetDurationSec: 0.4,
-      }),
-    );
+    const result = await textAudio!.build(inputs);
+    expect(result?.segment.frames).toHaveLength(1);
+    expect(calls).toEqual(["text Hi true", "pcm 4800", "end", "cancel"]);
   });
 
-  it("replans the captured audio in the lip-sync worker", async () => {
+  it("replans the captured audio with the timing in the lip-sync worker", async () => {
     vi.stubGlobal("Worker", class {});
     const calls: string[] = [];
     let respond: ((response: LipSyncWorkerResponse) => void) | null = null;
@@ -143,8 +152,8 @@ describe("lip-sync plan sources", () => {
         cancel: () => calls.push("cancel"),
       };
     });
-    const aligned = lipSyncPlanSources()[1]!;
-    const plan = aligned.build({
+    const timed = lipSyncPlanSources()[1]!;
+    const plan = timed.build({
       ...inputs,
       audio: {
         chunks: [new Int16Array(100), new Int16Array(200)],
@@ -189,18 +198,19 @@ describe("lip-sync plan sources", () => {
     expect(calls.at(-1)).toBe("cancel");
   });
 
-  it("has no aligned plan without a worker", async () => {
-    await expect(lipSyncPlanSources()[1]!.build(inputs)).resolves.toBeNull();
+  it("has no plan without a worker", async () => {
+    for (const source of lipSyncPlanSources()) {
+      await expect(source.build(inputs)).resolves.toBeNull();
+    }
     expect(startLipSyncRun).not.toHaveBeenCalled();
   });
 
-  it("has no estimated plan without phonemes", async () => {
-    const [estimated] = lipSyncPlanSources();
+  it("has no timed plan without timing", async () => {
+    vi.stubGlobal("Worker", class {});
+    const timed = lipSyncPlanSources()[1]!;
 
-    await expect(
-      estimated.build({ ...inputs, phonemizedText: null }),
-    ).resolves.toBeNull();
-    expect(buildVisemeAssetsFromRaw).not.toHaveBeenCalled();
+    await expect(timed.build({ ...inputs, timing: [] })).resolves.toBeNull();
+    expect(startLipSyncRun).not.toHaveBeenCalled();
   });
 });
 

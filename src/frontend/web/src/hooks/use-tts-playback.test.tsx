@@ -353,12 +353,8 @@ describe("speaking a declined ElevenLabs reply with Pocket TTS", () => {
     });
     act(() => {
       playback().startRun("run-1");
-      playback().appendToken("run-1", "Hi there. ", {
-        textBasis: "gruut_text_with_ws",
-      });
-      playback().appendToken("run-1", "Nice to meet you.", {
-        textBasis: "gruut_text_with_ws",
-      });
+      playback().appendToken("run-1", "Hi there. ");
+      playback().appendToken("run-1", "Nice to meet you.");
       playback().completeRun("run-1");
     });
     // The realtime run owns the reply until the server declines its speech.
@@ -641,9 +637,7 @@ describe("playing Gemini audio the server pushes", () => {
     });
     act(() => {
       playback().startRun("run-1");
-      playback().appendToken("run-1", "Hello there. How are you?", {
-        textBasis: "gruut_text_with_ws",
-      });
+      playback().appendToken("run-1", "Hello there. How are you?");
       playback().completeRun("run-1");
     });
 
@@ -807,6 +801,19 @@ describe("browser speech", () => {
     const clock = onAudioStarted.mock.calls[0]![0].audioContext as AudioContext;
     expect(clock.currentTime).toBeGreaterThanOrEqual(start);
   });
+
+  it("leaves emoji out, so the voice does not read their names", () => {
+    const { playback } = renderPlayback();
+    act(() => {
+      playback().startRun("run-1");
+      playback().appendToken("run-1", "I love it 😊 so much! 👍🏽");
+      playback().completeRun("run-1");
+    });
+
+    expect(FakeUtterance.spoken.map((utterance) => utterance.text)).toEqual([
+      "I love it so much!",
+    ]);
+  });
 });
 
 describe("speech text for lip-sync", () => {
@@ -851,6 +858,22 @@ describe("speech text for lip-sync", () => {
       text: "This first sentence is long enough to stream. Then the reply ends. ",
       final: true,
     });
+  });
+
+  it("sends ElevenLabs the text without emoji, tags kept", () => {
+    const { playback, onSpeechText } = renderPlayback();
+    act(() => {
+      playback().startRun("run-1");
+      playback().appendToken("run-1", "[laughs] I love it 😊 so much! 🎉");
+      playback().completeRun("run-1");
+    });
+
+    expect(
+      fixture.realtime.appendText.mock.calls.map(([, text]) => text),
+    ).toEqual(["[laughs] I love it so much!"]);
+    expect(texts(onSpeechText).at(-1)?.text).toBe(
+      "[laughs] I love it so much! ",
+    );
   });
 
   it("reports Pocket's text spelled out as Pocket speaks it", () => {

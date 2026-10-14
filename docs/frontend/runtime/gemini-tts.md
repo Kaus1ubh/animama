@@ -64,8 +64,7 @@ larger buffers.
 The backend turns the reply's hidden emotional tone and the Anima's emotional
 level into one speaking style, such as "Speak in a very happy tone.", and sends
 it with every request in the reply; neutral or unrecognized tones speak in a
-friendly tone. The visible speech, `tts_text` and lip-sync inputs carry no
-style.
+friendly tone. The visible speech and lip-sync inputs carry no style.
 
 ## Avatar Timing
 

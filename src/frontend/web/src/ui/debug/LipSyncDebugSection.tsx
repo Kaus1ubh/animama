@@ -26,7 +26,6 @@ import {
 } from "./lipsync-debug-timeline";
 
 const CURVE_COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ec4899", "#8b5cf6"];
-const DEFAULT_FPS = 60;
 
 type PlanState =
   | { status: "building" }
@@ -183,9 +182,6 @@ export function LipSyncDebugSection() {
     let cancelled = false;
     const inputs = {
       runId: complete.runId,
-      phonemizedText: complete.inputs?.phonemizedText ?? null,
-      tokenizedText: complete.inputs?.tokenizedText ?? null,
-      fps: complete.inputs?.fps ?? DEFAULT_FPS,
       audioDurationSec: complete.audioDurationSec,
       timing: complete.timing,
       evidence,

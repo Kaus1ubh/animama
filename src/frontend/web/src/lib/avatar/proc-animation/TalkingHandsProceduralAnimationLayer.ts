@@ -2797,7 +2797,7 @@ function compareSpeechGestureBeatsByTime(
   return (
     left.timeSec - right.timeSec ||
     left.wordIndex - right.wordIndex ||
-    left.phonemeIndex - right.phonemeIndex
+    left.unitIndex - right.unitIndex
   );
 }
 

@@ -66,25 +66,15 @@ with 422. Each open dialogue socket holds an ElevenLabs dialogue session from a
 pool separate from ordinary request concurrency, so the browser closes it as
 soon as the reply ends.
 
-Ordinary non-TTS chat streams do not run gruut for ElevenLabs and do not emit
-`tts_text` fields. Gruut speech payloads are limited to main-structured
-`speech` parts used by active TTS runs.
-
-Every speech sentence is spoken, whatever its language
-(`_attach_tts_speech_payload` in `product_http/chat/sse_events.py`):
-
-- `gruut_prepares_text` (`app/gruut_text.py`) treats text whose letters are
-  all ASCII as English, the only language gruut's model verbalizes.
-  Typographic punctuation, symbols and emoji do not count; accented, CJK or
-  Hangul letters do, so an English sentence with an accented loanword is also
-  spoken as written.
-- English sentences carry gruut's `tts_text` and phonemes
-  (`tts_text_basis: "gruut_text_with_ws"`).
-- Other sentences, and any sentence when gruut is unavailable, are spoken as
-  written (`visible_text` basis) with no TTS fields and no phonemes. Their
-  lip-sync falls back to the visible-text estimate.
-- A segment with no letters or digits, such as an emoji after the last
-  sentence, stays visible text and is not spoken by finalized speech (Gemini).
+Speech is sent as written, in any language, without its emoji: a voice would
+read out their names. The backend adds no speech fields to `user.response`;
+Gemini and ElevenLabs read numbers and symbols themselves, and the browser
+spells them out only for Pocket TTS ([voice](../../frontend/runtime/voice.md)).
+For an active TTS run, `_record_tts_speech_segment` in
+`product_http/chat/sse_events.py` queues each main-structured `speech` sentence
+for finalized speech (Gemini), emoji dropped. A segment with no letters or
+digits, such as an emoji after the last sentence, stays visible text and is not
+spoken.
 
 Realtime TTS uses a direct browser-to-provider connection after `tts.session`.
 
@@ -94,19 +84,18 @@ Finalized speech is pushed by the backend over `chat:sse` instead of a realtime
 session. Gemini is the only finalized provider (see [Gemini TTS](#gemini-tts));
 ElevenLabs always speaks in realtime. `FinalizedTtsStreamBootstrap` in
 `product_http/chat/tts.py` starts once the main-structured speech stream has
-prepared speech, synthesizes it in order, and pushes `tts.audio`, one final
-`tts.done`, or `tts.error` over the same stream.
+queued a sentence, synthesizes the speech in order, and pushes `tts.audio`, one
+final `tts.done`, or `tts.error` over the same stream.
 
 What is sent:
 
 - **Sentence mode**, the default `finalized_chunking="sentence"`, sends one
-  request per prepared sentence, using its prepared text.
+  request per speech sentence, using its visible text without emoji.
 - **Paragraph mode**, `finalized_chunking="paragraph"`, keeps the public
   sentence-level `user.response` events but joins the visible sentence text of
-  each paragraph into one request. A batch flushes when a new paragraph starts,
+  each paragraph, without emoji, into one request. A batch flushes when a new paragraph starts,
   at four sentence segments, at about 600 visible characters, or when the
-  speech stream closes. `server/finalized_speech.py` re-prepares English
-  batches with gruut and leaves other text as written.
+  speech stream closes.
 
 Response handling:
 
@@ -130,18 +119,17 @@ and are not stored as assistant messages. Normal `chat:sse` uses them to compute
 and persist a full-state `emotion.update`; the frontend still treats the
 resulting `emotions` array, not raw tone metadata, as canonical avatar emotion
 state. Gemini speech also takes its speaking style from the tone (see
-[Gemini TTS](#gemini-tts)). The `tts_text`, `tts_phonemized_text`, persisted
-speech, avatar lip-sync inputs, realtime ElevenLabs websocket text, PocketTTS
-text, and browser TTS text carry no tone tag. If the model sends `neutral`,
+[Gemini TTS](#gemini-tts)). Persisted speech, avatar lip-sync inputs, Gemini
+request text, realtime ElevenLabs websocket text, PocketTTS text, and browser
+TTS text carry no tone tag. If the model sends `neutral`,
 omits `emotional_tone`, sends it blank, or returns a value outside the
 allowlist, the backend logs a warning for malformed metadata when applicable,
 emits a no-op emotion update with `emotional_intensity=0`, and speaks in the
 friendly default tone instead of failing the chat turn.
 
 The frontend finalized runtime decodes and plays PCM audio from SSE events.
-Avatar lip-sync continues to use gruut phonemes from SSE plus provider
-audio-start and actual-duration callbacks. Anima preserves the additive
-`tts_text` fields on `user.response` as provider handoff data.
+Avatar lip-sync is planned in the browser from the played audio and each
+batch's `part_text` ([lip-sync pipeline](../../frontend/runtime/avatar-lipsync.md)).
 
 ## Gemini TTS
 

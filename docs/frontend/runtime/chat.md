@@ -387,13 +387,11 @@ The streaming behavior is:
 3. Normal `user.response` text without `response_part` keeps the older text
    streaming path and can still queue TTS incrementally.
 4. Structured speech deltas are routed into the existing TTS pipeline as they
-   arrive. When a speech event includes non-blank `tts_text` with
-   `tts_text_basis="gruut_text_with_ws"`, that prepared text is sent to TTS;
-   otherwise the visible speech text is used. `part_final=true` and
-   `run.completed` close the TTS run without re-appending accumulated speech.
-   The same TTS-routed speech events append their matching gruut phonemes to
-   the run-level avatar viseme inputs; empty final markers and visible
-   corrections after streamed TTS do not append duplicate lipsync data.
+   arrive, as written apart from emoji, which no voice receives.
+   `part_final=true` and `run.completed` close the TTS run without re-appending
+   accumulated speech; empty final markers and visible corrections after
+   streamed TTS are not spoken again. Lip-sync plans from the text the voice
+   speaks and its audio (see [Avatar lip-sync](avatar-lipsync.md)).
 5. On `run.completed`, the optimistic cache writes one assistant message for
    speech plus one additional assistant message for distinct display text.
    Display text equal to speech is not duplicated.
@@ -445,9 +443,8 @@ Responsibilities:
 Type guards map incoming chunks to:
 
 - `user.response`-like chunks (contains `text`) -> `onToken`; optional
-  `response_format`, `response_part`, `is_delta`, `part_index`, `part_final`,
-  tokenized text, and phonemized text are passed through for main-structured
-  and viseme handling
+  `response_format`, `response_part`, `is_delta`, `part_index` and `part_final`
+  are passed through for main-structured handling
 - emotion updates (contains `emotions`, with optional tone/intensity context)
   -> `onEmotionUpdate`
 - gesture requests (`avatar.gesture.requested` with `gesture` and

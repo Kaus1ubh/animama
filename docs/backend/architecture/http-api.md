@@ -747,11 +747,9 @@ The SSE stream currently emits:
 Provider adapters may consume token and lifecycle streams internally, but the
 public `chat:sse` contract is domain-level rather than a raw provider-event
 mirror. For normal structured turns, `user.response` is emitted after the final
-model result is parsed into speech/display parts. When text
-tokenization/phonemization is available, the route adds `tokenized_text` and
-`phonemized_text` to speakable response or completion payloads. This makes SSE
-useful for clients that need a simple request-scoped stream instead of a
-persistent WebSocket.
+model result is parsed into speech/display parts. This makes SSE useful for
+clients that need a simple request-scoped stream instead of a persistent
+WebSocket.
 
 The route accepts a `PyAnimaChatRequest` with a required non-blank `message`,
 optional `chat_id`, optional `run_id`, optional `model_provider_id`,

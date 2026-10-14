@@ -89,9 +89,6 @@ export function useChatSession(args: UseChatSessionArgs) {
   const requestAvatarGesture = useAvatarRuntimeStore(
     (state) => state.requestGesture,
   );
-  const queueAvatarVisemeInputsForRun = useAvatarLipSyncBridgeStore(
-    (state) => state.queueVisemeInputsForRun,
-  );
   const markAvatarSpeechAudioStarted = useAvatarLipSyncBridgeStore(
     (state) => state.markSpeechAudioStarted,
   );
@@ -370,7 +367,6 @@ export function useChatSession(args: UseChatSessionArgs) {
     abortAvatarRun,
     applyAvatarEmotionUpdate,
     requestAvatarGesture,
-    queueAvatarVisemeInputsForRun,
     clearAvatarVisemeBridgeRun,
     clearAvatarVisemeBridgeAll,
     startTtsRun,

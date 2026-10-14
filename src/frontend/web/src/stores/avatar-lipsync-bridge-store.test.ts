@@ -253,20 +253,6 @@ describe("avatar lip-sync bridge store", () => {
     expect(overlays[0]?.happy).toBeCloseTo(0.8);
     expect(overlays[1]).toBeNull();
   });
-
-  it("keeps gruut's readings for the debug view only", () => {
-    const store = useAvatarLipSyncBridgeStore.getState();
-    store.queueVisemeInputsForRun({
-      runId: RUN,
-      phonemizedText: [["h", "ˈaɪ"]],
-      tokenizedText: "Hi",
-      provider: "gemini",
-    });
-
-    const state = useAvatarLipSyncBridgeStore.getState();
-    expect(state.rawVisemeInputsByRun[RUN]?.tokenizedText).toBe("Hi");
-    expect(state.segmentsByRun[RUN]).toBeUndefined();
-  });
 });
 
 describe("provider speech timing", () => {

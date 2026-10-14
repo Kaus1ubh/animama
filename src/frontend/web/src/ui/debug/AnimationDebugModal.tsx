@@ -5890,13 +5890,13 @@ function TalkingHandsSpeechPlanPanel({
                   <HeaderCell>Beat</HeaderCell>
                   <HeaderCell>Apex</HeaderCell>
                   <HeaderCell>Drift</HeaderCell>
-                  <HeaderCell>Phoneme</HeaderCell>
+                  <HeaderCell>Syllable</HeaderCell>
                 </tr>
               </thead>
               <tbody className="divide-border/60 divide-y">
                 {pulseApexes.map((pulse, index) => (
                   <tr
-                    key={`${pulse.beat.wordIndex}:${pulse.beat.phonemeIndex}:${pulse.beatTimeSec}:${index}`}
+                    key={`${pulse.beat.wordIndex}:${pulse.beat.unitIndex}:${pulse.beatTimeSec}:${index}`}
                   >
                     <BodyCell>{formatPlanSeconds(pulse.beatTimeSec)}</BodyCell>
                     <BodyCell>{formatPlanSeconds(pulse.apexTimeSec)}</BodyCell>
@@ -5904,10 +5904,7 @@ function TalkingHandsSpeechPlanPanel({
                       {formatSignedPlanSeconds(pulse.driftSec)}
                     </BodyCell>
                     <BodyCell>
-                      {pulse.beat.phoneme}
-                      <span className="text-muted-foreground block text-xs">
-                        w{pulse.beat.wordIndex} p{pulse.beat.phonemeIndex}
-                      </span>
+                      word {pulse.beat.wordIndex}, unit {pulse.beat.unitIndex}
                     </BodyCell>
                   </tr>
                 ))}
@@ -5930,21 +5927,18 @@ function TalkingHandsSpeechPlanPanel({
                     <tr>
                       <HeaderCell>Beat</HeaderCell>
                       <HeaderCell>Reason</HeaderCell>
-                      <HeaderCell>Phoneme</HeaderCell>
+                      <HeaderCell>Syllable</HeaderCell>
                     </tr>
                   </thead>
                   <tbody className="divide-border/60 divide-y">
                     {skippedBeats.map((beat, index) => (
                       <tr
-                        key={`${beat.wordIndex}:${beat.phonemeIndex}:${beat.timeSec}:${beat.reason}:${index}`}
+                        key={`${beat.wordIndex}:${beat.unitIndex}:${beat.timeSec}:${beat.reason}:${index}`}
                       >
                         <BodyCell>{formatPlanSeconds(beat.timeSec)}</BodyCell>
                         <BodyCell>{beat.reason}</BodyCell>
                         <BodyCell>
-                          {beat.phoneme}
-                          <span className="text-muted-foreground block text-xs">
-                            w{beat.wordIndex} p{beat.phonemeIndex}
-                          </span>
+                          word {beat.wordIndex}, unit {beat.unitIndex}
                         </BodyCell>
                       </tr>
                     ))}

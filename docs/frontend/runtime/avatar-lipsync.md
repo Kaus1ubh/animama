@@ -110,9 +110,7 @@ Per run, the bridge keeps:
   (`speechGestureTimelinesByRun`);
 - playback start, resolved duration and underrun anchors;
 - provider character timing (`providerSpeechTimingByRun`);
-- the run's complete speech text and planner stats, for the debug view;
-- gruut's readings (`rawVisemeInputsByRun`), used only by the debug
-  comparison until gruut is removed.
+- the run's complete speech text and planner stats, for the debug view.
 
 `markSpeechAudioDurationResolved` also tells the planner the run's audio has
 ended.
@@ -217,11 +215,16 @@ Gemini or Pocket. For that reply it shows:
 - its audio envelope;
 - its timing evidence: words, punctuation and tags;
 - the live planner's CPU per second of audio and any fallback;
-- one mouth-openness curve per plan source:
-  - "Estimated (today)", gruut's planner at the played length;
-  - "Aligned (new)", the current planner replanning the captured audio, text
-    and timing in the worker, with its CPU. The audio arrives all at once, so
-    its plan can differ slightly from the live one.
+- one mouth-openness curve per plan source, each the current planner
+  replanning the captured reply in the worker with one combination of evidence,
+  and its CPU:
+  - "Text and audio": the text and the audio alone, as Gemini and Pocket replies
+    are planned;
+  - "With provider timing": with the provider's character timing too
+    (ElevenLabs); absent when the reply has none.
+
+  The audio arrives all at once, so a plan can differ slightly from the live
+  one.
 
 **Replay** plays the captured audio through its own `AudioContext` and drives
 the avatar with that plan (`playReplaySegment`, under a replay run id), so plans
@@ -247,8 +250,6 @@ Capture and capture files:
 - **Plan sources** are listed in `lib/speech/lipsync-plan-sources.ts`. Another
   planner registers with `registerLipSyncPlanSource({id, label, build})`; the
   view needs no change.
-- gruut's English model finds no phonemes in Japanese, Chinese or Korean, so
-  "Estimated (today)" has no plan for them.
 
 ## 9) Known limitations
 
@@ -284,7 +285,6 @@ playback buffer (`live`). Sources live in `src/lib/lipsync/eval/sources.ts`; the
 fixtures and how to rebuild them are described in
 [`scripts/lipsync/README.md`](../../../scripts/lipsync/README.md).
 
-- `estimated`: gruut's planner, scored whole.
 - `aligned`: the planner the app uses, which re-aligns only the newest audio as
   it arrives.
 - `aligned-full` (opt-in, `--source aligned-full`): the same planner re-aligning
@@ -295,5 +295,6 @@ fixtures and how to rebuild them are described in
 thresholds at each provider's delivery rate. It also bounds progressive plans'
 word drift and vowel opening against whole-clip plans. These bounds apply on
 every set and on multi-sentence replies joined from clips, in parts as Gemini
-speaks them or as one part. It also checks that beats fall on the syllables
-gruut stressed. A tuning change that breaks one fails `pnpm web:test`.
+speaks them or as one part. It also checks that English beats fall on stressed
+syllables, using readings recorded from gruut before its removal. A tuning
+change that breaks one fails `pnpm web:test`.

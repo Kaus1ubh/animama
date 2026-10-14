@@ -2,15 +2,17 @@
 /**
  * Lip-sync evaluation commands.
  *
- *   pnpm lipsync:eval [--source estimated,aligned,...] [--mode whole,faster,live] [--json out.json]
+ *   pnpm lipsync:eval [--source aligned,...] [--mode whole,faster,live] [--json out.json]
  *     Score plan sources on the committed fixtures (tests/lipsync/fixtures).
  *     Offline: no network, no paid speech. Opt-in sources, such as
  *     aligned-full, run only when named.
  *
  *   pnpm lipsync:fixtures --clips <dir> [--only id,...]
  *     Rebuild fixtures from a maintainer clip directory made with
- *     scripts/lipsync/clips.py (WAV files, recorded timing, reference.json and
- *     estimated.json). The audio itself is never written to the repository.
+ *     scripts/lipsync/clips.py (WAV files, recorded timing and reference.json),
+ *     plus the English stress reference (estimated.json: gruut's readings,
+ *     recorded before gruut was removed) where the directory has it. The audio
+ *     itself is never written to the repository.
  *
  *   pnpm lipsync:captures --clips <dir> --out <dir> [--only id,...]
  *     Write capture files the debug panel's Lip-sync view can load ("Load
@@ -129,7 +131,8 @@ async function buildFixtures(argv) {
   const only = values.only ? new Set(values.only.split(",")) : null;
   const { lines } = await readJson(path.join(lipsyncTests, "testset.json"));
   const reference = await readJson(path.join(clipsDir, "reference.json"));
-  const estimated = await readJson(path.join(clipsDir, "estimated.json"));
+  const stressPath = path.join(clipsDir, "estimated.json");
+  const stress = existsSync(stressPath) ? await readJson(stressPath) : {};
 
   const loader = await createLoader();
   try {
@@ -152,7 +155,7 @@ async function buildFixtures(argv) {
         throw new Error(`${line.id}: no reference alignment`);
       const { pcm, sampleRate } = decodeWav(await readFile(wavPath));
       const timing = await readRecordedTiming(clipsDir, line.id, sampleRate);
-      const estimatedInputs = estimated[line.id];
+      const reading = stress[line.id];
       const clip = buildEvalClip({
         meta: {
           id: line.id,
@@ -170,9 +173,10 @@ async function buildFixtures(argv) {
         sampleRate,
         timing,
         alignment: reference[line.id],
-        estimated: estimatedInputs?.phonemizedText?.length
-          ? estimatedInputs
-          : null,
+        stressReference:
+          line.lang === "en" && reading?.phonemizedText?.length
+            ? reading
+            : null,
       });
       await writeFile(
         path.join(fixturesDir, `${line.id}.json`),
@@ -207,10 +211,6 @@ async function writeCaptures(argv) {
   }
   const only = values.only ? new Set(values.only.split(",")) : null;
   const { lines } = await readJson(path.join(lipsyncTests, "testset.json"));
-  const estimatedPath = path.join(clipsDir, "estimated.json");
-  const estimated = existsSync(estimatedPath)
-    ? await readJson(estimatedPath)
-    : {};
 
   const loader = await createLoader();
   try {
@@ -233,7 +233,6 @@ async function writeCaptures(argv) {
       }
       const { pcm, sampleRate } = decodeWav(await readFile(wavPath));
       const recording = await readRecordedTiming(clipsDir, line.id, sampleRate);
-      const estimatedInputs = estimated[line.id];
       const capture = encodeLipSyncCapture({
         id: line.id,
         provider: line.provider,
@@ -246,12 +245,6 @@ async function writeCaptures(argv) {
         parts:
           line.provider === "gemini" ? [{ sample: 0, text: line.text }] : [],
         timing: recording ? timingFromRecording(recording) : [],
-        estimated: estimatedInputs?.phonemizedText?.length
-          ? {
-              phonemizedText: estimatedInputs.phonemizedText,
-              tokenizedText: estimatedInputs.tokenizedText ?? null,
-            }
-          : null,
       });
       await writeFile(
         path.join(outDir, `${line.id}.json`),

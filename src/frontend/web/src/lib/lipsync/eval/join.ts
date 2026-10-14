@@ -49,7 +49,7 @@ export function joinEvalClips(
     features: { rate, loudnessDb, voicing, pitchHz },
     timing: null,
     reference: { words, vowels },
-    estimated: null,
+    stressReference: null,
     intervalTags: 0,
     ...(options.parts ? { parts } : {}),
   };

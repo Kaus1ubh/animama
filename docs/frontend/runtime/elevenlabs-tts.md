@@ -88,21 +88,9 @@ where it is supported.
 
 ## Speech Text
 
-For main-structured TTS speech, `user.response` can include additive TTS
-fields:
-
-- `tts_text`
-- `tts_phonemized_text`
-- `tts_text_basis: "gruut_text_with_ws"`
-
-gruut prepares speech whose letters are all ASCII, which is treated as English,
-whatever its punctuation, symbols or emoji: `tts_text` is its normalized text,
-with numbers spelled out, and `tts_phonemized_text` is its phonemes. Speech with
-other letters carries no TTS fields and is spoken as written, in any language.
-This includes Japanese, Korean, Chinese and accented Spanish, and English with an
-accented loanword. Realtime ElevenLabs speech sends `tts_text` to the admitted
-websocket when `tts_text_basis` is `gruut_text_with_ws`, and the visible speech
-text otherwise.
+Realtime ElevenLabs speech sends the visible speech text to the admitted
+websocket as written, in any language, without emoji (`dropEmoji`); ElevenLabs
+reads numbers and symbols itself, and performs its tags.
 
 For structured speech streaming, `useChatSession.ts` sends each speech delta
 into the existing TTS pipeline as it arrives. Realtime ElevenLabs speech keeps

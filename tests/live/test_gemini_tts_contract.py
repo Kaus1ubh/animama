@@ -128,7 +128,6 @@ async def test_voice_service_streams_a_styled_two_sentence_reply() -> None:
             run_id="live-service",
             text=text,
             model_id="gemini-3.8-flash-lite-tts",
-            text_basis="visible_text",
             emotional_tone="joy",
             emotional_state={"joy": 16},
         )

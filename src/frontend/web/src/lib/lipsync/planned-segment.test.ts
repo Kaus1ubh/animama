@@ -73,7 +73,7 @@ describe("planned segments", () => {
     };
     const timeline = plannedGestureTimeline(gestures, 1.2);
     expect(timeline.beats).toEqual([
-      { timeSec: 0.2, wordIndex: 0, phonemeIndex: 3, phoneme: "" },
+      { timeSec: 0.2, wordIndex: 0, unitIndex: 3 },
     ]);
     expect(timeline.utteranceDurationSec).toBe(1.2);
     expect(phraseChunks("run", timeline.phrases!)).toMatchObject([

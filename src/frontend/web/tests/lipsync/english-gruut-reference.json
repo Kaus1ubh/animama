@@ -1,5 +1,5 @@
 {
-  "description": "gruut 2.4.0 (en_US) vowel shapes for SCOWL's most common words and the English test lines' words, as a, e, i, o, u, with w for a weak unstressed E-like vowel and y for a weak I. Made by scripts/lipsync/build_english_dictionary.py --gruut-reference.",
+  "description": "gruut 2.4.0 (en_US) vowel shapes for SCOWL's most common words and the English test lines' words, as a, e, i, o, u, with w for a weak unstressed E-like vowel and y for a weak I. Recorded once, while gruut was a backend dependency; it cannot be re-recorded.",
   "words": {
     "a": "w",
     "abilities": "wiwi",

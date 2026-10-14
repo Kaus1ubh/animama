@@ -55,7 +55,6 @@ const capture: LipSyncDebugCapture = {
   timing: [],
   text: null,
   parts: [],
-  inputs: null,
   plannerStats: null,
   audioDurationSec: 3 / 24_000,
   seenInBridge: true,

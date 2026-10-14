@@ -50,7 +50,7 @@ function clip(overrides: Partial<EvalClip> = {}): EvalClip {
         [1, 1.5, 1.8],
       ],
     },
-    estimated: null,
+    stressReference: null,
     ...overrides,
   };
 }

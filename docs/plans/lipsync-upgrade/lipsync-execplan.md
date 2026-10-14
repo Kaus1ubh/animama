@@ -97,12 +97,16 @@ prototypes.
 - [x] Phase 4 (#516): aligner, renderer and beats, scored offline (R1, R3, R4, R6,
   R7). Review passed after two repair rounds; untimed drift is a known limit for
   G1.
-- [ ] Phase 5 (#517): in the app, including the debug comparison (R1, R3, R6–R9).
-  Gate G1. Implemented, checked and reviewed (two repair rounds); waiting for
-  the owner's G1 comparison and the Electron CPU reading. Gemini replies are
-  now planned part by part (Decision Log).
-- [ ] Phase 6 (#518): optional phone model (R5). Gates G2 and G4.
-- [ ] Phase 7 (#519): gruut removed (R12 providers, R13). Gate G3.
+- [x] Phase 5 (#517): in the app, including the debug comparison (R1, R3, R6–R9).
+  Gate G1 passed (owner, 2026-10-13). Reviewed after two repair rounds. Gemini
+  replies are planned part by part (Decision Log). The Electron CPU reading is
+  still open.
+- [ ] Phase 6 (#518): optional phone model (R5). Gates G2 and G4. **Deferred by
+  the owner (2026-10-13)** after measurement; the work is kept on the local
+  branch `feat/lipsync-phone-model` (`a5db0dfe`) and #518 stays open.
+- [ ] Phase 7 (#519): gruut removed (R12 providers, R13). Gate G3. Implemented,
+  checked and reviewed (pass after two repair rounds); waiting for the owner's G3
+  listening check.
 - [ ] Final integration review.
 - [ ] Owner acceptance and merge approval.
 
@@ -206,6 +210,26 @@ From planning, 2026-10-13 (code reading of `main` at `b10ee432`):
   - **If the owner reads R11 strictly** (shapes as shown at 90%), the dictionary
     alone cannot reach it: most of the rest are CMUdict and gruut differing on
     dialect and weak forms, not errors.
+- **2026-10-13 — agent, Phase 7: what stays of gruut, and the debug sources.**
+  - gruut's recorded readings stay as fixed test references, because they
+    cannot be re-recorded: `tests/lipsync/english-gruut-reference.json` (the
+    dictionary agreement test) and each English fixture's `stressReference`
+    (renamed from `estimated`; the beats-on-stress test). The recording modes
+    (`clips.py estimated`, `build_english_dictionary.py --gruut-reference`) are
+    removed. The Phase 7 `git grep -i gruut` check therefore also allows these
+    references, the tests that read them, their README and licence notes, and
+    comments naming what a case was measured against.
+  - The debug view's sources are the planner's evidence combinations: "Text and
+    audio" and "With provider timing". The phone-model combination moves with
+    #518.
+  - Capture files stay version 1: the `estimated` field is no longer written
+    and is ignored when an older file is loaded.
+- **2026-10-13 — owner, after Phase 5 and the Phase 6 measurements:**
+  - G1 passed; Phase 7 may start;
+  - Phase 6 is deferred: the phone model stays out of this PR, #518 stays open
+    for a later approach (such as native ONNX Runtime on desktop), and the
+    default tier ships alone. The spec's phone-model acceptance criteria move
+    with #518.
 - **2026-10-13 — agent, Phase 5: Gemini replies are planned part by part.**
   Untimed replies planned as one part drifted by seconds (Phase 4 Review #3).
   The backend adds an optional `part_text` to the first `tts.audio` frame of each
@@ -1817,7 +1841,34 @@ back, checked once. Record planner CPU with the model.
 
 Completion: checks pass, G2 and G4 pass, and review passes.
 
-Results: —
+Results: **deferred by the owner on 2026-10-13**; nothing from this phase is in
+the PR. The work is kept on the local branch `feat/lipsync-phone-model`
+(`a5db0dfe`, on `fe7ac797`):
+
+- **Built there:**
+  - the Model asset `lipsync-phone-model` (set `zipa-small-crctc-int8`, pinned to
+    `anyspeech/zipa-small-crctc-300k@2f458a4d`): manifest, attribution,
+    `scripts/models/zipa.py`, catalog, serving, `reset.sh`, desktop inputs, hosted
+    exclusion, the "Sharper lip-sync" settings item, licences and docs;
+  - the front end (resampler and Kaldi filterbank, matching lhotse within 0.01,
+    including its float32 energy floor, which the lab's port lacked), vowel and
+    density masses, chunked inference at fixed audio positions, a worker loader
+    with a use lease, and the planner's use of the evidence (partial coverage,
+    kanji vowels drawn from the model, tags left to timing).
+- **Measured** (59 scored clips, Node, int8 on one WASM thread, with other apps
+  busy), Japanese, Korean and Chinese vowel match, progressive:
+
+  | Tier | Gemini 2.9× | ElevenLabs 2.9× | ElevenLabs live | Tags placed | CPU per s of audio |
+  | --- | --: | --: | --: | --: | --: |
+  | Default | 49% | 68% | 64% | 13/20 | ~3 ms |
+  | Model, 1 s chunks | 74% | 83% | 66% | 13/20 | ~90 ms |
+  | Model, 4 s chunks | 65% | 77% | 64% | 14/20 | ~65–68 ms |
+  | Model, whole clip (reference) | 74% | 82% | — | 14/20 | ~58 ms |
+
+  No setting met the spec's ≥70% vowels, ≥75% tags and ≤60 ms/s together:
+  chunking costs 10–55% more than whole-clip inference, evidence arrives too
+  late for live streams, and phone density did not help untimed tags.
+
 
 #### Code Review #1 Findings
 
@@ -1891,15 +1942,125 @@ and ElevenLabs. No symbol may be read aloud and no number skipped.
 
 Completion: checks pass, G3 passes and review passes.
 
-Results: —
+Results (2026-10-13, starting source `fe7ac797`):
+
+- **Removed:**
+  - backend: gruut, the phoneme and text-basis frame fields, the builder
+    threading, `text_basis` on the speech batch and `prepare_finalized`, and the
+    runtime's phonemizer self-check;
+  - packaging: the `server` extra and every `--extra server`, and gruut's data
+    and hidden import in the PyInstaller spec;
+  - frontend: the gruut planner, the viseme worker and its client, the estimated
+    debug and evaluation sources, and product-ui's phoneme and `tts_text`
+    handling (`@animama/product-ui` 0.12.0); the talking-hands beat's empty
+    `phoneme` field (its `phonemeIndex` is now `unitIndex`).
+- **Speech text (R12):**
+  - every provider receives the visible text as written, without emoji;
+  - Pocket gets the speller's text only;
+  - the backend drops emoji from Gemini's text with the frontend speller's
+    pattern, through `regex` (now a direct dependency; it was already installed).
+- **Debug view (R8):** "Text and audio" and "With provider timing".
+- **Goldens:** 6 of 7 transcripts changed, 11 `user.response` frames, each losing
+  only the removed fields.
+- **Desktop runtime size** (the frozen backend, PyInstaller, built before and
+  after; the full `desktop:runtime:stage` was not run): 216.81 MiB (3,104 files)
+  → 145.72 MiB (1,317 files), 71.09 MiB smaller. 13 gruut-only packages left the
+  runtime, mostly `gruut_lang_en` (39.6 MB) and Babel's locale data (30.3 MB).
+  The smaller runtime's `audit-resources` passes.
+- **Cloud:** raymond-van/animama-cloud#100 covers the removed fields, the
+  `server` extra, the `prepare_finalized` signature and the inventory rows.
+- **G3 pre-check:** the numbers line, spoken anew on Gemini, ElevenLabs and
+  Pocket and transcribed with Parakeet. No symbol name appears, and every number
+  does:
+  - Gemini: "It costs 599, about 1250 yen. Meet me at 3.30 p.m. on 10.13, 2026,
+    room number 4.";
+  - ElevenLabs: "It costs fives. 99. About 1250 yen. Meet me at 3.30pm on 10.13,
+    2026. Room number 4.";
+  - Pocket: "It costs$5.99, about 1,250 yen. Meet me at 3.30 p.m. on October 13,
+    2026, room number 4.".
+
+  Whether Gemini and ElevenLabs say "dollars" is for the owner's ears.
+
+Checks (before review fixes, unless noted):
+
+- `make check-test`: exit 0, including the whole backend suite (4,193 passed, 29
+  skipped), mypy and ruff; `uv lock --check` passes;
+- `pnpm check`, `pnpm web:lint`, `pnpm prettier:check`, `pnpm build` (four
+  workers; no viseme worker), `pnpm desktop:check`;
+- `pnpm web:test`: vitest 518 files, 4,689 tests passed. Browser tests: 113 of
+  114 passed. The failure, "effects check reviews Particle and Scene Effect
+  folders" (`getFixedT` of undefined), comes from main: the particle editor's
+  internationalized messages (#520) are loaded by the Node check without i18n.
+  Its files are identical on `origin/main`; a separate task tracks it;
+- `pnpm e2e:test:fast` on a disposable built stack: 38 passed;
+- `bash -n reset.sh`, and both `docker compose … config --quiet` checks;
+- the gruut-only grep, within the Decision Log's allowance.
 
 #### Code Review #1 Findings
 
-—
+Independent reviewer, initial full review of the working tree on `fe7ac797`:
+
+- **P7-F1 (blocking):** English emoji now reached browser speech, Gemini and
+  ElevenLabs as written. gruut used to drop them for English; the macOS voice
+  reads an emoji's name. R12 says emoji are never read aloud.
+- **P7-F2 (blocking):** product-ui's emitted declarations changed (removed
+  exports and fields) without a version bump, which the package-set comparison
+  rejects.
+- **P7-F3:** the Cloud issue and this phase's Results were missing.
+- **P7-F4 (optional):** a segment's `tts_text` always equalled its stripped
+  visible text, and "prepared" names remained.
+- **P7-F5 (optional, from Phase 5):** the beat's `phoneme` was always empty and
+  the animation debug view showed it.
 
 #### Code Review #1 Revisions
 
-—
+- **P7-F1 accepted:**
+  - `dropEmoji` (beside the speller, same pattern) now cleans every chunk for
+    browser speech and ElevenLabs in `prepareChunksForPlayback`, tags kept;
+  - the backend's segment `tts_text` drops emoji the same way for Gemini;
+  - tests cover each provider: the browser utterance, the ElevenLabs socket text
+    and the Gemini route with a mid-sentence emoji.
+- **P7-F2 accepted:** `@animama/product-ui` is 0.12.0, and
+  `contracts/hosted-web.md` says so.
+- **P7-F3 accepted:** raymond-van/animama-cloud#100 and the Results above.
+- **P7-F4 resolved by P7-F1:** `tts_text` now holds the spoken, emoji-free text,
+  so the field and the "prepared" names describe it again. No rename.
+- **P7-F5 accepted:** `phoneme` is removed and `phonemeIndex` renamed
+  `unitIndex`; the debug view shows the word and unit.
+- **Verification:** the affected backend tests (241) and frontend suites (470
+  tests), `pnpm check`, ruff and mypy pass.
+
+#### Code Review #2 Findings
+
+Targeted recheck (repair round 1): P7-F1 to P7-F5 resolved, except:
+
+- **P7-F6 (blocking):** Gemini's paragraph mode (`finalized_chunking:
+  "paragraph"`, a public option the app does not send) joined the segments'
+  visible text, so emoji still reached Gemini there.
+- **P7-F7 (optional):** the speakable check ran before emoji were dropped, so a
+  segment of only "ℹ️" (both a letter-like character and an emoji) became an
+  empty Gemini request.
+
+#### Code Review #2 Revisions
+
+- **P7-F6 accepted:** paragraph batches pass the joined visible text through
+  `speakable_text`, which keeps the spaces between sentences; the docs say so.
+- **P7-F7 accepted:** the check runs on the speakable text.
+- **Verification:** a new test batches emoji-bearing segments, and an "ℹ️"
+  segment, in both modes; the affected backend tests (242), ruff and mypy pass.
+  raymond-van/animama-cloud#100 now says emoji are dropped.
+
+#### Code Review #3 Findings
+
+Final targeted recheck (repair round 2): P7-F6 and P7-F7 resolved, no
+regressions; **pass**. One optional note: `docs/backend/runtime/chat.md`'s
+paragraph-batch line did not repeat that emoji are dropped.
+
+#### Code Review #3 Revisions
+
+- The note is applied. After the revisions, `make check-test` passes again
+  (4,194 passed, 29 skipped; mypy, ruff and format clean); the frontend suites
+  touched by the revisions (470 tests) and `pnpm check` pass.
 
 ## Final integration review
 

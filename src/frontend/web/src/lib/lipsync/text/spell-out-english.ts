@@ -679,6 +679,16 @@ export function spellOutEnglishSegments(text: string): SpelledSegment[] {
   return segments;
 }
 
+const EMOJI_ANYWHERE = new RegExp(EMOJI.source, "gu");
+
+/**
+ * Text with its emoji and pictographs left out, for voices that read text as
+ * written: they would otherwise say each emoji's name.
+ */
+export function dropEmoji(text: string): string {
+  return text.replace(EMOJI_ANYWHERE, "").replace(/[ \t]{2,}/g, " ");
+}
+
 /** English text with numbers, symbols and abbreviations spelled out, and emoji dropped. */
 export function spellOutEnglish(text: string): string {
   return spellOutEnglishSegments(text)

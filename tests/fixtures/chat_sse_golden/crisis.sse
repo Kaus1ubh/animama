@@ -4,11 +4,11 @@ data: {"type": "safety.ai_notice", "run_id": "run-crisis", "kind": "start", "ani
 
 id: user-response-stream-speech-0-run-crisis
 event: user.response
-data: {"event_id": "user-response-stream-speech-0-run-crisis", "run_id": "run-crisis", "node_id": "direct-chat:model-client", "text": "I am here with you.", "response_format": "main_structured_json", "response_part": "speech", "is_delta": true, "part_index": 0, "part_final": false, "tokenized_text": "I am here with you.", "phonemized_text": [["\u02c8a\u026a"], ["\u02c8\u00e6", "m"], ["h", "\u02c8\u026a", "\u0279"], ["w", "\u02c8\u026a", "\u03b8"], ["j", "\u02c8u"]]}
+data: {"event_id": "user-response-stream-speech-0-run-crisis", "run_id": "run-crisis", "node_id": "direct-chat:model-client", "text": "I am here with you.", "response_format": "main_structured_json", "response_part": "speech", "is_delta": true, "part_index": 0, "part_final": false}
 
 id: user-response-stream-speech-1-run-crisis
 event: user.response
-data: {"event_id": "user-response-stream-speech-1-run-crisis", "run_id": "run-crisis", "node_id": "direct-chat:model-client", "text": " You are not alone.", "response_format": "main_structured_json", "response_part": "speech", "is_delta": true, "part_index": 1, "part_final": true, "tokenized_text": "You are not alone.", "phonemized_text": [["j", "\u02c8u"], ["\u02c8\u0251", "\u0279"], ["n", "\u02c8\u0251", "t"], ["\u0259", "l", "\u02c8o\u028a", "n"]]}
+data: {"event_id": "user-response-stream-speech-1-run-crisis", "run_id": "run-crisis", "node_id": "direct-chat:model-client", "text": " You are not alone.", "response_format": "main_structured_json", "response_part": "speech", "is_delta": true, "part_index": 1, "part_final": true}
 
 id: safety-crisis-support-run-crisis
 event: safety.crisis_support

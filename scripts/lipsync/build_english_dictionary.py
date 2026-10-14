@@ -24,12 +24,6 @@ Sources (pinned; their notices travel with the generated file):
 
 Usage:
   python3 scripts/lipsync/build_english_dictionary.py <cmudict.dict> <scowl-2020.12.07 directory>
-  uv run python scripts/lipsync/build_english_dictionary.py --gruut-reference <scowl-2020.12.07 directory>
-
-The second form records how gruut reads a fixed list (SCOWL's most common words
-plus the English test lines' words) as `tests/lipsync/english-gruut-reference.json`,
-so the browser source can be checked against it after gruut is removed. It needs
-the backend's gruut.
 """
 
 from __future__ import annotations
@@ -42,9 +36,6 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 OUTPUT = REPO / "src/frontend/web/src/lib/lipsync/text/english-dictionary.data.ts"
-REFERENCE = REPO / "src/frontend/web/tests/lipsync/english-gruut-reference.json"
-TESTSET = REPO / "src/frontend/web/tests/lipsync/testset.json"
-REFERENCE_LEVEL = 10
 CMUDICT_SHA256 = "81917843c7f44ce2b094ac63873c2c7a4cf802040792c455ba3ca406891c3d22"
 SCOWL_VERSION = "2020.12.07"
 WORD_LEVEL = 35
@@ -123,80 +114,10 @@ def read_scowl(final: Path) -> set[str]:
     return words
 
 
-def gruut_vowels(word: str) -> str:
-    """gruut's vowel sequence for a word, in the dictionary's letters (w and y for weak)."""
-    import gruut
-
-    out = []
-    for sentence in gruut.sentences(word, lang="en_US"):
-        for token in sentence:
-            for phoneme in token.phonemes or []:
-                stressed = "ˈ" in phoneme or "ˌ" in phoneme
-                bare = phoneme.replace("ˈ", "").replace("ˌ", "").replace("ː", "")
-                if not stressed and bare in ("ə", "ɚ"):
-                    out.append("w")
-                    continue
-                if not stressed and bare == "ɪ":
-                    out.append("y")
-                    continue
-                for pattern, vowel in IPA_VOWELS:
-                    if re.match(pattern, bare):
-                        out.append(vowel)
-                        break
-    return "".join(out)
-
-
-IPA_VOWELS = [
-    (r"^(aɪ|aʊ|ɑ|a|æ|ʌ|ɐ)", "a"),
-    (r"^(eɪ|ɛ|e|ɝ|ɚ|ə)", "e"),
-    (r"^(ɪ|i)", "i"),
-    (r"^(ɔɪ|oʊ|ɔ|o|ɒ)", "o"),
-    (r"^(ʊ|u)", "u"),
-]
-
-
-def record_gruut_reference(final: Path) -> None:
-    from importlib.metadata import version
-
-    words: set[str] = set()
-    for path in final.iterdir():
-        match = re.fullmatch(r"(english|american)-words\.(\d+)", path.name)
-        if match and int(match.group(2)) <= REFERENCE_LEVEL:
-            listed = path.read_text(encoding="latin-1").split()
-            words.update(w.lower() for w in listed if re.fullmatch(r"[A-Za-z']+", w))
-    for line in json.loads(TESTSET.read_text())["lines"]:
-        if line["lang"] == "en":
-            text = re.sub(r"<[^>]+>|\[[^\]]+\]", " ", line["text"])
-            words.update(w.lower() for w in re.findall(r"[A-Za-z']+", text))
-    reference = {word: gruut_vowels(word) for word in sorted(words)}
-    REFERENCE.write_text(
-        json.dumps(
-            {
-                "description": (
-                    f"gruut {version('gruut')} (en_US) vowel shapes for SCOWL's most common words and the "
-                    "English test lines' words, as a, e, i, o, u, with w for a weak unstressed E-like vowel "
-                    "and y for a weak I. Made by scripts/lipsync/build_english_dictionary.py --gruut-reference."
-                ),
-                "words": reference,
-            },
-            indent=2,
-            ensure_ascii=False,
-        )
-        + "\n"
-    )
-    print(f"{len(reference)} words recorded")
-
-
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    parser.add_argument("--gruut-reference", action="store_true", help="record gruut's readings instead")
     parser.add_argument("paths", nargs="+", metavar="PATH", help="cmudict.dict and the SCOWL directory")
     args = parser.parse_args()
-    if args.gruut_reference:
-        if len(args.paths) != 1:
-            parser.error("--gruut-reference takes the SCOWL directory only")
-        record_gruut_reference(scowl_lists(Path(args.paths[0])))
-        return
     if len(args.paths) != 2:
         parser.error("expected cmudict.dict and the SCOWL directory")
     cmudict = read_cmudict(Path(args.paths[0]))

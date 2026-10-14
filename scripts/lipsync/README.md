@@ -4,7 +4,7 @@ The lip-sync evaluation scores plan sources against recorded speech, offline:
 
 ```bash
 pnpm --dir src/frontend/web lipsync:eval
-pnpm --dir src/frontend/web lipsync:eval --source estimated --mode whole --json /tmp/eval.json
+pnpm --dir src/frontend/web lipsync:eval --source aligned --mode whole --json /tmp/eval.json
 pnpm --dir src/frontend/web lipsync:eval --source aligned,aligned-full --mode faster,live
 ```
 
@@ -14,7 +14,8 @@ Sources are listed in `src/frontend/web/src/lib/lipsync/eval/sources.ts`;
 It reads the committed fixtures in `src/frontend/web/tests/lipsync/fixtures/`. Each
 fixture holds one test line's text as sent (tags included), its audio features at
 100 frames per second, any provider character timing, reference word and vowel
-timings, and the inputs today's estimated planner needs. Fixtures hold no audio.
+timings and, for English lines, a stress reference (see below). Fixtures hold no
+audio.
 
 The lines are listed in `src/frontend/web/tests/lipsync/testset.json`. Lines with
 `heldOut: true` were not used for tuning and are reported separately. Lines with
@@ -36,9 +37,6 @@ uv run --no-project --python 3.12 --with "torch==2.8.*" --with "torchaudio==2.8.
   --with uroman --with pypinyin --with pyopenjtalk-plus --with numpy \
   python scripts/lipsync/clips.py reference "$CLIPS"
 
-# Inputs for today's estimated planner (needs the backend's gruut).
-uv run python scripts/lipsync/clips.py estimated "$CLIPS"
-
 pnpm --dir src/frontend/web lipsync:fixtures --clips "$CLIPS"
 ```
 
@@ -49,6 +47,13 @@ the way the app does (one input per sentence and a flush after the first) and ke
 every frame's timing in `<id>.socket.json`. The fixture builder replays those
 frames through the app's timing collector. The `e-` lines were recorded earlier
 with HTTP timestamps (`<id>.alignment.json`); the app no longer uses that path.
+
+English fixtures carry gruut 2.4.0's reading of their line (`stressReference`),
+which tests use to check that talking-hands beats fall on stressed syllables.
+gruut is no longer a dependency, so these readings were recorded once, before its
+removal, into the clip directory's `estimated.json`; the fixture builder copies
+them when that file is present. A new English line has no stress reference and is
+left out of that check.
 
 ## Reference timings
 
@@ -74,8 +79,7 @@ python3 scripts/lipsync/build_english_dictionary.py "$DOWNLOADS/cmudict.dict" "$
 ```
 
 Update the file's SHA-256 in `licenses/third-party/code-and-models.json` afterwards.
-`english-gruut-reference.json` in the tests records how gruut read SCOWL's most
-common words, so the dictionary's agreement with gruut is still checked after gruut
-is removed. It was made with
-`uv run python scripts/lipsync/build_english_dictionary.py --gruut-reference "$DOWNLOADS/scowl-2020.12.07"`
-while gruut was a backend dependency.
+`english-gruut-reference.json` in the tests records how gruut 2.4.0 read SCOWL's
+most common words and the English test lines' words, recorded once while gruut was
+a backend dependency. The dictionary's agreement with it is still checked; it
+cannot be re-recorded now that gruut is gone.

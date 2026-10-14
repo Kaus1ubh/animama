@@ -7,6 +7,7 @@ import {
   performanceClock,
   performanceClockNow,
 } from "@/lib/speech/performance-clock";
+import { dropEmoji } from "@/lib/lipsync/text/spell-out-english";
 import { pocketSpeechText } from "@/lib/speech/pocket-speech-text";
 import { emitSpeechUtterance } from "@/lib/speech/speech-pcm-tap";
 import type { TimedChar } from "@/lib/speech/provider-speech-timing";
@@ -81,11 +82,7 @@ function isAbortError(error: unknown): boolean {
 
 type UseTtsPlaybackResult = {
   startRun: (runId: string) => void;
-  appendToken: (
-    runId: string,
-    token: string,
-    options?: TtsAppendOptions,
-  ) => void;
+  appendToken: (runId: string, token: string) => void;
   completeRun: (runId: string) => void;
   acceptElevenLabsSession: (
     runId: string,
@@ -110,10 +107,6 @@ type UseTtsPlaybackResult = {
 };
 
 type AudioEndedReason = "natural" | "error";
-type TtsTextBasis = "plain" | "gruut_text_with_ws";
-type TtsAppendOptions = {
-  textBasis?: TtsTextBasis | null;
-};
 
 type UseTtsPlaybackOptions = {
   onAudioStarted?: (event: {
@@ -171,7 +164,6 @@ type UseTtsPlaybackOptions = {
     emotionIntensity?: number | null;
     languageCode?: string | null;
     modelId?: string | null;
-    textBasis?: TtsTextBasis | null;
     animaVoiceCatalogUrl?: string | null;
   } | null;
 };
@@ -400,7 +392,6 @@ export function useTtsPlayback(
     useRef<ResolvedPocketVoiceSelection | null>(null);
   const pocketFallbackVoiceRef = useRef<PerRunValue<string | undefined>>(null);
   const lastPreloadedPocketAnimaRefRef = useRef<string | null>(null);
-  const finalizedTextBasisByRunRef = useRef<Record<string, TtsTextBasis>>({});
   // A run whose ElevenLabs speech the server declined speaks with Pocket TTS
   // instead (fallBackToPocketTts); the saved provider is unchanged.
   const declinedElevenLabsRunIdRef = useRef<string | null>(null);
@@ -688,7 +679,6 @@ export function useTtsPlayback(
     plannedTextRef.current = "";
     runIdRef.current = null;
     declinedElevenLabsRunIdRef.current = null;
-    finalizedTextBasisByRunRef.current = {};
     warnedKeysRef.current.clear();
     resetRunPlaybackLifecycle();
     cancelBrowserPlayback();
@@ -1054,20 +1044,19 @@ export function useTtsPlayback(
       const prepared: TtsChunkCandidate[] = [];
 
       for (const chunk of chunks) {
-        const trimmed = chunk.text.trim();
-        if (!trimmed) continue;
+        // Other voices read text as written, so they lose the emoji here;
+        // Pocket spells its text out, emoji and tags dropped, as it speaks.
+        const text =
+          provider === "pocket_tts"
+            ? chunk.text.trim()
+            : dropEmoji(chunk.text).trim();
+        if (!text) continue;
         // A chunk of only tags or emoji has nothing for Pocket to say; dropping
         // it here keeps the stream's end on the last chunk Pocket speaks.
-        if (provider === "pocket_tts" && !pocketSpeechText(trimmed)) continue;
+        if (provider === "pocket_tts" && !pocketSpeechText(text)) continue;
 
-        logger.info("Prepare", "Prepared TTS text", {
-          provider,
-          text: trimmed,
-        });
-        prepared.push({
-          ...chunk,
-          text: trimmed,
-        });
+        logger.info("Prepare", "Prepared TTS text", { provider, text });
+        prepared.push({ ...chunk, text });
       }
 
       return prepared;
@@ -1343,7 +1332,7 @@ export function useTtsPlayback(
   );
 
   const appendToken = useCallback(
-    (runId: string, token: string, options?: TtsAppendOptions) => {
+    (runId: string, token: string) => {
       if (!runId || !token) return;
       if (runIdRef.current !== runId) {
         startRun(runId);
@@ -1353,9 +1342,6 @@ export function useTtsPlayback(
       const provider = resolveActiveProvider(runId);
       if (!provider) return;
 
-      if (options?.textBasis === "gruut_text_with_ws") {
-        finalizedTextBasisByRunRef.current[runId] = "gruut_text_with_ws";
-      }
       bufferRef.current += token;
       runSpeechTextRef.current += token;
       if (isFinalizedServerProvider(provider)) {
@@ -1466,7 +1452,6 @@ export function useTtsPlayback(
         const speechContext = resolveSpeechRuntimeContext(runId);
         if (speechContext?.animaId) {
           if (isFinalizedServerProvider(provider)) {
-            delete finalizedTextBasisByRunRef.current[runId];
             logger.info("Run", "Waiting for pushed finalized audio", {
               runId,
               provider,

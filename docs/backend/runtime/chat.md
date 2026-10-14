@@ -306,11 +306,6 @@ they are not forwarded directly to browser clients over `chat:sse`.
 - optional `is_delta`
 - optional `part_index`
 - optional `part_final`
-- optional `tokenized_text`
-- optional `phonemized_text`
-- optional `tts_text`
-- optional `tts_phonemized_text`
-- optional `tts_text_basis`
 
 Main structured turns use one JSON shape: `emotional_tone`,
 `emotional_intensity`, nullable `gesture`, `speech`, and nullable `display`.
@@ -347,13 +342,12 @@ from the streamed chunks, the backend emits a full/correction frame with
 backend-internal and filtered before `user.response` SSE reaches the browser.
 Missing or blank tone metadata falls back to `neutral`; values outside the
 allowlist are logged and ignored for Gemini's speaking style and durable
-emotion updates. Gruut tokenization and phonemization are attached to speakable `speech`
-text, not display-only text or tone metadata.
+emotion updates.
 
-When a run requests TTS, each main-structured `speech` segment is exposed as
-sentence-level `user.response` metadata as soon as it is emitted. Segments whose
-letters are all ASCII (English) are prepared with gruut; other segments, or any
-segment when gruut is unavailable, are spoken as written. Empty
+When a run requests TTS, each main-structured `speech` segment is queued for
+speech as soon as it is emitted, with its visible text as written in any
+language, emoji dropped; providers read numbers and symbols themselves. A segment without
+letters or digits, such as a closing emoji, stays visible only. Empty
 `part_final=true` speech markers close the segment stream without adding audio
 text. If semantic deltas were unavailable, one complete non-delta `speech`
 fallback is queued; if a complete correction arrives after speech deltas have
@@ -371,8 +365,8 @@ no speech frames.
 - **Paragraph chunking** keeps sentence-level SSE unchanged while backend audio
   accumulates segments by paragraph, flushing when a new paragraph starts, when
   a batch reaches four sentence segments, when it reaches about 600 visible
-  characters, or when the speech stream closes. Paragraph batches are rebuilt
-  from visible sentence text; English batches are re-prepared through gruut.
+  characters, or when the speech stream closes. Paragraph batches join the
+  visible sentence text, emoji dropped.
   Before each paragraph batch after the first, the backend inserts a 400 ms
   silent PCM `tts.audio` frame so adjacent paragraph utterances do not play
   back-to-back.
@@ -382,10 +376,9 @@ level. Audio batches stream back as `tts.audio` frames; the backend coalesces
 upstream PCM bytes into larger frames so the frontend does not need to schedule
 many tiny audio buffers, and emits exactly one `tts.done` after the last batch.
 If setup or upstream streaming fails, it emits `tts.error`, stops synthesis,
-skips `tts.done`, and still lets the chat run finish with `run.completed`. The
-frontend `tts_text`, `tts_phonemized_text`, chat text, and avatar viseme inputs
-carry no tone tag, and no paragraph-specific fields are added to public SSE
-events. Frames and error codes name `gemini`. See
+skips `tts.done`, and still lets the chat run finish with `run.completed`.
+Chat text and the spoken text carry no tone tag, and no paragraph-specific
+fields are added to public SSE events. Frames and error codes name `gemini`. See
 [voice and speech](../integrations/voice-and-speech.md#gemini-tts).
 
 `emotion.update` frames include the event ID, run ID, direct chat node ID, and
@@ -441,11 +434,8 @@ at most once per turn. Incognito turns and turns that remembered nothing emit
 none.
 
 `run.completed` is emitted once after safe side effects have run and includes
-both `run_id` and the resolved `chat_id`. For normal non-voice text, completion
-is usually only the run/chat terminal marker because structured speech/display
-text has already been emitted as `user.response`. Unstructured fallback paths
-can include final `tokenized_text` and `phonemized_text` metadata derived from
-the accumulated response text.
+both `run_id` and the resolved `chat_id`. It is only the run/chat terminal
+marker, because the reply text has already been emitted as `user.response`.
 
 ## Persistence And Side Effects
 

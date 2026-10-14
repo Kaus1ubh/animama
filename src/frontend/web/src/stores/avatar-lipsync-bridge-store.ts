@@ -57,16 +57,6 @@ type StoredSegment = VowelVisemeLipSyncSegment & {
   revision: number;
 };
 
-/**
- * gruut's readings of a reply, kept only so the debug panel's Lip-sync view can
- * compare today's estimate with the planner (removed with gruut).
- */
-export type RawVisemeInputs = {
-  phonemizedText: string[][] | null;
-  tokenizedText: string | null;
-  fps: number;
-};
-
 type TickGateArgs = {
   avatarState: AvatarAnimationState;
   preferredRunId?: string | null;
@@ -106,7 +96,6 @@ type AvatarLipSyncBridgeState = {
   avatarAnimaId: string | null;
   speechGestureTimelinesByRun: Record<string, SpeechGestureTimeline>;
   speechChunksByRun: Record<string, TtsChunkRecord[]>;
-  rawVisemeInputsByRun: Record<string, RawVisemeInputs>;
   segmentsByRun: Record<string, StoredSegment>;
   speechAudioStartsByRun: Record<string, SpeechAudioStart>;
   speechAudioDurationsByRun: Record<string, SpeechAudioDuration>;
@@ -124,13 +113,6 @@ type AvatarLipSyncBridgeState = {
     animaId?: string | null;
   }) => void;
   unregisterAvatarInstance: (avatar: Avatar) => void;
-  /** Keep gruut's readings for the debug comparison; playback ignores them. */
-  queueVisemeInputsForRun: (args: {
-    runId: string;
-    phonemizedText: string[][] | null;
-    tokenizedText: string | null;
-    provider?: "pocket_tts" | "elevenlabs" | "gemini";
-  }) => void;
   queueTtsChunksForRun: (args: {
     runId: string;
     chunks: readonly TtsChunkRecord[];
@@ -253,7 +235,6 @@ function withoutRun<T>(record: Record<string, T>, runId: string) {
 const emptyRunState = () => ({
   speechGestureTimelinesByRun: {},
   speechChunksByRun: {},
-  rawVisemeInputsByRun: {},
   segmentsByRun: {},
   speechAudioStartsByRun: {},
   speechAudioDurationsByRun: {},
@@ -366,17 +347,6 @@ export const useAvatarLipSyncBridgeStore = create<AvatarLipSyncBridgeState>(
           avatar: null,
           avatarAnimaId: null,
         });
-      },
-
-      queueVisemeInputsForRun: ({ runId, phonemizedText, tokenizedText }) => {
-        if (!runId || !Array.isArray(phonemizedText) || !phonemizedText.length)
-          return;
-        set((current) => ({
-          rawVisemeInputsByRun: {
-            ...current.rawVisemeInputsByRun,
-            [runId]: { phonemizedText, tokenizedText, fps: LIPSYNC_FPS },
-          },
-        }));
       },
 
       queueTtsChunksForRun: ({ runId, chunks }) => {
@@ -808,7 +778,6 @@ export const useAvatarLipSyncBridgeStore = create<AvatarLipSyncBridgeState>(
             runId,
           ),
           speechChunksByRun: withoutRun(current.speechChunksByRun, runId),
-          rawVisemeInputsByRun: withoutRun(current.rawVisemeInputsByRun, runId),
           segmentsByRun: withoutRun(current.segmentsByRun, runId),
           speechAudioStartsByRun: withoutRun(
             current.speechAudioStartsByRun,

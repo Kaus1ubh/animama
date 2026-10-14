@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  dropEmoji,
   numberToWords,
   ordinalToWords,
   spellOutEnglish,
@@ -44,8 +45,16 @@ describe("number words", () => {
   });
 });
 
+describe("dropEmoji", () => {
+  it("leaves out emoji, flags and joined sequences, and keeps symbols with a spoken form", () => {
+    expect(dropEmoji("I love it 😊 so much! 👍🏽 🇯🇵 👨‍👩‍👧 72°F, #4")).toBe(
+      "I love it so much! 72°F, #4",
+    );
+  });
+});
+
 describe("spellOutEnglish", () => {
-  // Every case gruut handles today, and every case Pocket TTS or gruut gets wrong.
+  // Every case gruut handled, and every case Pocket TTS or gruut got wrong.
   it.each([
     [
       "I have 3 cats and 1,250 dollars.",

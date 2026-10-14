@@ -171,8 +171,7 @@ export function plannedGestureTimeline(
     beats: gestures.beats.map((beat) => ({
       timeSec: at(beat.timeSec),
       wordIndex: beat.wordIndex,
-      phonemeIndex: beat.unitIndex,
-      phoneme: "",
+      unitIndex: beat.unitIndex,
     })),
     phrases: gestures.phrases.map((phrase) => ({
       ...phrase,

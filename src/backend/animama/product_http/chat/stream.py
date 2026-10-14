@@ -40,7 +40,7 @@ from animama.product_http.ports import (
 from .compaction import compact_chat_after_success as _compact_chat_after_success
 from .safety import ai_notice_frame, attach_crisis_resources
 from .setup_helpers import TurnSessions
-from .sse_events import GruutSseTextBuilder, SseTextState, format_error_event, format_sse
+from .sse_events import SseTextState, format_error_event, format_sse
 from .sse_runtime import (
     DirectChatEventBridge,
     TurnStopped,
@@ -176,7 +176,6 @@ async def stream_direct_chat_sse(
     anima_id: str,
     req: PyAnimaChatRequest,
     user: RequestPrincipal,
-    build_gruut_sse_text: GruutSseTextBuilder,
 ) -> StreamingResponse:
     """Prepare and stream one `POST /chat:sse` direct avatar companion turn.
 
@@ -259,8 +258,6 @@ async def stream_direct_chat_sse(
                 chat_id=chat_id,
                 user_id=user.id,
                 run_id=run_id,
-                state=state,
-                build_gruut_sse_text=build_gruut_sse_text,
             )
             if frame is not None:
                 completed_emitted = True
@@ -366,7 +363,6 @@ async def stream_direct_chat_sse(
                 anima_id=anima_id,
                 sessions=sessions,
                 state=state,
-                build_gruut_sse_text=build_gruut_sse_text,
                 stream_user_response=True,
                 stream_emotion_update=True,
                 poll_extra_frame=_poll_tts_frame,
@@ -394,7 +390,6 @@ async def stream_direct_chat_sse(
                 anima_id=anima_id,
                 sessions=sessions,
                 state=state,
-                build_gruut_sse_text=build_gruut_sse_text,
                 stream_user_response=True,
                 stream_emotion_update=True,
             ):
@@ -474,7 +469,6 @@ async def stream_direct_chat_sse(
                     anima_id=anima_id,
                     sessions=sessions,
                     state=state,
-                    build_gruut_sse_text=build_gruut_sse_text,
                     stream_user_response=False,
                     stream_emotion_update=True,
                 ),
@@ -512,7 +506,6 @@ async def stream_direct_chat_sse(
                     anima_id=anima_id,
                     sessions=sessions,
                     state=state,
-                    build_gruut_sse_text=build_gruut_sse_text,
                     stream_user_response=True,
                     stream_emotion_update=True,
                 ):
@@ -552,7 +545,6 @@ async def stream_direct_chat_sse(
                 anima_id=anima_id,
                 sessions=sessions,
                 state=state,
-                build_gruut_sse_text=build_gruut_sse_text,
                 stream_user_response=False,
                 stream_emotion_update=True,
             ):

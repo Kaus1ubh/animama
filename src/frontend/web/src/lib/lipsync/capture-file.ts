@@ -23,11 +23,6 @@ export type LipSyncCapture = {
   parts: Array<{ sample: number; text: string }>;
   /** Provider character timing on the capture's clock. */
   timing: TimedChar[];
-  /** gruut's readings, for today's estimated planner. */
-  estimated: {
-    phonemizedText: string[][];
-    tokenizedText: string | null;
-  } | null;
 };
 
 export type LipSyncCaptureFile = Omit<LipSyncCapture, "pcm" | "timing"> & {
@@ -65,7 +60,6 @@ export function encodeLipSyncCapture(
       startSec,
       endSec,
     ]),
-    estimated: capture.estimated,
     pcm: bytesToBase64(bytes),
   };
 }
@@ -104,6 +98,5 @@ export function decodeLipSyncCapture(value: unknown): LipSyncCapture {
       startSec,
       endSec,
     })),
-    estimated: file.estimated ?? null,
   };
 }

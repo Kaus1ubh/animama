@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { emitSpeechPcm } from "@/lib/speech/speech-pcm-tap";
 import { useAvatarLipSyncBridgeStore } from "./avatar-lipsync-bridge-store";
@@ -6,10 +6,6 @@ import {
   LIPSYNC_DEBUG_MAX_SECONDS,
   useLipSyncDebugStore,
 } from "./lipsync-debug-store";
-
-vi.mock("@/lib/avatar/viseme-worker-client", () => ({
-  buildVisemeAssetsFromRaw: vi.fn(),
-}));
 
 const SAMPLE_RATE = 24_000;
 
@@ -74,16 +70,10 @@ describe("lip-sync debug capture", () => {
     expect(capture?.truncated).toBe(true);
   });
 
-  it("keeps the run's timing, planner inputs and length after the bridge clears them", () => {
+  it("keeps the run's text, timing and length after the bridge clears them", () => {
     useLipSyncDebugStore.getState().startCapture();
     useAvatarLipSyncBridgeStore.setState({
-      rawVisemeInputsByRun: {
-        "run-1": {
-          phonemizedText: [["h", "aɪ"]],
-          tokenizedText: "Hi",
-          fps: 60,
-        },
-      },
+      speechTextByRun: { "run-1": "Hi" },
     });
     play("run-1", 10);
     useAvatarLipSyncBridgeStore.getState().appendProviderSpeechTiming({
@@ -105,7 +95,7 @@ describe("lip-sync debug capture", () => {
 
     expect(useLipSyncDebugStore.getState().capture).toMatchObject({
       runId: "run-1",
-      inputs: { phonemizedText: [["h", "aɪ"]], tokenizedText: "Hi", fps: 60 },
+      text: "Hi",
       timing: [{ char: "H", startSec: 0, endSec: 0.1 }],
       audioDurationSec: 0.4,
     });

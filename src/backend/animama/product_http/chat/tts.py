@@ -48,7 +48,6 @@ from animama.product_http.ports import (
 
 from .setup_helpers import TurnSessions
 from .sse_events import (
-    TTS_TEXT_BASIS_VISIBLE_TEXT,
     SsePreparedTtsSpeechSegment,
     SseTextState,
     format_tts_audio_event,
@@ -56,6 +55,7 @@ from .sse_events import (
     format_tts_error_event,
     format_tts_session_error_event,
     format_tts_session_event,
+    speakable_text,
 )
 
 _log = get_logger("product_http.chat.tts")
@@ -264,9 +264,10 @@ class TtsSessionBootstrap:
 
 @dataclass(frozen=True, slots=True)
 class FinalizedTtsSegmentBatch:
+    """Speech segments sent to Gemini as one request, with the text it speaks as written."""
+
     segments: tuple[SsePreparedTtsSpeechSegment, ...]
     text: str
-    text_basis: str
 
     @property
     def part_index(self) -> int:
@@ -290,13 +291,7 @@ class FinalizedTtsSegmentBatcher:
         if self._closed:
             return
         if self._chunking == "sentence":
-            self._ready.append(
-                FinalizedTtsSegmentBatch(
-                    segments=(segment,),
-                    text=segment.tts_text,
-                    text_basis=segment.text_basis,
-                )
-            )
+            self._ready.append(FinalizedTtsSegmentBatch(segments=(segment,), text=segment.tts_text))
             return
 
         if segment.paragraph_break_before and self._pending:
@@ -323,16 +318,11 @@ class FinalizedTtsSegmentBatcher:
             return
         segments = tuple(self._pending)
         self._pending = []
-        text = "".join(segment.visible_text for segment in segments).strip()
+        # Joined from the visible text, which keeps the spaces between sentences.
+        text = speakable_text("".join(segment.visible_text for segment in segments))
         if not text:
             return
-        self._ready.append(
-            FinalizedTtsSegmentBatch(
-                segments=segments,
-                text=text,
-                text_basis=TTS_TEXT_BASIS_VISIBLE_TEXT,
-            )
-        )
+        self._ready.append(FinalizedTtsSegmentBatch(segments=segments, text=text))
 
     def _pending_visible_char_count(self) -> int:
         return len("".join(segment.visible_text for segment in self._pending).strip())
@@ -610,7 +600,6 @@ class FinalizedTtsStreamBootstrap:
                 run_id=self.run_id,
                 text=batch.text,
                 model_id=self.model_id,
-                text_basis=batch.text_basis,
                 emotional_tone=emotional_tone,
                 emotional_state=emotional_state,
                 language_code=self.language_code,

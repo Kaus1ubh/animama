@@ -208,7 +208,6 @@ class FinalizedSpeechPort(Protocol):
         run_id: str,
         text: str,
         model_id: str | None,
-        text_basis: str,
         emotional_tone: str | None,
         emotional_state: dict[str, int] | None,
         language_code: str | None = None,

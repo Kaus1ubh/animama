@@ -182,7 +182,7 @@ ELEVENLABS_REALTIME = {"tts": {"enabled": True, "provider": "elevenlabs", "model
 GEMINI_FINALIZED = {"tts": {"enabled": True, "provider": "gemini", "model_id": "gemini-3.8-flash-tts"}}
 
 
-async def test_realtime_speech_sends_a_session_and_phoneme_payloads(world: ChatWorld) -> None:
+async def test_realtime_speech_sends_a_session(world: ChatWorld) -> None:
     world.model.replies.append(structured("Hello there. The kettle is on.", tone="joy"))
     assert_golden("tts-realtime", await world.turn("tts-realtime", dispatch_options=ELEVENLABS_REALTIME), world)
 
@@ -190,7 +190,7 @@ async def test_realtime_speech_sends_a_session_and_phoneme_payloads(world: ChatW
 async def test_finalized_speech_streams_audio_with_the_stored_mood(world: ChatWorld) -> None:
     world.model.replies.append(structured("Hello there. The kettle is on.", tone="joy", intensity=3))
     assert_golden("tts-finalized", await world.turn("tts-finalized", dispatch_options=GEMINI_FINALIZED), world)
-    # Gemini spoke each prepared sentence in the style of the reply's tone at the stored mood's level (joy 12).
+    # Gemini spoke each sentence as written, in the style of the reply's tone at the stored mood's level (joy 12).
     style = [{"type": "speech_metadata", "style": "Speak in a happy tone."}]
     assert [call["input"][0]["content"] for call in world.gemini.calls] == [
         [{"type": "text", "text": "Hello there.", "annotations": style}],
