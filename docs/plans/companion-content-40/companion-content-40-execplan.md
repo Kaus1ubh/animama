@@ -56,6 +56,7 @@ The owner removed sixteen drafts during review. Worlds Tiniest Violin and Sneeze
 - [x] Final independent receipt closure passes, including actual native staging.
 - [x] PR publication: #557 opened without merge. Merge remains owner-gated.
 - [x] Owner-requested scope addition: ship the 23 remaining expanded Included items in desktop core so it matches self-host.
+- [x] PR review fixes approved by the owner: keep the desktop stage scenes and restore the looping Gesture minimum.
 
 ## Decision Log
 
@@ -126,7 +127,15 @@ The independent promotion/core review found no actionable code or provenance iss
 
 #### Code Review #3 Findings and revisions
 
-The required native audit found a pre-existing packaging defect: Vite copied tracked public compatibility assets even with the compatibility plugin disabled for `embedded-desktop`. The existing desktop output filter now removes exactly the five directories already forbidden by the unchanged independent audit. Two regressions failed before the fix and pass afterward, including preservation of sibling files and symlink targets. All 71 packaging tests, desktop type checks and changed-file formatting pass. Targeted independent review found no actionable issue in this repair. Two repair rounds are used; none remain. Ordinary web builds and source assets are unchanged.
+The required native audit found a pre-existing packaging defect: Vite copied tracked public compatibility assets even with the compatibility plugin disabled for `embedded-desktop`. The existing desktop output filter now removes exactly the five directories already forbidden by the unchanged independent audit. Two regressions failed before the fix and pass afterward, including preservation of sibling files and symlink targets. All 71 packaging tests, desktop type checks and changed-file formatting pass. Targeted independent review found no actionable issue in this repair. Two repair rounds are used; none remain. Ordinary web builds and source assets are unchanged. This directory removal was later found to delete the app's stage scenes and is superseded by CR1-1 below.
+
+#### PR review findings and revisions
+
+The PR's independent code review (2026-10-14) found two blocking defects, confirmed against the source; the owner approved fixing both in this PR.
+
+- CR1-1, accepted: the output filter above deleted `background/`, but `public/background` holds the app's own stage scenes (dad5849a), loaded from `/background/<scene>-<theme>.webp`. Packaged desktop would lose the default stage scene and the Anima page pedestal. The filter change is reverted. The audit's alias check moves into `assertNoIncludedAliasCopies`, which allows a compatibility route only for files byte-identical to `src/frontend/web/public`; any other file, a changed public file or a symlinked route fails. The audit also requires every `public/background` file in the embedded output. Regression tests replace the two filter tests.
+- CR1-2, accepted: the cold-load repair removed the planner's two-second minimum, so short looping starter Gestures (`shy-finger-poke-loop` 0.6 s, `meme-dab` 1.0 s) ended after one cycle, and a configured looping length was ignored. A looping clip's horizon is again its configured duration or timeline over speed, with a two-second minimum, measured from actual playback. One-shot clips keep the delivered-timeline horizon. Two new tests fail without the fix and pass with it.
+- Evidence: Code Review #2 (targeted recheck) found both resolved with no new blocking issue. macOS arm64 runtime stage and independent audit pass with all 16 stage scenes staged and identical to `public/background` (build ID `fbf94a400f8377396bffa0fb4a5be742d6a6333fc29dfa30bb41928fa8243986`, core download 393,483,436 of 786,432,000 bytes); `runtime-packaging` and `pack-size-report` pass 74 tests. `pnpm check`, `pnpm web:lint` and `pnpm prettier:check` pass; Avatar, planner and pose Vitest suites pass 687 tests. The full web suite, browser journeys and a live packaged-app check were not rerun.
 
 #### Final local acceptance
 

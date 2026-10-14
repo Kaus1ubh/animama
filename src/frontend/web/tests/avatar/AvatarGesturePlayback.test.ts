@@ -18,7 +18,12 @@ const emotion = buildEmotionRuntimeState(createEmptyEmotionStateMap());
 
 /** Exercise the real planner/executor/player while controlling resource delivery. */
 function harness(
-  options: { duration?: number; timeScale?: number; loop?: boolean } = {},
+  options: {
+    duration?: number;
+    timeScale?: number;
+    loop?: boolean;
+    configuredDuration?: number;
+  } = {},
 ) {
   const duration = options.duration ?? 5;
   const loaded = new Map<string, AnimaPoseClipV2>();
@@ -32,7 +37,7 @@ function harness(
         description: "",
         type: "animaPoseClip",
         file: id,
-        duration: null,
+        duration: options.configuredDuration ?? null,
         loopType: "once",
         timeScale: options.timeScale ?? 1,
         entry: { id, name: id, file: id, type: "animaPoseClip" },
@@ -203,7 +208,7 @@ describe("Avatar Gesture delivery and playback lifetime", () => {
     },
   );
 
-  it("also bounds an authored looping Gesture after one delivered timeline", async () => {
+  it("bounds a long looping Gesture after one delivered timeline", async () => {
     vi.useFakeTimers();
     const h = harness({ loop: true });
     h.tick(1_000, [h.event()]);
@@ -219,6 +224,30 @@ describe("Avatar Gesture delivery and playback lifetime", () => {
     expect(h.avatar.getClipSnapshot().playing).toBe(false);
     expect(h.playSfx).toHaveBeenCalledTimes(1);
   });
+
+  it.each([
+    { label: "the planner minimum", configuredDuration: undefined, seconds: 2 },
+    { label: "its configured length", configuredDuration: 3, seconds: 3 },
+  ])(
+    "keeps a short looping Gesture for $label",
+    async ({ configuredDuration, seconds }) => {
+      vi.useFakeTimers();
+      const h = harness({ duration: 0.6, loop: true, configuredDuration });
+      h.tick(1_000, [h.event()]);
+      await h.deliver();
+      expect(h.tick(1_000).state.activePlannerPoseClip?.expiresAtMs).toBe(
+        1_000 + seconds * 1_000,
+      );
+      h.avatar.poseController!.update(seconds - 0.1);
+      const looping = h.tick(1_000 + (seconds - 0.1) * 1_000);
+      expect(hasBlockingNonTtsPresentationWork(looping, "run-1")).toBe(true);
+      expect(h.avatar.getClipSnapshot().playing).toBe(true);
+      const complete = h.tick(1_000 + seconds * 1_000);
+      expect(complete.state.lastCancellationReason).toBe(
+        "gesturePoseClipCompleted",
+      );
+    },
+  );
 
   it("uses the same natural duration on warm replay", async () => {
     vi.useFakeTimers();

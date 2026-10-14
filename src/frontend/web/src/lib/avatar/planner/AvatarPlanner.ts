@@ -467,7 +467,8 @@ export type AvatarPlannerOutput = Omit<
 
 const DEFAULT_CROSSFADE_SEC = 2;
 const GESTURE_CROSSFADE_SEC = 1.0;
-const DEFAULT_GESTURE_DURATION_SEC = 2;
+/** Fallback Gesture length, and the minimum presentation of a looping clip. */
+export const DEFAULT_GESTURE_DURATION_SEC = 2;
 export const DEFAULT_IDLE_STINT_QUIET_INTERVAL_SEC = 180;
 export const NON_TTS_REACTION_CLIP_VISIBLE_DURATION_MS = 5000;
 const TRANSITION_BUFFER_SEC = 0.15;

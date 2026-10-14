@@ -26,6 +26,7 @@ import {
   type ReactionClipPlayerSnapshot,
 } from "./reaction/ReactionClipPlayer";
 import {
+  DEFAULT_GESTURE_DURATION_SEC,
   DEFAULT_IDLE_STINT_QUIET_INTERVAL_SEC,
   type AvatarPlannerEnterPolicy,
   type AvatarPlannerExitPolicy,
@@ -1916,11 +1917,11 @@ export class Avatar {
         }
         return;
       }
-      const gestureTimeScale =
+      const gesture =
         current.source === "gesture"
-          ? (this._motionCatalog.getGesture(current.manifestGestureId)
-              ?.timeScale ?? 1)
-          : 1;
+          ? this._motionCatalog.getGesture(current.manifestGestureId)
+          : null;
+      const gestureTimeScale = gesture?.timeScale ?? 1;
       const snapshot = this.playAnimaPoseClip(clip, {
         preserveProceduralOffsets: true,
         transition: action.transition,
@@ -1932,12 +1933,20 @@ export class Avatar {
         (current.source === "idle" || current.source === "gesture")
       ) {
         const nowMs = Date.now();
-        // Use the delivered timeline, not optional metadata or a cold-cache
-        // fallback. Loading time must never consume the Gesture's playback.
+        // Start from the delivered clip, never a cold-cache fallback, so
+        // loading time does not consume the Gesture's playback. A one-shot
+        // clip ends with its timeline. A looping clip never finishes on its
+        // own, so it keeps its configured length with the planner minimum.
+        const timelineSec = getAnimaPoseClipTimelineDuration(clip);
         const durationSec =
           current.source === "idle"
             ? current.finitePlayback!.durationSec
-            : getAnimaPoseClipTimelineDuration(clip) / gestureTimeScale;
+            : clip.loop === true
+              ? Math.max(
+                  DEFAULT_GESTURE_DURATION_SEC,
+                  (gesture?.duration ?? timelineSec) / gestureTimeScale,
+                )
+              : timelineSec / gestureTimeScale;
         this._avatarPlannerState.activePlannerPoseClip = {
           ...current,
           status: "active",
