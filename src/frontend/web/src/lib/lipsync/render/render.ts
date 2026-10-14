@@ -11,7 +11,10 @@
  *   shape that closes through the exhale, gasps open quickly, and other vocal
  *   sounds follow loudness with the neutral shape;
  * - each tag becomes an event (kind, start, end, label), and each pause an
- *   unlabelled `pause` event.
+ *   unlabelled `pause` event;
+ * - the finished frames are smoothed without delay, since they are planned ahead
+ *   of playback, so the mouth does not jump with each loudness dip or closure.
+ *   Frames left shut stay shut, and the mouth eases into them.
  */
 
 import type { SpeechFeatures } from "@/lib/lipsync/audio/features";
@@ -35,6 +38,10 @@ const WHISPER_SCALE = 0.7;
 const NEUTRAL: Partial<Record<LipSyncVowel, number>> = { A: 0.5, E: 0.25 };
 /** Without audio, laughs pulse at about this rate. */
 const LAUGH_PULSE_HZ = 5;
+/** The smoothing's spread (a Gaussian's standard deviation), in seconds. */
+const SMOOTH_SEC = 0.035;
+/** Frames next to a shut frame over which the smoothed mouth eases shut. */
+const SHUT_EASE_FRAMES = 2;
 
 const VOWEL_INDEX = Object.fromEntries(
   LIPSYNC_VOWELS.map((vowel, index) => [vowel, index]),
@@ -55,6 +62,51 @@ function attackRelease(
     const value = values[i]!;
     state += (value > state ? attack : release) * (value - state);
     out[i] = state;
+  }
+  return out;
+}
+
+/**
+ * Smooth each `vowel5` channel with a Gaussian over neighbouring frames. Shut
+ * frames (all channels zero: silences, pauses, closures' centres) stay shut,
+ * and the frames beside them ease towards zero, so smoothing does not open
+ * the mouth into a silence.
+ */
+export function smoothFrames(frames: Float32Array): Float32Array {
+  const count = frames.length / 5;
+  const sigma = SMOOTH_SEC * LIPSYNC_FPS;
+  const radius = Math.ceil(sigma * 3);
+  const kernel = Array.from({ length: radius * 2 + 1 }, (_, i) =>
+    Math.exp(-((i - radius) ** 2) / (2 * sigma * sigma)),
+  );
+  const shut = new Uint8Array(count);
+  for (let f = 0; f < count; f += 1) {
+    let sum = 0;
+    for (let k = 0; k < 5; k += 1) sum += frames[f * 5 + k]!;
+    shut[f] = sum === 0 ? 1 : 0;
+  }
+  const out = new Float32Array(frames.length);
+  for (let f = 0; f < count; f += 1) {
+    if (shut[f]) continue;
+    // Frames beside a shut one ease towards it: 1/3, then 2/3 of the way open.
+    let ease = 1;
+    for (let d = 1; d <= SHUT_EASE_FRAMES; d += 1) {
+      if (shut[f - d] || shut[f + d]) {
+        ease = d / (SHUT_EASE_FRAMES + 1);
+        break;
+      }
+    }
+    for (let k = 0; k < 5; k += 1) {
+      let sum = 0;
+      let weights = 0;
+      for (let i = 0; i < kernel.length; i += 1) {
+        const g = f + i - radius;
+        if (g < 0 || g >= count) continue;
+        sum += frames[g * 5 + k]! * kernel[i]!;
+        weights += kernel[i]!;
+      }
+      out[f * 5 + k] = (sum / weights) * ease;
+    }
   }
   return out;
 }
@@ -221,5 +273,5 @@ export function renderAlignedUnits(
       frames[f * 5 + k] = Math.min(1, (sum / weights) * opening);
     }
   }
-  return { fps: LIPSYNC_FPS, frames, events };
+  return { fps: LIPSYNC_FPS, frames: smoothFrames(frames), events };
 }

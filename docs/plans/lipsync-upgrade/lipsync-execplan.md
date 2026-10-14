@@ -212,6 +212,25 @@ From planning, 2026-10-13 (code reading of `main` at `b10ee432`):
   - **If the owner reads R11 strictly** (shapes as shown at 90%), the dictionary
     alone cannot reach it: most of the rest are CMUdict and gruut differing on
     dialect and weak forms, not errors.
+- **2026-10-14 — owner, after the final review: smooth the mouth.** The owner
+  found the new lip-sync rougher than the gruut planner's. Measured on the 28
+  scored English clips (opening per frame, 60 FPS):
+
+  | Planner | Jumps per s (opening changes > 0.15 in a frame) | 95th percentile change | Open–close cycles per s |
+  | --- | --: | --: | --: |
+  | gruut (removed) | 2.6 | 0.145 | 2.0 |
+  | New, before | 5.6 | 0.211 | 2.6 |
+  | New, smoothed | 2.0–2.1 | 0.127–0.128 | 1.9 |
+
+  The opening followed loudness frame by frame, so every dip, closure and onset
+  jumped. A slower loudness follower or a soft floor changed almost nothing; a
+  zero-lag Gaussian over the rendered frames (35 ms), keeping shut frames shut
+  and easing over the two frames beside them, fixed it. Accuracy moves by at
+  most a point (default tier Japanese, Korean and Chinese 50% at 2.9× and 40%
+  live; ElevenLabs 64–69%); open in silence rises to 10% on ElevenLabs socket
+  tag lines (from 6–8%), at the spec's limit, and stays at 0–5% on English
+  lines. A wider Gaussian (35 ms without keeping shut frames) reached 14% and
+  was rejected. The owner asked for the fix.
 - **2026-10-13 — agent, Phase 7: what stays of gruut, and the debug sources.**
   - gruut's recorded readings stay as fixed test references, because they
     cannot be re-recorded: `tests/lipsync/english-gruut-reference.json` (the

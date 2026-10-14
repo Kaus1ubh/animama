@@ -4,7 +4,7 @@ import type { AlignedUnit } from "@/lib/lipsync/align/aligner";
 import { frameOpenness, LIPSYNC_FPS } from "@/lib/lipsync/track";
 import type { LipSyncUnit } from "@/lib/lipsync/text/units";
 import { speechGestureTiming } from "./beats";
-import { renderAlignedUnits, speechOpenness } from "./render";
+import { renderAlignedUnits, smoothFrames, speechOpenness } from "./render";
 
 const at = (
   unit: Partial<LipSyncUnit>,
@@ -104,6 +104,29 @@ describe("renderAlignedUnits", () => {
     const openness = speechOpenness(features, { floor: -60, peak: -15 }, 37);
     expect(openness[frame(0.2)]).toBe(0);
     expect(openness[frame(0.55)]).toBeGreaterThan(0.8);
+  });
+});
+
+describe("smoothFrames", () => {
+  it("smooths jumps without opening the mouth into a silence", () => {
+    // Open "A" with a one-frame dip and a sudden step, then silence.
+    const values = [0.9, 0.9, 0.2, 0.9, 0.9, 0.3, 0.3, 0.3, 0.9, 0.9, 0.9];
+    const frames = new Float32Array((values.length + 6) * 5);
+    values.forEach((value, f) => (frames[f * 5] = value));
+    const smoothed = smoothFrames(frames);
+    const a = (f: number) => smoothed[f * 5]!;
+
+    // The dip and the step are softened.
+    expect(a(2)).toBeGreaterThan(0.5);
+    for (let f = 1; f < values.length - 1; f += 1) {
+      expect(Math.abs(a(f) - a(f - 1))).toBeLessThan(0.3);
+    }
+    // Silent frames stay shut, and the last open frames ease towards them.
+    for (let f = values.length; f < values.length + 6; f += 1) {
+      expect(a(f)).toBe(0);
+    }
+    expect(a(values.length - 1)).toBeLessThan(a(values.length - 2));
+    expect(a(values.length - 1)).toBeLessThan(0.35);
   });
 });
 

@@ -63,7 +63,10 @@ talking-hands beats. It shares timing with [Voice](voice.md) and the
 The planner (`lib/lipsync/planner.ts`) turns text into units: syllables, Han,
 kana and Hangul characters, pauses, and tags. It aligns them to the audio's
 loudness, voicing and pitch, then renders 60 FPS `A/E/I/O/U` weights whose
-opening follows the loudness. Han characters read as Japanese when the
+opening follows the loudness. The rendered frames are smoothed over about
+35 ms without delay, since they are planned ahead of playback, so loudness dips
+and lip closures do not make the mouth jump; silent frames stay shut and the
+mouth eases into them (`smoothFrames`). Han characters read as Japanese when the
 reply's text has kana anywhere, even in a Gemini part not spoken yet, and as
 Chinese otherwise. The worker loads the English pronunciation dictionary before
 its first plan, and the Chinese readings (a separate chunk of about 140 KB
