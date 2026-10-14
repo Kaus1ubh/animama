@@ -19,12 +19,26 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import time
 import zipfile
+from contextlib import contextmanager
 from pathlib import Path, PurePosixPath
 
 ROOT = Path(__file__).resolve().parents[2]
 FIXTURES = Path(__file__).with_name("consumers")
 PACKAGES = ("@animama/runtime-contracts", "@animama/product-ui", "@animama/discover-client")
+# Wall time of each consumer step in run order, reported in summary.json.
+PHASES: list[dict] = []
+
+
+@contextmanager
+def phase(name: str):
+    """Record one step's wall time, including a failed step's time before it raised."""
+    started = time.monotonic()
+    try:
+        yield
+    finally:
+        PHASES.append({"name": name, "seconds": round(time.monotonic() - started, 1)})
 
 
 def digest(path: Path) -> str:
@@ -100,12 +114,12 @@ def run(command: list[str], *, cwd: Path, logs: Path, name: str, env: dict) -> N
     """Keep verbose tool output in evidence files and fail with a bounded tail."""
     print(f"{name}: running", flush=True)
     output = logs / f"{name}.log"
-    with output.open("w") as stream:
+    with phase(name), output.open("w") as stream:
         result = subprocess.run(command, cwd=cwd, env=env, stdout=stream, stderr=subprocess.STDOUT)
     if result.returncode:
         tail = "\n".join(output.read_text(errors="replace").splitlines()[-35:])
-        raise RuntimeError(f"{name} failed ({result.returncode}); {output}\n{tail}")
-    print(f"{name}: passed", flush=True)
+        raise RuntimeError(f"{name} failed ({result.returncode}) after {PHASES[-1]['seconds']} s; {output}\n{tail}")
+    print(f"{name}: passed in {PHASES[-1]['seconds']} s", flush=True)
 
 
 def assert_no_checkout_links(directory: Path) -> None:
@@ -146,7 +160,8 @@ def main() -> int:
     from application import require_distinct_resources, unpack_application
     from package_set import compare, verify
 
-    manifest = verify(artifact_dir)
+    with phase("verify-set"):
+        manifest = verify(artifact_dir)
     artifacts = {}
     reports = []
     for path in sorted(artifact_dir.glob("*.tgz")):
@@ -221,15 +236,16 @@ def main() -> int:
     if manifest.get("applications"):
         record = manifest["applications"][0]
         application = work / "application"
-        app_manifest = unpack_application(
-            artifact_dir / record["file"],
-            application,
-            manifest["source"]["commit"],
-            record["version"],
-            manifest["contracts"],
-            archive_sha256=record["sha256"],
-            source_tree=manifest["source"]["tree"],
-        )
+        with phase("unpack-application"):
+            app_manifest = unpack_application(
+                artifact_dir / record["file"],
+                application,
+                manifest["source"]["commit"],
+                record["version"],
+                manifest["contracts"],
+                archive_sha256=record["sha256"],
+                source_tree=manifest["source"]["tree"],
+            )
         tooling = frontend / "hosted-app"
         shutil.copytree(FIXTURES / "hosted-app", tooling)
         shutil.copy2(
@@ -237,26 +253,27 @@ def main() -> int:
         )
         if args.previous_app_set:
             previous_directory = args.previous_app_set.resolve()
-            previous = verify(previous_directory)
-            if previous["schema_version"] != 2 or previous["source"]["dirty"] or manifest["source"]["dirty"]:
-                raise ValueError("Actual app upgrade/rollback requires two clean format-2 sets")
-            if (
-                previous["source"]["commit"] == manifest["source"]["commit"]
-                or previous["source"]["tree"] == manifest["source"]["tree"]
-            ):
-                raise ValueError("Actual edited-data rollback requires two genuine distinct source generations")
-            compare(previous_directory, artifact_dir)
-            previous_record = previous["applications"][0]
-            previous_application = work / "previous-application"
-            previous_app = unpack_application(
-                previous_directory / previous_record["file"],
-                previous_application,
-                previous["source"]["commit"],
-                previous_record["version"],
-                previous["contracts"],
-                archive_sha256=previous_record["sha256"],
-                source_tree=previous["source"]["tree"],
-            )
+            with phase("previous-application"):
+                previous = verify(previous_directory)
+                if previous["schema_version"] != 2 or previous["source"]["dirty"] or manifest["source"]["dirty"]:
+                    raise ValueError("Actual app upgrade/rollback requires two clean format-2 sets")
+                if (
+                    previous["source"]["commit"] == manifest["source"]["commit"]
+                    or previous["source"]["tree"] == manifest["source"]["tree"]
+                ):
+                    raise ValueError("Actual edited-data rollback requires two genuine distinct source generations")
+                compare(previous_directory, artifact_dir)
+                previous_record = previous["applications"][0]
+                previous_application = work / "previous-application"
+                previous_app = unpack_application(
+                    previous_directory / previous_record["file"],
+                    previous_application,
+                    previous["source"]["commit"],
+                    previous_record["version"],
+                    previous["contracts"],
+                    archive_sha256=previous_record["sha256"],
+                    source_tree=previous["source"]["tree"],
+                )
             # Before any browser work: byte-identical apps cannot claim an upgrade.
             require_distinct_resources(previous_app, app_manifest)
             selection_kind = "verified-clean-package-set-pair"
@@ -264,9 +281,10 @@ def main() -> int:
             spec = importlib.util.spec_from_file_location("selection_fixture", tooling / "selection_fixture.py")
             fixture = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(fixture)
-            previous_application = fixture.previous_resource_fixture(
-                application, work / "controlled-selection", manifest["contracts"]
-            )
+            with phase("controlled-variant"):
+                previous_application = fixture.previous_resource_fixture(
+                    application, work / "controlled-selection", manifest["contracts"]
+                )
             selection_kind = "controlled-resource-variant"
         run(
             ["node", "verify.mjs", str(application), str(previous_application), selection_kind],
@@ -383,6 +401,7 @@ def main() -> int:
         "whole_application": whole_app,
         "source_checkout_available_to_consumers": False,
         "result": "passed",
+        "phases": PHASES,
     }
     (work / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
     print(json.dumps(summary, indent=2))

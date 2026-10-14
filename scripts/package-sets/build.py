@@ -211,9 +211,14 @@ def pack_application(built, stage, source, app_version, contracts, catalog_seed)
         },
     }
     filename = f"{APP}-{app_version}.tar.gz"
+    # Most bytes are model weights and media that barely compress. Level 1
+    # packs the archive in seconds; level 9 took about 90 s for a file 8%
+    # smaller, and a full run that rebuilds its baseline packs twice.
     with (
         (stage / filename).open("wb") as stream,
-        gzip.GzipFile(filename="", mode="wb", fileobj=stream, mtime=source["source_date_epoch"]) as compressed,
+        gzip.GzipFile(
+            filename="", mode="wb", fileobj=stream, mtime=source["source_date_epoch"], compresslevel=1
+        ) as compressed,
     ):
         with tarfile.open(fileobj=compressed, mode="w", format=tarfile.PAX_FORMAT) as tar:
             import io

@@ -176,18 +176,40 @@ async function exportProject(page, expectedSchema, kind) {
     return { project: exported, sha256: sha(bytes), bytes: bytes.length };
 }
 
-/** Fixture HTTP state, not a renderer hook, keeps each clip's real uploaded bytes. */
+/**
+ * Fixture HTTP state, not a renderer hook, keeps each clip's real uploaded bytes.
+ * `endPhase(name)` records the wall time of each selection and clip kind.
+ */
 export async function exerciseClipCompatibility(
     browser,
     server,
     applications,
     selectionKind,
+    endPhase = () => {},
 ) {
     const context = await browser.newContext({
         viewport: { width: 1440, height: 900 },
         acceptDownloads: true,
     });
     context.setDefaultTimeout(STEP_TIMEOUT_MS);
+    // This journey checks clip data, so it hides the Gesture creator's 3D
+    // preview. Software WebGL on a two-core runner gave that preview one or
+    // two frames a second, and every step waited on frames. A hidden host has
+    // no size, so the preview never mounts: this journey does not load the
+    // creator's Avatar or play clips on it (an owner decision for #503).
+    // verify.mjs still checks Avatar rendering on the Anima page.
+    await context.addInitScript(() => {
+        // Init scripts run before the document has any elements.
+        const hide = () => {
+            const style = document.createElement("style");
+            style.textContent =
+                '[data-testid="action-editor-canvas"] { display: none !important; }';
+            document.head.append(style);
+        };
+        if (document.head) hide();
+        else
+            document.addEventListener("DOMContentLoaded", hide, { once: true });
+    });
     const owner = "artifact-clip-owner",
         admission = await server.admit(owner, true);
     server.initializeClipFixtures(admission);
@@ -391,7 +413,13 @@ export async function exerciseClipCompatibility(
                     reopen_export_sha256: reopened.sha256,
                     metadata_preserved: true,
                 });
-                await page.close();
+                // Unload the app but keep the tab until the context closes:
+                // closing a tab that showed the app held up the next page
+                // for 15-20 seconds on a two-core runner. A later failure
+                // has no page of this clip to capture.
+                await page.goto("about:blank");
+                page = undefined;
+                endPhase(`clip-${labels[index]}-${kind}`);
             }
         }
         assert.equal(receipts.length, selections.length * 2);
@@ -422,8 +450,10 @@ export async function exerciseClipCompatibility(
             ).length,
             0,
         );
+        // Sign out from the Library: drawing the Anima page's Avatar in
+        // software WebGL slowed each step here to seconds.
         page = await context.newPage();
-        await page.goto(server.origin);
+        await page.goto(server.origin + "/library");
         await page
             .getByRole("button")
             .filter({ hasText: `${owner} account` })
@@ -436,6 +466,7 @@ export async function exerciseClipCompatibility(
             .waitFor();
         assert.deepEqual(errors, []);
         assert.deepEqual(external, []);
+        endPhase("clip-cleanup");
         return {
             selection_kind: selectionKind,
             mode: "v2-edited-data",
@@ -452,6 +483,8 @@ export async function exerciseClipCompatibility(
             signed_out: true,
             first_point_playback_limit:
                 "This fixture checks clip data semantics and emitted workers; it does not establish physical avatar/audio fidelity.",
+            // The creator's preview never mounts, so no clip plays on an Avatar.
+            creator_preview: "hidden",
             future_id_semantics_verified: false,
         };
     } catch (error) {
