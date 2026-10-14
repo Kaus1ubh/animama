@@ -51,7 +51,8 @@ def write_wav(path: Path, pcm: bytes) -> None:
 
 def sentences(text: str) -> list[str]:
     """Sentence inputs as the app's chunker sends them to the dialogue socket."""
-    parts = re.split(r"(?<=[.!?;。！？])(?![.!?;。！？])\s*", text)
+    # An ASCII mark directly followed by a letter or digit ("$5.99") ends nothing.
+    parts = re.split(r"(?<=[.!?;])(?![.!?;。！？\w])\s*|(?<=[。！？])(?![.!?;。！？])\s*", text)
     return [part.strip() for part in parts if part.strip()]
 
 

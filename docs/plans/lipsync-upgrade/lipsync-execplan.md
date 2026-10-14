@@ -1974,12 +1974,22 @@ Results (2026-10-13, starting source `fe7ac797`):
   does:
   - Gemini: "It costs 599, about 1250 yen. Meet me at 3.30 p.m. on 10.13, 2026,
     room number 4.";
-  - ElevenLabs: "It costs fives. 99. About 1250 yen. Meet me at 3.30pm on 10.13,
-    2026. Room number 4.";
+  - ElevenLabs: "It costs 599, about 1250 yen. Meet me at 3.30 p.m. on 10.13,
+    2026, room number 4." (re-recorded after the decimal fix below; the first
+    take read "It costs fives. 99.");
   - Pocket: "It costs$5.99, about 1,250 yen. Meet me at 3.30 p.m. on October 13,
     2026, room number 4.".
 
   Whether Gemini and ElevenLabs say "dollars" is for the owner's ears.
+- **Live check** on the `lipsync` stack, ElevenLabs, a reply "I love it 😊 so
+  much! It costs $5.99 at 3:30 pm, room #4.": the socket text had no emoji, the
+  plan completed (no fallback, 5.5 ms CPU per second of audio, 55 timed
+  characters). It also found a regression gruut had hidden: the frontend chunker
+  ended a sentence at any ".", so "$5.99" reached the voice as "It costs $5." and
+  "99 …". An ASCII mark directly followed by a letter or digit now ends nothing,
+  as the backend's segmenter already required; the lab's socket sentence split
+  matches. Rechecked live: the voice received "It costs $5.99 at 3:30 pm, room
+  #4." whole.
 
 Checks (before review fixes, unless noted):
 

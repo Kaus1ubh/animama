@@ -23,6 +23,7 @@ from sqlalchemy import select
 
 from animama.adapters.repositories.sqlalchemy.product_repositories import SQLAlchemyProductRepositories
 from animama.app.chat.memory_context import ANIMA_MEMORIES_WRITE_GUIDANCE
+from animama.app.chat.options import DirectChatFinalizedTtsChunking
 from animama.app.contracts.gemini import DEFAULT_GEMINI_VOICE
 from animama.app.main_structured_response import MAIN_STRUCTURED_RESPONSE_FORMAT, MAIN_STRUCTURED_RESPONSE_KIND
 from animama.app.model_clients import (
@@ -2028,10 +2029,11 @@ async def test_chat_sse_finalized_speech_paragraph_chunking_batches_sentence_seg
 def test_finalized_tts_batches_leave_out_emoji_in_both_modes() -> None:
     """A voice would read out an emoji's name, so no batch carries one."""
 
-    for mode, expected in (
+    cases: tuple[tuple[DirectChatFinalizedTtsChunking, list[str]], ...] = (
         ("sentence", ["I love it so much!", "See you soon."]),
         ("paragraph", ["I love it so much! See you soon."]),
-    ):
+    )
+    for mode, expected in cases:
         batcher = chat_tts.FinalizedTtsSegmentBatcher(mode)
         state = SseTextState()
         for index, text in enumerate(("I love it 😊 so much!", " See you 👋 soon.", " ℹ️")):
