@@ -1,5 +1,45 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
+
+import { cn } from "@/lib/utils";
+
+function scrollParent(element: HTMLElement): HTMLElement | null {
+  for (let node = element.parentElement; node; node = node.parentElement) {
+    const { overflowY } = getComputedStyle(node);
+    if (overflowY === "auto" || overflowY === "scroll") return node;
+  }
+  return null;
+}
+
+/**
+ * True while a sticky header is pinned to its scroll container's top. A
+ * sentinel just above the header leaves the container's top edge when the
+ * header starts to stick.
+ */
+function useStuck(enabled: boolean) {
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const [stuck, setStuck] = useState(false);
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!enabled || !sentinel || typeof IntersectionObserver === "undefined")
+      return;
+    const observer = new IntersectionObserver(
+      ([entry]) =>
+        setStuck(
+          Boolean(
+            entry &&
+            !entry.isIntersecting &&
+            entry.rootBounds &&
+            entry.boundingClientRect.top < entry.rootBounds.top,
+          ),
+        ),
+      { root: scrollParent(sentinel) },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [enabled]);
+  return { sentinelRef, stuck: enabled && stuck };
+}
 
 /** Shared collapsed-by-default shell for a top-level Anima Loadout section. */
 export function LoadoutSectionDisclosure({
@@ -21,12 +61,24 @@ export function LoadoutSectionDisclosure({
   sticky?: boolean;
   children: ReactNode;
 }) {
+  // Only cover scrolled content while pinned; at rest the header shares the
+  // panel's own (possibly translucent) surface.
+  const { sentinelRef, stuck } = useStuck(sticky && expanded);
   return (
-    <section className="space-y-4" aria-labelledby={headingId}>
+    <section className="relative space-y-4" aria-labelledby={headingId}>
+      {sticky ? (
+        <div
+          ref={sentinelRef}
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 top-0 h-px"
+        />
+      ) : null}
       <div
-        className={`flex items-center justify-between gap-3 ${
-          sticky ? "bg-card/95 sticky top-0 z-20 backdrop-blur-sm" : ""
-        }`}
+        className={cn(
+          "flex items-center justify-between gap-3",
+          sticky && "sticky top-0 z-20 rounded-lg transition-colors",
+          stuck && "bg-card/95 backdrop-blur-sm",
+        )}
       >
         <button
           type="button"
