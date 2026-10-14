@@ -66,8 +66,10 @@ import {
 } from "../scripts/runtime/document-native.mjs";
 import {
   assertDesktopWebAssets,
+  assertNoIncludedAliasCopies,
   excludeDesktopWebAssets,
   excludedDesktopWebAssets,
+  includedAliasRoutes,
 } from "../scripts/runtime/desktop-web.mjs";
 import { componentInventory } from "../scripts/runtime/inventory.mjs";
 import { validateUpdateCandidate } from "../src/main-process/updates/policy.js";
@@ -280,38 +282,46 @@ describe("desktop runtime packaging", () => {
     expect(() => assertDesktopWebAssets(root)).not.toThrow();
     excludeDesktopWebAssets(root);
   });
-  it("removes copied Included compatibility directories while preserving other web assets", () => {
-    const root = fixture();
-    const aliases = [
-      "background",
-      "effects/scene-vfx",
-      "effects/sfx",
-      "effects/vfx",
-      "effects/resources",
-    ];
-    for (const alias of aliases) {
-      mkdirSync(path.join(root, alias), { recursive: true });
-      writeFileSync(path.join(root, alias, "copied.png"), "duplicate");
+  it("keeps public stage scenes while rejecting Included alias copies", () => {
+    const web = fixture();
+    const publicRoot = fixture();
+    for (const root of [web, publicRoot]) {
+      mkdirSync(path.join(root, "background"), { recursive: true });
+      writeFileSync(path.join(root, "background/cafe-light.webp"), "scene");
     }
-    writeFileSync(path.join(root, "effects/keep.png"), "runtime asset");
-    excludeDesktopWebAssets(root);
-    for (const alias of aliases)
-      expect(existsSync(path.join(root, alias))).toBe(false);
-    expect(readFileSync(path.join(root, "effects/keep.png"), "utf8")).toBe(
-      "runtime asset",
+    excludeDesktopWebAssets(web);
+    expect(
+      readFileSync(path.join(web, "background/cafe-light.webp"), "utf8"),
+    ).toBe("scene");
+    expect(() => assertNoIncludedAliasCopies(web, publicRoot)).not.toThrow();
+
+    writeFileSync(path.join(web, "background/cafe-light.webp"), "changed");
+    expect(() => assertNoIncludedAliasCopies(web, publicRoot)).toThrow(
+      "compatibility alias: background/cafe-light.webp",
     );
-    expect(readFileSync(path.join(root, "data.json"), "utf8")).toBe("{}");
-    excludeDesktopWebAssets(root);
+    writeFileSync(path.join(web, "background/cafe-light.webp"), "scene");
+    writeFileSync(path.join(web, "background/included.webp"), "appearance");
+    expect(() => assertNoIncludedAliasCopies(web, publicRoot)).toThrow(
+      "compatibility alias: background/included.webp",
+    );
+    rmSync(path.join(web, "background/included.webp"));
+    for (const route of includedAliasRoutes.filter((r) => r !== "background")) {
+      mkdirSync(path.join(web, route), { recursive: true });
+      writeFileSync(path.join(web, route, "copied.png"), "duplicate");
+      expect(() => assertNoIncludedAliasCopies(web, publicRoot)).toThrow(
+        `compatibility alias: ${route}/copied.png`,
+      );
+      rmSync(path.join(web, route), { recursive: true });
+    }
   });
   it.skipIf(!symlinksAvailable)(
-    "removes a compatibility symlink without changing its source assets",
+    "rejects a symlinked compatibility route",
     () => {
-      const root = fixture();
-      const source = fixture();
-      symlinkSync(source, path.join(root, "background"), "dir");
-      excludeDesktopWebAssets(root);
-      expect(existsSync(path.join(root, "background"))).toBe(false);
-      expect(readFileSync(path.join(source, "data.json"), "utf8")).toBe("{}");
+      const web = fixture();
+      symlinkSync(fixture(), path.join(web, "background"), "dir");
+      expect(() => assertNoIncludedAliasCopies(web, fixture())).toThrow(
+        "compatibility alias: background",
+      );
     },
   );
   it.skipIf(process.platform !== "darwin")(

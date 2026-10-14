@@ -90,8 +90,8 @@ Each staging pass clears only `desktop/.desktop-runtime/darwin-arm64`, then:
 3. Freezes Python 3.12.13 and the locked server dependencies with PyInstaller
    6.22.2. The build environment is separate from the repository's `.venv`.
 4. Builds Vite in `embedded-desktop` mode, without duplicate Included aliases.
-   The stage filter removes compatibility directories copied from Vite's public
-   assets; source assets and ordinary web builds retain them.
+   App stage scenes from `public/background` ship unchanged; the audit rejects
+   any other file under an Included compatibility route such as `background/`.
    The stage filter and independent audit reject unapproved portrait copies
    listed in `desktop/scripts/runtime/desktop-web.mjs`.
    The browser-runtime manifest verifies all 21 PocketTTS, VAD, Smart Turn and
