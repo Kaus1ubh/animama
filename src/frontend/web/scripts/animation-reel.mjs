@@ -17,6 +17,9 @@ import {
   EffectSourceError,
   INCLUDED_CONTENT_ROOT,
   REPO_ROOT,
+  loadAnyEffectDescriptor,
+  parseLibrarySpec,
+  resolveAnyEffectSource,
   resolveClipSource,
   resolveDependencies,
   scanLibrary,
@@ -29,14 +32,16 @@ import {
 } from "./effect-render.mjs";
 
 /**
- * Record a video reel of Gestures or Reactions on an Included Avatar.
+ * Record a video reel of Gestures, Reactions or effects on an Included Avatar.
  *
- *   pnpm -s animation:reel --gestures|--reactions [<source>...] --out <file.mp4>
+ *   pnpm -s animation:reel --gestures|--reactions|--effects [<source>...] --out <file.mp4>
  *
- * Every Included Gesture (by stem) or Reaction (by emotion, then intensity),
- * or the named sources, plays one at a time through the Avatar's own clip
- * player on the review stage (`effect-render/`): the chat's lighting, camera
- * preset and Scene layers, with its Avatar, Particle and Scene Effects. A
+ * Every Included Gesture (by stem), Reaction (by emotion, then intensity) or
+ * Avatar, Particle and Scene Effect (by kind, then stem), or the named
+ * sources, plays one at a time through the Avatar's own clip player on the
+ * review stage (`effect-render/`): the chat's lighting, camera preset and
+ * Scene layers, with its Avatar, Particle and Scene Effects. An effect plays
+ * from a one-event clip, as a Gesture or Reaction event would play it. A
  * corner label names the item and its effects, lighting each while active,
  * and lists the Avatar's live expression weights.
  * Frames advance in fixed steps and are captured from a headless browser, so
@@ -61,6 +66,21 @@ const EFFECT_KINDS = {
   particle_effect: "Particle Effect",
   scene_effect: "Scene Effect",
 };
+/** Effect source kinds: their library scan kind, item kind and option flag. */
+const EFFECT_SOURCES = [
+  { kind: "avatar", scan: "effect", flag: "--avatar-effects" },
+  { kind: "particle", scan: "particle", flag: "--particle-effects" },
+  { kind: "scene", scan: "scene", flag: "--scene-effects" },
+];
+const ITEM_KIND_NAMES = {
+  gesture: "Gesture",
+  reaction: "Reaction",
+  "avatar-effect": EFFECT_KINDS.avatar_effect,
+  "particle-effect": EFFECT_KINDS.particle_effect,
+  "scene-effect": EFFECT_KINDS.scene_effect,
+};
+/** An Avatar Effect's fade at the end of its event, as Actions commonly use. */
+const EFFECT_FADE_OUT_SEC = 0.3;
 const AUDIO_RATE = 48_000;
 /** Folder levels searched below a sound root. */
 const MAX_SOUND_DEPTH = 4;
@@ -82,22 +102,27 @@ export const DEFAULTS = {
   lead: 0.5,
   tail: 0.5,
   talk: 3,
+  hold: 3,
   maxSec: 20,
   crf: 18,
 };
 
 const USAGE = [
   "Usage:",
-  "  pnpm -s animation:reel --gestures|--reactions [<source>...] --out <file.mp4> [options]",
+  "  pnpm -s animation:reel --gestures|--reactions|--effects [<source>...] --out <file.mp4> [options]",
   "",
   "Records one video of every Included Gesture (--gestures, by stem), every",
-  "Included Reaction (--reactions, by emotion then intensity) and any named",
-  "sources: a Gesture or Reaction folder, .meta.json, clip .json or",
-  "library:[gesture/|reaction/][included/|local/]<stem|content_id|name>.",
+  "Included Reaction (--reactions, by emotion then intensity), every Included",
+  "Avatar, Particle and Scene Effect (--effects, or one kind with",
+  "--avatar-effects, --particle-effects or --scene-effects; by stem) and any",
+  "named sources: a Gesture or Reaction folder, .meta.json or clip .json, an",
+  "effect folder or descriptor, or",
+  "library:[gesture/|reaction/|avatar-effect/|particle-effect/|scene-effect/][included/|local/]<stem|content_id|name>.",
   "Each plays once (a loop for one pass) with its effects and sounds, under a",
   "corner label naming it, its effects and its live expression weights. The",
   "video has a chapter per item.",
   "Reactions are talking-scoped: each is held for --talk seconds, then stopped.",
+  "An effect plays for --hold seconds from a one-event clip, with its sound.",
   "",
   "Options:",
   "  --avatar annie|caitlyn|<id>   Included Avatar (default annie)",
@@ -108,6 +133,7 @@ const USAGE = [
   "  --talk 3                      seconds a talking-scoped Reaction is held, as chat",
   "                                holds it while the Anima speaks (at least until",
   "                                its timed effects end)",
+  "  --hold 3                      seconds each effect plays",
   "  --max 20                      cut an item this many seconds after it starts",
   "  --sounds <dir>                sound root (repeatable); defaults to",
   "                                build-inputs/wow-comedy-sfx and content/included/sfx",
@@ -130,6 +156,7 @@ const VALUE_OPTIONS = new Set([
   "--lead",
   "--tail",
   "--talk",
+  "--hold",
   "--max",
   "--sounds",
   "--local-content",
@@ -138,6 +165,8 @@ const VALUE_OPTIONS = new Set([
 const FLAG_OPTIONS = new Set([
   "--gestures",
   "--reactions",
+  "--effects",
+  ...EFFECT_SOURCES.map(({ flag }) => flag),
   "--software",
   "--help",
 ]);
@@ -182,6 +211,10 @@ export function parseReelArgs(argv) {
     help: false,
     gestures: flags.has("--gestures"),
     reactions: flags.has("--reactions"),
+    /** Included effect kinds to record: `avatar`, `particle`, `scene`. */
+    effectKinds: EFFECT_SOURCES.filter(
+      ({ flag }) => flags.has("--effects") || flags.has(flag),
+    ).map(({ kind }) => kind),
     sources,
     out: values["--out"] ?? null,
     avatar: DEFAULTS.avatar,
@@ -191,15 +224,21 @@ export function parseReelArgs(argv) {
     lead: DEFAULTS.lead,
     tail: DEFAULTS.tail,
     talk: DEFAULTS.talk,
+    hold: DEFAULTS.hold,
     maxSec: DEFAULTS.maxSec,
     crf: DEFAULTS.crf,
     soundRoots,
     localContent: values["--local-content"] ?? null,
     software: flags.has("--software"),
   };
-  if (!options.gestures && !options.reactions && sources.length === 0)
+  if (
+    !options.gestures &&
+    !options.reactions &&
+    options.effectKinds.length === 0 &&
+    sources.length === 0
+  )
     throw new EffectSourceError(
-      "Choose --gestures, --reactions or name sources.",
+      "Choose --gestures, --reactions, --effects or name sources.",
     );
   if (!options.out) throw new EffectSourceError("--out is required.");
   if (!options.out.toLowerCase().endsWith(".mp4"))
@@ -231,14 +270,15 @@ export function parseReelArgs(argv) {
       max: 60,
       integer: true,
     });
-  for (const [flag, key, max] of [
-    ["--lead", "lead", 10],
-    ["--tail", "tail", 10],
-    ["--talk", "talk", 60],
-    ["--max", "maxSec", 120],
+  for (const [flag, key, min, max] of [
+    ["--lead", "lead", 0, 10],
+    ["--tail", "tail", 0, 10],
+    ["--talk", "talk", 0, 60],
+    ["--hold", "hold", 0.1, 60],
+    ["--max", "maxSec", 0, 120],
   ])
     if (values[flag] !== undefined)
-      options[key] = number(values[flag], flag, { min: 0, max });
+      options[key] = number(values[flag], flag, { min, max });
   if (values["--crf"] !== undefined)
     options.crf = number(values["--crf"], "--crf", {
       min: 0,
@@ -269,6 +309,84 @@ function reelItem({ clipPath, clip, dependencies, meta }, fallbackStem) {
   };
 }
 
+/**
+ * A reel item that plays one effect on its own: an effects-only clip whose
+ * single event plays it for `hold` seconds, as a Gesture or Reaction event
+ * would (an Avatar Effect fades out at the end), with the effect as the
+ * clip's only media, under its stem as alias.
+ */
+export function effectItem(source, hold) {
+  const alias = source.stem;
+  const event = { id: "effect", time: 0, duration: hold };
+  if (source.kind === "particle")
+    Object.assign(event, { kind: "particle_vfx", effectId: alias });
+  else if (source.kind === "scene")
+    Object.assign(event, {
+      kind: "scene_vfx",
+      sceneKind: source.definition.kind,
+      presetId: alias,
+    });
+  else
+    Object.assign(event, {
+      kind: "avatar_vfx",
+      effectId: alias,
+      envelope: { intensity: { fadeOut: Math.min(EFFECT_FADE_OUT_SEC, hold) } },
+    });
+  return {
+    kind: `${source.kind}-effect`,
+    stem: source.stem,
+    name: source.name,
+    description: source.description || null,
+    emotion: null,
+    intensity: null,
+    clip: {
+      schema: "animaPoseClip/2.0",
+      id: `effect-${alias.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+      name: source.name,
+      duration: hold,
+      beats: [],
+      events: [event],
+    },
+    dependencies: [],
+    media: {
+      avatarEffects:
+        source.kind === "avatar" ? [{ alias, effect: source }] : [],
+      particleEffects:
+        source.kind === "particle"
+          ? [{ alias, particle: source, config: {} }]
+          : [],
+      sceneEffects: source.kind === "scene" ? [{ alias, scene: source }] : [],
+      notices: [],
+    },
+  };
+}
+
+/**
+ * Whether a named source is an effect: a `library:` spec of an effect kind,
+ * or an effect folder or descriptor (no `.meta.json`, and an effect
+ * `content_type`). Anything else is resolved as a Gesture or Reaction.
+ */
+async function isEffectSource(spec, cwd) {
+  const library = parseLibrarySpec(spec);
+  if (library) return EFFECT_SOURCES.some(({ scan }) => scan === library.kind);
+  const target = path.resolve(cwd, spec);
+  const info = await stat(target).catch(() => null);
+  if (!info) return false;
+  const files = info.isDirectory()
+    ? (await readdir(target))
+        .filter((name) => name.endsWith(".json"))
+        .map((name) => path.join(target, name))
+    : [target];
+  if (files.some((file) => file.endsWith(".meta.json"))) return false;
+  for (const file of files) {
+    const descriptor = await readFile(file, "utf8")
+      .then(JSON.parse)
+      .catch(() => null);
+    if (descriptor?.content_type in EFFECT_KINDS) return true;
+  }
+  return false;
+}
+
 /** Reactions in emotion order, then intensity, then stem. */
 export function compareReactions(a, b) {
   return (
@@ -280,14 +398,17 @@ export function compareReactions(a, b) {
 
 /**
  * The items to record: Included Gestures (by stem), then Included Reactions
- * (by emotion and intensity), then each named source in order.
+ * (by emotion and intensity), then Included Avatar, Particle and Scene
+ * Effects of `effectKinds` (by stem), then each named source in order.
  */
 export async function listReelItems({
   gestures,
   reactions,
+  effectKinds = [],
   sources,
   cwd,
   localContent,
+  hold = DEFAULTS.hold,
 }) {
   const items = [];
   const included = async (kind) => {
@@ -304,7 +425,29 @@ export async function listReelItems({
   if (gestures) items.push(...(await included("gesture")));
   if (reactions)
     items.push(...(await included("reaction")).sort(compareReactions));
+  for (const { kind, scan } of EFFECT_SOURCES) {
+    if (!effectKinds.includes(kind)) continue;
+    for (const { descriptorPath, descriptor } of await scanLibrary(
+      INCLUDED_CONTENT_ROOT,
+      scan,
+    ))
+      items.push(
+        effectItem(
+          await loadAnyEffectDescriptor(descriptorPath, descriptor),
+          hold,
+        ),
+      );
+  }
   for (const spec of sources) {
+    if (await isEffectSource(spec, cwd)) {
+      items.push(
+        effectItem(
+          await resolveAnyEffectSource(spec, { cwd, localContent }),
+          hold,
+        ),
+      );
+      continue;
+    }
     const source = await resolveClipSource(spec, { cwd, localContent });
     const stem = source.meta
       ? path.basename(path.dirname(source.clipPath))
@@ -401,7 +544,7 @@ const refKey = (ref) => ref.split(":").pop();
  * content id that plays it.
  */
 export function describeItem(item, { index, total, media, catalog }) {
-  const kindName = item.kind === "reaction" ? "Reaction" : "Gesture";
+  const kindName = ITEM_KIND_NAMES[item.kind] ?? "Gesture";
   const effects = [
     ...(media?.avatarEffects ?? []).map(({ alias, effect }) => ({
       alias,
@@ -450,7 +593,7 @@ export function describeItem(item, { index, total, media, catalog }) {
       ? `${item.emotion[0].toUpperCase()}${item.emotion.slice(1)}${
           item.intensity ? ` · intensity ${item.intensity}` : ""
         }`
-      : null;
+      : (item.description ?? null);
   return {
     label: {
       kicker: `${kindName} · ${index + 1} / ${total}`,
@@ -651,9 +794,11 @@ export async function recordReel({
   try {
     const medias = [];
     for (const item of items) {
-      const media = item.dependencies.length
-        ? await resolveDependencies(item.dependencies, { localContent })
-        : null;
+      const media =
+        item.media ??
+        (item.dependencies.length
+          ? await resolveDependencies(item.dependencies, { localContent })
+          : null);
       for (const notice of media?.notices ?? [])
         log(`Warning ${item.stem}: ${notice}`);
       medias.push(media);

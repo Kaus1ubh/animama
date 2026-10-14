@@ -650,6 +650,10 @@ pnpm -s effects:render ./my-effect --thumbnail /tmp/my-effect.webp
 pnpm -s effects:render --diff before.png after.png --out diff.png
 ```
 
+To watch effects in motion with their sounds, `pnpm -s animation:reel --effects
+--out effects.mp4` records every Included effect into one video (see the
+[animation guide](avatar-animation.md)).
+
 - A source is an Avatar, Particle or Scene effect folder, a descriptor `.json`
   or `library:[particle-effect/|scene-effect/][included/|local/]<stem|content_id|name>`
   (without a kind, an Avatar Effect); `library:local/…` needs

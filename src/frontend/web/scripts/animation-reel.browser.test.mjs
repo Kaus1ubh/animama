@@ -13,8 +13,9 @@ import {
 
 const hasFfmpeg = spawnSync("ffmpeg", ["-version"]).status === 0;
 
-// A real recording: a looping Gesture without effects, then a Reaction with
-// an Avatar Effect (and its sound), a Particle Effect and a Scene Effect.
+// A real recording: a looping Gesture without effects, a Reaction with an
+// Avatar Effect (and its sound), a Particle Effect and a Scene Effect, then a
+// Scene Effect on its own.
 test(
   "records a reel with chapters and the sounds clip events play",
   { skip: !hasFfmpeg && "ffmpeg is not installed" },
@@ -46,9 +47,11 @@ test(
         sources: [
           "library:gesture/arms-crossed",
           "library:reaction/amusement-3",
+          "library:scene-effect/dark",
         ],
         cwd: process.cwd(),
         localContent: null,
+        hold: 0.5,
       });
       const out = path.join(dir, "reel.mp4");
       const { results, duration, soundCount } = await recordReel({
@@ -78,6 +81,7 @@ test(
         [
           { stem: "arms-crossed", failure: null, warnings: [] },
           { stem: "amusement-3", failure: null, warnings: [] },
+          { stem: "dark", failure: null, warnings: [] },
         ],
       );
       assert.equal(soundCount, 1);
@@ -102,8 +106,9 @@ test(
       assert.deepEqual(
         probe.chapters.map((chapter) => chapter.tags.title),
         [
-          "Gesture · 1 / 2 · Arms Crossed",
-          "Reaction · 2 / 2 · Amusement Reaction 3 (Amusement · intensity 3)",
+          "Gesture · 1 / 3 · Arms Crossed",
+          "Reaction · 2 / 3 · Amusement Reaction 3 (Amusement · intensity 3)",
+          "Scene Effect · 3 / 3 · Focus Lines Dark (Scene focus-lines effect preset)",
         ],
       );
       // The test tone (lavfi's default amplitude, about -21 dB) is mixed in

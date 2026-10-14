@@ -667,11 +667,15 @@ from `src/frontend/web`:
   Avatars, each with its own prepared clip; a 2.0 clip supplies its contacts
   and `plantFeet`.
 - `pnpm -s animation:render <clip.json> --out <dir>` draws review sheets.
-- `pnpm -s animation:reel --gestures|--reactions [<source>...] --out <file.mp4>`
-  records a 1920×1080, 30 fps video of every Included Gesture or Reaction (by
-  emotion, then intensity), or the named sources, one at a time on Annie
-  (`--avatar caitlyn` for Caitlyn). Each clip plays through the Avatar's own
-  clip player with its Avatar, Particle and Scene Effects and its sounds. A
+- `pnpm -s animation:reel --gestures|--reactions|--effects [<source>...] --out <file.mp4>`
+  records a 1920×1080, 30 fps video of every Included Gesture, Reaction (by
+  emotion, then intensity) or Avatar, Particle and Scene Effect
+  (`--avatar-effects`, `--particle-effects` or `--scene-effects` for one
+  kind), or the named sources, one at a time on Annie (`--avatar caitlyn` for
+  Caitlyn). Each clip plays through the Avatar's own clip player with its
+  Avatar, Particle and Scene Effects and its sounds. An effect plays for
+  `--hold` seconds (default 3) from a one-event clip, as an Action event
+  would play it, with its accompanying sound. A
   corner label names the item and its effects, lighting each while it is
   active and each sound while it plays, and lists the Avatar's live
   expression weights; the video has a chapter per item. A

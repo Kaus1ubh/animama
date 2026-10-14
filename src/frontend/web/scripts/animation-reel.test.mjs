@@ -10,10 +10,12 @@ import {
   chapterMetadata,
   compareReactions,
   describeItem,
+  effectItem,
   listReelItems,
   loadSoundCatalog,
   parseReelArgs,
 } from "./animation-reel.mjs";
+import { INCLUDED_CONTENT_ROOT } from "./effect-render-sources.mjs";
 
 test("parses reel options and rejects invalid ones", () => {
   const options = parseReelArgs([
@@ -29,6 +31,9 @@ test("parses reel options and rejects invalid ones", () => {
     "24",
     "--talk",
     "2.5",
+    "--particle-effects",
+    "--hold",
+    "4",
     "--sounds",
     "a",
     "--sounds",
@@ -41,12 +46,20 @@ test("parses reel options and rejects invalid ones", () => {
   assert.deepEqual(options.size, { width: 1280, height: 720 });
   assert.equal(options.fps, 24);
   assert.equal(options.talk, 2.5);
+  assert.deepEqual(options.effectKinds, ["particle"]);
+  assert.equal(options.hold, 4);
+  assert.deepEqual(parseReelArgs(["--effects", "--out", "a.mp4"]).effectKinds, [
+    "avatar",
+    "particle",
+    "scene",
+  ]);
   assert.deepEqual(options.soundRoots, ["a", "b"]);
   assert.equal(options.camera, DEFAULTS.camera);
   assert.deepEqual(parseReelArgs(["--help"]), { help: true });
 
   for (const [argv, message] of [
-    [["--out", "a.mp4"], /--gestures, --reactions or name sources/],
+    [["--out", "a.mp4"], /--gestures, --reactions, --effects or name sources/],
+    [["--effects", "--out", "a.mp4", "--hold", "0"], /--hold/],
     [["--gestures"], /--out is required/],
     [["--gestures", "--out", "a.webm"], /\.mp4/],
     [["--gestures", "--out", "a.mp4", "--size", "1921x1080"], /even/],
@@ -95,6 +108,127 @@ test("lists Included Gestures by stem, then named sources", async () => {
   assert.deepEqual(items.at(-1).stem, "joy-2");
   assert.equal(items.at(-1).name, "Joy Reaction 2");
   assert.equal(items.at(-1).intensity, 2);
+});
+
+test("lists Included effects by kind, then stem, and effect sources", async () => {
+  const items = await listReelItems({
+    gestures: false,
+    reactions: false,
+    effectKinds: ["avatar", "particle", "scene"],
+    sources: [
+      "library:scene-effect/dark",
+      path.join(INCLUDED_CONTENT_ROOT, "vfx/avatar/angry"),
+      "library:gesture/drumroll",
+    ],
+    cwd: process.cwd(),
+    localContent: null,
+    hold: 2,
+  });
+  const kinds = items.map((item) => item.kind);
+  const included = items.slice(0, -3);
+  // Each kind in one run, in kind order.
+  assert.deepEqual(
+    [...new Set(included.map((item) => item.kind))],
+    ["avatar-effect", "particle-effect", "scene-effect"],
+  );
+  for (const kind of ["avatar-effect", "particle-effect", "scene-effect"]) {
+    const stems = included
+      .filter((item) => item.kind === kind)
+      .map((item) => item.stem);
+    assert.ok(stems.length > 0);
+    assert.deepEqual(
+      stems,
+      [...stems].sort((a, b) => a.localeCompare(b)),
+    );
+  }
+  assert.deepEqual(kinds.slice(-3), [
+    "scene-effect",
+    "avatar-effect",
+    "gesture",
+  ]);
+  assert.equal(items.at(-2).stem, "angry");
+  assert.equal(
+    items.at(-2).media.avatarEffects[0].effect.soundRef,
+    "builtin:sound-effect:anger_explode_03",
+  );
+});
+
+test("plays an effect from a one-event clip, as an Action event would", () => {
+  const avatar = effectItem(
+    {
+      kind: "avatar",
+      stem: "Eye_VV",
+      name: "Eye VV",
+      description: "Squeezed-shut eyes.",
+    },
+    3,
+  );
+  assert.equal(avatar.kind, "avatar-effect");
+  assert.equal(avatar.description, "Squeezed-shut eyes.");
+  assert.deepEqual(avatar.clip, {
+    schema: "animaPoseClip/2.0",
+    id: "effect-eye-vv",
+    name: "Eye VV",
+    duration: 3,
+    beats: [],
+    events: [
+      {
+        id: "effect",
+        time: 0,
+        duration: 3,
+        kind: "avatar_vfx",
+        effectId: "Eye_VV",
+        envelope: { intensity: { fadeOut: 0.3 } },
+      },
+    ],
+  });
+  assert.equal(avatar.media.avatarEffects[0].alias, "Eye_VV");
+
+  const scene = effectItem(
+    {
+      kind: "scene",
+      stem: "dark",
+      name: "Dark",
+      definition: { kind: "focus_lines" },
+    },
+    2,
+  );
+  assert.deepEqual(scene.clip.events, [
+    {
+      id: "effect",
+      time: 0,
+      duration: 2,
+      kind: "scene_vfx",
+      sceneKind: "focus_lines",
+      presetId: "dark",
+    },
+  ]);
+  assert.deepEqual(
+    scene.media.sceneEffects.map(({ alias }) => alias),
+    ["dark"],
+  );
+
+  const particle = effectItem(
+    { kind: "particle", stem: "confetti", name: "Confetti" },
+    1,
+  );
+  assert.deepEqual(particle.clip.events[0], {
+    id: "effect",
+    time: 0,
+    duration: 1,
+    kind: "particle_vfx",
+    effectId: "confetti",
+  });
+  assert.deepEqual(particle.media.particleEffects[0].config, {});
+
+  const { label } = describeItem(avatar, {
+    index: 0,
+    total: 117,
+    media: avatar.media,
+    catalog: new Map(),
+  });
+  assert.equal(label.kicker, "Avatar Effect · 1 / 117");
+  assert.equal(label.detail, "Squeezed-shut eyes.");
 });
 
 test("finds sound effects by content id beside or listed by their sidecar", async () => {
