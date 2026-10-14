@@ -81,7 +81,8 @@ function planInWorker(
         });
       },
     });
-    if (!inputs.parts.length) run.setText(inputs.text ?? "", true);
+    // With parts, the text is only the language context, as in a live run.
+    run.setText(inputs.text ?? "", true);
     if (withTiming) run.addTiming(inputs.timing);
     let sample = 0;
     let part = 0;

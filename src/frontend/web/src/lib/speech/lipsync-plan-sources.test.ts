@@ -165,6 +165,7 @@ describe("lip-sync plan sources", () => {
       ],
     });
     expect(calls).toEqual([
+      "text Hi true",
       "timing 2",
       "part Hello.",
       "pcm 100",

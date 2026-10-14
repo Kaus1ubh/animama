@@ -67,7 +67,8 @@ opening follows the loudness. Han characters read as Japanese when the
 reply's text has kana anywhere, even in a Gemini part not spoken yet, and as
 Chinese otherwise. The worker loads the English pronunciation dictionary before
 its first plan, and the Chinese readings (a separate chunk of about 140 KB
-gzip) the first time a run's text has Han characters read as Chinese.
+gzip) the first time a run's text, or a Gemini part's, has Han characters
+without kana.
 
 - **Progressive.** A run is replanned every 0.25 s of new audio, and once more
   when its audio and text are complete. Units placed two seconds behind the

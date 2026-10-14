@@ -108,8 +108,8 @@ prototypes.
 - [ ] Phase 7 (#519): gruut removed (R12 providers, R13). Gate G3. Implemented,
   checked and reviewed (pass after two repair rounds); waiting for the owner's G3
   listening check.
-- [ ] Final integration review: review #1 and repair round 1 done; the targeted
-  recheck is next. The owner gates listed there stay open.
+- [x] Final integration review: pass on the agent side after one repair round
+  (see that section). The owner gates listed there stay open.
 - [ ] Owner acceptance and merge approval.
 
 ## Surprises & Discoveries
@@ -2143,6 +2143,25 @@ decimal split fixed in `939fb9d4` (Phase 7 Results).
   `primaryStressCount` is `beatCount`; ADR 0024's consequence is corrected in
   place. Browser speech tags stay with #479. The debug promise is left: it
   affects only the debug view during a session reset.
+
+### Final Integration Review #2 Findings
+
+Targeted recheck on `43af7b23` (repair round 1): FI-F1, FI-F5, FI-F7 and FI-F8
+resolved; FI-F2, FI-F3 and FI-F4 resolved as records (the evidence itself is the
+owner's live session); FI-F6 deferral accepted; no blocking regression.
+**Pass on the agent side.** Optional:
+
+- **FI-F9:** the debug view's replan gave a Gemini capture's run no reply text,
+  so a kanji-only first part still planned as Chinese there, unlike the live run.
+- **FI-F7 remainder:** the worker loads the pinyin chunk for a kanji-only part
+  of a Japanese reply, which the planner then does not use.
+
+### Final Integration Review #2 Revisions
+
+- **FI-F9 accepted:** the debug replan always sends the capture's text; in parts
+  mode it is only the language context, as live.
+- **FI-F7 remainder left:** a rare, lazy 140 KB load with no effect on the plan;
+  `avatar-lipsync.md` §3 says the chunk may load for such a part.
 
 **Owner gates still open** (for the PR):
 
