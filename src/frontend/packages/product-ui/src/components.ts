@@ -8,6 +8,7 @@ export * from "./components/text-effect";
 export * from "./components/chat-transcript";
 export * from "./components/message";
 export * from "./components/chat-input";
+export * from "./components/chat-input-submit-state";
 export * from "./components/anima-selection";
 export * from "./components/chat-conversation";
 export {

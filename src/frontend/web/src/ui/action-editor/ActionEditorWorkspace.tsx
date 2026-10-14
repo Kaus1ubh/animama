@@ -1,6 +1,9 @@
 "use client";
 
 import { useProductApiClient } from "@animama/product-ui";
+import { useFormatters } from "@animama/product-ui/i18n";
+import type { TFunction } from "i18next";
+import { getI18n, useTranslation } from "react-i18next";
 
 import {
   BoneIcon,
@@ -31,6 +34,12 @@ import {
   type AnimaPoseSnapshot,
 } from "@/lib/avatar";
 import { usePoses } from "@/query/hooks/usePoses";
+import {
+  apiErrorLine,
+  apiErrorText,
+  readApiError,
+  WordedError,
+} from "@/lib/errors/apiError";
 import { cn } from "@/lib/utils";
 import {
   DEFAULT_POSE_CREATOR_BASE_POSE,
@@ -93,18 +102,19 @@ import { useActionEditorDesktopLayout } from "./useActionEditorDesktopLayout";
 /** Capture a keyframe before entering inline editing at an unselected playhead. */
 export function captureActionEditorPoseAtPlayhead(): boolean {
   const state = usePoseCreatorStore.getState();
+  const t = getI18n().getFixedT(null, "actionEditor");
   try {
     const draft = state.clipDraft;
     const sample = samplePoseCreatorDraft(draft, draft.currentTimeSec, null);
     if (sample?.diagnostics.missingPoseRefs.length)
-      throw new Error("Some clip poses are unavailable.");
+      throw new WordedError(t("workspace.capture.posesUnavailable"));
     state.captureClipPoseAtPlayhead();
     return true;
   } catch (error) {
     state.setImportError(
-      error instanceof Error
-        ? error.message
-        : "Could not capture the current clip pose.",
+      apiErrorLine(
+        apiErrorText(readApiError(error), null, t("workspace.capture.failed")),
+      ),
     );
     return false;
   }
@@ -120,29 +130,52 @@ type MobileTool =
 
 type ToolOption = {
   id: MobileTool;
-  label: string;
   icon: ComponentType<{ className?: string }>;
 };
 
 const CLIP_TOOLS: ToolOption[] = [
-  { id: "timeline", label: "Timeline", icon: Clock3Icon },
-  { id: "components", label: "Effects", icon: LibraryIcon },
-  { id: "inspector", label: "Inspector", icon: SlidersHorizontalIcon },
-  { id: "settings", label: "Settings", icon: Settings2Icon },
+  { id: "timeline", icon: Clock3Icon },
+  { id: "components", icon: LibraryIcon },
+  { id: "inspector", icon: SlidersHorizontalIcon },
+  { id: "settings", icon: Settings2Icon },
 ];
 
 const REACTION_TOOLS: ToolOption[] = [
-  { id: "timeline", label: "Timeline", icon: Clock3Icon },
-  { id: "expressions", label: "Expressions", icon: SmileIcon },
-  { id: "components", label: "Effects", icon: LibraryIcon },
-  { id: "inspector", label: "Inspector", icon: SlidersHorizontalIcon },
+  { id: "timeline", icon: Clock3Icon },
+  { id: "expressions", icon: SmileIcon },
+  { id: "components", icon: LibraryIcon },
+  { id: "inspector", icon: SlidersHorizontalIcon },
 ];
 
 const POSE_TOOLS: ToolOption[] = [
-  { id: "bones", label: "Bones", icon: BoneIcon },
-  { id: "expressions", label: "Expressions", icon: SmileIcon },
-  { id: "settings", label: "Preview", icon: Settings2Icon },
+  { id: "bones", icon: BoneIcon },
+  { id: "expressions", icon: SmileIcon },
+  { id: "settings", icon: Settings2Icon },
 ];
+
+/** Tab label for a mobile tool; Pose mode's settings tab holds the preview controls. */
+function toolLabel(
+  t: TFunction<"actionEditor">,
+  tool: MobileTool,
+  pose: boolean,
+): string {
+  switch (tool) {
+    case "timeline":
+      return t("workspace.tools.timeline");
+    case "components":
+      return t("workspace.tools.effects");
+    case "inspector":
+      return t("workspace.tools.inspector");
+    case "settings":
+      return pose
+        ? t("workspace.tools.preview")
+        : t("workspace.tools.settings");
+    case "bones":
+      return t("workspace.tools.bones");
+    case "expressions":
+      return t("workspace.tools.expressions");
+  }
+}
 
 /** Immersive product editor shared by typed Gesture and Reaction routes. */
 export function ActionEditorWorkspace() {
@@ -154,6 +187,7 @@ export function ActionEditorWorkspace() {
 }
 
 function ActionEditorWorkspaceContent() {
+  const { t } = useTranslation("actionEditor");
   const workspace = useActionEditorWorkspace();
   const capabilities = actionEditorCapabilities(workspace.document.intent);
   const timelineBased = workspace.document.implementation === "anima_clip";
@@ -216,10 +250,12 @@ function ActionEditorWorkspaceContent() {
       type="button"
       variant="outline"
       size="icon-sm"
-      aria-label={hands.open ? "Hide hand authoring" : "Show hand authoring"}
+      aria-label={
+        hands.open ? t("workspace.hands.hide") : t("workspace.hands.show")
+      }
       aria-pressed={hands.open}
       disabled={!hands.canEdit}
-      title="Hand authoring"
+      title={t("workspace.hands.title")}
       className={cn(
         "bg-background size-11 shrink-0 rounded-lg shadow-none lg:size-9",
         hands.open && "border-primary/40 bg-primary/8 text-primary",
@@ -410,10 +446,10 @@ function ActionEditorWorkspaceContent() {
         size="sm"
         className="h-8 shrink-0"
         disabled={workspace.busy || Boolean(expressionKeyframeAtPlayhead)}
-        title="Add an expression keyframe at the playhead"
+        title={t("workspace.expressions.addKeyframeTitle")}
         onClick={ensureExpressionKeyframeAtPlayhead}
       >
-        + Expression
+        {t("workspace.expressions.addKeyframe")}
       </Button>
     ) : null;
   const desktopTimeline = (
@@ -549,7 +585,7 @@ function ActionEditorWorkspaceContent() {
                 />
                 {handsEnabled && hands.open ? (
                   <aside
-                    aria-label="Hand authoring"
+                    aria-label={t("workspace.hands.title")}
                     className="border-border/65 bg-background pointer-events-auto absolute top-4 z-30 max-h-[calc(100%-2rem)] w-[280px] overflow-y-auto rounded-2xl border shadow-xl shadow-black/8"
                     style={{ left: handPlacement.left }}
                   >
@@ -558,8 +594,8 @@ function ActionEditorWorkspaceContent() {
                 ) : null}
                 {!bonesExpanded && !hands.open ? (
                   <CreatorCollapsedPanelHeader
-                    label="Bones"
-                    summary="Pose controls"
+                    label={t("workspace.panels.bones")}
+                    summary={t("workspace.panels.bonesSummary")}
                     onExpand={() => setBonesExpanded(true)}
                     className="absolute top-4 left-[calc(var(--app-shell-sidebar-inset)+1rem)] w-[248px] transition-[left] duration-150 ease-in-out xl:left-[calc(var(--app-shell-sidebar-inset)+2rem)] xl:w-[288px] 2xl:w-[340px]"
                   />
@@ -571,8 +607,8 @@ function ActionEditorWorkspaceContent() {
                   />
                 ) : (
                   <CreatorCollapsedPanelHeader
-                    label="Expressions"
-                    summary="Avatar blendshapes"
+                    label={t("workspace.panels.expressions")}
+                    summary={t("workspace.panels.expressionsSummary")}
                     onExpand={() => setExpressionsExpanded(true)}
                     className={cn(
                       "absolute right-4 w-[248px] xl:right-8 xl:w-[296px] 2xl:w-[308px]",
@@ -730,6 +766,14 @@ function ReactionExpressionPanel({
   onExpressionChange: (expressionName: string, value: number) => void;
   onClear: () => void;
 }) {
+  const { t } = useTranslation("actionEditor");
+  const formatters = useFormatters();
+  const time = t("time.seconds", {
+    value: formatters.number(currentTimeSec, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }),
+  });
   return (
     <section
       className={cn(
@@ -744,15 +788,17 @@ function ReactionExpressionPanel({
         )}
       >
         <div className="min-w-0 flex-1">
-          <h2 className="truncate text-sm font-semibold">Expressions</h2>
+          <h2 className="truncate text-sm font-semibold">
+            {t("workspace.panels.expressions")}
+          </h2>
           <p className="text-muted-foreground text-2xs truncate">
             {hasKeyframe
-              ? `Keyframe at ${currentTimeSec.toFixed(2)}s`
-              : `Interpolated at ${currentTimeSec.toFixed(2)}s`}
+              ? t("workspace.expressions.keyframeAt", { time })
+              : t("workspace.expressions.interpolatedAt", { time })}
           </p>
         </div>
         <CreatorPanelCollapseButton
-          label="expressions"
+          label={t("workspace.panels.expressions")}
           expanded={expanded}
           collapseDirection="up"
           onExpandedChange={onExpandedChange}
@@ -906,7 +952,11 @@ function EffectsPanel({
           onTimelineEnabledChange={setTimelineEnabled}
           poses={gesture ? savedPoses : undefined}
           posesPending={posesQuery.isPending}
-          posesError={posesQuery.error?.message ?? null}
+          posesError={
+            posesQuery.error
+              ? apiErrorLine(apiErrorText(readApiError(posesQuery.error), null))
+              : null
+          }
           onRetryPoses={() => void posesQuery.refetch()}
           onEditPose={
             gesture
@@ -956,6 +1006,7 @@ function MobileWorkspace({
   timeline: React.ReactNode;
   reactionExpressions: React.ReactNode;
 }) {
+  const { t } = useTranslation("actionEditor");
   const workspace = useActionEditorWorkspace();
   const pose = workspace.mode === "pose";
   const tools = pose
@@ -973,7 +1024,7 @@ function MobileWorkspace({
       </div>
       <nav
         className="border-border bg-background overflow-x-auto border-y p-2"
-        aria-label="Authoring tools"
+        aria-label={t("workspace.tools.label")}
       >
         <div className="flex w-max min-w-full gap-1" role="tablist">
           {tools.map((option) => {
@@ -991,7 +1042,7 @@ function MobileWorkspace({
                 onClick={() => onToolChange(option.id)}
               >
                 <Icon className="size-4" />
-                {option.label}
+                {toolLabel(t, option.id, pose)}
               </Button>
             );
           })}
@@ -1042,6 +1093,7 @@ function VrmaWorkspace({
 }: {
   capabilities: ReturnType<typeof actionEditorCapabilities>;
 }) {
+  const { t } = useTranslation("actionEditor");
   const workspace = useActionEditorWorkspace();
   return (
     <div className="grid min-h-0 flex-1 lg:grid-cols-[1fr_22rem]">
@@ -1057,7 +1109,7 @@ function VrmaWorkspace({
               "bg-destructive/5 text-destructive ring-destructive/40 p-2 ring-1",
           )}
         >
-          VRMA animation
+          {t("workspace.vrma.label")}
           <Input
             type="file"
             accept=".vrma,model/gltf-binary"
@@ -1069,8 +1121,7 @@ function VrmaWorkspace({
           />
         </label>
         <p className="text-muted-foreground mt-3 text-xs">
-          VRMA Gestures use the immersive Avatar preview but do not expose Pose,
-          Clip, or component authoring.
+          {t("workspace.vrma.description")}
         </p>
       </aside>
     </div>

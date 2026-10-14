@@ -44,9 +44,6 @@ export function isAnimaMemoriesEntry(entry: MemoryEntryLike) {
   );
 }
 
-/** Shown when a save would leave a required Anima identity blank. */
-export const BLANK_ANIMA_IDENTITY_MESSAGE = "Anima identity cannot be blank.";
-
 /** True when saving `content` would blank a required Anima identity. */
 export function isBlankAnimaIdentityDraft(
   entry: MemoryEntryLike,

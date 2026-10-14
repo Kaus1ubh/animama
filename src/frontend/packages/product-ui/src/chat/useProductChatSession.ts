@@ -1,4 +1,5 @@
 import { describeChatFailure } from "./chat-failure";
+import { useProductTranslation } from "../i18n/product-translation";
 import type { Dispatch, SetStateAction } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -222,6 +223,7 @@ export function useProductChatSession({
   replaceChatRoute,
   safety,
 }: UseProductChatSessionArgs): UseProductChatSessionResult {
+  const { t } = useProductTranslation();
   // Safety handlers change identity per render; read the latest through a ref so
   // the submit callback need not be rebuilt.
   const safetyRef = useRef(safety);
@@ -325,10 +327,10 @@ export function useProductChatSession({
     runtimeCanChat: mountedRuntimeContent.canChat && capabilities.chat,
   });
   const inputPlaceholder = !animaId
-    ? "Loading anima..."
+    ? t("session.placeholder.loadingAnima")
     : !canChat
-      ? "Loading anima runtime..."
-      : "What's on your mind?";
+      ? t("session.placeholder.loadingRuntime")
+      : t("session.placeholder.ready");
 
   const emptyServerMessages = useMemo(() => [] as PyChatMessage[], []);
   const shouldFetchMessages =
@@ -418,7 +420,7 @@ export function useProductChatSession({
       await selectProfileModel(restorable);
     } catch (error) {
       logger.error("Model", "Failed to restore chat model", error);
-      toast.error("Failed to restore this chat's model.");
+      toast.error(t("session.toasts.restoreModelFailed"));
     }
   }, [activeChat, logger, modelProviders, selectProfileModel]);
 
@@ -448,7 +450,7 @@ export function useProductChatSession({
         error,
         modelProviderId: pending.item.id,
       });
-      toast.error("Failed to start a new chat with that model.");
+      toast.error(t("session.toasts.newChatModelFailed"));
     }
   }, [logger, openDraftChatRoute, pendingModelSwitch, selectProfileModel]);
 
@@ -589,7 +591,7 @@ export function useProductChatSession({
         chatId,
         modelProviderId: restorable.id,
       });
-      toast.error("Failed to restore this chat's model.");
+      toast.error(t("session.toasts.restoreModelFailed"));
     });
   }, [
     activeChat,
@@ -819,7 +821,7 @@ export function useProductChatSession({
         if (!animaId) {
           interactionStatus = "invalid";
           logger.warn("Submit", "Missing anima id", { animaId });
-          toast.error("Missing anima.");
+          toast.error(t("session.toasts.missingAnima"));
           return;
         }
         if (!anima || anima.id !== animaId) {
@@ -828,7 +830,7 @@ export function useProductChatSession({
             animaId,
             loadedAnimaId: anima?.id ?? null,
           });
-          toast.error("Anima is still loading.");
+          toast.error(t("session.toasts.animaLoading"));
           return;
         }
         if (
@@ -837,22 +839,22 @@ export function useProductChatSession({
           !mountedRuntimeContent.runtimeRevision
         ) {
           interactionStatus = "invalid";
-          toast.error("Anima runtime is still loading.");
+          toast.error(t("session.toasts.runtimeLoading"));
           return;
         }
         if (routeChatId && isActiveChatLoading) {
           interactionStatus = "invalid";
-          toast.error("Chat is still loading.");
+          toast.error(t("session.toasts.chatLoading"));
           return;
         }
         if (routeChatId && (isActiveChatError || !activeChat)) {
           interactionStatus = "invalid";
-          toast.error("Chat could not be loaded.");
+          toast.error(t("session.toasts.chatLoadFailed"));
           return;
         }
         if (isModelProvidersLoading) {
           interactionStatus = "invalid";
-          toast.error("Models are still loading.");
+          toast.error(t("session.toasts.modelsLoading"));
           return;
         }
 
@@ -865,9 +867,9 @@ export function useProductChatSession({
           ) {
             requestModelSwitchToNewChat(activeModelProvider);
           } else if (modelGate.reason === "unsupported_model") {
-            toast.error("This model is not available for direct chat yet.");
+            toast.error(t("session.toasts.modelNotDirect"));
           } else {
-            toast.error("Select a model before chatting.");
+            toast.error(t("session.toasts.selectModel"));
           }
           return;
         }
@@ -1503,25 +1505,22 @@ export function useProductChatSession({
                 ),
               );
               if (clearInput) setInput(recovery.preserveText);
-              toast.error(
-                "This Avatar session expired. Reload it, then send your message again.",
-                {
-                  action: {
-                    label: "Reload Avatar Session",
-                    onClick: () => {
-                      void queryClient
-                        .invalidateQueries({
-                          queryKey: queryKeys.animaLoadouts.runtime(
-                            userKey,
-                            animaId,
-                          ),
-                          refetchType: "none",
-                        })
-                        .then(() => mountedRuntimeContent.remountLatest());
-                    },
+              toast.error(t("session.toasts.avatarSessionExpired"), {
+                action: {
+                  label: t("session.toasts.reloadAvatarSession"),
+                  onClick: () => {
+                    void queryClient
+                      .invalidateQueries({
+                        queryKey: queryKeys.animaLoadouts.runtime(
+                          userKey,
+                          animaId,
+                        ),
+                        refetchType: "none",
+                      })
+                      .then(() => mountedRuntimeContent.remountLatest());
                   },
                 },
-              );
+              });
               return;
             }
             // Non-abort errors are surfaced and we tear down all active run

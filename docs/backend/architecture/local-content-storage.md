@@ -204,6 +204,16 @@ Catalog writes flush within that scope; only its owner commits. A failed
 mutation rolls back catalog changes and restores journaled files. Recovery uses
 the database receipt to distinguish committed work from work to restore.
 
+A Save's entry name comes from the display name: lowercase, hyphenated ASCII
+(`Heart Hands` → `heart-hands`). Accents fold away, so `Café` and `Cafe` share
+`cafe`. A name in another script keeps a short hash of the name, so different
+names in that script get different entries (`お辞儀` → `item-0f2f10u`); package
+import paths do the same (`content-<hash>`). The web app derives Gesture
+semantic keys and Local logical keys with the same hash
+(`app/services/content_names.py`, `web/src/lib/content/nameIdentifiers.ts`), and
+`src/frontend/web/src/lib/content/fixtures/name-identifiers.json` pins both
+sides. The display name itself is stored unchanged.
+
 Standalone Save streams a bounded upload to an adjacent temporary file,
 validates it through the target kind's handler, fsyncs, and atomically replaces
 the normal Local file. Descriptor Save validates the typed document and every

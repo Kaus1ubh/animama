@@ -1,6 +1,7 @@
 import { ipcMain, type IpcMainInvokeEvent } from "electron";
 
 import type { DesktopConfig } from "../config.js";
+import type { ShellLocale } from "../locale/shell-locale.js";
 import { writeLog } from "../logging.js";
 import { QuickChatWindowManager } from "./quick-chat-window-manager.js";
 
@@ -22,6 +23,7 @@ export const QUICK_CHAT_SET_LAYOUT_METRICS_CHANNEL =
 
 type InstallQuickChatIpcOptions = {
   config: DesktopConfig;
+  locale: ShellLocale;
   preloadPath: string;
 };
 
@@ -40,6 +42,7 @@ function assertLiveSender(event: IpcMainInvokeEvent) {
 
 export function installQuickChatIpc({
   config,
+  locale,
   preloadPath,
 }: InstallQuickChatIpcOptions): void {
   if (quickChatIpcInstalled) return;
@@ -47,6 +50,7 @@ export function installQuickChatIpc({
 
   const manager = new QuickChatWindowManager({
     config,
+    locale,
     preloadPath,
     runtimeMessageChannel: QUICK_CHAT_RUNTIME_MESSAGE_CHANNEL,
     stateChangedChannel: QUICK_CHAT_STATE_CHANGED_CHANNEL,

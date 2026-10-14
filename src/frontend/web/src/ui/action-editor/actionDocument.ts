@@ -1,3 +1,7 @@
+import type { TFunction } from "i18next";
+import { getI18n } from "react-i18next";
+
+import { withNameHash } from "@/lib/content/nameIdentifiers";
 import { ANIMA_POSE_CLIP_V2_SCHEMA } from "@/lib/avatar/poses/animaPoseClip/schemaV2";
 import { RELAXED_REST_POSE_ID } from "@/lib/avatar/poses/catalog";
 import type { PyContentDependency } from "@/lib/content/catalogTypes";
@@ -74,18 +78,26 @@ export function actionAuthoringSnapshotsEqual(
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
-/** Generate the stable, model-facing selector proposed for a new Gesture. */
+/**
+ * Generate the stable, model-facing selector proposed for a new Gesture. Names
+ * in other scripts get a name hash so different names never share a selector.
+ */
 export function gestureSemanticKey(name: string): string {
-  const value = name
+  const folded = name
     .normalize("NFKD")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "")
     .slice(0, 64);
-  return value || "new_gesture";
+  return withNameHash(name, folded, {
+    separator: "_",
+    stem: "gesture",
+    empty: "new_gesture",
+    maxLength: 64,
+  });
 }
 
-/** An empty `animaPoseClip/2.0` clip: no beats or events yet. */
+/** An empty `animaPoseClip/2.0` clip: no beats or events yet. Its name is stored data. */
 function defaultSequence(intent: ActionIntent): Record<string, unknown> {
   return {
     schema: ANIMA_POSE_CLIP_V2_SCHEMA,
@@ -185,38 +197,45 @@ export type ActionDocumentIssue = {
   message: string;
 };
 
-/** Validate editor-only invariants before previewing or saving. */
+/**
+ * Validate editor-only invariants before previewing or saving. Messages are
+ * worded in the UI Locale with `t` (default: the active locale).
+ */
 export function validateActionDocument(
   document: ActionDocument,
+  t: TFunction<"actionEditor"> = getI18n().getFixedT(null, "actionEditor"),
 ): ActionDocumentIssue[] {
   const issues: ActionDocumentIssue[] = [];
   if (!document.name.trim())
-    issues.push({ field: "name", message: "Name is required." });
+    issues.push({ field: "name", message: t("validation.nameRequired") });
   if (document.intent === "gesture" && !document.aiDescription.trim())
     issues.push({
       field: "aiDescription",
-      message: "Describe when the AI should choose this Gesture.",
+      message: t("validation.aiDescriptionRequired"),
     });
   if (document.intent === "gesture" && !document.semanticKey.trim())
-    issues.push({ field: "semanticKey", message: "Selector ID is required." });
+    issues.push({
+      field: "semanticKey",
+      message: t("validation.selectorRequired"),
+    });
   if (document.intent === "reaction" && document.implementation === "vrma")
     issues.push({
       field: "implementation",
-      message: "Reactions use expression, effect, and sound timelines.",
+      message: t("validation.reactionTimelinesOnly"),
     });
   const aliases = new Set(document.dependencies.map((value) => value.alias));
   for (const alias of referencedAliases(document.sequence)) {
     if (!aliases.has(alias)) {
       issues.push({
         field: "dependencies",
-        message: `Map or remove the unknown event ID “${alias}”.`,
+        message: t("validation.unknownEvent", { alias }),
       });
     }
   }
   if (document.intent === "reaction" && hasHumanoidTracks(document.sequence)) {
     issues.push({
       field: "sequence",
-      message: "Reactions cannot contain humanoid pose or bone tracks.",
+      message: t("validation.reactionHumanoid"),
     });
   }
   return issues;

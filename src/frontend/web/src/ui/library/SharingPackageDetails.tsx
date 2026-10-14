@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import type { PortableAnima } from "@animama/runtime-contracts/api-types";
 import {
   FileBox,
@@ -17,6 +18,7 @@ import {
   sharingKindLabel,
   type PackageDisplayItem,
 } from "./sharingPresentation";
+import { storedEmotionLabel } from "@/lib/emotion/presentation";
 
 export function SharingItemIcon({ kind }: { kind: string }) {
   const Icon =
@@ -49,6 +51,7 @@ export function SharingItemRow({
   item: PackageDisplayItem;
   children?: ReactNode;
 }) {
+  const { t } = useTranslation("library");
   const renamed =
     item.originalName !== undefined && item.originalName !== item.name;
   return (
@@ -61,7 +64,7 @@ export function SharingItemRow({
         </p>
         {renamed ? (
           <p className="text-muted-foreground mt-1 text-xs break-words">
-            Automatically renamed from “{item.originalName}”
+            {t("sharing.renamedFrom", { name: item.originalName ?? "" })}
           </p>
         ) : null}
       </div>
@@ -75,13 +78,14 @@ export function SharingRequiredItems({
 }: {
   items: PackageDisplayItem[];
 }) {
+  const { t } = useTranslation("library");
   if (!items.length) return null;
   return (
     <details className="rounded-xl border">
       <summary className="cursor-pointer px-4 py-3 font-medium">
-        Required items{" "}
+        {t("sharing.requiredItems")}{" "}
         <span className="text-muted-foreground font-normal">
-          ({items.length})
+          {t("sharing.countInParentheses", { total: items.length })}
         </span>
       </summary>
       <div className="divide-y border-t">
@@ -102,6 +106,7 @@ export function SharingNonPortableItems({
 }: {
   items: { name: string; kind: string; outcome?: string }[];
 }) {
+  const { t } = useTranslation("library");
   if (!items.length) return null;
   const importing = items.some((item) => item.outcome);
   return (
@@ -110,12 +115,12 @@ export function SharingNonPortableItems({
       aria-labelledby="sharing-non-portable-title"
     >
       <h4 id="sharing-non-portable-title" className="font-medium">
-        Not included in the file ({items.length})
+        {t("sharing.nonPortable.title", { count: items.length })}
       </h4>
       <p className="text-muted-foreground text-sm">
         {importing
-          ? "This content comes with Animama and was left out of the package. Where this app has its own copy, it is used instead."
-          : "This content comes with Animama for use here only. The person importing this package uses their own copy if they have one."}
+          ? t("sharing.nonPortable.importing")
+          : t("sharing.nonPortable.exporting")}
       </p>
       <ul className="divide-y">
         {items.map((item) => (
@@ -132,8 +137,8 @@ export function SharingNonPortableItems({
             {item.outcome ? (
               <span className="text-muted-foreground shrink-0 text-xs">
                 {item.outcome === "rebound"
-                  ? "Uses this app's copy"
-                  : "Not available here"}
+                  ? t("sharing.nonPortable.rebound")
+                  : t("sharing.nonPortable.unavailable")}
               </span>
             ) : null}
           </li>
@@ -144,6 +149,7 @@ export function SharingNonPortableItems({
 }
 
 export function SharingPrivacyNote() {
+  const { t } = useTranslation("library");
   return (
     <div className="bg-muted/50 flex gap-3 rounded-xl p-4 text-sm">
       <ShieldCheck
@@ -151,11 +157,9 @@ export function SharingPrivacyNote() {
         className="text-muted-foreground mt-0.5 size-5 shrink-0"
       />
       <div>
-        <p className="font-medium">A fresh companion for someone else</p>
+        <p className="font-medium">{t("sharing.privacy.title")}</p>
         <p className="text-muted-foreground mt-1">
-          Identity and equipped content are included. An active cloned PocketTTS
-          voice is included without the original recording. Chats, memories,
-          credentials and other private settings are left out.
+          {t("sharing.privacy.description")}
         </p>
       </div>
     </div>
@@ -196,8 +200,15 @@ export function SharingAnimaDetails({
   items: PackageDisplayItem[];
   showPrivacyNote?: boolean;
 }) {
+  const { t } = useTranslation("library");
   const name = (id: string | null) =>
-    id === null ? "None" : (items.find((item) => item.id === id)?.name ?? id);
+    id === null
+      ? t("sharing.anima.none")
+      : (items.find((item) => item.id === id)?.name ?? id);
+  const slotLabel = (slot: "profile" | "background") =>
+    slot === "profile"
+      ? t("sharing.anima.appearanceSlots.profile")
+      : t("sharing.anima.appearanceSlots.background");
   const counts = new Map<string, number>();
   for (const item of items)
     counts.set(item.kind, (counts.get(item.kind) ?? 0) + 1);
@@ -205,7 +216,7 @@ export function SharingAnimaDetails({
     <div className="space-y-5">
       <div className="grid gap-6 md:grid-cols-[1.2fr_1fr]">
         <section className="min-w-0 space-y-3">
-          <h3 className="font-semibold">Identity</h3>
+          <h3 className="font-semibold">{t("sharing.anima.identity")}</h3>
           <div className="rounded-xl border p-4">
             <p className="mb-3 font-semibold break-words">
               {anima.display_name}
@@ -213,22 +224,21 @@ export function SharingAnimaDetails({
             <div
               className="max-h-64 overflow-y-auto text-sm break-words whitespace-pre-wrap"
               tabIndex={0}
-              aria-label="Full Anima identity"
+              aria-label={t("sharing.anima.fullIdentity")}
             >
               {anima.identity_markdown}
             </div>
           </div>
         </section>
         <section className="min-w-0 space-y-3">
-          <h3 className="font-semibold">Included content</h3>
+          <h3 className="font-semibold">
+            {t("sharing.anima.includedContent")}
+          </h3>
           <div className="divide-y">
             {[...counts].map(([kind, count]) => (
               <div key={kind} className="flex items-center gap-3 py-2">
                 <SharingItemIcon kind={kind} />
-                <span className="flex-1">
-                  {sharingKindLabel(kind)}
-                  {count === 1 ? "" : "s"}
-                </span>
+                <span className="flex-1">{sharingKindLabel(kind, count)}</span>
                 <span>{count}</span>
               </div>
             ))}
@@ -237,44 +247,55 @@ export function SharingAnimaDetails({
       </div>
       <details className="rounded-xl border">
         <summary className="cursor-pointer px-4 py-3 font-medium">
-          Equipment and configuration
+          {t("sharing.anima.equipment")}
         </summary>
         <div className="space-y-4 border-t p-4 text-sm">
           <p>
-            <span className="font-medium">Avatar: </span>
+            <span className="font-medium">
+              {t("sharing.anima.fieldLabel", {
+                label: t("sharing.anima.avatar"),
+              })}
+            </span>
             {name(anima.avatar)}
           </p>
           {anima.pocket_voice ? (
             <section>
               <p>
-                <span className="font-medium">PocketTTS voice: </span>
+                <span className="font-medium">
+                  {t("sharing.anima.fieldLabel", {
+                    label: t("sharing.anima.pocketVoice"),
+                  })}
+                </span>
                 {name(anima.pocket_voice)}
               </p>
               <p className="text-muted-foreground mt-1 text-xs">
-                Encoded voice only; the original recording is not included.
+                {t("sharing.anima.encodedVoiceOnly")}
               </p>
             </section>
           ) : null}
           <section>
-            <h4 className="mb-2 font-medium">Gestures</h4>
+            <h4 className="mb-2 font-medium">{t("sharing.anima.gestures")}</h4>
             {anima.gestures.length ? (
               <ul className="space-y-3">
                 {anima.gestures.map((gesture, index) => (
                   <li key={`${gesture.semantic_key}-${index}`}>
                     <span className="break-words">
-                      {gesture.semantic_key}: {name(gesture.entry_id)}
+                      {t("sharing.anima.labelValue", {
+                        label: gesture.semantic_key,
+                        value: name(gesture.entry_id),
+                      })}
                     </span>
                     <Configuration value={gesture.config} />
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="text-muted-foreground">None</p>
+              <p className="text-muted-foreground">{t("sharing.anima.none")}</p>
             )}
           </section>
           <details>
             <summary className="cursor-pointer font-medium">
-              Reaction cells
+              {t("sharing.anima.reactionCells")}
             </summary>
             <div className="mt-2 grid gap-2 sm:grid-cols-2">
               {Object.entries(anima.reactions).flatMap(([emotion, cells]) =>
@@ -284,9 +305,13 @@ export function SharingAnimaDetails({
                     className="rounded-lg border p-2"
                   >
                     <p className="break-words">
-                      <span className="capitalize">{emotion}</span> ·{" "}
-                      {intensity}:{" "}
-                      {selection ? name(selection.entry_id) : "None"}
+                      {t("sharing.anima.reactionCell", {
+                        emotion: storedEmotionLabel(emotion),
+                        intensity,
+                        value: selection
+                          ? name(selection.entry_id)
+                          : t("sharing.anima.none"),
+                      })}
                     </p>
                     {selection ? (
                       <Configuration value={selection.config} />
@@ -297,15 +322,24 @@ export function SharingAnimaDetails({
             </div>
           </details>
           <p>
-            <span className="font-medium">Idle Style: </span>
+            <span className="font-medium">
+              {t("sharing.anima.fieldLabel", {
+                label: t("sharing.anima.idleStyle"),
+              })}
+            </span>
             {name(anima.idle_style)}
           </p>
           <section>
-            <h4 className="mb-2 font-medium">Appearance</h4>
+            <h4 className="mb-2 font-medium">
+              {t("sharing.anima.appearance")}
+            </h4>
             {(["profile", "background"] as const).map((slot) => (
               <div key={slot} className="mt-2">
-                <p className="capitalize">
-                  {slot}: {name(anima.appearance[slot]?.entry_id ?? null)}
+                <p>
+                  {t("sharing.anima.labelValue", {
+                    label: slotLabel(slot),
+                    value: name(anima.appearance[slot]?.entry_id ?? null),
+                  })}
                 </p>
                 {anima.appearance[slot] ? (
                   <Configuration value={anima.appearance[slot].presentation} />

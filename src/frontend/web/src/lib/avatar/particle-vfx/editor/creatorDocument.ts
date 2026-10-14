@@ -1,3 +1,5 @@
+import { getI18n } from "react-i18next";
+
 import {
   parseParticleVFXRuntimeConfig,
   particleVFXRuntimeSlotConfig,
@@ -65,14 +67,15 @@ export function readParticleVFXCreatorDocument(value: JsonObject):
     !settings ||
     typeof value.name !== "string" ||
     typeof description !== "string"
-  )
+  ) {
+    const t = getI18n().getFixedT(null, "particles");
     return {
       severity: "error",
       code: "invalid-json",
-      message:
-        "A Particle creator document needs a name, its settings and a quarks effect.",
+      message: t("json.creatorDocumentInvalid"),
       target: "json",
     };
+  }
   return {
     quarksJson: quarks,
     catalog: {

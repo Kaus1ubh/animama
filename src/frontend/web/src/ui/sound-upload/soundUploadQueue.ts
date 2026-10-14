@@ -1,7 +1,14 @@
+import { getI18n } from "react-i18next";
+
 import type { PyContentItem } from "@/lib/content/catalogTypes";
 import type { CatalogSaveInput } from "@/lib/content/catalogApi";
-import { toContentSaveApiError } from "@/lib/content/contentSaveErrors";
+import {
+  ContentSaveApiError,
+  contentSaveFieldError,
+  toContentSaveApiError,
+} from "@/lib/content/contentSaveErrors";
 import { createUniqueContentName } from "@/lib/content/uniqueContentName";
+import { apiErrorLine, uncodedErrorText } from "@/lib/errors/apiError";
 
 export const SOUND_UPLOAD_ACCEPT = ".wav,.mp3,.ogg";
 export type SoundUploadEntry = {
@@ -9,7 +16,9 @@ export type SoundUploadEntry = {
   file: File;
   name: string;
   status: "queued" | "uploading" | "saved" | "error";
+  /** Why the save failed, worded in the UI Locale. */
   error?: string;
+  /** Why the catalog refresh after a save failed, worded in the UI Locale. */
   notificationError?: string;
   item?: PyContentItem;
 };
@@ -18,6 +27,17 @@ export type SoundUploadServices = {
   save: (input: CatalogSaveInput) => Promise<PyContentItem>;
   onSaved: (item: PyContentItem) => void | Promise<void>;
 };
+
+/**
+ * Text for a failed save: content save failures arrive worded; other English
+ * is shown in English and as detail under a translated message elsewhere.
+ */
+function saveErrorText(error: unknown): string {
+  if (error instanceof ContentSaveApiError) return error.message;
+  if (!(error instanceof Error)) return toContentSaveApiError(error).message;
+  const t = getI18n().getFixedT(null, "sound");
+  return apiErrorLine(uncodedErrorText(error.message, t("upload.failed")));
+}
 
 /** Independent saves survive partial failure; retries retain exact request identity. */
 export class SoundUploadQueue {
@@ -34,10 +54,11 @@ export class SoundUploadQueue {
   }
 
   add(files: File[]) {
+    const t = getI18n().getFixedT(null, "sound");
     const added: SoundUploadEntry[] = files.map((file) => ({
       id: crypto.randomUUID(),
       file,
-      name: file.name.replace(/\.[^.]+$/, "").trim() || "Sound",
+      name: file.name.replace(/\.[^.]+$/, "").trim() || t("upload.defaultName"),
       status: "queued",
     }));
     this.entries.push(...added);
@@ -62,9 +83,14 @@ export class SoundUploadQueue {
       await this.services.onSaved(entry.item);
       entry.notificationError = undefined;
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Catalog refresh failed.";
-      entry.notificationError = `Saved to Library. ${message}`;
+      const t = getI18n().getFixedT(null, "sound");
+      const message = apiErrorLine(
+        uncodedErrorText(
+          error instanceof Error ? error.message : null,
+          t("upload.refreshFailed"),
+        ),
+      );
+      entry.notificationError = t("upload.savedRefreshFailed", { message });
     }
     this.changed();
   }
@@ -81,7 +107,8 @@ export class SoundUploadQueue {
     this.changed();
     try {
       if (!/\.(wav|mp3|ogg)$/i.test(entry.file.name)) {
-        throw new Error("Choose a WAV, MP3, or Ogg audio file.");
+        const t = getI18n().getFixedT(null, "sound");
+        throw contentSaveFieldError(t("upload.unsupportedType"), "files");
       }
       if (!this.allocated.has(entry.id)) {
         const names = await this.services.listNames();
@@ -117,10 +144,7 @@ export class SoundUploadQueue {
       entry.status = "saved";
     } catch (error) {
       entry.status = "error";
-      entry.error =
-        error instanceof Error
-          ? error.message
-          : toContentSaveApiError(error).message;
+      entry.error = saveErrorText(error);
     }
     this.changed();
     // A callback/cache failure cannot turn an acknowledged save into a retry.

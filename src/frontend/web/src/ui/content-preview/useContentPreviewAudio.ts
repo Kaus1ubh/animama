@@ -1,12 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { getI18n } from "react-i18next";
 
 import type { PyContentPreview } from "@/lib/content/catalogTypes";
 import {
   fetchContentPreviewFile,
   contentPreviewPrimaryFile,
 } from "@/lib/content/contentPreview";
+import { WordedError } from "@/lib/errors/apiError";
+import { failureLine } from "@/lib/errors/apiError";
 
 export type ContentPreviewAudioStatus =
   | "idle"
@@ -51,6 +54,7 @@ export function useContentPreviewAudio(preview: PyContentPreview | null) {
       setState({ url: null, error: null, status: "idle" });
       return;
     }
+    const t = getI18n().getFixedT(null, "actionEditor");
     const controller = new AbortController();
     let objectUrl: string | null = null;
     setState({ url: null, error: null, status: "loading" });
@@ -59,7 +63,8 @@ export function useContentPreviewAudio(preview: PyContentPreview | null) {
         const response = await fetchContentPreviewFile(preview, file, {
           signal: controller.signal,
         });
-        if (!response.ok) throw new Error("Sound preview could not be loaded.");
+        if (!response.ok)
+          throw new WordedError(t("preview.errors.soundLoadFailed"));
         objectUrl = URL.createObjectURL(await response.blob());
         setState({ url: objectUrl, error: null, status: "loading" });
       } catch (error) {
@@ -67,10 +72,7 @@ export function useContentPreviewAudio(preview: PyContentPreview | null) {
           setState({
             url: null,
             status: "error",
-            error:
-              error instanceof Error
-                ? error.message
-                : "Sound preview could not be loaded.",
+            error: failureLine(error, t("preview.errors.soundLoadFailed")),
           });
         }
       }

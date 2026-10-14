@@ -1234,6 +1234,7 @@ class DirectChatTurnExecutor:
                 if model_provider.provider_type == ANTHROPIC_MESSAGES_PROVIDER_TYPE
                 else INSTRUCTION_STYLE_DEFAULT
             ),
+            conversation_language=request.conversation_language,
             metadata={
                 "anima_id": request.anima_id,
                 "chat_id": request.chat_id,

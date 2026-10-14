@@ -1,9 +1,10 @@
 import { useState, type ReactNode } from "react";
 import { Check, X } from "lucide-react";
+import { Trans, useTranslation } from "react-i18next";
 
+import { useFormatters } from "@animama/product-ui/i18n";
 import type { PyModelAssetState } from "@animama/runtime-contracts/api-types";
 import { PARAKEET_DOWNLOADS_OFFERED } from "@/lib/speech/client-parakeet/assets";
-import { formatFileSize } from "@/lib/user-files/uploads";
 import { Button } from "@/ui/components/button";
 import {
   Tabs,
@@ -22,6 +23,9 @@ import {
 import { ModelLink } from "./ModelLink";
 
 type SpeechSet = "cpu" | "gpu";
+
+/** NVIDIA's public Parakeet TDT 0.6B v2 model page, linked from the CPU tab. */
+const PARAKEET_SOURCE = "https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2";
 
 /**
  * Setup's Speech-to-Text choice: Parakeet's CPU set and its GPU add-on as two
@@ -52,14 +56,23 @@ function SetupSpeechDownloadsView({
   turnedOff = false,
   onChange,
 }: Omit<OfflineSpeechDownloadsViewProps, "heading">) {
+  const { t } = useTranslation("setup");
+  const { fileSize } = useFormatters();
   const [tab, setTab] = useState<SpeechSet>("cpu");
   // Asking for the GPU add-on before its CPU prerequisite shows why it waits.
   const [needsCpu, setNeedsCpu] = useState(false);
   const cpuInstalled = cpu?.status === "installed";
-  const label = (kind: string, asset: PyModelAssetState | undefined) =>
-    asset
-      ? `Parakeet (${kind}, ${formatFileSize(asset.size_bytes)})`
-      : `Parakeet (${kind})`;
+  /** A set's tab label, with its download size once known. */
+  const label = (set: SpeechSet, asset: PyModelAssetState | undefined) => {
+    if (!asset)
+      return set === "cpu"
+        ? t("voice.stt.cpu.label")
+        : t("voice.stt.gpu.label");
+    const size = fileSize(asset.size_bytes);
+    return set === "cpu"
+      ? t("voice.stt.cpu.labelWithSize", { size })
+      : t("voice.stt.gpu.labelWithSize", { size });
+  };
   const errorFor = (asset: PyModelAssetState | undefined) =>
     asset && error?.assetId === asset.id ? error.message : null;
 
@@ -67,8 +80,8 @@ function SetupSpeechDownloadsView({
     return (
       <p role="status" className="text-muted-foreground text-sm">
         {listUnavailable
-          ? "Speech downloads are unavailable right now. You can add them later in App Settings."
-          : "Checking speech recognition…"}
+          ? t("voice.stt.listUnavailable")
+          : t("voice.stt.checking")}
       </p>
     );
 
@@ -76,13 +89,13 @@ function SetupSpeechDownloadsView({
     <Tabs value={tab} onValueChange={(value) => setTab(value as SpeechSet)}>
       <TabsList
         variant="underline"
-        aria-label="Speech recognition models"
+        aria-label={t("voice.stt.models")}
         className="w-fit max-w-full"
       >
         {(
           [
-            ["cpu", label("CPU", cpu)],
-            ["gpu", label("GPU", gpu)],
+            ["cpu", label("cpu", cpu)],
+            ["gpu", label("gpu", gpu)],
           ] as const
         ).map(([id, text]) => (
           <TabsTrigger
@@ -97,19 +110,19 @@ function SetupSpeechDownloadsView({
       </TabsList>
       {turnedOff && cpuInstalled ? (
         <p role="status" className="text-muted-foreground mt-3 text-sm">
-          Speech recognition is turned off on this server.
+          {t("voice.stt.turnedOff")}
         </p>
       ) : null}
       <TabsContent value="cpu" className="mt-4 space-y-3">
         <p className="text-muted-foreground text-sm">
-          <ModelLink href="https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2">
-            NVIDIA&apos;s Parakeet TDT 0.6B v2
-          </ModelLink>{" "}
-          transcribes English speech on this device, so your voice never leaves
-          it.
+          <Trans
+            t={t}
+            i18nKey="voice.stt.cpu.description"
+            components={{ link: <ModelLink href={PARAKEET_SOURCE} /> }}
+          />
         </p>
         <SetupModelSet
-          label="Parakeet (CPU)"
+          label={t("voice.stt.cpu.label")}
           asset={cpu}
           freeBytes={freeBytes}
           retry={cpu ? (retryAssetIds?.has(cpu.id) ?? false) : false}
@@ -125,11 +138,10 @@ function SetupSpeechDownloadsView({
       </TabsContent>
       <TabsContent value="gpu" className="mt-4 space-y-3">
         <p className="text-muted-foreground text-sm">
-          Faster, with live previews as you speak. Needs the CPU version and a
-          WebGPU-capable GPU.
+          {t("voice.stt.gpu.description")}
         </p>
         <SetupModelSet
-          label="Parakeet (GPU)"
+          label={t("voice.stt.gpu.label")}
           asset={gpu}
           freeBytes={freeBytes}
           retry={gpu ? (retryAssetIds?.has(gpu.id) ?? false) : false}
@@ -142,7 +154,7 @@ function SetupSpeechDownloadsView({
           }
           note={
             needsCpu && !cpuInstalled
-              ? "Download the CPU version first."
+              ? t("voice.stt.gpu.needsCpu")
               : (blockedReason ?? null)
           }
           error={errorFor(gpu)}
@@ -179,17 +191,20 @@ function WebgpuCheck({
 }: {
   support: OfflineSpeechDownloadsViewProps["gpuSupport"];
 }) {
+  const { t } = useTranslation("setup");
   if (support === null)
     return (
       <p role="status" className="text-muted-foreground text-sm">
-        Checking WebGPU…
+        {t("voice.stt.webgpu.checking")}
       </p>
     );
   // "model_missing" means WebGPU works; only the set is not installed yet.
   const available = support !== "unsupported";
   return (
     <StatusCheck ok={available}>
-      {available ? "WebGPU available" : "WebGPU unavailable on this device"}
+      {available
+        ? t("voice.stt.webgpu.available")
+        : t("voice.stt.webgpu.unavailable")}
     </StatusCheck>
   );
 }
@@ -220,10 +235,12 @@ function SetupModelSet({
   /** Extra status lines, such as the WebGPU check. */
   children?: ReactNode;
 }) {
+  const { t } = useTranslation("setup");
+  const { fileSize, number } = useFormatters();
   if (!asset)
     return (
       <p role="status" className="text-muted-foreground text-sm">
-        Unavailable in this build.
+        {t("voice.stt.unavailableInBuild")}
       </p>
     );
   const installed = asset.status === "installed";
@@ -245,21 +262,26 @@ function SetupModelSet({
         <div className="space-y-1">
           {children}
           {installed ? (
-            <StatusCheck ok>Downloaded</StatusCheck>
+            <StatusCheck ok>{t("voice.stt.downloaded")}</StatusCheck>
           ) : downloading ? (
             <p role="status" className="text-muted-foreground text-sm">
               {progress === 1
-                ? "Verifying download…"
-                : `Downloading ${Math.round((progress ?? 0) * 100)}%`}
+                ? t("voice.stt.verifying")
+                : t("voice.stt.downloading", {
+                    percent: number(progress ?? 0, {
+                      style: "percent",
+                      maximumFractionDigits: 0,
+                    }),
+                  })}
             </p>
           ) : (
-            <StatusCheck ok={false}>Not downloaded</StatusCheck>
+            <StatusCheck ok={false}>{t("voice.stt.notDownloaded")}</StatusCheck>
           )}
         </div>
         {downloading ? (
           // Cancelling stays reachable while other changes are blocked.
           <Button type="button" size="sm" variant="ghost" onClick={onCancel}>
-            Cancel
+            {t("actions.cancel")}
           </Button>
         ) : installed ? null : (
           <Button
@@ -269,7 +291,7 @@ function SetupModelSet({
             disabled={disabled || lowSpace}
             onClick={onInstall}
           >
-            {failed ? "Retry download" : "Download"}
+            {failed ? t("voice.stt.retryDownload") : t("voice.stt.download")}
           </Button>
         )}
       </div>
@@ -278,7 +300,7 @@ function SetupModelSet({
           className="w-full"
           max={1}
           value={progress}
-          aria-label={`${label} download progress`}
+          aria-label={t("voice.stt.progressLabel", { label })}
         />
       ) : null}
       {asset.status === "failed" ? (
@@ -288,8 +310,9 @@ function SetupModelSet({
       ) : null}
       {lowSpace ? (
         <p role="status" className="text-muted-foreground text-xs">
-          Not enough free space: downloads need{" "}
-          {formatFileSize(asset.required_free_bytes)} free.
+          {t("voice.stt.lowSpace", {
+            size: fileSize(asset.required_free_bytes),
+          })}
         </p>
       ) : null}
       {!installed && !downloading && note ? (

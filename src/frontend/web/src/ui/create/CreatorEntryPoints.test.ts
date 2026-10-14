@@ -14,16 +14,25 @@ const effectsRouteSource = new URL(
   "../../routes/_app/effects.new.tsx",
   import.meta.url,
 );
+const createCatalogSource = new URL(
+  "../../locales/en/create.json",
+  import.meta.url,
+);
 
 describe("Effect creator entry points", () => {
   it("retires sound creation links and explains the inline upload flow", async () => {
-    const [hub, sidebar] = await Promise.all([
+    const [hub, sidebar, catalog] = await Promise.all([
       readFile(hubSource, "utf8"),
       readFile(sidebarSource, "utf8"),
+      readFile(createCatalogSource, "utf8"),
     ]);
     expect(hub).not.toContain("/sound-effects/new");
     expect(sidebar).not.toContain("/sound-effects/new");
-    expect(hub).toContain("Upload sounds");
+    expect(hub).toContain('t("hub.effects.description")');
+    expect(
+      (JSON.parse(catalog) as { hub: { effects: { description: string } } }).hub
+        .effects.description,
+    ).toContain("Upload sounds");
   });
   it("opens one Effects template picker from the sidebar and the creator hub", async () => {
     const [hub, sidebar, picker] = await Promise.all([
@@ -51,7 +60,7 @@ describe("Effect creator entry points", () => {
     expect(picker).toContain('to="/scene-effects/new"');
     expect(picker).toContain("search={{ template: template.id }}");
     expect(picker).toContain("search={{ template: id }}");
-    expect(picker).toContain("Start from scratch");
+    expect(picker).toContain('t("picker.startFromScratch")');
   });
 
   it("renders the creator hub with the picker open at /effects/new", async () => {

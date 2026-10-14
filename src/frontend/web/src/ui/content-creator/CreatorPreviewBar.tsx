@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 
 import { cn } from "@/lib/utils";
 import { Input } from "@/ui/components/input";
@@ -74,8 +75,9 @@ function isCompactPreview(
 }
 
 function CompactPreviewContent(props: CompactPreviewProps) {
+  const { t } = useTranslation("creator");
   const {
-    title = "Preview",
+    title = t("preview.title"),
     subtitle,
     playing,
     onPlayingChange,
@@ -83,14 +85,15 @@ function CompactPreviewContent(props: CompactPreviewProps) {
     progressClassName,
     duration,
   } = props;
-  const durationLabel = duration.label ?? "Duration";
+  const durationLabel = duration.label ?? t("preview.duration");
+  const indefiniteLabel = duration.indefiniteLabel ?? t("preview.untilStopped");
   return (
     <div className="flex h-full min-w-0 flex-col gap-2">
       <CreatorTimelineToolbar
         leading={
           duration.value === null ? (
             <span className="text-muted-foreground text-xs">
-              {duration.indefiniteLabel ?? "Until stopped"}
+              {indefiniteLabel}
             </span>
           ) : (
             <label className="flex items-center gap-2 text-xs">
@@ -99,7 +102,9 @@ function CompactPreviewContent(props: CompactPreviewProps) {
               </span>
               <Input
                 className="h-8 w-20 text-xs"
-                aria-label={`${durationLabel} in seconds`}
+                aria-label={t("preview.durationSeconds", {
+                  label: durationLabel,
+                })}
                 type="number"
                 min={duration.min}
                 max={duration.max}
@@ -111,14 +116,14 @@ function CompactPreviewContent(props: CompactPreviewProps) {
                 }
               />
               <span className="text-muted-foreground">
-                {duration.unit ?? "s"}
+                {duration.unit ?? t("preview.secondsUnit")}
               </span>
             </label>
           )
         }
         transport={
           <CreatorTimelineTransport
-            label="preview"
+            label={t("preview.target")}
             playing={playing}
             onTogglePlayback={() => onPlayingChange(!playing)}
             onStop={() => onPlayingChange(false)}
@@ -127,7 +132,7 @@ function CompactPreviewContent(props: CompactPreviewProps) {
         }
         trailing={
           <span className="text-muted-foreground text-xs">
-            {playing ? "Playing" : "Stopped"}
+            {playing ? t("preview.playing") : t("preview.stopped")}
           </span>
         }
       />
@@ -141,7 +146,7 @@ function CompactPreviewContent(props: CompactPreviewProps) {
               className="text-muted-foreground text-2xs absolute top-2"
               style={{ left: TRACK_LABEL_RAIL_PX }}
             >
-              {duration.indefiniteLabel ?? "Until stopped"}
+              {indefiniteLabel}
             </span>
           )}
           <CreatorTimelineLane index={0} label={title}>

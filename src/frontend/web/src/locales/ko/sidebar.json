@@ -1,0 +1,71 @@
+{
+  "animas": {
+    "empty": "아직 Anima가 없습니다",
+    "filter": "Anima 필터 및 정렬",
+    "heading": "Anima",
+    "loadFailed": "Anima를 불러오지 못했습니다",
+    "loading": "Anima를 불러오는 중…",
+    "sort": {
+      "label": "정렬",
+      "nameAscending": "이름: A–Z",
+      "nameDescending": "이름: Z–A",
+      "recent": "최근 사용순"
+    }
+  },
+  "chats": {
+    "allAnimas": "모든 Anima",
+    "empty": "아직 채팅이 없습니다",
+    "emptyForAnima": "이 Anima의 채팅이 없습니다",
+    "filter": "채팅 필터",
+    "filterByAnima": "Anima",
+    "heading": "채팅",
+    "loadFailed": "채팅을 불러오지 못했습니다",
+    "loading": "채팅을 불러오는 중…",
+    "untitled": "제목 없는 채팅"
+  },
+  "close": "사이드바 닫기",
+  "create": {
+    "anima": "Anima",
+    "effects": "효과",
+    "gesture": "제스처",
+    "label": "만들기",
+    "reaction": "리액션"
+  },
+  "links": {
+    "animas": "Anima",
+    "library": "라이브러리",
+    "memory": "기억",
+    "newChat": "새 채팅",
+    "search": "검색"
+  },
+  "open": "사이드바 열기",
+  "search": {
+    "close": "검색 닫기",
+    "description": "저장된 채팅 메시지를 검색합니다.",
+    "failed": "검색에 실패했습니다.",
+    "loadMore": "더 불러오기",
+    "noResults": "일치하는 메시지가 없습니다.",
+    "open": "채팅 검색",
+    "placeholder": "채팅 검색",
+    "profileAlt": "{{name}} 프로필",
+    "searching": "검색하는 중…",
+    "title": "채팅 검색"
+  },
+  "usage": {
+    "amount": "{{used}} / {{limit}}",
+    "description": "계정의 현재 사용량입니다. 한도는 런타임이 적용합니다.",
+    "loadFailed": "사용량을 불러올 수 없습니다.",
+    "loading": "사용량을 불러오는 중…",
+    "resets": "{{time}}에 초기화",
+    "retry": "다시 시도",
+    "title": "사용량 및 한도"
+  },
+  "user": {
+    "account": "계정",
+    "accountUnavailable": "계정에 접근할 수 없습니다.",
+    "appSettings": "앱 설정",
+    "fallbackName": "나",
+    "signOut": "로그아웃",
+    "usage": "사용량 및 한도"
+  }
+}

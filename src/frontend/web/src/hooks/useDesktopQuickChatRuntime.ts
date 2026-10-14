@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { getI18n } from "react-i18next";
 import { toast } from "sonner";
 
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
@@ -314,10 +315,10 @@ export function useDesktopQuickChatOwner({
   }, [bridge, animaId, publishSnapshot, quickChatAvailable]);
 
   const toggleQuickChat = useCallback(() => {
+    // Read at call time, so a locale switch does not recreate the callback.
+    const t = getI18n().getFixedT(null, "app");
     if (!bridge || !quickChatAvailable) {
-      toast.error(
-        "Quick Chat is available from a anima chat in the desktop app.",
-      );
+      toast.error(t("quickChat.unavailable"));
       return;
     }
     void bridge
@@ -329,9 +330,11 @@ export function useDesktopQuickChatOwner({
         publishSnapshot();
       })
       .catch((error: unknown) => {
-        toast.error("Failed to toggle Quick Chat", {
+        toast.error(t("quickChat.toggleFailed"), {
           description:
-            error instanceof Error ? error.message : "Unknown desktop error.",
+            error instanceof Error
+              ? error.message
+              : t("quickChat.unknownError"),
         });
       });
   }, [bridge, chatId, animaId, publishSnapshot, quickChatAvailable]);

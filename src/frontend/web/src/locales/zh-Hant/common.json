@@ -1,0 +1,12 @@
+{
+  "actions": {
+    "hide": "隱藏",
+    "reload": "重新載入",
+    "resetAll": "全部重設",
+    "show": "顯示"
+  },
+  "beta": "測試版",
+  "connection": {
+    "reconnecting": "正在重新連線至 Animama。請求已暫停；重新載入後，已儲存的創作草稿會保留，但未送出的聊天內容會遺失。"
+  }
+}

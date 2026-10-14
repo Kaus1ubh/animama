@@ -1,0 +1,21 @@
+{
+  "aiNotice": {
+    "reminder": "안내: {{name}}은(는) 사람이 아닌 AI입니다.",
+    "reminderUnnamed": "안내: Anima는 사람이 아닌 AI입니다.",
+    "start": "지금 대화 중인 {{name}}은(는) 사람이 아닌 AI입니다.",
+    "startUnnamed": "지금 대화 중인 Anima는 사람이 아닌 AI입니다."
+  },
+  "crisis": {
+    "dismiss": "닫기",
+    "emergency": "즉각적인 위험에 처해 있다면 {{number}}번으로 전화하세요.",
+    "emergencyLocal": "즉각적인 위험에 처해 있다면 거주 지역의 긴급 전화번호로 전화하세요.",
+    "intro": "자살이나 자해를 생각하고 있다면 혼자 견디지 않아도 됩니다. 훈련받은 사람들이 도와줄 수 있습니다.",
+    "label": "위기 지원 안내",
+    "noServices": "지역 위기 상담 전화나 믿을 수 있는 사람에게 연락하세요.",
+    "notProfessional": "Anima는 AI이며 전문적인 도움을 대신할 수 없습니다."
+  },
+  "protocol": {
+    "back": "Animama로 돌아가기",
+    "title": "안전 및 위기 대응 프로토콜"
+  }
+}

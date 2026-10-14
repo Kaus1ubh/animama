@@ -1,4 +1,5 @@
 import { useCallback, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 
 import { createLogger } from "@/lib/logger";
 import { pocketVoiceAvailability } from "@/lib/speech/pocket/voice-downloads";
@@ -16,6 +17,7 @@ import {
  * provisioned voices are available: `install` and `remove` request nothing.
  */
 export function usePocketVoiceDownloads({ enabled }: { enabled: boolean }) {
+  const { t } = useTranslation("app");
   const assets = useModelAssets({ enabled });
   const operatorManaged = useOperatorManagedModelAssets();
   const action = useModelAssetAction();
@@ -53,9 +55,9 @@ export function usePocketVoiceDownloads({ enabled }: { enabled: boolean }) {
   const blockedReason = action.blockedReason;
   const retryAssetIds = assets.retryAssetIds;
   const error = action.isError
-    ? "The voice download change could not finish. Retry in a moment."
+    ? t("voiceDownloads.changeFailed")
     : assets.isError
-      ? "Voice downloads are unavailable. Reopen the voice browser to retry."
+      ? t("voiceDownloads.unavailable")
       : null;
   return useMemo(
     () => ({

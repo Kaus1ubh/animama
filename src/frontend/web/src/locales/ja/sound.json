@@ -1,0 +1,38 @@
+{
+  "preview": {
+    "loadFailed": "サウンドのプレビューを読み込めませんでした。",
+    "noAudio": "このサウンドには再生できる音声がありません。",
+    "playFailed": "サウンドのプレビューを再生できませんでした。"
+  },
+  "upload": {
+    "button": "アップロード",
+    "defaultName": "サウンド",
+    "failed": "サウンドを保存できませんでした。もう一度お試しください。",
+    "inputLabel": "サウンドファイルをアップロード",
+    "listLabel": "サウンドのアップロード",
+    "queued": "待機中",
+    "refresh": "カタログを更新",
+    "refreshFailed": "カタログを更新できませんでした。",
+    "retry": "{{name}} を再試行",
+    "saved": "ライブラリに保存しました",
+    "savedRefreshFailed": "ライブラリに保存しました。{{message}}",
+    "unsupportedType": "WAV、MP3、Ogg のいずれかの音声ファイルを選んでください。",
+    "uploading": "アップロードしています…"
+  },
+  "volume": {
+    "mute": "ミュート",
+    "muteAll": "すべてミュート",
+    "muteAllLabel": "すべてのオーディオをミュート",
+    "sfx": {
+      "label": "効果音",
+      "mute": "効果音をミュート",
+      "slider": "効果音の音量"
+    },
+    "title": "音量",
+    "tts": {
+      "label": "読み上げ",
+      "mute": "読み上げをミュート",
+      "slider": "読み上げの音量"
+    }
+  }
+}

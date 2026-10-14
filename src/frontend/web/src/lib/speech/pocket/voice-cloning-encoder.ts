@@ -1,7 +1,9 @@
 import type { Client } from "@animama/runtime-contracts/sdk";
+import { getI18n } from "react-i18next";
 import { optionalModelResourceUrl } from "@/lib/resource-urls";
 import type { PyModelAssetState } from "@animama/runtime-contracts/api-types";
 import { getModelAssetV1ModelAssetsAssetIdGet } from "@animama/runtime-contracts/sdk";
+import { PocketVoiceCloningError } from "./voice-cloning-error";
 
 export const POCKET_VOICE_ENCODER_ASSET_ID = "pocket-tts-voice-cloning-encoder";
 /** Only the verified backend content route is given to an encoding worker. */
@@ -17,36 +19,43 @@ export type PocketVoiceEncoderOptions = {
 };
 
 /** Missing optional bytes require a separate, explicit Download action. */
-export class PocketVoiceEncoderDownloadRequired extends Error {
+export class PocketVoiceEncoderDownloadRequired extends PocketVoiceCloningError {
   readonly asset: PyModelAssetState;
 
   constructor(asset: PyModelAssetState) {
     super(
       asset.status === "failed"
-        ? FAILURE_MESSAGES[asset.reason ?? "asset_download_failed"]
-        : "Download voice cloning before encoding a voice sample.",
+        ? encoderFailureText(asset.reason)
+        : downloadRequiredText(),
     );
     this.name = "PocketVoiceEncoderDownloadRequired";
     this.asset = asset;
   }
 }
 
-const FAILURE_MESSAGES: Record<
-  NonNullable<PyModelAssetState["reason"]>,
-  string
-> = {
-  asset_download_failed:
-    "Voice cloning could not download. Check your connection and retry.",
-  asset_host_not_allowed:
-    "Voice cloning downloads are unavailable in this build.",
-  asset_size_invalid:
-    "The voice cloning download had the wrong size and was discarded. Retry the download.",
-  asset_hash_invalid:
-    "The voice cloning download did not match the verified model and was discarded. Retry the download.",
-  asset_store_failed:
-    "Voice cloning could not be stored. Check the installation's data directory and retry.",
-  asset_insufficient_space: "Not enough free space to download voice cloning.",
-};
+function downloadRequiredText(): string {
+  const t = getI18n().getFixedT(null, "voice");
+  return t("pocket.encoder.downloadRequired");
+}
+
+/** Why the encoder download stopped, from its stable failure code. */
+function encoderFailureText(reason: PyModelAssetState["reason"]): string {
+  const t = getI18n().getFixedT(null, "voice");
+  switch (reason) {
+    case "asset_host_not_allowed":
+      return t("pocket.encoder.failures.hostNotAllowed");
+    case "asset_size_invalid":
+      return t("pocket.encoder.failures.sizeInvalid");
+    case "asset_hash_invalid":
+      return t("pocket.encoder.failures.hashInvalid");
+    case "asset_store_failed":
+      return t("pocket.encoder.failures.storeFailed");
+    case "asset_insufficient_space":
+      return t("pocket.encoder.failures.insufficientSpace");
+    default:
+      return t("pocket.encoder.failures.downloadFailed");
+  }
+}
 
 /** A caller owns only this wait, never the backend's shared installation. */
 function waitForPoll(signal?: AbortSignal): Promise<void> {
@@ -82,10 +91,10 @@ export async function ensurePocketVoiceCloningEncoder(
   } as const;
   const report = (asset: PyModelAssetState) => {
     signal?.throwIfAborted();
-    if (asset.id !== POCKET_VOICE_ENCODER_ASSET_ID)
-      throw new Error(
-        "The voice cloning model could not be identified. Reopen and retry.",
-      );
+    if (asset.id !== POCKET_VOICE_ENCODER_ASSET_ID) {
+      const t = getI18n().getFixedT(null, "voice");
+      throw new PocketVoiceCloningError(t("pocket.encoder.unidentified"));
+    }
     onState?.(asset);
     return asset;
   };
@@ -113,10 +122,10 @@ export async function ensurePocketVoiceCloningEncoder(
     );
   }
   if (asset.status === "failed")
-    throw new Error(FAILURE_MESSAGES[asset.reason ?? "asset_download_failed"]);
-  if (asset.status !== "installed")
-    throw new Error(
-      "The voice cloning download was cancelled or interrupted. Retry the download.",
-    );
+    throw new PocketVoiceCloningError(encoderFailureText(asset.reason));
+  if (asset.status !== "installed") {
+    const t = getI18n().getFixedT(null, "voice");
+    throw new PocketVoiceCloningError(t("pocket.encoder.interrupted"));
+  }
   return POCKET_VOICE_ENCODER_CONTENT_URL;
 }

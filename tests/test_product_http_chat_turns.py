@@ -522,6 +522,49 @@ async def test_cancelling_a_turn_stopped_by_a_full_bridge_stops_its_provider_str
     assert not [t for t in asyncio.all_tasks() if not t.done() and t.get_name().startswith("direct-chat-model-stream")]
 
 
+def _chat_system_text(model: ScriptedModel) -> str:
+    """The system message of the turn's chat request (not its title or compaction requests)."""
+
+    [request] = [request for request in model.requests if request.prompt.metadata.get("task") is None]
+    content = request.prompt.messages[0]["content"]
+    assert isinstance(content, str)
+    return content
+
+
+async def test_the_applied_ui_locale_sets_the_reply_and_speech_language(guarded: GuardedChat) -> None:
+    gemini = FakeGeminiSpeech()
+    guarded.ports.gemini_speech = gemini
+    guarded.model.replies.append(structured("おはようございます。お茶をいれますね。"))
+
+    response = await guarded.turn("japanese", dispatch_options=GEMINI_SPEECH, client_context={"ui_locale": "ja"})
+
+    assert response.status_code == 200
+    assert "Write every reply in Japanese" in _chat_system_text(guarded.model)
+    assert gemini.language_codes and set(gemini.language_codes) == {"ja"}
+
+
+async def test_an_english_ui_locale_leaves_the_language_to_the_model_and_speech(guarded: GuardedChat) -> None:
+    gemini = FakeGeminiSpeech()
+    guarded.ports.gemini_speech = gemini
+    guarded.model.replies.append(structured("Hello there. The kettle is on."))
+
+    response = await guarded.turn("english", dispatch_options=GEMINI_SPEECH, client_context={"ui_locale": "en"})
+
+    assert response.status_code == 200
+    assert "# Conversation Language" not in _chat_system_text(guarded.model)
+    assert gemini.language_codes and set(gemini.language_codes) == {None}
+
+
+async def test_realtime_speech_sessions_carry_the_conversation_language(guarded: GuardedChat) -> None:
+    guarded.model.replies.append(structured("안녕하세요. 차를 끓일게요."))
+    realtime = {"tts": {"enabled": True, "provider": "elevenlabs", "model_id": "eleven_v4_turbo"}}
+
+    response = await guarded.turn("korean", dispatch_options=realtime, client_context={"ui_locale": "ko"})
+
+    [session] = [data for name, data in frames(response.text) if name == "tts.session"]
+    assert session["language_code"] == "ko"
+
+
 async def test_a_refusal_while_streaming_speech_keeps_its_code(guarded: GuardedChat) -> None:
     gemini = FakeGeminiSpeech(stream_refusal=ProductRefusal(402, "speech_allowance_exhausted"))
     guarded.ports.gemini_speech = gemini

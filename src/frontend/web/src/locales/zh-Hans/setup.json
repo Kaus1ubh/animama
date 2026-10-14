@@ -1,0 +1,145 @@
+{
+  "actions": {
+    "back": "返回",
+    "cancel": "取消",
+    "continue": "继续",
+    "finish": "完成",
+    "finishing": "正在完成…",
+    "skip": "暂时跳过"
+  },
+  "ageConfirmation": {
+    "backToSetup": "返回设置",
+    "confirm": "我已年满 18 岁",
+    "decline": "我未满 18 岁",
+    "declined": "Animama 仅供 18 岁及以上的成年人使用。你无法继续聊天。",
+    "errors": {
+      "capabilitiesFailed": "无法检查 AI 设置。请重试。",
+      "modelUnavailable": "所选模型已无法使用。请返回设置选择其他模型，或跳过 AI。",
+      "saveFailed": "无法保存设置。请重试。"
+    },
+    "goBack": "返回",
+    "heading": "开始之前",
+    "notice": "Animama 仅供 18 岁及以上的成年人使用。Anima 是 AI 伙伴，不是真人。",
+    "opening": "正在打开…",
+    "retry": "重试",
+    "safetyLink": "安全与危机应对规程"
+  },
+  "ai": {
+    "addCustomServer": "添加自定义服务器",
+    "addModel": "添加模型",
+    "addModelTo": "向 {{name}} 添加模型",
+    "checking": "正在检查此安装提供的模型…",
+    "connect": "连接",
+    "connecting": "正在连接…",
+    "connectionDetail": "{{host}} · {{status}}",
+    "heading": "选择你的 AI",
+    "loadFailed": "无法加载模型。你可以跳过此步骤，稍后在应用设置 → 模型中进行设置。",
+    "local": {
+      "add": "添加",
+      "adding": "正在添加…",
+      "addNamed": "添加 {{model}}",
+      "allAdded": "它的所有模型都已添加。",
+      "lookingFor": "正在查找 {{server}}…",
+      "noModels": "{{server}} 中没有模型。请在 {{server}} 中下载一个模型，然后重新搜索。",
+      "notFound": "未找到 {{server}} 服务器。请安装并启动 {{server}}，然后重新搜索。",
+      "runningAt": "运行于 {{host}}",
+      "search": "搜索",
+      "searchAgain": "重新搜索",
+      "searching": "正在搜索…",
+      "setUpLater": "稍后设置"
+    },
+    "builtin": {
+      "serverKey": "使用此服务器上配置的 {{name}} 密钥。",
+      "serverKeyMissing": "要使用 {{name}}，请在服务器上设置 {{env}}。"
+    },
+    "providedModels": "此安装自带模型，因此这里无需选择。",
+    "providerTabs": "{{location}}提供商",
+    "purpose": "选择你的 Anima 聊天时使用的模型。"
+  },
+  "errors": {
+    "displayName": "请输入 1 到 {{max}} 个字符的显示名称。",
+    "keyNotSaved": "你的密钥未保存。请填写此步骤中的信息，或丢弃该密钥。",
+    "voiceSettings": "无法保存语音设置。请重试，或跳过此步骤。"
+  },
+  "keys": {
+    "saving": "正在保存你的密钥…",
+    "storedDescription": "在这台电脑上加密存储，之后不会再显示。",
+    "unsavedPrompt": {
+      "description": "你输入的密钥尚未保存。请立即保存，或丢弃后继续。",
+      "discard": "丢弃",
+      "keepEditing": "继续编辑",
+      "save": "保存密钥",
+      "saving": "正在保存…",
+      "title": "保存你的 API 密钥？"
+    }
+  },
+  "links": {
+    "opensInNewWindow": "（在新窗口中打开）"
+  },
+  "progress": {
+    "label": "设置进度",
+    "optional": "（可选）",
+    "position": "第 {{current}} 步，共 {{total}} 步"
+  },
+  "steps": {
+    "ai": "AI",
+    "voice": "语音",
+    "welcome": "欢迎"
+  },
+  "voice": {
+    "heading": "设置语音",
+    "purpose": "与你的 Anima 对话，并听到它们的回复。",
+    "stt": {
+      "checking": "正在检查语音识别…",
+      "cpu": {
+        "description": "<link>NVIDIA 的 Parakeet TDT 0.6B v2</link> 在此设备上转写英语语音，你的声音不会离开此设备。",
+        "label": "Parakeet（CPU）",
+        "labelWithSize": "Parakeet（CPU，{{size}}）"
+      },
+      "download": "下载",
+      "downloaded": "已下载",
+      "downloading": "正在下载 {{percent}}",
+      "gpu": {
+        "description": "速度更快，说话时可实时预览。需要 CPU 版本和支持 WebGPU 的 GPU。",
+        "label": "Parakeet（GPU）",
+        "labelWithSize": "Parakeet（GPU，{{size}}）",
+        "needsCpu": "请先下载 CPU 版本。"
+      },
+      "heading": "语音转文本",
+      "listUnavailable": "语音下载暂时不可用。你可以稍后在应用设置中添加。",
+      "lowSpace": "可用空间不足：下载需要 {{size}} 可用空间。",
+      "models": "语音识别模型",
+      "notDownloaded": "未下载",
+      "progressLabel": "{{label}} 下载进度",
+      "retryDownload": "重试下载",
+      "turnedOff": "此服务器已关闭语音识别。",
+      "unavailableInBuild": "此版本中不可用。",
+      "verifying": "正在验证下载…",
+      "webgpu": {
+        "available": "WebGPU 可用",
+        "checking": "正在检查 WebGPU…",
+        "unavailable": "此设备上 WebGPU 不可用"
+      }
+    },
+    "tts": {
+      "elevenLabs": {
+        "description": "使用你的 ElevenLabs API 密钥的云端语音。",
+        "label": "ElevenLabs"
+      },
+      "heading": "文字转语音",
+      "pocket": {
+        "description": "<link>Kyutai 的 Pocket TTS</link> 在这台电脑上朗读回复，无需密钥或账户。",
+        "label": "PocketTTS（内置）"
+      },
+      "providers": "文字转语音提供商",
+      "unavailableReason": "{{provider}}：{{reason}}"
+    }
+  },
+  "welcome": {
+    "displayName": {
+      "label": "显示名称",
+      "placeholder": "你的名字"
+    },
+    "heading": "Animama 该怎么称呼你？"
+  }
+}

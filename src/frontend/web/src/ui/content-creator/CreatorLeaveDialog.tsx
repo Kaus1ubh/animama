@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 import { Button } from "@/ui/components/button";
 import {
   Dialog,
@@ -19,6 +21,7 @@ export function CreatorLeaveDialog({
   /** The kind of content, for example "Avatar Effect". */
   contentLabel: string;
 }) {
+  const { t } = useTranslation("creator");
   const { blocked, busy, discarding } = guard;
   return (
     <Dialog
@@ -30,26 +33,24 @@ export function CreatorLeaveDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {busy
-              ? "Leave while content is being saved?"
-              : "Discard authoring changes?"}
+            {busy ? t("leave.busy.title") : t("leave.dirty.title")}
           </DialogTitle>
           <DialogDescription>
             {busy
-              ? `This ${contentLabel} is still being saved. Local recovery remains available when you return.`
-              : `This ${contentLabel} has local authoring changes. Discarding removes these changes and their browser recovery draft. Saved content is unchanged.`}
+              ? t("leave.busy.description", { label: contentLabel })
+              : t("leave.dirty.description", { label: contentLabel })}
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
           <Button variant="outline" disabled={discarding} onClick={guard.stay}>
-            Stay
+            {t("leave.stay")}
           </Button>
           <Button disabled={discarding} onClick={() => void guard.leave()}>
             {discarding
-              ? "Discarding…"
+              ? t("leave.discarding")
               : busy
-                ? "Leave and keep recovery"
-                : "Discard and continue"}
+                ? t("leave.busy.confirm")
+                : t("leave.dirty.confirm")}
           </Button>
         </DialogFooter>
       </DialogContent>

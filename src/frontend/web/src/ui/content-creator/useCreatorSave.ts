@@ -1,7 +1,14 @@
 "use client";
 
 import { useNavigate, type NavigateOptions } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { toast } from "sonner";
 
 import { useProductApiClient } from "@animama/product-ui";
@@ -259,6 +266,7 @@ export function useCreatorSave<
   initialized: boolean;
   /** The document is valid and its resources are settled. */
   ready: boolean;
+  /** Install a restored draft. A new identity does not restore it again. */
   onRestore: (snapshot: TSnapshot) => void;
   onSaved: (snapshot: TSnapshot, savedItemId: string) => void;
 }) {
@@ -312,6 +320,10 @@ export function useCreatorSave<
 
   useEffect(() => () => controllerRef.current?.abort(), []);
 
+  // Read the latest callback: a new identity, such as one a UI Locale change
+  // gives, must not load and restore the draft again.
+  const restore = useEffectEvent((snapshot: TSnapshot) => onRestore(snapshot));
+
   useEffect(() => {
     if (!userId) return;
     // Let the replacement effect run after React Strict Mode cancels its first
@@ -330,7 +342,7 @@ export function useCreatorSave<
               adapter.fingerprint(restored.snapshot),
           };
           pendingOperationRef.current = true;
-          onRestore(restored.snapshot);
+          restore(restored.snapshot);
           setRecovered(true);
           if (restored.warning) setRecoveryWarning(restored.warning);
         } catch (error) {
@@ -344,7 +356,7 @@ export function useCreatorSave<
     return () => {
       cancelled = true;
     };
-  }, [adapter, documentKey, onRestore, recoveryLifecycle, store, userId]);
+  }, [adapter, documentKey, recoveryLifecycle, store, userId]);
 
   const persist = useCallback(
     async (

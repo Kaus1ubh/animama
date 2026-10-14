@@ -1,0 +1,29 @@
+{
+  "command": {
+    "description": "搜尋要執行的指令...",
+    "title": "指令面板"
+  },
+  "dialog": {
+    "close": "關閉"
+  },
+  "imageCrop": {
+    "empty": "未選擇圖片",
+    "upload": "上傳圖片"
+  },
+  "logo": {
+    "label": "Animama"
+  },
+  "modelSelector": {
+    "providerLogo": "{{provider}} 供應商",
+    "title": "模型選擇器"
+  },
+  "toaster": {
+    "closeToast": "關閉通知",
+    "notifications": "通知"
+  },
+  "waveform": {
+    "idle": "音訊波形閒置",
+    "live": "即時音訊波形",
+    "processing": "正在處理音訊"
+  }
+}

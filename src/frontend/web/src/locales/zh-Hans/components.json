@@ -1,0 +1,29 @@
+{
+  "command": {
+    "description": "搜索要运行的命令...",
+    "title": "命令面板"
+  },
+  "dialog": {
+    "close": "关闭"
+  },
+  "imageCrop": {
+    "empty": "未选择图片",
+    "upload": "上传图片"
+  },
+  "logo": {
+    "label": "Animama"
+  },
+  "modelSelector": {
+    "providerLogo": "{{provider}} 提供商",
+    "title": "模型选择器"
+  },
+  "toaster": {
+    "closeToast": "关闭通知",
+    "notifications": "通知"
+  },
+  "waveform": {
+    "idle": "音频波形空闲",
+    "live": "实时音频波形",
+    "processing": "正在处理音频"
+  }
+}

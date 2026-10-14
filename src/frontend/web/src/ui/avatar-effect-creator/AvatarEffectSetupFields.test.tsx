@@ -2,7 +2,6 @@ import { renderToStaticMarkup } from "@/test/runtime-markup";
 import { describe, expect, it, vi } from "vitest";
 
 import { createDefaultAvatarEffectDocument } from "@/lib/avatar/vfx/editor";
-import { LICENSED_SOUND_NOTE } from "@/lib/content/previewSound";
 
 import { NO_AVATAR_EFFECT_IMAGES } from "./avatarEffectCreatorBehavior";
 import { AvatarEffectSetupFields } from "./AvatarEffectSetupFields";
@@ -10,6 +9,10 @@ import { AvatarEffectSetupFields } from "./AvatarEffectSetupFields";
 vi.mock("@/ui/sound-upload/SoundUploadButton", () => ({
   SoundUploadButton: () => null,
 }));
+
+/** The note for a copy without its built-in effect's licensed sound. */
+const LICENSED_SOUND_NOTE =
+  "The built-in sound plays only with the built-in effect, so this copy has no sound. You can choose one of your own.";
 
 function fields(input: { licensedSoundOmitted: boolean }): string {
   return renderToStaticMarkup(

@@ -7,6 +7,7 @@ import {
 } from "@/lib/memory-entries/anima-folders";
 import { groupEpisodeEntries } from "@/lib/memory-entries/episode-groups";
 import { isEpisodeLogEntry } from "@/lib/memory-entries/protection";
+import { compareDisplayText } from "@animama/product-ui/i18n";
 
 export type MemoryWorkspaceTreeNode =
   | {
@@ -68,10 +69,8 @@ const ANIMA_ROOT_ID = "virtual:animas" as const;
 function compareEntries(left: PyMemoryEntryHeader, right: PyMemoryEntryHeader) {
   if (left.type !== right.type) return left.type === "directory" ? -1 : 1;
   return (
-    left.name.localeCompare(right.name, undefined, {
-      numeric: true,
-      sensitivity: "base",
-    }) || left.path.localeCompare(right.path)
+    compareDisplayText(left.name, right.name) ||
+    left.path.localeCompare(right.path)
   );
 }
 

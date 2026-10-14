@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { toast } from "sonner";
 
 import { createLogger } from "@/lib/logger";
 import {
@@ -46,7 +45,13 @@ import {
 } from "@/lib/speech/pocket/anima-voice-selection";
 import type { PocketAnimaVoiceSelectionContext } from "@/lib/speech/pocket/anima-voice-selection";
 import { DEFAULT_POCKET_VOICE } from "@/lib/speech/pocket/voice-catalog";
+import { browserSpeechLanguage } from "@/lib/speech/speech-language";
 import { usePocketVoiceDownloads } from "@/hooks/use-pocket-voice-downloads";
+import {
+  showPocketVoiceUnavailable,
+  showTtsRuntimeFailure,
+  showTtsUnavailable,
+} from "@/hooks/tts-warnings";
 import {
   usePocketTtsRuntime,
   type PocketTtsCoreEvent,
@@ -269,9 +274,7 @@ export function useTtsPlayback(
       const key = `${runId}:${reason}`;
       if (warnedKeysRef.current.has(key)) return;
       warnedKeysRef.current.add(key);
-      toast.error("Text-to-speech unavailable", {
-        description: message,
-      });
+      showTtsRuntimeFailure(reason, message);
     },
     onAudioStarted: ({ runId, audioContext, audioStartSec }) => {
       emitAudioStarted(runId, "elevenlabs", runSeqRef.current, {
@@ -323,9 +326,7 @@ export function useTtsPlayback(
       const key = `${runId}:${reason}`;
       if (warnedKeysRef.current.has(key)) return;
       warnedKeysRef.current.add(key);
-      toast.error("Text-to-speech unavailable", {
-        description: message,
-      });
+      showTtsRuntimeFailure(reason, message);
     },
     onAudioStarted: ({ runId, audioContext, audioStartSec }) => {
       emitAudioStarted(runId, finalizedProviderRef.current, runSeqRef.current, {
@@ -567,14 +568,13 @@ export function useTtsPlayback(
     [emitAudioEnded],
   );
 
+  /** Warn once per reply; reasons with their own wording need no message. */
   const warnOnceForRun = useCallback(
-    (runId: string, reason: string, message: string) => {
+    (runId: string, reason: string, message?: string) => {
       const key = `${runId}:${reason}`;
       if (warnedKeysRef.current.has(key)) return;
       warnedKeysRef.current.add(key);
-      toast.error("Text-to-speech unavailable", {
-        description: message,
-      });
+      showTtsUnavailable(reason, message);
     },
     [],
   );
@@ -582,7 +582,7 @@ export function useTtsPlayback(
   // Warnings about saved settings (not a single run) show once per app session.
   const warnOncePerSession = useCallback((reason: string, message: string) => {
     if (!claimSessionNotice(reason)) return;
-    toast.warning("Pocket voice unavailable", { description: message });
+    showPocketVoiceUnavailable(reason, message);
   }, []);
 
   const shouldStreamChunksForProvider = useCallback(
@@ -621,38 +621,22 @@ export function useTtsPlayback(
         provider === "browser" &&
         !isBrowserSpeechSynthesisSupported(platform)
       ) {
-        warnOnceForRun(
-          runId,
-          "browser_tts_unsupported",
-          "Speech synthesis is not supported in this browser.",
-        );
+        warnOnceForRun(runId, "browser_tts_unsupported");
         return null;
       }
 
       if (provider === "pocket_tts" && !isPocketTtsSupported()) {
-        warnOnceForRun(
-          runId,
-          "pocket_tts_unsupported",
-          "PocketTTS is not supported in this browser environment.",
-        );
+        warnOnceForRun(runId, "pocket_tts_unsupported");
         return null;
       }
 
       if (provider === "gemini" && !isGeminiTtsSupported()) {
-        warnOnceForRun(
-          runId,
-          "gemini_unsupported",
-          "Gemini TTS needs the Web Audio API, which this browser lacks.",
-        );
+        warnOnceForRun(runId, "gemini_unsupported");
         return null;
       }
 
       if (provider === "elevenlabs" && !isElevenLabsTtsSupported()) {
-        warnOnceForRun(
-          runId,
-          "elevenlabs_unsupported",
-          "ElevenLabs TTS is not supported in this browser environment.",
-        );
+        warnOnceForRun(runId, "elevenlabs_unsupported");
         return null;
       }
 
@@ -739,17 +723,16 @@ export function useTtsPlayback(
 
       const synthesis = getSpeechSynthesisOrNull();
       if (!synthesis) {
-        warnOnceForRun(
-          runId,
-          "browser_tts_missing",
-          "Speech synthesis is not supported in this browser.",
-        );
+        warnOnceForRun(runId, "browser_tts_missing");
         browserQueueRef.current = [];
         return;
       }
 
       const utterance = new SpeechSynthesisUtterance(nextChunk);
       utterance.volume = ttsVolumeRef.current;
+      // A conversation language picks a matching system voice.
+      const speechLanguage = browserSpeechLanguage();
+      if (speechLanguage) utterance.lang = speechLanguage;
       activeUtteranceRef.current = utterance;
       browserSpeakingRef.current = true;
 
@@ -793,11 +776,7 @@ export function useTtsPlayback(
         }
         browserSpeakingRef.current = false;
         browserPlaybackErrorRef.current = true;
-        warnOnceForRun(
-          runId,
-          "browser_tts_error",
-          "Failed to generate browser speech for this response.",
-        );
+        warnOnceForRun(runId, "browser_tts_error");
         drain();
         maybeEmitBrowserAudioEnded(runId, runSeq);
       };
@@ -810,11 +789,7 @@ export function useTtsPlayback(
         }
         browserSpeakingRef.current = false;
         browserPlaybackErrorRef.current = true;
-        warnOnceForRun(
-          runId,
-          "browser_tts_speak_failed",
-          "Failed to play browser speech for this response.",
-        );
+        warnOnceForRun(runId, "browser_tts_speak_failed");
         logger.warn("Playback", "speechSynthesis.speak threw", {
           error: error instanceof Error ? error.message : String(error),
         });
@@ -989,11 +964,7 @@ export function useTtsPlayback(
         } catch (error) {
           if (isAbortError(error)) return;
           pocketPlaybackErrorRef.current = true;
-          warnOnceForRun(
-            runId,
-            "pocket_generation_failed",
-            "PocketTTS failed to synthesize part of this response.",
-          );
+          warnOnceForRun(runId, "pocket_generation_failed");
           logger.warn("Playback", "PocketTTS chunk generation failed", {
             error: error instanceof Error ? error.message : String(error),
           });
@@ -1151,11 +1122,7 @@ export function useTtsPlayback(
       if (prepared.length === 0) return;
       const speechContext = resolveSpeechRuntimeContext(runId);
       if (!speechContext?.animaId) {
-        warnOnceForRun(
-          runId,
-          "elevenlabs_missing_persona",
-          "ElevenLabs TTS requires a anima context for this response.",
-        );
+        warnOnceForRun(runId, "elevenlabs_missing_persona");
         return;
       }
       recordPreparedChunksForAvatar(runId, "elevenlabs", prepared);
@@ -1349,11 +1316,7 @@ export function useTtsPlayback(
       if (provider === "elevenlabs" || provider === "gemini") {
         const speechContext = resolveSpeechRuntimeContext(runId);
         if (!speechContext?.animaId) {
-          warnOnceForRun(
-            runId,
-            `${provider}_missing_persona`,
-            `${provider === "gemini" ? "Gemini" : "ElevenLabs"} TTS requires an Anima context for this response.`,
-          );
+          warnOnceForRun(runId, `${provider}_missing_persona`);
         } else if (isFinalizedServerProvider(provider)) {
           finalizedProviderRef.current = provider;
           prepareFinalizedRun(runId);
@@ -1559,11 +1522,7 @@ export function useTtsPlayback(
       if (provider !== "elevenlabs") return;
       const speechContext = resolveSpeechRuntimeContext(runId);
       if (!speechContext?.animaId) {
-        warnOnceForRun(
-          runId,
-          "elevenlabs_missing_persona",
-          "ElevenLabs TTS requires a anima context for this response.",
-        );
+        warnOnceForRun(runId, "elevenlabs_missing_persona");
         return;
       }
       void startElevenLabsRuntime(runId, speechContext);

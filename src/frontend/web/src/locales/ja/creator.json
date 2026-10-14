@@ -1,0 +1,167 @@
+{
+  "actions": {
+    "cancel": "キャンセル",
+    "tryAgain": "再試行"
+  },
+  "avatar": {
+    "loading": {
+      "model": "モデルを読み込み中…",
+      "setup": "準備中…"
+    },
+    "noRuntimeFile": "選択したアバターモデルにはランタイムファイルがありません。",
+    "notAuthorized": "選択したアバターモデルへのアクセスを許可できませんでした。",
+    "renderFailed": "選択したアバターを表示できませんでした。"
+  },
+  "canvas": {
+    "controls": "プレビューの操作",
+    "guides": "ガイド",
+    "restart": "プレビューを最初から再生",
+    "select": "プレビューの{{label}}",
+    "showGuides": "配置ガイドを表示"
+  },
+  "handoff": {
+    "gesture": "ジェスチャーで使う",
+    "reaction": "リアクションで使う",
+    "useIn": "使用先…"
+  },
+  "import": {
+    "ariaLabel": "クリエイター JSON",
+    "confirm": "ドキュメントをインポート"
+  },
+  "leave": {
+    "busy": {
+      "confirm": "復元データを残して移動",
+      "description": "この{{label}}はまだ保存中です。戻ったときにローカルの復元データを利用できます。",
+      "title": "保存中にこのページを離れますか？"
+    },
+    "dirty": {
+      "confirm": "破棄して続行",
+      "description": "この{{label}}にはローカルで編集した変更があります。破棄すると、これらの変更とブラウザーの復元用下書きが削除されます。保存済みのコンテンツは変更されません。",
+      "title": "編集中の変更を破棄しますか？"
+    },
+    "discardFailed": "下書きを破棄できませんでした。",
+    "discarding": "破棄しています…",
+    "stay": "とどまる"
+  },
+  "load": {
+    "button": "読み込む",
+    "description": "編集できるローカルコンテンツを開きます。",
+    "editable": "編集できるローカルコンテンツ",
+    "empty": "編集できるエフェクトはまだありません。",
+    "loadFailed": "エフェクトを読み込めませんでした。",
+    "loading": "読み込み中…",
+    "noMatches": "一致するエフェクトはありません。",
+    "openFailed": "このエフェクトを開けませんでした。もう一度お試しください。",
+    "opening": "開いています…",
+    "searchLabel": "{{type}}を検索",
+    "searchPlaceholder": "エフェクトを検索",
+    "title": "{{type}}を読み込む",
+    "types": {
+      "avatarEffect": "アバターエフェクト",
+      "particleEffect": "パーティクルエフェクト",
+      "sceneEffect": "シーンエフェクト"
+    }
+  },
+  "modelPreview": {
+    "animaModel": "{{name}}（Anima）",
+    "animasFailed": "Anima を読み込めませんでした。",
+    "avatar": "アバター",
+    "includedFailed": "選択した同梱アバターを準備できませんでした。",
+    "includedListFailed": "同梱アバターを読み込めませんでした。",
+    "noAnima": "アバターでこのエフェクトをプレビューするには、先に Anima を作成してください。",
+    "noAvatar": "選択した Anima には利用できるアバターがありません。",
+    "releaseUnavailable": "選択したアバターのリリースは利用できなくなりました。",
+    "runtimeFailed": "プレビュー用 Anima のランタイムを読み込めませんでした。",
+    "unnamedAnimaModel": "あなたの Anima",
+    "versions": {
+      "equipped": "プレビュー用 Anima に装備中",
+      "included": "同梱アバター"
+    }
+  },
+  "panel": {
+    "authoringTools": "編集ツール",
+    "collapse": "{{label}}を折りたたむ",
+    "expand": "{{label}}を展開",
+    "inspector": "インスペクター",
+    "preview": "プレビュー",
+    "setup": "セットアップ"
+  },
+  "preview": {
+    "duration": "長さ",
+    "durationSeconds": "{{label}}（秒）",
+    "playing": "再生中",
+    "secondsUnit": "秒",
+    "stopped": "停止中",
+    "target": "プレビュー",
+    "title": "プレビュー",
+    "untilStopped": "停止するまで"
+  },
+  "recovery": {
+    "discard": "復元データを破棄",
+    "discardServerDraft": "保持されたサーバーの下書きを破棄",
+    "recovered": "保存されていない{{label}}の変更を復元しました。",
+    "recoveredDraft": "ローカルの下書きを復元しました"
+  },
+  "save": {
+    "retry": "保存を再試行",
+    "save": "保存",
+    "stages": {
+      "hashing": "ハッシュを計算中",
+      "preparing": "準備中",
+      "uploading": "アップロード中",
+      "validating": "検証中"
+    }
+  },
+  "status": {
+    "saved": "保存済み",
+    "saveFailed": "保存に失敗しました",
+    "unsaved": "未保存"
+  },
+  "templateDraft": {
+    "continue": "下書きを続ける",
+    "description": "{{template}}から始めた未保存の{{label}}があります。このまま続けるか、破棄してテンプレートからやり直してください。保存済みのコンテンツは変更されません。",
+    "openFailed": "テンプレートを開けませんでした。",
+    "seedFailed": "テンプレートを開けませんでした: {{reason}}",
+    "title": "未保存の下書きを続けますか？",
+    "useTemplate": "破棄してテンプレートを使う"
+  },
+  "timeline": {
+    "defaultTarget": "クリップのプレビュー",
+    "loadingResources": "プレビュー用のリソースを読み込み中",
+    "pause": "一時停止",
+    "pauseTarget": "{{target}}を一時停止",
+    "play": "再生",
+    "playhead": "現在の再生位置",
+    "playTarget": "{{target}}を再生",
+    "restart": "最初から再生",
+    "restartTarget": "{{target}}を最初から再生",
+    "stop": "停止",
+    "stopTarget": "{{target}}を停止"
+  },
+  "toolbar": {
+    "documentName": "{{type}}の名前",
+    "import": "インポート",
+    "library": "ライブラリ",
+    "moreActions": "その他の操作",
+    "name": "名前",
+    "new": "新規",
+    "newDocument": "新しい{{type}}",
+    "redo": "やり直す",
+    "redoShortcut": "やり直す · {{shortcut}}",
+    "statusDetail": "{{label}}: {{detail}}",
+    "undo": "元に戻す",
+    "undoShortcut": "元に戻す · {{shortcut}}",
+    "viewJson": "JSON を表示"
+  },
+  "unavailable": {
+    "goToCreate": "作成へ移動",
+    "notFound": "この{{label}}が見つかりませんでした。削除されたか、リンクが古くなっている可能性があります。",
+    "openLibrary": "ライブラリを開く",
+    "title": "この{{label}}を開けません",
+    "unavailable": "この{{label}}は利用できません。ライブラリで確認してください。"
+  },
+  "validation": {
+    "count_other": "{{count}} 件の検証の問題",
+    "title": "検証の問題"
+  }
+}

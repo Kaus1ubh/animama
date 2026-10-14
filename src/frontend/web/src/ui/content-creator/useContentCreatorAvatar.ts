@@ -2,11 +2,13 @@
 
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { getI18n } from "react-i18next";
 import type { Object3D } from "three";
 
 import type { RuntimeCatalogEntry } from "@/lib/runtime-content/types";
 import { Avatar } from "@/lib/avatar";
 import { BUILT_IN_AVATAR_MOTION_CATALOG } from "@/lib/avatar/motion/AvatarMotionCatalog";
+import { failureLine, WordedError } from "@/lib/errors/apiError";
 import { createLogger } from "@/lib/logger";
 import { EMPTY_RUNTIME_MEDIA_PROVIDER } from "@/lib/runtime-content/AnimaRuntimeMediaCatalog";
 import type { AnimaRuntimeCatalog } from "@/lib/runtime-content/AnimaRuntimeCatalog";
@@ -63,20 +65,25 @@ export function useContentCreatorAvatar({
     avatarRef.current = avatar;
     setSceneObject(null);
     onAvatarChange?.(null);
-    onStatusChange?.({ state: "loading", message: entry.display_name });
 
+    // Read the active UI Locale when a message is shown; a locale change must
+    // not reload the Avatar.
+    const t = getI18n().getFixedT(null, "creator");
+    // Loading names its step; a ready Avatar needs no message, since the
+    // model picker names the model.
+    onStatusChange?.({ state: "loading", message: t("avatar.loading.setup") });
     const load = async () => {
       const logicalUrl = runtimeContentDeliveryUrl(entry);
       let download: RuntimeContentUrlLease | null = null;
       try {
         if (!logicalUrl) {
-          throw new Error("The selected Avatar Model has no runtime file.");
+          throw new WordedError(t("avatar.noRuntimeFile"));
         }
         download = await runtimeContentDownloadUrl(entry, logicalUrl, {
           signal: controller.signal,
         });
         if (!download) {
-          throw new Error("The selected Avatar Model could not be authorized.");
+          throw new WordedError(t("avatar.notAuthorized"));
         }
         controller.signal.throwIfAborted();
         await avatar.load(
@@ -91,7 +98,10 @@ export function useContentCreatorAvatar({
             if (!cancelled) {
               onStatusChange?.({
                 state: "loading",
-                message: progress.message ?? entry.display_name,
+                message:
+                  progress.phase === "setup"
+                    ? t("avatar.loading.setup")
+                    : t("avatar.loading.model"),
               });
             }
           },
@@ -105,7 +115,7 @@ export function useContentCreatorAvatar({
         avatarRef.current = avatar;
         setSceneObject(avatar.scene);
         onAvatarChange?.(avatar);
-        onStatusChange?.({ state: "ready", message: entry.display_name });
+        onStatusChange?.({ state: "ready", message: null });
         logger.info("Load", "Content Creator avatar loaded", {
           sourceKey: entry.content_revision,
           url: redactUrlForLogging(logicalUrl),
@@ -120,10 +130,7 @@ export function useContentCreatorAvatar({
         if (!cancelled) {
           onStatusChange?.({
             state: "error",
-            message:
-              error instanceof Error
-                ? error.message
-                : "The selected Avatar could not be rendered.",
+            message: failureLine(error, t("avatar.renderFailed")),
           });
           onAvatarChange?.(null);
         }

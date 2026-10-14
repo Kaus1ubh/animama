@@ -1,0 +1,29 @@
+{
+  "command": {
+    "description": "실행할 명령 검색...",
+    "title": "명령 팔레트"
+  },
+  "dialog": {
+    "close": "닫기"
+  },
+  "imageCrop": {
+    "empty": "선택한 이미지 없음",
+    "upload": "이미지 업로드"
+  },
+  "logo": {
+    "label": "Animama"
+  },
+  "modelSelector": {
+    "providerLogo": "{{provider}} 제공자",
+    "title": "모델 선택"
+  },
+  "toaster": {
+    "closeToast": "알림 닫기",
+    "notifications": "알림"
+  },
+  "waveform": {
+    "idle": "오디오 파형 대기 중",
+    "live": "실시간 오디오 파형",
+    "processing": "오디오 처리 중"
+  }
+}

@@ -12,7 +12,13 @@ import {
 import { Link, useBlocker, useNavigate } from "@tanstack/react-router";
 import { useIsMutating } from "@tanstack/react-query";
 import { ArrowLeftIcon } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
+import {
+  apiErrorLine,
+  apiErrorText,
+  readApiError,
+} from "@/lib/errors/apiError";
 import { usePose } from "@/query/hooks/usePoses";
 import { queryKeys } from "@/query/keys";
 import { usePoseCreatorStore } from "@/stores/pose-creator-store";
@@ -59,14 +65,24 @@ export function PoseEditorPage({ poseId }: { poseId: string }) {
 
 type PoseTool = "bones" | "expressions" | "preview";
 
+/**
+ * Why the route could not show its Pose. Text is worded at render so it
+ * follows the UI Locale; a `failed` load keeps unworded English as detail.
+ */
+type PoseLoadError =
+  | { kind: "unavailable" }
+  | { kind: "address" }
+  | { kind: "failed"; error: unknown };
+
 /** Library item editing reuses Pose controls without mounting an Action document. */
 export function PoseEditorWorkspace({ poseId }: { poseId: string }) {
   const apiClient = useProductApiClient();
+  const { t } = useTranslation("pose");
 
   const [session] = useState(() => new PoseEditorSession());
   const [loaded, setLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<PoseLoadError | null>(null);
   const [retry, setRetry] = useState(0);
   const [tool, setTool] = useState<PoseTool>("bones");
   const item = usePose(poseId);
@@ -109,17 +125,12 @@ export function PoseEditorWorkspace({ poseId }: { poseId: string }) {
         if (!current) return;
         setLoading(false);
         setLoaded(success);
-        if (!success)
-          setLoadError(
-            "Pose could not be loaded. Your current work is preserved; retry when the content and Avatar are available.",
-          );
+        if (!success) setLoadError({ kind: "unavailable" });
       })
       .catch((error) => {
         if (!current) return;
         setLoading(false);
-        setLoadError(
-          error instanceof Error ? error.message : "Pose could not be loaded.",
-        );
+        setLoadError({ kind: "failed", error });
       });
     return () => {
       current = false;
@@ -140,9 +151,7 @@ export function PoseEditorWorkspace({ poseId }: { poseId: string }) {
       replace: true,
     }).catch(() => {
       canonicalNavigation.current = null;
-      setLoadError(
-        "The Pose was saved, but its editor address could not be updated. Open the saved item from Library.",
-      );
+      setLoadError({ kind: "address" });
     });
   }, [loaded, navigate, poseId, savedIdentity, session]);
 
@@ -175,7 +184,21 @@ export function PoseEditorWorkspace({ poseId }: { poseId: string }) {
   }, [loaded]);
 
   const editable = loaded && Boolean(activeAvatar) && avatarStatus === "ready";
-  const error = item.error ? "Pose could not be loaded." : loadError;
+  const error = item.error
+    ? t("editor.loadFailed")
+    : loadError?.kind === "unavailable"
+      ? t("editor.loadUnavailable")
+      : loadError?.kind === "address"
+        ? t("editor.addressFailed")
+        : loadError
+          ? apiErrorLine(
+              apiErrorText(
+                readApiError(loadError.error),
+                null,
+                t("editor.loadFailed"),
+              ),
+            )
+          : null;
   const retryPose = async () => {
     setLoadError(null);
     await item.refetch();
@@ -184,7 +207,7 @@ export function PoseEditorWorkspace({ poseId }: { poseId: string }) {
   return (
     <div className="flex h-full min-h-0 flex-col" data-testid="pose-editor">
       <header className="border-border shrink-0 border-b px-3 py-3 lg:px-4">
-        <h1 className="sr-only">Pose editor</h1>
+        <h1 className="sr-only">{t("editor.title")}</h1>
         <fieldset
           disabled={!editable}
           className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_auto] grid-rows-[auto_auto] items-center gap-2 lg:grid-cols-[auto_auto_auto_auto_minmax(120px,1fr)_auto] lg:grid-rows-1 lg:items-start lg:gap-1.5 2xl:gap-3"
@@ -197,10 +220,10 @@ export function PoseEditorWorkspace({ poseId }: { poseId: string }) {
             <Link
               to="/library"
               search={{ section: "actions", action: "poses" }}
-              aria-label="Back to Poses"
+              aria-label={t("editor.back")}
             >
               <ArrowLeftIcon className="size-4" />
-              <span>Poses</span>
+              <span>{t("editor.poses")}</span>
             </Link>
           </Button>
           <PoseCreatorLibrarySection variant="toolbar" hideNew />
@@ -214,7 +237,7 @@ export function PoseEditorWorkspace({ poseId }: { poseId: string }) {
         >
           <p className="text-sm">{error}</p>
           <Button variant="outline" onClick={() => void retryPose()}>
-            Retry pose
+            {t("editor.retry")}
           </Button>
         </div>
       ) : !loaded ? (
@@ -223,8 +246,8 @@ export function PoseEditorWorkspace({ poseId }: { poseId: string }) {
           role="status"
         >
           {loading || item.isPending
-            ? "Loading pose…"
-            : "Choose an Avatar to edit this pose."}
+            ? t("editor.loading")
+            : t("editor.chooseAvatar")}
         </p>
       ) : null}
       <div
@@ -255,7 +278,7 @@ export function PoseEditorWorkspace({ poseId }: { poseId: string }) {
         ) : (
           <>
             <nav
-              aria-label="Pose tools"
+              aria-label={t("editor.tools.label")}
               className="border-border flex shrink-0 gap-1 border-y p-2"
             >
               {(["bones", "expressions", "preview"] as const).map((value) => (
@@ -266,7 +289,11 @@ export function PoseEditorWorkspace({ poseId }: { poseId: string }) {
                   aria-pressed={tool === value}
                   onClick={() => setTool(value)}
                 >
-                  {value[0].toUpperCase() + value.slice(1)}
+                  {value === "bones"
+                    ? t("editor.tools.bones")
+                    : value === "expressions"
+                      ? t("editor.tools.expressions")
+                      : t("editor.tools.preview")}
                 </Button>
               ))}
             </nav>
@@ -293,19 +320,17 @@ export function PoseEditorWorkspace({ poseId }: { poseId: string }) {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Discard pose changes?</DialogTitle>
+            <DialogTitle>{t("editor.discard.title")}</DialogTitle>
             <DialogDescription>
-              {busy
-                ? "A Pose save is still in progress. Leaving closes this editor; check Library for the saved result before trying again."
-                : "This Pose has unsaved changes. Stay to keep editing, or discard them and continue."}
+              {busy ? t("editor.discard.saving") : t("editor.discard.unsaved")}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => blocker.reset?.()}>
-              Stay
+              {t("editor.discard.stay")}
             </Button>
             <Button onClick={() => blocker.proceed?.()}>
-              Discard and continue
+              {t("editor.discard.confirm")}
             </Button>
           </DialogFooter>
         </DialogContent>

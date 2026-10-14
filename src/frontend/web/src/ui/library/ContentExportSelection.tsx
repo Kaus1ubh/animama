@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Search } from "lucide-react";
-import { isNonPortable, NON_PORTABLE_REASON } from "@/lib/content/portability";
+import { useTranslation } from "react-i18next";
+import { useFormatters } from "@animama/product-ui/i18n";
+import { isNonPortable, nonPortableReason } from "@/lib/content/portability";
 import type { LibrarySharingFlow } from "@/lib/content-sharing/types";
 import { Button } from "@/ui/components/button";
 import { Input } from "@/ui/components/input";
@@ -13,14 +15,28 @@ import {
   SharingItemRow,
   SharingRequiredItems,
 } from "./SharingPackageDetails";
-import { sharingKindLabel, sharingSize } from "./sharingPresentation";
+import { sharingKindLabel } from "./sharingPresentation";
 
-const CATEGORIES = ["All", "Avatars", "Actions", "FX"] as const;
+const CATEGORIES = ["all", "avatars", "actions", "fx"] as const;
 
 /** Filtering only changes visible rows; selected identities belong to the flow. */
 export function ContentExportSelection({ flow }: { flow: LibrarySharingFlow }) {
+  const { t } = useTranslation("library");
+  const formatters = useFormatters();
   const [query, setQuery] = useState("");
-  const [category, setCategory] = useState<(typeof CATEGORIES)[number]>("All");
+  const [category, setCategory] = useState<(typeof CATEGORIES)[number]>("all");
+  const categoryLabel = (value: (typeof CATEGORIES)[number]) => {
+    switch (value) {
+      case "all":
+        return t("page.sections.all");
+      case "avatars":
+        return t("page.sections.avatars");
+      case "actions":
+        return t("page.sections.actions");
+      case "fx":
+        return t("page.sections.fx");
+    }
+  };
   const needle = query.trim().toLocaleLowerCase();
   const items = flow.items.filter(
     (item) =>
@@ -28,10 +44,10 @@ export function ContentExportSelection({ flow }: { flow: LibrarySharingFlow }) {
         `${item.name} ${item.description ?? ""}`
           .toLocaleLowerCase()
           .includes(needle)) &&
-      (category === "All" ||
-        (category === "Avatars"
+      (category === "all" ||
+        (category === "avatars"
           ? item.kind === "avatar"
-          : category === "Actions"
+          : category === "actions"
             ? ["gesture", "reaction", "pose", "idle_style"].includes(item.kind)
             : item.kind.endsWith("_effect"))),
   );
@@ -51,33 +67,33 @@ export function ContentExportSelection({ flow }: { flow: LibrarySharingFlow }) {
           disabled={flow.busy}
           className="data-[state=active]:bg-primary/15 min-w-28 rounded-lg"
         >
-          Content
+          {t("sharing.export.modes.content")}
         </TabsTrigger>
         <TabsTrigger
           value="anima"
           disabled={flow.busy}
           className="data-[state=active]:bg-primary/15 min-w-28 rounded-lg"
         >
-          Anima
+          {t("sharing.export.modes.anima")}
         </TabsTrigger>
       </TabsList>
       {flow.inventoryLoading ? (
         <p role="status" className="text-muted-foreground py-4">
-          Loading your Library…
+          {t("sharing.export.loadingLibrary")}
         </p>
       ) : null}
       {flow.inventoryError ? (
         <div role="alert" className="flex flex-wrap items-center gap-3">
           <p className="text-destructive">{flow.inventoryError}</p>
           <Button variant="outline" onClick={flow.refreshInventory}>
-            Retry loading
+            {t("sharing.export.retryLoading")}
           </Button>
         </div>
       ) : null}
       <TabsContent value="anima" className="space-y-5">
         <SharingPrivacyNote />
         <label className="grid gap-2 font-medium">
-          Choose an Anima
+          {t("sharing.export.chooseAnima")}
           <select
             className="bg-background h-14 min-w-0 rounded-xl border px-4 text-base"
             value={flow.animaId ?? ""}
@@ -85,7 +101,7 @@ export function ContentExportSelection({ flow }: { flow: LibrarySharingFlow }) {
             disabled={flow.busy || flow.inventoryLoading}
           >
             <option value="" disabled>
-              Select an Anima
+              {t("sharing.export.selectAnima")}
             </option>
             {flow.animas.map((anima) => (
               <option key={anima.id} value={anima.id}>
@@ -98,7 +114,7 @@ export function ContentExportSelection({ flow }: { flow: LibrarySharingFlow }) {
         !flow.inventoryError &&
         !flow.animas.length ? (
           <p className="text-muted-foreground py-6 text-center">
-            There are no Anima to export yet.
+            {t("sharing.export.noAnimas")}
           </p>
         ) : null}
         {summary?.anima ? (
@@ -116,7 +132,7 @@ export function ContentExportSelection({ flow }: { flow: LibrarySharingFlow }) {
         <div className="grid min-h-60 gap-6 md:grid-cols-[1.5fr_1fr]">
           <section
             className="min-w-0 space-y-3 md:border-r md:pr-6"
-            aria-label="Content selection"
+            aria-label={t("sharing.export.contentSelection")}
           >
             <label className="relative block">
               <Search
@@ -124,8 +140,8 @@ export function ContentExportSelection({ flow }: { flow: LibrarySharingFlow }) {
                 className="text-muted-foreground absolute top-3 left-3 size-4"
               />
               <Input
-                aria-label="Search content"
-                placeholder="Search content"
+                aria-label={t("sharing.export.searchContent")}
+                placeholder={t("sharing.export.searchContent")}
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 className="h-10 pl-9"
@@ -133,7 +149,7 @@ export function ContentExportSelection({ flow }: { flow: LibrarySharingFlow }) {
             </label>
             <div
               className="flex gap-1 overflow-x-auto border-b"
-              aria-label="Content categories"
+              aria-label={t("sharing.export.categories")}
             >
               {CATEGORIES.map((value) => (
                 <button
@@ -143,7 +159,7 @@ export function ContentExportSelection({ flow }: { flow: LibrarySharingFlow }) {
                   onClick={() => setCategory(value)}
                   className={`min-h-10 shrink-0 border-b-2 px-3 text-sm ${value === category ? "border-primary font-medium" : "text-muted-foreground border-transparent"}`}
                 >
-                  {value}
+                  {categoryLabel(value)}
                 </button>
               ))}
             </div>
@@ -177,7 +193,7 @@ export function ContentExportSelection({ flow }: { flow: LibrarySharingFlow }) {
                         id={`non-portable-${item.item_id}`}
                         className="text-muted-foreground block text-xs"
                       >
-                        {NON_PORTABLE_REASON}
+                        {nonPortableReason()}
                       </span>
                     ) : null}
                   </span>
@@ -187,24 +203,28 @@ export function ContentExportSelection({ flow }: { flow: LibrarySharingFlow }) {
               !flow.inventoryError &&
               !items.length ? (
                 <p className="text-muted-foreground p-6 text-center">
-                  No matching content.
+                  {t("sharing.export.noMatches")}
                 </p>
               ) : null}
             </div>
           </section>
-          <section className="min-w-0 space-y-4" aria-label="Your package">
-            <h3 className="text-lg font-semibold">Your package</h3>
+          <section
+            className="min-w-0 space-y-4"
+            aria-label={t("sharing.yourPackage")}
+          >
+            <h3 className="text-lg font-semibold">
+              {t("sharing.yourPackage")}
+            </h3>
             <p className="font-medium">
-              {count} selected {count === 1 ? "item" : "items"}
+              {t("sharing.selectedItems", { count })}
             </p>
             {summary ? (
               <>
                 {summary.required_count > 0 ? (
                   <p>
-                    + {summary.required_count} required{" "}
-                    {summary.required_count === 1
-                      ? "dependency"
-                      : "dependencies"}
+                    {t("sharing.export.plusRequired", {
+                      count: summary.required_count,
+                    })}
                   </p>
                 ) : null}
                 <div className="max-h-56 overflow-y-auto">
@@ -218,15 +238,15 @@ export function ContentExportSelection({ flow }: { flow: LibrarySharingFlow }) {
                     ))}
                 </div>
                 <p className="border-t pt-4 text-sm">
-                  Estimated size{" "}
+                  {t("sharing.export.estimatedSize")}{" "}
                   <span className="float-right font-medium">
-                    {sharingSize(summary.estimated_size_bytes)}
+                    {formatters.fileSize(summary.estimated_size_bytes)}
                   </span>
                 </p>
               </>
             ) : (
               <p className="text-muted-foreground text-sm">
-                Choose at least one item to see its required content.
+                {t("sharing.export.chooseItem")}
               </p>
             )}
           </section>
@@ -234,7 +254,7 @@ export function ContentExportSelection({ flow }: { flow: LibrarySharingFlow }) {
       </TabsContent>
       {flow.summaryLoading ? (
         <p role="status" className="text-muted-foreground text-sm">
-          Checking required content…
+          {t("sharing.export.checkingRequired")}
         </p>
       ) : null}
       {flow.error && !flow.summaryLoading ? (
@@ -244,7 +264,7 @@ export function ContentExportSelection({ flow }: { flow: LibrarySharingFlow }) {
           onClick={flow.refreshSummary}
           disabled={flow.busy}
         >
-          Refresh selection
+          {t("sharing.export.refreshSelection")}
         </Button>
       ) : null}
       <footer className="bg-popover sticky bottom-0 z-10 flex flex-wrap items-center justify-end gap-3 border-t py-4">
@@ -252,7 +272,9 @@ export function ContentExportSelection({ flow }: { flow: LibrarySharingFlow }) {
           <span className="text-muted-foreground text-sm">
             {flow.mode === "anima"
               ? summary?.anima?.display_name
-              : `${flow.selectedIds.size} selected`}
+              : t("sharing.export.selectedCount", {
+                  count: flow.selectedIds.size,
+                })}
           </span>
           <Button
             disabled={
@@ -263,7 +285,7 @@ export function ContentExportSelection({ flow }: { flow: LibrarySharingFlow }) {
             }
             onClick={flow.prepareExport}
           >
-            Review export
+            {t("sharing.export.review")}
           </Button>
         </div>
       </footer>

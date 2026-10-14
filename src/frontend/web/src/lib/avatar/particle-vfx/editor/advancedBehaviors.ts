@@ -1,3 +1,5 @@
+import { getI18n } from "react-i18next";
+
 import { cloneJsonObject, readJsonObject } from "./json";
 import {
   readFiniteNumber,
@@ -5,6 +7,10 @@ import {
   valueRangeToGenerator,
 } from "./numbers";
 import { findBehavior } from "./behaviors";
+import {
+  MISSING_COLOR_GENERATOR_LABEL,
+  UNTYPED_QUARKS_GENERATOR_LABEL,
+} from "./colors";
 import type {
   JsonArray,
   JsonObject,
@@ -31,6 +37,42 @@ export const PARTICLE_VFX_ADVANCED_BEHAVIOR_TYPES = [
   "LimitSpeedOverLife",
   "WidthOverLength",
 ] as const;
+
+/**
+ * Display name for a three.quarks type kept in a draft's `label`. Behaviors the
+ * creator edits use their control names; other types are technical
+ * identifiers and show as stored. `language` defaults to the UI Locale.
+ */
+export function particleVFXQuarksTypeLabel(
+  type: string,
+  language?: string,
+): string {
+  const t = getI18n().getFixedT(language ?? null, "particles");
+  switch (type) {
+    case "SpeedOverLife":
+      return t("behavior.speedOverLife");
+    case "RotationOverLife":
+      return t("behavior.rotationOverLife");
+    case "Rotation3DOverLife":
+      return t("behavior.rotation3D.title");
+    case "OrbitOverLife":
+      return t("behavior.orbit.title");
+    case "Noise":
+      return t("behavior.noise.title");
+    case "TurbulenceField":
+      return t("behavior.turbulence.title");
+    case "LimitSpeedOverLife":
+      return t("behavior.limitSpeed.title");
+    case "WidthOverLength":
+      return t("behavior.widthOverLength");
+    case UNTYPED_QUARKS_GENERATOR_LABEL:
+      return t("generator.untyped");
+    case MISSING_COLOR_GENERATOR_LABEL:
+      return t("color.missingGenerator");
+    default:
+      return type;
+  }
+}
 
 export function createConstantValueGeneratorDraft(
   value: number,
@@ -103,7 +145,10 @@ export function readValueGeneratorDraft(
   return {
     mode: "unsupported",
     raw: cloneJsonObject(object),
-    label: typeof object.type === "string" ? object.type : "Unsupported",
+    label:
+      typeof object.type === "string"
+        ? object.type
+        : UNTYPED_QUARKS_GENERATOR_LABEL,
     fallbackValue: readGeneratorFallbackValue(object, fallbackValue),
   };
 }

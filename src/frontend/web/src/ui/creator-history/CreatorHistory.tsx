@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { getI18n } from "react-i18next";
 
 export type CreatorHistoryController<T> = {
   canUndo: boolean;
@@ -32,9 +33,16 @@ export function getCreatorHistoryShortcutLabels(
 ): { undo: string; redo: string } {
   const platform = `${os ?? ""} ${browserPlatformHint}`.toLowerCase();
   const apple = /darwin|mac|iphone|ipad|ipod/.test(platform);
+  // Key names stay as the OS shows them; only the alternative is worded.
+  const t = getI18n().getFixedT(null, "actionEditor");
   return apple
     ? { undo: "⌘Z", redo: "⇧⌘Z" }
-    : { undo: "Ctrl+Z", redo: "Ctrl+Shift+Z or Ctrl+Y" };
+    : {
+        undo: "Ctrl+Z",
+        redo: t("history.eitherShortcut", {
+          shortcuts: ["Ctrl+Shift+Z", "Ctrl+Y"],
+        }),
+      };
 }
 
 export function createCreatorHistoryState<T>(value: T): CreatorHistoryState<T> {

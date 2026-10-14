@@ -1,6 +1,8 @@
 import { useProductApiClient } from "@animama/product-ui";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import type { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { preferredClientLocale } from "@animama/product-ui/chat";
@@ -27,9 +29,16 @@ const AUTOMATIC_REGION = "__automatic__";
 const OPERATOR_INTERVAL = "__operator__";
 const SELECT_TRIGGER_CLASS_NAME = "w-56";
 
-function formatHours(hours: number): string {
-  if (hours < 1) return `${Math.round(hours * 60)} minutes`;
-  return hours === 1 ? "1 hour" : `${hours} hours`;
+/** Reminder interval choice, e.g. "Every 30 minutes" or "Every 2 hours". */
+function reminderIntervalLabel(
+  t: TFunction<"settings">,
+  hours: number,
+): string {
+  if (hours < 1)
+    return t("safety.reminder.everyMinutes", {
+      count: Math.round(hours * 60),
+    });
+  return t("safety.reminder.everyHours", { count: hours });
 }
 
 type SafetySettingsSectionProps = {
@@ -48,6 +57,7 @@ export function SafetySettingsSection({
   disabled = false,
 }: SafetySettingsSectionProps) {
   const apiClient = useProductApiClient();
+  const { t } = useTranslation(["settings", "safety"]);
 
   const ownerId = useRuntimeCacheKey();
   const capabilities = useRuntimeCapabilities();
@@ -73,16 +83,16 @@ export function SafetySettingsSection({
     setIsSaving(true);
     void updateUserPreferences({ safety: patch })
       .then(() => resources.refetch())
-      .catch(() => toast.error("Safety settings could not be saved."))
+      .catch(() => toast.error(t("safety.saveFailed")))
       .finally(() => setIsSaving(false));
   };
 
   if (safetyCapability && !safetyCapability.enabled) {
     return (
-      <SettingsGroup title="Safety">
+      <SettingsGroup title={t("sections.safety")}>
         <SettingsRow
-          label="Safety features"
-          description="The operator of this installation has turned off the AI notice and crisis support."
+          label={t("safety.disabled.label")}
+          description={t("safety.disabled.description")}
         >
           <SafetyProtocolDialog className="self-start text-sm underline underline-offset-2" />
         </SettingsRow>
@@ -94,15 +104,18 @@ export function SafetySettingsSection({
   const region = safety?.crisis_resource_region ?? null;
   const reminderHours = safety?.reminder_hours ?? null;
   // With no owner preference, the server resolves the region from this locale.
+  // Region names are verified backend data and stay as sent.
   const automaticLabel =
     resources.data && !resources.data.preferred_region
-      ? `Automatic (${resources.data.resolved.label})`
-      : "Automatic";
+      ? t("safety.region.automaticResolved", {
+          region: resources.data.resolved.label,
+        })
+      : t("safety.region.automatic");
 
   return (
-    <SettingsGroup title="Safety">
+    <SettingsGroup title={t("sections.safety")}>
       <SettingsRow
-        label="Crisis resources region"
+        label={t("safety.region.label")}
         control={
           <Select
             value={region ?? AUTOMATIC_REGION}
@@ -116,9 +129,9 @@ export function SafetySettingsSection({
           >
             <SelectTrigger
               className={SELECT_TRIGGER_CLASS_NAME}
-              aria-label="Crisis resources region"
+              aria-label={t("safety.region.label")}
             >
-              <SelectValue placeholder="Automatic" />
+              <SelectValue placeholder={t("safety.region.automatic")} />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={AUTOMATIC_REGION}>{automaticLabel}</SelectItem>
@@ -134,7 +147,7 @@ export function SafetySettingsSection({
 
       {safetyCapability?.ai_notice_enabled !== false ? (
         <SettingsRow
-          label="AI reminder during long conversations"
+          label={t("safety.reminder.label")}
           control={
             <Select
               value={
@@ -152,7 +165,7 @@ export function SafetySettingsSection({
             >
               <SelectTrigger
                 className={SELECT_TRIGGER_CLASS_NAME}
-                aria-label="AI reminder interval"
+                aria-label={t("safety.reminder.ariaLabel")}
               >
                 <SelectValue />
               </SelectTrigger>
@@ -166,7 +179,7 @@ export function SafetySettingsSection({
                         : String(hours)
                     }
                   >
-                    Every {formatHours(hours)}
+                    {reminderIntervalLabel(t, hours)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -176,7 +189,7 @@ export function SafetySettingsSection({
       ) : null}
 
       <SettingsRow
-        label="Safety and crisis protocol"
+        label={t("safety:protocol.title")}
         control={
           <SafetyProtocolDialog className="text-sm underline underline-offset-2" />
         }

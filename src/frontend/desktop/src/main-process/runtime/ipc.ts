@@ -12,6 +12,7 @@ import {
   type FeaturePackId,
   type UpdateStatus,
 } from "../../../../shared/desktop-runtime.js";
+import { isUiLocale, type UiLocale } from "@animama/runtime-contracts/locale";
 import { RuntimeError, runtimeErrorCode } from "./errors.js";
 import { validateCredentialChanges } from "./vault.js";
 import { packId } from "../feature-packs/catalog.js";
@@ -34,6 +35,8 @@ export type RuntimeIpcOperations = {
   checkUpdate?(): Promise<UpdateStatus>;
   downloadUpdate?(): Promise<UpdateStatus>;
   restartUpdate?(): Promise<void>;
+  /** Record the UI Locale the app applied, for the shell's own text. */
+  setLocale?(locale: UiLocale): void;
 };
 type Caller = {
   contents: WebContents;
@@ -50,8 +53,11 @@ export class RuntimeIpcCallers {
     allowedUrl: string,
   ): void {
     const contents = window.webContents;
+    const registered = this.callers.has(contents.id);
     this.callers.set(contents.id, { contents, role, allowedUrl });
-    contents.once("destroyed", () => this.callers.delete(contents.id));
+    // A re-registered window (a reloaded recovery page) keeps its one cleanup.
+    if (!registered)
+      contents.once("destroyed", () => this.callers.delete(contents.id));
   }
   require(event: IpcMainInvokeEvent, allowRecovery = false): void {
     const caller = this.callers.get(event.sender.id);
@@ -192,5 +198,12 @@ export function installRuntimeIpc(
     if (!operations.restartUpdate)
       throw new RuntimeError("feature_unavailable");
     return operations.restartUpdate();
+  });
+  // Only the main app window applies a locale; PiP, Quick Chat and the
+  // recovery page never do. Only canonical tags reach the cache and the menu.
+  handle("locale:set", 1, false, (locale) => {
+    if (!isUiLocale(locale)) throw new RuntimeError("locale_invalid");
+    if (!operations.setLocale) throw new RuntimeError("feature_unavailable");
+    return operations.setLocale(locale);
   });
 }

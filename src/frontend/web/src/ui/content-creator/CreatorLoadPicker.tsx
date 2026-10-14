@@ -1,6 +1,8 @@
 import { useNavigate } from "@tanstack/react-router";
 import { FolderOpenIcon } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 
 import type { PyCatalogViewItem } from "@/lib/content/catalogTypes";
 import {
@@ -36,11 +38,20 @@ export function creatorLoadItems(
   );
 }
 
-const labels: Record<CreatorEffectType, string> = {
-  particle_effect: "Particle FX",
-  avatar_effect: "Avatar FX",
-  scene_effect: "Scene FX",
-};
+/** Short display name for an effect kind (the creator toolbar's type label). */
+function effectTypeLabel(
+  t: TFunction<"creator">,
+  contentType: CreatorEffectType,
+): string {
+  switch (contentType) {
+    case "particle_effect":
+      return t("load.types.particleEffect");
+    case "avatar_effect":
+      return t("load.types.avatarEffect");
+    case "scene_effect":
+      return t("load.types.sceneEffect");
+  }
+}
 
 /** Keep normal router navigation so each creator's unsaved-change blocker applies. */
 export function creatorEffectEditTarget(
@@ -74,6 +85,7 @@ export function CreatorLoadPicker({
   contentType: CreatorEffectType;
   disabled?: boolean;
 }) {
+  const { t } = useTranslation("creator");
   const [open, setOpen] = useState(false);
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -83,11 +95,13 @@ export function CreatorLoadPicker({
           variant="outline"
           disabled={disabled}
           className="dark:bg-background dark:hover:bg-accent col-start-2 row-start-1 size-11 rounded-xl p-0 shadow-sm lg:col-start-3 lg:h-12 lg:w-12 2xl:w-auto 2xl:min-w-[88px] 2xl:px-4"
-          aria-label={`Load ${labels[contentType]}`}
-          title="Load"
+          aria-label={t("load.title", {
+            type: effectTypeLabel(t, contentType),
+          })}
+          title={t("load.button")}
         >
           <FolderOpenIcon className="size-4" />
-          <span className="hidden 2xl:inline">Load</span>
+          <span className="hidden 2xl:inline">{t("load.button")}</span>
         </Button>
       </PopoverTrigger>
       <PopoverContent
@@ -112,6 +126,8 @@ function CreatorLoadContents({
   contentType: CreatorEffectType;
   onLoaded: () => void;
 }) {
+  const { t } = useTranslation("creator");
+  const typeLabel = effectTypeLabel(t, contentType);
   const [search, setSearch] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loadingItemId, setLoadingItemId] = useState<string | null>(null);
@@ -146,7 +162,7 @@ function CreatorLoadContents({
       await navigate(creatorEffectEditTarget(contentType, itemId));
       onLoaded();
     } catch {
-      setError("This effect could not be opened. Try again.");
+      setError(t("load.openFailed"));
     } finally {
       setLoadingItemId(null);
     }
@@ -154,26 +170,26 @@ function CreatorLoadContents({
   return (
     <div className="space-y-3">
       <div>
-        <p className="text-sm font-semibold">Load {labels[contentType]}</p>
-        <p className="text-muted-foreground text-xs">
-          Open your editable Local content.
+        <p className="text-sm font-semibold">
+          {t("load.title", { type: typeLabel })}
         </p>
+        <p className="text-muted-foreground text-xs">{t("load.description")}</p>
       </div>
       <Input
         value={search}
         onChange={(event) => setSearch(event.target.value)}
-        placeholder="Search effects"
-        aria-label={`Search ${labels[contentType]}`}
+        placeholder={t("load.searchPlaceholder")}
+        aria-label={t("load.searchLabel", { type: typeLabel })}
       />
       <div className="max-h-80 space-y-1 overflow-y-auto">
         {query.isPending ? (
           <p className="text-muted-foreground p-3 text-xs" role="status">
-            Loading…
+            {t("load.loading")}
           </p>
         ) : query.isError ? (
           <div className="space-y-2 p-2">
             <p className="text-destructive text-xs" role="alert">
-              Effects could not be loaded.
+              {t("load.loadFailed")}
             </p>
             <Button
               type="button"
@@ -181,7 +197,7 @@ function CreatorLoadContents({
               size="sm"
               onClick={() => void query.refetch()}
             >
-              Try again
+              {t("actions.tryAgain")}
             </Button>
           </div>
         ) : items.length ? (
@@ -198,15 +214,15 @@ function CreatorLoadContents({
                 <span className="block truncate text-sm">{item.name}</span>
                 <span className="text-muted-foreground text-2xs block">
                   {loadingItemId === item.item_id
-                    ? "Opening…"
-                    : "Editable Local content"}
+                    ? t("load.opening")
+                    : t("load.editable")}
                 </span>
               </span>
             </Button>
           ))
         ) : (
           <p className="text-muted-foreground rounded-lg border border-dashed p-3 text-center text-xs">
-            {search ? "No matching effects." : "No editable effects yet."}
+            {search ? t("load.noMatches") : t("load.empty")}
           </p>
         )}
       </div>

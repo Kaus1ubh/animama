@@ -10,6 +10,7 @@ import {
   Undo2,
 } from "lucide-react";
 import { lazy, Suspense, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import type { PyMemoryEntryResponse } from "@/lib/content/catalogTypes";
 import type { MemoryEntryDraft } from "@/lib/memory-entries/workspace-drafts";
@@ -68,19 +69,21 @@ export function MemoryManualPanel({
   onDelete: () => void;
   onOpenManager: () => void;
 }) {
+  const { t } = useTranslation("memory");
   const [confirmDiscard, setConfirmDiscard] = useState(false);
 
   if (isLoading) {
     return (
       <div className="text-muted-foreground flex min-h-0 flex-1 items-center justify-center text-sm">
-        <Loader2 className="mr-2 size-4 animate-spin" /> Loading editor...
+        <Loader2 className="mr-2 size-4 animate-spin" />{" "}
+        {t("shared.loadingEditor")}
       </div>
     );
   }
   if (isError) {
     return (
       <div className="text-destructive flex min-h-0 flex-1 items-center justify-center p-6 text-center text-sm">
-        Failed to load this memory file.
+        {t("shared.fileLoadFailed")}
       </div>
     );
   }
@@ -88,7 +91,7 @@ export function MemoryManualPanel({
     return (
       <div className="text-muted-foreground flex min-h-0 flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
         <FileText className="size-8" />
-        <p className="text-sm">Select a memory file to edit it.</p>
+        <p className="text-sm">{t("manual.selectFile")}</p>
       </div>
     );
   }
@@ -99,19 +102,19 @@ export function MemoryManualPanel({
         <div>
           <p className="text-foreground text-sm font-medium">
             {isEpisodeLogEntry(entry)
-              ? "Generated episode"
+              ? t("manual.generatedEpisode")
               : isReservedUserMemoryEntry(entry)
-                ? "Reserved path"
-                : "Read-only memory"}
+                ? t("manual.reservedPath")
+                : t("manual.readOnly")}
           </p>
           <p className="mt-1 max-w-sm text-xs">
             {isReservedUserMemoryEntry(entry)
-              ? "The animas path is reserved for Anima identities. Rename or move this file out of it before editing."
-              : "This file can be previewed but cannot be changed manually."}
+              ? t("manual.reservedHint")
+              : t("manual.readOnlyHint")}
           </p>
         </div>
         <Button type="button" variant="outline" onClick={onOpenManager}>
-          <Bot className="size-4" /> Open Memory Manager
+          <Bot className="size-4" /> {t("manual.openManager")}
         </Button>
       </div>
     );
@@ -122,26 +125,31 @@ export function MemoryManualPanel({
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="border-border/40 shrink-0 space-y-2 border-b p-4">
         <div className="flex items-center justify-between gap-3">
-          <Label htmlFor="memory-workspace-description">Description</Label>
-          {dirty ? <span className="text-warning text-xs">Unsaved</span> : null}
+          <Label htmlFor="memory-workspace-description">
+            {t("shared.description")}
+          </Label>
+          {dirty ? (
+            <span className="text-warning text-xs">{t("manual.unsaved")}</span>
+          ) : null}
         </div>
         <Input
           id="memory-workspace-description"
           value={draft.description}
           onChange={(event) => onDescriptionChange(event.target.value)}
-          placeholder="Optional description"
+          placeholder={t("shared.optionalDescription")}
         />
       </div>
       {draft.conflict ? (
         <div className="border-warning/30 bg-warning/10 text-warning border-b px-4 py-3 text-sm">
-          This file has a newer server version. Your draft is preserved.
+          {t("shared.conflictNotice")}
         </div>
       ) : null}
       <div className="min-h-0 flex-1 overflow-hidden">
         <Suspense
           fallback={
             <div className="text-muted-foreground flex h-full items-center justify-center text-sm">
-              <Loader2 className="mr-2 size-4 animate-spin" /> Loading editor...
+              <Loader2 className="mr-2 size-4 animate-spin" />{" "}
+              {t("shared.loadingEditor")}
             </div>
           }
         >
@@ -152,7 +160,7 @@ export function MemoryManualPanel({
         {draft.conflict ? (
           <>
             <Button type="button" variant="outline" onClick={onUseLatest}>
-              <RefreshCw className="size-4" /> Use latest
+              <RefreshCw className="size-4" /> {t("shared.useLatest")}
             </Button>
             <Button
               type="button"
@@ -164,7 +172,7 @@ export function MemoryManualPanel({
               ) : (
                 <Save className="size-4" />
               )}
-              Save over latest
+              {t("manual.saveOverLatest")}
             </Button>
           </>
         ) : (
@@ -178,7 +186,7 @@ export function MemoryManualPanel({
             ) : (
               <Save className="size-4" />
             )}
-            Save
+            {t("shared.save")}
           </Button>
         )}
         <Button
@@ -187,7 +195,7 @@ export function MemoryManualPanel({
           disabled={!dirty}
           onClick={() => setConfirmDiscard(true)}
         >
-          <Undo2 className="size-4" /> Discard
+          <Undo2 className="size-4" /> {t("shared.discard")}
         </Button>
         <Button
           type="button"
@@ -200,21 +208,21 @@ export function MemoryManualPanel({
           ) : (
             <Trash2 className="size-4" />
           )}
-          Delete
+          {t("shared.delete")}
         </Button>
       </div>
 
       <Dialog open={confirmDiscard} onOpenChange={setConfirmDiscard}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Discard changes?</DialogTitle>
+            <DialogTitle>{t("manual.discard.title")}</DialogTitle>
             <DialogDescription>
-              Your unsaved changes to {entry.path} will be removed.
+              {t("manual.discard.description", { path: entry.path })}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmDiscard(false)}>
-              Cancel
+              {t("shared.cancel")}
             </Button>
             <Button
               onClick={() => {
@@ -222,7 +230,7 @@ export function MemoryManualPanel({
                 setConfirmDiscard(false);
               }}
             >
-              Discard
+              {t("shared.discard")}
             </Button>
           </DialogFooter>
         </DialogContent>

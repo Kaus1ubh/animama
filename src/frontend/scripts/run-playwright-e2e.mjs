@@ -12,6 +12,7 @@ import { chromium } from "playwright";
 import {
   acquireMainStackLock,
   assertExecutableExists,
+  checkDevelopmentApplication,
   checkHttpHealth,
   createExclusiveDirectory,
   ensurePrivateDirectory,
@@ -43,6 +44,8 @@ const frontendRoot = path.resolve(
 const repositoryRoot = path.resolve(frontendRoot, "../..");
 const generatedRoot = path.join(repositoryRoot, ".animama-e2e");
 const playwrightConfigPath = path.join(frontendRoot, "playwright.config.ts");
+/** Runner flag selecting the pseudo-locale smoke suite instead of the journeys. */
+const PSEUDO_LOCALE_FLAG = "--pseudo-locale";
 
 function relativeToRepository(absolutePath) {
   return path.relative(repositoryRoot, absolutePath);
@@ -89,9 +92,16 @@ function waitForChild(child) {
 async function main() {
   process.umask(0o077);
 
-  const playwrightArguments = process.argv
+  const runnerArguments = process.argv
     .slice(2)
     .filter((value) => value !== "--");
+  // The pseudo-locale smoke is its own suite (see playwright.config.ts); the
+  // runner always sets the selection so an inherited value cannot switch it.
+  const pseudoLocale = runnerArguments.includes(PSEUDO_LOCALE_FLAG);
+  const suite = pseudoLocale ? "pseudo" : "journeys";
+  const playwrightArguments = runnerArguments.filter(
+    (value) => value !== PSEUDO_LOCALE_FLAG,
+  );
   // Listing is offline: no browser, health request, stack mutation or account setup.
   if (playwrightArguments.includes("--list")) {
     const directory = await mkdtemp(
@@ -116,6 +126,7 @@ async function main() {
             ...process.env,
             ANIMAMA_E2E_WEB_URL: "http://localhost:1",
             ANIMAMA_E2E_PLAYWRIGHT_DIR: directory,
+            ANIMAMA_E2E_SUITE: suite,
           },
         },
       );
@@ -126,7 +137,9 @@ async function main() {
     return;
   }
   const headed = playwrightArguments.includes("--headed");
-  const runId = formatGeneratedId(process.env.ANIMAMA_E2E_RUN_TYPE ?? "run");
+  const runId = formatGeneratedId(
+    process.env.ANIMAMA_E2E_RUN_TYPE ?? (pseudoLocale ? "pseudo" : "run"),
+  );
   const runDirectory = path.join(generatedRoot, "runs", runId);
   const artifacts = createArtifactPaths(runDirectory);
   const target = resolveE2eEnvironment();
@@ -193,6 +206,7 @@ async function main() {
       chromium: null,
     },
     execution: {
+      suite,
       headed,
       journeyVideo: headed ? "on" : "retain-on-failure",
     },
@@ -264,6 +278,14 @@ async function main() {
         url: `${target.webUrl}/health`,
       }),
     ];
+    if (pseudoLocale) {
+      manifest.preflight.push(
+        await checkDevelopmentApplication({
+          url: `${target.webUrl}/`,
+          buildMode: process.env.ANIMAMA_WEB_BUILD_MODE,
+        }),
+      );
+    }
     await validateLocalContentRoot(localContentRoot, { repositoryRoot });
     manifest.preflight.push({
       name: "Local content root",
@@ -296,6 +318,7 @@ async function main() {
       ANIMAMA_E2E_WEB_URL: target.webUrl,
       ANIMAMA_E2E_API_URL: target.apiUrl,
       ANIMAMA_E2E_HEADED: headed ? "1" : "0",
+      ANIMAMA_E2E_SUITE: suite,
     };
     // These runs deliberately use Playwright's colored status reporter.
     // Playwright forces color for its workers, so inheriting NO_COLOR would

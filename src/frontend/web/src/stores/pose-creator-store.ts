@@ -2,6 +2,7 @@
 
 import { VRMHumanBoneList, type VRMHumanBoneName } from "@pixiv/three-vrm";
 import { Euler, MathUtils, Quaternion } from "three";
+import { getI18n } from "react-i18next";
 import { create } from "zustand";
 import { convertPoseQuaternionBasis } from "@/lib/avatar/poses/poseRetargeting";
 
@@ -2524,6 +2525,17 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
         undoGroup: null,
       }),
   }),
+);
+
+// Clip issues are worded when validated, so a UI Locale change validates the
+// clip again. The entrypoints create i18n before this module loads.
+getI18n().on("languageChanged", () =>
+  usePoseCreatorStore.setState((state) => ({
+    clipDraft: withPoseCreatorClipValidation(
+      state.clipDraft,
+      POSE_CREATOR_CLIP_VALIDATION_OPTIONS,
+    ),
+  })),
 );
 
 /** Pose Undo is unavailable while a grouped interaction is still active. */

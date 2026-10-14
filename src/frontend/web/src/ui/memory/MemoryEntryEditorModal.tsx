@@ -8,6 +8,7 @@ import {
   useState,
   type ComponentProps,
 } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import type { PyMemoryEntryResponse } from "@/lib/content/catalogTypes";
@@ -18,7 +19,6 @@ import {
 import {
   canDeleteMemoryEntry,
   canEditMemoryEntry,
-  BLANK_ANIMA_IDENTITY_MESSAGE,
   isBlankAnimaIdentityDraft,
 } from "@/lib/memory-entries/protection";
 import {
@@ -69,6 +69,7 @@ export function MemoryEntryEditorModal({
   onClose,
   onCloseAutoFocus,
 }: MemoryEntryEditorModalProps) {
+  const { t } = useTranslation("memory");
   const hasSelection = Boolean(entryId || path);
   const byIdQuery = useMemoryEntry(entryId, {
     enabled: hasSelection && Boolean(entryId),
@@ -130,7 +131,7 @@ export function MemoryEntryEditorModal({
     if (!entry || !draft) return;
     if (!canEditMemoryEntry(entry)) return;
     if (isBlankAnimaIdentityDraft(entry, draftContent)) {
-      toast.error(BLANK_ANIMA_IDENTITY_MESSAGE);
+      toast.error(t("shared.blankIdentity"));
       return;
     }
 
@@ -150,19 +151,21 @@ export function MemoryEntryEditorModal({
       });
       setDraft(createMemoryEntryDraft(updated));
       onEntryChanged?.(updated);
-      toast.success(forceLatestVersion ? "Draft saved." : "Memory saved.");
+      toast.success(
+        forceLatestVersion ? t("shared.draftSaved") : t("shared.memorySaved"),
+      );
     } catch (error) {
       if (isMemoryEntryConflict(error)) {
         setDraft((current) =>
           current ? { ...current, conflict: true } : current,
         );
         await refetchCurrent();
-        toast.error("This memory changed elsewhere.", {
-          description: "Your draft is still open.",
+        toast.error(t("shared.changedElsewhere"), {
+          description: t("shared.draftStillOpen"),
         });
         return;
       }
-      toast.error("Failed to save memory.", {
+      toast.error(t("shared.saveFailed"), {
         description: memoryEntryErrorMessage(error),
       });
     }
@@ -176,10 +179,10 @@ export function MemoryEntryEditorModal({
         expectedVersion: entry.version,
         recursive: false,
       });
-      toast.success("Memory entry deleted.");
+      toast.success(t("editor.deleted"));
       onClose();
     } catch (error) {
-      toast.error("Failed to delete memory entry.", {
+      toast.error(t("editor.deleteFailed"), {
         description: memoryEntryErrorMessage(error),
       });
     }
@@ -199,21 +202,23 @@ export function MemoryEntryEditorModal({
       >
         <div className="border-border/70 flex shrink-0 flex-col border-b p-4">
           <DialogHeader className="pr-10">
-            <DialogTitle>{entry?.path ?? "Memory file"}</DialogTitle>
+            <DialogTitle>
+              {entry?.path ?? t("editor.fallbackTitle")}
+            </DialogTitle>
           </DialogHeader>
           {entry ? (
             <div className="mt-3 max-w-3xl space-y-2">
               {readOnly ? (
                 <>
-                  <Label>Description</Label>
+                  <Label>{t("shared.description")}</Label>
                   <p className="text-muted-foreground text-sm">
-                    {entry.description || "No description"}
+                    {entry.description || t("shared.noDescription")}
                   </p>
                 </>
               ) : (
                 <>
                   <Label htmlFor="memory-entry-editor-description">
-                    Description
+                    {t("shared.description")}
                   </Label>
                   <Input
                     id="memory-entry-editor-description"
@@ -221,7 +226,7 @@ export function MemoryEntryEditorModal({
                     onChange={(event) =>
                       setDraftDescription(event.target.value)
                     }
-                    placeholder="Optional description"
+                    placeholder={t("shared.optionalDescription")}
                   />
                 </>
               )}
@@ -232,23 +237,23 @@ export function MemoryEntryEditorModal({
         {isLoading ? (
           <div className="text-muted-foreground flex flex-1 items-center justify-center text-sm">
             <Loader2 className="mr-2 size-4 animate-spin" />
-            Loading file...
+            {t("editor.loadingFile")}
           </div>
         ) : isError || !entry ? (
           <div className="text-destructive flex flex-1 items-center justify-center text-sm">
-            Failed to load this memory file.
+            {t("shared.fileLoadFailed")}
           </div>
         ) : (
           <>
             {conflict && !readOnly ? (
               <div className="border-warning/30 bg-warning/10 text-warning border-b px-4 py-3 text-sm">
-                This file has a newer server version. Your draft is preserved.
+                {t("shared.conflictNotice")}
               </div>
             ) : null}
             {readOnly ? (
               <div className="flex min-h-0 flex-1 flex-col">
                 <div className="border-border/70 bg-muted/20 text-muted-foreground border-b px-4 py-2 text-xs font-medium tracking-wide uppercase">
-                  Preview
+                  {t("shared.preview")}
                 </div>
                 <MemoryMarkdownPreview
                   value={draftContent}
@@ -261,7 +266,7 @@ export function MemoryEntryEditorModal({
                   fallback={
                     <div className="text-muted-foreground flex flex-1 items-center justify-center text-sm">
                       <Loader2 className="mr-2 size-4 animate-spin" />
-                      Loading editor...
+                      {t("shared.loadingEditor")}
                     </div>
                   }
                 >
@@ -279,7 +284,7 @@ export function MemoryEntryEditorModal({
                           variant="outline"
                           onClick={handleUseLatest}
                         >
-                          Use latest
+                          {t("shared.useLatest")}
                         </Button>
                         <Button
                           type="button"
@@ -291,7 +296,7 @@ export function MemoryEntryEditorModal({
                           ) : (
                             <Save className="size-4" />
                           )}
-                          Save draft over latest
+                          {t("editor.saveDraftOverLatest")}
                         </Button>
                       </>
                     ) : (
@@ -305,7 +310,7 @@ export function MemoryEntryEditorModal({
                         ) : (
                           <Save className="size-4" />
                         )}
-                        Save
+                        {t("shared.save")}
                       </Button>
                     )}
                     <Button
@@ -321,7 +326,7 @@ export function MemoryEntryEditorModal({
                       ) : (
                         <Trash2 className="size-4" />
                       )}
-                      Delete
+                      {t("shared.delete")}
                     </Button>
                   </div>
                 </div>

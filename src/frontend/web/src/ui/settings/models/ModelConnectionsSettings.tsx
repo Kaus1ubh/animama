@@ -1,5 +1,6 @@
 import { useId, useState } from "react";
 import { Info, Plus } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import type {
@@ -51,6 +52,8 @@ import {
   modelConfigurationErrorCode,
   modelConfigurationErrorMessage,
   modelInUseUsage,
+  modelLocationLabel,
+  modelProviderPurpose,
   modelSettingsAvailability,
   removalConsequences,
   removalUsageSummary,
@@ -106,6 +109,7 @@ export function ModelConnectionsSettings({
   disabled: boolean;
   defaultTab?: ModelLocation;
 }) {
+  const { t } = useTranslation("models");
   const capabilities = useRuntimeCapabilities();
   const { modelConfiguration: enabled } = modelSettingsAvailability(
     capabilities.data,
@@ -188,7 +192,9 @@ export function ModelConnectionsSettings({
     }
     setRemoval(null);
     toast.success(
-      target.kind === "connection" ? "Connection removed." : "Model removed.",
+      target.kind === "connection"
+        ? t("connections.removed")
+        : t("ownerModel.removed"),
     );
     const env =
       target.kind === "connection" ? savedKey(target.connection) : null;
@@ -214,7 +220,7 @@ export function ModelConnectionsSettings({
   if (connections.isError)
     return (
       <p className="text-muted-foreground py-3 text-sm" role="status">
-        Model connections could not be loaded.
+        {t("connections.loadFailed")}
       </p>
     );
   if (!connections.isSuccess) return null;
@@ -271,11 +277,13 @@ export function ModelConnectionsSettings({
                     disabled={saving}
                     onClick={onCancel}
                   >
-                    Cancel
+                    {t("actions.cancel")}
                   </Button>
                 ) : null}
                 <Button type="submit" disabled={disabled || !valid || saving}>
-                  {saving ? "Connecting…" : "Connect"}
+                  {saving
+                    ? t("connections.connecting")
+                    : t("connections.connect")}
                 </Button>
               </div>
             )}
@@ -284,7 +292,9 @@ export function ModelConnectionsSettings({
       ) : null;
     return (
       <>
-        <p className="text-muted-foreground text-xs">{entry.purpose}</p>
+        <p className="text-muted-foreground text-xs">
+          {modelProviderPurpose(entry)}
+        </p>
         {items.map((connection) => (
           <ConnectionCard
             key={connection.id}
@@ -323,7 +333,7 @@ export function ModelConnectionsSettings({
               onClick={() => setAddingCustom(location)}
             >
               <Plus className="size-4" aria-hidden />
-              Add a custom server
+              {t("connections.addCustomServer")}
             </Button>
           )
         ) : items.length === 0 ? (
@@ -336,7 +346,6 @@ export function ModelConnectionsSettings({
   const tabContent = (location: ModelLocation) => {
     const groups = locationProviderGroups(all, location);
     const active = providerTab[location] ?? defaultLocationProvider(groups);
-    const label = MODEL_LOCATION_TABS.find(({ id }) => id === location)?.label;
     return (
       <Tabs
         value={active}
@@ -347,7 +356,9 @@ export function ModelConnectionsSettings({
         <ModelProviderTabsList
           groups={groups}
           active={active}
-          label={`${label} providers`}
+          label={t("providers.tabsLabel", {
+            location: modelLocationLabel(location),
+          })}
         />
         {/* Every provider panel stays mounted so a half-filled connect form
             survives switching tabs. */}
@@ -372,7 +383,7 @@ export function ModelConnectionsSettings({
         onValueChange={(value) => setTab(value as ModelLocation)}
       >
         <ModelLocationTabsList active={tab} />
-        {MODEL_LOCATION_TABS.map(({ id }) => (
+        {MODEL_LOCATION_TABS.map((id) => (
           <TabsContent
             key={id}
             value={id}
@@ -420,11 +431,12 @@ export function ModelConnectionsSettings({
         <DialogContent showCloseButton={false}>
           <DialogHeader>
             <DialogTitle>
-              Remove{" "}
-              {removal?.kind === "connection"
-                ? removal.connection.name
-                : removal?.model.model_label}
-              ?
+              {t("removal.title", {
+                name:
+                  (removal?.kind === "connection"
+                    ? removal.connection.name
+                    : removal?.model.model_label) ?? "",
+              })}
             </DialogTitle>
             <DialogDescription>
               {[
@@ -432,7 +444,7 @@ export function ModelConnectionsSettings({
                   ? `${removalUsageSummary(removal.usage)} ${removalConsequences(removal.usage)}`
                   : null,
                 removal?.kind === "connection" && savedKey(removal.connection)
-                  ? "Its saved key is deleted too and cannot be recovered."
+                  ? t("removal.savedKeyDeleted")
                   : null,
               ]
                 .filter(Boolean)
@@ -446,7 +458,7 @@ export function ModelConnectionsSettings({
               disabled={removing}
               onClick={() => setRemoval(null)}
             >
-              Cancel
+              {t("actions.cancel")}
             </Button>
             <Button
               type="button"
@@ -454,7 +466,7 @@ export function ModelConnectionsSettings({
               disabled={removing}
               onClick={() => void confirmRemoval()}
             >
-              {removing ? "Removing…" : "Remove"}
+              {removing ? t("actions.removing") : t("actions.remove")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -513,6 +525,7 @@ function ConnectionCard({
   onAddModel: () => void;
   onInfo: (model: PyConfiguredModel) => void;
 }) {
+  const { t } = useTranslation("models");
   const headingId = useId();
   const reachability = useConnectionReachability(
     connection.id,
@@ -554,15 +567,14 @@ function ConnectionCard({
               {connection.name}
               {entry.recommended ? (
                 <span className="bg-primary/10 text-primary text-2xs rounded-sm px-1.5 py-0.5 font-medium">
-                  Recommended
+                  {t("providers.recommended")}
                 </span>
               ) : null}
             </h4>
             <p className="text-muted-foreground truncate text-xs">
               {/* Plain text: a live region per card would announce every
                   card whenever the tab opens. */}
-              {host ? `${host} · ` : null}
-              {status}
+              {host ? t("connections.detail", { host, status }) : status}
             </p>
           </div>
         </div>
@@ -573,20 +585,22 @@ function ConnectionCard({
               size="sm"
               variant="ghost"
               disabled={disabled || !canEdit}
-              aria-label={`Edit ${connection.name}`}
+              aria-label={t("connections.editNamed", { name: connection.name })}
               onClick={onEdit}
             >
-              Edit
+              {t("actions.edit")}
             </Button>
             <Button
               type="button"
               size="sm"
               variant="ghost"
               disabled={disabled}
-              aria-label={`Remove ${connection.name}`}
+              aria-label={t("connections.removeNamed", {
+                name: connection.name,
+              })}
               onClick={onRemove}
             >
-              Remove
+              {t("actions.remove")}
             </Button>
           </div>
         )}
@@ -599,7 +613,7 @@ function ConnectionCard({
         />
       ) : null}
       <ul
-        aria-label={`${connection.name} models`}
+        aria-label={t("connections.modelsOf", { name: connection.name })}
         className="divide-border/60 divide-y"
       >
         {listed.map((model) => (
@@ -614,7 +628,7 @@ function ConnectionCard({
         ))}
         {models.length === 0 ? (
           <li className="text-muted-foreground py-2 text-xs">
-            No models yet. Add one to chat with it.
+            {t("connections.noModels")}
           </li>
         ) : null}
       </ul>
@@ -629,8 +643,8 @@ function ConnectionCard({
             onClick={() => setShowHidden((value) => !value)}
           >
             {showHidden
-              ? "Hide hidden models"
-              : `Show ${hiddenCount} hidden ${hiddenCount === 1 ? "model" : "models"}`}
+              ? t("connections.hideHidden")
+              : t("connections.showHidden", { count: hiddenCount })}
           </Button>
         ) : (
           <span />
@@ -640,11 +654,11 @@ function ConnectionCard({
           size="sm"
           variant="outline"
           disabled={disabled}
-          aria-label={`Add model to ${connection.name}`}
+          aria-label={t("connections.addModelTo", { name: connection.name })}
           onClick={onAddModel}
         >
           <Plus className="size-4" aria-hidden />
-          Add model
+          {t("connections.addModel")}
         </Button>
       </div>
     </section>
@@ -664,16 +678,17 @@ function BuiltinKey({
   builtinKey: BuiltinConnectionKey;
   managedKeys: boolean;
 }) {
+  const { t } = useTranslation("models");
   return managedKeys ? (
     <DesktopCredentialsPanel
       providers={[builtinKey.provider]}
       showTitle={false}
-      description="Encrypted on this computer and never shown again. Also in App Settings → API Keys."
+      description={t("connections.builtinKey.managed")}
       className="bg-transparent p-3"
     />
   ) : (
     <p className="text-muted-foreground text-xs">
-      Uses the {name} key configured on this server ({builtinKey.env}).
+      {t("connections.builtinKey.server", { name, env: builtinKey.env })}
     </p>
   );
 }
@@ -693,6 +708,7 @@ function ModelRow({
   disabled: boolean;
   onInfo: () => void;
 }) {
+  const { t } = useTranslation("models");
   const chips = modelCapabilityChips(model, search);
   const name = modelDisplayName(model, alternate);
   return (
@@ -706,7 +722,10 @@ function ModelRow({
         {name}
       </span>
       {chips.length ? (
-        <ul aria-label="Capabilities" className="flex flex-wrap gap-1">
+        <ul
+          aria-label={t("fields.capabilities")}
+          className="flex flex-wrap gap-1"
+        >
           {chips.map((chip) => (
             <li key={chip.id} className={TAG_CLASS} title={chip.description}>
               <span aria-hidden>{chip.label}</span>
@@ -720,7 +739,7 @@ function ModelRow({
           <span
             className={cn(TAG_CLASS, "border-border border bg-transparent")}
           >
-            Hidden
+            {t("modelRow.hidden")}
           </span>
           <ShowModelButton model={model} disabled={disabled} />
         </>
@@ -730,7 +749,7 @@ function ModelRow({
         size="icon"
         variant="ghost"
         className="size-8 shrink-0"
-        aria-label={`Details for ${name}`}
+        aria-label={t("modelRow.details", { name })}
         onClick={onInfo}
       >
         <Info className="size-4" aria-hidden />

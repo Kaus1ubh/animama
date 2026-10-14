@@ -1,0 +1,865 @@
+{
+  "avatar": {
+    "attachments": {
+      "body": {
+        "description": "跟随胸口或手等身体部位。",
+        "label": "附在身上"
+      },
+      "face_landmark": {
+        "description": "浮在眼睛、嘴巴或额头前方的平面图像。",
+        "label": "浮在脸前"
+      },
+      "face_surface": {
+        "description": "直接画在皮肤或眼睛上，随脸部一起动。",
+        "label": "画在脸上"
+      },
+      "silhouette": {
+        "description": "只覆盖在虚拟形象上的图案或色调。",
+        "label": "填充轮廓"
+      },
+      "sticker": {
+        "description": "始终保持清晰可读的漫画拟声字或贴纸。",
+        "label": "虚拟形象旁的贴纸"
+      }
+    },
+    "bodyPoints": {
+      "chest": "胸口",
+      "head": "头部",
+      "hips": "臀部",
+      "leftFoot": "左脚",
+      "leftHand": "左手",
+      "neck": "颈部",
+      "rightFoot": "右脚",
+      "rightHand": "右手",
+      "root": "脚下（整个虚拟形象）",
+      "spine": "腰部"
+    },
+    "confirmNew": "要丢弃当前更改并开始新的形象特效吗？",
+    "faceOptions": {
+      "cleanUpEyes": "清理眼部区域",
+      "cleanUpHint": "用采样的肤色覆盖已绘制的细节。",
+      "cleanUpMouth": "清理嘴部区域",
+      "closeEyes": "闭上眼睛",
+      "closeEyesHint": "让虚拟形象在图案后面闭上眼睛。",
+      "hideEyeDetails": "隐藏眼部细节",
+      "hideEyeDetailsHint": "隐藏眼睛高光、眼线和睫毛。",
+      "hidePart": "隐藏{{part, lowercase}}",
+      "hideParts": "隐藏其他脸部部件（{{hidden, number}}）",
+      "hidePartsHint": "特效播放时隐藏这些部件。图案所在的部件保持可见。",
+      "skinBackdrop": "肤色衬底",
+      "skinBackdropHint": "在图案的透明部分后面垫上肤色。"
+    },
+    "flipbook": {
+      "columns": "列数",
+      "description": "图像中按网格排列帧，并按顺序播放。",
+      "fps": "每秒帧数",
+      "frames": "帧数",
+      "loop": "循环",
+      "once": "播放一次",
+      "pingpong": "往返",
+      "playback": "播放方式",
+      "rows": "行数",
+      "title": "动画精灵图"
+    },
+    "guides": {
+      "canvas": "放置参考线",
+      "canvasDetails": "放置参考线：{{items, list(type: unit)}}",
+      "estimated": "{{label}} · 估算"
+    },
+    "image": {
+      "tooLarge": "特效图像不能超过 {{size}}。",
+      "tooWide": "特效图像每边不能超过 {{pixels, number}} 像素。",
+      "typeInvalid": "请选择一张 PNG、JPEG 或 WebP 图像。"
+    },
+    "import": {
+      "description": "粘贴 Animama 形象特效编辑文档。需要重新选择图像数据。",
+      "earlierFormat": "此文档使用旧版形象特效编辑格式，本创作器已无法打开。请改为从资源库打开已保存的特效。",
+      "notDocument": "这不是 Animama 形象特效编辑文档。",
+      "reselectImages": "保存前请重新选择导入文档中的图像。",
+      "title": "导入形象特效 JSON"
+    },
+    "inspector": {
+      "axes": {
+        "down": "下",
+        "forward": "前",
+        "right": "右",
+        "sideways": "横向",
+        "up": "上"
+      },
+      "blend": "混合",
+      "blends": {
+        "additive": "发光（叠加）",
+        "multiply": "阴影（正片叠底）",
+        "normal": "正常"
+      },
+      "height": "高度",
+      "noTint": "无着色",
+      "opacity": "不透明度（%）",
+      "placementHelp": "在预览中拖动图案，或用四角手柄调整大小、用圆形手柄旋转。预览获得焦点时，可用方向键微调位置；按住 Shift 可移动更远。",
+      "position": "位置（{{unit}}）",
+      "removeTint": "移除着色",
+      "rotation": "旋转（°）",
+      "scale": "大小（×）",
+      "size": "大小（{{unit}}）",
+      "tabs": {
+        "look": "外观",
+        "motion": "动态",
+        "placement": "放置"
+      },
+      "tilt": "倾斜（°）",
+      "tiltForward": "向前倾斜",
+      "tint": "着色",
+      "tintApplied": "与图案相乘（{{color}}）",
+      "tintColour": "着色颜色",
+      "turnSideways": "侧向转动",
+      "width": "宽度"
+    },
+    "json": {
+      "description": "此文档包含编辑数值和精确的依赖内容来源，但不包含本地 Blob URL 或访问权限。",
+      "title": "可移植的形象特效 JSON"
+    },
+    "keyframes": {
+      "add": "添加",
+      "help": "随时间改变大小、旋转、位置或不透明度。留空的值会根据前后关键帧插值。",
+      "label": "关键帧 {{index, number}}",
+      "moveX": "X 移动（{{unit}}）",
+      "moveY": "Y 移动（{{unit}}）",
+      "opacity": "不透明度（%）",
+      "order": "关键帧 {{index, number}} 必须在关键帧 {{previous, number}} 之后。",
+      "remove": "删除关键帧 {{index, number}}",
+      "repeat": "循环关键帧",
+      "scale": "大小（×）",
+      "time": "时间（秒）",
+      "title": "关键帧",
+      "turn": "旋转（°）"
+    },
+    "landmarks": {
+      "eyes": "眼睛",
+      "forehead": "额头",
+      "mouth": "嘴巴",
+      "top": "头顶",
+      "top_edge": "头顶上方"
+    },
+    "loading": "正在加载形象特效…",
+    "missingPart": "此虚拟形象未检测到{{part, lowercase}}，因此特效不会显示。请在“脸部部件”中修正该部件，或换一个虚拟形象预览。",
+    "motion": {
+      "clockwise": "顺时针",
+      "counterclockwise": "逆时针",
+      "direction": "方向",
+      "drift": "漂移",
+      "driftHint": "朝一个方向持续移动。",
+      "driftX": "横向（图案宽度/秒）",
+      "driftY": "上下（图案高度/秒）",
+      "largest": "最大尺寸（×）",
+      "pulse": "脉动",
+      "pulseHint": "循环放大缩小。",
+      "pulsesPerSecond": "每秒脉动次数",
+      "smallest": "最小尺寸（×）",
+      "spin": "旋转",
+      "spinDirection": "旋转方向",
+      "spinHint": "持续旋转，或来回摇摆。",
+      "spinRange": "范围（圈）",
+      "spinRangeHint": "不足一圈时图案来回摇摆；满一圈时持续旋转。",
+      "spinSpeed": "速度（°/秒）"
+    },
+    "open": {
+      "imageDownloadFailed": "无法下载内容图像。",
+      "noImage": "此内容没有可编辑的图像文件。"
+    },
+    "openFailed": "无法打开形象特效。",
+    "pivots": {
+      "bottom": "下",
+      "bottomLeft": "左下",
+      "bottomRight": "右下",
+      "centre": "中心",
+      "left": "左",
+      "right": "右",
+      "top": "上",
+      "topLeft": "左上",
+      "topRight": "右上"
+    },
+    "positionHints": {
+      "body": "距身体部位的厘米数。",
+      "face_landmark": "距脸部定位点的厘米数。",
+      "face_surface": "占绘制纹理的百分比。",
+      "silhouette": "占图案平铺单元的百分比。",
+      "sticker": "占虚拟形象身高的百分比。"
+    },
+    "positions": {
+      "farLeft": "最左",
+      "farRight": "最右",
+      "left": "左",
+      "middle": "中间",
+      "right": "右"
+    },
+    "recovery": {
+      "metadataOnly": "无法为崩溃恢复保存图像数据。恢复此草稿后请重新选择图像。",
+      "needsImages": "此恢复的草稿需要在保存前重新选择图像。",
+      "oldDraft": "来自本创作器旧版本的未保存形象特效草稿无法打开，已被丢弃。",
+      "tooLarge": "此图像太大，无法用于浏览器崩溃恢复。请在保存完成前保持此标签页打开。"
+    },
+    "regions": {
+      "advanced": "高级",
+      "automatic": "自动：{{region, lowercase}}",
+      "blush": "脸颊上的特效",
+      "body": "身上的特效",
+      "emote": "无；与其他特效同时播放",
+      "eyes": "眼睛上的特效",
+      "full_face": "无；与其他整张脸的图案同时播放",
+      "mouth": "嘴巴上的特效",
+      "replaces": "替换对象",
+      "replacesHint": "同一区域的两个特效同时播放时，较新的特效会替换较旧的特效。",
+      "silhouette": "轮廓特效",
+      "sticker": "贴纸特效",
+      "undereye": "眼睛下方的特效"
+    },
+    "save": {
+      "chooseImage": "保存前请选择一张图像。",
+      "defaultName": "新形象特效",
+      "reselectOtherSide": "保存前请重新选择另一侧的图像。",
+      "saved": "形象特效已保存。"
+    },
+    "settings": {
+      "effect": "特效",
+      "faceOptions": "脸部选项",
+      "flipbook": "逐帧动画",
+      "image": "图像",
+      "keyframes": "关键帧",
+      "look": "外观",
+      "motion": "动态",
+      "otherEyeImage": "另一只眼睛的图像",
+      "patternSize": "图案大小",
+      "placement": "放置",
+      "position": "位置",
+      "replaces": "替换对象",
+      "rotation": "旋转",
+      "scrollSpeed": "滚动速度",
+      "size": "大小",
+      "tint": "着色"
+    },
+    "setup": {
+      "attachTo": "附着位置",
+      "avatarSides": "左右以虚拟形象自身为准。",
+      "besideBody": "身体",
+      "besideHead": "头部",
+      "besideThe": "放在旁边的位置",
+      "bodyPoint": "身体部位",
+      "browse": "浏览",
+      "chooseImage": "选择图像",
+      "drawnFor": "图案绘制的一侧",
+      "faceCamera": "始终面向镜头",
+      "faceCameraHint": "关闭后，图案会随身体部位一起转动。",
+      "fill": "填充",
+      "fillPattern": "将图像作为图案重复",
+      "fillTint": "用图像的颜色着色",
+      "image": "图像",
+      "imageHint": "PNG、JPEG 或 WebP · 最大 {{size}}",
+      "keepOriginal": "在下方保留原貌",
+      "keepOriginalHint": "关闭后，图案所在处会替换部件自身的纹理。",
+      "leftEye": "左眼",
+      "leftSide": "左侧",
+      "otherImage": "另一侧图像（可选）",
+      "otherImageHint": "原样绘制在镜像的一侧，适合眨眼等左右不同的图案。",
+      "paintOn": "绘制部件",
+      "pivot": "对齐脸部的图像基准点",
+      "position": "位置",
+      "replaceImage": "替换",
+      "rightEye": "右眼",
+      "rightSide": "右侧",
+      "scrollX": "X 滚动（平铺单元/秒）",
+      "scrollY": "Y 滚动（平铺单元/秒）",
+      "tileSize": "平铺单元大小（×）",
+      "useMirroredImage": "改用镜像的主图像",
+      "where": "位置",
+      "whereOnFace": "脸上的绘制位置",
+      "whichEyes": "哪只眼睛",
+      "whichSide": "哪一侧"
+    },
+    "setupTitle": "特效设置",
+    "sides": {
+      "across": "一张图横跨两侧",
+      "acrossEyes": "一张图横跨双眼",
+      "between": "一张图位于双眼之间",
+      "both": "双眼",
+      "left": "仅左侧",
+      "mirrored": "两侧（镜像）",
+      "mirroredEyes": "双眼（镜像）",
+      "right": "仅右侧"
+    },
+    "stage": {
+      "chooseImage": "请在设置中选择图像以预览特效。",
+      "label": "特效预览。拖动图案可移动，拖动四角可调整大小，拖动圆形手柄可旋转。方向键可微调位置；按住 Shift 可移动更远。",
+      "picking": "点击虚拟形象的某个部分，将其加入或移出所选的脸部部件。"
+    },
+    "summary": {
+      "body": "附在身上",
+      "face_landmark": "浮在脸前",
+      "face_surface": "画在脸上",
+      "silhouette": "轮廓填充",
+      "sticker": "贴纸"
+    },
+    "surfaceAreas": {
+      "blush": "脸颊",
+      "eyes": "眼睛",
+      "full": "整个部件",
+      "mouth": "嘴巴",
+      "undereye": "眼睛下方"
+    },
+    "targetParts": {
+      "eye_highlight": "眼睛高光",
+      "eye_iris": "眼睛（虹膜）",
+      "eyelash": "睫毛",
+      "eyeline": "眼线",
+      "face_skin": "脸部皮肤"
+    },
+    "template": {
+      "notInstalled": "此安装中无法使用 {{name}}。",
+      "unavailable": "此形象特效模板不可用。"
+    },
+    "thisAvatar": "此虚拟形象",
+    "units": {
+      "cm": "cm",
+      "percent": "%"
+    },
+    "uv": {
+      "artwork": "图案",
+      "baseColor": "{{material}} · 基础色",
+      "canvas": "带所选放置参考线的 {{surface}} 纹理",
+      "coverage": "肤色覆盖范围",
+      "help": "参考区域只用于引导放置，不会裁剪图案。左右以虚拟形象为准。",
+      "inactive": "特效未激活时没有实时图案。",
+      "legend": "UV 参考线图例",
+      "material": "材质",
+      "pivot": "基准点",
+      "reference": "参考",
+      "shadeColor": "{{material}} · 阴影色",
+      "surfaceSelect": "UV 预览材质和纹理",
+      "title": "UV 预览"
+    },
+    "validation": {
+      "flipbookFrames": "逐帧动画的帧数不能超过列数 × 行数。",
+      "modelIncompatible": "此特效有效，但所选虚拟形象没有提供所需的实时绑定或脸部锚点。",
+      "nameTooLong": "形象特效名称不能超过 {{max, number}} 个字符。",
+      "reselectImage": "请重新选择图像，以便保存其数据。",
+      "reselectOtherEyeImage": "请重新选择另一只眼睛的图像，以便保存其数据。",
+      "settingInvalid": "{{setting}}：设置不兼容。",
+      "settingProblem": "{{setting}}：{{detail}}"
+    },
+    "views": {
+      "face": "脸部",
+      "fullBody": "全身",
+      "portrait": "半身",
+      "threeQuarter": "四分之三侧面"
+    }
+  },
+  "creator": {
+    "aTemplate": "模板",
+    "description": "描述",
+    "discardFailed": "无法丢弃草稿。",
+    "imageReadFailed": "无法读取图像。",
+    "importFailed": "无法导入 JSON。",
+    "json": {
+      "copied": "JSON 已复制。",
+      "copy": "复制 JSON",
+      "import": "导入"
+    },
+    "loading": "正在加载…",
+    "loadingSaved": "正在加载已保存的内容…",
+    "loadingTemplate": "正在加载模板…",
+    "model": "模型",
+    "modelPlaceholder": "虚拟形象",
+    "openFailed": "无法打开特效。",
+    "panels": {
+      "inspector": "检查器",
+      "setup": "设置"
+    },
+    "previewAvatarFailed": "无法加载预览虚拟形象。",
+    "previewNoun": "预览",
+    "previewWarning": "预览虚拟形象报告了此特效的问题。",
+    "recoveredDraft": "已恢复本地草稿",
+    "recovery": {
+      "unavailable": "浏览器崩溃恢复不可用。请在保存完成前保持此标签页打开。"
+    },
+    "replaceUnsaved": "要替换当前未保存的文档吗？",
+    "save": {
+      "label": "保存",
+      "paused": "保存已暂停。重试时将重新使用保留的草稿。",
+      "uploading": "正在上传 {{progress, number(style: percent)}}",
+      "validating": "正在验证"
+    },
+    "sound": {
+      "exact": "{{name}} · 指定内容",
+      "label": "应用时的声音",
+      "licensedOmitted": "内置声音只能与内置特效一起播放，因此此副本没有声音。你可以选择自己的声音。",
+      "loading": "正在加载声音…",
+      "none": "无声音"
+    },
+    "status": {
+      "saved": "已保存",
+      "saveFailed": "保存失败",
+      "unsaved": "未保存"
+    },
+    "validation": {
+      "reselectSound": "请重新选择音效，以便保存指定的目录内容。"
+    },
+    "view": "视图"
+  },
+  "faceParts": {
+    "cancel": "取消",
+    "done": "完成",
+    "edit": "编辑",
+    "editPart": "编辑{{part, lowercase}}",
+    "heading": "{{model}} 的脸部部件",
+    "help": "特效通过这些部件找到脸和眼睛。如果特效没有出现或位置不对，请在这里修正部件。修正会随此虚拟形象保存，并在所有地方使用。",
+    "meshFallback": "网格",
+    "meshList": "{{items, list(style: narrow)}}",
+    "meshName": "{{name}}（{{key}}）",
+    "meshPartsFor": "{{part, lowercase}}的网格部件",
+    "noMesh": "无网格部件",
+    "noneDetected": "此虚拟形象未检测到脸部部件。",
+    "optional": "{{part}}（可选）",
+    "pick": "在虚拟形象上选取",
+    "picking": "点击虚拟形象以添加或移除部件",
+    "problems": {
+      "noDigest": "无法获取此虚拟形象的文件摘要，因此无法保存修正。",
+      "required": "请为{{part, lowercase}}至少选择一个网格部件。",
+      "unknownMesh": "此修正包含此虚拟形象没有的网格部件。请取消并重新选择部件。"
+    },
+    "readFailed": "无法读取此虚拟形象已保存的修正。",
+    "roles": {
+      "eye_highlight": "眼睛高光",
+      "eye_left": "左眼",
+      "eye_right": "右眼",
+      "eyelash": "睫毛",
+      "eyeline": "眼线",
+      "face_skin": "脸部皮肤",
+      "hair": "头发"
+    },
+    "saveCorrection": "保存修正",
+    "saveFailed": "无法保存修正。",
+    "saving": "正在保存",
+    "status": {
+      "absent": "已标记为无",
+      "changed": "已更改，未保存",
+      "corrected": "已修正",
+      "detected": "已检测 · {{confidence, number(style: percent)}}",
+      "foundByName": "按名称找到 · {{confidence, number(style: percent)}}，请检查",
+      "missing": "缺失",
+      "uncertain": "已检测 · {{confidence, number(style: percent)}}，请检查"
+    },
+    "title": "脸部部件",
+    "useDetected": "使用检测到的部件"
+  },
+  "guides": {
+    "labels": {
+      "blushLeft": "左脸颊",
+      "blushRight": "右脸颊",
+      "blushSpan": "横跨两颊",
+      "eyeCenter": "双眼中间",
+      "eyeLeft": "左眼",
+      "eyeRight": "右眼",
+      "face": "脸部",
+      "flattenEye": "眼部覆盖",
+      "flattenEyeLeft": "左眼覆盖",
+      "flattenEyeRight": "右眼覆盖",
+      "flattenMouth": "嘴部覆盖",
+      "foreheadLeft": "额头左侧",
+      "foreheadMiddle": "额头中间",
+      "foreheadRight": "额头右侧",
+      "irisBoth": "双眼虹膜",
+      "irisLeft": "左眼虹膜",
+      "irisRight": "右眼虹膜",
+      "mouth": "嘴巴",
+      "skinSample": "肤色取样",
+      "topEdgeLeft": "头顶上方左侧",
+      "topEdgeLeftCorner": "头顶上方最左侧",
+      "topEdgeMiddle": "头顶上方中间",
+      "topEdgeRight": "头顶上方右侧",
+      "topEdgeRightCorner": "头顶上方最右侧",
+      "topLeft": "头顶左侧",
+      "topMiddle": "头顶中间",
+      "topRight": "头顶右侧",
+      "undereyeLeft": "左眼下方",
+      "undereyeRight": "右眼下方",
+      "undereyeSpan": "横跨双眼下方"
+    },
+    "messages": {
+      "anchorWarning": "此虚拟形象上无法使用此放置所需的脸部锚点。",
+      "estimatedAnchor": "此虚拟形象的此放置使用了估算的锚点。",
+      "estimatedFlatten": "此虚拟形象的肤色覆盖使用了估算的区域。",
+      "hoverAnchorUnavailable": "此虚拟形象上无法使用所选的悬浮锚点。",
+      "landmarksUnavailable": "此虚拟形象上无法使用脸部特征点。",
+      "liveAnchorUnavailable": "无法使用虚拟形象的实时脸部锚点，因此无法显示空间参考线。",
+      "noMaterialTarget": "此虚拟形象上没有兼容的材质目标。",
+      "noTextureSurface": "所选材质没有可读取的纹理。",
+      "target": "目标：{{materials, list}}。",
+      "textureAnchorsUnavailable": "此虚拟形象上无法使用脸部纹理锚点。"
+    },
+    "selectedMaterial": "所选材质"
+  },
+  "kinds": {
+    "avatarEffect": "形象特效",
+    "avatarFx": "形象特效",
+    "sceneEffect": "场景特效",
+    "sceneFx": "场景特效"
+  },
+  "scene": {
+    "checks": {
+      "previewAvatar": "预览虚拟形象",
+      "ready": "可以保存",
+      "readyDetail": "场景设置已就绪。",
+      "states": {
+        "error": "出错",
+        "idle": "空闲",
+        "loading": "正在加载",
+        "ready": "就绪"
+      },
+      "title": "检查"
+    },
+    "common": {
+      "opacity": "不透明度"
+    },
+    "confirmNew": "要丢弃当前更改并开始新的场景特效吗？",
+    "controls": {
+      "addStop": "添加色标",
+      "alternateSpin": "交替反向旋转",
+      "angle": "角度（度）",
+      "centerX": "中心 X",
+      "centerY": "中心 Y",
+      "chooseTileImage": "选择平铺图像",
+      "colorPicker": "{{label}}选择器",
+      "fade": "淡出（毫秒）",
+      "flashColor": "闪光颜色",
+      "gradientType": "渐变类型",
+      "itemsShown": "显示数量",
+      "keepFaceClear": "避开脸部",
+      "keepFaceClearHint": "静止的项目以及上下漂移的项目不会进入头部后方的纵向区域。",
+      "length": "长度",
+      "newSeed": "新的随机种子",
+      "opacity": "不透明度",
+      "pulse": "脉动",
+      "rangeMax": "{{label}}（最大）",
+      "rangeMin": "{{label}}（最小）",
+      "region": "区域（从上到下）",
+      "removeScatter": "移除散布图层",
+      "removeStop": "移除色标 {{index, number}}",
+      "replaceTileImage": "替换平铺图像",
+      "rotation": "旋转（度）",
+      "screenColor": "屏幕层颜色",
+      "screenKind": "屏幕层类型",
+      "size": "尺寸（像素）",
+      "spiky": "尖刺星芒",
+      "spin": "旋转速度（度/秒）",
+      "stopAt": "位置",
+      "stopColor": "色标 {{index, number}} 的颜色",
+      "stops": "色标",
+      "swaySeconds": "每次摇摆秒数（0 为静止）",
+      "tileSize": "平铺大小（像素）",
+      "turnSeconds": "每圈秒数（0 为静止）",
+      "width": "宽度（像素）"
+    },
+    "directions": {
+      "down": "向下",
+      "downLeft": "向左下斜",
+      "downRight": "向右下斜",
+      "left": "向左",
+      "right": "向右",
+      "static": "静止",
+      "up": "向上",
+      "upLeft": "向左上斜",
+      "upRight": "向右上斜"
+    },
+    "fields": {
+      "baseThickness": "基础粗细",
+      "definition": "特效设置",
+      "description": "描述",
+      "duration": "持续时间",
+      "flashColor": "闪光颜色",
+      "flashDuration": "闪光淡出时间",
+      "flicker": "闪烁时机",
+      "gap": "间距",
+      "gradientAngle": "渐变角度",
+      "gradientCenterX": "渐变中心 X",
+      "gradientCenterY": "渐变中心 Y",
+      "gradientStop": "渐变色标 {{index, number}}",
+      "gradientStops": "渐变色标",
+      "images": "私有图像",
+      "itemSize": "项目大小",
+      "lengthVariation": "长度变化",
+      "lineColor": "线条颜色",
+      "lineCount": "线条数量",
+      "lineOpacity": "线条不透明度",
+      "marqueeItem": "跑马灯项目 {{index, number}}",
+      "marqueeItems": "跑马灯项目",
+      "marqueeOpacity": "跑马灯不透明度",
+      "maxHiddenMs": "最长隐藏时间（毫秒）",
+      "maxVisibleMs": "最长显示时间（毫秒）",
+      "minHiddenMs": "最短隐藏时间（毫秒）",
+      "minVisibleMs": "最短显示时间（毫秒）",
+      "name": "名称",
+      "opacityJitter": "不透明度抖动",
+      "overscan": "超出边缘",
+      "paddingX": "水平留白",
+      "paddingY": "垂直留白",
+      "patternColor": "图案颜色",
+      "patternOpacity": "图案不透明度",
+      "patternSize": "图案大小",
+      "patternSpacing": "图案间距",
+      "rotationOffset": "旋转偏移",
+      "rowGap": "行距",
+      "scatter": {
+        "count": "散布 {{layer, number}} 显示数量",
+        "item": "散布 {{layer, number}} 项目 {{index, number}}",
+        "items": "散布 {{layer, number}} 项目",
+        "layer": "散布 {{layer, number}}",
+        "maxOpacity": "散布 {{layer, number}} 最高不透明度",
+        "maxRotation": "散布 {{layer, number}} 最大旋转",
+        "maxSize": "散布 {{layer, number}} 最大尺寸",
+        "maxSpin": "散布 {{layer, number}} 最快旋转",
+        "minOpacity": "散布 {{layer, number}} 最低不透明度",
+        "minRotation": "散布 {{layer, number}} 最小旋转",
+        "minSize": "散布 {{layer, number}} 最小尺寸",
+        "minSpin": "散布 {{layer, number}} 最慢旋转",
+        "opacity": "散布 {{layer, number}} 不透明度",
+        "region": "散布 {{layer, number}} 区域",
+        "regionBottom": "散布 {{layer, number}} 区域底部",
+        "regionTop": "散布 {{layer, number}} 区域顶部",
+        "rotation": "散布 {{layer, number}} 旋转",
+        "seed": "散布 {{layer, number}} 随机种子",
+        "size": "散布 {{layer, number}} 尺寸",
+        "speed": "散布 {{layer, number}} 速度",
+        "spin": "散布 {{layer, number}} 旋转速度"
+      },
+      "scatters": "散布图层",
+      "screenCenterX": "光线中心 X",
+      "screenCenterY": "光线中心 Y",
+      "screenColor": "屏幕层颜色",
+      "screenCount": "光线或线条数量",
+      "screenLength": "线条长度",
+      "screenMaxLength": "最长线条长度",
+      "screenMaxWidth": "最粗线条宽度",
+      "screenMinLength": "最短线条长度",
+      "screenMinWidth": "最细线条宽度",
+      "screenOpacity": "屏幕层不透明度",
+      "screenSeed": "屏幕层随机种子",
+      "screenSway": "每次摇摆秒数",
+      "screenThrob": "每秒脉动次数",
+      "screenTurn": "每圈秒数",
+      "screenWidth": "线条宽度",
+      "seed": "随机种子",
+      "solidColor": "纯色颜色",
+      "sound": "声音",
+      "speed": "速度",
+      "target": "目标",
+      "thicknessVariation": "粗细变化",
+      "tileImage": "平铺图像",
+      "tileOpacity": "平铺不透明度",
+      "tileSize": "平铺大小",
+      "tileSpeed": "平铺速度"
+    },
+    "focus": {
+      "avatarFace": "虚拟形象的脸",
+      "behindAvatar": "虚拟形象后方",
+      "box": {
+        "height": "高度",
+        "width": "宽度",
+        "x": "X",
+        "y": "Y"
+      },
+      "frontOfAvatar": "虚拟形象前方",
+      "manualBox": "手动区域",
+      "placement": "渲染位置",
+      "seed": "随机种子",
+      "tabs": {
+        "lines": "线条",
+        "motion": "动态",
+        "style": "样式",
+        "target": "目标"
+      },
+      "target": "目标"
+    },
+    "gradientTypes": {
+      "linear": "线性",
+      "radial": "径向"
+    },
+    "image": {
+      "dimensionsTooLarge": "场景图像每条边不得超过 {{size}} px。",
+      "tooLarge": "场景图像不得超过 {{size, number}} MiB。",
+      "typeInvalid": "请选择 PNG、JPEG、WebP 或静态 SVG 图像。",
+      "unreadable": "此图像不是可读取的 PNG、JPEG 或 WebP 文件。"
+    },
+    "import": {
+      "description": "粘贴 Animama 场景特效编辑文档。需要重新选择私有图像数据。",
+      "notDocument": "这不是 Animama 场景特效编辑文档。",
+      "reselectImages": "保存前请重新选择导入文档中的私有图像。",
+      "title": "导入场景特效 JSON",
+      "unsupportedSchema": "不支持此场景特效编辑架构。"
+    },
+    "items": {
+      "addImage": "添加私有图像",
+      "emojiRemoved": "Animama 已不再提供表情符号项目。保存前请将每个项目替换为贴纸或图片，或将其移除。",
+      "empty": "请添加贴纸或私有图像。",
+      "missingEmoji": "缺少表情符号",
+      "moveDown": "将{{name}}下移",
+      "moveUp": "将{{name}}上移",
+      "remove": "移除{{name}}",
+      "title": "项目"
+    },
+    "json": {
+      "description": "此编辑文档包含本地逻辑图像名称和精确的依赖内容来源，绝不包含 Blob URL 或存储访问权限。",
+      "title": "可移植的场景特效 JSON"
+    },
+    "kinds": {
+      "background": "背景",
+      "focusLines": "集中线"
+    },
+    "layers": {
+      "addScatter": "添加散布图层",
+      "enabled": "启用{{layer}}",
+      "flash": "入场闪光",
+      "flashSummary": "{{color}} · {{ms, number}} 毫秒",
+      "gradient": "渐变",
+      "gradientSummary_other": "{{type}} · {{count, number}} 个色标",
+      "marquee": "跑马灯",
+      "marqueeSummary_other": "{{count, number}} 个项目 · {{direction}}",
+      "pattern": "图案",
+      "patternSummary": "{{pattern}} · {{size, number}}px",
+      "scatter": "散布 {{index, number}}",
+      "scatterSummary_other": "{{count, number}} 个项目 · 显示 {{shown, number}} 个 · {{pulse}}",
+      "screen": "屏幕层",
+      "screenSummary": "{{kind}} · {{total, number}}",
+      "solid": "纯色",
+      "summary": "{{layer}}图层",
+      "tile": "平铺",
+      "tileNoImage": "无图像",
+      "title": "图层（从前到后）"
+    },
+    "loading": "正在加载场景特效…",
+    "marquee": {
+      "direction": "方向",
+      "gap": "间距",
+      "itemSize": "项目大小",
+      "rotation": "旋转",
+      "rotationOffset": "旋转偏移（度）",
+      "rowGap": "行距",
+      "speed": "速度（像素/秒）",
+      "tabs": {
+        "appearance": "外观",
+        "content": "内容",
+        "motion": "动态"
+      }
+    },
+    "open": {
+      "backgroundIncomplete": "背景图层定义不完整。",
+      "contentImageDownloadFailed": "无法下载内容图像 {{file}}。",
+      "contentImageUnavailable": "内容图像 {{file}} 不可用。",
+      "definitionUnavailable": "场景特效定义不可用。",
+      "focusIncomplete": "集中线定义不完整。",
+      "imageUnavailable": "发布版图像 {{file}} 不可用。",
+      "itemImageUnavailable": "跑马灯项目 {{index, number}} 的图像不可用。",
+      "itemInvalid": "跑马灯项目 {{index, number}} 无效。",
+      "itemKindUnsupported": "不支持此场景项目类型。",
+      "itemUnsupported": "不支持跑马灯项目 {{index, number}}。",
+      "kindUnsupported": "不支持此场景特效类型。",
+      "scatterInvalid": "散布图层 {{index, number}} 无效。"
+    },
+    "openFailed": "无法打开场景特效。",
+    "pattern": {
+      "color": "颜色",
+      "enabled": "启用图案",
+      "kind": "图案类型",
+      "size": "大小",
+      "spacing": "间距"
+    },
+    "patterns": {
+      "heart": "爱心",
+      "none": "无",
+      "polkadot": "波点",
+      "star": "星星"
+    },
+    "pulses": {
+      "flicker": "闪烁",
+      "none": "无",
+      "pop": "弹出",
+      "twinkle": "闪耀"
+    },
+    "recovery": {
+      "metadataOnly": "无法为崩溃恢复保存图像数据。恢复此草稿后请重新选择私有图像。",
+      "needsImages": "此恢复的草稿需要在保存前重新选择私有图像。",
+      "tooLarge": "这些图像太大，无法用于浏览器崩溃恢复。请在保存完成前保持此标签页打开。"
+    },
+    "rotationModes": {
+      "followTrack": "跟随轨迹",
+      "upright": "保持直立"
+    },
+    "save": {
+      "defaultName": "新场景特效",
+      "reselectImage": "保存前请重新选择 {{file}}。",
+      "saved": "场景特效已保存。"
+    },
+    "screenKinds": {
+      "lines": "线条",
+      "rays": "光线"
+    },
+    "setup": {
+      "behavior": "特效行为",
+      "coverUi": "覆盖界面元素",
+      "coverUiHint": "在支持时，将特效覆盖在应用界面之上预览。",
+      "custom": "自定义",
+      "dismissOnInput": "输入时关闭",
+      "duration": "持续时间（秒）",
+      "focusLinesHint": "强调虚拟形象的脸或所选区域。",
+      "startingTemplate": "起始模板",
+      "sticky": "持续显示",
+      "title": "场景设置"
+    },
+    "solid": {
+      "color": "纯色颜色",
+      "enabled": "启用纯色"
+    },
+    "stickers": {
+      "add": "添加“{{name}}”贴纸",
+      "extras": "其他",
+      "loadFailed": "无法加载贴纸。",
+      "title": "添加贴纸"
+    },
+    "template": {
+      "unavailable": "此场景特效模板不可用。"
+    },
+    "validation": {
+      "bounds": "{{setting}}必须介于 {{min, number}} 和 {{max, number}} 之间。",
+      "boundsWhole": "{{setting}}必须是介于 {{min, number}} 和 {{max, number}} 之间的整数。",
+      "countAtMost": "{{setting}}最多可有 {{max, number}} 项。",
+      "countRange": "{{setting}}需要 {{min, number}} 到 {{max, number}} 项。",
+      "definitionInvalid": "场景特效设置无效。",
+      "descriptionTooLong": "描述不能超过 {{max, number}} 个字符。",
+      "duplicateItemIds": "每个项目都需要唯一的 ID。",
+      "duration": "持续时间必须设为持续显示，或介于 {{min, number}} 到 {{max, number}} 秒之间。",
+      "flashColor": "请为闪光选择六位十六进制颜色。",
+      "flickerOrder": "闪烁的最短时间不能超过最长时间。",
+      "gradientStopColor": "请为渐变色标选择六位十六进制颜色。",
+      "imagesTooLarge": "场景私有图像总计不能超过 {{size}}。",
+      "imageType": "{{file}} 不是 PNG、JPEG、WebP 或 SVG。",
+      "legacyEmoji": "{{label}} 是 Animama 已不再提供的表情符号。请将其替换为贴纸或图片，或将其移除。",
+      "legacyEmojiUnnamed": "此项目是 Animama 已不再提供的表情符号。请将其替换为贴纸或图片，或将其移除。",
+      "lineColor": "请为线条选择六位十六进制颜色。",
+      "manualTarget": "手动区域必须位于标准化视口之内。",
+      "minAboveMax": "{{setting}}：最小值不能超过最大值。",
+      "nameTooLong": "场景特效名称不能超过 {{max, number}} 个字符。",
+      "patternColor": "请为图案选择六位十六进制颜色。",
+      "reselectForPreview": "请重新选择 {{file}} 以进行预览。",
+      "reselectImage": "请重新选择 {{file}}，以便保存其数据。",
+      "scatterTotal": "散布图层总共最多显示 {{max, number}} 个项目。",
+      "screenColor": "请为屏幕层选择六位十六进制颜色。",
+      "solidColor": "请为纯色选择六位十六进制颜色。",
+      "stopsAscending": "渐变色标必须按位置升序排列。",
+      "tileImage": "请选择要平铺的图像。",
+      "tooManyImages": "一个场景特效最多可包含 {{max, number}} 张私有图像。",
+      "unusedImages": "集中线不会保存未使用的背景图像数据。"
+    },
+    "views": {
+      "fullScene": "整个场景",
+      "portrait": "半身"
+    }
+  }
+}

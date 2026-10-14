@@ -1,3 +1,5 @@
+import type { TFunction } from "i18next";
+import { getI18n } from "react-i18next";
 import type { PyModelProviderCatalogItem } from "@animama/runtime-contracts/api-types";
 import { ANTHROPIC_MESSAGES_PROVIDER_TYPE } from "@animama/product-ui/chat";
 
@@ -34,26 +36,52 @@ export function modelOptionDetail(item: LabeledModel): string {
   return modelConnectionLabel(item);
 }
 
-/** "Connection: Model", falling back to the model id when labels are missing. */
+/** The `chat` translator for the active UI Locale, for callers without a hook. */
+function activeChatT(): TFunction<"chat"> {
+  return getI18n().getFixedT(null, "chat");
+}
+
+function connectionModelLabel(
+  connection: string,
+  model: string,
+  t: TFunction<"chat"> = activeChatT(),
+): string {
+  return t("model.optionLabel", { connection, model });
+}
+
+function alternateModelName(
+  name: string,
+  t: TFunction<"chat"> = activeChatT(),
+): string {
+  return t("model.alternate", { name });
+}
+
+/**
+ * "Connection: Model", falling back to the model id when labels are missing.
+ * Connection and model names are shown as configured; only the format follows
+ * the UI Locale.
+ */
 export function modelOptionLabel(
   item: LabeledModel,
   alternate = false,
+  t?: TFunction<"chat">,
 ): string {
-  const model = modelDisplayName(item, alternate);
+  const model = modelDisplayName(item, alternate, t);
   const connection = modelConnectionLabel(item);
-  return connection ? `${connection}: ${model}` : model;
+  return connection ? connectionModelLabel(connection, model, t) : model;
 }
 
-/** Neutral suffix telling apart two listed rows with one name. */
-export const ALTERNATE_LABEL_SUFFIX = " (alternate)";
-
-/** A model's shown name, with the alternate suffix when it needs one. */
+/**
+ * A model's shown name, with a neutral "(alternate)" marker telling apart two
+ * listed rows with one name. Display only; never use it as an identifier.
+ */
 export function modelDisplayName(
   item: Pick<LabeledModel, "model" | "model_label">,
   alternate = false,
+  t?: TFunction<"chat">,
 ): string {
   const name = item.model_label?.trim() || item.model;
-  return alternate ? `${name}${ALTERNATE_LABEL_SUFFIX}` : name;
+  return alternate ? alternateModelName(name, t) : name;
 }
 
 /**

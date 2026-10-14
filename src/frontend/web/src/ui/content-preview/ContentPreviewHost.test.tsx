@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { act, useEffect, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import { getI18n } from "react-i18next";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { PreparedContentPreview } from "@/lib/content-preview/preparation";
@@ -31,6 +32,8 @@ const harness = vi.hoisted(() => ({
   sceneMounts: 0,
   sceneUnmounts: 0,
   sceneRenders: [] as SceneRender[],
+  /** Each render's `onStatusChange`, as the scene's effects receive it. */
+  statusCallbacks: [] as unknown[],
 }));
 
 vi.mock("./ContentPreviewDockProvider", () => ({
@@ -66,7 +69,9 @@ vi.mock("./ContentPreviewScene", () => ({
     active: boolean;
     playRequest: number;
     resetCameraRequest: number;
+    onStatusChange: unknown;
   }) => {
+    harness.statusCallbacks.push(props.onStatusChange);
     useEffect(() => {
       harness.sceneMounts += 1;
       return () => {
@@ -242,6 +247,7 @@ beforeEach(() => {
   harness.sceneMounts = 0;
   harness.sceneUnmounts = 0;
   harness.sceneRenders = [];
+  harness.statusCallbacks = [];
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -332,5 +338,26 @@ describe("ContentPreviewHost", () => {
       targetKey: firstKey,
       active: true,
     });
+  });
+
+  it("keeps the scene's status callback across a UI Locale change", async () => {
+    const first = gesture("wave");
+    prepare(first);
+    show(first, "docked");
+    const rendered = harness.statusCallbacks.length;
+    expect(rendered).toBeGreaterThan(0);
+    try {
+      // A new callback would rerun the scene's Avatar load and playback
+      // effects, leaving playback at "Preparing".
+      await act(async () => {
+        await getI18n().changeLanguage("ja");
+      });
+      expect(harness.statusCallbacks.length).toBeGreaterThan(rendered);
+      expect(new Set(harness.statusCallbacks).size).toBe(1);
+    } finally {
+      await act(async () => {
+        await getI18n().changeLanguage("en");
+      });
+    }
   });
 });

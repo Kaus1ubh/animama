@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 import { cn } from "@/lib/utils";
 import {
   TabsList,
@@ -6,6 +8,7 @@ import {
 } from "@/ui/components/tabs";
 
 import {
+  modelProviderLabel,
   providerConnected,
   type ModelProviderGroup,
   type ProviderConnectionState,
@@ -29,6 +32,7 @@ export function ModelProviderTabsList({
   /** Accessible name of the strip, e.g. "Cloud providers". */
   label: string;
 }) {
+  const { t } = useTranslation("models");
   return (
     <TabsList
       variant="underline"
@@ -36,7 +40,7 @@ export function ModelProviderTabsList({
       className="w-fit max-w-full"
     >
       {groups.map((group) => {
-        const { id, label: name } = group.entry;
+        const { id } = group.entry;
         return (
           <TabsTrigger
             key={id}
@@ -45,14 +49,14 @@ export function ModelProviderTabsList({
             className={cn(underlineTabClassName(active === id), "px-2")}
           >
             <span className="inline-flex items-center gap-1.5">
-              {name}
+              {modelProviderLabel(group.entry)}
               {providerConnected(group) ? (
                 <>
                   <span
                     aria-hidden
                     className="bg-primary size-1.5 rounded-full"
                   />
-                  <span className="sr-only">{" (connected)"}</span>
+                  <span className="sr-only">{t("providers.connected")}</span>
                 </>
               ) : null}
             </span>

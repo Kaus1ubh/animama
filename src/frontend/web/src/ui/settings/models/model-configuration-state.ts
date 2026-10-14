@@ -11,7 +11,16 @@ import type {
   RuntimeCapabilities,
   WebSearchCapability,
 } from "@animama/runtime-contracts/api-types";
+import type { TFunction } from "i18next";
+import { getI18n } from "react-i18next";
 import type { CredentialProvider } from "../../../../../shared/desktop-runtime";
+import {
+  apiErrorLine,
+  apiErrorText,
+  errorWording,
+  readApiError,
+  type ApiErrorText,
+} from "@/lib/errors/apiError";
 import {
   modelRolePreferencePath,
   type ModelRole,
@@ -60,25 +69,39 @@ export function roleCandidates(
 export type ModelLocation = "cloud" | "local";
 
 /** The two tabs of the Models section, in order. */
-export const MODEL_LOCATION_TABS: ReadonlyArray<{
-  id: ModelLocation;
-  label: string;
-}> = [
-  { id: "cloud", label: "Cloud" },
-  { id: "local", label: "Local" },
-];
+export const MODEL_LOCATION_TABS: readonly ModelLocation[] = ["cloud", "local"];
+
+/** A location tab's name in the active UI Locale. */
+export function modelLocationLabel(location: ModelLocation): string {
+  const t = getI18n().getFixedT(null, "models");
+  return location === "cloud" ? t("locations.cloud") : t("locations.local");
+}
+
+/** Provider entry ids; both Custom entries use the `custom` preset. */
+export type ModelProviderId =
+  | "openai"
+  | "anthropic"
+  | "deepseek"
+  | "huggingface"
+  | "openrouter"
+  | "custom-cloud"
+  | "ollama"
+  | "lmstudio"
+  | "llamacpp"
+  | "vllm"
+  | "custom-local";
 
 /**
  * A provider offered on a Models tab. `presetId` is the backend connection
  * preset; both Custom entries use the `custom` preset and differ only by
- * where their base URL points.
+ * where their base URL points. Display text comes from `modelProviderLabel`
+ * and `modelProviderPurpose`.
  */
 export type ModelProviderEntry = {
-  id: string;
+  id: ModelProviderId;
   presetId: string;
-  label: string;
-  /** One line of purpose shown on the provider's tab. */
-  purpose: string;
+  /** The provider's product name; `null` for the translated "Custom". */
+  name: string | null;
   /** Shown with a Recommended tag (the built-in OpenAI connection). */
   recommended?: boolean;
 };
@@ -96,78 +119,63 @@ export const MODEL_LOCATION_PROVIDERS: Record<
     {
       id: "openai",
       presetId: OPENAI_PRESET,
-      label: "OpenAI",
-      purpose: "Chat with OpenAI's models using your API key.",
+      name: "OpenAI",
       recommended: true,
     },
-    {
-      id: "anthropic",
-      presetId: ANTHROPIC_PRESET,
-      label: "Anthropic",
-      purpose: "Chat with Anthropic's Claude models using your API key.",
-    },
-    {
-      id: "deepseek",
-      presetId: "deepseek",
-      label: "DeepSeek",
-      purpose: "Chat with DeepSeek's models using your DeepSeek API key.",
-    },
-    {
-      id: "huggingface",
-      presetId: "huggingface",
-      label: "Hugging Face",
-      purpose:
-        "Chat with open models through Hugging Face Inference Providers using your access token.",
-    },
-    {
-      id: "openrouter",
-      presetId: "openrouter",
-      label: "OpenRouter",
-      purpose:
-        "Chat with models from many providers through one OpenRouter key.",
-    },
-    {
-      id: "custom-cloud",
-      presetId: "custom",
-      label: "Custom",
-      purpose: "Connect any OpenAI-compatible cloud service.",
-    },
+    { id: "anthropic", presetId: ANTHROPIC_PRESET, name: "Anthropic" },
+    { id: "deepseek", presetId: "deepseek", name: "DeepSeek" },
+    { id: "huggingface", presetId: "huggingface", name: "Hugging Face" },
+    { id: "openrouter", presetId: "openrouter", name: "OpenRouter" },
+    { id: "custom-cloud", presetId: "custom", name: null },
   ],
   local: [
-    {
-      id: "ollama",
-      presetId: "ollama",
-      label: "Ollama",
-      purpose: "Chat with models running in Ollama on this computer.",
-    },
-    {
-      id: "lmstudio",
-      presetId: "lmstudio",
-      label: "LM Studio",
-      purpose: "Chat with models served by LM Studio on this computer.",
-    },
-    {
-      id: "llamacpp",
-      presetId: "llamacpp",
-      label: "llama.cpp",
-      purpose:
-        "Chat with a model served by llama.cpp's server on this computer.",
-    },
-    {
-      id: "vllm",
-      presetId: "vllm",
-      label: "vLLM",
-      purpose: "Chat with models served by vLLM on this computer.",
-    },
-    {
-      id: "custom-local",
-      presetId: "custom",
-      label: "Custom",
-      purpose:
-        "Connect any OpenAI-compatible server on this computer or your network.",
-    },
+    { id: "ollama", presetId: "ollama", name: "Ollama" },
+    { id: "lmstudio", presetId: "lmstudio", name: "LM Studio" },
+    { id: "llamacpp", presetId: "llamacpp", name: "llama.cpp" },
+    { id: "vllm", presetId: "vllm", name: "vLLM" },
+    { id: "custom-local", presetId: "custom", name: null },
   ],
 };
+
+/** A provider tab's name: the product name, or "Custom" in the active UI Locale. */
+export function modelProviderLabel(entry: ModelProviderEntry): string {
+  const t = getI18n().getFixedT(null, "models");
+  return entry.name ?? t("providers.custom");
+}
+
+/** One line of purpose shown on a provider's tab, in the active UI Locale. */
+export function modelProviderPurpose(entry: ModelProviderEntry): string {
+  const t = getI18n().getFixedT(null, "models");
+  switch (entry.id) {
+    case "openai":
+      return t("providers.purpose.openai");
+    case "anthropic":
+      return t("providers.purpose.anthropic");
+    case "deepseek":
+      return t("providers.purpose.deepseek");
+    case "huggingface":
+      return t("providers.purpose.huggingface");
+    case "openrouter":
+      return t("providers.purpose.openrouter");
+    case "custom-cloud":
+      return t("providers.purpose.customCloud");
+    case "ollama":
+      return t("providers.purpose.ollama");
+    case "lmstudio":
+      return t("providers.purpose.lmstudio");
+    case "llamacpp":
+      return t("providers.purpose.llamacpp");
+    case "vllm":
+      return t("providers.purpose.vllm");
+    case "custom-local":
+      return t("providers.purpose.customLocal");
+    default: {
+      // Every provider entry needs its own purpose.
+      const unworded: never = entry.id;
+      return unworded;
+    }
+  }
+}
 
 const LOCAL_PRESETS = new Set(["ollama", "lmstudio", "llamacpp", "vllm"]);
 
@@ -338,13 +346,6 @@ export type ConnectionReachability =
   | { state: "reachable" }
   | { state: "failed"; category: string | null };
 
-const KEY_STATE_LABELS: Record<PyModelConnection["credential_state"], string> =
-  {
-    configured: "Key set",
-    missing: "Key missing",
-    not_required: "No key needed",
-  };
-
 const UNREACHABLE_CATEGORIES = new Set([
   "unreachable",
   "timeout",
@@ -363,15 +364,29 @@ export function connectionStatusText(
   >,
   reachability?: ConnectionReachability,
 ): string {
-  if (connectionLocation(connection) === "cloud")
-    return KEY_STATE_LABELS[connection.credential_state];
-  if (!reachability || reachability.state === "checking") return "Checking…";
+  const t = getI18n().getFixedT(null, "models");
+  if (connectionLocation(connection) === "cloud") {
+    switch (connection.credential_state) {
+      case "configured":
+        return t("connections.status.keySet");
+      case "missing":
+        return t("connections.status.keyMissing");
+      case "not_required":
+        return t("connections.status.noKeyNeeded");
+    }
+  }
+  if (!reachability || reachability.state === "checking")
+    return t("connections.status.checking");
   if (reachability.state === "reachable")
-    return `Running at ${baseUrlHost(connection.base_url)}`;
-  if (reachability.category === "credential_missing") return "Key missing";
-  if (reachability.category === "credential_rejected") return "Key rejected";
+    return t("connections.status.runningAt", {
+      host: baseUrlHost(connection.base_url),
+    });
+  if (reachability.category === "credential_missing")
+    return t("connections.status.keyMissing");
+  if (reachability.category === "credential_rejected")
+    return t("connections.status.keyRejected");
   return UNREACHABLE_CATEGORIES.has(reachability.category ?? "unreachable")
-    ? "Not reachable"
+    ? t("connections.status.notReachable")
     : errorCategoryMessage(reachability.category);
 }
 
@@ -436,23 +451,30 @@ export function modelCapabilityChips(
   >,
   search: WebSearchCapability | null | undefined,
 ): ModelChip[] {
+  const t = getI18n().getFixedT(null, "models");
   if (model.model_kind === "embedding")
     return [
       {
         id: "embeddings",
-        label: "Embeddings",
-        description: "Embedding model for file and archive search",
+        label: t("chips.embeddings.label"),
+        description: t("chips.embeddings.description"),
       },
     ];
   const { capabilities } = model;
   const chips: ModelChip[] = [];
   if (capabilities.supports_tools)
-    chips.push({ id: "tools", label: "Tools", description: "Calls tools" });
+    chips.push({
+      id: "tools",
+      label: t("chips.tools.label"),
+      description: t("chips.tools.description"),
+    });
   if (model.context_window_tokens != null)
     chips.push({
       id: "context",
       label: formatContextWindow(model.context_window_tokens),
-      description: `${model.context_window_tokens.toLocaleString("en-US")}-token context window`,
+      description: t("chips.context.description", {
+        tokens: model.context_window_tokens,
+      }),
     });
   // PyConfiguredModel lacks requestable_native_tool_support, so mirror the
   // backend's rule (only Responses and Anthropic models may request native
@@ -474,23 +496,23 @@ export function modelCapabilityChips(
   if (searchState === "hosted")
     chips.push({
       id: "web-search",
-      label: "Built-in search",
+      label: t("chips.builtInSearch.label"),
       description:
         model.provider_type === ANTHROPIC_MESSAGES_PROVIDER_TYPE
-          ? "Searches the web with Anthropic's own search. Anthropic bills each search to your Anthropic account."
-          : "Searches the web with the provider's own search",
+          ? t("chips.builtInSearch.anthropicDescription")
+          : t("chips.builtInSearch.description"),
     });
   else if (searchState === "application")
     chips.push({
       id: "web-search",
-      label: "App search",
-      description: "Searches the web with this app's search service",
+      label: t("chips.appSearch.label"),
+      description: t("chips.appSearch.description"),
     });
   if (capabilities.accepts.includes("image"))
     chips.push({
       id: "vision",
-      label: "Vision",
-      description: "Accepts images",
+      label: t("chips.vision.label"),
+      description: t("chips.vision.description"),
     });
   return chips;
 }
@@ -536,33 +558,21 @@ export function keyWouldTravelInsecurely(baseUrl: string): boolean {
   return !isThisComputerHost(bareHost(url));
 }
 
-const CATEGORY_MESSAGES: Record<string, string> = {
-  unreachable:
-    "The server could not be reached. Check that it is running and that the base URL is correct.",
-  credential_missing: "This connection needs a key before it can be used.",
-  credential_rejected: "The server rejected the key.",
-  model_not_found: "The server does not serve that model.",
-  timeout: "The server did not answer in time.",
-  rate_limited: "The server is limiting requests. Try again shortly.",
-  quota_exceeded: "The account for this key has no remaining quota.",
-  server_error: "The server reported an error. Try again shortly.",
-  bad_request: "The server rejected the request.",
-  context_exceeded: "The request was larger than the model's context window.",
-  invalid_base_url: "The base URL is not valid.",
-  unexpected_response:
-    "The server's reply was not an OpenAI-compatible response. Check the base URL; it usually ends in /v1.",
-  provider_error: "The server could not complete the request.",
-};
-
 /** Status line for a Detect result, naming the server type to start. */
 export function detectionMessage(
   detection: PyModelConnectionDetection,
   serverName: string,
 ): string {
-  const count = detection.models.length;
+  const t = getI18n().getFixedT(null, "models");
   return detection.reachable
-    ? `Found ${count} ${count === 1 ? "model" : "models"} at ${detection.base_url}.`
-    : `Nothing is running at ${detection.base_url}. Start ${serverName} and try again.`;
+    ? t("connectionForm.detected", {
+        count: detection.models.length,
+        baseUrl: detection.base_url,
+      })
+    : getI18n().t("errors:modelConfiguration.detectionNotRunning", {
+        baseUrl: detection.base_url,
+        server: serverName,
+      });
 }
 
 /** Plain-language text for an error category reported by the server. */
@@ -570,29 +580,30 @@ export function errorCategoryMessage(
   category: string | null | undefined,
 ): string {
   return (
-    (category && CATEGORY_MESSAGES[category]) ??
-    "The server could not complete the request."
+    (category && errorWording("modelConfiguration", category)) ||
+    getI18n().t("errors:modelConfiguration.provider_error")
   );
 }
 
 /**
- * Explain a failed Models request. Configuration errors carry the server's own
- * message; connection failures use category copy and never echo the model
- * server's response text.
+ * Explain a failed Models request. Connection failures use category wording
+ * and never echo the model server's response text; other configuration errors
+ * carry the server's message (English, so secondary outside English).
  */
-export function modelConfigurationErrorMessage(error: unknown): string {
+export function modelConfigurationErrorText(error: unknown): ApiErrorText {
+  const saveFailed = getI18n().t("errors:modelConfiguration.saveFailed");
   const detail =
     error && typeof error === "object" && "detail" in error
       ? (error as { detail?: unknown }).detail
       : undefined;
   if (!detail || typeof detail !== "object")
-    return "The change could not be saved.";
-  const { code, message } = detail as { code?: unknown; message?: unknown };
-  if (typeof code === "string" && code in CATEGORY_MESSAGES)
-    return CATEGORY_MESSAGES[code];
-  return typeof message === "string" && message.trim()
-    ? message
-    : "The change could not be saved.";
+    return { message: saveFailed, detail: null };
+  return apiErrorText(readApiError(error), "modelConfiguration", saveFailed);
+}
+
+/** `modelConfigurationErrorText` as one line, for toasts. */
+export function modelConfigurationErrorMessage(error: unknown): string {
+  return apiErrorLine(modelConfigurationErrorText(error));
 }
 
 /** Usage attached to a `model_in_use` refusal, if the error carries it. */
@@ -606,54 +617,62 @@ export function modelInUseUsage(error: unknown): PyModelUsage | null {
     : null;
 }
 
-const ROLE_NAMES: Record<ModelRole, string> = {
-  chat: "the Chat default",
-  utility: "the Compaction model",
-  memory_manager: "the Memory Manager model",
-  embeddings: "the Embeddings model",
-};
-
-/** Role names keyed by the preference path the server reports in usage. */
-const ROLE_PREFERENCE_LABELS = new Map(
-  (Object.keys(ROLE_NAMES) as ModelRole[]).map((role) => [
-    modelRolePreferencePath(role),
-    ROLE_NAMES[role],
-  ]),
-);
-
-function joinNames(names: readonly string[]): string {
-  if (names.length <= 1) return names[0] ?? "";
-  return `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
+/** A role's name inside a removal summary ("the Compaction model"). */
+function removalRoleName(t: TFunction<"models">, role: ModelRole): string {
+  switch (role) {
+    case "chat":
+      return t("removal.roles.chat");
+    case "utility":
+      return t("removal.roles.utility");
+    case "memory_manager":
+      return t("removal.roles.memoryManager");
+    case "embeddings":
+      return t("removal.roles.embeddings");
+    default: {
+      // Every role needs its own name.
+      const unnamed: never = role;
+      return unnamed;
+    }
+  }
 }
+
+const MODEL_ROLES: readonly ModelRole[] = [
+  "chat",
+  "utility",
+  "memory_manager",
+  "embeddings",
+];
 
 /** "Used by Mira and Luna, and as the Compaction model." for a removal prompt. */
 export function removalUsageSummary(usage: PyModelUsage): string {
-  const animas = joinNames(
-    (usage.animas ?? []).map((anima) => anima.display_name),
+  const t = getI18n().getFixedT(null, "models");
+  // Usage names roles by the preference path the server stores them under.
+  const roleNames = new Map(
+    MODEL_ROLES.map((role) => [
+      modelRolePreferencePath(role),
+      removalRoleName(t, role),
+    ]),
   );
-  const roles = joinNames(
-    (usage.roles ?? []).map((path) => ROLE_PREFERENCE_LABELS.get(path) ?? path),
-  );
-  if (animas && roles) return `Used by ${animas}, and as ${roles}.`;
-  if (animas) return `Used by ${animas}.`;
-  if (roles) return `Used as ${roles}.`;
-  return "Not in use.";
+  const animas = (usage.animas ?? []).map((anima) => anima.display_name);
+  const roles = (usage.roles ?? []).map((path) => roleNames.get(path) ?? path);
+  if (animas.length && roles.length)
+    return t("removal.usage.animasAndRoles", { animas, roles });
+  if (animas.length) return t("removal.usage.animas", { animas });
+  if (roles.length) return t("removal.usage.roles", { roles });
+  return t("removal.usage.none");
 }
 
 /** What removing an in-use connection or model changes, for its confirmation. */
 export function removalConsequences(usage: PyModelUsage): string {
+  const t = getI18n().getFixedT(null, "models");
   const consequences: string[] = [];
   if (usage.animas?.length)
     consequences.push(
-      usage.animas.length === 1
-        ? "That Anima shows its model as unavailable until you pick another."
-        : "Those Animas show their model as unavailable until you pick another.",
+      t("removal.consequences.animas", { count: usage.animas.length }),
     );
   if (usage.roles?.length)
     consequences.push(
-      usage.roles.length === 1
-        ? "That role goes back to its default."
-        : "Those roles go back to their defaults.",
+      t("removal.consequences.roles", { count: usage.roles.length }),
     );
   return consequences.join(" ");
 }
@@ -662,17 +681,19 @@ export function removalConsequences(usage: PyModelUsage): string {
 export function embeddingsStatusText(
   refresh: PyEmbeddingRefreshStatus | null | undefined,
 ): string {
+  const t = getI18n().getFixedT(null, "models");
   switch (refresh?.state) {
     case "current":
-      return "Stored files and archives are embedded with this model.";
+      return t("embeddings.current");
     case "re_embedding":
-      return `Re-embedding ${refresh.pending ?? 0} items; search uses keywords until it finishes.`;
+      return t("embeddings.reEmbedding", { count: refresh.pending ?? 0 });
     case "retrying":
-      return `Re-embedding ${refresh.pending ?? 0} items is waiting to retry: ${errorCategoryMessage(
-        refresh.error_category,
-      )}`;
+      return t("embeddings.retrying", {
+        count: refresh.pending ?? 0,
+        reason: errorCategoryMessage(refresh.error_category),
+      });
     default:
-      return "Embeddings are off; file and archive search use keywords.";
+      return t("embeddings.off");
   }
 }
 
@@ -897,6 +918,6 @@ export function draftFromOpenRouterModel(
 /** Why the OpenRouter list is missing; the owner can still type a model ID. */
 export function openRouterModelsErrorMessage(error: unknown): string {
   return modelConfigurationErrorCode(error) === "openrouter_models_unavailable"
-    ? "OpenRouter's model list is unavailable right now. Type the model ID below instead."
-    : "The OpenRouter model list could not be loaded. Type the model ID below instead.";
+    ? getI18n().t("errors:modelConfiguration.openrouter_models_unavailable")
+    : getI18n().t("errors:modelConfiguration.openRouterModelsLoadFailed");
 }

@@ -2,6 +2,8 @@
 
 import { ChevronUpIcon, RotateCcwIcon, SearchIcon } from "lucide-react";
 import { memo, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { useFormatters } from "@animama/product-ui/i18n";
 
 import {
   readAvailableAvatarExpressions,
@@ -14,6 +16,7 @@ import { Button } from "@/ui/components/button";
 import { Input } from "@/ui/components/input";
 import { Slider } from "@/ui/components/slider";
 import { PoseCreatorPanelSection } from "./PoseCreatorPanelSection";
+import { expressionLabel } from "./poseLabels";
 import {
   clampExpressionWeight,
   formatExpressionWeight,
@@ -22,13 +25,6 @@ import {
   usePoseCreatorClipUndoGrouping,
   usePoseCreatorUndoGrouping,
 } from "./usePoseCreatorUndoGrouping";
-
-function formatExpressionLabel(expressionName: string): string {
-  const spaced = expressionName
-    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
-    .replace(/_/g, " ");
-  return spaced.replace(/\b\w/g, (character) => character.toUpperCase());
-}
 
 function PoseCreatorExpressionSectionContent({
   variant = "panel",
@@ -47,6 +43,8 @@ function PoseCreatorExpressionSectionContent({
   onTimelineExpressionChange?: (expressionName: string, value: number) => void;
   onTimelineExpressionsClear?: () => void;
 }) {
+  const { t } = useTranslation("pose");
+  const formatters = useFormatters();
   const [expressionSearch, setExpressionSearch] = useState("");
   const activeAvatar = usePoseCreatorStore((state) => state.activeAvatar);
   const selectedBone = usePoseCreatorStore((state) => state.selectedBone);
@@ -83,9 +81,9 @@ function PoseCreatorExpressionSectionContent({
     return expressionNames.filter(
       (expressionName) =>
         expressionName.toLowerCase().includes(query) ||
-        formatExpressionLabel(expressionName).toLowerCase().includes(query),
+        expressionLabel(t, expressionName).toLowerCase().includes(query),
     );
-  }, [expressionNames, expressionSearch]);
+  }, [expressionNames, expressionSearch, t]);
 
   const handleExpressionChange = (expressionName: string, value: number) => {
     if (!activeAvatar) return;
@@ -150,9 +148,13 @@ function PoseCreatorExpressionSectionContent({
         {!embedded ? (
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-sm font-semibold">Expressions</h2>
+              <h2 className="text-sm font-semibold">
+                {t("expressions.title")}
+              </h2>
               <p className="text-muted-foreground text-2xs mt-0.5">
-                {expressionNames.length} available
+                {t("expressions.available", {
+                  count: expressionNames.length,
+                })}
               </p>
             </div>
             {variant === "workspace" && onCollapse ? (
@@ -162,8 +164,8 @@ function PoseCreatorExpressionSectionContent({
                 variant="ghost"
                 className="text-muted-foreground size-7"
                 onClick={onCollapse}
-                aria-label="Collapse expressions"
-                title="Collapse expressions"
+                aria-label={t("expressions.collapse")}
+                title={t("expressions.collapse")}
               >
                 <ChevronUpIcon className="size-3.5" />
               </Button>
@@ -178,8 +180,8 @@ function PoseCreatorExpressionSectionContent({
               onChange={(event) =>
                 setExpressionSearch(event.currentTarget.value)
               }
-              placeholder="Search expressions"
-              aria-label="Search expressions"
+              placeholder={t("expressions.search")}
+              aria-label={t("expressions.search")}
               className="bg-background h-9 rounded-lg pl-9 text-xs shadow-none"
             />
           </div>
@@ -191,7 +193,7 @@ function PoseCreatorExpressionSectionContent({
               className="text-muted-foreground size-8 shrink-0"
               onClick={handleClearAllExpressions}
               disabled={!activeAvatar || activeDraftCount === 0}
-              aria-label="Clear all expression changes"
+              aria-label={t("expressions.clearAllLabel")}
             >
               <RotateCcwIcon className="size-3.5" />
             </Button>
@@ -201,8 +203,8 @@ function PoseCreatorExpressionSectionContent({
         {filteredExpressionNames.length === 0 ? (
           <p className="text-muted-foreground py-8 text-center text-xs">
             {expressionNames.length === 0
-              ? "No expressions available"
-              : "No matching expressions"}
+              ? t("expressions.none")
+              : t("expressions.noMatches")}
           </p>
         ) : (
           <div className="min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">
@@ -232,7 +234,7 @@ function PoseCreatorExpressionSectionContent({
                     )}
                     title={expressionName}
                   >
-                    {formatExpressionLabel(expressionName)}
+                    {expressionLabel(t, expressionName)}
                   </span>
                   <Slider
                     value={[currentValue]}
@@ -253,7 +255,9 @@ function PoseCreatorExpressionSectionContent({
                     onKeyUp={endUndoGroup}
                     onBlur={endUndoGroup}
                     className="[&_[data-slot=slider-thumb]]:size-3.5 [&_[data-slot=slider-thumb]]:border-white [&_[data-slot=slider-thumb]]:shadow-sm [&_[data-slot=slider-track]]:h-1.5"
-                    aria-label={`Expression ${expressionName}`}
+                    aria-label={t("expressions.slider", {
+                      name: expressionLabel(t, expressionName),
+                    })}
                   />
                   <button
                     type="button"
@@ -268,10 +272,13 @@ function PoseCreatorExpressionSectionContent({
                     }
                     disabled={!hasOverride}
                     title={
-                      hasOverride ? "Clear expression override" : undefined
+                      hasOverride ? t("expressions.clearOverride") : undefined
                     }
                   >
-                    {Math.round(currentValue * 100)}%
+                    {formatters.number(currentValue, {
+                      style: "percent",
+                      maximumFractionDigits: 0,
+                    })}
                   </button>
                 </div>
               );
@@ -284,8 +291,8 @@ function PoseCreatorExpressionSectionContent({
 
   return (
     <PoseCreatorPanelSection
-      title="Expression Authoring"
-      subtitle={`${expressionNames.length} expressions available`}
+      title={t("expressions.authoring")}
+      subtitle={t("expressions.subtitle", { count: expressionNames.length })}
       actions={
         <Button
           type="button"
@@ -296,13 +303,13 @@ function PoseCreatorExpressionSectionContent({
           className="h-7 px-2 text-xs"
         >
           <RotateCcwIcon className="size-3.5" />
-          Clear all
+          {t("expressions.clearAll")}
         </Button>
       }
     >
       {expressionNames.length === 0 ? (
         <p className="text-muted-foreground text-xs">
-          Load a VRM with registered expressions to edit facial weights.
+          {t("expressions.loadModel")}
         </p>
       ) : (
         <div className="max-h-80 space-y-2 overflow-y-auto pr-1">
@@ -349,7 +356,7 @@ function PoseCreatorExpressionSectionContent({
                       disabled={!hasOverride}
                       className="text-2xs h-6 px-1.5"
                     >
-                      Clear
+                      {t("expressions.clear")}
                     </Button>
                   </div>
                 </div>
@@ -371,7 +378,9 @@ function PoseCreatorExpressionSectionContent({
                   onKeyDown={beginUndoGroup}
                   onKeyUp={endUndoGroup}
                   onBlur={endUndoGroup}
-                  aria-label={`Expression ${expressionName}`}
+                  aria-label={t("expressions.slider", {
+                    name: expressionLabel(t, expressionName),
+                  })}
                 />
               </div>
             );

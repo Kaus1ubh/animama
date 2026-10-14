@@ -1,3 +1,5 @@
+import { getI18n } from "react-i18next";
+
 import { PARTICLE_TEXTURE_LIMITS } from "@/lib/effects/effectArtLimits";
 import { isParticleVFXAnchor } from "../runtime";
 import { collectEmitterNodes } from "./emitters";
@@ -8,22 +10,31 @@ import {
   classifyParticleVFXTextureUrl,
   getParticleVFXEditorTextureById,
 } from "./textures";
-import { getUnsupportedAdvancedBehaviorLabels } from "./advancedBehaviors";
+import {
+  getUnsupportedAdvancedBehaviorLabels,
+  particleVFXQuarksTypeLabel,
+} from "./advancedBehaviors";
 import type {
   ParticleVFXEditorDraft,
   ParticleVFXEditorValidationIssue,
 } from "./types";
 
+/**
+ * Check a creator draft. Messages are worded in `language`, by default the
+ * active UI Locale.
+ */
 export function validateParticleVFXEditorDraft(
   draft: ParticleVFXEditorDraft,
+  language?: string,
 ): ParticleVFXEditorValidationIssue[] {
+  const t = getI18n().getFixedT(language ?? null, "particles");
   const issues: ParticleVFXEditorValidationIssue[] = [];
   const object = readJsonObject(draft.quarksJson.object);
   if (!object) {
     issues.push({
       severity: "error",
       code: "missing-object",
-      message: "Quarks JSON must include an object root.",
+      message: t("issues.missingObject"),
       target: "object",
     });
   }
@@ -31,7 +42,7 @@ export function validateParticleVFXEditorDraft(
     issues.push({
       severity: "error",
       code: "missing-emitter",
-      message: "Quarks JSON must include at least one ParticleEmitter.",
+      message: t("issues.missingEmitter"),
       target: "object.children",
     });
   }
@@ -43,7 +54,7 @@ export function validateParticleVFXEditorDraft(
     issues.push({
       severity: "error",
       code: "missing-texture",
-      message: "Quarks JSON must include at least one texture image.",
+      message: t("issues.missingTexture"),
       target: "images",
     });
   }
@@ -54,7 +65,7 @@ export function validateParticleVFXEditorDraft(
       issues.push({
         severity: "error",
         code: "invalid-texture-url",
-        message: "Texture image URL must be a non-empty string.",
+        message: t("issues.emptyTextureUrl"),
         target,
       });
       return;
@@ -64,30 +75,28 @@ export function validateParticleVFXEditorDraft(
       issues.push({
         severity: "error",
         code: "remote-texture-url",
-        message: "Remote texture URLs are not allowed in shipped VFX assets.",
+        message: t("issues.remoteTextureUrl"),
         target,
       });
     } else if (classification === "embedded") {
       issues.push({
         severity: "warning",
         code: "embedded-texture-url",
-        message:
-          "This embedded texture is not a PNG the effect can carry; replace it with an imported texture.",
+        message: t("issues.embeddedTextureUrl"),
         target,
       });
     } else if (classification === "blob") {
       issues.push({
         severity: "error",
         code: "blob-texture-url",
-        message: "Blob texture URLs are preview-only and cannot be exported.",
+        message: t("issues.blobTextureUrl"),
         target,
       });
     } else if (classification === "unsupported") {
       issues.push({
         severity: "error",
         code: "invalid-texture-url",
-        message:
-          "Texture URL must be relative, root-relative, data:image, or blob.",
+        message: t("issues.unsupportedTextureUrl"),
         target,
       });
     }
@@ -99,7 +108,7 @@ export function validateParticleVFXEditorDraft(
       issues.push({
         severity: "error",
         code: "invalid-emitter-anchor",
-        message: "Choose a supported emitter anchor or Inherit.",
+        message: t("issues.invalidEmitterAnchor"),
         target: path,
       });
     }
@@ -111,7 +120,7 @@ export function validateParticleVFXEditorDraft(
       issues.push({
         severity: "error",
         code: "invalid-duration",
-        message: "Emitter duration must be greater than zero.",
+        message: t("issues.invalidDuration"),
         target,
       });
     } else if (
@@ -120,7 +129,7 @@ export function validateParticleVFXEditorDraft(
       issues.push({
         severity: "warning",
         code: "duration-over-budget",
-        message: "Emitter duration exceeds the catalog max duration budget.",
+        message: t("issues.durationOverBudget"),
         target,
       });
     }
@@ -128,7 +137,7 @@ export function validateParticleVFXEditorDraft(
       issues.push({
         severity: "error",
         code: "looping-not-allowed",
-        message: "Looping emitters are not allowed by this catalog budget.",
+        message: t("issues.loopingNotAllowed"),
         target,
       });
     }
@@ -136,8 +145,7 @@ export function validateParticleVFXEditorDraft(
       issues.push({
         severity: "warning",
         code: "world-space-emitter",
-        message:
-          "World-space emitters spawn at the anchor but do not continuously follow it.",
+        message: t("issues.worldSpaceEmitter"),
         target,
       });
     }
@@ -145,7 +153,7 @@ export function validateParticleVFXEditorDraft(
       issues.push({
         severity: "warning",
         code: "unsupported-shape",
-        message: "This emitter uses a shape that the creator cannot edit.",
+        message: t("issues.unsupportedShape"),
         target,
       });
     }
@@ -153,8 +161,7 @@ export function validateParticleVFXEditorDraft(
       issues.push({
         severity: "warning",
         code: "unsupported-render-mode",
-        message:
-          "This emitter uses a render mode that the creator cannot edit.",
+        message: t("issues.unsupportedRenderMode"),
         target,
       });
     }
@@ -165,9 +172,11 @@ export function validateParticleVFXEditorDraft(
       issues.push({
         severity: "warning",
         code: "unsupported-behavior-settings",
-        message: `Advanced behavior settings are preserved but not fully editable: ${[
-          ...new Set(unsupportedBehaviorLabels),
-        ].join(", ")}.`,
+        message: t("issues.unsupportedBehaviorSettings", {
+          items: [...new Set(unsupportedBehaviorLabels)].map((label) =>
+            particleVFXQuarksTypeLabel(label, language),
+          ),
+        }),
         target,
       });
     }
@@ -178,7 +187,7 @@ export function validateParticleVFXEditorDraft(
       issues.push({
         severity: "warning",
         code: "trail-settings-missing",
-        message: "Trail render mode needs an editable start length generator.",
+        message: t("issues.trailSettingsMissing"),
         target,
       });
     }
@@ -189,7 +198,7 @@ export function validateParticleVFXEditorDraft(
       issues.push({
         severity: "warning",
         code: "width-over-length-without-trail",
-        message: "WidthOverLength only affects Trail render mode.",
+        message: t("issues.widthOverLengthWithoutTrail"),
         target,
       });
     }
@@ -200,7 +209,7 @@ export function validateParticleVFXEditorDraft(
       issues.push({
         severity: "warning",
         code: "rotation-3d-without-mesh",
-        message: "Rotation3DOverLife needs Mesh render mode to preview.",
+        message: t("issues.rotation3DWithoutMesh"),
         target,
       });
     }
@@ -221,7 +230,7 @@ export function validateParticleVFXEditorDraft(
       issues.push({
         severity: "error",
         code: "atlas-grid-limit",
-        message: `Sprite sheets have 1 to ${maxGrid} tiles in each direction.`,
+        message: t("issues.atlasGridLimit", { max: maxGrid }),
         target,
       });
     }
@@ -233,8 +242,7 @@ export function validateParticleVFXEditorDraft(
         issues.push({
           severity: "warning",
           code: "atlas-tiles-missing",
-          message:
-            "Selected atlas texture should use more than one tile in the renderer.",
+          message: t("issues.atlasTilesMissing"),
           target,
         });
       } else if (
@@ -244,8 +252,7 @@ export function validateParticleVFXEditorDraft(
         issues.push({
           severity: "warning",
           code: "atlas-metadata-mismatch",
-          message:
-            "Renderer tile counts do not match the selected atlas texture metadata.",
+          message: t("issues.atlasMetadataMismatch"),
           target,
         });
       }
@@ -255,15 +262,14 @@ export function validateParticleVFXEditorDraft(
         issues.push({
           severity: "warning",
           code: "frame-over-life-without-atlas",
-          message:
-            "Frame animation is enabled but the selected texture is not an atlas.",
+          message: t("issues.frameAnimationWithoutAtlas"),
           target,
         });
       } else if (tileCapacity <= 1) {
         issues.push({
           severity: "warning",
           code: "frame-over-life-without-atlas",
-          message: "Frame animation needs more than one renderer tile.",
+          message: t("issues.frameAnimationNeedsTiles"),
           target,
         });
       }
@@ -278,8 +284,7 @@ export function validateParticleVFXEditorDraft(
         issues.push({
           severity: "warning",
           code: "frame-range-out-of-bounds",
-          message:
-            "Frame animation range exceeds the selected atlas texture frames.",
+          message: t("issues.frameRangeOutOfBounds"),
           target,
         });
       }
@@ -295,8 +300,11 @@ export function validateParticleVFXEditorDraft(
       severity: "warning",
       code: "particle-budget-exceeded",
       message: Number.isFinite(estimatedParticles)
-        ? `Estimated ${estimatedParticles} particles exceeds the catalog budget of ${budget}.`
-        : `Particle use cannot be estimated (an emission, lifetime, burst or duration value is unsupported); the catalog budget is ${budget}.`,
+        ? t("issues.particleBudgetExceeded", {
+            estimated: estimatedParticles,
+            budget,
+          })
+        : t("issues.particleBudgetUnestimated", { budget }),
       target: "performanceBudget.maxParticles",
     });
   }

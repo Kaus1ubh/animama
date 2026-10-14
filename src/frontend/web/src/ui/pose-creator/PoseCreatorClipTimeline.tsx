@@ -17,6 +17,8 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 
 import { isAnimaPoseClipVFXEvent, type AnimaPoseClipEvent } from "@/lib/avatar";
 import { cn } from "@/lib/utils";
@@ -51,6 +53,7 @@ import {
 import { buildEffectTracks } from "./poseCreatorEffectTracks";
 import { accompanyingEventSound } from "./poseCreatorEventCatalog";
 import { usePoseCreatorPreview } from "./PoseCreatorPreviewProvider";
+import { beatLabel } from "./poseLabels";
 import {
   CreatorTimelineLane,
   CreatorTimelinePlayhead,
@@ -91,7 +94,7 @@ type TimelineEventLane = Extract<
 
 export function PoseCreatorClipTimeline({
   variant = "panel",
-  poseLaneLabel = "Pose",
+  poseLaneLabel,
   allowHumanoid = true,
   playbackPending = false,
   settingsContent,
@@ -110,6 +113,7 @@ export function PoseCreatorClipTimeline({
   expanded?: boolean;
   onExpandedChange?: (expanded: boolean) => void;
 }) {
+  const { t } = useTranslation("pose");
   const { eventCatalog } = usePoseCreatorPreview();
   const trackRef = useRef<HTMLDivElement | null>(null);
   const viewportRef = useRef<HTMLDivElement | null>(null);
@@ -214,7 +218,11 @@ export function PoseCreatorClipTimeline({
     ? getTimelinePercent(dropPreview.time, duration)
     : 0;
   const dropLabel = dropPreview
-    ? `${dropPreview.replacesPose ? "Replace pose at " : ""}${formatTimelineTime(dropPreview.time)}`
+    ? dropPreview.replacesPose
+      ? t("timeline.replacePoseAt", {
+          time: formatTimelineTime(dropPreview.time),
+        })
+      : formatTimelineTime(dropPreview.time)
     : "";
   const overlapsDropLabel = (time: number) => {
     if (!dropPreview) return false;
@@ -377,7 +385,7 @@ export function PoseCreatorClipTimeline({
     <>
       <section
         ref={sectionRef}
-        aria-label="Timeline"
+        aria-label={t("timeline.label")}
         tabIndex={-1}
         onKeyDown={handleTimelineDeleteKey}
         className={cn(
@@ -394,7 +402,7 @@ export function PoseCreatorClipTimeline({
             leading={
               <>
                 <label className="flex items-center gap-2 text-xs font-medium">
-                  Duration
+                  {t("timeline.duration")}
                   <Input
                     type="number"
                     min={0}
@@ -412,16 +420,16 @@ export function PoseCreatorClipTimeline({
                       setDurationInput(String(clipDraft.duration));
                       endClipUndoGroup();
                     }}
-                    aria-label="Clip duration in seconds"
+                    aria-label={t("timeline.durationLabel")}
                     className="h-8 w-20"
                   />
                 </label>
                 <label className="flex items-center gap-2 text-xs font-medium">
-                  Loop
+                  {t("timeline.loop")}
                   <Switch
                     checked={clipDraft.loop}
                     onCheckedChange={(loop) => updateClipDraft({ loop })}
-                    aria-label="Toggle clip loop"
+                    aria-label={t("timeline.loopLabel")}
                   />
                 </label>
               </>
@@ -448,8 +456,8 @@ export function PoseCreatorClipTimeline({
                     size="icon-sm"
                     disabled={!hasKeyframes}
                     onClick={() => stepClipKeyframe(-1)}
-                    aria-label="Previous keyframe"
-                    title="Previous keyframe"
+                    aria-label={t("timeline.previousKeyframe")}
+                    title={t("timeline.previousKeyframe")}
                   >
                     <SkipBackIcon className="size-4" />
                   </Button>
@@ -459,8 +467,8 @@ export function PoseCreatorClipTimeline({
                     size="icon-sm"
                     disabled={duration <= 0}
                     onClick={() => stepClipTime(-1)}
-                    aria-label="Step backward one frame"
-                    title="Step backward"
+                    aria-label={t("timeline.stepBackLabel")}
+                    title={t("timeline.stepBack")}
                   >
                     <StepBackIcon className="size-4" />
                   </Button>
@@ -470,8 +478,8 @@ export function PoseCreatorClipTimeline({
                     size="icon-sm"
                     disabled={duration <= 0}
                     onClick={() => stepClipTime(1)}
-                    aria-label="Step forward one frame"
-                    title="Step forward"
+                    aria-label={t("timeline.stepForwardLabel")}
+                    title={t("timeline.stepForward")}
                   >
                     <StepForwardIcon className="size-4" />
                   </Button>
@@ -481,8 +489,8 @@ export function PoseCreatorClipTimeline({
                     size="icon-sm"
                     disabled={!hasKeyframes}
                     onClick={() => stepClipKeyframe(1)}
-                    aria-label="Next keyframe"
-                    title="Next keyframe"
+                    aria-label={t("timeline.nextKeyframe")}
+                    title={t("timeline.nextKeyframe")}
                   >
                     <SkipForwardIcon className="size-4" />
                   </Button>
@@ -498,8 +506,8 @@ export function PoseCreatorClipTimeline({
                       type="button"
                       variant="ghost"
                       size="icon-sm"
-                      aria-label="Timeline settings"
-                      title="Timeline settings"
+                      aria-label={t("timeline.settings")}
+                      title={t("timeline.settings")}
                     >
                       <Settings2Icon className="size-4" />
                     </Button>
@@ -515,10 +523,12 @@ export function PoseCreatorClipTimeline({
                     />
                     {settingsContent}
                     <p className="border-t pt-3 text-sm font-semibold">
-                      Timeline settings
+                      {t("timeline.settings")}
                     </p>
                     <div className="flex items-center justify-between gap-3">
-                      <span className="text-xs">Playback speed</span>
+                      <span className="text-xs">
+                        {t("timeline.playbackSpeed")}
+                      </span>
                       <Select
                         value={String(clipPlaybackSpeed)}
                         onValueChange={(value) =>
@@ -528,7 +538,7 @@ export function PoseCreatorClipTimeline({
                         <SelectTrigger
                           className="h-8 w-16 shrink-0"
                           size="sm"
-                          aria-label="Clip playback speed"
+                          aria-label={t("timeline.playbackSpeedLabel")}
                         >
                           <SelectValue />
                         </SelectTrigger>
@@ -549,16 +559,18 @@ export function PoseCreatorClipTimeline({
                     <div className="space-y-3">
                       <label className="flex h-8 items-center justify-between gap-3">
                         <span className="text-muted-foreground text-xs font-medium">
-                          Snap
+                          {t("timeline.snap")}
                         </span>
                         <Switch
                           checked={clipSnapEnabled}
                           onCheckedChange={setClipSnapEnabled}
-                          aria-label="Toggle timeline snap"
+                          aria-label={t("timeline.snapLabel")}
                         />
                       </label>
                       <div className="flex items-center justify-between gap-3">
-                        <span className="text-xs">Snap interval</span>
+                        <span className="text-xs">
+                          {t("timeline.snapInterval")}
+                        </span>
                         <Select
                           value={String(clipSnapIntervalSec)}
                           onValueChange={(value) =>
@@ -568,7 +580,7 @@ export function PoseCreatorClipTimeline({
                           <SelectTrigger
                             className="h-8 w-20 shrink-0"
                             size="sm"
-                            aria-label="Timeline snap interval"
+                            aria-label={t("timeline.snapIntervalLabel")}
                           >
                             <SelectValue />
                           </SelectTrigger>
@@ -591,7 +603,7 @@ export function PoseCreatorClipTimeline({
                 </Popover>
                 {variant === "workspace" && onExpandedChange ? (
                   <CreatorPanelCollapseButton
-                    label="timeline"
+                    label={t("timeline.panelName")}
                     expanded={expanded}
                     collapseDirection="down"
                     onExpandedChange={onExpandedChange}
@@ -632,7 +644,10 @@ export function PoseCreatorClipTimeline({
                     hideLabel={overlapsDropLabel(clipDraft.currentTimeSec)}
                   />
                 </div>
-                <CreatorTimelineLane index={0} label={poseLaneLabel} />
+                <CreatorTimelineLane
+                  index={0}
+                  label={poseLaneLabel ?? t("timeline.poseLane")}
+                />
                 {effectTracks.flatMap((track) =>
                   Array.from({ length: track.rowCount }, (_, offset) => (
                     <CreatorTimelineLane
@@ -641,7 +656,10 @@ export function PoseCreatorClipTimeline({
                       label={
                         offset === 0
                           ? track.label
-                          : `${track.label} (${offset + 1})`
+                          : t("timeline.laneRow", {
+                              label: track.label,
+                              row: offset + 1,
+                            })
                       }
                     />
                   )),
@@ -653,8 +671,8 @@ export function PoseCreatorClipTimeline({
                     style={{ top: RULER_HEIGHT_PX + LANE_HEIGHT_PX }}
                   >
                     {allowHumanoid
-                      ? "Drag a pose or effect here"
-                      : "Drag an effect here"}
+                      ? t("timeline.dragPose")
+                      : t("timeline.drag")}
                   </div>
                 ) : null}
 
@@ -698,12 +716,12 @@ export function PoseCreatorClipTimeline({
 
                 {dropPreview ? (
                   <div
-                    aria-label="Timeline drop preview"
+                    aria-label={t("timeline.dropPreview")}
                     className="pointer-events-none absolute top-0 bottom-0 z-30"
                     style={{ left: getTimelineLeftStyle(dropPercent) }}
                   >
                     <span
-                      aria-label="Drop time"
+                      aria-label={t("timeline.dropTime")}
                       className={cn(
                         "text-foreground text-2xs absolute top-1 font-semibold whitespace-nowrap tabular-nums",
                         dropPercent > 80
@@ -769,8 +787,10 @@ function KeyframeMarker({
   onPointerUp: (event: ReactPointerEvent<HTMLButtonElement>) => void;
   mobile: boolean;
 }) {
+  const { t } = useTranslation("pose");
   const percent = getTimelinePercent(keyframe.time, duration);
-  const label = keyframe.label;
+  const label = beatLabel(t, keyframe.label);
+  const time = formatTimelineTime(keyframe.time);
 
   return (
     <button
@@ -787,10 +807,12 @@ function KeyframeMarker({
           getKeyframeLaneCenterPx() - (mobile ? 20 : EVENT_MARKER_SIZE_PX) / 2,
         left: getTimelineLeftStyle(percent),
       }}
-      aria-label={`${label} keyframe at ${formatTimelineTime(keyframe.time)}${
-        keyframe.detail ? " with generated detail" : ""
-      }`}
-      title={`${label} / ${formatTimelineTime(keyframe.time)}`}
+      aria-label={
+        keyframe.detail
+          ? t("timeline.keyframeAtWithDetail", { label, time })
+          : t("timeline.keyframeAt", { label, time })
+      }
+      title={t("timeline.markerTitle", { label, detail: time })}
       data-detail={keyframe.detail ? "true" : undefined}
       onFocus={onFocus}
       onPointerDown={(event) => onPointerDown(event, keyframe)}
@@ -847,8 +869,12 @@ function EventMarker({
   ) => void;
   mobile: boolean;
 }) {
+  const { t } = useTranslation("pose");
   const percent = getTimelinePercent(event.time, duration);
-  const title = `${label} / ${formatEventMarkerTitle(event)}`;
+  const title = t("timeline.markerTitle", {
+    label,
+    detail: formatEventMarkerTitle(t, event),
+  });
   const hasDuration = isAnimaPoseClipVFXEvent(event);
   const untilAction = hasDuration && event.duration === undefined;
   const endPercent = getTimelinePercent(end, duration);
@@ -902,7 +928,9 @@ function EventMarker({
             "bg-background absolute rounded-full p-0.5",
             hasDuration ? "top-0.5 right-0.5" : "-top-2 -right-2",
           )}
-          aria-label={`Accompanying sound: ${accompanyingSound}`}
+          aria-label={t("timeline.accompanyingSound", {
+            sound: accompanyingSound,
+          })}
         >
           {(event.kind === "avatar_vfx" || event.kind === "scene_vfx") &&
           event.playAccompanyingSound === false ? (
@@ -944,15 +972,19 @@ function getEventMarkerClassName(kind: TimelineEventLane): string {
   return "size-4 rounded-full border-sky-300 bg-sky-500 hover:border-sky-100 hover:bg-sky-400";
 }
 
-function formatEffectEventKind(event: AnimaPoseClipEvent): string {
-  if (event.kind === "avatar_vfx") return "Avatar VFX";
+function formatEffectEventKind(
+  t: TFunction<"pose">,
+  event: AnimaPoseClipEvent,
+): string {
+  if (event.kind === "avatar_vfx") return t("timeline.eventKinds.avatarVfx");
   if (event.kind === "scene_vfx") {
     return event.sceneKind === "background_layers"
-      ? "Scene VFX background"
-      : "Scene VFX focus";
+      ? t("timeline.eventKinds.sceneBackground")
+      : t("timeline.eventKinds.sceneFocus");
   }
-  if (event.kind === "particle_vfx") return "Particle VFX";
-  return "SFX";
+  if (event.kind === "particle_vfx")
+    return t("timeline.eventKinds.particleVfx");
+  return t("timeline.eventKinds.sfx");
 }
 
 function formatEffectEventCatalogId(event: AnimaPoseClipEvent): string {
@@ -962,17 +994,25 @@ function formatEffectEventCatalogId(event: AnimaPoseClipEvent): string {
   return event.cueId;
 }
 
-function formatEventMarkerTitle(event: PoseCreatorClipEventDraft): string {
+/** Kind, IDs, time and extent of an event marker, separated by " / ". */
+function formatEventMarkerTitle(
+  t: TFunction<"pose">,
+  event: PoseCreatorClipEventDraft,
+): string {
   const parts = [
-    formatEffectEventKind(event),
+    formatEffectEventKind(t, event),
     event.id,
     formatEffectEventCatalogId(event),
     formatTimelineTime(event.time),
   ];
   if (isAnimaPoseClipVFXEvent(event) && event.duration !== undefined) {
-    parts.push(`duration ${formatTimelineTime(event.duration)}`);
+    parts.push(
+      t("timeline.eventDuration", {
+        time: formatTimelineTime(event.duration),
+      }),
+    );
   } else if (isAnimaPoseClipVFXEvent(event)) {
-    parts.push("until Action ends");
+    parts.push(t("timeline.untilActionEnds"));
   }
   return parts.join(" / ");
 }

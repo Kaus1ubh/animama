@@ -1968,6 +1968,8 @@ async def test_chat_sse_main_structured_tts_speech_includes_tts_text(monkeypatch
                 "grief": 0,
                 "sadness": 0,
             },
+            # No UI Locale was reported, so Gemini detects the language.
+            "language_code": None,
         }
     ]
     user_response_index = next(index for index, chunk in enumerate(chunks) if "event: user.response" in chunk)

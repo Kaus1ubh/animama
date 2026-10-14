@@ -1,3 +1,4 @@
+import { getI18n } from "react-i18next";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { parseAnimaPose, parseAnimaPoseClip, type Avatar } from "@/lib/avatar";
@@ -1298,5 +1299,34 @@ describe("atomic bone draft batches", () => {
     expect(Object.keys(usePoseCreatorStore.getState().boneDrafts)).toHaveLength(
       2,
     );
+  });
+});
+
+describe("clip validation wording", () => {
+  afterEach(async () => {
+    await getI18n().changeLanguage("en");
+  });
+
+  it("words the clip's issues again in a new UI Locale without an edit", async () => {
+    const store = usePoseCreatorStore.getState();
+    store.resetWorkspace();
+    store.updateClipDraft({ loop: true });
+    const before = usePoseCreatorStore.getState();
+    const english = getI18n().getFixedT("en", "pose")("clip.validation.empty");
+    expect(before.clipDraft.validationIssues).toEqual([
+      expect.objectContaining({ code: "empty-keyframes", message: english }),
+    ]);
+
+    await getI18n().changeLanguage("ja");
+    const after = usePoseCreatorStore.getState();
+    const japanese = getI18n().getFixedT("ja", "pose")("clip.validation.empty");
+    expect(japanese).not.toBe(english);
+    expect(after.clipDraft.validationIssues).toEqual([
+      expect.objectContaining({ code: "empty-keyframes", message: japanese }),
+    ]);
+    // Rewording is not an edit.
+    expect(after.clipDraft.isDirty).toBe(before.clipDraft.isDirty);
+    expect(after.clipDraft.loop).toBe(true);
+    expect(after.clipUndoHistory).toBe(before.clipUndoHistory);
   });
 });

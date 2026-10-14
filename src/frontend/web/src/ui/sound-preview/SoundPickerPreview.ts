@@ -1,9 +1,24 @@
 import type { Client } from "@animama/runtime-contracts/sdk";
+import { getI18n } from "react-i18next";
 import { previewCatalogItem } from "@/lib/content/catalogApi";
 import {
   contentPreviewPrimaryFile,
   fetchContentPreviewFile,
 } from "@/lib/content/contentPreview";
+import {
+  apiErrorLine,
+  apiErrorText,
+  readApiError,
+  WordedError,
+} from "@/lib/errors/apiError";
+
+/** Text for a failed audition; English without wording follows the uncoded-error rule. */
+function previewErrorText(error: unknown): string {
+  const t = getI18n().getFixedT(null, "sound");
+  return apiErrorLine(
+    apiErrorText(readApiError(error), null, t("preview.playFailed")),
+  );
+}
 
 /** Own a single picker audition, including requests that finish after cancellation. */
 export class SoundPickerPreview {
@@ -11,6 +26,7 @@ export class SoundPickerPreview {
   private audio: HTMLAudioElement | null = null;
   private url: string | null = null;
 
+  /** Reports the auditioned item, or a failure worded in the UI Locale. */
   private readonly changed: (id: string | null, error?: string) => void;
 
   constructor(changed: (id: string | null, error?: string) => void) {
@@ -45,12 +61,13 @@ export class SoundPickerPreview {
         "sound_effect",
       );
       if (request.signal.aborted) return;
+      const t = getI18n().getFixedT(null, "sound");
       const file = contentPreviewPrimaryFile(preview, "audio");
-      if (!file) throw new Error("This sound has no playable audio.");
+      if (!file) throw new WordedError(t("preview.noAudio"));
       const response = await fetchContentPreviewFile(preview, file, {
         signal: request.signal,
       });
-      if (!response.ok) throw new Error("Sound preview could not be loaded.");
+      if (!response.ok) throw new WordedError(t("preview.loadFailed"));
       const blob = await response.blob();
       if (request.signal.aborted) return;
       this.url = URL.createObjectURL(blob);
@@ -60,19 +77,14 @@ export class SoundPickerPreview {
       audio.onerror = () => {
         if (request.signal.aborted) return;
         this.stop();
-        this.changed(null, "Sound preview could not be played.");
+        this.changed(null, t("preview.playFailed"));
       };
       await audio.play();
       if (request.signal.aborted) audio.pause();
     } catch (error) {
       if (request.signal.aborted) return;
       this.stop();
-      this.changed(
-        null,
-        error instanceof Error
-          ? error.message
-          : "Sound preview could not be played.",
-      );
+      this.changed(null, previewErrorText(error));
     }
   }
 }

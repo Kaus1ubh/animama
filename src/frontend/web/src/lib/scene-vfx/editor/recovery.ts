@@ -1,3 +1,5 @@
+import { getI18n } from "react-i18next";
+
 import {
   createCreatorRecoveryStore,
   creatorRecoveryTextBytes,
@@ -37,14 +39,20 @@ export const sceneEffectRecoveryStore = createCreatorRecoveryStore({
   fallbackKeyPrefix: "anima.sceneEffectCreator.recovery.v1",
   maxBytes: 34 * 1024 * 1024,
   messages: {
-    tooLarge:
-      "These images are too large for browser crash recovery. Keep this tab open until Save completes.",
-    unavailable:
-      "Browser crash recovery is unavailable. Keep this tab open until Save completes.",
-    metadataOnly: (recovery: SceneEffectRecovery) =>
-      recovery.imageResources.length
-        ? "Image bytes could not be stored for crash recovery. Reselect private images after restoring this draft."
-        : null,
+    tooLarge: () => {
+      const t = getI18n().getFixedT(null, "effects");
+      return t("scene.recovery.tooLarge");
+    },
+    unavailable: () => {
+      const t = getI18n().getFixedT(null, "effects");
+      return t("creator.recovery.unavailable");
+    },
+    metadataOnly: (recovery: SceneEffectRecovery) => {
+      const t = getI18n().getFixedT(null, "effects");
+      return recovery.imageResources.length
+        ? t("scene.recovery.metadataOnly")
+        : null;
+    },
   },
   codec: {
     measure: (recovery: SceneEffectRecovery) =>

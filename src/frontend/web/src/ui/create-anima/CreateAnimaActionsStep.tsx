@@ -1,11 +1,13 @@
 import { ChevronDown, ChevronRight, Play } from "lucide-react";
 import { useEffect, useState } from "react";
+import { Trans, useTranslation } from "react-i18next";
 
 import type {
   ItemRevisionRef,
   PyGesture,
 } from "@animama/runtime-contracts/sdk";
 import { TRACKED_EMOTIONS, type TrackedEmotion } from "@/lib/emotion";
+import { emotionLabel } from "@/lib/emotion/presentation";
 import { cn } from "@/lib/utils";
 import type { AnimaCreationSources } from "@/query/hooks/useAnimaCreation";
 import {
@@ -26,6 +28,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/components/tabs";
 import { itemReference } from "./createAnimaContent";
 import {
   INTENSITIES,
+  REACTION_CELL_COUNT,
   reactionCount,
   sameRef,
   setReaction,
@@ -41,8 +44,6 @@ type Preview = (
   source: ItemRevisionRef,
   label: string,
 ) => void;
-const emotionLabel = (emotion: string) =>
-  emotion.charAt(0).toUpperCase() + emotion.slice(1).replace(/_/g, " ");
 
 export function CreateAnimaActionsStep({
   draft,
@@ -59,6 +60,8 @@ export function CreateAnimaActionsStep({
   onPreview: Preview;
   focusTarget?: string;
 }) {
+  const { t } = useTranslation("create");
+  const { t: emotionT } = useTranslation("emotion");
   const [tab, setTab] = useState(
     focusTarget?.startsWith("creation-reaction-") ? "reactions" : "gestures",
   );
@@ -124,45 +127,65 @@ export function CreateAnimaActionsStep({
   );
   const applyGesture = (item: PyGesture | null, key: string) =>
     onEdit({ gestures: selectCreationGesture(draft.gestures, item, key) });
+  const sourceLabel = (value: string) =>
+    value === "local" ? t("sources.local") : t("sources.included");
+  const assigned = reactionCount(draft);
+  // Values naming one Reaction cell in its labels.
+  const cellText = (emotion: TrackedEmotion, intensity: Intensity) => ({
+    emotion: emotionLabel(emotion, emotionT),
+    intensity,
+  });
   return (
     <div id="creation-actions" tabIndex={-1} className="space-y-5">
       <div className="bg-muted/20 rounded-xl border p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h3 className="font-medium">Recommended Starter Pack</h3>
+          <h3 className="font-medium">{t("actionsStep.starterPack.title")}</h3>
           <Button
             type="button"
             variant="outline"
             size="sm"
             onClick={() => setConfirm("reset")}
           >
-            Reset to recommended
+            {t("actionsStep.starterPack.reset")}
           </Button>
         </div>
         <p className="text-muted-foreground mt-2 text-sm">
-          A starting point, not a requirement. Select exactly what your Anima
-          can do.
+          {t("actionsStep.starterPack.description")}
         </p>
         <p className="mt-2 text-sm">
-          <strong>{draft.gestures.length}</strong> Gestures ·{" "}
-          <strong>{reactionCount(draft)}</strong> / 72 Reaction cells assigned
+          <Trans
+            t={t}
+            ns="create"
+            i18nKey="actionsStep.starterPack.summary"
+            count={draft.gestures.length}
+            values={{ reactions: assigned, total: REACTION_CELL_COUNT }}
+            components={{ strong: <strong /> }}
+          />
         </p>
         {draft.starter_pack ? (
           <p className="text-muted-foreground mt-1 text-xs">
-            Version {draft.starter_pack.version} ·{" "}
-            {sources.options.data?.counts.recommended_gestures ?? "—"}{" "}
-            recommended Gestures ·{" "}
-            {sources.options.data?.counts.recommended_reaction_cells ?? "—"}{" "}
-            recommended cells
+            {t("actionsStep.starterPack.version", {
+              version: draft.starter_pack.version,
+              gestures:
+                sources.options.data?.counts.recommended_gestures ?? "—",
+              cells:
+                sources.options.data?.counts.recommended_reaction_cells ?? "—",
+            })}
           </p>
         ) : null}
       </div>
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="gestures">
-            Gestures ({draft.gestures.length})
+            {t("actionsStep.tabs.gestures", {
+              selected: draft.gestures.length,
+            })}
           </TabsTrigger>
           <TabsTrigger value="reactions">
-            Reactions ({reactionCount(draft)}/72)
+            {t("actionsStep.tabs.reactions", {
+              assigned,
+              total: REACTION_CELL_COUNT,
+            })}
           </TabsTrigger>
         </TabsList>
         <TabsContent
@@ -174,40 +197,40 @@ export function CreateAnimaActionsStep({
           <div className="flex flex-wrap gap-2">
             <Input
               className="min-w-0 flex-1 basis-40"
-              aria-label="Search Gestures"
-              placeholder="Search Gestures…"
+              aria-label={t("actionsStep.gestures.search")}
+              placeholder={t("actionsStep.gestures.searchPlaceholder")}
               value={search}
               onChange={(event) => setSearch(event.target.value)}
             />
             <select
               className="bg-background rounded-md border px-2 text-sm"
-              aria-label="Gesture source"
+              aria-label={t("actionsStep.gestures.sourceFilter")}
               value={source}
               onChange={(event) => setSource(event.target.value)}
             >
-              <option value="all">All sources</option>
-              <option value="included">Included</option>
-              <option value="local">My Content</option>
+              <option value="all">{t("sources.all")}</option>
+              <option value="included">{t("sources.included")}</option>
+              <option value="local">{t("sources.local")}</option>
             </select>
           </div>
           {sources.gestures.isLoading ? (
             <p role="status" className="text-sm">
-              Loading Gestures…
+              {t("actionsStep.gestures.loading")}
             </p>
           ) : sources.gestures.isError ? (
             <div role="alert" className="text-sm">
-              Could not load Gestures. Selections have not changed.{" "}
+              {t("actionsStep.gestures.loadFailed")}{" "}
               <Button
                 size="sm"
                 variant="outline"
                 onClick={() => void sources.gestures.refetch()}
               >
-                Retry Gestures
+                {t("actionsStep.gestures.retry")}
               </Button>
             </div>
           ) : !visibleKeys.length ? (
             <p className="text-muted-foreground text-sm">
-              No matching Gestures. Hidden selections are kept.
+              {t("actionsStep.gestures.noMatches")}
             </p>
           ) : null}
           <div
@@ -229,7 +252,7 @@ export function CreateAnimaActionsStep({
                   tabIndex={-1}
                   key={key}
                   role="listitem"
-                  aria-label={`Gesture ${key}`}
+                  aria-label={t("actionsStep.gestures.key", { key })}
                   className="min-w-0 divide-y"
                 >
                   {options.map((item) => (
@@ -240,8 +263,7 @@ export function CreateAnimaActionsStep({
                       <ActionRowIdentity
                         name={item.name}
                         description={
-                          item.description ||
-                          (item.source === "local" ? "My Content" : "Included")
+                          item.description || sourceLabel(item.source)
                         }
                       />
                       <Button
@@ -263,8 +285,8 @@ export function CreateAnimaActionsStep({
                         }
                       >
                         {sameRef(selection?.source, item)
-                          ? "Selected"
-                          : "Select"}
+                          ? t("actionsStep.gestures.selected")
+                          : t("actionsStep.gestures.select")}
                       </Button>
                       <Button
                         size="icon-sm"
@@ -272,7 +294,9 @@ export function CreateAnimaActionsStep({
                         onClick={() =>
                           onPreview("gesture", itemReference(item), item.name)
                         }
-                        aria-label={`Preview Gesture ${item.name}`}
+                        aria-label={t("actionsStep.gestures.preview", {
+                          name: item.name,
+                        })}
                       >
                         <Play className="size-3.5" />
                       </Button>
@@ -281,8 +305,9 @@ export function CreateAnimaActionsStep({
                   {selection &&
                   !options.some((item) => sameRef(selection.source, item)) ? (
                     <p className="text-muted-foreground border-l-primary border-l-2 px-4 py-3 text-xs break-words">
-                      Kept selection: {selection.source.item_id}. It is hidden
-                      by your filter or needs attention.
+                      {t("actionsStep.gestures.keptSelection", {
+                        id: selection.source.item_id,
+                      })}
                     </p>
                   ) : null}
                 </section>
@@ -295,31 +320,31 @@ export function CreateAnimaActionsStep({
             size="sm"
             onClick={() => setConfirm("gestures")}
           >
-            Clear all Gestures
+            {t("actionsStep.gestures.clearAll")}
           </Button>
           {!draft.gestures.length ? (
             <p className="text-muted-foreground text-sm">
-              No Gestures selected. Your Anima can still be created.
+              {t("actionsStep.gestures.none")}
             </p>
           ) : null}
         </TabsContent>
         <TabsContent value="reactions" className="space-y-4">
           {sources.reactions.isError ? (
             <p role="alert" className="text-sm">
-              Could not load Reactions. Assignments are preserved.{" "}
+              {t("actionsStep.reactions.loadFailed")}{" "}
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => void sources.reactions.refetch()}
               >
-                Retry Reactions
+                {t("actionsStep.reactions.retry")}
               </Button>
             </p>
           ) : null}
           <div
             data-testid="creation-reaction-matrix"
             className="overflow-hidden rounded-xl border"
-            aria-label="Reaction matrix"
+            aria-label={t("actionsStep.reactions.matrix")}
           >
             {TRACKED_EMOTIONS.map((emotion) => {
               const expanded = expandedEmotions.has(emotion);
@@ -352,7 +377,7 @@ export function CreateAnimaActionsStep({
                         : "hover:bg-muted/30",
                     )}
                   >
-                    <span>{emotionLabel(emotion)}</span>
+                    <span>{emotionLabel(emotion, emotionT)}</span>
                     {expanded ? (
                       <ChevronDown className="size-4 shrink-0" />
                     ) : (
@@ -363,7 +388,9 @@ export function CreateAnimaActionsStep({
                     <div
                       id={panelId}
                       role="region"
-                      aria-label={`${emotionLabel(emotion)} Reaction levels`}
+                      aria-label={t("actionsStep.reactions.levels", {
+                        emotion: emotionLabel(emotion, emotionT),
+                      })}
                       className="divide-y border-t"
                     >
                       {INTENSITIES.map((intensity) => {
@@ -396,12 +423,16 @@ export function CreateAnimaActionsStep({
                                 setReactionSource("all");
                                 setReactionLimit(24);
                               }}
-                              aria-label={`Change ${emotion} intensity ${intensity}`}
+                              aria-label={t(
+                                "actionsStep.reactions.change",
+                                cellText(emotion, intensity),
+                              )}
                             >
                               <span className="block truncate">
                                 {ref
-                                  ? (item?.name ?? "Selected · needs attention")
-                                  : "Empty"}
+                                  ? (item?.name ??
+                                    t("actionsStep.reactions.needsAttention"))
+                                  : t("actionsStep.reactions.empty")}
                               </span>
                             </button>
                             <div className="flex shrink-0 gap-1">
@@ -414,10 +445,16 @@ export function CreateAnimaActionsStep({
                                       onPreview(
                                         "reaction",
                                         ref,
-                                        `${emotionLabel(emotion)} · ${intensity}`,
+                                        t(
+                                          "actionsStep.reactions.previewLabel",
+                                          cellText(emotion, intensity),
+                                        ),
                                       )
                                     }
-                                    aria-label={`Preview ${emotion} intensity ${intensity}`}
+                                    aria-label={t(
+                                      "actionsStep.reactions.previewCell",
+                                      cellText(emotion, intensity),
+                                    )}
                                   >
                                     <Play className="size-3" />
                                   </Button>
@@ -435,9 +472,12 @@ export function CreateAnimaActionsStep({
                                         ),
                                       })
                                     }
-                                    aria-label={`Clear ${emotion} intensity ${intensity}`}
+                                    aria-label={t(
+                                      "actionsStep.reactions.clearCell",
+                                      cellText(emotion, intensity),
+                                    )}
                                   >
-                                    Clear
+                                    {t("actions.clear")}
                                   </Button>
                                 </>
                               ) : null}
@@ -456,9 +496,12 @@ export function CreateAnimaActionsStep({
                                       ),
                                     })
                                   }
-                                  aria-label={`Revert ${emotion} intensity ${intensity} to recommended`}
+                                  aria-label={t(
+                                    "actionsStep.reactions.revertCell",
+                                    cellText(emotion, intensity),
+                                  )}
                                 >
-                                  Revert
+                                  {t("actionsStep.reactions.revert")}
                                 </Button>
                               ) : null}
                             </div>
@@ -477,11 +520,11 @@ export function CreateAnimaActionsStep({
             size="sm"
             onClick={() => setConfirm("reactions")}
           >
-            Clear all Reactions
+            {t("actionsStep.reactions.clearAll")}
           </Button>
-          {!reactionCount(draft) ? (
+          {!assigned ? (
             <p className="text-muted-foreground text-sm">
-              All 72 cells are empty. Your Anima can still be created.
+              {t("actionsStep.reactions.none", { total: REACTION_CELL_COUNT })}
             </p>
           ) : null}
         </TabsContent>
@@ -495,15 +538,14 @@ export function CreateAnimaActionsStep({
         >
           <DialogContent>
             <DialogTitle>
-              Replace Gesture for “{replace.semantic_key}”?
+              {t("actionsStep.replace.title", { key: replace.semantic_key })}
             </DialogTitle>
             <DialogDescription>
-              Only one Gesture can use this semantic key. The selected source
-              will be replaced with {replace.name}; no content is deleted.
+              {t("actionsStep.replace.description", { name: replace.name })}
             </DialogDescription>
             <DialogFooter>
               <Button variant="outline" onClick={() => setReplace(null)}>
-                Keep current
+                {t("actionsStep.replace.keep")}
               </Button>
               <Button
                 onClick={() => {
@@ -511,7 +553,7 @@ export function CreateAnimaActionsStep({
                   setReplace(null);
                 }}
               >
-                Replace selection
+                {t("actionsStep.replace.confirm")}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -527,17 +569,21 @@ export function CreateAnimaActionsStep({
           <DialogContent>
             <DialogTitle>
               {confirm === "reset"
-                ? "Reset Actions to recommended?"
-                : `Clear all ${confirm === "gestures" ? "Gestures" : "Reactions"}?`}
+                ? t("actionsStep.confirm.resetTitle")
+                : confirm === "gestures"
+                  ? t("actionsStep.confirm.clearGesturesTitle")
+                  : t("actionsStep.confirm.clearReactionsTitle")}
             </DialogTitle>
             <DialogDescription>
               {confirm === "reset"
-                ? "This replaces both Gesture selections and all 72 Reaction cells with the current Starter Pack. Avatar and Identity stay unchanged."
-                : "Only these selections will be cleared. Empty selections are valid, and your saved content is not deleted."}
+                ? t("actionsStep.confirm.resetDescription", {
+                    total: REACTION_CELL_COUNT,
+                  })
+                : t("actionsStep.confirm.clearDescription")}
             </DialogDescription>
             <DialogFooter>
               <Button variant="outline" onClick={() => setConfirm(null)}>
-                Cancel
+                {t("actions.cancel")}
               </Button>
               <Button
                 onClick={() => {
@@ -547,7 +593,9 @@ export function CreateAnimaActionsStep({
                   setConfirm(null);
                 }}
               >
-                {confirm === "reset" ? "Reset Actions" : "Clear selections"}
+                {confirm === "reset"
+                  ? t("actionsStep.confirm.reset")
+                  : t("actionsStep.confirm.clear")}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -562,17 +610,19 @@ export function CreateAnimaActionsStep({
         >
           <DialogContent className="max-h-[90dvh] overflow-y-auto">
             <DialogTitle>
-              {emotionLabel(cell.emotion)} · intensity {cell.intensity}
+              {t(
+                "actionsStep.cell.title",
+                cellText(cell.emotion, cell.intensity),
+              )}
             </DialogTitle>
             <DialogDescription>
-              Choose any Reaction, or leave this cell empty. Preview does not
-              change its assignment.
+              {t("actionsStep.cell.description")}
             </DialogDescription>
             <div className="flex flex-wrap gap-2">
               <Input
                 className="min-w-0 flex-1 basis-40"
-                aria-label="Search Reactions"
-                placeholder="Search Reactions…"
+                aria-label={t("actionsStep.cell.search")}
+                placeholder={t("actionsStep.cell.searchPlaceholder")}
                 value={reactionSearch}
                 onChange={(event) => {
                   setReactionSearch(event.target.value);
@@ -581,18 +631,18 @@ export function CreateAnimaActionsStep({
               />
               <select
                 className="bg-background rounded-md border px-2 text-sm"
-                aria-label="Reaction source"
+                aria-label={t("actionsStep.cell.sourceFilter")}
                 value={reactionSource}
                 onChange={(event) => setReactionSource(event.target.value)}
               >
-                <option value="all">All sources</option>
-                <option value="included">Included</option>
-                <option value="local">My Content</option>
+                <option value="all">{t("sources.all")}</option>
+                <option value="included">{t("sources.included")}</option>
+                <option value="local">{t("sources.local")}</option>
               </select>
             </div>
             <div
               role="radiogroup"
-              aria-label="Reaction assignment"
+              aria-label={t("actionsStep.cell.assignment")}
               className="max-h-72 space-y-2 overflow-y-auto"
             >
               <label className="flex items-center gap-2 rounded-lg border p-3 text-sm">
@@ -603,7 +653,7 @@ export function CreateAnimaActionsStep({
                   onChange={() => setReactionChoice(null)}
                   className="accent-primary"
                 />
-                Empty
+                {t("actionsStep.reactions.empty")}
               </label>
               {filteredReactions.slice(0, reactionLimit).map((item) => (
                 <div
@@ -624,7 +674,7 @@ export function CreateAnimaActionsStep({
                     <span className="break-words">
                       {item.name}
                       <span className="text-muted-foreground block text-xs">
-                        {item.source === "local" ? "My Content" : "Included"}
+                        {sourceLabel(item.source)}
                       </span>
                     </span>
                   </label>
@@ -634,7 +684,9 @@ export function CreateAnimaActionsStep({
                     onClick={() =>
                       onPreview("reaction", itemReference(item), item.name)
                     }
-                    aria-label={`Preview Reaction ${item.name}`}
+                    aria-label={t("actionsStep.cell.preview", {
+                      name: item.name,
+                    })}
                   >
                     <Play className="size-3.5" />
                   </Button>
@@ -642,7 +694,7 @@ export function CreateAnimaActionsStep({
               ))}
               {!filteredReactions.length ? (
                 <p className="text-muted-foreground text-sm">
-                  No matching Reactions. Your cell has not changed.
+                  {t("actionsStep.cell.noMatches")}
                 </p>
               ) : null}
             </div>
@@ -652,12 +704,12 @@ export function CreateAnimaActionsStep({
                 size="sm"
                 onClick={() => setReactionLimit((value) => value + 24)}
               >
-                Show more Reactions
+                {t("actionsStep.cell.showMore")}
               </Button>
             ) : null}
             <DialogFooter>
               <Button variant="outline" onClick={() => setCell(null)}>
-                Cancel
+                {t("actions.cancel")}
               </Button>
               <Button
                 onClick={() => {
@@ -672,7 +724,7 @@ export function CreateAnimaActionsStep({
                   setCell(null);
                 }}
               >
-                Apply to cell
+                {t("actionsStep.cell.apply")}
               </Button>
             </DialogFooter>
           </DialogContent>

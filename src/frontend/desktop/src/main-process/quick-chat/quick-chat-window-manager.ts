@@ -1,6 +1,10 @@
 import { BrowserWindow, screen, type WebContents } from "electron";
 
 import type { DesktopConfig } from "../config.js";
+import {
+  keepLocalizedTitle,
+  type ShellLocale,
+} from "../locale/shell-locale.js";
 import { writeLog } from "../logging.js";
 import { installWindowGuards } from "../security/guards.js";
 
@@ -38,6 +42,8 @@ export type DesktopQuickChatRuntimeMessage = {
 
 type QuickChatWindowManagerOptions = {
   config: DesktopConfig;
+  /** Supplies the localized window title. */
+  locale: ShellLocale;
   preloadPath: string;
   runtimeMessageChannel: string;
   stateChangedChannel: string;
@@ -293,6 +299,7 @@ function isPointInsideRegion(
 
 export class QuickChatWindowManager {
   private readonly config: DesktopConfig;
+  private readonly locale: ShellLocale;
   private readonly preloadPath: string;
   private readonly runtimeMessageChannel: string;
   private readonly stateChangedChannel: string;
@@ -318,6 +325,7 @@ export class QuickChatWindowManager {
 
   constructor(options: QuickChatWindowManagerOptions) {
     this.config = options.config;
+    this.locale = options.locale;
     this.preloadPath = options.preloadPath;
     this.runtimeMessageChannel = options.runtimeMessageChannel;
     this.stateChangedChannel = options.stateChangedChannel;
@@ -435,7 +443,7 @@ export class QuickChatWindowManager {
       fullscreenable: false,
       show: false,
       type: "toolbar",
-      title: "Anima Quick Chat",
+      title: this.locale.strings.text("windows.quickChat"),
       webPreferences: {
         preload: this.preloadPath,
         additionalArguments: ["--animama-window-role=quick-chat"],
@@ -451,6 +459,7 @@ export class QuickChatWindowManager {
     this.quickChatWindow = quickChatWindow;
     this.quickChatAnchorBottomY = initialBounds.y + initialBounds.height;
     this.setWindowOpacity(quickChatWindow, 0);
+    keepLocalizedTitle(quickChatWindow, this.locale, "windows.quickChat");
     installWindowGuards(quickChatWindow, this.config.allowedWebOrigin);
     quickChatWindow.setAlwaysOnTop(true, "floating");
     quickChatWindow.setVisibleOnAllWorkspaces(true, {

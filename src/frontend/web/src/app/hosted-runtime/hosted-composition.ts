@@ -4,6 +4,7 @@ import type {
 } from "@animama/runtime-contracts";
 import { zRuntimeCapabilities } from "@animama/runtime-contracts/validators";
 import { safeNavigationUrl } from "@animama/product-ui";
+import { getI18n } from "react-i18next";
 import type { AdmissionRefresh, AppComposition } from "../runtime/composition";
 import type { SessionRequestScope } from "../runtime/session-requests";
 import { traceProductRequest } from "../runtime/product-request-tracing";
@@ -21,6 +22,7 @@ import {
   forgetHostedRecoveryIdentity,
 } from "./recovery-identity";
 import { purgeHostedRecoverySessions } from "@/lib/content/recovery-session";
+import { WordedError } from "@/lib/errors/apiError";
 
 type HostedContext = {
   schema_version: number;
@@ -61,6 +63,15 @@ const MAX_SETUP_POLLS = 24;
 /** An open view repeats failed setup on its own after this pause, doubling to a minute. */
 const SETUP_PAUSE_MS = 2_000;
 const MAX_SETUP_PAUSE_MS = 60_000;
+
+/** A hosted runtime this application cannot use until it is updated (worded when reported). */
+function updateRequired(): RuntimeAdmission {
+  const t = getI18n().getFixedT(null, "app");
+  return {
+    status: "unavailable",
+    message: t("admission.messages.updateRequired"),
+  };
+}
 
 /** Cookie authority and CSRF are installed before React; browser headers cannot choose an owner. */
 export function createHostedComposition(
@@ -151,20 +162,25 @@ export function createHostedComposition(
     return response.json() as Promise<T>;
   }
 
-  const signInRequired = (): RuntimeAdmission =>
-    signInFailed
+  const signInRequired = (): RuntimeAdmission => {
+    const t = getI18n().getFixedT(null, "app");
+    return signInFailed
       ? {
           status: "sign-in-required",
-          message: "Sign-in did not finish. Please try again.",
+          message: t("admission.messages.signInNotFinished"),
         }
       : { status: "sign-in-required" };
+  };
   /** Sign-in could not start; reported once, on whichever view comes next. */
   const takeSignInError = () => {
     const failed = signInError;
     signInError = false;
     return failed;
   };
-  const signInErrorMessage = "Sign-in could not be started. Please try again.";
+  const signInErrorMessage = () => {
+    const t = getI18n().getFixedT(null, "app");
+    return t("admission.messages.signInNotStarted");
+  };
 
   /** The failed sign-out still in force for this browser, if any. */
   const incompleteSignOut = (): IncompleteSignOut | null =>
@@ -319,9 +335,10 @@ export function createHostedComposition(
             Math.min(setupPolls, SETUP_POLL_DELAYS_MS.length) - 1
           ],
         );
+      const t = getI18n().getFixedT(null, "app");
       return {
         status: "loading",
-        message: "Finishing setting up your account…",
+        message: t("admission.messages.accountSetupFinishing"),
       };
     }
     const permitted = open
@@ -339,8 +356,12 @@ export function createHostedComposition(
       void setup.run().then(() => notify());
     }
     if (open) throw new Error("Hosted account setup has not finished");
+    const t = getI18n().getFixedT(null, "app");
     return setup.running
-      ? { status: "loading", message: "Setting up your account…" }
+      ? {
+          status: "loading",
+          message: t("admission.messages.accountSetupRunning"),
+        }
       : { status: "recovery" };
   }
 
@@ -350,10 +371,7 @@ export function createHostedComposition(
   ): Promise<RuntimeAdmission> {
     if (context.schema_version !== 1) {
       if (session) throw new Error("Hosted context has an incompatible format");
-      return {
-        status: "unavailable",
-        message: "This hosted runtime needs an application update.",
-      };
+      return updateRequired();
     }
     if (context.state !== "bootstrapping" && bootstrapTimer) {
       clearTimeout(bootstrapTimer);
@@ -414,10 +432,7 @@ export function createHostedComposition(
     ) {
       if (session)
         throw new Error("Hosted context has incompatible capabilities");
-      return {
-        status: "unavailable",
-        message: "This hosted runtime needs an application update.",
-      };
+      return updateRequired();
     }
     const capabilities = result.data;
     if (
@@ -433,10 +448,10 @@ export function createHostedComposition(
     ) {
       if (session)
         throw new Error("Hosted context has incompatible capabilities");
+      const t = getI18n().getFixedT(null, "app");
       return {
         status: "unavailable",
-        message:
-          "This hosted runtime has incompatible application capabilities.",
+        message: t("admission.messages.incompatibleCapabilities"),
       };
     }
     const recovery = recoveryGeneration(context.recovery_session_id);
@@ -474,7 +489,7 @@ export function createHostedComposition(
       // stays until that session ends or a newer sign-in replaces it.
       const retryView = (): RuntimeAdmission =>
         takeSignInError()
-          ? { status: "sign-in-required", message: signInErrorMessage }
+          ? { status: "sign-in-required", message: signInErrorMessage() }
           : { status: "sign-in-required" };
       try {
         await liveSession(signal);
@@ -486,7 +501,7 @@ export function createHostedComposition(
     }
     if (signedOut || signedOutElsewhere) return { status: "sign-in-required" };
     if (takeSignInError())
-      return { status: "unavailable", message: signInErrorMessage };
+      return { status: "unavailable", message: signInErrorMessage() };
     const response = await authorizedFetch("/v1/hosted/runtime-context", {
       signal,
     });
@@ -698,10 +713,12 @@ export function createHostedComposition(
           signOutAttempt = null;
         })),
       openAccount: () => {
-        if (!accountUrl)
-          throw new Error(
-            "Account access is unavailable. Please contact the hosted operator.",
+        if (!accountUrl) {
+          const t = getI18n().getFixedT(null, "app");
+          throw new WordedError(
+            t("admission.accountUnavailableContactOperator"),
           );
+        }
         options.navigate(accountUrl);
       },
       loadUsage: async (signal): Promise<RuntimeUsage> => {
@@ -726,18 +743,23 @@ export function createHostedComposition(
         }
         if (!Number.isFinite(Date.parse(value.resets_at)))
           throw new Error("Account usage has an incompatible reset time");
+        const t = getI18n().getFixedT(null, "app");
         return {
           units: [
             {
               id: "turns",
-              label: "Chat turns",
+              label: t("accountUsage.units.turns"),
               ...value.turns,
               resetsAt: value.resets_at,
             },
-            { id: "chats", label: "Chats", ...value.chats },
+            {
+              id: "chats",
+              label: t("accountUsage.units.chats"),
+              ...value.chats,
+            },
             {
               id: "storage_bytes",
-              label: "Storage bytes",
+              label: t("accountUsage.units.storageBytes"),
               ...value.storage_bytes,
             },
           ],

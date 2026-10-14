@@ -1,5 +1,6 @@
 "use client";
 
+import { useFormatters } from "@animama/product-ui/i18n";
 import { lazy, Suspense, type ComponentProps } from "react";
 import { Upload } from "lucide-react";
 
@@ -23,21 +24,15 @@ const LazyCreateAnimaAvatarPreviewScene = lazy(() =>
   })),
 );
 
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024 * 1024) {
-    return `${Math.max(1, Math.round(bytes / 1024))} KB`;
-  }
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
 function AvatarPreviewSceneFallback({ file }: { file: File }) {
+  const { fileSize } = useFormatters();
   return (
     <>
       <div className="h-full w-full" />
       <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 via-black/5 to-transparent px-4 py-3">
         <p className="text-sm font-medium text-white">{file.name}</p>
         <p className="text-xs text-white/80">
-          {formatFileSize(file.size)} • Local preview only
+          {fileSize(file.size)} • Local preview only
         </p>
       </div>
       <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/25 backdrop-blur-[1px]">

@@ -8,6 +8,7 @@ import {
   TriangleAlertIcon,
 } from "lucide-react";
 import { useTheme } from "next-themes";
+import { useTranslation } from "react-i18next";
 import { Toaster as Sonner, type ToasterProps } from "sonner";
 
 /** Map Animama theme names onto the themes whose rich-color tokens Sonner defines. */
@@ -16,6 +17,7 @@ export function resolveSonnerTheme(theme: string): ToasterProps["theme"] {
 }
 
 const Toaster = ({ ...props }: ToasterProps) => {
+  const { t } = useTranslation("components");
   const { theme = "system", forcedTheme } = useTheme();
 
   return (
@@ -39,7 +41,12 @@ const Toaster = ({ ...props }: ToasterProps) => {
       }
       position="top-center"
       richColors
+      containerAriaLabel={t("toaster.notifications")}
       {...props}
+      toastOptions={{
+        closeButtonAriaLabel: t("toaster.closeToast"),
+        ...props.toastOptions,
+      }}
     />
   );
 };

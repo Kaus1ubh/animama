@@ -1,0 +1,38 @@
+{
+  "preview": {
+    "loadFailed": "사운드 미리보기를 불러올 수 없습니다.",
+    "noAudio": "이 사운드에는 재생할 수 있는 오디오가 없습니다.",
+    "playFailed": "사운드 미리보기를 재생할 수 없습니다."
+  },
+  "upload": {
+    "button": "업로드",
+    "defaultName": "사운드",
+    "failed": "사운드를 저장할 수 없습니다. 다시 시도하세요.",
+    "inputLabel": "사운드 파일 업로드",
+    "listLabel": "사운드 업로드",
+    "queued": "대기 중",
+    "refresh": "카탈로그 새로 고침",
+    "refreshFailed": "카탈로그를 새로 고치지 못했습니다.",
+    "retry": "{{name}} 다시 시도",
+    "saved": "라이브러리에 저장됨",
+    "savedRefreshFailed": "라이브러리에 저장되었습니다. {{message}}",
+    "unsupportedType": "WAV, MP3 또는 Ogg 오디오 파일을 선택하세요.",
+    "uploading": "업로드하는 중…"
+  },
+  "volume": {
+    "mute": "음소거",
+    "muteAll": "모두 음소거",
+    "muteAllLabel": "모든 오디오 음소거",
+    "sfx": {
+      "label": "효과음",
+      "mute": "효과음 음소거",
+      "slider": "효과음 볼륨"
+    },
+    "title": "볼륨",
+    "tts": {
+      "label": "음성",
+      "mute": "텍스트 음성 변환 음소거",
+      "slider": "텍스트 음성 변환 볼륨"
+    }
+  }
+}

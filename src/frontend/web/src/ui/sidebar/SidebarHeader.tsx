@@ -4,6 +4,7 @@ import { Logo, LogoMark } from "@/ui/components/logo";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "@/ui/sidebar/Sidebar";
 import { PanelLeft, Search } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import {
   Tooltip,
   TooltipContent,
@@ -15,6 +16,7 @@ type SidebarHeaderProps = {
 };
 
 export const SidebarHeader = ({ onSearch }: SidebarHeaderProps) => {
+  const { t } = useTranslation("sidebar");
   const { open, setOpen, animate } = useSidebar();
   const transition = animate
     ? "transition-opacity duration-150 ease-in-out motion-reduce:transition-none"
@@ -42,8 +44,8 @@ export const SidebarHeader = ({ onSearch }: SidebarHeaderProps) => {
               "inline-flex h-8 w-8 items-center justify-center rounded-md",
               "text-sidebar-foreground hover:bg-sidebar-accent/60 transition-colors",
             )}
-            aria-label="Search chats"
-            title="Search chats"
+            aria-label={t("search.open")}
+            title={t("search.open")}
           >
             <Search className="h-4 w-4" />
           </button>
@@ -54,8 +56,8 @@ export const SidebarHeader = ({ onSearch }: SidebarHeaderProps) => {
               "inline-flex h-8 w-8 items-center justify-center rounded-md",
               "text-sidebar-foreground hover:bg-sidebar-accent/60 transition-colors",
             )}
-            aria-label="Close sidebar"
-            title="Close sidebar"
+            aria-label={t("close")}
+            title={t("close")}
           >
             <PanelLeft className="h-4 w-4" />
           </button>
@@ -78,7 +80,7 @@ export const SidebarHeader = ({ onSearch }: SidebarHeaderProps) => {
               className={cn(
                 "border-border/60 bg-background/60 text-foreground/80 hover:text-foreground flex h-11 w-11 items-center justify-center rounded-full border shadow-sm backdrop-blur-md transition-colors",
               )}
-              aria-label="Open sidebar"
+              aria-label={t("open")}
             >
               <span className="items-center group-hover/sidebar-shell:hidden">
                 <LogoMark className="size-7 translate-x-px -translate-y-px bg-transparent" />
@@ -89,7 +91,7 @@ export const SidebarHeader = ({ onSearch }: SidebarHeaderProps) => {
             </button>
           </TooltipTrigger>
           <TooltipContent side="right" sideOffset={8}>
-            Open sidebar
+            {t("open")}
           </TooltipContent>
         </Tooltip>
       </div>

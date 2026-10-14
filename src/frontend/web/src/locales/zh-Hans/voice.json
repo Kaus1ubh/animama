@@ -1,0 +1,252 @@
+{
+  "cloning": {
+    "attribution": "模型署名",
+    "changeFailed": "语音克隆模型的更改未完成。请稍后重试。",
+    "checking": "正在检查语音克隆…",
+    "description": "用你自己的样本创建具名语音。",
+    "download": "下载语音克隆",
+    "downloadFailed": "下载未完成。请检查可用磁盘空间和网络连接，然后重试。",
+    "installed": "已安装 · 已保存的克隆语音无需此模型即可使用。",
+    "listUnavailable": "语音克隆下载不可用。请重新打开设置以重试。",
+    "progressLabel": "语音克隆下载进度",
+    "remove": "移除语音克隆",
+    "retry": "重试克隆下载",
+    "verifying": "正在验证语音克隆…"
+  },
+  "downloads": {
+    "cancel": "取消下载",
+    "confirmRemoval": "确认移除",
+    "downloading": "正在下载 {{percent}}",
+    "installed": "已安装",
+    "installedWithNote": "已安装 · {{note}}",
+    "lowSpace": "可用空间不足：下载需要 {{size}} 可用空间。",
+    "notAvailable": "不可用",
+    "progressLabel": "{{label}} 下载进度",
+    "retry": "重试下载",
+    "sections": {
+      "speechToText": "语音转文本",
+      "voiceClone": "语音克隆"
+    },
+    "size": "需下载 {{size}}",
+    "sizeRetry": "需下载 {{size}} · 可重试",
+    "verifying": "正在验证下载…",
+    "errors": {
+      "notReady": "安装尚未就绪。请重新打开后重试。",
+      "statusUnavailable": "无法获取下载状态。请重新打开后重试。"
+    }
+  },
+  "microphone": {
+    "device": {
+      "accessDenied": "未获得麦克风访问权限。请在浏览器或系统设置中允许。",
+      "allowAccess": "允许访问麦克风",
+      "label": "输入设备",
+      "missing": "所选麦克风未连接，正在使用系统默认。",
+      "selectLabel": "麦克风输入设备",
+      "systemDefault": "系统默认",
+      "systemDefaultNamed": "系统默认（{{name}}）",
+      "systemRecognizer": "浏览器语音识别始终使用系统默认麦克风。",
+      "systemRecognizerNamed": "浏览器语音识别始终使用系统默认麦克风（{{name}}）。",
+      "unnamed": "麦克风 {{number}}"
+    },
+    "meter": {
+      "label": "麦克风输入电平（dB）",
+      "value": "{{level}} dB"
+    },
+    "sensitivity": {
+      "label": "灵敏度",
+      "levels": {
+        "high": {
+          "description": "能捕捉更轻或更短的语音。从下一次聆听开始生效。",
+          "label": "高"
+        },
+        "low": {
+          "description": "忽略较轻的声音，适合嘈杂环境。从下一次聆听开始生效。",
+          "label": "低"
+        },
+        "normal": {
+          "description": "均衡的语音检测。从下一次聆听开始生效。",
+          "label": "标准"
+        }
+      },
+      "saveFailed": "无法更新麦克风灵敏度。",
+      "selectLabel": "麦克风灵敏度"
+    },
+    "test": {
+      "active": "说话即可查看输入电平。",
+      "idle": "检查输入电平。",
+      "label": "测试麦克风",
+      "openFailed": "无法打开麦克风。",
+      "start": "测试",
+      "stop": "停止"
+    }
+  },
+  "offlineSpeech": {
+    "checking": "正在检查离线语音识别…",
+    "cpu": {
+      "download": "下载 CPU 模型",
+      "label": "CPU 模型",
+      "remove": "移除 CPU 模型"
+    },
+    "description": "听写和语音模式在此设备上转写，音频不会离开此设备。",
+    "developmentAcquire": "此开发环境从主机提供语音模型：运行 {{cpuCommand}}（如需 GPU 加速，还要运行 {{gpuCommand}}），然后重新运行 {{resetCommand}}。",
+    "failures": {
+      "downloadFailed": "下载未完成。请检查网络连接，然后重试。",
+      "hashInvalid": "下载的文件与校验和不匹配，已被丢弃。",
+      "hostNotAllowed": "此版本不允许该下载来源。",
+      "insufficientSpace": "可用空间不足，无法下载。",
+      "sizeInvalid": "下载的文件大小与预期不符，已被丢弃。",
+      "storeFailed": "无法存储模型。请检查数据目录，然后重试。",
+      "unknown": "下载未完成。准备好后请重试。"
+    },
+    "gpu": {
+      "attribution": "模型署名（CC BY 4.0）",
+      "blocked": {
+        "checking": "正在检查 WebGPU 支持…",
+        "missing": "此版本中不提供 GPU 加速。",
+        "needsCpu": "请先下载 CPU 模型。",
+        "noWebgpu": "此浏览器或设备上无法使用 WebGPU。"
+      },
+      "description": "识别更快，并提供实时预览。需要 CPU 模型和支持 WebGPU 的设备。",
+      "download": "下载 GPU 加速",
+      "fellBack": "上次 WebGPU 加载失败，因此语音识别使用了 CPU。",
+      "label": "GPU 加速",
+      "remove": "移除 GPU 加速",
+      "removeFirst": "请先移除 GPU 加速。",
+      "unavailableNow": "GPU 加速暂时不可用。"
+    },
+    "listUnavailable": "语音下载不可用。请重新打开设置以重试。",
+    "refusals": {
+      "busy": "此模型仍在更改中。请稍后重试。",
+      "changeFailed": "更改未能完成。请稍后重试。",
+      "inUse": "语音识别正在使用中。请关闭听写和语音模式后再移除。"
+    },
+    "title": "离线语音识别（Parakeet）",
+    "turnedOff": "此服务器已关闭离线语音识别。"
+  },
+  "pocket": {
+    "accents": {
+      "american": "美国口音",
+      "australian": "澳大利亚口音",
+      "british": "英国口音",
+      "canadian": "加拿大口音",
+      "english": "英格兰口音",
+      "irish": "爱尔兰口音",
+      "northernIrish": "北爱尔兰口音",
+      "scottish": "苏格兰口音",
+      "southAfrican": "南非口音"
+    },
+    "clones": {
+      "defaultName": "语音克隆",
+      "emptyFile": "请选择非空的音频文件。",
+      "fileChanged": "已保存的语音文件已更改。请重新加载语音库。",
+      "fileTooLarge": "每个语音文件不得超过 25 MiB。",
+      "nameLength": "请输入 1–120 个字符的语音名称。",
+      "noOriginal": "此语音没有可播放的原始录音。",
+      "originalUnavailable": "原始录音不可用",
+      "readFailed": "无法读取已保存的语音文件。",
+      "unsupportedType": "请选择 WAV、MP3 或 Ogg 录音。"
+    },
+    "cloning": {
+      "unsupported": "此浏览器不支持生成 PocketTTS 语音目录。",
+      "webAudioUnsupported": "此浏览器不支持 Web Audio API。"
+    },
+    "encoder": {
+      "downloadRequired": "请先下载语音克隆，再编码语音样本。",
+      "failures": {
+        "downloadFailed": "无法下载语音克隆。请检查网络连接后重试。",
+        "hashInvalid": "语音克隆下载与经过验证的模型不匹配，已被丢弃。请重试下载。",
+        "hostNotAllowed": "此版本中语音克隆下载不可用。",
+        "insufficientSpace": "可用空间不足，无法下载语音克隆。",
+        "sizeInvalid": "语音克隆下载的大小不正确，已被丢弃。请重试下载。",
+        "storeFailed": "无法存储语音克隆。请检查此安装的数据目录后重试。"
+      },
+      "interrupted": "语音克隆下载已取消或中断。请重试下载。",
+      "unidentified": "无法识别语音克隆模型。请重新打开后重试。"
+    },
+    "fallback": {
+      "customMissing": "已选择自定义 PocketTTS 语音，但尚未上传自定义语音。",
+      "downloadFailed": "无法下载语音“{{voice}}”，因此使用默认语音。下次回复时或你再次选择该语音时会重试下载。",
+      "unknownVoice": "已保存的语音“{{voice}}”已不可用，因此使用默认语音。请在“装备 → 语音”中选择其他语音。"
+    },
+    "sample": {
+      "playFailed": "无法播放 {{name}} 的样本。请检查网络连接后重试。"
+    }
+  },
+  "providers": {
+    "stt": {
+      "browserDesktopUnavailable": "桌面应用中无法使用浏览器 STT。",
+      "browserExternal": {
+        "description": "由供应商管理处理过程的浏览器语音识别。",
+        "label": "浏览器（外部）",
+        "unsupported": "此浏览器不支持 Web Speech API。"
+      },
+      "browserLocal": {
+        "description": "在明确支持时，完全在设备上进行的浏览器语音识别。",
+        "label": "浏览器（本地）",
+        "unsupported": "此浏览器不支持仅限本地的 Web Speech 识别。"
+      },
+      "parakeet": {
+        "cpuLabel": "Parakeet（CPU）",
+        "descriptionBrowser": "在此浏览器中运行的本地 ONNX 语音识别。",
+        "descriptionDesktop": "在桌面应用中运行的本地 ONNX 语音识别。",
+        "notInstalled": "请安装离线语音识别，以使用听写和语音模式。",
+        "unavailableBrowser": "本地 Parakeet 目前在此浏览器中不可用。",
+        "webgpuDescription": "在 GPU 上运行的实验性本地语音识别，提供实时预览。不可用时回退到 CPU。",
+        "webgpuLabel": "Parakeet（WebGPU · 实验性）"
+      }
+    },
+    "tts": {
+      "audioWorkletUnsupported": "此浏览器不支持 AudioWorklet。",
+      "browser": {
+        "description": "通过 Web Speech API 进行的浏览器语音合成。",
+        "desktopUnavailable": "桌面应用中无法使用浏览器 TTS。",
+        "label": "浏览器",
+        "unsupported": "此浏览器不支持语音合成。"
+      },
+      "browserOnly": "{{provider}} 只能在浏览器环境中运行。",
+      "elevenLabs": {
+        "description": "使用 Eleven v4 Turbo 的实时 ElevenLabs 语音。"
+      },
+      "pocket": {
+        "description": "在客户端运行的 PocketTTS 语音合成。"
+      },
+      "secureContext": "{{provider}} 需要 HTTPS 或 localhost（安全上下文）。",
+      "webAudioUnsupported": "此浏览器不支持 Web Audio API。",
+      "webSocketUnsupported": "此浏览器不支持 WebSocket。",
+      "workersUnsupported": "此浏览器不支持 Web Workers。",
+      "gemini": {
+        "description": "从服务器流式传输的 Gemini 语音。"
+      }
+    }
+  },
+  "gemini": {
+    "descriptors": {
+      "bright": "明亮",
+      "upbeat": "欢快",
+      "informative": "知性",
+      "firm": "坚定",
+      "excitable": "兴奋",
+      "youthful": "年轻",
+      "breezy": "轻快",
+      "easyGoing": "随和",
+      "breathy": "气声",
+      "clear": "清晰",
+      "smooth": "柔顺",
+      "gravelly": "沙哑",
+      "soft": "轻柔",
+      "even": "平稳",
+      "mature": "成熟",
+      "forward": "直率",
+      "friendly": "友好",
+      "casual": "随意",
+      "gentle": "温柔",
+      "lively": "活泼",
+      "knowledgeable": "博学",
+      "warm": "温暖"
+    }
+  },
+  "languageNotice": {
+    "speechToText": "Parakeet 仅能识别英语。{{language}}语音识别即将推出。",
+    "textToSpeech": "Pocket TTS 仅支持英语。要让 Anima 用{{language}}说话，请选择 ElevenLabs 或 Gemini。"
+  }
+}

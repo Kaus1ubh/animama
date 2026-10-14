@@ -4,11 +4,9 @@ import { useAnima } from "@/query/hooks/useAnima";
 import { useModelProviders } from "@/query/hooks/useModelProviders";
 import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
 import { useUpdateAnimaChatProfile } from "@/query/mutations/useUpdateAnimaChatProfile";
-import {
-  formatFileSize,
-  USER_FILE_UPLOAD_ACCEPT,
-} from "@/lib/user-files/uploads";
+import { USER_FILE_UPLOAD_ACCEPT } from "@/lib/user-files/uploads";
 import { Button } from "@/ui/components/button";
+import { attachmentSize } from "@/ui/components/chat-input-file-tray";
 import { Checkbox } from "@/ui/components/checkbox";
 import {
   Command,
@@ -55,6 +53,7 @@ import {
   WEB_SEARCH_TOOL,
   webSearchAvailability,
   withWebSearch,
+  type WebSearchUnavailableCode,
 } from "@/lib/chat/model-provider-native-tools";
 import {
   ArrowLeft,
@@ -79,6 +78,9 @@ import {
   supportedReasoningEfforts,
 } from "@/lib/chat/model-catalog";
 import type React from "react";
+import type { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
+import { useFormatters, type LocaleFormatters } from "@animama/product-ui/i18n";
 import {
   useCallback,
   useContext,
@@ -148,6 +150,8 @@ function ChatInputFileUploadButtonInner({
   disabled,
   ...props
 }: ChatInputFileUploadButtonProps) {
+  const { t } = useTranslation("chat");
+  const formatters = useFormatters();
   const fileInputOptions = useMemo(
     () => ({ multiple: true, accept: USER_FILE_UPLOAD_ACCEPT }),
     [],
@@ -160,8 +164,13 @@ function ChatInputFileUploadButtonInner({
   const inputProps = getInputProps();
   const isUploading = status === "uploading";
   const label = isUploading
-    ? `Uploading ${Math.round(progress)}%`
-    : "Add files";
+    ? t("composer.attach.uploading", {
+        percent: formatters.number(progress / 100, {
+          style: "percent",
+          maximumFractionDigits: 0,
+        }),
+      })
+    : t("composer.attach.add");
   const isDisabled = Boolean(disabled);
   const selectedFileIds = useMemo(
     () => new Set(selectedExistingFileIds),
@@ -230,25 +239,25 @@ function ChatInputFileUploadButtonInner({
             }}
           >
             <Upload className="size-4" aria-hidden="true" />
-            Upload from computer
+            {t("composer.attach.fromComputer")}
           </Button>
           <div className="bg-border mx-1 my-1 h-px" />
           <Command>
-            <CommandInput placeholder="Search uploaded files…" />
+            <CommandInput placeholder={t("composer.attach.search")} />
             <CommandList className="max-h-64">
               {existingFilesLoading ? (
                 <div className="text-muted-foreground flex items-center gap-2 px-3 py-5 text-sm">
                   <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-                  Loading uploaded files…
+                  {t("composer.attach.loading")}
                 </div>
               ) : existingFilesError ? (
                 <div className="text-destructive px-3 py-5 text-sm">
-                  Uploaded files could not be loaded.
+                  {t("composer.attach.loadFailed")}
                 </div>
               ) : (
                 <>
-                  <CommandEmpty>No ready uploaded files found.</CommandEmpty>
-                  <CommandGroup heading="Files">
+                  <CommandEmpty>{t("composer.attach.empty")}</CommandEmpty>
+                  <CommandGroup heading={t("composer.attach.files")}>
                     {existingFiles.map((file) => {
                       const selected = selectedFileIds.has(file.file_id);
                       const representedByUppy = uppyBackendFileIds.has(
@@ -274,16 +283,7 @@ function ChatInputFileUploadButtonInner({
                               {file.original_filename}
                             </span>
                             <span className="text-muted-foreground block truncate text-xs">
-                              {formatFileSize(
-                                file.stored_size_bytes ??
-                                  file.declared_size_bytes,
-                              )}
-                              {" · "}
-                              {file.chunk_count ?? 0} chunks
-                              {" · "}
-                              {file.status === "ready"
-                                ? "Ready"
-                                : "Keyword only"}
+                              {attachmentDetails(t, formatters, file)}
                             </span>
                           </span>
                         </CommandItem>
@@ -307,6 +307,7 @@ ChatInputFileUploadButton.displayName = "ChatInputFileUploadButton";
  * familiar place, explains why, and has no uploader, picker or file list.
  */
 function ChatInputFileUploadUnavailable({ reason }: { reason: string }) {
+  const { t } = useTranslation("chat");
   return (
     <UnavailableAction reason={reason} side="bottom">
       <Button
@@ -316,7 +317,7 @@ function ChatInputFileUploadUnavailable({ reason }: { reason: string }) {
         className="text-muted-foreground rounded-full"
       >
         <Paperclip className="h-4 w-4" />
-        <span className="sr-only">Add files</span>
+        <span className="sr-only">{t("composer.attach.add")}</span>
       </Button>
     </UnavailableAction>
   );
@@ -334,15 +335,74 @@ function groupModelOptions(items: PyModelProviderCatalogItem[]) {
   }));
 }
 
-/** Friendly labels without changing the catalog's supported effort values. */
-function reasoningEffortLabel(effort: string) {
-  if (effort === "xhigh") return "Extra high";
-  return effort.charAt(0).toUpperCase() + effort.slice(1).replaceAll("_", " ");
+/** Why web search is unavailable for a model row, in the active locale. */
+function searchUnavailableText(
+  t: TFunction<"chat">,
+  code: WebSearchUnavailableCode,
+): string {
+  switch (code) {
+    case "tools_unsupported":
+      return t("composer.model.searchUnavailable.tools_unsupported");
+    case "not_configured":
+      return t("composer.model.searchUnavailable.not_configured");
+    case "key_missing":
+      return t("composer.model.searchUnavailable.key_missing");
+  }
 }
 
-function nativeToolLabel(tool: string) {
-  if (tool === "web_search") return "Web search";
+/** Size, chunk count and search status for an attached file. */
+function attachmentDetails(
+  t: TFunction<"chat">,
+  formatters: LocaleFormatters,
+  file: PyUserFileResponse,
+): string {
+  const size = attachmentSize(
+    formatters,
+    file.stored_size_bytes ?? file.declared_size_bytes,
+  );
+  const values = {
+    chunks: t("composer.attach.chunks", { count: file.chunk_count ?? 0 }),
+    status:
+      file.status === "ready"
+        ? t("composer.files.ready")
+        : t("composer.attach.keywordOnly"),
+  };
+  return size
+    ? t("composer.attach.fileDetails", { ...values, size })
+    : t("composer.attach.fileDetailsNoSize", values);
+}
+
+/** A native tool's name; tools without wording show their provider identifier. */
+function nativeToolLabel(t: TFunction<"chat">, tool: string) {
+  if (tool === "web_search") return t("composer.model.webSearch");
   return tool.replaceAll("_", " ");
+}
+
+/**
+ * Reasoning effort names, without changing the catalog's supported effort
+ * values; an effort the app does not know shows its identifier, capitalized.
+ */
+function reasoningEffortLabel(t: TFunction<"chat">, effort: string) {
+  switch (effort) {
+    case "none":
+      return t("composer.model.reasoningEfforts.none");
+    case "minimal":
+      return t("composer.model.reasoningEfforts.minimal");
+    case "low":
+      return t("composer.model.reasoningEfforts.low");
+    case "medium":
+      return t("composer.model.reasoningEfforts.medium");
+    case "high":
+      return t("composer.model.reasoningEfforts.high");
+    case "xhigh":
+      return t("composer.model.reasoningEfforts.xhigh");
+    case "max":
+      return t("composer.model.reasoningEfforts.max");
+    default:
+      return (
+        effort.charAt(0).toUpperCase() + effort.slice(1).replaceAll("_", " ")
+      );
+  }
 }
 
 type ChatInputModelSelectorProps = React.ComponentProps<typeof Button> & {
@@ -364,6 +424,7 @@ function ChatInputModelSelector({
   onModelChange,
   ...props
 }: ChatInputModelSelectorProps) {
+  const { t } = useTranslation("chat");
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<"reasoning" | "models" | "features">(
     "reasoning",
@@ -413,20 +474,20 @@ function ChatInputModelSelector({
     reasoningEfforts.indexOf(selectedReasoningEffort ?? ""),
   );
   const effortLabel = selectedReasoningEffort
-    ? reasoningEffortLabel(selectedReasoningEffort)
-    : "Model";
+    ? reasoningEffortLabel(t, selectedReasoningEffort)
+    : t("composer.model.fallbackLabel");
   const nativeTools = selectableNativeTools(activeItem, webSearch);
   const searchAvailability = webSearchAvailability(activeItem, webSearch);
   const isDisabled = Boolean(
     disabledProp || updateAnimaChatProfile.isPending || !anima?.chat_profile,
   );
   const tooltipLabel = activeItem
-    ? modelOptionLabel(activeItem, alternateIds.has(activeItem.id))
+    ? modelOptionLabel(activeItem, alternateIds.has(activeItem.id), t)
     : activeUnavailable
-      ? "Model unavailable. Select another model."
+      ? t("composer.model.unavailable")
       : anima?.chat_profile
-        ? "Select model"
-        : "No chat profile";
+        ? t("composer.model.select")
+        : t("composer.model.noProfile");
 
   const resetChatRequestSettingsForModel = useCallback(
     (item: PyModelProviderCatalogItem) => {
@@ -449,9 +510,9 @@ function ChatInputModelSelector({
       if (gate.reason === "api_standard_mismatch") {
         onIncompatibleModelSelect?.(item);
       } else if (gate.reason === "unsupported_model") {
-        toast.error("This model is not available for direct chat yet.");
+        toast.error(t("composer.model.toasts.unsupported"));
       } else {
-        toast.error("Select a model before chatting.");
+        toast.error(t("composer.model.toasts.selectFirst"));
       }
       return;
     }
@@ -467,7 +528,7 @@ function ChatInputModelSelector({
         body: { default_model_provider_id: item.id },
       });
     } catch {
-      toast.error("Failed to update model");
+      toast.error(t("composer.model.toasts.updateFailed"));
       return;
     }
 
@@ -556,7 +617,7 @@ function ChatInputModelSelector({
                 className,
               )}
               disabled={isDisabled}
-              aria-label={`Model and reasoning: ${tooltipLabel}`}
+              aria-label={t("composer.model.trigger", { model: tooltipLabel })}
               {...props}
             >
               {updateAnimaChatProfile.isPending ? (
@@ -585,10 +646,10 @@ function ChatInputModelSelector({
         sideOffset={8}
         aria-label={
           view === "models"
-            ? "Select model"
+            ? t("composer.model.select")
             : view === "features"
-              ? "Chat features"
-              : "Model and reasoning"
+              ? t("composer.model.features")
+              : t("composer.model.panel")
         }
         className={cn(
           "w-[min(20rem,calc(100vw-2rem))] rounded-xl",
@@ -606,17 +667,21 @@ function ChatInputModelSelector({
                     size="icon-sm"
                     className="text-muted-foreground hover:text-foreground size-7 shrink-0 rounded-full"
                     disabled={isDisabled || !activeItem}
-                    aria-label="Chat features"
+                    aria-label={t("composer.model.features")}
                     onClick={() => setView("features")}
                   >
                     <Settings2 className="size-4" aria-hidden="true" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side="top">Chat features</TooltipContent>
+                <TooltipContent side="top">
+                  {t("composer.model.features")}
+                </TooltipContent>
               </Tooltip>
               <div className="min-w-0 flex-1 text-center">
                 <p className="text-base font-medium">
-                  {selectedReasoningEffort ? effortLabel : "Select model"}
+                  {selectedReasoningEffort
+                    ? effortLabel
+                    : t("composer.model.select")}
                 </p>
                 <Button
                   type="button"
@@ -625,7 +690,7 @@ function ChatInputModelSelector({
                   autoFocus
                   className="text-muted-foreground h-auto max-w-full gap-1 px-2 py-1 text-xs font-normal"
                   disabled={isDisabled}
-                  aria-label="Select model"
+                  aria-label={t("composer.model.select")}
                   onClick={() => setView("models")}
                 >
                   <span className="truncate">
@@ -633,10 +698,11 @@ function ChatInputModelSelector({
                       ? modelDisplayName(
                           activeItem,
                           alternateIds.has(activeItem.id),
+                          t,
                         )
                       : activeUnavailable
-                        ? "Model unavailable"
-                        : "Choose a model"}
+                        ? t("composer.model.unavailableShort")
+                        : t("composer.model.choose")}
                   </span>
                   <ChevronRight
                     className="size-3 shrink-0"
@@ -659,7 +725,7 @@ function ChatInputModelSelector({
                     if (effort) handleReasoningChange(effort);
                   }}
                   thumbProps={{
-                    "aria-label": "Reasoning effort",
+                    "aria-label": t("composer.model.reasoningEffort"),
                     "aria-valuetext": effortLabel,
                   }}
                   className="[&_[data-slot=slider-thumb]]:border-border h-8 [&_[data-slot=slider-thumb]]:size-8 [&_[data-slot=slider-track]]:h-7"
@@ -684,7 +750,7 @@ function ChatInputModelSelector({
               </div>
             ) : activeItem && reasoningEfforts.length === 0 ? (
               <p className="text-muted-foreground mt-3 text-center text-xs">
-                This model has no adjustable reasoning.
+                {t("composer.model.noReasoning")}
               </p>
             ) : null}
           </>
@@ -702,13 +768,15 @@ function ChatInputModelSelector({
                 size="icon-sm"
                 autoFocus={view === "features"}
                 className="text-muted-foreground size-7 shrink-0 rounded-full"
-                aria-label="Back to model and reasoning"
+                aria-label={t("composer.model.back")}
                 onClick={() => setView("reasoning")}
               >
                 <ArrowLeft className="size-4" aria-hidden="true" />
               </Button>
               <p className="text-sm font-medium">
-                {view === "models" ? "Select model" : "Chat features"}
+                {view === "models"
+                  ? t("composer.model.select")
+                  : t("composer.model.features")}
               </p>
             </div>
             {view === "features" ? (
@@ -721,13 +789,13 @@ function ChatInputModelSelector({
                         disabled
                         aria-describedby={`${animaId}-web-search-reason`}
                       />
-                      <span>{nativeToolLabel(WEB_SEARCH_TOOL)}</span>
+                      <span>{nativeToolLabel(t, WEB_SEARCH_TOOL)}</span>
                     </label>
                     <p
                       id={`${animaId}-web-search-reason`}
                       className="text-muted-foreground text-xs"
                     >
-                      {searchAvailability.reason}
+                      {searchUnavailableText(t, searchAvailability.code)}
                     </p>
                   </div>
                 ) : null}
@@ -743,20 +811,23 @@ function ChatInputModelSelector({
                         handleNativeToolChange(tool, checked === true)
                       }
                     />
-                    <span>{nativeToolLabel(tool)}</span>
+                    <span>{nativeToolLabel(t, tool)}</span>
                   </label>
                 ))}
                 {nativeTools.length === 0 && !searchAvailability ? (
                   <p className="text-muted-foreground text-xs">
-                    No optional features for this model.
+                    {t("composer.model.noFeatures")}
                   </p>
                 ) : null}
               </div>
             ) : (
               <Command>
-                <CommandInput autoFocus placeholder="Search models..." />
+                <CommandInput
+                  autoFocus
+                  placeholder={t("composer.model.search")}
+                />
                 <CommandList>
-                  <CommandEmpty>No models found.</CommandEmpty>
+                  <CommandEmpty>{t("composer.model.empty")}</CommandEmpty>
                   {modelGroups.map((group) => (
                     <CommandGroup
                       key={group.providerLabel}
@@ -774,6 +845,7 @@ function ChatInputModelSelector({
                         const modelName = modelDisplayName(
                           item,
                           alternateIds.has(item.id),
+                          t,
                         );
                         const providerName = modelOptionDetail(item);
                         return (
@@ -800,9 +872,9 @@ function ChatInputModelSelector({
                               </ModelSelectorName>
                               <span className="text-muted-foreground block truncate text-xs">
                                 {rowUnsupported
-                                  ? "Not available for direct chat yet"
+                                  ? t("composer.model.notDirect")
                                   : rowNeedsWindow
-                                    ? "Set its context window in App Settings → Models"
+                                    ? t("composer.model.needsWindow")
                                     : providerName}
                               </span>
                             </div>
@@ -826,6 +898,7 @@ ChatInputModelSelector.displayName = "ChatInputModelSelector";
 type ChatInputDictationProps = React.ComponentProps<typeof Button>;
 
 function ChatInputDictation({ className, ...props }: ChatInputDictationProps) {
+  const { t } = useTranslation("chat");
   const context = useContext(ChatInputContext);
   const activeMicMode = context.activeMicMode ?? null;
   const isMicCaptureActive = context.isMicCaptureActive ?? false;
@@ -846,9 +919,9 @@ function ChatInputDictation({ className, ...props }: ChatInputDictationProps) {
     const isVoiceMode = activeMicMode === "voice";
     const actionLabel = isVoiceMode
       ? isVoiceMicMuted
-        ? "Unmute Mic"
-        : "Mute Mic"
-      : "Stop dictation";
+        ? t("composer.dictation.unmute")
+        : t("composer.dictation.mute")
+      : t("composer.dictation.stop");
     const actionIcon = isVoiceMode ? (
       isVoiceMicMuted ? (
         <MicOff className="h-4 w-4" />
@@ -866,9 +939,9 @@ function ChatInputDictation({ className, ...props }: ChatInputDictationProps) {
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
-        aria-label="Stop"
+        aria-label={t("composer.dictation.stopIcon")}
       >
-        <title>Stop</title>
+        <title>{t("composer.dictation.stopIcon")}</title>
         <rect x="6" y="6" width="12" height="12" />
       </svg>
     );
@@ -940,11 +1013,11 @@ function ChatInputDictation({ className, ...props }: ChatInputDictationProps) {
           {...props}
         >
           <Mic className="h-4 w-4" />
-          <span className="sr-only">Dictate</span>
+          <span className="sr-only">{t("composer.dictation.start")}</span>
         </Button>
       </TooltipTrigger>
       <TooltipContent avoidCollisions={false} side="bottom">
-        Dictate
+        {t("composer.dictation.start")}
       </TooltipContent>
     </Tooltip>
   );

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { getI18n, useTranslation } from "react-i18next";
 
 import type {
   AnimaCreationDiagnostic,
@@ -13,6 +14,8 @@ import {
   useAnimaCreationOperations,
   useAnimaCreationSources,
 } from "@/query/hooks/useAnimaCreation";
+import { apiErrorLine, type ApiErrorText } from "@/lib/errors/apiError";
+import { creationFailureText } from "@/lib/errors/creationErrors";
 import { itemReference } from "./createAnimaContent";
 import {
   canonicalJson,
@@ -34,6 +37,11 @@ import {
   creationStorageKey,
   type CreationRecord,
 } from "./createAnimaDraftStorage";
+import {
+  CreatorError,
+  creatorErrorText,
+  libraryAvatarFailureText,
+} from "./createAnimaErrors";
 import {
   classifyCreationFailure,
   freezeCreation,
@@ -66,16 +74,12 @@ export function creationDraftSignature(draft: CreateAnimaDraft): string {
   return canonicalJson(inputs);
 }
 
-const errorText = (error: unknown) =>
-  error instanceof Error
-    ? error.message
-    : "This operation could not be completed. Your draft has been preserved.";
-
 /** Own recovery and dispatch independently of rendering. No effect ever sends a creation POST. */
 export function useCreateAnimaController(
   owner: string,
   avatarHandoff?: string,
 ) {
+  const { t } = useTranslation("create");
   const [draft, setDraft] = useState(newCreateAnimaDraft);
   const latest = useRef(draft);
   latest.current = draft;
@@ -84,7 +88,8 @@ export function useCreateAnimaController(
   const [recovery, setRecovery] = useState<Recovery>("loading");
   const [storageError, setStorageError] = useState<string | null>(null);
   const [conflict, setConflict] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  // A status line, or a worded failure with optional secondary detail.
+  const [message, setMessage] = useState<string | ApiErrorText | null>(null);
   const [issues, setIssues] = useState<AnimaCreationDiagnostic[]>([]);
   const [validation, setValidation] = useState<Validation | null>(null);
   const [completedId, setCompletedId] = useState<string | null>(null);
@@ -128,14 +133,16 @@ export function useCreateAnimaController(
   );
 
   const storageFailure = useCallback((error: unknown) => {
-    setStorageError(errorText(error));
+    setStorageError(apiErrorLine(creatorErrorText(error)));
     if (error instanceof CreationDraftConflict) setConflict(true);
   }, []);
+  // Stable across a UI Locale change: the draft-seeding effect depends on it
+  // through `update` and `dispatch`, and must not save the draft again.
   const persist = useCallback((next: CreateAnimaDraft) => {
-    if (!store.current)
-      throw new Error(
-        "Draft storage is unavailable. Enable browser storage before creating an Anima.",
-      );
+    if (!store.current) {
+      const t = getI18n().getFixedT(null, "create");
+      throw new CreatorError(t("storage.unavailable"));
+    }
     store.current.save(next);
     setStorageError(null);
   }, []);
@@ -213,14 +220,12 @@ export function useCreateAnimaController(
         store.current?.changedElsewhere()
       ) {
         setConflict(true);
-        setStorageError(
-          "This draft changed in another tab. Review the latest saved state before continuing.",
-        );
+        setStorageError(t("storage.changedElsewhere"));
       }
     };
     window.addEventListener("storage", changed);
     return () => window.removeEventListener("storage", changed);
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (
@@ -247,7 +252,7 @@ export function useCreateAnimaController(
       const preview = await resolve("avatar", source, { fresh: true });
       if (!alive.current || submissionLocksEditing(latest.current)) return;
       if (preview.item.kind !== "avatar")
-        throw new Error("This source is not an Avatar.");
+        throw new CreatorError(t("controller.notAvatar"));
       const next = createAnimaDraftReducer(latest.current, {
         type: "avatar",
         source,
@@ -256,7 +261,7 @@ export function useCreateAnimaController(
       });
       update(next);
     },
-    [resolve, update],
+    [resolve, t, update],
   );
 
   useEffect(() => {
@@ -280,10 +285,7 @@ export function useCreateAnimaController(
     )
       .then((preview) => chooseAvatar(itemReference(preview.item), false))
       .catch((error) => {
-        if (alive.current)
-          setMessage(
-            `The Library Avatar could not be selected: ${errorText(error)} Choose an available Avatar below.`,
-          );
+        if (alive.current) setMessage(libraryAvatarFailureText(error));
       })
       .finally(() => {
         if (alive.current) setWorking(false);
@@ -349,7 +351,8 @@ export function useCreateAnimaController(
                 {
                   code: error.failure.detail.code,
                   path: "/starter_pack",
-                  message: error.message,
+                  // The backend detail, worded from its code when shown.
+                  message: error.failure.detail.message,
                 },
               ],
         );
@@ -358,7 +361,7 @@ export function useCreateAnimaController(
           {
             code: "validation_unavailable",
             path: "/expected_source_revisions",
-            message: errorText(error),
+            message: apiErrorLine(creatorErrorText(error)),
           },
         ]);
     }
@@ -496,17 +499,12 @@ export function useCreateAnimaController(
     setMessage(null);
     try {
       if (!navigator.locks)
-        throw new Error(
-          "This browser cannot safely coordinate creation between tabs. Use a current browser with local storage and Web Locks enabled.",
-        );
+        throw new CreatorError(t("controller.locksUnavailable"));
       await navigator.locks.request(
         `${store.current?.key ?? owner}:submit`,
         { ifAvailable: true },
         async (lock) => {
-          if (!lock)
-            throw new Error(
-              "Another tab is checking this creation request. Wait for it to finish, then check the same result here.",
-            );
+          if (!lock) throw new CreatorError(t("controller.lockBusy"));
           const request = replay
             ? prior!.request
             : freezeCreation(latest.current, valid!.spec);
@@ -542,7 +540,7 @@ export function useCreateAnimaController(
               submission: { request, state: failure.state },
             };
             update(next);
-            setMessage(failure.detail.message);
+            setMessage(creationFailureText(failure.detail));
             if (failure.state === "rejected") {
               setValidation(null);
               showIssues(failure.detail.issues);
@@ -555,7 +553,7 @@ export function useCreateAnimaController(
     } catch (error) {
       if (alive.current) {
         storageFailure(error);
-        setMessage(errorText(error));
+        setMessage(creatorErrorText(error));
       }
     } finally {
       inFlight.current = false;
@@ -594,13 +592,11 @@ export function useCreateAnimaController(
       else {
         const response = await sources.options.refetch();
         if (!response.data || response.error)
-          throw new Error(
-            "Creation defaults are unavailable. Ask the installation owner to repair them, then retry.",
-          );
+          throw new CreatorError(t("controller.defaultsUnavailable"));
         setRepair({ kind: "policy", options: response.data });
       }
     } catch (error) {
-      setMessage(errorText(error));
+      setMessage(creatorErrorText(error));
     } finally {
       setWorking(false);
     }
@@ -654,11 +650,9 @@ export function useCreateAnimaController(
       }
       setRepair(null);
       setValidation(null);
-      setMessage(
-        "Updated revisions accepted. Recheck the full draft before creating.",
-      );
+      setMessage(t("controller.revisionsAccepted"));
     } catch (error) {
-      if (alive.current) setMessage(errorText(error));
+      if (alive.current) setMessage(creatorErrorText(error));
     } finally {
       if (alive.current) setWorking(false);
     }
@@ -681,7 +675,10 @@ export function useCreateAnimaController(
     recovery,
     storageError,
     conflict,
-    message,
+    message: typeof message === "string" ? message : (message?.message ?? null),
+    /** Secondary technical detail for `message`, when it has one. */
+    messageDetail:
+      typeof message === "string" ? null : (message?.detail ?? null),
     issues,
     valid,
     completedId,
@@ -720,13 +717,11 @@ export function useCreateAnimaController(
       try {
         const response = await sources.options.refetch();
         if (response.error || !response.data)
-          throw new Error(
-            "The Recommended Starter Pack could not be refreshed. Your Actions were kept.",
-          );
+          throw new CreatorError(t("controller.starterPackRefreshFailed"));
         if (alive.current)
           dispatch({ type: "reset-actions", options: response.data });
       } catch (error) {
-        if (alive.current) setMessage(errorText(error));
+        if (alive.current) setMessage(creatorErrorText(error));
       } finally {
         if (alive.current) setWorking(false);
       }

@@ -2,6 +2,7 @@
 
 import { Loader2, Pencil } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import type { PyMemoryEntryHeader } from "@/lib/content/catalogTypes";
@@ -35,6 +36,7 @@ export function MemoryRenameEntryDialog({
   onOpenChange: (open: boolean) => void;
   onConfirm: (name: string) => Promise<boolean>;
 }) {
+  const { t } = useTranslation("memory");
   const [name, setName] = useState("");
 
   useEffect(() => {
@@ -46,7 +48,7 @@ export function MemoryRenameEntryDialog({
     if (!entry) return;
     const nextName = normalizeMemoryEntryName(name, entry.type);
     if (!nextName) {
-      toast.error("Enter a name.");
+      toast.error(t("shared.enterName"));
       return;
     }
     if (nextName === entry.name) {
@@ -66,7 +68,9 @@ export function MemoryRenameEntryDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
-            Rename {entry?.type === "directory" ? "directory" : "file"}
+            {entry?.type === "directory"
+              ? t("rename.directoryTitle")
+              : t("rename.fileTitle")}
           </DialogTitle>
           <DialogDescription className="truncate" title={entry?.path}>
             {entry?.path}
@@ -74,7 +78,7 @@ export function MemoryRenameEntryDialog({
         </DialogHeader>
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div className="space-y-2">
-            <Label htmlFor="memory-entry-rename">Name</Label>
+            <Label htmlFor="memory-entry-rename">{t("shared.name")}</Label>
             <Input
               id="memory-entry-rename"
               value={name}
@@ -96,7 +100,7 @@ export function MemoryRenameEntryDialog({
               disabled={isRenaming}
               onClick={() => onOpenChange(false)}
             >
-              Cancel
+              {t("shared.cancel")}
             </Button>
             <Button type="submit" disabled={isRenaming}>
               {isRenaming ? (
@@ -104,7 +108,7 @@ export function MemoryRenameEntryDialog({
               ) : (
                 <Pencil className="size-4" />
               )}
-              Rename
+              {t("rename.submit")}
             </Button>
           </DialogFooter>
         </form>

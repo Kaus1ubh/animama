@@ -7,12 +7,14 @@ import {
   useRef,
   useState,
 } from "react";
+import { useTranslation } from "react-i18next";
 
 import type {
   AnimaCreationDiagnostic,
   ItemRevisionRef,
 } from "@animama/runtime-contracts/sdk";
 import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
+import { creationIssueText } from "@/lib/errors/creationErrors";
 import { creationEvidence } from "@/query/hooks/useAnimaCreation";
 import { AppShellPage } from "@/ui/app/AppShellPage";
 import { Button } from "@/ui/components/button";
@@ -32,7 +34,7 @@ import { CreateAnimaIdentityStep } from "./CreateAnimaIdentityStep";
 import { CreateAnimaNamePlate } from "./CreateAnimaNamePlate";
 import { CreateAnimaReviewStep } from "./CreateAnimaReviewStep";
 import { CreateAnimaStage, type CreationStageHandle } from "./CreateAnimaStage";
-import { CreateAnimaStepNav } from "./CreateAnimaStepNav";
+import { CreateAnimaStepNav, creationStepText } from "./CreateAnimaStepNav";
 import { CreateAnimaWorkspace } from "./CreateAnimaWorkspace";
 import { creationIssueTarget } from "./createAnimaActions";
 import {
@@ -41,34 +43,28 @@ import {
   issueStep,
   type CreationStep,
 } from "./createAnimaDraft";
+import { CreatorError } from "./createAnimaErrors";
 import {
   creationDraftSignature,
   useCreateAnimaController,
 } from "./useCreateAnimaController";
 
-const HEADINGS = [
-  "Choose an Avatar",
-  "Choose a voice",
-  "Define their Identity",
-  "Choose Actions",
-  "Review Anima",
-];
-const DESCRIPTIONS = [
-  null,
-  null,
-  "Shape who they are, how they speak, and what matters to them.",
-  "Choose how your Anima moves and reacts.",
-  null,
-];
+/** Secondary technical text for a worded failure (backend English outside English). */
+function ErrorDetail({ detail }: { detail: string | null }) {
+  return detail ? (
+    <span className="text-muted-foreground mt-1 block text-xs">{detail}</span>
+  ) : null;
+}
 
 /** The owner key prevents drafts or provisional files from crossing installations. */
 export function CreateAnimaPage({ avatar }: { avatar?: string }) {
+  const { t } = useTranslation("create");
   const owner = useRuntimeCacheKey();
   return owner ? (
     <OwnedCreateAnimaPage key={owner} owner={owner} avatar={avatar} />
   ) : (
     <AppShellPage>
-      <p>The local runtime is unavailable. Try again after it reconnects.</p>
+      <p>{t("page.runtimeUnavailable")}</p>
     </AppShellPage>
   );
 }
@@ -80,6 +76,7 @@ function OwnedCreateAnimaPage({
   owner: string;
   avatar?: string;
 }) {
+  const { t } = useTranslation("create");
   const controller = useCreateAnimaController(owner, avatar);
   const { draft, sources, operations } = controller;
   const navigate = useNavigate();
@@ -173,9 +170,7 @@ function OwnedCreateAnimaPage({
           baseline &&
           canonicalJson(baseline) !== canonicalJson(evidence.revisions)
         )
-          throw new Error(
-            "An Action dependency changed. Accept its updated sources before previewing it.",
-          );
+          throw new CreatorError(t("stage.dependencyChanged"));
         return preview;
       });
     });
@@ -202,6 +197,7 @@ function OwnedCreateAnimaPage({
   const nextStep = controller.returnToReview
     ? 4
     : (Math.min(4, draft.step + 1) as CreationStep);
+  const stepText = creationStepText(t, draft.step as CreationStep);
 
   const storageError =
     controller.storageError || controller.conflict ? (
@@ -211,7 +207,7 @@ function OwnedCreateAnimaPage({
       >
         <p>{controller.storageError}</p>
         <p className="text-muted-foreground text-xs">
-          Creation will not start unless the exact request is safely saved.
+          {t("storage.notStarted")}
         </p>
         <Button
           variant="outline"
@@ -223,8 +219,8 @@ function OwnedCreateAnimaPage({
           }
         >
           {controller.conflict
-            ? "Review latest saved state"
-            : "Retry saving draft"}
+            ? t("storage.reviewLatest")
+            : t("storage.retrySave")}
         </Button>
       </div>
     ) : null;
@@ -234,7 +230,7 @@ function OwnedCreateAnimaPage({
       <div className="shrink-0 px-5 pt-5 sm:px-7 sm:pt-6">
         <p className="flex items-center gap-2 text-lg font-semibold">
           <Sparkles className="text-primary size-4" />
-          Create Anima
+          {t("page.title")}
         </p>
         <CreateAnimaStepNav
           step={draft.step}
@@ -249,18 +245,21 @@ function OwnedCreateAnimaPage({
       >
         <div className="mb-6">
           <p className="text-muted-foreground mb-2 text-xs font-medium tracking-widest uppercase">
-            Step {draft.step + 1} of 5
+            {t("page.stepCounter", {
+              current: draft.step + 1,
+              total: CREATION_STEPS.length,
+            })}
           </p>
           <h1
             ref={heading}
             tabIndex={-1}
             className="focus-visible:ring-ring w-fit rounded text-2xl font-semibold tracking-tight outline-none focus-visible:ring-2"
           >
-            {HEADINGS[draft.step]}
+            {stepText.heading}
           </h1>
-          {DESCRIPTIONS[draft.step] ? (
+          {stepText.description ? (
             <p className="text-muted-foreground mt-2 text-sm">
-              {DESCRIPTIONS[draft.step]}
+              {stepText.description}
             </p>
           ) : null}
         </div>
@@ -268,52 +267,57 @@ function OwnedCreateAnimaPage({
           <div
             ref={summary}
             role="alert"
-            aria-label="Creation issues"
+            aria-label={t("page.issuesLabel")}
             tabIndex={-1}
             className="border-destructive/40 bg-destructive/5 focus:ring-ring mb-5 rounded-xl border p-4 outline-none focus:ring-2"
           >
             <ul className="space-y-3 text-sm">
-              {controller.issues.map((issue, index) => (
-                <li key={`${issue.path}:${index}`}>
-                  <button
-                    type="button"
-                    className="text-destructive text-left underline underline-offset-2"
-                    onClick={() => linkIssue(issue)}
-                  >
-                    {issue.message}
-                  </button>
-                  {issue.code === "validation_unavailable" ? (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="mt-1 ml-2"
-                      disabled={controller.busy}
-                      onClick={() => void controller.validate(false)}
+              {controller.issues.map((issue, index) => {
+                const text = creationIssueText(issue);
+                return (
+                  <li key={`${issue.path}:${index}`}>
+                    <button
+                      type="button"
+                      className="text-destructive text-left underline underline-offset-2"
+                      onClick={() => linkIssue(issue)}
                     >
-                      Try again
-                    </Button>
-                  ) : issue.item_id ||
-                    !["draft_invalid", "validation_unavailable"].includes(
-                      issue.code,
-                    ) ? (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="mt-1 ml-2"
-                      disabled={controller.busy}
-                      onClick={() => void controller.proposeRepair(issue)}
-                    >
-                      Review updated sources
-                    </Button>
-                  ) : null}
-                </li>
-              ))}
+                      {text.message}
+                    </button>
+                    {issue.code === "validation_unavailable" ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-1 ml-2"
+                        disabled={controller.busy}
+                        onClick={() => void controller.validate(false)}
+                      >
+                        {t("actions.tryAgain")}
+                      </Button>
+                    ) : issue.item_id ||
+                      !["draft_invalid", "validation_unavailable"].includes(
+                        issue.code,
+                      ) ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-1 ml-2"
+                        disabled={controller.busy}
+                        onClick={() => void controller.proposeRepair(issue)}
+                      >
+                        {t("page.reviewUpdatedSources")}
+                      </Button>
+                    ) : null}
+                    <ErrorDetail detail={text.detail} />
+                  </li>
+                );
+              })}
             </ul>
           </div>
         ) : null}
         {controller.message ? (
           <p role="status" className="mb-5 rounded-lg border p-3 text-sm">
             {controller.message}
+            <ErrorDetail detail={controller.messageDetail} />
           </p>
         ) : null}
         {storageError}
@@ -322,16 +326,13 @@ function OwnedCreateAnimaPage({
             role="alert"
             className="mb-5 space-y-2 rounded-lg border p-3 text-sm"
           >
-            <p>
-              The Starter Pack or creation defaults could not be loaded. Your
-              draft is preserved.
-            </p>
+            <p>{t("options.loadFailed")}</p>
             <Button
               variant="outline"
               size="sm"
               onClick={() => void sources.options.refetch()}
             >
-              Retry creation options
+              {t("options.retry")}
             </Button>
           </div>
         ) : null}
@@ -340,21 +341,24 @@ function OwnedCreateAnimaPage({
             role="alert"
             className="mb-5 space-y-2 rounded-lg border p-3 text-sm"
           >
-            <p>
-              The Recommended Starter Pack needs repair. Your selections have
-              not been replaced with a partial pack.
-            </p>
+            <p>{t("options.needsRepair")}</p>
             <ul className="list-disc space-y-1 pl-4">
-              {sources.options.data.diagnostics.map((issue, index) => (
-                <li key={index}>{issue.message}</li>
-              ))}
+              {sources.options.data.diagnostics.map((issue, index) => {
+                const text = creationIssueText(issue);
+                return (
+                  <li key={index}>
+                    {text.message}
+                    <ErrorDetail detail={text.detail} />
+                  </li>
+                );
+              })}
             </ul>
           </div>
         ) : null}
         <fieldset
           disabled={controller.busy || controller.conflict}
           className="min-w-0 space-y-6 disabled:opacity-70"
-          aria-label={`${HEADINGS[draft.step]} form`}
+          aria-label={t("page.formLabel", { step: stepText.heading })}
         >
           {draft.step === 0 ? (
             <CreateAnimaAvatarStep
@@ -422,7 +426,7 @@ function OwnedCreateAnimaPage({
           }
         >
           <ArrowLeft className="size-4" />
-          {draft.step ? "Back" : "Cancel"}
+          {draft.step ? t("actions.back") : t("actions.cancel")}
         </Button>
         <Button
           type="button"
@@ -438,10 +442,12 @@ function OwnedCreateAnimaPage({
           }
         >
           {controller.busy
-            ? "Working…"
+            ? t("page.working")
             : draft.step === 4
-              ? "Create Anima"
-              : `Continue to ${CREATION_STEPS[nextStep]}`}
+              ? t("page.create")
+              : t("page.continueTo", {
+                  step: creationStepText(t, nextStep).label,
+                })}
           <ArrowRight className="size-4" />
         </Button>
       </div>
@@ -451,7 +457,7 @@ function OwnedCreateAnimaPage({
   const recoverySurface =
     controller.recovery === "loading" ? (
       <p role="status" className="p-8">
-        Checking for a saved draft…
+        {t("recovery.checking")}
       </p>
     ) : controller.recovery === "resume" ||
       controller.recovery === "appearance" ||
@@ -459,31 +465,33 @@ function OwnedCreateAnimaPage({
       <section className="bg-card mx-auto max-w-xl space-y-4 rounded-2xl border p-6 shadow-sm sm:p-10">
         <h1 className="text-2xl font-semibold">
           {controller.recovery === "resume"
-            ? "Continue your Anima?"
+            ? t("recovery.resume.title")
             : controller.recovery === "appearance"
-              ? "Continue without creator images?"
-              : "Your saved draft needs attention"}
+              ? t("recovery.appearance.title")
+              : t("recovery.corrupt.title")}
         </h1>
         <p className="text-muted-foreground text-sm">
           {controller.recovery === "resume"
-            ? "A draft was saved for this installation. Resume it, or explicitly start over. Saved uploads will stay in My Content."
+            ? t("recovery.resume.description")
             : controller.recovery === "appearance"
-              ? "Profile and background images are no longer configured during Create Anima. Continue without those draft choices; any confirmed uploads remain in My Content and every other choice is preserved."
+              ? t("recovery.appearance.description")
               : controller.storageError}
         </p>
         <div className="flex flex-wrap gap-2">
           {controller.recovery === "resume" ? (
-            <Button onClick={controller.resume}>Resume saved draft</Button>
+            <Button onClick={controller.resume}>
+              {t("recovery.resume.action")}
+            </Button>
           ) : controller.recovery === "appearance" ? (
             <Button onClick={controller.continueWithoutImages}>
-              Continue without images
+              {t("recovery.appearance.action")}
             </Button>
           ) : null}
           <Button variant="outline" onClick={() => setStartOver(true)}>
-            Start over
+            {t("actions.startOver")}
           </Button>
           <Button variant="ghost" asChild>
-            <Link to="/create">Creator hub</Link>
+            <Link to="/create">{t("actions.creatorHub")}</Link>
           </Button>
         </div>
       </section>
@@ -491,37 +499,42 @@ function OwnedCreateAnimaPage({
       <section className="bg-card mx-auto max-w-xl space-y-4 rounded-2xl border p-6 shadow-sm sm:p-10">
         <h1 className="text-2xl font-semibold">
           {draft.submission?.state === "deleted"
-            ? "This Anima was deleted"
+            ? t("locked.deleted.title")
             : draft.submission?.state === "conflict"
-              ? "Creation request conflict"
+              ? t("locked.conflict.title")
               : controller.busy
-                ? "Creating your Anima…"
-                : "Check your creation result"}
+                ? t("locked.creating")
+                : t("locked.check.title")}
         </h1>
         <p className="text-muted-foreground text-sm">
           {draft.submission?.state === "deleted"
-            ? "The original creation succeeded, but that Anima was later deleted. Nothing has been recreated."
+            ? t("locked.deleted.description")
             : draft.submission?.state === "conflict"
-              ? "This key was already used with a different payload. Editing and automatic retries are stopped; the original request has been preserved."
-              : "The original request is saved. Check its result before changing this draft; retrying uses exactly the same request and cannot create a duplicate."}
+              ? t("locked.conflict.description")
+              : t("locked.check.description")}
         </p>
-        {controller.message ? <p role="status">{controller.message}</p> : null}
+        {controller.message ? (
+          <p role="status">
+            {controller.message}
+            <ErrorDetail detail={controller.messageDetail} />
+          </p>
+        ) : null}
         <div className="flex flex-wrap gap-2">
           {["pending", "unknown"].includes(draft.submission?.state ?? "") ? (
             <Button
               disabled={controller.busy || controller.conflict}
               onClick={() => void controller.submit(true)}
             >
-              {controller.busy ? "Checking…" : "Check creation result"}
+              {controller.busy ? t("locked.checking") : t("locked.checkResult")}
             </Button>
           ) : null}
           {draft.submission?.state === "deleted" ? (
             <Button variant="outline" onClick={() => setStartOver(true)}>
-              Acknowledge and start over
+              {t("locked.acknowledgeStartOver")}
             </Button>
           ) : null}
           <Button variant="ghost" asChild>
-            <Link to="/create">Creator hub</Link>
+            <Link to="/create">{t("actions.creatorHub")}</Link>
           </Button>
         </div>
       </section>
@@ -572,7 +585,7 @@ function OwnedCreateAnimaPage({
               />
             ) : (
               <p className="text-muted-foreground p-6 text-sm">
-                Preparing preview space…
+                {t("page.preparingStage")}
               </p>
             )
           }
@@ -580,14 +593,11 @@ function OwnedCreateAnimaPage({
       )}
       <Dialog open={startOver} onOpenChange={setStartOver}>
         <DialogContent>
-          <DialogTitle>Start a new draft?</DialogTitle>
-          <DialogDescription>
-            This discards the saved draft, not your confirmed My Content
-            uploads. A previously deleted creation will not be recreated.
-          </DialogDescription>
+          <DialogTitle>{t("startOver.title")}</DialogTitle>
+          <DialogDescription>{t("startOver.description")}</DialogDescription>
           <DialogFooter>
             <Button variant="outline" onClick={() => setStartOver(false)}>
-              Keep draft
+              {t("startOver.keep")}
             </Button>
             <Button
               onClick={() => {
@@ -595,7 +605,7 @@ function OwnedCreateAnimaPage({
                 setStartOver(false);
               }}
             >
-              Start over
+              {t("actions.startOver")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -607,27 +617,27 @@ function OwnedCreateAnimaPage({
         <DialogContent className="sm:max-w-xl">
           <DialogTitle className="pr-10">
             {controller.locked
-              ? "Leave while creation is unresolved?"
-              : "Leave your Anima draft?"}
+              ? t("leave.locked.title")
+              : t("leave.draft.title")}
           </DialogTitle>
           <DialogDescription>
             {controller.locked
-              ? "The frozen request must be kept. Return to Check creation result before starting another creation. Leaving does not cancel a request already sent."
-              : "Save this draft to continue later, or discard it. Confirmed uploads stay in My Content."}
+              ? t("leave.locked.description")
+              : t("leave.draft.description")}
           </DialogDescription>
           <DialogFooter className="sm:flex-nowrap">
             <Button variant="outline" onClick={() => blocker.reset?.()}>
-              Keep editing
+              {t("leave.keepEditing")}
             </Button>
             {!controller.locked && !controller.busy ? (
               <Button variant="outline" onClick={() => leave(true)}>
-                Discard draft
+                {t("leave.discard")}
               </Button>
             ) : null}
             <Button onClick={() => leave(false)}>
               {controller.locked
-                ? "Leave and keep request"
-                : "Save draft and leave"}
+                ? t("leave.locked.action")
+                : t("leave.draft.action")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -638,11 +648,11 @@ function OwnedCreateAnimaPage({
           onOpenChange={(open) => !open && controller.setRepair(null)}
         >
           <DialogContent>
-            <DialogTitle>Accept updated source revisions?</DialogTitle>
+            <DialogTitle>{t("repair.title")}</DialogTitle>
             <DialogDescription>
               {controller.repair.kind === "policy"
-                ? "This updates only the fixed Starter Pack identity and default Idle policy. Your exact Gesture and Reaction selections will not be reset."
-                : "The source and its complete dependency closure will use the current revisions shown here. Your other selections stay unchanged. Recheck the whole draft afterward."}
+                ? t("repair.policyDescription")
+                : t("repair.sourceDescription")}
             </DialogDescription>
             {controller.repair.kind === "source" ? (
               <div className="max-h-64 space-y-2 overflow-auto">
@@ -669,10 +679,10 @@ function OwnedCreateAnimaPage({
                 variant="outline"
                 onClick={() => controller.setRepair(null)}
               >
-                Keep pinned revisions
+                {t("repair.keep")}
               </Button>
               <Button onClick={() => void controller.acceptRepair()}>
-                Accept updated revisions
+                {t("repair.accept")}
               </Button>
             </DialogFooter>
           </DialogContent>

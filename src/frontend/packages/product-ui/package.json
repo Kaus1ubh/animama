@@ -1,6 +1,6 @@
 {
   "name": "@animama/product-ui",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "private": true,
   "license": "UNLICENSED",
   "type": "module",
@@ -35,11 +35,15 @@
       "types": "./dist/types/anima-profile.d.ts",
       "import": "./dist/anima-profile.js"
     },
+    "./i18n": {
+      "types": "./dist/types/i18n.d.ts",
+      "import": "./dist/i18n.js"
+    },
     "./styles.css": "./dist/styles.css",
     "./theme.css": "./dist/theme.css"
   },
   "scripts": {
-    "build": "node ../../scripts/build-typescript-package.mjs src/index.ts src/query.ts src/chat.ts src/components.ts src/emotion.ts src/anima-profile.ts src/theme.css && node build-styles.mjs",
+    "build": "node ../../scripts/build-typescript-package.mjs src/index.ts src/query.ts src/chat.ts src/components.ts src/emotion.ts src/anima-profile.ts src/i18n.ts src/theme.css && node build-styles.mjs",
     "check": "tsc -p tsconfig.json --noEmit --emitDeclarationOnly false",
     "test": "node --test tests/*.test.mjs"
   },
@@ -60,13 +64,17 @@
   "peerDependencies": {
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
-    "@tanstack/react-query": "^5.90.16"
+    "@tanstack/react-query": "^5.90.16",
+    "i18next": ">=26.4.2 <27",
+    "react-i18next": ">=17.0.15 <18"
   },
   "devDependencies": {
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "i18next": "26.4.2",
     "@tailwindcss/postcss": "^4",
     "postcss": "^8.5.8",
-    "tailwindcss": "^4"
+    "tailwindcss": "^4",
+    "react-i18next": "17.0.15"
   }
 }

@@ -26,22 +26,22 @@ async def test_owners_keep_separate_settings_and_cannot_reach_each_others_animas
         await session.commit()
 
     async with composition.client(owner_a) as a:
-        assert (await a.post(USER_SETTINGS, json={"locale": "fr-FR"})).status_code == 201
+        assert (await a.post(USER_SETTINGS, json={"locale": "ja"})).status_code == 201
         assert (await a.patch(f"/v1/animas/{anima_id}/settings", json={"favorited": True})).status_code == 200
     commits = ports.commits
 
     async with composition.client(owner_b) as b:
         # Owner b sees only its own (default) user settings and creates its own row.
-        assert (await b.get(USER_SETTINGS)).json()["locale"] == "en-US"
+        assert (await b.get(USER_SETTINGS)).json()["locale"] is None
         assert (await b.post(USER_SETTINGS, json={"theme": "dusk"})).status_code == 201
-        assert (await b.patch(USER_SETTINGS, json={"locale": "de-DE"})).status_code == 200
+        assert (await b.patch(USER_SETTINGS, json={"locale": "ko"})).status_code == 200
         assert (await b.delete(USER_SETTINGS)).status_code == 204
         for request in (b.get, b.delete):
             assert (await request(f"/v1/animas/{anima_id}/settings")).status_code == 404
         assert (await b.patch(f"/v1/animas/{anima_id}/settings", json={"favorited": False})).status_code == 404
 
     async with composition.client(owner_a) as a:
-        assert (await a.get(USER_SETTINGS)).json()["locale"] == "fr-FR"
+        assert (await a.get(USER_SETTINGS)).json()["locale"] == "ja"
         assert (await a.get(f"/v1/animas/{anima_id}/settings")).json()["favorited"] is True
         assert (await a.delete(f"/v1/animas/{anima_id}/settings")).status_code == 204
         assert (await a.get(f"/v1/animas/{anima_id}/settings")).json()["favorited"] is False

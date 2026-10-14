@@ -7,6 +7,7 @@ import type {
   PyExactContentSource,
   PyGesture,
 } from "@/lib/content/catalogTypes";
+import { compareDisplayText } from "@animama/product-ui/i18n";
 
 export type GestureLoadoutPresentation = {
   starter: PyGestureBinding[];
@@ -16,7 +17,6 @@ export type GestureLoadoutPresentation = {
     motionType: PyGesture["implementation_kind"] | null;
     gesture: PyGesture | null;
   }>;
-  starterSummary: string;
 };
 
 export type GestureCatalogRow = {
@@ -82,7 +82,7 @@ export function presentGestureCatalog(
       readyGestures.map((gesture) => [gesture.item_id, gesture]),
     ).values(),
   ]
-    .sort((left, right) => left.name.localeCompare(right.name))
+    .sort((left, right) => compareDisplayText(left.name, right.name))
     .map((gesture) => ({
       gesture,
       binding:
@@ -239,7 +239,8 @@ export function presentUnifiedGestureList({
     const direction = sort === "name-desc" ? -1 : 1;
     return (
       direction *
-      (left.name.localeCompare(right.name) || left.id.localeCompare(right.id))
+      (compareDisplayText(left.name, right.name) ||
+        left.id.localeCompare(right.id))
     );
   });
 
@@ -265,7 +266,6 @@ export function presentGestureLoadout(
 ): GestureLoadoutPresentation {
   const starter = loadout.gestures.filter((row) => row.origin === "starter");
   const custom = loadout.gestures.filter((row) => row.origin === "custom");
-  const disabled = loadout.disabled_starter_gestures.length;
   const builtinByStarterId = new Map(
     builtinGestures
       .filter(
@@ -285,15 +285,5 @@ export function presentGestureLoadout(
         loadout.starter_gesture_implementation_kinds?.[starterId] ?? null,
       gesture: builtinByStarterId.get(starterId) ?? null,
     })),
-    starterSummary: `${starter.length} active${disabled ? ` · ${disabled} disabled` : ""}`,
   };
-}
-
-/** Product-facing state label for a canonical Reaction cell. */
-export function reactionStateLabel(
-  state: "starter" | "custom" | "empty",
-): string {
-  if (state === "starter") return "Starter";
-  if (state === "custom") return "Custom";
-  return "Empty";
 }

@@ -2,7 +2,10 @@
 
 import { useBlocker } from "@tanstack/react-router";
 import { useCallback, useState } from "react";
+import { getI18n } from "react-i18next";
 import { toast } from "sonner";
+
+import { failureLine } from "@/lib/errors/apiError";
 
 /** The parts of a router location the leave guard compares. */
 export type CreatorLeaveLocation = {
@@ -41,6 +44,16 @@ function searchKey(search: unknown): string {
     .filter(([, value]) => value !== undefined)
     .sort(([left], [right]) => left.localeCompare(right));
   return JSON.stringify(entries);
+}
+
+/**
+ * Why a creator draft could not be discarded: the failure's own text in
+ * English (browser storage failures are already worded), otherwise a
+ * translated message with that text as detail.
+ */
+export function creatorDiscardFailureText(error: unknown): string {
+  const t = getI18n().getFixedT(null, "creator");
+  return failureLine(error, t("leave.discardFailed"));
 }
 
 export type CreatorLeaveGuard = {
@@ -88,11 +101,7 @@ export function useCreatorLeaveGuard({
     try {
       if (await discard()) proceed?.();
     } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "The draft could not be discarded.",
-      );
+      toast.error(creatorDiscardFailureText(error));
     } finally {
       setDiscarding(false);
     }

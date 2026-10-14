@@ -31,8 +31,15 @@ mac:
   artifactName: ${productName}-${version}-${arch}.${ext}
   extendInfo:
     NSMicrophoneUsageDescription: Animama uses the microphone for dictation and voice mode.
-  # Each target packages exactly its own audited stage.
   extraResources:
+    # Translated microphone prompts go into the lproj folders Electron already
+    # ships (ja, ko, zh_CN, zh_TW), so the bundle gains no new localization.
+    # English stays in extendInfo above.
+    - from: build/locales
+      to: .
+      filter:
+        - "*.lproj/InfoPlist.strings"
+    # Each target packages exactly its own audited stage.
     - from: .desktop-runtime/darwin-arm64/runtime
       to: runtime
       filter:

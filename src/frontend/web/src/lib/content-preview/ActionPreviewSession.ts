@@ -1,4 +1,6 @@
 import type { PyActionPreview } from "@/lib/content/catalogTypes";
+import { WordedError } from "@/lib/errors/apiError";
+import { getI18n } from "react-i18next";
 
 export type ActionPreviewClosure = {
   root: Record<string, unknown>;
@@ -46,6 +48,7 @@ export class ActionPreviewSession {
 
 /** Validate the server's open JSON closure before it reaches playback code. */
 export function actionClosure(preview: PyActionPreview): ActionPreviewClosure {
+  const t = getI18n().getFixedT(null, "actionEditor");
   const value = preview.closure;
   if (
     !value ||
@@ -55,7 +58,7 @@ export function actionClosure(preview: PyActionPreview): ActionPreviewClosure {
     !Array.isArray(value.supports) ||
     typeof value.revision !== "string"
   ) {
-    throw new Error("The action preview returned an invalid closure.");
+    throw new WordedError(t("preview.errors.invalidClosure"));
   }
   return {
     root: value.root as Record<string, unknown>,

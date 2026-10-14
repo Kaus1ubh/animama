@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { getI18n } from "react-i18next";
 
 import { useOptionalSoundController } from "@/hooks/use-sound-controller";
 import {
@@ -398,6 +399,7 @@ function createPoseCreatorClipEventDiagnostics(
   const missingSceneVFXPresetIds = new Set<string>();
   const missingParticleVFXIds = new Set<string>();
   const missingSFXCueIds = new Set<string>();
+  const t = getI18n().getFixedT(null, "pose");
   const eventAdapterWarnings = new Set<string>();
   const hasAvatarVFX = draft.events.some(
     (event) => event.kind === "avatar_vfx",
@@ -434,13 +436,13 @@ function createPoseCreatorClipEventDiagnostics(
   }
 
   if (hasAvatarVFX && !activeAvatar) {
-    eventAdapterWarnings.add("Avatar VFX preview needs a loaded avatar.");
+    eventAdapterWarnings.add(t("preview.warnings.avatarVfxNeedsAvatar"));
   }
   if (hasParticleVFX && !activeAvatar) {
-    eventAdapterWarnings.add("Particle VFX preview needs a loaded avatar.");
+    eventAdapterWarnings.add(t("preview.warnings.particleVfxNeedsAvatar"));
   }
   if (hasSFX && !soundController) {
-    eventAdapterWarnings.add("SFX preview needs the sound controller.");
+    eventAdapterWarnings.add(t("preview.warnings.sfxNeedsController"));
   }
   if (
     hasSFX &&
@@ -449,7 +451,7 @@ function createPoseCreatorClipEventDiagnostics(
       soundController.sfxMuted ||
       soundController.sfxVolume <= 0)
   ) {
-    eventAdapterWarnings.add("SFX preview is muted.");
+    eventAdapterWarnings.add(t("preview.warnings.sfxMuted"));
   }
 
   return {

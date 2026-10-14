@@ -1,5 +1,6 @@
 import { PauseIcon, PlayIcon, RotateCcwIcon, SquareIcon } from "lucide-react";
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/ui/components/button";
@@ -48,7 +49,7 @@ export function CreatorTimelineTransport({
   playDisabled = false,
   stopDisabled = false,
   restartDisabled = false,
-  label = "clip preview",
+  label,
   pending = false,
 }: {
   playing: boolean;
@@ -61,6 +62,8 @@ export function CreatorTimelineTransport({
   label?: string;
   pending?: boolean;
 }) {
+  const { t } = useTranslation("creator");
+  const target = label ?? t("timeline.defaultTarget");
   return (
     <div className="border-border/70 bg-muted/20 flex h-8 shrink-0 items-center rounded-md border p-0.5">
       <Button
@@ -69,9 +72,17 @@ export function CreatorTimelineTransport({
         size="icon-sm"
         disabled={playDisabled || pending}
         onClick={onTogglePlayback}
-        aria-label={`${playing ? "Pause" : "Play"} ${label}`}
+        aria-label={
+          playing
+            ? t("timeline.pauseTarget", { target })
+            : t("timeline.playTarget", { target })
+        }
         title={
-          pending ? "Loading preview resources" : playing ? "Pause" : "Play"
+          pending
+            ? t("timeline.loadingResources")
+            : playing
+              ? t("timeline.pause")
+              : t("timeline.play")
         }
       >
         {playing ? (
@@ -86,8 +97,8 @@ export function CreatorTimelineTransport({
         size="icon-sm"
         disabled={stopDisabled}
         onClick={onStop}
-        aria-label={`Stop ${label}`}
-        title="Stop"
+        aria-label={t("timeline.stopTarget", { target })}
+        title={t("timeline.stop")}
       >
         <SquareIcon className="size-4" />
       </Button>
@@ -97,8 +108,8 @@ export function CreatorTimelineTransport({
         size="icon-sm"
         disabled={restartDisabled || pending}
         onClick={onRestart}
-        aria-label={`Restart ${label}`}
-        title="Restart"
+        aria-label={t("timeline.restartTarget", { target })}
+        title={t("timeline.restart")}
       >
         <RotateCcwIcon className="size-4" />
       </Button>
@@ -221,6 +232,7 @@ export function CreatorTimelinePlayhead({
   durationSec: number;
   hideLabel?: boolean;
 }) {
+  const { t } = useTranslation("creator");
   const percent = getTimelinePercent(timeSec, durationSec);
   const label = formatTimelineTime(timeSec);
   const repeatsTick = RULER_TICKS.some(
@@ -237,7 +249,7 @@ export function CreatorTimelinePlayhead({
             "text-foreground text-2xs absolute -top-7 font-medium tabular-nums",
             percent > 95 ? "right-0" : "left-1/2 -translate-x-1/2",
           )}
-          aria-label="Current playhead time"
+          aria-label={t("timeline.playhead")}
         >
           {label}
         </span>

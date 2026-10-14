@@ -2,6 +2,7 @@
 
 import React, { useMemo, useState } from "react";
 import { useParams } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
 import {
   resolveAnimasNavigationTarget,
   resolveNewChatAnimaId,
@@ -33,6 +34,7 @@ export function SidebarShell({
   open: openProp,
   setOpen: setOpenProp,
 }: SidebarShellProps) {
+  const { t } = useTranslation("sidebar");
   const params = useParams({ strict: false });
   const animaId = typeof params?.animaId === "string" ? params.animaId : null;
   const animasQuery = useAnimas();
@@ -56,7 +58,7 @@ export function SidebarShell({
     const animasTarget = resolveAnimasNavigationTarget(animaId);
     return [
       {
-        label: "New Chat",
+        label: t("links.newChat"),
         ...(newChatAnimaId
           ? {
               to: "/$animaId" as const,
@@ -68,7 +70,7 @@ export function SidebarShell({
         ),
       },
       {
-        label: "Animas",
+        label: t("links.animas"),
         ...(animasTarget.route === "details"
           ? {
               to: "/animas/$animaId" as const,
@@ -80,23 +82,23 @@ export function SidebarShell({
         ),
       },
       {
-        label: "Memory",
+        label: t("links.memory"),
         to: "/memories" as const,
         icon: (
           <Brain className="text-sidebar-foreground dark:text-sidebar-foreground h-6 w-6 flex-shrink-0" />
         ),
       },
       {
-        label: "Library",
+        label: t("links.library"),
         to: "/library" as const,
         icon: (
           <LibraryBig className="text-sidebar-foreground dark:text-sidebar-foreground h-6 w-6 flex-shrink-0" />
         ),
       },
     ];
-  }, [animaId, newChatAnimaId]);
+  }, [animaId, newChatAnimaId, t]);
   const searchLink = {
-    label: "Search",
+    label: t("links.search"),
     href: "#" as const,
     onClick: () => setSearchOpen(true),
     icon: (

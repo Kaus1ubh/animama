@@ -352,6 +352,8 @@ class FinalizedTtsStreamBootstrap:
     run_id: str
     model_id: str | None
     finalized_chunking: DirectChatFinalizedTtsChunking = DEFAULT_FINALIZED_TTS_CHUNKING
+    language_code: str | None = None
+    """The conversation language every segment is spoken in; ``None`` lets Gemini detect it."""
     task: asyncio.Task[None] | None = None
     completed: bool = False
     resolved_voice_id: str | None = None
@@ -384,6 +386,7 @@ class FinalizedTtsStreamBootstrap:
             run_id=run_id,
             model_id=gemini_finalized_tts_model_id(chat_options),
             finalized_chunking=tts_options.finalized_chunking or DEFAULT_FINALIZED_TTS_CHUNKING,
+            language_code=tts_options.language_code,
         )
 
     def start_if_ready(self, state: SseTextState) -> None:
@@ -610,6 +613,7 @@ class FinalizedTtsStreamBootstrap:
                 text_basis=batch.text_basis,
                 emotional_tone=emotional_tone,
                 emotional_state=emotional_state,
+                language_code=self.language_code,
             )
         except asyncio.CancelledError:
             raise

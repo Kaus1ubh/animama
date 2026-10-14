@@ -8,6 +8,7 @@ import { getPose, listPoses } from "@animama/runtime-contracts/sdk";
 import type { PyPose, PyPosePage } from "@animama/runtime-contracts/api-types";
 import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { queryKeys } from "@/query/keys";
+import { compareDisplayText } from "@animama/product-ui/i18n";
 
 /** Naming must use the current complete catalog; this endpoint is not paginated. */
 export async function fetchPoseNames(apiClient: Client): Promise<string[]> {
@@ -54,7 +55,7 @@ export function usePoses(
                 item.name.toLocaleLowerCase().includes(query) ||
                 item.description?.toLocaleLowerCase().includes(query)),
           )
-          .sort((a, b) => a.name.localeCompare(b.name)),
+          .sort((a, b) => compareDisplayText(a.name, b.name)),
       };
     },
   });

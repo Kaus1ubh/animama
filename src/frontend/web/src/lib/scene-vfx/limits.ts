@@ -95,8 +95,24 @@ export function withinSceneRange(
   );
 }
 
-/** A definition value outside its limits: the field path and why. */
-export type SceneLimitIssue = { field: string; message: string };
+/** Why a value is outside its limits, for the creator to word in the UI Locale. */
+type SceneLimitProblem =
+  | { kind: "range"; minimum: number; maximum: number; integer: boolean }
+  | { kind: "order" }
+  | { kind: "ascending" }
+  | { kind: "count"; minimum: number; maximum: number }
+  | { kind: "total"; maximum: number }
+  | { kind: "legacyEmoji"; label: string | null };
+
+/**
+ * A definition value outside its limits: the field path and why. `message` is
+ * the English explanation; the creator words `problem` instead.
+ */
+export type SceneLimitIssue = {
+  field: string;
+  message: string;
+  problem: SceneLimitProblem;
+};
 
 type Definition = Record<string, unknown>;
 
@@ -129,6 +145,12 @@ export function sceneDefinitionLimitIssues(
     issues.push({
       field,
       message: `${field} must be between ${range[0]} and ${range[1]}${integer ? " in whole steps" : ""}.`,
+      problem: {
+        kind: "range",
+        minimum: range[0],
+        maximum: range[1],
+        integer,
+      },
     });
   };
   const ordered = (
@@ -141,6 +163,7 @@ export function sceneDefinitionLimitIssues(
       issues.push({
         field,
         message: `${field}: the minimum cannot exceed the maximum.`,
+        problem: { kind: "order" },
       });
   };
   // Animama no longer provides Twemoji: Save refuses each emoji item, which
@@ -149,10 +172,13 @@ export function sceneDefinitionLimitIssues(
     if (!Array.isArray(items)) return;
     items.forEach((item, index) => {
       if (!isSceneLegacyEmojiItem(item)) return;
-      const label = record(item)?.label;
+      const rawLabel = record(item)?.label;
+      const label =
+        typeof rawLabel === "string" && rawLabel.trim() ? rawLabel : null;
       issues.push({
         field: `${field}.${index}`,
-        message: `${typeof label === "string" && label.trim() ? label : "This item"} is an emoji, which Animama no longer provides. Replace it with a sticker or image, or remove it.`,
+        message: `${label ?? "This item"} is an emoji, which Animama no longer provides. Replace it with a sticker or image, or remove it.`,
+        problem: { kind: "legacyEmoji", label },
       });
     });
   };
@@ -162,6 +188,7 @@ export function sceneDefinitionLimitIssues(
       issues.push({
         field,
         message: `${field} needs ${minimum === maximum ? minimum : `${minimum} to ${maximum}`} entries.`,
+        problem: { kind: "count", minimum, maximum },
       });
   };
   if (definition.durationMs !== null && definition.durationMs !== undefined)
@@ -251,6 +278,7 @@ export function sceneDefinitionLimitIssues(
       issues.push({
         field: "gradient.stops",
         message: "gradient.stops must run in ascending position.",
+        problem: { kind: "ascending" },
       });
   }
 
@@ -325,6 +353,7 @@ export function sceneDefinitionLimitIssues(
       issues.push({
         field: "scatters",
         message: `Scattered layers can show at most ${S.totalCount} items in all.`,
+        problem: { kind: "total", maximum: S.totalCount },
       });
   }
 

@@ -1,0 +1,52 @@
+{
+  "actions": {
+    "retryLibrary": "重试资源库",
+    "retryScan": "重新扫描",
+    "scanning": "正在扫描…"
+  },
+  "diagnostics": {
+    "case_collision": "有两个路径仅大小写不同，因此不可移植。",
+    "empty_file": "内容文件不能为空。",
+    "entry_too_large": "此条目超出支持的大小上限。",
+    "file_too_large": "此文件超出支持的大小上限。",
+    "hard_link_rejected": "不会扫描硬链接文件。",
+    "incomplete_operation": "保存中断导致此条目不完整，需要进行协调。",
+    "invalid_gltf_asset": "VRM 和 VRMA 文件需要 glTF 2 资源。",
+    "invalid_gltf_container": "glTF 数据无效。",
+    "invalid_json_shape": "顶层 JSON 值必须是对象。",
+    "invalidHeader": "{{format}} 文件签名无效。",
+    "json_too_large": "JSON 文件超出支持的大小上限。",
+    "malformed_json": "此文件不是有效的 UTF-8 JSON 文档。",
+    "missing_descriptor_file": "缺少此条目声明的文件。",
+    "missing_effect_dependency": "此项目使用的内置特效已被移除，播放时将不包含该特效。请在其创作器中打开，重新映射或移除这些特效事件。",
+    "missing_vrm_extension": "此文件不包含其 VRM 或 VRMA 类型所需的扩展。",
+    "nested_descriptor": "内容条目不能相互嵌套。",
+    "pocket_clone_file_size": "语音克隆文件不能为空，且不得超过 25 MiB。",
+    "provenance_missing": "此内置条目没有许可证记录。",
+    "scene_emoji_item_removed": "此场景特效包含 Animama 已不再提供的表情符号项目，播放时将不包含该项目。请在其创作器中打开，将其替换为贴纸或图片，或将其移除。",
+    "special_file_rejected": "仅扫描普通文件和文件夹。",
+    "svg_size_limit": "SVG 图片不得超过 32 MiB。",
+    "symlink_rejected": "不会扫描符号链接。",
+    "too_many_files": "此条目包含的文件过多。",
+    "unreadable_file": "无法读取文件。",
+    "unreadable_path": "无法检查文件或文件夹。",
+    "unsafe_descriptor_path": "声明的文件路径必须位于条目内。",
+    "unsupported_extension": "不支持此文件类型。"
+  },
+  "itemStatus": {
+    "invalid": "此项目未通过验证。",
+    "missing": "文件或文件夹缺失。",
+    "scanRequired": "更改正在等待扫描。"
+  },
+  "loadFailed": "无法加载内容资源库。请重试以再次检查。",
+  "operatorManaged": "主机文件扫描由运营方管理。",
+  "scanFailed": "扫描失败。请重试。",
+  "scanRequired": {
+    "local": "本地更改需要重新扫描。",
+    "operator": "运营方正在协调内容更改。"
+  },
+  "status": {
+    "attention": "内容需要处理",
+    "unavailable": "内容资源库不可用"
+  }
+}

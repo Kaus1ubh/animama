@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import type { TFunction } from "i18next";
+import { getI18n, useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import {
@@ -30,17 +32,35 @@ const SYSTEM_DEFAULT = "__system_default__";
 const MICROPHONE_ACCESS_EVENT = "animama:microphone-access-granted";
 const SELECT_TRIGGER_CLASS_NAME = "w-56";
 
-const SENSITIVITY_LABELS: Record<MicSensitivity, string> = {
-  low: "Low",
-  normal: "Normal",
-  high: "High",
-};
+/** Display name for a saved sensitivity level. */
+function sensitivityLabel(
+  t: TFunction<"voice">,
+  sensitivity: MicSensitivity,
+): string {
+  switch (sensitivity) {
+    case "low":
+      return t("microphone.sensitivity.levels.low.label");
+    case "normal":
+      return t("microphone.sensitivity.levels.normal.label");
+    case "high":
+      return t("microphone.sensitivity.levels.high.label");
+  }
+}
 
-const SENSITIVITY_DESCRIPTIONS: Record<MicSensitivity, string> = {
-  low: "Ignores quieter sounds; useful in noisy rooms.",
-  normal: "Balanced speech detection.",
-  high: "Picks up quieter or shorter speech.",
-};
+/** What a sensitivity level does, including when the change applies. */
+function sensitivityDescription(
+  t: TFunction<"voice">,
+  sensitivity: MicSensitivity,
+): string {
+  switch (sensitivity) {
+    case "low":
+      return t("microphone.sensitivity.levels.low.description");
+    case "normal":
+      return t("microphone.sensitivity.levels.normal.description");
+    case "high":
+      return t("microphone.sensitivity.levels.high.description");
+  }
+}
 
 /** The remembered device ID for this machine, kept in sync across tabs. */
 export function useSelectedMicrophoneId(): string | null {
@@ -89,6 +109,7 @@ export function MicrophoneDeviceSetting({
   /** Browser speech recognition always listens on the system default input. */
   usesSystemRecognizer: boolean;
 }) {
+  const { t } = useTranslation("voice");
   const selectedId = useSelectedMicrophoneId();
   const { inputs, loaded, refresh } = useAudioInputs();
   // "default"/"communications" are browser aliases for the OS default device.
@@ -106,8 +127,8 @@ export function MicrophoneDeviceSetting({
       ?.label.replace(/^Default\s*-\s*/, "")
       .trim() || null;
   const systemDefaultLabel = systemDefaultName
-    ? `System default (${systemDefaultName})`
-    : "System default";
+    ? t("microphone.device.systemDefaultNamed", { name: systemDefaultName })
+    : t("microphone.device.systemDefault");
   const needsPermission =
     inputs.length > 0 && inputs.every((device) => !device.label);
   const selectedMissing =
@@ -122,20 +143,22 @@ export function MicrophoneDeviceSetting({
       stream.getTracks().forEach((track) => track.stop());
       await refresh();
     } catch {
-      toast.error(
-        "Microphone access was not granted. Allow it in your browser or system settings.",
-      );
+      toast.error(t("microphone.device.accessDenied"));
     }
   };
 
   return (
     <SettingsRow
-      label="Input device"
+      label={t("microphone.device.label")}
       description={
         selectedMissing
-          ? "The selected microphone isn't connected; using the system default."
+          ? t("microphone.device.missing")
           : usesSystemRecognizer
-            ? `Browser speech recognition always uses the system default microphone${systemDefaultName ? ` (${systemDefaultName})` : ""}.`
+            ? systemDefaultName
+              ? t("microphone.device.systemRecognizerNamed", {
+                  name: systemDefaultName,
+                })
+              : t("microphone.device.systemRecognizer")
             : undefined
       }
       control={
@@ -145,7 +168,7 @@ export function MicrophoneDeviceSetting({
             variant="outline"
             onClick={() => void requestAccess()}
           >
-            Allow microphone access
+            {t("microphone.device.allowAccess")}
           </Button>
         ) : (
           <Select
@@ -156,9 +179,9 @@ export function MicrophoneDeviceSetting({
           >
             <SelectTrigger
               className={SELECT_TRIGGER_CLASS_NAME}
-              aria-label="Microphone input device"
+              aria-label={t("microphone.device.selectLabel")}
             >
-              <SelectValue placeholder="System default" />
+              <SelectValue placeholder={t("microphone.device.systemDefault")} />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={SYSTEM_DEFAULT}>
@@ -166,7 +189,8 @@ export function MicrophoneDeviceSetting({
               </SelectItem>
               {devices.map((device, index) => (
                 <SelectItem key={device.deviceId} value={device.deviceId}>
-                  {device.label || `Microphone ${index + 1}`}
+                  {device.label ||
+                    t("microphone.device.unnamed", { number: index + 1 })}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -183,6 +207,7 @@ export function MicrophoneSensitivitySetting({
 }: {
   disabled: boolean;
 }) {
+  const { t } = useTranslation("voice");
   const { userPreferences, updateUserPreferences } = useSettings();
   const saved = toMicSensitivity(userPreferences?.speech?.mic_sensitivity);
   const [value, setValue] = useState<MicSensitivity>(saved);
@@ -190,8 +215,8 @@ export function MicrophoneSensitivitySetting({
 
   return (
     <SettingsRow
-      label="Sensitivity"
-      description={`${SENSITIVITY_DESCRIPTIONS[value]} Applies from the next listening session.`}
+      label={t("microphone.sensitivity.label")}
+      description={sensitivityDescription(t, value)}
       control={
         <Select
           value={value}
@@ -203,20 +228,20 @@ export function MicrophoneSensitivitySetting({
               speech: { mic_sensitivity: sensitivity },
             }).catch(() => {
               setValue(saved);
-              toast.error("Failed to update microphone sensitivity.");
+              toast.error(t("microphone.sensitivity.saveFailed"));
             });
           }}
         >
           <SelectTrigger
             className={SELECT_TRIGGER_CLASS_NAME}
-            aria-label="Microphone sensitivity"
+            aria-label={t("microphone.sensitivity.selectLabel")}
           >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             {MIC_SENSITIVITIES.map((option) => (
               <SelectItem key={option} value={option}>
-                {SENSITIVITY_LABELS[option]}
+                {sensitivityLabel(t, option)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -226,12 +251,19 @@ export function MicrophoneSensitivitySetting({
   );
 }
 
+/** Worded when it happens, so the test effect does not depend on the UI Locale. */
+function microphoneOpenFailedText(): string {
+  const t = getI18n().getFixedT(null, "voice");
+  return t("microphone.test.openFailed");
+}
+
 /**
  * Opt-in level meter for the selected microphone. The stream is released when
  * testing stops, the device changes, or the row unmounts (section or modal
  * closed), so the microphone indicator never stays on.
  */
 export function MicrophoneTestSetting() {
+  const { t } = useTranslation("voice");
   const selectedId = useSelectedMicrophoneId();
   const [testing, setTesting] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -253,7 +285,7 @@ export function MicrophoneTestSetting() {
       .catch(() => {
         if (cancelled) return;
         setTesting(false);
-        toast.error("Could not open the microphone.");
+        toast.error(microphoneOpenFailedText());
       });
     return () => {
       cancelled = true;
@@ -264,9 +296,9 @@ export function MicrophoneTestSetting() {
 
   return (
     <SettingsRow
-      label="Test microphone"
+      label={t("microphone.test.label")}
       description={
-        testing ? "Speak to see the input level." : "Check your input level."
+        testing ? t("microphone.test.active") : t("microphone.test.idle")
       }
       control={
         <div className="flex items-center gap-3">
@@ -276,7 +308,7 @@ export function MicrophoneTestSetting() {
             variant={testing ? "default" : "outline"}
             onClick={() => setTesting((value) => !value)}
           >
-            {testing ? "Stop" : "Test"}
+            {testing ? t("microphone.test.stop") : t("microphone.test.start")}
           </Button>
         </div>
       }

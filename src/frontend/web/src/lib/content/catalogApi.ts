@@ -1,3 +1,4 @@
+import { contentSlug } from "./nameIdentifiers";
 import type { Client } from "@animama/runtime-contracts/sdk";
 import {
   deleteContentItemV1ContentItemsItemIdDelete,
@@ -110,14 +111,7 @@ export function localContentLogicalKey(
   kind: ContentKind,
   name: string,
 ): string {
-  const stem =
-    name
-      .normalize("NFKD")
-      .toLocaleLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 96) || "untitled";
-  return `local:${kind.replaceAll("_", "-")}:${stem}`;
+  return `local:${kind.replaceAll("_", "-")}:${contentSlug(name)}`;
 }
 
 function typedMetadata(item: TypedCatalogTransport): Record<string, unknown> {

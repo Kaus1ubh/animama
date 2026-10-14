@@ -29,14 +29,12 @@ export type SceneCameraPreset =
   | "portrait"
   | "portrait-close";
 
-export const SCENE_CAMERA_PRESETS: ReadonlyArray<{
-  label: string;
-  value: SceneCameraPreset;
-}> = [
-  { value: "full-body", label: "Full body" },
-  { value: "full-body-close", label: "Full body (close)" },
-  { value: "portrait", label: "Portrait" },
-  { value: "portrait-close", label: "Portrait (close)" },
+/** Presets in menu order; the camera controls word each one. */
+export const SCENE_CAMERA_PRESETS: readonly SceneCameraPreset[] = [
+  "full-body",
+  "full-body-close",
+  "portrait",
+  "portrait-close",
 ];
 
 export type SceneCameraPresetState = {

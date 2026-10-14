@@ -247,7 +247,7 @@ export async function discardToLibrary(page: Page): Promise<void> {
 }
 
 /** Wait until the selected Annie Avatar and creator lifecycle settle. */
-async function waitForCreatorStageReady(args: {
+export async function waitForCreatorStageReady(args: {
   expectedKind: PlaybackTargetKind;
   surface: Locator;
   timeoutMs?: number;

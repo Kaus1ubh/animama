@@ -1,0 +1,246 @@
+{
+  "background": {
+    "apply": "套用",
+    "applying": "正在套用...",
+    "back": "返回背景設定",
+    "canvasSize": "{{width}} x {{height}}",
+    "description": "調整所選虛擬形象背景的裁切和縮放。",
+    "heading": "編輯媒體",
+    "hint": "拖曳以調整位置，縮放以符合即時虛擬形象畫布。",
+    "liveCanvas": "即時畫布",
+    "reset": "重設",
+    "title": "調整 {{name}} 背景的大小",
+    "zoomIn": "放大背景",
+    "zoomOut": "縮小背景"
+  },
+  "canvas": {
+    "camera": {
+      "axis": "{{label}} {{axis}}",
+      "bones": {
+        "chest": "胸部",
+        "head": "頭部",
+        "hips": "髖部",
+        "manual": "手動"
+      },
+      "custom": "自訂",
+      "fieldOfView": "視野",
+      "fieldOfViewLabel": "相機視野",
+      "fineTune": "微調相機",
+      "orbitTarget": "環繞中心",
+      "orbitTargetYSource": "環繞中心 Y 來源",
+      "orbitTargetYSourceLabel": "環繞中心 Y 來源",
+      "position": "相機位置",
+      "positionYSource": "相機 Y 來源",
+      "positionYSourceLabel": "相機 Y 來源",
+      "preset": "相機預設",
+      "presets": {
+        "fullBody": "全身",
+        "fullBodyClose": "全身（近景）",
+        "portrait": "半身",
+        "portraitClose": "半身（近景）"
+      },
+      "reset": "重設",
+      "title": "相機"
+    },
+    "fullscreen": {
+      "enter": "進入全螢幕",
+      "exit": "結束全螢幕"
+    },
+    "pip": {
+      "open": "開啟子母畫面",
+      "toggle": "切換子母畫面",
+      "unsupported": "此瀏覽器不支援子母畫面"
+    },
+    "settings": {
+      "audio": "音訊",
+      "mode": "模式",
+      "modes": {
+        "avatar": "僅虛擬形象",
+        "avatarChat": "虛擬形象 + 聊天",
+        "chat": "僅聊天"
+      },
+      "open": "開啟畫布設定",
+      "pipBackground": "子母畫面背景",
+      "pipBackgrounds": {
+        "scene": "場景",
+        "transparent": "透明"
+      },
+      "title": "畫布設定"
+    },
+    "transform": {
+      "position": "位置 {{axis}}",
+      "rotation": "旋轉 {{axis}}（度）",
+      "scale": "縮放 {{axis}}",
+      "shortcut": "快速鍵：{{key}}",
+      "titles": {
+        "rotate": "旋轉虛擬形象",
+        "scale": "縮放虛擬形象",
+        "translate": "移動虛擬形象"
+      },
+      "uniformScale": "等比例縮放",
+      "uniformScaleDescription": "同時編輯所有軸。"
+    }
+  },
+  "composer": {
+    "attach": {
+      "add": "新增檔案",
+      "chunks_other": "{{count}} 個區塊",
+      "empty": "找不到可用的已上傳檔案。",
+      "fileDetails": "{{size}} · {{chunks}} · {{status}}",
+      "fileDetailsNoSize": "{{chunks}} · {{status}}",
+      "files": "檔案",
+      "fromComputer": "從電腦上傳",
+      "keywordOnly": "僅關鍵字",
+      "loadFailed": "無法載入已上傳的檔案。",
+      "loading": "正在載入已上傳的檔案…",
+      "search": "搜尋已上傳的檔案…",
+      "uploading": "正在上傳 {{percent}}"
+    },
+    "dictation": {
+      "failed": "聽寫失敗",
+      "mute": "將麥克風靜音",
+      "start": "聽寫",
+      "stop": "停止聽寫",
+      "stopIcon": "停止",
+      "unmute": "取消麥克風靜音"
+    },
+    "drop": {
+      "allFailed": "無法新增檔案。",
+      "failedHint": "請檢查檔案類型和大小，然後再試一次。",
+      "prompt": "將檔案拖放到這裡",
+      "someFailed_other": "有 {{count}} 個檔案無法新增。",
+      "unavailable": "目前無法上傳檔案。"
+    },
+    "files": {
+      "cardLabel": "{{name}} {{status}}",
+      "genericKind": "檔案",
+      "noToolsNote": "此模型無法呼叫工具，因此無法搜尋附件。若要使用附件，請選擇支援工具呼叫的模型。",
+      "ready": "就緒",
+      "readyKeywordOnly": "就緒（僅關鍵字）",
+      "remove": "從輸入框移除"
+    },
+    "model": {
+      "back": "返回模型與推理",
+      "choose": "選擇一個模型",
+      "empty": "找不到模型。",
+      "fallbackLabel": "模型",
+      "features": "聊天功能",
+      "needsWindow": "請在「應用程式設定 → 模型」中設定其上下文視窗",
+      "noFeatures": "此模型沒有可選功能。",
+      "noProfile": "沒有聊天設定檔",
+      "noReasoning": "此模型的推理無法調整。",
+      "notDirect": "暫不支援直接聊天",
+      "panel": "模型與推理",
+      "reasoningEffort": "推理強度",
+      "reasoningEfforts": {
+        "high": "高",
+        "low": "低",
+        "max": "最大",
+        "medium": "中",
+        "minimal": "最低",
+        "none": "無",
+        "xhigh": "極高"
+      },
+      "search": "搜尋模型...",
+      "searchUnavailable": {
+        "key_missing": "尚未設定 Brave Search 金鑰。請查看應用程式設定中的「網頁搜尋」。",
+        "not_configured": "請在應用程式設定中設定網頁搜尋。",
+        "tools_unsupported": "此模型無法呼叫工具，因此無法搜尋。"
+      },
+      "select": "選擇模型",
+      "toasts": {
+        "selectFirst": "請先選擇模型再聊天。",
+        "unsupported": "此模型暫不支援直接聊天。",
+        "updateFailed": "無法更新模型"
+      },
+      "trigger": "模型與推理：{{model}}",
+      "unavailable": "模型無法使用。請選擇其他模型。",
+      "unavailableShort": "模型無法使用",
+      "webSearch": "網路搜尋"
+    }
+  },
+  "header": {
+    "anima": {
+      "fallback": "Anima",
+      "loading": "正在載入 Anima...",
+      "none": "沒有 Anima"
+    },
+    "openAnimaDetails": "開啟 Anima 詳細資料",
+    "openSidebar": "開啟側邊欄",
+    "voiceDownload": {
+      "downloading": "正在下載 {{percent}}",
+      "failed": "下載失敗；選擇即可重試",
+      "whenSelected": "選擇後即會下載"
+    }
+  },
+  "memoryCue": {
+    "added": "已新增到 {{name}} 的記憶",
+    "addedUnnamed": "已新增到此 Anima 的記憶",
+    "changed": "已更新 {{name}} 的記憶",
+    "changedUnnamed": "已更新此 Anima 的記憶",
+    "episodes": "已記入情節記憶",
+    "noText": "未新增文字。",
+    "open": "在記憶中開啟",
+    "title": "{{name}} 記住的內容",
+    "titleUnnamed": "記住的內容",
+    "updated": "記憶已更新"
+  },
+  "model": {
+    "alternate": "{{name}}（備用）",
+    "optionLabel": "{{connection}}：{{model}}"
+  },
+  "modelSwitch": {
+    "cancel": "取消",
+    "confirm": "開始新聊天",
+    "description": "{{model}} 處理對話的方式不同，因此此聊天將在新聊天中繼續。",
+    "descriptionUnnamed": "此模型處理對話的方式不同，因此此聊天將在新聊天中繼續。",
+    "title": "開始新聊天？"
+  },
+  "playback": {
+    "degraded": "部分虛擬形象內容無法使用。文字聊天仍可使用。",
+    "preparing": "正在準備動畫和特效…",
+    "preparingCanChat": "正在準備動畫和特效… 現在可以聊天了。"
+  },
+  "profile": {
+    "back": "返回",
+    "backgroundAlt": "{{name}} 的背景",
+    "close": "關閉 Anima 個人資料",
+    "closeShort": "關閉",
+    "description": "外觀、情緒、身分設定、記憶和設定。",
+    "documents": {
+      "editIdentity": "編輯身分設定",
+      "editMemories": "編輯記憶",
+      "identity": "身分設定",
+      "label": "Anima 文件",
+      "memories": "記憶"
+    },
+    "editBackground": "編輯背景圖片",
+    "editProfileImage": "編輯頭像",
+    "emotions": "情緒",
+    "exploreEmotions": "查看情緒",
+    "fullDetails": "查看完整詳細資料",
+    "noIdentity": "尚未提供身分設定內容。",
+    "profileImageAlt": "{{name}} 的頭像",
+    "settings": "Anima 設定",
+    "settingsTitle": "{{name}} 設定"
+  },
+  "shell": {
+    "chatUnavailable": {
+      "description": "執行階段外殼、場景、虛擬形象、設定、WebSocket 和記憶功能皆已啟用，但此外殼未提供聊天面板。",
+      "title": "執行階段聊天無法使用"
+    }
+  },
+  "speech": {
+    "install": "安裝離線語音辨識以使用聽寫和語音模式",
+    "installFromMainWindow": "請在 Animama 主視窗中開啟「應用程式設定 → 語音」進行下載。",
+    "unavailableHere": "此處無法使用聽寫和語音模式所需的離線語音辨識"
+  },
+  "suggestions": {
+    "greeting": "簡單問候",
+    "joke": "講個笑話",
+    "greetingMessage": "嗨！最近怎麼樣？",
+    "greetingMessageNamed": "嗨，{{name}}！最近怎麼樣？",
+    "jokeMessage": "嘿，給我講個笑話吧！",
+    "jokeMessageNamed": "嘿，{{name}}，給我講個笑話吧！"
+  }
+}

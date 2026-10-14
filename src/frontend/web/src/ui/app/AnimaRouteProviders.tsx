@@ -13,6 +13,7 @@ import {
   type ReactNode,
 } from "react";
 import { useParams } from "@tanstack/react-router";
+import { getI18n } from "react-i18next";
 
 import type { PyAnimaRuntime } from "@/lib/content/catalogTypes";
 import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
@@ -44,6 +45,19 @@ type AnimaRouteProvidersProps = {
 type MountedPlaybackStatus = RuntimePlaybackStatus | "idle";
 type AvatarVisualStatus = "loading" | "visible" | "unavailable";
 const ignoreVisualStatus = () => undefined;
+
+/** Diagnostics this provider adds itself, worded in the active UI Locale when they occur. */
+function preparationDiagnostic(
+  code: "avatar_pose_unavailable" | "runtime_preparation_failed",
+): string {
+  const t = getI18n().getFixedT(null, "app");
+  switch (code) {
+    case "avatar_pose_unavailable":
+      return t("runtime.avatarPoseUnavailable");
+    case "runtime_preparation_failed":
+      return t("runtime.preparationFailed");
+  }
+}
 
 type MountedRuntimeContent = {
   data: AnimaRuntimeCatalogSnapshot | null;
@@ -261,8 +275,7 @@ export function AnimaRouteProviders({ children }: AnimaRouteProvidersProps) {
                   ...mount.diagnostics,
                   {
                     code: "avatar_pose_unavailable",
-                    message:
-                      "The avatar could not be loaded in its resting pose. Reload its content to retry.",
+                    message: preparationDiagnostic("avatar_pose_unavailable"),
                   },
                 ]
               : mount.diagnostics,
@@ -297,7 +310,7 @@ export function AnimaRouteProviders({ children }: AnimaRouteProvidersProps) {
               message:
                 error instanceof Error
                   ? error.message
-                  : "Avatar content could not be prepared.",
+                  : preparationDiagnostic("runtime_preparation_failed"),
             },
           ],
           preparationError: error,

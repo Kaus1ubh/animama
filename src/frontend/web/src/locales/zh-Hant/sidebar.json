@@ -1,0 +1,71 @@
+{
+  "animas": {
+    "empty": "還沒有 Anima",
+    "filter": "篩選和排序 Anima",
+    "heading": "Anima",
+    "loadFailed": "無法載入 Anima",
+    "loading": "正在載入 Anima…",
+    "sort": {
+      "label": "排序",
+      "nameAscending": "名稱：A–Z",
+      "nameDescending": "名稱：Z–A",
+      "recent": "最近使用"
+    }
+  },
+  "chats": {
+    "allAnimas": "所有 Anima",
+    "empty": "還沒有聊天",
+    "emptyForAnima": "此 Anima 沒有聊天",
+    "filter": "篩選聊天",
+    "filterByAnima": "Anima",
+    "heading": "聊天",
+    "loadFailed": "無法載入聊天",
+    "loading": "正在載入聊天…",
+    "untitled": "未命名聊天"
+  },
+  "close": "關閉側邊欄",
+  "create": {
+    "anima": "Anima",
+    "effects": "特效",
+    "gesture": "動作",
+    "label": "建立",
+    "reaction": "反應"
+  },
+  "links": {
+    "animas": "Anima",
+    "library": "資源庫",
+    "memory": "記憶",
+    "newChat": "新聊天",
+    "search": "搜尋"
+  },
+  "open": "開啟側邊欄",
+  "search": {
+    "close": "關閉搜尋",
+    "description": "搜尋已儲存的聊天訊息。",
+    "failed": "搜尋失敗。",
+    "loadMore": "載入更多",
+    "noResults": "沒有相符的訊息。",
+    "open": "搜尋聊天",
+    "placeholder": "搜尋聊天",
+    "profileAlt": "{{name}} 的大頭貼",
+    "searching": "正在搜尋…",
+    "title": "搜尋聊天"
+  },
+  "usage": {
+    "amount": "{{used}} / {{limit}}",
+    "description": "你帳號目前的用量。上限由執行環境強制執行。",
+    "loadFailed": "無法載入用量。",
+    "loading": "正在載入用量…",
+    "resets": "{{time}} 重設",
+    "retry": "重試",
+    "title": "用量與上限"
+  },
+  "user": {
+    "account": "帳號",
+    "accountUnavailable": "無法存取帳號。",
+    "appSettings": "應用程式設定",
+    "fallbackName": "你",
+    "signOut": "登出",
+    "usage": "用量與上限"
+  }
+}

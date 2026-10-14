@@ -74,6 +74,7 @@ const fake = vi.hoisted(() => {
     setIgnoreMouseEvents() {}
     setBounds() {}
     setSize() {}
+    setTitle() {}
     getBounds() {
       return { x: 0, y: 0, width: 210, height: 280 };
     }
@@ -99,6 +100,9 @@ vi.mock("../src/main-process/logging.js", () => ({
 }));
 
 import type { WebContents } from "electron";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { ShellLocale } from "../src/main-process/locale/shell-locale.js";
 import { PipWindowManager } from "../src/main-process/pip/pip-window-manager.js";
 
 function manager() {
@@ -110,6 +114,11 @@ function manager() {
       webUrl: new URL("http://localhost:8000"),
     },
     cursorSnapshotChannel: "pip:cursor",
+    // No cached locale: the shell follows the (English) system languages.
+    locale: new ShellLocale(
+      path.join(tmpdir(), `animama-pip-test-${process.pid}-ui-locale.json`),
+      () => ["en-US"],
+    ),
     preloadPath: "/preload.cjs",
     runtimeMessageChannel: "pip:runtime",
     stateChangedChannel: "pip:state",

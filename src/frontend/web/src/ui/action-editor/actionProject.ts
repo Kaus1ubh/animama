@@ -1,7 +1,10 @@
+import { getI18n } from "react-i18next";
+
 import type {
   PyContentDependency,
   PyExactContentSource,
 } from "@/lib/content/catalogTypes";
+import { WordedError } from "@/lib/errors/apiError";
 import {
   parseAnimaPoseClip,
   type AnimaPoseClipV2,
@@ -43,9 +46,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }
 
-function requiredString(value: unknown, field: string): string {
+/** A non-empty string, or a failure worded by `missing`. */
+function requiredString(value: unknown, missing: () => string): string {
   if (typeof value !== "string" || !value.trim()) {
-    throw new Error(`${field} is required.`);
+    throw new WordedError(missing());
   }
   return value;
 }
@@ -55,7 +59,9 @@ function optionalString(value: unknown): string {
 }
 
 function parseSource(value: unknown): PyExactContentSource {
-  if (!isRecord(value)) throw new Error("Dependency source is invalid.");
+  const t = getI18n().getFixedT(null, "actionEditor");
+  if (!isRecord(value))
+    throw new WordedError(t("project.errors.sourceInvalid"));
   if (
     value.type === "catalog" &&
     typeof value.catalog_item_id === "string" &&
@@ -82,7 +88,7 @@ function parseSource(value: unknown): PyExactContentSource {
       version: value.version,
     };
   }
-  throw new Error("Dependency source must select available catalog content.");
+  throw new WordedError(t("project.errors.sourceUnavailable"));
 }
 
 const COMPONENT_TYPES = new Set<ActionComponentType>([
@@ -93,16 +99,21 @@ const COMPONENT_TYPES = new Set<ActionComponentType>([
 ]);
 
 function parseDependencies(value: unknown): PyContentDependency[] {
-  if (!Array.isArray(value)) throw new Error("Dependencies must be an array.");
+  const t = getI18n().getFixedT(null, "actionEditor");
+  if (!Array.isArray(value))
+    throw new WordedError(t("project.errors.dependenciesNotArray"));
   const seen = new Set<string>();
   return value.map((raw) => {
-    if (!isRecord(raw)) throw new Error("Dependency declaration is invalid.");
-    const alias = requiredString(raw.alias, "Dependency alias");
+    if (!isRecord(raw))
+      throw new WordedError(t("project.errors.dependencyInvalid"));
+    const alias = requiredString(raw.alias, () =>
+      t("project.errors.aliasRequired"),
+    );
     if (seen.has(alias))
-      throw new Error(`Dependency alias “${alias}” repeats.`);
+      throw new WordedError(t("project.errors.aliasRepeats", { alias }));
     seen.add(alias);
     if (!COMPONENT_TYPES.has(raw.content_type as ActionComponentType)) {
-      throw new Error(`Dependency “${alias}” has an unsupported type.`);
+      throw new WordedError(t("project.errors.unsupportedType", { alias }));
     }
     return {
       alias,
@@ -116,7 +127,8 @@ function parseDependencies(value: unknown): PyContentDependency[] {
 /** Serialize only portable authoring state, never React, Zustand, or save state. */
 export function createActionProject(document: ActionDocument): ActionProject {
   if (document.implementation !== "anima_clip") {
-    throw new Error("VRMA Gestures do not have Anima Pose Clip project JSON.");
+    const t = getI18n().getFixedT(null, "actionEditor");
+    throw new WordedError(t("project.errors.vrmaProject"));
   }
   const normalized = normalizeActionDocument({
     ...document,
@@ -146,25 +158,30 @@ export function parseActionImport(
   value: unknown,
   expectedIntent: ActionIntent,
 ): ActionImport {
-  if (!isRecord(value)) throw new Error("JSON must contain an object.");
+  const t = getI18n().getFixedT(null, "actionEditor");
+  if (!isRecord(value)) throw new WordedError(t("project.errors.notObject"));
   if (value.schema !== ACTION_PROJECT_SCHEMA) {
     return { kind: "clip", sequence: parseAnimaPoseClip(value) };
   }
   if (value.intent !== expectedIntent) {
-    throw new Error(
-      `This project contains a ${String(value.intent)} and cannot open in the ${expectedIntent} editor.`,
+    // The project's own intent is file data, shown as written.
+    const found = String(value.intent);
+    throw new WordedError(
+      expectedIntent === "gesture"
+        ? t("project.errors.wrongEditor.gesture", { found })
+        : t("project.errors.wrongEditor.reaction", { found }),
     );
   }
   const intensity = Number(value.suggestedIntensity ?? 1);
   if (![1, 2, 3].includes(intensity)) {
-    throw new Error("Suggested Reaction intensity must be 1, 2, or 3.");
+    throw new WordedError(t("project.errors.intensity"));
   }
   return {
     kind: "project",
     project: {
       schema: ACTION_PROJECT_SCHEMA,
       intent: expectedIntent,
-      name: requiredString(value.name, "Project name"),
+      name: requiredString(value.name, () => t("project.errors.nameRequired")),
       description: optionalString(value.description),
       aiDescription: optionalString(value.aiDescription),
       semanticKey: optionalString(value.semanticKey),
@@ -211,6 +228,7 @@ export function unresolvedActionReferences(
   sequence: Record<string, unknown>,
   dependencies: readonly PyContentDependency[],
 ): UnresolvedActionReference[] {
+  const t = getI18n().getFixedT(null, "actionEditor");
   const declared = new Set(dependencies.map((value) => value.alias));
   const unresolved = new Map<string, UnresolvedActionReference>();
   const events = Array.isArray(sequence.events) ? sequence.events : [];
@@ -219,8 +237,10 @@ export function unresolvedActionReferences(
     if (!reference || declared.has(reference.alias)) continue;
     const existing = unresolved.get(reference.alias);
     if (existing && existing.contentType !== reference.contentType) {
-      throw new Error(
-        `Alias “${reference.alias}” is used by more than one component type.`,
+      throw new WordedError(
+        t("project.errors.aliasTypeConflict", {
+          alias: reference.alias,
+        }),
       );
     }
     unresolved.set(reference.alias, reference);

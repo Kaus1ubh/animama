@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { RotateCcw } from "lucide-react";
 import { useTheme } from "next-themes";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
@@ -15,13 +17,89 @@ import { Button } from "@/ui/components/button";
 import { Input } from "@/ui/components/input";
 import { SettingsRow } from "@/ui/settings/SettingsLayout";
 import { useSettings } from "@/ui/settings/SettingsProvider";
-import { THEME_MODES, type ThemeMode } from "@/ui/theme/theme-provider";
+import { THEME_MODES } from "@/ui/theme/theme-provider";
 
-const MODE_LABELS: Record<ThemeMode, string> = {
-  system: "System",
-  light: "Light",
-  dark: "Dark",
-};
+function isChartColorKey(
+  key: AppearanceColorToken["key"],
+): key is `chart_${number}` {
+  return key.startsWith("chart_");
+}
+
+/** Display label for a colour token; chart tokens share one numbered label. */
+export function colorTokenLabel(
+  t: TFunction<"settings">,
+  token: AppearanceColorToken,
+): string {
+  const key = token.key;
+  if (isChartColorKey(key))
+    return t("appearance.colors.tokens.chart", {
+      index: Number(key.slice("chart_".length)),
+    });
+  switch (key) {
+    case "primary":
+      return t("appearance.colors.tokens.primary");
+    case "secondary":
+      return t("appearance.colors.tokens.secondary");
+    case "accent":
+      return t("appearance.colors.tokens.accent");
+    case "background":
+      return t("appearance.colors.tokens.background");
+    case "foreground":
+      return t("appearance.colors.tokens.foreground");
+    case "card":
+      return t("appearance.colors.tokens.card");
+    case "popover":
+      return t("appearance.colors.tokens.popover");
+    case "muted":
+      return t("appearance.colors.tokens.muted");
+    case "muted_foreground":
+      return t("appearance.colors.tokens.muted_foreground");
+    case "border":
+      return t("appearance.colors.tokens.border");
+    case "input":
+      return t("appearance.colors.tokens.input");
+    case "ring":
+      return t("appearance.colors.tokens.ring");
+    case "destructive":
+      return t("appearance.colors.tokens.destructive");
+    case "sidebar":
+      return t("appearance.colors.tokens.sidebar");
+    case "sidebar_foreground":
+      return t("appearance.colors.tokens.sidebar_foreground");
+    case "sidebar_primary":
+      return t("appearance.colors.tokens.sidebar_primary");
+    case "sidebar_accent":
+      return t("appearance.colors.tokens.sidebar_accent");
+    case "sidebar_border":
+      return t("appearance.colors.tokens.sidebar_border");
+    default: {
+      // Every named colour needs its own catalog key.
+      const unlabelled: never = key;
+      return unlabelled;
+    }
+  }
+}
+
+/** Display name for a colour group. */
+export function colorGroupLabel(
+  t: TFunction<"settings">,
+  group: AppearanceColorToken["group"],
+): string {
+  switch (group) {
+    case "basic":
+      return t("appearance.colors.groups.basic");
+    case "surfaces":
+      return t("appearance.colors.groups.surfaces");
+    case "lines":
+      return t("appearance.colors.groups.lines");
+    case "status":
+      return t("appearance.colors.groups.status");
+    case "sidebar":
+      return t("appearance.colors.groups.sidebar");
+    case "charts":
+      return t("appearance.colors.groups.charts");
+  }
+}
 
 /** Delay before a colour chosen with the native picker is saved. */
 const PICKER_SAVE_DELAY_MS = 400;
@@ -71,6 +149,7 @@ function ModePreview({ variant }: { variant: "light" | "dark" }) {
 
 /** Mode picker: System / Light / Dark preview tiles in a radio group. */
 export function AppearanceModeSetting() {
+  const { t } = useTranslation("settings");
   const { theme, setTheme } = useTheme();
   // next-themes only knows the stored theme after mount.
   const [mounted, setMounted] = useState(false);
@@ -79,11 +158,11 @@ export function AppearanceModeSetting() {
 
   return (
     <SettingsRow
-      label="Theme"
+      label={t("appearance.theme.label")}
       control={
         <div
           role="radiogroup"
-          aria-label="Theme mode"
+          aria-label={t("appearance.theme.modeLabel")}
           className="flex flex-wrap gap-3"
         >
           {THEME_MODES.map((mode) => {
@@ -126,7 +205,7 @@ export function AppearanceModeSetting() {
                       : "text-muted-foreground",
                   )}
                 >
-                  {MODE_LABELS[mode]}
+                  {t(`appearance.theme.modes.${mode}`)}
                 </span>
               </button>
             );
@@ -189,7 +268,8 @@ export function AppearanceColorSetting({
   const pendingPickerColor = useRef<string | null>(null);
   const [draft, setDraft] = useState(saved ?? "");
   const [invalid, setInvalid] = useState(false);
-  const label = token.label;
+  const { t } = useTranslation("settings");
+  const label = colorTokenLabel(t, token);
 
   useEffect(() => {
     setDraft(saved ?? "");
@@ -202,7 +282,7 @@ export function AppearanceColorSetting({
       appearance: { [mode]: { [colorKey]: next } },
     }).catch(() => {
       setDraft(saved ?? "");
-      toast.error(`Failed to update the ${label.toLowerCase()} colour.`);
+      toast.error(t("appearance.colors.updateFailed", { label }));
     });
   };
   // The debounced picker save must use the latest preferences and mode.
@@ -245,10 +325,10 @@ export function AppearanceColorSetting({
       description={
         invalid ? (
           <span className="text-destructive" role="alert">
-            Enter a hex colour such as #ff6600.
+            {t("appearance.colors.invalidHex")}
           </span>
         ) : saved ? (
-          `Custom for ${mode} mode.`
+          t(`appearance.colors.customForMode.${mode}`)
         ) : null
       }
       control={
@@ -258,7 +338,7 @@ export function AppearanceColorSetting({
               type="button"
               onClick={() => save(undefined)}
               className="text-muted-foreground hover:text-foreground focus-visible:ring-ring inline-flex h-8 w-8 items-center justify-center rounded-md transition focus-visible:ring-2 focus-visible:outline-none"
-              aria-label={`Reset ${label.toLowerCase()} colour`}
+              aria-label={t("appearance.colors.reset", { label })}
             >
               <RotateCcw className="h-4 w-4" />
             </button>
@@ -268,7 +348,9 @@ export function AppearanceColorSetting({
               className="relative h-6 w-6 shrink-0 cursor-pointer overflow-hidden rounded-full border"
               style={{ backgroundColor: swatch }}
             >
-              <span className="sr-only">Pick {label.toLowerCase()} colour</span>
+              <span className="sr-only">
+                {t("appearance.colors.pick", { label })}
+              </span>
               <input
                 type="color"
                 value={swatch}
@@ -292,8 +374,8 @@ export function AppearanceColorSetting({
             </label>
             <Input
               value={draft}
-              placeholder={defaultColor ?? "Default"}
-              aria-label={`${label} colour hex value`}
+              placeholder={defaultColor ?? t("appearance.colors.hexDefault")}
+              aria-label={t("appearance.colors.hexLabel", { label })}
               aria-invalid={invalid}
               spellCheck={false}
               maxLength={7}
@@ -325,10 +407,11 @@ export function AdvancedColorsToggleSetting({
   open: boolean;
   onToggle: () => void;
 }) {
+  const { t } = useTranslation(["settings", "common"]);
   return (
     <SettingsRow
-      label="Advanced colours"
-      description="Surfaces, lines, status, sidebar and chart colours."
+      label={t("appearance.colors.advanced.label")}
+      description={t("appearance.colors.advanced.description")}
       control={
         <Button
           type="button"
@@ -336,7 +419,7 @@ export function AdvancedColorsToggleSetting({
           aria-expanded={open}
           onClick={onToggle}
         >
-          {open ? "Hide" : "Show"}
+          {open ? t("common:actions.hide") : t("common:actions.show")}
         </Button>
       }
     />
@@ -345,17 +428,18 @@ export function AdvancedColorsToggleSetting({
 
 /** Clear every colour override for the mode in effect. */
 export function ResetColorsSetting() {
+  const { t } = useTranslation(["settings", "common"]);
   const { userPreferences, updateUserPreferences } = useSettings();
   const mode = useResolvedMode();
   const saved = parseAppearanceOverrides(userPreferences?.appearance)[mode];
   const count = saved ? Object.keys(saved).length : 0;
   return (
     <SettingsRow
-      label="Reset colours"
+      label={t("appearance.colors.resetAll.label")}
       description={
         count
-          ? `Restore all ${count} custom colour${count === 1 ? "" : "s"} for ${mode} mode.`
-          : `No custom colours in ${mode} mode.`
+          ? t(`appearance.colors.resetAll.description.${mode}`, { count })
+          : t(`appearance.colors.resetAll.none.${mode}`)
       }
       control={
         <Button
@@ -369,10 +453,10 @@ export function ResetColorsSetting() {
             );
             void updateUserPreferences({
               appearance: { [mode]: cleared },
-            }).catch(() => toast.error("Failed to reset colours."));
+            }).catch(() => toast.error(t("appearance.colors.resetAll.failed")));
           }}
         >
-          Reset all
+          {t("common:actions.resetAll")}
         </Button>
       }
     />

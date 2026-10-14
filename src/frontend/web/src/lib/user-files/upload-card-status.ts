@@ -1,4 +1,7 @@
+import { getI18n } from "react-i18next";
+
 import type { PyUserFileResponse } from "@/lib/content/catalogTypes";
+import { apiErrorLine, uncodedErrorText } from "@/lib/errors/apiError";
 
 /**
  * Frontend-only upload stages stored in transient Uppy file metadata.
@@ -120,18 +123,28 @@ type ResolveUserFileUploadCardStatusArgs = {
   backendFile?: PyUserFileResponse | null;
 };
 
-const TRANSIENT_STATUS_LABELS: Record<
-  Exclude<UserFileUploadStage, "failed">,
-  string
-> = {
-  preparing: "Preparing",
-  initializing: "Initializing",
-  uploading: "Uploading",
-  finalizing: "Finalizing",
-  uploaded: "Original saved",
-  queued: "Queued",
-  processing: "Processing",
-};
+/** Label for a browser-side upload stage, in the active UI Locale. */
+function transientStageLabel(
+  stage: Exclude<UserFileUploadStage, "failed">,
+): string {
+  const t = getI18n().getFixedT(null, "library");
+  switch (stage) {
+    case "preparing":
+      return t("uploads.status.preparing");
+    case "initializing":
+      return t("uploads.status.initializing");
+    case "uploading":
+      return t("uploads.status.uploading");
+    case "finalizing":
+      return t("uploads.status.finalizing");
+    case "uploaded":
+      return t("uploads.status.originalSaved");
+    case "queued":
+      return t("uploads.status.queued");
+    case "processing":
+      return t("uploads.status.processing");
+  }
+}
 
 function finiteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
@@ -202,12 +215,28 @@ function status(
   };
 }
 
+/**
+ * A stored processing error for an Upload. The English stays primary in
+ * English and is secondary detail elsewhere, under a generic message that
+ * matches the status: a keyword-only file is still usable.
+ */
+export function storedUploadErrorLine(file: PyUserFileResponse): string | null {
+  const stored =
+    file.last_error ?? file.latest_processing_job?.last_error ?? null;
+  if (!stored) return null;
+  const t = getI18n().getFixedT(null, "library");
+  const generic =
+    file.status === "ready_keyword_only"
+      ? t("uploads.keywordOnly")
+      : t("uploads.processingFailed");
+  return apiErrorLine(uncodedErrorText(stored, generic));
+}
+
 function backendStatus(
   file: PyUserFileResponse,
 ): UserFileUploadCardStatus | null {
   const jobStatus = file.latest_processing_job?.status ?? null;
-  const error =
-    file.last_error ?? file.latest_processing_job?.last_error ?? null;
+  const t = getI18n().getFixedT(null, "library");
   const common = {
     backendStatus: file.status,
     jobStatus,
@@ -215,21 +244,45 @@ function backendStatus(
 
   switch (file.status) {
     case "ready":
-      return status("ready", "Ready", "success", false, common);
+      return status(
+        "ready",
+        t("uploads.status.ready"),
+        "success",
+        false,
+        common,
+      );
     case "ready_keyword_only":
-      return status("ready_keyword_only", "Keyword ready", "warning", false, {
-        ...common,
-        error,
-      });
+      return status(
+        "ready_keyword_only",
+        t("uploads.status.readyKeywordOnly"),
+        "warning",
+        false,
+        { ...common, error: storedUploadErrorLine(file) },
+      );
     case "failed":
-      return status("failed", "Failed", "destructive", false, {
-        ...common,
-        error,
-      });
+      return status(
+        "failed",
+        t("uploads.status.failed"),
+        "destructive",
+        false,
+        { ...common, error: storedUploadErrorLine(file) },
+      );
     case "processing":
-      return status("processing", "Processing", "active", true, common);
+      return status(
+        "processing",
+        t("uploads.status.processing"),
+        "active",
+        true,
+        common,
+      );
     case "uploaded":
-      return status("uploaded", "Uploaded", "muted", false, common);
+      return status(
+        "uploaded",
+        t("uploads.status.uploaded"),
+        "muted",
+        false,
+        common,
+      );
     default:
       return null;
   }
@@ -239,6 +292,7 @@ export function resolveUserFileUploadCardStatus({
   uppyFile,
   backendFile,
 }: ResolveUserFileUploadCardStatusArgs): UserFileUploadCardStatus {
+  const t = getI18n().getFixedT(null, "library");
   const backend = backendFile ? backendStatus(backendFile) : null;
   if (backend) {
     return backend;
@@ -246,8 +300,8 @@ export function resolveUserFileUploadCardStatus({
 
   const error = localError(uppyFile);
   if (error || uppyFile.meta?.anima_stage === "failed") {
-    return status("failed", "Failed", "destructive", false, {
-      error: error ?? "Upload failed.",
+    return status("failed", t("uploads.status.failed"), "destructive", false, {
+      error: error || t("uploads.failed"),
     });
   }
 
@@ -255,7 +309,7 @@ export function resolveUserFileUploadCardStatus({
   if (stage) {
     return status(
       stage,
-      TRANSIENT_STATUS_LABELS[stage],
+      transientStageLabel(stage),
       stage === "preparing" || stage === "uploaded" ? "muted" : "active",
       stage !== "preparing" && stage !== "uploaded",
       {
@@ -269,14 +323,14 @@ export function resolveUserFileUploadCardStatus({
   }
 
   if (hasUploadStarted(uppyFile) && !uppyFile.progress?.uploadComplete) {
-    return status("uploading", "Uploading", "active", true, {
+    return status("uploading", t("uploads.status.uploading"), "active", true, {
       progress: uploadProgress(uppyFile),
     });
   }
 
   if (uppyFile.progress?.uploadComplete && uppyFile.meta?.file_id) {
-    return status("finalizing", "Finalizing", "active", true);
+    return status("finalizing", t("uploads.status.finalizing"), "active", true);
   }
 
-  return status("preparing", "Preparing", "muted", false);
+  return status("preparing", t("uploads.status.preparing"), "muted", false);
 }

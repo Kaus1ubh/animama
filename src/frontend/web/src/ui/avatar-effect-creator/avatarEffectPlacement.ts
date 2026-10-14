@@ -1,3 +1,5 @@
+import type { TFunction } from "i18next";
+
 import type {
   AvatarEffectEditorAttachment,
   AvatarEffectEditorAttachmentKind,
@@ -10,41 +12,53 @@ import type {
  * or an arrow key changes the authored `/2` values.
  */
 
-export const ATTACHMENT_OPTIONS: ReadonlyArray<{
-  value: AvatarEffectEditorAttachmentKind;
-  label: string;
-  description: string;
-}> = [
-  {
-    value: "face_landmark",
-    label: "Floating on the face",
-    description: "A flat image in front of the eyes, mouth or forehead.",
-  },
-  {
-    value: "face_surface",
-    label: "Painted on the face",
-    description: "Drawn onto the skin or eyes, so it follows the face.",
-  },
-  {
-    value: "body",
-    label: "On the body",
-    description: "Follows a body point such as the chest or a hand.",
-  },
-  {
-    value: "sticker",
-    label: "Sticker beside the avatar",
-    description: "Comic lettering or a sticker that stays readable.",
-  },
-  {
-    value: "silhouette",
-    label: "Fill the silhouette",
-    description: "A pattern or tint drawn only over the avatar.",
-  },
+/** Attachment kinds, in the order the Setup panel offers them. */
+export const ATTACHMENT_KINDS: readonly AvatarEffectEditorAttachmentKind[] = [
+  "face_landmark",
+  "face_surface",
+  "body",
+  "sticker",
+  "silhouette",
 ];
+
+/** Where an attachment kind puts the art, as the Setup panel words it. */
+export function attachmentKindText(
+  t: TFunction<"effects">,
+  kind: AvatarEffectEditorAttachmentKind,
+): { label: string; description: string } {
+  switch (kind) {
+    case "face_landmark":
+      return {
+        label: t("avatar.attachments.face_landmark.label"),
+        description: t("avatar.attachments.face_landmark.description"),
+      };
+    case "face_surface":
+      return {
+        label: t("avatar.attachments.face_surface.label"),
+        description: t("avatar.attachments.face_surface.description"),
+      };
+    case "body":
+      return {
+        label: t("avatar.attachments.body.label"),
+        description: t("avatar.attachments.body.description"),
+      };
+    case "sticker":
+      return {
+        label: t("avatar.attachments.sticker.label"),
+        description: t("avatar.attachments.sticker.description"),
+      };
+    case "silhouette":
+      return {
+        label: t("avatar.attachments.silhouette.label"),
+        description: t("avatar.attachments.silhouette.description"),
+      };
+  }
+}
 
 /** How one attachment's position numbers are shown: stored value × factor. */
 export type PlacementUnit = {
-  label: string;
+  /** The unit shown beside the numbers; see {@link placementUnitLabel}. */
+  unit: "cm" | "percent";
   /** Multiply a stored value by this to show it. */
   factor: number;
   step: number;
@@ -55,13 +69,13 @@ export type PlacementUnit = {
 };
 
 const CENTIMETRES: Omit<PlacementUnit, "min" | "max"> = {
-  label: "cm",
+  unit: "cm",
   factor: 100,
   step: 0.1,
   decimals: 1,
 };
 const PERCENT: Omit<PlacementUnit, "min" | "max"> = {
-  label: "%",
+  unit: "percent",
   factor: 100,
   step: 0.5,
   decimals: 1,
@@ -84,19 +98,30 @@ export function sizeUnit(kind: "body" | "sticker"): PlacementUnit {
     : { ...PERCENT, step: 1, decimals: 0, min: 0.001, max: 2 };
 }
 
+/** The unit's short label, for field labels such as "Position (cm)". */
+export function placementUnitLabel(
+  t: TFunction<"effects">,
+  unit: PlacementUnit,
+): string {
+  return unit.unit === "cm" ? t("avatar.units.cm") : t("avatar.units.percent");
+}
+
 /** What a position's numbers mean, for field hints. */
-export function positionHint(kind: AvatarEffectEditorAttachmentKind): string {
+export function positionHint(
+  t: TFunction<"effects">,
+  kind: AvatarEffectEditorAttachmentKind,
+): string {
   switch (kind) {
     case "face_surface":
-      return "Percent of the painted texture.";
+      return t("avatar.positionHints.face_surface");
     case "face_landmark":
-      return "Centimetres from the face point.";
+      return t("avatar.positionHints.face_landmark");
     case "body":
-      return "Centimetres from the body point.";
+      return t("avatar.positionHints.body");
     case "sticker":
-      return "Percent of the avatar's height.";
+      return t("avatar.positionHints.sticker");
     case "silhouette":
-      return "Percent of a pattern tile.";
+      return t("avatar.positionHints.silhouette");
   }
 }
 
@@ -254,14 +279,27 @@ export type SidesChoice =
   | "between"
   | "across";
 
-export const SIDES_LABELS: Record<SidesChoice, string> = {
-  both: "Both eyes",
-  mirrored: "Both sides, mirrored",
-  left: "Left only",
-  right: "Right only",
-  between: "One image between the eyes",
-  across: "One image across both sides",
-};
+/** A side choice in plain terms; `eyes` words it for an eye placement. */
+export function sidesLabel(
+  t: TFunction<"effects">,
+  choice: SidesChoice,
+  eyes: boolean,
+): string {
+  switch (choice) {
+    case "both":
+      return t("avatar.sides.both");
+    case "mirrored":
+      return eyes ? t("avatar.sides.mirroredEyes") : t("avatar.sides.mirrored");
+    case "left":
+      return t("avatar.sides.left");
+    case "right":
+      return t("avatar.sides.right");
+    case "between":
+      return t("avatar.sides.between");
+    case "across":
+      return eyes ? t("avatar.sides.acrossEyes") : t("avatar.sides.across");
+  }
+}
 
 /** The side choices an attachment offers, or none when it has no sides. */
 export function sidesChoices(

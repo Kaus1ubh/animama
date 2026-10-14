@@ -10,6 +10,9 @@ import {
 } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { Loader2, Search, X } from "lucide-react";
+import type { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
+import { useFormatters, type LocaleFormatters } from "@animama/product-ui/i18n";
 
 import type {
   PyChatSearchResponse,
@@ -49,9 +52,14 @@ function initials(value: string | null | undefined): string {
   return `${first}${second}`.toUpperCase() || "?";
 }
 
-function resultTitle(result: PyChatSearchResult): string {
+function resultTitle(
+  result: PyChatSearchResult,
+  t: TFunction<"sidebar">,
+): string {
   return (
-    result.chat_title?.trim() || result.anima_name?.trim() || "Untitled chat"
+    result.chat_title?.trim() ||
+    result.anima_name?.trim() ||
+    t("chats.untitled")
   );
 }
 
@@ -59,15 +67,18 @@ function resultAnimaName(result: PyChatSearchResult, title: string): string {
   return result.anima_name?.trim() || title;
 }
 
-function resultDate(result: PyChatSearchResult): string | null {
+function resultDate(
+  result: PyChatSearchResult,
+  formatters: LocaleFormatters,
+): string | null {
   if (!result.created_at) return null;
   const date = new Date(result.created_at);
   if (Number.isNaN(date.getTime())) return null;
-  return new Intl.DateTimeFormat(undefined, {
+  return formatters.date(date, {
     month: "short",
     day: "numeric",
     year: "numeric",
-  }).format(date);
+  });
 }
 
 function escapeRegExp(value: string): string {
@@ -129,13 +140,15 @@ function ChatSearchResultRow({
   query: string;
   onSelect: (result: PyChatSearchResult) => void;
 }) {
+  const { t } = useTranslation("sidebar");
+  const formatters = useFormatters();
   const presentationImage = useAnimaPresentationImage(
     presentation?.profile_thumbnail,
   );
-  const title = resultTitle(result);
+  const title = resultTitle(result, t);
   const animaName =
     presentation?.display_name || resultAnimaName(result, title);
-  const date = resultDate(result);
+  const date = resultDate(result, formatters);
   const profilePictureUrl = presentationImage.url;
 
   return (
@@ -152,7 +165,7 @@ function ChatSearchResultRow({
           {profilePictureUrl ? (
             <AvatarImage
               src={profilePictureUrl}
-              alt={`${title} profile`}
+              alt={t("search.profileAlt", { name: title })}
               style={runtimeImageStyle(presentationImage.presentation)}
             />
           ) : null}
@@ -187,6 +200,7 @@ function ChatSearchResultRow({
 }
 
 export function ChatSearchModal({ open, onOpenChange }: ChatSearchModalProps) {
+  const { t } = useTranslation("sidebar");
   const navigate = useNavigate();
   const { mutateAsync } = useSearchChatMessages();
   const { data: animas = [] } = useAnimas({ enabled: open });
@@ -199,7 +213,7 @@ export function ChatSearchModal({ open, onOpenChange }: ChatSearchModalProps) {
   const [response, setResponse] = useState<PyChatSearchResponse | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
   const requestSeqRef = useRef(0);
 
   useEffect(() => {
@@ -208,7 +222,7 @@ export function ChatSearchModal({ open, onOpenChange }: ChatSearchModalProps) {
     setResponse(null);
     setIsSearching(false);
     setIsLoadingMore(false);
-    setError(null);
+    setFailed(false);
     requestSeqRef.current += 1;
   }, [open]);
 
@@ -220,13 +234,13 @@ export function ChatSearchModal({ open, onOpenChange }: ChatSearchModalProps) {
 
     if (normalized.length < 2) {
       setResponse(null);
-      setError(null);
+      setFailed(false);
       setIsSearching(false);
       return;
     }
 
     setIsSearching(true);
-    setError(null);
+    setFailed(false);
     const timer = window.setTimeout(() => {
       void mutateAsync({
         query: normalized,
@@ -240,7 +254,7 @@ export function ChatSearchModal({ open, onOpenChange }: ChatSearchModalProps) {
         .catch(() => {
           if (requestSeqRef.current !== requestSeq) return;
           setResponse(null);
-          setError("Search failed.");
+          setFailed(true);
         })
         .finally(() => {
           if (requestSeqRef.current === requestSeq) {
@@ -275,7 +289,7 @@ export function ChatSearchModal({ open, onOpenChange }: ChatSearchModalProps) {
     const requestSeq = requestSeqRef.current + 1;
     requestSeqRef.current = requestSeq;
     setIsLoadingMore(true);
-    setError(null);
+    setFailed(false);
     try {
       const next = await mutateAsync({
         query: normalized,
@@ -290,7 +304,7 @@ export function ChatSearchModal({ open, onOpenChange }: ChatSearchModalProps) {
       });
     } catch {
       if (requestSeqRef.current === requestSeq) {
-        setError("Search failed.");
+        setFailed(true);
       }
     } finally {
       if (requestSeqRef.current === requestSeq) {
@@ -303,7 +317,7 @@ export function ChatSearchModal({ open, onOpenChange }: ChatSearchModalProps) {
   const showEmpty =
     query.trim().length >= 2 &&
     !isSearching &&
-    !error &&
+    !failed &&
     response &&
     results.length === 0;
 
@@ -317,8 +331,8 @@ export function ChatSearchModal({ open, onOpenChange }: ChatSearchModalProps) {
         showCloseButton={false}
       >
         <DialogHeader className="sr-only">
-          <DialogTitle>Search chats</DialogTitle>
-          <DialogDescription>Search persisted chat messages.</DialogDescription>
+          <DialogTitle>{t("search.title")}</DialogTitle>
+          <DialogDescription>{t("search.description")}</DialogDescription>
         </DialogHeader>
         <div className="border-border/70 grid grid-cols-[minmax(0,1fr)_3rem] items-center border-b px-5 py-4">
           <div className="relative min-w-0">
@@ -327,7 +341,7 @@ export function ChatSearchModal({ open, onOpenChange }: ChatSearchModalProps) {
               autoFocus
               value={query}
               onChange={(event) => setQuery(event.currentTarget.value)}
-              placeholder="Search chats"
+              placeholder={t("search.placeholder")}
               className="h-10 border-0 bg-transparent pr-3 pl-8 text-2xl shadow-none focus-visible:ring-0 md:text-2xl"
             />
           </div>
@@ -336,7 +350,7 @@ export function ChatSearchModal({ open, onOpenChange }: ChatSearchModalProps) {
             variant="ghost"
             size="icon"
             onClick={() => onOpenChange(false)}
-            aria-label="Close search"
+            aria-label={t("search.close")}
             className="justify-self-end"
           >
             <X className="size-5" />
@@ -367,7 +381,7 @@ export function ChatSearchModal({ open, onOpenChange }: ChatSearchModalProps) {
                     {isLoadingMore ? (
                       <Loader2 className="size-4 animate-spin" />
                     ) : null}
-                    Load more
+                    {t("search.loadMore")}
                   </Button>
                 </div>
               ) : null}
@@ -375,13 +389,15 @@ export function ChatSearchModal({ open, onOpenChange }: ChatSearchModalProps) {
           ) : isSearching ? (
             <div className="text-muted-foreground flex items-center gap-2 px-6 py-10 text-sm">
               <Loader2 className="size-4 animate-spin" />
-              Searching...
+              {t("search.searching")}
             </div>
-          ) : error ? (
-            <div className="text-destructive px-6 py-10 text-sm">{error}</div>
+          ) : failed ? (
+            <div className="text-destructive px-6 py-10 text-sm">
+              {t("search.failed")}
+            </div>
           ) : showEmpty ? (
             <div className="text-muted-foreground px-6 py-10 text-sm">
-              No matching messages.
+              {t("search.noResults")}
             </div>
           ) : null}
         </div>

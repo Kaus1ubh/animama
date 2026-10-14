@@ -67,22 +67,16 @@ const RETIRED_ELEVENLABS_TTS_MODEL_REPLACEMENTS: Readonly<
 export const DEFAULT_GEMINI_TTS_MODEL_ID =
   "gemini-3.8-flash-lite-tts" satisfies GeminiTtsModelId;
 
-/** Labels for the Gemini speech models the backend accepts. */
+/**
+ * The Gemini speech models the backend accepts; `label` is the vendor's model
+ * name, and descriptions are catalog text.
+ */
 export const GEMINI_TTS_MODEL_OPTIONS: Array<{
   id: GeminiTtsModelId;
   label: string;
-  description: string;
 }> = [
-  {
-    id: "gemini-3.8-flash-lite-tts",
-    label: "Flash-Lite TTS",
-    description: "Lower-latency, lower-cost Gemini speech.",
-  },
-  {
-    id: "gemini-3.8-flash-tts",
-    label: "Flash TTS",
-    description: "Gemini's flagship speech model, at a higher cost.",
-  },
+  { id: "gemini-3.8-flash-lite-tts", label: "Flash-Lite TTS" },
+  { id: "gemini-3.8-flash-tts", label: "Flash TTS" },
 ];
 
 export type SpeechPreferences = {

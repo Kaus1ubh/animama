@@ -601,6 +601,54 @@ export async function checkHttpHealth({ name, url, timeoutMs = 10_000 }) {
   };
 }
 
+/**
+ * Require a development (Vite) application, the only build that serves the
+ * pseudo-locale. A stack record that names another build mode fails before any
+ * request; otherwise the served page must load the Vite client.
+ */
+export async function checkDevelopmentApplication({
+  url,
+  buildMode,
+  timeoutMs = 10_000,
+  fetchImpl = fetch,
+}) {
+  if (buildMode && buildMode !== "development") {
+    throw new Error(
+      `The pseudo-locale smoke needs a development stack; the selected stack is a ${buildMode} build.`,
+    );
+  }
+  const startedAt = Date.now();
+  let response;
+  let body;
+  try {
+    response = await fetchImpl(url, {
+      redirect: "follow",
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    body = response.ok ? await response.text() : "";
+  } catch (error) {
+    throw new Error(
+      `Development application preflight failed at ${url}: ${error.message}`,
+    );
+  }
+  if (!response.ok) {
+    throw new Error(
+      `Development application preflight returned HTTP ${response.status} at ${url}.`,
+    );
+  }
+  if (!body.includes("/@vite/client")) {
+    throw new Error(
+      `${url} is not a development (Vite) build, so the pseudo-locale is unavailable. Restart the stack without ANIMAMA_WEB_BUILD_MODE=production.`,
+    );
+  }
+  return {
+    name: "Development application",
+    url,
+    status: response.status,
+    durationMs: Date.now() - startedAt,
+  };
+}
+
 /** Verify the Playwright-managed Chromium executable without downloading it. */
 export async function assertExecutableExists(executablePath) {
   try {

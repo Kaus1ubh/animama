@@ -1,6 +1,7 @@
 import { ipcMain, type IpcMainInvokeEvent } from "electron";
 
 import type { DesktopConfig } from "../config.js";
+import type { ShellLocale } from "../locale/shell-locale.js";
 import { writeLog } from "../logging.js";
 import { PipWindowManager } from "./pip-window-manager.js";
 
@@ -18,6 +19,7 @@ export const PIP_CURSOR_SNAPSHOT_CHANNEL = "anima:pip:cursor-snapshot";
 
 type InstallPipIpcOptions = {
   config: DesktopConfig;
+  locale: ShellLocale;
   preloadPath: string;
 };
 
@@ -33,6 +35,7 @@ function assertLiveSender(event: IpcMainInvokeEvent) {
 
 export function installPipIpc({
   config,
+  locale,
   preloadPath,
 }: InstallPipIpcOptions): void {
   if (pipIpcInstalled) return;
@@ -40,6 +43,7 @@ export function installPipIpc({
 
   const manager = new PipWindowManager({
     config,
+    locale,
     cursorSnapshotChannel: PIP_CURSOR_SNAPSHOT_CHANNEL,
     preloadPath,
     runtimeMessageChannel: PIP_RUNTIME_MESSAGE_CHANNEL,

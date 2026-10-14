@@ -1,11 +1,14 @@
 import { Check, Upload, UserRound } from "lucide-react";
 import { useEffect, useRef, useState, type RefObject } from "react";
+import { useTranslation } from "react-i18next";
+import { useFormatters } from "@animama/product-ui/i18n";
 
 import type {
   ItemRevisionRef,
   PyAvatarContent,
 } from "@animama/runtime-contracts/sdk";
 import { ContentSaveApiError } from "@/lib/content/contentSaveErrors";
+import type { ApiErrorText } from "@/lib/errors/apiError";
 import { cn } from "@/lib/utils";
 import type {
   AnimaCreationOperations,
@@ -20,9 +23,11 @@ import {
   DialogTitle,
 } from "@/ui/components/dialog";
 import { Input } from "@/ui/components/input";
+import { contentEntryName } from "@/lib/content/nameIdentifiers";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/components/tabs";
 import { itemReference } from "./createAnimaContent";
 import { sameRef, type CreateAnimaDraft } from "./createAnimaDraft";
+import { creatorErrorText } from "./createAnimaErrors";
 import { checkCreationVrm } from "./createAnimaFiles";
 
 /** The server remains authoritative; offer only an unambiguous caller-editable collision. */
@@ -30,11 +35,9 @@ export function avatarCollisionTarget(
   name: string,
   items: PyAvatarContent[],
 ): PyAvatarContent | undefined {
-  const filename = `${name
-    .trim()
-    .replace(/[ _]+/g, "-")
-    .replace(/^[-.]+|[-.]+$/g, "")
-    .toLowerCase()}.vrm`;
+  const entryName = contentEntryName(name);
+  if (!entryName) return undefined;
+  const filename = `${entryName}.vrm`;
   const matches = items.filter(
     (item) =>
       item.source === "local" &&
@@ -63,6 +66,8 @@ export function CreateAnimaAvatarStep({
   onSelect: (source: ItemRevisionRef, meaningful?: boolean) => Promise<void>;
   onWorking: (working: boolean) => void;
 }) {
+  const { t } = useTranslation("create");
+  const formatters = useFormatters();
   const avatars = sources.avatars.data ?? [];
   const selected = avatars.find(
     (item) => item.item_id === draft.avatar?.item_id,
@@ -73,7 +78,7 @@ export function CreateAnimaAvatarStep({
   const [search, setSearch] = useState("");
   const [limit, setLimit] = useState(8);
   const [name, setName] = useState(file?.name.replace(/\.vrm$/i, "") ?? "");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ApiErrorText | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [collision, setCollision] = useState<PyAvatarContent | null>(null);
@@ -102,11 +107,7 @@ export function CreateAnimaAvatarStep({
       await onSelect(source);
       onFile(null);
     } catch (reason) {
-      setError(
-        reason instanceof Error
-          ? reason.message
-          : "This Avatar needs attention. Choose another source or retry.",
-      );
+      setError(creatorErrorText(reason, t("avatarStep.needsAttention")));
     } finally {
       if (alive.current) working(false);
     }
@@ -124,9 +125,7 @@ export function CreateAnimaAvatarStep({
       setName(next.name.replace(/\.vrm$/i, ""));
     } catch (reason) {
       if (alive.current && request.current === token)
-        setError(
-          reason instanceof Error ? reason.message : "Could not read this VRM.",
-        );
+        setError(creatorErrorText(reason, t("avatarStep.readFailed")));
     } finally {
       if (alive.current && request.current === token) working(false);
     }
@@ -148,8 +147,8 @@ export function CreateAnimaAvatarStep({
       setTab("local");
       setNotice(
         !replace && avatars.some((item) => item.item_id === saved.item_id)
-          ? "These exact bytes are already in My Content. The existing Avatar is selected; its name and metadata were kept."
-          : "Avatar saved to My Content. It will stay there even if you cancel creation.",
+          ? t("avatarStep.alreadySaved")
+          : t("avatarStep.saved"),
       );
     } catch (reason) {
       if (!alive.current) return;
@@ -161,17 +160,13 @@ export function CreateAnimaAvatarStep({
         setCollision(
           avatarCollisionTarget(name, fresh.data ?? avatars) ?? null,
         );
-        setError(
-          "That name is already used. Enter a new name, or explicitly replace the matching Avatar below. An Avatar used by a live Anima cannot be replaced here.",
-        );
+        setError({ message: t("avatarStep.nameUsed"), detail: null });
       } else
         setError(
           reason instanceof ContentSaveApiError &&
             reason.code === "avatar_in_use_choose_new_name"
-            ? "This Avatar is used by a live Anima. Keep it intact and save your upload under a new name."
-            : reason instanceof Error
-              ? reason.message
-              : "Save failed. Your file is still here; you can retry.",
+            ? { message: t("avatarStep.inUse"), detail: null }
+            : creatorErrorText(reason, t("avatarStep.saveFailed")),
         );
     } finally {
       if (alive.current) working(false);
@@ -187,14 +182,18 @@ export function CreateAnimaAvatarStep({
 
   return (
     <div className="space-y-5">
-      <section id="creation-avatar" tabIndex={-1} aria-label="Avatar selection">
+      <section
+        id="creation-avatar"
+        tabIndex={-1}
+        aria-label={t("avatarStep.label")}
+      >
         <Input
           ref={fileInputRef}
           id="creation-vrm-file"
           className="hidden"
           type="file"
           accept=".vrm"
-          aria-label="Choose a VRM file"
+          aria-label={t("avatarStep.fileInput")}
           aria-hidden="true"
           tabIndex={-1}
           disabled={busy}
@@ -213,8 +212,10 @@ export function CreateAnimaAvatarStep({
         >
           <div className="flex items-center gap-2">
             <TabsList className="grid min-w-0 flex-1 grid-cols-2">
-              <TabsTrigger value="included">Included</TabsTrigger>
-              <TabsTrigger value="local">My Content</TabsTrigger>
+              <TabsTrigger value="included">
+                {t("sources.included")}
+              </TabsTrigger>
+              <TabsTrigger value="local">{t("sources.local")}</TabsTrigger>
             </TabsList>
             <Button
               type="button"
@@ -224,14 +225,14 @@ export function CreateAnimaAvatarStep({
               onClick={() => fileInputRef.current?.click()}
             >
               <Upload className="size-4" />
-              Upload VRM
+              {t("avatarStep.upload")}
             </Button>
           </div>
           {(["included", "local"] as const).map((source) => (
             <TabsContent key={source} value={source} className="space-y-3">
               <Input
-                aria-label="Search Avatars"
-                placeholder="Search Avatars…"
+                aria-label={t("avatarStep.search")}
+                placeholder={t("avatarStep.searchPlaceholder")}
                 value={search}
                 onChange={(event) => {
                   setSearch(event.target.value);
@@ -240,33 +241,35 @@ export function CreateAnimaAvatarStep({
               />
               {sources.avatars.isLoading ? (
                 <p role="status" className="text-muted-foreground text-sm">
-                  Loading Avatars…
+                  {t("avatarStep.loading")}
                 </p>
               ) : sources.avatars.isError ? (
                 <div role="alert" className="space-y-2 text-sm">
-                  <p>
-                    Avatars could not be loaded. Your selection is preserved.
-                  </p>
+                  <p>{t("avatarStep.loadFailed")}</p>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => void sources.avatars.refetch()}
                   >
-                    Retry Avatars
+                    {t("avatarStep.retry")}
                   </Button>
                 </div>
               ) : !filtered.length ? (
                 <p className="text-muted-foreground rounded-xl border border-dashed p-5 text-sm">
                   {search
-                    ? "No matching Avatars. Your selected Avatar has not changed."
+                    ? t("avatarStep.noMatches")
                     : source === "local"
-                      ? "No Avatars in My Content yet. Upload a VRM to add one."
-                      : "No Included Avatars are available. You can use My Content or upload a VRM."}
+                      ? t("avatarStep.emptyLocal")
+                      : t("avatarStep.emptyIncluded")}
                 </p>
               ) : (
                 <div
                   role="radiogroup"
-                  aria-label={`${source === "local" ? "My Content" : "Included"} Avatars`}
+                  aria-label={
+                    source === "local"
+                      ? t("avatarStep.groupLabel.local")
+                      : t("avatarStep.groupLabel.included")
+                  }
                   className="grid grid-cols-2 gap-3"
                 >
                   {filtered.slice(0, limit).map((item) => {
@@ -286,7 +289,15 @@ export function CreateAnimaAvatarStep({
                           className="sr-only"
                           type="radio"
                           name="creation-avatar-source"
-                          aria-label={`${item.name} ${item.source === "local" ? "My Content" : "Included"}`}
+                          aria-label={
+                            item.source === "local"
+                              ? t("avatarStep.optionLabel.local", {
+                                  name: item.name,
+                                })
+                              : t("avatarStep.optionLabel.included", {
+                                  name: item.name,
+                                })
+                          }
                           checked={checked}
                           disabled={busy}
                           value={item.item_id}
@@ -310,7 +321,9 @@ export function CreateAnimaAvatarStep({
                           ) : null}
                         </span>
                         <span className="text-muted-foreground text-xs">
-                          {source === "local" ? "My Content" : "Included"}
+                          {source === "local"
+                            ? t("sources.local")
+                            : t("sources.included")}
                         </span>
                       </label>
                     );
@@ -323,7 +336,7 @@ export function CreateAnimaAvatarStep({
                   size="sm"
                   onClick={() => setLimit((value) => value + 12)}
                 >
-                  Show more Avatars
+                  {t("avatarStep.showMore")}
                 </Button>
               ) : null}
             </TabsContent>
@@ -332,11 +345,13 @@ export function CreateAnimaAvatarStep({
         {file ? (
           <div className="mt-4 space-y-3 rounded-xl border p-4">
             <p className="text-sm break-all">
-              Previewing {file.name} · {(file.size / 1024 / 1024).toFixed(1)}{" "}
-              MiB
+              {t("avatarStep.previewing", {
+                name: file.name,
+                size: formatters.fileSize(file.size),
+              })}
             </p>
             <label htmlFor="creation-vrm-name" className="text-sm font-medium">
-              Save to My Content as
+              {t("avatarStep.saveAs")}
             </label>
             <Input
               id="creation-vrm-name"
@@ -352,32 +367,34 @@ export function CreateAnimaAvatarStep({
                 onClick={() => void save()}
                 disabled={busy || !name.trim()}
               >
-                {busy ? "Saving Avatar…" : "Save Avatar to My Content"}
+                {busy ? t("avatarStep.saving") : t("avatarStep.save")}
               </Button>
               <Button
                 variant="outline"
                 onClick={() => onFile(null)}
                 disabled={busy}
               >
-                Cancel upload
+                {t("avatarStep.cancelUpload")}
               </Button>
             </div>
           </div>
         ) : draft.needs_file_reselection ? (
           <div className="mt-4 space-y-2 rounded-xl border p-4 text-sm">
-            <p>
-              Your previous file was not saved. Choose it again with Upload VRM;
-              browsers cannot restore local files after a reload.
-            </p>
+            <p>{t("avatarStep.reselect")}</p>
             <Button variant="outline" onClick={() => onFile(null)}>
-              Discard unsaved upload
+              {t("avatarStep.discardUpload")}
             </Button>
           </div>
         ) : null}
       </section>
       {error ? (
         <p role="alert" className="text-destructive text-sm break-words">
-          {error}
+          {error.message}
+          {error.detail ? (
+            <span className="text-muted-foreground mt-1 block text-xs">
+              {error.detail}
+            </span>
+          ) : null}
         </p>
       ) : null}
       {notice ? (
@@ -388,14 +405,15 @@ export function CreateAnimaAvatarStep({
       {collision ? (
         <Dialog open onOpenChange={(open) => !open && setCollision(null)}>
           <DialogContent>
-            <DialogTitle>This Avatar name is already used</DialogTitle>
+            <DialogTitle>{t("avatarStep.collision.title")}</DialogTitle>
             <DialogDescription>
-              Use a different name to keep both files. Replace changes the
-              existing My Content item and requires its current revision. The
-              server will refuse replacement if a live Anima uses it.
+              {t("avatarStep.collision.description")}
             </DialogDescription>
             <p className="text-sm break-words">
-              {collision.name} · {collision.item_id}
+              {t("avatarStep.collision.item", {
+                name: collision.name,
+                id: collision.item_id,
+              })}
             </p>
             <p className="text-muted-foreground font-mono text-xs break-all">
               {collision.revision_sha256}
@@ -408,14 +426,14 @@ export function CreateAnimaAvatarStep({
                   document.getElementById("creation-vrm-name")?.focus();
                 }}
               >
-                Choose new name
+                {t("avatarStep.collision.chooseNewName")}
               </Button>
               <Button
                 variant="destructive"
                 disabled={busy}
                 onClick={() => void save(collision)}
               >
-                Replace this Avatar
+                {t("avatarStep.collision.replace")}
               </Button>
             </DialogFooter>
           </DialogContent>

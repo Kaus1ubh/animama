@@ -1,3 +1,6 @@
+import { getI18n } from "react-i18next";
+
+import { WordedError } from "@/lib/errors/apiError";
 import { POSE_CREATOR_CLIP_VALIDATION_OPTIONS } from "@/stores/pose-creator-store";
 import { parseAnimaPoseClip } from "@/lib/avatar/poses/animaPoseClip";
 import {
@@ -89,9 +92,8 @@ export function actionDocumentForPersistence(
   }
   const sequence = actionSequenceFromTimelineDraft(draft, document.intent);
   if (!sequence) {
-    throw new Error(
-      "The timeline contains invalid keyframes or events. Repair the highlighted timeline issues before saving.",
-    );
+    const t = getI18n().getFixedT(null, "actionEditor");
+    throw new WordedError(t("persistence.invalidTimeline"));
   }
   return pruneUnusedDependencies(
     normalizeActionDocument({

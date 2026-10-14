@@ -1,13 +1,23 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
+import { getI18n } from "react-i18next";
+import { createFormatters } from "@animama/product-ui/i18n";
 import { EMOTION_GROUPS, TRACKED_EMOTIONS } from "@/lib/emotion";
 import {
   buildEmotionPresentation,
   EMOTION_PALETTE,
-  FEELING_LABELS,
+  FEELING_EMOJIS,
+  feelingLabel,
   formatEmotionAverage,
+  storedEmotionLabel,
 } from "./presentation";
 
 describe("emotion presentation", () => {
+  it("labels a saved tracked emotion and keeps any other saved value", () => {
+    const t = getI18n().getFixedT(null, "emotion");
+    expect(storedEmotionLabel("joy")).toBe(t("emotions.joy"));
+    expect(storedEmotionLabel("wistful")).toBe("wistful");
+  });
+
   it.each([
     ["admiration", "✨", "🤩", "🌟"],
     ["caring", "😊", "😇", "🥰"],
@@ -55,22 +65,36 @@ describe("emotion presentation", () => {
     expect(Object.keys(EMOTION_PALETTE)).toHaveLength(9);
     for (const group of [...EMOTION_GROUPS, "neutral" as const])
       expect(EMOTION_PALETTE[group]).toBeTruthy();
-    expect(Object.keys(FEELING_LABELS)).toHaveLength(24);
+    expect(Object.keys(FEELING_EMOJIS)).toHaveLength(24);
     for (const emotion of TRACKED_EMOTIONS) {
-      expect(FEELING_LABELS[emotion].label).toMatch(/^Feeling /);
-      expect(FEELING_LABELS[emotion].emojis.plain).toBeTruthy();
+      expect(feelingLabel(emotion, "plain")).toMatch(/^Feeling /);
+      expect(FEELING_EMOJIS[emotion].plain).toBeTruthy();
     }
+  });
+  it("labels exactly the domain's emotions and groups", () => {
+    // The local name unions in presentation.ts must match the domain lists.
+    const catalog = getI18n().getResourceBundle("en", "emotion") as Record<
+      "emotions" | "groups" | "feelings",
+      Record<string, unknown>
+    >;
+    const sorted = (values: Iterable<string>) => [...values].sort();
+    expect(sorted(Object.keys(catalog.emotions))).toEqual(
+      sorted(TRACKED_EMOTIONS),
+    );
+    expect(sorted(Object.keys(catalog.groups))).toEqual(sorted(EMOTION_GROUPS));
+    expect(sorted(Object.keys(catalog.feelings))).toEqual(
+      sorted([...TRACKED_EMOTIONS, "neutral"]),
+    );
   });
   it.each(TRACKED_EMOTIONS)(
     "resolves an active %s to its mapped feeling",
     (emotion) => {
-      expect(buildEmotionPresentation({ [emotion]: 12 }).feeling).toEqual({
-        emoji: FEELING_LABELS[emotion].emojis.slightly,
-        label: FEELING_LABELS[emotion].label.replace(
-          "Feeling ",
-          "Feeling slightly ",
-        ),
+      const feeling = buildEmotionPresentation({ [emotion]: 12 }).feeling;
+      expect(feeling).toEqual({
+        emoji: FEELING_EMOJIS[emotion].slightly,
+        label: feelingLabel(emotion, "slightly"),
       });
+      expect(feeling.label).toMatch(/^Feeling slightly /);
     },
   );
   it.each([
@@ -192,7 +216,34 @@ describe("emotion presentation", () => {
       (group) => group.group === "delight",
     )!.average;
     expect(average).toBe(1 / 3);
-    expect(formatEmotionAverage(average)).toBe("0.3");
-    expect(formatEmotionAverage(30)).toBe("30");
+    const english = createFormatters("en");
+    expect(formatEmotionAverage(average, english)).toBe("0.3");
+    expect(formatEmotionAverage(30, english)).toBe("30");
+  });
+
+  describe("in another UI Locale", () => {
+    afterEach(async () => {
+      await getI18n().changeLanguage("en");
+    });
+
+    it("translates labels only; domain names stay the same", async () => {
+      const english = buildEmotionPresentation({ joy: 30, fear: 3 });
+      await getI18n().changeLanguage("ja");
+      const japanese = buildEmotionPresentation({ joy: 30, fear: 3 });
+      expect(japanese.feeling.label).toBe(
+        getI18n().t("emotion:feelings.joy.very"),
+      );
+      expect(japanese.feeling.label).not.toBe(english.feeling.label);
+      expect(japanese.groups.map((group) => group.label)).not.toEqual(
+        english.groups.map((group) => group.label),
+      );
+      // Code and requests use the domain names, which never follow the locale.
+      expect(japanese.dominantGroup).toBe(english.dominantGroup);
+      expect(japanese.groups.map((group) => group.group)).toEqual(
+        english.groups.map((group) => group.group),
+      );
+      expect(japanese.runtime).toEqual(english.runtime);
+      expect(japanese.feeling.emoji).toBe(english.feeling.emoji);
+    });
   });
 });

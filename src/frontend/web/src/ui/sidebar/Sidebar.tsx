@@ -10,6 +10,7 @@ import {
 import { Link } from "@tanstack/react-router";
 import React, { useCallback, useState, createContext, useContext } from "react";
 import { AnimatePresence, motion } from "motion/react";
+import { useTranslation } from "react-i18next";
 
 export interface SidebarLinkItem {
   label: string;
@@ -114,6 +115,7 @@ export const ResponsiveSidebar = ({
   children,
   ...props
 }: React.ComponentProps<"div">) => {
+  const { t } = useTranslation("sidebar");
   const { open, animate, setOpen } = useSidebar();
   const appShell = useOptionalAppShell();
   const isDesktop = appShell?.isDesktop ?? true;
@@ -133,7 +135,7 @@ export const ResponsiveSidebar = ({
           {showBackdrop ? (
             <motion.button
               type="button"
-              aria-label="Close sidebar"
+              aria-label={t("close")}
               className="fixed inset-0 z-[110] bg-black/40 md:hidden"
               onClick={() => setOpen(false)}
               initial={{ opacity: 0 }}
@@ -145,7 +147,7 @@ export const ResponsiveSidebar = ({
       ) : showBackdrop ? (
         <button
           type="button"
-          aria-label="Close sidebar"
+          aria-label={t("close")}
           className="fixed inset-0 z-[110] bg-black/40 md:hidden"
           onClick={() => setOpen(false)}
         />

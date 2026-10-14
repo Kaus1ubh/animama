@@ -1,5 +1,7 @@
 import { useState } from "react";
+import type { TFunction } from "i18next";
 import { useTheme } from "next-themes";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import {
@@ -23,27 +25,34 @@ import { Switch } from "@/ui/components/switch";
 import { SettingsRow } from "@/ui/settings/SettingsLayout";
 import { useSettings } from "@/ui/settings/SettingsProvider";
 
-const BEHAVIOR_COPY: Record<
-  BehaviorFlag,
-  { label: string; description: string }
-> = {
-  memory_influence: {
-    label: "Memory",
-    description:
-      "Read saved memories during chat. Turning this off also turns memory updates off.",
-  },
-  memory_updates: {
-    label: "Memory updates",
-    description: "Save new memories during chat.",
-  },
-  emotion_updates: {
-    label: "Emotion updates",
-    description: "Update emotional state during chat.",
-  },
-};
+/** Display name of a memory/emotion behaviour, shared by App and Anima Settings. */
+export function behaviorLabel(
+  t: TFunction<"settings">,
+  flag: BehaviorFlag,
+): string {
+  switch (flag) {
+    case "memory_influence":
+      return t("behavior.flags.memory_influence.label");
+    case "memory_updates":
+      return t("behavior.flags.memory_updates.label");
+    case "emotion_updates":
+      return t("behavior.flags.emotion_updates.label");
+  }
+}
 
-export function behaviorLabel(flag: BehaviorFlag): string {
-  return BEHAVIOR_COPY[flag].label;
+/** What the App Settings default for a behaviour controls. */
+function behaviorDescription(
+  t: TFunction<"settings">,
+  flag: BehaviorFlag,
+): string {
+  switch (flag) {
+    case "memory_influence":
+      return t("behavior.flags.memory_influence.description");
+    case "memory_updates":
+      return t("behavior.flags.memory_updates.description");
+    case "emotion_updates":
+      return t("behavior.flags.emotion_updates.description");
+  }
 }
 
 /**
@@ -57,31 +66,30 @@ export function AppBehaviorSetting({
   flag: BehaviorFlag;
   disabled: boolean;
 }) {
+  const { t } = useTranslation("settings");
   const { userPreferences, updateUserPreferences } = useSettings();
   const enabled = appBehaviorEnabled(userPreferences, flag);
   const memoryEnabled = appBehaviorEnabled(userPreferences, "memory_influence");
   const blockedByMemory = flag === "memory_updates" && !memoryEnabled;
-  const { label, description } = BEHAVIOR_COPY[flag];
+  const label = behaviorLabel(t, flag);
 
   return (
     <SettingsRow
       label={label}
       description={
         blockedByMemory
-          ? "Turn Memory on to allow memory updates."
-          : description
+          ? t("behavior.blockedByMemory")
+          : behaviorDescription(t, flag)
       }
       control={
         <Switch
           checked={enabled && !blockedByMemory}
           disabled={disabled || blockedByMemory}
-          aria-label={`${label} (app default)`}
+          aria-label={t("behavior.appDefaultLabel", { label })}
           onCheckedChange={(checked) => {
             void updateUserPreferences(
               behaviorPatch(flag, checked ? "on" : "off"),
-            ).catch(() =>
-              toast.error(`Failed to update ${label.toLowerCase()}.`),
-            );
+            ).catch(() => toast.error(t("behavior.updateFailed", { label })));
           }}
         />
       }
@@ -100,6 +108,7 @@ export function ResetAppSettingsSetting({
   /** Called after a successful reset, e.g. to close App Settings so every control reloads. */
   onReset?: () => void;
 }) {
+  const { t } = useTranslation("settings");
   const { updateUserSettings, userPreferences } = useSettings();
   const { setTheme } = useTheme();
   const [open, setOpen] = useState(false);
@@ -121,10 +130,10 @@ export function ResetAppSettingsSetting({
       // The microphone choice is stored on this machine, not in preferences.
       writeSelectedMicrophoneId(null);
       setOpen(false);
-      toast.success("App settings were reset.");
+      toast.success(t("data.reset.succeeded"));
       onReset?.();
     } catch {
-      toast.error("App settings could not be reset. Nothing was changed.");
+      toast.error(t("data.reset.failed"));
     } finally {
       setResetting(false);
     }
@@ -132,29 +141,26 @@ export function ResetAppSettingsSetting({
 
   return (
     <SettingsRow
-      label="Reset app settings"
-      description="Restore App Settings to their defaults. Anima settings, chats, memories and provider keys are kept."
+      label={t("data.reset.label")}
+      description={t("data.reset.description")}
       control={
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button type="button" variant="outline">
-              Reset…
+              {t("data.reset.open")}
             </Button>
           </DialogTrigger>
           <DialogContent showCloseButton={false}>
             <DialogHeader>
-              <DialogTitle>Reset app settings?</DialogTitle>
+              <DialogTitle>{t("data.reset.confirmTitle")}</DialogTitle>
               <DialogDescription>
-                Theme, colours, voice, shortcuts, defaults and other App
-                Settings return to their defaults. Anima settings, chats,
-                memories, content, provider keys and your display name are not
-                changed.
+                {t("data.reset.confirmDescription")}
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
               <DialogClose asChild>
                 <Button type="button" variant="ghost" disabled={resetting}>
-                  Cancel
+                  {t("actions.cancel")}
                 </Button>
               </DialogClose>
               <Button
@@ -163,7 +169,9 @@ export function ResetAppSettingsSetting({
                 disabled={resetting}
                 onClick={() => void reset()}
               >
-                {resetting ? "Resetting…" : "Reset"}
+                {resetting
+                  ? t("data.reset.resetting")
+                  : t("data.reset.confirm")}
               </Button>
             </DialogFooter>
           </DialogContent>

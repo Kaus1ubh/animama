@@ -211,8 +211,13 @@ class FinalizedSpeechPort(Protocol):
         text_basis: str,
         emotional_tone: str | None,
         emotional_state: dict[str, int] | None,
+        language_code: str | None = None,
     ) -> FinalizedSpeech:
-        """Prepare one reply segment with the voice the turn resolved for the Anima."""
+        """Prepare one reply segment with the voice the turn resolved for the Anima.
+
+        ``language_code`` is the conversation language (ISO 639-1), or ``None`` to
+        let the provider detect it.
+        """
         ...
 
     def stream_finalized(self, prepared: FinalizedSpeech) -> AsyncIterator[dict[str, Any]]:

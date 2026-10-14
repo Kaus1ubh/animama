@@ -3,6 +3,7 @@
 import { useProductApiClient } from "@animama/product-ui";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { getI18n } from "react-i18next";
 
 import { createLogger } from "@/lib/logger";
 import { publicResourceUrl } from "@/lib/resource-urls";
@@ -29,6 +30,7 @@ import {
   type ParakeetPreviewController,
 } from "@/lib/speech/client-parakeet/preview-controller";
 import type { ClientParakeetBackend } from "@/lib/speech/client-parakeet/worker-protocol";
+import { browserSpeechLanguage } from "@/lib/speech/speech-language";
 import {
   type BrowserRecognitionStopReason,
   appendTranscript,
@@ -64,6 +66,7 @@ import { getVoiceDebugSink } from "@/lib/voice/voiceDebugSink";
 import { useAvatarRuntimeStore } from "@/stores/avatar-runtime-store";
 import type { SttSegmentSource } from "@/lib/types/voice-types";
 import type { MicVadInstance } from "@/hooks/voice/mic-vad-runtime";
+import { WordedError } from "@/lib/errors/apiError";
 
 type DictationSegment = {
   text: string;
@@ -200,24 +203,69 @@ function toAbsoluteBrowserUrl(path: string): string {
   return new URL(path, window.location.origin).toString();
 }
 
+/** Dictation failures reported to the owner (and the dictation error toast). */
+type DictationFailure =
+  | "audioWorkletParakeet"
+  | "audioWorkletVad"
+  | "browserStartFailed"
+  | "failed"
+  | "localWebSpeechNotEnabled"
+  | "localWebSpeechUnsupported"
+  | "offlineSpeechMissing"
+  | "parakeetFailed"
+  | "transcriptionFailed"
+  | "unmuteFailed"
+  | "webSpeechUnsupported";
+
+/** Word a dictation failure in the active UI Locale. */
+function dictationErrorText(failure: DictationFailure): string {
+  const t = getI18n().getFixedT(null, "app");
+  switch (failure) {
+    case "audioWorkletParakeet":
+      return t("dictation.errors.audioWorkletParakeet");
+    case "audioWorkletVad":
+      return t("dictation.errors.audioWorkletVad");
+    case "browserStartFailed":
+      return t("dictation.errors.browserStartFailed");
+    case "failed":
+      return t("dictation.errors.failed");
+    case "localWebSpeechNotEnabled":
+      return t("dictation.errors.localWebSpeechNotEnabled");
+    case "localWebSpeechUnsupported":
+      return t("dictation.errors.localWebSpeechUnsupported");
+    case "offlineSpeechMissing":
+      return t("dictation.errors.offlineSpeechMissing");
+    case "parakeetFailed":
+      return t("dictation.errors.parakeetFailed");
+    case "transcriptionFailed":
+      return t("dictation.errors.transcriptionFailed");
+    case "unmuteFailed":
+      return t("dictation.errors.unmuteFailed");
+    case "webSpeechUnsupported":
+      return t("dictation.errors.webSpeechUnsupported");
+  }
+}
+
+/** Word a Web Speech error code in the active UI Locale. */
 function toBrowserSttErrorMessage(errorCode: string | undefined): string {
+  const t = getI18n().getFixedT(null, "app");
   switch (errorCode) {
     case "not-allowed":
-      return "Microphone permission was denied for browser speech recognition.";
+      return t("dictation.errors.browser.notAllowed");
     case "audio-capture":
-      return "No microphone is available for browser speech recognition.";
+      return t("dictation.errors.browser.audioCapture");
     case "service-not-allowed":
-      return "Speech recognition service is not allowed in this browser.";
+      return t("dictation.errors.browser.serviceNotAllowed");
     case "network":
-      return "Browser speech recognition network error.";
+      return t("dictation.errors.browser.network");
     case "no-speech":
-      return "No speech detected.";
+      return t("dictation.errors.browser.noSpeech");
     case "language-not-supported":
-      return "Local browser speech recognition does not support the selected language.";
+      return t("dictation.errors.browser.languageNotSupported");
     case "aborted":
-      return "Speech recognition was stopped.";
+      return t("dictation.errors.browser.aborted");
     default:
-      return "Browser speech recognition failed.";
+      return t("dictation.errors.browser.failed");
   }
 }
 
@@ -1642,7 +1690,7 @@ export function useDictation(options: UseDictationOptions = {}) {
         const errorObj =
           err instanceof Error
             ? err
-            : new Error("Local Parakeet transcription failed");
+            : new WordedError(dictationErrorText("transcriptionFailed"));
         setError(errorObj);
         onErrorRef.current?.(errorObj);
         getVoiceDebugSink()?.setError(errorObj.message);
@@ -1885,9 +1933,7 @@ export function useDictation(options: UseDictationOptions = {}) {
           typeof window === "undefined" ||
           typeof AudioWorkletNode !== "function"
         ) {
-          throw new Error(
-            "AudioWorklet support is required for local Parakeet speech recognition.",
-          );
+          throw new WordedError(dictationErrorText("audioWorkletParakeet"));
         }
 
         const isCurrentParakeetStart = () =>
@@ -2193,7 +2239,7 @@ export function useDictation(options: UseDictationOptions = {}) {
         const errorObj =
           err instanceof Error
             ? err
-            : new Error("Local Parakeet speech recognition failed");
+            : new WordedError(dictationErrorText("parakeetFailed"));
         if (activeParakeetSessionIdRef.current !== sessionId) {
           if (!canReuseTurnState && runIdRef.current === runId) {
             setRunId(null);
@@ -2337,15 +2383,13 @@ export function useDictation(options: UseDictationOptions = {}) {
     ) => {
       const SpeechRecognition = getSpeechRecognitionConstructor();
       if (!SpeechRecognition) {
-        throw new Error("Web Speech API is not supported in this browser");
+        throw new WordedError(dictationErrorText("webSpeechUnsupported"));
       }
       if (
         provider === "browser_local" &&
         !supportsLocalWebSpeechStrict(platform)
       ) {
-        throw new Error(
-          "Local-only browser speech recognition is not supported",
-        );
+        throw new WordedError(dictationErrorText("localWebSpeechUnsupported"));
       }
 
       const canReuseTurnState =
@@ -2429,11 +2473,10 @@ export function useDictation(options: UseDictationOptions = {}) {
         typeof window === "undefined" ||
         typeof AudioWorkletNode !== "function"
       ) {
-        const errorMessage =
-          "AudioWorklet support is required for acoustic VAD.";
+        const errorMessage = dictationErrorText("audioWorkletVad");
         debugStore?.setError(errorMessage);
         debugStore?.setStatus("error");
-        throw new Error(errorMessage);
+        throw new WordedError(errorMessage);
       }
 
       try {
@@ -2600,15 +2643,15 @@ export function useDictation(options: UseDictationOptions = {}) {
       const recognition = new SpeechRecognition();
       recognition.continuous = true;
       recognition.interimResults = true;
-      recognition.lang = navigator.language || "en-US";
+      // Animas speak the app's language; under English, keep the browser's.
+      recognition.lang =
+        browserSpeechLanguage() ?? (navigator.language || "en-US");
 
       if (provider === "browser_local") {
         try {
           recognition.processLocally = true;
         } catch {
-          throw new Error(
-            "Local browser speech recognition could not be enabled",
-          );
+          throw new WordedError(dictationErrorText("localWebSpeechNotEnabled"));
         }
 
         const preferredLang = recognition.lang || "en-US";
@@ -2759,7 +2802,7 @@ export function useDictation(options: UseDictationOptions = {}) {
         }
         throw err instanceof Error
           ? err
-          : new Error("Failed to start browser dictation");
+          : new WordedError(dictationErrorText("browserStartFailed"));
       }
 
       activeProviderRef.current = provider;
@@ -2820,7 +2863,9 @@ export function useDictation(options: UseDictationOptions = {}) {
       });
     } catch (err) {
       const errorObj =
-        err instanceof Error ? err : new Error("Failed to unmute voice mode");
+        err instanceof Error
+          ? err
+          : new WordedError(dictationErrorText("unmuteFailed"));
       setError(errorObj);
       onErrorRef.current?.(errorObj);
     }
@@ -2844,9 +2889,7 @@ export function useDictation(options: UseDictationOptions = {}) {
           parakeetAvailable: capabilities.offline_speech_enabled,
         });
         if (resolved.provider === "parakeet" && !resolved.parakeetAvailable) {
-          throw new Error(
-            "Install offline speech recognition in Settings to use dictation and Voice Mode.",
-          );
+          throw new WordedError(dictationErrorText("offlineSpeechMissing"));
         }
         if (mode === "voice") {
           if (resolved.provider === "parakeet") {
@@ -2877,7 +2920,9 @@ export function useDictation(options: UseDictationOptions = {}) {
         await startBrowserDictation(resolved.provider, "dictation");
       } catch (err) {
         const errorObj =
-          err instanceof Error ? err : new Error("Dictation failed");
+          err instanceof Error
+            ? err
+            : new WordedError(dictationErrorText("failed"));
         setError(errorObj);
         onErrorRef.current?.(errorObj);
         setSessionState({

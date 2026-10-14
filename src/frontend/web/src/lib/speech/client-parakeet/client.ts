@@ -1,4 +1,5 @@
 import type { Client } from "@animama/runtime-contracts/sdk";
+import { getI18n } from "react-i18next";
 import { createLogger } from "@/lib/logger";
 import { fetchRuntimeCapabilities } from "@/query/runtime-capabilities";
 import {
@@ -33,6 +34,7 @@ import type {
   ClientParakeetWorkerRequest,
   ClientParakeetWorkerResponse,
 } from "@/lib/speech/client-parakeet/worker-protocol";
+import { WordedError } from "@/lib/errors/apiError";
 
 const logger = createLogger("ClientParakeetWorkerClient");
 
@@ -485,9 +487,9 @@ export async function loadClientParakeetWorker(
 ): Promise<ClientParakeetLoadResult> {
   const capabilities = await fetchRuntimeCapabilities(apiClient);
   if (!capabilities.offline_speech_enabled) {
-    throw new Error(
-      "Install offline speech recognition in Settings to use dictation and Voice Mode.",
-    );
+    // Dictation shows this message; worker and transport failures stay English.
+    const t = getI18n().getFixedT(null, "app");
+    throw new WordedError(t("dictation.errors.offlineSpeechMissing"));
   }
   await cancelClientParakeetIdleDispose("load");
 

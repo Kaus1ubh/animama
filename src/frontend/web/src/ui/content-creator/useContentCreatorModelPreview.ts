@@ -3,6 +3,7 @@
 import { useProductApiClient } from "@animama/product-ui";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 
 import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { avatarPreviewTarget } from "@/lib/content/avatarPreviewTarget";
@@ -74,6 +75,7 @@ export function useContentCreatorModelPreview({
   /** Also offer every Included Avatar. */
   includedAvatars?: boolean;
 }): ContentCreatorModelPreview {
+  const { t } = useTranslation("creator");
   const userId = useRuntimeCacheKey();
   const apiClient = useProductApiClient();
   const { userSettings, isLoading: settingsLoading } = useSettings();
@@ -129,7 +131,11 @@ export function useContentCreatorModelPreview({
               ...equippedModel,
               // Beside the Included Avatars, name the Anima the model is from.
               displayName: includedAvatars
-                ? `${animaSelection.anima?.display_name ?? "Your"} (Anima)`
+                ? animaSelection.anima?.display_name
+                  ? t("modelPreview.animaModel", {
+                      name: animaSelection.anima.display_name,
+                    })
+                  : t("modelPreview.unnamedAnimaModel")
                 : equippedModel.displayName,
             },
           ]
@@ -141,6 +147,7 @@ export function useContentCreatorModelPreview({
       equippedModel,
       includedAvatars,
       includedSources,
+      t,
     ],
   );
 
@@ -228,13 +235,13 @@ export function useContentCreatorModelPreview({
   const modelError =
     preparedModel.error ??
     (includedPreview.isError
-      ? "The selected Included Avatar could not be prepared."
+      ? t("modelPreview.includedFailed")
       : selectedModel &&
           !target &&
           selectedModel.sourceType === "resolved_entry"
-        ? "The selected Avatar release is no longer available."
+        ? t("modelPreview.releaseUnavailable")
         : noModelAvailable
-          ? "Create an Anima before previewing this effect on an Avatar."
+          ? t("modelPreview.noAnima")
           : null);
 
   return {
@@ -253,12 +260,10 @@ export function useContentCreatorModelPreview({
     hasMoreModels: false,
     isLoadingMoreModels: false,
     modelCatalogError: includedQuery.isError
-      ? "Could not load the Included Avatars."
+      ? t("modelPreview.includedListFailed")
       : null,
-    animaError: animasQuery.isError ? "Could not load your Animas." : null,
-    runtimeError: runtimeQuery.isError
-      ? "Could not load the preview Anima's runtime."
-      : null,
+    animaError: animasQuery.isError ? t("modelPreview.animasFailed") : null,
+    runtimeError: runtimeQuery.isError ? t("modelPreview.runtimeFailed") : null,
     modelError,
     selectModel: onSelectModel,
     retryAnima: async () => {

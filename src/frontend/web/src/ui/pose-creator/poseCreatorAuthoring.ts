@@ -5,6 +5,7 @@ import {
   type VRMPose,
   type VRMPoseTransform,
 } from "@pixiv/three-vrm";
+import { getI18n } from "react-i18next";
 import { Euler, MathUtils, Quaternion } from "three";
 import { createUniqueContentBranchName } from "@/lib/content/uniqueContentName";
 
@@ -88,13 +89,17 @@ export function formatExpressionWeight(value: number): string {
   return clampExpressionWeight(value).toFixed(2);
 }
 
-/** Allocate the next numeric branch name while preserving the source's base. */
+/**
+ * Allocate the next numeric branch name while preserving the source's base.
+ * An unnamed source uses the default Pose name in the UI Locale.
+ */
 export function createUniquePoseCreatorBranchName(
   sourceName: string,
   existingNames: readonly string[],
 ): string {
+  const t = getI18n().getFixedT(null, "pose");
   return createUniqueContentBranchName(
-    sourceName.trim() || "New Pose",
+    sourceName.trim() || t("library.defaultName"),
     existingNames,
   );
 }

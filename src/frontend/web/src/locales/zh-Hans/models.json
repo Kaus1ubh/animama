@@ -1,0 +1,368 @@
+{
+  "actions": {
+    "cancel": "取消",
+    "discard": "丢弃",
+    "edit": "编辑",
+    "remove": "移除",
+    "removing": "正在移除…",
+    "retry": "重试",
+    "save": "保存",
+    "saving": "正在保存…",
+    "show": "显示",
+    "test": "测试",
+    "testing": "正在测试…",
+    "undo": "撤销"
+  },
+  "chips": {
+    "appSearch": {
+      "description": "使用此应用的搜索服务搜索网页",
+      "label": "应用搜索"
+    },
+    "builtInSearch": {
+      "description": "使用提供商自带的搜索功能搜索网页",
+      "label": "内置搜索",
+      "anthropicDescription": "使用 Anthropic 自己的搜索功能搜索网页。每次搜索都会向你的 Anthropic 账户计费。"
+    },
+    "context": {
+      "description": "{{tokens, number}} token 上下文窗口"
+    },
+    "embeddings": {
+      "description": "用于文件和归档搜索的嵌入模型",
+      "label": "嵌入"
+    },
+    "tools": {
+      "description": "可调用工具",
+      "label": "工具"
+    },
+    "vision": {
+      "description": "可接收图片",
+      "label": "视觉"
+    }
+  },
+  "connectionForm": {
+    "advanced": "高级选项",
+    "apiKey": "API 密钥",
+    "apiKeyVariable": "API 密钥变量",
+    "baseUrl": "基础 URL",
+    "baseUrlHelp": "服务器的 OpenAI 兼容地址，通常以 /v1 结尾。",
+    "compatibility": {
+      "foldDeveloperRole": "不发送 developer 消息",
+      "foldDeveloperRoleHelp": "适用于拒绝 developer 角色的服务器。每轮的上下文（记忆图谱、附加文件）放在用户消息开头的带标签块中；压缩历史的摘要和轮内指令会合并到系统消息中。",
+      "sendOpenaiExtensions": "发送 OpenAI 专用的请求字段",
+      "sendStreamUsage": "流式传输时请求 token 用量",
+      "stripFunctionStrict": "移除工具中的 strict 标志"
+    },
+    "detect": "检测",
+    "detected_other": "在 {{baseUrl}} 找到 {{count, number}} 个模型。",
+    "detecting": "正在检测…",
+    "editDescription": "OpenAI 兼容的服务器，例如 Ollama、LM Studio、llama.cpp 或云服务提供商。",
+    "env": {
+      "notSet": "尚未在服务器上设置。请将其设为你的 API 密钥。",
+      "set": "已在服务器上设置。",
+      "setVariable": "请在服务器上将此变量设为你的 API 密钥。"
+    },
+    "hideAdvanced": "隐藏高级选项",
+    "insecureKey": "此地址通过未加密的 http 连接到另一台电脑，密钥将以未加密形式在网络中传输。请使用 https 或本地服务器。",
+    "keyNotDeleted": "无法删除此连接保存的密钥。",
+    "keyNotStored": "连接已保存，但其密钥未能存储。{{reason}}",
+    "keyNotStoredRetry": "连接已保存，但其密钥未能存储。请通过“编辑”重试。",
+    "name": "名称",
+    "reasoning": {
+      "deepseekThinking": "作为 DeepSeek thinking 发送",
+      "label": "推理强度",
+      "omit": "不发送",
+      "openaiEffort": "作为 OpenAI reasoning effort 发送"
+    },
+    "removeSavedKey": "移除已保存的密钥",
+    "serverType": "服务器类型",
+    "timeout": "请求超时（秒）",
+    "timeoutHelp": "本地服务器在加载模型时可能需要更长时间。"
+  },
+  "connections": {
+    "addCustomServer": "添加自定义服务器",
+    "added": "已添加连接。",
+    "addModel": "添加模型",
+    "addModelTo": "向 {{name}} 添加模型",
+    "connect": "连接",
+    "connecting": "正在连接…",
+    "detail": "{{host}} · {{status}}",
+    "editNamed": "编辑 {{name}}",
+    "hideHidden": "收起隐藏的模型",
+    "loadFailed": "无法加载模型连接。",
+    "modelsOf": "{{name}} 的模型",
+    "noModels": "还没有模型。添加一个即可与它聊天。",
+    "builtinKey": {
+      "managed": "在这台电脑上加密存储，之后不会再显示。也可在应用设置 → API 密钥中管理。",
+      "server": "使用此服务器上配置的 {{name}} 密钥（{{env}}）。"
+    },
+    "removed": "已移除连接。",
+    "removeNamed": "移除 {{name}}",
+    "saved": "已保存连接。",
+    "showHidden_other": "显示 {{count, number}} 个隐藏的模型",
+    "status": {
+      "checking": "正在检查…",
+      "keyMissing": "缺少密钥",
+      "keyRejected": "密钥被拒绝",
+      "keySet": "已设置密钥",
+      "noKeyNeeded": "无需密钥",
+      "notReachable": "无法连接",
+      "runningAt": "运行于 {{host}}"
+    }
+  },
+  "credentials": {
+    "allFailed": "更改未能完成。请检查运行时恢复情况，然后重试。已保存的密钥不会在此显示。",
+    "connectionKey": "模型连接密钥",
+    "description": "添加 OpenAI 或 Anthropic 密钥用于云端聊天，或添加 ElevenLabs 或 Gemini 密钥用于语音。其他模型服务器的密钥请在应用设置 → 模型中的各个连接里输入。密钥使用这台电脑的安全存储加密，之后不会再显示。保存后更改立即生效。之后可在应用设置 → API 密钥中更改。",
+    "failure": {
+      "full": "这台电脑保存的模型连接密钥已达上限（{{max, number}} 个）。请移除不再使用的连接的密钥，然后重试。",
+      "line": "{{name}}：{{message}}",
+      "restartRequired": "更改未能完成。已保存密钥的状态显示在上方。再次更改密钥前，请打开运行时恢复并重试。",
+      "retry": "密钥更改未能完成。请检查已保存的状态，然后重试更改。"
+    },
+    "removeNamed": "移除 {{name}} 密钥",
+    "replacePlaceholder": "输入新密钥以替换",
+    "saveChanges_other": "保存 {{count, number}} 项更改",
+    "saved": "已保存。",
+    "someFailed": "部分更改未能完成（{{names}}）。请重试；已保存的密钥不会在此显示。",
+    "status": {
+      "configured": "已配置",
+      "notSet": "未设置",
+      "removing": "保存后将被移除。"
+    },
+    "title": "API 密钥",
+    "unavailable": "受保护的设置不可用。请打开运行时恢复后重试。",
+    "undoRemoveNamed": "撤销移除 {{name}} 密钥"
+  },
+  "defaults": {
+    "current": "当前为 {{model}}。",
+    "currentOn": "当前为 {{model}}（{{connection}}）。",
+    "loadFailed": "无法加载模型。",
+    "noCapableModel": "没有模型能完成此任务；请选择具备所需能力的模型。",
+    "roleModel": "{{role}}模型",
+    "roles": {
+      "chat": {
+        "default": "系统默认",
+        "description": "新 Anima 初始使用的模型。现有 Anima 保留各自的模型。",
+        "label": "聊天"
+      },
+      "embeddings": {
+        "default": "关闭",
+        "description": "按含义查找文件和归档中的段落。更改后会重新嵌入已存储的内容。",
+        "label": "嵌入"
+      },
+      "memoryManager": {
+        "default": "与聊天相同",
+        "description": "回顾对话并提出记忆文件的修改建议。需要支持工具调用。",
+        "label": "记忆管理器"
+      },
+      "utility": {
+        "default": "与聊天相同",
+        "description": "生成聊天标题并压缩过长的聊天。小而快的模型效果很好。",
+        "label": "压缩"
+      }
+    },
+    "saveFailed": "无法保存{{role}}模型。",
+    "unavailable": "所选模型不可用，因此使用默认模型。",
+    "unavailableChoice": "{{model}}（不可用）"
+  },
+  "embeddings": {
+    "current": "已存储的文件和归档已使用此模型嵌入。",
+    "off": "嵌入已关闭；文件和归档搜索使用关键词。",
+    "reEmbedding_other": "正在重新嵌入 {{count, number}} 个项目；完成前搜索使用关键词。",
+    "retrying_other": "{{count, number}} 个项目的重新嵌入正在等待重试：{{reason}}"
+  },
+  "fields": {
+    "capabilities": "能力",
+    "kind": "类型",
+    "modelId": "模型 ID",
+    "structuredOutput": "结构化输出"
+  },
+  "info": {
+    "allowed": "允许",
+    "builtinDescription": "{{name}} 上的内置模型。其详细信息不可更改。",
+    "fields": {
+      "api": "API",
+      "contextWindow": "上下文窗口",
+      "images": "图片",
+      "memoryWrites": "写入记忆",
+      "reasoning": "推理",
+      "streaming": "流式传输",
+      "toolCalls": "工具调用",
+      "toolsWithSchema": "工具结合 schema"
+    },
+    "no": "否",
+    "notAllowed": "不允许",
+    "notSet": "未设置",
+    "tokens": "{{tokens, number}} 个 token",
+    "yes": "是"
+  },
+  "keys": {
+    "encrypted": "在这台电脑上加密存储，之后不会再显示。保存的密钥立即生效。",
+    "replacePlaceholder": "已保存；输入新密钥以替换"
+  },
+  "locations": {
+    "cloud": "云端",
+    "local": "本地",
+    "tabsLabel": "模型运行位置"
+  },
+  "modelKinds": {
+    "chat": "聊天模型",
+    "embedding": "嵌入模型"
+  },
+  "modelRow": {
+    "details": "{{name}} 的详细信息",
+    "hidden": "已隐藏"
+  },
+  "openRouter": {
+    "find": "查找 OpenRouter 模型",
+    "found_other": "找到 {{count, number}} 个模型。",
+    "listLabel": "OpenRouter 模型",
+    "loading": "正在加载 OpenRouter 模型…",
+    "noMatches": "没有匹配的模型。请更改搜索内容或显示全部模型。",
+    "searchPlaceholder": "按名称或 ID 搜索",
+    "showingFirst": "显示 {{total, number}} 个模型中的 {{shown, number}} 个；搜索可缩小列表范围。",
+    "toolsOnly": "仅显示支持工具调用的模型"
+  },
+  "operatorManaged": {
+    "note": "语音模型由托管运营方管理。"
+  },
+  "optional": "（可选）",
+  "ownerModel": {
+    "addDescription": "测试模型以检查它支持的功能，然后确认其能力和上下文窗口。",
+    "added": "已添加模型。",
+    "addTitle": "向 {{name}} 添加模型",
+    "allowMemoryWrites": "允许此模型写入记忆",
+    "api": "API：{{api}}",
+    "capabilities": {
+      "acceptsImages": "可接收图片",
+      "supportsStreaming": "流式输出回复",
+      "supportsTools": "可调用工具（记忆、文件搜索）",
+      "toolsWithStructuredOutput": "可将工具与回复 schema 结合使用"
+    },
+    "contextWindow": "上下文窗口（token）",
+    "contextWindowHelp": "必填。请填写服务器加载模型时使用的上下文大小（例如 Ollama 的 num_ctx 或 llama.cpp 的 -c），而不是模型的最大值；过长的聊天会被摘要以适应窗口。",
+    "contextWindowHelpAnthropic": "必填。测试模型即可填入 Anthropic 公布的窗口大小；过长的聊天会被摘要以适应窗口。",
+    "copyFrom": "从以下模型复制能力",
+    "copyFromHelp": "适用于内置模型的较新版本。",
+    "copyNothing": "不复制（在下方设置）",
+    "displayName": "显示名称",
+    "editDescription": {
+      "chat": "{{connection}} 上的聊天模型。修改详细信息后保存。",
+      "embedding": "{{connection}} 上的嵌入模型。修改详细信息后保存。"
+    },
+    "listed_other": "找到 {{count, number}} 个模型；选择一个或输入 ID。",
+    "listedNone": "服务器未列出任何模型；请输入模型 ID。",
+    "listing": "正在列出…",
+    "listModels": "列出模型",
+    "removed": "已移除模型。",
+    "saved": "已保存模型。",
+    "showInLists": "在模型列表中显示",
+    "showNamedInLists": "在模型列表中显示 {{name}}",
+    "testModel": "测试模型",
+    "earlyCompaction": {
+      "label": "提前压缩",
+      "description": "在提示达到更高的长上下文价格之前（{{model}} 为 {{early, number}} 个 token）摘要之前的对话。关闭后会等到 {{late, number}} 个 token，以更高的价格逐字保留更多内容。"
+    }
+  },
+  "probe": {
+    "contextWindow": "服务器报告的上下文窗口为 {{tokens, number}} 个 token。",
+    "dimensions": "向量有 {{dimensions, number}} 个维度。",
+    "failed": "✗ {{step}}",
+    "failureReason": " — {{reason}}",
+    "passed": "✓ {{step}}",
+    "results": "测试结果",
+    "steps": {
+      "available": "模型可用",
+      "embeddings": "嵌入",
+      "jsonMode": "JSON 模式",
+      "streaming": "流式传输",
+      "structuredOutput": "JSON schema",
+      "toolCalls": "工具调用",
+      "toolsWithStructuredOutput": "工具结合 schema"
+    }
+  },
+  "providers": {
+    "connected": "（已连接）",
+    "custom": "自定义",
+    "purpose": {
+      "customCloud": "连接任意 OpenAI 兼容的云服务。",
+      "customLocal": "连接这台电脑或你的网络上任意 OpenAI 兼容的服务器。",
+      "deepseek": "使用你的 DeepSeek API 密钥与 DeepSeek 的模型聊天。",
+      "huggingface": "使用你的访问令牌，通过 Hugging Face Inference Providers 与开放模型聊天。",
+      "llamacpp": "与这台电脑上 llama.cpp 服务器提供的模型聊天。",
+      "lmstudio": "与这台电脑上 LM Studio 提供的模型聊天。",
+      "ollama": "与这台电脑上 Ollama 中运行的模型聊天。",
+      "openai": "使用你的 API 密钥与 OpenAI 的模型聊天。",
+      "openrouter": "通过一个 OpenRouter 密钥与众多提供商的模型聊天。",
+      "vllm": "与这台电脑上 vLLM 提供的模型聊天。",
+      "anthropic": "使用你的 API 密钥与 Anthropic 的 Claude 模型聊天。"
+    },
+    "recommended": "推荐",
+    "tabsLabel": "{{location}}提供商"
+  },
+  "removal": {
+    "consequences": {
+      "animas_other": "在你选择其他模型之前，相关 Anima 会将其模型显示为不可用。",
+      "roles_other": "相关角色将恢复为默认设置。"
+    },
+    "roles": {
+      "chat": "聊天默认模型",
+      "embeddings": "嵌入模型",
+      "memoryManager": "记忆管理器模型",
+      "utility": "压缩模型"
+    },
+    "savedKeyDeleted": "其保存的密钥也会被删除，且无法恢复。",
+    "title": "移除 {{name}}？",
+    "usage": {
+      "animas": "正被 {{animas, list}} 使用。",
+      "animasAndRoles": "正被 {{animas, list}} 使用，并用作{{roles, list}}。",
+      "none": "未被使用。",
+      "roles": "正用作{{roles, list}}。"
+    }
+  },
+  "required": "（必填）",
+  "structuredOutput": {
+    "jsonObject": "JSON 模式",
+    "jsonSchema": "JSON schema（strict）",
+    "none": "无"
+  },
+  "webSearch": {
+    "brave": {
+      "apiKey": "Brave Search API 密钥",
+      "envHelp": "后端从 {{managed}} 或 {{suggested}} 读取 Brave Search 密钥。密钥绝不会存储在数据库中。",
+      "envNotSet": "后端环境中尚未设置。",
+      "envVariable": "密钥环境变量"
+    },
+    "destination": {
+      "brave": "模型会将搜索查询发送到 Brave Search，Brave Search 会将查询保留最多 90 天。",
+      "searxng": "模型会将搜索查询发送到你的 SearXNG 服务器。",
+      "searxngAt": "模型会将搜索查询发送到位于 {{host}} 的 SearXNG 服务器。"
+    },
+    "keyNotDeleted": "无法删除已保存的 Brave Search 密钥。",
+    "keyNotDeletedReason": "无法删除已保存的 Brave Search 密钥。{{reason}}",
+    "keyNotStored": "Brave Search 密钥未能存储。请重新输入并保存。",
+    "keyNotStoredReason": "Brave Search 密钥未能存储。{{reason}}",
+    "loadFailed": "无法加载网页搜索设置。",
+    "off": "关闭",
+    "saved": "已保存网页搜索设置。",
+    "saveToTest": "保存后才能测试新密钥。",
+    "searxng": {
+      "address": "SearXNG 地址",
+      "deletesKey": "保存会删除已保存的 Brave Search 密钥，且无法恢复。",
+      "help": "请在其 settings.yml 的 search.formats 中启用 json 格式。在 Docker 堆栈中，这台电脑上的服务器地址是 host.docker.internal，而不是 127.0.0.1。"
+    },
+    "service": {
+      "description": "让能调用工具的模型可以搜索网页。具备内置搜索的模型会继续使用自己的搜索，Anthropic 模型不会使用此服务。",
+      "label": "搜索服务"
+    },
+    "testPassed_other": "搜索正常：测试查询返回了 {{count, number}} 个结果。",
+    "timeout": "超时（秒）",
+    "turnedOff": "已关闭网页搜索。",
+    "turnOff": {
+      "action": "关闭网页搜索",
+      "deletesKey": "关闭搜索也会删除其保存的密钥，且无法恢复。",
+      "stopsSearching": "模型将停止搜索网页。",
+      "turningOff": "正在关闭…"
+    }
+  }
+}

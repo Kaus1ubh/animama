@@ -1,0 +1,390 @@
+{
+  "create": {
+    "contentLabel": "初始内容",
+    "contentPlaceholder": "# 笔记",
+    "description": "名称只能使用文件系统安全的字符，文件以 Markdown 格式存储。",
+    "descriptionPlaceholder": "可选",
+    "directoryCreated": "已创建文件夹。",
+    "directoryNamePlaceholder": "notes",
+    "directoryTitle": "新建文件夹",
+    "failed": "无法创建记忆条目。",
+    "fileCreated": "已创建 Markdown 文件。",
+    "fileNamePlaceholder": "notes.md 或 projects/notes.md",
+    "fileTitle": "新建 Markdown 文件",
+    "nameOrPath": "名称或路径",
+    "submit": "创建"
+  },
+  "diff": {
+    "after": "之后",
+    "before": "之前",
+    "descriptionChange": {
+      "clear": "清除",
+      "replace": "替换",
+      "set": "设置"
+    },
+    "noContentChanges": "内容没有变化。",
+    "noTextualChanges": "此版本没有文本变化。",
+    "operations": {
+      "create": "创建",
+      "delete": "删除",
+      "update": "更新"
+    },
+    "showLess": "收起",
+    "showLines_other": "显示全部 {{count}} 行"
+  },
+  "editor": {
+    "deleted": "已删除记忆条目。",
+    "deleteFailed": "无法删除记忆条目。",
+    "editorHeading": "编辑器",
+    "fallbackTitle": "记忆文件",
+    "loadingFile": "正在加载文件...",
+    "saveDraftOverLatest": "用草稿覆盖最新版本"
+  },
+  "errors": {
+    "entryFailed": "记忆操作失败。",
+    "managerFailed": "记忆管理器操作失败。"
+  },
+  "explorer": {
+    "actions": {
+      "delete": "删除",
+      "move": "移动到…",
+      "newDirectory": "新建文件夹",
+      "newFile": "新建文件",
+      "rename": "重命名"
+    },
+    "actionsFor": "{{path}} 的操作",
+    "collapse": "收起文件浏览器",
+    "collapseAll": "收起所有文件夹",
+    "drag": {
+      "cancelled": "已取消移动记忆。",
+      "instructions": "按空格键或 Enter 键拿起记忆条目。使用方向键选择文件夹，然后按空格键或 Enter 键移动。按 Esc 键取消。",
+      "moveInto": "移动到 {{path}}。",
+      "moving": "正在将 {{source}} 移动到 {{destination}}。",
+      "notOver": "当前不在有效的记忆文件夹上。",
+      "pickedUp": "已拿起 {{path}}。"
+    },
+    "empty": "还没有记忆文件。",
+    "episodesRoot": "经历",
+    "expand": "展开文件浏览器",
+    "expandAll": "展开所有文件夹",
+    "filter": "筛选",
+    "filterFiles": "筛选文件",
+    "filterLabel": "筛选记忆文件",
+    "heading": "记忆文件",
+    "identityMissing": "此 Anima 的身份设定缺失，需要修复。",
+    "loadFailed": "无法加载记忆文件。",
+    "loading": "正在加载文件...",
+    "memoriesMissing": "MEMORIES.md 缺失。",
+    "needsRepair": "需要修复",
+    "newMarkdownFile": "新建 Markdown 文件",
+    "noAnimas": "还没有 Anima。",
+    "noEpisodes": "还没有经历。",
+    "noMatches": "没有匹配的记忆文件。",
+    "otherEpisodes": "其他经历",
+    "pendingEpisodes_other": "{{count}} 条待处理经历",
+    "refresh": "刷新记忆文件",
+    "repair": "修复",
+    "repairMemories": "修复 {{name}} 的 MEMORIES.md",
+    "reservedName": "保留名称",
+    "reservedNameHint": "此名称保留给 Anima 身份设定使用。如需编辑，请重命名它，或将其内容移出。",
+    "unsavedChanges": "未保存的更改"
+  },
+  "layout": {
+    "resizeExplorer": "调整文件和工作窗格的大小",
+    "resizeHint": "{{label}}。使用左右方向键调整大小，双击可重置。",
+    "resizeWork": "调整工作和预览窗格的大小"
+  },
+  "library": {
+    "blocker": {
+      "description_other": "离开记忆工作区前，请保存或丢弃 {{count}} 个未保存的草稿。",
+      "discardAndLeave": "丢弃并离开",
+      "saveAndLeave": "保存并离开",
+      "stay": "留下",
+      "title": "未保存的记忆草稿"
+    },
+    "createBlocked": {
+      "animaFolders": "Anima 文件夹只包含每个 Anima 的身份设定和记忆。",
+      "episodes": "生成的经历中不能包含用户创建的文件。"
+    },
+    "delete": {
+      "directoryContents": "{{path}} 及其内容将被永久删除，其中包括 {{files}}。",
+      "directoryContentsNested": "{{path}} 及其内容将被永久删除，其中包括 {{files}}和 {{directories}}。",
+      "directoryDeleted": "已删除文件夹。",
+      "directoryFailed": "无法删除文件夹。",
+      "directoryTitle": "删除文件夹？",
+      "dirtyDrafts_other": "{{count}} 个未保存的草稿也将被丢弃。",
+      "emptyDirectory": "{{path}} 为空，将被永久删除。",
+      "file": "{{path}} 将被永久删除。",
+      "fileDeleted": "已删除记忆文件。",
+      "fileFailed": "无法删除记忆文件。",
+      "files_other": "{{count}} 个文件",
+      "fileTitle": "删除文件？",
+      "nestedDirectories_other": "{{count}} 个子文件夹"
+    },
+    "identitiesFailed": "无法加载 Anima 身份设定。",
+    "identitiesFailedDescription": "用户记忆仍可使用。请刷新以重试。",
+    "modes": {
+      "manager": "记忆管理器",
+      "manual": "手动"
+    },
+    "panes": {
+      "explorerLabel": "记忆文件浏览器",
+      "files": "文件",
+      "previewLabel": "记忆预览",
+      "work": "工作",
+      "workLabel": "记忆工作窗格"
+    },
+    "reflect": {
+      "action": "回顾",
+      "anyway": "仍然回顾",
+      "confirmDescription": "回顾会读取 {{name}} 的 MEMORIES.md 最后保存的版本，并忽略你未保存的手动草稿。草稿会保持打开，但只要保存了草稿或回顾提案中的任意一个，另一个就会产生冲突。",
+      "confirmTitle": "在有未保存草稿的情况下回顾？",
+      "label": "回顾 {{name}} 的记忆"
+    },
+    "relocate": {
+      "cannotMove": "无法移动记忆条目。",
+      "cannotRename": "无法重命名此记忆条目。",
+      "moveConflict": "未执行移动。请刷新后重试。",
+      "moved": "已移动 {{name}}。",
+      "moveFailed": "无法移动记忆条目。",
+      "moveRefreshFailed": "记忆已移动，但无法刷新文件浏览器。",
+      "moveUncertain": "无法确定移动结果。",
+      "moveUncertainDescription": "正在刷新，然后才能再次移动。",
+      "refreshBeforeChange": "请先刷新，再进行其他更改。",
+      "renameConflict": "未执行重命名。请刷新后重试。",
+      "renamed": "已将 {{from}} 重命名为 {{to}}。",
+      "renameFailed": "无法重命名记忆条目。",
+      "renameRefreshFailed": "记忆已重命名，但无法刷新文件浏览器。",
+      "renameUncertain": "无法确定重命名结果。",
+      "renameUncertainDescription": "正在刷新，然后才能再次重命名。"
+    },
+    "removedAnimaFile": {
+      "deleted": "{{name}} 已被删除。",
+      "discarded": "{{file}} 中未保存的更改无法保存，已被丢弃。",
+      "unavailable": "{{name}} 的 {{file}} 不可用。"
+    },
+    "repair": {
+      "failed": "无法修复 {{name}} 的 MEMORIES.md。",
+      "fallbackName": "此 Anima",
+      "repaired": "已修复 {{name}} 的 MEMORIES.md。"
+    }
+  },
+  "manager": {
+    "approval": {
+      "approve": "批准",
+      "feedbackCount": "{{length, number}} / {{max, number}}",
+      "feedbackHint": "这会拒绝当前的差异，并将你的反馈发送给管理器。",
+      "feedbackPlaceholder": "说明需要更改的内容，例如不同的 Markdown 路径或措辞。",
+      "reject": "拒绝",
+      "rejectionFeedback": "拒绝反馈",
+      "requestChanges": "请求更改",
+      "requestRevision": "请求修改记忆更改",
+      "sendFeedback": "发送反馈",
+      "status": {
+        "approved": "已批准",
+        "approvedUndone": "已批准 · 已撤销",
+        "pending": "待审核",
+        "rejected": "已拒绝"
+      },
+      "undo": "撤销"
+    },
+    "autoApprove": "自动批准",
+    "blocked": {
+      "busy": "记忆管理器仍在工作。请在完成后重试。",
+      "loadFailed": "无法加载记忆管理器对话。请先重试。",
+      "pendingApproval": "请先在记忆管理器中批准或拒绝待处理的记忆更改。"
+    },
+    "completed": "此对话已完成。选择“新建”开始新的对话。",
+    "emptyDescription": "让它创建、更新或整理记忆文件。",
+    "emptyTitle": "开始记忆对话",
+    "episodes": {
+      "failedDescription": "这批经历仍处于待处理状态。准备好重试时，请重新开始处理。",
+      "failedTitle_other": "{{count}} 条经历的审核已停止",
+      "processedDescription": "这批已完成。你可以在此对话中继续向记忆管理器提出一般问题。",
+      "processedMoreDescription": "这批已完成。还有更多待处理经历可以在下一批中处理，此对话现已进入一般记忆管理器模式。",
+      "processedTitle_other": "已审核 {{count}} 条经历",
+      "processingDescription": "记忆管理器正在审核这批经历。经历状态只会在处理最终完成后改变。",
+      "reviewingTitle_other": "正在审核 {{count}} 条经历",
+      "waitingDescription": "请审核下方建议的记忆更改。在管理器给出最终回复之前，这批经历仍处于待处理状态。"
+    },
+    "feedback": {
+      "empty": "请求更改前请输入反馈。",
+      "tooLong": "反馈不能超过 {{max, number}} 个字符。"
+    },
+    "loadFailed": "无法加载此记忆管理器对话。",
+    "loadFailedHint": "请先重试，再更改其状态。",
+    "loadingDescription": "正在确定当前对话。",
+    "loadingTitle": "正在加载记忆管理器",
+    "messageLabel": "记忆管理器消息",
+    "new": "新建",
+    "placeholder": "让记忆管理器创建或更新记忆文件",
+    "processEpisodes": "处理经历",
+    "reflection": {
+      "activeDescription": "一旦应用了此回顾对 MEMORIES.md 的更改，这些轮次就会计为已回顾。回复即可进一步调整。",
+      "activeTitle": "正在回顾与 {{name}} 的 {{turns}}",
+      "completedAppliedDescription": "已应用的 MEMORIES.md 更改保持有效，这些轮次计为已回顾。",
+      "completedTitle": "已回顾与 {{name}} 的 {{turns}}",
+      "completedUnchangedDescription": "此回顾没有应用任何更改，因此这些轮次会保留到下一次回顾。",
+      "failedAppliedDescription": "已应用的 MEMORIES.md 更改保持有效，这些轮次计为已回顾。对话在完成前已停止，原因见下方错误。",
+      "failedTitle": "与 {{name}} 的 {{turns}}回顾已停止",
+      "failedUnchangedDescription": "{{name}} 的 MEMORIES.md 和这些轮次均未改变，因此会保留到下一次回顾。停止原因见下方错误。",
+      "remaining_other": "还剩 {{count}} 轮",
+      "titleWithRemaining": "{{title}} · {{remaining}}",
+      "turns_other": "{{count}} 轮对话",
+      "waitingDescription": "请审核下方建议的 MEMORIES.md 更改。只有在应用了此回顾的更改后，这些轮次才会计为已回顾。"
+    },
+    "runFailed": "记忆管理器未能完成此对话。",
+    "stopped": "记忆管理器已停止。",
+    "stoppedFallback": "对话无法继续。选择“新建”以重试。",
+    "toasts": {
+      "applied": "已应用记忆更改。",
+      "appliedDescription": "已提交批准的差异。",
+      "completeFailed": "无法完成记忆管理器运行。",
+      "decisionFailed": "无法记录批准决定。",
+      "feedbackSent": "你的反馈已发送给记忆管理器。",
+      "noFilesChanged": "没有记忆文件被更改。",
+      "processFailed": "无法处理待处理经历。",
+      "reflectionFailed": "回顾未能开始。",
+      "rejected": "已拒绝记忆更改。",
+      "sendFailed": "无法向记忆管理器发送消息。",
+      "startFailed": "无法启动记忆管理器。",
+      "undoDeleted": "已批准的文件已作为新版本被删除。",
+      "undoFailed": "无法撤销已批准的记忆更改。",
+      "undone": "已撤销记忆更改。",
+      "undoRestored": "之前的内容已恢复为版本 {{version}}。",
+      "undoStale": "此记忆更改已无法撤销。",
+      "undoStaleDescription": "打开版本以查看最新文件，如有需要请手动还原。"
+    }
+  },
+  "manual": {
+    "discard": {
+      "description": "对 {{path}} 的未保存更改将被移除。",
+      "title": "丢弃更改？"
+    },
+    "generatedEpisode": "生成的经历",
+    "openManager": "打开记忆管理器",
+    "readOnly": "只读记忆",
+    "readOnlyHint": "此文件可以预览，但不能手动更改。",
+    "reservedHint": "animas 路径保留给 Anima 身份设定使用。编辑前，请重命名此文件或将其移出。",
+    "reservedPath": "保留路径",
+    "saveOverLatest": "覆盖最新版本",
+    "selectFile": "选择要编辑的记忆文件。",
+    "unsaved": "未保存"
+  },
+  "markdown": {
+    "emptyFile": "空文件",
+    "image": "[图片：{{alt}}]",
+    "imageNotLoaded": "[图片：未加载]"
+  },
+  "move": {
+    "description": "为此记忆条目选择新的父文件夹。",
+    "destination": "目标位置",
+    "empty": "没有匹配的文件夹。",
+    "fallbackTitle": "移动记忆条目",
+    "reasons": {
+      "alreadyInDirectory": "此条目已在该文件夹中。",
+      "alreadyInRoot": "此条目已在记忆根目录中。",
+      "cannotMove": "此记忆条目无法移动。",
+      "chooseDirectory": "请选择一个普通的记忆文件夹。",
+      "containsItself": "文件夹不能包含自身。",
+      "insideDescendant": "文件夹不能移动到它自己的子文件夹中。",
+      "otherScope": "目标位置属于另一个记忆范围。",
+      "reserved": "animas 路径保留给 Anima 身份设定使用。"
+    },
+    "root": "记忆根目录",
+    "search": "搜索文件夹",
+    "submit": "移到此处",
+    "title": "移动 {{name}}"
+  },
+  "preview": {
+    "copied": "已复制 Markdown。",
+    "copyFailed": "无法将 Markdown 复制到剪贴板。",
+    "copyLabel": "复制预览的 Markdown",
+    "copyTitle": "复制 Markdown",
+    "generated": "自动生成",
+    "loading": "正在加载预览...",
+    "readOnly": "只读",
+    "selectFile": "选择要预览的记忆文件。",
+    "unsavedDraft": "未保存的草稿",
+    "unsavedManualDraft": "未保存的手动草稿"
+  },
+  "rename": {
+    "directoryTitle": "重命名文件夹",
+    "fileTitle": "重命名文件",
+    "submit": "重命名"
+  },
+  "shared": {
+    "blankIdentity": "Anima 身份设定不能为空。",
+    "cancel": "取消",
+    "changedElsewhere": "此记忆已在其他地方被更改。",
+    "conflictNotice": "服务器上有此文件的更新版本。你的草稿已保留。",
+    "delete": "删除",
+    "description": "描述",
+    "discard": "丢弃",
+    "draftSaved": "已保存草稿。",
+    "draftStillOpen": "你的草稿仍处于打开状态。",
+    "enterName": "请输入名称。",
+    "fileLoadFailed": "无法加载此记忆文件。",
+    "loadingEditor": "正在加载编辑器...",
+    "memorySaved": "已保存记忆。",
+    "name": "名称",
+    "noDescription": "无描述",
+    "none": "无",
+    "optionalDescription": "描述（可选）",
+    "preview": "预览",
+    "retry": "重试",
+    "save": "保存",
+    "saveFailed": "无法保存记忆。",
+    "useLatest": "使用最新版本",
+    "version": "版本 {{version}}"
+  },
+  "versions": {
+    "afterRevert": "还原后 · 版本 {{version}}",
+    "back": "返回",
+    "changesIn": "版本 {{version}} 中的更改",
+    "confirmRevert": "确认还原",
+    "contentChanges": "内容更改",
+    "createdIn": "创建于版本 {{version}}",
+    "current": "当前",
+    "currentContent": "当前内容",
+    "currentVersion": "{{path}} · 当前版本 {{version}}",
+    "detailLabel": "所选版本的更改",
+    "discardAndContinue": "丢弃草稿并继续",
+    "discardFirst": "先丢弃手动草稿？",
+    "discardFirstDescription": "此文件有未保存或冲突的草稿时，无法继续还原。丢弃草稿会先恢复当前服务器上的内容，然后你再查看最终确认。",
+    "emptyContent": "（空）",
+    "entryFallback": "记忆条目",
+    "history": "版本历史",
+    "keepDraft": "保留草稿",
+    "listLabel": "记忆条目版本",
+    "loadFailed": "无法加载版本历史。",
+    "loading": "正在加载版本...",
+    "loadingChanges": "正在加载更改...",
+    "loadOlder": "加载更早的版本",
+    "none": "没有可用的版本。",
+    "operationLine": "{{operation}} · {{time}}",
+    "operations": {
+      "create": "已创建",
+      "delete": "已删除",
+      "move": "已移动",
+      "revert": "已还原",
+      "undo": "已撤销",
+      "update": "已更新"
+    },
+    "path": "路径",
+    "range": "版本 {{from}} → 版本 {{to}}",
+    "revertConfirmDescription": "这只会恢复内容和描述。当前的路径、名称、文件夹、类型和元数据保持不变，此次还原会记录为一个新版本。",
+    "revertConfirmTitle": "还原到版本 {{version}}？",
+    "revertConflict": "还原完成前此记忆已被更改。",
+    "revertConflictDescription": "已刷新当前记忆和版本。你较新的草稿已保留。",
+    "reverted": "已还原到版本 {{version}}。",
+    "revertedDescription": "恢复的内容现在是版本 {{version}}。",
+    "revertFailed": "无法还原记忆。",
+    "revertTo": "还原到版本 {{version}}",
+    "selectHint": "选择一个版本以查看其更改。",
+    "selectVersion": "选择版本",
+    "timeUnavailable": "时间不可用",
+    "title": "版本",
+    "versionLoadFailed": "无法加载此版本。"
+  }
+}

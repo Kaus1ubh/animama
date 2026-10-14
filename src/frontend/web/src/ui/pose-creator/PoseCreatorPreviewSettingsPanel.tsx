@@ -1,6 +1,7 @@
 "use client";
 
 import { MoreHorizontalIcon, RefreshCwIcon } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import {
   isPoseCreatorBasePose,
@@ -18,6 +19,7 @@ import {
 import { applyPoseCreatorBasePose } from "./poseCreatorAuthoring";
 import { confirmPoseCreatorDirtyReplacement } from "./poseCreatorDirtyGuard";
 import { PoseCreatorHelpersToggle } from "./PoseCreatorHelpersToggle";
+import { basePoseLabel } from "./poseLabels";
 import { usePoseCreatorPreview } from "./PoseCreatorPreviewProvider";
 
 /** Floating preview configuration moved out of the document toolbar. */
@@ -26,6 +28,7 @@ export function PoseCreatorPreviewSettingsPanel({
 }: {
   variant?: "workspace" | "mobile";
 }) {
+  const { t } = useTranslation("pose");
   const selectedSource = usePoseCreatorStore((state) => state.selectedSource);
   const basePose = usePoseCreatorStore((state) => state.basePose);
   const activeAvatar = usePoseCreatorStore((state) => state.activeAvatar);
@@ -65,9 +68,9 @@ export function PoseCreatorPreviewSettingsPanel({
     >
       {variant === "mobile" ? (
         <div>
-          <h2 className="text-sm font-semibold">Preview</h2>
+          <h2 className="text-sm font-semibold">{t("preview.title")}</h2>
           <p className="text-muted-foreground mt-0.5 text-xs">
-            Choose the avatar, base pose, and canvas helpers.
+            {t("preview.description")}
           </p>
         </div>
       ) : null}
@@ -79,7 +82,7 @@ export function PoseCreatorPreviewSettingsPanel({
         }
       >
         <span className="text-muted-foreground shrink-0 text-xs font-medium">
-          Model
+          {t("preview.model")}
         </span>
         <Select
           value={selectedSource?.key ?? ""}
@@ -96,11 +99,13 @@ export function PoseCreatorPreviewSettingsPanel({
                 ? "h-11 w-full"
                 : "h-10 w-[112px] border-0 bg-transparent px-2 text-sm font-medium shadow-none focus-visible:ring-0 xl:w-[155px] 2xl:w-[220px] dark:bg-transparent"
             }
-            aria-label="Avatar"
+            aria-label={t("preview.avatar")}
           >
             <SelectValue
               placeholder={
-                isModelCatalogPending ? "Loading models…" : "Select model"
+                isModelCatalogPending
+                  ? t("preview.loadingModels")
+                  : t("preview.selectModel")
               }
             />
           </SelectTrigger>
@@ -131,7 +136,7 @@ export function PoseCreatorPreviewSettingsPanel({
         }
       >
         <span className="text-muted-foreground shrink-0 text-xs font-medium">
-          Base
+          {t("preview.base")}
         </span>
         <Select value={basePose} onValueChange={handleBasePoseChange}>
           <SelectTrigger
@@ -140,14 +145,14 @@ export function PoseCreatorPreviewSettingsPanel({
                 ? "h-11 w-full"
                 : "h-10 w-[88px] border-0 bg-transparent px-2 text-sm font-medium shadow-none focus-visible:ring-0 xl:w-[120px] 2xl:w-[170px] dark:bg-transparent"
             }
-            aria-label="Pose base"
+            aria-label={t("preview.baseLabel")}
           >
-            <SelectValue placeholder="Select pose base" />
+            <SelectValue placeholder={t("preview.selectBase")} />
           </SelectTrigger>
           <SelectContent>
             {POSE_CREATOR_BASE_POSE_OPTIONS.map((option) => (
               <SelectItem key={option.id} value={option.id}>
-                {option.label}
+                {basePoseLabel(t, option)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -157,9 +162,9 @@ export function PoseCreatorPreviewSettingsPanel({
       {variant === "mobile" ? (
         <div className="border-border/70 flex min-h-14 items-center justify-between rounded-xl border px-3">
           <div>
-            <p className="text-sm font-medium">Bone helpers</p>
+            <p className="text-sm font-medium">{t("preview.boneHelpers")}</p>
             <p className="text-muted-foreground text-xs">
-              Show selectable joints and rotation gizmos.
+              {t("preview.boneHelpersDescription")}
             </p>
           </div>
           <PoseCreatorHelpersToggle
@@ -175,7 +180,7 @@ export function PoseCreatorPreviewSettingsPanel({
           variant="ghost"
           size="icon-sm"
           onClick={() => void retryModels()}
-          aria-label="Retry loading models"
+          aria-label={t("preview.retryModels")}
         >
           <RefreshCwIcon className="size-4" />
         </Button>
@@ -187,7 +192,7 @@ export function PoseCreatorPreviewSettingsPanel({
           size="icon-sm"
           disabled={isLoadingMoreModels}
           onClick={() => void loadMoreModels()}
-          aria-label="Load more models"
+          aria-label={t("preview.loadMoreModels")}
         >
           <MoreHorizontalIcon className="size-4" />
         </Button>
