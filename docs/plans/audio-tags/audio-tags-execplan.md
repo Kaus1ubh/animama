@@ -239,8 +239,8 @@ Boundaries:
 The work was paused twice by the owner on 2026-10-14 and resumed each time.
 Current state:
 
-- Phases 1–4 are committed.
-- Phase 5 has been reviewed.
+- Phases 1–5 are committed.
+- The final integration review has passed (see "Final integration review").
 - The `tags` stack is kept for G2.
 - The disposable e2e stack has been removed.
 
@@ -1234,8 +1234,12 @@ the final integration review still covers it.
   !last.isPending)`.
 - **New lifecycle test:** a memory cue during a reply that shows no bubble does
   not break the chat. It records no page errors and the turn finalises.
-- **Red check:** without the guard the test fails (0 passed, 1 failed); with it,
-  it passes.
+- **Red check, corrected after FI-R1-F1:**
+  - The first version of the test sent the cue and the completion together.
+    It could pass without the guard, depending on timing.
+  - The rewritten test keeps the run open for 1 s after the cue, then
+    completes.
+  - It fails 3/3 without the guard and passes 3/3 with it.
 - **Verification:**
   - product-ui tests: 44 passed;
   - `pnpm --dir src/frontend check`, `packages:check` and `web:lint`: pass;
@@ -1388,7 +1392,7 @@ on), or any stack built from this branch.
    - `I just won the lottery!` The reply starts in an excited delivery, from
      the automatic tone tag.
    - Reload the chat. No bubble shows a tag.
-3. **Gemini.** Choose Gemini and repeat the first two lines of step 2.
+3. **Gemini.** Choose Gemini and repeat the first three lines of step 2.
    Extras such as `[excited]` and `[door knocks]` are silently dropped.
 4. **Browser speech** (web only) **or Pocket TTS.** Repeat the first line. No
    tag is spoken.
@@ -1457,10 +1461,92 @@ folded into the final integration review.
 
 ## Final integration review
 
-Scope: the whole branch against the spec's acceptance criteria. Still-valid phase
-evidence is reused. One full review, with at most two repair rounds.
+Scope: the whole plan at `545d16fa`, against baseline `19919ded`. It included
+targeted rechecks of the Phase 5 revisions and of P4-R3-F1.
 
-Pending.
+### Final Integration Review #1 Findings
+
+Reviewer: `sdlc-reviewer`. Result: **blocked**, on one finding in a test and
+its record. All agent-checkable acceptance criteria are met.
+
+- **FI-R1-F1 (required).** The P4-R3-F1 lifecycle test sent the cue and the
+  completion together, so it could pass without the guard; the recorded red
+  check did not reproduce. The guard itself is correct and present in the build.
+- **FI-R1-F2 (optional).** Full-width punctuation kept a space after a removed
+  tag (`すごい[laughs]！` became `すごい ！`).
+- **FI-R1-F3 (optional docs).** `data-layer.md` should list the `/audio-tags`
+  entry, and `prompts/README.md` should name `speech_tags.py`.
+- **FI-R1-F4 (plan nits):**
+  - G2 step 3's line count;
+  - "Resume here";
+  - the final frontend results.
+- **FI-R1-F5 (nit).** `chat.md` item 4 said "as written apart from emoji".
+- **FI-R1-N1 (record).** A reply that is only tags, with a display that copies
+  it, has no bubble, so a memory cue has nowhere to show. It needs two broken
+  prompt rules.
+- **FI-R1-N2 (nit).** An unused memo dependency.
+- **Rechecks confirmed:**
+  - the Phase 5 doc revisions;
+  - the tone tag end to end;
+  - one grammar in both halves (a 4,000-reply differential found 0
+    mismatches);
+  - versioning;
+  - the inventory;
+  - the hosted documentation.
+
+### Final Integration Review #1 Revisions
+
+- **FI-R1-F1: accepted.** The test now keeps the run open after the cue. It
+  fails 3/3 without the guard and passes 3/3 with it. The P4-R3-F1 record is
+  corrected.
+- **FI-R1-F2: accepted.** Both halves now close a space before `。、！？，；：`.
+  A shared case was added (`すごい[laughs]！[applause]。`).
+- **FI-R1-F3: accepted.**
+- **FI-R1-F4: accepted.**
+- **FI-R1-F5: accepted.**
+- **FI-R1-N1: recorded** as a known limitation.
+- **FI-R1-N2: accepted.** The dependency is removed.
+
+Verification after the repairs:
+
+- **Backend:** `tests/test_audio_tags.py` 132 passed; `ruff check` and
+  `ruff format --check` clean.
+- **Frontend:**
+  - `packages:build`, then vitest (`tests/speech`, `src/lib/lipsync`,
+    `src/lib/speech`, `src/lib/chat`, playback, debug): 61 files, 756 tests
+    passed;
+  - product-ui tests: 44 passed;
+  - `web:lint`, `packages:check` and `pnpm --dir src/frontend check`: pass.
+- **Lip-sync:** eval quality identical to the Phase 1 baseline.
+
+Final frontend validation on `545d16fa`, before these repairs:
+
+- `pnpm --dir src/frontend web:test`: 523 vitest files (4,830 passed, 1
+  skipped) and 221 node and browser-script tests;
+- `packages:test` (55), `build`, `check` and `web:lint`: pass.
+
+Repair budget: round #1 used; one round remains. **Final Integration Review #2**
+is a targeted recheck of these repairs.
+
+### Final Integration Review #2 Findings
+
+Reviewer: `sdlc-reviewer`, a targeted recheck of the repaired tree. Result:
+**pass**, with no blocking findings.
+
+- **FI-R1-F1:** the test now fails 3/3 without the guard and passes 3/3 with it
+  (an independent scratch red check).
+- **F2–F5 and N2:** confirmed.
+- **Checks:**
+  - a Python/TypeScript differential with full-width punctuation: 0
+    mismatches over 4,000 replies;
+  - targeted backend tests: 247 passed;
+  - vitest: 51 files, 697 passed;
+  - product-ui: 44 passed.
+- **Note:** the full `web:test`, `build` and `e2e:test:fast` results come from
+  `545d16fa`. The PR names the repair commit as the validated revision and
+  records what was rerun on it.
+
+One repair round remains, unused. The final integration review is complete.
 
 ## Validation and acceptance
 

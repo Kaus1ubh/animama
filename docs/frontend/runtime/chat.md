@@ -387,7 +387,8 @@ The streaming behavior is:
 3. Normal `user.response` text without `response_part` keeps the older text
    streaming path and can still queue TTS incrementally.
 4. Structured speech deltas are routed into the existing TTS pipeline as they
-   arrive, as written apart from emoji, which no voice receives.
+   arrive, as written apart from emoji, which no voice receives, and with
+   each voice's own audio tag spelling (item 7).
    `part_final=true` and `run.completed` close the TTS run without re-appending
    accumulated speech; empty final markers and visible corrections after
    streamed TTS are not spoken again. Lip-sync plans from the text the voice

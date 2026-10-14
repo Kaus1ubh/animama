@@ -311,7 +311,7 @@ function asksForAccent(content: string): boolean {
 function tidy(text: string): string {
   return text
     .replace(/[ \t]{2,}/g, " ")
-    .replace(/ +([,.!?;:])/g, "$1")
+    .replace(/ +([,.!?;:。、！？，；：])/g, "$1")
     .trim();
 }
 

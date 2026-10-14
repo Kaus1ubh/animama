@@ -170,7 +170,7 @@ _NOT_LETTER = regex.compile(r"[^\p{L}]+")
 _OPEN_TAG_CONTENT = regex.compile(r"(?:\p{L}[\p{L} ,.!?'’-]{0,63})?")
 _STRAY_BRACKET = re.compile(r"[\[\]<>]")
 _SPACE_RUN = re.compile(r"[ \t]{2,}")
-_SPACE_BEFORE_PUNCTUATION = re.compile(r" +([,.!?;:])")
+_SPACE_BEFORE_PUNCTUATION = re.compile(r" +([,.!?;:。、！？，；：])")
 # JavaScript's String.prototype.trim() set, so both halves trim the same characters.
 _TRIMMED = "\t\n\v\f\r \u00a0\u1680" + "".join(map(chr, range(0x2000, 0x200B))) + "\u2028\u2029\u202f\u205f\u3000\ufeff"
 _NEUTRAL_BY_ALIAS = {alias: tag for tag in NEUTRAL_AUDIO_TAGS for alias in tag.aliases}

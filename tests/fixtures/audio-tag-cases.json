@@ -610,6 +610,21 @@
         "(aside) Hi",
         "](x) Hi"
       ]
+    },
+    {
+      "id": "full-width punctuation closes up after a removed tag",
+      "chunks": [
+        "すごい[laughs]！[applause]。"
+      ],
+      "gemini": [
+        "すごい<laugh>！。"
+      ],
+      "elevenlabs": [
+        "すごい[laughs]！[applause]。"
+      ],
+      "stripped": [
+        "すごい！。"
+      ]
     }
   ],
   "openTags": [

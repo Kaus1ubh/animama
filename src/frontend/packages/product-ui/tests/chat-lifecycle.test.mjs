@@ -721,26 +721,41 @@ test("a memory cue during a reply that shows no bubble does not break the chat",
   const { page, runId } = await speechTurn(t);
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  await streamSpeechTurn(page, runId, [
-    {
-      text: "[laughs]",
-      response_part: "speech",
-      is_delta: true,
-      part_index: 0,
-    },
-    {
-      text: "[laughs]",
-      response_part: "display",
-      is_delta: true,
-      part_index: 0,
-    },
-    {
-      type: "memory.updated",
-      message_id: 1,
-      memory_cue: { episode: { text: "Laughed together" }, memories: null },
-    },
-    { chat_id: "chat-fixture" },
-  ]);
+  // The cue renders while the run is still open; completion comes later.
+  await page.evaluate(
+    (run_id) =>
+      window.fixture.send(0, [
+        {
+          text: "[laughs]",
+          response_part: "speech",
+          is_delta: true,
+          part_index: 0,
+          run_id,
+        },
+        {
+          text: "[laughs]",
+          response_part: "display",
+          is_delta: true,
+          part_index: 0,
+          run_id,
+        },
+        {
+          type: "memory.updated",
+          run_id,
+          message_id: 1,
+          memory_cue: { episode: { text: "Laughed together" }, memories: null },
+        },
+      ]),
+    runId,
+  );
+  await page.waitForTimeout(1000);
+  assert.deepEqual(errors, []);
+  assert.equal(await page.textContent("#streaming"), "true");
+  await page.evaluate(
+    (run_id) => window.fixture.send(0, [{ chat_id: "chat-fixture", run_id }]),
+    runId,
+  );
+  await sessionIdle(page);
   assert.deepEqual(errors, []);
   assert.equal(await page.textContent("#finalizing"), "false");
   assert.equal(await page.getByText("[laughs]").count(), 0);

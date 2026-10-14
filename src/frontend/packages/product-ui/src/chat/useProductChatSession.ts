@@ -711,7 +711,6 @@ export function useProductChatSession({
     streamingRunId,
     streamingDisplayText,
     streamingMemoryCue,
-    streamingSegments,
     streamingStatus,
     streamingText,
     visibleStreamingSegments,
