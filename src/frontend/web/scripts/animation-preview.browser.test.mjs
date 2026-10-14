@@ -9,7 +9,7 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { test } from "node:test";
+import { after, afterEach, before, test } from "node:test";
 import { chromium } from "playwright";
 
 import { startPreviewServer } from "./animation-preview.mjs";
@@ -33,6 +33,29 @@ const clip = (headTurn) => ({
   },
 });
 
+// One Chromium serves every test, and each page has its own context and
+// closes after its test. The checks read preview state, never pixels, so
+// pages are as small as the side-by-side layout allows (it stacks below
+// 900 px and hides the Scene cells). At the default 1280×720, software
+// WebGL spent about a third of each test drawing the two Avatars.
+let browser;
+const pages = [];
+before(async () => {
+  browser = await chromium.launch({
+    headless: true,
+    args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
+  });
+});
+afterEach(() => Promise.all(pages.splice(0).map((page) => page.close())));
+after(() => browser?.close());
+
+/** Open a 960×540 page in its own context; it closes after the test. */
+async function newPage() {
+  const page = await browser.newPage({ viewport: { width: 960, height: 540 } });
+  pages.push(page);
+  return page;
+}
+
 // Real Avatars and WebGL: notes, live reload and the previous version.
 test("previews a clip, saves a review note and reloads a changed source", async () => {
   const dir = await mkdtemp(path.join(tmpdir(), "animama-preview-"));
@@ -43,12 +66,8 @@ test("previews a clip, saves a review note and reloads a changed source", async 
     cwd: dir,
     localContent: null,
   });
-  const browser = await chromium.launch({
-    headless: true,
-    args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
-  });
   try {
-    const page = await browser.newPage();
+    const page = await newPage();
     // Avatar loads and rebuilds under SwiftShader can be slow on two-core CI runners.
     page.setDefaultTimeout(90_000);
     const errors = [];
@@ -112,7 +131,6 @@ test("previews a clip, saves a review note and reloads a changed source", async 
     assert.equal(refused.status, 403);
     assert.deepEqual(errors, []);
   } finally {
-    await browser.close();
     await preview.close();
     await rm(dir, { recursive: true, force: true });
   }
@@ -153,12 +171,8 @@ test("previews an animaPoseClip/2.0 clip", async () => {
     cwd: dir,
     localContent: null,
   });
-  const browser = await chromium.launch({
-    headless: true,
-    args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
-  });
   try {
-    const page = await browser.newPage();
+    const page = await newPage();
     // Avatar loads and rebuilds under SwiftShader can be slow on two-core CI runners.
     page.setDefaultTimeout(90_000);
     const errors = [];
@@ -207,7 +221,6 @@ test("previews an animaPoseClip/2.0 clip", async () => {
     );
     assert.deepEqual(errors, []);
   } finally {
-    await browser.close();
     await preview.close();
     await rm(dir, { recursive: true, force: true });
   }
@@ -224,12 +237,8 @@ test("picks another source and a comparison in the page", async () => {
     cwd: dir,
     localContent: null,
   });
-  const browser = await chromium.launch({
-    headless: true,
-    args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
-  });
   try {
-    const page = await browser.newPage();
+    const page = await newPage();
     // Avatar loads and rebuilds under SwiftShader can be slow on two-core CI runners.
     page.setDefaultTimeout(90_000);
     const errors = [];
@@ -296,7 +305,6 @@ test("picks another source and a comparison in the page", async () => {
     );
     assert.deepEqual(errors, []);
   } finally {
-    await browser.close();
     await preview.close();
     await rm(dir, { recursive: true, force: true });
   }
@@ -353,12 +361,8 @@ test("previews an effect source and reloads it when its image changes", async ()
     cwd: dir,
     localContent: null,
   });
-  const browser = await chromium.launch({
-    headless: true,
-    args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
-  });
   try {
-    const page = await browser.newPage();
+    const page = await newPage();
     // Avatar loads and rebuilds under SwiftShader can be slow on two-core CI runners.
     page.setDefaultTimeout(90_000);
     const errors = [];
@@ -436,7 +440,6 @@ test("previews an effect source and reloads it when its image changes", async ()
     await waitForActiveEffect(page, "Eye Confused Swirl");
     assert.deepEqual(errors, []);
   } finally {
-    await browser.close();
     await preview.close();
     await rm(dir, { recursive: true, force: true });
   }
@@ -450,12 +453,8 @@ test("plays a Library Reaction with its Avatar and Particle Effects", async () =
     cwd: dir,
     localContent: null,
   });
-  const browser = await chromium.launch({
-    headless: true,
-    args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
-  });
   try {
-    const page = await browser.newPage();
+    const page = await newPage();
     // Avatar loads and rebuilds under SwiftShader can be slow on two-core CI runners.
     page.setDefaultTimeout(90_000);
     const errors = [];
@@ -490,7 +489,6 @@ test("plays a Library Reaction with its Avatar and Particle Effects", async () =
     assert.ok(state.effects.every(({ warnings }) => warnings.length === 0));
     assert.deepEqual(errors, []);
   } finally {
-    await browser.close();
     await preview.close();
     await rm(dir, { recursive: true, force: true });
   }
@@ -510,12 +508,8 @@ test("applies a timed effect source, removes it and loops", async () => {
     localContent: null,
     duration: 1,
   });
-  const browser = await chromium.launch({
-    headless: true,
-    args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
-  });
   try {
-    const page = await browser.newPage();
+    const page = await newPage();
     // Avatar loads and rebuilds under SwiftShader can be slow on two-core CI runners.
     page.setDefaultTimeout(90_000);
     const errors = [];
@@ -549,15 +543,14 @@ test("applies a timed effect source, removes it and loops", async () => {
     await waitForActiveEffect(page, "Eye Confused Swirl");
     assert.deepEqual(errors, []);
   } finally {
-    await browser.close();
     await preview.close();
     await rm(dir, { recursive: true, force: true });
   }
 });
 
 /** Open the preview page and wait until it plays. */
-async function openPreview(browser, preview) {
-  const page = await browser.newPage();
+async function openPreview(preview) {
+  const page = await newPage();
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto(preview.url);
@@ -592,12 +585,8 @@ test("previews Particle and Scene Effect sources", async () => {
     cwd: dir,
     localContent: null,
   });
-  const browser = await chromium.launch({
-    headless: true,
-    args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
-  });
   try {
-    const { page, errors } = await openPreview(browser, preview);
+    const { page, errors } = await openPreview(preview);
     assert.equal(
       preview.session.state().rows[0].effect.kind,
       "particle_effect",
@@ -658,7 +647,6 @@ test("previews Particle and Scene Effect sources", async () => {
     assert.deepEqual(state.notices, []);
     assert.deepEqual(errors, []);
   } finally {
-    await browser.close();
     await preview.close();
     await rm(dir, { recursive: true, force: true });
   }
@@ -673,12 +661,8 @@ test("plays a Library Reaction with its Avatar, Particle and Scene Effects", asy
     cwd: dir,
     localContent: null,
   });
-  const browser = await chromium.launch({
-    headless: true,
-    args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
-  });
   try {
-    const { page, errors } = await openPreview(browser, preview);
+    const { page, errors } = await openPreview(preview);
     const media = preview.session.state().rows[0].media;
     assert.deepEqual(
       media.sceneEffects.map(({ alias }) => alias),
@@ -701,7 +685,6 @@ test("plays a Library Reaction with its Avatar, Particle and Scene Effects", asy
     assert.ok(state.effects.every(({ warnings }) => warnings.length === 0));
     assert.deepEqual(errors, []);
   } finally {
-    await browser.close();
     await preview.close();
     await rm(dir, { recursive: true, force: true });
   }
@@ -750,10 +733,6 @@ test("stacks a front Scene above the Avatar and reports a Scene of the wrong kin
       ],
     }),
   );
-  const browser = await chromium.launch({
-    headless: true,
-    args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
-  });
   /** Preview `source` in a fresh server and page, then close both. */
   const withPreview = async (source, check) => {
     const preview = await startPreviewServer({
@@ -762,7 +741,7 @@ test("stacks a front Scene above the Avatar and reports a Scene of the wrong kin
       localContent: null,
     });
     try {
-      const { page, errors } = await openPreview(browser, preview);
+      const { page, errors } = await openPreview(preview);
       await check(page);
       assert.deepEqual(errors, []);
     } finally {
@@ -790,7 +769,6 @@ test("stacks a front Scene above the Avatar and reports a Scene of the wrong kin
       ),
     );
   } finally {
-    await browser.close();
     await rm(dir, { recursive: true, force: true });
   }
 });
