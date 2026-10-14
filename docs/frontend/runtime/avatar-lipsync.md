@@ -65,8 +65,8 @@ kana and Hangul characters, pauses, and tags. It aligns them to the audio's
 loudness, voicing and pitch, then renders 60 FPS `A/E/I/O/U` weights whose
 opening follows the loudness. The rendered frames are smoothed over about
 35 ms without delay, since they are planned ahead of playback, so loudness dips
-and lip closures do not make the mouth jump; silent frames stay shut and the
-mouth eases into them (`smoothFrames`). Han characters read as Japanese when the
+do not make the mouth jump; silent frames and the centre of each lip closure
+stay shut, and the mouth eases into them (`smoothFrames`). Han characters read as Japanese when the
 reply's text has kana anywhere, even in a Gemini part not spoken yet, and as
 Chinese otherwise. The worker loads the English pronunciation dictionary before
 its first plan, and the Chinese readings (a separate chunk of about 140 KB
