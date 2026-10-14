@@ -263,11 +263,10 @@ function ManagementPanel({
                   onClick={() => onTabChange("emotions")}
                   aria-label={`Open Emotions tab. ${emotion.feeling.label}`}
                   className="focus-visible:ring-ring/50 ml-auto flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full transition-opacity outline-none hover:opacity-80 focus-visible:ring-[3px]"
-                  style={{ backgroundColor: `${emotion.color}14` }}
                 >
                   <EmotionMascot
                     src={emotion.feeling.mascot}
-                    className="size-8"
+                    className="size-10"
                   />
                 </button>
               </TooltipTrigger>

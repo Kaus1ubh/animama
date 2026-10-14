@@ -97,11 +97,10 @@ export function EmotionSummary({
           <span
             aria-hidden="true"
             className="flex size-9 shrink-0 items-center justify-center rounded-full"
-            style={{ backgroundColor: `${presentation.color}1A` }}
           >
             <EmotionMascot
               src={presentation.feeling.mascot}
-              className="size-7"
+              className="size-9"
             />
           </span>
           {presentation.feeling.label}
