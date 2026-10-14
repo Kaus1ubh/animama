@@ -62,9 +62,13 @@ const parakeetModels = {
     webgpuBaseUrl: localParakeetWebgpuModelBaseUrl,
   },
 } as const;
-// The GPU set's reviewed attribution is bundled for the settings panel.
-const parakeetWebgpuNoticesRoot = fileURLToPath(
-  new URL("../../../models/parakeet-tdt-0.6b-v2-webgpu", import.meta.url),
+// Reviewed model attributions bundled for the speech and voice-cloning
+// settings. Allow only these notice folders, never the whole models directory.
+const modelNoticeRoots = [
+  "parakeet-tdt-0.6b-v2-webgpu",
+  "pocket-tts-voice-cloning",
+].map((folder) =>
+  fileURLToPath(new URL(`../../../models/${folder}`, import.meta.url)),
 );
 // The self-hosted typeface resolves into the workspace package store, outside
 // the web root; allow only its package directory so dev can serve the files.
@@ -281,7 +285,7 @@ export default defineConfig(({ mode, command, isPreview }) => {
           webRoot,
           publicPackagesRoot,
           safetyDocsRoot,
-          parakeetWebgpuNoticesRoot,
+          ...modelNoticeRoots,
           // The built-in pose catalog bundles Included Gesture/Reaction clips.
           includedContentRoot,
           fontPackageRoot,
