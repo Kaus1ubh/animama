@@ -19,83 +19,90 @@
     "attachment": {
       "kind": "body",
       "bone": "head",
+      "facing": "camera",
       "offset": {
         "x": -0.188,
         "y": -0.019,
         "z": 0.141
       },
-      "size": 0.08,
-      "facing": "camera"
+      "size": 0.08
     },
     "art": {
-      "image": "paw_prints_mirrored.png"
+      "image": "paw_prints_mirrored_flipbook.png",
+      "flipbook": {
+        "columns": 2,
+        "fps": 6,
+        "frames": 4,
+        "loop": "once",
+        "rows": 2
+      }
     },
     "motion": {
       "keyframes": {
         "frames": [
           {
-            "t": 0,
-            "opacity": 0,
-            "scale": 0.3,
-            "rotationDeg": 0,
             "offset": {
               "x": 0,
               "y": 0
-            }
+            },
+            "opacity": 0,
+            "rotationDeg": 0,
+            "scale": 0.3,
+            "t": 0
           },
           {
-            "t": 0.1,
             "opacity": 1,
-            "scale": 1.18
+            "scale": 1.18,
+            "t": 0.1
           },
           {
-            "t": 0.18,
-            "scale": 1
-          },
-          {
-            "t": 0.326,
             "scale": 1,
-            "rotationDeg": 0
+            "t": 0.18
           },
           {
-            "t": 0.396,
+            "rotationDeg": 0,
+            "scale": 1,
+            "t": 0.326
+          },
+          {
+            "rotationDeg": 6,
             "scale": 1.12,
-            "rotationDeg": 6
+            "t": 0.396
           },
           {
-            "t": 0.506,
+            "rotationDeg": 0,
             "scale": 1,
-            "rotationDeg": 0
+            "t": 0.506
           },
           {
-            "t": 0.656,
+            "rotationDeg": 0,
             "scale": 1,
-            "rotationDeg": 0
+            "t": 0.656
           },
           {
-            "t": 0.726,
+            "rotationDeg": 6,
             "scale": 1.1,
-            "rotationDeg": 6
+            "t": 0.726
           },
           {
-            "t": 0.836,
+            "rotationDeg": 0,
             "scale": 1,
-            "rotationDeg": 0
+            "t": 0.836
           },
           {
-            "t": 0.986,
+            "rotationDeg": 0,
             "scale": 1,
-            "rotationDeg": 0
+            "t": 0.986
           },
           {
-            "t": 1.056,
+            "rotationDeg": 6,
             "scale": 1.12,
-            "rotationDeg": 6
+            "t": 1.056
           },
           {
-            "t": 1.166,
+            "rotationDeg": 0,
             "scale": 1,
-            "rotationDeg": 0
+            "t": 1.166
           }
         ]
       }
@@ -104,7 +111,7 @@
   },
   "files": [
     {
-      "path": "paw_prints_mirrored.png",
+      "path": "paw_prints_mirrored_flipbook.png",
       "role": "image"
     }
   ]

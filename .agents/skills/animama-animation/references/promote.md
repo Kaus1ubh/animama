@@ -95,7 +95,11 @@ them:
 
 Every event's `effectId`, `presetId` or `cueId` must name a declared `alias`
 of the matching type, and every `ref` must already be Included content of
-that `content_type`. A new effect is promoted first, with the
+that `content_type`. Prefer an Included effect placed through the event's
+`override` ([clip format](clip-format.md#avatar-effect-events)) to a new
+variant effect: two events may play one dependency, such as the same ticks
+on each hand. Promote a new effect only for new art or a new attachment
+kind. A new effect is promoted first, with the
 `animama-avatar-vfx` skill's `pnpm -s effects promote` (`mode: "add"`); then
 promote the Gesture with the effect's `builtin:` ID as `ref`. The draft
 project's `local:` refs are not accepted. A replace keeps the Included
@@ -170,8 +174,13 @@ no change and are refused).
    `uv run --no-sync python src/backend/packaging/shared_catalogs.py --write`
    from the repository root for the backend copy) and tests or journeys that
    find it by name.
-   Ship new items in desktop core: add each content ID to `CORE_LIBRARY_ROOTS`
-   in `src/backend/animama/runtime/starter_content.py` and its folder (plus the
+   A new non-idle Gesture is a starter: with the owner's approval, add it to
+   `src/backend/animama/resources/starter-loadout.v1.json` and
+   `EXPECTED_STARTER_GESTURE_IDS` in `tests/anima_creation_service_support.py`
+   (`tests/test_anima_starters.py` requires every non-idle Gesture there).
+   Ship other new items (Idle Style Gestures and effects no starter uses) in
+   desktop core: add each content ID to `CORE_LIBRARY_ROOTS` in
+   `src/backend/animama/runtime/starter_content.py` and its folder (plus the
    entry/file counts) to `CORE_LIBRARY_LOCATORS` in
    `tests/test_starter_content_closure.py`; that test fails while any valid
    Included item is left out of core.

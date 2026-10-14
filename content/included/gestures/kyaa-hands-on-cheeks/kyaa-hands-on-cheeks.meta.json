@@ -18,8 +18,8 @@
       "config": {}
     },
     {
-      "ref": "builtin:avatar-effect:hearts_burst_kyaa",
-      "alias": "hearts_burst_kyaa",
+      "ref": "builtin:avatar-effect:hearts_burst",
+      "alias": "hearts_burst",
       "content_type": "avatar_effect",
       "config": {}
     }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 
 import type { Avatar } from "@/lib/avatar";
@@ -11,6 +11,7 @@ import { DEFAULT_AVATAR_TRANSFORM } from "@/ui/main/canvas/transform-state";
 import { SceneVFXLifecycleBridge } from "@/ui/main/scene-vfx/SceneVFXLifecycleBridge";
 import { SceneVFXOverlayHost } from "@/ui/main/scene-vfx/SceneVFXOverlayHost";
 import { SceneVFXUnderlayHost } from "@/ui/main/scene-vfx/SceneVFXUnderlayHost";
+import { usePoseCreatorEffectHandles } from "@/ui/pose-creator/PoseCreatorEffectHandles";
 import { ActionEditorAvatarActor } from "./ActionEditorPrimitives";
 import type { ActionEditorCapabilities } from "./actionEditorCapabilities";
 import { useActionEditorPreview } from "./ActionEditorPreviewProvider";
@@ -22,6 +23,10 @@ export function ActionEditorScene({
   capabilities: ActionEditorCapabilities;
 }) {
   const { t } = useTranslation("actionEditor");
+  const { t: tEffects } = useTranslation("effects");
+  const stageRef = useRef<HTMLDivElement>(null);
+  // The selected Avatar Effect event's art gets the effect creator's handles.
+  const effectHandles = usePoseCreatorEffectHandles(stageRef);
   const activeAvatar = usePoseCreatorStore((state) => state.activeAvatar);
   const loadStatus = usePoseCreatorStore((state) => state.loadStatus);
   const loadError = usePoseCreatorStore((state) => state.loadError);
@@ -55,7 +60,18 @@ export function ActionEditorScene({
   );
 
   return (
-    <div className="relative size-full overflow-hidden">
+    <div
+      ref={stageRef}
+      className="focus-visible:ring-ring/50 relative size-full overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-inset"
+      {...(effectHandles.enabled
+        ? {
+            tabIndex: 0,
+            role: "group",
+            "aria-label": tEffects("avatar.stage.label"),
+            onKeyDown: effectHandles.onKeyDown,
+          }
+        : {})}
+    >
       <SceneVFXLifecycleBridge />
       <AvatarPreviewSurface
         activeAvatar={activeAvatar}
@@ -72,7 +88,12 @@ export function ActionEditorScene({
             backgroundScope="viewport"
           />
         }
-        overlay={<SceneVFXOverlayHost className="z-20" />}
+        overlay={
+          <>
+            <SceneVFXOverlayHost className="z-20" />
+            {effectHandles.overlay}
+          </>
+        }
       >
         {preview.modelEntry ? (
           <group
@@ -91,6 +112,7 @@ export function ActionEditorScene({
             />
           </group>
         ) : null}
+        {effectHandles.renderer}
       </AvatarPreviewSurface>
       {!activeAvatar ? (
         <div className="pointer-events-none absolute inset-0 z-40 grid place-items-center p-6">

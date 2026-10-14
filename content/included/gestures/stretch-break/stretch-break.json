@@ -1773,7 +1773,7 @@
       "id": "exhale-puff",
       "time": 3.52,
       "kind": "avatar_vfx",
-      "effectId": "sigh_puff",
+      "effectId": "puff",
       "duration": 1,
       "envelope": {
         "intensity": {

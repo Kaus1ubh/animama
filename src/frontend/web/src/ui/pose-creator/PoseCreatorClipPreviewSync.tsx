@@ -41,6 +41,7 @@ import {
 } from "./poseCreatorClipPreview";
 import {
   activeVFXEventsBeforePlaybackStart,
+  poseCreatorClipAppliedId,
   poseCreatorScrubVFXSignature,
   samplePoseCreatorScrubVFXEvents,
 } from "./poseCreatorClipEventPlayback";
@@ -525,7 +526,7 @@ function dispatchPoseCreatorClipDueEvent({
   const context: AnimaPoseClipEventContext = {
     clipId: clip.id,
     eventId: event.id,
-    appliedId: getPoseCreatorClipAppliedId(
+    appliedId: poseCreatorClipAppliedId(
       mode,
       clip.id,
       event.id,
@@ -607,7 +608,7 @@ function applyPoseCreatorClipActiveVFXEvent({
   const context: AnimaPoseClipEventContext = {
     clipId: clip.id,
     eventId: event.id,
-    appliedId: getPoseCreatorClipAppliedId(
+    appliedId: poseCreatorClipAppliedId(
       mode,
       clip.id,
       event.id,
@@ -682,7 +683,8 @@ function applyPoseCreatorClipVFXEvent({
     const session = runtimeState.session;
     let soundCueId: string | undefined;
     void (async () => {
-      const effect = (await catalog?.loadAvatarVFX(event.effectId)) ?? null;
+      const effect =
+        (await catalog?.loadAvatarVFX(event.effectId, event.override)) ?? null;
       soundCueId = effect?.sound?.onApply;
       return applyAvatarVFXEffectById({
         avatar: activeAvatar,
@@ -935,15 +937,6 @@ function isPoseCreatorOwnedSceneVFXEntry(
   appliedId: string,
 ): boolean {
   return runtimeEntry?.entry.id === appliedId;
-}
-
-function getPoseCreatorClipAppliedId(
-  mode: PoseCreatorClipPreviewMode,
-  clipId: string,
-  eventId: string,
-  occurrenceIndex: number,
-): string {
-  return `poseCreatorClip:${mode}:${clipId}:${eventId}:${occurrenceIndex}`;
 }
 
 function resetEffectPreviewRuntimeState(

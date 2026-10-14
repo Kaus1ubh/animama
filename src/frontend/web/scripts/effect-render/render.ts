@@ -248,7 +248,6 @@ class EffectSession {
       avatar.setAutomaticAnimationPlaybackEnabled(false);
       avatar.prepareFirstFrame();
       const session = new EffectSession(avatar, media, request, stage);
-      session.problems.push(...media.getProblems());
       if (session.playsEvents) {
         session.loads.track(media, ["loadAvatarVFX", "resolveParticleVFX"]);
         if (avatar.vfxController)
@@ -402,6 +401,8 @@ class EffectSession {
       warnings: [
         ...(snapshot?.warnings ?? ["The Avatar has no effect controller."]),
         ...(particles?.warnings ?? []),
+        // Read now: a clip event's override can fail after the media loaded.
+        ...this.media.getProblems(),
         ...this.problems,
       ],
       missingPoseRefs: [...this.missingPoseRefs],

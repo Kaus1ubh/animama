@@ -12,14 +12,8 @@
   },
   "dependencies": [
     {
-      "ref": "builtin:avatar-effect:kira_star_wish",
-      "alias": "kira_star_wish",
-      "content_type": "avatar_effect",
-      "config": {}
-    },
-    {
-      "ref": "builtin:avatar-effect:kira_star_wish_left",
-      "alias": "kira_star_wish_left",
+      "ref": "builtin:avatar-effect:kira_star",
+      "alias": "kira_star",
       "content_type": "avatar_effect",
       "config": {}
     }

@@ -2160,14 +2160,55 @@
       "id": "hearts-soft",
       "time": 3.3,
       "kind": "avatar_vfx",
-      "effectId": "hearts_burst_soft",
+      "effectId": "hearts_burst",
       "duration": 1.8,
       "envelope": {
         "intensity": {
           "fadeOut": 0.4
         }
       },
-      "playAccompanyingSound": false
+      "playAccompanyingSound": false,
+      "override": {
+        "attachment": {
+          "kind": "body",
+          "bone": "head",
+          "offset": {
+            "x": -0.07,
+            "y": 0.25,
+            "z": 0.02
+          },
+          "size": 0.07,
+          "facing": "camera"
+        },
+        "appearance": {
+          "opacity": 0.85
+        },
+        "motion": {
+          "keyframes": {
+            "frames": [
+              {
+                "t": 0,
+                "opacity": 0,
+                "offset": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "t": 0.2,
+                "opacity": 1
+              },
+              {
+                "t": 1.8,
+                "offset": {
+                  "x": 0,
+                  "y": 0.014
+                }
+              }
+            ]
+          }
+        }
+      }
     }
   ]
 }

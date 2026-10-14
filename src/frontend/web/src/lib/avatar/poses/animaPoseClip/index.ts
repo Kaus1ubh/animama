@@ -38,6 +38,7 @@ export type {
 } from "./events";
 export type {
   AnimaPoseClipAvatarVFXEvent,
+  AnimaPoseClipAvatarVFXOverride,
   AnimaPoseClipEasing,
   AnimaPoseClipEvent,
   AnimaPoseClipFade,

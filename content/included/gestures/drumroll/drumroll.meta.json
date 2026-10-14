@@ -18,20 +18,8 @@
       "config": {}
     },
     {
-      "ref": "builtin:avatar-effect:drumroll_ticks_left",
-      "alias": "drumroll_ticks_left",
-      "content_type": "avatar_effect",
-      "config": {}
-    },
-    {
-      "ref": "builtin:avatar-effect:badum_burst",
-      "alias": "badum_burst",
-      "content_type": "avatar_effect",
-      "config": {}
-    },
-    {
-      "ref": "builtin:avatar-effect:badum_burst_left",
-      "alias": "badum_burst_left",
+      "ref": "builtin:avatar-effect:impact_burst",
+      "alias": "impact_burst",
       "content_type": "avatar_effect",
       "config": {}
     }

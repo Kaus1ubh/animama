@@ -12,8 +12,8 @@
   },
   "dependencies": [
     {
-      "ref": "builtin:avatar-effect:kiss_heart_head",
-      "alias": "kiss_heart_head",
+      "ref": "builtin:avatar-effect:heart_pop",
+      "alias": "heart_pop",
       "content_type": "avatar_effect",
       "config": {}
     }

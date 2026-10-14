@@ -26,7 +26,14 @@
       }
     },
     "art": {
-      "image": "angry.png"
+      "image": "angry-sheet.png",
+      "flipbook": {
+        "columns": 3,
+        "fps": 8,
+        "frames": 3,
+        "loop": "loop",
+        "rows": 1
+      }
     },
     "motion": {
       "pulse": {
@@ -61,7 +68,7 @@
   },
   "files": [
     {
-      "path": "angry.png",
+      "path": "angry-sheet.png",
       "role": "image"
     }
   ]

@@ -429,7 +429,7 @@
       "id": "sigh-puff",
       "time": 0.92,
       "kind": "avatar_vfx",
-      "effectId": "sigh_puff",
+      "effectId": "puff",
       "duration": 1.48,
       "envelope": {
         "intensity": {

@@ -6,10 +6,13 @@ import type {
   ParticleVFXCatalogEntry,
   ParticleVFXPreloadTier,
 } from "@/lib/avatar/particle-vfx/types";
+import type { AnimaPoseClipAvatarVFXOverride } from "@/lib/avatar/poses/animaPoseClip";
 import {
   AvatarEffectDefinitionError,
   parseAvatarEffectDefinition,
+  parseAvatarEffectUse,
   validateAvatarEffectDefinition,
+  type AvatarEffectEntryContext,
 } from "@/lib/avatar/vfx/definition";
 import {
   assertAvatarEffectImageWithinLimits,
@@ -71,8 +74,15 @@ export interface AnimaRuntimeMediaProvider {
   ): Promise<ParticleVFXCatalogEntry | null>;
   listAvatarVFX(): readonly AvatarVFXCatalogEntry[];
   resolveAvatarVFX(runtimeId: string): AvatarVFXCatalogEntry | null;
-  /** A deferred-attachment entry is returned so its consumer can report it. */
-  loadAvatarVFX(runtimeId: string): Promise<AvatarVFXParsedEntry | null>;
+  /**
+   * A deferred-attachment entry is returned so its consumer can report it.
+   * With a clip event's `override`, the entry is that one use (ADR 0025);
+   * null when the effect is unavailable or cannot play the override.
+   */
+  loadAvatarVFX(
+    runtimeId: string,
+    override?: AnimaPoseClipAvatarVFXOverride,
+  ): Promise<AvatarVFXParsedEntry | null>;
   listSceneVFX(kind: SceneVFXKind): readonly SceneVFXEntry[];
   resolveSceneVFX(kind: SceneVFXKind, runtimeId: string): SceneVFXEntry | null;
   loadSceneVFX(
@@ -130,6 +140,11 @@ export class AnimaRuntimeMediaCatalog implements AnimaRuntimeMediaProvider {
   private readonly avatarVFXEntries = new Map<string, AvatarVFXParsedEntry>();
   private readonly sceneVFXEntries = new Map<string, SceneVFXEntry>();
   private readonly avatarVFXSources = new Map<string, RuntimeCatalogEntry>();
+  /** Resolved images and sound of each loaded effect, for per-use overrides. */
+  private readonly avatarVFXContexts = new Map<
+    string,
+    AvatarEffectEntryContext
+  >();
   private readonly sceneVFXSources = new Map<string, RuntimeCatalogEntry>();
   private readonly audioEntries = new Map<string, RuntimeCatalogEntry>();
   private readonly audioDescriptors = new Map<string, RuntimeAudioDescriptor>();
@@ -317,7 +332,53 @@ export class AnimaRuntimeMediaCatalog implements AnimaRuntimeMediaProvider {
     return entry && !isAttachmentVFXEntry(entry) ? entry : null;
   }
 
-  loadAvatarVFX(runtimeId: string): Promise<AvatarVFXParsedEntry | null> {
+  loadAvatarVFX(
+    runtimeId: string,
+    override?: AnimaPoseClipAvatarVFXOverride,
+  ): Promise<AvatarVFXParsedEntry | null> {
+    const effect = this.loadEffectAvatarVFX(runtimeId);
+    if (!override) return effect;
+    return effect.then((loaded) =>
+      loaded ? this.avatarVFXUse(runtimeId, override) : null,
+    );
+  }
+
+  /**
+   * One use of a loaded effect with a clip event's override, parsed from the
+   * effect's definition and resolved images and never cached under its id.
+   * An override the effect cannot play skips the use.
+   */
+  private avatarVFXUse(
+    runtimeId: string,
+    override: AnimaPoseClipAvatarVFXOverride,
+  ): AvatarVFXParsedEntry | null {
+    const entry = this.avatarVFXSources.get(runtimeId);
+    const context = this.avatarVFXContexts.get(runtimeId);
+    if (!entry || !context) return null;
+    const references = recordValue(entry.config.runtime_reference_map) ?? {};
+    try {
+      return parseAvatarEffectUse(
+        entry.definition,
+        override,
+        context,
+        (alias) =>
+          Object.hasOwn(references, alias)
+            ? String(references[alias])
+            : undefined,
+      );
+    } catch (error) {
+      logger.warn("Playback", "Avatar VFX override cannot play", {
+        slot: entry.slot,
+        field:
+          error instanceof AvatarEffectDefinitionError ? error.field : null,
+      });
+      return null;
+    }
+  }
+
+  private loadEffectAvatarVFX(
+    runtimeId: string,
+  ): Promise<AvatarVFXParsedEntry | null> {
     if (this.disposed) return Promise.resolve(null);
     const resolved = this.avatarVFXEntries.get(runtimeId);
     if (resolved) return Promise.resolve(resolved);
@@ -671,21 +732,24 @@ export class AnimaRuntimeMediaCatalog implements AnimaRuntimeMediaProvider {
       }
       const soundAlias = definition.soundAlias ?? null;
       const references = recordValue(entry.config.runtime_reference_map) ?? {};
+      const context: AvatarEffectEntryContext = {
+        id: entry.runtime_id,
+        label: entry.display_name,
+        description: entry.description ?? entry.display_name,
+        assetPath: objectUrls[0]!,
+        ...(objectUrls[1] ? { otherEyeAssetPath: objectUrls[1] } : {}),
+        ...(soundAlias
+          ? {
+              sound: {
+                onApply: String(references[soundAlias] ?? soundAlias),
+              },
+            }
+          : {}),
+      };
       try {
-        return parseAvatarEffectDefinition(definition, {
-          id: entry.runtime_id,
-          label: entry.display_name,
-          description: entry.description ?? entry.display_name,
-          assetPath: objectUrls[0]!,
-          ...(objectUrls[1] ? { otherEyeAssetPath: objectUrls[1] } : {}),
-          ...(soundAlias
-            ? {
-                sound: {
-                  onApply: String(references[soundAlias] ?? soundAlias),
-                },
-              }
-            : {}),
-        });
+        const parsed = parseAvatarEffectDefinition(definition, context);
+        this.avatarVFXContexts.set(entry.runtime_id, context);
+        return parsed;
       } catch (error) {
         throw new Error(
           error instanceof AvatarEffectDefinitionError

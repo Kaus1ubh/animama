@@ -12,6 +12,7 @@ from typing import Any, cast
 
 from animama.app.ports.content_store import LocalContentStore
 from animama.app.ports.content_transition import ContentTransitionBindings, IdleTransitionBinding
+from animama.app.services.avatar_effect_merge_transition import AvatarEffectMergeTransitionService
 from animama.app.services.avatar_effect_transition import AvatarEffectTransitionService
 from animama.app.services.clip_format import (
     CLIP_FORMAT_UNSUPPORTED,
@@ -81,6 +82,7 @@ class ContentTransitionService:
             if item.status is ContentStatus.INVALID and item.diagnostics
         ]
         failures.extend(await AvatarEffectTransitionService(content=self._content).convert(user_id=user_id))
+        await AvatarEffectMergeTransitionService(content=self._content).convert(user_id=user_id)
         await MusicRetirementService(content=self._content, bindings=self._bindings).retire(user_id=user_id)
         catalog = self._content.mutations.catalog
         for item, code in failures:

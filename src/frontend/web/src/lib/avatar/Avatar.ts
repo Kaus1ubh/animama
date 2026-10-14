@@ -2574,7 +2574,10 @@ export class Avatar {
     let soundCueId: string | undefined;
     let effect: AvatarVFXParsedEntry | null = null;
     try {
-      effect = await this._mediaCatalog.loadAvatarVFX(event.effectId);
+      effect = await this._mediaCatalog.loadAvatarVFX(
+        event.effectId,
+        event.override,
+      );
       if (
         context.signal?.aborted ||
         this._wasClipOwnedAvatarVFXCancelled(context.appliedId)

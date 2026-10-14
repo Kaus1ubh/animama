@@ -435,6 +435,71 @@ describe("AnimaRuntimeMediaCatalog", () => {
     expect(revokeObjectURL).toHaveBeenCalledWith("blob:avatar-star");
   });
 
+  it("plays one use's override without changing the cached effect", async () => {
+    const image = pngHeader(8, 8);
+    const entry = privateEntry({
+      slot: "avatar_vfx",
+      runtimeId: "private-star",
+      kind: "avatar_vfx",
+      files: [
+        {
+          role: "image",
+          ordinal: 1,
+          filename: "star.webp",
+          contentType: "image/webp",
+          bytes: image.byteLength,
+          url: "/runtime/star-image",
+        },
+      ],
+      logicalResourceUrls: { "star.webp": "/runtime/star-image" },
+      config: { runtime_reference_map: { bell: "bell-cue", tehe: "tehe-cue" } },
+      definition: {
+        schema: "animama/avatar-effect/2",
+        region: "body",
+        attachment: { kind: "body", bone: "head" },
+        art: { image: "star.webp" },
+        soundAlias: "bell",
+      },
+    });
+    const fetcher = vi.fn(async (input: RequestInfo | URL) =>
+      authorizedSource(input)
+        ? new Response(image, {
+            headers: { "content-length": String(image.byteLength) },
+          })
+        : authorizedDownload(String(input)),
+    );
+    const catalog = new AnimaRuntimeMediaCatalog(
+      mediaCatalog({ avatarVfx: [entry] }),
+      {
+        fetcher,
+        createObjectURL: () => "blob:star",
+        revokeObjectURL: vi.fn(),
+      },
+    );
+
+    const used = await catalog.loadAvatarVFX(entry.runtime_id, {
+      attachment: { kind: "body", bone: "leftHand" },
+      soundAlias: "tehe",
+    });
+    expect(used).toMatchObject({
+      bone: "leftHand",
+      assetPath: "blob:star",
+      sound: { onApply: "tehe-cue" },
+    });
+    expect(await catalog.loadAvatarVFX(entry.runtime_id)).toMatchObject({
+      bone: "head",
+      sound: { onApply: "bell-cue" },
+    });
+    // An override the effect cannot play skips the use.
+    await expect(
+      catalog.loadAvatarVFX(entry.runtime_id, {
+        attachment: { kind: "sticker" },
+      }),
+    ).resolves.toBeNull();
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    catalog.dispose();
+  });
+
   it("keeps identical private Avatar image names scoped to their exact catalog entries", async () => {
     const definition = eyeDefinition("shared.webp");
     const effect = (runtimeId: string, url: string) =>

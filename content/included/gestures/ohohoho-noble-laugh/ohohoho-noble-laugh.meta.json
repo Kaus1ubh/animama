@@ -18,8 +18,8 @@
       "config": {}
     },
     {
-      "ref": "builtin:avatar-effect:laugh_sparkle",
-      "alias": "laugh_sparkle",
+      "ref": "builtin:avatar-effect:kira_star",
+      "alias": "kira_star",
       "content_type": "avatar_effect",
       "config": {}
     }

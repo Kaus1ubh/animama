@@ -87,14 +87,17 @@ its record sourced (`source ../../../.animama-stack.env`).
    asked. An effect with a sound is saved by hand.
 7. **Use it** when the brief names a Gesture or Reaction: add the effect in
    the Action creator, set Start/End and fades, preview it there, and check
-   it on a test Anima in chat when timing against speech matters.
+   it on a test Anima in chat when timing against speech matters. When that
+   use needs the effect in another place, look or motion, override it on the
+   event (see the decision rules).
 8. **Hand off** with the brief, the saved item and edit URL, the check
    summary, the render sheets, preview notes and what was not reviewed.
 9. **Promote to Included** (never by default): only when the owner
    explicitly approves each item, on a task branch with a PR. Promote the
-   saved Local item the owner reviewed. A built-in effect plays one licensed
-   sound from the private comedy pack unless the owner wants it silent:
-   propose one and have the owner approve it, or no sound, with the art.
+   saved Local item the owner reviewed. A new built-in effect plays one
+   licensed sound from the private comedy pack unless the owner wants it
+   silent: propose one and have the owner approve it, or no sound, with the
+   art. A replace keeps a merged effect's several sounds.
    See [promote](references/promote.md).
 
 **Several effects at once:** follow [batch](references/batch.md): briefs
@@ -106,6 +109,31 @@ save run.
 Copy the folder to `.animama-drafts/effects/`, edit, check and preview, then
 save a Local effect under the same name. Changing an Included effect is a
 promotion with `"mode": "replace"`.
+
+**Upgrading an effect to a flipbook:**
+
+1. Start from the Library item
+   (`pnpm -s animation:preview library:avatar-effect/<name>` prints its
+   folder; copy it to `.animama-drafts/effects/`) and keep its image as the
+   key frame.
+2. Make the frames with `animama-effect-assets` step 7: `frames --mode
+   boil` or `draw-on` from the key, or frames each edited from the one
+   before when the shape changes. Assemble the sheet with `flipbook` on the
+   key's canvas (`--cell 256`, no `--trim`, so the effect keeps its size,
+   placement and per-use sizes), point `art.image` at it and add the
+   printed `art.flipbook`.
+3. Choose its playback: `loop` or `pingpong` for an effect held through a
+   Reaction, `once` for a beat (its last frame holds until the event ends).
+4. Check and render with `--times` spread across the frames, one in the
+   middle of each (`(k + 0.5) / fps` s for frame `k`), plus a late time for
+   a held effect. `--with-clip library:<gesture>` plays the Gesture's own
+   (Included) effect, not the draft; to see the draft in a Gesture, copy
+   the Gesture's folder, point its dependency at a copy of the draft, and
+   render with `--with-clip <copied folder> --local-content <root>`. Then
+   start the live preview for the owner (step 5).
+5. Save it as Local content (step 6). Replacing the Included effect is a
+   promotion with `"mode": "replace"`, only with the owner's approval
+   (step 9); its Gestures and Reactions pick up the sheet.
 
 ## Decision rules
 
@@ -128,9 +156,21 @@ promotion with `"mode": "replace"`.
   or gloom effect where it adds meaning. Effects only
   idle Gestures play are silent (`"sound": null` when promoted), and idle
   Gestures set `playAccompanyingSound: false` on every effect event.
-- An effect owns its own motion (pulse, spin, drift, keyframes, flipbook);
-  the Gesture or Reaction event owns when it plays and its fades. Keep the
+- An effect owns its art (image and flipbook), region, face options and
+  declared sounds, and its default attachment, look and motion (pulse, spin,
+  drift, keyframes). The Gesture or Reaction event owns when it plays and its
+  fades, and may override the effect's attachment (same kind), appearance and
+  motion for that one use and pick one of its declared sounds. Keep the
   effect's motion short and loop-friendly.
+- Reuse before adding: when a Gesture or Reaction needs an existing Library
+  effect in a different place, look or motion, or with another of its
+  declared sounds, place it through that event's `override` (fields in the
+  `animama-animation` skill's clip format) instead of authoring a variant
+  effect. Create a new effect only for new art or a new attachment kind.
+- Use a flipbook when the shape itself changes (a drop forms, a puff
+  billows, lines shoot out) or should look hand-drawn (line boil); use pulse,
+  spin, drift or keyframes to move, scale, turn or fade the art. Combine them
+  when both help, such as a boiling mark that pops in with keyframes.
 - Eye effects usually hide the real eyes (`forceBlink`, `hideEyeDetails`,
   `faceCleanup` default on). Keep highlights or lashes only when the art is
   drawn to sit on them.

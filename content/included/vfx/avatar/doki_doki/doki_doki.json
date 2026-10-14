@@ -27,7 +27,14 @@
       "size": 0.09
     },
     "art": {
-      "image": "doki_doki.png"
+      "image": "doki_doki-sheet.png",
+      "flipbook": {
+        "columns": 3,
+        "fps": 8,
+        "frames": 3,
+        "loop": "loop",
+        "rows": 1
+      }
     },
     "motion": {
       "pulse": {
@@ -67,7 +74,7 @@
   },
   "files": [
     {
-      "path": "doki_doki.png",
+      "path": "doki_doki-sheet.png",
       "role": "image"
     }
   ]

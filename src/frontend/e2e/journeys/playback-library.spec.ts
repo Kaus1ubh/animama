@@ -112,7 +112,7 @@ const JOURNEYS: readonly LibraryJourney[] = [
     target: { kind: "anima_pose_clip", runtimeId: "curiosity-3" },
     requiredFiles: [
       "glossy-question.png",
-      "idea_bulb.png",
+      "idea_bulb_flipbook.png",
       "twinkle-star-mint.png",
       "star-field-tile.png",
     ],
@@ -144,7 +144,7 @@ const JOURNEYS: readonly LibraryJourney[] = [
     section: "gesture",
     proof: "pose",
     target: { kind: "anima_pose_clip", runtimeId: "have_idea" },
-    requiredFiles: ["idea_bulb_fingertip.png"],
+    requiredFiles: ["idea_bulb_fingertip_flipbook.png"],
     // The bulb event starts 2.6 s into the clip and shows its effect for
     // 0.95 s; the proof keeps sampling until a sample inside that interval.
     clip: {

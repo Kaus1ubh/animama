@@ -19,53 +19,60 @@
     "attachment": {
       "kind": "body",
       "bone": "head",
+      "facing": "camera",
       "offset": {
         "x": 0.125,
         "y": 0.19,
         "z": 0.05
       },
-      "size": 0.07,
-      "facing": "camera"
+      "size": 0.07
     },
     "art": {
-      "image": "sweat_splash.png"
+      "image": "sweat_splash_flipbook.png",
+      "flipbook": {
+        "columns": 2,
+        "fps": 10,
+        "frames": 3,
+        "loop": "once",
+        "rows": 2
+      }
     },
     "motion": {
       "pulse": {
-        "scaleMin": 0.95,
+        "cyclesPerSecond": 2.8,
         "scaleMax": 1.04,
-        "cyclesPerSecond": 2.8
+        "scaleMin": 0.95
       },
       "keyframes": {
         "frames": [
           {
-            "t": 0,
+            "offset": {
+              "x": 0,
+              "y": 0
+            },
             "opacity": 0,
             "scale": 0.3,
-            "offset": {
-              "x": 0,
-              "y": 0
-            }
+            "t": 0
           },
           {
-            "t": 0.12,
             "opacity": 1,
-            "scale": 1.15
+            "scale": 1.15,
+            "t": 0.12
           },
           {
-            "t": 0.2,
-            "scale": 1,
             "offset": {
               "x": 0,
               "y": 0
-            }
+            },
+            "scale": 1,
+            "t": 0.2
           },
           {
-            "t": 1.6,
             "offset": {
               "x": 0.006,
               "y": 0.006
-            }
+            },
+            "t": 1.6
           }
         ]
       }
@@ -74,7 +81,7 @@
   },
   "files": [
     {
-      "path": "sweat_splash.png",
+      "path": "sweat_splash_flipbook.png",
       "role": "image"
     }
   ]

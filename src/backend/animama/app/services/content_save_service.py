@@ -8,8 +8,10 @@ import json
 import re
 from io import BytesIO
 from pathlib import Path, PurePosixPath
-from typing import BinaryIO
+from typing import Any, BinaryIO
 
+from animama.app.contracts.avatar_effect import AvatarEffectDefinitionV2, project_avatar_effect_definition
+from animama.app.services.avatar_effect_overrides import check_clip_effect_overrides
 from animama.app.services.content_access_policy import ContentAccessPolicy
 from animama.app.services.content_catalog_service import ContentCatalogService
 from animama.app.services.content_gltf import validate_vrm_stream
@@ -25,7 +27,11 @@ from animama.app.services.content_names import portable_name
 from animama.app.services.content_package_capabilities import scene_emoji_items, validate_avatar_effect_document
 from animama.app.services.content_portability import reject_restricted_bytes
 from animama.app.services.local_content_mutations import mutation_digest
-from animama.app.services.typed_content_service import TypedContentService, validate_idle_style
+from animama.app.services.typed_content_service import (
+    TypedContentResolutionContext,
+    TypedContentService,
+    validate_idle_style,
+)
 from animama.domain.content_catalog import (
     CatalogContentEntry,
     ContentConflictError,
@@ -39,11 +45,15 @@ from animama.domain.content_catalog import (
 from animama.domain.content_documents import (
     AvatarEffectDocumentV1,
     ContentDocumentError,
+    GestureDocumentV1,
     IdleStyleDocumentV2,
+    ReactionDocumentV1,
     SceneEffectDocumentV1,
 )
 
 _ENTRY_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._ -]{0,119}$")
+# The frontend's MAX_ANIMA_POSE_CLIP_BYTES: no player reads a larger clip.
+_MAX_CLIP_BYTES = 2 * 1024 * 1024
 
 
 def readable_entry_name(value: str) -> str:
@@ -441,6 +451,8 @@ class ContentSaveService:
                         "avatar_effect_definition_invalid", "Avatar Effect definition is missing", field="definition"
                     )
                 validate_avatar_effect_document(document, code="avatar_effect_definition_invalid")
+            if isinstance(document, GestureDocumentV1 | ReactionDocumentV1):
+                await self._check_effect_overrides(user_id=user_id, document=document, companion_files=companion_files)
             if isinstance(document, SceneEffectDocumentV1):
                 # Animama no longer provides Twemoji: only Scenes saved before
                 # its removal outlive an emoji item, and Save names the first.
@@ -529,6 +541,60 @@ class ContentSaveService:
             result_type=SavedContent,
             action=apply,
         )
+
+    async def _check_effect_overrides(
+        self,
+        *,
+        user_id: str,
+        document: GestureDocumentV1 | ReactionDocumentV1,
+        companion_files: dict[str, tuple[BinaryIO, int]],
+    ) -> None:
+        """Refuse a per-use effect override that its effect cannot play, naming the field.
+
+        Only clips with overrides read the catalog. An effect the owner cannot
+        see is skipped here, so Save names the missing dependency instead.
+        """
+        implementation = document.implementation
+        if implementation.kind != "anima_clip":
+            return
+        paths = [file.path for file in document.files if file.role == implementation.file_role]
+        if len(paths) != 1 or paths[0] not in companion_files:
+            return
+        stream, size = companion_files[paths[0]]
+        if size > _MAX_CLIP_BYTES:
+            return
+        start = stream.tell()
+        try:
+            clip = await asyncio.to_thread(_read_json, stream)
+        finally:
+            stream.seek(start)
+        events = clip.get("events") if isinstance(clip, dict) else None
+        if not isinstance(events, list) or not any(
+            isinstance(event, dict) and event.get("kind") == "avatar_vfx" and "override" in event for event in events
+        ):
+            return
+        visible = {item.id: item for item in await self._catalog.list_visible(user_id=user_id)}
+        context = TypedContentResolutionContext(visible)
+        effects: dict[str, AvatarEffectDefinitionV2 | None] = {}
+        for dependency in document.dependencies:
+            if dependency.kind is not ContentKind.AVATAR_EFFECT:
+                continue
+            ids = context.logical_index.get(dependency.ref) or context.locator_index.get(dependency.ref) or ()
+            if len(ids) != 1:
+                continue
+            definition = project_avatar_effect_definition(visible[ids[0]].metadata.get("definition"))[0]
+            for selector in (dependency.alias, dependency.ref):
+                if selector:
+                    effects[selector] = definition
+        check_clip_effect_overrides(clip, effects, code="action_effect_override_invalid")
+
+
+def _read_json(stream: BinaryIO) -> Any:  # noqa: ANN401
+    """Parse a JSON companion from its current position; ``None`` when it is not JSON."""
+    try:
+        return json.loads(stream.read())
+    except (ValueError, UnicodeError, RecursionError):
+        return None
 
 
 def _sha256_stream(stream: BinaryIO) -> str:

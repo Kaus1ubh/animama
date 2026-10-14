@@ -981,14 +981,28 @@
       "id": "finger-gun-spark-left",
       "time": 0.63,
       "kind": "avatar_vfx",
-      "effectId": "finger_gun_spark_left",
+      "effectId": "finger_gun_spark",
       "duration": 0.5,
       "envelope": {
         "intensity": {
           "fadeOut": 0.18
         }
       },
-      "playAccompanyingSound": false
+      "playAccompanyingSound": false,
+      "override": {
+        "attachment": {
+          "kind": "body",
+          "bone": "leftHand",
+          "offset": {
+            "x": 0.142,
+            "y": 0.015,
+            "z": 0.031
+          },
+          "size": 0.06,
+          "facing": "camera",
+          "rotationDeg": 12
+        }
+      }
     }
   ]
 }

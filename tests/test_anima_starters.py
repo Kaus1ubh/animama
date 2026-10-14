@@ -463,7 +463,7 @@ async def test_supplied_fixture_content_can_materialize_both_starters(async_sess
             assert {gesture.source.logical_key for gesture in loadout.gestures if gesture.source} == set(
                 EXPECTED_STARTER_GESTURE_IDS
             )
-            assert len(loadout.gestures) == 95
+            assert len(loadout.gestures) == 99
             assert loadout.idle_style.state == "empty"
             assert all(cell.source is not None for cell in loadout.reactions)
 
@@ -491,12 +491,12 @@ def test_starter_gestures_include_every_non_idle_gesture_and_exclude_streamer_id
     }
     starter_ids = {choice["content_id"] for choice in starter_loadout_policy()["gestures"]}
 
-    assert len(included_ids) == 107
+    assert len(included_ids) == 111
     assert len(idle_ids) == 12
     assert idle_ids <= included_ids
     assert starter_ids.isdisjoint(idle_ids)
     assert starter_ids == included_ids - idle_ids
-    assert len(starter_ids) == 95
+    assert len(starter_ids) == 99
 
 
 async def test_tracked_checkout_materializes_both_starters_without_optional_local_assets(async_session, tmp_path):
@@ -514,6 +514,6 @@ async def test_tracked_checkout_materializes_both_starters_without_optional_loca
             loadout = await AnimaLoadoutService(async_session).read_model(
                 user_id=fixture.owner, anima_id=starter["anima_id"]
             )
-            assert len(loadout.gestures) == 95
+            assert len(loadout.gestures) == 99
             assert all(cell.source is not None for cell in loadout.reactions)
             assert loadout.idle_style.state == "empty"

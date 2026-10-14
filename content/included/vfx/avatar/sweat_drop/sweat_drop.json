@@ -36,7 +36,14 @@
       }
     },
     "art": {
-      "image": "sweat_drop.png"
+      "image": "sweat_drop_flipbook.png",
+      "flipbook": {
+        "columns": 2,
+        "fps": 10,
+        "frames": 4,
+        "loop": "once",
+        "rows": 2
+      }
     },
     "motion": {
       "keyframes": {
@@ -116,7 +123,7 @@
   },
   "files": [
     {
-      "path": "sweat_drop.png",
+      "path": "sweat_drop_flipbook.png",
       "role": "image"
     }
   ]

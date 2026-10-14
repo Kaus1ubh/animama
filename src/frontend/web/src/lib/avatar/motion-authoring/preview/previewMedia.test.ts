@@ -107,6 +107,27 @@ describe("PreviewMediaProvider", () => {
     expect(provider.getProblems()).toEqual([]);
   });
 
+  it("applies a clip event's override to the effect it resolves", async () => {
+    const provider = new PreviewMediaProvider(media());
+    const used = await provider.loadAvatarVFX("swirl", {
+      attachment: { kind: "face_landmark", landmark: "eyes", side: "left" },
+    });
+    expect(used).toMatchObject({ kind: "hover", side: "left" });
+    expect(await provider.loadAvatarVFX("swirl")).toMatchObject({
+      side: "right",
+    });
+  });
+
+  it("reports an override the effect cannot play", async () => {
+    const provider = new PreviewMediaProvider(media());
+    await expect(
+      provider.loadAvatarVFX("swirl", { attachment: { kind: "sticker" } }),
+    ).resolves.toBeNull();
+    expect(provider.getProblems()).toEqual([
+      expect.stringContaining("override.attachment.kind"),
+    ]);
+  });
+
   it("builds a Particle Effect from its manifest URL and runtime config", async () => {
     const particle = await new PreviewMediaProvider(media()).resolveParticleVFX(
       "question-orbit",

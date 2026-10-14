@@ -15,8 +15,8 @@
   },
   "dependencies": [
     {
-      "ref": "builtin:avatar-effect:huff_puff",
-      "alias": "huff_puff",
+      "ref": "builtin:avatar-effect:puff",
+      "alias": "puff",
       "content_type": "avatar_effect",
       "config": {}
     }

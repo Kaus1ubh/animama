@@ -25,10 +25,11 @@ Gesture and Reaction Preview resolves direct Sound aliases and sounds associated
 with Avatar/Scene Effects as part of one exact closure. Particle Effects may
 declare a Sound dependency, but nothing plays it.
 
-A built-in Avatar Effect names at most one licensed sound from the private
-[comedy sound pack](../../backend/operations/comedy-sound-pack.md) through an
-optional dependency; some are silent by design, and without the pack they all
-play silently. Licensed sounds never
+A built-in Avatar Effect plays licensed sounds from the private
+[comedy sound pack](../../backend/operations/comedy-sound-pack.md) through
+optional dependencies: usually one, while a merged effect declares several and
+each Gesture or Reaction event picks one with its override's `soundAlias`. Some
+are silent by design, and without the pack they all play silently. Licensed sounds never
 appear in Library, the sound pickers or the export picker, and copying a
 built-in Avatar Effect leaves its sound behind with a note. Where a Reaction starts several effects together, all
 but one set `playAccompanyingSound: false`. Gestures used by an Included Idle

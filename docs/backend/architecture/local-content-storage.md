@@ -101,6 +101,16 @@ A `/1` package cannot be converted in place, because its manifest, sizes and
 digests cover the original bytes; the import hint asks for the source content
 to be converted and the package exported again.
 
+Local Gestures and Reactions that name an Included Avatar Effect removed by
+the 2026-10-14 merge ([ADR 0025](../../adr/0025-per-use-avatar-effect-overrides.md))
+are rewritten in place in the same transition
+(`AvatarEffectMergeTransitionService`): the dependency names the family
+effect, and each event carries the override and sound that reproduce the
+removed effect, from `resources/avatar-effect-merges.json`. The folder,
+content ID and other files stay, and the original bytes are retained first. An
+Action that cannot be rewritten stays as it was and plays without the removed
+effect; the failure is logged.
+
 Standalone Poses use `poses/<entry>/<entry>.json`: a `pose` descriptor containing
 one resolved `animaPose/1.0` payload with matching identity and name. Admission
 rejects parent references, unknown bones, invalid transforms and expression

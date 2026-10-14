@@ -141,6 +141,7 @@
     },
     "event": {
       "accompanyingSound": "함께 재생되는 사운드",
+      "accompanyingSoundLabel": "이 이벤트와 함께 재생되는 사운드",
       "afterDuration": "지정한 시간 후",
       "anchor": "앵커",
       "anchorLabel": "파티클 효과 앵커",
@@ -158,6 +159,13 @@
       "start": "시작",
       "startLabel": "선택한 이벤트 시작",
       "title": "이벤트",
+      "use": {
+        "help": "여기서 바꾼 내용은 이 이벤트에만 적용되며 효과 자체는 바뀌지 않습니다.",
+        "refused": "이 변경 사항은 적용되지 않았습니다.",
+        "reset": "효과 설정으로 되돌리기",
+        "title": "이 이벤트의 조정",
+        "unplayable": "이 이벤트의 변경 사항이 효과와 맞지 않으므로, 편집하려면 효과 설정으로 되돌리세요."
+      },
       "volume": "볼륨",
       "volumeLabel": "효과음 이벤트 볼륨",
       "withAction": "액션이 끝날 때"

@@ -8,7 +8,9 @@ with the same models. JSON keys are camelCase, as in the stored descriptors.
 An effect describes four separate things: where its art attaches
 (``attachment``), how the art looks (``appearance``), which image or flipbook it
 draws (``art``) and how it moves on its own timeline (``motion``). The Gesture or
-Reaction event that plays the effect owns when it starts and ends and its fade.
+Reaction event that plays the effect owns when it starts and ends and its fade,
+and may override the attachment, appearance, motion and sound for that one use
+(``AvatarEffectEventOverride``).
 
 Numeric bounds are part of the untrusted-input contract: definitions come from
 Local content and imported packages, and the renderer allocates canvases,
@@ -415,6 +417,51 @@ class AvatarEffectDefinitionV2(_Strict):
         return self
 
 
+class AvatarEffectEventOverride(_Strict):
+    """Changes an ``avatar_vfx`` clip event makes to its effect for that one use.
+
+    Each part present replaces the effect's part whole, so the same models
+    validate it; the attachment keeps the effect's kind. ``soundAlias`` picks
+    one of the effect's declared sounds; an unknown or unmounted one is silent.
+    The art, region, face options and the set of sounds stay with the effect.
+    """
+
+    attachment: AvatarEffectAttachment | None = None
+    appearance: AvatarEffectAppearance | None = None
+    motion: AvatarEffectMotion | None = None
+    soundAlias: str | None = Field(default=None, min_length=1, max_length=255)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _refuse_null_parts(cls, data: Any) -> Any:  # noqa: ANN401
+        if isinstance(data, dict):
+            for key, value in data.items():
+                if value is None:
+                    raise ValueError(f"{key}: omit the part instead of setting it to null")
+        return data
+
+    @model_validator(mode="after")
+    def _require_a_change(self) -> Self:
+        if not self.model_fields_set:
+            raise ValueError("an override must change at least one part")
+        return self
+
+
+def merge_avatar_effect_override(
+    definition: AvatarEffectDefinitionV2, override: AvatarEffectEventOverride
+) -> AvatarEffectDefinitionV2:
+    """Return the definition one use plays: each part the override sets replaces the effect's part.
+
+    Raises ``ValueError`` (``"attachment.kind: …"``) for a different attachment
+    kind, or ``ValidationError`` when the result breaks a cross-field rule.
+    """
+    if override.attachment is not None and override.attachment.kind != definition.attachment.kind:
+        raise ValueError("attachment.kind: must match the effect's attachment kind")
+    merged = definition.model_dump(by_alias=True, exclude_unset=True)
+    merged.update(override.model_dump(exclude_unset=True))
+    return AvatarEffectDefinitionV2.model_validate(merged)
+
+
 AvatarEffectDefinitionError = Literal["avatar_effect_conversion_required", "avatar_effect_definition_invalid"]
 
 
@@ -455,6 +502,7 @@ __all__ = [
     "AvatarEffectArt",
     "AvatarEffectAttachment",
     "AvatarEffectDefinitionV2",
+    "AvatarEffectEventOverride",
     "AvatarEffectFaceOptions",
     "AvatarEffectFlipbook",
     "AvatarEffectKeyframe",
@@ -469,4 +517,5 @@ __all__ = [
     "MAX_KEYFRAMES",
     "SilhouetteAttachment",
     "StickerAttachment",
+    "merge_avatar_effect_override",
 ]

@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -15,6 +22,7 @@ import {
   RUNTIME_LIMITS,
   assembleFlipbook,
   checkImage,
+  deriveFrames,
   fixImage,
   previewImage,
   readRgba,
@@ -61,12 +69,62 @@ const checker = (cell) => (x, y) =>
     ? [204, 204, 204, 255]
     : [255, 255, 255, 255];
 
+/** A ring of line art `thickness` px wide around (cx, cy). */
+function ring(cx, cy, radius, thickness) {
+  return (x, y) =>
+    Math.abs(Math.hypot(x - cx, y - cy) - radius) <= thickness / 2
+      ? [30, 40, 160, 255]
+      : [0, 0, 0, 0];
+}
+
+/** Eight lines radiating from (cx, cy) between `inner` and `outer` px, like impact lines. */
+function spokes(cx, cy, inner, outer, thickness = 4) {
+  const step = Math.PI / 4;
+  return (x, y) => {
+    const distance = Math.hypot(x - cx, y - cy);
+    if (distance < inner || distance > outer) return [0, 0, 0, 0];
+    const angle = Math.atan2(y - cy, x - cx);
+    const offLine =
+      distance * Math.abs(Math.sin(angle - Math.round(angle / step) * step));
+    return offLine <= thickness / 2 ? [20, 20, 20, 255] : [0, 0, 0, 0];
+  };
+}
+
 function codes(result) {
   return result.issues.map((issue) => `${issue.level}:${issue.code}`);
 }
 
 function alphaAt({ data, width }, x, y) {
   return data[(y * width + x) * 4 + 3];
+}
+
+/** Pixels at full alpha. */
+function opaqueCount({ data }) {
+  let count = 0;
+  for (let offset = 3; offset < data.length; offset += 4)
+    if (data[offset] === 255) count += 1;
+  return count;
+}
+
+/** The sum of every pixel's alpha: how much ink the art holds. */
+function alphaSum({ data }) {
+  let sum = 0;
+  for (let offset = 3; offset < data.length; offset += 4) sum += data[offset];
+  return sum;
+}
+
+/** The box around every pixel with any alpha. */
+function artBox({ data, width, height }) {
+  const box = { left: width, top: height, right: -1, bottom: -1 };
+  for (let y = 0; y < height; y += 1)
+    for (let x = 0; x < width; x += 1)
+      if (data[(y * width + x) * 4 + 3] > 0) {
+        box.left = Math.min(box.left, x);
+        box.top = Math.min(box.top, y);
+        box.right = Math.max(box.right, x);
+        box.bottom = Math.max(box.bottom, y);
+      }
+  return box;
 }
 
 test("a clean transparent disc passes", async () => {
@@ -572,6 +630,162 @@ test("flipbooks outside the contract limits are refused", async () => {
   );
 });
 
+test("boil frames wobble the key's lines in place, the same for a seed", async () => {
+  const key = await png(128, 128, ring(64, 64, 44, 6));
+  const boil = await deriveFrames(key, { mode: "boil", seed: 7 });
+  assert.equal(boil.frames.length, 4);
+  assert.deepEqual(
+    { fps: boil.fps, loop: boil.loop },
+    { fps: 8, loop: "loop" },
+  );
+  const again = await deriveFrames(key, { mode: "boil", seed: 7 });
+  assert.deepEqual(again.frames, boil.frames);
+  const reseeded = await deriveFrames(key, { mode: "boil", seed: 8 });
+  assert.notDeepEqual(reseeded.frames[0], boil.frames[0]);
+  // The wobble scales with the canvas, which is shown at a set size.
+  assert.equal(boil.amplitude, 1.6);
+  const wide = await png(256, 80, ring(40, 40, 30, 5));
+  assert.equal((await deriveFrames(wide, { mode: "boil" })).amplitude, 3.2);
+  const chosen = await deriveFrames(key, { mode: "boil", amplitude: 2 });
+  assert.equal(chosen.amplitude, 2);
+  assert.equal(
+    (await deriveFrames(key, { mode: "draw-on" })).amplitude,
+    undefined,
+  );
+
+  const source = await readRgba(key);
+  const keyBox = artBox(source);
+  const images = await Promise.all(boil.frames.map((frame) => readRgba(frame)));
+  for (const [index, image] of images.entries()) {
+    // The key's canvas, and the art where the key has it: painted face art
+    // keeps its UV layout.
+    assert.deepEqual([image.width, image.height], [128, 128]);
+    const box = artBox(image);
+    for (const side of ["left", "top", "right", "bottom"])
+      assert.ok(Math.abs(box[side] - keyBox[side]) <= 3, `${side} ${index}`);
+    // A wobble, not a stretch: the art keeps about its amount of ink.
+    const ink = alphaSum(image) / alphaSum(source);
+    assert.ok(ink > 0.9 && ink < 1.1, `ink ${ink}`);
+    for (const other of images.slice(0, index))
+      assert.notDeepEqual(image.data, other.data);
+  }
+});
+
+test("draw-on frames reveal the art from an origin or with a wipe", async () => {
+  const key = await png(128, 128, spokes(64, 64, 12, 60));
+  const full = opaqueCount(await readRgba(key));
+  const drawOn = await deriveFrames(key, { mode: "draw-on" });
+  assert.equal(drawOn.frames.length, 6);
+  assert.deepEqual(
+    { fps: drawOn.fps, loop: drawOn.loop },
+    { fps: 12, loop: "once" },
+  );
+  const images = await Promise.all(
+    drawOn.frames.map((frame) => readRgba(frame)),
+  );
+  const counts = images.map(opaqueCount);
+  assert.ok(counts[0] > 0 && counts[0] < counts.at(-1), `${counts}`);
+  for (let index = 1; index < counts.length; index += 1)
+    assert.ok(counts[index] > counts[index - 1], `${counts}`);
+  assert.equal(counts.at(-1), full);
+  // From the art's centre: the lines' inner ends show first.
+  assert.equal(alphaAt(images[0], 64 + 14, 64), 255);
+  assert.equal(alphaAt(images[0], 64 + 50, 64), 0);
+
+  const wipe = await Promise.all(
+    (
+      await deriveFrames(key, { mode: "draw-on", direction: "right" })
+    ).frames.map((frame) => readRgba(frame)),
+  );
+  assert.equal(alphaAt(wipe[0], 64 - 55, 64), 255);
+  assert.equal(alphaAt(wipe[0], 64 + 55, 64), 0);
+
+  const fromRight = await readRgba(
+    (
+      await deriveFrames(key, {
+        mode: "draw-on",
+        origin: { x: 1, y: 0.5 },
+        frames: 4,
+      })
+    ).frames[0],
+  );
+  assert.equal(alphaAt(fromRight, 64 + 55, 64), 255);
+  assert.equal(alphaAt(fromRight, 64 - 55, 64), 0);
+});
+
+test("draw-on break-off clears the art after the full reveal", async () => {
+  const key = await png(128, 128, spokes(64, 64, 12, 60));
+  const full = opaqueCount(await readRgba(key));
+  const { frames } = await deriveFrames(key, {
+    mode: "draw-on",
+    breakOff: true,
+  });
+  assert.equal(frames.length, 8);
+  const images = await Promise.all(frames.map((frame) => readRgba(frame)));
+  const counts = images.map(opaqueCount);
+  assert.equal(counts[3], full, `${counts}`);
+  for (let index = 4; index < counts.length; index += 1)
+    assert.ok(counts[index] < counts[index - 1], `${counts}`);
+  assert.ok(counts.at(-1) > 0, `${counts}`);
+  // The lines detach from the origin outward.
+  assert.equal(alphaAt(images[5], 64 + 14, 64), 0);
+  assert.equal(alphaAt(images[5], 64 + 55, 64), 255);
+});
+
+test("derived frames pass check and assemble into a flipbook", async () => {
+  const cases = [
+    [await png(128, 128, ring(64, 64, 56, 6)), { mode: "boil" }],
+    [await png(128, 128, spokes(64, 64, 8, 62)), { mode: "draw-on" }],
+    [
+      await png(128, 128, spokes(64, 64, 8, 62)),
+      { mode: "draw-on", direction: "up", breakOff: true, frames: 5 },
+    ],
+  ];
+  for (const [key, options] of cases) {
+    const { frames, fps, loop } = await deriveFrames(key, options);
+    for (const frame of frames) {
+      const found = codes(
+        await checkImage(frame, { budget: BUDGETS.landmark }),
+      );
+      assert.ok(
+        !found.some((code) => code.startsWith("FAIL")),
+        `${options.mode}: ${found}`,
+      );
+    }
+    const { buffer, flipbook } = await assembleFlipbook(frames, { fps, loop });
+    assert.equal(flipbook.frames, frames.length);
+    const sheet = await readRgba(buffer);
+    assert.equal(sheet.width, flipbook.columns * 128);
+    assert.equal(sheet.height, flipbook.rows * 128);
+  }
+});
+
+test("frame options are checked", async () => {
+  const key = await png(32, 32, disc(16, 16, 10, clear));
+  const refused = [
+    [{}, /mode must be boil or draw-on/],
+    [{ mode: "wiggle" }, /mode must be boil or draw-on/],
+    [{ mode: "toString" }, /mode must be boil or draw-on/],
+    [{ mode: "draw-on", direction: "constructor" }, /direction/],
+    [{ mode: "draw-on", origin: { x: 1.5, y: 0.5 } }, /origin/],
+    [{ mode: "draw-on", origin: { x: 0.5, y: 0.5 }, direction: "up" }, /one/],
+    [{ mode: "draw-on", direction: "sideways" }, /direction/],
+    [{ mode: "boil", breakOff: true }, /draw-on/],
+    [{ mode: "boil", origin: { x: 0.5, y: 0.5 } }, /draw-on/],
+    [{ mode: "draw-on", amplitude: 2 }, /boil/],
+    [{ mode: "boil", frames: 1 }, /frames/],
+    [{ mode: "boil", frames: 2.5 }, /frames/],
+    [{ mode: "boil", amplitude: 0 }, /amplitude/],
+    [{ mode: "boil", seed: -1 }, /seed/],
+  ];
+  for (const [options, message] of refused)
+    await assert.rejects(deriveFrames(key, options), message);
+  await assert.rejects(
+    deriveFrames(await png(16, 16, clear), { mode: "boil" }),
+    /no visible pixels/,
+  );
+});
+
 test("the command line checks, fixes and never overwrites its input", async () => {
   const script = path.join(scriptsDir, "effect-assets.mjs");
   const bad = path.join(dir, "bad.png");
@@ -675,4 +889,116 @@ test("the command line checks, fixes and never overwrites its input", async () =
   assert.deepEqual(JSON.parse(book.stdout.slice(book.stdout.indexOf("{"))), {
     flipbook: { columns: 2, rows: 1, frames: 2, fps: 8, loop: "loop" },
   });
+});
+
+test("the command line derives frames that feed flipbook", async () => {
+  const script = path.join(scriptsDir, "effect-assets.mjs");
+  const key = path.join(dir, "ring.png");
+  await writeFile(key, await png(96, 96, ring(48, 48, 40, 5)));
+  const outDir = path.join(dir, "ring frames");
+  const boil = await run(process.execPath, [
+    script,
+    "frames",
+    key,
+    "--mode",
+    "boil",
+    "--out-dir",
+    outDir,
+    "--seed",
+    "3",
+    "--amplitude",
+    "2",
+  ]);
+  const written = [1, 2, 3, 4].map((n) =>
+    path.join(outDir, `ring-boil-0${n}.png`),
+  );
+  for (const file of written) {
+    assert.match(boil.stdout, new RegExp(`ring-boil-0\\d\\.png`));
+    const frame = await readRgba(file);
+    assert.deepEqual([frame.width, frame.height], [96, 96]);
+  }
+  assert.match(boil.stdout, /canvas \(amplitude 2 px\):/);
+  // The key is already framed, so the hint never trims the frames.
+  assert.match(boil.stdout, /without --trim/);
+  assert.match(
+    boil.stdout,
+    /pnpm -s effects:assets flipbook '[^']*ring-boil-01\.png' .*'[^']*ring-boil-04\.png' --out <sheet\.png> --fps 8 --loop loop$/m,
+  );
+  const sheet = path.join(dir, "ring-sheet.png");
+  const book = await run(process.execPath, [
+    script,
+    "flipbook",
+    ...written,
+    "--out",
+    sheet,
+    "--fps",
+    "8",
+  ]);
+  assert.equal(
+    JSON.parse(book.stdout.slice(book.stdout.indexOf("{"))).flipbook.frames,
+    4,
+  );
+
+  const drawOn = await run(process.execPath, [
+    script,
+    "frames",
+    key,
+    "--mode",
+    "draw-on",
+    "--direction",
+    "right",
+    "--break-off",
+    "--out-dir",
+    outDir,
+  ]);
+  assert.match(drawOn.stdout, /ring-draw-on-08\.png/);
+  assert.match(drawOn.stdout, /--fps 12 --loop once/);
+
+  const to = ["--out-dir", outDir];
+  for (const [args, message] of [
+    [["--mode", "wiggle", ...to], /mode must be boil or draw-on/],
+    [["--mode", "draw-on", "--origin", "middle", ...to], /--origin takes x,y/],
+    [["--mode", "draw-on", "--origin", "2,0.5", ...to], /origin/],
+    [["--mode", "boil", "--break-off", ...to], /draw-on/],
+    [["--mode", "boil"], /--out-dir/],
+  ]) {
+    const refused = await run(process.execPath, [
+      script,
+      "frames",
+      key,
+      ...args,
+    ]).catch((error) => error);
+    assert.equal(refused.code, 2, args.join(" "));
+    assert.match(refused.stdout, message);
+  }
+
+  // A frame path that leads back to the key is refused before anything is written.
+  const linked = path.join(dir, "linked");
+  await mkdir(linked);
+  await symlink(key, path.join(linked, "ring-boil-01.png"));
+  const keyBytes = await readFile(key);
+  const overwrite = await run(process.execPath, [
+    script,
+    "frames",
+    key,
+    "--mode",
+    "boil",
+    "--out-dir",
+    linked,
+  ]).catch((error) => error);
+  assert.equal(overwrite.code, 2);
+  assert.match(overwrite.stdout, /never overwrites/);
+  assert.deepEqual(await readFile(key), keyBytes);
+});
+
+test("a break-off keeps the far ends of small art in its last frame", async () => {
+  const key = await png(12, 12, disc(6, 6, 3, clear));
+  const derived = await deriveFrames(key, {
+    mode: "draw-on",
+    breakOff: true,
+  });
+  const last = await sharp(derived.frames.at(-1)).raw().toBuffer();
+  let alpha = 0;
+  for (let index = 3; index < last.length; index += 4) alpha += last[index];
+  assert.ok(alpha > 0);
 });

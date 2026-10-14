@@ -4,7 +4,7 @@
   "content_id": "builtin:avatar-effect:finger_gun_spark",
   "version": 1,
   "name": "Finger Gun Spark",
-  "description": "A tiny cartoon \"bang\" spark flashes at the right index fingertip as a finger gun fires, the comic muzzle flash for cheeky finger guns, a playful \"gotcha\" or a wink-and-point. Pair with Finger Gun Spark Left for two-handed finger guns.",
+  "description": "A tiny cartoon \"bang\" spark flashes at the right index fingertip as a finger gun fires, the comic muzzle flash for cheeky finger guns, a playful \"gotcha\" or a wink-and-point. Gestures place it on either hand.",
   "dependencies": [
     {
       "ref": "builtin:sound-effect:retro_laser_focus_02v1",
