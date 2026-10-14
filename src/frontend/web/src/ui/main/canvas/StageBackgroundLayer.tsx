@@ -21,11 +21,12 @@ import { useSettings } from "@/ui/settings/SettingsProvider";
  */
 export function StageBackgroundLayer({
   variant,
-  boundImage,
+  boundImage = null,
   className,
 }: {
   variant: StageBackgroundVariant;
-  boundImage: RuntimeCatalogEntry | null;
+  /** The Anima's bound Background image; chat only. */
+  boundImage?: RuntimeCatalogEntry | null;
   className?: string;
 }) {
   const { effectivePreferences } = useSettings();

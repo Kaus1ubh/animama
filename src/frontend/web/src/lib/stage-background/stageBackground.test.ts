@@ -18,18 +18,25 @@ describe("stage background", () => {
         theme: "light",
       }),
     ).toEqual({ kind: "app", src: "/background/sakura-light.webp" });
-    expect(appStageBackgroundUrl("cafe", "chat", "dark")).toBe(
+    expect(appStageBackgroundUrl("cafe", "dark")).toBe(
       "/background/cafe-dark.webp",
     );
   });
 
-  it("gives the light Dreamy showcase its pedestal image", () => {
-    expect(appStageBackgroundUrl("dreamy", "showcase", "light")).toBe(
-      "/background/dreamy-pedestal.webp",
-    );
-    expect(appStageBackgroundUrl("dreamy", "showcase", "dark")).toBe(
-      "/background/dreamy-dark.webp",
-    );
+  it("always shows the Dreamy pedestal on the Anima page", () => {
+    for (const theme of ["light", "dark"] as const) {
+      expect(
+        resolveStageBackground({
+          hasBoundImage: true,
+          scene: "none",
+          variant: "showcase",
+          theme,
+        }),
+      ).toEqual({
+        kind: "app",
+        src: `/background/dreamy-pedestal-${theme}.webp`,
+      });
+    }
   });
 
   it("draws nothing when the Anima chose no background", () => {
@@ -37,7 +44,7 @@ describe("stage background", () => {
       resolveStageBackground({
         hasBoundImage: false,
         scene: "none",
-        variant: "showcase",
+        variant: "chat",
         theme: "light",
       }),
     ).toEqual({ kind: "none" });
@@ -69,7 +76,8 @@ describe("stage background", () => {
 
   it("ships light and dark images for every scene", async () => {
     const files = [
-      "dreamy-pedestal",
+      "dreamy-pedestal-light",
+      "dreamy-pedestal-dark",
       ...STAGE_SCENES.flatMap(({ id }) => [`${id}-light`, `${id}-dark`]),
     ];
     await Promise.all(

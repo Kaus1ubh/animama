@@ -504,7 +504,6 @@ export function AnimaDetailsPage({
         // frosted sidebar and panel; the stage column draws it sharply.
         <StageBackgroundLayer
           variant="showcase"
-          boundImage={runtimeContentQuery.data?.background_image ?? null}
           className="fixed inset-0 scale-110 opacity-60 blur-2xl"
         />
       }
@@ -561,7 +560,6 @@ export function AnimaDetailsPage({
             backdrop={
               <StageBackgroundLayer
                 variant="showcase"
-                boundImage={runtimeContentQuery.data?.background_image ?? null}
                 className="[mask-image:linear-gradient(to_right,transparent,black_18%,black_82%,transparent)]"
               />
             }

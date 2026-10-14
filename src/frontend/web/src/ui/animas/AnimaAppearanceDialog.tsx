@@ -204,7 +204,6 @@ export function AnimaAppearanceDialog({
       : use === "background" && draftScene !== "none"
         ? appStageBackgroundUrl(
             draftScene,
-            "chat",
             resolvedTheme === "dark" ? "dark" : "light",
           )
         : null;

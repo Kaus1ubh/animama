@@ -2,8 +2,9 @@ import { publicResourceUrl } from "@/lib/resource-urls";
 import type { SettingsPreferences } from "@/lib/settings/preferences";
 
 /**
- * Where a stage is drawn: the chat stage frames a waist-up Avatar on a wide
- * window, the showcase stage frames a full-body Avatar on the Anima page.
+ * Where a stage is drawn: the chat stage uses the Anima's chosen scene; the
+ * Anima page showcase always uses the Dreamy pedestal so every Anima is
+ * presented the same way.
  */
 export type StageBackgroundVariant = "chat" | "showcase";
 
@@ -28,8 +29,8 @@ export type StageSceneChoice = StageSceneId | "none";
 export const DEFAULT_STAGE_SCENE: StageSceneId = "dreamy";
 
 /**
- * What to draw behind the Avatar. An Anima's bound background image wins;
- * otherwise its chosen app scene, unless it chose none.
+ * What to draw behind the Avatar. In chat an Anima's bound background image
+ * wins, otherwise its chosen app scene, unless it chose none.
  */
 export type StageBackground =
   | { kind: "bound" }
@@ -42,15 +43,14 @@ function isStageSceneId(value: unknown): value is StageSceneId {
 
 export function appStageBackgroundUrl(
   scene: StageSceneId,
-  variant: StageBackgroundVariant,
   theme: StageTheme,
 ): string {
-  // The light Dreamy showcase has its own pedestal image under the Avatar.
-  const file =
-    scene === "dreamy" && variant === "showcase" && theme === "light"
-      ? "dreamy-pedestal"
-      : `${scene}-${theme}`;
-  return publicResourceUrl(`background/${file}.webp`);
+  return publicResourceUrl(`background/${scene}-${theme}.webp`);
+}
+
+/** The fixed Anima page backdrop: Dreamy's pedestal in the current theme. */
+export function showcaseBackgroundUrl(theme: StageTheme): string {
+  return publicResourceUrl(`background/dreamy-pedestal-${theme}.webp`);
 }
 
 /**
@@ -76,7 +76,9 @@ export function resolveStageBackground({
   variant: StageBackgroundVariant;
   theme: StageTheme;
 }): StageBackground {
+  if (variant === "showcase")
+    return { kind: "app", src: showcaseBackgroundUrl(theme) };
   if (hasBoundImage) return { kind: "bound" };
   if (scene === "none") return { kind: "none" };
-  return { kind: "app", src: appStageBackgroundUrl(scene, variant, theme) };
+  return { kind: "app", src: appStageBackgroundUrl(scene, theme) };
 }
