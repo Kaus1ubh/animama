@@ -207,11 +207,11 @@ export async function builtInTextureCollisions(effect, builtInReferences) {
 const englishCatalogs = new WeakMap();
 
 /**
- * Load the app's English catalogs into a Vite SSR loader once. The creator's
- * validation words its issues through react-i18next's shared instance, which
+ * Load the app's English catalogs into a Vite SSR loader once. The creators'
+ * modules word their messages through react-i18next's shared instance, which
  * only the app's entry point otherwise creates.
  */
-function loadEnglishCatalogs(server) {
+export function loadEnglishCatalogs(server) {
   if (!englishCatalogs.has(server))
     englishCatalogs.set(
       server,

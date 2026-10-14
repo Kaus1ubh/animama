@@ -18,10 +18,12 @@ import sharp from "sharp";
 import {
   budgetForDefinition,
   builtInTextureCollisions,
+  particleSourceLines,
   particleTextureBudgets,
   sceneImageLines,
   summarizeCheck,
 } from "./effect-check.mjs";
+import { loadWebModule } from "./effects.mjs";
 import {
   EffectPromoteError,
   applyEffectPromotion,
@@ -1993,6 +1995,30 @@ test("Particle and Scene import documents come from the creators' functions", as
     importDocumentFor(petals, {}, { scene }),
     /saved by hand/,
   );
+});
+
+// `effects save` and `promote` run the creators' own modules, which word
+// their messages through the app's i18n. react-i18next's instance is shared by
+// the process, so no earlier test in this file may create it.
+test("the creators' modules load with English messages", async () => {
+  const loader = await loadWebModule("/src/lib/scene-vfx/editor/document.ts");
+  try {
+    assert.equal(
+      loader.module.sceneEffectFieldLabel("gradient.stops.0"),
+      "Gradient stop 1",
+    );
+    const hearts = await resolveAnyEffectSource(
+      path.join(INCLUDED_CONTENT_ROOT, "vfx/particle/quark/hearts-v1"),
+    );
+    const lines = await particleSourceLines(hearts, {
+      ssrLoadModule: loader.load,
+    });
+    assert.equal(lines.length, 1);
+    assert.equal(lines[0].level, "PASS");
+    assert.match(lines[0].message, /^particles: Save's estimate is up to \d+/);
+  } finally {
+    await loader.close();
+  }
 });
 
 test("promotion keeps the record and licence of reused third-party art", async () => {
