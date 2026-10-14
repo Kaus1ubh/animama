@@ -33,16 +33,18 @@ def test_included_license_inventory_records_the_release_gate() -> None:
     assert by_glob["resources/scene-vfx/stickers/**"]["license_id"] == "LicenseRef-Animama-owner-authored"
     assert by_glob["vfx/scene/**/*.png"]["license_id"] == "LicenseRef-Animama-owner-authored"
     assert not any("emoji" in rule["glob"] or "twemoji" in rule["provenance"].lower() for rule in rules)
-    # Each library Particle Effect has its own owner-authored rule; the generated-art
-    # rule covers only the one legacy effect kept, the Heart stream.
+    # Each Particle Effect has its own rule. Keep the existing owner-authored
+    # terms separate from these three agent-authored effects and the legacy Heart stream.
+    agent_authored_particles = {"butterfly-flutter", "musical-cascade", "snow-crystal-flurry"}
     particle_rules = [rule for rule in rules if rule["glob"].startswith("vfx/particle/quark/")]
     for stem in sorted(path.name for path in (ROOT / "content/included/vfx/particle/quark").iterdir()):
         rule = by_glob[f"vfx/particle/quark/{stem}/**"]
-        expected = (
-            "LicenseRef-Animama-generated-and-CC0-particle-VFX"
-            if stem == "hearts-v1"
-            else "LicenseRef-Animama-owner-authored"
-        )
+        if stem == "hearts-v1":
+            expected = "LicenseRef-Animama-generated-and-CC0-particle-VFX"
+        elif stem in agent_authored_particles:
+            expected = "LicenseRef-Animama-agent-authored"
+        else:
+            expected = "LicenseRef-Animama-owner-authored"
         assert rule["license_id"] == expected, stem
     assert len(particle_rules) == len(list((ROOT / "content/included/vfx/particle/quark").iterdir()))
 
@@ -119,7 +121,7 @@ def test_core_gesture_identities_stay_distinct_from_the_mixamo_pack() -> None:
         json.loads(path.read_text(encoding="utf-8"))
         for path in sorted((ROOT / "content/included/gestures").glob("*/*.meta.json"))
     ]
-    assert len(metas) >= 107
+    assert len(metas) >= 111
     assert _pack_collisions(metas, pack) == []
     assert _pack_collisions([{"content_id": "builtin:gesture:goodbye-wave", "semantic_key": "wave"}], pack) == [
         ("goodbye-wave", "wave")

@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:ticking-fuse",
+  "version": 1,
+  "name": "Ticking Fuse",
+  "description": "A short cream fuse burns down above the head to a final orange sputter, for patience running out or comic irritation.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "emote",
+    "attachment": {
+      "kind": "face_landmark",
+      "landmark": "top_edge",
+      "offset": {
+        "x": 0,
+        "y": 0.12,
+        "z": 0.02
+      },
+      "position": "middle",
+      "scale": {
+        "x": 3,
+        "y": 3
+      }
+    },
+    "art": {
+      "image": "fuse-sheet.png",
+      "flipbook": {
+        "columns": 4,
+        "fps": 6,
+        "frames": 16,
+        "loop": "once",
+        "rows": 4
+      }
+    },
+    "motion": {
+      "keyframes": {
+        "frames": [
+          {
+            "opacity": 0,
+            "t": 0
+          },
+          {
+            "opacity": 1,
+            "t": 0.12
+          },
+          {
+            "opacity": 1,
+            "t": 2.7
+          },
+          {
+            "opacity": 0,
+            "t": 3
+          }
+        ]
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "fuse-sheet.png",
+      "role": "image"
+    }
+  ]
+}

@@ -105,6 +105,12 @@ export const AVATAR_EFFECT_TEMPLATES: readonly AvatarEffectTemplate[] = [
   included("eye_confused_swirl", "Eye Confused Swirl", "eyes"),
   included("star3", "Star3", "eyes"),
   included("heart_eyes", "Heart Eyes", "eyes"),
+  included("suspicious-side-eye", "Suspicious Side-Eye", "eyes"),
+  included("blank-dot-eyes", "Blank Dot Eyes", "eyes"),
+  included("burning-resolve-eyes", "Burning Resolve Eyes", "eyes"),
+  included("money-eyes", "Money Eyes", "eyes"),
+  included("knockout-x-eyes", "Knockout X Eyes", "eyes"),
+  included("calculating-glasses", "Calculating Glasses", "eyes"),
   included("blush", "Blush", "cheeks"),
   included("blush_band", "Blush Band", "cheeks"),
   included("blush_deep", "Blush Deep", "cheeks"),
@@ -124,6 +130,24 @@ export const AVATAR_EFFECT_TEMPLATES: readonly AvatarEffectTemplate[] = [
   }),
   included("doki_doki", "Doki Doki", "around-head", { framing: "wide" }),
   included("idea_bulb", "Idea Bulb", "around-head", { framing: "wide" }),
+  included("awkward-ellipsis", "Awkward Ellipsis", "around-head", {
+    framing: "wide",
+    time: 1.4,
+  }),
+  included("ticking-fuse", "Ticking Fuse", "around-head", {
+    framing: "wide",
+    time: 1.2,
+  }),
+  included("twitching-cat-ears", "Twitching Cat Ears", "around-head", {
+    framing: "wide",
+    time: 0.85,
+  }),
+  included("little-devil-horns", "Little Devil Horns", "around-head", {
+    framing: "wide",
+  }),
+  included("tiny-victory-crown", "Tiny Victory Crown", "around-head", {
+    framing: "wide",
+  }),
   included("huff_puff", "Huff Puff", "around-head", { time: 0.3 }),
   included("annoyed_scribble", "Annoyed Scribble", "around-head", {
     framing: "wide",
@@ -269,6 +293,17 @@ export const AVATAR_EFFECT_TEMPLATES: readonly AvatarEffectTemplate[] = [
   included("mouth_w", "Mouth w", "mouth"),
   included("mouth_hover_w", "Mouth Hover w", "mouth"),
   included("heart_throb", "Heart Throb", "body", { framing: "wide" }),
+  included("broken-heart", "Broken Heart", "body", {
+    framing: "body",
+    time: 1.5,
+  }),
+  included("mended-heart", "Mended Heart", "body", {
+    framing: "body",
+    time: 1.7,
+  }),
+  included("gray-silhouette", "Gray Silhouette", "body", {
+    framing: "body",
+  }),
   included("despair_shade", "Despair Shade", "body"),
   included("idea_bulb_fingertip", "Idea Bulb Fingertip", "body", {
     framing: "wide",

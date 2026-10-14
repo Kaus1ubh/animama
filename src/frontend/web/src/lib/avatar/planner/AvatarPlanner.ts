@@ -17,7 +17,6 @@ import {
   type EmotionPostureGroup,
 } from "../proc-animation/types";
 import {
-  getAnimaPoseClipTimelineDuration,
   isAnimaPoseClipPlaybackLifetimeActive,
   type AnimaPoseClipV2,
 } from "../poses/animaPoseClip";
@@ -468,7 +467,8 @@ export type AvatarPlannerOutput = Omit<
 
 const DEFAULT_CROSSFADE_SEC = 2;
 const GESTURE_CROSSFADE_SEC = 1.0;
-const DEFAULT_GESTURE_DURATION_SEC = 2;
+/** Fallback Gesture length, and the minimum presentation of a looping clip. */
+export const DEFAULT_GESTURE_DURATION_SEC = 2;
 export const DEFAULT_IDLE_STINT_QUIET_INTERVAL_SEC = 180;
 export const NON_TTS_REACTION_CLIP_VISIBLE_DURATION_MS = 5000;
 const TRANSITION_BUFFER_SEC = 0.15;
@@ -1817,7 +1817,6 @@ function buildManifestGesturePlan(args: {
         event: args.event,
         nowMs: args.nowMs,
         gesture: args.gesture,
-        motionCatalog: args.motionCatalog,
       }),
     };
   }
@@ -1896,18 +1895,7 @@ function createGesturePoseClip(args: {
   event: AvatarPlannerGestureEvent;
   nowMs: number;
   gesture: ManifestGestureEntry;
-  motionCatalog: AvatarMotionCatalog;
 }): AvatarPlannerPoseClip {
-  const loadedClip = args.motionCatalog.getPoseClip(args.gesture.file);
-  const authoredDurationSec =
-    args.gesture.duration ??
-    (loadedClip ? getAnimaPoseClipTimelineDuration(loadedClip) : null);
-  const effectiveDurationSec = Math.max(
-    DEFAULT_GESTURE_DURATION_SEC,
-    authoredDurationSec && authoredDurationSec > 0
-      ? authoredDurationSec / Math.max(args.gesture.timeScale, 0.01)
-      : 0,
-  );
   return {
     ownerId: `gesture:${args.event.requestId}:poseClip`,
     requestId: args.event.requestId,
@@ -1919,11 +1907,12 @@ function createGesturePoseClip(args: {
     gestureResolutionSource: "manifest",
     sourceMotionEventId: args.event.eventId,
     sourceEmotionEventId: args.event.sourceEmotionEventId,
-    status: "active",
+    // The executor starts the finite horizon after the lazy clip is ready.
+    status: "pending",
     requestedAtMs: args.event.createdAtMs,
     eligibleAtMs: args.nowMs,
-    startedAtMs: args.nowMs,
-    expiresAtMs: args.nowMs + effectiveDurationSec * 1000,
+    startedAtMs: null,
+    expiresAtMs: null,
     priority: 20,
     enterPolicy: { mode: "fadeIn", durationSec: 0.35 },
     exitPolicy: { mode: "fadeOut", durationSec: 0.35 },
@@ -2649,7 +2638,7 @@ function maybeStopPoseClip(
   reason: string,
   transition: AvatarPlannerExitPolicy = { mode: "fadeOut", durationSec: 0.35 },
 ): AvatarPlannerMotionAction[] {
-  if (poseClip.status !== "active" && poseClip.source !== "idle") {
+  if (poseClip.status !== "active" && poseClip.source === "thinking") {
     return [];
   }
   return [

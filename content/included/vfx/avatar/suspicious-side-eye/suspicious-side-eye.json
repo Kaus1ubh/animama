@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:suspicious-side-eye",
+  "version": 1,
+  "name": "Suspicious Side-Eye",
+  "description": "Half-lidded ivory eyes look sideways together for skepticism or suspicion.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "eyes",
+    "attachment": {
+      "kind": "face_landmark",
+      "landmark": "eyes",
+      "mirror": true,
+      "scale": {
+        "x": 0.55,
+        "y": 0.55
+      },
+      "side": "right"
+    },
+    "art": {
+      "image": "eye.png",
+      "otherEyeImage": "other-eye.png"
+    }
+  },
+  "files": [
+    {
+      "path": "eye.png",
+      "role": "image"
+    },
+    {
+      "path": "other-eye.png",
+      "role": "image"
+    }
+  ]
+}

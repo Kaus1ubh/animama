@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:blank-dot-eyes",
+  "version": 1,
+  "name": "Blank Dot Eyes",
+  "description": "Tiny dark dot eyes hold a blank, awkward pause.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "eyes",
+    "attachment": {
+      "kind": "face_landmark",
+      "landmark": "eyes",
+      "mirror": true,
+      "scale": {
+        "x": 0.18,
+        "y": 0.18
+      },
+      "side": "right"
+    },
+    "art": {
+      "image": "dot.png"
+    }
+  },
+  "files": [
+    {
+      "path": "dot.png",
+      "role": "image"
+    }
+  ]
+}

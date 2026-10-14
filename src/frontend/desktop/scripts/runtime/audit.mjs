@@ -24,7 +24,10 @@ import { validateSizeReport } from "./size.mjs";
 import { auditMacosMinimum } from "./macos-platform.mjs";
 import { msvcEnvironment } from "./windows-build.mjs";
 import { auditWindowsStage } from "./windows-platform.mjs";
-import { assertDesktopWebAssets } from "./desktop-web.mjs";
+import {
+  assertDesktopWebAssets,
+  assertNoIncludedAliasCopies,
+} from "./desktop-web.mjs";
 import { resolveBrowserRuntimeAssets } from "../../../scripts/browser-runtime-assets.mjs";
 
 const target = parseTarget();
@@ -182,24 +185,15 @@ try {
   )
     throw new Error("Staged starter closure differs from the manifest");
   console.log("Annie + Caitlyn: zero content diagnostics");
-  for (const alias of [
-    "background",
-    "effects/scene-vfx",
-    "effects/sfx",
-    "effects/vfx",
-    "effects/resources",
-  ]) {
-    if (existsSync(path.join(target.runtime, "web", alias)))
-      throw new Error(`Embedded web contains a compatibility alias: ${alias}`);
-  }
+  const publicRoot = path.join(repoRoot, "src/frontend/web/public");
+  assertNoIncludedAliasCopies(path.join(target.runtime, "web"), publicRoot);
   for (const model of ["parakeet-tdt-0.6b-v2", "parakeet-tdt-0.6b-v2-webgpu"])
     if (existsSync(path.join(target.runtime, "web/onnx/models", model)))
       throw new Error("Parakeet must remain outside core web assets");
   // The standalone output must retain every reviewed model and ORT variant.
   resolveBrowserRuntimeAssets({ builtRoot: path.join(target.runtime, "web") });
-  // Small vendored runtime code and provider marks stay source-bound.
-  const publicRoot = path.join(repoRoot, "src/frontend/web/public");
-  for (const prefix of ["tts", "basis", "provider-logos"])
+  // Small vendored runtime code, provider marks and stage scenes stay source-bound.
+  for (const prefix of ["tts", "basis", "provider-logos", "background"])
     for (const name of filesIn(path.join(publicRoot, prefix))) {
       if (
         sha256(path.join(publicRoot, prefix, name)) !==

@@ -403,14 +403,24 @@ describe("AvatarPlanner", () => {
         pendingEvents: [gestureEvent],
       }),
     );
-    const activeClip = started.state.activePlannerPoseClip;
+    const pendingClip = started.state.activePlannerPoseClip;
 
-    expect(activeClip).toMatchObject({
+    expect(pendingClip).toMatchObject({
       clipId: "right-thumbs-up",
       source: "gesture",
+      status: "pending",
+      startedAtMs: null,
+      expiresAtMs: null,
     });
-    expect(activeClip?.expiresAtMs).toBeGreaterThan(1_000);
     expect(hasBlockingNonTtsPresentationWork(started, "run-1")).toBe(true);
+
+    // The executor supplies the delivered clip's horizon when playback starts.
+    const activeClip: AvatarPlannerPoseClip = {
+      ...pendingClip!,
+      status: "active",
+      startedAtMs: 1_500,
+      expiresAtMs: 4_000,
+    };
 
     const completed = planAvatar(
       started.state,

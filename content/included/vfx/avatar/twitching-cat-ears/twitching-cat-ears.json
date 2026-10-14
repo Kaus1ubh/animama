@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:twitching-cat-ears",
+  "version": 1,
+  "name": "Twitching Cat Ears",
+  "description": "Refined silver nekomimi ears twitch left and right, then relax into a bashful pose.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "emote",
+    "attachment": {
+      "kind": "face_landmark",
+      "landmark": "top_edge",
+      "offset": {
+        "x": 0,
+        "y": 0.015,
+        "z": -0.045
+      },
+      "position": "middle",
+      "scale": {
+        "x": 3.2,
+        "y": 3.2
+      }
+    },
+    "art": {
+      "image": "ears-sheet.png",
+      "flipbook": {
+        "columns": 4,
+        "fps": 8,
+        "frames": 12,
+        "loop": "once",
+        "rows": 3
+      }
+    },
+    "motion": {
+      "keyframes": {
+        "frames": [
+          {
+            "opacity": 0,
+            "scale": 0.5,
+            "t": 0
+          },
+          {
+            "opacity": 1,
+            "scale": 1.1,
+            "t": 0.18
+          },
+          {
+            "scale": 1,
+            "t": 0.35
+          }
+        ]
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "ears-sheet.png",
+      "role": "image"
+    }
+  ]
+}

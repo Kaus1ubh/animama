@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:calculating-glasses",
+  "version": 1,
+  "name": "Calculating Glasses",
+  "description": "Opaque manga spectacles catch a moving reflection, for a calculating plan or knowing observation.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "eyes",
+    "attachment": {
+      "kind": "face_landmark",
+      "landmark": "eyes",
+      "offset": {
+        "x": 0.035,
+        "y": 0,
+        "z": 0.003
+      },
+      "scale": {
+        "x": 2.15,
+        "y": 2.15
+      },
+      "side": "right"
+    },
+    "art": {
+      "image": "glasses-sheet.png",
+      "flipbook": {
+        "columns": 4,
+        "fps": 8,
+        "frames": 12,
+        "loop": "once",
+        "rows": 3
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "glasses-sheet.png",
+      "role": "image"
+    }
+  ]
+}

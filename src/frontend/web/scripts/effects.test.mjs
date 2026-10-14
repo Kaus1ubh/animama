@@ -1574,6 +1574,102 @@ test("promotion adds Particle and Scene Effects under owner-authored rules", asy
   ]);
 });
 
+test("Particle promotion supports per-folder inventories and preserves copied art terms", async () => {
+  const root = await effectKindsRepo();
+  const inventoryPath = path.join(
+    root,
+    "content/included/licenses/inventory.json",
+  );
+  const inventory = JSON.parse(await readFile(inventoryPath, "utf8"));
+  // Current Included content licenses each Particle folder explicitly, without
+  // a generated-art catch-all. Keep the old texture's distinct source terms.
+  inventory.rules = inventory.rules.map((rule) =>
+    rule.glob === "vfx/particle/quark/**"
+      ? { glob: "vfx/particle/quark/old_spark/**", license_id: "CC0-1.0" }
+      : rule,
+  );
+  const before = `${JSON.stringify(inventory, null, 2)}\n`;
+  await writeFile(inventoryPath, before);
+  const fresh = await particleSource("fresh");
+  const copied = await particleSource("copied", "textures/spark.png");
+  const origin =
+    "content/included/vfx/particle/quark/old_spark/textures/spark.png";
+  await writeFile(
+    copied.texturePaths[0],
+    await readFile(path.join(root, origin)),
+  );
+  const options = {
+    repo: workingTreeRepo(root),
+    validate,
+    validateParticle: () => {},
+  };
+  const changes = await planEffectPromotion(
+    [
+      { kind: "particle_effect", mode: "add", stem: "fresh", effect: fresh },
+      { kind: "particle_effect", mode: "add", stem: "copied", effect: copied },
+    ],
+    options,
+  );
+  assert.equal(await readFile(inventoryPath, "utf8"), before);
+  await applyEffectPromotion(root, changes);
+  const rules = JSON.parse(await readFile(inventoryPath, "utf8")).rules;
+  const globs = rules.map((rule) => rule.glob);
+  assert.ok(!globs.includes("vfx/particle/quark/**"));
+  assert.deepEqual(
+    rules.filter((rule) => !/quark\/(fresh|copied)\//.test(rule.glob)),
+    inventory.rules,
+  );
+  for (const stem of ["fresh", "copied"]) {
+    const glob = `vfx/particle/quark/${stem}/**`;
+    assert.deepEqual(
+      rules.find((rule) => rule.glob === glob),
+      {
+        glob,
+        ...ownerRule,
+        provenance:
+          "The owner confirms they created the particle-effect assets.",
+      },
+    );
+    assert.ok(globs.indexOf(glob) < globs.indexOf("**/*"));
+  }
+  const copy = "vfx/particle/quark/copied/textures/spark.png";
+  assert.deepEqual(
+    rules.find((rule) => rule.glob === copy),
+    {
+      glob: copy,
+      license_id: "CC0-1.0",
+    },
+  );
+  assert.ok(
+    globs.indexOf(copy) < globs.indexOf("vfx/particle/quark/copied/**"),
+  );
+  const reviewPath = path.join(root, "licenses/source-review.json");
+  const records = JSON.parse(await readFile(reviewPath, "utf8")).files;
+  assert.deepEqual(
+    records.find((record) => record.path === `content/included/${copy}`),
+    {
+      ...records.find((record) => record.path === origin),
+      path: `content/included/${copy}`,
+    },
+  );
+
+  await applyEffectPromotion(
+    root,
+    await planEffectPromotion(
+      [{ kind: "particle_effect", mode: "delete", stem: "copied" }],
+      options,
+    ),
+  );
+  const remaining = JSON.parse(await readFile(inventoryPath, "utf8")).rules;
+  assert.ok(!remaining.some((rule) => rule.glob.includes("quark/copied/")));
+  assert.ok(
+    remaining.some((rule) => rule.glob === "vfx/particle/quark/fresh/**"),
+  );
+  assert.ok(
+    remaining.some((rule) => rule.glob === "vfx/particle/quark/old_spark/**"),
+  );
+});
+
 test("promotion replaces and deletes Particle and Scene Effects", async () => {
   const root = await effectKindsRepo();
   const repo = workingTreeRepo(root);

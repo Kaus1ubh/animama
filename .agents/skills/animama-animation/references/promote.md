@@ -170,6 +170,11 @@ no change and are refused).
    `uv run --no-sync python src/backend/packaging/shared_catalogs.py --write`
    from the repository root for the backend copy) and tests or journeys that
    find it by name.
+   Ship new items in desktop core: add each content ID to `CORE_LIBRARY_ROOTS`
+   in `src/backend/animama/runtime/starter_content.py` and its folder (plus the
+   entry/file counts) to `CORE_LIBRARY_LOCATORS` in
+   `tests/test_starter_content_closure.py`; that test fails while any valid
+   Included item is left out of core.
 3. Run the backend Included-content tests (full `uv run pytest -q`
    preferred), `pnpm check`, `pnpm web:lint`, `pnpm web:test`, `pnpm build`,
    and the desktop runtime stage and audit.

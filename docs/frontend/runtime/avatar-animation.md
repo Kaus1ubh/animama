@@ -138,6 +138,12 @@ Important behavior:
   verify that the requesting owner/run/plan is still current after asynchronous
   work. Pending resources are skipped, never fetched around the preparation
   session. A disposed animation manager cannot cache or play a late decode.
+- Planner-owned Gesture clips remain pending while their prepared sequence is
+  decoded. Playback starts a finite horizon from the loaded timeline duration
+  and configured speed; loading time is excluded. A looping clip instead uses
+  its configured duration, or its timeline, with a two-second minimum. The
+  player uses the configured speed for its timeline while entry and exit fades
+  retain wall-clock timing.
 - `update(delta)` is the per-frame coordination point:
   1. clear procedural offsets from the previous frame
   2. update `AnimationManager` so authored VRMA clips establish the base pose

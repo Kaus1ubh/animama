@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:broken-heart",
+  "version": 1,
+  "name": "Broken Heart",
+  "description": "A coral heart on the chest splits, recoils and droops for heartbreak or comic disappointment.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "body",
+    "attachment": {
+      "kind": "body",
+      "bone": "chest",
+      "facing": "camera",
+      "offset": {
+        "x": 0.035,
+        "y": 0.115,
+        "z": 0.17
+      },
+      "size": 0.14
+    },
+    "art": {
+      "image": "heart-sheet.png",
+      "flipbook": {
+        "columns": 4,
+        "fps": 8,
+        "frames": 16,
+        "loop": "once",
+        "rows": 4
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "heart-sheet.png",
+      "role": "image"
+    }
+  ]
+}
