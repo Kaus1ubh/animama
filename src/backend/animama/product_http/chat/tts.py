@@ -633,12 +633,18 @@ class FinalizedTtsStreamBootstrap:
             )
             return False
 
+        # The batch's first frame names its text, so lip-sync plans each batch
+        # against its own audio.
+        part_text: str | None = batch.text
         async for payload in speech.stream_finalized(prepared):
             payload_type = payload.get("type")
             if payload_type == "audio":
-                frame = format_tts_audio_event(run_id=self.run_id, payload=payload, provider=_FINALIZED_PROVIDER)
+                frame = format_tts_audio_event(
+                    run_id=self.run_id, payload=payload, provider=_FINALIZED_PROVIDER, part_text=part_text
+                )
                 if frame is not None:
                     await self.queue.put(frame)
+                    part_text = None
             elif payload_type == "done":
                 return True
             elif payload_type == "error":

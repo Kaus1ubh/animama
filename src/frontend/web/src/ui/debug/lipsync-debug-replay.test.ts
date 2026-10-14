@@ -45,6 +45,7 @@ class FakeAudioContext {
 }
 
 const capture: LipSyncDebugCapture = {
+  origin: "live",
   runId: "run-1",
   provider: "elevenlabs",
   sampleRate: 24_000,
@@ -52,7 +53,10 @@ const capture: LipSyncDebugCapture = {
   samples: 3,
   truncated: false,
   timing: [],
+  text: null,
+  parts: [],
   inputs: null,
+  plannerStats: null,
   audioDurationSec: 3 / 24_000,
   seenInBridge: true,
   playbackEnded: true,

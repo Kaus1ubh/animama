@@ -1,522 +1,270 @@
 # Avatar Lip-Sync Pipeline (`src/frontend/web`)
 
-The lip-sync pipeline turns SSE phonemes into audio-clocked VRM vowel expressions.
-It shares timing with [Voice](voice.md) and the [Avatar runtime](avatar-animation.md).
+Lip-sync plans each spoken reply's mouth from the audio the avatar plays and the
+text sent to the voice, and drives the avatar's VRM vowel expressions on the
+audio clock. The same plan supplies tag expressions (a laugh, a sigh) and the
+talking-hands beats. It shares timing with [Voice](voice.md) and the
+[Avatar runtime](avatar-animation.md).
 
-## 1) High-level architecture
+## 1) Architecture
 
-Lip-sync is implemented as a layered pipeline:
+1. **Speech runtimes report what they play.**
+   `lib/speech/speech-pcm-tap.ts` is a provider-neutral tap:
+   - ElevenLabs, Gemini and Pocket hand it every PCM chunk they pass to
+     playback, in order, with silence for any gap they schedule;
+   - a Gemini chunk that starts a speech part carries the part's text;
+   - players report where playback resumed after an underrun;
+   - browser speech, whose audio cannot be captured, reports when each
+     utterance starts and ends and, where the voice says, each word.
+2. **The text reaches the planner.** `useTtsPlayback` reports the text a run's
+   voice speaks so far (`onSpeechText`). `useChatSession` forwards it to the
+   bridge's `setSpeechText`.
+3. **The run manager** (`lib/lipsync/lipsync-runs.ts`) starts a worker run with
+   each run's first audio and forwards its text, audio, provider timing and the
+   end of its audio. A change of provider mid-run (ElevenLabs falling back to
+   Pocket) restarts planning.
+4. **The lip-sync worker** (`workers/lipsync-worker.ts`) plans each run off the
+   main thread:
+   - `lib/lipsync/run-planner.ts` for runs with audio;
+   - `lib/lipsync/estimate-run.ts` for browser speech.
+5. **The bridge** (`stores/avatar-lipsync-bridge-store.ts`) turns plans into a
+   `vowel5` segment on the playback clock (`lib/lipsync/planned-segment.ts`),
+   starts it when the avatar is talking, and revises it in place as plans
+   arrive. It also keeps the tag events and gesture timeline.
+6. **The avatar** (`lib/avatar/ExpressionController.ts`) samples the segment by
+   `AudioContext.currentTime` and applies the VRM vowel expressions.
 
-1. **SSE speech payload ingestion**
-   - `src/frontend/web/src/query/mutations/useChatSse.ts`
-   - consumes `tokenized_text`/`phonemized_text` from `run.completed` for
-     normal TTS-capable runs, and `tts_text`/`tts_phonemized_text` from
-     main-structured `speech` parts for ElevenLabs and Gemini runs
+## 2) Text and audio per provider
 
-2. **Phoneme -> viseme planner**
-   - `src/frontend/web/src/lib/speech/gruut-viseme-keyframes.ts`
-   - converts gruut phonemes into 60 FPS `A/E/I/O/U` keyframes
+| Provider   | Text                                                     | Audio                                                     | Timing                     |
+| ---------- | -------------------------------------------------------- | --------------------------------------------------------- | -------------------------- |
+| ElevenLabs | Each chunk sent to the socket, as it is sent             | Each received frame (`handleAudioChunk`)                  | Character timing           |
+| Gemini     | Each speech part's text, from its first `tts.audio` frame | Each scheduled chunk, with silence for late chunks        | None                       |
+| Pocket     | Each chunk, spelled out as Pocket speaks it              | Each buffer the player plays (`player.playAudio`)         | None                       |
+| Browser    | Each utterance's text                                    | None: an estimate from the text                           | Utterance and word starts  |
 
-3. **Chat/TTS integration**
-   - `src/frontend/web/src/ui/main/chat/useChatSession.ts`
-   - coordinates SSE completion, TTS playback callbacks, and avatar bridge state
+- **Gemini parts.** The backend speaks a Gemini reply in batches, one request
+  each. The first `tts.audio` frame of each batch carries `part_text` (see
+  [voice and speech](../../backend/integrations/voice-and-speech.md)). The
+  planner fits each part's words to that part's own audio, so a sigh or laugh
+  that looks like speech cannot use up the next part's words. A reply without
+  parts (an older server) is planned from its growing text instead.
+- **ElevenLabs timing** is on the run clock (see
+  [ElevenLabs TTS](elevenlabs-tts.md#provider-character-timing)); it bounds
+  where each word and tag can sit.
+- **Browser speech** runs on a performance clock
+  (`lib/speech/performance-clock.ts`, shaped like an `AudioContext`). Each
+  utterance's units start where the voice started it, at an average speaking
+  rate. Reported word starts re-anchor them, and an utterance that has ended is
+  fitted to end with it.
 
-4. **Avatar lip-sync bridge (timing + gating)**
-   - `src/frontend/web/src/stores/avatar-lipsync-bridge-store.ts`
-   - queues segments, waits for speech playback start + avatar talking state, handles actual-duration recompute
+## 3) Planning
 
-5. **Avatar lip-sync segment conversion**
-   - `src/frontend/web/src/lib/avatar/vowelVisemeSegment.ts`
-   - converts viseme plan keyframes into avatar runtime `vowel5` segment/frame payloads
+The planner (`lib/lipsync/planner.ts`) turns text into units: syllables, Han,
+kana and Hangul characters, pauses, and tags. It aligns them to the audio's
+loudness, voicing and pitch, then renders 60 FPS `A/E/I/O/U` weights whose
+opening follows the loudness. The worker loads the English pronunciation
+dictionary before its first plan, and the Chinese readings (a separate chunk
+of about 140 KB gzip) the first time a run's text has Han characters read as
+Chinese.
 
-6. **Avatar runtime playback**
-   - `src/frontend/web/src/lib/avatar/ExpressionController.ts`
-   - samples lip-sync frames by `AudioContext.currentTime` and applies VRM expressions
+- **Progressive.** A run is replanned every 0.25 s of new audio, and once more
+  when its audio and text are complete. Units placed two seconds behind the
+  newest audio are kept, so each plan re-aligns only recent audio. Each update
+  carries the frames from the first one that changed.
+- **Fallbacks.** The plan says why the mouth follows the audio alone:
+  - `no_text`: the text has only symbols or punctuation;
+  - `no_alignment`: the text cannot fit the audio (logged once per run);
+  - `planner_failed`: planning threw. The rest of the run follows the audio
+    alone, the error is logged once, and speech plays on.
 
-## 2) SSE payload -> viseme plan
+  An error outside planning, such as in the audio analysis, ends the run's
+  plans: the mouth keeps the frames planned so far, then rests. If the worker
+  itself fails, runs in flight do the same, and later runs start a fresh
+  worker.
+- **Cost.** The update reports CPU per second of audio, audio analysis
+  included (`plannerStatsByRun`). Rendering, loudness levels and gesture timing cover
+  the whole run on every plan, so their cost grows with the reply's length, as
+  does the bridge's rebuild of the segment on each update.
 
-### Source data from SSE
+## 4) Clock
 
-`useChatSse` receives the final assistant payload and may include:
+- **Start.** `audioStartSec` is the context time of the run's first sample.
+  Players that use the PCM worklet (ElevenLabs, Pocket) take it from the
+  worklet's own clock. Gemini schedules buffers itself and uses the first
+  buffer's start time.
+- **Underruns.** When the worklet runs dry it plays silence while the context
+  clock runs on. On resuming it reports the samples played so far and the
+  context time (`playback-resumed`). The bridge keeps these anchors
+  (`playbackAnchorsByRun`), closes the mouth through each gap, and delays what
+  follows.
+- **Gemini gaps.** A chunk that arrives late starts after a silent gap. The
+  runtime taps silence for the gap, so the run clock stays the playback clock.
 
-- `tokenized_text` (normalized spoken text)
-- `phonemized_text` (gruut phonemes, `string[][]`)
+## 5) Avatar lip-sync bridge
 
-For main-structured TTS speech parts, the backend can also emit:
+Per run, the bridge keeps:
 
-- `tts_text` (gruut `text_with_ws`, used as the exact synthesis text for English)
-- `tts_phonemized_text` (gruut phonemes for that same `tts_text`)
-- `tts_text_basis: "gruut_text_with_ws"`
+- the playing segment (`segmentsByRun`), rebuilt from the merged plan frames;
+- tag events (`lipSyncEventsByRun`) and the gesture timeline with its phrases
+  (`speechGestureTimelinesByRun`);
+- playback start, resolved duration and underrun anchors;
+- provider character timing (`providerSpeechTimingByRun`);
+- the run's complete speech text and planner stats, for the debug view;
+- gruut's readings (`rawVisemeInputsByRun`), used only by the debug
+  comparison until gruut is removed.
 
-Speech with letters outside ASCII (other languages, or English with an accented
-loanword), or any speech when gruut is unavailable, carries no `tts_*` fields:
-the provider speaks the visible text, and lip-sync falls back to the visible
-text's `phonemized_text`. That is empty for Japanese, Korean and Chinese,
-so the mouth does not move for them yet.
+`markSpeechAudioDurationResolved` also tells the planner the run's audio has
+ended.
 
-Non-TTS chat streams may still include `tokenized_text` and `phonemized_text`
-on structured `speech` events, but they do not emit `tts_*` speech fields and
-`useChatSession` does not queue the lip-sync bridge when TTS is disabled.
+### Starting and revising
 
-File:
+`tickGate`, called from `AvatarCanvasActor`'s frame loop, starts a run's
+segment only when:
 
-- `src/frontend/web/src/query/mutations/useChatSse.ts`
+- a live avatar instance is registered;
+- the run has a segment and a playback start;
+- the avatar is `talking`;
+- the run has not already started.
 
-When phonemes are present, `useChatSession` queues raw viseme inputs into the
-bridge. For structured speech streaming, every speech segment that is actually
-sent to TTS also appends its matching gruut phonemes into the run-level raw
-viseme input. The worker builds or rebuilds the actual viseme plan:
+Once a run has started, each new plan replaces its frames from the first changed
+one (`replaceLipSyncFrames`). The mouth keeps playing without restarting.
 
-- `buildGruutVisemeKeyframes({ tokenizedText, phonemizedText })`
+### Tag expressions
 
-For ElevenLabs (Eleven v4 Turbo) and Gemini speech, `useChatSession` prefers
-`tts_text` and `tts_phonemized_text` so the TTS request and gruut phonemes share
-the same gruut `text_with_ws` basis. Empty final markers and complete
-corrections that were not re-sent to TTS do not append duplicate viseme input.
+`tickTagOverlays` shows a brief expression while a tag sounds: a laugh `happy`
+0.8, a sigh `relaxed` 0.6, a gasp `surprised` 0.7. It applies them through
+`setExpressionOverlay("lipsync-tags", …)` and clears them at the run's end or a
+reset. Overlays ramp in over 0.15 s and out over 0.3 s, so a tag a progressive
+plan shows only briefly barely registers.
 
-## 3) Phoneme -> vowel viseme keyframe generation
+Both Included Avatars set `overrideMouth` to `none`. Avatar A declares it on
+its VRM 1 expressions, and three-vrm imports Avatar Y's VRM 0 expressions with
+`none`. So the overlays never suppress the mouth, and the vowel shapes add to
+the expression's own mouth shape.
 
-File:
+### Talking hands
 
-- `src/frontend/web/src/lib/speech/gruut-viseme-keyframes.ts`
+`getSpeechTimingContext` gives the procedural layers the run's elapsed time and
+duration, and the planner's gesture timeline. The phrases stand in for the TTS
+chunks the talking-hands layer schedules gestures by: one chunk per phrase,
+with its word range. A phrase that ends with an exclamation mark uses both
+hands.
 
-### Output
+Beats fall on prominent syllables, found in the audio. Where the text marks
+stress (English), it decides between close candidates. Words not heard yet are
+placed at the speaking rate after the audio so far, with provisional beats from
+stress and length, so a gesture can start about 0.5 s before its beat even when
+audio arrives just ahead of playback. Each plan replaces them with beats from
+the audio as it arrives.
 
-The planner returns `GruutVisemeKeyframePlan`:
+### Picture-in-picture
 
-- `fps` (currently 60)
-- `durationSec`, `durationMs`
-- `frameCount`
-- `keyframes[]` of:
-  - `frameIndex`
-  - `timeSec`
-  - `A`, `E`, `I`, `O`, `U` in `[0,1]`
-- diagnostics/features (alignment status, punctuation counts, neutral frame ratio, etc.)
+The desktop picture-in-picture window receives segments, tag events, underrun
+anchors and gesture timelines with their phrases in its visual state. A run
+already playing there takes revised segments, so its mouth and hands follow the
+main view.
 
-### Timing model (estimated path)
-
-The planner estimates duration from:
-
-- phoneme classes (vowels, consonants, diphthongs, etc.)
-- stress/length markers
-- punctuation pauses from `tokenized_text`
-
-Then it builds coarticulated phoneme events and samples them at 60 FPS.
-
-### Actual-duration recompute support
-
-The planner also supports a duration override:
-
-- `targetDurationSec`
-
-When provided, it recomputes the full viseme timeline from raw phoneme/text inputs and applies a **global timing scale** ("scale all") so the resulting plan duration matches the actual Pocket TTS duration.
-
-This means actual-duration correction is not a simple frame stretch at the end of the pipeline; the planner is rerun from phoneme timing inputs.
-
-### Finalized server audio path (Gemini)
-
-Gemini uses finalized-text `chat:sse` audio events instead of a realtime
-websocket. When main-structured SSE speech includes `tts_text` with
-`tts_text_basis: "gruut_text_with_ws"`, the backend sends that prepared text to
-the provider and the frontend uses the matching `tts_phonemized_text` for
-avatar planning.
-
-ElevenLabs returns character timing on the realtime socket. The bridge keeps it
-per run as evidence (`providerSpeechTimingByRun`; see
-[ElevenLabs TTS](elevenlabs-tts.md#provider-character-timing)), but the planner
-does not read it yet. It still estimates phoneme timing from gruut and can
-recompute the whole segment against the actual played audio duration when that
-duration is known.
-
-`lib/speech/speech-timing-evidence.ts` turns a run's timing into evidence for a
-planner that uses it (#468):
-
-- **Words:** runs of letters, digits and inner apostrophes. Han, kana and Hangul
-  characters each keep their own window.
-- **Punctuation:** runs of punctuation or symbols, each a possible pause.
-- **Audio tags:** bracketed spans, never words, with each comma-separated
-  direction classified by a small keyword table:
-  - `nonverbal` (a laugh, sigh or gasp): a non-speech interval;
-  - `sound_effect`: an interval with the mouth at rest;
-  - `pacing` (a pause): a silent interval;
-  - `delivery` (emotion, delivery and unknown directions): a zero-width marker at
-    the span's start for the words after it.
-
-The evidence reports provider times unchanged. Treat word ends that run into the
-following pause, and tag spans shorter than their effect (`[pause]` covers about
-60 ms; the pause falls on the punctuation before it), as hints. Pass
-`complete: true` once a run's audio has ended, so an unclosed bracket reads as
-punctuation instead of waiting for its tag to close.
-
-## 4) `useChatSession` integration
-
-File:
-
-- `src/frontend/web/src/ui/main/chat/useChatSession.ts`
-
-`useChatSession` is the integration point between:
-
-- SSE completion (`useChatSse`)
-- TTS playback lifecycle (`useTtsPlayback`)
-- avatar runtime state (`useAvatarRuntimeStore`)
-- lip-sync bridge (`useAvatarLipSyncBridgeStore`)
-
-### On SSE `run_completed`
-
-If `artifacts.visemePlan` exists, `useChatSession` queues it into the bridge and also passes the raw viseme inputs:
-
-- `phonemizedText: data.phonemized_text`
-- `tokenizedText: data.tokenized_text`
-
-### TTS callbacks used for lip-sync
-
-`useChatSession` registers these callbacks with `useTtsPlayback`:
-
-- `onAudioStarted` -> marks avatar speech start and forwards the speech audio anchor (`audioStartSec`, `audioContext`)
-- `onAudioDurationResolved` -> forwards resolved speech duration for viseme recompute
-- `onPlaybackEndedSignal` -> hard-stops avatar lip-sync immediately on raw speech playback end
-- `onAudioEnded` -> normal chat/avatar cleanup (also clears lip-sync)
-- `onChunksQueued` -> records the chunks sent to speech (`speechChunksByRun`)
-- `onSpeechTiming` -> appends ElevenLabs character timing
-  (`providerSpeechTimingByRun`), evidence the planner does not read yet
-
-The same audio start and duration entries are also used by the avatar frame
-loop to build a provider-agnostic procedural speech timing context for speech
-layers such as talking hands. The viseme worker also derives a speech gesture
-timeline from the same phoneme units: primary `ˈ` stress markers attach to the
-next vowel/diphthong nucleus and become the talking-hands beat timeline. The
-same timeline includes word timing ranges so talking hands can map live TTS
-sentence chunks onto run-level beat times without provider-specific chunk audio
-timestamps. The avatar bridge can expose this provisional timeline before
-actual audio duration is resolved, then replaces it with actual-duration timing
-when the provider reports the final duration. Secondary stress and unstressed
-content-vowel fallback beats are ignored for talking-hands gestures.
-
-## 5) Pocket TTS timing signals used by lip-sync
-
-### 5.1 Start anchor: `playback_started` (Pocket core)
+## 6) `vowel5` segments and playback
 
 Files:
 
-- `src/frontend/web/src/lib/speech/pocket/audio/PCMPlayerWorklet.js`
-- `src/frontend/web/src/lib/speech/pocket/core/PocketTTSCore.js`
-- `src/frontend/web/src/hooks/use-tts-playback.ts`
-
-The frontend anchors `playback_started` to the worklet's **real playback begin** signal:
-
-- `PCMPlayerWorklet` emits `firstPlayback` when the AudioWorklet begins playback after startup buffering
-- `PocketTTSCore` forwards this as `playback_started`
-- `useTtsPlayback` emits `onAudioStarted` with:
-  - `audioStartSec`
-  - `audioContext`
-  - `generationId`
-
-### 5.2 Actual duration: `generation_finished.metrics.audioDuration`
-
-Files:
-
-- `src/frontend/web/public/tts/workers/inference-worker.js`
-- `src/frontend/web/src/lib/speech/pocket/core/PocketTTSCore.js`
-- `src/frontend/web/src/hooks/use-tts-playback.ts`
-
-When the Pocket worker finishes generation, it emits `generation_finished` with metrics.
-
-The frontend consumes:
-
-- `metrics.audioDuration`
-
-Current behavior:
-
-- `audioDuration` includes the worker's inserted inter-chunk silence (`CHUNK_GAP_SEC`) in addition to generated audio
-- extra metrics are also emitted for debugging:
-  - `generatedAudioDuration`
-  - `insertedGapDuration`
-
-### 5.3 Immediate stop: raw `playback_ended`
-
-`useTtsPlayback` exposes a raw Pocket playback-end callback:
-
-- `onPlaybackEndedSignal`
-
-This fires when Pocket playback actually ends, even if SSE/run completion bookkeeping has not finished yet.
-
-`useChatSession` uses this to hard-stop avatar lip-sync immediately so the face does not continue animating after audio is over.
-
-## 6) Avatar lip-sync bridge (`useAvatarLipSyncBridgeStore`)
-
-File:
-
-- `src/frontend/web/src/stores/avatar-lipsync-bridge-store.ts`
-
-This store coordinates three independent timelines:
-
-1. SSE completion (viseme plan + raw phoneme inputs available)
-2. TTS playback start (real `audioStartSec` + `audioContext`)
-3. Avatar state (`talking`) from the runtime render loop
-
-### Stored state (per run)
-
-The bridge tracks:
-
-- estimated/actual viseme plan (`sourcePlansByRun`)
-- raw viseme inputs (`rawVisemeInputsByRun`)
-  - `phonemizedText`
-  - `tokenizedText`
-  - `fps`
-- queued/active segment (`segmentsByRun`)
-- speech playback start timing (`speechAudioStartsByRun`) for Pocket TTS,
-  ElevenLabs and Gemini
-- speech actual duration (`speechAudioDurationsByRun`) for Pocket TTS,
-  ElevenLabs and Gemini
-- provider character timing (`providerSpeechTimingByRun`) for ElevenLabs,
-  evidence that the current planner does not read
-- speech gesture timelines (`speechGestureTimelinesByRun`) generated by the
-  viseme worker and scaled to actual audio duration when known
-- started flags (`startedRuns`)
-- speech timing context derived per frame from
-  `audioContext.currentTime - audioStartSec`, plus resolved duration when
-  available. When a speech gesture timeline matches the resolved duration, it
-  is included in the context. `AvatarCanvasActor` passes this context into
-  `Avatar.update(delta, { speechTiming })` so procedural layers can align to
-  audible TTS windows without duplicating provider-specific timing code.
-
-### Gate condition for starting expression playback
-
-The bridge starts lip-sync only when:
-
-- a live avatar instance is registered
-- a viseme segment exists for the run
-- speech playback start timing is available
-- avatar state is `talking`
-- the run has not already started lip-sync playback
-
-This gate is evaluated from the render loop (`tickGate`) in `AvatarCanvasActor`.
-
-## 7) Provisional estimated playback (overprovisioned)
-
-Before actual Pocket duration is known, the bridge uses the estimated viseme plan but **overprovisions** the provisional segment duration so the avatar is less likely to stop animating early.
-
-Current margin policy (estimated path only):
-
-- minimum margin: `1.25s`
-- ratio margin: `20%` of estimated duration
-- maximum margin: `4.0s`
-
-The bridge logs this as:
-
-- `Queue / Overprovisioning provisional viseme duration`
-
-This is a UX safeguard and does not replace the actual-duration recompute path.
-For streamed structured TTS, especially backend-pushed Gemini audio, later
-speech segments can arrive after audible playback has already
-started. When that happens, the bridge rebuilds and immediately replaces the
-in-flight provisional
-segment using the same audio start anchor, so the avatar does not finish the
-early short provisional segment while audio continues.
-
-## 8) Actual-duration recompute and in-flight replacement
-
-When actual speech audio duration arrives (`onAudioDurationResolved`):
-
-1. `useChatSession` forwards it to the bridge (`markSpeechAudioDurationResolved`)
-2. The bridge recomputes a **new viseme plan from raw phoneme/text inputs** via:
-   - `buildGruutVisemeKeyframes(..., targetDurationSec)`
-3. The bridge converts that plan into a new `vowel5` segment
-4. If playback has already started, the bridge performs an in-flight replacement with a continuity anchor
-
-### In-flight continuity anchor
-
-To avoid a mouth-shape pop during replacement:
-
-- the bridge computes `elapsedSec = audioContext.currentTime - audioStartSec`
-- samples the current segment at `elapsedSec`
-- builds the replacement segment with an anchor:
-  - `elapsedSec`
-  - `currentDurationSec`
-  - `currentValues`
-- reapplies the segment with the **same `audioStartSec`**
-
-This preserves:
-
-- audio clock alignment
-- visual continuity at the replacement instant
-
-### Failure policy
-
-If actual duration arrives but raw viseme inputs are missing:
-
-- the bridge stores the duration and logs a warning
-- if raw inputs arrive later, the queued raw-input path rebuilds with that known
-  actual duration
-- if raw inputs never arrive, lip-sync is skipped for that run without throwing
-  through the TTS callback
-
-This protects chat/TTS playback from provider timing races while still avoiding
-hidden frame-stretch fallback behavior.
-
-## 9) `vowel5` segment format and playback
-
-Files:
-
-- `src/frontend/web/src/lib/avatar/vowelVisemeSegment.ts`
+- `src/frontend/web/src/lib/lipsync/planned-segment.ts`
 - `src/frontend/web/src/lib/avatar/types.ts`
 - `src/frontend/web/src/lib/avatar/ExpressionController.ts`
 
-### Segment format
+Frames use `format: "vowel5"`, values `[A, E, I, O, U]` at `time_sec` on the
+playback clock. The avatar samples by audio time: it reads
+`AudioContext.currentTime`, computes `t = now - audioStartSec` and interpolates
+between frames. Rendering above 60 FPS only samples more smoothly.
 
-The avatar runtime supports a native lip-sync frame format:
+On load, the expression controller logs the VRM's expressions and resolves the
+vowel channels. Names are matched case-insensitively, in these styles:
 
-- `format: "vowel5"`
+- `A/E/I/O/U`;
+- `aa/ee/ih/oh/ou`, the common VRM style;
+- fallbacks such as `ii`, `oo` and `uu`.
 
-Frame values are ordered as:
+## 7) Start and end semantics
 
-- `[A, E, I, O, U]`
+- **Start.** `TTSPlayback / Playback / Audio started`, then the avatar's state
+  update to `talking`. The segment starts at the next frame once both have
+  happened.
+- **End.** The bridge clears a run when its audio ends:
+  - the provider's raw playback-ended signal (`onPlaybackEndedSignal`)
+    hard-stops lip-sync immediately;
+  - `TTS / Audio ended` comes later, gated on run completion;
+  - clearing a run ends its worker run and clears its tag overlay.
 
-`vowelVisemeSegment.ts` converts the viseme plan into:
+## 8) Debugging checklist
 
-- `SegmentMeta`
-- `FramePayload[]`
-
-with time-based keyframes (`time_sec`) and optional continuity anchor support.
-
-### Runtime sampling model (important)
-
-The avatar lip-sync runtime samples by **audio time**, not render frame count:
-
-- `ExpressionController` reads `AudioContext.currentTime`
-- computes `t = now - audioStartSec`
-- interpolates between registered keyframes
-
-This means:
-
-- running Three.js at >60 FPS does **not** consume keyframes too fast
-- higher render FPS only increases visual sampling smoothness
-
-## 10) VRM vowel expression detection and mapping
-
-File:
-
-- `src/frontend/web/src/lib/avatar/ExpressionController.ts`
-
-On avatar load, the expression controller inspects the loaded VRM expression list and logs:
-
-- full available expressions
-- vowel-related expressions
-- resolved vowel expression map
-- missing channels
-
-Supported naming styles (mixed/case-insensitive):
-
-- `A/E/I/O/U`
-- `aa/ee/ih/oh/ou` (common VRM style)
-- fallbacks like `ii`, `oo`, `uu`
-
-`vowel5` runtime frames are then applied against the resolved mapping each update.
-
-## 11) Start and end semantics (what the logs mean)
-
-### Start
-
-Key logs:
-
-- `TTSPlayback / Playback / Audio started`
-- `Avatar / State / State update ... to: talking`
-- `AvatarVisemeSync / Playback / Expression blendshape started`
-
-Meaning:
-
-- speech playback has begun (anchored to the provider's audio start signal)
-- avatar entered talking state
-- bridge registered and started the `vowel5` segment
-
-### End
-
-Three relevant end logs can differ:
-
-1. **Avatar viseme segment completed**
-   - `Avatar LipSync / LipSync / Vowel keyframe playback completed`
-   - emitted when the lip-sync timeline runs past the segment's scheduled end
-
-2. **Pocket playback ended signal**
-   - `TTS / Playback ended signal received`
-   - raw Pocket playback end (used to hard-stop lip-sync immediately)
-
-3. **TTS audio ended**
-   - `TTS / Audio ended`
-   - higher-level callback that may be delayed by run-completion gating in `useTtsPlayback`
-
-For lip-sync stop timing, the raw Pocket playback-ended signal is the authoritative stop hook.
-
-## 12) Debugging checklist
-
-Inspect these stages in order:
-
-1. Confirm spoken text has matching phonemes and a generated viseme plan.
-2. Check `audioStartSec` and the bridge's `talking` gate.
-3. Check the provisional target duration and overprovisioning log.
-4. Check when actual duration arrived and whether replacement was prestart or
-   in-flight. Large duration corrections can affect perceived synchronization.
-5. Confirm raw playback-ended cleared lip-sync; the higher-level Audio ended
-   callback may wait for run completion.
+1. **Audio reaches the tap.** In the debug panel's Lip-sync view, the run shows
+   audio being captured.
+2. **Text is complete.** The view's plans need the run's final text (Gemini:
+   its parts).
+3. **Plans arrive.** Check `plannerStatsByRun` (CPU and fallback). Logs name
+   `no_alignment` and planner failures once per run.
+4. **The run started.** Look for `audioStartSec` and the `talking` gate.
+5. **Clock.** Underruns appear as `playbackAnchorsByRun` entries; a mouth that
+   runs ahead after a stall points here.
 
 ### Comparing plans in the debug panel
 
 In a development build with `VITE_ENABLE_DEBUG_PANEL=true`, the Anima debug
-panel's **Lip-sync** section shows the latest realtime ElevenLabs reply:
+panel's **Lip-sync** section shows the latest spoken reply from ElevenLabs,
+Gemini or Pocket. For that reply it shows:
 
 - its audio envelope;
 - its timing evidence: words, punctuation and tags;
-- one mouth-openness curve per plan source.
+- the live planner's CPU per second of audio and any fallback;
+- one mouth-openness curve per plan source:
+  - "Estimated (today)", gruut's planner at the played length;
+  - "Aligned (new)", the current planner replanning the captured audio, text
+    and timing in the worker, with its CPU. The audio arrives all at once, so
+    its plan can differ slightly from the live one.
 
 **Replay** plays the captured audio through its own `AudioContext` and drives
 the avatar with that plan (`playReplaySegment`, under a replay run id), so plans
 can be compared by eye and ear.
 
 - Plans are built, and Replay is enabled, only once the captured reply has
-  finished playing: when the bridge clears its run. The stream ends earlier,
-  while buffered audio still plays.
-- Replay cannot start while any reply is speaking, whatever its provider. A
-  reply that starts speaking during a replay ends it. A reply whose own plan
-  has started keeps it; otherwise the mouth returns to rest.
+  finished playing.
+- Replay cannot start while any reply is speaking. A reply that starts
+  speaking during a replay ends it.
 - A capped capture is drawn and replayed on the 90 s it kept.
 
+Capture and capture files:
+
 - **Capture.** `SceneDebugPanel` starts the capture while the panel is enabled,
-  whether or not it is open, because the panel closes on any outside click
-  such as typing a message.
-  - The ElevenLabs runtime hands each audio frame to the debug tap
-    (`lib/speech/speech-debug-tap.ts`). Without a capture the tap is empty and
-    nothing is copied.
-  - `stores/lipsync-debug-store.ts` keeps only the latest run, capped at 90 s.
-  - It copies the run's planner inputs, timing and length from the bridge
-    before the run is cleared, and clears with the session.
-- **Plan sources.** `lib/speech/lipsync-plan-sources.ts` lists "Estimated
-  (today)" (today's planner at the played length) first. A planner registers
-  itself with `registerLipSyncPlanSource({id, label, build})`; the view needs
-  no change.
-- **No estimated plan.** gruut's English model finds no phonemes in Japanese,
-  Chinese or Korean speech. "Estimated (today)" therefore has no plan for it,
-  and the avatar's mouth stays still while it plays, as before Eleven v4. Its
-  provider timing is still shown. Accented Latin text keeps gruut's
-  English-reading phonemes.
+  whether or not it is open. `stores/lipsync-debug-store.ts` listens to the PCM
+  tap, keeps only the latest run (capped at 90 s), copies its text, timing and
+  planner stats from the bridge, and clears with the session.
+- **Load capture** (development only) shows a capture file in the view instead,
+  so the test lines with laughs, sighs and pauses can be compared without
+  speaking them. Make capture files from the evaluation clips with
+  `pnpm --dir src/frontend/web lipsync:captures --clips "$CLIPS" --out "$DIR"`.
+  They hold audio, so `$DIR` must be outside the repository.
+- **Plan sources** are listed in `lib/speech/lipsync-plan-sources.ts`. Another
+  planner registers with `registerLipSyncPlanSource({id, label, build})`; the
+  view needs no change.
+- gruut's English model finds no phonemes in Japanese, Chinese or Korean, so
+  "Estimated (today)" has no plan for them.
 
-## 13) Known limitations / caveats
+## 9) Known limitations
 
-1. **Single-chunk Pocket runs do not get inter-chunk gap silence**
-   - `CHUNK_GAP_SEC` only applies between chunks
-   - `insertedGapDuration` will be `0` for one-chunk runs
+1. **Untimed speech with voiced sighs or laughs can run ahead within a part.**
+   Loudness and voicing cannot tell a voiced sigh from words, so a progressive
+   plan may spend words on it. Gemini parts bound this to one part. Pocket
+   replies and ElevenLabs without timing are one part, so the error can carry
+   further. ElevenLabs is untimed only on hosted Animama until its timing ships.
+2. **Browser speech is an estimate.** Voices that report no word boundaries
+   place words at an average rate between utterance starts and ends.
+3. **A worker failure mid-run** leaves that run's mouth at rest for the rest of
+   the run.
+4. **`TTS / Audio ended` is not raw playback end.** Use the raw playback-ended
+   signal when debugging end-of-audio alignment.
 
-2. **Leading/trailing silence inside generated audio can still affect perceived phoneme alignment**
-   - even with good start anchoring and total-duration correction
-
-3. **Actual duration can arrive late**
-   - if the provisional segment already completed, the recompute may be less visually useful
-   - this is why overprovisioning + hard-stop on Pocket playback end is used
-
-4. **`TTS / Audio ended` is not the same as raw Pocket playback-ended**
-   - `useTtsPlayback` gates `onAudioEnded` on run completion
-   - use the raw playback-ended signal logs for end-of-audio alignment debugging
-
-## 14) Evaluating lip-sync offline
+## 10) Evaluating lip-sync offline
 
 `pnpm --dir src/frontend/web lipsync:eval` scores lip-sync plan sources against
 recorded speech, with no network or paid speech. It reports, per clip set:
@@ -536,15 +284,16 @@ playback buffer (`live`). Sources live in `src/lib/lipsync/eval/sources.ts`; the
 fixtures and how to rebuild them are described in
 [`scripts/lipsync/README.md`](../../../scripts/lipsync/README.md).
 
-- `estimated`: today's gruut-based planner, scored whole.
-- `aligned`: the audio-aligned planner (`src/lib/lipsync/planner.ts`), which
-  re-aligns only the newest audio as it arrives.
+- `estimated`: gruut's planner, scored whole.
+- `aligned`: the planner the app uses, which re-aligns only the newest audio as
+  it arrives.
 - `aligned-full` (opt-in, `--source aligned-full`): the same planner re-aligning
   everything on every step, a reference for the windowed planner's accuracy and
   cost.
 
 `src/lib/lipsync/eval/aligned-thresholds.test.ts` holds `aligned` to the agreed
 thresholds at each provider's delivery rate. It also bounds progressive plans'
-word drift and vowel opening against whole-clip plans, on every set and on
-multi-sentence parts joined from clips, and checks that beats fall on the
-syllables gruut stressed. A tuning change that breaks one fails `pnpm web:test`.
+word drift and vowel opening against whole-clip plans. These bounds apply on
+every set and on multi-sentence replies joined from clips, in parts as Gemini
+speaks them or as one part. It also checks that beats fall on the syllables
+gruut stressed. A tuning change that breaks one fails `pnpm web:test`.

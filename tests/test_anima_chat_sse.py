@@ -2144,6 +2144,8 @@ async def test_chat_sse_finalized_speech_paragraph_chunking_splits_paragraph_bre
     )
     assert set(silence_bytes) == {0}
     assert {(event["provider"], event["model_id"]) for event in audio_events} == {("gemini", _GEMINI_TTS_MODEL)}
+    # Each batch's first frame names its text; the pause between belongs to neither.
+    assert [event.get("part_text") for event in audio_events] == ["First paragraph.", None, "Second paragraph."]
     assert _event_count(chunks, "tts.done") == 1
 
 
@@ -2166,7 +2168,9 @@ async def test_chat_sse_finalized_speech_paragraph_chunking_flushes_after_four_s
         ("One. Two. Three. Four.", "visible_text"),
         ("Five.", "visible_text"),
     ]
-    assert [event["audio_base64"] for event in _event_data_all(chunks, "tts.audio")] == ["BATCH1", "BATCH2"]
+    audio_events = _event_data_all(chunks, "tts.audio")
+    assert [event["audio_base64"] for event in audio_events] == ["BATCH1", "BATCH2"]
+    assert [event["part_text"] for event in audio_events] == ["One. Two. Three. Four.", "Five."]
     assert _event_count(chunks, "tts.done") == 1
 
 

@@ -1,5 +1,5 @@
 import type { TalkingHandsProceduralAnimationParams } from "./types";
-import type { SpeechGestureBeat } from "@/lib/speech/gruut-viseme-keyframes";
+import type { SpeechGestureBeat } from "@/lib/speech/speech-gesture-timeline";
 import type { TtsChunkBoundaryType } from "@/lib/speech/tts-chunker";
 
 const EPSILON = 0.0001;

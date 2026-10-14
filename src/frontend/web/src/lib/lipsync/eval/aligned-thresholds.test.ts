@@ -4,11 +4,12 @@
  * and live, ElevenLabs at 2.9× and as a live stream with a 0.3 s buffer.
  *
  * Beyond D2, the tests guard against progressive plans drifting from the
- * speech, on every set and on multi-sentence parts made by joining tuning
+ * speech, on every set and on multi-sentence replies made by joining tuning
  * clips: words must start about where planning the whole clip at once puts
  * them (word drift), and the mouth must open on reference vowels about as often.
- * Untimed parts with voiced sighs or laughs still drift (recorded in the plan),
- * so the bounds catch regressions rather than prove there is no drift.
+ * Untimed speech with voiced sighs or laughs still drifts within a part
+ * (recorded in the plan), so the bounds catch regressions rather than prove
+ * there is no drift.
  */
 
 import { readdirSync, readFileSync } from "node:fs";
@@ -20,6 +21,7 @@ import { alignedEvalSource } from "./aligned-source";
 import { ARRIVAL_MODES, runPlanSource } from "./arrival";
 import { decodeEvalClip, type EncodedEvalClip, type EvalClip } from "./clip";
 import { evaluate, type EvaluationRow } from "./evaluate";
+import { joinEvalClips } from "./join";
 import { scoreClip } from "./metrics";
 import { summarise, wordDrift } from "./report";
 
@@ -68,8 +70,9 @@ const DRIFT_ALLOWANCE = 0.05;
 /** Mean word drift per set, and the most any one clip may drift, in seconds. */
 const SET_WORD_DRIFT_SEC = 0.35;
 const CLIP_WORD_DRIFT_SEC = 1.5;
-/** Mean word drift of a joined multi-sentence part, in seconds. */
+/** Mean word drift of a joined multi-sentence reply, in seconds: one part, or in parts. */
 const PART_WORD_DRIFT_SEC = 1.2;
+const PARTS_WORD_DRIFT_SEC = 0.8;
 
 describe("aligned planner thresholds (D2)", () => {
   it.each(["faster", "live"] as const)(
@@ -148,52 +151,28 @@ describe("progressive plans stay with the speech", () => {
     }
   });
 
-  /** Clips joined into one part with 0.3 s of silence between, without timing. */
-  function join(ids: string[]): EvalClip {
-    const parts = ids.map((id) => clips.find((clip) => clip.id === id)!);
-    const rate = parts[0]!.features.rate;
-    const gap = Math.round(0.3 * rate);
-    const total =
-      parts.reduce((sum, clip) => sum + clip.features.loudnessDb.length, 0) +
-      gap * (parts.length - 1);
-    const loudnessDb = new Float32Array(total).fill(-90);
-    const voicing = new Float32Array(total);
-    const pitchHz = new Float32Array(total);
-    const words: Array<[number, number]> = [];
-    const vowels: Array<[number, number, number]> = [];
-    let at = 0;
-    for (const clip of parts) {
-      const offset = at / rate;
-      loudnessDb.set(clip.features.loudnessDb, at);
-      voicing.set(clip.features.voicing, at);
-      pitchHz.set(clip.features.pitchHz, at);
-      for (const [s, e] of clip.reference.words)
-        words.push([s + offset, e + offset]);
-      for (const [v, s, e] of clip.reference.vowels) {
-        vowels.push([v, s + offset, e + offset]);
-      }
-      at += clip.features.loudnessDb.length + gap;
-    }
-    return {
-      ...parts[0]!,
-      id: ids.join("+"),
-      text: parts.map((clip) => clip.text).join(" "),
-      durationSec: total / rate,
-      features: { rate, loudnessDb, voicing, pitchHz },
-      timing: null,
-      reference: { words, vowels },
-      estimated: null,
-      intervalTags: 0,
-    };
-  }
-
+  // Gemini speaks a reply in parts, each planned against its own audio; Pocket
+  // and ElevenLabs without timing speak it as one part.
   it.each([
-    ["Gemini English", ["s-en", "g-en-long", "s-en-sad"]],
-    ["Pocket English", ["p-en", "p-en-long", "p-en-pause"]],
-    ["Gemini Japanese", ["s-ja", "s-ja-excited", "g-ja-laugh"]],
-    ["ElevenLabs English without timing", ["e-en", "e-en-long"]],
-  ])("a multi-sentence part: %s", (_name, ids) => {
-    const part = join(ids);
+    ["Gemini English", ["s-en", "g-en-long", "s-en-sad"], true],
+    [
+      "Gemini English with tags",
+      ["g-en-laugh", "g-en-sigh", "g-en-pause", "g-en-whisper", "g-en-long"],
+      true,
+    ],
+    [
+      "Gemini tags in four languages",
+      ["g-ko-sigh", "g-zh-laugh", "g-ja-laugh", "g-en-gasp", "g-en-laugh"],
+      true,
+    ],
+    ["Gemini Japanese", ["s-ja", "s-ja-excited", "g-ja-laugh"], true],
+    ["Pocket English", ["p-en", "p-en-long", "p-en-pause"], false],
+    ["ElevenLabs English without timing", ["e-en", "e-en-long"], false],
+  ] as const)("a multi-sentence reply: %s", (_name, ids, parts) => {
+    const part = joinEvalClips(
+      ids.map((id) => clips.find((clip) => clip.id === id)!),
+      { parts },
+    );
     const wholeRun = runPlanSource(
       alignedEvalSource,
       part,
@@ -207,7 +186,7 @@ describe("progressive plans stay with the speech", () => {
         whole - DRIFT_ALLOWANCE,
       );
       expect(wordDrift(run, wholeRun)!, mode).toBeLessThanOrEqual(
-        PART_WORD_DRIFT_SEC,
+        parts ? PARTS_WORD_DRIFT_SEC : PART_WORD_DRIFT_SEC,
       );
     }
   });

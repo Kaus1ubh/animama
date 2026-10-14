@@ -243,7 +243,10 @@ def format_tts_session_error_event(*, run_id: str, exc: BaseException) -> str:
     return format_sse("tts.session.error", data, event_id=f"tts-session-error-{run_id}")
 
 
-def format_tts_audio_event(*, run_id: str, payload: Mapping[str, object], provider: str) -> str | None:
+def format_tts_audio_event(
+    *, run_id: str, payload: Mapping[str, object], provider: str, part_text: str | None = None
+) -> str | None:
+    """One ``tts.audio`` frame; ``part_text`` marks the first frame of a speech part with the part's text."""
     audio_base64 = payload.get("audio_base64")
     if not isinstance(audio_base64, str) or not audio_base64:
         return None
@@ -257,6 +260,8 @@ def format_tts_audio_event(*, run_id: str, payload: Mapping[str, object], provid
         "output_format": output_format if isinstance(output_format, str) else "pcm_24000",
         "audio_base64": audio_base64,
     }
+    if part_text:
+        data["part_text"] = part_text
     return format_sse("tts.audio", data)
 
 

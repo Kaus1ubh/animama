@@ -14,6 +14,7 @@
     "effects": "node scripts/effects.mjs",
     "lipsync:eval": "node scripts/lipsync.mjs eval",
     "lipsync:fixtures": "node scripts/lipsync.mjs fixtures",
+    "lipsync:captures": "node scripts/lipsync.mjs captures",
     "animation:preview": "node scripts/animation-preview.mjs",
     "animation:save": "node scripts/animation-save.mjs",
     "dev": "pnpm --dir .. poses:check && pnpm --dir .. packages:build && pnpm routes:generate && vite",

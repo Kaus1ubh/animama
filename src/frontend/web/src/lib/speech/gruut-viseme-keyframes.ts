@@ -1,3 +1,9 @@
+import type {
+  SpeechGestureBeat,
+  SpeechGestureTimeline,
+  SpeechGestureWordTiming,
+} from "./speech-gesture-timeline";
+
 type PhonemizedText = string[][] | null | undefined;
 
 export const VOWEL_VISEME_FPS = 60;
@@ -11,30 +17,11 @@ export type VowelVisemeKeyframe = VowelVisemeValues & {
   timeSec: number;
 };
 
-export type SpeechGestureBeat = {
-  timeSec: number;
-  wordIndex: number;
-  phonemeIndex: number;
-  phoneme: string;
-};
-
-export type SpeechGestureWordTiming = {
-  wordIndex: number;
-  startSec: number;
-  endSec: number;
-};
-
-export type SpeechGestureTimeline = {
-  utteranceDurationSec: number;
-  durationSec: number;
-  durationMs: number;
-  wordTimings: SpeechGestureWordTiming[];
-  beats: SpeechGestureBeat[];
-  features: {
-    primaryStressCount: number;
-    wordCount: number;
-  };
-};
+export type {
+  SpeechGestureBeat,
+  SpeechGestureTimeline,
+  SpeechGestureWordTiming,
+} from "./speech-gesture-timeline";
 
 export type GruutVisemeKeyframePlan = {
   fps: number;

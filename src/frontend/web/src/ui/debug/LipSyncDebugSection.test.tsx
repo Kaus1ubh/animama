@@ -4,6 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { buildVisemeAssetsFromRaw } from "@/lib/avatar/viseme-worker-client";
+import { encodeLipSyncCapture } from "@/lib/lipsync/capture-file";
 import type { VowelVisemeLipSyncSegment } from "@/lib/avatar/vowelVisemeSegment";
 import { registerLipSyncPlanSource } from "@/lib/speech/lipsync-plan-sources";
 import { useAvatarLipSyncBridgeStore } from "@/stores/avatar-lipsync-bridge-store";
@@ -68,6 +69,10 @@ async function render() {
 function capture(overrides: Partial<LipSyncDebugCapture> = {}) {
   useLipSyncDebugStore.setState({
     capture: {
+      origin: "live",
+      text: null,
+      parts: [],
+      plannerStats: null,
       runId: "run-1",
       provider: "elevenlabs",
       sampleRate: 24_000,
@@ -92,7 +97,7 @@ function registerTimingSource() {
   unregister = registerLipSyncPlanSource({
     id: "timing-test",
     label: "Timing (test)",
-    build: async () => segment(5),
+    build: async () => ({ segment: segment(5) }),
   });
 }
 
@@ -127,7 +132,64 @@ describe("Lip-sync debug section", () => {
     await render();
 
     expect(container?.textContent).toContain(
-      "Send a reply with ElevenLabs speech",
+      "Send a reply spoken by ElevenLabs, Gemini or Pocket",
+    );
+  });
+
+  it("loads a capture file in development", async () => {
+    await render();
+    const file = new File(
+      [
+        JSON.stringify(
+          encodeLipSyncCapture({
+            id: "g-en-laugh",
+            provider: "gemini",
+            sampleRate: 24_000,
+            pcm: new Int16Array(2400).fill(8000),
+            text: "Ha!",
+            parts: [{ sample: 0, text: "Ha!" }],
+            timing: [],
+            estimated: { phonemizedText: [["h", "ɑ"]], tokenizedText: "Ha" },
+          }),
+        ),
+      ],
+      "g-en-laugh.json",
+    );
+    const input = container!.querySelector<HTMLInputElement>(
+      '[aria-label="Lip-sync capture file"]',
+    )!;
+    Object.defineProperty(input, "files", { value: [file] });
+    await act(async () => {
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await settle();
+
+    expect(useLipSyncDebugStore.getState().capture).toMatchObject({
+      origin: "file",
+      runId: "g-en-laugh",
+      samples: 2400,
+      parts: [{ sample: 0, text: "Ha!" }],
+      playbackEnded: true,
+    });
+    expect(container?.textContent).toContain("capture file");
+    expect(container?.textContent).toContain("Estimated (today)3 frames");
+  });
+
+  it("says why a file is not a capture", async () => {
+    await render();
+    const input = container!.querySelector<HTMLInputElement>(
+      '[aria-label="Lip-sync capture file"]',
+    )!;
+    Object.defineProperty(input, "files", {
+      value: [new File(["{}"], "other.json")],
+    });
+    await act(async () => {
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await settle();
+
+    expect(container?.textContent).toContain(
+      "Not a lip-sync capture file (version 1)",
     );
   });
 

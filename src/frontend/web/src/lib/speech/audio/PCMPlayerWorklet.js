@@ -94,9 +94,21 @@ export class PCMPlayerWorklet extends EventEmitter {
           this.processPendingChunks();
           break;
         case "playback-started":
+          // The worklet's own time is when the first sample plays; the
+          // context's time here is later by the message's delivery.
           this.emit("firstPlayback", {
-            startTime: this.audioContext.currentTime,
+            startTime: Number.isFinite(e.data.audioTime)
+              ? e.data.audioTime
+              : this.audioContext.currentTime,
             bufferedSamples: e.data.buffered,
+          });
+          break;
+        case "playback-resumed":
+          // After an underrun: stream sample `playedSamples` plays at `audioTime`.
+          this.emit("playbackResumed", {
+            playedSamples: e.data.playedSamples,
+            audioTime: e.data.audioTime,
+            sampleRate: this.audioContext.sampleRate,
           });
           break;
         case "playback-complete":

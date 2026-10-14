@@ -7,7 +7,8 @@
  * (English), it tips the balance between syllables that are close. Beats are at
  * least 0.4 s apart, the strongest kept first. Tags, pauses and weak vowels
  * never carry a beat. Without audio, prominence comes from stress and length
- * alone, for provisional beats.
+ * alone, for provisional beats: words not heard yet, placed at the speaking
+ * rate, give talking hands beats ahead of the audio until it arrives.
  */
 
 import type { SpeechFeatures } from "@/lib/lipsync/audio/features";
@@ -42,6 +43,8 @@ export type SpeechPhrase = {
   endSec: number;
   firstWord: number;
   lastWord: number;
+  /** The phrase ends with an exclamation mark. */
+  exclamation?: boolean;
 };
 
 export type SpeechGestureTiming = {
@@ -147,13 +150,51 @@ function prominence(syllables: Syllable[], withAudio: boolean): number[] {
   });
 }
 
+/**
+ * The most prominent syllables, at least `MIN_BEAT_SPACING_SEC` apart from
+ * each other and from the beats already `kept`, strongest first.
+ */
+function selectBeats(
+  syllables: readonly Syllable[],
+  withAudio: boolean,
+  kept: readonly SpeechBeat[],
+): SpeechBeat[] {
+  const scores = prominence([...syllables], withAudio);
+  const candidates = syllables
+    .map((syllable, index) => ({ syllable, strength: scores[index]! }))
+    .filter((candidate) => candidate.strength > 0)
+    .sort((a, b) => b.strength - a.strength);
+  const chosen: SpeechBeat[] = [];
+  for (const { syllable, strength } of candidates) {
+    const tooClose = [...kept, ...chosen].some(
+      (other) =>
+        Math.abs(other.timeSec - syllable.peakSec) < MIN_BEAT_SPACING_SEC,
+    );
+    if (tooClose) continue;
+    chosen.push({
+      timeSec: syllable.peakSec,
+      wordIndex: syllable.wordIndex,
+      unitIndex: syllable.unitIndex,
+      strength,
+    });
+  }
+  return chosen;
+}
+
+/**
+ * Gesture timing for `aligned` units heard in `features`, and for
+ * `provisional` units after them: words not heard yet, placed at the speaking
+ * rate. Provisional beats' `unitIndex` counts on from the aligned units.
+ */
 export function speechGestureTiming(
   aligned: readonly AlignedUnit[],
   features: SpeechFeatures | null,
+  provisional: readonly AlignedUnit[] = [],
 ): SpeechGestureTiming {
+  const all = provisional.length ? [...aligned, ...provisional] : aligned;
   // Words: the span of their speech units.
   const words = new Map<number, SpeechWordTiming>();
-  for (const { unit, startSec, endSec } of aligned) {
+  for (const { unit, startSec, endSec } of all) {
     if (unit.word === undefined || unit.kind === "pause" || unit.kind === "tag")
       continue;
     const word = words.get(unit.word);
@@ -168,13 +209,16 @@ export function speechGestureTiming(
   // Phrases: words between long pauses, stops and tags.
   const phrases: SpeechPhrase[] = [];
   let phrase: SpeechPhrase | null = null;
-  for (const { unit, startSec, endSec } of aligned) {
+  for (const { unit, startSec, endSec } of all) {
     const breaks =
       unit.kind === "tag" ||
       (unit.kind === "pause" &&
         (unit.pause === "stop" || endSec - startSec >= PHRASE_BREAK_SEC));
     if (breaks) {
-      if (phrase) phrases.push(phrase);
+      if (phrase) {
+        if (unit.exclaim) phrase.exclamation = true;
+        phrases.push(phrase);
+      }
       phrase = null;
       continue;
     }
@@ -193,30 +237,23 @@ export function speechGestureTiming(
   }
   if (phrase) phrases.push(phrase);
 
-  // Beats: the most prominent syllables, spaced apart.
-  const syllables = measureSyllables(aligned, features);
-  const scores = prominence(syllables, features !== null);
-  const candidates = syllables
-    .map((syllable, index) => ({ syllable, strength: scores[index]! }))
-    .filter((candidate) => candidate.strength > 0)
-    .sort((a, b) => b.strength - a.strength);
-  const kept: typeof candidates = [];
-  for (const candidate of candidates) {
-    const tooClose = kept.some(
-      (other) =>
-        Math.abs(other.syllable.peakSec - candidate.syllable.peakSec) <
-        MIN_BEAT_SPACING_SEC,
-    );
-    if (!tooClose) kept.push(candidate);
-  }
-  const beats = kept
-    .map(({ syllable, strength }) => ({
-      timeSec: syllable.peakSec,
-      wordIndex: syllable.wordIndex,
-      unitIndex: syllable.unitIndex,
-      strength,
-    }))
-    .sort((a, b) => a.timeSec - b.timeSec);
+  // Beats: the most prominent syllables, spaced apart; heard ones first.
+  const heard = selectBeats(
+    measureSyllables(aligned, features),
+    features !== null,
+    [],
+  );
+  const ahead = provisional.length
+    ? selectBeats(
+        measureSyllables(provisional, null).map((syllable) => ({
+          ...syllable,
+          unitIndex: syllable.unitIndex + aligned.length,
+        })),
+        false,
+        heard,
+      )
+    : [];
+  const beats = [...heard, ...ahead].sort((a, b) => a.timeSec - b.timeSec);
 
   return {
     words: [...words.values()].sort((a, b) => a.wordIndex - b.wordIndex),

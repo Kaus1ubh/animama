@@ -10,6 +10,7 @@
 
 import type { SpeechFeatures } from "@/lib/lipsync/audio/features";
 import type { TimedChar } from "@/lib/speech/provider-speech-timing";
+import { base64ToBytes, bytesToBase64 } from "@/lib/lipsync/base64";
 
 export type EvalLanguage = "en" | "ja" | "ko" | "zh" | "es";
 export type EvalProvider = "gemini" | "pocket" | "openai" | "elevenlabs";
@@ -64,6 +65,11 @@ export type EvalClip = EvalClipMeta & {
   timing: TimedChar[] | null;
   reference: EvalReference;
   estimated: EstimatedPlannerInputs | null;
+  /**
+   * Where each speech part's audio starts, for clips joined from several
+   * parts, as a reply spoken part by part arrives. Recorded clips are one part.
+   */
+  parts?: Array<{ startSec: number; text: string }>;
 };
 
 export type EncodedEvalClip = EvalClipMeta & {
@@ -79,22 +85,6 @@ export type EncodedEvalClip = EvalClipMeta & {
   reference: EvalReference;
   estimated: EstimatedPlannerInputs | null;
 };
-
-function bytesToBase64(bytes: Uint8Array): string {
-  let binary = "";
-  const chunk = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunk) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
-  }
-  return btoa(binary);
-}
-
-function base64ToBytes(text: string): Uint8Array {
-  const binary = atob(text);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
-  return bytes;
-}
 
 const round = (value: number, digits: number) => Number(value.toFixed(digits));
 

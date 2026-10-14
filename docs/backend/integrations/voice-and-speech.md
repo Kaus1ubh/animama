@@ -111,8 +111,11 @@ Response handling:
   `model_id`, `output_format` and `audio_base64`. The backend coalesces
   upstream PCM bytes into frames of at least 0.2 s, to avoid many tiny browser
   playback buffers.
+- The first frame of each batch also carries `part_text`, the batch's text,
+  so the browser's lip-sync planner fits each batch's words to that batch's own
+  audio.
 - In paragraph mode, a generated 400 ms silence frame is inserted before each
-  later paragraph batch, using the same `tts.audio` shape.
+  later paragraph batch, using the same `tts.audio` shape, without `part_text`.
 - The stream ends with one `type: "tts.done"` after the last batch.
 - If batch setup or upstream streaming fails, the backend emits one
   `type: "tts.error"`, skips `tts.done` and still completes the chat run.

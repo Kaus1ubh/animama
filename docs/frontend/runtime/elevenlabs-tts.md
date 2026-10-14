@@ -127,19 +127,16 @@ providers:
 - `onPlaybackEndedSignal`
 - `onAudioEnded`
 
-The avatar lip-sync bridge uses gruut phonemes from SSE and the actual played
-audio duration to build or recompute vowel viseme timing. For structured speech
-streaming, `useChatSession` accumulates the `tts_phonemized_text` from every
-speech segment that is sent to TTS, so the final run-level duration correction
-uses the same text basis as the spoken audio. Lip-sync timing comes from those
-phonemes and playback callbacks, not ElevenLabs alignment metadata.
+Lip-sync plans the mouth from the audio frames the runtime plays, the text of
+each chunk sent to the socket, and the provider's character timing (see
+[Avatar lip-sync](avatar-lipsync.md#2-text-and-audio-per-provider)).
 
 ### Provider character timing
 
 The runtime also reports the provider's character timing through
 `onSpeechTiming`. `useChatSession` appends it to the lip-sync bridge's
-`providerSpeechTimingByRun`, which is cleared with the run. It is evidence for
-lip-sync planners; the current planner does not read it.
+`providerSpeechTimingByRun`, which is cleared with the run, and forwards it to
+the lip-sync planner, which places words and tags within it.
 
 `lib/speech/provider-speech-timing.ts` puts every character on the run clock:
 seconds from the run's first audio sample. Add the run's `audioStartSec` to map a

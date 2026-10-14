@@ -11,6 +11,11 @@
  *     Rebuild fixtures from a maintainer clip directory made with
  *     scripts/lipsync/clips.py (WAV files, recorded timing, reference.json and
  *     estimated.json). The audio itself is never written to the repository.
+ *
+ *   pnpm lipsync:captures --clips <dir> --out <dir> [--only id,...]
+ *     Write capture files the debug panel's Lip-sync view can load ("Load
+ *     capture", development only), one per clip. They hold the audio, so --out
+ *     must be outside the repository.
  */
 
 import { existsSync } from "node:fs";
@@ -97,6 +102,23 @@ async function readJson(file) {
   return JSON.parse(await readFile(file, "utf8"));
 }
 
+/** A clip's recorded provider timing, if it has any. */
+async function readRecordedTiming(clipsDir, id, sampleRate) {
+  const socketPath = path.join(clipsDir, `${id}.socket.json`);
+  const httpPath = path.join(clipsDir, `${id}.alignment.json`);
+  if (existsSync(socketPath)) {
+    return {
+      kind: "socket",
+      sampleRate,
+      messages: (await readJson(socketPath)).messages,
+    };
+  }
+  if (existsSync(httpPath)) {
+    return { kind: "http", alignment: await readJson(httpPath) };
+  }
+  return null;
+}
+
 async function buildFixtures(argv) {
   const { values } = parseArgs({
     args: argv,
@@ -129,18 +151,7 @@ async function buildFixtures(argv) {
       if (!reference[line.id])
         throw new Error(`${line.id}: no reference alignment`);
       const { pcm, sampleRate } = decodeWav(await readFile(wavPath));
-      const socketPath = path.join(clipsDir, `${line.id}.socket.json`);
-      const httpPath = path.join(clipsDir, `${line.id}.alignment.json`);
-      let timing = null;
-      if (existsSync(socketPath)) {
-        timing = {
-          kind: "socket",
-          sampleRate,
-          messages: (await readJson(socketPath)).messages,
-        };
-      } else if (existsSync(httpPath)) {
-        timing = { kind: "http", alignment: await readJson(httpPath) };
-      }
+      const timing = await readRecordedTiming(clipsDir, line.id, sampleRate);
       const estimatedInputs = estimated[line.id];
       const clip = buildEvalClip({
         meta: {
@@ -170,6 +181,85 @@ async function buildFixtures(argv) {
       written += 1;
     }
     console.log(`fixtures written: ${written}`);
+  } finally {
+    await loader.close();
+  }
+}
+
+async function writeCaptures(argv) {
+  const { values } = parseArgs({
+    args: argv,
+    options: {
+      clips: { type: "string" },
+      out: { type: "string" },
+      only: { type: "string" },
+    },
+  });
+  if (!values.clips || !values.out)
+    throw new Error("--clips <dir> and --out <dir> are required");
+  const clipsDir = path.resolve(values.clips);
+  const outDir = path.resolve(values.out);
+  const repoRoot = path.resolve(webRoot, "../../..");
+  if (!path.relative(repoRoot, outDir).startsWith("..")) {
+    throw new Error(
+      "--out must be outside the repository: captures hold audio",
+    );
+  }
+  const only = values.only ? new Set(values.only.split(",")) : null;
+  const { lines } = await readJson(path.join(lipsyncTests, "testset.json"));
+  const estimatedPath = path.join(clipsDir, "estimated.json");
+  const estimated = existsSync(estimatedPath)
+    ? await readJson(estimatedPath)
+    : {};
+
+  const loader = await createLoader();
+  try {
+    const { timingFromRecording } = await loader.load(
+      "/src/lib/lipsync/eval/build.ts",
+    );
+    const { encodeLipSyncCapture } = await loader.load(
+      "/src/lib/lipsync/capture-file.ts",
+    );
+    await mkdir(outDir, { recursive: true });
+    let written = 0;
+    for (const line of lines) {
+      if (only && !only.has(line.id)) continue;
+      // The app plays these providers; others were recorded for scoring only.
+      if (!["elevenlabs", "gemini", "pocket"].includes(line.provider)) continue;
+      const wavPath = path.join(clipsDir, `${line.id}.wav`);
+      if (!existsSync(wavPath)) {
+        console.warn(`${line.id}: no clip, skipped`);
+        continue;
+      }
+      const { pcm, sampleRate } = decodeWav(await readFile(wavPath));
+      const recording = await readRecordedTiming(clipsDir, line.id, sampleRate);
+      const estimatedInputs = estimated[line.id];
+      const capture = encodeLipSyncCapture({
+        id: line.id,
+        provider: line.provider,
+        sampleRate,
+        pcm: Int16Array.from(pcm, (value) =>
+          Math.max(-32768, Math.min(32767, Math.round(value * 32768))),
+        ),
+        text: line.text,
+        // Gemini speaks a reply in parts; a clip is one.
+        parts:
+          line.provider === "gemini" ? [{ sample: 0, text: line.text }] : [],
+        timing: recording ? timingFromRecording(recording) : [],
+        estimated: estimatedInputs?.phonemizedText?.length
+          ? {
+              phonemizedText: estimatedInputs.phonemizedText,
+              tokenizedText: estimatedInputs.tokenizedText ?? null,
+            }
+          : null,
+      });
+      await writeFile(
+        path.join(outDir, `${line.id}.json`),
+        `${JSON.stringify(capture)}\n`,
+      );
+      written += 1;
+    }
+    console.log(`captures written to ${outDir}: ${written}`);
   } finally {
     await loader.close();
   }
@@ -228,9 +318,15 @@ async function runEvaluation(argv) {
 }
 
 const [command, ...rest] = process.argv.slice(2);
-const commands = { eval: runEvaluation, fixtures: buildFixtures };
+const commands = {
+  eval: runEvaluation,
+  fixtures: buildFixtures,
+  captures: writeCaptures,
+};
 if (!commands[command]) {
-  console.error("Usage: node scripts/lipsync.mjs <eval|fixtures> [options]");
+  console.error(
+    "Usage: node scripts/lipsync.mjs <eval|fixtures|captures> [options]",
+  );
   process.exit(2);
 }
 await commands[command](rest);

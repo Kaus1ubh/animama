@@ -34,8 +34,15 @@ export {
   type PendingModelSwitch,
 } from "@animama/product-ui/chat";
 
-/** Providers whose audio drives viseme lip-sync from gruut phonemes. */
-const VISEME_SYNC_PROVIDERS = new Set(["pocket_tts", "elevenlabs", "gemini"]);
+/** Providers whose played audio the lip-sync planner aligns the reply's text to. */
+// Every provider plans lip-sync: from the played audio, or (browser speech)
+// from the text on the performance clock.
+const VISEME_SYNC_PROVIDERS = new Set([
+  "pocket_tts",
+  "elevenlabs",
+  "gemini",
+  "browser",
+]);
 
 function syncsVisemes(provider: string | null): boolean {
   return provider !== null && VISEME_SYNC_PROVIDERS.has(provider);
@@ -96,6 +103,9 @@ export function useChatSession(args: UseChatSessionArgs) {
   );
   const appendProviderSpeechTiming = useAvatarLipSyncBridgeStore(
     (state) => state.appendProviderSpeechTiming,
+  );
+  const setAvatarSpeechText = useAvatarLipSyncBridgeStore(
+    (state) => state.setSpeechText,
   );
   const clearAvatarVisemeBridgeRun = useAvatarLipSyncBridgeStore(
     (state) => state.clearRun,
@@ -246,6 +256,18 @@ export function useChatSession(args: UseChatSessionArgs) {
     },
     [logger, markAvatarSpeechAudioDurationResolved],
   );
+  const handleTtsSpeechText = useCallback(
+    (event: {
+      runId: string;
+      provider: string;
+      text: string;
+      final: boolean;
+    }) => {
+      if (!syncsVisemes(event.provider)) return;
+      setAvatarSpeechText(event);
+    },
+    [setAvatarSpeechText],
+  );
   const handleTtsChunksQueued = useCallback(
     (event: Parameters<typeof queueAvatarTtsChunksForRun>[0]) => {
       queueAvatarTtsChunksForRun(event);
@@ -314,6 +336,7 @@ export function useChatSession(args: UseChatSessionArgs) {
     onPlaybackEndedSignal: handleTtsPlaybackEndedSignal,
     onAudioEnded: handleTtsAudioEnded,
     onChunksQueued: handleTtsChunksQueued,
+    onSpeechText: handleTtsSpeechText,
     onSpeechTiming: appendProviderSpeechTiming,
     getPocketVoiceSelectionContext,
     geminiTtsOffered,

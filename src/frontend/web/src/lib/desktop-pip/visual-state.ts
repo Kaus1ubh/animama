@@ -1,7 +1,8 @@
 import type { AvatarPlannerEvent, EmotionalState } from "@/lib/avatar";
-import type { GruutVisemeKeyframePlanSummary } from "@/lib/avatar/viseme-worker-protocol";
 import type { VowelVisemeLipSyncSegment } from "@/lib/avatar/vowelVisemeSegment";
-import type { SpeechGestureTimeline } from "@/lib/speech/gruut-viseme-keyframes";
+import type { RunClockAnchor } from "@/lib/lipsync/planned-segment";
+import type { LipSyncEvent } from "@/lib/lipsync/track";
+import type { SpeechGestureTimeline } from "@/lib/speech/speech-gesture-timeline";
 import type {
   AvatarInteractionPhase,
   VoiceTurnState,
@@ -30,6 +31,7 @@ export type DesktopPipAvatarRuntimeSnapshot = {
 export type DesktopPipStoredLipSyncSegment = VowelVisemeLipSyncSegment & {
   runId: string;
   queuedAtMs: number;
+  revision: number;
 };
 
 export type DesktopPipSpeechAudioStart = {
@@ -49,8 +51,10 @@ export type DesktopPipSpeechAudioDuration = {
 };
 
 export type DesktopPipLipSyncSnapshot = {
-  sourcePlansByRun: Record<string, GruutVisemeKeyframePlanSummary>;
   speechGestureTimelinesByRun: Record<string, SpeechGestureTimeline>;
+  /** Tag events, for the brief tag expressions. */
+  lipSyncEventsByRun: Record<string, LipSyncEvent[]>;
+  playbackAnchorsByRun: Record<string, RunClockAnchor[]>;
   segmentsByRun: Record<string, DesktopPipStoredLipSyncSegment>;
   speechAudioStartsByRun: Record<string, DesktopPipSpeechAudioStart>;
   speechAudioDurationsByRun: Record<string, DesktopPipSpeechAudioDuration>;
@@ -109,10 +113,11 @@ export function captureDesktopPipLipSyncSnapshot(): DesktopPipLipSyncSnapshot {
   const sourceCapturedAtMs = Date.now();
 
   return {
-    sourcePlansByRun: cloneJsonLike(state.sourcePlansByRun),
     speechGestureTimelinesByRun: cloneJsonLike(
       state.speechGestureTimelinesByRun,
     ),
+    lipSyncEventsByRun: cloneJsonLike(state.lipSyncEventsByRun),
+    playbackAnchorsByRun: cloneJsonLike(state.playbackAnchorsByRun),
     segmentsByRun: cloneJsonLike(state.segmentsByRun),
     speechAudioDurationsByRun: cloneJsonLike(state.speechAudioDurationsByRun),
     speechAudioStartsByRun: Object.fromEntries(
@@ -193,8 +198,9 @@ export function applyDesktopPipVisualState(state: DesktopPipVisualState): void {
     }
 
     return {
-      sourcePlansByRun: state.lipSync.sourcePlansByRun,
       speechGestureTimelinesByRun: state.lipSync.speechGestureTimelinesByRun,
+      lipSyncEventsByRun: state.lipSync.lipSyncEventsByRun ?? {},
+      playbackAnchorsByRun: state.lipSync.playbackAnchorsByRun ?? {},
       segmentsByRun: state.lipSync.segmentsByRun,
       speechAudioStartsByRun: Object.fromEntries(
         Object.entries(state.lipSync.speechAudioStartsByRun).map(
@@ -214,4 +220,20 @@ export function applyDesktopPipVisualState(state: DesktopPipVisualState): void {
       startedRuns: nextStartedRuns,
     };
   });
+
+  // The planner revises a run's segment while it plays; a run already started
+  // here takes the revision too.
+  const avatar = currentLipSyncState.avatar;
+  if (!avatar?.isReady) return;
+  for (const [runId, segment] of Object.entries(state.lipSync.segmentsByRun)) {
+    const previous = currentLipSyncState.segmentsByRun[runId];
+    if (!currentLipSyncState.startedRuns[runId] || !previous) continue;
+    if (previous.revision === segment.revision) continue;
+    avatar.replaceLipSyncFrames(
+      segment.segmentId,
+      0,
+      segment.frames,
+      segment.durationSec,
+    );
+  }
 }

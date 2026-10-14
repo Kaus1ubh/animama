@@ -375,6 +375,35 @@ class LipSyncController {
     }
   }
 
+  /**
+   * Revise a live segment: frames at or after `fromTimeSec` are replaced by
+   * `frames` (in time order), and its duration becomes `durationSec`. Playback
+   * of the earlier frames is unaffected, so a planner can refine what has not
+   * played yet.
+   */
+  replaceFramesFrom(
+    segmentId: string,
+    fromTimeSec: number,
+    frames: readonly FramePayload[],
+    durationSec: number,
+  ): void {
+    const segment = this._segments.find((s) => s.id === segmentId);
+    if (!segment) return;
+    let keep = segment.frames.length;
+    while (keep > 0 && segment.frames[keep - 1]!.timeSec >= fromTimeSec - EPS) {
+      keep -= 1;
+    }
+    segment.frames.length = keep;
+    segment.cursorIndex = Math.min(segment.cursorIndex, Math.max(0, keep - 1));
+    for (const frame of frames)
+      this.registerFrame({ ...frame, segment_id: segmentId });
+    if (Number.isFinite(durationSec) && durationSec !== segment.durationSec) {
+      segment.durationSec = durationSec;
+      if (segment.status === "completed") segment.status = "playing";
+      this._scheduleSegmentsForRun(segment.runId);
+    }
+  }
+
   registerFrame(payload: FramePayload): void {
     const rawValues = payload.values;
     if (!Array.isArray(rawValues) || rawValues.length === 0) return;
@@ -1048,6 +1077,21 @@ export class ExpressionController {
 
   registerLipSyncFrame(payload: FramePayload): void {
     this._lipSync.registerFrame(payload);
+  }
+
+  /** See `LipSyncController.replaceFramesFrom`. */
+  replaceLipSyncFrames(
+    segmentId: string,
+    fromTimeSec: number,
+    frames: readonly FramePayload[],
+    durationSec: number,
+  ): void {
+    this._lipSync.replaceFramesFrom(
+      segmentId,
+      fromTimeSec,
+      frames,
+      durationSec,
+    );
   }
 
   clearLipSync(): void {

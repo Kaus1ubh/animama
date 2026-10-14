@@ -2,10 +2,8 @@ import type {
   Vowel5FrameValues,
   VowelVisemeLipSyncSegment,
 } from "./vowelVisemeSegment";
-import type {
-  GruutVisemeKeyframePlan,
-  SpeechGestureTimeline,
-} from "@/lib/speech/gruut-viseme-keyframes";
+import type { GruutVisemeKeyframePlan } from "@/lib/speech/gruut-viseme-keyframes";
+import type { SpeechGestureTimeline } from "@/lib/speech/speech-gesture-timeline";
 
 export type GruutVisemeKeyframePlanSummary = Omit<
   GruutVisemeKeyframePlan,

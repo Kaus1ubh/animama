@@ -913,8 +913,8 @@ same voice resolution and no notice, and later runs return to ElevenLabs. See th
 See [ElevenLabs TTS](elevenlabs-tts.md) for session setup, the socket protocol,
 settings and playback timing. The [chat contract](chat.md#main-structured-response-mode)
 separates speakable `speech` from visible-only `display`; raw JSON and hidden
-emotion metadata are never spoken. The [lip-sync bridge](avatar-lipsync.md)
-uses the phonemes matching spoken text and local audio timing.
+emotion metadata are never spoken. [Lip-sync](avatar-lipsync.md) plans the
+mouth from the played audio and the spoken text.
 
 ### Gemini TTS
 
@@ -960,8 +960,9 @@ End-of-stream handling:
 
 Playback event bridge:
 
-- `playback_started` => avatar speech start + optional viseme timing start
-- `generation_finished` => audio duration metrics for viseme timing
+- `playback_started` => avatar speech start and the lip-sync audio clock
+- `generation_finished` => audio duration, which also ends the run's lip-sync
+  audio
 - `playback_ended` => playback end signal and eventual audio-ended completion
 
 Voice resolution:

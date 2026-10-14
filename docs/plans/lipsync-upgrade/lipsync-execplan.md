@@ -98,7 +98,9 @@ prototypes.
   R7). Review passed after two repair rounds; untimed drift is a known limit for
   G1.
 - [ ] Phase 5 (#517): in the app, including the debug comparison (R1, R3, R6–R9).
-  Gate G1.
+  Gate G1. Implemented, checked and reviewed (two repair rounds); waiting for
+  the owner's G1 comparison and the Electron CPU reading. Gemini replies are
+  now planned part by part (Decision Log).
 - [ ] Phase 6 (#518): optional phone model (R5). Gates G2 and G4.
 - [ ] Phase 7 (#519): gruut removed (R12 providers, R13). Gate G3.
 - [ ] Final integration review.
@@ -162,6 +164,10 @@ From planning, 2026-10-13 (code reading of `main` at `b10ee432`):
   reads as silence and progressive plans commit it as a pause. The lab never saw
   this because it measured levels on the whole clip. Fixing it took live
   ElevenLabs tags from 8/12 to 12/12 placed.
+- **Untimed long replies drift by seconds (Phase 4 Review #3):** planned as one
+  part, a Gemini reply with voiced sighs and laughs placed words up to 14 s
+  early, because each misplaced stretch is kept and later words follow it.
+  Single clips hid this. Part boundaries bound it (Phase 5 Results).
 - **Provider timing implies what has not started (Phase 4):** timing arrives with
   its audio, so a word with no timed character has not begun. Holding such words
   after the end of the audio, with the pause before them left open, keeps live
@@ -200,6 +206,13 @@ From planning, 2026-10-13 (code reading of `main` at `b10ee432`):
   - **If the owner reads R11 strictly** (shapes as shown at 90%), the dictionary
     alone cannot reach it: most of the rest are CMUdict and gruut differing on
     dialect and weak forms, not errors.
+- **2026-10-13 — agent, Phase 5: Gemini replies are planned part by part.**
+  Untimed replies planned as one part drifted by seconds (Phase 4 Review #3).
+  The backend adds an optional `part_text` to the first `tts.audio` frame of each
+  Gemini batch, and the planner fits each part to its own audio. The field is
+  additive: older clients ignore it, and the frontend plans a reply without it
+  as one part. The speech port is unchanged, so Cloud's composition needs
+  nothing new.
 - **2026-10-13 — agent proposals (for plan review):**
   - **P1, evaluation data:**
     - fixtures hold derived features (10 ms loudness, voicing and pitch; phone
@@ -1531,15 +1544,223 @@ Gemini and on ElevenLabs. Phase 7 starts only after G1 passes.
 
 Completion: checks pass, G1 passes and review passes.
 
-Results: —
+Results (working tree on `c42b7b7b`):
+
+- **What runs where:**
+  - PCM tap `lib/speech/speech-pcm-tap.ts` (replaces `speech-debug-tap.ts`),
+    emitted by ElevenLabs `handleAudioChunk`, Gemini `scheduleAudioChunk` (with
+    gap silence) and Pocket's player (`tapPocketPlayer` wraps
+    `player.playAudio` once per player, rather than the vendored core's
+    `_bufferOrPlay`, so the vendored file stays unchanged).
+  - Clock: the worklet counts played samples and reports `playback-resumed`
+    after an underrun; `audioStartSec` comes from the worklet's `audioTime`. The
+    bridge turns the anchors into gaps, closes the mouth through them and delays
+    what follows.
+  - Worker `workers/lipsync-worker.ts` with `run-planner.ts` per run (plans every
+    0.25 s, sends frames from the first changed one) and `estimate-run.ts` for
+    browser speech. Run manager `lipsync-runs.ts`; client
+    `lipsync-worker-client.ts` copies PCM before transferring it.
+  - Bridge: plans become a segment on the playback clock, revised in place
+    (`replaceLipSyncFrames`, new in `ExpressionController`); tag overlays with a
+    0.15 s attack and 0.3 s release; the gesture timeline with phrases feeds
+    talking hands (`phraseChunks`); picture-in-picture mirrors tag events,
+    anchors and phrases, and revises started runs.
+  - Gesture types moved to `lib/speech/speech-gesture-timeline.ts`.
+  - `useChatSession` routes every provider, browser speech included, through
+    the planner; gruut's readings stay only for the debug comparison.
+- **Gemini parts (added in this phase, Decision Log).** Review #3 of Phase 4
+  measured long untimed replies drifting by seconds. Gemini speaks a reply in
+  batches, so the backend now marks each batch's first `tts.audio` frame with
+  `part_text`, and the planner fits each part's words to that part's audio
+  (`planner.startPart`). Mean word drift live, and the earliest word, on joined
+  replies (each clip a part):
+
+  | Reply | One part | In parts |
+  | --- | --: | --: |
+  | 58 s Gemini English with tags | 2.49 s (9.8 s early) | 0.32 s (2.7 s) |
+  | 34 s Gemini English with tags | 7.09 s (12.7 s) | 0.23 s (2.1 s) |
+  | 28 s Gemini tags in four languages | 8.21 s (14.0 s) | 0.63 s (3.3 s) |
+  | 25 s Gemini English | 0.39 s (2.2 s) | 0.10 s (0.9 s) |
+  | 17 s Gemini Japanese | 1.05 s (3.4 s) | 0.06 s (0.3 s) |
+  | 91 s, ten clips | 7.11 s (17.4 s) | 0.10 s (1.0 s) |
+
+  Vowel opening stays at 86–96%. `aligned-thresholds.test.ts` bounds Gemini
+  replies in parts at 0.8 s and one-part replies (Pocket, untimed ElevenLabs) at
+  1.2 s. A reply from a server without `part_text` is planned as one part.
+- **Fallbacks (R6):** a planning error switches the run to an audio-only plan
+  (`planner_failed`, logged once); a worker crash ends the runs in flight
+  (their mouths rest) and later runs start a fresh worker. Browser speech uses
+  the text estimate on a performance clock, anchored at each utterance's start
+  and end and at reported word boundaries.
+- **`overrideMouth`:** `none` on both Included Avatars (A: VRM 1 presets; Y:
+  VRM 0, which three-vrm imports as `none`), so tag overlays never suppress the
+  mouth. Seen live: pending.
+- **Debug view (R8):** captures every provider's PCM, text, Gemini parts and
+  the live planner's CPU and fallback; "Aligned (new)" replans a capture in the
+  worker and shows its CPU; development-only "Load capture" opens capture files
+  made by `pnpm lipsync:captures` (P4; 58 made from the clips, outside the
+  repository).
+- **Not done as planned:** rendering is not incremental. Each plan renders the
+  whole run, and the bridge rebuilds the segment, so cost grows with the reply's
+  length (Phase 4 measured 4.3 ms a second of audio on a 91 s part in Node).
+  Electron CPU on the reference Mac: pending.
+- **Checks** (working tree on `c42b7b7b`):
+  - backend: `uv run ruff check`, `ruff format --check`: passed;
+    `uv run pytest -q`: 4,159 passed, 29 skipped, and 1 failure, the Gemini
+    golden transcript (`tts-finalized.sse`), which `part_text` changes. It was
+    re-recorded (adds only `part_text`) and the golden file passes (7);
+  - `pnpm check`, `pnpm web:lint`, `pnpm prettier:check`: passed after fixing a
+    worklet-import type and a test lint error;
+  - `pnpm web:test`: 503 vitest files, 4,604 passed and 1 skipped. Browser
+    journeys 113 of 114: "effects check sees each optional Scene layer on its
+    own" failed while the backend suite ran alongside; its file alone then
+    passed 5 of 5;
+  - `pnpm build`, `pnpm desktop:check`: passed;
+  - `pnpm e2e:test:fast` on a disposable built stack: 38 passed (stack torn
+    down).
+- **Live** (development stack `animama-lipsync` with the owner's keys, Chromium
+  in the browser pane; the store and the avatar's vowel weights read through
+  Vite's module URLs; development build, so CPU is indicative only):
+
+  | Provider, language | Audio | Plan | Beats, phrases | CPU per s of audio |
+  | --- | --: | --- | --- | --: |
+  | Pocket, English | 12.7 s | complete, no fallback | 15, 3 | 2.4 ms |
+  | Gemini, Japanese (3 parts) | 7.2 s | complete, no fallback | 7, 3 | 5.6 ms (cold) |
+  | Gemini, Korean (3 parts) | 11.3 s | complete, no fallback | 15, 2 | 6.0 ms |
+  | Gemini, Chinese (3 parts) | 11.2 s | complete, no fallback | 12, 4 | 4.3 ms |
+  | ElevenLabs, English | 5.5 s | complete, no fallback | 6, 2 (both "!") | 5.8 ms |
+  | ElevenLabs, Japanese | 4.7 s | complete, no fallback | 9, 2 | 4.4 ms |
+  | Browser speech, English | 2.2 s | estimate, 5 word boundaries | 3, 2 ("!" first) | 0.2 ms |
+
+  - The mouth's vowel weights moved with every reply (peaks 0.6–0.95).
+  - Gemini's `part_text` arrived with each batch's first frame.
+  - The Lip-sync view captured the Chinese reply. "Aligned (new)" replanned it
+    in the worker: 676 frames, 4.1 ms CPU per second. "Estimated (today)" had
+    no plan, as gruut cannot read Chinese.
+  - Found and fixed: the worker's first load made Vite optimise `pinyin-pro`
+    and reload the page as the first reply started speaking; it is now
+    pre-bundled in development.
+  - CPU in this development build in Chromium is above the Node figures and,
+    for two replies, above the 5 ms budget. The owner reads it in Electron on
+    the reference Mac at G1.
+  - Not run live: Gemini English, ElevenLabs Korean and Chinese,
+    picture-in-picture hands (an Electron window), and the Electron CPU
+    reading. Tags were not exercised live, as replies do not carry them before
+    #479; capture files cover them at G1.
+
 
 #### Code Review #1 Findings
 
-—
+Independent review of the working tree on `c42b7b7b`. Required:
+
+- **P5-F1:** the reported CPU left out the audio analysis, about half the
+  worker's work (Node: 1.8–2.2 ms/s reported, 3.8–4.2 ms/s of wall time).
+- **P5-F2:** the pinyin table loaded at worker start and was inlined into the
+  worker (one 312 KB gzip file), against D5's "loads only when Chinese is first
+  planned".
+- **P5-F3:** no provisional beats from the text (R7): a phrase whose first beats
+  are less than about 0.5 s ahead gets no gesture, as with live ElevenLabs.
+- **P5-F4:** phrase chunks never marked exclamations, so the layer's both-hands
+  gesture could no longer play.
+- **P5-F5:** no tests for the Pocket tap or for the text each provider reports.
+
+Optional:
+
+- P5-F6: the bridge rebuilds the whole segment on each update, and
+  picture-in-picture clones it (about 1 ms an update at 60 s, 3 ms with the
+  clone).
+- P5-F7: picture-in-picture compared only length and duration to find a
+  revision.
+- P5-F8: session reset did not end the lip-sync worker.
+- P5-F9: text arriving after a run is cleared recreates small entries until the
+  next reset.
+- P5-F10: browser speech decided the Han reading per utterance, not from the
+  reply.
+- P5-F11: small doc inaccuracies (end signal, worker failure, errors outside
+  planning).
 
 #### Code Review #1 Revisions
 
-—
+- **P5-F1 accepted:** the run's CPU includes the audio analysis. Measured again
+  in Node on 59 clips (0.2 s chunks): median 3.1 ms, 90th percentile 3.5 ms,
+  worst 5.5 ms per second of audio.
+- **P5-F2 accepted:** workers build as ES modules (every bundled worker is a
+  module worker; the others still build as single files), and the worker loads
+  the Chinese readings the first time a run's text has Han characters read as
+  Chinese. Built sizes (gzip): worker 16.4 KB plus the English dictionary
+  149.2 KB, 165.6 KB in all, within D5's 200 KB; the pinyin chunk is 140.2 KB,
+  loaded on demand.
+- **P5-F3 accepted:** partial plans place the words not heard yet at the
+  speaking rate after the audio, with beats from stress and length kept 0.4 s
+  from heard beats; each plan replaces them. Tested.
+- **P5-F4 accepted:** pause units record an exclamation mark, and a phrase
+  ending with one is an exclamation chunk. Tested.
+- **P5-F5 accepted:** the Pocket tap moved to `lib/speech/pocket-pcm-tap.ts`
+  and is tested; `use-tts-playback` tests cover the text reported for
+  ElevenLabs, Pocket (spelled out), Gemini and a Pocket fallback.
+- **P5-F7, P5-F8, P5-F10, P5-F11 accepted:** segments carry a revision that
+  picture-in-picture compares; session reset ends the worker; browser speech
+  reads Han characters by the reply so far (tested); the docs are corrected.
+- **P5-F6 deferred:** recorded under Results; the live check measures the main
+  thread's share.
+- **P5-F9 deferred:** the entries are small and cleared on reset; Gemini
+  captures without parts rely on the late text.
+- **Checks** (after these revisions): `pnpm check`, `web:lint`,
+  `prettier:check`, `build`, `desktop:check` passed; `pnpm web:test`: 504
+  vitest files, 4,614 passed and 1 skipped, browser journeys 114 of 114.
+
+#### Code Review #2 Findings
+
+Targeted recheck. P5-F1, F2, F4, F5, F7, F8, F10 and F11 are verified (CPU now
+equals wall time in Node; built sizes reproduce; every worker is a module
+worker). Required:
+
+- **P5-F12 (P5-F3 not effective):** the bridge set the timeline's duration to
+  the heard audio, so the talking-hands layer cut every provisional beat as
+  "after window end" and skipped the phrase for good. Shown by driving the
+  bridge into the layer's planner: skipped at 0.8 s heard, ready with beats at
+  1.2 s and 1.8 s once the duration covered them.
+
+Optional: phrases now run ahead of the audio, so a split at the audio's edge
+can shift later phrase ids (at most an extra or shifted gesture there);
+`setPocketPcmRun` keeps the last run between runs (harmless while no Pocket
+audio plays outside a run); a built-app check of the speech-to-text workers
+under ES output.
+
+#### Code Review #2 Revisions
+
+- **P5-F12 accepted:** while planning, the timeline spans the words and phrases
+  placed ahead of the audio. A bridge test drives the layer's planner and
+  selects the provisional beat at 1.2 s.
+- **Optional:** the phrase-id shift and the Pocket run id are recorded, not
+  changed; the speech-to-text workers are checked in the built app (below).
+- **Built app** (disposable stack, ES workers, torn down): `pnpm e2e:test:fast`
+  38 passed; every bundled worker (Parakeet, smart-turn, lip-sync, content
+  hash, viseme) starts as a module worker without errors; the built lip-sync
+  worker planned a Chinese run to completion with no fallback.
+- **Checks** (after P5-F12): `pnpm check`, `web:lint`, `prettier:check` passed;
+  vitest on the affected areas (stores, lip-sync, hooks, speech, debug view,
+  avatar, picture-in-picture): 73 files, 921 passed.
+
+#### Code Review #3 Findings
+
+Final targeted review: **pass**, no required findings. P5-F12 is fixed: through
+the bridge, the hands' plan is ready with the 1.2 s provisional beat; complete
+plans' timelines still equal the audio length (all 59 fixtures); the
+known-duration path, the hands' gates and picture-in-picture are unaffected.
+Optional:
+
+- P5-F13: after an underrun of D seconds, the timeline's duration and the
+  resolved duration are not shifted past the gap, so beats in the reply's last
+  D seconds fall outside the hands' window.
+- The CPU budget stays open until the Electron reading at G1.
+
+#### Code Review #3 Revisions
+
+- **P5-F13 deferred:** it affects only a reply's last D seconds after an
+  underrun; the fix (map both durations through `playbackTime`) is noted for
+  Phase 7 or a follow-up, so no unreviewed change lands after the final review.
+- **CPU:** recorded for G1.
 
 ### Phase 6: Optional phone model
 

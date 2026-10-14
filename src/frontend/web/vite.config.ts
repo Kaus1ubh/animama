@@ -138,6 +138,9 @@ export const devOptimizedDependencies = [
   "@noble/hashes/sha2.js",
   "onnxruntime-web",
   "parakeet.js",
+  // The lip-sync worker loads Chinese readings with the first spoken reply; a
+  // late optimization would reload the page as that reply starts speaking.
+  "pinyin-pro",
 ] as const;
 
 // Vite is a development-only application origin; keep its host policy enabled.
@@ -209,6 +212,11 @@ export default defineConfig(({ mode, command, isPreview }) => {
     },
     optimizeDeps: {
       include: [...devOptimizedDependencies],
+    },
+    // Every bundled worker is a module worker. ES output lets a worker split
+    // off data it loads on demand, such as lip-sync's Chinese readings.
+    worker: {
+      format: "es",
     },
     resolve: {
       alias: {

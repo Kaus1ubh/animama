@@ -51,6 +51,11 @@ import type {
   PocketTtsOrtRuntimeDebug,
   PocketTtsWorkerRegistryDebug,
 } from "@/hooks/pocket-tts-runtime-debug";
+import {
+  setPocketPcmRun,
+  tapPocketPlayer,
+  type PocketPlayerLike,
+} from "@/lib/speech/pocket-pcm-tap";
 
 export type PocketTtsCoreEventName =
   | "state_changed"
@@ -130,6 +135,8 @@ type GeneratePocketTtsArgs = {
   signal?: AbortSignal;
   preservePlayback?: boolean;
   endStream?: boolean;
+  /** The chat run the audio belongs to, so lip-sync can follow it. */
+  runId?: string;
 };
 
 type PocketTtsRuntimeState = {
@@ -649,6 +656,12 @@ export async function generatePocketTtsText(
     throw createAbortError();
   }
 
+  // Warm-up created the core's player; one recreated after a reset is tapped
+  // here before its first run.
+  tapPocketPlayer(
+    (core as unknown as { player?: PocketPlayerLike | null }).player,
+  );
+  setPocketPcmRun(args?.runId ?? null);
   const { generationId } = await core.generate(spoken, {
     ...(args?.voice?.trim() ? { voice: args.voice.trim() } : {}),
     ...(args?.animaId?.trim() ? { animaId: args.animaId.trim() } : {}),

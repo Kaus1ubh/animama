@@ -9,6 +9,7 @@
 
 import { loadChineseReadings } from "@/lib/lipsync/text/converters";
 import { loadEnglishDictionary } from "@/lib/lipsync/text/english-dictionary";
+import { sliceSpeechFeatures } from "@/lib/lipsync/audio/features";
 import { createLipSyncPlanner } from "@/lib/lipsync/planner";
 import type { EvalPlanSource } from "./arrival";
 
@@ -28,8 +29,21 @@ function alignedSource(
     optIn: !windowed,
     prepare,
     start: (clip) => {
-      const planner = createLipSyncPlanner({ text: clip.text, windowed });
+      // A clip joined from parts is planned part by part, as in the app.
+      const parts = windowed ? clip.parts : undefined;
+      const planner = createLipSyncPlanner({
+        text: parts ? "" : clip.text,
+        windowed,
+      });
+      let nextPart = 0;
       return ({ features, timing, complete }) => {
+        const frames = features.loudnessDb.length;
+        for (; parts && nextPart < parts.length; nextPart += 1) {
+          const part = parts[nextPart]!;
+          const start = Math.round(part.startSec * features.rate);
+          if (start > frames) break;
+          planner.startPart(part.text, sliceSpeechFeatures(features, start));
+        }
         const plan = planner.plan({ features, timing, complete });
         return {
           ...plan.track,

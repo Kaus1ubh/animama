@@ -2217,6 +2217,24 @@ export class Avatar {
   }
 
   /**
+   * Replace a live lip-sync segment's frames from `fromTimeSec` on, and set its
+   * duration; earlier frames keep playing as they were.
+   */
+  replaceLipSyncFrames(
+    segmentId: string,
+    fromTimeSec: number,
+    frames: readonly FramePayload[],
+    durationSec: number,
+  ): void {
+    this.expressionController?.replaceLipSyncFrames(
+      segmentId,
+      fromTimeSec,
+      frames,
+      durationSec,
+    );
+  }
+
+  /**
    * Clear all lip-sync data.
    */
   clearLipSync(): void {

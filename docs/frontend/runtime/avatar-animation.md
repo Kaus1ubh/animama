@@ -3,8 +3,8 @@
 The Avatar runtime loads VRMs and coordinates motion, expressions, effects and
 speech-driven presentation from chat state.
 
-For the end-to-end phoneme -> viseme -> VRM mouth animation pipeline
-(including Pocket TTS timing alignment), see
+For the lip-sync pipeline, from played audio and spoken text to VRM mouth
+shapes, tag expressions and talking-hands beats, see
 `docs/frontend/runtime/avatar-lipsync.md`.
 
 For the focused guide to planner-owned state-triggered motion policy, see
@@ -908,13 +908,14 @@ Scheduling model:
 - Debug Play uses `gestureDurationSec`, scaled by `speed`, as the manual group
   duration. The legacy `pauseMinSec` and `pauseMaxSec` params are kept for
   compatibility but are not used by talking-hands playback.
-- In `avatarState="talking"`, the layer waits until TTS chunk metadata and a
+- In `avatarState="talking"`, the layer waits until speech chunks and a
   speech gesture beat timeline are available, then attempts at most one group
-  per eligible TTS chunk. It can use provisional gesture timing before actual
-  audio duration is resolved so early chunk beats are not missed unnecessarily.
-- TTS chunks provide word ranges; the run-level speech gesture timeline provides
-  primary-stress beat times from gruut phoneme units. Chunks with no
-  primary-stress beats are skipped automatically.
+  per eligible chunk. The lip-sync planner's phrases stand in for the chunks.
+  Its timeline grows with the audio, so early beats are available before the
+  whole reply has played.
+- Chunks provide word ranges; the timeline provides beat times on prominent
+  syllables (see [Avatar lip-sync](avatar-lipsync.md#talking-hands)). Chunks
+  with no beats are skipped automatically.
 - Ordinary chunks sample one stable left/right hand for the whole speech
   `runId` and can be skipped by `speechChunkSkipChance`. Exclamation chunks
   with usable beats bypass random skipping and use both hands.
@@ -1329,14 +1330,13 @@ After the first posed draw, on every `useFrame` tick:
 - Pull latest store snapshot via `useAvatarRuntimeStore.getState()`.
 - Call `avatar.updateState({ emotionalState, signals })`.
 - If returned plan is a gesture with `gestureRequestId`, call `consumeGestureRequest(...)`.
-- Tick the lip-sync bridge gate so queued viseme segments can start once audio
-  and avatar state are ready.
+- Tick the lip-sync bridge gate so a run's planned segment can start once audio
+  and avatar state are ready, then its tag expression overlays.
 - Read a provider-agnostic speech timing context from the same bridge. The
   context contains `runId`, `elapsedSec`, `utteranceDurationSec`, `durationSec`,
   `remainingSec`, `durationKnown`, and a speech gesture timeline when available;
-  it is emitted only for providers that supply audio-clock timing. The gesture
-  timeline may be estimated or actual-duration-scaled depending on which speech
-  timing data has arrived for the run.
+  it is emitted once a run's audio has started. The gesture timeline grows as
+  the lip-sync planner plans more of the run's audio.
 - Call `avatar.update(delta, { speechTiming })`.
 
 This avoids coupling avatar updates to React render frequency.

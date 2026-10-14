@@ -69,10 +69,10 @@ style.
 
 ## Avatar Timing
 
-Lip-sync works as for the other providers: gruut phonemes from
-`tts_phonemized_text` plus the played audio's start and duration callbacks.
-Gemini returns no timing data. `useChatSession` and the lip-sync bridge accept
-`gemini` as a viseme provider; see [Avatar lip-sync](avatar-lipsync.md).
+Lip-sync plans the mouth from the audio the runtime schedules and each speech
+part's text, which the first `tts.audio` frame of each batch carries
+(`part_text`). Gemini returns no timing data, so each part's words are fitted
+to that part's own audio; see [Avatar lip-sync](avatar-lipsync.md).
 
 ## Settings
 

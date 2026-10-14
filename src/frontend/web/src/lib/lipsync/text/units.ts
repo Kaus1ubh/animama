@@ -63,4 +63,6 @@ export type LipSyncUnit = {
   tag?: { kind: LipSyncTagKind; label: string };
   /** For pauses: a sentence stop or a lighter break such as a comma. */
   pause?: "stop" | "break";
+  /** For pauses: the stop includes an exclamation mark. */
+  exclaim?: boolean;
 };

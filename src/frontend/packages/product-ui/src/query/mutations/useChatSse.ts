@@ -107,6 +107,8 @@ export type ChatSseTtsAudio = {
   model_id?: string | null;
   output_format?: string | null;
   audio_base64?: string | null;
+  /** On the first frame of each speech part (Gemini batch): the part's text. */
+  part_text?: string | null;
 };
 
 export type ChatSseTtsDone = {

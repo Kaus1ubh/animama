@@ -49,6 +49,7 @@ const KANA = /[ぁ-ゖァ-ヺー]/u;
 const HAN = /[\p{Script=Han}々〆]/u;
 const HANGUL = /\p{Script=Hangul}/u;
 const STOP = /[.!?。！？…‼⁉]/u;
+const EXCLAIM = /[!！‼⁉]/u;
 const BREAK = /[,、，;；:：—–]/u;
 /** Seconds a pause is expected to take, before the audio decides. */
 const STOP_PRIOR_SEC = 0.3;
@@ -103,12 +104,14 @@ export function textToUnits(
     inCjkWord = false;
     const last = units[units.length - 1];
     // A run of punctuation, such as "..." or "?!", is one pause.
+    const exclaim = EXCLAIM.test(char);
     if (last?.kind === "pause" && last.end === at) {
       last.end = at + 1;
       if (kind === "stop") {
         last.pause = "stop";
         last.weight = STOP_PRIOR_SEC;
       }
+      if (exclaim) last.exclaim = true;
       return;
     }
     units.push({
@@ -117,6 +120,7 @@ export function textToUnits(
       weight: kind === "stop" ? STOP_PRIOR_SEC : BREAK_PRIOR_SEC,
       start: at,
       end: at + 1,
+      ...(exclaim ? { exclaim } : {}),
     });
   };
 

@@ -9,7 +9,7 @@ import type {
 import type {
   SpeechGestureBeat,
   SpeechGestureTimeline,
-} from "@/lib/speech/gruut-viseme-keyframes";
+} from "@/lib/speech/speech-gesture-timeline";
 import type { TtsChunkRecord } from "@/lib/speech/tts-chunker";
 
 export type ProceduralAnimationLayerId =

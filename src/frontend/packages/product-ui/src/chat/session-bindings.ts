@@ -90,6 +90,7 @@ export type ChatSessionEffects = {
       model_id?: string | null;
       output_format?: string | null;
       audio_base64?: string | null;
+      part_text?: string | null;
     },
   ) => void;
   completeFinalizedAudio: (runId: string) => void;

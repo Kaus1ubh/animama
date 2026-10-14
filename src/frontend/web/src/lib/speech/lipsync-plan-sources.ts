@@ -2,13 +2,16 @@
  * Lip-sync plan sources compared in the Anima debug panel's Lip-sync view.
  *
  * A source turns one captured run's inputs into a vowel viseme segment, the
- * same shape the avatar plays. "Estimated (today)" wraps the current planner
- * unchanged; a planner that uses provider timing (#468) registers itself, and
- * the view draws and replays every registered source without changes.
+ * same shape the avatar plays. "Estimated (today)" wraps gruut's planner, and
+ * "Aligned (new)" replans the captured audio and text in the lip-sync worker,
+ * as replies are planned now. Other sources can register themselves; the view
+ * draws and replays every source without changes.
  */
 
 import { buildVisemeAssetsFromRaw } from "@/lib/avatar/viseme-worker-client";
 import type { VowelVisemeLipSyncSegment } from "@/lib/avatar/vowelVisemeSegment";
+import { startLipSyncRun } from "@/lib/lipsync/lipsync-worker-client";
+import { mergePlanFrames, plannedSegment } from "@/lib/lipsync/planned-segment";
 import type { TimedChar } from "./provider-speech-timing";
 import type { SpeechTimingEvidence } from "./speech-timing-evidence";
 
@@ -24,15 +27,25 @@ export type LipSyncPlanInputs = {
   /** Provider character timing on the run clock, and the evidence built from it. */
   timing: readonly TimedChar[];
   evidence: SpeechTimingEvidence;
+  /** The played audio, 16-bit. */
+  audio: { chunks: readonly Int16Array[]; sampleRate: number };
+  /** The text sent to the voice, when known. */
+  text: string | null;
+  /** Speech parts (Gemini) by the sample their audio starts at. */
+  parts: ReadonlyArray<{ sample: number; text: string }>;
+};
+
+export type LipSyncPlanResult = {
+  segment: VowelVisemeLipSyncSegment;
+  /** Planning CPU per second of audio, in milliseconds, where measured. */
+  cpuMsPerAudioSec?: number;
 };
 
 export type LipSyncPlanSource = {
   id: string;
   label: string;
-  /** Build the run's segment, or `null` when this source cannot plan it. */
-  build: (
-    inputs: LipSyncPlanInputs,
-  ) => Promise<VowelVisemeLipSyncSegment | null>;
+  /** Build the run's plan, or `null` when this source cannot plan it. */
+  build: (inputs: LipSyncPlanInputs) => Promise<LipSyncPlanResult | null>;
 };
 
 export const ESTIMATED_LIPSYNC_PLAN_SOURCE_ID = "estimated";
@@ -56,7 +69,62 @@ const estimatedPlanSource: LipSyncPlanSource = {
       fps: inputs.fps,
       targetDurationSec: inputs.audioDurationSec,
     });
-    return result.segment;
+    return result.segment ? { segment: result.segment } : null;
+  },
+};
+
+export const ALIGNED_LIPSYNC_PLAN_SOURCE_ID = "aligned";
+let alignedBuilds = 0;
+
+/**
+ * Today's planner on the captured audio, text and timing, fed in as captured.
+ * Audio arrives all at once rather than as played, so plans can differ
+ * slightly from the live run's.
+ */
+const alignedPlanSource: LipSyncPlanSource = {
+  id: ALIGNED_LIPSYNC_PLAN_SOURCE_ID,
+  label: "Aligned (new)",
+  build: (inputs) => {
+    // Some environments (tests) have no workers to plan in.
+    if (typeof Worker === "undefined") return Promise.resolve(null);
+    const runId = `lipsync-debug-${inputs.runId}-${(alignedBuilds += 1)}`;
+    return new Promise((resolve, reject) => {
+      let track: Float32Array | null = null;
+      const run = startLipSyncRun({
+        runId,
+        sampleRate: inputs.audio.sampleRate,
+        onResponse: (response) => {
+          if (response.type === "error") {
+            run.cancel();
+            reject(new Error(response.message));
+            return;
+          }
+          track = mergePlanFrames(track, response);
+          if (!response.complete) return;
+          run.cancel();
+          resolve({
+            segment: plannedSegment(runId, track),
+            cpuMsPerAudioSec:
+              response.audioSec > 0
+                ? response.cpuMs / response.audioSec
+                : undefined,
+          });
+        },
+      });
+      if (!inputs.parts.length) run.setText(inputs.text ?? "", true);
+      if (inputs.timing.length) run.addTiming(inputs.timing);
+      let sample = 0;
+      let part = 0;
+      for (const chunk of inputs.audio.chunks) {
+        for (; part < inputs.parts.length; part += 1) {
+          if (inputs.parts[part]!.sample > sample) break;
+          run.startPart(inputs.parts[part]!.text);
+        }
+        run.pushPcm(chunk);
+        sample += chunk.length;
+      }
+      run.endAudio();
+    });
   },
 };
 
@@ -80,9 +148,9 @@ export function registerLipSyncPlanSource(
   };
 }
 
-/** Today's estimated planner first, then the registered sources in order. */
+/** gruut's estimate, the aligned planner, then registered sources in order. */
 export function lipSyncPlanSources(): readonly LipSyncPlanSource[] {
-  return [estimatedPlanSource, ...registeredSources];
+  return [estimatedPlanSource, alignedPlanSource, ...registeredSources];
 }
 
 // Approximate jaw opening of each Vowel5 shape (A, E, I, O, U), for display only.
