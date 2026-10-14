@@ -107,8 +107,8 @@ effects (20 family variants and 4 left twins) and adds 5, so 75 → 56.
   promoted; review passed at round 3.
 - [x] P7: Documentation and acceptance, 2026-10-14; main merged twice and
   D-11 added; the full `pnpm e2e:test` is recorded in the P7 record.
-- [ ] Final integration review: round 1 found three required items, fixed
-  (see below); targeted recheck pending.
+- [x] Final integration review: three rounds (budget spent); all required
+  findings fixed (see below).
 
 Phase commits: P1 `c32edd57`, P5 `7d02443c`, P2 `2c588cf8`, P3 `31f627ce`,
 P4 `65355f18`, P6 `c15f3870`, P7 `fa7a3223` (docs) and `45a7e4cd` (gate
@@ -1189,7 +1189,25 @@ Main merges (owner request, 2026-10-14):
 - `bcec0cd0` merged #558 (voice audio tags). Only `source-review.json`
   conflicted, resolved the same way.
 
-Full `pnpm e2e:test` on a purged built stack: pending.
+Full local checks at `bcec0cd0` (after both merges):
+- `uv run pytest -q -n auto`: 4520 passed, 29 skipped.
+- `make check`, `make audit-typed-content` and `uv run ruff check`: pass.
+- `pnpm check`, `pnpm web:lint`, `pnpm prettier:check`,
+  `pnpm desktop:check`, `pnpm build` and `pnpm openapi-ts:check`: pass.
+- `pnpm web:test`: 4923 passed, 1 skipped.
+
+Full `pnpm e2e:test`:
+- Run `run-1014183141` at `bcec0cd0` on the purged built stack
+  `animama-effect-overrides` (production mode, `ANIMAMA_LLM_SKIP=1`):
+  39 passed and 1 failed in 31.6 min.
+- The failure was the template-picker journey's pinned 89 thumbnails
+  (received 70); FI-R3-F1 fixed it in `fcf091ac`.
+- `pnpm e2e:test -- --project chromium --no-deps --grep "accountless effect
+  template"` at `fcf091ac`, on the same stack: 2 passed. `fcf091ac` changed
+  no application source; the other edits were docs.
+- An earlier full run, stopped when main moved, left a lock owned by the
+  old hostname; its process was dead, so the lock was moved into that run's
+  evidence (`run-1014180329`).
 
 ## Final integration review
 
