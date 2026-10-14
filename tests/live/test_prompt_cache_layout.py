@@ -56,6 +56,7 @@ from animama.app.chat.direct_turn.response_format import build_main_structured_r
 from animama.app.chat.direct_turn.types import DirectChatAttachmentContext
 from animama.app.chat.memory_context import MAIN_STRUCTURED_OUTPUT_GUIDANCE
 from animama.app.chat.openai_prompt import DirectChatPromptAssembler
+from animama.app.chat.speech_tags import speech_tags_instruction
 from animama.app.main_structured_response import (
     build_main_structured_response_json_schema,
     build_main_structured_response_model,
@@ -170,6 +171,8 @@ def _prompt(
         anima_memories=_synthetic_memories(),
         instruction_style=instruction_style,
         response_format_guidance=_guidance(guidance),
+        # Production always sends one audio-tag rule; this harness speaks nothing.
+        speech_tags_guidance=speech_tags_instruction(None),
         memory_map=_memory_map(turn),
         attached_files=[ATTACHMENT],
         supports_developer_role=supports_developer_role,

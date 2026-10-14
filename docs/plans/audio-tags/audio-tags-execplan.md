@@ -24,6 +24,8 @@ Explicit gates:
 - **G2 — Owner listening gate, before merge.** The spec's listening criterion:
   - on Eleven v4 Turbo and on Gemini: a laugh, a sigh, a pause and a whisper;
   - on ElevenLabs: also one inline emotion shift and one sound effect;
+  - on ElevenLabs: a whisper followed by more speech, which must return to the
+    reply's tone (an agent prompt decision; Phase 2);
   - throughout: tags are never heard as words, and bubbles hide them before and
     after a reload.
 - **G3 — Hosted.**
@@ -218,7 +220,8 @@ Boundaries:
       issues #538–#542 created as sub-issues.
 - [x] Phase 1 (#538): one tag grammar in both languages. Review #1 was blocked
       (2 findings, fixed), review #2 passed; one repair round remains.
-- [ ] Phase 2 (#539): prompt rules.
+- [x] Phase 2 (#539): prompt rules. Review #1 was blocked (2 wording
+      findings, fixed), review #2 passed; one repair round remains.
 - [ ] Phase 3 (#540): backend speech, tone and readers.
 - [ ] Phase 4 (#541): browser speech and chat display.
 - [ ] Phase 5 (#542): docs, dead prompt code, live checks, full validation and the G2 pack.
@@ -609,13 +612,102 @@ Completion: each voice gets its rule and the caching tests pass. The live cache
 measurement (`tests/live/test_prompt_cache_layout.py`) is optional and covered by
 G1.
 
+#### Phase 2 implementation notes
+
+- **`app/chat/speech_tags.py`:**
+  - `speech_tag_provider(tts)` names the tag-capable voice, Gemini or
+    ElevenLabs. Phase 3 reuses it.
+  - `speech_tags_instruction(tts)` returns one of three module constants.
+  - Eleven v4 Turbo needs no model check: the chat options keep no other
+    ElevenLabs id (`merge_chat_request_options`).
+- **Prompt assembly:** `DirectChatPromptAssembler.assemble(...,
+  speech_tags_guidance=...)` places the section after Response Guidance and
+  before the conversation language. `_build_prompt` passes it on every build
+  path (prepare, history replay, stale-cursor rebuild, Anthropic style).
+- **Tests:**
+  - new: `tests/test_speech_tags_prompt.py` and the executor test for each
+    voice;
+  - updated expectations: the executor's expected prefix, the gesture-eval
+    expectation and the live cache harness (`tests/live/test_prompt_cache_layout.py`).
+- **Agent prompt decision (P2-R1-F3; owner may revise):**
+  - ElevenLabs directions last until the next one, so the prompt asks the model
+    to "return to your reply's tone" after a whispered sentence.
+  - It names no specific reset tag such as `[normal voice]`, which would drop
+    the D3 tone.
+  - G2 includes a whisper followed by more speech.
+- **Docs:** `docs/backend/runtime/prompt-caching.md` (turn layout and volatility
+  row).
+
+#### Phase 2 results
+
+Source: the working tree on `730b6a63`.
+
+- **Full suite:** `uv run pytest -q` passed 4,337 tests with 29 skipped,
+  before the review fixes. The reviewer reran it on the same source.
+- **After the fixes:**
+  - the speech-tags, executor, gesture-eval, layout and live-harness tests:
+    167 passed, 3 skipped;
+  - mypy (Makefile scope), `ruff check` and `ruff format --check`: clean.
+
 #### Code Review #1 Findings
 
-Pending.
+Reviewer: `sdlc-reviewer`, full initial review of the working tree on
+`730b6a63`. Result: **blocked**.
+
+- **P2-R1-F1 (required).** The Gemini variant never limits whisper (uncapped,
+  D2) to real shifts in mood.
+- **P2-R1-F2 (required).** The ElevenLabs variant does not say where `[whispers]`
+  goes (T2).
+- **P2-R1-F3 (recommended).** The invented `[normal voice]` reset is untested and
+  would drop the D3 tone.
+- **P2-R1-F4 (recommended).** The ElevenLabs model-id check can never fail in
+  production, because the normalizer drops other ids, so its test describes an
+  unreachable branch. Hosted Cloud still speaks Flash v2.5.
+- **P2-R1-F5 (recommended).** The prompt-caching row says "per installation",
+  but the voice is per Anima, and any change of voice changes the rule.
+- **P2-R1-F6 (recommended).** The live cache harness omits the rule that
+  production always sends.
+- **N1–N4 (optional).**
+  - N1: test one non-English reply.
+  - N2: keep the "already sets how the reply begins" wording in sync with D3.
+  - N3: name laughs, sighs and gasps in the ElevenLabs sound note.
+  - N4: record where the plan and the code differ.
 
 #### Code Review #1 Revisions
 
-Pending.
+- **F1 and F2: accepted.** One shared bullet in both variants: "[whispers] goes
+  at the start of a sentence, only when your mood really shifts, and whispers
+  that sentence." Tests assert it for both voices.
+- **F3: accepted.** The reset now reads "return to your reply's tone with a
+  direction for it". It is recorded as an agent prompt decision and added to
+  G2.
+- **F4: accepted.**
+  - The model-id clause and its test row are gone; the code comment names the
+    normalizer.
+  - G3: the Cloud draft must say that Cloud speaks v4, or strips tags from its
+    copy, before it adopts this change.
+- **F5: accepted.** The row is "per Anima", and any change of voice changes the
+  rule.
+- **F6: accepted.** The harness passes `speech_tags_instruction(None)`.
+- **N1: accepted.** Phase 5's live checks include one non-English reply.
+- **N2: noted.**
+- **N3: accepted.** The ElevenLabs note names laughs, sighs and gasps.
+- **N4: recorded** in the implementation notes above.
+
+Repair budget: round #1 used; one round remains.
+
+#### Code Review #2 Findings
+
+Reviewer: `sdlc-reviewer`, a targeted recheck. Result: **pass**.
+
+- F1–F6, N1 and N3 are confirmed. 275 tests passed and 3 were skipped (the
+  paid live tests); mypy, ruff and the import-boundary check are clean.
+- **P2-R2-N1 (record).** The whisper-reset check belongs in the G2 gate text,
+  not only in the agent-run checks. **Fixed:** added to G2.
+- **P2-R2-N2 (record).** The Phase 5 Cloud bullet should give the v4 reason.
+  **Fixed.**
+
+Repair budget: one round remains, unused.
 
 ### Phase 3: backend speech, tone and readers
 
@@ -804,12 +896,17 @@ Changes:
      collected speech text before it calls ElevenLabs;
    - reading the tone from the hidden tone event;
    - the `profiles.py` row to drop from Cloud's tenant inventory;
-   - a dependency on the unfiled Eleven v4 Turbo hand-off.
+   - a dependency on the unfiled Eleven v4 Turbo hand-off. Cloud must speak v4,
+     or strip tags from its copy of the text, before it adopts this change,
+     because every hosted ElevenLabs turn gets the tag rule (P2-R1-F4).
 4. **Live checks (G1),** on the `tags` stack:
    - one tagged reply each on Gemini and on Eleven v4 Turbo;
    - for each, check the debug panel's provider text and tag counts and the
      bubbles before and after a reload;
    - one browser-speech reply, checking that tags are not spoken;
+   - one non-English reply with a tag (the tag must stay in English);
+   - one ElevenLabs whisper followed by more speech (the voice returns to the
+     reply's tone);
    - record cost.
 5. **Full validation:**
    - `uv run pytest -q`, `uv run ruff check`, `make check-test`;

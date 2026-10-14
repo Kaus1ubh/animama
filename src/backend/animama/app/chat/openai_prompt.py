@@ -133,6 +133,7 @@ class DirectChatPromptAssembler:
         stream_options: ChatCompletionStreamOptionsParam | None = None,
         instruction_style: str = INSTRUCTION_STYLE_DEFAULT,
         conversation_language: ConversationLanguage | None = None,
+        speech_tags_guidance: str | None = None,
     ) -> DirectChatPrompt:
         guardrails = COMPANION_GUARDRAILS.strip()
         memory_map_text = memory_map.strip() if isinstance(memory_map, str) and memory_map.strip() else None
@@ -174,6 +175,7 @@ class DirectChatPromptAssembler:
             native_memory_patch_enabled=native_memory_patch_enabled,
             instruction_style=instruction_style,
             conversation_language=conversation_language,
+            speech_tags_guidance=speech_tags_guidance,
         )
         if supports_developer_role:
             system_text = "\n\n".join((*stable_sections, guardrails))
@@ -246,8 +248,9 @@ def _stable_instruction_sections(
     native_memory_patch_enabled: bool = False,
     instruction_style: str = INSTRUCTION_STYLE_DEFAULT,
     conversation_language: ConversationLanguage | None = None,
+    speech_tags_guidance: str | None = None,
 ) -> list[str]:
-    """Return the system sections that change only per Anima (or language), in order, before the guardrails."""
+    """Return the system sections that change only per Anima (or language or voice), in order, before the guardrails."""
 
     anthropic = instruction_style == INSTRUCTION_STYLE_ANTHROPIC
 
@@ -283,6 +286,9 @@ def _stable_instruction_sections(
         "# Memory Guidance\n\n" + memory_guidance,
         "# Response Guidance\n\n" + (guidance or MAIN_STRUCTURED_OUTPUT_GUIDANCE.strip()),
     ]
+    # Whether the selected voice performs audio tags in `speech` (app/chat/speech_tags.py).
+    if isinstance(speech_tags_guidance, str) and speech_tags_guidance.strip():
+        sections.append(speech_tags_guidance.strip())
     # A non-English UI Locale is the language the Anima replies and speaks in.
     if conversation_language is not None:
         sections.append(reply_language_instruction(conversation_language))
