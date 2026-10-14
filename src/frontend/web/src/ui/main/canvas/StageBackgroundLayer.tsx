@@ -64,10 +64,10 @@ export function StageBackgroundLayer({
           src={background.src}
           draggable={false}
           decoding="async"
-          // Softened and slightly out of focus so the scene frames the Avatar
-          // without competing; scaled up so the blur never shows a faded edge.
-          // Owner-chosen images keep full strength.
-          className="size-full scale-[1.01] object-cover opacity-80 blur-[2px] select-none"
+          // Slightly out of focus so the scene frames the Avatar without
+          // competing; scaled up so the blur never shows a faded edge.
+          // Owner-chosen images stay sharp.
+          className="size-full scale-[1.01] object-cover blur-[2px] select-none"
         />
       ) : null}
     </div>
