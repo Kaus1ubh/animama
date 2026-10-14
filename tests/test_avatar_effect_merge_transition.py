@@ -74,9 +74,10 @@ async def _setup(async_session, tmp_path: Path):  # noqa: ANN001, ANN202
 
 
 async def _reaction(catalog: Any) -> CatalogContentEntry:  # noqa: ANN401
-    [item] = [
+    items: list[CatalogContentEntry] = [
         entry for entry in await catalog.list_visible(user_id=OWNER) if entry.logical_key == "local:reaction:cheer"
     ]
+    [item] = items
     return item
 
 

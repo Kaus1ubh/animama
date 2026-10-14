@@ -19,7 +19,8 @@ import {
  * both Included Avatars, whatever changes in the sampler, hand presets or
  * schema. The baseline was generated from `main` at bfc0de4f and re-recorded
  * after the #314 and #409 Gesture revisions, additions and removals were
- * promoted.
+ * promoted, and after the #543 effect merge rewrote the effect events of 28
+ * Gestures (their samples were unchanged).
  *
  * A clip changed on purpose is listed in REBASELINED, which skips its samples;
  * one deleted on purpose is listed in REMOVED. Clips missing from the baseline

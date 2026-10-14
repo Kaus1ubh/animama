@@ -32,7 +32,8 @@ SOUND_PREFIX = "builtin:sound-effect:"
 
 def _effect(ref: str) -> dict[str, Any]:
     stem = ref.removeprefix(EFFECT_PREFIX)
-    return json.loads((INCLUDED / "vfx/avatar" / stem / f"{stem}.json").read_text())
+    effect: dict[str, Any] = json.loads((INCLUDED / "vfx/avatar" / stem / f"{stem}.json").read_text())
+    return effect
 
 
 def test_the_map_covers_exactly_the_removed_effects() -> None:

@@ -96,7 +96,8 @@ def rewrite_action_effect_merges(
             continue
         alias, merge = renamed[event["effectId"]]
         event["effectId"] = alias
-        own = event.get("override") if isinstance(event.get("override"), dict) else {}
+        raw_override = event.get("override")
+        own: dict[str, Any] = raw_override if isinstance(raw_override, dict) else {}
         override = {**copy.deepcopy(dict(merge.override)), **own}
         # A removed effect declared one sound, as "on-apply": an event that
         # named it explicitly still means that sound, now the family's alias.
