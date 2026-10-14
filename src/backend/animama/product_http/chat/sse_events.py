@@ -19,6 +19,8 @@ from animama.app.main_structured_response import (
     MAIN_STRUCTURED_RESPONSE_PART_EMOTIONAL_TONE,
     MAIN_STRUCTURED_RESPONSE_PART_SPEECH,
 )
+from animama.app.voice_emotional_tone import elevenlabs_tone_tag
+from animama.domain.audio_tags import opens_with_delivery_tag
 from animama.domain.emotions import emotion_values_payload
 from animama.domain.events import EventType
 from animama.logging import get_logger
@@ -46,9 +48,10 @@ def _is_main_structured_response_format(response_format: object) -> bool:
 class SsePreparedTtsSpeechSegment:
     """One speakable sentence of a reply's ``speech`` part, queued for TTS.
 
-    ``tts_text`` is the text the voice speaks: the visible text as written, without
-    emoji (a voice would read out their names) or surrounding whitespace. Providers
-    read numbers and symbols themselves.
+    ``tts_text`` is the visible text as written, without emoji (a voice would read
+    out their names) or surrounding whitespace. Providers read numbers and symbols
+    themselves; a finalized batch then prepares its audio tags for the voice
+    (``FinalizedTtsSegmentBatcher``).
     """
 
     visible_text: str
@@ -68,6 +71,8 @@ class SseTextState:
     tts_speech_segments: list[SsePreparedTtsSpeechSegment] = field(default_factory=list)
     tts_speech_segments_closed: bool = False
     tts_speech_paragraph_index: int = 0
+    speech_tone_tag_pending: bool = False
+    """ElevenLabs speaks this reply: its first speech frame carries the leading tone tag."""
     crisis_resources: Mapping[str, Any] | None = None
     """Resolved crisis-resource region for this turn, attached to crisis frames."""
     crisis_support_emitted: bool = False
@@ -423,11 +428,17 @@ def format_user_response_event(
         data["part_index"] = part_index
     if isinstance(part_final, bool):
         data["part_final"] = part_final
-    if (
-        state.tts_speech_payload_enabled
-        and _is_main_structured_response_format(response_format)
-        and response_part == MAIN_STRUCTURED_RESPONSE_PART_SPEECH
-    ):
+    is_speech = (
+        _is_main_structured_response_format(response_format) and response_part == MAIN_STRUCTURED_RESPONSE_PART_SPEECH
+    )
+    if state.speech_tone_tag_pending and is_speech:
+        state.speech_tone_tag_pending = False
+        # The model's own opening direction replaces the reply's tone (#479, D3).
+        if not opens_with_delivery_tag(value):
+            data["speech_tone_tag"] = elevenlabs_tone_tag(
+                emotional_tone=state.emotional_tone, emotional_state=state.emotional_state
+            )
+    if state.tts_speech_payload_enabled and is_speech:
         _record_tts_speech_segment(
             state=state,
             value=value,

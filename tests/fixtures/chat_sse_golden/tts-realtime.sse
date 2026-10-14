@@ -4,7 +4,7 @@ data: {"type": "safety.ai_notice", "run_id": "run-tts-realtime", "kind": "start"
 
 id: user-response-stream-speech-0-run-tts-realtime
 event: user.response
-data: {"event_id": "user-response-stream-speech-0-run-tts-realtime", "run_id": "run-tts-realtime", "node_id": "direct-chat:model-client", "text": "Hello there.", "response_format": "main_structured_json", "response_part": "speech", "is_delta": true, "part_index": 0, "part_final": false}
+data: {"event_id": "user-response-stream-speech-0-run-tts-realtime", "run_id": "run-tts-realtime", "node_id": "direct-chat:model-client", "text": "Hello there.", "response_format": "main_structured_json", "response_part": "speech", "is_delta": true, "part_index": 0, "part_final": false, "speech_tone_tag": "[happy]"}
 
 id: user-response-stream-speech-1-run-tts-realtime
 event: user.response

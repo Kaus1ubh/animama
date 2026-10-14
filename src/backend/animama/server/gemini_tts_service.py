@@ -97,7 +97,8 @@ async def prepare_gemini_finalized_speech(
 ) -> GeminiFinalizedSpeech:
     """Check the key and prepare one segment; an unknown voice or model falls back to the default.
 
-    The segment's text is spoken as written: Gemini reads numbers and symbols itself.
+    The segment's text is spoken as given: Gemini reads numbers and symbols itself, and the
+    caller has already respelled or dropped its audio tags.
     """
 
     _require_api_key()

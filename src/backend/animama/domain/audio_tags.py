@@ -166,6 +166,8 @@ _CLASS_STRENGTH: tuple[AudioTagClass, ...] = ("sound_effect", "nonverbal", "paci
 # text, and a square span followed by "(" is a Markdown link label.
 _TAG = regex.compile(r"<(\p{L}[\p{L} ,.!?'’-]{0,63})>|\[(\p{L}[\p{L} ,.!?'’-]{0,63})\](?!\()")
 _NOT_LETTER = regex.compile(r"[^\p{L}]+")
+# A tag still being written: its opening bracket, then the words so far, if any.
+_OPEN_TAG_CONTENT = regex.compile(r"(?:\p{L}[\p{L} ,.!?'’-]{0,63})?")
 _STRAY_BRACKET = re.compile(r"[\[\]<>]")
 _SPACE_RUN = re.compile(r"[ \t]{2,}")
 _SPACE_BEFORE_PUNCTUATION = re.compile(r" +([,.!?;:])")
@@ -191,6 +193,17 @@ def find_audio_tags(text: str) -> list[AudioTag]:
         AudioTag(match.group(0), match.group(1) or match.group(2), match.start(), match.end())
         for match in _TAG.finditer(text)
     ]
+
+
+def ends_inside_audio_tag(text: str) -> bool:
+    """Whether ``text`` ends inside a tag still being written, such as ``Well [sighs. long``.
+
+    Sentence and chunk splitters must not end a piece there, or the tag's halves
+    would be spoken as words.
+    """
+
+    opener = max(text.rfind("["), text.rfind("<"))
+    return opener >= 0 and _OPEN_TAG_CONTENT.fullmatch(text[opener + 1 :]) is not None
 
 
 def classify_audio_tag(direction: str) -> AudioTagClass:
@@ -263,11 +276,19 @@ class ProviderSpeechText:
         pieces: list[str] = []
         last = 0
         for tag in find_audio_tags(text):
-            pieces.append(_STRAY_BRACKET.sub("", text[last : tag.start]))
+            pieces.append(self._text_after(pieces, text[last : tag.start]))
             pieces.append(self._accepted(tag) or " ")
             last = tag.end
-        pieces.append(_STRAY_BRACKET.sub("", text[last:]))
+        pieces.append(self._text_after(pieces, text[last:]))
         return _tidy("".join(pieces))
+
+    @staticmethod
+    def _text_after(pieces: list[str], text: str) -> str:
+        text = _STRAY_BRACKET.sub("", text)
+        # "[sad](aside)" would read as a Markdown link label, not a tag.
+        if text.startswith("(") and pieces and pieces[-1].startswith("["):
+            return " " + text
+        return text
 
     def _accepted(self, tag: AudioTag) -> str | None:
         neutral = _neutral(tag.content)
@@ -299,6 +320,7 @@ __all__ = [
     "ProviderSpeechText",
     "SpeechTagProvider",
     "classify_audio_tag",
+    "ends_inside_audio_tag",
     "find_audio_tags",
     "opens_with_delivery_tag",
     "strip_audio_tags",

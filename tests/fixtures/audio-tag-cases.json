@@ -591,6 +591,67 @@
       "stripped": [
         "本当に？ すごい！"
       ]
+    },
+    {
+      "id": "a square tag before an opening parenthesis is not read as a link label",
+      "chunks": [
+        "<sad softly>(aside) Hi",
+        "[laughs]](x) Hi"
+      ],
+      "gemini": [
+        "(aside) Hi",
+        "<laugh>(x) Hi"
+      ],
+      "elevenlabs": [
+        "[sad softly] (aside) Hi",
+        "[laughs] (x) Hi"
+      ],
+      "stripped": [
+        "(aside) Hi",
+        "](x) Hi"
+      ]
+    }
+  ],
+  "openTags": [
+    {
+      "text": "Well [sighs. long",
+      "inside": true
+    },
+    {
+      "text": "Well <whisper",
+      "inside": true
+    },
+    {
+      "text": "Well [whispering, play",
+      "inside": true
+    },
+    {
+      "text": "Well [sighs] okay.",
+      "inside": false
+    },
+    {
+      "text": "Is x < 5.",
+      "inside": false
+    },
+    {
+      "text": "[see 2.",
+      "inside": false
+    },
+    {
+      "text": "Well [",
+      "inside": true
+    },
+    {
+      "text": "Well [aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "inside": false
+    },
+    {
+      "text": "Plain text.",
+      "inside": false
+    },
+    {
+      "text": "Well <",
+      "inside": true
     }
   ]
 }

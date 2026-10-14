@@ -10,6 +10,8 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from animama.domain.audio_tags import ends_inside_audio_tag
+
 # A sentence end: ASCII marks need following whitespace, as in English or Korean.
 # Japanese and Chinese marks need none. They end at the next character that is not
 # a mark or a closing bracket or quote, so a run streamed one mark per delta, and
@@ -138,6 +140,11 @@ class UserResponseSegmenter:
         for match in _SENTENCE_END.finditer(text):
             end_idx = match.end()
             candidate = text[start:end_idx]
+
+            # A mark inside an audio tag still being written, as in "[sighs. long
+            # pause]", ends nothing: the tag must reach one segment whole.
+            if ends_inside_audio_tag(candidate):
+                continue
 
             # --- Heuristics for ASCII marks only ---
             punctuation = match.group("ascii")

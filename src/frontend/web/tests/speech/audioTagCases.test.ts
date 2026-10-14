@@ -7,6 +7,7 @@ import {
   SPEECH_SOUND_CAP,
   classifyAudioTag,
   createProviderSpeechText,
+  endsInsideAudioTag,
   findAudioTags,
   hideSpeechTags,
   stripAudioTags,
@@ -52,6 +53,15 @@ describe("shared audio tag cases", () => {
       expect(chunks.map((chunk) => forGemini(chunk))).toEqual(gemini);
       expect(chunks.map((chunk) => forElevenLabs(chunk))).toEqual(elevenlabs);
       expect(chunks.map((chunk) => stripAudioTags(chunk))).toEqual(stripped);
+    },
+  );
+});
+
+describe("tags still being written", () => {
+  it.each(audioTagCases.openTags)(
+    "$text ends inside a tag: $inside",
+    ({ text, inside }) => {
+      expect(endsInsideAudioTag(text)).toBe(inside);
     },
   );
 });

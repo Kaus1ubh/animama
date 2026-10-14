@@ -15,6 +15,7 @@ from animama.domain.audio_tags import (
     SPEECH_SOUND_CAP,
     ProviderSpeechText,
     classify_audio_tag,
+    ends_inside_audio_tag,
     find_audio_tags,
     opens_with_delivery_tag,
     strip_audio_tags,
@@ -87,3 +88,8 @@ def test_only_tag_capable_voices_prepare_tags() -> None:
 )
 def test_opens_with_delivery_tag(text: str, expected: bool) -> None:
     assert opens_with_delivery_tag(text) is expected
+
+
+@pytest.mark.parametrize("row", CASES["openTags"], ids=lambda row: row["text"])
+def test_ends_inside_audio_tag(row: dict[str, object]) -> None:
+    assert ends_inside_audio_tag(str(row["text"])) is row["inside"]

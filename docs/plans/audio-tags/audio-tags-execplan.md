@@ -123,8 +123,9 @@ plan changes the text.
      it.
    - **#479:**
      - the segmenter never cuts inside a tag;
-     - on an ElevenLabs run, the first speech frame also carries
-       `speech_tone_tag`, for example `[very excited]`.
+     - on an ElevenLabs run, the shared `chat:sse` route's first speech frame
+       also carries `speech_tone_tag`, for example `[very excited]`. Cloud's
+       own route computes the tag itself (G3).
 3. **The stored reply is the raw JSON, tags included.** `emotion.update` follows
    after the last speech frame.
 
@@ -222,7 +223,8 @@ Boundaries:
       (2 findings, fixed), review #2 passed; one repair round remains.
 - [x] Phase 2 (#539): prompt rules. Review #1 was blocked (2 wording
       findings, fixed), review #2 passed; one repair round remains.
-- [ ] Phase 3 (#540): backend speech, tone and readers.
+- [x] Phase 3 (#540): backend speech, tone and readers. Review #1 was blocked
+      (2 reader findings, fixed), review #2 passed; one repair round remains.
 - [ ] Phase 4 (#541): browser speech and chat display.
 - [ ] Phase 5 (#542): docs, dead prompt code, live checks, full validation and the G2 pack.
 - [ ] Final integration review.
@@ -772,13 +774,145 @@ Recovery: the segmenter change is the risk. If the golden or sentence tests move
 for untagged text, narrow the candidate rule to require an opening bracket
 followed by a letter.
 
+#### Phase 3 implementation notes
+
+Starting point: `dfbcbc46` (Phase 2).
+
+- **Shared helpers** (both languages, in the shared case file):
+  - `ends_inside_audio_tag` / `endsInsideAudioTag` tell whether text ends in
+    an open candidate tag: the last `[` or `<`, followed by nothing or by a
+    letter and grammar characters, at most 64 of them.
+  - The provider text now puts a space between an accepted square tag and a
+    following `(`, so it never reads as a link label (P1-R2-N1).
+- **Segmenter:** `UserResponseSegmenter` skips a sentence end whose sentence so
+  far ends inside an open tag.
+- **Gemini:**
+  - `FinalizedTtsSegmentBatcher(..., speech_text=ProviderSpeechText("gemini"))`
+    prepares each batch in both modes. The cap is counted in batch order, and a
+    batch left without letters or digits is skipped.
+  - Segment `tts_text` stays the visible text without emoji. Mapping happens per
+    batch, because paragraph mode re-joins the visible text.
+- **Tone tag (P-D1, P-D2):**
+  - `elevenlabs_tone_tag` shares `_tone_description` with
+    `gemini_speaking_style`.
+  - `SseTextState.speech_tone_tag_pending` is set in `stream.py` when
+    `speech_tag_provider(tts) == "elevenlabs"`.
+  - The first speech `user.response` frame carries `speech_tone_tag`, unless
+    `opens_with_delivery_tag`.
+  - The degree comes from the pre-turn stored state, as for Gemini.
+- **Readers:**
+  - `_reflection_text` strips tags from `speech` only.
+  - `_search_row_to_domain` builds the snippet from speech without its tags,
+    then display as written (`_snippet_source`; P3-R1-F2).
+  - Matching is unchanged (Q3).
+- **Golden file:** `CHAT_SSE_GOLDEN_RECORD=1` rewrote one line of
+  `tests/fixtures/chat_sse_golden/tts-realtime.sse`: the new field on the first
+  speech frame.
+
+#### Phase 3 results
+
+Source: the working tree on `dfbcbc46`.
+
+- **Backend:**
+  - `ruff check` and `ruff format --check src/backend/animama tests`: clean.
+  - mypy (Makefile scope): clean (843 files).
+  - `make audit-typed-content`: passed.
+  - `uv run pytest -q`: 4,368 passed, 29 skipped before the review fixes, and
+    4,447 passed, 29 skipped after them.
+- **Frontend** (shared-case tests after the helper changes): vitest on
+  `tests/speech/audioTagCases.test.ts`, `src/lib/lipsync` and `src/lib/speech`
+  passed (37 files, 530 tests), after `packages:build`.
+
 #### Code Review #1 Findings
 
-Pending.
+Reviewer: `sdlc-reviewer`, full initial review of the working tree on
+`dfbcbc46`. Result: **blocked**.
+
+- **P3-R1-F1 (required).** For a tag-only reply, `_reflection_text` fell back
+  to the stored content, which is the raw reply JSON.
+- **P3-R1-F2 (required).** Snippets stripped bracketed words from owner
+  messages and from `display` too, not only from speech.
+- **P3-R1-F3 (recommended).** The open-tag helper treated a bare `[` or `<` as
+  outside a tag, so Phase 4's length and idle splits could cut there.
+- **P3-R1-N1.** Three docstrings still said Gemini speaks the text as written.
+- **P3-R1-N2.** A Gemini reply whose tags are all dropped ends with
+  `tts.error missing_tts_text`.
+- **P3-R1-N3.** `speech_text` could be required.
+- **P3-R1-N4.** The speech-part check is computed twice.
+- **P3-R1-N5 (by design).** An unclosed `[` or `<` followed by a letter holds
+  sentence ends for up to 64 characters. In a 16-text baseline comparison, only
+  three such texts changed. A 20,000-stream fuzz never split a valid tag.
+- **P3-R1-N6.** Test gaps:
+  - `?` inside a tag;
+  - a span over 64 characters in the segmenter;
+  - a check that every tone tag is a delivery direction.
+- **P3-R1-N7.** Docs to update in Phase 5:
+  - `docs/backend/runtime/chat.md` (`user.response` fields, the segmenter, the
+    batch text, "no tone tag");
+  - `docs/backend/integrations/voice-and-speech.md`;
+  - `docs/frontend/runtime/chat.md`.
+- **P3-R1-N8.** Cloud's own `chat:sse` will not carry `speech_tone_tag`, so the
+  G3 draft must say how Cloud computes and applies it. The pipeline's "shared
+  start" step overstates this.
+- **P3-R1-N9.** The implementation note should say the helper accepts an
+  opener with no words yet.
 
 #### Code Review #1 Revisions
 
-Pending.
+- **F1: accepted.** A structured reply returns its display, else its speech
+  without tags, else `None`; callers already skip `None`. The test now expects
+  `None`.
+- **F2: accepted.** The search SQL also returns `structured_speech` and
+  `structured_display`. `_snippet_source` strips tags from speech only, and keeps
+  display and every other message as written. A speech-only, tag-only reply has
+  an empty snippet. Tests cover both cases.
+- **F3: accepted.** The content after the opener is optional in both halves.
+  The fixture's `Well [` row now expects inside, and a `Well <` row is added.
+- **N1: accepted.** The three docstrings are corrected.
+- **N2: rejected as a code change; recorded as a known limitation.** It is rare
+  (the prompt requires words), and the browser shows its usual speech notice.
+- **N3: rejected.** The older batcher tests construct it without tag
+  preparation; production always passes Gemini.
+- **N4: accepted.** `is_speech` is computed once.
+- **N5: accepted as designed.**
+- **N6: accepted.** Added segmenter tests for `?` inside a tag and a span over
+  64 characters, and a tone-tag check over every tone and level (delivery
+  class, uncapped).
+- **N7: deferred to Phase 5** (the docs list is already in its scope).
+- **N8: accepted.**
+  - The pipeline section is corrected.
+  - The G3 draft (Phase 5) will say that Cloud computes the tag with
+    `elevenlabs_tone_tag` from the hidden tone event and the pre-turn state,
+    applies `opens_with_delivery_tag` to its collected text, and may emit the
+    field for lip-sync parity.
+- **N9: accepted.** The note is corrected.
+
+Verification after repairs:
+
+- targeted backend tests (tags, segmenter, tone tag, readers, chat SSE,
+  golden, Gemini, Reflection, search): 422 passed;
+- mypy (Makefile scope): clean;
+- ruff: clean;
+- `packages:build`, then vitest (`audioTagCases`, lip-sync, speech): 37 files,
+  531 tests passed.
+
+Repair budget: round #1 used; one round remains.
+
+#### Code Review #2 Findings
+
+Reviewer: `sdlc-reviewer`, a targeted recheck. Result: **pass**.
+
+- F1–F3, N1, N4, N6, N8 and N9 are confirmed. The database-backed search and
+  Reflection tests run the new SQL against Postgres: 48 passed, none skipped.
+- 554 related backend tests passed; mypy, ruff and the import-boundary check
+  are clean.
+- The segmenter baseline comparison and the fuzz runs are unchanged, and
+  Python and TypeScript still agree on 6,000 replies.
+- **Non-blocking, not taken:** the search's `content` expression could become
+  `m.content`. It is left unchanged, to keep the SQL diff minimal.
+- **Non-blocking, fixed:** a wording nit in the plan's reader note.
+
+Repair budget: one round remains, unused.
 
 ### Phase 4: browser speech and chat display
 
@@ -844,6 +978,46 @@ Checks:
 - `pnpm --dir src/frontend packages:test`
 - `pnpm --dir src/frontend build`
 - `pnpm --dir src/frontend/web lipsync:eval`
+
+#### Phase 4 implementation notes
+
+Starting point: the Phase 3 commit.
+
+- **Chunker** (`web/src/lib/speech/tts-chunker.ts`):
+  - a sentence mark inside an open tag ends nothing;
+  - length, idle and final splits back off to before the open tag's bracket;
+  - a short buffer that ends inside an open tag keeps the tag in the remainder.
+- **Playback** (`web/src/hooks/use-tts-playback.ts`):
+  - ElevenLabs chunks go through a per-run `createProviderSpeechText("elevenlabs")`.
+  - Browser speech gets `stripAudioTags`.
+  - The run's state and its pending tone tag reset with the run, and on the
+    Pocket fallback.
+  - `appendToken(runId, token, { speechToneTag })` keeps the tag for the run's
+    first ElevenLabs chunk, which it then leads.
+  - Gemini's reported speech text uses Gemini's spellings. Lip-sync still plans
+    from `part_text`; the report feeds the debug capture.
+- **product-ui:**
+  - `ChatSseUserResponse.speech_tone_tag` is passed through
+    `appendTtsToken(..., { speechToneTag })` (`session-bindings.ts`).
+  - Bubbles hide tags in four places: `getStructuredAssistantTexts` (completion
+    rows), `structuredAssistantTexts` (reload), the live bubble's text and
+    segments, and the failure notice's partial text.
+  - A tag-only speech part shows no bubble (Q1).
+  - Display is compared with the raw speech.
+  - `dist/audio-tags.js` still imports only a shared chunk with no imports of
+    its own (P1-R2-N3).
+- **Debug:** `LipSyncDebugSection` adds a "Text" row with the tag count of the
+  captured provider text (Gemini: its parts).
+- **Tests:**
+  - `tts-chunker.test.ts`, `use-tts-playback.test.tsx`,
+    `structured-response-stream.test.ts`, `display-message-mapping.test.ts` and
+    `LipSyncDebugSection.test.tsx`;
+  - the product-ui lifecycle test (`tests/chat-lifecycle.test.mjs`), whose
+    fixture now records `speechToneTag`.
+
+#### Phase 4 results
+
+Pending.
 
 #### Code Review #1 Findings
 

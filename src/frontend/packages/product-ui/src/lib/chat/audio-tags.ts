@@ -230,6 +230,8 @@ export const AUDIO_TAG_CLASS_STRENGTH: readonly AudioTagClass[] = [
 const AUDIO_TAG =
   /<(\p{L}[\p{L} ,.!?'’-]{0,63})>|\[(\p{L}[\p{L} ,.!?'’-]{0,63})\](?!\()/gu;
 const NOT_LETTER = /[^\p{L}]+/u;
+// A tag still being written: its opening bracket, then the words so far, if any.
+const OPEN_TAG_CONTENT = /^(?:\p{L}[\p{L} ,.!?'’-]{0,63})?$/u;
 const STRAY_BRACKET = /[[\]<>]/g;
 const NEUTRAL_BY_ALIAS = new Map(
   NEUTRAL_AUDIO_TAGS.flatMap((tag) =>
@@ -253,6 +255,16 @@ export function findAudioTags(text: string): AudioTagMatch[] {
     start: match.index,
     end: match.index + match[0].length,
   }));
+}
+
+/**
+ * Whether `text` ends inside a tag still being written, such as
+ * `Well [sighs. long`. Sentence and chunk splitters must not end a piece there,
+ * or the tag's halves would be spoken as words.
+ */
+export function endsInsideAudioTag(text: string): boolean {
+  const opener = Math.max(text.lastIndexOf("["), text.lastIndexOf("<"));
+  return opener >= 0 && OPEN_TAG_CONTENT.test(text.slice(opener + 1));
 }
 
 /** The class of one direction, such as `laughs softly` or `long pause`. */
@@ -362,13 +374,22 @@ export function createProviderSpeechText(
 
   return (text) => {
     let prepared = "";
+    let afterSquareTag = false;
     let last = 0;
+    const appendText = (piece: string) => {
+      const cleaned = piece.replace(STRAY_BRACKET, "");
+      // "[sad](aside)" would read as a Markdown link label, not a tag.
+      prepared +=
+        afterSquareTag && cleaned.startsWith("(") ? ` ${cleaned}` : cleaned;
+    };
     for (const tag of findAudioTags(text)) {
-      prepared += text.slice(last, tag.start).replace(STRAY_BRACKET, "");
-      prepared += accepted(tag) ?? " ";
+      appendText(text.slice(last, tag.start));
+      const label = accepted(tag);
+      prepared += label ?? " ";
+      afterSquareTag = label?.startsWith("[") ?? false;
       last = tag.end;
     }
-    prepared += text.slice(last).replace(STRAY_BRACKET, "");
+    appendText(text.slice(last));
     return tidy(prepared);
   };
 }

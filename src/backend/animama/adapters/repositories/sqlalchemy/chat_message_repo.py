@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
 from ....app.ports.chat_message_port import ChatMessageRepository
+from ....domain.audio_tags import strip_audio_tags
 from ....domain.chat import (
     AnimaHistoryTurn,
     AnimaHistoryTurnBatch,
@@ -57,6 +58,20 @@ def _prefix_tsquery_for_query(query: str) -> str:
     return " & ".join(f"{term}:*" for term in terms[:8])
 
 
+def _snippet_source(mapping: Mapping[str, Any]) -> str:
+    """The text a search snippet shows: what the owner saw of the message.
+
+    A reply shows its speech without audio tags, then its display as written; any
+    other message shows its content.
+    """
+
+    speech = mapping.get("structured_speech") or ""
+    display = mapping.get("structured_display") or ""
+    if speech or display:
+        return " ".join(part for part in (strip_audio_tags(speech), display) if part)
+    return mapping["content"] or ""
+
+
 def _search_row_to_domain(row: Any, query: str) -> ChatSearchResult:
     mapping = row._mapping
     return ChatSearchResult(
@@ -66,7 +81,7 @@ def _search_row_to_domain(row: Any, query: str) -> ChatSearchResult:
         anima_name=mapping["anima_name"],
         anima_profile_picture_url=mapping["anima_profile_picture_url"],
         chat_title=mapping["chat_title"],
-        snippet=_snippet_for_query(mapping["content"], query),
+        snippet=_snippet_for_query(_snippet_source(mapping), query),
         score=float(mapping["score"] or 0.0),
         turn=mapping["turn"],
         created_at=mapping["created_at"],
@@ -158,15 +173,20 @@ def _reflection_turns(
 
 
 def _reflection_text(message: ORMChatMessage) -> str | None:
-    """Return what the owner saw: the reply's display or speech text, else the stored content."""
+    """Return what the owner saw: the reply's display or speech text, else the stored content.
+
+    Speech is read without its audio tags, which the owner hears but never sees. A
+    reply whose speech was only tags showed nothing, so it has no text.
+    """
 
     data = message.message_data if isinstance(message.message_data, Mapping) else {}
     structured = data.get("structured")
     if message.role == "assistant" and isinstance(structured, Mapping):
-        for key in ("display", "speech"):
-            value = structured.get(key)
-            if isinstance(value, str) and value.strip():
-                return value.strip()
+        display, speech = structured.get("display"), structured.get("speech")
+        if isinstance(display, str) and display.strip():
+            return display.strip()
+        if isinstance(speech, str) and speech.strip():
+            return strip_audio_tags(speech) or None
     content = (message.content or "").strip()
     return content or None
 
@@ -341,6 +361,8 @@ class SQLAlchemyChatMessageRepository(ChatMessageRepository):
                         ),
                         m.content
                     ) AS content,
+                    NULLIF(m.message_data #>> '{structured,speech}', '') AS structured_speech,
+                    NULLIF(m.message_data #>> '{structured,display}', '') AS structured_display,
                     m.turn,
                     m.created_at,
                     ts_rank_cd(m.search_vector, search_query.value) AS score
@@ -375,6 +397,8 @@ class SQLAlchemyChatMessageRepository(ChatMessageRepository):
                 anima_profile_picture_url,
                 chat_title,
                 content,
+                structured_speech,
+                structured_display,
                 turn,
                 created_at,
                 score
