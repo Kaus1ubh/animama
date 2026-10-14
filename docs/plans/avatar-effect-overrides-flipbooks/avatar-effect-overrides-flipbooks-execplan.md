@@ -4,7 +4,7 @@ Source agreement: [#543](https://github.com/raymond-van/animama/issues/543)
 (the issue is the spec; agreed revision updated 2026-10-14T18:02:23Z, with
 Q1–Q5 and the accepted plan proposals), and the Decision Log below.
 Authorized scope: the whole plan, approved by the owner on 2026-10-14 (G0).
-Gates G1–G3 and merge approval remain.
+G1–G3 approved; merge approval remains.
 Starting revision: `19919ded` (`main`).
 Branch: `feat/avatar-effect-overrides-flipbooks`, in a dedicated task
 worktree. One branch and one PR for this plan.
@@ -103,7 +103,8 @@ effects (20 family variants and 4 left twins) and adds 5, so 75 → 56.
   approved; review passed at round 2.
 - [x] P5: Flipbook frame tooling and skills (F1–F3, D7), 2026-10-14; review
   passed at round 3. Commits: P1 `c32edd57`, P5 `7d02443c`, P2 `2c588cf8`.
-- [ ] P6: Flipbook conversions (F4). Gates G2 and G3.
+- [x] P6: Flipbook conversions (F4), 2026-10-14; G2 and G3 approved, 23
+  promoted; review passed at round 3.
 - [ ] P7: Documentation and acceptance.
 - [ ] Final integration review.
 
@@ -134,6 +135,11 @@ effects (20 family variants and 4 left twins) and adds 5, so 75 → 56.
 - A Local Action naming a removed effect keeps playing without it. This is
   the fallback if the D6 rewrite fails for an item.
 - `mouth_w`, `mouth_hover_w` and `sigh_puff_droop` have no Included users.
+- `effects promote` with `replace` writes generic owner-attestation
+  `source-review.json` records for every file it writes, overwriting
+  agent-authored ones (P6 corrected them by hand).
+- A template thumbnail's `time` is both the pose clip's sample time and the
+  effect's age, so a `once` flipbook can have ended by the pose's moment.
 
 ## Decision Log
 
@@ -896,6 +902,213 @@ Result: **pass**.
 Record the decision table (candidate, technique, frames, fps, loop, outcome)
 here.
 
+#### P6 record
+
+Three agents prepared one batch each from `65355f18` on the task stack
+(`animama-effect-overrides`, :8900). Each worked only under
+`.animama-drafts/effects/` and saved its drafts as Local effects through
+`effects save`. Sheets use 256 px cells and no `--trim`, so each effect keeps
+its Included canvas, placement and per-use sizes. Drafts dropped
+`soundAlias` because `effects save` refuses sounds; the `replace` promotion
+keeps the Included sounds.
+
+Not converted by the batch agents. The owner confirmed keeping all four
+static on 2026-10-14 (Code Review #1, P6-R1-F1):
+- `drumroll_ticks`: a 0.2 s beat turns the reveal into specks.
+- `laugh_marks`: held symbols; the reveal delays the pop.
+- `blush_band`: a soft gradient with no lines to boil.
+- `eye` (`=` bars): filled bars wobble like jelly.
+
+**G2 (2026-10-14).** The owner reviewed the three preview pages (:5175
+draw-on, :5176 boil, :5177 drawn frames), found many conversions marginal,
+and accepted the agent's recommendation: convert the 23 below and keep 17
+static. Two conversions sit outside the literal #543 F4 table:
+`steam_puffs`, because the Puff candidate predates the D-9 split, and
+`idea_bulb_fingertip`, because it shares Idea Bulb's art. Kept static:
+- Cheer Sparkles: the instant pop is punchier.
+- Shake Lines: it already jitters.
+- Heart Eyes, Eye Confused Swirl, Star3: their own motion hides the boil.
+- Eye 0, Eye O, Eye VV: the boil pulls attention from the face.
+- Blush, Blush Deep: three times the size for jittery hatch lines.
+- Gloomy Cloud: no better than static.
+- Kira Star, Sly Glint: the flare is too faint at chat size.
+- Soul Wisp: its waver already does the job.
+- Tear Flick, Finger Gun Spark: the flash is too brief.
+- Sigh Puff Droop: no users.
+
+| Effect | Technique | Frames | fps | Loop | Definition change besides the sheet |
+| --- | --- | --- | --- | --- | --- |
+| impact_burst | draw-on, break-off | 8 | 20 | once | none |
+| shock_marks | draw-on from the fist | 6 | 20 | once | pop-in from 0.7 (was 0.3) |
+| emphasis_lines_peek | draw-on from the eye | 6 | 20 | once | pop-in from 0.7 (was 0.3) |
+| gloom_lines | draw-on wipe down | 6 | 12 | once | opaque at 0.15 s (was 0.5 s) |
+| scratch_ticks | draw-on, break-off, per rub | 16 | 45.45 | loop | none |
+| bleh, heh, sorry, rawr lettering | line boil, amp 3.5 | 3 | 8 | loop | none |
+| doki_doki | line boil, amp 3.5 | 3 | 8 | loop | none |
+| angry, emote, question_mark | line boil, amp 4 | 3 | 8 | loop | none |
+| sweat_drop | drawn | 4 | 10 | once | none |
+| single_tear | drawn | 4 | 8 | once | pop-in from 0.7 (was 0.2); overshoot 1.05 (was 1.1) at 0.1 s (was 0.35 s) |
+| sweat_splash_cower | drawn | 3 | 10 | once | none |
+| puff | drawn (6 drawn in 14) | 14 | 8 | once | none |
+| steam_puffs | drawn | 6 | 6 | loop | none |
+| mind_blown_burst | drawn (5 drawn in 12) | 12 | 10 | once | none |
+| idea_bulb, idea_bulb_fingertip | drawn (one sheet) | 5 | 12 | once | none |
+| heart_pop | drawn | 4 | 10 | once | none |
+| paw_prints | drawn | 4 | 6 | once | none |
+
+Step 3: before and after sheets in `<stem>-work/renders/` cover the users
+the batch agents rendered:
+- all users of the draw-on effects except fist-bump (impact_burst),
+  disappointment-2 and ew-recoil (gloom_lines);
+- all 7 users of Puff and 6 of 10 of Heart Pop (caring-2 and gratitude-1/2/3
+  share caring-1's override);
+- the single users of Idea Bulb Fingertip (have-an-idea), Sweat Splash
+  (cower), Steam Puffs (anger-3), Mind Blown Burst (mind-blown) and Paw Prints
+  (cat-paws-nya);
+- 2 of 4 of Idea Bulb (confidence-2 with an after sheet only), 1 of 8 of
+  Sweat Drop and 1 of 2 of Single Tear;
+- none of the boil effects, which were rendered on the face only.
+
+`--with-clip library:<gesture>` plays the Included effect, so the agents
+rendered copies of the users that point at the draft; the skill now
+documents this.
+
+For the rest, Code Review #1 compared each sheet with its events' windows.
+Every `once` sheet fits within each event that has an explicit duration,
+except Puff: its 1.75 s sheet runs past the 0.8–1.48 s windows in
+deflated-sigh, phew-brow-wipe, pout-huff and stretch-break. The sheet holds
+the key frame until 1.375 s. In phew-brow-wipe, pout-huff and stretch-break
+the fade therefore ends the puff as before. In deflated-sigh (1.48 s, 0.15 s
+fade) the first break-up frame shows in the last 0.1 s of the fade. Boil
+sheets loop and keep each effect's canvas and motion.
+
+**G3 (2026-10-14).** `effects promote --dry-run` listed 70 changes for the
+23 `replace` items. The definition diffs held only the sheet, its
+`art.flipbook` and the four motion changes above, and kept names and
+sounds. Seven of the effects had owner-authored art that now holds generated
+frames: sweat_drop, single_tear, puff, steam_puffs, idea_bulb,
+idea_bulb_fingertip and heart_pop. The owner approved all 23, those seven
+moving to agent-authored records. The run applied 70 changes. The
+promoted art is about 2.4 MB, from about 2.8 MB.
+
+After the run:
+- **Licence records.** `replace` had written generic owner-attestation
+  records for all 46 written files, including agent-authored definitions and
+  generated art. JSON records were restored from `HEAD`. Each sheet's record
+  was rebuilt from the image it replaced, saying how its frames were made.
+  The seven sheets above got exact agent-authored inventory rules ahead of
+  `vfx/avatar/**/*`. Rules that named a replaced image now name the sheet.
+- **Thumbnails.** All 23 template thumbnails were regenerated. Impact Burst
+  (at 0.18 s, without its pose clip; it sits at the hips) and Mind Blown
+  Burst (at 0.95 s) were retimed, because a thumbnail's clip time is also the
+  effect's age, and at the old times their sheets had broken up.
+- **Tests.** `tests/test_optional_sound_dependencies.py` and the
+  playback-library and accountless-library journeys named the old images.
+  They now name the sheets.
+- **Tooling (F1/F3 follow-through).** `frames --mode boil` defaults to 1.25% of
+  the key's longer side (3.2 px at 256 px; the old 1.5 px was invisible at
+  chat size) and prints the amplitude. Its `flipbook` hint no longer suggests
+  `--trim`. Skills and `docs/frontend/runtime/avatar-vfx.md` updated.
+
+Checks:
+- `node --test scripts/effect-assets.test.mjs`: 41/41.
+- Backend content tests (`test_included_content_integrity`,
+  `test_optional_sound_dependencies`, merge map and transition, portability,
+  non-portable, pose content, package HTTP, override save): 96 passed.
+- `vitest run src/lib/effects src/lib/avatar/vfx src/ui/avatar-effect-creator`:
+  239 passed.
+- Prettier check of the touched scripts, templates and journeys.
+- `pnpm -s effects check library:included/<each of the 23>` on the task
+  stack, run by the reviewer in Code Review #1: all pass.
+  - WARN padding on the scratch_ticks, sweat_drop and sweat_splash sheets.
+  - WARN time visibility on scratch_ticks, single_tear and steam_puffs (its
+    motion loop's opacity is 0 at 1 s).
+  - heart_pop and idea_bulb_fingertip (hand art) fail "no visible art" at
+    rest and pass with `--with-clip library:finger-heart-pose` and
+    `--with-clip library:have-an-idea --times 2.9,3.3`.
+
+Not performed: live chat playback and sound of the promoted effects.
+
+Known cosmetic issue, deferred: Idea Bulb's first three frames (also used
+by Idea Bulb Fingertip) touch the cell's bottom edge. The bulb's base is
+clipped by about 4 px, and linear filtering can bleed half a texel into the
+next row of frames. The owner reviewed the sheet live.
+
+#### Code Review #1 Findings
+
+Reviewer: independent `sdlc-reviewer`. Source: `65355f18` plus the P6
+working tree (P7 hunks excluded).
+- **P6-R1-F1 (required):** `drumroll_ticks`, `laugh_marks`, `blush_band`
+  and `eye` had no recorded owner decision (#543 F4: every candidate has
+  one).
+- **P6-R1-F2 (required):** the record claimed every promoted effect was
+  rendered in all its users; coverage was partial.
+- **P6-R1-F3 (required):** no `effects check` evidence for the promoted
+  Included effects.
+- **Optional:**
+  - single_tear's overshoot change was unrecorded;
+  - the tooling section was labelled D7 (it is F1/F3);
+  - why steam_puffs and idea_bulb_fingertip are outside the F4 table;
+  - Idea Bulb frame clipping;
+  - licence prose that named deleted images as current;
+  - `deriveFrames` JSDoc omitted `amplitude`;
+  - two over-long doc lines;
+  - key reordering from promote (no semantic change).
+
+The reviewer verified:
+- the definitions change only the sheet, `art.flipbook`, files and the
+  recorded motion edits;
+- every cell keeps the replaced image's aspect, with no trim;
+- each drawn sheet holds the old image as an exact frame;
+- inventory first-match and source-review completeness;
+- G3 counts and the thumbnail retimes.
+
+#### Code Review #1 Revisions
+
+- **P6-R1-F1:** accepted. The owner kept all four static (2026-10-14),
+  recorded above.
+- **P6-R1-F2:** accepted. The record now states the actual render coverage
+  and the window analysis. The boil sheets are not rendered per user,
+  because they loop on the same canvas and motion.
+- **P6-R1-F3:** accepted. The reviewer's `effects check` results are
+  recorded under Checks.
+- **Optional items:**
+  - accepted: the single_tear row, the F1/F3 label, the F4 table note, the
+    licence prose ("was removed with this change"; replacement notes on the
+    puff and idea_bulb_fingertip rules), the JSDoc and both reflows;
+  - deferred: Idea Bulb clipping (cosmetic, owner-reviewed);
+  - not changed: key order.
+
+#### Code Review #2 Findings
+
+Targeted recheck of the round-1 revisions. P6-R1-F1 to F3 and the
+accepted optional items are resolved; the inventory's globs and order are
+unchanged.
+- **P6-R2-F1 (required):** the Puff window analysis was wrong for
+  deflated-sigh. The key frame is held only until 1.375 s, so the first
+  break-up frame shows near the end of its fade.
+- **P6-R2-F2 (optional):** the Step 3 list left out five fully rendered
+  single-user effects.
+- **P6-R2-F3 (optional):** a line in the `frames` paragraph of
+  `docs/frontend/runtime/avatar-vfx.md` was still over-long.
+
+#### Code Review #2 Revisions
+
+- **P6-R2-F1:** accepted; the window analysis now states the hold and the
+  deflated-sigh case. This is a record correction; the owner reviewed Puff
+  live and its content is unchanged.
+- **P6-R2-F2:** accepted; the five users are listed.
+- **P6-R2-F3:** accepted; the paragraph is rewrapped.
+- Repair budget: two rounds used; the final targeted recheck (#3) follows.
+
+#### Code Review #3 Findings
+
+Final targeted recheck, 2026-10-14: the three round-2 fixes are correct
+(the Puff windows match frame `floor(elapsed × 8)` and the cell order; each
+newly listed user has before and after sheets; the doc paragraph is at most
+77 characters wide and only the amplitude default changed), and the Code
+Review #2 sections match. No findings. Result: **pass**.
+
 ### P7 — Documentation and acceptance
 
 - Glossary "Avatar Effect": the event may override placement, look and motion
@@ -905,7 +1118,8 @@ here.
   reason `action_effect_override_invalid` and its `event.<id>.override…`
   field (`docs/backend/features/typed-content-and-marketplace.md`).
 - The skills' "one licensed sound" wording (avatar-vfx step 9,
-  `references/promote.md`) if P4 has not already changed it.
+  `references/promote.md`): done in P4; `docs/frontend/runtime/sound.md`
+  done in P7.
 - `docs/backend/architecture/local-content-storage.md`: the merge transition
   beside the `/1`→`/2` conversion.
 - Full local checks (below) and the full `pnpm e2e:test` on a purged built

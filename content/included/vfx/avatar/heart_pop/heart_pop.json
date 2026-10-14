@@ -37,17 +37,24 @@
     "attachment": {
       "kind": "body",
       "bone": "rightHand",
+      "facing": "camera",
       "offset": {
         "x": -0.131,
         "y": -0.05,
         "z": 0.037
       },
-      "size": 0.07,
-      "facing": "camera",
-      "rotationDeg": -10
+      "rotationDeg": -10,
+      "size": 0.07
     },
     "art": {
-      "image": "finger_heart_pop.png"
+      "image": "finger_heart_pop_flipbook.png",
+      "flipbook": {
+        "columns": 2,
+        "fps": 10,
+        "frames": 4,
+        "loop": "once",
+        "rows": 2
+      }
     },
     "motion": {
       "pulse": {
@@ -97,7 +104,7 @@
   },
   "files": [
     {
-      "path": "finger_heart_pop.png",
+      "path": "finger_heart_pop_flipbook.png",
       "role": "image"
     }
   ]

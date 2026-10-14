@@ -26,7 +26,14 @@
       }
     },
     "art": {
-      "image": "emote.png"
+      "image": "emote-sheet.png",
+      "flipbook": {
+        "columns": 3,
+        "fps": 8,
+        "frames": 3,
+        "loop": "loop",
+        "rows": 1
+      }
     },
     "motion": {
       "keyframes": {
@@ -83,7 +90,7 @@
   },
   "files": [
     {
-      "path": "emote.png",
+      "path": "emote-sheet.png",
       "role": "image"
     }
   ]

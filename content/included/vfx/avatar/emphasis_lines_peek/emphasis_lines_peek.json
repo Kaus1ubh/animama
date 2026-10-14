@@ -19,56 +19,63 @@
     "attachment": {
       "kind": "body",
       "bone": "head",
+      "facing": "camera",
       "offset": {
         "x": -0.1,
         "y": 0.12,
         "z": 0.14
       },
-      "size": 0.085,
-      "facing": "camera"
+      "size": 0.085
     },
     "art": {
-      "image": "emphasis_lines-mirrored.png"
+      "image": "emphasis_lines-mirrored-draw-on.png",
+      "flipbook": {
+        "columns": 3,
+        "fps": 20,
+        "frames": 6,
+        "loop": "once",
+        "rows": 2
+      }
     },
     "motion": {
       "pulse": {
-        "scaleMin": 0.96,
+        "cyclesPerSecond": 2,
         "scaleMax": 1.05,
-        "cyclesPerSecond": 2
+        "scaleMin": 0.96
       },
       "keyframes": {
         "frames": [
           {
-            "t": 0,
+            "offset": {
+              "x": 0,
+              "y": 0
+            },
             "opacity": 0,
-            "scale": 0.3,
-            "offset": {
-              "x": 0,
-              "y": 0
-            }
+            "scale": 0.7,
+            "t": 0
           },
           {
-            "t": 0.12,
             "opacity": 1,
-            "scale": 1.15
+            "scale": 1.15,
+            "t": 0.12
           },
           {
-            "t": 0.2,
-            "scale": 1
+            "scale": 1,
+            "t": 0.2
           },
           {
-            "t": 0.5,
             "offset": {
               "x": 0,
               "y": 0
-            }
+            },
+            "t": 0.5
           },
           {
-            "t": 0.9,
             "offset": {
               "x": -0.03,
               "y": 0.012
-            }
+            },
+            "t": 0.9
           }
         ]
       }
@@ -77,7 +84,7 @@
   },
   "files": [
     {
-      "path": "emphasis_lines-mirrored.png",
+      "path": "emphasis_lines-mirrored-draw-on.png",
       "role": "image"
     }
   ]

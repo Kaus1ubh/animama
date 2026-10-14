@@ -292,6 +292,7 @@ async def test_saving_own_content_with_a_licensed_sound_is_refused_and_rolled_ba
         edge["optional"] = True
     document["dependencies"] = [edge]
     document["definition"]["soundAlias"] = "on-apply"
+    image = document["definition"]["art"]["image"]
     owner = "package-owner"
     try:
         await content.rescan(user_id=owner)
@@ -301,7 +302,7 @@ async def test_saving_own_content_with_a_licensed_sound_is_refused_and_rolled_ba
                 kind=ContentKind.AVATAR_EFFECT,
                 entry_name="Copy",
                 descriptor=json.dumps(document).encode(),
-                companion_files={"sweat_drop.png": (source / "sweat_drop.png").read_bytes()},
+                companion_files={image: (source / image).read_bytes()},
                 operation_id=f"save-licensed-sound-{optional}",
                 catalog_item_id=None,
                 expected_revision=None,
@@ -412,9 +413,10 @@ def test_package_inspection_refuses_an_optional_edge(tmp_path: Path) -> None:
         dependencies=[{"ref": "sound", "content_type": "sound_effect", "alias": "on-apply", "optional": True}],
     )
     descriptor["definition"]["soundAlias"] = "on-apply"
+    image = descriptor["definition"]["art"]["image"]
     effect_payloads = {
         "entries/0001/effect.json": json.dumps(descriptor).encode(),
-        "entries/0001/sweat_drop.png": (source / "sweat_drop.png").read_bytes(),
+        f"entries/0001/{image}": (source / image).read_bytes(),
     }
     files = [
         {

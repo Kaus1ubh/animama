@@ -98,8 +98,9 @@ effect skill).
      `pnpm -s effects:assets frames <key>.png --mode boil|draw-on --out-dir
      <work folder>/frames`. `boil` (4 frames, looping at 8 fps) wobbles the
      lines as if traced again for each frame, the anime line boil, for
-     symbols, marks and lettering held on screen; `--amplitude` (default 1.5
-     px of the key) sets how far and `--seed` picks another wobble.
+     symbols, marks and lettering held on screen; `--amplitude` sets how far
+     (default 1.25% of the key's longer side, 3.2 px at 256 px; much less is
+     invisible at chat size) and `--seed` picks another wobble.
      `draw-on` (6 frames, once at 12 fps) makes the art appear outward from
      `--origin x,y` (fractions of the canvas; default the art's centre, so
      set it where the lines burst from) or wipe toward `--direction
@@ -108,7 +109,8 @@ effect skill).
      the lines detach. `--frames N` changes the count. Frames keep the key's
      canvas (painted face art keeps its UV layout), are written as
      `<key>-<mode>-NN.png`, and the command prints the matching `flipbook`
-     command. Early draw-on frames warn `padding`, as expected.
+     command (without `--trim`: the key is already framed). Early draw-on
+     frames warn `padding`, as expected.
    - **Drawn frame by frame**, when the shape itself changes (a drop forms
      and slides, a puff billows and thins). Generate the key frame, then
      each next frame by editing the previous one, with the key as the style
@@ -117,14 +119,17 @@ effect skill).
      below). Fix each frame with the same options and no `--trim`.
 
    Then `pnpm -s effects:assets flipbook <frame...> --out <name>.png [--trim]
-   [--cell 256] [--columns N] --fps <n> [--loop loop|once|pingpong]`. Leave
-   frames untrimmed in `fix` and pass `--trim` here (never for face-surface
-   art): it crops every frame to one shared box, so the frames keep their
-   positions relative to each other. Frames read left to right, top to
-   bottom. It prints the `art.flipbook` fragment for the definition. Frames
-   fitted into `--cell` are resampled, then their alpha is settled again
-   (faint cleared, near-opaque raised) and their edges bled. Preview the
-   sheet and check frame-to-frame consistency.
+   [--cell 256] [--columns N] --fps <n> [--loop loop|once|pingpong]`. For
+   new drawn frames, leave them untrimmed in `fix` and pass `--trim` here
+   (never for face-surface art): it crops every frame to one shared box, so
+   the frames keep their positions relative to each other. Frames derived
+   from a key, and frames for an effect being upgraded, keep the key's
+   canvas: trimming would change the effect's size and placement, and the
+   sizes its Gestures and Reactions set per use. Frames read left to right,
+   top to bottom. It prints the `art.flipbook` fragment for the definition.
+   Frames fitted into `--cell` are resampled, then their alpha is settled
+   again (faint cleared, near-opaque raised) and their edges bled. Preview
+   the sheet and check frame-to-frame consistency.
 8. **Hand off** the final PNG paths, their sizes and check results, the
    preview images, and what you rejected or could not fix. Delete rejected
    source images you created unless asked to keep them.

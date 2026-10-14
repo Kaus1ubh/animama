@@ -24,65 +24,72 @@
         "y": 0,
         "z": 0.04
       },
-      "scale": {
-        "x": 1.7,
-        "y": 1.7
-      },
       "rotationDeg": {
         "x": 0,
         "y": -35,
         "z": -40
+      },
+      "scale": {
+        "x": 1.7,
+        "y": 1.7
       }
     },
     "art": {
-      "image": "huff_puff.png"
+      "image": "huff_puff_flipbook.png",
+      "flipbook": {
+        "columns": 4,
+        "fps": 8,
+        "frames": 14,
+        "loop": "once",
+        "rows": 4
+      }
     },
     "motion": {
       "keyframes": {
         "frames": [
           {
-            "t": 0,
-            "opacity": 0,
-            "scale": 0.35,
             "offset": {
               "x": -0.012,
               "y": -0.004
-            }
+            },
+            "opacity": 0,
+            "scale": 0.35,
+            "t": 0
           },
           {
-            "t": 0.1,
-            "opacity": 1,
-            "scale": 1.1,
             "offset": {
               "x": 0,
               "y": 0
-            }
-          },
-          {
-            "t": 0.2,
-            "scale": 0.95
-          },
-          {
-            "t": 0.3,
-            "scale": 1
-          },
-          {
-            "t": 1.45,
+            },
             "opacity": 1,
-            "scale": 1.12,
+            "scale": 1.1,
+            "t": 0.1
+          },
+          {
+            "scale": 0.95,
+            "t": 0.2
+          },
+          {
+            "scale": 1,
+            "t": 0.3
+          },
+          {
             "offset": {
               "x": 0.02,
               "y": 0.008
-            }
+            },
+            "opacity": 1,
+            "scale": 1.12,
+            "t": 1.45
           },
           {
-            "t": 1.9,
-            "opacity": 0,
-            "scale": 1.2,
             "offset": {
               "x": 0.028,
               "y": 0.012
-            }
+            },
+            "opacity": 0,
+            "scale": 1.2,
+            "t": 1.9
           }
         ]
       }
@@ -94,7 +101,7 @@
   },
   "files": [
     {
-      "path": "huff_puff.png",
+      "path": "huff_puff_flipbook.png",
       "role": "image"
     }
   ]

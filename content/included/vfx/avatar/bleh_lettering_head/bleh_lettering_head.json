@@ -19,50 +19,57 @@
     "attachment": {
       "kind": "body",
       "bone": "head",
+      "facing": "camera",
       "offset": {
         "x": -0.142,
         "y": 0.143,
         "z": 0.112
       },
-      "size": 0.055,
-      "facing": "camera",
-      "rotationDeg": -8
+      "rotationDeg": -8,
+      "size": 0.055
     },
     "art": {
-      "image": "bleh_lettering.png"
+      "image": "bleh_lettering-sheet.png",
+      "flipbook": {
+        "columns": 3,
+        "fps": 8,
+        "frames": 3,
+        "loop": "loop",
+        "rows": 1
+      }
     },
     "motion": {
       "keyframes": {
         "frames": [
           {
-            "t": 0,
             "opacity": 0,
-            "scale": 0.3
+            "scale": 0.3,
+            "t": 0
           },
           {
-            "t": 0.12,
             "opacity": 1,
-            "scale": 1.15
+            "scale": 1.15,
+            "t": 0.12
           },
           {
-            "t": 0.2,
-            "scale": 1
+            "scale": 1,
+            "t": 0.2
           },
           {
-            "t": 0.26,
-            "rotationDeg": 0
+            "rotationDeg": 0,
+            "t": 0.26
           },
           {
-            "t": 0.34,
-            "rotationDeg": 8
+            "rotationDeg": 8,
+            "t": 0.34
           },
           {
-            "t": 0.44,
-            "rotationDeg": -5
+            "rotationDeg": -5,
+            "t": 0.44
           },
           {
-            "t": 0.52,
-            "rotationDeg": 0
+            "rotationDeg": 0,
+            "t": 0.52
           }
         ]
       }
@@ -71,7 +78,7 @@
   },
   "files": [
     {
-      "path": "bleh_lettering.png",
+      "path": "bleh_lettering-sheet.png",
       "role": "image"
     }
   ]

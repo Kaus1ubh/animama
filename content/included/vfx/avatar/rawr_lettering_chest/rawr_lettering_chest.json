@@ -12,53 +12,60 @@
     "attachment": {
       "kind": "body",
       "bone": "chest",
+      "facing": "camera",
       "offset": {
         "x": -0.21,
         "y": 0.455,
         "z": 0.127
       },
-      "size": 0.0561,
-      "facing": "camera",
-      "rotationDeg": -7
+      "rotationDeg": -7,
+      "size": 0.0561
     },
     "art": {
-      "image": "rawr_lettering.png"
+      "image": "rawr_lettering-sheet.png",
+      "flipbook": {
+        "columns": 3,
+        "fps": 8,
+        "frames": 3,
+        "loop": "loop",
+        "rows": 1
+      }
     },
     "motion": {
       "keyframes": {
         "frames": [
           {
-            "t": 0,
             "opacity": 0,
+            "rotationDeg": 0,
             "scale": 0.3,
-            "rotationDeg": 0
+            "t": 0
           },
           {
-            "t": 0.1,
             "opacity": 1,
+            "rotationDeg": 4,
             "scale": 1.22,
-            "rotationDeg": 4
+            "t": 0.1
           },
           {
-            "t": 0.16,
+            "rotationDeg": -4,
             "scale": 1,
-            "rotationDeg": -4
+            "t": 0.16
           },
           {
-            "t": 0.22,
-            "rotationDeg": 3
+            "rotationDeg": 3,
+            "t": 0.22
           },
           {
-            "t": 0.28,
-            "rotationDeg": -3
+            "rotationDeg": -3,
+            "t": 0.28
           },
           {
-            "t": 0.34,
-            "rotationDeg": 2
+            "rotationDeg": 2,
+            "t": 0.34
           },
           {
-            "t": 0.4,
-            "rotationDeg": 0
+            "rotationDeg": 0,
+            "t": 0.4
           }
         ]
       }
@@ -66,7 +73,7 @@
   },
   "files": [
     {
-      "path": "rawr_lettering.png",
+      "path": "rawr_lettering-sheet.png",
       "role": "image"
     }
   ]

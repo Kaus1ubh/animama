@@ -12,60 +12,67 @@
     "attachment": {
       "kind": "body",
       "bone": "head",
+      "facing": "camera",
       "offset": {
         "x": -0.144,
         "y": 0.063,
         "z": 0.156
       },
-      "size": 0.0629,
-      "facing": "camera",
-      "rotationDeg": -6
+      "rotationDeg": -6,
+      "size": 0.0629
     },
     "art": {
-      "image": "heh_lettering.png"
+      "image": "heh_lettering-sheet.png",
+      "flipbook": {
+        "columns": 3,
+        "fps": 8,
+        "frames": 3,
+        "loop": "loop",
+        "rows": 1
+      }
     },
     "motion": {
       "keyframes": {
         "frames": [
           {
-            "t": 0,
             "opacity": 0,
-            "scale": 0.3
+            "scale": 0.3,
+            "t": 0
           },
           {
-            "t": 0.12,
             "opacity": 1,
-            "scale": 1.15
+            "scale": 1.15,
+            "t": 0.12
           },
           {
-            "t": 0.2,
-            "scale": 1
+            "scale": 1,
+            "t": 0.2
           },
           {
-            "t": 0.32,
-            "scale": 1
+            "scale": 1,
+            "t": 0.32
           },
           {
-            "t": 0.38,
-            "scale": 1.1
+            "scale": 1.1,
+            "t": 0.38
           },
           {
-            "t": 0.47,
-            "scale": 1
+            "scale": 1,
+            "t": 0.47
           },
           {
-            "t": 0.5,
             "offset": {
               "x": 0,
               "y": 0
-            }
+            },
+            "t": 0.5
           },
           {
-            "t": 0.68,
             "offset": {
               "x": -0.004,
               "y": 0.015
-            }
+            },
+            "t": 0.68
           }
         ]
       }
@@ -73,7 +80,7 @@
   },
   "files": [
     {
-      "path": "heh_lettering.png",
+      "path": "heh_lettering-sheet.png",
       "role": "image"
     }
   ]

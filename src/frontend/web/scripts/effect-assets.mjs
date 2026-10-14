@@ -861,9 +861,14 @@ const FRAME_MODES = {
   boil: { frames: 4, fps: 8, loop: "loop" },
   "draw-on": { frames: 6, breakOffFrames: 8, fps: 12, loop: "once" },
 };
-/** Largest boil displacement in pixels, and its default. */
+/** Largest boil displacement in pixels. */
 const MAX_BOIL_AMPLITUDE = 8;
-const DEFAULT_BOIL_AMPLITUDE = 1.5;
+/**
+ * Default boil displacement as a fraction of the key's longer side: the art
+ * is shown at a set size whatever its pixels, so the wobble scales with the
+ * canvas (3.2 px on a 256 px key). Much less is invisible at chat size.
+ */
+const DEFAULT_BOIL_AMPLITUDE_FRACTION = 0.0125;
 /**
  * Boil control points across the art's longest side: a few wobbles along a
  * line, as when it is traced again by hand, not a ripple.
@@ -1038,13 +1043,15 @@ function drawOnRenderer(key, bounds, { count, origin, direction, breakOff }) {
 /**
  * Derive flipbook frames from one key image. Every frame keeps the key's
  * canvas, so the frames feed `assembleFlipbook` unchanged and painted face
- * art keeps its UV layout. Returns `{ frames, width, height, fps, loop }`:
- * PNG buffers in play order and the playback that suits them.
+ * art keeps its UV layout. Returns `{ frames, width, height, fps, loop,
+ * amplitude }`: PNG buffers in play order, the playback that suits them and,
+ * for a boil, the displacement used.
  *
  * - `boil` (default 4 frames): each frame warps the art by its own smooth
- *   random displacement of at most `amplitude` px (default 1.5), so the lines
- *   wobble like art traced again for every frame, the anime "line boil". The
- *   same `seed` (default 1) gives the same frames.
+ *   random displacement of at most `amplitude` px (default 1.25% of the key's
+ *   longer side, at most 8 px), so the lines wobble like art traced again for
+ *   every frame, the anime "line boil". The same `seed` (default 1) gives the
+ *   same frames. The result's `amplitude` is the one used.
  * - `draw-on` (default 6 frames): the art appears outward from `origin`
  *   (`{ x, y }` fractions of the canvas; default the centre of the art), or
  *   wipes across it toward `direction` (`right`, `left`, `up` or `down`).
@@ -1079,8 +1086,10 @@ export async function deriveFrames(
   const boilSeed = seed ?? 1;
   if (!Number.isInteger(boilSeed) || boilSeed < 0 || boilSeed > 0xffffffff)
     throw new EffectAssetError("seed must be an integer from 0 to 4294967295");
-  const boilAmplitude = amplitude ?? DEFAULT_BOIL_AMPLITUDE;
-  if (!(boilAmplitude > 0 && boilAmplitude <= MAX_BOIL_AMPLITUDE))
+  if (
+    amplitude !== undefined &&
+    !(amplitude > 0 && amplitude <= MAX_BOIL_AMPLITUDE)
+  )
     throw new EffectAssetError(
       `amplitude must be above 0 and at most ${MAX_BOIL_AMPLITUDE} px`,
     );
@@ -1107,6 +1116,10 @@ export async function deriveFrames(
   const { bounds } = measure(key);
   if (!bounds)
     throw new EffectAssetError("the key image has no visible pixels");
+  const boilAmplitude =
+    mode === "boil"
+      ? (amplitude ?? defaultBoilAmplitude(key.width, key.height))
+      : undefined;
   const render =
     mode === "boil"
       ? boilRenderer(key, bounds, { seed: boilSeed, amplitude: boilAmplitude })
@@ -1129,7 +1142,17 @@ export async function deriveFrames(
     height: key.height,
     fps: defaults.fps,
     loop: defaults.loop,
+    ...(boilAmplitude === undefined ? {} : { amplitude: boilAmplitude }),
   };
+}
+
+/** The default boil displacement for a key canvas, to 0.1 px. */
+function defaultBoilAmplitude(width, height) {
+  const scaled = Math.max(width, height) * DEFAULT_BOIL_AMPLITUDE_FRACTION;
+  return Math.min(
+    MAX_BOIL_AMPLITUDE,
+    Math.max(0.1, Math.round(scaled * 10) / 10),
+  );
 }
 
 /** Backdrops for `preview`: chat-like dark, paper light, and a checkerboard. */
@@ -1228,7 +1251,7 @@ const USAGE = [
   "frames options (every frame keeps the key's canvas; written as <key>-<mode>-NN.png):",
   `  --mode boil            the lines wobble as if traced again each frame; loops (default ${FRAME_MODES.boil.frames} frames)`,
   "  --seed <n>             boil: the same seed gives the same frames (default 1)",
-  `  --amplitude <px>       boil: largest displacement (default ${DEFAULT_BOIL_AMPLITUDE}, at most ${MAX_BOIL_AMPLITUDE})`,
+  `  --amplitude <px>       boil: largest displacement (default ${DEFAULT_BOIL_AMPLITUDE_FRACTION * 100}% of the key's longer side, at most ${MAX_BOIL_AMPLITUDE})`,
   `  --mode draw-on         the art appears from a start; plays once (default ${FRAME_MODES["draw-on"].frames} frames)`,
   "  --origin <x,y>         draw-on: grow outward from here, fractions of the canvas",
   "                         (default the centre of the art)",
@@ -1529,12 +1552,15 @@ async function main(argv) {
       for (const [index, out] of outputs.entries())
         await writeFile(out, derived.frames[index]);
       console.log(
-        `Wrote ${outputs.length} ${mode} frames on the key's ${derived.width}×${derived.height} canvas:`,
+        `Wrote ${outputs.length} ${mode} frames on the key's ${derived.width}×${derived.height} canvas` +
+          (derived.amplitude === undefined
+            ? ":"
+            : ` (amplitude ${derived.amplitude} px):`),
       );
       for (const out of outputs) console.log(`  ${displayPath(out, cwd)}`);
-      console.log(
-        "Assemble them (add --trim for floating, body and sticker art; face-surface art keeps its canvas):",
-      );
+      // The key is already framed: trimming the frames would change the
+      // effect's size and placement (and any per-use size an Action sets).
+      console.log("Assemble them on the key's canvas, without --trim:");
       console.log(
         `  pnpm -s effects:assets flipbook ${outputs
           .map((out) => shellWord(displayPath(out, cwd)))

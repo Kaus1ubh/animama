@@ -36,7 +36,14 @@
       }
     },
     "art": {
-      "image": "steam_puff.png"
+      "image": "steam_puff_flipbook.png",
+      "flipbook": {
+        "columns": 3,
+        "fps": 6,
+        "frames": 6,
+        "loop": "loop",
+        "rows": 2
+      }
     },
     "motion": {
       "keyframes": {
@@ -81,7 +88,7 @@
   },
   "files": [
     {
-      "path": "steam_puff.png",
+      "path": "steam_puff_flipbook.png",
       "role": "image"
     }
   ]

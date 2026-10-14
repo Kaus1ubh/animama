@@ -31,7 +31,14 @@
       }
     },
     "art": {
-      "image": "gloom_lines.png"
+      "image": "gloom_lines-draw-on.png",
+      "flipbook": {
+        "columns": 3,
+        "fps": 12,
+        "frames": 6,
+        "loop": "once",
+        "rows": 2
+      }
     },
     "motion": {
       "keyframes": {
@@ -43,6 +50,10 @@
             },
             "opacity": 0,
             "t": 0
+          },
+          {
+            "opacity": 1,
+            "t": 0.15
           },
           {
             "offset": {
@@ -59,7 +70,7 @@
   },
   "files": [
     {
-      "path": "gloom_lines.png",
+      "path": "gloom_lines-draw-on.png",
       "role": "image"
     }
   ]

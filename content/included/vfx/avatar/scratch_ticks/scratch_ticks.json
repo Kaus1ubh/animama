@@ -19,83 +19,90 @@
     "attachment": {
       "kind": "body",
       "bone": "rightHand",
+      "facing": "camera",
       "offset": {
         "x": 0.015,
         "y": -0.02,
         "z": -0.06
       },
-      "size": 0.2,
-      "facing": "camera"
+      "size": 0.2
     },
     "art": {
-      "image": "scratch_ticks.png"
+      "image": "scratch_ticks-draw-on.png",
+      "flipbook": {
+        "columns": 4,
+        "fps": 45.4545,
+        "frames": 16,
+        "loop": "loop",
+        "rows": 4
+      }
     },
     "motion": {
       "keyframes": {
         "frames": [
           {
-            "t": 0,
             "opacity": 0,
+            "rotationDeg": 0,
             "scale": 0.3,
-            "rotationDeg": 0
+            "t": 0
           },
           {
-            "t": 0.066,
             "opacity": 1,
+            "rotationDeg": -7,
             "scale": 1.15,
-            "rotationDeg": -7
+            "t": 0.066
           },
           {
-            "t": 0.154,
+            "rotationDeg": 2,
             "scale": 0.966,
-            "rotationDeg": 2
+            "t": 0.154
           },
           {
-            "t": 0.231,
+            "rotationDeg": 0,
             "scale": 1.012,
-            "rotationDeg": 0
+            "t": 0.231
           },
           {
-            "t": 0.352,
             "opacity": 0.7,
-            "scale": 0.828
+            "scale": 0.828,
+            "t": 0.352
           },
           {
-            "t": 0.418,
             "opacity": 1,
+            "rotationDeg": -7,
             "scale": 1.04,
-            "rotationDeg": -7
+            "t": 0.418
           },
           {
-            "t": 0.506,
+            "rotationDeg": 2,
             "scale": 0.874,
-            "rotationDeg": 2
+            "t": 0.506
           },
           {
-            "t": 0.583,
+            "rotationDeg": 0,
             "scale": 0.915,
-            "rotationDeg": 0
+            "t": 0.583
           },
           {
-            "t": 0.704,
             "opacity": 0.7,
-            "scale": 0.749
+            "scale": 0.749,
+            "t": 0.704
           },
           {
-            "t": 0.77,
             "opacity": 1,
+            "rotationDeg": -7,
             "scale": 0.94,
-            "rotationDeg": -7
+            "t": 0.77
           },
           {
-            "t": 0.858,
+            "rotationDeg": 2,
             "scale": 0.79,
-            "rotationDeg": 2
+            "t": 0.858
           },
           {
-            "t": 0.935,
+            "rotationDeg": 0,
             "scale": 0.827,
-            "rotationDeg": 0
+            "t": 0.935
           }
         ]
       }
@@ -104,7 +111,7 @@
   },
   "files": [
     {
-      "path": "scratch_ticks.png",
+      "path": "scratch_ticks-draw-on.png",
       "role": "image"
     }
   ]

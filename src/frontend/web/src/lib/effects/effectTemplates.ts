@@ -167,7 +167,8 @@ export const AVATAR_EFFECT_TEMPLATES: readonly AvatarEffectTemplate[] = [
   included("mind_blown_burst", "Mind Blown Burst", "around-head", {
     framing: "wide",
     clip: "mind-blown",
-    time: 1.6,
+    // Before its flipbook breaks the poof up, at 1 s.
+    time: 0.95,
   }),
   included("music_notes", "Music Notes", "around-head", {
     framing: "wide",
@@ -238,10 +239,11 @@ export const AVATAR_EFFECT_TEMPLATES: readonly AvatarEffectTemplate[] = [
     clip: "finger-heart-pose",
     time: 1,
   }),
+  // At the hips, so no pose is needed: its flipbook's lines are drawn out at
+  // 0.2 s and break off by 0.4 s.
   included("impact_burst", "Impact Burst", "body", {
     framing: "body",
-    clip: "drumroll",
-    time: 2.8,
+    time: 0.18,
   }),
   included("drumroll_ticks", "Drumroll Ticks", "body", {
     framing: "wide",

@@ -118,13 +118,19 @@ promotion with `"mode": "replace"`.
    key frame.
 2. Make the frames with `animama-effect-assets` step 7: `frames --mode
    boil` or `draw-on` from the key, or frames each edited from the one
-   before when the shape changes. Assemble the sheet with `flipbook`, point
-   `art.image` at it and add the printed `art.flipbook`.
+   before when the shape changes. Assemble the sheet with `flipbook` on the
+   key's canvas (`--cell 256`, no `--trim`, so the effect keeps its size,
+   placement and per-use sizes), point `art.image` at it and add the
+   printed `art.flipbook`.
 3. Choose its playback: `loop` or `pingpong` for an effect held through a
    Reaction, `once` for a beat (its last frame holds until the event ends).
 4. Check and render with `--times` spread across the frames, one in the
    middle of each (`(k + 0.5) / fps` s for frame `k`), plus a late time for
-   a held effect. Then start the live preview for the owner (step 5).
+   a held effect. `--with-clip library:<gesture>` plays the Gesture's own
+   (Included) effect, not the draft; to see the draft in a Gesture, copy
+   the Gesture's folder, point its dependency at a copy of the draft, and
+   render with `--with-clip <copied folder> --local-content <root>`. Then
+   start the live preview for the owner (step 5).
 5. Save it as Local content (step 6). Replacing the Included effect is a
    promotion with `"mode": "replace"`, only with the owner's approval
    (step 9); its Gestures and Reactions pick up the sheet.

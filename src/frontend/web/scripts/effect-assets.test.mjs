@@ -642,6 +642,16 @@ test("boil frames wobble the key's lines in place, the same for a seed", async (
   assert.deepEqual(again.frames, boil.frames);
   const reseeded = await deriveFrames(key, { mode: "boil", seed: 8 });
   assert.notDeepEqual(reseeded.frames[0], boil.frames[0]);
+  // The wobble scales with the canvas, which is shown at a set size.
+  assert.equal(boil.amplitude, 1.6);
+  const wide = await png(256, 80, ring(40, 40, 30, 5));
+  assert.equal((await deriveFrames(wide, { mode: "boil" })).amplitude, 3.2);
+  const chosen = await deriveFrames(key, { mode: "boil", amplitude: 2 });
+  assert.equal(chosen.amplitude, 2);
+  assert.equal(
+    (await deriveFrames(key, { mode: "draw-on" })).amplitude,
+    undefined,
+  );
 
   const source = await readRgba(key);
   const keyBox = artBox(source);
@@ -907,9 +917,12 @@ test("the command line derives frames that feed flipbook", async () => {
     const frame = await readRgba(file);
     assert.deepEqual([frame.width, frame.height], [96, 96]);
   }
+  assert.match(boil.stdout, /canvas \(amplitude 2 px\):/);
+  // The key is already framed, so the hint never trims the frames.
+  assert.match(boil.stdout, /without --trim/);
   assert.match(
     boil.stdout,
-    /pnpm -s effects:assets flipbook '[^']*ring-boil-01\.png' .*'[^']*ring-boil-04\.png' --out <sheet\.png> --fps 8 --loop loop/,
+    /pnpm -s effects:assets flipbook '[^']*ring-boil-01\.png' .*'[^']*ring-boil-04\.png' --out <sheet\.png> --fps 8 --loop loop$/m,
   );
   const sheet = path.join(dir, "ring-sheet.png");
   const book = await run(process.execPath, [
