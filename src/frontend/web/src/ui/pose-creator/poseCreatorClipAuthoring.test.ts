@@ -341,3 +341,98 @@ describe("clonePoseCreatorClipEvent", () => {
     );
   });
 });
+
+describe("Avatar Effect use overrides", () => {
+  const event = {
+    id: "star",
+    time: 0.5,
+    kind: "avatar_vfx" as const,
+    effectId: "star",
+  };
+  const override = {
+    attachment: { kind: "body" as const, bone: "leftHand" as const },
+    motion: {},
+    soundAlias: "tehe",
+  };
+
+  it("sets an override without sharing it and keeps the other fields", () => {
+    const patched = patchPoseCreatorClipEventDraft(
+      { ...event, playAccompanyingSound: false },
+      { override },
+      2,
+    );
+    expect(patched).toEqual({
+      ...event,
+      playAccompanyingSound: false,
+      override,
+    });
+    expect(patched.kind === "avatar_vfx" && patched.override).not.toBe(
+      override,
+    );
+    // Other edits keep it.
+    expect(
+      patchPoseCreatorClipEventDraft(patched, { time: 1, duration: 0.5 }, 2),
+    ).toMatchObject({ time: 1, duration: 0.5, override });
+  });
+
+  it("removes the override with null (Reset to effect)", () => {
+    const patched = patchPoseCreatorClipEventDraft(
+      { ...event, override },
+      { override: null },
+      2,
+    );
+    expect(patched).toEqual(event);
+  });
+
+  it("drops the override when the effect changes", () => {
+    expect(
+      patchPoseCreatorClipEventDraft(
+        { ...event, override },
+        { effectId: "heart" },
+        2,
+      ),
+    ).toEqual({ ...event, effectId: "heart" });
+    // Naming the same effect keeps it.
+    expect(
+      patchPoseCreatorClipEventDraft(
+        { ...event, override },
+        { effectId: "star" },
+        2,
+      ),
+    ).toEqual({ ...event, override });
+  });
+
+  it("keeps an override set by the same patch that changes the effect", () => {
+    const next = { soundAlias: "chime" };
+    expect(
+      patchPoseCreatorClipEventDraft(
+        { ...event, override },
+        { effectId: "heart", override: next },
+        2,
+      ),
+    ).toEqual({ ...event, effectId: "heart", override: next });
+  });
+
+  it("round-trips an override through export and reopen", () => {
+    const draft = createPoseCreatorClipDraftFromAnimaPoseClip(
+      {
+        schema: "animaPoseClip/2.0",
+        id: "use",
+        name: "Use",
+        duration: 2,
+        ...SMILE,
+        events: [event],
+      },
+      { fallbackBasePose: "relaxedRest" },
+    );
+    draft.events = draft.events.map((item) =>
+      patchPoseCreatorClipEventDraft(item, { override }, 2),
+    );
+    const exported = formatPoseCreatorClipJsonForExport(draft);
+    const reopened = createPoseCreatorClipDraftFromAnimaPoseClip(
+      JSON.parse(exported!),
+      { fallbackBasePose: "relaxedRest" },
+    );
+    expect(reopened.events).toEqual([{ ...event, override }]);
+  });
+});

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { parseAnimaPoseClip } from "@/lib/avatar";
 import {
   activeVFXEventsBeforePlaybackStart,
+  poseCreatorScrubAppliedId,
   poseCreatorScrubVFXSignature,
   samplePoseCreatorScrubVFXEvents,
 } from "./poseCreatorClipEventPlayback";
@@ -95,5 +96,40 @@ describe("creator clip event playback", () => {
     expect(poseCreatorScrubVFXSignature(sceneClip, active, null)).not.toBe(
       poseCreatorScrubVFXSignature(sceneClip, active, "catalog-v2"),
     );
+  });
+});
+
+describe("poseCreatorScrubAppliedId", () => {
+  const clip = (loop: boolean) =>
+    parseAnimaPoseClip({
+      schema: "animaPoseClip/2.0",
+      id: "wink",
+      name: "Wink",
+      duration: 2,
+      ...(loop ? { loop: true } : {}),
+      beats: [],
+      events: [
+        {
+          id: "star",
+          time: 0.5,
+          kind: "avatar_vfx",
+          effectId: "kira_star",
+          duration: 1,
+        },
+      ],
+    });
+
+  it("names the occurrence the stationary preview shows", () => {
+    expect(poseCreatorScrubAppliedId(clip(false), 1, "star")).toBe(
+      "poseCreatorClip:scrub:wink:star:0",
+    );
+    expect(poseCreatorScrubAppliedId(clip(true), 3, "star")).toBe(
+      "poseCreatorClip:scrub:wink:star:1",
+    );
+  });
+
+  it("is null while the event is not showing", () => {
+    expect(poseCreatorScrubAppliedId(clip(false), 0.25, "star")).toBeNull();
+    expect(poseCreatorScrubAppliedId(clip(false), 1, "other")).toBeNull();
   });
 });

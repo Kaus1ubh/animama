@@ -40,6 +40,11 @@ import {
   particleAnchorLabel,
 } from "./poseLabels";
 import { accompanyingEventSound } from "./poseCreatorEventCatalog";
+import {
+  PoseCreatorAvatarEffectUseSection,
+  useAvatarEffectUse,
+  useAvatarEffectUseSource,
+} from "./PoseCreatorAvatarEffectUse";
 import { usePoseCreatorPreview } from "./PoseCreatorPreviewProvider";
 import { usePoseCreatorClipUndoGrouping } from "./usePoseCreatorUndoGrouping";
 import type { BeatDetailSummary } from "@/lib/avatar/poses/animaPoseClip/beatEditing";
@@ -322,6 +327,16 @@ function EventInspector({
   const { eventCatalog } = usePoseCreatorPreview();
   const label = resolveEventLabel(event, eventCatalog);
   const accompanyingSound = accompanyingEventSound(event, eventCatalog);
+  const effectUse = useAvatarEffectUse(
+    event,
+    useAvatarEffectUseSource(event),
+    onUpdate,
+  );
+  // An effect that declares several sounds lets each use pick one.
+  const effectSounds =
+    effectUse && effectUse.source.sounds.length > 1
+      ? effectUse.source.sounds
+      : null;
   return (
     <WorkspaceCard embedded={embedded}>
       <InspectorHeading
@@ -405,11 +420,33 @@ function EventInspector({
           </>
         ) : null}
 
-        {accompanyingSound &&
+        {(accompanyingSound || effectSounds) &&
         (event.kind === "avatar_vfx" || event.kind === "scene_vfx") ? (
           <>
             <InspectorRow label={t("clip.event.accompanyingSound")}>
-              <ReadOnlyField>{accompanyingSound.label}</ReadOnlyField>
+              {effectUse && effectSounds ? (
+                <Select
+                  value={effectUse.soundAlias ?? ""}
+                  disabled={disabled}
+                  onValueChange={effectUse.chooseSound}
+                >
+                  <SelectTrigger
+                    className="h-9 w-[176px]"
+                    aria-label={t("clip.event.accompanyingSoundLabel")}
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {effectSounds.map((sound) => (
+                      <SelectItem key={sound.alias} value={sound.alias}>
+                        {sound.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <ReadOnlyField>{accompanyingSound?.label}</ReadOnlyField>
+              )}
             </InspectorRow>
             <InspectorRow label={t("clip.event.playAccompanyingSound")}>
               <Switch
@@ -485,6 +522,13 @@ function EventInspector({
               />
             </InspectorRow>
           </>
+        ) : null}
+
+        {effectUse ? (
+          <PoseCreatorAvatarEffectUseSection
+            use={effectUse}
+            disabled={disabled}
+          />
         ) : null}
       </div>
     </WorkspaceCard>

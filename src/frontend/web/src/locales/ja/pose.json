@@ -141,6 +141,7 @@
     },
     "event": {
       "accompanyingSound": "付随するサウンド",
+      "accompanyingSoundLabel": "このイベントの付随するサウンド",
       "afterDuration": "指定時間後",
       "anchor": "アンカー",
       "anchorLabel": "パーティクルエフェクトのアンカー",
@@ -158,6 +159,13 @@
       "start": "開始",
       "startLabel": "選択したイベントの開始",
       "title": "イベント",
+      "use": {
+        "help": "ここでの変更はこのイベントにだけ適用され、エフェクト自体は変わりません。",
+        "refused": "この変更は適用されませんでした。",
+        "reset": "エフェクトの設定に戻す",
+        "title": "このイベントでの調整",
+        "unplayable": "このイベントの変更はエフェクトに合わないため、編集するにはエフェクトの設定に戻してください。"
+      },
       "volume": "音量",
       "volumeLabel": "効果音イベントの音量",
       "withAction": "アクションの終了時"

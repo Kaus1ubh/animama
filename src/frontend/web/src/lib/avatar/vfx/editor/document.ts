@@ -465,7 +465,10 @@ export function avatarEffectFieldLabel(field: string): string {
  * A definition problem for one setting. The validator explains it in
  * English: inside the sentence in English, as secondary detail elsewhere.
  */
-function settingProblem(setting: string, detail: string | null): string {
+export function avatarEffectSettingProblem(
+  setting: string,
+  detail: string | null,
+): string {
   const t = getI18n().getFixedT(null, "effects");
   if (detail && sourceLocaleActive())
     return t("avatar.validation.settingProblem", { setting, detail });
@@ -548,7 +551,10 @@ export function validateAvatarEffectDocument(
       issues.push({
         field,
         severity: "error",
-        message: settingProblem(avatarEffectFieldLabel(field), detail),
+        message: avatarEffectSettingProblem(
+          avatarEffectFieldLabel(field),
+          detail,
+        ),
       });
     }
   }
@@ -655,7 +661,8 @@ function object(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
-function canonicalJson(value: unknown): unknown {
+/** The value with object keys sorted, so equal content serializes equally. */
+export function canonicalJson(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonicalJson);
   if (value && typeof value === "object") {
     return Object.fromEntries(

@@ -141,6 +141,7 @@
     },
     "event": {
       "accompanyingSound": "附帶聲音",
+      "accompanyingSoundLabel": "此事件的附帶聲音",
       "afterDuration": "經過一段時間後",
       "anchor": "錨點",
       "anchorLabel": "粒子特效錨點",
@@ -158,6 +159,13 @@
       "start": "開始",
       "startLabel": "所選事件開始",
       "title": "事件",
+      "use": {
+        "help": "此處的變更只套用於此事件，不會改變特效本身。",
+        "refused": "此變更未套用。",
+        "reset": "恢復為特效設定",
+        "title": "本事件中的調整",
+        "unplayable": "此事件的變更與其特效不符，請恢復為特效設定後再編輯。"
+      },
       "volume": "音量",
       "volumeLabel": "音效事件音量",
       "withAction": "隨行為結束"

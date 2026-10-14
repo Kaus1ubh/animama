@@ -7,7 +7,10 @@ import {
   fitContactsToClip,
   type BeatDetailSummary,
 } from "@/lib/avatar/poses/animaPoseClip/beatEditing";
-import type { AnimaPoseClipMutableLayerId } from "@/lib/avatar/poses/animaPoseClip/clipVocabulary";
+import type {
+  AnimaPoseClipAvatarVFXOverride,
+  AnimaPoseClipMutableLayerId,
+} from "@/lib/avatar/poses/animaPoseClip/clipVocabulary";
 import { getResolvedAvatarPose } from "@/lib/avatar/poses/catalog";
 import {
   ANIMA_POSE_CLIP_V2_SCHEMA,
@@ -71,7 +74,10 @@ export type PoseCreatorClipEventDraftPatch = {
   /** Avatar Effect fade in and out (seconds) for an event with a duration. */
   fadeIn?: number;
   fadeOut?: number;
+  /** Another effect drops an Avatar Effect event's override unless this patch sets one. */
   effectId?: string;
+  /** This use's changes to its Avatar Effect; null removes them (Reset to effect). */
+  override?: AnimaPoseClipAvatarVFXOverride | null;
   sceneKind?: AnimaPoseClipSceneVFXKind;
   presetId?: string;
   anchor?: ParticleVFXAnchor | null;
@@ -1252,7 +1258,7 @@ export function patchPoseCreatorClipEventDraft(
     nextEvent.time = time;
     if (patch.playAccompanyingSound !== undefined)
       nextEvent.playAccompanyingSound = patch.playAccompanyingSound;
-    if (patch.effectId !== undefined) nextEvent.effectId = patch.effectId;
+    applyPoseCreatorClipAvatarVFXOverridePatch(nextEvent, patch);
     applyPoseCreatorClipVFXDurationPatch(nextEvent, patch);
     applyPoseCreatorClipAvatarVFXFadePatch(nextEvent, patch);
     return nextEvent;
@@ -1304,6 +1310,24 @@ function applyPoseCreatorClipVFXDurationPatch(
     return;
   }
   event.duration = normalizePoseCreatorClipEventDuration(patch.duration);
+}
+
+/**
+ * Set the event's effect and its override. An override is made for one effect
+ * (its attachment kind and declared sounds), so choosing another effect drops
+ * it unless the same patch supplies the new one.
+ */
+function applyPoseCreatorClipAvatarVFXOverridePatch(
+  event: AnimaPoseClipAvatarVFXEvent,
+  patch: PoseCreatorClipEventDraftPatch,
+): void {
+  if (patch.effectId !== undefined && patch.effectId !== event.effectId) {
+    event.effectId = patch.effectId;
+    delete event.override;
+  }
+  if (patch.override === null) delete event.override;
+  else if (patch.override !== undefined)
+    event.override = structuredClone(patch.override);
 }
 
 /**
