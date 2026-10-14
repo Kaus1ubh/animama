@@ -48,6 +48,20 @@
     "saveFailed": "画像を更新できませんでした。",
     "saving": "保存しています…",
     "savingProgress": "保存しています {{percent}}…",
+    "sceneGroups": {
+      "app": "アプリの背景",
+      "local": "自分の画像"
+    },
+    "scenes": {
+      "bedroom": "寝室",
+      "cafe": "カフェ",
+      "classroom": "教室",
+      "dreamy": "ドリーミー",
+      "none": "なし",
+      "rooftop": "屋上",
+      "sakura": "桜",
+      "seaside": "海辺"
+    },
     "sections": {
       "background_image": "背景",
       "profile_image": "プロフィール"

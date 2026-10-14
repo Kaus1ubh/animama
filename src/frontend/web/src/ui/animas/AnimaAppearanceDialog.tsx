@@ -4,6 +4,7 @@ import { LoaderCircle, RotateCcw, Trash2, Upload } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { TFunction } from "i18next";
+import { useTheme } from "next-themes";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { useFormatters } from "@animama/product-ui/i18n";
@@ -15,14 +16,27 @@ import { ContentSaveApiError } from "@/lib/content/contentSaveErrors";
 import { apiErrorLine } from "@/lib/errors/apiError";
 import { loadoutFailureText } from "@/lib/errors/loadoutErrors";
 import { useContentSaveFailure } from "@/hooks/useContentSaveFailure";
+import {
+  mergePreferences,
+  type SettingsPreferences,
+} from "@/lib/settings/preferences";
+import {
+  STAGE_SCENES,
+  appStageBackgroundUrl,
+  stageSceneChoice,
+  type StageSceneChoice,
+  type StageSceneId,
+} from "@/lib/stage-background/stageBackground";
 import { cn } from "@/lib/utils";
 import { useAnimaLoadout } from "@/query/hooks/useAnimaLoadout";
+import { useAnimaSettings } from "@/query/hooks/useAnimaSettings";
 import { useAnimaPresentationImage } from "@/query/hooks/useAnimaPresentationImage";
 import { useAppearanceImagePreview } from "@/query/hooks/useAppearanceImagePreview";
 import { useAppearanceImages } from "@/query/hooks/useAppearanceImages";
 import { queryKeys } from "@/query/keys";
 import { useAnimaLoadoutMutations } from "@/query/mutations/useAnimaLoadoutMutations";
 import { useAppearanceContentActions } from "@/query/mutations/useAppearanceContentActions";
+import { useUpdateAnimaSettings } from "@/query/mutations/useUpdateAnimaSettings";
 import { Button } from "@/ui/components/button";
 import {
   Dialog,
@@ -43,7 +57,15 @@ type AppearanceConfig = {
   focal_y: number;
   zoom: number;
 };
-type AppearanceDraft = { itemId: string; config: AppearanceConfig };
+/**
+ * `itemId` selects a Local image. With no image, a background draft shows the
+ * app stage `scene` (or none).
+ */
+type AppearanceDraft = {
+  itemId: string;
+  config: AppearanceConfig;
+  scene?: StageSceneChoice;
+};
 type PendingUpload = { file: File; operationId: string };
 
 /** Section-specific wording; section IDs stay as the Loadout uses them. */
@@ -76,6 +98,29 @@ function sectionText(
         defaultOption: t("appearance.defaultOption.profile_image"),
       };
 }
+/** Select values for app scenes; never a Local item id. */
+const SCENE_VALUE_PREFIX = "scene:";
+const sceneValue = (scene: StageSceneChoice) => `${SCENE_VALUE_PREFIX}${scene}`;
+
+function sceneLabel(t: TFunction<"animas">, scene: StageSceneId): string {
+  switch (scene) {
+    case "dreamy":
+      return t("appearance.scenes.dreamy");
+    case "bedroom":
+      return t("appearance.scenes.bedroom");
+    case "sakura":
+      return t("appearance.scenes.sakura");
+    case "seaside":
+      return t("appearance.scenes.seaside");
+    case "rooftop":
+      return t("appearance.scenes.rooftop");
+    case "cafe":
+      return t("appearance.scenes.cafe");
+    case "classroom":
+      return t("appearance.scenes.classroom");
+  }
+}
+
 const DEFAULT_CONFIG: AppearanceConfig = {
   fit: "cover",
   focal_x: 0.5,
@@ -134,6 +179,12 @@ export function AnimaAppearanceDialog({
   const images = useAppearanceImages();
   const mutations = useAnimaLoadoutMutations(animaId);
   const contentActions = useAppearanceContentActions();
+  const animaSettings = useAnimaSettings(animaId, { enabled: open });
+  const updateAnimaSettings = useUpdateAnimaSettings();
+  const { resolvedTheme } = useTheme();
+  const storedPreferences =
+    (animaSettings.data?.preferences as SettingsPreferences | undefined) ??
+    null;
   const fileInput = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const [drafts, setDrafts] = useState<
@@ -180,13 +231,16 @@ export function AnimaAppearanceDialog({
     };
     setDrafts({
       profile_image: initial("profile"),
-      background_image: initial("background"),
+      background_image: {
+        ...initial("background"),
+        scene: stageSceneChoice(storedPreferences),
+      },
     });
     setPendingUpload(null);
     setStatus(null);
     clearSaveFailure();
     setProgress(null);
-  }, [clearSaveFailure, loadout.data, open]);
+  }, [clearSaveFailure, loadout.data, open, storedPreferences]);
 
   useEffect(() => () => abortRef.current?.abort(), []);
 
@@ -197,11 +251,17 @@ export function AnimaAppearanceDialog({
   const defaultProfile = useAnimaPresentationImage(
     showsDefaultProfile ? profileThumbnail : null,
   );
+  const draftScene = draft.scene ?? stageSceneChoice(storedPreferences);
   const previewUrl = draft.itemId
     ? selectedPreview.url
     : showsDefaultProfile
       ? defaultProfile.url
-      : null;
+      : use === "background" && draftScene !== "none"
+        ? appStageBackgroundUrl(
+            draftScene,
+            resolvedTheme === "dark" ? "dark" : "light",
+          )
+        : null;
   const previewPending = draft.itemId
     ? selectedPreview.isPending
     : showsDefaultProfile
@@ -210,7 +270,8 @@ export function AnimaAppearanceDialog({
   const busy =
     contentActions.createAppearanceImage.isPending ||
     mutations.planAppearance.isPending ||
-    mutations.commitAppearance.isPending;
+    mutations.commitAppearance.isPending ||
+    updateAnimaSettings.isPending;
 
   const setDraft = (next: AppearanceDraft) => {
     setDrafts((current) => ({ ...current, [activeSection]: next }));
@@ -271,6 +332,21 @@ export function AnimaAppearanceDialog({
           intent,
           plan_digest: plan.plan_digest,
           idempotency_key: crypto.randomUUID(),
+        });
+      }
+      // A Local image keeps the stored scene for when it is removed.
+      if (
+        use === "background" &&
+        !draft.itemId &&
+        draftScene !== stageSceneChoice(storedPreferences)
+      ) {
+        await updateAnimaSettings.mutateAsync({
+          animaId,
+          body: {
+            preferences: mergePreferences(storedPreferences ?? {}, {
+              presentation: { stage_background: draftScene },
+            }),
+          },
         });
       }
       await invalidatePresentation();
@@ -446,19 +522,62 @@ export function AnimaAppearanceDialog({
           <div className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
             <select
               className="border-input bg-background h-10 rounded-md border px-3 text-sm"
-              value={draft.itemId}
-              disabled={busy || images.isPending}
-              onChange={(event) =>
-                setDraft({ itemId: event.target.value, config: DEFAULT_CONFIG })
+              value={
+                draft.itemId ||
+                (activeSection === "background_image"
+                  ? sceneValue(draftScene)
+                  : "")
               }
+              disabled={busy || images.isPending || animaSettings.isPending}
+              onChange={(event) => {
+                const value = event.target.value;
+                setDraft(
+                  value.startsWith(SCENE_VALUE_PREFIX)
+                    ? {
+                        ...draft,
+                        itemId: "",
+                        config: DEFAULT_CONFIG,
+                        scene: value.slice(
+                          SCENE_VALUE_PREFIX.length,
+                        ) as StageSceneChoice,
+                      }
+                    : { ...draft, itemId: value, config: DEFAULT_CONFIG },
+                );
+              }}
               aria-label={text.source}
             >
-              <option value="">{text.defaultOption}</option>
-              {readyImages.map((image) => (
-                <option key={image.itemId} value={image.itemId}>
-                  {image.name}
-                </option>
-              ))}
+              {activeSection === "profile_image" ? (
+                <>
+                  <option value="">{text.defaultOption}</option>
+                  {readyImages.map((image) => (
+                    <option key={image.itemId} value={image.itemId}>
+                      {image.name}
+                    </option>
+                  ))}
+                </>
+              ) : (
+                <>
+                  <optgroup label={t("appearance.sceneGroups.app")}>
+                    {STAGE_SCENES.map((scene) => (
+                      <option key={scene} value={sceneValue(scene)}>
+                        {sceneLabel(t, scene)}
+                      </option>
+                    ))}
+                    <option value={sceneValue("none")}>
+                      {t("appearance.scenes.none")}
+                    </option>
+                  </optgroup>
+                  {readyImages.length ? (
+                    <optgroup label={t("appearance.sceneGroups.local")}>
+                      {readyImages.map((image) => (
+                        <option key={image.itemId} value={image.itemId}>
+                          {image.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ) : null}
+                </>
+              )}
             </select>
             <Button
               type="button"

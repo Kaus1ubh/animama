@@ -48,6 +48,20 @@
     "saveFailed": "이미지를 업데이트할 수 없습니다.",
     "saving": "저장하는 중…",
     "savingProgress": "저장하는 중 {{percent}}…",
+    "sceneGroups": {
+      "app": "앱 배경",
+      "local": "내 이미지"
+    },
+    "scenes": {
+      "bedroom": "침실",
+      "cafe": "카페",
+      "classroom": "교실",
+      "dreamy": "몽환",
+      "none": "없음",
+      "rooftop": "옥상",
+      "sakura": "벚꽃",
+      "seaside": "바닷가"
+    },
     "sections": {
       "background_image": "배경",
       "profile_image": "프로필"

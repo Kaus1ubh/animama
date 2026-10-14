@@ -112,6 +112,11 @@ export type PresentationPreferences = {
   render_markdown?: boolean;
   disable_animation?: boolean;
   disable_vfx?: boolean;
+  /**
+   * App stage scene behind the Avatar (`dreamy`, `sakura`, …) or `none`;
+   * missing means Dreamy. A bound Background image still wins.
+   */
+  stage_background?: string;
   avatar_background?: AvatarBackgroundPreferences | null;
   [key: string]: unknown;
 };

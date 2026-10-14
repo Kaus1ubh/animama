@@ -1,3 +1,4 @@
+import { access } from "node:fs/promises";
 import { afterEach, describe, expect, it } from "vitest";
 import { getI18n } from "react-i18next";
 import { createFormatters } from "@animama/product-ui/i18n";
@@ -92,6 +93,7 @@ describe("emotion presentation", () => {
       const feeling = buildEmotionPresentation({ [emotion]: 12 }).feeling;
       expect(feeling).toEqual({
         emoji: FEELING_EMOJIS[emotion].slightly,
+        mascot: `/emotions/${emotion}-slightly.webp`,
         label: feelingLabel(emotion, "slightly"),
       });
       expect(feeling.label).toMatch(/^Feeling slightly /);
@@ -106,7 +108,7 @@ describe("emotion presentation", () => {
     [26, "Feeling very joyful", "😁"],
     [30, "Feeling very joyful", "😁"],
   ])("formats the feeling intensity boundary %s", (value, label, emoji) => {
-    expect(buildEmotionPresentation({ joy: value }).feeling).toEqual({
+    expect(buildEmotionPresentation({ joy: value }).feeling).toMatchObject({
       label,
       emoji,
     });
@@ -119,7 +121,11 @@ describe("emotion presentation", () => {
       desire: 20,
     });
     expect(result.dominantGroup).toBe("drive");
-    expect(result.feeling).toEqual({ label: "Feeling longing", emoji: "😣" });
+    expect(result.feeling).toEqual({
+      label: "Feeling longing",
+      emoji: "😣",
+      mascot: "/emotions/desire-plain.webp",
+    });
     expect(
       result.groups.find((group) => group.group === "alarm")?.average,
     ).toBe(10);
@@ -180,6 +186,7 @@ describe("emotion presentation", () => {
     expect(result.feeling).toEqual({
       emoji: "✨",
       label: "Feeling slightly admiring",
+      mascot: "/emotions/admiration-slightly.webp",
     });
     expect(result.groups).toHaveLength(8);
   });
@@ -245,5 +252,40 @@ describe("emotion presentation", () => {
       expect(japanese.runtime).toEqual(english.runtime);
       expect(japanese.feeling.emoji).toBe(english.feeling.emoji);
     });
+  });
+});
+
+describe("emotion mascots", () => {
+  it("resolves intensity boundaries and neutral to mascot images", () => {
+    expect(buildEmotionPresentation({}).feeling.mascot).toBe(
+      "/emotions/neutral.webp",
+    );
+    expect(buildEmotionPresentation({ joy: 15 }).feeling.mascot).toBe(
+      "/emotions/joy-slightly.webp",
+    );
+    expect(buildEmotionPresentation({ joy: 16 }).feeling.mascot).toBe(
+      "/emotions/joy-plain.webp",
+    );
+    expect(buildEmotionPresentation({ joy: 26 }).feeling.mascot).toBe(
+      "/emotions/joy-very.webp",
+    );
+  });
+
+  it("ships an image for every emotion, intensity and neutral", async () => {
+    const files = [
+      "neutral",
+      ...TRACKED_EMOTIONS.flatMap((emotion) =>
+        (["slightly", "plain", "very"] as const).map(
+          (intensity) => `${emotion}-${intensity}`,
+        ),
+      ),
+    ];
+    await Promise.all(
+      files.map((file) =>
+        access(
+          new URL(`../../../public/emotions/${file}.webp`, import.meta.url),
+        ),
+      ),
+    );
   });
 });

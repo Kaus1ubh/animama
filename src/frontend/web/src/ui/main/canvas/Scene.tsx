@@ -29,15 +29,13 @@ import type { CursorLookAtInputProvider } from "@/lib/avatar";
 import { resolveAvatarBackgroundCrop } from "@/lib/avatar/backgroundCrop";
 import { AvatarCanvasActor } from "./AvatarCanvasActor";
 import { createLogger } from "@/lib/logger";
-import { runtimeImagePresentation } from "@/lib/runtime-content/animaRuntimeSnapshot";
 import { cn } from "@/lib/utils";
 import { useOptionalMountedAnimaRuntimeContent } from "@/ui/app/AnimaRouteProviders";
-import { useRuntimeContentMediaUrl } from "@/query/hooks/useRuntimeContentMediaUrl";
 import { AvatarBackgroundMedia } from "@/ui/main/canvas/AvatarBackgroundMedia";
 import { useCanvasViewport } from "@/ui/main/canvas/CanvasViewportContext";
 import { useSettings } from "@/ui/settings/SettingsProvider";
-import { RuntimeImageFrame } from "@/ui/components/runtime-image-frame";
 import { SceneVFXUnderlayHost } from "@/ui/main/scene-vfx/SceneVFXUnderlayHost";
+import { StageBackgroundLayer } from "@/ui/main/canvas/StageBackgroundLayer";
 import type { Avatar } from "@/lib/avatar";
 import { CONTINUOUS_CANVAS_RESIZE } from "@/ui/main/canvas/canvasResizeOptions";
 import {
@@ -158,13 +156,6 @@ export default function Scene({
   const mountedRuntimeContent = useOptionalMountedAnimaRuntimeContent();
   const runtimeBackgroundEntry =
     mountedRuntimeContent?.data?.background_image ?? null;
-  const runtimeBackgroundMedia = useRuntimeContentMediaUrl(
-    runtimeBackgroundEntry,
-  );
-  const runtimeBackgroundUrl = runtimeBackgroundMedia.url;
-  const runtimeBackgroundPresentation = runtimeImagePresentation(
-    runtimeBackgroundEntry,
-  );
   const backgroundOption = backgroundMediaEnabled
     ? mountedRuntimeContent
       ? null
@@ -245,15 +236,11 @@ export default function Scene({
     >
       {!transparentBackground &&
       backgroundMediaEnabled &&
-      runtimeBackgroundUrl ? (
-        <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          <RuntimeImageFrame
-            alt=""
-            src={runtimeBackgroundUrl}
-            presentation={runtimeBackgroundPresentation}
-            className="size-full select-none"
-          />
-        </div>
+      mountedRuntimeContent ? (
+        <StageBackgroundLayer
+          variant="chat"
+          boundImage={runtimeBackgroundEntry}
+        />
       ) : !transparentBackground &&
         backgroundOption &&
         canvasViewport.hasSize ? (

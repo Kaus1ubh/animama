@@ -70,15 +70,15 @@ import { AnimaCarousel } from "@/ui/animas/AnimaCarousel";
 import {
   ANIMA_SHOWCASE_CAMERAS,
   ANIMA_SHOWCASE_ORBIT_TARGET,
-  AnimaPageBackdrop,
-  AnimaStageEffects,
 } from "@/ui/animas/AnimaManagementStagePresentation";
 import { useAnimaRosterLayout } from "@/ui/animas/useAnimaRosterLayout";
 import { AppShellPage } from "@/ui/app/AppShellPage";
+import { StageBackgroundLayer } from "@/ui/main/canvas/StageBackgroundLayer";
 import { usePreparedContentPreview } from "@/ui/content-preview/usePreparedContentPreview";
 import { Button } from "@/ui/components/button";
 import { Card, CardContent } from "@/ui/components/card";
 import { EmotionalState } from "@/ui/components/emotional-state";
+import { EmotionMascot } from "@/ui/components/emotion-mascot";
 import { RuntimeImageFrame } from "@/ui/components/runtime-image-frame";
 import { Tabs, TabsList, TabsTrigger } from "@/ui/components/tabs";
 import { Switch } from "@/ui/components/switch";
@@ -227,7 +227,7 @@ function ManagementPanel({
 
   return (
     <>
-      <aside className="border-border/70 bg-card/94 m-3 flex min-w-0 flex-col rounded-[1.75rem] border shadow-xl shadow-black/10 backdrop-blur-md xl:my-5 xl:mr-5 xl:ml-0 xl:min-h-0 xl:flex-1 xl:overflow-hidden">
+      <aside className="border-border/70 bg-card/80 m-3 flex min-w-0 flex-col rounded-[1.75rem] border shadow-xl shadow-black/10 backdrop-blur-md xl:my-5 xl:mr-5 xl:ml-0 xl:min-h-0 xl:flex-1 xl:overflow-hidden">
         <div className="px-5 pt-4 md:px-7 md:pt-5">
           <div className="flex min-w-0 flex-wrap items-center gap-3">
             <button
@@ -284,10 +284,12 @@ function ManagementPanel({
                   aria-label={t("management.openEmotions", {
                     feeling: emotion.feeling.label,
                   })}
-                  className="focus-visible:ring-ring/50 ml-auto flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full text-2xl transition-opacity outline-none hover:opacity-80 focus-visible:ring-[3px]"
-                  style={{ backgroundColor: `${emotion.color}14` }}
+                  className="focus-visible:ring-ring/50 ml-auto flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full transition-opacity outline-none hover:opacity-80 focus-visible:ring-[3px]"
                 >
-                  <span aria-hidden="true">{emotion.feeling.emoji}</span>
+                  <EmotionMascot
+                    src={emotion.feeling.mascot}
+                    className="size-10"
+                  />
                 </button>
               </TooltipTrigger>
               <TooltipContent>{emotion.feeling.label}</TooltipContent>
@@ -520,7 +522,14 @@ export function AnimaDetailsPage({
     <AppShellPage
       className="min-h-[100dvh] xl:h-[100dvh] xl:overflow-hidden"
       contentClassName="min-h-full max-w-none gap-0 px-0 py-0 md:px-0 md:py-0 lg:px-0 xl:h-full xl:min-h-0"
-      backdrop={<AnimaPageBackdrop />}
+      backdrop={
+        // A soft, full-window wash of the stage image reaches behind the
+        // frosted sidebar and panel; the stage column draws it sharply.
+        <StageBackgroundLayer
+          variant="showcase"
+          className="fixed inset-0 scale-110 opacity-60 blur-2xl"
+        />
+      }
       sidebarBehavior="adaptive-canvas"
     >
       <div
@@ -571,7 +580,12 @@ export function AnimaDetailsPage({
                   : undefined
             }
             className="h-full min-h-0"
-            backdrop={<AnimaStageEffects />}
+            backdrop={
+              <StageBackgroundLayer
+                variant="showcase"
+                className="[mask-image:linear-gradient(to_right,transparent,black_18%,black_82%,transparent)]"
+              />
+            }
             transparent
             overlay={
               <>

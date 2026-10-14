@@ -48,6 +48,20 @@
     "saveFailed": "無法更新圖片。",
     "saving": "正在儲存…",
     "savingProgress": "正在儲存 {{percent}}…",
+    "sceneGroups": {
+      "app": "應用程式背景",
+      "local": "我的圖片"
+    },
+    "scenes": {
+      "bedroom": "臥室",
+      "cafe": "咖啡廳",
+      "classroom": "教室",
+      "dreamy": "夢幻",
+      "none": "無",
+      "rooftop": "屋頂",
+      "sakura": "櫻花",
+      "seaside": "海邊"
+    },
     "sections": {
       "background_image": "背景",
       "profile_image": "個人檔案"

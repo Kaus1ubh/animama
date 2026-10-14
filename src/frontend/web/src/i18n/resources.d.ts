@@ -599,6 +599,20 @@ export default interface Resources {
       "saveFailed": "The image could not be updated.",
       "saving": "Saving…",
       "savingProgress": "Saving {{percent}}…",
+      "sceneGroups": {
+        "app": "App backgrounds",
+        "local": "Your images"
+      },
+      "scenes": {
+        "bedroom": "Bedroom",
+        "cafe": "Café",
+        "classroom": "Classroom",
+        "dreamy": "Dreamy",
+        "none": "None",
+        "rooftop": "Rooftop",
+        "sakura": "Sakura",
+        "seaside": "Seaside"
+      },
       "sections": {
         "background_image": "Background",
         "profile_image": "Profile"

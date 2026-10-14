@@ -11,6 +11,7 @@ import {
   type ResolvedEmotionGroup,
   type TrackedEmotion,
 } from "@/lib/emotion";
+import { publicResourceUrl } from "@/lib/resource-urls";
 
 /**
  * Local copies of the domain's emotion and group names. Display labels come
@@ -145,6 +146,19 @@ export function feelingLabel(
  * locale switch; other callers get the active UI Locale. Code and requests use
  * the domain names (`group`, `emotion`, `dominantGroup`), never the labels.
  */
+/**
+ * The Animama mascot drawn for a feeling, one per emotion and intensity (the
+ * emoji in `FEELING_EMOJIS` stays as text fallback); `null` is neutral.
+ */
+export function emotionMascotUrl(
+  emotion: TrackedEmotion | null,
+  intensity: FeelingIntensity,
+): string {
+  return publicResourceUrl(
+    emotion ? `emotions/${emotion}-${intensity}.webp` : "emotions/neutral.webp",
+  );
+}
+
 export function buildEmotionPresentation(
   value: unknown,
   t: TFunction<"emotion"> = activeEmotionT(),
@@ -195,9 +209,14 @@ export function buildEmotionPresentation(
     feeling: primary
       ? {
           emoji: FEELING_EMOJIS[primary.emotion][intensity],
+          mascot: emotionMascotUrl(primary.emotion, intensity),
           label: feelingLabel(primary.emotion, intensity, t),
         }
-      : { label: t("feelings.neutral"), emoji: "😐" },
+      : {
+          label: t("feelings.neutral"),
+          emoji: "😐",
+          mascot: emotionMascotUrl(null, "plain"),
+        },
   };
 }
 

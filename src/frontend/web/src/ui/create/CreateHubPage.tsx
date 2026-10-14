@@ -1,7 +1,7 @@
 "use client";
 
 import { Link, useNavigate } from "@tanstack/react-router";
-import { ArrowRight, Hand, HeartPulse, UsersRound } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -9,35 +9,76 @@ import {
   EFFECT_TEMPLATE_KINDS,
   type EffectTemplateKind,
 } from "@/lib/effects/effectTemplates";
+import { publicResourceUrl } from "@/lib/resource-urls";
 import { cn } from "@/lib/utils";
 import { AppShellPage } from "@/ui/app/AppShellPage";
 import { RuntimeFeatureGate } from "@/ui/app/RuntimeFeatureGate";
 import { Button } from "@/ui/components/button";
 import {
   CREATOR_CARD_CLASS_NAME,
-  CreatorIconTile,
-  EFFECT_KIND_ICONS,
   effectKindText,
-  type CreatorIcon,
 } from "@/ui/create/CreatorCards";
 import { EffectTemplatePickerDialog } from "@/ui/create/EffectTemplatePickerDialog";
 
+/** Illustrated header art for each creator card, served from `public/`. */
+type CreatorArt = { src: string; className?: string };
+
+const ANIMA_ART = {
+  backdrop: publicResourceUrl("illustrations/create/anima-backdrop.webp"),
+  character: publicResourceUrl("illustrations/create/anima-character.webp"),
+};
+
+const EFFECT_KIND_ART: Record<EffectTemplateKind, CreatorArt> = {
+  particle: { src: publicResourceUrl("illustrations/create/particle-fx.webp") },
+  // The face sits high in this frame; keep both gag symbols in view.
+  avatar: {
+    src: publicResourceUrl("illustrations/create/avatar-fx.webp"),
+    className: "object-[center_35%]",
+  },
+  scene: { src: publicResourceUrl("illustrations/create/scene-fx.webp") },
+};
+
+/** Card art is decorative; it dims in the dark theme so text stays primary. */
+function CreatorCardArt({
+  art,
+  className,
+}: {
+  art: CreatorArt;
+  className?: string;
+}) {
+  return (
+    <div
+      aria-hidden="true"
+      className={cn("bg-muted relative overflow-hidden", className)}
+    >
+      <img
+        alt=""
+        src={art.src}
+        loading="lazy"
+        decoding="async"
+        draggable={false}
+        className={cn(
+          "size-full object-cover transition-transform duration-300 select-none group-hover:scale-[1.03] motion-reduce:transition-none motion-reduce:group-hover:scale-100 dark:brightness-75",
+          art.className,
+        )}
+      />
+    </div>
+  );
+}
+
 type AvailableCreatorCard = {
   to: "/gestures/new" | "/reactions/new";
-  icon: CreatorIcon;
-  iconClassName: string;
+  art: CreatorArt;
 };
 
 const ACTION_CREATORS: AvailableCreatorCard[] = [
   {
     to: "/gestures/new",
-    icon: Hand,
-    iconClassName: "bg-secondary text-secondary-foreground",
+    art: { src: publicResourceUrl("illustrations/create/gesture.webp") },
   },
   {
     to: "/reactions/new",
-    icon: HeartPulse,
-    iconClassName: "bg-secondary text-secondary-foreground",
+    art: { src: publicResourceUrl("illustrations/create/reaction.webp") },
   },
 ];
 
@@ -56,34 +97,37 @@ function ActionCreatorCard({ card }: { card: AvailableCreatorCard }) {
           action: t("hub.actions.reaction.action"),
         };
   return (
-    <article className="border-border/70 bg-card/92 hover:border-primary/45 group flex min-h-48 flex-col justify-between rounded-2xl border p-5 shadow-lg shadow-black/5 transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:shadow-xl md:p-6">
-      <div className="flex items-start gap-4">
-        <CreatorIconTile icon={card.icon} className={card.iconClassName} />
-        <div className="min-w-0 space-y-1.5">
+    <article
+      className={cn(CREATOR_CARD_CLASS_NAME, "overflow-hidden rounded-3xl")}
+    >
+      <CreatorCardArt art={card.art} className="h-40 md:h-44" />
+      <div className="flex flex-1 flex-col gap-4 p-5 md:p-6">
+        <div className="space-y-1.5">
           <h3 className="text-xl font-semibold">{text.title}</h3>
           <p className="text-muted-foreground text-sm leading-6">
             {text.description}
           </p>
         </div>
+        <Button
+          asChild
+          variant="outline"
+          className="mt-auto w-fit rounded-full"
+        >
+          <Link to={card.to}>
+            {text.action}
+            <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
+          </Link>
+        </Button>
       </div>
-      <Button
-        asChild
-        className="bg-foreground text-background hover:bg-foreground/90 mt-5 w-fit shadow-md"
-      >
-        <Link to={card.to}>
-          {text.action}
-          <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
-        </Link>
-      </Button>
     </article>
   );
 }
 
-const ANIMA_CREATOR_ACTION_CLASS_NAME =
-  "bg-foreground text-background hover:bg-foreground/90 mt-7 shadow-lg";
+const ANIMA_CREATOR_ACTION_CLASS_NAME = "relative mt-7 rounded-full shadow-lg";
 
 /**
- * The Anima creator card. When the runtime withholds Anima creation, the
+ * The Anima creator card: an illustrated stage with a character who leans out
+ * above the card's top edge. When the runtime withholds Anima creation, the
  * familiar card stays with its action disabled and the shared reason below it.
  */
 function AnimaCreatorCard({
@@ -96,29 +140,44 @@ function AnimaCreatorCard({
     <section
       aria-labelledby="anima-creator-title"
       className={cn(
-        "border-border/70 bg-card/92 flex min-h-72 flex-col items-start justify-center rounded-3xl border p-6 shadow-lg shadow-black/5 md:p-9",
+        "relative mt-6 flex min-h-72 flex-col items-start justify-center rounded-3xl p-6 md:mt-8 md:p-9",
         // Only an available card lifts on hover; a disabled one never opens.
         !unavailableReason &&
-          "hover:border-primary/45 group transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:shadow-xl",
+          "group transition-transform hover:-translate-y-0.5 motion-reduce:transition-none motion-reduce:hover:translate-y-0",
       )}
     >
-      <div className="flex items-start gap-5">
-        <CreatorIconTile
-          icon={UsersRound}
-          className="bg-primary text-primary-foreground"
-          large
+      {/* The backdrop is clipped to the card; the character layer is not. */}
+      <div
+        aria-hidden="true"
+        className="border-border/70 bg-card absolute inset-0 overflow-hidden rounded-3xl border shadow-lg shadow-black/5 transition-shadow group-hover:shadow-xl"
+      >
+        <img
+          alt=""
+          src={ANIMA_ART.backdrop}
+          decoding="async"
+          draggable={false}
+          className="size-full object-cover select-none dark:brightness-75"
         />
-        <div className="space-y-2">
-          <h2
-            id="anima-creator-title"
-            className="text-3xl font-semibold tracking-tight md:text-4xl"
-          >
-            {t("hub.anima.title")}
-          </h2>
-          <p className="text-muted-foreground max-w-md text-sm leading-6 md:text-base">
-            {t("hub.anima.description")}
-          </p>
-        </div>
+        <div className="from-card via-card/75 md:via-card/55 absolute inset-0 bg-gradient-to-r to-transparent" />
+      </div>
+      <img
+        alt=""
+        aria-hidden="true"
+        src={ANIMA_ART.character}
+        decoding="async"
+        draggable={false}
+        className="pointer-events-none absolute right-[6%] bottom-0 hidden h-[calc(100%+3.5rem)] w-auto select-none md:block lg:right-[20%]"
+      />
+      <div className="relative max-w-md space-y-2 md:w-1/2 lg:w-auto">
+        <h2
+          id="anima-creator-title"
+          className="text-3xl font-semibold tracking-tight md:text-4xl"
+        >
+          {t("hub.anima.title")}
+        </h2>
+        <p className="text-muted-foreground text-sm leading-6 md:text-base">
+          {t("hub.anima.description")}
+        </p>
       </div>
       {unavailableReason ? (
         <>
@@ -133,7 +192,7 @@ function AnimaCreatorCard({
           </Button>
           <p
             id="anima-creator-unavailable"
-            className="text-muted-foreground mt-3 max-w-md text-sm"
+            className="text-muted-foreground relative mt-3 max-w-md text-sm"
           >
             {unavailableReason}
           </p>
@@ -159,23 +218,27 @@ function EffectKindCard({
 }) {
   const { t } = useTranslation("create");
   const info = effectKindText(t, kind);
-  const { icon, className } = EFFECT_KIND_ICONS[kind];
   return (
     <button
       type="button"
       aria-haspopup="dialog"
-      className={cn(CREATOR_CARD_CLASS_NAME, "min-h-48 p-5 text-left")}
+      className={cn(
+        CREATOR_CARD_CLASS_NAME,
+        "overflow-hidden rounded-3xl text-left",
+      )}
       onClick={(event) => onOpen(kind, event.currentTarget)}
     >
-      <CreatorIconTile icon={icon} className={className} />
-      <h3 className="mt-5 text-lg font-semibold">{info.label}</h3>
-      <p className="text-muted-foreground mt-1.5 flex-1 text-sm leading-6">
-        {info.description}
-      </p>
-      <span className="text-foreground mt-5 flex items-center gap-1 text-sm font-semibold">
-        {info.create}
-        <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
-      </span>
+      <CreatorCardArt art={EFFECT_KIND_ART[kind]} className="h-32 w-full" />
+      <div className="flex flex-1 flex-col p-5">
+        <h3 className="text-lg font-semibold">{info.label}</h3>
+        <p className="text-muted-foreground mt-1.5 flex-1 text-sm leading-6">
+          {info.description}
+        </p>
+        <span className="border-input bg-background text-foreground group-hover:bg-accent group-hover:text-accent-foreground mt-5 inline-flex w-fit items-center gap-1 rounded-full border px-3 py-1.5 text-sm font-medium shadow-xs transition-colors">
+          {info.create}
+          <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
+        </span>
+      </div>
     </button>
   );
 }
