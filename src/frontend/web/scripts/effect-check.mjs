@@ -205,10 +205,22 @@ export async function builtInTextureCollisions(effect, builtInReferences) {
 }
 
 /**
+ * Create the app's English i18n through `server`'s SSR loader, as the app's
+ * entry files do before they load its modules. Library code words its
+ * messages with `getI18n()` (the Particle and Scene editors, for example),
+ * so call this before SSR-loading app modules; the CLIs report in English.
+ */
+export async function createEnglishI18n(server) {
+  const { createWebI18n } = await server.ssrLoadModule("/src/i18n/web-i18n.ts");
+  await createWebI18n("en");
+}
+
+/**
  * Report lines on a Particle Effect as the creator's Save would judge it:
  * the content readiness errors (limits, and image references that must name
  * a listed texture) and Save's conservative estimate of particles alive at once
- * against the declared budget and the runtime limit.
+ * against the declared budget and the runtime limit. The English i18n must
+ * already exist (`createEnglishI18n`).
  */
 export async function particleSourceLines(effect, server) {
   const manifest = JSON.parse(await readFile(effect.manifestPath, "utf8"));
@@ -459,6 +471,7 @@ export async function checkEffects({
   return withRendererPage(
     { localContent, extraRoots: await sourceRoots(effects) },
     async ({ page, fsUrl, imageUrl, server }) => {
+      await createEnglishI18n(server);
       const avatars = AVATARS.map((id) => ({
         id,
         url: avatarFileUrl(fsUrl, id),

@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import {
   DEFAULT_CHECK_TIMES,
   checkEffects,
+  createEnglishI18n,
   particleSourceLines,
   sceneImageLines,
   sceneLimitLines,
@@ -75,10 +76,10 @@ function parseArgs(argv) {
 
 /**
  * Load a web module through Vite's SSR loader, so TypeScript and the `@`
- * alias resolve as in the app; `load` loads another module through the same
- * loader and `close` stops it.
+ * alias resolve as in the app and its messages are worded in English; `load`
+ * loads another module through the same loader and `close` stops it.
  */
-async function loadWebModule(file) {
+export async function loadWebModule(file) {
   const { createServer } = await import("vite");
   const server = await createServer({
     configFile: false,
@@ -100,6 +101,7 @@ async function loadWebModule(file) {
     server: { middlewareMode: true, hmr: false, ws: false },
   });
   try {
+    await createEnglishI18n(server);
     return {
       module: await server.ssrLoadModule(file),
       load: (other) => server.ssrLoadModule(other),
