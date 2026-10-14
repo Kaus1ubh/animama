@@ -192,6 +192,24 @@ export async function exerciseClipCompatibility(
         acceptDownloads: true,
     });
     context.setDefaultTimeout(STEP_TIMEOUT_MS);
+    // This journey checks clip data, so it hides the Gesture creator's 3D
+    // preview. Software WebGL on a two-core runner gave that preview one or
+    // two frames a second, and every step waited on frames. A hidden host has
+    // no size, so the preview never mounts: this journey does not load the
+    // creator's Avatar or play clips on it (an owner decision for #503).
+    // verify.mjs still checks Avatar rendering on the Anima page.
+    await context.addInitScript(() => {
+        // Init scripts run before the document has any elements.
+        const hide = () => {
+            const style = document.createElement("style");
+            style.textContent =
+                '[data-testid="action-editor-canvas"] { display: none !important; }';
+            document.head.append(style);
+        };
+        if (document.head) hide();
+        else
+            document.addEventListener("DOMContentLoaded", hide, { once: true });
+    });
     const owner = "artifact-clip-owner",
         admission = await server.admit(owner, true);
     server.initializeClipFixtures(admission);
