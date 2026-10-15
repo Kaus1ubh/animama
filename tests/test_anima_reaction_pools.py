@@ -158,11 +158,10 @@ def test_starter_policy_cells_are_valid_with_at_most_four_unique_members() -> No
         emotion, _, level = cell.partition("-")
         assert emotion in TRACKED_EMOTIONS and int(level) in REACTION_INTENSITIES
         assert len(set(pool)) == len(pool) <= REACTION_POOL_LIMIT
-    # Interim content until the new Included set is promoted: intensity 1 starts
-    # empty and today's Reactions sit one intensity up.
-    assert not any(cell.endswith("-1") for cell in pools)
-    assert pools["joy-2"] == ("builtin:reaction:joy-1",)
-    assert pools["joy-4"] == ("builtin:reaction:joy-3",)
+    # Every cell holds all of its Included Reactions (D16): one at intensity 1, two at 2-4.
+    assert len(pools) == 96
+    assert pools["joy-1"] == ("builtin:reaction:joy-1",)
+    assert pools["joy-4"] == ("builtin:reaction:joy-4", "builtin:reaction:joy-4-b")
 
 
 def test_reaction_intent_has_only_pool_operations_and_complete_targets() -> None:
@@ -194,8 +193,8 @@ def test_reaction_intent_has_only_pool_operations_and_complete_targets() -> None
 @pytest.mark.asyncio
 async def test_reaction_pool_members_are_added_removed_and_restored_per_cell(async_session) -> None:  # noqa: ANN001
     fixture = await create_loadout_fixture(async_session)
-    # The interim starter policy puts builtin:reaction:joy-1 in the joy-2 pool.
-    starter = await _included_reaction(async_session, "builtin:reaction:joy-1", "Joy Starter")
+    # The starter policy puts builtin:reaction:joy-2 (and joy-2-b, absent here) in the joy-2 pool.
+    starter = await _included_reaction(async_session, "builtin:reaction:joy-2", "Joy Starter")
     starter_id = starter.id
     cheer = await _reaction(async_session, fixture, "Cheer")
     cheer_id = cheer.id
@@ -304,8 +303,8 @@ async def test_reaction_pool_members_are_added_removed_and_restored_per_cell(asy
 @pytest.mark.asyncio
 async def test_restore_skips_an_unavailable_starter_with_a_warning(async_session) -> None:  # noqa: ANN001
     fixture = await create_loadout_fixture(async_session)
-    # The interim starter policy puts builtin:reaction:joy-1 in the joy-2 pool.
-    starter = await _included_reaction(async_session, "builtin:reaction:joy-1", "Joy Starter")
+    # The starter policy puts builtin:reaction:joy-2 (and joy-2-b, absent here) in the joy-2 pool.
+    starter = await _included_reaction(async_session, "builtin:reaction:joy-2", "Joy Starter")
     starter_id = starter.id
     cheer = await _reaction(async_session, fixture, "Cheer")
     service = AnimaLoadoutService(async_session)
@@ -318,7 +317,8 @@ async def test_restore_skips_an_unavailable_starter_with_a_warning(async_session
             user_id=fixture.user_id, anima_id=fixture.anima_id, family="reaction", expected_revision=2, intent=restore
         )
         assert [(warning.code, warning.params) for warning in plan.warnings] == [
-            ("starter_reaction_unavailable", {"contentId": "builtin:reaction:joy-1"})
+            ("starter_reaction_unavailable", {"contentId": "builtin:reaction:joy-2"}),
+            ("starter_reaction_unavailable", {"contentId": "builtin:reaction:joy-2-b"}),
         ]
         assert await _change(service, fixture, revision=2, intent=restore, key="u-2") == "revert"
         loadout = await service.read_model(user_id=fixture.user_id, anima_id=fixture.anima_id)
@@ -708,8 +708,8 @@ async def test_new_anima_from_the_recommended_pools_reads_96_starter_cells(
         assert options["diagnostics"] == []
         recommended = options["recommended"]["reactions"]
         assert {level for cells in recommended.values() for level in cells} == {"1", "2", "3", "4"}
-        assert options["counts"]["recommended_reaction_cells"] == options["counts"]["available_reaction_cells"] == 72
-        assert options["counts"]["recommended_reactions"] == options["counts"]["available_reactions"] == 72
+        assert options["counts"]["recommended_reaction_cells"] == options["counts"]["available_reaction_cells"] == 96
+        assert options["counts"]["recommended_reactions"] == options["counts"]["available_reactions"] == 168
         spec = fixture.request().model_dump()
         spec.update(options["recommended"])
         spec["expected_source_revisions"].update(options["expected_source_revisions"])
@@ -721,13 +721,11 @@ async def test_new_anima_from_the_recommended_pools_reads_96_starter_cells(
         pools = starter_reaction_pools()
         for cell in loadout.reactions:
             keys = pools.get(f"{cell.emotion}-{cell.intensity}", ())
-            if cell.intensity == 1:
-                # Interim starter policy: intensity 1 starts empty until its Reactions are promoted.
-                assert (cell.state, cell.members) == ("empty", ())
-            else:
-                assert cell.state == "starter"
-                assert [(member.origin, member.available) for member in cell.members] == [("starter", True)] * len(keys)
-                assert [member.name for member in cell.members] == [key.rsplit(":", 1)[-1] for key in keys]
+            # Every cell starts with all of its Included Reactions (D16).
+            assert len(keys) == (1 if cell.intensity == 1 else 2)
+            assert cell.state == "starter"
+            assert [(member.origin, member.available) for member in cell.members] == [("starter", True)] * len(keys)
+            assert [member.name for member in cell.members] == [key.rsplit(":", 1)[-1] for key in keys]
 
 
 def test_portable_reactions_are_96_unique_pools_of_at_most_four() -> None:

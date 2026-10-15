@@ -19,7 +19,7 @@ from animama.domain.content_catalog import (
     ContentStatus,
     VerifiedContentFile,
 )
-from animama.domain.runtime_content_descriptor import RuntimeContentRootSelection
+from animama.domain.runtime_content_descriptor import MAX_RUNTIME_ENTRIES, RuntimeContentRootSelection
 from tests.content_package_helpers import anima_clip
 
 
@@ -298,3 +298,27 @@ async def test_unavailable_voice_retains_slot_diagnostic_for_playback_failure(mi
     assert diagnostic.slot_key == "voice"
     assert diagnostic.item_id == voice.id
     assert diagnostic.code == ("catalog_root_unavailable" if missing else "catalog_root_invalid")
+
+
+@pytest.mark.asyncio
+async def test_closure_admits_more_than_500_entries_within_the_runtime_entry_limit() -> None:
+    # Reaction pools of up to four per cell take a full Anima past 500 entries.
+    count = 600
+    assert count < MAX_RUNTIME_ENTRIES
+    gestures = [
+        _entry(f"gesture-{index}", files=(_file(f"gesture-{index}", f"g{index}.bin", "a" * 64),))
+        for index in range(count)
+    ]
+    descriptor = await RuntimeContentClosureCompiler(
+        catalog=_Catalog(gestures),  # type: ignore[arg-type]
+        store=_Store(),  # type: ignore[arg-type]
+    ).compile(
+        user_id="owner",
+        loadout_revision=1,
+        selections=tuple(
+            RuntimeContentRootSelection(f"gesture:{item.display_name}", item.id, item.kind) for item in gestures
+        ),
+    )
+
+    assert descriptor.diagnostics == ()
+    assert len(descriptor.roots) == len(descriptor.admitted_item_revisions) == count

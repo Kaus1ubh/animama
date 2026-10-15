@@ -1160,8 +1160,9 @@ test("imported playback complete Anima retains imported Avatar, appearance and p
     return receipt;
   };
   const gestureEntry = reviewed.anima!.gestures[0]?.entry_id;
-  // Packages carry each cell's pool; this journey plays its first member.
-  const reactionEntry = reviewed.anima!.reactions.admiration?.["3"]?.[0];
+  // Packages carry each cell's pool; this journey plays the first member of
+  // Admiration · Intense, whose Reactions all play a Scene Effect.
+  const reactionEntry = reviewed.anima!.reactions.admiration?.["4"]?.[0];
   expect(gestureEntry).toBeTruthy();
   expect(reactionEntry).toBeTruthy();
   for (const [kind, entryId] of [

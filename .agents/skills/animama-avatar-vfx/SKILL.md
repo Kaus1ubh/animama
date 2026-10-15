@@ -30,7 +30,7 @@ its record sourced (`source ../../../.animama-stack.env`).
 1. **Write the brief** before any art, in
    `.animama-drafts/effects/<stem>-work/brief.md`: what it expresses, the
    comedic or emotional beat, attachment and placement, the Reaction
-   intensities (1–3) it suits, motion and duration, the art and its house
+   intensities (1–4) it suits, motion and duration, the art and its house
    style (Ink or Marker), and its budget.
    Comedic uses are preferred. Confirm it with the owner when a batch or new
    library item depends on it. Template in [brief](references/brief.md).

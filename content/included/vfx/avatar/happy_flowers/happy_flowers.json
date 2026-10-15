@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:happy_flowers",
+  "version": 1,
+  "name": "Happy Flowers",
+  "description": "Three crayon-doodle flowers pop up above and beside the head, nodding in turn as they sway, the anime gag of little flowers blooming around a blissfully happy character, for contented joy, warmth and gratitude.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "sticker",
+    "attachment": {
+      "kind": "sticker",
+      "around": "head",
+      "offset": {
+        "x": 0.14,
+        "y": 0.12
+      },
+      "rotationDeg": 3.5,
+      "size": 0.15
+    },
+    "art": {
+      "image": "happy_flowers-sheet.png",
+      "flipbook": {
+        "columns": 2,
+        "rows": 2,
+        "frames": 4,
+        "fps": 6,
+        "loop": "loop"
+      }
+    },
+    "motion": {
+      "spin": {
+        "degreesPerSecond": 6,
+        "amountTurns": 0.02,
+        "direction": "clockwise"
+      },
+      "keyframes": {
+        "frames": [
+          {
+            "t": 0,
+            "opacity": 0,
+            "scale": 0.3,
+            "rotationDeg": -10
+          },
+          {
+            "t": 0.12,
+            "opacity": 1,
+            "scale": 1.25,
+            "rotationDeg": 4
+          },
+          {
+            "t": 0.22,
+            "scale": 0.92,
+            "rotationDeg": -1.5
+          },
+          {
+            "t": 0.32,
+            "scale": 1,
+            "rotationDeg": 0
+          }
+        ]
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "happy_flowers-sheet.png",
+      "role": "image"
+    }
+  ]
+}

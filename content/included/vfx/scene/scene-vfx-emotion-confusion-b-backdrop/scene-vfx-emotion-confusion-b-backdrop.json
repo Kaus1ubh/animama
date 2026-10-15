@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "content_type": "scene_effect",
+  "content_id": "builtin:scene-effect:background:scene-vfx-emotion-confusion-b-backdrop",
+  "version": 1,
+  "name": "Confusion B Backdrop",
+  "description": "Proposed companion for Confusion B Background: a lavender flash fades into a violet field glowing paler behind the Avatar.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/scene-effect/1",
+    "kind": "background_layers",
+    "durationMs": null,
+    "coverUiOverlays": false,
+    "dismissOnInput": false,
+    "solid": {
+      "enabled": false,
+      "color": "#000000"
+    },
+    "pattern": {
+      "enabled": false,
+      "pattern": "none",
+      "color": "#ffffff",
+      "size": 10,
+      "spacing": 20,
+      "opacity": 0.3
+    },
+    "marquee": {
+      "enabled": false,
+      "items": [],
+      "itemSize": 72,
+      "gap": 24,
+      "rowGap": 18,
+      "direction": "left",
+      "itemRotationMode": "upright",
+      "itemRotationOffsetDeg": 0,
+      "speedPxPerSec": 100,
+      "opacity": 1
+    },
+    "gradient": {
+      "enabled": true,
+      "type": "radial",
+      "angleDeg": 180,
+      "centerX": 0.5,
+      "centerY": 0.36,
+      "stops": [
+        {
+          "color": "#a382d6",
+          "position": 0
+        },
+        {
+          "color": "#6c48ab",
+          "position": 0.55
+        },
+        {
+          "color": "#3d2170",
+          "position": 1
+        }
+      ]
+    },
+    "flash": {
+      "enabled": true,
+      "color": "#f1e9ff",
+      "durationMs": 200
+    }
+  },
+  "files": []
+}

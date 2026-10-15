@@ -1,18 +1,10 @@
-import { getAvatarReactionClip, hasAvatarReactionClip } from "./poses/catalog";
-import type { AnimaPoseClipV2 } from "./poses/animaPoseClip";
+import { AVATAR_REACTION_POOLS } from "./poses/catalog";
 import { isTrackedEmotion, type TrackedEmotion } from "@/lib/emotion";
 import type { EmotionReactionIntensity } from "./reactionPools";
 
 /** A chat event's Reaction intensity; 0 plays no Reaction. */
 export type NormalizedEmotionReactionIntensity = 0 | EmotionReactionIntensity;
 export type EmotionReactionTone = TrackedEmotion;
-
-export type EmotionReactionClipSelection = {
-  tone: EmotionReactionTone;
-  intensity: EmotionReactionIntensity;
-  clipId: string;
-  clip: AnimaPoseClipV2;
-};
 
 /** Read `emotion.update`'s Reaction intensity (0–4), clamping larger values to 4. */
 export function normalizeEmotionReactionIntensity(
@@ -34,33 +26,18 @@ export function resolveEmotionReactionTone(
   return isTrackedEmotion(normalized) ? normalized : null;
 }
 
-export function getEmotionReactionClipId(args: {
+/**
+ * The built-in pool of an emotion event's cell: its Included Reactions, as a
+ * new Anima's starter pool holds them (Mild has `<emotion>-1`; Moderate to
+ * Intense have `<emotion>-<intensity>` and `<emotion>-<intensity>-b`). A
+ * neutral or unknown tone, or intensity 0, has no cell and an empty pool.
+ */
+export function getIncludedReactionPool(args: {
   emotionalTone: string | null | undefined;
   emotionalIntensity: NormalizedEmotionReactionIntensity;
-}): string | null {
-  if (args.emotionalIntensity === 0) return null;
-
+}): readonly string[] {
+  if (args.emotionalIntensity === 0) return [];
   const tone = resolveEmotionReactionTone(args.emotionalTone);
-  if (!tone) return null;
-  return `${tone}-${args.emotionalIntensity}`;
-}
-
-export function selectEmotionReactionClip(args: {
-  emotionalTone: string | null | undefined;
-  emotionalIntensity: NormalizedEmotionReactionIntensity;
-}): EmotionReactionClipSelection | null {
-  if (args.emotionalIntensity === 0) return null;
-
-  const tone = resolveEmotionReactionTone(args.emotionalTone);
-  if (!tone) return null;
-
-  const clipId = `${tone}-${args.emotionalIntensity}`;
-  if (!hasAvatarReactionClip(clipId)) return null;
-
-  return {
-    tone,
-    intensity: args.emotionalIntensity,
-    clipId,
-    clip: getAvatarReactionClip(clipId),
-  };
+  if (!tone) return [];
+  return AVATAR_REACTION_POOLS[tone]?.[String(args.emotionalIntensity)] ?? [];
 }

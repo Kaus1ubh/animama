@@ -2416,7 +2416,7 @@ export const zPyContentEvidenceRootRequest = z.object({
  * PyContentEvidenceRequest
  */
 export const zPyContentEvidenceRequest = z.object({
-    roots: z.array(zPyContentEvidenceRootRequest).min(1).max(500),
+    roots: z.array(zPyContentEvidenceRootRequest).min(1).max(1000),
     schema_version: z.literal(1)
 });
 
@@ -2464,7 +2464,7 @@ export const zPyContentPreviewRootRequest = z.object({
  * PyContentPreviewsPrepareRequest
  */
 export const zPyContentPreviewsPrepareRequest = z.object({
-    roots: z.array(zPyContentPreviewRootRequest).min(1).max(500),
+    roots: z.array(zPyContentPreviewRootRequest).min(1).max(1000),
     schema_version: z.literal(1)
 });
 

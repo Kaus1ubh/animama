@@ -93,6 +93,8 @@ export async function reviewSharingExport(page: Page): Promise<ExportReview> {
     (response) =>
       response.request().method() === "POST" &&
       new URL(response.url()).pathname === "/v1/content/package-exports",
+    // A complete Anima (about 450 entries) can take longer than the action timeout.
+    { timeout: 60_000 },
   );
   await page
     .getByRole("button", { name: "Review export", exact: true })

@@ -105,8 +105,9 @@ def test_reviewed_library_ships_in_core_without_equipping_starters(tmp_path: Pat
     assert {file["partition"] for file in inventory["files"] if file["path"] in library_files} == {"core"}
     library_keys = {entry["logical_key"] for entry in library}
     for starter in inventory["starters"]:
+        # Library items are never starter roots; starter Reactions may reuse
+        # Library effects (the Reaction ladder does), which stay in core either way.
         assert not library_keys.intersection(starter["roots"])
-        assert not set(CORE_LIBRARY_LOCATORS).intersection(starter["entries"])
         assert set(EXPECTED_STARTER_GESTURE_IDS) <= set(starter["roots"])
         assert starter["diagnostics"] == []
     expected_core = set(CORE_LIBRARY_LOCATORS)

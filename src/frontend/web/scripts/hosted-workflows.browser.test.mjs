@@ -1120,7 +1120,17 @@ test("each loadout family reviews the current revision, rejects stale commits an
       "reactions",
       "planReactionV1AnimasAnimaIdReactionsPlanPost",
       "commitReactionV1AnimasAnimaIdReactionsCommitPost",
-      { operation: "remove", binding_id: "fixture-binding" },
+      // Pools take members one at a time, here into an Intense cell.
+      {
+        operation: "add",
+        emotion: "joy",
+        intensity: 4,
+        source: {
+          type: "catalog",
+          source: "included",
+          catalog_item_id: "fixture-reaction",
+        },
+      },
     ],
     [
       "idle",

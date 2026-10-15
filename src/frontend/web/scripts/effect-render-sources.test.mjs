@@ -98,7 +98,7 @@ after(async () => {
 
 test("lists every Included effect descriptor and skips asset folders", async () => {
   const effects = await listIncludedEffects();
-  assert.equal(effects.length, 70);
+  assert.equal(effects.length, 85);
   assert.ok(!effects.some((effect) => effect.stem === "face"));
   for (const effect of effects) {
     assert.ok(effect.imagePath.startsWith(INCLUDED_EFFECT_ROOT));
@@ -434,8 +434,8 @@ test("keeps a Scene Effect's images inside its folder", async () => {
 });
 
 test("resolves a Reaction clip and every kind of effect it depends on", async () => {
-  const reaction = await resolveClipSource("library:reaction/joy-3");
-  assert.equal(reaction.clip.id, "joy-3");
+  const reaction = await resolveClipSource("library:reaction/joy-4");
+  assert.equal(reaction.clip.id, "joy-4");
   const media = await resolveDependencies(reaction.dependencies);
   assert.deepEqual(
     media.avatarEffects.map(({ alias, effect }) => [alias, effect.stem]),

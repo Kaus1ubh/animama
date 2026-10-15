@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "content_type": "reaction",
+  "content_id": "builtin:reaction:confusion-4",
+  "version": 1,
+  "name": "Confusion Reaction 4",
+  "ai_description": "Reusable avatar reaction clip",
+  "placement_hint": {
+    "emotion": "confusion",
+    "intensity": 4
+  },
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [
+    {
+      "ref": "builtin:scene-effect:background:scene-vfx-emotion-confusion",
+      "alias": "scene-vfx-emotion-confusion",
+      "content_type": "scene_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:avatar-effect:emote",
+      "alias": "emote_!",
+      "content_type": "avatar_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:avatar-effect:eye_confused_swirl",
+      "alias": "eye_confused_swirl",
+      "content_type": "avatar_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:particle-effect:question-orbit",
+      "alias": "question-orbit",
+      "content_type": "particle_effect",
+      "config": {}
+    }
+  ],
+  "files": [
+    {
+      "path": "confusion-4.json",
+      "role": "sequence"
+    }
+  ]
+}

@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "content_type": "reaction",
+  "content_id": "builtin:reaction:desire-4",
+  "version": 1,
+  "name": "Desire Reaction 4",
+  "ai_description": "Reusable avatar reaction clip",
+  "placement_hint": {
+    "emotion": "desire",
+    "intensity": 4
+  },
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [
+    {
+      "ref": "builtin:scene-effect:background:scene-vfx-emotion-desire",
+      "alias": "scene-vfx-emotion-desire",
+      "content_type": "scene_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:particle-effect:heart-fireworks",
+      "alias": "heart-fireworks",
+      "content_type": "particle_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:avatar-effect:heart_eyes",
+      "alias": "heart_eyes",
+      "content_type": "avatar_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:avatar-effect:blush",
+      "alias": "blush",
+      "content_type": "avatar_effect",
+      "config": {}
+    }
+  ],
+  "files": [
+    {
+      "path": "desire-4.json",
+      "role": "sequence"
+    }
+  ]
+}

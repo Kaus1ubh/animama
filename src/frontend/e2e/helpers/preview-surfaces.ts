@@ -386,8 +386,9 @@ export async function openAnnieLoadoutPreview(args: {
     await search.fill(args.contentName);
   } else {
     // The emotion row's name also carries its Reaction count, so find it by
-    // the levels region it controls.
-    const emotionName = args.contentName.replace(/ Reaction \d+$/, "");
+    // the levels region it controls. Included names end in the intensity and
+    // a second Reaction's "B", as in "Joy Reaction 4B".
+    const emotionName = args.contentName.replace(/ Reaction \d+B?$/, "");
     const emotion = section.locator(
       `button[aria-controls="reaction-${emotionName.toLowerCase()}-levels"]`,
     );

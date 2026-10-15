@@ -61,12 +61,16 @@ describe("debug Reaction catalog", () => {
     expect(formatReactionClipCells([])).toBe("-");
   });
 
-  it("reads the built-in catalog's one-clip cells", () => {
+  it("reads the built-in catalog's Included pools", () => {
     const cells = reactionClipCells(
       BUILT_IN_AVATAR_MOTION_CATALOG.listReactionPools(),
     );
-    expect(cells.get("joy-2")).toEqual([
-      expect.objectContaining({ emotion: "joy", intensity: 2 }),
+    expect(cells.get("joy-1")).toEqual([
+      expect.objectContaining({ emotion: "joy", intensity: 1 }),
     ]);
+    for (const runtimeId of ["joy-4", "joy-4-b"])
+      expect(cells.get(runtimeId)).toEqual([
+        expect.objectContaining({ emotion: "joy", intensity: 4 }),
+      ]);
   });
 });

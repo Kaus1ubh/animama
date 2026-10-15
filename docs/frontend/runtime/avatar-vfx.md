@@ -607,17 +607,23 @@ pnpm -s effects promote ./promote.json --dry-run
   file names must be plain, Scene art must be PNG and effects with a sound
   are refused. It validates each source as `check` does (definition or
   settings, particle budget, Scene limits) and re-checks the art against its
-  budget. New art is owner-authored: Avatar files fall under the
-  `vfx/avatar/**/*` licence rule and Scene PNGs under `vfx/scene/**/*.png`,
-  and each promoted Particle Effect gets its own `vfx/particle/quark/<stem>/**`
-  rule ahead of the generated-art rule, removed again by its delete. Every
-  written file gets a `licenses/source-review.json` record in the Avatar
-  Effect form, except a file whose bytes repeat third-party Included art
-  (such as a built-in creator texture, which the creator's Save copies): it
-  keeps that file's record and, in a rule for the copy, its licence terms.
-  Deleted files lose their records and rules, and a removed or replaced
-  third-party record is reported so its evidence can be updated. Particle
-  textures sit at most one folder deep (`textures/<name>.png`).
+  budget. An item without licence entries is owner-authored: Avatar files
+  fall under the `vfx/avatar/**/*` licence rule and Scene PNGs under
+  `vfx/scene/**/*.png`, each new Particle Effect gets its own owner-authored
+  `vfx/particle/quark/<stem>/**` rule ahead of the generated-art rule, and
+  every written file gets the owner's `licenses/source-review.json` record;
+  it is refused where its folder's own rule (or a Reaction's general rule)
+  grants other terms. Work the owner did not author (such as agent-made
+  effects and Reactions) carries owner-approved `licence` and `sourceReview`
+  entries, as `animation promote` takes them: the rule for the item's folder
+  (`<folder>/**`, or a shared `glob` such as `reactions/**/*`) and its files'
+  records (`basis` one text or one per file). A file whose bytes repeat other
+  Included art (such as a built-in creator texture or sticker, which the
+  creator's Save copies) keeps that file's record and, when the copy's rule
+  grants other terms, an exact-path rule with its own. A delete removes the
+  effect's records and rules, and a removed or replaced third-party record is
+  reported so its evidence can be updated. Particle textures sit at most one
+  folder deep (`textures/<name>.png`).
   Templates, thumbnails and pinned tests are updated separately.
 - The same run can `replace` the Reactions and Gestures that use the
   effects (`"kind": "reaction" | "gesture"`), from a creator project file
@@ -634,7 +640,8 @@ pnpm -s effects promote ./promote.json --dry-run
   "intensity" }`, optional `"name"`): it writes `reactions/<stem>/` with ID
   `builtin:reaction:<stem>`, version 1 and the project's name, from a project
   whose clip id is the stem, under the same clip and dependency rules, and
-  gives its two files source-review records in the Included Reaction form.
+  gives its two files source-review records (the owner's, or its
+  `sourceReview`).
 
 `library:local/...` sources read `ANIMAMA_LOCAL_CONTENT_HOST_PATH`, set by
 sourcing the stack record, unless `--local-content` is given.

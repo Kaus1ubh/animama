@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "content_type": "reaction",
+  "content_id": "builtin:reaction:love-4-b",
+  "version": 1,
+  "name": "Love Reaction 4B",
+  "ai_description": "Reusable avatar reaction clip",
+  "placement_hint": {
+    "emotion": "love",
+    "intensity": 4
+  },
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [
+    {
+      "ref": "builtin:avatar-effect:kirakira_cluster",
+      "alias": "kirakira_cluster",
+      "content_type": "avatar_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:avatar-effect:blush_deep",
+      "alias": "blush_deep",
+      "content_type": "avatar_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:particle-effect:petal-drift",
+      "alias": "petal-drift",
+      "content_type": "particle_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:scene-effect:background:scene-vfx-emotion-love-b",
+      "alias": "scene-b-love",
+      "content_type": "scene_effect",
+      "config": {}
+    }
+  ],
+  "files": [
+    {
+      "path": "love-4-b.json",
+      "role": "sequence"
+    }
+  ]
+}

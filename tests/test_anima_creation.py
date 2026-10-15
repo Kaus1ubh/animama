@@ -16,6 +16,7 @@ from animama.app.services.anima_runtime_service import AnimaRuntimeService
 from animama.domain.anima_creation_error import AnimaCreationError
 from animama.domain.anima_definition import DEFAULT_ANIMA_VOICE_ID
 from animama.domain.request_principal import RequestPrincipal
+from animama.domain.runtime_content_descriptor import MAX_RUNTIME_ENTRIES
 from animama.orm import (
     ORMAnima,
     ORMAnimaChatProfile,
@@ -292,9 +293,10 @@ async def test_http_schema_ownership_options_preview_and_replay(async_session, t
             options = await client.get("/v1/animas/creation-options")
             assert options.status_code == 200, options.text
             assert options.json()["limits"]["display_name_max_characters"] == 40
-            # The interim starter policy fills 72 of the 96 cells, one Reaction each.
-            assert options.json()["counts"]["recommended_reaction_cells"] == 72
-            assert options.json()["counts"]["recommended_reactions"] == 72
+            assert options.json()["limits"]["source_max_items"] == MAX_RUNTIME_ENTRIES
+            # The starter policy fills all 96 cells: one Reaction at Mild, two at each stronger intensity.
+            assert options.json()["counts"]["recommended_reaction_cells"] == 96
+            assert options.json()["counts"]["recommended_reactions"] == 168
             preview = await client.post(f"/v1/avatar-content/{fixture.items['local-avatar'].id}:preview")
             assert preview.status_code == 200, preview.text
             assert set(preview.json()["expected_source_revisions"]) == {fixture.items["local-avatar"].id}
@@ -370,6 +372,14 @@ async def test_canonical_hash_and_strict_schema(async_session, tmp_path):
         duplicate = deepcopy(original)
         duplicate["gestures"] *= 2
         cases.append(duplicate)
+        # The source map admits as many items as one runtime snapshot, and no more.
+        largest = deepcopy(original)
+        sources = largest["expected_source_revisions"]
+        for index in range(MAX_RUNTIME_ENTRIES - len(sources)):
+            sources[f"extra-{index}"] = {"kind": "gesture", "revision_sha256": "a" * 64}
+        CreateAnimaRequest.model_validate(largest)
+        sources["one-too-many"] = {"kind": "gesture", "revision_sha256": "a" * 64}
+        cases.append(largest)
         for value in (float("nan"), float("inf"), True, "0.5", -1, 2):
             invalid = deepcopy(original)
             invalid["appearance"]["profile"]["presentation"]["focal_x"] = value

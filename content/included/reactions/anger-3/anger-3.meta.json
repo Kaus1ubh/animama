@@ -21,26 +21,8 @@
       "config": {}
     },
     {
-      "ref": "builtin:scene-effect:background:scene-vfx-emotion-anger",
-      "alias": "scene-vfx-emotion-anger",
-      "content_type": "scene_effect",
-      "config": {}
-    },
-    {
-      "ref": "builtin:avatar-effect:steam_puffs",
-      "alias": "steam_puffs",
-      "content_type": "avatar_effect",
-      "config": {}
-    },
-    {
-      "ref": "builtin:avatar-effect:face_red",
-      "alias": "face_red",
-      "content_type": "avatar_effect",
-      "config": {}
-    },
-    {
-      "ref": "builtin:particle-effect:rage-aura",
-      "alias": "rage-aura",
+      "ref": "builtin:particle-effect:fume-puffs",
+      "alias": "fume-puffs",
       "content_type": "particle_effect",
       "config": {}
     }

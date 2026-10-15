@@ -125,7 +125,7 @@ describe("Included Pose starter collection", () => {
 
   it("ships every Included clip as 2.0 with a resolvable base pose", () => {
     expect(Object.keys(AVATAR_POSE_CLIP_CATALOG)).toHaveLength(111);
-    expect(Object.keys(AVATAR_REACTION_CLIP_CATALOG)).toHaveLength(72);
+    expect(Object.keys(AVATAR_REACTION_CLIP_CATALOG)).toHaveLength(168);
     for (const clip of [
       ...Object.values(AVATAR_POSE_CLIP_CATALOG),
       ...Object.values(AVATAR_REACTION_CLIP_CATALOG),

@@ -10,12 +10,34 @@ the Action, while `<stem>.vrma` or `<stem>.json` is the playable payload.
 Action-owned Pose Clips are colocated; the retired `pose-clips/` folder is not
 used.
 
-The library ships 111 Gestures, 72 Reactions and 70 Avatar Effects; frontend
+The library ships 111 Gestures, 168 Reactions and 85 Avatar Effects; frontend
 and backend tests pin these counts, so update them with any promotion. Twelve
 of the Gestures are idle motions that seed every new Anima's Idle pool by
 emotion and intensity (`src/backend/animama/resources/starter-idle-pool.v1.json`).
 Idle plays while the Anima is quiet, so every Avatar Effect event in a seeded
 idle Gesture sets `playAccompanyingSound: false`.
+
+## Reactions
+
+Reactions are chosen by the turn's emotion and one of four intensities. The
+model's 1–10 intensity maps to them as 1–2 none, 3–4 Mild (1), 5–6 Moderate
+(2), 7–8 Strong (3) and 9–10 Intense (4). Each step adds to the one below:
+
+| Intensity | Included Reactions add |
+| --- | --- |
+| 1 | A full-strength facial expression only (one subtle Avatar Effect where two emotions' faces would look alike) |
+| 2 | One or two Avatar Effects |
+| 3 | A Particle Effect |
+| 4 | A Scene Effect |
+
+The ladder is guidance, not validation. Every Reaction's main expression
+plays at full strength; the effects carry the escalation. Each emotion has
+one Included Reaction at intensity 1 and two at intensities 2–4 (`<emotion>-<n>`
+and `<emotion>-<n>-b`), and the second differs from the first in expression
+and in at least one effect. Every starter cell holds all of its Included
+Reactions, and chat plays one at random. Avatar Effects applied within 0.3 s of
+each other play at most one accompanying sound, and an intensity-1 Reaction's
+Avatar Effect plays without its sound.
 
 `licenses/inventory.json` supplies the current provenance and redistribution
 review state. Rules are ordered, with the first matching rule applied to each

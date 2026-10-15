@@ -30,7 +30,10 @@ to use your judgement; state the choices you made in the brief.
   "Frieren's deadpan bar eyes", "the anger vein", "> < flustered eyes">
 - **Attachment:** <face_landmark eyes | face_surface blush | sticker around
   head | body chest | silhouette tint …> — <placement detail>
-- **Reactions:** <emotions and intensity tiers 1–3 it suits, or "preview only">
+- **Reactions:** <emotions and intensities 1–4 it suits, or "preview only">
+  Avatar Effects first appear at intensity 2, Particle Effects at 3 and Scene
+  Effects at 4 (the Reaction ladder in `content/included/README.md`); an
+  effect proposed for a lower intensity records why.
 - **Motion and duration:** <e.g. pops in with a 0.15 s scale overshoot, bobs
   gently, held for the Reaction; flipbook 8 frames at 10 fps>
 - **Style:** <Ink (manga G-pen ink and screentone) | Marker (crayon and

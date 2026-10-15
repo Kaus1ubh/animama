@@ -29,7 +29,10 @@ to use your judgement; state the choices you made in the brief.
 - **Expresses:** <emotion or situation, one line>
 - **Beat:** <the moment it lands; the anime trope or selfie-filter polish it
   borrows, with a well-known example>
-- **Reactions:** <emotions and intensity tiers 1–3 it suits, or "preview only">
+- **Reactions:** <emotions and intensities 1–4 it suits, or "preview only">
+  Avatar Effects first appear at intensity 2, Particle Effects at 3 and Scene
+  Effects at 4 (the Reaction ladder in `content/included/README.md`); an
+  effect proposed for a lower intensity records why.
 - **Mechanic:** <one long-lived particle | burst | stream | orbit | rain |
   layered pops> — <one line on how it moves>
 - **Layers:** <each emitter, front to back, and how they fit: e.g. "five

@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "content_type": "reaction",
+  "content_id": "builtin:reaction:embarrassment-3-b",
+  "version": 1,
+  "name": "Embarrassment Reaction 3B",
+  "ai_description": "Reusable avatar reaction clip",
+  "placement_hint": {
+    "emotion": "embarrassment",
+    "intensity": 3
+  },
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [
+    {
+      "ref": "builtin:avatar-effect:blush",
+      "alias": "blush",
+      "content_type": "avatar_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:avatar-effect:startle_ticks",
+      "alias": "startle_ticks",
+      "content_type": "avatar_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:particle-effect:fume-puffs",
+      "alias": "fume-puffs",
+      "content_type": "particle_effect",
+      "config": {}
+    }
+  ],
+  "files": [
+    {
+      "path": "embarrassment-3-b.json",
+      "role": "sequence"
+    }
+  ]
+}

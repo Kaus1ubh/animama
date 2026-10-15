@@ -15,14 +15,8 @@
   },
   "dependencies": [
     {
-      "ref": "builtin:scene-effect:background:scene-vfx-emotion-respect",
-      "alias": "scene-vfx-emotion-respect",
-      "content_type": "scene_effect",
-      "config": {}
-    },
-    {
-      "ref": "builtin:particle-effect:halo-rays",
-      "alias": "halo-rays",
+      "ref": "builtin:particle-effect:twinkle-shimmer",
+      "alias": "twinkle-shimmer",
       "content_type": "particle_effect",
       "config": {}
     },

@@ -133,10 +133,11 @@ test("catalog snapshots are deterministic and Local-only", () => {
   assert.match(snapshot.sha256, /^[0-9a-f]{64}$/);
 });
 
-test("Anima definition digests ignore Idle pool member order only", () => {
+test("Anima definition digests ignore Idle and Reaction pool member order only", () => {
   const anima = (first, second) => ({
     display_name: "Fixture",
     gestures: [{ entry_id: "a" }, { entry_id: "b" }],
+    reactions: { joy: { 1: [], 4: [first, second] } },
     idle: {
       default: [first, second],
       cells: { joy: { 2: [second, first] } },

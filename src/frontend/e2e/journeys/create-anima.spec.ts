@@ -364,9 +364,10 @@ test("default Actions-to-Review uses one evidence request and no previews @creat
   await page
     .getByRole("button", { name: "Continue to Actions", exact: true })
     .click();
+  // Every one of the 96 cells starts with its Included Reactions.
   await expect(
     page.getByText(
-      /Version 1 · \d+ recommended Gestures · \d+ recommended cells/,
+      /Version 1 · \d+ recommended Gestures · 96 recommended cells/,
     ),
   ).toBeVisible();
   await expect(
@@ -392,14 +393,22 @@ test("default Actions-to-Review uses one evidence request and no previews @creat
     "aria-expanded",
     "false",
   );
-  // Four intensity cells, each starting from its recommended pool; the
-  // Intense cell holds at least one Starter Reaction.
+  // Four intensity cells, each starting from its recommended pool: the one
+  // Included Reaction at Mild and both Included Reactions above it.
   await expect(admirationAddButtons(matrix)).toHaveCount(4);
+  for (const [intensity, starters] of [
+    ["Mild", 1],
+    ["Moderate", 2],
+    ["Strong", 2],
+    ["Intense", 2],
+  ] as const)
+    await expect(
+      matrix
+        .getByRole("list", { name: `Admiration · ${intensity}`, exact: true })
+        .getByLabel("Starter", { exact: true }),
+    ).toHaveCount(starters);
   await expect(
-    matrix
-      .getByRole("list", { name: "Admiration · Intense", exact: true })
-      .getByLabel("Starter", { exact: true })
-      .first(),
+    page.getByRole("tab", { name: "Reactions (96/96)", exact: true }),
   ).toBeVisible();
   await animamaEvidence.attachBuffer(
     "creation-reactions-phase8-followup",
@@ -407,6 +416,9 @@ test("default Actions-to-Review uses one evidence request and no previews @creat
     "image/png",
   );
   const counts = await continueToReviewWithConstantRequests(page);
+  await expect(
+    page.getByText("168 Reactions across all cells", { exact: true }),
+  ).toBeVisible();
   expect(commands).toHaveLength(0);
   await animamaEvidence.attachJson("creation-phase7-request-counts", counts);
 });

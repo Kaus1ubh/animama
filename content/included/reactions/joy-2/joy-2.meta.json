@@ -15,14 +15,8 @@
   },
   "dependencies": [
     {
-      "ref": "builtin:particle-effect:confetti",
-      "alias": "confetti",
-      "content_type": "particle_effect",
-      "config": {}
-    },
-    {
-      "ref": "builtin:avatar-effect:star3",
-      "alias": "star3",
+      "ref": "builtin:avatar-effect:kira_star",
+      "alias": "kira_star",
       "content_type": "avatar_effect",
       "config": {}
     }

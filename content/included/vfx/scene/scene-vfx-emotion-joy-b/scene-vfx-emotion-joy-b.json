@@ -1,0 +1,147 @@
+{
+  "schema_version": 1,
+  "content_type": "scene_effect",
+  "content_id": "builtin:scene-effect:background:scene-vfx-emotion-joy-b",
+  "version": 1,
+  "name": "Joy B Background",
+  "description": "A turning yellow-and-white manga sunburst that melts into a soft white glow behind the Avatar's head, with chunky stars bouncing around the edges, for bursting-with-joy moments.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/scene-effect/1",
+    "kind": "background_layers",
+    "durationMs": null,
+    "dismissOnInput": false,
+    "coverUiOverlays": false,
+    "solid": {
+      "enabled": false,
+      "color": "#000000"
+    },
+    "pattern": {
+      "enabled": false,
+      "pattern": "none",
+      "color": "#ffffff",
+      "size": 10,
+      "spacing": 20,
+      "opacity": 0.3
+    },
+    "marquee": {
+      "enabled": false,
+      "items": [],
+      "itemSize": 72,
+      "gap": 24,
+      "rowGap": 18,
+      "direction": "left",
+      "itemRotationMode": "upright",
+      "itemRotationOffsetDeg": 0,
+      "speedPxPerSec": 100,
+      "opacity": 1
+    },
+    "gradient": {
+      "enabled": true,
+      "type": "radial",
+      "angleDeg": 180,
+      "centerX": 0.5,
+      "centerY": 0.36,
+      "stops": [
+        {
+          "color": "#fffdf2",
+          "position": 0
+        },
+        {
+          "color": "#fffdf2",
+          "position": 0.12
+        },
+        {
+          "color": "#ffe45a",
+          "position": 0.44
+        },
+        {
+          "color": "#ffc21f",
+          "position": 1
+        }
+      ]
+    },
+    "screen": {
+      "enabled": true,
+      "kind": "rays",
+      "centerX": 0.5,
+      "centerY": 0.36,
+      "color": "#fffdf2",
+      "opacity": 0.92,
+      "count": 20,
+      "spiky": false,
+      "turnSeconds": 90,
+      "throbPerSec": 0,
+      "seed": 3
+    },
+    "scatters": [
+      {
+        "enabled": true,
+        "items": [
+          {
+            "id": "star",
+            "kind": "image",
+            "label": "Pop star",
+            "image": "pop-star-yellow.png"
+          }
+        ],
+        "count": 7,
+        "seed": 101,
+        "minSize": 60,
+        "maxSize": 100,
+        "minRotationDeg": -20,
+        "maxRotationDeg": 20,
+        "minOpacity": 1,
+        "maxOpacity": 1,
+        "regionTop": 0,
+        "regionBottom": 1,
+        "keepFaceClear": true,
+        "direction": "static",
+        "speedPxPerSec": 0,
+        "minSpinDegPerSec": 0,
+        "maxSpinDegPerSec": 0,
+        "alternateSpin": false,
+        "pulse": "pop"
+      },
+      {
+        "enabled": true,
+        "items": [
+          {
+            "id": "star-small",
+            "kind": "image",
+            "label": "Pop star",
+            "image": "pop-star-yellow.png"
+          }
+        ],
+        "count": 9,
+        "seed": 102,
+        "minSize": 24,
+        "maxSize": 38,
+        "minRotationDeg": -25,
+        "maxRotationDeg": 25,
+        "minOpacity": 1,
+        "maxOpacity": 1,
+        "regionTop": 0,
+        "regionBottom": 1,
+        "keepFaceClear": true,
+        "direction": "static",
+        "speedPxPerSec": 0,
+        "minSpinDegPerSec": 0,
+        "maxSpinDegPerSec": 0,
+        "alternateSpin": false,
+        "pulse": "twinkle"
+      }
+    ],
+    "flash": {
+      "enabled": false,
+      "color": "#ffffff",
+      "durationMs": 260
+    }
+  },
+  "files": [
+    {
+      "path": "pop-star-yellow.png",
+      "role": "image"
+    }
+  ]
+}

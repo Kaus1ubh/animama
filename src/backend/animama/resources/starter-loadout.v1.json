@@ -405,16 +405,40 @@
       "content_id": "builtin:reaction:admiration-1",
       "version": 1,
       "emotion": "admiration",
-      "intensity": 2
+      "intensity": 1
     },
     {
       "content_id": "builtin:reaction:admiration-2",
       "version": 1,
       "emotion": "admiration",
-      "intensity": 3
+      "intensity": 2
+    },
+    {
+      "content_id": "builtin:reaction:admiration-2-b",
+      "version": 1,
+      "emotion": "admiration",
+      "intensity": 2
     },
     {
       "content_id": "builtin:reaction:admiration-3",
+      "version": 1,
+      "emotion": "admiration",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:admiration-3-b",
+      "version": 1,
+      "emotion": "admiration",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:admiration-4",
+      "version": 1,
+      "emotion": "admiration",
+      "intensity": 4
+    },
+    {
+      "content_id": "builtin:reaction:admiration-4-b",
       "version": 1,
       "emotion": "admiration",
       "intensity": 4
@@ -423,16 +447,40 @@
       "content_id": "builtin:reaction:amusement-1",
       "version": 1,
       "emotion": "amusement",
-      "intensity": 2
+      "intensity": 1
     },
     {
       "content_id": "builtin:reaction:amusement-2",
       "version": 1,
       "emotion": "amusement",
-      "intensity": 3
+      "intensity": 2
+    },
+    {
+      "content_id": "builtin:reaction:amusement-2-b",
+      "version": 1,
+      "emotion": "amusement",
+      "intensity": 2
     },
     {
       "content_id": "builtin:reaction:amusement-3",
+      "version": 1,
+      "emotion": "amusement",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:amusement-3-b",
+      "version": 1,
+      "emotion": "amusement",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:amusement-4",
+      "version": 1,
+      "emotion": "amusement",
+      "intensity": 4
+    },
+    {
+      "content_id": "builtin:reaction:amusement-4-b",
       "version": 1,
       "emotion": "amusement",
       "intensity": 4
@@ -441,16 +489,40 @@
       "content_id": "builtin:reaction:anger-1",
       "version": 1,
       "emotion": "anger",
-      "intensity": 2
+      "intensity": 1
     },
     {
       "content_id": "builtin:reaction:anger-2",
       "version": 1,
       "emotion": "anger",
-      "intensity": 3
+      "intensity": 2
+    },
+    {
+      "content_id": "builtin:reaction:anger-2-b",
+      "version": 1,
+      "emotion": "anger",
+      "intensity": 2
     },
     {
       "content_id": "builtin:reaction:anger-3",
+      "version": 1,
+      "emotion": "anger",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:anger-3-b",
+      "version": 1,
+      "emotion": "anger",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:anger-4",
+      "version": 1,
+      "emotion": "anger",
+      "intensity": 4
+    },
+    {
+      "content_id": "builtin:reaction:anger-4-b",
       "version": 1,
       "emotion": "anger",
       "intensity": 4
@@ -459,16 +531,40 @@
       "content_id": "builtin:reaction:annoyance-1",
       "version": 1,
       "emotion": "annoyance",
-      "intensity": 2
+      "intensity": 1
     },
     {
       "content_id": "builtin:reaction:annoyance-2",
       "version": 1,
       "emotion": "annoyance",
-      "intensity": 3
+      "intensity": 2
+    },
+    {
+      "content_id": "builtin:reaction:annoyance-2-b",
+      "version": 1,
+      "emotion": "annoyance",
+      "intensity": 2
     },
     {
       "content_id": "builtin:reaction:annoyance-3",
+      "version": 1,
+      "emotion": "annoyance",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:annoyance-3-b",
+      "version": 1,
+      "emotion": "annoyance",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:annoyance-4",
+      "version": 1,
+      "emotion": "annoyance",
+      "intensity": 4
+    },
+    {
+      "content_id": "builtin:reaction:annoyance-4-b",
       "version": 1,
       "emotion": "annoyance",
       "intensity": 4
@@ -477,16 +573,40 @@
       "content_id": "builtin:reaction:caring-1",
       "version": 1,
       "emotion": "caring",
-      "intensity": 2
+      "intensity": 1
     },
     {
       "content_id": "builtin:reaction:caring-2",
       "version": 1,
       "emotion": "caring",
-      "intensity": 3
+      "intensity": 2
+    },
+    {
+      "content_id": "builtin:reaction:caring-2-b",
+      "version": 1,
+      "emotion": "caring",
+      "intensity": 2
     },
     {
       "content_id": "builtin:reaction:caring-3",
+      "version": 1,
+      "emotion": "caring",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:caring-3-b",
+      "version": 1,
+      "emotion": "caring",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:caring-4",
+      "version": 1,
+      "emotion": "caring",
+      "intensity": 4
+    },
+    {
+      "content_id": "builtin:reaction:caring-4-b",
       "version": 1,
       "emotion": "caring",
       "intensity": 4
@@ -495,16 +615,40 @@
       "content_id": "builtin:reaction:confidence-1",
       "version": 1,
       "emotion": "confidence",
-      "intensity": 2
+      "intensity": 1
     },
     {
       "content_id": "builtin:reaction:confidence-2",
       "version": 1,
       "emotion": "confidence",
-      "intensity": 3
+      "intensity": 2
+    },
+    {
+      "content_id": "builtin:reaction:confidence-2-b",
+      "version": 1,
+      "emotion": "confidence",
+      "intensity": 2
     },
     {
       "content_id": "builtin:reaction:confidence-3",
+      "version": 1,
+      "emotion": "confidence",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:confidence-3-b",
+      "version": 1,
+      "emotion": "confidence",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:confidence-4",
+      "version": 1,
+      "emotion": "confidence",
+      "intensity": 4
+    },
+    {
+      "content_id": "builtin:reaction:confidence-4-b",
       "version": 1,
       "emotion": "confidence",
       "intensity": 4
@@ -513,16 +657,40 @@
       "content_id": "builtin:reaction:confusion-1",
       "version": 1,
       "emotion": "confusion",
-      "intensity": 2
+      "intensity": 1
     },
     {
       "content_id": "builtin:reaction:confusion-2",
       "version": 1,
       "emotion": "confusion",
-      "intensity": 3
+      "intensity": 2
+    },
+    {
+      "content_id": "builtin:reaction:confusion-2-b",
+      "version": 1,
+      "emotion": "confusion",
+      "intensity": 2
     },
     {
       "content_id": "builtin:reaction:confusion-3",
+      "version": 1,
+      "emotion": "confusion",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:confusion-3-b",
+      "version": 1,
+      "emotion": "confusion",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:confusion-4",
+      "version": 1,
+      "emotion": "confusion",
+      "intensity": 4
+    },
+    {
+      "content_id": "builtin:reaction:confusion-4-b",
       "version": 1,
       "emotion": "confusion",
       "intensity": 4
@@ -531,16 +699,40 @@
       "content_id": "builtin:reaction:curiosity-1",
       "version": 1,
       "emotion": "curiosity",
-      "intensity": 2
+      "intensity": 1
     },
     {
       "content_id": "builtin:reaction:curiosity-2",
       "version": 1,
       "emotion": "curiosity",
-      "intensity": 3
+      "intensity": 2
+    },
+    {
+      "content_id": "builtin:reaction:curiosity-2-b",
+      "version": 1,
+      "emotion": "curiosity",
+      "intensity": 2
     },
     {
       "content_id": "builtin:reaction:curiosity-3",
+      "version": 1,
+      "emotion": "curiosity",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:curiosity-3-b",
+      "version": 1,
+      "emotion": "curiosity",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:curiosity-4",
+      "version": 1,
+      "emotion": "curiosity",
+      "intensity": 4
+    },
+    {
+      "content_id": "builtin:reaction:curiosity-4-b",
       "version": 1,
       "emotion": "curiosity",
       "intensity": 4
@@ -549,16 +741,40 @@
       "content_id": "builtin:reaction:desire-1",
       "version": 1,
       "emotion": "desire",
-      "intensity": 2
+      "intensity": 1
     },
     {
       "content_id": "builtin:reaction:desire-2",
       "version": 1,
       "emotion": "desire",
-      "intensity": 3
+      "intensity": 2
+    },
+    {
+      "content_id": "builtin:reaction:desire-2-b",
+      "version": 1,
+      "emotion": "desire",
+      "intensity": 2
     },
     {
       "content_id": "builtin:reaction:desire-3",
+      "version": 1,
+      "emotion": "desire",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:desire-3-b",
+      "version": 1,
+      "emotion": "desire",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:desire-4",
+      "version": 1,
+      "emotion": "desire",
+      "intensity": 4
+    },
+    {
+      "content_id": "builtin:reaction:desire-4-b",
       "version": 1,
       "emotion": "desire",
       "intensity": 4
@@ -567,16 +783,40 @@
       "content_id": "builtin:reaction:disappointment-1",
       "version": 1,
       "emotion": "disappointment",
-      "intensity": 2
+      "intensity": 1
     },
     {
       "content_id": "builtin:reaction:disappointment-2",
       "version": 1,
       "emotion": "disappointment",
-      "intensity": 3
+      "intensity": 2
+    },
+    {
+      "content_id": "builtin:reaction:disappointment-2-b",
+      "version": 1,
+      "emotion": "disappointment",
+      "intensity": 2
     },
     {
       "content_id": "builtin:reaction:disappointment-3",
+      "version": 1,
+      "emotion": "disappointment",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:disappointment-3-b",
+      "version": 1,
+      "emotion": "disappointment",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:disappointment-4",
+      "version": 1,
+      "emotion": "disappointment",
+      "intensity": 4
+    },
+    {
+      "content_id": "builtin:reaction:disappointment-4-b",
       "version": 1,
       "emotion": "disappointment",
       "intensity": 4
@@ -585,16 +825,40 @@
       "content_id": "builtin:reaction:disapproval-1",
       "version": 1,
       "emotion": "disapproval",
-      "intensity": 2
+      "intensity": 1
     },
     {
       "content_id": "builtin:reaction:disapproval-2",
       "version": 1,
       "emotion": "disapproval",
-      "intensity": 3
+      "intensity": 2
+    },
+    {
+      "content_id": "builtin:reaction:disapproval-2-b",
+      "version": 1,
+      "emotion": "disapproval",
+      "intensity": 2
     },
     {
       "content_id": "builtin:reaction:disapproval-3",
+      "version": 1,
+      "emotion": "disapproval",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:disapproval-3-b",
+      "version": 1,
+      "emotion": "disapproval",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:disapproval-4",
+      "version": 1,
+      "emotion": "disapproval",
+      "intensity": 4
+    },
+    {
+      "content_id": "builtin:reaction:disapproval-4-b",
       "version": 1,
       "emotion": "disapproval",
       "intensity": 4
@@ -603,16 +867,40 @@
       "content_id": "builtin:reaction:disgust-1",
       "version": 1,
       "emotion": "disgust",
-      "intensity": 2
+      "intensity": 1
     },
     {
       "content_id": "builtin:reaction:disgust-2",
       "version": 1,
       "emotion": "disgust",
-      "intensity": 3
+      "intensity": 2
+    },
+    {
+      "content_id": "builtin:reaction:disgust-2-b",
+      "version": 1,
+      "emotion": "disgust",
+      "intensity": 2
     },
     {
       "content_id": "builtin:reaction:disgust-3",
+      "version": 1,
+      "emotion": "disgust",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:disgust-3-b",
+      "version": 1,
+      "emotion": "disgust",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:disgust-4",
+      "version": 1,
+      "emotion": "disgust",
+      "intensity": 4
+    },
+    {
+      "content_id": "builtin:reaction:disgust-4-b",
       "version": 1,
       "emotion": "disgust",
       "intensity": 4
@@ -621,16 +909,40 @@
       "content_id": "builtin:reaction:embarrassment-1",
       "version": 1,
       "emotion": "embarrassment",
-      "intensity": 2
+      "intensity": 1
     },
     {
       "content_id": "builtin:reaction:embarrassment-2",
       "version": 1,
       "emotion": "embarrassment",
-      "intensity": 3
+      "intensity": 2
+    },
+    {
+      "content_id": "builtin:reaction:embarrassment-2-b",
+      "version": 1,
+      "emotion": "embarrassment",
+      "intensity": 2
     },
     {
       "content_id": "builtin:reaction:embarrassment-3",
+      "version": 1,
+      "emotion": "embarrassment",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:embarrassment-3-b",
+      "version": 1,
+      "emotion": "embarrassment",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:embarrassment-4",
+      "version": 1,
+      "emotion": "embarrassment",
+      "intensity": 4
+    },
+    {
+      "content_id": "builtin:reaction:embarrassment-4-b",
       "version": 1,
       "emotion": "embarrassment",
       "intensity": 4
@@ -639,16 +951,40 @@
       "content_id": "builtin:reaction:excitement-1",
       "version": 1,
       "emotion": "excitement",
-      "intensity": 2
+      "intensity": 1
     },
     {
       "content_id": "builtin:reaction:excitement-2",
       "version": 1,
       "emotion": "excitement",
-      "intensity": 3
+      "intensity": 2
+    },
+    {
+      "content_id": "builtin:reaction:excitement-2-b",
+      "version": 1,
+      "emotion": "excitement",
+      "intensity": 2
     },
     {
       "content_id": "builtin:reaction:excitement-3",
+      "version": 1,
+      "emotion": "excitement",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:excitement-3-b",
+      "version": 1,
+      "emotion": "excitement",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:excitement-4",
+      "version": 1,
+      "emotion": "excitement",
+      "intensity": 4
+    },
+    {
+      "content_id": "builtin:reaction:excitement-4-b",
       "version": 1,
       "emotion": "excitement",
       "intensity": 4
@@ -657,16 +993,40 @@
       "content_id": "builtin:reaction:fear-1",
       "version": 1,
       "emotion": "fear",
-      "intensity": 2
+      "intensity": 1
     },
     {
       "content_id": "builtin:reaction:fear-2",
       "version": 1,
       "emotion": "fear",
-      "intensity": 3
+      "intensity": 2
+    },
+    {
+      "content_id": "builtin:reaction:fear-2-b",
+      "version": 1,
+      "emotion": "fear",
+      "intensity": 2
     },
     {
       "content_id": "builtin:reaction:fear-3",
+      "version": 1,
+      "emotion": "fear",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:fear-3-b",
+      "version": 1,
+      "emotion": "fear",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:fear-4",
+      "version": 1,
+      "emotion": "fear",
+      "intensity": 4
+    },
+    {
+      "content_id": "builtin:reaction:fear-4-b",
       "version": 1,
       "emotion": "fear",
       "intensity": 4
@@ -675,16 +1035,40 @@
       "content_id": "builtin:reaction:gratitude-1",
       "version": 1,
       "emotion": "gratitude",
-      "intensity": 2
+      "intensity": 1
     },
     {
       "content_id": "builtin:reaction:gratitude-2",
       "version": 1,
       "emotion": "gratitude",
-      "intensity": 3
+      "intensity": 2
+    },
+    {
+      "content_id": "builtin:reaction:gratitude-2-b",
+      "version": 1,
+      "emotion": "gratitude",
+      "intensity": 2
     },
     {
       "content_id": "builtin:reaction:gratitude-3",
+      "version": 1,
+      "emotion": "gratitude",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:gratitude-3-b",
+      "version": 1,
+      "emotion": "gratitude",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:gratitude-4",
+      "version": 1,
+      "emotion": "gratitude",
+      "intensity": 4
+    },
+    {
+      "content_id": "builtin:reaction:gratitude-4-b",
       "version": 1,
       "emotion": "gratitude",
       "intensity": 4
@@ -693,16 +1077,40 @@
       "content_id": "builtin:reaction:grief-1",
       "version": 1,
       "emotion": "grief",
-      "intensity": 2
+      "intensity": 1
     },
     {
       "content_id": "builtin:reaction:grief-2",
       "version": 1,
       "emotion": "grief",
-      "intensity": 3
+      "intensity": 2
+    },
+    {
+      "content_id": "builtin:reaction:grief-2-b",
+      "version": 1,
+      "emotion": "grief",
+      "intensity": 2
     },
     {
       "content_id": "builtin:reaction:grief-3",
+      "version": 1,
+      "emotion": "grief",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:grief-3-b",
+      "version": 1,
+      "emotion": "grief",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:grief-4",
+      "version": 1,
+      "emotion": "grief",
+      "intensity": 4
+    },
+    {
+      "content_id": "builtin:reaction:grief-4-b",
       "version": 1,
       "emotion": "grief",
       "intensity": 4
@@ -711,16 +1119,40 @@
       "content_id": "builtin:reaction:joy-1",
       "version": 1,
       "emotion": "joy",
-      "intensity": 2
+      "intensity": 1
     },
     {
       "content_id": "builtin:reaction:joy-2",
       "version": 1,
       "emotion": "joy",
-      "intensity": 3
+      "intensity": 2
+    },
+    {
+      "content_id": "builtin:reaction:joy-2-b",
+      "version": 1,
+      "emotion": "joy",
+      "intensity": 2
     },
     {
       "content_id": "builtin:reaction:joy-3",
+      "version": 1,
+      "emotion": "joy",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:joy-3-b",
+      "version": 1,
+      "emotion": "joy",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:joy-4",
+      "version": 1,
+      "emotion": "joy",
+      "intensity": 4
+    },
+    {
+      "content_id": "builtin:reaction:joy-4-b",
       "version": 1,
       "emotion": "joy",
       "intensity": 4
@@ -729,16 +1161,40 @@
       "content_id": "builtin:reaction:love-1",
       "version": 1,
       "emotion": "love",
-      "intensity": 2
+      "intensity": 1
     },
     {
       "content_id": "builtin:reaction:love-2",
       "version": 1,
       "emotion": "love",
-      "intensity": 3
+      "intensity": 2
+    },
+    {
+      "content_id": "builtin:reaction:love-2-b",
+      "version": 1,
+      "emotion": "love",
+      "intensity": 2
     },
     {
       "content_id": "builtin:reaction:love-3",
+      "version": 1,
+      "emotion": "love",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:love-3-b",
+      "version": 1,
+      "emotion": "love",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:love-4",
+      "version": 1,
+      "emotion": "love",
+      "intensity": 4
+    },
+    {
+      "content_id": "builtin:reaction:love-4-b",
       "version": 1,
       "emotion": "love",
       "intensity": 4
@@ -747,16 +1203,40 @@
       "content_id": "builtin:reaction:nervousness-1",
       "version": 1,
       "emotion": "nervousness",
-      "intensity": 2
+      "intensity": 1
     },
     {
       "content_id": "builtin:reaction:nervousness-2",
       "version": 1,
       "emotion": "nervousness",
-      "intensity": 3
+      "intensity": 2
+    },
+    {
+      "content_id": "builtin:reaction:nervousness-2-b",
+      "version": 1,
+      "emotion": "nervousness",
+      "intensity": 2
     },
     {
       "content_id": "builtin:reaction:nervousness-3",
+      "version": 1,
+      "emotion": "nervousness",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:nervousness-3-b",
+      "version": 1,
+      "emotion": "nervousness",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:nervousness-4",
+      "version": 1,
+      "emotion": "nervousness",
+      "intensity": 4
+    },
+    {
+      "content_id": "builtin:reaction:nervousness-4-b",
       "version": 1,
       "emotion": "nervousness",
       "intensity": 4
@@ -765,16 +1245,40 @@
       "content_id": "builtin:reaction:optimism-1",
       "version": 1,
       "emotion": "optimism",
-      "intensity": 2
+      "intensity": 1
     },
     {
       "content_id": "builtin:reaction:optimism-2",
       "version": 1,
       "emotion": "optimism",
-      "intensity": 3
+      "intensity": 2
+    },
+    {
+      "content_id": "builtin:reaction:optimism-2-b",
+      "version": 1,
+      "emotion": "optimism",
+      "intensity": 2
     },
     {
       "content_id": "builtin:reaction:optimism-3",
+      "version": 1,
+      "emotion": "optimism",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:optimism-3-b",
+      "version": 1,
+      "emotion": "optimism",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:optimism-4",
+      "version": 1,
+      "emotion": "optimism",
+      "intensity": 4
+    },
+    {
+      "content_id": "builtin:reaction:optimism-4-b",
       "version": 1,
       "emotion": "optimism",
       "intensity": 4
@@ -783,16 +1287,40 @@
       "content_id": "builtin:reaction:remorse-1",
       "version": 1,
       "emotion": "remorse",
-      "intensity": 2
+      "intensity": 1
     },
     {
       "content_id": "builtin:reaction:remorse-2",
       "version": 1,
       "emotion": "remorse",
-      "intensity": 3
+      "intensity": 2
+    },
+    {
+      "content_id": "builtin:reaction:remorse-2-b",
+      "version": 1,
+      "emotion": "remorse",
+      "intensity": 2
     },
     {
       "content_id": "builtin:reaction:remorse-3",
+      "version": 1,
+      "emotion": "remorse",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:remorse-3-b",
+      "version": 1,
+      "emotion": "remorse",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:remorse-4",
+      "version": 1,
+      "emotion": "remorse",
+      "intensity": 4
+    },
+    {
+      "content_id": "builtin:reaction:remorse-4-b",
       "version": 1,
       "emotion": "remorse",
       "intensity": 4
@@ -801,16 +1329,40 @@
       "content_id": "builtin:reaction:respect-1",
       "version": 1,
       "emotion": "respect",
-      "intensity": 2
+      "intensity": 1
     },
     {
       "content_id": "builtin:reaction:respect-2",
       "version": 1,
       "emotion": "respect",
-      "intensity": 3
+      "intensity": 2
+    },
+    {
+      "content_id": "builtin:reaction:respect-2-b",
+      "version": 1,
+      "emotion": "respect",
+      "intensity": 2
     },
     {
       "content_id": "builtin:reaction:respect-3",
+      "version": 1,
+      "emotion": "respect",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:respect-3-b",
+      "version": 1,
+      "emotion": "respect",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:respect-4",
+      "version": 1,
+      "emotion": "respect",
+      "intensity": 4
+    },
+    {
+      "content_id": "builtin:reaction:respect-4-b",
       "version": 1,
       "emotion": "respect",
       "intensity": 4
@@ -819,16 +1371,40 @@
       "content_id": "builtin:reaction:sadness-1",
       "version": 1,
       "emotion": "sadness",
-      "intensity": 2
+      "intensity": 1
     },
     {
       "content_id": "builtin:reaction:sadness-2",
       "version": 1,
       "emotion": "sadness",
-      "intensity": 3
+      "intensity": 2
+    },
+    {
+      "content_id": "builtin:reaction:sadness-2-b",
+      "version": 1,
+      "emotion": "sadness",
+      "intensity": 2
     },
     {
       "content_id": "builtin:reaction:sadness-3",
+      "version": 1,
+      "emotion": "sadness",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:sadness-3-b",
+      "version": 1,
+      "emotion": "sadness",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:sadness-4",
+      "version": 1,
+      "emotion": "sadness",
+      "intensity": 4
+    },
+    {
+      "content_id": "builtin:reaction:sadness-4-b",
       "version": 1,
       "emotion": "sadness",
       "intensity": 4

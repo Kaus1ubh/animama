@@ -42,15 +42,20 @@ replace.
 
 Licence records:
 
-- the effect gets its own owner-authored rule,
-  `vfx/particle/quark/<stem>/**`, ahead of the generated-art rule
-  `vfx/particle/quark/**` (removed again by a delete);
-- each written file gets a `licenses/source-review.json` record in the owner
-  form, except a texture whose bytes repeat third-party Included art (a
-  built-in creator texture the creator's Save copied): it keeps that file's
-  record and, in an exact-path rule ahead of the effect's own, its licence
-  terms. The dry run lists each rule and record and says where a carried one
-  comes from;
+- the effect gets its own rule, `vfx/particle/quark/<stem>/**`, ahead of the
+  generated-art rule `vfx/particle/quark/**` (removed again by a delete):
+  owner-authored, or the item's owner-approved `licence` for work the owner
+  did not author (see the Avatar Effect skill's promote reference for the
+  `licence` and `sourceReview` entries, and the
+  `vfx/particle/quark/snow-crystal-flurry/**` rule for the agent-authored
+  wording);
+- each written file gets a `licenses/source-review.json` record: the owner's,
+  or the item's `sourceReview` (one `basis`, or one per file such as
+  `particle.json` and `textures/<name>.png`). A texture whose bytes repeat
+  other Included art (a built-in creator texture the creator's Save copied)
+  keeps that file's record and, in an exact-path rule ahead of the effect's
+  own, its licence terms. The dry run lists each rule and record and says
+  where a carried one comes from;
 - a removed or replaced third-party record is reported so its evidence files
   can be updated.
 

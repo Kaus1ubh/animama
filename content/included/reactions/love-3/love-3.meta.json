@@ -15,26 +15,20 @@
   },
   "dependencies": [
     {
-      "ref": "builtin:particle-effect:heart-burst",
-      "alias": "heart-burst",
+      "ref": "builtin:particle-effect:hearts-v1",
+      "alias": "hearts-v1",
       "content_type": "particle_effect",
-      "config": {}
-    },
-    {
-      "ref": "builtin:scene-effect:background:scene-vfx-emotion-love",
-      "alias": "scene-vfx-emotion-love",
-      "content_type": "scene_effect",
-      "config": {}
-    },
-    {
-      "ref": "builtin:avatar-effect:heart_eyes",
-      "alias": "heart_eyes",
-      "content_type": "avatar_effect",
       "config": {}
     },
     {
       "ref": "builtin:avatar-effect:blush",
       "alias": "blush",
+      "content_type": "avatar_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:avatar-effect:doki_doki",
+      "alias": "doki_doki",
       "content_type": "avatar_effect",
       "config": {}
     }

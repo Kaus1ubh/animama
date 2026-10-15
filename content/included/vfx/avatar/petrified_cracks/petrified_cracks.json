@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:petrified_cracks",
+  "version": 1,
+  "name": "Petrified Cracks",
+  "description": "The anime 'turned to stone' gag painted on the face: a crack splits the forehead, branches, then spreads across the whole face under a see-through grey stone tint, for being frozen stiff with fright or disgust.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "full_face",
+    "attachment": {
+      "kind": "face_surface",
+      "part": "face_skin",
+      "area": "full"
+    },
+    "art": {
+      "image": "petrified_cracks-sheet.png",
+      "flipbook": {
+        "columns": 3,
+        "rows": 1,
+        "frames": 3,
+        "fps": 8,
+        "loop": "once"
+      }
+    },
+    "motion": {
+      "keyframes": {
+        "frames": [
+          {
+            "t": 0,
+            "opacity": 0
+          },
+          {
+            "t": 0.06,
+            "opacity": 1
+          }
+        ]
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "petrified_cracks-sheet.png",
+      "role": "image"
+    }
+  ]
+}

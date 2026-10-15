@@ -31,7 +31,10 @@ one exists; ask before departing from it.
 - **Expresses:** <emotion or situation, one line>
 - **Trope:** <the anime background or screen effect it borrows, with a
   well-known example>
-- **Reactions:** <emotions and intensity tiers 1–3 it suits, or "preview only">
+- **Reactions:** <emotions and intensities 1–4 it suits, or "preview only">
+  Avatar Effects first appear at intensity 2, Particle Effects at 3 and Scene
+  Effects at 4 (the Reaction ladder in `content/included/README.md`); an
+  effect proposed for a lower intensity records why.
 - **Kind:** background_layers | focus_lines
 - **Layers (back to front):** <each layer, its job and motion, e.g.
   "Glow: radial gradient #fff4d1 → #f2b86a centred behind the head, static.

@@ -16,8 +16,19 @@ from typing import Any
 
 from animama.domain.content_catalog import ContentKind, ContentSource
 
-MAX_ADMITTED_ITEM_REVISIONS = 500
+MAX_RUNTIME_ENTRIES = 1000
+"""Most catalog items one Anima runtime snapshot admits, roots and dependencies together.
+
+A starter Anima (99 non-idle Gestures, its Idle pool and 96 Reaction pools with
+their effects) admits 445 items, about 495 with the optional comedy sound pack;
+pools of up to four Reactions per cell need headroom.
+Creation source maps, budgets and admission all use this one limit.
+"""
+
 MAX_ADMITTED_ITEM_REVISIONS_BYTES = 128 * 1024
+"""Byte cap for the canonical admitted map: each entry encodes to 106 bytes, so the
+entry limit fits (1000 entries are about 106 KB)."""
+
 _CATALOG_ITEM_ID = re.compile(
     r"^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
     re.IGNORECASE,
@@ -110,7 +121,7 @@ class RuntimeContentDescriptor:
 def validate_admitted_item_revisions(value: dict[str, str]) -> dict[str, str]:
     """Validate and canonicalize the bounded item-level runtime admission map."""
 
-    if len(value) > MAX_ADMITTED_ITEM_REVISIONS:
+    if len(value) > MAX_RUNTIME_ENTRIES:
         raise ValueError("runtime admitted item count exceeds the supported limit")
     canonical = dict(sorted(value.items()))
     if any(not _CATALOG_ITEM_ID.fullmatch(item_id) for item_id in canonical):
@@ -130,7 +141,7 @@ __all__ = [
     "RuntimeContentMember",
     "RuntimeContentRoot",
     "RuntimeContentRootSelection",
-    "MAX_ADMITTED_ITEM_REVISIONS",
     "MAX_ADMITTED_ITEM_REVISIONS_BYTES",
+    "MAX_RUNTIME_ENTRIES",
     "validate_admitted_item_revisions",
 ]

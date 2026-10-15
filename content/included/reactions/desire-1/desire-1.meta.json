@@ -15,8 +15,8 @@
   },
   "dependencies": [
     {
-      "ref": "builtin:avatar-effect:blush",
-      "alias": "blush",
+      "ref": "builtin:avatar-effect:blush_band",
+      "alias": "blush_band",
       "content_type": "avatar_effect",
       "config": {}
     }

@@ -33,7 +33,7 @@ export function creationOptions(): AnimaCreationOptions {
       image_max_bytes: 16777216,
       image_max_dimension: 8192,
       image_max_pixels: 40000000,
-      source_max_items: 500,
+      source_max_items: 1000,
       source_max_bytes: 1073741824,
       runtime_config_max_bytes: 1048576,
     },

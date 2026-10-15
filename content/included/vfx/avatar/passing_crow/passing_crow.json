@@ -1,0 +1,111 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:passing_crow",
+  "version": 1,
+  "name": "Passing Crow",
+  "description": "A black manga crow flaps across above the head once and is gone, the anime \"aho\" crow of an awkward silence, for blank stares, stunned pauses and jokes that fall flat.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "sticker",
+    "attachment": {
+      "kind": "sticker",
+      "around": "head",
+      "offset": {
+        "x": 0,
+        "y": 0.18
+      },
+      "size": 0.08
+    },
+    "art": {
+      "image": "passing_crow-sheet.png",
+      "flipbook": {
+        "columns": 2,
+        "rows": 2,
+        "frames": 4,
+        "fps": 8,
+        "loop": "loop"
+      }
+    },
+    "motion": {
+      "keyframes": {
+        "frames": [
+          {
+            "t": 0,
+            "opacity": 0,
+            "offset": {
+              "x": -0.3,
+              "y": 0
+            }
+          },
+          {
+            "t": 0.25,
+            "opacity": 1,
+            "offset": {
+              "x": -0.225,
+              "y": 0.008
+            }
+          },
+          {
+            "t": 0.5,
+            "offset": {
+              "x": -0.15,
+              "y": 0
+            }
+          },
+          {
+            "t": 0.75,
+            "offset": {
+              "x": -0.075,
+              "y": 0.008
+            }
+          },
+          {
+            "t": 1,
+            "offset": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "t": 1.25,
+            "offset": {
+              "x": 0.075,
+              "y": 0.008
+            }
+          },
+          {
+            "t": 1.5,
+            "offset": {
+              "x": 0.15,
+              "y": 0
+            }
+          },
+          {
+            "t": 1.75,
+            "opacity": 1,
+            "offset": {
+              "x": 0.225,
+              "y": 0.008
+            }
+          },
+          {
+            "t": 2,
+            "opacity": 0,
+            "offset": {
+              "x": 0.3,
+              "y": 0
+            }
+          }
+        ]
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "passing_crow-sheet.png",
+      "role": "image"
+    }
+  ]
+}

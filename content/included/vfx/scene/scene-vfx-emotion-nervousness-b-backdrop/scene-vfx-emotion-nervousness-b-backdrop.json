@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "content_type": "scene_effect",
+  "content_id": "builtin:scene-effect:background:scene-vfx-emotion-nervousness-b-backdrop",
+  "version": 1,
+  "name": "Nervousness B Backdrop",
+  "description": "Proposed companion for Nervousness B Background: a soft flash fades into a slate field glowing paler behind the Avatar.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/scene-effect/1",
+    "kind": "background_layers",
+    "durationMs": null,
+    "coverUiOverlays": false,
+    "dismissOnInput": false,
+    "solid": {
+      "enabled": false,
+      "color": "#000000"
+    },
+    "pattern": {
+      "enabled": false,
+      "pattern": "none",
+      "color": "#ffffff",
+      "size": 10,
+      "spacing": 20,
+      "opacity": 0.3
+    },
+    "marquee": {
+      "enabled": false,
+      "items": [],
+      "itemSize": 72,
+      "gap": 24,
+      "rowGap": 18,
+      "direction": "left",
+      "itemRotationMode": "upright",
+      "itemRotationOffsetDeg": 0,
+      "speedPxPerSec": 100,
+      "opacity": 1
+    },
+    "gradient": {
+      "enabled": true,
+      "type": "radial",
+      "angleDeg": 180,
+      "centerX": 0.5,
+      "centerY": 0.36,
+      "stops": [
+        {
+          "color": "#b4c1cf",
+          "position": 0
+        },
+        {
+          "color": "#8595a9",
+          "position": 0.55
+        },
+        {
+          "color": "#5b6a7f",
+          "position": 1
+        }
+      ]
+    },
+    "flash": {
+      "enabled": true,
+      "color": "#eef4fa",
+      "durationMs": 140
+    }
+  },
+  "files": []
+}

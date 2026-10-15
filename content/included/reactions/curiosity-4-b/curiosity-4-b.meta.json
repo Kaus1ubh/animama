@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "content_type": "reaction",
+  "content_id": "builtin:reaction:curiosity-4-b",
+  "version": 1,
+  "name": "Curiosity Reaction 4B",
+  "ai_description": "Reusable avatar reaction clip",
+  "placement_hint": {
+    "emotion": "curiosity",
+    "intensity": 4
+  },
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [
+    {
+      "ref": "builtin:avatar-effect:twitching-cat-ears",
+      "alias": "twitching-cat-ears",
+      "content_type": "avatar_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:avatar-effect:ahoge_curl",
+      "alias": "ahoge_curl",
+      "content_type": "avatar_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:particle-effect:butterfly-flutter",
+      "alias": "butterfly-flutter",
+      "content_type": "particle_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:scene-effect:background:scene-vfx-emotion-curiosity-b",
+      "alias": "scene-b-curiosity",
+      "content_type": "scene_effect",
+      "config": {}
+    }
+  ],
+  "files": [
+    {
+      "path": "curiosity-4-b.json",
+      "role": "sequence"
+    }
+  ]
+}

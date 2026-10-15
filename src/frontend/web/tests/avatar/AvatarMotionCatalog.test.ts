@@ -143,6 +143,38 @@ describe("injected Avatar motion catalogs", () => {
     );
   });
 
+  it("picks built-in Reactions from each cell's Included pool", () => {
+    const pick = (
+      emotionalIntensity: 0 | 1 | 2 | 3 | 4,
+      randomRoll: number,
+      previousRuntimeId?: string,
+    ) =>
+      BUILT_IN_AVATAR_MOTION_CATALOG.getReactionRuntimeId({
+        emotionalTone: "joy",
+        emotionalIntensity,
+        randomRoll,
+        previousRuntimeId,
+      });
+
+    expect(BUILT_IN_AVATAR_MOTION_CATALOG.listReactionPools().joy).toEqual({
+      "1": ["joy-1"],
+      "2": ["joy-2", "joy-2-b"],
+      "3": ["joy-3", "joy-3-b"],
+      "4": ["joy-4", "joy-4-b"],
+    });
+    // A one-member cell always plays its member; two members split the roll
+    // and never repeat the previous pick; intensity 0 plays nothing.
+    expect(pick(1, 0.9, "joy-1")).toBe("joy-1");
+    expect(pick(4, 0.2)).toBe("joy-4");
+    expect(pick(4, 0.7)).toBe("joy-4-b");
+    expect(pick(4, 0.2, "joy-4")).toBe("joy-4-b");
+    expect(pick(0, 0.2)).toBeNull();
+    for (const runtimeId of ["joy-1", "joy-4", "joy-4-b"])
+      expect(
+        BUILT_IN_AVATAR_MOTION_CATALOG.getReactionClip(runtimeId)?.id,
+      ).toBe(runtimeId);
+  });
+
   it("plans user idle and gesture VRMAs only from the mounted Anima catalog", () => {
     const catalog = new AnimaRuntimeCatalog(customRuntimeAssets(), {
       requestHeaders: async () => ({ Authorization: "Bearer test" }),

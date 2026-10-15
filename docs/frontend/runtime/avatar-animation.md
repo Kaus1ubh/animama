@@ -506,11 +506,13 @@ development web container mounts it at `/content/included`, and the
 production image copies it before the web build.
 
 Reaction clips are loaded separately from `content/included/reactions/` by file
-name. The built-in catalog contains 72 files: each `TRACKED_EMOTIONS` value
-from `src/frontend/web/src/lib/emotion` at intensities `1`, `2`, and `3`, using
-`<emotion>-<intensity>.json` ids; it serves each cell a one-member pool of the
-clip with that id, so intensity 4 has none yet. Anima routes play the Anima's
-own pools instead. Reaction clips are not in the Gesture clip
+name. The built-in catalog contains 168 files: for each `TRACKED_EMOTIONS`
+value from `src/frontend/web/src/lib/emotion`, `<emotion>-1` at intensity 1
+and `<emotion>-<intensity>` with a second `<emotion>-<intensity>-b` at
+intensities 2–4. Like a new Anima's starter pools, each built-in cell's pool
+holds the Included Reactions its ids name (`groupIncludedReactionPools` in
+`lib/avatar/reactionPools.ts`). Anima routes play the Anima's own pools
+instead. Reaction clips are not in the Gesture clip
 catalog, do not run through `Avatar.playClip(...)`, and are skipped
 if channel analysis finds any humanoid transforms. This strict authoring rule
 applies to Included and Local Reaction entries. Playback projects Reaction
@@ -519,11 +521,12 @@ Selection is per cell: exact tracked emotion tones and intensities 1–4
 pick from the cell's pool, while `neutral`, blank, unknown values, and group
 names such as `alarm` produce no clip. The clips are
 playback-scoped to same-run `talking`, so a single peak expression or VFX event
-can hold without looping or replaying SFX. Level 1 clips add one subtle avatar
-VFX, played without its accompanying sound. Level 2 clips add avatar VFX and, where one
-fits, a Particle Effect; every level 3 clip plays its emotion's Included
-`scene-vfx-emotion-<emotion>` background, with a bigger Particle Effect (one or
-two) where one fits. The `presentation.disable_vfx` preference suppresses
+can hold without looping or replaying SFX. Included Reactions follow the
+[Reaction ladder](../../../content/included/README.md#reactions): a
+full-strength expression at intensity 1, then Avatar Effects at 2, a Particle
+Effect at 3 and a Scene Effect at 4, where the first Reaction plays its
+emotion's `scene-vfx-emotion-<emotion>` background and the `-b` Reaction
+another Scene. The `presentation.disable_vfx` preference suppresses
 clip-owned avatar, scene, and particle VFX from pose/reaction playback while
 leaving SFX and manual/debug VFX controls unchanged.
 

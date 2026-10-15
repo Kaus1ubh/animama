@@ -35,8 +35,24 @@ def test_included_license_inventory_records_the_release_gate() -> None:
     assert by_glob["vfx/scene/**/*.png"]["license_id"] == "LicenseRef-Animama-owner-authored"
     assert not any("emoji" in rule["glob"] or "twemoji" in rule["provenance"].lower() for rule in rules)
     # Each Particle Effect has its own rule. Keep the existing owner-authored
-    # terms separate from these three agent-authored effects and the legacy Heart stream.
-    agent_authored_particles = {"butterfly-flutter", "musical-cascade", "snow-crystal-flurry"}
+    # terms separate from the agent-authored effects (#523, #569) and the legacy Heart stream.
+    agent_authored_particles = {
+        "butterfly-flutter",
+        "musical-cascade",
+        "snow-crystal-flurry",
+        # Reaction pools (#569).
+        "buzzing-flies",
+        "cold-breeze",
+        "dizzy-stars",
+        "drifting-leaves",
+        "flower-pop",
+        "fright-jolt",
+        "golden-aura",
+        "petal-drift",
+        "rage-embers",
+        "sparkle-bubbles",
+        "sweat-spray",
+    }
     particle_rules = [rule for rule in rules if rule["glob"].startswith("vfx/particle/quark/")]
     for stem in sorted(path.name for path in (ROOT / "content/included/vfx/particle/quark").iterdir()):
         rule = by_glob[f"vfx/particle/quark/{stem}/**"]

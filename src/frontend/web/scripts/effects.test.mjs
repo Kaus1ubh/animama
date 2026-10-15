@@ -26,6 +26,7 @@ import {
 import { loadWebModule } from "./effects.mjs";
 import {
   EffectPromoteError,
+  OWNER_SOURCE_REVIEW,
   applyEffectPromotion,
   parseEffectPromoteItems,
   planEffectPromotion,
@@ -678,9 +679,10 @@ test("promotion adds, replaces and deletes Included effects with records", async
       "content/included/vfx/avatar/eye/eye_new.png",
     ],
   );
-  assert.ok(
-    records.every((record) => record.basis === "B" && record.review === "R"),
-  );
+  // Owner-authored files get the owner's record, whatever form the existing
+  // effect records have.
+  for (const record of records)
+    assert.deepEqual(record, { path: record.path, ...OWNER_SOURCE_REVIEW });
   const reviewChange = changes.find(
     (change) => change.path === "licenses/source-review.json",
   );
@@ -1110,11 +1112,11 @@ test("promotion adds a Reaction with its meta, records and Included refs", async
   assert.deepEqual(records, [
     {
       path: "content/included/reactions/joy-4-b/joy-4-b.json",
-      basis: "Reaction",
+      ...OWNER_SOURCE_REVIEW,
     },
     {
       path: "content/included/reactions/joy-4-b/joy-4-b.meta.json",
-      basis: "Reaction",
+      ...OWNER_SOURCE_REVIEW,
     },
   ]);
   // A second add of the same stem is refused; it is a replace now.
@@ -1672,7 +1674,8 @@ test("promotion adds Particle and Scene Effects under owner-authored rules", asy
       "content/included/vfx/scene/petals/petals.json",
     ],
   );
-  assert.ok(records.every((record) => record.basis === "B"));
+  for (const record of records)
+    assert.deepEqual(record, { path: record.path, ...OWNER_SOURCE_REVIEW });
   const inventoryChange = changes.find((change) =>
     change.path.endsWith("inventory.json"),
   );
@@ -2283,7 +2286,7 @@ test("promotion keeps the record and licence of reused third-party art", async (
     path: `${quark}/textures/glow.png`,
     ...thirdParty,
   });
-  assert.equal(record(`${quark}/glow.json`).basis, "B");
+  assert.equal(record(`${quark}/glow.json`).basis, OWNER_SOURCE_REVIEW.basis);
   const rules = JSON.parse(await readFile(inventoryPath, "utf8")).rules;
   // The copy keeps its source's terms, ahead of the effect's owner rule.
   assert.deepEqual(
@@ -2323,6 +2326,454 @@ test("promotion keeps the record and licence of reused third-party art", async (
     !JSON.parse(await readFile(inventoryPath, "utf8")).rules.some((rule) =>
       rule.glob.includes("quark/glow"),
     ),
+  );
+});
+
+/** An agent-authored licence and the record form its files get. */
+const agentLicence = {
+  creator: "Animama project; authored by an AI coding agent",
+  provenance: "Agent-authored effect (#1).",
+  license_id: "LicenseRef-Animama-agent-authored",
+  redistribution_review: "pending",
+};
+const agentReview = (basis) => ({
+  candidate_license: "AGPL-3.0-only",
+  basis,
+  copyright: "2026 Owner",
+  review: "prepared",
+});
+
+/**
+ * `effectKindsRepo` plus the joy-2 Reaction, an owner-authored sticker under
+ * its own rule and an owner-authored general Reaction rule.
+ */
+async function licenceRepo() {
+  const root = await effectKindsRepo();
+  const reaction = await addReaction(root);
+  const sticker = "content/included/resources/stickers/star.png";
+  await mkdir(path.dirname(path.join(root, sticker)), { recursive: true });
+  await writeFile(path.join(root, sticker), await disc([40, 160, 90]));
+  const inventoryPath = path.join(
+    root,
+    "content/included/licenses/inventory.json",
+  );
+  const inventory = JSON.parse(await readFile(inventoryPath, "utf8"));
+  const stickerRule = {
+    glob: "resources/stickers/**",
+    ...ownerRule,
+    provenance: "The owner made the stickers.",
+  };
+  inventory.rules.splice(inventory.rules.length - 1, 0, stickerRule, {
+    glob: "reactions/**/*",
+    ...ownerRule,
+    provenance: "The owner made the Reactions.",
+  });
+  await writeFile(inventoryPath, `${JSON.stringify(inventory, null, 2)}\n`);
+  const reviewPath = path.join(root, "licenses/source-review.json");
+  const review = JSON.parse(await readFile(reviewPath, "utf8"));
+  const stickerRecord = {
+    candidate_license: "L",
+    basis: "Owner sticker",
+    copyright: "C",
+    review: "R",
+  };
+  review.files.push({ path: sticker, ...stickerRecord });
+  await writeFile(reviewPath, `${JSON.stringify(review, null, 2)}\n`);
+  return {
+    root,
+    ...reaction,
+    sticker,
+    stickerRule,
+    stickerRecord,
+    inventoryPath,
+    reviewPath,
+  };
+}
+
+/** An Avatar Effect source whose art repeats no fixture file. */
+async function ownArtSource(stem) {
+  const effect = await source(stem, `${stem}.png`);
+  await writeFile(effect.imagePath, await disc([90, 30, 200]));
+  return effect;
+}
+
+/** A saved Local Scene Effect with its own art and a copy of `sticker`. */
+async function stickerSceneSource(root, stem, sticker) {
+  const folder = path.join(await mkdtemp(path.join(dir, "scene-")), stem);
+  await mkdir(folder, { recursive: true });
+  await writeFile(path.join(folder, "own.png"), await disc([255, 92, 147]));
+  await writeFile(
+    path.join(folder, "star.png"),
+    await readFile(path.join(root, sticker)),
+  );
+  const definition = backgroundDefinition("own.png");
+  definition.marquee.items.push({
+    id: "star",
+    kind: "image",
+    image: "star.png",
+    label: "Star",
+  });
+  await writeFile(
+    path.join(folder, `${stem}.json`),
+    JSON.stringify({
+      schema_version: 1,
+      content_type: "scene_effect",
+      id: `local:scene-effect:${stem}`,
+      name: `${stem} source`,
+      description: "Scene source",
+      definition,
+      files: [
+        { path: "own.png", role: "image" },
+        { path: "star.png", role: "image" },
+      ],
+    }),
+  );
+  return { ...(await resolveAnyEffectSource(folder)), dependencies: [] };
+}
+
+test("promotion writes an item's licence entries as its rule and records", async () => {
+  const fixture = await licenceRepo();
+  const { root, clip, meta, sticker, stickerRule, stickerRecord } = fixture;
+  const options = {
+    repo: workingTreeRepo(root),
+    validate,
+    validateClip,
+    validateParticle: () => {},
+    validateScene: () => {},
+  };
+  const reactionLicence = {
+    ...agentLicence,
+    provenance: "Agent-written Reactions (#1).",
+    glob: "reactions/**/*",
+  };
+  const added = {
+    ...clip,
+    id: "joy-4-b",
+    name: "Joy Reaction 4B",
+    events: [clip.events[1]],
+  };
+  const items = [
+    {
+      mode: "add",
+      stem: "ink",
+      sound: null,
+      effect: await ownArtSource("ink"),
+      licence: agentLicence,
+      sourceReview: agentReview({ "ink.json": "Definition", "ink.png": "Art" }),
+    },
+    {
+      kind: "particle_effect",
+      mode: "add",
+      stem: "spray",
+      effect: await particleSource("spray"),
+      licence: agentLicence,
+      sourceReview: agentReview("Particle"),
+    },
+    {
+      kind: "scene_effect",
+      mode: "add",
+      stem: "stage",
+      effect: await stickerSceneSource(root, "stage", sticker),
+      licence: agentLicence,
+      // The reused sticker keeps its own record, so it has no basis here.
+      sourceReview: agentReview({
+        "stage.json": "Scene definition",
+        "own.png": "Scene art",
+      }),
+    },
+    {
+      kind: "reaction",
+      mode: "add",
+      stem: "joy-4-b",
+      placement_hint: { emotion: "joy", intensity: 4 },
+      project: project(added, [meta.dependencies[1]]),
+      licence: reactionLicence,
+      sourceReview: agentReview({
+        "joy-4-b.json": "Clip",
+        "joy-4-b.meta.json": "Meta",
+      }),
+    },
+    {
+      // An unchanged replace still takes its new records.
+      kind: "reaction",
+      mode: "replace",
+      stem: "joy-2",
+      project: project(clip, meta.dependencies),
+      licence: reactionLicence,
+      sourceReview: agentReview("Clip and meta"),
+    },
+  ];
+  const changes = await planEffectPromotion(items, options);
+  // The unchanged Reaction's files are not rewritten.
+  assert.ok(!changes.some((change) => change.path.includes("/joy-2/")));
+  await applyEffectPromotion(root, changes);
+  const rules = JSON.parse(await readFile(fixture.inventoryPath, "utf8")).rules;
+  const globs = rules.map((rule) => rule.glob);
+  // Each item's rule goes ahead of its kind's general rule; the shared
+  // Reaction rule replaces the general one in place; the reused sticker keeps
+  // its terms ahead of the Scene's own rule.
+  assert.deepEqual(globs, [
+    "vfx/avatar/ink/**",
+    "vfx/avatar/**/*",
+    "vfx/particle/quark/spray/**",
+    "vfx/particle/quark/**",
+    "vfx/scene/stage/star.png",
+    "vfx/scene/stage/**",
+    "vfx/scene/**/*.png",
+    "resources/stickers/**",
+    "reactions/**/*",
+    "**/*",
+  ]);
+  const rule = (glob) => rules.find((entry) => entry.glob === glob);
+  assert.deepEqual(rule("vfx/avatar/ink/**"), {
+    glob: "vfx/avatar/ink/**",
+    ...agentLicence,
+  });
+  assert.deepEqual(rule("vfx/scene/stage/star.png"), {
+    ...stickerRule,
+    glob: "vfx/scene/stage/star.png",
+  });
+  assert.deepEqual(rule("reactions/**/*"), reactionLicence);
+  const records = new Map(
+    JSON.parse(await readFile(fixture.reviewPath, "utf8")).files.map(
+      ({ path: file, ...record }) => [file, record],
+    ),
+  );
+  const included = "content/included";
+  for (const [file, basis] of [
+    ["vfx/avatar/ink/ink.json", "Definition"],
+    ["vfx/avatar/ink/ink.png", "Art"],
+    ["vfx/particle/quark/spray/spray.json", "Particle"],
+    ["vfx/particle/quark/spray/particle.json", "Particle"],
+    ["vfx/particle/quark/spray/textures/glow.png", "Particle"],
+    ["vfx/scene/stage/stage.json", "Scene definition"],
+    ["vfx/scene/stage/own.png", "Scene art"],
+    ["reactions/joy-4-b/joy-4-b.json", "Clip"],
+    ["reactions/joy-4-b/joy-4-b.meta.json", "Meta"],
+    ["reactions/joy-2/joy-2.json", "Clip and meta"],
+    ["reactions/joy-2/joy-2.meta.json", "Clip and meta"],
+  ])
+    assert.deepEqual(
+      records.get(`${included}/${file}`),
+      agentReview(basis),
+      file,
+    );
+  assert.deepEqual(
+    records.get(`${included}/vfx/scene/stage/star.png`),
+    stickerRecord,
+  );
+  const notes = changes.flatMap((change) => change.notes ?? []);
+  assert.ok(
+    notes.includes(
+      `record for ${included}/vfx/scene/stage/star.png carried from ${sticker}`,
+    ),
+  );
+  assert.ok(notes.includes("rule vfx/avatar/ink/** (the item's licence)"));
+
+  // The same items again, as replaces, change nothing.
+  const again = await planEffectPromotion(
+    items.map((item) => {
+      const { placement_hint: _hint, sound: _sound, ...rest } = item;
+      return { ...rest, mode: "replace" };
+    }),
+    options,
+  );
+  assert.deepEqual(
+    again.map((change) => change.path),
+    [],
+  );
+
+  // Without licence entries an item would be recorded as the owner's work,
+  // which its own (or its kind's) agent-authored rule contradicts.
+  await assert.rejects(
+    planEffectPromotion(
+      [{ mode: "replace", stem: "ink", effect: await ownArtSource("ink") }],
+      options,
+    ),
+    /licence rule vfx\/avatar\/ink\/\*\* grants other terms/,
+  );
+  await assert.rejects(
+    planEffectPromotion(
+      [
+        {
+          kind: "reaction",
+          mode: "add",
+          stem: "joy-3-b",
+          placement_hint: { emotion: "joy", intensity: 3 },
+          project: project({ ...clip, id: "joy-3-b" }, meta.dependencies),
+        },
+      ],
+      options,
+    ),
+    /licence rule reactions\/\*\*\/\* grants other terms/,
+  );
+
+  // A delete removes the effect's own rule and its copy's exact rule.
+  await applyEffectPromotion(
+    root,
+    await planEffectPromotion(
+      [{ kind: "scene_effect", mode: "delete", stem: "stage" }],
+      options,
+    ),
+  );
+  assert.ok(
+    !JSON.parse(await readFile(fixture.inventoryPath, "utf8")).rules.some(
+      (entry) => entry.glob.includes("scene/stage"),
+    ),
+  );
+});
+
+test("reused owner art keeps its record and needs no rule of its own", async () => {
+  const { root, sticker, stickerRecord, inventoryPath, reviewPath } =
+    await licenceRepo();
+  const before = await readFile(inventoryPath, "utf8");
+  const changes = await planEffectPromotion(
+    [
+      {
+        kind: "scene_effect",
+        mode: "add",
+        stem: "stage",
+        effect: await stickerSceneSource(root, "stage", sticker),
+      },
+    ],
+    {
+      repo: workingTreeRepo(root),
+      validate,
+      validateScene: () => {},
+    },
+  );
+  await applyEffectPromotion(root, changes);
+  // The copy is the owner's art: the general Scene rule already grants the
+  // sticker's terms, so no exact rule is added and nothing is reported as
+  // third-party.
+  assert.equal(await readFile(inventoryPath, "utf8"), before);
+  const records = JSON.parse(await readFile(reviewPath, "utf8")).files;
+  const record = (file) =>
+    records.find((entry) => entry.path === `content/included/${file}`);
+  assert.deepEqual(record("vfx/scene/stage/star.png"), {
+    path: "content/included/vfx/scene/stage/star.png",
+    ...stickerRecord,
+  });
+  assert.deepEqual(record("vfx/scene/stage/own.png"), {
+    path: "content/included/vfx/scene/stage/own.png",
+    ...OWNER_SOURCE_REVIEW,
+  });
+  assert.ok(
+    !changes
+      .flatMap((change) => change.notes ?? [])
+      .some((note) => note.includes("third-party")),
+  );
+});
+
+test("promotion refuses incomplete or conflicting licence entries", async () => {
+  const fixture = await licenceRepo();
+  const { root, clip, meta } = fixture;
+  for (const [item, message] of [
+    [
+      { source: "x", stem: "ink", mode: "add", licence: agentLicence },
+      /go together/,
+    ],
+    [
+      {
+        stem: "ink",
+        mode: "delete",
+        licence: agentLicence,
+        sourceReview: agentReview("B"),
+      },
+      /a delete takes no/,
+    ],
+    [
+      {
+        source: "x",
+        stem: "ink",
+        mode: "add",
+        licence: { ...agentLicence, note: "x" },
+        sourceReview: agentReview("B"),
+      },
+      /unknown field\(s\): note/,
+    ],
+    [
+      {
+        source: "x",
+        stem: "ink",
+        mode: "add",
+        licence: agentLicence,
+        sourceReview: agentReview({}),
+      },
+      /names no file/,
+    ],
+    [
+      {
+        source: "x",
+        stem: "ink",
+        mode: "add",
+        licence: { ...agentLicence, glob: "../x/**" },
+        sourceReview: agentReview("B"),
+      },
+      /below content\/included/,
+    ],
+  ])
+    assert.throws(() => parseEffectPromoteItems([item], "items.json"), message);
+
+  const plan = async (items) =>
+    planEffectPromotion(items, {
+      repo: workingTreeRepo(root),
+      validate,
+      validateClip,
+    });
+  const ink = async (overrides) => ({
+    mode: "add",
+    stem: "ink",
+    sound: null,
+    effect: await ownArtSource("ink"),
+    licence: agentLicence,
+    ...overrides,
+  });
+  await assert.rejects(
+    plan([await ink({ sourceReview: agentReview({ "ink.json": "D" }) })]),
+    /gives no basis for ink\.png/,
+  );
+  await assert.rejects(
+    plan([
+      await ink({
+        sourceReview: agentReview({
+          "ink.json": "D",
+          "ink.png": "A",
+          "other.png": "O",
+        }),
+      }),
+    ]),
+    /names other\.png/,
+  );
+  await assert.rejects(
+    plan([
+      await ink({
+        licence: { ...agentLicence, glob: "vfx/avatar/other/**" },
+        sourceReview: agentReview("B"),
+      }),
+    ]),
+    /does not cover/,
+  );
+  const replace = (provenance) => ({
+    kind: "reaction",
+    mode: "replace",
+    stem: "joy-2",
+    project: project(clip, meta.dependencies),
+    licence: { ...agentLicence, provenance, glob: "reactions/**/*" },
+    sourceReview: agentReview("B"),
+  });
+  await assert.rejects(
+    plan([
+      replace("One"),
+      {
+        ...replace("Two"),
+        mode: "add",
+        stem: "joy-4-b",
+        placement_hint: { emotion: "joy", intensity: 4 },
+        project: project({ ...clip, id: "joy-4-b" }, meta.dependencies),
+      },
+    ]),
+    /must give one licence/,
   );
 });
 

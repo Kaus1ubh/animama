@@ -1,0 +1,165 @@
+{
+  "schema_version": 1,
+  "content_type": "scene_effect",
+  "content_id": "builtin:scene-effect:background:scene-vfx-emotion-embarrassment-b",
+  "version": 1,
+  "name": "Embarrassment B Background",
+  "description": "A hot pink shoujo backdrop with diagonal blush hatching at the edges, large translucent bubbles rising and sparkles twinkling around the Avatar, for flustered, embarrassed moments.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/scene-effect/1",
+    "kind": "background_layers",
+    "durationMs": null,
+    "dismissOnInput": false,
+    "coverUiOverlays": false,
+    "solid": {
+      "enabled": false,
+      "color": "#ef3f88"
+    },
+    "gradient": {
+      "enabled": true,
+      "type": "radial",
+      "angleDeg": 180,
+      "centerX": 0.5,
+      "centerY": 0.36,
+      "stops": [
+        {
+          "color": "#fff1f6",
+          "position": 0
+        },
+        {
+          "color": "#ffbad5",
+          "position": 0.3
+        },
+        {
+          "color": "#ff70a8",
+          "position": 0.72
+        },
+        {
+          "color": "#ef3f88",
+          "position": 1
+        }
+      ]
+    },
+    "pattern": {
+      "enabled": false,
+      "pattern": "none",
+      "color": "#ffffff",
+      "size": 10,
+      "spacing": 20,
+      "opacity": 0.3
+    },
+    "marquee": {
+      "enabled": false,
+      "items": [],
+      "itemSize": 72,
+      "gap": 24,
+      "rowGap": 18,
+      "direction": "left",
+      "itemRotationMode": "upright",
+      "itemRotationOffsetDeg": 0,
+      "speedPxPerSec": 100,
+      "opacity": 1
+    },
+    "scatters": [
+      {
+        "enabled": true,
+        "items": [
+          {
+            "id": "hatch",
+            "kind": "image",
+            "label": "Blush hatching",
+            "image": "blush-hatch-lines.png"
+          }
+        ],
+        "count": 6,
+        "seed": 131,
+        "minSize": 150,
+        "maxSize": 220,
+        "minRotationDeg": -6,
+        "maxRotationDeg": 6,
+        "minOpacity": 0.5,
+        "maxOpacity": 0.75,
+        "regionTop": 0,
+        "regionBottom": 1,
+        "keepFaceClear": true,
+        "direction": "static",
+        "speedPxPerSec": 0,
+        "minSpinDegPerSec": 0,
+        "maxSpinDegPerSec": 0,
+        "alternateSpin": false,
+        "pulse": "none"
+      },
+      {
+        "enabled": true,
+        "items": [
+          {
+            "id": "bubble",
+            "kind": "image",
+            "label": "Shoujo bubble",
+            "image": "shoujo-bubble.png"
+          }
+        ],
+        "count": 16,
+        "seed": 74,
+        "minSize": 36,
+        "maxSize": 150,
+        "minRotationDeg": -20,
+        "maxRotationDeg": 20,
+        "minOpacity": 0.75,
+        "maxOpacity": 1,
+        "regionTop": 0,
+        "regionBottom": 1,
+        "keepFaceClear": true,
+        "direction": "up",
+        "speedPxPerSec": 20,
+        "minSpinDegPerSec": 0,
+        "maxSpinDegPerSec": 0,
+        "alternateSpin": false,
+        "pulse": "none"
+      },
+      {
+        "enabled": true,
+        "items": [
+          {
+            "id": "sparkle",
+            "kind": "image",
+            "label": "Shoujo sparkle",
+            "image": "shoujo-sparkle.png"
+          }
+        ],
+        "count": 12,
+        "seed": 46,
+        "minSize": 26,
+        "maxSize": 52,
+        "minRotationDeg": 0,
+        "maxRotationDeg": 0,
+        "minOpacity": 0.85,
+        "maxOpacity": 1,
+        "regionTop": 0.03,
+        "regionBottom": 0.92,
+        "keepFaceClear": true,
+        "direction": "static",
+        "speedPxPerSec": 0,
+        "minSpinDegPerSec": 0,
+        "maxSpinDegPerSec": 0,
+        "alternateSpin": false,
+        "pulse": "twinkle"
+      }
+    ]
+  },
+  "files": [
+    {
+      "path": "blush-hatch-lines.png",
+      "role": "image"
+    },
+    {
+      "path": "shoujo-bubble.png",
+      "role": "image"
+    },
+    {
+      "path": "shoujo-sparkle.png",
+      "role": "image"
+    }
+  ]
+}

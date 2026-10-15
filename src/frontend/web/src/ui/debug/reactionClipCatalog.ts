@@ -1,7 +1,7 @@
-import type { ReactionPools } from "@/lib/avatar/motion/AvatarMotionCatalog";
 import {
   REACTION_INTENSITIES,
   type EmotionReactionIntensity,
+  type ReactionPools,
 } from "@/lib/avatar/reactionPools";
 import {
   groupForEmotion,

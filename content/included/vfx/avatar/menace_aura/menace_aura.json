@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:menace_aura",
+  "version": 1,
+  "name": "Menace Aura",
+  "description": "Jagged dark-violet ink flames rumble up on both sides of the head, the JoJo-style menacing aura drawn without lettering, for a quietly furious glare, a looming threat or cold contempt.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "body",
+    "attachment": {
+      "kind": "body",
+      "bone": "head",
+      "offset": {
+        "x": 0,
+        "y": 0.1,
+        "z": 0.08
+      },
+      "size": 0.6,
+      "facing": "camera"
+    },
+    "art": {
+      "image": "menace_aura-boil.png",
+      "flipbook": {
+        "columns": 2,
+        "rows": 2,
+        "frames": 4,
+        "fps": 8,
+        "loop": "loop"
+      }
+    },
+    "motion": {
+      "pulse": {
+        "scaleMin": 0.97,
+        "scaleMax": 1.03,
+        "cyclesPerSecond": 0.5
+      },
+      "keyframes": {
+        "frames": [
+          {
+            "t": 0,
+            "opacity": 0,
+            "scale": 0.85,
+            "offset": {
+              "x": 0,
+              "y": -0.03
+            }
+          },
+          {
+            "t": 0.18,
+            "opacity": 1,
+            "scale": 1.06
+          },
+          {
+            "t": 0.32,
+            "scale": 0.98
+          },
+          {
+            "t": 0.42,
+            "scale": 1,
+            "offset": {
+              "x": 0,
+              "y": 0
+            }
+          }
+        ]
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "menace_aura-boil.png",
+      "role": "image"
+    }
+  ]
+}

@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "content_type": "particle_effect",
+  "content_id": "builtin:particle-effect:drifting-leaves",
+  "version": 1,
+  "name": "Drifting Leaves",
+  "description": "A few glossy autumn leaves fall slowly past the Avatar, rocking side to side among faint warm motes, for wistful, sad, grieving and remorseful moments.",
+  "runtime_defaults": {
+    "schema_version": 1,
+    "runtime_id": "drifting-leaves",
+    "slots": {
+      "particle_vfx": {
+        "label": "Drifting Leaves",
+        "description": "A few glossy autumn leaves fall slowly past the Avatar, rocking side to side among faint warm motes, for wistful, sad, grieving and remorseful moments.",
+        "anchor": "head",
+        "duration_seconds": 4.5,
+        "max_duration_seconds": 5,
+        "preload_tier": "none",
+        "follow_anchor": false,
+        "transform": {
+          "offset": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "depth_offset": 0,
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "looping_allowed": false,
+        "can_coexist": true,
+        "max_particles": 14
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "particle.json",
+      "role": "manifest"
+    },
+    {
+      "path": "textures/autumn-leaf-sheet.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/leaf-mote.png",
+      "role": "texture"
+    }
+  ]
+}

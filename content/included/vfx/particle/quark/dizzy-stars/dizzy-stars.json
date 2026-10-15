@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "content_type": "particle_effect",
+  "content_id": "builtin:particle-effect:dizzy-stars",
+  "version": 1,
+  "name": "Dizzy Stars",
+  "description": "Five chubby glossy yellow stars spin on a tilted orbit above the head, drawing a golden ring of light with twinkling sparkles, the classic dazed dizzy halo for confused and flustered moments.",
+  "runtime_defaults": {
+    "schema_version": 1,
+    "runtime_id": "dizzy-stars",
+    "slots": {
+      "particle_vfx": {
+        "label": "Dizzy Stars",
+        "description": "Five chubby glossy yellow stars spin on a tilted orbit above the head, drawing a golden ring of light with twinkling sparkles, the classic dazed dizzy halo for confused and flustered moments.",
+        "anchor": "head",
+        "duration_seconds": 3.5,
+        "max_duration_seconds": 3.9,
+        "preload_tier": "none",
+        "follow_anchor": true,
+        "transform": {
+          "offset": {
+            "x": 0,
+            "y": 0.23,
+            "z": 0
+          },
+          "depth_offset": 0,
+          "rotation": {
+            "x": 0.38,
+            "y": 0,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "looping_allowed": false,
+        "can_coexist": true,
+        "max_particles": 25
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "particle.json",
+      "role": "manifest"
+    },
+    {
+      "path": "textures/dizzy-star.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/dizzy-glow.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/dizzy-trail.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/dizzy-sparkle.png",
+      "role": "texture"
+    }
+  ]
+}

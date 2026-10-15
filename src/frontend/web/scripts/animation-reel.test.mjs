@@ -72,7 +72,7 @@ test("parses reel options and rejects invalid ones", () => {
     assert.throws(() => parseReelArgs(argv), message);
 });
 
-test("orders Included Reactions by emotion, then intensity", async () => {
+test("orders Included Reactions by emotion, then intensity, then stem", async () => {
   const items = await listReelItems({
     gestures: false,
     reactions: true,
@@ -80,11 +80,21 @@ test("orders Included Reactions by emotion, then intensity", async () => {
     cwd: process.cwd(),
     localContent: null,
   });
+  assert.equal(items.length, 168);
   assert.deepEqual(
     items
-      .slice(0, 4)
-      .map(({ emotion, intensity }) => `${emotion}-${intensity}`),
-    ["admiration-1", "admiration-2", "admiration-3", "amusement-1"],
+      .slice(0, 8)
+      .map(({ stem, emotion, intensity }) => [stem, `${emotion}-${intensity}`]),
+    [
+      ["admiration-1", "admiration-1"],
+      ["admiration-2", "admiration-2"],
+      ["admiration-2-b", "admiration-2"],
+      ["admiration-3", "admiration-3"],
+      ["admiration-3-b", "admiration-3"],
+      ["admiration-4", "admiration-4"],
+      ["admiration-4-b", "admiration-4"],
+      ["amusement-1", "amusement-1"],
+    ],
   );
   assert.ok(items.every((item) => item.kind === "reaction" && item.clip));
   assert.deepEqual([...items].sort(compareReactions), items);
@@ -312,7 +322,7 @@ test("labels an item with its effects and the sounds they play", () => {
     },
     {
       index: 2,
-      total: 72,
+      total: 168,
       media: {
         avatarEffects: [
           {
@@ -329,7 +339,7 @@ test("labels an item with its effects and the sounds they play", () => {
     },
   );
   assert.deepEqual(label, {
-    kicker: "Reaction · 3 / 72",
+    kicker: "Reaction · 3 / 168",
     title: "Joy Reaction 2",
     detail: "Joy · Moderate · intensity 2 · model 5–6",
     effects: [

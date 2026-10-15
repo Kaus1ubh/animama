@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "content_type": "reaction",
+  "content_id": "builtin:reaction:love-4",
+  "version": 1,
+  "name": "Love Reaction 4",
+  "ai_description": "Reusable avatar reaction clip",
+  "placement_hint": {
+    "emotion": "love",
+    "intensity": 4
+  },
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [
+    {
+      "ref": "builtin:particle-effect:heart-burst",
+      "alias": "heart-burst",
+      "content_type": "particle_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:scene-effect:background:scene-vfx-emotion-love",
+      "alias": "scene-vfx-emotion-love",
+      "content_type": "scene_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:avatar-effect:heart_eyes",
+      "alias": "heart_eyes",
+      "content_type": "avatar_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:avatar-effect:blush",
+      "alias": "blush",
+      "content_type": "avatar_effect",
+      "config": {}
+    }
+  ],
+  "files": [
+    {
+      "path": "love-4.json",
+      "role": "sequence"
+    }
+  ]
+}

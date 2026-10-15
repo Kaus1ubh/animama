@@ -19,12 +19,6 @@
       "alias": "eye_vv",
       "content_type": "avatar_effect",
       "config": {}
-    },
-    {
-      "ref": "builtin:avatar-effect:heh_lettering",
-      "alias": "heh_lettering",
-      "content_type": "avatar_effect",
-      "config": {}
     }
   ],
   "files": [

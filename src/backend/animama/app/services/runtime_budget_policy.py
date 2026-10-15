@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-MAX_RUNTIME_ENTRIES = 500
+# 1000 entries: the starter set uses about 500, and Reaction pools of up to four per cell need
+# headroom. The limit lives in the domain so runtime admission and creation contracts share it.
+from animama.domain.runtime_content_descriptor import MAX_RUNTIME_ENTRIES
+
 MAX_RUNTIME_BYTES = 512 * 1024 * 1024
 MAX_RUNTIME_AUDIO_SECONDS = 300.0
 MAX_RUNTIME_CONFIG_BYTES = 512 * 1024

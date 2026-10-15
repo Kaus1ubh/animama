@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:ahoge_curl",
+  "version": 1,
+  "name": "Ahoge Curl",
+  "description": "A stray antenna hair (ahoge) springs up out of the Avatar's hair and curls into a wiggling question mark, the anime cue for puzzled curiosity or confusion.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "body",
+    "attachment": {
+      "kind": "body",
+      "bone": "head",
+      "offset": {
+        "x": -0.007,
+        "y": 0.245,
+        "z": 0
+      },
+      "size": 0.12,
+      "facing": "camera"
+    },
+    "art": {
+      "image": "ahoge_curl_sheet.png",
+      "flipbook": {
+        "columns": 2,
+        "rows": 2,
+        "frames": 4,
+        "fps": 8,
+        "loop": "pingpong"
+      }
+    },
+    "appearance": {
+      "tint": "#9ea8c7"
+    },
+    "motion": {
+      "keyframes": {
+        "frames": [
+          {
+            "t": 0,
+            "opacity": 0,
+            "scale": 0.6,
+            "offset": {
+              "x": 0,
+              "y": -0.05
+            }
+          },
+          {
+            "t": 0.08,
+            "opacity": 1
+          },
+          {
+            "t": 0.16,
+            "scale": 1.08,
+            "offset": {
+              "x": 0,
+              "y": 0.006
+            }
+          },
+          {
+            "t": 0.3,
+            "scale": 1,
+            "offset": {
+              "x": 0,
+              "y": 0
+            }
+          }
+        ]
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "ahoge_curl_sheet.png",
+      "role": "image"
+    }
+  ]
+}

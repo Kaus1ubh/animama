@@ -15,14 +15,8 @@
   },
   "dependencies": [
     {
-      "ref": "builtin:scene-effect:background:scene-vfx-emotion-disgust",
-      "alias": "scene-vfx-emotion-disgust",
-      "content_type": "scene_effect",
-      "config": {}
-    },
-    {
-      "ref": "builtin:avatar-effect:texture_sick_2",
-      "alias": "texture_sick_2",
+      "ref": "builtin:avatar-effect:texture_sick_1",
+      "alias": "texture_sick_1",
       "content_type": "avatar_effect",
       "config": {}
     },

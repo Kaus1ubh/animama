@@ -52,24 +52,28 @@ export function stableJsonSha256(value) {
 }
 
 /**
- * Hash a portable Anima definition. Idle pool members form a set listed in
- * catalog item ID order, and an import gives every member a new item ID.
+ * Hash a portable Anima definition. Idle and Reaction pool members form sets
+ * listed in catalog item ID order, and an import gives every member a new
+ * item ID, so each pool is hashed in sorted order.
  */
 export function animaDefinitionSha256(anima) {
   if (!anima?.idle) return stableJsonSha256(anima);
   const members = (ids) => [...ids].sort();
+  const sortedCells = (cells) =>
+    Object.fromEntries(
+      Object.entries(cells).map(([emotion, levels]) => [
+        emotion,
+        Object.fromEntries(
+          Object.entries(levels).map(([level, ids]) => [level, members(ids)]),
+        ),
+      ]),
+    );
   return stableJsonSha256({
     ...anima,
+    ...(anima.reactions ? { reactions: sortedCells(anima.reactions) } : {}),
     idle: {
       default: members(anima.idle.default),
-      cells: Object.fromEntries(
-        Object.entries(anima.idle.cells).map(([emotion, levels]) => [
-          emotion,
-          Object.fromEntries(
-            Object.entries(levels).map(([level, ids]) => [level, members(ids)]),
-          ),
-        ]),
-      ),
+      cells: sortedCells(anima.idle.cells),
     },
   });
 }

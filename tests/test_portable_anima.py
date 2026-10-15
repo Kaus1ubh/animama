@@ -185,7 +185,9 @@ def test_whole_anima_runtime_budget_applies_to_validated_package_union(budget):
     definition, entries = portable_fixture()
     avatar = entries["model"]
     if budget == "entries":
-        entries.update({str(index): replace(avatar, id=str(index)) for index in range(500)})
+        from animama.app.services.runtime_budget_policy import MAX_RUNTIME_ENTRIES
+
+        entries.update({str(index): replace(avatar, id=str(index)) for index in range(MAX_RUNTIME_ENTRIES)})
     elif budget == "bytes":
         entries["model"] = replace(avatar, files=(replace(avatar.files[0], size_bytes=512 * 1024 * 1024 + 1),))
     elif budget == "config":

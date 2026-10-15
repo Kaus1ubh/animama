@@ -1,6 +1,10 @@
 import generatedPoses from "./pose_catalog.generated.json";
 import { createLogger } from "@/lib/logger";
-import { isTrackedEmotion } from "@/lib/emotion";
+import {
+  groupIncludedReactionPools,
+  parseIncludedReactionId,
+  type ReactionPools,
+} from "../reactionPools";
 import {
   cloneAnimaPose,
   parseAnimaPose,
@@ -79,6 +83,15 @@ export const AVATAR_POSE_CLIP_IDS: readonly string[] = Object.freeze(
 
 export const AVATAR_REACTION_CLIP_IDS: readonly string[] = Object.freeze(
   Object.keys(AVATAR_REACTION_CLIP_CATALOG),
+);
+
+/**
+ * The built-in Reaction pools: every cell holds the Included Reactions its id
+ * names (`<emotion>-<intensity>`, then `<emotion>-<intensity>-b`), as the
+ * starter policy fills a new Anima's cells.
+ */
+export const AVATAR_REACTION_POOLS: ReactionPools = groupIncludedReactionPools(
+  AVATAR_REACTION_CLIP_IDS,
 );
 
 export const DEFAULT_AVATAR_POSE_IDS: readonly string[] = Object.freeze(
@@ -344,11 +357,10 @@ function collectMissingClipPoseRefs(
   return clip.basePose && !poseCatalog[clip.basePose] ? [clip.basePose] : [];
 }
 
+/** The id of an Included Reaction's sequence file, or null when it names no cell. */
 function parseReactionClipSourceId(source: string): string | null {
-  const filename = source.split("/").pop() ?? "";
-  const match = /^([a-z_]+)-([1-3])\.json$/.exec(filename);
-  if (!match || !isTrackedEmotion(match[1])) return null;
-  return filename.slice(0, -".json".length);
+  const id = includedSequenceId(source);
+  return id && parseIncludedReactionId(id) ? id : null;
 }
 
 /**

@@ -19,6 +19,7 @@ from animama.domain.anima_definition import (
 )
 from animama.domain.anima_loadout import REACTION_INTENSITIES, REACTION_POOL_LIMIT
 from animama.domain.emotions import TRACKED_EMOTIONS
+from animama.domain.runtime_content_descriptor import MAX_RUNTIME_ENTRIES
 
 ItemId = Annotated[str, Field(min_length=1, max_length=128, pattern=r"^[A-Za-z0-9][A-Za-z0-9:_-]*$")]
 RevisionSha256 = Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
@@ -193,7 +194,7 @@ class _AnimaSpecFields(StrictCreationModel):
 class AnimaSpec(_AnimaSpecFields):
     """New creation commands can reference only currently supported content."""
 
-    expected_source_revisions: dict[ItemId, SourceRevision] = Field(max_length=500)
+    expected_source_revisions: dict[ItemId, SourceRevision] = Field(max_length=MAX_RUNTIME_ENTRIES)
 
 
 class LegacySourceRevision(StrictCreationModel):
@@ -206,7 +207,9 @@ class LegacySourceRevision(StrictCreationModel):
 class LegacyAnimaSpec(_AnimaSpecFields):
     """Decode old source maps without admitting them as new creation commands."""
 
-    expected_source_revisions: dict[ItemId, SourceRevision | LegacySourceRevision] = Field(max_length=500)
+    expected_source_revisions: dict[ItemId, SourceRevision | LegacySourceRevision] = Field(
+        max_length=MAX_RUNTIME_ENTRIES
+    )
 
 
 class LegacyCreateAnimaRequest(LegacyAnimaSpec):

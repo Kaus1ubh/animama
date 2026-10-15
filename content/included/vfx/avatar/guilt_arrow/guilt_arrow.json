@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:guilt_arrow",
+  "version": 1,
+  "name": "Guilt Arrow",
+  "description": "A big inked manga arrow thrusts into the chest and sticks there quivering, the \"kokoro ni sasaru\" gag when a remark hits painfully home, for guilt and remorse.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "body",
+    "attachment": {
+      "kind": "body",
+      "bone": "chest",
+      "facing": "camera",
+      "offset": {
+        "x": 0.131,
+        "y": 0.234,
+        "z": 0.17
+      },
+      "size": 0.3,
+      "rotationDeg": 12
+    },
+    "art": {
+      "image": "guilt_arrow-sheet.png",
+      "flipbook": {
+        "columns": 2,
+        "rows": 2,
+        "frames": 4,
+        "fps": 8,
+        "loop": "loop"
+      }
+    },
+    "motion": {
+      "keyframes": {
+        "frames": [
+          {
+            "t": 0,
+            "opacity": 0,
+            "offset": {
+              "x": 0.068,
+              "y": 0.111
+            }
+          },
+          {
+            "t": 0.03,
+            "opacity": 1
+          },
+          {
+            "t": 0.08,
+            "offset": {
+              "x": -0.004,
+              "y": -0.006
+            },
+            "scale": 1.05
+          },
+          {
+            "t": 0.14,
+            "offset": {
+              "x": 0.006,
+              "y": 0.01
+            },
+            "scale": 0.98,
+            "rotationDeg": 2.5
+          },
+          {
+            "t": 0.2,
+            "offset": {
+              "x": 0,
+              "y": 0
+            },
+            "scale": 1,
+            "rotationDeg": -2
+          },
+          {
+            "t": 0.26,
+            "rotationDeg": 1.2
+          },
+          {
+            "t": 0.32,
+            "rotationDeg": -0.6
+          },
+          {
+            "t": 0.38,
+            "rotationDeg": 0
+          }
+        ]
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "guilt_arrow-sheet.png",
+      "role": "image"
+    }
+  ]
+}

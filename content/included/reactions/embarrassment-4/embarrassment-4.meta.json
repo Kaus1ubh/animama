@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "content_type": "reaction",
+  "content_id": "builtin:reaction:embarrassment-4",
+  "version": 1,
+  "name": "Embarrassment Reaction 4",
+  "ai_description": "Reusable avatar reaction clip",
+  "placement_hint": {
+    "emotion": "embarrassment",
+    "intensity": 4
+  },
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [
+    {
+      "ref": "builtin:scene-effect:background:scene-vfx-emotion-embarrassment",
+      "alias": "scene-vfx-emotion-embarrassment",
+      "content_type": "scene_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:avatar-effect:blush_deep",
+      "alias": "blush_deep",
+      "content_type": "avatar_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:avatar-effect:sweat_drop",
+      "alias": "sweat_drop",
+      "content_type": "avatar_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:particle-effect:fume-puffs",
+      "alias": "fume-puffs",
+      "content_type": "particle_effect",
+      "config": {}
+    }
+  ],
+  "files": [
+    {
+      "path": "embarrassment-4.json",
+      "role": "sequence"
+    }
+  ]
+}

@@ -1,0 +1,157 @@
+{
+  "schema_version": 1,
+  "content_type": "scene_effect",
+  "content_id": "builtin:scene-effect:background:scene-vfx-emotion-sadness-b",
+  "version": 1,
+  "name": "Sadness B Background",
+  "description": "A lone, cold steel-blue spotlight falling from above onto the Avatar on a near-black stage while thin rain streaks fall through the dark, for sad, lonely moments.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/scene-effect/1",
+    "kind": "background_layers",
+    "durationMs": null,
+    "dismissOnInput": false,
+    "coverUiOverlays": false,
+    "solid": {
+      "enabled": false,
+      "color": "#05070b"
+    },
+    "pattern": {
+      "enabled": false,
+      "pattern": "none",
+      "color": "#ffffff",
+      "size": 10,
+      "spacing": 20,
+      "opacity": 0.3
+    },
+    "marquee": {
+      "enabled": false,
+      "items": [],
+      "itemSize": 72,
+      "gap": 24,
+      "rowGap": 18,
+      "direction": "left",
+      "itemRotationMode": "upright",
+      "itemRotationOffsetDeg": 0,
+      "speedPxPerSec": 100,
+      "opacity": 1
+    },
+    "gradient": {
+      "enabled": true,
+      "type": "radial",
+      "angleDeg": 180,
+      "centerX": 0.5,
+      "centerY": 1,
+      "stops": [
+        {
+          "color": "#1b2635",
+          "position": 0
+        },
+        {
+          "color": "#0d121b",
+          "position": 0.34
+        },
+        {
+          "color": "#05070b",
+          "position": 0.72
+        }
+      ]
+    },
+    "scatters": [
+      {
+        "enabled": true,
+        "items": [
+          {
+            "id": "beam",
+            "kind": "image",
+            "label": "Cold spotlight beam",
+            "image": "cold-beam-steel.png"
+          }
+        ],
+        "count": 1,
+        "seed": 1,
+        "minSize": 512,
+        "maxSize": 512,
+        "minRotationDeg": 0,
+        "maxRotationDeg": 0,
+        "minOpacity": 1,
+        "maxOpacity": 1,
+        "regionTop": 0,
+        "regionBottom": 0.45,
+        "keepFaceClear": false,
+        "direction": "static",
+        "speedPxPerSec": 0,
+        "minSpinDegPerSec": 0,
+        "maxSpinDegPerSec": 0,
+        "alternateSpin": false,
+        "pulse": "none"
+      },
+      {
+        "enabled": true,
+        "items": [
+          {
+            "id": "far-rain",
+            "kind": "image",
+            "label": "Far drizzle",
+            "image": "drizzle-streak.png"
+          }
+        ],
+        "count": 28,
+        "seed": 7,
+        "minSize": 10,
+        "maxSize": 16,
+        "minRotationDeg": 0,
+        "maxRotationDeg": 0,
+        "minOpacity": 0.22,
+        "maxOpacity": 0.4,
+        "regionTop": 0,
+        "regionBottom": 1,
+        "keepFaceClear": true,
+        "direction": "down",
+        "speedPxPerSec": 300,
+        "minSpinDegPerSec": 0,
+        "maxSpinDegPerSec": 0,
+        "alternateSpin": false,
+        "pulse": "none"
+      },
+      {
+        "enabled": true,
+        "items": [
+          {
+            "id": "rain",
+            "kind": "image",
+            "label": "Drizzle",
+            "image": "drizzle-streak.png"
+          }
+        ],
+        "count": 36,
+        "seed": 29,
+        "minSize": 22,
+        "maxSize": 38,
+        "minRotationDeg": 0,
+        "maxRotationDeg": 0,
+        "minOpacity": 0.45,
+        "maxOpacity": 0.8,
+        "regionTop": 0,
+        "regionBottom": 1,
+        "keepFaceClear": true,
+        "direction": "down",
+        "speedPxPerSec": 440,
+        "minSpinDegPerSec": 0,
+        "maxSpinDegPerSec": 0,
+        "alternateSpin": false,
+        "pulse": "none"
+      }
+    ]
+  },
+  "files": [
+    {
+      "path": "cold-beam-steel.png",
+      "role": "image"
+    },
+    {
+      "path": "drizzle-streak.png",
+      "role": "image"
+    }
+  ]
+}

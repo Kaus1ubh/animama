@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "content_type": "reaction",
+  "content_id": "builtin:reaction:confidence-4-b",
+  "version": 1,
+  "name": "Confidence Reaction 4B",
+  "ai_description": "Reusable avatar reaction clip",
+  "placement_hint": {
+    "emotion": "confidence",
+    "intensity": 4
+  },
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [
+    {
+      "ref": "builtin:avatar-effect:burning-resolve-eyes",
+      "alias": "burning-resolve-eyes",
+      "content_type": "avatar_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:avatar-effect:triumph_halo",
+      "alias": "triumph_halo",
+      "content_type": "avatar_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:particle-effect:golden-aura",
+      "alias": "golden-aura",
+      "content_type": "particle_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:scene-effect:background:scene-vfx-emotion-confidence-b",
+      "alias": "scene-b-confidence",
+      "content_type": "scene_effect",
+      "config": {}
+    }
+  ],
+  "files": [
+    {
+      "path": "confidence-4-b.json",
+      "role": "sequence"
+    }
+  ]
+}

@@ -484,7 +484,7 @@ async def test_supplied_fixture_content_can_materialize_both_starters(async_sess
 
 
 def assert_starter_reaction_pools(loadout) -> None:  # noqa: ANN001
-    """All 96 cells hold exactly their Included starter Reactions; the interim policy leaves intensity 1 empty."""
+    """All 96 cells hold exactly their Included starter Reactions: one at intensity 1, two at 2-4 (D16)."""
 
     pools = starter_reaction_pools()
     assert len(loadout.reactions) == 96
@@ -493,7 +493,7 @@ def assert_starter_reaction_pools(loadout) -> None:  # noqa: ANN001
         assert sorted(member.source.logical_key for member in cell.members if member.source) == sorted(keys)
         assert cell.state == ("starter" if keys else "empty")
         assert all(member.origin == "starter" and member.available for member in cell.members)
-    assert not any(cell.members for cell in loadout.reactions if cell.intensity == 1)
+    assert [len(cell.members) for cell in loadout.reactions] == [1, 2, 2, 2] * 24
 
 
 def test_starter_gesture_policy_matches_reviewed_identities():

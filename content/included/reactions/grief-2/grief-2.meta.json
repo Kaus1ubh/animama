@@ -15,14 +15,8 @@
   },
   "dependencies": [
     {
-      "ref": "builtin:particle-effect:rain-cloud",
-      "alias": "rain-cloud",
-      "content_type": "particle_effect",
-      "config": {}
-    },
-    {
-      "ref": "builtin:avatar-effect:texture_black_1",
-      "alias": "texture_black_1",
+      "ref": "builtin:avatar-effect:single_tear",
+      "alias": "single_tear",
       "content_type": "avatar_effect",
       "config": {}
     }

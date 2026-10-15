@@ -111,6 +111,8 @@ export const AVATAR_EFFECT_TEMPLATES: readonly AvatarEffectTemplate[] = [
   included("money-eyes", "Money Eyes", "eyes"),
   included("knockout-x-eyes", "Knockout X Eyes", "eyes"),
   included("calculating-glasses", "Calculating Glasses", "eyes"),
+  included("teary_sparkle_eyes", "Teary Sparkle Eyes", "eyes"),
+  included("shadowed_glare", "Shadowed Glare", "eyes"),
   included("blush", "Blush", "cheeks"),
   included("blush_band", "Blush Band", "cheeks"),
   included("blush_deep", "Blush Deep", "cheeks"),
@@ -120,6 +122,8 @@ export const AVATAR_EFFECT_TEMPLATES: readonly AvatarEffectTemplate[] = [
   included("texture_sick_2", "Texture Sick 2", "whole-face"),
   included("texture_black_1", "Texture Black 1", "whole-face"),
   included("face_red", "Red Face", "whole-face"),
+  included("pale_blue_shade", "Pale Blue Shade", "whole-face"),
+  included("petrified_cracks", "Petrified Cracks", "whole-face"),
   included("angry", "Angry", "around-head"),
   included("emote", "Emote !", "around-head"),
   included("sweat_drop", "Sweat Drop", "around-head"),
@@ -146,6 +150,24 @@ export const AVATAR_EFFECT_TEMPLATES: readonly AvatarEffectTemplate[] = [
     framing: "wide",
   }),
   included("tiny-victory-crown", "Tiny Victory Crown", "around-head", {
+    framing: "wide",
+  }),
+  included("kirakira_cluster", "Kirakira Cluster", "around-head", {
+    framing: "wide",
+  }),
+  included("happy_flowers", "Happy Flowers", "around-head", {
+    framing: "wide",
+  }),
+  included("ahoge_curl", "Ahoge Curl", "around-head", { framing: "wide" }),
+  included("triumph_halo", "Triumph Halo", "around-head", { framing: "wide" }),
+  included("startle_ticks", "Startle Ticks", "around-head", {
+    framing: "wide",
+  }),
+  included("skunk_cloud", "Skunk Cloud", "around-head", { framing: "wide" }),
+  included("passing_crow", "Passing Crow", "around-head", {
+    framing: "wide",
+  }),
+  included("wilting_flower", "Wilting Flower", "around-head", {
     framing: "wide",
   }),
   included("annoyed_scribble", "Annoyed Scribble", "around-head", {
@@ -261,6 +283,11 @@ export const AVATAR_EFFECT_TEMPLATES: readonly AvatarEffectTemplate[] = [
     time: 1.7,
   }),
   included("gray-silhouette", "Gray Silhouette", "body", {
+    framing: "body",
+  }),
+  included("guilt_arrow", "Guilt Arrow", "body", { framing: "wide" }),
+  included("menace_aura", "Menace Aura", "body", { framing: "wide" }),
+  included("stomach_butterflies", "Stomach Butterflies", "body", {
     framing: "body",
   }),
   included("despair_shade", "Despair Shade", "body"),

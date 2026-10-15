@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "content_type": "reaction",
+  "content_id": "builtin:reaction:confidence-3-b",
+  "version": 1,
+  "name": "Confidence Reaction 3B",
+  "ai_description": "Reusable avatar reaction clip",
+  "placement_hint": {
+    "emotion": "confidence",
+    "intensity": 3
+  },
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [
+    {
+      "ref": "builtin:avatar-effect:tiny-victory-crown",
+      "alias": "tiny-victory-crown",
+      "content_type": "avatar_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:particle-effect:star-burst",
+      "alias": "star-burst",
+      "content_type": "particle_effect",
+      "config": {}
+    }
+  ],
+  "files": [
+    {
+      "path": "confidence-3-b.json",
+      "role": "sequence"
+    }
+  ]
+}

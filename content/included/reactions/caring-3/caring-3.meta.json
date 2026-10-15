@@ -15,15 +15,15 @@
   },
   "dependencies": [
     {
-      "ref": "builtin:scene-effect:background:scene-vfx-emotion-caring",
-      "alias": "scene-vfx-emotion-caring",
-      "content_type": "scene_effect",
+      "ref": "builtin:particle-effect:sparkle-hearts",
+      "alias": "sparkle-hearts",
+      "content_type": "particle_effect",
       "config": {}
     },
     {
-      "ref": "builtin:particle-effect:heart-burst",
-      "alias": "heart-burst",
-      "content_type": "particle_effect",
+      "ref": "builtin:avatar-effect:heart_pop",
+      "alias": "heart_pop",
+      "content_type": "avatar_effect",
       "config": {}
     }
   ],

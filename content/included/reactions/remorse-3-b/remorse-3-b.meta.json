@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "content_type": "reaction",
+  "content_id": "builtin:reaction:remorse-3-b",
+  "version": 1,
+  "name": "Remorse Reaction 3B",
+  "ai_description": "Reusable avatar reaction clip",
+  "placement_hint": {
+    "emotion": "remorse",
+    "intensity": 3
+  },
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [
+    {
+      "ref": "builtin:avatar-effect:gloomy_cloud",
+      "alias": "gloomy_cloud",
+      "content_type": "avatar_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:avatar-effect:sweat_drop",
+      "alias": "sweat_drop",
+      "content_type": "avatar_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:particle-effect:drifting-leaves",
+      "alias": "drifting-leaves",
+      "content_type": "particle_effect",
+      "config": {}
+    }
+  ],
+  "files": [
+    {
+      "path": "remorse-3-b.json",
+      "role": "sequence"
+    }
+  ]
+}

@@ -46,7 +46,7 @@ test(
         reactions: false,
         sources: [
           "library:gesture/arms-crossed",
-          "library:reaction/amusement-3",
+          "library:reaction/amusement-4",
           "library:scene-effect/dark",
         ],
         cwd: process.cwd(),
@@ -80,7 +80,7 @@ test(
         })),
         [
           { stem: "arms-crossed", failure: null, warnings: [] },
-          { stem: "amusement-3", failure: null, warnings: [] },
+          { stem: "amusement-4", failure: null, warnings: [] },
           { stem: "dark", failure: null, warnings: [] },
         ],
       );
@@ -107,7 +107,7 @@ test(
         probe.chapters.map((chapter) => chapter.tags.title),
         [
           "Gesture · 1 / 3 · Arms Crossed",
-          "Reaction · 2 / 3 · Amusement Reaction 3 (Amusement · Strong · intensity 3 · model 7–8)",
+          "Reaction · 2 / 3 · Amusement Reaction 4 (Amusement · Intense · intensity 4 · model 9–10)",
           "Scene Effect · 3 / 3 · Focus Lines Dark (Scene focus-lines effect preset)",
         ],
       );

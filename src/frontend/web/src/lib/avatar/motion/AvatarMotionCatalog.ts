@@ -19,6 +19,7 @@ import {
   AVATAR_POSE_IDS,
   AVATAR_POSE_CLIP_IDS,
   AVATAR_REACTION_CLIP_IDS,
+  AVATAR_REACTION_POOLS,
   DEFAULT_AVATAR_POSE_IDS,
   getAvatarPose,
   getAvatarPoseClip,
@@ -28,11 +29,10 @@ import {
 import type { AnimaPose, ResolvedAnimaPose } from "../poses/animaPose";
 import type { AnimaPoseClipV2 } from "../poses/animaPoseClip";
 import {
-  getEmotionReactionClipId,
+  getIncludedReactionPool,
   type NormalizedEmotionReactionIntensity,
 } from "../reactionClips";
-import { pickReactionPoolMember, REACTION_INTENSITIES } from "../reactionPools";
-import { TRACKED_EMOTIONS } from "@/lib/emotion";
+import { pickReactionPoolMember, type ReactionPools } from "../reactionPools";
 
 export type AvatarMotionPreloadTier = "tier_a" | "tier_b" | "none";
 
@@ -72,10 +72,7 @@ export type ReactionPoolPickArgs = {
   previousRuntimeId?: string | null;
 };
 
-/** Reaction pools as emotion → intensity ("1"–"4") → runtime ids. */
-export type ReactionPools = Readonly<
-  Record<string, Readonly<Record<string, readonly string[]>>>
->;
+export type { ReactionPools };
 
 /** Runtime boundary used by planner, VRMA, pose, and reaction consumers. */
 export interface AvatarMotionCatalog {
@@ -224,32 +221,21 @@ class BuiltInAvatarMotionCatalog implements AvatarMotionCatalog {
     });
   }
 
-  /** Built-in cells hold one clip each, named `<emotion>-<intensity>`. */
+  /**
+   * Built-in cells hold the Included Reactions their ids name, as a new
+   * Anima's starter pools do: `<emotion>-1` at Mild, and
+   * `<emotion>-<intensity>` with `<emotion>-<intensity>-b` above it.
+   */
   getReactionRuntimeId(args: ReactionPoolPickArgs): string | null {
-    const runtimeId = getEmotionReactionClipId(args);
-    const members =
-      runtimeId && this.getReactionClip(runtimeId) ? [runtimeId] : [];
     return pickReactionPoolMember(
-      members,
+      getIncludedReactionPool(args),
       args.randomRoll,
       args.previousRuntimeId,
     );
   }
 
   listReactionPools(): ReactionPools {
-    return Object.fromEntries(
-      TRACKED_EMOTIONS.map((emotion) => [
-        emotion,
-        Object.fromEntries(
-          REACTION_INTENSITIES.flatMap((intensity) => {
-            const runtimeId = `${emotion}-${intensity}`;
-            return this.getReactionClip(runtimeId)
-              ? [[String(intensity), [runtimeId]]]
-              : [];
-          }),
-        ),
-      ]),
-    );
+    return AVATAR_REACTION_POOLS;
   }
 
   getPoseIds(): readonly string[] {

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -278,5 +278,114 @@ test("pose edits advance only an already owned identity from its exact recorded 
       (await readContentLedger(ledgerPath))[1].revisionSha256,
       original.revisionSha256,
     );
+  });
+});
+
+test("an imported Anima's revision keeps its import and Avatar and advances its aggregate revision", async () => {
+  await withLedger(async (ledgerPath) => {
+    const identity = {
+      runId: common.runId,
+      journeyKey: "sharing-anima-0",
+      kind: "anima",
+      entryName: "Annie-2",
+    };
+    const definition = { display_name: "Annie-2", avatar: "avatar-copy" };
+    const planned = {
+      ...identity,
+      operationId: "import-operation",
+      stageId: "a".repeat(32),
+      reviewDigest: "b".repeat(64),
+      entryId: "anima",
+      packageEntries: [
+        { entryId: "avatar", kind: "avatar", name: "Annie-2", selected: true },
+      ],
+      packageAnima: definition,
+      event: "import_planned",
+    };
+    const imported = {
+      ...planned,
+      event: "import_owned",
+      logicalKey: "package-anima:import-operation",
+      itemId: "anima-copy",
+      revisionSha256: "c".repeat(64),
+      animaDefinition: definition,
+      relatedAvatarId: "logical-avatar",
+      relatedAvatarSha256: "d".repeat(64),
+    };
+    await appendContentLedgerEvent(ledgerPath, planned);
+    await appendContentLedgerEvent(ledgerPath, imported);
+    const revision = {
+      ...identity,
+      event: "updated",
+      logicalKey: imported.logicalKey,
+      itemId: imported.itemId,
+      revisionSha256: "e".repeat(64),
+      previousRevisionSha256: imported.revisionSha256,
+      operationId: imported.operationId,
+      aggregateRevision: 2,
+      animaDefinition: { ...definition, display_name: "Edited" },
+      relatedAvatarId: imported.relatedAvatarId,
+      relatedAvatarSha256: imported.relatedAvatarSha256,
+    };
+    for (const changes of [
+      { aggregateRevision: 1 },
+      { operationId: "other-operation" },
+      { relatedAvatarId: "other-avatar" },
+      { relatedAvatarSha256: "f".repeat(64) },
+      { animaDefinition: undefined },
+    ])
+      await assert.rejects(
+        appendContentLedgerEvent(ledgerPath, { ...revision, ...changes }),
+      );
+    await appendContentLedgerEvent(ledgerPath, revision);
+    await assert.rejects(
+      appendContentLedgerEvent(ledgerPath, {
+        ...revision,
+        previousRevisionSha256: revision.revisionSha256,
+        revisionSha256: "f".repeat(64),
+      }),
+      /aggregate revision/,
+    );
+    const [state] = unresolvedOwnedContent(await readContentLedger(ledgerPath));
+    assert.equal(state.owned.aggregateRevision, 2);
+    assert.equal(state.owned.operationId, imported.operationId);
+    assert.equal(state.owned.animaDefinition.display_name, "Edited");
+  });
+});
+
+test("only an Anima's revision may record an Anima definition", async () => {
+  await withLedger(async (ledgerPath) => {
+    await appendContentLedgerEvent(ledgerPath, { ...common, event: "planned" });
+    await appendContentLedgerEvent(ledgerPath, { ...owned, event: "owned" });
+    await assert.rejects(
+      appendContentLedgerEvent(ledgerPath, {
+        ...owned,
+        event: "updated",
+        previousRevisionSha256: owned.revisionSha256,
+        revisionSha256: "b".repeat(64),
+        aggregateRevision: 2,
+      }),
+      /Only an Anima revision/,
+    );
+  });
+});
+
+test("rereads validate appended lines and revalidate a changed ledger", async () => {
+  await withLedger(async (ledgerPath) => {
+    await appendContentLedgerEvent(ledgerPath, { ...common, event: "planned" });
+    await appendContentLedgerEvent(ledgerPath, { ...owned, event: "owned" });
+    const [planned] = await readContentLedger(ledgerPath);
+    assert.throws(() => {
+      planned.journeyKey = "changed";
+    }, TypeError);
+    const source = await readFile(ledgerPath, "utf8");
+    // A line another writer appends is validated against the cached events.
+    await writeFile(ledgerPath, `${source}${source.split("\n")[0]}\n`);
+    await assert.rejects(readContentLedger(ledgerPath), /owned -> planned/);
+    // An edited earlier line invalidates the cached events.
+    await writeFile(ledgerPath, source.replace(common.runId, "run-0827123457"));
+    await assert.rejects(readContentLedger(ledgerPath), /changed runId/);
+    await writeFile(ledgerPath, source);
+    assert.equal((await readContentLedger(ledgerPath)).length, 2);
   });
 });

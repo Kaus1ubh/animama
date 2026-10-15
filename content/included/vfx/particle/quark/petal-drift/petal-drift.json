@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "content_type": "particle_effect",
+  "content_id": "builtin:particle-effect:petal-drift",
+  "version": 1,
+  "name": "Petal Drift",
+  "description": "Glossy cherry-blossom petals drift down past the Avatar on a slow, tumbling sway among soft glints and a faint pink haze, for tender, grateful and romantic moments.",
+  "runtime_defaults": {
+    "schema_version": 1,
+    "runtime_id": "petal-drift",
+    "slots": {
+      "particle_vfx": {
+        "label": "Petal Drift",
+        "description": "Glossy cherry-blossom petals drift down past the Avatar on a slow, tumbling sway among soft glints and a faint pink haze, for tender, grateful and romantic moments.",
+        "anchor": "head",
+        "duration_seconds": 4.2,
+        "max_duration_seconds": 4.6,
+        "preload_tier": "none",
+        "follow_anchor": false,
+        "transform": {
+          "offset": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "depth_offset": 0,
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "looping_allowed": false,
+        "can_coexist": true,
+        "max_particles": 21
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "particle.json",
+      "role": "manifest"
+    },
+    {
+      "path": "textures/sakura-petal-sheet.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/petal-glint.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/petal-haze.png",
+      "role": "texture"
+    }
+  ]
+}

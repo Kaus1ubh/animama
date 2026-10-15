@@ -31,10 +31,10 @@ const JOURNEYS: readonly AnimaLoadoutJourney[] = [
     requiredFiles: ["being_cocky.vrma"],
   },
   {
-    key: "anima-loadout-reaction-admiration-3",
+    key: "anima-loadout-reaction-admiration-4",
     channel: "reaction",
-    contentName: "Admiration Reaction 3",
-    target: { kind: "anima_pose_clip", runtimeId: "admiration-3" },
+    contentName: "Admiration Reaction 4",
+    target: { kind: "anima_pose_clip", runtimeId: "admiration-4" },
     requiredFiles: [
       "glossy-heart.png",
       "star3.png",
@@ -86,7 +86,9 @@ for (const journey of JOURNEYS) {
               expectedParticleEffects: ["heart-burst"],
               expectedSceneEffects: ["scene-vfx-emotion-admiration"],
               expectedTarget: journey.target,
-              expressionThresholds: { happy: 0.72, relaxed: 0.24 },
+              // admiration-4 peaks at happy 0.75 and relaxed 0.33; sampled
+              // frames can land just short of the peak.
+              expressionThresholds: { happy: 0.7, relaxed: 0.3 },
               surface,
             });
           });

@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:skunk_cloud",
+  "version": 1,
+  "name": "Skunk Cloud",
+  "description": "A lumpy inked green stink cloud with wavy fume wisps puffs up beside the nose and slowly drifts upward, the anime green gas-cloud gag for a wrinkled nose at a bad smell or disgust.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "sticker",
+    "attachment": {
+      "kind": "sticker",
+      "around": "head",
+      "offset": {
+        "x": -0.12,
+        "y": 0.03
+      },
+      "size": 0.14,
+      "rotationDeg": 4
+    },
+    "art": {
+      "image": "skunk_cloud-boil.png",
+      "flipbook": {
+        "columns": 2,
+        "rows": 2,
+        "frames": 4,
+        "fps": 8,
+        "loop": "loop"
+      }
+    },
+    "motion": {
+      "keyframes": {
+        "frames": [
+          {
+            "t": 0,
+            "opacity": 0,
+            "scale": 0.4,
+            "offset": {
+              "x": 0.01,
+              "y": -0.01
+            }
+          },
+          {
+            "t": 0.14,
+            "opacity": 1,
+            "scale": 1.15,
+            "offset": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "t": 0.26,
+            "scale": 0.95
+          },
+          {
+            "t": 0.36,
+            "scale": 1
+          },
+          {
+            "t": 1.4,
+            "offset": {
+              "x": -0.005,
+              "y": 0.007
+            }
+          },
+          {
+            "t": 2.6,
+            "offset": {
+              "x": 0.002,
+              "y": 0.014
+            }
+          },
+          {
+            "t": 4,
+            "offset": {
+              "x": -0.003,
+              "y": 0.02
+            }
+          }
+        ]
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "skunk_cloud-boil.png",
+      "role": "image"
+    }
+  ]
+}

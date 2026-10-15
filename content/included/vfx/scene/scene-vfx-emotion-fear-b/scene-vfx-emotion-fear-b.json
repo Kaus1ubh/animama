@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "content_type": "scene_effect",
+  "content_id": "builtin:scene-effect:focus:scene-vfx-emotion-fear-b",
+  "version": 1,
+  "name": "Fear B Background",
+  "description": "Dense midnight-blue shock lines flicker in toward the Avatar from every edge, leaving the face clear, for a horrified double-take.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/scene-effect/1",
+    "kind": "focus_lines",
+    "durationMs": null,
+    "coverUiOverlays": false,
+    "dismissOnInput": false,
+    "renderPlacement": "behind_avatar",
+    "lineCount": 150,
+    "color": "#0f1a46",
+    "opacity": 0.95,
+    "baseThicknessPx": 14,
+    "thicknessVariationPx": 8,
+    "lengthVariation": 0.3,
+    "overscanPx": 64,
+    "seed": 41,
+    "target": {
+      "kind": "avatar_face",
+      "paddingXPx": 90,
+      "paddingYPx": 120
+    },
+    "animation": {
+      "minVisibleMs": 90,
+      "maxVisibleMs": 220,
+      "minHiddenMs": 40,
+      "maxHiddenMs": 140,
+      "opacityJitter": 0.2
+    }
+  },
+  "files": []
+}
