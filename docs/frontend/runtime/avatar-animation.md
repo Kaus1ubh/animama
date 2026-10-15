@@ -676,9 +676,10 @@ from `src/frontend/web`:
   Avatar, Particle and Scene Effects and its sounds. An effect plays for
   `--hold` seconds (default 3) from a one-event clip, as an Action event
   would play it, with its accompanying sound. A
-  corner label names the item and its effects, lighting each while it is
-  active and each sound while it plays, and lists the Avatar's live
-  expression weights; the video has a chapter per item. A
+  corner label names the item (a Reaction with its emotion, intensity label
+  and the model intensities that play it) and its effects, lighting each
+  while it is active and each sound while it plays, and lists the Avatar's
+  live expression weights; the video has a chapter per item. A
   loop plays one pass, and a talking-scoped Reaction is held for `--talk`
   seconds (default 3, at least until its timed effects end) as chat holds it
   while the Anima speaks. Sounds come from local `sound_effect` sidecars, by

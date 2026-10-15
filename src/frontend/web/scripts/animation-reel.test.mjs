@@ -331,7 +331,7 @@ test("labels an item with its effects and the sounds they play", () => {
   assert.deepEqual(label, {
     kicker: "Reaction · 3 / 72",
     title: "Joy Reaction 2",
-    detail: "Joy · intensity 2",
+    detail: "Joy · Moderate · intensity 2 · model 5–6",
     effects: [
       {
         alias: "star",

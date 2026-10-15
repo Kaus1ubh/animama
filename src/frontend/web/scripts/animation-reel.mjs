@@ -79,6 +79,16 @@ const ITEM_KIND_NAMES = {
   "particle-effect": EFFECT_KINDS.particle_effect,
   "scene-effect": EFFECT_KINDS.scene_effect,
 };
+/**
+ * Each Reaction intensity's label and the model intensities (1-10) that play
+ * it; model intensities 1-2 play no Reaction.
+ */
+const REACTION_INTENSITIES = {
+  1: { label: "Mild", model: "3–4" },
+  2: { label: "Moderate", model: "5–6" },
+  3: { label: "Strong", model: "7–8" },
+  4: { label: "Intense", model: "9–10" },
+};
 /** An Avatar Effect's fade at the end of its event, as Actions commonly use. */
 const EFFECT_FADE_OUT_SEC = 0.3;
 const AUDIO_RATE = 48_000;
@@ -538,6 +548,15 @@ function soundAliases(dependencies) {
 /** A content id's readable fallback name: `builtin:sound-effect:a_b` → `a_b`. */
 const refKey = (ref) => ref.split(":").pop();
 
+/** A Reaction intensity's label parts: its name and model intensities. */
+function reactionIntensity(intensity) {
+  if (!intensity) return [];
+  const level = REACTION_INTENSITIES[intensity];
+  return level
+    ? [level.label, `intensity ${intensity}`, `model ${level.model}`]
+    : [`intensity ${intensity}`];
+}
+
 /**
  * The corner label for an item, and every sound cue it may play by cue id
  * (the content id an effect names, or a sound event's alias) with the
@@ -590,9 +609,10 @@ export function describeItem(item, { index, total, media, catalog }) {
   }
   const detail =
     item.kind === "reaction" && item.emotion
-      ? `${item.emotion[0].toUpperCase()}${item.emotion.slice(1)}${
-          item.intensity ? ` · intensity ${item.intensity}` : ""
-        }`
+      ? [
+          `${item.emotion[0].toUpperCase()}${item.emotion.slice(1)}`,
+          ...reactionIntensity(item.intensity),
+        ].join(" · ")
       : (item.description ?? null);
   return {
     label: {
