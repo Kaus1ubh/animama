@@ -372,8 +372,8 @@ async def test_complete_anima_export_keeps_explicit_empties_and_independent_shar
             idle_entries = [entry["package_entry_id"] for entry in manifest["entries"] if entry["kind"] == "gesture"]
             assert definition["idle"] == {"default": idle_entries, "cells": {}} and len(idle_entries) == 1
             assert definition["gestures"] == []
-            assert sum(len(cells) for cells in definition["reactions"].values()) == 72
-            assert all(value is None for cells in definition["reactions"].values() for value in cells.values())
+            assert sum(len(cells) for cells in definition["reactions"].values()) == 96
+            assert all(pool == [] for cells in definition["reactions"].values() for pool in cells.values())
             assert definition["identity_markdown"] == request["identity_markdown"]
             profile, background = definition["appearance"]["profile"], definition["appearance"]["background"]
             assert profile["entry_id"] == background["entry_id"]

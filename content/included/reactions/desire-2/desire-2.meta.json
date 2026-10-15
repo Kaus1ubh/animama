@@ -15,14 +15,8 @@
   },
   "dependencies": [
     {
-      "ref": "builtin:particle-effect:hearts-v1",
-      "alias": "hearts-v1",
-      "content_type": "particle_effect",
-      "config": {}
-    },
-    {
-      "ref": "builtin:avatar-effect:heart_eyes",
-      "alias": "heart_eyes",
+      "ref": "builtin:avatar-effect:blush",
+      "alias": "blush",
       "content_type": "avatar_effect",
       "config": {}
     }

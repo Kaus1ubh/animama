@@ -55,13 +55,15 @@ import {
 
 const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const SELECTOR_ID = /^[a-z0-9][a-z0-9._-]{0,127}$/;
-const LICENCE_FIELDS = [
+/** The `licenses/inventory.json` rule fields an item's licence entry gives. */
+export const LICENCE_FIELDS = [
   "creator",
   "provenance",
   "license_id",
   "redistribution_review",
 ];
-const SOURCE_REVIEW_FIELDS = [
+/** The `licenses/source-review.json` record fields an item's entry gives. */
+export const SOURCE_REVIEW_FIELDS = [
   "candidate_license",
   "basis",
   "copyright",

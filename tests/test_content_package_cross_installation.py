@@ -37,11 +37,10 @@ from animama.domain.anima_creation import (
     ResolvedAppearanceSelection,
     ResolvedGestureSelection,
     ResolvedIdleMember,
-    ResolvedReactionSelection,
+    ResolvedReactionMember,
 )
 from animama.domain.anima_definition import ANIMA_MEMORIES_TEMPLATE, DEFAULT_ANIMA_VOICE_ID
 from animama.domain.content_catalog import CatalogContentEntry, ContentKind, ContentSource, ContentStatus
-from animama.domain.emotions import TRACKED_EMOTIONS
 from animama.orm import ORMAnima, ORMAnimaSettings, ORMChat, ORMChatMessage, ORMMemoryEntry, ORMMemoryEntryVersion
 from animama.orm.anima_chat_profile import ORMAnimaChatProfile
 from animama.orm.model_connection import ORMModelConnection
@@ -274,13 +273,7 @@ async def _create_anima(sender: _Installation) -> str:
                 items["local:gesture:wave"], {"loop_type": "pingpong", "loop_count": 2, "time_scale": 0.5}
             ),
         ),
-        reactions=tuple(
-            ResolvedReactionSelection(
-                emotion, intensity, items["local:reaction:joy-2"] if (emotion, intensity) == ("joy", 2) else None
-            )
-            for emotion in sorted(TRACKED_EMOTIONS)
-            for intensity in (1, 2, 3)
-        ),
+        reactions=(ResolvedReactionMember("joy", 2, items["local:reaction:joy-2"]),),
         profile=ResolvedAppearanceSelection(
             items["local:appearance:profile"], {"fit": "contain", "focal_x": 0.2, "focal_y": 0.8, "zoom": 1.5}
         ),
@@ -459,7 +452,14 @@ async def test_full_anima_transfer_preserves_images_privacy_copy_isolation_and_r
         installed_ids = {item.entry_id: item.item_id for item in first.items}
         assert captured.definition.idle.default == [installed_ids[packaged_idle.default[0]]]
         assert captured.definition.idle.cells == {"joy": {"2": [installed_ids[packaged_idle.cells["joy"]["2"][0]]]}}
-        assert sum(value is None for cells in captured.definition.reactions.values() for value in cells.values()) == 71
+        # Only the joy-2 pool holds a Reaction; the other 95 cells stay empty rather than starter-filled.
+        assert [
+            (emotion, level, len(pool))
+            for emotion, cells in captured.definition.reactions.items()
+            for level, pool in cells.items()
+            if pool
+        ] == [("joy", "2", 1)]
+        assert sum(len(cells) for cells in captured.definition.reactions.values()) == 96
         assert captured.definition.gestures[0].config == {"loop_type": "pingpong", "loop_count": 2, "time_scale": 0.5}
         assert [gesture.semantic_key for gesture in captured.definition.gestures] == ["wave"]
         anima = await receiver.session.get(ORMAnima, first.anima_id)

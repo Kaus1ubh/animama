@@ -180,7 +180,6 @@
   },
   "row": {
     "addedTo_other": "Anima {{count}}명에 추가됨",
-    "emotionLevel": "{{emotion}} 레벨 {{level}}",
     "local": "로컬",
     "updateAvailable": "업데이트 있음"
   },
@@ -204,8 +203,8 @@
       "labelValue": "{{label}}: {{value}}",
       "none": "없음",
       "pocketVoice": "PocketTTS 음성",
-      "reactionCell": "{{emotion}} · {{intensity}}: {{value}}",
-      "reactionCells": "리액션 칸"
+      "reactionCells": "리액션 칸",
+      "reactionSummary_other": "({{total}}칸 중 {{cells}}칸 할당 · 리액션 {{count}}개)"
     },
     "back": "뒤로",
     "countInParentheses": "({{total}})",

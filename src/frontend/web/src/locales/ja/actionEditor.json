@@ -377,7 +377,7 @@
       "aliasTypeConflict": "エイリアス「{{alias}}」が複数の種類のコンポーネントで使われています。",
       "dependenciesNotArray": "依存関係は配列である必要があります。",
       "dependencyInvalid": "依存関係の宣言が無効です。",
-      "intensity": "リアクションの推奨強度は 1、2、3 のいずれかにしてください。",
+      "intensity": "リアクションの推奨強度は 1、2、3、4 のいずれかにしてください。",
       "nameRequired": "プロジェクト名は必須です。",
       "notObject": "JSON にはオブジェクトが含まれている必要があります。",
       "sourceInvalid": "依存関係のソースが無効です。",

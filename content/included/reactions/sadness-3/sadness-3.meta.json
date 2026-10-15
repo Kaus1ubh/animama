@@ -21,20 +21,8 @@
       "config": {}
     },
     {
-      "ref": "builtin:scene-effect:background:scene-vfx-emotion-sadness",
-      "alias": "scene-vfx-emotion-sadness",
-      "content_type": "scene_effect",
-      "config": {}
-    },
-    {
-      "ref": "builtin:avatar-effect:texture_black_1",
-      "alias": "texture_black_1",
-      "content_type": "avatar_effect",
-      "config": {}
-    },
-    {
-      "ref": "builtin:avatar-effect:streaming_tears",
-      "alias": "streaming_tears",
+      "ref": "builtin:avatar-effect:single_tear",
+      "alias": "single_tear",
       "content_type": "avatar_effect",
       "config": {}
     }

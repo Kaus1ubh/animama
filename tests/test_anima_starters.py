@@ -21,7 +21,7 @@ from animama.app.services.anima_starter_service import STARTER_ANIMA_SPECS, Anim
 from animama.app.services.content_catalog_service import ContentCatalogService
 from animama.app.services.memory_entry_service import MemoryEntryService
 from animama.app.services.starter_idle_pool import starter_idle_keys, starter_idle_pool
-from animama.app.services.starter_loadout_policy import starter_loadout_policy
+from animama.app.services.starter_loadout_policy import starter_loadout_policy, starter_reaction_pools
 from animama.domain.anima import Anima
 from animama.domain.anima_chat_profile import AnimaChatProfile
 from animama.domain.anima_creation_error import AnimaCreationError
@@ -187,7 +187,7 @@ async def test_fresh_starters_retry_preserve_customization_and_deletion(
             assert settings.preferences["speech"]["tts_pocket_anima_voice"] == expected_pocket_voices[spec.id]
             loadout = await AnimaLoadoutService(async_session).read_model(user_id=fixture.owner, anima_id=anima_id)
             assert len(loadout.gestures) == len(starter_loadout_policy()["gestures"])
-            assert all(cell.source is not None for cell in loadout.reactions)
+            assert_starter_reaction_pools(loadout)
         # Launch uses the API's creation order, not names or recent updates.
         listed = json.loads(
             bytes(
@@ -480,7 +480,20 @@ async def test_supplied_fixture_content_can_materialize_both_starters(async_sess
             # The supplied library ships no Gesture of the Idle seed, so the pool is empty.
             assert loadout.idle.default_pool == ()
             assert len(loadout.idle.cells) == 72 and all(not cell.gestures for cell in loadout.idle.cells)
-            assert all(cell.source is not None for cell in loadout.reactions)
+            assert_starter_reaction_pools(loadout)
+
+
+def assert_starter_reaction_pools(loadout) -> None:  # noqa: ANN001
+    """All 96 cells hold exactly their Included starter Reactions: one at intensity 1, two at 2-4 (D16)."""
+
+    pools = starter_reaction_pools()
+    assert len(loadout.reactions) == 96
+    for cell in loadout.reactions:
+        keys = pools.get(f"{cell.emotion}-{cell.intensity}", ())
+        assert sorted(member.source.logical_key for member in cell.members if member.source) == sorted(keys)
+        assert cell.state == ("starter" if keys else "empty")
+        assert all(member.origin == "starter" and member.available for member in cell.members)
+    assert [len(cell.members) for cell in loadout.reactions] == [1, 2, 2, 2] * 24
 
 
 def test_starter_gesture_policy_matches_reviewed_identities():
@@ -526,7 +539,7 @@ async def test_tracked_checkout_materializes_both_starters_without_optional_loca
                 user_id=fixture.owner, anima_id=starter["anima_id"]
             )
             assert len(loadout.gestures) == 99
-            assert all(cell.source is not None for cell in loadout.reactions)
+            assert_starter_reaction_pools(loadout)
             # Starters receive the reviewed Idle seed; its Gestures are never AI-callable.
             assert sorted(idle_keys(loadout.idle.default_pool)) == sorted(starter_idle_pool()["default"])
             cells = {(cell.emotion, cell.intensity): idle_keys(cell.gestures) for cell in loadout.idle.cells}

@@ -17,7 +17,7 @@ from animama.domain.anima_creation import (
     ResolvedAppearanceSelection,
     ResolvedGestureSelection,
     ResolvedIdleMember,
-    ResolvedReactionSelection,
+    ResolvedReactionMember,
 )
 from animama.domain.anima_definition import ANIMA_IDENTITY_MAX_BYTES, normalize_identity
 from animama.domain.content_catalog import (
@@ -92,16 +92,11 @@ def resolve_portable_anima(
                 entries[selection.entry_id], validate_binding_configuration(document, selection.config)
             )
         )
-    reactions = tuple(
-        ResolvedReactionSelection(
-            emotion,
-            int(level),
-            entries[selection.entry_id] if selection else None,
-            validate_binding_configuration(documents[selection.entry_id], selection.config) if selection else {},
-        )
-        for emotion, cells in definition.reactions.items()
-        for level, selection in cells.items()
-    )
+    reactions = []
+    for emotion, intensity, entry_id in definition.reaction_members():
+        # Reaction members carry no binding configuration; this admits only playable Reactions.
+        validate_binding_configuration(documents[entry_id], {})
+        reactions.append(ResolvedReactionMember(emotion, intensity, entries[entry_id]))
     idle = []
     for cell, entry_id in definition.idle.members():
         if not isinstance(documents[entry_id], GestureDocumentV1):
@@ -117,7 +112,7 @@ def resolve_portable_anima(
         avatar=entries[definition.avatar],
         idle=tuple(idle),
         gestures=tuple(gestures),
-        reactions=reactions,
+        reactions=tuple(reactions),
         profile=ResolvedAppearanceSelection(
             entries[definition.appearance.profile.entry_id], definition.appearance.profile.presentation.model_dump()
         )
@@ -151,9 +146,8 @@ def rewrite_portable_anima(definition: PortableAnima, reference_map: Mapping[str
     for selection in value["gestures"]:
         selection["entry_id"] = reference_map[selection["entry_id"]]
     for cells in value["reactions"].values():
-        for selection in cells.values():
-            if selection is not None:
-                selection["entry_id"] = reference_map[selection["entry_id"]]
+        for level, pool in cells.items():
+            cells[level] = [reference_map[entry_id] for entry_id in pool]
     idle = value["idle"]
     idle["default"] = [reference_map[entry_id] for entry_id in idle["default"]]
     for levels in idle["cells"].values():
@@ -188,12 +182,6 @@ def validate_package_anima_runtime(
             audio_seconds += document.duration_seconds or 0
     config_bytes = sum(len(json.dumps(entry.metadata, allow_nan=False).encode()) for entry in entries.values())
     config_bytes += sum(len(json.dumps(selection.config).encode()) for selection in definition.gestures)
-    config_bytes += sum(
-        len(json.dumps(selection.config).encode())
-        for cells in definition.reactions.values()
-        for selection in cells.values()
-        if selection
-    )
     violation = runtime_budget_violation(
         RuntimeBudgetUsage(len(entries), sum(file.size_bytes for file in files.values()), audio_seconds, config_bytes)
     )

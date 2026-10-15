@@ -2,24 +2,11 @@
   "actions": {
     "back": "返回",
     "cancel": "取消",
-    "clear": "清除",
     "creatorHub": "建立中心",
     "startOver": "重新開始",
     "tryAgain": "重試"
   },
   "actionsStep": {
-    "cell": {
-      "apply": "套用到此格",
-      "assignment": "反應指派",
-      "description": "選擇任一反應，或將此格留空。預覽不會變更其指派。",
-      "noMatches": "沒有符合的反應。此格未變更。",
-      "preview": "預覽反應 {{name}}",
-      "search": "搜尋反應",
-      "searchPlaceholder": "搜尋反應…",
-      "showMore": "顯示更多反應",
-      "sourceFilter": "反應來源",
-      "title": "{{emotion}} · 強度 {{intensity}}"
-    },
     "confirm": {
       "clear": "清除所選",
       "clearDescription": "只會清除這些選擇。空的選擇也是有效的，你已儲存的內容不會被刪除。",
@@ -46,20 +33,15 @@
       "sourceFilter": "動作來源"
     },
     "reactions": {
-      "change": "變更{{emotion}}強度 {{intensity}}",
       "clearAll": "清除所有反應",
-      "clearCell": "清除{{emotion}}強度 {{intensity}}",
-      "empty": "空",
       "levels": "{{emotion}}反應等級",
       "loadFailed": "無法載入反應。指派已保留。",
       "matrix": "反應矩陣",
-      "needsAttention": "已選擇 · 需要處理",
+      "needsAttention": "需要處理",
       "none": "全部 {{total}} 個格都是空的。仍然可以建立你的 Anima。",
-      "previewCell": "預覽{{emotion}}強度 {{intensity}}",
-      "previewLabel": "{{emotion}} · {{intensity}}",
       "retry": "重新載入反應",
       "revert": "還原",
-      "revertCell": "將{{emotion}}強度 {{intensity}} 還原為推薦設定"
+      "revertCell": "將 {{cell}} 還原為推薦設定"
     },
     "replace": {
       "confirm": "取代選擇",
@@ -333,6 +315,7 @@
       "edit": "編輯行為",
       "gesturesSelected": "已選擇的動作",
       "reactionCells": "已指派的反應格",
+      "reactionMembers_other": "所有格中共 {{count}} 個反應",
       "reactionTotal": "/ {{total}}",
       "title": "行為"
     },

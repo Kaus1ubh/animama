@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "content_type": "reaction",
+  "content_id": "builtin:reaction:fear-4",
+  "version": 1,
+  "name": "Fear Reaction 4",
+  "ai_description": "Reusable avatar reaction clip",
+  "placement_hint": {
+    "emotion": "fear",
+    "intensity": 4
+  },
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [
+    {
+      "ref": "builtin:avatar-effect:emote",
+      "alias": "emote_!",
+      "content_type": "avatar_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:avatar-effect:eye_o",
+      "alias": "eye_o",
+      "content_type": "avatar_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:scene-effect:background:scene-vfx-emotion-fear",
+      "alias": "scene-vfx-emotion-fear",
+      "content_type": "scene_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:particle-effect:fright-jolt",
+      "alias": "fright-jolt",
+      "content_type": "particle_effect",
+      "config": {}
+    }
+  ],
+  "files": [
+    {
+      "path": "fear-4.json",
+      "role": "sequence"
+    }
+  ]
+}

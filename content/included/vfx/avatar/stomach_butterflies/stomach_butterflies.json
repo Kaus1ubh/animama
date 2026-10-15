@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:stomach_butterflies",
+  "version": 1,
+  "name": "Stomach Butterflies",
+  "description": "Two little lilac crayon butterflies flap and jitter around each other over the tummy, the shoujo butterflies-in-the-stomach gag drawn literally, for nervous flutters and embarrassed jitters.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "body",
+    "attachment": {
+      "kind": "body",
+      "bone": "chest",
+      "facing": "camera",
+      "offset": {
+        "x": -0.03,
+        "y": -0.025,
+        "z": 0.17
+      },
+      "size": 0.16
+    },
+    "art": {
+      "image": "stomach_butterflies-sheet.png",
+      "flipbook": {
+        "columns": 2,
+        "rows": 2,
+        "frames": 4,
+        "fps": 10,
+        "loop": "loop"
+      }
+    },
+    "motion": {
+      "keyframes": {
+        "frames": [
+          {
+            "t": 0,
+            "opacity": 0,
+            "scale": 0.3
+          },
+          {
+            "t": 0.12,
+            "opacity": 1,
+            "scale": 1.2
+          },
+          {
+            "t": 0.22,
+            "scale": 0.92
+          },
+          {
+            "t": 0.3,
+            "scale": 1
+          }
+        ]
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "stomach_butterflies-sheet.png",
+      "role": "image"
+    }
+  ]
+}

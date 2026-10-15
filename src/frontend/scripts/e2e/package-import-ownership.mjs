@@ -2,6 +2,7 @@ import {
   appendContentLedgerEvent,
   readContentLedger,
   summarizeContentLedger,
+  unresolvedOwnedContent,
 } from "./content-ledger.mjs";
 import {
   animaDefinitionSha256,
@@ -22,10 +23,10 @@ function installedDefinition(definition, items) {
   value.avatar = resolve(value.avatar);
   for (const gesture of value.gestures)
     gesture.entry_id = resolve(gesture.entry_id);
-  for (const cells of Object.values(value.reactions)) {
-    for (const selection of Object.values(cells)) {
-      if (selection) selection.entry_id = resolve(selection.entry_id);
-    }
+  // Each Reaction cell holds a pool of entry IDs, as each Idle cell does.
+  for (const levels of Object.values(value.reactions)) {
+    for (const [level, members] of Object.entries(levels))
+      levels[level] = members.map(resolve);
   }
   value.idle.default = value.idle.default.map(resolve);
   for (const levels of Object.values(value.idle.cells)) {
@@ -183,5 +184,59 @@ export async function resolvePackageImportOwnership({
     itemId: imported.item_id,
     revisionSha256: imported.revision_sha256,
     relativeLocator: current.relative_locator,
+  });
+}
+
+/**
+ * Record a journey's own edit of an Anima it imported, so cleanup expects the
+ * edited definition instead of refusing it as drift. `revise` derives the
+ * expected definition from the last recorded one; the current Anima must
+ * match it exactly at the aggregate revision the journey's own commit
+ * reported, with its private Avatar unchanged.
+ */
+export async function recordOwnedAnimaRevision({
+  ledgerPath,
+  catalogClient,
+  animaId,
+  aggregateRevision,
+  revise,
+}) {
+  const state = unresolvedOwnedContent(
+    await readContentLedger(ledgerPath),
+  ).find(
+    (entry) => entry.owned.kind === "anima" && entry.owned.itemId === animaId,
+  );
+  if (!state)
+    throw new Error("Only an Anima this run imported can record a revision.");
+  const owned = state.owned;
+  const expected = revise(structuredClone(owned.animaDefinition));
+  const current = await catalogClient.getAnima(animaId);
+  const summary = await catalogClient.getAnimaExport(animaId);
+  const avatar = await catalogClient.getAvatar(owned.relatedAvatarId);
+  if (
+    current?.id !== animaId ||
+    current.aggregate_revision !== aggregateRevision ||
+    animaDefinitionSha256(summary.anima) !== animaDefinitionSha256(expected) ||
+    avatar?.catalog_item_id !== expected.avatar ||
+    stableJsonSha256(avatar) !== owned.relatedAvatarSha256
+  )
+    throw new Error(
+      "Imported Anima does not match its expected revision; refusing to record it.",
+    );
+  return appendContentLedgerEvent(ledgerPath, {
+    runId: owned.runId,
+    journeyKey: owned.journeyKey,
+    kind: owned.kind,
+    entryName: owned.entryName,
+    logicalKey: owned.logicalKey,
+    event: "updated",
+    itemId: animaId,
+    revisionSha256: animaDefinitionSha256(expected),
+    previousRevisionSha256: owned.revisionSha256,
+    operationId: owned.operationId,
+    aggregateRevision,
+    animaDefinition: expected,
+    relatedAvatarId: owned.relatedAvatarId,
+    relatedAvatarSha256: owned.relatedAvatarSha256,
   });
 }

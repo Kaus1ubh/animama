@@ -15,20 +15,14 @@
   },
   "dependencies": [
     {
-      "ref": "builtin:scene-effect:background:scene-vfx-emotion-amusement",
-      "alias": "scene-vfx-emotion-amusement",
-      "content_type": "scene_effect",
-      "config": {}
-    },
-    {
-      "ref": "builtin:particle-effect:confetti",
-      "alias": "confetti",
-      "content_type": "particle_effect",
-      "config": {}
-    },
-    {
       "ref": "builtin:avatar-effect:eye_vv",
       "alias": "eye_vv",
+      "content_type": "avatar_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:avatar-effect:heh_lettering",
+      "alias": "heh_lettering",
       "content_type": "avatar_effect",
       "config": {}
     }

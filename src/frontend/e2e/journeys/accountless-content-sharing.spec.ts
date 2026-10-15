@@ -1,5 +1,10 @@
 import { randomUUID } from "node:crypto";
-import type { Page, Request } from "playwright/test";
+import type { Locator, Page, Request } from "playwright/test";
+import type {
+  PyAnimaLoadout,
+  PyLoadoutCommitResult,
+  ReviewedPackageImport,
+} from "@animama/runtime-contracts/api-types";
 import { expect, test, type CreatorContentFixture } from "../fixtures/animama";
 import { saveTrackedPose } from "../helpers/pose-content";
 import {
@@ -48,6 +53,67 @@ async function openSharing(page: Page, action: "Import" | "Export") {
   await trigger.click();
   await expect(page.getByRole("dialog")).toBeVisible();
   return trigger;
+}
+
+/**
+ * Open an Anima's Loadout and return one Reaction cell's member list, with
+ * its emotion row expanded.
+ */
+async function openReactionCell(
+  page: Page,
+  animaId: string,
+  emotion: string,
+  cell: string,
+): Promise<{ section: Locator; members: Locator }> {
+  const runtime = page.waitForResponse(
+    (response) =>
+      response.request().method() === "GET" &&
+      new URL(response.url()).pathname === `/v1/animas/${animaId}/runtime` &&
+      response.ok(),
+  );
+  await page.goto(`/animas/${animaId}`);
+  await runtime;
+  await expect(page.getByText("Loading anima", { exact: true })).toBeHidden({
+    timeout: 30_000,
+  });
+  await page.getByRole("tab", { name: "Loadout", exact: true }).click();
+  const section = page.getByRole("region", { name: "Reactions", exact: true });
+  const disclosure = section.getByRole("button", {
+    name: "Reactions",
+    exact: true,
+  });
+  if ((await disclosure.getAttribute("aria-expanded")) !== "true")
+    await disclosure.click();
+  // The emotion row's name also carries its Reaction count.
+  const row = section.locator(
+    `button[aria-controls="reaction-${emotion}-levels"]`,
+  );
+  if ((await row.getAttribute("aria-expanded")) !== "true") await row.click();
+  await expect(row).toHaveAttribute("aria-expanded", "true");
+  return {
+    section,
+    members: section.getByRole("list", { name: cell, exact: true }),
+  };
+}
+
+/**
+ * The imported copy of a reviewed Reaction entry: the name the review gave it
+ * and its item ID from the import's receipts.
+ */
+function importedReaction(
+  review: ReviewedPackageImport,
+  receipts: ReadonlyArray<{
+    plan: { kind: string; entryName: string };
+    itemId: string;
+  }>,
+  entryId: string,
+) {
+  const name = review.items.find((item) => item.entry_id === entryId)?.name;
+  const receipt = receipts.find(
+    (entry) => entry.plan.kind === "reaction" && entry.plan.entryName === name,
+  );
+  expect(receipt, `imported Reaction entry ${entryId}`).toBeDefined();
+  return { name: name!, itemId: receipt!.itemId };
 }
 
 /** Wait for the real completion acknowledgment before intentionally reloading. */
@@ -260,7 +326,7 @@ test("local content sharing single and multiple content export, suffix import an
   );
 });
 
-test("local content sharing complete Anima export, reviewed install and persistence @complete-anima", async ({
+test("local content sharing complete Anima export, reviewed install, persistence and Reaction pools @complete-anima", async ({
   page,
   creatorContent,
   animamaEvidence,
@@ -309,6 +375,110 @@ test("local content sharing complete Anima export, reviewed install and persiste
       .locator("#sidebar-animas-list")
       .getByRole("link", { name: reviewed.anima!.display_name, exact: true }),
   ).toBeVisible();
+
+  // Annie's starter Joy · Moderate pool holds two Reactions, so the complete
+  // export carries a two-member pool and the import must keep it intact.
+  const exportedPool = reviewed.anima!.reactions.joy!["2"]!;
+  expect(exportedPool).toHaveLength(2);
+  const expectedPool = exportedPool.map((entryId) =>
+    importedReaction(reviewed, owned, entryId),
+  );
+  const moderate = await openReactionCell(
+    page,
+    anima.itemId,
+    "joy",
+    "Joy · Moderate",
+  );
+  await expect(moderate.members.getByRole("listitem")).toHaveCount(2);
+  for (const member of expectedPool)
+    await expect(
+      moderate.members.getByText(member.name, { exact: true }),
+    ).toBeVisible();
+  const importedLoadout = await page.request.get(
+    `/v1/animas/${anima.itemId}/loadout`,
+  );
+  expect(importedLoadout.ok(), await importedLoadout.text()).toBe(true);
+  const importedModerate = (
+    (await importedLoadout.json()) as PyAnimaLoadout
+  ).reactions.find((cell) => cell.emotion === "joy" && cell.intensity === 2);
+  expect(
+    (importedModerate?.members ?? []).map((member) => member.item_id).sort(),
+  ).toEqual(expectedPool.map((member) => member.itemId).sort());
+
+  // Build a two-member pool through the Loadout: add the first Joy · Moderate
+  // Reaction to Joy · Mild, which holds one, and find it after a reload.
+  const starter = importedReaction(
+    reviewed,
+    owned,
+    reviewed.anima!.reactions.joy!["1"]![0]!,
+  );
+  const added = expectedPool[0]!;
+  const { section, members } = await openReactionCell(
+    page,
+    anima.itemId,
+    "joy",
+    "Joy · Mild",
+  );
+  await expect(members.getByRole("listitem")).toHaveCount(1);
+  await expect(members.getByText(starter.name, { exact: true })).toBeVisible();
+  await section
+    .getByRole("button", { name: "Add a Reaction to Joy · Mild", exact: true })
+    .click();
+  // Each choice's Preview button carries its exact name; the Included
+  // original has the unsuffixed one.
+  const choice = page.getByRole("option").filter({
+    has: page.getByRole("button", {
+      name: `Preview ${added.name}`,
+      exact: true,
+    }),
+  });
+  await expect(choice).toHaveCount(1, { timeout: 15_000 });
+  const committed = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      new URL(response.url()).pathname ===
+        `/v1/animas/${anima.itemId}/reactions:commit`,
+  );
+  await choice.getByText(added.name, { exact: true }).click();
+  const commit = await committed;
+  expect(commit.ok(), await commit.text()).toBe(true);
+  const { aggregate_revision: aggregateRevision } =
+    (await commit.json()) as PyLoadoutCommitResult;
+  expect(typeof aggregateRevision).toBe("number");
+  await expect(members.getByRole("listitem")).toHaveCount(2);
+  // Cleanup now expects exactly this edit of the imported Anima.
+  await creatorContent.recordOwnedAnimaRevision({
+    animaId: anima.itemId,
+    aggregateRevision: aggregateRevision!,
+    revise: (definition) => ({
+      ...definition,
+      reactions: {
+        ...definition.reactions,
+        joy: {
+          ...definition.reactions.joy,
+          "1": [...(definition.reactions.joy?.["1"] ?? []), added.itemId],
+        },
+      },
+    }),
+  });
+  await page.reload();
+  const mild = await openReactionCell(page, anima.itemId, "joy", "Joy · Mild");
+  await expect(mild.members.getByRole("listitem")).toHaveCount(2);
+  for (const member of [starter, added])
+    await expect(
+      mild.members.getByText(member.name, { exact: true }),
+    ).toBeVisible();
+  await animamaEvidence.attachJson("sharing-anima-reaction-pool", {
+    importedAnimaId: anima.itemId,
+    exportedModeratePool: expectedPool.map((member) => member.name),
+    addedToMild: added.name,
+    editedAggregateRevision: aggregateRevision,
+  });
+  await animamaEvidence.attachBuffer(
+    "sharing-anima-reaction-pool-imported",
+    await mild.section.screenshot(),
+    "image/png",
+  );
   // Leave the runtime before exact receipt cleanup so its refresh cannot race deletion.
   await page.goto("/library");
   await creatorContent.cleanupOwnedContent();

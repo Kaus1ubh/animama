@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "content_type": "particle_effect",
+  "content_id": "builtin:particle-effect:sweat-spray",
+  "version": 1,
+  "name": "Sweat Spray",
+  "description": "Glossy sweat beads fly off both temples in three panicked bursts and fall away, for flustered, nervous or frightened moments.",
+  "runtime_defaults": {
+    "schema_version": 1,
+    "runtime_id": "sweat-spray",
+    "slots": {
+      "particle_vfx": {
+        "label": "Sweat Spray",
+        "description": "Glossy sweat beads fly off both temples in three panicked bursts and fall away, for flustered, nervous or frightened moments.",
+        "preload_tier": "none",
+        "looping_allowed": false,
+        "can_coexist": true,
+        "anchor": "head",
+        "duration_seconds": 2.5,
+        "max_duration_seconds": 3,
+        "follow_anchor": false,
+        "transform": {
+          "offset": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "depth_offset": 0.03,
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "max_particles": 30
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "particle.json",
+      "role": "manifest"
+    },
+    {
+      "path": "textures/sweat-ring.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/sweat-drop.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/sweat-glint.png",
+      "role": "texture"
+    }
+  ]
+}

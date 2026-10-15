@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:kirakira_cluster",
+  "version": 1,
+  "name": "Kirakira Cluster",
+  "description": "A cluster of white-and-gold four-point kira-kira sparkles pops in beside the cheek and twinkles in turn, the shoujo sparkle that blooms around a dazzled face, for admiration, delight and inspired awe.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "sticker",
+    "attachment": {
+      "kind": "sticker",
+      "around": "head",
+      "offset": {
+        "x": -0.125,
+        "y": 0.005
+      },
+      "rotationDeg": -6,
+      "size": 0.12
+    },
+    "art": {
+      "image": "kirakira_cluster-sheet.png",
+      "flipbook": {
+        "columns": 4,
+        "rows": 1,
+        "frames": 4,
+        "fps": 8,
+        "loop": "pingpong"
+      }
+    },
+    "motion": {
+      "keyframes": {
+        "frames": [
+          {
+            "t": 0,
+            "opacity": 0,
+            "scale": 0.3
+          },
+          {
+            "t": 0.09,
+            "opacity": 1,
+            "scale": 1.25
+          },
+          {
+            "t": 0.15,
+            "scale": 1
+          }
+        ]
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "kirakira_cluster-sheet.png",
+      "role": "image"
+    }
+  ]
+}

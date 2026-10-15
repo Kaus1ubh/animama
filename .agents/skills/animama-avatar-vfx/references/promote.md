@@ -73,6 +73,15 @@ one promoted in the run is re-pointed at its Included ID. The Included meta
 kept, and Reactions stay expression-only. Deleting an effect is allowed once
 the same run re-points every Reaction or Gesture that used it.
 
+A **new** Reaction is added in the same run with `mode: "add"` and its
+placement hint (the project's clip id must be the stem; the name defaults to
+the project's):
+
+```json
+{ "kind": "reaction", "stem": "joy-4-b", "source": "joy-4-b.project.json", "mode": "add",
+  "placement_hint": { "emotion": "joy", "intensity": 4 } }
+```
+
 A **new** Gesture that uses a new effect is not added here: promote the
 effect with `mode: "add"` first, then add the Gesture with
 `pnpm -s animation promote` (`mode: "add"` with `dependencies` naming the
@@ -81,9 +90,31 @@ skill's promote reference).
 
 The tool validates each definition, its image names and its art, writes
 `content/included/vfx/avatar/<stem>/`, removes files a replacement no longer
-uses, and keeps `licenses/source-review.json` in step (the existing
-`vfx/avatar/**/*` licence rule covers the files). Show the owner the dry-run
-list before writing.
+uses, and keeps the licence records in step. Show the owner the dry-run list
+before writing.
+
+Licence records: an item the owner authored falls under the existing
+`vfx/avatar/**/*` rule, and each file it writes gets the owner's
+`licenses/source-review.json` record. Work the owner did not author, such as
+an effect or Reaction an agent made under the owner's direction, carries the
+owner-approved licence entries on its item, in the form `animation promote`
+takes them:
+
+```json
+{ "source": "library:local/Ink Mark", "stem": "ink_mark", "mode": "add", "sound": null,
+  "licence": { "creator": "…", "provenance": "…", "license_id": "…", "redistribution_review": "pending" },
+  "sourceReview": { "candidate_license": "…", "copyright": "…", "review": "…",
+    "basis": { "ink_mark.json": "…", "ink_mark-sheet.png": "…" } } }
+```
+
+`licence` becomes the item's own rule (`vfx/avatar/<stem>/**`, ahead of the
+general rule; a delete removes it) and `sourceReview` its files' records;
+`basis` is one text or an object giving each file's. Word them like the
+existing agent-authored entries (such as the `vfx/avatar/broken-heart/**` rule
+and its files' records) and show the owner the exact wording. Items can share
+one rule with `"glob"` in `licence`, such as `reactions/**/*` when every
+Included Reaction has the same terms. A file that repeats other Included art
+keeps that file's record, and its rule's terms when the item's rule differs.
 
 ## Afterwards
 

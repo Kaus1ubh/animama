@@ -12,7 +12,14 @@ from animama.app.contracts.portable_anima import PortableAnima
 from animama.app.ports.anima_package_source import AnimaPackageSourceRepository, SavedAnimaPackageSource
 from animama.app.ports.content_catalog import ContentCatalog
 from animama.domain.anima_definition import ANIMA_IDENTITY_MAX_BYTES
-from animama.domain.anima_loadout import IDLE_DEFAULT_CELL, parse_idle_slot_key
+from animama.domain.anima_loadout import (
+    IDLE_DEFAULT_CELL,
+    IDLE_INTENSITIES,
+    REACTION_INTENSITIES,
+    parse_cell_key,
+    parse_idle_slot_key,
+    parse_reaction_slot_key,
+)
 from animama.domain.content_catalog import (
     CatalogContentEntry,
     ContentConflictError,
@@ -122,8 +129,8 @@ class AnimaPackageSourceService:
         if len(rows) != len(source.bindings):
             raise ContentConflictError("package_anima_bindings_invalid")
         gestures: list[dict[str, Any]] = []
-        reactions: dict[str, dict[str, Any]] = {
-            emotion: {str(level): None for level in (1, 2, 3)} for emotion in TRACKED_EMOTIONS
+        reactions: dict[str, dict[str, list[str]]] = {
+            emotion: {str(level): [] for level in REACTION_INTENSITIES} for emotion in TRACKED_EMOTIONS
         }
         appearance: dict[str, Any] = {"profile": None, "background": None}
         avatar: str | None = None
@@ -155,9 +162,11 @@ class AnimaPackageSourceService:
                     pools.append(cell if cell == IDLE_DEFAULT_CELL else cell.replace("-", ".", 1))
                 elif cell == IDLE_DEFAULT_CELL:
                     idle["default"].append(item.id)
+                elif (parsed_cell := parse_cell_key(cell, intensities=IDLE_INTENSITIES)) is not None:
+                    emotion, level = parsed_cell
+                    idle["cells"].setdefault(emotion, {}).setdefault(str(level), []).append(item.id)
                 else:
-                    emotion, _, level = cell.rpartition("-")
-                    idle["cells"].setdefault(emotion, {}).setdefault(level, []).append(item.id)
+                    raise ContentConflictError("package_anima_binding_unsupported")
                 continue
             try:
                 kind = ContentKind(row.kind)
@@ -174,11 +183,14 @@ class AnimaPackageSourceService:
                     gestures.append({"semantic_key": document.semantic_key, "entry_id": item.id, "config": row.config})
                 else:
                     omitted.append(OmittedAnimaBinding(item, "gesture", document.semantic_key, dict(row.config)))
-            elif kind is ContentKind.REACTION and row.slot_key.startswith("reaction:"):
-                emotion, _, level = row.slot_key.removeprefix("reaction:").rpartition("-")
-                if emotion not in reactions or level not in reactions[emotion]:
+            elif kind is ContentKind.REACTION:
+                # Each pool member travels as an ordinary Reaction entry; members carry no config.
+                reaction_slot = parse_reaction_slot_key(row.slot_key)
+                parsed_cell = parse_cell_key(reaction_slot[0]) if reaction_slot is not None else None
+                if parsed_cell is None or row.config:
                     raise ContentConflictError("package_anima_reaction_cell_invalid")
-                reactions[emotion][level] = {"entry_id": item.id, "config": row.config}
+                emotion, intensity = parsed_cell
+                reactions[emotion][str(intensity)].append(item.id)
             elif kind is ContentKind.AVATAR and row.slot_key == "avatar" and not row.config:
                 avatar = item.id
             elif (
@@ -212,12 +224,10 @@ class AnimaPackageSourceService:
                     gestures.append({"semantic_key": key, "entry_id": item.id, "config": {}})
                 else:
                     omitted.append(OmittedAnimaBinding(item, "gesture", key, {}))
-        for starter in policy["reactions"]:
-            emotion, level = starter["emotion"], str(starter["intensity"])
-            if f"reaction:{emotion}-{level}" not in rows and ("reaction", f"{emotion}-{level}") not in exclusions:
-                item = included(starter["content_id"], ContentKind.REACTION)
-                portable(item)
-                reactions[emotion][level] = {"entry_id": item.id, "config": {}}
+        for cells in reactions.values():
+            for reaction_level, pool in cells.items():
+                # Pools are sets; a stable order keeps the export snapshot deterministic.
+                cells[reaction_level] = sorted(pool)
         omitted.extend(
             OmittedAnimaBinding(item, "idle", pools=tuple(sorted(pools))) for item, pools in omitted_idle.values()
         )

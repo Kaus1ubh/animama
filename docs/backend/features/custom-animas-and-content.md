@@ -8,8 +8,9 @@ those supports independently.
 
 A Gesture requires a stable semantic selector and AI-facing description because
 the chat model may choose it. A Reaction document may carry a suggested
-emotion/intensity placement, while the Anima loadout may assign that complete
-Reaction Action to any canonical cell. Both use `animaPoseClip/2.0` clips;
+emotion/intensity placement, while the Anima loadout may add that complete
+Reaction Action to the pool of any cell (see [Reaction pools](#reaction-pools)).
+Both use `animaPoseClip/2.0` clips;
 Gestures may also use VRMA. Event-only clips
 are valid, but a clip with neither a track key nor an event is not. A Local
 scan lists a clip in another format, such as the retired `animaPoseClip/1.0`,
@@ -68,6 +69,47 @@ Default and emotion cells. Only installed, idle-eligible Included Gestures are
 seeded, so an installation without the `mixamo-motion` source gets the core
 mapping unchanged. Installing content
 later does not change an existing pool. Old `idle-styles/` folders are not scanned.
+
+## Reaction pools
+
+Every Anima has 96 Reaction cells: each tracked emotion at intensities 1–4
+(Mild, Moderate, Strong, Intense). Each cell holds a pool of up to four
+distinct Reactions, and a Reaction may sit in any number of cells. Each member
+is an `anima_content_bindings` row with kind `reaction` and slot
+`reaction:<emotion>-<intensity>:<catalog_item_id>`; the row's catalog item is
+authoritative and members carry no binding configuration. Chat plays one member
+of the cell named by the turn's emotion and Reaction intensity, chosen at
+random without repeating the previous pick; an empty cell plays nothing and
+never borrows another cell. A pooled Local Reaction cannot be deleted until it
+is removed from every pool.
+
+`POST /v1/animas/{anima_id}/reactions:plan|commit` takes one intent:
+
+- `add` puts a Reaction `source` in the cell named by `emotion` and
+  `intensity`. A Reaction already in the cell is refused with
+  `reaction_member_duplicate`, a fifth member with `reaction_pool_full`, and a
+  missing or non-Reaction source with `loadout_source_unavailable`.
+- `remove` deletes one member by its `binding_id`, which also works for an
+  unavailable Reaction; an unknown binding is `unchanged`.
+- `restore_starter` makes the cell's pool exactly its available Included
+  starter Reactions (plan action `revert`). An unavailable starter Reaction is
+  skipped with a `starter_reaction_unavailable` plan warning.
+
+An invalid cell is `reaction_cell_invalid`, and any other operation
+`reaction_operation_invalid`. A refused intent leaves the revision unchanged.
+The loadout lists each cell's `members` (name, availability, source and
+`origin`: `starter` for one of the cell's Included starter Reactions) and its
+`state`: `empty` without members, `starter` when the members are exactly the
+cell's available starter Reactions, otherwise `custom`.
+
+The starter policy (`resources/starter-loadout.v1.json`) lists one `reactions`
+entry per starter member, so a cell may appear several times; a cell without
+entries starts empty. New and starter Animas start from those pools through the
+creation request; package import restores exactly the packaged pools. Runtime
+admits each distinct pooled Reaction as one root with all its cells, budgeted
+after the Avatar, Idle and Gestures from its lowest cell (intensity, then
+emotion), so one missing or over-budget Reaction is omitted with a diagnostic
+while the others keep playing.
 
 ## Live Anima definition
 
@@ -139,10 +181,11 @@ revalidating mutable sources.
 The strict command creates one private live Anima, never a content item.
 It includes a required stable display name and Markdown identity, one typed
 Avatar, optional profile/background Appearance, exact Gesture selections, all
-72 explicit Reaction cells, the versioned Recommended Starter Pack identity,
+96 explicit Reaction cells (each a pool of up to four distinct Reactions, empty
+allowed), the versioned Recommended Starter Pack identity,
 and `expected_source_revisions`. Every selected root and
 transitive support is present in that map with kind and SHA-256 revision.
-Zero Gestures/all-empty Reactions are valid with warnings. Invalid selected
+Zero Gestures/all-empty Reaction pools are valid with warnings. Invalid selected
 content blocks creation instead of using runtime's optional-root omission.
 New creation and explicit live-Anima rename accept 1–40 Unicode code points.
 The wider 120-character persistence columns remain unchanged so a legacy long

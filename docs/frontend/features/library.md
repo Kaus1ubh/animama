@@ -103,9 +103,21 @@ object store.
 
 ## Add and Manage
 
-Add/Manage reviews logical catalog selections for one or more owned Animas.
-Each commit carries the expected loadout revision and an idempotency key. A
-clear checkbox in Add mode never silently removes an existing choice.
+The equip dialog lists every owned Anima with its current Loadout. A Gesture
+is equipped to or removed from each Anima; the row warns when equipping would
+replace another Gesture with the same semantic key. Each change carries the
+expected loadout revision and an idempotency key.
+
+For a Reaction the dialog first offers an emotion and an intensity (Mild,
+Moderate, Strong or Intense). It starts at the Reaction's suggested cell, or
+Joy, Mild when there is none; a suggestion with an emotion but no usable
+intensity starts at that emotion's Mild. The suggestion is only a hint. Each
+Anima's row says whether that cell's pool holds the Reaction and offers Add or
+Remove for that cell only. Other Reactions in the cell never change. When the
+cell already holds four Reactions, Add is disabled with the reason; remove one
+in the Anima's Loadout first. Changes apply at once, like pool edits in the
+Loadout; a change made against a stale Loadout refreshes the row and asks for a
+retry.
 
 Equip advances future loadout resolution only. The current chat remains pinned
 to its prepared runtime revision until the route remounts. Effects and Sounds
@@ -140,8 +152,9 @@ dependencies. Import/export of direct Anima Pose Clip or typed project JSON is
 an editor-document workflow; package import/export is a separate Content
 Catalog boundary.
 
-Save & Equip saves the current Local item, then opens the normal reviewed Anima
-selection flow. An already-mounted chat still adopts it only after remount.
+Save & Equip saves the current Local item, then opens the equip dialog
+described under [Add and Manage](#add-and-manage). An already-mounted chat
+still adopts it only after remount.
 Unknown event aliases remain visible and block Preview/Save until mapped or
 removed.
 
@@ -185,8 +198,10 @@ this app (imported copies of those effects play without them).
 
 In Anima mode, choose a saved companion and review its full identity and selected
 content before **Export Anima**. The package includes its name, identity, Avatar,
-Gestures, all Reaction cells including empty cells, the Idle pool, and selected
-profile/background images with framing. It preserves supported Action settings
+Gestures, every Reaction cell's pool including empty cells, the Idle pool, and selected
+profile/background images with framing. The review's Reaction cells list each
+emotion's four cells with their pools' Reaction names in package order, which
+import recreates exactly. It preserves supported Action settings
 and effective starter choices. If this Anima uses a cloned PocketTTS voice, the
 package includes the encoded voice and selects the independent imported copy.
 The original recording is excluded. Other voice choices and provider/model

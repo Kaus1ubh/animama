@@ -35,6 +35,7 @@ from animama.app.services.typed_content_batch_service import (
     TypedBatchResolution,
 )
 from animama.app.services.typed_content_service import TypedCatalogItem, TypedContentPreview
+from animama.domain.anima_loadout import ReactionIntensity
 from animama.domain.content_catalog import CatalogContentFile, ContentPreview
 from animama.domain.content_documents import (
     AppearanceDocumentV1,
@@ -157,9 +158,11 @@ class PyGesture(PyTypedContentBase):
 
 
 class PyReaction(PyTypedContentBase):
+    """A Reaction; ``emotion`` and ``intensity`` are its suggested cell, never a restriction."""
+
     kind: Literal["reaction"] = "reaction"
     emotion: str | None = None
-    intensity: Literal[1, 2, 3] | None = None
+    intensity: ReactionIntensity | None = None
     implementation: PyActionImplementation
     config: dict[str, object] = Field(default_factory=dict)
 

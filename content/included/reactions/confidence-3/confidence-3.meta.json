@@ -15,21 +15,9 @@
   },
   "dependencies": [
     {
-      "ref": "builtin:scene-effect:background:scene-vfx-emotion-confidence",
-      "alias": "scene-vfx-emotion-confidence",
-      "content_type": "scene_effect",
-      "config": {}
-    },
-    {
-      "ref": "builtin:particle-effect:halo-rays",
-      "alias": "halo-rays",
+      "ref": "builtin:particle-effect:twinkle-shimmer",
+      "alias": "twinkle-shimmer",
       "content_type": "particle_effect",
-      "config": {}
-    },
-    {
-      "ref": "builtin:avatar-effect:star3",
-      "alias": "star3",
-      "content_type": "avatar_effect",
       "config": {}
     }
   ],

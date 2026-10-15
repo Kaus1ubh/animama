@@ -142,6 +142,12 @@ async def plan_reaction(
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
     repositories: ReadRepositories,
 ) -> PyLoadoutPlan:
+    """Plan adding a Reaction to one cell's pool, removing a member, or restoring a cell's starter pool.
+
+    A cell holds at most four Reactions, each once (``reaction_pool_full``,
+    ``reaction_member_duplicate``); removing an unknown member is ``unchanged``.
+    """
+
     return await _plan(family="reaction", anima_id=anima_id, body=body, user=user, repositories=repositories)
 
 
@@ -152,6 +158,8 @@ async def commit_reaction(
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
     repositories: WriteRepositories,
 ) -> PyLoadoutCommitResult:
+    """Commit one planned Reaction pool change after rechecking the revision and the plan digest."""
+
     return await _commit(family="reaction", anima_id=anima_id, body=body, user=user, repositories=repositories)
 
 

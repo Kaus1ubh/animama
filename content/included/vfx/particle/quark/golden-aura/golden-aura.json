@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "content_type": "particle_effect",
+  "content_id": "builtin:particle-effect:golden-aura",
+  "version": 1,
+  "name": "Golden Aura",
+  "description": "A heroic golden power-up aura flares up around the upper body, glossy gold flames licking along its outline over a warm halo while gold sparks float up, for confidence and unstoppable hope.",
+  "runtime_defaults": {
+    "schema_version": 1,
+    "runtime_id": "golden-aura",
+    "slots": {
+      "particle_vfx": {
+        "label": "Golden Aura",
+        "description": "A heroic golden power-up aura flares up around the upper body, glossy gold flames licking along its outline over a warm halo while gold sparks float up, for confidence and unstoppable hope.",
+        "anchor": "chest",
+        "duration_seconds": 4,
+        "max_duration_seconds": 4.8,
+        "preload_tier": "none",
+        "follow_anchor": true,
+        "transform": {
+          "offset": {
+            "x": 0,
+            "y": 0.05,
+            "z": -0.15
+          },
+          "depth_offset": 0,
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "looping_allowed": false,
+        "can_coexist": true,
+        "max_particles": 39
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "particle.json",
+      "role": "manifest"
+    },
+    {
+      "path": "textures/golden-flame-aura.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/gold-halo.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/golden-flame-tongue.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/gold-spark.png",
+      "role": "texture"
+    }
+  ]
+}

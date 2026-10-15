@@ -19,6 +19,16 @@ export type EffectSource = {
   imageUrl: string;
   /** Served `art.otherEyeImage`, when the definition names one. */
   otherImageUrl: string | null;
+  /**
+   * The sound cue a clip event plays when it applies the effect (the content
+   * id its `soundAlias` dependency names), or null for a silent effect.
+   */
+  soundCueId?: string | null;
+  /**
+   * The sound cue of each sound the effect declares, by dependency alias: a
+   * clip event's override may pick one with `soundAlias`.
+   */
+  soundCueIds?: Readonly<Record<string, string>>;
 };
 
 /**
@@ -41,8 +51,18 @@ export function effectSourceEntry(
     ...(effect.otherImageUrl
       ? { otherEyeAssetPath: effect.otherImageUrl }
       : {}),
+    ...(effect.soundCueId ? { sound: { onApply: effect.soundCueId } } : {}),
   };
   return override
-    ? parseAvatarEffectUse(effect.definition, override, context)
+    ? parseAvatarEffectUse(
+        effect.definition,
+        override,
+        context,
+        // An own entry only, as runtime catalog loading resolves it.
+        (alias) =>
+          effect.soundCueIds && Object.hasOwn(effect.soundCueIds, alias)
+            ? effect.soundCueIds[alias]
+            : undefined,
+      )
     : parseAvatarEffectDefinition(effect.definition, context);
 }

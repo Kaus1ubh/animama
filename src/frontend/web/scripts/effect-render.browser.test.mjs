@@ -173,14 +173,14 @@ test("renders every effect kind together and a Reaction's effects", async () => 
         "review:builtin:particle-effect:confetti",
       ]);
 
-    const reaction = await resolveClipSource("library:reaction/sadness-3");
+    const reaction = await resolveClipSource("library:reaction/sadness-4");
     const clipMedia = await resolveDependencies(reaction.dependencies);
     const renderReaction = async (file) => {
       const [played] = await renderEffectSheets({
         effects: [],
         clip: reaction.clip,
         clipMedia,
-        clipStem: "sadness-3",
+        clipStem: "sadness-4",
         outFileFor: () => path.join(dir, file),
         times: [0.5],
         views: ["front"],
@@ -188,8 +188,8 @@ test("renders every effect kind together and a Reaction's effects", async () => 
       });
       return played;
     };
-    const played = await renderReaction("sadness-3.png");
-    assert.equal(played.stem, "sadness-3");
+    const played = await renderReaction("sadness-4.png");
+    assert.equal(played.stem, "sadness-4");
     assert.deepEqual(played.failures, []);
     for (const avatar of played.avatars)
       for (const id of [
@@ -202,13 +202,13 @@ test("renders every effect kind together and a Reaction's effects", async () => 
           avatar.activeEffectIds.includes(id),
           `${avatar.id}: ${avatar.activeEffectIds.join(", ")}`,
         );
-    const png = await readFile(path.join(dir, "sadness-3.png"));
+    const png = await readFile(path.join(dir, "sadness-4.png"));
     assert.equal(png.readUInt32BE(16), 64 + 2 * tile.width);
     // One Particle Effect: a Reaction that starts two in one frame can differ
     // by a few pixels between runs.
-    await renderReaction("sadness-3-again.png");
+    await renderReaction("sadness-4-again.png");
     assert.ok(
-      png.equals(await readFile(path.join(dir, "sadness-3-again.png"))),
+      png.equals(await readFile(path.join(dir, "sadness-4-again.png"))),
       "a second render of the Reaction differs",
     );
   } finally {

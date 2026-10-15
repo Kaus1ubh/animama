@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "content_type": "reaction",
+  "content_id": "builtin:reaction:caring-4",
+  "version": 1,
+  "name": "Caring Reaction 4",
+  "ai_description": "Reusable avatar reaction clip",
+  "placement_hint": {
+    "emotion": "caring",
+    "intensity": 4
+  },
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [
+    {
+      "ref": "builtin:scene-effect:background:scene-vfx-emotion-caring",
+      "alias": "scene-vfx-emotion-caring",
+      "content_type": "scene_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:particle-effect:heart-burst",
+      "alias": "heart-burst",
+      "content_type": "particle_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:avatar-effect:heart_pop",
+      "alias": "heart_pop",
+      "content_type": "avatar_effect",
+      "config": {}
+    }
+  ],
+  "files": [
+    {
+      "path": "caring-4.json",
+      "role": "sequence"
+    }
+  ]
+}

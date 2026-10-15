@@ -205,16 +205,26 @@
     "animaFallback": "Anima",
     "description": {
       "gesture": "이 제스처를 사용할 수 있는 Anima를 선택하세요. 진행 중인 채팅은 기존 데이터를 유지하며, 변경 사항을 적용하려면 새 채팅을 여세요.",
-      "reaction": "이 리액션을 사용할 수 있는 Anima를 선택하세요. 진행 중인 채팅은 기존 데이터를 유지하며, 변경 사항을 적용하려면 새 채팅을 여세요."
+      "reaction": "감정과 강도를 선택한 다음, 각 Anima의 해당 셀에 이 리액션을 추가하거나 제거하세요. 셀의 다른 리액션은 그대로 유지됩니다. 진행 중인 채팅은 기존 데이터를 유지하며, 변경 사항을 적용하려면 새 채팅을 여세요."
     },
     "equippedTo": "{{name}}을(를) {{anima}}에 장착했습니다.",
     "notEquipped": "장착 안 됨",
     "notLocal": "이 액션은 로컬 카탈로그에 없습니다.",
+    "reaction": {
+      "addTo": "{{anima}}의 {{cell}}에 추가",
+      "added": "{{name}}을(를) {{anima}}의 {{cell}}에 추가했습니다.",
+      "emotion": "감정",
+      "full": "이 셀에는 이미 리액션이 4개 있습니다. 추가하려면 이 Anima의 로드아웃에서 하나를 제거하세요.",
+      "inCell": "이 셀에 있음",
+      "intensity": "강도",
+      "notInCell": "이 셀에 없음",
+      "removeFrom": "{{anima}}의 {{cell}}에서 제거",
+      "removed": "{{anima}}의 {{cell}}에서 {{name}}을(를) 제거했습니다."
+    },
     "removedFrom": "{{anima}}에서 {{name}}을(를) 제거했습니다.",
     "title": "{{name}} 장착",
     "willReplace": {
-      "gesture": "현재 제스처를 교체합니다",
-      "reaction": "현재 리액션을 교체합니다"
+      "gesture": "현재 제스처를 교체합니다"
     }
   },
   "management": {
@@ -278,28 +288,35 @@
     "repairing": "기억을 복구하는 중…"
   },
   "reactions": {
+    "add": "추가",
+    "addTo": "{{cell}}에 리액션 추가",
     "catalogUnavailable": "리액션 카탈로그를 사용할 수 없습니다.",
-    "cellName": "{{emotion}} ({{intensity}})",
-    "change": "{{emotion}} ({{intensity}}) 리액션 변경",
+    "cell": "{{emotion}} · {{intensity}}",
+    "changedElsewhere": "이 Anima의 리액션이 다른 곳에서 변경되어 새로 고쳤습니다. 다시 시도하세요.",
     "chooseFromLibrary": "라이브러리에서 선택",
+    "full": "이 셀에는 최대 개수인 리액션 4개가 있습니다. 추가하려면 하나를 제거하세요.",
+    "inCell": "이미 이 셀에 있음",
     "included": "기본 제공",
     "intensity": {
+      "intense": "매우 강함",
       "level": "레벨 {{level}}",
       "mild": "약함",
       "moderate": "보통",
       "strong": "강함"
     },
-    "leaveEmpty": "비워 두기",
     "levels": "{{emotion}} 리액션 레벨",
     "loading": "리액션을 불러오는 중…",
     "local": "로컬",
     "noReaction": "리액션 없음",
     "noResults": "리액션을 찾을 수 없습니다.",
+    "reactionCount_other": "리액션 {{count}}개",
+    "remove": "{{cell}}에서 {{name}} 제거",
+    "restoreStarter": "기본 제공으로 되돌리기",
     "retryCatalog": "카탈로그 다시 시도",
-    "revertToStarter": "기본 제공으로 되돌리기",
     "search": "리액션 검색",
     "suggestion": "{{emotion}} · {{intensity}}",
-    "title": "리액션"
+    "title": "리액션",
+    "unavailable": "사용할 수 없음"
   },
   "roster": {
     "description": "이 계정에는 아직 Anima가 없습니다. 계정이 준비되는 동안 라이브러리를 둘러볼 수 있습니다. 이 호스팅 애플리케이션에서는 Anima를 만들 수 없습니다.",

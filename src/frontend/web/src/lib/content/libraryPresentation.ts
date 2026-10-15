@@ -1,4 +1,3 @@
-import { getI18n } from "react-i18next";
 import type { PyPose } from "@animama/runtime-contracts/api-types";
 import type {
   PyCatalogViewItem,
@@ -7,7 +6,7 @@ import type {
 } from "@/lib/content/catalogTypes";
 import type { ContentLibrarySearch } from "@/lib/content/librarySearch";
 import { isNonPortable, nonPortableReason } from "@/lib/content/portability";
-import { storedEmotionLabel } from "@/lib/emotion/presentation";
+import { reactionCellLabel } from "@/lib/loadout/reactionLabels";
 import { compareDisplayText } from "@animama/product-ui/i18n";
 
 export type LibraryProductCard = {
@@ -99,12 +98,13 @@ export function libraryProductActionPolicy(
   };
 }
 
-/** Keep only item-specific metadata; status badges are rendered separately. */
+/**
+ * Keep only item-specific metadata; status badges are rendered separately. A
+ * Reaction shows its suggested cell, such as "Joy · Moderate".
+ */
 export function libraryProductMetadata(card: LibraryProductCard): string[] {
   if (!card.emotion) return [];
-  const emotion = storedEmotionLabel(card.emotion);
-  const t = getI18n().getFixedT(null, "library");
-  return [t("row.emotionLevel", { emotion, level: card.intensity ?? 1 })];
+  return [reactionCellLabel(card.emotion, card.intensity ?? 1)];
 }
 
 /** Omit stock catalog placeholders without changing the underlying content. */
@@ -158,6 +158,10 @@ export function avatarLibraryDescription(value: string | null | undefined) {
 }
 
 function reactionPlacement(value: PyReaction) {
+  // The Reaction list returns the suggestion as fields; catalog views carry
+  // it in their metadata.
+  if (typeof value.emotion === "string" && typeof value.intensity === "number")
+    return { emotion: value.emotion, intensity: value.intensity };
   const hint = value.metadata?.placement_hint;
   if (!hint || typeof hint !== "object") return {};
   const raw = hint as Record<string, unknown>;

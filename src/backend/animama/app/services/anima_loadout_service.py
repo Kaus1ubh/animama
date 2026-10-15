@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal, cast
 from uuid import uuid4
@@ -18,7 +19,7 @@ from animama.app.ports.content_store import ContentStore
 from animama.app.services.avatar_effect_conversion import is_unconverted_avatar_effect
 from animama.app.services.content_kind_registry import RETIRED_CONTENT_KINDS
 from animama.app.services.idle_playback import read_gesture_idle_playback
-from animama.app.services.starter_loadout_policy import starter_loadout_policy
+from animama.app.services.starter_loadout_policy import starter_loadout_policy, starter_reaction_pools
 from animama.app.services.typed_content_service import (
     TypedCatalogItem,
     TypedContentAdmissionError,
@@ -27,6 +28,9 @@ from animama.app.services.typed_content_service import (
 from animama.domain.anima_creation import ResolvedAnimaSpec
 from animama.domain.anima_definition import AnimaDefinitionError
 from animama.domain.anima_loadout import (
+    IDLE_INTENSITIES,
+    REACTION_INTENSITIES,
+    REACTION_POOL_LIMIT,
     AnimaLoadout,
     AnimaLoadoutError,
     AppearanceBinding,
@@ -39,15 +43,20 @@ from animama.domain.anima_loadout import (
     LoadoutDiagnostic,
     LoadoutPlan,
     ReactionCell,
+    ReactionMember,
     idle_cell_key,
     idle_slot_key,
     parse_idle_slot_key,
+    parse_reaction_slot_key,
+    reaction_cell_key,
+    reaction_slot_key,
 )
 from animama.domain.content_catalog import (
     CatalogContentEntry,
     ContentIntegrityError,
     ContentKind,
     ContentPathError,
+    ContentSource,
     ContentStatus,
 )
 from animama.domain.content_documents import (
@@ -101,6 +110,35 @@ def _is_ai_gesture_row(row: ORMAnimaContentBinding) -> bool:
     """Gesture rows equip AI-callable Gestures; Idle pool rows share the kind but not the role."""
 
     return row.kind == ContentKind.GESTURE.value and row.slot_key.startswith("gesture:")
+
+
+def _reaction_cell_rows(rows: list[ORMAnimaContentBinding], cell: str) -> list[ORMAnimaContentBinding]:
+    """Return the member rows of one Reaction pool cell."""
+
+    return [
+        row
+        for row in rows
+        if row.kind == ContentKind.REACTION.value
+        and (parsed := parse_reaction_slot_key(row.slot_key)) is not None
+        and parsed[0] == cell
+    ]
+
+
+@dataclass(frozen=True, slots=True)
+class _PlannedChange:
+    """A validated intent: its public plan plus exactly the rows a commit writes or deletes.
+
+    Most intents touch one ``slot`` (``target`` written there, ``current`` the
+    existing row). A Reaction ``restore_starter`` touches several member rows,
+    listed in ``additions`` (slot and Reaction) and ``removals``.
+    """
+
+    plan: LoadoutPlan
+    target: TypedCatalogItem | None = None
+    slot: str | None = None
+    current: ORMAnimaContentBinding | None = None
+    additions: tuple[tuple[str, TypedCatalogItem], ...] = ()
+    removals: tuple[ORMAnimaContentBinding, ...] = ()
 
 
 class AnimaLoadoutService:
@@ -171,7 +209,6 @@ class AnimaLoadoutService:
         visible, parsed = await self._visible(user_id)
         by_logical = {value.item.logical_key: value for value in parsed.values() if value.item.logical_key is not None}
         rows = await self._bindings(anima_id)
-        rows_by_slot = {row.slot_key: row for row in rows}
         exclusions = {
             (str(value.get("slot")), str(value.get("runtime_id")))
             for value in root.starter_exclusions
@@ -281,51 +318,69 @@ class AnimaLoadoutService:
                 )
             )
 
-        starter_reactions = {
-            (str(raw.get("emotion")), int(raw.get("intensity", 0))): raw
-            for raw in starter.get("reactions", [])
-            if isinstance(raw, dict) and isinstance(raw.get("intensity"), int)
-        }
+        visible_by_id = {item.id: item for item in visible}
+        starter_pools = starter_reaction_pools(root.starter_catalog_version)
+        reaction_members: dict[str, list[ReactionMember]] = {}
+        for row in rows:
+            reaction_slot = parse_reaction_slot_key(row.slot_key)
+            if reaction_slot is None or row.kind != ContentKind.REACTION.value:
+                continue
+            # The row's catalog id is authoritative; the slot only names the cell.
+            cell, item_id = reaction_slot[0], row.catalog_item_id
+            entry = visible_by_id.get(item_id)
+            origin: Literal["starter", "custom"] = (
+                "starter"
+                if entry is not None
+                and entry.source is ContentSource.INCLUDED
+                and entry.logical_key in starter_pools.get(cell, ())
+                else "custom"
+            )
+            value = parsed.get(item_id)
+            if value is not None and isinstance(value.document, ReactionDocumentV1):
+                reaction_member = ReactionMember(
+                    binding_id=row.id,
+                    item_id=item_id,
+                    name=value.document.name,
+                    available=True,
+                    origin=origin,
+                    source=_source(value),
+                    description=value.document.description,
+                )
+            else:
+                # Keep an unavailable member visible so the owner can remove it;
+                # it marks itself, so no Loadout warning repeats its internal slot.
+                reaction_member = ReactionMember(
+                    binding_id=row.id,
+                    item_id=item_id,
+                    name=entry.display_name if entry is not None else item_id,
+                    available=False,
+                    origin=origin,
+                )
+            reaction_members.setdefault(cell, []).append(reaction_member)
+
         reactions: list[ReactionCell] = []
         for emotion in sorted(TRACKED_EMOTIONS):
-            for intensity in (1, 2, 3):
-                slot = f"reaction:{emotion}-{intensity}"
-                reaction_row = rows_by_slot.get(slot)
-                if reaction_row is not None:
-                    value = selected(reaction_row, ContentKind.REACTION)
-                    if value is not None and isinstance(value.document, ReactionDocumentV1):
-                        reactions.append(
-                            ReactionCell(
-                                emotion=emotion,
-                                intensity=intensity,
-                                state="custom",
-                                binding_id=reaction_row.id,
-                                name=value.document.name,
-                                source=_source(value),
-                                config_overrides=dict(reaction_row.config),
-                            )
-                        )
-                        continue
-                if ("reaction", f"{emotion}-{intensity}") in exclusions:
-                    reactions.append(ReactionCell(emotion, intensity, "empty"))
-                    continue
-                raw = starter_reactions.get((emotion, intensity))
-                value = by_logical.get(str(raw.get("content_id"))) if raw else None
-                if raw is not None and value is not None and isinstance(value.document, ReactionDocumentV1):
-                    reactions.append(
-                        ReactionCell(
-                            emotion=emotion,
-                            intensity=intensity,
-                            state="starter",
-                            binding_id=f"starter:{value.item.logical_key}@{raw.get('version', 1)}",
-                            name=value.document.name,
-                            source=_source(value),
-                        )
-                    )
-                else:
-                    reactions.append(ReactionCell(emotion, intensity, "empty"))
+            for intensity in REACTION_INTENSITIES:
+                cell = f"{emotion}-{intensity}"
+                members = tuple(
+                    sorted(reaction_members.get(cell, ()), key=lambda value: (value.name.casefold(), value.item_id))
+                )
+                starter_ids = {
+                    value.item.id
+                    for key in starter_pools.get(cell, ())
+                    if (value := by_logical.get(key)) is not None
+                    and value.item.source is ContentSource.INCLUDED
+                    and isinstance(value.document, ReactionDocumentV1)
+                }
+                state: Literal["starter", "custom", "empty"] = (
+                    "empty"
+                    if not members
+                    else "starter"
+                    if {member.item_id for member in members} == starter_ids
+                    else "custom"
+                )
+                reactions.append(ReactionCell(emotion, intensity, state, members))
 
-        visible_by_id = {item.id: item for item in visible}
         idle_members: dict[str, list[IdleMember]] = {}
         for row in rows:
             idle_slot = parse_idle_slot_key(row.slot_key)
@@ -368,7 +423,7 @@ class AnimaLoadoutService:
             cells=tuple(
                 IdleCell(emotion, intensity, idle_cell(idle_cell_key(emotion, intensity)))
                 for emotion in sorted(TRACKED_EMOTIONS)
-                for intensity in (1, 2, 3)
+                for intensity in IDLE_INTENSITIES
             ),
         )
 
@@ -436,11 +491,12 @@ class AnimaLoadoutService:
             raise AnimaLoadoutError("loadout_source_unavailable")
         try:
             typed = TypedContentService.parse(item)
-            if any(dependency.kind in RETIRED_CONTENT_KINDS for dependency in typed.document.dependencies):
-                raise AnimaLoadoutError("content_dependency_retired")
-            return typed
         except Exception as exc:
             raise AnimaLoadoutError("loadout_source_invalid") from exc
+        # Outside the parse guard, so the specific code reaches the caller.
+        if any(dependency.kind in RETIRED_CONTENT_KINDS for dependency in typed.document.dependencies):
+            raise AnimaLoadoutError("content_dependency_retired")
+        return typed
 
     async def _require_idle_playback(
         self, *, user_id: str, target: TypedCatalogItem, store: ContentStore | None
@@ -478,7 +534,7 @@ class AnimaLoadoutService:
         intent: dict[str, Any],
         lock_sources: bool = False,
         store: ContentStore | None = None,
-    ) -> tuple[LoadoutPlan, TypedCatalogItem | None, str | None, ORMAnimaContentBinding | None]:
+    ) -> _PlannedChange:
         """Validate one intent against current rows; ``store`` is required only to add an Idle member."""
 
         operation = str(intent.get("operation") or "")
@@ -486,6 +542,9 @@ class AnimaLoadoutService:
         target: TypedCatalogItem | None = None
         slot: str | None = None
         current: ORMAnimaContentBinding | None = None
+        additions: tuple[tuple[str, TypedCatalogItem], ...] = ()
+        removals: tuple[ORMAnimaContentBinding, ...] = ()
+        warnings: list[LoadoutDiagnostic] = []
         # Idle pool members are Gestures in a non-AI role.
         expected_kind = ContentKind.GESTURE if family == "idle" else ContentKind(family)
         if expected_kind in RETIRED_CONTENT_KINDS:
@@ -534,19 +593,51 @@ class AnimaLoadoutService:
             else:
                 raise AnimaLoadoutError("gesture_operation_invalid")
         elif family == "reaction":
-            emotion = str(intent.get("emotion") or "")
-            intensity = intent.get("intensity")
-            if emotion not in TRACKED_EMOTIONS or intensity not in {1, 2, 3}:
-                raise AnimaLoadoutError("reaction_cell_invalid")
-            slot = f"reaction:{emotion}-{intensity}"
-            current = next((row for row in rows if row.slot_key == slot), None)
-            if operation in {"add", "replace", "update", "reconfigure"}:
-                target = await self._target(user_id=user_id, source=intent.get("source"), expected_kind=expected_kind)
-                action = "replace" if current else "add"
-            elif operation == "revert":
-                action = "revert"
-            elif operation == "leave_empty":
-                action = "leave_empty"
+            if operation == "add":
+                cell = reaction_cell_key(intent.get("emotion"), intent.get("intensity"))
+                source = intent.get("source")
+                item_id = source.get("catalog_item_id") if isinstance(source, dict) else None
+                if not isinstance(item_id, str) or not item_id:
+                    raise AnimaLoadoutError("catalog_source_required")
+                members = _reaction_cell_rows(rows, cell)
+                slot = reaction_slot_key(cell, item_id)
+                # A row's catalog id stays authoritative; a row already at the new
+                # member's slot also counts, so the add never rewrites another member.
+                if any(row.catalog_item_id == item_id or row.slot_key == slot for row in members):
+                    raise AnimaLoadoutError("reaction_member_duplicate")
+                if len(members) >= REACTION_POOL_LIMIT:
+                    raise AnimaLoadoutError("reaction_pool_full")
+                target = await self._target(user_id=user_id, source=source, expected_kind=expected_kind)
+                action = "add"
+            elif operation == "remove":
+                # Removal names the member row, so an unavailable Reaction can still be removed.
+                current = next(
+                    (
+                        row
+                        for row in rows
+                        if row.id == intent.get("binding_id")
+                        and row.kind == ContentKind.REACTION.value
+                        and parse_reaction_slot_key(row.slot_key) is not None
+                    ),
+                    None,
+                )
+                slot = current.slot_key if current is not None else None
+                action = "remove" if current is not None else "unchanged"
+            elif operation == "restore_starter":
+                cell = reaction_cell_key(intent.get("emotion"), intent.get("intensity"))
+                starters, warnings = await self._starter_reactions(
+                    user_id=user_id, version=root.starter_catalog_version, cell=cell, lock=lock_sources
+                )
+                members = _reaction_cell_rows(rows, cell)
+                starter_ids = {starter.item.id for starter in starters}
+                present = {row.catalog_item_id for row in members}
+                removals = tuple(row for row in members if row.catalog_item_id not in starter_ids)
+                additions = tuple(
+                    (reaction_slot_key(cell, starter.item.id), starter)
+                    for starter in starters
+                    if starter.item.id not in present
+                )
+                action = "revert" if additions or removals else "unchanged"
             else:
                 raise AnimaLoadoutError("reaction_operation_invalid")
         elif family == "idle":
@@ -612,11 +703,49 @@ class AnimaLoadoutService:
             else:
                 raise AnimaLoadoutError("appearance_operation_invalid")
 
-        visible = {item.id: item for item in await self._catalog.list_visible(user_id=user_id)}
+        targets = [value for value in (target, *(item for _, item in additions)) if value is not None]
+        counts = await self._dependency_counts(user_id=user_id, targets=targets)
+        final_gesture_count = sum(_is_ai_gesture_row(row) for row in rows)
+        if family == "gesture":
+            final_gesture_count += int(action == "add") - int(action == "remove")
+        aggregate_revision = await self._aggregate_revision(user_id=user_id, anima_id=root.anima_id)
+        identity: dict[str, Any] = {
+            "anima_id": root.anima_id,
+            "revision": root.revision,
+            "aggregate_revision": aggregate_revision,
+            "family": family,
+            "intent": intent,
+            "action": action,
+            "target_revision": target.item.revision_sha256 if target else None,
+        }
+        if additions or removals:
+            # A restore writes several rows; the commit must see the same Reactions at the same revisions.
+            identity["members"] = {
+                "add": sorted([item.item.id, item.item.revision_sha256] for _, item in additions),
+                "remove": sorted(row.id for row in removals),
+            }
+        plan = LoadoutPlan(
+            action=cast(Any, action),
+            digest=_digest(identity),
+            current_name=current.slot_key if current else None,
+            target_name=target.document.name if target else None,
+            included_resource_counts=counts,
+            final_gesture_count=max(0, final_gesture_count),
+            warnings=tuple(warnings),
+            aggregate_revision=aggregate_revision,
+        )
+        return _PlannedChange(plan, target, slot, current, additions, removals)
+
+    async def _dependency_counts(self, *, user_id: str, targets: list[TypedCatalogItem]) -> dict[str, int]:
+        """Count the targets' distinct transitive support content and refuse an unconverted Avatar Effect."""
+
         counts: dict[str, int] = {}
-        if target is not None:
+        if not targets:
+            return counts
+        visible = {item.id: item for item in await self._catalog.list_visible(user_id=user_id)}
+        seen: set[str] = set()
+        for target in targets:
             pending = list(target.item.dependency_item_ids)
-            seen: set[str] = set()
             while pending:
                 item_id = pending.pop()
                 if item_id in seen:
@@ -633,29 +762,48 @@ class AnimaLoadoutService:
                     raise AnimaLoadoutError("avatar_effect_conversion_required")
                 counts[item.kind.value] = counts.get(item.kind.value, 0) + 1
                 pending.extend(item.dependency_item_ids)
-        final_gesture_count = sum(_is_ai_gesture_row(row) for row in rows)
-        if family == "gesture":
-            final_gesture_count += int(action == "add") - int(action == "remove")
-        aggregate_revision = await self._aggregate_revision(user_id=user_id, anima_id=root.anima_id)
-        identity = {
-            "anima_id": root.anima_id,
-            "revision": root.revision,
-            "aggregate_revision": aggregate_revision,
-            "family": family,
-            "intent": intent,
-            "action": action,
-            "target_revision": target.item.revision_sha256 if target else None,
-        }
-        plan = LoadoutPlan(
-            action=cast(Any, action),
-            digest=_digest(identity),
-            current_name=current.slot_key if current else None,
-            target_name=target.document.name if target else None,
-            included_resource_counts=counts,
-            final_gesture_count=max(0, final_gesture_count),
-            aggregate_revision=aggregate_revision,
-        )
-        return plan, target, slot, current
+        return counts
+
+    async def _starter_reactions(
+        self, *, user_id: str, version: int, cell: str, lock: bool
+    ) -> tuple[list[TypedCatalogItem], list[LoadoutDiagnostic]]:
+        """Resolve a cell's Included starter Reactions; an unavailable one is skipped with a warning."""
+
+        keys = starter_reaction_pools(version).get(cell, ())
+        if not keys:
+            return [], []
+        visible = await self._catalog.list_visible(user_id=user_id)
+        starters: list[TypedCatalogItem] = []
+        warnings: list[LoadoutDiagnostic] = []
+        for key in keys:
+            matches = [
+                item
+                for item in visible
+                if item.source is ContentSource.INCLUDED
+                and item.kind is ContentKind.REACTION
+                and item.logical_key == key
+            ]
+            try:
+                if len(matches) != 1:
+                    raise AnimaLoadoutError("loadout_source_unavailable")
+                starters.append(
+                    await self._target(
+                        user_id=user_id,
+                        source={"type": "catalog", "catalog_item_id": matches[0].id},
+                        expected_kind=ContentKind.REACTION,
+                        lock=lock,
+                    )
+                )
+            except AnimaLoadoutError:
+                warnings.append(
+                    LoadoutDiagnostic(
+                        code="starter_reaction_unavailable",
+                        message=f"Included Reaction {key} is unavailable and was not restored.",
+                        scope="source",
+                        params={"contentId": key},
+                    )
+                )
+        return starters, warnings
 
     async def plan(
         self,
@@ -670,8 +818,8 @@ class AnimaLoadoutService:
         root = await self._root(user_id=user_id, anima_id=anima_id)
         if root.revision != expected_revision:
             raise AnimaLoadoutError("loadout_revision_conflict", current_revision=root.revision)
-        plan, _, _, _ = await self._plan(root=root, user_id=user_id, family=family, intent=intent, store=store)
-        return plan
+        change = await self._plan(root=root, user_id=user_id, family=family, intent=intent, store=store)
+        return change.plan
 
     @staticmethod
     def _set_exclusion(root: ORMAnimaLoadout, *, slot: str, runtime_id: str, excluded: bool) -> None:
@@ -784,7 +932,7 @@ class AnimaLoadoutService:
         root = await self._root(user_id=user_id, anima_id=anima_id, lock=True)
         if root.revision != expected_revision:
             raise AnimaLoadoutError("loadout_revision_conflict", current_revision=root.revision)
-        plan, target, slot, current = await self._plan(
+        change = await self._plan(
             root=root,
             user_id=user_id,
             family=family,
@@ -792,12 +940,11 @@ class AnimaLoadoutService:
             lock_sources=True,
             store=store,
         )
+        plan = change.plan
         if plan.digest != plan_digest:
             raise AnimaLoadoutError("loadout_plan_stale", current_revision=root.revision)
 
-        await self._apply_planned(
-            root=root, family=family, intent=intent, plan=plan, target=target, slot=slot, current=current
-        )
+        await self._apply_planned(root=root, family=family, intent=intent, change=change)
         if plan.action != "unchanged":
             root.revision += 1
             definition = await self._animas.record_definition_revision(
@@ -833,14 +980,12 @@ class AnimaLoadoutService:
         root: ORMAnimaLoadout,
         family: LoadoutFamily,
         intent: dict[str, Any],
-        plan: LoadoutPlan,
-        target: TypedCatalogItem | None,
-        slot: str | None,
-        current: ORMAnimaContentBinding | None,
+        change: _PlannedChange,
     ) -> None:
         """Shared typed persistence, with no revision bump, receipt, or commit."""
 
         operation = str(intent.get("operation"))
+        plan, target, slot, current = change.plan, change.target, change.slot, change.current
         if plan.action != "unchanged":
             if family == "gesture":
                 if operation in {"add", "update", "reconfigure"} and target is not None and slot is not None:
@@ -864,33 +1009,28 @@ class AnimaLoadoutService:
                         runtime_id=starter_id,
                         excluded=operation == "disable_starter",
                     )
-            elif family == "reaction" and slot is not None:
-                emotion = str(intent["emotion"])
-                intensity = int(intent["intensity"])
-                if operation in {"add", "replace", "update", "reconfigure"} and target is not None:
+            elif family == "reaction":
+                # Members carry no binding configuration; one runtime root serves every cell.
+                if operation == "add" and target is not None and slot is not None:
                     await self._upsert(
-                        root=root,
-                        slot=slot,
-                        kind=ContentKind.REACTION,
-                        target=target,
-                        config=dict(intent.get("config_overrides") or {}),
-                        current=current,
+                        root=root, slot=slot, kind=ContentKind.REACTION, target=target, config={}, current=None
                     )
-                    self._set_exclusion(
-                        root,
-                        slot="reaction",
-                        runtime_id=f"{emotion}-{intensity}",
-                        excluded=False,
-                    )
-                else:
-                    if current is not None:
-                        await self._session.delete(current)
-                    self._set_exclusion(
-                        root,
-                        slot="reaction",
-                        runtime_id=f"{emotion}-{intensity}",
-                        excluded=operation == "leave_empty",
-                    )
+                elif operation == "remove" and current is not None:
+                    await self._session.delete(current)
+                elif operation == "restore_starter":
+                    for row in change.removals:
+                        await self._session.delete(row)
+                    # Delete before inserting so a re-added member cannot meet its old slot.
+                    await self._session.flush()
+                    for member_slot, member in change.additions:
+                        await self._upsert(
+                            root=root,
+                            slot=member_slot,
+                            kind=ContentKind.REACTION,
+                            target=member,
+                            config={},
+                            current=None,
+                        )
             elif family == "idle" and slot is not None:
                 if operation == "add" and target is not None:
                     await self._upsert(
@@ -936,14 +1076,19 @@ class AnimaLoadoutService:
     async def initialize(self, *, user_id: str, anima_id: str, spec: ResolvedAnimaSpec) -> None:
         """Compose exact Revision 1 selections using the normal typed validators.
 
-        Explicit exclusions prevent unselected Recommended Starter entries from
-        being implicitly restored. No intermediate equipment revisions escape.
+        Explicit exclusions prevent unselected Recommended Starter Gestures from
+        being implicitly restored; Reaction pools hold exactly the spec's
+        members. No intermediate equipment revisions escape.
         """
 
-        cells = {(emotion, intensity) for emotion in TRACKED_EMOTIONS for intensity in (1, 2, 3)}
-        selected_cells = [(cell.emotion, cell.intensity) for cell in spec.reactions]
-        if len(selected_cells) != len(cells) or set(selected_cells) != cells:
-            raise AnimaLoadoutError("reaction_matrix_incomplete")
+        reaction_pools: dict[str, list[str]] = {}
+        for reaction in spec.reactions:
+            pool = reaction_pools.setdefault(reaction_cell_key(reaction.emotion, reaction.intensity), [])
+            if reaction.source.id in pool:
+                raise AnimaLoadoutError("reaction_member_duplicate")
+            if len(pool) >= REACTION_POOL_LIMIT:
+                raise AnimaLoadoutError("reaction_pool_full")
+            pool.append(reaction.source.id)
         root = ORMAnimaLoadout(
             anima_id=anima_id,
             owner_user_id=user_id,
@@ -962,26 +1107,19 @@ class AnimaLoadoutService:
         ) -> None:
             if source is not None:
                 intent["source"] = {"type": "catalog", "catalog_item_id": source.id}
-            plan, target, slot, current = await self._plan(
+            change = await self._plan(
                 root=root,
                 user_id=user_id,
                 family=family,
                 intent=intent,
                 lock_sources=True,
             )
+            target = change.target
             if source is not None and (target is None or target.item.revision_sha256 != source.revision_sha256):
                 raise AnimaLoadoutError("loadout_source_stale")
-            if family == "gesture" and current is not None:
+            if family == "gesture" and change.current is not None:
                 raise AnimaLoadoutError("gesture_semantic_key_conflict")
-            await self._apply_planned(
-                root=root,
-                family=family,
-                intent=intent,
-                plan=plan,
-                target=target,
-                slot=slot,
-                current=current,
-            )
+            await self._apply_planned(root=root, family=family, intent=intent, change=change)
 
         await apply("avatar", {"operation": "set"}, spec.avatar)
         if spec.voice_source is not None:
@@ -1009,22 +1147,28 @@ class AnimaLoadoutService:
             )
         for selection in spec.gestures:
             await apply("gesture", {"operation": "add", "config_overrides": selection.config}, selection.source)
-        for cell in spec.reactions:
-            if cell.source is None:
-                # The complete matrix was validated above. Empty cells need
-                # only the shared exclusion rule, not 72 repeated catalog scans.
-                self._set_exclusion(root, slot="reaction", runtime_id=f"{cell.emotion}-{cell.intensity}", excluded=True)
-                continue
-            await apply(
-                "reaction",
-                {
-                    "operation": "replace",
-                    "emotion": cell.emotion,
-                    "intensity": cell.intensity,
-                    "config_overrides": cell.config,
-                },
-                cell.source,
+        # Pool members are written directly from the validated pools above; one
+        # dependency check covers them all instead of a catalog scan per member.
+        reaction_targets: list[TypedCatalogItem] = []
+        for reaction in spec.reactions:
+            target = await self._target(
+                user_id=user_id,
+                source={"type": "catalog", "catalog_item_id": reaction.source.id},
+                expected_kind=ContentKind.REACTION,
+                lock=True,
             )
+            if target.item.revision_sha256 != reaction.source.revision_sha256:
+                raise AnimaLoadoutError("loadout_source_stale")
+            reaction_targets.append(target)
+            await self._upsert(
+                root=root,
+                slot=reaction_slot_key(reaction_cell_key(reaction.emotion, reaction.intensity), reaction.source.id),
+                kind=ContentKind.REACTION,
+                target=target,
+                config={},
+                current=None,
+            )
+        await self._dependency_counts(user_id=user_id, targets=reaction_targets)
         for use, appearance in (("profile", spec.profile), ("background", spec.background)):
             if appearance is not None:
                 await apply(
@@ -1055,22 +1199,14 @@ class AnimaLoadoutService:
         current = next((row for row in await self._bindings(anima_id) if row.slot_key == "avatar"), None)
         if avatar is not None and avatar.catalog_item_id:
             intent = {"operation": "set", "source": {"type": "catalog", "catalog_item_id": avatar.catalog_item_id}}
-            plan, target, slot, current = await self._plan(
+            change = await self._plan(
                 root=root,
                 user_id=user_id,
                 family="avatar",
                 intent=intent,
                 lock_sources=True,
             )
-            await self._apply_planned(
-                root=root,
-                family="avatar",
-                intent=intent,
-                plan=plan,
-                target=target,
-                slot=slot,
-                current=current,
-            )
+            await self._apply_planned(root=root, family="avatar", intent=intent, change=change)
         else:
             if current is not None:
                 await self._session.delete(current)

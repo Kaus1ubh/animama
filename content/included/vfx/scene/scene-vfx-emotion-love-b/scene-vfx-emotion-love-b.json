@@ -1,0 +1,133 @@
+{
+  "schema_version": 1,
+  "content_type": "scene_effect",
+  "content_id": "builtin:scene-effect:background:scene-vfx-emotion-love-b",
+  "version": 1,
+  "name": "Love B Background",
+  "description": "A rose pink shoujo backdrop with large translucent bubbles rising slowly at the sides and delicate sparkles twinkling around the Avatar, for heart-fluttering, loving moments.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/scene-effect/1",
+    "kind": "background_layers",
+    "durationMs": null,
+    "dismissOnInput": false,
+    "coverUiOverlays": false,
+    "solid": {
+      "enabled": false,
+      "color": "#e97f9b"
+    },
+    "gradient": {
+      "enabled": true,
+      "type": "radial",
+      "angleDeg": 180,
+      "centerX": 0.5,
+      "centerY": 0.36,
+      "stops": [
+        {
+          "color": "#fff4f6",
+          "position": 0
+        },
+        {
+          "color": "#ffd3dd",
+          "position": 0.3
+        },
+        {
+          "color": "#f7a1b6",
+          "position": 0.72
+        },
+        {
+          "color": "#e97f9b",
+          "position": 1
+        }
+      ]
+    },
+    "pattern": {
+      "enabled": false,
+      "pattern": "none",
+      "color": "#ffffff",
+      "size": 10,
+      "spacing": 20,
+      "opacity": 0.3
+    },
+    "marquee": {
+      "enabled": false,
+      "items": [],
+      "itemSize": 72,
+      "gap": 24,
+      "rowGap": 18,
+      "direction": "left",
+      "itemRotationMode": "upright",
+      "itemRotationOffsetDeg": 0,
+      "speedPxPerSec": 100,
+      "opacity": 1
+    },
+    "scatters": [
+      {
+        "enabled": true,
+        "items": [
+          {
+            "id": "bubble",
+            "kind": "image",
+            "label": "Shoujo bubble",
+            "image": "shoujo-bubble.png"
+          }
+        ],
+        "count": 16,
+        "seed": 63,
+        "minSize": 36,
+        "maxSize": 150,
+        "minRotationDeg": -20,
+        "maxRotationDeg": 20,
+        "minOpacity": 0.75,
+        "maxOpacity": 1,
+        "regionTop": 0,
+        "regionBottom": 1,
+        "keepFaceClear": true,
+        "direction": "up",
+        "speedPxPerSec": 20,
+        "minSpinDegPerSec": 0,
+        "maxSpinDegPerSec": 0,
+        "alternateSpin": false,
+        "pulse": "none"
+      },
+      {
+        "enabled": true,
+        "items": [
+          {
+            "id": "sparkle",
+            "kind": "image",
+            "label": "Shoujo sparkle",
+            "image": "shoujo-sparkle.png"
+          }
+        ],
+        "count": 12,
+        "seed": 35,
+        "minSize": 26,
+        "maxSize": 52,
+        "minRotationDeg": 0,
+        "maxRotationDeg": 0,
+        "minOpacity": 0.85,
+        "maxOpacity": 1,
+        "regionTop": 0.03,
+        "regionBottom": 0.92,
+        "keepFaceClear": true,
+        "direction": "static",
+        "speedPxPerSec": 0,
+        "minSpinDegPerSec": 0,
+        "maxSpinDegPerSec": 0,
+        "alternateSpin": false,
+        "pulse": "twinkle"
+      }
+    ]
+  },
+  "files": [
+    {
+      "path": "shoujo-bubble.png",
+      "role": "image"
+    },
+    {
+      "path": "shoujo-sparkle.png",
+      "role": "image"
+    }
+  ]
+}

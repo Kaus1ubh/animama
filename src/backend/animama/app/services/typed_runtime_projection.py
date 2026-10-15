@@ -7,7 +7,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 from animama.app.services.content_kind_registry import RuntimeProjectionInput, handler_for_kind
-from animama.domain.anima_loadout import IDLE_DEFAULT_CELL
+from animama.domain.anima_loadout import IDLE_DEFAULT_CELL, IDLE_INTENSITIES, REACTION_INTENSITIES, parse_cell_key
 from animama.domain.content_catalog import CatalogContentEntry, ContentKind
 from animama.domain.content_documents import (
     ContentDocumentError,
@@ -211,6 +211,8 @@ def project_typed_runtime_catalog(
     idle_gestures: list[dict[str, Any]] = []
     idle_default: list[str] = []
     idle_cells: dict[str, dict[str, list[str]]] = {}
+    # Reaction pools by emotion, then intensity, listing admitted Reaction catalog item ids.
+    reaction_cells: dict[str, dict[str, list[str]]] = {}
     avatar: dict[str, Any] | None = None
     voice: dict[str, Any] | None = None
     supports: dict[str, dict[str, Any]] = {}
@@ -248,8 +250,10 @@ def project_typed_runtime_catalog(
                 if cell == IDLE_DEFAULT_CELL:
                     idle_default.append(root.item_id)
                     continue
-                emotion, _, intensity = str(cell).rpartition("-")
-                idle_cells.setdefault(emotion, {}).setdefault(intensity, []).append(root.item_id)
+                parsed_cell = parse_cell_key(str(cell), intensities=IDLE_INTENSITIES)
+                if parsed_cell is not None:
+                    emotion, intensity = parsed_cell
+                    idle_cells.setdefault(emotion, {}).setdefault(str(intensity), []).append(root.item_id)
         else:
             projected = handler_for_kind(root.kind).project_runtime(
                 document,
@@ -269,6 +273,13 @@ def project_typed_runtime_catalog(
                 voice = projected.payload
             elif projected.lane in lanes:
                 lanes[projected.lane].append(projected.payload)
+                # A pooled Reaction is projected once and listed in every cell it belongs to.
+                if projected.lane == "reaction":
+                    for cell in root.context.get("reaction_cells", ()):
+                        parsed_cell = parse_cell_key(str(cell), intensities=REACTION_INTENSITIES)
+                        if parsed_cell is not None:
+                            emotion, intensity = parsed_cell
+                            reaction_cells.setdefault(emotion, {}).setdefault(str(intensity), []).append(root.item_id)
 
         for support_entry in closure_entries(root):
             if support_entry.kind not in _SUPPORT_KINDS:
@@ -468,6 +479,7 @@ def project_typed_runtime_catalog(
         "gestures": lanes["gesture"],
         "poses": lanes["pose"],
         "reactions": lanes["reaction"],
+        "reaction_cells": reaction_cells,
         "idle": {"default_pool": idle_default, "cells": idle_cells, "gestures": idle_gestures},
         "avatar": avatar,
         "voice": voice,

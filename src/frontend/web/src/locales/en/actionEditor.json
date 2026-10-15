@@ -380,7 +380,7 @@
       "aliasTypeConflict": "Alias “{{alias}}” is used by more than one component type.",
       "dependenciesNotArray": "Dependencies must be an array.",
       "dependencyInvalid": "Dependency declaration is invalid.",
-      "intensity": "Suggested Reaction intensity must be 1, 2, or 3.",
+      "intensity": "Suggested Reaction intensity must be 1, 2, 3 or 4.",
       "nameRequired": "Project name is required.",
       "notObject": "JSON must contain an object.",
       "sourceInvalid": "Dependency source is invalid.",

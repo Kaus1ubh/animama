@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:teary_sparkle_eyes",
+  "version": 1,
+  "name": "Teary Sparkle Eyes",
+  "description": "Big glossy anime eyes whose tears well up from a thin water line to a trembling, brim-full pool while the highlights quiver, the uru-uru look of someone touched or about to cry, for gratitude and tender sadness.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "eyes",
+    "attachment": {
+      "kind": "face_landmark",
+      "landmark": "eyes",
+      "side": "right",
+      "mirror": true,
+      "scale": {
+        "x": 0.82,
+        "y": 0.82
+      }
+    },
+    "art": {
+      "image": "teary_sparkle_eyes.png",
+      "flipbook": {
+        "columns": 2,
+        "rows": 2,
+        "frames": 4,
+        "fps": 7,
+        "loop": "pingpong"
+      }
+    },
+    "motion": {
+      "pulse": {
+        "scaleMin": 0.985,
+        "scaleMax": 1.025,
+        "cyclesPerSecond": 1.5
+      },
+      "keyframes": {
+        "frames": [
+          {
+            "t": 0,
+            "opacity": 0,
+            "scale": 0.6
+          },
+          {
+            "t": 0.14,
+            "opacity": 1,
+            "scale": 1.08
+          },
+          {
+            "t": 0.28,
+            "scale": 0.97
+          },
+          {
+            "t": 0.4,
+            "scale": 1
+          }
+        ]
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "teary_sparkle_eyes.png",
+      "role": "image"
+    }
+  ]
+}

@@ -125,9 +125,10 @@ Missing required content blocks playback as one coherent root rather than
 silently omitting a channel.
 
 A standalone Reaction preview uses the final segment of its logical key as the
-runtime ID, preserving a saved creator clip's identity. Its Joy/intensity
-placement hint does not rename that preview to `joy-1`; equipped runtime
-Reaction cells retain their normal emotion/intensity identity.
+runtime ID, preserving a saved creator clip's identity. Its suggested
+emotion/intensity does not rename that preview to `joy-1`. In an Anima's
+runtime a Reaction is `reaction:<item_id>` and plays from whichever cells'
+pools hold it; Loadout Preview plays one member in the Anima's context.
 
 The Library motion preview reports `loading` while private clips and their
 dependencies resolve. Once the player starts, it applies a zero-time Avatar
@@ -151,8 +152,8 @@ the closure.
 
 Save and Save & Equip
 perform authoritative typed-document and closure validation before directly
-replacing the editable Local entry; only Save & Equip enters the reviewed
-loadout mutation flow.
+replacing the editable Local entry; only Save & Equip then opens the equip
+dialog, whose loadout changes apply at once.
 
 ## Component and media previews
 

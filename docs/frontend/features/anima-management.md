@@ -58,7 +58,8 @@ Profile and Background images, framing and Avatar portrait fallback.
 `GET /v1/animas/{anima_id}/loadout` supplies one typed aggregate containing:
 
 - a short active Gesture list;
-- a canonical emotion-by-intensity Reaction grid;
+- the Anima's Reaction pools: one cell per emotion and intensity (Mild,
+  Moderate, Strong, Intense), each holding up to four Reactions;
 - the Anima's own Idle pool (Default plus emotion/intensity cells);
 - one Avatar content selection; and
 - typed profile/background Appearance Images with fit, focal point, and zoom.
@@ -84,13 +85,27 @@ to VRMA or Clips; Clips maps to the normalized
 `anima_clip` implementation. A compact checked status identifies
 equipped rows. Equip, Remove, Disable, and Restore continue through the
 server-backed loadout review before commit. Creating a Gesture makes it
-available here but does not equip it automatically. Reaction cells visibly
-distinguish Starter, custom, and intentionally empty states. Every cell's
-searchable selector lists every ready Local and Included Reaction, with its
-optional suggested emotion/intensity shown as context; choosing one assigns the complete
-Action to the clicked cell regardless of that suggested placement. Adding,
-updating, replacing, removing, reverting, or leaving a Reaction empty uses the
-same review boundary. Replacing a cell names the current occupant.
+available here but does not equip it automatically.
+
+Reactions show one expandable row per emotion, summarising how many Reactions
+it holds, with its four intensity cells. Each cell lists its Reactions with
+the Starter badge for the cell's Included starter Reactions, Preview and
+Remove; an empty cell reads "No Reaction". Each emotion event in chat plays one
+member of its cell, chosen at random ([avatar planner](../runtime/avatar-planner.md)).
+The cell's Add picker lists every ready Local and Included Reaction, with its
+optional suggested emotion and intensity as context only: any Reaction can join
+any cell. Reactions already in the cell are marked and cannot be added again.
+A cell holds at most four Reactions; at four, Add is disabled and the cell says
+why. The cell menu opens the Library and, unless the cell already holds exactly
+its starter Reactions, offers Restore starter. Removing the last member leaves
+the cell empty, which plays no Reaction. A starter Reaction that cannot be
+restored is skipped with a warning. Unavailable members stay listed, marked,
+so they can be removed.
+
+Adding, removing and restoring apply at once through `reactions:plan|commit`
+without the review dialog, like Idle. A failure shows an error and leaves the
+pool as it was; a stale revision refetches the Loadout and asks the owner to
+try again. Changes reach chat on the next runtime mount.
 
 Idle is the Anima's built-in pool of Gestures for quiet moments
 ([ADR 0026](../../adr/0026-built-in-idle-pool-per-anima.md)); it always exists
@@ -121,9 +136,10 @@ use their typed plan/commit lanes from focused management controls.
 ## Review and commit
 
 Each family uses a typed plan endpoint followed by its matching commit
-endpoint. The review labels every selected Anima as Add, Update, Replace,
-Remove, Revert, Leave Empty, Unchanged, or Blocked. Target-local failures do
-not hide successful targets, and a failed-only retry keeps the same
+endpoint. Gesture changes open a review that labels every selected Anima as
+Add, Update, Replace, Remove, Revert, Leave Empty, Unchanged, or Blocked;
+Reaction and Idle pool edits commit their plan at once. Target-local failures
+do not hide successful targets, and a failed-only retry keeps the same
 idempotency intent.
 
 The dialog delegates Preview to the existing Library dock or management stage;

@@ -205,16 +205,26 @@
     "animaFallback": "Anima",
     "description": {
       "gesture": "選擇可以使用此動作的 Anima。進行中的聊天會保留現有資料；開啟新聊天即可套用變更。",
-      "reaction": "選擇可以使用此反應的 Anima。進行中的聊天會保留現有資料；開啟新聊天即可套用變更。"
+      "reaction": "選擇情緒和強度，然後為每個 Anima 將此反應新增到該儲存格，或從中移除。儲存格中的其他反應保持不變。進行中的聊天會保留現有資料；開啟新聊天即可套用變更。"
     },
     "equippedTo": "已將 {{name}} 裝備到 {{anima}}。",
     "notEquipped": "未裝備",
     "notLocal": "此行為不在本機目錄中。",
+    "reaction": {
+      "addTo": "新增到 {{anima}} 的 {{cell}}",
+      "added": "已將 {{name}} 新增到 {{anima}} 的 {{cell}}。",
+      "emotion": "情緒",
+      "full": "此儲存格已有 4 個反應。請先在此 Anima 的裝備中移除一個，再新增此反應。",
+      "inCell": "在此儲存格中",
+      "intensity": "強度",
+      "notInCell": "不在此儲存格中",
+      "removeFrom": "從 {{anima}} 的 {{cell}} 移除",
+      "removed": "已從 {{anima}} 的 {{cell}} 移除 {{name}}。"
+    },
     "removedFrom": "已從 {{anima}} 移除 {{name}}。",
     "title": "裝備 {{name}}",
     "willReplace": {
-      "gesture": "將替換目前的動作",
-      "reaction": "將替換目前的反應"
+      "gesture": "將替換目前的動作"
     }
   },
   "management": {
@@ -278,28 +288,35 @@
     "repairing": "正在修復記憶…"
   },
   "reactions": {
+    "add": "新增",
+    "addTo": "新增反應至 {{cell}}",
     "catalogUnavailable": "反應目錄無法使用。",
-    "cellName": "{{emotion}}（{{intensity}}）",
-    "change": "變更{{emotion}}（{{intensity}}）反應",
+    "cell": "{{emotion}} · {{intensity}}",
+    "changedElsewhere": "此 Anima 的反應已在別處變更，現已重新整理。請再試一次。",
     "chooseFromLibrary": "從資源庫中選擇",
+    "full": "此儲存格已有上限 4 個反應。請先移除一個再新增。",
+    "inCell": "已在此儲存格中",
     "included": "內建",
     "intensity": {
+      "intense": "極強",
       "level": "{{level}} 級",
       "mild": "輕微",
       "moderate": "中等",
       "strong": "強烈"
     },
-    "leaveEmpty": "留空",
     "levels": "{{emotion}}反應等級",
     "loading": "正在載入反應…",
     "local": "本機",
     "noReaction": "無反應",
     "noResults": "找不到反應。",
+    "reactionCount_other": "{{count}} 個反應",
+    "remove": "從 {{cell}} 中移除 {{name}}",
+    "restoreStarter": "還原為內建",
     "retryCatalog": "重試目錄",
-    "revertToStarter": "還原為內建",
     "search": "搜尋反應",
     "suggestion": "{{emotion}} · {{intensity}}",
-    "title": "反應"
+    "title": "反應",
+    "unavailable": "無法使用"
   },
   "roster": {
     "description": "此帳戶中還沒有 Anima。帳戶準備期間，你可以瀏覽資源庫。此託管應用程式無法建立 Anima。",

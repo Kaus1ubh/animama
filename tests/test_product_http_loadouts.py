@@ -14,7 +14,8 @@ from tests.typed_loadout_support import add_typed_item, catalog_source, cleanup_
 # A minimal valid intent for each plan/commit family; none needs owned content.
 FAMILY_INTENTS: dict[str, dict[str, object]] = {
     "gestures": {"operation": "disable_starter", "starter_id": "x"},
-    "reactions": {"operation": "leave_empty", "emotion": "amusement", "intensity": 1},
+    # Intensity-1 starter pools are empty, so restoring one is a valid no-op.
+    "reactions": {"operation": "restore_starter", "emotion": "amusement", "intensity": 1},
     # Removing a Gesture that is not in the Default Idle pool is a valid no-op.
     "idle": {"operation": "remove", "binding_id": "x"},
     "avatar": {"operation": "remove"},

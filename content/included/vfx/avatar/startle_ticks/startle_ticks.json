@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:startle_ticks",
+  "version": 1,
+  "name": "Startle Ticks",
+  "description": "Six bold orange jolt ticks snap out in an arc above the head and fade after about a second, the manga \"biku!\" startle mark of a double-take or a sudden gasp.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "emote",
+    "attachment": {
+      "kind": "face_landmark",
+      "landmark": "top_edge",
+      "position": "middle",
+      "scale": {
+        "x": 3,
+        "y": 3
+      },
+      "offset": {
+        "x": 0,
+        "y": 0.035,
+        "z": 0
+      }
+    },
+    "art": {
+      "image": "startle_ticks-boil.png",
+      "flipbook": {
+        "columns": 2,
+        "rows": 2,
+        "frames": 4,
+        "fps": 12,
+        "loop": "loop"
+      }
+    },
+    "motion": {
+      "keyframes": {
+        "frames": [
+          {
+            "t": 0,
+            "opacity": 0,
+            "scale": 0.4
+          },
+          {
+            "t": 0.06,
+            "opacity": 1,
+            "scale": 1.3
+          },
+          {
+            "t": 0.12,
+            "scale": 0.9
+          },
+          {
+            "t": 0.18,
+            "scale": 1
+          },
+          {
+            "t": 1,
+            "opacity": 1,
+            "scale": 1.03
+          },
+          {
+            "t": 1.25,
+            "opacity": 0,
+            "scale": 1.1
+          }
+        ]
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "startle_ticks-boil.png",
+      "role": "image"
+    }
+  ]
+}

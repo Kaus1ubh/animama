@@ -449,7 +449,7 @@ test("previews an effect source and reloads it when its image changes", async ()
 test("plays a Library Reaction with its Avatar and Particle Effects", async () => {
   const dir = await mkdtemp(path.join(tmpdir(), "animama-preview-reaction-"));
   const preview = await startPreviewServer({
-    sources: ["library:included/confusion-2"],
+    sources: ["library:included/confusion-3"],
     cwd: dir,
     localContent: null,
   });
@@ -657,7 +657,7 @@ test("previews Particle and Scene Effect sources", async () => {
 test("plays a Library Reaction with its Avatar, Particle and Scene Effects", async () => {
   const dir = await mkdtemp(path.join(tmpdir(), "animama-preview-joy-"));
   const preview = await startPreviewServer({
-    sources: ["library:included/joy-3"],
+    sources: ["library:included/joy-4"],
     cwd: dir,
     localContent: null,
   });

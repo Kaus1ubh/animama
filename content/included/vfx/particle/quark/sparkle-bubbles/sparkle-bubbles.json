@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "content_type": "particle_effect",
+  "content_id": "builtin:particle-effect:sparkle-bubbles",
+  "version": 1,
+  "name": "Sparkle Bubbles",
+  "description": "Iridescent soap bubbles float up from both shoulders on a gentle sway over a faint warm glow, popping into little glints at the top, for bubbly, giddy delight.",
+  "runtime_defaults": {
+    "schema_version": 1,
+    "runtime_id": "sparkle-bubbles",
+    "slots": {
+      "particle_vfx": {
+        "label": "Sparkle Bubbles",
+        "description": "Iridescent soap bubbles float up from both shoulders on a gentle sway over a faint warm glow, popping into little glints at the top, for bubbly, giddy delight.",
+        "anchor": "chest",
+        "duration_seconds": 4,
+        "max_duration_seconds": 4.5,
+        "preload_tier": "none",
+        "follow_anchor": true,
+        "transform": {
+          "offset": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "depth_offset": 0,
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "looping_allowed": false,
+        "can_coexist": true,
+        "max_particles": 29
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "particle.json",
+      "role": "manifest"
+    },
+    {
+      "path": "textures/iridescent-bubble.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/bubble-glint.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/bubble-glow.png",
+      "role": "texture"
+    }
+  ]
+}

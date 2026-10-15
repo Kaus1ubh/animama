@@ -10,7 +10,7 @@ from uuid import uuid4
 from zipfile import ZipFile
 
 import pytest
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, select
 
 from animama.adapters.repositories.sqlalchemy.anima_aggregate_uow import SQLAlchemyAnimaAggregateUnitOfWork
 from animama.adapters.repositories.sqlalchemy.anima_package_source_repo import SQLAlchemyAnimaPackageSourceRepository
@@ -22,7 +22,6 @@ from animama.app.services.anima_package_source_service import AnimaPackageSource
 from animama.app.services.content_catalog_service import ContentCatalogService
 from animama.app.services.content_package_service import ContentPackageService
 from animama.domain.content_catalog import ContentConflictError, ContentKind, ContentSource
-from animama.orm.anima_loadout import ORMAnimaLoadout
 from animama.orm.content_catalog import ORMAnimaContentBinding, ORMContentCatalogItem
 from tests.anima_creation_service_support import anima_creation_fixture, write_json
 from tests.content_package_helpers import package_services, reviewed_import, vrma
@@ -372,10 +371,17 @@ async def test_anima_export_refuses_other_non_portable_bindings(async_session, t
         )
         catalog = SQLAlchemyContentCatalog(async_session)
         content = ContentCatalogService(catalog=catalog, store=fixture.store())
-        await content.rescan(user_id=fixture.owner)
-        created = await fixture.service(async_session).create(user_id=fixture.owner, request=fixture.request())
-        await async_session.execute(
-            update(ORMAnimaLoadout).where(ORMAnimaLoadout.anima_id == created["anima_id"]).values(starter_exclusions=[])
+        scanned = await content.rescan(user_id=fixture.owner)
+        # A non-portable Included Reaction in a pool blocks export; only Gestures may be omitted.
+        starter = next(item for item in scanned.items if item.logical_key == "builtin:reaction:joy-1")
+        request = fixture.request().model_dump()
+        request["reactions"]["joy"]["2"] = [{"item_id": starter.id, "revision_sha256": starter.revision_sha256}]
+        request["expected_source_revisions"][starter.id] = {
+            "kind": "reaction",
+            "revision_sha256": starter.revision_sha256,
+        }
+        created = await fixture.service(async_session).create(
+            user_id=fixture.owner, request=CreateAnimaRequest.model_validate(request)
         )
         await async_session.commit()
         packages = _packages(fixture, async_session, catalog, content)

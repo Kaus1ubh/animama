@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "content_type": "scene_effect",
+  "content_id": "builtin:scene-effect:focus:scene-vfx-emotion-confusion-b",
+  "version": 1,
+  "name": "Confusion B Background",
+  "description": "Broad violet focus lines slowly fade in and out at uneven lengths around the Avatar, leaving the face clear, for total overload.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/scene-effect/1",
+    "kind": "focus_lines",
+    "durationMs": null,
+    "coverUiOverlays": false,
+    "dismissOnInput": false,
+    "renderPlacement": "behind_avatar",
+    "lineCount": 90,
+    "color": "#381c72",
+    "opacity": 0.88,
+    "baseThicknessPx": 20,
+    "thicknessVariationPx": 10,
+    "lengthVariation": 0.6,
+    "overscanPx": 64,
+    "seed": 29,
+    "target": {
+      "kind": "avatar_face",
+      "paddingXPx": 90,
+      "paddingYPx": 120
+    },
+    "animation": {
+      "minVisibleMs": 900,
+      "maxVisibleMs": 2200,
+      "minHiddenMs": 400,
+      "maxHiddenMs": 1200,
+      "opacityJitter": 0.35
+    }
+  },
+  "files": []
+}

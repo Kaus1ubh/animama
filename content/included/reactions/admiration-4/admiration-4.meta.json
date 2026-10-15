@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "content_type": "reaction",
+  "content_id": "builtin:reaction:admiration-4",
+  "version": 1,
+  "name": "Admiration Reaction 4",
+  "ai_description": "Reusable avatar reaction clip",
+  "placement_hint": {
+    "emotion": "admiration",
+    "intensity": 4
+  },
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [
+    {
+      "ref": "builtin:scene-effect:background:scene-vfx-emotion-admiration",
+      "alias": "scene-vfx-emotion-admiration",
+      "content_type": "scene_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:avatar-effect:star3",
+      "alias": "star3",
+      "content_type": "avatar_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:particle-effect:twinkle-shimmer",
+      "alias": "twinkle-shimmer",
+      "content_type": "particle_effect",
+      "config": {}
+    }
+  ],
+  "files": [
+    {
+      "path": "admiration-4.json",
+      "role": "sequence"
+    }
+  ]
+}

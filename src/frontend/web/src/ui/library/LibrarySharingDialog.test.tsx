@@ -311,11 +311,7 @@ describe("complete package review", () => {
       },
     ],
     reactions: {
-      joy: {
-        "1": { entry_id: "wave", config: { gain: 0.4 } },
-        "2": null,
-        "3": null,
-      },
+      joy: { "1": ["wave"], "2": [], "3": [], "4": ["wave", "avatar"] },
     },
     idle: { default: [], cells: {} },
     appearance: { profile: null, background: null },
@@ -524,7 +520,7 @@ describe("complete package review", () => {
       expect(page).toContain(entry.display_name);
     expect(page.match(/Required items/g)).toHaveLength(1);
   });
-  it("shows full saved Anima identity, all equipment cells and authored configuration", () => {
+  it("shows full saved Anima identity, all equipment cells, Reaction pools and authored configuration", () => {
     const page = html({
       screen: "export-review",
       mode: "anima",
@@ -544,9 +540,14 @@ describe("complete package review", () => {
     expect(page).toContain("greeting: Hello");
     expect(page).toContain("duration seconds");
     expect(page).toContain("0.25");
-    expect(page).toContain("gain");
-    expect(page).toContain("0.4");
-    expect(page).toContain(" · 2: None");
+    // Each cell lists its pool in package order, one element per member.
+    expect(page).toMatch(
+      /Mild<\/dt><dd[^>]*><ol[^>]*><li[^>]*>Hello<\/li><\/ol><\/dd>/,
+    );
+    expect(page).toMatch(/Moderate<\/dt><dd[^>]*>None<\/dd>/);
+    expect(page).toMatch(
+      /Intense<\/dt><dd[^>]*><ol[^>]*><li[^>]*>Hello<\/li><li[^>]*>Mira<\/li><\/ol><\/dd>/,
+    );
     expect(page).toContain("Idle: </span>None");
     expect(page).not.toContain("PocketTTS voice: </span>");
     expect(page).toContain("Export Anima");

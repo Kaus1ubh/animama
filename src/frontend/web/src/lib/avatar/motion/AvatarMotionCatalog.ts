@@ -19,6 +19,7 @@ import {
   AVATAR_POSE_IDS,
   AVATAR_POSE_CLIP_IDS,
   AVATAR_REACTION_CLIP_IDS,
+  AVATAR_REACTION_POOLS,
   DEFAULT_AVATAR_POSE_IDS,
   getAvatarPose,
   getAvatarPoseClip,
@@ -28,9 +29,10 @@ import {
 import type { AnimaPose, ResolvedAnimaPose } from "../poses/animaPose";
 import type { AnimaPoseClipV2 } from "../poses/animaPoseClip";
 import {
-  getEmotionReactionClipId,
+  getIncludedReactionPool,
   type NormalizedEmotionReactionIntensity,
 } from "../reactionClips";
+import { pickReactionPoolMember, type ReactionPools } from "../reactionPools";
 
 export type AvatarMotionPreloadTier = "tier_a" | "tier_b" | "none";
 
@@ -60,6 +62,18 @@ export type AvatarMotionClipDescriptor = {
   loaded: boolean;
 };
 
+/** One emotion event's Reaction cell and the roll that picks from its pool. */
+export type ReactionPoolPickArgs = {
+  emotionalTone: string | null | undefined;
+  emotionalIntensity: NormalizedEmotionReactionIntensity;
+  /** A random roll in [0, 1), drawn once per emotion event. */
+  randomRoll: number;
+  /** The cell's previous pick, which a pool of two or more never repeats. */
+  previousRuntimeId?: string | null;
+};
+
+export type { ReactionPools };
+
 /** Runtime boundary used by planner, VRMA, pose, and reaction consumers. */
 export interface AvatarMotionCatalog {
   readonly revision: string;
@@ -85,10 +99,15 @@ export interface AvatarMotionCatalog {
   getReactionClip(runtimeId: string): AnimaPoseClipV2 | null;
   loadReactionClip(runtimeId: string): Promise<AnimaPoseClipV2 | null>;
   listReactionClips(): readonly AvatarMotionClipDescriptor[];
-  getReactionRuntimeId(args: {
-    emotionalTone: string | null | undefined;
-    emotionalIntensity: NormalizedEmotionReactionIntensity;
-  }): string | null;
+  /**
+   * Pick the Reaction one emotion event plays from its cell's pool: uniform
+   * among the members that can play, never the previous pick while another
+   * member can play, and null for an empty or unknown cell (no other cell is
+   * tried).
+   */
+  getReactionRuntimeId(args: ReactionPoolPickArgs): string | null;
+  /** Every cell's pool, for inspection; a Reaction may sit in several cells. */
+  listReactionPools(): ReactionPools;
 
   getPoseIds(): readonly string[];
   getDefaultPoseIds(): readonly string[];
@@ -202,12 +221,21 @@ class BuiltInAvatarMotionCatalog implements AvatarMotionCatalog {
     });
   }
 
-  getReactionRuntimeId(args: {
-    emotionalTone: string | null | undefined;
-    emotionalIntensity: NormalizedEmotionReactionIntensity;
-  }): string | null {
-    const runtimeId = getEmotionReactionClipId(args);
-    return runtimeId && this.getReactionClip(runtimeId) ? runtimeId : null;
+  /**
+   * Built-in cells hold the Included Reactions their ids name, as a new
+   * Anima's starter pools do: `<emotion>-1` at Mild, and
+   * `<emotion>-<intensity>` with `<emotion>-<intensity>-b` above it.
+   */
+  getReactionRuntimeId(args: ReactionPoolPickArgs): string | null {
+    return pickReactionPoolMember(
+      getIncludedReactionPool(args),
+      args.randomRoll,
+      args.previousRuntimeId,
+    );
+  }
+
+  listReactionPools(): ReactionPools {
+    return AVATAR_REACTION_POOLS;
   }
 
   getPoseIds(): readonly string[] {

@@ -217,6 +217,8 @@ export async function pageEffect(effect, imageUrl) {
     otherImageUrl: effect.otherImagePath
       ? await imageUrl(effect.otherImagePath)
       : null,
+    soundCueId: effect.soundRef ?? null,
+    soundCueIds: effect.soundRefs ?? {},
   };
 }
 

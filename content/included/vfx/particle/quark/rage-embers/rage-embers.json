@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "content_type": "particle_effect",
+  "content_id": "builtin:particle-effect:rage-embers",
+  "version": 1,
+  "name": "Rage Embers",
+  "description": "Glossy embers and bright sparks spit up from both shoulders over a smouldering warm glow, for a seething temper about to boil over.",
+  "runtime_defaults": {
+    "schema_version": 1,
+    "runtime_id": "rage-embers",
+    "slots": {
+      "particle_vfx": {
+        "label": "Rage Embers",
+        "description": "Glossy embers and bright sparks spit up from both shoulders over a smouldering warm glow, for a seething temper about to boil over.",
+        "preload_tier": "none",
+        "looping_allowed": false,
+        "can_coexist": true,
+        "anchor": "chest",
+        "duration_seconds": 3.5,
+        "max_duration_seconds": 4,
+        "follow_anchor": true,
+        "transform": {
+          "offset": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "depth_offset": 0,
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "max_particles": 40
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "particle.json",
+      "role": "manifest"
+    },
+    {
+      "path": "textures/rage-glow.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/rage-ember.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/rage-spark.png",
+      "role": "texture"
+    }
+  ]
+}

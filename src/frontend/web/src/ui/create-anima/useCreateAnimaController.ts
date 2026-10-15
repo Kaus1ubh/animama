@@ -22,6 +22,7 @@ import {
   createAnimaDraftReducer,
   creationRoots,
   draftIssues,
+  INTENSITIES,
   issueStep,
   newCreateAnimaDraft,
   reconcileCreationIssues,
@@ -621,8 +622,10 @@ export function useCreateAnimaController(
         } else {
           const reactions = structuredClone(current.reactions);
           for (const row of Object.values(reactions))
-            for (const intensity of ["1", "2", "3"] as const)
-              if (row[intensity]?.item_id === ref.item_id) row[intensity] = ref;
+            for (const intensity of INTENSITIES)
+              row[intensity] = row[intensity].map((member) =>
+                member.item_id === ref.item_id ? ref : member,
+              );
           edit({
             ...(current.voice?.pocket.type === "clone" &&
             current.voice.pocket.source.item_id === ref.item_id

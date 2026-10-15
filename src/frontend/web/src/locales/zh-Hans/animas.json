@@ -205,16 +205,26 @@
     "animaFallback": "Anima",
     "description": {
       "gesture": "选择可以使用此动作的 Anima。进行中的聊天会保留现有数据；打开新聊天即可应用更改。",
-      "reaction": "选择可以使用此反应的 Anima。进行中的聊天会保留现有数据；打开新聊天即可应用更改。"
+      "reaction": "选择情绪和强度，然后为每个 Anima 将此反应添加到该单元格，或从中移除。单元格中的其他反应保持不变。进行中的聊天会保留现有数据；打开新聊天即可应用更改。"
     },
     "equippedTo": "已将 {{name}} 装备到 {{anima}}。",
     "notEquipped": "未装备",
     "notLocal": "此行为不在本地目录中。",
+    "reaction": {
+      "addTo": "添加到 {{anima}} 的 {{cell}}",
+      "added": "已将 {{name}} 添加到 {{anima}} 的 {{cell}}。",
+      "emotion": "情绪",
+      "full": "此单元格已有 4 个反应。请先在此 Anima 的装备中移除一个，再添加此反应。",
+      "inCell": "在此单元格中",
+      "intensity": "强度",
+      "notInCell": "不在此单元格中",
+      "removeFrom": "从 {{anima}} 的 {{cell}} 移除",
+      "removed": "已从 {{anima}} 的 {{cell}} 移除 {{name}}。"
+    },
     "removedFrom": "已从 {{anima}} 移除 {{name}}。",
     "title": "装备 {{name}}",
     "willReplace": {
-      "gesture": "将替换当前动作",
-      "reaction": "将替换当前反应"
+      "gesture": "将替换当前动作"
     }
   },
   "management": {
@@ -278,28 +288,35 @@
     "repairing": "正在修复记忆…"
   },
   "reactions": {
+    "add": "添加",
+    "addTo": "向 {{cell}} 添加反应",
     "catalogUnavailable": "反应目录不可用。",
-    "cellName": "{{emotion}}（{{intensity}}）",
-    "change": "更改{{emotion}}（{{intensity}}）反应",
+    "cell": "{{emotion}} · {{intensity}}",
+    "changedElsewhere": "此 Anima 的反应已在别处更改，现已刷新。请重试。",
     "chooseFromLibrary": "从资源库中选择",
+    "full": "此单元格已有上限 4 个反应。请先移除一个再添加。",
+    "inCell": "已在此单元格中",
     "included": "内置",
     "intensity": {
+      "intense": "极强",
       "level": "{{level}} 级",
       "mild": "轻微",
       "moderate": "中等",
       "strong": "强烈"
     },
-    "leaveEmpty": "留空",
     "levels": "{{emotion}}反应级别",
     "loading": "正在加载反应…",
     "local": "本地",
     "noReaction": "无反应",
     "noResults": "未找到反应。",
+    "reactionCount_other": "{{count}} 个反应",
+    "remove": "从 {{cell}} 中移除 {{name}}",
+    "restoreStarter": "恢复为内置",
     "retryCatalog": "重试目录",
-    "revertToStarter": "恢复为内置",
     "search": "搜索反应",
     "suggestion": "{{emotion}} · {{intensity}}",
-    "title": "反应"
+    "title": "反应",
+    "unavailable": "不可用"
   },
   "roster": {
     "description": "此账户中还没有 Anima。账户准备期间，你可以浏览资源库。此托管应用无法创建 Anima。",

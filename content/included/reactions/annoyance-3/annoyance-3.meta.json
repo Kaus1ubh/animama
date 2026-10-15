@@ -15,14 +15,8 @@
   },
   "dependencies": [
     {
-      "ref": "builtin:scene-effect:background:scene-vfx-emotion-annoyance",
-      "alias": "scene-vfx-emotion-annoyance",
-      "content_type": "scene_effect",
-      "config": {}
-    },
-    {
-      "ref": "builtin:avatar-effect:angry",
-      "alias": "angry",
+      "ref": "builtin:avatar-effect:eye",
+      "alias": "eye_=",
       "content_type": "avatar_effect",
       "config": {}
     },

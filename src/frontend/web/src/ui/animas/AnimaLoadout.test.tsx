@@ -61,9 +61,8 @@ vi.mock("@/query/mutations/useAnimaLoadoutMutations", () => ({
   useAnimaLoadoutMutations: () => ({
     planGesture: { mutateAsync: vi.fn() },
     commitGesture: { mutateAsync: vi.fn(), isPending: false },
-    planReaction: { mutateAsync: vi.fn() },
-    commitReaction: { mutateAsync: vi.fn(), isPending: false },
     changeIdle: { mutateAsync: vi.fn(), isPending: false },
+    changeReaction: { mutateAsync: vi.fn(), isPending: false },
   }),
 }));
 

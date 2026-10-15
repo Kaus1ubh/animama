@@ -385,10 +385,13 @@ export async function openAnnieLoadoutPreview(args: {
     await expect(search).toBeVisible({ timeout: 15_000 });
     await search.fill(args.contentName);
   } else {
-    const emotionName = args.contentName.replace(/ Reaction \d+$/, "");
-    const emotion = section.getByRole("button", {
-      name: new RegExp(`^${escapeRegExp(emotionName)}$`, "i"),
-    });
+    // The emotion row's name also carries its Reaction count, so find it by
+    // the levels region it controls. Included names end in the intensity and
+    // a second Reaction's "B", as in "Joy Reaction 4B".
+    const emotionName = args.contentName.replace(/ Reaction \d+B?$/, "");
+    const emotion = section.locator(
+      `button[aria-controls="reaction-${emotionName.toLowerCase()}-levels"]`,
+    );
     await expect(emotion).toHaveCount(1, { timeout: 15_000 });
     if ((await emotion.getAttribute("aria-expanded")) !== "true") {
       await emotion.click();

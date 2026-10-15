@@ -4,7 +4,7 @@
   "content_id": "builtin:scene-effect:background:scene-vfx-emotion-admiration",
   "version": 1,
   "name": "Emotion Admiration",
-  "description": "A lilac bloom behind the Avatar with star-shaped flowers drifting down and a field of twinkling sparkles, for admiring, starry-eyed moments.",
+  "description": "A sky-blue bloom behind the Avatar with gold stars drifting down and a field of twinkling glints, for admiring, starry-eyed moments.",
   "dependencies": [],
   "definition": {
     "schema": "animama/scene-effect/1",
@@ -14,7 +14,7 @@
     "dismissOnInput": false,
     "solid": {
       "enabled": false,
-      "color": "#d9b8ff"
+      "color": "#9fd4f7"
     },
     "pattern": {
       "enabled": false,
@@ -44,15 +44,15 @@
       "centerY": 0.32,
       "stops": [
         {
-          "color": "#fbf4ff",
+          "color": "#f7fcff",
           "position": 0
         },
         {
-          "color": "#ecdcff",
+          "color": "#dcf0ff",
           "position": 0.4
         },
         {
-          "color": "#d9b8ff",
+          "color": "#9fd4f7",
           "position": 1
         }
       ]
@@ -83,10 +83,10 @@
         "enabled": true,
         "items": [
           {
-            "id": "flower",
+            "id": "star",
             "kind": "image",
-            "label": "Lilac star flower",
-            "image": "lilac-star-flower.png"
+            "label": "Gold twinkle star",
+            "image": "twinkle-star-gold.png"
           }
         ],
         "count": 12,
@@ -111,10 +111,10 @@
         "enabled": true,
         "items": [
           {
-            "id": "sparkle",
+            "id": "glint",
             "kind": "image",
-            "label": "Sparkle",
-            "image": "sparkle-white.png"
+            "label": "Silver glint",
+            "image": "glint-silver.png"
           }
         ],
         "count": 18,
@@ -144,11 +144,11 @@
   },
   "files": [
     {
-      "path": "lilac-star-flower.png",
+      "path": "twinkle-star-gold.png",
       "role": "image"
     },
     {
-      "path": "sparkle-white.png",
+      "path": "glint-silver.png",
       "role": "image"
     },
     {

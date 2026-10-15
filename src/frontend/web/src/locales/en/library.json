@@ -182,7 +182,6 @@
   "row": {
     "addedTo_one": "Added to {{count}}",
     "addedTo_other": "Added to {{count}}",
-    "emotionLevel": "{{emotion}} Level {{level}}",
     "local": "Local",
     "updateAvailable": "Update available"
   },
@@ -207,8 +206,9 @@
       "labelValue": "{{label}}: {{value}}",
       "none": "None",
       "pocketVoice": "PocketTTS voice",
-      "reactionCell": "{{emotion}} · {{intensity}}: {{value}}",
-      "reactionCells": "Reaction cells"
+      "reactionCells": "Reaction cells",
+      "reactionSummary_one": "({{cells}} of {{total}} cells filled · {{count}} Reaction)",
+      "reactionSummary_other": "({{cells}} of {{total}} cells filled · {{count}} Reactions)"
     },
     "back": "Back",
     "countInParentheses": "({{total}})",

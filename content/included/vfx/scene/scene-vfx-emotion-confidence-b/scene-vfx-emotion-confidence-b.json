@@ -1,0 +1,146 @@
+{
+  "schema_version": 1,
+  "content_type": "scene_effect",
+  "content_id": "builtin:scene-effect:background:scene-vfx-emotion-confidence-b",
+  "version": 1,
+  "name": "Confidence B Background",
+  "description": "A gold stage spotlight falling from above onto the Avatar in a deep dark vignette, with faint stage rays sweeping slowly and dust glints rising through the light, for proud, confident moments.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/scene-effect/1",
+    "kind": "background_layers",
+    "durationMs": null,
+    "dismissOnInput": false,
+    "coverUiOverlays": false,
+    "solid": {
+      "enabled": false,
+      "color": "#120a02"
+    },
+    "pattern": {
+      "enabled": false,
+      "pattern": "none",
+      "color": "#ffffff",
+      "size": 10,
+      "spacing": 20,
+      "opacity": 0.3
+    },
+    "marquee": {
+      "enabled": false,
+      "items": [],
+      "itemSize": 72,
+      "gap": 24,
+      "rowGap": 18,
+      "direction": "left",
+      "itemRotationMode": "upright",
+      "itemRotationOffsetDeg": 0,
+      "speedPxPerSec": 100,
+      "opacity": 1
+    },
+    "gradient": {
+      "enabled": true,
+      "type": "radial",
+      "angleDeg": 180,
+      "centerX": 0.5,
+      "centerY": 0.32,
+      "stops": [
+        {
+          "color": "#fff3d2",
+          "position": 0
+        },
+        {
+          "color": "#c9973e",
+          "position": 0.17
+        },
+        {
+          "color": "#4a2f0b",
+          "position": 0.46
+        },
+        {
+          "color": "#120a02",
+          "position": 0.92
+        }
+      ]
+    },
+    "screen": {
+      "enabled": true,
+      "kind": "rays",
+      "color": "#ffe3a0",
+      "opacity": 0.07,
+      "count": 12,
+      "centerX": 0.5,
+      "centerY": 0,
+      "spiky": false,
+      "turnSeconds": 50,
+      "throbPerSec": 0,
+      "seed": 3
+    },
+    "scatters": [
+      {
+        "enabled": true,
+        "items": [
+          {
+            "id": "cone",
+            "kind": "image",
+            "label": "Spotlight cone",
+            "image": "spotlight-cone.png"
+          }
+        ],
+        "count": 1,
+        "seed": 1,
+        "minSize": 512,
+        "maxSize": 512,
+        "minRotationDeg": 0,
+        "maxRotationDeg": 0,
+        "minOpacity": 0.72,
+        "maxOpacity": 0.72,
+        "regionTop": 0,
+        "regionBottom": 0.36,
+        "keepFaceClear": false,
+        "direction": "static",
+        "speedPxPerSec": 0,
+        "minSpinDegPerSec": 0,
+        "maxSpinDegPerSec": 0,
+        "alternateSpin": false,
+        "pulse": "none"
+      },
+      {
+        "enabled": true,
+        "items": [
+          {
+            "id": "glint",
+            "kind": "image",
+            "label": "Dust glint",
+            "image": "dust-glint.png"
+          }
+        ],
+        "count": 18,
+        "seed": 43,
+        "minSize": 7,
+        "maxSize": 16,
+        "minRotationDeg": 0,
+        "maxRotationDeg": 0,
+        "minOpacity": 0.55,
+        "maxOpacity": 0.95,
+        "regionTop": 0,
+        "regionBottom": 1,
+        "keepFaceClear": true,
+        "direction": "up",
+        "speedPxPerSec": 11,
+        "minSpinDegPerSec": 0,
+        "maxSpinDegPerSec": 0,
+        "alternateSpin": false,
+        "pulse": "twinkle"
+      }
+    ]
+  },
+  "files": [
+    {
+      "path": "spotlight-cone.png",
+      "role": "image"
+    },
+    {
+      "path": "dust-glint.png",
+      "role": "image"
+    }
+  ]
+}

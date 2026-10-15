@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:triumph_halo",
+  "version": 1,
+  "name": "Triumph Halo",
+  "description": "A golden marker sunburst of rays and sparkles flares up behind the head and turns slowly, the radiant back-light of a victorious shonen hero, for triumphant, unstoppable confidence.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "body",
+    "attachment": {
+      "kind": "body",
+      "bone": "head",
+      "facing": "camera",
+      "offset": {
+        "x": 0,
+        "y": 0.1,
+        "z": -0.14
+      },
+      "size": 0.5
+    },
+    "art": {
+      "image": "triumph_halo_boil.png",
+      "flipbook": {
+        "columns": 2,
+        "rows": 2,
+        "frames": 4,
+        "fps": 8,
+        "loop": "loop"
+      }
+    },
+    "motion": {
+      "spin": {
+        "degreesPerSecond": 10,
+        "direction": "clockwise"
+      },
+      "keyframes": {
+        "frames": [
+          {
+            "t": 0,
+            "opacity": 0,
+            "scale": 0.3,
+            "rotationDeg": -30
+          },
+          {
+            "t": 0.12,
+            "opacity": 1,
+            "scale": 1.15
+          },
+          {
+            "t": 0.22,
+            "scale": 0.95
+          },
+          {
+            "t": 0.32,
+            "scale": 1,
+            "rotationDeg": 0
+          }
+        ]
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "triumph_halo_boil.png",
+      "role": "image"
+    }
+  ]
+}

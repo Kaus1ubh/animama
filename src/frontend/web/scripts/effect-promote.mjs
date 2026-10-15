@@ -2,6 +2,7 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { mkdir, readFile, rm, rmdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
+import { LICENCE_FIELDS, SOURCE_REVIEW_FIELDS } from "./animation-promote.mjs";
 import { sourceAssets } from "./effect-check.mjs";
 import {
   includedActionDependencies,
@@ -14,8 +15,9 @@ import {
  * Avatar, Particle and Scene Effects, and the Reactions and Gestures that use
  * them, into Included content.
  *
- * Run only when the owner has explicitly approved each item, on a task branch
- * that goes through a PR (the effect skills' Promote to Included step). Items:
+ * Run only when the owner has explicitly approved each item and its licence
+ * entries, on a task branch that goes through a PR (the effect skills' Promote
+ * to Included step). Items:
  *
  * - `{ "kind"?, "source", "stem", "mode": "add" }`: a new Included effect.
  *   `kind` is `avatar_effect` (the default), `particle_effect` or
@@ -38,7 +40,13 @@ import {
  *   Reactions stay expression-only. A dependency on a Local effect promoted
  *   in the same run is re-pointed at its Included ID; every other dependency
  *   must be Included content after the run, and every effect event must
- *   name a declared dependency. An unchanged item writes nothing.
+ *   name a declared dependency. An unchanged item writes nothing;
+ * - `{ "kind": "reaction", "stem", "source", "mode": "add",
+ *   "placement_hint": { "emotion", "intensity" }, "name"? }`: a new Included
+ *   Reaction in `reactions/<stem>/` (content ID `builtin:reaction:<stem>`,
+ *   version 1) from a creator project whose clip id is the stem, named after
+ *   the project unless `name` is given, with the same clip and dependency
+ *   rules as a replace.
  *
  * `source` is the reviewed effect: `library:local/<name>` (the saved Local
  * item of the item's kind, read from the sourced stack's
@@ -56,19 +64,39 @@ import {
  * sounds unless it names one (which replaces them) or `null` (which removes
  * them).
  *
- * Licence records (D1): Avatar Effect files fall under the existing
- * `vfx/avatar/**\/*` rule and Scene PNGs under `vfx/scene/**\/*.png`. Each
- * promoted Particle Effect gets its own owner-authored rule,
- * `vfx/particle/quark/<stem>/**`, ahead of a generated-art rule when present,
- * and loses it when deleted. Every written file gets a
- * `licenses/source-review.json` record in the form of the Included Avatar
- * Effect files, except a file whose
- * bytes repeat third-party Included art (such as a creator's built-in
- * texture): it keeps that file's record and, in an exact-path rule ahead of
- * the effect's own, its licence terms. Deleted files lose their records and
- * exact rules, and a removed or replaced third-party record is reported so
- * its evidence can be updated. `--dry-run` lists every change and writes
- * nothing.
+ * Licence records (D1). An item without licence entries is owner-authored:
+ * Avatar Effect files fall under the existing `vfx/avatar/**\/*` rule and
+ * Scene PNGs under `vfx/scene/**\/*.png`, a new Particle Effect gets its own
+ * owner-authored rule `vfx/particle/quark/<stem>/**` (ahead of a
+ * generated-art rule when present), and each written file gets the owner's
+ * `licenses/source-review.json` record (`OWNER_SOURCE_REVIEW`); a replaced
+ * Reaction or Gesture keeps its records. Such an item is refused when the
+ * licence rule that applies to one of its own files (the first rule matching
+ * it, whatever its glob's shape) names a creator other than the owner. Work
+ * the owner did not author,
+ * such as effects and Reactions an AI agent made under the owner's direction,
+ * carries the owner-approved licence entries on its add or replace item, in
+ * the form `animation promote` takes them:
+ *
+ * - `licence`: `{ creator, provenance, license_id, redistribution_review,
+ *   "glob"? }`, the inventory rule for the item's folder (`<folder>/**` below
+ *   `content/included`). It replaces the rule with that glob, or goes ahead
+ *   of the kind's general rule. `glob` names a rule several items share, such
+ *   as `reactions/**\/*` when every Included Reaction has the same terms; it
+ *   must cover the item's files, and items sharing it give the same licence;
+ * - `sourceReview`: `{ candidate_license, basis, copyright, review }`, the
+ *   record of each file the item writes, `basis` being one text or an object
+ *   giving each file's by its path in the folder (`particle.json`,
+ *   `textures/spark.png`).
+ *
+ * An effect file whose bytes repeat an Included file outside this run's
+ * folders (reused art, such as a built-in texture or sticker the creator's
+ * Save copied) keeps that file's record; when the rule that would cover the
+ * copy grants other terms (creator, licence or distribution), the origin's
+ * rule is repeated for the copy's exact path ahead of it. A delete removes the
+ * effect's records, its `<folder>/**` rule and exact-path rules. A removed or
+ * replaced record with third-party evidence is reported so its evidence can
+ * be updated. `--dry-run` lists every change and writes nothing.
  */
 
 export class EffectPromoteError extends Error {}
@@ -138,6 +166,38 @@ const REACTION_BODY_FIELDS = [
 ];
 /** What a replace keeps from the Included clip: identity and lifetime. */
 const KEPT_CLIP_FIELDS = ["id", "role", "playback", "loop"];
+/**
+ * The general licence rule of each kind of Action, which an item's own
+ * licence rule goes ahead of.
+ */
+const ACTION_RULES = {
+  reaction: "reactions/**/*",
+  gesture: "gestures/**/*.json",
+};
+
+/**
+ * The source-review record of owner-authored work: the form of the owner's
+ * original-work attestation (`owner_attestation` in
+ * `licenses/source-review.json`), which promoted files without licence
+ * entries get.
+ */
+export const OWNER_SOURCE_REVIEW = {
+  candidate_license: "AGPL-3.0-only",
+  basis:
+    "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+  copyright: "2026 Raymond Van",
+  review: "prepared-not-release-approved",
+};
+/** The inventory rule fields that set a file's terms (not its wording). */
+const LICENCE_TERMS = [
+  "creator",
+  "license_id",
+  "redistribution_review",
+  "distribution",
+];
+/** Whether two inventory rules grant the same terms. */
+const sameTerms = (a, b) =>
+  LICENCE_TERMS.every((field) => a[field] === b[field]);
 
 /** Repository paths the tool reads or writes, relative to the repository root. */
 export const EFFECT_PROMOTE_PATHS = {
@@ -171,9 +231,17 @@ export function parseEffectPromoteItems(value, itemsFile) {
         `${where}: "kind" must be one of ${KINDS.map((name) => `"${name}"`).join(", ")}.`,
       );
     const action = !EFFECT_KINDS[kind];
-    if (action && item.mode !== "replace")
+    if (action && kind === "gesture" && item.mode !== "replace")
       throw new EffectPromoteError(
-        `${where}: a ${kind} item replaces an Included ${kind} ("mode": "replace").`,
+        `${where}: a gesture item replaces an Included gesture ("mode": "replace").`,
+      );
+    if (
+      action &&
+      kind === "reaction" &&
+      !["add", "replace"].includes(item.mode)
+    )
+      throw new EffectPromoteError(
+        `${where}: a reaction item adds ("mode": "add") or replaces ("mode": "replace") an Included reaction.`,
       );
     if (!["add", "replace", "delete"].includes(item?.mode))
       throw new EffectPromoteError(
@@ -209,7 +277,22 @@ export function parseEffectPromoteItems(value, itemsFile) {
       );
     if (action && item.description !== undefined)
       throw new EffectPromoteError(
-        `${where}: a ${kind} replace keeps the Included description.`,
+        `${where}: a ${kind} ${item.mode} keeps the Included description.`,
+      );
+    const hint = item.placement_hint;
+    if (kind === "reaction" && item.mode === "add") {
+      if (
+        typeof hint?.emotion !== "string" ||
+        !/^[a-z]+$/.test(hint.emotion) ||
+        !Number.isInteger(hint.intensity) ||
+        hint.intensity < 1
+      )
+        throw new EffectPromoteError(
+          `${where}: a reaction add sets "placement_hint": { "emotion": "<emotion>", "intensity": <level> }.`,
+        );
+    } else if (hint !== undefined)
+      throw new EffectPromoteError(
+        `${where}: only a reaction add sets "placement_hint"; a ${item.mode} keeps it.`,
       );
     if (
       item.sound !== undefined &&
@@ -229,23 +312,95 @@ export function parseEffectPromoteItems(value, itemsFile) {
       name: item.name?.trim(),
       description: item.description?.trim(),
       sound: item.sound,
+      ...(hint
+        ? {
+            placement_hint: {
+              emotion: hint.emotion,
+              intensity: hint.intensity,
+            },
+          }
+        : {}),
+      ...parseLicenceEntries(item, where),
     };
   });
 }
 
-const jsonFile = (value) => `${JSON.stringify(value, null, 2)}\n`;
-
-/** Key-sorted JSON values, so records compare by content. */
-function canonicalJson(value) {
-  if (Array.isArray(value)) return value.map(canonicalJson);
-  if (value && typeof value === "object")
-    return Object.fromEntries(
-      Object.keys(value)
-        .sort()
-        .map((key) => [key, canonicalJson(value[key])]),
-    );
-  return value;
+/**
+ * An item's optional owner-approved licence entries (`licence` and
+ * `sourceReview`, given together on an add or replace), trimmed.
+ */
+function parseLicenceEntries(item, where) {
+  if (item.licence === undefined && item.sourceReview === undefined) return {};
+  const fail = (message) => {
+    throw new EffectPromoteError(`${where}: ${message}`);
+  };
+  if (item.mode === "delete")
+    fail('a delete takes no "licence" or "sourceReview".');
+  if (item.licence === undefined || item.sourceReview === undefined)
+    fail('"licence" and "sourceReview" go together.');
+  const fields = (value, allowed, name) => {
+    if (!value || typeof value !== "object" || Array.isArray(value))
+      fail(`"${name}" must be an object with ${allowed.join(", ")}.`);
+    const unknown = Object.keys(value).filter((key) => !allowed.includes(key));
+    if (unknown.length)
+      fail(`"${name}" has unknown field(s): ${unknown.join(", ")}.`);
+    return value;
+  };
+  const text = (value, name) => {
+    if (typeof value !== "string" || !value.trim())
+      fail(`"${name}" must be a non-empty string.`);
+    return value.trim();
+  };
+  const licenceValue = fields(
+    item.licence,
+    [...LICENCE_FIELDS, "glob"],
+    "licence",
+  );
+  const licence = Object.fromEntries(
+    LICENCE_FIELDS.map((field) => [
+      field,
+      text(licenceValue[field], `licence.${field}`),
+    ]),
+  );
+  if (licenceValue.glob !== undefined) {
+    const glob = text(licenceValue.glob, "licence.glob");
+    if (
+      glob.startsWith("/") ||
+      glob.includes("\\") ||
+      glob.split("/").includes("..")
+    )
+      fail('"licence.glob" must be a glob below content/included.');
+    licence.glob = glob;
+  }
+  const reviewValue = fields(
+    item.sourceReview,
+    SOURCE_REVIEW_FIELDS,
+    "sourceReview",
+  );
+  const sourceReview = {};
+  for (const field of SOURCE_REVIEW_FIELDS) {
+    const value = reviewValue[field];
+    if (field !== "basis" || typeof value === "string")
+      sourceReview[field] = text(value, `sourceReview.${field}`);
+    else {
+      if (!value || typeof value !== "object" || Array.isArray(value))
+        fail(
+          '"sourceReview.basis" must be a non-empty string, or an object giving each file\'s.',
+        );
+      if (!Object.keys(value).length)
+        fail('"sourceReview.basis" names no file.');
+      sourceReview.basis = Object.fromEntries(
+        Object.entries(value).map(([file, basis]) => [
+          file,
+          text(basis, `sourceReview.basis["${file}"]`),
+        ]),
+      );
+    }
+  }
+  return { licence, sourceReview };
 }
+
+const jsonFile = (value) => `${JSON.stringify(value, null, 2)}\n`;
 
 /**
  * Whether a licence inventory glob matches a path below `content/included`,
@@ -373,7 +528,8 @@ export async function planEffectPromotion(
         `${EFFECT_PROMOTE_PATHS.inventory}: no "${rule}" rule for the files of ${noun}.`,
       );
   }
-  // Promoted art is owner-authored, worded like the Avatar Effect rule.
+  // An owner-authored Particle Effect's rule is worded like the Avatar Effect
+  // rule.
   const {
     creator,
     license_id: licenseId,
@@ -382,36 +538,112 @@ export async function planEffectPromotion(
   const originalRules = [...inventory.rules];
   // Why each added rule exists, for the dry run.
   const ruleReasons = new Map();
+  const inIncluded = (relative) => relative.replace(/^content\/included\//, "");
+  /** The licence rule each item with licence entries writes, by glob. */
+  const itemRules = new Map();
+  /**
+   * Write an item's licence as the rule for its folder (or the shared rule
+   * its `glob` names), which must cover `files`: in place of the rule with
+   * that glob, else ahead of the kind's `generalRule`.
+   */
+  const writeItemRule = (item, folder, files, generalRule) => {
+    const { glob = `${inIncluded(folder)}/**`, ...terms } = item.licence;
+    const fail = (message) => {
+      throw new EffectPromoteError(`${item.stem}: ${message}`);
+    };
+    for (const file of files)
+      if (!globMatches(glob, inIncluded(file)))
+        fail(`its licence rule ${glob} does not cover ${file}.`);
+    const rule = { glob, ...terms };
+    const shared = itemRules.get(glob);
+    if (shared) {
+      if (JSON.stringify(shared) !== JSON.stringify(rule))
+        fail(`items sharing the licence rule ${glob} must give one licence.`);
+      return;
+    }
+    itemRules.set(glob, rule);
+    const at = ruleIndex(glob);
+    if (at >= 0) inventory.rules[at] = rule;
+    else inventory.rules.splice(Math.max(ruleIndex(generalRule), 0), 0, rule);
+    ruleReasons.set(glob, "the item's licence");
+  };
+  // An item without licence entries is recorded as the owner's work, so the
+  // rule that applies to each of its own files (the first one matching it,
+  // whatever its glob's shape) must name the owner as creator.
+  const ownerTerms =
+    inventory.rules[ruleIndex(EFFECT_KINDS.avatar_effect.rule)];
+  const requireOwnerTerms = (item, own) => {
+    for (const relative of own) {
+      const rule = inventory.rules.find((candidate) =>
+        globMatches(candidate.glob, inIncluded(relative)),
+      );
+      if (rule?.creator !== undefined && rule.creator !== ownerTerms.creator)
+        throw new EffectPromoteError(
+          `${item.stem}: the licence rule ${rule.glob} grants other terms than the owner's for ${inIncluded(relative)}; give the item's "licence" and "sourceReview".`,
+        );
+    }
+  };
+
   const sourceReview = readJson(EFFECT_PROMOTE_PATHS.sourceReview);
   const originalRecords = new Map(
     sourceReview.files.map((entry) => [entry.path, entry]),
   );
-  const template = sourceReview.files.find((entry) =>
-    entry.path.startsWith(`${EFFECT_KINDS.avatar_effect.root}/`),
+  // The folders this run writes or deletes hold no origin of reused art.
+  const runFolders = items.map(
+    (item) =>
+      `${EFFECT_KINDS[kindOf(item)]?.root ?? ACTION_ROOTS[kindOf(item)]}/${item.stem}/`,
   );
-  if (!template)
-    throw new EffectPromoteError(
-      "no source-review record of an Included effect to follow.",
-    );
-  const { path: _path, ...recordFields } = template;
-  const ownerForm = JSON.stringify(canonicalJson(recordFields));
   /**
-   * The Included file whose bytes `bytes` repeat and whose record is not the
-   * owner's (third-party art, such as a creator's built-in texture the
-   * creator's Save copied), or null: its copy keeps that record and licence.
+   * The recorded Included file outside this run's folders whose bytes `bytes`
+   * repeat, with its record, or null: reused art keeps that record.
    */
-  const thirdPartyOrigin = (bytes) => {
+  const reusedOrigin = (bytes) => {
     for (const relative of repo.identicalIncludedFiles(bytes)) {
-      const { path: _origin, ...record } = originalRecords.get(relative) ?? {};
-      if (
-        Object.keys(record).length &&
-        JSON.stringify(canonicalJson(record)) !== ownerForm
-      )
-        return { path: relative, record };
+      const record = originalRecords.get(relative);
+      if (record && !runFolders.some((folder) => relative.startsWith(folder))) {
+        const { path: _origin, ...fields } = record;
+        return { path: relative, record: fields };
+      }
     }
     return null;
   };
   const carried = new Map();
+  /** The record of each file whose record this run writes, by path. */
+  const records = new Map();
+  /**
+   * The records an item gives the files in `folder` it writes as its own
+   * (not reused art): its `sourceReview`, else the owner's.
+   */
+  const recordItemFiles = (item, folder, own) => {
+    const name = (relative) => relative.slice(folder.length + 1);
+    const basis = item.sourceReview?.basis;
+    if (basis && typeof basis === "object") {
+      const names = new Set(own.map(name));
+      for (const file of Object.keys(basis))
+        if (!names.has(file))
+          throw new EffectPromoteError(
+            `${item.stem}: "sourceReview.basis" names ${file}, which the item does not write as its own file.`,
+          );
+    }
+    for (const relative of own) {
+      if (!item.sourceReview) {
+        records.set(relative, OWNER_SOURCE_REVIEW);
+        continue;
+      }
+      const text = typeof basis === "string" ? basis : basis[name(relative)];
+      if (text === undefined)
+        throw new EffectPromoteError(
+          `${item.stem}: "sourceReview.basis" gives no basis for ${name(relative)}.`,
+        );
+      const { candidate_license, copyright, review } = item.sourceReview;
+      records.set(relative, {
+        candidate_license,
+        basis: text,
+        copyright,
+        review,
+      });
+    }
+  };
 
   // Each effect's Included folder and content ID, the content type of each
   // content ID Included after this run, and the Included ID each promoted
@@ -463,7 +695,8 @@ export async function planEffectPromotion(
   const plannedMetas = new Map();
   for (const item of items)
     if (!EFFECT_KINDS[kindOf(item)]) {
-      const planned = planAction(item, kindOf(item), {
+      const kind = kindOf(item);
+      const planned = planAction(item, kind, {
         repo,
         validateClip,
         includedTypes,
@@ -474,14 +707,29 @@ export async function planEffectPromotion(
       const { clip, clipText } = planned;
       writes.set(
         planned.clipPath,
-        JSON.stringify(clip) === JSON.stringify(JSON.parse(clipText))
-          ? clipText
-          : clipText.trimEnd().includes("\n")
-            ? await formatJson(clip)
-            : `${JSON.stringify(clip)}\n`,
+        clipText === null
+          ? // A new clip is compact, like the Included Reaction clips.
+            `${JSON.stringify(clip)}\n`
+          : JSON.stringify(clip) === JSON.stringify(JSON.parse(clipText))
+            ? clipText
+            : clipText.trimEnd().includes("\n")
+              ? await formatJson(clip)
+              : `${JSON.stringify(clip)}\n`,
       );
       writes.set(planned.metaPath, jsonFile(planned.meta));
       plannedMetas.set(planned.metaPath, planned.meta);
+      if (item.mode === "add") includedTypes.set(planned.meta.content_id, kind);
+      // A replace without licence entries keeps its files' records.
+      const folder = `${ACTION_ROOTS[kind]}/${item.stem}`;
+      const files = [planned.clipPath, planned.metaPath];
+      if (item.licence) {
+        writeItemRule(item, folder, files, ACTION_RULES[kind]);
+        recordItemFiles(item, folder, files);
+      } else if (item.mode === "add") {
+        const own = files.filter((file) => !originalRecords.has(file));
+        requireOwnerTerms(item, own);
+        recordItemFiles(item, folder, own);
+      }
     }
   const currentMetas = metas.map((meta) =>
     plannedMetas.has(meta.path)
@@ -515,9 +763,8 @@ export async function planEffectPromotion(
       if (dependents.length)
         fail(`still used by ${dependents.join(", ")}; re-point them first.`);
       for (const file of files) deletes.add(`${folder}/${file}`);
-      const rule = ruleIndex(particleRule(item.stem));
-      if (kind === "particle_effect" && rule >= 0)
-        inventory.rules.splice(rule, 1);
+      const rule = ruleIndex(`${inIncluded(folder)}/**`);
+      if (rule >= 0) inventory.rules.splice(rule, 1);
       continue;
     }
 
@@ -547,18 +794,29 @@ export async function planEffectPromotion(
         );
     }
     writes.set(descriptorPath, jsonFile(planned.descriptor));
+    const own = [descriptorPath];
     for (const { name, file } of planned.files) {
+      const relative = `${folder}/${name}`;
       const bytes = await readFile(file);
-      writes.set(`${folder}/${name}`, bytes);
-      const origin = thirdPartyOrigin(bytes);
-      if (origin) carried.set(`${folder}/${name}`, origin);
+      writes.set(relative, bytes);
+      const origin = reusedOrigin(bytes);
+      if (!origin) own.push(relative);
+      else {
+        carried.set(relative, origin);
+        records.set(relative, origin.record);
+      }
     }
+    recordItemFiles(item, folder, own);
     for (const file of files ?? [])
       if (!writes.has(`${folder}/${file}`)) deletes.add(`${folder}/${file}`);
-    if (kind === "particle_effect" && ruleIndex(particleRule(item.stem)) < 0) {
+    if (item.licence) writeItemRule(item, folder, own, EFFECT_KINDS[kind].rule);
+    else if (
+      kind === "particle_effect" &&
+      ruleIndex(particleRule(item.stem)) < 0
+    ) {
       // Per-folder inventories need no Particle catch-all. Without that
       // anchor, put this narrow rule first so a generic fallback cannot win;
-      // copied third-party files get their exact rules ahead of it below.
+      // copied files get their exact rules ahead of it below.
       const anchor = ruleIndex(EFFECT_KINDS.particle_effect.rule);
       inventory.rules.splice(Math.max(anchor, 0), 0, {
         glob: particleRule(item.stem),
@@ -570,12 +828,13 @@ export async function planEffectPromotion(
       });
       ruleReasons.set(particleRule(item.stem), "owner-authored");
     }
+    // After any owner Particle rule is in place, so it is the rule that applies.
+    if (!item.licence) requireOwnerTerms(item, own);
   }
 
-  // Reused third-party art keeps the licence rule of the file it repeats, in
-  // a rule for the copy ahead of the effect's own; rules for files this run
-  // deletes or rewrites go.
-  const inIncluded = (relative) => relative.replace(/^content\/included\//, "");
+  // Reused art keeps the terms of the file it repeats: when the rule that
+  // would cover the copy grants other terms, the origin's rule is repeated for
+  // the copy ahead of it. Rules for files this run deletes or rewrites go.
   const effectRoots = Object.values(EFFECT_KINDS).map(({ root }) => `${root}/`);
   const touched = new Set(
     [...deletes, ...writes.keys()]
@@ -597,7 +856,7 @@ export async function planEffectPromotion(
     const at = inventory.rules.findIndex((rule) =>
       globMatches(rule.glob, copy),
     );
-    if (at >= 0 && inventory.rules[at] === terms) continue;
+    if (at >= 0 && sameTerms(inventory.rules[at], terms)) continue;
     inventory.rules.splice(at < 0 ? inventory.rules.length : at, 0, {
       ...terms,
       glob: copy,
@@ -621,27 +880,22 @@ export async function planEffectPromotion(
     ]);
   }
 
-  // One record per written effect file, in the existing effect files' form.
-  const written = [...writes.keys()].filter((relative) =>
-    effectRoots.some((root) => relative.startsWith(root)),
-  );
+  // Each file this run writes a record for replaces its old record; deleted
+  // files lose theirs.
   const superseded = sourceReview.files.filter(
-    (entry) => deletes.has(entry.path) || written.includes(entry.path),
+    (entry) => deletes.has(entry.path) || records.has(entry.path),
   );
   sourceReview.files = sourceReview.files.filter(
     (entry) => !superseded.includes(entry),
   );
-  for (const relative of written)
-    sourceReview.files.push({
-      path: relative,
-      ...(carried.get(relative)?.record ?? recordFields),
-    });
+  for (const [relative, record] of records)
+    sourceReview.files.push({ path: relative, ...record });
   sourceReview.files.sort((a, b) =>
     a.path < b.path ? -1 : a.path > b.path ? 1 : 0,
   );
   writes.set(EFFECT_PROMOTE_PATHS.sourceReview, jsonFile(sourceReview));
   notes.set(EFFECT_PROMOTE_PATHS.sourceReview, [
-    ...written.map((file) =>
+    ...[...records.keys()].map((file) =>
       carried.has(file)
         ? `record for ${file} carried from ${carried.get(file).path}`
         : `record for ${file}`,
@@ -841,9 +1095,13 @@ function isSet(value) {
   return true;
 }
 
+/** The `ai_description` a new Included Reaction's meta carries. */
+const REACTION_AI_DESCRIPTION = "Reusable avatar reaction clip";
+
 /**
- * Check one Reaction or Gesture replace and return its clip (with the
- * Included clip file's path and text) and its meta as it will be.
+ * Check one Reaction or Gesture add or replace and return its clip (with the
+ * clip file's path and, for a replace, its current text) and its meta as it
+ * will be.
  */
 function planAction(
   item,
@@ -855,21 +1113,31 @@ function planAction(
   };
   const folder = `${ACTION_ROOTS[kind]}/${item.stem}`;
   const metaPath = `${folder}/${item.stem}.meta.json`;
-  const metaText = repo.read(metaPath);
-  if (metaText === null) fail(`no Included ${kind} to replace.`);
-  const original = JSON.parse(metaText);
-  const sequence = (original.files ?? []).find(
-    (file) => file?.role === "sequence",
-  );
-  if (
-    typeof sequence?.path !== "string" ||
-    path.posix.basename(sequence.path) !== sequence.path
-  )
-    fail(`the Included ${kind} names no clip file in its folder.`);
-  const clipPath = `${folder}/${sequence.path}`;
-  const clipText = repo.read(clipPath);
-  if (clipText === null) fail(`${clipPath} is missing.`);
-  const originalClip = JSON.parse(clipText);
+  const adding = item.mode === "add";
+  let original = null;
+  let clipPath = `${folder}/${item.stem}.json`;
+  let clipText = null;
+  let originalClip = null;
+  if (adding) {
+    if (repo.list(folder))
+      fail(`an Included ${kind} already uses this stem; use mode "replace".`);
+  } else {
+    const metaText = repo.read(metaPath);
+    if (metaText === null) fail(`no Included ${kind} to replace.`);
+    original = JSON.parse(metaText);
+    const sequence = (original.files ?? []).find(
+      (file) => file?.role === "sequence",
+    );
+    if (
+      typeof sequence?.path !== "string" ||
+      path.posix.basename(sequence.path) !== sequence.path
+    )
+      fail(`the Included ${kind} names no clip file in its folder.`);
+    clipPath = `${folder}/${sequence.path}`;
+    clipText = repo.read(clipPath);
+    if (clipText === null) fail(`${clipPath} is missing.`);
+    originalClip = JSON.parse(clipText);
+  }
 
   const { project } = item;
   if (project?.schema !== ACTION_PROJECT_SCHEMA)
@@ -882,11 +1150,16 @@ function planAction(
   } catch (error) {
     fail(error.message);
   }
-  for (const key of KEPT_CLIP_FIELDS)
-    if (JSON.stringify(clip[key]) !== JSON.stringify(originalClip[key]))
-      fail(
-        `a replace keeps the Included clip's ${key} (${JSON.stringify(originalClip[key]) ?? "unset"}).`,
-      );
+  if (adding) {
+    if (clip.id !== item.stem)
+      fail(`a new ${kind}'s clip id must be its stem ("${item.stem}").`);
+    if (clip.role !== kind) fail(`the clip's role must be "${kind}".`);
+  } else
+    for (const key of KEPT_CLIP_FIELDS)
+      if (JSON.stringify(clip[key]) !== JSON.stringify(originalClip[key]))
+        fail(
+          `a replace keeps the Included clip's ${key} (${JSON.stringify(originalClip[key]) ?? "unset"}).`,
+        );
   if (kind === "reaction")
     for (const field of REACTION_BODY_FIELDS)
       if (isSet(clip[field]))
@@ -903,12 +1176,35 @@ function planAction(
     fail(error.message);
   }
 
+  if (!adding)
+    return {
+      clip,
+      clipPath,
+      clipText,
+      metaPath,
+      meta: { ...original, dependencies },
+    };
+  const name = item.name ?? project.name ?? clip.name;
+  if (typeof name !== "string" || !name.trim())
+    fail('the project has no name; set "name".');
   return {
     clip,
     clipPath,
     clipText,
     metaPath,
-    meta: { ...original, dependencies },
+    // In the key order of the Included Reaction metadata.
+    meta: {
+      schema_version: 1,
+      content_type: kind,
+      content_id: `builtin:${kind}:${item.stem}`,
+      version: 1,
+      name: name.trim(),
+      ai_description: REACTION_AI_DESCRIPTION,
+      placement_hint: item.placement_hint,
+      implementation: { kind: "anima_clip", file_role: "sequence" },
+      dependencies,
+      files: [{ path: `${item.stem}.json`, role: "sequence" }],
+    },
   };
 }
 

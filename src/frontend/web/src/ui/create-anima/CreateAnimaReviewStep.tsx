@@ -12,6 +12,7 @@ import { MemoryMarkdownPreview } from "@/ui/memory/MemoryMarkdownPreview";
 import {
   REACTION_CELL_COUNT,
   reactionCount,
+  reactionMemberCount,
   type CreateAnimaDraft,
   type CreationStep,
 } from "./createAnimaDraft";
@@ -142,6 +143,11 @@ export function CreateAnimaReviewStep({
             </p>
             <p className="text-muted-foreground text-xs">
               {t("review.actions.reactionCells")}
+            </p>
+            <p className="text-muted-foreground mt-1 text-xs">
+              {t("review.actions.reactionMembers", {
+                count: reactionMemberCount(draft),
+              })}
             </p>
           </div>
         </div>

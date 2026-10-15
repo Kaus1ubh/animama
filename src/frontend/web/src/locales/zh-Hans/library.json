@@ -180,7 +180,6 @@
   },
   "row": {
     "addedTo_other": "已添加到 {{count}} 个 Anima",
-    "emotionLevel": "{{emotion}} {{level}} 级",
     "local": "本地",
     "updateAvailable": "有可用更新"
   },
@@ -204,8 +203,8 @@
       "labelValue": "{{label}}：{{value}}",
       "none": "无",
       "pocketVoice": "PocketTTS 语音",
-      "reactionCell": "{{emotion}} · {{intensity}}：{{value}}",
-      "reactionCells": "反应单元格"
+      "reactionCells": "反应单元格",
+      "reactionSummary_other": "（已填 {{cells}} / {{total}} 个单元格 · {{count}} 个反应）"
     },
     "back": "返回",
     "countInParentheses": "({{total}})",

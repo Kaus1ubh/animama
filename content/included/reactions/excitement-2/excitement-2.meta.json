@@ -15,12 +15,6 @@
   },
   "dependencies": [
     {
-      "ref": "builtin:particle-effect:star-burst",
-      "alias": "star-burst",
-      "content_type": "particle_effect",
-      "config": {}
-    },
-    {
       "ref": "builtin:avatar-effect:star3",
       "alias": "star3",
       "content_type": "avatar_effect",

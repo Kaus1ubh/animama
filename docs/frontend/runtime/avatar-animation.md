@@ -300,9 +300,11 @@ Important behavior:
   fired/active runtime counts, chat availability, skipped events, and the
   latest event adapter error when present.
 - The animation debug modal's `Reactions` section lists clips mounted in the
-  reaction runtime slot and resolves them lazily through debug-only
-  `ReactionClipPlayer` APIs, and shows both live reaction playback state and
-  planner reaction diagnostics. Manual debug reaction playback is runtime-only:
+  reaction runtime slot with the cells whose pools hold them; the filters match
+  any of those cells, and a Reaction in no pool shows only while every filter
+  is open. It resolves clips lazily through debug-only `ReactionClipPlayer`
+  APIs and shows both live reaction playback state and planner reaction
+  diagnostics. Manual debug reaction playback is runtime-only:
   it does not enqueue planner events or mutate canonical emotion state.
 
 ### Pose and clip JSON artifacts
@@ -416,7 +418,10 @@ uses a fixed package-level message).
   eligible while the current interaction phase is in `phases`. Reaction clips
   use this with `phases: ["talking"]` and `scope: "activeRun"` so they fade in
   and hold for the same speaking run, then fade out when talking ends or the
-  run changes. `whileAvatarState` is available for future state-owned clips.
+  run changes; the timeline's `duration` does not limit that hold. The
+  creators preview only the timeline, so Included Reactions run at least 2 s
+  (longer when a timed effect does) to show the held Reaction there.
+  `whileAvatarState` is available for future state-owned clips.
 - `mutedProceduralLayers` optionally lists live layers (`breathing`, `sway`,
   `bounce`, `headNod`, `headSideTilt`, `cursorLookAt`, `emotionPosture`) muted
   while the clip plays, including Idle playback. Muting never changes
@@ -447,6 +452,11 @@ frozen `GET /v1/animas/{anima_id}/runtime` response. It projects only
 that Anima's effective idle, gesture, pose, and reaction entries. Removing a
 Starter binding therefore removes it from the next mount; another Anima's
 similarly named content item cannot be discovered through a global lookup.
+Each Reaction is one entry (runtime ID `reaction:<item_id>`) however many cells
+hold it, and the response's `reaction_cells` become `reaction_pools`: each
+cell's mounted members by runtime ID. A member that did not mount is left out
+of every pool, and the pools fixed for the revision include members still
+preparing, which are skipped with a diagnostic until they are ready.
 
 VRMAs resolve to verified prepared resources for the active mount. Their cache
 identity is `runtime_id + content_revision`, not a short-lived protected URL. Idle entries
@@ -499,22 +509,27 @@ development web container mounts it at `/content/included`, and the
 production image copies it before the web build.
 
 Reaction clips are loaded separately from `content/included/reactions/` by file
-name. The canonical catalog contains 72 files: each `TRACKED_EMOTIONS` value
-from `src/frontend/web/src/lib/emotion` at intensities `1`, `2`, and `3`, using
-`<emotion>-<intensity>.json` ids. Reaction clips are not in the Gesture clip
+name. The built-in catalog contains 168 files: for each `TRACKED_EMOTIONS`
+value from `src/frontend/web/src/lib/emotion`, `<emotion>-1` at intensity 1
+and `<emotion>-<intensity>` with a second `<emotion>-<intensity>-b` at
+intensities 2–4. Like a new Anima's starter pools, each built-in cell's pool
+holds the Included Reactions its ids name (`groupIncludedReactionPools` in
+`lib/avatar/reactionPools.ts`). Anima routes play the Anima's own pools
+instead. Reaction clips are not in the Gesture clip
 catalog, do not run through `Avatar.playClip(...)`, and are skipped
 if channel analysis finds any humanoid transforms. This strict authoring rule
 applies to Included and Local Reaction entries. Playback projects Reaction
 sequences to expressions/events and defensively ignores humanoid samples.
-Selection is canonical-only: exact tracked emotion tones
-resolve to matching clips, while `neutral`, blank, unknown values, and group
+Selection is per cell: exact tracked emotion tones and intensities 1–4
+pick from the cell's pool, while `neutral`, blank, unknown values, and group
 names such as `alarm` produce no clip. The clips are
 playback-scoped to same-run `talking`, so a single peak expression or VFX event
-can hold without looping or replaying SFX. Level 1 clips add one subtle avatar
-VFX, played without its accompanying sound. Level 2 clips add avatar VFX and, where one
-fits, a Particle Effect; every level 3 clip plays its emotion's Included
-`scene-vfx-emotion-<emotion>` background, with a bigger Particle Effect (one or
-two) where one fits. The `presentation.disable_vfx` preference suppresses
+can hold without looping or replaying SFX. Included Reactions follow the
+[Reaction ladder](../../../content/included/README.md#reactions): a
+full-strength expression at intensity 1, then Avatar Effects at 2, a Particle
+Effect at 3 and a Scene Effect at 4, where the first Reaction plays its
+emotion's `scene-vfx-emotion-<emotion>` background and the `-b` Reaction
+another Scene. The `presentation.disable_vfx` preference suppresses
 clip-owned avatar, scene, and particle VFX from pose/reaction playback while
 leaving SFX and manual/debug VFX controls unchanged.
 
@@ -559,9 +574,11 @@ sandbox. Playback belongs to the timeline Play/Pause/Stop/Restart controls and
 does not persist the Action. Save sends the sequence or VRMA file and its
 descriptor through `saveCatalogItem(...)` to the typed catalog Save endpoint.
 Updates include the catalog item ID and expected revision; the backend validates
-and atomically updates readable Local files. Save & Equip uses the saved catalog
-selection in the reviewed Anima loadout flow. Existing and starter Actions use
-typed preview reads to hydrate protected files and dependency runtime.
+and atomically updates readable Local files. Save & Equip saves, then opens the
+equip dialog for the saved catalog item, whose changes apply at once (see
+[Library Add and Manage](../features/library.md#add-and-manage)). Existing and
+starter Actions use typed preview reads to hydrate protected files and
+dependency runtime.
 
 A Local Action that names a removed Included effect still opens and plays
 without it (see the catalog exception in
@@ -667,6 +684,28 @@ from `src/frontend/web`:
   Avatars, each with its own prepared clip; a 2.0 clip supplies its contacts
   and `plantFeet`.
 - `pnpm -s animation:render <clip.json> --out <dir>` draws review sheets.
+- `pnpm -s animation:reel --gestures|--reactions|--effects [<source>...] --out <file.mp4>`
+  records a 1920×1080, 30 fps video of every Included Gesture, Reaction (by
+  emotion, then intensity) or Avatar, Particle and Scene Effect
+  (`--avatar-effects`, `--particle-effects` or `--scene-effects` for one
+  kind), or the named sources, one at a time on Annie (`--avatar caitlyn` for
+  Caitlyn). Each clip plays through the Avatar's own clip player with its
+  Avatar, Particle and Scene Effects and its sounds. An effect plays for
+  `--hold` seconds (default 3) from a one-event clip, as an Action event
+  would play it, with its accompanying sound. A
+  corner label names the item (a Reaction with its emotion, intensity label
+  and the model intensities that play it) and its effects, lighting each
+  while it is active and each sound while it plays, and lists the Avatar's
+  live expression weights; the video has a chapter per item. A
+  loop plays one pass, and a talking-scoped Reaction is held for `--talk`
+  seconds (default 3, at least until its timed effects end) as chat holds it
+  while the Anima speaks. Sounds come from local `sound_effect` sidecars, by
+  default the private [comedy sound pack](../../backend/operations/comedy-sound-pack.md)
+  under `build-inputs/wow-comedy-sfx`; a worktree passes the primary
+  checkout's copy with `--sounds`, and without one the reel is silent. A reel
+  with pack sounds contains licensed audio, so keep it out of Git and public
+  channels. Requires `ffmpeg` with libx264. Frames render on the GPU on macOS
+  (about real time) and with SwiftShader elsewhere.
 - `pnpm -s animation:save <items.json>` saves clips as Local Gestures through
   the Gesture creator in a headless browser, revising an existing Local
   Gesture with the same Selector ID.

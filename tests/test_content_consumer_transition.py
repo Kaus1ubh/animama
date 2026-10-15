@@ -16,6 +16,7 @@ from animama.app.ports.content_transition import ContentTransitionAnima
 from animama.app.services.content_catalog_service import ContentCatalogService
 from animama.app.services.starter_loadout_policy import starter_loadout_policy
 from animama.domain.anima_definition import AnimaDefinitionError
+from animama.domain.anima_loadout import reaction_slot_key
 from animama.domain.content_catalog import ContentConflictError
 from animama.orm.anima import ORMAnima
 from animama.orm.anima_loadout import ORMAnimaLoadout
@@ -45,10 +46,6 @@ async def consumers(async_session: AsyncSession, tmp_path: Path) -> AsyncIterato
         "gesture": gesture["content_id"],
         "reaction": reaction["content_id"],
     }
-    slots = {
-        "gesture": f"gesture:{gesture['content_id'].rsplit(':', 1)[-1]}",
-        "reaction": f"reaction:{reaction['emotion']}-{reaction['intensity']}",
-    }
     originals, included, replacements = {}, {}, {}
     for kind, content_id in logical.items():
         original = await add_typed_item(
@@ -62,6 +59,11 @@ async def consumers(async_session: AsyncSession, tmp_path: Path) -> AsyncIterato
         await async_session.commit()
         local = await add_typed_item(async_session, owner, kind=kind, name=f"Local {kind}", metadata={})
         originals[kind], included[content_id], replacements[original.id] = original.id, original.id, local.id
+    # A Reaction is only ever an explicit pool member; its slot names the cell and the member.
+    slots = {
+        "gesture": f"gesture:{gesture['content_id'].rsplit(':', 1)[-1]}",
+        "reaction": reaction_slot_key(f"{reaction['emotion']}-{reaction['intensity']}", originals["reaction"]),
+    }
     unrelated = await add_typed_item(async_session, owner, kind="gesture", name="Unrelated", metadata={})
     unrelated_binding = f"keep-{owner.suffix}"
     async_session.add(
@@ -103,7 +105,7 @@ async def _bindings(session: AsyncSession, anima_id: str) -> list[ORMAnimaConten
     )
 
 
-async def test_implicit_gesture_and_reaction_are_materialized_in_one_revision(
+async def test_implicit_starter_gesture_is_materialized_and_no_reaction_is_implied(
     async_session: AsyncSession,
     consumers: _Consumers,
 ) -> None:
@@ -117,20 +119,23 @@ async def test_implicit_gesture_and_reaction_are_materialized_in_one_revision(
 
     assert len(snapshots) == 1
     before = snapshots[0]
-    assert {selection.slot_key for selection in before.selections} == set(fixture.slots.values())
+    # The policy's Reaction is not a pool member here, so only the Gesture is consumed.
+    assert [selection.slot_key for selection in before.selections] == [fixture.slots["gesture"]]
     assert all(selection.binding_id is None and selection.config == {} for selection in before.selections)
-    assert {selection.starter_content_id for selection in before.selections} == set(fixture.included)
+    assert {selection.starter_content_id for selection in before.selections} == {
+        content_id for content_id, item_id in fixture.included.items() if item_id == fixture.originals["gesture"]
+    }
     assert [binding.binding_id for binding in before.bindings] == [fixture.unrelated_binding]
     async with fixture.content.mutations.catalog.mutation_transaction():
         await repository.replace_content(
             user_id=fixture.owner.user_id, before=before, replacements=fixture.replacements
         )
     rows = {row.slot_key: row for row in await _bindings(async_session, fixture.owner.anima_id)}
-    assert len(rows) == 3
-    for kind, slot in fixture.slots.items():
-        assert rows[slot].kind == kind
-        assert rows[slot].catalog_item_id == fixture.replacements[fixture.originals[kind]]
-        assert rows[slot].config == {}
+    assert set(rows) == {fixture.slots["gesture"], "gesture:unrelated"}
+    slot = fixture.slots["gesture"]
+    assert rows[slot].kind == "gesture"
+    assert rows[slot].catalog_item_id == fixture.replacements[fixture.originals["gesture"]]
+    assert rows[slot].config == {}
     assert rows["gesture:unrelated"].id == fixture.unrelated_binding
     assert rows["gesture:unrelated"].config == {"time_scale": 0.7, "nested": {"preserve": [1, 2]}}
     root = await async_session.get(ORMAnimaLoadout, fixture.owner.anima_id, populate_existing=True)
@@ -159,7 +164,7 @@ async def test_explicit_selections_keep_binding_ids_configs_and_starter_exclusio
     fixture = consumers
     configs = {
         "gesture": {"time_scale": 0.4, "custom": {"keep": [True, "value"]}},
-        "reaction": {"gain": 0.2, "offset": {"x": 3}},
+        "reaction": {},
     }
     for kind, item_id in fixture.originals.items():
         async_session.add(
@@ -202,17 +207,20 @@ async def test_explicit_selections_keep_binding_ids_configs_and_starter_exclusio
     assert root.revision == 2 and root.starter_exclusions == exclusions
 
 
-@pytest.mark.parametrize("disabled,occupied", [("gesture", "reaction"), ("reaction", "gesture")])
+@pytest.mark.parametrize("disabled,occupied", [("gesture", "reaction"), (None, "gesture")])
 async def test_disabled_or_occupied_starters_are_not_materialized(
     async_session: AsyncSession,
     consumers: _Consumers,
-    disabled: str,
+    disabled: str | None,
     occupied: str,
 ) -> None:
     fixture = consumers
     root = await async_session.get(ORMAnimaLoadout, fixture.owner.anima_id)
     assert root is not None
-    root.starter_exclusions = [{"slot": disabled, "runtime_id": fixture.slots[disabled].split(":", 1)[1]}]
+    # A disabled or occupied starter Gesture is not implied, and a Reaction never is.
+    root.starter_exclusions = (
+        [{"slot": disabled, "runtime_id": fixture.slots[disabled].split(":", 1)[1]}] if disabled else []
+    )
     async_session.add(
         ORMAnimaContentBinding(
             id=f"occupied-{fixture.owner.suffix}",

@@ -15,20 +15,14 @@
   },
   "dependencies": [
     {
-      "ref": "builtin:particle-effect:rain-cloud",
-      "alias": "rain-cloud",
+      "ref": "builtin:particle-effect:gloom-wisps",
+      "alias": "gloom-wisps",
       "content_type": "particle_effect",
       "config": {}
     },
     {
-      "ref": "builtin:scene-effect:background:scene-vfx-emotion-disappointment",
-      "alias": "scene-vfx-emotion-disappointment",
-      "content_type": "scene_effect",
-      "config": {}
-    },
-    {
-      "ref": "builtin:avatar-effect:texture_black_1",
-      "alias": "texture_black_1",
+      "ref": "builtin:avatar-effect:gloom_lines",
+      "alias": "gloom_lines",
       "content_type": "avatar_effect",
       "config": {}
     }

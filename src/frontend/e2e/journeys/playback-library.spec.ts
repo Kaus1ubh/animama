@@ -77,16 +77,16 @@ const JOURNEYS: readonly LibraryJourney[] = [
     requiredFiles: ["eye_confused_swirl_r.png"],
   },
   {
-    key: "library-reaction-admiration-3",
+    key: "library-reaction-admiration-4",
     channel: "reaction",
-    contentName: "Admiration Reaction 3",
+    contentName: "Admiration Reaction 4",
     section: "reaction",
     proof: "reaction",
-    target: { kind: "anima_pose_clip", runtimeId: "admiration-3" },
+    target: { kind: "anima_pose_clip", runtimeId: "admiration-4" },
     requiredFiles: [
-      "glossy-heart.png",
+      "shimmer-glint.png",
       "star3.png",
-      "lilac-star-flower.png",
+      "twinkle-star-gold.png",
       "bokeh-tile.png",
     ],
     clip: {
@@ -94,38 +94,33 @@ const JOURNEYS: readonly LibraryJourney[] = [
       eventIds: [
         "scene-emotion-background",
         "avatar-star3",
-        "particle-heart-burst",
+        "particle-twinkle-shimmer",
       ],
-      particleEffects: ["heart-burst"],
+      particleEffects: ["twinkle-shimmer"],
       sceneEffects: ["scene-vfx-emotion-admiration"],
-      expressionThresholds: { happy: 0.72, relaxed: 0.24 },
+      expressionThresholds: { happy: 0.75, relaxed: 0.33 },
     },
   },
   {
     // No Included Gesture plays a Scene Effect, so this Reaction carries the
-    // Scene Effect a clip event starts, beside an Avatar and a Particle Effect.
-    key: "library-reaction-curiosity-3",
+    // Scene Effect a clip event starts, beside an Avatar Effect.
+    key: "library-reaction-curiosity-4",
     channel: "reaction",
-    contentName: "Curiosity Reaction 3",
+    contentName: "Curiosity Reaction 4",
     section: "reaction",
     proof: "reaction",
-    target: { kind: "anima_pose_clip", runtimeId: "curiosity-3" },
+    target: { kind: "anima_pose_clip", runtimeId: "curiosity-4" },
     requiredFiles: [
-      "glossy-question.png",
       "idea_bulb_flipbook.png",
       "twinkle-star-mint.png",
       "star-field-tile.png",
     ],
     clip: {
       avatarEffects: ["idea_bulb"],
-      eventIds: [
-        "scene-emotion-background",
-        "particle-question-orbit",
-        "avatar-idea-bulb",
-      ],
-      particleEffects: ["question-orbit"],
+      eventIds: ["scene-emotion-background", "avatar-idea-bulb"],
+      particleEffects: [],
       sceneEffects: ["scene-vfx-emotion-curiosity"],
-      expressionThresholds: { surprised: 0.48, relaxed: 0.28 },
+      expressionThresholds: { surprised: 1, relaxed: 0.58 },
     },
   },
   {

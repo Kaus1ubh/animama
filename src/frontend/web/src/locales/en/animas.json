@@ -206,16 +206,26 @@
     "animaFallback": "Anima",
     "description": {
       "gesture": "Choose which Animas can invoke this gesture. Active chats keep their existing bytes; open a new chat to mount the change.",
-      "reaction": "Choose which Animas can invoke this reaction. Active chats keep their existing bytes; open a new chat to mount the change."
+      "reaction": "Choose an emotion and intensity, then add this Reaction to that cell for each Anima, or remove it. Other Reactions in the cell stay. Active chats keep their existing bytes; open a new chat to mount the change."
     },
     "equippedTo": "{{name}} equipped to {{anima}}.",
     "notEquipped": "Not equipped",
     "notLocal": "This Action is not available in the local catalog.",
+    "reaction": {
+      "added": "{{name}} added to {{anima}} at {{cell}}.",
+      "addTo": "Add to {{anima}}'s {{cell}}",
+      "emotion": "Emotion",
+      "full": "This cell already holds four Reactions. Remove one in this Anima's Loadout to add this one.",
+      "inCell": "In this cell",
+      "intensity": "Intensity",
+      "notInCell": "Not in this cell",
+      "removed": "{{name}} removed from {{anima}} at {{cell}}.",
+      "removeFrom": "Remove from {{anima}}'s {{cell}}"
+    },
     "removedFrom": "{{name}} removed from {{anima}}.",
     "title": "Equip {{name}}",
     "willReplace": {
-      "gesture": "Will replace the current gesture",
-      "reaction": "Will replace the current reaction"
+      "gesture": "Will replace the current gesture"
     }
   },
   "management": {
@@ -279,28 +289,36 @@
     "repairing": "Repairing memories…"
   },
   "reactions": {
+    "add": "Add",
+    "addTo": "Add a Reaction to {{cell}}",
     "catalogUnavailable": "Reaction catalog unavailable.",
-    "cellName": "{{emotion, lowercase}} {{intensity}}",
-    "change": "Change {{intensity}} {{emotion, lowercase}} Reaction",
+    "cell": "{{emotion}} · {{intensity}}",
+    "changedElsewhere": "This Anima's Reactions changed elsewhere and have been refreshed. Try again.",
     "chooseFromLibrary": "Choose from Library",
+    "full": "This cell holds four Reactions, the most it can. Remove one to add another.",
+    "inCell": "Already in this cell",
     "included": "Included",
     "intensity": {
+      "intense": "Intense",
       "level": "Level {{level}}",
       "mild": "Mild",
       "moderate": "Moderate",
       "strong": "Strong"
     },
-    "leaveEmpty": "Leave empty",
     "levels": "{{emotion, lowercase}} Reaction levels",
     "loading": "Loading Reactions…",
     "local": "Local",
     "noReaction": "No Reaction",
     "noResults": "No Reactions found.",
+    "reactionCount_one": "{{count}} Reaction",
+    "reactionCount_other": "{{count}} Reactions",
+    "remove": "Remove {{name}} from {{cell}}",
+    "restoreStarter": "Restore starter",
     "retryCatalog": "Retry catalog",
-    "revertToStarter": "Revert to Starter",
     "search": "Search reactions",
     "suggestion": "{{emotion, lowercase}} · {{intensity}}",
-    "title": "Reactions"
+    "title": "Reactions",
+    "unavailable": "Unavailable"
   },
   "roster": {
     "description": "There are no Animas in this account yet. You can explore your Library while your account is prepared. Creating Animas is unavailable in this hosted application.",

@@ -76,6 +76,29 @@ describe("Library product presentation", () => {
     expect(card).not.toHaveProperty("kind");
   });
 
+  it("reads a listed Reaction's suggested emotion and intensity", () => {
+    const card = actionLibraryCard("reaction", {
+      item_id: "reaction-1",
+      name: "Joy Reaction 4",
+      description: null,
+      origin: "builtin",
+      source: {
+        type: "builtin",
+        content_id: "builtin:reaction:joy-4",
+        version: 1,
+      },
+      state: "ready",
+      emotion: "joy",
+      intensity: 4,
+      update_available: false,
+      created_at: null,
+      updated_at: null,
+    });
+    expect(card).toMatchObject({ emotion: "joy", intensity: 4 });
+    // The row names the suggested cell with the intensity labels.
+    expect(libraryProductMetadata(card)).toEqual(["Joy · Intense"]);
+  });
+
   it.each(["gesture", "reaction"] as const)(
     "keeps %s Preview and Add/Manage domain actions",
     (family) => {

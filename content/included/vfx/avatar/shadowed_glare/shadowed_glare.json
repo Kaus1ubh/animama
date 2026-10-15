@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:shadowed_glare",
+  "version": 1,
+  "name": "Shadowed Glare",
+  "description": "The menacing anime glare: a see-through ink-and-screentone shadow falls over the upper face and only two sharp white glints shine where the eyes are, for seething, scary anger.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "emote",
+    "attachment": {
+      "kind": "face_landmark",
+      "landmark": "forehead",
+      "position": "middle",
+      "offset": {
+        "x": -0.001,
+        "y": -0.045,
+        "z": 0
+      },
+      "scale": {
+        "x": 1.406,
+        "y": 1.0625
+      }
+    },
+    "art": {
+      "image": "shadowed_glare-sheet.png",
+      "flipbook": {
+        "columns": 2,
+        "rows": 2,
+        "frames": 4,
+        "fps": 8,
+        "loop": "loop"
+      }
+    },
+    "motion": {
+      "keyframes": {
+        "frames": [
+          {
+            "t": 0,
+            "opacity": 0,
+            "offset": {
+              "x": 0,
+              "y": 0.02
+            }
+          },
+          {
+            "t": 0.1,
+            "opacity": 0.75,
+            "offset": {
+              "x": 0,
+              "y": 0.006
+            }
+          },
+          {
+            "t": 0.2,
+            "opacity": 1,
+            "offset": {
+              "x": 0,
+              "y": 0
+            }
+          }
+        ]
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "shadowed_glare-sheet.png",
+      "role": "image"
+    }
+  ]
+}

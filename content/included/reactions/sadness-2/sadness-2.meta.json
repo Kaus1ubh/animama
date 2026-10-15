@@ -15,9 +15,9 @@
   },
   "dependencies": [
     {
-      "ref": "builtin:particle-effect:rain-cloud",
-      "alias": "rain-cloud",
-      "content_type": "particle_effect",
+      "ref": "builtin:avatar-effect:single_tear",
+      "alias": "single_tear",
+      "content_type": "avatar_effect",
       "config": {}
     }
   ],

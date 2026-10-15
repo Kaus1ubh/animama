@@ -16,6 +16,7 @@ from animama.app.services.anima_runtime_service import AnimaRuntimeService
 from animama.domain.anima_creation_error import AnimaCreationError
 from animama.domain.anima_definition import DEFAULT_ANIMA_VOICE_ID
 from animama.domain.request_principal import RequestPrincipal
+from animama.domain.runtime_content_descriptor import MAX_RUNTIME_ENTRIES
 from animama.orm import (
     ORMAnima,
     ORMAnimaChatProfile,
@@ -76,7 +77,7 @@ async def test_direct_creation_is_exact_atomic_and_has_no_runtime_or_provider(as
         )
         loadout = await AnimaLoadoutService(async_session).read_model(user_id=fixture.owner, anima_id=anima.id)
         assert [gesture.semantic_key for gesture in loadout.gestures] == ["wave"]
-        nonempty = [(cell.emotion, cell.intensity) for cell in loadout.reactions if cell.source is not None]
+        nonempty = [(cell.emotion, cell.intensity) for cell in loadout.reactions if cell.members]
         assert sorted(nonempty) == [("joy", 1), ("sadness", 3)]
         # Creation seeds the starter Idle pool; an Idle member is never an AI-callable Gesture.
         idle = fixture.items["idle"]
@@ -95,7 +96,7 @@ async def test_empty_actions_stay_empty_and_included_avatar_works(async_session,
             user_id=fixture.owner, anima_id=result["anima_id"]
         )
         assert loadout.gestures == ()
-        assert all(cell.source is None for cell in loadout.reactions)
+        assert len(loadout.reactions) == 96 and all(not cell.members for cell in loadout.reactions)
         assert {issue["code"] for issue in result["warnings"]} == {
             "no_gestures_selected",
             "no_reactions_selected",
@@ -292,7 +293,10 @@ async def test_http_schema_ownership_options_preview_and_replay(async_session, t
             options = await client.get("/v1/animas/creation-options")
             assert options.status_code == 200, options.text
             assert options.json()["limits"]["display_name_max_characters"] == 40
-            assert options.json()["counts"]["recommended_reaction_cells"] == 72
+            assert options.json()["limits"]["source_max_items"] == MAX_RUNTIME_ENTRIES
+            # The starter policy fills all 96 cells: one Reaction at Mild, two at each stronger intensity.
+            assert options.json()["counts"]["recommended_reaction_cells"] == 96
+            assert options.json()["counts"]["recommended_reactions"] == 168
             preview = await client.post(f"/v1/avatar-content/{fixture.items['local-avatar'].id}:preview")
             assert preview.status_code == 200, preview.text
             assert set(preview.json()["expected_source_revisions"]) == {fixture.items["local-avatar"].id}
@@ -363,11 +367,19 @@ async def test_canonical_hash_and_strict_schema(async_session, tmp_path):
         ):
             cases.append({**original, key: value})
         missing = deepcopy(original)
-        del missing["reactions"]["joy"]["1"]
+        del missing["reactions"]["joy"]["4"]
         cases.append(missing)
         duplicate = deepcopy(original)
         duplicate["gestures"] *= 2
         cases.append(duplicate)
+        # The source map admits as many items as one runtime snapshot, and no more.
+        largest = deepcopy(original)
+        sources = largest["expected_source_revisions"]
+        for index in range(MAX_RUNTIME_ENTRIES - len(sources)):
+            sources[f"extra-{index}"] = {"kind": "gesture", "revision_sha256": "a" * 64}
+        CreateAnimaRequest.model_validate(largest)
+        sources["one-too-many"] = {"kind": "gesture", "revision_sha256": "a" * 64}
+        cases.append(largest)
         for value in (float("nan"), float("inf"), True, "0.5", -1, 2):
             invalid = deepcopy(original)
             invalid["appearance"]["profile"]["presentation"]["focal_x"] = value

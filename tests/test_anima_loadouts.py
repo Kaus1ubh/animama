@@ -86,13 +86,13 @@ async def test_reaction_can_be_assigned_to_any_loadout_cell(async_session, with_
         kind="reaction",
         name="Strong Joy",
         metadata={
-            **({"placement_hint": {"emotion": "joy", "intensity": 3}} if with_hint else {}),
+            **({"placement_hint": {"emotion": "joy", "intensity": 4}} if with_hint else {}),
             "implementation": {"kind": "anima_clip", "file_role": "sequence"},
             "config": {},
         },
     )
     intent = {
-        "operation": "replace",
+        "operation": "add",
         "emotion": "sadness",
         "intensity": 1,
         "source": catalog_source(reaction),
@@ -133,9 +133,10 @@ async def test_reaction_can_be_assigned_to_any_loadout_cell(async_session, with_
         )
         selected = next(cell for cell in loadout.reactions if cell.emotion == "sadness" and cell.intensity == 1)
         assert selected.state == "custom"
-        assert selected.name == "Strong Joy"
-        assert selected.source is not None
-        assert selected.source.catalog_item_id == reaction.id
+        [member] = selected.members
+        assert member.name == "Strong Joy"
+        assert member.source is not None
+        assert member.source.catalog_item_id == reaction.id
     finally:
         await cleanup_loadout_fixture(async_session, fixture)
 
@@ -189,6 +190,37 @@ async def test_gesture_using_an_unconverted_avatar_effect_is_refused(async_sessi
                 intent={"operation": "add", "source": catalog_source(gesture)},
             )
         assert raised.value.code == "avatar_effect_conversion_required"
+    finally:
+        await cleanup_loadout_fixture(async_session, fixture)
+
+
+@pytest.mark.asyncio
+async def test_a_source_with_a_retired_dependency_is_refused_by_its_own_code(async_session) -> None:  # noqa: ANN001
+    """The retired-dependency check is not folded into the generic invalid-source error."""
+
+    fixture = await create_loadout_fixture(async_session)
+    gesture = await add_typed_item(
+        async_session,
+        fixture,
+        kind="gesture",
+        name="Old Clip Wave",
+        metadata={
+            "semantic_key": "old-clip-wave",
+            "implementation": {"kind": "vrma", "file_role": "animation"},
+            "config": {},
+            "dependencies": [{"ref": "local:pose-clip:old", "content_type": "pose_clip", "alias": "clip"}],
+        },
+    )
+    try:
+        with pytest.raises(AnimaLoadoutError) as raised:
+            await AnimaLoadoutService(async_session).plan(
+                user_id=fixture.user_id,
+                anima_id=fixture.anima_id,
+                family="gesture",
+                expected_revision=1,
+                intent={"operation": "add", "source": catalog_source(gesture)},
+            )
+        assert raised.value.code == "content_dependency_retired"
     finally:
         await cleanup_loadout_fixture(async_session, fixture)
 

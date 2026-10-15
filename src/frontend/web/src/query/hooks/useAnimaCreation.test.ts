@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PyTypedContentPreview } from "@animama/runtime-contracts/sdk";
 import {
   buildAnimaSpec,
-  setReaction,
+  setReactionPool,
 } from "@/ui/create-anima/createAnimaDraft";
 import {
   readyDraft,
@@ -290,8 +290,8 @@ describe("revision-pinned creation reads", () => {
   });
   it("preserves choices and reports every affected Reaction cell when a shared support changes", async () => {
     const draft = readyDraft();
-    draft.reactions = setReaction(draft, "joy", "1", ref("reaction"));
-    draft.reactions = setReaction(draft, "anger", "3", ref("reaction"));
+    draft.reactions = setReactionPool(draft, "joy", "1", [ref("reaction")]);
+    draft.reactions = setReactionPool(draft, "anger", "4", [ref("reaction")]);
     const withEvidence = {
       ...draft,
       evidence: {
@@ -334,8 +334,8 @@ describe("revision-pinned creation reads", () => {
       failure.failure.detail.issues.map(
         (issue: { path: string }) => issue.path,
       ),
-    ).toEqual(["/reactions/joy/1", "/reactions/anger/3"]);
-    expect(withEvidence.reactions.joy["1"]).toEqual(ref("reaction"));
+    ).toEqual(["/reactions/joy/1/0", "/reactions/anger/4/0"]);
+    expect(withEvidence.reactions.joy["1"]).toEqual([ref("reaction")]);
     expect(withEvidence.evidence.reaction.revisions.support).toEqual(
       revision("gesture"),
     );

@@ -29,6 +29,7 @@ export {
   AVATAR_POSE_IDS,
   AVATAR_REACTION_CLIP_CATALOG,
   AVATAR_REACTION_CLIP_IDS,
+  AVATAR_REACTION_POOLS,
   DEFAULT_AVATAR_POSE_IDS,
   RELAXED_REST_POSE_ID,
   getAvatarPose,
@@ -198,17 +199,15 @@ export {
   EMOTION_INTENSITY_MAP,
 } from "./emotionExpressionPresets";
 export {
-  getEmotionReactionClipId,
+  getIncludedReactionPool,
   normalizeEmotionReactionIntensity,
   resolveEmotionReactionTone,
-  selectEmotionReactionClip,
 } from "./reactionClips";
 export type {
-  EmotionReactionClipSelection,
-  EmotionReactionIntensity,
   EmotionReactionTone,
   NormalizedEmotionReactionIntensity,
 } from "./reactionClips";
+export type { EmotionReactionIntensity } from "./reactionPools";
 export {
   DEFAULT_IDLE_STINT_QUIET_INTERVAL_SEC,
   NON_TTS_REACTION_CLIP_VISIBLE_DURATION_MS,

@@ -15,12 +15,6 @@
   },
   "dependencies": [
     {
-      "ref": "builtin:particle-effect:sparkle-hearts",
-      "alias": "sparkle-hearts",
-      "content_type": "particle_effect",
-      "config": {}
-    },
-    {
       "ref": "builtin:avatar-effect:heart_pop",
       "alias": "heart_pop",
       "content_type": "avatar_effect",

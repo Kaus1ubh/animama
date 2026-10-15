@@ -1,0 +1,142 @@
+{
+  "schema_version": 1,
+  "content_type": "scene_effect",
+  "content_id": "builtin:scene-effect:background:scene-vfx-emotion-desire-b",
+  "version": 1,
+  "name": "Desire B Background",
+  "description": "Violet-pink focus lines converge from the edges toward a pale calm glow behind the Avatar while pink-rimmed sparkles twinkle along them, for eager, wanting moments.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/scene-effect/1",
+    "kind": "background_layers",
+    "durationMs": null,
+    "dismissOnInput": false,
+    "coverUiOverlays": false,
+    "solid": {
+      "enabled": false,
+      "color": "#000000"
+    },
+    "gradient": {
+      "enabled": true,
+      "type": "radial",
+      "angleDeg": 180,
+      "centerX": 0.5,
+      "centerY": 0.35,
+      "stops": [
+        {
+          "color": "#fcf0f9",
+          "position": 0.27
+        },
+        {
+          "color": "#b4449c",
+          "position": 0.36
+        },
+        {
+          "color": "#f2d0e8",
+          "position": 0.53
+        },
+        {
+          "color": "#faebf5",
+          "position": 0.9
+        }
+      ]
+    },
+    "pattern": {
+      "enabled": false,
+      "pattern": "none",
+      "color": "#ffffff",
+      "size": 10,
+      "spacing": 20,
+      "opacity": 0.3
+    },
+    "screen": {
+      "enabled": true,
+      "kind": "rays",
+      "color": "#fcf0f9",
+      "opacity": 1,
+      "count": 48,
+      "centerX": 0.5,
+      "centerY": 0.35,
+      "spiky": true,
+      "turnSeconds": 0,
+      "throbPerSec": 0.5,
+      "seed": 7
+    },
+    "marquee": {
+      "enabled": false,
+      "items": [],
+      "itemSize": 72,
+      "gap": 24,
+      "rowGap": 18,
+      "direction": "left",
+      "itemRotationMode": "upright",
+      "itemRotationOffsetDeg": 0,
+      "speedPxPerSec": 100,
+      "opacity": 1
+    },
+    "scatters": [
+      {
+        "enabled": true,
+        "items": [
+          {
+            "id": "sparkle",
+            "kind": "image",
+            "label": "Violet sparkle",
+            "image": "sparkle-violet.png"
+          }
+        ],
+        "count": 7,
+        "seed": 71,
+        "minSize": 30,
+        "maxSize": 48,
+        "minRotationDeg": 0,
+        "maxRotationDeg": 0,
+        "minOpacity": 0.9,
+        "maxOpacity": 1,
+        "regionTop": 0,
+        "regionBottom": 1,
+        "keepFaceClear": true,
+        "direction": "static",
+        "speedPxPerSec": 0,
+        "minSpinDegPerSec": 0,
+        "maxSpinDegPerSec": 0,
+        "alternateSpin": false,
+        "pulse": "twinkle"
+      },
+      {
+        "enabled": true,
+        "items": [
+          {
+            "id": "sparkle",
+            "kind": "image",
+            "label": "Violet sparkle",
+            "image": "sparkle-violet.png"
+          }
+        ],
+        "count": 14,
+        "seed": 72,
+        "minSize": 12,
+        "maxSize": 22,
+        "minRotationDeg": 0,
+        "maxRotationDeg": 0,
+        "minOpacity": 0.75,
+        "maxOpacity": 1,
+        "regionTop": 0,
+        "regionBottom": 1,
+        "keepFaceClear": true,
+        "direction": "static",
+        "speedPxPerSec": 0,
+        "minSpinDegPerSec": 0,
+        "maxSpinDegPerSec": 0,
+        "alternateSpin": false,
+        "pulse": "twinkle"
+      }
+    ]
+  },
+  "files": [
+    {
+      "path": "sparkle-violet.png",
+      "role": "image"
+    }
+  ]
+}

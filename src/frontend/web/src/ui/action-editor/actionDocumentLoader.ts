@@ -14,6 +14,10 @@ import {
   parseAnimaPoseClip,
 } from "@/lib/avatar/poses/animaPoseClip";
 import { BUILT_IN_AVATAR_MOTION_CATALOG } from "@/lib/avatar/motion/AvatarMotionCatalog";
+import {
+  REACTION_INTENSITIES,
+  type EmotionReactionIntensity,
+} from "@/lib/avatar/reactionPools";
 import { fetchContentPreviewFile } from "@/lib/content/contentPreview";
 import { actionClosure } from "@/lib/content-preview/ActionPreviewSession";
 import { readBoundedJsonResponse } from "@/lib/runtime-content/runtimeContentDelivery";
@@ -28,9 +32,9 @@ function object(value: unknown): Record<string, unknown> {
     : {};
 }
 
-function selectedIntensity(value: unknown): 1 | 2 | 3 {
-  const intensity = Number(value);
-  return intensity === 2 || intensity === 3 ? intensity : 1;
+/** The suggested Reaction intensity, or Mild when it names none. */
+function selectedIntensity(value: unknown): EmotionReactionIntensity {
+  return REACTION_INTENSITIES.find((level) => level === Number(value)) ?? 1;
 }
 
 function dependenciesFromPreview(

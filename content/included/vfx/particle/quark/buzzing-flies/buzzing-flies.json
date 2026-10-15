@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "content_type": "particle_effect",
+  "content_id": "builtin:particle-effect:buzzing-flies",
+  "version": 1,
+  "name": "Buzzing Flies",
+  "description": "Three glossy cartoon flies buzz round the head on wobbling orbits, leaving dotted trails in a faint green stink haze, the classic gross-out gag for disgusted moments.",
+  "runtime_defaults": {
+    "schema_version": 1,
+    "runtime_id": "buzzing-flies",
+    "slots": {
+      "particle_vfx": {
+        "label": "Buzzing Flies",
+        "description": "Three glossy cartoon flies buzz round the head on wobbling orbits, leaving dotted trails in a faint green stink haze, the classic gross-out gag for disgusted moments.",
+        "anchor": "head",
+        "duration_seconds": 4,
+        "max_duration_seconds": 4.4,
+        "preload_tier": "none",
+        "follow_anchor": true,
+        "transform": {
+          "offset": {
+            "x": 0,
+            "y": 0.11,
+            "z": 0
+          },
+          "depth_offset": 0,
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "looping_allowed": false,
+        "can_coexist": true,
+        "max_particles": 22
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "particle.json",
+      "role": "manifest"
+    },
+    {
+      "path": "textures/fly-buzz-sheet.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/fly-trail-dot.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/fly-haze.png",
+      "role": "texture"
+    }
+  ]
+}

@@ -3,6 +3,8 @@ import type {
   AvatarMotionClipDescriptor,
   AvatarMotionPreloadEntry,
   AvatarVrmaResource,
+  ReactionPoolPickArgs,
+  ReactionPools,
 } from "@/lib/avatar/motion/AvatarMotionCatalog";
 import { BUILT_IN_AVATAR_MOTION_CATALOG } from "@/lib/avatar/motion/AvatarMotionCatalog";
 import type {
@@ -13,7 +15,6 @@ import type {
   AnimaPoseClipAvatarVFXOverride,
   AnimaPoseClipV2,
 } from "@/lib/avatar/poses/animaPoseClip";
-import type { NormalizedEmotionReactionIntensity } from "@/lib/avatar/reactionClips";
 import type { EmotionRuntimeState } from "@/lib/emotion";
 import type {
   ManifestAnimation,
@@ -124,11 +125,12 @@ export class PreviewRuntimeCatalogSession
     return this.motion.listReactionClips();
   }
 
-  getReactionRuntimeId(args: {
-    emotionalTone: string | null | undefined;
-    emotionalIntensity: NormalizedEmotionReactionIntensity;
-  }): string | null {
+  getReactionRuntimeId(args: ReactionPoolPickArgs): string | null {
     return this.motion.getReactionRuntimeId(args);
+  }
+
+  listReactionPools(): ReactionPools {
+    return this.motion.listReactionPools();
   }
 
   getPoseIds(): readonly string[] {

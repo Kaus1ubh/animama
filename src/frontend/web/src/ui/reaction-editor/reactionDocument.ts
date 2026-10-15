@@ -1,3 +1,4 @@
+import type { EmotionReactionIntensity } from "@/lib/avatar/reactionPools";
 import {
   createActionDocument,
   type ActionDocument,
@@ -5,7 +6,7 @@ import {
 
 export function createReactionDocument(
   emotion = "",
-  intensity: 1 | 2 | 3 = 1,
+  intensity: EmotionReactionIntensity = 1,
 ): ActionDocument {
   return {
     ...createActionDocument("reaction"),

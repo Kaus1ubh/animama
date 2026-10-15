@@ -26,6 +26,30 @@ describe("Action run ownership", () => {
     });
   });
 
+  it("carries Reaction intensities 0–4 to the planner, clamping larger values", () => {
+    const runtime = useAvatarRuntimeStore.getState();
+    runtime.startRun("run");
+    const intensities = [0, 1, 4, 7].map((emotionalIntensity, index) => {
+      runtime.applyEmotionUpdate({
+        runId: "run",
+        eventId: `emotion-${index}`,
+        emotionalTone: "joy",
+        emotionalIntensity,
+      });
+      const event = useAvatarRuntimeStore
+        .getState()
+        .plannerEvents.filter(
+          (candidate) => candidate.type === "emotionReactionUpdated",
+        )
+        .at(-1);
+      return event?.type === "emotionReactionUpdated"
+        ? event.emotional_intensity
+        : null;
+    });
+    // Intensity 0 still reaches the planner, which plays no Reaction for it.
+    expect(intensities).toEqual([0, 1, 4, 4]);
+  });
+
   it("waits for planner work to drain before completing a non-TTS response", () => {
     const runtime = useAvatarRuntimeStore.getState();
     runtime.startRun("run");

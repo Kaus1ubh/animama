@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { Page, Request, Route } from "playwright/test";
+import type { Locator, Page, Request, Route } from "playwright/test";
 import type { CreateAnimaRequest } from "@animama/runtime-contracts/api-types";
 import { expect, test } from "../fixtures/animama";
 
@@ -142,6 +142,29 @@ async function continueToReviewWithConstantRequests(page: Page) {
   }
 }
 
+/**
+ * The wizard's emotion rows. Each row's name also carries its Reaction count,
+ * so rows are found by the levels region they control.
+ */
+function reactionEmotionRows(matrix: Locator) {
+  return matrix.locator(
+    'button[aria-controls^="creation-reaction-"][aria-controls$="-levels"]',
+  );
+}
+
+function reactionEmotionRow(matrix: Locator, emotion: string) {
+  return matrix.locator(
+    `button[aria-controls="creation-reaction-${emotion}-levels"]`,
+  );
+}
+
+/** The Add picker of each of Admiration's intensity cells. */
+function admirationAddButtons(matrix: Locator) {
+  return matrix
+    .getByRole("region", { name: "Admiration Reaction levels", exact: true })
+    .getByRole("button", { name: /^Add a Reaction to Admiration · / });
+}
+
 async function reviewEmptyActions(page: Page) {
   await page
     .getByRole("button", { name: "Continue to Actions", exact: true })
@@ -155,13 +178,13 @@ async function reviewEmptyActions(page: Page) {
     .click();
   await page.getByRole("tab", { name: /^Reactions/ }).click();
   const matrix = page.getByTestId("creation-reaction-matrix");
-  await expect(matrix.locator("[data-reaction-emotion]")).toHaveCount(24);
-  await expect(
-    matrix.getByRole("button", { name: "Admiration", exact: true }),
-  ).toHaveAttribute("aria-expanded", "true");
-  await expect(
-    matrix.locator('button[aria-label^="Change "][aria-label*=" intensity "]'),
-  ).toHaveCount(3);
+  await expect(reactionEmotionRows(matrix)).toHaveCount(24);
+  await expect(reactionEmotionRow(matrix, "admiration")).toHaveAttribute(
+    "aria-expanded",
+    "true",
+  );
+  // Admiration's four intensity cells each have an Add picker.
+  await expect(admirationAddButtons(matrix)).toHaveCount(4);
   await page
     .getByRole("button", { name: "Clear all Reactions", exact: true })
     .click();
@@ -170,7 +193,7 @@ async function reviewEmptyActions(page: Page) {
     .getByRole("button", { name: "Clear selections", exact: true })
     .click();
   await expect(
-    page.getByText("All 72 cells are empty. Your Anima can still be created.", {
+    page.getByText("All 96 cells are empty. Your Anima can still be created.", {
       exact: true,
     }),
   ).toBeVisible();
@@ -197,9 +220,12 @@ function expectStrictCommand(command: CreateAnimaRequest) {
     "item_id",
     "revision_sha256",
   ]);
-  const cells = Object.values(command.reactions).flatMap(Object.values);
-  expect(cells).toHaveLength(72);
-  expect(cells.every((cell) => cell === null)).toBe(true);
+  // Every one of the 96 cells is sent as a pool, here all empty.
+  const pools = Object.values(command.reactions).flatMap((cells) =>
+    Object.values(cells),
+  );
+  expect(pools).toHaveLength(96);
+  expect(pools.every((pool) => Array.isArray(pool) && !pool.length)).toBe(true);
   expect(command.gestures).toEqual([]);
   expect(command.appearance).toEqual({ profile: null, background: null });
   // The server seeds the Idle pool, so the command pins no Idle source.
@@ -338,9 +364,10 @@ test("default Actions-to-Review uses one evidence request and no previews @creat
   await page
     .getByRole("button", { name: "Continue to Actions", exact: true })
     .click();
+  // Every one of the 96 cells starts with its Included Reactions.
   await expect(
     page.getByText(
-      /Version 1 · \d+ recommended Gestures · 72 recommended cells/,
+      /Version 1 · \d+ recommended Gestures · 96 recommended cells/,
     ),
   ).toBeVisible();
   await expect(
@@ -357,19 +384,41 @@ test("default Actions-to-Review uses one evidence request and no previews @creat
   );
   await page.getByRole("tab", { name: /^Reactions/ }).click();
   const matrix = page.getByTestId("creation-reaction-matrix");
-  await expect(matrix.locator("[data-reaction-emotion]")).toHaveCount(24);
+  await expect(reactionEmotionRows(matrix)).toHaveCount(24);
+  await expect(reactionEmotionRow(matrix, "admiration")).toHaveAttribute(
+    "aria-expanded",
+    "true",
+  );
+  await expect(reactionEmotionRow(matrix, "caring")).toHaveAttribute(
+    "aria-expanded",
+    "false",
+  );
+  // Four intensity cells, each starting from its recommended pool: the one
+  // Included Reaction at Mild and both Included Reactions above it.
+  await expect(admirationAddButtons(matrix)).toHaveCount(4);
+  for (const [intensity, starters] of [
+    ["Mild", 1],
+    ["Moderate", 2],
+    ["Strong", 2],
+    ["Intense", 2],
+  ] as const)
+    await expect(
+      matrix
+        .getByRole("list", { name: `Admiration · ${intensity}`, exact: true })
+        .getByLabel("Starter", { exact: true }),
+    ).toHaveCount(starters);
   await expect(
-    matrix.getByRole("button", { name: "Admiration", exact: true }),
-  ).toHaveAttribute("aria-expanded", "true");
-  await expect(
-    matrix.getByRole("button", { name: "Caring", exact: true }),
-  ).toHaveAttribute("aria-expanded", "false");
+    page.getByRole("tab", { name: "Reactions (96/96)", exact: true }),
+  ).toBeVisible();
   await animamaEvidence.attachBuffer(
     "creation-reactions-phase8-followup",
     await page.screenshot(),
     "image/png",
   );
   const counts = await continueToReviewWithConstantRequests(page);
+  await expect(
+    page.getByText("168 Reactions across all cells", { exact: true }),
+  ).toBeVisible();
   expect(commands).toHaveLength(0);
   await animamaEvidence.attachJson("creation-phase7-request-counts", counts);
 });

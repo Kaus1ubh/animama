@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "content_type": "particle_effect",
+  "content_id": "builtin:particle-effect:fright-jolt",
+  "version": 1,
+  "name": "Fright Jolt",
+  "description": "Jagged white-cyan lightning bolts snap out around the head with a flash ring and crackling sparks, then flicker again, for a jolt of fright or panic.",
+  "runtime_defaults": {
+    "schema_version": 1,
+    "runtime_id": "fright-jolt",
+    "slots": {
+      "particle_vfx": {
+        "label": "Fright Jolt",
+        "description": "Jagged white-cyan lightning bolts snap out around the head with a flash ring and crackling sparks, then flicker again, for a jolt of fright or panic.",
+        "preload_tier": "none",
+        "looping_allowed": false,
+        "can_coexist": true,
+        "anchor": "head",
+        "duration_seconds": 1.6,
+        "max_duration_seconds": 2,
+        "follow_anchor": true,
+        "transform": {
+          "offset": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "depth_offset": 0,
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "max_particles": 28
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "particle.json",
+      "role": "manifest"
+    },
+    {
+      "path": "textures/jolt-ring.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/jolt-bolts.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/jolt-spark.png",
+      "role": "texture"
+    }
+  ]
+}

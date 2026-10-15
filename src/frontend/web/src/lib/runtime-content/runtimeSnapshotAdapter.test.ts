@@ -32,7 +32,109 @@ function descriptor(): PyAnimaRuntime["content_descriptor"] {
   };
 }
 
+/** An admitted Reaction as the runtime lists it: once, however many cells hold it. */
+function runtimeReaction(
+  itemId: string,
+  files = true,
+): NonNullable<PyAnimaRuntime["reactions"]>[number] {
+  return {
+    binding_id: `reaction:${itemId}`,
+    runtime_root_id: `root-${itemId}`,
+    content_type: "reaction",
+    source: {
+      type: "catalog_item",
+      item_id: itemId,
+      source: "local",
+      revision: `${itemId}-revision`,
+    },
+    name: itemId,
+    // Only the document's suggestion; the pools decide where it plays.
+    emotion: "joy",
+    intensity: 1,
+    implementation: { kind: "anima_clip", file_role: "sequence" },
+    config: {},
+    reference_map: {},
+    files: files
+      ? [
+          {
+            file_ref: `${itemId}-sequence`,
+            role: "sequence",
+            ordinal: 1,
+            filename: `${itemId}.json`,
+            media_type: "application/json",
+            size_bytes: 64,
+            sha256: "c".repeat(64),
+            url: `/runtime/${itemId}`,
+          },
+        ]
+      : [],
+  };
+}
+
 describe("adaptRuntimeSnapshot", () => {
+  it("adapts each Reaction once and maps its cells to pools of runtime ids", () => {
+    const runtime = adaptRuntimeSnapshot({
+      catalog_version: 1,
+      loadout_revision: 4,
+      effective_revision: "tr1-reaction-pools",
+      lease_expires_at: "2026-08-11T00:00:00Z",
+      content_descriptor: descriptor(),
+      avatar: avatar(),
+      gestures: [],
+      reactions: [
+        runtimeReaction("cheer"),
+        runtimeReaction("grin"),
+        // Listed without files, so it did not mount and plays nowhere.
+        runtimeReaction("broken", false),
+      ],
+      reaction_cells: {
+        joy: { "1": ["cheer"], "4": ["cheer", "grin", "broken"] },
+        // Absent from the runtime's Reactions: it was left out with a diagnostic.
+        anger: { "2": ["missing"] },
+        sadness: { "3": [] },
+      },
+      particle_effects: [],
+      avatar_effects: [],
+      scene_effects: [],
+      sound_effects: [],
+      warnings: [],
+    } satisfies PyAnimaRuntime);
+
+    // A Reaction in two cells is one runtime entry, named by its binding.
+    expect(runtime.reactions.map((entry) => entry.runtime_id)).toEqual([
+      "reaction:cheer",
+      "reaction:grin",
+    ]);
+    expect(runtime.reaction_pools).toEqual({
+      joy: {
+        "1": ["reaction:cheer"],
+        "4": ["reaction:cheer", "reaction:grin"],
+      },
+      anger: {},
+      sadness: {},
+    });
+  });
+
+  it("projects no pools when the runtime has no Reaction cells", () => {
+    const runtime = adaptRuntimeSnapshot({
+      catalog_version: 1,
+      loadout_revision: 1,
+      effective_revision: "tr1-no-cells",
+      lease_expires_at: "2026-08-11T00:00:00Z",
+      content_descriptor: descriptor(),
+      avatar: avatar(),
+      gestures: [],
+      reactions: [runtimeReaction("cheer")],
+      particle_effects: [],
+      avatar_effects: [],
+      scene_effects: [],
+      sound_effects: [],
+      warnings: [],
+    } satisfies PyAnimaRuntime);
+
+    expect(runtime.reaction_pools).toEqual({});
+  });
+
   it("maps an Included Avatar through its registered catalog file", () => {
     const runtime = adaptRuntimeSnapshot({
       catalog_version: 1,
@@ -262,7 +364,7 @@ describe("adaptRuntimeSnapshot", () => {
       gestures: [],
       reactions: [
         {
-          binding_id: "reaction-joy-3",
+          binding_id: "reaction:reaction-item",
           content_type: "reaction",
           source: {
             type: "catalog_item",
@@ -404,7 +506,9 @@ describe("adaptRuntimeSnapshot", () => {
         ),
     });
 
-    await expect(catalog.loadReactionClip("joy-3")).resolves.toMatchObject({
+    await expect(
+      catalog.loadReactionClip("reaction:reaction-item"),
+    ).resolves.toMatchObject({
       events: [
         expect.objectContaining({ effectId: "emote" }),
         expect.objectContaining({ presetId: "scene-joy" }),

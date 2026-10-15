@@ -130,10 +130,12 @@ export async function cleanupOwnedContent({
           throw new Error("Imported private Avatar changed; refusing cleanup.");
         if (current) {
           const summary = await catalogClient.getAnimaExport(owned.itemId);
+          // An import starts at aggregate revision 1; a revision the journey
+          // recorded for its own edits names the one it expects.
           if (
             !avatar ||
             current.id !== owned.itemId ||
-            current.aggregate_revision !== 1 ||
+            current.aggregate_revision !== (owned.aggregateRevision ?? 1) ||
             animaDefinitionSha256(summary.anima) !== owned.revisionSha256 ||
             animaDefinitionSha256(owned.animaDefinition) !==
               owned.revisionSha256

@@ -5,8 +5,12 @@ import path from "node:path";
 import test from "node:test";
 
 import { appendContentLedgerEvent } from "./content-ledger.mjs";
-import { resolvePackageImportOwnership } from "./package-import-ownership.mjs";
+import {
+  recordOwnedAnimaRevision,
+  resolvePackageImportOwnership,
+} from "./package-import-ownership.mjs";
 import { cleanupOwnedContent } from "./content-cleanup.mjs";
+import { animaDefinitionSha256 } from "./local-catalog-client.mjs";
 
 const entries = [
   { entryId: "avatar", kind: "avatar", name: "Fixture-2", selected: true },
@@ -40,7 +44,11 @@ const privateAvatar = {
   name: entries[0].name,
 };
 
-async function fixture(run) {
+/** A whole Anima package fixture; `pools` swaps in another definition. */
+async function fixture(
+  run,
+  pools = { entries, definition, installed: () => installed },
+) {
   const root = await mkdtemp(
     path.join(os.tmpdir(), "animama-package-ownership-"),
   );
@@ -54,12 +62,12 @@ async function fixture(run) {
     operationId: "whole-package",
     stageId: "a".repeat(32),
     reviewDigest: "b".repeat(64),
-    packageEntries: entries,
-    packageAnima: definition,
+    packageEntries: pools.entries,
+    packageAnima: pools.definition,
   };
   const plans = [
-    ...entries,
-    { entryId: "anima", kind: "anima", name: definition.display_name },
+    ...pools.entries,
+    { entryId: "anima", kind: "anima", name: pools.definition.display_name },
   ].map((entry) => ({
     ...base,
     entryId: entry.entryId,
@@ -78,7 +86,7 @@ async function fixture(run) {
       operation_id: base.operationId,
       review_digest: base.reviewDigest,
       anima_id: "anima-copy",
-      items: entries.map((entry) => ({
+      items: pools.entries.map((entry) => ({
         entry_id: entry.entryId,
         item_id: `${entry.entryId}-copy`,
         kind: entry.kind,
@@ -105,7 +113,7 @@ async function fixture(run) {
       aggregate_revision: 1,
       avatar: privateAvatar,
     }),
-    getAnimaExport: async () => ({ anima: installed }),
+    getAnimaExport: async () => ({ anima: pools.installed() }),
   };
   try {
     await run({
@@ -241,6 +249,140 @@ for (const scenario of [
     });
   });
 }
+
+test("Reaction pools bind to their copied entries in any member order", async () => {
+  const reactions = [
+    { entryId: "wave-b", kind: "reaction", name: "Wave B", selected: true },
+    { entryId: "wave-a", kind: "reaction", name: "Wave A", selected: true },
+  ];
+  const pooled = {
+    ...definition,
+    reactions: { joy: { 1: ["wave-b"], 4: ["wave-b", "wave-a"] } },
+  };
+  // The export lists each pool by its copies' item IDs, so not in the
+  // package's order.
+  const exported = {
+    ...installed,
+    reactions: {
+      joy: { 1: ["wave-b-copy"], 4: ["wave-a-copy", "wave-b-copy"] },
+    },
+  };
+  await fixture(
+    async (value) => {
+      const anima = await resolvePackageImportOwnership({
+        ...value,
+        journeyKey: "sharing-anima",
+      });
+      assert.deepEqual(anima.animaDefinition.reactions, {
+        joy: { 1: ["wave-b-copy"], 4: ["wave-b-copy", "wave-a-copy"] },
+      });
+      assert.equal(anima.revisionSha256, animaDefinitionSha256(exported));
+    },
+    {
+      entries: [...entries, ...reactions],
+      definition: pooled,
+      installed: () => exported,
+    },
+  );
+});
+
+test("a recorded revision of the journey's own pool edit lets cleanup delete the edited Anima", async () => {
+  const reactions = [
+    { entryId: "wave-a", kind: "reaction", name: "Wave A", selected: true },
+    { entryId: "wave-b", kind: "reaction", name: "Wave B", selected: true },
+  ];
+  const pooled = {
+    ...definition,
+    reactions: { joy: { 1: ["wave-a"], 4: ["wave-a", "wave-b"] } },
+  };
+  const pools = (mild) => ({
+    ...installed,
+    reactions: { joy: { 1: mild, 4: ["wave-a-copy", "wave-b-copy"] } },
+  });
+  // The journey adds Wave B to Joy · Mild in one commit.
+  let edited = false;
+  const addWaveB = (anima) => {
+    anima.reactions.joy[1] = [...anima.reactions.joy[1], "wave-b-copy"];
+    return anima;
+  };
+  await fixture(
+    async (value) => {
+      await resolvePackageImportOwnership({
+        ...value,
+        journeyKey: "sharing-anima",
+      });
+      edited = true;
+      const present = new Set(
+        value.receipt.result.items.map((item) => item.item_id),
+      );
+      let animaPresent = true;
+      let avatarPresent = true;
+      const client = {
+        ...value.catalogClient,
+        getAnima: async (id) =>
+          animaPresent
+            ? { id, aggregate_revision: 2, avatar: privateAvatar }
+            : null,
+        getAvatar: async () => (avatarPresent ? privateAvatar : null),
+        deleteAnima: async () => {
+          animaPresent = false;
+          return { status: 204 };
+        },
+        deleteAvatar: async () => {
+          avatarPresent = false;
+          return { status: 204 };
+        },
+        getItem: async (id) =>
+          present.has(id)
+            ? { ...(await value.catalogClient.getItem(id)), dependencies: [] }
+            : null,
+        deleteItem: async (id) => {
+          present.delete(id);
+          return { status: 204 };
+        },
+      };
+      const record = (aggregateRevision, revise) =>
+        recordOwnedAnimaRevision({
+          ledgerPath: value.ledgerPath,
+          catalogClient: client,
+          animaId: "anima-copy",
+          aggregateRevision,
+          revise,
+        });
+      // Another aggregate revision or definition than the edit is refused.
+      await assert.rejects(record(3, addWaveB), /refusing to record/);
+      await assert.rejects(
+        record(2, (anima) => anima),
+        /refusing to record/,
+      );
+      const revised = await record(2, addWaveB);
+      assert.equal(revised.event, "updated");
+      assert.equal(
+        revised.previousRevisionSha256,
+        animaDefinitionSha256(pools(["wave-a-copy"])),
+      );
+      assert.equal(
+        revised.revisionSha256,
+        animaDefinitionSha256(pools(["wave-b-copy", "wave-a-copy"])),
+      );
+      const result = await cleanupOwnedContent({
+        ...value,
+        actor: "fixture",
+        catalogClient: client,
+      });
+      assert.equal(result.failed, 0);
+      assert.equal(animaPresent, false);
+      assert.equal(avatarPresent, false);
+      assert.equal(present.size, 0);
+    },
+    {
+      entries: [...entries, ...reactions],
+      definition: pooled,
+      installed: () =>
+        pools(edited ? ["wave-a-copy", "wave-b-copy"] : ["wave-a-copy"]),
+    },
+  );
+});
 
 test("whole-package receipt with an unexpected entry grants no ownership", async () => {
   await fixture(async (value) => {

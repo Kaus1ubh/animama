@@ -180,7 +180,6 @@
   },
   "row": {
     "addedTo_other": "{{count}} 体の Anima に追加済み",
-    "emotionLevel": "{{emotion}} レベル {{level}}",
     "local": "ローカル",
     "updateAvailable": "更新あり"
   },
@@ -204,8 +203,8 @@
       "labelValue": "{{label}}: {{value}}",
       "none": "なし",
       "pocketVoice": "PocketTTS 音声",
-      "reactionCell": "{{emotion}} · {{intensity}}: {{value}}",
-      "reactionCells": "リアクションのセル"
+      "reactionCells": "リアクションのセル",
+      "reactionSummary_other": "（{{total}} セル中 {{cells}} セルに割り当て · リアクション {{count}} 件）"
     },
     "back": "戻る",
     "countInParentheses": "({{total}})",

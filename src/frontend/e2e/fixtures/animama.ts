@@ -25,7 +25,10 @@ import {
   appendContentLedgerEvent,
   readContentLedger,
 } from "../../scripts/e2e/content-ledger.mjs";
-import { resolvePackageImportOwnership } from "../../scripts/e2e/package-import-ownership.mjs";
+import {
+  recordOwnedAnimaRevision as recordLedgerAnimaRevision,
+  resolvePackageImportOwnership,
+} from "../../scripts/e2e/package-import-ownership.mjs";
 import {
   PackageStageLedger,
   releasePackageStages,
@@ -162,6 +165,17 @@ export type CreatorContentFixture = {
     previous: { itemId: string; revisionSha256: string },
     updated: { itemId: string; revisionSha256: string },
   ): Promise<void>;
+  /**
+   * Record the journey's own edits of an Anima this run imported, so cleanup
+   * still deletes exactly that Anima. `revise` turns the last recorded
+   * portable definition (with this installation's item IDs) into the one the
+   * edits produce; the Anima must match it at `aggregateRevision`.
+   */
+  recordOwnedAnimaRevision(input: {
+    animaId: string;
+    aggregateRevision: number;
+    revise: (definition: PortableAnima) => PortableAnima;
+  }): Promise<void>;
   verifyOwnedContent(
     plan: CreatorContentPlan,
     owned: { itemId: string; revisionSha256: string },
@@ -485,6 +499,13 @@ export const test = base.extend<AnimamaFixtures>({
           revisionSha256: updated.revisionSha256,
           previousRevisionSha256: previous.revisionSha256,
           relativeLocator: item.relative_locator,
+        });
+      },
+      async recordOwnedAnimaRevision(input) {
+        await recordLedgerAnimaRevision({
+          ledgerPath,
+          catalogClient: await catalogClient(),
+          ...input,
         });
       },
       async verifyOwnedContent(plan, owned) {

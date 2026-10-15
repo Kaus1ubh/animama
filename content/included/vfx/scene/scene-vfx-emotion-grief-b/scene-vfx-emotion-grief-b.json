@@ -1,0 +1,157 @@
+{
+  "schema_version": 1,
+  "content_type": "scene_effect",
+  "content_id": "builtin:scene-effect:background:scene-vfx-emotion-grief-b",
+  "version": 1,
+  "name": "Grief B Background",
+  "description": "A lone, cold indigo spotlight falling from above onto the Avatar on a near-black stage while slow snow drifts down through the dark, for grieving, bereft moments.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/scene-effect/1",
+    "kind": "background_layers",
+    "durationMs": null,
+    "dismissOnInput": false,
+    "coverUiOverlays": false,
+    "solid": {
+      "enabled": false,
+      "color": "#06060c"
+    },
+    "pattern": {
+      "enabled": false,
+      "pattern": "none",
+      "color": "#ffffff",
+      "size": 10,
+      "spacing": 20,
+      "opacity": 0.3
+    },
+    "marquee": {
+      "enabled": false,
+      "items": [],
+      "itemSize": 72,
+      "gap": 24,
+      "rowGap": 18,
+      "direction": "left",
+      "itemRotationMode": "upright",
+      "itemRotationOffsetDeg": 0,
+      "speedPxPerSec": 100,
+      "opacity": 1
+    },
+    "gradient": {
+      "enabled": true,
+      "type": "radial",
+      "angleDeg": 180,
+      "centerX": 0.5,
+      "centerY": 1,
+      "stops": [
+        {
+          "color": "#1f1d38",
+          "position": 0
+        },
+        {
+          "color": "#0f0e1d",
+          "position": 0.34
+        },
+        {
+          "color": "#06060c",
+          "position": 0.72
+        }
+      ]
+    },
+    "scatters": [
+      {
+        "enabled": true,
+        "items": [
+          {
+            "id": "beam",
+            "kind": "image",
+            "label": "Cold spotlight beam",
+            "image": "cold-beam-indigo.png"
+          }
+        ],
+        "count": 1,
+        "seed": 1,
+        "minSize": 512,
+        "maxSize": 512,
+        "minRotationDeg": 0,
+        "maxRotationDeg": 0,
+        "minOpacity": 1,
+        "maxOpacity": 1,
+        "regionTop": 0,
+        "regionBottom": 0.45,
+        "keepFaceClear": false,
+        "direction": "static",
+        "speedPxPerSec": 0,
+        "minSpinDegPerSec": 0,
+        "maxSpinDegPerSec": 0,
+        "alternateSpin": false,
+        "pulse": "none"
+      },
+      {
+        "enabled": true,
+        "items": [
+          {
+            "id": "far-snow",
+            "kind": "image",
+            "label": "Far snowflake",
+            "image": "snowflake.png"
+          }
+        ],
+        "count": 24,
+        "seed": 17,
+        "minSize": 6,
+        "maxSize": 10,
+        "minRotationDeg": -30,
+        "maxRotationDeg": 30,
+        "minOpacity": 0.25,
+        "maxOpacity": 0.45,
+        "regionTop": 0,
+        "regionBottom": 1,
+        "keepFaceClear": true,
+        "direction": "down",
+        "speedPxPerSec": 18,
+        "minSpinDegPerSec": 6,
+        "maxSpinDegPerSec": 14,
+        "alternateSpin": true,
+        "pulse": "none"
+      },
+      {
+        "enabled": true,
+        "items": [
+          {
+            "id": "snow",
+            "kind": "image",
+            "label": "Snowflake",
+            "image": "snowflake.png"
+          }
+        ],
+        "count": 30,
+        "seed": 61,
+        "minSize": 10,
+        "maxSize": 22,
+        "minRotationDeg": -30,
+        "maxRotationDeg": 30,
+        "minOpacity": 0.5,
+        "maxOpacity": 0.9,
+        "regionTop": 0,
+        "regionBottom": 1,
+        "keepFaceClear": true,
+        "direction": "down",
+        "speedPxPerSec": 28,
+        "minSpinDegPerSec": 8,
+        "maxSpinDegPerSec": 24,
+        "alternateSpin": true,
+        "pulse": "none"
+      }
+    ]
+  },
+  "files": [
+    {
+      "path": "cold-beam-indigo.png",
+      "role": "image"
+    },
+    {
+      "path": "snowflake.png",
+      "role": "image"
+    }
+  ]
+}

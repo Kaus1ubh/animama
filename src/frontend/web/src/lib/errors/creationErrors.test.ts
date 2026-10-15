@@ -27,10 +27,12 @@ describe("creation wording", () => {
   it("words Loadout codes reported through creation", () => {
     expect(
       creationIssueText({
-        code: "reaction_matrix_incomplete",
+        code: "reaction_pool_full",
         message: "The exact typed loadout could not be created.",
       }).message,
-    ).toBe("The Reaction grid is incomplete.");
+    ).toBe(
+      "That cell already holds four Reactions. Remove one to add another.",
+    );
   });
 
   it("keeps a multi-cause code's backend cause as detail", async () => {

@@ -2,7 +2,7 @@
 
 Animama starts and creates its two starter companions without Mixamo assets.
 The shipped starter pack has all 99 non-idle project-authored gestures and
-72 reactions; each new companion's Idle pool is seeded from the 12 Included
+all 168 Included reactions in 96 pools; each new companion's Idle pool is seeded from the 12 Included
 idle gestures, which are not starters. Required selected content still
 passes the normal strict revision, dependency and file checks, including the
 tracked-only native staging gate.

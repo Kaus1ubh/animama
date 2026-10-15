@@ -85,16 +85,24 @@ Normal `chat:sse` derives emotion from the primary chat structured response:
 Backend rules for normal chat:
 
 - raw `emotional_intensity` is a model-selected `1..10` value
-- the backend maps raw intensity to avatar update levels:
+- the backend maps raw intensity to how far the turn shifts the emotion state:
   - `1-3 -> 1`
   - `4-6 -> 2`
   - `7-10 -> 3`
+- separately, it maps raw intensity to the Reaction intensity that
+  `emotion.update` carries as `emotional_intensity`:
+  - `1-2 -> 0` (no Reaction; the emotion state still shifts)
+  - `3-4 -> 1` (Mild)
+  - `5-6 -> 2` (Moderate)
+  - `7-8 -> 3` (Strong)
+  - `9-10 -> 4` (Intense)
 - the model-facing `emotional_tone` is a vocal tone key, such as `impressed`
   or `happy`
 - the backend maps that tone key back to the canonical emotion before emitting
   `emotion.update`
 - a non-neutral allowlisted tone promotes its mapped canonical emotion
-- one emotion from the soft opposing group is demoted by the same mapped amount
+- one emotion from the soft opposing group is demoted by the same state-shift
+  amount
 - all values are clamped to `0..30`
 - neutral, missing, blank, default-friendly, or unrecognized tone metadata emits
   a no-op full-state update with `emotional_intensity=0`
@@ -184,7 +192,8 @@ Important details:
 - the array is emitted in canonical backend emotion order
 - `EmotionGroup` is not part of the payload
 - `emotional_tone`, `emotional_intensity`, `promoted_emotion`, and
-  `demoted_emotion` are optional context fields
+  `demoted_emotion` are optional context fields; `emotional_intensity` is the
+  Reaction intensity 0–4
 - when present, `emotional_tone` is the canonical backend emotion, not the raw
   vocal tone key from the main structured response
 - `emotion_intensity` is not part of this event
@@ -266,7 +275,8 @@ If the update is accepted:
 - it rebuilds `rankedEmotions`, `rankedGroups`, and `dominantGroup`
 - it enqueues an `emotionUpdated` event for `AvatarPlanner`
 - it enqueues an `emotionReactionUpdated` event so `AvatarPlanner` can trigger
-  a same-run reaction clip while the avatar is `talking`
+  a same-run reaction clip while the avatar is `talking`; its intensity is
+  read as 0–4, and larger values are clamped to 4
 
 Relevant files:
 
@@ -332,19 +342,24 @@ Relevant files:
 ### Reaction clip mapping
 
 Turn-scoped reactions use the `emotion.update` metadata, not the persisted
-24-emotion map. Exact canonical `TRACKED_EMOTIONS` tones map to
-`role: "reaction"` clips named `<emotion>-1`, `<emotion>-2`, or `<emotion>-3`
-by normalized intensity. Group names such as `alarm`, neutral tones,
-zero-intensity events, duplicate events, stale events, and unknown strings are
-consumed without a reaction.
+24-emotion map. An exact canonical `TRACKED_EMOTIONS` tone and Reaction
+intensity 1–4 name one of the Anima's Reaction cells, and the planner plays one
+member of that cell's pool, picked at random without repeating the member the
+cell played last ([avatar planner](avatar-planner.md)). Group names such as `alarm`,
+neutral tones, zero-intensity events, empty cells, duplicate events, stale
+events, and unknown strings are consumed without a reaction; no other cell is
+tried. Idle keeps the emotion state's three intensity levels.
 
 Reaction clips live under
-`content/included/reactions/<id>/<id>.json`. They can include
+`content/included/reactions/<id>/<id>.json`; outside an Anima route the
+built-in catalog picks from the Included Reactions each cell's id names
+(`<emotion>-1`, or `<emotion>-<n>` and `<emotion>-<n>-b`). They
+can include
 expression tracks keyed at beats plus timed avatar VFX, scene VFX, and SFX events,
 and the built-in catalog skips files that include humanoid transforms. Reaction
 definitions are expression/effect actions and cannot declare humanoid motion;
 `ReactionClipPlayer` projects their samples to expressions before
-fade/interpolation. Every canonical clip
+fade/interpolation. Every Included Reaction clip
 declares a same-run `talking` playback lifetime: it fades in, holds its final
 expression/VFX sample while the avatar remains talking for that run, and fades
 out when talking ends or the run changes. VFX events without `duration` hold
@@ -354,6 +369,7 @@ hold.
 Relevant files:
 
 - `src/frontend/web/src/lib/avatar/reactionClips.ts`
+- `src/frontend/web/src/lib/avatar/reactionPools.ts`
 - `src/frontend/web/src/lib/avatar/reaction/ReactionClipPlayer.ts`
 - `src/frontend/web/src/lib/avatar/planner/AvatarPlanner.ts`
 

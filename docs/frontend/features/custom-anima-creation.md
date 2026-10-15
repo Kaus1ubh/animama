@@ -44,7 +44,7 @@ and [data model](../../backend/architecture/data-model.md).
 | Avatar   | Select Included or Local content, or upload and explicitly save a validated VRM.                                                |
 | Voice | Choose PocketTTS or ElevenLabs, select a preset or shared named clone, or enter a voice ID. Save new clones with the same library controls as Loadout. |
 | Identity | Edit the required Markdown identity; preview or request an Avatar suggestion.                                                   |
-| Actions  | Start from the Recommended Starter Pack, select Gestures and edit all 72 Reaction cells. Preview and selection are independent. |
+| Actions  | Start from the Recommended Starter Pack, select Gestures and edit the pools of all 96 Reaction cells. Preview and selection are independent. |
 | Review   | Inspect name, Avatar, voice, identity, Action counts and linked diagnostics before Create Anima.                                       |
 
 A name is required before leaving Avatar. Back, visited steps and Review Edit
@@ -52,16 +52,25 @@ preserve the draft. Changing Avatar retains identity and Actions while
 revalidating compatibility; filtering never changes hidden selections.
 Edited drafts offer keep editing, save and leave, or discard and leave.
 
-Each Reaction cell accepts any compatible Reaction or Empty. The same Reaction
-can fill several cells; counts represent occupied cells. Reset Actions to Starter
-Pack requires confirmation and replaces all Action edits, including hidden ones.
+The Reactions tab lists each emotion with four intensity cells (Mild,
+Moderate, Strong, Intense) and edits each cell's pool with the Loadout's pool
+cell. Every cell starts from the Starter Pack's pool. A cell lists its
+Reactions with a Starter badge on recommended ones, Preview and Remove; Add
+opens a searchable picker of Local and Included Reactions that marks those
+already in the cell, so a cell holds each Reaction once and at most four. A
+full cell disables Add and says why. Revert appears when a cell's members
+differ from its recommended pool (order ignored) and restores it. A member
+whose exact revision is no longer offered is marked “Needs attention” and can
+be removed. The same Reaction can fill several cells. Tab and Review counts show cells with at least one Reaction; Review also
+counts the Reactions across all cells. Reset Actions to Starter Pack requires
+confirmation and replaces all Action edits, including hidden ones.
 
 ### Source and identity boundaries
 
 The implemented backend `AnimaSpec` contains a required live display name and one
 Markdown identity document, an admitted typed Avatar, explicit null profile and
 background Appearance choices from this browser, explicit voice choices, exact
-Gesture selections and all 72 explicit Reaction cells, a versioned Recommended
+Gesture selections and all 96 Reaction cells as pools, a versioned Recommended
 Starter Pack, and a complete `expected_source_revisions` map. That map covers
 selected roots and all supports; it is operation evidence, not an
 active runtime mount. Empty Gesture/all-empty Reaction choices are allowed
@@ -105,8 +114,11 @@ Creator Markdown preview does not load remote images.
 ### Draft, retry, and first-chat boundaries
 
 Drafts are scoped to the runtime owner and installation, with explicit
-schema routing and an unsaved-VRM reselection marker. Editable schema v3 adds
-explicit provider and voice choices and has no Appearance selection state. Safe v1 null-appearance drafts migrate
+schema routing and an unsaved-VRM reselection marker. Editable schema v4 holds
+explicit provider and voice choices and a Reaction pool per cell, and has no
+Appearance selection state. Older drafts' one-Reaction cells become one-member
+pools one intensity up, as the Included Reactions moved; a request frozen before
+pools is still replayed exactly. Safe v1 null-appearance drafts migrate
 automatically; v1 drafts with an image choice/pending marker require explicit
 “Continue without images” confirmation, while confirmed uploads remain in My
 Content. Frozen v1 requests are replayed exactly and migrate only after a known

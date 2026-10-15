@@ -50,6 +50,10 @@ describe("exact Action selections", () => {
     expect(creationIssueTarget("/reactions/anger/3", gestures)).toBe(
       "creation-reaction-anger-3",
     );
+    // A pool member's path names its cell, at any of the four intensities.
+    expect(creationIssueTarget("/reactions/joy/4/1", gestures)).toBe(
+      "creation-reaction-joy-4",
+    );
     expect(creationIssueTarget("/display_name", gestures)).toBe(
       "creation-display-name",
     );
@@ -77,7 +81,7 @@ describe("exact Action selections", () => {
       "No Gestures selected. Your Anima can still be created.",
     );
     expect(html).toContain("Reset to recommended");
-    expect(html).toContain("/72");
+    expect(html).toContain("/96");
     expect(html).not.toContain("One Gesture per semantic key");
     expect(html).not.toContain("Every emotion has three intensity cells");
     expect(preview).not.toHaveBeenCalled();
@@ -157,12 +161,22 @@ describe("exact Action selections", () => {
       />,
     );
     expect(html).toContain('data-testid="creation-reaction-matrix"');
-    expect(html.match(/data-reaction-emotion=/g)).toHaveLength(24);
-    expect(html.match(/aria-expanded="true"/g)).toHaveLength(1);
-    expect(html.match(/aria-expanded="false"/g)).toHaveLength(23);
-    expect(html).toContain('id="creation-reaction-admiration-1"');
+    const emotionRows = [
+      ...html.matchAll(
+        /aria-expanded="(true|false)" aria-controls="creation-reaction-([a-z]+)-levels"/g,
+      ),
+    ];
+    expect(emotionRows).toHaveLength(24);
+    expect(
+      emotionRows
+        .filter(([, expanded]) => expanded === "true")
+        .map(([, , emotion]) => emotion),
+    ).toEqual(["admiration"]);
+    // The expanded emotion holds four intensity cells, each a link target.
+    for (const intensity of [1, 2, 3, 4])
+      expect(html).toContain(`id="creation-reaction-admiration-${intensity}"`);
+    expect(html).not.toContain('id="creation-reaction-admiration-5"');
     expect(html).not.toContain('id="creation-reaction-caring-1"');
-    expect(html.match(/border-l-2/g)).toHaveLength(24);
     expect(html.match(/border-l-primary/g)).toHaveLength(1);
   });
 });

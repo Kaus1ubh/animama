@@ -115,7 +115,7 @@ ANIMAMA_LLM_SKIP=1 ANIMAMA_WEB_BUILD_MODE=production ./reset.sh --name browser-a
 source .animama-stack.env
 export ANIMAMA_E2E_ALLOW_MUTATIONS=1
 cd src/frontend
-pnpm e2e:test        # Full suite, about 11 minutes.
+pnpm e2e:test        # Full suite, about 35 minutes.
 pnpm e2e:test:fast   # Skips the two @complete-anima package journeys, about 5 minutes.
 ```
 
@@ -126,8 +126,9 @@ suite before merging changes to content packages, imports, cleanup or Animas.
 Prefer a built stack for journeys and for agent live checks that do not need
 source edits to appear immediately. It has no reload watcher or Vite, so it
 starts warm and uses less memory and CPU per stack, which matters when several
-agents run stacks in parallel. The full suite takes about 25 minutes on a
-development stack. Use a development stack when you are editing and checking UI
+agents run stacks in parallel. The full suite is slower still on a
+development stack. Most of its time goes to the two `@complete-anima`
+journeys, whose starter Animas carry about 450 entries each. Use a development stack when you are editing and checking UI
 changes interactively. A built stack serves the image baked at reset, so rerun
 `./reset.sh` after source changes. When several stacks run at once, raising
 OrbStack's VM memory limit adds a safety margin. It does not replace built
@@ -172,9 +173,11 @@ perform recovery. The same isolated-stack environment and consent are required.
 Package imports record their operation and review before commit. After a lost
 reply, cleanup binds only the matching completed receipt's original item IDs and
 revisions. Whole-package cleanup records every installed dependency and any new
-Anima/private Avatar; saved-definition checks protect later Anima edits. Pending
-outcomes or changed items retain the ledger and block deletion. Names never grant
-cleanup authority.
+Anima/private Avatar; saved-definition checks protect later Anima edits. A
+journey that edits an Anima it imported first records the definition and
+aggregate revision its edit produces (`recordOwnedAnimaRevision`); any other
+change still blocks deletion. Pending outcomes or changed items retain the
+ledger and block deletion. Names never grant cleanup authority.
 
 The backend admits two open package stages per owner. A committed import or an
 undownloaded export review counts until the sharing dialog releases it or it
@@ -208,8 +211,8 @@ Screenshot and observation attachments retain the rendering evidence; the known
 single unresolved sample-avatar bone is allowed. `playback-library.spec.ts` is
 outside the active `chromium` project and is only type-checked: its
 `library-gesture-have-an-idea` repeats the Gesture Avatar Effect proof, and
-`library-reaction-curiosity-3` would check Scene Effect playback on Curiosity
-Reaction 3, because no Included Gesture plays a Scene Effect. Active Scene
+`library-reaction-curiosity-4` would check Scene Effect playback on Curiosity
+Reaction 4, because no Included Gesture plays a Scene Effect. Active Scene
 Effect coverage comes from the imported Gesture and Reaction in
 `accountless-imported-playback.spec.ts`. The focused pose test permits only
 reads and gesture-preview preparation requests; it does not select an Anima
@@ -239,7 +242,11 @@ The active `local content sharing` group exercises real Library selection,
 review, browser download, file upload and whole-package commit for single/multiple
 content roots and a complete Anima. It checks automatic collision suffixes,
 persistence after reload, missing-export-cache Back navigation, and recovery of
-a completed import whose HTTP response was lost. The recovery check retains the
+a completed import whose HTTP response was lost. The imported Anima keeps
+the exported two-member Joy · Moderate starter pool, and a second Reaction
+added to its Joy · Mild pool through the Loadout survives a reload. (A second
+complete import would take the journey past its 40-minute budget.) The
+recovery check retains the
 same operation and verifies that the UI does not create or commit another import.
 Normal downloads rely on product cache cleanup rather than test-only deletion.
 Desktop and narrow screenshots cover entry, content selection, Anima selection

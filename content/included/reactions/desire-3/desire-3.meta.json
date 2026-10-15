@@ -15,26 +15,14 @@
   },
   "dependencies": [
     {
-      "ref": "builtin:scene-effect:background:scene-vfx-emotion-desire",
-      "alias": "scene-vfx-emotion-desire",
-      "content_type": "scene_effect",
-      "config": {}
-    },
-    {
-      "ref": "builtin:particle-effect:heart-fireworks",
-      "alias": "heart-fireworks",
+      "ref": "builtin:particle-effect:hearts-v1",
+      "alias": "hearts-v1",
       "content_type": "particle_effect",
       "config": {}
     },
     {
       "ref": "builtin:avatar-effect:heart_eyes",
       "alias": "heart_eyes",
-      "content_type": "avatar_effect",
-      "config": {}
-    },
-    {
-      "ref": "builtin:avatar-effect:blush",
-      "alias": "blush",
       "content_type": "avatar_effect",
       "config": {}
     }

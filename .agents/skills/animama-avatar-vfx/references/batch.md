@@ -23,8 +23,8 @@ time. Each receives its confirmed brief, this skill, `animama-effect-assets`,
 its folder (`.animama-drafts/effects/<stem>/` at the repository root) and
 these instructions:
 
-- make the art (generating its images concurrently, with the batch's shared
-  style guide and style reference image), write the effect folder, run
+- make the art (generating its images concurrently, with its brief's house
+  style line and that style's reference image), write the effect folder, run
   `effects check` (fix every FAIL) and render sheets to its work folder;
 - read its own sheets and revise until the effect reads as the brief;
 - do not save, start a preview for the owner, or touch other items;
@@ -36,8 +36,9 @@ once (they share one app).
 
 ## 3. Consistency pass
 
-Compare the items side by side before the owner sees them: one art style
-(outline weight, palette, shading), matching scale for the same attachment,
+Compare the items side by side before the owner sees them: one house style
+per item (Ink or Marker), consistent within each style (outline weight,
+palette, shading), matching scale for the same attachment,
 and loudness that matches the intended tiers. Render effects that will share
 a Reaction together (`effects:render a b --together`). Fix outliers and
 re-run `effects check` on changed items.

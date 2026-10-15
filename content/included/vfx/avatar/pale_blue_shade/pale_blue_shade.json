@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:pale_blue_shade",
+  "version": 1,
+  "name": "Pale Blue Shade",
+  "description": "A see-through blue-violet screentone shade with thin quivering ink lines painted down the forehead and around the eyes, the anime aozame \"gaan\" face of blood draining away, for horror, dread and a disgusted realisation.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "full_face",
+    "attachment": {
+      "kind": "face_surface",
+      "part": "face_skin",
+      "area": "full"
+    },
+    "art": {
+      "image": "pale_blue_shade-boil.png",
+      "flipbook": {
+        "columns": 2,
+        "rows": 2,
+        "frames": 4,
+        "fps": 8,
+        "loop": "loop"
+      }
+    },
+    "motion": {
+      "keyframes": {
+        "frames": [
+          {
+            "t": 0,
+            "opacity": 0,
+            "offset": {
+              "x": 0,
+              "y": -0.04
+            }
+          },
+          {
+            "t": 0.25,
+            "opacity": 1,
+            "offset": {
+              "x": 0,
+              "y": 0.004
+            }
+          },
+          {
+            "t": 0.38,
+            "offset": {
+              "x": 0,
+              "y": 0
+            }
+          }
+        ]
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "pale_blue_shade-boil.png",
+      "role": "image"
+    }
+  ]
+}

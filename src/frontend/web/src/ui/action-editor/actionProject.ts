@@ -6,6 +6,10 @@ import type {
 } from "@/lib/content/catalogTypes";
 import { WordedError } from "@/lib/errors/apiError";
 import {
+  REACTION_INTENSITIES,
+  type EmotionReactionIntensity,
+} from "@/lib/avatar/reactionPools";
+import {
   parseAnimaPoseClip,
   type AnimaPoseClipV2,
 } from "@/lib/avatar/poses/animaPoseClip";
@@ -27,7 +31,7 @@ export type ActionProject = {
   aiDescription: string;
   semanticKey: string;
   suggestedEmotion: string;
-  suggestedIntensity: 1 | 2 | 3;
+  suggestedIntensity: EmotionReactionIntensity;
   notes: string;
   sequence: AnimaPoseClipV2;
   dependencies: PyContentDependency[];
@@ -172,8 +176,10 @@ export function parseActionImport(
         : t("project.errors.wrongEditor.reaction", { found }),
     );
   }
-  const intensity = Number(value.suggestedIntensity ?? 1);
-  if (![1, 2, 3].includes(intensity)) {
+  const intensity = REACTION_INTENSITIES.find(
+    (level) => level === Number(value.suggestedIntensity ?? 1),
+  );
+  if (!intensity) {
     throw new WordedError(t("project.errors.intensity"));
   }
   return {
@@ -186,7 +192,7 @@ export function parseActionImport(
       aiDescription: optionalString(value.aiDescription),
       semanticKey: optionalString(value.semanticKey),
       suggestedEmotion: optionalString(value.suggestedEmotion),
-      suggestedIntensity: intensity as 1 | 2 | 3,
+      suggestedIntensity: intensity,
       notes: optionalString(value.notes),
       sequence: parseAnimaPoseClip(value.sequence),
       dependencies: parseDependencies(value.dependencies),

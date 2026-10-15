@@ -7,8 +7,9 @@ from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from animama.app.anima_creation_contract import Emotion, ImagePresentation, SemanticKey
+from animama.app.anima_creation_contract import Emotion, ImagePresentation, ReactionIntensityKey, SemanticKey
 from animama.domain.anima_definition import normalize_display_name, normalize_identity
+from animama.domain.anima_loadout import REACTION_INTENSITIES, REACTION_POOL_LIMIT
 from animama.domain.content_catalog import ContentKind
 from animama.domain.emotions import TRACKED_EMOTIONS
 
@@ -59,6 +60,7 @@ class PortableAnimaAppearance(PortableModel):
 
 
 IdleEntryList = Annotated[list[EntryId], Field(max_length=500)]
+ReactionPoolEntries = Annotated[list[EntryId], Field(max_length=REACTION_POOL_LIMIT)]
 
 
 class PortableIdlePool(PortableModel):
@@ -107,7 +109,8 @@ class PortableAnima(PortableModel):
     identity_markdown: str
     avatar: EntryId
     gestures: list[PortableGestureSelection] = Field(max_length=500)
-    reactions: dict[Emotion, dict[Literal["1", "2", "3"], PortableActionSelection | None]]
+    # All 96 Reaction cells as Reaction entry-id pools of up to four; an empty list is an empty cell.
+    reactions: dict[Emotion, dict[ReactionIntensityKey, ReactionPoolEntries]]
     idle: PortableIdlePool
     appearance: PortableAnimaAppearance
     # Only the active saved Pocket clone travels; provider profiles remain local.
@@ -135,20 +138,25 @@ class PortableAnima(PortableModel):
     @field_validator("reactions")
     @classmethod
     def complete_cells(cls, value: Any) -> Any:
-        if set(value) != set(TRACKED_EMOTIONS) or any(set(cells) != {"1", "2", "3"} for cells in value.values()):
-            raise ValueError("All 72 Reaction cells must be explicit")
+        levels = {str(intensity) for intensity in REACTION_INTENSITIES}
+        if set(value) != set(TRACKED_EMOTIONS) or any(set(cells) != levels for cells in value.values()):
+            raise ValueError("All 96 Reaction cells must be explicit")
+        if any(len(set(pool)) != len(pool) for cells in value.values() for pool in cells.values()):
+            raise ValueError("A Reaction appears at most once in a cell")
         return value
+
+    def reaction_members(self) -> Iterator[tuple[str, int, str]]:
+        """Yield ``(emotion, intensity, entry_id)`` for every Reaction pool member."""
+
+        for emotion, cells in self.reactions.items():
+            for level, pool in cells.items():
+                yield from ((emotion, int(level), entry_id) for entry_id in pool)
 
     def entry_references(self) -> tuple[tuple[str, ContentKind], ...]:
         """Return ordered unique typed roots, including independently selected images."""
         refs = [(self.avatar, ContentKind.AVATAR)]
         refs.extend((selection.entry_id, ContentKind.GESTURE) for selection in self.gestures)
-        refs.extend(
-            (selection.entry_id, ContentKind.REACTION)
-            for cells in self.reactions.values()
-            for selection in cells.values()
-            if selection is not None
-        )
+        refs.extend((entry_id, ContentKind.REACTION) for _, _, entry_id in self.reaction_members())
         refs.extend((entry_id, ContentKind.GESTURE) for _, entry_id in self.idle.members())
         if self.pocket_voice is not None:
             refs.append((self.pocket_voice, ContentKind.VOICE))

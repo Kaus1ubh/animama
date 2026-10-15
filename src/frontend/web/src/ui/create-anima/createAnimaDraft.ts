@@ -7,6 +7,11 @@ import type {
   AnimaCreationOptions,
   ItemRevisionRef,
 } from "@animama/runtime-contracts/sdk";
+import {
+  REACTION_INTENSITIES,
+  REACTION_POOL_LIMIT,
+  type EmotionReactionIntensity,
+} from "@/lib/avatar/reactionPools";
 import { TRACKED_EMOTIONS, type TrackedEmotion } from "@/lib/emotion";
 import { CreatorError } from "./createAnimaErrors";
 import {
@@ -25,8 +30,11 @@ export const CREATION_STEPS = [
   "review",
 ] as const;
 export type CreationStep = 0 | 1 | 2 | 3 | 4;
-export const INTENSITIES = ["1", "2", "3"] as const;
-export type Intensity = (typeof INTENSITIES)[number];
+/** Reaction intensities as creation cell keys, Mild ("1") to Intense ("4"). */
+export type Intensity = `${EmotionReactionIntensity}`;
+export const INTENSITIES = REACTION_INTENSITIES.map(
+  (intensity) => `${intensity}` as Intensity,
+);
 /** Every tracked emotion has one Reaction cell per intensity. */
 export const REACTION_CELL_COUNT = TRACKED_EMOTIONS.length * INTENSITIES.length;
 export const itemIdSchema = z
@@ -85,12 +93,54 @@ const gestureSchema = z.strictObject({
   semantic_key: z.string().regex(/^[a-z0-9][a-z0-9._-]{0,127}$/),
   source: itemRefSchema,
 });
+/** A cell's pool: up to four Reactions, each once. */
+const reactionPoolSchema = z
+  .array(itemRefSchema)
+  .max(REACTION_POOL_LIMIT)
+  .refine(
+    (pool) => new Set(pool.map((ref) => ref.item_id)).size === pool.length,
+    "A Reaction appears at most once in a cell.",
+  );
 const reactionCellsSchema = z.strictObject({
-  "1": itemRefSchema.nullable(),
-  "2": itemRefSchema.nullable(),
-  "3": itemRefSchema.nullable(),
+  "1": reactionPoolSchema,
+  "2": reactionPoolSchema,
+  "3": reactionPoolSchema,
+  "4": reactionPoolSchema,
 });
 const reactionsSchema = z.record(z.enum(TRACKED_EMOTIONS), reactionCellsSchema);
+/** Drafts saved before Reaction pools: one Reaction or none at three intensities. */
+const legacyReactionsSchema = z.record(
+  z.enum(TRACKED_EMOTIONS),
+  z.strictObject({
+    "1": itemRefSchema.nullable(),
+    "2": itemRefSchema.nullable(),
+    "3": itemRefSchema.nullable(),
+  }),
+);
+type LegacyReactions = z.infer<typeof legacyReactionsSchema>;
+
+/**
+ * Give a draft saved before Reaction pools one-member pools, each moved up one
+ * intensity as the Included Reactions moved (their old Mild is now Moderate);
+ * the new Mild starts empty.
+ */
+function poolsFromLegacyReactions(
+  legacy: LegacyReactions,
+): z.infer<typeof reactionsSchema> {
+  const pool = (ref: z.infer<typeof itemRefSchema> | null) =>
+    ref ? [ref] : [];
+  const pools = {} as z.infer<typeof reactionsSchema>;
+  for (const emotion of TRACKED_EMOTIONS) {
+    const cells = legacy[emotion];
+    pools[emotion] = {
+      "1": [],
+      "2": pool(cells["1"]),
+      "3": pool(cells["2"]),
+      "4": pool(cells["3"]),
+    };
+  }
+  return pools;
+}
 const starterPackSchema = z.strictObject({
   id: z.literal("builtin:starter-loadout"),
   version: z.literal(1),
@@ -165,9 +215,14 @@ export const creationRequestSchema = animaSpecSchema.extend({
   idempotency_key: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/),
 });
 
-/** Frozen saved requests accept up to 120 characters for exact retry; new commands cap names at 40. */
+/**
+ * Frozen saved requests accept up to 120 characters for exact retry; new
+ * commands cap names at 40. A command frozen before Reaction pools keeps its
+ * old cells: it is replayed exactly, never rewritten.
+ */
 const frozenCreationRequestSchema = z.strictObject({
   ...animaSpecFields,
+  reactions: z.union([reactionsSchema, legacyReactionsSchema]),
   expected_source_revisions: savedSourceMapSchema,
   voice: creationVoiceDraftSchema.nullable().optional(),
   display_name: z.string().min(1).max(120),
@@ -187,7 +242,7 @@ export const previousCreateAnimaDraftSchema = z.strictObject({
   appearance_migration: z.enum(["none", "confirmation_required"]),
   needs_file_reselection: z.boolean(),
   gestures: z.array(gestureSchema).max(500),
-  reactions: reactionsSchema,
+  reactions: legacyReactionsSchema,
   starter_pack: starterPackSchema.nullable(),
   default_idle: itemRefSchema.nullable(),
   idle_revisions: savedSourceMapSchema,
@@ -200,14 +255,18 @@ export const previousCreateAnimaDraftSchema = z.strictObject({
     })
     .nullable(),
 });
-/** The server seeds every new Anima's Idle pool, so drafts carry no Idle choice. */
+/**
+ * The current draft. The server seeds every new Anima's Idle pool, so drafts
+ * carry no Idle choice; Reactions are a pool per cell at four intensities.
+ */
 export const createAnimaDraftSchema = previousCreateAnimaDraftSchema
   .omit({ default_idle: true, idle_revisions: true })
   .extend({
-    schema_version: z.literal(3),
+    schema_version: z.literal(4),
     step: z.number().int().min(0).max(4),
     furthest_step: z.number().int().min(0).max(4),
     voice: creationVoiceDraftSchema.nullable(),
+    reactions: reactionsSchema,
   });
 export type CreateAnimaDraft = z.infer<typeof createAnimaDraftSchema>;
 
@@ -223,15 +282,36 @@ function withoutRetiredIdle<T extends Record<RetiredIdleFields, unknown>>(
   return current as Omit<T, RetiredIdleFields>;
 }
 
-/** Read a schema-3 draft, including one saved before the built-in Idle pool. */
+/** A schema-3 draft: one Reaction or none per cell at three intensities. */
+const schema3CreateAnimaDraftSchema = createAnimaDraftSchema.extend({
+  schema_version: z.literal(3),
+  reactions: legacyReactionsSchema,
+});
+
+/** Give a schema-3 draft Reaction pools; its frozen request is kept as is. */
+function upgradeSchema3Draft(
+  draft: z.infer<typeof schema3CreateAnimaDraftSchema>,
+): CreateAnimaDraft {
+  return {
+    ...draft,
+    schema_version: 4,
+    reactions: poolsFromLegacyReactions(draft.reactions),
+  };
+}
+
+/**
+ * Read a saved draft: the current schema, or schema 3 (one Reaction per cell,
+ * including drafts saved before the built-in Idle pool) upgraded to pools.
+ */
 export const storedCreateAnimaDraftSchema = z.union([
   createAnimaDraftSchema,
-  createAnimaDraftSchema
+  schema3CreateAnimaDraftSchema.transform(upgradeSchema3Draft),
+  schema3CreateAnimaDraftSchema
     .extend({
       default_idle: itemRefSchema.nullable(),
       idle_revisions: savedSourceMapSchema,
     })
-    .transform(withoutRetiredIdle),
+    .transform((draft) => upgradeSchema3Draft(withoutRetiredIdle(draft))),
 ]);
 
 /** The inserted Voice step shifts old navigation without touching frozen requests. */
@@ -246,7 +326,8 @@ export function migratePreviousCreateAnimaDraft(
           previous.identity_markdown,
           previous.display_name,
         ),
-    schema_version: 3,
+    schema_version: 4,
+    reactions: poolsFromLegacyReactions(previous.reactions),
     voice: null,
     step: previous.step === 0 ? 0 : previous.step + 1,
     furthest_step:
@@ -274,7 +355,7 @@ export const legacyCreateAnimaDraftSchema = z.strictObject({
   needs_file_reselection: z.boolean(),
   needs_image_reselection: z.boolean().default(false),
   gestures: z.array(gestureSchema).max(500),
-  reactions: reactionsSchema,
+  reactions: legacyReactionsSchema,
   starter_pack: starterPackSchema.nullable(),
   default_idle: itemRefSchema.nullable(),
   idle_revisions: savedSourceMapSchema,
@@ -302,19 +383,17 @@ export type CreationRoot = {
   path: string;
 };
 
-/** Every cell exists even when filtered out or explicitly empty. */
+/** Every cell exists, with an empty pool, even when filtered out. */
 export function emptyReactions(): CreateAnimaDraft["reactions"] {
-  return Object.fromEntries(
-    TRACKED_EMOTIONS.map((emotion) => [
-      emotion,
-      { "1": null, "2": null, "3": null },
-    ]),
-  ) as CreateAnimaDraft["reactions"];
+  const reactions = {} as CreateAnimaDraft["reactions"];
+  for (const emotion of TRACKED_EMOTIONS)
+    reactions[emotion] = { "1": [], "2": [], "3": [], "4": [] };
+  return reactions;
 }
 
 export function newCreateAnimaDraft(): CreateAnimaDraft {
   return {
-    schema_version: 3,
+    schema_version: 4,
     voice: null,
     draft_id: crypto.randomUUID(),
     step: 0,
@@ -513,7 +592,10 @@ export function createAnimaDraftReducer(
   return changed ? { ...draft, ...patch, meaningful: true } : draft;
 }
 
-/** Preserve declaring paths, including repeated Reaction assignments, for error links. */
+/**
+ * Preserve declaring paths, including a Reaction in several cells, for error
+ * links; a pool member's path ends in its index.
+ */
 export function creationRoots(draft: CreateAnimaDraft): CreationRoot[] {
   return [
     ...(draft.voice?.pocket.type === "clone"
@@ -534,18 +616,13 @@ export function creationRoots(draft: CreateAnimaDraft): CreationRoot[] {
       path: `/gestures/${index}/source`,
     })),
     ...TRACKED_EMOTIONS.flatMap((emotion) =>
-      INTENSITIES.flatMap((intensity) => {
-        const source = draft.reactions[emotion][intensity];
-        return source
-          ? [
-              {
-                kind: "reaction" as const,
-                source,
-                path: `/reactions/${emotion}/${intensity}`,
-              },
-            ]
-          : [];
-      }),
+      INTENSITIES.flatMap((intensity) =>
+        draft.reactions[emotion][intensity].map((source, index) => ({
+          kind: "reaction" as const,
+          source,
+          path: `/reactions/${emotion}/${intensity}/${index}`,
+        })),
+      ),
     ),
   ];
 }
@@ -729,6 +806,7 @@ export function reconcileCreationIssues(
   });
 }
 
+/** How many Reaction cells hold at least one Reaction. */
 export function reactionCount(
   draft: Pick<CreateAnimaDraft, "reactions">,
 ): number {
@@ -736,20 +814,88 @@ export function reactionCount(
     (count, emotion) =>
       count +
       INTENSITIES.filter(
-        (intensity) => draft.reactions[emotion][intensity] !== null,
+        (intensity) => draft.reactions[emotion][intensity].length > 0,
       ).length,
     0,
   );
 }
 
-export function setReaction(
-  draft: CreateAnimaDraft,
+/** How many Reactions the pools hold, counting a Reaction once per cell. */
+export function reactionMemberCount(
+  draft: Pick<CreateAnimaDraft, "reactions">,
+): number {
+  return TRACKED_EMOTIONS.reduce(
+    (count, emotion) =>
+      count +
+      INTENSITIES.reduce(
+        (cells, intensity) =>
+          cells + draft.reactions[emotion][intensity].length,
+        0,
+      ),
+    0,
+  );
+}
+
+/** Replace one cell's pool. */
+export function setReactionPool(
+  draft: Pick<CreateAnimaDraft, "reactions">,
   emotion: TrackedEmotion,
   intensity: Intensity,
-  source: ItemRevisionRef | null,
+  pool: ItemRevisionRef[],
 ): CreateAnimaDraft["reactions"] {
   return {
     ...draft.reactions,
-    [emotion]: { ...draft.reactions[emotion], [intensity]: source },
+    [emotion]: { ...draft.reactions[emotion], [intensity]: pool },
   };
+}
+
+/**
+ * Add one Reaction to the end of a cell's pool. A Reaction already in the
+ * cell (at any revision) or a fifth member is refused: the same pools come
+ * back unchanged.
+ */
+export function addReactionPoolMember(
+  draft: Pick<CreateAnimaDraft, "reactions">,
+  emotion: TrackedEmotion,
+  intensity: Intensity,
+  ref: ItemRevisionRef,
+): CreateAnimaDraft["reactions"] {
+  const pool = draft.reactions[emotion][intensity];
+  if (
+    pool.length >= REACTION_POOL_LIMIT ||
+    pool.some((member) => member.item_id === ref.item_id)
+  )
+    return draft.reactions;
+  return setReactionPool(draft, emotion, intensity, [...pool, ref]);
+}
+
+/** Remove one Reaction from a cell's pool; the others keep their order. */
+export function removeReactionPoolMember(
+  draft: Pick<CreateAnimaDraft, "reactions">,
+  emotion: TrackedEmotion,
+  intensity: Intensity,
+  itemId: string,
+): CreateAnimaDraft["reactions"] {
+  return setReactionPool(
+    draft,
+    emotion,
+    intensity,
+    draft.reactions[emotion][intensity].filter(
+      (member) => member.item_id !== itemId,
+    ),
+  );
+}
+
+/**
+ * Whether two pools hold the same Reaction revisions. Chat picks a member at
+ * random, so their order does not matter.
+ */
+export function samePool(
+  left: readonly ItemRevisionRef[],
+  right: readonly ItemRevisionRef[],
+): boolean {
+  return (
+    left.length === right.length &&
+    left.every((ref) => right.some((other) => sameRef(ref, other)))
+  );
 }

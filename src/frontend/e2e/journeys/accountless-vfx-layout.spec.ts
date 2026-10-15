@@ -483,7 +483,7 @@ test("accountless loadout scene fills the viewport without moving the avatar can
   const guard = new ReadOnlyJourneyGuard(page);
   try {
     const { animaId, surface } = await openAnnieLoadoutPreview({
-      contentName: "Admiration Reaction 3",
+      contentName: "Admiration Reaction 4",
       page,
       section: "reaction",
     });
@@ -511,7 +511,7 @@ test("accountless loadout scene fills the viewport without moving the avatar can
 
     await page
       .getByRole("button", {
-        name: "Stop Admiration Reaction 3 preview",
+        name: "Stop Admiration Reaction 4 preview",
         exact: true,
       })
       .click();
@@ -523,7 +523,7 @@ test("accountless loadout scene fills the viewport without moving the avatar can
 
     await page
       .getByRole("button", {
-        name: "Preview Admiration Reaction 3",
+        name: "Preview Admiration Reaction 4",
         exact: true,
       })
       .click();

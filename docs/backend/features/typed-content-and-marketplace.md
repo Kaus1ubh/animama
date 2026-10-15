@@ -172,12 +172,12 @@ and the issued revision before returning a canonical byte descriptor.
 `GET /v1/animas/{anima_id}/loadout` returns the typed aggregate. Each family
 changes through `POST /v1/animas/{anima_id}/{family}:plan` and its matching
 `:commit`, with an expected revision, reviewed plan digest, and idempotency
-key. Gesture semantic keys are unique. Each Reaction binding occupies one
-canonical emotion/intensity cell, but any Reaction Action may be assigned to
-any cell. A Reaction descriptor may omit `placement_hint`; when present, it must
-supply both a tracked emotion and intensity 1, 2, or 3. This is only a suggested
-default: saving, previewing and packaging do not require it, while equipping
-still requires a canonical cell. Unplaced typed responses have null `emotion`
+key. Gesture semantic keys are unique. Each Reaction binding is one member of
+one emotion/intensity cell's pool (up to four per cell), and any Reaction Action
+may join any cell's pool. A Reaction descriptor may omit `placement_hint`; when
+present, it must supply both a tracked emotion and intensity 1, 2, 3, or 4. This
+is only a suggested default: saving, previewing and packaging do not require it,
+while equipping still names a cell. Unplaced typed responses have null `emotion`
 and `intensity`. The Idle pool holds finite Gestures per cell and is never
 AI-callable; Avatar, Appearance, and voice keep focused selection rules. Effects and Sounds remain
 compiler-managed dependencies rather than independent Anima equipment.
@@ -201,7 +201,8 @@ Music and standalone catalog Clips are not package types. Voice is allowed only
 as the active saved PocketTTS clone referenced by a complete Anima.
 
 An Anima export reads the saved name, full identity, Avatar, effective Gesture
-selections and semantic keys, all 72 Reaction cells (including empty cells),
+selections and semantic keys, all 96 Reaction cells as pools of Reaction
+entries (including empty cells),
 the Idle pool (Default and non-empty cells of Gesture entries), and
 profile/background images with framing. Supported
 binding configuration and effective starter choices are preserved. Missing

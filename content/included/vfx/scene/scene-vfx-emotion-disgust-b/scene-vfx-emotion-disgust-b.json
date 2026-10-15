@@ -1,0 +1,113 @@
+{
+  "schema_version": 1,
+  "content_type": "scene_effect",
+  "content_id": "builtin:scene-effect:background:scene-vfx-emotion-disgust-b",
+  "version": 1,
+  "name": "Disgust B Background",
+  "description": "A sickly lime backdrop with queasy wavy stripes rolling slowly across the edges and green bubbles gurgling up the sides, for disgusted, nauseous moments.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/scene-effect/1",
+    "kind": "background_layers",
+    "durationMs": null,
+    "dismissOnInput": false,
+    "coverUiOverlays": false,
+    "solid": {
+      "enabled": false,
+      "color": "#000000"
+    },
+    "pattern": {
+      "enabled": false,
+      "pattern": "none",
+      "color": "#ffffff",
+      "size": 10,
+      "spacing": 20,
+      "opacity": 0.3
+    },
+    "marquee": {
+      "enabled": false,
+      "items": [],
+      "itemSize": 72,
+      "gap": 24,
+      "rowGap": 18,
+      "direction": "left",
+      "itemRotationMode": "upright",
+      "itemRotationOffsetDeg": 0,
+      "speedPxPerSec": 100,
+      "opacity": 1
+    },
+    "gradient": {
+      "enabled": true,
+      "type": "radial",
+      "angleDeg": 180,
+      "centerX": 0.5,
+      "centerY": 0.38,
+      "stops": [
+        {
+          "color": "#f3f9c6",
+          "position": 0
+        },
+        {
+          "color": "#e2ef98",
+          "position": 0.32
+        },
+        {
+          "color": "#b4cf4a",
+          "position": 0.72
+        },
+        {
+          "color": "#83a02a",
+          "position": 1
+        }
+      ]
+    },
+    "tile": {
+      "enabled": true,
+      "image": "queasy-waves-lime.png",
+      "size": 480,
+      "opacity": 0.45,
+      "direction": "left",
+      "speedPxPerSec": 16
+    },
+    "scatters": [
+      {
+        "enabled": true,
+        "items": [
+          {
+            "id": "bubble",
+            "kind": "image",
+            "label": "Green bubble",
+            "image": "bubble-green.png"
+          }
+        ],
+        "count": 14,
+        "seed": 31,
+        "minSize": 16,
+        "maxSize": 46,
+        "minRotationDeg": 0,
+        "maxRotationDeg": 0,
+        "minOpacity": 0.7,
+        "maxOpacity": 0.95,
+        "regionTop": 0,
+        "regionBottom": 1,
+        "keepFaceClear": true,
+        "direction": "up",
+        "speedPxPerSec": 18,
+        "minSpinDegPerSec": 0,
+        "maxSpinDegPerSec": 0,
+        "alternateSpin": false,
+        "pulse": "pop"
+      }
+    ]
+  },
+  "files": [
+    {
+      "path": "bubble-green.png",
+      "role": "image"
+    },
+    {
+      "path": "queasy-waves-lime.png",
+      "role": "image"
+    }
+  ]
+}

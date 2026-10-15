@@ -1,0 +1,147 @@
+{
+  "schema_version": 1,
+  "content_type": "scene_effect",
+  "content_id": "builtin:scene-effect:background:scene-vfx-emotion-amusement-b",
+  "version": 1,
+  "name": "Amusement B Background",
+  "description": "A slowly turning mint-and-lime manga sunburst that melts into a soft mint glow behind the Avatar's head, with giggle squiggles bouncing around the edges, for amused, giggly moments.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/scene-effect/1",
+    "kind": "background_layers",
+    "durationMs": null,
+    "dismissOnInput": false,
+    "coverUiOverlays": false,
+    "solid": {
+      "enabled": false,
+      "color": "#000000"
+    },
+    "pattern": {
+      "enabled": false,
+      "pattern": "none",
+      "color": "#ffffff",
+      "size": 10,
+      "spacing": 20,
+      "opacity": 0.3
+    },
+    "marquee": {
+      "enabled": false,
+      "items": [],
+      "itemSize": 72,
+      "gap": 24,
+      "rowGap": 18,
+      "direction": "left",
+      "itemRotationMode": "upright",
+      "itemRotationOffsetDeg": 0,
+      "speedPxPerSec": 100,
+      "opacity": 1
+    },
+    "gradient": {
+      "enabled": true,
+      "type": "radial",
+      "angleDeg": 180,
+      "centerX": 0.5,
+      "centerY": 0.36,
+      "stops": [
+        {
+          "color": "#c8f8e6",
+          "position": 0
+        },
+        {
+          "color": "#c8f8e6",
+          "position": 0.12
+        },
+        {
+          "color": "#b9ee5e",
+          "position": 0.46
+        },
+        {
+          "color": "#94d845",
+          "position": 1
+        }
+      ]
+    },
+    "screen": {
+      "enabled": true,
+      "kind": "rays",
+      "centerX": 0.5,
+      "centerY": 0.36,
+      "color": "#c8f8e6",
+      "opacity": 1,
+      "count": 16,
+      "spiky": false,
+      "turnSeconds": -120,
+      "throbPerSec": 0,
+      "seed": 5
+    },
+    "scatters": [
+      {
+        "enabled": true,
+        "items": [
+          {
+            "id": "squiggle",
+            "kind": "image",
+            "label": "Giggle squiggle",
+            "image": "giggle-squiggle.png"
+          }
+        ],
+        "count": 8,
+        "seed": 201,
+        "minSize": 60,
+        "maxSize": 96,
+        "minRotationDeg": -35,
+        "maxRotationDeg": 35,
+        "minOpacity": 1,
+        "maxOpacity": 1,
+        "regionTop": 0,
+        "regionBottom": 1,
+        "keepFaceClear": true,
+        "direction": "static",
+        "speedPxPerSec": 0,
+        "minSpinDegPerSec": 0,
+        "maxSpinDegPerSec": 0,
+        "alternateSpin": false,
+        "pulse": "pop"
+      },
+      {
+        "enabled": true,
+        "items": [
+          {
+            "id": "squiggle-small",
+            "kind": "image",
+            "label": "Giggle squiggle",
+            "image": "giggle-squiggle.png"
+          }
+        ],
+        "count": 8,
+        "seed": 202,
+        "minSize": 38,
+        "maxSize": 54,
+        "minRotationDeg": -35,
+        "maxRotationDeg": 35,
+        "minOpacity": 1,
+        "maxOpacity": 1,
+        "regionTop": 0,
+        "regionBottom": 1,
+        "keepFaceClear": true,
+        "direction": "static",
+        "speedPxPerSec": 0,
+        "minSpinDegPerSec": 0,
+        "maxSpinDegPerSec": 0,
+        "alternateSpin": false,
+        "pulse": "pop"
+      }
+    ],
+    "flash": {
+      "enabled": false,
+      "color": "#ffffff",
+      "durationMs": 260
+    }
+  },
+  "files": [
+    {
+      "path": "giggle-squiggle.png",
+      "role": "image"
+    }
+  ]
+}

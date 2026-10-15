@@ -28,6 +28,14 @@ const CONTENT_KINDS = new Set([
   "sound_effect",
   "anima",
 ]);
+/** Fields only an imported Anima's ownership or revision may carry. */
+const ANIMA_REVISION_KEYS = [
+  "operationId",
+  "aggregateRevision",
+  "animaDefinition",
+  "relatedAvatarId",
+  "relatedAvatarSha256",
+];
 const COMMON_KEYS = new Set([
   "schemaVersion",
   "event",
@@ -68,6 +76,12 @@ const EVENT_KEYS = {
     "revisionSha256",
     "relativeLocator",
     "previousRevisionSha256",
+    // An imported Anima's revision after the journey's own Anima edits.
+    "operationId",
+    "aggregateRevision",
+    "animaDefinition",
+    "relatedAvatarId",
+    "relatedAvatarSha256",
   ]),
   verified: new Set([
     "itemId",
@@ -210,6 +224,19 @@ function validateIdentityFields(event) {
   ) {
     throw new Error(
       "Content ledger update requires its exact previous revision.",
+    );
+  }
+  if (event.event === "updated" && event.kind !== "anima") {
+    if (ANIMA_REVISION_KEYS.some((key) => key in event))
+      throw new Error("Only an Anima revision records an Anima definition.");
+  } else if (
+    event.event === "updated" &&
+    (!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(event.operationId ?? "") ||
+      !Number.isSafeInteger(event.aggregateRevision) ||
+      event.aggregateRevision < 2)
+  ) {
+    throw new Error(
+      "An Anima revision requires its import operation and a later aggregate revision.",
     );
   }
   if (["owned", "import_owned", "updated"].includes(event.event)) {
@@ -411,6 +438,17 @@ function validateContentLedgerTransition(events, candidate) {
         "Content ledger update must preserve its owned path and exact previous revision.",
       );
     }
+    if (
+      event.kind === "anima" &&
+      (event.operationId !== owned.operationId ||
+        event.relatedAvatarId !== owned.relatedAvatarId ||
+        event.relatedAvatarSha256 !== owned.relatedAvatarSha256 ||
+        event.aggregateRevision <= (owned.aggregateRevision ?? 1))
+    ) {
+      throw new Error(
+        "An Anima revision must keep its import and private Avatar and advance its aggregate revision.",
+      );
+    }
   }
   const allowed = {
     planned: ["owned"],
@@ -431,26 +469,61 @@ function validateContentLedgerTransition(events, candidate) {
   return event;
 }
 
+/**
+ * The text and frozen events this process last validated for each ledger. A
+ * ledger only grows by whole appended lines, so a read whose text extends
+ * that text validates only the new lines; any other change revalidates the
+ * whole file. Whole-Anima packages put hundreds of large lines in one ledger,
+ * where revalidating every line on each append took minutes per import.
+ */
+const validatedLedgers = new Map();
+
+function deepFreeze(value) {
+  if (value && typeof value === "object" && !Object.isFrozen(value)) {
+    Object.freeze(value);
+    for (const child of Object.values(value)) deepFreeze(child);
+  }
+  return value;
+}
+
 /** Read and validate every immutable JSON line and transition in order. */
 export async function readContentLedger(ledgerPath) {
   let source;
   try {
     source = await readFile(ledgerPath, "utf8");
   } catch (error) {
-    if (error?.code === "ENOENT") return [];
+    if (error?.code === "ENOENT") {
+      validatedLedgers.delete(ledgerPath);
+      return [];
+    }
     throw error;
   }
-  const events = [];
-  for (const [index, line] of source.split("\n").entries()) {
+  const cached = validatedLedgers.get(ledgerPath);
+  const prefix =
+    cached && source.startsWith(cached.source)
+      ? cached
+      : { source: "", events: [], lines: 0 };
+  const events = [...prefix.events];
+  const lines = source.slice(prefix.source.length).split("\n");
+  for (const [index, line] of lines.entries()) {
     if (!line.trim()) continue;
     let parsed;
     try {
       parsed = JSON.parse(line);
     } catch {
-      throw new Error(`Content ledger line ${index + 1} is invalid JSON.`);
+      throw new Error(
+        `Content ledger line ${prefix.lines + index + 1} is invalid JSON.`,
+      );
     }
-    events.push(validateContentLedgerTransition(events, parsed));
+    events.push(deepFreeze(validateContentLedgerTransition(events, parsed)));
   }
+  // Only text ending at a line boundary can be extended by a later append.
+  if (source.endsWith("\n"))
+    validatedLedgers.set(ledgerPath, {
+      source,
+      events: [...events],
+      lines: prefix.lines + lines.length - 1,
+    });
   return events;
 }
 

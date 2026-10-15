@@ -52,12 +52,21 @@ describe("scene VFX catalog", () => {
       );
       expect(descriptor.definition.kind).toBe("background_layers");
     }
-    // Included also contains the authored Awkward Silence background.
+    // Included also contains the authored Awkward Silence background and the
+    // Scenes of the second Intense Reactions: one per emotion except
+    // Disappointment, which plays Awkward Silence, and a backdrop under the
+    // Confusion, Fear and Nervousness focus lines.
     expect(readdirSync(`${includedRoot}/vfx/scene`).sort()).toEqual(
       [
         "awkward-silence",
         ...getSceneFocusLinePresetIds(),
         ...TRACKED_EMOTIONS.map((emotion) => `scene-vfx-emotion-${emotion}`),
+        ...TRACKED_EMOTIONS.filter(
+          (emotion) => emotion !== "disappointment",
+        ).map((emotion) => `scene-vfx-emotion-${emotion}-b`),
+        ...["confusion", "fear", "nervousness"].map(
+          (emotion) => `scene-vfx-emotion-${emotion}-b-backdrop`,
+        ),
       ].sort(),
     );
   });

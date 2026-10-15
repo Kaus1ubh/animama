@@ -43,12 +43,17 @@ against its budget. A replace must keep the Scene's kind, which its ID names.
 `name` and `description` may override the source's for an add; `description`
 for a replace.
 
-Licence records: Scene PNGs fall under the owner-authored rule
-`vfx/scene/**/*.png`. Each written file gets a `licenses/source-review.json`
-record in the owner form, except an image whose bytes repeat third-party
-Included art: it keeps that file's record and, in an exact-path rule, its
-licence terms. A removed or replaced third-party record (such as a Twemoji
-copy an old Scene carried) is reported so its evidence files can be updated.
+Licence records: an owner-authored Scene's PNGs fall under the rule
+`vfx/scene/**/*.png`, and each written file gets the owner's
+`licenses/source-review.json` record. Work the owner did not author carries
+the owner-approved `licence` and `sourceReview` entries on its item (see the
+Avatar Effect skill's promote reference; the `vfx/scene/awkward-silence/**`
+rule shows the agent-authored wording): its own `vfx/scene/<stem>/**` rule and
+its files' records. An image whose bytes repeat other Included art, such as a
+built-in sticker, keeps that file's record, and its rule's terms in an
+exact-path rule when the Scene's own rule grants other terms. A removed or
+replaced third-party record (such as a Twemoji copy an old Scene carried) is
+reported so its evidence files can be updated.
 
 Reactions and Gestures that use the Scene are replaced in the same run from
 creator project files, as in the Avatar Effect skill's promote reference;
