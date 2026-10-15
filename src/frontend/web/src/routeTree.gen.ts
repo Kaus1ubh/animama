@@ -31,7 +31,6 @@ import { Route as AppSoundEffectsNewRouteImport } from "./routes/_app/sound-effe
 import { Route as AppSceneEffectsNewRouteImport } from "./routes/_app/scene-effects.new";
 import { Route as AppReactionsNewRouteImport } from "./routes/_app/reactions.new";
 import { Route as AppParticleEffectsNewRouteImport } from "./routes/_app/particle-effects.new";
-import { Route as AppIdleStylesNewRouteImport } from "./routes/_app/idle-styles.new";
 import { Route as AppGesturesNewRouteImport } from "./routes/_app/gestures.new";
 import { Route as AppEffectsNewRouteImport } from "./routes/_app/effects.new";
 import { Route as AppAvatarEffectsNewRouteImport } from "./routes/_app/avatar-effects.new";
@@ -42,7 +41,6 @@ import { Route as AppSceneEffectsSceneEffectIdEditRouteImport } from "./routes/_
 import { Route as AppReactionsReactionIdEditRouteImport } from "./routes/_app/reactions.$reactionId.edit";
 import { Route as AppPosesPoseIdEditRouteImport } from "./routes/_app/poses.$poseId.edit";
 import { Route as AppParticleEffectsParticleEffectIdEditRouteImport } from "./routes/_app/particle-effects.$particleEffectId.edit";
-import { Route as AppIdleStylesIdleStyleIdEditRouteImport } from "./routes/_app/idle-styles.$idleStyleId.edit";
 import { Route as AppGesturesGestureIdEditRouteImport } from "./routes/_app/gestures.$gestureId.edit";
 import { Route as AppAvatarEffectsAvatarEffectIdEditRouteImport } from "./routes/_app/avatar-effects.$avatarEffectId.edit";
 import { Route as AppAnimasAnimaIdIdentityRouteImport } from "./routes/_app/animas/$animaId/identity";
@@ -157,11 +155,6 @@ const AppParticleEffectsNewRoute = AppParticleEffectsNewRouteImport.update({
   path: "/particle-effects/new",
   getParentRoute: () => AppRoute,
 } as any);
-const AppIdleStylesNewRoute = AppIdleStylesNewRouteImport.update({
-  id: "/idle-styles/new",
-  path: "/idle-styles/new",
-  getParentRoute: () => AppRoute,
-} as any);
 const AppGesturesNewRoute = AppGesturesNewRouteImport.update({
   id: "/gestures/new",
   path: "/gestures/new",
@@ -216,12 +209,6 @@ const AppParticleEffectsParticleEffectIdEditRoute =
     path: "/particle-effects/$particleEffectId/edit",
     getParentRoute: () => AppRoute,
   } as any);
-const AppIdleStylesIdleStyleIdEditRoute =
-  AppIdleStylesIdleStyleIdEditRouteImport.update({
-    id: "/idle-styles/$idleStyleId/edit",
-    path: "/idle-styles/$idleStyleId/edit",
-    getParentRoute: () => AppRoute,
-  } as any);
 const AppGesturesGestureIdEditRoute =
   AppGesturesGestureIdEditRouteImport.update({
     id: "/gestures/$gestureId/edit",
@@ -263,7 +250,6 @@ export interface FileRoutesByFullPath {
   "/avatar-effects/new": typeof AppAvatarEffectsNewRoute;
   "/effects/new": typeof AppEffectsNewRoute;
   "/gestures/new": typeof AppGesturesNewRoute;
-  "/idle-styles/new": typeof AppIdleStylesNewRoute;
   "/particle-effects/new": typeof AppParticleEffectsNewRoute;
   "/reactions/new": typeof AppReactionsNewRoute;
   "/scene-effects/new": typeof AppSceneEffectsNewRoute;
@@ -278,7 +264,6 @@ export interface FileRoutesByFullPath {
   "/animas/$animaId/identity": typeof AppAnimasAnimaIdIdentityRoute;
   "/avatar-effects/$avatarEffectId/edit": typeof AppAvatarEffectsAvatarEffectIdEditRoute;
   "/gestures/$gestureId/edit": typeof AppGesturesGestureIdEditRoute;
-  "/idle-styles/$idleStyleId/edit": typeof AppIdleStylesIdleStyleIdEditRoute;
   "/particle-effects/$particleEffectId/edit": typeof AppParticleEffectsParticleEffectIdEditRoute;
   "/poses/$poseId/edit": typeof AppPosesPoseIdEditRoute;
   "/reactions/$reactionId/edit": typeof AppReactionsReactionIdEditRoute;
@@ -300,7 +285,6 @@ export interface FileRoutesByTo {
   "/avatar-effects/new": typeof AppAvatarEffectsNewRoute;
   "/effects/new": typeof AppEffectsNewRoute;
   "/gestures/new": typeof AppGesturesNewRoute;
-  "/idle-styles/new": typeof AppIdleStylesNewRoute;
   "/particle-effects/new": typeof AppParticleEffectsNewRoute;
   "/reactions/new": typeof AppReactionsNewRoute;
   "/scene-effects/new": typeof AppSceneEffectsNewRoute;
@@ -315,7 +299,6 @@ export interface FileRoutesByTo {
   "/animas/$animaId/identity": typeof AppAnimasAnimaIdIdentityRoute;
   "/avatar-effects/$avatarEffectId/edit": typeof AppAvatarEffectsAvatarEffectIdEditRoute;
   "/gestures/$gestureId/edit": typeof AppGesturesGestureIdEditRoute;
-  "/idle-styles/$idleStyleId/edit": typeof AppIdleStylesIdleStyleIdEditRoute;
   "/particle-effects/$particleEffectId/edit": typeof AppParticleEffectsParticleEffectIdEditRoute;
   "/poses/$poseId/edit": typeof AppPosesPoseIdEditRoute;
   "/reactions/$reactionId/edit": typeof AppReactionsReactionIdEditRoute;
@@ -341,7 +324,6 @@ export interface FileRoutesById {
   "/_app/avatar-effects/new": typeof AppAvatarEffectsNewRoute;
   "/_app/effects/new": typeof AppEffectsNewRoute;
   "/_app/gestures/new": typeof AppGesturesNewRoute;
-  "/_app/idle-styles/new": typeof AppIdleStylesNewRoute;
   "/_app/particle-effects/new": typeof AppParticleEffectsNewRoute;
   "/_app/reactions/new": typeof AppReactionsNewRoute;
   "/_app/scene-effects/new": typeof AppSceneEffectsNewRoute;
@@ -356,7 +338,6 @@ export interface FileRoutesById {
   "/_app/animas/$animaId/identity": typeof AppAnimasAnimaIdIdentityRoute;
   "/_app/avatar-effects/$avatarEffectId/edit": typeof AppAvatarEffectsAvatarEffectIdEditRoute;
   "/_app/gestures/$gestureId/edit": typeof AppGesturesGestureIdEditRoute;
-  "/_app/idle-styles/$idleStyleId/edit": typeof AppIdleStylesIdleStyleIdEditRoute;
   "/_app/particle-effects/$particleEffectId/edit": typeof AppParticleEffectsParticleEffectIdEditRoute;
   "/_app/poses/$poseId/edit": typeof AppPosesPoseIdEditRoute;
   "/_app/reactions/$reactionId/edit": typeof AppReactionsReactionIdEditRoute;
@@ -382,7 +363,6 @@ export interface FileRouteTypes {
     | "/avatar-effects/new"
     | "/effects/new"
     | "/gestures/new"
-    | "/idle-styles/new"
     | "/particle-effects/new"
     | "/reactions/new"
     | "/scene-effects/new"
@@ -397,7 +377,6 @@ export interface FileRouteTypes {
     | "/animas/$animaId/identity"
     | "/avatar-effects/$avatarEffectId/edit"
     | "/gestures/$gestureId/edit"
-    | "/idle-styles/$idleStyleId/edit"
     | "/particle-effects/$particleEffectId/edit"
     | "/poses/$poseId/edit"
     | "/reactions/$reactionId/edit"
@@ -419,7 +398,6 @@ export interface FileRouteTypes {
     | "/avatar-effects/new"
     | "/effects/new"
     | "/gestures/new"
-    | "/idle-styles/new"
     | "/particle-effects/new"
     | "/reactions/new"
     | "/scene-effects/new"
@@ -434,7 +412,6 @@ export interface FileRouteTypes {
     | "/animas/$animaId/identity"
     | "/avatar-effects/$avatarEffectId/edit"
     | "/gestures/$gestureId/edit"
-    | "/idle-styles/$idleStyleId/edit"
     | "/particle-effects/$particleEffectId/edit"
     | "/poses/$poseId/edit"
     | "/reactions/$reactionId/edit"
@@ -459,7 +436,6 @@ export interface FileRouteTypes {
     | "/_app/avatar-effects/new"
     | "/_app/effects/new"
     | "/_app/gestures/new"
-    | "/_app/idle-styles/new"
     | "/_app/particle-effects/new"
     | "/_app/reactions/new"
     | "/_app/scene-effects/new"
@@ -474,7 +450,6 @@ export interface FileRouteTypes {
     | "/_app/animas/$animaId/identity"
     | "/_app/avatar-effects/$avatarEffectId/edit"
     | "/_app/gestures/$gestureId/edit"
-    | "/_app/idle-styles/$idleStyleId/edit"
     | "/_app/particle-effects/$particleEffectId/edit"
     | "/_app/poses/$poseId/edit"
     | "/_app/reactions/$reactionId/edit"
@@ -647,13 +622,6 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof AppParticleEffectsNewRouteImport;
       parentRoute: typeof AppRoute;
     };
-    "/_app/idle-styles/new": {
-      id: "/_app/idle-styles/new";
-      path: "/idle-styles/new";
-      fullPath: "/idle-styles/new";
-      preLoaderRoute: typeof AppIdleStylesNewRouteImport;
-      parentRoute: typeof AppRoute;
-    };
     "/_app/gestures/new": {
       id: "/_app/gestures/new";
       path: "/gestures/new";
@@ -722,13 +690,6 @@ declare module "@tanstack/react-router" {
       path: "/particle-effects/$particleEffectId/edit";
       fullPath: "/particle-effects/$particleEffectId/edit";
       preLoaderRoute: typeof AppParticleEffectsParticleEffectIdEditRouteImport;
-      parentRoute: typeof AppRoute;
-    };
-    "/_app/idle-styles/$idleStyleId/edit": {
-      id: "/_app/idle-styles/$idleStyleId/edit";
-      path: "/idle-styles/$idleStyleId/edit";
-      fullPath: "/idle-styles/$idleStyleId/edit";
-      preLoaderRoute: typeof AppIdleStylesIdleStyleIdEditRouteImport;
       parentRoute: typeof AppRoute;
     };
     "/_app/gestures/$gestureId/edit": {
@@ -814,7 +775,6 @@ interface AppRouteChildren {
   AppAvatarEffectsNewRoute: typeof AppAvatarEffectsNewRoute;
   AppEffectsNewRoute: typeof AppEffectsNewRoute;
   AppGesturesNewRoute: typeof AppGesturesNewRoute;
-  AppIdleStylesNewRoute: typeof AppIdleStylesNewRoute;
   AppParticleEffectsNewRoute: typeof AppParticleEffectsNewRoute;
   AppReactionsNewRoute: typeof AppReactionsNewRoute;
   AppSceneEffectsNewRoute: typeof AppSceneEffectsNewRoute;
@@ -823,7 +783,6 @@ interface AppRouteChildren {
   AppSceneEffectsIndexRoute: typeof AppSceneEffectsIndexRoute;
   AppAvatarEffectsAvatarEffectIdEditRoute: typeof AppAvatarEffectsAvatarEffectIdEditRoute;
   AppGesturesGestureIdEditRoute: typeof AppGesturesGestureIdEditRoute;
-  AppIdleStylesIdleStyleIdEditRoute: typeof AppIdleStylesIdleStyleIdEditRoute;
   AppParticleEffectsParticleEffectIdEditRoute: typeof AppParticleEffectsParticleEffectIdEditRoute;
   AppPosesPoseIdEditRoute: typeof AppPosesPoseIdEditRoute;
   AppReactionsReactionIdEditRoute: typeof AppReactionsReactionIdEditRoute;
@@ -842,7 +801,6 @@ const AppRouteChildren: AppRouteChildren = {
   AppAvatarEffectsNewRoute: AppAvatarEffectsNewRoute,
   AppEffectsNewRoute: AppEffectsNewRoute,
   AppGesturesNewRoute: AppGesturesNewRoute,
-  AppIdleStylesNewRoute: AppIdleStylesNewRoute,
   AppParticleEffectsNewRoute: AppParticleEffectsNewRoute,
   AppReactionsNewRoute: AppReactionsNewRoute,
   AppSceneEffectsNewRoute: AppSceneEffectsNewRoute,
@@ -852,7 +810,6 @@ const AppRouteChildren: AppRouteChildren = {
   AppAvatarEffectsAvatarEffectIdEditRoute:
     AppAvatarEffectsAvatarEffectIdEditRoute,
   AppGesturesGestureIdEditRoute: AppGesturesGestureIdEditRoute,
-  AppIdleStylesIdleStyleIdEditRoute: AppIdleStylesIdleStyleIdEditRoute,
   AppParticleEffectsParticleEffectIdEditRoute:
     AppParticleEffectsParticleEffectIdEditRoute,
   AppPosesPoseIdEditRoute: AppPosesPoseIdEditRoute,

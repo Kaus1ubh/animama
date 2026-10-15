@@ -105,7 +105,6 @@ describe("Library sections and content types", () => {
       "Gestures",
       "Reactions",
       "Poses",
-      "Idle Styles",
       "Particle FX",
       "Avatar FX",
       "Scene FX",

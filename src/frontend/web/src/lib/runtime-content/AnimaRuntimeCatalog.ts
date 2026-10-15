@@ -115,11 +115,7 @@ export class AnimaRuntimeCatalog
   private readonly preparing: () => boolean;
   private lastPreparing: boolean;
   private readonly idleAnimations: ManifestAnimation[] = [];
-  private idleCellPools: AnimaRuntimeCatalogSnapshot["idle_style_pools"];
-  private readonly idleStylePools = new Map<
-    string,
-    { isDefault: boolean; emotions: Set<string> }
-  >();
+  private idleCellPools: AnimaRuntimeCatalogSnapshot["idle_pools"];
   private readonly gestures = new Map<string, ManifestGestureEntry>();
   private readonly poseClipDescriptors = new Map<
     string,
@@ -333,28 +329,13 @@ export class AnimaRuntimeCatalog
   }
 
   private addMotion(runtime: AnimaRuntimeCatalogSnapshot): void {
-    if (runtime.idle_style_pools) this.idleCellPools = runtime.idle_style_pools;
+    if (runtime.idle_pools) this.idleCellPools = runtime.idle_pools;
     for (const entry of this.newEntries(runtime.idle_animations)) {
       const animation =
         entry.kind === "anima_pose_clip"
           ? this.createIdlePoseClip(entry)
           : this.createVrmaAnimation(entry, "idle_animation");
-      if (animation) {
-        this.idleAnimations.push(animation);
-        if (
-          "idle_style_default" in entry.config ||
-          "idle_style_emotions" in entry.config
-        ) {
-          this.idleStylePools.set(animation.id ?? entry.runtime_id, {
-            isDefault: entry.config.idle_style_default === true,
-            emotions: new Set(
-              Array.isArray(entry.config.idle_style_emotions)
-                ? entry.config.idle_style_emotions.map(String)
-                : [],
-            ),
-          });
-        }
-      }
+      if (animation) this.idleAnimations.push(animation);
     }
     for (const entry of this.newEntries(runtime.gestures)) {
       this.addGesture(entry);
@@ -419,10 +400,9 @@ export class AnimaRuntimeCatalog
     });
   }
 
-  /** Select the configured dominant-emotion pool before existing weighted selection. */
+  /** Select the dominant emotion's Idle cell, or Default, before existing weighted selection. */
   private idlePool(emotionalState: EmotionRuntimeState): ManifestAnimation[] {
-    if (!this.idleCellPools && !this.idleStylePools.size)
-      return this.idleAnimations;
+    if (!this.idleCellPools) return this.idleAnimations;
     let dominant: TrackedEmotion | null = null;
     let dominantValue = 0;
     for (const emotion of TRACKED_EMOTIONS) {
@@ -432,27 +412,15 @@ export class AnimaRuntimeCatalog
         dominantValue = value;
       }
     }
-    if (this.idleCellPools) {
-      const cell = dominant
-        ? this.idleCellPools.cells[dominant]?.[
-            String(intensityFromEmotionValue(dominantValue))
-          ]
-        : undefined;
-      const ids = new Set(cell ?? this.idleCellPools.default);
-      return uniformIdlePool(
-        this.idleAnimations.filter((entry) => ids.has(entry.id ?? "")),
-      );
-    }
-    const mapped = dominant
-      ? this.idleAnimations.filter((entry) =>
-          this.idleStylePools.get(entry.id ?? "")?.emotions.has(dominant!),
-        )
-      : [];
-    if (mapped.length) return uniformIdlePool(mapped);
+    const cell = dominant
+      ? this.idleCellPools.cells[dominant]?.[
+          String(intensityFromEmotionValue(dominantValue))
+        ]
+      : undefined;
+    // An empty or absent cell uses Default.
+    const ids = new Set(cell?.length ? cell : this.idleCellPools.default);
     return uniformIdlePool(
-      this.idleAnimations.filter(
-        (entry) => this.idleStylePools.get(entry.id ?? "")?.isDefault,
-      ),
+      this.idleAnimations.filter((entry) => ids.has(entry.id ?? "")),
     );
   }
 

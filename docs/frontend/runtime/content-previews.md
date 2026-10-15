@@ -2,8 +2,8 @@
 
 Typed previews let a user or creator play one exact validated catalog revision
 without changing an Anima loadout. Gestures and Reactions resolve their
-complete clip/VFX/SFX dependency closure; component, Idle Style,
-Avatar, and Appearance previews resolve their own exact media.
+complete clip/VFX/SFX dependency closure; component, Avatar, and Appearance
+previews resolve their own exact media.
 
 ## Preview surfaces
 
@@ -157,10 +157,9 @@ loadout mutation flow.
 ## Component and media previews
 
 Particle, Avatar, Scene, and Sound previews use their concrete typed source
-union. Idle Style preview selects a Gesture from the chosen pool and carries its full
-support closure plus finite playback facts from the same saved preview snapshot.
-An empty pool has no preview occurrence. Editor candidate previews use the same
-finite playback contract. VRMA and clip previews honor authored
+union. Previewing an Idle Gesture from the Loadout uses its Gesture preview
+with its full support closure plus the finite playback facts from the same saved
+preview snapshot, so it plays with the clock it idles with. VRMA and clip previews honor authored
 speed and finite repetitions, retain sound/effect events and stop only their owned
 resources. Avatar and Appearance preview targets carry the exact revisioned
 model or image reference.

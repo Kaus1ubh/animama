@@ -2,8 +2,8 @@
 
 Animama starts and creates its two starter companions without Mixamo assets.
 The shipped starter pack has 95 of the 99 non-idle project-authored gestures
-and 72 reactions; new companions have an empty Idle selection. The 12
-Streamer Idle gestures are not starters. Required selected content still
+and 72 reactions; each new companion's Idle pool is seeded from the 12 Included
+idle gestures, which are not starters. Required selected content still
 passes the normal strict revision, dependency and file checks, including the
 tracked-only native staging gate.
 
@@ -65,10 +65,9 @@ python3 scripts/acquire-mixamo.py --install-from data/mixamo-acquisition/convert
 The default destination is this checkout's ignored `content/local/` library.
 Use `--local-root /absolute/path/to/local` for a different installation.
 The result is 29 Gesture items: 23 in `gestures/mixamo-<name>/` and six idle
-Gestures in `gestures/mixamo-idle-<name>/`. The Idle Style in
-`idle-styles/mixamo-starter/` references those six Gestures through Default and
-emotion/intensity pools. Each Gesture retains its original motion settings;
-installation does not equip it for AI invocation. The script
+Gestures in `gestures/mixamo-idle-<name>/`. Each Gesture retains its original
+motion settings; installation does not equip it for AI invocation or add it to
+any Anima's Idle pool. The script
 prints an installation receipt with hashes.
 
 The installer checks GLB/VRMA structure, rejects symlink destinations and inputs,
@@ -77,7 +76,7 @@ Identical retries are safe; differing existing items stop installation, preservi
 owner edits. Temporary staging is removed when installation finishes.
 
 Rescan My Content if the filesystem watcher has not refreshed it, then select
-these items through the normal Gesture/Idle loadout controls. Installation does
+these items through the Gesture loadout or add the idle ones to an Anima's Idle cells. Installation does
 not change the database, current loadouts or starter defaults. Local files remain
 ignored; do not force-add them to Git or copy them into a release stage.
 

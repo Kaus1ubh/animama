@@ -27,10 +27,10 @@ export function applicationRoute(raw) {
             new RegExp(`^/animas(?:/${id}(?:/identity)?)?/?$`),
             /^\/(?:avatar|scene)-effects\/?$/,
             new RegExp(
-                `^/(?:gestures|reactions|idle-styles|particle-effects|avatar-effects|scene-effects|sound-effects)/new/?$`,
+                `^/(?:gestures|reactions|particle-effects|avatar-effects|scene-effects|sound-effects)/new/?$`,
             ),
             new RegExp(
-                `^/(?:gestures|poses|reactions|idle-styles|particle-effects|avatar-effects|scene-effects|sound-effects)/${id}/edit/?$`,
+                `^/(?:gestures|poses|reactions|particle-effects|avatar-effects|scene-effects|sound-effects)/${id}/edit/?$`,
             ),
             new RegExp(`^/desktop/(?:pip|quick-chat)/${id}/?$`),
             new RegExp(`^/${id}(?:/c/${id})?/?$`),
@@ -98,7 +98,7 @@ export async function createApplicationServer(applications, { vrmFile } = {}) {
         avatar_effects: [],
         scene_effects: [],
         sound_effects: [],
-        idle_style: null,
+        idle: { default_pool: [], cells: {}, gestures: [] },
         voice: null,
         warnings: [],
         content_descriptor: {

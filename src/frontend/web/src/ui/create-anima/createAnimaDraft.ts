@@ -48,7 +48,6 @@ const sourceRevisionSchema = z.strictObject({
     "appearance",
     "gesture",
     "reaction",
-    "idle_style",
     "pose",
     "particle_effect",
     "avatar_effect",
@@ -58,12 +57,17 @@ const sourceRevisionSchema = z.strictObject({
   revision_sha256: revisionSchema,
 });
 export const sourceMapSchema = z.record(itemIdSchema, sourceRevisionSchema);
-// Saved evidence can predate retirement. New resolution and command validation
-// always use sourceMapSchema; legacy values are retained only for recovery.
+// Saved evidence can predate the retired Pose Clip and Idle Style kinds. New
+// resolution and command validation always use sourceMapSchema; legacy values
+// are retained only for recovery.
 const savedSourceMapSchema = z.record(
   itemIdSchema,
   sourceRevisionSchema.extend({
-    kind: z.union([sourceRevisionSchema.shape.kind, z.literal("pose_clip")]),
+    kind: z.union([
+      sourceRevisionSchema.shape.kind,
+      z.literal("pose_clip"),
+      z.literal("idle_style"),
+    ]),
   }),
 );
 export type SourceMap = z.infer<typeof savedSourceMapSchema>;
@@ -196,20 +200,46 @@ export const previousCreateAnimaDraftSchema = z.strictObject({
     })
     .nullable(),
 });
-export const createAnimaDraftSchema = previousCreateAnimaDraftSchema.extend({
-  schema_version: z.literal(3),
-  step: z.number().int().min(0).max(4),
-  furthest_step: z.number().int().min(0).max(4),
-  voice: creationVoiceDraftSchema.nullable(),
-});
+/** The server seeds every new Anima's Idle pool, so drafts carry no Idle choice. */
+export const createAnimaDraftSchema = previousCreateAnimaDraftSchema
+  .omit({ default_idle: true, idle_revisions: true })
+  .extend({
+    schema_version: z.literal(3),
+    step: z.number().int().min(0).max(4),
+    furthest_step: z.number().int().min(0).max(4),
+    voice: creationVoiceDraftSchema.nullable(),
+  });
 export type CreateAnimaDraft = z.infer<typeof createAnimaDraftSchema>;
+
+type RetiredIdleFields = "default_idle" | "idle_revisions";
+
+/** Drop the Idle Style choice that drafts saved before the built-in Idle pool carry. */
+function withoutRetiredIdle<T extends Record<RetiredIdleFields, unknown>>(
+  draft: T,
+): Omit<T, RetiredIdleFields> {
+  const current: Partial<T> = { ...draft };
+  delete current.default_idle;
+  delete current.idle_revisions;
+  return current as Omit<T, RetiredIdleFields>;
+}
+
+/** Read a schema-3 draft, including one saved before the built-in Idle pool. */
+export const storedCreateAnimaDraftSchema = z.union([
+  createAnimaDraftSchema,
+  createAnimaDraftSchema
+    .extend({
+      default_idle: itemRefSchema.nullable(),
+      idle_revisions: savedSourceMapSchema,
+    })
+    .transform(withoutRetiredIdle),
+]);
 
 /** The inserted Voice step shifts old navigation without touching frozen requests. */
 export function migratePreviousCreateAnimaDraft(
   previous: z.infer<typeof previousCreateAnimaDraftSchema>,
 ): CreateAnimaDraft {
   return {
-    ...previous,
+    ...withoutRetiredIdle(previous),
     identity_markdown: previous.submission
       ? previous.identity_markdown
       : upgradeDefaultAnimaIdentityMarkdown(
@@ -265,8 +295,7 @@ export type CreationSourceKind =
   | "avatar"
   | "appearance"
   | "gesture"
-  | "reaction"
-  | "idle_style";
+  | "reaction";
 export type CreationRoot = {
   kind: CreationSourceKind;
   source: ItemRevisionRef;
@@ -299,8 +328,6 @@ export function newCreateAnimaDraft(): CreateAnimaDraft {
     gestures: [],
     reactions: emptyReactions(),
     starter_pack: null,
-    default_idle: null,
-    idle_revisions: {},
     seed_revisions: {},
     evidence: {},
     submission: null,
@@ -440,8 +467,6 @@ export function createAnimaDraftReducer(
       gestures: structuredClone(action.options.recommended.gestures),
       reactions: reactionsSchema.parse(action.options.recommended.reactions),
       seed_revisions: action.options.expected_source_revisions,
-      default_idle: action.options.default_idle.source,
-      idle_revisions: action.options.default_idle.expected_source_revisions,
       // A confirmed reset may accept new Action evidence, but never changes Avatar/text.
       evidence: Object.fromEntries(
         Object.entries(draft.evidence).filter(
@@ -562,7 +587,7 @@ export function buildAnimaSpec(
     ),
     reactions: draft.reactions,
     starter_pack: draft.starter_pack,
-    expected_source_revisions: mergeSourceMaps([draft.idle_revisions, ...maps]),
+    expected_source_revisions: mergeSourceMaps(maps),
   });
 }
 

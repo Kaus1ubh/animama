@@ -165,76 +165,6 @@ export default interface Resources {
     "history": {
       "eitherShortcut": "{{shortcuts, list(type: disjunction)}}"
     },
-    "idleStyle": {
-      "add": {
-        "choose": "Choose a Gesture",
-        "label": "Add an existing Gesture",
-        "optionClip": "{{name}} · Clip",
-        "optionVrma": "{{name}} · VRMA",
-        "search": "Search Gestures",
-        "submit": "Add to pool"
-      },
-      "cells": {
-        "caption": "Emotion pools by intensity",
-        "cellLabel": "{{emotion}} intensity {{intensity}}: {{state}}",
-        "default": "Default",
-        "defaultHint": "Unconfigured cells use Default. An empty Default schedules no idle Gestures; procedural breathing and resting continue.",
-        "defaultNeutral": "Default · neutral",
-        "emotion": "Emotion",
-        "gestures_one": "{{count}} Gesture",
-        "gestures_other": "{{count}} Gestures",
-        "label": "Idle Style cells",
-        "noIdle": "No idle",
-        "selected": "{{emotion}} · intensity {{intensity}}",
-        "useDefault": "Use Default"
-      },
-      "checkPools": "Check your Gesture pools.",
-      "copyNotice": "Saving creates an independent Local Style. The original Style stays unchanged.",
-      "createHub": "Create hub",
-      "description": "Description",
-      "gestureUnavailable": "This Gesture is unavailable. Refresh the Library and check the Style.",
-      "gestures": {
-        "loadFailed": "Gestures could not be loaded.",
-        "loading": "Loading Gestures…"
-      },
-      "intro": "Choose existing Gestures for quiet moments. Their animations, sounds and effects stay intact. Adding them here does not equip them for AI invocation.",
-      "loadFailed": "The Idle Style could not be loaded. Your existing content is unchanged.",
-      "loading": "Loading Idle Style…",
-      "name": "Name",
-      "playback": {
-        "checkFailed": "Playback could not be checked.",
-        "checking": "Checking finite playback…",
-        "finite": "Finite playback. Authored sounds and effects are preserved.",
-        "finiteFor": "Finite playback · {{seconds}} seconds. Authored sounds and effects are preserved.",
-        "retryCheck": "Retry check"
-      },
-      "pool": {
-        "behavior": "Behavior",
-        "choose": "Choose Gestures",
-        "empty": "No Gestures in this pool.",
-        "inherits": "This cell inherits the Default pool.",
-        "label": "{{cell}} pool",
-        "none": "No scheduled idle Gesture at this emotion and intensity.",
-        "previewMember": "Preview {{name}}",
-        "previewSaved": "Preview saved pool",
-        "removeMember": "Remove {{name}}"
-      },
-      "previewFailed": "Preview failed.",
-      "previewing": "Previewing {{name}}",
-      "retry": "Retry",
-      "save": "Save Idle Style",
-      "saveCopy": "Save Local copy",
-      "saved": "Idle Style saved.",
-      "savedCopy": "Local Idle Style copy saved. Select it in your Anima’s loadout to use it.",
-      "saving": "Saving…",
-      "sharedNotice": "Editing this shared Style affects every Anima using it on its next runtime refresh. Duplicate it in Loadout for a separate variation.",
-      "studio": "Creator Studio",
-      "title": {
-        "copy": "Copy Idle Style",
-        "edit": "Edit Idle Style",
-        "new": "New Idle Style"
-      }
-    },
     "importDialog": {
       "chooseFile": "Choose JSON file",
       "clipImported": "Anima Pose Clip imported.",
@@ -386,7 +316,7 @@ export default interface Resources {
         "avatarUnauthorized": "The preview avatar could not be authorized.",
         "fileUnauthorized": "A private preview file is unauthorized.",
         "idleAnimationUnavailable": "The selected idle animation is unavailable.",
-        "idlePlaybackUnavailable": "Finite idle playback is unavailable for this Gesture. Refresh the Style and try again.",
+        "idlePlaybackUnavailable": "Finite idle playback is unavailable for this Gesture. Refresh the Loadout and try again.",
         "invalidClosure": "The action preview returned an invalid closure.",
         "particleFailed": "The selected particle effect could not play.",
         "particleUnavailable": "The selected particle effect is unavailable.",
@@ -440,7 +370,7 @@ export default interface Resources {
       "unavailableSentence": "Preview unavailable.",
       "versions": {
         "exactSaved": "Exact saved content",
-        "idleStyleGesture": "Exact saved Idle Style Gesture",
+        "idleGesture": "Exact saved idle Gesture",
         "localPose": "Local Pose",
         "starterPose": "Starter Pose"
       }
@@ -686,37 +616,44 @@ export default interface Resources {
       "loading": "Loading identity…"
     },
     "idle": {
-      "actions": "Idle Style actions",
-      "activeStyle": "Active style",
+      "add": "Add",
+      "addTo": "Add an idle Gesture to {{cell}}",
+      "catalogUnavailable": "Gestures could not be loaded.",
       "cell": "{{emotion}} · {{intensity}}",
-      "choose": "Choose an Idle Style",
+      "changedElsewhere": "This Anima's Idle changed elsewhere and has been refreshed. Try again.",
+      "checking": "Checking playback…",
       "defaultPool": "Default",
-      "duplicate": "Duplicate and edit",
-      "edit": "Edit Style",
-      "empty": "No scheduled idle Gestures. Procedural breathing and resting continue.",
-      "filter": "Filter emotion assignments",
+      "emptyDefault": "No idle Gestures. Breathing and resting continue.",
       "gestureCount_one": "{{count}} Gesture",
       "gestureCount_other": "{{count}} Gestures",
-      "inherit": "Uses Default",
-      "loading": "Loading Idle Styles…",
-      "mine": "Mine",
-      "noCellGesture": "No scheduled idle Gesture for this cell.",
-      "noIdle": "No idle",
-      "noResults": "No Idle Styles found.",
-      "noScheduled": "No scheduled idle",
-      "none": "No Idle Style",
-      "poolsHint": "Pools belong to this Style. Duplicate it for a variation used only by this Anima, then select the saved copy here.",
-      "poolsTitle": "Emotion and intensity pools",
-      "previewActive": "Preview active Idle Style",
-      "search": "Search Idle Styles",
-      "showInherited": "Show inherited cells",
-      "starter": "Starter",
-      "title": "Idle Style",
-      "useStarter": "Use Starter"
+      "hint": "Gestures this Anima plays while it is quiet. Each emotion and intensity plays its own Gestures, or Default when it has none. Idle Gestures are never chosen by the AI.",
+      "included": "Included",
+      "ineligible": {
+        "checkFailed": "Playback could not be checked. Try again.",
+        "duration": "This Gesture has no positive finite motion duration.",
+        "lifetime": "This Gesture lasts for a phase, state or run, so it cannot idle.",
+        "loop": "This Gesture's loop mode is not supported for idle playback.",
+        "motionAmbiguous": "This Gesture needs exactly one animation or clip file to idle.",
+        "motionInvalid": "This Gesture's motion could not be validated. Check its animation or clip in Creator Studio.",
+        "motionUnavailable": "This Gesture's animation is unavailable. Restore the required content first.",
+        "other": "This Gesture cannot be used for finite idle playback.",
+        "repetitions": "This looping Gesture needs a finite repetition count before it can idle.",
+        "speed": "This Gesture needs a positive playback speed before it can idle."
+      },
+      "levels": "{{emotion, lowercase}} idle cells",
+      "loading": "Loading Gestures…",
+      "local": "Local",
+      "noResults": "No Gestures found.",
+      "remove": "Remove {{name}} from {{cell}}",
+      "retryCatalog": "Retry",
+      "search": "Search Gestures",
+      "title": "Idle",
+      "unavailable": "Unavailable",
+      "usesDefault": "Uses Default"
     },
     "loadout": {
       "fallbackName": {
-        "idleStyle": "Idle Style",
+        "idleGesture": "Idle Gesture",
         "reaction": "Reaction"
       },
       "gestureNotLocal": "This Gesture is not available in the local catalog.",
@@ -3280,7 +3217,7 @@ export default interface Resources {
       "failed": "The Anima could not be created. Your draft is preserved.",
       "gesture_semantic_key_mismatch": "The Gesture semantic key does not match its source.",
       "idempotency_key_reused": "This key already belongs to a different creation request.",
-      "idle_motion_unavailable": "The Idle Style requires available Gestures with finite playback.",
+      "idle_motion_unavailable": "An idle Gesture needs available motion with finite playback.",
       "implementation_file_unavailable": "Required implementation files are unavailable.",
       "issue": "This item needs attention.",
       "no_gestures_selected": "This Anima has no Gestures selected.",
@@ -3348,10 +3285,11 @@ export default interface Resources {
       "gesture_semantic_key_conflict": "Gesture {{name}} has a conflicting semantic key.",
       "gesture_semantic_key_conflict_failure": "The Gesture's semantic key conflicts with another Gesture in the Loadout.",
       "idempotency_key_reused": "This change was already submitted with different contents. Review it again.",
-      "idle_pool_overrides_retired": "Idle pool overrides are no longer supported.",
-      "idle_style_conversion_required": "This Idle Style needs conversion before it can be used.",
-      "idle_style_kind_invalid": "The selected content is not an Idle Style.",
-      "idle_style_operation_invalid": "This Idle Style change is not valid.",
+      "idle_cell_invalid": "That emotion and intensity is not an Idle cell.",
+      "idle_gesture_duplicate": "This Gesture is already in that Idle cell.",
+      "idle_gesture_ineligible": "This Gesture cannot idle: it needs finite playback.",
+      "idle_operation_invalid": "This Idle change is not valid.",
+      "idle_playback_unavailable": "Idle playback could not be checked. Try again.",
       "loadout_plan_stale": "The reviewed change is out of date. Review it again.",
       "loadout_revision_conflict": "The Loadout changed since you opened it. Review the change again.",
       "loadout_source_invalid": "The selected content is invalid.",
@@ -3489,24 +3427,6 @@ export default interface Resources {
   },
   "library": {
     "content": {
-      "idleStyle": {
-        "cellPool": "{{emotion}} {{intensity}}",
-        "defaultPool": "Default",
-        "ineligible": {
-          "duration": "This Gesture has no positive finite motion duration.",
-          "lifetime": "This Gesture lasts for a phase, state or run. Choose a Gesture with a finite timeline.",
-          "loop": "This Gesture's loop mode is not supported for idle playback.",
-          "motionAmbiguous": "This Gesture needs exactly one animation or clip file for idle playback.",
-          "motionInvalid": "This Gesture's motion could not be validated. Check its animation or clip in Creator Studio.",
-          "motionUnavailable": "This Gesture's animation is unavailable. Restore the required content first.",
-          "other": "This Gesture cannot be used for finite idle playback. Check its content and dependencies in Creator Studio.",
-          "repetitions": "This looping Gesture needs a finite repetition count. Edit its playback before adding it.",
-          "speed": "This Gesture needs a positive playback speed before it can idle."
-        },
-        "poolBlankReference": "{{pool}} contains an empty Gesture reference.",
-        "poolDuplicate": "{{pool}} Gesture references must be unique.",
-        "poolEmpty": "{{pool}} needs at least one Gesture."
-      },
       "nonPortableReason": "Included with this app for use here only. It can't be customized, copied or exported.",
       "particle": {
         "aTextureTooLarge": "A texture exceeds the {{size}} MiB limit.",
@@ -3555,11 +3475,8 @@ export default interface Resources {
         "resolveBeforeSaving": "Resolve the Pose before saving it."
       },
       "preview": {
-        "idleDependencyUnavailable": "An idle Gesture dependency is unavailable.",
         "idleGestureUnavailable": "The selected idle Gesture is unavailable.",
-        "noIdleGesture": "No scheduled idle Gesture in this pool.",
-        "notAction": "The preview is not an Action.",
-        "notIdleStyle": "The preview is not an Idle Style."
+        "notAction": "The preview is not an Action."
       },
       "recovery": {
         "discardFailed": "Browser recovery could not be discarded. Please retry.",
@@ -3629,14 +3546,12 @@ export default interface Resources {
         "avatarEffects": "Avatar Effects",
         "avatars": "Avatars",
         "gestures": "Gestures",
-        "idleStyles": "Idle Styles",
         "particleEffects": "Particle Effects",
         "poses": "Poses",
         "reactions": "Reactions",
         "sceneEffects": "Scene Effects",
         "soundEffects": "Sound Effects"
       },
-      "idleStylePreviewFailed": "This Idle Style could not be previewed.",
       "layout": {
         "grid": "Grid view",
         "label": "Library layout",
@@ -3654,7 +3569,6 @@ export default interface Resources {
       "actionFilters": {
         "all": "All",
         "gestures": "Gestures",
-        "idleStyles": "Idle Styles",
         "poses": "Poses",
         "reactions": "Reactions"
       },
@@ -3663,7 +3577,6 @@ export default interface Resources {
         "avatarEffects": "Avatar FX",
         "avatars": "Avatars",
         "gestures": "Gestures",
-        "idleStyles": "Idle Styles",
         "label": "Library content types",
         "particle": "Particle FX",
         "poses": "Poses",
@@ -3714,7 +3627,9 @@ export default interface Resources {
         "fullIdentity": "Full Anima identity",
         "gestures": "Gestures",
         "identity": "Identity",
-        "idleStyle": "Idle Style",
+        "idle": "Idle",
+        "idleGestures_one": "{{count}} Gesture",
+        "idleGestures_other": "{{count}} Gestures",
         "includedContent": "Included content",
         "labelValue": "{{label}}: {{value}}",
         "none": "None",
@@ -3842,8 +3757,6 @@ export default interface Resources {
         "content_other": "Content",
         "gesture_one": "Gesture",
         "gesture_other": "Gestures",
-        "idleStyle_one": "Idle Style",
-        "idleStyle_other": "Idle Styles",
         "image_one": "Image",
         "image_other": "Images",
         "particleEffect_one": "Particle Effect",

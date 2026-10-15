@@ -160,75 +160,6 @@
   "history": {
     "eitherShortcut": "{{shortcuts, list(type: disjunction)}}"
   },
-  "idleStyle": {
-    "add": {
-      "choose": "ジェスチャーを選択",
-      "label": "既存のジェスチャーを追加",
-      "optionClip": "{{name}} · クリップ",
-      "optionVrma": "{{name}} · VRMA",
-      "search": "ジェスチャーを検索",
-      "submit": "プールに追加"
-    },
-    "cells": {
-      "caption": "強さ別の感情プール",
-      "cellLabel": "{{emotion}} の強さ {{intensity}}: {{state}}",
-      "default": "デフォルト",
-      "defaultHint": "未設定のセルはデフォルトを使います。デフォルトが空の場合、待機ジェスチャーは再生されませんが、手続き的な呼吸や休息の動きは続きます。",
-      "defaultNeutral": "デフォルト · ニュートラル",
-      "emotion": "感情",
-      "gestures_other": "ジェスチャー {{count}} 件",
-      "label": "待機スタイルのセル",
-      "noIdle": "待機なし",
-      "selected": "{{emotion}} · 強さ {{intensity}}",
-      "useDefault": "デフォルトを使用"
-    },
-    "checkPools": "ジェスチャーのプールを確認してください。",
-    "copyNotice": "保存すると独立したローカルのスタイルが作成されます。元のスタイルは変更されません。",
-    "createHub": "作成ハブ",
-    "description": "説明",
-    "gestures": {
-      "loadFailed": "ジェスチャーを読み込めませんでした。",
-      "loading": "ジェスチャーを読み込んでいます…"
-    },
-    "gestureUnavailable": "このジェスチャーは利用できません。ライブラリを更新して、スタイルを確認してください。",
-    "intro": "静かなひとときに使う既存のジェスチャーを選びます。アニメーション、サウンド、エフェクトはそのまま保たれます。ここに追加しても、AI が呼び出せるように装備されるわけではありません。",
-    "loadFailed": "待機スタイルを読み込めませんでした。既存のコンテンツは変更されていません。",
-    "loading": "待機スタイルを読み込んでいます…",
-    "name": "名前",
-    "playback": {
-      "checkFailed": "再生を確認できませんでした。",
-      "checking": "有限の再生を確認しています…",
-      "finite": "有限の再生です。作成したサウンドとエフェクトは保たれます。",
-      "finiteFor": "有限の再生 · {{seconds}} 秒。作成したサウンドとエフェクトは保たれます。",
-      "retryCheck": "もう一度確認"
-    },
-    "pool": {
-      "behavior": "動作",
-      "choose": "ジェスチャーを選ぶ",
-      "empty": "このプールにジェスチャーはありません。",
-      "inherits": "このセルはデフォルトのプールを引き継ぎます。",
-      "label": "{{cell}} のプール",
-      "none": "この感情と強さで予定された待機ジェスチャーはありません。",
-      "previewMember": "{{name}} をプレビュー",
-      "previewSaved": "保存済みのプールをプレビュー",
-      "removeMember": "{{name}} を削除"
-    },
-    "previewFailed": "プレビューできませんでした。",
-    "previewing": "{{name}} をプレビュー中",
-    "retry": "再試行",
-    "save": "待機スタイルを保存",
-    "saveCopy": "ローカルのコピーを保存",
-    "saved": "待機スタイルを保存しました。",
-    "savedCopy": "待機スタイルのローカルコピーを保存しました。使うには Anima のロードアウトで選択してください。",
-    "saving": "保存しています…",
-    "sharedNotice": "この共有スタイルを編集すると、使用中のすべての Anima に次回のランタイム更新時に反映されます。別のバリエーションにするには、ロードアウトで複製してください。",
-    "studio": "Creator Studio",
-    "title": {
-      "copy": "待機スタイルをコピー",
-      "edit": "待機スタイルを編集",
-      "new": "新しい待機スタイル"
-    }
-  },
   "importDialog": {
     "chooseFile": "JSON ファイルを選択",
     "clipImported": "Anima ポーズクリップをインポートしました。",
@@ -380,7 +311,7 @@
       "avatarUnauthorized": "プレビュー用アバターを承認できませんでした。",
       "fileUnauthorized": "非公開のプレビューファイルが承認されていません。",
       "idleAnimationUnavailable": "選択した待機アニメーションは利用できません。",
-      "idlePlaybackUnavailable": "このジェスチャーでは有限の待機再生を利用できません。スタイルを更新してもう一度お試しください。",
+      "idlePlaybackUnavailable": "このジェスチャーでは有限の待機再生を利用できません。ロードアウトを更新してもう一度お試しください。",
       "invalidClosure": "アクションのプレビューが無効な依存関係のまとまりを返しました。",
       "particleFailed": "選択したパーティクルエフェクトを再生できませんでした。",
       "particlesUnsupported": "プレビュー用アバターではパーティクルを再生できません。",
@@ -434,7 +365,7 @@
     "unavailableSentence": "プレビューを利用できません。",
     "versions": {
       "exactSaved": "保存済みのコンテンツそのもの",
-      "idleStyleGesture": "保存済みの待機スタイルのジェスチャーそのもの",
+      "idleGesture": "保存済みの待機ジェスチャーそのもの",
       "localPose": "ローカルのポーズ",
       "starterPose": "同梱のポーズ"
     }

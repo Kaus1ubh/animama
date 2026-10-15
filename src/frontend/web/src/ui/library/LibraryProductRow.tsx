@@ -4,7 +4,6 @@ import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Hand,
-  Wind,
   HeartHandshake,
   Layers3,
   ScanFace,
@@ -30,7 +29,6 @@ type RowFamily = LibraryRowPresentation["family"];
 
 const icons = {
   gesture: Hand,
-  "idle-style": Wind,
   pose: UserRound,
   reaction: HeartHandshake,
   particle: Sparkles,

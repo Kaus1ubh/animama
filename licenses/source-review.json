@@ -16651,7 +16651,14 @@
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "src/frontend/web/src/lib/content-preview/idleStylePreviewTarget.ts",
+      "path": "src/frontend/web/src/lib/content-preview/idlePreviewTarget.test.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/lib/content-preview/idlePreviewTarget.ts",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
@@ -16840,20 +16847,6 @@
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "src/frontend/web/src/lib/content/contentEditRecovery.test.ts",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "src/frontend/web/src/lib/content/contentEditRecovery.ts",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
       "path": "src/frontend/web/src/lib/content/contentPreview.test.ts",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -16904,20 +16897,6 @@
     },
     {
       "path": "src/frontend/web/src/lib/content/gesturePresentation.ts",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "src/frontend/web/src/lib/content/idleStyleDocument.test.ts",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "src/frontend/web/src/lib/content/idleStyleDocument.ts",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
@@ -17440,14 +17419,21 @@
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "src/frontend/web/src/lib/loadout/idleStylePresentation.test.ts",
+      "path": "src/frontend/web/src/lib/loadout/idleEligibility.ts",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "src/frontend/web/src/lib/loadout/idleStylePresentation.ts",
+      "path": "src/frontend/web/src/lib/loadout/idleLoadoutGrid.test.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/lib/loadout/idleLoadoutGrid.ts",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
@@ -17937,7 +17923,7 @@
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "src/frontend/web/src/lib/runtime-content/idleStyleProjection.test.ts",
+      "path": "src/frontend/web/src/lib/runtime-content/idlePoolProjection.test.ts",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
@@ -18907,13 +18893,6 @@
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "src/frontend/web/src/query/hooks/useIdleStyles.ts",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
       "path": "src/frontend/web/src/query/hooks/useMemoryEntries.ts",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -19020,6 +18999,13 @@
     },
     {
       "path": "src/frontend/web/src/query/mutations/useActionEditorActions.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/query/mutations/useAnimaLoadoutMutations.idle.test.tsx",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
@@ -19929,7 +19915,14 @@
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "src/frontend/web/src/ui/animas/IdleStyleLoadoutSection.tsx",
+      "path": "src/frontend/web/src/ui/animas/IdleLoadoutSection.test.tsx",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/ui/animas/IdleLoadoutSection.tsx",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
@@ -20854,13 +20847,6 @@
     },
     {
       "path": "src/frontend/web/src/ui/creator/ComponentEditorPage.tsx",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "src/frontend/web/src/ui/creator/IdleStyleEditorPage.tsx",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",

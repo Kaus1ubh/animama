@@ -7,18 +7,17 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   commitGestureV1AnimasAnimaIdGesturesCommitPost,
   commitAppearanceV1AnimasAnimaIdAppearanceCommitPost,
-  commitIdleStyleV1AnimasAnimaIdIdleStyleCommitPost,
+  commitIdleV1AnimasAnimaIdIdleCommitPost,
   commitReactionV1AnimasAnimaIdReactionsCommitPost,
   planGestureV1AnimasAnimaIdGesturesPlanPost,
   planAppearanceV1AnimasAnimaIdAppearancePlanPost,
-  planIdleStyleV1AnimasAnimaIdIdleStylePlanPost,
+  planIdleV1AnimasAnimaIdIdlePlanPost,
   planReactionV1AnimasAnimaIdReactionsPlanPost,
 } from "@animama/runtime-contracts/sdk";
 import type {
   PyGestureCommitRequest,
   PyGesturePlanRequest,
-  PyIdleStyleCommitRequest,
-  PyIdleStylePlanRequest,
+  PyIdlePlanRequest,
   PyReactionCommitRequest,
   PyReactionPlanRequest,
   PyAppearanceCommitRequest,
@@ -110,30 +109,37 @@ export function useAnimaLoadoutMutations(animaId: string) {
         ).data,
       onSuccess: invalidate,
     }),
-    planIdleStyle: useMutation({
-      mutationFn: async (body: PyIdleStylePlanRequest) =>
-        (
-          await planIdleStyleV1AnimasAnimaIdIdleStylePlanPost({
+    /**
+     * Plan and commit one Idle pool change in one action. Idle edits skip the
+     * review dialog: they never change AI-callable equipment. A failure (for
+     * example a stale revision) refetches the Loadout instead of retrying.
+     */
+    changeIdle: useMutation({
+      mutationFn: async (body: PyIdlePlanRequest) => {
+        const plan = (
+          await planIdleV1AnimasAnimaIdIdlePlanPost({
             client: apiClient,
             path: { anima_id: animaId },
             body,
             responseValidator: undefined,
             throwOnError: true,
           })
-        ).data,
-    }),
-    commitIdleStyle: useMutation({
-      mutationFn: async (body: PyIdleStyleCommitRequest) =>
-        (
-          await commitIdleStyleV1AnimasAnimaIdIdleStyleCommitPost({
+        ).data;
+        return (
+          await commitIdleV1AnimasAnimaIdIdleCommitPost({
             client: apiClient,
             path: { anima_id: animaId },
-            body,
+            body: {
+              ...body,
+              plan_digest: plan.plan_digest,
+              idempotency_key: crypto.randomUUID(),
+            },
             responseValidator: undefined,
             throwOnError: true,
           })
-        ).data,
-      onSuccess: invalidate,
+        ).data;
+      },
+      onSettled: invalidate,
     }),
   };
 }

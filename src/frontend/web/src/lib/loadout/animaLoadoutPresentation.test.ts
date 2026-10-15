@@ -25,7 +25,7 @@ function loadout(): PyAnimaLoadout {
     starter_gesture_implementation_kinds: { wave: "vrma" },
     warnings: [],
     reactions: [],
-    idle_style: { state: "starter" },
+    idle: { default_pool: [], cells: [] },
     gestures: [
       {
         binding_id: "starter:bow",

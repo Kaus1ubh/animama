@@ -160,75 +160,6 @@
   "history": {
     "eitherShortcut": "{{shortcuts, list(type: disjunction)}}"
   },
-  "idleStyle": {
-    "add": {
-      "choose": "選擇動作",
-      "label": "加入現有動作",
-      "optionClip": "{{name}} · 片段",
-      "optionVrma": "{{name}} · VRMA",
-      "search": "搜尋動作",
-      "submit": "加入池"
-    },
-    "cells": {
-      "caption": "依強度劃分的情緒池",
-      "cellLabel": "{{emotion}} 強度 {{intensity}}：{{state}}",
-      "default": "預設",
-      "defaultHint": "未設定的儲存格會使用預設值。預設池為空時不會安排待機動作，但程式化的呼吸和休息動作會繼續。",
-      "defaultNeutral": "預設 · 中性",
-      "emotion": "情緒",
-      "gestures_other": "{{count}} 個動作",
-      "label": "待機風格儲存格",
-      "noIdle": "無待機",
-      "selected": "{{emotion}} · 強度 {{intensity}}",
-      "useDefault": "使用預設"
-    },
-    "checkPools": "請檢查動作池。",
-    "copyNotice": "儲存後會建立一個獨立的本機風格，原風格保持不變。",
-    "createHub": "創作中心",
-    "description": "描述",
-    "gestures": {
-      "loadFailed": "無法載入動作。",
-      "loading": "正在載入動作…"
-    },
-    "gestureUnavailable": "此動作無法使用。請重新整理資源庫並檢查該風格。",
-    "intro": "選擇用於安靜時刻的現有動作。其動畫、聲音和特效會保持不變。在此加入並不會將其裝備給 AI 呼叫。",
-    "loadFailed": "無法載入待機風格。你現有的內容未受影響。",
-    "loading": "正在載入待機風格…",
-    "name": "名稱",
-    "playback": {
-      "checkFailed": "無法檢查播放。",
-      "checking": "正在檢查有限播放…",
-      "finite": "有限播放。創作的聲音和特效會保留。",
-      "finiteFor": "有限播放 · {{seconds}} 秒。創作的聲音和特效會保留。",
-      "retryCheck": "重新檢查"
-    },
-    "pool": {
-      "behavior": "行為方式",
-      "choose": "選擇動作",
-      "empty": "此池中沒有動作。",
-      "inherits": "此儲存格沿用預設池。",
-      "label": "{{cell}} 池",
-      "none": "此情緒和強度下沒有安排待機動作。",
-      "previewMember": "預覽 {{name}}",
-      "previewSaved": "預覽已儲存的池",
-      "removeMember": "移除 {{name}}"
-    },
-    "previewFailed": "預覽失敗。",
-    "previewing": "正在預覽 {{name}}",
-    "retry": "重試",
-    "save": "儲存待機風格",
-    "saveCopy": "儲存本機副本",
-    "saved": "已儲存待機風格。",
-    "savedCopy": "已儲存待機風格的本機副本。若要使用，請在 Anima 的裝備中選擇它。",
-    "saving": "正在儲存…",
-    "sharedNotice": "編輯此共用風格會在下次執行階段重新整理時影響所有使用它的 Anima。如需另外的變化版本，請在裝備中複製它。",
-    "studio": "Creator Studio",
-    "title": {
-      "copy": "複製待機風格",
-      "edit": "編輯待機風格",
-      "new": "新增待機風格"
-    }
-  },
   "importDialog": {
     "chooseFile": "選擇 JSON 檔案",
     "clipImported": "已匯入 Anima 姿勢片段。",
@@ -380,7 +311,7 @@
       "avatarUnauthorized": "無法授權預覽虛擬形象。",
       "fileUnauthorized": "私人預覽檔案未獲授權。",
       "idleAnimationUnavailable": "所選待機動畫無法使用。",
-      "idlePlaybackUnavailable": "此動作無法進行有限待機播放。請重新整理風格後再試一次。",
+      "idlePlaybackUnavailable": "此動作無法進行有限待機播放。請重新整理裝備後再試一次。",
       "invalidClosure": "行為預覽傳回了無效的相依集合。",
       "particleFailed": "所選粒子特效無法播放。",
       "particlesUnsupported": "預覽虛擬形象無法播放粒子。",
@@ -434,7 +365,7 @@
     "unavailableSentence": "預覽無法使用。",
     "versions": {
       "exactSaved": "已儲存內容原樣",
-      "idleStyleGesture": "已儲存待機風格動作原樣",
+      "idleGesture": "已儲存待機動作原樣",
       "localPose": "本機姿勢",
       "starterPose": "內建姿勢"
     }

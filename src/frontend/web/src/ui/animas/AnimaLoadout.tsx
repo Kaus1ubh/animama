@@ -8,13 +8,13 @@ import { toast } from "sonner";
 
 import {
   previewGesture,
-  previewIdleStyle,
   previewReaction,
 } from "@animama/runtime-contracts/sdk";
 import type {
   PyCatalogLoadoutSource,
   PyGestureIntent,
-  PyIdleStyleIntent,
+  PyIdleIntent,
+  PyIdleMember,
   PyLoadoutPlan,
   PyReactionIntent,
 } from "@animama/runtime-contracts/api-types";
@@ -22,35 +22,35 @@ import type { TFunction } from "i18next";
 import type {
   PyExactContentSource,
   PyGesture,
-  PyIdleStyle,
   PyReaction,
 } from "@/lib/content/catalogTypes";
 import type { ContentPreviewTarget } from "@/lib/content-preview/types";
 import { withLibraryPreviewAnimaContext } from "@/lib/content-preview/targets";
+import { readApiError } from "@/lib/errors/apiError";
 import {
   loadoutFailureText,
   loadoutWarningText,
 } from "@/lib/errors/loadoutErrors";
 import { actionPreviewTarget } from "@/lib/content-preview/actionPreviewTarget";
-import { idleStylePreviewTarget } from "@/lib/content-preview/idleStylePreviewTarget";
+import { idlePreviewTarget } from "@/lib/content-preview/idlePreviewTarget";
 import {
   typedActionPreview,
-  typedIdleStylePreview,
+  typedIdleGesturePreview,
 } from "@/lib/content/typedPreviewAdapters";
 import {
   presentGestureCatalog,
   presentGestureLoadout,
 } from "@/lib/loadout/animaLoadoutPresentation";
+import { idleAddIntent } from "@/lib/loadout/idleLoadoutGrid";
 import { buildReactionLoadoutGrid } from "@/lib/loadout/reactionLoadoutGrid";
 import { adaptRuntimeSnapshot } from "@/lib/runtime-content/runtimeSnapshotAdapter";
 import { useAnimaLoadout as useLoadout } from "@/query/hooks/useAnimaLoadout";
-import { useIdleStyles } from "@/query/hooks/useIdleStyles";
 import { useGestures, useReactions } from "@/query/hooks/useActions";
 import { useAnimaRuntimeCatalog } from "@/query/hooks/useAnimaRuntimeCatalog";
 import { useAnimaLoadoutMutations } from "@/query/mutations/useAnimaLoadoutMutations";
 import { VoiceLoadoutSection } from "@/ui/animas/VoiceLoadoutSection";
 import { GestureLoadoutSection } from "@/ui/animas/GestureLoadoutSection";
-import { IdleStyleLoadoutSection } from "@/ui/animas/IdleStyleLoadoutSection";
+import { IdleLoadoutSection } from "@/ui/animas/IdleLoadoutSection";
 import { ReactionLoadoutGrid } from "@/ui/animas/ReactionLoadoutGrid";
 import { Button } from "@/ui/components/button";
 import {
@@ -72,12 +72,6 @@ type ReviewedChange =
   | {
       family: "reaction";
       intent: PyReactionIntent;
-      plan: PyLoadoutPlan;
-      idempotencyKey: string;
-    }
-  | {
-      family: "idle_style";
-      intent: PyIdleStyleIntent;
       plan: PyLoadoutPlan;
       idempotencyKey: string;
     };
@@ -149,7 +143,6 @@ export function AnimaLoadout({
     [runtimeSnapshotQuery.data],
   );
   const runtimeQuery = { ...runtimeSnapshotQuery, data: runtimeData };
-  const idleStylesQuery = useIdleStyles({ sort: "name" });
   const gesturesQuery = useGestures({ origin: "all", sort: "name" });
   const reactionsQuery = useReactions({ origin: "all", sort: "name" });
   const {
@@ -164,12 +157,6 @@ export function AnimaLoadout({
     isFetchNextPageError: reactionsNextPageError,
     isFetchingNextPage: reactionsFetchingNextPage,
   } = reactionsQuery;
-  const {
-    fetchNextPage: fetchNextIdleStylesPage,
-    hasNextPage: hasNextIdleStylesPage,
-    isFetchNextPageError: idleStylesNextPageError,
-    isFetchingNextPage: idleStylesFetchingNextPage,
-  } = idleStylesQuery;
   const mutations = useAnimaLoadoutMutations(animaId);
   const [reviewed, setReviewed] = useState<ReviewedChange | null>(null);
   const [reviewing, setReviewing] = useState(false);
@@ -205,21 +192,6 @@ export function AnimaLoadout({
     reactionsNextPageError,
   ]);
 
-  useEffect(() => {
-    if (
-      hasNextIdleStylesPage &&
-      !idleStylesFetchingNextPage &&
-      !idleStylesNextPageError
-    ) {
-      void fetchNextIdleStylesPage();
-    }
-  }, [
-    fetchNextIdleStylesPage,
-    hasNextIdleStylesPage,
-    idleStylesFetchingNextPage,
-    idleStylesNextPageError,
-  ]);
-
   const gesturePresentation = useMemo(
     () =>
       loadout
@@ -249,8 +221,10 @@ export function AnimaLoadout({
       ),
     [reactionsQuery.data],
   );
-  const availableIdleStyles =
-    idleStylesQuery.data?.pages.flatMap((page) => page.items) ?? [];
+  const availableGestures = useMemo(
+    () => gesturesQuery.data?.pages.flatMap((page) => page.items) ?? [],
+    [gesturesQuery.data],
+  );
 
   const preview = async (
     family: "gesture" | "reaction",
@@ -331,53 +305,41 @@ export function AnimaLoadout({
     }
   };
 
-  const planIdleStyle = async (intent: PyIdleStyleIntent) => {
+  /** Apply one Idle pool change at once; Idle edits skip the review dialog. */
+  const changeIdle = async (intent: PyIdleIntent) => {
     if (!loadout) return;
-    setReviewing(true);
     try {
-      const plan = await mutations.planIdleStyle.mutateAsync({
+      await mutations.changeIdle.mutateAsync({
         expected_revision: loadout.revision,
         intent,
       });
-      setReviewed({
-        family: "idle_style",
-        intent,
-        plan,
-        idempotencyKey: crypto.randomUUID(),
-      });
     } catch (error) {
-      toastLoadoutFailure(error, t("errors:loadout.reviewFailed"));
-    } finally {
-      setReviewing(false);
+      // Idle edits have no review step; the Loadout has already been refetched.
+      if (readApiError(error).code === "loadout_revision_conflict")
+        toast.error(t("idle.changedElsewhere"));
+      else toastLoadoutFailure(error, t("errors:loadout.updateFailed"));
     }
   };
 
-  const selectIdleStyle = (style: PyIdleStyle) => {
-    const source = intentSource(style.source);
-    if (!source) return;
-    void planIdleStyle({
-      operation: "set",
-      source,
-    });
-  };
-
-  const previewIdle = async (gestureRef?: string) => {
-    if (!loadout?.idle_style.source || !runtimeQuery.data) return;
-    const selectedRef = gestureRef ?? loadout.idle_style.default_pool?.[0];
-    if (!selectedRef) return;
+  /** Preview an Idle member with the exact finite clock it idles with. */
+  const previewIdle = async (member: PyIdleMember) => {
+    if (!runtimeQuery.data) {
+      toast.error(t("loadout.previewContextLoading"));
+      return;
+    }
     try {
       const result = (
-        await previewIdleStyle({
+        await previewGesture({
           client: apiClient,
-          path: { item_id: loadout.idle_style.source.catalog_item_id },
+          path: { item_id: member.item_id },
           responseValidator: undefined,
           throwOnError: true,
         })
       ).data;
       onStagePreview(
-        idleStylePreviewTarget(
-          typedIdleStylePreview(result, selectedRef),
-          loadout.idle_style.name ?? t("loadout.fallbackName.idleStyle"),
+        idlePreviewTarget(
+          typedIdleGesturePreview(result),
+          member.name || t("loadout.fallbackName.idleGesture"),
           animaId,
           runtimeQuery.data,
         ),
@@ -399,13 +361,6 @@ export function AnimaLoadout({
         });
       else if (reviewed.family === "reaction")
         await mutations.commitReaction.mutateAsync({
-          expected_revision: loadout.revision,
-          intent: reviewed.intent,
-          plan_digest: reviewed.plan.plan_digest,
-          idempotency_key: reviewed.idempotencyKey,
-        });
-      else if (reviewed.family === "idle_style")
-        await mutations.commitIdleStyle.mutateAsync({
           expected_revision: loadout.revision,
           intent: reviewed.intent,
           plan_digest: reviewed.plan.plan_digest,
@@ -437,9 +392,7 @@ export function AnimaLoadout({
   }
   const mutationsDisabled = reviewing;
   const committing =
-    mutations.commitGesture.isPending ||
-    mutations.commitReaction.isPending ||
-    mutations.commitIdleStyle.isPending;
+    mutations.commitGesture.isPending || mutations.commitReaction.isPending;
 
   return (
     <div className="space-y-8 pt-5 md:pt-6">
@@ -545,28 +498,30 @@ export function AnimaLoadout({
         }
         onRetryAvailable={() => void reactionsQuery.refetch()}
       />
-      <IdleStyleLoadoutSection
-        style={loadout.idle_style}
-        available={availableIdleStyles}
+      <IdleLoadoutSection
+        idle={loadout.idle}
+        available={availableGestures}
         availableLoading={
-          idleStylesQuery.isPending ||
-          idleStylesFetchingNextPage ||
-          Boolean(hasNextIdleStylesPage && !idleStylesNextPageError)
+          gesturesQuery.isPending ||
+          gesturesFetchingNextPage ||
+          Boolean(hasNextGesturesPage && !gesturesNextPageError)
         }
+        availableError={gesturesQuery.isError}
         disabled={mutationsDisabled}
-        onPreview={() => void previewIdle()}
-        onPreviewGesture={(gestureRef) => void previewIdle(gestureRef)}
-        onSelect={selectIdleStyle}
-        onRevert={() =>
-          void planIdleStyle({
-            operation: "revert",
+        busy={mutations.changeIdle.isPending}
+        onAdd={(cell, gesture) => {
+          const source = intentSource(gesture.source);
+          if (source) void changeIdle(idleAddIntent(cell, source));
+        }}
+        onRemove={(member) =>
+          void changeIdle({
+            operation: "remove",
+            binding_id: member.binding_id,
           })
         }
-        onLeaveEmpty={() =>
-          void planIdleStyle({
-            operation: "leave_empty",
-          })
-        }
+        onPreview={(member) => void previewIdle(member)}
+        onPreviewAvailable={(gesture) => void preview("gesture", gesture)}
+        onRetryAvailable={() => void gesturesQuery.refetch()}
       />
       <Dialog open={Boolean(reviewed)} onOpenChange={() => setReviewed(null)}>
         <DialogContent>

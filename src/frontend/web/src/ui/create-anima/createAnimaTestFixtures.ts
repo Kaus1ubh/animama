@@ -49,17 +49,7 @@ export function creationOptions(): AnimaCreationOptions {
       available_gestures: 0,
       available_reaction_cells: 0,
     },
-    default_idle: {
-      source: ref("idle"),
-      expected_source_revisions: {
-        idle: revision("idle_style"),
-        idle_pose: revision("gesture"),
-      },
-    },
-    expected_source_revisions: {
-      idle: revision("idle_style"),
-      idle_pose: revision("gesture"),
-    },
+    expected_source_revisions: {},
     diagnostics: [],
   };
 }

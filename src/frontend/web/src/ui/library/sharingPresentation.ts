@@ -15,8 +15,6 @@ export function sharingKindLabel(kind: string, count = 1): string {
       return t("sharing.kinds.reaction", { count });
     case "pose":
       return t("sharing.kinds.pose", { count });
-    case "idle_style":
-      return t("sharing.kinds.idleStyle", { count });
     case "particle_effect":
       return t("sharing.kinds.particleEffect", { count });
     case "avatar_effect":

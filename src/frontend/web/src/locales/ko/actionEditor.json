@@ -160,75 +160,6 @@
   "history": {
     "eitherShortcut": "{{shortcuts, list(type: disjunction)}}"
   },
-  "idleStyle": {
-    "add": {
-      "choose": "제스처 선택",
-      "label": "기존 제스처 추가",
-      "optionClip": "{{name}} · 클립",
-      "optionVrma": "{{name}} · VRMA",
-      "search": "제스처 검색",
-      "submit": "풀에 추가"
-    },
-    "cells": {
-      "caption": "강도별 감정 풀",
-      "cellLabel": "{{emotion}} 강도 {{intensity}}: {{state}}",
-      "default": "기본값",
-      "defaultHint": "설정하지 않은 셀은 기본값을 사용합니다. 기본값이 비어 있으면 대기 제스처가 예약되지 않지만, 절차적 호흡과 휴식 동작은 계속됩니다.",
-      "defaultNeutral": "기본값 · 중립",
-      "emotion": "감정",
-      "gestures_other": "제스처 {{count}}개",
-      "label": "대기 스타일 셀",
-      "noIdle": "대기 없음",
-      "selected": "{{emotion}} · 강도 {{intensity}}",
-      "useDefault": "기본값 사용"
-    },
-    "checkPools": "제스처 풀을 확인하세요.",
-    "copyNotice": "저장하면 독립된 로컬 스타일이 만들어집니다. 원래 스타일은 바뀌지 않습니다.",
-    "createHub": "만들기 허브",
-    "description": "설명",
-    "gestures": {
-      "loadFailed": "제스처를 불러올 수 없습니다.",
-      "loading": "제스처를 불러오는 중…"
-    },
-    "gestureUnavailable": "이 제스처를 사용할 수 없습니다. 라이브러리를 새로 고치고 스타일을 확인하세요.",
-    "intro": "조용한 순간에 사용할 기존 제스처를 고르세요. 애니메이션, 사운드, 효과는 그대로 유지됩니다. 여기에 추가해도 AI가 호출하도록 장착되지는 않습니다.",
-    "loadFailed": "대기 스타일을 불러올 수 없습니다. 기존 콘텐츠는 바뀌지 않았습니다.",
-    "loading": "대기 스타일을 불러오는 중…",
-    "name": "이름",
-    "playback": {
-      "checkFailed": "재생을 확인할 수 없습니다.",
-      "checking": "유한 재생을 확인하는 중…",
-      "finite": "유한 재생입니다. 작성된 사운드와 효과는 유지됩니다.",
-      "finiteFor": "유한 재생 · {{seconds}}초. 작성된 사운드와 효과는 유지됩니다.",
-      "retryCheck": "다시 확인"
-    },
-    "pool": {
-      "behavior": "동작 방식",
-      "choose": "제스처 선택",
-      "empty": "이 풀에 제스처가 없습니다.",
-      "inherits": "이 셀은 기본 풀을 따릅니다.",
-      "label": "{{cell}} 풀",
-      "none": "이 감정과 강도에서 예약된 대기 제스처가 없습니다.",
-      "previewMember": "{{name}} 미리 보기",
-      "previewSaved": "저장된 풀 미리 보기",
-      "removeMember": "{{name}} 제거"
-    },
-    "previewFailed": "미리 보지 못했습니다.",
-    "previewing": "{{name}} 미리 보는 중",
-    "retry": "다시 시도",
-    "save": "대기 스타일 저장",
-    "saveCopy": "로컬 사본 저장",
-    "saved": "대기 스타일을 저장했습니다.",
-    "savedCopy": "대기 스타일의 로컬 사본을 저장했습니다. 사용하려면 Anima의 로드아웃에서 선택하세요.",
-    "saving": "저장하는 중…",
-    "sharedNotice": "이 공유 스타일을 편집하면 이를 사용하는 모든 Anima에 다음 런타임 새로 고침 때 반영됩니다. 별도의 변형을 만들려면 로드아웃에서 복제하세요.",
-    "studio": "Creator Studio",
-    "title": {
-      "copy": "대기 스타일 복사",
-      "edit": "대기 스타일 편집",
-      "new": "새 대기 스타일"
-    }
-  },
   "importDialog": {
     "chooseFile": "JSON 파일 선택",
     "clipImported": "Anima 포즈 클립을 가져왔습니다.",
@@ -380,7 +311,7 @@
       "avatarUnauthorized": "미리 보기 아바타를 승인할 수 없습니다.",
       "fileUnauthorized": "비공개 미리 보기 파일이 승인되지 않았습니다.",
       "idleAnimationUnavailable": "선택한 대기 애니메이션을 사용할 수 없습니다.",
-      "idlePlaybackUnavailable": "이 제스처는 유한 대기 재생을 사용할 수 없습니다. 스타일을 새로 고치고 다시 시도하세요.",
+      "idlePlaybackUnavailable": "이 제스처는 유한 대기 재생을 사용할 수 없습니다. 로드아웃을 새로 고치고 다시 시도하세요.",
       "invalidClosure": "액션 미리 보기가 잘못된 종속 항목 묶음을 반환했습니다.",
       "particleFailed": "선택한 파티클 효과를 재생할 수 없습니다.",
       "particlesUnsupported": "미리 보기 아바타는 파티클을 재생할 수 없습니다.",
@@ -434,7 +365,7 @@
     "unavailableSentence": "미리 보기를 사용할 수 없습니다.",
     "versions": {
       "exactSaved": "저장된 콘텐츠 그대로",
-      "idleStyleGesture": "저장된 대기 스타일 제스처 그대로",
+      "idleGesture": "저장된 대기 제스처 그대로",
       "localPose": "로컬 포즈",
       "starterPose": "기본 제공 포즈"
     }

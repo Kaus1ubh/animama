@@ -40,7 +40,6 @@ export async function invalidateContentCatalogViews(
       queryKeys.sceneEffects.all(owner),
       queryKeys.soundEffects.all(owner),
       queryKeys.appearanceImages.all(owner),
-      queryKeys.idleStyles.all(owner),
       queryKeys.voiceContent.all(owner),
     ].map((queryKey) => client.invalidateQueries({ queryKey })),
   );

@@ -13,8 +13,8 @@ import {
 
 import type {
   PyGesture as PyTransportGesture,
+  PyAnimaIdle,
   PyIdlePlayback,
-  PyIdleStyle as PyTransportIdleStyle,
   PyAvatarEffect as PyTransportAvatarEffect,
   PyParticleEffect as PyTransportParticleEffect,
   PyReaction as PyTransportReaction,
@@ -34,7 +34,6 @@ export type ContentKind =
   | "avatar_effect"
   | "scene_effect"
   | "sound_effect"
-  | "idle_style"
   | "appearance"
   | "voice"
   | "anima";
@@ -135,11 +134,6 @@ export type PyParticleEffect = PyCatalogViewItem;
 export type PyAvatarEffect = PyCatalogViewItem;
 export type PySceneEffect = PyCatalogViewItem;
 export type PySoundEffect = PyCatalogViewItem;
-export type PyIdleStyle = Omit<
-  TypedCatalogView<PyTransportIdleStyle>,
-  "dependencies"
-> &
-  Pick<Partial<PyTransportIdleStyle>, "dependencies">;
 
 export type PyContentPage<
   T extends Omit<PyCatalogViewItem, "dependencies"> = PyCatalogViewItem,
@@ -150,12 +144,12 @@ export type PyContentPage<
 };
 export type PyGesturePage = PyContentPage<PyGesture>;
 export type PyReactionPage = PyContentPage<PyReaction>;
-export type PyIdleStylePage = PyContentPage<PyIdleStyle>;
 
 export type PyActionPreview = PyContentPreview & {
   closure: Record<string, unknown>;
 };
-export type PyIdleStylePreview = PyActionPreview & {
+/** A Gesture preview with its exact finite idle playback facts. */
+export type PyIdlePreview = PyActionPreview & {
   idle_playback: PyIdlePlayback;
   selected_gesture_ref: string;
   selected_gesture_name: string;
@@ -185,26 +179,6 @@ export type PyReactionCell = {
   update_available?: boolean;
 };
 
-export type PyIdleAnimationSummary = {
-  animation_id: string;
-  name: string;
-  description?: string | null;
-};
-
-export type PyAnimaIdleStyle = {
-  state: "starter" | "custom" | "empty";
-  name?: string | null;
-  description?: string | null;
-  source?: PyExactContentSource | null;
-  animations?: PyIdleAnimationSummary[];
-  release_default_pool?: string[];
-  release_emotion_pools?: Record<string, string[]>;
-  effective_default_pool?: string[];
-  effective_emotion_pools?: Record<string, string[]>;
-  pool_overrides?: Record<string, string[]>;
-  cross_fade_seconds?: number;
-};
-
 export type PyAppearanceConfig = {
   fit?: "cover" | "contain";
   focal_x?: number;
@@ -230,7 +204,7 @@ export type PyAnimaLoadout = {
   disabled_starter_gestures: string[];
   starter_gesture_implementation_kinds?: Record<string, "anima_clip" | "vrma">;
   reactions: PyReactionCell[];
-  idle_style: PyAnimaIdleStyle;
+  idle: PyAnimaIdle;
   avatar_source?: Record<string, unknown> | null;
   appearances?: PyAnimaAppearance[];
   blockers?: PyLoadoutDiagnostic[];
@@ -266,9 +240,6 @@ export type PyGestureIntent = Record<string, unknown> & {
   source?: PyExactContentSource | null;
 };
 export type PyReactionIntent = PyGestureIntent;
-export type PyIdleStyleIntent = PyGestureIntent & {
-  pool_overrides?: Record<string, string[]>;
-};
 export type PyAppearanceIntent = PyGestureIntent & {
   use?: "profile" | "background";
 };
@@ -281,10 +252,6 @@ export type PyReactionPlanRequest = {
   expected_revision: number;
   intent: PyReactionIntent;
 };
-export type PyIdleStylePlanRequest = {
-  expected_revision: number;
-  intent: PyIdleStyleIntent;
-};
 export type PyAppearancePlanRequest = {
   expected_revision: number;
   intent: PyAppearanceIntent;
@@ -294,7 +261,6 @@ export type PyGestureCommitRequest = PyGesturePlanRequest & {
   idempotency_key: string;
 };
 export type PyReactionCommitRequest = PyGestureCommitRequest;
-export type PyIdleStyleCommitRequest = PyGestureCommitRequest;
 export type PyAppearanceCommitRequest = PyGestureCommitRequest;
 /** Convert one transport item into the stable UI view used by creators. */
 export function catalogViewItem(
@@ -324,7 +290,7 @@ export function catalogViewItem(
 
 /** Adapt a generated typed product response without re-reading semantic metadata. */
 export function typedCatalogViewItem<
-  T extends PyTransportGesture | PyTransportReaction | PyTransportIdleStyle,
+  T extends PyTransportGesture | PyTransportReaction,
 >(item: T): TypedCatalogView<T> {
   const source: PyCatalogSource = {
     type: "catalog",

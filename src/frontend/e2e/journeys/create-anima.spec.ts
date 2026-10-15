@@ -202,11 +202,12 @@ function expectStrictCommand(command: CreateAnimaRequest) {
   expect(cells.every((cell) => cell === null)).toBe(true);
   expect(command.gestures).toEqual([]);
   expect(command.appearance).toEqual({ profile: null, background: null });
+  // The server seeds the Idle pool, so the command pins no Idle source.
   expect(
-    Object.values(command.expected_source_revisions).some(
-      (value) => (value as { kind?: string }).kind === "idle_style",
+    Object.values(command.expected_source_revisions).map(
+      (value) => (value as { kind?: string }).kind,
     ),
-  ).toBe(true);
+  ).not.toContain("idle_style");
 }
 
 for (const viewport of [

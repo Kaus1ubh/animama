@@ -400,7 +400,7 @@ describe("hosted admission and transport", () => {
       expect(first.status).toBe("ready");
       if (first.status !== "ready")
         throw new Error("Initial admission missing");
-      const key = `animama:content-edit:${encodeURIComponent(first.session.key)}:pose`;
+      const key = `animama:action-editor:${encodeURIComponent(first.session.key)}:gesture`;
       const draft = JSON.stringify({ operationId: "original-ambiguous-save" });
       draftRows.set(key, draft);
       const context: Record<string, unknown> = { ...active };
@@ -440,7 +440,7 @@ describe("hosted admission and transport", () => {
       const first = await fixture().composition.readAdmission();
       if (first.status !== "ready")
         throw new Error("Initial admission missing");
-      const key = `animama:content-edit:${encodeURIComponent(first.session.key)}:pose`;
+      const key = `animama:action-editor:${encodeURIComponent(first.session.key)}:gesture`;
       draftRows.set(
         key,
         JSON.stringify({ operationId: "original-ambiguous-save" }),

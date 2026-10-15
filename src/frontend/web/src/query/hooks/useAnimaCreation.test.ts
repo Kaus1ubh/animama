@@ -45,7 +45,7 @@ afterEach(() => {
 function evidenceResult(
   roots: Array<{
     id: string;
-    kind: "avatar" | "gesture" | "reaction" | "idle_style";
+    kind: "avatar" | "gesture" | "reaction";
     revisions: Record<string, ReturnType<typeof revision>>;
   }>,
 ) {
@@ -200,14 +200,6 @@ describe("revision-pinned creation reads", () => {
             support: revision("gesture"),
           },
         },
-        {
-          id: "idle",
-          kind: "idle_style",
-          revisions: {
-            idle: revision("idle_style"),
-            idle_pose: revision("gesture"),
-          },
-        },
       ]),
     );
 
@@ -240,14 +232,6 @@ describe("revision-pinned creation reads", () => {
           kind: "avatar",
           revisions: { avatar: revision("avatar") },
         },
-        {
-          id: "idle",
-          kind: "idle_style",
-          revisions: {
-            idle: revision("idle_style"),
-            idle_pose: revision("gesture"),
-          },
-        },
       ]),
     );
     const resolved = await resolveCreationEvidence(
@@ -258,8 +242,8 @@ describe("revision-pinned creation reads", () => {
     );
     expect(
       Object.keys(buildAnimaSpec(resolved).expected_source_revisions).sort(),
-    ).toEqual(["avatar", "idle", "idle_pose"]);
-    expect(evidence.mock.calls[0]?.[0].body.roots).toHaveLength(2);
+    ).toEqual(["avatar"]);
+    expect(evidence.mock.calls[0]?.[0].body.roots).toHaveLength(1);
     expect(preview).not.toHaveBeenCalled();
   });
   it("preserves conflicting declarations so the batch resolver rejects them", async () => {
@@ -269,21 +253,8 @@ describe("revision-pinned creation reads", () => {
       data: {
         schema_version: 1,
         complete: false,
-        roots: [
-          {
-            root_key: "catalog:idle",
-            kind: "idle_style",
-            source: ref("idle"),
-            expected_source_revisions: {
-              idle: revision("idle_style"),
-              idle_pose: revision("gesture"),
-            },
-          },
-        ],
-        combined_expected_source_revisions: {
-          idle: revision("idle_style"),
-          idle_pose: revision("gesture"),
-        },
+        roots: [],
+        combined_expected_source_revisions: {},
         diagnostics: [
           {
             root_key: "catalog:avatar",
@@ -347,14 +318,6 @@ describe("revision-pinned creation reads", () => {
           revisions: {
             reaction: revision("reaction"),
             support: revision("gesture", "b"),
-          },
-        },
-        {
-          id: "idle",
-          kind: "idle_style",
-          revisions: {
-            idle: revision("idle_style"),
-            idle_pose: revision("gesture"),
           },
         },
       ]),

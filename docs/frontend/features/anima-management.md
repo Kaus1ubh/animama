@@ -59,7 +59,7 @@ Profile and Background images, framing and Avatar portrait fallback.
 
 - a short active Gesture list;
 - a canonical emotion-by-intensity Reaction grid;
-- one emotion-aware Idle Style;
+- the Anima's own Idle pool (Default plus emotion/intensity cells);
 - one Avatar content selection; and
 - typed profile/background Appearance Images with fit, focal point, and zoom.
 
@@ -67,7 +67,7 @@ Gestures and Reactions are complete actions. Their Particle, Avatar, and
 Scene Effects and Sound Effects are compiler-managed dependencies, so those
 ingredients never appear as separate loadout checkboxes.
 
-The Loadout panel contains Voices, Gestures, Reactions and Idle Style.
+The Loadout panel contains Voices, Gestures, Reactions and Idle.
 Voices configures PocketTTS and ElevenLabs for this Anima, regardless of the
 active application provider. Avatar and Appearance use their own focused controls.
 Imported encoded-only voice clones remain selectable for speech; their original
@@ -92,17 +92,23 @@ Action to the clicked cell regardless of that suggested placement. Adding,
 updating, replacing, removing, reverting, or leaving a Reaction empty uses the
 same review boundary. Replacing a cell names the current occupant.
 
-An Idle Style owns pools of existing Gestures. Its Default pool can be empty;
-each emotion/intensity cell inherits Default, explicitly disables idle, or uses
-its own nonempty pool. Neutral uses Default. Choosing a Gesture for a Style
-does not equip it for AI invocation. Both VRMA and `animaPoseClip` Gestures need
-finite authored playback to be eligible.
+Idle is the Anima's built-in pool of Gestures for quiet moments
+([ADR 0025](../../adr/0025-built-in-idle-pool-per-anima.md)); it always exists
+and cannot be swapped for another. The section shows Default first, then one
+expandable row per emotion with its Mild, Moderate and Strong cells, each
+listing its Gestures with Preview and Remove. An empty cell reads "Uses Default"
+and plays Default; an empty Default schedules nothing, while breathing and
+resting continue. Neutral uses Default. A Gesture in the pool is never equipped
+for AI invocation, and the same Gesture can sit in several cells.
 
-The loadout chooses, previews, edits or duplicates one Style, or leaves idle
-empty. Pool edits belong to the Style editor. Editing a shared Local Style
-affects its users on their next mount; duplicate it first for independent pools.
-Customizing Included content creates a Local copy. The editor preserves its
-loaded revision when saving or recovering an interrupted Save.
+Each cell's Add picker lists ready Local and Included Gestures not already in
+that cell. Choosing one checks its finite playback first
+(`GET /v1/gestures/{item_id}/idle-playback`); an ineligible Gesture stays in the
+list, disabled, with the reason. Both VRMA and `animaPoseClip` Gestures need
+finite authored playback. Adding and removing apply at once through
+`idle:plan|commit` without the review dialog; a failure, including a stale
+revision, shows an error and refetches the Loadout. Removal names the member's
+binding, so an unavailable Gesture can still be removed.
 
 Appearance choices are separate typed images rather than generic files. A
 custom profile image wins over the selected Avatar content portrait; otherwise

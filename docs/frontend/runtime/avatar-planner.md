@@ -150,11 +150,11 @@ comes from procedural policies, planner-owned pose clips, and selected
 gestures.
 
 While the base state is `idle`, the planner schedules one intermittent authored
-occurrence after 180 seconds of quiet. The mounted Style resolves the exact
-emotion/intensity cell, or Default for neutral/inheritance. An explicit No idle
-cell or empty resolved pool leaves procedural rest active. It samples uniformly
-and avoids the last Gesture when alternatives exist. Built-in preview providers
-continue to adapt their animation manifest; live Anima routes use Style pools.
+occurrence after 90 seconds of quiet. The mounted Anima's Idle pool resolves the
+exact emotion/intensity cell, or Default for neutral and for an empty cell. An
+empty resolved pool leaves procedural rest active. It samples uniformly and
+avoids the last Gesture when alternatives exist. Built-in preview providers
+continue to adapt their animation manifest; live Anima routes use the Idle pool.
 
 A candidate may use VRMA or `animaPoseClip`. Its finite horizon comes from the
 exact admitted timeline, positive authored speed and positive finite repetition

@@ -65,7 +65,6 @@ type PackageContentKind =
   | CreatorContentKind
   | "avatar"
   | "appearance"
-  | "idle_style"
   | "sound_effect"
   | "anima";
 

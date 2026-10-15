@@ -90,7 +90,7 @@ or edits Cloud.
 - [x] Plan review by the owner (2026-10-14).
 - [x] Workspace setup: parent #559, phase issues #560 and #561 (2026-10-14).
 - [x] Phase 1: backend Idle pool replaces Idle Style (#560; review passed after two repair rounds).
-- [ ] Phase 2: frontend Idle grid, removal of Idle Style surfaces, 90 seconds.
+- [x] Phase 2: frontend Idle grid, removal of Idle Style surfaces, 90 seconds (#561; review passed after two repair rounds).
 - [ ] Final integration review, full validation and PR.
 - Remaining owner gate: manual idle playback check in chat (see Validation).
 
@@ -132,6 +132,11 @@ or edits Cloud.
 - 2026-10-14, implementation: an Idle add checks finite playback against exact
   bytes, so the `idle:plan|commit` routes pass the request's content store to
   the loadout service; other families never open files.
+- 2026-10-14, owner: fold the follow-up cleanup into this PR. Removing the Idle
+  Style editor left `lib/content/contentEditRecovery.ts` without a production
+  caller; Phase 2 deletes it and moves the hosted recovery tests and fixture to
+  Action editor recovery keys. Session purges keep the `animama:content-edit:`
+  prefix so drafts the retired editor left behind still end with their session.
 
 ## Phased implementation
 
@@ -257,6 +262,7 @@ was deleted with the conversion. `make check-test` passes: typed-content audit,
 ruff format/lint, mypy (842 files), pytest 4441 passed, 29 skipped. The Python
 import boundary and contract-consumer checks pass. Expected limitation: the
 frontend does not typecheck against the new contract until Phase 2.
+Commit: `b5fa2d73` `feat(idle)[p1]`.
 
 #### Code Review #1 Findings
 
@@ -380,7 +386,8 @@ Steps:
    preview adapters, Library inventory/filters/cards, export selection,
    sharing presentation and package details (show the Anima's Idle pool
    instead), query keys and invalidation, and create-Anima `default_idle` and
-   `idle_revisions`.
+   `idle_revisions`. Delete `lib/content/contentEditRecovery.ts`, which only
+   the editor used (owner decision above).
 6. **Copy.** Rename user-visible text to "Idle" in `animas`, `library`,
    `actionEditor` and `errors` for en, ja, ko, zh-Hans and zh-Hant; update
    `i18n/terms.json`; add and remove error codes in `userVisibleCodes.json`;
@@ -413,15 +420,105 @@ Completion: all checks pass, no user-visible "Idle Style" string remains, the
 Idle grid works on the task stack at desktop and narrow widths, and Code Review
 #1 has no supported blocking finding.
 
-Results: _pending._
+Results (2026-10-14): implemented as above. Step 4 shipped as one
+`changeIdle` mutation that plans and commits in a single action (documented in
+`docs/frontend/architecture/data-layer.md`) rather than separate
+`planIdle`/`commitIdle` mutations. The folded cleanup deleted
+`lib/content/contentEditRecovery.ts`. New tests: `IdleLoadoutSection.test.tsx`,
+`idleLoadoutGrid.test.ts`, `useAnimaLoadoutMutations.idle.test.tsx`,
+`idlePoolProjection.test.ts`, `idlePreviewTarget.test.ts` and a per-member
+`RuntimeMountPreparer` case. Frontend gate (`src/frontend`): `openapi-ts:check`,
+`pnpm check`, `web:lint`, `prettier:check`, `e2e:check:source`,
+`e2e:test:unit`, `web:test` (523 files, 4853 passed, 1 skipped), `build` and
+`desktop:check` pass; the `hosted-workflows` (25/25) and `hosted-composition`
+browser suites pass. Live API checks on the development stack: starter seed of
+7 Default members and 44 cells, 12 eligible idle Gestures in the runtime,
+`idle_gesture_ineligible` 409, add/remove by `binding_id`, stale revision 409.
+Browser journeys run in the final validation.
 
 #### Code Review #1 Findings
 
-_Pending._
+Reviewed source: the uncommitted Phase 2 working tree on `b5fa2d73`
+(independent read-only reviewer, 2026-10-14). Checks: `openapi-ts:check`,
+targeted vitest (121 tests), eslint, prettier, e2e tsc, script node tests.
+
+- F1 (required): a failed eligibility check stored a reason that disabled the
+  Gesture in the picker until it remounted; the old editor had a retry.
+- F2 (required): `prettier:check` failed on three web files.
+- F3 (required): no tests covered the immediate-apply path (plan then commit,
+  fresh idempotency key, Default vs cell intent, refetch on failure).
+- F4 (optional): a stale Idle edit showed "Review the change again", but Idle
+  edits have no review step.
+- F5 (optional, DRY): the picker shell and emotion rows repeat the Reaction
+  grid's markup and strings.
+- F6 (observation): eligibility shows only after a Gesture is chosen or cached.
+- F7 (optional, a11y): disabling every Add trigger while a change applies drops
+  keyboard focus.
+- F8 (record): Phase 2 results and the `changeIdle` deviation unrecorded.
+- F9 (in-flight): the removed `animama:content-edit:` purge prefix and fixture
+  helpers placed between imports.
+- F10 (gate): browser journeys not yet run.
 
 #### Code Review #1 Revisions
 
-_Pending._
+- F1 accepted: only a known ineligible result (by Gesture revision) disables a
+  choice; a failed check shows its message and choosing the Gesture checks
+  again. Test: "keeps a Gesture selectable after a failed check, then retries it".
+- F2 accepted: formatted; `prettier:check` passes.
+- F3 accepted: `query/mutations/useAnimaLoadoutMutations.idle.test.tsx` covers
+  plan then commit with the planned digest and distinct idempotency keys, no
+  commit after a rejected plan, and Loadout/runtime refetch on settle;
+  `idleAddIntent` (Default vs cell) is tested in `idleLoadoutGrid.test.ts`.
+- F4 accepted: a revision conflict on an Idle edit says the Idle changed
+  elsewhere and was refreshed (`idle.changedElsewhere`, all five locales).
+- F5 deferred: sharing a shell with the Reaction grid would change that grid,
+  which needs its own visual check; recorded as a follow-up candidate.
+- F6 kept as designed (owner D7 and the on-demand check avoid reading every
+  VRMA); stated in `anima-management.md`.
+- F7 accepted in part: a pending change disables choices and Remove but keeps
+  each Add trigger enabled, so focus returns to it. Focus after removing the
+  last chip still falls back to the page.
+- F8 accepted: recorded here.
+- F9 accepted: the `animama:content-edit:` prefix stays purged for drafts the
+  retired editor may have left; fixture helpers now follow the imports.
+- F10: the full journey suite runs before the PR (Validation and acceptance).
+
+Verification: 6 affected test files pass (81 tests); `hosted-workflows`
+browser suite 25/25 and `hosted-composition` suite pass when run alone.
+Remaining repair budget: two rounds.
+
+#### Code Review #2 Findings
+
+Targeted recheck of the Review #1 repairs and the folded-in cleanup (same
+reviewer, same uncommitted tree). F1–F4, F7, F9 and the `contentEditRecovery`
+removal verified; F5, F6 and F10 not reopened.
+
+- R2-F1 (required): the new required `busy` prop was missing from the
+  `IdleLoadoutSection` test's defaults, so `tsc -b` (`pnpm check`) failed.
+- R2-F2 (optional): no test covered the `busy` behaviour.
+- R2-F3 (optional): a "could not be checked" message outlived a passed retry.
+- R2-F4 (optional): the Decision Log said the purge prefix was dropped, but it
+  is kept.
+- R2-F5 (optional): no test still proved a legacy `animama:content-edit:` row
+  is purged with its session.
+
+#### Code Review #2 Revisions
+
+- R2-F1 accepted: the test passes `busy={false}`; the web `tsc` is clean.
+- R2-F2 accepted: a test checks that Add stays enabled while choices and
+  Remove are disabled during a change.
+- R2-F3 accepted: an eligible result clears an earlier failure for that
+  revision; the retry test asserts the message is gone.
+- R2-F4 accepted: the Decision Log now says the prefix is kept.
+- R2-F5 accepted: `recovery-session.test.ts` purges a legacy row.
+
+Verification: affected tests pass (8 tests), web `tsc` and eslint clean.
+
+#### Code Review #3 Findings
+
+Final targeted recheck of R2-F1–R2-F5: all verified, no new findings. Checks:
+web `tsc` clean; 3 affected test files (9 tests) pass; eslint and
+`prettier:check` clean. **Pass.** Repair budget used: two rounds.
 
 ## Final integration review
 

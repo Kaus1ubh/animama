@@ -13,7 +13,6 @@ test("the shared router and its legacy redirects have closed deep-link fallback"
         "/gestures/new",
         "/poses/fixture/edit",
         "/reactions/new",
-        "/idle-styles/new",
         "/particle-effects/new",
         "/avatar-effects",
         "/avatar-effects/fixture/edit",
@@ -39,6 +38,8 @@ test("the shared router and its legacy redirects have closed deep-link fallback"
         "/a/missing-resource.wasm",
         "/library/extra",
         "/create/extra",
+        "/idle-styles/new",
+        "/idle-styles/fixture/edit",
     ]) {
         assert.equal(applicationRoute(route), false, route);
     }

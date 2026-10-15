@@ -234,109 +234,58 @@ export function adaptRuntimeSnapshot(
     );
     append(runtime, entry);
   }
-  const idleStyle = object(typed.idle_style);
-  if (
-    Array.isArray(idleStyle.gestures) &&
-    (idleStyle.schema_version === 2 || idleStyle.gestures.length > 0)
-  ) {
-    const runtimeIds = new Map<string, string>();
-    for (const raw of idleStyle.gestures) {
-      const gesture = object(raw);
-      const itemId = String(object(gesture.source).item_id ?? "");
-      const runtimeId = String(gesture.binding_id ?? `idle:${itemId}`);
-      const playback = object(gesture.idle_playback);
-      if (!itemId || playback.eligible !== true) continue;
-      runtimeIds.set(itemId, runtimeId);
-      const entry = privateEntry(
-        {
-          ...gesture,
-          runtime_root_id: idleStyle.runtime_root_id,
-          config: {
-            ...object(gesture.config),
-            idle_playback: playback,
-            duration_seconds: playback.cycle_seconds,
-            loop_type: playback.loop_type,
-            loop_count: playback.repetitions,
-            time_scale: playback.time_scale,
-            preload_tier: "tier_a",
-          },
+  // The Anima's Idle pool: each eligible Gesture is its own runtime root.
+  const idle = object(typed.idle);
+  const runtimeIds = new Map<string, string>();
+  for (const raw of Array.isArray(idle.gestures) ? idle.gestures : []) {
+    const gesture = object(raw);
+    const itemId = String(object(gesture.source).item_id ?? "");
+    const runtimeId = String(gesture.binding_id ?? `idle:${itemId}`);
+    const playback = object(gesture.idle_playback);
+    if (!itemId || playback.eligible !== true) continue;
+    runtimeIds.set(itemId, runtimeId);
+    const entry = privateEntry(
+      {
+        ...gesture,
+        config: {
+          ...object(gesture.config),
+          idle_playback: playback,
+          duration_seconds: playback.cycle_seconds,
+          loop_type: playback.loop_type,
+          loop_count: playback.repetitions,
+          time_scale: playback.time_scale,
+          preload_tier: "tier_a",
         },
-        "idle_animation",
-        runtimeId,
-        object(gesture.implementation).kind === "vrma"
-          ? "animation"
-          : "anima_pose_clip",
-        typed.effective_revision,
-      );
-      append(runtime, entry);
-    }
-    const ids = (value: unknown): string[] =>
-      Array.isArray(value)
-        ? value
-            .map((id) => runtimeIds.get(String(id)))
-            .filter((id): id is string => !!id)
-        : [];
-    runtime.idle_style_pools = {
-      default: ids(idleStyle.default_pool),
-      cells: Object.fromEntries(
-        Object.entries(object(idleStyle.cells)).map(([emotion, levels]) => [
-          emotion,
-          Object.fromEntries(
-            Object.entries(object(levels)).map(([level, raw]) => [
-              level,
-              object(raw).mode === "none" ? [] : ids(object(raw).gestures),
-            ]),
-          ),
-        ]),
-      ),
-    };
+      },
+      "idle_animation",
+      runtimeId,
+      object(gesture.implementation).kind === "vrma"
+        ? "animation"
+        : "anima_pose_clip",
+      typed.effective_revision,
+    );
+    append(runtime, entry);
   }
-  const defaultPool = new Set(
-    Array.isArray(idleStyle.default_pool)
-      ? idleStyle.default_pool.map(String)
-      : [],
-  );
-  const emotionPools = object(idleStyle.emotion_pools);
-  for (const rawAnimation of Array.isArray(idleStyle.animations)
-    ? idleStyle.animations
-    : []) {
-    const animation = object(rawAnimation);
-    const animationId = String(animation.animation_id ?? "");
-    if (!animationId) continue;
-    const emotions = Object.entries(emotionPools)
-      .filter(
-        ([, pool]) =>
-          Array.isArray(pool) && pool.map(String).includes(animationId),
-      )
-      .map(([emotion]) => emotion);
-    const config = {
-      ...object(animation.playback),
-      idle_style_default: defaultPool.has(animationId),
-      idle_style_emotions: emotions,
-      emotion_weights: Object.fromEntries(
-        emotions.map((emotion) => [emotion, { "1": 1, "2": 1, "3": 1 }]),
-      ),
-      preload_tier: "tier_a",
-    };
-    const files = Array.isArray(animation.files) ? animation.files : [];
-    let entry: RuntimeCatalogEntry | null = null;
-    if (files.length) {
-      entry = privateEntry(
-        { ...animation, config, runtime_root_id: idleStyle.runtime_root_id },
-        "idle_animation",
-        animationId,
-        "animation",
-        typed.effective_revision,
-      );
-    } else {
-      runtime.warnings.push({
-        code: "idle_files_unavailable",
-        slot: "idle_animation",
-        runtime_id: animationId,
-      });
-    }
-    if (entry) append(runtime, entry);
-  }
+  const ids = (value: unknown): string[] =>
+    Array.isArray(value)
+      ? value
+          .map((id) => runtimeIds.get(String(id)))
+          .filter((id): id is string => !!id)
+      : [];
+  runtime.idle_pools = {
+    default: ids(idle.default_pool),
+    // A cell whose Gestures were all left out uses Default, like an empty cell.
+    cells: Object.fromEntries(
+      Object.entries(object(idle.cells)).map(([emotion, levels]) => [
+        emotion,
+        Object.fromEntries(
+          Object.entries(object(levels))
+            .map(([level, members]) => [level, ids(members)] as const)
+            .filter(([, members]) => members.length > 0),
+        ),
+      ]),
+    ),
+  };
   const supports = [
     ...(typed.particle_effects ?? []),
     ...(typed.avatar_effects ?? []),

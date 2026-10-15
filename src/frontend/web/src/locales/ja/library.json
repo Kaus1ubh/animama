@@ -1,23 +1,5 @@
 {
   "content": {
-    "idleStyle": {
-      "cellPool": "{{emotion}} {{intensity}}",
-      "defaultPool": "デフォルト",
-      "ineligible": {
-        "duration": "このジェスチャーには正の有限なモーション時間がありません。",
-        "lifetime": "このジェスチャーはフェーズ、状態、または実行の間ずっと続きます。有限のタイムラインを持つジェスチャーを選んでください。",
-        "loop": "このジェスチャーのループモードは待機再生に対応していません。",
-        "motionAmbiguous": "待機再生には、このジェスチャーにアニメーションまたはクリップのファイルがちょうど 1 つ必要です。",
-        "motionInvalid": "このジェスチャーのモーションを検証できませんでした。Creator Studio でアニメーションまたはクリップを確認してください。",
-        "motionUnavailable": "このジェスチャーのアニメーションを利用できません。先に必要なコンテンツを復元してください。",
-        "other": "このジェスチャーは有限の待機再生に使用できません。Creator Studio でコンテンツと依存関係を確認してください。",
-        "repetitions": "このループするジェスチャーには有限の繰り返し回数が必要です。追加する前に再生設定を編集してください。",
-        "speed": "待機に使うには、このジェスチャーの再生速度を正の値にする必要があります。"
-      },
-      "poolBlankReference": "{{pool}} に空のジェスチャー参照があります。",
-      "poolDuplicate": "{{pool}} のジェスチャー参照は重複できません。",
-      "poolEmpty": "{{pool}} には少なくとも 1 つのジェスチャーが必要です。"
-    },
     "nonPortableReason": "このアプリに同梱され、ここでのみ使用できます。カスタマイズ、コピー、エクスポートはできません。",
     "particle": {
       "aTextureTooLarge": "テクスチャが {{size}} MiB の上限を超えています。",
@@ -65,11 +47,8 @@
       "resolveBeforeSaving": "保存する前にポーズを確定してください。"
     },
     "preview": {
-      "idleDependencyUnavailable": "待機ジェスチャーの依存関係を利用できません。",
       "idleGestureUnavailable": "選択した待機ジェスチャーを利用できません。",
-      "noIdleGesture": "このプールには予定された待機ジェスチャーがありません。",
-      "notAction": "このプレビューはアクションではありません。",
-      "notIdleStyle": "このプレビューは待機スタイルではありません。"
+      "notAction": "このプレビューはアクションではありません。"
     },
     "recovery": {
       "discardFailed": "ブラウザーの復元データを破棄できませんでした。もう一度お試しください。",
@@ -139,14 +118,12 @@
       "avatarEffects": "アバターエフェクト",
       "avatars": "アバター",
       "gestures": "ジェスチャー",
-      "idleStyles": "待機スタイル",
       "particleEffects": "パーティクルエフェクト",
       "poses": "ポーズ",
       "reactions": "リアクション",
       "sceneEffects": "シーンエフェクト",
       "soundEffects": "効果音"
     },
-    "idleStylePreviewFailed": "この待機スタイルをプレビューできませんでした。",
     "layout": {
       "grid": "グリッド表示",
       "label": "ライブラリの表示形式",
@@ -164,7 +141,6 @@
     "actionFilters": {
       "all": "すべて",
       "gestures": "ジェスチャー",
-      "idleStyles": "待機スタイル",
       "poses": "ポーズ",
       "reactions": "リアクション"
     },
@@ -173,7 +149,6 @@
       "avatarEffects": "アバターエフェクト",
       "avatars": "アバター",
       "gestures": "ジェスチャー",
-      "idleStyles": "待機スタイル",
       "label": "ライブラリのコンテンツの種類",
       "particle": "パーティクルエフェクト",
       "poses": "ポーズ",
@@ -223,7 +198,8 @@
       "fullIdentity": "Anima のアイデンティティ全文",
       "gestures": "ジェスチャー",
       "identity": "アイデンティティ",
-      "idleStyle": "待機スタイル",
+      "idle": "待機",
+      "idleGestures_other": "{{count}} 件のジェスチャー",
       "includedContent": "含まれるコンテンツ",
       "labelValue": "{{label}}: {{value}}",
       "none": "なし",
@@ -342,7 +318,6 @@
       "avatarEffect_other": "アバターエフェクト",
       "content_other": "コンテンツ",
       "gesture_other": "ジェスチャー",
-      "idleStyle_other": "待機スタイル",
       "image_other": "画像",
       "particleEffect_other": "パーティクルエフェクト",
       "pose_other": "ポーズ",

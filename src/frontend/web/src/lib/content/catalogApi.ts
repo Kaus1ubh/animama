@@ -11,7 +11,6 @@ import {
   saveAvatarEffect,
   previewAvatarEffect,
   previewGesture,
-  previewIdleStyle,
   previewParticleEffect,
   previewPose,
   previewReaction,
@@ -21,7 +20,6 @@ import {
   saveAppearanceContent,
   saveAvatarContent,
   saveGesture,
-  saveIdleStyle,
   saveParticleEffect,
   savePose,
   saveReaction,
@@ -35,7 +33,6 @@ import type {
   PyAvatarEffect,
   PyContentItem,
   PyGesture,
-  PyIdleStyle,
   PyParticleEffect,
   PyPose,
   PyReaction,
@@ -57,7 +54,6 @@ type TypedCatalogTransport =
   | (PyAvatarEffect & { kind: "avatar_effect" })
   | (PySceneEffect & { kind: "scene_effect" })
   | (PySoundEffect & { kind: "sound_effect" })
-  | (PyIdleStyle & { kind: "idle_style" })
   | (PyAvatarContent & { kind: "avatar" })
   | (PyAppearance & { kind: "appearance" })
   | (PyVoiceContent & { kind: "voice" });
@@ -169,14 +165,6 @@ function typedMetadata(item: TypedCatalogTransport): Record<string, unknown> {
         duration_seconds: item.duration_seconds,
         codec: item.codec,
         defaults: item.defaults,
-      };
-    case "idle_style":
-      return {
-        ...common,
-        schema_version: item.schema_version,
-        default_pool: item.default_pool,
-        cells: item.cells,
-        compatibility: item.compatibility,
       };
     case "avatar":
       return { ...common, compatibility: item.compatibility };
@@ -322,14 +310,6 @@ export async function saveCatalogItem(
         kind: "sound_effect",
       };
       break;
-    case "idle_style":
-      item = {
-        ...(await contentSaveData(
-          saveIdleStyle({ ...typedOptions, client: apiClient }),
-        )),
-        kind: "idle_style",
-      };
-      break;
     case "avatar":
       item = {
         ...(await contentSaveData(
@@ -392,8 +372,6 @@ export async function previewTypedCatalogItem(
       return (await previewSceneEffect({ ...options, client: apiClient })).data;
     case "sound_effect":
       return (await previewSoundEffect({ ...options, client: apiClient })).data;
-    case "idle_style":
-      return (await previewIdleStyle({ ...options, client: apiClient })).data;
     case "avatar":
       return (await previewAvatarContent({ ...options, client: apiClient }))
         .data;

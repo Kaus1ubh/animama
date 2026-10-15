@@ -37,7 +37,6 @@ const families = {
   gestures: "gesture",
   poses: "pose",
   reactions: "reaction",
-  "idle-styles": "idle_style",
   "particle-effects": "particle_effect",
   "avatar-effects": "avatar_effect",
   "scene-effects": "scene_effect",
@@ -482,7 +481,7 @@ export async function createHostedWorkflowHttp({ workletSource } = {}) {
         });
       }
       const plan =
-        /^\/v1\/animas\/fixture-anima\/(avatar|voice|gestures|reactions|idle-style|appearance):(plan|commit)$/.exec(
+        /^\/v1\/animas\/fixture-anima\/(avatar|voice|gestures|reactions|idle|appearance):(plan|commit)$/.exec(
           path,
         );
       if (plan) {
@@ -540,7 +539,7 @@ export async function createHostedWorkflowHttp({ workletSource } = {}) {
           reactions: [],
           disabled_starter_gestures: [],
           starter_version: 1,
-          idle_style: { state: "empty" },
+          idle: { default_pool: [], cells: [] },
         });
       if (path === "/v1/memory/anima-identities")
         return json(response, { items: [] });

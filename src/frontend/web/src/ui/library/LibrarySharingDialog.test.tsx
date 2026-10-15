@@ -132,7 +132,7 @@ describe("Library sharing", () => {
     const page = html({
       screen: "export-selection",
       selectedIds: new Set(["one"]),
-      items: [{ item_id: "one", name: "Calm", kind: "idle_style" }],
+      items: [{ item_id: "one", name: "Calm", kind: "sound_effect" }],
       summary: {
         anima: null,
         digest: "d",
@@ -143,7 +143,7 @@ describe("Library sharing", () => {
           {
             item_id: "one",
             name: "Calm",
-            kind: "idle_style",
+            kind: "sound_effect",
             revision: "r",
             selected: true,
           },
@@ -158,7 +158,7 @@ describe("Library sharing", () => {
       },
     });
     expect(page).toContain("Calm");
-    expect(page).toContain("Idle Style");
+    expect(page).toContain("Sound Effect");
     expect(page).toContain("2 required dependencies");
     expect(buttons.get("Review export")?.disabled).toBe(false);
     expect(page).toContain("Wave");
@@ -257,7 +257,7 @@ describe("Library sharing", () => {
         items: [
           {
             entry_id: "one",
-            kind: "idle_style",
+            kind: "pose",
             name: "Mixed",
             original_name: "Mixed",
             selected: true,
@@ -317,7 +317,7 @@ describe("complete package review", () => {
         "3": null,
       },
     },
-    idle_style: null,
+    idle: { default: [], cells: {} },
     appearance: { profile: null, background: null },
   };
   const manifest = {
@@ -547,10 +547,32 @@ describe("complete package review", () => {
     expect(page).toContain("gain");
     expect(page).toContain("0.4");
     expect(page).toContain(" · 2: None");
-    expect(page).toContain("Idle Style: </span>None");
+    expect(page).toContain("Idle: </span>None");
     expect(page).not.toContain("PocketTTS voice: </span>");
     expect(page).toContain("Export Anima");
     expect(page).not.toMatch(/Edit export copy|Music/);
+  });
+  it("summarizes the packaged Idle pool by its distinct Gestures", () => {
+    const idleAnima = {
+      ...anima,
+      idle: { default: ["wave"], cells: { joy: { "2": ["wave", "sway"] } } },
+    };
+    const page = html({
+      screen: "export-review",
+      mode: "anima",
+      exportReview: {
+        digest: "d",
+        expires_at: "2030-01-01",
+        export_id: "e",
+        filename: "Luna.zip",
+        manifest: { ...manifest, anima: idleAnima },
+        package_sha256: "s",
+        required_count: 2,
+        selected_count: 0,
+        size_bytes: 1000,
+      },
+    });
+    expect(page).toContain("Idle: </span>2 Gestures");
   });
   it("lists non-portable items the export leaves out", () => {
     const page = html({
@@ -570,7 +592,7 @@ describe("complete package review", () => {
               kind: "gesture",
               logical_key: "builtin:gesture:sway",
               display_name: "Sway",
-              uses: [{ entry_id: "wave", pools: ["default"] }],
+              uses: [],
             },
           ],
         },

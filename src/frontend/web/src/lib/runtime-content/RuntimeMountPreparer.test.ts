@@ -81,7 +81,7 @@ function runtime(payloads: Uint8Array[]): PyAnimaRuntime {
     })),
     poses: [],
     reactions: [],
-    idle_style: null,
+    idle: { default_pool: [], cells: {}, gestures: [] },
     appearances: [],
     particle_effects:
       members.length > 1
@@ -856,6 +856,42 @@ describe("RuntimeMountPreparer", () => {
       totalBytes: 13,
     });
     expect(mount.diagnostics[0]?.rootId).toBe("root-1");
+  });
+
+  it("omits only the idle Gesture whose root fails, keeping the rest of the pool", async () => {
+    const payloads = ["avatar", "breathe", "sway"].map((text) =>
+      new TextEncoder().encode(text),
+    );
+    const fetcher = vi.fn(async (url: string | URL | Request) => {
+      const index = Number(String(url).split("/").at(-1));
+      return new Response(
+        index === 1 ? new TextEncoder().encode("changed") : payloads[index],
+      );
+    });
+    const runtimeValue = runtime(payloads);
+    runtimeValue.idle = {
+      default_pool: ["item-1", "item-2"],
+      cells: {},
+      gestures: runtimeValue.gestures!.map((value) => ({
+        ...value,
+        content_type: "gesture" as const,
+        binding_id: `idle:${value.source.item_id}`,
+        idle_playback: { eligible: true },
+      })),
+    };
+    runtimeValue.gestures = [];
+    const mount = await new RuntimeMountPreparer({
+      loader: new VerifiedByteLoader({ fetcher }),
+      createObjectURL: () => "blob:prepared",
+      revokeObjectURL: vi.fn(),
+    }).prepare(runtimeValue);
+
+    expect(mount.playbackStatus).toBe("degraded");
+    expect(
+      mount.data.idle?.gestures?.map((value) => value.source.item_id),
+    ).toEqual(["item-2"]);
+    // Pool membership is unchanged; the adapter skips Gestures that did not mount.
+    expect(mount.data.idle?.default_pool).toEqual(["item-1", "item-2"]);
   });
 
   it("waits for cancelled workers and revokes every object URL they created", async () => {

@@ -5,10 +5,8 @@ import { AppRouter } from "@/app/router";
 import { createHostedComposition } from "@/app/hosted-runtime/hosted-composition";
 import { RuntimeController } from "@/app/runtime/runtime-controller";
 import { installBrowserSessionResources } from "@/app/runtime/browser-session-resources";
-import {
-  saveContentEditRecovery,
-  loadContentEditRecovery,
-} from "@/lib/content/contentEditRecovery";
+import { actionRecoveryKey } from "@/lib/content/actionRecovery";
+import { recoverySessionIsActive } from "@/lib/content/recovery-session";
 import { transcribeClientParakeetWindow } from "@/lib/speech/client-parakeet/client";
 import { predictSmartTurn } from "@/lib/voice/smart-turn-worker-client";
 import {
@@ -19,6 +17,24 @@ import {
 import "@/index.css";
 import { BrowserUtilityFixture } from "./utilities";
 import { HostedWorkflowObserver } from "./workflows";
+
+type FixtureDraft = { operationId: string; form: Record<string, unknown> };
+
+/** A private per-session draft, stored like an Action editor recovery record. */
+function saveFixtureDraft(sessionKey: string, draft: FixtureDraft): void {
+  if (!recoverySessionIsActive(sessionKey)) return;
+  window.localStorage.setItem(
+    actionRecoveryKey(sessionKey, "gesture", "fixture-draft"),
+    JSON.stringify(draft),
+  );
+}
+
+function loadFixtureDraft(sessionKey: string): FixtureDraft | null {
+  const raw = window.localStorage.getItem(
+    actionRecoveryKey(sessionKey, "gesture", "fixture-draft"),
+  );
+  return raw ? (JSON.parse(raw) as FixtureDraft) : null;
+}
 
 const route = new URL(location.href).searchParams.get("route") ?? "/";
 const utilities = new URL(location.href).searchParams.has("utilities");
@@ -55,21 +71,11 @@ Object.assign(window, {
     creatorRecoveryRecords,
     queueCreatorRecovery,
     persistDraft: (operationId: string, form: Record<string, unknown>) =>
-      saveContentEditRecovery({
-        schema: "animama/content-edit-recovery/1",
-        userId: controller.getSnapshot().scope!.key,
-        family: "fixture",
-        documentKey: "draft",
+      saveFixtureDraft(controller.getSnapshot().scope!.key, {
         operationId,
         form,
-        updatedAt: new Date().toISOString(),
       }),
-    draft: () =>
-      loadContentEditRecovery(
-        controller.getSnapshot().scope!.key,
-        "fixture",
-        "draft",
-      ),
+    draft: () => loadFixtureDraft(controller.getSnapshot().scope!.key),
     mutate: () =>
       controller.getSnapshot().scope!.fetch("/v1/chats", { method: "POST" }),
     reauthenticate: async () => {
@@ -123,14 +129,9 @@ Object.assign(window, {
       const { scope, queryClient } = controller.getSnapshot();
       if (!scope) throw new Error("Fixture is not admitted");
       queryClient.setQueryData(["fixture-private"], "old-private-data");
-      saveContentEditRecovery({
-        schema: "animama/content-edit-recovery/1",
-        userId: scope.key,
-        family: "fixture",
-        documentKey: "draft",
+      saveFixtureDraft(scope.key, {
         operationId: "fixture-operation",
         form: { text: "private-draft" },
-        updatedAt: "2026-10-05T00:00:00Z",
       });
       const url = URL.createObjectURL(new Blob(["private"]));
       const workerUrl = URL.createObjectURL(

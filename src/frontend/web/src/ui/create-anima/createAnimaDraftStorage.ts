@@ -1,7 +1,7 @@
 import { getI18n } from "react-i18next";
 import { z } from "zod";
 import {
-  createAnimaDraftSchema,
+  storedCreateAnimaDraftSchema,
   previousCreateAnimaDraftSchema,
   migratePreviousCreateAnimaDraft,
   itemIdSchema,
@@ -22,7 +22,7 @@ export const creationRecordSchema = z.discriminatedUnion("kind", [
   z.strictObject({
     ...recordBase,
     kind: z.literal("draft"),
-    draft: createAnimaDraftSchema,
+    draft: storedCreateAnimaDraftSchema,
   }),
   z.strictObject({
     ...recordBase,

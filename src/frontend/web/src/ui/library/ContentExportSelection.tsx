@@ -48,7 +48,7 @@ export function ContentExportSelection({ flow }: { flow: LibrarySharingFlow }) {
         (category === "avatars"
           ? item.kind === "avatar"
           : category === "actions"
-            ? ["gesture", "reaction", "pose", "idle_style"].includes(item.kind)
+            ? ["gesture", "reaction", "pose"].includes(item.kind)
             : item.kind.endsWith("_effect"))),
   );
   const summary = flow.summary;

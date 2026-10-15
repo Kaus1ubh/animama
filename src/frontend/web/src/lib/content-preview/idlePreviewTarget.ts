@@ -1,13 +1,13 @@
-import type { PyIdleStylePreview } from "@/lib/content/catalogTypes";
+import type { PyIdlePreview } from "@/lib/content/catalogTypes";
 import type { AnimaRuntimeCatalogSnapshot } from "@/lib/runtime-content/types";
 import type { ContentPreviewTarget } from "@/lib/content-preview/types";
 import { actionPreviewTarget } from "@/lib/content-preview/actionPreviewTarget";
 import { WordedError } from "@/lib/errors/apiError";
 import { getI18n } from "react-i18next";
 
-/** Reuse Gesture preview so idle clip/VRMA events retain their sound/effect closure. */
-export function idleStylePreviewTarget(
-  preview: PyIdleStylePreview,
+/** Preview an Idle Gesture through the Gesture path so clip/VRMA events keep their sound/effect closure. */
+export function idlePreviewTarget(
+  preview: PyIdlePreview,
   label: string,
   animaId?: string,
   animaRuntime?: AnimaRuntimeCatalogSnapshot,
@@ -29,8 +29,8 @@ export function idleStylePreviewTarget(
   );
   return {
     ...target,
-    key: `idle-style:${target.key}:${preview.selected_gesture_ref}`,
-    versionLabel: t("preview.versions.idleStyleGesture"),
+    key: `idle:${target.key}:${preview.selected_gesture_ref}`,
+    versionLabel: t("preview.versions.idleGesture"),
     idlePlayback: {
       timeScale: playback.time_scale,
       repetitions: playback.repetitions,

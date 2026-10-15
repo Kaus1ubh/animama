@@ -3,7 +3,10 @@ import {
   readContentLedger,
   summarizeContentLedger,
 } from "./content-ledger.mjs";
-import { stableJsonSha256 } from "./local-catalog-client.mjs";
+import {
+  animaDefinitionSha256,
+  stableJsonSha256,
+} from "./local-catalog-client.mjs";
 
 /** Rewrite only the portable definition's declared content-reference fields. */
 function installedDefinition(definition, items) {
@@ -24,7 +27,11 @@ function installedDefinition(definition, items) {
       if (selection) selection.entry_id = resolve(selection.entry_id);
     }
   }
-  if (value.idle_style) value.idle_style = resolve(value.idle_style);
+  value.idle.default = value.idle.default.map(resolve);
+  for (const levels of Object.values(value.idle.cells)) {
+    for (const [level, members] of Object.entries(levels))
+      levels[level] = members.map(resolve);
+  }
   for (const selection of Object.values(value.appearance)) {
     if (selection) selection.entry_id = resolve(selection.entry_id);
   }
@@ -109,7 +116,8 @@ export async function resolvePackageImportOwnership({
       !current ||
       current.id !== result.anima_id ||
       current.aggregate_revision !== 1 ||
-      stableJsonSha256(summary.anima) !== stableJsonSha256(animaDefinition) ||
+      animaDefinitionSha256(summary.anima) !==
+        animaDefinitionSha256(animaDefinition) ||
       !avatar ||
       avatar.catalog_item_id !== animaDefinition.avatar ||
       avatar.private !== true ||
@@ -129,7 +137,7 @@ export async function resolvePackageImportOwnership({
       event: "import_owned",
       itemId: result.anima_id,
       logicalKey: `package-anima:${planned.operationId}`,
-      revisionSha256: stableJsonSha256(animaDefinition),
+      revisionSha256: animaDefinitionSha256(animaDefinition),
       animaDefinition,
       relatedAvatarId: avatar.id,
       relatedAvatarSha256: stableJsonSha256(avatar),

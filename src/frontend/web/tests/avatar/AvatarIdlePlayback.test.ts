@@ -123,7 +123,7 @@ describe("Avatar finite idle player integration", () => {
       }
       const done = h.tick(190_500);
       expect(done.state.idleStint.phase).toBe("quiet");
-      expect(done.state.idleStint.nextDueAtMs).toBe(370_500);
+      expect(done.state.idleStint.nextDueAtMs).toBe(280_500);
     },
   );
 

@@ -61,19 +61,6 @@ export type AnimaCreationCounts = {
 };
 
 /**
- * AnimaCreationDefaultIdle
- */
-export type AnimaCreationDefaultIdle = {
-    /**
-     * Expected Source Revisions
-     */
-    expected_source_revisions: {
-        [key: string]: SourceRevision;
-    };
-    source: ItemRevisionRef | null;
-};
-
-/**
  * AnimaCreationDiagnostic
  */
 export type AnimaCreationDiagnostic = {
@@ -183,7 +170,6 @@ export type AnimaCreationLimits = {
  */
 export type AnimaCreationOptions = {
     counts: AnimaCreationCounts;
-    default_idle: AnimaCreationDefaultIdle;
     /**
      * Diagnostics
      */
@@ -1043,44 +1029,6 @@ export type BodySaveGesture = {
 };
 
 /**
- * Body_save_idle_style
- */
-export type BodySaveIdleStyle = {
-    /**
-     * Catalog Item Id
-     */
-    catalog_item_id?: string | null;
-    /**
-     * Companion Paths Json
-     */
-    companion_paths_json?: string;
-    /**
-     * Creation Context
-     */
-    creation_context?: boolean;
-    /**
-     * Descriptor Json
-     */
-    descriptor_json?: string | null;
-    /**
-     * Expected Revision
-     */
-    expected_revision?: string | null;
-    /**
-     * Files
-     */
-    files?: Array<Blob | File> | null;
-    /**
-     * Metadata Json
-     */
-    metadata_json?: string | null;
-    /**
-     * Operation Id
-     */
-    operation_id: string;
-};
-
-/**
  * Body_save_particle_effect
  */
 export type BodySaveParticleEffect = {
@@ -1337,7 +1285,7 @@ export type CompanionSafetyCapability = {
  *
  * Readable-library content kinds and their runtime ownership boundaries.
  */
-export type ContentKind = 'avatar' | 'gesture' | 'pose' | 'pose_clip' | 'reaction' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect' | 'idle_style' | 'music_track' | 'appearance' | 'voice' | 'anima';
+export type ContentKind = 'avatar' | 'gesture' | 'pose' | 'pose_clip' | 'reaction' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect' | 'music_track' | 'appearance' | 'voice' | 'anima';
 
 /**
  * CreateAnimaRequest
@@ -1847,7 +1795,7 @@ export type ImportedPackageItem = {
      * Item Id
      */
     item_id: string;
-    kind: 'appearance' | 'avatar' | 'avatar_effect' | 'gesture' | 'idle_style' | 'particle_effect' | 'pose' | 'reaction' | 'scene_effect' | 'sound_effect' | 'voice';
+    kind: 'appearance' | 'avatar' | 'avatar_effect' | 'gesture' | 'particle_effect' | 'pose' | 'reaction' | 'scene_effect' | 'sound_effect' | 'voice';
     /**
      * Logical Key
      */
@@ -2014,7 +1962,7 @@ export type PackageAvatarPortrait = {
  * PackageDependency
  */
 export type PackageDependency = {
-    content_type: 'appearance' | 'avatar' | 'avatar_effect' | 'gesture' | 'idle_style' | 'particle_effect' | 'pose' | 'reaction' | 'scene_effect' | 'sound_effect' | 'voice';
+    content_type: 'appearance' | 'avatar' | 'avatar_effect' | 'gesture' | 'particle_effect' | 'pose' | 'reaction' | 'scene_effect' | 'sound_effect' | 'voice';
     /**
      * Ref
      */
@@ -2037,7 +1985,7 @@ export type PackageEntry = {
      * Files
      */
     files: Array<PackageFile>;
-    kind: 'appearance' | 'avatar' | 'avatar_effect' | 'gesture' | 'idle_style' | 'particle_effect' | 'pose' | 'reaction' | 'scene_effect' | 'sound_effect' | 'voice';
+    kind: 'appearance' | 'avatar' | 'avatar_effect' | 'gesture' | 'particle_effect' | 'pose' | 'reaction' | 'scene_effect' | 'sound_effect' | 'voice';
     license?: PackageLicense | null;
     /**
      * Logical Key
@@ -2258,7 +2206,7 @@ export type PackageNonPortableReference = {
      * Display Name
      */
     display_name: string;
-    kind: 'appearance' | 'avatar' | 'avatar_effect' | 'gesture' | 'idle_style' | 'particle_effect' | 'pose' | 'reaction' | 'scene_effect' | 'sound_effect' | 'voice';
+    kind: 'appearance' | 'avatar' | 'avatar_effect' | 'gesture' | 'particle_effect' | 'pose' | 'reaction' | 'scene_effect' | 'sound_effect' | 'voice';
     /**
      * Logical Key
      */
@@ -2272,27 +2220,23 @@ export type PackageNonPortableReference = {
 /**
  * PackageNonPortableUse
  *
- * One place an omitted non-portable item was used, so import can rebind it.
+ * One place an omitted non-portable Gesture was used, so import can rebind it.
  *
- * Exactly one target: an Anima slot (``gesture`` with its selector and
- * binding config, or ``idle_style``) or a packaged Idle Style entry and the
- * pools (``default`` or ``<emotion>.<1|2|3>``) it was removed from.
+ * ``gesture`` is an AI-callable binding with its selector and config.
+ * ``idle`` lists the Idle pools (``default`` or ``<emotion>.<1|2|3>``) it was
+ * removed from.
  */
 export type PackageNonPortableUse = {
     /**
      * Anima Slot
      */
-    anima_slot?: 'gesture' | 'idle_style' | null;
+    anima_slot: 'gesture' | 'idle';
     /**
      * Config
      */
     config?: {
         [key: string]: unknown;
     };
-    /**
-     * Entry Id
-     */
-    entry_id?: string | null;
     /**
      * Pools
      */
@@ -2465,10 +2409,7 @@ export type PortableAnima = {
      * Identity Markdown
      */
     identity_markdown: string;
-    /**
-     * Idle Style
-     */
-    idle_style: string | null;
+    idle: PortableIdlePool;
     /**
      * Pocket Voice
      */
@@ -2520,6 +2461,29 @@ export type PortableGestureSelection = {
      * Semantic Key
      */
     semantic_key: string;
+};
+
+/**
+ * PortableIdlePool
+ *
+ * The Anima's Idle pool as Gesture entry ids.
+ *
+ * An emotion/intensity cell absent from ``cells`` uses ``default``. Lists are
+ * unique and present cells are non-empty, so each pool has one encoding.
+ */
+export type PortableIdlePool = {
+    /**
+     * Cells
+     */
+    cells: {
+        [key: string]: {
+            [key: string]: Array<string>;
+        };
+    };
+    /**
+     * Default
+     */
+    default: Array<string>;
 };
 
 /**
@@ -2735,80 +2699,19 @@ export type PyAnimaIdentityListResponse = {
 };
 
 /**
- * PyAnimaIdleStyle
+ * PyAnimaIdle
+ *
+ * The Anima's built-in Idle pool: Default plus all 72 emotion/intensity cells.
  */
-export type PyAnimaIdleStyle = {
-    /**
-     * Animations
-     */
-    animations?: Array<PyIdleAnimationSummary>;
+export type PyAnimaIdle = {
     /**
      * Cells
      */
-    cells?: {
-        [key: string]: {
-            [key: string]: ({
-                mode: 'none';
-            } & PyIdleNoneCell) | ({
-                mode: 'pool';
-            } & PyIdlePoolCell);
-        };
-    };
-    /**
-     * Cross Fade Seconds
-     */
-    cross_fade_seconds?: number;
+    cells?: Array<PyIdleCell>;
     /**
      * Default Pool
      */
-    default_pool?: Array<string>;
-    /**
-     * Description
-     */
-    description?: string | null;
-    /**
-     * Document Default Pool
-     */
-    document_default_pool?: Array<string>;
-    /**
-     * Document Emotion Pools
-     */
-    document_emotion_pools?: {
-        [key: string]: Array<string>;
-    };
-    /**
-     * Effective Default Pool
-     */
-    effective_default_pool?: Array<string>;
-    /**
-     * Effective Emotion Pools
-     */
-    effective_emotion_pools?: {
-        [key: string]: Array<string>;
-    };
-    /**
-     * Gestures
-     */
-    gestures?: Array<PyIdleGestureSummary>;
-    /**
-     * Name
-     */
-    name?: string | null;
-    /**
-     * Pool Overrides
-     */
-    pool_overrides?: {
-        [key: string]: Array<string>;
-    };
-    /**
-     * Schema Version
-     */
-    schema_version?: 1 | 2;
-    source?: PyCatalogLoadoutSource | null;
-    /**
-     * State
-     */
-    state: 'starter' | 'custom' | 'empty';
+    default_pool?: Array<PyIdleMember>;
 };
 
 /**
@@ -2902,7 +2805,7 @@ export type PyAnimaLoadout = {
      * Gestures
      */
     gestures: Array<PyGestureBinding>;
-    idle_style: PyAnimaIdleStyle;
+    idle: PyAnimaIdle;
     /**
      * Reactions
      */
@@ -3044,7 +2947,7 @@ export type PyAnimaRuntime = {
      * Gestures
      */
     gestures?: Array<PyRuntimeAction>;
-    idle_style?: PyRuntimeIdleStyle | null;
+    idle?: PyRuntimeIdle;
     json_bundle?: PyRuntimeJsonBundle | null;
     /**
      * Lease Expires At
@@ -4574,7 +4477,7 @@ export type PyContentEvidenceRoot = {
     /**
      * Kind
      */
-    kind: 'voice' | 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'idle_style' | 'pose' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
+    kind: 'voice' | 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'pose' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
     /**
      * Root Key
      */
@@ -4589,7 +4492,7 @@ export type PyContentEvidenceRootRequest = {
     /**
      * Kind
      */
-    kind: 'voice' | 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'idle_style' | 'pose' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
+    kind: 'voice' | 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'pose' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
     source: ItemRevisionRef;
 };
 
@@ -4737,7 +4640,7 @@ export type PyContentPreviewRootRequest = {
     /**
      * Kind
      */
-    kind: 'voice' | 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'idle_style' | 'pose' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
+    kind: 'voice' | 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'pose' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
     /**
      * Source
      */
@@ -4792,8 +4695,6 @@ export type PyContentPreviewsPrepareResponse = {
     } & PySceneEffect) | ({
         kind: 'sound_effect';
     } & PySoundEffect) | ({
-        kind: 'idle_style';
-    } & PyIdleStyle) | ({
         kind: 'avatar';
     } & PyAvatarContent) | ({
         kind: 'appearance';
@@ -5334,59 +5235,88 @@ export type PyGesturePlanRequest = {
 };
 
 /**
- * PyIdleAnimation
+ * PyIdleCell
+ *
+ * One emotion/intensity cell; an empty ``gestures`` list means the cell uses Default.
  */
-export type PyIdleAnimation = {
+export type PyIdleCell = {
     /**
-     * Animation Id
+     * Emotion
      */
-    animation_id: string;
+    emotion: string;
     /**
-     * Dependency Ref
+     * Gestures
      */
-    dependency_ref?: string | null;
+    gestures?: Array<PyIdleMember>;
     /**
-     * Description
+     * Intensity
      */
-    description?: string | null;
-    /**
-     * File Ref
-     */
-    file_ref?: string | null;
-    /**
-     * Name
-     */
-    name: string;
-    /**
-     * Playback
-     */
-    playback?: {
-        [key: string]: unknown;
-    };
+    intensity: 1 | 2 | 3;
 };
 
 /**
- * PyIdleAnimationSummary
+ * PyIdleCommitRequest
  */
-export type PyIdleAnimationSummary = {
+export type PyIdleCommitRequest = {
     /**
-     * Animation Id
+     * Expected Revision
      */
-    animation_id: string;
+    expected_revision: number;
     /**
-     * Description
+     * Idempotency Key
      */
-    description?: string | null;
+    idempotency_key: string;
+    intent: PyIdleIntent;
     /**
-     * Name
+     * Plan Digest
      */
-    name: string;
+    plan_digest: string;
 };
 
 /**
- * PyIdleGestureSummary
+ * PyIdleIntent
+ *
+ * Add a Gesture to one cell of the Anima's Idle pool, or remove one member.
+ *
+ * ``add`` takes the Gesture ``source`` and the cell; omit ``emotion`` and
+ * ``intensity`` for the Default pool. ``remove`` takes the member's
+ * ``binding_id``, so an unavailable member can be removed too. The pool itself
+ * always exists; no operation removes or replaces it as a whole.
  */
-export type PyIdleGestureSummary = {
+export type PyIdleIntent = {
+    /**
+     * Binding Id
+     */
+    binding_id?: string | null;
+    /**
+     * Emotion
+     */
+    emotion?: string | null;
+    /**
+     * Intensity
+     */
+    intensity?: 1 | 2 | 3 | null;
+    /**
+     * Operation
+     */
+    operation: 'add' | 'remove';
+    source?: PyCatalogLoadoutSource | null;
+};
+
+/**
+ * PyIdleMember
+ *
+ * One Gesture in the Idle pool; ``available`` is false when its catalog item is missing or invalid.
+ */
+export type PyIdleMember = {
+    /**
+     * Available
+     */
+    available: boolean;
+    /**
+     * Binding Id
+     */
+    binding_id: string;
     /**
      * Description
      */
@@ -5396,23 +5326,21 @@ export type PyIdleGestureSummary = {
      */
     item_id: string;
     /**
-     * Logical Key
-     */
-    logical_key?: string | null;
-    /**
      * Name
      */
     name: string;
+    source?: PyCatalogLoadoutSource | null;
 };
 
 /**
- * PyIdleNoneCell
+ * PyIdlePlanRequest
  */
-export type PyIdleNoneCell = {
+export type PyIdlePlanRequest = {
     /**
-     * Mode
+     * Expected Revision
      */
-    mode?: 'none';
+    expected_revision: number;
+    intent: PyIdleIntent;
 };
 
 /**
@@ -5449,161 +5377,6 @@ export type PyIdlePlayback = {
      * Time Scale
      */
     time_scale?: number | null;
-};
-
-/**
- * PyIdlePoolCell
- */
-export type PyIdlePoolCell = {
-    /**
-     * Gestures
-     */
-    gestures: Array<string>;
-    /**
-     * Mode
-     */
-    mode?: 'pool';
-};
-
-/**
- * PyIdleStyle
- */
-export type PyIdleStyle = {
-    /**
-     * Animations
-     */
-    animations?: Array<PyIdleAnimation>;
-    /**
-     * Cells
-     */
-    cells?: {
-        [key: string]: {
-            [key: string]: ({
-                mode: 'none';
-            } & PyIdleNoneCell) | ({
-                mode: 'pool';
-            } & PyIdlePoolCell);
-        };
-    };
-    /**
-     * Compatibility
-     */
-    compatibility?: {
-        [key: string]: unknown;
-    };
-    /**
-     * Cross Fade Seconds
-     */
-    cross_fade_seconds?: number;
-    /**
-     * Default Pool
-     */
-    default_pool: Array<string>;
-    /**
-     * Dependencies
-     */
-    dependencies?: Array<PyTypedDependency>;
-    /**
-     * Description
-     */
-    description?: string | null;
-    /**
-     * Editable
-     */
-    editable: boolean;
-    /**
-     * Emotion Pools
-     */
-    emotion_pools?: {
-        [key: string]: Array<string>;
-    };
-    /**
-     * Files
-     */
-    files?: Array<PyTypedContentFile>;
-    /**
-     * Item Id
-     */
-    item_id: string;
-    /**
-     * Kind
-     */
-    kind?: 'idle_style';
-    /**
-     * Logical Key
-     */
-    logical_key?: string | null;
-    /**
-     * Name
-     */
-    name: string;
-    /**
-     * Portability
-     */
-    portability?: 'portable' | 'non-portable';
-    /**
-     * Revision Sha256
-     */
-    revision_sha256: string;
-    /**
-     * Schema Version
-     */
-    schema_version?: 1 | 2;
-    /**
-     * Source
-     */
-    source: 'included' | 'local';
-};
-
-/**
- * PyIdleStyleCommitRequest
- */
-export type PyIdleStyleCommitRequest = {
-    /**
-     * Expected Revision
-     */
-    expected_revision: number;
-    /**
-     * Idempotency Key
-     */
-    idempotency_key: string;
-    intent: PyIdleStyleIntent;
-    /**
-     * Plan Digest
-     */
-    plan_digest: string;
-};
-
-/**
- * PyIdleStyleIntent
- */
-export type PyIdleStyleIntent = {
-    /**
-     * Operation
-     */
-    operation: 'set' | 'update' | 'reconfigure' | 'revert' | 'leave_empty';
-    source?: PyCatalogLoadoutSource | null;
-};
-
-/**
- * PyIdleStylePage
- */
-export type PyIdleStylePage = {
-    /**
-     * Items
-     */
-    items: Array<PyIdleStyle>;
-};
-
-/**
- * PyIdleStylePlanRequest
- */
-export type PyIdleStylePlanRequest = {
-    /**
-     * Expected Revision
-     */
-    expected_revision: number;
-    intent: PyIdleStyleIntent;
 };
 
 /**
@@ -7667,7 +7440,7 @@ export type PyPreparedPreviewRoot = {
     /**
      * Kind
      */
-    kind: 'voice' | 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'idle_style' | 'pose' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
+    kind: 'voice' | 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'pose' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
     /**
      * Root Key
      */
@@ -8320,31 +8093,31 @@ export type PyRuntimeFile = {
 };
 
 /**
- * PyRuntimeIdleAnimation
+ * PyRuntimeIdle
+ *
+ * The Anima's Idle pool as admitted for this mount.
+ *
+ * Pools list Gesture catalog item ids from ``gestures``. A cell absent from
+ * ``cells`` uses ``default_pool``; members that could not be admitted are
+ * left out, and a cell left empty that way uses Default too.
  */
-export type PyRuntimeIdleAnimation = {
+export type PyRuntimeIdle = {
     /**
-     * Animation Id
+     * Cells
      */
-    animation_id: string;
-    /**
-     * Description
-     */
-    description?: string | null;
-    /**
-     * Files
-     */
-    files?: Array<PyRuntimeFile>;
-    /**
-     * Name
-     */
-    name: string;
-    /**
-     * Playback
-     */
-    playback?: {
-        [key: string]: unknown;
+    cells?: {
+        [key: string]: {
+            [key: string]: Array<string>;
+        };
     };
+    /**
+     * Default Pool
+     */
+    default_pool?: Array<string>;
+    /**
+     * Gestures
+     */
+    gestures?: Array<PyRuntimeIdleGesture>;
 };
 
 /**
@@ -8409,67 +8182,6 @@ export type PyRuntimeIdleGesture = {
      * Semantic Key
      */
     semantic_key?: string | null;
-    source: PyRuntimeCatalogItemSource;
-};
-
-/**
- * PyRuntimeIdleStyle
- */
-export type PyRuntimeIdleStyle = {
-    /**
-     * Animations
-     */
-    animations?: Array<PyRuntimeIdleAnimation>;
-    /**
-     * Cells
-     */
-    cells?: {
-        [key: string]: {
-            [key: string]: ({
-                mode: 'none';
-            } & PyIdleNoneCell) | ({
-                mode: 'pool';
-            } & PyIdlePoolCell);
-        };
-    };
-    /**
-     * Cross Fade Seconds
-     */
-    cross_fade_seconds?: number;
-    /**
-     * Default Pool
-     */
-    default_pool: Array<string>;
-    /**
-     * Description
-     */
-    description?: string | null;
-    /**
-     * Emotion Pools
-     */
-    emotion_pools?: {
-        [key: string]: Array<string>;
-    };
-    /**
-     * Gestures
-     */
-    gestures?: Array<PyRuntimeIdleGesture>;
-    /**
-     * Name
-     */
-    name: string;
-    /**
-     * Revision
-     */
-    revision: string;
-    /**
-     * Runtime Root Id
-     */
-    runtime_root_id?: string | null;
-    /**
-     * Schema Version
-     */
-    schema_version?: 1 | 2;
     source: PyRuntimeCatalogItemSource;
 };
 
@@ -9033,8 +8745,6 @@ export type PyTypedContentPreview = {
     } & PySceneEffect) | ({
         kind: 'sound_effect';
     } & PySoundEffect) | ({
-        kind: 'idle_style';
-    } & PyIdleStyle) | ({
         kind: 'avatar';
     } & PyAvatarContent) | ({
         kind: 'appearance';
@@ -9067,8 +8777,6 @@ export type PyTypedContentPreview = {
     } & PySceneEffect) | ({
         kind: 'sound_effect';
     } & PySoundEffect) | ({
-        kind: 'idle_style';
-    } & PyIdleStyle) | ({
         kind: 'avatar';
     } & PyAvatarContent) | ({
         kind: 'appearance';
@@ -9098,7 +8806,7 @@ export type PyTypedDependency = {
     /**
      * Kind
      */
-    kind: 'avatar' | 'gesture' | 'pose' | 'reaction' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect' | 'idle_style' | 'appearance' | 'voice';
+    kind: 'avatar' | 'gesture' | 'pose' | 'reaction' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect' | 'appearance' | 'voice';
     /**
      * Ref
      */
@@ -9772,7 +9480,7 @@ export type ReviewedImportItem = {
      * Entry Id
      */
     entry_id: string;
-    kind: 'appearance' | 'avatar' | 'avatar_effect' | 'gesture' | 'idle_style' | 'particle_effect' | 'pose' | 'reaction' | 'scene_effect' | 'sound_effect' | 'voice';
+    kind: 'appearance' | 'avatar' | 'avatar_effect' | 'gesture' | 'particle_effect' | 'pose' | 'reaction' | 'scene_effect' | 'sound_effect' | 'voice';
     /**
      * Name
      */
@@ -9792,11 +9500,12 @@ export type ReviewedImportItem = {
  *
  * A non-portable item the sender omitted, and what this installation does with it.
  *
- * ``rebound`` uses this installation's own matching item; ``unavailable`` falls
- * back (no Gesture, the Default pool without it, or no Idle Style).
+ * ``rebound`` uses this installation's own matching item; ``unavailable`` leaves
+ * it out (the Gesture is not equipped, and its Idle cells keep their other
+ * Gestures or use Default).
  */
 export type ReviewedNonPortableItem = {
-    kind: 'appearance' | 'avatar' | 'avatar_effect' | 'gesture' | 'idle_style' | 'particle_effect' | 'pose' | 'reaction' | 'scene_effect' | 'sound_effect' | 'voice';
+    kind: 'appearance' | 'avatar' | 'avatar_effect' | 'gesture' | 'particle_effect' | 'pose' | 'reaction' | 'scene_effect' | 'sound_effect' | 'voice';
     /**
      * Name
      */
@@ -9962,7 +9671,7 @@ export type SourceRevision = {
     /**
      * Kind
      */
-    kind: 'voice' | 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'idle_style' | 'pose' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
+    kind: 'voice' | 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'pose' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
     /**
      * Revision Sha256
      */
@@ -10944,8 +10653,8 @@ export type PlanGestureV1AnimasAnimaIdGesturesPlanPostResponses = {
 
 export type PlanGestureV1AnimasAnimaIdGesturesPlanPostResponse = PlanGestureV1AnimasAnimaIdGesturesPlanPostResponses[keyof PlanGestureV1AnimasAnimaIdGesturesPlanPostResponses];
 
-export type CommitIdleStyleV1AnimasAnimaIdIdleStyleCommitPostData = {
-    body: PyIdleStyleCommitRequest;
+export type CommitIdleV1AnimasAnimaIdIdleCommitPostData = {
+    body: PyIdleCommitRequest;
     path: {
         /**
          * Anima Id
@@ -10953,29 +10662,29 @@ export type CommitIdleStyleV1AnimasAnimaIdIdleStyleCommitPostData = {
         anima_id: string;
     };
     query?: never;
-    url: '/v1/animas/{anima_id}/idle-style:commit';
+    url: '/v1/animas/{anima_id}/idle:commit';
 };
 
-export type CommitIdleStyleV1AnimasAnimaIdIdleStyleCommitPostErrors = {
+export type CommitIdleV1AnimasAnimaIdIdleCommitPostErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type CommitIdleStyleV1AnimasAnimaIdIdleStyleCommitPostError = CommitIdleStyleV1AnimasAnimaIdIdleStyleCommitPostErrors[keyof CommitIdleStyleV1AnimasAnimaIdIdleStyleCommitPostErrors];
+export type CommitIdleV1AnimasAnimaIdIdleCommitPostError = CommitIdleV1AnimasAnimaIdIdleCommitPostErrors[keyof CommitIdleV1AnimasAnimaIdIdleCommitPostErrors];
 
-export type CommitIdleStyleV1AnimasAnimaIdIdleStyleCommitPostResponses = {
+export type CommitIdleV1AnimasAnimaIdIdleCommitPostResponses = {
     /**
      * Successful Response
      */
     200: PyLoadoutCommitResult;
 };
 
-export type CommitIdleStyleV1AnimasAnimaIdIdleStyleCommitPostResponse = CommitIdleStyleV1AnimasAnimaIdIdleStyleCommitPostResponses[keyof CommitIdleStyleV1AnimasAnimaIdIdleStyleCommitPostResponses];
+export type CommitIdleV1AnimasAnimaIdIdleCommitPostResponse = CommitIdleV1AnimasAnimaIdIdleCommitPostResponses[keyof CommitIdleV1AnimasAnimaIdIdleCommitPostResponses];
 
-export type PlanIdleStyleV1AnimasAnimaIdIdleStylePlanPostData = {
-    body: PyIdleStylePlanRequest;
+export type PlanIdleV1AnimasAnimaIdIdlePlanPostData = {
+    body: PyIdlePlanRequest;
     path: {
         /**
          * Anima Id
@@ -10983,26 +10692,26 @@ export type PlanIdleStyleV1AnimasAnimaIdIdleStylePlanPostData = {
         anima_id: string;
     };
     query?: never;
-    url: '/v1/animas/{anima_id}/idle-style:plan';
+    url: '/v1/animas/{anima_id}/idle:plan';
 };
 
-export type PlanIdleStyleV1AnimasAnimaIdIdleStylePlanPostErrors = {
+export type PlanIdleV1AnimasAnimaIdIdlePlanPostErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type PlanIdleStyleV1AnimasAnimaIdIdleStylePlanPostError = PlanIdleStyleV1AnimasAnimaIdIdleStylePlanPostErrors[keyof PlanIdleStyleV1AnimasAnimaIdIdleStylePlanPostErrors];
+export type PlanIdleV1AnimasAnimaIdIdlePlanPostError = PlanIdleV1AnimasAnimaIdIdlePlanPostErrors[keyof PlanIdleV1AnimasAnimaIdIdlePlanPostErrors];
 
-export type PlanIdleStyleV1AnimasAnimaIdIdleStylePlanPostResponses = {
+export type PlanIdleV1AnimasAnimaIdIdlePlanPostResponses = {
     /**
      * Successful Response
      */
     200: PyLoadoutPlan;
 };
 
-export type PlanIdleStyleV1AnimasAnimaIdIdleStylePlanPostResponse = PlanIdleStyleV1AnimasAnimaIdIdleStylePlanPostResponses[keyof PlanIdleStyleV1AnimasAnimaIdIdleStylePlanPostResponses];
+export type PlanIdleV1AnimasAnimaIdIdlePlanPostResponse = PlanIdleV1AnimasAnimaIdIdlePlanPostResponses[keyof PlanIdleV1AnimasAnimaIdIdlePlanPostResponses];
 
 export type GetAnimaLoadoutV1AnimasAnimaIdLoadoutGetData = {
     body?: never;
@@ -13343,112 +13052,6 @@ export type PreviewGestureResponses = {
 };
 
 export type PreviewGestureResponse = PreviewGestureResponses[keyof PreviewGestureResponses];
-
-export type ListIdleStylesData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/v1/idle-styles';
-};
-
-export type ListIdleStylesResponses = {
-    /**
-     * Successful Response
-     */
-    200: PyIdleStylePage;
-};
-
-export type ListIdleStylesResponse = ListIdleStylesResponses[keyof ListIdleStylesResponses];
-
-export type SaveIdleStyleData = {
-    body: BodySaveIdleStyle;
-    path: {
-        /**
-         * Entry Name
-         */
-        entry_name: string;
-    };
-    query?: never;
-    url: '/v1/idle-styles/{entry_name}';
-};
-
-export type SaveIdleStyleErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type SaveIdleStyleError = SaveIdleStyleErrors[keyof SaveIdleStyleErrors];
-
-export type SaveIdleStyleResponses = {
-    /**
-     * Successful Response
-     */
-    200: PyIdleStyle;
-};
-
-export type SaveIdleStyleResponse = SaveIdleStyleResponses[keyof SaveIdleStyleResponses];
-
-export type GetIdleStyleData = {
-    body?: never;
-    path: {
-        /**
-         * Item Id
-         */
-        item_id: string;
-    };
-    query?: never;
-    url: '/v1/idle-styles/{item_id}';
-};
-
-export type GetIdleStyleErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type GetIdleStyleError = GetIdleStyleErrors[keyof GetIdleStyleErrors];
-
-export type GetIdleStyleResponses = {
-    /**
-     * Successful Response
-     */
-    200: PyIdleStyle;
-};
-
-export type GetIdleStyleResponse = GetIdleStyleResponses[keyof GetIdleStyleResponses];
-
-export type PreviewIdleStyleData = {
-    body?: never;
-    path: {
-        /**
-         * Item Id
-         */
-        item_id: string;
-    };
-    query?: never;
-    url: '/v1/idle-styles/{item_id}:preview';
-};
-
-export type PreviewIdleStyleErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type PreviewIdleStyleError = PreviewIdleStyleErrors[keyof PreviewIdleStyleErrors];
-
-export type PreviewIdleStyleResponses = {
-    /**
-     * Successful Response
-     */
-    200: PyTypedContentPreview;
-};
-
-export type PreviewIdleStyleResponse = PreviewIdleStyleResponses[keyof PreviewIdleStyleResponses];
 
 export type ListAnimaIdentitiesV1MemoryAnimaIdentitiesGetData = {
     body?: never;

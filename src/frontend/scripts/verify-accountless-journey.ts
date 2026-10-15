@@ -167,14 +167,6 @@ function sourceRoots(options: JsonObject, avatar: JsonObject): JsonObject[] {
       }
     }
   }
-  const defaultIdle = asObject(options.default_idle, "Default idle");
-  if (defaultIdle.source !== null) {
-    roots.push({
-      kind: "idle_style",
-      source: asObject(defaultIdle.source, "Default idle source"),
-    });
-  }
-
   const unique = new Map<string, JsonObject>();
   for (const root of roots) {
     const source = asObject(root.source, "Content source");
