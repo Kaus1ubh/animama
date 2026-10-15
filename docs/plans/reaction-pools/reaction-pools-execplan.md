@@ -141,7 +141,7 @@ Content (`content/included/`):
 - [x] Workspace setup: parent #563, phase issues #564–#569 (2026-10-14).
 - [x] Phase 1: ladder table, briefs and new-effect list. G1 approved 2026-10-14; Code Review #1 passed after two repair rounds.
 - [x] Phase 2: content drafts, renders and benchmarks (2026-10-15). Drafts complete (52 effects saved; 168 Reactions checked, reviewed in stills and a reel; the 12 heaviest benchmarked); Code Review #1 pass. G2 moved to before merge (D20) and still pending.
-- [ ] Dependency: #559 merged; branch rebased; baseline refreshed.
+- [x] Dependency: #559 merged (PR #571); branch rebased onto `87dce31b`; baseline refreshed (2026-10-15).
 - [x] Phase 3: backend pools and four intensities.
 - [x] Phase 4: runtime selection and `/animas/` pool editing.
 - [x] Phase 5: equip dialog cell chooser and wizard pools.
@@ -1292,7 +1292,35 @@ Covers R1–R16 across all phases, the package-set compatibility comparison, the
 full browser journeys and the promoted content, reusing still-valid phase
 evidence.
 
-_Pending._
+Independent reviewer, final integration mode (2026-10-15; candidate
+`3abfa097` against `87dce31b`). **Result: pass**; no blocking findings or
+code defects. Cross-checked R1–R16 and the seams from `emotion.update`
+through the planner, backend runtime cells through the adapter, the starter
+policy against the frontend built-in pools and the Included folders, package
+round trips and deletion protection; all 373 added tracked files have
+source-review records; commits carry no attribution lines.
+
+- FIN-R0-F1 (should-fix): two frontend docs still described one-member
+  built-in pools. Fixed in `runtime/avatar-planner.md` and
+  `runtime/avatar-emotion.md`.
+- FIN-R0-F2 (should-fix): the package-set comparison had not been recorded.
+  Done: `scripts/package-sets/build.py build` for `87dce31b` (from a clean
+  temporary worktree) and `3abfa097`, then `compare`: "Compatibility policy
+  passed" (`local-http` 9.0.0 major, `runtime-contracts` 0.9.0,
+  `product-ui` declarations unchanged).
+- FIN-R0-F3 (should-fix): the wizard's pools were never checked in a
+  browser (the `create-anima` journey is not in the active project). A
+  headless attempt on the development task stack could not pass the avatar
+  and voice steps (the canvas preview does not become ready headless, and a
+  voice is required), so the wizard's browser check is recorded as not
+  performed; it is covered by component tests and left to the owner.
+- FIN-R0-F4 (should-fix): browser-journey durations were stale. `AGENTS.md`
+  and `browser-journeys.md` now say about 35 minutes and why.
+- FIN-R0-F5: the dependency Progress item is checked.
+- FIN-R0-F6: the `starter_reaction_unavailable` warning no longer shows the
+  internal content ID (five locales; test updated).
+- FIN-R0-F7: product-side export/import time for a starter Anima (about 445
+  entries) was not measured; noted for the owner.
 
 ## Validation and acceptance
 
@@ -1331,7 +1359,23 @@ development database reset. Tear the task stack down after its last use.
 
 ## Outcomes & Retrospective
 
-_Pending._
+Delivered (2026-10-15): four Reaction intensities with the model mapping of
+R1; pools of up to four Reactions per cell, stored as one binding row per
+member and picked at random without repeating a cell's last played member;
+pool editing in `/animas/`, the equip dialog, the Create Anima wizard and
+sharing details, sharing Idle's components; pools in creation and packages;
+168 Included Reactions on a four-step ladder with 52 new hand-drawn effects;
+every starter cell holding its Included Reactions; the `animation:reel`
+recorder. Open: the owner's G2/G3 review before merge, the wizard's browser
+check, and the in-chat escalation and variety check after merge.
+
+Lessons: content growth has system-wide costs that show up late. The full
+starter set needed the runtime entry limit raised in two places, and the
+complete-Anima browser journeys tripled in length. The first review of each
+phase caught real defects (sound overlap, licence-record templating, an
+uncaught admission cap), so the bounded review was worth its cost. Drafts
+kept outside Git, with generator scripts, made the late fixes (muting, licence
+wording) reproducible by re-promotion instead of hand edits.
 
 ## Appendix: the promoted Reaction ladder
 

@@ -352,7 +352,8 @@ tried. Idle keeps the emotion state's three intensity levels.
 
 Reaction clips live under
 `content/included/reactions/<id>/<id>.json`; outside an Anima route the
-built-in catalog plays the clip named `<emotion>-<intensity>` for a cell. They
+built-in catalog picks from the Included Reactions each cell's id names
+(`<emotion>-1`, or `<emotion>-<n>` and `<emotion>-<n>-b`). They
 can include
 expression tracks keyed at beats plus timed avatar VFX, scene VFX, and SFX events,
 and the built-in catalog skips files that include humanoid transforms. Reaction

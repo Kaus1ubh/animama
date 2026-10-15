@@ -153,7 +153,7 @@
     "reviewFailed": "確認に失敗しました。",
     "starter_gesture_unavailable": "同梱ジェスチャー {{semanticKey}} は利用できません。",
     "starter_id_required": "この変更には同梱ジェスチャーが必要です。",
-    "starter_reaction_unavailable": "同梱リアクション {{contentId}} は利用できないため、戻せませんでした。",
+    "starter_reaction_unavailable": "同梱のスターターリアクションが利用できないため、戻せませんでした。",
     "updateFailed": "更新に失敗しました。",
     "voice_operation_invalid": "この音声の変更は無効です。"
   },

@@ -153,7 +153,7 @@
     "reviewFailed": "检查失败。",
     "starter_gesture_unavailable": "内置动作 {{semanticKey}} 不可用。",
     "starter_id_required": "此更改需要一个内置动作。",
-    "starter_reaction_unavailable": "内置反应 {{contentId}} 不可用，未能恢复。",
+    "starter_reaction_unavailable": "有一个内置起始反应不可用，未能恢复。",
     "updateFailed": "更新失败。",
     "voice_operation_invalid": "此语音更改无效。"
   },

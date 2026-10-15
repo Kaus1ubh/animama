@@ -232,8 +232,9 @@ as `alarm`, unknown tones, neutral tones and intensity 0 (model intensity 1–2)
 name no cell, so they draw no roll; they and empty cells produce no reaction
 clip, and no other cell is tried. Other tones/groups do not
 fall back to the baseline emotion expression state. The built-in catalog used
-outside an Anima route serves one-member pools of the bundled
-`<emotion>-<intensity>` clips. Reaction clips declare
+outside an Anima route serves the starter pools of the bundled Included
+Reactions (`<emotion>-1` at Mild; `<emotion>-<n>` and `<emotion>-<n>-b` at
+2–4), picked like any pool. Reaction clips declare
 `playback.lifetime.kind: "whileInteractionPhase"` with `phases: ["talking"]`
 and `scope: "activeRun"`, so the planner retains them only while the same run
 is talking.

@@ -349,7 +349,7 @@ describe("equipping a Reaction to a chosen cell", () => {
     const view = await render(cheer);
     await act(async () => view.button("Add to Luna's Joy · Intense").click());
     expect(mocks.toast.warning).toHaveBeenCalledWith(
-      "Included Reaction joy-4 is unavailable and was not restored.",
+      "A starter Reaction is unavailable and was not restored.",
     );
     expect(mocks.toast.success).toHaveBeenCalledTimes(1);
   });
