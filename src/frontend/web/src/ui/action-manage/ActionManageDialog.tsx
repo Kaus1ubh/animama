@@ -37,6 +37,8 @@ import {
 } from "@/ui/components/dialog";
 import {
   actionManageLoadoutSource,
+  actionManageReactionCell,
+  actionManageReactionMember,
   actionManageRowState,
 } from "./actionManageTarget";
 
@@ -147,29 +149,16 @@ export function ActionManageDialog({
           throwOnError: true,
         });
       } else {
-        const emotion = target.emotion ?? "joy";
-        const intensity =
-          target.intensity === 2 || target.intensity === 3
-            ? target.intensity
-            : 1;
-        const cell = loadout.reactions.find(
-          (candidate) =>
-            candidate.emotion === emotion && candidate.intensity === intensity,
-        );
-        const intent: PyReactionIntent = equipped
-          ? {
-              operation: cell?.state === "starter" ? "leave_empty" : "revert",
-              emotion,
-              intensity,
-              config_overrides: {},
-            }
-          : {
-              operation: "replace",
-              emotion,
-              intensity,
-              source,
-              config_overrides: {},
-            };
+        // Add to or remove from the suggested cell's pool; other members stay.
+        const member = actionManageReactionMember(target, loadout);
+        const intent: PyReactionIntent =
+          equipped && member
+            ? { operation: "remove", binding_id: member.binding_id }
+            : {
+                operation: "add",
+                ...actionManageReactionCell(target),
+                source,
+              };
         const plan = (
           await planReactionV1AnimasAnimaIdReactionsPlanPost({
             client: apiClient,
@@ -242,9 +231,7 @@ export function ActionManageDialog({
                     {equipped
                       ? t("actions.equipped")
                       : replacing
-                        ? target.kind === "gesture"
-                          ? t("manage.willReplace.gesture")
-                          : t("manage.willReplace.reaction")
+                        ? t("manage.willReplace.gesture")
                         : t("manage.notEquipped")}
                   </span>
                 </span>

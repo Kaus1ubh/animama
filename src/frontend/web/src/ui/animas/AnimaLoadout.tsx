@@ -17,6 +17,7 @@ import type {
   PyIdleMember,
   PyLoadoutPlan,
   PyReactionIntent,
+  PyReactionMember,
 } from "@animama/runtime-contracts/api-types";
 import type { TFunction } from "i18next";
 import type {
@@ -42,7 +43,10 @@ import {
   presentGestureLoadout,
 } from "@/lib/loadout/animaLoadoutPresentation";
 import { idleAddIntent } from "@/lib/loadout/idleLoadoutGrid";
-import { buildReactionLoadoutGrid } from "@/lib/loadout/reactionLoadoutGrid";
+import {
+  buildReactionLoadoutGrid,
+  reactionAddIntent,
+} from "@/lib/loadout/reactionLoadoutGrid";
 import { adaptRuntimeSnapshot } from "@/lib/runtime-content/runtimeSnapshotAdapter";
 import { useAnimaLoadout as useLoadout } from "@/query/hooks/useAnimaLoadout";
 import { useGestures, useReactions } from "@/query/hooks/useActions";
@@ -62,19 +66,12 @@ import {
   DialogTitle,
 } from "@/ui/components/dialog";
 
-type ReviewedChange =
-  | {
-      family: "gesture";
-      intent: PyGestureIntent;
-      plan: PyLoadoutPlan;
-      idempotencyKey: string;
-    }
-  | {
-      family: "reaction";
-      intent: PyReactionIntent;
-      plan: PyLoadoutPlan;
-      idempotencyKey: string;
-    };
+/** A planned Gesture change awaiting confirmation; pool edits skip review. */
+type ReviewedChange = {
+  intent: PyGestureIntent;
+  plan: PyLoadoutPlan;
+  idempotencyKey: string;
+};
 
 type PreviewableAction = {
   name?: string | null;
@@ -85,6 +82,20 @@ type PreviewableAction = {
 function toastLoadoutFailure(error: unknown, fallback: string) {
   const text = loadoutFailureText(error, fallback);
   toast.error(text.message, { description: text.detail ?? undefined });
+}
+
+/**
+ * Toast a failed pool edit. Pool edits have no review step and the Loadout is
+ * refetched after any failure, so a stale revision only asks for a retry.
+ */
+function toastPoolChangeFailure(
+  error: unknown,
+  changedElsewhere: string,
+  fallback: string,
+) {
+  if (readApiError(error).code === "loadout_revision_conflict")
+    toast.error(changedElsewhere);
+  else toastLoadoutFailure(error, fallback);
 }
 
 /** Display wording for a reviewed plan's action (a backend enum). */
@@ -122,7 +133,10 @@ function intentSource(
   };
 }
 
-/** Typed Gesture/Reaction configuration; dependencies remain resolver-owned. */
+/**
+ * Typed Gesture, Reaction and Idle configuration; dependencies remain
+ * resolver-owned. Gesture changes are reviewed; pool edits apply at once.
+ */
 export function AnimaLoadout({
   animaId,
   onStagePreview,
@@ -272,28 +286,6 @@ export function AnimaLoadout({
         intent,
       });
       setReviewed({
-        family: "gesture",
-        intent,
-        plan,
-        idempotencyKey: crypto.randomUUID(),
-      });
-    } catch (error) {
-      toastLoadoutFailure(error, t("errors:loadout.reviewFailed"));
-    } finally {
-      setReviewing(false);
-    }
-  };
-
-  const planReaction = async (intent: PyReactionIntent) => {
-    if (!loadout) return;
-    setReviewing(true);
-    try {
-      const plan = await mutations.planReaction.mutateAsync({
-        expected_revision: loadout.revision,
-        intent,
-      });
-      setReviewed({
-        family: "reaction",
         intent,
         plan,
         idempotencyKey: crypto.randomUUID(),
@@ -314,10 +306,31 @@ export function AnimaLoadout({
         intent,
       });
     } catch (error) {
-      // Idle edits have no review step; the Loadout has already been refetched.
-      if (readApiError(error).code === "loadout_revision_conflict")
-        toast.error(t("idle.changedElsewhere"));
-      else toastLoadoutFailure(error, t("errors:loadout.updateFailed"));
+      toastPoolChangeFailure(
+        error,
+        t("idle.changedElsewhere"),
+        t("errors:loadout.updateFailed"),
+      );
+    }
+  };
+
+  /** Apply one Reaction pool change at once, like Idle, without review. */
+  const changeReaction = async (intent: PyReactionIntent) => {
+    if (!loadout) return;
+    try {
+      const result = await mutations.changeReaction.mutateAsync({
+        expected_revision: loadout.revision,
+        intent,
+      });
+      // A restore can skip a starter Reaction that is unavailable.
+      for (const warning of result.warnings)
+        toast.warning(loadoutWarningText(warning));
+    } catch (error) {
+      toastPoolChangeFailure(
+        error,
+        t("reactions.changedElsewhere"),
+        t("errors:loadout.updateFailed"),
+      );
     }
   };
 
@@ -352,20 +365,12 @@ export function AnimaLoadout({
   const confirm = async () => {
     if (!loadout || !reviewed) return;
     try {
-      if (reviewed.family === "gesture")
-        await mutations.commitGesture.mutateAsync({
-          expected_revision: loadout.revision,
-          intent: reviewed.intent,
-          plan_digest: reviewed.plan.plan_digest,
-          idempotency_key: reviewed.idempotencyKey,
-        });
-      else if (reviewed.family === "reaction")
-        await mutations.commitReaction.mutateAsync({
-          expected_revision: loadout.revision,
-          intent: reviewed.intent,
-          plan_digest: reviewed.plan.plan_digest,
-          idempotency_key: reviewed.idempotencyKey,
-        });
+      await mutations.commitGesture.mutateAsync({
+        expected_revision: loadout.revision,
+        intent: reviewed.intent,
+        plan_digest: reviewed.plan.plan_digest,
+        idempotency_key: reviewed.idempotencyKey,
+      });
       toast.success(t("loadout.updated"));
       setReviewed(null);
     } catch (error) {
@@ -391,8 +396,7 @@ export function AnimaLoadout({
     );
   }
   const mutationsDisabled = reviewing;
-  const committing =
-    mutations.commitGesture.isPending || mutations.commitReaction.isPending;
+  const committing = mutations.commitGesture.isPending;
 
   return (
     <div className="space-y-8 pt-5 md:pt-6">
@@ -463,39 +467,31 @@ export function AnimaLoadout({
           Boolean(hasNextReactionsPage && !reactionsNextPageError)
         }
         availableError={reactionsQuery.isError}
-        mutationsDisabled={mutationsDisabled}
-        onPreview={(cell) => void preview("reaction", cell)}
-        onPreviewAvailable={(reaction) => void preview("reaction", reaction)}
-        onSelect={(cell, reaction: PyReaction) => {
+        disabled={mutationsDisabled}
+        busy={mutations.changeReaction.isPending}
+        onAdd={(cell, reaction: PyReaction) => {
           const source = intentSource(reaction.source);
           if (!source) {
             toast.error(t("loadout.reactionNotLocal"));
             return;
           }
-          void planReaction({
-            operation: "replace",
-            emotion: cell.emotion,
-            intensity: cell.intensity,
-            source,
-            config_overrides: {},
-          });
+          void changeReaction(reactionAddIntent(cell, source));
         }}
-        onRevert={(cell) =>
-          void planReaction({
-            operation: "revert",
-            emotion: cell.emotion,
-            intensity: cell.intensity,
-            config_overrides: {},
+        onRemove={(member: PyReactionMember) =>
+          void changeReaction({
+            operation: "remove",
+            binding_id: member.binding_id,
           })
         }
-        onLeaveEmpty={(cell) =>
-          void planReaction({
-            operation: "leave_empty",
+        onRestoreStarter={(cell) =>
+          void changeReaction({
+            operation: "restore_starter",
             emotion: cell.emotion,
             intensity: cell.intensity,
-            config_overrides: {},
           })
         }
+        onPreview={(member) => void preview("reaction", member)}
+        onPreviewAvailable={(reaction) => void preview("reaction", reaction)}
         onRetryAvailable={() => void reactionsQuery.refetch()}
       />
       <IdleLoadoutSection

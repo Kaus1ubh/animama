@@ -46,8 +46,10 @@ export function creationOptions(): AnimaCreationOptions {
     counts: {
       recommended_gestures: 0,
       recommended_reaction_cells: 0,
+      recommended_reactions: 0,
       available_gestures: 0,
       available_reaction_cells: 0,
+      available_reactions: 0,
     },
     expected_source_revisions: {},
     diagnostics: [],

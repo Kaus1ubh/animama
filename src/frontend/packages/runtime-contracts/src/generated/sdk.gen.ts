@@ -426,6 +426,8 @@ export const getAnimaLoadoutV1AnimasAnimaIdLoadoutGet = <ThrowOnError extends bo
 
 /**
  * Commit Reaction
+ *
+ * Commit one planned Reaction pool change after rechecking the revision and the plan digest.
  */
 export const commitReactionV1AnimasAnimaIdReactionsCommitPost = <ThrowOnError extends boolean = false>(options: Options<CommitReactionV1AnimasAnimaIdReactionsCommitPostData, ThrowOnError>) => (options.client ?? client).post<CommitReactionV1AnimasAnimaIdReactionsCommitPostResponses, CommitReactionV1AnimasAnimaIdReactionsCommitPostErrors, ThrowOnError>({
     requestValidator: async (data) => await zCommitReactionV1AnimasAnimaIdReactionsCommitPostData.parseAsync(data),
@@ -440,6 +442,11 @@ export const commitReactionV1AnimasAnimaIdReactionsCommitPost = <ThrowOnError ex
 
 /**
  * Plan Reaction
+ *
+ * Plan adding a Reaction to one cell's pool, removing a member, or restoring a cell's starter pool.
+ *
+ * A cell holds at most four Reactions, each once (``reaction_pool_full``,
+ * ``reaction_member_duplicate``); removing an unknown member is ``unchanged``.
  */
 export const planReactionV1AnimasAnimaIdReactionsPlanPost = <ThrowOnError extends boolean = false>(options: Options<PlanReactionV1AnimasAnimaIdReactionsPlanPostData, ThrowOnError>) => (options.client ?? client).post<PlanReactionV1AnimasAnimaIdReactionsPlanPostResponses, PlanReactionV1AnimasAnimaIdReactionsPlanPostErrors, ThrowOnError>({
     requestValidator: async (data) => await zPlanReactionV1AnimasAnimaIdReactionsPlanPostData.parseAsync(data),

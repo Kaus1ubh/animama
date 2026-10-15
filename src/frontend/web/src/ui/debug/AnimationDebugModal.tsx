@@ -52,6 +52,16 @@ import {
   type AnimaPoseClipPlayback,
 } from "@/lib/avatar";
 import { BUILT_IN_AVATAR_MOTION_CATALOG } from "@/lib/avatar/motion/AvatarMotionCatalog";
+import {
+  REACTION_INTENSITIES,
+  type EmotionReactionIntensity,
+} from "@/lib/avatar/reactionPools";
+import {
+  formatReactionClipCells,
+  reactionClipCells,
+  reactionClipMatchesFilters,
+  type ReactionClipCell,
+} from "./reactionClipCatalog";
 import { startPlannerGestureDebugRun } from "@/lib/avatar/planner/startPlannerGestureDebugRun";
 import { createLogger } from "@/lib/logger";
 import {
@@ -61,7 +71,6 @@ import {
   formatEmotionGroupLabel,
   formatTrackedEmotionLabel,
   groupForEmotion,
-  isTrackedEmotion,
   type EmotionGroup,
   type TrackedEmotion,
 } from "@/lib/emotion";
@@ -1430,9 +1439,8 @@ type PoseClipCatalogOption = {
 };
 
 type ReactionClipCatalogOption = PoseClipCatalogOption & {
-  emotion: TrackedEmotion;
-  group: EmotionGroup;
-  intensity: 1 | 2 | 3;
+  /** The cells whose pools hold this clip; empty when none does. */
+  cells: ReactionClipCell[];
   lifetimeSummary: string;
   channelAnalysis: AnimaPoseClipChannelAnalysis;
   channelSummary: string;
@@ -1442,7 +1450,9 @@ const allReactionFilterValue = "all" as const;
 type ReactionFilterValue = typeof allReactionFilterValue;
 type ReactionGroupFilter = EmotionGroup | ReactionFilterValue;
 type ReactionEmotionFilter = TrackedEmotion | ReactionFilterValue;
-type ReactionIntensityFilter = `${1 | 2 | 3}` | ReactionFilterValue;
+type ReactionIntensityFilter =
+  | `${EmotionReactionIntensity}`
+  | ReactionFilterValue;
 
 const reactionGroupFilterOptions: ReadonlyArray<{
   value: ReactionGroupFilter;
@@ -1473,9 +1483,10 @@ const reactionIntensityFilterOptions: ReadonlyArray<{
   label: string;
 }> = [
   { value: allReactionFilterValue, label: "All levels" },
-  { value: "1", label: "Level 1" },
-  { value: "2", label: "Level 2" },
-  { value: "3", label: "Level 3" },
+  ...REACTION_INTENSITIES.map((level) => ({
+    value: `${level}` as const,
+    label: `Level ${level}`,
+  })),
 ];
 
 const poseCatalogOptions: PoseCatalogOption[] = AVATAR_POSE_IDS.map(
@@ -1501,19 +1512,18 @@ const builtInPoseClipCatalogOptions: PoseClipCatalogOption[] =
 
 const defaultSelectedPoseClipId = builtInPoseClipCatalogOptions[0]?.id ?? "";
 
+const builtInReactionClipCells = reactionClipCells(
+  BUILT_IN_AVATAR_MOTION_CATALOG.listReactionPools(),
+);
 const builtInReactionClipCatalogOptions: ReactionClipCatalogOption[] =
-  BUILT_IN_AVATAR_MOTION_CATALOG.listReactionClips().flatMap((descriptor) => {
-    const metadata = parseReactionClipCatalogMetadata(descriptor.runtimeId);
-    if (!metadata) return [];
-    return [
-      createReactionClipCatalogOption(
-        descriptor.runtimeId,
-        descriptor.displayName,
-        metadata,
-        BUILT_IN_AVATAR_MOTION_CATALOG.getReactionClip(descriptor.runtimeId),
-      ),
-    ];
-  });
+  BUILT_IN_AVATAR_MOTION_CATALOG.listReactionClips().map((descriptor) =>
+    createReactionClipCatalogOption(
+      descriptor.runtimeId,
+      descriptor.displayName,
+      builtInReactionClipCells.get(descriptor.runtimeId) ?? [],
+      BUILT_IN_AVATAR_MOTION_CATALOG.getReactionClip(descriptor.runtimeId),
+    ),
+  );
 
 const defaultSelectedReactionClipId =
   builtInReactionClipCatalogOptions[0]?.id ?? "";
@@ -1537,20 +1547,6 @@ function cloneParticleVFXAxisTriple(
   };
 }
 
-function parseReactionClipCatalogMetadata(
-  clipId: string,
-): Pick<ReactionClipCatalogOption, "emotion" | "group" | "intensity"> | null {
-  const match = /^(.+)-([1-3])$/.exec(clipId);
-  if (!match || !isTrackedEmotion(match[1])) return null;
-  const group = groupForEmotion(match[1]);
-  if (!group) return null;
-  return {
-    emotion: match[1],
-    group,
-    intensity: Number(match[2]) as 1 | 2 | 3,
-  };
-}
-
 function createPoseClipCatalogOption(
   id: string,
   fallbackName: string,
@@ -1569,7 +1565,7 @@ function createPoseClipCatalogOption(
 function createReactionClipCatalogOption(
   id: string,
   fallbackName: string,
-  metadata: Pick<ReactionClipCatalogOption, "emotion" | "group" | "intensity">,
+  cells: ReactionClipCell[],
   clip: AnimaPoseClipV2 | null,
 ): ReactionClipCatalogOption {
   const channelAnalysis = clip
@@ -1590,7 +1586,7 @@ function createReactionClipCatalogOption(
       };
   return {
     ...createPoseClipCatalogOption(id, fallbackName, clip),
-    ...metadata,
+    cells,
     lifetimeSummary: clip ? formatClipPlaybackLifetime(clip.playback) : "lazy",
     channelAnalysis,
     channelSummary: clip ? formatClipChannelAnalysis(channelAnalysis) : "lazy",
@@ -1947,20 +1943,23 @@ export function AnimationDebugModal({ animaLabel }: { animaLabel?: string }) {
           ),
         )
     : builtInPoseClipCatalogOptions;
-  const reactionClipCatalogOptions = target
-    ? target.avatar.getMotionReactionClips().flatMap((descriptor) => {
-        const metadata = parseReactionClipCatalogMetadata(descriptor.runtimeId);
-        if (!metadata) return [];
-        return [
-          createReactionClipCatalogOption(
-            descriptor.runtimeId,
-            descriptor.displayName,
-            metadata,
-            target.avatar.getLoadedMotionReactionClip(descriptor.runtimeId),
-          ),
-        ];
-      })
-    : builtInReactionClipCatalogOptions;
+  // A live Anima's Reactions are listed by the cells whose pools hold them.
+  const liveReactionClipCells = target
+    ? reactionClipCells(target.avatar.getMotionReactionPools())
+    : null;
+  const reactionClipCatalogOptions =
+    target && liveReactionClipCells
+      ? target.avatar
+          .getMotionReactionClips()
+          .map((descriptor) =>
+            createReactionClipCatalogOption(
+              descriptor.runtimeId,
+              descriptor.displayName,
+              liveReactionClipCells.get(descriptor.runtimeId) ?? [],
+              target.avatar.getLoadedMotionReactionClip(descriptor.runtimeId),
+            ),
+          )
+      : builtInReactionClipCatalogOptions;
   const poseRows = target
     ? poseCatalogOptions.map((option) => ({
         ...option,
@@ -1987,27 +1986,12 @@ export function AnimationDebugModal({ animaLabel }: { animaLabel?: string }) {
     [reactionGroupFilter],
   );
   const filteredReactionClipCatalogOptions = reactionClipCatalogOptions.filter(
-    (option) => {
-      if (
-        reactionGroupFilter !== allReactionFilterValue &&
-        option.group !== reactionGroupFilter
-      ) {
-        return false;
-      }
-      if (
-        reactionEmotionFilter !== allReactionFilterValue &&
-        option.emotion !== reactionEmotionFilter
-      ) {
-        return false;
-      }
-      if (
-        reactionIntensityFilter !== allReactionFilterValue &&
-        `${option.intensity}` !== reactionIntensityFilter
-      ) {
-        return false;
-      }
-      return true;
-    },
+    (option) =>
+      reactionClipMatchesFilters(option.cells, {
+        group: reactionGroupFilter,
+        emotion: reactionEmotionFilter,
+        intensity: reactionIntensityFilter,
+      }),
   );
   const selectedReactionClipOption =
     reactionClipCatalogOptions.find(
@@ -3186,7 +3170,7 @@ export function AnimationDebugModal({ animaLabel }: { animaLabel?: string }) {
                       <HeaderCell>Clip</HeaderCell>
                       <HeaderCell>Status</HeaderCell>
                       <HeaderCell>Group</HeaderCell>
-                      <HeaderCell className="text-right">Level</HeaderCell>
+                      <HeaderCell>Cells</HeaderCell>
                       <HeaderCell>Lifetime</HeaderCell>
                       <HeaderCell>Channels</HeaderCell>
                       <HeaderCell className="text-right">Keys</HeaderCell>
@@ -3218,10 +3202,16 @@ export function AnimationDebugModal({ animaLabel }: { animaLabel?: string }) {
                                 : "Ready"}
                           </BodyCell>
                           <BodyCell>
-                            {formatEmotionGroupLabel(row.group)}
+                            {[
+                              ...new Set(
+                                row.cells.map((cell) =>
+                                  formatEmotionGroupLabel(cell.group),
+                                ),
+                              ),
+                            ].join(", ") || "-"}
                           </BodyCell>
-                          <BodyCell className="text-right">
-                            {row.intensity}
+                          <BodyCell>
+                            {formatReactionClipCells(row.cells)}
                           </BodyCell>
                           <BodyCell>{row.lifetimeSummary}</BodyCell>
                           <BodyCell>{row.channelSummary}</BodyCell>

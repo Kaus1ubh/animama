@@ -64,12 +64,15 @@ expiry.
 ## Typed loadout queries
 
 `useAnimaLoadout` owns the server-composed typed loadout read model.
-`useAnimaLoadoutMutations` exposes Gesture, Reaction, Avatar, Appearance,
-and voice plan/commit commands, plus `changeIdle`, which plans and commits one
-Idle pool change in a single action. A plan carries the current
-optimistic revision and typed intent; commit repeats it with the reviewed plan
-digest and idempotency key. Successful mutations narrowly invalidate the
-affected Anima's loadout and next runtime mount. VFX and SFX have no direct equipment mutation. Standalone Pose Clips are not
+`useAnimaLoadoutMutations` exposes Gesture and Appearance plan/commit
+commands, plus `changeIdle` and `changeReaction`, which plan and commit one
+Idle or Reaction pool change in a single action under a fresh idempotency key
+and never commit a rejected plan. `changeReaction` also returns the plan's
+warnings, such as a starter Reaction a restore skipped. A plan carries the
+current optimistic revision and typed intent; commit repeats it with the plan
+digest and idempotency key. Successful reviewed commits, and pool changes
+whether or not they succeed, narrowly invalidate the affected Anima's loadout
+and next runtime mount. VFX and SFX have no direct equipment mutation. Standalone Pose Clips are not
 supported catalog products; clip data belongs to its Gesture or Reaction.
 
 `useAnimaRuntimeCatalog` loads one exact closure descriptor.

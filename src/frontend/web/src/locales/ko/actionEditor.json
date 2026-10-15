@@ -377,7 +377,7 @@
       "aliasTypeConflict": "별칭 “{{alias}}”이(가) 둘 이상의 구성 요소 유형에서 사용됩니다.",
       "dependenciesNotArray": "종속 항목은 배열이어야 합니다.",
       "dependencyInvalid": "종속 항목 선언이 잘못되었습니다.",
-      "intensity": "리액션의 추천 강도는 1, 2, 3 중 하나여야 합니다.",
+      "intensity": "리액션의 추천 강도는 1, 2, 3, 4 중 하나여야 합니다.",
       "nameRequired": "프로젝트 이름은 필수입니다.",
       "notObject": "JSON에는 객체가 있어야 합니다.",
       "sourceInvalid": "종속 항목 소스가 잘못되었습니다.",

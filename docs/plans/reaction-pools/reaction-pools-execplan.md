@@ -143,7 +143,7 @@ Content (`content/included/`):
 - [x] Phase 2: content drafts, renders and benchmarks (2026-10-15). Drafts complete (52 effects saved; 168 Reactions checked, reviewed in stills and a reel; the 12 heaviest benchmarked); Code Review #1 pass. G2 moved to before merge (D20) and still pending.
 - [ ] Dependency: #559 merged; branch rebased; baseline refreshed.
 - [x] Phase 3: backend pools and four intensities.
-- [ ] Phase 4: runtime selection and `/animas/` pool editing.
+- [x] Phase 4: runtime selection and `/animas/` pool editing.
 - [ ] Phase 5: equip dialog cell chooser and wizard pools.
 - [ ] Phase 6: promotion, starter pools and journeys. G3 list reviewed with G2 before merge.
 - [ ] Final integration review, full validation and PR.
@@ -876,15 +876,93 @@ four-member limit, reload, and confirm a stale tab refreshes.
 Completion: checks and manual checks pass, and Code Review #1 has no supported
 blocking finding.
 
-Results: _pending._
+Results (2026-10-15, on `799bea09`):
+
+- **Implemented:** shared `lib/avatar/reactionPools.ts`
+  (`REACTION_INTENSITIES`, `REACTION_POOL_LIMIT`, `pickReactionPoolMember`);
+  the snapshot adapter gives each Reaction one runtime id (`reaction:<item_id>`)
+  and turns `reaction_cells` into cell → runtime-id pools, dropping members
+  that did not mount; `getReactionRuntimeId` takes the cell, a roll and the
+  previous pick in the Anima, built-in and preview catalogs; the planner
+  draws the roll when it first accepts an event, keeps the pick on the event
+  and avoids repeating the cell's last played member. A generic pool row,
+  chip, picker and emotion row (`ui/animas/LoadoutPool.tsx`) are extracted
+  from the Idle section and used by Idle (unchanged behaviour) and the
+  rewritten Reaction section (four rows, Starter badge, Preview, Remove,
+  Add picker, full-cell reason, Restore starter, Choose from Library);
+  `changeReaction` plans and commits at once (shared `planThenCommit` with
+  Idle) and the Reaction review dialog is gone. Equip dialog and wizard
+  adapted at compile level (wizard draft schema v4 with 96 pools; older
+  drafts move each cell up one level). SDK regenerated; `runtime-contracts`
+  0.9.0 (`product-ui` unchanged: its declarations did not change); copy in
+  five locales; new error codes; frontend docs.
+- **Checks:** `pnpm openapi-ts:check`, `pnpm check`, `pnpm web:lint`,
+  `pnpm build`, `pnpm desktop:check` pass; `pnpm web:test` passes (vitest 527
+  files, 4947 passed, 1 skipped; node suites 108, 4, 13, 115 pass).
+- **Browser (task stack, purged and set up on the new schema; headless
+  Chromium, 1440 × 900 and 390 × 844):** four labelled rows with starter
+  members; adding three Reactions fills a cell to four, Add is then disabled
+  with "This cell holds four Reactions, the most it can. Remove one to add
+  another."; remove, Restore starter and an intensity-1 add work and survive
+  a reload; a stale tab's add is refused with "This Anima's Reactions changed
+  elsewhere and have been refreshed. Try again." and shows the current pools.
+  At 390 px the shared pool row squeezed member names to nothing (also true
+  of Idle on `main`); the row now wraps its controls below the members.
 
 #### Code Review #1 Findings
 
-_Pending._
+Independent reviewer, initial full review (2026-10-15; working tree on
+`799bea09`). **Result: pass** with should-fix findings:
+
+- P4-R0-F1 (should-fix): the planner recorded the last *picked* member, so a
+  pick dropped before playing could cause a repeat; R5 says played.
+- P4-R0-F2 (should-fix): the animation debug panel dropped live Reaction ids
+  (`reaction:<item_id>`), so its Reaction list was empty on Anima routes.
+- P4-R0-F3 (should-fix): the loadout browser-journey helper matched the old
+  emotion button name, and `create-anima.spec.ts` asserts the old wizard
+  shape.
+- P4-R0-F4 (optional): a planner doc sentence on roll consumption.
+- P4-R0-F5 (optional): Restore starter does nothing on a cell whose starter
+  pool is empty (all intensity-1 cells until Phase 6).
+- P4-R0-F6 (optional): the chip Starter badge marks the cell's own starter
+  members, while the picker marks every Included Reaction.
+- P4-R0-F7 (optional): four rolls per frame, now shared with Reaction picks,
+  fall back to 0 when exhausted.
+- P4-R0-F8 (optional): planner tests used identical rolls; a mutation test
+  depended on declaration order.
 
 #### Code Review #1 Revisions
 
-_Pending._
+Repair round 1:
+
+- F1: fixed. The planner records each cell's last played member
+  (`lastPlayedReactions`) when it emits `playReactionClip`; a dropped pick
+  does not count (new planner test).
+- F2: fixed. Motion catalogs expose `listReactionPools()`; the debug panel
+  lists each Reaction under every cell whose pool holds it
+  (`ui/debug/reactionClipCatalog.ts`, tested), and unpooled ids under All.
+- F3: the emotion-row locator in `e2e/helpers/preview-surfaces.ts` and
+  `accountless-imported-playback.spec.ts` uses the row's `aria-controls`;
+  `create-anima.spec.ts` moves to Phase 5, which rebuilds the wizard UI.
+- F4: doc sentence corrected.
+- F5, F6: accepted as they are: Phase 6 gives every cell starter Reactions,
+  and a chip's Starter badge keeps meaning "one of this cell's starters" as
+  the single-cell grid did.
+- F7: fixed. Without injected rolls every draw is `Math.random()`; injected
+  rolls stay deterministic; the canvas no longer passes a fixed four-roll
+  array.
+- F8: fixed. A distinct-roll planner test shows motion draws first and is
+  unchanged; the Reaction mutation test selects `changeReaction` by name.
+- Coordinator change after the browser check: the shared pool row wraps at
+  narrow widths (see Results).
+- Checks after the repairs: targeted vitest 46 files / 311 tests; `pnpm
+  check`, `pnpm web:lint`, `pnpm prettier:check`, `pnpm e2e:check:source`
+  exit 0; `pnpm web:test` exit 0 (vitest 528 files, 4953 passed, 1 skipped;
+  node suites pass).
+
+Repair round 1 recheck (same reviewer): F1–F4, F7 and F8 resolved, F5 and F6
+accepted, the layout change has no regressions. **Result: pass** (1 of 2
+repair rounds used).
 
 ### Phase 5: equip dialog cell chooser and wizard pools
 
@@ -904,7 +982,10 @@ Steps:
    recommended starter pools; `CreateAnimaActionsStep.tsx` uses the shared
    pool cell; `CreateAnimaReviewStep.tsx` counts filled cells and members.
 4. **Sharing details.** `SharingPackageDetails.tsx` lists each cell's pool.
-5. **Docs.** Update `docs/frontend/features/custom-anima-creation.md`,
+5. **Journey source.** Update `e2e/journeys/create-anima.spec.ts` for four
+   rows, 96 cells and pool lists (deferred from Phase 4, P4-R0-F3) so
+   `pnpm e2e:check:source` passes; Phase 6 runs the journeys.
+6. **Docs.** Update `docs/frontend/features/custom-anima-creation.md`,
    `library.md` and `architecture/data-layer.md`.
 
 Checks: the Phase 4 commands.

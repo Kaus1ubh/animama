@@ -15,6 +15,7 @@ import type {
   PyGesture as PyTransportGesture,
   PyAnimaIdle,
   PyIdlePlayback,
+  PyReactionCell,
   PyAvatarEffect as PyTransportAvatarEffect,
   PyParticleEffect as PyTransportParticleEffect,
   PyReaction as PyTransportReaction,
@@ -167,18 +168,6 @@ export type PyGestureBinding = {
   update_available?: boolean;
 };
 
-export type PyReactionCell = {
-  emotion: string;
-  intensity: number;
-  state: "starter" | "custom" | "empty";
-  binding_id?: string | null;
-  logical_item_id?: string | null;
-  name?: string | null;
-  source?: PyExactContentSource | null;
-  config_overrides?: Record<string, unknown>;
-  update_available?: boolean;
-};
-
 export type PyAppearanceConfig = {
   fit?: "cover" | "contain";
   focal_x?: number;
@@ -203,6 +192,7 @@ export type PyAnimaLoadout = {
   gestures: PyGestureBinding[];
   disabled_starter_gestures: string[];
   starter_gesture_implementation_kinds?: Record<string, "anima_clip" | "vrma">;
+  /** Every emotion/intensity cell's Reaction pool, from the generated contract. */
   reactions: PyReactionCell[];
   idle: PyAnimaIdle;
   avatar_source?: Record<string, unknown> | null;
@@ -239,7 +229,6 @@ export type PyGestureIntent = Record<string, unknown> & {
   operation: string;
   source?: PyExactContentSource | null;
 };
-export type PyReactionIntent = PyGestureIntent;
 export type PyAppearanceIntent = PyGestureIntent & {
   use?: "profile" | "background";
 };
@@ -247,10 +236,6 @@ export type PyAppearanceIntent = PyGestureIntent & {
 export type PyGesturePlanRequest = {
   expected_revision: number;
   intent: PyGestureIntent;
-};
-export type PyReactionPlanRequest = {
-  expected_revision: number;
-  intent: PyReactionIntent;
 };
 export type PyAppearancePlanRequest = {
   expected_revision: number;
@@ -260,7 +245,6 @@ export type PyGestureCommitRequest = PyGesturePlanRequest & {
   plan_digest: string;
   idempotency_key: string;
 };
-export type PyReactionCommitRequest = PyGestureCommitRequest;
 export type PyAppearanceCommitRequest = PyGestureCommitRequest;
 /** Convert one transport item into the stable UI view used by creators. */
 export function catalogViewItem(

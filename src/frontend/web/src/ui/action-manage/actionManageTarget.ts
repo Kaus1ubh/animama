@@ -1,7 +1,10 @@
 import type {
   PyAnimaLoadout,
   PyCatalogLoadoutSource,
+  PyReactionCell,
+  PyReactionMember,
 } from "@animama/runtime-contracts/api-types";
+import { REACTION_INTENSITIES } from "@/lib/avatar/reactionPools";
 import type { ManageActionTarget } from "./ActionManageDialog";
 
 /** Loadout `add`/`replace` intents require the item's library partition. */
@@ -19,11 +22,40 @@ export function actionManageLoadoutSource(
 }
 
 /**
+ * The Reaction cell the dialog edits: the Reaction's suggested cell, or Joy,
+ * Mild when it suggests none.
+ */
+export function actionManageReactionCell(
+  target: Pick<ManageActionTarget, "emotion" | "intensity">,
+): Pick<PyReactionCell, "emotion" | "intensity"> {
+  const intensity = REACTION_INTENSITIES.find(
+    (level) => level === target.intensity,
+  );
+  return { emotion: target.emotion ?? "joy", intensity: intensity ?? 1 };
+}
+
+/** The target's member in its cell's pool on one Anima, if it is there. */
+export function actionManageReactionMember(
+  target: ManageActionTarget,
+  loadout: PyAnimaLoadout,
+): PyReactionMember | null {
+  const { emotion, intensity } = actionManageReactionCell(target);
+  const cell = loadout.reactions.find(
+    (candidate) =>
+      candidate.emotion === emotion && candidate.intensity === intensity,
+  );
+  return (
+    cell?.members?.find((member) => member.item_id === target.itemId) ?? null
+  );
+}
+
+/**
  * Equip state of a target in one Anima's loadout.
  *
  * A Gesture is equipped when any binding uses its catalog item; Gesture slots
  * are keyed by semantic key, so a different item with the same key would be
- * replaced. A Reaction occupies one emotion/intensity cell.
+ * replaced. A Reaction is equipped when its cell's pool holds it; adding it
+ * never replaces another member.
  */
 export function actionManageRowState(
   target: ManageActionTarget,
@@ -41,11 +73,8 @@ export function actionManageRowState(
       );
     return { equipped, replacing };
   }
-  const cell = loadout.reactions.find(
-    (candidate) =>
-      candidate.emotion === (target.emotion ?? "joy") &&
-      candidate.intensity === (target.intensity ?? 1),
-  );
-  const equipped = cell?.source?.catalog_item_id === target.itemId;
-  return { equipped, replacing: Boolean(cell && !equipped) };
+  return {
+    equipped: actionManageReactionMember(target, loadout) !== null,
+    replacing: false,
+  };
 }

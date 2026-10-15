@@ -105,7 +105,9 @@ object store.
 
 Add/Manage reviews logical catalog selections for one or more owned Animas.
 Each commit carries the expected loadout revision and an idempotency key. A
-clear checkbox in Add mode never silently removes an existing choice.
+clear checkbox in Add mode never silently removes an existing choice. A
+Reaction is added to, or removed from, the pool of its suggested cell (Joy,
+Mild when it suggests none); other members of that cell stay.
 
 Equip advances future loadout resolution only. The current chat remains pinned
 to its prepared runtime revision until the route remounts. Effects and Sounds
@@ -185,7 +187,7 @@ this app (imported copies of those effects play without them).
 
 In Anima mode, choose a saved companion and review its full identity and selected
 content before **Export Anima**. The package includes its name, identity, Avatar,
-Gestures, all Reaction cells including empty cells, the Idle pool, and selected
+Gestures, every Reaction cell's pool including empty cells, the Idle pool, and selected
 profile/background images with framing. It preserves supported Action settings
 and effective starter choices. If this Anima uses a cloned PocketTTS voice, the
 package includes the encoded voice and selects the independent imported copy.

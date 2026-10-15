@@ -300,9 +300,11 @@ Important behavior:
   fired/active runtime counts, chat availability, skipped events, and the
   latest event adapter error when present.
 - The animation debug modal's `Reactions` section lists clips mounted in the
-  reaction runtime slot and resolves them lazily through debug-only
-  `ReactionClipPlayer` APIs, and shows both live reaction playback state and
-  planner reaction diagnostics. Manual debug reaction playback is runtime-only:
+  reaction runtime slot with the cells whose pools hold them; the filters match
+  any of those cells, and a Reaction in no pool shows only while every filter
+  is open. It resolves clips lazily through debug-only `ReactionClipPlayer`
+  APIs and shows both live reaction playback state and planner reaction
+  diagnostics. Manual debug reaction playback is runtime-only:
   it does not enqueue planner events or mutate canonical emotion state.
 
 ### Pose and clip JSON artifacts
@@ -447,6 +449,11 @@ frozen `GET /v1/animas/{anima_id}/runtime` response. It projects only
 that Anima's effective idle, gesture, pose, and reaction entries. Removing a
 Starter binding therefore removes it from the next mount; another Anima's
 similarly named content item cannot be discovered through a global lookup.
+Each Reaction is one entry (runtime ID `reaction:<item_id>`) however many cells
+hold it, and the response's `reaction_cells` become `reaction_pools`: each
+cell's mounted members by runtime ID. A member that did not mount is left out
+of every pool, and the pools fixed for the revision include members still
+preparing, which are skipped with a diagnostic until they are ready.
 
 VRMAs resolve to verified prepared resources for the active mount. Their cache
 identity is `runtime_id + content_revision`, not a short-lived protected URL. Idle entries
@@ -499,15 +506,17 @@ development web container mounts it at `/content/included`, and the
 production image copies it before the web build.
 
 Reaction clips are loaded separately from `content/included/reactions/` by file
-name. The canonical catalog contains 72 files: each `TRACKED_EMOTIONS` value
+name. The built-in catalog contains 72 files: each `TRACKED_EMOTIONS` value
 from `src/frontend/web/src/lib/emotion` at intensities `1`, `2`, and `3`, using
-`<emotion>-<intensity>.json` ids. Reaction clips are not in the Gesture clip
+`<emotion>-<intensity>.json` ids; it serves each cell a one-member pool of the
+clip with that id, so intensity 4 has none yet. Anima routes play the Anima's
+own pools instead. Reaction clips are not in the Gesture clip
 catalog, do not run through `Avatar.playClip(...)`, and are skipped
 if channel analysis finds any humanoid transforms. This strict authoring rule
 applies to Included and Local Reaction entries. Playback projects Reaction
 sequences to expressions/events and defensively ignores humanoid samples.
-Selection is canonical-only: exact tracked emotion tones
-resolve to matching clips, while `neutral`, blank, unknown values, and group
+Selection is per cell: exact tracked emotion tones and intensities 1–4
+pick from the cell's pool, while `neutral`, blank, unknown values, and group
 names such as `alarm` produce no clip. The clips are
 playback-scoped to same-run `talking`, so a single peak expression or VFX event
 can hold without looping or replaying SFX. Level 1 clips add one subtle avatar

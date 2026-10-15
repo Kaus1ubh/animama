@@ -50,6 +50,10 @@ describe("exact Action selections", () => {
     expect(creationIssueTarget("/reactions/anger/3", gestures)).toBe(
       "creation-reaction-anger-3",
     );
+    // A pool member's path names its cell, at any of the four intensities.
+    expect(creationIssueTarget("/reactions/joy/4/1", gestures)).toBe(
+      "creation-reaction-joy-4",
+    );
     expect(creationIssueTarget("/display_name", gestures)).toBe(
       "creation-display-name",
     );
@@ -77,7 +81,7 @@ describe("exact Action selections", () => {
       "No Gestures selected. Your Anima can still be created.",
     );
     expect(html).toContain("Reset to recommended");
-    expect(html).toContain("/72");
+    expect(html).toContain("/96");
     expect(html).not.toContain("One Gesture per semantic key");
     expect(html).not.toContain("Every emotion has three intensity cells");
     expect(preview).not.toHaveBeenCalled();

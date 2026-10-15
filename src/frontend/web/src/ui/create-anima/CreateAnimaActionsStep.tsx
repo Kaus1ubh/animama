@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronRight, Play } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
+import { useFormatters } from "@animama/product-ui/i18n";
 
 import type {
   ItemRevisionRef,
@@ -31,7 +32,8 @@ import {
   REACTION_CELL_COUNT,
   reactionCount,
   sameRef,
-  setReaction,
+  samePool,
+  setReactionPool,
   emptyReactions,
   type CreateAnimaDraft,
   type DraftEdit,
@@ -62,6 +64,7 @@ export function CreateAnimaActionsStep({
 }) {
   const { t } = useTranslation("create");
   const { t: emotionT } = useTranslation("emotion");
+  const { list } = useFormatters();
   const [tab, setTab] = useState(
     focusTarget?.startsWith("creation-reaction-") ? "reactions" : "gestures",
   );
@@ -78,9 +81,8 @@ export function CreateAnimaActionsStep({
   const [reactionSearch, setReactionSearch] = useState("");
   const [reactionSource, setReactionSource] = useState("all");
   const [reactionLimit, setReactionLimit] = useState(24);
-  const [reactionChoice, setReactionChoice] = useState<ItemRevisionRef | null>(
-    null,
-  );
+  // The cell's pool while its dialog is open; choosing one Reaction replaces it.
+  const [reactionChoice, setReactionChoice] = useState<ItemRevisionRef[]>([]);
   const [expandedEmotions, setExpandedEmotions] = useState<Set<TrackedEmotion>>(
     () => new Set(["admiration"]),
   );
@@ -394,13 +396,17 @@ export function CreateAnimaActionsStep({
                       className="divide-y border-t"
                     >
                       {INTENSITIES.map((intensity) => {
-                        const ref = draft.reactions[emotion][intensity];
+                        const pool = draft.reactions[emotion][intensity];
                         const recommended =
-                          sources.options.data?.recommended.reactions[emotion][
-                            intensity
-                          ] ?? null;
-                        const item = reactions.find((candidate) =>
-                          sameRef(ref, candidate),
+                          sources.options.data?.recommended.reactions[
+                            emotion
+                          ]?.[intensity] ?? [];
+                        const names = pool.map(
+                          (ref) =>
+                            reactions.find((candidate) =>
+                              sameRef(ref, candidate),
+                            )?.name ??
+                            t("actionsStep.reactions.needsAttention"),
                         );
                         return (
                           <div
@@ -409,7 +415,7 @@ export function CreateAnimaActionsStep({
                             tabIndex={-1}
                             className={cn(
                               "flex min-w-0 items-center gap-3 px-4 py-3.5",
-                              ref && "bg-primary/5",
+                              pool.length > 0 && "bg-primary/5",
                             )}
                           >
                             <ReactionIntensityBadge intensity={intensity} />
@@ -418,7 +424,7 @@ export function CreateAnimaActionsStep({
                               className="focus-visible:ring-ring min-w-0 flex-1 rounded-lg border px-3 py-2 text-left text-sm focus-visible:ring-2"
                               onClick={() => {
                                 setCell({ emotion, intensity });
-                                setReactionChoice(ref);
+                                setReactionChoice(pool);
                                 setReactionSearch("");
                                 setReactionSource("all");
                                 setReactionLimit(24);
@@ -429,14 +435,13 @@ export function CreateAnimaActionsStep({
                               )}
                             >
                               <span className="block truncate">
-                                {ref
-                                  ? (item?.name ??
-                                    t("actionsStep.reactions.needsAttention"))
+                                {names.length
+                                  ? list(names)
                                   : t("actionsStep.reactions.empty")}
                               </span>
                             </button>
                             <div className="flex shrink-0 gap-1">
-                              {ref ? (
+                              {pool[0] ? (
                                 <>
                                   <Button
                                     size="icon-sm"
@@ -444,7 +449,7 @@ export function CreateAnimaActionsStep({
                                     onClick={() =>
                                       onPreview(
                                         "reaction",
-                                        ref,
+                                        pool[0]!,
                                         t(
                                           "actionsStep.reactions.previewLabel",
                                           cellText(emotion, intensity),
@@ -464,11 +469,11 @@ export function CreateAnimaActionsStep({
                                     className="h-7 px-2 text-xs"
                                     onClick={() =>
                                       onEdit({
-                                        reactions: setReaction(
+                                        reactions: setReactionPool(
                                           draft,
                                           emotion,
                                           intensity,
-                                          null,
+                                          [],
                                         ),
                                       })
                                     }
@@ -481,14 +486,14 @@ export function CreateAnimaActionsStep({
                                   </Button>
                                 </>
                               ) : null}
-                              {!sameRef(ref, recommended) ? (
+                              {!samePool(pool, recommended) ? (
                                 <Button
                                   size="sm"
                                   variant="ghost"
                                   className="h-7 px-2 text-xs"
                                   onClick={() =>
                                     onEdit({
-                                      reactions: setReaction(
+                                      reactions: setReactionPool(
                                         draft,
                                         emotion,
                                         intensity,
@@ -649,8 +654,8 @@ export function CreateAnimaActionsStep({
                 <input
                   name="reaction-choice"
                   type="radio"
-                  checked={!reactionChoice}
-                  onChange={() => setReactionChoice(null)}
+                  checked={reactionChoice.length === 0}
+                  onChange={() => setReactionChoice([])}
                   className="accent-primary"
                 />
                 {t("actionsStep.reactions.empty")}
@@ -660,7 +665,8 @@ export function CreateAnimaActionsStep({
                   key={item.item_id}
                   className={cn(
                     "flex items-center gap-2 rounded-lg border p-3",
-                    sameRef(reactionChoice, item) && "bg-primary/5",
+                    reactionChoice.some((ref) => sameRef(ref, item)) &&
+                      "bg-primary/5",
                   )}
                 >
                   <label className="flex min-w-0 flex-1 items-center gap-2 text-sm">
@@ -668,8 +674,11 @@ export function CreateAnimaActionsStep({
                       name="reaction-choice"
                       type="radio"
                       className="accent-primary"
-                      checked={sameRef(reactionChoice, item)}
-                      onChange={() => setReactionChoice(itemReference(item))}
+                      checked={
+                        reactionChoice.length === 1 &&
+                        sameRef(reactionChoice[0], item)
+                      }
+                      onChange={() => setReactionChoice([itemReference(item)])}
                     />
                     <span className="break-words">
                       {item.name}
@@ -714,7 +723,7 @@ export function CreateAnimaActionsStep({
               <Button
                 onClick={() => {
                   onEdit({
-                    reactions: setReaction(
+                    reactions: setReactionPool(
                       draft,
                       cell.emotion,
                       cell.intensity,

@@ -205,10 +205,10 @@ export {
 } from "./reactionClips";
 export type {
   EmotionReactionClipSelection,
-  EmotionReactionIntensity,
   EmotionReactionTone,
   NormalizedEmotionReactionIntensity,
 } from "./reactionClips";
+export type { EmotionReactionIntensity } from "./reactionPools";
 export {
   DEFAULT_IDLE_STINT_QUIET_INTERVAL_SEC,
   NON_TTS_REACTION_CLIP_VISIBLE_DURATION_MS,

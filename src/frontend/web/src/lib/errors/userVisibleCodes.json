@@ -105,10 +105,12 @@
     "loadout_source_stale",
     "loadout_source_unavailable",
     "reaction_cell_invalid",
-    "reaction_matrix_incomplete",
+    "reaction_member_duplicate",
     "reaction_operation_invalid",
+    "reaction_pool_full",
     "starter_gesture_unavailable",
     "starter_id_required",
+    "starter_reaction_unavailable",
     "voice_operation_invalid"
   ],
   "contentSave": [

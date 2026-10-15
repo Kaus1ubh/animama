@@ -104,6 +104,11 @@ export type AnimaRuntimeCatalogSnapshot = {
   gestures: RuntimeCatalogEntry[];
   poses: RuntimeCatalogEntry[];
   reactions: RuntimeCatalogEntry[];
+  /**
+   * The Anima's Reaction pools as emotion → intensity ("1"–"4") → runtime ids
+   * of `reactions`. A missing cell plays no Reaction; there is no fallback.
+   */
+  reaction_pools?: Record<string, Record<string, string[]>>;
   particle_vfx: RuntimeCatalogEntry[];
   avatar_vfx: RuntimeCatalogEntry[];
   scene_background_vfx: RuntimeCatalogEntry[];

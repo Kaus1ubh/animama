@@ -1,13 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  ChevronDown,
-  ChevronRight,
-  Loader2,
-  Play,
-  Plus,
-  X,
-} from "lucide-react";
+import type { TFunction } from "i18next";
 
 import type {
   PyAnimaIdle,
@@ -27,23 +20,31 @@ import {
   reactionIntensityLabel,
 } from "@/ui/animas/ActionLoadoutRows";
 import { LoadoutSectionDisclosure } from "@/ui/animas/LoadoutSectionDisclosure";
-import { StarterBadge } from "@/ui/animas/StarterBadge";
-import { Button } from "@/ui/components/button";
 import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/ui/components/command";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/ui/components/popover";
+  LoadoutPoolCellRow,
+  LoadoutPoolEmotionRow,
+  LoadoutPoolMemberChip,
+  LoadoutPoolPicker,
+  useExpandedEmotions,
+  type LoadoutPoolChoiceStatus,
+  type LoadoutPoolPickerCopy,
+} from "@/ui/animas/LoadoutPool";
 
 type CellLabel = (cell: IdleLoadoutCell) => string;
+
+/** The Idle picker's wording. */
+function idlePickerCopy(t: TFunction<"animas">): LoadoutPoolPickerCopy {
+  return {
+    add: t("idle.add"),
+    search: t("idle.search"),
+    local: t("idle.local"),
+    included: t("idle.included"),
+    loading: t("idle.loading"),
+    noResults: t("idle.noResults"),
+    catalogUnavailable: t("idle.catalogUnavailable"),
+    retryCatalog: t("idle.retryCatalog"),
+  };
+}
 
 /** Searchable Gesture picker that checks finite idle playback before adding. */
 function IdleGesturePicker({
@@ -71,7 +72,6 @@ function IdleGesturePicker({
   onRetry: () => void;
 }) {
   const { t } = useTranslation("animas");
-  const [open, setOpen] = useState(false);
   const [checking, setChecking] = useState<string | null>(null);
   // Results for an exact Gesture revision: ineligible facts, or a failed check.
   // Cached facts from earlier checks also come from `known`.
@@ -84,20 +84,29 @@ function IdleGesturePicker({
     `${gesture.item_id}:${gesture.revision_sha256 ?? ""}`;
 
   /** Why a Gesture cannot be added; only a known ineligible result disables it. */
-  const statusFor = (
-    gesture: PyGesture,
-  ): { text: string; ineligible: boolean } | null => {
+  const statusFor = (gesture: PyGesture): LoadoutPoolChoiceStatus | null => {
     const outcome =
       outcomes[revisionKey(gesture)] ??
       playback.known(gesture.item_id, gesture.revision_sha256 ?? "");
     if (outcome === "failed")
-      return { text: t("idle.ineligible.checkFailed"), ineligible: false };
-    return outcome && !outcome.eligible
-      ? { text: idleIneligibilityMessage(t, outcome.reason), ineligible: true }
+      return {
+        text: t("idle.ineligible.checkFailed"),
+        tone: "error",
+        disabled: false,
+      };
+    if (outcome && !outcome.eligible)
+      return {
+        text: idleIneligibilityMessage(t, outcome.reason),
+        tone: "error",
+        disabled: true,
+      };
+    return checking === gesture.item_id
+      ? { text: t("idle.checking"), tone: "muted", disabled: false }
       : null;
   };
 
-  const choose = async (gesture: PyGesture) => {
+  /** Add an eligible Gesture and close; keep the picker open otherwise. */
+  const choose = async (gesture: PyGesture): Promise<boolean> => {
     setChecking(gesture.item_id);
     try {
       const facts = await playback.check(
@@ -111,14 +120,13 @@ function IdleGesturePicker({
           delete next[revisionKey(gesture)];
           return next;
         });
-        setOpen(false);
         onAdd(gesture);
-      } else {
-        setOutcomes((current) => ({
-          ...current,
-          [revisionKey(gesture)]: { eligible: false, reason: facts.reason },
-        }));
+        return true;
       }
+      setOutcomes((current) => ({
+        ...current,
+        [revisionKey(gesture)]: { eligible: false, reason: facts.reason },
+      }));
     } catch {
       // A transient failure stays retryable: choosing the Gesture checks again.
       setOutcomes((current) => ({
@@ -128,179 +136,25 @@ function IdleGesturePicker({
     } finally {
       setChecking(null);
     }
-  };
-
-  const choice = (gesture: PyGesture) => {
-    const status = statusFor(gesture);
-    const reason = status?.text;
-    return (
-      <CommandItem
-        key={`${gesture.origin}:${gesture.item_id}`}
-        value={`${gesture.name} ${gesture.description ?? ""} ${gesture.origin}`}
-        disabled={
-          disabled || busy || Boolean(status?.ineligible) || checking !== null
-        }
-        onSelect={() => void choose(gesture)}
-        className="min-h-10"
-      >
-        <span className="flex min-w-0 flex-1 flex-col">
-          <span className="truncate">{gesture.name}</span>
-          {reason ? (
-            <span className="text-destructive text-2xs whitespace-normal">
-              {reason}
-            </span>
-          ) : checking === gesture.item_id ? (
-            <span className="text-muted-foreground text-2xs">
-              {t("idle.checking")}
-            </span>
-          ) : null}
-        </span>
-        {gesture.origin === "builtin" ? <StarterBadge /> : null}
-        <Button
-          type="button"
-          size="icon-sm"
-          variant="ghost"
-          aria-label={t("actions.previewNamed", { name: gesture.name })}
-          onPointerDown={(event) => event.preventDefault()}
-          onClick={(event) => {
-            event.stopPropagation();
-            onPreview(gesture);
-          }}
-        >
-          <Play />
-        </Button>
-      </CommandItem>
-    );
+    return false;
   };
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          disabled={disabled}
-          aria-label={t("idle.addTo", { cell: cellLabel })}
-          className="shrink-0"
-        >
-          <Plus />
-          {t("idle.add")}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent align="end" sideOffset={6} className="w-80 p-0">
-        <Command>
-          <CommandInput placeholder={t("idle.search")} autoFocus />
-          <CommandList>
-            <CommandEmpty>
-              {availableError
-                ? t("idle.catalogUnavailable")
-                : availableLoading
-                  ? t("idle.loading")
-                  : t("idle.noResults")}
-            </CommandEmpty>
-            {local.length ? (
-              <CommandGroup heading={t("idle.local")}>
-                {local.map(choice)}
-              </CommandGroup>
-            ) : null}
-            {included.length ? (
-              <CommandGroup heading={t("idle.included")}>
-                {included.map(choice)}
-              </CommandGroup>
-            ) : null}
-          </CommandList>
-          {availableLoading || availableError ? (
-            <div className="border-t p-2">
-              {availableError ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="w-full"
-                  onClick={onRetry}
-                >
-                  {t("idle.retryCatalog")}
-                </Button>
-              ) : (
-                <p className="text-muted-foreground flex items-center justify-center gap-2 py-1 text-xs">
-                  <Loader2 className="size-3.5 animate-spin" />
-                  {t("idle.loading")}
-                </p>
-              )}
-            </div>
-          ) : null}
-        </Command>
-      </PopoverContent>
-    </Popover>
-  );
-}
-
-/** One member of a cell with Preview, and Remove unless it is inherited. */
-function IdleMemberChip({
-  member,
-  cellLabel,
-  from,
-  disabled,
-  onPreview,
-  onRemove,
-}: {
-  member: PyIdleMember;
-  cellLabel: string;
-  /** The lower intensity an inherited member comes from; it is removed there. */
-  from?: string;
-  disabled?: boolean;
-  onPreview: () => void;
-  /** Absent for an inherited member, which shows no Remove. */
-  onRemove?: () => void;
-}) {
-  const { t } = useTranslation("animas");
-  return (
-    <li
-      className={`flex min-w-0 items-center gap-1 rounded-md border py-0.5 pr-0.5 pl-2 text-sm ${
-        from ? "text-muted-foreground border-dashed" : "bg-muted/40"
-      }`}
-    >
-      <span
-        className={`truncate ${member.available ? "" : "text-muted-foreground line-through"}`}
-      >
-        {member.name}
-      </span>
-      {member.available ? null : (
-        <span className="text-destructive text-2xs shrink-0">
-          {t("idle.unavailable")}
-        </span>
-      )}
-      {from ? (
-        <span className="text-2xs shrink-0">
-          {t("idle.inheritedFrom", { intensity: from })}
-        </span>
-      ) : null}
-      <Button
-        type="button"
-        size="icon-sm"
-        variant="ghost"
-        className="size-6"
-        disabled={!member.available}
-        aria-label={t("actions.previewNamed", { name: member.name })}
-        onClick={onPreview}
-      >
-        <Play />
-      </Button>
-      {onRemove ? (
-        <Button
-          type="button"
-          size="icon-sm"
-          variant="ghost"
-          className="size-6"
-          disabled={disabled}
-          aria-label={t("idle.remove", { name: member.name, cell: cellLabel })}
-          onClick={onRemove}
-        >
-          <X />
-        </Button>
-      ) : null}
-    </li>
+    <LoadoutPoolPicker
+      addLabel={t("idle.addTo", { cell: cellLabel })}
+      copy={idlePickerCopy(t)}
+      local={local}
+      included={included}
+      loading={availableLoading}
+      error={availableError}
+      disabled={disabled}
+      busy={busy}
+      selecting={checking !== null}
+      status={statusFor}
+      onSelect={choose}
+      onPreview={onPreview}
+      onRetry={onRetry}
+    />
   );
 }
 
@@ -342,56 +196,60 @@ function IdleCellRow({
   const { t } = useTranslation("animas");
   const name = cellLabel(cell);
   return (
-    <div className="flex min-w-0 items-start gap-3 border-b px-4 py-3 last:border-b-0">
-      {label}
-      <div className="min-w-0 flex-1 space-y-1.5 pt-1.5">
-        {cell.gestures.length ? (
-          <ul className="flex flex-wrap gap-1.5" aria-label={name}>
-            {cell.gestures.map((member) => (
-              <IdleMemberChip
-                key={member.binding_id}
-                member={member}
-                cellLabel={name}
-                disabled={disabled || busy}
-                onPreview={() => onPreview(member)}
-                onRemove={() => onRemove(member)}
-              />
-            ))}
-          </ul>
-        ) : null}
-        {cell.inherited.length ? (
+    <LoadoutPoolCellRow
+      label={label}
+      listLabel={name}
+      emptyText={emptyText}
+      members={cell.gestures.map((member) => (
+        <LoadoutPoolMemberChip
+          key={member.binding_id}
+          member={member}
+          unavailableText={t("idle.unavailable")}
+          removeLabel={t("idle.remove", { name: member.name, cell: name })}
+          disabled={disabled || busy}
+          onPreview={() => onPreview(member)}
+          onRemove={() => onRemove(member)}
+        />
+      ))}
+      extra={
+        cell.inherited.length ? (
           <ul
             className="flex flex-wrap gap-1.5"
             aria-label={t("idle.inheritedIn", { cell: name })}
           >
             {cell.inherited.map(({ member, intensity }) => (
-              <IdleMemberChip
+              <LoadoutPoolMemberChip
                 key={member.binding_id}
                 member={member}
-                cellLabel={name}
-                from={reactionIntensityLabel(intensity, t)}
+                unavailableText={t("idle.unavailable")}
+                removeLabel={t("idle.remove", {
+                  name: member.name,
+                  cell: name,
+                })}
+                inheritedFrom={t("idle.inheritedFrom", {
+                  intensity: reactionIntensityLabel(intensity, t),
+                })}
                 onPreview={() => onPreview(member)}
               />
             ))}
           </ul>
-        ) : null}
-        {cell.gestures.length || cell.inherited.length ? null : (
-          <p className="text-muted-foreground text-sm">{emptyText}</p>
-        )}
-      </div>
-      <IdleGesturePicker
-        cell={cell}
-        cellLabel={name}
-        available={available}
-        availableLoading={availableLoading}
-        availableError={availableError}
-        disabled={disabled}
-        busy={busy}
-        onAdd={(gesture) => onAdd(cell, gesture)}
-        onPreview={onPreviewAvailable}
-        onRetry={onRetryAvailable}
-      />
-    </div>
+        ) : null
+      }
+      controls={
+        <IdleGesturePicker
+          cell={cell}
+          cellLabel={name}
+          available={available}
+          availableLoading={availableLoading}
+          availableError={availableError}
+          disabled={disabled}
+          busy={busy}
+          onAdd={(gesture) => onAdd(cell, gesture)}
+          onPreview={onPreviewAvailable}
+          onRetry={onRetryAvailable}
+        />
+      }
+    />
   );
 }
 
@@ -427,9 +285,7 @@ export function IdleLoadoutSection({
 }) {
   const { t } = useTranslation("animas");
   const [expanded, setExpanded] = useState(false);
-  const [expandedEmotions, setExpandedEmotions] = useState<Set<string>>(
-    () => new Set(),
-  );
+  const emotions = useExpandedEmotions();
   const grid = buildIdleLoadoutGrid(idle);
   const cellLabel: CellLabel = (cell) =>
     cell.emotion && cell.intensity
@@ -474,73 +330,33 @@ export function IdleLoadoutSection({
             emptyText={t("idle.emptyDefault")}
           />
         </div>
-        {grid.rows.map((row) => {
-          const open = expandedEmotions.has(row.emotion);
-          const panelId = `idle-${row.emotion}-levels`;
-          return (
-            <div
-              key={row.emotion}
-              className={`border-b last:border-b-0 ${
-                open
-                  ? "border-l-primary border-l-2"
-                  : "border-l-2 border-l-transparent"
-              }`}
-            >
-              <button
-                type="button"
-                aria-expanded={open}
-                aria-controls={panelId}
-                onClick={() =>
-                  setExpandedEmotions((current) => {
-                    const next = new Set(current);
-                    if (open) next.delete(row.emotion);
-                    else next.add(row.emotion);
-                    return next;
-                  })
-                }
-                className={`focus-visible:ring-ring flex w-full items-center justify-between gap-4 px-4 py-3.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset ${
-                  open ? "bg-primary/5 hover:bg-primary/8" : "hover:bg-muted/30"
-                }`}
-              >
-                <span className="truncate text-sm font-semibold capitalize">
-                  {storedEmotionLabel(row.emotion)}
-                </span>
-                <span className="text-muted-foreground flex shrink-0 items-center gap-3 text-xs">
-                  {row.gestureCount
-                    ? t("idle.gestureCount", { count: row.gestureCount })
-                    : t("idle.defaultOnly")}
-                  {open ? (
-                    <ChevronDown className="text-foreground size-4" />
-                  ) : (
-                    <ChevronRight className="text-foreground size-4" />
-                  )}
-                </span>
-              </button>
-              {open ? (
-                <div
-                  id={panelId}
-                  role="region"
-                  aria-label={t("idle.levels", {
-                    emotion: storedEmotionLabel(row.emotion),
-                  })}
-                  className="border-t"
-                >
-                  {row.cells.map((cell) => (
-                    <IdleCellRow
-                      key={cell.key}
-                      {...rowProps}
-                      cell={cell}
-                      label={
-                        <ReactionIntensityBadge intensity={cell.intensity!} />
-                      }
-                      emptyText={t("idle.defaultOnly")}
-                    />
-                  ))}
-                </div>
-              ) : null}
-            </div>
-          );
-        })}
+        {grid.rows.map((row) => (
+          <LoadoutPoolEmotionRow
+            key={row.emotion}
+            label={storedEmotionLabel(row.emotion)}
+            summary={
+              row.gestureCount
+                ? t("idle.gestureCount", { count: row.gestureCount })
+                : t("idle.defaultOnly")
+            }
+            panelId={`idle-${row.emotion}-levels`}
+            regionLabel={t("idle.levels", {
+              emotion: storedEmotionLabel(row.emotion),
+            })}
+            open={emotions.expanded.has(row.emotion)}
+            onToggle={() => emotions.toggle(row.emotion)}
+          >
+            {row.cells.map((cell) => (
+              <IdleCellRow
+                key={cell.key}
+                {...rowProps}
+                cell={cell}
+                label={<ReactionIntensityBadge intensity={cell.intensity!} />}
+                emptyText={t("idle.defaultOnly")}
+              />
+            ))}
+          </LoadoutPoolEmotionRow>
+        ))}
       </div>
     </LoadoutSectionDisclosure>
   );

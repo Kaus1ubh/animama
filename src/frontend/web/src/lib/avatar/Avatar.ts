@@ -68,6 +68,7 @@ import {
   type AvatarMotionCatalog,
   type AvatarMotionClipDescriptor,
   type AvatarVrmaResource,
+  type ReactionPools,
 } from "./motion/AvatarMotionCatalog";
 import type { ManifestAnimation } from "./animationManifest";
 import {
@@ -1143,6 +1144,11 @@ export class Avatar {
     return this._motionCatalog.listReactionClips();
   }
 
+  /** The mounted catalog's Reaction pools, for debug inspection. */
+  getMotionReactionPools(): ReactionPools {
+    return this._motionCatalog.listReactionPools();
+  }
+
   getLoadedMotionReactionClip(clipId: string): AnimaPoseClipV2 | null {
     return this._motionCatalog.getReactionClip(clipId);
   }
@@ -1662,12 +1668,8 @@ export class Avatar {
         proceduralPolicySnapshot?.eligiblePlannerProceduralLayerIds ??
         [],
       pendingEvents: context.pendingEvents ?? [],
-      randomRolls: context.randomRolls ?? [
-        Math.random(),
-        Math.random(),
-        Math.random(),
-        Math.random(),
-      ],
+      // Without injected rolls the planner draws live randomness as needed.
+      randomRolls: context.randomRolls,
       idleStintQuietIntervalSec:
         context.idleStintQuietIntervalSec ?? this._idleStintQuietIntervalSec,
       emotionPostureConfig:

@@ -185,6 +185,7 @@ describe("AnimaRuntimeCatalog", () => {
     const issued = runtimeContent({
       gestures: [gesture],
       reactions: [reaction],
+      reaction_pools: { joy: { "1": ["joy-1"] } },
       sfx: [sound],
     });
     const readiness = new Map<string, "pending" | "ready">([
@@ -208,6 +209,7 @@ describe("AnimaRuntimeCatalog", () => {
       catalog.getReactionRuntimeId({
         emotionalTone: "joy",
         emotionalIntensity: 1,
+        randomRoll: 0,
       }),
     ).toBeNull();
     await expect(catalog.loadReactionClip("joy-1")).resolves.toBeNull();
@@ -442,6 +444,76 @@ describe("AnimaRuntimeCatalog", () => {
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
 
+  it("picks a Reaction uniformly from the event's cell, at all four intensities", () => {
+    const reactions = ["a", "b", "c", "intense"].map((runtimeId) =>
+      runtimeEntry({ slot: "reaction", runtimeId, kind: "anima_pose_clip" }),
+    );
+    const catalog = new AnimaRuntimeCatalog(
+      runtimeContent({
+        reactions,
+        reaction_pools: {
+          joy: { "2": ["a", "b", "c"], "4": ["intense"] },
+        },
+      }),
+    );
+    const pick = (randomRoll: number, previousRuntimeId?: string) =>
+      catalog.getReactionRuntimeId({
+        emotionalTone: "joy",
+        emotionalIntensity: 2,
+        randomRoll,
+        previousRuntimeId,
+      });
+
+    expect(catalog.listReactionPools()).toEqual({
+      joy: { "2": ["a", "b", "c"], "4": ["intense"] },
+    });
+    expect([0, 0.34, 0.67, 0.99].map((roll) => pick(roll))).toEqual([
+      "a",
+      "b",
+      "c",
+      "c",
+    ]);
+    // The previous pick is left out, and the roll spreads over the others.
+    expect(pick(0, "a")).toBe("b");
+    expect(pick(0.99, "c")).toBe("b");
+    expect(
+      catalog.getReactionRuntimeId({
+        emotionalTone: "joy",
+        emotionalIntensity: 4,
+        randomRoll: 0.5,
+        previousRuntimeId: "intense",
+      }),
+    ).toBe("intense");
+  });
+
+  it("plays nothing for an empty, unknown or zero-intensity cell, with no fallback", () => {
+    const catalog = new AnimaRuntimeCatalog(
+      runtimeContent({
+        reactions: [
+          runtimeEntry({
+            slot: "reaction",
+            runtimeId: "cheer",
+            kind: "anima_pose_clip",
+          }),
+        ],
+        // "gone" never mounted, so joy 3 has nothing that can play.
+        reaction_pools: { joy: { "2": ["cheer"], "3": ["gone"] } },
+      }),
+    );
+    const pick = (emotionalTone: string, emotionalIntensity: 0 | 1 | 3) =>
+      catalog.getReactionRuntimeId({
+        emotionalTone,
+        emotionalIntensity,
+        randomRoll: 0,
+      });
+
+    expect(pick("joy", 1)).toBeNull();
+    expect(pick("joy", 3)).toBeNull();
+    expect(pick("joy", 0)).toBeNull();
+    expect(pick("sadness", 3)).toBeNull();
+    expect(pick("neutral", 3)).toBeNull();
+  });
+
   it("loads typed Reaction sequence files through the shared preview catalog", async () => {
     const entry = runtimeEntry({
       slot: "reaction",
@@ -482,7 +554,11 @@ describe("AnimaRuntimeCatalog", () => {
       kind: "anima_pose_clip",
     });
     const catalog = new AnimaRuntimeCatalog(
-      runtimeContent({ gestures: [gesture], reactions: [reaction] }),
+      runtimeContent({
+        gestures: [gesture],
+        reactions: [reaction],
+        reaction_pools: { joy: { "2": ["joy-2"] } },
+      }),
       {
         fetcher: async (input) =>
           authorizedSource(input)
@@ -500,12 +576,14 @@ describe("AnimaRuntimeCatalog", () => {
       catalog.getReactionRuntimeId({
         emotionalTone: "joy",
         emotionalIntensity: 2,
+        randomRoll: 0,
       }),
     ).toBe("joy-2");
     expect(
       catalog.getReactionRuntimeId({
         emotionalTone: "alarm",
         emotionalIntensity: 2,
+        randomRoll: 0,
       }),
     ).toBeNull();
     await expect(catalog.loadPoseClip("custom-gesture")).resolves.toMatchObject(

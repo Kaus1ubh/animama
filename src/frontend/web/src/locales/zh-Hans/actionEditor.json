@@ -377,7 +377,7 @@
       "aliasTypeConflict": "别名“{{alias}}”被多种组件类型使用。",
       "dependenciesNotArray": "依赖项必须是数组。",
       "dependencyInvalid": "依赖项声明无效。",
-      "intensity": "反应的建议强度必须是 1、2 或 3。",
+      "intensity": "反应的建议强度必须是 1、2、3 或 4。",
       "nameRequired": "项目名称为必填项。",
       "notObject": "JSON 必须包含一个对象。",
       "sourceInvalid": "依赖项来源无效。",

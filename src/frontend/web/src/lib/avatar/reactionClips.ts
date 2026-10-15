@@ -1,8 +1,9 @@
 import { getAvatarReactionClip, hasAvatarReactionClip } from "./poses/catalog";
 import type { AnimaPoseClipV2 } from "./poses/animaPoseClip";
 import { isTrackedEmotion, type TrackedEmotion } from "@/lib/emotion";
+import type { EmotionReactionIntensity } from "./reactionPools";
 
-export type EmotionReactionIntensity = 1 | 2 | 3;
+/** A chat event's Reaction intensity; 0 plays no Reaction. */
 export type NormalizedEmotionReactionIntensity = 0 | EmotionReactionIntensity;
 export type EmotionReactionTone = TrackedEmotion;
 
@@ -13,13 +14,14 @@ export type EmotionReactionClipSelection = {
   clip: AnimaPoseClipV2;
 };
 
+/** Read `emotion.update`'s Reaction intensity (0–4), clamping larger values to 4. */
 export function normalizeEmotionReactionIntensity(
   value: unknown,
 ): NormalizedEmotionReactionIntensity {
   if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
     return 0;
   }
-  return Math.max(0, Math.min(3, Math.round(value))) as
+  return Math.max(0, Math.min(4, Math.round(value))) as
     | 0
     | EmotionReactionIntensity;
 }

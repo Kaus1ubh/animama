@@ -1,47 +1,41 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { Link } from "@tanstack/react-router";
-import {
-  ChevronDown,
-  ChevronRight,
-  EllipsisVertical,
-  Loader2,
-  Play,
-} from "lucide-react";
+import { EllipsisVertical } from "lucide-react";
 
-import type { PyReactionCell } from "@animama/runtime-contracts/api-types";
+import type {
+  PyReactionCell,
+  PyReactionMember,
+} from "@animama/runtime-contracts/api-types";
 import type { PyReaction } from "@/lib/content/catalogTypes";
+import { storedEmotionLabel } from "@/lib/emotion/presentation";
 import {
   groupReactionSelectorChoices,
+  reactionCellFull,
   type ReactionLoadoutRow,
 } from "@/lib/loadout/reactionLoadoutGrid";
-import { LoadoutSectionDisclosure } from "@/ui/animas/LoadoutSectionDisclosure";
-import { StarterBadge } from "@/ui/animas/StarterBadge";
 import {
   ReactionIntensityBadge,
   reactionIntensityLabel,
 } from "@/ui/animas/ActionLoadoutRows";
-import { storedEmotionLabel } from "@/lib/emotion/presentation";
-import { Button } from "@/ui/components/button";
+import { LoadoutSectionDisclosure } from "@/ui/animas/LoadoutSectionDisclosure";
 import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/ui/components/command";
+  LoadoutPoolCellRow,
+  LoadoutPoolEmotionRow,
+  LoadoutPoolMemberChip,
+  LoadoutPoolPicker,
+  useExpandedEmotions,
+  type LoadoutPoolPickerCopy,
+} from "@/ui/animas/LoadoutPool";
+import { StarterBadge } from "@/ui/animas/StarterBadge";
+import { Button } from "@/ui/components/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/ui/components/dropdown-menu";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/ui/components/popover";
 import {
   Tooltip,
   TooltipContent,
@@ -53,354 +47,199 @@ const LIBRARY_REACTIONS = {
   action: "reactions" as const,
 };
 
-function reactionSourceKey(
-  source: PyReaction["source"] | PyReactionCell["source"],
+/** The Reaction picker's wording. */
+function reactionPickerCopy(t: TFunction<"animas">): LoadoutPoolPickerCopy {
+  return {
+    add: t("reactions.add"),
+    search: t("reactions.search"),
+    local: t("reactions.local"),
+    included: t("reactions.included"),
+    loading: t("reactions.loading"),
+    noResults: t("reactions.noResults"),
+    catalogUnavailable: t("reactions.catalogUnavailable"),
+    retryCatalog: t("reactions.retryCatalog"),
+  };
+}
+
+/** A Reaction's suggested cell, shown as a hint under its name. */
+function reactionSuggestion(
+  reaction: PyReaction,
+  t: TFunction<"animas">,
 ): string | null {
-  if (!source) return null;
-  if ("catalog_item_id" in source) return `catalog:${source.catalog_item_id}`;
-  return source.type === "builtin"
-    ? `builtin:${source.content_id}:${source.version}`
+  return reaction.emotion && reaction.intensity
+    ? t("reactions.suggestion", {
+        emotion: storedEmotionLabel(reaction.emotion),
+        intensity: reactionIntensityLabel(reaction.intensity, t),
+      })
     : null;
 }
 
-export function ReactionChoice({
-  reaction,
-  selected,
-  disabled,
-  onSelect,
-  onPreview,
-}: {
-  reaction: PyReaction;
-  selected: boolean;
-  disabled: boolean;
-  onSelect: () => void;
-  onPreview: () => void;
-}) {
-  const { t } = useTranslation("animas");
-  const suggestion =
-    reaction.emotion && reaction.intensity
-      ? t("reactions.suggestion", {
-          emotion: storedEmotionLabel(reaction.emotion),
-          intensity: reactionIntensityLabel(reaction.intensity, t),
-        })
-      : null;
-  return (
-    <CommandItem
-      value={`${reaction.name} ${reaction.description ?? ""} ${suggestion ?? ""} ${reaction.origin}`}
-      data-checked={selected}
-      disabled={disabled}
-      onSelect={onSelect}
-      className="min-h-10"
-    >
-      <span className="flex min-w-0 flex-1 flex-col">
-        <span className="truncate">{reaction.name}</span>
-        {suggestion ? (
-          <span className="text-muted-foreground text-2xs truncate capitalize">
-            {suggestion}
-          </span>
-        ) : null}
-      </span>
-      {reaction.origin === "builtin" ? <StarterBadge /> : null}
-      <Button
-        type="button"
-        size="icon-sm"
-        variant="ghost"
-        aria-label={t("actions.previewNamed", { name: reaction.name })}
-        onPointerDown={(event) => event.preventDefault()}
-        onClick={(event) => {
-          event.stopPropagation();
-          onPreview();
-        }}
-      >
-        <Play />
-      </Button>
-    </CommandItem>
-  );
-}
-
-/** Searchable all-Reaction selector that assigns a choice to the target cell. */
-function ReactionSelector({
+/** The cell menu: open the Library, or restore the cell's starter pool. */
+function ReactionCellMenu({
   cell,
-  available,
-  availableLoading,
-  availableError,
+  cellName,
   disabled,
-  onSelect,
-  onPreview,
-  onRetry,
+  onRestoreStarter,
 }: {
   cell: PyReactionCell;
-  available: PyReaction[];
-  availableLoading: boolean;
-  availableError: boolean;
+  cellName: string;
   disabled: boolean;
-  onSelect: (reaction: PyReaction) => void;
-  onPreview: (reaction: PyReaction) => void;
-  onRetry: () => void;
+  onRestoreStarter: () => void;
 }) {
   const { t } = useTranslation("animas");
-  const [open, setOpen] = useState(false);
-  const currentSourceKey = reactionSourceKey(cell.source);
-  const { local, included } = groupReactionSelectorChoices(available);
-
-  const choice = (reaction: PyReaction) => {
-    const selected = reactionSourceKey(reaction.source) === currentSourceKey;
-    return (
-      <ReactionChoice
-        key={`${reaction.origin}:${reaction.item_id}`}
-        reaction={reaction}
-        selected={selected}
-        disabled={disabled}
-        onPreview={() => onPreview(reaction)}
-        onSelect={() => {
-          setOpen(false);
-          if (!selected) onSelect(reaction);
-        }}
-      />
-    );
-  };
-
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          aria-label={t("reactions.change", {
-            intensity: reactionIntensityLabel(cell.intensity, t),
-            emotion: storedEmotionLabel(cell.emotion),
-          })}
-          disabled={disabled}
-          className="h-9 min-w-0 flex-1 justify-between gap-2 rounded-lg px-3 font-normal"
-        >
-          <span className="flex min-w-0 items-center gap-2">
-            <span className="truncate">
-              {cell.name ?? t("reactions.noReaction")}
-            </span>
-            {cell.state === "starter" ? <StarterBadge /> : null}
-          </span>
-          <ChevronDown className="text-muted-foreground size-4 shrink-0" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent
-        align="start"
-        sideOffset={6}
-        className="w-(--radix-popover-trigger-width) min-w-80 p-0"
-      >
-        <Command>
-          <CommandInput placeholder={t("reactions.search")} autoFocus />
-          <CommandList>
-            <CommandEmpty>
-              {availableError
-                ? t("reactions.catalogUnavailable")
-                : availableLoading
-                  ? t("reactions.loading")
-                  : t("reactions.noResults")}
-            </CommandEmpty>
-            {local.length ? (
-              <CommandGroup heading={t("reactions.local")}>
-                {local.map(choice)}
-              </CommandGroup>
-            ) : null}
-            {included.length ? (
-              <CommandGroup heading={t("reactions.included")}>
-                {included.map(choice)}
-              </CommandGroup>
-            ) : null}
-          </CommandList>
-          {availableLoading || availableError ? (
-            <div className="border-t p-2">
-              {availableError ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="w-full"
-                  onClick={onRetry}
-                >
-                  {t("reactions.retryCatalog")}
-                </Button>
-              ) : (
-                <p className="text-muted-foreground flex items-center justify-center gap-2 py-1 text-xs">
-                  <Loader2 className="size-3.5 animate-spin" />
-                  {t("reactions.loading")}
-                </p>
-              )}
-            </div>
-          ) : null}
-        </Command>
-      </PopoverContent>
-    </Popover>
-  );
-}
-
-function CellActions({
-  cell,
-  mutationsDisabled,
-  onPreview,
-  onRevert,
-  onLeaveEmpty,
-}: {
-  cell: PyReactionCell;
-  mutationsDisabled: boolean;
-  onPreview: () => void;
-  onRevert: () => void;
-  onLeaveEmpty: () => void;
-}) {
-  const { t } = useTranslation("animas");
-  const reactionName =
-    cell.name ??
-    t("reactions.cellName", {
-      emotion: storedEmotionLabel(cell.emotion),
-      intensity: reactionIntensityLabel(cell.intensity, t),
-    });
-
-  return (
-    <div className="flex shrink-0 items-center gap-1">
+    <DropdownMenu>
       <Tooltip>
         <TooltipTrigger asChild>
-          <Button
-            type="button"
-            size="icon-sm"
-            variant="outline"
-            disabled={!cell.source}
-            aria-label={t("actions.previewNamed", { name: reactionName })}
-            onClick={onPreview}
-          >
-            <Play />
-          </Button>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              size="icon-sm"
+              variant="ghost"
+              aria-label={t("actions.moreActionsFor", { name: cellName })}
+            >
+              <EllipsisVertical />
+            </Button>
+          </DropdownMenuTrigger>
         </TooltipTrigger>
         <TooltipContent side="top" sideOffset={6}>
-          {cell.source ? t("actions.preview") : t("actions.previewUnavailable")}
+          {t("actions.moreActions")}
         </TooltipContent>
       </Tooltip>
-
-      <DropdownMenu>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <DropdownMenuTrigger asChild>
-              <Button
-                type="button"
-                size="icon-sm"
-                variant="ghost"
-                aria-label={t("actions.moreActionsFor", { name: reactionName })}
-              >
-                <EllipsisVertical />
-              </Button>
-            </DropdownMenuTrigger>
-          </TooltipTrigger>
-          <TooltipContent side="top" sideOffset={6}>
-            {t("actions.moreActions")}
-          </TooltipContent>
-        </Tooltip>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem asChild>
-            <Link to="/library" search={LIBRARY_REACTIONS}>
-              {t("reactions.chooseFromLibrary")}
-            </Link>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem asChild>
+          <Link to="/library" search={LIBRARY_REACTIONS}>
+            {t("reactions.chooseFromLibrary")}
+          </Link>
+        </DropdownMenuItem>
+        {cell.state !== "starter" ? (
+          <DropdownMenuItem disabled={disabled} onSelect={onRestoreStarter}>
+            {t("reactions.restoreStarter")}
           </DropdownMenuItem>
-          {cell.state === "custom" || cell.state === "empty" ? (
-            <DropdownMenuItem disabled={mutationsDisabled} onSelect={onRevert}>
-              {t("reactions.revertToStarter")}
-            </DropdownMenuItem>
-          ) : null}
-          {cell.state !== "empty" ? (
-            <DropdownMenuItem
-              className="text-destructive"
-              disabled={mutationsDisabled}
-              onSelect={onLeaveEmpty}
-            >
-              {t("reactions.leaveEmpty")}
-            </DropdownMenuItem>
-          ) : null}
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+        ) : null}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
-function ReactionLevelRow({
+type ReactionCellHandlers = {
+  available: PyReaction[];
+  availableLoading: boolean;
+  availableError: boolean;
+  disabled: boolean;
+  busy: boolean;
+  onAdd: (cell: PyReactionCell, reaction: PyReaction) => void;
+  onRemove: (member: PyReactionMember) => void;
+  onRestoreStarter: (cell: PyReactionCell) => void;
+  onPreview: (member: PyReactionMember) => void;
+  onPreviewAvailable: (reaction: PyReaction) => void;
+  onRetryAvailable: () => void;
+};
+
+/**
+ * One cell's pool: member chips (Starter badge, Preview, Remove), the Add
+ * picker, which marks members already in the cell and stops at four, and the
+ * cell menu.
+ */
+function ReactionCellRow({
   cell,
   available,
   availableLoading,
   availableError,
-  mutationsDisabled,
+  disabled,
+  busy,
+  onAdd,
+  onRemove,
+  onRestoreStarter,
   onPreview,
   onPreviewAvailable,
-  onSelect,
-  onRevert,
-  onLeaveEmpty,
   onRetryAvailable,
-}: {
-  cell: PyReactionCell;
-  available: PyReaction[];
-  availableLoading: boolean;
-  availableError: boolean;
-  mutationsDisabled: boolean;
-  onPreview: () => void;
-  onPreviewAvailable: (reaction: PyReaction) => void;
-  onSelect: (reaction: PyReaction) => void;
-  onRevert: () => void;
-  onLeaveEmpty: () => void;
-  onRetryAvailable: () => void;
-}) {
+}: ReactionCellHandlers & { cell: PyReactionCell }) {
+  const { t } = useTranslation("animas");
+  const name = t("reactions.cell", {
+    emotion: storedEmotionLabel(cell.emotion),
+    intensity: reactionIntensityLabel(cell.intensity, t),
+  });
+  const members = cell.members ?? [];
+  const inCell = new Set(members.map((member) => member.item_id));
+  const full = reactionCellFull(cell);
+  const fullId = `reaction-${cell.emotion}-${cell.intensity}-full`;
+  const { local, included } = groupReactionSelectorChoices(available);
   return (
-    <div className="flex min-w-0 items-center gap-3 border-b px-4 py-3.5 last:border-b-0">
-      <ReactionIntensityBadge intensity={cell.intensity} />
-      <ReactionSelector
-        cell={cell}
-        available={available}
-        availableLoading={availableLoading}
-        availableError={availableError}
-        disabled={mutationsDisabled}
-        onSelect={onSelect}
-        onPreview={onPreviewAvailable}
-        onRetry={onRetryAvailable}
-      />
-      <CellActions
-        cell={cell}
-        mutationsDisabled={mutationsDisabled}
-        onPreview={onPreview}
-        onRevert={onRevert}
-        onLeaveEmpty={onLeaveEmpty}
-      />
-    </div>
+    <LoadoutPoolCellRow
+      label={<ReactionIntensityBadge intensity={cell.intensity} />}
+      listLabel={name}
+      emptyText={t("reactions.noReaction")}
+      members={members.map((member) => (
+        <LoadoutPoolMemberChip
+          key={member.binding_id}
+          member={member}
+          unavailableText={t("reactions.unavailable")}
+          removeLabel={t("reactions.remove", { name: member.name, cell: name })}
+          badge={member.origin === "starter" ? <StarterBadge /> : null}
+          disabled={disabled || busy}
+          onPreview={() => onPreview(member)}
+          onRemove={() => onRemove(member)}
+        />
+      ))}
+      extra={
+        full ? (
+          <p id={fullId} className="text-muted-foreground text-xs">
+            {t("reactions.full")}
+          </p>
+        ) : null
+      }
+      controls={
+        <div className="flex shrink-0 items-center gap-1">
+          <LoadoutPoolPicker
+            addLabel={t("reactions.addTo", { cell: name })}
+            copy={reactionPickerCopy(t)}
+            local={local}
+            included={included}
+            loading={availableLoading}
+            error={availableError}
+            disabled={disabled || full}
+            describedBy={full ? fullId : undefined}
+            busy={busy}
+            status={(reaction) =>
+              inCell.has(reaction.item_id)
+                ? { text: t("reactions.inCell"), tone: "muted", disabled: true }
+                : null
+            }
+            detail={(reaction) => reactionSuggestion(reaction, t)}
+            onSelect={(reaction) => {
+              onAdd(cell, reaction);
+              return true;
+            }}
+            onPreview={onPreviewAvailable}
+            onRetry={onRetryAvailable}
+          />
+          <ReactionCellMenu
+            cell={cell}
+            cellName={name}
+            disabled={disabled || busy}
+            onRestoreStarter={() => onRestoreStarter(cell)}
+          />
+        </div>
+      }
+    />
   );
 }
 
-/** Reaction loadout with independently expandable emotion groups. */
+/**
+ * The Anima's Reaction pools, edited in place: one expandable row per emotion
+ * with its four intensities, each a pool of up to four Reactions. Changes
+ * apply at once.
+ */
 export function ReactionLoadoutGrid({
   rows,
-  available,
-  availableLoading,
-  availableError,
-  mutationsDisabled,
-  onPreview,
-  onPreviewAvailable,
-  onSelect,
-  onRevert,
-  onLeaveEmpty,
-  onRetryAvailable,
-}: {
+  ...handlers
+}: ReactionCellHandlers & {
   rows: ReactionLoadoutRow[];
-  available: PyReaction[];
-  availableLoading: boolean;
-  availableError: boolean;
-  mutationsDisabled: boolean;
-  onPreview: (cell: PyReactionCell) => void;
-  onPreviewAvailable: (reaction: PyReaction) => void;
-  onSelect: (cell: PyReactionCell, reaction: PyReaction) => void;
-  onRevert: (cell: PyReactionCell) => void;
-  onLeaveEmpty: (cell: PyReactionCell) => void;
-  onRetryAvailable: () => void;
 }) {
   const { t } = useTranslation("animas");
   const [expanded, setExpanded] = useState(false);
-  const [expandedEmotions, setExpandedEmotions] = useState<
-    Set<ReactionLoadoutRow["emotion"]>
-  >(() => new Set(rows[0] ? [rows[0].emotion] : []));
+  const emotions = useExpandedEmotions(rows[0] ? [rows[0].emotion] : []);
   return (
     <LoadoutSectionDisclosure
       title={t("reactions.title")}
@@ -411,77 +250,27 @@ export function ReactionLoadoutGrid({
       sticky
     >
       <div className="overflow-hidden rounded-xl border">
-        {rows.map((row) => {
-          const expanded = expandedEmotions.has(row.emotion);
-          const panelId = `reaction-${row.emotion}-levels`;
-
-          return (
-            <div
-              key={row.emotion}
-              className={`border-b last:border-b-0 ${
-                expanded
-                  ? "border-l-primary border-l-2"
-                  : "border-l-2 border-l-transparent"
-              }`}
-            >
-              <button
-                type="button"
-                aria-expanded={expanded}
-                aria-controls={panelId}
-                onClick={() =>
-                  setExpandedEmotions((current) => {
-                    const next = new Set(current);
-                    if (expanded) next.delete(row.emotion);
-                    else next.add(row.emotion);
-                    return next;
-                  })
-                }
-                className={`focus-visible:ring-ring flex w-full items-center justify-between gap-4 px-4 py-3.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset ${
-                  expanded
-                    ? "bg-primary/5 hover:bg-primary/8"
-                    : "hover:bg-muted/30"
-                }`}
-              >
-                <span className="truncate text-sm font-semibold capitalize">
-                  {storedEmotionLabel(row.emotion)}
-                </span>
-                {expanded ? (
-                  <ChevronDown className="text-foreground size-4 shrink-0" />
-                ) : (
-                  <ChevronRight className="text-foreground size-4 shrink-0" />
-                )}
-              </button>
-
-              {expanded ? (
-                <div
-                  id={panelId}
-                  role="region"
-                  aria-label={t("reactions.levels", {
-                    emotion: storedEmotionLabel(row.emotion),
-                  })}
-                  className="border-t"
-                >
-                  {row.cells.map((cell) => (
-                    <ReactionLevelRow
-                      key={cell.intensity}
-                      cell={cell}
-                      available={available}
-                      availableLoading={availableLoading}
-                      availableError={availableError}
-                      mutationsDisabled={mutationsDisabled}
-                      onPreview={() => onPreview(cell)}
-                      onPreviewAvailable={onPreviewAvailable}
-                      onSelect={(reaction) => onSelect(cell, reaction)}
-                      onRevert={() => onRevert(cell)}
-                      onLeaveEmpty={() => onLeaveEmpty(cell)}
-                      onRetryAvailable={onRetryAvailable}
-                    />
-                  ))}
-                </div>
-              ) : null}
-            </div>
-          );
-        })}
+        {rows.map((row) => (
+          <LoadoutPoolEmotionRow
+            key={row.emotion}
+            label={storedEmotionLabel(row.emotion)}
+            summary={
+              row.reactionCount
+                ? t("reactions.reactionCount", { count: row.reactionCount })
+                : t("reactions.noReaction")
+            }
+            panelId={`reaction-${row.emotion}-levels`}
+            regionLabel={t("reactions.levels", {
+              emotion: storedEmotionLabel(row.emotion),
+            })}
+            open={emotions.expanded.has(row.emotion)}
+            onToggle={() => emotions.toggle(row.emotion)}
+          >
+            {row.cells.map((cell) => (
+              <ReactionCellRow key={cell.intensity} cell={cell} {...handlers} />
+            ))}
+          </LoadoutPoolEmotionRow>
+        ))}
       </div>
     </LoadoutSectionDisclosure>
   );

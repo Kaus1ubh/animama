@@ -1,10 +1,21 @@
-import type { PyReactionCell } from "@animama/runtime-contracts/api-types";
+import type {
+  PyCatalogLoadoutSource,
+  PyReactionCell,
+  PyReactionIntent,
+} from "@animama/runtime-contracts/api-types";
 import type { PyReaction } from "@/lib/content/catalogTypes";
+import {
+  REACTION_INTENSITIES,
+  REACTION_POOL_LIMIT,
+} from "@/lib/avatar/reactionPools";
 import { TRACKED_EMOTIONS, type TrackedEmotion } from "@/lib/emotion";
 
 export type ReactionLoadoutRow = {
   emotion: TrackedEmotion;
-  cells: [PyReactionCell, PyReactionCell, PyReactionCell];
+  /** The emotion's cells from Mild (1) to Intense (4). */
+  cells: [PyReactionCell, PyReactionCell, PyReactionCell, PyReactionCell];
+  /** Reactions across the emotion's four cells, for the collapsed summary. */
+  reactionCount: number;
 };
 
 export type ReactionSelectorGroups = {
@@ -22,11 +33,14 @@ export function groupReactionSelectorChoices(
   };
 }
 
-function emptyCell(emotion: TrackedEmotion, intensity: number) {
-  return { emotion, intensity, state: "empty" as const };
+function emptyCell(
+  emotion: TrackedEmotion,
+  intensity: PyReactionCell["intensity"],
+): PyReactionCell {
+  return { emotion, intensity, state: "empty", members: [] };
 }
 
-/** Build the fixed 24-by-3 Reaction matrix, ordered alphabetically by emotion. */
+/** Build the fixed 24-by-4 Reaction matrix, ordered alphabetically by emotion. */
 export function buildReactionLoadoutGrid(
   cells: readonly PyReactionCell[],
 ): ReactionLoadoutRow[] {
@@ -35,12 +49,37 @@ export function buildReactionLoadoutGrid(
   );
   return [...TRACKED_EMOTIONS]
     .sort((left, right) => left.localeCompare(right))
-    .map((emotion) => ({
-      emotion,
-      cells: [1, 2, 3].map(
+    .map((emotion) => {
+      const rowCells = REACTION_INTENSITIES.map(
         (intensity) =>
           byCell.get(`${emotion}:${intensity}`) ??
           emptyCell(emotion, intensity),
-      ) as ReactionLoadoutRow["cells"],
-    }));
+      ) as ReactionLoadoutRow["cells"];
+      return {
+        emotion,
+        cells: rowCells,
+        reactionCount: rowCells.reduce(
+          (count, cell) => count + (cell.members?.length ?? 0),
+          0,
+        ),
+      };
+    });
+}
+
+/** Whether a cell's pool already holds the most Reactions a cell may hold. */
+export function reactionCellFull(cell: PyReactionCell): boolean {
+  return (cell.members?.length ?? 0) >= REACTION_POOL_LIMIT;
+}
+
+/** The intent adding a Reaction to one cell's pool. */
+export function reactionAddIntent(
+  cell: Pick<PyReactionCell, "emotion" | "intensity">,
+  source: PyCatalogLoadoutSource,
+): PyReactionIntent {
+  return {
+    operation: "add",
+    emotion: cell.emotion,
+    intensity: cell.intensity,
+    source,
+  };
 }

@@ -13,6 +13,8 @@ import type {
   AvatarMotionPreloadEntry,
   AvatarMotionPreloadTier,
   AvatarVrmaResource,
+  ReactionPoolPickArgs,
+  ReactionPools,
 } from "@/lib/avatar/motion/AvatarMotionCatalog";
 import { BUILT_IN_AVATAR_MOTION_CATALOG } from "@/lib/avatar/motion/AvatarMotionCatalog";
 import {
@@ -37,7 +39,7 @@ import {
   type AnimaPoseClipV2,
   type AnimaPoseClipEventCatalogRefDiagnostics,
 } from "@/lib/avatar/poses/animaPoseClip";
-import type { NormalizedEmotionReactionIntensity } from "@/lib/avatar/reactionClips";
+import { pickReactionPoolMember } from "@/lib/avatar/reactionPools";
 import type { EmotionRuntimeState, TrackedEmotion } from "@/lib/emotion";
 import {
   intensityFromEmotionValue,
@@ -117,6 +119,10 @@ export class AnimaRuntimeCatalog
   private lastPreparing: boolean;
   private readonly idleAnimations: ManifestAnimation[] = [];
   private idleCellPools: AnimaRuntimeCatalogSnapshot["idle_pools"];
+  /** Fixed for the revision: the issued pools, so preparing members are known. */
+  private readonly reactionPools: NonNullable<
+    AnimaRuntimeCatalogSnapshot["reaction_pools"]
+  >;
   private readonly gestures = new Map<string, ManifestGestureEntry>();
   private readonly poseClipDescriptors = new Map<
     string,
@@ -176,6 +182,10 @@ export class AnimaRuntimeCatalog
     this.getRootReadiness = options.preparation?.getRootReadiness;
     this.preparing = options.preparation?.isPreparing ?? (() => false);
     this.lastPreparing = this.preparing();
+    this.reactionPools =
+      options.preparation?.issued.reaction_pools ??
+      runtime.reaction_pools ??
+      {};
     if (options.preparation) {
       for (const entries of [
         options.preparation.issued.idle_animations,
@@ -522,16 +532,30 @@ export class AnimaRuntimeCatalog
     }));
   }
 
-  getReactionRuntimeId(args: {
-    emotionalTone: string | null | undefined;
-    emotionalIntensity: NormalizedEmotionReactionIntensity;
-  }): string | null {
+  /**
+   * Pick from the cell's pool among the Reactions that mounted and are not
+   * still preparing (a preparing one is skipped with a diagnostic).
+   */
+  getReactionRuntimeId(args: ReactionPoolPickArgs): string | null {
     if (args.emotionalIntensity === 0) return null;
     const tone = args.emotionalTone?.trim() ?? "";
     if (!isTrackedEmotion(tone)) return null;
-    const runtimeId = `${tone}-${args.emotionalIntensity}`;
-    if (this.pending("reaction", runtimeId)) return null;
-    return this.reactionClipDescriptors.has(runtimeId) ? runtimeId : null;
+    const members =
+      this.reactionPools[tone]?.[String(args.emotionalIntensity)] ?? [];
+    const playable = members.filter(
+      (runtimeId) =>
+        !this.pending("reaction", runtimeId) &&
+        this.reactionClipDescriptors.has(normalizeFile(runtimeId)),
+    );
+    return pickReactionPoolMember(
+      playable,
+      args.randomRoll,
+      args.previousRuntimeId,
+    );
+  }
+
+  listReactionPools(): ReactionPools {
+    return this.reactionPools;
   }
 
   getPoseIds(): readonly string[] {

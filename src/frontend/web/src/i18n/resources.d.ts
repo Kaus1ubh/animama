@@ -382,7 +382,7 @@ export default interface Resources {
         "aliasTypeConflict": "Alias “{{alias}}” is used by more than one component type.",
         "dependenciesNotArray": "Dependencies must be an array.",
         "dependencyInvalid": "Dependency declaration is invalid.",
-        "intensity": "Suggested Reaction intensity must be 1, 2, or 3.",
+        "intensity": "Suggested Reaction intensity must be 1, 2, 3 or 4.",
         "nameRequired": "Project name is required.",
         "notObject": "JSON must contain an object.",
         "sourceInvalid": "Dependency source is invalid.",
@@ -695,8 +695,7 @@ export default interface Resources {
       "removedFrom": "{{name}} removed from {{anima}}.",
       "title": "Equip {{name}}",
       "willReplace": {
-        "gesture": "Will replace the current gesture",
-        "reaction": "Will replace the current reaction"
+        "gesture": "Will replace the current gesture"
       }
     },
     "management": {
@@ -760,28 +759,36 @@ export default interface Resources {
       "repairing": "Repairing memories…"
     },
     "reactions": {
+      "add": "Add",
+      "addTo": "Add a Reaction to {{cell}}",
       "catalogUnavailable": "Reaction catalog unavailable.",
-      "cellName": "{{emotion, lowercase}} {{intensity}}",
-      "change": "Change {{intensity}} {{emotion, lowercase}} Reaction",
+      "cell": "{{emotion}} · {{intensity}}",
+      "changedElsewhere": "This Anima's Reactions changed elsewhere and have been refreshed. Try again.",
       "chooseFromLibrary": "Choose from Library",
+      "full": "This cell holds four Reactions, the most it can. Remove one to add another.",
+      "inCell": "Already in this cell",
       "included": "Included",
       "intensity": {
+        "intense": "Intense",
         "level": "Level {{level}}",
         "mild": "Mild",
         "moderate": "Moderate",
         "strong": "Strong"
       },
-      "leaveEmpty": "Leave empty",
       "levels": "{{emotion, lowercase}} Reaction levels",
       "loading": "Loading Reactions…",
       "local": "Local",
       "noReaction": "No Reaction",
       "noResults": "No Reactions found.",
+      "reactionCount_one": "{{count}} Reaction",
+      "reactionCount_other": "{{count}} Reactions",
+      "remove": "Remove {{name}} from {{cell}}",
+      "restoreStarter": "Restore starter",
       "retryCatalog": "Retry catalog",
-      "revertToStarter": "Revert to Starter",
       "search": "Search reactions",
       "suggestion": "{{emotion, lowercase}} · {{intensity}}",
-      "title": "Reactions"
+      "title": "Reactions",
+      "unavailable": "Unavailable"
     },
     "roster": {
       "description": "There are no Animas in this account yet. You can explore your Library while your account is prepared. Creating Animas is unavailable in this hosted application.",
@@ -3300,11 +3307,13 @@ export default interface Resources {
       "previewFailed": "Preview failed.",
       "previewUnavailable": "Preview is unavailable.",
       "reaction_cell_invalid": "This Reaction cell is not valid.",
-      "reaction_matrix_incomplete": "The Reaction grid is incomplete.",
+      "reaction_member_duplicate": "This Reaction is already in that cell.",
       "reaction_operation_invalid": "This Reaction change is not valid.",
+      "reaction_pool_full": "That cell already holds four Reactions. Remove one to add another.",
       "reviewFailed": "Review failed.",
       "starter_gesture_unavailable": "Included Gesture {{semanticKey}} is unavailable.",
       "starter_id_required": "This change needs an Included Gesture.",
+      "starter_reaction_unavailable": "Included Reaction {{contentId}} is unavailable and was not restored.",
       "updateFailed": "Update failed.",
       "voice_operation_invalid": "This voice change is not valid."
     },

@@ -56,7 +56,7 @@ describe("avatar-runtime-store gesture events", () => {
       emotionEventId: "emotion-event-1",
       runId: "run-1",
       emotional_tone: "joy",
-      emotional_intensity: 3,
+      emotional_intensity: 4,
     });
   });
 

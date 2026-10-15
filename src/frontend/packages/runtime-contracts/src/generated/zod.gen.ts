@@ -13,12 +13,19 @@ export const zAdoptStarterRepair = z.object({
 
 /**
  * AnimaCreationCounts
+ *
+ * Starter policy sizes and how many of them are available.
+ *
+ * ``*_reaction_cells`` count cells with at least one Reaction;
+ * ``*_reactions`` count pool members.
  */
 export const zAnimaCreationCounts = z.object({
     available_gestures: z.int(),
     available_reaction_cells: z.int(),
+    available_reactions: z.int(),
     recommended_gestures: z.int(),
-    recommended_reaction_cells: z.int()
+    recommended_reaction_cells: z.int(),
+    recommended_reactions: z.int()
 });
 
 /**
@@ -1541,14 +1548,6 @@ export const zPartAck = z.object({
 });
 
 /**
- * PortableActionSelection
- */
-export const zPortableActionSelection = z.object({
-    config: z.optional(z.record(z.string(), z.unknown())),
-    entry_id: z.string().min(1).max(128).regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/)
-});
-
-/**
  * PortableAppearanceSelection
  */
 export const zPortableAppearanceSelection = z.object({
@@ -1610,10 +1609,7 @@ export const zPortableAnima = z.object({
         z.string().min(1).max(128).regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/),
         z.null()
     ])),
-    reactions: z.record(z.string(), z.record(z.string(), z.union([
-        zPortableActionSelection,
-        z.null()
-    ])))
+    reactions: z.record(z.string(), z.record(z.string(), z.array(z.string().min(1).max(128).regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/)).max(4)))
 });
 
 /**
@@ -4533,32 +4529,96 @@ export const zPyPreparedPreviewRoot = z.object({
 });
 
 /**
- * PyReactionCell
+ * PyReactionIntent
+ *
+ * Add a Reaction to one cell's pool, remove one member, or restore a cell's starter pool.
+ *
+ * ``add`` takes the Reaction ``source`` and the cell (``emotion`` and
+ * ``intensity`` 1-4); a cell holds at most four Reactions, each once.
+ * ``remove`` takes only the member's ``binding_id``, so an unavailable member
+ * can be removed too. ``restore_starter`` takes only the cell and makes its
+ * pool exactly the cell's available Included starter Reactions.
  */
-export const zPyReactionCell = z.object({
+export const zPyReactionIntent = z.object({
     binding_id: z.optional(z.union([
+        z.string().min(1).max(128),
+        z.null()
+    ])),
+    emotion: z.optional(z.union([
+        z.string().min(1).max(64),
+        z.null()
+    ])),
+    intensity: z.optional(z.union([
+        z.union([
+            z.literal(1),
+            z.literal(2),
+            z.literal(3),
+            z.literal(4)
+        ]),
+        z.null()
+    ])),
+    operation: z.enum([
+        'add',
+        'remove',
+        'restore_starter'
+    ]),
+    source: z.optional(z.union([
+        zPyCatalogLoadoutSource,
+        z.null()
+    ]))
+});
+
+/**
+ * PyReactionCommitRequest
+ */
+export const zPyReactionCommitRequest = z.object({
+    expected_revision: z.int().gte(1),
+    idempotency_key: z.string().min(1).max(128),
+    intent: zPyReactionIntent,
+    plan_digest: z.string().regex(/^[0-9a-f]{64}$/)
+});
+
+/**
+ * PyReactionMember
+ *
+ * One Reaction in a cell's pool.
+ *
+ * ``available`` is false when its catalog item is missing or invalid.
+ * ``origin`` is ``starter`` for one of the cell's Included starter Reactions.
+ */
+export const zPyReactionMember = z.object({
+    available: z.boolean(),
+    binding_id: z.string(),
+    description: z.optional(z.union([
         z.string(),
         z.null()
     ])),
-    config_overrides: z.optional(z.record(z.string(), z.unknown())),
+    item_id: z.string(),
+    name: z.string(),
+    origin: z.enum(['starter', 'custom']),
+    source: z.optional(z.union([
+        zPyCatalogLoadoutSource,
+        z.null()
+    ]))
+});
+
+/**
+ * PyReactionCell
+ *
+ * One emotion/intensity cell's pool of up to four Reactions.
+ *
+ * ``state`` is ``empty`` without members, ``starter`` when the members are
+ * exactly the cell's available Included starter Reactions, else ``custom``.
+ */
+export const zPyReactionCell = z.object({
     emotion: z.string(),
     intensity: z.union([
         z.literal(1),
         z.literal(2),
-        z.literal(3)
+        z.literal(3),
+        z.literal(4)
     ]),
-    logical_item_id: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    name: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    source: z.optional(z.union([
-        zPyCatalogLoadoutSource,
-        z.null()
-    ])),
+    members: z.optional(z.array(zPyReactionMember)),
     state: z.enum([
         'starter',
         'custom',
@@ -4589,41 +4649,6 @@ export const zPyAnimaLoadout = z.object({
         z.null()
     ])),
     warnings: z.optional(z.array(zPyLoadoutDiagnostic))
-});
-
-/**
- * PyReactionIntent
- */
-export const zPyReactionIntent = z.object({
-    config_overrides: z.optional(z.record(z.string(), z.unknown())),
-    emotion: z.string().min(1).max(64),
-    intensity: z.union([
-        z.literal(1),
-        z.literal(2),
-        z.literal(3)
-    ]),
-    operation: z.enum([
-        'add',
-        'replace',
-        'update',
-        'reconfigure',
-        'revert',
-        'leave_empty'
-    ]),
-    source: z.optional(z.union([
-        zPyCatalogLoadoutSource,
-        z.null()
-    ]))
-});
-
-/**
- * PyReactionCommitRequest
- */
-export const zPyReactionCommitRequest = z.object({
-    expected_revision: z.int().gte(1),
-    idempotency_key: z.string().min(1).max(128),
-    intent: zPyReactionIntent,
-    plan_digest: z.string().regex(/^[0-9a-f]{64}$/)
 });
 
 /**
@@ -5363,6 +5388,8 @@ export const zPyPosePage = z.object({
 
 /**
  * PyReaction
+ *
+ * A Reaction; ``emotion`` and ``intensity`` are its suggested cell, never a restriction.
  */
 export const zPyReaction = z.object({
     config: z.optional(z.record(z.string(), z.unknown())),
@@ -5382,7 +5409,8 @@ export const zPyReaction = z.object({
         z.union([
             z.literal(1),
             z.literal(2),
-            z.literal(3)
+            z.literal(3),
+            z.literal(4)
         ]),
         z.null()
     ])),
@@ -6059,13 +6087,12 @@ export const zPyWebSearchTestResult = z.object({
 
 /**
  * RecommendedAnimaActions
+ *
+ * Starter choices; ``reactions`` lists each of the 96 cells' available starter Reactions.
  */
 export const zRecommendedAnimaActions = z.object({
     gestures: z.array(zGestureSelection),
-    reactions: z.record(z.string(), z.record(z.string(), z.union([
-        zItemRevisionRef,
-        z.null()
-    ])))
+    reactions: z.record(z.string(), z.record(z.string(), z.array(zItemRevisionRef).max(4)))
 });
 
 /**
@@ -6263,10 +6290,7 @@ export const zAnimaSpecInput = z.object({
     expected_source_revisions: z.record(z.string(), z.unknown()),
     gestures: z.array(zGestureSelection).max(500),
     identity_markdown: z.string(),
-    reactions: z.record(z.string(), z.record(z.string(), z.union([
-        zItemRevisionRef,
-        z.null()
-    ]))),
+    reactions: z.record(z.string(), z.record(z.string(), z.array(zItemRevisionRef).max(4))),
     schema_version: z.literal(1),
     starter_pack: zStarterPackIdentity,
     voice: z.optional(z.union([
@@ -6287,10 +6311,7 @@ export const zAnimaSpecOutput = z.object({
     expected_source_revisions: z.record(z.string(), z.unknown()),
     gestures: z.array(zGestureSelection).max(500),
     identity_markdown: z.string(),
-    reactions: z.record(z.string(), z.record(z.string(), z.union([
-        zItemRevisionRef,
-        z.null()
-    ]))),
+    reactions: z.record(z.string(), z.record(z.string(), z.array(zItemRevisionRef).max(4))),
     schema_version: z.literal(1),
     starter_pack: zStarterPackIdentity,
     voice: z.optional(z.union([
@@ -6319,10 +6340,7 @@ export const zCreateAnimaRequest = z.object({
     gestures: z.array(zGestureSelection).max(500),
     idempotency_key: z.string().min(1).max(128).regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/),
     identity_markdown: z.string(),
-    reactions: z.record(z.string(), z.record(z.string(), z.union([
-        zItemRevisionRef,
-        z.null()
-    ]))),
+    reactions: z.record(z.string(), z.record(z.string(), z.array(zItemRevisionRef).max(4))),
     schema_version: z.literal(1),
     starter_pack: zStarterPackIdentity,
     voice: z.optional(z.union([
@@ -6342,10 +6360,7 @@ export const zLegacyCreateAnimaRequest = z.object({
     gestures: z.array(zGestureSelection).max(500),
     idempotency_key: z.string().min(1).max(128).regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/),
     identity_markdown: z.string(),
-    reactions: z.record(z.string(), z.record(z.string(), z.union([
-        zItemRevisionRef,
-        z.null()
-    ]))),
+    reactions: z.record(z.string(), z.record(z.string(), z.array(zItemRevisionRef).max(4))),
     schema_version: z.literal(1),
     starter_pack: zStarterPackIdentity,
     voice: z.optional(z.union([
@@ -6565,6 +6580,7 @@ export const zPyAnimaRuntime = z.object({
     loadout_revision: z.int(),
     particle_effects: z.optional(z.array(zPyRuntimeSupport)),
     poses: z.optional(z.array(zPyRuntimeAction)),
+    reaction_cells: z.optional(z.record(z.string(), z.record(z.string(), z.array(z.string())))),
     reactions: z.optional(z.array(zPyRuntimeAction)),
     scene_effects: z.optional(z.array(zPyRuntimeSupport)),
     sound_effects: z.optional(z.array(zPyRuntimeSupport)),

@@ -39,6 +39,7 @@ export function creationIssueTarget(
     )[Number(gesture[1])]?.semantic_key;
     return key ? `creation-gesture-${key}` : "creation-gestures";
   }
-  const cell = /^\/reactions\/([a-z_]+)\/([123])/.exec(path);
+  // A pool member's path continues with its index; the cell is the target.
+  const cell = /^\/reactions\/([a-z_]+)\/([1-4])/.exec(path);
   return cell ? `creation-reaction-${cell[1]}-${cell[2]}` : "creation-actions";
 }

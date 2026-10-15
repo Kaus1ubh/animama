@@ -67,7 +67,10 @@ The planner input describes facts, not commands:
 - `pendingEvents`: queued `runStarted`, `emotionUpdated`, and
   `gestureRequested` motion events plus `emotionReactionUpdated` reaction clip
   events.
-- `randomRolls`: injectable randomness for deterministic planning and tests.
+- `randomRolls`: injectable randomness for deterministic planning and tests;
+  injected rolls read 0 once used up. Without them (the live avatar) every
+  draw is `Math.random()`. One reader serves a frame: motion draws first, then
+  Reaction picks.
 - `idleStintQuietIntervalSec`: optional idle quiet period override. The
   default comes from `DEFAULT_IDLE_STINT_QUIET_INTERVAL_SEC`.
 - `emotionPostureConfig`: debug/runtime gates for the `emotionPosture`
@@ -97,11 +100,11 @@ The lane selects the executor and the actions that require arbitration.
 The AI-facing Gesture selector is the Gesture item's stable reviewed semantic
 key, not an opaque file or support-resource ID. Catalog revisions may change
 while that product selector remains intelligible to the model. Reaction
-selection remains the canonical emotion/intensity cell, but the selected
-Reaction Action need not have the same authored placement hint. Runtime
-projection uses the equipped cell and continues to project away humanoid body
-motion while using expression/VFX/SFX channels; the typed validator therefore
-prevents a Reaction that would become a no-op after that projection.
+selection uses the event's emotion/intensity cell and its pool; a member need
+not have the same authored placement hint. Runtime projection continues to
+project away humanoid body motion while using expression/VFX/SFX channels; the
+typed validator therefore prevents a Reaction that would become a no-op after
+that projection.
 
 The live loadout selects Gesture and Reaction roots. At route mount, the
 backend resolves their registered dependencies, and browser preparation
@@ -112,8 +115,8 @@ See [Local content runtime](../architecture/local-content-runtime.md).
 
 An `AnimaPoseClip` payload is an implementation document inside a catalog
 Gesture or Reaction, not a loadout item. Product placement determines
-the planner lane: Gestures use gesture playback and canonical Reaction cells
-use non-body reaction playback. Dependencies are compiled with the root and
+the planner lane: Gestures use gesture playback and Reaction pool members use
+non-body reaction playback. Dependencies are compiled with the root and
 are never separately equipped.
 
 Reaction Equip is available when projection leaves at least one expression,
@@ -121,11 +124,10 @@ avatar VFX, scene VFX, particle VFX, or SFX channel. `ReactionClipPlayer`
 explicitly projects every sampled generic clip to expressions before its
 fade/interpolation path and dispatches the supported events separately, so any
 humanoid transforms retained for Gesture use never claim the reaction body
-lane. The Equip review warns when body motion will be ignored. The author
-chooses a tracked emotion and Level 1–3, producing the canonical runtime ID
-`<emotion>-<intensity>`. Replacing an occupied canonical reaction is shown in
-review before the existing binding identity/configuration receives the new
-exact source.
+lane. The author may suggest a tracked emotion and intensity (Mild to
+Intense); the suggestion is only a hint for equipping. Each Reaction mounts
+once, with runtime ID `reaction:<item_id>` from its binding, however many
+cells hold it.
 
 There is no planner-owned `particleVfx` lane.
 Particle effects for normal emotion reactions are authored as
@@ -215,11 +217,23 @@ Planner events are the bridge from runtime facts to autonomous motion policy:
   zero-intensity, duplicate, and unmapped events, and clears active reactions
   when their playback lifetime ends.
 
-Reaction selection is canonical-only. Exact `TRACKED_EMOTIONS` tones map to
-`<emotion>-1`, `<emotion>-2`, or `<emotion>-3` clips by normalized intensity.
-Group names such as `alarm`, unknown tones, neutral tones, and zero-intensity
-events produce no reaction clip. Other tones/groups do not fall back to the
-baseline emotion expression state. Reaction clips declare
+Reaction selection is per cell. An exact `TRACKED_EMOTIONS` tone and a
+Reaction intensity of 1–4 name one cell, and
+`AvatarMotionCatalog.getReactionRuntimeId` picks one of the cell's members that
+mounted and is not still preparing, uniformly from one random roll. When the
+planner first accepts an event it draws that roll and stores the pick on the
+pending event (`reactionRuntimeId`, null when nothing can play), so the event
+keeps one pick while it waits for talking. Planner state remembers the member
+each cell played last (`lastPlayedReactions`, recorded when the clip starts
+and cleared when the Anima changes); a pick dropped before playing does not
+count. A cell with two or more playable members never picks the member it
+played last, while a one-member cell always plays its member. Group names such
+as `alarm`, unknown tones, neutral tones and intensity 0 (model intensity 1–2)
+name no cell, so they draw no roll; they and empty cells produce no reaction
+clip, and no other cell is tried. Other tones/groups do not
+fall back to the baseline emotion expression state. The built-in catalog used
+outside an Anima route serves one-member pools of the bundled
+`<emotion>-<intensity>` clips. Reaction clips declare
 `playback.lifetime.kind: "whileInteractionPhase"` with `phases: ["talking"]`
 and `scope: "activeRun"`, so the planner retains them only while the same run
 is talking.

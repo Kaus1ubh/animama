@@ -14,7 +14,8 @@ import {
   newCreateAnimaDraft,
   reactionCount,
   reconcileCreationIssues,
-  setReaction,
+  samePool,
+  setReactionPool,
   sourceMapSchema,
 } from "./createAnimaDraft";
 import { DEFAULT_ANIMA_IDENTITY_MARKDOWN } from "./createAnimaIdentity";
@@ -73,9 +74,9 @@ describe("CreateAnimaDraft", () => {
     },
   );
 
-  it("constructs schema v3 with the exact editable identity seed and 72 null cells", () => {
+  it("constructs schema v4 with the exact editable identity seed and 96 empty pools", () => {
     const draft = newCreateAnimaDraft();
-    expect(draft.schema_version).toBe(3);
+    expect(draft.schema_version).toBe(4);
     expect(draft.identity_markdown).toBe(DEFAULT_ANIMA_IDENTITY_MARKDOWN);
     expect(draft.identity_markdown).toBe(
       [
@@ -111,9 +112,9 @@ describe("CreateAnimaDraft", () => {
     );
     expect(draft.meaningful).toBe(false);
     expect(draft.appearance_migration).toBe("none");
-    expect(Object.values(draft.reactions).flatMap(Object.values)).toHaveLength(
-      72,
-    );
+    const pools = Object.values(draft.reactions).flatMap(Object.values);
+    expect(pools).toHaveLength(96);
+    expect(pools.every((pool) => pool.length === 0)).toBe(true);
   });
 
   it("keeps the generated identity heading synchronized with the display name", () => {
@@ -189,7 +190,7 @@ describe("CreateAnimaDraft", () => {
 
   it("changing Avatar preserves Actions and identity", () => {
     const draft = readyDraft();
-    draft.reactions = setReaction(draft, "joy", "3", ref("reaction"));
+    draft.reactions = setReactionPool(draft, "joy", "3", [ref("reaction")]);
     const next = createAnimaDraftReducer(draft, {
       type: "avatar",
       source: ref("next"),
@@ -202,16 +203,42 @@ describe("CreateAnimaDraft", () => {
     expect(next.identity_markdown).toBe(draft.identity_markdown);
   });
 
-  it("accepts empty selections and repeated Reaction assignments", () => {
+  it("accepts empty pools and a Reaction in several cells and pools", () => {
     const draft = readyDraft();
     expect(draftIssues(draft, 3)).toEqual([]);
     expect(reactionCount(draft)).toBe(0);
-    draft.reactions = setReaction(draft, "anger", "1", ref("reaction"));
-    draft.reactions = setReaction(draft, "joy", "3", ref("reaction"));
+    draft.reactions = setReactionPool(draft, "anger", "1", [ref("reaction")]);
+    draft.reactions = setReactionPool(draft, "joy", "4", [
+      ref("other"),
+      ref("reaction"),
+    ]);
+    // Cells holding at least one Reaction.
     expect(reactionCount(draft)).toBe(2);
     expect(creationRoots(draft).map((item) => item.path)).toEqual(
-      expect.arrayContaining(["/reactions/joy/3", "/reactions/anger/1"]),
+      expect.arrayContaining([
+        "/reactions/anger/1/0",
+        "/reactions/joy/4/0",
+        "/reactions/joy/4/1",
+      ]),
     );
+    expect(samePool(draft.reactions.joy["4"], [ref("other")])).toBe(false);
+    expect(
+      samePool(draft.reactions.joy["4"], [ref("other"), ref("reaction")]),
+    ).toBe(true);
+  });
+
+  it("rejects a fifth Reaction or a repeated one in a cell", () => {
+    const draft = readyDraft();
+    const withPool = (pool: ReturnType<typeof ref>[]) =>
+      createAnimaDraftSchema.safeParse({
+        ...draft,
+        reactions: setReactionPool(draft, "joy", "2", pool),
+      }).success;
+    expect(withPool(["a", "b", "c", "d"].map((id) => ref(id)))).toBe(true);
+    expect(withPool(["a", "b", "c", "d", "e"].map((id) => ref(id)))).toBe(
+      false,
+    );
+    expect(withPool([ref("a"), ref("a", "c")])).toBe(false);
   });
 
   it("leaves the Idle pool to the server", () => {
@@ -296,7 +323,7 @@ describe("CreateAnimaDraft", () => {
     const source = {
       code: "source_needs_attention",
       message: "Review this Reaction source.",
-      path: "/reactions/joy/1",
+      path: "/reactions/joy/1/0",
       item_id: "reaction",
       declaring_action_item_id: "reaction",
     };

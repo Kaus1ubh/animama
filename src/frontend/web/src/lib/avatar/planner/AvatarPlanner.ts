@@ -21,7 +21,10 @@ import {
   type AnimaPoseClipV2,
 } from "../poses/animaPoseClip";
 import { selectThinkingPoseClip } from "../thinkingPoseSelection";
-import type { NormalizedEmotionReactionIntensity } from "../reactionClips";
+import {
+  resolveEmotionReactionTone,
+  type NormalizedEmotionReactionIntensity,
+} from "../reactionClips";
 import {
   BUILT_IN_AVATAR_MOTION_CATALOG,
   type AvatarMotionCatalog,
@@ -238,6 +241,12 @@ export type AvatarPlannerEmotionReactionEvent = {
   emotional_tone: string | null;
   emotional_intensity: NormalizedEmotionReactionIntensity;
   createdAtMs: number;
+  /**
+   * The cell member this event plays, picked once when the planner first
+   * accepts the event so every later frame keeps it; null when the cell has
+   * nothing to play. Absent until picked.
+   */
+  reactionRuntimeId?: string | null;
 };
 
 export type AvatarPlannerEvent =
@@ -304,6 +313,7 @@ type AvatarPlannerMotionInput = {
   manualProceduralLayerIds: readonly ProceduralAnimationLayerId[];
   eligiblePlannerProceduralLayerIds: readonly ProceduralAnimationLayerId[];
   pendingEvents: readonly AvatarPlannerMotionEvent[];
+  /** Injected rolls for deterministic planning; absent, each draw is live. */
   randomRolls?: readonly number[];
   idleStintQuietIntervalSec?: number;
   emotionPostureConfig?: AvatarPlannerEmotionPostureConfig;
@@ -424,6 +434,8 @@ export type AvatarPlannerState = AvatarPlannerMotionState & {
   activeReactionClip: AvatarPlannerReactionClip | null;
   pendingReactionClipEvents: AvatarPlannerEmotionReactionEvent[];
   lastReactionClipEventKey: string | null;
+  /** The Reaction each cell (`<emotion>-<intensity>`) played last, for this Anima. */
+  lastPlayedReactions: Record<string, string>;
 };
 
 export type AvatarPlannerInput = Omit<
@@ -549,6 +561,7 @@ export function createInitialAvatarPlannerState(): AvatarPlannerState {
     activeReactionClip: null,
     pendingReactionClipEvents: [],
     lastReactionClipEventKey: null,
+    lastPlayedReactions: {},
   };
 }
 
@@ -614,14 +627,21 @@ export function planAvatar(
   const incomingReactionClipEvents = input.pendingEvents.filter(
     isEmotionReactionUpdatedEvent,
   );
-  const motionOutput = planAvatarMotion(baseline, {
-    ...resolvedInput,
-    pendingEvents: incomingMotionEvents,
-  });
+  // One roll reader per frame: motion draws first, then Reaction picks.
+  const random = createRandomRollReader(input.randomRolls);
+  const motionOutput = planAvatarMotion(
+    baseline,
+    {
+      ...resolvedInput,
+      pendingEvents: incomingMotionEvents,
+    },
+    random,
+  );
   const reactionClipOutput = planReactionClip({
     previous,
     input: resolvedInput,
     incomingEvents: incomingReactionClipEvents,
+    nextRandomRoll: random.next,
   });
   const actions: AvatarPlannerAction[] = [
     ...motionOutput.actions,
@@ -632,6 +652,7 @@ export function planAvatar(
     activeReactionClip: reactionClipOutput.activeReactionClip,
     pendingReactionClipEvents: reactionClipOutput.pendingReactionClipEvents,
     lastReactionClipEventKey: reactionClipOutput.lastReactionClipEventKey,
+    lastPlayedReactions: reactionClipOutput.lastPlayedReactions,
   };
   const consumedPlannerEventIds = [
     ...motionOutput.consumedPlannerEventIds,
@@ -657,18 +678,27 @@ export function planAvatar(
       lastReactionClipEventKey: reactionClipOutput.lastReactionClipEventKey,
       actionTypes: actions.map((action) => action.type),
       consumedPlannerEventIds,
+      randomRollsConsumed: random.consumed(),
     },
   };
 }
 
+/**
+ * Plan the Reaction lane. Each emotion event plays one member of its cell's
+ * pool, picked with one random roll when the event is first accepted and kept
+ * on the pending event until talking starts. The pick avoids the member the
+ * cell played last; a pick dropped before playing does not count.
+ */
 function planReactionClip(args: {
   previous: AvatarPlannerState;
   input: AvatarPlannerInput;
   incomingEvents: readonly AvatarPlannerEmotionReactionEvent[];
+  nextRandomRoll: () => number;
 }): {
   activeReactionClip: AvatarPlannerReactionClip | null;
   pendingReactionClipEvents: AvatarPlannerEmotionReactionEvent[];
   lastReactionClipEventKey: string | null;
+  lastPlayedReactions: Record<string, string>;
   actions: AvatarPlannerReactionClipAction[];
   consumedEventIds: string[];
 } {
@@ -681,6 +711,24 @@ function planReactionClip(args: {
   let lastReactionClipEventKey = sameAnima
     ? args.previous.lastReactionClipEventKey
     : null;
+  const lastPlayedReactions: Record<string, string> = sameAnima
+    ? { ...args.previous.lastPlayedReactions }
+    : {};
+  /** Pick the event's member once; an invalid cell draws no roll. */
+  const pickReaction = (
+    event: AvatarPlannerEmotionReactionEvent,
+  ): AvatarPlannerEmotionReactionEvent => {
+    if (event.reactionRuntimeId !== undefined) return event;
+    const cell = reactionCellKey(event);
+    if (!cell) return { ...event, reactionRuntimeId: null };
+    const reactionRuntimeId = motionCatalog.getReactionRuntimeId({
+      emotionalTone: event.emotional_tone,
+      emotionalIntensity: event.emotional_intensity,
+      randomRoll: args.nextRandomRoll(),
+      previousRuntimeId: lastPlayedReactions[cell] ?? null,
+    });
+    return { ...event, reactionRuntimeId };
+  };
   const pendingEvents = mergeReactionClipEvents(
     sameAnima ? args.previous.pendingReactionClipEvents : [],
     args.incomingEvents,
@@ -711,33 +759,32 @@ function planReactionClip(args: {
   }
 
   const retainedEvents: AvatarPlannerEmotionReactionEvent[] = [];
-  for (const event of pendingEvents) {
-    if (!args.input.activeRunId || !event.runId) {
-      consumedEventIds.push(event.eventId);
+  for (const pendingEvent of pendingEvents) {
+    if (!args.input.activeRunId || !pendingEvent.runId) {
+      consumedEventIds.push(pendingEvent.eventId);
       continue;
     }
-    if (event.runId !== args.input.activeRunId) {
-      consumedEventIds.push(event.eventId);
+    if (pendingEvent.runId !== args.input.activeRunId) {
+      consumedEventIds.push(pendingEvent.eventId);
       continue;
     }
-    const reactionEventKey = getReactionClipEventKey(event);
+    const reactionEventKey = getReactionClipEventKey(pendingEvent);
     if (
       lastReactionClipEventKey !== null &&
       reactionEventKey === lastReactionClipEventKey
     ) {
-      consumedEventIds.push(event.eventId);
+      consumedEventIds.push(pendingEvent.eventId);
       continue;
     }
-    const reactionRuntimeId = motionCatalog.getReactionRuntimeId({
-      emotionalTone: event.emotional_tone,
-      emotionalIntensity: event.emotional_intensity,
-    });
+    const runId = pendingEvent.runId;
+    const event = pickReaction(pendingEvent);
+    const reactionRuntimeId = event.reactionRuntimeId ?? null;
     const selectedClip = reactionRuntimeId
       ? motionCatalog.getReactionClip(reactionRuntimeId)
       : null;
     if (
       reactionRuntimeId &&
-      !isReactionClipStartLifetimeActive(selectedClip, event.runId, args.input)
+      !isReactionClipStartLifetimeActive(selectedClip, runId, args.input)
     ) {
       retainedEvents.push(event);
       continue;
@@ -752,13 +799,15 @@ function planReactionClip(args: {
       ownerId: `emotionReaction:${event.runId}:${event.eventId}`,
       sourceEventId: event.eventId,
       emotionEventId: event.emotionEventId,
-      runId: event.runId,
+      runId,
       emotionalTone: event.emotional_tone,
       emotionalIntensity: event.emotional_intensity,
       clipId: reactionRuntimeId,
       startedAtMs: args.input.nowMs,
     };
     activeReactionClip = nextReactionClip;
+    const cell = reactionCellKey(event);
+    if (cell) lastPlayedReactions[cell] = reactionRuntimeId;
     actions.push({
       type: "playReactionClip",
       lane: "reactionClip",
@@ -776,6 +825,7 @@ function planReactionClip(args: {
     activeReactionClip,
     pendingReactionClipEvents: retainedEvents,
     lastReactionClipEventKey,
+    lastPlayedReactions,
     actions,
     consumedEventIds,
   };
@@ -858,7 +908,14 @@ function mergeReactionClipEvents(
     byId.set(event.eventId, event);
   }
   for (const event of incomingEvents) {
-    byId.set(event.eventId, event);
+    // The store re-sends an event until it is consumed; keep the pick.
+    const retained = byId.get(event.eventId);
+    byId.set(
+      event.eventId,
+      retained?.reactionRuntimeId !== undefined
+        ? { ...event, reactionRuntimeId: retained.reactionRuntimeId }
+        : event,
+    );
   }
   const sortedEvents = Array.from(byId.values()).sort(
     (left, right) => left.createdAtMs - right.createdAtMs,
@@ -869,6 +926,16 @@ function mergeReactionClipEvents(
   return sortedEvents.slice(
     sortedEvents.length - MAX_PENDING_REACTION_CLIP_EVENTS,
   );
+}
+
+/** The event's Reaction cell, or null for a tone or intensity that has none. */
+function reactionCellKey(
+  event: AvatarPlannerEmotionReactionEvent,
+): string | null {
+  const tone = resolveEmotionReactionTone(event.emotional_tone);
+  return tone && event.emotional_intensity !== 0
+    ? `${tone}-${event.emotional_intensity}`
+    : null;
 }
 
 function getReactionClipEventKey(
@@ -895,6 +962,7 @@ function isEmotionReactionUpdatedEvent(
 function planAvatarMotion(
   previous: AvatarPlannerMotionState,
   input: AvatarPlannerMotionInput,
+  random: RandomRollReader,
 ): AvatarPlannerMotionOutput {
   const baselineRaw =
     previous.animaId === input.animaId
@@ -915,7 +983,6 @@ function planAvatarMotion(
   const emotionKey = input.emotionalState.dominantGroup;
   const emotionIntensity =
     input.emotionalState.dominantGroupSummary?.intensity ?? 1;
-  const random = createRandomRollReader(input.randomRolls);
   const consumedPlannerEventIds: string[] = [];
   const ignoredEventReasons: string[] = [];
   const pendingEvents = mergeAvatarPlannerMotionEvents(
@@ -3005,14 +3072,22 @@ function sanitizeIdleStintQuietIntervalSec(value: number | undefined): number {
   return Math.max(0, value);
 }
 
-function createRandomRollReader(randomRolls: readonly number[] | undefined): {
+type RandomRollReader = {
   next: () => number;
   consumed: () => number;
-} {
+};
+
+/**
+ * Read one frame's rolls. Injected rolls keep planning deterministic and read
+ * 0 once used up; without injected rolls every draw is live randomness.
+ */
+function createRandomRollReader(
+  randomRolls: readonly number[] | undefined,
+): RandomRollReader {
   let index = 0;
   return {
     next: () => {
-      const roll = randomRolls?.[index] ?? 0;
+      const roll = randomRolls ? (randomRolls[index] ?? 0) : Math.random();
       index += 1;
       return sanitizeRandomRoll(roll);
     },

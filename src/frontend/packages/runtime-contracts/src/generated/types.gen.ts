@@ -40,6 +40,11 @@ export type AnimaAppearanceOutput = {
 
 /**
  * AnimaCreationCounts
+ *
+ * Starter policy sizes and how many of them are available.
+ *
+ * ``*_reaction_cells`` count cells with at least one Reaction;
+ * ``*_reactions`` count pool members.
  */
 export type AnimaCreationCounts = {
     /**
@@ -51,6 +56,10 @@ export type AnimaCreationCounts = {
      */
     available_reaction_cells: number;
     /**
+     * Available Reactions
+     */
+    available_reactions: number;
+    /**
      * Recommended Gestures
      */
     recommended_gestures: number;
@@ -58,6 +67,10 @@ export type AnimaCreationCounts = {
      * Recommended Reaction Cells
      */
     recommended_reaction_cells: number;
+    /**
+     * Recommended Reactions
+     */
+    recommended_reactions: number;
 };
 
 /**
@@ -254,7 +267,7 @@ export type AnimaSpecInput = {
      */
     reactions: {
         [key: string]: {
-            [key: string]: ItemRevisionRef | null;
+            [key: string]: Array<ItemRevisionRef>;
         };
     };
     /**
@@ -296,7 +309,7 @@ export type AnimaSpecOutput = {
      */
     reactions: {
         [key: string]: {
-            [key: string]: ItemRevisionRef | null;
+            [key: string]: Array<ItemRevisionRef>;
         };
     };
     /**
@@ -1320,7 +1333,7 @@ export type CreateAnimaRequest = {
      */
     reactions: {
         [key: string]: {
-            [key: string]: ItemRevisionRef | null;
+            [key: string]: Array<ItemRevisionRef>;
         };
     };
     /**
@@ -1861,7 +1874,7 @@ export type LegacyCreateAnimaRequest = {
      */
     reactions: {
         [key: string]: {
-            [key: string]: ItemRevisionRef | null;
+            [key: string]: Array<ItemRevisionRef>;
         };
     };
     /**
@@ -2371,22 +2384,6 @@ export type PartAck = {
 };
 
 /**
- * PortableActionSelection
- */
-export type PortableActionSelection = {
-    /**
-     * Config
-     */
-    config?: {
-        [key: string]: unknown;
-    };
-    /**
-     * Entry Id
-     */
-    entry_id: string;
-};
-
-/**
  * PortableAnima
  *
  * Every equipment choice is explicit; only reviewed identity text is copied.
@@ -2419,7 +2416,7 @@ export type PortableAnima = {
      */
     reactions: {
         [key: string]: {
-            [key: string]: PortableActionSelection | null;
+            [key: string]: Array<string>;
         };
     };
 };
@@ -2810,6 +2807,8 @@ export type PyAnimaLoadout = {
     idle: PyAnimaIdle;
     /**
      * Reactions
+     *
+     * All 96 Reaction cells: 24 emotions x intensities 1-4.
      */
     reactions: Array<PyReactionCell>;
     /**
@@ -2967,6 +2966,16 @@ export type PyAnimaRuntime = {
      * Poses
      */
     poses?: Array<PyRuntimeAction>;
+    /**
+     * Reaction Cells
+     *
+     * Reaction pools as emotion -> intensity ('1'-'4') -> catalog item ids of admitted ``reactions``. Chat picks one member at random per emotion event; an absent cell plays no Reaction.
+     */
+    reaction_cells?: {
+        [key: string]: {
+            [key: string]: Array<string>;
+        };
+    };
     /**
      * Reactions
      */
@@ -7459,6 +7468,8 @@ export type PyPreparedPreviewRoot = {
 
 /**
  * PyReaction
+ *
+ * A Reaction; ``emotion`` and ``intensity`` are its suggested cell, never a restriction.
  */
 export type PyReaction = {
     /**
@@ -7491,7 +7502,7 @@ export type PyReaction = {
     /**
      * Intensity
      */
-    intensity?: 1 | 2 | 3 | null;
+    intensity?: 1 | 2 | 3 | 4 | null;
     /**
      * Item Id
      */
@@ -7524,18 +7535,13 @@ export type PyReaction = {
 
 /**
  * PyReactionCell
+ *
+ * One emotion/intensity cell's pool of up to four Reactions.
+ *
+ * ``state`` is ``empty`` without members, ``starter`` when the members are
+ * exactly the cell's available Included starter Reactions, else ``custom``.
  */
 export type PyReactionCell = {
-    /**
-     * Binding Id
-     */
-    binding_id?: string | null;
-    /**
-     * Config Overrides
-     */
-    config_overrides?: {
-        [key: string]: unknown;
-    };
     /**
      * Emotion
      */
@@ -7543,16 +7549,11 @@ export type PyReactionCell = {
     /**
      * Intensity
      */
-    intensity: 1 | 2 | 3;
+    intensity: 1 | 2 | 3 | 4;
     /**
-     * Logical Item Id
+     * Members
      */
-    logical_item_id?: string | null;
-    /**
-     * Name
-     */
-    name?: string | null;
-    source?: PyCatalogLoadoutSource | null;
+    members?: Array<PyReactionMember>;
     /**
      * State
      */
@@ -7580,26 +7581,68 @@ export type PyReactionCommitRequest = {
 
 /**
  * PyReactionIntent
+ *
+ * Add a Reaction to one cell's pool, remove one member, or restore a cell's starter pool.
+ *
+ * ``add`` takes the Reaction ``source`` and the cell (``emotion`` and
+ * ``intensity`` 1-4); a cell holds at most four Reactions, each once.
+ * ``remove`` takes only the member's ``binding_id``, so an unavailable member
+ * can be removed too. ``restore_starter`` takes only the cell and makes its
+ * pool exactly the cell's available Included starter Reactions.
  */
 export type PyReactionIntent = {
     /**
-     * Config Overrides
+     * Binding Id
      */
-    config_overrides?: {
-        [key: string]: unknown;
-    };
+    binding_id?: string | null;
     /**
      * Emotion
      */
-    emotion: string;
+    emotion?: string | null;
     /**
      * Intensity
      */
-    intensity: 1 | 2 | 3;
+    intensity?: 1 | 2 | 3 | 4 | null;
     /**
      * Operation
      */
-    operation: 'add' | 'replace' | 'update' | 'reconfigure' | 'revert' | 'leave_empty';
+    operation: 'add' | 'remove' | 'restore_starter';
+    source?: PyCatalogLoadoutSource | null;
+};
+
+/**
+ * PyReactionMember
+ *
+ * One Reaction in a cell's pool.
+ *
+ * ``available`` is false when its catalog item is missing or invalid.
+ * ``origin`` is ``starter`` for one of the cell's Included starter Reactions.
+ */
+export type PyReactionMember = {
+    /**
+     * Available
+     */
+    available: boolean;
+    /**
+     * Binding Id
+     */
+    binding_id: string;
+    /**
+     * Description
+     */
+    description?: string | null;
+    /**
+     * Item Id
+     */
+    item_id: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Origin
+     */
+    origin: 'starter' | 'custom';
     source?: PyCatalogLoadoutSource | null;
 };
 
@@ -9459,6 +9502,8 @@ export type PyWebSearchTestResult = {
 
 /**
  * RecommendedAnimaActions
+ *
+ * Starter choices; ``reactions`` lists each of the 96 cells' available starter Reactions.
  */
 export type RecommendedAnimaActions = {
     /**
@@ -9470,7 +9515,7 @@ export type RecommendedAnimaActions = {
      */
     reactions: {
         [key: string]: {
-            [key: string]: ItemRevisionRef | null;
+            [key: string]: Array<ItemRevisionRef>;
         };
     };
 };

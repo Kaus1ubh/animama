@@ -5,6 +5,7 @@ import { withNameHash } from "@/lib/content/nameIdentifiers";
 import { ANIMA_POSE_CLIP_V2_SCHEMA } from "@/lib/avatar/poses/animaPoseClip/schemaV2";
 import { RELAXED_REST_POSE_ID } from "@/lib/avatar/poses/catalog";
 import type { PyContentDependency } from "@/lib/content/catalogTypes";
+import type { EmotionReactionIntensity } from "@/lib/avatar/reactionPools";
 
 export type ActionIntent = "gesture" | "reaction";
 export type ActionImplementation = "anima_clip" | "vrma";
@@ -18,7 +19,7 @@ export type ActionDocument = {
   semanticKey: string;
   implementation: ActionImplementation;
   suggestedEmotion: string;
-  suggestedIntensity: 1 | 2 | 3;
+  suggestedIntensity: EmotionReactionIntensity;
   notes: string;
   sequence: Record<string, unknown>;
   dependencies: PyContentDependency[];

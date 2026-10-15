@@ -4,6 +4,7 @@ import type { PyAnimaLoadout } from "@animama/runtime-contracts/api-types";
 import { catalogViewItem } from "@/lib/content/catalogTypes";
 import {
   actionManageLoadoutSource,
+  actionManageReactionCell,
   actionManageRowState,
 } from "./actionManageTarget";
 import type { ManageActionTarget } from "./ActionManageDialog";
@@ -88,33 +89,51 @@ describe("action manage target", () => {
     ).toEqual({ equipped: false, replacing: true });
   });
 
-  it("keeps Reaction cell state by emotion and intensity", () => {
+  it("shows a Reaction as equipped when the suggested cell's pool holds it", () => {
     const target: ManageActionTarget = {
       kind: "reaction",
       itemId: "item-cheer",
       name: "Cheer",
       description: "",
       emotion: "joy",
-      intensity: 2,
+      intensity: 4,
     };
-    const cell = (itemId: string) =>
+    const cell = (...itemIds: string[]) =>
       ({
         emotion: "joy",
-        intensity: 2,
+        intensity: 4,
         state: "custom",
-        source: { type: "catalog", catalog_item_id: itemId, source: "local" },
+        members: itemIds.map((itemId) => ({
+          binding_id: `binding-${itemId}`,
+          item_id: itemId,
+          name: itemId,
+          available: true,
+          origin: "custom",
+        })),
       }) as PyAnimaLoadout["reactions"][number];
+    expect(actionManageReactionCell(target)).toEqual({
+      emotion: "joy",
+      intensity: 4,
+    });
     expect(
       actionManageRowState(
         target,
-        loadout({ reactions: [cell("item-cheer")] }),
+        loadout({ reactions: [cell("item-other", "item-cheer")] }),
       ),
     ).toEqual({ equipped: true, replacing: false });
+    // Adding joins the pool: other members stay, so nothing is replaced.
     expect(
       actionManageRowState(
         target,
         loadout({ reactions: [cell("item-other")] }),
       ),
-    ).toEqual({ equipped: false, replacing: true });
+    ).toEqual({ equipped: false, replacing: false });
+  });
+
+  it("uses Joy, Mild for a Reaction without a suggested cell", () => {
+    expect(actionManageReactionCell({ intensity: 7 })).toEqual({
+      emotion: "joy",
+      intensity: 1,
+    });
   });
 });

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { buildAnimaSpec } from "./createAnimaDraft";
+import { TRACKED_EMOTIONS } from "@/lib/emotion";
+import { buildAnimaSpec, emptyReactions } from "./createAnimaDraft";
 import {
   defaultAnimaIdentityMarkdown,
   DEFAULT_ANIMA_IDENTITY_MARKDOWN,
@@ -12,6 +13,19 @@ import {
   migrateCreationRecord,
 } from "./createAnimaDraftStorage";
 import { readyDraft, ref } from "./createAnimaTestFixtures";
+
+/**
+ * Reaction cells as drafts saved before Reaction pools held them: one
+ * Reaction or none at three intensities.
+ */
+function legacyReactions(joyMild: ReturnType<typeof ref> | null = null) {
+  return Object.fromEntries(
+    TRACKED_EMOTIONS.map((emotion) => [
+      emotion,
+      { "1": emotion === "joy" ? joyMild : null, "2": null, "3": null },
+    ]),
+  );
+}
 
 /** Drafts saved before the built-in Idle pool chose an Idle Style. */
 const retiredIdle = {
@@ -38,6 +52,7 @@ function legacyRecord(options: { image?: boolean; locked?: boolean } = {}) {
       ...current,
       ...retiredIdle,
       schema_version: 1,
+      reactions: legacyReactions(),
       voice: undefined,
       identity_markdown: "",
       appearance: {
@@ -92,6 +107,7 @@ describe("retired clip draft recovery", () => {
                 ...draft,
                 ...retiredIdle,
                 schema_version: 2,
+                reactions: legacyReactions(),
                 voice: undefined,
               }),
           seed_revisions: oldEvidence,
@@ -127,7 +143,7 @@ describe("owner-scoped creation recovery", () => {
       schema_version: 3,
       kind: "draft",
       draft: {
-        schema_version: 3,
+        schema_version: 4,
         appearance_migration: "none",
         identity_markdown: defaultAnimaIdentityMarkdown("  Rowan 🌿  "),
       },
@@ -342,7 +358,12 @@ it.each(["pending", "unknown"] as const)(
       voice: undefined,
       idempotency_key: "before-voice",
     };
-    const previous = { ...current, ...retiredIdle, voice: undefined };
+    const previous = {
+      ...current,
+      ...retiredIdle,
+      reactions: legacyReactions(),
+      voice: undefined,
+    };
     const frozen = JSON.stringify(request);
     const migrated = migrateCreationRecord(
       JSON.stringify({
@@ -388,6 +409,8 @@ it("drops the retired Idle Style choice from a v3 draft without rewriting its re
       draft: {
         ...current,
         ...retiredIdle,
+        schema_version: 3,
+        reactions: legacyReactions(),
         submission: { state: "unknown", request },
       },
     }),
@@ -396,5 +419,42 @@ it("drops the retired Idle Style choice from a v3 draft without rewriting its re
   if (migrated.kind !== "draft") throw new Error("draft missing");
   expect(migrated.draft).not.toHaveProperty("default_idle");
   expect(migrated.draft).not.toHaveProperty("idle_revisions");
+  expect(JSON.stringify(migrated.draft.submission?.request)).toBe(frozen);
+});
+
+it("gives a v3 draft Reaction pools one intensity up, keeping its frozen request", () => {
+  const current = readyDraft();
+  // A command frozen before Reaction pools carries the old cells.
+  const request = {
+    ...buildAnimaSpec(current),
+    reactions: legacyReactions(ref("joy-1")),
+    idempotency_key: "before-reaction-pools",
+  };
+  const frozen = JSON.stringify(request);
+  const migrated = migrateCreationRecord(
+    JSON.stringify({
+      schema_version: 3,
+      writer: "00000000-0000-4000-8000-000000000001",
+      sequence: 1,
+      kind: "draft",
+      draft: {
+        ...current,
+        schema_version: 3,
+        reactions: legacyReactions(ref("joy-1")),
+        submission: { state: "unknown", request },
+      },
+    }),
+  );
+  expect(migrated.kind).toBe("draft");
+  if (migrated.kind !== "draft") throw new Error("draft missing");
+  expect(migrated.draft.schema_version).toBe(4);
+  // The Included Reactions moved up one intensity; the new Mild starts empty.
+  expect(migrated.draft.reactions.joy).toEqual({
+    "1": [],
+    "2": [ref("joy-1")],
+    "3": [],
+    "4": [],
+  });
+  expect(migrated.draft.reactions.anger).toEqual(emptyReactions().anger);
   expect(JSON.stringify(migrated.draft.submission?.request)).toBe(frozen);
 });

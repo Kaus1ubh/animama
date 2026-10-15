@@ -377,7 +377,7 @@
       "aliasTypeConflict": "別名「{{alias}}」被多種元件類型使用。",
       "dependenciesNotArray": "相依項目必須是陣列。",
       "dependencyInvalid": "相依項目宣告無效。",
-      "intensity": "反應的建議強度必須是 1、2 或 3。",
+      "intensity": "反應的建議強度必須是 1、2、3 或 4。",
       "nameRequired": "專案名稱為必填。",
       "notObject": "JSON 必須包含一個物件。",
       "sourceInvalid": "相依項目來源無效。",

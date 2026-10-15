@@ -213,8 +213,7 @@
     "removedFrom": "已從 {{anima}} 移除 {{name}}。",
     "title": "裝備 {{name}}",
     "willReplace": {
-      "gesture": "將替換目前的動作",
-      "reaction": "將替換目前的反應"
+      "gesture": "將替換目前的動作"
     }
   },
   "management": {
@@ -278,28 +277,35 @@
     "repairing": "正在修復記憶…"
   },
   "reactions": {
+    "add": "新增",
+    "addTo": "新增反應至 {{cell}}",
     "catalogUnavailable": "反應目錄無法使用。",
-    "cellName": "{{emotion}}（{{intensity}}）",
-    "change": "變更{{emotion}}（{{intensity}}）反應",
+    "cell": "{{emotion}} · {{intensity}}",
+    "changedElsewhere": "此 Anima 的反應已在別處變更，現已重新整理。請再試一次。",
     "chooseFromLibrary": "從資源庫中選擇",
+    "full": "此儲存格已有上限 4 個反應。請先移除一個再新增。",
+    "inCell": "已在此儲存格中",
     "included": "內建",
     "intensity": {
+      "intense": "極強",
       "level": "{{level}} 級",
       "mild": "輕微",
       "moderate": "中等",
       "strong": "強烈"
     },
-    "leaveEmpty": "留空",
     "levels": "{{emotion}}反應等級",
     "loading": "正在載入反應…",
     "local": "本機",
     "noReaction": "無反應",
     "noResults": "找不到反應。",
+    "reactionCount_other": "{{count}} 個反應",
+    "remove": "從 {{cell}} 中移除 {{name}}",
+    "restoreStarter": "還原為內建",
     "retryCatalog": "重試目錄",
-    "revertToStarter": "還原為內建",
     "search": "搜尋反應",
     "suggestion": "{{emotion}} · {{intensity}}",
-    "title": "反應"
+    "title": "反應",
+    "unavailable": "無法使用"
   },
   "roster": {
     "description": "此帳戶中還沒有 Anima。帳戶準備期間，你可以瀏覽資源庫。此託管應用程式無法建立 Anima。",

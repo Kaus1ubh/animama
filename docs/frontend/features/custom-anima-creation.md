@@ -44,7 +44,7 @@ and [data model](../../backend/architecture/data-model.md).
 | Avatar   | Select Included or Local content, or upload and explicitly save a validated VRM.                                                |
 | Voice | Choose PocketTTS or ElevenLabs, select a preset or shared named clone, or enter a voice ID. Save new clones with the same library controls as Loadout. |
 | Identity | Edit the required Markdown identity; preview or request an Avatar suggestion.                                                   |
-| Actions  | Start from the Recommended Starter Pack, select Gestures and edit all 72 Reaction cells. Preview and selection are independent. |
+| Actions  | Start from the Recommended Starter Pack, select Gestures and edit all 96 Reaction cells. Preview and selection are independent. |
 | Review   | Inspect name, Avatar, voice, identity, Action counts and linked diagnostics before Create Anima.                                       |
 
 A name is required before leaving Avatar. Back, visited steps and Review Edit
@@ -52,8 +52,10 @@ preserve the draft. Changing Avatar retains identity and Actions while
 revalidating compatibility; filtering never changes hidden selections.
 Edited drafts offer keep editing, save and leave, or discard and leave.
 
-Each Reaction cell accepts any compatible Reaction or Empty. The same Reaction
-can fill several cells; counts represent occupied cells. Reset Actions to Starter
+Each Reaction cell holds a pool of up to four Reactions, each once, starting
+from the Starter Pack's pools; choosing a Reaction for a cell makes it the
+cell's only member, and Clear empties it. The same Reaction can fill several
+cells; counts represent cells with at least one Reaction. Reset Actions to Starter
 Pack requires confirmation and replaces all Action edits, including hidden ones.
 
 ### Source and identity boundaries
@@ -61,7 +63,7 @@ Pack requires confirmation and replaces all Action edits, including hidden ones.
 The implemented backend `AnimaSpec` contains a required live display name and one
 Markdown identity document, an admitted typed Avatar, explicit null profile and
 background Appearance choices from this browser, explicit voice choices, exact
-Gesture selections and all 72 explicit Reaction cells, a versioned Recommended
+Gesture selections and all 96 Reaction cells as pools, a versioned Recommended
 Starter Pack, and a complete `expected_source_revisions` map. That map covers
 selected roots and all supports; it is operation evidence, not an
 active runtime mount. Empty Gesture/all-empty Reaction choices are allowed
@@ -105,8 +107,11 @@ Creator Markdown preview does not load remote images.
 ### Draft, retry, and first-chat boundaries
 
 Drafts are scoped to the runtime owner and installation, with explicit
-schema routing and an unsaved-VRM reselection marker. Editable schema v3 adds
-explicit provider and voice choices and has no Appearance selection state. Safe v1 null-appearance drafts migrate
+schema routing and an unsaved-VRM reselection marker. Editable schema v4 holds
+explicit provider and voice choices and a Reaction pool per cell, and has no
+Appearance selection state. Older drafts' one-Reaction cells become one-member
+pools one intensity up, as the Included Reactions moved; a request frozen before
+pools is still replayed exactly. Safe v1 null-appearance drafts migrate
 automatically; v1 drafts with an image choice/pending marker require explicit
 “Continue without images” confirmation, while confirmed uploads remain in My
 Content. Frozen v1 requests are replayed exactly and migrate only after a known

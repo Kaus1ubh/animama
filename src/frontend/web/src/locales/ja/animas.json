@@ -213,8 +213,7 @@
     "removedFrom": "{{name}} を {{anima}} から外しました。",
     "title": "{{name}} を装備",
     "willReplace": {
-      "gesture": "現在のジェスチャーを置き換えます",
-      "reaction": "現在のリアクションを置き換えます"
+      "gesture": "現在のジェスチャーを置き換えます"
     }
   },
   "management": {
@@ -278,28 +277,35 @@
     "repairing": "記憶を修復しています…"
   },
   "reactions": {
+    "add": "追加",
+    "addTo": "{{cell}} にリアクションを追加",
     "catalogUnavailable": "リアクションのカタログは利用できません。",
-    "cellName": "{{emotion}}（{{intensity}}）",
-    "change": "{{emotion}}（{{intensity}}）のリアクションを変更",
+    "cell": "{{emotion}} · {{intensity}}",
+    "changedElsewhere": "この Anima のリアクションが別の場所で変更されたため、更新しました。もう一度お試しください。",
     "chooseFromLibrary": "ライブラリから選ぶ",
+    "full": "このセルには上限の 4 件のリアクションがあります。追加するには 1 件外してください。",
+    "inCell": "すでにこのセルにあります",
     "included": "同梱",
     "intensity": {
+      "intense": "とても強い",
       "level": "レベル {{level}}",
       "mild": "弱め",
       "moderate": "中程度",
       "strong": "強め"
     },
-    "leaveEmpty": "空のままにする",
     "levels": "{{emotion}}のリアクションレベル",
     "loading": "リアクションを読み込んでいます…",
     "local": "ローカル",
     "noReaction": "リアクションなし",
     "noResults": "リアクションが見つかりません。",
+    "reactionCount_other": "{{count}} 件のリアクション",
+    "remove": "{{cell}} から {{name}} を外す",
+    "restoreStarter": "同梱に戻す",
     "retryCatalog": "カタログを再試行",
-    "revertToStarter": "同梱に戻す",
     "search": "リアクションを検索",
     "suggestion": "{{emotion}} · {{intensity}}",
-    "title": "リアクション"
+    "title": "リアクション",
+    "unavailable": "利用不可"
   },
   "roster": {
     "description": "このアカウントにはまだ Anima がありません。アカウントの準備中もライブラリを見ることができます。このホスト型アプリケーションでは Anima を作成できません。",

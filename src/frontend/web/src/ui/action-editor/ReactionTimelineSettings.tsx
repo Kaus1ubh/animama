@@ -2,6 +2,10 @@
 
 import { useTranslation } from "react-i18next";
 
+import {
+  REACTION_INTENSITIES,
+  type EmotionReactionIntensity,
+} from "@/lib/avatar/reactionPools";
 import { TRACKED_EMOTIONS } from "@/lib/emotion";
 import { emotionLabel } from "@/lib/emotion/presentation";
 import { reactionIntensityLabel } from "@/ui/animas/ActionLoadoutRows";
@@ -71,7 +75,9 @@ export function ReactionEmotionSettings() {
             onValueChange={(intensity) =>
               setDocument((current) => ({
                 ...current,
-                suggestedIntensity: Number(intensity) as 1 | 2 | 3,
+                suggestedIntensity: Number(
+                  intensity,
+                ) as EmotionReactionIntensity,
               }))
             }
           >
@@ -82,7 +88,7 @@ export function ReactionEmotionSettings() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {([1, 2, 3] as const).map((intensity) => (
+              {REACTION_INTENSITIES.map((intensity) => (
                 <SelectItem key={intensity} value={String(intensity)}>
                   {reactionIntensityLabel(intensity)}
                 </SelectItem>

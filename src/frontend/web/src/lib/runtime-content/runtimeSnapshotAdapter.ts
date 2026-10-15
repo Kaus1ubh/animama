@@ -161,6 +161,42 @@ function rootEntry(
   );
 }
 
+/**
+ * Map server cells (emotion → intensity → catalog item ids) to runtime ids.
+ * Members without a runtime id did not mount and are left out, so a cell
+ * whose members were all left out is dropped like an empty cell.
+ */
+function cellPools(
+  cells: unknown,
+  runtimeIds: ReadonlyMap<string, string>,
+): Record<string, Record<string, string[]>> {
+  return Object.fromEntries(
+    Object.entries(object(cells)).map(([emotion, levels]) => [
+      emotion,
+      Object.fromEntries(
+        Object.entries(object(levels))
+          .map(
+            ([level, members]) =>
+              [level, mountedIds(members, runtimeIds)] as const,
+          )
+          .filter(([, members]) => members.length > 0),
+      ),
+    ]),
+  );
+}
+
+/** The runtime ids of the listed catalog items that mounted. */
+function mountedIds(
+  value: unknown,
+  runtimeIds: ReadonlyMap<string, string>,
+): string[] {
+  return Array.isArray(value)
+    ? value
+        .map((id) => runtimeIds.get(String(id)))
+        .filter((id): id is string => !!id)
+    : [];
+}
+
 /** Adapt the typed runtime snapshot into the concrete avatar-player lanes. */
 export function adaptRuntimeSnapshot(
   typed: PyAnimaRuntime,
@@ -266,25 +302,10 @@ export function adaptRuntimeSnapshot(
     );
     append(runtime, entry);
   }
-  const ids = (value: unknown): string[] =>
-    Array.isArray(value)
-      ? value
-          .map((id) => runtimeIds.get(String(id)))
-          .filter((id): id is string => !!id)
-      : [];
   runtime.idle_pools = {
-    default: ids(idle.default_pool),
+    default: mountedIds(idle.default_pool, runtimeIds),
     // A cell whose Gestures were all left out adds nothing, like an empty cell.
-    cells: Object.fromEntries(
-      Object.entries(object(idle.cells)).map(([emotion, levels]) => [
-        emotion,
-        Object.fromEntries(
-          Object.entries(object(levels))
-            .map(([level, members]) => [level, ids(members)] as const)
-            .filter(([, members]) => members.length > 0),
-        ),
-      ]),
-    ),
+    cells: cellPools(idle.cells, runtimeIds),
   };
   const supports = [
     ...(typed.particle_effects ?? []),
@@ -332,15 +353,23 @@ export function adaptRuntimeSnapshot(
     );
     if (entry) append(runtime, entry);
   }
+  // Each Reaction is one runtime root however many cells hold it. Its
+  // emotion/intensity is only a suggestion; the pools say where it plays.
+  const reactionIds = new Map<string, string>();
   for (const reaction of typed.reactions ?? []) {
+    const itemId = reaction.source?.item_id ?? "";
+    const runtimeId = reaction.binding_id || `reaction:${itemId}`;
     const entry = rootEntry(
       reaction,
       "reaction",
-      `${reaction.emotion}-${reaction.intensity}`,
+      runtimeId,
       typed.effective_revision,
     );
-    if (entry) append(runtime, entry);
+    if (!entry) continue;
+    append(runtime, entry);
+    if (itemId) reactionIds.set(itemId, runtimeId);
   }
+  runtime.reaction_pools = cellPools(typed.reaction_cells, reactionIds);
   for (const pose of typed.poses ?? []) {
     const entry = rootEntry(
       pose,

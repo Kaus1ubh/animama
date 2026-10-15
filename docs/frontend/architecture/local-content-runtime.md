@@ -118,9 +118,10 @@ typed-content HTTP fetch. Decoding those Blobs may still be asynchronous.
 The adapter publishes a root only when its whole executable dependency closure
 is verified. One `AnimaRuntimeCatalog` appends these ready resources without
 replacing existing model, motion, effect, or audio entries. The issued descriptor
-and revision never change. Gesture selectors and Reaction emotion/intensity
-inventory contain only admitted Action roots; pending roots remain in the
-server's authoritative loadout. Accessors skip pending requests with a bounded
+and revision never change. Gesture selectors and Reaction pools contain only
+admitted Action roots (one root per Reaction, however many cells hold it);
+pending roots remain in the server's authoritative loadout, and a pool skips a
+pending member and picks among the others. Accessors skip pending requests with a bounded
 diagnostic, and the planner consumes a pending gesture before phase queueing so
 it cannot replay after preparation. Required decoding also rechecks the current
 run/plan before applying an action.

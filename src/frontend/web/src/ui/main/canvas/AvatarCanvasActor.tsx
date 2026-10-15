@@ -620,12 +620,6 @@ export function AvatarCanvasActor({
         activeRunId: runtimeState.activeRunId,
         activeVrmaActions: avatar.getActiveAnimations(),
         pendingEvents: runtimeState.plannerEvents,
-        randomRolls: [
-          Math.random(),
-          Math.random(),
-          Math.random(),
-          Math.random(),
-        ],
       },
     );
     if (motionOutput?.consumedPlannerEventIds.length) {

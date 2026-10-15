@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { useFormatters } from "@animama/product-ui/i18n";
 import type { PortableAnima } from "@animama/runtime-contracts/api-types";
 import {
   FileBox,
@@ -208,6 +209,7 @@ export function SharingAnimaDetails({
   showPrivacyNote?: boolean;
 }) {
   const { t } = useTranslation("library");
+  const { list } = useFormatters();
   const name = (id: string | null) =>
     id === null
       ? t("sharing.anima.none")
@@ -306,8 +308,9 @@ export function SharingAnimaDetails({
               {t("sharing.anima.reactionCells")}
             </summary>
             <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              {/* Each cell lists its whole pool, which import recreates. */}
               {Object.entries(anima.reactions).flatMap(([emotion, cells]) =>
-                Object.entries(cells).map(([intensity, selection]) => (
+                Object.entries(cells).map(([intensity, members]) => (
                   <div
                     key={`${emotion}-${intensity}`}
                     className="rounded-lg border p-2"
@@ -316,14 +319,11 @@ export function SharingAnimaDetails({
                       {t("sharing.anima.reactionCell", {
                         emotion: storedEmotionLabel(emotion),
                         intensity,
-                        value: selection
-                          ? name(selection.entry_id)
+                        value: members.length
+                          ? list(members.map(name))
                           : t("sharing.anima.none"),
                       })}
                     </p>
-                    {selection ? (
-                      <Configuration value={selection.config} />
-                    ) : null}
                   </div>
                 )),
               )}

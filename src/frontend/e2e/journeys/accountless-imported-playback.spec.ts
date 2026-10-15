@@ -1160,7 +1160,8 @@ test("imported playback complete Anima retains imported Avatar, appearance and p
     return receipt;
   };
   const gestureEntry = reviewed.anima!.gestures[0]?.entry_id;
-  const reactionEntry = reviewed.anima!.reactions.admiration?.["3"]?.entry_id;
+  // Packages carry each cell's pool; this journey plays its first member.
+  const reactionEntry = reviewed.anima!.reactions.admiration?.["3"]?.[0];
   expect(gestureEntry).toBeTruthy();
   expect(reactionEntry).toBeTruthy();
   for (const [kind, entryId] of [
@@ -1185,7 +1186,10 @@ test("imported playback complete Anima retains imported Avatar, appearance and p
         .getByRole("searchbox", { name: "Search gestures", exact: true })
         .fill(item.name);
     else {
-      const emotion = section.getByRole("button", { name: /^admiration$/i });
+      // The emotion row's name also carries its Reaction count.
+      const emotion = section.locator(
+        'button[aria-controls="reaction-admiration-levels"]',
+      );
       if ((await emotion.getAttribute("aria-expanded")) !== "true")
         await emotion.click();
     }
