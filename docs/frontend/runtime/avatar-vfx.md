@@ -630,6 +630,11 @@ pnpm -s effects promote ./promote.json --dry-run
   an event whose effect, scene or sound no dependency declares. A delete is
   checked against dependents after the run's replacements, so an effect and
   its last users can change together.
+- A new Reaction is a Reaction `add` (`"placement_hint": { "emotion",
+  "intensity" }`, optional `"name"`): it writes `reactions/<stem>/` with ID
+  `builtin:reaction:<stem>`, version 1 and the project's name, from a project
+  whose clip id is the stem, under the same clip and dependency rules, and
+  gives its two files source-review records in the Included Reaction form.
 
 `library:local/...` sources read `ANIMAMA_LOCAL_CONTENT_HOST_PATH`, set by
 sourcing the stack record, unless `--local-content` is given.

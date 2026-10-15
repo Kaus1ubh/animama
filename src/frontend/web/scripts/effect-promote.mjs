@@ -38,7 +38,14 @@ import {
  *   Reactions stay expression-only. A dependency on a Local effect promoted
  *   in the same run is re-pointed at its Included ID; every other dependency
  *   must be Included content after the run, and every effect event must
- *   name a declared dependency. An unchanged item writes nothing.
+ *   name a declared dependency. An unchanged item writes nothing;
+ * - `{ "kind": "reaction", "stem", "source", "mode": "add",
+ *   "placement_hint": { "emotion", "intensity" }, "name"? }`: a new Included
+ *   Reaction in `reactions/<stem>/` (content ID `builtin:reaction:<stem>`,
+ *   version 1) from a creator project whose clip id is the stem, named after
+ *   the project unless `name` is given, with the same clip and dependency
+ *   rules as a replace. Its two files get source-review records in the form
+ *   of the Included Reaction metadata.
  *
  * `source` is the reviewed effect: `library:local/<name>` (the saved Local
  * item of the item's kind, read from the sourced stack's
@@ -171,9 +178,17 @@ export function parseEffectPromoteItems(value, itemsFile) {
         `${where}: "kind" must be one of ${KINDS.map((name) => `"${name}"`).join(", ")}.`,
       );
     const action = !EFFECT_KINDS[kind];
-    if (action && item.mode !== "replace")
+    if (action && kind === "gesture" && item.mode !== "replace")
       throw new EffectPromoteError(
-        `${where}: a ${kind} item replaces an Included ${kind} ("mode": "replace").`,
+        `${where}: a gesture item replaces an Included gesture ("mode": "replace").`,
+      );
+    if (
+      action &&
+      kind === "reaction" &&
+      !["add", "replace"].includes(item.mode)
+    )
+      throw new EffectPromoteError(
+        `${where}: a reaction item adds ("mode": "add") or replaces ("mode": "replace") an Included reaction.`,
       );
     if (!["add", "replace", "delete"].includes(item?.mode))
       throw new EffectPromoteError(
@@ -209,7 +224,22 @@ export function parseEffectPromoteItems(value, itemsFile) {
       );
     if (action && item.description !== undefined)
       throw new EffectPromoteError(
-        `${where}: a ${kind} replace keeps the Included description.`,
+        `${where}: a ${kind} ${item.mode} keeps the Included description.`,
+      );
+    const hint = item.placement_hint;
+    if (kind === "reaction" && item.mode === "add") {
+      if (
+        typeof hint?.emotion !== "string" ||
+        !/^[a-z]+$/.test(hint.emotion) ||
+        !Number.isInteger(hint.intensity) ||
+        hint.intensity < 1
+      )
+        throw new EffectPromoteError(
+          `${where}: a reaction add sets "placement_hint": { "emotion": "<emotion>", "intensity": <level> }.`,
+        );
+    } else if (hint !== undefined)
+      throw new EffectPromoteError(
+        `${where}: only a reaction add sets "placement_hint"; a ${item.mode} keeps it.`,
       );
     if (
       item.sound !== undefined &&
@@ -229,6 +259,14 @@ export function parseEffectPromoteItems(value, itemsFile) {
       name: item.name?.trim(),
       description: item.description?.trim(),
       sound: item.sound,
+      ...(hint
+        ? {
+            placement_hint: {
+              emotion: hint.emotion,
+              intensity: hint.intensity,
+            },
+          }
+        : {}),
     };
   });
 }
@@ -461,6 +499,8 @@ export async function planEffectPromotion(
 
   // Reactions and Gestures first, so a delete sees their new dependencies.
   const plannedMetas = new Map();
+  /** Files of Reactions this run adds, which need source-review records. */
+  const addedActionFiles = [];
   for (const item of items)
     if (!EFFECT_KINDS[kindOf(item)]) {
       const planned = planAction(item, kindOf(item), {
@@ -474,14 +514,21 @@ export async function planEffectPromotion(
       const { clip, clipText } = planned;
       writes.set(
         planned.clipPath,
-        JSON.stringify(clip) === JSON.stringify(JSON.parse(clipText))
-          ? clipText
-          : clipText.trimEnd().includes("\n")
-            ? await formatJson(clip)
-            : `${JSON.stringify(clip)}\n`,
+        clipText === null
+          ? // A new clip is compact, like the Included Reaction clips.
+            `${JSON.stringify(clip)}\n`
+          : JSON.stringify(clip) === JSON.stringify(JSON.parse(clipText))
+            ? clipText
+            : clipText.trimEnd().includes("\n")
+              ? await formatJson(clip)
+              : `${JSON.stringify(clip)}\n`,
       );
       writes.set(planned.metaPath, jsonFile(planned.meta));
       plannedMetas.set(planned.metaPath, planned.meta);
+      if (item.mode === "add") {
+        includedTypes.set(planned.meta.content_id, kindOf(item));
+        addedActionFiles.push(planned.clipPath, planned.metaPath);
+      }
     }
   const currentMetas = metas.map((meta) =>
     plannedMetas.has(meta.path)
@@ -636,11 +683,28 @@ export async function planEffectPromotion(
       path: relative,
       ...(carried.get(relative)?.record ?? recordFields),
     });
+  // An added Reaction's files follow the Included Reaction metadata record.
+  if (addedActionFiles.length) {
+    const actionTemplate = sourceReview.files.find(
+      (entry) =>
+        entry.path.startsWith(`${ACTION_ROOTS.reaction}/`) &&
+        entry.path.endsWith(".meta.json"),
+    );
+    if (!actionTemplate)
+      throw new EffectPromoteError(
+        "no source-review record of an Included Reaction to follow.",
+      );
+    const { path: _actionPath, ...actionFields } = actionTemplate;
+    for (const relative of addedActionFiles)
+      if (!sourceReview.files.some((entry) => entry.path === relative))
+        sourceReview.files.push({ path: relative, ...actionFields });
+  }
   sourceReview.files.sort((a, b) =>
     a.path < b.path ? -1 : a.path > b.path ? 1 : 0,
   );
   writes.set(EFFECT_PROMOTE_PATHS.sourceReview, jsonFile(sourceReview));
   notes.set(EFFECT_PROMOTE_PATHS.sourceReview, [
+    ...addedActionFiles.map((file) => `record for ${file}`),
     ...written.map((file) =>
       carried.has(file)
         ? `record for ${file} carried from ${carried.get(file).path}`
@@ -841,9 +905,13 @@ function isSet(value) {
   return true;
 }
 
+/** The `ai_description` a new Included Reaction's meta carries. */
+const REACTION_AI_DESCRIPTION = "Reusable avatar reaction clip";
+
 /**
- * Check one Reaction or Gesture replace and return its clip (with the
- * Included clip file's path and text) and its meta as it will be.
+ * Check one Reaction or Gesture add or replace and return its clip (with the
+ * clip file's path and, for a replace, its current text) and its meta as it
+ * will be.
  */
 function planAction(
   item,
@@ -855,21 +923,31 @@ function planAction(
   };
   const folder = `${ACTION_ROOTS[kind]}/${item.stem}`;
   const metaPath = `${folder}/${item.stem}.meta.json`;
-  const metaText = repo.read(metaPath);
-  if (metaText === null) fail(`no Included ${kind} to replace.`);
-  const original = JSON.parse(metaText);
-  const sequence = (original.files ?? []).find(
-    (file) => file?.role === "sequence",
-  );
-  if (
-    typeof sequence?.path !== "string" ||
-    path.posix.basename(sequence.path) !== sequence.path
-  )
-    fail(`the Included ${kind} names no clip file in its folder.`);
-  const clipPath = `${folder}/${sequence.path}`;
-  const clipText = repo.read(clipPath);
-  if (clipText === null) fail(`${clipPath} is missing.`);
-  const originalClip = JSON.parse(clipText);
+  const adding = item.mode === "add";
+  let original = null;
+  let clipPath = `${folder}/${item.stem}.json`;
+  let clipText = null;
+  let originalClip = null;
+  if (adding) {
+    if (repo.list(folder))
+      fail(`an Included ${kind} already uses this stem; use mode "replace".`);
+  } else {
+    const metaText = repo.read(metaPath);
+    if (metaText === null) fail(`no Included ${kind} to replace.`);
+    original = JSON.parse(metaText);
+    const sequence = (original.files ?? []).find(
+      (file) => file?.role === "sequence",
+    );
+    if (
+      typeof sequence?.path !== "string" ||
+      path.posix.basename(sequence.path) !== sequence.path
+    )
+      fail(`the Included ${kind} names no clip file in its folder.`);
+    clipPath = `${folder}/${sequence.path}`;
+    clipText = repo.read(clipPath);
+    if (clipText === null) fail(`${clipPath} is missing.`);
+    originalClip = JSON.parse(clipText);
+  }
 
   const { project } = item;
   if (project?.schema !== ACTION_PROJECT_SCHEMA)
@@ -882,11 +960,16 @@ function planAction(
   } catch (error) {
     fail(error.message);
   }
-  for (const key of KEPT_CLIP_FIELDS)
-    if (JSON.stringify(clip[key]) !== JSON.stringify(originalClip[key]))
-      fail(
-        `a replace keeps the Included clip's ${key} (${JSON.stringify(originalClip[key]) ?? "unset"}).`,
-      );
+  if (adding) {
+    if (clip.id !== item.stem)
+      fail(`a new ${kind}'s clip id must be its stem ("${item.stem}").`);
+    if (clip.role !== kind) fail(`the clip's role must be "${kind}".`);
+  } else
+    for (const key of KEPT_CLIP_FIELDS)
+      if (JSON.stringify(clip[key]) !== JSON.stringify(originalClip[key]))
+        fail(
+          `a replace keeps the Included clip's ${key} (${JSON.stringify(originalClip[key]) ?? "unset"}).`,
+        );
   if (kind === "reaction")
     for (const field of REACTION_BODY_FIELDS)
       if (isSet(clip[field]))
@@ -903,12 +986,35 @@ function planAction(
     fail(error.message);
   }
 
+  if (!adding)
+    return {
+      clip,
+      clipPath,
+      clipText,
+      metaPath,
+      meta: { ...original, dependencies },
+    };
+  const name = item.name ?? project.name ?? clip.name;
+  if (typeof name !== "string" || !name.trim())
+    fail('the project has no name; set "name".');
   return {
     clip,
     clipPath,
     clipText,
     metaPath,
-    meta: { ...original, dependencies },
+    // In the key order of the Included Reaction metadata.
+    meta: {
+      schema_version: 1,
+      content_type: kind,
+      content_id: `builtin:${kind}:${item.stem}`,
+      version: 1,
+      name: name.trim(),
+      ai_description: REACTION_AI_DESCRIPTION,
+      placement_hint: item.placement_hint,
+      implementation: { kind: "anima_clip", file_role: "sequence" },
+      dependencies,
+      files: [{ path: `${item.stem}.json`, role: "sequence" }],
+    },
   };
 }
 

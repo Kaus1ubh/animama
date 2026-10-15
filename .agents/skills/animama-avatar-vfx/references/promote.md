@@ -73,6 +73,15 @@ one promoted in the run is re-pointed at its Included ID. The Included meta
 kept, and Reactions stay expression-only. Deleting an effect is allowed once
 the same run re-points every Reaction or Gesture that used it.
 
+A **new** Reaction is added in the same run with `mode: "add"` and its
+placement hint (the project's clip id must be the stem; the name defaults to
+the project's):
+
+```json
+{ "kind": "reaction", "stem": "joy-4-b", "source": "joy-4-b.project.json", "mode": "add",
+  "placement_hint": { "emotion": "joy", "intensity": 4 } }
+```
+
 A **new** Gesture that uses a new effect is not added here: promote the
 effect with `mode: "add"` first, then add the Gesture with
 `pnpm -s animation promote` (`mode: "add"` with `dependencies` naming the

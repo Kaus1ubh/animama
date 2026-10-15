@@ -842,7 +842,32 @@ test("Reaction and Gesture items replace one Included item from a project", () =
   );
   for (const [item, message] of [
     [{ kind: "pose", stem: "a", source: "a.json", mode: "replace" }, /"kind"/],
-    [{ kind: "reaction", stem: "a", source: "a.json", mode: "add" }, /replace/],
+    [{ kind: "gesture", stem: "a", source: "a.json", mode: "add" }, /replace/],
+    [{ kind: "reaction", stem: "a", source: "a.json", mode: "delete" }, /adds/],
+    [
+      { kind: "reaction", stem: "a", source: "a.json", mode: "add" },
+      /"placement_hint"/,
+    ],
+    [
+      {
+        kind: "reaction",
+        stem: "a",
+        source: "a.json",
+        mode: "add",
+        placement_hint: { emotion: "joy", intensity: 0 },
+      },
+      /"placement_hint"/,
+    ],
+    [
+      {
+        kind: "reaction",
+        stem: "a",
+        source: "a.json",
+        mode: "replace",
+        placement_hint: { emotion: "joy", intensity: 2 },
+      },
+      /keeps it/,
+    ],
     [{ kind: "reaction", stem: "a", mode: "replace" }, /"source"/],
     [
       {
@@ -1031,6 +1056,78 @@ test("promotion replaces a Reaction and points it at the promoted effects", asyn
   assert.deepEqual(
     again.map((change) => change.path),
     [],
+  );
+});
+
+test("promotion adds a Reaction with its meta, records and Included refs", async () => {
+  const root = await fixtureRepo();
+  const { clip, meta } = await addReaction(root);
+  const added = {
+    ...clip,
+    id: "joy-4-b",
+    name: "Joy Reaction 4B",
+    events: [
+      { id: "spark", time: 0, kind: "particle_vfx", effectId: "sparkle" },
+    ],
+  };
+  const item = {
+    kind: "reaction",
+    mode: "add",
+    stem: "joy-4-b",
+    placement_hint: { emotion: "joy", intensity: 4 },
+    project: project(added, [meta.dependencies[1]]),
+  };
+  const repo = workingTreeRepo(root);
+  const changes = await planEffectPromotion([item], {
+    repo,
+    validate,
+    validateClip,
+  });
+  await applyEffectPromotion(root, changes);
+  const folder = path.join(root, "content/included/reactions/joy-4-b");
+  assert.equal(
+    await readFile(path.join(folder, "joy-4-b.json"), "utf8"),
+    `${JSON.stringify(added)}\n`,
+  );
+  assert.deepEqual(
+    JSON.parse(await readFile(path.join(folder, "joy-4-b.meta.json"), "utf8")),
+    {
+      schema_version: 1,
+      content_type: "reaction",
+      content_id: "builtin:reaction:joy-4-b",
+      version: 1,
+      name: "Joy Reaction 4B",
+      ai_description: "Reusable avatar reaction clip",
+      placement_hint: { emotion: "joy", intensity: 4 },
+      implementation: { kind: "anima_clip", file_role: "sequence" },
+      dependencies: [meta.dependencies[1]],
+      files: [{ path: "joy-4-b.json", role: "sequence" }],
+    },
+  );
+  const records = JSON.parse(
+    await readFile(path.join(root, "licenses/source-review.json"), "utf8"),
+  ).files.filter((record) => record.path.includes("reactions/joy-4-b"));
+  assert.deepEqual(records, [
+    {
+      path: "content/included/reactions/joy-4-b/joy-4-b.json",
+      basis: "Reaction",
+    },
+    {
+      path: "content/included/reactions/joy-4-b/joy-4-b.meta.json",
+      basis: "Reaction",
+    },
+  ]);
+  // A second add of the same stem is refused; it is a replace now.
+  await assert.rejects(
+    planEffectPromotion([item], { repo, validate, validateClip }),
+    /use mode "replace"/,
+  );
+  await assert.rejects(
+    planEffectPromotion(
+      [{ ...item, stem: "joy-5", project: project(added, []) }],
+      { repo, validate, validateClip },
+    ),
+    /clip id must be its stem/,
   );
 });
 
