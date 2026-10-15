@@ -89,8 +89,9 @@ removed with it; people do not edit it key by key.
 ## Idle
 
 The finite Gestures an Anima plays while it is quiet, chosen from its built-in
-Idle pool: a Default pool plus one cell per emotion and intensity. A cell with
-Gestures plays only those; an empty cell uses Default. Every Anima has exactly
+Idle pool: a Default pool plus one cell per emotion and intensity. Each idle is
+a Default Gesture half the time and, the other half, a Gesture from the current
+emotion's cells at or below its intensity. Every Anima has exactly
 one pool, seeded at creation and edited in its loadout. Idle Gestures are never
 AI-callable. Formerly "Idle Style", reusable content that no longer exists
 ([ADR 0026](docs/adr/0026-built-in-idle-pool-per-anima.md)); do not use that term.

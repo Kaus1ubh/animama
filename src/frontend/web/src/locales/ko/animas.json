@@ -144,7 +144,6 @@
     "defaultPool": "기본값",
     "emptyDefault": "대기 제스처가 없습니다. 호흡과 휴식 동작은 계속됩니다.",
     "gestureCount_other": "제스처 {{count}}개",
-    "hint": "이 Anima가 조용히 있을 때 재생하는 제스처입니다. 감정과 강도마다 자체 제스처를 재생하며, 없으면 기본값을 재생합니다. 대기 제스처는 AI가 선택하지 않습니다.",
     "included": "기본 제공",
     "ineligible": {
       "checkFailed": "재생을 확인할 수 없습니다. 다시 시도하세요.",
@@ -167,7 +166,9 @@
     "search": "제스처 검색",
     "title": "대기",
     "unavailable": "사용할 수 없음",
-    "usesDefault": "기본값 사용"
+    "defaultOnly": "기본값만",
+    "inheritedFrom": "{{intensity}}에서",
+    "inheritedIn": "{{cell}}에 이어지는 제스처"
   },
   "loadout": {
     "fallbackName": {

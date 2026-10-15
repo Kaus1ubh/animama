@@ -160,7 +160,7 @@ describe("Idle loadout section", () => {
       view.container.querySelector<HTMLElement>(
         `[aria-controls="idle-${emotion}-levels"]`,
       )!;
-    expect(emotionRow("anger").textContent).toContain("Uses Default");
+    expect(emotionRow("anger").textContent).toContain("Default only");
     expect(emotionRow("joy").textContent).toContain("1 Gesture");
 
     act(() => emotionRow("joy").click());
@@ -168,6 +168,11 @@ describe("Idle loadout section", () => {
     expect(
       view.container.querySelectorAll('[aria-label="Joy · Mild"]'),
     ).toHaveLength(0);
+    // Strong plays Moderate's Wave too: shown read-only, removed from Moderate.
+    const inherited = view.byLabel("Inherited by Joy · Strong")!;
+    expect(inherited.textContent).toContain("Wave");
+    expect(inherited.textContent).toContain("from Moderate");
+    expect(inherited.querySelector('[aria-label^="Remove"]')).toBeNull();
   });
 
   it("removes a member, including an unavailable one, by its row", () => {

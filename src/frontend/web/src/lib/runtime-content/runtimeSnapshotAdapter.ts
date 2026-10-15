@@ -274,7 +274,7 @@ export function adaptRuntimeSnapshot(
       : [];
   runtime.idle_pools = {
     default: ids(idle.default_pool),
-    // A cell whose Gestures were all left out uses Default, like an empty cell.
+    // A cell whose Gestures were all left out adds nothing, like an empty cell.
     cells: Object.fromEntries(
       Object.entries(object(idle.cells)).map(([emotion, levels]) => [
         emotion,

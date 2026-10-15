@@ -43,9 +43,11 @@ Poses; its "Show Included" checkbox (off by default) adds the Included ones.
 
 The Anima's Idle pool adds a separate Gesture-backed idle lane. A mount freezes
 each pool Gesture as its own root with exact finite playback facts; a Gesture
-that cannot be admitted is left out alone. Neutral uses Default; the dominant
-emotion/intensity selects its cell, using Default when the cell is empty.
-Selection is uniform with previous-Gesture avoidance when alternatives exist.
+that cannot be admitted is left out alone. Each selection weights Default at
+one half and the dominant emotion's cells from Mild up to its intensity at the
+other, uniformly within each half; a Gesture in both takes both shares, and an
+empty half gives the other the whole pool. Neutral uses Default alone. Each
+half leaves out the previous Gesture when it has another choice.
 Pool changes apply on the next mount; emotion changes affect the next
 selection. Idle members are absent from the AI-invocable Gesture list.
 

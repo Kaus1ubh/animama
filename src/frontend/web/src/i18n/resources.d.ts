@@ -622,11 +622,11 @@ export default interface Resources {
       "cell": "{{emotion}} · {{intensity}}",
       "changedElsewhere": "This Anima's Idle changed elsewhere and has been refreshed. Try again.",
       "checking": "Checking playback…",
+      "defaultOnly": "Default only",
       "defaultPool": "Default",
       "emptyDefault": "No idle Gestures. Breathing and resting continue.",
       "gestureCount_one": "{{count}} Gesture",
       "gestureCount_other": "{{count}} Gestures",
-      "hint": "Gestures this Anima plays while it is quiet. Each emotion and intensity plays its own Gestures, or Default when it has none. Idle Gestures are never chosen by the AI.",
       "included": "Included",
       "ineligible": {
         "checkFailed": "Playback could not be checked. Try again.",
@@ -640,6 +640,8 @@ export default interface Resources {
         "repetitions": "This looping Gesture needs a finite repetition count before it can idle.",
         "speed": "This Gesture needs a positive playback speed before it can idle."
       },
+      "inheritedFrom": "from {{intensity}}",
+      "inheritedIn": "Inherited by {{cell}}",
       "levels": "{{emotion, lowercase}} idle cells",
       "loading": "Loading Gestures…",
       "local": "Local",
@@ -648,8 +650,7 @@ export default interface Resources {
       "retryCatalog": "Retry",
       "search": "Search Gestures",
       "title": "Idle",
-      "unavailable": "Unavailable",
-      "usesDefault": "Uses Default"
+      "unavailable": "Unavailable"
     },
     "loadout": {
       "fallbackName": {

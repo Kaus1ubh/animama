@@ -236,23 +236,31 @@ function IdleGesturePicker({
   );
 }
 
-/** One member of a cell, with Preview and Remove. */
+/** One member of a cell with Preview, and Remove unless it is inherited. */
 function IdleMemberChip({
   member,
   cellLabel,
+  from,
   disabled,
   onPreview,
   onRemove,
 }: {
   member: PyIdleMember;
   cellLabel: string;
-  disabled: boolean;
+  /** The lower intensity an inherited member comes from; it is removed there. */
+  from?: string;
+  disabled?: boolean;
   onPreview: () => void;
-  onRemove: () => void;
+  /** Absent for an inherited member, which shows no Remove. */
+  onRemove?: () => void;
 }) {
   const { t } = useTranslation("animas");
   return (
-    <li className="bg-muted/40 flex min-w-0 items-center gap-1 rounded-md border py-0.5 pr-0.5 pl-2 text-sm">
+    <li
+      className={`flex min-w-0 items-center gap-1 rounded-md border py-0.5 pr-0.5 pl-2 text-sm ${
+        from ? "text-muted-foreground border-dashed" : "bg-muted/40"
+      }`}
+    >
       <span
         className={`truncate ${member.available ? "" : "text-muted-foreground line-through"}`}
       >
@@ -263,6 +271,11 @@ function IdleMemberChip({
           {t("idle.unavailable")}
         </span>
       )}
+      {from ? (
+        <span className="text-2xs shrink-0">
+          {t("idle.inheritedFrom", { intensity: from })}
+        </span>
+      ) : null}
       <Button
         type="button"
         size="icon-sm"
@@ -274,22 +287,27 @@ function IdleMemberChip({
       >
         <Play />
       </Button>
-      <Button
-        type="button"
-        size="icon-sm"
-        variant="ghost"
-        className="size-6"
-        disabled={disabled}
-        aria-label={t("idle.remove", { name: member.name, cell: cellLabel })}
-        onClick={onRemove}
-      >
-        <X />
-      </Button>
+      {onRemove ? (
+        <Button
+          type="button"
+          size="icon-sm"
+          variant="ghost"
+          className="size-6"
+          disabled={disabled}
+          aria-label={t("idle.remove", { name: member.name, cell: cellLabel })}
+          onClick={onRemove}
+        >
+          <X />
+        </Button>
+      ) : null}
     </li>
   );
 }
 
-/** A cell row: its label, its Gestures (or that it uses Default) and the Add picker. */
+/**
+ * A cell row: its label, its own Gestures, those it inherits from lower
+ * intensities (or that it plays Default only) and the Add picker.
+ */
 function IdleCellRow({
   cell,
   cellLabel,
@@ -321,11 +339,12 @@ function IdleCellRow({
   onPreviewAvailable: (gesture: PyGesture) => void;
   onRetryAvailable: () => void;
 }) {
+  const { t } = useTranslation("animas");
   const name = cellLabel(cell);
   return (
     <div className="flex min-w-0 items-start gap-3 border-b px-4 py-3 last:border-b-0">
       {label}
-      <div className="min-w-0 flex-1 pt-1.5">
+      <div className="min-w-0 flex-1 space-y-1.5 pt-1.5">
         {cell.gestures.length ? (
           <ul className="flex flex-wrap gap-1.5" aria-label={name}>
             {cell.gestures.map((member) => (
@@ -339,7 +358,24 @@ function IdleCellRow({
               />
             ))}
           </ul>
-        ) : (
+        ) : null}
+        {cell.inherited.length ? (
+          <ul
+            className="flex flex-wrap gap-1.5"
+            aria-label={t("idle.inheritedIn", { cell: name })}
+          >
+            {cell.inherited.map(({ member, intensity }) => (
+              <IdleMemberChip
+                key={member.binding_id}
+                member={member}
+                cellLabel={name}
+                from={reactionIntensityLabel(intensity, t)}
+                onPreview={() => onPreview(member)}
+              />
+            ))}
+          </ul>
+        ) : null}
+        {cell.gestures.length || cell.inherited.length ? null : (
           <p className="text-muted-foreground text-sm">{emptyText}</p>
         )}
       </div>
@@ -425,91 +461,86 @@ export function IdleLoadoutSection({
       onToggle={() => setExpanded((current) => !current)}
       sticky
     >
-      <div className="space-y-3">
-        <p className="text-muted-foreground text-sm">{t("idle.hint")}</p>
-        <div className="overflow-hidden rounded-xl border">
-          <div className="border-b">
-            <IdleCellRow
-              {...rowProps}
-              cell={grid.defaultCell}
-              label={
-                <span className="inline-flex h-8 w-20 shrink-0 items-center text-sm font-semibold">
-                  {t("idle.defaultPool")}
-                </span>
-              }
-              emptyText={t("idle.emptyDefault")}
-            />
-          </div>
-          {grid.rows.map((row) => {
-            const open = expandedEmotions.has(row.emotion);
-            const panelId = `idle-${row.emotion}-levels`;
-            return (
-              <div
-                key={row.emotion}
-                className={`border-b last:border-b-0 ${
-                  open
-                    ? "border-l-primary border-l-2"
-                    : "border-l-2 border-l-transparent"
+      <div className="overflow-hidden rounded-xl border">
+        <div className="border-b">
+          <IdleCellRow
+            {...rowProps}
+            cell={grid.defaultCell}
+            label={
+              <span className="inline-flex h-8 w-20 shrink-0 items-center text-sm font-semibold">
+                {t("idle.defaultPool")}
+              </span>
+            }
+            emptyText={t("idle.emptyDefault")}
+          />
+        </div>
+        {grid.rows.map((row) => {
+          const open = expandedEmotions.has(row.emotion);
+          const panelId = `idle-${row.emotion}-levels`;
+          return (
+            <div
+              key={row.emotion}
+              className={`border-b last:border-b-0 ${
+                open
+                  ? "border-l-primary border-l-2"
+                  : "border-l-2 border-l-transparent"
+              }`}
+            >
+              <button
+                type="button"
+                aria-expanded={open}
+                aria-controls={panelId}
+                onClick={() =>
+                  setExpandedEmotions((current) => {
+                    const next = new Set(current);
+                    if (open) next.delete(row.emotion);
+                    else next.add(row.emotion);
+                    return next;
+                  })
+                }
+                className={`focus-visible:ring-ring flex w-full items-center justify-between gap-4 px-4 py-3.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset ${
+                  open ? "bg-primary/5 hover:bg-primary/8" : "hover:bg-muted/30"
                 }`}
               >
-                <button
-                  type="button"
-                  aria-expanded={open}
-                  aria-controls={panelId}
-                  onClick={() =>
-                    setExpandedEmotions((current) => {
-                      const next = new Set(current);
-                      if (open) next.delete(row.emotion);
-                      else next.add(row.emotion);
-                      return next;
-                    })
-                  }
-                  className={`focus-visible:ring-ring flex w-full items-center justify-between gap-4 px-4 py-3.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset ${
-                    open
-                      ? "bg-primary/5 hover:bg-primary/8"
-                      : "hover:bg-muted/30"
-                  }`}
+                <span className="truncate text-sm font-semibold capitalize">
+                  {storedEmotionLabel(row.emotion)}
+                </span>
+                <span className="text-muted-foreground flex shrink-0 items-center gap-3 text-xs">
+                  {row.gestureCount
+                    ? t("idle.gestureCount", { count: row.gestureCount })
+                    : t("idle.defaultOnly")}
+                  {open ? (
+                    <ChevronDown className="text-foreground size-4" />
+                  ) : (
+                    <ChevronRight className="text-foreground size-4" />
+                  )}
+                </span>
+              </button>
+              {open ? (
+                <div
+                  id={panelId}
+                  role="region"
+                  aria-label={t("idle.levels", {
+                    emotion: storedEmotionLabel(row.emotion),
+                  })}
+                  className="border-t"
                 >
-                  <span className="truncate text-sm font-semibold capitalize">
-                    {storedEmotionLabel(row.emotion)}
-                  </span>
-                  <span className="text-muted-foreground flex shrink-0 items-center gap-3 text-xs">
-                    {row.gestureCount
-                      ? t("idle.gestureCount", { count: row.gestureCount })
-                      : t("idle.usesDefault")}
-                    {open ? (
-                      <ChevronDown className="text-foreground size-4" />
-                    ) : (
-                      <ChevronRight className="text-foreground size-4" />
-                    )}
-                  </span>
-                </button>
-                {open ? (
-                  <div
-                    id={panelId}
-                    role="region"
-                    aria-label={t("idle.levels", {
-                      emotion: storedEmotionLabel(row.emotion),
-                    })}
-                    className="border-t"
-                  >
-                    {row.cells.map((cell) => (
-                      <IdleCellRow
-                        key={cell.key}
-                        {...rowProps}
-                        cell={cell}
-                        label={
-                          <ReactionIntensityBadge intensity={cell.intensity!} />
-                        }
-                        emptyText={t("idle.usesDefault")}
-                      />
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-            );
-          })}
-        </div>
+                  {row.cells.map((cell) => (
+                    <IdleCellRow
+                      key={cell.key}
+                      {...rowProps}
+                      cell={cell}
+                      label={
+                        <ReactionIntensityBadge intensity={cell.intensity!} />
+                      }
+                      emptyText={t("idle.defaultOnly")}
+                    />
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          );
+        })}
       </div>
     </LoadoutSectionDisclosure>
   );

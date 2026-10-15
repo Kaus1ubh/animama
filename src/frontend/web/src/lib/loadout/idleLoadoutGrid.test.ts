@@ -64,10 +64,55 @@ describe("Idle loadout grid", () => {
         emotion: null,
         intensity: null,
         gestures: [member("sway")],
+        inherited: [],
       },
     );
     expect(choices.local.map((value) => value.item_id)).toEqual(["mine"]);
     expect(choices.included.map((value) => value.item_id)).toEqual(["wave"]);
+  });
+
+  it("lets each intensity inherit lower ones once, without repeating its own", () => {
+    const grid = buildIdleLoadoutGrid({
+      default_pool: [member("sway")],
+      cells: [
+        { emotion: "joy", intensity: 1, gestures: [member("hop")] },
+        {
+          emotion: "joy",
+          intensity: 2,
+          gestures: [member("wave"), member("hop")],
+        },
+        { emotion: "joy", intensity: 3, gestures: [member("wave")] },
+      ],
+    });
+    const [mild, moderate, strong] = grid.rows[0]!.cells;
+    const inherited = (cell: typeof mild) =>
+      cell.inherited.map(({ member, intensity }) => [
+        member.item_id,
+        intensity,
+      ]);
+    expect(inherited(mild)).toEqual([]);
+    // Moderate holds hop itself, so it is not listed as inherited there.
+    expect(inherited(moderate)).toEqual([]);
+    expect(inherited(strong)).toEqual([["hop", 1]]);
+    expect(grid.defaultCell.inherited).toEqual([]);
+
+    // A cell offers neither its own Gestures nor the ones it inherits.
+    const gesture = (itemId: string) =>
+      ({
+        item_id: itemId,
+        name: itemId,
+        origin: "builtin",
+        state: "ready",
+        source: { type: "catalog", catalog_item_id: itemId },
+      }) as PyGesture;
+    const choices = idleGestureChoices(
+      ["hop", "wave", "sway", "nod"].map(gesture),
+      strong,
+    );
+    expect(choices.included.map((value) => value.item_id)).toEqual([
+      "sway",
+      "nod",
+    ]);
   });
 
   it("adds to Default without a cell and to a cell with its emotion and intensity", () => {

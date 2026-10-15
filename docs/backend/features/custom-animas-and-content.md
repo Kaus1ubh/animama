@@ -45,8 +45,11 @@ Every Anima owns one Idle pool ([ADR 0026](../../adr/0026-built-in-idle-pool-per
 a Default pool plus a cell for each tracked emotion at intensities 1–3. Each
 member is an `anima_content_bindings` row with kind `gesture` and slot
 `idle:<cell>:<catalog_item_id>`, where `<cell>` is `default` or
-`<emotion>-<intensity>`. A cell with members plays only them; an empty cell, and
-neutral, use Default; an empty Default schedules nothing. Membership never adds
+`<emotion>-<intensity>`. Playback picks Default half the time and, the other
+half, the dominant emotion's cells from Mild up to its intensity; neutral, or an
+emotion with no Gestures there, uses Default alone, and an empty pool schedules
+nothing. The seed lists each Gesture once, in the lowest cell that plays it.
+Membership never adds
 a Gesture to the AI-invocable list, and a pooled Local Gesture cannot be deleted
 until it is removed, like an equipped one.
 
@@ -62,8 +65,8 @@ ineligible Gesture is dropped with a diagnostic while the rest keep playing.
 Creation seeds the pool from `resources/starter-idle-pool.v1.json`, which maps
 the twelve Included idle Gestures and the five `mixamo-motion` idle loops to
 Default and emotion cells. Only installed, idle-eligible Included Gestures are
-seeded, and a cell left equal to Default is emptied, so an installation without
-the `mixamo-motion` source gets the core mapping unchanged. Installing content
+seeded, so an installation without the `mixamo-motion` source gets the core
+mapping unchanged. Installing content
 later does not change an existing pool. Old `idle-styles/` folders are not scanned.
 
 ## Live Anima definition

@@ -144,7 +144,6 @@
     "defaultPool": "預設",
     "emptyDefault": "沒有待機動作。呼吸與靜止動作會繼續。",
     "gestureCount_other": "{{count}} 個動作",
-    "hint": "此 Anima 安靜時播放的動作。每種情緒和強度播放各自的動作，沒有動作時使用預設。AI 從不選擇待機動作。",
     "included": "內建",
     "ineligible": {
       "checkFailed": "無法檢查播放。請再試一次。",
@@ -167,7 +166,9 @@
     "search": "搜尋動作",
     "title": "待機",
     "unavailable": "無法使用",
-    "usesDefault": "使用預設"
+    "defaultOnly": "僅預設",
+    "inheritedFrom": "來自{{intensity}}",
+    "inheritedIn": "{{cell}}繼承的動作"
   },
   "loadout": {
     "fallbackName": {

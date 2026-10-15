@@ -28,7 +28,7 @@ class ReviewedNonPortableItem(ImportModel):
 
     ``rebound`` uses this installation's own matching item; ``unavailable`` leaves
     it out (the Gesture is not equipped, and its Idle cells keep their other
-    Gestures or use Default).
+    Gestures).
     """
 
     kind: PackageContentKind

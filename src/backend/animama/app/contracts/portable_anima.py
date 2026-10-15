@@ -64,8 +64,10 @@ IdleEntryList = Annotated[list[EntryId], Field(max_length=500)]
 class PortableIdlePool(PortableModel):
     """The Anima's Idle pool as Gesture entry ids.
 
-    An emotion/intensity cell absent from ``cells`` uses ``default``. Lists are
-    unique and present cells are non-empty, so each pool has one encoding.
+    An emotion/intensity cell absent from ``cells`` holds no Gestures of its
+    own; playback still mixes in ``default`` and the emotion's lower
+    intensities. Lists are unique and present cells are non-empty, so each pool
+    has one encoding.
     """
 
     default: IdleEntryList

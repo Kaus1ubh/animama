@@ -379,7 +379,7 @@ class PyIdleMember(BaseModel):
 
 
 class PyIdleCell(BaseModel):
-    """One emotion/intensity cell; an empty ``gestures`` list means the cell uses Default."""
+    """One emotion/intensity cell; higher intensities also play it, and Default is always mixed in."""
 
     model_config = ConfigDict(extra="forbid")
 

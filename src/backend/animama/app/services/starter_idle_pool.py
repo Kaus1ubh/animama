@@ -2,9 +2,11 @@
 
 ``starter-idle-pool.v1.json`` holds the reviewed seed by logical key: Streamer
 Idle's Default and cells, plus the Mixamo idles in the cells Emotive Idle mapped
-them to. Seeding keeps only Included Gestures that are installed and eligible
-for finite idle playback, so an installation without the Mixamo pack receives
-exactly Streamer Idle. Later installs never change an existing Anima's pool.
+them to. Each cell lists only what it adds: playback always mixes in Default and
+inherits an emotion's lower intensities. Seeding keeps only Included Gestures
+that are installed and eligible for finite idle playback, so an installation
+without the Mixamo pack receives exactly Streamer Idle. Later installs never
+change an existing Anima's pool.
 """
 
 from __future__ import annotations
@@ -71,11 +73,7 @@ async def _eligible_gesture(
 async def resolve_starter_idle_pool(
     *, visible: dict[str, CatalogContentEntry], store: ContentStore
 ) -> tuple[ResolvedIdleMember, ...]:
-    """Return the seed members available on this installation.
-
-    A cell whose available members equal Default's is left empty, so it uses
-    Default instead of repeating it.
-    """
+    """Return the seed members available on this installation."""
 
     seed = starter_idle_pool()
     available: dict[str, CatalogContentEntry] = {}
@@ -85,15 +83,11 @@ async def resolve_starter_idle_pool(
             available[key] = item
     default = [available[key] for key in seed["default"] if key in available]
     members = [ResolvedIdleMember(item, IDLE_DEFAULT_CELL) for item in default]
-    default_ids = {item.id for item in default}
     for emotion, levels in sorted(seed["cells"].items()):
         for level, cell_keys in sorted(levels.items()):
             # idle_cell_key rejects a mistyped emotion or intensity in the seed.
             cell = idle_cell_key(emotion, int(level))
-            items = [available[key] for key in cell_keys if key in available]
-            if {item.id for item in items} == default_ids:
-                continue
-            members.extend(ResolvedIdleMember(item, cell) for item in items)
+            members.extend(ResolvedIdleMember(available[key], cell) for key in cell_keys if key in available)
     return tuple(members)
 
 

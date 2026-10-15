@@ -3,7 +3,7 @@
 - Status: accepted
 - Recorded: 2026-10-14
 - Retrospective: no
-- Original decision date: 2026-10-14 (owner decisions D1–D10 on
+- Original decision date: 2026-10-14 (owner decisions D1–D11 on
   [issue #559](https://github.com/raymond-van/animama/issues/559))
 - Supersedes: the Idle Style parts of
   [ADR 0018](0018-non-portable-included-content.md) decision 3
@@ -25,8 +25,12 @@ that a user had to find and select.
 1. **The pool belongs to the Anima.** Every Anima has exactly one unnamed Idle
    pool: a Default pool plus the 72 emotion/intensity cells. It always exists
    and cannot be removed, replaced or unselected.
-2. **Cells are lists or Default.** A cell with Gestures plays only those; an
-   empty cell uses Default; Default may be empty. There is no per-cell "No idle".
+2. **Default plus the emotion's cells.** Each idle picks Default half the time
+   and, the other half, the dominant emotion's cells from Mild up to its
+   intensity, uniformly within each half. A Gesture in both takes both shares;
+   when one half is empty, the other takes all. Default may be empty. There is
+   no per-cell "No idle". (Owner revision of 2026-10-14; cells first replaced
+   Default.)
 3. **Edited in place.** The `/animas/` loadout panel adds and removes Gestures
    per cell, one plan/commit change at a time, without the Reaction review
    dialog. Only finite-playback Gestures qualify, and membership never makes a
@@ -60,7 +64,7 @@ checks that Gestures and Reactions already have.
 ## Evidence
 
 - [Spec snapshot](../plans/anima-idle-pool/anima-idle-pool-spec.md): agreed
-  requirements R1–R11 and decisions D1–D10.
+  requirements R1–R11 and decisions D1–D11.
 - `src/backend/animama/resources/starter-idle-pool.v1.json` and
   `app/services/starter_idle_pool.py`: the seed and its resolution.
 - `app/services/anima_loadout_service.py`: the `idle` family and binding slots

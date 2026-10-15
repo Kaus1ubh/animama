@@ -257,7 +257,7 @@ On import, the review lists each reference as `rebound` when this installation
 has a valid non-portable Included item with the same kind and logical key, or
 `unavailable` otherwise. Rebound items return to their Anima slot or Idle
 pools. Unavailable ones are left out: the Gesture is not equipped, and its Idle
-cells keep their other Gestures or use Default. Import and typed save reject any file whose SHA-256 matches a
+cells keep their other Gestures. Import and typed save reject any file whose SHA-256 matches a
 non-portable payload (`package_non_portable`, `content_non_portable`) without
 echoing its contents. Matching files added to the Local folder by hand are
 scanned as non-portable instead.

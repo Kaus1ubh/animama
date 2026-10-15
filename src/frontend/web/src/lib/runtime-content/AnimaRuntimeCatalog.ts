@@ -396,13 +396,25 @@ export class AnimaRuntimeCatalog
     previousFile?: string | null;
   }): ManifestIdleSelectionResult {
     return selectManifestIdleCandidateFromEntries({
-      entries: this.idlePool(args.emotionalState),
       ...args,
+      entries: this.idlePool(args.emotionalState, args.previousFile),
+      // A configured pool avoids the previous Gesture within each half itself,
+      // so avoidance cannot shift the Default/emotion split.
+      previousFile: this.idleCellPools ? null : args.previousFile,
     });
   }
 
-  /** Select the dominant emotion's Idle cell, or Default, before existing weighted selection. */
-  private idlePool(emotionalState: EmotionRuntimeState): ManifestAnimation[] {
+  /**
+   * Weight the Anima's Idle pool for the dominant emotion: half Default, half
+   * the Gestures in that emotion's cells from Mild up to its intensity,
+   * uniform within each half. A Gesture in both halves takes both shares; when
+   * one half is empty, the other takes the whole pool. A half with another
+   * choice leaves out the previous Gesture. Weighted selection then picks one.
+   */
+  private idlePool(
+    emotionalState: EmotionRuntimeState,
+    previousFile?: string | null,
+  ): ManifestAnimation[] {
     if (!this.idleCellPools) return this.idleAnimations;
     let dominant: TrackedEmotion | null = null;
     let dominantValue = 0;
@@ -413,16 +425,36 @@ export class AnimaRuntimeCatalog
         dominantValue = value;
       }
     }
-    const cell = dominant
-      ? this.idleCellPools.cells[dominant]?.[
-          String(intensityFromEmotionValue(dominantValue))
-        ]
-      : undefined;
-    // An empty or absent cell uses Default.
-    const ids = new Set(cell?.length ? cell : this.idleCellPools.default);
-    return uniformIdlePool(
-      this.idleAnimations.filter((entry) => ids.has(entry.id ?? "")),
+    const emotionIds: string[] = [];
+    if (dominant) {
+      const levels = this.idleCellPools.cells[dominant] ?? {};
+      const intensity = intensityFromEmotionValue(dominantValue);
+      for (let level = 1; level <= intensity; level += 1)
+        emotionIds.push(...(levels[String(level)] ?? []));
+    }
+    // Only Gestures that mounted can play, so only they share a half.
+    const mounted = new Set(this.idleAnimations.map((entry) => entry.id ?? ""));
+    const previous = previousFile ? normalizeFile(previousFile) : "";
+    const previousIds = new Set(
+      this.idleAnimations
+        .filter((entry) => previous && normalizeFile(entry.file) === previous)
+        .map((entry) => entry.id ?? ""),
     );
+    const half = (ids: Iterable<string>) => {
+      const present = new Set([...ids].filter((id) => mounted.has(id)));
+      const fresh = [...present].filter((id) => !previousIds.has(id));
+      return new Set(fresh.length > 0 ? fresh : present);
+    };
+    const defaultIds = half(this.idleCellPools.default);
+    const emotionPool = half(emotionIds);
+    const share = (ids: Set<string>, id: string) =>
+      ids.has(id) ? 1 / ids.size : 0;
+    return this.idleAnimations.flatMap((entry) => {
+      const id = entry.id ?? "";
+      const weight = share(defaultIds, id) + share(emotionPool, id);
+      // The pool already chose by emotion, so entries are neutral.
+      return weight > 0 ? [{ ...entry, emotions: {}, weight }] : [];
+    });
   }
 
   getGesture(
@@ -1146,13 +1178,6 @@ function uniqueEntries(
     onDuplicate(entry);
     return false;
   });
-}
-
-/** A configured pool has already performed emotion eligibility selection. */
-function uniformIdlePool(
-  entries: readonly ManifestAnimation[],
-): ManifestAnimation[] {
-  return entries.map((entry) => ({ ...entry, emotions: {}, weight: 1 }));
 }
 
 function parseEmotionWeights(

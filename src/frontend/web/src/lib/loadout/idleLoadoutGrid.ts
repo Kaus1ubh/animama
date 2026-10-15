@@ -6,12 +6,23 @@ import type {
 } from "@animama/runtime-contracts/api-types";
 import type { PyGesture } from "@/lib/content/catalogTypes";
 
+/** A Gesture a cell plays because a lower intensity of its emotion holds it. */
+export type IdleInheritedMember = {
+  member: PyIdleMember;
+  intensity: 1 | 2;
+};
+
 /** One Idle cell: Default (no emotion) or an emotion at intensity 1–3. */
 export type IdleLoadoutCell = {
   key: string;
   emotion: string | null;
   intensity: 1 | 2 | 3 | null;
   gestures: PyIdleMember[];
+  /**
+   * Gestures this cell also plays from lower intensities of its emotion, once
+   * each and never repeating its own; Default is always mixed in as well.
+   */
+  inherited: IdleInheritedMember[];
 };
 
 export type IdleLoadoutRow = {
@@ -45,14 +56,30 @@ export function buildIdleLoadoutGrid(idle: PyAnimaIdle): IdleLoadoutGrid {
       emotion: null,
       intensity: null,
       gestures: idle.default_pool ?? [],
+      inherited: [],
     },
     rows: emotions.map((emotion) => {
-      const cells = INTENSITIES.map((intensity) => ({
-        key: `${emotion}-${intensity}`,
-        emotion,
-        intensity,
-        gestures: byCell.get(`${emotion}-${intensity}`) ?? [],
-      })) as IdleLoadoutRow["cells"];
+      const lower: IdleInheritedMember[] = [];
+      const cells = INTENSITIES.map((intensity) => {
+        const gestures = byCell.get(`${emotion}-${intensity}`) ?? [];
+        const own = new Set(gestures.map((member) => member.item_id));
+        const inherited = lower.filter(
+          ({ member }) => !own.has(member.item_id),
+        );
+        for (const member of gestures)
+          if (
+            intensity < 3 &&
+            !lower.some((entry) => entry.member.item_id === member.item_id)
+          )
+            lower.push({ member, intensity: intensity as 1 | 2 });
+        return {
+          key: `${emotion}-${intensity}`,
+          emotion,
+          intensity,
+          gestures,
+          inherited,
+        };
+      }) as IdleLoadoutRow["cells"];
       return {
         emotion,
         cells,
@@ -65,12 +92,16 @@ export function buildIdleLoadoutGrid(idle: PyAnimaIdle): IdleLoadoutGrid {
   };
 }
 
-/** Ready Gestures that can be added to a cell: not already in it, Local first. */
+/** Ready Gestures a cell can add: not already in it or inherited, Local first. */
 export function idleGestureChoices(
   available: PyGesture[],
   cell: IdleLoadoutCell,
 ): { local: PyGesture[]; included: PyGesture[] } {
-  const members = new Set(cell.gestures.map((member) => member.item_id));
+  const members = new Set(
+    [...cell.gestures, ...cell.inherited.map((entry) => entry.member)].map(
+      (member) => member.item_id,
+    ),
+  );
   const choices = available.filter(
     (gesture) =>
       gesture.state === "ready" &&

@@ -530,8 +530,8 @@ async def test_tracked_checkout_materializes_both_starters_without_optional_loca
             # Starters receive the reviewed Idle seed; its Gestures are never AI-callable.
             assert sorted(idle_keys(loadout.idle.default_pool)) == sorted(starter_idle_pool()["default"])
             cells = {(cell.emotion, cell.intensity): idle_keys(cell.gestures) for cell in loadout.idle.cells}
+            # Strong inherits Moderate, and without the optional Mixamo idles Mild adds nothing.
             assert cells["joy", 2] == ["builtin:gesture:happy-sway"]
-            # Without the optional Mixamo idles, joy-1 matches Default and stays empty.
-            assert cells["joy", 1] == [] and cells["admiration", 1] == []
+            assert cells["joy", 1] == cells["joy", 3] == cells["admiration", 1] == []
             gesture_keys = {gesture.source.logical_key for gesture in loadout.gestures if gesture.source}
             assert gesture_keys.isdisjoint(idle_seed_keys())

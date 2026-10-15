@@ -144,7 +144,6 @@
     "defaultPool": "デフォルト",
     "emptyDefault": "待機ジェスチャーはありません。呼吸や静止の動きは続きます。",
     "gestureCount_other": "{{count}} 件のジェスチャー",
-    "hint": "この Anima が静かにしているときに再生するジェスチャーです。感情と強さごとに専用のジェスチャーを再生し、ない場合はデフォルトを再生します。待機ジェスチャーが AI に選ばれることはありません。",
     "included": "同梱",
     "ineligible": {
       "checkFailed": "再生を確認できませんでした。もう一度お試しください。",
@@ -167,7 +166,9 @@
     "search": "ジェスチャーを検索",
     "title": "待機",
     "unavailable": "利用不可",
-    "usesDefault": "デフォルトを使用"
+    "defaultOnly": "デフォルトのみ",
+    "inheritedFrom": "{{intensity}}から",
+    "inheritedIn": "{{cell}}に引き継がれるジェスチャー"
   },
   "loadout": {
     "fallbackName": {

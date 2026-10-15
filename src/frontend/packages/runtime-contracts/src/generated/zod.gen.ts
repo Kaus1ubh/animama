@@ -1584,8 +1584,10 @@ export const zPortableGestureSelection = z.object({
  *
  * The Anima's Idle pool as Gesture entry ids.
  *
- * An emotion/intensity cell absent from ``cells`` uses ``default``. Lists are
- * unique and present cells are non-empty, so each pool has one encoding.
+ * An emotion/intensity cell absent from ``cells`` holds no Gestures of its
+ * own; playback still mixes in ``default`` and the emotion's lower
+ * intensities. Lists are unique and present cells are non-empty, so each pool
+ * has one encoding.
  */
 export const zPortableIdlePool = z.object({
     cells: z.record(z.string(), z.record(z.string(), z.array(z.string().min(1).max(128).regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/)).max(500))),
@@ -3005,7 +3007,7 @@ export const zPyIdleMember = z.object({
 /**
  * PyIdleCell
  *
- * One emotion/intensity cell; an empty ``gestures`` list means the cell uses Default.
+ * One emotion/intensity cell; higher intensities also play it, and Default is always mixed in.
  */
 export const zPyIdleCell = z.object({
     emotion: z.string(),
@@ -4875,9 +4877,10 @@ export const zPyRuntimeIdleGesture = z.object({
  *
  * The Anima's Idle pool as admitted for this mount.
  *
- * Pools list Gesture catalog item ids from ``gestures``. A cell absent from
- * ``cells`` uses ``default_pool``; members that could not be admitted are
- * left out, and a cell left empty that way uses Default too.
+ * Pools list Gesture catalog item ids from ``gestures``. Players pick from
+ * ``default_pool`` half the time and, the other half, from the dominant
+ * emotion's cells up to its intensity. A cell absent from ``cells`` adds
+ * nothing; members that could not be admitted are left out.
  */
 export const zPyRuntimeIdle = z.object({
     cells: z.optional(z.record(z.string(), z.record(z.string(), z.array(z.string())))),
@@ -6094,7 +6097,7 @@ export const zReviewedImportItem = z.object({
  *
  * ``rebound`` uses this installation's own matching item; ``unavailable`` leaves
  * it out (the Gesture is not equipped, and its Idle cells keep their other
- * Gestures or use Default).
+ * Gestures).
  */
 export const zReviewedNonPortableItem = z.object({
     kind: z.enum([

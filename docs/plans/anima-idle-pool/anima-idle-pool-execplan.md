@@ -1,7 +1,7 @@
 # Give every Anima one built-in Idle pool and replace Idle Styles
 
 Source agreement: [anima-idle-pool-spec.md](anima-idle-pool-spec.md) (R1–R11,
-owner decisions D1–D10 of 2026-10-14), published as parent
+owner decisions D1–D11 of 2026-10-14), published as parent
 [#559](https://github.com/raymond-van/animama/issues/559).
 Authorized scope: the whole plan (owner, 2026-10-14).
 Branch: `feat/anima-idle-pool` in its own worktree. Starting revision:
@@ -91,6 +91,7 @@ or edits Cloud.
 - [x] Workspace setup: parent #559, phase issues #560 and #561 (2026-10-14).
 - [x] Phase 1: backend Idle pool replaces Idle Style (#560; review passed after two repair rounds).
 - [x] Phase 2: frontend Idle grid, removal of Idle Style surfaces, 90 seconds (#561; review passed after two repair rounds).
+- [x] Phase 3: cumulative cells with a 50/50 Default split (owner D11; review passed after one repair round).
 - [ ] Final integration review, full validation and PR.
 - Remaining owner gate: manual idle playback check in chat (see Validation).
 
@@ -137,6 +138,14 @@ or edits Cloud.
   caller; Phase 2 deletes it and moves the hosted recovery tests and fixture to
   Action editor recovery keys. Session purges keep the `animama:content-edit:`
   prefix so drafts the retired editor left behind still end with their session.
+
+- 2026-10-14, owner (D11, after the first final review): each cell inherits
+  its emotion's lower intensities, and each idle picks from Default and that
+  emotion pool 50/50. Implemented as weights in the existing weighted idle
+  selection (each half sums to one). Previous-Gesture avoidance runs within
+  each half, so it cannot shift the split. The seed lists each Gesture once, in
+  the lowest cell that plays it; Mild cells no longer copy Default. Issue #559
+  and the spec snapshot carry the revision.
 
 ## Phased implementation
 
@@ -519,6 +528,77 @@ Verification: affected tests pass (8 tests), web `tsc` and eslint clean.
 Final targeted recheck of R2-F1–R2-F5: all verified, no new findings. Checks:
 web `tsc` clean; 3 affected test files (9 tests) pass; eslint and
 `prettier:check` clean. **Pass.** Repair budget used: two rounds.
+
+### Phase 3: cumulative cells with a 50/50 Default split
+
+Requirements: R2, R4, R5 as revised by D11. Issue:
+[#559](https://github.com/raymond-van/animama/issues/559) (revision). Depends
+on Phases 1 and 2; same branch and PR.
+
+Steps:
+
+1. **Selection.** `AnimaRuntimeCatalog.idlePool` weights Default members at
+   `1/|Default|` and the dominant emotion's Mild-to-current members at
+   `1/|emotion pool|`, summing for a Gesture in both; an empty half drops out.
+2. **Seed.** `starter-idle-pool.v1.json` lists each Gesture once, in its
+   lowest cell, without Default copies; `resolve_starter_idle_pool` drops the
+   "cell equal to Default" rule.
+3. **Grid.** `buildIdleLoadoutGrid` adds each cell's inherited members;
+   `IdleLoadoutSection` shows them read-only with their source intensity, the
+   picker leaves them out, and an empty cell reads "Default only". Strings in
+   five locales.
+4. **Docs and contracts.** ADR 0026 decision 2, Glossary, backend and frontend
+   docs, contract docstrings (regenerated client descriptions).
+
+Validation: affected backend tests, the frontend gate, and the full browser
+journeys on the final candidate.
+
+Results (2026-10-14): implemented as above. The owner also removed the Idle
+section's explanatory hint (all five locales). Affected frontend suites (88
+files, 1253 tests), web `tsc`, `i18n:check` and the seed tests pass.
+
+#### Code Review #1 Findings
+
+Reviewed source: the uncommitted Phase 3 tree on `88da0e11` (independent
+read-only reviewer). Weighting, the seed rewrite (per-emotion pools unchanged
+except Default copies leaving Mild; D10 intact), grid inheritance and the
+translations verified. Verdict: blocked on wording.
+
+- P3-F1 (required): `custom-animas-and-content.md` still said a seed cell equal
+  to Default is emptied.
+- P3-F2 (required): `PortableIdlePool` (published in the client) and the domain
+  `IdleCell` docstrings stated the old rule.
+- P3-F3 (required): the spec's and issue #559's acceptance criterion, non-goal
+  and constraint still described the old selection.
+- P3-F4 (optional): a member that failed to mount still counted in its half's
+  denominator.
+- P3-F5 (optional, owner decision): previous-Gesture avoidance after weighting
+  moved the split from 50/50 (about 65% Default for a one-Gesture emotion pool).
+- P3-F6 (optional): plan header and ADR still said D1–D10.
+- Nits: dead props on inherited chips; a test comment; locale key order.
+
+#### Code Review #1 Revisions
+
+- P3-F1, P3-F2 accepted: reworded; client regenerated (descriptions only).
+- P3-F3 accepted: issue #559 and the snapshot revised (read back
+  2026-10-15T03:22:13Z).
+- P3-F4 accepted: each half counts only mounted members.
+- P3-F5 accepted without a new decision: the owner asked for 50/50, so
+  avoidance now runs within each half (a half with one Gesture may repeat it).
+  Tests cover avoidance and unmounted members.
+- P3-F6 accepted. Nits: chip `onRemove` is optional and inherited chips pass
+  none; test comment corrected; locale key order left as is (not enforced).
+
+Verification: affected frontend suites (88 files, 1253 tests), web `tsc`,
+ruff.
+
+#### Code Review #2 Findings
+
+Targeted recheck: P3-F1–P3-F6, the nits and the hint removal all resolved;
+**pass**. Optional: R2-P3-F1, spec R6 still says "existing selection behavior"
+although a one-Gesture emotion half may now repeat (stated in the PR and the
+runtime docs instead of another issue edit); R2-P3-F2, a leftover wrapper
+`div`, removed. Repair rounds used: one.
 
 ## Final integration review
 

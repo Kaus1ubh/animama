@@ -1,10 +1,10 @@
 # Give every Anima one built-in Idle pool and replace Idle Styles
 
 Status: Agreed
-Owner decision: owner hand-off and answers on 2026-10-14 (D1–D10 below);
-implementation authorized the same day.
+Owner decision: owner hand-off and answers on 2026-10-14 (D1–D11 below);
+implementation authorized the same day. D11 revises R2, R4 and R5.
 Authoritative source: [issue #559](https://github.com/raymond-van/animama/issues/559).
-This file is an issue snapshot, published and read back at 2026-10-14T22:56:39Z.
+This file is an issue snapshot, last revised (D11) and read back at 2026-10-15T03:22:13Z.
 Source baseline: `2e18090b` (`origin/main`, 2026-10-14).
 
 ## Problem and intended users
@@ -42,8 +42,8 @@ In scope:
 
 Non-goals:
 
-- Changing which Gestures are idle-eligible, or how the runtime picks and plays
-  an idle Gesture (beyond the quiet interval).
+- Changing which Gestures are idle-eligible, or how the runtime plays an idle
+  Gesture (beyond the quiet interval and the D11 selection).
 - Making idle Gestures AI-callable.
 - Migrating existing Idle Style selections, Local Idle Styles or packages
   containing Idle Styles (D2, D3).
@@ -61,10 +61,13 @@ pool plus one cell for each of the 24 tracked emotions at intensities 1–3
 It cannot be removed, replaced by another set or left unselected; there is no
 whole-set selection.
 
-R2. **Cell meaning.** A cell with Gestures plays only those Gestures at that
-emotion and intensity. An empty cell uses Default. Neutral, or no dominant
-emotion, uses Default. Default may be empty; then every cell that uses Default
-schedules no idle Gestures, and procedural breathing and resting continue.
+R2. **Selection.** Each idle stint picks a Default Gesture half the time and,
+the other half, a Gesture from the dominant emotion's cells from Mild up to its
+current intensity (Strong also plays Mild and Moderate), uniformly within each
+half. A Gesture in both halves takes both shares. When one half is empty, the
+other takes the whole pool; neutral, or no dominant emotion, uses Default
+alone. When both are empty, no idle Gesture is scheduled, and procedural
+breathing and resting continue.
 
 R3. **Members.** Only Gestures that pass the existing finite-playback
 eligibility rules can be added. A Gesture appears at most once in a cell and may
@@ -80,12 +83,13 @@ the merged seed:
 - where the `mixamo-motion` Included source is installed, its five idle
   Gestures with the Emotive Idle mapping.
 
-Default is Streamer Idle's Default. Each cell contains what Streamer Idle plays
-there today, with inheritance resolved, plus the Mixamo idles that Emotive Idle
-maps to that cell; Emotive Idle's own Default is not used. A cell equal to
-Default is left empty and so uses Default. Without the Mixamo pack the seed
-equals Streamer Idle exactly (7 Default Gestures, 44 explicit cells); with it,
-Default is unchanged and 56 cells are explicit. Seed Gestures that are unavailable when the
+Default is Streamer Idle's Default. Because Default is always mixed in and
+higher intensities inherit lower ones, each cell lists only what it adds:
+Streamer Idle's own cell Gestures and the Mixamo idles Emotive Idle maps there,
+each in the lowest intensity that plays it. Emotive Idle's own Default is not
+used. Without the Mixamo pack the seed has 7 Default Gestures and 22 cells
+(Moderate for 22 emotions); with it, Default is unchanged and 34 cells hold
+Gestures. Seed Gestures that are unavailable when the
 Anima is created are left out; installing content later does not change
 existing pools. Seeded Gestures are ordinary members that can be removed.
 Locally acquired Mixamo Gestures are not part of the seed.
@@ -95,8 +99,10 @@ Reaction grid layout: a Default row, then one expandable row per emotion with
 its three intensities. Each cell lists its Gestures with Preview and Remove, and
 an Add control opens a searchable picker of Local and Included Gestures that
 shows finite-playback eligibility and disables ineligible Gestures with the
-reason. An empty cell reads "Uses Default"; an empty Default explains that no
-idle Gestures are scheduled. Each add or remove takes effect immediately
+reason. Moderate and Strong also show, read-only, the Gestures they inherit
+from lower intensities, and the picker leaves those out. A cell with nothing to
+add reads "Default only"; an empty Default explains that no idle Gestures are
+scheduled. Each add or remove takes effect immediately
 without a review dialog. A failed change shows an error and leaves the pool
 unchanged; a stale tab refreshes instead of overwriting newer state. Changes
 reach chat on the next runtime mount, as for other loadout changes.
@@ -140,8 +146,8 @@ structurally; their versions are bumped under the package-set rules.
   development databases may be reset (D2).
 - [ADR 0018](../../adr/0018-non-portable-included-content.md) still holds:
   non-portable bytes never leave the app; only its Idle Style wording changes.
-- Finite-playback eligibility rules and the runtime planner's selection are
-  unchanged apart from the interval.
+- Finite-playback eligibility rules and the runtime planner are unchanged apart
+  from the interval; only the Idle pool's selection weighting changes (D11).
 - Shared product routes stay in `animama.product_http`
   ([ADR 0021](../../adr/0021-shared-product-http-routes.md)); the local
   installation remains the only owner.
@@ -157,9 +163,10 @@ structurally; their versions are bumped under the package-set rules.
 - [ ] The loadout API offers no operation that removes, replaces or unselects
   the pool, and adding an ineligible, unknown or duplicate Gesture is rejected
   without changing the revision (R1, R3). Evidence: backend tests.
-- [ ] Runtime selection follows R2: a filled cell plays only its Gestures, an
-  empty cell uses Default, an empty Default schedules nothing. Evidence:
-  frontend runtime/planner tests and backend projection tests.
+- [ ] Runtime selection follows R2: half Default and half the dominant
+  emotion's cells up to its intensity, an empty half leaving the other the
+  whole pool, and an empty pool scheduling nothing. Evidence: frontend
+  runtime/planner tests and backend projection tests.
 - [ ] Idle members are absent from the AI-callable Gesture list (R3).
   Evidence: runtime projection test.
 - [ ] One ineligible or missing member is skipped with a diagnostic while the
@@ -196,7 +203,7 @@ Owner decisions (2026-10-14):
   no existing Animas to preserve.
 - D3. No compatibility for packages containing Idle Styles.
 - D4. Rename both user-visible text and internal identifiers.
-- D5. Drop the explicit "No idle" cell state; an empty cell uses Default.
+- D5. Drop the explicit "No idle" cell state (cell meaning revised by D11).
 - D6. Merge the two sets per cell as the union of what each plays there today,
   inheritance resolved.
 - D7. Idle add/remove applies immediately without the Reaction review dialog.
@@ -206,10 +213,14 @@ Owner decisions (2026-10-14):
 - D10. Refining D6: Mixamo idles join only the cells Emotive Idle maps them to.
   Emotive Idle's Default (`mixamo-idle-happy`) is not used, so the happy loop
   plays only for amusement, excitement, joy and optimism.
+- D11 (revision, later on 2026-10-14). Replace "a filled cell replaces
+  Default" with: each cell inherits all lower intensities of its emotion, and
+  each idle picks from Default and from that emotion pool 50/50. The seed lists
+  each Gesture once, in the lowest cell that plays it.
 
 Conflicts with recorded decisions, resolved by this change:
 
-- [Glossary](../../GLOSSARY.md) "Idle Style" and the backend content docs
+- [Glossary](../../../GLOSSARY.md) "Idle Style" and the backend content docs
   define idle motion as reusable content with no per-Anima pool overrides.
 - [ADR 0018](../../adr/0018-non-portable-included-content.md) decision 3
   describes non-portable Gestures inside a portable Idle Style.

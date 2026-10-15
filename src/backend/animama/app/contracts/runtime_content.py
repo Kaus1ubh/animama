@@ -122,9 +122,10 @@ class PyRuntimeIdleGesture(PyRuntimeAction):
 class PyRuntimeIdle(BaseModel):
     """The Anima's Idle pool as admitted for this mount.
 
-    Pools list Gesture catalog item ids from ``gestures``. A cell absent from
-    ``cells`` uses ``default_pool``; members that could not be admitted are
-    left out, and a cell left empty that way uses Default too.
+    Pools list Gesture catalog item ids from ``gestures``. Players pick from
+    ``default_pool`` half the time and, the other half, from the dominant
+    emotion's cells up to its intensity. A cell absent from ``cells`` adds
+    nothing; members that could not be admitted are left out.
     """
 
     model_config = ConfigDict(extra="forbid")

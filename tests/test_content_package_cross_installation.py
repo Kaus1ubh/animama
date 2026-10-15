@@ -264,7 +264,7 @@ async def _create_anima(sender: _Installation) -> str:
         display_name="Portable companion",
         identity="# Portable identity\nKeep every line.\n",
         avatar=items["avatar"],
-        # The AI-callable wave is also the Default idle; nod plays only in the joy-2 cell.
+        # The AI-callable wave is also the Default idle; nod is a member of the joy-2 cell only.
         idle=(
             ResolvedIdleMember(items["local:gesture:wave"], "default"),
             ResolvedIdleMember(items["local:gesture:nod"], "joy-2"),

@@ -93,10 +93,10 @@ async def test_without_the_mixamo_pack_the_seed_is_exactly_streamer_idle() -> No
     cells = _cells(await resolve_starter_idle_pool(visible=visible, store=_Store()))  # type: ignore[arg-type]
 
     assert cells.pop("default") == STREAMER_DEFAULT
-    # Streamer Idle defines Moderate and Strong cells for 22 emotions.
-    assert len(cells) == 44
-    assert cells["joy-2"] == cells["joy-3"] == {"builtin:gesture:happy-sway"}
-    assert "joy-1" not in cells and "anger-1" not in cells and "respect-2" not in cells
+    # Streamer Idle adds one Moderate cell for each of 22 emotions; Strong inherits it.
+    assert len(cells) == 22
+    assert cells["joy-2"] == {"builtin:gesture:happy-sway"}
+    assert "joy-1" not in cells and "joy-3" not in cells and "respect-2" not in cells
     assert not any(":mixamo-" in key for keys in cells.values() for key in keys)
 
 
@@ -107,10 +107,12 @@ async def test_mixamo_idles_join_only_the_cells_emotive_idle_mapped() -> None:
     cells = _cells(await resolve_starter_idle_pool(visible=visible, store=_Store()))  # type: ignore[arg-type]
 
     assert cells.pop("default") == STREAMER_DEFAULT
-    assert len(cells) == 56
-    assert cells["joy-1"] == STREAMER_DEFAULT | {"builtin:gesture:mixamo-idle-happy"}
-    assert cells["joy-2"] == {"builtin:gesture:happy-sway", "builtin:gesture:mixamo-idle-happy"}
-    assert cells["anger-2"] == {"builtin:gesture:simmering-huff", "builtin:gesture:mixamo-idle-angry"}
+    # Each Mixamo idle sits in its Mild cell; Moderate and Strong inherit it.
+    assert len(cells) == 34
+    assert cells["joy-1"] == {"builtin:gesture:mixamo-idle-happy"}
+    assert cells["joy-2"] == {"builtin:gesture:happy-sway"}
+    assert cells["anger-1"] == {"builtin:gesture:mixamo-idle-angry"}
+    assert all(":mixamo-" in key for cell, keys in cells.items() if cell.endswith("-1") for key in keys)
     happy = {cell for cell, keys in cells.items() if "builtin:gesture:mixamo-idle-happy" in keys}
     assert {cell.rpartition("-")[0] for cell in happy} == {"amusement", "excitement", "joy", "optimism"}
     assert cells["disgust-2"] == {"builtin:gesture:simmering-huff"}
@@ -131,6 +133,6 @@ async def test_unavailable_or_ineligible_seed_gestures_are_left_out() -> None:
     cells = _cells(await resolve_starter_idle_pool(visible=visible, store=_Store()))  # type: ignore[arg-type]
 
     assert cells.pop("default") == STREAMER_DEFAULT - {"builtin:gesture:bgm-bob"}
-    # Cells that only held the ineligible Gesture now use Default.
+    # Cells that only held the ineligible Gesture add nothing to Default.
     assert "joy-2" not in cells
     assert cells["anger-2"] == {"builtin:gesture:simmering-huff"}

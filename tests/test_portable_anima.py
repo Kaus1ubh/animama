@@ -131,7 +131,7 @@ def test_portable_definition_has_strict_bounded_complete_allowlist(change):
     elif change == "idle_duplicate":
         raw["idle"]["default"] = ["model", "model"]
     elif change == "idle_empty_cell":
-        # An empty Idle cell uses Default, so it has exactly one encoding: absent.
+        # An empty Idle cell adds nothing, so it has exactly one encoding: absent.
         raw["idle"]["cells"] = {"joy": {"2": []}}
     elif change == "extra":
         raw["owner_user_id"] = "private-owner"

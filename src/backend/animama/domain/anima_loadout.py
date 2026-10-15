@@ -111,7 +111,7 @@ class IdleMember:
 
 @dataclass(frozen=True, slots=True)
 class IdleCell:
-    """One emotion/intensity cell. An empty cell uses the Default pool."""
+    """One emotion/intensity cell; higher intensities also play it, and Default is always mixed in."""
 
     emotion: str
     intensity: int

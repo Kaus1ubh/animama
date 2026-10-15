@@ -96,13 +96,16 @@ Idle is the Anima's built-in pool of Gestures for quiet moments
 ([ADR 0026](../../adr/0026-built-in-idle-pool-per-anima.md)); it always exists
 and cannot be swapped for another. The section shows Default first, then one
 expandable row per emotion with its Mild, Moderate and Strong cells, each
-listing its Gestures with Preview and Remove. An empty cell reads "Uses Default"
-and plays Default; an empty Default schedules nothing, while breathing and
-resting continue. Neutral uses Default. A Gesture in the pool is never equipped
+listing its Gestures with Preview and Remove. Moderate and Strong also list,
+read-only, the Gestures they inherit from lower intensities. Each idle is a
+Default Gesture half the time and a Gesture from the current emotion's cells at
+or below its intensity the other half; a cell with nothing to add reads
+"Default only". An empty pool schedules nothing, while breathing and resting
+continue. Neutral uses Default. A Gesture in the pool is never equipped
 for AI invocation, and the same Gesture can sit in several cells.
 
 Each cell's Add picker lists ready Local and Included Gestures not already in
-that cell. Choosing one checks its finite playback first
+or inherited by that cell. Choosing one checks its finite playback first
 (`GET /v1/gestures/{item_id}/idle-playback`); an ineligible Gesture stays in the
 list, disabled, with the reason. Both VRMA and `animaPoseClip` Gestures need
 finite authored playback. Adding and removing apply at once through
