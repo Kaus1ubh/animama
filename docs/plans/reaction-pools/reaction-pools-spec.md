@@ -1,11 +1,11 @@
 # Reaction pools, a fourth intensity and a second Included Reaction per cell
 
 Status: Agreed
-Owner decision: 2026-10-14 owner requests and decisions D1–D3 and D5–D19
+Owner decision: 2026-10-14 owner requests and decisions D1–D3 and D5–D20
 below (D4 superseded by D11); spec and ExecPlan approved 2026-10-14; R2,
-R13, R14 and R16 amended for D17–D19 the same day.
+R13, R14 and R16 amended for D17–D19 the same day, and R16 for D20.
 Authority: parent issue [#563](https://github.com/raymond-van/animama/issues/563).
-This file is a snapshot of the issue body as updated at 2026-10-15T00:41:44Z;
+This file is a snapshot of the issue body as updated at 2026-10-15T03:47:45Z;
 refresh it from the issue before resuming.
 
 ## Problem and intended users
@@ -184,8 +184,10 @@ that difference.
 R16. **Quality and approval.** New Avatar Effects follow D18. Every new or
 revised Included Reaction and effect passes the content checks, has review renders on both Included Avatars,
 keeps the heaviest Reactions within the effect performance budget (4 ms added
-frame interval and GPU time on the owner's development Mac) and enters
-`content/included/` only after the owner approves it in the live preview. New
+frame interval and GPU time on the owner's development Mac) and merges into
+`main`'s `content/included/` only after the owner approves it in the live
+preview or the review reel. Unapproved drafts may be promoted on the task
+branch first; the owner's edits are promoted again before approval (D20). New
 art carries owner-authored licence records.
 
 ## Constraints
@@ -258,8 +260,8 @@ art carries owner-authored licence records.
 - [ ] Every new or revised Reaction and effect passes `pnpm -s animation
   validate`, `pnpm -s animation check` and `pnpm -s effects check` as
   applicable, the heaviest are benchmarked within budget, and each was
-  approved by the owner in the live preview (R16). Evidence: recorded results
-  and dated owner approvals in the plan.
+  approved by the owner in the live preview or review reel before merge
+  (R16). Evidence: recorded results and dated owner approvals in the plan.
 - [ ] In chat, a cell with several Reactions plays different members across
   repeated emotion events, and stronger replies escalate along the ladder.
   Evidence: owner manual check.
@@ -314,6 +316,9 @@ Owner decisions (2026-10-14):
 - D19. Where two intensity-1 faces stay alike because the Included Avatars
   have only six expressions, one of them adds one subtle existing Avatar
   Effect (owner choice over accepting look-alikes or forcing odd blends).
+- D20. Implementation and promotion continue before the content review; the
+  owner reviews and edits the ladder content before merge (owner,
+  2026-10-14, so the backend and UI work need not wait for a full review).
 
 Conflicts with current documentation, resolved by this change:
 

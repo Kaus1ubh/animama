@@ -140,12 +140,12 @@ Content (`content/included/`):
 - [x] Owner review of the spec and this plan (approved 2026-10-14).
 - [x] Workspace setup: parent #563, phase issues #564–#569 (2026-10-14).
 - [x] Phase 1: ladder table, briefs and new-effect list. G1 approved 2026-10-14; Code Review #1 passed after two repair rounds.
-- [ ] Phase 2: content drafts, renders and benchmarks. Gate G2.
+- [x] Phase 2: content drafts, renders and benchmarks (2026-10-15). Drafts complete (52 effects saved; 168 Reactions checked, reviewed in stills and a reel; the 12 heaviest benchmarked); Code Review #1 pass. G2 moved to before merge (D20) and still pending.
 - [ ] Dependency: #559 merged; branch rebased; baseline refreshed.
 - [ ] Phase 3: backend pools and four intensities.
 - [ ] Phase 4: runtime selection and `/animas/` pool editing.
 - [ ] Phase 5: equip dialog cell chooser and wizard pools.
-- [ ] Phase 6: promotion, starter pools and journeys. Gate G3.
+- [ ] Phase 6: promotion, starter pools and journeys. G3 list reviewed with G2 before merge.
 - [ ] Final integration review, full validation and PR.
 - Remaining owner gate: escalation and variety check in chat.
 
@@ -162,6 +162,24 @@ Content (`content/included/`):
   Reaction intensity; D13 separates them.
 - 2026-10-14: today's ladder exists only in the effects content plan, not in
   current guidance; Phase 1 writes the new ladder as current guidance.
+- 2026-10-14: `pnpm -s effects promote` handles a Reaction only as a
+  `replace` of an existing Included folder (same stem, same clip id). Phase 6
+  needs Reaction adds (96 new) and the one-level ID shift of today's 72, so
+  it extends the promote tool (or adds a Reaction promote mode) under test
+  before the G3 dry run.
+- 2026-10-14 (Phase 2): whole-face painted flipbooks work (the texture
+  compositor draws the current frame into the face rectangle);
+  `animama-effect-assets` said whole-part art stays a single image, so its
+  guidance is corrected with the working recipe. Both Included Avatars are
+  VRoid with byte-identical face-skin UV masks.
+- 2026-10-14 (Phase 2): on a freshly reset stack every app route redirects
+  to first-run `/setup`, so `pnpm -s effects save` fails with "could not
+  open the creator" until setup is completed once (test display name; AI and
+  voice skipped) including the adult age gate, which the owner approved
+  confirming on the task stack.
+- 2026-10-14: a Reaction project's dependency on a new effect needs that
+  effect saved as Local content first (`ref` is its Local ID), so Phase 2
+  builds and saves the effects before generating Reaction project files.
 
 ## Decision Log
 
@@ -212,6 +230,21 @@ Content (`content/included/`):
   annoyance-1 `sigh_puff_droop`. Corrections made after G1 (eight
   intensity-1 faces, five B faces, three overlay attachments and these
   effects) are presented for approval at G2.
+- 2026-10-14, owner (Phase 2): drop the new `heartbeat_heart` (too many
+  heart effects already); its four B uses become love-4-b `kirakira_cluster`
+  + `blush_deep`, desire-3-b `kirakira_cluster` + `blush`, embarrassment-3-b
+  `blush` + `startle_ticks`, nervousness-3-b `ticking-fuse` (15 new Avatar
+  Effects). Pale Blue Shade and Petrified Cracks become painted face-skin
+  textures instead of floating art, and Teary Sparkle Eyes becomes a
+  generated multi-frame flipbook instead of a line boil.
+- 2026-10-14, agent (Phase 2, within the G1 design intent; shown at G2): a
+  `focus_lines` Scene has no background colour or entry flash and nearly
+  vanishes on the dark theme, so fear-4-b, nervousness-4-b and
+  confusion-4-b each also play a companion backdrop Scene
+  (`scene-b-<emotion>-backdrop`: gradient plus entry flash). Rejected: a
+  `background_layers` approximation with at most 48 ray wedges (weaker focus
+  lines) and adding backdrop fields to `focus_lines` (schema and creator
+  changes).
 - 2026-10-14, owner: G1 approved (ladder table, expressions, briefs and the
   new-effect list as published on the G1 review page, version 2); proceed to
   Phase 2.
@@ -237,14 +270,40 @@ Content (`content/included/`):
 - 2026-10-14, agent proposal: no ADR. No recorded decision covers Reaction
   cells or intensities; a new Glossary "Reaction" entry, the ladder guidance
   and the affected docs describe the result.
+- 2026-10-14, owner (while #559 is pending): cherry-pick the
+  `feat/action-reel` commits (the `animation:reel` video recorder; 3f83e05f,
+  207fbd96, ed276caf as 0f82e122, 490afe9f, 6a458d1f) into this branch,
+  label reel Reactions with their ladder intensity (34d62a67), and record a
+  reel of all 168 drafts for G2. The cherry-pick conflicted with main's
+  per-use Avatar Effect overrides; the resolution keeps both the override
+  parse and the sound cue in `effectSource.ts` and moves main's late
+  `media.getProblems()` warning read into `effect-render/session.ts`. The
+  owner then chose to ship the reel from this branch: #554 and its branch
+  close unmerged, and this plan's PR also closes the reel issue #553 (its
+  local-only effect-reels commit ed276caf travels here as 6a458d1f).
+- 2026-10-14, owner: proceed with Phases 3–6 once #559 merges without
+  waiting for the G2 review; ladder edits will follow. Recorded as D20, with
+  R16 and its acceptance amended in #563 (2026-10-15T03:47:45Z): G2 moves to
+  before merge. Phase 6 promotes the current drafts on this branch only;
+  later edits change the drafts and are promoted again. Until G2 approval the
+  PR does not merge, so `main` receives only approved content. Phase 2's code
+  review and commit proceed now.
+- 2026-10-14, agent proposal; the owner did not keep the hard stop: G3 is
+  reviewed with G2 before merge. Phase 6 records each promotion dry-run list
+  here (the first run and every re-promotion after ladder edits) and runs it
+  on the branch; the owner approves the final list with G2. The proposal was
+  put to the owner with the option to keep G3 a hard stop; the owner then
+  asked for the rest of the plan to be implemented without check-ins. This
+  is a plan gate change; the spec (R16, D20) already requires approval
+  before merge.
 
 ## Gates
 
 | Gate | When            | Owner action                                                                                          | Effect                                                    |
 | ---- | --------------- | ----------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
 | G1   | End of Phase 1  | Approve the ladder table, the briefs for new and revised Reactions, and the new-effect list with concept stills | Fixes what Phase 2 builds; changes are recorded here      |
-| G2   | During Phase 2  | Approve each new or revised Reaction and new effect in the live preview, in batches by emotion family | Only approved items are promoted (R16)                    |
-| G3   | Phase 6         | Approve the promotion dry-run list (adds, replacements, renames, deletes)                             | Content enters `content/included/`                        |
+| G2   | Before merge (D20; was Phase 2) | Approve each new or revised Reaction and new effect in the live preview or reel, in batches by emotion family | Only approved items merge into `main`'s `content/included/` (R16); edits are promoted again first |
+| G3   | Before merge, with G2 | Approve the final promotion dry-run list (adds, replacements, renames, deletes) recorded in Phase 6 | The promoted `content/included/` changes may merge |
 | —    | After the PR    | Escalation and variety check in chat                                                                  | Remaining acceptance; merge approval stays separate       |
 
 ## Phased implementation
@@ -307,7 +366,7 @@ Results (2026-10-14, source `50640701` plus the Phase 1 working tree):
   `sheets/` from 168 expression-only renders; `ladder-guidance.md`, the step 1
   guidance text that Phase 6 commits.
 - **Ladder:** 24 emotions × 4 intensities; 96 A (72 today's moved up, 24 new
-  intensity-1) and 72 B. Ten R13 departures are fixed (caring-4 and
+  intensity-1) and 72 B. R13 departures are fixed in 12 cells (caring-4 and
   sadness-3 gain an Avatar Effect; amusement-3, confidence-3,
   disapproval-3/4, embarrassment-3, fear-3/4, nervousness-3/4 and remorse-3
   gain a Particle Effect). 50 new effects: 16 Avatar, 11 Particle, 23 Scene
@@ -439,15 +498,144 @@ Steps:
 Completion: every planned item approved in G2, checks pass and benchmarks are
 within budget (or the owner decides otherwise).
 
-Results: _pending._
+Results (2026-10-15; G2 pending before merge):
+
+- **Stack:** named task stack `animama-reaction-pools` (base port 8800,
+  development mode; application only published).
+- **Effects built** in `.animama-drafts/effects/` by parallel agents (one
+  per Avatar Effect, grouped Particle batches, one per Scene family), each
+  with its brief, `effects check`, render sheets and recorded departures:
+  15 Avatar Effects (Ink: menace_aura, guilt_arrow, startle_ticks,
+  skunk_cloud, pale_blue_shade, shadowed_glare, petrified_cracks,
+  wilting_flower, passing_crow; Marker: kirakira_cluster,
+  teary_sparkle_eyes, happy_flowers, ahoge_curl, stomach_butterflies,
+  triumph_halo), all flipbooks (boil or drawn frame by frame), no lettering;
+  11 Particle Effects (14–40 particles each); 23 Scene presets in 8
+  designs plus 3 Alarm backdrops.
+- **Checks:** a fresh `pnpm -s effects check` on all 52 folders passes; the
+  only WARNs are `interior_translucency` on art that is see-through by
+  design (glows, glints, tints, bubbles, beams).
+- **Consistency:** a first-frame board of the 15 Avatar Effects on dark and
+  light backdrops shows each house style consistent in line weight, rim and
+  fill.
+- **Incident:** one Scene agent's cleanup glob deleted other designs'
+  `renders/scene-b-*.png` sheets at about 21:55; only render sheets were
+  lost (effect folders, art and briefs intact). Gloom, Revulsion and
+  Rejection designs were re-rendered; for the Affection, Esteem, Delight,
+  Drive and Alarm B presets and backdrops, the 4B Reaction sheets
+  (`g2/sheets/<emotion>-4-b.png`, both Avatars) serve as their review renders.
+  Later agents were told to delete only inside their own folders.
+- **Bench:** `effects:bench` measures Particle Effects only through a saved
+  Reaction, so particle benchmarks run after the Reaction drafts exist.
+  `pnpm -s effects:bench --reaction` (2026-10-14, task stack, Local content,
+  headless Metal on the owner's development Mac) ran on the heaviest
+  intensity-4 drafts of every family, chosen by most concurrent effects,
+  painted face flipbooks and two Particle Effects: excitement-4,
+  excitement-4-b and joy-4-b (Delight); grief-4 (Gloom); confidence-4-b
+  (Esteem); anger-4 and anger-4-b (Rejection); fear-4-b (Alarm); love-4-b
+  (Affection); optimism-4-b and desire-4 (Drive); disgust-4-b (Revulsion,
+  the only Reaction with two painted face flipbooks). All stay well within
+  the 4 ms budget. Added mean frame / CPU / GPU in ms, the maximum of the two
+  Included Avatars per metric (≈0 where the difference is within noise):
+  fear-4-b 1.47 / 0.44 / 0.45; grief-4 1.36 / 0.86 / 0.95; excitement-4
+  1.32 / 0.37 / 0.28; confidence-4-b 1.00 / 0.36 / 0.02; disgust-4-b
+  0.96 / 0.37 / 0.70; anger-4-b 0.95 / 0.36 / ≈0; anger-4 0.80 / 0.32 /
+  0.06; love-4-b 0.80 / 0.15 / ≈0; joy-4-b 0.71 / 0.63 / ≈0;
+  excitement-4-b 0.70 / 0.27 / 0.71; desire-4 0.70 / 0.23 / ≈0;
+  optimism-4-b 0.65 / 0.37 / ≈0. Results are in
+  `.animama-drafts/reaction-pools/bench/`.
+- **Review:** the G2 page shows all 168 drafts on both Included Avatars (148
+  `effects:render` sheets; the 20 effect-free intensity-1 Reactions use their
+  Phase 1 expression renders, since `effects:render` needs an effect;
+  `g2_images.mjs` then `build_g2.py` rebuild it), and the live preview lists
+  all 168 projects. All 168 clips pass `animation check` (FAIL=0, WARN=0) and
+  all 52 effects pass `effects check`.
+- **Timing:** the drafts apply the Phase 1 timing convention uniformly; no
+  per-Reaction tuning was needed in the stills or reel, so tuning happens
+  where the owner's G2 notes ask for it.
+- **Reel:** `pnpm -s animation:reel` recorded all 168 drafts on Annie in
+  ladder order with their effects and sounds
+  (`.animama-drafts/reaction-pools/reel/reaction-ladder-annie.mp4`, ignored;
+  14:25, a chapter per Reaction, 79 sounds including the override heartbeats
+  of caring-3, gratitude-3 and gratitude-4, no failures or warnings; recorded
+  again after F1). Soul Wisp, faint in the fear-4-b stills, is clearly
+  visible in motion. Editing web sources during a recording reloads the reel
+  page and stops the run (`closeReelItem is not a function`).
 
 #### Code Review #1 Findings
 
-_Pending (drafts against the approved table, briefs and checks)._
+Independent reviewer, initial full review (2026-10-14; source `34d62a67`
+plus the working tree; baseline `bba36192`). **Result: fail** on four
+should-fix findings. Checked clean: the drafts regenerate byte-identically
+from `ladder.py` and `make_projects.py`; all 168 projects are structurally
+sound (references, aliases, hints, A/B differences, ladder steps, D17 and D19
+rules, no `heartbeat_heart`); the evidence files match the plan; the
+cherry-pick resolution keeps main's override parse and moved warning read;
+the reel intensity labels match R1/D12.
+
+- P2-R0-F1 (should-fix): the review tools dropped the sound an Avatar
+  Effect event's override picks (`soundAlias`), so the reel left caring-3,
+  gratitude-3 and gratitude-4 silent where chat plays the heartbeat, and
+  labelled each effect with its default sound even when muted.
+- P2-R0-F2 (should-fix): deferring G2 left R16, its acceptance item, the
+  Gates table, Phase 6's dependency and the G3 handling inconsistent.
+- P2-R0-F3 (should-fix): benchmarks covered six of eight families, missed
+  disgust-4-b (two painted face flipbooks), gave no selection basis and
+  reported one Avatar's numbers.
+- P2-R0-F4 (should-fix): the Pale Blue Shade, Petrified Cracks and Teary
+  Sparkle Eyes briefs still described the rejected floating and boil
+  versions.
+- Optional: render coverage after the incident, the overstated Progress line,
+  the timing-tuning claim, the missing G2 image script, skill clarifications,
+  the duplicated intensity labels in the reel and its browser test in Phase 6,
+  the Phase 1 departure count, stray preview review files.
 
 #### Code Review #1 Revisions
 
-_Pending._
+Repair round 1:
+
+- F1: fixed. Effect sources carry every declared `sound_effect` by alias
+  (`effect-render-sources.mjs`, `pageEffect`), `effectSourceEntry` resolves
+  an override's `soundAlias` through them as chat does, and the reel labels
+  and mixes each event's actual sound (none when muted). Tests:
+  `previewMedia.test.ts` (override picks a declared sound; an undeclared one
+  plays nothing) and `animation-reel.test.mjs` (override and muted labels).
+  The reel was recorded again.
+- F2: fixed. D20 added and R16 and its acceptance amended in #563
+  (2026-10-15T03:47:45Z) and the spec snapshot; the Decision Log, Gates,
+  Progress and Phase 6 dependency and completion follow D20; G3 is reviewed
+  with G2 before merge, with each promotion list recorded (agent proposal sent
+  to the owner).
+- F3: fixed. Benchmarked disgust-4-b, optimism-4-b, desire-4 and anger-4;
+  the Bench result states the selection basis and the per-metric maximum of
+  both Avatars for all 12.
+- F4: fixed. The three briefs describe the built painted UV flipbooks and the
+  frame-by-frame tears.
+- Optional notes applied: render coverage stated, Progress line corrected,
+  timing note added, `g2_images.mjs` restored from the earlier command and
+  `build_g2.py` points to it, skill paragraph clarified, Phase 6 step 2 lists
+  the reel browser test and the shared labels, departure count corrected.
+  The `joy-4-b.project.review` files belong to the running live preview and
+  stay.
+
+Repair round 1 recheck (same reviewer): F1, F3 and F4 resolved; F2 resolved
+except **P2-R1-F5** (should-fix): the G3 change rested on an unaccepted agent
+proposal and was attributed to D20. Non-blocking: the reel line still
+described the first recording; sound alias lookups should use own
+properties, as chat does. **Result: fail.**
+
+Repair round 2:
+
+- F5: the owner was shown the proposal with the option to keep G3 a hard
+  stop and then asked for the rest of the plan to be implemented without
+  check-ins; the Decision Log records that dated acceptance, and the Phase 6
+  header and completion attribute G3 to it instead of D20.
+- Sound alias lookups in `effectSource.ts` and `animation-reel.mjs` use
+  `Object.hasOwn`. Reel, preview and VFX tests, `tsc -b` and eslint pass.
+- The reel was recorded again with the fixes (see the Reel result).
+
+Repair round 2 recheck (same reviewer): F5 and both non-blocking items
+resolved; no new problems. **Result: pass** (2 of 2 repair rounds used).
 
 ### Phase 3: backend pools and four intensities
 
@@ -650,11 +838,11 @@ _Pending._
 
 _Pending._
 
-### Phase 6: promotion, starter pools and journeys (G3)
+### Phase 6: promotion, starter pools and journeys
 
 Requirements: R2, R4, R13–R16 (delivery), R10 (journeys). Issue: #569.
-Depends on G2 and Phase 5. Working directories: repository root and
-`src/frontend/web`.
+Depends on Phase 5; G2 (D20) and G3 (owner, 2026-10-14) are reviewed
+before merge. Working directories: repository root and `src/frontend/web`.
 
 Steps:
 
@@ -662,12 +850,19 @@ Steps:
    rename today's Reactions up one intensity in descending order (4 before 3
    before 2) with their revisions; add the 24 intensity-1 and 72 second
    Reactions with dependencies re-pointed to Included IDs in the same run; set
-   placement hints to the final cells. `pnpm -s effects promote promote.json
-   --dry-run`; present the list for G3; then run it and `git add` the result.
+   placement hints to the final cells. Extend `effects promote` first: today
+   it only replaces Reactions, so it needs Reaction adds and the ID shift.
+   `pnpm -s effects promote promote.json --dry-run`; record the list here for
+   G3; then run it and `git add` the result. After ladder edits, change the
+   drafts and repeat this step, recording each new list.
 2. **Starter policy and built-ins.** The starter policy holds the final pools
    (D16). Update the frontend built-in Reaction map (`lib/avatar/poses/catalog.ts`,
    `reactionClips.ts`) to four intensities and the final IDs, and any bundled
-   copies, debug shortcuts and generators that name Reaction IDs.
+   copies, debug shortcuts and generators that name Reaction IDs. Update
+   `web/scripts/animation-reel.browser.test.mjs`, which names
+   `library:reaction/amusement-3` and its label, and make the reel's
+   `REACTION_INTENSITIES` use the shared Reaction-intensity labels from Phase 4
+   if they exist by then.
 3. **Licences and integrity.** Owner-authored licence rules for new art;
    update `content/included/licenses` and `licenses/source-review.json`; run
    `uv run pytest -q tests/test_included_content_integrity.py
@@ -690,9 +885,10 @@ Checks: Phase 3 and Phase 4 commands, the included-content tests above, and
 `pnpm e2e:test` (full suite) against a disposable built stack, torn down
 afterwards.
 
-Completion: G3 approved and written; 168 Included Reactions on the approved
-table; checks and journeys pass; Code Review #1 has no supported blocking
-finding.
+Completion: the promotion is written on the branch with its dry-run list
+recorded; 168 Included Reactions on the current table; checks and journeys
+pass; Code Review #1 has no supported blocking finding. G2 and G3 approval of
+the final content and list is still required before merge.
 
 Results: _pending._
 

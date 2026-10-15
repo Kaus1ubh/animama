@@ -193,7 +193,15 @@ Face-surface art for a whole part (face skin, irises, lashes) must match that
 part's UV layout; generate it over the creator's UV guide or edit an existing
 Included image. Decal areas (under-eye, cheeks, mouth) take centred art like
 floating effects; a decal flipbook uses the `flipbook` budget with frames of
-512 px or less. Whole-part art stays a single image. See the
+512 px or less. Whole-part art may be a flipbook too: fix each 512 px UV frame
+with `--budget surface --max 512` (keeping the layout), make a boil with
+`frames --mode boil` (it keeps the canvas) or edit frames from the previous
+one, and assemble the square frames with `flipbook --cell 512`, no `--trim`
+and no `--budget surface` (the sheet uses the `flipbook` size, not the 512 KiB
+surface one). Keep the sheet within that size by limiting noise such as
+screentone dots where hair covers the face. A see-through sheet reports
+`interior_translucency`; that is expected. An animated painted effect redraws
+the face texture on every effect update while it shows. See the
 `animama-avatar-vfx` references.
 
 ## Prompt template
