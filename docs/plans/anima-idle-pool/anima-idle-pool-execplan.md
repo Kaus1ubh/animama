@@ -92,7 +92,7 @@ or edits Cloud.
 - [x] Phase 1: backend Idle pool replaces Idle Style (#560; review passed after two repair rounds).
 - [x] Phase 2: frontend Idle grid, removal of Idle Style surfaces, 90 seconds (#561; review passed after two repair rounds).
 - [x] Phase 3: cumulative cells with a 50/50 Default split (owner D11; review passed after one repair round).
-- [ ] Final integration review, full validation and PR.
+- [x] Final integration review, full validation and PR (browser suite partly rerun on Phase 3, at the owner's request).
 - Remaining owner gate: manual idle playback check in chat (see Validation).
 
 ## Surprises & Discoveries
@@ -643,6 +643,23 @@ ownership all verified. Verdict: **pass**, no required findings.
 
 Verification: affected backend tests (397 passed), mypy and ruff clean. These
 small fixes need no further review round.
+
+#### Final validation (2026-10-14)
+
+On `a3d99606`: `make check-test` (4503 passed, 29 skipped; mypy 850 files) and
+the full frontend gate (`web:test` 526 files, 4924 passed) pass. Full
+`pnpm e2e:test`:
+
+- At `88da0e11` (before Phase 3): 39 passed, 1 failed in 45.1 min. The
+  failure was a `socket hang up` on a cleanup read in the Particle texture
+  journey, which the server logged as 200: a transport flake.
+- At `a3d99606`, on a purged rebuild: 20 of 40 passed with no failures,
+  including the complete-Anima export and install and imported playback. The
+  owner stopped the run to merge; the other 20 journeys were not rerun on
+  Phase 3.
+
+Package sets: `50640701` against `88da0e11`, "Compatibility policy passed";
+Phase 3 changed only contract descriptions.
 
 ## Validation and acceptance
 
