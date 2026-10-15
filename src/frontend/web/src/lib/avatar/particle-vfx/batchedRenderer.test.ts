@@ -85,7 +85,15 @@ describe("particle placement under a rotated Avatar scene", () => {
   function render(options: { renderMode: number; worldSpace: boolean }) {
     const json = manifest([undefined]);
     const emitter = json.object.children[0]!;
+    const trail = options.renderMode === 3;
     Object.assign(emitter.ps, options);
+    if (trail)
+      Object.assign(emitter.ps, {
+        rendererEmitterSettings: {
+          startLength: { type: "ConstantValue", value: 30 },
+          followLocalOrigin: false,
+        },
+      });
     // three.quarks only simulates emitters attached to a THREE.Scene.
     const world = new THREE.Scene();
     const avatarScene = new THREE.Group();
@@ -108,8 +116,9 @@ describe("particle placement under a rotated Avatar scene", () => {
     const [batch] = renderer.batches as unknown as Array<
       THREE.Mesh<THREE.InstancedBufferGeometry>
     >;
-    const offset = batch!.geometry.getAttribute("offset");
-    expect(batch!.geometry.instanceCount).toBe(1);
+    // Trail batches store their points as plain vertex positions.
+    const offset = batch!.geometry.getAttribute(trail ? "position" : "offset");
+    if (!trail) expect(batch!.geometry.instanceCount).toBe(1);
     return {
       rendered: new THREE.Vector3()
         .fromBufferAttribute(offset, 0)
@@ -122,6 +131,7 @@ describe("particle placement under a rotated Avatar scene", () => {
     ["billboard", 0],
     ["stretched billboard", 1],
     ["mesh", 2],
+    ["trail", 3],
   ])("draws %s particles at their anchor bone", (_, renderMode) => {
     for (const worldSpace of [false, true]) {
       const { rendered, hand } = render({ renderMode, worldSpace });
