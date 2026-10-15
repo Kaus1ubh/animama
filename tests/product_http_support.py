@@ -5,8 +5,10 @@
 read sessions, and ``TwoOwnerComposition`` serves two owners from one database with
 separate roots.
 ``install_local_ports`` gives local-app tests the local ports on their own session.
-Chat turns on the doubles use the ports' ``model_clients``, ``FakeSpeech``, any
-``FakeGeminiSpeech`` and a ``RecordingChatGuard`` that keeps every lease it grants.
+Chat turns on the doubles use the ports' ``model_clients`` (or one registry per
+utility purpose), ``FakeSpeech``, any ``FakeGeminiSpeech``, any
+``RecordingServerSpeechText`` and a ``RecordingChatGuard`` that keeps every lease
+it grants.
 Nothing here is installed outside tests.
 """
 
@@ -64,6 +66,7 @@ from animama.product_http.ports import (
     ChatTurnOutcome,
     ChatTurnPolicy,
     ChatTurnStop,
+    ChatUtilityPurpose,
     FinalizedSpeech,
     FinalizedSpeechPort,
     ProductContent,
@@ -130,12 +133,15 @@ async def save_display_name(session: AsyncSession, principal: RequestPrincipal, 
 class FakeSpeech:
     """Records each speech operation with its owner and arguments; never calls a provider.
 
-    With ``refusal`` set, a reply's realtime session declines with it.
+    With ``refusal`` set, a reply's realtime session declines with it. With
+    ``server_url`` set, the session is a server-transport session on that socket
+    instead of a direct one with a provider token.
     """
 
     audio_upload_max_bytes: int = 1024
     calls: list[tuple[str, str, object]] = field(default_factory=list)
     refusal: ProductRefusal | None = None
+    server_url: str | None = None
 
     async def clone_voice(
         self,
@@ -174,6 +180,16 @@ class FakeSpeech:
         # Resolving the voice runs the turn's owner check, as a provider call would.
         resolved = await voice()
         self.calls.append(("realtime_session", principal.id, resolved.voice_id))
+        if self.server_url is not None:
+            return PyElevenLabsRealtimeTtsSessionResponse(
+                voice_id=resolved.voice_id,
+                model_id=model_id or "eleven_v4_turbo",
+                output_format="pcm_24000",
+                sync_alignment=True,
+                language_code=language_code,
+                transport="server",
+                websocket_url=self.server_url,
+            )
         return PyElevenLabsRealtimeTtsSessionResponse(
             voice_id=resolved.voice_id,
             model_id=model_id or "eleven_v4_turbo",
@@ -183,6 +199,27 @@ class FakeSpeech:
             token="fake-speech-token",
             websocket_base_url="wss://speech.invalid",
         )
+
+
+@dataclass
+class RecordingServerSpeechText:
+    """A composition's server speech sink (``ChatTurnServices.server_speech_text``).
+
+    Records the prepared text the turn hands it, and how often it ended or aborted.
+    """
+
+    texts: list[str] = field(default_factory=list)
+    ended: int = 0
+    aborted: int = 0
+
+    def append(self, text: str) -> None:
+        self.texts.append(text)
+
+    def end(self) -> None:
+        self.ended += 1
+
+    def abort(self) -> None:
+        self.aborted += 1
 
 
 @dataclass
@@ -282,11 +319,22 @@ class RecordingChatGuard:
 
 @dataclass
 class FakeChatTurnServices:
-    """A turn's collaborators on the doubles: model clients, speech and any Gemini speech; no search or embeddings."""
+    """A turn's collaborators on the doubles: model clients, speech, any Gemini speech and
+    server speech sink; no search or embeddings.
+
+    Without ``utility_registries``, every utility purpose uses ``model_clients``.
+    """
 
     model_clients: ModelClientRegistry | None
     speech: FakeSpeech
     gemini_speech: FinalizedSpeechPort | None = None
+    server_speech_text: RecordingServerSpeechText | None = None
+    utility_registries: dict[str, ModelClientRegistry] | None = None
+
+    def utility_model_clients(self, purpose: ChatUtilityPurpose) -> ModelClientRegistry | None:
+        if self.utility_registries is None:
+            return self.model_clients
+        return self.utility_registries.get(purpose)
 
     async def web_search_tool(self, session: AsyncSession) -> WebSearchToolService | None:
         return None
@@ -312,6 +360,8 @@ class DoubleCollaborators:
     chat_policy: ChatTurnPolicy
     chat_guard: RecordingChatGuard
     model_clients: ModelClientRegistry | None
+    server_speech_text: RecordingServerSpeechText | None
+    utility_registries: dict[str, ModelClientRegistry] | None
 
     def _owner_runtime(self, principal: RequestPrincipal) -> tuple[Settings, LocalRuntimePaths]:
         if self.content_root is None:
@@ -381,7 +431,11 @@ class DoubleCollaborators:
 
     def chat_turn(self, principal: RequestPrincipal, lease: ChatTurnLease) -> FakeChatTurnServices:
         return FakeChatTurnServices(
-            model_clients=self.model_clients, speech=self.speech, gemini_speech=self.gemini_speech
+            model_clients=self.model_clients,
+            speech=self.speech,
+            gemini_speech=self.gemini_speech,
+            server_speech_text=self.server_speech_text,
+            utility_registries=self.utility_registries,
         )
 
     async def memory_manager(self, session: AsyncSession, principal: RequestPrincipal) -> MemoryManagerService:
@@ -424,6 +478,8 @@ class DeferredCommitPorts(DoubleCollaborators):
     chat_policy: ChatTurnPolicy = field(default_factory=lambda: TEST_CHAT_POLICY)
     chat_guard: RecordingChatGuard = field(default_factory=RecordingChatGuard)
     model_clients: ModelClientRegistry | None = None
+    server_speech_text: RecordingServerSpeechText | None = None
+    utility_registries: dict[str, ModelClientRegistry] | None = None
     commits_requested: int = 0
     commits: int = 0
     rollbacks: int = 0
@@ -496,6 +552,8 @@ class SessionPorts(DoubleCollaborators):
     chat_policy: ChatTurnPolicy = field(default_factory=lambda: TEST_CHAT_POLICY)
     chat_guard: RecordingChatGuard = field(default_factory=RecordingChatGuard)
     model_clients: ModelClientRegistry | None = None
+    server_speech_text: RecordingServerSpeechText | None = None
+    utility_registries: dict[str, ModelClientRegistry] | None = None
     settings_changes: list[str] = field(default_factory=list)
     content_root: Path | None = None
 

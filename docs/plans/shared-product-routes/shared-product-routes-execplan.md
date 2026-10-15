@@ -958,6 +958,10 @@ Limitations for a consumer adopting the chat route (like FI-05):
   (`provider_credentials: false`) has no realtime speech through the shared route
   until a shared change adds the contract's server descriptor to that response and
   its frame; finalized `eleven_v3` speech streams through the speech port.
+  (Resolved by #573: a realtime session may declare `transport="server"` with its
+  `websocket_url`, and `ChatTurnServices.server_speech_text` receives the reply's
+  prepared text. That change also keeps denial fields on error frames and gives
+  pre-send compaction, post-reply compaction and titles their own registries.)
 - A hosted reasoning-effort override is the composition's model-client registry's
   work (`chat_turn(...).model_clients`, which may rewrite each request's options);
   the shared route passes the owner's options through.

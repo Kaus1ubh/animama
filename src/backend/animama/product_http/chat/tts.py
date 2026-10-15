@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from contextlib import suppress
 from dataclasses import dataclass, field
 from typing import Any
@@ -183,6 +183,10 @@ async def resolve_realtime_tts_session_for_stream(
     )
 
 
+SessionListener = Callable[[PyElevenLabsRealtimeTtsSessionResponse | None], None]
+"""Told the run's realtime session once it resolves, or ``None`` when it was declined or failed."""
+
+
 @dataclass(slots=True)
 class TtsSessionBootstrap:
     """Owns request-local ElevenLabs realtime session setup for one SSE run."""
@@ -190,6 +194,7 @@ class TtsSessionBootstrap:
     run_id: str
     anima_id: str
     task: asyncio.Task[Any] | None = None
+    on_session: SessionListener | None = None
 
     @classmethod
     def start_if_requested(
@@ -200,6 +205,7 @@ class TtsSessionBootstrap:
         sessions: TurnSessions,
         anima_id: str,
         run_id: str,
+        on_session: SessionListener | None = None,
     ) -> TtsSessionBootstrap:
         tts_options = elevenlabs_tts_options(chat_options)
         if tts_options is None:
@@ -215,7 +221,7 @@ class TtsSessionBootstrap:
             ),
             name=f"direct-chat-tts-session-{run_id}",
         )
-        return cls(run_id=run_id, anima_id=anima_id, task=task)
+        return cls(run_id=run_id, anima_id=anima_id, task=task, on_session=on_session)
 
     def pop_ready_frame(self) -> str | None:
         if self.task is None or not self.task.done():
@@ -233,7 +239,7 @@ class TtsSessionBootstrap:
             tts_session = await task
         except Exception as exc:
             return self._error_frame(exc)
-        return format_tts_session_event(run_id=self.run_id, session=tts_session)
+        return self._session_frame(tts_session)
 
     async def cancel(self) -> None:
         task = self.task
@@ -251,9 +257,16 @@ class TtsSessionBootstrap:
             tts_session = task.result()
         except Exception as exc:
             return self._error_frame(exc)
+        return self._session_frame(tts_session)
+
+    def _session_frame(self, tts_session: PyElevenLabsRealtimeTtsSessionResponse) -> str:
+        if self.on_session is not None:
+            self.on_session(tts_session)
         return format_tts_session_event(run_id=self.run_id, session=tts_session)
 
     def _error_frame(self, exc: Exception) -> str:
+        if self.on_session is not None:
+            self.on_session(None)
         _log.warning(
             "HTTP Anima Direct Chat SSE TTS Session Setup Failed",
             anima_id=self.anima_id,

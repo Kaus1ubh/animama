@@ -24,9 +24,10 @@ from animama.domain.audio_tags import opens_with_delivery_tag
 from animama.domain.emotions import emotion_values_payload
 from animama.domain.events import EventType
 from animama.logging import get_logger
-from animama.product_http.ports import ProductRefusal
+from animama.product_http.ports import DenialDetails, ProductRefusal
 
 from .emotional_state import persist_emotional_state_update
+from .server_speech import ServerSpeechFeed
 from .setup_helpers import TurnSessions
 
 _log = get_logger("product_http.chat.sse_events")
@@ -73,6 +74,8 @@ class SseTextState:
     tts_speech_paragraph_index: int = 0
     speech_tone_tag_pending: bool = False
     """ElevenLabs speaks this reply: its first speech frame carries the leading tone tag."""
+    server_speech: ServerSpeechFeed | None = None
+    """The composition's own speech socket speaks this reply from the queued segments."""
     crisis_resources: Mapping[str, Any] | None = None
     """Resolved crisis-resource region for this turn, attached to crisis frames."""
     crisis_support_emitted: bool = False
@@ -119,7 +122,7 @@ def format_tts_session_event(
         "type": "tts.session",
         "run_id": run_id,
         "provider": "elevenlabs",
-        "transport": "direct",
+        "transport": session.transport,
         "voice_id": session.voice_id,
         "model_id": session.model_id,
         "output_format": session.output_format,
@@ -127,10 +130,14 @@ def format_tts_session_event(
     }
     if session.language_code:
         data["language_code"] = session.language_code
-    if session.websocket_base_url:
-        data["websocket_base_url"] = session.websocket_base_url
-    if session.token:
-        data["token"] = session.token
+    if session.transport == "server":
+        # The composition's own socket, opened with the session cookie; no provider token.
+        data["websocket_url"] = session.websocket_url
+    else:
+        if session.websocket_base_url:
+            data["websocket_base_url"] = session.websocket_base_url
+        if session.token:
+            data["token"] = session.token
     return format_sse("tts.session", data, event_id=f"tts-session-{run_id}")
 
 
@@ -315,23 +322,46 @@ def _record_tts_speech_segment(
     part_index: int | None,
     part_final: bool | None,
 ) -> None:
-    """Queue one ``speech`` event's text for the reply's TTS, whatever its language."""
+    """Queue one ``speech`` event's text for the reply's TTS, whatever its language.
+
+    A server speech session receives each queued segment as it is queued, and the
+    end of the reply's speech with its final part.
+    """
 
     effective_part_final = part_final if isinstance(part_final, bool) else is_delta is False
     if effective_part_final:
         state.tts_speech_segments_closed = True
+    spoken = _queue_tts_speech_segment(
+        state=state, value=value, is_delta=is_delta, part_index=part_index, part_final=effective_part_final
+    )
+    if state.server_speech is not None:
+        if spoken is not None:
+            state.server_speech.add(spoken)
+        if effective_part_final:
+            state.server_speech.end()
+
+
+def _queue_tts_speech_segment(
+    *,
+    state: SseTextState,
+    value: str,
+    is_delta: bool | None,
+    part_index: int | None,
+    part_final: bool,
+) -> str | None:
+    """Queue ``value`` as a speech segment; returns its speakable text, or ``None`` when nothing was queued."""
 
     # Nothing to speak: whitespace, punctuation or emoji alone, such as a closing 😊,
     # stays visible text only.
     spoken = speakable_text(value)
     if not any(character.isalnum() for character in spoken):
-        return
+        return None
 
     # A complete speech event after streamed speech is a visible correction.
     # Audio already emitted for prior segments cannot be replaced, so do not
     # queue the correction for another TTS pass.
     if is_delta is False and state.tts_speech_segments:
-        return
+        return None
 
     paragraph_break_before = bool(state.tts_speech_segments) and _has_leading_blank_line_break(value)
     if paragraph_break_before:
@@ -342,11 +372,12 @@ def _record_tts_speech_segment(
             visible_text=value,
             tts_text=spoken,
             part_index=part_index if isinstance(part_index, int) else len(state.tts_speech_segments),
-            part_final=effective_part_final,
+            part_final=part_final,
             paragraph_index=state.tts_speech_paragraph_index,
             paragraph_break_before=paragraph_break_before,
         )
     )
+    return spoken
 
 
 def speakable_text(value: str) -> str:
@@ -435,9 +466,10 @@ def format_user_response_event(
         state.speech_tone_tag_pending = False
         # The model's own opening direction replaces the reply's tone (#479, D3).
         if not opens_with_delivery_tag(value):
-            data["speech_tone_tag"] = elevenlabs_tone_tag(
-                emotional_tone=state.emotional_tone, emotional_state=state.emotional_state
-            )
+            tone_tag = elevenlabs_tone_tag(emotional_tone=state.emotional_tone, emotional_state=state.emotional_state)
+            data["speech_tone_tag"] = tone_tag
+            if state.server_speech is not None:
+                state.server_speech.tone_tag = tone_tag
     if state.tts_speech_payload_enabled and is_speech:
         _record_tts_speech_segment(
             state=state,
@@ -519,6 +551,22 @@ def format_error_event(event: Any, *, run_id: str, public_error_text: str | None
     if details is not None:
         data["details"] = jsonable_encoder(details)
     return format_sse("error", data, event_id=str(getattr(event, "event_id", "")))
+
+
+def format_denial_error_event(*, run_id: str, error: str, code: str, details: DenialDetails, event_id: str) -> str:
+    """An error frame for a denial that ends a turn, keeping the contract's denial fields.
+
+    The fields sit beside ``code`` and are repeated in ``details``, as
+    ``contracts/hosted-web.md`` ("Hosted denials") allows; a denial without fields
+    has neither.
+    """
+
+    data: dict[str, object] = {"run_id": run_id, "error": error, "code": code}
+    fields = details.fields()
+    if fields:
+        data.update(fields)
+        data["details"] = dict(fields)
+    return format_sse("error", data, event_id=event_id)
 
 
 def format_run_completed_event(

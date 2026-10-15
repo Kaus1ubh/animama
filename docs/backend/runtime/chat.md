@@ -203,8 +203,8 @@ settle usage and recheck a session lease.
   each step and frame of
   a successful reply's completion (speech, title, compaction). A stop before
   the reply is saved cancels the model and ends the stream with `event: error`
-  (`{"run_id", "error": <stop message>, "code": <stop code>}`) and one
-  `run.completed`. A stop after the reply is saved skips the remaining
+  (`{"run_id", "error": <stop message>, "code": <stop code>}`, plus any denial
+  fields the stop carries) and one `run.completed`. A stop after the reply is saved skips the remaining
   optional work, cancelling title and speech tasks still running, and ends with
   the normal `run.completed`.
 - **Settlement.** `settle` runs exactly once, after every turn task has stopped,
@@ -215,11 +215,36 @@ settle usage and recheck a session lease.
   before the reply was saved). A refused turn has no lease to settle. A reply save that has
   begun finishes, within the five-second cleanup bound, even if the turn is
   stopped or the client leaves.
+- **Denials.** A `ProductRefusal` or `ChatTurnStop` may carry `DenialDetails`:
+  the hosted denial fields `limit`, `retry_after_seconds`, `max_characters` and
+  `download_url`. A refusal raised while the turn runs (by a model request's
+  call boundary, web search, or the composition's deferred commit of a turn
+  write such as the reply save) ends the turn with `event: error` carrying its
+  code and those fields, beside the code and again in `details`, then
+  `run.completed`. A refusal before the stream adds them to its HTTP body, with
+  `Retry-After` for a known wait on a 429 or 503 refusal.
+- **Model work.** `ChatTurnServices.model_clients` serves the reply's rounds.
+  Pre-send compaction, post-reply compaction and a first turn's title each ask
+  `utility_model_clients(purpose)` for their own registry, so a composition can
+  meter or limit them apart; `None` skips that work. A turn asks for every
+  purpose before it knows which work it needs, so asking reserves nothing. The local composition
+  returns its one registry for every purpose.
+- **Server speech.** A composition that speaks ElevenLabs through its own socket
+  returns a realtime session with `transport="server"` and its `websocket_url`
+  instead of a provider token, and offers `ChatTurnServices.server_speech_text`.
+  Once the turn's realtime session resolves as a server session, the turn
+  hands it each speech piece in order, prepared as the browser prepares
+  ElevenLabs chunks (emoji removed, `ProviderSpeechText("elevenlabs")`, the tone
+  tag first), then `end` after the reply's last piece. `abort` follows when the
+  turn stops, fails or loses its client, even after `end`. A direct, declined or
+  failed session gets no text. A sink that raises is logged and the turn's
+  cleanup goes on. Local sessions are direct, and its sink is `None`.
 
 The composition's chat policy also sets title and compaction settings and,
 optionally, `public_error_text`, which replaces the text and details of
-`event: error` frames and turns their codes outside a short lowercase pattern
-into `turn_failed`. Speech error frames carry the speech port's own messages;
+`event: error` frames (a stop keeps its own message and a denial its fields)
+and turns their codes outside
+a short lowercase pattern into `turn_failed`. Speech error frames carry the speech port's own messages;
 a speech port that declines a reply's speech raises `ProductRefusal`, and the
 frame (`tts.session.error` or `tts.error`) carries its code.
 

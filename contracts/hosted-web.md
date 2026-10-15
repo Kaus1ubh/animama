@@ -31,17 +31,25 @@ those through its own delivery port or routes.
 `POST /v1/animas/{anima_id}/chat:sse` asks the consumer's guard to admit each turn
 (`admit_chat_turn`) after the Anima ownership and runtime-revision checks and
 before any write or model call; a refusal is a `ProductRefusal` (reported as
-`detail.code` with its status) or the consumer's own exception. It then runs the
-turn with the consumer's model clients,
+`detail.code` with its status, plus any denial fields) or the consumer's own
+exception. It then runs the turn with the consumer's model clients,
 web search, attachment embedder and speech (`chat_turn`); a consumer that does
 not offer Gemini voice returns `None` from `ChatTurnServices.gemini_speech`, so
-a Gemini request gets no speech frames. The guard's lease is
+a Gemini request gets no speech frames. Pre-send compaction, post-reply
+compaction and the title each use the registry `utility_model_clients` returns
+for their purpose, so a metering consumer can limit them apart from the reply's
+rounds. The guard's lease is
 checked while the model streams and before each step after the reply, and settled
 exactly once, after every turn task stopped, as `unstarted`, `completed`, `failed`
 or `interrupted`; a stop before the reply is saved ends the turn with an error
 frame carrying its code and message ([chat-turn
-guard](../docs/backend/runtime/chat.md#chat-turn-guard)). The chat policy's
-`public_error_text` replaces the text and details of `error` frames; speech error
+guard](../docs/backend/runtime/chat.md#chat-turn-guard)). A `ProductRefusal` raised while the turn runs (a model request, web search or
+the consumer's deferred commit of a turn write) or a stop may carry
+`DenialDetails`; its `error` frame keeps the code and those fields (see Hosted
+denials). The chat policy's
+`public_error_text` is the text of every `error` frame except a stop's, which
+shows the stop's own message, and replaces the details of all others except a
+denial's fields; speech error
 frames carry the speech port's own messages, so it raises only browser-safe ones,
 and a speech decline (`ProductRefusal`, such as `speech_allowance_exhausted`)
 keeps its code in `tts.session.error` or `tts.error`.
@@ -260,6 +268,14 @@ origins are rejected; a missing/invalid server descriptor never falls back to a
 direct provider. The cookie authorizes the handshake. The consumer validates the
 current session and Origin, reserves before provider dispatch, and owns bounded
 cancellation and settlement. Browser fixtures do not establish those server gates.
+The shared route sends this descriptor when the consumer's realtime session has
+`transport="server"` and a `websocket_url`. The consumer then speaks only the
+reply text the route hands it through `ChatTurnServices.server_speech_text`,
+prepared as the browser prepares its chunks below, never the browser's socket
+text. The route hands text over only once the session is a server session, ends
+it after the reply's last speech, and aborts it when the turn stops, fails or
+loses its client, which can follow the end (for example a stop after the reply
+was saved). The sink's methods must not block or raise.
 
 On a server socket the browser sends `{"text": " "}` when it opens, one
 `{"text": "<chunk>"}` per reply chunk and `{"text": ""}` at the end. It sends no

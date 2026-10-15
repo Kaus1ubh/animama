@@ -21,21 +21,25 @@ from uuid import uuid4
 import httpx
 import pytest
 from fastapi import HTTPException
+from pydantic import ValidationError
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from animama.adapters.repositories.sqlalchemy.product_repositories import SQLAlchemyProductRepositories
 from animama.app.chat import DirectChatTurnExecutor, PreparedDirectChatTurn
+from animama.app.contracts.elevenlabs import PyElevenLabsRealtimeTtsSessionResponse
 from animama.app.contracts.gemini import DEFAULT_GEMINI_VOICE
-from animama.app.model_clients import ModelClientProviderError, StaticModelClientRegistry
+from animama.app.model_clients import ModelClientProviderError, ModelClientRegistry, StaticModelClientRegistry
+from animama.app.services.chat_compaction_service import ChatCompactionSettings
 from animama.app.services.chat_title_generation_service import ChatTitleGenerationSettings
 from animama.app.services.model_role_resolver import ModelRoleDefaults
 from animama.domain.chat import MessageRole
 from animama.domain.events import Event, EventType, RunStatusPayload
 from animama.orm import ORMAnima, ORMChat, ORMChatMessage
+from animama.product_http.chat import compaction as chat_compaction, stream as chat_stream, turn_setup
 from animama.product_http.chat.sse_runtime import DirectChatEventBridge, run_prepared_direct_turn
 from animama.product_http.chat.tts import anima_elevenlabs_voice
-from animama.product_http.ports import ChatTurnStop, ProductRefusal
+from animama.product_http.ports import ChatTurnStop, DenialDetails, ProductRefusal
 from animama.product_http.routes import chat_turns
 from tests.chat_turn_support import CHAT_ROW, ScriptedModel, remove_chat_owner, seed_chat_owner, structured
 from tests.product_http_support import (
@@ -44,6 +48,7 @@ from tests.product_http_support import (
     DeferredCommitFailed,
     DeferredCommitPorts,
     FakeGeminiSpeech,
+    RecordingServerSpeechText,
     TwoOwnerComposition,
     product_app,
 )
@@ -322,16 +327,19 @@ async def test_setup_failure_after_admission_settles_unstarted_and_rolls_back(gu
     assert guarded.ports.commits == 0
 
 
-async def test_a_disconnect_stops_the_turn_and_settles_once(guarded: GuardedChat) -> None:
+async def _disconnect_while_streaming(guarded: GuardedChat, run: str, **values: Any) -> None:
+    """Run a turn whose client leaves once the model is streaming."""
+
     guarded.model.hold = asyncio.Event()
     guarded.model.replies.append(structured("First sentence. Second sentence."))
     disconnected = asyncio.Event()
     sent = False
     body = {
         "message": "Good morning!",
-        "run_id": "run-gone",
-        "chat_id": guarded.chat_id("gone"),
+        "run_id": f"run-{run}",
+        "chat_id": guarded.chat_id(run),
         "runtime_revision": guarded.revisions[guarded.owner],
+        **values,
     }
 
     async def receive() -> dict[str, Any]:
@@ -367,6 +375,10 @@ async def test_a_disconnect_stops_the_turn_and_settles_once(guarded: GuardedChat
         "server": ("test", 80),
     }
     await asyncio.wait_for(guarded.composition.app(scope, receive, send), timeout=10)
+
+
+async def test_a_disconnect_stops_the_turn_and_settles_once(guarded: GuardedChat) -> None:
+    await _disconnect_while_streaming(guarded, "gone")
 
     [lease] = guarded.ports.chat_guard.leases
     assert lease.settlements == ["interrupted"]
@@ -578,3 +590,319 @@ async def test_a_refusal_while_streaming_speech_keeps_its_code(guarded: GuardedC
     assert gemini.calls == [("prepare_finalized", guarded.owner, DEFAULT_GEMINI_VOICE)]
     [lease] = guarded.ports.chat_guard.leases
     assert lease.settlements == ["completed"]
+
+
+# A composition without browser provider credentials speaks through its own socket.
+REALTIME_SPEECH = {"tts": {"enabled": True, "provider": "elevenlabs", "model_id": "eleven_v4_turbo"}}
+SERVER_SOCKET = "/v1/speech/sessions/fake"
+TRIAL_COMPLETE = DenialDetails(limit="account_trial_ai", download_url="https://animama.invalid/download")
+
+
+def _speech_tone_tag(stream: str) -> str:
+    [tag] = [data["speech_tone_tag"] for name, data in frames(stream) if "speech_tone_tag" in data]
+    return str(tag)
+
+
+def _server_speech(guarded: GuardedChat) -> RecordingServerSpeechText:
+    sink = RecordingServerSpeechText()
+    guarded.ports.speech.server_url = SERVER_SOCKET
+    guarded.ports.server_speech_text = sink
+    return sink
+
+
+def test_a_realtime_session_names_a_socket_only_on_the_server_transport() -> None:
+    session = {"voice_id": "voice-mika", "model_id": "eleven_v4_turbo", "output_format": "pcm_24000"}
+
+    server = PyElevenLabsRealtimeTtsSessionResponse(
+        **session, sync_alignment=False, transport="server", websocket_url=SERVER_SOCKET
+    )
+    direct = PyElevenLabsRealtimeTtsSessionResponse(**session, sync_alignment=True, token="t")
+
+    assert (server.transport, server.websocket_url) == ("server", SERVER_SOCKET)
+    assert (direct.transport, direct.websocket_url) == ("direct", None)
+    # A server session has its socket and no provider token; a direct one has no socket.
+    for invalid in (
+        {"transport": "server"},
+        {"transport": "server", "websocket_url": SERVER_SOCKET, "token": "t"},
+        {"transport": "server", "websocket_url": SERVER_SOCKET, "websocket_base_url": "wss://speech.invalid"},
+        {"websocket_url": SERVER_SOCKET},
+    ):
+        with pytest.raises(ValidationError):
+            PyElevenLabsRealtimeTtsSessionResponse(**session, sync_alignment=False, **invalid)
+
+
+async def test_a_server_speech_session_sends_its_socket_instead_of_a_token(guarded: GuardedChat) -> None:
+    _server_speech(guarded)
+    guarded.model.replies.append(structured("Hello there. The kettle is on."))
+
+    response = await guarded.turn("server-session", dispatch_options=REALTIME_SPEECH)
+
+    [session] = [data for name, data in frames(response.text) if name == "tts.session"]
+    assert (session["transport"], session["websocket_url"]) == ("server", SERVER_SOCKET)
+    assert "token" not in session and "websocket_base_url" not in session
+
+
+async def test_server_speech_receives_the_prepared_reply_with_its_tone_tag_first(guarded: GuardedChat) -> None:
+    sink = _server_speech(guarded)
+    reply = "Hello there! 😊 [laughs] The kettle is on. [strong French accent] Bonjour."
+    guarded.model.replies.append(structured(reply))
+
+    response = await guarded.turn("server-text", dispatch_options=REALTIME_SPEECH)
+
+    tag = _speech_tone_tag(response.text)
+    # Emoji and the accent direction are dropped; the reply's tone leads its first piece.
+    assert " ".join(sink.texts) == f"{tag} Hello there! [laughs] The kettle is on. Bonjour."
+    assert sink.texts[0].startswith(f"{tag} ")
+    assert (sink.ended, sink.aborted) == (1, 0)
+
+
+async def test_server_speech_passes_two_sounds_and_the_models_own_opening_direction(guarded: GuardedChat) -> None:
+    sink = _server_speech(guarded)
+    guarded.model.replies.append(structured("[whispers] Hello. [laughs] One. [sighs] Two. [giggles] Three."))
+
+    response = await guarded.turn("server-sounds", dispatch_options=REALTIME_SPEECH)
+
+    # The model's opening direction replaces the tone tag, and a third sound is dropped.
+    assert not [data for name, data in frames(response.text) if "speech_tone_tag" in data]
+    assert " ".join(sink.texts) == "[whispers] Hello. [laughs] One. [sighs] Two. Three."
+    assert (sink.ended, sink.aborted) == (1, 0)
+
+
+async def test_a_stop_aborts_server_speech(guarded: GuardedChat) -> None:
+    sink = _server_speech(guarded)
+    guarded.model.hold = asyncio.Event()
+    guarded.model.replies.append(structured("First sentence. Second sentence."))
+
+    async def once_streaming() -> ChatTurnStop | None:
+        return STOP if guarded.model.holding.is_set() else None
+
+    guarded.ports.chat_guard.stop = once_streaming
+
+    await guarded.turn("server-stopped", dispatch_options=REALTIME_SPEECH)
+
+    assert (sink.ended, sink.aborted) == (0, 1)
+
+
+async def test_only_an_elevenlabs_turn_feeds_server_speech(guarded: GuardedChat) -> None:
+    sink = _server_speech(guarded)
+    guarded.ports.gemini_speech = FakeGeminiSpeech()
+    guarded.model.replies.extend([structured("Hello there. The kettle is on."), structured("Hello again.")])
+
+    await guarded.turn("server-gemini", dispatch_options=GEMINI_SPEECH)
+    await guarded.turn("server-silent")
+
+    assert sink.texts == []
+
+
+async def test_a_refusal_while_the_model_runs_keeps_its_denial_details(guarded: GuardedChat) -> None:
+    guarded.model.replies.append(ProductRefusal(403, "trial_complete", details=TRIAL_COMPLETE))
+
+    response = await guarded.turn("refused-midturn")
+
+    parsed = frames(response.text)
+    [error] = [data for name, data in parsed if name == "error"]
+    fields = {"limit": "account_trial_ai", "download_url": "https://animama.invalid/download"}
+    assert error == {
+        "run_id": "run-refused-midturn",
+        "error": TEST_CHAT_POLICY.public_error_text,
+        "code": "trial_complete",
+        **fields,
+        "details": fields,
+    }
+    assert parsed[-1][0] == "run.completed"
+    [lease] = guarded.ports.chat_guard.leases
+    assert lease.settlements == ["failed"]
+
+
+async def test_a_refused_reply_save_keeps_its_denial_details(
+    guarded: GuardedChat, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    guarded.model.replies.append(structured("Good morning! Shall we have tea?"))
+    original = guarded.ports.write_session
+    refusal = ProductRefusal(429, "quota_exceeded", details=DenialDetails(limit="max_messages", retry_after_seconds=30))
+
+    @asynccontextmanager
+    async def refuse_the_save(principal: Any) -> AsyncIterator[Any]:
+        # The composition rechecks its limits when it commits the reply and refuses.
+        async with original(principal) as session:
+            yield session
+            current = asyncio.current_task()
+            if current is not None and current.get_name() == "direct-chat-save":
+                raise refusal
+
+    monkeypatch.setattr(guarded.ports, "write_session", refuse_the_save)
+
+    response = await guarded.turn("refused-save")
+
+    parsed = frames(response.text)
+    [error] = [data for name, data in parsed if name == "error"]
+    assert error["error"] == TEST_CHAT_POLICY.public_error_text
+    assert (error["code"], error["limit"], error["retry_after_seconds"]) == ("quota_exceeded", "max_messages", 30)
+    assert error["details"] == {"limit": "max_messages", "retry_after_seconds": 30}
+    assert parsed[-1][0] == "run.completed"
+    assert await guarded.replies("refused-save") == 0
+
+
+async def test_a_stop_keeps_its_denial_details(guarded: GuardedChat) -> None:
+    guarded.model.hold = asyncio.Event()
+    guarded.model.replies.append(structured("First sentence. Second sentence."))
+    stop = ChatTurnStop(code="trial_complete", message="The trial is complete.", details=TRIAL_COMPLETE)
+
+    async def once_streaming() -> ChatTurnStop | None:
+        return stop if guarded.model.holding.is_set() else None
+
+    guarded.ports.chat_guard.stop = once_streaming
+
+    response = await guarded.turn("stopped-details")
+
+    [error] = [data for name, data in frames(response.text) if name == "error"]
+    fields = {"limit": "account_trial_ai", "download_url": "https://animama.invalid/download"}
+    assert error == {
+        "run_id": "run-stopped-details",
+        "error": stop.message,
+        "code": "trial_complete",
+        **fields,
+        "details": fields,
+    }
+
+
+async def test_a_refusal_before_the_stream_keeps_its_denial_details(guarded: GuardedChat) -> None:
+    guarded.ports.chat_guard.refusal = ProductRefusal(
+        503, "capacity_busy", details=DenialDetails(retry_after_seconds=15)
+    )
+
+    response = await guarded.turn("refused-busy")
+
+    assert response.status_code == 503
+    assert response.json() == {"detail": {"code": "capacity_busy", "retry_after_seconds": 15}}
+    assert response.headers["retry-after"] == "15"
+
+
+def test_denial_details_hold_only_the_contract_fields() -> None:
+    details = DenialDetails(limit=5, max_characters=8000)
+
+    assert details.fields() == {"limit": 5, "max_characters": 8000}
+    assert DenialDetails().fields() == {}
+    for invalid in (
+        {"retry_after_seconds": -1},
+        {"retry_after_seconds": True},
+        {"download_url": "http://animama.invalid"},
+        {"download_url": "https://user:secret@animama.invalid"},
+        {"limit": ""},
+        {"limit": 5.0},
+        {"max_characters": 8000.5},
+    ):
+        with pytest.raises(ValueError):
+            DenialDetails(**invalid)
+
+
+async def test_each_utility_request_uses_its_purposes_registry(
+    guarded: GuardedChat, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Title requests reach the title registry; both compactions receive their own registry.
+    title_model = ScriptedModel()
+    registries: dict[str, ModelClientRegistry] = {
+        purpose: StaticModelClientRegistry({"OpenAIResponsesHTTPAgent": model})
+        for purpose, model in (
+            ("title", title_model),
+            ("pre_send_compaction", ScriptedModel()),
+            ("compaction", ScriptedModel()),
+        )
+    }
+    guarded.ports.utility_registries = registries
+    compactors: dict[str, object] = {}
+    original_pre_send = chat_compaction.pre_send_compactor
+
+    def recording_pre_send(**values: Any) -> Any:
+        compactors["pre_send_compaction"] = values["model_client_registry"]
+        return original_pre_send(**values)
+
+    async def recording_compaction(**values: Any) -> None:
+        compactors["compaction"] = values["model_client_registry"]
+
+    monkeypatch.setattr(turn_setup, "pre_send_compactor", recording_pre_send)
+    monkeypatch.setattr(chat_stream, "_compact_chat_after_success", recording_compaction)
+    guarded.ports.chat_policy = replace(guarded.ports.chat_policy, compaction=ChatCompactionSettings(enabled=True))
+    guarded.model.replies.append(structured("Good morning! Shall we have tea?"))
+
+    response = await guarded.turn("purposes")
+
+    assert response.status_code == 200
+    # The reply's rounds keep the turn's own registry.
+    assert [request.prompt.metadata.get("task") for request in guarded.model.requests] == [None]
+    assert [request.prompt.metadata.get("task") for request in title_model.requests] == ["chat-title"]
+    assert compactors == {
+        "pre_send_compaction": registries["pre_send_compaction"],
+        "compaction": registries["compaction"],
+    }
+
+
+async def test_a_turn_without_a_title_registry_skips_its_title(guarded: GuardedChat) -> None:
+    guarded.ports.utility_registries = {}
+    guarded.model.replies.append(structured("Good morning! Shall we have tea?"))
+
+    response = await guarded.turn("no-title")
+
+    names = [name for name, _data in frames(response.text)]
+    assert "chat.title.updated" not in names and names[-1] == "run.completed"
+    assert [request.prompt.metadata.get("task") for request in guarded.model.requests] == [None]
+
+
+async def test_a_direct_or_declined_session_gets_no_server_speech_text(guarded: GuardedChat) -> None:
+    sink = RecordingServerSpeechText()
+    guarded.ports.server_speech_text = sink
+    guarded.model.replies.extend([structured("Hello there. The kettle is on."), structured("Hello again.")])
+
+    # The composition offers a sink, but this turn's session is direct (a provider token).
+    direct = await guarded.turn("direct-session", dispatch_options=REALTIME_SPEECH)
+    guarded.ports.speech.server_url = SERVER_SOCKET
+    guarded.ports.speech.refusal = ProductRefusal(402, "speech_allowance_exhausted")
+    declined = await guarded.turn("declined-session", dispatch_options=REALTIME_SPEECH)
+
+    assert "tts.session" in [name for name, _data in frames(direct.text)]
+    assert "tts.session.error" in [name for name, _data in frames(declined.text)]
+    assert (sink.texts, sink.ended, sink.aborted) == ([], 0, 0)
+
+
+async def test_a_disconnect_aborts_server_speech(guarded: GuardedChat) -> None:
+    sink = _server_speech(guarded)
+
+    await _disconnect_while_streaming(guarded, "server-gone", dispatch_options=REALTIME_SPEECH)
+
+    assert (sink.ended, sink.aborted) == (0, 1)
+
+
+async def test_a_sink_that_raises_does_not_skip_the_turns_cleanup(guarded: GuardedChat) -> None:
+    class RaisingSink(RecordingServerSpeechText):
+        def abort(self) -> None:
+            raise RuntimeError("the speech queue is closed")
+
+    sink = RaisingSink()
+    guarded.ports.speech.server_url = SERVER_SOCKET
+    guarded.ports.server_speech_text = sink
+
+    await _disconnect_while_streaming(guarded, "raising-sink", dispatch_options=REALTIME_SPEECH)
+
+    [lease] = guarded.ports.chat_guard.leases
+    assert lease.settlements == ["interrupted"]
+    assert guarded.model.cancelled
+    assert lease.running_at_settlement == []
+
+
+async def test_a_turn_without_a_compaction_registry_skips_compaction(
+    guarded: GuardedChat, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    compactions: list[object] = []
+
+    async def recording_compaction(**values: Any) -> None:
+        compactions.append(values["model_client_registry"])
+
+    monkeypatch.setattr(chat_stream, "_compact_chat_after_success", recording_compaction)
+    guarded.ports.chat_policy = replace(guarded.ports.chat_policy, compaction=ChatCompactionSettings(enabled=True))
+    guarded.ports.utility_registries = {}
+    guarded.model.replies.append(structured("Good morning! Shall we have tea?"))
+
+    response = await guarded.turn("no-compaction")
+
+    assert [name for name, _data in frames(response.text)][-1] == "run.completed"
+    assert compactions == []

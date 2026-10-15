@@ -40,7 +40,9 @@ is available. A hosted consumer instead sends `transport: "server"` and
 uses its session cookie, accepts no URL credentials, query or fragment, and never
 falls back to a provider socket. The consumer must bind the stream to its admitted
 run, validate the current session and Origin, reserve bounded speech work and
-settle usage/cancellation. Frontend fixture success does not establish that server
+settle usage/cancellation. The shared chat route hands that consumer the reply's
+prepared speech text (`ChatTurnServices.server_speech_text`), which is what it
+speaks. Frontend fixture success does not establish that server
 boundary or real speech delivery.
 
 The `tts.session` event includes the selected voice, model, output format,
