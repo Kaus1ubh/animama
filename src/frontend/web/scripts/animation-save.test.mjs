@@ -50,6 +50,23 @@ test("names the item and field of each problem", () => {
   );
 });
 
+test("needs a clip only when the item has no project", () => {
+  const { clip: _clip, ...projectOnly } = item;
+  const [parsed] = parseSaveItems(
+    [{ ...projectOnly, project: "../clips/wave.project.json" }],
+    itemsFile,
+  );
+  assert.equal(parsed.clip, undefined);
+  assert.equal(
+    parsed.project,
+    path.join("/work", "clips", "wave.project.json"),
+  );
+  assert.throws(
+    () => parseSaveItems([projectOnly], itemsFile),
+    /item 1: "clip" must be a non-empty string/,
+  );
+});
+
 test("resolves optional project paths and rejects unusable paths", () => {
   for (const project of ["../clips/wave.project.json", "/drafts/wave.json"]) {
     assert.equal(

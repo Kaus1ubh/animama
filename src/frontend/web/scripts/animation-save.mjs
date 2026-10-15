@@ -40,7 +40,10 @@ export function parseSaveItems(value, itemsFile) {
   const seen = new Set();
   return value.map((item, index) => {
     const where = `${itemsFile} item ${index + 1}`;
-    for (const field of ["clip", "name", "aiDescription", "selectorId"])
+    // A project carries its own sequence, so the clip is then optional.
+    const required = ["name", "aiDescription", "selectorId"];
+    if (item?.project === undefined) required.unshift("clip");
+    for (const field of required)
       if (typeof item?.[field] !== "string" || !item[field].trim())
         throw new Error(`${where}: "${field}" must be a non-empty string.`);
     if (!SELECTOR_ID.test(item.selectorId))
@@ -58,7 +61,9 @@ export function parseSaveItems(value, itemsFile) {
     )
       throw new Error(`${where}: "project" must be a non-empty string.`);
     return {
-      clip: path.resolve(path.dirname(itemsFile), item.clip),
+      ...(typeof item.clip === "string" && item.clip.trim()
+        ? { clip: path.resolve(path.dirname(itemsFile), item.clip) }
+        : {}),
       ...(item.project === undefined
         ? {}
         : { project: path.resolve(path.dirname(itemsFile), item.project) }),
@@ -386,7 +391,8 @@ const USAGE = `Usage: pnpm -s animation:save <items.json> [--url <app origin>]
 items.json: [{ "clip": "<file>.clip.json", "name": "...", "aiDescription": "...",
                "selectorId": "lower_snake_case", "description"?: "...",
                "project"?: "<file>.project.json" }]
-With project, import its sequence and dependencies instead of the clip.
+With project, import its sequence and dependencies instead of the clip
+(the clip may then be left out).
 A Local Gesture with the same Selector ID is revised; otherwise a new one is
 saved. The origin defaults to ANIMAMA_PUBLIC_ORIGIN (source the stack record),
 then http://localhost:8000.`;
