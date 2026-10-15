@@ -84,6 +84,8 @@ import {
   retargetPoseForVrm0,
 } from "./poses/poseRetargeting";
 import { canonicalizeCustomPresetExpressions } from "./vrmExpressionPresets";
+import { applyAvatarShader } from "./toon-shader/applyAvatarShader";
+import { withAvatarShaderPatch } from "./toon-shader/gltfPatch";
 import {
   countAnimaPoseClipEventsByKind,
   DEFAULT_ANIMA_POSE_CLIP_TRANSITION,
@@ -3088,7 +3090,9 @@ export class Avatar {
 
   private static _createGLTFLoader(manager?: THREE.LoadingManager): GLTFLoader {
     const loader = new GLTFLoader(manager);
-    loader.register((parser) => new VRMLoaderPlugin(parser));
+    loader.register((parser) =>
+      withAvatarShaderPatch(new VRMLoaderPlugin(parser)),
+    );
     loader.register((parser) => new VRMAnimationLoaderPlugin(parser));
     return loader;
   }
@@ -3126,6 +3130,7 @@ export class Avatar {
         .userData?.vrm;
       if (!vrm) throw new Error("VRM metadata missing on loaded GLTF");
       VRMUtils.rotateVRM0(vrm);
+      await applyAvatarShader(vrm);
       const canonicalizedExpressions = canonicalizeCustomPresetExpressions(vrm);
       if (Object.keys(canonicalizedExpressions).length > 0) {
         logger.info("Load", "Canonicalized custom preset expressions", {
