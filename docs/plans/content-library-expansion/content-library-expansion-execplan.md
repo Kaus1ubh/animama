@@ -41,11 +41,15 @@ dropped before the owner's live review.
 
 - [x] 2026-10-15 Owner agreed the Gesture list and the Avatar and Particle
   Effect lists; issue #575 opened.
-- [ ] Phase 1: Gesture drafts.
-- [ ] Phase 2: Avatar Effects, batches A and C.
-- [ ] Phase 3: Particle Effects.
-- [ ] Phase 4: Avatar Effects, batches B and D; Gesture effect events.
-- [ ] Phase 5: owner review, save, promote and journeys.
+- [x] Phase 1: 22 Gesture clips drafted, revised after the agent's sheet
+  review and the owner's preview notes (G1, 2026-10-15).
+- [x] Phase 2: Avatar Effects batches A and C drafted and revised.
+- [x] Phase 3: 10 Particle Effects drafted and revised.
+- [x] Phase 4: batches B and D drafted; effect events paired into 21
+  Gestures; owner notes on the pairings applied (G1).
+- [x] Phase 5: owner approved items, sounds and licence wording (G2,
+  2026-10-15); Local saves and promotion done (`ccd969e5`).
+- [ ] Phase 5: full browser journeys and PR.
 
 ## Decision Log
 
@@ -60,6 +64,23 @@ dropped before the owner's live review.
   mind_blown_burst, tiny-victory-crown, suspicious-side-eye and
   streaming_tears; replace Musical Cascade and Hearts v1; approve the agent's
   further replacement and new-effect lists in #575.
+- 2026-10-15 owner: also redraw `twitching-cat-ears`, in Annie's chestnut
+  hair colour and about 22% smaller.
+- 2026-10-15 owner: include the VRM 0 particle placement fix (#579) in this
+  PR (cherry-picked from the closed #580) instead of a separate PR.
+- 2026-10-15 owner: approved the new-effect sounds (seven comedy-pack keys;
+  the rest silent; Particle Effects silent because their sounds do not play)
+  and the agent-authored licence wording.
+- 2026-10-15 owner: replace three Particle Effect textures that were edited
+  copies of CC0 Kenney art with procedurally generated textures, so every new
+  file carries one agent-authored record.
+- 2026-10-15 agent: the idol cheer's glowsticks became a hand-attached
+  `glowstick` Avatar Effect (owner note: "look more like a glowstick"); the
+  `glowstick-trails` Particle Effect was dropped because a hand-following
+  emitter cannot leave world-space trails in the current runtime.
+- 2026-10-15 agent: the 22 new Gestures are Library roots, not starter
+  loadout entries, because the starter loadout is unchanged unless the owner
+  asks; owners equip them from the Library.
 
 ## Gates
 
@@ -123,4 +144,26 @@ by reverting its commit.
 
 ## Outcomes & Retrospective
 
-To be completed at the end of the plan.
+Delivered: 22 Gestures (133 Included), 13 new and 27 redrawn Avatar Effects
+(100 Included), 7 new and 2 rebuilt Particle Effects (37 Included), the VRM 0
+particle placement fix, Prev/Next review controls in `animation:preview`, and
+`animation:save` items that carry a creator project with effect dependencies.
+
+Validation before the PR (local, macOS): `effects check` over every promoted
+effect (hand-attached ones `--with-clip`), `animation validate` and `check`
+for all 22 Gestures (motion WARNs only, recorded in the PR), the backend
+Included/starter/release pytest files, `pnpm check`, `pnpm web:lint`,
+`pnpm build`, the source unit tests and focused content vitest files, and
+`make format-check`. Browser journeys: see the PR.
+
+Lessons:
+
+- Delegating authoring to parallel agents worked best with one brief per
+  item group, shared review-note files and a save lock: two saves on one stack
+  must never overlap.
+- Render sheets caught stiff motion, hidden art and occluding particles, but
+  timing and feel needed the owner's live preview; the Prev/Next controls made
+  that review fast.
+- Particle sounds are declared but not played, and particle event fades are
+  ignored at runtime; hand-following emitters cannot leave world-space trails.
+  These limit what Particle Effects can express today.
