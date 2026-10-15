@@ -71,6 +71,10 @@ const MAX_ACTIVE_PARTICLES = 512;
 export class ParticleVFXController {
   private readonly _avatar: Avatar;
   private readonly _catalogProvider: AnimaRuntimeMediaProvider;
+  /**
+   * Parent of every active effect. Its rotation is owned by
+   * `alignParticleVFXRootToAvatar` (the Avatar frame); do not reset it.
+   */
   private readonly _root = new THREE.Group();
   private readonly _prefabPromises = new Map<string, Promise<THREE.Object3D>>();
   private readonly _loadedPrefabs = new Map<string, THREE.Object3D>();
