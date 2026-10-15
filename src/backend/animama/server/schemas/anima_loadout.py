@@ -25,6 +25,7 @@ from animama.app.contracts.anima_loadout import (
     PyReactionCell as PyReactionCell,
     PyReactionCommitRequest as PyReactionCommitRequest,
     PyReactionIntent as PyReactionIntent,
+    PyReactionMember as PyReactionMember,
     PyReactionPlanRequest as PyReactionPlanRequest,
     PySingleSelectionCommitRequest as PySingleSelectionCommitRequest,
     PySingleSelectionIntent as PySingleSelectionIntent,

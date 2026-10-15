@@ -21,7 +21,7 @@ from animama.domain.anima_creation import (
     ResolvedAnimaSpec,
     ResolvedAppearanceSelection,
     ResolvedGestureSelection,
-    ResolvedReactionSelection,
+    ResolvedReactionMember,
 )
 from animama.domain.anima_creation_error import AnimaCreationError, AnimaCreationIssue, bounded_issues
 from animama.domain.anima_definition import (
@@ -29,6 +29,7 @@ from animama.domain.anima_definition import (
     ANIMA_IDENTITY_MAX_BYTES,
     normalize_identity,
 )
+from animama.domain.anima_loadout import REACTION_INTENSITIES
 from animama.domain.content_catalog import (
     CatalogContentEntry,
     ContentIntegrityError,
@@ -56,7 +57,7 @@ from .content_image import (
 from .runtime_budget_policy import MAX_RUNTIME_BYTES, MAX_RUNTIME_CONFIG_BYTES, MAX_RUNTIME_ENTRIES
 from .runtime_content_closure import RuntimeContentClosureCompiler
 from .starter_idle_pool import resolve_starter_idle_pool
-from .starter_loadout_policy import starter_loadout_policy, starter_pack_identity
+from .starter_loadout_policy import starter_loadout_policy, starter_pack_identity, starter_reaction_pools
 from .typed_content_service import TypedCatalogItem, TypedContentAdmissionError, TypedContentService
 
 
@@ -138,14 +139,18 @@ class AnimaCreationSources:
                         "source": item_ref(item),
                     }
                 )
-        reactions: dict[str, dict[str, Any]] = {
-            emotion: {str(level): None for level in (1, 2, 3)} for emotion in TRACKED_EMOTIONS
+        # Every cell is explicit; a cell lists its available starter Reactions in policy order.
+        reactions: dict[str, dict[str, list[dict[str, str]]]] = {
+            emotion: {str(level): [] for level in REACTION_INTENSITIES} for emotion in TRACKED_EMOTIONS
         }
-        for choice in policy["reactions"]:
-            item = include(choice["content_id"], ContentKind.REACTION, "/recommended/reactions")
-            if item is not None:
-                # The policy, not the mutable document hint, owns the starter cell.
-                reactions[choice["emotion"]][str(choice["intensity"])] = item_ref(item)
+        starter_pools = starter_reaction_pools()
+        for cell, keys in starter_pools.items():
+            emotion, _, level = cell.partition("-")
+            for key in keys:
+                item = include(key, ContentKind.REACTION, "/recommended/reactions")
+                if item is not None:
+                    # The policy, not the mutable document hint, owns the starter cell.
+                    reactions[emotion][level].append(item_ref(item))
         revisions = source_revisions(admitted)
         return {
             "schema_version": 1,
@@ -167,11 +172,11 @@ class AnimaCreationSources:
             },
             "counts": {
                 "recommended_gestures": len(policy["gestures"]),
-                "recommended_reaction_cells": len(policy["reactions"]),
+                "recommended_reaction_cells": len(starter_pools),
+                "recommended_reactions": sum(len(keys) for keys in starter_pools.values()),
                 "available_gestures": len(gestures),
-                "available_reaction_cells": sum(
-                    value is not None for cells in reactions.values() for value in cells.values()
-                ),
+                "available_reaction_cells": sum(bool(pool) for cells in reactions.values() for pool in cells.values()),
+                "available_reactions": sum(len(pool) for cells in reactions.values() for pool in cells.values()),
             },
             "expected_source_revisions": revisions,
             "diagnostics": bounded_issues(diagnostics),
@@ -213,10 +218,10 @@ class AnimaCreationSources:
             for index, choice in enumerate(spec.gestures)
         )
         roots.extend(
-            (f"/reactions/{emotion}/{level}", ContentKind.REACTION, source)
+            (f"/reactions/{emotion}/{level}/{index}", ContentKind.REACTION, source)
             for emotion, cells in spec.reactions.items()
-            for level, source in cells.items()
-            if source is not None
+            for level, pool in cells.items()
+            for index, source in enumerate(pool)
         )
         typed_items: dict[str, TypedCatalogItem] = {}
         origins: dict[str, tuple[str, str | None]] = {}
@@ -387,7 +392,7 @@ class AnimaCreationSources:
             warnings.append(
                 AnimaCreationIssue("no_gestures_selected", "This Anima has no Gestures selected.", "/gestures")
             )
-        if not any(source is not None for cells in spec.reactions.values() for source in cells.values()):
+        if not any(pool for cells in spec.reactions.values() for pool in cells.values()):
             warnings.append(
                 AnimaCreationIssue("no_reactions_selected", "This Anima has no Reactions selected.", "/reactions")
             )
@@ -409,9 +414,10 @@ class AnimaCreationSources:
                     ResolvedGestureSelection(typed_items[choice.source.item_id].item) for choice in spec.gestures
                 ),
                 reactions=tuple(
-                    ResolvedReactionSelection(emotion, int(level), typed_items[source.item_id].item if source else None)
+                    ResolvedReactionMember(emotion, int(level), typed_items[source.item_id].item)
                     for emotion, cells in spec.reactions.items()
-                    for level, source in cells.items()
+                    for level, pool in cells.items()
+                    for source in pool
                 ),
                 profile=appearance("profile"),
                 background=appearance("background"),

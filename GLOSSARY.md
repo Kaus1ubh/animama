@@ -96,6 +96,17 @@ one pool, seeded at creation and edited in its loadout. Idle Gestures are never
 AI-callable. Formerly "Idle Style", reusable content that no longer exists
 ([ADR 0026](docs/adr/0026-built-in-idle-pool-per-anima.md)); do not use that term.
 
+## Reaction
+
+The expression-led Action an Anima plays while talking, chosen by the turn's
+emotion and Reaction intensity: Mild, Moderate, Strong or Intense (1–4). Each
+of the 24 emotions has one cell per intensity, 96 in all, and each cell holds a
+pool of up to four Reactions; a Reaction may sit in any number of cells. For
+each emotion event chat plays one member of that cell at random, never the
+member it played last when the pool has two or more. An empty cell plays no
+Reaction and never falls back to another cell. A Reaction's emotion/intensity
+suggestion is only a hint for where it fits.
+
 ## Non-portable content
 
 Included content that plays, previews and can be equipped but never leaves the

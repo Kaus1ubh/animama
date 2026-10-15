@@ -27,7 +27,7 @@ from animama.app.services.memory_entry_service import (
     MemoryEntryService,
     MemoryEntryValidationError,
 )
-from animama.domain.anima_creation import ResolvedIdleMember
+from animama.domain.anima_creation import ResolvedIdleMember, ResolvedReactionMember
 from animama.domain.anima_definition import (
     ANIMA_MEMORIES_TEMPLATE,
     DEFAULT_ANIMA_VOICE_ID,
@@ -206,8 +206,8 @@ async def test_materializer_owns_no_commit_provider_or_runtime_and_seeds_exact_d
     assert (_required(await uow.chat_profiles.get(anima.id))).default_model_provider_id == fixture.provider_id
     loadout = await uow.loadouts.read_model(user_id=fixture.user_id, anima_id=anima.id)
     assert loadout.revision == loadout.aggregate_revision == 1
-    assert loadout.gestures == () and len(loadout.reactions) == 72
-    assert all(cell.state == "empty" for cell in loadout.reactions)
+    assert loadout.gestures == () and len(loadout.reactions) == 96
+    assert all(cell.state == "empty" and cell.members == () for cell in loadout.reactions)
     assert loadout.voice_source is None
     # The resolved Idle members land in their cells without equipping an AI-callable Gesture.
     assert [member.item_id for member in loadout.idle.default_pool] == [idle.id]
@@ -715,13 +715,18 @@ async def test_avatar_changes_and_stale_chat_writes_preserve_live_definition(asy
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("invalid", ["matrix", "idle", "stale_avatar", "stale_profile", "voice", "model", "owner"])
+@pytest.mark.parametrize(
+    "invalid", ["reaction_cell", "reaction", "idle", "stale_avatar", "stale_profile", "voice", "model", "owner"]
+)
 async def test_invalid_resolved_inputs_leave_no_aggregate(async_session, creation, invalid) -> None:
     fixture = creation
     spec = fixture.spec
     owner = fixture.user_id
-    if invalid == "matrix":
-        spec = replace(spec, reactions=spec.reactions[:-1])
+    if invalid == "reaction_cell":
+        spec = replace(spec, reactions=(ResolvedReactionMember("joy", 5, spec.avatar),))
+    elif invalid == "reaction":
+        # Pool members must be Reactions; the Avatar is valid content of the wrong kind.
+        spec = replace(spec, reactions=(ResolvedReactionMember("joy", 4, spec.avatar),))
     elif invalid == "idle":
         # Idle members must be Gestures; the Avatar is valid content of the wrong kind.
         spec = replace(spec, idle=(ResolvedIdleMember(spec.avatar, IDLE_DEFAULT_CELL),))
@@ -743,8 +748,10 @@ async def test_invalid_resolved_inputs_leave_no_aggregate(async_session, creatio
     uow = SQLAlchemyAnimaAggregateUnitOfWork(async_session)
     with pytest.raises((AnimaDefinitionError, AnimaLoadoutError)) as error:
         await fixture.materializer.materialize(user_id=owner, spec=spec, uow=uow)
-    if invalid == "idle":
+    if invalid in {"idle", "reaction"}:
         assert isinstance(error.value, AnimaLoadoutError) and error.value.code == "loadout_source_unavailable"
+    if invalid == "reaction_cell":
+        assert isinstance(error.value, AnimaLoadoutError) and error.value.code == "reaction_cell_invalid"
     await uow.rollback()
     assert await async_session.scalar(select(func.count()).select_from(ORMAnima).where(ORMAnima.user_id == owner)) == 0
     assert await async_session.get(ORMContentCatalogItem, fixture.spec.avatar.id) is not None
@@ -771,7 +778,7 @@ async def test_null_appearance_does_not_inherit_background_or_profile(async_sess
 
 
 async def test_resolved_binding_configuration_survives_materialization(async_session, creation) -> None:
-    from animama.domain.anima_creation import ResolvedGestureSelection, ResolvedReactionSelection
+    from animama.domain.anima_creation import ResolvedGestureSelection
     from animama.orm.content_catalog import ORMAnimaContentBinding
 
     fixture = creation
@@ -792,12 +799,7 @@ async def test_resolved_binding_configuration_survives_materialization(async_ses
     spec = replace(
         fixture.spec,
         gestures=(ResolvedGestureSelection(sources["gesture"], {"time_scale": 0.5, "loop": True}),),
-        reactions=tuple(
-            ResolvedReactionSelection(cell.emotion, cell.intensity, sources["reaction"], {"weight": 0.75})
-            if cell.emotion == "joy" and cell.intensity == 2
-            else cell
-            for cell in fixture.spec.reactions
-        ),
+        reactions=(ResolvedReactionMember("joy", 2, sources["reaction"]),),
     )
     uow = SQLAlchemyAnimaAggregateUnitOfWork(async_session)
     anima = await fixture.materializer.materialize(user_id=fixture.user_id, spec=spec, uow=uow)
@@ -810,7 +812,8 @@ async def test_resolved_binding_configuration_survives_materialization(async_ses
     )
     by_slot = {row.slot_key: row.config for row in rows}
     assert by_slot["gesture:configured"] == {"time_scale": 0.5, "loop": True}
-    assert by_slot["reaction:joy-2"] == {"weight": 0.75}
+    # Reaction pool members carry no binding configuration.
+    assert by_slot[f"reaction:joy-2:{sources['reaction'].id}"] == {}
     await uow.rollback()
 
 

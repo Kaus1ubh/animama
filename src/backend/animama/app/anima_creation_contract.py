@@ -17,6 +17,7 @@ from animama.domain.anima_definition import (
     normalize_display_name,
     normalize_identity,
 )
+from animama.domain.anima_loadout import REACTION_INTENSITIES, REACTION_POOL_LIMIT
 from animama.domain.emotions import TRACKED_EMOTIONS
 
 ItemId = Annotated[str, Field(min_length=1, max_length=128, pattern=r"^[A-Za-z0-9][A-Za-z0-9:_-]*$")]
@@ -114,8 +115,11 @@ class StarterPackIdentity(StrictCreationModel):
     revision_sha256: RevisionSha256
 
 
-ReactionCells = dict[Literal["1", "2", "3"], ItemRevisionRef | None]
+ReactionIntensityKey = Literal["1", "2", "3", "4"]
+ReactionPool = Annotated[list[ItemRevisionRef], Field(max_length=REACTION_POOL_LIMIT)]
+ReactionCells = dict[ReactionIntensityKey, ReactionPool]
 ReactionMatrix = dict[Emotion, ReactionCells]
+"""Every emotion's four Reaction intensities, each a pool of up to four distinct Reactions (may be empty)."""
 
 
 class CreationPocketPreset(StrictCreationModel):
@@ -176,8 +180,13 @@ class _AnimaSpecFields(StrictCreationModel):
     @field_validator("reactions")
     @classmethod
     def complete_reactions(cls, value: ReactionMatrix) -> ReactionMatrix:
-        if set(value) != set(TRACKED_EMOTIONS) or any(set(cells) != {"1", "2", "3"} for cells in value.values()):
-            raise ValueError("All 24 emotions and all 72 Reaction cells must be explicit")
+        levels = {str(intensity) for intensity in REACTION_INTENSITIES}
+        if set(value) != set(TRACKED_EMOTIONS) or any(set(cells) != levels for cells in value.values()):
+            raise ValueError("All 24 emotions and all 96 Reaction cells must be explicit")
+        for cells in value.values():
+            for pool in cells.values():
+                if len({source.item_id for source in pool}) != len(pool):
+                    raise ValueError("A Reaction appears at most once in a cell")
         return value
 
 

@@ -16,6 +16,7 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path, PurePosixPath
 from typing import Any, Literal
 
+from animama.domain.anima_loadout import REACTION_INTENSITIES
 from animama.domain.content_catalog import (
     ContentDiagnostic,
     ContentKind,
@@ -801,10 +802,14 @@ class ContentTypeHandler:
                 placement = _object(raw["placement_hint"], field_name="placement_hint")
                 emotion = _string(placement.get("emotion"), field_name="placement_hint.emotion").lower()
                 intensity = placement.get("intensity")
-                if emotion not in TRACKED_EMOTION_SET or type(intensity) is not int or intensity not in {1, 2, 3}:
+                if (
+                    emotion not in TRACKED_EMOTION_SET
+                    or type(intensity) is not int
+                    or intensity not in REACTION_INTENSITIES
+                ):
                     raise ContentDocumentError(
                         "invalid_reaction_cell",
-                        "Reaction placement requires a tracked emotion and intensity 1, 2, or 3",
+                        "Reaction placement requires a tracked emotion and intensity 1, 2, 3, or 4",
                     )
             return ReactionDocumentV1(
                 **base,
@@ -1202,16 +1207,11 @@ class ContentTypeHandler:
             if isinstance(document, GestureDocumentV1):
                 payload["semantic_key"] = document.semantic_key
                 return RuntimeProjection("gesture", payload)
-            # A Reaction document's placement hint is its authoring default.
-            # The equipped loadout slot owns when that exact Action is invoked.
-            placement = projection.slot_key.removeprefix("reaction:")
-            emotion, separator, raw_intensity = placement.rpartition("-")
-            try:
-                intensity = int(raw_intensity) if separator else document.intensity
-            except ValueError:
-                intensity = document.intensity
-            payload["emotion"] = emotion if emotion in TRACKED_EMOTION_SET else document.emotion
-            payload["intensity"] = intensity if intensity in {1, 2, 3} else document.intensity
+            # These are the document's authoring suggestion only. One Reaction
+            # may sit in several pools; the runtime ``reaction_cells`` map owns
+            # which cells play it.
+            payload["emotion"] = document.emotion
+            payload["intensity"] = document.intensity
             return RuntimeProjection("reaction", payload)
         if isinstance(document, AvatarDocumentV1):
             avatar: dict[str, Any] = {

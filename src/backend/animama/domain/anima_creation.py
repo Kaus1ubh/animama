@@ -13,11 +13,12 @@ from .content_catalog import CatalogContentEntry
 
 
 @dataclass(frozen=True, slots=True)
-class ResolvedReactionSelection:
+class ResolvedReactionMember:
+    """One exact Reaction in the pool of one emotion/intensity cell; members carry no binding config."""
+
     emotion: str
     intensity: int
-    source: CatalogContentEntry | None
-    config: dict[str, Any] = field(default_factory=dict)
+    source: CatalogContentEntry
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,7 +50,8 @@ class ResolvedAnimaSpec:
     display_name: str
     identity: str
     avatar: CatalogContentEntry
-    reactions: tuple[ResolvedReactionSelection, ...]
+    # Every Reaction pool member; a cell without members is empty.
+    reactions: tuple[ResolvedReactionMember, ...]
     gestures: tuple[ResolvedGestureSelection, ...] = ()
     # Creation resolves the starter Idle seed; package import supplies its own pool.
     idle: tuple[ResolvedIdleMember, ...] = ()

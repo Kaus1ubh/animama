@@ -62,6 +62,7 @@ class PyRuntimeAction(BaseModel):
     name: str
     description: str | None = None
     semantic_key: str | None = None
+    # A Reaction's suggested cell from its document; ``PyAnimaRuntime.reaction_cells`` says where it plays.
     emotion: str | None = None
     intensity: int | None = None
     implementation: PyRuntimeActionImplementation
@@ -268,6 +269,13 @@ class PyAnimaRuntime(BaseModel):
     gestures: list[PyRuntimeAction] = Field(default_factory=list)
     poses: list[PyRuntimeAction] = Field(default_factory=list)
     reactions: list[PyRuntimeAction] = Field(default_factory=list)
+    reaction_cells: dict[str, dict[str, list[str]]] = Field(
+        default_factory=dict,
+        description=(
+            "Reaction pools as emotion -> intensity ('1'-'4') -> catalog item ids of admitted ``reactions``. "
+            "Chat picks one member at random per emotion event; an absent cell plays no Reaction."
+        ),
+    )
     idle: PyRuntimeIdle = Field(default_factory=PyRuntimeIdle)
     avatar: PyRuntimeAvatar | None = None
     voice: PyRuntimeVoice | None = None

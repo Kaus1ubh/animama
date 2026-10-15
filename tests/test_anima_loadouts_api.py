@@ -49,7 +49,7 @@ async def test_typed_gesture_plan_commit_and_loadout_http_contract(async_session
         initial = await client.get(f"/v1/animas/{fixture.anima_id}/loadout")
         assert initial.status_code == 200, initial.text
         assert initial.json()["revision"] == 1
-        assert len(initial.json()["reactions"]) == 24 * 3
+        assert len(initial.json()["reactions"]) == 24 * 4
 
         planned = await client.post(
             f"/v1/animas/{fixture.anima_id}/gestures:plan",

@@ -5,6 +5,7 @@ import pytest
 from animama.app.primary_emotion_update import (
     build_primary_emotion_update_event,
     voice_intensity_to_avatar_level,
+    voice_intensity_to_reaction_intensity,
 )
 from animama.domain.events import EmotionUpdatePayload, EventType
 
@@ -33,6 +34,61 @@ def test_voice_intensity_to_avatar_level(raw: object, expected: int | None) -> N
     assert voice_intensity_to_avatar_level(raw) == expected
 
 
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        (1, 0),
+        (2, 0),
+        (3, 1),
+        (4, 1),
+        (5, 2),
+        (6, 2),
+        (7, 3),
+        (8, 3),
+        (9, 4),
+        (10, 4),
+        (0, None),
+        (11, None),
+        ("9", 4),
+        ("bad", None),
+        (True, None),
+    ],
+)
+def test_voice_intensity_to_reaction_intensity(raw: object, expected: int | None) -> None:
+    """Model intensity 1-2 plays no Reaction; 3-10 select Mild, Moderate, Strong and Intense."""
+
+    assert voice_intensity_to_reaction_intensity(raw) == expected
+
+
+@pytest.mark.parametrize(
+    ("raw", "shift", "reaction"),
+    [(1, 1, 0), (2, 1, 0), (3, 1, 1), (4, 2, 1), (6, 2, 2), (7, 3, 3), (8, 3, 3), (9, 3, 4), (10, 3, 4)],
+)
+def test_reaction_intensity_is_separate_from_the_emotion_state_shift(raw: int, shift: int, reaction: int) -> None:
+    event = build_primary_emotion_update_event(
+        anima_id="anima-1",
+        chat_id="chat-1",
+        user_id="user-1",
+        run_id="run-1",
+        node_id="agent:primary",
+        emotional_state={"joy": 10, "sadness": 10},
+        emotional_tone="joy",
+        emotional_intensity=raw,
+        choose_opposing_emotion=lambda _candidates: "sadness",
+    )
+
+    payload = event.payload
+    assert isinstance(payload, EmotionUpdatePayload)
+    state = _payload_state(payload)
+    # The state shift keeps its three-step scale, even when no Reaction plays.
+    assert state["joy"] == 10 + shift
+    assert state["sadness"] == 10 - shift
+    assert payload.emotional_tone == "joy"
+    assert payload.emotional_intensity == reaction
+    assert payload.promoted_emotion == "joy"
+    assert payload.demoted_emotion == "sadness"
+
+
 def test_primary_emotion_update_promotes_tone_and_demotes_opposing_emotion() -> None:
     event = build_primary_emotion_update_event(
         anima_id="anima-1",
@@ -53,6 +109,7 @@ def test_primary_emotion_update_promotes_tone_and_demotes_opposing_emotion() -> 
     assert state["joy"] == 4
     assert state["sadness"] == 3
     assert payload.emotional_tone == "joy"
+    # Model intensity 5 shifts the state by 2 and selects Reaction intensity 2.
     assert payload.emotional_intensity == 2
     assert payload.promoted_emotion == "joy"
     assert payload.demoted_emotion == "sadness"
@@ -76,7 +133,7 @@ def test_primary_emotion_update_clamps_promotion_and_demotion() -> None:
     state = _payload_state(payload)
     assert state["joy"] == 30
     assert state["sadness"] == 0
-    assert payload.emotional_intensity == 3
+    assert payload.emotional_intensity == 4
 
 
 @pytest.mark.parametrize("tone", [None, "", "friendly", "not-real", "neutral"])

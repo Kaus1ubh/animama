@@ -120,7 +120,8 @@ Voice-structured responses are prompted and schematized to include
 `emotional_tone`, `emotional_intensity`, `gesture`, then `speech`. The tone and intensity
 fields are backend-internal metadata: they are not emitted as visible chat text
 and are not stored as assistant messages. Normal `chat:sse` uses them to compute
-and persist a full-state `emotion.update`; the frontend still treats the
+and persist a full-state `emotion.update`, whose `emotional_intensity` is the
+Reaction intensity 0–4 (see [chat](../runtime/chat.md)); the frontend still treats the
 resulting `emotions` array, not raw tone metadata, as canonical avatar emotion
 state. Gemini speech also takes its speaking style from the tone (see
 [Gemini TTS](#gemini-tts)), and ElevenLabs from a leading tone tag (see

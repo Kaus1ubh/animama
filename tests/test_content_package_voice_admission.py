@@ -103,7 +103,7 @@ def voice_package(
             "identity_markdown": "A friendly companion.",
             "avatar": "avatar",
             "gestures": [],
-            "reactions": {emotion: {str(level): None for level in (1, 2, 3)} for emotion in TRACKED_EMOTIONS},
+            "reactions": {emotion: {str(level): [] for level in (1, 2, 3, 4)} for emotion in TRACKED_EMOTIONS},
             "idle": {"default": [], "cells": {}},
             "pocket_voice": "voice",
             "appearance": {"profile": None, "background": None},

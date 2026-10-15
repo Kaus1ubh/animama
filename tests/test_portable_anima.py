@@ -72,7 +72,7 @@ def portable_fixture():
             "identity_markdown": "# Only reviewed identity",
             "avatar": "model",
             "gestures": [],
-            "reactions": {emotion: {str(level): None for level in (1, 2, 3)} for emotion in TRACKED_EMOTIONS},
+            "reactions": {emotion: {str(level): [] for level in (1, 2, 3, 4)} for emotion in TRACKED_EMOTIONS},
             "idle": {"default": [], "cells": {}},
             "appearance": {"profile": None, "background": None},
         }
@@ -127,7 +127,7 @@ def test_portable_definition_has_strict_bounded_complete_allowlist(change):
     elif change == "identity":
         raw["identity_markdown"] = "é" * (16 * 1024 + 1)
     elif change == "cell":
-        del raw["reactions"]["joy"]["3"]
+        del raw["reactions"]["joy"]["4"]
     elif change == "idle_duplicate":
         raw["idle"]["default"] = ["model", "model"]
     elif change == "idle_empty_cell":
@@ -256,7 +256,7 @@ async def test_saved_definition_projection_preserves_empties_images_and_privacy(
     assert definition.idle.default == [] and definition.idle.cells == {}
     assert len(definition.reactions) == 24
     assert all(
-        set(cells) == {"1", "2", "3"} and all(cell is None for cell in cells.values())
+        set(cells) == {"1", "2", "3", "4"} and all(pool == [] for pool in cells.values())
         for cells in definition.reactions.values()
     )
     assert definition.appearance.profile.entry_id == fixture.spec.profile.source.id
@@ -436,7 +436,9 @@ async def test_configuration_and_image_roles_round_trip_through_portable_definit
     assert created.id != anima.id and created.aggregate_revision == 1
 
 
-async def test_effective_starters_and_arbitrary_reaction_cell_are_frozen(async_session, saved_anima, monkeypatch):
+async def test_effective_starter_gestures_are_frozen_and_reactions_have_no_implicit_starter(
+    async_session, saved_anima, monkeypatch
+):
     from animama.orm.anima_loadout import ORMAnimaLoadout
 
     fixture, anima = saved_anima
@@ -475,10 +477,8 @@ async def test_effective_starters_and_arbitrary_reaction_cell_are_frozen(async_s
         )
         projection = await source_service(async_session).capture(user_id=fixture.user_id, anima_id=anima.id)
         assert projection.definition.gestures[0].entry_id == included_ids[0]
-        assert projection.definition.reactions["joy"]["3"].entry_id == included_ids[1]
-        assert (
-            sum(cell is not None for cells in projection.definition.reactions.values() for cell in cells.values()) == 1
-        )
+        # Reaction pools hold only stored members; a starter policy Reaction is never implied.
+        assert all(pool == [] for cells in projection.definition.reactions.values() for pool in cells.values())
     finally:
         await async_session.execute(delete(ORMContentCatalogItem).where(ORMContentCatalogItem.id.in_(included_ids)))
         await async_session.commit()

@@ -10,9 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlchemyContentCatalog
 from animama.app.services.anima_aggregate_materializer import AnimaAggregateMaterializer
-from animama.domain.anima_creation import ResolvedAnimaSpec, ResolvedAppearanceSelection, ResolvedReactionSelection
+from animama.domain.anima_creation import ResolvedAnimaSpec, ResolvedAppearanceSelection
 from animama.domain.content_catalog import CatalogContentEntry
-from animama.domain.emotions import TRACKED_EMOTIONS
 from animama.orm.content_catalog import ORMContentCatalogFile, ORMContentCatalogItem
 from animama.orm.model_provider import ORMModelProvider
 
@@ -97,11 +96,8 @@ async def creation_fixture(session: AsyncSession) -> CreationFixture:
             display_name="  My  Companion  ",
             identity="# My identity\r\n\r\nKeep two spaces.  \r\n",
             avatar=avatar,
-            reactions=tuple(
-                ResolvedReactionSelection(emotion, intensity, None)
-                for emotion in sorted(TRACKED_EMOTIONS)
-                for intensity in (1, 2, 3)
-            ),
+            # Every Reaction pool starts empty.
+            reactions=(),
             profile=ResolvedAppearanceSelection(profile, {"fit": "contain", "focal_x": 0.2, "zoom": 1.5}),
             background=ResolvedAppearanceSelection(background),
         ),

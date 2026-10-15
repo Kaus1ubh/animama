@@ -365,10 +365,10 @@ verified-byte delivery rules apply unchanged.
 Loadout changes use a family-specific plan followed by an optimistic,
 idempotent commit. The commit writes a logical item selection to
 `anima_content_bindings` and advances the Anima loadout revision. A Gesture is
-unique by effective semantic key. Reaction bindings occupy canonical
-emotion/intensity cells, while a Reaction Action may be placed in any cell
-regardless of its authored placement hint. Each Idle cell holds any number of
-idle-eligible Gestures, one row each, and
+unique by effective semantic key. Each Reaction cell (24 emotions at
+intensities 1–4) holds a pool of up to four Reactions, one row each, and a
+Reaction Action may join any cell regardless of its authored placement hint.
+Each Idle cell holds any number of idle-eligible Gestures, one row each, and
 Avatar/Appearance/voice use their own single-selection rules. VFX and SFX remain transitive
 dependencies and are rejected as direct equipment. No loadout write copies
 bytes or hot-swaps an active mount.

@@ -86,13 +86,13 @@ async def test_reaction_can_be_assigned_to_any_loadout_cell(async_session, with_
         kind="reaction",
         name="Strong Joy",
         metadata={
-            **({"placement_hint": {"emotion": "joy", "intensity": 3}} if with_hint else {}),
+            **({"placement_hint": {"emotion": "joy", "intensity": 4}} if with_hint else {}),
             "implementation": {"kind": "anima_clip", "file_role": "sequence"},
             "config": {},
         },
     )
     intent = {
-        "operation": "replace",
+        "operation": "add",
         "emotion": "sadness",
         "intensity": 1,
         "source": catalog_source(reaction),
@@ -133,9 +133,10 @@ async def test_reaction_can_be_assigned_to_any_loadout_cell(async_session, with_
         )
         selected = next(cell for cell in loadout.reactions if cell.emotion == "sadness" and cell.intensity == 1)
         assert selected.state == "custom"
-        assert selected.name == "Strong Joy"
-        assert selected.source is not None
-        assert selected.source.catalog_item_id == reaction.id
+        [member] = selected.members
+        assert member.name == "Strong Joy"
+        assert member.source is not None
+        assert member.source.catalog_item_id == reaction.id
     finally:
         await cleanup_loadout_fixture(async_session, fixture)
 

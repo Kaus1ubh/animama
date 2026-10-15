@@ -28,6 +28,7 @@ from animama.app.services.anima_creation_sources import AnimaCreationSources, it
 from animama.app.services.content_catalog_service import ContentCatalogService
 from animama.app.services.content_gltf import REQUIRED_VRM_HUMANOID_BONES
 from animama.app.services.starter_loadout_policy import starter_loadout_policy, starter_pack_identity
+from animama.domain.anima_loadout import REACTION_INTENSITIES
 from animama.domain.content_catalog import CatalogContentEntry
 from animama.domain.content_sources import IncludedContentSource
 from animama.domain.emotions import TRACKED_EMOTIONS
@@ -156,16 +157,16 @@ class AnimaCreationFixture:
         self, *, key: str = "creation-key", avatar: str = "local-avatar", actions: bool = False
     ) -> CreateAnimaRequest:
         roots = [self.items[avatar]]
-        reactions: dict[str, dict[str, dict[str, str] | None]] = {
-            emotion: {str(level): None for level in (1, 2, 3)} for emotion in TRACKED_EMOTIONS
+        reactions: dict[str, dict[str, list[dict[str, str]]]] = {
+            emotion: {str(level): [] for level in REACTION_INTENSITIES} for emotion in TRACKED_EMOTIONS
         }
         gestures = []
         if actions:
             roots.extend([self.items["gesture"], self.items["reaction"]])
             gestures = [{"semantic_key": "wave", "source": item_ref(self.items["gesture"])}]
             # Reuse one source in two non-hint cells to prove unrestricted placement.
-            reactions["sadness"]["3"] = item_ref(self.items["reaction"])
-            reactions["joy"]["1"] = item_ref(self.items["reaction"])
+            reactions["sadness"]["3"] = [item_ref(self.items["reaction"])]
+            reactions["joy"]["1"] = [item_ref(self.items["reaction"])]
         return CreateAnimaRequest.model_validate(
             {
                 "schema_version": 1,

@@ -43,7 +43,7 @@ _TYPED_SLOT_CHECK = """(
         (slot_key LIKE 'gesture:%' AND char_length(slot_key) > 8) OR
         (slot_key LIKE 'idle:%' AND char_length(slot_key) > 5)
     )) OR
-    (kind = 'reaction' AND slot_key LIKE 'reaction:%' AND char_length(slot_key) > 9) OR
+    (kind = 'reaction' AND slot_key LIKE 'reaction:%-_:_%') OR
     (kind = 'music_track' AND slot_key LIKE 'music:%' AND char_length(slot_key) > 6) OR
     (kind = 'appearance' AND slot_key IN ('appearance:profile', 'appearance:background')) OR
     (kind = 'voice' AND slot_key = 'voice')

@@ -17,6 +17,17 @@ from .runtime_content_slot import RuntimeContentSlot
 IDLE_DEFAULT_CELL = "default"
 """Cell key of the Idle pool used for neutral and for every empty emotion cell."""
 
+IDLE_INTENSITIES: tuple[int, ...] = (1, 2, 3)
+"""Idle cell intensities; they follow the Anima's emotion state, which has three levels."""
+
+REACTION_INTENSITIES: tuple[int, ...] = (1, 2, 3, 4)
+"""Reaction intensities Mild, Moderate, Strong and Intense: 24 emotions x 4 = 96 cells per Anima."""
+
+REACTION_POOL_LIMIT = 4
+"""Most Reactions one emotion/intensity cell may hold; chat plays one member at random."""
+
+ReactionIntensity = Literal[1, 2, 3, 4]
+
 
 @dataclass(frozen=True, slots=True, order=True)
 class StarterEntryIdentity:
@@ -58,14 +69,69 @@ class GestureBinding:
 
 
 @dataclass(frozen=True, slots=True)
+class ReactionMember:
+    """One Reaction in a cell's pool; chat picks a member at random for each emotion event.
+
+    ``origin`` is ``starter`` when the member is one of the cell's Included
+    starter Reactions. ``available`` is false when the catalog item is missing
+    or invalid; such a member stays visible so it can be removed.
+    """
+
+    binding_id: str
+    item_id: str
+    name: str
+    available: bool
+    origin: Literal["starter", "custom"]
+    source: CatalogLoadoutSource | None = None
+    description: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class ReactionCell:
+    """One emotion/intensity cell and its pool of up to ``REACTION_POOL_LIMIT`` Reactions.
+
+    ``state`` is ``empty`` without members, ``starter`` when the members are
+    exactly the cell's available starter Reactions, else ``custom``.
+    """
+
     emotion: str
     intensity: int
     state: Literal["starter", "custom", "empty"]
-    binding_id: str | None = None
-    name: str | None = None
-    source: CatalogLoadoutSource | None = None
-    config_overrides: dict[str, Any] = field(default_factory=dict)
+    members: tuple[ReactionMember, ...] = ()
+
+
+def cell_key(emotion: object, intensity: object, *, intensities: tuple[int, ...], error_code: str) -> str:
+    """Return ``<emotion>-<intensity>`` for a tracked emotion and an allowed intensity.
+
+    Raises ``AnimaLoadoutError(error_code)`` for any other pair.
+    """
+
+    if emotion not in TRACKED_EMOTIONS or type(intensity) is not int or intensity not in intensities:
+        raise AnimaLoadoutError(error_code)
+    return f"{emotion}-{intensity}"
+
+
+def parse_cell_key(cell: str, *, intensities: tuple[int, ...] = REACTION_INTENSITIES) -> tuple[str, int] | None:
+    """Split ``<emotion>-<intensity>`` into its parts, or ``None`` when either is unknown.
+
+    Tracked emotion names contain no hyphen, so the first hyphen ends the emotion.
+    """
+
+    emotion, separator, level = cell.partition("-")
+    if not separator or emotion not in TRACKED_EMOTIONS:
+        return None
+    intensity = next((value for value in intensities if str(value) == level), None)
+    return None if intensity is None else (emotion, intensity)
+
+
+def _parse_member_slot(slot_key: str, prefix: str) -> tuple[str, str] | None:
+    """Split ``<prefix>:<cell>:<catalog_item_id>``; the item id may itself contain hyphens or colons."""
+
+    head, _, rest = slot_key.partition(":")
+    cell, separator, item_id = rest.partition(":")
+    if head != prefix or not separator or not cell or not item_id:
+        return None
+    return cell, item_id
 
 
 def idle_cell_key(emotion: str | None, intensity: int | None) -> str:
@@ -76,9 +142,7 @@ def idle_cell_key(emotion: str | None, intensity: int | None) -> str:
 
     if emotion is None and intensity is None:
         return IDLE_DEFAULT_CELL
-    if emotion not in TRACKED_EMOTIONS or intensity not in {1, 2, 3}:
-        raise AnimaLoadoutError("idle_cell_invalid")
-    return f"{emotion}-{intensity}"
+    return cell_key(emotion, intensity, intensities=IDLE_INTENSITIES, error_code="idle_cell_invalid")
 
 
 def idle_slot_key(cell: str, item_id: str) -> str:
@@ -90,11 +154,32 @@ def idle_slot_key(cell: str, item_id: str) -> str:
 def parse_idle_slot_key(slot_key: str) -> tuple[str, str] | None:
     """Split an Idle member slot into ``(cell, catalog_item_id)``, or ``None`` for other slots."""
 
-    prefix, _, rest = slot_key.partition(":")
-    cell, separator, item_id = rest.partition(":")
-    if prefix != "idle" or not separator or not cell or not item_id:
+    return _parse_member_slot(slot_key, "idle")
+
+
+def reaction_cell_key(emotion: object, intensity: object) -> str:
+    """Return ``<emotion>-<intensity>`` for a Reaction cell, else raise ``reaction_cell_invalid``."""
+
+    return cell_key(emotion, intensity, intensities=REACTION_INTENSITIES, error_code="reaction_cell_invalid")
+
+
+def reaction_slot_key(cell: str, item_id: str) -> str:
+    """Binding slot of one Reaction pool member: ``reaction:<emotion>-<intensity>:<catalog_item_id>``."""
+
+    return f"reaction:{cell}:{item_id}"
+
+
+def parse_reaction_slot_key(slot_key: str) -> tuple[str, str] | None:
+    """Split a Reaction member slot into ``(cell, catalog_item_id)``, or ``None`` for any other slot.
+
+    The cell must name a tracked emotion and a Reaction intensity. The row's
+    ``catalog_item_id`` stays authoritative; the slot only names the cell.
+    """
+
+    parsed = _parse_member_slot(slot_key, "reaction")
+    if parsed is None or parse_cell_key(parsed[0], intensities=REACTION_INTENSITIES) is None:
         return None
-    return cell, item_id
+    return parsed
 
 
 @dataclass(frozen=True, slots=True)
@@ -120,7 +205,7 @@ class IdleCell:
 
 @dataclass(frozen=True, slots=True)
 class IdlePool:
-    """The Anima's built-in Idle pool: Default plus all 72 emotion/intensity cells."""
+    """The Anima's built-in Idle pool: Default plus all 72 emotion/intensity cells (three intensities)."""
 
     default_pool: tuple[IdleMember, ...] = ()
     cells: tuple[IdleCell, ...] = ()
@@ -193,15 +278,25 @@ __all__ = [
     "CatalogLoadoutSource",
     "GestureBinding",
     "IDLE_DEFAULT_CELL",
+    "IDLE_INTENSITIES",
     "IdleCell",
     "IdleMember",
     "IdlePool",
     "LoadoutCommitResult",
     "LoadoutDiagnostic",
     "LoadoutPlan",
+    "REACTION_INTENSITIES",
+    "REACTION_POOL_LIMIT",
     "ReactionCell",
+    "ReactionIntensity",
+    "ReactionMember",
     "StarterEntryIdentity",
+    "cell_key",
     "idle_cell_key",
     "idle_slot_key",
+    "parse_cell_key",
     "parse_idle_slot_key",
+    "parse_reaction_slot_key",
+    "reaction_cell_key",
+    "reaction_slot_key",
 ]

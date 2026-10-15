@@ -339,7 +339,7 @@ def test_anima_idle_gesture_requires_its_actual_owned_motion_to_finish(
             "identity_markdown": "A calm companion.",
             "avatar": "avatar",
             "gestures": [],
-            "reactions": {emotion: {str(level): None for level in (1, 2, 3)} for emotion in TRACKED_EMOTIONS},
+            "reactions": {emotion: {str(level): [] for level in (1, 2, 3, 4)} for emotion in TRACKED_EMOTIONS},
             # Idle membership alone makes the Gesture part of the package.
             "idle": {"default": ["motion"], "cells": {}},
             "appearance": {"profile": None, "background": None},

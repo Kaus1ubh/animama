@@ -119,7 +119,8 @@ def test_reaction_handler_preserves_hint_and_requires_registered_runtime_media()
         {"emotion": "joy"},
         {"intensity": 2},
         {"emotion": "unknown", "intensity": 2},
-        {"emotion": "joy", "intensity": 4},
+        {"emotion": "joy", "intensity": 0},
+        {"emotion": "joy", "intensity": 5},
         {"emotion": "joy", "intensity": True},
         {"emotion": "joy", "intensity": 1.0},
     ],
@@ -169,8 +170,10 @@ def test_reaction_without_hint_roundtrips_catalog_package_and_preview() -> None:
     assert projected.payload["intensity"] is None
 
 
-@pytest.mark.parametrize("hint", [None, {"emotion": "joy", "intensity": 3}])
-def test_reaction_runtime_projection_uses_the_equipped_loadout_cell(hint: dict[str, Any] | None) -> None:
+@pytest.mark.parametrize("hint", [None, {"emotion": "joy", "intensity": 4}])
+def test_reaction_runtime_projection_reports_only_the_document_hint(hint: dict[str, Any] | None) -> None:
+    """A pooled Reaction may play in many cells; its slot names the item, and the runtime pools name the cells."""
+
     handler = handler_for_kind(ContentKind.REACTION)
     parsed = handler.parse_document(
         {
@@ -189,10 +192,10 @@ def test_reaction_runtime_projection_uses_the_equipped_loadout_cell(hint: dict[s
         RuntimeProjectionInput(
             item_id="reaction-item",
             runtime_root_id="reaction-root",
-            slot_key="reaction:sadness-1",
+            slot_key="reaction:reaction-item",
             source={"type": "catalog_item"},
             revision="revision-1",
-            context={},
+            context={"binding_id": "reaction:reaction-item", "reaction_cells": ["sadness-1"]},
             files=[],
             logical_files={},
             dependency_files={},
@@ -202,9 +205,9 @@ def test_reaction_runtime_projection_uses_the_equipped_loadout_cell(hint: dict[s
 
     assert projected.lane == "reaction"
     assert projected.payload is not None
+    assert projected.payload["binding_id"] == "reaction:reaction-item"
     assert (projected.payload["emotion"], projected.payload["intensity"]) == (
-        "sadness",
-        1,
+        (hint["emotion"], hint["intensity"]) if hint else (None, None)
     )
 
 

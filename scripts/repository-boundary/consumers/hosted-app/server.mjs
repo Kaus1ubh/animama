@@ -93,6 +93,7 @@ export async function createApplicationServer(applications, { vrmFile } = {}) {
         gestures: [],
         poses: [],
         reactions: [],
+        reaction_cells: {},
         appearances: [],
         particle_effects: [],
         avatar_effects: [],

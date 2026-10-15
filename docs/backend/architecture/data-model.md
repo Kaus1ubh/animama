@@ -231,13 +231,17 @@ dependency rows point at the exact catalog targets selected by their
 descriptors.
 
 `ORMAnimaLoadout` maps `anima_loadouts` and owns the optimistic revision plus
-Starter exclusions.
+Starter Gesture exclusions.
 `ORMAnimaContentBinding` stores typed logical catalog selections and their
-family-specific configuration. Gesture semantic-key and Reaction-cell
-uniqueness are enforced by the service. Idle pool members are Gesture rows with
-slot `idle:<cell>:<catalog_item_id>`, so the `(anima_id, slot_key)` key admits
-each Gesture once per cell. Effects and Sounds reached through an
-Action are compiler-managed dependencies rather than peer loadout rows. Legacy
+family-specific configuration. Gesture semantic-key uniqueness and the
+four-member Reaction pool limit are enforced by the service. Idle pool members
+are Gesture rows with slot `idle:<cell>:<catalog_item_id>`, and Reaction pool
+members are Reaction rows with slot
+`reaction:<emotion>-<intensity>:<catalog_item_id>` and empty configuration
+(the `typed_slot_shape` check requires that member shape), so the
+`(anima_id, slot_key)` key admits each Gesture or Reaction once per cell.
+Effects and Sounds reached through an Action are compiler-managed dependencies
+rather than peer loadout rows. Legacy
 Music/clip kind values and Music indexes remain readable for preserving
 transitions and historical receipts; they grant no current product admission. `ORMAnimaLoadoutMutationReceipt` makes lost-response retries idempotent;
 `ORMAnimaLoadoutDiagnostic` preserves visible warnings for rejected persisted or

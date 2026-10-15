@@ -128,10 +128,6 @@ class SQLAlchemyContentTransitionBindings:
             semantic = content_id.rsplit(":", 1)[-1]
             if ("gesture", semantic) not in excluded:
                 implicit("gesture", f"gesture:{semantic}", content_id, int(starter["version"]))
-        for starter in policy["reactions"]:
-            cell = f"{starter['emotion']}-{starter['intensity']}"
-            if ("reaction", cell) not in excluded:
-                implicit("reaction", f"reaction:{cell}", str(starter["content_id"]), int(starter["version"]))
         return tuple(sorted(selections, key=lambda selection: selection.slot_key))
 
     async def replace_content(

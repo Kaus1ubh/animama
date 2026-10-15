@@ -142,7 +142,7 @@ Content (`content/included/`):
 - [x] Phase 1: ladder table, briefs and new-effect list. G1 approved 2026-10-14; Code Review #1 passed after two repair rounds.
 - [x] Phase 2: content drafts, renders and benchmarks (2026-10-15). Drafts complete (52 effects saved; 168 Reactions checked, reviewed in stills and a reel; the 12 heaviest benchmarked); Code Review #1 pass. G2 moved to before merge (D20) and still pending.
 - [ ] Dependency: #559 merged; branch rebased; baseline refreshed.
-- [ ] Phase 3: backend pools and four intensities.
+- [x] Phase 3: backend pools and four intensities.
 - [ ] Phase 4: runtime selection and `/animas/` pool editing.
 - [ ] Phase 5: equip dialog cell chooser and wizard pools.
 - [ ] Phase 6: promotion, starter pools and journeys. G3 list reviewed with G2 before merge.
@@ -754,15 +754,68 @@ Recovery: schema edits need a fresh development database for the task stack
 (`./reset.sh --name reaction-pools --purge`); re-save Local drafts from
 `.animama-drafts/reaction-pools/` afterwards if needed.
 
-Results: _pending._
+Results (2026-10-15, on `dcb07b03`):
+
+- **Implemented** as the steps say, with the 2026-10-15 Decision Log details:
+  shared `REACTION_INTENSITIES`/`IDLE_INTENSITIES`/`REACTION_POOL_LIMIT` and
+  cell/slot helpers in `domain/anima_loadout.py` (no `rpartition("-")` left in
+  `src/backend`); `voice_intensity_to_reaction_intensity` beside the unchanged
+  state-shift scale; member-shape slot CHECK
+  (`reaction:%-_:_%`) in the ORM and `0001_baseline.sql`; `PyReactionIntent`
+  `add`/`remove`/`restore_starter`, `PyReactionMember` (with `origin`) and
+  member lists per cell; `_plan` returns a `_PlannedChange` so a restore
+  carries several rows, its digest covers the restored members' revisions,
+  an unavailable starter is skipped with the plan warning
+  `starter_reaction_unavailable`, and a restore that changes rows plans
+  `revert`; no implicit Reaction starters or Reaction exclusions anywhere;
+  one runtime root per distinct Reaction with `PyAnimaRuntime.reaction_cells`;
+  96-cell entry-id pools in packages and `ItemRevisionRef` lists in creation
+  (diagnostics at `/reactions/<emotion>/<level>/<index>`); interim starter
+  policy (intensity 1 empty, today's IDs one level up); `local-http` 9.0.0;
+  Glossary "Reaction" entry and backend docs. New error codes
+  `reaction_member_duplicate` and `reaction_pool_full`;
+  `reaction_matrix_incomplete` retired. The mock model client needed no
+  change: it sends neutral at intensity 1, which plays no Reaction before and
+  after. Chat SSE goldens re-recorded: only `emotional_intensity` 1 → 0.
+- **Checks:** `uv run pytest -q` 4541 passed, 29 skipped; `uv run ruff
+  check`, `ruff format --check` and `make check-test` (audit, lint, mypy,
+  tests) pass; the `rpartition` search is empty; Python import boundary 0
+  forbidden edges; hosted-app consumer tests 4 pass. After the review
+  repairs: `make check-test` exit 0 (4542 passed, 29 skipped; mypy clean).
 
 #### Code Review #1 Findings
 
-_Pending._
+Independent reviewer, initial full review (2026-10-15; working tree on
+`dcb07b03`). **Result: pass**; optional findings only:
+
+- P3-R0-F1: an add could rewrite another member whose row sits at the new
+  member's slot under a different catalog id (only the test-only
+  `replace_content` creates such rows; Idle shares the pattern).
+- P3-R0-F2: the `starter_reaction_unavailable` restore path was untested.
+- P3-R0-F3: the read model counts a starter that restore would skip (an
+  Included starter with a retired dependency, or a duplicated logical key),
+  so such a cell reads `custom` after a restore.
+- P3-R0-F4: legacy cell-shaped Reaction rows in an unreset development
+  database are skipped silently.
+- P3-R0-F5: plan step 2's mock-client update was not recorded.
+- P3-R0-F6: a weak runtime-warning assertion and no test of the creation
+  diagnostic path.
+- P3-R0-F7: `PortableAnima.reactions` repeated the intensity-key literal.
 
 #### Code Review #1 Revisions
 
-_Pending._
+- F1: applied. An add whose slot an existing row already holds is
+  `reaction_member_duplicate`.
+- F2: applied. `test_restore_skips_an_unavailable_starter_with_a_warning`.
+- F3: accepted residual. Both cases need broken Included content (a retired
+  dependency kind or two Included items with one logical key), which the
+  included-content integrity tests already reject.
+- F4: accepted. Development databases are reset after schema changes
+  (Recovery); the CHECK refuses the old shape.
+- F5: recorded in the Results above.
+- F6: applied. The runtime test asserts `catalog_root_unavailable`, and the
+  creation test asserts the `/reactions/joy/4/1` diagnostic path.
+- F7: applied. `PortableAnima.reactions` uses `ReactionIntensityKey`.
 
 ### Phase 4: runtime selection and `/animas/` pool editing
 

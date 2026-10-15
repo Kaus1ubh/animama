@@ -18,6 +18,8 @@ from animama.domain.anima_loadout import (
     LoadoutDiagnostic,
     LoadoutPlan,
     ReactionCell,
+    ReactionIntensity,
+    ReactionMember,
 )
 from animama.domain.emotions import TRACKED_EMOTIONS
 
@@ -84,25 +86,40 @@ class PyGestureIntent(BaseModel):
 
 
 class PyReactionIntent(BaseModel):
+    """Add a Reaction to one cell's pool, remove one member, or restore a cell's starter pool.
+
+    ``add`` takes the Reaction ``source`` and the cell (``emotion`` and
+    ``intensity`` 1-4); a cell holds at most four Reactions, each once.
+    ``remove`` takes only the member's ``binding_id``, so an unavailable member
+    can be removed too. ``restore_starter`` takes only the cell and makes its
+    pool exactly the cell's available Included starter Reactions.
+    """
+
     model_config = ConfigDict(extra="forbid")
 
-    operation: Literal["add", "replace", "update", "reconfigure", "revert", "leave_empty"]
-    emotion: str = Field(min_length=1, max_length=64)
-    intensity: Literal[1, 2, 3]
+    operation: Literal["add", "remove", "restore_starter"]
+    emotion: str | None = Field(default=None, min_length=1, max_length=64)
+    intensity: ReactionIntensity | None = None
     source: PyCatalogLoadoutSource | None = None
-    config_overrides: dict[str, Any] = Field(default_factory=dict)
+    binding_id: str | None = Field(default=None, min_length=1, max_length=128)
 
     @field_validator("emotion")
     @classmethod
-    def canonical_emotion(cls, value: str) -> str:
-        if value not in TRACKED_EMOTIONS:
+    def canonical_emotion(cls, value: str | None) -> str | None:
+        if value is not None and value not in TRACKED_EMOTIONS:
             raise ValueError("emotion must be a canonical tracked emotion")
         return value
 
     @model_validator(mode="after")
-    def validate_source(self) -> PyReactionIntent:
-        if self.operation in {"add", "replace", "update", "reconfigure"} and self.source is None:
-            raise ValueError("source is required")
+    def operation_fields(self) -> PyReactionIntent:
+        if self.operation == "remove":
+            if self.binding_id is None or self.source is not None or self.emotion or self.intensity:
+                raise ValueError("remove takes only a binding_id")
+            return self
+        if self.emotion is None or self.intensity is None or self.binding_id is not None:
+            raise ValueError(f"{self.operation} takes an emotion and intensity and no binding_id")
+        if (self.operation == "add") != (self.source is not None):
+            raise ValueError("add takes a source; restore_starter takes none")
         return self
 
 
@@ -328,29 +345,57 @@ class PyGestureBinding(BaseModel):
         )
 
 
+class PyReactionMember(BaseModel):
+    """One Reaction in a cell's pool.
+
+    ``available`` is false when its catalog item is missing or invalid.
+    ``origin`` is ``starter`` for one of the cell's Included starter Reactions.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    binding_id: str
+    item_id: str
+    name: str
+    description: str | None = None
+    available: bool
+    origin: Literal["starter", "custom"]
+    source: PyCatalogLoadoutSource | None = None
+
+    @classmethod
+    def from_domain(cls, value: ReactionMember) -> PyReactionMember:
+        return cls(
+            binding_id=value.binding_id,
+            item_id=value.item_id,
+            name=value.name,
+            description=value.description,
+            available=value.available,
+            origin=value.origin,
+            source=PyCatalogLoadoutSource.from_domain(value.source) if value.source else None,
+        )
+
+
 class PyReactionCell(BaseModel):
+    """One emotion/intensity cell's pool of up to four Reactions.
+
+    ``state`` is ``empty`` without members, ``starter`` when the members are
+    exactly the cell's available Included starter Reactions, else ``custom``.
+    """
+
     model_config = ConfigDict(extra="forbid")
 
     emotion: str
-    intensity: Literal[1, 2, 3]
+    intensity: ReactionIntensity
     state: Literal["starter", "custom", "empty"]
-    binding_id: str | None = None
-    logical_item_id: str | None = None
-    name: str | None = None
-    source: PyCatalogLoadoutSource | None = None
-    config_overrides: dict[str, Any] = Field(default_factory=dict)
+    members: list[PyReactionMember] = Field(default_factory=list)
 
     @classmethod
     def from_domain(cls, value: ReactionCell) -> PyReactionCell:
         return cls(
             emotion=value.emotion,
-            intensity=value.intensity,
+            intensity=cast(ReactionIntensity, value.intensity),
             state=value.state,
-            binding_id=value.binding_id,
-            logical_item_id=value.source.logical_key if value.source else None,
-            name=value.name,
-            source=PyCatalogLoadoutSource.from_domain(value.source) if value.source else None,
-            config_overrides=value.config_overrides,
+            members=[PyReactionMember.from_domain(item) for item in value.members],
         )
 
 
@@ -448,7 +493,7 @@ class PyAnimaLoadout(BaseModel):
     gestures: list[PyGestureBinding]
     disabled_starter_gestures: list[str]
     starter_gesture_implementation_kinds: dict[str, Literal["anima_clip", "vrma"]] = Field(default_factory=dict)
-    reactions: list[PyReactionCell]
+    reactions: list[PyReactionCell] = Field(description="All 96 Reaction cells: 24 emotions x intensities 1-4.")
     idle: PyAnimaIdle
     avatar_source: PyCatalogLoadoutSource | None = None
     appearances: list[PyAnimaAppearance] = Field(default_factory=list)

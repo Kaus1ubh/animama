@@ -70,15 +70,25 @@ class AnimaCreationLimits(CreationResponseModel):
 
 
 class RecommendedAnimaActions(CreationResponseModel):
+    """Starter choices; ``reactions`` lists each of the 96 cells' available starter Reactions."""
+
     gestures: list[GestureSelection]
     reactions: ReactionMatrix
 
 
 class AnimaCreationCounts(CreationResponseModel):
+    """Starter policy sizes and how many of them are available.
+
+    ``*_reaction_cells`` count cells with at least one Reaction;
+    ``*_reactions`` count pool members.
+    """
+
     recommended_gestures: int
     recommended_reaction_cells: int
+    recommended_reactions: int
     available_gestures: int
     available_reaction_cells: int
+    available_reactions: int
 
 
 class AnimaCreationOptions(CreationResponseModel):

@@ -391,10 +391,14 @@ added to public SSE events. Frames and error codes name `gemini`. See
 
 `emotion.update` frames include the event ID, run ID, direct chat node ID, and
 full emotion state payload. They also include optional context metadata:
-`emotional_tone`, mapped `emotional_intensity` on the avatar `0..3` scale,
-`promoted_emotion`, and `demoted_emotion`. The required frontend source of
-truth is the full `emotions` array. The intensity key is `emotional_intensity`;
-the frame does not include animation or VFX fields.
+`emotional_tone`, `emotional_intensity` as a Reaction intensity 0–4,
+`promoted_emotion`, and `demoted_emotion`. The model's 1–10 intensity maps
+1–2 to 0 (no Reaction) and 3–4, 5–6, 7–8 and 9–10 to Reaction intensities 1–4.
+Separately, the turn shifts the emotion state by 1 (model intensity 1–3), 2
+(4–6) or 3 (7–10): the promoted emotion rises and one opposing emotion falls by
+that amount, so a turn at 1–2 still moves the state while playing no Reaction.
+The required frontend source of truth is the full `emotions` array. The frame
+does not include animation or VFX fields.
 
 `avatar.gesture.requested` frames include the event ID, run ID, direct chat
 node ID, validated runtime gesture ID, and `runtime_revision`. Unknown

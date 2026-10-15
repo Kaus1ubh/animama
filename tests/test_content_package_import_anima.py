@@ -164,7 +164,8 @@ async def test_complete_anima_import_round_trips_config_empty_cells_images_and_r
             )
         )
         assert list(idle_rows) == [f"idle:default:{idle_id}"]
-        assert sum(value is None for cells in imported.definition.reactions.values() for value in cells.values()) == 70
+        # The shared Reaction fills exactly the two packaged pools; no starter Reactions are added.
+        assert sum(not pool for cells in imported.definition.reactions.values() for pool in cells.values()) == 94
         profile = await async_session.get(ORMAnimaChatProfile, result.anima_id)
         assert profile.default_model_provider_id == receiver_model
         settings = await async_session.get(ORMAnimaSettings, (fixture.owner, result.anima_id))

@@ -25,7 +25,7 @@ from animama.app.services.content_access_policy import ContentAccessPolicy
 from animama.app.services.runtime_content_closure import RuntimeContentClosureCompiler
 from animama.app.services.starter_loadout_policy import starter_loadout_policy
 from animama.app.services.typed_runtime_projection import project_typed_runtime_catalog
-from animama.domain.anima_loadout import parse_idle_slot_key
+from animama.domain.anima_loadout import parse_cell_key, parse_idle_slot_key, parse_reaction_slot_key
 from animama.domain.content_catalog import (
     CatalogContentEntry,
     ContentKind,
@@ -428,15 +428,21 @@ class AnimaRuntimeService:
                 )
             ).scalars()
         )
-        # Each distinct Idle Gesture is one root carrying every cell it belongs
-        # to, so one unavailable or ineligible member drops alone.
+        # Each distinct Idle Gesture or pooled Reaction is one root carrying every
+        # cell it belongs to, so one unavailable or over-budget member drops alone.
         idle_cells: dict[str, list[str]] = defaultdict(list)
+        reaction_cells: dict[str, list[str]] = defaultdict(list)
         for binding in bindings:
             idle_slot = parse_idle_slot_key(binding.slot_key)
             if idle_slot is not None:
                 idle_cells[binding.catalog_item_id].append(idle_slot[0])
                 continue
             kind = ContentKind(binding.kind)
+            if kind is ContentKind.REACTION:
+                reaction_slot = parse_reaction_slot_key(binding.slot_key)
+                if reaction_slot is not None:
+                    reaction_cells[binding.catalog_item_id].append(reaction_slot[0])
+                continue
             if kind in {
                 ContentKind.POSE,
                 ContentKind.POSE_CLIP,
@@ -481,32 +487,26 @@ class AnimaRuntimeService:
                 missing_identity=content_id,
             )
 
-        for starter in starter_loadout_policy(loadout.starter_catalog_version)["reactions"]:
-            content_id = str(starter["content_id"])
-            emotion = str(starter["emotion"])
-            intensity = int(starter["intensity"])
-            slot = f"reaction:{emotion}-{intensity}"
-            if ("reaction", f"{emotion}-{intensity}") in excluded:
-                continue
-            add(
-                slot,
-                logical(content_id),
-                ContentKind.REACTION,
-                {
-                    "binding_id": f"starter:{content_id}@{starter['version']}",
-                    "emotion": emotion,
-                    "intensity": intensity,
-                    "origin": "starter",
-                },
-                missing_identity=content_id,
-            )
-
         for item_id, cells in sorted(idle_cells.items()):
             add(
                 f"idle:{item_id}",
                 by_id.get(item_id),
                 ContentKind.GESTURE,
                 {"binding_id": f"idle:{item_id}", "idle_cells": sorted(cells), "origin": "idle"},
+                missing_identity=item_id,
+            )
+
+        # Budget order among Reactions: lowest cell first (intensity, then
+        # emotion), so the Reactions omitted over budget are predictable.
+        reaction_order: dict[str, tuple[int, str]] = {}
+        for item_id, cells in reaction_cells.items():
+            parsed_cells = [parsed for cell in cells if (parsed := parse_cell_key(cell)) is not None]
+            reaction_order[f"reaction:{item_id}"] = min((intensity, emotion) for emotion, intensity in parsed_cells)
+            add(
+                f"reaction:{item_id}",
+                by_id.get(item_id),
+                ContentKind.REACTION,
+                {"binding_id": f"reaction:{item_id}", "reaction_cells": sorted(cells), "origin": "catalog"},
                 missing_identity=item_id,
             )
 
@@ -540,7 +540,11 @@ class AnimaRuntimeService:
         }
         # Idle roots keep their budget precedence ahead of AI-callable Gestures.
         selections.sort(
-            key=lambda value: (1 if value.slot_key.startswith("idle:") else priority[value.kind], value.slot_key)
+            key=lambda value: (
+                1 if value.slot_key.startswith("idle:") else priority[value.kind],
+                reaction_order.get(value.slot_key, (0, "")),
+                value.slot_key,
+            )
         )
         return _RuntimeSelectionPlan(roots=tuple(selections))
 
