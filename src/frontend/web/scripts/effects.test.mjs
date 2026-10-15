@@ -25,6 +25,7 @@ import {
 } from "./effect-check.mjs";
 import { loadWebModule } from "./effects.mjs";
 import {
+  EFFECT_PROMOTE_PATHS,
   EffectPromoteError,
   OWNER_SOURCE_REVIEW,
   applyEffectPromotion,
@@ -2591,6 +2592,36 @@ test("promotion writes an item's licence entries as its rule and records", async
       options,
     ),
     /licence rule vfx\/avatar\/ink\/\*\* grants other terms/,
+  );
+  // Any glob shape counts: the first rule matching a written file applies.
+  const shaped = JSON.parse(
+    await readFile(path.join(root, EFFECT_PROMOTE_PATHS.inventory), "utf8"),
+  );
+  const ownRule = shaped.rules.findIndex(
+    (rule) => rule.glob === "vfx/avatar/ink/**",
+  );
+  shaped.rules[ownRule] = {
+    ...shaped.rules[ownRule],
+    glob: "vfx/avatar/ink/*",
+  };
+  await writeFile(
+    path.join(root, EFFECT_PROMOTE_PATHS.inventory),
+    `${JSON.stringify(shaped, null, 2)}\n`,
+  );
+  await assert.rejects(
+    planEffectPromotion(
+      [{ mode: "replace", stem: "ink", effect: await ownArtSource("ink") }],
+      options,
+    ),
+    /licence rule vfx\/avatar\/ink\/\* grants other terms/,
+  );
+  shaped.rules[ownRule] = {
+    ...shaped.rules[ownRule],
+    glob: "vfx/avatar/ink/**",
+  };
+  await writeFile(
+    path.join(root, EFFECT_PROMOTE_PATHS.inventory),
+    `${JSON.stringify(shaped, null, 2)}\n`,
   );
   await assert.rejects(
     planEffectPromotion(

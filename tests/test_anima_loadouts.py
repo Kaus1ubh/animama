@@ -194,6 +194,37 @@ async def test_gesture_using_an_unconverted_avatar_effect_is_refused(async_sessi
         await cleanup_loadout_fixture(async_session, fixture)
 
 
+@pytest.mark.asyncio
+async def test_a_source_with_a_retired_dependency_is_refused_by_its_own_code(async_session) -> None:  # noqa: ANN001
+    """The retired-dependency check is not folded into the generic invalid-source error."""
+
+    fixture = await create_loadout_fixture(async_session)
+    gesture = await add_typed_item(
+        async_session,
+        fixture,
+        kind="gesture",
+        name="Old Clip Wave",
+        metadata={
+            "semantic_key": "old-clip-wave",
+            "implementation": {"kind": "vrma", "file_role": "animation"},
+            "config": {},
+            "dependencies": [{"ref": "local:pose-clip:old", "content_type": "pose_clip", "alias": "clip"}],
+        },
+    )
+    try:
+        with pytest.raises(AnimaLoadoutError) as raised:
+            await AnimaLoadoutService(async_session).plan(
+                user_id=fixture.user_id,
+                anima_id=fixture.anima_id,
+                family="gesture",
+                expected_revision=1,
+                intent={"operation": "add", "source": catalog_source(gesture)},
+            )
+        assert raised.value.code == "content_dependency_retired"
+    finally:
+        await cleanup_loadout_fixture(async_session, fixture)
+
+
 def test_loadout_warnings_carry_the_values_their_wording_needs() -> None:
     from animama.app.contracts.anima_loadout import PyLoadoutDiagnostic
     from animama.domain.anima_loadout import LoadoutDiagnostic

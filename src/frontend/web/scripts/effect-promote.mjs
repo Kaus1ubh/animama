@@ -70,9 +70,10 @@ import {
  * owner-authored rule `vfx/particle/quark/<stem>/**` (ahead of a
  * generated-art rule when present), and each written file gets the owner's
  * `licenses/source-review.json` record (`OWNER_SOURCE_REVIEW`); a replaced
- * Reaction or Gesture keeps its records. Such an item is refused when its
- * folder's own rule (or, for a Reaction or Gesture add, its kind's general
- * rule) grants other terms than the owner's. Work the owner did not author,
+ * Reaction or Gesture keeps its records. Such an item is refused when the
+ * licence rule that applies to one of its own files (the first rule matching
+ * it, whatever its glob's shape) names a creator other than the owner. Work
+ * the owner did not author,
  * such as effects and Reactions an AI agent made under the owner's direction,
  * carries the owner-approved licence entries on its add or replace item, in
  * the form `animation promote` takes them:
@@ -567,16 +568,20 @@ export async function planEffectPromotion(
     ruleReasons.set(glob, "the item's licence");
   };
   // An item without licence entries is recorded as the owner's work, so the
-  // rule of its folder (or, for an Action add, of its kind) must grant the
-  // owner's terms.
+  // rule that applies to each of its own files (the first one matching it,
+  // whatever its glob's shape) must name the owner as creator.
   const ownerTerms =
     inventory.rules[ruleIndex(EFFECT_KINDS.avatar_effect.rule)];
-  const requireOwnerTerms = (item, glob) => {
-    const at = ruleIndex(glob);
-    if (at >= 0 && !sameTerms(inventory.rules[at], ownerTerms))
-      throw new EffectPromoteError(
-        `${item.stem}: the licence rule ${glob} grants other terms than the owner's; give the item's "licence" and "sourceReview".`,
+  const requireOwnerTerms = (item, own) => {
+    for (const relative of own) {
+      const rule = inventory.rules.find((candidate) =>
+        globMatches(candidate.glob, inIncluded(relative)),
       );
+      if (rule?.creator !== undefined && rule.creator !== ownerTerms.creator)
+        throw new EffectPromoteError(
+          `${item.stem}: the licence rule ${rule.glob} grants other terms than the owner's for ${inIncluded(relative)}; give the item's "licence" and "sourceReview".`,
+        );
+    }
   };
 
   const sourceReview = readJson(EFFECT_PROMOTE_PATHS.sourceReview);
@@ -721,12 +726,9 @@ export async function planEffectPromotion(
         writeItemRule(item, folder, files, ACTION_RULES[kind]);
         recordItemFiles(item, folder, files);
       } else if (item.mode === "add") {
-        requireOwnerTerms(item, ACTION_RULES[kind]);
-        recordItemFiles(
-          item,
-          folder,
-          files.filter((file) => !originalRecords.has(file)),
-        );
+        const own = files.filter((file) => !originalRecords.has(file));
+        requireOwnerTerms(item, own);
+        recordItemFiles(item, folder, own);
       }
     }
   const currentMetas = metas.map((meta) =>
@@ -791,7 +793,6 @@ export async function planEffectPromotion(
           `${path.basename(file)} fails the art check: ${fails.map((issue) => issue.message).join("; ")}`,
         );
     }
-    if (!item.licence) requireOwnerTerms(item, `${inIncluded(folder)}/**`);
     writes.set(descriptorPath, jsonFile(planned.descriptor));
     const own = [descriptorPath];
     for (const { name, file } of planned.files) {
@@ -827,6 +828,8 @@ export async function planEffectPromotion(
       });
       ruleReasons.set(particleRule(item.stem), "owner-authored");
     }
+    // After any owner Particle rule is in place, so it is the rule that applies.
+    if (!item.licence) requireOwnerTerms(item, own);
   }
 
   // Reused art keeps the terms of the file it repeats: when the rule that

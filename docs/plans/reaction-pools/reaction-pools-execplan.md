@@ -1322,6 +1322,19 @@ source-review records; commits carry no attribution lines.
 - FIN-R0-F7: product-side export/import time for a starter Anima (about 445
   entries) was not measured; noted for the owner.
 
+Follow-ups folded in at the owner's request (2026-10-15), after the PR opened:
+
+- `AnimaLoadoutService._target` raised `content_dependency_retired` inside
+  the parse guard, which turned it into `loadout_source_invalid`; the check
+  now runs after parsing, and a Gesture add with a retired `pose_clip`
+  dependency is refused by its own code (new test in
+  `tests/test_anima_loadouts.py`).
+- `effects promote` checked an owner-form item only against an exact
+  `<folder>/**` rule, so older agent rules shaped `<folder>/*` or
+  `<folder>/*.json` did not stop owner records; it now checks the first
+  rule matching each of the item's own files and refuses one naming another
+  creator (test added; the real promotion still dry-runs with 0 changes).
+
 ## Validation and acceptance
 
 Local, before opening the PR:

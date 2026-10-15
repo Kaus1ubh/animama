@@ -491,11 +491,12 @@ class AnimaLoadoutService:
             raise AnimaLoadoutError("loadout_source_unavailable")
         try:
             typed = TypedContentService.parse(item)
-            if any(dependency.kind in RETIRED_CONTENT_KINDS for dependency in typed.document.dependencies):
-                raise AnimaLoadoutError("content_dependency_retired")
-            return typed
         except Exception as exc:
             raise AnimaLoadoutError("loadout_source_invalid") from exc
+        # Outside the parse guard, so the specific code reaches the caller.
+        if any(dependency.kind in RETIRED_CONTENT_KINDS for dependency in typed.document.dependencies):
+            raise AnimaLoadoutError("content_dependency_retired")
+        return typed
 
     async def _require_idle_playback(
         self, *, user_id: str, target: TypedCatalogItem, store: ContentStore | None

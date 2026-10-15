@@ -612,8 +612,8 @@ pnpm -s effects promote ./promote.json --dry-run
   `vfx/scene/**/*.png`, each new Particle Effect gets its own owner-authored
   `vfx/particle/quark/<stem>/**` rule ahead of the generated-art rule, and
   every written file gets the owner's `licenses/source-review.json` record;
-  it is refused where its folder's own rule (or a Reaction's general rule)
-  grants other terms. Work the owner did not author (such as agent-made
+  it is refused where the rule that applies to one of its files (the first
+  match, whatever its glob's shape) names a creator other than the owner. Work the owner did not author (such as agent-made
   effects and Reactions) carries owner-approved `licence` and `sourceReview`
   entries, as `animation promote` takes them: the rule for the item's folder
   (`<folder>/**`, or a shared `glob` such as `reactions/**/*`) and its files'
