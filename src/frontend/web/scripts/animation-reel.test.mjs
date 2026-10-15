@@ -369,6 +369,58 @@ test("labels an item with its effects and the sounds they play", () => {
   });
 });
 
+test("labels the sound an Avatar Effect event's override picks", () => {
+  const heart = {
+    name: "Heart Pop",
+    soundRef: "builtin:sound-effect:bubble",
+    soundRefs: {
+      "on-apply": "builtin:sound-effect:bubble",
+      beat: "builtin:sound-effect:heartbeat",
+    },
+  };
+  const { label, cues } = describeItem(
+    {
+      kind: "reaction",
+      name: "Caring Reaction 3",
+      clip: {
+        events: [
+          {
+            kind: "avatar_vfx",
+            effectId: "heart",
+            override: { soundAlias: "beat" },
+          },
+          // A muted event plays nothing, so its effect shows no sound.
+          {
+            kind: "avatar_vfx",
+            effectId: "muted",
+            playAccompanyingSound: false,
+          },
+        ],
+      },
+      dependencies: [],
+    },
+    {
+      index: 0,
+      total: 1,
+      media: {
+        avatarEffects: [
+          { alias: "heart", effect: heart },
+          { alias: "muted", effect: { ...heart, name: "Muted" } },
+        ],
+      },
+      catalog: new Map(),
+    },
+  );
+  assert.deepEqual(
+    label.effects.map(({ alias, soundCueId }) => [alias, soundCueId]),
+    [
+      ["heart", "builtin:sound-effect:heartbeat"],
+      ["muted", null],
+    ],
+  );
+  assert.deepEqual(Object.keys(cues), ["builtin:sound-effect:heartbeat"]);
+});
+
 test("writes chapters and an audio mix graph for ffmpeg", () => {
   assert.equal(
     chapterMetadata([

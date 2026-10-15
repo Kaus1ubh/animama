@@ -558,18 +558,53 @@ function reactionIntensity(intensity) {
 }
 
 /**
+ * The sound cues each Avatar Effect alias plays from the clip's events, in
+ * event order: none for a muted event, else the declared sound its
+ * override's `soundAlias` picks (nothing when the effect does not declare
+ * it), else the effect's own sound. Aliases no event names are absent.
+ */
+function avatarEffectCues(events, avatarEffects) {
+  const effects = new Map(
+    avatarEffects.map(({ alias, effect }) => [alias, effect]),
+  );
+  const cues = new Map();
+  for (const event of events) {
+    if (event?.kind !== "avatar_vfx" || !effects.has(event.effectId)) continue;
+    const effect = effects.get(event.effectId);
+    const soundAlias = event.override?.soundAlias;
+    const cue =
+      event.playAccompanyingSound === false
+        ? null
+        : soundAlias === undefined
+          ? effect.soundRef
+          : effect.soundRefs && Object.hasOwn(effect.soundRefs, soundAlias)
+            ? effect.soundRefs[soundAlias]
+            : null;
+    const list = cues.get(event.effectId) ?? [];
+    if (cue && !list.includes(cue)) list.push(cue);
+    cues.set(event.effectId, list);
+  }
+  return cues;
+}
+
+/**
  * The corner label for an item, and every sound cue it may play by cue id
  * (the content id an effect names, or a sound event's alias) with the
  * content id that plays it.
  */
 export function describeItem(item, { index, total, media, catalog }) {
   const kindName = ITEM_KIND_NAMES[item.kind] ?? "Gesture";
+  const events = Array.isArray(item.clip?.events) ? item.clip.events : [];
+  const avatarCues = avatarEffectCues(events, media?.avatarEffects ?? []);
   const effects = [
     ...(media?.avatarEffects ?? []).map(({ alias, effect }) => ({
       alias,
       kind: EFFECT_KINDS.avatar_effect,
       name: effect.name,
-      soundCueId: effect.soundRef ?? null,
+      // The label shows the sound its first event plays.
+      soundCueId: avatarCues.has(alias)
+        ? (avatarCues.get(alias)[0] ?? null)
+        : (effect.soundRef ?? null),
     })),
     ...(media?.particleEffects ?? []).map(({ alias, particle }) => ({
       alias,
@@ -587,7 +622,7 @@ export function describeItem(item, { index, total, media, catalog }) {
   const aliases = soundAliases(item.dependencies);
   const eventCues = [
     ...new Set(
-      (Array.isArray(item.clip?.events) ? item.clip.events : [])
+      events
         .filter(
           (event) => event?.kind === "sfx" && typeof event.cueId === "string",
         )
@@ -597,6 +632,7 @@ export function describeItem(item, { index, total, media, catalog }) {
   const cues = {};
   for (const cueId of [
     ...effects.map((effect) => effect.soundCueId).filter(Boolean),
+    ...[...avatarCues.values()].flat(),
     ...eventCues,
   ]) {
     const ref = aliases.get(cueId) ?? cueId;

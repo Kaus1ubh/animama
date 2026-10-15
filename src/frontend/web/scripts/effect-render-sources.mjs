@@ -356,7 +356,25 @@ async function loadEffectDescriptor(descriptorPath, descriptor) {
     imagePath,
     otherImagePath,
     soundRef: effectSoundRef(descriptor),
+    soundRefs: effectSoundRefs(descriptor),
   };
+}
+
+/**
+ * The content ids of the sounds an Avatar Effect declares, by alias: its
+ * `sound_effect` dependencies. A clip event's override may pick any of them.
+ */
+function effectSoundRefs(descriptor) {
+  return Object.fromEntries(
+    (Array.isArray(descriptor.dependencies) ? descriptor.dependencies : [])
+      .filter(
+        (entry) =>
+          entry?.content_type === "sound_effect" &&
+          typeof entry.alias === "string" &&
+          typeof entry.ref === "string",
+      )
+      .map((entry) => [entry.alias, entry.ref]),
+  );
 }
 
 /**
@@ -366,12 +384,7 @@ async function loadEffectDescriptor(descriptorPath, descriptor) {
 function effectSoundRef(descriptor) {
   const alias = descriptor.definition?.soundAlias;
   if (typeof alias !== "string") return null;
-  const dependency = (
-    Array.isArray(descriptor.dependencies) ? descriptor.dependencies : []
-  ).find(
-    (entry) => entry?.alias === alias && entry.content_type === "sound_effect",
-  );
-  return typeof dependency?.ref === "string" ? dependency.ref : null;
+  return effectSoundRefs(descriptor)[alias] ?? null;
 }
 
 /** Every Included Avatar Effect, sorted by stem. */

@@ -118,6 +118,36 @@ describe("PreviewMediaProvider", () => {
     });
   });
 
+  it("plays the declared sound a clip event's override picks", async () => {
+    const pop = "builtin:sound-effect:pop";
+    const beat = "builtin:sound-effect:beat";
+    const provider = new PreviewMediaProvider(
+      media({
+        avatarEffects: [
+          {
+            alias: "swirl",
+            effect: {
+              ...swirl,
+              definition: { ...swirl.definition, soundAlias: "on-apply" },
+              soundCueId: pop,
+              soundCueIds: { "on-apply": pop, beat },
+            },
+          },
+        ],
+      }),
+    );
+    expect((await provider.loadAvatarVFX("swirl"))?.sound).toEqual({
+      onApply: pop,
+    });
+    expect(
+      (await provider.loadAvatarVFX("swirl", { soundAlias: "beat" }))?.sound,
+    ).toEqual({ onApply: beat });
+    // As in chat, a sound the effect does not declare plays nothing.
+    expect(
+      (await provider.loadAvatarVFX("swirl", { soundAlias: "missing" }))?.sound,
+    ).toBeUndefined();
+  });
+
   it("reports an override the effect cannot play", async () => {
     const provider = new PreviewMediaProvider(media());
     await expect(
