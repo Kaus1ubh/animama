@@ -14,6 +14,7 @@ import {
   runtimeContentDownloadUrl,
   type RuntimeContentUrlLease,
 } from "@/lib/runtime-content/runtimeContentDelivery";
+import { runtimeAvatarModelSha256 } from "@/lib/runtime-content/runtimeAvatarFaceParts";
 import type { RuntimeCatalogEntry } from "@/lib/runtime-content/types";
 import {
   apiErrorLine,
@@ -115,6 +116,7 @@ export function PoseCreatorAvatarActor({
             filePath: download.url,
             sourceUrl: logicalUrl,
             sourceKey: entry.content_revision,
+            vrmSha256: runtimeAvatarModelSha256(entry),
           },
           (progress) => {
             if (!isCancelled) {

@@ -25,6 +25,7 @@ import { parseParticleVFXRuntimeConfig } from "@/lib/avatar/particle-vfx/runtime
 import { effectSourceEntry } from "@/lib/avatar/vfx/effectSource";
 import { applyAvatarVFXEffectById } from "@/lib/avatar/vfx/runtime";
 
+import { avatarFileSha256 } from "../effect-render/avatarFile";
 import { SceneBands, missingSceneMessage } from "../effect-render/sceneBands";
 import {
   addChatLights,
@@ -248,7 +249,7 @@ async function createCell(row: RowView, avatarId: string, url: string) {
     motionCatalog: BUILT_IN_AVATAR_MOTION_CATALOG,
     mediaCatalog: media,
   });
-  await avatar.load({ filePath: url });
+  await avatar.load({ filePath: url, vrmSha256: await avatarFileSha256(url) });
   if (!avatar.scene || !avatar.vrm) throw new Error(`Cannot load ${avatarId}.`);
   scene.add(avatar.scene);
   avatar.update(0);
