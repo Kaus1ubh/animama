@@ -21,8 +21,8 @@
       "config": {}
     },
     {
-      "ref": "builtin:avatar-effect:heart_throb",
-      "alias": "heart_throb",
+      "ref": "builtin:avatar-effect:heart_pop",
+      "alias": "heart_pop",
       "content_type": "avatar_effect",
       "config": {}
     }

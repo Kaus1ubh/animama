@@ -93,7 +93,7 @@ Idle pool: a Default pool plus one cell per emotion and intensity. A cell with
 Gestures plays only those; an empty cell uses Default. Every Anima has exactly
 one pool, seeded at creation and edited in its loadout. Idle Gestures are never
 AI-callable. Formerly "Idle Style", reusable content that no longer exists
-([ADR 0025](docs/adr/0025-built-in-idle-pool-per-anima.md)); do not use that term.
+([ADR 0026](docs/adr/0026-built-in-idle-pool-per-anima.md)); do not use that term.
 
 ## Non-portable content
 
@@ -108,10 +108,12 @@ non-portable. See [ADR 0018](docs/adr/0018-non-portable-included-content.md).
 
 Reusable art drawn on or around an Avatar during a Gesture or Reaction: painted
 on the face, floating in front of it, on a body point, as a sticker beside the
-Avatar or filling its silhouette. The effect owns its art, look and motion; the
-Action event that plays it owns when it starts, ends and fades. It is never
-equipped directly. Art that only sits on the Avatar and moves as one piece is
-an Avatar Effect, not a Particle Effect.
+Avatar or filling its silhouette. The effect owns its art and its default
+placement, look, motion and sounds; the Action event that plays it owns when
+it starts, ends and fades, and may override the placement, look, motion and
+sound for that one use ([ADR 0025](docs/adr/0025-per-use-avatar-effect-overrides.md)).
+It is never equipped directly. Art that only sits on the Avatar and moves as
+one piece is an Avatar Effect, not a Particle Effect.
 
 ## Particle Effect
 

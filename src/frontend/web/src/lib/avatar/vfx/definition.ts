@@ -1,6 +1,7 @@
 import type { AvatarEffectDefinitionV2 } from "@animama/runtime-contracts/api-types";
 import { zAvatarEffectDefinitionV2 } from "@animama/runtime-contracts/validators";
 
+import type { AnimaPoseClipAvatarVFXOverride } from "../poses/animaPoseClip/clipVocabulary";
 import { DEFAULT_AVATAR_VFX_ANIMATION_CONFIG } from "./animation";
 import { assertAvatarEffectDefinitionSize } from "./effect-image-limits";
 import type {
@@ -129,6 +130,115 @@ export function validateAvatarEffectDefinition(
     );
   }
   return parsed.data as AvatarEffectDefinitionV2;
+}
+
+type AvatarEffectFaceOptionName = keyof NonNullable<
+  AvatarEffectDefinitionV2["faceOptions"]
+>;
+
+/** Face options the runtime honours for an attachment; others are not saved. */
+export function avatarEffectFaceOptionNames(
+  attachment: AvatarEffectDefinitionV2["attachment"],
+): ReadonlySet<AvatarEffectFaceOptionName> {
+  if (attachment.kind === "face_landmark") {
+    if (attachment.landmark === "eyes")
+      return new Set([
+        "forceBlink",
+        "hideEyeDetails",
+        "faceCleanup",
+        "skinBackdrop",
+        "hideParts",
+      ]);
+    if (attachment.landmark === "mouth")
+      return new Set(["faceCleanup", "skinBackdrop"]);
+  }
+  if (attachment.kind === "face_surface") {
+    if (attachment.area === "mouth") return new Set(["faceCleanup"]);
+    if (attachment.area === "full" || attachment.area === "eyes")
+      return new Set(["hideParts"]);
+  }
+  return new Set();
+}
+
+/** Whether `art.otherEyeImage` applies: a mirrored eye or paired face placement. */
+export function avatarEffectAcceptsOtherEyeImage(
+  attachment: AvatarEffectDefinitionV2["attachment"],
+): boolean {
+  if (attachment.kind === "face_landmark")
+    return attachment.landmark === "eyes" && attachment.mirror === true;
+  if (attachment.kind === "face_surface")
+    return (
+      ["eyes", "undereye", "blush"].includes(attachment.area) &&
+      attachment.mirror === true
+    );
+  return false;
+}
+
+/**
+ * The definition one use of an effect plays: each part an `avatar_vfx`
+ * event's override sets replaces the effect's part whole (ADR 0025). Throws
+ * {@link AvatarEffectDefinitionError} for an invalid definition or an
+ * override that changes the attachment kind.
+ */
+export function applyAvatarEffectOverride(
+  definition: unknown,
+  override: AnimaPoseClipAvatarVFXOverride,
+): AvatarEffectDefinitionV2 {
+  const effect = validateAvatarEffectDefinition(definition);
+  if (
+    override.attachment &&
+    override.attachment.kind !== effect.attachment.kind
+  ) {
+    invalid(
+      "an override must keep the effect's attachment kind",
+      "override.attachment.kind",
+    );
+  }
+  const merged = { ...effect, ...override };
+  // The generated contract has no cross-field rules; recheck the two the
+  // backend's AvatarEffectDefinitionV2 ties to the attachment.
+  if (
+    merged.art.otherEyeImage &&
+    !avatarEffectAcceptsOtherEyeImage(merged.attachment)
+  ) {
+    invalid(
+      "the other-eye art needs a mirrored eye or paired face placement",
+      "override.attachment",
+    );
+  }
+  const allowed = avatarEffectFaceOptionNames(merged.attachment);
+  for (const [name, value] of Object.entries(merged.faceOptions ?? {})) {
+    if (value != null && !allowed.has(name as AvatarEffectFaceOptionName)) {
+      invalid(
+        `the face option ${name} does not apply to this attachment`,
+        "override.attachment",
+      );
+    }
+  }
+  return merged;
+}
+
+/**
+ * Parse one use of an effect: its definition with the event's override, and
+ * the effect's resolved images in `context`. The use keeps `context.sound`
+ * unless it picks another declared sound; `soundCue` resolves that alias to
+ * its runtime cue, and an alias it does not know plays no sound.
+ */
+export function parseAvatarEffectUse(
+  definition: unknown,
+  override: AnimaPoseClipAvatarVFXOverride,
+  context: AvatarEffectEntryContext,
+  soundCue: (alias: string) => string | undefined = () => undefined,
+): AvatarVFXParsedEntry {
+  const merged = applyAvatarEffectOverride(definition, override);
+  const effectSound = validateAvatarEffectDefinition(definition).soundAlias;
+  if (override.soundAlias === undefined || override.soundAlias === effectSound)
+    return parseAvatarEffectDefinition(merged, context);
+  const cue = soundCue(override.soundAlias);
+  return parseAvatarEffectDefinition(merged, {
+    ...context,
+    sound: cue ? { onApply: cue } : undefined,
+  });
 }
 
 function appearance(definition: AvatarEffectDefinitionV2): AvatarVFXAppearance {

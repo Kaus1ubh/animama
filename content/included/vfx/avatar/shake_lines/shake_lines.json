@@ -4,7 +4,7 @@
   "content_id": "builtin:avatar-effect:shake_lines",
   "version": 1,
   "name": "Shake Lines",
-  "description": "Three comic tremble arcs (buru buru) pop out beside the outer edge of the right hand and jitter, shrinking as they die out, for a fist or raised hand shaking with anger, fear or disgust. Pair with Shake Lines Left on the left hand.",
+  "description": "Three comic tremble arcs (buru buru) pop out beside the outer edge of the right hand and jitter, shrinking as they die out, for a fist or raised hand shaking with anger, fear or disgust. Gestures place it on either hand.",
   "dependencies": [
     {
       "ref": "builtin:sound-effect:wobble_short",

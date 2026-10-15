@@ -1059,12 +1059,26 @@
       "id": "tehe-star",
       "time": 0.64,
       "kind": "avatar_vfx",
-      "effectId": "kira_star_tehe",
+      "effectId": "kira_star",
       "duration": 1,
       "envelope": {
         "intensity": {
           "fadeOut": 0.25
         }
+      },
+      "override": {
+        "attachment": {
+          "kind": "body",
+          "bone": "head",
+          "offset": {
+            "x": -0.075,
+            "y": 0.255,
+            "z": 0.075
+          },
+          "size": 0.075,
+          "facing": "camera"
+        },
+        "soundAlias": "squeaky_mouse_03"
       }
     }
   ]

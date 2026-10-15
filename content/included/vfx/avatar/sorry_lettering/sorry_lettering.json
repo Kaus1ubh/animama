@@ -19,34 +19,41 @@
     "attachment": {
       "kind": "body",
       "bone": "head",
+      "facing": "camera",
       "offset": {
         "x": 0.15,
         "y": 0.205,
         "z": 0
       },
-      "size": 0.0556,
-      "facing": "camera",
-      "rotationDeg": 6
+      "rotationDeg": 6,
+      "size": 0.0556
     },
     "art": {
-      "image": "sorry_lettering.png"
+      "image": "sorry_lettering-sheet.png",
+      "flipbook": {
+        "columns": 3,
+        "fps": 8,
+        "frames": 3,
+        "loop": "loop",
+        "rows": 1
+      }
     },
     "motion": {
       "keyframes": {
         "frames": [
           {
-            "t": 0,
             "opacity": 0,
-            "scale": 0.3
+            "scale": 0.3,
+            "t": 0
           },
           {
-            "t": 0.12,
             "opacity": 1,
-            "scale": 1.15
+            "scale": 1.15,
+            "t": 0.12
           },
           {
-            "t": 0.2,
-            "scale": 1
+            "scale": 1,
+            "t": 0.2
           }
         ]
       }
@@ -55,7 +62,7 @@
   },
   "files": [
     {
-      "path": "sorry_lettering.png",
+      "path": "sorry_lettering-sheet.png",
       "role": "image"
     }
   ]

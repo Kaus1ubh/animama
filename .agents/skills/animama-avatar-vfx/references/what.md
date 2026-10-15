@@ -114,7 +114,7 @@ A mirrored copy (the other eye or cheek) mirrors its horizontal offset and can
 use the **Other side image** instead of a mirrored one, so a wink needs one
 effect.
 
-The effect owns its motion. **Pulse** scales between two sizes, **Spin** turns
+The effect sets its default motion. **Pulse** scales between two sizes, **Spin** turns
 (°/s; a range below one turn rocks back and forth), **Drift** moves continuously
 in art widths or heights per second with no return, and **Keyframes** change
 opacity, scale, turn and offset over the effect's own timeline (scale and opacity
@@ -144,6 +144,13 @@ region `eyes` still replaces eye effects.
 The **Gesture or Reaction event** owns Start and End (with the Action or after a
 duration) and, for an event that ends after a duration, **Fade in** and **Fade
 out**. Motion speed does not set an effect's lifetime.
+
+The event may also override the effect for that one use: its attachment (within
+the same attachment kind), its look and its motion, each replacing the effect's
+part whole, and it may pick another of the effect's declared sounds. The art,
+flipbook, region, face options and the set of sounds stay with the effect, so
+one Library effect serves every placement of its art; Library and picker
+previews show the effect's own defaults.
 
 ## Playback integration
 

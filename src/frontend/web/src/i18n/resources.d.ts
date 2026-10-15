@@ -5319,6 +5319,7 @@ export default interface Resources {
       },
       "event": {
         "accompanyingSound": "Accompanying sound",
+        "accompanyingSoundLabel": "Accompanying sound for this event",
         "afterDuration": "After a duration",
         "anchor": "Anchor",
         "anchorLabel": "Particle VFX anchor",
@@ -5336,6 +5337,13 @@ export default interface Resources {
         "start": "Start",
         "startLabel": "Selected event start",
         "title": "Event",
+        "use": {
+          "help": "Changes here apply only to this event, not to the effect.",
+          "refused": "This change wasn't applied.",
+          "reset": "Reset to effect",
+          "title": "This use",
+          "unplayable": "This event's changes don't suit its effect; reset to the effect to edit them."
+        },
         "volume": "Volume",
         "volumeLabel": "SFX event volume",
         "withAction": "With Action"

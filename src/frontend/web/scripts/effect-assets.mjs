@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { stat, writeFile } from "node:fs/promises";
+import { mkdir, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import sharp from "sharp";
@@ -10,6 +10,7 @@ import sharp from "sharp";
  *
  *   pnpm -s effects:assets check <png...> [--budget <name>] [--json]
  *   pnpm -s effects:assets fix <in.png> --out <out.png> [options]
+ *   pnpm -s effects:assets frames <key.png> --mode boil|draw-on --out-dir <dir> [options]
  *   pnpm -s effects:assets flipbook <frame.png...> --out <sheet.png> [options]
  *   pnpm -s effects:assets preview <png> --out <preview.png>
  *
@@ -18,10 +19,11 @@ import sharp from "sharp";
  * alpha 250–254 and wide transparent margins; `check` reports these and
  * `fix` repairs them. `fix` also bleeds the art's edge colour into the fully
  * transparent pixels around it, so texture filtering shows no light or dark
- * fringe. `flipbook` lays frames out on the grid `art.flipbook` describes and
- * prints that definition fragment. `preview` shows art on a dark, a light and
- * a checkered backdrop, which exposes halos and see-through patches that a
- * single backdrop hides.
+ * fringe. `frames` derives consistent flipbook frames from one key image, on
+ * its canvas. `flipbook` lays frames out on the grid `art.flipbook` describes
+ * and prints that definition fragment. `preview` shows art on a dark, a light
+ * and a checkered backdrop, which exposes halos and see-through patches that
+ * a single backdrop hides.
  */
 
 /** Mirrors `src/lib/avatar/vfx/effect-image-limits.ts`; a test keeps them equal. */
@@ -844,6 +846,315 @@ export async function assembleFlipbook(
   };
 }
 
+/**
+ * Most frames `frames` derives: an 8 × 8 grid of 256 px cells fills the
+ * `flipbook` budget's 2048 px sheet.
+ */
+export const MAX_DERIVED_FRAMES = 64;
+
+/**
+ * Per mode: the default frame count, and the playback that suits the frames
+ * (`fps` and `loop` for `flipbook`). A boil loops on twos or threes; a
+ * draw-on plays once and holds its last frame.
+ */
+const FRAME_MODES = {
+  boil: { frames: 4, fps: 8, loop: "loop" },
+  "draw-on": { frames: 6, breakOffFrames: 8, fps: 12, loop: "once" },
+};
+/** Largest boil displacement in pixels. */
+const MAX_BOIL_AMPLITUDE = 8;
+/**
+ * Default boil displacement as a fraction of the key's longer side: the art
+ * is shown at a set size whatever its pixels, so the wobble scales with the
+ * canvas (3.2 px on a 256 px key). Much less is invisible at chat size.
+ */
+const DEFAULT_BOIL_AMPLITUDE_FRACTION = 0.0125;
+/**
+ * Boil control points across the art's longest side: a few wobbles along a
+ * line, as when it is traced again by hand, not a ripple.
+ */
+const BOIL_CELLS = 6;
+/** Width in pixels of a draw-on reveal's soft edge. */
+const REVEAL_SOFTNESS = 2;
+/** For each wipe direction, a pixel's distance along it. */
+const WIPES = {
+  right: (x) => x,
+  left: (x, y, width) => width - 1 - x,
+  down: (x, y) => y,
+  up: (x, y, width, height) => height - 1 - y,
+};
+
+/**
+ * Deterministic random numbers in [0, 1) from a seed (mulberry32), as
+ * `createMulberry32` in `src/lib/scene-vfx/focus-lines.ts`.
+ */
+function createMulberry32(seed) {
+  let state = seed >>> 0;
+  return () => {
+    state += 0x6d2b79f5;
+    let next = state;
+    next = Math.imul(next ^ (next >>> 15), next | 1);
+    next ^= next + Math.imul(next ^ (next >>> 7), next | 61);
+    return ((next ^ (next >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/**
+ * A smooth random displacement field: a vector of `amplitude / 2` to
+ * `amplitude` px in a random direction at each point of a grid `spacing` px
+ * apart, blended between grid points with smoothstep weights so the warp has
+ * no creases. Returns `(x, y, out)`, which writes `[dx, dy]` into `out`.
+ */
+function displacementField(width, height, spacing, amplitude, random) {
+  const columns = Math.ceil(width / spacing) + 2;
+  const rows = Math.ceil(height / spacing) + 2;
+  const vectors = new Float64Array(columns * rows * 2);
+  for (let point = 0; point < columns * rows; point += 1) {
+    const angle = random() * Math.PI * 2;
+    const length = amplitude * (0.5 + 0.5 * random());
+    vectors[point * 2] = Math.cos(angle) * length;
+    vectors[point * 2 + 1] = Math.sin(angle) * length;
+  }
+  const smooth = (t) => t * t * (3 - 2 * t);
+  return (x, y, out) => {
+    const column = Math.floor(x / spacing);
+    const row = Math.floor(y / spacing);
+    const tx = smooth(x / spacing - column);
+    const ty = smooth(y / spacing - row);
+    for (let axis = 0; axis < 2; axis += 1) {
+      const at = (c, r) => vectors[(r * columns + c) * 2 + axis];
+      const top = at(column, row) * (1 - tx) + at(column + 1, row) * tx;
+      const bottom =
+        at(column, row + 1) * (1 - tx) + at(column + 1, row + 1) * tx;
+      out[axis] = top * (1 - ty) + bottom * ty;
+    }
+  };
+}
+
+/**
+ * Resample the art through a displacement field: each pixel takes the art's
+ * colour at (x + dx, y + dy), bilinearly and on premultiplied alpha, so the
+ * colour of transparent pixels never bleeds into the art. Beyond the canvas
+ * is transparent.
+ */
+function displace({ data, width, height }, field) {
+  const out = Buffer.alloc(data.length);
+  const offset = new Float64Array(2);
+  for (let y = 0; y < height; y += 1)
+    for (let x = 0; x < width; x += 1) {
+      field(x, y, offset);
+      const sx = x + offset[0];
+      const sy = y + offset[1];
+      const x0 = Math.floor(sx);
+      const y0 = Math.floor(sy);
+      const fx = sx - x0;
+      const fy = sy - y0;
+      let alpha = 0;
+      const color = [0, 0, 0];
+      // The four neighbours: corner bit 0 picks the column, bit 1 the row.
+      for (let corner = 0; corner < 4; corner += 1) {
+        const px = x0 + (corner & 1);
+        const py = y0 + (corner >> 1);
+        if (px < 0 || py < 0 || px >= width || py >= height) continue;
+        const weight = (corner & 1 ? fx : 1 - fx) * (corner >> 1 ? fy : 1 - fy);
+        const source = (py * width + px) * 4;
+        const ink = data[source + 3] * weight;
+        alpha += ink;
+        for (let c = 0; c < 3; c += 1) color[c] += data[source + c] * ink;
+      }
+      if (alpha <= 0) continue;
+      const target = (y * width + x) * 4;
+      for (let c = 0; c < 3; c += 1)
+        out[target + c] = Math.round(color[c] / alpha);
+      out[target + 3] = Math.round(alpha);
+    }
+  return { data: out, width, height };
+}
+
+/**
+ * `boil` frames: each warps the key by its own displacement field, drawn in
+ * order from one random stream, so a seed always gives the same frames.
+ */
+function boilRenderer(key, bounds, { seed, amplitude }) {
+  const spacing = Math.max(
+    8,
+    Math.round(Math.max(bounds.width, bounds.height) / BOIL_CELLS),
+  );
+  const random = createMulberry32(seed);
+  return () =>
+    displace(
+      key,
+      displacementField(key.width, key.height, spacing, amplitude, random),
+    );
+}
+
+/**
+ * `draw-on` frames: each pixel's distance from the origin (or along the
+ * wipe) decides when it appears. The reveal front moves from the art's
+ * nearest pixel to its farthest over the reveal frames, so the first frame
+ * already shows some art and the last reveal frame shows all of it. Break-off
+ * frames then clear the art from the same start, keeping the far ends in the
+ * last frame.
+ */
+function drawOnRenderer(key, bounds, { count, origin, direction, breakOff }) {
+  const { data, width, height } = key;
+  const centre = origin
+    ? { x: origin.x * (width - 1), y: origin.y * (height - 1) }
+    : {
+        x: bounds.x + (bounds.width - 1) / 2,
+        y: bounds.y + (bounds.height - 1) / 2,
+      };
+  const along = direction
+    ? WIPES[direction]
+    : (x, y) => Math.hypot(x - centre.x, y - centre.y);
+  const distances = new Float32Array(width * height);
+  let nearest = Infinity;
+  let farthest = -Infinity;
+  for (let y = 0; y < height; y += 1)
+    for (let x = 0; x < width; x += 1) {
+      const index = y * width + x;
+      distances[index] = along(x, y, width, height);
+      if (data[index * 4 + 3] === 0) continue;
+      nearest = Math.min(nearest, distances[index]);
+      farthest = Math.max(farthest, distances[index]);
+    }
+  const span = farthest - nearest + REVEAL_SOFTNESS;
+  const reveals = breakOff ? Math.ceil(count / 2) : count;
+  const clears = count - reveals;
+  const ramp = (value) => Math.min(1, Math.max(0, value / REVEAL_SOFTNESS));
+  return (index) => {
+    const revealing = index < reveals;
+    const front = revealing
+      ? nearest + span * ((index + 1) / reveals)
+      : Infinity;
+    const back = revealing
+      ? -Infinity
+      : nearest + (farthest - nearest) * ((index - reveals + 1) / (clears + 1));
+    const out = Buffer.from(data);
+    for (let pixel = 0; pixel < distances.length; pixel += 1) {
+      const distance = distances[pixel];
+      const shown = ramp(front - distance) * ramp(distance - back);
+      out[pixel * 4 + 3] = Math.round(out[pixel * 4 + 3] * shown);
+    }
+    return { data: out, width, height };
+  };
+}
+
+/**
+ * Derive flipbook frames from one key image. Every frame keeps the key's
+ * canvas, so the frames feed `assembleFlipbook` unchanged and painted face
+ * art keeps its UV layout. Returns `{ frames, width, height, fps, loop,
+ * amplitude }`: PNG buffers in play order, the playback that suits them and,
+ * for a boil, the displacement used.
+ *
+ * - `boil` (default 4 frames): each frame warps the art by its own smooth
+ *   random displacement of at most `amplitude` px (default 1.25% of the key's
+ *   longer side, at most 8 px), so the lines wobble like art traced again for
+ *   every frame, the anime "line boil". The same `seed` (default 1) gives the
+ *   same frames. The result's `amplitude` is the one used.
+ * - `draw-on` (default 6 frames): the art appears outward from `origin`
+ *   (`{ x, y }` fractions of the canvas; default the centre of the art), or
+ *   wipes across it toward `direction` (`right`, `left`, `up` or `down`).
+ *   With `breakOff` (default 8 frames), the first half of the frames reveal
+ *   the art and the rest clear it from the same start, so the lines detach
+ *   and fly off.
+ *
+ * Frames get the same alpha clean-up and edge bleed as `fix`.
+ */
+export async function deriveFrames(
+  input,
+  { mode, frames, seed, amplitude, origin, direction, breakOff = false } = {},
+) {
+  // Own keys only: `toString` or `__proto__` is not a mode.
+  const defaults = Object.hasOwn(FRAME_MODES, mode) ? FRAME_MODES[mode] : null;
+  if (!defaults) throw new EffectAssetError("mode must be boil or draw-on");
+  if (
+    mode === "boil" &&
+    (origin !== undefined || direction !== undefined || breakOff)
+  )
+    throw new EffectAssetError(
+      "origin, direction and break-off apply to draw-on frames",
+    );
+  if (mode === "draw-on" && (seed !== undefined || amplitude !== undefined))
+    throw new EffectAssetError("seed and amplitude apply to boil frames");
+  const count =
+    frames ?? (breakOff ? defaults.breakOffFrames : defaults.frames);
+  if (!Number.isInteger(count) || count < 2 || count > MAX_DERIVED_FRAMES)
+    throw new EffectAssetError(
+      `frames must be an integer from 2 to ${MAX_DERIVED_FRAMES}`,
+    );
+  const boilSeed = seed ?? 1;
+  if (!Number.isInteger(boilSeed) || boilSeed < 0 || boilSeed > 0xffffffff)
+    throw new EffectAssetError("seed must be an integer from 0 to 4294967295");
+  if (
+    amplitude !== undefined &&
+    !(amplitude > 0 && amplitude <= MAX_BOIL_AMPLITUDE)
+  )
+    throw new EffectAssetError(
+      `amplitude must be above 0 and at most ${MAX_BOIL_AMPLITUDE} px`,
+    );
+  if (origin !== undefined && direction !== undefined)
+    throw new EffectAssetError(
+      "a draw-on grows from an origin or wipes toward a direction; choose one",
+    );
+  if (
+    origin !== undefined &&
+    ![origin?.x, origin?.y].every((value) => value >= 0 && value <= 1)
+  )
+    throw new EffectAssetError(
+      "origin must lie on the canvas: x and y are fractions from 0 to 1",
+    );
+  if (direction !== undefined && !Object.hasOwn(WIPES, direction))
+    throw new EffectAssetError(
+      `direction must be ${Object.keys(WIPES).join(", ")}`,
+    );
+
+  const source = await readRgba(input);
+  const key = { data: source.data, width: source.width, height: source.height };
+  // Faint noise is not art: it must not start a reveal or widen the boil.
+  applyAlphaThresholds(key, DEFAULT_CLEAR_BELOW, 256);
+  const { bounds } = measure(key);
+  if (!bounds)
+    throw new EffectAssetError("the key image has no visible pixels");
+  const boilAmplitude =
+    mode === "boil"
+      ? (amplitude ?? defaultBoilAmplitude(key.width, key.height))
+      : undefined;
+  const render =
+    mode === "boil"
+      ? boilRenderer(key, bounds, { seed: boilSeed, amplitude: boilAmplitude })
+      : drawOnRenderer(key, bounds, { count, origin, direction, breakOff });
+  // One frame at a time, so a long run on a large canvas stays small in memory.
+  const buffers = [];
+  for (let index = 0; index < count; index += 1) {
+    const image = render(index);
+    applyAlphaThresholds(image, DEFAULT_CLEAR_BELOW, DEFAULT_OPAQUE_FROM);
+    bleedEdges(image);
+    buffers.push(
+      await rawImage(image)
+        .png({ compressionLevel: 9, adaptiveFiltering: true })
+        .toBuffer(),
+    );
+  }
+  return {
+    frames: buffers,
+    width: key.width,
+    height: key.height,
+    fps: defaults.fps,
+    loop: defaults.loop,
+    ...(boilAmplitude === undefined ? {} : { amplitude: boilAmplitude }),
+  };
+}
+
+/** The default boil displacement for a key canvas, to 0.1 px. */
+function defaultBoilAmplitude(width, height) {
+  const scaled = Math.max(width, height) * DEFAULT_BOIL_AMPLITUDE_FRACTION;
+  return Math.min(
+    MAX_BOIL_AMPLITUDE,
+    Math.max(0.1, Math.round(scaled * 10) / 10),
+  );
+}
+
 /** Backdrops for `preview`: chat-like dark, paper light, and a checkerboard. */
 const PREVIEW_BACKDROPS = ["#3a3f4a", "#f4f1ea", "checker"];
 
@@ -915,6 +1226,7 @@ const USAGE = [
   "Usage:",
   "  pnpm -s effects:assets check <png...> [--budget <name>] [--json]",
   "  pnpm -s effects:assets fix <in.png> --out <out.png> [options]",
+  "  pnpm -s effects:assets frames <key.png> --mode boil|draw-on --out-dir <dir> [options]",
   "  pnpm -s effects:assets flipbook <frame.png...> --out <sheet.png> [--trim] [--columns N] [--cell px|WxH] [--fps 12] [--loop loop|once|pingpong]",
   "      --trim crops every frame to one shared box around all the art",
   "  pnpm -s effects:assets preview <png> --out <preview.png>    art on dark, light and checkered backdrops",
@@ -936,8 +1248,19 @@ const USAGE = [
   `  --opaque-from <1-256>  raise alpha at or above this to 255; 256 turns it off (default ${DEFAULT_OPAQUE_FROM})`,
   `  --clear-below <0-255>  clear alpha below this (default ${DEFAULT_CLEAR_BELOW})`,
   "",
+  "frames options (every frame keeps the key's canvas; written as <key>-<mode>-NN.png):",
+  `  --mode boil            the lines wobble as if traced again each frame; loops (default ${FRAME_MODES.boil.frames} frames)`,
+  "  --seed <n>             boil: the same seed gives the same frames (default 1)",
+  `  --amplitude <px>       boil: largest displacement (default ${DEFAULT_BOIL_AMPLITUDE_FRACTION * 100}% of the key's longer side, at most ${MAX_BOIL_AMPLITUDE})`,
+  `  --mode draw-on         the art appears from a start; plays once (default ${FRAME_MODES["draw-on"].frames} frames)`,
+  "  --origin <x,y>         draw-on: grow outward from here, fractions of the canvas",
+  "                         (default the centre of the art)",
+  "  --direction <dir>      draw-on: wipe toward right, left, up or down instead",
+  `  --break-off            draw-on: reveal in the first half, then clear from the start (default ${FRAME_MODES["draw-on"].breakOffFrames} frames)`,
+  `  --frames <n>           how many frames (2-${MAX_DERIVED_FRAMES})`,
+  "",
   "check exits 1 when any image has a FAIL; fix exits 1 when its output does.",
-  "fix never overwrites its input.",
+  "fix, frames, flipbook and preview never overwrite their input.",
 ].join("\n");
 
 const VALUE_OPTIONS = new Set([
@@ -953,6 +1276,13 @@ const VALUE_OPTIONS = new Set([
   "--cell",
   "--fps",
   "--loop",
+  "--mode",
+  "--out-dir",
+  "--frames",
+  "--seed",
+  "--amplitude",
+  "--origin",
+  "--direction",
 ]);
 const FLAG_OPTIONS = new Set([
   "--json",
@@ -960,6 +1290,7 @@ const FLAG_OPTIONS = new Set([
   "--solid-interior",
   "--trim",
   "--square",
+  "--break-off",
   "--help",
 ]);
 
@@ -1009,6 +1340,22 @@ function parseCell(value) {
   return { width, height };
 }
 
+/** `--origin`: `x,y` fractions of the canvas; `deriveFrames` checks the range. */
+function parseOrigin(value) {
+  if (value === undefined) return undefined;
+  const match = /^\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*$/.exec(value);
+  if (!match)
+    throw new EffectAssetError(
+      "--origin takes x,y as fractions of the canvas, for example 0.5,0.4.",
+    );
+  return { x: Number(match[1]), y: Number(match[2]) };
+}
+
+/** A number option as given; the command's own checks name its range. */
+function numberOption(values, name) {
+  return values[name] === undefined ? undefined : Number(values[name]);
+}
+
 function budgetFor(values) {
   const name = values["--budget"];
   if (name === undefined) return undefined;
@@ -1035,9 +1382,21 @@ async function overwritesInput(out, inputs) {
   return false;
 }
 
-function printCheck(file, result, cwd) {
+/** A path as typed from `cwd`: relative inside it, otherwise absolute. */
+function displayPath(file, cwd) {
   const relative = path.relative(cwd, file);
-  const label = !relative || relative.startsWith("..") ? file : relative;
+  return !relative || relative.startsWith("..") ? file : relative;
+}
+
+/** Quote a word for a POSIX shell unless it holds only safe characters. */
+function shellWord(word) {
+  return /^[\w@%+=:,./-]+$/.test(word)
+    ? word
+    : `'${word.replaceAll("'", "'\\''")}'`;
+}
+
+function printCheck(file, result, cwd) {
+  const label = displayPath(file, cwd);
   const size = `${result.width}×${result.height}, ${kib(result.bytes)} KiB`;
   const fails = result.issues.filter((issue) => issue.level === "FAIL");
   if (!result.issues.length) console.log(`PASS ${label} (${size})`);
@@ -1157,6 +1516,59 @@ async function main(argv) {
             : ""),
       );
       return printCheck(out, await checkImage(out, { budget }), cwd) ? 0 : 1;
+    }
+    if (command === "frames") {
+      if (positional.length !== 1 || !values["--out-dir"])
+        throw new EffectAssetError(
+          "frames takes one key image and --out-dir <dir>.",
+        );
+      const input = resolve(positional[0]);
+      const outDir = resolve(values["--out-dir"]);
+      const mode = values["--mode"];
+      const derived = await deriveFrames(input, {
+        mode,
+        frames: numberOption(values, "--frames"),
+        seed: numberOption(values, "--seed"),
+        amplitude: numberOption(values, "--amplitude"),
+        origin: parseOrigin(values["--origin"]),
+        direction: values["--direction"],
+        breakOff: flags.has("--break-off"),
+      });
+      // Numbered in play order; the printed `flipbook` command names these
+      // files, so frames left in the folder by an earlier run never mix in.
+      const stem = path.basename(input, path.extname(input));
+      const outputs = derived.frames.map((_, index) =>
+        path.join(
+          outDir,
+          `${stem}-${mode}-${String(index + 1).padStart(2, "0")}.png`,
+        ),
+      );
+      for (const out of outputs)
+        if (await overwritesInput(out, [input]))
+          throw new EffectAssetError(
+            "frames never overwrites its input; choose another --out-dir.",
+          );
+      await mkdir(outDir, { recursive: true });
+      for (const [index, out] of outputs.entries())
+        await writeFile(out, derived.frames[index]);
+      console.log(
+        `Wrote ${outputs.length} ${mode} frames on the key's ${derived.width}×${derived.height} canvas` +
+          (derived.amplitude === undefined
+            ? ":"
+            : ` (amplitude ${derived.amplitude} px):`),
+      );
+      for (const out of outputs) console.log(`  ${displayPath(out, cwd)}`);
+      // The key is already framed: trimming the frames would change the
+      // effect's size and placement (and any per-use size an Action sets).
+      console.log("Assemble them on the key's canvas, without --trim:");
+      console.log(
+        `  pnpm -s effects:assets flipbook ${outputs
+          .map((out) => shellWord(displayPath(out, cwd)))
+          .join(
+            " ",
+          )} --out <sheet.png> --fps ${derived.fps} --loop ${derived.loop}`,
+      );
+      return 0;
     }
     if (command === "flipbook") {
       if (!positional.length || !values["--out"])

@@ -51,3 +51,38 @@ export function poseCreatorScrubVFXSignature(
     })),
   });
 }
+
+/**
+ * The id the creator preview applies one occurrence of a clip event under.
+ * `PoseCreatorClipPreviewSync` forms its ids the same way.
+ */
+export function poseCreatorClipAppliedId(
+  mode: "playback" | "scrub",
+  clipId: string,
+  eventId: string,
+  occurrenceIndex: number,
+): string {
+  return `poseCreatorClip:${mode}:${clipId}:${eventId}:${occurrenceIndex}`;
+}
+
+/**
+ * The applied id of the event's occurrence a stationary playhead shows, so
+ * creator handles can find its art; null while the event is not showing.
+ */
+export function poseCreatorScrubAppliedId(
+  clip: AnimaPoseClipV2,
+  playbackTimeSec: number,
+  eventId: string,
+): string | null {
+  const active = samplePoseCreatorScrubVFXEvents(clip, playbackTimeSec).find(
+    (activeEvent) => activeEvent.event.id === eventId,
+  );
+  return active
+    ? poseCreatorClipAppliedId(
+        "scrub",
+        clip.id,
+        eventId,
+        active.occurrenceIndex,
+      )
+    : null;
+}

@@ -93,7 +93,7 @@ updating, replacing, removing, reverting, or leaving a Reaction empty uses the
 same review boundary. Replacing a cell names the current occupant.
 
 Idle is the Anima's built-in pool of Gestures for quiet moments
-([ADR 0025](../../adr/0025-built-in-idle-pool-per-anima.md)); it always exists
+([ADR 0026](../../adr/0026-built-in-idle-pool-per-anima.md)); it always exists
 and cannot be swapped for another. The section shows Default first, then one
 expandable row per emotion with its Mild, Moderate and Strong cells, each
 listing its Gestures with Preview and Remove. An empty cell reads "Uses Default"

@@ -132,7 +132,10 @@ Included Gesture's bytes is a promotion (step 9) with `mode: "replace"`.
   emotion face paint in the same turn, so prefer action-bound effects; reusing
   an Included blush, sweat, anger or gloom effect is allowed where it adds to
   the Gesture's meaning, accepting some doubling with Reactions. Reuse an
-  Included effect before asking for new art.
+  Included effect before asking for new art, and fit it to the Gesture
+  through the event's `override` (another place, look, motion or declared
+  sound) instead of asking for a variant effect; see
+  [clip format](references/clip-format.md#avatar-effect-events).
 - A Gesture sounds only through its effects (no `sfx` events). When effects
   start together, keep one sound and set `playAccompanyingSound: false` on
   the others; an idle Gesture sets it on every effect event.

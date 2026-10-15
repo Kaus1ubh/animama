@@ -6,7 +6,7 @@ tracked manifest
 ([ADR 0018](../../adr/0018-non-portable-included-content.md),
 [issue #242](https://github.com/raymond-van/animama/issues/242)). Where the pack
 is installed, new Animas' Idle pools include its five idle loops
-([ADR 0025](../../adr/0025-built-in-idle-pool-per-anima.md)). Pack `v2` also
+([ADR 0026](../../adr/0026-built-in-idle-pool-per-anima.md)). Pack `v2` also
 holds an `idle-styles/mixamo-emotive-idle/` document that the backend no longer
 reads; leave it out of the next pack version. Because seeded Idle pools bind the
 pack's Gestures, removing the source entirely is blocked (`included_source_in_use`)

@@ -1,4 +1,14 @@
 import type { VRMPose } from "@pixiv/three-vrm";
+import type {
+  AvatarEffectAppearance,
+  AvatarEffectDefinitionV2,
+  AvatarEffectMotion,
+} from "@animama/runtime-contracts/api-types";
+import {
+  zAvatarEffectAppearance,
+  zAvatarEffectDefinitionV2,
+  zAvatarEffectMotion,
+} from "@animama/runtime-contracts/validators";
 import type { AvatarInteractionPhase } from "@/lib/types/voice-types";
 
 import type { AnimaPose } from "../animaPose";
@@ -194,6 +204,18 @@ export type AnimaPoseClipVFXParameterKeyframe = {
   transition?: AnimaPoseClipTransition;
 };
 
+/**
+ * Changes an `avatar_vfx` event makes to its Avatar Effect for that one use.
+ * Each part present replaces the effect's part whole; the attachment keeps the
+ * effect's kind. `soundAlias` picks one of the effect's declared sounds.
+ */
+export type AnimaPoseClipAvatarVFXOverride = {
+  attachment?: AvatarEffectDefinitionV2["attachment"];
+  appearance?: AvatarEffectAppearance;
+  motion?: AvatarEffectMotion;
+  soundAlias?: string;
+};
+
 export type AnimaPoseClipAvatarVFXEvent = {
   id: string;
   time: number;
@@ -204,6 +226,7 @@ export type AnimaPoseClipAvatarVFXEvent = {
   duration?: number;
   envelope?: AnimaPoseClipVFXEnvelope;
   parameterKeyframes?: AnimaPoseClipVFXParameterKeyframe[];
+  override?: AnimaPoseClipAvatarVFXOverride;
 };
 
 export type AnimaPoseClipSceneVFXEvent = {
@@ -415,6 +438,12 @@ function sanitizeAvatarVFXEvent(
   const vfxFields = sanitizeVFXEventFields(value);
   if (!vfxFields) return null;
 
+  const override =
+    value.override === undefined
+      ? undefined
+      : sanitizeAvatarVFXOverride(value.override);
+  if (override === null) return null;
+
   return {
     id,
     time,
@@ -424,7 +453,51 @@ function sanitizeAvatarVFXEvent(
     ...(value.playAccompanyingSound !== undefined
       ? { playAccompanyingSound: value.playAccompanyingSound }
       : {}),
+    ...(override ? { override } : {}),
   };
+}
+
+const AVATAR_VFX_OVERRIDE_PARTS = {
+  attachment: zAvatarEffectDefinitionV2.shape.attachment,
+  appearance: zAvatarEffectAppearance,
+  motion: zAvatarEffectMotion,
+} as const;
+
+/** The longest `soundAlias`, as the backend contract bounds it. */
+const MAX_SOUND_ALIAS_LENGTH = 255;
+
+/**
+ * Check an override's shape with the generated effect contract and return a
+ * copy of it as authored (parsing would add defaults), or null when invalid.
+ * Whether it fits the named effect is checked when the effect is known: on
+ * Save, on package import and export, and at playback.
+ */
+function sanitizeAvatarVFXOverride(
+  value: unknown,
+): AnimaPoseClipAvatarVFXOverride | null {
+  if (!isRecord(value)) return null;
+  const keys = Object.keys(value);
+  if (keys.length === 0) return null;
+  for (const key of keys) {
+    const part = value[key];
+    if (key === "soundAlias") {
+      if (
+        typeof part !== "string" ||
+        part.length === 0 ||
+        part.length > MAX_SOUND_ALIAS_LENGTH
+      )
+        return null;
+    } else if (
+      !Object.hasOwn(AVATAR_VFX_OVERRIDE_PARTS, key) ||
+      part === null ||
+      !AVATAR_VFX_OVERRIDE_PARTS[
+        key as keyof typeof AVATAR_VFX_OVERRIDE_PARTS
+      ].safeParse(part).success
+    ) {
+      return null;
+    }
+  }
+  return structuredClone(value) as AnimaPoseClipAvatarVFXOverride;
 }
 
 function sanitizeSceneVFXEvent(

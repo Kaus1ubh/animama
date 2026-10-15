@@ -1523,13 +1523,84 @@
       "id": "laugh-sparkle",
       "time": 1.31,
       "kind": "avatar_vfx",
-      "effectId": "laugh_sparkle",
+      "effectId": "kira_star",
       "duration": 1.71,
       "envelope": {
         "intensity": {
           "fadeOut": 0.35
         }
-      }
+      },
+      "override": {
+        "attachment": {
+          "kind": "body",
+          "bone": "head",
+          "offset": {
+            "x": -0.14,
+            "y": 0.17,
+            "z": 0.03
+          },
+          "size": 0.055,
+          "facing": "camera"
+        },
+        "motion": {
+          "keyframes": {
+            "frames": [
+              {
+                "t": 0,
+                "opacity": 0,
+                "scale": 0.2,
+                "rotationDeg": -45
+              },
+              {
+                "t": 0.1,
+                "opacity": 1,
+                "scale": 1.25,
+                "rotationDeg": 8
+              },
+              {
+                "t": 0.2,
+                "scale": 0.92,
+                "rotationDeg": 0
+              },
+              {
+                "t": 0.28,
+                "scale": 1
+              },
+              {
+                "t": 0.413,
+                "scale": 1,
+                "rotationDeg": 0
+              },
+              {
+                "t": 0.483,
+                "scale": 1.22,
+                "rotationDeg": 15
+              },
+              {
+                "t": 0.593,
+                "scale": 1,
+                "rotationDeg": 0
+              },
+              {
+                "t": 0.798,
+                "scale": 1,
+                "rotationDeg": 0
+              },
+              {
+                "t": 0.868,
+                "scale": 1.16,
+                "rotationDeg": 15
+              },
+              {
+                "t": 0.978,
+                "scale": 1,
+                "rotationDeg": 0
+              }
+            ]
+          }
+        }
+      },
+      "playAccompanyingSound": false
     }
   ]
 }

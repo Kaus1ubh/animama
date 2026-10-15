@@ -465,3 +465,50 @@ describe("animaPoseClip/2.0 per-finger offsets", () => {
     expect(reread.ok && reread.clip.hands?.right?.[0].fingers).toEqual(fingers);
   });
 });
+
+describe("animaPoseClip/2.0 avatar effect overrides", () => {
+  const override = {
+    attachment: {
+      kind: "body",
+      bone: "leftHand",
+      offset: { x: 0.1 },
+      size: 0.08,
+    },
+    motion: {},
+    soundAlias: "tehe",
+  };
+  const withOverride = (value: unknown) => ({
+    ...clip(),
+    events: [
+      {
+        id: "star",
+        time: 0.5,
+        kind: "avatar_vfx",
+        effectId: "star",
+        override: value,
+      },
+    ],
+  });
+
+  it("keeps an override through a saved file and adds no defaults", () => {
+    const result = validateAnimaPoseClipV2(withOverride(override));
+    if (!result.ok) throw new Error(JSON.stringify(result.issues));
+    const saved = JSON.parse(serializeAnimaPoseClipFile(result.clip));
+    expect(saved.events[0].override).toEqual(override);
+    const reread = validateAnimaPoseClipV2(saved);
+    expect(reread.ok && reread.clip.events?.[0]).toMatchObject({ override });
+  });
+
+  it.each([
+    ["not an object", "star"],
+    ["empty", {}],
+    ["an unknown part", { art: { image: "other.png" } }],
+    ["a null part", { appearance: null }],
+    ["an invalid appearance", { appearance: { opacity: 2 } }],
+    ["an unknown attachment kind", { attachment: { kind: "tail" } }],
+    ["an invalid bone", { attachment: { kind: "body", bone: "tail" } }],
+    ["an empty sound alias", { soundAlias: "" }],
+  ])("refuses an override that is %s", (_, value) => {
+    expect(issuesOf(withOverride(value))).toContain("events");
+  });
+});

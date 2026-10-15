@@ -10,7 +10,7 @@ the Action, while `<stem>.vrma` or `<stem>.json` is the playable payload.
 Action-owned Pose Clips are colocated; the retired `pose-clips/` folder is not
 used.
 
-The library ships 111 Gestures, 72 Reactions and 73 Avatar Effects; frontend
+The library ships 111 Gestures, 72 Reactions and 70 Avatar Effects; frontend
 and backend tests pin these counts, so update them with any promotion. Twelve
 of the Gestures are idle motions that seed every new Anima's Idle pool by
 emotion and intensity (`src/backend/animama/resources/starter-idle-pool.v1.json`).

@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:kira_star",
+  "version": 1,
+  "name": "Kira Star",
+  "description": "A small white-and-gold four-point \"kira\" star twinkles with a quick spin, the anime sparkle for an idol wink, a hopeful wish, an oops or a haughty laugh. Each Gesture or Reaction places it beside the head or on a hand.",
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:bell_ding_02",
+      "content_type": "sound_effect",
+      "alias": "on-apply",
+      "optional": true
+    },
+    {
+      "ref": "builtin:sound-effect:squeaky_mouse_03",
+      "content_type": "sound_effect",
+      "alias": "squeaky_mouse_03",
+      "optional": true
+    },
+    {
+      "ref": "builtin:sound-effect:digital_chime_magical_02",
+      "content_type": "sound_effect",
+      "alias": "digital_chime_magical_02",
+      "optional": true
+    }
+  ],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "body",
+    "attachment": {
+      "kind": "body",
+      "bone": "head",
+      "offset": {
+        "x": -0.1,
+        "y": 0.123,
+        "z": 0.138
+      },
+      "size": 0.065,
+      "facing": "camera"
+    },
+    "art": {
+      "image": "kira_star.png"
+    },
+    "motion": {
+      "pulse": {
+        "scaleMin": 0.92,
+        "scaleMax": 1.06,
+        "cyclesPerSecond": 1.5
+      },
+      "keyframes": {
+        "frames": [
+          {
+            "t": 0,
+            "opacity": 0,
+            "scale": 0.2,
+            "rotationDeg": -45
+          },
+          {
+            "t": 0.1,
+            "opacity": 1,
+            "scale": 1.25,
+            "rotationDeg": 8
+          },
+          {
+            "t": 0.2,
+            "scale": 0.92,
+            "rotationDeg": 0
+          },
+          {
+            "t": 0.28,
+            "scale": 1
+          },
+          {
+            "t": 0.36,
+            "scale": 1.12
+          },
+          {
+            "t": 0.46,
+            "scale": 1
+          }
+        ]
+      }
+    },
+    "soundAlias": "on-apply"
+  },
+  "files": [
+    {
+      "path": "kira_star.png",
+      "role": "image"
+    }
+  ]
+}

@@ -66,6 +66,7 @@ any of them with
 | `hands` | `{ left, right }` hand-shape keys (see hands-and-face.md). |
 | `expressions` | `{ vrmPreset: keys[] }`, weights 0–1. |
 | `contacts` | Intended touches: the checks measure them, and `solve` makes playback land them (see Contacts below). |
+| `events` | Effects the Gesture plays on its timeline (see Avatar Effect events below). |
 | `rotations` | Raw quaternion tracks used by hand-made and converted clips; do not author them. |
 
 ## Beats and keys
@@ -145,6 +146,57 @@ any of them with
 - Unsolved contacts are only measured. Retiming a beat in the creator moves an
   unsolved contact with its beat and stretches solved windows with the beats
   around them.
+
+## Avatar Effect events
+
+An `avatar_vfx` event in `events` plays an Avatar Effect:
+
+| Field | Meaning |
+| --- | --- |
+| `id` | Unique within the clip. |
+| `time` | Start, in seconds from the clip's start. |
+| `kind` | `"avatar_vfx"`. |
+| `effectId` | The `alias` of an `avatar_effect` dependency in the Gesture's metadata (see [promote](promote.md)), not a content ID. |
+| `duration` | Seconds it shows; omit it to keep the effect until the Gesture ends. |
+| `envelope` | `{ "intensity": { "fadeIn": s, "fadeOut": s } }` fades the art in and out; only for an event with a `duration`. |
+| `parameterKeyframes` | Not supported for Avatar Effects; leave it out. |
+| `playAccompanyingSound` | `false` silences the effect's sound for this event; omitted, it plays. |
+| `override` | `{ attachment?, appearance?, motion?, soundAlias? }`: changes to the effect for this event only. |
+
+Use `override` to place an existing effect differently, change its look or
+motion, or pick another of its sounds, instead of asking for a variant effect:
+
+- Each part present replaces the effect's part whole; nothing is merged
+  field by field. Copy the part from the effect's definition
+  (`content/included/vfx/avatar/<stem>/<stem>.json`) and change what this
+  use needs; leave a part out to keep the effect's own.
+- `attachment.kind` must equal the effect's kind. The fields follow the
+  effect definition (the `animama-avatar-vfx` skill's effect folder
+  reference).
+- `soundAlias` should name one of the effect's declared sounds; an unknown
+  or unmounted one plays silently.
+- The art, flipbook, region and face options stay the effect's.
+- An empty override or a `null` part is refused. Save, import and export
+  check the effect with the override applied and name the failing field.
+
+`drumroll_ticks` sits on the right hand. This event mirrors it onto the left
+hand (offset `x` negated; negate `rotationDeg` too when it is set), silently,
+because another event plays the right-hand ticks with their sound:
+
+```json
+{
+  "id": "ticks-left",
+  "time": 0.4,
+  "kind": "avatar_vfx",
+  "effectId": "drumroll_ticks",
+  "duration": 1.5,
+  "envelope": { "intensity": { "fadeIn": 0.1, "fadeOut": 0.2 } },
+  "playAccompanyingSound": false,
+  "override": {
+    "attachment": { "kind": "body", "bone": "leftHand", "offset": { "x": 0.122, "y": 0.006, "z": 0.016 }, "size": 0.18 }
+  }
+}
+```
 
 ## Joint ids
 

@@ -27,7 +27,14 @@
       "size": 0.12
     },
     "art": {
-      "image": "idea_bulb.png"
+      "image": "idea_bulb_flipbook.png",
+      "flipbook": {
+        "columns": 3,
+        "fps": 12,
+        "frames": 5,
+        "loop": "once",
+        "rows": 2
+      }
     },
     "motion": {
       "pulse": {
@@ -62,7 +69,7 @@
   },
   "files": [
     {
-      "path": "idea_bulb.png",
+      "path": "idea_bulb_flipbook.png",
       "role": "image"
     }
   ]

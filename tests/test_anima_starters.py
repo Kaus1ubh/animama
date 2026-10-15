@@ -476,7 +476,7 @@ async def test_supplied_fixture_content_can_materialize_both_starters(async_sess
             assert {gesture.source.logical_key for gesture in loadout.gestures if gesture.source} == set(
                 EXPECTED_STARTER_GESTURE_IDS
             )
-            assert len(loadout.gestures) == 95
+            assert len(loadout.gestures) == 99
             # The supplied library ships no Gesture of the Idle seed, so the pool is empty.
             assert loadout.idle.default_pool == ()
             assert len(loadout.idle.cells) == 72 and all(not cell.gestures for cell in loadout.idle.cells)
@@ -507,7 +507,7 @@ def test_starter_gestures_include_every_non_library_gesture_and_exclude_idle_see
     assert idle_ids <= library_ids <= included_ids
     assert starter_ids.isdisjoint(idle_ids)
     assert starter_ids == included_ids - library_ids
-    assert len(starter_ids) == 95
+    assert len(starter_ids) == 99
 
 
 async def test_tracked_checkout_materializes_both_starters_without_optional_local_assets(async_session, tmp_path):
@@ -525,7 +525,7 @@ async def test_tracked_checkout_materializes_both_starters_without_optional_loca
             loadout = await AnimaLoadoutService(async_session).read_model(
                 user_id=fixture.owner, anima_id=starter["anima_id"]
             )
-            assert len(loadout.gestures) == 95
+            assert len(loadout.gestures) == 99
             assert all(cell.source is not None for cell in loadout.reactions)
             # Starters receive the reviewed Idle seed; its Gestures are never AI-callable.
             assert sorted(idle_keys(loadout.idle.default_pool)) == sorted(starter_idle_pool()["default"])

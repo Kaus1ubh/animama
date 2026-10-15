@@ -125,7 +125,7 @@ test("accountless built-in pose playback @surface-library @channel-pose-clip @re
       surface,
     });
     await network.waitForPreview("have_idea");
-    await network.requireResources(["idea_bulb_fingertip.png"]);
+    await network.requireResources(["idea_bulb_fingertip_flipbook.png"]);
     await network.attach(animamaEvidence, `${name}-preview-network`);
     await attachPlaybackCheckpoint({
       evidence: animamaEvidence,

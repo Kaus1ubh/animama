@@ -14,6 +14,7 @@ import re
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any, NamedTuple
 
+from animama.app.services.avatar_effect_overrides import parse_avatar_effect_override
 from animama.app.services.content_pose import HUMAN_BONE_NAMES
 from animama.domain.content_documents import ContentDocumentError
 
@@ -181,6 +182,9 @@ def _event(event: dict[str, Any], field: str) -> None:
         _particle_fields(event, field)
     else:
         _optional_bool(event, "playAccompanyingSound", field)
+    if kind == "avatar_vfx" and "override" in event:
+        # The shape only: Save and package checks also merge it with the named effect.
+        parse_avatar_effect_override(event["override"], code="idle_motion_invalid", field=f"{field}.override")
     _vfx_fields(event, field)
 
 

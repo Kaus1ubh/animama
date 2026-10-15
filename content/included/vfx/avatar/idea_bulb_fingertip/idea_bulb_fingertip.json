@@ -19,16 +19,23 @@
     "attachment": {
       "kind": "body",
       "bone": "rightHand",
+      "facing": "camera",
       "offset": {
         "x": -0.21,
         "y": 0,
         "z": 0.02
       },
-      "size": 0.1,
-      "facing": "camera"
+      "size": 0.1
     },
     "art": {
-      "image": "idea_bulb_fingertip.png"
+      "image": "idea_bulb_fingertip_flipbook.png",
+      "flipbook": {
+        "columns": 3,
+        "fps": 12,
+        "frames": 5,
+        "loop": "once",
+        "rows": 2
+      }
     },
     "motion": {
       "pulse": {
@@ -63,7 +70,7 @@
   },
   "files": [
     {
-      "path": "idea_bulb_fingertip.png",
+      "path": "idea_bulb_fingertip_flipbook.png",
       "role": "image"
     }
   ]

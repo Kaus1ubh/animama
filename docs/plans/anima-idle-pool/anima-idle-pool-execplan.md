@@ -223,7 +223,7 @@ Steps:
 10. **Contract versions.** Bump `local-http` to `8.0.0` in
     `contracts/versions.json` and update `contracts/hosted-web.md`; package
     version bumps follow in Phase 2 with the regenerated client.
-11. **Docs.** Add ADR 0025 (per-Anima Idle pool replaces Idle Style; partly
+11. **Docs.** Add ADR 0026 (per-Anima Idle pool replaces Idle Style; partly
     supersedes ADR 0018 decision 3) and update the ADR index and 0018 status;
     replace the Glossary "Idle Style" entry with "Idle"; update
     `docs/backend/features/custom-animas-and-content.md`,

@@ -26,7 +26,14 @@
       "side": "right"
     },
     "art": {
-      "image": "single_tear.png"
+      "image": "single_tear_flipbook.png",
+      "flipbook": {
+        "columns": 2,
+        "fps": 8,
+        "frames": 4,
+        "loop": "once",
+        "rows": 2
+      }
     },
     "motion": {
       "keyframes": {
@@ -37,13 +44,13 @@
               "y": 0
             },
             "opacity": 0,
-            "scale": 0.2,
+            "scale": 0.7,
             "t": 0
           },
           {
             "opacity": 1,
-            "scale": 1.1,
-            "t": 0.35
+            "scale": 1.05,
+            "t": 0.1
           },
           {
             "offset": {
@@ -73,7 +80,7 @@
   },
   "files": [
     {
-      "path": "single_tear.png",
+      "path": "single_tear_flipbook.png",
       "role": "image"
     }
   ]

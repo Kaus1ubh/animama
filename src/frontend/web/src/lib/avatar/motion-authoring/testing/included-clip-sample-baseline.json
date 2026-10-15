@@ -56,21 +56,21 @@
     }
   },
   "blow-a-kiss": {
-    "fileSha256": "6f4107d38fc6a756030691ddf05bef3cd2e52a5b99429a6abcc152ab3fe48fdb",
+    "fileSha256": "ec51eb196a7b6ac49f8ae41e2920c3d2d48f124ca51affe5490a785dd42e0e62",
     "samples": {
       "AvatarSample_Y_0": "621b553f0e760be6fa21c0829c71be5f3896103a49b43cfb6d88e804d5ea5233",
       "AvatarSample_A_1_New": "46099e8e030eead58027f25b9a624dd9659982982bca3a74e0ac2c6edad5a454"
     }
   },
   "blow-a-kiss-2": {
-    "fileSha256": "e5d0b3bc52492c70c2c2112645a2605cd81b6f75abdc5b242a6438571a527f95",
+    "fileSha256": "48de53ecbb211b5ca934f40c419f8b6fc7772ec98dba2f96bf668f8ec666da51",
     "samples": {
       "AvatarSample_Y_0": "24d782be0d5047bff88847e7a9862a3ab669acf62bfe5ab831a7f9d22ca63d49",
       "AvatarSample_A_1_New": "22baa74af78c65a7e57409ff63afa7056c32935d2401c7ab1df9d3cb9c02fd9f"
     }
   },
   "bored-wait": {
-    "fileSha256": "037f94edc20e3af77b35aa5976f4488995a4dca9e79941c1aaef6e500c878081",
+    "fileSha256": "d0d4b3d305006a5ea129b96b5a281f20e3d4db094af7375df28f08175e835603",
     "samples": {
       "AvatarSample_Y_0": "cab78c1f61b2fd7a0dff4f821d4fb6e2c71837585b7effe5d6e3e09bfe478b93",
       "AvatarSample_A_1_New": "1f4e76ca1e02eebf3c8eea4499d62d9c8d94454caebd40d988458b0970278416"
@@ -91,7 +91,7 @@
     }
   },
   "celebration": {
-    "fileSha256": "1b4c9317a627844fe17b4be98831003d7137e55c02541cd7dad4baeb5dee4c41",
+    "fileSha256": "8c93248b214078ba6753adca09267f3ff6e4c86bf2da78c0082a4d99445ba775",
     "samples": {
       "AvatarSample_Y_0": "068a3989197e2212e9be43b62134d7c321683cb68f0b537486be92675d0e3ecf",
       "AvatarSample_A_1_New": "f4f61834562b678c88fdad9e619fc2db50ecfc4988d1bc8a3b1f2851fe598f8b"
@@ -105,7 +105,7 @@
     }
   },
   "cheeky-finger-guns": {
-    "fileSha256": "053c1c7b5b250d0def23d3439f0a2db744be571b5aac9a48f0bf264511d98daf",
+    "fileSha256": "b34fbca6310ff460a71e8b87a64fa232cae2e432f7ebe6440b509c96858944ad",
     "samples": {
       "AvatarSample_Y_0": "68447cfd60062fbd75547dde084e025c8b8a7eb407598e1de5e79d505edeba36",
       "AvatarSample_A_1_New": "16cbc8e4dd8a1fa50ebc7dc2d8adf0c1f38f7eee0e73b0de85f9d715e3a48b91"
@@ -133,14 +133,14 @@
     }
   },
   "cower": {
-    "fileSha256": "312998e4e2f42e58dd03b7199c7e0319d25e31a240f1523f1c5e775efa807e2a",
+    "fileSha256": "2ad2950bc739d1dad0ef73439d0d941beb3c1fe703b6db8dcd1e78cfcf75d967",
     "samples": {
       "AvatarSample_Y_0": "734120658f119299a38dc3ad870b03917ea6f7da7f5b69cf6c237fb415c2cdf2",
       "AvatarSample_A_1_New": "65dce9fb5e4638b771c1190f4ee0d88088542d5dc63345e2410f8c85798d066a"
     }
   },
   "deflated-sigh": {
-    "fileSha256": "bbfe5982cd3c82edb4bc932152c76614af6758b8f122ac980234ac9a62d1e85e",
+    "fileSha256": "b1248b7f8a67f0563bb7e35752299da38809b51b3b1a49d94592c4d1f6015f15",
     "samples": {
       "AvatarSample_Y_0": "07ac59df8a80d4b80219eaf7f427613a44f46e76392f32c303d5d0643d4f640b",
       "AvatarSample_A_1_New": "01f8cc8cc3e938e97d6d3758d9c3ddddd791bcfc55dc68cff9c0ed9adeffe25f"
@@ -182,14 +182,14 @@
     }
   },
   "dreamy-gaze": {
-    "fileSha256": "1eed4bdf5b1b29acc14a7968b4c7a9207c0871c2f1f11ed45919418dcbb26c23",
+    "fileSha256": "6986a8ed01fa02bb0384329f4dcce40571bc7bba8fd832296a5724629218e2d2",
     "samples": {
       "AvatarSample_Y_0": "96378fc60b3d8f8d2c04e9cdea0b26c3533a3cdfd26529581a3be554e336fb26",
       "AvatarSample_A_1_New": "a3fed50a91edcef9ee50df7c70c61c810dfc881f84757a654dd7f753e383cda0"
     }
   },
   "drumroll": {
-    "fileSha256": "80f17e0f4f3aa5c40168f499f4f41cd2cd05015d69ac22b1996bec165f9ba2c6",
+    "fileSha256": "d15345f6219db5bb1015855e0218bc5d28f777f76cd85f1e1961df63066857f1",
     "samples": {
       "AvatarSample_Y_0": "f6a093d14b9075eb85c5505ad21390791d7ea55edcee3fdc0d80e1f15808ef05",
       "AvatarSample_A_1_New": "a484c7e086bbc4ba8eef830f20f31b43738a28a4f5d54e94f6586f0d447848f3"
@@ -210,7 +210,7 @@
     }
   },
   "ew-recoil": {
-    "fileSha256": "15244aa57434c8a20dadba2bd6d97e16a99fd08cea3d136ace760b3f153c9292",
+    "fileSha256": "9661b5eca42beba1e1bbb3e37cb65ce23767f4feda3e2ea72a2b598303d147d6",
     "samples": {
       "AvatarSample_Y_0": "5c617f8ba52560471b01ea43513b2c2f1c8ad6b69f369071407fa14249ccc230",
       "AvatarSample_A_1_New": "0d7adfbd56ee7243c7b26003ab3036e1ac66d27aba4e75de067c9aa1b6810c92"
@@ -238,21 +238,21 @@
     }
   },
   "finger-heart-pose": {
-    "fileSha256": "d437b38fa6fdd1f24a42da96b8add1a569a285da1226f6500513bd14d688c99b",
+    "fileSha256": "db85021476eca268fae878cf6dd687b69b19ca78b339acb589b340bde9bee74c",
     "samples": {
       "AvatarSample_Y_0": "e9a8381886334a5bce6742558c6c88df063f8f94e4dff244948fff3dec6b5724",
       "AvatarSample_A_1_New": "06f3463a5e130170f22ff8b198debaba199779d7d7dfaae00adaabd125e76392"
     }
   },
   "fingers-crossed": {
-    "fileSha256": "293abb43841c0921e01e85c26801e50f2a6c5a60dfd2617f72dda1cbc911cccd",
+    "fileSha256": "34762ebb643ce0bba0d297efd0e7c858c25e569aae182a5426ca048b0b43f72f",
     "samples": {
       "AvatarSample_Y_0": "011cb5a2b3e5a6a7e63c2a2d61aaadb04e2c7d678fed9965f7cb1d9d63d7cc53",
       "AvatarSample_A_1_New": "0fa60b61884c03bd5c81264af5f77289f96bcf89d6ad2df6febbeb64349e6136"
     }
   },
   "fist-bump": {
-    "fileSha256": "cd0a4b33e6f7124f8714f4b765dc232a0ac0141f216fd82cbf56a41d6dd0a79c",
+    "fileSha256": "5de97491632f8b3365e8f87c64df83706bc15420b0a8553c371ebb01775edf80",
     "samples": {
       "AvatarSample_Y_0": "78816060dee52b6e2ea6d7dd2f696c6a39a12750893291f365230f6292b67951",
       "AvatarSample_A_1_New": "77c36ae481edbbba380b191ccf5af4d88dc63e69eeae613241219b5a67f77530"
@@ -294,7 +294,7 @@
     }
   },
   "grr-fists": {
-    "fileSha256": "0112138e1c6c96eca4e366fe10b4f1bbda56a5d1b45d672416400df25cc87d40",
+    "fileSha256": "93c9d6456b9cd0aacf05adb8e2f835a5496bbf135f45c38859a28e72b7b73961",
     "samples": {
       "AvatarSample_Y_0": "22f0c5e72c817fc6bcfdf62e23fa2901e80ecdb665a108a181cec4d77ca5fc5e",
       "AvatarSample_A_1_New": "5d93bc952f08e8897c6a5ee0d274d7b4874d686a9c6ef42631789a21247e51f5"
@@ -336,14 +336,14 @@
     }
   },
   "head-pat": {
-    "fileSha256": "c62840038be86f3713e06b32c5f45102f1fb94ced15bafe7fd8c078b4861ca2d",
+    "fileSha256": "0aa881d2dd64bebcaa8848b1194b8eb0a6241ff3157b56b10e9a9fd10a485445",
     "samples": {
       "AvatarSample_Y_0": "d098b00d8e6cfee02deb05e11cc849e2be1d04297a5393aae02526c9c8a2e099",
       "AvatarSample_A_1_New": "f7103872d364328aa5b25b2abc323e91e763c5e8c4e5af03833af26b8d9f39de"
     }
   },
   "heart-hands-build": {
-    "fileSha256": "b38309be297ac0c6503c594e8fd5183878d943b5c0620310de2dc7a9a1d2d488",
+    "fileSha256": "55b051f977b6cd461708dd3e95b2dbacda541b2e7ff73338460310be32d02bc3",
     "samples": {
       "AvatarSample_Y_0": "207ac23d6e708d27d958def024d521113623fb0dd3b2c079de543758382ad874",
       "AvatarSample_A_1_New": "7db8386ab6f13cbb01747f18445503dbcb9f2adda0d9f4018612b3633a39f827"
@@ -357,7 +357,7 @@
     }
   },
   "high-five": {
-    "fileSha256": "d3f732f368b30315ea1521984d587a563d97f6b57a0a73074d4eb66a6fd35f70",
+    "fileSha256": "9fd57cc35e46cfc28dc01ee07282973c5ff89127759b1cdd0edd83572b02decd",
     "samples": {
       "AvatarSample_Y_0": "08c4732bf64e0b8e5308eb88124652cab999d173582907be1c57fee2ea59ae3b",
       "AvatarSample_A_1_New": "8d48b278291d83ef909293052450d597498f85a2638af6677a392fb7aff1d104"
@@ -378,7 +378,7 @@
     }
   },
   "kyaa-hands-on-cheeks": {
-    "fileSha256": "77d39a30b0fc99cbfccc646be97a53c6bfb8bf7c378fd9703166fde23724b37d",
+    "fileSha256": "f600f465f3438e6e86a924e22907dc3b34161d74ba7dd0427bff233ffa9f62df",
     "samples": {
       "AvatarSample_Y_0": "a801906376301658ce0270ece6f811fbdf4eb650039bfa1ecff5aa727e705dea",
       "AvatarSample_A_1_New": "f69d73b5107cd81af7c31c2cd171561159b344853240a4853147bc013f76553d"
@@ -455,7 +455,7 @@
     }
   },
   "ohohoho-noble-laugh": {
-    "fileSha256": "f6d334ea9b88dea75aafa5abaceb9cbca283dac707200ee43c1b552272ddd22a",
+    "fileSha256": "c04139df126bd0d353e663abc32bfa40581d28dd7ba7f112287f70d60f2882cc",
     "samples": {
       "AvatarSample_Y_0": "21a4235e958802187a52c72cfd62e809bf9da724a9d739507f06415c4cd67900",
       "AvatarSample_A_1_New": "a6ab63cccdf878e3269c8722a4d62b1e058c8cf22665e09bfcb146f85346628f"
@@ -476,14 +476,14 @@
     }
   },
   "peace-over-eye": {
-    "fileSha256": "502b85f80e12c3d4cc70561e76889622c17e09a526dec58cf0c4a5d98c9cb6ff",
+    "fileSha256": "8b74cdcdcf84686e7a2e762fa978e00b86f3f1476dd47daa1239eeb20761115b",
     "samples": {
       "AvatarSample_Y_0": "004c56f03a94875651a6ed67e48aca6a878e16bea0bb116296d59e06f0d17713",
       "AvatarSample_A_1_New": "034b76bf57ed0183eb4f90e6b98da112a90a4e5fe52ef8e5a97993f79ed3162e"
     }
   },
   "phew-brow-wipe": {
-    "fileSha256": "a14e9c28ee109e57a660ce0a85d8651ef66a0e817dd9f8eda6f51de0ced62dcf",
+    "fileSha256": "6a26bf6c52bdf39a9a111cc308514a8f0057d29e4628dbf05a990a524b589932",
     "samples": {
       "AvatarSample_Y_0": "efcd192408dae1a01193e58e3f28a44234d0cebf2425c96225c454d521546bfd",
       "AvatarSample_A_1_New": "6de25363cec6cb8c79167eba74bdd44ccc68c0f7d160d7d33ffefd1847cd9acb"
@@ -497,7 +497,7 @@
     }
   },
   "please-hands": {
-    "fileSha256": "ecdf500bdc9f2089541fb080d8fdde8d3fa42da1855ca68e32129f08ac41e1c2",
+    "fileSha256": "a1f1b0a6a93c21fc6fa277d8032a8d29afa7675d95b8e1675ffeff7f906d12c5",
     "samples": {
       "AvatarSample_Y_0": "5ee38c1cde25df947300c9b5676e4c00c9280f0226959875fc0e0a801aafa08f",
       "AvatarSample_A_1_New": "57fa8e88cb40e0be0fd46d9fcc96a8af64b18cdc604d04925e59f743ab13970b"
@@ -518,14 +518,14 @@
     }
   },
   "pout-huff": {
-    "fileSha256": "e1434723947e9cc618a410de6dbca9ef2615e112e5412e2ce660745eb18f6410",
+    "fileSha256": "a40214cd69fc5d4893f91ffd2feb45cefe9e78302a988a17881b5fd22015ee39",
     "samples": {
       "AvatarSample_Y_0": "dd91a872b364433ac8be1199611fec8a871f671d670391bc966c1c802f52e72c",
       "AvatarSample_A_1_New": "7ecc691df733d85822550737b8c398a48c12b77b73047127628258fc51255c1e"
     }
   },
   "prayer-hands-thanks": {
-    "fileSha256": "8878203ae47fa553cc7373bb965e7e14bd26fc42acf7cb5262a029cbd6bc9b91",
+    "fileSha256": "be231834d1270cf6e6af465308d4cdf6dce1daeeffe7e0509e180d6ecd2435ec",
     "samples": {
       "AvatarSample_Y_0": "91db06068fa4b027365a2a9ff714f44c09ce8f3aed3ce598b42a35272535a1bf",
       "AvatarSample_A_1_New": "0378e632316ade18616b27332389867aa534421462af2f70ba23726fabdeb175"
@@ -609,7 +609,7 @@
     }
   },
   "single-hand-on-heart": {
-    "fileSha256": "9db18689a42905415e9f6d661df69bf1caaf181ffc3e41b6c72008abfb3c2dd7",
+    "fileSha256": "f9e347c62486ab782b0bac73b1e8ce454116e3241f7d10916cb5d319d7800178",
     "samples": {
       "AvatarSample_Y_0": "ad39720b8b150fd3ac57082a258aee8fcb3a34faf3008bd11270ad4d04067dd5",
       "AvatarSample_A_1_New": "cd4a96244a285a8288f4dfe95e9dd962d2c5f3248b91243ccbef347d59f6d687"
@@ -658,7 +658,7 @@
     }
   },
   "stretch-break": {
-    "fileSha256": "1aa3fe8539cf9d625e6d8e04589bdc5e140ce1c3c9fb5fad171f3c8bbcfac892",
+    "fileSha256": "86fe55c322a738206d8a263d3f6aaf3bfb3a2fdc9967ffc360a10e9c0cb8f03a",
     "samples": {
       "AvatarSample_Y_0": "800b8c8d8faf459d3da74eed1c7cecf374a31bdeb73ed5fced1151d5b8130149",
       "AvatarSample_A_1_New": "b0b8a83f341d44547834f5afcb5e4abbea8aa4bcee63ebfd180e1001b5d3378a"
@@ -679,7 +679,7 @@
     }
   },
   "tehepero": {
-    "fileSha256": "58ead69afc813e3fd96d0a8e0b6740a350a3f3574c973a413b6b56667374420d",
+    "fileSha256": "2c865f8f0027b2de17ee132cfb37529b4549619044531c21e7a9400e13d667c8",
     "samples": {
       "AvatarSample_Y_0": "13e8219ce0506c293892442c8dfed11a3ffe510ca97516214a99b85143165155",
       "AvatarSample_A_1_New": "c27781b6a2cada8f64e9b485db49e4892e2933398d53dfdd0068ca08d1e45d15"
@@ -742,7 +742,7 @@
     }
   },
   "virtual-hug": {
-    "fileSha256": "17e9f3c3bda4af09bfd3761a0906489af28d4089d2bdee9ab52a4b6a50f17cde",
+    "fileSha256": "5040f85c67d200deeda0e26e1de3d00acb0e0be727c538eafb0d15309ca673c8",
     "samples": {
       "AvatarSample_Y_0": "db5ca5572d1919954d7f549f59932d626db5e009f9b9e3f55b84cd71ff11396b",
       "AvatarSample_A_1_New": "ab60a44cea133b0a8739a3e7b27080f34f2b118503d7621d786fcfaeff285e08"

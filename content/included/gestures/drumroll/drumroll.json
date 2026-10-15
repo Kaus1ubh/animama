@@ -2431,20 +2431,33 @@
       "id": "drumroll-ticks-left",
       "time": 0.957,
       "kind": "avatar_vfx",
-      "effectId": "drumroll_ticks_left",
+      "effectId": "drumroll_ticks",
       "duration": 1.32,
       "envelope": {
         "intensity": {
           "fadeOut": 0.11
         }
       },
-      "playAccompanyingSound": false
+      "playAccompanyingSound": false,
+      "override": {
+        "attachment": {
+          "kind": "body",
+          "bone": "leftHand",
+          "offset": {
+            "x": 0.122,
+            "y": 0.006,
+            "z": 0.016
+          },
+          "size": 0.18,
+          "facing": "camera"
+        }
+      }
     },
     {
       "id": "badum-burst-right",
       "time": 2.508,
       "kind": "avatar_vfx",
-      "effectId": "badum_burst",
+      "effectId": "impact_burst",
       "duration": 1.4,
       "envelope": {
         "intensity": {
@@ -2456,14 +2469,28 @@
       "id": "badum-burst-left",
       "time": 2.541,
       "kind": "avatar_vfx",
-      "effectId": "badum_burst_left",
+      "effectId": "impact_burst",
       "duration": 1.367,
       "envelope": {
         "intensity": {
           "fadeOut": 0.3
         }
       },
-      "playAccompanyingSound": false
+      "playAccompanyingSound": false,
+      "override": {
+        "attachment": {
+          "kind": "body",
+          "bone": "hips",
+          "offset": {
+            "x": 0,
+            "y": 0.02,
+            "z": 0.322
+          },
+          "size": 0.19,
+          "facing": "camera",
+          "rotationDeg": 22.5
+        }
+      }
     }
   ]
 }

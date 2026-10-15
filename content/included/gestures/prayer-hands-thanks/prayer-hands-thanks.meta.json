@@ -12,8 +12,8 @@
   },
   "dependencies": [
     {
-      "ref": "builtin:avatar-effect:hearts_burst_hands",
-      "alias": "hearts_burst_hands",
+      "ref": "builtin:avatar-effect:hearts_burst",
+      "alias": "hearts_burst",
       "content_type": "avatar_effect",
       "config": {}
     }

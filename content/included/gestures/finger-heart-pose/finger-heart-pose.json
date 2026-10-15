@@ -1655,7 +1655,7 @@
       "id": "finger-heart-pop",
       "time": 0.73,
       "kind": "avatar_vfx",
-      "effectId": "finger_heart_pop",
+      "effectId": "heart_pop",
       "duration": 0.77,
       "envelope": {
         "intensity": {

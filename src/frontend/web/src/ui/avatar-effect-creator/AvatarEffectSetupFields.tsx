@@ -608,7 +608,13 @@ function SidesField({
   );
 }
 
-function AttachmentFields({
+/**
+ * Where on its attachment kind the art goes (landmark, face area, body point,
+ * sticker side, silhouette fill) and the sides it is drawn on. Dispatches only
+ * `patch-attachment`, so it never changes the kind; the Action creator reuses
+ * it to place one use of an effect.
+ */
+export function AttachmentFields({
   attachment,
   invalid,
   onDispatch,

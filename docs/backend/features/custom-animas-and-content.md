@@ -41,7 +41,7 @@ mid-conversation.
 
 ## Idle pool
 
-Every Anima owns one Idle pool ([ADR 0025](../../adr/0025-built-in-idle-pool-per-anima.md)):
+Every Anima owns one Idle pool ([ADR 0026](../../adr/0026-built-in-idle-pool-per-anima.md)):
 a Default pool plus a cell for each tracked emotion at intensities 1–3. Each
 member is an `anima_content_bindings` row with kind `gesture` and slot
 `idle:<cell>:<catalog_item_id>`, where `<cell>` is `default` or

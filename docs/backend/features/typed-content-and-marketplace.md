@@ -149,7 +149,12 @@ Avatar Effect Save applies the package export rules
 A rejected definition returns 422 with
 `{"code": "content_invalid", "reason": "avatar_effect_definition_invalid",
 "message": …, "field": "definition.<json path>"}`; other document errors carry
-the same `message` and, when known, `field`.
+the same `message` and, when known, `field`. Gesture and Reaction Save checks
+each `avatar_vfx` event's override against the effect it names, when that
+effect is visible: the definition the use plays must be valid, or Save returns
+reason `action_effect_override_invalid` with `field`
+`event.<event id>.override.<json path>`. Package import and export apply the
+same check with `package_definition_invalid`.
 
 ## Anima loadout and runtime
 

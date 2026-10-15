@@ -16,12 +16,6 @@
       "alias": "cheer_sparkles_head",
       "content_type": "avatar_effect",
       "config": {}
-    },
-    {
-      "ref": "builtin:avatar-effect:cheer_sparkles_head_left",
-      "alias": "cheer_sparkles_head_left",
-      "content_type": "avatar_effect",
-      "config": {}
     }
   ],
   "files": [

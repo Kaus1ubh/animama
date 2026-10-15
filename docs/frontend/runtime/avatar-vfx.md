@@ -5,8 +5,10 @@ around an Anima's Avatar: painted onto the face, floating in front of it,
 following a body point, placed beside the Avatar as a sticker, or filling its
 silhouette. Effects are never equipped directly. A Gesture or Reaction plays
 one through an `avatar_vfx` clip event, which owns when it starts and ends and
-its fade; the effect owns its art, look and motion. An effect's optional Sound
-is a second exact dependency of that Action.
+its fade, and may override the effect's placement, look, motion and sound for
+that one use ([section 7](#7-timing-fades-and-motion)); the effect owns its
+art and their defaults. An effect's optional Sound is a second exact
+dependency of that Action.
 
 Emitted sprites are [Particle Effects](avatar-particle-vfx.md); backgrounds
 and focus lines are [Scene Effects](scene-vfx.md). See
@@ -178,7 +180,11 @@ skipped with a diagnostic.
     | `body`, `sticker`, `silhouette`         | attachment entry                   | `AvatarAttachmentEffects`        |
 
 4. The mounted catalog loads the images (one Blob URL per image, revoked when
-   the catalog is disposed) and the controller applies the entry through
+   the catalog is disposed). For an event with an override,
+   `loadAvatarVFX(id, override)` parses that use from the effect's definition
+   and the same images (`parseAvatarEffectUse`) and never caches it under the
+   effect's id; a use the effect cannot play resolves to null and the event is
+   skipped. The controller applies the entry through
    `applyTextureVFX`, `applyFaceAnchoredVFX`, `applyHoverVFX` or
    `applyAttachmentVFX`; `applyAvatarVFXEffectById` chooses one. Stale async
    results are discarded.
@@ -345,8 +351,9 @@ clip cleanup and `presentation.disable_vfx`.
 
 ## 7) Timing, fades and motion
 
-The effect owns its own motion: presets, keyframes and flipbook frames run on
-its own timeline from the moment it applies. Pulse multiplies scale; spin
+The effect sets its default motion (an event may override it for one use):
+presets, keyframes and flipbook frames run on its own timeline from the moment
+it applies. Pulse multiplies scale; spin
 below one turn rocks back and forth and otherwise wraps; drift moves
 continuously, in fractions of the art's size per second, with no return.
 Planes animate their transforms; composites redraw around each placement's own
@@ -366,6 +373,19 @@ effect never shows bare eye sockets under faint art. The Gesture and Reaction
 creator's preview samples the envelope too, while playing and when paused.
 Events that end **With Action** do not fade. Parameter
 keyframes are not supported for Avatar Effects.
+
+An event's optional `override` changes the effect for that use only
+([ADR 0025](../../adr/0025-per-use-avatar-effect-overrides.md)): any of
+`attachment` (same kind), `appearance` and `motion`, each replacing the
+effect's part whole, and `soundAlias`, which picks one of the effect's
+declared sounds (an unknown or unmounted one is silent). Clip parsing checks
+the shape; backend Save and package import/export also check the definition
+the use plays and name the failing field (`event.<id>.override…`), as the
+reason `action_effect_override_invalid` at Save. In the Action creator, an
+`avatar_vfx` event's inspector shows **This use**: the effect creator's
+placement, look and motion controls, direct manipulation on the paused
+preview, a sound choice when the effect declares several, and **Reset to
+effect**. Edits store only the parts that differ from the effect.
 
 ## 8) Creator
 
@@ -470,7 +490,8 @@ sourced (or `--local-content`).
 ```bash
 pnpm -s effects:assets check art/*.png --budget landmark
 pnpm -s effects:assets fix art/drop-src.png --out art/drop.png --remove-background --trim --pad 8 --square --budget landmark
-pnpm -s effects:assets flipbook frames/*.png --out art/steam.png --cell 256 --fps 10
+pnpm -s effects:assets frames art/mark.png --mode boil --out-dir frames
+pnpm -s effects:assets flipbook frames/mark-boil-01.png frames/mark-boil-02.png frames/mark-boil-03.png frames/mark-boil-04.png --out art/mark-sheet.png --fps 8
 pnpm -s effects:assets preview art/drop.png --out /tmp/drop-preview.png
 ```
 
@@ -489,6 +510,20 @@ pnpm -s effects:assets preview art/drop.png --out /tmp/drop-preview.png
   layout, and a Scene tile's or background's margins are its spacing and
   framing. Only art placed by its own framing (iris and decal art) is
   reframed, with `--canvas`.
+- `frames <key.png> --mode boil|draw-on --out-dir <dir>` derives consistent
+  flipbook frames from one key image, each on the key's canvas, so painted
+  face art keeps its UV layout. `boil` (4 frames by default) warps the art by
+  a smooth, seeded random displacement of at most `--amplitude` px (default
+  1.25% of the key's longer side, at most 8) per frame, so the lines wobble
+  like hand-traced art; `--seed` repeats or varies it. `draw-on` (6 frames)
+  reveals the art outward from `--origin x,y` (fractions of the canvas;
+  default the art's centre) or as a wipe toward `--direction
+  right|left|up|down`; `--break-off` (8 frames) reveals in the first half and
+  then clears the art from the same start. `--frames`
+  sets the count (2–64). Frames get `fix`'s alpha clean-up and edge bleed,
+  are written as `<key>-<mode>-NN.png`, and the command prints the `flipbook`
+  command with a suitable rate (boil loops at 8 fps, a draw-on plays once at
+  12 fps). It never overwrites the key.
 - `flipbook` lays frames out left to right, top to bottom, within the grid
   limits, fitting them into `--cell` when sizes differ and settling their alpha
   after resampling, and prints the `art.flipbook` fragment. `--trim` crops
@@ -746,6 +781,7 @@ per render; a silhouette adds one skinned draw per overlaid primitive (about
 | Image refused or effect skipped on load                                                                    | It exceeds the image limits; resize it.                                                                                                                                                                                    |
 | Floating art saved with a sideways or forward offset sits mirrored on a VRM 0 Avatar                       | It was saved when floating offsets followed the head's model axes. Floating offsets use the Avatar's front frame on every model; drag it back or flip the sign of `offset.x`/`offset.z`.                                   |
 | A mirrored eye moved the wrong way after conversion                                                        | `avatar_effect_offset_mirrored`: `/2` mirrors x offsets on the mirrored copy. Adjust the offset.                                                                                                                           |
+| An effect event never shows; the console warns "Avatar VFX override cannot play"                           | The event's override makes a definition the effect cannot play (Save names it: `action_effect_override_invalid`, `event.<id>.override…`). Fix that field, or use **Reset to effect** under the event's **This use**.       |
 | Works in the creator but not in chat                                                                       | The effect must be in a saved, selected Gesture or Reaction in the mounted catalog, and Disable VFX must be off.                                                                                                           |
 
 ## 12) Limitations

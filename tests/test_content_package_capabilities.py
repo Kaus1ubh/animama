@@ -485,3 +485,32 @@ def test_shipped_typed_content_uses_supported_portable_primitives() -> None:
         )
         validate_declared_capabilities(requirements)
     assert entries
+
+
+def test_clip_effect_overrides_are_checked_against_the_bundled_effect(tmp_path: Path) -> None:
+    data = json.loads((FRONTEND / "avatar/poses/animaPoseClip/fixtures/compatibility-valid-v2.json").read_text())
+    event = {"id": "star", "time": 0.1, "kind": "avatar_vfx", "effectId": "star"}
+    effect = {
+        "schema": "animama/avatar-effect/2",
+        "region": "body",
+        "attachment": {"kind": "body", "bone": "head"},
+        "art": {"image": "star.png"},
+    }
+    document = _document(
+        "reaction",
+        files=[{"path": "action.json", "role": "sequence"}],
+        dependencies=[{"ref": "fixture-star", "alias": "star", "content_type": "avatar_effect"}],
+    )
+    documents = {"fixture-star": _document("avatar_effect", definition=effect)}
+    path = tmp_path / "action.json"
+
+    data["events"] = [{**event, "override": {"attachment": {"kind": "body", "bone": "leftHand", "size": 0.08}}}]
+    path.write_text(json.dumps(data))
+    derive_capabilities(document.kind, document, {"action.json": path}, documents=documents)
+
+    data["events"] = [{**event, "override": {"attachment": {"kind": "sticker"}}}]
+    path.write_text(json.dumps(data))
+    with pytest.raises(ContentDocumentError) as error:
+        derive_capabilities(document.kind, document, {"action.json": path}, documents=documents)
+    assert error.value.code == "package_definition_invalid"
+    assert error.value.field == "event.star.override.attachment.kind"

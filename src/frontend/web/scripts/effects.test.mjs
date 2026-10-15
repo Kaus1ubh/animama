@@ -461,7 +461,8 @@ async function fixtureRepo() {
   };
   await effect("eye", "eye_r.png");
   await effect("old_pair", "pair.png");
-  // "eye" already plays a licensed sound; a replace keeps it.
+  // "eye" already plays licensed sounds (a merged effect declares several);
+  // a replace keeps them.
   const eyePath = path.join(root, "content/included/vfx/avatar/eye/eye.json");
   const eye = JSON.parse(await readFile(eyePath, "utf8"));
   eye.dependencies = [
@@ -469,6 +470,12 @@ async function fixtureRepo() {
       ref: "builtin:sound-effect:pop",
       content_type: "sound_effect",
       alias: "on-apply",
+      optional: true,
+    },
+    {
+      ref: "builtin:sound-effect:ding",
+      content_type: "sound_effect",
+      alias: "ding",
       optional: true,
     },
   ];
@@ -651,8 +658,11 @@ test("promotion adds, replaces and deletes Included effects with records", async
   assert.equal(eye.name, "EYE");
   assert.equal(eye.description, "Upgraded eye");
   assert.equal(eye.definition.art.image, "eye_new.png");
-  // The replace kept the effect's licensed sound.
-  assert.equal(eye.dependencies[0].ref, "builtin:sound-effect:pop");
+  // The replace kept the effect's licensed sounds.
+  assert.deepEqual(
+    eye.dependencies.map((edge) => edge.ref),
+    ["builtin:sound-effect:pop", "builtin:sound-effect:ding"],
+  );
   assert.equal(eye.definition.soundAlias, "on-apply");
   assert.deepEqual(
     (await readdir(path.join(root, "content/included/vfx/avatar"))).sort(),

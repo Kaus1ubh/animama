@@ -203,10 +203,12 @@ def test_every_reaction_emotion_has_a_variant_with_an_avatar_effect() -> None:
 
 
 def test_included_avatar_effect_sounds_are_optional_licensed_pack_sounds() -> None:
-    """A built-in Avatar Effect plays at most one sound, from the private comedy pack.
+    """A built-in Avatar Effect's sounds come from the private comedy pack.
 
-    Most effects have one; some are silent by owner choice (idle-only effects,
-    and gags the owner preferred quiet, #409).
+    Most effects have one; a merged effect declares each of its uses' sounds
+    and names its own in ``soundAlias`` (ADR 0025); some are silent by owner
+    choice (idle-only effects, and gags the owner preferred quiet, #409).
+    Events that pick a sound name one the effect declares.
     """
 
     manifest = json.loads(
@@ -216,22 +218,36 @@ def test_included_avatar_effect_sounds_are_optional_licensed_pack_sounds() -> No
     effects = sorted((ROOT / "content/included/vfx/avatar").glob("*/*.json"))
     assert effects
     referenced: set[str] = set()
+    declared: dict[str, set[str]] = {}
     for path in effects:
         document = json.loads(path.read_text(encoding="utf-8"))
         edges = document["dependencies"]
-        assert len(edges) <= 1, path.name
+        aliases = {edge["alias"] for edge in edges}
+        declared[document["content_id"]] = aliases
         if not edges:
             assert "soundAlias" not in document["definition"], path.name
             continue
-        [edge] = edges
-        assert edge["content_type"] == "sound_effect" and edge["optional"] is True, path.name
-        assert document["definition"]["soundAlias"] == edge["alias"], path.name
-        key = edge["ref"].removeprefix("builtin:sound-effect:")
-        assert {f"sfx/wow-comedy/{key}.ogg", f"sfx/wow-comedy/{key}.meta.json"} <= shipped, path.name
-        referenced.add(key)
+        assert len(aliases) == len(edges), path.name
+        assert document["definition"]["soundAlias"] in aliases, path.name
+        for edge in edges:
+            assert edge["content_type"] == "sound_effect" and edge["optional"] is True, path.name
+            key = edge["ref"].removeprefix("builtin:sound-effect:")
+            assert {f"sfx/wow-comedy/{key}.ogg", f"sfx/wow-comedy/{key}.meta.json"} <= shipped, path.name
+            referenced.add(key)
     # Only sounds that built-in effects use are shipped (owner decision Q3).
     expected = {f"sfx/wow-comedy/{key}{suffix}" for key in referenced for suffix in (".ogg", ".meta.json")}
     assert shipped == expected
+
+    for meta in sorted((ROOT / "content/included").glob("*/*/*.meta.json")):
+        if meta.parts[-3] not in {"reactions", "gestures"}:
+            continue
+        descriptor = json.loads(meta.read_text(encoding="utf-8"))
+        refs = {edge.get("alias"): edge["ref"] for edge in descriptor.get("dependencies", [])}
+        clip = json.loads((meta.parent / meta.name.replace(".meta.json", ".json")).read_text(encoding="utf-8"))
+        for event in clip.get("events", []) if isinstance(clip, dict) else []:
+            alias = (event.get("override") or {}).get("soundAlias") if event.get("kind") == "avatar_vfx" else None
+            if alias is not None:
+                assert alias in declared[refs[event["effectId"]]], (meta.name, event["id"])
 
 
 def test_stacked_avatar_effects_play_one_accompanying_sound_at_a_time() -> None:

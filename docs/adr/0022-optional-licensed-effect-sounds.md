@@ -7,6 +7,8 @@
   review, in [issue #399](https://github.com/raymond-van/animama/issues/399))
 - Decision basis: [issue #399](https://github.com/raymond-van/animama/issues/399)
   and the [execution plan](../plans/licensed-comedy-sfx/licensed-comedy-sfx-execplan.md)
+- Amended: 2026-10-14, a built-in effect may declare several sounds and each
+  use picks one ([ADR 0025](0025-per-use-avatar-effect-overrides.md))
 
 ## Context
 
@@ -73,7 +75,9 @@ Consequences:
   vendor's soundboard and sound-library restrictions.
 - Release remains gated on the vendor's written confirmation of the
   distribution model.
-- A built-in effect has at most one sound. Some are silent by owner choice
+- A built-in effect has at most one sound (amended by
+  [ADR 0025](0025-per-use-avatar-effect-overrides.md): several, one per use).
+  Some are silent by owner choice
   (2026-10-11, [issue #409](https://github.com/raymond-van/animama/issues/409)):
   effects used only by idles, and gags the owner preferred quiet.
 

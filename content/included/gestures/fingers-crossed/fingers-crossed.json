@@ -1594,26 +1594,135 @@
       "id": "wish-star",
       "time": 0.84,
       "kind": "avatar_vfx",
-      "effectId": "kira_star_wish",
+      "effectId": "kira_star",
       "duration": 1,
       "envelope": {
         "intensity": {
           "fadeOut": 0.25
         }
+      },
+      "override": {
+        "attachment": {
+          "kind": "body",
+          "bone": "rightHand",
+          "offset": {
+            "x": -0.143,
+            "y": 0.017,
+            "z": 0.083
+          },
+          "size": 0.06,
+          "facing": "camera"
+        },
+        "motion": {
+          "pulse": {
+            "scaleMin": 0.9,
+            "scaleMax": 1.08,
+            "cyclesPerSecond": 1.6
+          },
+          "keyframes": {
+            "frames": [
+              {
+                "t": 0,
+                "opacity": 0,
+                "scale": 0.2,
+                "rotationDeg": -45
+              },
+              {
+                "t": 0.1,
+                "opacity": 1,
+                "scale": 1.25,
+                "rotationDeg": 8
+              },
+              {
+                "t": 0.2,
+                "scale": 0.92,
+                "rotationDeg": 0
+              },
+              {
+                "t": 0.28,
+                "scale": 1
+              },
+              {
+                "t": 0.36,
+                "scale": 1.12
+              },
+              {
+                "t": 0.46,
+                "scale": 1
+              }
+            ]
+          }
+        },
+        "soundAlias": "digital_chime_magical_02"
       }
     },
     {
       "id": "wish-star-left",
       "time": 0.94,
       "kind": "avatar_vfx",
-      "effectId": "kira_star_wish_left",
+      "effectId": "kira_star",
       "duration": 0.92,
       "envelope": {
         "intensity": {
           "fadeOut": 0.25
         }
       },
-      "playAccompanyingSound": false
+      "playAccompanyingSound": false,
+      "override": {
+        "attachment": {
+          "kind": "body",
+          "bone": "leftHand",
+          "offset": {
+            "x": 0.147,
+            "y": 0.016,
+            "z": 0.082
+          },
+          "size": 0.06,
+          "facing": "camera",
+          "rotationDeg": 10
+        },
+        "motion": {
+          "pulse": {
+            "scaleMin": 0.9,
+            "scaleMax": 1.08,
+            "cyclesPerSecond": 1.6
+          },
+          "keyframes": {
+            "frames": [
+              {
+                "t": 0,
+                "opacity": 0,
+                "scale": 0.2,
+                "rotationDeg": -45
+              },
+              {
+                "t": 0.1,
+                "opacity": 1,
+                "scale": 1.25,
+                "rotationDeg": 8
+              },
+              {
+                "t": 0.2,
+                "scale": 0.92,
+                "rotationDeg": 0
+              },
+              {
+                "t": 0.28,
+                "scale": 1
+              },
+              {
+                "t": 0.36,
+                "scale": 1.12
+              },
+              {
+                "t": 0.46,
+                "scale": 1
+              }
+            ]
+          }
+        },
+        "soundAlias": "digital_chime_magical_02"
+      }
     }
   ]
 }
