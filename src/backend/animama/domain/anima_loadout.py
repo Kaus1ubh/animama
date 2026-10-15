@@ -11,8 +11,11 @@ from dataclasses import dataclass, field
 from typing import Any, Literal
 
 from .content_catalog import ContentSource
-from .content_documents import IdleStyleCellV2
+from .emotions import TRACKED_EMOTIONS
 from .runtime_content_slot import RuntimeContentSlot
+
+IDLE_DEFAULT_CELL = "default"
+"""Cell key of the Idle pool used for neutral and for every empty emotion cell."""
 
 
 @dataclass(frozen=True, slots=True, order=True)
@@ -65,40 +68,62 @@ class ReactionCell:
     config_overrides: dict[str, Any] = field(default_factory=dict)
 
 
-@dataclass(frozen=True, slots=True)
-class IdleAnimationSummary:
-    animation_id: str
-    name: str
-    description: str | None = None
+def idle_cell_key(emotion: str | None, intensity: int | None) -> str:
+    """Return ``default`` for the Default pool, else ``<emotion>-<intensity>``.
+
+    Raises ``AnimaLoadoutError("idle_cell_invalid")`` for any other pair.
+    """
+
+    if emotion is None and intensity is None:
+        return IDLE_DEFAULT_CELL
+    if emotion not in TRACKED_EMOTIONS or intensity not in {1, 2, 3}:
+        raise AnimaLoadoutError("idle_cell_invalid")
+    return f"{emotion}-{intensity}"
+
+
+def idle_slot_key(cell: str, item_id: str) -> str:
+    """Binding slot of one Idle pool member; one row per Gesture per cell."""
+
+    return f"idle:{cell}:{item_id}"
+
+
+def parse_idle_slot_key(slot_key: str) -> tuple[str, str] | None:
+    """Split an Idle member slot into ``(cell, catalog_item_id)``, or ``None`` for other slots."""
+
+    prefix, _, rest = slot_key.partition(":")
+    cell, separator, item_id = rest.partition(":")
+    if prefix != "idle" or not separator or not cell or not item_id:
+        return None
+    return cell, item_id
 
 
 @dataclass(frozen=True, slots=True)
-class IdleGestureSummary:
-    """A Style pool member; selection does not equip it for AI invocation."""
+class IdleMember:
+    """One Gesture in an Anima's Idle pool. Membership never equips it for AI invocation."""
 
+    binding_id: str
     item_id: str
-    logical_key: str | None
     name: str
+    available: bool
+    source: CatalogLoadoutSource | None = None
     description: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
-class IdleStyleBinding:
-    state: Literal["starter", "custom", "empty"]
-    name: str | None = None
-    description: str | None = None
-    source: CatalogLoadoutSource | None = None
-    schema_version: int = 2
-    default_pool: tuple[str, ...] = ()
-    cells: dict[str, dict[str, IdleStyleCellV2]] = field(default_factory=dict)
-    gestures: tuple[IdleGestureSummary, ...] = ()
-    animations: tuple[IdleAnimationSummary, ...] = ()
-    document_default_pool: tuple[str, ...] = ()
-    document_emotion_pools: dict[str, tuple[str, ...]] = field(default_factory=dict)
-    effective_default_pool: tuple[str, ...] = ()
-    effective_emotion_pools: dict[str, tuple[str, ...]] = field(default_factory=dict)
-    pool_overrides: dict[str, tuple[str, ...]] = field(default_factory=dict)
-    cross_fade_seconds: float = 0.35
+class IdleCell:
+    """One emotion/intensity cell. An empty cell uses the Default pool."""
+
+    emotion: str
+    intensity: int
+    gestures: tuple[IdleMember, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class IdlePool:
+    """The Anima's built-in Idle pool: Default plus all 72 emotion/intensity cells."""
+
+    default_pool: tuple[IdleMember, ...] = ()
+    cells: tuple[IdleCell, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -123,7 +148,7 @@ class AnimaLoadout:
     gestures: tuple[GestureBinding, ...]
     disabled_starter_gestures: tuple[str, ...]
     reactions: tuple[ReactionCell, ...]
-    idle_style: IdleStyleBinding
+    idle: IdlePool
     avatar_source: CatalogLoadoutSource | None = None
     appearances: tuple[AppearanceBinding, ...] = ()
     voice_source: CatalogLoadoutSource | None = None
@@ -167,11 +192,16 @@ __all__ = [
     "AppearanceBinding",
     "CatalogLoadoutSource",
     "GestureBinding",
-    "IdleAnimationSummary",
-    "IdleStyleBinding",
+    "IDLE_DEFAULT_CELL",
+    "IdleCell",
+    "IdleMember",
+    "IdlePool",
     "LoadoutCommitResult",
     "LoadoutDiagnostic",
     "LoadoutPlan",
     "ReactionCell",
     "StarterEntryIdentity",
+    "idle_cell_key",
+    "idle_slot_key",
+    "parse_idle_slot_key",
 ]

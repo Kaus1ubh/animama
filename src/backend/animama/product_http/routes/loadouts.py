@@ -14,8 +14,8 @@ from animama.app.contracts.anima_loadout import (
     PyAppearancePlanRequest,
     PyGestureCommitRequest,
     PyGesturePlanRequest,
-    PyIdleStyleCommitRequest,
-    PyIdleStylePlanRequest,
+    PyIdleCommitRequest,
+    PyIdlePlanRequest,
     PyLoadoutCommitResult,
     PyLoadoutPlan,
     PyReactionCommitRequest,
@@ -23,10 +23,17 @@ from animama.app.contracts.anima_loadout import (
     PySingleSelectionCommitRequest,
     PySingleSelectionPlanRequest,
 )
+from animama.app.ports.content_store import ContentStore
 from animama.app.services.anima_loadout_service import LoadoutFamily
 from animama.domain.anima_loadout import AnimaLoadoutError
 from animama.domain.request_principal import RequestPrincipal
-from animama.product_http.ports import ProductRepositories, ReadRepositories, WriteRepositories
+from animama.product_http.ports import (
+    ProductRepositories,
+    ReadContent,
+    ReadRepositories,
+    WriteContent,
+    WriteRepositories,
+)
 from animama.product_http.principal import get_current_principal
 
 router = APIRouter(prefix="/v1/animas", tags=["anima-loadout"])
@@ -64,6 +71,7 @@ async def _plan(
     body: BaseModel,
     user: RequestPrincipal,
     repositories: ProductRepositories,
+    store: ContentStore | None = None,
 ) -> PyLoadoutPlan:
     data = body.model_dump(exclude_none=True)
     try:
@@ -73,6 +81,7 @@ async def _plan(
             family=family,
             expected_revision=int(data["expected_revision"]),
             intent=dict(data["intent"]),
+            store=store,
         )
         return PyLoadoutPlan.from_domain(value)
     except AnimaLoadoutError as exc:
@@ -86,6 +95,7 @@ async def _commit(
     body: BaseModel,
     user: RequestPrincipal,
     repositories: ProductRepositories,
+    store: ContentStore | None = None,
 ) -> PyLoadoutCommitResult:
     data = body.model_dump(exclude_none=True)
     try:
@@ -97,6 +107,7 @@ async def _commit(
             intent=dict(data["intent"]),
             plan_digest=str(data["plan_digest"]),
             idempotency_key=str(data["idempotency_key"]),
+            store=store,
         )
         return PyLoadoutCommitResult.from_domain(value)
     except AnimaLoadoutError as exc:
@@ -144,24 +155,34 @@ async def commit_reaction(
     return await _commit(family="reaction", anima_id=anima_id, body=body, user=user, repositories=repositories)
 
 
-@router.post("/{anima_id}/idle-style:plan", response_model=PyLoadoutPlan)
-async def plan_idle_style(
+@router.post("/{anima_id}/idle:plan", response_model=PyLoadoutPlan)
+async def plan_idle(
     anima_id: str,
-    body: PyIdleStylePlanRequest,
+    body: PyIdlePlanRequest,
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
     repositories: ReadRepositories,
+    content: ReadContent,
 ) -> PyLoadoutPlan:
-    return await _plan(family="idle_style", anima_id=anima_id, body=body, user=user, repositories=repositories)
+    """Plan adding or removing one Gesture in the Anima's Idle pool."""
+
+    return await _plan(
+        family="idle", anima_id=anima_id, body=body, user=user, repositories=repositories, store=content.store
+    )
 
 
-@router.post("/{anima_id}/idle-style:commit", response_model=PyLoadoutCommitResult)
-async def commit_idle_style(
+@router.post("/{anima_id}/idle:commit", response_model=PyLoadoutCommitResult)
+async def commit_idle(
     anima_id: str,
-    body: PyIdleStyleCommitRequest,
+    body: PyIdleCommitRequest,
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
     repositories: WriteRepositories,
+    content: WriteContent,
 ) -> PyLoadoutCommitResult:
-    return await _commit(family="idle_style", anima_id=anima_id, body=body, user=user, repositories=repositories)
+    """Commit one planned Idle pool change; an add rechecks the Gesture's finite playback."""
+
+    return await _commit(
+        family="idle", anima_id=anima_id, body=body, user=user, repositories=repositories, store=content.store
+    )
 
 
 @router.post("/{anima_id}/music-tracks:commit", response_model=PyLoadoutCommitResult, include_in_schema=False)

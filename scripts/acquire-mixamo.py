@@ -108,16 +108,10 @@ def install(manifest: dict, source: Path, local: Path) -> dict:
         item = Path(*destination.parts[:2]).as_posix()
         contained(local, destination.as_posix())
         groups.setdefault(item, []).append((input_file, destination.relative_to(item).as_posix(), digest(input_file)))
-        # Idle motions are ordinary Gesture items too. The Style below only
-        # references them; it owns no animation bytes or playback overrides.
+        # Idle motions are ordinary Gesture items; add them to an Anima's Idle pool by hand.
         document = copy.deepcopy(asset["document"])
         document["content_id"] = f"local:gesture:{destination.parts[1]}"
         documents[item] = (f"{destination.parts[1]}.meta.json", document)
-    idle = copy.deepcopy(manifest["idle_style_document"])
-    idle["content_id"] = "local:idle-style:mixamo-starter"
-    idle["name"] = "Mixamo Idle Motions"
-    documents["idle-styles/mixamo-starter"] = ("mixamo-starter.json", idle)
-    groups["idle-styles/mixamo-starter"] = []
     local.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix=".mixamo-install-", dir=local) as temporary:
         stage = Path(temporary)

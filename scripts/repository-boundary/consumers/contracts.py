@@ -19,7 +19,7 @@ MODULES = (
     "content",
     "dispatch",
     "elevenlabs",
-    "idle_style",
+    "idle",
     "memory_entry",
     "memory_manager",
     "model_provider",

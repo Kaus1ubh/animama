@@ -27,6 +27,7 @@ from animama.app.services.memory_entry_service import (
     MemoryEntryService,
     MemoryEntryValidationError,
 )
+from animama.domain.anima_creation import ResolvedIdleMember
 from animama.domain.anima_definition import (
     ANIMA_MEMORIES_TEMPLATE,
     DEFAULT_ANIMA_VOICE_ID,
@@ -34,8 +35,8 @@ from animama.domain.anima_definition import (
     normalize_display_name,
     normalize_identity,
 )
-from animama.domain.anima_loadout import AnimaLoadoutError
-from animama.domain.content_catalog import ContentConflictError, ContentKind
+from animama.domain.anima_loadout import IDLE_DEFAULT_CELL, AnimaLoadoutError
+from animama.domain.content_catalog import CatalogContentEntry, ContentConflictError
 from animama.domain.request_principal import RequestPrincipal
 from animama.orm import (
     ORMAnima,
@@ -59,6 +60,7 @@ from animama.server.schemas.anima import PyAnimaUpdate, PyAnimaUpdateRequest
 from tests.anima_creation_support import creation_fixture
 from tests.local_http_client import local_client
 from tests.product_http_support import SessionPorts
+from tests.typed_loadout_support import LoadoutFixture, add_typed_item
 
 _T = TypeVar("_T")
 
@@ -71,6 +73,22 @@ def _required(value: _T | None) -> _T:
 
 def memory_service(uow: SQLAlchemyAnimaAggregateUnitOfWork) -> MemoryEntryService:
     return MemoryEntryService(memory_entries=uow.memory_entries, animas=uow.animas, uow=uow)
+
+
+async def owned_gesture(async_session, user_id: str, name: str) -> CatalogContentEntry:
+    """Add one owner Gesture; the creation fixture's owner cleanup retires it."""
+
+    row = await add_typed_item(
+        async_session,
+        LoadoutFixture(user_id, "", "", ""),
+        kind="gesture",
+        name=name,
+        metadata={
+            "semantic_key": name.lower().replace(" ", "_"),
+            "implementation": {"kind": "anima_clip", "file_role": "sequence"},
+        },
+    )
+    return _required(await SQLAlchemyContentCatalog(async_session).get_visible_item(user_id=user_id, item_id=row.id))
 
 
 @pytest_asyncio.fixture
@@ -94,7 +112,6 @@ async def creation(async_session):
         await async_session.execute(delete(ORMAvatar).where(ORMAvatar.user_id == fixture.user_id))
         source_ids = [
             fixture.spec.avatar.id,
-            _required(fixture.spec.idle_style).id,
             _required(fixture.spec.profile).source.id,
             _required(fixture.spec.background).source.id,
         ]
@@ -143,7 +160,12 @@ async def test_materializer_owns_no_commit_provider_or_runtime_and_seeds_exact_d
     monkeypatch.setattr("animama.app.services.anima_runtime_service.AnimaRuntimeService.issue", runtime_call)
     commit = AsyncMock(side_effect=AssertionError("Materializer must not commit"))
     monkeypatch.setattr(uow, "commit", commit)
-    spec = replace(fixture.spec, voice_profile={"primary_voice": {"voice_id": voice_id}}) if voice_id else fixture.spec
+    idle = await owned_gesture(async_session, fixture.user_id, "Idle Sway")
+    spec = replace(
+        fixture.spec,
+        idle=(ResolvedIdleMember(idle, IDLE_DEFAULT_CELL), ResolvedIdleMember(idle, "joy-2")),
+    )
+    spec = replace(spec, voice_profile={"primary_voice": {"voice_id": voice_id}}) if voice_id else spec
     anima = await fixture.materializer.materialize(user_id=fixture.user_id, spec=spec, uow=uow)
     assert async_session.in_transaction()
     observer = async_sessionmaker(async_session.bind, expire_on_commit=False)
@@ -187,7 +209,11 @@ async def test_materializer_owns_no_commit_provider_or_runtime_and_seeds_exact_d
     assert loadout.gestures == () and len(loadout.reactions) == 72
     assert all(cell.state == "empty" for cell in loadout.reactions)
     assert loadout.voice_source is None
-    assert _required(loadout.idle_style.source).catalog_item_id == spec.idle_style.id
+    # The resolved Idle members land in their cells without equipping an AI-callable Gesture.
+    assert [member.item_id for member in loadout.idle.default_pool] == [idle.id]
+    assert len(loadout.idle.cells) == 72
+    filled = {(cell.emotion, cell.intensity): cell.gestures for cell in loadout.idle.cells if cell.gestures}
+    assert list(filled) == [("joy", 2)] and [member.item_id for member in filled["joy", 2]] == [idle.id]
     assert {entry.use for entry in loadout.appearances} == {"profile", "background"}
     assert (
         await async_session.scalar(select(func.count()).select_from(ORMChat).where(ORMChat.anima_id == anima.id)) == 0
@@ -697,7 +723,8 @@ async def test_invalid_resolved_inputs_leave_no_aggregate(async_session, creatio
     if invalid == "matrix":
         spec = replace(spec, reactions=spec.reactions[:-1])
     elif invalid == "idle":
-        spec = replace(spec, idle_style=replace(_required(spec.idle_style), kind=ContentKind.AVATAR))
+        # Idle members must be Gestures; the Avatar is valid content of the wrong kind.
+        spec = replace(spec, idle=(ResolvedIdleMember(spec.avatar, IDLE_DEFAULT_CELL),))
     elif invalid == "stale_avatar":
         spec = replace(spec, avatar=replace(spec.avatar, revision_sha256="f" * 64))
     elif invalid == "stale_profile":
@@ -714,8 +741,10 @@ async def test_invalid_resolved_inputs_leave_no_aggregate(async_session, creatio
     else:
         owner = "not-the-content-owner"
     uow = SQLAlchemyAnimaAggregateUnitOfWork(async_session)
-    with pytest.raises((AnimaDefinitionError, AnimaLoadoutError)):
+    with pytest.raises((AnimaDefinitionError, AnimaLoadoutError)) as error:
         await fixture.materializer.materialize(user_id=owner, spec=spec, uow=uow)
+    if invalid == "idle":
+        assert isinstance(error.value, AnimaLoadoutError) and error.value.code == "loadout_source_unavailable"
     await uow.rollback()
     assert await async_session.scalar(select(func.count()).select_from(ORMAnima).where(ORMAnima.user_id == owner)) == 0
     assert await async_session.get(ORMContentCatalogItem, fixture.spec.avatar.id) is not None
@@ -744,7 +773,6 @@ async def test_null_appearance_does_not_inherit_background_or_profile(async_sess
 async def test_resolved_binding_configuration_survives_materialization(async_session, creation) -> None:
     from animama.domain.anima_creation import ResolvedGestureSelection, ResolvedReactionSelection
     from animama.orm.content_catalog import ORMAnimaContentBinding
-    from tests.typed_loadout_support import LoadoutFixture, add_typed_item
 
     fixture = creation
     catalog = SQLAlchemyContentCatalog(async_session)

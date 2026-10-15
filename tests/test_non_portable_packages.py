@@ -6,7 +6,7 @@ import hashlib
 import json
 import shutil
 from pathlib import Path
-from typing import Any
+from uuid import uuid4
 from zipfile import ZipFile
 
 import pytest
@@ -21,7 +21,6 @@ from animama.app.services.anima_creation_sources import item_ref
 from animama.app.services.anima_package_source_service import AnimaPackageSourceService
 from animama.app.services.content_catalog_service import ContentCatalogService
 from animama.app.services.content_package_service import ContentPackageService
-from animama.app.services.non_portable_packages import restore_idle_refs, strip_idle_refs
 from animama.domain.content_catalog import ContentConflictError, ContentKind, ContentSource
 from animama.orm.anima_loadout import ORMAnimaLoadout
 from animama.orm.content_catalog import ORMAnimaContentBinding, ORMContentCatalogItem
@@ -65,51 +64,10 @@ def _gesture(root: Path, name: str, payload: bytes) -> None:
     )
 
 
-def _style(root: Path, pools: dict[str, Any]) -> None:
-    refs = sorted(
-        set(pools.get("default_pool", []))
-        | {
-            ref
-            for levels in pools.get("cells", {}).values()
-            for cell in levels.values()
-            for ref in cell.get("gestures", [])
-        }
-    )
-    write_json(
-        root / "idle-styles/mixed/mixed.json",
-        {
-            "schema_version": 2,
-            "content_type": "idle_style",
-            "content_id": "local:idle-style:mixed",
-            "name": "Mixed",
-            "default_pool": pools.get("default_pool", []),
-            "cells": pools.get("cells", {}),
-            "dependencies": [{"ref": ref, "content_type": "gesture"} for ref in refs],
-        },
-    )
-
-
-def test_idle_refs_strip_and_restore_round_trip() -> None:
-    projection: dict[str, Any] = {
-        "default_pool": ["builtin:gesture:sway", "local:gesture:own"],
-        "cells": {"joy": {"2": {"mode": "pool", "gestures": ["builtin:gesture:sway"]}, "3": {"mode": "none"}}},
-        "dependencies": [
-            {"ref": "builtin:gesture:sway", "content_type": "gesture"},
-            {"ref": "local:gesture:own", "content_type": "gesture"},
-        ],
-    }
-    stripped = strip_idle_refs(projection, {"builtin:gesture:sway"})
-    assert stripped["default_pool"] == ["local:gesture:own"]
-    assert stripped["cells"] == {"joy": {"3": {"mode": "none"}}}
-    assert stripped["dependencies"] == [{"ref": "local:gesture:own", "content_type": "gesture"}]
-    restored = restore_idle_refs(stripped, {"builtin:gesture:sway": ["default", "joy.2"]})
-    assert sorted(restored["default_pool"]) == sorted(projection["default_pool"])
-    assert restored["cells"]["joy"]["2"] == {"mode": "pool", "gestures": ["builtin:gesture:sway"]}
-    assert {edge["ref"] for edge in restored["dependencies"]} == {"builtin:gesture:sway", "local:gesture:own"}
-
-
-async def test_content_export_and_import_handle_non_portable_items(async_session, tmp_path: Path) -> None:  # noqa: ANN001
-    paths, catalog, content, _saves, packages = package_services(async_session, tmp_path)
+async def test_content_packages_refuse_non_portable_items_and_carry_no_references(
+    async_session, tmp_path: Path
+) -> None:  # noqa: ANN001
+    paths, _catalog, content, _saves, packages = package_services(async_session, tmp_path)
     write_json(
         paths.included_licenses_root / "inventory.json",
         {
@@ -125,82 +83,42 @@ async def test_content_export_and_import_handle_non_portable_items(async_session
             document = json.loads(path.read_text())
             document["content_id"] = "local:gesture:own"
             write_json(path, document)
-    _style(
-        local,
-        {
-            "default_pool": ["builtin:gesture:sway", "local:gesture:own"],
-            "cells": {"joy": {"2": {"mode": "pool", "gestures": ["builtin:gesture:sway"]}}},
-        },
-    )
     owner = "package-owner"
     try:
         items = {item.relative_locator: item for item in (await content.rescan(user_id=owner)).items}
-        sway, style = items["gestures/sway"], items["idle-styles/mixed"]
+        sway, own = items["gestures/sway"], items["gestures/own"]
 
         # A non-portable root is refused by name, in the summary and on prepare.
         with pytest.raises(ContentConflictError) as refused:
             await packages.summarize(user_id=owner, item_ids=(sway.id,))
         assert refused.value.code == "package_non_portable" and refused.value.items == ("Sway",)
 
-        # A portable Idle Style drops the non-portable Gesture and records where it was used.
-        summary = await packages.summarize(user_id=owner, item_ids=(style.id,))
-        assert [(item.kind, item.name) for item in summary.omitted] == [("gesture", "Sway")]
-        review = await packages.prepare_export(user_id=owner, item_ids=(style.id,), expected_digest=summary.digest)
+        summary = await packages.summarize(user_id=owner, item_ids=(own.id,))
+        assert summary.omitted == ()
+        review = await packages.prepare_export(user_id=owner, item_ids=(own.id,), expected_digest=summary.digest)
         cached = await packages.get_export(user_id=owner, export_id=review.export_id)
         with ZipFile(cached.path) as archive:
-            names = archive.namelist()
             manifest = json.loads(archive.read("package.json"))
-        assert all("sway" not in name for name in names)
-        assert sway.files[0].sha256 not in {entry["sha256"] for e in manifest["entries"] for entry in e["files"]}
-        [reference] = manifest["non_portable_references"]
-        assert reference["logical_key"] == "builtin:gesture:sway"
-        assert reference["uses"][0]["pools"] == ["default", "joy.2"]
+        assert "non_portable_references" not in manifest
         PackageManifest.model_validate(manifest)
-        # Hand-built packages are validated too: capability, duplicates and use targets.
-        style_entry = next(entry["package_entry_id"] for entry in manifest["entries"] if entry["kind"] == "idle_style")
-        own_entry = next(entry["package_entry_id"] for entry in manifest["entries"] if entry["kind"] == "gesture")
-
-        def uses(*values: dict[str, object]) -> dict[str, object]:
-            return {**manifest, "non_portable_references": [{**reference, "uses": list(values)}]}
-
+        # Only an Anima package may name omitted items; hand-built references are refused.
+        reference = {
+            "kind": "gesture",
+            "logical_key": "builtin:gesture:sway",
+            "display_name": "Sway",
+            "uses": [{"anima_slot": "idle", "pools": ["default"]}],
+        }
         hostile = [
-            {**manifest, "capabilities": []},
-            {**manifest, "non_portable_references": [reference, reference]},
-            uses({"entry_id": own_entry, "pools": ["default"]}),
-            uses({"entry_id": style_entry, "pools": ["bogus.9"]}),
-            uses({"anima_slot": "gesture", "semantic_key": "sway"}),
-            uses({"anima_slot": "gesture"}),
-            {**manifest, "non_portable_references": [{**reference, "kind": "avatar"}]},
+            {**manifest, "non_portable_references": [reference]},
+            {
+                **manifest,
+                "capabilities": [*manifest["capabilities"], "animama/non-portable-references/1"],
+                "non_portable_references": [reference],
+            },
         ]
         for value in hostile:
             with pytest.raises(ValueError):
                 PackageManifest.model_validate(value)
-
-        # Rebound where this installation has the same non-portable item.
-        command = await reviewed_import(packages, user_id=owner, archive_path=cached.path, operation_id="np-rebind")
-        imported_review = await packages.imports.review(user_id=owner, stage_id=command["stage_id"])
-        assert [(item.name, item.outcome) for item in imported_review.non_portable] == [("Sway", "rebound")]
-        result = await packages.imports.commit(**command)
-        new_style = next(item for item in result.items if item.kind is ContentKind.IDLE_STYLE)
-        imported = await catalog.get_visible_item(item_id=new_style.item_id, user_id=owner)
-        assert "builtin:gesture:sway" in imported.metadata["default_pool"]
-        assert sway.id in imported.dependency_item_ids
-
-        # Falls back in an installation without the non-portable item.
-        _paths, receiver_catalog, receiver, _saves, receiver_packages = package_services(
-            async_session, tmp_path / "receiver"
-        )
-        await receiver.rescan(user_id=owner)
-        command = await reviewed_import(
-            receiver_packages, user_id=owner, archive_path=cached.path, operation_id="np-fallback"
-        )
-        fallback_review = await receiver_packages.imports.review(user_id=owner, stage_id=command["stage_id"])
-        assert [(item.name, item.outcome) for item in fallback_review.non_portable] == [("Sway", "unavailable")]
-        result = await receiver_packages.imports.commit(**command)
-        new_style = next(item for item in result.items if item.kind is ContentKind.IDLE_STYLE)
-        imported = await receiver_catalog.get_visible_item(item_id=new_style.item_id, user_id=owner)
-        assert all("sway" not in ref for ref in imported.metadata["default_pool"])
-        assert "joy" not in imported.metadata.get("cells", {})
     finally:
         await async_session.rollback()
         await async_session.execute(delete(ORMContentCatalogItem))
@@ -303,7 +221,11 @@ async def test_anima_export_omits_explicit_non_portable_gestures_and_import_rebi
         review = await packages.prepare_export(
             user_id=fixture.owner, anima_id=created["anima_id"], expected_digest=summary.digest
         )
-        assert {use.anima_slot for ref in review.manifest.non_portable_references for use in ref.uses} == {"gesture"}
+        # The seeded idle Gesture is non-portable too, so it travels as an idle reference.
+        assert {use.anima_slot for ref in review.manifest.non_portable_references for use in ref.uses} == {
+            "gesture",
+            "idle",
+        }
         assert not any(entry.kind is ContentKind.GESTURE for entry in review.manifest.entries)
         cached = await packages.get_export(user_id=fixture.owner, export_id=review.export_id)
         if not receiver_has_items:
@@ -372,31 +294,16 @@ def _packages(fixture, async_session, catalog, content):  # noqa: ANN001, ANN202
 
 
 @pytest.mark.parametrize("receiver_has_items", [True, False])
-async def test_anima_export_omits_implicit_starter_gestures_and_idle_style(
+async def test_anima_export_omits_non_portable_idle_members_and_import_rebinds_them(
     async_session, tmp_path: Path, receiver_has_items: bool
 ) -> None:  # noqa: ANN001
     async with anima_creation_fixture(async_session, tmp_path, full_starter=True) as fixture:
         included = fixture.paths.included_root
-        # The shipped Mixamo Idle Style is v2 and pools Gestures; mirror that.
-        (included / "idle-styles/starter/calm.vrma").unlink()
-        write_json(
-            included / "idle-styles/starter/starter.json",
-            {
-                "schema_version": 2,
-                "content_type": "idle_style",
-                "content_id": "builtin:idle-style:starter",
-                "name": "Starter Idle",
-                "default_pool": ["builtin:gesture:shy-finger-poke-loop"],
-                "cells": {},
-                "dependencies": [{"ref": "builtin:gesture:shy-finger-poke-loop", "content_type": "gesture"}],
-            },
-        )
         write_json(
             included / "licenses/inventory.json",
             {
                 "rules": [
-                    {"glob": "gestures/**", "license_id": "test", "distribution": "non-portable"},
-                    {"glob": "idle-styles/**", "license_id": "test", "distribution": "non-portable"},
+                    {"glob": "gestures/chat-glance/**", "license_id": "test", "distribution": "non-portable"},
                     {"glob": "**/*", "license_id": "test"},
                 ]
             },
@@ -405,54 +312,51 @@ async def test_anima_export_omits_implicit_starter_gestures_and_idle_style(
         content = ContentCatalogService(catalog=catalog, store=fixture.store())
         await content.rescan(user_id=fixture.owner)
         created = await fixture.service(async_session).create(user_id=fixture.owner, request=fixture.request())
-        # Make every starter Gesture and the starter Idle Style implicit choices.
-        loadout = await async_session.get(ORMAnimaLoadout, created["anima_id"])
-        assert loadout is not None
-        reaction_exclusions = [row for row in loadout.starter_exclusions if row["slot"] == "reaction"]
-        await async_session.execute(
-            update(ORMAnimaLoadout)
-            .where(ORMAnimaLoadout.anima_id == created["anima_id"])
-            .values(starter_exclusions=reaction_exclusions, idle_style_empty=False)
+        seeded = fixture.items["idle"]
+        # The seed placed the Gesture in Default; add it to a cell as well.
+        async_session.add(
+            ORMAnimaContentBinding(
+                id=str(uuid4()),
+                anima_id=created["anima_id"],
+                slot_key=f"idle:joy-2:{seeded.id}",
+                kind="gesture",
+                catalog_item_id=seeded.id,
+                config={},
+            )
         )
         await async_session.commit()
         packages = _packages(fixture, async_session, catalog, content)
         summary = await packages.summarize(user_id=fixture.owner, anima_id=created["anima_id"])
-        kinds = [item.kind for item in summary.omitted]
-        assert kinds.count("idle_style") == 1 and kinds.count("gesture") > 1
-        assert summary.anima is not None and summary.anima.idle_style is None and not summary.anima.gestures
+        assert [(item.kind, item.name) for item in summary.omitted] == [("gesture", "Chat Glance")]
+        assert summary.anima is not None
+        assert summary.anima.idle.default == [] and summary.anima.idle.cells == {}
         review = await packages.prepare_export(
             user_id=fixture.owner, anima_id=created["anima_id"], expected_digest=summary.digest
         )
+        [reference] = review.manifest.non_portable_references
+        assert [(use.anima_slot, use.pools) for use in reference.uses] == [("idle", ["default", "joy.2"])]
         cached = await packages.get_export(user_id=fixture.owner, export_id=review.export_id)
         if not receiver_has_items:
-            shutil.rmtree(included / "gestures")
-            shutil.rmtree(included / "idle-styles")
+            shutil.rmtree(included / "gestures/chat-glance")
             await content.rescan(user_id=fixture.owner)
         command = await reviewed_import(
-            packages, user_id=fixture.owner, archive_path=cached.path, operation_id=f"np-implicit-{receiver_has_items}"
+            packages, user_id=fixture.owner, archive_path=cached.path, operation_id=f"np-idle-{receiver_has_items}"
         )
         imported_review = await packages.imports.review(user_id=fixture.owner, stage_id=command["stage_id"])
-        assert {item.outcome for item in imported_review.non_portable} == (
-            {"rebound"} if receiver_has_items else {"unavailable"}
+        assert [item.outcome for item in imported_review.non_portable] == (
+            ["rebound"] if receiver_has_items else ["unavailable"]
         )
         result = await packages.imports.commit(**command)
-        rows = list(
+        slots = sorted(
             await async_session.scalars(
-                select(ORMAnimaContentBinding).where(ORMAnimaContentBinding.anima_id == result.anima_id)
+                select(ORMAnimaContentBinding.slot_key).where(
+                    ORMAnimaContentBinding.anima_id == result.anima_id,
+                    ORMAnimaContentBinding.slot_key.startswith("idle:"),
+                )
             )
         )
-        idle = [row for row in rows if row.kind == "idle_style"]
-        gestures = [row for row in rows if row.kind == "gesture"]
-        if receiver_has_items:
-            starter_idle = next(
-                item
-                for item in await catalog.list_visible(user_id=fixture.owner)
-                if item.logical_key == "builtin:idle-style:starter"
-            )
-            assert [row.catalog_item_id for row in idle] == [starter_idle.id]
-            assert len(gestures) == kinds.count("gesture")
-        else:
-            assert not idle and not gestures
+        # An imported Anima keeps exactly its packaged pool and is never reseeded.
+        assert slots == ([f"idle:default:{seeded.id}", f"idle:joy-2:{seeded.id}"] if receiver_has_items else [])
 
 
 async def test_anima_export_refuses_other_non_portable_bindings(async_session, tmp_path: Path) -> None:  # noqa: ANN001

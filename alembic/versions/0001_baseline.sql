@@ -54,8 +54,8 @@ CREATE TABLE anima_content_bindings (
     config jsonb DEFAULT '{}'::jsonb NOT NULL,
     CONSTRAINT ck_anima_content_bindings_config_object CHECK ((jsonb_typeof(config) = 'object'::text)),
     CONSTRAINT ck_anima_content_bindings_slot_key_length CHECK (((char_length((slot_key)::text) >= 1) AND (char_length((slot_key)::text) <= 192))),
-    CONSTRAINT ck_anima_content_bindings_typed_kind_values CHECK (((kind)::text = ANY ((ARRAY['avatar'::character varying, 'gesture'::character varying, 'reaction'::character varying, 'idle_style'::character varying, 'music_track'::character varying, 'appearance'::character varying, 'voice'::character varying])::text[]))),
-    CONSTRAINT ck_anima_content_bindings_typed_slot_shape CHECK (((((kind)::text = 'avatar'::text) AND ((slot_key)::text = 'avatar'::text)) OR (((kind)::text = 'gesture'::text) AND ((slot_key)::text ~~ 'gesture:%'::text) AND (char_length((slot_key)::text) > 8)) OR (((kind)::text = 'reaction'::text) AND ((slot_key)::text ~~ 'reaction:%'::text) AND (char_length((slot_key)::text) > 9)) OR (((kind)::text = 'idle_style'::text) AND ((slot_key)::text = 'idle-style'::text)) OR (((kind)::text = 'music_track'::text) AND ((slot_key)::text ~~ 'music:%'::text) AND (char_length((slot_key)::text) > 6)) OR (((kind)::text = 'appearance'::text) AND ((slot_key)::text = ANY ((ARRAY['appearance:profile'::character varying, 'appearance:background'::character varying])::text[]))) OR (((kind)::text = 'voice'::text) AND ((slot_key)::text = 'voice'::text))))
+    CONSTRAINT ck_anima_content_bindings_typed_kind_values CHECK (((kind)::text = ANY ((ARRAY['avatar'::character varying, 'gesture'::character varying, 'reaction'::character varying, 'music_track'::character varying, 'appearance'::character varying, 'voice'::character varying])::text[]))),
+    CONSTRAINT ck_anima_content_bindings_typed_slot_shape CHECK (((((kind)::text = 'avatar'::text) AND ((slot_key)::text = 'avatar'::text)) OR (((kind)::text = 'gesture'::text) AND ((((slot_key)::text ~~ 'gesture:%'::text) AND (char_length((slot_key)::text) > 8)) OR (((slot_key)::text ~~ 'idle:%'::text) AND (char_length((slot_key)::text) > 5)))) OR (((kind)::text = 'reaction'::text) AND ((slot_key)::text ~~ 'reaction:%'::text) AND (char_length((slot_key)::text) > 9)) OR (((kind)::text = 'music_track'::text) AND ((slot_key)::text ~~ 'music:%'::text) AND (char_length((slot_key)::text) > 6)) OR (((kind)::text = 'appearance'::text) AND ((slot_key)::text = ANY ((ARRAY['appearance:profile'::character varying, 'appearance:background'::character varying])::text[]))) OR (((kind)::text = 'voice'::text) AND ((slot_key)::text = 'voice'::text))))
 );
 
 -- animama-statement --
@@ -121,7 +121,6 @@ CREATE TABLE anima_loadouts (
     owner_user_id character varying NOT NULL,
     revision integer DEFAULT 1 NOT NULL,
     starter_catalog_version integer DEFAULT 1 NOT NULL,
-    idle_style_empty boolean DEFAULT false NOT NULL,
     starter_exclusions jsonb DEFAULT '[]'::jsonb NOT NULL,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
@@ -459,7 +458,7 @@ CREATE TABLE content_catalog_items (
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     source_mount_id character varying(256),
     CONSTRAINT ck_content_catalog_items_display_name_length CHECK (((char_length((display_name)::text) >= 1) AND (char_length((display_name)::text) <= 120))),
-    CONSTRAINT ck_content_catalog_items_kind_values CHECK (((kind)::text = ANY ((ARRAY['avatar'::character varying, 'gesture'::character varying, 'pose'::character varying, 'pose_clip'::character varying, 'reaction'::character varying, 'particle_effect'::character varying, 'avatar_effect'::character varying, 'scene_effect'::character varying, 'sound_effect'::character varying, 'idle_style'::character varying, 'music_track'::character varying, 'appearance'::character varying, 'voice'::character varying, 'anima'::character varying])::text[]))),
+    CONSTRAINT ck_content_catalog_items_kind_values CHECK (((kind)::text = ANY ((ARRAY['avatar'::character varying, 'gesture'::character varying, 'pose'::character varying, 'pose_clip'::character varying, 'reaction'::character varying, 'particle_effect'::character varying, 'avatar_effect'::character varying, 'scene_effect'::character varying, 'sound_effect'::character varying, 'music_track'::character varying, 'appearance'::character varying, 'voice'::character varying, 'anima'::character varying])::text[]))),
     CONSTRAINT ck_content_catalog_items_owner_scope_consistency CHECK (((((scope)::text = 'owner'::text) AND (owner_user_id IS NOT NULL)) OR (((scope)::text <> 'owner'::text) AND (owner_user_id IS NULL)))),
     CONSTRAINT ck_content_catalog_items_revision_sha256_format CHECK (((revision_sha256 IS NULL) OR ((revision_sha256)::text ~ '^[0-9a-f]{64}$'::text))),
     CONSTRAINT ck_content_catalog_items_scope_values CHECK (((scope)::text = ANY ((ARRAY['included'::character varying, 'owner'::character varying, 'installation_shared'::character varying])::text[]))),

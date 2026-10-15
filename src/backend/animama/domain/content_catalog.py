@@ -53,7 +53,6 @@ class ContentKind(str, Enum):
     AVATAR_EFFECT = "avatar_effect"
     SCENE_EFFECT = "scene_effect"
     SOUND_EFFECT = "sound_effect"
-    IDLE_STYLE = "idle_style"
     MUSIC_TRACK = "music_track"
     APPEARANCE = "appearance"
     VOICE = "voice"

@@ -115,7 +115,6 @@ async def retired_music(async_session: AsyncSession, tmp_path: Path) -> AsyncIte
     assert root is not None
     root.starter_catalog_version = 3
     root.starter_exclusions = [{"kind": "gesture", "key": "wave"}]
-    root.idle_style_empty = True
     await async_session.commit()
     try:
         yield _RetirementFixture(owner, paths, content, audio, identity_id, gesture_binding_id, tuple(music_ids))
@@ -155,11 +154,7 @@ async def test_music_retirement_preserves_evidence_audio_identity_and_other_equi
     anima = await async_session.get(ORMAnima, fixture.owner.anima_id, populate_existing=True)
     assert root is not None and anima is not None
     assert (root.revision, anima.aggregate_revision) == (2, 2)
-    assert (root.starter_catalog_version, root.starter_exclusions, root.idle_style_empty) == (
-        3,
-        [{"kind": "gesture", "key": "wave"}],
-        True,
-    )
+    assert (root.starter_catalog_version, root.starter_exclusions) == (3, [{"kind": "gesture", "key": "wave"}])
     assert (anima.display_name, anima.avatar_id, anima.metadata_, anima.identity_status) == (
         "Keep My Name",
         fixture.owner.avatar_id,

@@ -1,22 +1,8 @@
-"""Shared Idle Style cell and finite playback HTTP contracts."""
+"""Finite idle playback facts shared by Gesture checks and the runtime Idle pool."""
 
-from typing import Annotated, Literal
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
-
-
-class PyIdleNoneCell(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    mode: Literal["none"] = "none"
-
-
-class PyIdlePoolCell(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    mode: Literal["pool"] = "pool"
-    gestures: list[str] = Field(min_length=1)
-
-
-PyIdleCell = Annotated[PyIdleNoneCell | PyIdlePoolCell, Field(discriminator="mode")]
 
 
 class PyIdlePlayback(BaseModel):

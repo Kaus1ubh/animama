@@ -367,8 +367,11 @@ async def test_complete_anima_export_keeps_explicit_empties_and_independent_shar
             expected_name = display_name.replace("/", "-")
             assert re.fullmatch(rf"{re.escape(expected_name)}-\d{{8}}-\d{{6}}Z\.zip", review.filename)
             assert manifest["kind"] == "anima" and manifest["root_entry_ids"] == []
-            assert len(manifest["entries"]) == 2  # One model, one image shared by both independent roles.
-            assert definition["idle_style"] is None and definition["gestures"] == []
+            # One model, one image shared by both independent roles, and the seeded Idle Gesture.
+            assert len(manifest["entries"]) == 3
+            idle_entries = [entry["package_entry_id"] for entry in manifest["entries"] if entry["kind"] == "gesture"]
+            assert definition["idle"] == {"default": idle_entries, "cells": {}} and len(idle_entries) == 1
+            assert definition["gestures"] == []
             assert sum(len(cells) for cells in definition["reactions"].values()) == 72
             assert all(value is None for cells in definition["reactions"].values() for value in cells.values())
             assert definition["identity_markdown"] == request["identity_markdown"]

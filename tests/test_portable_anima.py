@@ -26,9 +26,7 @@ from tests.typed_loadout_support import LoadoutFixture, add_typed_item
 async def saved_anima(async_session):
     fixture = await creation_fixture(async_session)
     uow = SQLAlchemyAnimaAggregateUnitOfWork(async_session)
-    anima = await fixture.materializer.materialize(
-        user_id=fixture.user_id, spec=replace(fixture.spec, idle_style=None), uow=uow
-    )
+    anima = await fixture.materializer.materialize(user_id=fixture.user_id, spec=fixture.spec, uow=uow)
     await uow.commit()
     try:
         yield fixture, anima
@@ -40,12 +38,10 @@ async def saved_anima(async_session):
         )
         await async_session.execute(delete(ORMMemoryEntry).where(ORMMemoryEntry.user_id == fixture.user_id))
         await async_session.execute(delete(ORMAvatar).where(ORMAvatar.user_id == fixture.user_id))
-        assert fixture.spec.idle_style is not None
         assert fixture.spec.profile is not None
         assert fixture.spec.background is not None
         ids = [
             fixture.spec.avatar.id,
-            fixture.spec.idle_style.id,
             fixture.spec.profile.source.id,
             fixture.spec.background.source.id,
         ]
@@ -77,7 +73,7 @@ def portable_fixture():
             "avatar": "model",
             "gestures": [],
             "reactions": {emotion: {str(level): None for level in (1, 2, 3)} for emotion in TRACKED_EMOTIONS},
-            "idle_style": None,
+            "idle": {"default": [], "cells": {}},
             "appearance": {"profile": None, "background": None},
         }
     )
@@ -114,7 +110,9 @@ def portable_fixture():
     return definition, {"model": avatar}
 
 
-@pytest.mark.parametrize("change", ["name", "name_type", "identity", "cell", "extra", "unsafe_ref"])
+@pytest.mark.parametrize(
+    "change", ["name", "name_type", "identity", "cell", "idle_duplicate", "idle_empty_cell", "extra", "unsafe_ref"]
+)
 def test_portable_definition_has_strict_bounded_complete_allowlist(change):
     from pydantic import ValidationError
 
@@ -130,6 +128,11 @@ def test_portable_definition_has_strict_bounded_complete_allowlist(change):
         raw["identity_markdown"] = "é" * (16 * 1024 + 1)
     elif change == "cell":
         del raw["reactions"]["joy"]["3"]
+    elif change == "idle_duplicate":
+        raw["idle"]["default"] = ["model", "model"]
+    elif change == "idle_empty_cell":
+        # An empty Idle cell uses Default, so it has exactly one encoding: absent.
+        raw["idle"]["cells"] = {"joy": {"2": []}}
     elif change == "extra":
         raw["owner_user_id"] = "private-owner"
     else:
@@ -249,7 +252,8 @@ async def test_saved_definition_projection_preserves_empties_images_and_privacy(
     assert definition.display_name == "My  Companion"
     assert definition.identity_markdown == "# My identity\n\nKeep two spaces.  \n"
     assert definition.avatar == fixture.spec.avatar.id
-    assert definition.idle_style is None and definition.gestures == []
+    assert definition.gestures == []
+    assert definition.idle.default == [] and definition.idle.cells == {}
     assert len(definition.reactions) == 24
     assert all(
         set(cells) == {"1", "2", "3"} and all(cell is None for cell in cells.values())
@@ -382,6 +386,17 @@ async def test_configuration_and_image_roles_round_trip_through_portable_definit
             config=config,
         )
     )
+    # The same Gesture also sits in one Idle cell; Idle members carry no configuration.
+    async_session.add(
+        ORMAnimaContentBinding(
+            id=str(uuid4()),
+            anima_id=anima.id,
+            slot_key=f"idle:joy-2:{gesture.id}",
+            kind="gesture",
+            catalog_item_id=gesture.id,
+            config={},
+        )
+    )
     # Reuse one image in two roles with distinct framing.
     await async_session.execute(
         update(ORMAnimaContentBinding)
@@ -394,6 +409,7 @@ async def test_configuration_and_image_roles_round_trip_through_portable_definit
     mapping = {item_id: f"package-{index}" for index, item_id in enumerate(projection.selected_item_ids)}
     portable = rewrite_portable_anima(projection.definition, mapping)
     assert portable.gestures[0].config == config
+    assert portable.idle.model_dump() == {"default": [], "cells": {"joy": {"2": [mapping[gesture.id]]}}}
     assert portable.appearance.profile is not None
     assert portable.appearance.background is not None
     assert portable.appearance.profile.entry_id == portable.appearance.background.entry_id
@@ -406,12 +422,17 @@ async def test_configuration_and_image_roles_round_trip_through_portable_definit
     created = await fixture.materializer.materialize(
         user_id=fixture.user_id, spec=resolved, uow=SQLAlchemyAnimaAggregateUnitOfWork(async_session)
     )
-    binding = await async_session.scalar(
-        select(ORMAnimaContentBinding).where(
-            ORMAnimaContentBinding.anima_id == created.id, ORMAnimaContentBinding.kind == "gesture"
+    bindings = {
+        row.slot_key: row
+        for row in await async_session.scalars(
+            select(ORMAnimaContentBinding).where(
+                ORMAnimaContentBinding.anima_id == created.id, ORMAnimaContentBinding.kind == "gesture"
+            )
         )
-    )
-    assert binding.config == config
+    }
+    assert set(bindings) == {"gesture:configured", f"idle:joy-2:{gesture.id}"}
+    assert bindings["gesture:configured"].config == config
+    assert bindings[f"idle:joy-2:{gesture.id}"].config == {}
     assert created.id != anima.id and created.aggregate_revision == 1
 
 

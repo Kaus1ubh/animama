@@ -16,6 +16,7 @@ from animama.domain.anima_creation import (
     ResolvedAnimaSpec,
     ResolvedAppearanceSelection,
     ResolvedGestureSelection,
+    ResolvedIdleMember,
     ResolvedReactionSelection,
 )
 from animama.domain.anima_definition import ANIMA_IDENTITY_MAX_BYTES, normalize_identity
@@ -28,7 +29,6 @@ from animama.domain.content_catalog import (
 )
 from animama.domain.content_documents import (
     GestureDocumentV1,
-    IdleStyleDocumentV2,
     ReactionDocumentV1,
     SoundEffectDocumentV1,
     TypedContentDocument,
@@ -102,8 +102,11 @@ def resolve_portable_anima(
         for emotion, cells in definition.reactions.items()
         for level, selection in cells.items()
     )
-    if definition.idle_style is not None and not isinstance(documents[definition.idle_style], IdleStyleDocumentV2):
-        raise ContentConflictError("package_anima_idle_conversion_required")
+    idle = []
+    for cell, entry_id in definition.idle.members():
+        if not isinstance(documents[entry_id], GestureDocumentV1):
+            raise ContentConflictError("package_anima_source_kind_invalid")
+        idle.append(ResolvedIdleMember(entries[entry_id], cell))
     if definition.pocket_voice is not None:
         voice = documents[definition.pocket_voice]
         if not isinstance(voice, VoiceDocumentV1) or voice.codec != POCKET_CLONE_CODEC:
@@ -112,7 +115,7 @@ def resolve_portable_anima(
         display_name=definition.display_name,
         identity=definition.identity_markdown,
         avatar=entries[definition.avatar],
-        idle_style=entries[definition.idle_style] if definition.idle_style else None,
+        idle=tuple(idle),
         gestures=tuple(gestures),
         reactions=reactions,
         profile=ResolvedAppearanceSelection(
@@ -151,8 +154,11 @@ def rewrite_portable_anima(definition: PortableAnima, reference_map: Mapping[str
         for selection in cells.values():
             if selection is not None:
                 selection["entry_id"] = reference_map[selection["entry_id"]]
-    if value["idle_style"] is not None:
-        value["idle_style"] = reference_map[value["idle_style"]]
+    idle = value["idle"]
+    idle["default"] = [reference_map[entry_id] for entry_id in idle["default"]]
+    for levels in idle["cells"].values():
+        for level, members in levels.items():
+            levels[level] = [reference_map[entry_id] for entry_id in members]
     if value["pocket_voice"] is not None:
         value["pocket_voice"] = reference_map[value["pocket_voice"]]
     for selection in value["appearance"].values():

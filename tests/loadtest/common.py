@@ -97,9 +97,6 @@ def _source_roots(options: dict[str, Any], avatar: dict[str, Any]) -> list[dict[
             for source in cells.values():
                 if isinstance(source, dict):
                     roots.append({"kind": "reaction", "source": source})
-    default_idle = options.get("default_idle")
-    if isinstance(default_idle, dict) and isinstance(default_idle.get("source"), dict):
-        roots.append({"kind": "idle_style", "source": default_idle["source"]})
 
     unique: dict[tuple[str, str, str], dict[str, Any]] = {}
     for root in roots:

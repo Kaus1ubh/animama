@@ -6,7 +6,6 @@ from datetime import datetime
 from typing import Any
 
 from sqlalchemy import (
-    Boolean,
     CheckConstraint,
     ForeignKey,
     Index,
@@ -43,7 +42,6 @@ class ORMAnimaLoadout(SqlalchemyBase):
     owner_user_id: Mapped[str] = mapped_column(String, nullable=False)
     revision: Mapped[int] = mapped_column(Integer, nullable=False, server_default=sa_text("1"))
     starter_catalog_version: Mapped[int] = mapped_column(Integer, nullable=False, server_default=sa_text("1"))
-    idle_style_empty: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=sa_text("false"))
     starter_exclusions: Mapped[list[dict[str, str]]] = mapped_column(
         JSONB,
         nullable=False,

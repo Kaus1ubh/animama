@@ -14,10 +14,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from animama.adapters.repositories.sqlalchemy.anima_repo import SQLAlchemyAnimaRepository
 from animama.adapters.repositories.sqlalchemy.avatar_repo import SQLAlchemyAvatarRepository
 from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlchemyContentCatalog
+from animama.app.ports.content_store import ContentStore
 from animama.app.services.avatar_effect_conversion import is_unconverted_avatar_effect
 from animama.app.services.content_kind_registry import RETIRED_CONTENT_KINDS
+from animama.app.services.idle_playback import read_gesture_idle_playback
 from animama.app.services.starter_loadout_policy import starter_loadout_policy
-from animama.app.services.typed_content_service import TypedCatalogItem, TypedContentService
+from animama.app.services.typed_content_service import (
+    TypedCatalogItem,
+    TypedContentAdmissionError,
+    TypedContentService,
+)
 from animama.domain.anima_creation import ResolvedAnimaSpec
 from animama.domain.anima_definition import AnimaDefinitionError
 from animama.domain.anima_loadout import (
@@ -26,21 +32,29 @@ from animama.domain.anima_loadout import (
     AppearanceBinding,
     CatalogLoadoutSource,
     GestureBinding,
-    IdleAnimationSummary,
-    IdleGestureSummary,
-    IdleStyleBinding,
+    IdleCell,
+    IdleMember,
+    IdlePool,
     LoadoutCommitResult,
     LoadoutDiagnostic,
     LoadoutPlan,
     ReactionCell,
+    idle_cell_key,
+    idle_slot_key,
+    parse_idle_slot_key,
 )
-from animama.domain.content_catalog import CatalogContentEntry, ContentKind, ContentStatus
+from animama.domain.content_catalog import (
+    CatalogContentEntry,
+    ContentIntegrityError,
+    ContentKind,
+    ContentPathError,
+    ContentStatus,
+)
 from animama.domain.content_documents import (
     AppearanceDocumentV1,
     AvatarDocumentV1,
+    ContentDocumentError,
     GestureDocumentV1,
-    IdleStyleDocumentV1,
-    IdleStyleDocumentV2,
     ReactionDocumentV1,
     VoiceDocumentV1,
 )
@@ -56,7 +70,7 @@ from animama.orm.content_catalog import ORMAnimaContentBinding
 LoadoutFamily = Literal[
     "gesture",
     "reaction",
-    "idle_style",
+    "idle",
     "avatar",
     "appearance",
     "voice",
@@ -81,6 +95,12 @@ def _source(value: TypedCatalogItem) -> CatalogLoadoutSource:
 
 def _implementation_kind(document: GestureDocumentV1) -> Literal["anima_clip", "vrma"]:
     return document.implementation.kind
+
+
+def _is_ai_gesture_row(row: ORMAnimaContentBinding) -> bool:
+    """Gesture rows equip AI-callable Gestures; Idle pool rows share the kind but not the role."""
+
+    return row.kind == ContentKind.GESTURE.value and row.slot_key.startswith("gesture:")
 
 
 class AnimaLoadoutService:
@@ -194,7 +214,7 @@ class AnimaLoadoutService:
         gestures: list[GestureBinding] = []
         occupied_gesture_keys: set[str] = set()
         for row in rows:
-            if row.kind != ContentKind.GESTURE.value:
+            if not _is_ai_gesture_row(row):
                 continue
             value = selected(row, ContentKind.GESTURE)
             if value is None or not isinstance(value.document, GestureDocumentV1):
@@ -305,71 +325,46 @@ class AnimaLoadoutService:
                 else:
                     reactions.append(ReactionCell(emotion, intensity, "empty"))
 
-        idle_row = rows_by_slot.get("idle-style")
-        idle_value = selected(idle_row, ContentKind.IDLE_STYLE) if idle_row is not None else None
-        idle_state: Literal["starter", "custom", "empty"]
-        if idle_value is not None and isinstance(idle_value.document, IdleStyleDocumentV1 | IdleStyleDocumentV2):
-            idle_state = "custom"
-            idle_config = dict(idle_row.config) if idle_row is not None else {}
-        elif root.idle_style_empty or idle_row is not None:
-            # An unavailable explicit selection is omitted, matching runtime
-            # admission. It must not appear silently replaced by a starter.
-            idle_state = "empty"
-            idle_value = None
-            idle_config = {}
-        else:
-            idle_state = "starter"
-            idle_value = by_logical.get("builtin:idle-style:starter")
-            idle_config = {}
-        if idle_value is not None and isinstance(idle_value.document, IdleStyleDocumentV2):
-            idle_style = IdleStyleBinding(
-                state=idle_state,
-                name=idle_value.document.name,
-                description=idle_value.document.description,
-                source=_source(idle_value),
-                schema_version=2,
-                default_pool=idle_value.document.default_pool,
-                cells=idle_value.document.cells,
-                gestures=tuple(
-                    IdleGestureSummary(
-                        value.item.id, value.item.logical_key, value.document.name, value.document.description
-                    )
-                    for item_id in idle_value.item.dependency_item_ids
-                    if (value := parsed.get(item_id)) is not None and isinstance(value.document, GestureDocumentV1)
-                ),
-            )
-        elif idle_value is not None and isinstance(idle_value.document, IdleStyleDocumentV1):
-            idle_document = idle_value.document
-            raw_overrides = idle_config.get("pool_overrides", {})
-            if not isinstance(raw_overrides, dict):
-                raw_overrides = {}
-            overrides = {
-                str(key): tuple(str(item) for item in value)
-                for key, value in raw_overrides.items()
-                if isinstance(value, list)
-            }
-            effective_default = overrides.get("default", idle_document.default_pool)
-            effective_emotions = dict(idle_document.emotion_pools)
-            effective_emotions.update({key: value for key, value in overrides.items() if key != "default"})
-            idle_style = IdleStyleBinding(
-                state=idle_state,
-                schema_version=1,
-                name=idle_document.name,
-                description=idle_document.description,
-                source=_source(idle_value),
-                animations=tuple(
-                    IdleAnimationSummary(value.animation_id, value.name, value.description)
-                    for value in idle_document.animations
-                ),
-                document_default_pool=idle_document.default_pool,
-                document_emotion_pools=idle_document.emotion_pools,
-                effective_default_pool=effective_default,
-                effective_emotion_pools=effective_emotions,
-                pool_overrides=overrides,
-                cross_fade_seconds=idle_document.cross_fade_seconds,
-            )
-        else:
-            idle_style = IdleStyleBinding(state="empty")
+        visible_by_id = {item.id: item for item in visible}
+        idle_members: dict[str, list[IdleMember]] = {}
+        for row in rows:
+            idle_slot = parse_idle_slot_key(row.slot_key)
+            if idle_slot is None:
+                continue
+            # The row's catalog id is authoritative; the slot only names the cell.
+            cell, item_id = idle_slot[0], row.catalog_item_id
+            value = selected(row, ContentKind.GESTURE)
+            if value is not None and isinstance(value.document, GestureDocumentV1):
+                member = IdleMember(
+                    binding_id=row.id,
+                    item_id=item_id,
+                    name=value.document.name,
+                    available=True,
+                    source=_source(value),
+                    description=value.document.description,
+                )
+            else:
+                # Keep an unavailable member visible so the owner can remove it.
+                entry = visible_by_id.get(item_id)
+                member = IdleMember(
+                    binding_id=row.id,
+                    item_id=item_id,
+                    name=entry.display_name if entry is not None else item_id,
+                    available=False,
+                )
+            idle_members.setdefault(cell, []).append(member)
+
+        def idle_cell(cell: str) -> tuple[IdleMember, ...]:
+            return tuple(sorted(idle_members.get(cell, ()), key=lambda value: (value.name.casefold(), value.item_id)))
+
+        idle = IdlePool(
+            default_pool=idle_cell(idle_cell_key(None, None)),
+            cells=tuple(
+                IdleCell(emotion, intensity, idle_cell(idle_cell_key(emotion, intensity)))
+                for emotion in sorted(TRACKED_EMOTIONS)
+                for intensity in (1, 2, 3)
+            ),
+        )
 
         appearances: list[AppearanceBinding] = []
         avatar_source: CatalogLoadoutSource | None = None
@@ -406,7 +401,7 @@ class AnimaLoadoutService:
             gestures=tuple(sorted(gestures, key=lambda value: (value.origin != "custom", value.name.casefold()))),
             disabled_starter_gestures=tuple(sorted(disabled_starters)),
             reactions=tuple(reactions),
-            idle_style=idle_style,
+            idle=idle,
             avatar_source=avatar_source,
             appearances=tuple(appearances),
             voice_source=voice_source,
@@ -441,6 +436,33 @@ class AnimaLoadoutService:
         except Exception as exc:
             raise AnimaLoadoutError("loadout_source_invalid") from exc
 
+    async def _require_idle_playback(
+        self, *, user_id: str, target: TypedCatalogItem, store: ContentStore | None
+    ) -> None:
+        """Admit only Gestures whose exact motion bytes play for a finite time, as idle scheduling requires."""
+
+        if store is None:
+            raise AnimaLoadoutError("idle_playback_unavailable")
+        visible = {item.id: item for item in await self._catalog.list_visible(user_id=user_id)}
+        try:
+            gesture = TypedContentService.resolve_closure(item_id=target.item.id, visible=visible)[-1]
+            if not isinstance(gesture.document, GestureDocumentV1):
+                raise AnimaLoadoutError("idle_gesture_ineligible")
+            await read_gesture_idle_playback(
+                document=gesture.document,
+                item=gesture.item,
+                dependency_items=visible,
+                store=store,
+            )
+        except (
+            TypedContentAdmissionError,
+            ContentDocumentError,
+            ContentIntegrityError,
+            ContentPathError,
+            OSError,
+        ) as exc:
+            raise AnimaLoadoutError("idle_gesture_ineligible") from exc
+
     async def _plan(
         self,
         *,
@@ -449,13 +471,17 @@ class AnimaLoadoutService:
         family: LoadoutFamily,
         intent: dict[str, Any],
         lock_sources: bool = False,
+        store: ContentStore | None = None,
     ) -> tuple[LoadoutPlan, TypedCatalogItem | None, str | None, ORMAnimaContentBinding | None]:
+        """Validate one intent against current rows; ``store`` is required only to add an Idle member."""
+
         operation = str(intent.get("operation") or "")
         rows = await self._bindings(root.anima_id)
         target: TypedCatalogItem | None = None
         slot: str | None = None
         current: ORMAnimaContentBinding | None = None
-        expected_kind = ContentKind(family)
+        # Idle pool members are Gestures in a non-AI role.
+        expected_kind = ContentKind.GESTURE if family == "idle" else ContentKind(family)
         if expected_kind in RETIRED_CONTENT_KINDS:
             raise AnimaLoadoutError("content_kind_retired")
 
@@ -472,7 +498,7 @@ class AnimaLoadoutService:
                 binding_id = intent.get("binding_id")
                 if binding_id:
                     current = next(
-                        (row for row in rows if row.id == binding_id and row.kind == ContentKind.GESTURE.value),
+                        (row for row in rows if row.id == binding_id and _is_ai_gesture_row(row)),
                         None,
                     )
                     if current is None:
@@ -488,11 +514,7 @@ class AnimaLoadoutService:
                 action = "update" if current else "add"
             elif operation in {"remove"}:
                 current = next(
-                    (
-                        row
-                        for row in rows
-                        if row.id == intent.get("binding_id") and row.kind == ContentKind.GESTURE.value
-                    ),
+                    (row for row in rows if row.id == intent.get("binding_id") and _is_ai_gesture_row(row)),
                     None,
                 )
                 slot = current.slot_key if current else None
@@ -521,22 +543,39 @@ class AnimaLoadoutService:
                 action = "leave_empty"
             else:
                 raise AnimaLoadoutError("reaction_operation_invalid")
-        elif family == "idle_style":
-            slot = "idle-style"
-            current = next((row for row in rows if row.slot_key == slot), None)
-            if operation in {"set", "update", "reconfigure"}:
-                target = await self._target(user_id=user_id, source=intent.get("source"), expected_kind=expected_kind)
-                if not isinstance(target.document, IdleStyleDocumentV2):
-                    raise AnimaLoadoutError("idle_style_conversion_required")
-                if intent.get("pool_overrides"):
-                    raise AnimaLoadoutError("idle_pool_overrides_retired")
-                action = "update" if current else "add"
-            elif operation == "revert":
-                action = "revert"
-            elif operation == "leave_empty":
-                action = "leave_empty"
+        elif family == "idle":
+            if operation == "add":
+                cell = idle_cell_key(intent.get("emotion"), intent.get("intensity"))
+                source = intent.get("source")
+                item_id = source.get("catalog_item_id") if isinstance(source, dict) else None
+                if not isinstance(item_id, str) or not item_id:
+                    raise AnimaLoadoutError("catalog_source_required")
+                slot = idle_slot_key(cell, item_id)
+                # Compare the stored Gesture, not the slot text, so a row's catalog id stays authoritative.
+                if any(
+                    (parsed := parse_idle_slot_key(row.slot_key)) is not None
+                    and parsed[0] == cell
+                    and row.catalog_item_id == item_id
+                    for row in rows
+                ):
+                    raise AnimaLoadoutError("idle_gesture_duplicate")
+                target = await self._target(user_id=user_id, source=source, expected_kind=expected_kind)
+                await self._require_idle_playback(user_id=user_id, target=target, store=store)
+                action = "add"
+            elif operation == "remove":
+                # Removal names the member row, so an unavailable Gesture can still be removed.
+                current = next(
+                    (
+                        row
+                        for row in rows
+                        if row.id == intent.get("binding_id") and parse_idle_slot_key(row.slot_key) is not None
+                    ),
+                    None,
+                )
+                slot = current.slot_key if current is not None else None
+                action = "remove" if current is not None else "unchanged"
             else:
-                raise AnimaLoadoutError("idle_style_operation_invalid")
+                raise AnimaLoadoutError("idle_operation_invalid")
         elif family in {"avatar", "voice"}:
             slot = family
             current = next((row for row in rows if row.slot_key == slot), None)
@@ -588,7 +627,7 @@ class AnimaLoadoutService:
                     raise AnimaLoadoutError("avatar_effect_conversion_required")
                 counts[item.kind.value] = counts.get(item.kind.value, 0) + 1
                 pending.extend(item.dependency_item_ids)
-        final_gesture_count = sum(row.kind == ContentKind.GESTURE.value for row in rows)
+        final_gesture_count = sum(_is_ai_gesture_row(row) for row in rows)
         if family == "gesture":
             final_gesture_count += int(action == "add") - int(action == "remove")
         aggregate_revision = await self._aggregate_revision(user_id=user_id, anima_id=root.anima_id)
@@ -620,11 +659,12 @@ class AnimaLoadoutService:
         family: LoadoutFamily,
         expected_revision: int,
         intent: dict[str, Any],
+        store: ContentStore | None = None,
     ) -> LoadoutPlan:
         root = await self._root(user_id=user_id, anima_id=anima_id)
         if root.revision != expected_revision:
             raise AnimaLoadoutError("loadout_revision_conflict", current_revision=root.revision)
-        plan, _, _, _ = await self._plan(root=root, user_id=user_id, family=family, intent=intent)
+        plan, _, _, _ = await self._plan(root=root, user_id=user_id, family=family, intent=intent, store=store)
         return plan
 
     @staticmethod
@@ -688,8 +728,12 @@ class AnimaLoadoutService:
         intent: dict[str, Any],
         plan_digest: str,
         idempotency_key: str,
+        store: ContentStore | None = None,
     ) -> LoadoutCommitResult:
-        """Recheck a reviewed plan and atomically persist one typed intent."""
+        """Recheck a reviewed plan and atomically persist one typed intent.
+
+        ``store`` lets an Idle add recheck the Gesture's finite playback bytes.
+        """
 
         # The common lock serializes identity/name and equipment edits as well
         # as concurrent retries of the same loadout idempotency receipt.
@@ -740,6 +784,7 @@ class AnimaLoadoutService:
             family=family,
             intent=intent,
             lock_sources=True,
+            store=store,
         )
         if plan.digest != plan_digest:
             raise AnimaLoadoutError("loadout_plan_stale", current_revision=root.revision)
@@ -840,21 +885,18 @@ class AnimaLoadoutService:
                         runtime_id=f"{emotion}-{intensity}",
                         excluded=operation == "leave_empty",
                     )
-            elif family == "idle_style" and slot is not None:
-                if operation in {"set", "update", "reconfigure"} and target is not None:
+            elif family == "idle" and slot is not None:
+                if operation == "add" and target is not None:
                     await self._upsert(
                         root=root,
                         slot=slot,
-                        kind=ContentKind.IDLE_STYLE,
+                        kind=ContentKind.GESTURE,
                         target=target,
                         config={},
                         current=current,
                     )
-                    root.idle_style_empty = False
-                else:
-                    if current is not None:
-                        await self._session.delete(current)
-                    root.idle_style_empty = operation == "leave_empty"
+                elif current is not None:
+                    await self._session.delete(current)
             elif slot is not None:
                 if operation == "set" and target is not None:
                     config = dict(intent.get("config") or {})
@@ -896,8 +938,6 @@ class AnimaLoadoutService:
         selected_cells = [(cell.emotion, cell.intensity) for cell in spec.reactions]
         if len(selected_cells) != len(cells) or set(selected_cells) != cells:
             raise AnimaLoadoutError("reaction_matrix_incomplete")
-        if spec.idle_style is not None and spec.idle_style.kind is not ContentKind.IDLE_STYLE:
-            raise AnimaLoadoutError("idle_style_kind_invalid")
         root = ORMAnimaLoadout(
             anima_id=anima_id,
             owner_user_id=user_id,
@@ -940,13 +980,27 @@ class AnimaLoadoutService:
         await apply("avatar", {"operation": "set"}, spec.avatar)
         if spec.voice_source is not None:
             await apply("voice", {"operation": "set"}, spec.voice_source)
-        # Creation can leave idle empty; explicitly selected styles still pass
-        # the same typed, ownership and revision checks as later loadout edits.
-        await apply(
-            "idle_style",
-            {"operation": "set" if spec.idle_style is not None else "leave_empty"},
-            spec.idle_style,
-        )
+        # Creation seeds only finite-playback Gestures and package archives check
+        # packaged members; a rebound Included member is checked at runtime, which
+        # drops an ineligible Gesture alone. Here every member passes the typed
+        # source checks.
+        for member in spec.idle:
+            target = await self._target(
+                user_id=user_id,
+                source={"type": "catalog", "catalog_item_id": member.source.id},
+                expected_kind=ContentKind.GESTURE,
+                lock=True,
+            )
+            if target.item.revision_sha256 != member.source.revision_sha256:
+                raise AnimaLoadoutError("loadout_source_stale")
+            await self._upsert(
+                root=root,
+                slot=idle_slot_key(member.cell, member.source.id),
+                kind=ContentKind.GESTURE,
+                target=target,
+                config={},
+                current=None,
+            )
         for selection in spec.gestures:
             await apply("gesture", {"operation": "add", "config_overrides": selection.config}, selection.source)
         for cell in spec.reactions:

@@ -46,7 +46,6 @@ content/
     reactions/
     vfx/{particle,avatar,scene}/
     sfx/
-    idle-styles/
     appearances/
     voices/
     animas/
@@ -75,8 +74,7 @@ reactions/happy/
 
 The `.meta.json` file is the typed Action control document; the `.json` file is
 the actual `animaPoseClip/2.0` sequence owned by that
-Action. Idle Styles reference Gestures whose Action files contain their clip or
-VRMA. Independently reusable VFX and
+Action. Independently reusable VFX and
 SFX remain typed dependencies and are included through the runtime/package
 closure.
 
@@ -145,7 +143,7 @@ backup/reset scripts do not apply to the separate desktop profile or vault.
 ## Typed handlers, scanner, and neutral catalog
 
 `domain/content_documents.py` defines the framework-neutral, schema-versioned
-Gesture, Reaction, Pose, Effect, Sound, Idle Style, Avatar, Appearance, and
+Gesture, Reaction, Pose, Effect, Sound, Avatar, Appearance, and
 portable voice documents, plus private legacy decoders for stored Music and clip rows. `content_kind_registry.py` is a
 closed registry with one handler for every scannable kind. Each handler owns
 strict parsing, bounded media validation, dependency legality, canonical file
@@ -186,8 +184,8 @@ The core tables are:
 - `content_previews` and `content_preview_files`: short-lived exact preview
   memberships;
 - `anima_loadouts`: one optimistic revision root per live Anima;
-- `anima_content_bindings`: typed logical Avatar, Gesture, Reaction, Idle
-  Style, Appearance, and voice selections resolved at remount;
+- `anima_content_bindings`: typed logical Avatar, Gesture, Reaction, Idle pool,
+  Appearance, and voice selections resolved at remount;
 - `anima_loadout_mutation_receipts`: bounded idempotent commit results;
 - `anima_loadout_diagnostics`: warnings for rejected persisted or manually
   invalid equipment.
@@ -306,7 +304,7 @@ GET    /v1/animas/{anima_id}/runtime/revisions/{revision}/files/{file_ref}
 
 Typed families are `gestures`, `reactions`, `poses`,
 `particle-effects`, `avatar-effects`, `scene-effects`, `sound-effects`,
-`idle-styles`, `avatar-content`, `appearance-content`, and
+`avatar-content`, `appearance-content`, and
 `voice-content`. `/v1/content` is deliberately infrastructure-only; it no
 longer accepts a generic semantic Save or Preview contract.
 
@@ -359,7 +357,8 @@ idempotent commit. The commit writes a logical item selection to
 `anima_content_bindings` and advances the Anima loadout revision. A Gesture is
 unique by effective semantic key. Reaction bindings occupy canonical
 emotion/intensity cells, while a Reaction Action may be placed in any cell
-regardless of its authored placement hint. Idle Style is singular, and
+regardless of its authored placement hint. Each Idle cell holds any number of
+idle-eligible Gestures, one row each, and
 Avatar/Appearance/voice use their own single-selection rules. VFX and SFX remain transitive
 dependencies and are rejected as direct equipment. No loadout write copies
 bytes or hot-swaps an active mount.

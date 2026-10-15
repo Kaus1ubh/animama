@@ -47,7 +47,7 @@ from animama.app.services.content_kind_registry import MAX_JSON_BYTES, handler_f
 from animama.app.services.content_package_staging import PackageStageService
 from animama.app.services.content_portability import is_non_portable
 from animama.app.services.local_content_mutations import _finish_owned_work, mutation_digest
-from animama.app.services.non_portable_packages import idle_pools_using, strip_idle_refs, strip_optional_refs
+from animama.app.services.non_portable_packages import strip_optional_refs
 from animama.app.services.package_inspection import inspect_package
 from animama.app.services.typed_content_service import TypedCatalogItem, TypedContentResolutionContext
 from animama.domain.content_catalog import (
@@ -63,7 +63,6 @@ from animama.domain.content_catalog import (
 from animama.domain.content_documents import (
     AppearanceDocumentV1,
     AvatarDocumentV1,
-    IdleStyleDocumentV2,
     PoseDocumentV1,
     VoiceDocumentV1,
 )
@@ -283,10 +282,9 @@ class _ReservedWriter:
 class _NonPortableUse:
     """Catalog-identity form of PackageNonPortableUse, mapped to entry ids on write."""
 
-    anima_slot: NonPortableAnimaSlot | None = None
+    anima_slot: NonPortableAnimaSlot
     semantic_key: str | None = None
     config: dict[str, Any] | None = None
-    entry_item_id: str | None = None
     pools: tuple[str, ...] = ()
 
 
@@ -297,8 +295,8 @@ class _Selection:
     root_ids: tuple[str, ...]
     portraits: dict[str, str | None]
     anima_snapshot: AnimaPackageSnapshot | None = None
-    # Portable item id -> non-portable item ids removed from it: Gestures pooled
-    # by an Idle Style, or an effect's optional accompanying sound.
+    # Portable item id -> non-portable item ids removed from it: an effect's
+    # optional accompanying sound.
     stripped: dict[str, frozenset[str]] = field(default_factory=dict)
     non_portable: tuple[tuple[CatalogContentEntry, tuple[_NonPortableUse, ...]], ...] = ()
     # Effective face-part corrections by Avatar item id, written into each portable sidecar.
@@ -381,7 +379,12 @@ class ContentPackageExportService:
             for omitted in captured.omitted:
                 visible.setdefault(omitted.item.id, omitted.item)
                 uses.setdefault(omitted.item.id, []).append(
-                    _NonPortableUse(anima_slot=omitted.slot, semantic_key=omitted.semantic_key, config=omitted.config)
+                    _NonPortableUse(
+                        anima_slot=omitted.slot,
+                        semantic_key=omitted.semantic_key,
+                        config=omitted.config,
+                        pools=omitted.pools,
+                    )
                 )
         else:
             roots = item_ids
@@ -484,13 +487,12 @@ class ContentPackageExportService:
     def _strip_non_portable(
         entries: dict[str, TypedCatalogItem], uses: dict[str, list[_NonPortableUse]], silent: set[str]
     ) -> dict[str, frozenset[str]]:
-        """Remove non-portable Gestures pooled by portable Idle Styles and optional
-        non-portable sounds; refuse any other use.
+        """Remove optional non-portable sounds; refuse any other non-portable dependency.
 
-        Mutates ``entries``, ``uses`` and ``silent`` (sounds omitted without a
-        reference). A non-portable item reached in any other way (as a root,
-        through another kind, or with dependencies of its own) blocks the export
-        and is named in the error.
+        Mutates ``entries`` and ``silent`` (sounds omitted without a reference).
+        Omitted Anima bindings never reach here. A non-portable item reached in
+        any other way (as a root, or through another kind) blocks the export and
+        is named in the error.
         """
 
         restricted = {item_id for item_id, item in entries.items() if is_non_portable(item.item)}
@@ -510,19 +512,7 @@ class ContentPackageExportService:
                     allowed.add(target)
                     silent.add(target)
                     continue
-                if (
-                    item_id in restricted
-                    or typed.item.kind is not ContentKind.IDLE_STYLE
-                    or not isinstance(typed.document, IdleStyleDocumentV2)
-                    or dependency.item.kind is not ContentKind.GESTURE
-                    or dependency.item.dependencies
-                ):
-                    raise ContentConflictError("package_non_portable", items=(dependency.item.display_name,))
-                stripped.setdefault(item_id, set()).add(target)
-                allowed.add(target)
-                uses.setdefault(target, []).append(
-                    _NonPortableUse(entry_item_id=item_id, pools=tuple(idle_pools_using(typed.document, ref)))
-                )
+                raise ContentConflictError("package_non_portable", items=(dependency.item.display_name,))
         blocked = sorted(entries[item_id].item.display_name for item_id in restricted - allowed)
         if blocked:
             raise ContentConflictError("package_non_portable", items=tuple(blocked))
@@ -763,10 +753,7 @@ class ContentPackageExportService:
                     for ref, target in zip(entry.dependencies, entry.dependency_item_ids, strict=True)
                     if target in removed
                 }
-                if isinstance(document, IdleStyleDocumentV2) and removed_refs:
-                    projection = strip_idle_refs(projection, removed_refs)
-                else:
-                    projection = strip_optional_refs(projection, removed_refs)
+                projection = strip_optional_refs(projection, removed_refs)
                 if isinstance(document, AvatarDocumentV1):
                     projection.pop("face_parts", None)
                     if entry.id in selected.face_parts:
@@ -912,7 +899,6 @@ class ContentPackageExportService:
                                 anima_slot=use.anima_slot,
                                 semantic_key=use.semantic_key,
                                 config=use.config or {},
-                                entry_id=identities[use.entry_item_id] if use.entry_item_id else None,
                                 pools=list(use.pools),
                             )
                             for use in uses

@@ -1,6 +1,6 @@
 """Compatibility exports for the shared product contracts."""
 
-from animama.app.contracts.idle_style import PyIdleCell as PyIdleCell, PyIdlePlayback as PyIdlePlayback
+from animama.app.contracts.idle import PyIdlePlayback as PyIdlePlayback
 from animama.app.contracts.typed_content import (
     PyActionImplementation as PyActionImplementation,
     PyAppearance as PyAppearance,
@@ -20,9 +20,6 @@ from animama.app.contracts.typed_content import (
     PyContentPreviewsPrepareResponse as PyContentPreviewsPrepareResponse,
     PyGesture as PyGesture,
     PyGesturePage as PyGesturePage,
-    PyIdleAnimation as PyIdleAnimation,
-    PyIdleStyle as PyIdleStyle,
-    PyIdleStylePage as PyIdleStylePage,
     PyParticleEffect as PyParticleEffect,
     PyParticleEffectPage as PyParticleEffectPage,
     PyPose as PyPose,

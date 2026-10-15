@@ -1456,7 +1456,7 @@ change files or make a model-provider request.
 A successful reset or health response does not prove the product fixture is
 ready. Through the selected application origin, inspect `/v1/runtime-context`
 for installation readiness, `/v1/content/catalog` for typed content diagnostics,
-and `/v1/animas/creation-options` for available avatar and Idle sources. Inspect
+and `/v1/animas/creation-options` for available avatar and starter sources. Inspect
 the selected Anima's `/v1/animas/{id}/runtime` for its `effective_revision`,
 `can_chat` and protected avatar/idle/gesture file closure. Use that
 `effective_revision` as `runtime_revision` in chat requests. Missing required

@@ -23,7 +23,6 @@ CONTENT_TYPE_DIRECTORIES: tuple[str, ...] = (
     "vfx/avatar",
     "vfx/scene",
     "sfx",
-    "idle-styles",
     "music",
     "appearances",
     "voices",

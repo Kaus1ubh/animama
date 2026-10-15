@@ -24,66 +24,60 @@ from tests.content_package_helpers import anima_clip
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("gesture_ref", ["local:gesture:breathe", "gestures/breathe"])
-async def test_idle_gesture_closure_is_finite_and_separate_from_ai_gestures(gesture_ref: str) -> None:
+async def test_idle_pool_members_are_finite_separate_from_ai_gestures_and_drop_alone() -> None:
     from animama.app.services.typed_runtime_projection import project_typed_runtime_catalog
 
     clip = json.dumps(anima_clip(clip_id="breathe", name="Breathe", duration=3)).encode()
-    motion = replace(_file("breathe", "breathe.json", hashlib.sha256(clip).hexdigest(), len(clip)), role="sequence")
-    gesture = replace(
-        _entry("breathe", files=(motion,)),
-        logical_key="local:gesture:breathe",
-        metadata={
-            "schema_version": 1,
-            "content_type": "gesture",
-            "name": "Breathe",
-            "semantic_key": "breathe",
-            "implementation": {"kind": "anima_clip", "file_role": "sequence"},
-            "config": {"time_scale": 2},
-        },
-    )
-    style = replace(
-        _entry("quiet", kind=ContentKind.IDLE_STYLE, dependencies=(gesture.id,)),
-        logical_key="local:idle:quiet",
-        dependencies=(gesture_ref,),
-        metadata={
-            "schema_version": 2,
-            "content_type": "idle_style",
-            "name": "Quiet",
-            "dependencies": [{"ref": gesture_ref, "content_type": "gesture"}],
-            "default_pool": [gesture_ref],
-            "cells": {"joy": {"2": {"mode": "none"}}},
-        },
-    )
+
+    def gesture(name: str, config: dict[str, object]) -> CatalogContentEntry:
+        motion = replace(_file(name, f"{name}.json", hashlib.sha256(clip).hexdigest(), len(clip)), role="sequence")
+        return replace(
+            _entry(name, files=(motion,)),
+            logical_key=f"local:gesture:{name}",
+            metadata={
+                "schema_version": 1,
+                "content_type": "gesture",
+                "name": name.title(),
+                "semantic_key": name,
+                "implementation": {"kind": "anima_clip", "file_role": "sequence"},
+                "config": config,
+            },
+        )
+
+    breathe = gesture("breathe", {"time_scale": 2})
+    # A looping clip without a finite repetition count cannot idle.
+    endless = gesture("endless", {"loop": True})
 
     class Store(_Store):
         def open_verified_file(self, **facts):  # noqa: ANN003, ANN202
             return VerifiedContentFile(BytesIO(clip), len(clip), facts["expected_sha256"], facts["media_type"])
 
-    catalog = _Catalog([style, gesture])
+    def idle_root(item: CatalogContentEntry, cells: list[str]) -> RuntimeContentRootSelection:
+        return RuntimeContentRootSelection(
+            f"idle:{item.id}",
+            item.id,
+            ContentKind.GESTURE,
+            context={"binding_id": f"idle:{item.id}", "idle_cells": cells, "origin": "idle"},
+        )
+
+    catalog = _Catalog([breathe, endless])
     descriptor = await RuntimeContentClosureCompiler(catalog=catalog, store=Store()).compile(  # type: ignore[arg-type]
         user_id="owner",
         loadout_revision=1,
-        selections=(RuntimeContentRootSelection("idle-style", style.id, style.kind),),
+        selections=(idle_root(breathe, ["default", "joy-2"]), idle_root(endless, ["default"])),
     )
+    assert [root.item_id for root in descriptor.roots] == [breathe.id]
+    assert [(issue.code, issue.item_id) for issue in descriptor.diagnostics] == [
+        ("idle_repetitions_invalid", endless.id)
+    ]
     runtime = project_typed_runtime_catalog(loadout_revision=1, descriptor=descriptor, visible=catalog.entries)
     assert runtime["gestures"] == []
-    assert runtime["idle_style"]["default_pool"] == [gesture.id]
-    nested = runtime["idle_style"]["gestures"][0]
-    assert nested["binding_id"] == f"idle:{gesture.id}"
+    assert runtime["idle"]["default_pool"] == [breathe.id]
+    assert runtime["idle"]["cells"] == {"joy": {"2": [breathe.id]}}
+    nested = runtime["idle"]["gestures"][0]
+    assert nested["binding_id"] == f"idle:{breathe.id}"
     assert nested["runtime_root_id"] == descriptor.roots[0].root_id
     assert nested["idle_playback"]["duration_seconds"] == 1.5
-    assert runtime["idle_style"]["cells"] == {"joy": {"2": {"mode": "none"}}}
-
-    invalid = replace(gesture, metadata={**gesture.metadata, "config": {"loop": True}})
-    catalog.entries = [style, invalid]
-    rejected = await RuntimeContentClosureCompiler(catalog=catalog, store=Store()).compile(  # type: ignore[arg-type]
-        user_id="owner",
-        loadout_revision=2,
-        selections=(RuntimeContentRootSelection("idle-style", style.id, style.kind),),
-    )
-    assert rejected.roots == ()
-    assert rejected.diagnostics[0].code == "idle_repetitions_invalid"
 
 
 def _id(value: str) -> str:
@@ -193,30 +187,24 @@ async def test_idle_gestures_preserve_distinct_authored_config_for_the_same_soun
                 },
             )
         )
-    style = replace(
-        _entry("style", kind=ContentKind.IDLE_STYLE, dependencies=tuple(g.id for g in gestures)),
-        dependencies=tuple(g.logical_key for g in gestures if g.logical_key is not None),
-        metadata={
-            "schema_version": 2,
-            "content_type": "idle_style",
-            "name": "Style",
-            "dependencies": [{"ref": g.logical_key, "content_type": "gesture"} for g in gestures],
-            "default_pool": [g.logical_key for g in gestures],
-        },
-    )
 
     class Store(_Store):
         def open_verified_file(self, **facts):  # noqa: ANN003, ANN202
             return VerifiedContentFile(BytesIO(clip), len(clip), facts["expected_sha256"], facts["media_type"])
 
-    catalog = _Catalog([style, *gestures, sound])
+    catalog = _Catalog([*gestures, sound])
     descriptor = await RuntimeContentClosureCompiler(catalog=catalog, store=Store()).compile(  # type: ignore[arg-type]
         user_id="owner",
         loadout_revision=1,
-        selections=(RuntimeContentRootSelection("idle-style", style.id, style.kind),),
+        selections=tuple(
+            RuntimeContentRootSelection(
+                f"idle:{value.id}", value.id, ContentKind.GESTURE, context={"idle_cells": ["default"]}
+            )
+            for value in gestures
+        ),
     )
     runtime = project_typed_runtime_catalog(loadout_revision=1, descriptor=descriptor, visible=catalog.entries)
-    nested = runtime["idle_style"]["gestures"]
+    nested = runtime["idle"]["gestures"]
     first, second = (value["reference_map"]["bell"] for value in nested)
     assert first != second
     sounds = {value["runtime_id"]: value for value in runtime["sound_effects"]}

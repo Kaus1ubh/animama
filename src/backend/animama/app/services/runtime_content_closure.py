@@ -11,23 +11,23 @@ from typing import Any
 from animama.app.ports.content_catalog import ContentCatalog
 from animama.app.ports.content_store import ContentStore
 from animama.app.services.content_kind_registry import RETIRED_CONTENT_KINDS
+from animama.app.services.idle_playback import read_gesture_idle_playback
 from animama.app.services.runtime_budget_policy import (
     MAX_RUNTIME_BYTES,
     MAX_RUNTIME_CONFIG_BYTES,
     MAX_RUNTIME_ENTRIES,
 )
-from animama.app.services.typed_content_service import TypedContentService, validate_idle_style
+from animama.app.services.typed_content_service import TypedContentService
 from animama.domain.content_catalog import (
     CatalogContentEntry,
     CatalogContentFile,
     ContentIntegrityError,
-    ContentKind,
     ContentNotFoundError,
     ContentPathError,
     ContentSource,
     ContentStatus,
 )
-from animama.domain.content_documents import ContentDocumentError, IdleStyleDocumentV2
+from animama.domain.content_documents import ContentDocumentError, GestureDocumentV1
 from animama.domain.runtime_content_descriptor import (
     RuntimeContentDescriptor,
     RuntimeContentDiagnostic,
@@ -226,16 +226,16 @@ class RuntimeContentClosureCompiler:
                 )
                 continue
             idle_playback: dict[str, dict[str, Any]] = {}
-            if root.kind is ContentKind.IDLE_STYLE and root.metadata.get("schema_version") == 2:
+            if selection.slot_key.startswith("idle:"):
+                # An Idle pool member plays only with finite facts read from its exact motion bytes.
                 try:
-                    idle_document = TypedContentService.parse(root).document
-                    assert isinstance(idle_document, IdleStyleDocumentV2)
-                    if tuple(edge.ref for edge in idle_document.dependencies) != root.dependencies:
-                        raise ContentDocumentError("idle_dependency_mismatch", "Idle dependency membership changed")
-                    facts = await validate_idle_style(document=idle_document, visible=by_id, store=self._store)
-                    if set(facts) != set(root.dependency_item_ids):
-                        raise ContentDocumentError("idle_dependency_mismatch", "Idle dependency membership changed")
-                    idle_playback = {item_id: asdict(value) for item_id, value in facts.items()}
+                    gesture = TypedContentService.parse(root).document
+                    if not isinstance(gesture, GestureDocumentV1):
+                        raise ContentDocumentError("idle_gesture_required", "Idle pools require Gesture content")
+                    facts = await read_gesture_idle_playback(
+                        document=gesture, item=root, dependency_items=by_id, store=self._store
+                    )
+                    idle_playback = {root.id: asdict(facts)}
                 except (
                     ContentDocumentError,
                     ContentNotFoundError,
@@ -248,7 +248,7 @@ class RuntimeContentClosureCompiler:
                             root_id=root_id,
                             slot_key=selection.slot_key,
                             code=exc.code if isinstance(exc, ContentDocumentError) else "idle_motion_unavailable",
-                            message="The Idle Style requires available Gestures with finite playback.",
+                            message="This idle Gesture needs available motion with finite playback.",
                             item_id=root.id,
                         )
                     )

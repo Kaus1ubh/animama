@@ -460,7 +460,7 @@ fallback entry. The table is bundled or replaced by
 Avatar metadata joined to valid Content Catalog models and registered
 portraits. It returns Included or Local origin without exposing paths.
 
-Gestures, Reactions, Poses, effects, Sounds, Idle Styles,
+Gestures, Reactions, Poses, effects, Sounds,
 Avatar content, Appearance, and portable voice content expose generated typed
 contracts over the neutral catalog. Each family supports List/Get/Save/Preview
 under its own `/v1/{typed-family}` prefix; for example:
@@ -473,7 +473,7 @@ POST   /v1/gestures/{item_id}:preview
 ```
 
 Equivalent families are `reactions`, `poses`, `particle-effects`,
-`avatar-effects`, `scene-effects`, `sound-effects`, `idle-styles`,
+`avatar-effects`, `scene-effects`, `sound-effects`,
 `avatar-content`, `appearance-content`, and `voice-content`.
 The closed handler for the selected kind validates the schema-versioned
 document, files, dependencies, roles, runtime projection, and portable package
@@ -481,15 +481,11 @@ references. Unknown fields and mismatched kinds are rejected. Avatar and Scene
 definitions contain bounded renderer settings and registered logical resource
 names; external/data/Blob URLs, scripts, shaders, and host paths are rejected.
 
-Idle Style authoring accepts `schema_version: 2` Gesture pools, separate
-emotion/intensity cells and explicit No idle/inheritance. It has no companion
-motion upload or per-Anima pool override. `GET /v1/gestures/{item_id}/idle-playback`
-returns exact-media finite eligibility or a safe reason for ineligibility.
-Style Preview includes an `idle_playback` map keyed by its declared Gesture
-reference, validated against the same frozen bytes. Gesture Preview includes
-eligible finite facts for the Idle editor's candidate playback; an ordinary
-ineligible Gesture can still be previewed outside idle use. Legacy Styles remain readable
-only for local conversion/recovery, not supported typed selection or authoring.
+`GET /v1/gestures/{item_id}/idle-playback` returns exact-media finite
+eligibility, or a safe reason for ineligibility, for a Gesture offered to an
+Anima's Idle pool. Gesture Preview includes eligible finite facts for that
+candidate's idle playback; an ordinary ineligible Gesture can still be
+previewed outside idle use.
 Dependency `item_id` values identify caller-visible targets. Clients resolve
 locator references through those identities; they must not guess a logical-key
 suffix. Raw Save receipt responses may omit this optional resolution metadata.
@@ -527,7 +523,9 @@ The owner-scoped loadout endpoints are:
 - `GET /v1/animas/{anima_id}/loadout`;
 - `POST /v1/animas/{anima_id}/gestures:plan|commit`;
 - `POST /v1/animas/{anima_id}/reactions:plan|commit`;
-- `POST /v1/animas/{anima_id}/idle-style:plan|commit`;
+- `POST /v1/animas/{anima_id}/idle:plan|commit` (`add` takes a Gesture
+  `source` plus `emotion` and `intensity`, omitted for Default; `remove` takes
+  the member's `binding_id`);
 - `POST /v1/animas/{anima_id}/avatar:plan|commit`;
 - `POST /v1/animas/{anima_id}/appearance:plan|commit`;
 - `POST /v1/animas/{anima_id}/voice:plan|commit`.
@@ -668,13 +666,12 @@ consumes them, and frontend-server onboarding uses the generated starter command
 rather than bulk or mutable request templates.
 
 Authenticated `GET /v1/animas/creation-options` returns versioned
-Recommended Starter Pack selections/counts, nullable default Idle evidence,
-limits, and diagnostics. Read-only `POST /v1/animas:validate` accepts
+Recommended Starter Pack selections/counts, limits, and diagnostics. Read-only `POST /v1/animas:validate` accepts
 `AnimaSpec` and returns the normalized spec/warnings.
 `POST /v1/animas` accepts that strict spec plus a body idempotency key; the
 owner is never a browser field. The complete `expected_source_revisions` map
-includes selected roots and all typed supports with kind/revision. New companions
-start with Idle empty; `default_idle.source` is null and its revision map is empty.
+includes selected roots and all typed supports with kind/revision. The server
+seeds each new companion's Idle pool itself; the seed is not part of the spec.
 Before the Review step, the browser obtains that map with one
 `POST /v1/content/evidence:resolve` call containing the selected Avatar,
 Actions and any shared voice clone, then independently submits the whole spec to

@@ -13,7 +13,7 @@ from animama.app.contracts.avatar_effect import (
     avatar_effect_projection_fields,
 )
 from animama.app.contracts.avatar_face_parts import AvatarFacePartCorrection
-from animama.app.contracts.idle_style import PyIdleCell, PyIdlePlayback
+from animama.app.contracts.idle import PyIdlePlayback
 
 
 class PyRuntimeFile(BaseModel):
@@ -112,16 +112,6 @@ class PyRuntimeAvatarEffect(PyRuntimeSupport):
         return avatar_effect_projection_fields(data)
 
 
-class PyRuntimeIdleAnimation(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    animation_id: str
-    name: str
-    description: str | None = None
-    playback: dict[str, Any] = Field(default_factory=dict)
-    files: list[PyRuntimeFile] = Field(default_factory=list)
-
-
 class PyRuntimeIdleGesture(PyRuntimeAction):
     """A complete Action admitted for idle use, never an AI-selectable Gesture."""
 
@@ -129,21 +119,19 @@ class PyRuntimeIdleGesture(PyRuntimeAction):
     idle_playback: PyIdlePlayback
 
 
-class PyRuntimeIdleStyle(BaseModel):
+class PyRuntimeIdle(BaseModel):
+    """The Anima's Idle pool as admitted for this mount.
+
+    Pools list Gesture catalog item ids from ``gestures``. A cell absent from
+    ``cells`` uses ``default_pool``; members that could not be admitted are
+    left out, and a cell left empty that way uses Default too.
+    """
+
     model_config = ConfigDict(extra="forbid")
 
-    name: str
-    runtime_root_id: str | None = None
-    description: str | None = None
-    source: PyRuntimeSource
-    revision: str
-    schema_version: Literal[1, 2] = 1
+    default_pool: list[str] = Field(default_factory=list)
+    cells: dict[str, dict[str, list[str]]] = Field(default_factory=dict)
     gestures: list[PyRuntimeIdleGesture] = Field(default_factory=list)
-    cells: dict[str, dict[str, PyIdleCell]] = Field(default_factory=dict)
-    animations: list[PyRuntimeIdleAnimation] = Field(default_factory=list)
-    default_pool: list[str]
-    emotion_pools: dict[str, list[str]] = Field(default_factory=dict)
-    cross_fade_seconds: float = 0.35
 
 
 class PyRuntimeAvatar(BaseModel):
@@ -279,7 +267,7 @@ class PyAnimaRuntime(BaseModel):
     gestures: list[PyRuntimeAction] = Field(default_factory=list)
     poses: list[PyRuntimeAction] = Field(default_factory=list)
     reactions: list[PyRuntimeAction] = Field(default_factory=list)
-    idle_style: PyRuntimeIdleStyle | None = None
+    idle: PyRuntimeIdle = Field(default_factory=PyRuntimeIdle)
     avatar: PyRuntimeAvatar | None = None
     voice: PyRuntimeVoice | None = None
     appearances: list[PyRuntimeAppearance] = Field(default_factory=list)

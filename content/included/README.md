@@ -8,16 +8,14 @@ self-describing JSON file can be an entry by itself. Shipped Gestures and
 Reactions always use a product folder. Their `<stem>.meta.json` file describes
 the Action, while `<stem>.vrma` or `<stem>.json` is the playable payload.
 Action-owned Pose Clips are colocated; the retired `pose-clips/` folder is not
-used. Idle-only VRMAs
-belong inside their Idle Style.
+used.
 
-The library ships 107 Gestures, 72 Reactions and 73 Avatar Effects; frontend
-and backend tests pin these counts, so update them with any promotion. Its one
-Idle Style, Streamer Idle (`idle-styles/streamer-idle/`), contains no motion: it
-pools twelve Included idle Gestures by emotion and intensity. New companions
-still start with Idle empty and can choose it. Idle plays while the Anima is
-quiet, so every Avatar Effect event in a Gesture that an Included Idle Style
-uses sets `playAccompanyingSound: false`.
+The library ships 111 Gestures, 72 Reactions and 73 Avatar Effects; frontend
+and backend tests pin these counts, so update them with any promotion. Twelve
+of the Gestures are idle motions that seed every new Anima's Idle pool by
+emotion and intensity (`src/backend/animama/resources/starter-idle-pool.v1.json`).
+Idle plays while the Anima is quiet, so every Avatar Effect event in a seeded
+idle Gesture sets `playAccompanyingSound: false`.
 
 `licenses/inventory.json` supplies the current provenance and redistribution
 review state. Rules are ordered, with the first matching rule applied to each

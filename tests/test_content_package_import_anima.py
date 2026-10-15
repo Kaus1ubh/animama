@@ -78,7 +78,10 @@ async def complete_package(session, tmp_path: Path):  # noqa: ANN001, ANN201
             config = {"loop_type": "pingpong", "loop_count": 2, "time_scale": 0.5, "blend_mode": "additive"}
             await session.execute(
                 update(ORMAnimaContentBinding)
-                .where(ORMAnimaContentBinding.anima_id == created["anima_id"], ORMAnimaContentBinding.kind == "gesture")
+                .where(
+                    ORMAnimaContentBinding.anima_id == created["anima_id"],
+                    ORMAnimaContentBinding.slot_key.startswith("gesture:"),
+                )
                 .values(config=config)
             )
             await session.execute(
@@ -143,14 +146,24 @@ async def test_complete_anima_import_round_trips_config_empty_cells_images_and_r
         review = await packages.imports.review(user_id=fixture.owner, stage_id=command["stage_id"])
         assert review.kind == "anima" and review.anima is not None
         assert review.anima.display_name == "Test  Companion-2"
-        assert (review.selected_count, review.required_count) == (4, 0)
+        # Avatar, Gesture, Reaction, shared image and the seeded Idle Gesture.
+        assert (review.selected_count, review.required_count) == (5, 0)
+        assert review.anima.idle.cells == {} and len(review.anima.idle.default) == 1
         result = await packages.imports.commit(**command)
         assert result.anima_id is not None and result.anima_id != original_id
         imported = await sources.capture(user_id=fixture.owner, anima_id=result.anima_id)
         expected = rewrite_portable_anima(review.anima, {item.entry_id: item.item_id for item in result.items})
         assert imported.definition == expected
         assert imported.definition.gestures[0].config["blend_mode"] == "additive"
-        assert imported.definition.idle_style is None
+        # The imported Anima gets exactly the packaged pool, not a fresh starter seed.
+        idle_id = next(item.item_id for item in result.items if item.entry_id == review.anima.idle.default[0])
+        assert imported.definition.idle.model_dump() == {"default": [idle_id], "cells": {}}
+        idle_rows = await async_session.scalars(
+            select(ORMAnimaContentBinding.slot_key).where(
+                ORMAnimaContentBinding.anima_id == result.anima_id, ORMAnimaContentBinding.slot_key.startswith("idle:")
+            )
+        )
+        assert list(idle_rows) == [f"idle:default:{idle_id}"]
         assert sum(value is None for cells in imported.definition.reactions.values() for value in cells.values()) == 70
         profile = await async_session.get(ORMAnimaChatProfile, result.anima_id)
         assert profile.default_model_provider_id == receiver_model

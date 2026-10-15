@@ -40,6 +40,7 @@ from animama.server.config import Settings, settings
 from animama.server.deps import get_async_session, get_current_principal
 from animama.server.local_runtime import LocalRuntimePaths, initialize_local_runtime
 from animama.server.routers import anima_creation
+from tests.content_package_helpers import anima_clip
 from tests.product_http_support import install_local_ports
 
 
@@ -217,21 +218,24 @@ async def anima_creation_fixture(
         write_file(paths.included_root / f"avatars/{name}.vrm", vrm(name))
     write_file(paths.local_root / "avatars/local-avatar.vrm", vrm(owner))
     write_file(paths.local_root / "appearances/picture.png", image_bytes())
+    # One Gesture of the starter Idle seed, with finite clip playback, so new
+    # Animas receive a non-empty Default pool.
     write_json(
-        paths.included_root / "idle-styles/starter/starter.json",
+        paths.included_root / "gestures/chat-glance/chat-glance.meta.json",
         {
             "schema_version": 1,
-            "content_type": "idle_style",
-            "content_id": "builtin:idle-style:starter",
-            "name": "Starter Idle",
-            "animations": [{"animation_id": "calm", "name": "Calm", "file_ref": "calm.vrma"}],
-            "files": [{"path": "calm.vrma", "role": "animation"}],
-            "default_pool": ["calm"],
-            "emotion_pools": {},
-            "compatibility": {"vrm_versions": ["0.x", "1.0"]},
+            "content_type": "gesture",
+            "content_id": "builtin:gesture:chat-glance",
+            "name": "Chat Glance",
+            "semantic_key": "chat_glance",
+            "implementation": {"kind": "anima_clip", "file_role": "sequence"},
+            "files": [{"path": "chat-glance.json", "role": "sequence"}],
         },
     )
-    write_file(paths.included_root / "idle-styles/starter/calm.vrma", vrma())
+    write_json(
+        paths.included_root / "gestures/chat-glance/chat-glance.json",
+        anima_clip(clip_id="chat-glance", name="Chat Glance", duration=2),
+    )
     for kind, name in (("gesture", "wave"), ("reaction", "joy-2")):
         document: dict[str, Any] = {
             "schema_version": 1,
@@ -295,7 +299,7 @@ async def anima_creation_fixture(
     fixture.items = {
         "local-avatar": by_path["avatars/local-avatar.vrm"],
         "included-avatar": by_path["avatars/AvatarSample_A_1_New.vrm"],
-        "idle": by_path["idle-styles/starter"],
+        "idle": by_path["gestures/chat-glance"],
         "gesture": by_path["gestures/wave"],
         "reaction": by_path["reactions/joy-2"],
         "image": by_path["appearances/picture.png"],

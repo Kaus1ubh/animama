@@ -56,8 +56,6 @@ from animama.domain.content_catalog import (
 from animama.domain.content_documents import (
     ContentDocumentError,
     GestureDocumentV1,
-    IdleStyleDocumentV1,
-    IdleStyleDocumentV2,
     ReactionDocumentV1,
     TypedContentDocument,
 )
@@ -420,8 +418,6 @@ class ContentPackageArchive:
             )
             .document
         )
-        if isinstance(document, IdleStyleDocumentV1):
-            raise ContentConflictError("package_idle_style_schema_unsupported")
         if isinstance(document, GestureDocumentV1 | ReactionDocumentV1):
             role = document.implementation.file_role or (
                 "animation" if document.implementation.kind == "vrma" else "sequence"
@@ -495,31 +491,26 @@ class ContentPackageArchive:
             required.add(NON_PORTABLE_REFERENCES_CAPABILITY)
         validate_capabilities(manifest.capabilities, required)
         context = TypedContentResolutionContext(catalog)
-        for entry_id, result in inspected.items():
+        for entry_id in inspected:
             closure = context.resolve(entry_id)
             if (
                 sum(file.size_bytes for item in closure for file in item.item.files) > MAX_RUNTIME_BYTES
                 or sum(len(json.dumps(item.item.metadata).encode()) for item in closure) > MAX_RUNTIME_CONFIG_BYTES
             ):
                 raise ContentConflictError("package_runtime_budget")
-            document = result.document
-            if isinstance(document, IdleStyleDocumentV2):
-                gesture_ids = set(document.default_pool)
-                gesture_ids.update(
-                    ref for levels in document.cells.values() for cell in levels.values() for ref in cell.gestures
-                )
-                for gesture_id in gesture_ids:
-                    gesture = inspected[gesture_id]
-                    if not isinstance(gesture.document, GestureDocumentV1):
-                        raise ContentConflictError("package_idle_gesture_invalid")
-                    role = gesture.document.implementation.file_role or (
-                        "animation" if gesture.document.implementation.kind == "vrma" else "sequence"
-                    )
-                    motion = [file for file in gesture.scanned.files if file.role == role]
-                    if len(motion) != 1:
-                        raise ContentConflictError("package_idle_motion_invalid")
-                    assert gesture.root is not None  # This validator created the private local inspection tree.
-                    with (gesture.root / motion[0].relative_path).open("rb") as stream:
-                        derive_idle_playback(gesture.document, stream)
         if manifest.anima is not None:
+            # Every packaged Idle pool Gesture must play for a finite time, as runtime idle requires.
+            for gesture_id in {entry_id for _, entry_id in manifest.anima.idle.members()}:
+                gesture = inspected[gesture_id]
+                if not isinstance(gesture.document, GestureDocumentV1):
+                    raise ContentConflictError("package_idle_gesture_invalid")
+                role = gesture.document.implementation.file_role or (
+                    "animation" if gesture.document.implementation.kind == "vrma" else "sequence"
+                )
+                motion = [file for file in gesture.scanned.files if file.role == role]
+                if len(motion) != 1:
+                    raise ContentConflictError("package_idle_motion_invalid")
+                assert gesture.root is not None  # This validator created the private local inspection tree.
+                with (gesture.root / motion[0].relative_path).open("rb") as stream:
+                    derive_idle_playback(gesture.document, stream)
             validate_package_anima_runtime(manifest.anima, catalog)

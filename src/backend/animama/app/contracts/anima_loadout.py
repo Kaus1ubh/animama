@@ -2,18 +2,18 @@
 
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from animama.app.contracts.idle_style import PyIdleCell
-from animama.app.services.content_kind_registry import idle_cells_projection
 from animama.domain.anima_loadout import (
     AnimaLoadout,
     AppearanceBinding,
     CatalogLoadoutSource,
     GestureBinding,
-    IdleStyleBinding,
+    IdleCell,
+    IdleMember,
+    IdlePool,
     LoadoutCommitResult,
     LoadoutDiagnostic,
     LoadoutPlan,
@@ -106,18 +106,39 @@ class PyReactionIntent(BaseModel):
         return self
 
 
-class PyIdleStyleIntent(BaseModel):
+class PyIdleIntent(BaseModel):
+    """Add a Gesture to one cell of the Anima's Idle pool, or remove one member.
+
+    ``add`` takes the Gesture ``source`` and the cell; omit ``emotion`` and
+    ``intensity`` for the Default pool. ``remove`` takes the member's
+    ``binding_id``, so an unavailable member can be removed too. The pool itself
+    always exists; no operation removes or replaces it as a whole.
+    """
+
     model_config = ConfigDict(extra="forbid")
 
-    operation: Literal["set", "update", "reconfigure", "revert", "leave_empty"]
+    operation: Literal["add", "remove"]
+    emotion: str | None = Field(default=None, min_length=1, max_length=64)
+    intensity: Literal[1, 2, 3] | None = None
     source: PyCatalogLoadoutSource | None = None
+    binding_id: str | None = Field(default=None, min_length=1, max_length=128)
+
+    @field_validator("emotion")
+    @classmethod
+    def canonical_emotion(cls, value: str | None) -> str | None:
+        if value is not None and value not in TRACKED_EMOTIONS:
+            raise ValueError("emotion must be a canonical tracked emotion")
+        return value
 
     @model_validator(mode="after")
-    def validate_source(self) -> PyIdleStyleIntent:
-        if self.operation in {"set", "update", "reconfigure"} and self.source is None:
-            raise ValueError("source is required")
-        if self.operation in {"revert", "leave_empty"} and self.source is not None:
-            raise ValueError("revert and leave_empty do not accept a source")
+    def operation_fields(self) -> PyIdleIntent:
+        if self.operation == "add":
+            if self.source is None or self.binding_id is not None:
+                raise ValueError("add takes a source and no binding_id")
+            if (self.emotion is None) != (self.intensity is None):
+                raise ValueError("emotion and intensity must be given together")
+        elif self.binding_id is None or self.source is not None or self.emotion or self.intensity:
+            raise ValueError("remove takes only a binding_id")
         return self
 
 
@@ -190,10 +211,10 @@ class PyReactionPlanRequest(BaseModel):
     intent: PyReactionIntent
 
 
-class PyIdleStylePlanRequest(BaseModel):
+class PyIdlePlanRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     expected_revision: int = Field(ge=1)
-    intent: PyIdleStyleIntent
+    intent: PyIdleIntent
 
 
 class PySingleSelectionPlanRequest(BaseModel):
@@ -218,7 +239,7 @@ class PyReactionCommitRequest(PyReactionPlanRequest):
     idempotency_key: str = Field(min_length=1, max_length=128)
 
 
-class PyIdleStyleCommitRequest(PyIdleStylePlanRequest):
+class PyIdleCommitRequest(PyIdlePlanRequest):
     plan_digest: str = Field(pattern=r"^[0-9a-f]{64}$")
     idempotency_key: str = Field(min_length=1, max_length=128)
 
@@ -333,70 +354,61 @@ class PyReactionCell(BaseModel):
         )
 
 
-class PyIdleAnimationSummary(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    animation_id: str
-    name: str
-    description: str | None = None
+class PyIdleMember(BaseModel):
+    """One Gesture in the Idle pool; ``available`` is false when its catalog item is missing or invalid."""
 
-
-class PyIdleGestureSummary(BaseModel):
     model_config = ConfigDict(extra="forbid")
+
+    binding_id: str
     item_id: str
-    logical_key: str | None = None
     name: str
     description: str | None = None
-
-
-class PyAnimaIdleStyle(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    state: Literal["starter", "custom", "empty"]
-    name: str | None = None
-    description: str | None = None
+    available: bool
     source: PyCatalogLoadoutSource | None = None
-    schema_version: Literal[1, 2] = 2
-    default_pool: list[str] = Field(default_factory=list)
-    cells: dict[str, dict[str, PyIdleCell]] = Field(default_factory=dict)
-    gestures: list[PyIdleGestureSummary] = Field(default_factory=list)
-    animations: list[PyIdleAnimationSummary] = Field(default_factory=list)
-    document_default_pool: list[str] = Field(default_factory=list)
-    document_emotion_pools: dict[str, list[str]] = Field(default_factory=dict)
-    effective_default_pool: list[str] = Field(default_factory=list)
-    effective_emotion_pools: dict[str, list[str]] = Field(default_factory=dict)
-    pool_overrides: dict[str, list[str]] = Field(default_factory=dict)
-    cross_fade_seconds: float = 0.35
 
     @classmethod
-    def from_domain(cls, value: IdleStyleBinding) -> PyAnimaIdleStyle:
+    def from_domain(cls, value: IdleMember) -> PyIdleMember:
         return cls(
-            state=value.state,
-            schema_version=value.schema_version,
-            default_pool=list(value.default_pool),
-            cells=idle_cells_projection(value.cells),
-            gestures=[
-                PyIdleGestureSummary(
-                    item_id=item.item_id, logical_key=item.logical_key, name=item.name, description=item.description
-                )
-                for item in value.gestures
-            ],
+            binding_id=value.binding_id,
+            item_id=value.item_id,
             name=value.name,
             description=value.description,
+            available=value.available,
             source=PyCatalogLoadoutSource.from_domain(value.source) if value.source else None,
-            animations=[
-                PyIdleAnimationSummary(
-                    animation_id=item.animation_id,
-                    name=item.name,
-                    description=item.description,
-                )
-                for item in value.animations
-            ],
-            document_default_pool=list(value.document_default_pool),
-            document_emotion_pools={key: list(pool) for key, pool in value.document_emotion_pools.items()},
-            effective_default_pool=list(value.effective_default_pool),
-            effective_emotion_pools={key: list(pool) for key, pool in value.effective_emotion_pools.items()},
-            pool_overrides={key: list(pool) for key, pool in value.pool_overrides.items()},
-            cross_fade_seconds=value.cross_fade_seconds,
+        )
+
+
+class PyIdleCell(BaseModel):
+    """One emotion/intensity cell; an empty ``gestures`` list means the cell uses Default."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    emotion: str
+    intensity: Literal[1, 2, 3]
+    gestures: list[PyIdleMember] = Field(default_factory=list)
+
+    @classmethod
+    def from_domain(cls, value: IdleCell) -> PyIdleCell:
+        return cls(
+            emotion=value.emotion,
+            intensity=cast(Literal[1, 2, 3], value.intensity),
+            gestures=[PyIdleMember.from_domain(item) for item in value.gestures],
+        )
+
+
+class PyAnimaIdle(BaseModel):
+    """The Anima's built-in Idle pool: Default plus all 72 emotion/intensity cells."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    default_pool: list[PyIdleMember] = Field(default_factory=list)
+    cells: list[PyIdleCell] = Field(default_factory=list)
+
+    @classmethod
+    def from_domain(cls, value: IdlePool) -> PyAnimaIdle:
+        return cls(
+            default_pool=[PyIdleMember.from_domain(item) for item in value.default_pool],
+            cells=[PyIdleCell.from_domain(cell) for cell in value.cells],
         )
 
 
@@ -437,7 +449,7 @@ class PyAnimaLoadout(BaseModel):
     disabled_starter_gestures: list[str]
     starter_gesture_implementation_kinds: dict[str, Literal["anima_clip", "vrma"]] = Field(default_factory=dict)
     reactions: list[PyReactionCell]
-    idle_style: PyAnimaIdleStyle
+    idle: PyAnimaIdle
     avatar_source: PyCatalogLoadoutSource | None = None
     appearances: list[PyAnimaAppearance] = Field(default_factory=list)
     voice_source: PyCatalogLoadoutSource | None = None
@@ -459,7 +471,7 @@ class PyAnimaLoadout(BaseModel):
             disabled_starter_gestures=list(value.disabled_starter_gestures),
             starter_gesture_implementation_kinds=starter_implementation_kinds or {},
             reactions=[PyReactionCell.from_domain(item) for item in value.reactions],
-            idle_style=PyAnimaIdleStyle.from_domain(value.idle_style),
+            idle=PyAnimaIdle.from_domain(value.idle),
             avatar_source=(PyCatalogLoadoutSource.from_domain(value.avatar_source) if value.avatar_source else None),
             appearances=[PyAnimaAppearance.from_domain(item) for item in value.appearances],
             voice_source=(PyCatalogLoadoutSource.from_domain(value.voice_source) if value.voice_source else None),

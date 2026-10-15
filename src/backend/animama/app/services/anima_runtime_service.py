@@ -25,6 +25,7 @@ from animama.app.services.content_access_policy import ContentAccessPolicy
 from animama.app.services.runtime_content_closure import RuntimeContentClosureCompiler
 from animama.app.services.starter_loadout_policy import starter_loadout_policy
 from animama.app.services.typed_runtime_projection import project_typed_runtime_catalog
+from animama.domain.anima_loadout import parse_idle_slot_key
 from animama.domain.content_catalog import (
     CatalogContentEntry,
     ContentKind,
@@ -427,7 +428,14 @@ class AnimaRuntimeService:
                 )
             ).scalars()
         )
+        # Each distinct Idle Gesture is one root carrying every cell it belongs
+        # to, so one unavailable or ineligible member drops alone.
+        idle_cells: dict[str, list[str]] = defaultdict(list)
         for binding in bindings:
+            idle_slot = parse_idle_slot_key(binding.slot_key)
+            if idle_slot is not None:
+                idle_cells[binding.catalog_item_id].append(idle_slot[0])
+                continue
             kind = ContentKind(binding.kind)
             if kind in {
                 ContentKind.POSE,
@@ -493,13 +501,13 @@ class AnimaRuntimeService:
                 missing_identity=content_id,
             )
 
-        if not loadout.idle_style_empty:
+        for item_id, cells in sorted(idle_cells.items()):
             add(
-                "idle-style",
-                logical("builtin:idle-style:starter"),
-                ContentKind.IDLE_STYLE,
-                {"binding_id": "starter:idle-style", "origin": "starter"},
-                missing_identity="builtin:idle-style:starter",
+                f"idle:{item_id}",
+                by_id.get(item_id),
+                ContentKind.GESTURE,
+                {"binding_id": f"idle:{item_id}", "idle_cells": sorted(cells), "origin": "idle"},
+                missing_identity=item_id,
             )
 
         if "avatar" not in occupied:
@@ -520,7 +528,6 @@ class AnimaRuntimeService:
 
         priority = {
             ContentKind.AVATAR: 0,
-            ContentKind.IDLE_STYLE: 1,
             ContentKind.GESTURE: 2,
             ContentKind.REACTION: 4,
             ContentKind.PARTICLE_EFFECT: 5,
@@ -531,7 +538,10 @@ class AnimaRuntimeService:
             ContentKind.VOICE: 8,
             ContentKind.ANIMA: 9,
         }
-        selections.sort(key=lambda value: (priority[value.kind], value.slot_key))
+        # Idle roots keep their budget precedence ahead of AI-callable Gestures.
+        selections.sort(
+            key=lambda value: (1 if value.slot_key.startswith("idle:") else priority[value.kind], value.slot_key)
+        )
         return _RuntimeSelectionPlan(roots=tuple(selections))
 
     @staticmethod

@@ -9,7 +9,6 @@ from pydantic import BaseModel, ConfigDict, Field
 from animama.app.anima_creation_contract import (
     AnimaSpec,
     GestureSelection,
-    ItemRevisionRef,
     ReactionMatrix,
     SourceRevision,
     StarterId,
@@ -82,18 +81,12 @@ class AnimaCreationCounts(CreationResponseModel):
     available_reaction_cells: int
 
 
-class AnimaCreationDefaultIdle(CreationResponseModel):
-    source: ItemRevisionRef | None
-    expected_source_revisions: dict[str, SourceRevision]
-
-
 class AnimaCreationOptions(CreationResponseModel):
     schema_version: Literal[1]
     limits: AnimaCreationLimits
     starter_pack: StarterPackIdentity
     recommended: RecommendedAnimaActions
     counts: AnimaCreationCounts
-    default_idle: AnimaCreationDefaultIdle
     expected_source_revisions: dict[str, SourceRevision]
     diagnostics: list[AnimaCreationDiagnostic]
 

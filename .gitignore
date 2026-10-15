@@ -153,12 +153,6 @@ content/included/**/*.review/
 /content/included/gestures/whatever/whatever.vrma
 /content/included/gestures/where_am_i/where_am_i.vrma
 /content/included/gestures/youre_right/youre_right.vrma
-/content/included/idle-styles/starter/animations/angry.vrma
-/content/included/idle-styles/starter/animations/anxious_look_around.vrma
-/content/included/idle-styles/starter/animations/bored.vrma
-/content/included/idle-styles/starter/animations/happy.vrma
-/content/included/idle-styles/starter/animations/sad.vrma
-/content/included/idle-styles/starter/animations/sway.vrma
 
 # Imported GitHub skills are private maintainer tools, not publication inputs.
 /.agents/skills/composition-patterns/

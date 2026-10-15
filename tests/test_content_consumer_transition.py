@@ -1,4 +1,4 @@
-"""Included Action/Style copies replace only consumed equipment in one Anima revision."""
+"""Included Action copies replace only consumed equipment in one Anima revision."""
 
 from __future__ import annotations
 
@@ -44,12 +44,10 @@ async def consumers(async_session: AsyncSession, tmp_path: Path) -> AsyncIterato
     logical = {
         "gesture": gesture["content_id"],
         "reaction": reaction["content_id"],
-        "idle_style": "builtin:idle-style:starter",
     }
     slots = {
         "gesture": f"gesture:{gesture['content_id'].rsplit(':', 1)[-1]}",
         "reaction": f"reaction:{reaction['emotion']}-{reaction['intensity']}",
-        "idle_style": "idle-style",
     }
     originals, included, replacements = {}, {}, {}
     for kind, content_id in logical.items():
@@ -105,7 +103,7 @@ async def _bindings(session: AsyncSession, anima_id: str) -> list[ORMAnimaConten
     )
 
 
-async def test_implicit_gesture_reaction_and_idle_are_materialized_in_one_revision(
+async def test_implicit_gesture_and_reaction_are_materialized_in_one_revision(
     async_session: AsyncSession,
     consumers: _Consumers,
 ) -> None:
@@ -128,7 +126,7 @@ async def test_implicit_gesture_reaction_and_idle_are_materialized_in_one_revisi
             user_id=fixture.owner.user_id, before=before, replacements=fixture.replacements
         )
     rows = {row.slot_key: row for row in await _bindings(async_session, fixture.owner.anima_id)}
-    assert len(rows) == 4
+    assert len(rows) == 3
     for kind, slot in fixture.slots.items():
         assert rows[slot].kind == kind
         assert rows[slot].catalog_item_id == fixture.replacements[fixture.originals[kind]]
@@ -162,7 +160,6 @@ async def test_explicit_selections_keep_binding_ids_configs_and_starter_exclusio
     configs = {
         "gesture": {"time_scale": 0.4, "custom": {"keep": [True, "value"]}},
         "reaction": {"gain": 0.2, "offset": {"x": 3}},
-        "idle_style": {"legacy_extension": {"preserve": 9}},
     }
     for kind, item_id in fixture.originals.items():
         async_session.add(
@@ -179,7 +176,6 @@ async def test_explicit_selections_keep_binding_ids_configs_and_starter_exclusio
     assert root is not None
     exclusions = [{"slot": "gesture", "runtime_id": fixture.slots["gesture"].split(":", 1)[1]}]
     root.starter_exclusions = exclusions
-    root.idle_style_empty = True
     await async_session.commit()
     repository = SQLAlchemyContentTransitionBindings(async_session)
     before = (
@@ -189,7 +185,7 @@ async def test_explicit_selections_keep_binding_ids_configs_and_starter_exclusio
             included_by_logical=fixture.included,
         )
     )[0]
-    assert len(before.selections) == 3
+    assert len(before.selections) == 2
     assert all(
         selection.binding_id is not None and selection.starter_content_id is None for selection in before.selections
     )
@@ -203,11 +199,11 @@ async def test_explicit_selections_keep_binding_ids_configs_and_starter_exclusio
         assert rows[slot].config == configs[kind]
         assert rows[slot].catalog_item_id == fixture.replacements[fixture.originals[kind]]
     await async_session.refresh(root)
-    assert root.revision == 2 and root.starter_exclusions == exclusions and root.idle_style_empty is True
+    assert root.revision == 2 and root.starter_exclusions == exclusions
 
 
 @pytest.mark.parametrize("disabled,occupied", [("gesture", "reaction"), ("reaction", "gesture")])
-async def test_disabled_or_occupied_starters_and_empty_idle_are_not_materialized(
+async def test_disabled_or_occupied_starters_are_not_materialized(
     async_session: AsyncSession,
     consumers: _Consumers,
     disabled: str,
@@ -217,7 +213,6 @@ async def test_disabled_or_occupied_starters_and_empty_idle_are_not_materialized
     root = await async_session.get(ORMAnimaLoadout, fixture.owner.anima_id)
     assert root is not None
     root.starter_exclusions = [{"slot": disabled, "runtime_id": fixture.slots[disabled].split(":", 1)[1]}]
-    root.idle_style_empty = True
     async_session.add(
         ORMAnimaContentBinding(
             id=f"occupied-{fixture.owner.suffix}",

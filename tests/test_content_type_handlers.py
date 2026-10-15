@@ -17,72 +17,14 @@ from animama.domain.content_catalog import ContentKind
 from animama.domain.content_documents import (
     ContentDocumentError,
     GestureDocumentV1,
-    IdleStyleDocumentV2,
     ReactionDocumentV1,
 )
 
 
-def test_idle_style_v2_owns_gesture_pools_and_exact_emotion_cells() -> None:
-    """Cell omission inherits Default; explicit none survives canonical roundtrip."""
-    raw = {
-        "schema_version": 2,
-        "content_type": "idle_style",
-        "name": "Quiet",
-        "dependencies": [{"ref": "local:gesture:breathe", "content_type": "gesture"}],
-        "default_pool": ["local:gesture:breathe"],
-        "cells": {"joy": {"1": {"mode": "none"}, "3": {"mode": "pool", "gestures": ["local:gesture:breathe"]}}},
-    }
-    handler = handler_for_kind(ContentKind.IDLE_STYLE)
-    parsed = handler.parse_document(raw, fallback_path=Path("idle-styles/quiet"), descriptor_backed=True)
-    assert parsed.document.schema_version == 2
-    assert parsed.metadata["default_pool"] == ["local:gesture:breathe"]
-    assert parsed.metadata["cells"] == raw["cells"]
-    assert "animations" not in parsed.metadata
-    assert (
-        handler.parse_document(parsed.metadata, fallback_path=Path("quiet"), descriptor_backed=True).document
-        == parsed.document
-    )
-
-
-@pytest.mark.parametrize(
-    "patch",
-    [
-        {"default_pool": ["missing"]},
-        {"default_pool": ["local:gesture:breathe", "local:gesture:breathe"]},
-        {"cells": {"neutral": {"1": {"mode": "none"}}}},
-        {"cells": {"joy": {"4": {"mode": "none"}}}},
-        {"cells": {"joy": {"1": {"mode": "pool", "gestures": []}}}},
-        {"cells": {"joy": {"1": {"mode": "inherit"}}}},
-        {"animations": []},
-        {"files": [{"path": "idle.vrma", "role": "animation"}]},
-        {"dependencies": [{"ref": "local:gesture:breathe", "content_type": "pose_clip"}]},
-        {"dependencies": [{"ref": "local:gesture:breathe", "content_type": "gesture", "config": {"time_scale": 2}}]},
-    ],
-)
-def test_idle_style_v2_rejects_unowned_or_ambiguous_pools(patch: dict[str, Any]) -> None:
-    raw = {
-        "schema_version": 2,
-        "content_type": "idle_style",
-        "name": "Quiet",
-        "dependencies": [{"ref": "local:gesture:breathe", "content_type": "gesture"}],
-        "default_pool": ["local:gesture:breathe"],
-        **patch,
-    }
-    with pytest.raises(ContentDocumentError):
-        handler_for_kind(ContentKind.IDLE_STYLE).parse_document(
-            raw, fallback_path=Path("quiet"), descriptor_backed=True
-        )
-
-
-def test_empty_idle_style_v2_schedules_no_gesture() -> None:
-    parsed = handler_for_kind(ContentKind.IDLE_STYLE).parse_document(
-        {"schema_version": 2, "content_type": "idle_style", "name": "Rest", "default_pool": []},
-        fallback_path=Path("rest"),
-        descriptor_backed=True,
-    )
-    assert isinstance(parsed.document, IdleStyleDocumentV2)
-    assert parsed.document.default_pool == ()
-    assert parsed.metadata["cells"] == {}
+def test_idle_style_is_no_longer_a_content_kind_or_scanned_folder() -> None:
+    """Idle motion is each Anima's own pool; old ``idle-styles/`` folders are not scanned."""
+    assert "idle_style" not in {kind.value for kind in ContentKind}
+    assert all(handler.definition.directory != "idle-styles" for handler in CONTENT_TYPE_HANDLERS.handlers)
 
 
 def test_handler_registry_is_exhaustive_and_reserves_anima() -> None:
@@ -316,73 +258,6 @@ def test_runtime_catalog_is_not_a_portable_typed_media_source() -> None:
             descriptor_backed=True,
         )
     assert error.value.code == "runtime_catalog_not_portable"
-
-
-def test_idle_style_owned_animations_project_by_descriptor_relative_path() -> None:
-    handler = handler_for_kind(ContentKind.IDLE_STYLE)
-    parsed = handler.parse_document(
-        {
-            "schema_version": 1,
-            "content_type": "idle_style",
-            "name": "Starter",
-            "animations": [
-                {
-                    "animation_id": "sway",
-                    "name": "Sway",
-                    "file_ref": "animations/sway.vrma",
-                }
-            ],
-            "default_pool": ["sway"],
-            "files": [{"path": "animations/sway.vrma", "role": "animation"}],
-        },
-        fallback_path=Path("idle-styles/starter"),
-        descriptor_backed=True,
-    )
-    playable = {
-        "file_ref": "catalog-file-sway",
-        "role": "animation",
-        "ordinal": 1,
-        "filename": "sway.vrma",
-    }
-    projected = handler.project_runtime(
-        parsed.document,
-        RuntimeProjectionInput(
-            item_id="idle-item",
-            runtime_root_id="idle-root",
-            slot_key="idle_style",
-            source={"type": "catalog_item"},
-            revision="revision-1",
-            context={},
-            files=[playable],
-            logical_files={"animations/sway.vrma": playable},
-            dependency_files={},
-            reference_map={},
-        ),
-    )
-
-    assert projected.lane == "idle_style"
-    assert projected.payload is not None
-    assert projected.payload["animations"][0]["files"] == [playable]
-
-    with pytest.raises(ContentDocumentError) as error:
-        handler.parse_document(
-            {
-                "schema_version": 1,
-                "content_type": "idle_style",
-                "name": "Broken",
-                "animations": [
-                    {
-                        "animation_id": "missing",
-                        "name": "Missing",
-                        "file_ref": "animations/missing.vrma",
-                    }
-                ],
-                "files": [],
-            },
-            fallback_path=Path("idle-styles/broken"),
-            descriptor_backed=True,
-        )
-    assert error.value.code == "idle_animation_file_missing"
 
 
 def test_included_typed_documents_do_not_embed_browser_delivery_aliases() -> None:
