@@ -27,10 +27,10 @@ import type {
 } from "@/lib/content/catalogTypes";
 import type { ContentPreviewTarget } from "@/lib/content-preview/types";
 import { withLibraryPreviewAnimaContext } from "@/lib/content-preview/targets";
-import { readApiError } from "@/lib/errors/apiError";
 import {
   loadoutFailureText,
   loadoutWarningText,
+  poolChangeFailureText,
 } from "@/lib/errors/loadoutErrors";
 import { actionPreviewTarget } from "@/lib/content-preview/actionPreviewTarget";
 import { idlePreviewTarget } from "@/lib/content-preview/idlePreviewTarget";
@@ -84,18 +84,14 @@ function toastLoadoutFailure(error: unknown, fallback: string) {
   toast.error(text.message, { description: text.detail ?? undefined });
 }
 
-/**
- * Toast a failed pool edit. Pool edits have no review step and the Loadout is
- * refetched after any failure, so a stale revision only asks for a retry.
- */
+/** Toast a failed pool edit; a stale revision only asks for a retry. */
 function toastPoolChangeFailure(
   error: unknown,
   changedElsewhere: string,
   fallback: string,
 ) {
-  if (readApiError(error).code === "loadout_revision_conflict")
-    toast.error(changedElsewhere);
-  else toastLoadoutFailure(error, fallback);
+  const text = poolChangeFailureText(error, changedElsewhere, fallback);
+  toast.error(text.message, { description: text.detail ?? undefined });
 }
 
 /** Display wording for a reviewed plan's action (a backend enum). */

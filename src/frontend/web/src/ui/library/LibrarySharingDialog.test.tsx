@@ -540,9 +540,14 @@ describe("complete package review", () => {
     expect(page).toContain("greeting: Hello");
     expect(page).toContain("duration seconds");
     expect(page).toContain("0.25");
-    expect(page).toContain(" · 1: Hello");
-    expect(page).toContain(" · 2: None");
-    expect(page).toContain(" · 4: Hello and Mira");
+    // Each cell lists its pool in package order, one element per member.
+    expect(page).toMatch(
+      /Mild<\/dt><dd[^>]*><ol[^>]*><li[^>]*>Hello<\/li><\/ol><\/dd>/,
+    );
+    expect(page).toMatch(/Moderate<\/dt><dd[^>]*>None<\/dd>/);
+    expect(page).toMatch(
+      /Intense<\/dt><dd[^>]*><ol[^>]*><li[^>]*>Hello<\/li><li[^>]*>Mira<\/li><\/ol><\/dd>/,
+    );
     expect(page).toContain("Idle: </span>None");
     expect(page).not.toContain("PocketTTS voice: </span>");
     expect(page).toContain("Export Anima");

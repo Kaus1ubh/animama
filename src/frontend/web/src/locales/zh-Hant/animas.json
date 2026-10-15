@@ -205,11 +205,22 @@
     "animaFallback": "Anima",
     "description": {
       "gesture": "選擇可以使用此動作的 Anima。進行中的聊天會保留現有資料；開啟新聊天即可套用變更。",
-      "reaction": "選擇可以使用此反應的 Anima。進行中的聊天會保留現有資料；開啟新聊天即可套用變更。"
+      "reaction": "選擇情緒和強度，然後為每個 Anima 將此反應新增到該儲存格，或從中移除。儲存格中的其他反應保持不變。進行中的聊天會保留現有資料；開啟新聊天即可套用變更。"
     },
     "equippedTo": "已將 {{name}} 裝備到 {{anima}}。",
     "notEquipped": "未裝備",
     "notLocal": "此行為不在本機目錄中。",
+    "reaction": {
+      "addTo": "新增到 {{anima}} 的 {{cell}}",
+      "added": "已將 {{name}} 新增到 {{anima}} 的 {{cell}}。",
+      "emotion": "情緒",
+      "full": "此儲存格已有 4 個反應。請先在此 Anima 的裝備中移除一個，再新增此反應。",
+      "inCell": "在此儲存格中",
+      "intensity": "強度",
+      "notInCell": "不在此儲存格中",
+      "removeFrom": "從 {{anima}} 的 {{cell}} 移除",
+      "removed": "已從 {{anima}} 的 {{cell}} 移除 {{name}}。"
+    },
     "removedFrom": "已從 {{anima}} 移除 {{name}}。",
     "title": "裝備 {{name}}",
     "willReplace": {

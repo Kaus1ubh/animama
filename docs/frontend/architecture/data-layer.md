@@ -284,10 +284,11 @@ copy. Creation remains inside the Gesture editor, with no Library new-pose butto
 or Create-page entry. Pose editing retains loaded identity/revision and transient
 drafts; the old browser-saved collection is neither read nor migrated.
 
-`ActionManageDialog` reads every selected Anima's current catalog loadout and
-equips or unequips the selected action against its exact revision with a
-per-target idempotency key. Successful targets remain committed if another
-target fails.
+`ActionManageDialog` reads every Anima's current catalog loadout. A Gesture is
+planned and committed per Anima with its own idempotency key. A Reaction row
+adds the item to, or removes it from, the chosen cell's pool through that
+Anima's `changeReaction`, so it shares the Loadout's one-step commit, warnings
+and invalidation. Successful targets remain committed if another target fails.
 
 Chat Uploads remain separate through `useUserFiles({ pollActive: true })`;
 polling runs only while upload or processing work is active. Creator Save calls

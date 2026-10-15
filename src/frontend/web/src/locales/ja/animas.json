@@ -205,11 +205,22 @@
     "animaFallback": "Anima",
     "description": {
       "gesture": "このジェスチャーを使える Anima を選んでください。進行中のチャットは既存のデータを保持します。変更を反映するには新しいチャットを開いてください。",
-      "reaction": "このリアクションを使える Anima を選んでください。進行中のチャットは既存のデータを保持します。変更を反映するには新しいチャットを開いてください。"
+      "reaction": "感情と強さを選び、各 Anima のそのセルにこのリアクションを追加するか、セルから外します。セル内のほかのリアクションはそのままです。進行中のチャットは既存のデータを保持します。変更を反映するには新しいチャットを開いてください。"
     },
     "equippedTo": "{{name}} を {{anima}} に装備しました。",
     "notEquipped": "未装備",
     "notLocal": "このアクションはローカルカタログにありません。",
+    "reaction": {
+      "addTo": "{{anima}} の {{cell}} に追加",
+      "added": "{{name}} を {{anima}} の {{cell}} に追加しました。",
+      "emotion": "感情",
+      "full": "このセルにはすでに 4 件のリアクションがあります。追加するには、この Anima のロードアウトで 1 件外してください。",
+      "inCell": "このセルにあります",
+      "intensity": "強さ",
+      "notInCell": "このセルにはありません",
+      "removeFrom": "{{anima}} の {{cell}} から外す",
+      "removed": "{{name}} を {{anima}} の {{cell}} から外しました。"
+    },
     "removedFrom": "{{name}} を {{anima}} から外しました。",
     "title": "{{name}} を装備",
     "willReplace": {

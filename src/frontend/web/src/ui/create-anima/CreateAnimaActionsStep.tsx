@@ -1,11 +1,11 @@
-import { ChevronDown, ChevronRight, Play } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Play } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
-import { useFormatters } from "@animama/product-ui/i18n";
 
 import type {
   ItemRevisionRef,
   PyGesture,
+  PyReaction,
 } from "@animama/runtime-contracts/sdk";
 import { TRACKED_EMOTIONS, type TrackedEmotion } from "@/lib/emotion";
 import { emotionLabel } from "@/lib/emotion/presentation";
@@ -14,8 +14,13 @@ import type { AnimaCreationSources } from "@/query/hooks/useAnimaCreation";
 import {
   ActionLoadoutRow,
   ActionRowIdentity,
-  ReactionIntensityBadge,
+  reactionCellLabel,
 } from "@/ui/animas/ActionLoadoutRows";
+import {
+  LoadoutPoolEmotionRow,
+  type LoadoutPoolMember,
+} from "@/ui/animas/LoadoutPool";
+import { ReactionPoolCellRow } from "@/ui/animas/ReactionLoadoutGrid";
 import { Button } from "@/ui/components/button";
 import {
   Dialog,
@@ -28,16 +33,17 @@ import { Input } from "@/ui/components/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/components/tabs";
 import { itemReference } from "./createAnimaContent";
 import {
+  addReactionPoolMember,
   INTENSITIES,
   REACTION_CELL_COUNT,
   reactionCount,
+  removeReactionPoolMember,
   sameRef,
   samePool,
   setReactionPool,
   emptyReactions,
   type CreateAnimaDraft,
   type DraftEdit,
-  type Intensity,
 } from "./createAnimaDraft";
 import { selectCreationGesture } from "./createAnimaActions";
 
@@ -46,6 +52,171 @@ type Preview = (
   source: ItemRevisionRef,
   label: string,
 ) => void;
+
+/** A Reaction the picker offers, grouped as Local (owned) or Included (builtin). */
+type CreationReactionChoice = PyReaction & { origin: "owned" | "builtin" };
+
+/** A pool member as its cell lists it, with the exact revision it pins. */
+type CreationReactionMember = LoadoutPoolMember & {
+  item_id: string;
+  ref: ItemRevisionRef;
+};
+
+/**
+ * Every emotion's four Reaction cells, each a pool edited with the Loadout's
+ * cell (add, remove, preview, no repeats, four at most) plus Revert to the
+ * cell's recommended pool. Each change edits the draft at once.
+ */
+function CreationReactionPools({
+  draft,
+  sources,
+  expanded,
+  onToggle,
+  onEdit,
+  onPreview,
+}: {
+  draft: CreateAnimaDraft;
+  sources: AnimaCreationSources;
+  expanded: ReadonlySet<TrackedEmotion>;
+  onToggle: (emotion: TrackedEmotion) => void;
+  onEdit: (patch: DraftEdit) => void;
+  onPreview: Preview;
+}) {
+  const { t } = useTranslation("create");
+  const { t: animasT } = useTranslation("animas");
+  const { t: emotionT } = useTranslation("emotion");
+  const catalog = sources.reactions.data;
+  // Recommended pools come with the creation options; until they load, no
+  // cell can tell whether it differs from its own.
+  const recommendedPools = sources.options.data?.recommended.reactions;
+  const choices = useMemo(
+    () =>
+      (catalog ?? []).map(
+        (reaction): CreationReactionChoice => ({
+          ...reaction,
+          origin: reaction.source === "local" ? "owned" : "builtin",
+        }),
+      ),
+    [catalog],
+  );
+  return (
+    <>
+      {TRACKED_EMOTIONS.map((emotion) => {
+        const label = emotionLabel(emotion, emotionT);
+        const count = INTENSITIES.reduce(
+          (total, intensity) =>
+            total + draft.reactions[emotion][intensity].length,
+          0,
+        );
+        return (
+          <LoadoutPoolEmotionRow
+            key={emotion}
+            label={label}
+            summary={
+              count
+                ? animasT("reactions.reactionCount", { count })
+                : animasT("reactions.noReaction")
+            }
+            panelId={`creation-reaction-${emotion}-levels`}
+            regionLabel={t("actionsStep.reactions.levels", { emotion: label })}
+            open={expanded.has(emotion)}
+            onToggle={() => onToggle(emotion)}
+          >
+            {INTENSITIES.map((intensity) => {
+              const pool = draft.reactions[emotion][intensity];
+              const recommended =
+                recommendedPools?.[emotion]?.[intensity] ?? [];
+              // A member whose exact revision the catalog no longer offers needs
+              // attention; while the catalog loads, members are taken as listed.
+              const members = pool.map((ref): CreationReactionMember => {
+                const item = catalog?.find(
+                  (candidate) => candidate.item_id === ref.item_id,
+                );
+                return {
+                  binding_id: ref.item_id,
+                  item_id: ref.item_id,
+                  ref,
+                  name: item?.name ?? ref.item_id,
+                  available: !catalog || sameRef(ref, item),
+                };
+              });
+              return (
+                <ReactionPoolCellRow
+                  key={intensity}
+                  id={`creation-reaction-${emotion}-${intensity}`}
+                  emotion={emotion}
+                  intensity={Number(intensity)}
+                  members={members}
+                  isStarter={(member) =>
+                    recommended.some((ref) => sameRef(ref, member.ref))
+                  }
+                  choices={choices}
+                  loading={sources.reactions.isLoading}
+                  error={sources.reactions.isError}
+                  disabled={false}
+                  busy={false}
+                  unavailableText={t("actionsStep.reactions.needsAttention")}
+                  onAdd={(item) =>
+                    onEdit({
+                      reactions: addReactionPoolMember(
+                        draft,
+                        emotion,
+                        intensity,
+                        itemReference(item),
+                      ),
+                    })
+                  }
+                  onRemove={(member) =>
+                    onEdit({
+                      reactions: removeReactionPoolMember(
+                        draft,
+                        emotion,
+                        intensity,
+                        member.item_id,
+                      ),
+                    })
+                  }
+                  onPreview={(member) =>
+                    onPreview("reaction", member.ref, member.name)
+                  }
+                  onPreviewChoice={(item) =>
+                    onPreview("reaction", itemReference(item), item.name)
+                  }
+                  onRetry={() => void sources.reactions.refetch()}
+                  controls={
+                    !recommendedPools || samePool(pool, recommended) ? null : (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 px-2 text-xs"
+                        aria-label={t("actionsStep.reactions.revertCell", {
+                          cell: reactionCellLabel(emotion, intensity, animasT),
+                        })}
+                        onClick={() =>
+                          onEdit({
+                            reactions: setReactionPool(
+                              draft,
+                              emotion,
+                              intensity,
+                              recommended,
+                            ),
+                          })
+                        }
+                      >
+                        {t("actionsStep.reactions.revert")}
+                      </Button>
+                    )
+                  }
+                />
+              );
+            })}
+          </LoadoutPoolEmotionRow>
+        );
+      })}
+    </>
+  );
+}
 
 export function CreateAnimaActionsStep({
   draft,
@@ -63,8 +234,6 @@ export function CreateAnimaActionsStep({
   focusTarget?: string;
 }) {
   const { t } = useTranslation("create");
-  const { t: emotionT } = useTranslation("emotion");
-  const { list } = useFormatters();
   const [tab, setTab] = useState(
     focusTarget?.startsWith("creation-reaction-") ? "reactions" : "gestures",
   );
@@ -74,15 +243,6 @@ export function CreateAnimaActionsStep({
   const [confirm, setConfirm] = useState<
     "reset" | "gestures" | "reactions" | null
   >(null);
-  const [cell, setCell] = useState<{
-    emotion: TrackedEmotion;
-    intensity: Intensity;
-  } | null>(null);
-  const [reactionSearch, setReactionSearch] = useState("");
-  const [reactionSource, setReactionSource] = useState("all");
-  const [reactionLimit, setReactionLimit] = useState(24);
-  // The cell's pool while its dialog is open; choosing one Reaction replaces it.
-  const [reactionChoice, setReactionChoice] = useState<ItemRevisionRef[]>([]);
   const [expandedEmotions, setExpandedEmotions] = useState<Set<TrackedEmotion>>(
     () => new Set(["admiration"]),
   );
@@ -98,7 +258,6 @@ export function CreateAnimaActionsStep({
     setSource("all");
   }, [focusTarget]);
   const gestures = sources.gestures.data ?? [];
-  const reactions = sources.reactions.data ?? [];
   const keys = [
     ...new Set([
       ...gestures.map((gesture) => gesture.semantic_key),
@@ -120,23 +279,11 @@ export function CreateAnimaActionsStep({
         key.toLowerCase().includes(search.toLowerCase()))
     );
   });
-  const filteredReactions = reactions.filter(
-    (reaction) =>
-      (reactionSource === "all" || reaction.source === reactionSource) &&
-      `${reaction.name} ${reaction.emotion ?? ""}`
-        .toLowerCase()
-        .includes(reactionSearch.toLowerCase()),
-  );
   const applyGesture = (item: PyGesture | null, key: string) =>
     onEdit({ gestures: selectCreationGesture(draft.gestures, item, key) });
   const sourceLabel = (value: string) =>
     value === "local" ? t("sources.local") : t("sources.included");
   const assigned = reactionCount(draft);
-  // Values naming one Reaction cell in its labels.
-  const cellText = (emotion: TrackedEmotion, intensity: Intensity) => ({
-    emotion: emotionLabel(emotion, emotionT),
-    intensity,
-  });
   return (
     <div id="creation-actions" tabIndex={-1} className="space-y-5">
       <div className="bg-muted/20 rounded-xl border p-4">
@@ -348,176 +495,21 @@ export function CreateAnimaActionsStep({
             className="overflow-hidden rounded-xl border"
             aria-label={t("actionsStep.reactions.matrix")}
           >
-            {TRACKED_EMOTIONS.map((emotion) => {
-              const expanded = expandedEmotions.has(emotion);
-              const panelId = `creation-reaction-${emotion}-levels`;
-              return (
-                <section
-                  key={emotion}
-                  data-reaction-emotion={emotion}
-                  className={cn(
-                    "min-w-0 border-b border-l-2 last:border-b-0",
-                    expanded ? "border-l-primary" : "border-l-transparent",
-                  )}
-                >
-                  <button
-                    type="button"
-                    aria-expanded={expanded}
-                    aria-controls={panelId}
-                    onClick={() =>
-                      setExpandedEmotions((current) => {
-                        const next = new Set(current);
-                        if (expanded) next.delete(emotion);
-                        else next.add(emotion);
-                        return next;
-                      })
-                    }
-                    className={cn(
-                      "focus-visible:ring-ring flex w-full items-center justify-between gap-4 px-4 py-3.5 text-left text-sm font-semibold outline-none focus-visible:ring-2 focus-visible:ring-inset",
-                      expanded
-                        ? "bg-primary/5 hover:bg-primary/8"
-                        : "hover:bg-muted/30",
-                    )}
-                  >
-                    <span>{emotionLabel(emotion, emotionT)}</span>
-                    {expanded ? (
-                      <ChevronDown className="size-4 shrink-0" />
-                    ) : (
-                      <ChevronRight className="size-4 shrink-0" />
-                    )}
-                  </button>
-                  {expanded ? (
-                    <div
-                      id={panelId}
-                      role="region"
-                      aria-label={t("actionsStep.reactions.levels", {
-                        emotion: emotionLabel(emotion, emotionT),
-                      })}
-                      className="divide-y border-t"
-                    >
-                      {INTENSITIES.map((intensity) => {
-                        const pool = draft.reactions[emotion][intensity];
-                        const recommended =
-                          sources.options.data?.recommended.reactions[
-                            emotion
-                          ]?.[intensity] ?? [];
-                        const names = pool.map(
-                          (ref) =>
-                            reactions.find((candidate) =>
-                              sameRef(ref, candidate),
-                            )?.name ??
-                            t("actionsStep.reactions.needsAttention"),
-                        );
-                        return (
-                          <div
-                            key={intensity}
-                            id={`creation-reaction-${emotion}-${intensity}`}
-                            tabIndex={-1}
-                            className={cn(
-                              "flex min-w-0 items-center gap-3 px-4 py-3.5",
-                              pool.length > 0 && "bg-primary/5",
-                            )}
-                          >
-                            <ReactionIntensityBadge intensity={intensity} />
-                            <button
-                              type="button"
-                              className="focus-visible:ring-ring min-w-0 flex-1 rounded-lg border px-3 py-2 text-left text-sm focus-visible:ring-2"
-                              onClick={() => {
-                                setCell({ emotion, intensity });
-                                setReactionChoice(pool);
-                                setReactionSearch("");
-                                setReactionSource("all");
-                                setReactionLimit(24);
-                              }}
-                              aria-label={t(
-                                "actionsStep.reactions.change",
-                                cellText(emotion, intensity),
-                              )}
-                            >
-                              <span className="block truncate">
-                                {names.length
-                                  ? list(names)
-                                  : t("actionsStep.reactions.empty")}
-                              </span>
-                            </button>
-                            <div className="flex shrink-0 gap-1">
-                              {pool[0] ? (
-                                <>
-                                  <Button
-                                    size="icon-sm"
-                                    variant="outline"
-                                    onClick={() =>
-                                      onPreview(
-                                        "reaction",
-                                        pool[0]!,
-                                        t(
-                                          "actionsStep.reactions.previewLabel",
-                                          cellText(emotion, intensity),
-                                        ),
-                                      )
-                                    }
-                                    aria-label={t(
-                                      "actionsStep.reactions.previewCell",
-                                      cellText(emotion, intensity),
-                                    )}
-                                  >
-                                    <Play className="size-3" />
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="h-7 px-2 text-xs"
-                                    onClick={() =>
-                                      onEdit({
-                                        reactions: setReactionPool(
-                                          draft,
-                                          emotion,
-                                          intensity,
-                                          [],
-                                        ),
-                                      })
-                                    }
-                                    aria-label={t(
-                                      "actionsStep.reactions.clearCell",
-                                      cellText(emotion, intensity),
-                                    )}
-                                  >
-                                    {t("actions.clear")}
-                                  </Button>
-                                </>
-                              ) : null}
-                              {!samePool(pool, recommended) ? (
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-7 px-2 text-xs"
-                                  onClick={() =>
-                                    onEdit({
-                                      reactions: setReactionPool(
-                                        draft,
-                                        emotion,
-                                        intensity,
-                                        recommended,
-                                      ),
-                                    })
-                                  }
-                                  aria-label={t(
-                                    "actionsStep.reactions.revertCell",
-                                    cellText(emotion, intensity),
-                                  )}
-                                >
-                                  {t("actionsStep.reactions.revert")}
-                                </Button>
-                              ) : null}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : null}
-                </section>
-              );
-            })}
+            <CreationReactionPools
+              draft={draft}
+              sources={sources}
+              expanded={expandedEmotions}
+              onToggle={(emotion) =>
+                setExpandedEmotions((current) => {
+                  const next = new Set(current);
+                  if (next.has(emotion)) next.delete(emotion);
+                  else next.add(emotion);
+                  return next;
+                })
+              }
+              onEdit={onEdit}
+              onPreview={onPreview}
+            />
           </div>
           <Button
             type="button"
@@ -601,139 +593,6 @@ export function CreateAnimaActionsStep({
                 {confirm === "reset"
                   ? t("actionsStep.confirm.reset")
                   : t("actionsStep.confirm.clear")}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      ) : null}
-      {cell ? (
-        <Dialog
-          open
-          onOpenChange={(open) => {
-            if (!open) setCell(null);
-          }}
-        >
-          <DialogContent className="max-h-[90dvh] overflow-y-auto">
-            <DialogTitle>
-              {t(
-                "actionsStep.cell.title",
-                cellText(cell.emotion, cell.intensity),
-              )}
-            </DialogTitle>
-            <DialogDescription>
-              {t("actionsStep.cell.description")}
-            </DialogDescription>
-            <div className="flex flex-wrap gap-2">
-              <Input
-                className="min-w-0 flex-1 basis-40"
-                aria-label={t("actionsStep.cell.search")}
-                placeholder={t("actionsStep.cell.searchPlaceholder")}
-                value={reactionSearch}
-                onChange={(event) => {
-                  setReactionSearch(event.target.value);
-                  setReactionLimit(24);
-                }}
-              />
-              <select
-                className="bg-background rounded-md border px-2 text-sm"
-                aria-label={t("actionsStep.cell.sourceFilter")}
-                value={reactionSource}
-                onChange={(event) => setReactionSource(event.target.value)}
-              >
-                <option value="all">{t("sources.all")}</option>
-                <option value="included">{t("sources.included")}</option>
-                <option value="local">{t("sources.local")}</option>
-              </select>
-            </div>
-            <div
-              role="radiogroup"
-              aria-label={t("actionsStep.cell.assignment")}
-              className="max-h-72 space-y-2 overflow-y-auto"
-            >
-              <label className="flex items-center gap-2 rounded-lg border p-3 text-sm">
-                <input
-                  name="reaction-choice"
-                  type="radio"
-                  checked={reactionChoice.length === 0}
-                  onChange={() => setReactionChoice([])}
-                  className="accent-primary"
-                />
-                {t("actionsStep.reactions.empty")}
-              </label>
-              {filteredReactions.slice(0, reactionLimit).map((item) => (
-                <div
-                  key={item.item_id}
-                  className={cn(
-                    "flex items-center gap-2 rounded-lg border p-3",
-                    reactionChoice.some((ref) => sameRef(ref, item)) &&
-                      "bg-primary/5",
-                  )}
-                >
-                  <label className="flex min-w-0 flex-1 items-center gap-2 text-sm">
-                    <input
-                      name="reaction-choice"
-                      type="radio"
-                      className="accent-primary"
-                      checked={
-                        reactionChoice.length === 1 &&
-                        sameRef(reactionChoice[0], item)
-                      }
-                      onChange={() => setReactionChoice([itemReference(item)])}
-                    />
-                    <span className="break-words">
-                      {item.name}
-                      <span className="text-muted-foreground block text-xs">
-                        {sourceLabel(item.source)}
-                      </span>
-                    </span>
-                  </label>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() =>
-                      onPreview("reaction", itemReference(item), item.name)
-                    }
-                    aria-label={t("actionsStep.cell.preview", {
-                      name: item.name,
-                    })}
-                  >
-                    <Play className="size-3.5" />
-                  </Button>
-                </div>
-              ))}
-              {!filteredReactions.length ? (
-                <p className="text-muted-foreground text-sm">
-                  {t("actionsStep.cell.noMatches")}
-                </p>
-              ) : null}
-            </div>
-            {filteredReactions.length > reactionLimit ? (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setReactionLimit((value) => value + 24)}
-              >
-                {t("actionsStep.cell.showMore")}
-              </Button>
-            ) : null}
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setCell(null)}>
-                {t("actions.cancel")}
-              </Button>
-              <Button
-                onClick={() => {
-                  onEdit({
-                    reactions: setReactionPool(
-                      draft,
-                      cell.emotion,
-                      cell.intensity,
-                      reactionChoice,
-                    ),
-                  });
-                  setCell(null);
-                }}
-              >
-                {t("actionsStep.cell.apply")}
               </Button>
             </DialogFooter>
           </DialogContent>

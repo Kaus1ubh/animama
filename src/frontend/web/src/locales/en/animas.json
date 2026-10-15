@@ -206,11 +206,22 @@
     "animaFallback": "Anima",
     "description": {
       "gesture": "Choose which Animas can invoke this gesture. Active chats keep their existing bytes; open a new chat to mount the change.",
-      "reaction": "Choose which Animas can invoke this reaction. Active chats keep their existing bytes; open a new chat to mount the change."
+      "reaction": "Choose an emotion and intensity, then add this Reaction to that cell for each Anima, or remove it. Other Reactions in the cell stay. Active chats keep their existing bytes; open a new chat to mount the change."
     },
     "equippedTo": "{{name}} equipped to {{anima}}.",
     "notEquipped": "Not equipped",
     "notLocal": "This Action is not available in the local catalog.",
+    "reaction": {
+      "added": "{{name}} added to {{anima}} at {{cell}}.",
+      "addTo": "Add to {{anima}}'s {{cell}}",
+      "emotion": "Emotion",
+      "full": "This cell already holds four Reactions. Remove one in this Anima's Loadout to add this one.",
+      "inCell": "In this cell",
+      "intensity": "Intensity",
+      "notInCell": "Not in this cell",
+      "removed": "{{name}} removed from {{anima}} at {{cell}}.",
+      "removeFrom": "Remove from {{anima}}'s {{cell}}"
+    },
     "removedFrom": "{{name}} removed from {{anima}}.",
     "title": "Equip {{name}}",
     "willReplace": {

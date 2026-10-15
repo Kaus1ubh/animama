@@ -820,6 +820,22 @@ export function reactionCount(
   );
 }
 
+/** How many Reactions the pools hold, counting a Reaction once per cell. */
+export function reactionMemberCount(
+  draft: Pick<CreateAnimaDraft, "reactions">,
+): number {
+  return TRACKED_EMOTIONS.reduce(
+    (count, emotion) =>
+      count +
+      INTENSITIES.reduce(
+        (cells, intensity) =>
+          cells + draft.reactions[emotion][intensity].length,
+        0,
+      ),
+    0,
+  );
+}
+
 /** Replace one cell's pool. */
 export function setReactionPool(
   draft: Pick<CreateAnimaDraft, "reactions">,
@@ -833,13 +849,53 @@ export function setReactionPool(
   };
 }
 
-/** Whether two pools hold the same Reaction revisions in the same order. */
+/**
+ * Add one Reaction to the end of a cell's pool. A Reaction already in the
+ * cell (at any revision) or a fifth member is refused: the same pools come
+ * back unchanged.
+ */
+export function addReactionPoolMember(
+  draft: Pick<CreateAnimaDraft, "reactions">,
+  emotion: TrackedEmotion,
+  intensity: Intensity,
+  ref: ItemRevisionRef,
+): CreateAnimaDraft["reactions"] {
+  const pool = draft.reactions[emotion][intensity];
+  if (
+    pool.length >= REACTION_POOL_LIMIT ||
+    pool.some((member) => member.item_id === ref.item_id)
+  )
+    return draft.reactions;
+  return setReactionPool(draft, emotion, intensity, [...pool, ref]);
+}
+
+/** Remove one Reaction from a cell's pool; the others keep their order. */
+export function removeReactionPoolMember(
+  draft: Pick<CreateAnimaDraft, "reactions">,
+  emotion: TrackedEmotion,
+  intensity: Intensity,
+  itemId: string,
+): CreateAnimaDraft["reactions"] {
+  return setReactionPool(
+    draft,
+    emotion,
+    intensity,
+    draft.reactions[emotion][intensity].filter(
+      (member) => member.item_id !== itemId,
+    ),
+  );
+}
+
+/**
+ * Whether two pools hold the same Reaction revisions. Chat picks a member at
+ * random, so their order does not matter.
+ */
 export function samePool(
   left: readonly ItemRevisionRef[],
   right: readonly ItemRevisionRef[],
 ): boolean {
   return (
     left.length === right.length &&
-    left.every((ref, index) => sameRef(ref, right[index]))
+    left.every((ref) => right.some((other) => sameRef(ref, other)))
   );
 }

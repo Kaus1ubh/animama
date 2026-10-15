@@ -2,24 +2,11 @@
   "actions": {
     "back": "返回",
     "cancel": "取消",
-    "clear": "清除",
     "creatorHub": "创建中心",
     "startOver": "重新开始",
     "tryAgain": "重试"
   },
   "actionsStep": {
-    "cell": {
-      "apply": "应用到此格",
-      "assignment": "反应分配",
-      "description": "选择任意反应，或将此格留空。预览不会改变其分配。",
-      "noMatches": "没有匹配的反应。此格未更改。",
-      "preview": "预览反应 {{name}}",
-      "search": "搜索反应",
-      "searchPlaceholder": "搜索反应…",
-      "showMore": "显示更多反应",
-      "sourceFilter": "反应来源",
-      "title": "{{emotion}} · 强度 {{intensity}}"
-    },
     "confirm": {
       "clear": "清除所选",
       "clearDescription": "只会清除这些选择。空选择也是有效的，你已保存的内容不会被删除。",
@@ -46,20 +33,15 @@
       "sourceFilter": "动作来源"
     },
     "reactions": {
-      "change": "更改{{emotion}}强度 {{intensity}}",
       "clearAll": "清除所有反应",
-      "clearCell": "清除{{emotion}}强度 {{intensity}}",
-      "empty": "空",
       "levels": "{{emotion}}反应等级",
       "loadFailed": "无法加载反应。分配已保留。",
       "matrix": "反应矩阵",
-      "needsAttention": "已选择 · 需要处理",
+      "needsAttention": "需要处理",
       "none": "全部 {{total}} 个格都为空。仍然可以创建你的 Anima。",
-      "previewCell": "预览{{emotion}}强度 {{intensity}}",
-      "previewLabel": "{{emotion}} · {{intensity}}",
       "retry": "重新加载反应",
       "revert": "恢复",
-      "revertCell": "将{{emotion}}强度 {{intensity}} 恢复为推荐设置"
+      "revertCell": "将 {{cell}} 恢复为推荐设置"
     },
     "replace": {
       "confirm": "替换选择",
@@ -333,6 +315,7 @@
       "edit": "编辑行为",
       "gesturesSelected": "已选择的动作",
       "reactionCells": "已分配的反应格",
+      "reactionMembers_other": "所有格中共 {{count}} 个反应",
       "reactionTotal": "/ {{total}}",
       "title": "行为"
     },

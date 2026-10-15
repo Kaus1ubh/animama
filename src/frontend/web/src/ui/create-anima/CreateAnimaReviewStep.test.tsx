@@ -2,8 +2,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import type { AnimaCreationSources } from "@/query/hooks/useAnimaCreation";
 import { CreateAnimaReviewStep } from "./CreateAnimaReviewStep";
-import { buildAnimaSpec } from "./createAnimaDraft";
-import { readyDraft } from "./createAnimaTestFixtures";
+import { buildAnimaSpec, setReactionPool } from "./createAnimaDraft";
+import { readyDraft, ref } from "./createAnimaTestFixtures";
 
 vi.mock("@/query/hooks/useVoiceClones", () => ({
   useVoiceClones: () => ({ data: [] }),
@@ -56,4 +56,27 @@ describe("final Anima review", () => {
       expect(html).not.toMatch(/Save as Blueprint|Publish Anima|Voice clone/);
     },
   );
+
+  it("counts filled Reaction cells and the Reactions in their pools", () => {
+    const draft = readyDraft();
+    draft.reactions = setReactionPool(draft, "joy", "2", [
+      ref("cheer"),
+      ref("grin"),
+    ]);
+    draft.reactions = setReactionPool(draft, "anger", "4", [ref("cheer")]);
+    const html = renderToStaticMarkup(
+      <CreateAnimaReviewStep
+        draft={draft}
+        sources={{ avatars: { data: [] } } as unknown as AnimaCreationSources}
+        spec={null}
+        warnings={[]}
+        busy={false}
+        onEdit={vi.fn()}
+      />,
+    );
+    // Two of 96 cells hold Reactions; a Reaction counts once per cell it is in.
+    expect(html).toMatch(/>2 <span[^>]*>\/ 96<\/span>/);
+    expect(html).toContain("Reaction cells assigned");
+    expect(html).toContain("3 Reactions across all cells");
+  });
 });

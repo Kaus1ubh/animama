@@ -205,11 +205,22 @@
     "animaFallback": "Anima",
     "description": {
       "gesture": "选择可以使用此动作的 Anima。进行中的聊天会保留现有数据；打开新聊天即可应用更改。",
-      "reaction": "选择可以使用此反应的 Anima。进行中的聊天会保留现有数据；打开新聊天即可应用更改。"
+      "reaction": "选择情绪和强度，然后为每个 Anima 将此反应添加到该单元格，或从中移除。单元格中的其他反应保持不变。进行中的聊天会保留现有数据；打开新聊天即可应用更改。"
     },
     "equippedTo": "已将 {{name}} 装备到 {{anima}}。",
     "notEquipped": "未装备",
     "notLocal": "此行为不在本地目录中。",
+    "reaction": {
+      "addTo": "添加到 {{anima}} 的 {{cell}}",
+      "added": "已将 {{name}} 添加到 {{anima}} 的 {{cell}}。",
+      "emotion": "情绪",
+      "full": "此单元格已有 4 个反应。请先在此 Anima 的装备中移除一个，再添加此反应。",
+      "inCell": "在此单元格中",
+      "intensity": "强度",
+      "notInCell": "不在此单元格中",
+      "removeFrom": "从 {{anima}} 的 {{cell}} 移除",
+      "removed": "已从 {{anima}} 的 {{cell}} 移除 {{name}}。"
+    },
     "removedFrom": "已从 {{anima}} 移除 {{name}}。",
     "title": "装备 {{name}}",
     "willReplace": {

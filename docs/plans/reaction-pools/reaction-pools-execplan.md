@@ -144,7 +144,7 @@ Content (`content/included/`):
 - [ ] Dependency: #559 merged; branch rebased; baseline refreshed.
 - [x] Phase 3: backend pools and four intensities.
 - [x] Phase 4: runtime selection and `/animas/` pool editing.
-- [ ] Phase 5: equip dialog cell chooser and wizard pools.
+- [x] Phase 5: equip dialog cell chooser and wizard pools.
 - [ ] Phase 6: promotion, starter pools and journeys. G3 list reviewed with G2 before merge.
 - [ ] Final integration review, full validation and PR.
 - Remaining owner gate: escalation and variety check in chat.
@@ -994,15 +994,90 @@ Completion: checks pass, the equip dialog and wizard work on the task stack at
 desktop and narrow widths, and Code Review #1 has no supported blocking
 finding.
 
-Results: _pending._
+Results (2026-10-15, on `5d125903`):
+
+- **Implemented:** the equip dialog chooses an emotion and intensity
+  (starting at the Reaction's suggestion, else Joy · Mild; an unusable
+  intensity starts at that emotion's Mild) and adds or removes the Reaction
+  in that cell per Anima through `changeReaction`, with the full-cell reason;
+  the Reaction replace path is gone. The wizard's Reactions tab uses a shared
+  `ReactionPoolCellRow` (also used by `/animas/`) across four rows per
+  emotion, seeded from the recommended pools with Starter badges, refusing
+  duplicates and a fifth member, with Revert when a cell differs from its
+  recommended pool; Review counts cells and members; sharing details list
+  each cell's pool. `create-anima.spec.ts` source updated. Library cards now
+  read a listed Reaction's suggestion from its `emotion`/`intensity` fields
+  (they read only `metadata.placement_hint`, which the Reaction list does not
+  carry, so every card lacked its suggestion and the equip dialog opened at
+  Joy · Mild; also true on `main`).
+- **Checks:** `pnpm check`, `pnpm web:lint`, `pnpm build`, `pnpm
+  desktop:check`, `pnpm e2e:check:source`, `pnpm prettier:check` pass; `pnpm
+  web:test` passes (vitest 531 files, 4973 passed, 1 skipped; node suites
+  pass).
+- **Browser (task stack, headless, 1440 × 900):** Library → Joy Reaction 2 →
+  Add / Manage opens "Equip Joy Reaction 2" at Joy · Moderate (after the
+  suggestion fix); Add on Caitlyn's row puts it in that cell ("In this
+  cell"), Remove takes it out, other members stay. The wizard's avatar step
+  does not finish in an ad-hoc headless script (no "Preview ready"), so the
+  wizard is checked by component tests here and by the `create-anima`
+  browser journey in Phase 6.
 
 #### Code Review #1 Findings
 
-_Pending._
+Independent reviewer, initial full review (2026-10-15; working tree on
+`5d125903`). **Result: pass** with one should-fix finding:
+
+- P5-R0-F1 (should-fix): sharing details joined pool names with the CLDR
+  "unit" list pattern, which runs zh-Hans names together and separates
+  ja/ko/zh-Hant names only by a space.
+- P5-R0-F2 (optional): while creation options load or fail, every non-empty
+  wizard cell offers Revert, which empties it.
+- P5-R0-F3 (optional): four doc sentences imprecise or stale (Revert order,
+  the Mild fallback, Save & Equip's former review flow).
+- P5-R0-F4 (optional): pin the journey's "recommended cells" count to 96 once
+  every cell has starters.
+- P5-R0-F5 (optional): equip dialog row buttons are named only Add/Remove.
+- P5-R0-F6 (optional): no test of switching cells while a change is pending
+  or of plan warnings as toasts.
 
 #### Code Review #1 Revisions
 
-_Pending._
+Repair round 1:
+
+- F1: fixed. Each pool is an ordered list with one item per member, so no
+  locale list pattern joins names; a zh-Hans test checks separate members.
+- F2: fixed. Revert shows only once the recommended pools are known (new
+  test).
+- F3: fixed in `custom-anima-creation.md`, `library.md`,
+  `runtime/avatar-animation.md` and `runtime/content-previews.md`.
+- F4: moves to Phase 6 (step 5).
+- F5: fixed. Reaction row buttons are named with the Anima and cell ("Add to
+  Annie's Joy · Moderate") in five locales.
+- F6: fixed. Tests for plan warnings as toasts and a pending row across a
+  cell switch.
+- Checks after the repairs: targeted vitest 50 files / 320 tests; `pnpm
+  check`, `pnpm web:lint`, `pnpm prettier:check`, `pnpm e2e:check:source`
+  exit 0; `pnpm web:test` exit 0 (vitest 531 files, 4978 passed, 1 skipped;
+  node suites pass).
+
+Repair round 1 recheck (same reviewer): F1–F3, F5 and F6 resolved, F4
+deferred, the Library suggestion fix confirmed. New **P5-R1-F1**
+(should-fix): with suggestions now read, Library Reaction rows showed
+"Joy Level 2" instead of the D12 labels. **Result: pass** with that
+should-fix.
+
+Repair round 2:
+
+- P5-R1-F1: fixed. The Reaction label helpers moved to
+  `lib/loadout/reactionLabels.ts` (re-exported from `ActionLoadoutRows`), and
+  Library rows show the suggested cell as "Joy · Moderate"; the unused
+  `row.emotionLevel` string is removed from five locales; a presentation test
+  checks the row text; browser-checked on the task stack.
+
+Repair round 2 recheck (same reviewer): P5-R1-F1 resolved, no regressions.
+**Result: pass** (2 of 2 repair rounds used). The equip dialog was also
+checked at 390 × 844 (chooser, rows and Add/Remove fit and work); the
+wizard's browser check is the `create-anima` journey in Phase 6.
 
 ### Phase 6: promotion, starter pools and journeys
 
@@ -1043,7 +1118,8 @@ Steps:
    (`web/scripts/fixtures/hosted-workflows-http.mjs`,
    `hosted-workflows.browser.test.mjs`) for 96 cells and the new IDs. Add a
    journey step that builds a two-member pool, exports and imports the Anima
-   and finds the pool intact.
+   and finds the pool intact. Pin `create-anima.spec.ts`'s "recommended
+   cells" count to 96 (P5-R0-F4).
 6. **Ladder docs.** Commit the Phase 1 ladder guidance and the final ladder
    table (in this plan).
 

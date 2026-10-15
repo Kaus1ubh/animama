@@ -152,8 +152,8 @@ the closure.
 
 Save and Save & Equip
 perform authoritative typed-document and closure validation before directly
-replacing the editable Local entry; only Save & Equip enters the reviewed
-loadout mutation flow.
+replacing the editable Local entry; only Save & Equip then opens the equip
+dialog, whose loadout changes apply at once.
 
 ## Component and media previews
 

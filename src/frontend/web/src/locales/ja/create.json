@@ -2,24 +2,11 @@
   "actions": {
     "back": "戻る",
     "cancel": "キャンセル",
-    "clear": "クリア",
     "creatorHub": "作成ハブ",
     "startOver": "最初からやり直す",
     "tryAgain": "再試行"
   },
   "actionsStep": {
-    "cell": {
-      "apply": "セルに適用",
-      "assignment": "リアクションの割り当て",
-      "description": "任意のリアクションを選ぶか、このセルを空のままにします。プレビューしても割り当ては変わりません。",
-      "noMatches": "一致するリアクションはありません。セルは変更されていません。",
-      "preview": "リアクション「{{name}}」をプレビュー",
-      "search": "リアクションを検索",
-      "searchPlaceholder": "リアクションを検索…",
-      "showMore": "さらにリアクションを表示",
-      "sourceFilter": "リアクションのソース",
-      "title": "{{emotion}} · 強度 {{intensity}}"
-    },
     "confirm": {
       "clear": "選択をクリア",
       "clearDescription": "これらの選択だけがクリアされます。空の選択も有効で、保存済みのコンテンツは削除されません。",
@@ -46,20 +33,15 @@
       "sourceFilter": "ジェスチャーのソース"
     },
     "reactions": {
-      "change": "{{emotion}} の強度 {{intensity}} を変更",
       "clearAll": "すべてのリアクションをクリア",
-      "clearCell": "{{emotion}} の強度 {{intensity}} をクリア",
-      "empty": "空",
       "levels": "{{emotion}} のリアクションレベル",
       "loadFailed": "リアクションを読み込めませんでした。割り当ては保持されています。",
       "matrix": "リアクションマトリクス",
-      "needsAttention": "選択済み · 確認が必要",
+      "needsAttention": "確認が必要",
       "none": "{{total}} 個のセルがすべて空です。このままでも Anima は作成できます。",
-      "previewCell": "{{emotion}} の強度 {{intensity}} をプレビュー",
-      "previewLabel": "{{emotion}} · {{intensity}}",
       "retry": "リアクションを再読み込み",
       "revert": "元に戻す",
-      "revertCell": "{{emotion}} の強度 {{intensity}} をおすすめに戻す"
+      "revertCell": "{{cell}} をおすすめに戻す"
     },
     "replace": {
       "confirm": "選択を置き換える",
@@ -333,6 +315,7 @@
       "edit": "アクションを編集",
       "gesturesSelected": "選択されたジェスチャー",
       "reactionCells": "割り当て済みのリアクションセル",
+      "reactionMembers_other": "全セルで {{count}} 件のリアクション",
       "reactionTotal": "/ {{total}}",
       "title": "アクション"
     },

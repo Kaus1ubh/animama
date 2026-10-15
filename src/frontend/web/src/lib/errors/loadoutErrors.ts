@@ -37,6 +37,21 @@ export function loadoutFailureText(
 }
 
 /**
+ * Text for a failed pool change (Idle or Reaction). Pool changes apply without
+ * review and the Loadout is refetched after any failure, so a stale revision
+ * only asks for a retry with `changedElsewhere`.
+ */
+export function poolChangeFailureText(
+  error: unknown,
+  changedElsewhere: string,
+  fallback: string,
+): ApiErrorText {
+  if (readApiError(error).code === "loadout_revision_conflict")
+    return { message: changedElsewhere, detail: null };
+  return loadoutFailureText(error, fallback);
+}
+
+/**
  * Text for a Loadout warning, worded from its code and parameters; an unworded
  * code falls back like any API failure (English detail kept secondary).
  */

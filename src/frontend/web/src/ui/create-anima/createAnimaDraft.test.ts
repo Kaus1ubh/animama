@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  addReactionPoolMember,
   buildAnimaSpec,
   createAnimaDraftReducer,
   createAnimaDraftSchema,
@@ -13,7 +14,9 @@ import {
   nameLength,
   newCreateAnimaDraft,
   reactionCount,
+  reactionMemberCount,
   reconcileCreationIssues,
+  removeReactionPoolMember,
   samePool,
   setReactionPool,
   sourceMapSchema,
@@ -225,6 +228,67 @@ describe("CreateAnimaDraft", () => {
     expect(
       samePool(draft.reactions.joy["4"], [ref("other"), ref("reaction")]),
     ).toBe(true);
+    // Members are drawn at random, so their order does not matter.
+    expect(
+      samePool(draft.reactions.joy["4"], [ref("reaction"), ref("other")]),
+    ).toBe(true);
+    expect(
+      samePool(draft.reactions.joy["4"], [ref("reaction", "c"), ref("other")]),
+    ).toBe(false);
+  });
+
+  it("adds and removes pool members, refusing a repeat or a fifth", () => {
+    const draft = readyDraft();
+    let reactions = addReactionPoolMember(draft, "joy", "2", ref("a"));
+    reactions = addReactionPoolMember({ reactions }, "joy", "2", ref("b"));
+    expect(reactions.joy["2"]).toEqual([ref("a"), ref("b")]);
+    // Another revision of a member is still that Reaction.
+    expect(
+      addReactionPoolMember({ reactions }, "joy", "2", ref("a", "c")),
+    ).toBe(reactions);
+    reactions = addReactionPoolMember({ reactions }, "joy", "2", ref("c"));
+    reactions = addReactionPoolMember({ reactions }, "joy", "2", ref("d"));
+    expect(addReactionPoolMember({ reactions }, "joy", "2", ref("e"))).toBe(
+      reactions,
+    );
+    // A Reaction may join several cells; other cells are untouched.
+    const elsewhere = addReactionPoolMember(
+      { reactions },
+      "joy",
+      "3",
+      ref("a"),
+    );
+    expect(elsewhere.joy["3"]).toEqual([ref("a")]);
+    expect(elsewhere.joy["2"]).toBe(reactions.joy["2"]);
+
+    const removed = removeReactionPoolMember({ reactions }, "joy", "2", "b");
+    expect(removed.joy["2"]).toEqual([ref("a"), ref("c"), ref("d")]);
+    expect(reactionCount({ reactions: removed })).toBe(1);
+    // A Reaction counts once for each cell it is in.
+    expect(reactionMemberCount({ reactions: elsewhere })).toBe(5);
+  });
+
+  it("submits each of the 96 cells' pools exactly", () => {
+    const draft = readyDraft();
+    draft.reactions = addReactionPoolMember(draft, "joy", "4", ref("cheer"));
+    draft.reactions = addReactionPoolMember(draft, "joy", "4", ref("grin"));
+    draft.reactions = addReactionPoolMember(draft, "anger", "1", ref("grin"));
+    draft.evidence = {
+      ...draft.evidence,
+      cheer: {
+        source: ref("cheer"),
+        revisions: { cheer: revision("reaction") },
+      },
+      grin: { source: ref("grin"), revisions: { grin: revision("reaction") } },
+    };
+    const spec = buildAnimaSpec(draft);
+    const pools = Object.values(spec.reactions).flatMap((cells) =>
+      Object.values(cells),
+    );
+    expect(pools).toHaveLength(96);
+    expect(spec.reactions.joy["4"]).toEqual([ref("cheer"), ref("grin")]);
+    expect(spec.reactions.anger["1"]).toEqual([ref("grin")]);
+    expect(pools.filter((pool) => pool.length)).toHaveLength(2);
   });
 
   it("rejects a fifth Reaction or a repeated one in a cell", () => {

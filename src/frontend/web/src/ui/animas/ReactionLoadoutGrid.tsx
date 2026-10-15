@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { Link } from "@tanstack/react-router";
@@ -17,6 +17,7 @@ import {
 } from "@/lib/loadout/reactionLoadoutGrid";
 import {
   ReactionIntensityBadge,
+  reactionCellLabel,
   reactionIntensityLabel,
 } from "@/ui/animas/ActionLoadoutRows";
 import { LoadoutSectionDisclosure } from "@/ui/animas/LoadoutSectionDisclosure";
@@ -26,6 +27,8 @@ import {
   LoadoutPoolMemberChip,
   LoadoutPoolPicker,
   useExpandedEmotions,
+  type LoadoutPoolChoice,
+  type LoadoutPoolMember,
   type LoadoutPoolPickerCopy,
 } from "@/ui/animas/LoadoutPool";
 import { StarterBadge } from "@/ui/animas/StarterBadge";
@@ -61,9 +64,15 @@ function reactionPickerCopy(t: TFunction<"animas">): LoadoutPoolPickerCopy {
   };
 }
 
+/** A Reaction the Add picker offers: a Library item with any suggested cell. */
+export type ReactionPoolChoice = LoadoutPoolChoice & {
+  emotion?: string | null;
+  intensity?: number | null;
+};
+
 /** A Reaction's suggested cell, shown as a hint under its name. */
 function reactionSuggestion(
-  reaction: PyReaction,
+  reaction: ReactionPoolChoice,
   t: TFunction<"animas">,
 ): string | null {
   return reaction.emotion && reaction.intensity
@@ -72,6 +81,122 @@ function reactionSuggestion(
         intensity: reactionIntensityLabel(reaction.intensity, t),
       })
     : null;
+}
+
+/**
+ * One Reaction cell's pool, shared by the Loadout and the Create Anima wizard:
+ * member chips (Starter badge, Preview, Remove) and an Add picker with Local
+ * and Included groups that marks Reactions already in the cell and stops at
+ * four with the reason. The caller supplies the members, the choices and any
+ * other cell controls, and applies the changes.
+ */
+export function ReactionPoolCellRow<
+  Member extends LoadoutPoolMember & { item_id: string },
+  Item extends ReactionPoolChoice,
+>({
+  emotion,
+  intensity,
+  id,
+  members,
+  isStarter,
+  choices,
+  loading,
+  error,
+  disabled,
+  busy,
+  unavailableText,
+  controls,
+  onAdd,
+  onRemove,
+  onPreview,
+  onPreviewChoice,
+  onRetry,
+}: {
+  emotion: string;
+  intensity: number;
+  /** Focus target for links to this cell. */
+  id?: string;
+  members: readonly Member[];
+  /** Whether a member is one of the cell's starter Reactions. */
+  isStarter: (member: Member) => boolean;
+  /** Every Reaction the picker offers; any may join any cell. */
+  choices: readonly Item[];
+  loading: boolean;
+  error: boolean;
+  disabled: boolean;
+  /** A change is applying: choices, Remove and the cell menu wait. */
+  busy: boolean;
+  /** How an unavailable member is marked; "Unavailable" by default. */
+  unavailableText?: string;
+  /** More cell controls after Add, such as the cell menu. */
+  controls?: ReactNode;
+  onAdd: (item: Item) => void;
+  onRemove: (member: Member) => void;
+  onPreview: (member: Member) => void;
+  onPreviewChoice: (item: Item) => void;
+  onRetry: () => void;
+}) {
+  const { t } = useTranslation("animas");
+  const name = reactionCellLabel(emotion, intensity, t);
+  const inCell = new Set(members.map((member) => member.item_id));
+  const full = reactionCellFull({ members });
+  const fullId = `reaction-${emotion}-${intensity}-full`;
+  const { local, included } = groupReactionSelectorChoices(choices);
+  return (
+    <LoadoutPoolCellRow
+      id={id}
+      label={<ReactionIntensityBadge intensity={intensity} />}
+      listLabel={name}
+      emptyText={t("reactions.noReaction")}
+      members={members.map((member) => (
+        <LoadoutPoolMemberChip
+          key={member.binding_id}
+          member={member}
+          unavailableText={unavailableText ?? t("reactions.unavailable")}
+          removeLabel={t("reactions.remove", { name: member.name, cell: name })}
+          badge={isStarter(member) ? <StarterBadge /> : null}
+          disabled={disabled || busy}
+          onPreview={() => onPreview(member)}
+          onRemove={() => onRemove(member)}
+        />
+      ))}
+      extra={
+        full ? (
+          <p id={fullId} className="text-muted-foreground text-xs">
+            {t("reactions.full")}
+          </p>
+        ) : null
+      }
+      controls={
+        <div className="flex shrink-0 items-center gap-1">
+          <LoadoutPoolPicker
+            addLabel={t("reactions.addTo", { cell: name })}
+            copy={reactionPickerCopy(t)}
+            local={local}
+            included={included}
+            loading={loading}
+            error={error}
+            disabled={disabled || full}
+            describedBy={full ? fullId : undefined}
+            busy={busy}
+            status={(reaction) =>
+              inCell.has(reaction.item_id)
+                ? { text: t("reactions.inCell"), tone: "muted", disabled: true }
+                : null
+            }
+            detail={(reaction) => reactionSuggestion(reaction, t)}
+            onSelect={(reaction) => {
+              onAdd(reaction);
+              return true;
+            }}
+            onPreview={onPreviewChoice}
+            onRetry={onRetry}
+          />
+          {controls}
+        </div>
+      }
+    />
+  );
 }
 
 /** The cell menu: open the Library, or restore the cell's starter pool. */
@@ -136,11 +261,7 @@ type ReactionCellHandlers = {
   onRetryAvailable: () => void;
 };
 
-/**
- * One cell's pool: member chips (Starter badge, Preview, Remove), the Add
- * picker, which marks members already in the cell and stops at four, and the
- * cell menu.
- */
+/** One Loadout cell: its pool, with the Library link and Restore starter. */
 function ReactionCellRow({
   cell,
   available,
@@ -156,71 +277,29 @@ function ReactionCellRow({
   onRetryAvailable,
 }: ReactionCellHandlers & { cell: PyReactionCell }) {
   const { t } = useTranslation("animas");
-  const name = t("reactions.cell", {
-    emotion: storedEmotionLabel(cell.emotion),
-    intensity: reactionIntensityLabel(cell.intensity, t),
-  });
-  const members = cell.members ?? [];
-  const inCell = new Set(members.map((member) => member.item_id));
-  const full = reactionCellFull(cell);
-  const fullId = `reaction-${cell.emotion}-${cell.intensity}-full`;
-  const { local, included } = groupReactionSelectorChoices(available);
   return (
-    <LoadoutPoolCellRow
-      label={<ReactionIntensityBadge intensity={cell.intensity} />}
-      listLabel={name}
-      emptyText={t("reactions.noReaction")}
-      members={members.map((member) => (
-        <LoadoutPoolMemberChip
-          key={member.binding_id}
-          member={member}
-          unavailableText={t("reactions.unavailable")}
-          removeLabel={t("reactions.remove", { name: member.name, cell: name })}
-          badge={member.origin === "starter" ? <StarterBadge /> : null}
-          disabled={disabled || busy}
-          onPreview={() => onPreview(member)}
-          onRemove={() => onRemove(member)}
-        />
-      ))}
-      extra={
-        full ? (
-          <p id={fullId} className="text-muted-foreground text-xs">
-            {t("reactions.full")}
-          </p>
-        ) : null
-      }
+    <ReactionPoolCellRow
+      emotion={cell.emotion}
+      intensity={cell.intensity}
+      members={cell.members ?? []}
+      isStarter={(member) => member.origin === "starter"}
+      choices={available}
+      loading={availableLoading}
+      error={availableError}
+      disabled={disabled}
+      busy={busy}
+      onAdd={(reaction) => onAdd(cell, reaction)}
+      onRemove={onRemove}
+      onPreview={onPreview}
+      onPreviewChoice={onPreviewAvailable}
+      onRetry={onRetryAvailable}
       controls={
-        <div className="flex shrink-0 items-center gap-1">
-          <LoadoutPoolPicker
-            addLabel={t("reactions.addTo", { cell: name })}
-            copy={reactionPickerCopy(t)}
-            local={local}
-            included={included}
-            loading={availableLoading}
-            error={availableError}
-            disabled={disabled || full}
-            describedBy={full ? fullId : undefined}
-            busy={busy}
-            status={(reaction) =>
-              inCell.has(reaction.item_id)
-                ? { text: t("reactions.inCell"), tone: "muted", disabled: true }
-                : null
-            }
-            detail={(reaction) => reactionSuggestion(reaction, t)}
-            onSelect={(reaction) => {
-              onAdd(cell, reaction);
-              return true;
-            }}
-            onPreview={onPreviewAvailable}
-            onRetry={onRetryAvailable}
-          />
-          <ReactionCellMenu
-            cell={cell}
-            cellName={name}
-            disabled={disabled || busy}
-            onRestoreStarter={() => onRestoreStarter(cell)}
-          />
-        </div>
+        <ReactionCellMenu
+          cell={cell}
+          cellName={reactionCellLabel(cell.emotion, cell.intensity, t)}
+          disabled={disabled || busy}
+          onRestoreStarter={() => onRestoreStarter(cell)}
+        />
       }
     />
   );

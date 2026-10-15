@@ -309,6 +309,7 @@ export function LoadoutPoolMemberChip({
  * section shows in the cell, and the cell's controls on the right.
  */
 export function LoadoutPoolCellRow({
+  id,
   label,
   listLabel,
   members,
@@ -316,6 +317,8 @@ export function LoadoutPoolCellRow({
   extra,
   controls,
 }: {
+  /** Focus target for links to this cell, such as a creation issue. */
+  id?: string;
   label: ReactNode;
   /** Accessible name of the member list: the cell's name. */
   listLabel: string;
@@ -327,7 +330,11 @@ export function LoadoutPoolCellRow({
 }) {
   return (
     // On a narrow panel the controls wrap below the members, keeping names readable.
-    <div className="flex min-w-0 flex-wrap items-start gap-x-3 gap-y-2 border-b px-4 py-3 last:border-b-0">
+    <div
+      id={id}
+      tabIndex={id ? -1 : undefined}
+      className="flex min-w-0 flex-wrap items-start gap-x-3 gap-y-2 border-b px-4 py-3 last:border-b-0"
+    >
       {label}
       <div className="min-w-36 flex-1 space-y-1.5 pt-1.5">
         {members.length ? (

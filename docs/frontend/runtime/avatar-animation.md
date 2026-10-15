@@ -568,9 +568,11 @@ sandbox. Playback belongs to the timeline Play/Pause/Stop/Restart controls and
 does not persist the Action. Save sends the sequence or VRMA file and its
 descriptor through `saveCatalogItem(...)` to the typed catalog Save endpoint.
 Updates include the catalog item ID and expected revision; the backend validates
-and atomically updates readable Local files. Save & Equip uses the saved catalog
-selection in the reviewed Anima loadout flow. Existing and starter Actions use
-typed preview reads to hydrate protected files and dependency runtime.
+and atomically updates readable Local files. Save & Equip saves, then opens the
+equip dialog for the saved catalog item, whose changes apply at once (see
+[Library Add and Manage](../features/library.md#add-and-manage)). Existing and
+starter Actions use typed preview reads to hydrate protected files and
+dependency runtime.
 
 A Local Action that names a removed Included effect still opens and plays
 without it (see the catalog exception in

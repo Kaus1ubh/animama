@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { useFormatters } from "@animama/product-ui/i18n";
 import type { PortableAnima } from "@animama/runtime-contracts/api-types";
 import {
   FileBox,
@@ -19,6 +18,7 @@ import {
   type PackageDisplayItem,
 } from "./sharingPresentation";
 import { storedEmotionLabel } from "@/lib/emotion/presentation";
+import { reactionIntensityLabel } from "@/ui/animas/ActionLoadoutRows";
 
 export function SharingItemIcon({ kind }: { kind: string }) {
   const Icon =
@@ -189,6 +189,18 @@ function Configuration({
   );
 }
 
+/** Count the package's Reaction cells, the filled ones, and their members. */
+function reactionPoolCounts(reactions: PortableAnima["reactions"]) {
+  const pools = Object.values(reactions).flatMap((cells) =>
+    Object.values(cells),
+  );
+  return {
+    total: pools.length,
+    filled: pools.filter((members) => members.length).length,
+    members: pools.reduce((count, members) => count + members.length, 0),
+  };
+}
+
 /** Count distinct Gestures across the Idle pool's Default and every cell. */
 function idleGestureCount(idle: PortableAnima["idle"]): number {
   const entryIds = new Set(idle.default);
@@ -209,7 +221,6 @@ export function SharingAnimaDetails({
   showPrivacyNote?: boolean;
 }) {
   const { t } = useTranslation("library");
-  const { list } = useFormatters();
   const name = (id: string | null) =>
     id === null
       ? t("sharing.anima.none")
@@ -222,6 +233,7 @@ export function SharingAnimaDetails({
   for (const item of items)
     counts.set(item.kind, (counts.get(item.kind) ?? 0) + 1);
   const idleCount = idleGestureCount(anima.idle);
+  const reactionCounts = reactionPoolCounts(anima.reactions);
   return (
     <div className="space-y-5">
       <div className="grid gap-6 md:grid-cols-[1.2fr_1fr]">
@@ -305,28 +317,49 @@ export function SharingAnimaDetails({
           </section>
           <details>
             <summary className="cursor-pointer font-medium">
-              {t("sharing.anima.reactionCells")}
+              {t("sharing.anima.reactionCells")}{" "}
+              <span className="text-muted-foreground font-normal">
+                {t("sharing.anima.reactionSummary", {
+                  cells: reactionCounts.filled,
+                  total: reactionCounts.total,
+                  count: reactionCounts.members,
+                })}
+              </span>
             </summary>
+            {/* Each cell lists its whole pool in package order, which import recreates. */}
             <div className="mt-2 grid gap-2 sm:grid-cols-2">
-              {/* Each cell lists its whole pool, which import recreates. */}
-              {Object.entries(anima.reactions).flatMap(([emotion, cells]) =>
-                Object.entries(cells).map(([intensity, members]) => (
-                  <div
-                    key={`${emotion}-${intensity}`}
-                    className="rounded-lg border p-2"
-                  >
-                    <p className="break-words">
-                      {t("sharing.anima.reactionCell", {
-                        emotion: storedEmotionLabel(emotion),
-                        intensity,
-                        value: members.length
-                          ? list(members.map(name))
-                          : t("sharing.anima.none"),
-                      })}
-                    </p>
-                  </div>
-                )),
-              )}
+              {Object.entries(anima.reactions).map(([emotion, cells]) => (
+                <div key={emotion} className="rounded-lg border p-2">
+                  <h5 className="font-medium">{storedEmotionLabel(emotion)}</h5>
+                  <dl className="mt-1 space-y-0.5">
+                    {Object.entries(cells).map(([intensity, members]) => (
+                      <div key={intensity} className="flex gap-2">
+                        <dt className="text-muted-foreground w-20 shrink-0">
+                          {reactionIntensityLabel(intensity)}
+                        </dt>
+                        <dd className="min-w-0">
+                          {members.length ? (
+                            // One element per member: separators never depend
+                            // on how a locale joins a list.
+                            <ol className="flex flex-wrap gap-1">
+                              {members.map((member, index) => (
+                                <li
+                                  key={`${member}-${index}`}
+                                  className="bg-muted/40 max-w-full rounded border px-1.5 break-words"
+                                >
+                                  {name(member)}
+                                </li>
+                              ))}
+                            </ol>
+                          ) : (
+                            t("sharing.anima.none")
+                          )}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
+              ))}
             </div>
           </details>
           <p>

@@ -180,7 +180,6 @@
   },
   "row": {
     "addedTo_other": "已新增到 {{count}} 個 Anima",
-    "emotionLevel": "{{emotion}} {{level}} 級",
     "local": "本機",
     "updateAvailable": "有可用更新"
   },
@@ -204,8 +203,8 @@
       "labelValue": "{{label}}：{{value}}",
       "none": "無",
       "pocketVoice": "PocketTTS 語音",
-      "reactionCell": "{{emotion}} · {{intensity}}：{{value}}",
-      "reactionCells": "反應儲存格"
+      "reactionCells": "反應儲存格",
+      "reactionSummary_other": "（已填 {{cells}} / {{total}} 個儲存格 · {{count}} 個反應）"
     },
     "back": "返回",
     "countInParentheses": "({{total}})",

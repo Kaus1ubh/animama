@@ -18,15 +18,15 @@ export type ReactionLoadoutRow = {
   reactionCount: number;
 };
 
-export type ReactionSelectorGroups = {
-  local: PyReaction[];
-  included: PyReaction[];
+export type ReactionSelectorGroups<Item = PyReaction> = {
+  local: Item[];
+  included: Item[];
 };
 
 /** Group every ready Reaction without constraining it to the target cell. */
-export function groupReactionSelectorChoices(
-  available: PyReaction[],
-): ReactionSelectorGroups {
+export function groupReactionSelectorChoices<
+  Item extends { origin: "owned" | "builtin" } = PyReaction,
+>(available: readonly Item[]): ReactionSelectorGroups<Item> {
   return {
     local: available.filter((reaction) => reaction.origin === "owned"),
     included: available.filter((reaction) => reaction.origin === "builtin"),
@@ -67,7 +67,9 @@ export function buildReactionLoadoutGrid(
 }
 
 /** Whether a cell's pool already holds the most Reactions a cell may hold. */
-export function reactionCellFull(cell: PyReactionCell): boolean {
+export function reactionCellFull(cell: {
+  members?: readonly unknown[] | null;
+}): boolean {
   return (cell.members?.length ?? 0) >= REACTION_POOL_LIMIT;
 }
 

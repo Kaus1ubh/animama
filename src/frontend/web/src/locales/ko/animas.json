@@ -205,11 +205,22 @@
     "animaFallback": "Anima",
     "description": {
       "gesture": "이 제스처를 사용할 수 있는 Anima를 선택하세요. 진행 중인 채팅은 기존 데이터를 유지하며, 변경 사항을 적용하려면 새 채팅을 여세요.",
-      "reaction": "이 리액션을 사용할 수 있는 Anima를 선택하세요. 진행 중인 채팅은 기존 데이터를 유지하며, 변경 사항을 적용하려면 새 채팅을 여세요."
+      "reaction": "감정과 강도를 선택한 다음, 각 Anima의 해당 셀에 이 리액션을 추가하거나 제거하세요. 셀의 다른 리액션은 그대로 유지됩니다. 진행 중인 채팅은 기존 데이터를 유지하며, 변경 사항을 적용하려면 새 채팅을 여세요."
     },
     "equippedTo": "{{name}}을(를) {{anima}}에 장착했습니다.",
     "notEquipped": "장착 안 됨",
     "notLocal": "이 액션은 로컬 카탈로그에 없습니다.",
+    "reaction": {
+      "addTo": "{{anima}}의 {{cell}}에 추가",
+      "added": "{{name}}을(를) {{anima}}의 {{cell}}에 추가했습니다.",
+      "emotion": "감정",
+      "full": "이 셀에는 이미 리액션이 4개 있습니다. 추가하려면 이 Anima의 로드아웃에서 하나를 제거하세요.",
+      "inCell": "이 셀에 있음",
+      "intensity": "강도",
+      "notInCell": "이 셀에 없음",
+      "removeFrom": "{{anima}}의 {{cell}}에서 제거",
+      "removed": "{{anima}}의 {{cell}}에서 {{name}}을(를) 제거했습니다."
+    },
     "removedFrom": "{{anima}}에서 {{name}}을(를) 제거했습니다.",
     "title": "{{name}} 장착",
     "willReplace": {

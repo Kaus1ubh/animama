@@ -687,11 +687,22 @@ export default interface Resources {
       "animaFallback": "Anima",
       "description": {
         "gesture": "Choose which Animas can invoke this gesture. Active chats keep their existing bytes; open a new chat to mount the change.",
-        "reaction": "Choose which Animas can invoke this reaction. Active chats keep their existing bytes; open a new chat to mount the change."
+        "reaction": "Choose an emotion and intensity, then add this Reaction to that cell for each Anima, or remove it. Other Reactions in the cell stay. Active chats keep their existing bytes; open a new chat to mount the change."
       },
       "equippedTo": "{{name}} equipped to {{anima}}.",
       "notEquipped": "Not equipped",
       "notLocal": "This Action is not available in the local catalog.",
+      "reaction": {
+        "addTo": "Add to {{anima}}'s {{cell}}",
+        "added": "{{name}} added to {{anima}} at {{cell}}.",
+        "emotion": "Emotion",
+        "full": "This cell already holds four Reactions. Remove one in this Anima's Loadout to add this one.",
+        "inCell": "In this cell",
+        "intensity": "Intensity",
+        "notInCell": "Not in this cell",
+        "removeFrom": "Remove from {{anima}}'s {{cell}}",
+        "removed": "{{name}} removed from {{anima}} at {{cell}}."
+      },
       "removedFrom": "{{name}} removed from {{anima}}.",
       "title": "Equip {{name}}",
       "willReplace": {
@@ -1517,24 +1528,11 @@ export default interface Resources {
     "actions": {
       "back": "Back",
       "cancel": "Cancel",
-      "clear": "Clear",
       "creatorHub": "Creator hub",
       "startOver": "Start over",
       "tryAgain": "Try again"
     },
     "actionsStep": {
-      "cell": {
-        "apply": "Apply to cell",
-        "assignment": "Reaction assignment",
-        "description": "Choose any Reaction, or leave this cell empty. Preview does not change its assignment.",
-        "noMatches": "No matching Reactions. Your cell has not changed.",
-        "preview": "Preview Reaction {{name}}",
-        "search": "Search Reactions",
-        "searchPlaceholder": "Search Reactions…",
-        "showMore": "Show more Reactions",
-        "sourceFilter": "Reaction source",
-        "title": "{{emotion}} · intensity {{intensity}}"
-      },
       "confirm": {
         "clear": "Clear selections",
         "clearDescription": "Only these selections will be cleared. Empty selections are valid, and your saved content is not deleted.",
@@ -1561,20 +1559,15 @@ export default interface Resources {
         "sourceFilter": "Gesture source"
       },
       "reactions": {
-        "change": "Change {{emotion, lowercase}} intensity {{intensity}}",
         "clearAll": "Clear all Reactions",
-        "clearCell": "Clear {{emotion, lowercase}} intensity {{intensity}}",
-        "empty": "Empty",
         "levels": "{{emotion}} Reaction levels",
         "loadFailed": "Could not load Reactions. Assignments are preserved.",
         "matrix": "Reaction matrix",
-        "needsAttention": "Selected · needs attention",
+        "needsAttention": "Needs attention",
         "none": "All {{total}} cells are empty. Your Anima can still be created.",
-        "previewCell": "Preview {{emotion, lowercase}} intensity {{intensity}}",
-        "previewLabel": "{{emotion}} · {{intensity}}",
         "retry": "Retry Reactions",
         "revert": "Revert",
-        "revertCell": "Revert {{emotion, lowercase}} intensity {{intensity}} to recommended"
+        "revertCell": "Revert {{cell}} to recommended"
       },
       "replace": {
         "confirm": "Replace selection",
@@ -1850,6 +1843,8 @@ export default interface Resources {
         "edit": "Edit Actions",
         "gesturesSelected": "Gestures selected",
         "reactionCells": "Reaction cells assigned",
+        "reactionMembers_one": "{{count}} Reaction across all cells",
+        "reactionMembers_other": "{{count}} Reactions across all cells",
         "reactionTotal": "/ {{total}}",
         "title": "Actions"
       },
@@ -3619,7 +3614,6 @@ export default interface Resources {
     "row": {
       "addedTo_one": "Added to {{count}}",
       "addedTo_other": "Added to {{count}}",
-      "emotionLevel": "{{emotion}} Level {{level}}",
       "local": "Local",
       "updateAvailable": "Update available"
     },
@@ -3644,8 +3638,9 @@ export default interface Resources {
         "labelValue": "{{label}}: {{value}}",
         "none": "None",
         "pocketVoice": "PocketTTS voice",
-        "reactionCell": "{{emotion}} · {{intensity}}: {{value}}",
-        "reactionCells": "Reaction cells"
+        "reactionCells": "Reaction cells",
+        "reactionSummary_one": "({{cells}} of {{total}} cells filled · {{count}} Reaction)",
+        "reactionSummary_other": "({{cells}} of {{total}} cells filled · {{count}} Reactions)"
       },
       "back": "Back",
       "countInParentheses": "({{total}})",
