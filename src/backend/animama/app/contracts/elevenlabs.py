@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class _ElevenLabsSchema(BaseModel):
@@ -94,6 +94,15 @@ class PyElevenLabsSoundEffectsRequest(_ElevenLabsSchema):
 
 
 class PyElevenLabsRealtimeTtsSessionResponse(_ElevenLabsSchema):
+    """One reply's realtime speech session (``tts.session``).
+
+    A ``direct`` session gives the browser a short-lived provider ``token`` (and
+    optionally the provider's ``websocket_base_url``). A ``server`` session instead
+    names the composition's own ``websocket_url``, which the browser opens with its
+    session cookie (``contracts/hosted-web.md``, "Realtime speech session
+    descriptor"); it carries no provider token.
+    """
+
     voice_id: str
     model_id: str
     output_format: str
@@ -101,3 +110,16 @@ class PyElevenLabsRealtimeTtsSessionResponse(_ElevenLabsSchema):
     language_code: str | None = None
     token: str | None = None
     websocket_base_url: str | None = None
+    transport: Literal["direct", "server"] = "direct"
+    websocket_url: str | None = None
+
+    @model_validator(mode="after")
+    def _transport_fields(self) -> PyElevenLabsRealtimeTtsSessionResponse:
+        if self.transport == "server":
+            if not self.websocket_url:
+                raise ValueError("a server speech session names its websocket_url")
+            if self.token is not None or self.websocket_base_url is not None:
+                raise ValueError("a server speech session carries no provider token or socket")
+        elif self.websocket_url is not None:
+            raise ValueError("only a server speech session names a websocket_url")
+        return self

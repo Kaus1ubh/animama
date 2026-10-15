@@ -9,11 +9,13 @@ the ports they need as they move into this package.
 
 from __future__ import annotations
 
+import math
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import AbstractAsyncContextManager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Annotated, Any, Literal, Protocol, cast
+from urllib.parse import urlsplit
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -143,19 +145,75 @@ class ProductRepositories(Protocol):
     def unit_of_work(self) -> UnitOfWork: ...
 
 
-class ProductRefusal(Exception):
-    """A composition-specific refusal a shared route reports as ``detail.code`` with its status."""
+@dataclass(frozen=True)
+class DenialDetails:
+    """The optional fields a denial carries beside its code (``contracts/hosted-web.md``, "Hosted denials").
 
-    def __init__(self, status_code: int, code: str) -> None:
+    ``limit`` names the exhausted limit (a string, or a count such as a chat
+    allowance), ``retry_after_seconds`` is the wait before a retry can succeed,
+    ``max_characters`` is the longest accepted message and ``download_url`` is an
+    absolute ``https:`` URL, without credentials, where the user can download the
+    desktop app. Unset fields are omitted.
+    """
+
+    limit: str | int | None = None
+    retry_after_seconds: float | None = None
+    max_characters: int | None = None
+    download_url: str | None = None
+
+    def __post_init__(self) -> None:
+        limit = self.limit
+        if limit is not None and not ((type(limit) is str and limit) or (type(limit) is int and limit >= 0)):
+            raise ValueError("a denial's limit is a non-empty name or a count")
+        retry = self.retry_after_seconds
+        if retry is not None and (type(retry) not in (int, float) or not math.isfinite(retry) or retry < 0):
+            raise ValueError("a denial's retry_after_seconds is a finite, non-negative wait")
+        if self.max_characters is not None and (type(self.max_characters) is not int or self.max_characters < 1):
+            raise ValueError("a denial's max_characters is a positive count")
+        if self.download_url is not None:
+            url = urlsplit(self.download_url)
+            if url.scheme != "https" or not url.hostname or url.username is not None or url.password is not None:
+                raise ValueError("a denial's download_url is an absolute https: URL without credentials")
+
+    def fields(self) -> dict[str, object]:
+        """The set fields, as a denial body or error frame carries them."""
+
+        values = (
+            ("limit", self.limit),
+            ("retry_after_seconds", self.retry_after_seconds),
+            ("max_characters", self.max_characters),
+            ("download_url", self.download_url),
+        )
+        return {name: value for name, value in values if value is not None}
+
+
+class ProductRefusal(Exception):
+    """A composition-specific refusal a shared route reports as ``detail.code`` with its status.
+
+    ``details`` adds the contract's denial fields: beside the code in an HTTP
+    refusal, and on the error frame of a turn the refusal ends (a model request's
+    call boundary, web search or the composition's deferred commit of a turn write
+    may raise it while the turn runs).
+    """
+
+    def __init__(self, status_code: int, code: str, *, details: DenialDetails | None = None) -> None:
         super().__init__(code)
         self.status_code = status_code
         self.code = code
+        self.details = details if details is not None else DenialDetails()
 
 
 def refusal_error(exc: ProductRefusal) -> HTTPException:
-    """The HTTP error a shared route raises for a composition's refusal."""
+    """The HTTP error a shared route raises for a composition's refusal.
 
-    return HTTPException(status_code=exc.status_code, detail={"code": exc.code})
+    A 429 or 503 refusal with a known wait also sends it as ``Retry-After`` in whole seconds.
+    """
+
+    retry = exc.details.retry_after_seconds
+    headers = {"Retry-After": str(math.ceil(retry))} if retry is not None and exc.status_code in (429, 503) else None
+    return HTTPException(
+        status_code=exc.status_code, detail={"code": exc.code, **exc.details.fields()}, headers=headers
+    )
 
 
 @dataclass(frozen=True)
@@ -272,7 +330,13 @@ class ProductSpeech(Protocol):
         language_code: str | None,
         model_id: str | None,
     ) -> PyElevenLabsRealtimeTtsSessionResponse:
-        """Describe a realtime speech session for one chat reply."""
+        """Describe a realtime speech session for one chat reply.
+
+        A direct session carries a provider token. A composition that speaks
+        through its own socket instead returns ``transport="server"`` with that
+        socket's ``websocket_url``, and receives the reply's text through
+        ``ChatTurnServices.server_speech_text``.
+        """
         ...
 
 
@@ -305,10 +369,11 @@ class ChatTurnAdmission:
 
 @dataclass(frozen=True)
 class ChatTurnStop:
-    """Why a composition ends a running turn: the error frame's code and message."""
+    """Why a composition ends a running turn: the error frame's code, message and any denial fields."""
 
     code: str
     message: str
+    details: DenialDetails = field(default_factory=DenialDetails)
 
 
 ChatTurnOutcome = Literal["unstarted", "completed", "failed", "interrupted"]
@@ -340,12 +405,54 @@ class ChatTurnLease(Protocol):
         ...
 
 
+ChatUtilityPurpose = Literal["pre_send_compaction", "compaction", "title"]
+"""A turn's model work besides its reply: compaction before the reply when the chat
+would not fit, compaction after a saved reply, and the title of a chat's first turn."""
+
+
+class ServerSpeechText(Protocol):
+    """Receives one ElevenLabs turn's speech text for a composition's own speech socket.
+
+    A composition that serves speech through its own server (a ``transport:
+    "server"`` realtime session) speaks the text the turn approved, never text a
+    browser sends. The turn calls these on the event loop, so they must not block;
+    a composition queues the text for its speech session. ``append`` receives each
+    speech piece in reply order, prepared as the browser prepares ElevenLabs chunks:
+    emoji removed, audio tags prepared for ElevenLabs (``ProviderSpeechText``) and
+    the reply's tone tag before the first piece unless the speech opens with its
+    own direction. Text is handed over only once the turn's realtime session is a
+    server session (pieces that arrived earlier follow at once); a direct,
+    declined or failed session's sink hears nothing. ``end`` follows the reply's
+    last piece. ``abort`` means the turn stopped, failed or lost its client and its
+    speech must stop; it may follow ``end`` (for example a stop after the reply was
+    saved), may reach a session still being set up, and nothing follows it. The
+    methods must not raise: a failure is logged and the turn goes on.
+    """
+
+    def append(self, text: str) -> None: ...
+
+    def end(self) -> None: ...
+
+    def abort(self) -> None: ...
+
+
 class ChatTurnServices(Protocol):
     """The paid collaborators of one admitted chat turn, which a composition may bind to its lease."""
 
     @property
     def model_clients(self) -> ModelClientRegistry | None:
-        """The model-client registry, or ``None`` while it is unavailable."""
+        """The registry for the reply's model rounds, or ``None`` while it is unavailable."""
+        ...
+
+    def utility_model_clients(self, purpose: ChatUtilityPurpose) -> ModelClientRegistry | None:
+        """The registry for one kind of the turn's other model work, or ``None`` to skip it.
+
+        Each purpose asks separately, so a composition can meter or limit it apart
+        from the reply's rounds. Asking does not mean the work runs (a turn asks
+        before it knows whether it needs compaction or a title), so a composition
+        reserves when a request is made, not here. A composition with one registry
+        returns it for every purpose.
+        """
         ...
 
     async def web_search_tool(self, session: AsyncSession) -> WebSearchToolService | None:
@@ -368,6 +475,12 @@ class ChatTurnServices(Protocol):
         Read only when a turn asks for Gemini voice. The turn resolves the Anima's
         prebuilt voice itself and passes it as ``voice_id``.
         """
+        ...
+
+    @property
+    def server_speech_text(self) -> ServerSpeechText | None:
+        """Where an ElevenLabs turn's speech text goes when the composition speaks it
+        through its own socket, or ``None`` when its sessions are direct."""
         ...
 
 

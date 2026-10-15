@@ -40,8 +40,9 @@ from animama.product_http.ports import (
 
 from .compaction import compact_chat_after_success as _compact_chat_after_success
 from .safety import ai_notice_frame, attach_crisis_resources
+from .server_speech import ServerSpeechFeed
 from .setup_helpers import TurnSessions
-from .sse_events import SseTextState, format_error_event, format_sse
+from .sse_events import SseTextState, format_denial_error_event, format_error_event
 from .sse_runtime import (
     DirectChatEventBridge,
     TurnStopped,
@@ -61,6 +62,7 @@ from .title import (
 from .tts import (
     FinalizedTtsStreamBootstrap as _FinalizedTtsStreamBootstrap,
     TtsSessionBootstrap as _TtsSessionBootstrap,
+    elevenlabs_tts_options as _elevenlabs_tts_options,
     gemini_finalized_tts_requested as _gemini_finalized_tts_requested,
     tts_speech_payload_enabled as _tts_speech_payload_enabled,
 )
@@ -223,6 +225,15 @@ async def stream_direct_chat_sse(
     )
 
     speech = services.speech
+    # A composition that speaks through its own socket receives an ElevenLabs reply's text.
+    server_speech_text = services.server_speech_text
+    server_speech = (
+        ServerSpeechFeed(server_speech_text)
+        if server_speech_text is not None and _elevenlabs_tts_options(turn.chat_options) is not None
+        else None
+    )
+    title_registry = services.utility_model_clients("title")
+    compaction_registry = services.utility_model_clients("compaction")
     bridge = DirectChatEventBridge(anima_id=anima_id)
     chat = turn.prepared_turn.chat
 
@@ -239,6 +250,7 @@ async def stream_direct_chat_sse(
             emotional_state=turn.emotional_state,
             tts_speech_payload_enabled=_tts_speech_payload_enabled(turn.chat_options),
             speech_tone_tag_pending=speech_tag_provider(turn.chat_options.tts) == "elevenlabs",
+            server_speech=server_speech,
             public_error_text=policy.public_error_text,
         )
         active_task: asyncio.Task[Any] | None = None
@@ -289,11 +301,13 @@ async def stream_direct_chat_sse(
             # Title generation is independent from the main assistant response.
             # It runs in parallel and is only surfaced after the direct turn has
             # succeeded so title failures do not corrupt the model stream.
-            if _should_generate_chat_title(chat, chat_options=turn.chat_options, settings=policy.title_generation):
+            if title_registry is not None and _should_generate_chat_title(
+                chat, chat_options=turn.chat_options, settings=policy.title_generation
+            ):
                 title_task = asyncio.create_task(
                     _generate_chat_title_for_stream(
                         sessions=sessions,
-                        model_client_registry=model_client_registry,
+                        model_client_registry=title_registry,
                         settings=policy.title_generation,
                         anima_id=anima_id,
                         user_id=user.id,
@@ -309,8 +323,12 @@ async def stream_direct_chat_sse(
                     anima_id=anima_id,
                     chat_id=chat_id,
                     run_id=run_id,
-                    reason=_chat_title_generation_skip_reason(
-                        chat, chat_options=turn.chat_options, settings=policy.title_generation
+                    reason=(
+                        "no_title_model_clients"
+                        if title_registry is None
+                        else _chat_title_generation_skip_reason(
+                            chat, chat_options=turn.chat_options, settings=policy.title_generation
+                        )
                     ),
                     chat_has_title=bool(getattr(chat, "title", None)),
                     chat_next_turn=getattr(chat, "next_turn", None),
@@ -323,6 +341,8 @@ async def stream_direct_chat_sse(
                 sessions=sessions,
                 anima_id=anima_id,
                 run_id=run_id,
+                # Server speech text waits until the session is known to be a server session.
+                on_session=server_speech.session_ready if server_speech is not None else None,
             )
 
             def _poll_tts_frame() -> str | None:
@@ -396,6 +416,12 @@ async def stream_direct_chat_sse(
                 stream_emotion_update=True,
             ):
                 yield frame
+            # Every queued speech segment has reached the composition's socket by now.
+            if server_speech is not None:
+                if turn_failed:
+                    server_speech.abort()
+                else:
+                    server_speech.end()
 
             # App-layer errors are already formatted and streamed as ERROR
             # events. Emit the public completion concept once, then stop any
@@ -451,9 +477,11 @@ async def stream_direct_chat_sse(
 
             async def compact() -> None:
                 await check_lease()
+                if compaction_registry is None:
+                    return
                 await _compact_chat_after_success(
                     sessions=sessions,
-                    model_client_registry=model_client_registry,
+                    model_client_registry=compaction_registry,
                     chat_id=chat_id,
                     user_id=user.id,
                     anima_id=anima_id,
@@ -486,6 +514,8 @@ async def stream_direct_chat_sse(
         except TurnStopped as stopped:
             # The composition ended the turn: stop its work first, so whether the
             # reply was saved is settled, then end the stream.
+            if server_speech is not None:
+                server_speech.abort()
             await stop_turn_tasks()
             _log.info(
                 "HTTP Anima Direct Chat SSE Stream Stopped",
@@ -495,9 +525,11 @@ async def stream_direct_chat_sse(
                 reply_saved=progress.saved,
             )
             if not progress.saved:
-                yield format_sse(
-                    "error",
-                    {"run_id": run_id, "error": stopped.stop.message, "code": stopped.stop.code},
+                yield format_denial_error_event(
+                    run_id=run_id,
+                    error=stopped.stop.message,
+                    code=stopped.stop.code,
+                    details=stopped.stop.details,
                     event_id=f"error-{run_id}",
                 )
             else:
@@ -530,15 +562,27 @@ async def stream_direct_chat_sse(
                 run_id=run_id,
                 error=str(exc),
             )
+            if server_speech is not None:
+                server_speech.abort()
             await stop_turn_tasks()
-            error_event = unexpected_error_event(
-                exc,
-                anima_id=anima_id,
-                chat_id=chat_id,
-                user_id=user.id,
-                run_id=run_id,
-            )
-            frame = format_error_event(error_event, run_id=run_id, public_error_text=state.public_error_text)
+            if isinstance(exc, ProductRefusal):
+                # A composition's denial (a refused model request or reply save) keeps its fields.
+                frame = format_denial_error_event(
+                    run_id=run_id,
+                    error=state.public_error_text or exc.code,
+                    code=exc.code,
+                    details=exc.details,
+                    event_id=f"error-{run_id}",
+                )
+            else:
+                error_event = unexpected_error_event(
+                    exc,
+                    anima_id=anima_id,
+                    chat_id=chat_id,
+                    user_id=user.id,
+                    run_id=run_id,
+                )
+                frame = format_error_event(error_event, run_id=run_id, public_error_text=state.public_error_text)
             if frame is not None:
                 yield frame
             async for frame in drain_pending_events(
@@ -557,6 +601,8 @@ async def stream_direct_chat_sse(
             # Client disconnects, generator errors, and normal completion all
             # converge here so background title/TTS/model tasks cannot outlive
             # the request that created them.
+            if server_speech is not None and not completed_emitted:
+                server_speech.abort()
             await stop_turn_tasks()
             _log.info(
                 "HTTP Anima Direct Chat SSE Stream Cleanup Complete",

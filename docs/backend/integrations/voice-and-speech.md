@@ -166,7 +166,8 @@ The chat model may write short bracketed directions in `speech`, such as
   - drops every other tag, and removes stray brackets.
 
   The backend prepares Gemini's finalized batches. The browser prepares
-  ElevenLabs' chunks.
+  ElevenLabs' chunks, and the shared chat route prepares them for a composition
+  that speaks through its own socket.
 - **Splitting.** `UserResponseSegmenter` never ends a sentence inside a tag.
 - **Tone.** On an ElevenLabs run, the first speech `user.response` carries
   `speech_tone_tag`, such as `[very happy]`, from `elevenlabs_tone_tag`
@@ -178,9 +179,11 @@ The chat model may write short bracketed directions in `speech`, such as
   - Reflection reads speech without tags; a tag-only speech gives no text.
   - Search snippets show speech without tags and display as written. Search
     matching is unchanged.
-- **Hosted.** Cloud speaks hosted ElevenLabs from its own copy of the text, so
-  it must prepare that copy with `ProviderSpeechText("elevenlabs")` and the
-  tone tag itself.
+- **Server speech.** A composition that speaks ElevenLabs through its own
+  socket (a `transport: "server"` session, as hosted does) never speaks the
+  browser's socket text. The shared chat route hands it each piece through
+  `ChatTurnServices.server_speech_text`, prepared as the browser prepares its
+  chunks, with the tone tag first (`product_http/chat/server_speech.py`).
 
 ## Gemini TTS
 

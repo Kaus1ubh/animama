@@ -45,6 +45,7 @@ from animama.product_http.ports import (
     ChatTurnLease,
     ChatTurnOutcome,
     ChatTurnPolicy,
+    ChatUtilityPurpose,
     ProductContent,
     ProductPolicy,
     ProductRefusal,
@@ -139,6 +140,10 @@ class LocalChatTurnServices:
     def model_clients(self) -> ModelClientRegistry | None:
         return get_model_client_registry(self._app)
 
+    def utility_model_clients(self, purpose: ChatUtilityPurpose) -> ModelClientRegistry | None:
+        # Local compaction and titles use the app's one registry; nothing is metered.
+        return get_model_client_registry(self._app)
+
     async def web_search_tool(self, session: AsyncSession) -> WebSearchToolService | None:
         return await turn_web_search_tool(session, enabled=composition_web_search_enabled(self._app))
 
@@ -153,6 +158,11 @@ class LocalChatTurnServices:
     def gemini_speech(self) -> LocalGeminiSpeech:
         # The key and the concurrency limit stay process-wide in gemini_tts_service.
         return LocalGeminiSpeech()
+
+    @property
+    def server_speech_text(self) -> None:
+        # Local speech sessions are direct: the browser speaks with a provider token.
+        return None
 
 
 def local_file_response(file: VerifiedContentFile, *, if_none_match: str | None, revalidate: bool) -> Response:

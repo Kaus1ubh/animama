@@ -209,6 +209,8 @@ async def prepare_direct_chat_turn(
     # Only attached uploads are searched during the turn, so the embeddings role
     # is resolved only when files are attached.
     upload_embedder = await services.attachment_embedder(session) if attached_files else None
+    # Compaction before the reply has its own registry, so a composition can meter it apart.
+    pre_send_registry = services.utility_model_clients("pre_send_compaction")
 
     executor = DirectChatTurnExecutor(
         registry=model_client_registry,
@@ -240,10 +242,10 @@ async def prepare_direct_chat_turn(
         pre_send_compactor=(
             pre_send_compactor(
                 sessions=sessions,
-                model_client_registry=model_client_registry,
+                model_client_registry=pre_send_registry,
                 settings=policy.compaction,
             )
-            if policy.compaction.enabled
+            if policy.compaction.enabled and pre_send_registry is not None
             else None
         ),
         pre_send_compaction_timeout_seconds=policy.presend_compaction_timeout_seconds,
