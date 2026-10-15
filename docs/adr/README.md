@@ -31,7 +31,7 @@ production readiness or publication rights.
 | 0015 | [One Avatar Effect definition source and model-agnostic face parts](0015-avatar-effect-definition-source-and-face-parts.md)                        | accepted                                     |
 | 0016 | [animaPoseClip/2.0 is the only clip format](0016-anima-pose-clip-2-only.md)                                                                        | accepted                                     |
 | 0017 | [Common web application and hosted artifact](0017-common-web-application-and-hosted-artifact.md)                                                   | accepted                                     |
-| 0018 | [Non-portable Included content for licensed built-in motion](0018-non-portable-included-content.md)                                                | accepted; Idle Style parts superseded by 0026 |
+| 0018 | [Non-portable Included content for licensed built-in motion](0018-non-portable-included-content.md)                                                | accepted; Idle Style part superseded by 0026 |
 | 0019 | [Hand keys with fitted presets and per-finger offsets](0019-hand-keys-with-fitted-presets-and-finger-offsets.md)                                   | accepted                                     |
 | 0020 | [Solved hand contacts](0020-solved-hand-contacts.md)                                                                                               | accepted                                     |
 | 0021 | [Shared product HTTP routes for every composition](0021-shared-product-http-routes.md)                                                             | accepted                                     |

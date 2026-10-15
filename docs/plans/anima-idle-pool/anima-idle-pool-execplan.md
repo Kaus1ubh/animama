@@ -525,7 +525,44 @@ web `tsc` clean; 3 affected test files (9 tests) pass; eslint and
 Covers R1–R11 across both phases, the package-set compatibility comparison and
 the full browser journeys. Reuses still-valid phase evidence.
 
-_Pending._
+Before the review, `origin/main` `50640701` (PR #562, Avatar Effect overrides
+and flipbooks) was merged in `ccbe7ba0`. Main took ADR 0025, so this plan's ADR
+became 0026. Main also equipped the four remaining non-idle Gestures on the
+starters, so the starters hold all 99 non-idle Gestures and the core Library
+holds 39 entries (84 files). `make check-test` (4503 passed, 29 skipped) and the
+full frontend gate passed on the merge.
+
+#### Final Integration Review #1 Findings
+
+Reviewed source: `ccbe7ba0` against `50640701` (independent read-only
+reviewer). End-to-end traces of storage → read model → routes → `changeIdle`,
+runtime → adapter → planner (90 s), seed (D1, D4, D10), packages (R9), Idle
+Style removal (R7, R8, D8), the merge resolution, contracts, docs and route
+ownership all verified. Verdict: **pass**, no required findings.
+
+- FI-F1 (optional): an unavailable pool member added a Loadout warning that
+  showed its internal `idle:<cell>:<uuid>` slot key, once per cell.
+- FI-F2 (optional): `.gitignore` and `.dockerignore` stopped ignoring the six
+  historical Mixamo idle VRMA paths that `scripts/mixamo-assets.json` still
+  names.
+- FI-F3 (optional): the `animama-animation` skill's promotion guide still said
+  "Idle Style Gestures" and did not mention the seed.
+- Nits: an unused `entries` parameter in `_non_portable_references_valid`; a
+  test comment calling the seed's Mixamo idles Local installs; the ADR 0018
+  index row one character too wide.
+
+#### Final Integration Review #1 Revisions
+
+- FI-F1 accepted: Idle rows no longer emit `loadout_source_unavailable`; the
+  member's own Unavailable mark stands. `tests/test_anima_idle_pool.py` now
+  asserts no such warning.
+- FI-F2 accepted: the six paths are ignored again in both files.
+- FI-F3 accepted: the guide says "idle Gestures" and explains adding a new one
+  to the seed with the owner's approval, with its test expectations.
+- Nits accepted: parameter removed, comment corrected, row narrowed.
+
+Verification: affected backend tests (397 passed), mypy and ruff clean. These
+small fixes need no further review round.
 
 ## Validation and acceptance
 

@@ -204,7 +204,8 @@ async def test_unavailable_member_stays_visible_and_removable_and_pooled_gesture
         await async_session.commit()
         loadout = await service.read_model(user_id=fixture.user_id, anima_id=fixture.anima_id)
         assert [(member.name, member.available) for member in loadout.idle.default_pool] == [("Breathe", False)]
-        assert any(warning.code == "loadout_source_unavailable" for warning in loadout.warnings)
+        # The member says it is unavailable; no Loadout warning names its internal slot.
+        assert not any(warning.code == "loadout_source_unavailable" for warning in loadout.warnings)
 
         # An unavailable member has no source; it is removed by its binding.
         [member] = loadout.idle.default_pool

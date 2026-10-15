@@ -313,10 +313,10 @@ class PackageManifest(_PackageModel):
             raise ValueError("package_member_duplicate")
         if len(files) > MAX_PACKAGE_FILES or sum(member.size_bytes for member in files) > MAX_PACKAGE_BYTES:
             raise ValueError("package_size_invalid")
-        self._non_portable_references_valid(entries)
+        self._non_portable_references_valid()
         return self
 
-    def _non_portable_references_valid(self, entries: Mapping[str, PackageEntry]) -> None:
+    def _non_portable_references_valid(self) -> None:
         if not self.non_portable_references:
             return
         if NON_PORTABLE_REFERENCES_CAPABILITY not in self.capabilities:

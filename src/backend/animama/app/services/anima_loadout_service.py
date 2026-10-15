@@ -333,8 +333,14 @@ class AnimaLoadoutService:
                 continue
             # The row's catalog id is authoritative; the slot only names the cell.
             cell, item_id = idle_slot[0], row.catalog_item_id
-            value = selected(row, ContentKind.GESTURE)
-            if value is not None and isinstance(value.document, GestureDocumentV1):
+            # An unavailable member is marked on its own entry; a Loadout warning
+            # would only repeat it under the internal slot key.
+            value = parsed.get(item_id)
+            if (
+                value is not None
+                and value.item.kind is ContentKind.GESTURE
+                and isinstance(value.document, GestureDocumentV1)
+            ):
                 member = IdleMember(
                     binding_id=row.id,
                     item_id=item_id,

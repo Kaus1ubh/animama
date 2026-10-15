@@ -497,7 +497,7 @@ def test_starter_gestures_include_every_non_library_gesture_and_exclude_idle_see
         json.loads(descriptor.read_text())["content_id"]
         for descriptor in (included_root / "gestures").glob("*/*.meta.json")
     }
-    # Optional Mixamo idles in the seed are Local installs, not tracked Included content.
+    # The seed's Mixamo idles are optional non-portable pack Gestures, not tracked Included content.
     idle_ids = idle_seed_keys() & included_ids
     library_ids = {root for root in CORE_LIBRARY_ROOTS if root.startswith("builtin:gesture:")}
     starter_ids = {choice["content_id"] for choice in starter_loadout_policy()["gestures"]}
