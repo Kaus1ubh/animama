@@ -14,7 +14,7 @@
     "coverUiOverlays": false,
     "solid": {
       "enabled": false,
-      "color": "#a47ddf"
+      "color": "#79bfee"
     },
     "gradient": {
       "enabled": true,
@@ -24,19 +24,19 @@
       "centerY": 0.36,
       "stops": [
         {
-          "color": "#fdf9ff",
+          "color": "#fbfeff",
           "position": 0
         },
         {
-          "color": "#eadcff",
+          "color": "#def2ff",
           "position": 0.3
         },
         {
-          "color": "#c6a2f2",
+          "color": "#a8d9f6",
           "position": 0.72
         },
         {
-          "color": "#a47ddf",
+          "color": "#79bfee",
           "position": 1
         }
       ]

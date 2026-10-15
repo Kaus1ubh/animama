@@ -15,12 +15,6 @@
   },
   "dependencies": [
     {
-      "ref": "builtin:particle-effect:question-orbit",
-      "alias": "question-orbit",
-      "content_type": "particle_effect",
-      "config": {}
-    },
-    {
       "ref": "builtin:scene-effect:background:scene-vfx-emotion-curiosity",
       "alias": "scene-vfx-emotion-curiosity",
       "content_type": "scene_effect",

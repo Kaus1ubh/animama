@@ -27,12 +27,6 @@
       "config": {}
     },
     {
-      "ref": "builtin:particle-effect:musical-cascade",
-      "alias": "musical-cascade",
-      "content_type": "particle_effect",
-      "config": {}
-    },
-    {
       "ref": "builtin:scene-effect:background:scene-vfx-emotion-amusement-b",
       "alias": "scene-b-amusement",
       "content_type": "scene_effect",

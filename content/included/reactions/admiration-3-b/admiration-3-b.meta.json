@@ -19,12 +19,6 @@
       "alias": "kira_star",
       "content_type": "avatar_effect",
       "config": {}
-    },
-    {
-      "ref": "builtin:particle-effect:butterfly-flutter",
-      "alias": "butterfly-flutter",
-      "content_type": "particle_effect",
-      "config": {}
     }
   ],
   "files": [

@@ -15,8 +15,8 @@
   },
   "dependencies": [
     {
-      "ref": "builtin:avatar-effect:ticking-fuse",
-      "alias": "ticking-fuse",
+      "ref": "builtin:avatar-effect:eye",
+      "alias": "eye",
       "content_type": "avatar_effect",
       "config": {}
     },

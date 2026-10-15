@@ -36,9 +36,9 @@ const JOURNEYS: readonly AnimaLoadoutJourney[] = [
     contentName: "Admiration Reaction 4",
     target: { kind: "anima_pose_clip", runtimeId: "admiration-4" },
     requiredFiles: [
-      "glossy-heart.png",
+      "shimmer-glint.png",
       "star3.png",
-      "lilac-star-flower.png",
+      "twinkle-star-gold.png",
       "bokeh-tile.png",
     ],
   },
@@ -81,9 +81,9 @@ for (const journey of JOURNEYS) {
               expectedEventIds: [
                 "scene-emotion-background",
                 "avatar-star3",
-                "particle-heart-burst",
+                "particle-twinkle-shimmer",
               ],
-              expectedParticleEffects: ["heart-burst"],
+              expectedParticleEffects: ["twinkle-shimmer"],
               expectedSceneEffects: ["scene-vfx-emotion-admiration"],
               expectedTarget: journey.target,
               // admiration-4 peaks at happy 0.75 and relaxed 0.33; sampled

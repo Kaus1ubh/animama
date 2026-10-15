@@ -19,12 +19,6 @@
       "alias": "teary_sparkle_eyes",
       "content_type": "avatar_effect",
       "config": {}
-    },
-    {
-      "ref": "builtin:particle-effect:drifting-leaves",
-      "alias": "drifting-leaves",
-      "content_type": "particle_effect",
-      "config": {}
     }
   ],
   "files": [

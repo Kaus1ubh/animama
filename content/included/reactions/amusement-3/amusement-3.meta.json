@@ -25,12 +25,6 @@
       "alias": "heh_lettering",
       "content_type": "avatar_effect",
       "config": {}
-    },
-    {
-      "ref": "builtin:particle-effect:musical-cascade",
-      "alias": "musical-cascade",
-      "content_type": "particle_effect",
-      "config": {}
     }
   ],
   "files": [

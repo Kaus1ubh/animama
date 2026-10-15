@@ -21,12 +21,6 @@
       "config": {}
     },
     {
-      "ref": "builtin:avatar-effect:mended-heart",
-      "alias": "mended-heart",
-      "content_type": "avatar_effect",
-      "config": {}
-    },
-    {
       "ref": "builtin:particle-effect:butterfly-flutter",
       "alias": "butterfly-flutter",
       "content_type": "particle_effect",

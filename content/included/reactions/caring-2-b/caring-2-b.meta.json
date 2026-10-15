@@ -15,8 +15,8 @@
   },
   "dependencies": [
     {
-      "ref": "builtin:avatar-effect:mended-heart",
-      "alias": "mended-heart",
+      "ref": "builtin:avatar-effect:happy_flowers",
+      "alias": "happy_flowers",
       "content_type": "avatar_effect",
       "config": {}
     }

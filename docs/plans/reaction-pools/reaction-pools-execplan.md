@@ -341,6 +341,34 @@ Content (`content/included/`):
   54 MB of 512 MiB. The limit is defined once in
   `domain/runtime_content_descriptor.py` and bounds the admitted-item map,
   the runtime budget and the creation source-revision map (review F1, F3).
+- 2026-10-15, owner (G2 review of the reel, round 1): 35 Reactions revised.
+  Expression weights set as final values: admiration-1 surprised 0.5,
+  admiration-2 happy 0.2, amusement-2-b blinkLeft 0.5, respect-3-b blink 0.3.
+  Effects removed as random or ill-fitting (butterflies, music notes, devil
+  horns and bubbles, cat ears, money eyes, leaves, mind-blown bursts, burning
+  resolve eyes, light bulbs, the emote `!`, question orbit, heart pop, mended
+  heart, fume puffs); the rage aura moves from anger-4 to anger-3; the
+  disapproval snowflakes become `cold-breeze`; embarrassment-3 trades its
+  sweat spray for one forehead `sweat_drop` and embarrassment-4 the reverse;
+  annoyance-3-b swaps the ticking fuse for the `eye` (=) effect. Agent picks
+  where the owner said "replace": caring-2-b and optimism-3 `happy_flowers`,
+  optimism-2-b `star3`, excitement-2-b `kirakira_cluster` (not
+  `mouth_hover_w`: mouth effects are barred from Reactions), admiration-4
+  `twinkle-shimmer` for the heart burst. Asset changes: `gloomy_cloud`
+  enlarged (0.085 → 0.13, every use); `startle_ticks` recoloured black →
+  orange; both admiration Scenes recoloured from lilac/pink (kept for
+  romance) to sky blue, the first with the owner's gold twinkle star and
+  silver glint stickers in place of its lilac flower and pink sparkle, the
+  second with gold-tinted sparkles. Licence records note each edit.
+- 2026-10-15, agent (G2 round 1): removals without a replacement leave 16
+  recorded ladder departures (R2 is guidance), pinned in
+  `reactionClips.test.ts`: no Avatar Effect in amusement-3-b, caring-3,
+  confidence-3, curiosity-2-b, desire-2-b and optimism-4-b; no Particle
+  Effect in admiration-3-b, amusement-3, amusement-3-b, amusement-4-b,
+  anger-4, curiosity-4, curiosity-4-b, embarrassment-3, embarrassment-3-b,
+  remorse-3-b and sadness-3-b. The draft generators now read today's
+  Reactions from the `87dce31b` baseline export (the promotion replaced them
+  in place) and apply the owner's revisions as a layer (`G2` in `ladder.py`).
 
 ## Gates
 
@@ -1392,27 +1420,28 @@ wording) reproducible by re-promotion instead of hand edits.
 
 ## Appendix: the promoted Reaction ladder
 
-The 168 Included Reactions as promoted in Phase 6 (from the G1-approved table
-with the Phase 2 changes in the Decision Log). Expression weights are the
+The 168 Included Reactions as promoted (from the G1-approved table with the
+Phase 2 changes and the owner's G2 revisions in the Decision Log; revised rows
+say so). Expression weights are the
 peak beat (`→` marks a two-beat face); A, P and S are Avatar, Particle and
 Scene Effects, new ones in bold. Every starter cell holds its Reactions.
 
 | Emotion | Int. | Reaction | Source | Expression | Effects | Note |
 | --- | --- | --- | --- | --- | --- | --- |
-| admiration | 1 | `admiration-1` | new | surprised 1.00 happy .75 relaxed .38 | — | Impressed, eyes wide |
-| admiration | 2 | `admiration-2` | today `admiration-1` | happy .75 relaxed .35 | A: star3 | Expression strengthened |
+| admiration | 1 | `admiration-1` | new | happy .75 surprised .50 relaxed .38 | — | Impressed, eyes wide; owner G2 revision |
+| admiration | 2 | `admiration-2` | today `admiration-1` | relaxed .35 happy .20 | A: star3 | Expression strengthened; owner G2 revision |
 | admiration | 2 | `admiration-2-b` | new | surprised 1.00 → surprised 1.00 happy .75 | A: **kirakira_cluster** (new) | An impressed "ooh" that warms into a smile |
 | admiration | 3 | `admiration-3` | today `admiration-2` | happy .75 relaxed .35 | A: star3; P: twinkle-shimmer | Expression strengthened |
-| admiration | 3 | `admiration-3-b` | new | surprised 1.00 → surprised .82 happy .75 | A: kira_star; P: butterfly-flutter | Captivated: a gasp that melts into a glow |
-| admiration | 4 | `admiration-4` | today `admiration-3` | happy .75 relaxed .33 | A: star3; P: heart-burst; S: scene-vfx-emotion-admiration | Expression strengthened |
-| admiration | 4 | `admiration-4-b` | new | surprised 1.00 → surprised .79 happy .75 | A: mind_blown_burst; A: **kirakira_cluster** (new); P: golden-willow; S: **scene-vfx-emotion-admiration-b** (new) | Awestruck, mind blown |
+| admiration | 3 | `admiration-3-b` | new | surprised 1.00 → surprised .82 happy .75 | A: kira_star | Captivated: a gasp that melts into a glow; owner G2 revision |
+| admiration | 4 | `admiration-4` | today `admiration-3` | happy .75 relaxed .33 | A: star3; P: twinkle-shimmer; S: scene-vfx-emotion-admiration | Expression strengthened; owner G2 revision |
+| admiration | 4 | `admiration-4-b` | new | surprised 1.00 → surprised .79 happy .75 | A: **kirakira_cluster** (new); P: golden-willow; S: **scene-vfx-emotion-admiration-b** (new) | Awestruck, mind blown; owner G2 revision |
 | caring | 1 | `caring-1` | new | relaxed 1.00 happy .44 | — | Warm, tender look |
 | caring | 2 | `caring-2` | today `caring-1` | relaxed 1.00 happy .38 | A: heart_pop | Expression strengthened |
-| caring | 2 | `caring-2-b` | new | happy 1.00 relaxed .44 | A: mended-heart | Gentle closed-eye smile |
-| caring | 3 | `caring-3` | today `caring-2` | relaxed 1.00 happy .36 | A: heart_pop; P: sparkle-hearts | Expression strengthened |
+| caring | 2 | `caring-2-b` | new | happy 1.00 relaxed .44 | A: **happy_flowers** (new) | Gentle closed-eye smile; owner G2 revision |
+| caring | 3 | `caring-3` | today `caring-2` | relaxed 1.00 happy .36 | P: sparkle-hearts | Expression strengthened; owner G2 revision |
 | caring | 3 | `caring-3-b` | new | happy 1.00 relaxed .55 | A: **happy_flowers** (new); P: **petal-drift** (new) | Tender, eyes softly closed |
 | caring | 4 | `caring-4` | today `caring-3` | relaxed 1.00 happy .37 | A: heart_pop; P: heart-burst; S: scene-vfx-emotion-caring | No Avatar Effect; the ladder adds one below the Particle Effect; expression strengthened |
-| caring | 4 | `caring-4-b` | new | happy .75 relaxed .50 blink .35 sad .21 | A: hearts_burst; A: mended-heart; P: butterfly-flutter; S: **scene-vfx-emotion-caring-b** (new) | Deeply moved, holding them close |
+| caring | 4 | `caring-4-b` | new | happy .75 relaxed .50 blink .35 sad .21 | A: hearts_burst; P: butterfly-flutter; S: **scene-vfx-emotion-caring-b** (new) | Deeply moved, holding them close; owner G2 revision |
 | love | 1 | `love-1` | new | happy .75 relaxed .44 | — | Fond smile |
 | love | 2 | `love-2` | today `love-1` | happy .75 relaxed .44 | A: blush | Expression strengthened |
 | love | 2 | `love-2-b` | new | happy 1.00 | A: hearts_burst | Dreamy closed-eye smile |
@@ -1423,24 +1452,24 @@ Scene Effects, new ones in bold. Every starter cell holds its Reactions.
 | embarrassment | 1 | `embarrassment-1` | new | sad 1.00 happy .75 blink .35 | — | Awkward, flustered smile |
 | embarrassment | 2 | `embarrassment-2` | today `embarrassment-1` | sad 1.00 happy .50 blink .35 | A: blush_band | Expression strengthened |
 | embarrassment | 2 | `embarrassment-2-b` | new | surprised 1.00 → sad 1.00 happy .75 | A: **stomach_butterflies** (new); A: awkward-ellipsis | Caught out, then a sheepish smile |
-| embarrassment | 3 | `embarrassment-3` | today `embarrassment-2` | sad 1.00 happy .50 blink .35 | A: blush; A: eye_vv; P: **sweat-spray** (new) | No Particle Effect; flustered sweat beads fit the > < eyes and blush; expression strengthened |
-| embarrassment | 3 | `embarrassment-3-b` | new | surprised 1.00 → happy 1.00 sad 1.00 | A: blush; A: **startle_ticks** (new); P: fume-puffs | Flustered, jolted |
-| embarrassment | 4 | `embarrassment-4` | today `embarrassment-3` | sad 1.00 happy .43 blink .35 | A: blush_deep; A: sweat_drop; P: fume-puffs; S: scene-vfx-emotion-embarrassment | Expression strengthened |
+| embarrassment | 3 | `embarrassment-3` | today `embarrassment-2` | sad 1.00 happy .50 blink .35 | A: blush; A: eye_vv; A: sweat_drop | No Particle Effect; flustered sweat beads fit the > < eyes and blush; expression strengthened; owner G2 revision |
+| embarrassment | 3 | `embarrassment-3-b` | new | surprised 1.00 → happy 1.00 sad 1.00 | A: blush; A: **startle_ticks** (new) | Flustered, jolted; owner G2 revision |
+| embarrassment | 4 | `embarrassment-4` | today `embarrassment-3` | sad 1.00 happy .43 blink .35 | A: blush_deep; P: **sweat-spray** (new); S: scene-vfx-emotion-embarrassment | Expression strengthened; owner G2 revision |
 | embarrassment | 4 | `embarrassment-4-b` | new | sad 1.00 blink .85 happy .30 | A: face_red; A: soul_wisp; P: **sweat-spray** (new); S: **scene-vfx-emotion-embarrassment-b** (new) | Dying of embarrassment: the soul leaves |
 | respect | 1 | `respect-1` | new | relaxed 1.00 happy .22 | — | Calm, attentive respect |
 | respect | 2 | `respect-2` | today `respect-1` | relaxed 1.00 happy .25 | A: kira_star | Expression strengthened |
 | respect | 2 | `respect-2-b` | new | surprised 1.00 relaxed .88 | A: star3 | Quietly impressed, eyes bright |
 | respect | 3 | `respect-3` | today `respect-2` | relaxed 1.00 happy .28 | A: star3; P: twinkle-shimmer | Expression strengthened |
-| respect | 3 | `respect-3-b` | new | relaxed 1.00 blink .85 happy .25 | A: **kirakira_cluster** (new); P: **petal-drift** (new) | A solemn closed-eye nod of respect |
+| respect | 3 | `respect-3-b` | new | relaxed 1.00 blink .30 happy .25 | A: **kirakira_cluster** (new); P: **petal-drift** (new) | A solemn closed-eye nod of respect; owner G2 revision |
 | respect | 4 | `respect-4` | today `respect-3` | relaxed 1.00 happy .29 | A: star3; P: halo-rays; S: scene-vfx-emotion-respect | Expression strengthened |
 | respect | 4 | `respect-4-b` | new | surprised 1.00 → surprised 1.00 relaxed .91 happy .36 | A: kira_star; P: golden-willow; S: **scene-vfx-emotion-respect-b** (new) | Honoured and in awe |
 | confidence | 1 | `confidence-1` | new | happy .75 angry .55 | — | Determined smile |
 | confidence | 2 | `confidence-2` | today `confidence-1` | happy .75 relaxed .64 | A: kira_star | Expression strengthened |
 | confidence | 2 | `confidence-2-b` | new | blinkRight 1.00 happy .60 | A: sly_glint | A knowing wink with a glint |
-| confidence | 3 | `confidence-3` | today `confidence-2` | happy .75 relaxed .62 | A: idea_bulb; P: twinkle-shimmer | No Particle Effect; a light shimmer keeps the idea bulb the focus; expression strengthened |
+| confidence | 3 | `confidence-3` | today `confidence-2` | happy .75 relaxed .62 | P: twinkle-shimmer | No Particle Effect; a light shimmer keeps the idea bulb the focus; expression strengthened; owner G2 revision |
 | confidence | 3 | `confidence-3-b` | new | blinkRight 1.00 happy .60 | A: tiny-victory-crown; P: star-burst | "Nailed it" wink |
 | confidence | 4 | `confidence-4` | today `confidence-3` | happy .75 relaxed .61 | A: star3; P: halo-rays; S: scene-vfx-emotion-confidence | Expression strengthened |
-| confidence | 4 | `confidence-4-b` | new | happy .75 angry .27 | A: burning-resolve-eyes; A: **triumph_halo** (new); P: **golden-aura** (new); S: **scene-vfx-emotion-confidence-b** (new) | Fired-up, powering up |
+| confidence | 4 | `confidence-4-b` | new | happy .75 angry .27 | A: **triumph_halo** (new); P: **golden-aura** (new); S: **scene-vfx-emotion-confidence-b** (new) | Fired-up, powering up; owner G2 revision |
 | gratitude | 1 | `gratitude-1` | new | happy .75 sad .50 relaxed .38 | — | Touched, thankful smile |
 | gratitude | 2 | `gratitude-2` | today `gratitude-1` | happy .75 relaxed .60 | A: heart_pop | Expression strengthened |
 | gratitude | 2 | `gratitude-2-b` | new | happy 1.00 relaxed .30 | A: hearts_burst | Closed-eye thank-you smile |
@@ -1450,18 +1479,18 @@ Scene Effects, new ones in bold. Every starter cell holds its Reactions.
 | gratitude | 4 | `gratitude-4-b` | new | surprised 1.00 → happy .75 sad .75 | A: **happy_flowers** (new); A: hearts_burst; P: sparkle-hearts; S: **scene-vfx-emotion-gratitude-b** (new) | Overflowing thanks |
 | amusement | 1 | `amusement-1` | new | happy .75 blink .35 | — | Amused smirk |
 | amusement | 2 | `amusement-2` | today `amusement-1` | happy .75 | A: eye_vv | Expression strengthened |
-| amusement | 2 | `amusement-2-b` | new | blinkLeft 1.00 happy .60 | A: laugh_marks | A haughty "ohoho" |
-| amusement | 3 | `amusement-3` | today `amusement-2` | happy .75 | A: eye_vv; A: heh_lettering; P: musical-cascade | No Particle Effect; rising notes read as giggles; expression strengthened |
-| amusement | 3 | `amusement-3-b` | new | happy 1.00 angry .15 | A: little-devil-horns; P: **sparkle-bubbles** (new) | Mischievous snicker |
+| amusement | 2 | `amusement-2-b` | new | happy .60 blinkLeft .50 | A: laugh_marks | A haughty "ohoho"; owner G2 revision |
+| amusement | 3 | `amusement-3` | today `amusement-2` | happy .75 | A: eye_vv; A: heh_lettering | No Particle Effect; rising notes read as giggles; expression strengthened; owner G2 revision |
+| amusement | 3 | `amusement-3-b` | new | happy 1.00 angry .15 | — | Mischievous snicker; owner G2 revision |
 | amusement | 4 | `amusement-4` | today `amusement-3` | happy .75 | A: eye_vv; P: confetti; S: scene-vfx-emotion-amusement | Expression strengthened |
-| amusement | 4 | `amusement-4-b` | new | surprised 1.00 → happy 1.00 sad .26 | A: laugh_marks; A: streaming_tears; P: musical-cascade; S: **scene-vfx-emotion-amusement-b** (new) | Cracking up, tears of laughter |
+| amusement | 4 | `amusement-4-b` | new | surprised 1.00 → happy 1.00 sad .26 | A: laugh_marks; A: streaming_tears; S: **scene-vfx-emotion-amusement-b** (new) | Cracking up, tears of laughter; owner G2 revision |
 | excitement | 1 | `excitement-1` | new | happy .75 surprised .44 | A: kira_star | Eager, bright-eyed (Subtle effect to tell it from joy and desire (D19)) |
 | excitement | 2 | `excitement-2` | today `excitement-1` | happy .75 surprised .17 | A: star3 | Expression strengthened |
-| excitement | 2 | `excitement-2-b` | new | surprised 1.00 → happy .75 surprised .70 | A: **startle_ticks** (new) | A gasp, then a grin |
+| excitement | 2 | `excitement-2-b` | new | surprised 1.00 → happy .75 surprised .70 | A: **kirakira_cluster** (new) | A gasp, then a grin; owner G2 revision |
 | excitement | 3 | `excitement-3` | today `excitement-2` | happy .75 surprised .21 | A: star3; P: star-burst | Expression strengthened |
 | excitement | 3 | `excitement-3-b` | new | happy .75 blink .35 surprised .29 | A: **kirakira_cluster** (new); P: confetti | Can't sit still |
 | excitement | 4 | `excitement-4` | today `excitement-3` | happy .75 surprised .23 | A: star3; P: star-burst; P: fireworks-show; S: scene-vfx-emotion-excitement | Expression strengthened |
-| excitement | 4 | `excitement-4-b` | new | surprised 1.00 → happy .75 surprised .44 | A: mind_blown_burst; A: star3; P: confetti; P: golden-willow; S: **scene-vfx-emotion-excitement-b** (new) | Mind-blowing hype |
+| excitement | 4 | `excitement-4-b` | new | surprised 1.00 → happy .75 surprised .44 | A: star3; P: confetti; P: golden-willow; S: **scene-vfx-emotion-excitement-b** (new) | Mind-blowing hype; owner G2 revision |
 | joy | 1 | `joy-1` | new | happy .75 | — | Happy smile |
 | joy | 2 | `joy-2` | today `joy-1` | happy .75 | A: kira_star | Expression strengthened |
 | joy | 2 | `joy-2-b` | new | happy 1.00 | A: **happy_flowers** (new) | Closed-eye ^^ smile, little flowers |
@@ -1471,25 +1500,25 @@ Scene Effects, new ones in bold. Every starter cell holds its Reactions.
 | joy | 4 | `joy-4-b` | new | surprised 1.00 → happy .75 surprised .69 | A: **kirakira_cluster** (new); A: hearts_burst; P: **flower-pop** (new); S: **scene-vfx-emotion-joy-b** (new) | Flowers bloom around the head |
 | desire | 1 | `desire-1` | new | happy .75 surprised .57 relaxed .29 | A: blush_band | Longing glance (Subtle effect to tell it from joy and excitement (D19)) |
 | desire | 2 | `desire-2` | today `desire-1` | happy .75 relaxed .50 | A: blush | Expression strengthened |
-| desire | 2 | `desire-2-b` | new | happy .75 surprised .60 | A: money-eyes | "I want it!" money eyes (Comedic wanting; heart_pop is the gentler alternative) |
+| desire | 2 | `desire-2-b` | new | happy .75 surprised .60 | — | "I want it!" money eyes (Comedic wanting; heart_pop is the gentler alternative); owner G2 revision |
 | desire | 3 | `desire-3` | today `desire-2` | happy .75 relaxed .55 | A: heart_eyes; P: hearts-v1 | Expression strengthened |
 | desire | 3 | `desire-3-b` | new | surprised 1.00 → surprised .82 happy .75 | A: **kirakira_cluster** (new); A: blush; P: sparkle-hearts | Eager, eyes sparkling |
 | desire | 4 | `desire-4` | today `desire-3` | happy .75 relaxed .52 | A: heart_eyes; A: blush; P: heart-fireworks; S: scene-vfx-emotion-desire | Expression strengthened |
 | desire | 4 | `desire-4-b` | new | happy .75 surprised .53 | A: star3; A: blush_deep; P: **petal-drift** (new); S: **scene-vfx-emotion-desire-b** (new) | Starry-eyed yearning |
 | curiosity | 1 | `curiosity-1` | new | surprised 1.00 happy .38 | — | Interested look |
 | curiosity | 2 | `curiosity-2` | today `curiosity-1` | surprised 1.00 relaxed .67 | A: question_mark | Expression strengthened |
-| curiosity | 2 | `curiosity-2-b` | new | surprised .89 happy .75 | A: twitching-cat-ears | Ears perk up |
+| curiosity | 2 | `curiosity-2-b` | new | surprised .89 happy .75 | — | Ears perk up; owner G2 revision |
 | curiosity | 3 | `curiosity-3` | today `curiosity-2` | surprised 1.00 relaxed .62 | A: emote; P: question-orbit | Expression strengthened |
 | curiosity | 3 | `curiosity-3-b` | new | angry 1.00 blink .85 surprised .83 | A: calculating-glasses; P: twinkle-shimmer | Detective mode |
-| curiosity | 4 | `curiosity-4` | today `curiosity-3` | surprised 1.00 relaxed .58 | A: idea_bulb; P: question-orbit; S: scene-vfx-emotion-curiosity | Expression strengthened |
-| curiosity | 4 | `curiosity-4-b` | new | surprised 1.00 → surprised 1.00 happy .75 | A: twitching-cat-ears; A: **ahoge_curl** (new); P: butterfly-flutter; S: **scene-vfx-emotion-curiosity-b** (new) | Fascinated: "what's this?!" |
+| curiosity | 4 | `curiosity-4` | today `curiosity-3` | surprised 1.00 relaxed .58 | A: idea_bulb; S: scene-vfx-emotion-curiosity | Expression strengthened; owner G2 revision |
+| curiosity | 4 | `curiosity-4-b` | new | surprised 1.00 → surprised 1.00 happy .75 | A: **ahoge_curl** (new); S: **scene-vfx-emotion-curiosity-b** (new) | Fascinated: "what's this?!"; owner G2 revision |
 | optimism | 1 | `optimism-1` | new | happy 1.00 | — | Bright ^^ smile |
 | optimism | 2 | `optimism-2` | today `optimism-1` | happy .75 relaxed .47 | A: kira_star | Expression strengthened |
-| optimism | 2 | `optimism-2-b` | new | happy .75 angry .30 | A: burning-resolve-eyes | "I can do this!" |
-| optimism | 3 | `optimism-3` | today `optimism-2` | happy .75 relaxed .44 | A: idea_bulb; P: twinkle-shimmer | Expression strengthened |
+| optimism | 2 | `optimism-2-b` | new | happy .75 angry .30 | A: star3 | "I can do this!"; owner G2 revision |
+| optimism | 3 | `optimism-3` | today `optimism-2` | happy .75 relaxed .44 | A: **happy_flowers** (new); P: twinkle-shimmer | Expression strengthened; owner G2 revision |
 | optimism | 3 | `optimism-3-b` | new | happy .75 surprised .70 | A: **happy_flowers** (new); P: butterfly-flutter | Hope rising |
 | optimism | 4 | `optimism-4` | today `optimism-3` | happy .75 relaxed .43 | A: star3; P: golden-willow; S: scene-vfx-emotion-optimism | Expression strengthened |
-| optimism | 4 | `optimism-4-b` | new | happy .75 surprised .62 | A: burning-resolve-eyes; A: **kirakira_cluster** (new); P: **golden-aura** (new); S: **scene-vfx-emotion-optimism-b** (new) | Unstoppable, golden aura |
+| optimism | 4 | `optimism-4-b` | new | happy .75 surprised .62 | P: **golden-aura** (new); S: **scene-vfx-emotion-optimism-b** (new) | Unstoppable, golden aura; owner G2 revision |
 | fear | 1 | `fear-1` | new | surprised 1.00 sad .50 | — | Frightened |
 | fear | 2 | `fear-2` | today `fear-1` | surprised 1.00 | A: eye_0 | Expression strengthened |
 | fear | 2 | `fear-2-b` | new | surprised 1.00 → sad 1.00 surprised .60 | A: **pale_blue_shade** (new) | Blood drains from the face |
@@ -1509,29 +1538,29 @@ Scene Effects, new ones in bold. Every starter cell holds its Reactions.
 | confusion | 2 | `confusion-2-b` | new | relaxed 1.00 surprised .56 | A: blank-dot-eyes; A: **passing_crow** (new) | Blank stare as a crow flies past |
 | confusion | 3 | `confusion-3` | today `confusion-2` | surprised 1.00 blink .18 | A: eye_confused_swirl; P: question-orbit | Expression strengthened |
 | confusion | 3 | `confusion-3-b` | new | sad 1.00 surprised 1.00 | A: **ahoge_curl** (new); P: **dizzy-stars** (new) | Dizzy, ahoge curling |
-| confusion | 4 | `confusion-4` | today `confusion-3` | surprised 1.00 blink .19 | A: emote; A: eye_confused_swirl; P: question-orbit; S: scene-vfx-emotion-confusion | Expression strengthened |
+| confusion | 4 | `confusion-4` | today `confusion-3` | surprised 1.00 blink .19 | A: eye_confused_swirl; P: question-orbit; S: scene-vfx-emotion-confusion | Expression strengthened; owner G2 revision |
 | confusion | 4 | `confusion-4-b` | new | surprised 1.00 → surprised 1.00 sad .53 | A: knockout-x-eyes; P: **dizzy-stars** (new); S: **scene-vfx-emotion-confusion-b** (new); S: **scene-vfx-emotion-confusion-b-backdrop** (new) | Total overload (Focus lines over a companion backdrop Scene with the entry flash) |
 | anger | 1 | `anger-1` | new | angry 1.00 blink .56 | — | Angry glare |
 | anger | 2 | `anger-2` | today `anger-1` | angry 1.00 blink .30 | A: angry | Expression strengthened |
 | anger | 2 | `anger-2-b` | new | angry 1.00 blink .75 | A: **menace_aura** (new) | Menacing glare |
-| anger | 3 | `anger-3` | today `anger-2` | angry 1.00 blink .30 | A: angry; P: fume-puffs | Expression strengthened |
+| anger | 3 | `anger-3` | today `anger-2` | angry 1.00 blink .30 | A: angry; P: fume-puffs; P: rage-aura | Expression strengthened; owner G2 revision |
 | anger | 3 | `anger-3-b` | new | angry 1.00 surprised .50 | A: **shadowed_glare** (new); P: **rage-embers** (new) | Seething, eyes in shadow |
-| anger | 4 | `anger-4` | today `anger-3` | angry 1.00 blink .30 | A: angry; A: steam_puffs; A: face_red; P: rage-aura; S: scene-vfx-emotion-anger | Expression strengthened |
+| anger | 4 | `anger-4` | today `anger-3` | angry 1.00 blink .30 | A: angry; A: steam_puffs; A: face_red; S: scene-vfx-emotion-anger | Expression strengthened; owner G2 revision |
 | anger | 4 | `anger-4-b` | new | angry 1.00 surprised .44 | A: **menace_aura** (new); A: **shadowed_glare** (new); P: **rage-embers** (new); S: **scene-vfx-emotion-anger-b** (new) | Erupting rage |
 | annoyance | 1 | `annoyance-1` | new | relaxed 1.00 angry .75 blink .62 | A: sigh_puff_droop | Bored, half-lidded "ugh" (Subtle effect to tell it from disapproval (D19)) |
 | annoyance | 2 | `annoyance-2` | today `annoyance-1` | angry 1.00 blink .29 | A: puff | Expression strengthened |
 | annoyance | 2 | `annoyance-2-b` | new | relaxed 1.00 blink .78 angry .67 | A: annoyed_scribble | Half-lidded "ugh" |
 | annoyance | 3 | `annoyance-3` | today `annoyance-2` | angry 1.00 blink .29 | A: eye; P: fume-puffs | Expression strengthened |
-| annoyance | 3 | `annoyance-3-b` | new | angry 1.00 sad .58 blink .50 | A: ticking-fuse; P: **rage-embers** (new) | Patience running out |
+| annoyance | 3 | `annoyance-3-b` | new | angry 1.00 sad .58 blink .50 | A: eye; P: **rage-embers** (new) | Patience running out; owner G2 revision |
 | annoyance | 4 | `annoyance-4` | today `annoyance-3` | angry 1.00 blink .30 | A: angry; P: fume-puffs; S: scene-vfx-emotion-annoyance | Expression strengthened |
 | annoyance | 4 | `annoyance-4-b` | new | angry 1.00 surprised .44 blink .25 | A: annoyed_scribble; A: steam_puffs; P: **rage-embers** (new); S: **scene-vfx-emotion-annoyance-b** (new) | Boiling over |
 | disapproval | 1 | `disapproval-1` | new | angry 1.00 blink .71 sad .29 | — | Disapproving frown |
 | disapproval | 2 | `disapproval-2` | today `disapproval-1` | angry 1.00 blink .30 sad .23 | A: eye | Expression strengthened |
 | disapproval | 2 | `disapproval-2-b` | new | angry 1.00 happy .50 | A: suspicious-side-eye | Cool side-eye |
 | disapproval | 3 | `disapproval-3` | today `disapproval-2` | angry 1.00 blink .30 sad .26 | A: eye; P: **cold-breeze** (new) | No Particle Effect; a chilly gust lands the flat stare; expression strengthened |
-| disapproval | 3 | `disapproval-3-b` | new | angry 1.00 blink .75 sad .25 | A: suspicious-side-eye; P: snow-crystal-flurry | Frosty judgement |
+| disapproval | 3 | `disapproval-3-b` | new | angry 1.00 blink .75 sad .25 | A: suspicious-side-eye; P: **cold-breeze** (new) | Frosty judgement; owner G2 revision |
 | disapproval | 4 | `disapproval-4` | today `disapproval-3` | angry 1.00 blink .30 sad .29 | A: angry; P: **cold-breeze** (new); S: scene-vfx-emotion-disapproval | No Particle Effect; the gust escalates from intensity 3; expression strengthened |
-| disapproval | 4 | `disapproval-4-b` | new | relaxed 1.00 angry .69 blink .62 | A: suspicious-side-eye; A: **menace_aura** (new); P: snow-crystal-flurry; S: **scene-vfx-emotion-disapproval-b** (new) | Withering contempt |
+| disapproval | 4 | `disapproval-4-b` | new | relaxed 1.00 angry .69 blink .62 | A: suspicious-side-eye; A: **menace_aura** (new); P: **cold-breeze** (new); S: **scene-vfx-emotion-disapproval-b** (new) | Withering contempt; owner G2 revision |
 | disgust | 1 | `disgust-1` | new | angry 1.00 sad 1.00 blink .67 | — | Grimace |
 | disgust | 2 | `disgust-2` | today `disgust-1` | angry 1.00 sad 1.00 blink .28 | A: eye | Expression strengthened |
 | disgust | 2 | `disgust-2-b` | new | sad 1.00 blink .80 angry .60 | A: **skunk_cloud** (new) | Wrinkled nose at a bad smell |
@@ -1543,7 +1572,7 @@ Scene Effects, new ones in bold. Every starter cell holds its Reactions.
 | remorse | 2 | `remorse-2` | today `remorse-1` | sad 1.00 blink .21 | A: sweat_drop | Expression strengthened |
 | remorse | 2 | `remorse-2-b` | new | sad 1.00 happy .50 | A: **guilt_arrow** (new) | Struck by guilt |
 | remorse | 3 | `remorse-3` | today `remorse-2` | sad 1.00 blink .26 | A: gloom_lines; P: gloom-wisps | No Particle Effect; spirit flames match its gloom lines; expression strengthened |
-| remorse | 3 | `remorse-3-b` | new | sad 1.00 blink .77 | A: gloomy_cloud; A: sweat_drop; P: **drifting-leaves** (new) | Dark cloud of guilt |
+| remorse | 3 | `remorse-3-b` | new | sad 1.00 blink .77 | A: gloomy_cloud; A: sweat_drop | Dark cloud of guilt; owner G2 revision |
 | remorse | 4 | `remorse-4` | today `remorse-3` | sad 1.00 blink .28 | A: texture_black_1; P: gloom-wisps; S: scene-vfx-emotion-remorse | Expression strengthened |
 | remorse | 4 | `remorse-4-b` | new | sad 1.00 surprised .33 | A: broken-heart; A: **wilting_flower** (new); P: rain-cloud; S: **scene-vfx-emotion-remorse-b** (new) | Heartbroken regret |
 | disappointment | 1 | `disappointment-1` | new | sad 1.00 relaxed .38 | A: gloomy_cloud | Let down (Subtle effect to tell it from remorse (D19)) |
@@ -1557,7 +1586,7 @@ Scene Effects, new ones in bold. Every starter cell holds its Reactions.
 | sadness | 2 | `sadness-2` | today `sadness-1` | sad 1.00 blink .22 | A: single_tear | Expression strengthened |
 | sadness | 2 | `sadness-2-b` | new | sad 1.00 blink .85 | A: gloomy_cloud | Eyes lowered under a small cloud |
 | sadness | 3 | `sadness-3` | today `sadness-2` | sad 1.00 blink .26 | A: single_tear; P: rain-cloud | No Avatar Effect; its tear continues intensity 2; expression strengthened |
-| sadness | 3 | `sadness-3-b` | new | sad 1.00 surprised .46 | A: **teary_sparkle_eyes** (new); P: **drifting-leaves** (new) | Holding back tears |
+| sadness | 3 | `sadness-3-b` | new | sad 1.00 surprised .46 | A: **teary_sparkle_eyes** (new) | Holding back tears; owner G2 revision |
 | sadness | 4 | `sadness-4` | today `sadness-3` | sad 1.00 blink .28 | A: texture_black_1; A: streaming_tears; P: rain-cloud; S: scene-vfx-emotion-sadness | Expression strengthened |
 | sadness | 4 | `sadness-4-b` | new | sad 1.00 blink .63 | A: streaming_tears; A: **wilting_flower** (new); P: snow-crystal-flurry; S: **scene-vfx-emotion-sadness-b** (new) | Alone in the cold |
 | grief | 1 | `grief-1` | new | sad 1.00 blink .85 | — | Eyes shut in pain |

@@ -4,7 +4,7 @@
   "content_id": "builtin:avatar-effect:startle_ticks",
   "version": 1,
   "name": "Startle Ticks",
-  "description": "Six bold ink jolt ticks snap out in an arc above the head and fade after about a second, the manga \"biku!\" startle mark of a double-take or a sudden gasp.",
+  "description": "Six bold orange jolt ticks snap out in an arc above the head and fade after about a second, the manga \"biku!\" startle mark of a double-take or a sudden gasp.",
   "dependencies": [],
   "definition": {
     "schema": "animama/avatar-effect/2",

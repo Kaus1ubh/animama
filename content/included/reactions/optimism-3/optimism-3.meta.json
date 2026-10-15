@@ -21,8 +21,8 @@
       "config": {}
     },
     {
-      "ref": "builtin:avatar-effect:idea_bulb",
-      "alias": "idea_bulb",
+      "ref": "builtin:avatar-effect:happy_flowers",
+      "alias": "happy_flowers",
       "content_type": "avatar_effect",
       "config": {}
     }

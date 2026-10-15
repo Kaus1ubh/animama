@@ -15,12 +15,6 @@
   },
   "dependencies": [
     {
-      "ref": "builtin:avatar-effect:mind_blown_burst",
-      "alias": "mind_blown_burst",
-      "content_type": "avatar_effect",
-      "config": {}
-    },
-    {
       "ref": "builtin:avatar-effect:kirakira_cluster",
       "alias": "kirakira_cluster",
       "content_type": "avatar_effect",

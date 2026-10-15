@@ -15,8 +15,8 @@
   },
   "dependencies": [
     {
-      "ref": "builtin:avatar-effect:startle_ticks",
-      "alias": "startle_ticks",
+      "ref": "builtin:avatar-effect:kirakira_cluster",
+      "alias": "kirakira_cluster",
       "content_type": "avatar_effect",
       "config": {}
     }

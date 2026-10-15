@@ -25,6 +25,12 @@
       "alias": "fume-puffs",
       "content_type": "particle_effect",
       "config": {}
+    },
+    {
+      "ref": "builtin:particle-effect:rage-aura",
+      "alias": "rage-aura",
+      "content_type": "particle_effect",
+      "config": {}
     }
   ],
   "files": [

@@ -15,12 +15,6 @@
   },
   "dependencies": [
     {
-      "ref": "builtin:avatar-effect:burning-resolve-eyes",
-      "alias": "burning-resolve-eyes",
-      "content_type": "avatar_effect",
-      "config": {}
-    },
-    {
       "ref": "builtin:avatar-effect:triumph_halo",
       "alias": "triumph_halo",
       "content_type": "avatar_effect",

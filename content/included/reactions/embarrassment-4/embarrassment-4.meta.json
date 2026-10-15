@@ -27,14 +27,8 @@
       "config": {}
     },
     {
-      "ref": "builtin:avatar-effect:sweat_drop",
-      "alias": "sweat_drop",
-      "content_type": "avatar_effect",
-      "config": {}
-    },
-    {
-      "ref": "builtin:particle-effect:fume-puffs",
-      "alias": "fume-puffs",
+      "ref": "builtin:particle-effect:sweat-spray",
+      "alias": "sweat-spray",
       "content_type": "particle_effect",
       "config": {}
     }

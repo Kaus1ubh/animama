@@ -66,6 +66,29 @@ const INTENSITY_ONE_AVATAR_EFFECTS: Record<string, string> = {
   excitement: "kira_star",
 };
 
+/**
+ * Ladder departures (R2): effect kinds a Reaction lacks at its step because
+ * the owner removed them in the G2 review (2026-10-15) without a replacement.
+ */
+const LADDER_DEPARTURES: Record<string, Array<"avatar" | "particle">> = {
+  "admiration-3-b": ["particle"],
+  "amusement-3": ["particle"],
+  "amusement-3-b": ["avatar", "particle"],
+  "amusement-4-b": ["particle"],
+  "anger-4": ["particle"],
+  "caring-3": ["avatar"],
+  "confidence-3": ["avatar"],
+  "curiosity-2-b": ["avatar"],
+  "curiosity-4": ["particle"],
+  "curiosity-4-b": ["particle"],
+  "desire-2-b": ["avatar"],
+  "embarrassment-3": ["particle"],
+  "embarrassment-3-b": ["particle"],
+  "optimism-4-b": ["avatar"],
+  "remorse-3-b": ["particle"],
+  "sadness-3-b": ["particle"],
+};
+
 /** A clip's Avatar, Particle and Scene Effect aliases, by kind. */
 function reactionEffects(clip: AnimaPoseClipV2) {
   const events: AnimaPoseClipEvent[] = clip.events ?? [];
@@ -489,12 +512,15 @@ describe("reaction clip catalog", () => {
     }
   });
 
-  // The ladder (R2) is guidance with recorded departures; today's Included
-  // set has none, so each step's effect kinds are checked exactly.
+  // The ladder (R2) is guidance: each step's effect kinds are checked
+  // exactly, except a recorded departure, which must still be missing.
   it("follows the Reaction ladder: Avatar, then Particle, then Scene Effects", () => {
     for (const clipId of AVATAR_REACTION_CLIP_IDS) {
       const [emotion, intensity, variant] = clipId.split("-");
       const effects = reactionEffects(getAvatarReactionClip(clipId));
+      const departures = LADDER_DEPARTURES[clipId] ?? [];
+      for (const kind of departures)
+        expect(effects[kind], `${clipId} departure`).toEqual([]);
       if (intensity === "1") {
         const subtle = INTENSITY_ONE_AVATAR_EFFECTS[emotion!];
         expect(effects, clipId).toEqual({
@@ -507,11 +533,12 @@ describe("reaction clip catalog", () => {
       // Moderate adds one or two Avatar Effects; Strong adds a Particle
       // Effect; Intense adds a Scene Effect: the emotion's background for the
       // first Reaction, another Scene for the second.
-      expect(effects.avatar, `${clipId} Avatar Effects`).not.toEqual([]);
+      if (!departures.includes("avatar"))
+        expect(effects.avatar, `${clipId} Avatar Effects`).not.toEqual([]);
       if (intensity === "2") {
         expect(effects.avatar.length, clipId).toBeLessThanOrEqual(2);
         expect(effects.particle, clipId).toEqual([]);
-      } else
+      } else if (!departures.includes("particle"))
         expect(effects.particle, `${clipId} Particle Effects`).not.toEqual([]);
       const background = `scene-vfx-emotion-${emotion}`;
       if (intensity !== "4") expect(effects.scene, clipId).toEqual([]);

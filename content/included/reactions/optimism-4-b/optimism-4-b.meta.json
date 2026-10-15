@@ -15,18 +15,6 @@
   },
   "dependencies": [
     {
-      "ref": "builtin:avatar-effect:burning-resolve-eyes",
-      "alias": "burning-resolve-eyes",
-      "content_type": "avatar_effect",
-      "config": {}
-    },
-    {
-      "ref": "builtin:avatar-effect:kirakira_cluster",
-      "alias": "kirakira_cluster",
-      "content_type": "avatar_effect",
-      "config": {}
-    },
-    {
       "ref": "builtin:particle-effect:golden-aura",
       "alias": "golden-aura",
       "content_type": "particle_effect",

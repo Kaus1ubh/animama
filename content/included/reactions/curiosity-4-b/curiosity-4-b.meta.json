@@ -15,21 +15,9 @@
   },
   "dependencies": [
     {
-      "ref": "builtin:avatar-effect:twitching-cat-ears",
-      "alias": "twitching-cat-ears",
-      "content_type": "avatar_effect",
-      "config": {}
-    },
-    {
       "ref": "builtin:avatar-effect:ahoge_curl",
       "alias": "ahoge_curl",
       "content_type": "avatar_effect",
-      "config": {}
-    },
-    {
-      "ref": "builtin:particle-effect:butterfly-flutter",
-      "alias": "butterfly-flutter",
-      "content_type": "particle_effect",
       "config": {}
     },
     {

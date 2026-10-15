@@ -15,12 +15,6 @@
   },
   "dependencies": [
     {
-      "ref": "builtin:avatar-effect:idea_bulb",
-      "alias": "idea_bulb",
-      "content_type": "avatar_effect",
-      "config": {}
-    },
-    {
       "ref": "builtin:particle-effect:twinkle-shimmer",
       "alias": "twinkle-shimmer",
       "content_type": "particle_effect",

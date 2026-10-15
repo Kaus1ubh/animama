@@ -21,12 +21,6 @@
       "config": {}
     },
     {
-      "ref": "builtin:avatar-effect:emote",
-      "alias": "emote_!",
-      "content_type": "avatar_effect",
-      "config": {}
-    },
-    {
       "ref": "builtin:avatar-effect:eye_confused_swirl",
       "alias": "eye_confused_swirl",
       "content_type": "avatar_effect",

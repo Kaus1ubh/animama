@@ -25,12 +25,6 @@
       "alias": "startle_ticks",
       "content_type": "avatar_effect",
       "config": {}
-    },
-    {
-      "ref": "builtin:particle-effect:fume-puffs",
-      "alias": "fume-puffs",
-      "content_type": "particle_effect",
-      "config": {}
     }
   ],
   "files": [

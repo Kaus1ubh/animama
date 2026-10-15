@@ -21,8 +21,8 @@
       "config": {}
     },
     {
-      "ref": "builtin:particle-effect:snow-crystal-flurry",
-      "alias": "snow-crystal-flurry",
+      "ref": "builtin:particle-effect:cold-breeze",
+      "alias": "cold-breeze",
       "content_type": "particle_effect",
       "config": {}
     }
