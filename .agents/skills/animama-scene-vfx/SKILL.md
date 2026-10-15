@@ -44,7 +44,9 @@ its record sourced (`source ../../../.animama-stack.env`).
    for scatter and marquee items, `scene-tile` for a repeating tile (it may be
    opaque and keeps its margins). Scene art is a flat anime background motif:
    bold clean silhouettes, flat colour with at most one cel-shade step, thin
-   tinted outlines; it differs from Particle art's glossy glow. A family's
+   tinted outlines; it differs from Particle art's glossy glow. A sticker
+   that is a manpu symbol (rumble marks, sweat drops, anger marks) may use an
+   `animama-effect-assets` house style (Ink or Marker) instead. A family's
    sample art is draft direction: pass it as the style reference, not as the
    final image. Make PNGs: a promoted Scene keeps only PNG art. Name each file as the definition will
    name it, with letters, digits, `.`, `_` and `-` only. Keep sources and

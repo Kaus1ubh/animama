@@ -30,7 +30,8 @@ its record sourced (`source ../../../.animama-stack.env`).
 1. **Write the brief** before any art, in
    `.animama-drafts/effects/<stem>-work/brief.md`: what it expresses, the
    comedic or emotional beat, attachment and placement, the Reaction
-   intensities (1–3) it suits, motion and duration, the art, and its budget.
+   intensities (1–3) it suits, motion and duration, the art and its house
+   style (Ink or Marker), and its budget.
    Comedic uses are preferred. Confirm it with the owner when a batch or new
    library item depends on it. Template in [brief](references/brief.md).
 2. **Make the art** with `animama-effect-assets`. Keep generated sources and
@@ -117,8 +118,8 @@ promotion with `"mode": "replace"`.
    folder; copy it to `.animama-drafts/effects/`) and keep its image as the
    key frame.
 2. Make the frames with `animama-effect-assets` step 7: `frames --mode
-   boil` or `draw-on` from the key, or frames each edited from the one
-   before when the shape changes. Assemble the sheet with `flipbook` on the
+   boil` from the key, or frames each edited from the one before when the
+   shape changes. Assemble the sheet with `flipbook` on the
    key's canvas (`--cell 256`, no `--trim`, so the effect keeps its size,
    placement and per-use sizes), point `art.image` at it and add the
    printed `art.flipbook`.
@@ -143,6 +144,12 @@ promotion with `"mode": "replace"`.
   every art prompt, keep the shape iconic and exaggerated, and judge the
   result by whether the joke reads, not by how polished it looks. Art the
   owner supplies takes precedence.
+- Draw it by hand, never as a flat vector icon or clip art. Pick one of the
+  `animama-effect-assets` house styles in the brief: **Ink** (manga G-pen
+  ink and screentone, with a light rim for dark backgrounds) for gloom,
+  shock, menace, sweat, anger and disgust marks; **Marker** (crayon and
+  marker doodle) for cute, happy, affectionate and dreamy marks. Keep
+  effects that play together in the same style where they can.
 
 - The brief decides the attachment: floating face art for emotes and eye
   shapes, painted face art for blush, tears and skin tints, body art for
@@ -170,7 +177,10 @@ promotion with `"mode": "replace"`.
 - Use a flipbook when the shape itself changes (a drop forms, a puff
   billows, lines shoot out) or should look hand-drawn (line boil); use pulse,
   spin, drift or keyframes to move, scale, turn or fade the art. Combine them
-  when both help, such as a boiling mark that pops in with keyframes.
+  when both help, such as a boiling mark that pops in with keyframes. Held
+  hand-drawn art gets a line boil, and a changing shape is drawn frame by
+  frame; do not reveal a new Avatar Effect with draw-on frames (enter with
+  keyframes instead).
 - Eye effects usually hide the real eyes (`forceBlink`, `hideEyeDetails`,
   `faceCleanup` default on). Keep highlights or lashes only when the art is
   drawn to sit on them.

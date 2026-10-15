@@ -32,8 +32,9 @@ effect skill).
    Frieren reaction face — not decorative illustrations. Name the trope and
    a well-known example in every prompt; the art should read as that joke
    instantly at chat size. Keep shapes iconic and exaggerated (like the
-   symbol itself, or its emoji), with bold silhouettes, flat colour and few
-   details; fine detail and text disappear at chat size.
+   symbol itself, or its emoji), with bold silhouettes and few details; fine
+   detail and text disappear at chat size. Draw Avatar Effect art in one of
+   the [house styles](#house-styles), never as a flat vector icon.
 2. **Get source images.** Use supplied art when there is any (owner art
    wins over generated art). Otherwise, if
    the global `image-gen` skill is available, generate one image per asset
@@ -50,14 +51,16 @@ effect skill).
    `wait` (a job left running when its shell exits dies silently). On a
    rate-limit or busy error, wait and retry once. The Read tool shows
    transparency as black; judge alpha with `effects:assets preview`. Flipbook
-   frames edited from the previous frame are made one at a time. Give every
-   image of a library the same style reference with `--ref` (edits too:
-   `--edit <file> --ref <style>`) and say in the prompt that it sets the line
-   weight and shading, not the subject.
+   frames edited from the previous frame are made one at a time. For Avatar
+   Effects, pass the chosen house style's reference with `--ref` on every
+   image (edits too:
+   `--edit <file> --ref <style>`) and say in the prompt that it sets the
+   drawing style, not the subject.
 3. **Look at every image** with the Read tool before anything else. Reject
    and regenerate (once, with one targeted prompt change) art with the wrong
-   subject, extra objects, text, cropped edges or a style that does not match
-   the set.
+   subject, extra objects, text, cropped edges, a clip-art or vector-icon
+   look, or a style that does not match its house style. Look at Ink art on
+   a dark backdrop too: its black lines need their light rim.
 4. **Check:** `pnpm -s effects:assets check <png...> --budget <name>`. FAIL
    lines must be fixed; WARN lines need a look.
 5. **Fix:** `pnpm -s effects:assets fix <src.png> --out <effect
@@ -90,8 +93,11 @@ effect skill).
    show here; `check` does not report a fully transparent hole inside the
    art, so look for one. `--solid-interior` fixes only alpha: a smudge painted into the
    colour means regenerate or edit the source.
-7. **Flipbooks:** every frame shares one canvas and framing. Make the frames
-   one of two ways:
+7. **Flipbooks:** every frame shares one canvas and framing. Hand-drawn art
+   held on screen gets a line boil; a shape that changes is drawn frame by
+   frame. New Avatar Effects never use draw-on frames (an entrance is a
+   motion keyframe on the effect); `--mode draw-on` remains for Particle
+   sprite sheets. Make the frames one of two ways:
    - **From one key image**, when the shape stays and only the line work
      moves. Fix the key first, at the frame size (near 256 px; `--max`
      scales a surface decal's whole canvas, keeping its framing), then
@@ -133,6 +139,28 @@ effect skill).
 8. **Hand off** the final PNG paths, their sizes and check results, the
    preview images, and what you rejected or could not fix. Delete rejected
    source images you created unless asked to keep them.
+
+## House styles
+
+Avatar Effect art is hand-drawn, in one of two styles the brief names. Both
+read on dark and light backdrops at chat size. Other drawn symbols, such as
+Scene stickers that are manpu (rumble marks, sweat drops), may use them too;
+Particle textures keep their glossy polish (see `animama-particle-vfx`).
+
+| Style | Use for | Look | Reference |
+| --- | --- | --- | --- |
+| **Ink** | Gloom, shock, menace, sweat, anger and disgust marks | Manga G-pen ink: tapered strokes with real line-weight variation and small ink flicks, one spot colour, screentone dot shading, and a thin off-white rim outside the black lines | [`references/style/ink.png`](references/style/ink.png) |
+| **Marker** | Cute, happy, affectionate and dreamy marks | Chibi doodle in coloured markers and crayon: wobbly coloured outlines, marker streaks and crayon grain in the fills, a soft white highlight | [`references/style/marker.png`](references/style/marker.png) |
+
+Use these style lines in the prompt template:
+
+```text
+Ink: hand-inked manga symbol drawn with a G-pen nib: confident tapered strokes with real line-weight variation, slightly uneven hand-drawn edges, small ink flicks, black ink lines with a thin off-white rim outside them so they read on dark backgrounds, one flat spot colour and a little screentone dot shading, like a symbol drawn in a printed manga page. The reference image sets the drawing style only, not the subject.
+Marker: hand-drawn chibi doodle in coloured markers and crayon: soft wobbly coloured outlines, visible marker streaks and crayon texture in the fills, a soft white highlight, playful and imperfect like a sticker an artist doodled in the margin. The reference image sets the drawing style only, not the subject.
+```
+
+Painted face-surface tints (blush, shade) keep their see-through fills; draw
+their lines and hatching in the chosen style.
 
 ## Budgets
 
@@ -181,12 +209,12 @@ Use case: anime comedy symbol (manpu) drawn over a 3D anime avatar (<attachment,
 Gag: <the beat it lands and the trope it borrows, e.g. "caught out and embarrassed: the classic anime sweat drop on the temple">
 Reference: <a well-known example of the trope, e.g. "the deadpan bar eyes of Frieren's reaction face", or the matching emoji>
 Subject: <one symbol, e.g. a single big sweat drop>
-Style/medium: the symbol as an anime artist draws it for a gag: iconic, exaggerated, flat colour (cel shading only where the trope has it), bold clean shape, 2–3 colours, no gradients unless asked (Particle textures instead: glossy, soft gradients, a glow or glint, per their skill)
+Style/medium: <the Ink or Marker style line from House styles> (Particle textures instead: glossy, soft gradients, a glow or glint, per their skill)
 Colour palette: <colours from the brief>
 Composition: the subject centred and filling most of a square canvas, nothing cropped
 Background: fully transparent (real alpha channel), no checkerboard, no backdrop, no shadow
 Text (verbatim): <exact text, or none>
-Avoid: faces, extra objects, frames, borders, watermarks
+Avoid: faces, extra objects, frames, borders, watermarks, clip-art or vector-icon look, perfectly smooth geometric curves, glossy plastic shading
 ```
 
 For a flipbook frame drawn by editing the previous one (`--edit <frame N-1>
@@ -205,5 +233,6 @@ state what changes and what stays the same.
   failure guidance and report it. The effect waits; do not substitute
   code-drawn art for a brief that needs illustration.
 - `budget_bytes` after fixing: the art is too noisy (gradients, texture
-  grain). Regenerate with "flat colours, no texture" rather than raising the
+  grain). Regenerate with "less noise: lighter screentone or crayon grain,
+  fewer gradients", or set a smaller `--max`, rather than raising the
   budget.

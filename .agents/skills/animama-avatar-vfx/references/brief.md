@@ -33,8 +33,10 @@ to use your judgement; state the choices you made in the brief.
 - **Reactions:** <emotions and intensity tiers 1–3 it suits, or "preview only">
 - **Motion and duration:** <e.g. pops in with a 0.15 s scale overshoot, bobs
   gently, held for the Reaction; flipbook 8 frames at 10 fps>
-- **Art:** <what is drawn, colours, outline, style; single image or frames;
-  other-eye image?>
+- **Style:** <Ink (manga G-pen ink and screentone) | Marker (crayon and
+  marker doodle)> — <why it suits the gag>
+- **Art:** <what is drawn, colours; single image, boil or frame-by-frame
+  flipbook; other-eye image?>
 - **Budget:** <effects:assets budget name; it follows the attachment
   (floating face art `landmark`, painted `surface`, `body`, `sticker`,
   `silhouette`, flipbook sheets `flipbook`); say why if larger>
