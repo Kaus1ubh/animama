@@ -73,7 +73,7 @@ const INTENSITY_ONE_AVATAR_EFFECTS: Record<string, string> = {
 const LADDER_DEPARTURES: Record<string, Array<"avatar" | "particle">> = {
   "admiration-3-b": ["particle"],
   "amusement-3": ["particle"],
-  "amusement-3-b": ["avatar", "particle"],
+  "amusement-3-b": ["particle"],
   "amusement-4-b": ["particle"],
   "anger-4": ["particle"],
   "caring-3": ["avatar"],
@@ -81,7 +81,6 @@ const LADDER_DEPARTURES: Record<string, Array<"avatar" | "particle">> = {
   "curiosity-2-b": ["avatar"],
   "curiosity-4": ["particle"],
   "curiosity-4-b": ["particle"],
-  "desire-2-b": ["avatar"],
   "embarrassment-3": ["particle"],
   "embarrassment-3-b": ["particle"],
   "optimism-4-b": ["avatar"],

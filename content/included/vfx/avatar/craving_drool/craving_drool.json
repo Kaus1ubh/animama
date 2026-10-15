@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:craving_drool",
+  "version": 1,
+  "name": "Craving Drool",
+  "description": "A glossy drool drop wells at the corner of the mouth and stretches down into a heavy dangling strand, the anime drool of wanting something so badly you can taste it.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "emote",
+    "attachment": {
+      "kind": "face_landmark",
+      "landmark": "mouth",
+      "offset": {
+        "x": -0.017,
+        "y": -0.0265,
+        "z": 0.02
+      },
+      "scale": {
+        "x": 1.2,
+        "y": 1.2
+      }
+    },
+    "art": {
+      "image": "craving_drool-sheet.png",
+      "flipbook": {
+        "columns": 2,
+        "rows": 2,
+        "frames": 4,
+        "fps": 6,
+        "loop": "once"
+      }
+    },
+    "motion": {
+      "keyframes": {
+        "frames": [
+          {
+            "t": 0,
+            "opacity": 0
+          },
+          {
+            "t": 0.12,
+            "opacity": 1
+          }
+        ]
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "craving_drool-sheet.png",
+      "role": "image"
+    }
+  ]
+}

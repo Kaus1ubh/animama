@@ -164,6 +164,8 @@ export const AVATAR_EFFECT_TEMPLATES: readonly AvatarEffectTemplate[] = [
     framing: "wide",
   }),
   included("skunk_cloud", "Skunk Cloud", "around-head", { framing: "wide" }),
+  included("tehe_star", "Tehe Star", "around-head", { framing: "wide" }),
+  included("craving_drool", "Craving Drool", "around-head"),
   included("passing_crow", "Passing Crow", "around-head", {
     framing: "wide",
   }),

@@ -360,15 +360,27 @@ Content (`content/included/`):
   romance) to sky blue, the first with the owner's gold twinkle star and
   silver glint stickers in place of its lilac flower and pink sparkle, the
   second with gold-tinted sparkles. Licence records note each edit.
-- 2026-10-15, agent (G2 round 1): removals without a replacement leave 16
+- 2026-10-15, agent (G2 round 1): removals without a replacement leave
   recorded ladder departures (R2 is guidance), pinned in
-  `reactionClips.test.ts`: no Avatar Effect in amusement-3-b, caring-3,
-  confidence-3, curiosity-2-b, desire-2-b and optimism-4-b; no Particle
+  `reactionClips.test.ts` (as of round 2): no Avatar Effect in caring-3,
+  confidence-3, curiosity-2-b and optimism-4-b; no Particle
   Effect in admiration-3-b, amusement-3, amusement-3-b, amusement-4-b,
   anger-4, curiosity-4, curiosity-4-b, embarrassment-3, embarrassment-3-b,
   remorse-3-b and sadness-3-b. The draft generators now read today's
   Reactions from the `87dce31b` baseline export (the promotion replaced them
   in place) and apply the owner's revisions as a layer (`G2` in `ladder.py`).
+- 2026-10-15, owner (G2 round 2): admiration-1 surprised 0.1; new effects
+  for amusement-3-b and desire-2-b; the `eye_vv` "> <" eyes a little further
+  apart everywhere. Agent concepts, Marker style like the other cute marks,
+  silent: **Tehe Star** (`tehe_star`, boil flipbook), a plump crayon star
+  that pops out beside the head, the cheeky anime "tehe☆" star, for
+  amusement-3-b's mischievous snicker (the owner chose it after rejecting a
+  first draft of mint "pfft" spurts at the mouth, which read as snot);
+  **Craving Drool** (`craving_drool`,
+  four edited frames played once), a drool strand that drips from the mouth
+  corner, the anime "I want it" drool, for desire-2-b. `eye_vv`'s offset
+  toward the nose drops from 1.2 to 0.6 cm per eye. The Included effects
+  from this plan are now 54.
 
 ## Gates
 
@@ -1405,7 +1417,7 @@ R1; pools of up to four Reactions per cell, stored as one binding row per
 member and picked at random without repeating a cell's last played member;
 pool editing in `/animas/`, the equip dialog, the Create Anima wizard and
 sharing details, sharing Idle's components; pools in creation and packages;
-168 Included Reactions on a four-step ladder with 52 new hand-drawn effects;
+168 Included Reactions on a four-step ladder with 54 new hand-drawn effects;
 every starter cell holding its Included Reactions; the `animation:reel`
 recorder. Open: the owner's G2/G3 review before merge, the wizard's browser
 check, and the in-chat escalation and variety check after merge.
@@ -1428,7 +1440,7 @@ Scene Effects, new ones in bold. Every starter cell holds its Reactions.
 
 | Emotion | Int. | Reaction | Source | Expression | Effects | Note |
 | --- | --- | --- | --- | --- | --- | --- |
-| admiration | 1 | `admiration-1` | new | happy .75 surprised .50 relaxed .38 | — | Impressed, eyes wide; owner G2 revision |
+| admiration | 1 | `admiration-1` | new | happy .75 relaxed .38 surprised .10 | — | Impressed, eyes wide; owner G2 revision |
 | admiration | 2 | `admiration-2` | today `admiration-1` | relaxed .35 happy .20 | A: star3 | Expression strengthened; owner G2 revision |
 | admiration | 2 | `admiration-2-b` | new | surprised 1.00 → surprised 1.00 happy .75 | A: **kirakira_cluster** (new) | An impressed "ooh" that warms into a smile |
 | admiration | 3 | `admiration-3` | today `admiration-2` | happy .75 relaxed .35 | A: star3; P: twinkle-shimmer | Expression strengthened |
@@ -1481,7 +1493,7 @@ Scene Effects, new ones in bold. Every starter cell holds its Reactions.
 | amusement | 2 | `amusement-2` | today `amusement-1` | happy .75 | A: eye_vv | Expression strengthened |
 | amusement | 2 | `amusement-2-b` | new | happy .60 blinkLeft .50 | A: laugh_marks | A haughty "ohoho"; owner G2 revision |
 | amusement | 3 | `amusement-3` | today `amusement-2` | happy .75 | A: eye_vv; A: heh_lettering | No Particle Effect; rising notes read as giggles; expression strengthened; owner G2 revision |
-| amusement | 3 | `amusement-3-b` | new | happy 1.00 angry .15 | — | Mischievous snicker; owner G2 revision |
+| amusement | 3 | `amusement-3-b` | new | happy 1.00 angry .15 | A: **tehe_star** (new) | Mischievous snicker; owner G2 revision |
 | amusement | 4 | `amusement-4` | today `amusement-3` | happy .75 | A: eye_vv; P: confetti; S: scene-vfx-emotion-amusement | Expression strengthened |
 | amusement | 4 | `amusement-4-b` | new | surprised 1.00 → happy 1.00 sad .26 | A: laugh_marks; A: streaming_tears; S: **scene-vfx-emotion-amusement-b** (new) | Cracking up, tears of laughter; owner G2 revision |
 | excitement | 1 | `excitement-1` | new | happy .75 surprised .44 | A: kira_star | Eager, bright-eyed (Subtle effect to tell it from joy and desire (D19)) |
@@ -1500,7 +1512,7 @@ Scene Effects, new ones in bold. Every starter cell holds its Reactions.
 | joy | 4 | `joy-4-b` | new | surprised 1.00 → happy .75 surprised .69 | A: **kirakira_cluster** (new); A: hearts_burst; P: **flower-pop** (new); S: **scene-vfx-emotion-joy-b** (new) | Flowers bloom around the head |
 | desire | 1 | `desire-1` | new | happy .75 surprised .57 relaxed .29 | A: blush_band | Longing glance (Subtle effect to tell it from joy and excitement (D19)) |
 | desire | 2 | `desire-2` | today `desire-1` | happy .75 relaxed .50 | A: blush | Expression strengthened |
-| desire | 2 | `desire-2-b` | new | happy .75 surprised .60 | — | "I want it!" money eyes (Comedic wanting; heart_pop is the gentler alternative); owner G2 revision |
+| desire | 2 | `desire-2-b` | new | happy .75 surprised .60 | A: **craving_drool** (new) | "I want it!" money eyes (Comedic wanting; heart_pop is the gentler alternative); owner G2 revision |
 | desire | 3 | `desire-3` | today `desire-2` | happy .75 relaxed .55 | A: heart_eyes; P: hearts-v1 | Expression strengthened |
 | desire | 3 | `desire-3-b` | new | surprised 1.00 → surprised .82 happy .75 | A: **kirakira_cluster** (new); A: blush; P: sparkle-hearts | Eager, eyes sparkling |
 | desire | 4 | `desire-4` | today `desire-3` | happy .75 relaxed .52 | A: heart_eyes; A: blush; P: heart-fireworks; S: scene-vfx-emotion-desire | Expression strengthened |
