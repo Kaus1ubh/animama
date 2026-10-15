@@ -296,6 +296,23 @@ Content (`content/included/`):
   asked for the rest of the plan to be implemented without check-ins. This
   is a plan gate change; the spec (R16, D20) already requires approval
   before merge.
+- 2026-10-15, agent (Phase 3 step 0, after #559 merged as #571 into
+  `87dce31b`): implementation details adjusted to how the Idle pool landed.
+  Reaction members mirror Idle members: one row per member with slot
+  `reaction:<emotion>-<intensity>:<catalog_item_id>`, the row's
+  `catalog_item_id` authoritative, unavailable members visible and removable,
+  and removing an unknown binding is `unchanged` (no `reaction_member_missing`
+  code). Reaction binding config is dropped from intents, members, creation and
+  packages (packages already reject non-empty Reaction config and no UI sends
+  one), which lets one runtime root serve every cell of a Reaction. One shared
+  cell parser replaces the Reaction and Idle `rpartition("-")` sites. The
+  starter policy stays a flat `reactions` list with one entry per member.
+  Packages carry all 96 cells as entry-id lists (empty allowed). `local-http`
+  goes from 8.0.0 to 9.0.0. Reaction placement hints accept intensity 4 in
+  Phase 3 because the interim starter policy puts today's Reactions at 2–4.
+  The chat SSE goldens are re-recorded (model intensity 2 now plays no
+  Reaction). Risk carried to Phase 6: the full starter creation closure may
+  approach the 500-entry runtime and creation limits.
 
 ## Gates
 
@@ -641,6 +658,21 @@ resolved; no new problems. **Result: pass** (2 of 2 repair rounds used).
 
 Requirements: R1, R3, R4, R6 (backend), R9 (API), R10, R11, R12 (backend).
 Issue: #566. Depends on #559 merged. Working directory: repository root.
+
+Step 0 result (2026-10-15): `feat/reaction-pools` rebased cleanly onto
+`87dce31b` (#571, the only change since `50640701`); new baseline `87dce31b`.
+#571 changed no Reaction behaviour. It stores Idle members as
+`idle:<cell>:<item_id>` rows (`domain/anima_loadout.py` `idle_cell_key`,
+`idle_slot_key`, `parse_idle_slot_key`), plans `add`/`remove` through
+`PyIdleIntent`, projects one runtime root per Idle Gesture with its cells in
+the root context (`anima_runtime_service.py`, `typed_runtime_projection.py`),
+carries a sparse `PortableIdlePool`, seeds Idle at creation from
+`starter-idle-pool.v1.json`, bumps `local-http` to 8.0.0 and keeps its pool UI
+private to `IdleLoadoutSection.tsx`. The `rpartition("-")` sites are now
+`anima_package_source_service.py` (Idle and Reaction),
+`content_kind_registry.py` (Reaction) and `typed_runtime_projection.py`
+(Idle); the earlier list in "Current implementation" is stale. Decisions
+taken from this refresh are in the Decision Log (2026-10-15).
 
 Steps:
 
