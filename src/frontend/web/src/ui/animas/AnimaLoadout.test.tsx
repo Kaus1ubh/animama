@@ -13,7 +13,7 @@ const fixtures = vi.hoisted(() => ({
     warnings: [],
     gestures: [],
     reactions: [],
-    idle_style: { state: "empty" as const },
+    idle: { default_pool: [], cells: [] },
   },
 }));
 
@@ -57,27 +57,13 @@ vi.mock("@/query/hooks/useActions", () => ({
   }),
 }));
 
-vi.mock("@/query/hooks/useIdleStyles", () => ({
-  useIdleStyles: () => ({
-    data: { pages: [{ items: [] }] },
-    isPending: false,
-    isError: false,
-    hasNextPage: false,
-    isFetchingNextPage: false,
-    isFetchNextPageError: false,
-    fetchNextPage: vi.fn(),
-    refetch: vi.fn(),
-  }),
-}));
-
 vi.mock("@/query/mutations/useAnimaLoadoutMutations", () => ({
   useAnimaLoadoutMutations: () => ({
     planGesture: { mutateAsync: vi.fn() },
     commitGesture: { mutateAsync: vi.fn(), isPending: false },
     planReaction: { mutateAsync: vi.fn() },
     commitReaction: { mutateAsync: vi.fn(), isPending: false },
-    planIdleStyle: { mutateAsync: vi.fn() },
-    commitIdleStyle: { mutateAsync: vi.fn(), isPending: false },
+    changeIdle: { mutateAsync: vi.fn(), isPending: false },
   }),
 }));
 
@@ -91,13 +77,14 @@ describe("Anima Loadout", () => {
     expect(html.indexOf(">Voices<")).toBeLessThan(html.indexOf(">Gestures<"));
     expect(html).toContain(">Gestures<");
     expect(html).toContain(">Reactions<");
-    expect(html).toContain(">Idle Style<");
+    expect(html).toContain(">Idle<");
+    expect(html).not.toContain("Idle Style");
     expect(html).not.toContain(">Music<");
     expect(html.match(/aria-expanded="false"/g)).toHaveLength(4);
     expect(html).toContain('aria-controls="voice-loadout-content"');
     expect(html).toContain('aria-controls="gesture-loadout-content"');
     expect(html).toContain('aria-controls="reaction-loadout-content"');
-    expect(html).toContain('aria-controls="idle-style-content"');
+    expect(html).toContain('aria-controls="idle-loadout-content"');
     expect(html).not.toContain('aria-controls="music-content"');
 
     expect(html).not.toContain("Avatar Release");

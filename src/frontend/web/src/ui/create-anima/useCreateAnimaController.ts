@@ -610,8 +610,6 @@ export function useCreateAnimaController(
         update({
           ...latest.current,
           starter_pack: repair.options.starter_pack,
-          default_idle: repair.options.default_idle.source,
-          idle_revisions: repair.options.default_idle.expected_source_revisions,
           meaningful: true,
         });
       } else {

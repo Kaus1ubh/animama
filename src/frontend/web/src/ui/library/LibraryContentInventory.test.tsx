@@ -32,15 +32,6 @@ const items = [
     revision_sha256: "r2",
   },
 ];
-vi.mock("@/query/hooks/useIdleStyles", () => ({
-  useIdleStyles: () => ({
-    data: {
-      pages: [
-        { items: mocks.otherRows.filter((row) => row.family === "idle-style") },
-      ],
-    },
-  }),
-}));
 vi.mock("@/query/hooks/usePoses", () => ({
   usePoses: (input: unknown) => {
     mocks.poseInput(input);
@@ -224,7 +215,6 @@ describe("Library Poses", () => {
   });
   it.each([
     ["gesture", "gestures"],
-    ["idle-style", "idle-styles"],
     ["reaction", "reactions"],
     ["particle", "particle-effects"],
     ["avatar-effect", "avatar-effects"],
@@ -257,11 +247,6 @@ describe("Library Poses", () => {
             row.indexOf("Add / Manage"),
           );
         expect(row).not.toContain("Customize");
-        if (family === "idle-style") {
-          expect(row).not.toMatch(
-            /Use in Gesture|Use in Reaction|Add \/ Manage/,
-          );
-        }
       }
     },
   );

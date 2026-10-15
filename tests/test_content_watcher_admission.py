@@ -5,8 +5,10 @@ from __future__ import annotations
 import asyncio
 import json
 import shutil
+import wave
 from collections.abc import AsyncIterator
 from dataclasses import replace
+from io import BytesIO
 from pathlib import Path
 from typing import Any
 
@@ -21,7 +23,6 @@ from tests.migration_database_helpers import (
     migrated_database as migrated_database,
     migration_postgres as migration_postgres,
 )
-from tests.test_content_gltf import _fixture_document, _glb_source
 
 OWNER = "package-owner"
 
@@ -172,19 +173,28 @@ async def test_external_or_unknown_change_still_fences_saved_scene(
         )
 
 
+def _wav(frame: bytes) -> bytes:
+    audio = BytesIO()
+    with wave.open(audio, "wb") as output:
+        output.setnchannels(1)
+        output.setsampwidth(2)
+        output.setframerate(8000)
+        output.writeframes(frame * 800)
+    return audio.getvalue()
+
+
 @pytest.mark.parametrize("change", ["changed_target", "duplicate_target"])
 async def test_dependency_changes_fence_unchanged_dependents(services, change: str) -> None:  # noqa: ANN001
     paths, catalog, content, saves, _ = services
-    gltf, binary = _fixture_document(buffer_uri=None)
     target = (
         await saves.save_standalone(
             user_id=OWNER,
-            kind=ContentKind.GESTURE,
-            entry_name="Finite wave",
-            filename="wave.vrma",
-            payload=_glb_source(gltf, binary),
-            metadata_sidecar=json.dumps({"schema_version": 1, "id": "local:gesture:wave", "name": "Wave"}).encode(),
-            operation_id="finite-wave",
+            kind=ContentKind.SOUND_EFFECT,
+            entry_name="Chime",
+            filename="chime.wav",
+            payload=_wav(b"\x01\x00"),
+            metadata_sidecar=json.dumps({"schema_version": 1, "id": "local:sound:chime", "name": "Chime"}).encode(),
+            operation_id="chime",
             catalog_item_id=None,
             expected_revision=None,
         )
@@ -192,20 +202,21 @@ async def test_dependency_changes_fence_unchanged_dependents(services, change: s
     dependent = (
         await saves.save_descriptor(
             user_id=OWNER,
-            kind=ContentKind.IDLE_STYLE,
+            kind=ContentKind.GESTURE,
             entry_name="Dependent",
             descriptor=json.dumps(
                 {
-                    "schema_version": 2,
-                    "content_type": "idle_style",
-                    "id": "local:idle-style:dependent",
+                    "schema_version": 1,
+                    "content_type": "gesture",
+                    "content_id": "local:gesture:dependent",
                     "name": "Dependent",
-                    "dependencies": [{"ref": target.logical_key, "content_type": "gesture"}],
-                    "default_pool": [target.logical_key],
-                    "files": [],
+                    "semantic_key": "dependent",
+                    "implementation": {"kind": "vrma", "file_role": "animation"},
+                    "files": [{"path": "motion.vrma", "role": "animation"}],
+                    "dependencies": [{"ref": target.logical_key, "content_type": "sound_effect"}],
                 }
             ).encode(),
-            companion_files={},
+            companion_files={"motion.vrma": vrma("dependent")},
             operation_id="dependent",
             catalog_item_id=None,
             expected_revision=None,
@@ -214,10 +225,10 @@ async def test_dependency_changes_fence_unchanged_dependents(services, change: s
     assert dependent.dependency_item_ids == (target.id,)
     target_path = paths.local_root / target.relative_locator
     if change == "changed_target":
-        target_path.write_bytes(vrma("modified"))
+        target_path.write_bytes(_wav(b"\x02\x00"))
         changed_path = target.relative_locator
     else:
-        duplicate = target_path.with_name("duplicate.vrma")
+        duplicate = target_path.with_name("duplicate.wav")
         shutil.copyfile(target_path, duplicate)
         shutil.copyfile(target_path.with_suffix(".meta.json"), duplicate.with_suffix(".meta.json"))
         changed_path = duplicate.relative_to(paths.local_root).as_posix()

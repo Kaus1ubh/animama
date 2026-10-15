@@ -51,6 +51,29 @@ export function stableJsonSha256(value) {
   return createHash("sha256").update(canonicalJson(value)).digest("hex");
 }
 
+/**
+ * Hash a portable Anima definition. Idle pool members form a set listed in
+ * catalog item ID order, and an import gives every member a new item ID.
+ */
+export function animaDefinitionSha256(anima) {
+  if (!anima?.idle) return stableJsonSha256(anima);
+  const members = (ids) => [...ids].sort();
+  return stableJsonSha256({
+    ...anima,
+    idle: {
+      default: members(anima.idle.default),
+      cells: Object.fromEntries(
+        Object.entries(anima.idle.cells).map(([emotion, levels]) => [
+          emotion,
+          Object.fromEntries(
+            Object.entries(levels).map(([level, ids]) => [level, members(ids)]),
+          ),
+        ]),
+      ),
+    },
+  });
+}
+
 /** Keep only stable neutral Local identities for before/after smoke proof. */
 export function localCatalogSnapshot(catalog) {
   if (!catalog || !Array.isArray(catalog.items)) {

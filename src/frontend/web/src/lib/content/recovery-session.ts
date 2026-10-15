@@ -114,6 +114,7 @@ async function purgeHostedRecovery(
 
 function purgeRecoveryFallbacks(namespaces: string[]): void {
   const prefixes = [
+    // Drafts the retired Idle Style editor may have left behind.
     "animama:content-edit:",
     "animama:action-editor:",
     "anima.particleVfxCreator.recovery.v1:",

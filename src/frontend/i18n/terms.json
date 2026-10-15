@@ -8,7 +8,7 @@
     { "en": "Gesture", "ja": "ジェスチャー", "ko": "제스처", "zh-Hans": "动作", "zh-Hant": "動作", "note": "A body-and-face motion clip, not only a hand gesture." },
     { "en": "Reaction", "ja": "リアクション", "ko": "리액션", "zh-Hans": "反应", "zh-Hant": "反應" },
     { "en": "Pose", "ja": "ポーズ", "ko": "포즈", "zh-Hans": "姿势", "zh-Hant": "姿勢" },
-    { "en": "Idle Style", "ja": "待機スタイル", "ko": "대기 스타일", "zh-Hans": "待机风格", "zh-Hant": "待機風格" },
+    { "en": "Idle", "ja": "待機", "ko": "대기", "zh-Hans": "待机", "zh-Hant": "待機", "note": "An Anima's built-in pool of quiet-time Gestures: Default plus one cell per emotion and intensity." },
     { "en": "Avatar Effect", "ja": "アバターエフェクト", "ko": "아바타 효과", "zh-Hans": "形象特效", "zh-Hant": "形象特效" },
     { "en": "Particle Effect", "ja": "パーティクルエフェクト", "ko": "파티클 효과", "zh-Hans": "粒子特效", "zh-Hant": "粒子特效" },
     { "en": "Scene Effect", "ja": "シーンエフェクト", "ko": "장면 효과", "zh-Hans": "场景特效", "zh-Hant": "場景特效" },

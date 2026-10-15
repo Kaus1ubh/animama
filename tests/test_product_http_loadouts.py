@@ -15,7 +15,8 @@ from tests.typed_loadout_support import add_typed_item, catalog_source, cleanup_
 FAMILY_INTENTS: dict[str, dict[str, object]] = {
     "gestures": {"operation": "disable_starter", "starter_id": "x"},
     "reactions": {"operation": "leave_empty", "emotion": "amusement", "intensity": 1},
-    "idle-style": {"operation": "leave_empty"},
+    # Removing a Gesture that is not in the Default Idle pool is a valid no-op.
+    "idle": {"operation": "remove", "binding_id": "x"},
     "avatar": {"operation": "remove"},
     "voice": {"operation": "remove"},
     "appearance": {"operation": "remove", "use": "profile"},
@@ -82,7 +83,8 @@ async def test_every_loadout_command_refuses_another_owners_anima(
 ) -> None:
     async with async_session_factory() as session:
         fixture = await create_loadout_fixture(session)
-    ports = DeferredCommitPorts(async_session_factory)
+    # Idle routes read the owner's content store for finite Gesture playback.
+    ports = DeferredCommitPorts(async_session_factory, content_root=tmp_path)
     other = f"owner-b-{uuid4().hex[:8]}"
     composition = TwoOwnerComposition(
         product_app(loadouts.router, ports=ports), tmp_path, owners=(fixture.user_id, other)
@@ -115,7 +117,7 @@ async def test_every_loadout_family_commits_once_through_the_composition(
 ) -> None:
     async with async_session_factory() as session:
         fixture = await create_loadout_fixture(session)
-    ports = DeferredCommitPorts(async_session_factory)
+    ports = DeferredCommitPorts(async_session_factory, content_root=tmp_path)
     composition = TwoOwnerComposition(
         product_app(loadouts.router, ports=ports), tmp_path, owners=(fixture.user_id, f"owner-b-{uuid4().hex[:8]}")
     )

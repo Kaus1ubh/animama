@@ -22,7 +22,6 @@ CONTENT_KINDS = (
     "avatar_effect",
     "scene_effect",
     "sound_effect",
-    "idle_style",
     "music_track",
     "appearance",
     "voice",
@@ -33,7 +32,6 @@ TYPED_LOADOUT_KINDS = (
     "avatar",
     "gesture",
     "reaction",
-    "idle_style",
     "music_track",
     "appearance",
     "voice",
@@ -41,9 +39,11 @@ TYPED_LOADOUT_KINDS = (
 
 _TYPED_SLOT_CHECK = """(
     (kind = 'avatar' AND slot_key = 'avatar') OR
-    (kind = 'gesture' AND slot_key LIKE 'gesture:%' AND char_length(slot_key) > 8) OR
+    (kind = 'gesture' AND (
+        (slot_key LIKE 'gesture:%' AND char_length(slot_key) > 8) OR
+        (slot_key LIKE 'idle:%' AND char_length(slot_key) > 5)
+    )) OR
     (kind = 'reaction' AND slot_key LIKE 'reaction:%' AND char_length(slot_key) > 9) OR
-    (kind = 'idle_style' AND slot_key = 'idle-style') OR
     (kind = 'music_track' AND slot_key LIKE 'music:%' AND char_length(slot_key) > 6) OR
     (kind = 'appearance' AND slot_key IN ('appearance:profile', 'appearance:background')) OR
     (kind = 'voice' AND slot_key = 'voice')

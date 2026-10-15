@@ -53,10 +53,6 @@ Typed creators use stable product routes such as `/particle-effects/new`,
   update/status/motion/order filters survive navigation and reload. Chat
   Uploads also owns upload management and retrieval-debug
   tools.
-- `_app/idle-styles.new.tsx` and `_app/idle-styles.$idleStyleId.edit.tsx`: direct
-  Idle Style authoring. Select existing finite Gestures for Default and separate
-  emotion/intensity cells, with inherit and No idle choices. Preview uses the
-  current saved revision; Save edits Local content or creates an Included copy.
 - `_app/gestures.new.tsx` and `_app/gestures.$gestureId.edit.tsx`: Gesture creation
   and stable-item editing with VRMA or Pose Clip motion.
 - `_app/reactions.new.tsx` and `_app/reactions.$reactionId.edit.tsx`: Reaction

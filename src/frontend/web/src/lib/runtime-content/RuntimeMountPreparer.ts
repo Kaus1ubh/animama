@@ -243,7 +243,17 @@ function readyProjection(
   const next = { ...runtime };
   next.avatar = project(runtime.avatar) as typeof runtime.avatar;
   next.voice = project(runtime.voice) as typeof runtime.voice;
-  next.idle_style = project(runtime.idle_style) as typeof runtime.idle_style;
+  // Each idle Gesture is its own root; one not ready is left out on its own.
+  next.idle = runtime.idle
+    ? {
+        ...runtime.idle,
+        gestures: (runtime.idle.gestures ?? [])
+          .map((value) => project(value))
+          .filter((value) => value !== null) as NonNullable<
+          typeof runtime.idle.gestures
+        >,
+      }
+    : runtime.idle;
   for (const key of [
     "gestures",
     "poses",

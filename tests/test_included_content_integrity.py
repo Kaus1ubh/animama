@@ -7,6 +7,7 @@ from typing import Any
 
 import pytest
 
+from animama.app.services.starter_idle_pool import starter_idle_keys, starter_idle_pool
 from tests.anima_creation_service_support import copy_tracked_included
 
 ROOT = Path(__file__).parents[1]
@@ -267,19 +268,27 @@ def test_stacked_avatar_effects_play_one_accompanying_sound_at_a_time() -> None:
         assert all(later - earlier >= 0.3 for earlier, later in pairwise(audible)), path.name
 
 
-def test_included_idle_gestures_play_no_accompanying_sound() -> None:
-    """Idle Gestures play while the Anima is quiet, so their effects stay silent."""
+def test_starter_idle_gestures_play_no_accompanying_sound() -> None:
+    """Idle Gestures play while the Anima is quiet, so their effects stay silent.
 
-    styles = sorted((ROOT / "content/included/idle-styles").glob("*/*.json"))
-    assert styles
-    for style_path in styles:
-        style = json.loads(style_path.read_text(encoding="utf-8"))
-        for edge in style["dependencies"]:
-            if edge["kind"] != "gesture":
-                continue
-            slug = edge["ref"].removeprefix("builtin:gesture:")
-            clip = json.loads((ROOT / f"content/included/gestures/{slug}/{slug}.json").read_text(encoding="utf-8"))
-            for event in clip.get("events", []):
-                assert event.get("kind") != "sfx", (style_path.name, slug, event.get("id"))
-                if event.get("kind") == "avatar_vfx":
-                    assert event.get("playAccompanyingSound") is False, (style_path.name, slug, event.get("id"))
+    The seed's Mixamo idles are event-free VRMA motion in the separate pack, so
+    only the tracked Included clips carry events to check.
+    """
+
+    seed = starter_idle_pool()
+    keys = set(starter_idle_keys(seed))
+    checked = set()
+    for key in sorted(keys):
+        slug = key.removeprefix("builtin:gesture:")
+        meta_path = ROOT / f"content/included/gestures/{slug}/{slug}.meta.json"
+        if not meta_path.is_file():
+            continue
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        sequence = next(file["path"] for file in meta["files"] if file["role"] == "sequence")
+        clip = json.loads((meta_path.parent / sequence).read_text(encoding="utf-8"))
+        for event in clip.get("events", []):
+            assert event.get("kind") != "sfx", (slug, event.get("id"))
+            if event.get("kind") == "avatar_vfx":
+                assert event.get("playAccompanyingSound") is False, (slug, event.get("id"))
+        checked.add(key)
+    assert set(seed["default"]) <= checked

@@ -463,7 +463,6 @@ def test_shipped_typed_content_uses_supported_portable_primitives() -> None:
             "gesture",
             "reaction",
             "pose",
-            "idle_style",
         }:
             continue
         document = (

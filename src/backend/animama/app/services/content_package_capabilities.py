@@ -35,7 +35,6 @@ from animama.domain.content_documents import (
     AvatarEffectDocumentV1,
     ContentDocumentError,
     GestureDocumentV1,
-    IdleStyleDocumentV2,
     ParticleEffectDocumentV1,
     PoseDocumentV1,
     ReactionDocumentV1,
@@ -748,8 +747,6 @@ def derive_document_capabilities(document: TypedContentDocument) -> tuple[str, .
             not document.files or sum(file.role == role for file in document.files) == 1,
             "Action requires one active animation resource",
         )
-    if document.kind is ContentKind.IDLE_STYLE:
-        _require(isinstance(document, IdleStyleDocumentV2), "Only Gesture-pool Idle Styles are portable")
     _require(
         document.kind not in {ContentKind.MUSIC_TRACK, ContentKind.POSE_CLIP, ContentKind.VOICE, ContentKind.ANIMA},
         "Unsupported package content kind",

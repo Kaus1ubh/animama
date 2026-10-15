@@ -42,7 +42,10 @@ describe("CreateAnimaDraft", () => {
       const draft = readyDraft();
       const { voice, ...spec } = buildAnimaSpec(draft);
       const legacyEvidence = {
-        old_clip: { kind: "pose_clip", revision_sha256: "a".repeat(64) },
+        old_clip: {
+          kind: "pose_clip" as const,
+          revision_sha256: "a".repeat(64),
+        },
       };
       const request = {
         ...spec,
@@ -62,8 +65,10 @@ describe("CreateAnimaDraft", () => {
       expect(() =>
         buildAnimaSpec({
           ...draft,
-          idle_revisions: legacyEvidence,
-        } as typeof draft),
+          evidence: {
+            avatar: { source: ref("avatar"), revisions: legacyEvidence },
+          },
+        }),
       ).toThrow();
     },
   );
@@ -209,11 +214,11 @@ describe("CreateAnimaDraft", () => {
     );
   });
 
-  it("can review and submit without an optional idle style", () => {
-    const draft = { ...readyDraft(), default_idle: null, idle_revisions: {} };
-    expect(draftIssues(draft, 3)).toEqual([]);
+  it("leaves the Idle pool to the server", () => {
+    const draft = readyDraft();
+    expect(draft).not.toHaveProperty("default_idle");
     const spec = buildAnimaSpec(draft);
-    expect(spec.expected_source_revisions).not.toHaveProperty("idle");
+    expect(spec).not.toHaveProperty("idle");
     expect(spec.avatar).toEqual(draft.avatar);
   });
 
@@ -301,7 +306,7 @@ describe("CreateAnimaDraft", () => {
     ]);
   });
 
-  it("freezes only complete selected roots and hidden Idle closure", () => {
+  it("freezes only complete selected roots", () => {
     const draft = readyDraft();
     const extra = {
       ...draft,
@@ -315,7 +320,7 @@ describe("CreateAnimaDraft", () => {
     };
     expect(
       Object.keys(buildAnimaSpec(extra).expected_source_revisions).sort(),
-    ).toEqual(["avatar", "idle", "idle_pose"]);
+    ).toEqual(["avatar"]);
     expect(() =>
       buildAnimaSpec({ ...draft, avatar: ref("avatar", "c") }),
     ).toThrow("exact source validation");

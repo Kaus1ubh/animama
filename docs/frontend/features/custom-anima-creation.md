@@ -67,8 +67,9 @@ selected roots and all supports; it is operation evidence, not an
 active runtime mount. Empty Gesture/all-empty Reaction choices are allowed
 with warnings. Invalid selected content must be repaired or explicitly removed.
 
-New companions start with Idle empty; an Idle Style, such as the Included
-Streamer Idle or a Local one, can be equipped afterward. Advancing Actions to Review resolves every unique selected
+The server seeds each new companion's Idle pool from the Included idle Gestures;
+the creator has no Idle step, and the pool is edited later in the Loadout.
+Advancing Actions to Review resolves every unique selected
 root through one read-only evidence request, then performs the existing
 whole-spec validation. This transition does not request typed previews, fetch
 bytes, or create `content_previews` rows. A stale root or changed support keeps

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  animaDefinitionSha256,
   createLocalCatalogClient,
   localCatalogSnapshot,
 } from "./local-catalog-client.mjs";
@@ -130,6 +131,32 @@ test("catalog snapshots are deterministic and Local-only", () => {
     ["local-1", "local-2"],
   );
   assert.match(snapshot.sha256, /^[0-9a-f]{64}$/);
+});
+
+test("Anima definition digests ignore Idle pool member order only", () => {
+  const anima = (first, second) => ({
+    display_name: "Fixture",
+    gestures: [{ entry_id: "a" }, { entry_id: "b" }],
+    idle: {
+      default: [first, second],
+      cells: { joy: { 2: [second, first] } },
+    },
+  });
+  assert.equal(
+    animaDefinitionSha256(anima("a", "b")),
+    animaDefinitionSha256(anima("b", "a")),
+  );
+  assert.notEqual(
+    animaDefinitionSha256(anima("a", "b")),
+    animaDefinitionSha256({
+      ...anima("a", "b"),
+      gestures: [{ entry_id: "b" }, { entry_id: "a" }],
+    }),
+  );
+  assert.notEqual(
+    animaDefinitionSha256(anima("a", "b")),
+    animaDefinitionSha256(anima("a", "c")),
+  );
 });
 
 test("catalog failures report status without exposing response bodies", async () => {

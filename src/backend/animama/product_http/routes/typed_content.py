@@ -15,7 +15,7 @@ from animama.app.contracts.avatar_face_parts import (
     AvatarFacePartsState,
     AvatarFacePartsUpdate,
 )
-from animama.app.contracts.idle_style import PyIdlePlayback
+from animama.app.contracts.idle import PyIdlePlayback
 from animama.app.contracts.typed_content import (
     PyAppearance,
     PyAppearancePage,
@@ -31,8 +31,6 @@ from animama.app.contracts.typed_content import (
     PyContentPreviewsPrepareResponse,
     PyGesture,
     PyGesturePage,
-    PyIdleStyle,
-    PyIdleStylePage,
     PyParticleEffect,
     PyParticleEffectPage,
     PyPose,
@@ -469,13 +467,6 @@ _install_family_routes(
     kind=ContentKind.SOUND_EFFECT,
     item_model=PySoundEffect,
     page_model=PySoundEffectPage,
-)
-_install_family_routes(
-    path="/v1/idle-styles",
-    singular="idle_style",
-    kind=ContentKind.IDLE_STYLE,
-    item_model=PyIdleStyle,
-    page_model=PyIdleStylePage,
 )
 _install_family_routes(
     path="/v1/music-tracks",

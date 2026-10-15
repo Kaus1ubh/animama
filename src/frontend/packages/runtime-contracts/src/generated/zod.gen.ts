@@ -628,35 +628,6 @@ export const zBodySaveGesture = z.object({
 });
 
 /**
- * Body_save_idle_style
- */
-export const zBodySaveIdleStyle = z.object({
-    catalog_item_id: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    companion_paths_json: z.optional(z.string()).default('[]'),
-    creation_context: z.optional(z.boolean()).default(false),
-    descriptor_json: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    expected_revision: z.optional(z.union([
-        z.string().regex(/^[0-9a-f]{64}$/),
-        z.null()
-    ])),
-    files: z.optional(z.union([
-        z.array(z.string()),
-        z.null()
-    ])),
-    metadata_json: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    operation_id: z.string().min(1).max(128)
-});
-
-/**
  * Body_save_particle_effect
  */
 export const zBodySaveParticleEffect = z.object({
@@ -857,7 +828,6 @@ export const zContentKind = z.enum([
     'avatar_effect',
     'scene_effect',
     'sound_effect',
-    'idle_style',
     'music_track',
     'appearance',
     'voice',
@@ -1149,7 +1119,6 @@ export const zImportedPackageItem = z.object({
         'avatar',
         'avatar_effect',
         'gesture',
-        'idle_style',
         'particle_effect',
         'pose',
         'reaction',
@@ -1324,7 +1293,6 @@ export const zPackageDependency = z.object({
         'avatar',
         'avatar_effect',
         'gesture',
-        'idle_style',
         'particle_effect',
         'pose',
         'reaction',
@@ -1464,7 +1432,6 @@ export const zPackageEntry = z.object({
         'avatar',
         'avatar_effect',
         'gesture',
-        'idle_style',
         'particle_effect',
         'pose',
         'reaction',
@@ -1484,23 +1451,16 @@ export const zPackageEntry = z.object({
 /**
  * PackageNonPortableUse
  *
- * One place an omitted non-portable item was used, so import can rebind it.
+ * One place an omitted non-portable Gesture was used, so import can rebind it.
  *
- * Exactly one target: an Anima slot (``gesture`` with its selector and
- * binding config, or ``idle_style``) or a packaged Idle Style entry and the
- * pools (``default`` or ``<emotion>.<1|2|3>``) it was removed from.
+ * ``gesture`` is an AI-callable binding with its selector and config.
+ * ``idle`` lists the Idle pools (``default`` or ``<emotion>.<1|2|3>``) it was
+ * removed from.
  */
 export const zPackageNonPortableUse = z.object({
-    anima_slot: z.optional(z.union([
-        z.enum(['gesture', 'idle_style']),
-        z.null()
-    ])),
+    anima_slot: z.enum(['gesture', 'idle']),
     config: z.optional(z.record(z.string(), z.unknown())),
-    entry_id: z.optional(z.union([
-        z.string().min(1).max(128).regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/),
-        z.null()
-    ])),
-    pools: z.optional(z.array(z.string().min(1).max(64)).max(64)),
+    pools: z.optional(z.array(z.string().min(1).max(64)).max(73)),
     semantic_key: z.optional(z.union([
         z.string().regex(/^[a-z0-9][a-z0-9._-]{0,127}$/),
         z.null()
@@ -1519,7 +1479,6 @@ export const zPackageNonPortableReference = z.object({
         'avatar',
         'avatar_effect',
         'gesture',
-        'idle_style',
         'particle_effect',
         'pose',
         'reaction',
@@ -1621,6 +1580,21 @@ export const zPortableGestureSelection = z.object({
 });
 
 /**
+ * PortableIdlePool
+ *
+ * The Anima's Idle pool as Gesture entry ids.
+ *
+ * An emotion/intensity cell absent from ``cells`` holds no Gestures of its
+ * own; playback still mixes in ``default`` and the emotion's lower
+ * intensities. Lists are unique and present cells are non-empty, so each pool
+ * has one encoding.
+ */
+export const zPortableIdlePool = z.object({
+    cells: z.record(z.string(), z.record(z.string(), z.array(z.string().min(1).max(128).regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/)).max(500))),
+    default: z.array(z.string().min(1).max(128).regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/)).max(500)
+});
+
+/**
  * PortableAnima
  *
  * Every equipment choice is explicit; only reviewed identity text is copied.
@@ -1631,10 +1605,7 @@ export const zPortableAnima = z.object({
     display_name: z.string().min(1).max(40),
     gestures: z.array(zPortableGestureSelection).max(500),
     identity_markdown: z.string(),
-    idle_style: z.union([
-        z.string().min(1).max(128).regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/),
-        z.null()
-    ]),
+    idle: zPortableIdlePool,
     pocket_voice: z.optional(z.union([
         z.string().min(1).max(128).regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/),
         z.null()
@@ -2436,7 +2407,6 @@ export const zPyContentEvidenceRootRequest = z.object({
         'appearance',
         'gesture',
         'reaction',
-        'idle_style',
         'pose',
         'particle_effect',
         'avatar_effect',
@@ -2478,7 +2448,6 @@ export const zPyContentPreviewRootRequest = z.object({
         'appearance',
         'gesture',
         'reaction',
-        'idle_style',
         'pose',
         'particle_effect',
         'avatar_effect',
@@ -2972,59 +2941,100 @@ export const zPyGesturePlanRequest = z.object({
 });
 
 /**
- * PyIdleAnimation
+ * PyIdleIntent
+ *
+ * Add a Gesture to one cell of the Anima's Idle pool, or remove one member.
+ *
+ * ``add`` takes the Gesture ``source`` and the cell; omit ``emotion`` and
+ * ``intensity`` for the Default pool. ``remove`` takes the member's
+ * ``binding_id``, so an unavailable member can be removed too. The pool itself
+ * always exists; no operation removes or replaces it as a whole.
  */
-export const zPyIdleAnimation = z.object({
-    animation_id: z.string(),
-    dependency_ref: z.optional(z.union([
-        z.string(),
+export const zPyIdleIntent = z.object({
+    binding_id: z.optional(z.union([
+        z.string().min(1).max(128),
         z.null()
     ])),
-    description: z.optional(z.union([
-        z.string(),
+    emotion: z.optional(z.union([
+        z.string().min(1).max(64),
         z.null()
     ])),
-    file_ref: z.optional(z.union([
-        z.string(),
+    intensity: z.optional(z.union([
+        z.union([
+            z.literal(1),
+            z.literal(2),
+            z.literal(3)
+        ]),
         z.null()
     ])),
-    name: z.string(),
-    playback: z.optional(z.record(z.string(), z.unknown()))
+    operation: z.enum(['add', 'remove']),
+    source: z.optional(z.union([
+        zPyCatalogLoadoutSource,
+        z.null()
+    ]))
 });
 
 /**
- * PyIdleAnimationSummary
+ * PyIdleCommitRequest
  */
-export const zPyIdleAnimationSummary = z.object({
-    animation_id: z.string(),
-    description: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    name: z.string()
+export const zPyIdleCommitRequest = z.object({
+    expected_revision: z.int().gte(1),
+    idempotency_key: z.string().min(1).max(128),
+    intent: zPyIdleIntent,
+    plan_digest: z.string().regex(/^[0-9a-f]{64}$/)
 });
 
 /**
- * PyIdleGestureSummary
+ * PyIdleMember
+ *
+ * One Gesture in the Idle pool; ``available`` is false when its catalog item is missing or invalid.
  */
-export const zPyIdleGestureSummary = z.object({
+export const zPyIdleMember = z.object({
+    available: z.boolean(),
+    binding_id: z.string(),
     description: z.optional(z.union([
         z.string(),
         z.null()
     ])),
     item_id: z.string(),
-    logical_key: z.optional(z.union([
-        z.string(),
+    name: z.string(),
+    source: z.optional(z.union([
+        zPyCatalogLoadoutSource,
         z.null()
-    ])),
-    name: z.string()
+    ]))
 });
 
 /**
- * PyIdleNoneCell
+ * PyIdleCell
+ *
+ * One emotion/intensity cell; higher intensities also play it, and Default is always mixed in.
  */
-export const zPyIdleNoneCell = z.object({
-    mode: z.optional(z.literal('none')).default('none')
+export const zPyIdleCell = z.object({
+    emotion: z.string(),
+    gestures: z.optional(z.array(zPyIdleMember)),
+    intensity: z.union([
+        z.literal(1),
+        z.literal(2),
+        z.literal(3)
+    ])
+});
+
+/**
+ * PyAnimaIdle
+ *
+ * The Anima's built-in Idle pool: Default plus all 72 emotion/intensity cells.
+ */
+export const zPyAnimaIdle = z.object({
+    cells: z.optional(z.array(zPyIdleCell)),
+    default_pool: z.optional(z.array(zPyIdleMember))
+});
+
+/**
+ * PyIdlePlanRequest
+ */
+export const zPyIdlePlanRequest = z.object({
+    expected_revision: z.int().gte(1),
+    intent: zPyIdleIntent
 });
 
 /**
@@ -3062,90 +3072,6 @@ export const zPyIdlePlayback = z.object({
         z.number().gt(0),
         z.null()
     ]))
-});
-
-/**
- * PyIdlePoolCell
- */
-export const zPyIdlePoolCell = z.object({
-    gestures: z.array(z.string()).min(1),
-    mode: z.optional(z.literal('pool')).default('pool')
-});
-
-/**
- * PyAnimaIdleStyle
- */
-export const zPyAnimaIdleStyle = z.object({
-    animations: z.optional(z.array(zPyIdleAnimationSummary)),
-    cells: z.optional(z.record(z.string(), z.record(z.string(), z.union([
-        z.object({
-            mode: z.literal('none')
-        }).and(zPyIdleNoneCell),
-        z.object({
-            mode: z.literal('pool')
-        }).and(zPyIdlePoolCell)
-    ])))),
-    cross_fade_seconds: z.optional(z.number()).default(0.35),
-    default_pool: z.optional(z.array(z.string())),
-    description: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    document_default_pool: z.optional(z.array(z.string())),
-    document_emotion_pools: z.optional(z.record(z.string(), z.array(z.string()))),
-    effective_default_pool: z.optional(z.array(z.string())),
-    effective_emotion_pools: z.optional(z.record(z.string(), z.array(z.string()))),
-    gestures: z.optional(z.array(zPyIdleGestureSummary)),
-    name: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    pool_overrides: z.optional(z.record(z.string(), z.array(z.string()))),
-    schema_version: z.optional(z.union([z.literal(1), z.literal(2)])),
-    source: z.optional(z.union([
-        zPyCatalogLoadoutSource,
-        z.null()
-    ])),
-    state: z.enum([
-        'starter',
-        'custom',
-        'empty'
-    ])
-});
-
-/**
- * PyIdleStyleIntent
- */
-export const zPyIdleStyleIntent = z.object({
-    operation: z.enum([
-        'set',
-        'update',
-        'reconfigure',
-        'revert',
-        'leave_empty'
-    ]),
-    source: z.optional(z.union([
-        zPyCatalogLoadoutSource,
-        z.null()
-    ]))
-});
-
-/**
- * PyIdleStyleCommitRequest
- */
-export const zPyIdleStyleCommitRequest = z.object({
-    expected_revision: z.int().gte(1),
-    idempotency_key: z.string().min(1).max(128),
-    intent: zPyIdleStyleIntent,
-    plan_digest: z.string().regex(/^[0-9a-f]{64}$/)
-});
-
-/**
- * PyIdleStylePlanRequest
- */
-export const zPyIdleStylePlanRequest = z.object({
-    expected_revision: z.int().gte(1),
-    intent: zPyIdleStyleIntent
 });
 
 /**
@@ -4589,7 +4515,6 @@ export const zPyPreparedPreviewRoot = z.object({
         'appearance',
         'gesture',
         'reaction',
-        'idle_style',
         'pose',
         'particle_effect',
         'avatar_effect',
@@ -4654,7 +4579,7 @@ export const zPyAnimaLoadout = z.object({
     ])),
     disabled_starter_gestures: z.array(z.string()),
     gestures: z.array(zPyGestureBinding),
-    idle_style: zPyAnimaIdleStyle,
+    idle: zPyAnimaIdle,
     reactions: z.array(zPyReactionCell),
     revision: z.int().gte(1),
     starter_gesture_implementation_kinds: z.optional(z.record(z.string(), z.enum(['anima_clip', 'vrma']))),
@@ -4910,20 +4835,6 @@ export const zPyRuntimeAvatar = z.object({
 });
 
 /**
- * PyRuntimeIdleAnimation
- */
-export const zPyRuntimeIdleAnimation = z.object({
-    animation_id: z.string(),
-    description: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    files: z.optional(z.array(zPyRuntimeFile)),
-    name: z.string(),
-    playback: z.optional(z.record(z.string(), z.unknown()))
-});
-
-/**
  * PyRuntimeIdleGesture
  *
  * A complete Action admitted for idle use, never an AI-selectable Gesture.
@@ -4962,34 +4873,19 @@ export const zPyRuntimeIdleGesture = z.object({
 });
 
 /**
- * PyRuntimeIdleStyle
+ * PyRuntimeIdle
+ *
+ * The Anima's Idle pool as admitted for this mount.
+ *
+ * Pools list Gesture catalog item ids from ``gestures``. Players pick from
+ * ``default_pool`` half the time and, the other half, from the dominant
+ * emotion's cells up to its intensity. A cell absent from ``cells`` adds
+ * nothing; members that could not be admitted are left out.
  */
-export const zPyRuntimeIdleStyle = z.object({
-    animations: z.optional(z.array(zPyRuntimeIdleAnimation)),
-    cells: z.optional(z.record(z.string(), z.record(z.string(), z.union([
-        z.object({
-            mode: z.literal('none')
-        }).and(zPyIdleNoneCell),
-        z.object({
-            mode: z.literal('pool')
-        }).and(zPyIdlePoolCell)
-    ])))),
-    cross_fade_seconds: z.optional(z.number()).default(0.35),
-    default_pool: z.array(z.string()),
-    description: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    emotion_pools: z.optional(z.record(z.string(), z.array(z.string()))),
-    gestures: z.optional(z.array(zPyRuntimeIdleGesture)),
-    name: z.string(),
-    revision: z.string(),
-    runtime_root_id: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    schema_version: z.optional(z.union([z.literal(1), z.literal(2)])),
-    source: zPyRuntimeCatalogItemSource
+export const zPyRuntimeIdle = z.object({
+    cells: z.optional(z.record(z.string(), z.record(z.string(), z.array(z.string())))),
+    default_pool: z.optional(z.array(z.string())),
+    gestures: z.optional(z.array(zPyRuntimeIdleGesture))
 });
 
 /**
@@ -5279,7 +5175,6 @@ export const zPyTypedDependency = z.object({
         'avatar_effect',
         'scene_effect',
         'sound_effect',
-        'idle_style',
         'appearance',
         'voice'
     ]),
@@ -5396,50 +5291,6 @@ export const zPyGesture = z.object({
  */
 export const zPyGesturePage = z.object({
     items: z.array(zPyGesture)
-});
-
-/**
- * PyIdleStyle
- */
-export const zPyIdleStyle = z.object({
-    animations: z.optional(z.array(zPyIdleAnimation)),
-    cells: z.optional(z.record(z.string(), z.record(z.string(), z.union([
-        z.object({
-            mode: z.literal('none')
-        }).and(zPyIdleNoneCell),
-        z.object({
-            mode: z.literal('pool')
-        }).and(zPyIdlePoolCell)
-    ])))),
-    compatibility: z.optional(z.record(z.string(), z.unknown())),
-    cross_fade_seconds: z.optional(z.number().gte(0).lte(10)).default(0.35),
-    default_pool: z.array(z.string()),
-    dependencies: z.optional(z.array(zPyTypedDependency)),
-    description: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    editable: z.boolean(),
-    emotion_pools: z.optional(z.record(z.string(), z.array(z.string()))),
-    files: z.optional(z.array(zPyTypedContentFile)),
-    item_id: z.string(),
-    kind: z.optional(z.literal('idle_style')).default('idle_style'),
-    logical_key: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    name: z.string(),
-    portability: z.optional(z.enum(['portable', 'non-portable'])),
-    revision_sha256: z.string().regex(/^[0-9a-f]{64}$/),
-    schema_version: z.optional(z.union([z.literal(1), z.literal(2)])),
-    source: z.enum(['included', 'local'])
-});
-
-/**
- * PyIdleStylePage
- */
-export const zPyIdleStylePage = z.object({
-    items: z.array(zPyIdleStyle)
 });
 
 /**
@@ -6227,7 +6078,6 @@ export const zReviewedImportItem = z.object({
         'avatar',
         'avatar_effect',
         'gesture',
-        'idle_style',
         'particle_effect',
         'pose',
         'reaction',
@@ -6245,8 +6095,9 @@ export const zReviewedImportItem = z.object({
  *
  * A non-portable item the sender omitted, and what this installation does with it.
  *
- * ``rebound`` uses this installation's own matching item; ``unavailable`` falls
- * back (no Gesture, the Default pool without it, or no Idle Style).
+ * ``rebound`` uses this installation's own matching item; ``unavailable`` leaves
+ * it out (the Gesture is not equipped, and its Idle cells keep their other
+ * Gestures).
  */
 export const zReviewedNonPortableItem = z.object({
     kind: z.enum([
@@ -6254,7 +6105,6 @@ export const zReviewedNonPortableItem = z.object({
         'avatar',
         'avatar_effect',
         'gesture',
-        'idle_style',
         'particle_effect',
         'pose',
         'reaction',
@@ -6338,7 +6188,6 @@ export const zSourceRevision = z.object({
         'appearance',
         'gesture',
         'reaction',
-        'idle_style',
         'pose',
         'particle_effect',
         'avatar_effect',
@@ -6346,17 +6195,6 @@ export const zSourceRevision = z.object({
         'sound_effect'
     ]),
     revision_sha256: z.string().regex(/^[0-9a-f]{64}$/)
-});
-
-/**
- * AnimaCreationDefaultIdle
- */
-export const zAnimaCreationDefaultIdle = z.object({
-    expected_source_revisions: z.record(z.string(), zSourceRevision),
-    source: z.union([
-        zItemRevisionRef,
-        z.null()
-    ])
 });
 
 /**
@@ -6370,7 +6208,6 @@ export const zPyContentEvidenceRoot = z.object({
         'appearance',
         'gesture',
         'reaction',
-        'idle_style',
         'pose',
         'particle_effect',
         'avatar_effect',
@@ -6406,7 +6243,6 @@ export const zStarterPackIdentity = z.object({
  */
 export const zAnimaCreationOptions = z.object({
     counts: zAnimaCreationCounts,
-    default_idle: zAnimaCreationDefaultIdle,
     diagnostics: z.array(zAnimaCreationDiagnostic),
     expected_source_revisions: z.record(z.string(), zSourceRevision),
     limits: zAnimaCreationLimits,
@@ -6656,9 +6492,6 @@ export const zPyContentPreviewsPrepareResponse = z.object({
             kind: z.literal('sound_effect')
         }).and(zPySoundEffect),
         z.object({
-            kind: z.literal('idle_style')
-        }).and(zPyIdleStyle),
-        z.object({
             kind: z.literal('avatar')
         }).and(zPyAvatarContent),
         z.object({
@@ -6723,10 +6556,7 @@ export const zPyAnimaRuntime = z.object({
     content_descriptor: zPyRuntimeContentDescriptor,
     effective_revision: z.string(),
     gestures: z.optional(z.array(zPyRuntimeAction)),
-    idle_style: z.optional(z.union([
-        zPyRuntimeIdleStyle,
-        z.null()
-    ])),
+    idle: z.optional(zPyRuntimeIdle),
     json_bundle: z.optional(z.union([
         zPyRuntimeJsonBundle,
         z.null()
@@ -6776,9 +6606,6 @@ export const zPyTypedContentPreview = z.object({
             kind: z.literal('sound_effect')
         }).and(zPySoundEffect),
         z.object({
-            kind: z.literal('idle_style')
-        }).and(zPyIdleStyle),
-        z.object({
             kind: z.literal('avatar')
         }).and(zPyAvatarContent),
         z.object({
@@ -6812,9 +6639,6 @@ export const zPyTypedContentPreview = z.object({
         z.object({
             kind: z.literal('sound_effect')
         }).and(zPySoundEffect),
-        z.object({
-            kind: z.literal('idle_style')
-        }).and(zPyIdleStyle),
         z.object({
             kind: z.literal('avatar')
         }).and(zPyAvatarContent),
@@ -7269,8 +7093,8 @@ export const zPlanGestureV1AnimasAnimaIdGesturesPlanPostData = z.object({
  */
 export const zPlanGestureV1AnimasAnimaIdGesturesPlanPostResponse = zPyLoadoutPlan;
 
-export const zCommitIdleStyleV1AnimasAnimaIdIdleStyleCommitPostData = z.object({
-    body: zPyIdleStyleCommitRequest,
+export const zCommitIdleV1AnimasAnimaIdIdleCommitPostData = z.object({
+    body: zPyIdleCommitRequest,
     path: z.object({
         anima_id: z.string()
     }),
@@ -7280,10 +7104,10 @@ export const zCommitIdleStyleV1AnimasAnimaIdIdleStyleCommitPostData = z.object({
 /**
  * Successful Response
  */
-export const zCommitIdleStyleV1AnimasAnimaIdIdleStyleCommitPostResponse = zPyLoadoutCommitResult;
+export const zCommitIdleV1AnimasAnimaIdIdleCommitPostResponse = zPyLoadoutCommitResult;
 
-export const zPlanIdleStyleV1AnimasAnimaIdIdleStylePlanPostData = z.object({
-    body: zPyIdleStylePlanRequest,
+export const zPlanIdleV1AnimasAnimaIdIdlePlanPostData = z.object({
+    body: zPyIdlePlanRequest,
     path: z.object({
         anima_id: z.string()
     }),
@@ -7293,7 +7117,7 @@ export const zPlanIdleStyleV1AnimasAnimaIdIdleStylePlanPostData = z.object({
 /**
  * Successful Response
  */
-export const zPlanIdleStyleV1AnimasAnimaIdIdleStylePlanPostResponse = zPyLoadoutPlan;
+export const zPlanIdleV1AnimasAnimaIdIdlePlanPostResponse = zPyLoadoutPlan;
 
 export const zGetAnimaLoadoutV1AnimasAnimaIdLoadoutGetData = z.object({
     body: z.optional(z.never()),
@@ -8351,56 +8175,6 @@ export const zPreviewGestureData = z.object({
  * Successful Response
  */
 export const zPreviewGestureResponse = zPyTypedContentPreview;
-
-export const zListIdleStylesData = z.object({
-    body: z.optional(z.never()),
-    path: z.optional(z.never()),
-    query: z.optional(z.never())
-});
-
-/**
- * Successful Response
- */
-export const zListIdleStylesResponse = zPyIdleStylePage;
-
-export const zSaveIdleStyleData = z.object({
-    body: zBodySaveIdleStyle,
-    path: z.object({
-        entry_name: z.string()
-    }),
-    query: z.optional(z.never())
-});
-
-/**
- * Successful Response
- */
-export const zSaveIdleStyleResponse = zPyIdleStyle;
-
-export const zGetIdleStyleData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        item_id: z.string()
-    }),
-    query: z.optional(z.never())
-});
-
-/**
- * Successful Response
- */
-export const zGetIdleStyleResponse = zPyIdleStyle;
-
-export const zPreviewIdleStyleData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        item_id: z.string()
-    }),
-    query: z.optional(z.never())
-});
-
-/**
- * Successful Response
- */
-export const zPreviewIdleStyleResponse = zPyTypedContentPreview;
 
 export const zListAnimaIdentitiesV1MemoryAnimaIdentitiesGetData = z.object({
     body: z.optional(z.never()),

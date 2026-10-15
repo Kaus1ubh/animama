@@ -93,8 +93,11 @@ export type AnimaRuntimeCatalogSnapshot = {
   app_catalog_version: number;
   avatar_model: RuntimeCatalogEntry | null;
   idle_animations: RuntimeCatalogEntry[];
-  /** Missing cells inherit Default; an explicit empty cell suppresses idle motion. */
-  idle_style_pools?: {
+  /**
+   * The Anima's Idle pool by runtime id. An emotion's cells add up from Mild to
+   * its current intensity, and Default always takes half of the selection.
+   */
+  idle_pools?: {
     default: string[];
     cells: Record<string, Record<string, string[]>>;
   };

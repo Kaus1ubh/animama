@@ -6,7 +6,7 @@ import type {
 import type {
   PyActionPreview,
   PyContentPreviewFile,
-  PyIdleStylePreview,
+  PyIdlePreview,
 } from "@/lib/content/catalogTypes";
 import { typedLogicalResourceFiles } from "@/lib/content/typedLogicalResources";
 import { WordedError } from "@/lib/errors/apiError";
@@ -66,18 +66,6 @@ function missingReferences(
         ? [[dependency.alias, dependency.ref]]
         : [],
     ),
-  );
-}
-
-function exactDependencyTarget(
-  preview: PyTypedContentPreview,
-  dependency: PyTypedDependency | undefined,
-): PreviewItem | undefined {
-  if (!dependency) return undefined;
-  return [preview.item, ...(preview.supports ?? [])].find((item) =>
-    dependency.item_id
-      ? item.item_id === dependency.item_id
-      : item.logical_key === dependency.ref,
   );
 }
 
@@ -295,10 +283,15 @@ export function typedActionPreview(
   } as PyActionPreview;
 }
 
-function idleGesturePreview(
+/** Preview one Gesture for idle use with its exact finite playback facts. */
+export function typedIdleGesturePreview(
   preview: PyTypedContentPreview,
-  selectedRef: string,
-): PyIdleStylePreview {
+): PyIdlePreview {
+  const t = getI18n().getFixedT(null, "library");
+  const gesture = preview.item;
+  const selectedRef = gesture.kind === "gesture" ? gesture.logical_key : null;
+  if (!selectedRef)
+    throw new WordedError(t("content.preview.idleGestureUnavailable"));
   return {
     ...typedActionPreview(preview),
     idle_playback: preview.idle_playback?.[selectedRef] ?? {
@@ -306,49 +299,6 @@ function idleGesturePreview(
       reason: "idle_playback_unavailable",
     },
     selected_gesture_ref: selectedRef,
-    selected_gesture_name: preview.item.name,
+    selected_gesture_name: gesture.name,
   };
-}
-
-/** Preview a Style member or draft candidate with its exact finite Gesture facts. */
-export function typedIdleStylePreview(
-  preview: PyTypedContentPreview,
-  gestureRef?: string,
-): PyIdleStylePreview {
-  const t = getI18n().getFixedT(null, "library");
-  const style = preview.item;
-  if (style.kind === "gesture") {
-    const selectedRef = style.logical_key;
-    if (!selectedRef || (gestureRef && gestureRef !== selectedRef))
-      throw new WordedError(t("content.preview.idleGestureUnavailable"));
-    return idleGesturePreview(preview, selectedRef);
-  }
-  if (style.kind !== "idle_style")
-    throw new WordedError(t("content.preview.notIdleStyle"));
-  const selectedRef = gestureRef ?? style.default_pool[0];
-  if (!selectedRef) throw new WordedError(t("content.preview.noIdleGesture"));
-  const selectedDependency = (style.dependencies ?? []).find(
-    (dependency) =>
-      dependency.kind === "gesture" && dependency.ref === selectedRef,
-  );
-  const gesture = exactDependencyTarget(preview, selectedDependency);
-  if (!gesture || gesture.kind !== "gesture")
-    throw new WordedError(t("content.preview.idleGestureUnavailable"));
-  const supports: PreviewItem[] = [];
-  const seen = new Set([gesture.item_id]);
-  const pending = [...(gesture.dependencies ?? [])];
-  while (pending.length) {
-    const dependency = pending.shift()!;
-    const support = exactDependencyTarget(preview, dependency);
-    if (!support)
-      throw new WordedError(t("content.preview.idleDependencyUnavailable"));
-    if (seen.has(support.item_id)) continue;
-    seen.add(support.item_id);
-    supports.push(support);
-    pending.push(...(support.dependencies ?? []));
-  }
-  return idleGesturePreview(
-    { ...preview, item: gesture, supports },
-    selectedRef,
-  );
 }

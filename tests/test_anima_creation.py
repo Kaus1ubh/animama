@@ -78,6 +78,11 @@ async def test_direct_creation_is_exact_atomic_and_has_no_runtime_or_provider(as
         assert [gesture.semantic_key for gesture in loadout.gestures] == ["wave"]
         nonempty = [(cell.emotion, cell.intensity) for cell in loadout.reactions if cell.source is not None]
         assert sorted(nonempty) == [("joy", 1), ("sadness", 3)]
+        # Creation seeds the starter Idle pool; an Idle member is never an AI-callable Gesture.
+        idle = fixture.items["idle"]
+        assert [member.item_id for member in loadout.idle.default_pool] == [idle.id]
+        assert all(not cell.gestures for cell in loadout.idle.cells)
+        assert idle.id not in {gesture.source.catalog_item_id for gesture in loadout.gestures}
         assert result["aggregate_revision"] == result["identity_version"] == result["loadout_revision"] == 1
 
 
@@ -288,7 +293,6 @@ async def test_http_schema_ownership_options_preview_and_replay(async_session, t
             assert options.status_code == 200, options.text
             assert options.json()["limits"]["display_name_max_characters"] == 40
             assert options.json()["counts"]["recommended_reaction_cells"] == 72
-            assert options.json()["default_idle"] == {"source": None, "expected_source_revisions": {}}
             preview = await client.post(f"/v1/avatar-content/{fixture.items['local-avatar'].id}:preview")
             assert preview.status_code == 200, preview.text
             assert set(preview.json()["expected_source_revisions"]) == {fixture.items["local-avatar"].id}

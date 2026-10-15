@@ -8,7 +8,6 @@ describe("typed Library inventory", () => {
     "gestures",
     "reactions",
     "poses",
-    "idle-styles",
     "particle",
     "avatar-effects",
     "scene",
@@ -24,21 +23,27 @@ describe("typed Library inventory", () => {
       contentInventoryGroups(
         normalizeContentLibrarySearch({ section: "actions" }),
       ),
-    ).toEqual(["gestures", "reactions", "poses", "idle-styles"]);
+    ).toEqual(["gestures", "reactions", "poses"]);
     expect(
       contentInventoryGroups(
         normalizeContentLibrarySearch({ section: "actions", action: "poses" }),
       ),
     ).toEqual(["poses"]);
   });
-  it("keeps Idle Styles searchable as their own Actions family", () => {
-    const search = normalizeContentLibrarySearch({
+  it("drops the retired Idle Styles filter from old Library URLs", () => {
+    const actions = normalizeContentLibrarySearch({
       section: "actions",
       action: "idle-styles",
-      query: "calm",
     });
-    expect(search.action).toBe("idle-styles");
-    expect(contentInventoryGroups(search)).toEqual(["idle-styles"]);
+    expect(actions.action).toBe("all");
+    expect(contentInventoryGroups(actions)).toEqual([
+      "gestures",
+      "reactions",
+      "poses",
+    ]);
+    expect(normalizeContentLibrarySearch({ type: "idle-styles" }).type).toBe(
+      "all",
+    );
   });
   it("groups real product types without a generic row", () => {
     expect(
@@ -48,7 +53,6 @@ describe("typed Library inventory", () => {
       "gestures",
       "reactions",
       "poses",
-      "idle-styles",
       "particle",
       "avatar-effects",
       "scene",

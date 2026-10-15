@@ -86,15 +86,6 @@ async def creation_fixture(session: AsyncSession) -> CreationFixture:
         return result
 
     avatar = await item("avatar", {"model_role": "model", "compatibility": {}})
-    idle = await item(
-        "idle_style",
-        {
-            "schema_version": 2,
-            "default_pool": [],
-            "cells": {},
-        },
-        "builtin:idle-style:starter",
-    )
     profile = await item("appearance", {"width": 256, "height": 256})
     background = await item("appearance", {"width": 1024, "height": 512})
     await session.commit()
@@ -106,7 +97,6 @@ async def creation_fixture(session: AsyncSession) -> CreationFixture:
             display_name="  My  Companion  ",
             identity="# My identity\r\n\r\nKeep two spaces.  \r\n",
             avatar=avatar,
-            idle_style=idle,
             reactions=tuple(
                 ResolvedReactionSelection(emotion, intensity, None)
                 for emotion in sorted(TRACKED_EMOTIONS)

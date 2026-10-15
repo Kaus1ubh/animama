@@ -39,8 +39,6 @@ from animama.domain.content_catalog import (
 )
 from animama.domain.content_documents import (
     GestureDocumentV1,
-    IdleStyleDocumentV1,
-    IdleStyleDocumentV2,
     ReactionDocumentV1,
     VoiceDocumentV1,
 )
@@ -57,6 +55,7 @@ from .content_image import (
 )
 from .runtime_budget_policy import MAX_RUNTIME_BYTES, MAX_RUNTIME_CONFIG_BYTES, MAX_RUNTIME_ENTRIES
 from .runtime_content_closure import RuntimeContentClosureCompiler
+from .starter_idle_pool import resolve_starter_idle_pool
 from .starter_loadout_policy import starter_loadout_policy, starter_pack_identity
 from .typed_content_service import TypedCatalogItem, TypedContentAdmissionError, TypedContentService
 
@@ -173,10 +172,6 @@ class AnimaCreationSources:
                 "available_reaction_cells": sum(
                     value is not None for cells in reactions.values() for value in cells.values()
                 ),
-            },
-            "default_idle": {
-                "source": None,
-                "expected_source_revisions": {},
             },
             "expected_source_revisions": revisions,
             "diagnostics": bounded_issues(diagnostics),
@@ -374,32 +369,10 @@ class AnimaCreationSources:
                     for issue in descriptor.diagnostics
                 ],
             )
-        avatar_version: str | None = None
         for item_id, typed in typed_items.items():
             self._validate_playable_files(typed, typed_items, origins[item_id])
             if typed.item.kind in {ContentKind.AVATAR, ContentKind.APPEARANCE}:
-                facts = await self._validate_media(typed.item, origins[item_id])
-                if typed.item.kind is ContentKind.AVATAR:
-                    avatar_version = facts["vrm_spec"]
-        for typed in typed_items.values():
-            if isinstance(typed.document, IdleStyleDocumentV1 | IdleStyleDocumentV2):
-                versions = typed.document.compatibility.get("vrm_versions", ["0.x", "1.0"])
-                if (
-                    not isinstance(versions, list)
-                    or ("0.x" if avatar_version == "0.0" else avatar_version) not in versions
-                ):
-                    path, action = origins[typed.item.id]
-                    raise AnimaCreationError(
-                        issues=[
-                            AnimaCreationIssue(
-                                "avatar_incompatible",
-                                "The selected source does not support this Avatar version.",
-                                path,
-                                typed.item.id,
-                                action,
-                            )
-                        ]
-                    )
+                await self._validate_media(typed.item, origins[item_id])
 
         def appearance(slot: str) -> ResolvedAppearanceSelection | None:
             choice = getattr(spec.appearance, slot)
@@ -431,7 +404,7 @@ class AnimaCreationSources:
                 display_name=spec.display_name,
                 identity=spec.identity_markdown,
                 avatar=typed_items[spec.avatar.item_id].item,
-                idle_style=None,
+                idle=await resolve_starter_idle_pool(visible=visible, store=self.store),
                 gestures=tuple(
                     ResolvedGestureSelection(typed_items[choice.source.item_id].item) for choice in spec.gestures
                 ),
@@ -505,17 +478,6 @@ class AnimaCreationSources:
                 ]
             valid = bool(files) and (
                 implementation.file_role is None or any(file.role == implementation.file_role for file in files)
-            )
-        elif isinstance(document, IdleStyleDocumentV1):
-            root = PurePosixPath(typed.item.relative_locator)
-            paths = {file.relative_path for file in files}
-            valid = bool(document.default_pool) and all(
-                (
-                    str(root / animation.file_ref) in paths
-                    if animation.file_ref
-                    else bool(animation.dependency_ref) or index < len(files)
-                )
-                for index, animation in enumerate(document.animations)
             )
         if not valid:
             raise AnimaCreationError(

@@ -1424,13 +1424,6 @@
       "redistribution_review": "pending"
     },
     {
-      "glob": "idle-styles/streamer-idle/*.json",
-      "creator": "Animama project; authored by an AI coding agent under the owner's direction",
-      "provenance": "Agent-authored Idle Style v2 document written by hand for the owner (#409, requirement R10). It only names the twelve Included idle Gestures of #409 in its Default pool and emotion cells and contains no motion data. The owner approved its pools on 2026-10-11 (gate G3). Copyright status of AI-generated material must be reviewed before public release.",
-      "license_id": "LicenseRef-Animama-agent-authored",
-      "redistribution_review": "pending"
-    },
-    {
       "glob": "**/*",
       "creator": "Animama project owner",
       "provenance": "Legacy development attribution, not verified release clearance. On 2026-09-02 the owner reported downloaded voice MP3s, SFX, and background pictures, and said remaining content should be fine. Match each distributed asset to its actual source and terms; this fallback must not override third-party rights.",

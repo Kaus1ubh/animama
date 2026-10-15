@@ -32,8 +32,8 @@ describe("name-derived identifiers", () => {
     expect(gestureSemanticKey("!!!")).toBe("new_gesture");
     expect(contentSlug("Heart Hands")).toBe("heart-hands");
     expect(contentSlug("")).toBe("untitled");
-    expect(localContentLogicalKey("idle_style", "Calm Idle")).toBe(
-      "local:idle-style:calm-idle",
+    expect(localContentLogicalKey("sound_effect", "Calm Rain")).toBe(
+      "local:sound-effect:calm-rain",
     );
   });
 

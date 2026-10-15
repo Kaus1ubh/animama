@@ -1,6 +1,7 @@
 # 0018: Non-portable Included content for licensed built-in motion
 
-- Status: accepted (owner, 2026-10-08)
+- Status: accepted (owner, 2026-10-08); Idle Style parts of decision 3 superseded by
+  [ADR 0026](0026-built-in-idle-pool-per-anima.md)
 - Recorded: 2026-10-07
 - Retrospective: no
 - Original decision date: 2026-10-07 (owner intent discovery, decisions D1–D7

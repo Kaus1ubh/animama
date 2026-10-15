@@ -1,23 +1,5 @@
 {
   "content": {
-    "idleStyle": {
-      "cellPool": "{{emotion}} {{intensity}}",
-      "defaultPool": "Default",
-      "ineligible": {
-        "duration": "This Gesture has no positive finite motion duration.",
-        "lifetime": "This Gesture lasts for a phase, state or run. Choose a Gesture with a finite timeline.",
-        "loop": "This Gesture's loop mode is not supported for idle playback.",
-        "motionAmbiguous": "This Gesture needs exactly one animation or clip file for idle playback.",
-        "motionInvalid": "This Gesture's motion could not be validated. Check its animation or clip in Creator Studio.",
-        "motionUnavailable": "This Gesture's animation is unavailable. Restore the required content first.",
-        "other": "This Gesture cannot be used for finite idle playback. Check its content and dependencies in Creator Studio.",
-        "repetitions": "This looping Gesture needs a finite repetition count. Edit its playback before adding it.",
-        "speed": "This Gesture needs a positive playback speed before it can idle."
-      },
-      "poolBlankReference": "{{pool}} contains an empty Gesture reference.",
-      "poolDuplicate": "{{pool}} Gesture references must be unique.",
-      "poolEmpty": "{{pool}} needs at least one Gesture."
-    },
     "nonPortableReason": "Included with this app for use here only. It can't be customized, copied or exported.",
     "particle": {
       "aTextureTooLarge": "A texture exceeds the {{size}} MiB limit.",
@@ -66,11 +48,8 @@
       "resolveBeforeSaving": "Resolve the Pose before saving it."
     },
     "preview": {
-      "idleDependencyUnavailable": "An idle Gesture dependency is unavailable.",
       "idleGestureUnavailable": "The selected idle Gesture is unavailable.",
-      "noIdleGesture": "No scheduled idle Gesture in this pool.",
-      "notAction": "The preview is not an Action.",
-      "notIdleStyle": "The preview is not an Idle Style."
+      "notAction": "The preview is not an Action."
     },
     "recovery": {
       "discardFailed": "Browser recovery could not be discarded. Please retry.",
@@ -140,14 +119,12 @@
       "avatarEffects": "Avatar Effects",
       "avatars": "Avatars",
       "gestures": "Gestures",
-      "idleStyles": "Idle Styles",
       "particleEffects": "Particle Effects",
       "poses": "Poses",
       "reactions": "Reactions",
       "sceneEffects": "Scene Effects",
       "soundEffects": "Sound Effects"
     },
-    "idleStylePreviewFailed": "This Idle Style could not be previewed.",
     "layout": {
       "grid": "Grid view",
       "label": "Library layout",
@@ -165,7 +142,6 @@
     "actionFilters": {
       "all": "All",
       "gestures": "Gestures",
-      "idleStyles": "Idle Styles",
       "poses": "Poses",
       "reactions": "Reactions"
     },
@@ -174,7 +150,6 @@
       "avatarEffects": "Avatar FX",
       "avatars": "Avatars",
       "gestures": "Gestures",
-      "idleStyles": "Idle Styles",
       "label": "Library content types",
       "particle": "Particle FX",
       "poses": "Poses",
@@ -225,7 +200,9 @@
       "fullIdentity": "Full Anima identity",
       "gestures": "Gestures",
       "identity": "Identity",
-      "idleStyle": "Idle Style",
+      "idle": "Idle",
+      "idleGestures_one": "{{count}} Gesture",
+      "idleGestures_other": "{{count}} Gestures",
       "includedContent": "Included content",
       "labelValue": "{{label}}: {{value}}",
       "none": "None",
@@ -353,8 +330,6 @@
       "content_other": "Content",
       "gesture_one": "Gesture",
       "gesture_other": "Gestures",
-      "idleStyle_one": "Idle Style",
-      "idleStyle_other": "Idle Styles",
       "image_one": "Image",
       "image_other": "Images",
       "particleEffect_one": "Particle Effect",

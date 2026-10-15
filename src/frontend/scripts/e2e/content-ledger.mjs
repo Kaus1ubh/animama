@@ -25,7 +25,6 @@ const CONTENT_KINDS = new Set([
   "scene_effect",
   "avatar",
   "appearance",
-  "idle_style",
   "sound_effect",
   "anima",
 ]);

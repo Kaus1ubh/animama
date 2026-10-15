@@ -7,11 +7,11 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 from animama.app.services.content_kind_registry import RuntimeProjectionInput, handler_for_kind
+from animama.domain.anima_loadout import IDLE_DEFAULT_CELL
 from animama.domain.content_catalog import CatalogContentEntry, ContentKind
 from animama.domain.content_documents import (
     ContentDocumentError,
     GestureDocumentV1,
-    IdleStyleDocumentV2,
     TypedContentDocument,
 )
 from animama.domain.runtime_content_descriptor import (
@@ -207,7 +207,10 @@ def project_typed_runtime_catalog(
         "reaction": [],
         "appearance": [],
     }
-    idle_style: dict[str, Any] | None = None
+    # Idle members are private to the idle scheduler, never AI-callable Gestures.
+    idle_gestures: list[dict[str, Any]] = []
+    idle_default: list[str] = []
+    idle_cells: dict[str, dict[str, list[str]]] = {}
     avatar: dict[str, Any] | None = None
     voice: dict[str, Any] | None = None
     supports: dict[str, dict[str, Any]] = {}
@@ -218,65 +221,48 @@ def project_typed_runtime_catalog(
         document = documents.get(root.item_id)
         if root_entry is None or document is None:
             continue
-        projected = handler_for_kind(root.kind).project_runtime(
-            document,
-            projection_input(
-                root=root,
-                entry=root_entry,
-                document=document,
-                slot_key=root.slot_key,
-                context=dict(root.context),
-            ),
-        )
-        if projected.payload is not None:
-            if projected.lane == "idle_style":
-                idle_style = projected.payload
-                if isinstance(document, IdleStyleDocumentV2):
-                    by_ref: dict[str, str] = {}
-                    gestures: list[dict[str, Any]] = []
-                    for dependency in document.dependencies:
-                        target = resolve_reference(root, root_entry.item_id, dependency.ref)
-                        gesture = documents.get(target.item_id) if target is not None else None
-                        if target is None or not isinstance(gesture, GestureDocumentV1):
-                            continue
-                        facts = root.idle_playback.get(target.item_id)
-                        if facts is None:
-                            continue
-                        action = (
-                            handler_for_kind(ContentKind.GESTURE)
-                            .project_runtime(
-                                gesture,
-                                projection_input(
-                                    root=root,
-                                    entry=target,
-                                    document=gesture,
-                                    slot_key=f"idle:{target.item_id}",
-                                    context={"binding_id": f"idle:{target.item_id}"},
-                                ),
-                            )
-                            .payload
-                        )
-                        if action is not None:
-                            by_ref[dependency.ref] = target.item_id
-                            action["idle_playback"] = facts
-                            gestures.append(action)
-                            idle_scopes.append((root, target, gesture, action))
-                    idle_style["gestures"] = gestures
-                    idle_style["default_pool"] = [by_ref[ref] for ref in document.default_pool if ref in by_ref]
-                    idle_style["cells"] = {
-                        emotion: {
-                            intensity: {
-                                "mode": cell.mode,
-                                **(
-                                    {"gestures": [by_ref[ref] for ref in cell.gestures if ref in by_ref]}
-                                    if cell.mode == "pool"
-                                    else {}
-                                ),
-                            }
-                            for intensity, cell in levels.items()
-                        }
-                        for emotion, levels in document.cells.items()
-                    }
+        if root.slot_key.startswith("idle:"):
+            facts = root.idle_playback.get(root.item_id)
+            if facts is None or not isinstance(document, GestureDocumentV1):
+                continue
+            action = (
+                handler_for_kind(ContentKind.GESTURE)
+                .project_runtime(
+                    document,
+                    projection_input(
+                        root=root,
+                        entry=root_entry,
+                        document=document,
+                        slot_key=root.slot_key,
+                        context={"binding_id": f"idle:{root.item_id}"},
+                    ),
+                )
+                .payload
+            )
+            if action is None:
+                continue
+            action["idle_playback"] = facts
+            idle_gestures.append(action)
+            idle_scopes.append((root, root_entry, document, action))
+            for cell in root.context.get("idle_cells", ()):
+                if cell == IDLE_DEFAULT_CELL:
+                    idle_default.append(root.item_id)
+                    continue
+                emotion, _, intensity = str(cell).rpartition("-")
+                idle_cells.setdefault(emotion, {}).setdefault(intensity, []).append(root.item_id)
+        else:
+            projected = handler_for_kind(root.kind).project_runtime(
+                document,
+                projection_input(
+                    root=root,
+                    entry=root_entry,
+                    document=document,
+                    slot_key=root.slot_key,
+                    context=dict(root.context),
+                ),
+            )
+            if projected.payload is None:
+                pass
             elif projected.lane == "avatar":
                 avatar = projected.payload
             elif projected.lane == "voice":
@@ -482,7 +468,7 @@ def project_typed_runtime_catalog(
         "gestures": lanes["gesture"],
         "poses": lanes["pose"],
         "reactions": lanes["reaction"],
-        "idle_style": idle_style,
+        "idle": {"default_pool": idle_default, "cells": idle_cells, "gestures": idle_gestures},
         "avatar": avatar,
         "voice": voice,
         "appearances": lanes["appearance"],

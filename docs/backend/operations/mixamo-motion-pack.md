@@ -1,10 +1,16 @@
 # Mixamo-motion pack
 
 Desktop and hosted builds ship the pack's Mixamo-derived Gestures and idle loops
-(35 clips in pack `v2`), plus the "Emotive Idle" Idle Style, as **non-portable**
-Included content listed by the tracked manifest
+(35 clips in pack `v2`) as **non-portable** Included content listed by the
+tracked manifest
 ([ADR 0018](../../adr/0018-non-portable-included-content.md),
-[issue #242](https://github.com/raymond-van/animama/issues/242)). The files
+[issue #242](https://github.com/raymond-van/animama/issues/242)). Where the pack
+is installed, new Animas' Idle pools include its five idle loops
+([ADR 0026](../../adr/0026-built-in-idle-pool-per-anima.md)). Pack `v2` also
+holds an `idle-styles/mixamo-emotive-idle/` document that the backend no longer
+reads; leave it out of the next pack version. Because seeded Idle pools bind the
+pack's Gestures, removing the source entirely is blocked (`included_source_in_use`)
+until those members are removed; a new pack version replaces it normally. The files
 never enter Git, Docker build contexts, self-host images or the public package
 set. This guide covers the owner workflow and the checks that keep that true.
 
@@ -28,7 +34,7 @@ Check this in the Cloudflare dashboard before the first upload and before each
 release.
 
 The private inventory, `{"clips": {"gestures/<id>": {…}}}`, has one record
-per folder that holds a `.vrma` payload (the Included Idle Style needs none): `animation_name`, `animation_id`, `character`,
+per folder that holds a `.vrma` payload (the unused `idle-styles/` document needs none): `animation_name`, `animation_id`, `character`,
 `export_settings`, `download_date`, `licensee`, `conversion_tool`,
 `conversion_version`, `conversion_steps` and `sha256`, which must equal the
 payload's manifest hash. It stays

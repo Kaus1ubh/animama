@@ -1,7 +1,7 @@
 # Library
 
 `/library` is the local product collection. It presents Avatars, Gestures,
-Reactions, Poses, Idle Styles, Particle Effects, Avatar Effects, Scene Effects, Sounds, and private
+Reactions, Poses, Particle Effects, Avatar Effects, Scene Effects, Sounds, and private
 chat uploads without exposing file roles, host paths, digests, or dependency
 binding mechanics.
 
@@ -12,8 +12,8 @@ Library URLs are sparse and section-specific. The default state is simply
 The canonical parameters are:
 
 - `section=avatars|actions|fx|chat-uploads`; omitted means All
-- under All, optional `type=avatars|gestures|reactions|poses|idle-styles|particle|avatar-effects|scene|sound`
-- under Actions, optional `action=gestures|reactions|poses|idle-styles`,
+- under All, optional `type=avatars|gestures|reactions|poses|particle|avatar-effects|scene|sound`
+- under Actions, optional `action=gestures|reactions|poses`,
   `gestureMotion=anima_clip|vrma`, `gestureUpdatesOnly=true`,
   `gestureStatus=equipped|unequipped`, and
   `gestureSort=name-asc|name-desc`
@@ -54,8 +54,7 @@ listed: they play only through their built-in effects. A Local file with the sam
 licensed bytes is hidden too; remove it from the Local folder by hand. Effects and Sounds offer “Use in Gesture/Reaction” because
 they are action ingredients, not independent equipment.
 
-Actions contains All, Gestures, Reactions, Poses and Idle Styles. Idle Styles offer
-Preview and Edit. Poses also appear in the
+Actions contains All, Gestures, Reactions and Poses. Poses also appear in the
 combined All inventory. Pose rows offer Preview and Edit without a Starter badge.
 Editing opens `/poses/$poseId/edit` with the
 existing Pose controls and an isolated Avatar, without creating a Gesture or
@@ -78,9 +77,7 @@ equipped, but never leaves the app as files. Its Gesture and Reaction rows show
 screen readers, give the reason.
 It opens a preview-only page, with the reason in text, instead of the editor; the
 same page appears for its creator URL. Its Starter is not offered for
-customization. A non-portable Idle Style can still be duplicated
-into a Local style, because a style stores only references to Gestures. There
-is no visible badge. See the backend
+customization. There is no visible badge. See the backend
 [non-portable content](../../backend/features/typed-content-and-marketplace.md#non-portable-content)
 rules.
 
@@ -182,13 +179,13 @@ review; an expired export can be prepared again from the retained selection.
 Downloaded filenames use the installation owner's display name (or `content`
 when unavailable), followed by a UTC timestamp. Non-portable items are listed
 but cannot be selected, except licensed sounds, which are not listed. A review
-lists any non-portable items the package leaves out, for example Gestures pooled
-by a selected Idle Style, and says how many built-in effect sounds stay with
+lists any non-portable items the package leaves out, for example Gestures in the
+Anima's Idle pool, and says how many built-in effect sounds stay with
 this app (imported copies of those effects play without them).
 
 In Anima mode, choose a saved companion and review its full identity and selected
 content before **Export Anima**. The package includes its name, identity, Avatar,
-Gestures, all Reaction cells including empty cells, Idle Style, and selected
+Gestures, all Reaction cells including empty cells, the Idle pool, and selected
 profile/background images with framing. It preserves supported Action settings
 and effective starter choices. If this Anima uses a cloned PocketTTS voice, the
 package includes the encoded voice and selects the independent imported copy.

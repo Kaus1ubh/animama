@@ -26,8 +26,9 @@ class ReviewedImportItem(ImportModel):
 class ReviewedNonPortableItem(ImportModel):
     """A non-portable item the sender omitted, and what this installation does with it.
 
-    ``rebound`` uses this installation's own matching item; ``unavailable`` falls
-    back (no Gesture, the Default pool without it, or no Idle Style).
+    ``rebound`` uses this installation's own matching item; ``unavailable`` leaves
+    it out (the Gesture is not equipped, and its Idle cells keep their other
+    Gestures).
     """
 
     kind: PackageContentKind

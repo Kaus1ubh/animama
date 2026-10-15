@@ -21,7 +21,6 @@ from tests.anima_creation_service_support import (
 
 # Library content ships in desktop core independently of the starter loadouts.
 CORE_LIBRARY_LOCATORS = (
-    "idle-styles/streamer-idle",
     "gestures/bgm-bob",
     "gestures/bored-wait",
     "gestures/chat-glance",
@@ -91,7 +90,6 @@ def test_tracked_checkout_packages_both_starters_without_private_animations(tmp_
     assert all(entry["partition"] == "core" for entry in poses)
     assert sorted(entry["logical_key"] for entry in poses) == sorted(INCLUDED_POSE_IDS)
     assert all(not starter["diagnostics"] for starter in inventory["starters"])
-    assert not any("idle-style:starter" in root for starter in inventory["starters"] for root in starter["roots"])
 
 
 def test_reviewed_library_ships_in_core_without_equipping_starters(tmp_path: Path) -> None:
@@ -100,10 +98,10 @@ def test_reviewed_library_ships_in_core_without_equipping_starters(tmp_path: Pat
     entries = {entry["locator"]: entry for entry in inventory["entries"]}
     library = [entries[locator] for locator in CORE_LIBRARY_LOCATORS]
 
-    assert len(library) == 40
+    assert len(library) == 39
     assert {entry["partition"] for entry in library} == {"core"}
     library_files = {file for entry in library for file in entry["files"]}
-    assert len(library_files) == 85
+    assert len(library_files) == 84
     assert {file["partition"] for file in inventory["files"] if file["path"] in library_files} == {"core"}
     library_keys = {entry["logical_key"] for entry in library}
     for starter in inventory["starters"]:

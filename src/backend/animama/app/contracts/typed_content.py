@@ -23,9 +23,8 @@ from animama.app.contracts.avatar_effect import (
     avatar_effect_projection_fields,
 )
 from animama.app.contracts.avatar_face_parts import AvatarFacePartCorrection
-from animama.app.contracts.idle_style import PyIdleCell, PyIdlePlayback
+from animama.app.contracts.idle import PyIdlePlayback
 from animama.app.services.avatar_face_parts import local_face_parts
-from animama.app.services.content_kind_registry import idle_cells_projection
 from animama.app.services.content_portability import Portability, portability
 from animama.app.services.runtime_budget_policy import MAX_RUNTIME_ENTRIES
 from animama.app.services.typed_content_batch_service import (
@@ -42,8 +41,6 @@ from animama.domain.content_documents import (
     AvatarDocumentV1,
     AvatarEffectDocumentV1,
     GestureDocumentV1,
-    IdleStyleDocumentV1,
-    IdleStyleDocumentV2,
     MusicTrackDocumentV1,
     ParticleEffectDocumentV1,
     PoseClipDocumentV1,
@@ -69,7 +66,6 @@ class PyTypedDependency(BaseModel):
         "avatar_effect",
         "scene_effect",
         "sound_effect",
-        "idle_style",
         "appearance",
         "voice",
     ]
@@ -217,28 +213,6 @@ class PySoundEffect(PyTypedContentBase):
     defaults: dict[str, object] = Field(default_factory=dict)
 
 
-class PyIdleAnimation(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    animation_id: str
-    name: str
-    description: str | None = None
-    file_ref: str | None = None
-    dependency_ref: str | None = None
-    playback: dict[str, object] = Field(default_factory=dict)
-
-
-class PyIdleStyle(PyTypedContentBase):
-    kind: Literal["idle_style"] = "idle_style"
-    schema_version: Literal[1, 2] = 1
-    cells: dict[str, dict[str, PyIdleCell]] = Field(default_factory=dict)
-    animations: list[PyIdleAnimation] = Field(default_factory=list)
-    default_pool: list[str]
-    emotion_pools: dict[str, list[str]] = Field(default_factory=dict)
-    cross_fade_seconds: float = Field(default=0.35, ge=0, le=10)
-    compatibility: dict[str, object] = Field(default_factory=dict)
-
-
 class _LegacyMusicTrack(PyTypedContentBase):
     kind: Literal["music_track"] = "music_track"
     duration_seconds: float = Field(ge=0)
@@ -280,7 +254,6 @@ PyTypedContent = Annotated[
     | PyAvatarEffect
     | PySceneEffect
     | PySoundEffect
-    | PyIdleStyle
     | PyAvatarContent
     | PyAppearance
     | PyVoiceContent,
@@ -413,41 +386,6 @@ def typed_content_response(value: TypedCatalogItem) -> PyTypedContent:
             codec=document.codec,
             defaults=document.defaults,
         )
-    if isinstance(document, IdleStyleDocumentV2):
-        return PyIdleStyle(
-            **base,
-            schema_version=2,
-            default_pool=list(document.default_pool),
-            cells=idle_cells_projection(document.cells),
-            compatibility=document.compatibility,
-        )
-    if isinstance(document, IdleStyleDocumentV1):
-        entry_root = _entry_root(value)
-        file_refs_by_logical_path = {
-            _logical_path(file.relative_path, entry_root=entry_root): file.file_ref
-            for file in value.item.files
-            if file.role not in {"descriptor", "metadata"}
-        }
-        return PyIdleStyle(
-            **base,
-            animations=[
-                PyIdleAnimation(
-                    animation_id=animation.animation_id,
-                    name=animation.name,
-                    description=animation.description,
-                    file_ref=(
-                        file_refs_by_logical_path.get(animation.file_ref) if animation.file_ref is not None else None
-                    ),
-                    dependency_ref=animation.dependency_ref,
-                    playback=animation.playback,
-                )
-                for animation in document.animations
-            ],
-            default_pool=list(document.default_pool),
-            emotion_pools={key: list(pool) for key, pool in document.emotion_pools.items()},
-            cross_fade_seconds=document.cross_fade_seconds,
-            compatibility=document.compatibility,
-        )
     if isinstance(document, AvatarDocumentV1):
         # Typed family routes overlay the caller's Included override; this is the Local sidecar.
         return PyAvatarContent(
@@ -516,12 +454,6 @@ class PySoundEffectPage(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     items: list[PySoundEffect]
-
-
-class PyIdleStylePage(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    items: list[PyIdleStyle]
 
 
 class PyAvatarContentPage(BaseModel):

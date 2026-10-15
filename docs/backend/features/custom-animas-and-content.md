@@ -1,8 +1,8 @@
 # Custom Animas And Content
 
 An Anima combines private identity/chat state with logical selections from the
-neutral Content Catalog. Its loadout may select an Avatar, Gestures, Reactions,
-an emotion-aware Idle Style, and Appearance. Gesture and Reaction roots
+neutral Content Catalog. Its loadout may select an Avatar, Gestures, Reactions
+and Appearance, and always holds the Anima's own Idle pool. Gesture and Reaction roots
 bring their required VFX and Sound dependencies with them; users do not equip
 those supports independently.
 
@@ -39,31 +39,35 @@ text chat available. `chat:sse` requires the issued revision. Save, filesystem
 edits, Rescan, and Equip therefore take effect on the next mount rather than
 mid-conversation.
 
-## Idle Styles
+## Idle pool
 
-Canonical Idle Styles use `schema_version: 2`. `default_pool` lists Gesture
-dependency references; `cells[emotion][intensity]` is either
-`{mode: "pool", gestures: [...]}` or `{mode: "none"}`. Omitted cells inherit
-Default. Default may be empty; an explicit pool is nonempty with unique members.
-The Style declares exactly the Gesture dependencies used by its pools. It owns
-no motion files and permits no per-Anima pool overrides. Idle membership alone
-does not add a Gesture to the AI-invocable equipment list.
+Every Anima owns one Idle pool ([ADR 0026](../../adr/0026-built-in-idle-pool-per-anima.md)):
+a Default pool plus a cell for each tracked emotion at intensities 1–3. Each
+member is an `anima_content_bindings` row with kind `gesture` and slot
+`idle:<cell>:<catalog_item_id>`, where `<cell>` is `default` or
+`<emotion>-<intensity>`. Playback picks Default half the time and, the other
+half, the dominant emotion's cells from Mild up to its intensity; neutral, or an
+emotion with no Gestures there, uses Default alone, and an empty pool schedules
+nothing. The seed lists each Gesture once, in the lowest cell that plays it.
+Membership never adds
+a Gesture to the AI-invocable list, and a pooled Local Gesture cannot be deleted
+until it is removed, like an equipped one.
 
-Save, Preview and runtime validate finite playback against registered VRMA/clip
-bytes. Duration overrides cannot repair unknown timelines. Repeat playback needs
-an explicit positive finite count; clips with phase/state/run lifetimes are not
-idle-eligible. Each Style preview carries finite facts from the same frozen
-closure as its protected bytes.
+`POST /v1/animas/{anima_id}/idle:plan|commit` adds a Gesture `source` to one
+cell (omit `emotion`/`intensity` for Default) or removes one member by its
+`binding_id`, which also works for an unavailable Gesture. An add reads the Gesture's
+registered VRMA/clip bytes: repeat playback needs an explicit positive finite
+count, and clips with phase/state/run lifetimes are not idle-eligible
+(`idle_gesture_ineligible`). Duration overrides cannot repair unknown timelines.
+Runtime admits each distinct member as its own root, so one unavailable or
+ineligible Gesture is dropped with a diagnostic while the rest keep playing.
 
-Startup and explicit Rescan convert legacy Style-owned lanes into Gesture-owned
-content and materialize distinct effective Anima overrides as Styles. Local
-Style identity is retained where possible; Included sources remain unchanged and
-produce Local copies. Source bytes and prior binding facts are retained under
-private `internal/operations/transitions/`, separately from short-lived mutation
-journals. Files, bindings and the success receipt share one recoverable mutation.
-A repeated scan does not overwrite later edits or produce more copies. Invalid
-or unbounded legacy motion retains its originals with a Content Health repair
-diagnostic; fix the source and Rescan rather than resetting the installation.
+Creation seeds the pool from `resources/starter-idle-pool.v1.json`, which maps
+the twelve Included idle Gestures and the five `mixamo-motion` idle loops to
+Default and emotion cells. Only installed, idle-eligible Included Gestures are
+seeded, so an installation without the `mixamo-motion` source gets the core
+mapping unchanged. Installing content
+later does not change an existing pool. Old `idle-styles/` folders are not scanned.
 
 ## Live Anima definition
 
@@ -85,8 +89,8 @@ model row is checked locally; default ElevenLabs voice is `gJx1vCzNCD1EQHT212Ls`
 Emotion starts neutral, with no archive, chat or greeting. A selected shared
 clone adds the typed Voice binding. Relationship memory (`MEMORIES.md`) starts
 as the untouched template, meaning no shared history yet. Direct creation and
-starter provisioning leave Idle empty; package import retains the reviewed
-nullable Idle Style selection. An explicit validated creation voice choice
+starter provisioning seed the Idle pool; package import restores the packaged
+pool instead. An explicit validated creation voice choice
 replaces the default. New browser commands include both provider configurations;
 legacy commands may omit voice.
 
@@ -118,8 +122,8 @@ The [five-step browser creator](../../frontend/features/custom-anima-creation.md
 consumes the current [HTTP creation contract](../architecture/http-api.md#strict-private-creation).
 Authenticated
 `GET /v1/animas/creation-options` returns policy-derived recommendations/counts,
-limits, diagnostics, and source revision evidence. The nullable `default_idle`
-response contains `source: null` and an empty revision map.
+limits, diagnostics, and source revision evidence. The Idle seed is not part of
+the browser spec; the server resolves it when the Anima is created.
 `POST /v1/animas:validate` validates a whole `AnimaSpec` without writes.
 The optional `voice` field carries `provider`, a Pocket preset ID or pinned clone
 reference, and `elevenlabs_voice_id`. Explicit voice choices write speech preferences

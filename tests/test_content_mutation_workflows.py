@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import asyncio
 import json
+import wave
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
+from io import BytesIO
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -179,109 +181,61 @@ async def test_import_replays_its_original_result_without_installing_again(
         assert not destination.exists()
 
 
+def _chime_wav() -> bytes:
+    audio = BytesIO()
+    with wave.open(audio, "wb") as output:
+        output.setnchannels(1)
+        output.setsampwidth(2)
+        output.setframerate(8000)
+        output.writeframes(b"\x01\x00" * 800)
+    return audio.getvalue()
+
+
 async def _export_two_entry_package(workflow: _Workflow) -> Path:
-    """Create and export an actual Idle Style with one Gesture dependency."""
+    """Create and export an actual Gesture with one Sound Effect dependency."""
 
-    from tests.test_content_gltf import _fixture_document, _glb_source
-
-    gltf, binary = _fixture_document(buffer_uri=None)
-    wave = await workflow.saves.save_standalone(**{**workflow.wave_command(), "payload": _glb_source(gltf, binary)})
-    idle = await workflow.saves.save_descriptor(
+    chime = await workflow.saves.save_standalone(
         user_id=workflow.owner,
-        kind=ContentKind.IDLE_STYLE,
-        entry_name="Replay Idle",
-        descriptor=json.dumps(
-            {
-                "schema_version": 2,
-                "content_type": "idle_style",
-                "id": "local:idle-style:replay-idle",
-                "name": "Replay Idle",
-                "default_pool": [wave.item.logical_key],
-                "dependencies": [{"ref": wave.item.logical_key, "content_type": "gesture"}],
-                "files": [],
-            }
+        kind=ContentKind.SOUND_EFFECT,
+        entry_name="Replay Chime",
+        filename="chime.wav",
+        payload=_chime_wav(),
+        metadata_sidecar=json.dumps(
+            {"schema_version": 1, "id": "local:sound:replay-chime", "name": "Replay Chime"}
         ).encode(),
-        companion_files={},
-        operation_id="save-idle",
+        operation_id="save-chime",
         catalog_item_id=None,
         expected_revision=None,
     )
-    exported = await reviewed_export(workflow.packages, user_id=workflow.owner, root_item_id=idle.item.id)
+    gesture = await workflow.saves.save_descriptor(
+        user_id=workflow.owner,
+        kind=ContentKind.GESTURE,
+        entry_name="Replay Wave",
+        descriptor=json.dumps(
+            {
+                "schema_version": 1,
+                "content_type": "gesture",
+                "content_id": "local:gesture:replay-wave",
+                "name": "Replay Wave",
+                "semantic_key": "replay-wave",
+                "implementation": {"kind": "vrma", "file_role": "animation"},
+                "files": [{"path": "wave.vrma", "role": "animation"}],
+                "dependencies": [{"ref": chime.item.logical_key, "content_type": "sound_effect"}],
+            }
+        ).encode(),
+        companion_files={"wave.vrma": vrma("replay")},
+        operation_id="save-gesture",
+        catalog_item_id=None,
+        expected_revision=None,
+    )
+    exported = await reviewed_export(workflow.packages, user_id=workflow.owner, root_item_id=gesture.item.id)
     assert exported.item_count == 2
-    for item in (idle.item, wave.item):
+    for item in (gesture.item, chime.item):
         assert item.revision_sha256 is not None
         await workflow.content.delete_item(
             user_id=workflow.owner, item_id=item.id, expected_revision=item.revision_sha256
         )
     return exported.path
-
-
-async def test_idle_save_rejects_unknown_bounds_without_publishing_files_or_receipt(workflow: _Workflow) -> None:
-    """A finite-looking config cannot admit media that has no actual motion timeline."""
-    from animama.domain.content_documents import ContentDocumentError
-
-    wave = await workflow.saves.save_standalone(**workflow.wave_command())
-    before = workflow.local_files()
-    with pytest.raises(ContentDocumentError) as error:
-        await workflow.saves.save_descriptor(
-            user_id=workflow.owner,
-            kind=ContentKind.IDLE_STYLE,
-            entry_name="Unsafe Idle",
-            descriptor=json.dumps(
-                {
-                    "schema_version": 2,
-                    "content_type": "idle_style",
-                    "name": "Unsafe Idle",
-                    "default_pool": [wave.item.logical_key],
-                    "dependencies": [{"ref": wave.item.logical_key, "content_type": "gesture"}],
-                }
-            ).encode(),
-            companion_files={},
-            operation_id="unsafe-idle-save",
-            catalog_item_id=None,
-            expected_revision=None,
-        )
-    assert error.value.code == "idle_motion_invalid"
-    assert workflow.local_files() == before
-    assert await workflow.catalog.get_mutation_receipt(user_id=workflow.owner, operation_id="unsafe-idle-save") is None
-    assert not any(
-        item.kind is ContentKind.IDLE_STYLE for item in await workflow.catalog.list_visible(user_id=workflow.owner)
-    )
-
-
-async def test_idle_preview_contains_finite_facts_for_its_exact_gesture_revision(workflow: _Workflow) -> None:
-    from animama.app.services.typed_content_service import TypedContentService
-    from animama.server.schemas.typed_content import PyTypedContentPreview
-    from tests.test_content_gltf import _fixture_document, _glb_source
-
-    gltf, binary = _fixture_document(buffer_uri=None)
-    wave = await workflow.saves.save_standalone(**{**workflow.wave_command(), "payload": _glb_source(gltf, binary)})
-    idle = await workflow.saves.save_descriptor(
-        user_id=workflow.owner,
-        kind=ContentKind.IDLE_STYLE,
-        entry_name="Preview Idle",
-        descriptor=json.dumps(
-            {
-                "schema_version": 2,
-                "content_type": "idle_style",
-                "name": "Preview Idle",
-                "default_pool": [wave.item.logical_key],
-                "dependencies": [{"ref": wave.item.logical_key, "content_type": "gesture"}],
-            }
-        ).encode(),
-        companion_files={},
-        operation_id="preview-idle-save",
-        catalog_item_id=None,
-        expected_revision=None,
-    )
-    service = TypedContentService(catalog=workflow.catalog, content=workflow.content)
-    eligibility = await service.gesture_idle_playback(user_id=workflow.owner, item_id=wave.item.id)
-    assert eligibility["eligible"] is True
-    preview = await service.preview(user_id=workflow.owner, kind=ContentKind.IDLE_STYLE, item_id=idle.item.id)
-    response = PyTypedContentPreview.from_domain(preview)
-    assert wave.item.logical_key is not None
-    assert response.idle_playback[wave.item.logical_key].duration_seconds == 1
-    assert response.expected_source_revisions[wave.item.id].revision_sha256 == wave.item.revision_sha256
 
 
 @pytest.mark.parametrize("motion_kind", ["vrma", "anima_clip"])

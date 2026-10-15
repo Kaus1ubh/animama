@@ -32,10 +32,6 @@ from animama.domain.content_documents import (
     ContentDocumentError,
     ContentFileDeclarationV1,
     GestureDocumentV1,
-    IdleAnimationDocumentV1,
-    IdleStyleCellV2,
-    IdleStyleDocumentV1,
-    IdleStyleDocumentV2,
     MusicTrackDocumentV1,
     ParticleEffectDocumentV1,
     PoseClipDocumentV1,
@@ -118,7 +114,6 @@ class RuntimeProjection:
         "gesture",
         "pose",
         "reaction",
-        "idle_style",
         "music_track",
         "avatar",
         "appearance",
@@ -183,18 +178,6 @@ _KIND_FIELDS: dict[ContentKind, frozenset[str]] = {
     ContentKind.AVATAR_EFFECT: frozenset({"runtime_defaults", "definition", "config", "technical_source"}),
     ContentKind.SCENE_EFFECT: frozenset({"runtime_defaults", "definition", "config", "technical_source"}),
     ContentKind.SOUND_EFFECT: frozenset({"duration_seconds", "codec", "defaults", "config", "technical_source"}),
-    ContentKind.IDLE_STYLE: frozenset(
-        {
-            "revision",
-            "animations",
-            "default_pool",
-            "cells",
-            "emotion_pools",
-            "cross_fade_seconds",
-            "compatibility",
-            "config",
-        }
-    ),
     ContentKind.MUSIC_TRACK: frozenset(
         {"revision", "duration_seconds", "codec", "defaults", "config", "technical_source"}
     ),
@@ -246,7 +229,6 @@ _ALLOWED_DEPENDENCIES: dict[ContentKind, frozenset[ContentKind]] = {
     ContentKind.AVATAR_EFFECT: frozenset({ContentKind.SOUND_EFFECT}),
     ContentKind.SCENE_EFFECT: frozenset({ContentKind.SOUND_EFFECT}),
     ContentKind.SOUND_EFFECT: frozenset(),
-    ContentKind.IDLE_STYLE: frozenset({ContentKind.GESTURE, ContentKind.POSE_CLIP}),
     ContentKind.MUSIC_TRACK: frozenset(),
     ContentKind.APPEARANCE: frozenset(),
     ContentKind.VOICE: frozenset(),
@@ -706,11 +688,7 @@ def _base_values(
     schema_version = raw.get("schema_version", 1)
     if isinstance(version, bool) or not isinstance(version, int) or version < 1:
         raise ContentDocumentError("invalid_document_version", "version must be a positive integer")
-    if (
-        isinstance(schema_version, bool)
-        or not isinstance(schema_version, int)
-        or schema_version not in ({1, 2} if kind is ContentKind.IDLE_STYLE else {1})
-    ):
+    if isinstance(schema_version, bool) or not isinstance(schema_version, int) or schema_version != 1:
         raise ContentDocumentError("unsupported_schema_version", "unsupported document schema_version")
     return {
         "kind": kind,
@@ -731,76 +709,6 @@ def _base_values(
         "dependencies": dependencies,
         "provenance": _object(raw.get("provenance"), field_name="provenance"),
     }
-
-
-def idle_cells_projection(cells: Mapping[str, Mapping[str, IdleStyleCellV2]]) -> dict[str, Any]:
-    """Serialize exact cells without turning inherited cells into explicit pools."""
-
-    return {
-        emotion: {
-            intensity: {"mode": cell.mode, **({"gestures": list(cell.gestures)} if cell.mode == "pool" else {})}
-            for intensity, cell in levels.items()
-        }
-        for emotion, levels in cells.items()
-    }
-
-
-def _idle_style_v2(raw: Mapping[str, Any], base: dict[str, Any]) -> IdleStyleDocumentV2:
-    """Admit only complete Gesture references and the canonical exact-cell model."""
-
-    if set(raw) & {"animations", "emotion_pools", "cross_fade_seconds", "config"} or base["files"]:
-        raise ContentDocumentError(
-            "idle_legacy_fields", "Idle Style v2 owns Gesture pools, not animation files or overrides"
-        )
-    dependencies = base["dependencies"]
-    if any(edge.kind is not ContentKind.GESTURE or edge.config for edge in dependencies):
-        raise ContentDocumentError(
-            "idle_gesture_dependencies_required", "Idle pools require Gesture dependencies without overrides"
-        )
-    refs = {edge.ref for edge in dependencies}
-    used: set[str] = set()
-
-    def pool(value: Any, *, allow_empty: bool = False) -> tuple[str, ...]:
-        if not isinstance(value, list) or any(not isinstance(ref, str) for ref in value):
-            raise ContentDocumentError("idle_pool_invalid", "Idle pools must contain Gesture references")
-        if (not value and not allow_empty) or len(set(value)) != len(value) or not set(value) <= refs:
-            raise ContentDocumentError("idle_pool_invalid", "Idle pools require unique declared Gesture references")
-        used.update(value)
-        return tuple(value)
-
-    default_pool = pool(raw.get("default_pool", []), allow_empty=True)
-    cells: dict[str, dict[str, IdleStyleCellV2]] = {}
-    for emotion, levels in _object(raw.get("cells"), field_name="cells").items():
-        if emotion not in TRACKED_EMOTION_SET:
-            raise ContentDocumentError(
-                "idle_cell_invalid", "Idle cells require a tracked emotion; neutral uses Default"
-            )
-        cells[emotion] = {}
-        for intensity, value in _object(levels, field_name="cells.emotion").items():
-            cell = _object(value, field_name="cells.emotion.intensity")
-            if (
-                intensity not in {"1", "2", "3"}
-                or not isinstance(cell.get("mode"), str)
-                or cell["mode"] not in {"none", "pool"}
-            ):
-                raise ContentDocumentError(
-                    "idle_cell_invalid", "Idle cells require intensity 1–3 and mode none or pool"
-                )
-            expected_fields = {"mode", "gestures"} if cell["mode"] == "pool" else {"mode"}
-            if set(cell) != expected_fields:
-                raise ContentDocumentError("idle_cell_invalid", "Idle cell fields do not match its mode")
-            cells[emotion][intensity] = IdleStyleCellV2(
-                mode=cell["mode"],
-                gestures=pool(cell["gestures"]) if cell["mode"] == "pool" else (),
-            )
-    if used != refs:
-        raise ContentDocumentError("idle_unused_dependency", "Every Idle Style dependency must belong to a pool")
-    return IdleStyleDocumentV2(
-        **base,
-        default_pool=default_pool,
-        cells=cells,
-        compatibility=_object(raw.get("compatibility"), field_name="compatibility"),
-    )
 
 
 class ContentTypeHandler:
@@ -960,42 +868,6 @@ class ContentTypeHandler:
                 codec=_optional_string(raw.get("codec"), field_name="codec", maximum=128),
                 defaults=_object(raw.get("defaults"), field_name="defaults"),
             )
-        if kind is ContentKind.IDLE_STYLE:
-            if base["schema_version"] == 2:
-                return _idle_style_v2(raw, base)
-            animations = _idle_animations(raw)
-            declared_files = {file.path: file.role for file in base["files"]}
-            for animation in animations:
-                if animation.file_ref and declared_files.get(animation.file_ref) != "animation":
-                    raise ContentDocumentError(
-                        "idle_animation_file_missing",
-                        "Idle animation file_ref must name a declared animation file",
-                    )
-            animation_ids = {animation.animation_id for animation in animations}
-            default_pool = _string_list(raw.get("default_pool", []), field_name="default_pool")
-            pools = _emotion_pools(raw.get("emotion_pools", {}))
-            used = set(default_pool)
-            for pool in pools.values():
-                used.update(pool)
-            if not used.issubset(animation_ids):
-                raise ContentDocumentError(
-                    "idle_pool_animation_missing",
-                    "Idle pools may reference only declared animations",
-                )
-            return IdleStyleDocumentV1(
-                **base,
-                animations=animations,
-                default_pool=default_pool,
-                emotion_pools=pools,
-                cross_fade_seconds=_number(
-                    raw.get("cross_fade_seconds"),
-                    field_name="cross_fade_seconds",
-                    default=0.35,
-                    minimum=0,
-                    maximum=10,
-                ),
-                compatibility=_object(raw.get("compatibility"), field_name="compatibility"),
-            )
         if kind is ContentKind.MUSIC_TRACK:
             defaults = _object(raw.get("defaults"), field_name="defaults")
             gain = _number(
@@ -1118,34 +990,6 @@ class ContentTypeHandler:
                     "defaults": document.defaults,
                 }
             )
-        elif isinstance(document, IdleStyleDocumentV2):
-            result.update(
-                {
-                    "default_pool": list(document.default_pool),
-                    "cells": idle_cells_projection(document.cells),
-                    "compatibility": document.compatibility,
-                }
-            )
-        elif isinstance(document, IdleStyleDocumentV1):
-            result.update(
-                {
-                    "animations": [
-                        {
-                            "animation_id": item.animation_id,
-                            "name": item.name,
-                            "description": item.description,
-                            "file_ref": item.file_ref,
-                            "dependency_ref": item.dependency_ref,
-                            "playback": item.playback,
-                        }
-                        for item in document.animations
-                    ],
-                    "default_pool": list(document.default_pool),
-                    "emotion_pools": {key: list(value) for key, value in document.emotion_pools.items()},
-                    "cross_fade_seconds": document.cross_fade_seconds,
-                    "compatibility": document.compatibility,
-                }
-            )
         elif isinstance(document, MusicTrackDocumentV1):
             result.update(
                 {
@@ -1226,7 +1070,7 @@ class ContentTypeHandler:
             return "model"
         if self.kind is ContentKind.GESTURE:
             return "animation" if suffix == ".vrma" else "sequence"
-        if self.kind in {ContentKind.POSE_CLIP, ContentKind.REACTION, ContentKind.IDLE_STYLE}:
+        if self.kind in {ContentKind.POSE_CLIP, ContentKind.REACTION}:
             return "animation" if suffix == ".vrma" else "sequence"
         if self.kind is ContentKind.PARTICLE_EFFECT:
             return "manifest" if suffix == ".json" else "texture"
@@ -1369,63 +1213,6 @@ class ContentTypeHandler:
             payload["emotion"] = emotion if emotion in TRACKED_EMOTION_SET else document.emotion
             payload["intensity"] = intensity if intensity in {1, 2, 3} else document.intensity
             return RuntimeProjection("reaction", payload)
-        if isinstance(document, IdleStyleDocumentV2):
-            return RuntimeProjection(
-                "idle_style",
-                {
-                    "schema_version": 2,
-                    "runtime_root_id": projection.runtime_root_id,
-                    "name": document.name,
-                    "description": document.description,
-                    "source": projection.source,
-                    "revision": projection.revision,
-                    "default_pool": list(document.default_pool),
-                    "cells": idle_cells_projection(document.cells),
-                    "gestures": [],
-                },
-            )
-        if isinstance(document, IdleStyleDocumentV1):
-            animations: list[dict[str, Any]] = []
-            for index, animation in enumerate(document.animations):
-                if animation.dependency_ref:
-                    files = projection.dependency_files.get(animation.dependency_ref, [])
-                elif animation.file_ref:
-                    direct = projection.logical_files.get(animation.file_ref)
-                    files = [direct] if direct is not None else []
-                else:
-                    # Retain the legacy ordinal lane for old Local documents.
-                    files = projection.files[index : index + 1]
-                animations.append(
-                    {
-                        "animation_id": animation.animation_id,
-                        "name": animation.name,
-                        "description": animation.description,
-                        "playback": animation.playback,
-                        "files": files,
-                    }
-                )
-            pools = {key: list(value) for key, value in document.emotion_pools.items()}
-            default_pool = list(document.default_pool)
-            for key, value in _mapping(projection.context.get("pool_overrides")).items():
-                if isinstance(value, list) and all(isinstance(item, str) for item in value):
-                    if key == "default":
-                        default_pool = list(value)
-                    else:
-                        pools[key] = list(value)
-            return RuntimeProjection(
-                "idle_style",
-                {
-                    "runtime_root_id": projection.runtime_root_id,
-                    "name": name,
-                    "description": description,
-                    "source": projection.source,
-                    "revision": projection.revision,
-                    "animations": animations,
-                    "default_pool": default_pool,
-                    "emotion_pools": pools,
-                    "cross_fade_seconds": document.cross_fade_seconds,
-                },
-            )
         if isinstance(document, AvatarDocumentV1):
             avatar: dict[str, Any] = {
                 "runtime_root_id": projection.runtime_root_id,
@@ -1576,82 +1363,6 @@ def _string_list(value: Any, *, field_name: str) -> tuple[str, ...]:
     return tuple(value)
 
 
-def _emotion_pools(value: Any) -> dict[str, tuple[str, ...]]:
-    if not isinstance(value, dict):
-        raise ContentDocumentError("invalid_idle_emotion_pools", "emotion_pools must be an object")
-    result: dict[str, tuple[str, ...]] = {}
-    for emotion, pool in value.items():
-        if emotion not in TRACKED_EMOTION_SET:
-            raise ContentDocumentError("invalid_idle_emotion", "Idle pools require canonical tracked emotions")
-        result[emotion] = _string_list(pool, field_name=f"emotion_pools.{emotion}")
-    return result
-
-
-def _idle_animations(raw: Mapping[str, Any]) -> tuple[IdleAnimationDocumentV1, ...]:
-    value = raw.get("animations", [])
-    if not isinstance(value, list) or not value:
-        raise ContentDocumentError("idle_animations_required", "Idle Style requires at least one animation")
-    result: list[IdleAnimationDocumentV1] = []
-    seen: set[str] = set()
-    for item in value:
-        if not isinstance(item, dict):
-            raise ContentDocumentError("invalid_idle_animation", "Idle animations must be objects")
-        unexpected = set(item) - {
-            "animation_id",
-            "name",
-            "description",
-            "file_ref",
-            "dependency_ref",
-            "ordinal",
-            "playback",
-            "technical_source",
-        }
-        if unexpected:
-            raise ContentDocumentError(
-                "unexpected_idle_animation_fields",
-                f"Unexpected idle animation fields: {', '.join(sorted(unexpected))}",
-            )
-        animation_id = _string(item.get("animation_id"), field_name="animations.animation_id", maximum=128)
-        if animation_id in seen:
-            raise ContentDocumentError("duplicate_idle_animation", "Idle animation IDs must be unique")
-        seen.add(animation_id)
-        dependency_ref = item.get("dependency_ref")
-        technical = item.get("technical_source")
-        if technical is not None:
-            if not isinstance(technical, dict):
-                raise ContentDocumentError("invalid_technical_source", "Idle technical_source must be an object")
-            if technical.get("type") == "public_url":
-                raise ContentDocumentError(
-                    "public_url_not_portable",
-                    "Idle animations must use a registered dependency",
-                )
-            if technical.get("type") == "content_dependency":
-                dependency_ref = technical.get("ref")
-        if dependency_ref is not None and (
-            not isinstance(dependency_ref, str) or not _valid_dependency_reference(dependency_ref)
-        ):
-            raise ContentDocumentError("invalid_dependency_reference", "Idle dependency_ref is invalid")
-        file_ref = item.get("file_ref")
-        if file_ref is not None and (not isinstance(file_ref, str) or not _valid_dependency_reference(file_ref)):
-            raise ContentDocumentError("invalid_file_declaration", "Idle file_ref is invalid")
-        if dependency_ref is None and file_ref is None and not isinstance(item.get("ordinal"), int):
-            raise ContentDocumentError(
-                "idle_animation_source_required",
-                "Idle animation requires dependency_ref, file_ref, or ordinal",
-            )
-        result.append(
-            IdleAnimationDocumentV1(
-                animation_id=animation_id,
-                name=_string(item.get("name"), field_name="animations.name", maximum=120),
-                description=_optional_string(item.get("description"), field_name="animations.description"),
-                file_ref=file_ref,
-                dependency_ref=dependency_ref,
-                playback=_object(item.get("playback"), field_name="animations.playback"),
-            )
-        )
-    return tuple(result)
-
-
 def _optional_positive_int(value: object, *, field_name: str) -> int | None:
     if value is None:
         return None
@@ -1762,15 +1473,6 @@ CONTENT_TYPE_HANDLERS = ContentTypeHandlerRegistry(
                 frozenset({".mp3", ".ogg", ".wav", ".flac"}),
                 ".json",
                 "sound_effect",
-            )
-        ),
-        ContentTypeHandler(
-            ContentKindDefinition(
-                ContentKind.IDLE_STYLE,
-                "idle-styles",
-                frozenset({".json"}),
-                ".json",
-                "idle_style",
             )
         ),
         ContentTypeHandler(

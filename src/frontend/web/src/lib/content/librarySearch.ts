@@ -14,7 +14,6 @@ export const LIBRARY_CONTENT_TYPES = [
   "gestures",
   "reactions",
   "poses",
-  "idle-styles",
   "particle",
   "avatar-effects",
   "scene",
@@ -27,7 +26,6 @@ export const LIBRARY_ACTION_FILTERS = [
   "gestures",
   "reactions",
   "poses",
-  "idle-styles",
 ] as const;
 export type LibraryActionFilter = (typeof LIBRARY_ACTION_FILTERS)[number];
 

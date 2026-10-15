@@ -25,7 +25,6 @@ export const playbackFamilies = {
   avatar: "avatar-content",
   gesture: "gestures",
   reaction: "reactions",
-  idle_style: "idle-styles",
   pose: "poses",
   particle_effect: "particle-effects",
   avatar_effect: "avatar-effects",
@@ -75,7 +74,7 @@ function originalTone(): Buffer {
 async function saveFixture(args: {
   page: Page;
   content: CreatorContentFixture;
-  kind: "sound_effect" | "gesture" | "reaction" | "idle_style";
+  kind: "sound_effect" | "gesture" | "reaction";
   name: string;
   descriptor: Record<string, unknown>;
   companion?: { name: string; mimeType: string; buffer: Buffer };
@@ -238,23 +237,7 @@ export async function createPlaybackFixtures(args: {
       }),
     );
   }
-  const idleName = `import-playback-${token}-idle`;
-  const idle = await saveFixture({
-    ...args,
-    kind: "idle_style",
-    name: idleName,
-    descriptor: {
-      schema_version: 2,
-      content_type: "idle_style",
-      content_id: `local:idle-style:${idleName}`,
-      name: idleName,
-      default_pool: [actions[0]!.logical_key],
-      cells: {},
-      dependencies: [{ ref: actions[0]!.logical_key, content_type: "gesture" }],
-      files: [],
-    },
-  });
-  return [...actions, idle, sound];
+  return [...actions, sound];
 }
 
 type AudioObservation = {

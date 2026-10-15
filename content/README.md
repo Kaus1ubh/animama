@@ -6,8 +6,7 @@ This is the canonical self-hosted typed-content library.
 - `local/` is the managed, inspectable library for creator saves, imports, and files deliberately added by the host operator.
 
 Both roots use ordinary typed folders: `avatars`, `gestures`, `pose-clips`,
-`reactions`, `vfx`, `sfx`, `idle-styles`, `music`, `appearances`, `voices`, and
-`animas`. A valid standalone file is enough for simple leaf content. Gestures
+`reactions`, `vfx`, `sfx`, `music`, `appearances`, `voices`, and `animas`. A valid standalone file is enough for simple leaf content. Gestures
 and Reactions are Action folders: `<stem>.meta.json` is their typed control
 document and `<stem>.vrma` or `<stem>.json` is their executable animation or
 Anima Pose Clip. Other self-describing JSON kinds may remain one `<stem>.json`

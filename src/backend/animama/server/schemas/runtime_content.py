@@ -1,6 +1,6 @@
 """Compatibility exports for the shared product contracts."""
 
-from animama.app.contracts.idle_style import PyIdleCell as PyIdleCell, PyIdlePlayback as PyIdlePlayback
+from animama.app.contracts.idle import PyIdlePlayback as PyIdlePlayback
 from animama.app.contracts.runtime_content import (
     PyAnimaRuntime as PyAnimaRuntime,
     PyRuntimeAction as PyRuntimeAction,
@@ -15,9 +15,8 @@ from animama.app.contracts.runtime_content import (
     PyRuntimeContentMember as PyRuntimeContentMember,
     PyRuntimeContentRoot as PyRuntimeContentRoot,
     PyRuntimeFile as PyRuntimeFile,
-    PyRuntimeIdleAnimation as PyRuntimeIdleAnimation,
+    PyRuntimeIdle as PyRuntimeIdle,
     PyRuntimeIdleGesture as PyRuntimeIdleGesture,
-    PyRuntimeIdleStyle as PyRuntimeIdleStyle,
     PyRuntimeJsonBundle as PyRuntimeJsonBundle,
     PyRuntimeLease as PyRuntimeLease,
     PyRuntimeSource as PyRuntimeSource,

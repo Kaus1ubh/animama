@@ -73,7 +73,7 @@ const loadout: PyAnimaLoadout = {
   gestures: [binding("Wave", "starter"), binding("Idle", "custom")],
   disabled_starter_gestures: ["Bow"],
   reactions: [],
-  idle_style: { state: "empty" },
+  idle: { default_pool: [], cells: [] },
 };
 
 let root: Root | null = null;

@@ -20,6 +20,7 @@ from animama.app.services.anima_loadout_service import AnimaLoadoutService
 from animama.app.services.anima_starter_service import STARTER_ANIMA_SPECS, AnimaStarterService
 from animama.app.services.content_catalog_service import ContentCatalogService
 from animama.app.services.memory_entry_service import MemoryEntryService
+from animama.app.services.starter_idle_pool import starter_idle_keys, starter_idle_pool
 from animama.app.services.starter_loadout_policy import starter_loadout_policy
 from animama.domain.anima import Anima
 from animama.domain.anima_chat_profile import AnimaChatProfile
@@ -30,6 +31,7 @@ from animama.domain.request_principal import RequestPrincipal
 from animama.domain.settings import AnimaSettings
 from animama.orm import ORMAnima, ORMAnimaCreationReceipt, ORMAnimaSettings, ORMAnimaStarterReceipt, ORMMemoryEntry
 from animama.product_http.routes.animas import list_animas
+from animama.runtime.starter_content import CORE_LIBRARY_ROOTS
 from tests.anima_creation_service_support import (
     EXPECTED_STARTER_GESTURE_IDS,
     anima_creation_fixture,
@@ -39,6 +41,17 @@ from tests.anima_creation_service_support import (
 from tests.local_http_client import local_client
 
 REQUEST = EnsureAnimaStartersRequest(schema_version=1, repairs=[])
+
+
+def idle_seed_keys() -> set[str]:
+    """Every Gesture named by the reviewed starter Idle seed, installed or not."""
+
+    return set(starter_idle_keys())
+
+
+def idle_keys(members) -> list[str]:
+    """Logical keys of Idle members; an unavailable member has none and reads as ''."""
+    return [(member.source.logical_key or "") if member.source else "" for member in members]
 
 
 async def legacy_anima(session, fixture, spec, *, profile: bool = True, pocket_voice: str | None = None):
@@ -464,7 +477,9 @@ async def test_supplied_fixture_content_can_materialize_both_starters(async_sess
                 EXPECTED_STARTER_GESTURE_IDS
             )
             assert len(loadout.gestures) == 99
-            assert loadout.idle_style.state == "empty"
+            # The supplied library ships no Gesture of the Idle seed, so the pool is empty.
+            assert loadout.idle.default_pool == ()
+            assert len(loadout.idle.cells) == 72 and all(not cell.gestures for cell in loadout.idle.cells)
             assert all(cell.source is not None for cell in loadout.reactions)
 
 
@@ -474,28 +489,24 @@ def test_starter_gesture_policy_matches_reviewed_identities():
     )
 
 
-def test_starter_gestures_include_every_non_idle_gesture_and_exclude_streamer_idles():
-    """Chat starters cover Included Gestures without equipping Idle Style motions."""
+def test_starter_gestures_include_every_non_library_gesture_and_exclude_idle_seed():
+    """Chat starters cover Included Gestures without equipping the Idle seed or Library-only motions."""
 
     included_root = Path(__file__).resolve().parents[1] / "content/included"
-    idle_style = json.loads((included_root / "idle-styles/streamer-idle/streamer-idle.json").read_text())
-    idle_ids = set(idle_style["default_pool"]) | {
-        gesture_id
-        for cells in idle_style["cells"].values()
-        for cell in cells.values()
-        for gesture_id in cell["gestures"]
-    }
     included_ids = {
         json.loads(descriptor.read_text())["content_id"]
         for descriptor in (included_root / "gestures").glob("*/*.meta.json")
     }
+    # The seed's Mixamo idles are optional non-portable pack Gestures, not tracked Included content.
+    idle_ids = idle_seed_keys() & included_ids
+    library_ids = {root for root in CORE_LIBRARY_ROOTS if root.startswith("builtin:gesture:")}
     starter_ids = {choice["content_id"] for choice in starter_loadout_policy()["gestures"]}
 
     assert len(included_ids) == 111
     assert len(idle_ids) == 12
-    assert idle_ids <= included_ids
+    assert idle_ids <= library_ids <= included_ids
     assert starter_ids.isdisjoint(idle_ids)
-    assert starter_ids == included_ids - idle_ids
+    assert starter_ids == included_ids - library_ids
     assert len(starter_ids) == 99
 
 
@@ -516,4 +527,11 @@ async def test_tracked_checkout_materializes_both_starters_without_optional_loca
             )
             assert len(loadout.gestures) == 99
             assert all(cell.source is not None for cell in loadout.reactions)
-            assert loadout.idle_style.state == "empty"
+            # Starters receive the reviewed Idle seed; its Gestures are never AI-callable.
+            assert sorted(idle_keys(loadout.idle.default_pool)) == sorted(starter_idle_pool()["default"])
+            cells = {(cell.emotion, cell.intensity): idle_keys(cell.gestures) for cell in loadout.idle.cells}
+            # Strong inherits Moderate, and without the optional Mixamo idles Mild adds nothing.
+            assert cells["joy", 2] == ["builtin:gesture:happy-sway"]
+            assert cells["joy", 1] == cells["joy", 3] == cells["admiration", 1] == []
+            gesture_keys = {gesture.source.logical_key for gesture in loadout.gestures if gesture.source}
+            assert gesture_keys.isdisjoint(idle_seed_keys())

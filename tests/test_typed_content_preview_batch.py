@@ -38,7 +38,8 @@ async def test_preview_batch_deduplicates_overlapping_catalog_and_builtin_closur
         client = local_client(app)
         gesture = fixture.items["gesture"]
         sound = fixture.items["sound"]
-        idle = fixture.items["idle"]
+        # The Included seed Gesture is requested by its builtin identity.
+        included = fixture.items["idle"]
         try:
             response = await client.post(
                 "/v1/content/previews:prepare",
@@ -49,10 +50,10 @@ async def test_preview_batch_deduplicates_overlapping_catalog_and_builtin_closur
                         _catalog_root(gesture),
                         _catalog_root(sound),
                         {
-                            "kind": "idle_style",
+                            "kind": "gesture",
                             "source": {
                                 "type": "builtin",
-                                "content_id": idle.logical_key,
+                                "content_id": included.logical_key,
                                 "version": 1,
                             },
                         },
@@ -71,7 +72,7 @@ async def test_preview_batch_deduplicates_overlapping_catalog_and_builtin_closur
             assert {item["item_id"] for item in body["items"]} == {
                 gesture.id,
                 sound.id,
-                idle.id,
+                included.id,
             }
             assert len({file["file_ref"] for file in body["lease"]["files"]}) == len(body["lease"]["files"])
             assert await async_session.scalar(select(func.count()).select_from(ORMContentPreview)) == 1

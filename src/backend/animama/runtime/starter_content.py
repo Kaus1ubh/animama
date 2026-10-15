@@ -41,7 +41,6 @@ from animama.utils.files import path_is_link
 # roots cover every valid tracked Included item, so desktop matches self-host.
 # Resolve these exact IDs through the same typed admission gates.
 CORE_LIBRARY_ROOTS = (
-    "builtin:idle-style:streamer-idle",
     "builtin:gesture:bgm-bob",
     "builtin:gesture:bored-wait",
     "builtin:gesture:chat-glance",

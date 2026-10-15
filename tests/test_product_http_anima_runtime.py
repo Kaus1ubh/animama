@@ -36,7 +36,6 @@ async def mounted_anima(ports: DeferredCommitPorts, root: Path, owner: str) -> s
                 owner_user_id=owner,
                 revision=1,
                 starter_catalog_version=1,
-                idle_style_empty=True,
                 starter_exclusions=[],
             )
         )

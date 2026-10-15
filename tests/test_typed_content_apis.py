@@ -38,7 +38,6 @@ def test_creator_families_expose_typed_list_get_save_and_preview_contracts() -> 
         "/v1/avatar-effects": "PyAvatarEffect",
         "/v1/scene-effects": "PySceneEffect",
         "/v1/sound-effects": "PySoundEffect",
-        "/v1/idle-styles": "PyIdleStyle",
     }
 
     for family, model in families.items():
@@ -54,6 +53,8 @@ def test_creator_families_expose_typed_list_get_save_and_preview_contracts() -> 
     # contract. Product saves and previews must choose an exact typed family.
     assert "put" not in paths.get("/v1/content/items/{kind}/{entry_name}", {})
     assert "/v1/content/items/{item_id}:preview" not in paths
+    # Idle motion is chosen per Anima from Gestures; there is no Idle Style family.
+    assert not any(path.startswith("/v1/idle-styles") for path in paths)
 
 
 def test_openapi_product_models_are_discriminated_and_forbid_loose_fields() -> None:
@@ -72,7 +73,7 @@ def test_openapi_product_models_are_discriminated_and_forbid_loose_fields() -> N
     assert "item" in preview["properties"]
     assert "supports" in preview["properties"]
     assert "idle_playback" in preview["properties"]
-    assert "pool_overrides" not in models["PyIdleStyleIntent"]["properties"]
+    assert not any(name.startswith("PyIdleStyle") for name in models)
     assert "/v1/gestures/{item_id}/idle-playback" in app.openapi()["paths"]
 
 
@@ -154,32 +155,30 @@ def test_typed_files_preserve_item_relative_logical_paths() -> None:
     }
 
 
-def _idle_dependency_entries() -> tuple[CatalogContentEntry, CatalogContentEntry]:
+def _gesture_dependency_entries() -> tuple[CatalogContentEntry, CatalogContentEntry]:
     entries = []
     for item_id, kind, locator, metadata, dependencies, dependency_ids, role in (
         (
-            "style",
-            ContentKind.IDLE_STYLE,
-            "idle-styles/rest",
+            "wave",
+            ContentKind.GESTURE,
+            "gestures/wave",
             {
-                "schema_version": 2,
-                "content_type": "idle_style",
-                "name": "Rest",
-                "default_pool": ["gestures/breathe"],
-                "dependencies": [{"ref": "gestures/breathe", "content_type": "gesture"}],
+                "content_type": "gesture",
+                "name": "Wave",
+                "dependencies": [{"ref": "sfx/chime", "content_type": "sound_effect"}],
             },
-            ("gestures/breathe",),
-            ("admitted-gesture",),
-            "descriptor",
+            ("sfx/chime",),
+            ("admitted-sound",),
+            "animation",
         ),
         (
-            "admitted-gesture",
-            ContentKind.GESTURE,
-            "gestures/breathe",
-            {"content_type": "gesture", "name": "Breathe"},
+            "admitted-sound",
+            ContentKind.SOUND_EFFECT,
+            "sfx/chime",
+            {"content_type": "sound_effect", "name": "Chime"},
             (),
             (),
-            "animation",
+            "audio",
         ),
     ):
         entries.append(
@@ -215,22 +214,22 @@ def _idle_dependency_entries() -> tuple[CatalogContentEntry, CatalogContentEntry
 
 @pytest.mark.parametrize("target_visible", [True, False])
 async def test_typed_list_and_get_expose_only_caller_visible_dependency_ids(target_visible: bool) -> None:
-    root, target = _idle_dependency_entries()
+    root, target = _gesture_dependency_entries()
     catalog = Mock(spec=ContentCatalog)
     catalog.list_visible = AsyncMock(return_value=[root, target] if target_visible else [root])
     catalog.get_visible_item = AsyncMock(return_value=root)
     service = TypedContentService(catalog=catalog, content=Mock(spec=ContentCatalogService))
-    listed = await service.list_kind(user_id="owner", kind=ContentKind.IDLE_STYLE)
+    listed = await service.list_kind(user_id="owner", kind=ContentKind.GESTURE)
     assert len(listed) == 1
-    detail = await service.get(user_id="owner", kind=ContentKind.IDLE_STYLE, item_id=root.id)
+    detail = await service.get(user_id="owner", kind=ContentKind.GESTURE, item_id=root.id)
     for value in (*listed, detail):
         dependency = typed_content_response(value).dependencies[0]
-        assert dependency.ref == "gestures/breathe"
+        assert dependency.ref == "sfx/chime"
         assert dependency.item_id == (target.id if target_visible else None)
 
 
 def test_admitted_preview_closure_retains_ids_but_raw_receipt_parse_omits_them() -> None:
-    root, target = _idle_dependency_entries()
+    root, target = _gesture_dependency_entries()
     context = TypedContentResolutionContext({root.id: root, target.id: target})
     response = typed_content_response(context.resolve(root.id)[-1])
     assert response.dependencies[0].item_id == target.id

@@ -1,8 +1,8 @@
 # Typed Content and Local Packages
 
 Animama models runtime media as concrete product types: Avatars, Gestures,
-Reactions, Particle Effects, Avatar Effects, Scene Effects, Sound Effects, Idle
-Styles, Appearance Images, voices, and static Poses. All types
+Reactions, Particle Effects, Avatar Effects, Scene Effects, Sound Effects,
+Appearance Images, voices, and static Poses. All types
 share one neutral Content Catalog while keeping strict versioned documents,
 handlers, APIs, and runtime projectors. The `anima` catalog kind is
 reserved and rejecting; live Animas are private application aggregates, not
@@ -123,7 +123,7 @@ POST   /v1/{typed-family}/{item_id}:preview
 ```
 
 The family response is a generated discriminated contract such as
-`PyGesture`, `PyReaction`, `PyPose`, `PyParticleEffect`, or `PyIdleStyle`,
+`PyGesture`, `PyReaction`, `PyPose`, `PyParticleEffect`, or `PySoundEffect`,
 not a semantic `metadata` dictionary. Typed routers delegate
 safe paths, optimistic catalog revisions, atomic replacement, reconciliation,
 and preview freezing to shared catalog services; they do not own parallel
@@ -178,8 +178,8 @@ any cell. A Reaction descriptor may omit `placement_hint`; when present, it must
 supply both a tracked emotion and intensity 1, 2, or 3. This is only a suggested
 default: saving, previewing and packaging do not require it, while equipping
 still requires a canonical cell. Unplaced typed responses have null `emotion`
-and `intensity`. Idle Style is singular with bounded pools; Avatar, Appearance,
-and voice keep focused selection rules. Effects and Sounds remain
+and `intensity`. The Idle pool holds finite Gestures per cell and is never
+AI-callable; Avatar, Appearance, and voice keep focused selection rules. Effects and Sounds remain
 compiler-managed dependencies rather than independent Anima equipment.
 
 `GET /v1/animas/{anima_id}/runtime` compiles current selections into an exact
@@ -193,8 +193,8 @@ adopted only after remount.
 ## Local package boundary
 
 Packages use the strict `animama-content-package/3` manifest in local `.zip`
-files. Content export accepts one or more Avatars, Gestures, Reactions, Idle
-Styles, static Poses, effects or Sounds and includes their complete required
+files. Content export accepts one or more Avatars, Gestures, Reactions, static
+Poses, effects or Sounds and includes their complete required
 closure. Avatar portraits and selected Anima profile/background images travel
 as associated Appearance content; Appearance is not a standalone export root.
 Music and standalone catalog Clips are not package types. Voice is allowed only
@@ -202,7 +202,8 @@ as the active saved PocketTTS clone referenced by a complete Anima.
 
 An Anima export reads the saved name, full identity, Avatar, effective Gesture
 selections and semantic keys, all 72 Reaction cells (including empty cells),
-nullable Idle Style, and profile/background images with framing. Supported
+the Idle pool (Default and non-empty cells of Gesture entries), and
+profile/background images with framing. Supported
 binding configuration and effective starter choices are preserved. Missing
 selected content or unsupported configuration fails export rather than silently
 changing the definition. Conversations, identity history, other memories,
@@ -239,25 +240,24 @@ facts accompany the independent editable copies.
 
 [Non-portable](../architecture/local-content-storage.md) items never enter a
 package. Content export refuses a non-portable root, and any non-portable item
-reached other than through an Idle Style pool or an effect's optional sound,
-with `package_non_portable` and the item names in `detail.items`. A portable
-Idle Style that pools non-portable Gestures exports without them: their
-references, and any pool they empty, are removed. A built-in effect exports
+reached other than through an effect's optional sound, with
+`package_non_portable` and the item names in `detail.items`. A built-in effect exports
 without its optional non-portable sound: the edge and the `soundAlias` naming it
 are removed, kept optional edges are written as ordinary edges, and no reference
-is recorded. An Anima export likewise omits non-portable Gesture and Idle Style
-bindings, explicit or implicit starter choices. Any other non-portable binding
-(for example an Avatar) blocks the export. The summary lists omitted items
-(`omitted`), and the manifest's `non_portable_references` record each omitted
-Gesture or Idle Style's kind, logical key, name and uses, with the
+is recorded. An Anima export omits non-portable Gestures, whether equipped
+(explicitly or as implicit starter choices) or in the Idle pool. Any other
+non-portable binding (for example an Avatar) blocks the export. The summary lists
+omitted items (`omitted`), and the manifest's `non_portable_references` record
+each omitted Gesture's logical key, name and uses (a `gesture` slot with its
+selector and config, or the `idle` pools it was removed from), with the
 `animama/non-portable-references/1` capability. Packages without references omit the field and stay readable by
 earlier versions.
 
 On import, the review lists each reference as `rebound` when this installation
 has a valid non-portable Included item with the same kind and logical key, or
-`unavailable` otherwise. Rebound items return to their Anima slot or Idle Style
-pools. Unavailable ones fall back: no Gesture, the Default pool without it, or
-no Idle Style. Import and typed save reject any file whose SHA-256 matches a
+`unavailable` otherwise. Rebound items return to their Anima slot or Idle
+pools. Unavailable ones are left out: the Gesture is not equipped, and its Idle
+cells keep their other Gestures. Import and typed save reject any file whose SHA-256 matches a
 non-portable payload (`package_non_portable`, `content_non_portable`) without
 echoing its contents. Matching files added to the Local folder by hand are
 scanned as non-portable instead.

@@ -163,76 +163,6 @@
   "history": {
     "eitherShortcut": "{{shortcuts, list(type: disjunction)}}"
   },
-  "idleStyle": {
-    "add": {
-      "choose": "Choose a Gesture",
-      "label": "Add an existing Gesture",
-      "optionClip": "{{name}} · Clip",
-      "optionVrma": "{{name}} · VRMA",
-      "search": "Search Gestures",
-      "submit": "Add to pool"
-    },
-    "cells": {
-      "caption": "Emotion pools by intensity",
-      "cellLabel": "{{emotion}} intensity {{intensity}}: {{state}}",
-      "default": "Default",
-      "defaultHint": "Unconfigured cells use Default. An empty Default schedules no idle Gestures; procedural breathing and resting continue.",
-      "defaultNeutral": "Default · neutral",
-      "emotion": "Emotion",
-      "gestures_one": "{{count}} Gesture",
-      "gestures_other": "{{count}} Gestures",
-      "label": "Idle Style cells",
-      "noIdle": "No idle",
-      "selected": "{{emotion}} · intensity {{intensity}}",
-      "useDefault": "Use Default"
-    },
-    "checkPools": "Check your Gesture pools.",
-    "copyNotice": "Saving creates an independent Local Style. The original Style stays unchanged.",
-    "createHub": "Create hub",
-    "description": "Description",
-    "gestures": {
-      "loadFailed": "Gestures could not be loaded.",
-      "loading": "Loading Gestures…"
-    },
-    "gestureUnavailable": "This Gesture is unavailable. Refresh the Library and check the Style.",
-    "intro": "Choose existing Gestures for quiet moments. Their animations, sounds and effects stay intact. Adding them here does not equip them for AI invocation.",
-    "loadFailed": "The Idle Style could not be loaded. Your existing content is unchanged.",
-    "loading": "Loading Idle Style…",
-    "name": "Name",
-    "playback": {
-      "checkFailed": "Playback could not be checked.",
-      "checking": "Checking finite playback…",
-      "finite": "Finite playback. Authored sounds and effects are preserved.",
-      "finiteFor": "Finite playback · {{seconds}} seconds. Authored sounds and effects are preserved.",
-      "retryCheck": "Retry check"
-    },
-    "pool": {
-      "behavior": "Behavior",
-      "choose": "Choose Gestures",
-      "empty": "No Gestures in this pool.",
-      "inherits": "This cell inherits the Default pool.",
-      "label": "{{cell}} pool",
-      "none": "No scheduled idle Gesture at this emotion and intensity.",
-      "previewMember": "Preview {{name}}",
-      "previewSaved": "Preview saved pool",
-      "removeMember": "Remove {{name}}"
-    },
-    "previewFailed": "Preview failed.",
-    "previewing": "Previewing {{name}}",
-    "retry": "Retry",
-    "save": "Save Idle Style",
-    "saveCopy": "Save Local copy",
-    "saved": "Idle Style saved.",
-    "savedCopy": "Local Idle Style copy saved. Select it in your Anima’s loadout to use it.",
-    "saving": "Saving…",
-    "sharedNotice": "Editing this shared Style affects every Anima using it on its next runtime refresh. Duplicate it in Loadout for a separate variation.",
-    "studio": "Creator Studio",
-    "title": {
-      "copy": "Copy Idle Style",
-      "edit": "Edit Idle Style",
-      "new": "New Idle Style"
-    }
-  },
   "importDialog": {
     "chooseFile": "Choose JSON file",
     "clipImported": "Anima Pose Clip imported.",
@@ -384,7 +314,7 @@
       "avatarUnauthorized": "The preview avatar could not be authorized.",
       "fileUnauthorized": "A private preview file is unauthorized.",
       "idleAnimationUnavailable": "The selected idle animation is unavailable.",
-      "idlePlaybackUnavailable": "Finite idle playback is unavailable for this Gesture. Refresh the Style and try again.",
+      "idlePlaybackUnavailable": "Finite idle playback is unavailable for this Gesture. Refresh the Loadout and try again.",
       "invalidClosure": "The action preview returned an invalid closure.",
       "particleFailed": "The selected particle effect could not play.",
       "particlesUnsupported": "The preview avatar cannot play particles.",
@@ -438,7 +368,7 @@
     "unavailableSentence": "Preview unavailable.",
     "versions": {
       "exactSaved": "Exact saved content",
-      "idleStyleGesture": "Exact saved Idle Style Gesture",
+      "idleGesture": "Exact saved idle Gesture",
       "localPose": "Local Pose",
       "starterPose": "Starter Pose"
     }

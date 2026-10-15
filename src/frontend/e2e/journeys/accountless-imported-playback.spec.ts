@@ -1,8 +1,10 @@
 import { randomUUID } from "node:crypto";
 import type { Locator, Page } from "playwright/test";
 import type {
+  PyAnimaLoadout,
   PyAnimaRuntime,
   PyAvatarCatalogPage,
+  PyIdleMember,
   PyTypedContentPreview,
 } from "@animama/runtime-contracts/api-types";
 import { expect, test, type EvidenceAttachment } from "../fixtures/animama";
@@ -278,8 +280,6 @@ async function proveItem(args: {
     return (
       await proveScenePlayback({ ...base, expectedKind: "background_layers" })
     ).samples;
-  if (item.kind === "idle_style")
-    return proveIntegratedAction({ ...args, reaction: false });
   // A model has no playback clock; the temporal helper deliberately waits for
   // Playing and is therefore inappropriate for a ready static Avatar.
   const observation = await readPlaybackObservation(surface);
@@ -306,18 +306,6 @@ function expectedTarget(
       kind: "anima_pose_clip",
       runtimeId: `pose-preview:${item.item_id}`,
     };
-  if (item.kind === "idle_style") {
-    const ref = item.default_pool[0];
-    const dependency = item.dependencies?.find((entry) => entry.ref === ref);
-    const gesture = preview.supports?.find(
-      (entry) => entry.item_id === dependency?.item_id,
-    );
-    expect(
-      gesture?.kind,
-      "imported Idle pool must resolve to its exact imported Gesture",
-    ).toBe("gesture");
-    return { kind: "anima_pose_clip", runtimeId: runtimeId(gesture!) };
-  }
   return {
     kind:
       item.kind === "particle_effect"
@@ -827,8 +815,7 @@ test("imported playback covers every supported content kind in Library and appli
       if (
         (item.kind === "gesture" &&
           item.implementation.kind === "anima_clip") ||
-        item.kind === "reaction" ||
-        item.kind === "idle_style"
+        item.kind === "reaction"
       )
         await proveAudioPlayback(
           page,
@@ -842,23 +829,6 @@ test("imported playback covers every supported content kind in Library and appli
         name: `imported-${item.kind}-library`,
         samples,
       });
-      if (item.kind === "idle_style") {
-        await expect
-          .poll(
-            async () => {
-              const observation = await readPlaybackObservation(surface);
-              return (
-                ["ready", "stopped"].includes(observation.target.status) &&
-                !observation.motion.poseClip?.active &&
-                observation.effects.avatar.length === 0 &&
-                observation.effects.particle.length === 0 &&
-                observation.effects.scene.every((effect) => !effect.active)
-              );
-            },
-            { timeout: 15_000 },
-          )
-          .toBe(true);
-      }
     });
 
     await test.step(`${item.kind}: applicable imported creator`, async () => {
@@ -910,14 +880,6 @@ test("imported playback covers every supported content kind in Library and appli
         });
         return;
       }
-      if (item.kind === "idle_style") {
-        await expect(
-          page.getByRole("textbox", { name: "Name", exact: true }),
-        ).toHaveValue(item.name);
-        await page
-          .getByRole("button", { name: "Preview saved pool", exact: true })
-          .click();
-      }
       const effectTypeLabel =
         item.kind === "avatar_effect"
           ? "Avatar FX"
@@ -934,9 +896,7 @@ test("imported playback covers every supported content kind in Library and appli
           }),
         ).toHaveValue(item.name);
       }
-      const surface = page.locator(
-        `[data-playback-surface="${item.kind === "idle_style" ? "library-dock" : "creator-stage"}"]`,
-      );
+      const surface = page.locator('[data-playback-surface="creator-stage"]');
       const target = await readyTarget(surface);
       if (item.kind === "gesture" || item.kind === "reaction") {
         await expect(
@@ -1292,53 +1252,110 @@ test("imported playback complete Anima retains imported Avatar, appearance and p
       samples,
     });
   }
-  expect(reviewed.anima!.idle_style).toBe(exported.manifest.anima!.idle_style);
-  if (reviewed.anima!.idle_style === null) {
-    expect(runtime.idle_style ?? null).toBeNull();
+  // Annie's built-in Idle pool travels as Gesture entry ids. Portable members
+  // become their imported Gestures; non-portable members are left out of the
+  // file and may be rebound to this app's own copy, so compare imported ones.
+  const exportedIdle = exported.manifest.anima!.idle;
+  expect(reviewed.anima!.idle).toEqual(exportedIdle);
+  const exportedIdleCell = (emotion: string, intensity: number) =>
+    exportedIdle.cells[emotion]?.[String(intensity)] ?? [];
+  const idleEntryIds = [
+    ...new Set([
+      ...exportedIdle.default,
+      ...Object.values(exportedIdle.cells).flatMap((cells) =>
+        Object.values(cells).flat(),
+      ),
+    ]),
+  ];
+  const importedIdleIds = (entryIds: string[]) =>
+    entryIds.map((entryId) => importedFor(entryId).itemId).sort();
+  const ownedIds = new Set(owned.map((entry) => entry.itemId));
+  const importedMembers = (members: PyIdleMember[] | undefined) =>
+    (members ?? [])
+      .map((member) => member.item_id)
+      .filter((itemId) => ownedIds.has(itemId))
+      .sort();
+  const loadoutResponse = await page.request.get(
+    `/v1/animas/${anima.itemId}/loadout`,
+  );
+  expect(loadoutResponse.ok(), await loadoutResponse.text()).toBe(true);
+  const importedLoadout = (await loadoutResponse.json()) as PyAnimaLoadout;
+  expect(importedMembers(importedLoadout.idle.default_pool)).toEqual(
+    importedIdleIds(exportedIdle.default),
+  );
+  for (const cell of importedLoadout.idle.cells ?? [])
+    expect(
+      importedMembers(cell.gestures),
+      `imported Idle cell ${cell.emotion}.${cell.intensity}`,
+    ).toEqual(importedIdleIds(exportedIdleCell(cell.emotion, cell.intensity)));
+  const runtimeIdleIds = new Set([
+    ...(runtime.idle?.default_pool ?? []),
+    ...Object.values(runtime.idle?.cells ?? {}).flatMap((cells) =>
+      Object.values(cells).flat(),
+    ),
+  ]);
+  const runtimeIdleGestures = new Set(
+    (runtime.idle?.gestures ?? []).map((gesture) => gesture.source.item_id),
+  );
+  for (const itemId of importedIdleIds(idleEntryIds)) {
+    expect(runtimeIdleIds.has(itemId), `runtime Idle pool has ${itemId}`).toBe(
+      true,
+    );
+    expect(
+      runtimeIdleGestures.has(itemId),
+      `runtime admits idle Gesture ${itemId}`,
+    ).toBe(true);
+  }
+  await animamaEvidence.attachJson("imported-anima-idle-pool", {
+    exportedIdle,
+    importedDefault: importedMembers(importedLoadout.idle.default_pool),
+    runtimeIdleGestures: [...runtimeIdleGestures],
+  });
+  if (!idleEntryIds.length) {
     await animamaEvidence.attachJson("imported-anima-idle-coverage", {
-      sourceIdleStyle: null,
-      importedIdleStyle: null,
-      playback: "not exercised: the exported Anima has no selected Idle Style",
-      manualCoverage:
-        "a separately selected imported Idle Style requires the retained manual test Anima",
+      playback: "not exercised: the exported Idle pool has no portable Gesture",
     });
   } else {
-    const idleProposal = reviewed.items.find(
-      (entry) => entry.entry_id === reviewed.anima!.idle_style,
-    )!;
-    const idleReceipt = owned.find(
-      (entry) =>
-        entry.plan.kind === "idle_style" &&
-        entry.plan.entryName === idleProposal.name,
-    )!;
-    const idle = (await playbackInventory(page, "idle_style")).find(
+    // Preview a Default member when there is one; otherwise open the first
+    // explicit cell's emotion row.
+    const [emotion, intensities] = Object.entries(exportedIdle.cells)[0] ?? [];
+    const idleEntry =
+      exportedIdle.default[0] ?? Object.values(intensities ?? {})[0]![0]!;
+    const idleReceipt = importedFor(idleEntry);
+    const idleGesture = (await playbackInventory(page, "gesture")).find(
       (entry) => entry.item_id === idleReceipt.itemId,
     )!;
-    expect(idle).toBeDefined();
-    const idlePrepared = waitForTypedPreview(page, idle);
-    await page
-      .getByRole("button", { name: "Preview active Idle Style", exact: true })
+    expect(idleGesture).toBeDefined();
+    const idleSection = page.getByRole("region", { name: "Idle", exact: true });
+    const idleDisclosure = idleSection.getByRole("button", {
+      name: "Idle",
+      exact: true,
+    });
+    if ((await idleDisclosure.getAttribute("aria-expanded")) !== "true")
+      await idleDisclosure.click();
+    if (!exportedIdle.default.length && emotion) {
+      const row = idleSection.getByRole("button", {
+        name: new RegExp(`^${emotion}`, "i"),
+      });
+      if ((await row.getAttribute("aria-expanded")) !== "true")
+        await row.click();
+    }
+    const idlePrepared = waitForTypedPreview(page, idleGesture);
+    await idleSection
+      .getByRole("button", { name: `Preview ${idleGesture.name}`, exact: true })
+      .first()
       .click();
-    const idlePreview = await idlePrepared;
+    await idlePrepared;
     const idleSurface = page.locator(
       '[data-playback-surface="anima-loadout-stage"]',
     );
-    const selectedRef =
-      idle.kind === "idle_style" ? idle.default_pool[0] : undefined;
-    const selectedDependency = idle.dependencies?.find(
-      (entry) => entry.ref === selectedRef,
-    );
-    const selectedGesture = (idlePreview.supports ?? []).find(
-      (entry) => entry.item_id === selectedDependency?.item_id,
-    )!;
-    expect(selectedGesture?.kind).toBe("gesture");
     const idleTarget = {
       kind:
-        selectedGesture.kind === "gesture" &&
-        selectedGesture.implementation.kind === "vrma"
+        idleGesture.kind === "gesture" &&
+        idleGesture.implementation.kind === "vrma"
           ? ("animation" as const)
           : ("anima_pose_clip" as const),
-      runtimeId: runtimeId(selectedGesture),
+      runtimeId: runtimeId(idleGesture),
     };
     await expect
       .poll(

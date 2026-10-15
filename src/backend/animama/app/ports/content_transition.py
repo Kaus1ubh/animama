@@ -1,21 +1,10 @@
-"""Binding and retained-original boundaries for the local idle format transition."""
+"""Binding boundaries for local content transitions in the content mutation transaction."""
 
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Protocol
-
-
-@dataclass(frozen=True, slots=True)
-class IdleTransitionBinding:
-    """An exact pre-transition equipment selection, including implicit starters."""
-
-    anima_id: str
-    loadout_revision: int
-    aggregate_revision: int
-    binding_id: str | None
-    config: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,7 +29,6 @@ class MusicTransitionAnima:
     aggregate_revision: int
     starter_catalog_version: int
     starter_exclusions: tuple[dict[str, str], ...]
-    idle_style_empty: bool
     bindings: tuple[MusicTransitionBinding, ...]
 
 
@@ -72,30 +60,19 @@ class ContentTransitionSelection:
 
 @dataclass(frozen=True, slots=True)
 class ContentTransitionAnima:
-    """One revision fence for all converted Action/Style selections of an Anima."""
+    """One revision fence for all converted Action selections of an Anima."""
 
     anima_id: str
     loadout_revision: int
     aggregate_revision: int
     starter_catalog_version: int
     starter_exclusions: tuple[dict[str, str], ...]
-    idle_style_empty: bool
     bindings: tuple[ContentTransitionBinding, ...]
     selections: tuple[ContentTransitionSelection, ...]
 
 
 class ContentTransitionBindings(Protocol):
     """Rewrite equipment in the caller's content mutation transaction."""
-
-    async def idle_consumers(
-        self, *, user_id: str, item_id: str, is_starter: bool
-    ) -> tuple[IdleTransitionBinding, ...]:
-        """Read exact explicit selections and consumers of an implicit starter."""
-        ...
-
-    async def replace_idle(self, *, user_id: str, before: IdleTransitionBinding, item_id: str) -> None:
-        """Recheck a selection, bind its converted Style and retire pool overrides."""
-        ...
 
     async def music_consumers(self, *, user_id: str) -> tuple[MusicTransitionAnima, ...]:
         """Snapshot Music rows by Anima without requiring their source catalog or files."""
@@ -108,7 +85,7 @@ class ContentTransitionBindings(Protocol):
     async def content_consumers(
         self, *, user_id: str, item_ids: tuple[str, ...], included_by_logical: Mapping[str, str]
     ) -> tuple[ContentTransitionAnima, ...]:
-        """Snapshot affected explicit and implicit Action/Style consumers by Anima."""
+        """Snapshot affected explicit and implicit Action consumers by Anima."""
         ...
 
     async def replace_content(

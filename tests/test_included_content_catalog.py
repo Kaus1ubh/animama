@@ -10,6 +10,7 @@ import pytest
 from animama.adapters.content_store import FilesystemContentStore
 from animama.app.services.content_kind_registry import definition_for_kind, descriptor_filename, handler_for_kind
 from animama.app.services.idle_playback import derive_idle_playback
+from animama.app.services.starter_idle_pool import starter_idle_keys, starter_idle_pool
 from animama.domain.content_catalog import ContentKind, ContentSource, ContentStatus
 from animama.domain.content_documents import GestureDocumentV1
 from tests.anima_creation_service_support import (
@@ -206,31 +207,45 @@ def test_avatar_effects_require_authored_definitions_and_preserve_support_images
     assert any(file.role == "image" for file in eye.files)
 
 
-def test_streamer_idle_style_resolves_to_idle_eligible_included_gestures(included: Path) -> None:
-    """The Included Idle Style names only Included Gestures that idle playback admits."""
+def _starter_idle_keys() -> set[str]:
+    return set(starter_idle_keys())
 
-    by_key = {entry.logical_key: entry for entry in _scan_included(included) if entry.logical_key}
-    style = by_key["builtin:idle-style:streamer-idle"]
-    assert style.kind is ContentKind.IDLE_STYLE
-    assert style.status is ContentStatus.VALID
-    assert len(style.dependencies) == 12
+
+def test_starter_idle_pool_names_idle_eligible_included_gestures(included: Path) -> None:
+    """The starter Idle seed names only Included Gestures that idle playback admits.
+
+    The Mixamo idles ship only in the separate non-portable pack, which the
+    public checkout does not contain, so its manifest must supply them instead.
+    """
+
+    entries = _scan_included(included)
+    keys = _starter_idle_keys()
+    manifest = json.loads((ROOT / "src/backend/animama/resources/mixamo-motion-manifest.json").read_text())
+    pack_keys = {
+        "builtin:gesture:" + Path(item["path"]).parts[1]
+        for item in manifest["files"]
+        if item["path"].startswith("gestures/")
+    }
+    tracked_keys = {entry.logical_key for entry in entries}
+    assert keys - tracked_keys <= pack_keys, sorted(keys - tracked_keys - pack_keys)
+    assert set(starter_idle_pool()["default"]) <= tracked_keys
 
     gesture_handler = handler_for_kind(ContentKind.GESTURE)
-    for ref in style.dependencies:
-        gesture = by_key[ref]
-        assert gesture.kind is ContentKind.GESTURE and gesture.status is ContentStatus.VALID, ref
-        assert gesture.source is ContentSource.INCLUDED, ref
+    for key in sorted(keys & tracked_keys):
+        [gesture] = [entry for entry in entries if entry.logical_key == key]
+        assert gesture.kind is ContentKind.GESTURE and gesture.status is ContentStatus.VALID, key
+        assert gesture.source is ContentSource.INCLUDED, key
         descriptor = Path(gesture.descriptor_relative_path)
         document = gesture_handler.parse_document(
             json.loads((included / descriptor).read_text(encoding="utf-8")),
             fallback_path=descriptor,
             descriptor_backed=True,
         ).document
-        assert isinstance(document, GestureDocumentV1), ref
+        assert isinstance(document, GestureDocumentV1), key
         [sequence] = [file for file in gesture.files if file.role == "sequence"]
         with (included / sequence.relative_path).open("rb") as clip:
             facts = derive_idle_playback(document, clip)
-        assert facts.eligible, (ref, facts.reason)
+        assert facts.eligible, (key, facts.reason)
 
 
 def _raw_dependencies(path: Path) -> list[dict[str, Any]]:

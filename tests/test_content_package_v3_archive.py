@@ -19,6 +19,7 @@ from animama.adapters.content_store import FilesystemContentStore
 from animama.app.contracts.content_package import portable_revision
 from animama.app.services.content_package_archive import ContentPackageArchive
 from animama.domain.content_catalog import ContentConflictError, ContentPathError
+from animama.domain.emotions import TRACKED_EMOTIONS
 from tests.content_package_helpers import anima_clip
 
 
@@ -298,10 +299,12 @@ def test_large_member_is_streamed_in_bounded_reads(tmp_path: Path, monkeypatch: 
 
 @pytest.mark.parametrize("loop_count,accepted", [(2, True), (None, False)])
 @pytest.mark.parametrize("implementation", ["anima_clip", "vrma"])
-def test_idle_style_requires_its_actual_owned_motion_to_finish(
+def test_anima_idle_gesture_requires_its_actual_owned_motion_to_finish(
     tmp_path: Path, loop_count: int | None, accepted: bool, implementation: str
 ) -> None:
-    """An otherwise valid looping Action needs a finite bound when used for idle."""
+    """An otherwise valid looping Gesture needs a finite bound when an Anima uses it for idle."""
+    from tests.anima_creation_service_support import vrm
+
     clip = anima_clip(clip_id="motion", name="Motion", loop=True)
     gesture = {
         "schema_version": 1,
@@ -325,27 +328,33 @@ def test_idle_style_requires_its_actual_owned_motion_to_finish(
         gesture["implementation"] = {"kind": "vrma"}
         gesture["config"] = {"loop_type": "repeat", **({"loop_count": loop_count} if loop_count else {})}
         gesture["files"] = [{"path": motion_name, "role": motion_role}]
-    style = {
-        "schema_version": 2,
-        "content_type": "idle_style",
-        "content_id": "style",
-        "name": "Style",
-        "default_pool": ["motion"],
-        "cells": {},
-        "dependencies": [{"ref": "motion", "content_type": "gesture"}],
-    }
+    avatar = {"content_id": "avatar", "content_type": "avatar", "name": "Avatar", "dependencies": []}
+    avatar_metadata = {"content_id": "avatar", "name": "Avatar"}
     manifest: dict[str, Any] = {
         "schema": "animama-content-package/3",
-        "kind": "content",
-        "root_entry_ids": ["style"],
+        "kind": "anima",
+        "root_entry_ids": [],
+        "anima": {
+            "display_name": "Idle companion",
+            "identity_markdown": "A calm companion.",
+            "avatar": "avatar",
+            "gestures": [],
+            "reactions": {emotion: {str(level): None for level in (1, 2, 3)} for emotion in TRACKED_EMOTIONS},
+            # Idle membership alone makes the Gesture part of the package.
+            "idle": {"default": ["motion"], "cells": {}},
+            "appearance": {"profile": None, "background": None},
+        },
         "entries": [],
         "avatar_portraits": [],
-        "capabilities": ["VRMC_vrm_animation/1.0"] if implementation == "vrma" else ["animaPoseClip/2.0"],
+        "capabilities": [
+            "VRMC_vrm/1.0",
+            "VRMC_vrm_animation/1.0" if implementation == "vrma" else "animaPoseClip/2.0",
+        ],
     }
     payloads = {}
     for document, documents in (
+        (avatar, [("model.vrm", "model", vrm()), ("model.meta.json", "metadata", avatar_metadata)]),
         (gesture, [("motion.meta.json", "descriptor", gesture), (motion_name, motion_role, motion_payload)]),
-        (style, [("style.json", "descriptor", style)]),
     ):
         files = []
         for index, (name, role, value) in enumerate(documents, 1):
@@ -358,7 +367,7 @@ def test_idle_style_requires_its_actual_owned_motion_to_finish(
                     "relative_path": name,
                     "role": role,
                     "ordinal": index,
-                    "media_type": "model/gltf-binary" if name.endswith(".vrma") else "application/json",
+                    "media_type": "model/gltf-binary" if name.endswith((".vrm", ".vrma")) else "application/json",
                     "size_bytes": len(payload),
                     "sha256": hashlib.sha256(payload).hexdigest(),
                 }
@@ -377,10 +386,10 @@ def test_idle_style_requires_its_actual_owned_motion_to_finish(
     archive = tmp_path / "idle.zip"
     write_package(archive, manifest, payloads)
     if accepted:
-        assert set(inspector(tmp_path).inspect(archive, destination=tmp_path / "inspection").entries) == {
-            "style",
-            "motion",
-        }
+        inspected = inspector(tmp_path).inspect(archive, destination=tmp_path / "inspection")
+        assert set(inspected.entries) == {"avatar", "motion"}
+        assert inspected.manifest.anima is not None
+        assert list(inspected.manifest.anima.idle.members()) == [("default", "motion")]
     else:
         with pytest.raises(ContentConflictError, match="idle_repetitions_invalid"):
             inspector(tmp_path).inspect(archive, destination=tmp_path / "inspection")

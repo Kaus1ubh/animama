@@ -12,7 +12,6 @@ import {
   Sparkles,
   UserRound,
   Volume2,
-  Wind,
 } from "lucide-react";
 import {
   sharingKindLabel,
@@ -28,7 +27,6 @@ export function SharingItemIcon({ kind }: { kind: string }) {
         gesture: Hand,
         reaction: HeartHandshake,
         pose: UserRound,
-        idle_style: Wind,
         particle_effect: Sparkles,
         avatar_effect: ScanFace,
         scene_effect: Layers3,
@@ -190,6 +188,15 @@ function Configuration({
   );
 }
 
+/** Count distinct Gestures across the Idle pool's Default and every cell. */
+function idleGestureCount(idle: PortableAnima["idle"]): number {
+  const entryIds = new Set(idle.default);
+  for (const intensities of Object.values(idle.cells))
+    for (const members of Object.values(intensities))
+      for (const entryId of members) entryIds.add(entryId);
+  return entryIds.size;
+}
+
 /** Show every saved equipment cell and its configuration without editing the export. */
 export function SharingAnimaDetails({
   anima,
@@ -212,6 +219,7 @@ export function SharingAnimaDetails({
   const counts = new Map<string, number>();
   for (const item of items)
     counts.set(item.kind, (counts.get(item.kind) ?? 0) + 1);
+  const idleCount = idleGestureCount(anima.idle);
   return (
     <div className="space-y-5">
       <div className="grid gap-6 md:grid-cols-[1.2fr_1fr]">
@@ -324,10 +332,12 @@ export function SharingAnimaDetails({
           <p>
             <span className="font-medium">
               {t("sharing.anima.fieldLabel", {
-                label: t("sharing.anima.idleStyle"),
+                label: t("sharing.anima.idle"),
               })}
             </span>
-            {name(anima.idle_style)}
+            {idleCount
+              ? t("sharing.anima.idleGestures", { count: idleCount })
+              : t("sharing.anima.none")}
           </p>
           <section>
             <h4 className="mb-2 font-medium">

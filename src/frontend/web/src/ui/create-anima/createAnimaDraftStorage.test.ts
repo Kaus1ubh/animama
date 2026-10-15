@@ -11,7 +11,15 @@ import {
   creationStorageKey,
   migrateCreationRecord,
 } from "./createAnimaDraftStorage";
-import { readyDraft } from "./createAnimaTestFixtures";
+import { readyDraft, ref } from "./createAnimaTestFixtures";
+
+/** Drafts saved before the built-in Idle pool chose an Idle Style. */
+const retiredIdle = {
+  default_idle: ref("idle"),
+  idle_revisions: {
+    idle: { kind: "idle_style", revision_sha256: "a".repeat(64) },
+  },
+};
 
 function legacyRecord(options: { image?: boolean; locked?: boolean } = {}) {
   const current = readyDraft();
@@ -28,6 +36,7 @@ function legacyRecord(options: { image?: boolean; locked?: boolean } = {}) {
     kind: "draft",
     draft: {
       ...current,
+      ...retiredIdle,
       schema_version: 1,
       voice: undefined,
       identity_markdown: "",
@@ -79,7 +88,12 @@ describe("retired clip draft recovery", () => {
         draft: {
           ...(version === 1
             ? old.draft
-            : { ...draft, schema_version: 2, voice: undefined }),
+            : {
+                ...draft,
+                ...retiredIdle,
+                schema_version: 2,
+                voice: undefined,
+              }),
           seed_revisions: oldEvidence,
           submission: { state: "unknown", request },
         },
@@ -328,7 +342,7 @@ it.each(["pending", "unknown"] as const)(
       voice: undefined,
       idempotency_key: "before-voice",
     };
-    const previous = { ...current, voice: undefined };
+    const previous = { ...current, ...retiredIdle, voice: undefined };
     const frozen = JSON.stringify(request);
     const migrated = migrateCreationRecord(
       JSON.stringify({
@@ -349,6 +363,38 @@ it.each(["pending", "unknown"] as const)(
     if (migrated.kind !== "draft") throw new Error("draft missing");
     expect(migrated.draft.step).toBe(4);
     expect(migrated.draft.voice).toBeNull();
+    expect(migrated.draft).not.toHaveProperty("default_idle");
     expect(JSON.stringify(migrated.draft.submission?.request)).toBe(frozen);
   },
 );
+
+it("drops the retired Idle Style choice from a v3 draft without rewriting its request", () => {
+  const current = readyDraft();
+  const request = {
+    ...buildAnimaSpec(current),
+    idempotency_key: "before-idle-pool",
+    expected_source_revisions: {
+      ...buildAnimaSpec(current).expected_source_revisions,
+      ...retiredIdle.idle_revisions,
+    },
+  };
+  const frozen = JSON.stringify(request);
+  const migrated = migrateCreationRecord(
+    JSON.stringify({
+      schema_version: 3,
+      writer: "00000000-0000-4000-8000-000000000001",
+      sequence: 1,
+      kind: "draft",
+      draft: {
+        ...current,
+        ...retiredIdle,
+        submission: { state: "unknown", request },
+      },
+    }),
+  );
+  expect(migrated.kind).toBe("draft");
+  if (migrated.kind !== "draft") throw new Error("draft missing");
+  expect(migrated.draft).not.toHaveProperty("default_idle");
+  expect(migrated.draft).not.toHaveProperty("idle_revisions");
+  expect(JSON.stringify(migrated.draft.submission?.request)).toBe(frozen);
+});

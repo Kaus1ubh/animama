@@ -1,9 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  saveContentEditRecovery,
-  loadContentEditRecovery,
-  CONTENT_EDIT_RECOVERY_SCHEMA,
-} from "./contentEditRecovery";
+import { actionRecoveryKey } from "./actionRecovery";
 import {
   beginHostedRecoverySession,
   endHostedRecoverySession,
@@ -35,29 +31,23 @@ describe("hosted recovery retirement", () => {
     const current = "hosted:new-generation-456:second-tab";
     beginHostedRecoverySession(old);
     beginHostedRecoverySession(current);
-    for (const key of [old, orphan, current, "installation-owner"]) {
-      saveContentEditRecovery({
-        schema: CONTENT_EDIT_RECOVERY_SCHEMA,
-        userId: key,
-        family: "pose",
-        documentKey: "new",
-        operationId: key,
-        form: { text: key },
-        updatedAt: "2030-01-01T00:00:00Z",
-      });
-    }
+    // An Action editor draft stands in for every per-session recovery record.
+    const draft = (key: string) =>
+      storage.getItem(actionRecoveryKey(key, "gesture", null));
+    for (const key of [old, orphan, current, "installation-owner"])
+      storage.setItem(actionRecoveryKey(key, "gesture", null), key);
+    // A draft the retired Idle Style editor may have left behind.
+    const legacy = `animama:content-edit:${encodeURIComponent(old)}:idle_style:new`;
+    storage.setItem(legacy, old);
     await endHostedRecoverySession(old);
-    expect(loadContentEditRecovery(old, "pose", "new")).toBeNull();
-    expect(loadContentEditRecovery(orphan, "pose", "new")).toBeNull();
-    expect(loadContentEditRecovery(current, "pose", "new")?.operationId).toBe(
-      current,
-    );
+    expect(storage.getItem(legacy)).toBeNull();
+    expect(draft(old)).toBeNull();
+    expect(draft(orphan)).toBeNull();
+    expect(draft(current)).toBe(current);
     expect(recoverySessionIsActive(current)).toBe(true);
     await purgeHostedRecoverySessions();
-    expect(loadContentEditRecovery(current, "pose", "new")).toBeNull();
-    expect(
-      loadContentEditRecovery("installation-owner", "pose", "new"),
-    ).not.toBeNull();
+    expect(draft(current)).toBeNull();
+    expect(draft("installation-owner")).not.toBeNull();
     expect(recoverySessionIsActive(current)).toBe(false);
   });
 

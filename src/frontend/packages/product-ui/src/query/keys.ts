@@ -136,19 +136,6 @@ export const queryKeys = {
         sort,
       ] as const,
   },
-  idleStyles: {
-    all: (userId: string) => ["idle-styles", userId] as const,
-    detail: (userId: string, itemId: string) =>
-      [...queryKeys.idleStyles.all(userId), "detail", itemId] as const,
-    list: (userId: string, query: string, origin: string, sort = "name") =>
-      [
-        ...queryKeys.idleStyles.all(userId),
-        "list",
-        query,
-        origin,
-        sort,
-      ] as const,
-  },
   appearanceImages: {
     all: (userId: string) => ["appearance-images", userId] as const,
     list: (userId: string) =>

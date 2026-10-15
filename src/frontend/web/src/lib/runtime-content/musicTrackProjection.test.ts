@@ -43,7 +43,7 @@ describe("retired Music Track projection", () => {
       avatar: avatar(),
       gestures: [],
       reactions: [],
-      idle_style: null,
+      idle: { default_pool: [], cells: {}, gestures: [] },
       particle_effects: [],
       avatar_effects: [],
       scene_effects: [],

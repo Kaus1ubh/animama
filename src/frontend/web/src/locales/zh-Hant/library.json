@@ -1,23 +1,5 @@
 {
   "content": {
-    "idleStyle": {
-      "cellPool": "{{emotion}} {{intensity}}",
-      "defaultPool": "預設",
-      "ineligible": {
-        "duration": "此動作沒有正數且有限的動作時長。",
-        "lifetime": "此動作會持續整個階段、狀態或執行。請選擇具有有限時間軸的動作。",
-        "loop": "此動作的循環模式不支援待機播放。",
-        "motionAmbiguous": "待機播放需要此動作恰好有一個動畫或片段檔案。",
-        "motionInvalid": "無法驗證此動作的運動。請在 Creator Studio 中檢查其動畫或片段。",
-        "motionUnavailable": "此動作的動畫無法使用。請先還原所需內容。",
-        "other": "此動作無法用於有限的待機播放。請在 Creator Studio 中檢查其內容和相依項目。",
-        "repetitions": "此循環動作需要有限的重複次數。新增前請編輯其播放設定。",
-        "speed": "此動作需要正數的播放速度才能用於待機。"
-      },
-      "poolBlankReference": "{{pool}} 包含空白的動作參照。",
-      "poolDuplicate": "{{pool}} 中的動作參照不能重複。",
-      "poolEmpty": "{{pool}} 至少需要一個動作。"
-    },
     "nonPortableReason": "隨此應用程式提供，僅限在此使用。無法自訂、複製或匯出。",
     "particle": {
       "aTextureTooLarge": "有材質超過 {{size}} MiB 的上限。",
@@ -65,11 +47,8 @@
       "resolveBeforeSaving": "儲存前請先確定姿勢。"
     },
     "preview": {
-      "idleDependencyUnavailable": "某個待機動作的相依項目無法使用。",
       "idleGestureUnavailable": "所選的待機動作無法使用。",
-      "noIdleGesture": "此池中沒有排定的待機動作。",
-      "notAction": "此預覽不是行為。",
-      "notIdleStyle": "此預覽不是待機風格。"
+      "notAction": "此預覽不是行為。"
     },
     "recovery": {
       "discardFailed": "無法捨棄瀏覽器復原資料。請再試一次。",
@@ -139,14 +118,12 @@
       "avatarEffects": "形象特效",
       "avatars": "虛擬形象",
       "gestures": "動作",
-      "idleStyles": "待機風格",
       "particleEffects": "粒子特效",
       "poses": "姿勢",
       "reactions": "反應",
       "sceneEffects": "場景特效",
       "soundEffects": "音效"
     },
-    "idleStylePreviewFailed": "無法預覽此待機風格。",
     "layout": {
       "grid": "格狀檢視",
       "label": "資源庫版面",
@@ -164,7 +141,6 @@
     "actionFilters": {
       "all": "全部",
       "gestures": "動作",
-      "idleStyles": "待機風格",
       "poses": "姿勢",
       "reactions": "反應"
     },
@@ -173,7 +149,6 @@
       "avatarEffects": "形象特效",
       "avatars": "虛擬形象",
       "gestures": "動作",
-      "idleStyles": "待機風格",
       "label": "資源庫內容類型",
       "particle": "粒子特效",
       "poses": "姿勢",
@@ -223,7 +198,8 @@
       "fullIdentity": "完整的 Anima 身分設定",
       "gestures": "動作",
       "identity": "身分設定",
-      "idleStyle": "待機風格",
+      "idle": "待機",
+      "idleGestures_other": "{{count}} 個動作",
       "includedContent": "包含的內容",
       "labelValue": "{{label}}：{{value}}",
       "none": "無",
@@ -342,7 +318,6 @@
       "avatarEffect_other": "形象特效",
       "content_other": "內容",
       "gesture_other": "動作",
-      "idleStyle_other": "待機風格",
       "image_other": "圖片",
       "particleEffect_other": "粒子特效",
       "pose_other": "姿勢",

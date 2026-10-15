@@ -333,7 +333,6 @@ async def test_issue_persists_immutable_body_reuses_winner_and_fences_later_edit
             owner_user_id=owner,
             revision=1,
             starter_catalog_version=1,
-            idle_style_empty=True,
             starter_exclusions=[],
         )
     )

@@ -20,13 +20,14 @@ const definition = {
     { entry_id: "gesture", semantic_key: "wave", config: { loop: true } },
   ],
   reactions: {},
-  idle_style: null,
+  idle: { default: ["gesture"], cells: { joy: { 2: ["gesture"] } } },
   appearance: { profile: null, background: null },
 };
 const installed = {
   ...definition,
   avatar: "avatar-copy",
   gestures: [{ ...definition.gestures[0], entry_id: "gesture-copy" }],
+  idle: { default: ["gesture-copy"], cells: { joy: { 2: ["gesture-copy"] } } },
 };
 const privateAvatar = {
   id: "logical-avatar",
@@ -133,11 +134,7 @@ test("whole package binds every copied item and Anima to the original reviewed r
       journeyKey: "sharing-anima",
     });
     assert.equal(anima.itemId, "anima-copy");
-    assert.deepEqual(anima.animaDefinition, {
-      ...definition,
-      avatar: "avatar-copy",
-      gestures: [{ ...definition.gestures[0], entry_id: "gesture-copy" }],
-    });
+    assert.deepEqual(anima.animaDefinition, installed);
   });
 });
 
@@ -167,13 +164,11 @@ for (const scenario of [
         },
         getAnimaExport: async () => ({
           anima: {
-            ...definition,
-            avatar: "avatar-copy",
+            ...installed,
             identity_markdown:
               scenario === "definition_drift"
                 ? "manually edited"
                 : definition.identity_markdown,
-            gestures: [{ ...definition.gestures[0], entry_id: "gesture-copy" }],
           },
         }),
         deleteAnima: async (id) => {

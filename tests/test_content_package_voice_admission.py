@@ -104,7 +104,7 @@ def voice_package(
             "avatar": "avatar",
             "gestures": [],
             "reactions": {emotion: {str(level): None for level in (1, 2, 3)} for emotion in TRACKED_EMOTIONS},
-            "idle_style": None,
+            "idle": {"default": [], "cells": {}},
             "pocket_voice": "voice",
             "appearance": {"profile": None, "background": None},
         },

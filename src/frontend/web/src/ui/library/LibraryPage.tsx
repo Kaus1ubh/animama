@@ -30,13 +30,7 @@ import {
 import { ContentHealth } from "@/ui/content-health/ContentHealth";
 
 const SECTIONS = ["all", "avatars", "actions", "fx", "chat-uploads"] as const;
-const ACTION_FILTERS = [
-  "all",
-  "gestures",
-  "reactions",
-  "poses",
-  "idle-styles",
-] as const;
+const ACTION_FILTERS = ["all", "gestures", "reactions", "poses"] as const;
 const FX_FILTERS = ["all", "particle", "avatar", "scene", "sound"] as const;
 
 /** Common product Library. Creation starts from the dedicated Create hub. */
@@ -61,8 +55,6 @@ export function LibraryPage({
         return t("page.contentTypes.reactions");
       case "poses":
         return t("page.contentTypes.poses");
-      case "idle-styles":
-        return t("page.contentTypes.idleStyles");
       case "particle":
         return t("page.contentTypes.particle");
       case "avatar-effects":
@@ -97,8 +89,6 @@ export function LibraryPage({
         return t("page.actionFilters.reactions");
       case "poses":
         return t("page.actionFilters.poses");
-      case "idle-styles":
-        return t("page.actionFilters.idleStyles");
     }
   };
   const fxFilterLabel = (filter: (typeof FX_FILTERS)[number]) => {

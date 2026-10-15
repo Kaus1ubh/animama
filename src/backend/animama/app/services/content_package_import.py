@@ -46,7 +46,6 @@ from animama.app.services.content_package_archive import InspectedPackage, Inspe
 from animama.app.services.content_package_export import _json_stream, portable_json
 from animama.app.services.content_portability import is_non_portable
 from animama.app.services.local_content_mutations import _finish_owned_work, mutation_digest
-from animama.app.services.non_portable_packages import restore_idle_refs
 from animama.app.services.package_inspection import inspect_package
 from animama.app.services.portable_anima_service import resolve_portable_anima, validate_package_anima_runtime
 from animama.app.services.typed_content_service import TypedContentService
@@ -474,10 +473,8 @@ class ContentPackageImportService:
                     },
                 },
             )
-        restored = _restored_idle_refs(plan)
         for entry in plan.manifest.entries:
             expected = {installed[dependency.ref].id for dependency in entry.dependencies}
-            expected |= {rebound[(ContentKind.GESTURE, key)] for key in restored.get(entry.package_entry_id, {})}
             if set(installed[entry.package_entry_id].dependency_item_ids) != expected:
                 raise ContentConflictError("package_dependency_admission_failed")
         # The Library's Avatar catalog resolves logical Avatar mappings, including
@@ -527,7 +524,6 @@ class ContentPackageImportService:
             for association in plan.manifest.avatar_portraits
         }
         manifest_entries = {entry.package_entry_id: entry for entry in plan.manifest.entries}
-        restored = _restored_idle_refs(plan)
         result = []
         for item in plan.items:
             source = inspected.entries[item.entry_id]
@@ -537,9 +533,6 @@ class ContentPackageImportService:
             document = handler_for_kind(item.kind).catalog_projection(source.document)
             aliases = frozenset(dependency.alias for dependency in source.document.dependencies if dependency.alias)
             document = portable_json(document, references, aliases=aliases)
-            if item.entry_id in restored:
-                # Rebound non-portable Gestures keep their Included logical keys.
-                document = restore_idle_refs(document, restored[item.entry_id])
             document["content_id"], document["name"] = item.logical_key, item.name
             if entry.license is not None:
                 document["provenance"] = entry.license.model_dump(exclude_none=True)
@@ -707,32 +700,18 @@ def _plan_non_portable(
     return tuple(planned)
 
 
-def _restored_idle_refs(plan: ReviewedImportPlan) -> dict[str, dict[str, list[str]]]:
-    """Package Idle Style entry id -> {rebound Gesture logical key: pools}."""
-
-    rebound = {(item.kind, item.logical_key) for item in plan.non_portable if item.item_id is not None}
-    restored: dict[str, dict[str, list[str]]] = {}
-    for reference in plan.manifest.non_portable_references:
-        if (reference.kind, reference.logical_key) not in rebound:
-            continue
-        for use in reference.uses:
-            if use.entry_id is not None:
-                restored.setdefault(use.entry_id, {})[reference.logical_key] = list(use.pools)
-    return restored
-
-
 def _rebind_anima(
     plan: ReviewedImportPlan,
     installed: dict[str, CatalogContentEntry],
     rebound: dict[tuple[ContentKind, str], str],
     rebound_entries: dict[str, CatalogContentEntry],
 ) -> tuple[PortableAnima, dict[str, CatalogContentEntry]]:
-    """Add rebound Anima slots; unavailable ones keep the importer's default."""
+    """Add rebound Gestures to their Anima slots and Idle pools; unavailable ones are left out."""
 
     assert plan.anima is not None
     entries = dict(installed)
     gestures = list(plan.anima.gestures)
-    idle_style = plan.anima.idle_style
+    idle = plan.anima.idle.model_dump()
     for index, reference in enumerate(plan.manifest.non_portable_references):
         item_id = rebound.get((reference.kind, reference.logical_key))
         if item_id is None:
@@ -746,8 +725,15 @@ def _rebind_anima(
                 gestures.append(
                     PortableGestureSelection(entry_id=entry_id, semantic_key=use.semantic_key, config=use.config)
                 )
-            elif use.anima_slot == "idle_style":
+            elif use.anima_slot == "idle":
                 entries[entry_id] = rebound_entries[item_id]
-                idle_style = entry_id
-    definition = plan.anima.model_copy(update={"gestures": gestures, "idle_style": idle_style})
-    return PortableAnima.model_validate(definition.model_dump()), entries
+                for pool in use.pools:
+                    emotion, _, intensity = pool.partition(".")
+                    members = (
+                        idle["default"]
+                        if pool == "default"
+                        else idle["cells"].setdefault(emotion, {}).setdefault(intensity, [])
+                    )
+                    members.append(entry_id)
+    definition = plan.anima.model_copy(update={"gestures": gestures})
+    return PortableAnima.model_validate({**definition.model_dump(), "idle": idle}), entries

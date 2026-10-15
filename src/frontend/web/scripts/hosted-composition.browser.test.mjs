@@ -386,7 +386,7 @@ test("a real same-tab reload recovers the original ambiguous operation and sign-
     assert.deepEqual(recovered.form, { text: "private-draft" });
     await page.evaluate(() => {
       localStorage.setItem(
-        "animama:content-edit:hosted%3Aold-tab:fixture:draft",
+        "animama:action-editor:hosted%3Aold-tab:gesture:fixture-draft",
         "private",
       );
       localStorage.setItem(
@@ -673,7 +673,7 @@ test("sign-out disposes private work and same-owner reauthentication has an empt
     ...window.hostedFixture.observations,
     microphoneStops: window.microphoneStops,
     drafts: Object.keys(localStorage).filter((key) =>
-      key.startsWith("animama:content-edit:"),
+      key.startsWith("animama:action-editor:"),
     ),
   }));
   assert.equal(ended.lateData, false);

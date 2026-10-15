@@ -41,13 +41,15 @@ app primitive (`animama/builtin-pose/1/<id>`). The Gesture creator's Poses tab
 lists Local
 Poses; its "Show Included" checkbox (off by default) adds the Included ones.
 
-Idle Styles add a separate Gesture-backed idle lane. A mount freezes the selected
-Style, its Gesture dependencies and exact finite playback facts. Neutral uses
-Default; the dominant emotion/intensity selects its cell, inheriting Default
-when omitted and staying procedural-only when explicitly disabled. Selection is
-uniform with previous-Gesture avoidance when alternatives exist. Style changes
-apply on the next mount; emotion changes affect the next selection. Idle-only
-members are absent from the AI-invocable Gesture list.
+The Anima's Idle pool adds a separate Gesture-backed idle lane. A mount freezes
+each pool Gesture as its own root with exact finite playback facts; a Gesture
+that cannot be admitted is left out alone. Each selection weights Default at
+one half and the dominant emotion's cells from Mild up to its intensity at the
+other, uniformly within each half; a Gesture in both takes both shares, and an
+empty half gives the other the whole pool. Neutral uses Default alone. Each
+half leaves out the previous Gesture when it has another choice.
+Pool changes apply on the next mount; emotion changes affect the next
+selection. Idle members are absent from the AI-invocable Gesture list.
 
 ## 1) High-level architecture
 
@@ -308,7 +310,7 @@ Important behavior:
 `AnimaPose` and `AnimaPoseClip` are separate JSON artifacts. `animaPoseClip/2.0`
 (beats and tracks; see
 [ADR 0014](../../adr/0014-track-based-anima-pose-clips.md)) is the only clip
-format. Gesture, Reaction and Idle Style playback, the runtime and built-in
+format. Gesture, Reaction and Idle playback, the runtime and built-in
 catalogs, the creators, the preview and render tools and package import all
 read it. The retired `animaPoseClip/1.0` is identified by its `schema` and
 rejected, never converted
@@ -417,7 +419,7 @@ uses a fixed package-level message).
   run changes. `whileAvatarState` is available for future state-owned clips.
 - `mutedProceduralLayers` optionally lists live layers (`breathing`, `sway`,
   `bounce`, `headNod`, `headSideTilt`, `cursorLookAt`, `emotionPosture`) muted
-  while the clip plays, including Idle Style playback. Muting never changes
+  while the clip plays, including Idle playback. Muting never changes
   layer settings or planner ownership; a clip without the field leaves layers
   untouched. `talkingHands` is already suppressed for every Gesture. The Gesture
   creator sets these under Clip settings → Mute while playing; its preview runs
@@ -1201,7 +1203,7 @@ Built-in production animation manifest and mounted live catalog:
   `src/frontend/web/src/assets/vrm/animations/manifest.json`
 - Scope: authoring metadata and motion policy. Live Anima chat uses a prepared
   `AnimaRuntimeCatalog` containing registered Included and Local Gesture,
-  Reaction, and Idle Style selections with frozen bytes for that mount.
+  Reaction, and Idle pool selections with frozen bytes for that mount.
 - Candidate rules: use non-disabled `Animations.idle` entries with
   `type: "vrma"` and finite effective duration. Empty `emotions` maps are
   neutral; non-empty maps match active tracked emotions at intensity levels 1,

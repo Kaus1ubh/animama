@@ -86,12 +86,15 @@ body parts, overshoots, bounces and finger motion, usually authored by an
 agent. Detail follows its beat when the beat is retimed or re-posed and is
 removed with it; people do not edit it key by key.
 
-## Idle Style
+## Idle
 
-Reusable content that selects finite Gestures for idle playback through a Default
-pool and optional emotion/intensity pools. An omitted cell inherits Default;
-explicit None suppresses idle playback for that cell. Selecting an Idle Style
-does not equip its Gestures for AI invocation.
+The finite Gestures an Anima plays while it is quiet, chosen from its built-in
+Idle pool: a Default pool plus one cell per emotion and intensity. Each idle is
+a Default Gesture half the time and, the other half, a Gesture from the current
+emotion's cells at or below its intensity. Every Anima has exactly
+one pool, seeded at creation and edited in its loadout. Idle Gestures are never
+AI-callable. Formerly "Idle Style", reusable content that no longer exists
+([ADR 0026](docs/adr/0026-built-in-idle-pool-per-anima.md)); do not use that term.
 
 ## Non-portable content
 

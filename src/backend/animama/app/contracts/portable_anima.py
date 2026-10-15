@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -57,6 +58,48 @@ class PortableAnimaAppearance(PortableModel):
     background: PortableAppearanceSelection | None
 
 
+IdleEntryList = Annotated[list[EntryId], Field(max_length=500)]
+
+
+class PortableIdlePool(PortableModel):
+    """The Anima's Idle pool as Gesture entry ids.
+
+    An emotion/intensity cell absent from ``cells`` holds no Gestures of its
+    own; playback still mixes in ``default`` and the emotion's lower
+    intensities. Lists are unique and present cells are non-empty, so each pool
+    has one encoding.
+    """
+
+    default: IdleEntryList
+    cells: dict[Emotion, dict[Literal["1", "2", "3"], IdleEntryList]]
+
+    @field_validator("default")
+    @classmethod
+    def unique_default(cls, value: list[str]) -> list[str]:
+        if len(set(value)) != len(value):
+            raise ValueError("Idle pool Gestures must be unique")
+        return value
+
+    @field_validator("cells")
+    @classmethod
+    def canonical_cells(cls, value: dict[str, dict[str, list[str]]]) -> dict[str, dict[str, list[str]]]:
+        for levels in value.values():
+            if not levels:
+                raise ValueError("Omit an emotion with no Idle cells")
+            for members in levels.values():
+                if not members or len(set(members)) != len(members):
+                    raise ValueError("Idle cells must list unique Gestures; omit an empty cell")
+        return value
+
+    def members(self) -> Iterator[tuple[str, str]]:
+        """Yield ``(cell, entry_id)``; ``cell`` is ``default`` or ``<emotion>-<intensity>``."""
+
+        yield from (("default", entry_id) for entry_id in self.default)
+        for emotion, levels in self.cells.items():
+            for level, members in levels.items():
+                yield from ((f"{emotion}-{level}", entry_id) for entry_id in members)
+
+
 class PortableAnima(PortableModel):
     """Every equipment choice is explicit; only reviewed identity text is copied."""
 
@@ -65,7 +108,7 @@ class PortableAnima(PortableModel):
     avatar: EntryId
     gestures: list[PortableGestureSelection] = Field(max_length=500)
     reactions: dict[Emotion, dict[Literal["1", "2", "3"], PortableActionSelection | None]]
-    idle_style: EntryId | None
+    idle: PortableIdlePool
     appearance: PortableAnimaAppearance
     # Only the active saved Pocket clone travels; provider profiles remain local.
     pocket_voice: EntryId | None = None
@@ -106,8 +149,7 @@ class PortableAnima(PortableModel):
             for selection in cells.values()
             if selection is not None
         )
-        if self.idle_style is not None:
-            refs.append((self.idle_style, ContentKind.IDLE_STYLE))
+        refs.extend((entry_id, ContentKind.GESTURE) for _, entry_id in self.idle.members())
         if self.pocket_voice is not None:
             refs.append((self.pocket_voice, ContentKind.VOICE))
         refs.extend(

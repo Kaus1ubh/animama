@@ -259,7 +259,7 @@ function mutationClass(request: Request): string | null {
   const path = new URL(request.url()).pathname;
   if (PREVIEW_PATH.test(path)) return null;
   if (
-    /^\/v1\/animas\/[^/]+\/(gestures|reactions|idle-style|music-tracks).*:(plan|commit)$/.test(
+    /^\/v1\/animas\/[^/]+\/(gestures|reactions|idle|music-tracks).*:(plan|commit)$/.test(
       path,
     )
   ) {

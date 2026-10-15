@@ -1,0 +1,163 @@
+{
+  "schema_version": 1,
+  "id": "builtin:starter-idle-pool",
+  "version": 1,
+  "default": [
+    "builtin:gesture:chat-glance",
+    "builtin:gesture:offscreen-look",
+    "builtin:gesture:bgm-bob",
+    "builtin:gesture:hmm-drift",
+    "builtin:gesture:hair-tuck-settle",
+    "builtin:gesture:bored-wait",
+    "builtin:gesture:sleepy-nod-off"
+  ],
+  "cells": {
+    "admiration": {
+      "2": [
+        "builtin:gesture:dreamy-gaze"
+      ]
+    },
+    "amusement": {
+      "1": [
+        "builtin:gesture:mixamo-idle-happy"
+      ],
+      "2": [
+        "builtin:gesture:happy-sway"
+      ]
+    },
+    "anger": {
+      "1": [
+        "builtin:gesture:mixamo-idle-angry"
+      ],
+      "2": [
+        "builtin:gesture:simmering-huff"
+      ]
+    },
+    "annoyance": {
+      "1": [
+        "builtin:gesture:mixamo-idle-angry"
+      ],
+      "2": [
+        "builtin:gesture:simmering-huff"
+      ]
+    },
+    "caring": {
+      "2": [
+        "builtin:gesture:dreamy-gaze"
+      ]
+    },
+    "confusion": {
+      "2": [
+        "builtin:gesture:hmm-drift"
+      ]
+    },
+    "curiosity": {
+      "2": [
+        "builtin:gesture:offscreen-look"
+      ]
+    },
+    "desire": {
+      "2": [
+        "builtin:gesture:dreamy-gaze"
+      ]
+    },
+    "disappointment": {
+      "1": [
+        "builtin:gesture:mixamo-idle-bored",
+        "builtin:gesture:mixamo-idle-sad"
+      ],
+      "2": [
+        "builtin:gesture:downcast-sigh"
+      ]
+    },
+    "disapproval": {
+      "1": [
+        "builtin:gesture:mixamo-idle-angry"
+      ],
+      "2": [
+        "builtin:gesture:simmering-huff"
+      ]
+    },
+    "disgust": {
+      "2": [
+        "builtin:gesture:simmering-huff"
+      ]
+    },
+    "embarrassment": {
+      "2": [
+        "builtin:gesture:nervous-fidget"
+      ]
+    },
+    "excitement": {
+      "1": [
+        "builtin:gesture:mixamo-idle-happy"
+      ],
+      "2": [
+        "builtin:gesture:happy-sway"
+      ]
+    },
+    "fear": {
+      "1": [
+        "builtin:gesture:mixamo-idle-anxious_look_around"
+      ],
+      "2": [
+        "builtin:gesture:nervous-fidget"
+      ]
+    },
+    "gratitude": {
+      "2": [
+        "builtin:gesture:happy-sway"
+      ]
+    },
+    "grief": {
+      "1": [
+        "builtin:gesture:mixamo-idle-sad"
+      ],
+      "2": [
+        "builtin:gesture:downcast-sigh"
+      ]
+    },
+    "joy": {
+      "1": [
+        "builtin:gesture:mixamo-idle-happy"
+      ],
+      "2": [
+        "builtin:gesture:happy-sway"
+      ]
+    },
+    "love": {
+      "2": [
+        "builtin:gesture:dreamy-gaze"
+      ]
+    },
+    "nervousness": {
+      "1": [
+        "builtin:gesture:mixamo-idle-anxious_look_around"
+      ],
+      "2": [
+        "builtin:gesture:nervous-fidget"
+      ]
+    },
+    "optimism": {
+      "1": [
+        "builtin:gesture:mixamo-idle-happy"
+      ],
+      "2": [
+        "builtin:gesture:happy-sway"
+      ]
+    },
+    "remorse": {
+      "2": [
+        "builtin:gesture:downcast-sigh"
+      ]
+    },
+    "sadness": {
+      "1": [
+        "builtin:gesture:mixamo-idle-sad"
+      ],
+      "2": [
+        "builtin:gesture:downcast-sigh"
+      ]
+    }
+  }
+}

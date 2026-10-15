@@ -158,18 +158,7 @@ export async function resolveCreationEvidence(
   _owner: string,
   draft: CreateAnimaDraft,
 ): Promise<CreateAnimaDraft> {
-  const roots = [
-    ...creationRoots(draft),
-    ...(draft.default_idle
-      ? [
-          {
-            kind: "idle_style" as const,
-            source: draft.default_idle,
-            path: "/expected_source_revisions",
-          },
-        ]
-      : []),
-  ];
+  const roots = creationRoots(draft);
   const unique = [
     ...new Map(
       roots.map((root) => [
@@ -198,7 +187,6 @@ export async function resolveCreationEvidence(
   );
   const evidence: Record<string, CreationEvidence> = {};
   const issues: AnimaCreationDiagnostic[] = [];
-  let idleRevisions = draft.idle_revisions;
   for (const root of unique) {
     const resolved = returned.get(root.source.item_id);
     const diagnostic = result.diagnostics.find(
@@ -220,10 +208,7 @@ export async function resolveCreationEvidence(
         source: resolved.source,
         revisions: sourceMapSchema.parse(resolved.expected_source_revisions),
       };
-      const prior =
-        root.kind === "idle_style"
-          ? draft.idle_revisions
-          : draft.evidence[root.source.item_id]?.revisions;
+      const prior = draft.evidence[root.source.item_id]?.revisions;
       const baseline =
         prior && Object.keys(prior).length > 0
           ? prior
@@ -240,10 +225,7 @@ export async function resolveCreationEvidence(
           code: "source_dependency_changed",
           message: getI18n().t("errors:creation.source_dependency_changed"),
         };
-      if (!problem) {
-        if (root.kind === "idle_style") idleRevisions = next.revisions;
-        else evidence[root.source.item_id] = next;
-      }
+      if (!problem) evidence[root.source.item_id] = next;
     }
     if (problem)
       for (const use of roots.filter(
@@ -269,11 +251,8 @@ export async function resolveCreationEvidence(
       });
     throw sourceFailure(issues);
   }
-  mergeSourceMaps([
-    idleRevisions,
-    ...Object.values(evidence).map((item) => item.revisions),
-  ]);
-  return { ...draft, evidence, idle_revisions: idleRevisions };
+  mergeSourceMaps(Object.values(evidence).map((item) => item.revisions));
+  return { ...draft, evidence };
 }
 
 /** Options and each family keep independent loading, failure, and retry states. */

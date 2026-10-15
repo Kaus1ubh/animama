@@ -6,7 +6,10 @@ import {
 } from "./content-ledger.mjs";
 import { verifyLocalItemDirectoryAbsent } from "./local-content-verifier.mjs";
 import { resolvePackageImportOwnership } from "./package-import-ownership.mjs";
-import { stableJsonSha256 } from "./local-catalog-client.mjs";
+import {
+  animaDefinitionSha256,
+  stableJsonSha256,
+} from "./local-catalog-client.mjs";
 
 /** Remove owned parents before supports; the API still rechecks every exact revision. */
 async function cleanupOrder(states, client) {
@@ -131,8 +134,9 @@ export async function cleanupOwnedContent({
             !avatar ||
             current.id !== owned.itemId ||
             current.aggregate_revision !== 1 ||
-            stableJsonSha256(summary.anima) !== owned.revisionSha256 ||
-            stableJsonSha256(owned.animaDefinition) !== owned.revisionSha256
+            animaDefinitionSha256(summary.anima) !== owned.revisionSha256 ||
+            animaDefinitionSha256(owned.animaDefinition) !==
+              owned.revisionSha256
           )
             throw new Error(
               "Imported Anima definition changed; refusing cleanup.",

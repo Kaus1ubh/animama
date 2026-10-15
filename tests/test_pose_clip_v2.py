@@ -188,7 +188,7 @@ def test_tracked_included_clips_are_found() -> None:
 
 @pytest.mark.parametrize("path", TRACKED_INCLUDED_CLIPS)
 def test_tracked_included_clip_is_admitted(path: str) -> None:
-    """Included content must never be rejected on package export, import or Idle Style eligibility."""
+    """Included content must never be rejected on package export, import or Idle eligibility."""
     clip = json.loads((REPOSITORY / path).read_text())
     assert clip["schema"] == "animaPoseClip/2.0"
     # As package validation does: a lifetime is checked separately from the timeline.

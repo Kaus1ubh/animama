@@ -36,6 +36,7 @@ from animama.domain.anima_creation import (
     ResolvedAnimaSpec,
     ResolvedAppearanceSelection,
     ResolvedGestureSelection,
+    ResolvedIdleMember,
     ResolvedReactionSelection,
 )
 from animama.domain.anima_definition import ANIMA_MEMORIES_TEMPLATE, DEFAULT_ANIMA_VOICE_ID
@@ -130,20 +131,6 @@ async def _sender(session: AsyncSession, root: Path) -> AsyncIterator[_Installat
                     ],
                 },
             )
-        write_json(
-            local / "idle-styles/calm/calm.json",
-            {
-                "schema_version": 2,
-                "content_type": "idle_style",
-                "content_id": "local:idle-style:calm",
-                "name": "Calm",
-                "default_pool": ["local:gesture:wave"],
-                "cells": {"joy": {"1": {"mode": "none"}, "2": {"mode": "pool", "gestures": ["local:gesture:nod"]}}},
-                "dependencies": [
-                    {"ref": f"local:gesture:{name}", "content_type": "gesture"} for name in ("wave", "nod")
-                ],
-            },
-        )
         for name, color, size in (
             ("profile", "red", (40, 32)),
             ("background", "blue", (64, 40)),
@@ -210,7 +197,7 @@ def _tree(root: Path) -> dict[str, bytes]:
     return {str(path.relative_to(root)): path.read_bytes() for path in root.rglob("*") if path.is_file()}
 
 
-@pytest.mark.parametrize("selection", ["gesture", "overlap", "idle_style", "avatar"])
+@pytest.mark.parametrize("selection", ["gesture", "overlap", "avatar"])
 async def test_content_packages_cross_installations_without_equipping(
     async_session: AsyncSession,
     migrated_database: str,  # noqa: F811 - imported pytest fixture
@@ -228,7 +215,6 @@ async def test_content_packages_cross_installations_without_equipping(
         keys = {
             "gesture": ("local:gesture:wave",),
             "overlap": ("local:gesture:wave", "local:gesture:nod"),
-            "idle_style": ("local:idle-style:calm",),
             "avatar": ("avatar",),
         }[selection]
         roots = tuple(sender.items[key].id for key in keys)
@@ -244,7 +230,7 @@ async def test_content_packages_cross_installations_without_equipping(
         result = await receiver.packages.imports.commit(**command)
         assert result.anima_id is None
         assert sum(item.selected for item in result.items) == len(roots)
-        expected_counts = {"gesture": 2, "overlap": 3, "idle_style": 4, "avatar": 2}
+        expected_counts = {"gesture": 2, "overlap": 3, "avatar": 2}
         assert len(result.items) == len(review.manifest.entries) == expected_counts[selection]
         entries = {entry.package_entry_id: entry for entry in review.manifest.entries}
         mapping = {item.entry_id: item.item_id for item in result.items}
@@ -278,7 +264,11 @@ async def _create_anima(sender: _Installation) -> str:
         display_name="Portable companion",
         identity="# Portable identity\nKeep every line.\n",
         avatar=items["avatar"],
-        idle_style=items["local:idle-style:calm"],
+        # The AI-callable wave is also the Default idle; nod is a member of the joy-2 cell only.
+        idle=(
+            ResolvedIdleMember(items["local:gesture:wave"], "default"),
+            ResolvedIdleMember(items["local:gesture:nod"], "joy-2"),
+        ),
         gestures=(
             ResolvedGestureSelection(
                 items["local:gesture:wave"], {"loop_type": "pingpong", "loop_count": 2, "time_scale": 0.5}
@@ -458,7 +448,17 @@ async def test_full_anima_transfer_preserves_images_privacy_copy_isolation_and_r
         assert captured.definition == rewrite_portable_anima(
             reviewed.anima, {item.entry_id: item.item_id for item in first.items}
         )
-        assert captured.definition.idle_style is not None
+        # The package carries the sender's pool and the copy restores exactly that pool.
+        entry_names = {item.package_entry_id: item.display_name for item in export.manifest.entries}
+        packaged_idle = reviewed.anima.idle
+        assert [entry_names[entry_id] for entry_id in packaged_idle.default] == ["wave"]
+        assert {
+            emotion: {level: [entry_names[entry_id] for entry_id in members] for level, members in levels.items()}
+            for emotion, levels in packaged_idle.cells.items()
+        } == {"joy": {"2": ["nod"]}}
+        installed_ids = {item.entry_id: item.item_id for item in first.items}
+        assert captured.definition.idle.default == [installed_ids[packaged_idle.default[0]]]
+        assert captured.definition.idle.cells == {"joy": {"2": [installed_ids[packaged_idle.cells["joy"]["2"][0]]]}}
         assert sum(value is None for cells in captured.definition.reactions.values() for value in cells.values()) == 71
         assert captured.definition.gestures[0].config == {"loop_type": "pingpong", "loop_count": 2, "time_scale": 0.5}
         assert [gesture.semantic_key for gesture in captured.definition.gestures] == ["wave"]
@@ -495,7 +495,6 @@ async def test_full_anima_transfer_preserves_images_privacy_copy_isolation_and_r
         )
         assert memories is not None and memories.content == ANIMA_MEMORIES_TEMPLATE and memories.version == 1
         image_hashes: set[str] = set()
-        entry_names = {item.package_entry_id: item.display_name for item in export.manifest.entries}
         for result_item in first.items:
             if result_item.kind is ContentKind.APPEARANCE:
                 item = await receiver.catalog.get_visible_item(item_id=result_item.item_id, user_id=receiver.owner)
@@ -506,7 +505,6 @@ async def test_full_anima_transfer_preserves_images_privacy_copy_isolation_and_r
                 image_hashes.add(image_hash)
         assert len(image_hashes) == 3
         portrait = export.manifest.avatar_portraits[0]
-        installed_ids = {item.entry_id: item.item_id for item in first.items}
         portrait_item = await receiver.catalog.get_visible_item(
             item_id=installed_ids[portrait.appearance_entry_id], user_id=receiver.owner
         )

@@ -759,7 +759,6 @@ test("all typed content families save through admitted HTTP, preserve drafts at 
     "gesture",
     "pose",
     "reaction",
-    "idle_style",
     "particle_effect",
     "avatar_effect",
     "scene_effect",
@@ -779,7 +778,7 @@ test("all typed content families save through admitted HTTP, preserve drafts at 
     assert.equal(saved.kind, kind);
     assert.equal(saved.editable, true);
   }
-  assert.equal(state.items.size, 11);
+  assert.equal(state.items.size, 10);
   state.quota = true;
   const quota = await page.evaluate(async () => {
     const f = window.workflowFixture;
@@ -1124,10 +1123,10 @@ test("each loadout family reviews the current revision, rejects stale commits an
       { operation: "remove", binding_id: "fixture-binding" },
     ],
     [
-      "idle-style",
-      "planIdleStyleV1AnimasAnimaIdIdleStylePlanPost",
-      "commitIdleStyleV1AnimasAnimaIdIdleStyleCommitPost",
-      { operation: "remove" },
+      "idle",
+      "planIdleV1AnimasAnimaIdIdlePlanPost",
+      "commitIdleV1AnimasAnimaIdIdleCommitPost",
+      { operation: "remove", binding_id: "fixture-binding" },
     ],
     [
       "appearance",
