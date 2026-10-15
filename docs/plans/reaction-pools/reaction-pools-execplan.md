@@ -146,8 +146,11 @@ Content (`content/included/`):
 - [x] Phase 4: runtime selection and `/animas/` pool editing.
 - [x] Phase 5: equip dialog cell chooser and wizard pools.
 - [x] Phase 6: promotion, starter pools and journeys (2026-10-15); Code Review #1 pass after one repair round; full browser journeys 40 passed. G2 and G3 owner review pending before merge.
-- [ ] Final integration review, full validation and PR.
-- Remaining owner gate: escalation and variety check in chat.
+- [x] Final integration review (pass) and PR #572.
+- [x] G2: the owner reviewed the reels and approved the content on 2026-10-15 after two rounds of revisions (Decision Log).
+- [ ] G3: the owner's approval of the final promotion list.
+- [ ] Full browser journeys on the final candidate, then merge approval of that exact candidate.
+- Remaining owner gate after merge: escalation and variety check in chat.
 
 ## Surprises & Discoveries
 
@@ -381,6 +384,14 @@ Content (`content/included/`):
   corner, the anime "I want it" drool, for desire-2-b. `eye_vv`'s offset
   toward the nose drops from 1.2 to 0.6 cm per eye. The Included effects
   from this plan are now 54.
+- 2026-10-15, owner: G2 approved (all Reactions and new effects as revised
+  in rounds 1 and 2).
+- 2026-10-15, owner: every Reaction's timeline runs at least 2 s (up to 8.1 s
+  where a timed Particle Effect runs longer), up from 0.1–1 s. Chat holds a
+  Reaction's last frame while the Anima talks, whatever the timeline length,
+  so chat is unchanged; the Reaction creator previews only the timeline and
+  stopped after 0.12 s, before most effects showed. The owner chose to skip
+  rerunning the checks and browser journeys for this change.
 
 ## Gates
 

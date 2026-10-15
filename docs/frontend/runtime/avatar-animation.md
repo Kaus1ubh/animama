@@ -418,7 +418,10 @@ uses a fixed package-level message).
   eligible while the current interaction phase is in `phases`. Reaction clips
   use this with `phases: ["talking"]` and `scope: "activeRun"` so they fade in
   and hold for the same speaking run, then fade out when talking ends or the
-  run changes. `whileAvatarState` is available for future state-owned clips.
+  run changes; the timeline's `duration` does not limit that hold. The
+  creators preview only the timeline, so Included Reactions run at least 2 s
+  (longer when a timed effect does) to show the held Reaction there.
+  `whileAvatarState` is available for future state-owned clips.
 - `mutedProceduralLayers` optionally lists live layers (`breathing`, `sway`,
   `bounce`, `headNod`, `headSideTilt`, `cursorLookAt`, `emotionPosture`) muted
   while the clip plays, including Idle playback. Muting never changes
