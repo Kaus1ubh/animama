@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:snicker-laugh",
+  "version": 1,
+  "semantic_key": "snicker_laugh",
+  "name": "Snicker Laugh",
+  "description": "Covers the mouth and shakes with a suppressed snicker. Use for something cheekily funny, an inside joke or trying not to laugh.",
+  "ai_description": "Covers the mouth and shakes with a suppressed snicker. Use for something cheekily funny, an inside joke or trying not to laugh.",
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [
+    {
+      "ref": "builtin:avatar-effect:laugh_marks",
+      "alias": "laugh_marks",
+      "content_type": "avatar_effect",
+      "config": {}
+    }
+  ],
+  "files": [
+    {
+      "path": "snicker-laugh.json",
+      "role": "sequence"
+    }
+  ]
+}

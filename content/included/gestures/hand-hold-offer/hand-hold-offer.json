@@ -1,0 +1,1948 @@
+{
+  "schema": "animaPoseClip/2.0",
+  "id": "hand-hold-offer",
+  "name": "Hand Hold Offer",
+  "duration": 3.8,
+  "basePose": "relaxedRest",
+  "fadeIn": {
+    "duration": 0.25
+  },
+  "fadeOut": {
+    "duration": 0.4
+  },
+  "mutedProceduralLayers": [
+    "sway",
+    "bounce",
+    "headNod",
+    "headSideTilt",
+    "cursorLookAt",
+    "emotionPosture"
+  ],
+  "plantFeet": true,
+  "beats": [
+    {
+      "id": "start",
+      "label": "Rest",
+      "time": 0
+    },
+    {
+      "id": "courage",
+      "label": "Gather courage",
+      "time": 0.4
+    },
+    {
+      "id": "offer",
+      "label": "Offer open palm",
+      "time": 1
+    },
+    {
+      "id": "away",
+      "label": "Bashful glance away",
+      "time": 1.3
+    },
+    {
+      "id": "hope",
+      "label": "Hopeful hold",
+      "time": 2.1
+    },
+    {
+      "id": "peek",
+      "label": "Peek back",
+      "time": 2.8
+    },
+    {
+      "id": "release",
+      "label": "Ease hand back",
+      "time": 3.1
+    },
+    {
+      "id": "settle",
+      "label": "Soft settle",
+      "time": 3.8
+    }
+  ],
+  "joints": {
+    "hips": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 2,
+          "beat": "courage",
+          "dt": -0.03
+        },
+        {
+          "v": 1,
+          "beat": "offer",
+          "dt": -0.03
+        },
+        {
+          "v": 1.5,
+          "beat": "away",
+          "dt": -0.03
+        },
+        {
+          "v": 1,
+          "beat": "hope",
+          "dt": -0.03
+        },
+        {
+          "v": 1,
+          "beat": "peek",
+          "dt": -0.03
+        },
+        {
+          "v": 0,
+          "beat": "release",
+          "dt": -0.03
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -1,
+          "beat": "courage",
+          "dt": -0.03
+        },
+        {
+          "v": -2,
+          "beat": "offer",
+          "dt": -0.03
+        },
+        {
+          "v": -3,
+          "beat": "away",
+          "dt": -0.03
+        },
+        {
+          "v": -2,
+          "beat": "hope",
+          "dt": -0.03
+        },
+        {
+          "v": -2,
+          "beat": "peek",
+          "dt": -0.03
+        },
+        {
+          "v": -1,
+          "beat": "release",
+          "dt": -0.03
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 1,
+          "beat": "courage",
+          "dt": -0.03
+        },
+        {
+          "v": -2,
+          "beat": "offer",
+          "dt": -0.03
+        },
+        {
+          "v": -3,
+          "beat": "away",
+          "dt": -0.03
+        },
+        {
+          "v": -2,
+          "beat": "hope",
+          "dt": -0.03
+        },
+        {
+          "v": -2,
+          "beat": "peek",
+          "dt": -0.03
+        },
+        {
+          "v": 0,
+          "beat": "release",
+          "dt": -0.03
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ]
+    },
+    "spine": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 2,
+          "beat": "courage"
+        },
+        {
+          "v": 3,
+          "beat": "offer"
+        },
+        {
+          "v": 4,
+          "beat": "away"
+        },
+        {
+          "v": 3.5,
+          "beat": "hope"
+        },
+        {
+          "v": 3,
+          "beat": "peek"
+        },
+        {
+          "v": 1,
+          "beat": "release"
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 1,
+          "beat": "courage"
+        },
+        {
+          "v": 2,
+          "beat": "offer"
+        },
+        {
+          "v": 3,
+          "beat": "away"
+        },
+        {
+          "v": 2,
+          "beat": "hope"
+        },
+        {
+          "v": 1,
+          "beat": "peek"
+        },
+        {
+          "v": 0,
+          "beat": "release"
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 2,
+          "beat": "courage"
+        },
+        {
+          "v": -3,
+          "beat": "offer"
+        },
+        {
+          "v": -3,
+          "beat": "away"
+        },
+        {
+          "v": -2,
+          "beat": "hope"
+        },
+        {
+          "v": -2,
+          "beat": "peek"
+        },
+        {
+          "v": 0,
+          "beat": "release"
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ]
+    },
+    "chest": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 3,
+          "beat": "courage",
+          "dt": 0.03
+        },
+        {
+          "v": 4,
+          "beat": "offer",
+          "dt": 0.03
+        },
+        {
+          "v": 4.5,
+          "beat": "away",
+          "dt": 0.03
+        },
+        {
+          "v": 4,
+          "beat": "hope",
+          "dt": 0.03
+        },
+        {
+          "v": 3,
+          "beat": "peek",
+          "dt": 0.03
+        },
+        {
+          "v": 1,
+          "beat": "release",
+          "dt": 0.03
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 1,
+          "beat": "courage",
+          "dt": 0.03
+        },
+        {
+          "v": 2,
+          "beat": "offer",
+          "dt": 0.03
+        },
+        {
+          "v": 3,
+          "beat": "away",
+          "dt": 0.03
+        },
+        {
+          "v": 2,
+          "beat": "hope",
+          "dt": 0.03
+        },
+        {
+          "v": 1,
+          "beat": "peek",
+          "dt": 0.03
+        },
+        {
+          "v": 0,
+          "beat": "release",
+          "dt": 0.03
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 3,
+          "beat": "courage",
+          "dt": 0.03
+        },
+        {
+          "v": -4,
+          "beat": "offer",
+          "dt": 0.03
+        },
+        {
+          "v": -5,
+          "beat": "away",
+          "dt": 0.03
+        },
+        {
+          "v": -4,
+          "beat": "hope",
+          "dt": 0.03
+        },
+        {
+          "v": -3,
+          "beat": "peek",
+          "dt": 0.03
+        },
+        {
+          "v": 0,
+          "beat": "release",
+          "dt": 0.03
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ]
+    },
+    "upperChest": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 1,
+          "beat": "courage",
+          "dt": 0.06
+        },
+        {
+          "v": 2,
+          "beat": "offer",
+          "dt": 0.06
+        },
+        {
+          "v": 2.5,
+          "beat": "away",
+          "dt": 0.06
+        },
+        {
+          "v": 2,
+          "beat": "hope",
+          "dt": 0.06
+        },
+        {
+          "v": 1.5,
+          "beat": "peek",
+          "dt": 0.06
+        },
+        {
+          "v": 1,
+          "beat": "release",
+          "dt": 0.06
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 1,
+          "beat": "courage",
+          "dt": 0.06
+        },
+        {
+          "v": 1,
+          "beat": "offer",
+          "dt": 0.06
+        },
+        {
+          "v": 2,
+          "beat": "away",
+          "dt": 0.06
+        },
+        {
+          "v": 1.5,
+          "beat": "hope",
+          "dt": 0.06
+        },
+        {
+          "v": 1,
+          "beat": "peek",
+          "dt": 0.06
+        },
+        {
+          "v": 0,
+          "beat": "release",
+          "dt": 0.06
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 1,
+          "beat": "courage",
+          "dt": 0.06
+        },
+        {
+          "v": -2,
+          "beat": "offer",
+          "dt": 0.06
+        },
+        {
+          "v": -2,
+          "beat": "away",
+          "dt": 0.06
+        },
+        {
+          "v": -1.5,
+          "beat": "hope",
+          "dt": 0.06
+        },
+        {
+          "v": -1,
+          "beat": "peek",
+          "dt": 0.06
+        },
+        {
+          "v": 0,
+          "beat": "release",
+          "dt": 0.06
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ]
+    },
+    "neck": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 2,
+          "beat": "courage",
+          "dt": -0.04
+        },
+        {
+          "v": 1,
+          "beat": "offer",
+          "dt": -0.04
+        },
+        {
+          "v": 3,
+          "beat": "away",
+          "dt": -0.04
+        },
+        {
+          "v": 2,
+          "beat": "hope",
+          "dt": -0.04
+        },
+        {
+          "v": -1,
+          "beat": "peek",
+          "dt": -0.04
+        },
+        {
+          "v": 0,
+          "beat": "release",
+          "dt": -0.04
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 1,
+          "beat": "courage",
+          "dt": -0.04
+        },
+        {
+          "v": 2,
+          "beat": "offer",
+          "dt": -0.04
+        },
+        {
+          "v": 3,
+          "beat": "away",
+          "dt": -0.04
+        },
+        {
+          "v": 2,
+          "beat": "hope",
+          "dt": -0.04
+        },
+        {
+          "v": 1,
+          "beat": "peek",
+          "dt": -0.04
+        },
+        {
+          "v": 1,
+          "beat": "release",
+          "dt": -0.04
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 2,
+          "beat": "courage",
+          "dt": -0.04
+        },
+        {
+          "v": 4,
+          "beat": "offer",
+          "dt": -0.04
+        },
+        {
+          "v": 8,
+          "beat": "away",
+          "dt": -0.04
+        },
+        {
+          "v": 6,
+          "beat": "hope",
+          "dt": -0.04
+        },
+        {
+          "v": 1,
+          "beat": "peek",
+          "dt": -0.04
+        },
+        {
+          "v": 0,
+          "beat": "release",
+          "dt": -0.04
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ]
+    },
+    "head": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 4,
+          "beat": "courage",
+          "dt": -0.08
+        },
+        {
+          "v": 2,
+          "beat": "offer",
+          "dt": -0.08
+        },
+        {
+          "v": 6,
+          "beat": "away",
+          "dt": -0.08
+        },
+        {
+          "v": 4,
+          "beat": "hope",
+          "dt": -0.08
+        },
+        {
+          "v": -3,
+          "beat": "peek",
+          "dt": -0.08
+        },
+        {
+          "v": -1,
+          "beat": "release",
+          "dt": -0.08
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 2,
+          "beat": "courage",
+          "dt": -0.08
+        },
+        {
+          "v": 4,
+          "beat": "offer",
+          "dt": -0.08
+        },
+        {
+          "v": 6,
+          "beat": "away",
+          "dt": -0.08
+        },
+        {
+          "v": 5,
+          "beat": "hope",
+          "dt": -0.08
+        },
+        {
+          "v": 4,
+          "beat": "peek",
+          "dt": -0.08
+        },
+        {
+          "v": 2,
+          "beat": "release",
+          "dt": -0.08
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 4,
+          "beat": "courage",
+          "dt": -0.08
+        },
+        {
+          "v": 8,
+          "beat": "offer",
+          "dt": -0.08
+        },
+        {
+          "v": 18,
+          "beat": "away",
+          "dt": -0.08
+        },
+        {
+          "v": 14,
+          "beat": "hope",
+          "dt": -0.08
+        },
+        {
+          "v": 3,
+          "beat": "peek",
+          "dt": -0.08
+        },
+        {
+          "v": 1,
+          "beat": "release",
+          "dt": -0.08
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ]
+    },
+    "eyes": {
+      "yaw": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 3,
+          "beat": "courage",
+          "dt": -0.1
+        },
+        {
+          "v": 5,
+          "beat": "offer",
+          "dt": -0.1
+        },
+        {
+          "v": 8,
+          "beat": "away",
+          "dt": -0.1
+        },
+        {
+          "v": 6,
+          "beat": "hope",
+          "dt": -0.1
+        },
+        {
+          "v": -4,
+          "beat": "peek",
+          "dt": -0.1
+        },
+        {
+          "v": 0,
+          "beat": "release",
+          "dt": -0.1
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "pitch": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -2,
+          "beat": "courage",
+          "dt": -0.1
+        },
+        {
+          "v": -2,
+          "beat": "offer",
+          "dt": -0.1
+        },
+        {
+          "v": -4,
+          "beat": "away",
+          "dt": -0.1
+        },
+        {
+          "v": -3,
+          "beat": "hope",
+          "dt": -0.1
+        },
+        {
+          "v": 3,
+          "beat": "peek",
+          "dt": -0.1
+        },
+        {
+          "v": 1,
+          "beat": "release",
+          "dt": -0.1
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ]
+    },
+    "rightShoulder": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 2,
+          "beat": "courage",
+          "dt": 0.04
+        },
+        {
+          "v": 4,
+          "beat": "offer",
+          "dt": 0.04
+        },
+        {
+          "v": 5,
+          "beat": "away",
+          "dt": 0.04
+        },
+        {
+          "v": 4,
+          "beat": "hope",
+          "dt": 0.04
+        },
+        {
+          "v": 3,
+          "beat": "peek",
+          "dt": 0.04
+        },
+        {
+          "v": 1,
+          "beat": "release",
+          "dt": 0.04
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "protraction": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 3,
+          "beat": "courage",
+          "dt": 0.04
+        },
+        {
+          "v": 7,
+          "beat": "offer",
+          "dt": 0.04
+        },
+        {
+          "v": 8,
+          "beat": "away",
+          "dt": 0.04
+        },
+        {
+          "v": 7,
+          "beat": "hope",
+          "dt": 0.04
+        },
+        {
+          "v": 6,
+          "beat": "peek",
+          "dt": 0.04
+        },
+        {
+          "v": 2,
+          "beat": "release",
+          "dt": 0.04
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "leftShoulder": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": -2.5,
+          "beat": "courage",
+          "dt": 0.07
+        },
+        {
+          "v": -2,
+          "beat": "offer",
+          "dt": 0.07
+        },
+        {
+          "v": -2.2,
+          "beat": "away",
+          "dt": 0.07
+        },
+        {
+          "v": -2.6,
+          "beat": "hope",
+          "dt": 0.07
+        },
+        {
+          "v": -2.3,
+          "beat": "peek",
+          "dt": 0.07
+        },
+        {
+          "v": -2.7,
+          "beat": "release",
+          "dt": 0.07
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "protraction": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 0.5,
+          "beat": "courage",
+          "dt": 0.07
+        },
+        {
+          "v": 1,
+          "beat": "offer",
+          "dt": 0.07
+        },
+        {
+          "v": 0.4,
+          "beat": "away",
+          "dt": 0.07
+        },
+        {
+          "v": -0.5,
+          "beat": "hope",
+          "dt": 0.07
+        },
+        {
+          "v": 0.5,
+          "beat": "peek",
+          "dt": 0.07
+        },
+        {
+          "v": 0,
+          "beat": "release",
+          "dt": 0.07
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "rightUpperArm": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 24,
+          "beat": "courage",
+          "dt": 0.07
+        },
+        {
+          "v": 61,
+          "beat": "offer",
+          "dt": 0.07
+        },
+        {
+          "v": 65,
+          "beat": "away",
+          "dt": 0.07
+        },
+        {
+          "v": 63,
+          "beat": "hope",
+          "dt": 0.07
+        },
+        {
+          "v": 66,
+          "beat": "peek",
+          "dt": 0.07
+        },
+        {
+          "v": 45,
+          "beat": "release",
+          "dt": 0.07
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "planeOfElevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 20,
+          "beat": "courage",
+          "dt": 0.07
+        },
+        {
+          "v": 78,
+          "beat": "offer",
+          "dt": 0.07
+        },
+        {
+          "v": 82,
+          "beat": "away",
+          "dt": 0.07
+        },
+        {
+          "v": 81,
+          "beat": "hope",
+          "dt": 0.07
+        },
+        {
+          "v": 82,
+          "beat": "peek",
+          "dt": 0.07
+        },
+        {
+          "v": 60,
+          "beat": "release",
+          "dt": 0.07
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 24,
+          "beat": "courage",
+          "dt": 0.07
+        },
+        {
+          "v": 82,
+          "beat": "offer",
+          "dt": 0.07
+        },
+        {
+          "v": 86,
+          "beat": "away",
+          "dt": 0.07
+        },
+        {
+          "v": 84,
+          "beat": "hope",
+          "dt": 0.07
+        },
+        {
+          "v": 87,
+          "beat": "peek",
+          "dt": 0.07
+        },
+        {
+          "v": 60,
+          "beat": "release",
+          "dt": 0.07
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "rightLowerArm": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 28,
+          "beat": "courage",
+          "dt": 0.1
+        },
+        {
+          "v": 38,
+          "beat": "offer",
+          "dt": 0.1
+        },
+        {
+          "v": 32,
+          "beat": "away",
+          "dt": 0.1
+        },
+        {
+          "v": 35,
+          "beat": "hope",
+          "dt": 0.1
+        },
+        {
+          "v": 29,
+          "beat": "peek",
+          "dt": 0.1
+        },
+        {
+          "v": 45,
+          "beat": "release",
+          "dt": 0.1
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "supination": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 20,
+          "beat": "courage",
+          "dt": 0.1
+        },
+        {
+          "v": 78,
+          "beat": "offer",
+          "dt": 0.1
+        },
+        {
+          "v": 80,
+          "beat": "away",
+          "dt": 0.1
+        },
+        {
+          "v": 76,
+          "beat": "hope",
+          "dt": 0.1
+        },
+        {
+          "v": 80,
+          "beat": "peek",
+          "dt": 0.1
+        },
+        {
+          "v": 50,
+          "beat": "release",
+          "dt": 0.1
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "rightHand": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "courage",
+          "dt": 0.13
+        },
+        {
+          "v": -10,
+          "beat": "offer",
+          "dt": 0.13
+        },
+        {
+          "v": -8,
+          "beat": "away",
+          "dt": 0.13
+        },
+        {
+          "v": -6,
+          "beat": "hope",
+          "dt": 0.13
+        },
+        {
+          "v": -9,
+          "beat": "peek",
+          "dt": 0.13
+        },
+        {
+          "v": -4,
+          "beat": "release",
+          "dt": 0.13
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "deviation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "courage",
+          "dt": 0.13
+        },
+        {
+          "v": -3,
+          "beat": "offer",
+          "dt": 0.13
+        },
+        {
+          "v": -4,
+          "beat": "away",
+          "dt": 0.13
+        },
+        {
+          "v": -2,
+          "beat": "hope",
+          "dt": 0.13
+        },
+        {
+          "v": -3,
+          "beat": "peek",
+          "dt": 0.13
+        },
+        {
+          "v": 0,
+          "beat": "release",
+          "dt": 0.13
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "leftUpperArm": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 18,
+          "beat": "courage",
+          "dt": 0.095
+        },
+        {
+          "v": 18.5,
+          "beat": "offer",
+          "dt": 0.095
+        },
+        {
+          "v": 19,
+          "beat": "away",
+          "dt": 0.095
+        },
+        {
+          "v": 18,
+          "beat": "hope",
+          "dt": 0.095
+        },
+        {
+          "v": 18.5,
+          "beat": "peek",
+          "dt": 0.095
+        },
+        {
+          "v": 18,
+          "beat": "release",
+          "dt": 0.095
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "planeOfElevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": -8,
+          "beat": "courage",
+          "dt": 0.095
+        },
+        {
+          "v": -3,
+          "beat": "offer",
+          "dt": 0.095
+        },
+        {
+          "v": 2,
+          "beat": "away",
+          "dt": 0.095
+        },
+        {
+          "v": -3,
+          "beat": "hope",
+          "dt": 0.095
+        },
+        {
+          "v": 0,
+          "beat": "peek",
+          "dt": 0.095
+        },
+        {
+          "v": -6,
+          "beat": "release",
+          "dt": 0.095
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 1,
+          "beat": "courage",
+          "dt": 0.095
+        },
+        {
+          "v": 2,
+          "beat": "offer",
+          "dt": 0.095
+        },
+        {
+          "v": 1,
+          "beat": "away",
+          "dt": 0.095
+        },
+        {
+          "v": 0,
+          "beat": "hope",
+          "dt": 0.095
+        },
+        {
+          "v": 1,
+          "beat": "peek",
+          "dt": 0.095
+        },
+        {
+          "v": 0,
+          "beat": "release",
+          "dt": 0.095
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "leftLowerArm": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 7,
+          "beat": "courage",
+          "dt": 0.125
+        },
+        {
+          "v": 9,
+          "beat": "offer",
+          "dt": 0.125
+        },
+        {
+          "v": 10,
+          "beat": "away",
+          "dt": 0.125
+        },
+        {
+          "v": 8,
+          "beat": "hope",
+          "dt": 0.125
+        },
+        {
+          "v": 9,
+          "beat": "peek",
+          "dt": 0.125
+        },
+        {
+          "v": 7,
+          "beat": "release",
+          "dt": 0.125
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "supination": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "courage",
+          "dt": 0.125
+        },
+        {
+          "v": 2,
+          "beat": "offer",
+          "dt": 0.125
+        },
+        {
+          "v": 3,
+          "beat": "away",
+          "dt": 0.125
+        },
+        {
+          "v": 1,
+          "beat": "hope",
+          "dt": 0.125
+        },
+        {
+          "v": 2,
+          "beat": "peek",
+          "dt": 0.125
+        },
+        {
+          "v": 0,
+          "beat": "release",
+          "dt": 0.125
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "leftHand": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 5,
+          "beat": "courage",
+          "dt": 0.2
+        },
+        {
+          "v": 4,
+          "beat": "offer",
+          "dt": 0.2
+        },
+        {
+          "v": 6,
+          "beat": "away",
+          "dt": 0.2
+        },
+        {
+          "v": 7,
+          "beat": "hope",
+          "dt": 0.2
+        },
+        {
+          "v": 5,
+          "beat": "peek",
+          "dt": 0.2
+        },
+        {
+          "v": 6,
+          "beat": "release",
+          "dt": 0.2
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "deviation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "courage",
+          "dt": 0.2
+        },
+        {
+          "v": 1,
+          "beat": "offer",
+          "dt": 0.2
+        },
+        {
+          "v": 2,
+          "beat": "away",
+          "dt": 0.2
+        },
+        {
+          "v": 1,
+          "beat": "hope",
+          "dt": 0.2
+        },
+        {
+          "v": 0,
+          "beat": "peek",
+          "dt": 0.2
+        },
+        {
+          "v": 0,
+          "beat": "release",
+          "dt": 0.2
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    }
+  },
+  "hipsPosition": {
+    "x": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0.008,
+        "beat": "courage",
+        "dt": -0.05
+      },
+      {
+        "v": 0.018,
+        "beat": "offer",
+        "dt": -0.05
+      },
+      {
+        "v": 0.024,
+        "beat": "away",
+        "dt": -0.05
+      },
+      {
+        "v": 0.02,
+        "beat": "hope",
+        "dt": -0.05
+      },
+      {
+        "v": 0.016,
+        "beat": "peek",
+        "dt": -0.05
+      },
+      {
+        "v": 0.008,
+        "beat": "release",
+        "dt": -0.05
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ],
+    "y": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": -0.013,
+        "beat": "courage"
+      },
+      {
+        "v": -0.018,
+        "beat": "offer"
+      },
+      {
+        "v": -0.021,
+        "beat": "away"
+      },
+      {
+        "v": -0.018,
+        "beat": "hope"
+      },
+      {
+        "v": -0.014,
+        "beat": "peek"
+      },
+      {
+        "v": -0.007,
+        "beat": "release"
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ],
+    "z": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": -0.008,
+        "beat": "courage"
+      },
+      {
+        "v": 0.016,
+        "beat": "offer"
+      },
+      {
+        "v": 0.023,
+        "beat": "away"
+      },
+      {
+        "v": 0.024,
+        "beat": "hope"
+      },
+      {
+        "v": 0.021,
+        "beat": "peek"
+      },
+      {
+        "v": 0.008,
+        "beat": "release"
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ]
+  },
+  "hands": {
+    "right": [
+      {
+        "preset": "relaxed",
+        "beat": "start"
+      },
+      {
+        "preset": "relaxed",
+        "curl": 5,
+        "beat": "courage",
+        "dt": 0.12
+      },
+      {
+        "preset": "open-together",
+        "curl": 5,
+        "spread": 6,
+        "beat": "offer",
+        "dt": 0.14
+      },
+      {
+        "preset": "open-together",
+        "curl": 5,
+        "spread": 8,
+        "fingers": {
+          "middle": {
+            "curl": [2, 3, 2]
+          },
+          "ring": {
+            "curl": [6, 5, 3]
+          },
+          "little": {
+            "curl": [9, 7, 4]
+          }
+        },
+        "beat": "away",
+        "dt": 0.16
+      },
+      {
+        "preset": "open-together",
+        "curl": 3,
+        "spread": 6,
+        "fingers": {
+          "middle": {
+            "curl": [2, 3, 2]
+          },
+          "ring": {
+            "curl": [6, 5, 3]
+          },
+          "little": {
+            "curl": [9, 7, 4]
+          }
+        },
+        "beat": "hope",
+        "dt": 0.12
+      },
+      {
+        "preset": "open-together",
+        "curl": 5,
+        "spread": 7,
+        "fingers": {
+          "middle": {
+            "curl": [2, 3, 2]
+          },
+          "ring": {
+            "curl": [6, 5, 3]
+          },
+          "little": {
+            "curl": [9, 7, 4]
+          }
+        },
+        "beat": "peek",
+        "dt": 0.15
+      },
+      {
+        "preset": "open-together",
+        "curl": 8,
+        "spread": 4,
+        "beat": "release",
+        "dt": 0.14
+      },
+      {
+        "preset": "relaxed",
+        "beat": "settle"
+      }
+    ],
+    "left": [
+      {
+        "preset": "relaxed",
+        "beat": "start"
+      },
+      {
+        "preset": "relaxed",
+        "curl": 1,
+        "beat": "offer",
+        "dt": 0.18
+      },
+      {
+        "preset": "relaxed",
+        "curl": -1,
+        "beat": "hope",
+        "dt": 0.17
+      },
+      {
+        "preset": "relaxed",
+        "beat": "release",
+        "dt": 0.2
+      },
+      {
+        "preset": "relaxed",
+        "beat": "settle"
+      }
+    ]
+  },
+  "expressions": {
+    "happy": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0.4,
+        "beat": "courage"
+      },
+      {
+        "v": 0.5,
+        "beat": "away"
+      },
+      {
+        "v": 0.5,
+        "beat": "hope"
+      },
+      {
+        "v": 0.6,
+        "beat": "peek"
+      },
+      {
+        "v": 0.55,
+        "beat": "release"
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ],
+    "sad": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0.15,
+        "beat": "courage"
+      },
+      {
+        "v": 0.15,
+        "beat": "away"
+      },
+      {
+        "v": 0.08,
+        "beat": "peek"
+      },
+      {
+        "v": 0.05,
+        "beat": "release"
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ],
+    "blink": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0,
+        "beat": "offer",
+        "dt": 0.05
+      },
+      {
+        "v": 0.3,
+        "beat": "away"
+      },
+      {
+        "v": 0.12,
+        "beat": "away",
+        "dt": 0.35
+      },
+      {
+        "v": 0.08,
+        "beat": "hope",
+        "dt": 0.15
+      },
+      {
+        "v": 0,
+        "beat": "peek"
+      },
+      {
+        "v": 0,
+        "beat": "release"
+      },
+      {
+        "v": 0.4,
+        "beat": "release",
+        "dt": 0.25
+      },
+      {
+        "v": 0,
+        "beat": "settle",
+        "dt": -0.25
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ]
+  },
+  "events": [
+    {
+      "id": "sparkle-frame",
+      "time": 0.9,
+      "kind": "particle_vfx",
+      "effectId": "shoujo_sparkle_frame",
+      "duration": 2.9
+    },
+    {
+      "id": "offer-blush",
+      "time": 1.2,
+      "kind": "avatar_vfx",
+      "effectId": "blush",
+      "duration": 2.1,
+      "envelope": {
+        "intensity": {
+          "fadeIn": 0.3,
+          "fadeOut": 0.4
+        }
+      }
+    }
+  ]
+}

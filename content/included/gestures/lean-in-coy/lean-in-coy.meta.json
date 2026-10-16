@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:lean-in-coy",
+  "version": 1,
+  "semantic_key": "lean_in_coy",
+  "name": "Lean In Coy",
+  "description": "Hands behind the back, leans in close with a slow blink and soft smile. Use for playful flirting or a teasing 'hey, you'.",
+  "ai_description": "Hands behind the back, leans in close with a slow blink and soft smile. Use for playful flirting or a teasing 'hey, you'.",
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [
+    {
+      "ref": "builtin:particle-effect:shoujo-sparkle-frame",
+      "alias": "shoujo_sparkle_frame",
+      "content_type": "particle_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:avatar-effect:blush",
+      "alias": "blush",
+      "content_type": "avatar_effect",
+      "config": {}
+    }
+  ],
+  "files": [
+    {
+      "path": "lean-in-coy.json",
+      "role": "sequence"
+    }
+  ]
+}

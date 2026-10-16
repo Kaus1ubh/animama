@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "content_type": "particle_effect",
+  "content_id": "builtin:particle-effect:clap-sparks",
+  "version": 1,
+  "name": "Clap Sparks",
+  "description": "Six golden-white glint bursts mark the hand contacts of Polite Applause, with a soft warm flash and a quick sparkling fade.",
+  "runtime_defaults": {
+    "schema_version": 1,
+    "runtime_id": "clap-sparks",
+    "slots": {
+      "particle_vfx": {
+        "label": "Clap Sparks",
+        "description": "Six golden-white glint bursts mark the hand contacts of Polite Applause, with a soft warm flash and a quick sparkling fade.",
+        "anchor": "leftHand",
+        "duration_seconds": 3,
+        "max_duration_seconds": 3,
+        "preload_tier": "none",
+        "follow_anchor": true,
+        "transform": {
+          "offset": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "depth_offset": 0,
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "looping_allowed": false,
+        "can_coexist": true,
+        "max_particles": 84
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "particle.json",
+      "role": "manifest"
+    },
+    {
+      "path": "textures/clap-glint.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/clap-glow.png",
+      "role": "texture"
+    }
+  ]
+}

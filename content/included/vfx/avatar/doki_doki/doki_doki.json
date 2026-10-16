@@ -18,54 +18,31 @@
     "region": "sticker",
     "attachment": {
       "kind": "sticker",
-      "around": "head",
-      "offset": {
-        "x": 0.14,
-        "y": -0.01
-      },
-      "rotationDeg": 6,
-      "size": 0.09
+      "around": "body",
+      "size": 0.23
     },
     "art": {
       "image": "doki_doki-sheet.png",
       "flipbook": {
-        "columns": 3,
+        "columns": 4,
         "fps": 8,
-        "frames": 3,
+        "frames": 8,
         "loop": "loop",
-        "rows": 1
+        "rows": 2
       }
     },
     "motion": {
-      "pulse": {
-        "cyclesPerSecond": 2.5,
-        "scaleMax": 1.05,
-        "scaleMin": 0.96
-      },
-      "spin": {
-        "amountTurns": 0.012,
-        "degreesPerSecond": 70,
-        "direction": "clockwise"
-      },
       "keyframes": {
         "frames": [
           {
             "opacity": 0,
-            "scale": 0.3,
+            "scale": 0.5,
             "t": 0
           },
           {
             "opacity": 1,
-            "scale": 1.3,
-            "t": 0.12
-          },
-          {
-            "scale": 0.9,
-            "t": 0.22
-          },
-          {
             "scale": 1,
-            "t": 0.3
+            "t": 0.12
           }
         ]
       }

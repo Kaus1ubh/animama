@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:magnifier",
+  "version": 1,
+  "name": "Magnifier",
+  "description": "A hand-drawn golden magnifying glass with a lilac handle and bright lens glint, held in the right hand for playful detective scrutiny.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "body",
+    "attachment": {
+      "kind": "body",
+      "bone": "rightHand",
+      "facing": "bone",
+      "offset": {
+        "x": -0.095,
+        "y": 0.008,
+        "z": 0.025
+      },
+      "rotationDeg": 60,
+      "size": 0.1134
+    },
+    "art": {
+      "image": "magnifier-sheet.png",
+      "flipbook": {
+        "columns": 2,
+        "fps": 8,
+        "frames": 4,
+        "loop": "loop",
+        "rows": 2
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "magnifier-sheet.png",
+      "role": "image"
+    }
+  ]
+}

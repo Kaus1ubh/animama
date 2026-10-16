@@ -46,7 +46,7 @@ beforeAll(async () => {
 
 describe("Included 2.0 Gestures", () => {
   it("covers every authored Gesture", () => {
-    expect(clips).toHaveLength(133);
+    expect(clips).toHaveLength(152);
   });
 
   it.each(clips)(

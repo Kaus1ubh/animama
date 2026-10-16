@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:smartphone",
+  "version": 1,
+  "name": "Smartphone",
+  "description": "A pastel lavender smartphone with crayon texture and a cyan screen-edge glow for checking messages.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "body",
+    "attachment": {
+      "kind": "body",
+      "bone": "rightHand",
+      "facing": "bone",
+      "offset": {
+        "x": -0.065,
+        "y": 0.015,
+        "z": -0.015
+      },
+      "rotationDeg": 90,
+      "size": 0.17
+    },
+    "art": {
+      "image": "smartphone-sheet.png",
+      "flipbook": {
+        "columns": 2,
+        "fps": 8,
+        "frames": 4,
+        "loop": "loop",
+        "rows": 2
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "smartphone-sheet.png",
+      "role": "image"
+    }
+  ]
+}

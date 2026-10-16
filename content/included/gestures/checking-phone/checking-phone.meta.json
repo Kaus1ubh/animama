@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:checking-phone",
+  "version": 1,
+  "semantic_key": "checking_phone",
+  "name": "Checking Phone",
+  "description": "Glances down at a phone, scrolls, reacts, then looks back up. Use when checking something, looking it up or mentioning a message or app.",
+  "ai_description": "Glances down at a phone, scrolls, reacts, then looks back up. Use when checking something, looking it up or mentioning a message or app.",
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [
+    {
+      "ref": "builtin:avatar-effect:smartphone",
+      "alias": "smartphone",
+      "content_type": "avatar_effect",
+      "config": {}
+    }
+  ],
+  "files": [
+    {
+      "path": "checking-phone.json",
+      "role": "sequence"
+    }
+  ]
+}

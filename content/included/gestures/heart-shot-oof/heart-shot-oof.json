@@ -1,0 +1,2789 @@
+{
+  "schema": "animaPoseClip/2.0",
+  "id": "heart-shot-oof",
+  "name": "Heart Shot Oof",
+  "duration": 3.8,
+  "basePose": "relaxedRest",
+  "fadeIn": {
+    "duration": 0.18
+  },
+  "fadeOut": {
+    "duration": 0.4
+  },
+  "mutedProceduralLayers": [
+    "sway",
+    "bounce",
+    "headNod",
+    "headSideTilt",
+    "cursorLookAt",
+    "emotionPosture"
+  ],
+  "plantFeet": true,
+  "beats": [
+    {
+      "id": "start",
+      "label": "Rest",
+      "time": 0
+    },
+    {
+      "id": "notice",
+      "label": "Caught by cuteness",
+      "time": 0.16
+    },
+    {
+      "id": "hit",
+      "label": "Love hits",
+      "time": 0.3
+    },
+    {
+      "id": "clutch",
+      "label": "Clutch heart",
+      "time": 0.72
+    },
+    {
+      "id": "melt",
+      "label": "Melt into it",
+      "time": 0.9
+    },
+    {
+      "id": "wobble1",
+      "label": "Knees wobble",
+      "time": 1.23
+    },
+    {
+      "id": "wobble2",
+      "label": "Catch balance",
+      "time": 1.56
+    },
+    {
+      "id": "swoon",
+      "label": "Soft swoon",
+      "time": 1.95
+    },
+    {
+      "id": "drift",
+      "label": "Dazed hold",
+      "time": 2.4
+    },
+    {
+      "id": "smile",
+      "label": "Dazed smile",
+      "time": 2.8
+    },
+    {
+      "id": "release",
+      "label": "Hand drifts down",
+      "time": 3.15
+    },
+    {
+      "id": "settle",
+      "label": "Recover balance",
+      "time": 3.8
+    }
+  ],
+  "joints": {
+    "hips": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 2,
+          "beat": "notice"
+        },
+        {
+          "v": -3,
+          "beat": "hit"
+        },
+        {
+          "v": 1,
+          "beat": "clutch"
+        },
+        {
+          "v": 3,
+          "beat": "melt"
+        },
+        {
+          "v": 4,
+          "beat": "melt",
+          "dt": 0.165
+        },
+        {
+          "v": 3,
+          "beat": "wobble1"
+        },
+        {
+          "v": 4,
+          "beat": "wobble1",
+          "dt": 0.165
+        },
+        {
+          "v": 3,
+          "beat": "wobble2"
+        },
+        {
+          "v": 4,
+          "beat": "swoon"
+        },
+        {
+          "v": 3,
+          "beat": "drift"
+        },
+        {
+          "v": 2,
+          "beat": "smile"
+        },
+        {
+          "v": 1,
+          "beat": "release"
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 1,
+          "beat": "notice"
+        },
+        {
+          "v": -4,
+          "beat": "hit"
+        },
+        {
+          "v": -5,
+          "beat": "clutch"
+        },
+        {
+          "v": -3,
+          "beat": "melt"
+        },
+        {
+          "v": 2,
+          "beat": "melt",
+          "dt": 0.165
+        },
+        {
+          "v": -2.5,
+          "beat": "wobble1"
+        },
+        {
+          "v": 1.5,
+          "beat": "wobble1",
+          "dt": 0.165
+        },
+        {
+          "v": -1,
+          "beat": "wobble2"
+        },
+        {
+          "v": 3,
+          "beat": "swoon"
+        },
+        {
+          "v": 2,
+          "beat": "drift"
+        },
+        {
+          "v": 1,
+          "beat": "smile"
+        },
+        {
+          "v": 0,
+          "beat": "release"
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 1,
+          "beat": "notice"
+        },
+        {
+          "v": -2,
+          "beat": "hit"
+        },
+        {
+          "v": 3,
+          "beat": "clutch"
+        },
+        {
+          "v": 3,
+          "beat": "melt"
+        },
+        {
+          "v": -2,
+          "beat": "melt",
+          "dt": 0.165
+        },
+        {
+          "v": 2,
+          "beat": "wobble1"
+        },
+        {
+          "v": -1.5,
+          "beat": "wobble1",
+          "dt": 0.165
+        },
+        {
+          "v": 1,
+          "beat": "wobble2"
+        },
+        {
+          "v": 3,
+          "beat": "swoon"
+        },
+        {
+          "v": 2,
+          "beat": "drift"
+        },
+        {
+          "v": 1,
+          "beat": "smile"
+        },
+        {
+          "v": 0,
+          "beat": "release"
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ]
+    },
+    "spine": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 1.4,
+          "beat": "notice",
+          "dt": 0.015
+        },
+        {
+          "v": -4.9,
+          "beat": "hit",
+          "dt": 0.015
+        },
+        {
+          "v": -3.5,
+          "beat": "clutch",
+          "dt": 0.015
+        },
+        {
+          "v": 0.7,
+          "beat": "melt",
+          "dt": 0.015
+        },
+        {
+          "v": 1.4,
+          "beat": "wobble1",
+          "dt": -0.15
+        },
+        {
+          "v": 1.05,
+          "beat": "wobble1",
+          "dt": 0.015
+        },
+        {
+          "v": 1.4,
+          "beat": "wobble2",
+          "dt": -0.15
+        },
+        {
+          "v": 1.4,
+          "beat": "wobble2",
+          "dt": 0.015
+        },
+        {
+          "v": 2.1,
+          "beat": "swoon",
+          "dt": 0.015
+        },
+        {
+          "v": 1.4,
+          "beat": "drift",
+          "dt": 0.015
+        },
+        {
+          "v": 0.7,
+          "beat": "smile",
+          "dt": 0.015
+        },
+        {
+          "v": 1.4,
+          "beat": "release",
+          "dt": 0.015
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "notice",
+          "dt": 0.015
+        },
+        {
+          "v": 1.4,
+          "beat": "hit",
+          "dt": 0.015
+        },
+        {
+          "v": -2.1,
+          "beat": "clutch",
+          "dt": 0.015
+        },
+        {
+          "v": -3.5,
+          "beat": "melt",
+          "dt": 0.015
+        },
+        {
+          "v": -2.8,
+          "beat": "wobble1",
+          "dt": -0.15
+        },
+        {
+          "v": -3.5,
+          "beat": "wobble1",
+          "dt": 0.015
+        },
+        {
+          "v": -3.15,
+          "beat": "wobble2",
+          "dt": -0.15
+        },
+        {
+          "v": -3.5,
+          "beat": "wobble2",
+          "dt": 0.015
+        },
+        {
+          "v": -4.2,
+          "beat": "swoon",
+          "dt": 0.015
+        },
+        {
+          "v": -3.5,
+          "beat": "drift",
+          "dt": 0.015
+        },
+        {
+          "v": -1.4,
+          "beat": "smile",
+          "dt": 0.015
+        },
+        {
+          "v": 0,
+          "beat": "release",
+          "dt": 0.015
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 0.7,
+          "beat": "notice",
+          "dt": 0.015
+        },
+        {
+          "v": -3.5,
+          "beat": "hit",
+          "dt": 0.015
+        },
+        {
+          "v": -4.2,
+          "beat": "clutch",
+          "dt": 0.015
+        },
+        {
+          "v": -2.1,
+          "beat": "melt",
+          "dt": 0.015
+        },
+        {
+          "v": -1.4,
+          "beat": "wobble1",
+          "dt": -0.15
+        },
+        {
+          "v": -2.1,
+          "beat": "wobble1",
+          "dt": 0.015
+        },
+        {
+          "v": -1.4,
+          "beat": "wobble2",
+          "dt": -0.15
+        },
+        {
+          "v": -1.4,
+          "beat": "wobble2",
+          "dt": 0.015
+        },
+        {
+          "v": 2.1,
+          "beat": "swoon",
+          "dt": 0.015
+        },
+        {
+          "v": 2.8,
+          "beat": "drift",
+          "dt": 0.015
+        },
+        {
+          "v": 1.4,
+          "beat": "smile",
+          "dt": 0.015
+        },
+        {
+          "v": 0,
+          "beat": "release",
+          "dt": 0.015
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ]
+    },
+    "chest": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 2,
+          "beat": "notice",
+          "dt": 0.035
+        },
+        {
+          "v": -7,
+          "beat": "hit",
+          "dt": 0.035
+        },
+        {
+          "v": -5,
+          "beat": "clutch",
+          "dt": 0.035
+        },
+        {
+          "v": 1,
+          "beat": "melt",
+          "dt": 0.035
+        },
+        {
+          "v": 2,
+          "beat": "wobble1",
+          "dt": -0.13
+        },
+        {
+          "v": 1.5,
+          "beat": "wobble1",
+          "dt": 0.035
+        },
+        {
+          "v": 2,
+          "beat": "wobble2",
+          "dt": -0.13
+        },
+        {
+          "v": 2,
+          "beat": "wobble2",
+          "dt": 0.035
+        },
+        {
+          "v": 3,
+          "beat": "swoon",
+          "dt": 0.035
+        },
+        {
+          "v": 2,
+          "beat": "drift",
+          "dt": 0.035
+        },
+        {
+          "v": 1,
+          "beat": "smile",
+          "dt": 0.035
+        },
+        {
+          "v": 2,
+          "beat": "release",
+          "dt": 0.035
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "notice",
+          "dt": 0.035
+        },
+        {
+          "v": 2,
+          "beat": "hit",
+          "dt": 0.035
+        },
+        {
+          "v": -3,
+          "beat": "clutch",
+          "dt": 0.035
+        },
+        {
+          "v": -5,
+          "beat": "melt",
+          "dt": 0.035
+        },
+        {
+          "v": -4,
+          "beat": "wobble1",
+          "dt": -0.13
+        },
+        {
+          "v": -5,
+          "beat": "wobble1",
+          "dt": 0.035
+        },
+        {
+          "v": -4.5,
+          "beat": "wobble2",
+          "dt": -0.13
+        },
+        {
+          "v": -5,
+          "beat": "wobble2",
+          "dt": 0.035
+        },
+        {
+          "v": -6,
+          "beat": "swoon",
+          "dt": 0.035
+        },
+        {
+          "v": -5,
+          "beat": "drift",
+          "dt": 0.035
+        },
+        {
+          "v": -2,
+          "beat": "smile",
+          "dt": 0.035
+        },
+        {
+          "v": 0,
+          "beat": "release",
+          "dt": 0.035
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 1,
+          "beat": "notice",
+          "dt": 0.035
+        },
+        {
+          "v": -5,
+          "beat": "hit",
+          "dt": 0.035
+        },
+        {
+          "v": -6,
+          "beat": "clutch",
+          "dt": 0.035
+        },
+        {
+          "v": -3,
+          "beat": "melt",
+          "dt": 0.035
+        },
+        {
+          "v": -2,
+          "beat": "wobble1",
+          "dt": -0.13
+        },
+        {
+          "v": -3,
+          "beat": "wobble1",
+          "dt": 0.035
+        },
+        {
+          "v": -2,
+          "beat": "wobble2",
+          "dt": -0.13
+        },
+        {
+          "v": -2,
+          "beat": "wobble2",
+          "dt": 0.035
+        },
+        {
+          "v": 3,
+          "beat": "swoon",
+          "dt": 0.035
+        },
+        {
+          "v": 4,
+          "beat": "drift",
+          "dt": 0.035
+        },
+        {
+          "v": 2,
+          "beat": "smile",
+          "dt": 0.035
+        },
+        {
+          "v": 0,
+          "beat": "release",
+          "dt": 0.035
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ]
+    },
+    "upperChest": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 1.3,
+          "beat": "notice",
+          "dt": 0.055
+        },
+        {
+          "v": -4.55,
+          "beat": "hit",
+          "dt": 0.055
+        },
+        {
+          "v": -3.25,
+          "beat": "clutch",
+          "dt": 0.055
+        },
+        {
+          "v": 0.65,
+          "beat": "melt",
+          "dt": 0.055
+        },
+        {
+          "v": 1.3,
+          "beat": "wobble1",
+          "dt": -0.11
+        },
+        {
+          "v": 0.975,
+          "beat": "wobble1",
+          "dt": 0.055
+        },
+        {
+          "v": 1.3,
+          "beat": "wobble2",
+          "dt": -0.11
+        },
+        {
+          "v": 1.3,
+          "beat": "wobble2",
+          "dt": 0.055
+        },
+        {
+          "v": 1.95,
+          "beat": "swoon",
+          "dt": 0.055
+        },
+        {
+          "v": 1.3,
+          "beat": "drift",
+          "dt": 0.055
+        },
+        {
+          "v": 0.65,
+          "beat": "smile",
+          "dt": 0.055
+        },
+        {
+          "v": 1.3,
+          "beat": "release",
+          "dt": 0.055
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "notice",
+          "dt": 0.055
+        },
+        {
+          "v": 1.3,
+          "beat": "hit",
+          "dt": 0.055
+        },
+        {
+          "v": -1.95,
+          "beat": "clutch",
+          "dt": 0.055
+        },
+        {
+          "v": -3.25,
+          "beat": "melt",
+          "dt": 0.055
+        },
+        {
+          "v": -2.6,
+          "beat": "wobble1",
+          "dt": -0.11
+        },
+        {
+          "v": -3.25,
+          "beat": "wobble1",
+          "dt": 0.055
+        },
+        {
+          "v": -2.925,
+          "beat": "wobble2",
+          "dt": -0.11
+        },
+        {
+          "v": -3.25,
+          "beat": "wobble2",
+          "dt": 0.055
+        },
+        {
+          "v": -3.9,
+          "beat": "swoon",
+          "dt": 0.055
+        },
+        {
+          "v": -3.25,
+          "beat": "drift",
+          "dt": 0.055
+        },
+        {
+          "v": -1.3,
+          "beat": "smile",
+          "dt": 0.055
+        },
+        {
+          "v": 0,
+          "beat": "release",
+          "dt": 0.055
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 0.65,
+          "beat": "notice",
+          "dt": 0.055
+        },
+        {
+          "v": -3.25,
+          "beat": "hit",
+          "dt": 0.055
+        },
+        {
+          "v": -3.9,
+          "beat": "clutch",
+          "dt": 0.055
+        },
+        {
+          "v": -1.95,
+          "beat": "melt",
+          "dt": 0.055
+        },
+        {
+          "v": -1.3,
+          "beat": "wobble1",
+          "dt": -0.11
+        },
+        {
+          "v": -1.95,
+          "beat": "wobble1",
+          "dt": 0.055
+        },
+        {
+          "v": -1.3,
+          "beat": "wobble2",
+          "dt": -0.11
+        },
+        {
+          "v": -1.3,
+          "beat": "wobble2",
+          "dt": 0.055
+        },
+        {
+          "v": 1.95,
+          "beat": "swoon",
+          "dt": 0.055
+        },
+        {
+          "v": 2.6,
+          "beat": "drift",
+          "dt": 0.055
+        },
+        {
+          "v": 1.3,
+          "beat": "smile",
+          "dt": 0.055
+        },
+        {
+          "v": 0,
+          "beat": "release",
+          "dt": 0.055
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ]
+    },
+    "neck": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 1,
+          "beat": "notice",
+          "dt": -0.02
+        },
+        {
+          "v": -6.5,
+          "beat": "hit",
+          "dt": -0.02
+        },
+        {
+          "v": -4,
+          "beat": "clutch",
+          "dt": -0.02
+        },
+        {
+          "v": 1,
+          "beat": "melt",
+          "dt": -0.02
+        },
+        {
+          "v": 1.5,
+          "beat": "melt",
+          "dt": 0.145
+        },
+        {
+          "v": 1,
+          "beat": "wobble1",
+          "dt": -0.02
+        },
+        {
+          "v": 1,
+          "beat": "wobble1",
+          "dt": 0.145
+        },
+        {
+          "v": 0.5,
+          "beat": "wobble2",
+          "dt": -0.02
+        },
+        {
+          "v": -3.5,
+          "beat": "swoon",
+          "dt": -0.02
+        },
+        {
+          "v": -3,
+          "beat": "drift",
+          "dt": -0.02
+        },
+        {
+          "v": -1,
+          "beat": "smile",
+          "dt": -0.02
+        },
+        {
+          "v": 1,
+          "beat": "release",
+          "dt": -0.02
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -0.5,
+          "beat": "notice",
+          "dt": -0.02
+        },
+        {
+          "v": 1.5,
+          "beat": "hit",
+          "dt": -0.02
+        },
+        {
+          "v": 2.5,
+          "beat": "clutch",
+          "dt": -0.02
+        },
+        {
+          "v": 4,
+          "beat": "melt",
+          "dt": -0.02
+        },
+        {
+          "v": 3.5,
+          "beat": "melt",
+          "dt": 0.145
+        },
+        {
+          "v": 4,
+          "beat": "wobble1",
+          "dt": -0.02
+        },
+        {
+          "v": 3.5,
+          "beat": "wobble1",
+          "dt": 0.145
+        },
+        {
+          "v": 4,
+          "beat": "wobble2",
+          "dt": -0.02
+        },
+        {
+          "v": -2,
+          "beat": "swoon",
+          "dt": -0.02
+        },
+        {
+          "v": -1,
+          "beat": "drift",
+          "dt": -0.02
+        },
+        {
+          "v": 1,
+          "beat": "smile",
+          "dt": -0.02
+        },
+        {
+          "v": 1,
+          "beat": "release",
+          "dt": -0.02
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 1,
+          "beat": "notice",
+          "dt": -0.02
+        },
+        {
+          "v": 3,
+          "beat": "hit",
+          "dt": -0.02
+        },
+        {
+          "v": 2.5,
+          "beat": "clutch",
+          "dt": -0.02
+        },
+        {
+          "v": 1.5,
+          "beat": "melt",
+          "dt": -0.02
+        },
+        {
+          "v": 1,
+          "beat": "melt",
+          "dt": 0.145
+        },
+        {
+          "v": 1.5,
+          "beat": "wobble1",
+          "dt": -0.02
+        },
+        {
+          "v": 1,
+          "beat": "wobble1",
+          "dt": 0.145
+        },
+        {
+          "v": 1,
+          "beat": "wobble2",
+          "dt": -0.02
+        },
+        {
+          "v": -2.5,
+          "beat": "swoon",
+          "dt": -0.02
+        },
+        {
+          "v": -2,
+          "beat": "drift",
+          "dt": -0.02
+        },
+        {
+          "v": 0.5,
+          "beat": "smile",
+          "dt": -0.02
+        },
+        {
+          "v": 1,
+          "beat": "release",
+          "dt": -0.02
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ]
+    },
+    "head": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 2,
+          "beat": "notice",
+          "dt": -0.04
+        },
+        {
+          "v": -13,
+          "beat": "hit",
+          "dt": -0.04
+        },
+        {
+          "v": -8,
+          "beat": "clutch",
+          "dt": -0.04
+        },
+        {
+          "v": 2,
+          "beat": "melt",
+          "dt": -0.04
+        },
+        {
+          "v": 3,
+          "beat": "melt",
+          "dt": 0.125
+        },
+        {
+          "v": 2,
+          "beat": "wobble1",
+          "dt": -0.04
+        },
+        {
+          "v": 2,
+          "beat": "wobble1",
+          "dt": 0.125
+        },
+        {
+          "v": 1,
+          "beat": "wobble2",
+          "dt": -0.04
+        },
+        {
+          "v": -7,
+          "beat": "swoon",
+          "dt": -0.04
+        },
+        {
+          "v": -6,
+          "beat": "drift",
+          "dt": -0.04
+        },
+        {
+          "v": -2,
+          "beat": "smile",
+          "dt": -0.04
+        },
+        {
+          "v": 2,
+          "beat": "release",
+          "dt": -0.04
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -1,
+          "beat": "notice",
+          "dt": -0.04
+        },
+        {
+          "v": 3,
+          "beat": "hit",
+          "dt": -0.04
+        },
+        {
+          "v": 5,
+          "beat": "clutch",
+          "dt": -0.04
+        },
+        {
+          "v": 8,
+          "beat": "melt",
+          "dt": -0.04
+        },
+        {
+          "v": 7,
+          "beat": "melt",
+          "dt": 0.125
+        },
+        {
+          "v": 8,
+          "beat": "wobble1",
+          "dt": -0.04
+        },
+        {
+          "v": 7,
+          "beat": "wobble1",
+          "dt": 0.125
+        },
+        {
+          "v": 8,
+          "beat": "wobble2",
+          "dt": -0.04
+        },
+        {
+          "v": -7,
+          "beat": "swoon",
+          "dt": -0.04
+        },
+        {
+          "v": -5,
+          "beat": "drift",
+          "dt": -0.04
+        },
+        {
+          "v": -1,
+          "beat": "smile",
+          "dt": -0.04
+        },
+        {
+          "v": 2,
+          "beat": "release",
+          "dt": -0.04
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 2,
+          "beat": "notice",
+          "dt": -0.04
+        },
+        {
+          "v": 6,
+          "beat": "hit",
+          "dt": -0.04
+        },
+        {
+          "v": 5,
+          "beat": "clutch",
+          "dt": -0.04
+        },
+        {
+          "v": 3,
+          "beat": "melt",
+          "dt": -0.04
+        },
+        {
+          "v": 2,
+          "beat": "melt",
+          "dt": 0.125
+        },
+        {
+          "v": 3,
+          "beat": "wobble1",
+          "dt": -0.04
+        },
+        {
+          "v": 2,
+          "beat": "wobble1",
+          "dt": 0.125
+        },
+        {
+          "v": 2,
+          "beat": "wobble2",
+          "dt": -0.04
+        },
+        {
+          "v": -5,
+          "beat": "swoon",
+          "dt": -0.04
+        },
+        {
+          "v": -4,
+          "beat": "drift",
+          "dt": -0.04
+        },
+        {
+          "v": 1,
+          "beat": "smile",
+          "dt": -0.04
+        },
+        {
+          "v": 2,
+          "beat": "release",
+          "dt": -0.04
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ]
+    },
+    "eyes": {
+      "pitch": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 5,
+          "beat": "hit"
+        },
+        {
+          "v": -2,
+          "beat": "melt"
+        },
+        {
+          "v": 3,
+          "beat": "swoon"
+        },
+        {
+          "v": 2,
+          "beat": "drift"
+        },
+        {
+          "v": 0,
+          "beat": "smile"
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "yaw": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 2,
+          "beat": "hit"
+        },
+        {
+          "v": -2,
+          "beat": "melt"
+        },
+        {
+          "v": -3,
+          "beat": "swoon"
+        },
+        {
+          "v": -2,
+          "beat": "drift"
+        },
+        {
+          "v": 0,
+          "beat": "smile"
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ]
+    },
+    "rightShoulder": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": -1,
+          "beat": "notice"
+        },
+        {
+          "v": 7,
+          "beat": "hit"
+        },
+        {
+          "v": 8,
+          "beat": "clutch",
+          "dt": -0.08
+        },
+        {
+          "v": 5,
+          "beat": "clutch",
+          "dt": 0.12
+        },
+        {
+          "v": 4,
+          "beat": "melt"
+        },
+        {
+          "v": 2,
+          "beat": "swoon"
+        },
+        {
+          "v": 3,
+          "beat": "drift"
+        },
+        {
+          "v": 2,
+          "beat": "smile"
+        },
+        {
+          "v": 0,
+          "beat": "release"
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "protraction": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 1,
+          "beat": "notice"
+        },
+        {
+          "v": -5,
+          "beat": "hit"
+        },
+        {
+          "v": 4,
+          "beat": "clutch",
+          "dt": -0.08
+        },
+        {
+          "v": 12,
+          "beat": "clutch",
+          "dt": 0.12
+        },
+        {
+          "v": 13,
+          "beat": "melt"
+        },
+        {
+          "v": 12,
+          "beat": "swoon"
+        },
+        {
+          "v": 12,
+          "beat": "drift"
+        },
+        {
+          "v": 10,
+          "beat": "smile"
+        },
+        {
+          "v": 4,
+          "beat": "release"
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "rightUpperArm": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 28,
+          "beat": "notice"
+        },
+        {
+          "v": 42,
+          "beat": "hit"
+        },
+        {
+          "v": 27,
+          "beat": "hit",
+          "dt": 0.24
+        },
+        {
+          "v": 27,
+          "beat": "clutch"
+        },
+        {
+          "v": 27,
+          "beat": "melt"
+        },
+        {
+          "v": 27,
+          "beat": "swoon"
+        },
+        {
+          "v": 27,
+          "beat": "drift"
+        },
+        {
+          "v": 27,
+          "beat": "smile"
+        },
+        {
+          "v": 27,
+          "beat": "release",
+          "dt": -0.15
+        },
+        {
+          "v": 43,
+          "beat": "release",
+          "dt": 0.32
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "planeOfElevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 20,
+          "beat": "notice"
+        },
+        {
+          "v": 54,
+          "beat": "hit"
+        },
+        {
+          "v": 58,
+          "beat": "hit",
+          "dt": 0.24
+        },
+        {
+          "v": 58,
+          "beat": "clutch"
+        },
+        {
+          "v": 58,
+          "beat": "melt"
+        },
+        {
+          "v": 58,
+          "beat": "swoon"
+        },
+        {
+          "v": 58,
+          "beat": "drift"
+        },
+        {
+          "v": 58,
+          "beat": "smile"
+        },
+        {
+          "v": 58,
+          "beat": "release",
+          "dt": -0.15
+        },
+        {
+          "v": 40,
+          "beat": "release",
+          "dt": 0.32
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 3,
+          "beat": "notice"
+        },
+        {
+          "v": 2,
+          "beat": "hit"
+        },
+        {
+          "v": 1.1,
+          "beat": "hit",
+          "dt": 0.24
+        },
+        {
+          "v": 1.1,
+          "beat": "clutch"
+        },
+        {
+          "v": 1.1,
+          "beat": "melt"
+        },
+        {
+          "v": 1.1,
+          "beat": "swoon"
+        },
+        {
+          "v": 1.1,
+          "beat": "drift"
+        },
+        {
+          "v": 1.1,
+          "beat": "smile"
+        },
+        {
+          "v": 1.1,
+          "beat": "release",
+          "dt": -0.15
+        },
+        {
+          "v": 8,
+          "beat": "release",
+          "dt": 0.32
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "rightLowerArm": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 25,
+          "beat": "notice"
+        },
+        {
+          "v": 60,
+          "beat": "hit"
+        },
+        {
+          "v": 120,
+          "beat": "hit",
+          "dt": 0.24
+        },
+        {
+          "v": 120,
+          "beat": "clutch"
+        },
+        {
+          "v": 120,
+          "beat": "melt"
+        },
+        {
+          "v": 120,
+          "beat": "swoon"
+        },
+        {
+          "v": 120,
+          "beat": "drift"
+        },
+        {
+          "v": 120,
+          "beat": "smile"
+        },
+        {
+          "v": 120,
+          "beat": "release",
+          "dt": -0.15
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "supination": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 12,
+          "beat": "notice"
+        },
+        {
+          "v": 35,
+          "beat": "hit"
+        },
+        {
+          "v": 47.8,
+          "beat": "hit",
+          "dt": 0.24
+        },
+        {
+          "v": 47.8,
+          "beat": "clutch"
+        },
+        {
+          "v": 47.8,
+          "beat": "melt"
+        },
+        {
+          "v": 47.8,
+          "beat": "swoon"
+        },
+        {
+          "v": 47.8,
+          "beat": "drift"
+        },
+        {
+          "v": 47.8,
+          "beat": "smile"
+        },
+        {
+          "v": 47.8,
+          "beat": "release",
+          "dt": -0.15
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "rightHand": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 12,
+          "beat": "notice"
+        },
+        {
+          "v": 22,
+          "beat": "hit"
+        },
+        {
+          "v": 32,
+          "beat": "hit",
+          "dt": 0.24
+        },
+        {
+          "v": 32,
+          "beat": "clutch"
+        },
+        {
+          "v": 32,
+          "beat": "melt"
+        },
+        {
+          "v": 32,
+          "beat": "swoon"
+        },
+        {
+          "v": 32,
+          "beat": "drift"
+        },
+        {
+          "v": 32,
+          "beat": "smile"
+        },
+        {
+          "v": 32,
+          "beat": "release",
+          "dt": -0.15
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "deviation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": -3,
+          "beat": "notice"
+        },
+        {
+          "v": -6,
+          "beat": "hit"
+        },
+        {
+          "v": -10,
+          "beat": "hit",
+          "dt": 0.24
+        },
+        {
+          "v": -10,
+          "beat": "clutch"
+        },
+        {
+          "v": -10,
+          "beat": "melt"
+        },
+        {
+          "v": -10,
+          "beat": "swoon"
+        },
+        {
+          "v": -10,
+          "beat": "drift"
+        },
+        {
+          "v": -10,
+          "beat": "smile"
+        },
+        {
+          "v": -10,
+          "beat": "release",
+          "dt": -0.15
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "leftShoulder": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": -1,
+          "beat": "notice",
+          "dt": 0.045
+        },
+        {
+          "v": 6,
+          "beat": "hit",
+          "dt": 0.045
+        },
+        {
+          "v": 5,
+          "beat": "clutch",
+          "dt": -0.155
+        },
+        {
+          "v": 3,
+          "beat": "clutch",
+          "dt": 0.045
+        },
+        {
+          "v": 1,
+          "beat": "melt",
+          "dt": 0.045
+        },
+        {
+          "v": -1,
+          "beat": "swoon",
+          "dt": 0.045
+        },
+        {
+          "v": 0,
+          "beat": "drift",
+          "dt": 0.045
+        },
+        {
+          "v": 1,
+          "beat": "smile",
+          "dt": 0.045
+        },
+        {
+          "v": 0,
+          "beat": "release",
+          "dt": 0.045
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "protraction": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 1,
+          "beat": "notice",
+          "dt": 0.045
+        },
+        {
+          "v": -5,
+          "beat": "hit",
+          "dt": 0.045
+        },
+        {
+          "v": -3,
+          "beat": "clutch",
+          "dt": -0.155
+        },
+        {
+          "v": 0,
+          "beat": "clutch",
+          "dt": 0.045
+        },
+        {
+          "v": 2,
+          "beat": "melt",
+          "dt": 0.045
+        },
+        {
+          "v": 3,
+          "beat": "swoon",
+          "dt": 0.045
+        },
+        {
+          "v": 2,
+          "beat": "drift",
+          "dt": 0.045
+        },
+        {
+          "v": 1,
+          "beat": "smile",
+          "dt": 0.045
+        },
+        {
+          "v": 0,
+          "beat": "release",
+          "dt": 0.045
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "leftUpperArm": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 23,
+          "beat": "notice",
+          "dt": 0.045
+        },
+        {
+          "v": 38,
+          "beat": "hit",
+          "dt": 0.045
+        },
+        {
+          "v": 45,
+          "beat": "clutch",
+          "dt": -0.155
+        },
+        {
+          "v": 43,
+          "beat": "clutch",
+          "dt": 0.045
+        },
+        {
+          "v": 40,
+          "beat": "melt",
+          "dt": 0.045
+        },
+        {
+          "v": 34,
+          "beat": "swoon",
+          "dt": 0.045
+        },
+        {
+          "v": 31,
+          "beat": "drift",
+          "dt": 0.045
+        },
+        {
+          "v": 29,
+          "beat": "smile",
+          "dt": 0.045
+        },
+        {
+          "v": 25,
+          "beat": "release",
+          "dt": 0.045
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "planeOfElevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "notice",
+          "dt": 0.045
+        },
+        {
+          "v": -15,
+          "beat": "hit",
+          "dt": 0.045
+        },
+        {
+          "v": 1,
+          "beat": "clutch",
+          "dt": -0.155
+        },
+        {
+          "v": 18,
+          "beat": "clutch",
+          "dt": 0.045
+        },
+        {
+          "v": 20,
+          "beat": "melt",
+          "dt": 0.045
+        },
+        {
+          "v": 25,
+          "beat": "swoon",
+          "dt": 0.045
+        },
+        {
+          "v": 22,
+          "beat": "drift",
+          "dt": 0.045
+        },
+        {
+          "v": 18,
+          "beat": "smile",
+          "dt": 0.045
+        },
+        {
+          "v": 9,
+          "beat": "release",
+          "dt": 0.045
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 3,
+          "beat": "notice",
+          "dt": 0.045
+        },
+        {
+          "v": 15,
+          "beat": "hit",
+          "dt": 0.045
+        },
+        {
+          "v": 25,
+          "beat": "clutch",
+          "dt": -0.155
+        },
+        {
+          "v": 24,
+          "beat": "clutch",
+          "dt": 0.045
+        },
+        {
+          "v": 22,
+          "beat": "melt",
+          "dt": 0.045
+        },
+        {
+          "v": 17,
+          "beat": "swoon",
+          "dt": 0.045
+        },
+        {
+          "v": 15,
+          "beat": "drift",
+          "dt": 0.045
+        },
+        {
+          "v": 12,
+          "beat": "smile",
+          "dt": 0.045
+        },
+        {
+          "v": 5,
+          "beat": "release",
+          "dt": 0.045
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "leftLowerArm": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 8,
+          "beat": "notice",
+          "dt": 0.065
+        },
+        {
+          "v": 20,
+          "beat": "hit",
+          "dt": 0.065
+        },
+        {
+          "v": 32,
+          "beat": "clutch",
+          "dt": -0.135
+        },
+        {
+          "v": 38,
+          "beat": "clutch",
+          "dt": 0.065
+        },
+        {
+          "v": 49,
+          "beat": "melt",
+          "dt": 0.065
+        },
+        {
+          "v": 42,
+          "beat": "swoon",
+          "dt": 0.065
+        },
+        {
+          "v": 32,
+          "beat": "drift",
+          "dt": 0.065
+        },
+        {
+          "v": 25,
+          "beat": "smile",
+          "dt": 0.065
+        },
+        {
+          "v": 16,
+          "beat": "release",
+          "dt": 0.065
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "supination": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "notice",
+          "dt": 0.065
+        },
+        {
+          "v": 10,
+          "beat": "hit",
+          "dt": 0.065
+        },
+        {
+          "v": 20,
+          "beat": "clutch",
+          "dt": -0.135
+        },
+        {
+          "v": 30,
+          "beat": "clutch",
+          "dt": 0.065
+        },
+        {
+          "v": 35,
+          "beat": "melt",
+          "dt": 0.065
+        },
+        {
+          "v": 42,
+          "beat": "swoon",
+          "dt": 0.065
+        },
+        {
+          "v": 39,
+          "beat": "drift",
+          "dt": 0.065
+        },
+        {
+          "v": 30,
+          "beat": "smile",
+          "dt": 0.065
+        },
+        {
+          "v": 10,
+          "beat": "release",
+          "dt": 0.065
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "leftHand": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 5,
+          "beat": "hit",
+          "dt": -0.06
+        },
+        {
+          "v": -10,
+          "beat": "hit",
+          "dt": 0.08
+        },
+        {
+          "v": -16,
+          "beat": "clutch",
+          "dt": -0.12
+        },
+        {
+          "v": -8,
+          "beat": "clutch",
+          "dt": 0.08
+        },
+        {
+          "v": 8,
+          "beat": "melt",
+          "dt": 0.08
+        },
+        {
+          "v": 23,
+          "beat": "swoon",
+          "dt": 0.08
+        },
+        {
+          "v": 20,
+          "beat": "drift",
+          "dt": 0.08
+        },
+        {
+          "v": 16,
+          "beat": "smile",
+          "dt": 0.08
+        },
+        {
+          "v": 12,
+          "beat": "release",
+          "dt": 0.08
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "deviation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "hit",
+          "dt": -0.06
+        },
+        {
+          "v": -4,
+          "beat": "hit",
+          "dt": 0.08
+        },
+        {
+          "v": -8,
+          "beat": "clutch",
+          "dt": -0.12
+        },
+        {
+          "v": -6,
+          "beat": "clutch",
+          "dt": 0.08
+        },
+        {
+          "v": -3,
+          "beat": "melt",
+          "dt": 0.08
+        },
+        {
+          "v": -4,
+          "beat": "swoon",
+          "dt": 0.08
+        },
+        {
+          "v": -3,
+          "beat": "drift",
+          "dt": 0.08
+        },
+        {
+          "v": -2,
+          "beat": "smile",
+          "dt": 0.08
+        },
+        {
+          "v": 1,
+          "beat": "release",
+          "dt": 0.08
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    }
+  },
+  "hipsPosition": {
+    "x": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": -0.006,
+        "beat": "hit"
+      },
+      {
+        "v": -0.023,
+        "beat": "clutch"
+      },
+      {
+        "v": -0.027,
+        "beat": "melt"
+      },
+      {
+        "v": -0.019,
+        "beat": "melt",
+        "dt": 0.165
+      },
+      {
+        "v": -0.026,
+        "beat": "wobble1"
+      },
+      {
+        "v": -0.021,
+        "beat": "wobble1",
+        "dt": 0.165
+      },
+      {
+        "v": -0.025,
+        "beat": "wobble2"
+      },
+      {
+        "v": -0.028,
+        "beat": "swoon"
+      },
+      {
+        "v": -0.022,
+        "beat": "drift"
+      },
+      {
+        "v": -0.01,
+        "beat": "smile"
+      },
+      {
+        "v": 0.006,
+        "beat": "release"
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ],
+    "y": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": -0.004,
+        "beat": "notice"
+      },
+      {
+        "v": -0.014,
+        "beat": "hit"
+      },
+      {
+        "v": -0.03,
+        "beat": "clutch"
+      },
+      {
+        "v": -0.0335,
+        "beat": "melt"
+      },
+      {
+        "v": -0.026,
+        "beat": "melt",
+        "dt": 0.165
+      },
+      {
+        "v": -0.0328,
+        "beat": "wobble1"
+      },
+      {
+        "v": -0.028,
+        "beat": "wobble1",
+        "dt": 0.165
+      },
+      {
+        "v": -0.0321,
+        "beat": "wobble2"
+      },
+      {
+        "v": -0.03035,
+        "beat": "swoon"
+      },
+      {
+        "v": -0.027,
+        "beat": "drift"
+      },
+      {
+        "v": -0.015,
+        "beat": "smile"
+      },
+      {
+        "v": -0.006,
+        "beat": "release"
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ],
+    "z": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0.004,
+        "beat": "notice"
+      },
+      {
+        "v": -0.025,
+        "beat": "hit"
+      },
+      {
+        "v": -0.033,
+        "beat": "clutch"
+      },
+      {
+        "v": -0.025,
+        "beat": "melt"
+      },
+      {
+        "v": -0.023,
+        "beat": "wobble2"
+      },
+      {
+        "v": -0.017,
+        "beat": "swoon"
+      },
+      {
+        "v": -0.014,
+        "beat": "drift"
+      },
+      {
+        "v": -0.006,
+        "beat": "smile"
+      },
+      {
+        "v": 0.004,
+        "beat": "release"
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ]
+  },
+  "hands": {
+    "right": [
+      {
+        "preset": "relaxed",
+        "beat": "start"
+      },
+      {
+        "preset": "open-together",
+        "spread": 6,
+        "beat": "notice"
+      },
+      {
+        "preset": "palm-flat",
+        "spread": 4,
+        "beat": "hit",
+        "dt": 0.22
+      },
+      {
+        "preset": "palm-flat",
+        "curl": 2,
+        "spread": 4,
+        "fingers": {
+          "index": {
+            "curl": [8, 18, 10]
+          },
+          "middle": {
+            "curl": [8, 18, 10]
+          },
+          "ring": {
+            "curl": [8, 18, 10]
+          },
+          "little": {
+            "curl": [8, 18, 10]
+          }
+        },
+        "beat": "melt",
+        "dt": 0.05
+      },
+      {
+        "preset": "palm-flat",
+        "curl": 2,
+        "spread": 4,
+        "fingers": {
+          "index": {
+            "curl": [8, 18, 10]
+          },
+          "middle": {
+            "curl": [8, 18, 10]
+          },
+          "ring": {
+            "curl": [8, 18, 10]
+          },
+          "little": {
+            "curl": [8, 18, 10]
+          }
+        },
+        "beat": "smile",
+        "dt": -0.05
+      },
+      {
+        "preset": "relaxed",
+        "curl": -2,
+        "beat": "release",
+        "dt": 0.32
+      },
+      {
+        "preset": "relaxed",
+        "beat": "settle"
+      }
+    ],
+    "left": [
+      {
+        "preset": "relaxed",
+        "beat": "start"
+      },
+      {
+        "preset": "open-together",
+        "spread": 7,
+        "beat": "hit",
+        "dt": 0.08
+      },
+      {
+        "preset": "open-together",
+        "curl": 4,
+        "spread": 6,
+        "beat": "melt",
+        "dt": -0.05
+      },
+      {
+        "preset": "relaxed",
+        "curl": 7,
+        "fingers": {
+          "ring": {
+            "curl": [4, 8, 4]
+          },
+          "little": {
+            "curl": [7, 10, 5]
+          }
+        },
+        "beat": "swoon",
+        "dt": 0.05
+      },
+      {
+        "preset": "relaxed",
+        "curl": -2,
+        "beat": "release",
+        "dt": 0.05
+      },
+      {
+        "preset": "relaxed",
+        "beat": "settle"
+      }
+    ]
+  },
+  "expressions": {
+    "surprised": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0.8,
+        "beat": "hit"
+      },
+      {
+        "v": 0.55,
+        "beat": "clutch",
+        "dt": -0.1
+      },
+      {
+        "v": 0,
+        "beat": "melt"
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ],
+    "aa": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0.4,
+        "beat": "hit"
+      },
+      {
+        "v": 0.25,
+        "beat": "clutch",
+        "dt": -0.1
+      },
+      {
+        "v": 0.08,
+        "beat": "melt"
+      },
+      {
+        "v": 0,
+        "beat": "wobble1",
+        "dt": 0.07
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ],
+    "happy": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0,
+        "beat": "clutch",
+        "dt": -0.17
+      },
+      {
+        "v": 0.6,
+        "beat": "melt"
+      },
+      {
+        "v": 0.6,
+        "beat": "swoon"
+      },
+      {
+        "v": 0.8,
+        "beat": "smile"
+      },
+      {
+        "v": 0.72,
+        "beat": "release",
+        "dt": 0.1
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ],
+    "blink": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0,
+        "beat": "clutch",
+        "dt": -0.1
+      },
+      {
+        "v": 0.4,
+        "beat": "melt"
+      },
+      {
+        "v": 0.35,
+        "beat": "wobble1"
+      },
+      {
+        "v": 0.4,
+        "beat": "swoon"
+      },
+      {
+        "v": 0.08,
+        "beat": "drift"
+      },
+      {
+        "v": 0,
+        "beat": "smile"
+      },
+      {
+        "v": 0,
+        "beat": "release"
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ]
+  },
+  "contacts": [
+    {
+      "bone": "rightHand",
+      "target": "upperChest",
+      "beat": "hit",
+      "from": 0.24,
+      "to": 2.7,
+      "offset": [0.08, -0.035, 0.115],
+      "point": "palm",
+      "facing": true,
+      "solve": {
+        "blendIn": 0.22,
+        "blendOut": 0.45
+      }
+    },
+    {
+      "bone": "rightLowerArm",
+      "target": "upperChest",
+      "beat": "hit",
+      "from": 0.02,
+      "to": 3.15,
+      "offset": [-0.16, -0.11, 0.08],
+      "tolerance": 0.1
+    }
+  ],
+  "events": [
+    {
+      "id": "cupid-arrow",
+      "time": 0.3,
+      "kind": "avatar_vfx",
+      "effectId": "cupid_arrow_stuck",
+      "duration": 2.85,
+      "envelope": {
+        "intensity": {
+          "fadeOut": 0.3
+        }
+      }
+    }
+  ]
+}

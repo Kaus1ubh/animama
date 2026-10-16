@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "content_type": "particle_effect",
+  "content_id": "builtin:particle-effect:shooting-stars",
+  "version": 1,
+  "name": "Shooting Stars",
+  "description": "Three bright gold and ivory shooting stars sweep along staggered arcs behind and above the Avatar, trailing luminous glitter before blooming into large four-point twinkles.",
+  "runtime_defaults": {
+    "schema_version": 1,
+    "runtime_id": "shooting-stars",
+    "slots": {
+      "particle_vfx": {
+        "label": "Shooting Stars",
+        "description": "Three bright gold and ivory shooting stars sweep along staggered arcs behind and above the Avatar, trailing luminous glitter before blooming into large four-point twinkles.",
+        "anchor": "head",
+        "duration_seconds": 3.3,
+        "max_duration_seconds": 3.3,
+        "preload_tier": "none",
+        "follow_anchor": false,
+        "transform": {
+          "offset": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "depth_offset": 0,
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "looping_allowed": false,
+        "can_coexist": true,
+        "max_particles": 90
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "particle.json",
+      "role": "manifest"
+    },
+    {
+      "path": "textures/star-glint.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/soft-haze.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/shooting-trail.png",
+      "role": "texture"
+    }
+  ]
+}

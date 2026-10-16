@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "content_type": "particle_effect",
+  "content_id": "builtin:particle-effect:shoujo-sparkle-frame",
+  "version": 1,
+  "name": "Shoujo Sparkle Frame",
+  "description": "Soft luminous roses, pale gold glints and drifting pink light.",
+  "runtime_defaults": {
+    "schema_version": 1,
+    "runtime_id": "shoujo-sparkle-frame",
+    "slots": {
+      "particle_vfx": {
+        "label": "Shoujo Sparkle Frame",
+        "description": "Soft luminous roses, pale gold glints and drifting pink light.",
+        "anchor": "head",
+        "duration_seconds": 6,
+        "max_duration_seconds": 30,
+        "preload_tier": "none",
+        "follow_anchor": true,
+        "transform": {
+          "offset": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "depth_offset": 0,
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "looping_allowed": true,
+        "can_coexist": true,
+        "max_particles": 50
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "particle.json",
+      "role": "manifest"
+    },
+    {
+      "path": "textures/romance-rose.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/romance-haze.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/romance-glint.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/romance-bokeh.png",
+      "role": "texture"
+    }
+  ]
+}

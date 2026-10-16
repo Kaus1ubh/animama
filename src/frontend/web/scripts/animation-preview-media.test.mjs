@@ -203,7 +203,7 @@ test("offers Library Avatar Effects and named effect sources as choices", async 
   const included = choices.filter(
     ({ group }) => group === "Included Avatar Effects",
   );
-  assert.equal(included.length, 100);
+  assert.equal(included.length, 109);
   assert.ok(
     included.some(
       ({ spec }) =>

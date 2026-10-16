@@ -121,6 +121,7 @@ export const AVATAR_EFFECT_TEMPLATES: readonly AvatarEffectTemplate[] = [
   included("single_tear", "Single Tear", "cheeks", { time: 1.2 }),
   included("shiver_undereye", "Shiver Undereye", "cheeks"),
   included("yawn_tear", "Yawn Tear", "cheeks"),
+  included("kiss_mark", "Kiss Mark", "cheeks"),
   included("texture_sick_1", "Texture Sick 1", "whole-face"),
   included("texture_sick_2", "Texture Sick 2", "whole-face"),
   included("texture_black_1", "Texture Black 1", "whole-face"),
@@ -287,6 +288,7 @@ export const AVATAR_EFFECT_TEMPLATES: readonly AvatarEffectTemplate[] = [
     framing: "wide",
   }),
   included("whistle_notes", "Whistle Notes", "around-head"),
+  included("stink_lines", "Stink Lines", "around-head", { framing: "wide" }),
   included("mouth_w", "Mouth w", "mouth"),
   included("mouth_hover_w", "Mouth Hover w", "mouth"),
   included("sniff_lines", "Sniff Lines", "mouth"),
@@ -354,6 +356,27 @@ export const AVATAR_EFFECT_TEMPLATES: readonly AvatarEffectTemplate[] = [
     framing: "wide",
     clip: "idol-glowstick-cheer",
     time: 1.4375,
+  }),
+  included("cupid_arrow_stuck", "Cupid Arrow Stuck", "body", {
+    framing: "wide",
+  }),
+  included("shock_zigzag", "Shock Zigzag", "body", { framing: "wide" }),
+  included("stomp_dust", "Stomp Dust", "body", { framing: "body" }),
+  included("smartphone", "Smartphone", "body", { framing: "body" }),
+  included("magnifier", "Magnifier", "body", {
+    framing: "wide",
+    clip: "detective-squint",
+    time: 1.9,
+  }),
+  included("love_letter", "Love Letter", "body", {
+    framing: "wide",
+    clip: "confession-letter-bow",
+    time: 2,
+  }),
+  included("rose", "Rose", "body", {
+    framing: "wide",
+    clip: "offer-a-rose",
+    time: 2,
   }),
 ];
 

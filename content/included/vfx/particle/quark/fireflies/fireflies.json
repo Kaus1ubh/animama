@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "content_type": "particle_effect",
+  "content_id": "builtin:particle-effect:fireflies",
+  "version": 1,
+  "name": "Fireflies",
+  "description": "Warm fireflies drift in slow three-dimensional arcs around the Avatar, their tiny golden lights blinking softly for cozy nights and romantic moments.",
+  "runtime_defaults": {
+    "schema_version": 1,
+    "runtime_id": "fireflies",
+    "slots": {
+      "particle_vfx": {
+        "label": "Fireflies",
+        "description": "Warm fireflies drift in slow three-dimensional arcs around the Avatar, their tiny golden lights blinking softly for cozy nights and romantic moments.",
+        "anchor": "chest",
+        "duration_seconds": 12,
+        "max_duration_seconds": 30,
+        "preload_tier": "none",
+        "follow_anchor": true,
+        "transform": {
+          "offset": {
+            "x": 0,
+            "y": 0.12,
+            "z": 0
+          },
+          "depth_offset": 0,
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "looping_allowed": true,
+        "can_coexist": true,
+        "max_particles": 24
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "particle.json",
+      "role": "manifest"
+    },
+    {
+      "path": "textures/firefly-core.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/firefly-halo.png",
+      "role": "texture"
+    }
+  ]
+}

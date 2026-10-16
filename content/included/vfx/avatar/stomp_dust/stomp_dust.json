@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:stomp_dust",
+  "version": 1,
+  "name": "Stomp Dust",
+  "description": "Crayon dust puffs burst and scatter low beside the hips during an exaggerated stomping tantrum.",
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:drum_hit_double",
+      "content_type": "sound_effect",
+      "alias": "on-apply",
+      "optional": true
+    }
+  ],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "body",
+    "attachment": {
+      "kind": "body",
+      "bone": "hips",
+      "facing": "camera",
+      "offset": {
+        "x": 0,
+        "y": -0.03,
+        "z": 0.25
+      },
+      "size": 0.6
+    },
+    "art": {
+      "image": "stomp_dust.png",
+      "flipbook": {
+        "columns": 2,
+        "fps": 8,
+        "frames": 4,
+        "loop": "loop",
+        "rows": 2
+      }
+    },
+    "soundAlias": "on-apply"
+  },
+  "files": [
+    {
+      "path": "stomp_dust.png",
+      "role": "image"
+    }
+  ]
+}

@@ -61,6 +61,15 @@ def test_included_license_inventory_records_the_release_gate() -> None:
         "overheat-steam",
         "spit-spray-mist",
         "ta-da-glitter",
+        # Content library wave 2 (#585).
+        "clap-sparks",
+        "fireflies",
+        "kiss-lips-float",
+        "love-letter-flutter",
+        "poof-smoke",
+        "rose-bloom-burst",
+        "shooting-stars",
+        "shoujo-sparkle-frame",
     }
     particle_rules = [
         rule for rule in rules if rule["glob"].startswith("vfx/particle/quark/") and rule["glob"].endswith("/**")
@@ -81,12 +90,23 @@ def test_included_license_inventory_records_the_release_gate() -> None:
                 "aroma-ribbons/textures/aroma-ribbons-glint.png",
                 "cheer-streamers/textures/cheer-star-glint.png",
                 "cheer-streamers/textures/cheer-soft-haze.png",
+                "clap-sparks/textures/clap-glint.png",
+                "clap-sparks/textures/clap-glow.png",
                 "electric-crackle/textures/soft-haze.png",
                 "hearts-v1/textures/soft-haze.png",
                 "hearts-v1/textures/star-glint.png",
+                "kiss-lips-float/textures/kiss-glint.png",
+                "kiss-lips-float/textures/kiss-haze.png",
+                "love-letter-flutter/textures/letter-glint.png",
+                "love-letter-flutter/textures/letter-haze.png",
                 "musical-cascade/textures/soft-haze.png",
                 "musical-cascade/textures/star-glint.png",
                 "overheat-steam/textures/overheat-steam-glint.png",
+                "rose-bloom-burst/textures/romance-glint.png",
+                "rose-bloom-burst/textures/romance-haze.png",
+                "shoujo-sparkle-frame/textures/romance-bokeh.png",
+                "shoujo-sparkle-frame/textures/romance-glint.png",
+                "shoujo-sparkle-frame/textures/romance-haze.png",
             ),
             "LicenseRef-Animama-owner-authored",
         ),
@@ -96,6 +116,11 @@ def test_included_license_inventory_records_the_release_gate() -> None:
                 "energy-wave-charge/textures/glow-sharp.png",
                 "energy-wave-charge/textures/shock-ring.png",
                 "energy-wave-charge/textures/soft-dot.png",
+                "fireflies/textures/firefly-core.png",
+                "fireflies/textures/firefly-halo.png",
+                "poof-smoke/textures/brackeys-smoke.png",
+                "poof-smoke/textures/glow-soft.png",
+                "poof-smoke/textures/smoke-puff.png",
             ),
             "LicenseRef-Animama-generated-and-CC0-particle-VFX",
         ),
@@ -179,7 +204,7 @@ def test_core_gesture_identities_stay_distinct_from_the_mixamo_pack() -> None:
         json.loads(path.read_text(encoding="utf-8"))
         for path in sorted((ROOT / "content/included/gestures").glob("*/*.meta.json"))
     ]
-    assert len(metas) >= 133
+    assert len(metas) >= 152
     assert _pack_collisions(metas, pack) == []
     assert _pack_collisions([{"content_id": "builtin:gesture:goodbye-wave", "semantic_key": "wave"}], pack) == [
         ("goodbye-wave", "wave")

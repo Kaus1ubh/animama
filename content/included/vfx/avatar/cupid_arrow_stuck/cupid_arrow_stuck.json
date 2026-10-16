@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:cupid_arrow_stuck",
+  "version": 1,
+  "name": "Cupid Arrow Stuck",
+  "description": "A pink-feathered wooden arrow wobbles from the chest after a comic romantic hit.",
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:bubbly_hit",
+      "content_type": "sound_effect",
+      "alias": "on-apply",
+      "optional": true
+    }
+  ],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "body",
+    "attachment": {
+      "kind": "body",
+      "bone": "chest",
+      "facing": "camera",
+      "offset": {
+        "x": 0.07,
+        "y": 0.16,
+        "z": 0.18
+      },
+      "size": 0.28
+    },
+    "art": {
+      "image": "cupid_arrow_stuck-sheet.png",
+      "flipbook": {
+        "columns": 4,
+        "fps": 8,
+        "frames": 8,
+        "loop": "loop",
+        "rows": 2
+      }
+    },
+    "motion": {
+      "keyframes": {
+        "frames": [
+          {
+            "opacity": 0,
+            "scale": 0.3,
+            "t": 0
+          },
+          {
+            "opacity": 1,
+            "scale": 1.14,
+            "t": 0.08
+          },
+          {
+            "scale": 1,
+            "t": 0.2
+          }
+        ]
+      }
+    },
+    "soundAlias": "on-apply"
+  },
+  "files": [
+    {
+      "path": "cupid_arrow_stuck-sheet.png",
+      "role": "image"
+    }
+  ]
+}
