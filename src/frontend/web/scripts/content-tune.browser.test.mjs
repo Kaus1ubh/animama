@@ -394,3 +394,70 @@ test("changes an Avatar Effect's own sound and saves it", async () => {
   );
   await page.close();
 });
+
+test("applies proposals once as drafts for review", async () => {
+  const proposalsFile = path.join(dir, "proposals.json");
+  await writeJson(proposalsFile, {
+    items: {
+      "builtin:gesture:pop-wave": {
+        note: "A second pop on the wave.",
+        add: [
+          {
+            time: 0.6,
+            sound: `builtin:sound-effect:${SOUND_KEY}`,
+            volume: 0.5,
+          },
+        ],
+      },
+      "builtin:gesture:no-such-gesture": { note: "Gone.", add: [] },
+    },
+    effects: {
+      "builtin:avatar-effect:kira_star": {
+        // An earlier test gave it the fixture sound; propose silence.
+        note: "Quiet the star.",
+        sound: null,
+      },
+    },
+  });
+  const clipFile = path.join(
+    dir,
+    "content/included/gestures/pop-wave/pop-wave.json",
+  );
+  const before = await readFile(clipFile, "utf8");
+  // Its own server (and so origin and storage), reading the proposals.
+  const proposing = await startTuneServer({
+    contentRoot: path.join(dir, "content/included"),
+    soundRoots: [path.join(dir, "pack")],
+    proposalsFile,
+  });
+  const page = await browser.newPage({
+    viewport: { width: 1400, height: 900 },
+  });
+  try {
+    page.setDefaultTimeout(90_000);
+    acceptDialogs(page);
+    await page.goto(proposing.url);
+    await page.getByText("2 applied, not saved").waitFor();
+    await page.getByText(/Proposed effect sound, Kira Star/).waitFor();
+    await page.getByText(/Quiet the star\./).waitFor();
+    await page
+      .getByText(/Proposal not applied: builtin:gesture:no-such-gesture/)
+      .waitFor();
+    await page.getByRole("button", { name: /Pop Wave/ }).click();
+    await page.getByText("(applied, not saved)", { exact: true }).waitFor();
+    await page.getByText("A second pop on the wave.").waitFor();
+    // A proposal is only a draft: nothing is written.
+    assert.equal(await readFile(clipFile, "utf8"), before);
+
+    // A discarded proposal stays discarded after a reload.
+    await page.getByRole("button", { name: "Discard applied" }).click();
+    await page.getByText("1 applied, not saved").waitFor();
+    await page.reload();
+    await page.getByRole("button", { name: /Pop Wave/ }).click();
+    await page.getByText("A second pop on the wave.").waitFor();
+    await page.getByText("1 applied, not saved").waitFor();
+  } finally {
+    await page.close();
+    await proposing.close();
+  }
+});

@@ -96,6 +96,8 @@ export type TuneState = {
   problems: string[];
   /** Identifies the checkout's content (keys the applied drafts). */
   checkout: string;
+  /** Proposed edits to review (`--proposals`), or null. */
+  proposals: import("./proposals").TuneProposals | null;
 };
 
 /** The clip alias an event plays, and the kind of content it names. */

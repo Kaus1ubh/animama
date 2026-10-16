@@ -84,8 +84,22 @@ export async function startTuneServer({
   soundRoots = DEFAULT_SOUND_ROOTS,
   avatar = "annie",
   port = 0,
+  proposalsFile = null,
 }) {
   const avatarId = AVATARS[avatar] ?? avatar;
+  /**
+   * Proposed edits for the owner to review, read on each load so a newer
+   * file shows up after a page reload. The page applies each proposal once
+   * as a draft; nothing is written until Save all.
+   */
+  const readProposals = async () => {
+    if (!proposalsFile) return null;
+    try {
+      return JSON.parse(await readFile(proposalsFile, "utf8"));
+    } catch (error) {
+      return { error: `Proposals not loaded (${error.message}).` };
+    }
+  };
   const manifest = JSON.parse(
     await readFile(path.join(REPO_ROOT, PACK_SOUND_MANIFEST), "utf8"),
   );
@@ -202,6 +216,7 @@ export async function startTuneServer({
         available: Boolean(file),
       })),
       catalog: Boolean(catalogDir) && sounds.some((sound) => !sound.shipped),
+      proposals: await readProposals(),
       // Names this checkout's content, so applied drafts kept in the browser
       // never cross to another worktree served on the same port.
       checkout: createHash("sha256")
@@ -291,6 +306,7 @@ export async function startTuneServer({
 
 const USAGE = `Usage: pnpm -s content:tune [--catalog <dir>] [--sounds <dir>]...
                            [--avatar annie|caitlyn] [--port <n>] [--no-open]
+                           [--proposals <file>]
 
 Opens the owner's tuning page for Included Gestures and the Reaction ladder:
 audition WOW Sound catalog sounds and preview items, with their effects and
@@ -305,6 +321,8 @@ sounds, on an Included Avatar.
   --avatar          Included Avatar (default annie)
   --port <n>        serve on this port (default ${DEFAULT_TUNE_PORT}); applied,
                     unsaved edits are kept per port in the browser
+  --proposals <f>   a JSON file of proposed edits to review: the page loads
+                    each once as an applied draft, with its note
   --pending         print the pack sounds Included content needs added to or
                     removed from the comedy pack (with --catalog, each
                     addition's vendor file), then exit
@@ -322,6 +340,7 @@ export function parseTuneArgs(argv, env = process.env) {
     open: true,
     help: false,
     pending: false,
+    proposals: null,
   };
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
@@ -329,13 +348,16 @@ export function parseTuneArgs(argv, env = process.env) {
     else if (argument === "--no-open") options.open = false;
     else if (argument === "--pending") options.pending = true;
     else if (
-      ["--catalog", "--sounds", "--avatar", "--port"].includes(argument)
+      ["--catalog", "--sounds", "--avatar", "--port", "--proposals"].includes(
+        argument,
+      )
     ) {
       const value = argv[index + 1];
       if (value === undefined || value.startsWith("--"))
         throw new Error(`${argument} needs a value.`);
       index += 1;
       if (argument === "--catalog") options.catalogDir = value;
+      else if (argument === "--proposals") options.proposals = value;
       else if (argument === "--sounds") options.soundRoots.push(value);
       else if (argument === "--avatar") {
         if (!Object.hasOwn(AVATARS, value))
@@ -399,6 +421,7 @@ async function main(argv) {
       soundRoots: options.soundRoots.map((root) => path.resolve(cwd, root)),
       avatar: options.avatar,
       port: options.port,
+      proposalsFile: options.proposals && path.resolve(cwd, options.proposals),
     });
   } catch (error) {
     // Vite reports a taken strict port by message, without an error code.

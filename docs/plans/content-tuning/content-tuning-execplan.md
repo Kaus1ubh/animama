@@ -1089,6 +1089,58 @@ doesn't fit.
     own uncommitted Air Guitar edit in the worktree. That edit is not part
     of this change.
 
+### Proposals for review (2026-10-16)
+
+The owner asked for draft sound changes to review, added either to a
+Gesture or to an effect.
+
+- **Behavior:** `content:tune --proposals <file>` reads a JSON file of
+  proposed sound events for items and own sounds for effects, each with a
+  note. On each load the page applies every proposal it hasn't seen as an
+  applied draft, using the same draft functions as the editor. It records
+  the proposals it has applied per checkout, so a discarded one stays
+  discarded. It never replaces an applied edit the owner already made, and
+  it lists proposals it can't apply. An item's note shows on the item;
+  effect proposals are listed at the top of the page.
+- **Content:** the proposals file is kept outside Git, under the primary
+  checkout's `.animama-drafts/content-tune/`. It proposes sounds for 58
+  silent Gestures, placed on named clip beats, and own sounds for two silent
+  lettering effects (`rawr_lettering_chest` and `heh_lettering`). Starter
+  idles, loops and subtle conversational Gestures get none. Effects that
+  already have sounds are left as they are: their names match their sounds,
+  and changing them can't be judged without listening.
+- **Validation of the content:** a script ran the page's `mergeProposals`
+  and `saveAllRequest`, then `/__tune/save` on a temporary copy of
+  `gestures`, `reactions` and `vfx`. The first run refused four Gestures
+  because a silent, unmuted effect counts as audible within 0.3 s. Two
+  became effect proposals and two were retimed (the slow clap leaves out
+  clap 3, with a note). The final Save all of 58 items and 2 effects
+  passed, with one-event diffs.
+- **Tests:** `proposals.test.ts` (3), a `--proposals` argument test, and a
+  browser test. It checks that a proposal loads as an applied draft with its
+  note, writes nothing, lists an unknown item, and stays discarded after a
+  reload.
+- **Proposals Review #1** (targeted): two required findings, both fixed.
+  - **P-R1:** a malformed entry (for example `add` missing) threw inside a
+    React effect and blanked the page. `mergeProposals` now checks each
+    entry's shape and reports a malformed one. Unit test added.
+  - **P-R2:** effect proposals were visible only in a hover title on items
+    using the effect. They are now listed at the top with their notes, and
+    the browser test covers one.
+  - Optional findings taken: **P-R3** (a seen list kept in the page, so a
+    proposal merges once even when storage writes fail), **P-R4** (the
+    note is not part of a proposal's identity; unit test added) and
+    **P-R5** (docs say a deferred proposal applies on the next load).
+    Left: **P-R6** test gaps beyond these, **P-R7** (render-time ref write,
+    style only) and **P-R8** (unbounded seen list, small at this scale and
+    needed to keep discarded proposals discarded).
+- **Proposals Review #2** (targeted recheck): **pass**. All accepted
+  findings fixed, no new blocking issues. Optional notes: the seen IDs
+  changed form, which matters only to a browser that used the first
+  version (none did); the plan's test count was corrected; the browser
+  test's silent `kira_star` proposal relies on the earlier effect-sound
+  test, as its comment says, which the suite's fixed order guarantees.
+
 ## Validation and acceptance
 
 Acceptance is #590's checklist. Commands for the candidate:

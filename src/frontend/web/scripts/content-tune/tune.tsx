@@ -38,6 +38,7 @@ import {
   type AppliedEdits,
 } from "./applied";
 import { useAudition } from "./audition";
+import { mergeProposals } from "./proposals";
 import { draftOf, updateEvent, type TuneDraft } from "./draft";
 import {
   EventsEditor,
@@ -559,6 +560,7 @@ function ItemDetail({
   onDiscard,
   effectSounds,
   effectUses,
+  notes,
   onEffectSound,
   onDirty,
 }: {
@@ -579,6 +581,8 @@ function ItemDetail({
   effectSounds: AppliedEffectSounds;
   /** How many Gestures and Reactions use each effect. */
   effectUses: Map<string, number>;
+  /** Why a proposal was made, by content ID. */
+  notes: Record<string, string>;
   /** Apply a new own sound (null: silent) for an Avatar Effect. */
   onEffectSound: (effect: TuneEffect, sound: string | null) => void;
   /** Reports whether the draft has edits that aren't applied yet. */
@@ -624,7 +628,7 @@ function ItemDetail({
   }, [baseline]);
   // Stable per draft: the preview restarts when what it plays changes.
   const view = useMemo(() => withDraft(item, draft), [item, draft]);
-  const notes = ladderNotes(view);
+  const ladder = ladderNotes(view);
   // Steps of one continuous edit (typing a number, dragging a slider) share
   // a key and replace each other, so Undo takes the whole edit back.
   const lastKey = useRef<string | null>(null);
@@ -715,7 +719,11 @@ function ItemDetail({
               uses === 1
                 ? "the 1 Gesture or Reaction that uses it"
                 : `all ${uses} Gestures and Reactions that use it`
-            }${change ? " (applied, not saved)" : ""}`}
+            }${change ? " (applied, not saved)" : ""}${
+              notes[effect.contentId]
+                ? `. Proposal: ${notes[effect.contentId]}`
+                : ""
+            }`}
           >
             effect sound: {sound ? (soundNames.get(sound) ?? sound) : "none"}
             {change ? " ●" : ""}
@@ -778,9 +786,15 @@ function ItemDetail({
               ` · ${item.emotion} · ${INTENSITY_LABELS[item.intensity ?? 0] ?? "?"}`}
             {` · ${item.clip.duration.toFixed(2)} s`}
           </p>
-          {notes.length > 0 && (
+          {ladder.length > 0 && (
             <p className="mt-1 text-xs text-amber-600">
-              Ladder: {notes.join("; ")}
+              Ladder: {ladder.join("; ")}
+            </p>
+          )}
+          {notes[item.contentId] && (
+            <p className="bg-muted mt-2 rounded px-2 py-1 text-xs">
+              <span className="font-semibold">Proposal:</span>{" "}
+              {notes[item.contentId]}
             </p>
           )}
           <div className="mt-2 flex items-center gap-2">
@@ -940,6 +954,48 @@ function App() {
       // Without storage the changes last for this page only.
     }
   }, [effectSounds, effectsKey, restored, storageKey]);
+  // Proposals (`--proposals`): merged once each as drafts after the stored
+  // drafts are restored; their notes stay visible while the file lists them.
+  const [notes, setNotes] = useState<Record<string, string>>({});
+  const [proposalProblems, setProposalProblems] = useState<string[]>([]);
+  const latest = useRef({ applied, effectSounds });
+  latest.current = { applied, effectSounds };
+  // Proposals merged in this page, so they merge once even without storage.
+  const seenHere = useRef<string[]>([]);
+  useEffect(() => {
+    if (!state || !storageKey || restored !== storageKey) return;
+    const seenKey = `content-tune:proposals-seen:v1:${state.checkout}`;
+    let stored: unknown = [];
+    try {
+      stored = JSON.parse(globalThis.localStorage?.getItem(seenKey) ?? "[]");
+    } catch {
+      stored = [];
+    }
+    const merged = mergeProposals(state.proposals, {
+      items: [...state.gestures, ...state.reactions],
+      effects: state.effects,
+      sounds: state.sounds,
+      applied: latest.current.applied,
+      effectSounds: latest.current.effectSounds,
+      seen: [
+        ...new Set([
+          ...(Array.isArray(stored) ? stored : []),
+          ...seenHere.current,
+        ]),
+      ],
+    });
+    seenHere.current = merged.seen;
+    setNotes(merged.notes);
+    setProposalProblems(merged.problems);
+    if (merged.applied !== latest.current.applied) setApplied(merged.applied);
+    if (merged.effectSounds !== latest.current.effectSounds)
+      setEffectSounds(merged.effectSounds);
+    try {
+      globalThis.localStorage?.setItem(seenKey, JSON.stringify(merged.seen));
+    } catch {
+      // Without storage, proposals merge again when the page is next opened.
+    }
+  }, [state, storageKey, restored]);
   const [saving, setSaving] = useState(false);
   // Whether the open item has edits not applied; switching away asks first.
   const dirty = useRef(false);
@@ -1086,6 +1142,11 @@ function App() {
   const index = useMemo(() => (state ? new TuneIndex(state) : null), [state]);
   if (error) return <p className="text-destructive p-6">{error}</p>;
   if (!state || !index) return <p className="p-6">Loading content…</p>;
+  // Effect proposals are listed here: their sound button is only on the
+  // items that use them.
+  const proposedEffects = state.effects.filter(
+    (effect) => notes[effect.contentId],
+  );
   return (
     <div className="flex h-screen flex-col">
       <header className="flex items-baseline gap-3 border-b px-4 py-2">
@@ -1155,6 +1216,26 @@ function App() {
           ))}
         </ul>
       )}
+      {proposalProblems.length > 0 && (
+        <ul className="text-destructive border-b px-4 py-2 text-xs">
+          {proposalProblems.map((problem) => (
+            <li key={problem}>Proposal not applied: {problem}</li>
+          ))}
+        </ul>
+      )}
+      {proposedEffects.length > 0 && (
+        <ul className="border-b px-4 py-2 text-xs">
+          {proposedEffects.map((effect) => (
+            <li key={effect.contentId}>
+              <span className="font-semibold">
+                Proposed effect sound, {effect.name}
+              </span>
+              {effectSounds[effect.contentId] ? " (applied, not saved)" : ""}:{" "}
+              {notes[effect.contentId]}
+            </li>
+          ))}
+        </ul>
+      )}
       {state.problems.length > 0 && (
         <ul className="text-destructive border-b px-4 py-2 text-xs">
           {state.problems.map((problem) => (
@@ -1214,6 +1295,7 @@ function App() {
             }
             effectSounds={effectSounds}
             effectUses={effectUses}
+            notes={notes}
             onEffectSound={(effect, sound) =>
               setEffectSounds((current) =>
                 applyEffectSound(current, effect, sound),

@@ -813,6 +813,21 @@ Reactions. It is not part of any build.
     `content/included` together. If any item is refused, nothing is
     written. If a file rename fails partway, the error names the files
     already replaced; `git restore` recovers them.
+- **Proposals:** `--proposals <file>` loads suggested edits for review, each
+  applied once as a draft, so they show as "applied, not saved". The file is
+  JSON. `items` maps a Gesture or Reaction content ID to
+  `{ "note", "add": [{ "time", "sound", "volume"? }] }`, where `sound` is a
+  catalog sound ID. `effects` maps an Avatar Effect content ID to
+  `{ "note", "sound" }`, where `null` makes it silent. An item's note shows
+  on the item; effect proposals are listed at the top with their notes. Keep
+  a proposal with Save all, or drop it with **Discard applied**. A discarded
+  or saved proposal isn't applied again unless its sounds change (not its
+  note); a changed one is applied on top of the file as it is then. A
+  proposal for an item that already has an applied edit waits until that
+  edit is saved or discarded, then applies on the next load. Proposals that
+  can't be applied (malformed entry, unknown item or sound) are listed at
+  the top. Keep proposal files outside Git, for example under
+  `.animama-drafts/`.
 - **Saving rules:**
   - It rebuilds the dependencies from the events (unused edges drop) and
     writes pack sounds as optional edges.

@@ -38,6 +38,11 @@ test("collects sound roots, the Avatar, the port and --no-open", () => {
   // A fixed default port keeps applied edits across restarts.
   assert.equal(parseTuneArgs([], {}).port, DEFAULT_TUNE_PORT);
   assert.equal(options.open, false);
+  assert.equal(options.proposals, null);
+  assert.equal(
+    parseTuneArgs(["--proposals", "p.json"], {}).proposals,
+    "p.json",
+  );
   // Without --sounds, the checkout's pack input is the default.
   assert.match(
     parseTuneArgs([], {}).soundRoots[0],
