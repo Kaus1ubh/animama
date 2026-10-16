@@ -15,8 +15,8 @@
   },
   "dependencies": [
     {
-      "ref": "builtin:avatar-effect:sigh_puff_droop",
-      "alias": "sigh_puff_droop",
+      "ref": "builtin:avatar-effect:gloomy_cloud",
+      "alias": "gloomy_cloud",
       "content_type": "avatar_effect",
       "config": {}
     }

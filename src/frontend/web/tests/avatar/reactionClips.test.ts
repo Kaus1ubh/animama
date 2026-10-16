@@ -62,7 +62,7 @@ function includedReactionCells(emotion: string): Record<number, string[]> {
 const INTENSITY_ONE_AVATAR_EFFECTS: Record<string, string> = {
   annoyance: "sigh_puff_droop",
   desire: "blush_band",
-  disappointment: "gloomy_cloud",
+  disappointment: "sigh_puff_droop",
   excitement: "kira_star",
 };
 
@@ -84,6 +84,7 @@ const LADDER_DEPARTURES: Record<string, Array<"avatar" | "particle">> = {
   "curiosity-4": ["particle"],
   "curiosity-4-b": ["particle"],
   "embarrassment-3-b": ["particle"],
+  "joy-3-b": ["avatar"],
   "optimism-4-b": ["avatar"],
   "remorse-3-b": ["particle"],
   "sadness-3-b": ["particle"],
@@ -93,7 +94,13 @@ const LADDER_DEPARTURES: Record<string, Array<"avatar" | "particle">> = {
  * Second Reactions that keep the first's expression and differ only in their
  * effects, by owner choice (R15 exception, 2026-10-16).
  */
-const SHARED_EXPRESSIONS = new Set(["curiosity-2-b"]);
+const SHARED_EXPRESSIONS = new Set([
+  // Every Anger Reaction keeps anger-1's face; the effects escalate.
+  "anger-2-b",
+  "anger-3-b",
+  "anger-4-b",
+  "curiosity-2-b",
+]);
 
 /** A clip's Avatar, Particle and Scene Effect aliases, by kind. */
 function reactionEffects(clip: AnimaPoseClipV2) {

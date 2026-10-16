@@ -21,12 +21,6 @@
       "config": {}
     },
     {
-      "ref": "builtin:avatar-effect:hearts_burst",
-      "alias": "hearts_burst",
-      "content_type": "avatar_effect",
-      "config": {}
-    },
-    {
       "ref": "builtin:particle-effect:flower-pop",
       "alias": "flower-pop",
       "content_type": "particle_effect",

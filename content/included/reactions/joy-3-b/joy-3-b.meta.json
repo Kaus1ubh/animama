@@ -15,12 +15,6 @@
   },
   "dependencies": [
     {
-      "ref": "builtin:avatar-effect:music_notes",
-      "alias": "music_notes",
-      "content_type": "avatar_effect",
-      "config": {}
-    },
-    {
       "ref": "builtin:particle-effect:sparkle-bubbles",
       "alias": "sparkle-bubbles",
       "content_type": "particle_effect",
