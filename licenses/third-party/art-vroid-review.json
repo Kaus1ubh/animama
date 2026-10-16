@@ -42,7 +42,8 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "status": "owner-confirmed-metadata-corrected",
-      "condition": "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+      "condition": "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate.",
+      "owner_edit": "On 2026-10-16 Raymond had one texture recoloured: the grey hair-underside texture (material N00_000_Hair_00_HAIR_04) now follows the outer hair's brown-to-pink gradient. Geometry, every other texture and the embedded metadata above are unchanged; sha256 is of the recoloured file. The embedded \"modification\": \"prohibited\" is VRoid Studio's export default, left on at export; the VRoidPreset A-Z terms (otherLicenseUrl) permit edits, including selling edited samples."
     },
     {
       "path": "content/included/avatars/AvatarSample_Y_0.vrm",

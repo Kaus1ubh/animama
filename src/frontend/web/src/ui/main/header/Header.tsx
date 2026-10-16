@@ -116,16 +116,19 @@ export function Header({
       <h1 className="text-foreground truncate text-lg font-semibold">
         {animaLabel}
       </h1>
-      <span
-        role="img"
-        aria-label={emotionPresentation.feeling.label}
-        className="shrink-0"
-      >
-        <EmotionMascot
-          src={emotionPresentation.feeling.mascot}
-          className="size-7"
-        />
-      </span>
+      {/* Every feeling has a mascot, neutral included; none without an Anima. */}
+      {activeAnima ? (
+        <span
+          role="img"
+          aria-label={emotionPresentation.feeling.label}
+          className="shrink-0"
+        >
+          <EmotionMascot
+            src={emotionPresentation.feeling.mascot}
+            className="size-7"
+          />
+        </span>
+      ) : null}
     </button>
   ) : null;
   const leftContent = left ?? null;

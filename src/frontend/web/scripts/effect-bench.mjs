@@ -24,7 +24,8 @@ import {
  *   pnpm -s effects:bench [--frames 600] [--warmup 120] [--rounds 2] [--headed] [--json out.json]
  *
  * For each Included Avatar it plays a looping Gesture through
- * `Avatar.update` on a chat-equivalent canvas (DPR 2, antialiasing, ACES) and
+ * `Avatar.update` on a chat-equivalent canvas (DPR 2, antialiasing, the chat's
+ * tone mapping and lights, enhanced unless `--rendering classic`) and
  * times `avatar.update` + `render` on the CPU and the render on the GPU
  * (`EXT_disjoint_timer_query_webgl2`) with no effects and with the heavy
  * combination: an animated face-surface effect, an animated eye hover, a body
