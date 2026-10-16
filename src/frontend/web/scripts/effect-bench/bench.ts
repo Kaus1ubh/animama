@@ -25,9 +25,9 @@ type AnimaPoseClip = Parameters<Avatar["playAnimaPoseClip"]>[0];
  * Avatar Effect frame-cost benchmark (driven by `scripts/effect-bench.mjs`).
  *
  * One production `Avatar` per request, rendered like the chat canvas (DPR 2,
- * antialiasing, ACES Filmic, sRGB, default lights, Portrait framing) while a
- * looping Gesture plays through `Avatar.update`. Each animation frame times
- * `avatar.update` plus `renderer.render` on the CPU and, where
+ * antialiasing, the chat's tone mapping and lights, sRGB, Portrait framing)
+ * while a looping Gesture plays through `Avatar.update`. Each animation frame
+ * times `avatar.update` plus `renderer.render` on the CPU and, where
  * `EXT_disjoint_timer_query_webgl2` exists, the render's GPU time. The
  * baseline runs with no effects; the heavy run adds the requested effects
  * and two attachments drawn here in code (a pulsing chest heart and a

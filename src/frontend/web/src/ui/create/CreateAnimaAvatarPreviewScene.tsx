@@ -29,9 +29,9 @@ import { createLogger } from "@/lib/logger";
 import { cn } from "@/lib/utils";
 import { Button } from "@/ui/components/button";
 import { CONTINUOUS_CANVAS_RESIZE } from "@/ui/main/canvas/canvasResizeOptions";
+import { AvatarSceneLighting } from "@/ui/main/canvas/AvatarSceneLighting";
 import {
   DEFAULT_SCENE_CAMERA,
-  DEFAULT_SCENE_LIGHTS,
   DEFAULT_SCENE_ORBIT_TARGET,
 } from "@/ui/main/canvas/sceneCameraPresets";
 import { useFormatters } from "@animama/product-ui/i18n";
@@ -360,14 +360,7 @@ export function CreateAnimaAvatarPreviewScene({ file }: { file: File }) {
           gl.setClearColor(0x000000, 0);
         }}
       >
-        <ambientLight intensity={DEFAULT_SCENE_LIGHTS.ambientIntensity} />
-        {DEFAULT_SCENE_LIGHTS.directional.map((light, index) => (
-          <directionalLight
-            key={index}
-            position={light.position}
-            intensity={light.intensity}
-          />
-        ))}
+        <AvatarSceneLighting />
         <Suspense fallback={null}>
           <PreviewAvatarActor
             file={file}

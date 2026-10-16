@@ -32,6 +32,17 @@
       "tooltip": "G で移動、R で回転、S でアバターを拡大縮小します。Esc で変形モードを終了します。アバターモードでは、キャンバスをドラッグまたはスクロールして周回・ズームします。アバターチャットモードでは、Ctrl を押しながらドラッグで周回し、Ctrl + スクロールでズームします。",
       "updateFailed": "アバター変形コントロールを更新できませんでした。"
     },
+    "enhancedRendering": {
+      "description": "トゥーンシェーディング、3点照明、やわらかな色調でアバターを描画します。オフにすると従来の見た目に戻ります。",
+      "keywords": [
+        "高品質",
+        "レンダラー",
+        "グラフィック",
+        "画質"
+      ],
+      "label": "高品質レンダラーとシェーダーを有効にする",
+      "updateFailed": "レンダラーの設定を更新できませんでした。"
+    },
     "markdown": {
       "label": "アシスタントの Markdown を表示",
       "updateFailed": "Markdown の表示設定を更新できませんでした。"
@@ -241,6 +252,7 @@
     "appData": "アプリのデータ",
     "audio": "オーディオ",
     "avatarControls": "アバターの操作",
+    "avatarRendering": "アバターの描画",
     "defaultModels": "デフォルトのモデル",
     "desktopShortcuts": "デスクトップのショートカット",
     "diagnostics": "診断",

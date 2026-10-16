@@ -1362,6 +1362,31 @@ inside the main `Canvas`. Live, management, creator, and Create Anima Avatar
 canvases share `CONTINUOUS_CANVAS_RESIZE` to keep renderer and camera dimensions
 aligned during sidebar resizing.
 
+### Enhanced rendering
+
+The Advanced setting **Enable enhanced renderer and shaders** (app preference
+`presentation.enhanced_rendering`, on unless turned off) switches every Avatar
+canvas between enhanced and classic rendering. `SettingsProvider` mirrors the
+preference into `useEnhancedRenderingStore`
+(`src/lib/avatar/enhanced-rendering/`), which non-React code reads.
+
+- **Materials:** `withEnhancedMToonPatch` retunes VRoid MToon materials in the
+  glTF after three-vrm's VRM 0.x conversion and before any material is built:
+  coloured shadows, a crisper terminator, rim light and screen-space outlines.
+  Colours come from VRoid material-name suffixes (`_SKIN`, `_CLOTH`, `_HAIR`,
+  `vroidPalette.ts`) tuned on Annie, so other models can look off; eyes, brows
+  and mouth stay flat. A change reloads the chat Avatar
+  (`AvatarCanvasActor`); other canvases pick it up on their next load.
+- **Lights and tone mapping:** `AvatarSceneLighting` gives the chat, preview
+  and Create Anima canvases three-point lighting (`ENHANCED_SCENE_LIGHTS`) and
+  Neutral tone mapping at exposure 1.1; classic keeps one key light and ACES.
+- **Chat canvas filter:** a CSS filter adds a soft colour grade and a white
+  glow around the Avatar, standing in for colour grading and bloom.
+
+On an Apple M5 the enhanced look adds about 0.1–0.15 ms per frame over classic.
+Review renders and benchmarks use enhanced rendering unless given
+`--rendering classic`.
+
 ### Actor setup
 
 `src/frontend/web/src/ui/main/canvas/AvatarCanvasActor.tsx`:

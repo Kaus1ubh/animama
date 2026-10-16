@@ -59,15 +59,40 @@ export const DEFAULT_SCENE_ORBIT_TARGET = sceneVector3ToArray({
   z: 0,
 });
 
-export const DEFAULT_SCENE_LIGHTS = {
+/** Ambient and directional lights for an Avatar canvas. */
+export type AvatarSceneLights = {
+  ambientIntensity: number;
+  directional: readonly {
+    position: readonly [number, number, number];
+    intensity: number;
+    /** CSS colour; white when omitted. */
+    color?: string;
+  }[];
+};
+
+/** The classic lighting: one white key light from the upper right. */
+export const DEFAULT_SCENE_LIGHTS: AvatarSceneLights = {
   ambientIntensity: 0.7,
+  directional: [{ position: [3, 4, 2], intensity: 1.1 }],
+};
+
+/**
+ * Three-point lighting for enhanced rendering: a warm key from the front
+ * right, a cool fill from the left and a white rim light from behind.
+ */
+export const ENHANCED_SCENE_LIGHTS: AvatarSceneLights = {
+  ambientIntensity: 0.5,
   directional: [
-    {
-      position: [3, 4, 2] as const,
-      intensity: 1.1,
-    },
+    { position: [1.6, 2.4, 2.6], intensity: 1.3, color: "#fff3e6" },
+    { position: [-2.5, 1, 2], intensity: 0.35, color: "#e6ecff" },
+    { position: [-1.5, 2.5, -3], intensity: 0.6, color: "#ffffff" },
   ],
 };
+
+/** The lights for classic or enhanced rendering. */
+export function avatarSceneLights(enhanced: boolean): AvatarSceneLights {
+  return enhanced ? ENHANCED_SCENE_LIGHTS : DEFAULT_SCENE_LIGHTS;
+}
 
 export function buildSceneCameraPreset(
   preset: SceneCameraPreset,

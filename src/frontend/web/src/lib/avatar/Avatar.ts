@@ -84,6 +84,7 @@ import {
   retargetPoseForVrm0,
 } from "./poses/poseRetargeting";
 import { canonicalizeCustomPresetExpressions } from "./vrmExpressionPresets";
+import { withEnhancedMToonPatch } from "./enhanced-rendering/mtoonPatch";
 import { applyEyelidClosureCorrection } from "./eyelidClosure";
 import {
   countAnimaPoseClipEventsByKind,
@@ -3093,7 +3094,9 @@ export class Avatar {
 
   private static _createGLTFLoader(manager?: THREE.LoadingManager): GLTFLoader {
     const loader = new GLTFLoader(manager);
-    loader.register((parser) => new VRMLoaderPlugin(parser));
+    loader.register((parser) =>
+      withEnhancedMToonPatch(new VRMLoaderPlugin(parser)),
+    );
     loader.register((parser) => new VRMAnimationLoaderPlugin(parser));
     return loader;
   }

@@ -116,7 +116,8 @@ export function Header({
       <h1 className="text-foreground truncate text-lg font-semibold">
         {animaLabel}
       </h1>
-      {emotionPresentation.dominantGroup !== "neutral" ? (
+      {/* Every feeling has a mascot, neutral included; none without an Anima. */}
+      {activeAnima ? (
         <span
           role="img"
           aria-label={emotionPresentation.feeling.label}

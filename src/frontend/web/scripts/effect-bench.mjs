@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 
 import {
   AVATARS,
+  AVATAR_RENDERINGS,
   avatarFileUrl,
   pageClipMedia,
   pageEffect,
@@ -23,7 +24,8 @@ import {
  *   pnpm -s effects:bench [--frames 600] [--warmup 120] [--rounds 2] [--headed] [--json out.json]
  *
  * For each Included Avatar it plays a looping Gesture through
- * `Avatar.update` on a chat-equivalent canvas (DPR 2, antialiasing, ACES) and
+ * `Avatar.update` on a chat-equivalent canvas (DPR 2, antialiasing, the chat's
+ * tone mapping and lights, enhanced unless `--rendering classic`) and
  * times `avatar.update` + `render` on the CPU and the render on the GPU
  * (`EXT_disjoint_timer_query_webgl2`) with no effects and with the heavy
  * combination: an animated face-surface effect, an animated eye hover, a body
@@ -75,6 +77,7 @@ const USAGE = [
   "  --replay 90         Reaction mode: frames between replays of the Reaction",
   "  --local-content <dir>  content root for library:local/... sources",
   "  --headed            skip the headless attempt",
+  "  --rendering enhanced  Avatar rendering: enhanced (the app default) or classic",
   "  --json <file>       also write the results as JSON",
 ].join("\n");
 
@@ -117,6 +120,7 @@ export async function runEffectBench({
   clipSpec = DEFAULT_CLIP,
   effectSpecs = DEFAULT_FACE_EFFECTS,
   headed = false,
+  rendering = "enhanced",
   sourceOptions = {},
   log = console.log,
 } = {}) {
@@ -132,6 +136,7 @@ export async function runEffectBench({
         pageDir: "effect-bench",
         launch,
         extraRoots: await sourceRoots(effects),
+        rendering,
       },
       async ({ page, fsUrl, imageUrl }) => {
         const info = await page.evaluate(() =>
@@ -179,6 +184,7 @@ export async function runReactionBench({
   rounds = 2,
   replayFrames = 90,
   headed = false,
+  rendering = "enhanced",
   sourceOptions = {},
   log = console.log,
 }) {
@@ -195,6 +201,7 @@ export async function runReactionBench({
         pageDir: "effect-bench",
         launch,
         extraRoots: await sourceRoots([], media),
+        rendering,
       },
       async ({ page, fsUrl, imageUrl }) => {
         const info = await page.evaluate(() =>
@@ -273,6 +280,7 @@ async function main(argv) {
         "--replay",
         "--local-content",
         "--json",
+        "--rendering",
       ].includes(arg)
     ) {
       values[arg] = argv[++index];
@@ -300,6 +308,13 @@ async function main(argv) {
     );
     return 2;
   }
+  const rendering = values["--rendering"] ?? "enhanced";
+  if (!AVATAR_RENDERINGS.includes(rendering)) {
+    console.log(
+      `--rendering takes ${AVATAR_RENDERINGS.join(" or ")}.\n\n${USAGE}`,
+    );
+    return 2;
+  }
   const cwd = process.env.INIT_CWD ?? process.cwd();
   try {
     const sourceOptions = {
@@ -321,6 +336,7 @@ async function main(argv) {
         rounds,
         replayFrames,
         headed: flags.has("--headed"),
+        rendering,
         sourceOptions,
       });
       console.log(`Mode: ${outcome.mode}; renderer: ${outcome.info.renderer}`);
@@ -340,6 +356,7 @@ async function main(argv) {
       clipSpec: values["--clip"] ?? DEFAULT_CLIP,
       effectSpecs: values["--effects"]?.split(",") ?? DEFAULT_FACE_EFFECTS,
       headed: flags.has("--headed"),
+      rendering,
       sourceOptions,
     });
     console.log(`Mode: ${outcome.mode}; renderer: ${outcome.info.renderer}`);

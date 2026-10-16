@@ -649,8 +649,10 @@ sourcing the stack record, unless `--local-content` is given.
 ### Review renders
 
 `pnpm -s effects:render` renders effects on both Included Avatars in headless
-Chromium (SwiftShader) with the chat canvas settings (ACES Filmic, sRGB, the
-default scene lights), stepping fixed 60 Hz frames with automatic animation
+Chromium (SwiftShader) with the chat canvas settings (enhanced rendering by
+default: Neutral tone mapping at exposure 1.1, sRGB and three-point lights;
+`--rendering classic` uses ACES Filmic and the single key light), stepping
+fixed 60 Hz frames with automatic animation
 off, so renders are deterministic (a Reaction that starts two Particle Effects
 in one frame can still differ by a few pixels between runs):
 
@@ -687,6 +689,10 @@ To watch effects in motion with their sounds, `pnpm -s animation:reel --effects
 - `--diff` counts a pixel when a channel changes by more than `--threshold`
   (default 8 of 255) and writes a diff image. The same source and revision diff
   to 0 pixels.
+- `--rendering classic` renders the classic Avatar look instead of the app's
+  default enhanced rendering (the chat canvas's CSS filter is not part of the
+  rendered pixels). `CHROMIUM_PATH` points Playwright at a preinstalled
+  Chromium.
 
 `pnpm -s effects:thumbnails [template-id...]` regenerates the picker's Avatar FX
 thumbnails (320 px WebP, 1 s after applying, or at the template's
@@ -751,14 +757,16 @@ pnpm -s animation:preview library:included/joy-3   # a Reaction with its effects
 
 `pnpm -s effects:bench` measures frame cost on the development machine's GPU.
 It plays a looping Gesture on a chat-equivalent canvas (800 × 600 at DPR 2,
-antialiasing, ACES) and times `avatar.update` plus render on the CPU, and the
-render on the GPU (`EXT_disjoint_timer_query_webgl2`), per Included Avatar,
+antialiasing, the chat's tone mapping and lights) and times `avatar.update`
+plus render on the CPU, and the render on the GPU
+(`EXT_disjoint_timer_query_webgl2`), per Included Avatar,
 with no effects and with a heavy combination (an animated full-face texture, an
 animated eye plane, a body effect and a silhouette). The scenarios alternate
 over `--rounds` passes, and GPU samples voided by a disjoint event are dropped
 and counted. The budget is a mean added frame time of at most 2 ms. A software
 WebGL renderer is refused. Options: `--frames`, `--warmup`, `--rounds`,
-`--clip`, `--effects`, `--headed`, `--json <file>`.
+`--clip`, `--effects`, `--headed`, `--json <file>` and `--rendering
+<enhanced|classic>`.
 
 `--reaction <path|library:reaction/...>` measures one Reaction's Avatar,
 Particle and Scene Effects instead: the Reaction replays every `--replay`

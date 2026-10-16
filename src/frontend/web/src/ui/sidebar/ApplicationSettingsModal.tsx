@@ -339,7 +339,8 @@ type SettingGroupId =
   | "animaDefaults"
   | "appData"
   | "messages"
-  | "avatarControls";
+  | "avatarControls"
+  | "avatarRendering";
 
 /** Display name of a setting group. */
 function settingGroupLabel(
@@ -383,6 +384,8 @@ function settingGroupLabel(
       return t("groups.messages");
     case "avatarControls":
       return t("groups.avatarControls");
+    case "avatarRendering":
+      return t("groups.avatarRendering");
   }
 }
 
@@ -550,6 +553,8 @@ export function ApplicationSettingsModal({
   const {
     chatMarkdownEnabled,
     setChatMarkdownEnabled,
+    enhancedRenderingEnabled,
+    setEnhancedRenderingEnabled,
     userPreferences,
     updateUserPreferences,
   } = useSettings();
@@ -1875,6 +1880,31 @@ export function ApplicationSettingsModal({
               checked={chatMarkdownEnabled}
               onCheckedChange={setChatMarkdownEnabled}
               aria-label={t("advanced.markdown.label")}
+            />
+          }
+        />
+      ),
+    },
+    {
+      id: "avatar-enhanced-rendering",
+      section: "Advanced",
+      ...inGroup("avatarRendering"),
+      label: t("advanced.enhancedRendering.label"),
+      keywords: [
+        ...t("advanced.enhancedRendering.keywords", { returnObjects: true }),
+        "shader",
+        "lighting",
+        "toon",
+      ],
+      render: () => (
+        <SettingsRow
+          label={t("advanced.enhancedRendering.label")}
+          description={t("advanced.enhancedRendering.description")}
+          control={
+            <Switch
+              checked={enhancedRenderingEnabled}
+              onCheckedChange={setEnhancedRenderingEnabled}
+              aria-label={t("advanced.enhancedRendering.label")}
             />
           }
         />

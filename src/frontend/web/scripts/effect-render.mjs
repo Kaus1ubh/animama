@@ -52,6 +52,8 @@ const VIEW_LABELS = {
   "three-quarter": "3/4 right",
   face: "face",
 };
+/** Avatar renderings `--rendering` accepts (`src/lib/avatar/enhanced-rendering`). */
+export const AVATAR_RENDERINGS = ["enhanced", "classic"];
 /** The Included Avatars every sheet and benchmark covers. */
 export const AVATARS = ["AvatarSample_Y_0", "AvatarSample_A_1_New"];
 
@@ -113,6 +115,10 @@ function truncate(text, limit = 240) {
 /** Software WebGL: deterministic review renders on any machine. */
 const SWIFTSHADER_LAUNCH = {
   headless: true,
+  // A preinstalled Chromium, where Playwright's own download is unavailable.
+  ...(process.env.CHROMIUM_PATH
+    ? { executablePath: process.env.CHROMIUM_PATH }
+    : {}),
   args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
 };
 
@@ -124,7 +130,8 @@ const SWIFTSHADER_LAUNCH = {
  * `pageDir` names the page under `scripts/` (default the review renderer); it
  * must set `window.effectRendererReady`. `launch` holds the Playwright
  * Chromium launch options plus an optional page `viewport` and
- * `deviceScaleFactor`.
+ * `deviceScaleFactor`. `rendering` picks the app's enhanced (default) or
+ * classic Avatar rendering.
  */
 export async function withRendererPage(
   {
@@ -132,6 +139,7 @@ export async function withRendererPage(
     extraRoots = [],
     pageDir = "effect-render",
     launch = SWIFTSHADER_LAUNCH,
+    rendering = "enhanced",
   },
   callback,
 ) {
@@ -168,6 +176,9 @@ export async function withRendererPage(
       ...(viewport ? { viewport } : {}),
       ...(deviceScaleFactor ? { deviceScaleFactor } : {}),
     });
+    await page.addInitScript((value) => {
+      window.__animamaRenderingOverride = value;
+    }, rendering);
     const errors = [];
     // Any page error (including a failed module import) ends the wait early.
     const pageError = new Promise((_, reject) =>
@@ -425,10 +436,15 @@ export async function renderEffectSheets({
   clipMedia = null,
   clipStem = "clip",
   localContent = null,
+  rendering = "enhanced",
   onResult,
 }) {
   const results = await withRendererPage(
-    { localContent, extraRoots: await sourceRoots(effects, clipMedia) },
+    {
+      localContent,
+      extraRoots: await sourceRoots(effects, clipMedia),
+      rendering,
+    },
     async ({ page, fsUrl, imageUrl }) => {
       const avatars = AVATARS.map((id) => ({
         id,
@@ -546,16 +562,19 @@ export async function renderEffectThumbnail({
   expression = null,
   clip = null,
   localContent = null,
+  rendering = "enhanced",
 }) {
-  const result = await withRendererPage({ localContent }, (context) =>
-    writeThumbnailOnPage(context, {
-      effect,
-      outFile,
-      time,
-      size,
-      expression,
-      clip,
-    }),
+  const result = await withRendererPage(
+    { localContent, rendering },
+    (context) =>
+      writeThumbnailOnPage(context, {
+        effect,
+        outFile,
+        time,
+        size,
+        expression,
+        clip,
+      }),
   );
   if (result.failures.length) throw new EffectRenderFailure([result]);
   return result;
@@ -702,6 +721,7 @@ const USAGE = [
   "  --together              apply every source at once on one sheet (<a+b+c>.png)",
   "  --local-content <dir>   content root for library:local/... (e.g. content/local)",
   "  --size 512              thumbnail edge in pixels (256-2048), Annie only",
+  "  --rendering enhanced    Avatar rendering: enhanced (the app default) or classic",
   "",
   "The run exits 1 when an effect leaves a controller warning or no active effect.",
   `Diff: a pixel differs when a channel differs by more than --threshold (default`,
@@ -719,6 +739,7 @@ const VALUE_OPTIONS = new Set([
   "--thumbnail",
   "--size",
   "--threshold",
+  "--rendering",
 ]);
 const FLAG_OPTIONS = new Set([
   "--all-included",
@@ -837,6 +858,11 @@ async function main(argv) {
       ? await resolveClipSource(values["--with-clip"], sourceOptions)
       : null;
     const clip = clipSource?.clip ?? null;
+    const rendering = values["--rendering"] ?? "enhanced";
+    if (!AVATAR_RENDERINGS.includes(rendering))
+      throw new EffectSourceError(
+        `Invalid --rendering ${rendering}; use ${AVATAR_RENDERINGS.join(" or ")}.`,
+      );
 
     if (values["--thumbnail"]) {
       if (positional.length !== 1 || flags.has("--all-included"))
@@ -856,6 +882,7 @@ async function main(argv) {
         expression,
         clip,
         localContent,
+        rendering,
       });
       console.log(`Wrote ${outFile}`);
       return 0;
@@ -919,6 +946,7 @@ async function main(argv) {
       expression,
       clip,
       localContent,
+      rendering,
       onResult: (result) => {
         console.log(
           result.failures.length

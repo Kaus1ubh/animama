@@ -78,11 +78,13 @@ package import):
 | Per effect | 16 textures, 32 MiB |
 | Sprite sheet grid | at most 16 tiles each way (U and V tile counts) |
 
-three.quarks' billboard shader tone-maps (ACES Filmic in chat) but has no
+three.quarks' billboard shader tone-maps with the chat's curve but has no
 sRGB output step, so a texture with an empty `colorSpace` (every Included
-effect) shows pure white near RGB 194. A manifest may set a texture's
-`colorSpace` to `"srgb"`; the loader, creator preview, review renders and Save
-keep it, but it only darkens mid-tones and does not restore white.
+effect) shows pure white near RGB 228 with the default enhanced rendering
+(Neutral at exposure 1.1), or near 194 with classic rendering (ACES Filmic).
+A manifest may set a texture's `colorSpace` to `"srgb"`; the loader, creator
+preview, review renders and Save keep it, but it only darkens mid-tones and
+does not restore white.
 
 A manifest material may set the three.js field `toneMapped: false` to skip
 tone mapping for the emitters that use it. Their stored texture values then

@@ -286,9 +286,10 @@ async function greySquareEffect(dir, stem, level, toneMapped) {
   return folder;
 }
 
-// The chat tone-maps particles (ACES Filmic) unless a material opts out with
-// `toneMapped: false`; then the art's stored values reach the canvas as
-// authored, with no extra sRGB step.
+// The chat tone-maps particles (Neutral at exposure 1.1 with the default
+// enhanced rendering) unless a material opts out with `toneMapped: false`;
+// then the art's stored values reach the canvas as authored, with no extra
+// sRGB step.
 test("renders particle art without tone mapping when its material opts out", async () => {
   const dir = await mkdtemp(path.join(tmpdir(), "animama-effect-tone-"));
   try {
@@ -329,7 +330,7 @@ test("renders particle art without tone mapping when its material opts out", asy
     );
     const [whiteDefault, whiteUntoned, greyUntoned] = centres;
     for (const [r, g, b] of whiteDefault)
-      assert.ok(r > 170 && r < 215 && r === g && g === b, `${[r, g, b]}`);
+      assert.ok(r > 205 && r < 245 && r === g && g === b, `${[r, g, b]}`);
     for (const pixel of whiteUntoned) assert.deepEqual(pixel, [255, 255, 255]);
     for (const pixel of greyUntoned)
       for (const channel of pixel)

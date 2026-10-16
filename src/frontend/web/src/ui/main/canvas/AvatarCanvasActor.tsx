@@ -13,6 +13,7 @@ import {
   hasBlockingNonTtsPresentationWork,
 } from "@/lib/avatar";
 import { buildAnimationPreloadPlan } from "@/lib/avatar/animationPreloadPlan";
+import { useEnhancedRenderingStore } from "@/lib/avatar/enhanced-rendering/enhancedRendering";
 import { useOptionalSoundController } from "@/hooks/use-sound-controller";
 import type { SceneVFXKind } from "@/lib/scene-vfx/types";
 import { createLogger } from "@/lib/logger";
@@ -272,6 +273,8 @@ export function AvatarCanvasActor({
     fetchPath: requestedAvatarPath,
     stableAvatarPath: runtimeAvatarLoadKey,
   });
+  // Enhanced rendering retunes materials at load, so a change reloads the Avatar.
+  const enhancedRendering = useEnhancedRenderingStore((state) => state.enabled);
   const avatarLoadSpecRef = useRef<AvatarLoadSpec>({
     loadKey: avatarLoadKey,
     requestedAvatarPath,
@@ -594,6 +597,7 @@ export function AvatarCanvasActor({
     onAvatarInstanceChange,
     animaId,
     avatarLoadKey,
+    enhancedRendering,
     poseClipEventSink,
     reactionClipEventSink,
     runtimeAvatarEntry,
