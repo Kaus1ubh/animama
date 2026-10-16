@@ -1434,12 +1434,24 @@ Code lives in `src/frontend/web/src/lib/avatar/toon-shader/`:
 - Shadow, rim and outline colours come from VRoid material-name suffixes
   (`_SKIN`, `_CLOTH`, `_HAIR`) and were tuned on the Annie preset, so other
   models can look off.
-- The section's look sliders (`avatarShaderLook.ts`) apply live and are
-  stored in this browser (`animama.debug.avatarShaderLook`). Exposure covers
-  every Avatar canvas and the ambient and key light multipliers cover the chat
-  canvas, under any shader. Shadow, rim and outline scale the tuned palette on
-  MToon tuned and lilToon Avatars only. Every value defaults to 1, which keeps
-  the shaders as tuned; **Copy values** copies them as JSON for new defaults.
+- The section's look controls (`avatarShaderLook.ts`) apply live and are
+  stored in this browser (`animama.debug.avatarShaderLook`):
+  - **Look preset** picks the lilToon property recipe (`lilToonLook.ts`):
+    **Current**, or **NiloToon-style** (brighter lighting response, pale
+    coloured shadows, a crisp lit-side rim, backlight on hair and skin, and
+    thin outlines tinted from the surface texture). Choosing a preset also
+    sets its exposure, lights, tone mapping and canvas filters.
+  - **Tone mapping** switches every Avatar canvas between ACES and three's
+    Neutral curve; lilToon applies the same curve in its shader.
+  - **Canvas filters** add CSS filters to the chat canvas: a soft colour grade
+    and a white glow around the silhouette. They stand in for colour grading
+    and bloom, and their compositing cost is not in `effects:bench`.
+  - Sliders: exposure (every Avatar canvas), ambient and key light (chat
+    canvas) under any shader; shadow, rim and outline scale the palette on
+    MToon tuned and lilToon only.
+
+  The defaults (multipliers 1, Current, ACES, no filters) keep the shaders as
+  tuned; **Copy values** copies the settings as JSON for new defaults.
 
 lilToon limits: it lights with only the first directional light, its outline
 pass skips the ACES curve, VRM expressions that bind material colours or

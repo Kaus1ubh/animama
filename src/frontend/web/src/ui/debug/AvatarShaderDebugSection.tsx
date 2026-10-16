@@ -9,10 +9,57 @@ import {
 } from "@/lib/avatar/toon-shader/avatarShader";
 import {
   AVATAR_SHADER_LOOK_CONTROLS,
+  AVATAR_SHADER_LOOK_PRESETS,
+  AVATAR_TONE_MAPPINGS,
   useAvatarShaderLookStore,
+  type AvatarToneMapping,
 } from "@/lib/avatar/toon-shader/avatarShaderLook";
+import {
+  LIL_TOON_PRESETS,
+  LIL_TOON_PRESET_LABELS,
+} from "@/lib/avatar/toon-shader/lilToonLook";
 import { Button } from "@/ui/components/button";
 import { Slider } from "@/ui/components/slider";
+
+const TONE_MAPPING_LABELS: Record<AvatarToneMapping, string> = {
+  aces: "ACES",
+  neutral: "Neutral",
+};
+
+/** A labelled row of pressed-state buttons. */
+function ButtonRow({
+  label,
+  options,
+}: {
+  label: string;
+  options: {
+    id: string;
+    label: string;
+    pressed: boolean;
+    onClick: () => void;
+  }[];
+}) {
+  return (
+    <div className="space-y-1">
+      <div className="text-2xs">{label}</div>
+      <div className="flex flex-wrap gap-1" role="group" aria-label={label}>
+        {options.map((option) => (
+          <Button
+            key={option.id}
+            type="button"
+            size="sm"
+            variant={option.pressed ? "secondary" : "ghost"}
+            aria-pressed={option.pressed}
+            onClick={option.onClick}
+            className="text-2xs h-7 px-2"
+          >
+            {option.label}
+          </Button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 /** Switches the experimental Avatar toon shader; each switch reloads the Avatar. */
 export function AvatarShaderDebugSection() {
@@ -21,25 +68,15 @@ export function AvatarShaderDebugSection() {
 
   return (
     <div className="space-y-1.5">
-      <div
-        className="flex flex-wrap gap-1"
-        role="group"
-        aria-label="Avatar shader"
-      >
-        {AVATAR_SHADER_IDS.map((id) => (
-          <Button
-            key={id}
-            type="button"
-            size="sm"
-            variant={id === shader ? "secondary" : "ghost"}
-            aria-pressed={id === shader}
-            onClick={() => setShader(id)}
-            className="text-2xs h-7 px-2"
-          >
-            {AVATAR_SHADER_LABELS[id]}
-          </Button>
-        ))}
-      </div>
+      <ButtonRow
+        label="Shader"
+        options={AVATAR_SHADER_IDS.map((id) => ({
+          id,
+          label: AVATAR_SHADER_LABELS[id],
+          pressed: id === shader,
+          onClick: () => setShader(id),
+        }))}
+      />
       <div className="text-muted-foreground text-2xs">
         Reloads the Avatar. Tuned colours come from VRoid material names, so
         other models may look off. lilToon uses only the first directional
@@ -50,7 +87,7 @@ export function AvatarShaderDebugSection() {
   );
 }
 
-/** Live look multipliers; values persist in this browser. */
+/** Live look presets, renderer toggles and sliders; they persist in this browser. */
 function AvatarShaderLookControls({
   toonShaderActive,
 }: {
@@ -74,6 +111,41 @@ function AvatarShaderLookControls({
 
   return (
     <div className="space-y-2 pt-1">
+      <ButtonRow
+        label="Look preset"
+        options={LIL_TOON_PRESETS.map((id) => ({
+          id,
+          label: LIL_TOON_PRESET_LABELS[id],
+          pressed: id === look.lilToonPreset,
+          onClick: () => setLook(AVATAR_SHADER_LOOK_PRESETS[id]),
+        }))}
+      />
+      <ButtonRow
+        label="Tone mapping"
+        options={AVATAR_TONE_MAPPINGS.map((id) => ({
+          id,
+          label: TONE_MAPPING_LABELS[id],
+          pressed: id === look.toneMapping,
+          onClick: () => setLook({ toneMapping: id }),
+        }))}
+      />
+      <ButtonRow
+        label="Canvas filters (chat)"
+        options={[
+          {
+            id: "softGrade",
+            label: "Soft grade",
+            pressed: look.softGrade,
+            onClick: () => setLook({ softGrade: !look.softGrade }),
+          },
+          {
+            id: "edgeGlow",
+            label: "Edge glow",
+            pressed: look.edgeGlow,
+            onClick: () => setLook({ edgeGlow: !look.edgeGlow }),
+          },
+        ]}
+      />
       {AVATAR_SHADER_LOOK_CONTROLS.map(
         ({ key, label, min, max, step, toonOnly }) => {
           const disabled = toonOnly && !toonShaderActive;
@@ -123,9 +195,11 @@ function AvatarShaderLookControls({
         </Button>
       </div>
       <div className="text-muted-foreground text-2xs">
-        Changes apply live. Exposure covers every Avatar canvas and the lights
-        cover the chat canvas, under any shader. Shadow, rim and outline adjust
-        MToon tuned and lilToon only.
+        Changes apply live. A preset sets the lilToon recipe plus the lighting,
+        tone mapping and filters that go with it; each stays adjustable.
+        Exposure and tone mapping cover every Avatar canvas, the lights and
+        filters the chat canvas, under any shader. Shadow, rim and outline
+        adjust MToon tuned and lilToon only.
       </div>
     </div>
   );

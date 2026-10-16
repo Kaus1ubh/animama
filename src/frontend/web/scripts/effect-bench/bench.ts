@@ -12,6 +12,11 @@ import {
   useAvatarShaderStore,
   type AvatarShaderId,
 } from "@/lib/avatar/toon-shader/avatarShader";
+import {
+  DEFAULT_AVATAR_SHADER_LOOK,
+  useAvatarShaderLookStore,
+} from "@/lib/avatar/toon-shader/avatarShaderLook";
+import type { LilToonPreset } from "@/lib/avatar/toon-shader/lilToonLook";
 import { applyAvatarVFXEffectById } from "@/lib/avatar/vfx/runtime";
 import { EMPTY_RUNTIME_MEDIA_PROVIDER } from "@/lib/runtime-content/AnimaRuntimeMediaCatalog";
 import { buildSceneCameraPreset } from "@/ui/main/canvas/sceneCameraPresets";
@@ -360,12 +365,16 @@ async function runBench(request: BenchRequest): Promise<BenchResult> {
 }
 
 type ShaderBenchRequest = Omit<BenchRequest, "effects"> & {
-  /** Shaders to compare, the baseline first. */
-  shaders: AvatarShaderId[];
+  /**
+   * Shaders to compare, the baseline first, each `<shader>` or
+   * `liltoon:<preset>` for a lilToon look preset.
+   */
+  shaders: string[];
 };
 
 type ShaderScenario = ScenarioResult & {
-  shader: AvatarShaderId;
+  /** The requested `<shader>[:<preset>]`. */
+  shader: string;
   /** `Avatar.load` wall time, including the shader's material conversion. */
   loadMs: number;
   /** CPU time of the first update and render, which compiles its programs. */
@@ -409,9 +418,12 @@ async function runShaderBench(
   ) as TimerExtension | null;
   const target: FrameTarget = { gl, timer, renderer, scene, camera };
   const previousShader = useAvatarShaderStore.getState().shader;
+  const previousLook = useAvatarShaderLookStore.getState().look;
 
   type Entry = {
+    spec: string;
     shader: AvatarShaderId;
+    preset: LilToonPreset;
     avatar: Avatar;
     loadMs: number;
     firstFrameMs: number;
@@ -420,9 +432,19 @@ async function runShaderBench(
   };
   const entries: Entry[] = [];
 
+  /** Select `entry`'s shader and lilToon preset in the page's stores. */
+  const select = (entry: Pick<Entry, "shader" | "preset">) => {
+    useAvatarShaderStore.setState({ shader: entry.shader });
+    // The look applies to every loaded lilToon Avatar on the next frame, so
+    // the warm-up frames absorb a preset switch.
+    useAvatarShaderLookStore.setState({
+      look: { ...DEFAULT_AVATAR_SHADER_LOOK, lilToonPreset: entry.preset },
+    });
+  };
+
   /** Run `body` with only `entry`'s Avatar in the scene, under its shader. */
   const withShader = async (entry: Entry, body: () => Promise<void>) => {
-    useAvatarShaderStore.setState({ shader: entry.shader });
+    select(entry);
     scene.add(entry.avatar.scene!);
     const release = await installAvatarShaderRendering(renderer);
     try {
@@ -434,10 +456,16 @@ async function runShaderBench(
   };
 
   try {
-    for (const shader of request.shaders) {
-      useAvatarShaderStore.setState({ shader });
+    for (const spec of request.shaders) {
+      const [shader, preset = "current"] = spec.split(":") as [
+        AvatarShaderId,
+        LilToonPreset?,
+      ];
+      select({ shader, preset });
       const entry: Entry = {
+        spec,
         shader,
+        preset,
         avatar: new Avatar(camera, renderer.domElement, {
           motionCatalog: BUILT_IN_AVATAR_MOTION_CATALOG,
           mediaCatalog: EMPTY_RUNTIME_MEDIA_PROVIDER,
@@ -502,7 +530,7 @@ async function runShaderBench(
         height: gl.drawingBufferHeight,
       },
       shaders: entries.map((entry) => ({
-        shader: entry.shader,
+        shader: entry.spec,
         loadMs: entry.loadMs,
         firstFrameMs: entry.firstFrameMs,
         ...scenarioResult(entry.samples, timer, entry.counts),
@@ -511,6 +539,7 @@ async function runShaderBench(
   } finally {
     for (const entry of entries) entry.avatar.dispose();
     useAvatarShaderStore.setState({ shader: previousShader });
+    useAvatarShaderLookStore.setState({ look: previousLook });
     renderer.dispose();
     renderer.domElement.remove();
   }

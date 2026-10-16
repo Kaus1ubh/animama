@@ -67,6 +67,8 @@ const GPU_ARGS = [
   "--ignore-gpu-blocklist",
 ];
 const VIEWPORT = { width: 800, height: 600 };
+/** lilToon look presets `--shaders` accepts (`src/lib/avatar/toon-shader/lilToonLook.ts`). */
+const LIL_TOON_PRESET_SPECS = ["liltoon:current", "liltoon:nilotoon"];
 /** The chat's typical Retina density, for the canvas and the DOM Scene layers. */
 const DEVICE_SCALE = 2;
 
@@ -81,7 +83,7 @@ const USAGE = [
   "  --reaction <path|library:reaction/...>  measure that Reaction's effects instead",
   "  --replay 90         Reaction mode: frames between replays of the Reaction",
   "  --local-content <dir>  content root for library:local/... sources",
-  `  --shaders <a,b|all>  compare Avatar shaders, the first as baseline (${AVATAR_SHADERS.join(", ")})`,
+  `  --shaders <a,b|all>  compare Avatar shaders, the first as baseline (${AVATAR_SHADERS.join(", ")}; liltoon:nilotoon for that preset)`,
   "  --avatar-shader <id>  run the effects or Reaction measurement under that shader",
   "  --headed            skip the headless attempt",
   "  --json <file>       also write the results as JSON",
@@ -314,11 +316,11 @@ function reportShaders(outcome, rounds) {
     ];
     for (const scenario of result.shaders) {
       lines.push(
-        `  ${scenario.shader.padEnd(11)} CPU ${format(scenario.cpu)}; GPU ${format(scenario.gpu)}; ${scenario.drawCalls} draw calls; load ${scenario.loadMs.toFixed(0)} ms; first frame ${scenario.firstFrameMs.toFixed(1)} ms`,
+        `  ${scenario.shader.padEnd(16)} CPU ${format(scenario.cpu)}; GPU ${format(scenario.gpu)}; ${scenario.drawCalls} draw calls; load ${scenario.loadMs.toFixed(0)} ms; first frame ${scenario.firstFrameMs.toFixed(1)} ms`,
       );
       if (scenario !== base) {
         lines.push(
-          `  ${"".padEnd(11)} vs ${base.shader}: CPU ${delta(scenario.cpu.mean, base.cpu.mean)}; GPU ${delta(scenario.gpu?.mean ?? null, base.gpu?.mean ?? null)}`,
+          `  ${"".padEnd(16)} vs ${base.shader}: CPU ${delta(scenario.cpu.mean, base.cpu.mean)}; GPU ${delta(scenario.gpu?.mean ?? null, base.gpu?.mean ?? null)}`,
         );
       }
     }
@@ -409,10 +411,14 @@ async function main(argv) {
     (shaders &&
       (shaders.length < 2 ||
         new Set(shaders).size !== shaders.length ||
-        !shaders.every((shader) => AVATAR_SHADERS.includes(shader))))
+        !shaders.every(
+          (shader) =>
+            AVATAR_SHADERS.includes(shader) ||
+            LIL_TOON_PRESET_SPECS.includes(shader),
+        )))
   ) {
     console.log(
-      `--avatar-shader takes one of ${AVATAR_SHADERS.join(", ")}; --shaders takes two or more of them, or all.\n\n${USAGE}`,
+      `--avatar-shader takes one of ${AVATAR_SHADERS.join(", ")}; --shaders takes two or more of them (or ${LIL_TOON_PRESET_SPECS.join(", ")}), or all.\n\n${USAGE}`,
     );
     return 2;
   }

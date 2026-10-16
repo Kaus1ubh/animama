@@ -773,8 +773,8 @@ experimental Avatar shader. `--shaders <a,b|all>` compares the shaders
 instead, without effects: one Avatar per shader, the shaders alternating over
 `--rounds` passes, each reported with its load time, its first-frame time
 (which compiles its programs) and its difference from the first shader
-listed. lilToon renders extra internal passes, so its draw-call count shows
-only the last of them.
+listed; `liltoon:nilotoon` selects a lilToon look preset. lilToon renders
+extra internal passes, so its draw-call count shows only the last of them.
 
 ## 10) Performance
 

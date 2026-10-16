@@ -4,8 +4,10 @@ import type { VRM } from "@pixiv/three-vrm";
 
 import {
   getAvatarShaderLook,
-  lilToonLookProperties,
+  lilToonMaterialProperties,
+  lilToonOutlineTexture,
   useAvatarShaderLookStore,
+  type AvatarShaderLook,
 } from "./avatarShaderLook";
 import { vroidLookFor } from "./vroidPalette";
 
@@ -16,15 +18,46 @@ import { vroidLookFor } from "./vroidPalette";
  */
 
 // three-liltoon writes sRGB itself and ignores `renderer.toneMapping`; apply
-// three's ACES Filmic curve (the chat canvas's) just before that conversion,
-// with the debug panel's exposure in place of `toneMappingExposure`.
-const exposure = { value: getAvatarShaderLook().exposure };
-useAvatarShaderLookStore.subscribe(({ look }) => {
+// three's ACES Filmic curve (the chat canvas's) or its Neutral curve just
+// before that conversion, with the debug panel's exposure in place of
+// `toneMappingExposure`. A uniform picks the curve, so switching needs no
+// recompile.
+const exposure = { value: 1 };
+const neutralToneMapping = { value: 0 };
+function syncToneMapping(look: AvatarShaderLook): void {
   exposure.value = look.exposure;
-});
+  neutralToneMapping.value = look.toneMapping === "neutral" ? 1 : 0;
+}
+syncToneMapping(getAvatarShaderLook());
+useAvatarShaderLookStore.subscribe(({ look }) => syncToneMapping(look));
 
-const ACES_GLSL = `
+/**
+ * Add the tone-mapping uniforms as non-enumerable properties. When a
+ * property change switches lilToon's program, it deletes every enumerable
+ * key from `uniforms` and re-adds its own, while three can keep uploading
+ * from the uniform list it built for that program; enumerable additions
+ * would then go missing mid-frame. three looks uniforms up with `in` and
+ * by name, which non-enumerable properties satisfy.
+ */
+function attachToneMappingUniforms(
+  uniforms: Record<string, THREE.IUniform>,
+): void {
+  for (const [name, uniform] of [
+    ["animamaExposure", exposure],
+    ["animamaNeutralToneMapping", neutralToneMapping],
+  ] as const) {
+    if (Object.prototype.hasOwnProperty.call(uniforms, name)) continue;
+    Object.defineProperty(uniforms, name, {
+      value: uniform,
+      enumerable: false,
+      configurable: true,
+    });
+  }
+}
+
+const TONE_MAPPING_GLSL = `
 uniform highp float animamaExposure;
+uniform highp float animamaNeutralToneMapping;
 highp vec3 animamaRRTAndODTFit(highp vec3 v) {
   highp vec3 a = v * (v + 0.0245786) - 0.000090537;
   highp vec3 b = v * (0.983729 * v + 0.4329510) + 0.238081;
@@ -39,23 +72,44 @@ highp vec3 animamaACESFilmic(highp vec3 color) {
   color = outputMat * animamaRRTAndODTFit(inputMat * color);
   return clamp(color, 0.0, 1.0);
 }
+// three's NeutralToneMapping (Khronos PBR Neutral).
+highp vec3 animamaNeutral(highp vec3 color) {
+  const highp float StartCompression = 0.8 - 0.04;
+  const highp float Desaturation = 0.15;
+  color *= animamaExposure;
+  highp float x = min(color.r, min(color.g, color.b));
+  highp float offset = x < 0.08 ? x - 6.25 * x * x : 0.04;
+  color -= offset;
+  highp float peak = max(color.r, max(color.g, color.b));
+  if (peak < StartCompression) return color;
+  highp float d = 1. - StartCompression;
+  highp float newPeak = 1. - d * d / (peak + d - StartCompression);
+  color *= newPeak / peak;
+  highp float g = 1. - 1. / (Desaturation * (peak - newPeak) + 1.);
+  return mix(color, vec3(newPeak), g);
+}
+highp vec3 animamaToneMap(highp vec3 color) {
+  return animamaNeutralToneMapping > 0.5
+    ? animamaNeutral(color)
+    : animamaACESFilmic(color);
+}
 `;
 const SRGB_INPUT =
   "highp vec3 linearColor = max(out_var_SV_Target.rgb, vec3(0.0));";
 
 /**
- * A `LilToonMaterial` with ACES tone mapping. Defined as a subclass so clones
- * (Avatar Effect texture composites) keep it.
+ * A `LilToonMaterial` with ACES or Neutral tone mapping. Defined as a
+ * subclass so clones (Avatar Effect texture composites) keep it.
  */
 class ToneMappedLilToonMaterial extends LilToonMaterial {
   override onBeforeCompile(shader: THREE.WebGLProgramParametersWithUniforms) {
     if (!shader.fragmentShader.includes(SRGB_INPUT)) return;
-    shader.uniforms.animamaExposure = exposure;
+    attachToneMappingUniforms(shader.uniforms);
     shader.fragmentShader = shader.fragmentShader
-      .replace("void main()", `${ACES_GLSL}\nvoid main()`)
+      .replace("void main()", `${TONE_MAPPING_GLSL}\nvoid main()`)
       .replace(
         SRGB_INPUT,
-        "highp vec3 linearColor = animamaACESFilmic(max(out_var_SV_Target.rgb, vec3(0.0)));",
+        "highp vec3 linearColor = animamaToneMap(max(out_var_SV_Target.rgb, vec3(0.0)));",
       );
   }
 }
@@ -68,7 +122,7 @@ type MToonLike = THREE.Material & {
 
 function toLilToon(source: MToonLike): LilToonMaterial {
   const look = vroidLookFor(source.name);
-  const isFace = look?.kind === "face";
+  const settings = getAvatarShaderLook();
   const color = source.color ?? new THREE.Color(1, 1, 1);
   const properties: Record<string, number | number[]> = {
     _Color: [color.r, color.g, color.b, source.opacity],
@@ -79,27 +133,14 @@ function toLilToon(source: MToonLike): LilToonMaterial {
     _UseShadow: look ? 1 : 0,
     _UseRim: look ? 1 : 0,
     _UseOutline: look ? 1 : 0,
+    ...lilToonMaterialProperties(source.name, settings),
   };
-  if (look) {
-    Object.assign(properties, {
-      ...lilToonLookProperties(look, getAvatarShaderLook()),
-      _ShadowBorder: isFace ? 0.2 : 0.55,
-      _ShadowBlur: 0.08,
-      // lilToon's warm terminator band suits skin but tints cloth pink.
-      _ShadowBorderRange:
-        look.kind === "face" || look.kind === "skin" ? 0.08 : 0,
-      _Shadow2ndBorder: isFace ? 0.05 : 0.3,
-      _Shadow2ndBlur: 0.15,
-      _RimBorder: 0.5,
-      _RimBlur: 0.5,
-      _RimFresnelPower: look.rimPower,
-      _RimEnableLighting: 1,
-      _OutlineColor: [...look.outlineColor, 1],
-    });
-  }
+  const map = source.map ?? null;
+  const outlineTexture = look ? lilToonOutlineTexture(map, settings) : null;
   return new ToneMappedLilToonMaterial({
     name: source.name,
-    map: source.map ?? null,
+    map,
+    ...(outlineTexture ? { textures: { _OutlineTex: outlineTexture } } : {}),
     alphaTest: source.transparent ? 0 : source.alphaTest,
     renderMode: source.transparent
       ? "transparent"

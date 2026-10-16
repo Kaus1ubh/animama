@@ -7,13 +7,27 @@ import {
   writeDebugSetting,
   type AvatarShaderId,
 } from "./avatarShader";
+import {
+  LIL_TOON_PRESETS,
+  deepenShade,
+  lilToonBaseProperties,
+  lilToonLookProperties,
+  lilToonOutlineUsesSurface,
+  scaleRgb,
+  type LilToonPreset,
+} from "./lilToonLook";
 import { vroidLookFor, type ToonLook } from "./vroidPalette";
 
 /*
- * Development-only look multipliers for the experimental Avatar shaders, set
- * from the debug panel. Every value defaults to 1, which reproduces the
- * shaders as tuned; production builds never read or change them.
+ * Development-only look settings for the experimental Avatar shaders, set
+ * from the debug panel. The defaults reproduce the shaders as tuned (every
+ * multiplier 1, ACES, no canvas filter); production builds never read or
+ * change them.
  */
+
+export const AVATAR_TONE_MAPPINGS = ["aces", "neutral"] as const;
+
+export type AvatarToneMapping = (typeof AVATAR_TONE_MAPPINGS)[number];
 
 export type AvatarShaderLook = {
   /** Tone-mapping exposure on the Avatar canvases. */
@@ -26,12 +40,23 @@ export type AvatarShaderLook = {
   shadow: number;
   rim: number;
   outline: number;
+  /** lilToon property recipe (`lilToonLook.ts`). */
+  lilToonPreset: LilToonPreset;
+  /** Tone-mapping curve on the Avatar canvases, lilToon included. */
+  toneMapping: AvatarToneMapping;
+  /** Chat canvas CSS filter: slightly brighter, softer and less saturated. */
+  softGrade: boolean;
+  /** Chat canvas CSS filter: a soft white glow around the silhouette. */
+  edgeGlow: boolean;
 };
 
-export type AvatarShaderLookKey = keyof AvatarShaderLook;
+/** The look settings a slider controls. */
+export type AvatarShaderLookNumberKey = {
+  [K in keyof AvatarShaderLook]: AvatarShaderLook[K] extends number ? K : never;
+}[keyof AvatarShaderLook];
 
 type LookControl = {
-  key: AvatarShaderLookKey;
+  key: AvatarShaderLookNumberKey;
   label: string;
   min: number;
   max: number;
@@ -98,6 +123,38 @@ export const DEFAULT_AVATAR_SHADER_LOOK: AvatarShaderLook = {
   shadow: 1,
   rim: 1,
   outline: 1,
+  lilToonPreset: "current",
+  toneMapping: "aces",
+  softGrade: false,
+  edgeGlow: false,
+};
+
+/**
+ * What choosing a preset sets: its lilToon recipe plus the lighting and
+ * renderer settings that go with it. Each stays adjustable afterwards.
+ */
+export const AVATAR_SHADER_LOOK_PRESETS: Record<
+  LilToonPreset,
+  Partial<AvatarShaderLook>
+> = {
+  current: {
+    lilToonPreset: "current",
+    exposure: 1,
+    ambientLight: 1,
+    keyLight: 1,
+    toneMapping: "aces",
+    softGrade: false,
+    edgeGlow: false,
+  },
+  nilotoon: {
+    lilToonPreset: "nilotoon",
+    exposure: 1.1,
+    ambientLight: 1.4,
+    keyLight: 0.8,
+    toneMapping: "neutral",
+    softGrade: true,
+    edgeGlow: true,
+  },
 };
 
 const LOOK_STORAGE_KEY = "animama.debug.avatarShaderLook";
@@ -112,12 +169,21 @@ export function parseAvatarShaderLook(stored: string | null): AvatarShaderLook {
     return look;
   }
   if (!parsed || typeof parsed !== "object") return look;
+  const values = parsed as Record<string, unknown>;
   for (const { key, min, max } of AVATAR_SHADER_LOOK_CONTROLS) {
-    const value = (parsed as Record<string, unknown>)[key];
+    const value = values[key];
     if (typeof value === "number" && Number.isFinite(value)) {
       look[key] = Math.min(max, Math.max(min, value));
     }
   }
+  if (LIL_TOON_PRESETS.includes(values.lilToonPreset as LilToonPreset)) {
+    look.lilToonPreset = values.lilToonPreset as LilToonPreset;
+  }
+  if (AVATAR_TONE_MAPPINGS.includes(values.toneMapping as AvatarToneMapping)) {
+    look.toneMapping = values.toneMapping as AvatarToneMapping;
+  }
+  if (typeof values.softGrade === "boolean") look.softGrade = values.softGrade;
+  if (typeof values.edgeGlow === "boolean") look.edgeGlow = values.edgeGlow;
   return look;
 }
 
@@ -145,18 +211,17 @@ export function getAvatarShaderLook(): AvatarShaderLook {
   return useAvatarShaderLookStore.getState().look;
 }
 
-type Rgb = [number, number, number];
-
-/** Move a shadow colour away from (or towards) white; 0 gives white. */
-function deepenShade(rgb: Rgb, strength: number): Rgb {
-  // Written so the tuned colour stays exact at the default strength of 1.
-  return rgb.map((c) =>
-    Math.min(1, Math.max(0, c + (1 - c) * (1 - strength))),
-  ) as Rgb;
-}
-
-function scaleRgb(rgb: readonly number[], factor: number): Rgb {
-  return rgb.map((value) => value * factor) as Rgb;
+/**
+ * The chat canvas's CSS filter for the soft grade and edge glow toggles.
+ * They stand in for colour grading and bloom, which a transparent canvas
+ * and lilToon's in-shader tone mapping make costly to do in WebGL.
+ */
+export function avatarCanvasFilter(look: AvatarShaderLook): string | undefined {
+  const filters = [
+    look.softGrade ? "brightness(1.04) contrast(0.92) saturate(0.88)" : "",
+    look.edgeGlow ? "drop-shadow(0 0 6px rgba(255, 255, 255, 0.55))" : "",
+  ].filter(Boolean);
+  return filters.length ? filters.join(" ") : undefined;
 }
 
 /** Screen-space MToon outline widths (fraction of view height) per look. */
@@ -176,27 +241,64 @@ export function tunedMToonLook(look: ToonLook, settings: AvatarShaderLook) {
   };
 }
 
-/** lilToon's shadow, rim and outline properties for a look. */
-export function lilToonLookProperties(
-  look: ToonLook,
+/** Every lilToon property a converted material gets from the look. */
+export function lilToonMaterialProperties(
+  materialName: string,
   settings: AvatarShaderLook,
 ): Record<string, number | number[]> {
-  const [r, g, b] = look.shade;
+  const look = vroidLookFor(materialName);
   return {
-    _ShadowColor: [...deepenShade(look.shade, settings.shadow), 1],
-    _Shadow2ndColor: [
-      ...deepenShade([r * 0.8, g * 0.75, b * 0.85], settings.shadow),
-      0.6,
-    ],
-    _RimColor: [...scaleRgb(look.rim, 2.5 * settings.rim), 1],
-    _OutlineWidth: (look.kind === "face" ? 0.05 : 0.1) * settings.outline,
+    ...lilToonBaseProperties(settings.lilToonPreset),
+    ...(look
+      ? lilToonLookProperties(look, settings.lilToonPreset, settings)
+      : {}),
   };
+}
+
+/** The `_OutlineTex` a converted material should use: its surface or none. */
+export function lilToonOutlineTexture<T>(
+  map: T | null,
+  settings: AvatarShaderLook,
+): T | null {
+  return lilToonOutlineUsesSurface(settings.lilToonPreset) ? map : null;
 }
 
 type LilToonLike = THREE.Material & {
   isLilToonMaterial: true;
+  map: THREE.Texture | null;
+  lilToonProperties: Record<string, unknown>;
+  lilToonTextures: Record<string, THREE.Texture | null | undefined>;
   setProperty(name: string, value: number | number[]): unknown;
+  setTexture(name: string, texture: THREE.Texture | null): unknown;
 };
+
+function sameValue(current: unknown, next: number | number[]): boolean {
+  if (!Array.isArray(next)) return current === next;
+  return (
+    Array.isArray(current) &&
+    current.length === next.length &&
+    next.every((value, index) => current[index] === value)
+  );
+}
+
+/**
+ * Update a lilToon material, skipping unchanged values: each change can
+ * rebuild its program key, and a slider drag repeats most values.
+ */
+function applyLilToonLook(lil: LilToonLike, settings: AvatarShaderLook): void {
+  for (const [name, value] of Object.entries(
+    lilToonMaterialProperties(lil.name, settings),
+  )) {
+    if (!sameValue(lil.lilToonProperties[name], value)) {
+      lil.setProperty(name, value);
+    }
+  }
+  if (!vroidLookFor(lil.name)) return;
+  const outlineTexture = lilToonOutlineTexture(lil.map, settings);
+  if ((lil.lilToonTextures._OutlineTex ?? null) !== outlineTexture) {
+    lil.setTexture("_OutlineTex", outlineTexture);
+  }
+}
 
 const SHADER_KEY = "animamaAvatarShader";
 
@@ -214,8 +316,9 @@ function forEachMaterial(
 }
 
 /**
- * Apply look multipliers to an Avatar loaded with `shader`. Only VRoid
- * materials with a palette look change; default MToon is never touched.
+ * Apply the look to an Avatar loaded with `shader`: every lilToon material,
+ * and VRoid palette materials under tuned MToon. Default MToon is never
+ * touched.
  */
 export function applyAvatarShaderLook(
   root: THREE.Object3D,
@@ -224,16 +327,13 @@ export function applyAvatarShaderLook(
 ): void {
   if (shader === "mtoon") return;
   forEachMaterial(root, (material) => {
+    if ((material as Partial<LilToonLike>).isLilToonMaterial) {
+      applyLilToonLook(material as LilToonLike, settings);
+      return;
+    }
     const look = vroidLookFor(material.name);
     if (!look) return;
-    if ((material as Partial<LilToonLike>).isLilToonMaterial) {
-      const lil = material as LilToonLike;
-      for (const [name, value] of Object.entries(
-        lilToonLookProperties(look, settings),
-      )) {
-        lil.setProperty(name, value);
-      }
-    } else if (
+    if (
       shader === "mtoon-tuned" &&
       (material as Partial<MToonMaterial>).isMToonMaterial
     ) {

@@ -3,12 +3,14 @@ import { MToonMaterial } from "@pixiv/three-vrm";
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  AVATAR_SHADER_LOOK_PRESETS,
   DEFAULT_AVATAR_SHADER_LOOK,
   applyAvatarShaderLook,
-  lilToonLookProperties,
+  avatarCanvasFilter,
   parseAvatarShaderLook,
   tunedMToonLook,
 } from "./avatarShaderLook";
+import { lilToonLookProperties } from "./lilToonLook";
 import { vroidLookFor } from "./vroidPalette";
 
 const CLOTH = "N00_000_00_Tops_01_CLOTH (Instance)";
@@ -20,6 +22,25 @@ function avatarWith(...materials: THREE.Material[]): THREE.Object3D {
     root.add(new THREE.Mesh(new THREE.BufferGeometry(), material));
   }
   return root;
+}
+
+/** A stand-in for a converted `LilToonMaterial`, recording its updates. */
+function lilToon(name: string) {
+  const map = new THREE.Texture();
+  const material = Object.assign(new THREE.Material(), {
+    name,
+    isLilToonMaterial: true as const,
+    map,
+    lilToonProperties: {} as Record<string, unknown>,
+    lilToonTextures: {} as Record<string, THREE.Texture | null>,
+    setProperty: vi.fn((key: string, value: unknown) => {
+      material.lilToonProperties[key] = value;
+    }),
+    setTexture: vi.fn((key: string, texture: THREE.Texture | null) => {
+      material.lilToonTextures[key] = texture;
+    }),
+  });
+  return material;
 }
 
 function mtoon(name: string): MToonMaterial {
@@ -61,7 +82,11 @@ describe("look values", () => {
       outlineWidth: 0.0045,
     });
     const [r, g, b] = cloth.shade;
-    const lil = lilToonLookProperties(cloth, DEFAULT_AVATAR_SHADER_LOOK);
+    const lil = lilToonLookProperties(
+      cloth,
+      "current",
+      DEFAULT_AVATAR_SHADER_LOOK,
+    );
     expect(lil._ShadowColor).toEqual([r, g, b, 1]);
     expect(lil._Shadow2ndColor).toEqual([r * 0.8, g * 0.75, b * 0.85, 0.6]);
     expect(lil._OutlineWidth).toBe(0.1);
@@ -111,18 +136,73 @@ describe("applyAvatarShaderLook", () => {
   });
 
   it("sets lilToon properties through the material", () => {
-    const setProperty = vi.fn();
-    const lil = Object.assign(new THREE.Material(), {
-      name: CLOTH,
-      isLilToonMaterial: true,
-      setProperty,
-    });
+    const lil = lilToon(CLOTH);
     applyAvatarShaderLook(avatarWith(lil), "liltoon", settings);
-    const shadow = setProperty.mock.calls.find(
-      ([name]) => name === "_ShadowColor",
-    )?.[1] as number[];
+    const shadow = lil.lilToonProperties._ShadowColor as number[];
     shadow.forEach((value) => expect(value).toBeCloseTo(1));
-    expect(setProperty).toHaveBeenCalledWith("_RimColor", [0, 0, 0, 1]);
-    expect(setProperty).toHaveBeenCalledWith("_OutlineWidth", 0.2);
+    expect(lil.lilToonProperties._RimColor).toEqual([0, 0, 0, 1]);
+    expect(lil.lilToonProperties._OutlineWidth).toBe(0.2);
+  });
+
+  it("skips lilToon properties that already have the value", () => {
+    const lil = lilToon(CLOTH);
+    applyAvatarShaderLook(avatarWith(lil), "liltoon", settings);
+    lil.setProperty.mockClear();
+    applyAvatarShaderLook(avatarWith(lil), "liltoon", settings);
+    expect(lil.setProperty).not.toHaveBeenCalled();
+  });
+
+  it("switches lilToon between presets in both directions", () => {
+    const cloth = lilToon(CLOTH);
+    const iris = lilToon(IRIS);
+    const root = avatarWith(cloth, iris);
+    const nilo = {
+      ...DEFAULT_AVATAR_SHADER_LOOK,
+      ...AVATAR_SHADER_LOOK_PRESETS.nilotoon,
+    };
+    applyAvatarShaderLook(root, "liltoon", nilo);
+    expect(cloth.lilToonProperties._OutlineFixWidth).toBe(1);
+    expect(cloth.lilToonTextures._OutlineTex).toBe(cloth.map);
+    // Flat parts take the preset's lighting response but no palette look.
+    expect(iris.lilToonProperties._LightMinLimit).toBe(0.2);
+    expect(iris.lilToonProperties._ShadowColor).toBeUndefined();
+    expect(iris.setTexture).not.toHaveBeenCalled();
+
+    applyAvatarShaderLook(root, "liltoon", DEFAULT_AVATAR_SHADER_LOOK);
+    expect(cloth.lilToonProperties._OutlineFixWidth).toBe(0.5);
+    expect(cloth.lilToonProperties._UseBacklight).toBe(0);
+    expect(cloth.lilToonTextures._OutlineTex).toBeNull();
+    expect(iris.lilToonProperties._LightMinLimit).toBe(0.05);
+  });
+});
+
+describe("parseAvatarShaderLook choices", () => {
+  it("keeps valid preset, tone-mapping and filter choices only", () => {
+    expect(
+      parseAvatarShaderLook(
+        '{"lilToonPreset":"nilotoon","toneMapping":"neutral","softGrade":true,"edgeGlow":"yes"}',
+      ),
+    ).toEqual({
+      ...DEFAULT_AVATAR_SHADER_LOOK,
+      lilToonPreset: "nilotoon",
+      toneMapping: "neutral",
+      softGrade: true,
+    });
+    expect(
+      parseAvatarShaderLook('{"lilToonPreset":"nilo","toneMapping":"agx"}'),
+    ).toEqual(DEFAULT_AVATAR_SHADER_LOOK);
+  });
+});
+
+describe("avatarCanvasFilter", () => {
+  it("adds no filter by default and combines the enabled ones", () => {
+    expect(avatarCanvasFilter(DEFAULT_AVATAR_SHADER_LOOK)).toBeUndefined();
+    const filter = avatarCanvasFilter({
+      ...DEFAULT_AVATAR_SHADER_LOOK,
+      softGrade: true,
+      edgeGlow: true,
+    });
+    expect(filter).toContain("contrast(");
+    expect(filter).toContain("drop-shadow(");
   });
 });

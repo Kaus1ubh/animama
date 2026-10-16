@@ -26,7 +26,10 @@ import {
 
 import { getAvatarBackgroundOption } from "@/lib/avatar/backgroundOptions";
 import { AvatarShaderRendering } from "@/lib/avatar/toon-shader/AvatarShaderRendering";
-import { useAvatarShaderLookStore } from "@/lib/avatar/toon-shader/avatarShaderLook";
+import {
+  avatarCanvasFilter,
+  useAvatarShaderLookStore,
+} from "@/lib/avatar/toon-shader/avatarShaderLook";
 import type { CursorLookAtInputProvider } from "@/lib/avatar";
 import { resolveAvatarBackgroundCrop } from "@/lib/avatar/backgroundCrop";
 import { AvatarCanvasActor } from "./AvatarCanvasActor";
@@ -159,6 +162,9 @@ export default function Scene({
   const keyLightScale = useAvatarShaderLookStore(
     (state) => state.look.keyLight,
   );
+  const canvasFilter = useAvatarShaderLookStore((state) =>
+    avatarCanvasFilter(state.look),
+  );
   const { animaPreferences, animaSettings } = useSettings();
   // Authoring surfaces reuse Scene outside an Anima route and intentionally
   // have no mounted runtime catalog.
@@ -267,6 +273,7 @@ export default function Scene({
       ) : null}
       <Canvas
         className="relative z-10 h-full w-full"
+        style={canvasFilter ? { filter: canvasFilter } : undefined}
         dpr={dpr}
         gl={{ antialias: true, alpha: true }}
         resize={CONTINUOUS_CANVAS_RESIZE}
