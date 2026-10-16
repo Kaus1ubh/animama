@@ -1344,7 +1344,7 @@ aligned during sidebar resizing.
 
 ### Enhanced rendering
 
-The Advanced setting **Enable premium renderer and shaders** (app preference
+The Advanced setting **Enable enhanced renderer and shaders** (app preference
 `presentation.enhanced_rendering`, on unless turned off) switches every Avatar
 canvas between enhanced and classic rendering. `SettingsProvider` mirrors the
 preference into `useEnhancedRenderingStore`

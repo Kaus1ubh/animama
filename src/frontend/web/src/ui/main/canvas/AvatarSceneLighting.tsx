@@ -9,7 +9,7 @@ import { avatarSceneLights } from "./sceneCameraPresets";
 
 /**
  * The lights and tone mapping of an Avatar canvas, classic or enhanced per
- * the "Enable premium renderer and shaders" setting. `lights={false}` keeps
+ * the "Enable enhanced renderer and shaders" setting. `lights={false}` keeps
  * only the tone mapping, for canvases that bring their own lights.
  */
 export function AvatarSceneLighting({ lights = true }: { lights?: boolean }) {

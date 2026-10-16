@@ -5813,8 +5813,8 @@ export default interface Resources {
       },
       "enhancedRendering": {
         "description": "Toon-shaded Avatars with three-point lighting and a softer colour grade. Turn off for the classic look.",
-        "keywords": ["premium", "renderer", "graphics", "quality"],
-        "label": "Enable premium renderer and shaders",
+        "keywords": ["enhanced", "renderer", "graphics", "quality"],
+        "label": "Enable enhanced renderer and shaders",
         "updateFailed": "Failed to update the renderer setting."
       },
       "markdown": {

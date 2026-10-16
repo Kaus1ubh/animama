@@ -35,12 +35,12 @@
     "enhancedRendering": {
       "description": "使用卡通着色、三点布光和更柔和的色调渲染虚拟形象。关闭后恢复经典外观。",
       "keywords": [
-        "高级",
+        "增强",
         "渲染器",
         "画面",
         "画质"
       ],
-      "label": "启用高级渲染器和着色器",
+      "label": "启用增强渲染器和着色器",
       "updateFailed": "无法更新渲染器设置。"
     },
     "markdown": {

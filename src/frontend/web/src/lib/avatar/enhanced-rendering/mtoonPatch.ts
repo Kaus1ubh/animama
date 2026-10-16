@@ -18,12 +18,12 @@ const SHADING: Record<ToonLook["kind"], { shift: number; toony: number }> = {
   hair: { shift: -0.1, toony: 0.8 },
 };
 
-/** Screen-space outline widths (fraction of view height) per look. */
+/** Thin screen-space outline widths (fraction of view height) per look. */
 const OUTLINE_WIDTH: Record<ToonLook["kind"], number> = {
-  face: 0.0035,
-  skin: 0.0045,
-  cloth: 0.0045,
-  hair: 0.004,
+  face: 0.0014,
+  skin: 0.0018,
+  cloth: 0.0018,
+  hair: 0.0016,
 };
 
 function retuneMToon(material: GltfMaterial, mtoon: MToonExtension): void {

@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { create } from "zustand";
 
 /*
- * Enhanced Avatar rendering, the Advanced setting "Enable premium renderer and
+ * Enhanced Avatar rendering, the Advanced setting "Enable enhanced renderer and
  * shaders" (`presentation.enhanced_rendering`, on by default). When on:
  * - VRoid MToon materials are retuned at load (`mtoonPatch.ts`): coloured
  *   shadows, a crisper terminator, rim light and screen-space outlines;
