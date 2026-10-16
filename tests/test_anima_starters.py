@@ -30,6 +30,7 @@ from animama.domain.anima import Anima
 from animama.domain.anima_chat_profile import AnimaChatProfile
 from animama.domain.anima_creation_error import AnimaCreationError
 from animama.domain.anima_definition import ANIMA_MEMORIES_TEMPLATE, DEFAULT_ANIMA_VOICE_ID
+from animama.domain.anima_loadout import AnimaLoadoutError
 from animama.domain.avatar import Avatar
 from animama.domain.request_principal import RequestPrincipal
 from animama.domain.settings import AnimaSettings
@@ -563,12 +564,18 @@ async def test_tracked_checkout_materializes_both_starters_without_optional_loca
         await service.create_starter_loadout(user_id=fixture.owner, anima_id=bare.id, store=fixture.store())
         applied = await service.read_model(user_id=fixture.owner, anima_id=bare.id)
 
-        def idle_pool(value) -> dict[tuple[str | None, int | None], list[str]]:  # noqa: ANN001
-            pool = {(None, None): sorted(idle_keys(value.idle.default_pool))}
-            pool.update(((cell.emotion, cell.intensity), sorted(idle_keys(cell.gestures))) for cell in value.idle.cells)
+        def idle_pool(value) -> dict[str, list[str]]:  # noqa: ANN001
+            pool = {"default": sorted(idle_keys(value.idle.default_pool))}
+            pool.update(
+                (f"{cell.emotion}-{cell.intensity}", sorted(idle_keys(cell.gestures))) for cell in value.idle.cells
+            )
             return pool
 
         assert idle_pool(applied) == idle_pool(loadout)
         # Its starter Gestures follow the stored starter loadout version.
         assert {gesture.origin for gesture in applied.gestures} == {"starter"}
         assert len(applied.gestures) == 99
+        with pytest.raises(AnimaLoadoutError, match="anima_not_found"):
+            await service.create_starter_loadout(
+                user_id=f"other-{uuid4().hex}", anima_id=bare.id, store=fixture.store()
+            )

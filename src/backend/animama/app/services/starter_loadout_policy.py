@@ -142,7 +142,7 @@ async def resolve_starter_idle_pool(
 
     pools = starter_idle_pool(version)
     available: dict[str, CatalogContentEntry] = {}
-    for key in starter_idle_keys(version):
+    for key in dict.fromkeys(key for keys in pools.values() for key in keys):
         item = await _eligible_idle_gesture(key, visible=visible, store=store)
         if item is not None:
             available[key] = item

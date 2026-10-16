@@ -1087,7 +1087,7 @@ class AnimaLoadoutService:
     ) -> ORMAnimaLoadout:
         """Write a new Revision 1 loadout on starter loadout version 1 with its exact Idle pool.
 
-        The Idle pool is written only here, with the loadout, so content
+        The Idle pool is seeded only here, with the loadout, so content
         installed later never changes an existing Anima's pool.
         """
 
@@ -1129,9 +1129,10 @@ class AnimaLoadoutService:
         For compositions that equip a starter without a creation request: the
         loadout's starter version supplies its starter Gestures, and the starter
         Idle pool is written from the Gestures installed now, exactly as creation
-        seeds it. Reaction pools start empty. The caller then sets the Avatar
-        and other selections through ordinary plan/commit changes in the same
-        transaction. An Anima that already has a loadout fails on its key.
+        seeds it. Reaction pools start empty. Nothing is committed: the caller
+        then sets the Avatar and other selections through ordinary plan/commit
+        changes, whose first commit also commits the new loadout. An Anima
+        that already has a loadout fails on its key.
         """
 
         if not await self._animas.is_owned_by_user(user_id=user_id, anima_id=anima_id):
