@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 
 import {
   AVATARS,
+  AVATAR_SHADERS,
   avatarFileUrl,
   pageClipMedia,
   pageEffect,
@@ -37,6 +38,12 @@ import {
  * rate is uncapped so the interval between frames includes the DOM layers'
  * style, layout and compositing. The budget is a mean added frame interval
  * (and GPU time) of at most 4 ms.
+ *
+ * With `--shaders` it compares the experimental Avatar shaders
+ * (`src/lib/avatar/toon-shader`) instead: one Avatar per shader, no effects,
+ * the shaders alternating over `--rounds` passes, with each shader's load
+ * and first-frame (shader compile) time. `--avatar-shader` runs the effects
+ * or Reaction measurement under one experimental shader.
  *
  * Chromium runs headless with Metal/GPU flags; when the WebGL renderer is a
  * software one (SwiftShader), or with `--headed`, it runs in a small headed
@@ -74,6 +81,8 @@ const USAGE = [
   "  --reaction <path|library:reaction/...>  measure that Reaction's effects instead",
   "  --replay 90         Reaction mode: frames between replays of the Reaction",
   "  --local-content <dir>  content root for library:local/... sources",
+  `  --shaders <a,b|all>  compare Avatar shaders, the first as baseline (${AVATAR_SHADERS.join(", ")})`,
+  "  --avatar-shader <id>  run the effects or Reaction measurement under that shader",
   "  --headed            skip the headless attempt",
   "  --json <file>       also write the results as JSON",
 ].join("\n");
@@ -117,6 +126,7 @@ export async function runEffectBench({
   clipSpec = DEFAULT_CLIP,
   effectSpecs = DEFAULT_FACE_EFFECTS,
   headed = false,
+  avatarShader = "mtoon",
   sourceOptions = {},
   log = console.log,
 } = {}) {
@@ -132,6 +142,7 @@ export async function runEffectBench({
         pageDir: "effect-bench",
         launch,
         extraRoots: await sourceRoots(effects),
+        avatarShader,
       },
       async ({ page, fsUrl, imageUrl }) => {
         const info = await page.evaluate(() =>
@@ -179,6 +190,7 @@ export async function runReactionBench({
   rounds = 2,
   replayFrames = 90,
   headed = false,
+  avatarShader = "mtoon",
   sourceOptions = {},
   log = console.log,
 }) {
@@ -195,6 +207,7 @@ export async function runReactionBench({
         pageDir: "effect-bench",
         launch,
         extraRoots: await sourceRoots([], media),
+        avatarShader,
       },
       async ({ page, fsUrl, imageUrl }) => {
         const info = await page.evaluate(() =>
@@ -227,6 +240,90 @@ export async function runReactionBench({
   throw new Error(
     "No GPU WebGL renderer was available headless or headed; software timings are not representative.",
   );
+}
+
+/**
+ * Compare Avatar shaders on every Included Avatar, on the first launch whose
+ * WebGL renderer is a GPU.
+ */
+export async function runShaderBench({
+  shaders,
+  frames = 600,
+  warmupFrames = 120,
+  rounds = 2,
+  clipSpec = DEFAULT_CLIP,
+  headed = false,
+  sourceOptions = {},
+  log = console.log,
+}) {
+  const clip = (await resolveClipSource(clipSpec, sourceOptions)).clip;
+  for (const launch of launchCandidates(headed)) {
+    const mode = launch.headless ? "headless" : "headed";
+    const outcome = await withRendererPage(
+      {
+        localContent: sourceOptions.localContent ?? null,
+        pageDir: "effect-bench",
+        launch,
+      },
+      async ({ page, fsUrl }) => {
+        const info = await page.evaluate(() =>
+          window.effectBenchRendererInfo(),
+        );
+        log(`${mode}: WebGL renderer ${info.renderer}`);
+        if (isSoftwareRenderer(info)) return null;
+        const results = [];
+        for (const id of AVATARS) {
+          results.push(
+            await page.evaluate((request) => window.runShaderBench(request), {
+              avatar: { id, url: avatarFileUrl(fsUrl, id) },
+              clip,
+              shaders,
+              width: VIEWPORT.width,
+              height: VIEWPORT.height,
+              pixelRatio: DEVICE_SCALE,
+              warmupFrames,
+              frames,
+              rounds,
+            }),
+          );
+        }
+        return { mode, info, results };
+      },
+    );
+    if (outcome) return outcome;
+  }
+  throw new Error(
+    "No GPU WebGL renderer was available headless or headed; software timings are not representative.",
+  );
+}
+
+/** Print a shader comparison, each shader against the first. */
+function reportShaders(outcome, rounds) {
+  const delta = (value, base) =>
+    value !== null && base !== null
+      ? `${value - base >= 0 ? "+" : ""}${(value - base).toFixed(2)} ms (${((value / base) * 100).toFixed(0)}%)`
+      : "n/a";
+  for (const result of outcome.results) {
+    const [base] = result.shaders;
+    const voided = result.shaders.reduce(
+      (sum, scenario) => sum + scenario.disjointFrames,
+      0,
+    );
+    const lines = [
+      `${result.avatar} (${result.drawingBuffer.width}×${result.drawingBuffer.height}, ${base.cpu.samples} frames per shader in ${rounds} alternating rounds; ${voided} GPU samples voided by disjoint events)`,
+    ];
+    for (const scenario of result.shaders) {
+      lines.push(
+        `  ${scenario.shader.padEnd(11)} CPU ${format(scenario.cpu)}; GPU ${format(scenario.gpu)}; ${scenario.drawCalls} draw calls; load ${scenario.loadMs.toFixed(0)} ms; first frame ${scenario.firstFrameMs.toFixed(1)} ms`,
+      );
+      if (scenario !== base) {
+        lines.push(
+          `  ${"".padEnd(11)} vs ${base.shader}: CPU ${delta(scenario.cpu.mean, base.cpu.mean)}; GPU ${delta(scenario.gpu?.mean ?? null, base.gpu?.mean ?? null)}`,
+        );
+      }
+    }
+    console.log(lines.join("\n"));
+  }
 }
 
 /** Print a Reaction-mode outcome; returns whether it is over budget. */
@@ -273,6 +370,8 @@ async function main(argv) {
         "--replay",
         "--local-content",
         "--json",
+        "--shaders",
+        "--avatar-shader",
       ].includes(arg)
     ) {
       values[arg] = argv[++index];
@@ -300,6 +399,27 @@ async function main(argv) {
     );
     return 2;
   }
+  const avatarShader = values["--avatar-shader"] ?? "mtoon";
+  const shaders =
+    values["--shaders"] === "all"
+      ? AVATAR_SHADERS
+      : values["--shaders"]?.split(",");
+  if (
+    !AVATAR_SHADERS.includes(avatarShader) ||
+    (shaders &&
+      (shaders.length < 2 ||
+        new Set(shaders).size !== shaders.length ||
+        !shaders.every((shader) => AVATAR_SHADERS.includes(shader))))
+  ) {
+    console.log(
+      `--avatar-shader takes one of ${AVATAR_SHADERS.join(", ")}; --shaders takes two or more of them, or all.\n\n${USAGE}`,
+    );
+    return 2;
+  }
+  if (shaders && (values["--reaction"] || values["--effects"])) {
+    console.log(`--shaders measures without effects.\n\n${USAGE}`);
+    return 2;
+  }
   const cwd = process.env.INIT_CWD ?? process.cwd();
   try {
     const sourceOptions = {
@@ -308,6 +428,25 @@ async function main(argv) {
         ? await realpath(path.resolve(cwd, values["--local-content"]))
         : null,
     };
+    if (shaders) {
+      const outcome = await runShaderBench({
+        shaders,
+        frames,
+        warmupFrames,
+        rounds,
+        clipSpec: values["--clip"] ?? DEFAULT_CLIP,
+        headed: flags.has("--headed"),
+        sourceOptions,
+      });
+      console.log(`Mode: ${outcome.mode}; renderer: ${outcome.info.renderer}`);
+      reportShaders(outcome, rounds);
+      if (values["--json"]) {
+        const file = path.resolve(cwd, values["--json"]);
+        await writeFile(file, JSON.stringify(outcome, null, 2));
+        console.log(`Wrote ${file}`);
+      }
+      return 0;
+    }
     if (values["--reaction"]) {
       const replayFrames = Number(values["--replay"] ?? 90);
       if (!Number.isInteger(replayFrames) || replayFrames < 1) {
@@ -321,6 +460,7 @@ async function main(argv) {
         rounds,
         replayFrames,
         headed: flags.has("--headed"),
+        avatarShader,
         sourceOptions,
       });
       console.log(`Mode: ${outcome.mode}; renderer: ${outcome.info.renderer}`);
@@ -340,6 +480,7 @@ async function main(argv) {
       clipSpec: values["--clip"] ?? DEFAULT_CLIP,
       effectSpecs: values["--effects"]?.split(",") ?? DEFAULT_FACE_EFFECTS,
       headed: flags.has("--headed"),
+      avatarShader,
       sourceOptions,
     });
     console.log(`Mode: ${outcome.mode}; renderer: ${outcome.info.renderer}`);

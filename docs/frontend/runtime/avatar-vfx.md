@@ -768,6 +768,14 @@ interval between frames includes the layers' style, layout and compositing.
 Its budget is a mean added frame interval (and GPU time) of at most 4 ms.
 `library:local/...` Reactions need `--local-content <content root>`.
 
+`--avatar-shader <mtoon-tuned|liltoon>` runs either measurement under an
+experimental Avatar shader. `--shaders <a,b|all>` compares the shaders
+instead, without effects: one Avatar per shader, the shaders alternating over
+`--rounds` passes, each reported with its load time, its first-frame time
+(which compiles its programs) and its difference from the first shader
+listed. lilToon renders extra internal passes, so its draw-call count shows
+only the last of them.
+
 ## 10) Performance
 
 Landmarks, texture anchors and face parts are built at load (and again after a

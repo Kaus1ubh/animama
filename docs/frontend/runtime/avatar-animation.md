@@ -1445,7 +1445,9 @@ lilToon limits: it lights with only the first directional light, its outline
 pass skips the ACES curve, VRM expressions that bind material colours or
 texture transforms stop applying, and silhouette effects need a larger depth
 bias, so their edges can differ by a pixel. `pnpm -s effects:render ...
---avatar-shader liltoon` renders review sheets with a variant.
+--avatar-shader liltoon` renders review sheets with a variant, and
+`pnpm -s effects:bench --shaders all` compares the shaders' frame, load and
+first-frame cost on the GPU ([frame-cost benchmark](avatar-vfx.md#frame-cost-benchmark)).
 
 ## 6) Dispatch lifecycle -> avatar behavior
 

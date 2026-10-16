@@ -57,7 +57,7 @@ const VIEW_LABELS = {
   face: "face",
 };
 /** Avatar shaders `--avatar-shader` accepts (`src/lib/avatar/toon-shader`). */
-const AVATAR_SHADERS = ["mtoon", "mtoon-tuned", "liltoon"];
+export const AVATAR_SHADERS = ["mtoon", "mtoon-tuned", "liltoon"];
 /** The Included Avatars every sheet and benchmark covers. */
 export const AVATARS = ["AvatarSample_Y_0", "AvatarSample_A_1_New"];
 
