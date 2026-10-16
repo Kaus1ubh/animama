@@ -16,6 +16,7 @@ import {
   listTuneSounds,
   publicItem,
 } from "./content-tune-model.mjs";
+import { createTuneWriter } from "./content-tune-write.mjs";
 import { PACK_SOUND_MANIFEST } from "./included-dependencies.mjs";
 import {
   openBrowser,
@@ -30,11 +31,15 @@ import {
  *
  *   pnpm -s content:tune [--catalog <dir>] [--sounds <dir>]... [--avatar annie|caitlyn]
  *     [--port <n>] [--no-open]
+ *   pnpm -s content:tune --pending
  *
  * Lists every Included Gesture and the Reaction ladder, auditions the WOW
- * Sound catalog and previews an item, with its effects and sounds, on an
- * Included Avatar in the system browser. Serves on 127.0.0.1 only. Licensed
- * audio is read from the owner's folders and never copied.
+ * Sound catalog, previews an item, with its effects and sounds, on an
+ * Included Avatar in the system browser, and saves the owner's edits to the
+ * item's events and (for a Reaction) peak expressions straight into
+ * `content/included`. Serves on 127.0.0.1 only. Licensed audio is read from
+ * the owner's folders and never copied. `--pending` prints the pack sounds
+ * Included content needs added or no longer uses, and exits.
  */
 const webRoot = fileURLToPath(new URL("..", import.meta.url));
 const avatarDir = path.join(INCLUDED_CONTENT_ROOT, "avatars");
@@ -129,6 +134,24 @@ export async function startTuneServer({
     ],
   });
 
+  const effects = await listTuneEffects(INCLUDED_CONTENT_ROOT);
+  const clipFormat = await server.ssrLoadModule(
+    "/src/lib/avatar/poses/animaPoseClip/index.ts",
+  );
+  const { default: prettier } = await import("prettier");
+  const writer = createTuneWriter({
+    repoRoot: REPO_ROOT,
+    contentRoot,
+    includedTypes: new Map(
+      effects.map((effect) => [effect.contentId, effect.contentType]),
+    ),
+    packSounds: new Set(sounds.map((sound) => sound.ref)),
+    validateClip: clipFormat.validateAnimaPoseClipV2,
+    maxClipBytes: clipFormat.MAX_ANIMA_POSE_CLIP_BYTES,
+    formatJson: (value) =>
+      prettier.format(JSON.stringify(value, null, 2), { parser: "json" }),
+  });
+
   /** Reject requests from other hosts or sites (DNS rebinding, CSRF). */
   const trusted = (request) => trustedRequest(request, origin);
 
@@ -154,7 +177,7 @@ export async function startTuneServer({
       problems: items.problems.map((problem) =>
         problem.replace(`${realRepoRoot}/`, ""),
       ),
-      effects: await listTuneEffects(INCLUDED_CONTENT_ROOT),
+      effects,
       sounds: sounds.map(({ file, ...sound }) => ({
         ...sound,
         available: Boolean(file),
@@ -188,6 +211,15 @@ export async function startTuneServer({
           notices: media.notices,
         };
       });
+    } else if (request.method === "POST" && route === "save") {
+      await respond(response, async () => {
+        const saved = await writer.save(
+          await readJsonBody(request, MAX_BODY_BYTES),
+        );
+        return { ...saved, item: publicItem(saved.item) };
+      });
+    } else if (request.method === "GET" && route === "pending") {
+      await respond(response, () => writer.pending());
     } else {
       sendJson(response, 404, { error: "Not found" });
     }
@@ -236,7 +268,13 @@ sounds, on an Included Avatar.
   --sounds <dir>    the comedy sound pack (repeatable); defaults to
                     build-inputs/wow-comedy-sfx. A worktree passes the primary
                     checkout's copy.
-  --avatar          Included Avatar (default annie)`;
+  --avatar          Included Avatar (default annie)
+  --pending         print the pack sounds Included content needs added to or
+                    removed from the comedy pack, then exit
+
+Saving writes the item's clip and meta in content/included. A changed
+Gesture clip also needs its sample baseline updated (the page says how);
+sounds outside the pack need a new pack version before the content merges.`;
 
 export function parseTuneArgs(argv, env = process.env) {
   const options = {
@@ -246,11 +284,13 @@ export function parseTuneArgs(argv, env = process.env) {
     port: 0,
     open: true,
     help: false,
+    pending: false,
   };
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
     if (argument === "--help") options.help = true;
     else if (argument === "--no-open") options.open = false;
+    else if (argument === "--pending") options.pending = true;
     else if (
       ["--catalog", "--sounds", "--avatar", "--port"].includes(argument)
     ) {
@@ -288,6 +328,17 @@ async function main(argv) {
   }
   if (options.help) {
     console.log(USAGE);
+    return 0;
+  }
+  if (options.pending) {
+    const { additions, removals } = await createTuneWriter({
+      repoRoot: REPO_ROOT,
+      contentRoot: INCLUDED_CONTENT_ROOT,
+    }).pending();
+    for (const ref of additions) console.log(`Add to the pack: ${ref}`);
+    for (const ref of removals) console.log(`Remove from the pack: ${ref}`);
+    if (!additions.length && !removals.length)
+      console.log("The pack matches the sounds Included content plays.");
     return 0;
   }
   const cwd = process.env.INIT_CWD ?? process.cwd();

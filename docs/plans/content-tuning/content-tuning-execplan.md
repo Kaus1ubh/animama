@@ -151,7 +151,7 @@ until the slug is listed in `REBASELINED` and the baseline is rewritten with
 
 - [x] Phase 1: optional pack sounds for Included Gesture and Reaction `sfx` events. Done (2026-10-16): checks pass, Code Review #2 passed after one repair round. Hearing the sound in chat with the pack mounted is part of the owner's final check.
 - [x] Phase 2: read-only tuning page with catalog audition and preview. Done (2026-10-16): checks pass, Code Review #2 passed after one repair round. Hearing the sounds is part of the owner's final check.
-- [ ] Phase 3: editing and saving events and Reaction expressions. Not started.
+- [x] Phase 3: editing and saving events and Reaction expressions. Done (2026-10-16): checks pass, Code Review #2 passed after one repair round.
 - [ ] Phase 4: per-use placement, docs and acceptance. Not started.
 - [ ] Final integration review. Not started.
 - [ ] Owner gates: live audio check of the page; pack publish for any new sounds. Not started.
@@ -492,7 +492,7 @@ Manual evidence:
 Completion: the read model's counts match `content/included`, previews play
 with sound dispatch logged, tests pass, and the review is complete.
 
-Results (2026-10-16, on `16af8074`):
+Results (2026-10-16, on `16af8074`; commit `2f54b887`):
 
 - `pnpm -s content:tune` serves the page from
   `src/frontend/web/scripts/content-tune.mjs`.
@@ -653,15 +653,125 @@ Manual evidence:
 Completion: saved files round-trip (reload shows the saved draft), checks pass,
 and the review is complete.
 
-Results and commits: _pending_.
+Results (2026-10-16, on `2f54b887`):
+
+- Modules:
+  - `content-tune-save.mjs`: pure planning and offline integrity rules.
+  - `content-tune-write.mjs`: file I/O. It validates the stem (no
+    client-built paths), refuses a stale revision, validates the clip with
+    `validateAnimaPoseClipV2`, keeps each file's form (compact or Prettier)
+    and replaces each file through a temporary file.
+  - `scripts/content-tune/draft.ts`: draft edits.
+  - `editor.tsx`: event, sound and expression editors, including the sound
+    dropdown with a preview on every entry.
+  - `audition.ts`: the shared audition player.
+- Server routes: `POST /__tune/save` and `GET /__tune/pending`, plus the
+  `pnpm -s content:tune --pending` command.
+- Deviations from the plan:
+  - No file watcher. A save refuses when the file changed since it was
+    loaded, and a Reload button reloads the content.
+  - No `--rebaseline` flag. Re-baselining also edits `REBASELINED` in a test
+    file, so after a Gesture clip change the page prints both steps.
+  - Promote's writer is not shared. `clipFileText` mirrors
+    `effects promote`'s keep-the-form rule, and dependency checks reuse
+    `includedActionDependencies`.
+- Checks:
+  - `node --test` on `content-tune-save.test.mjs` (6),
+    `content-tune-write.test.mjs` (3) and `content-tune/draft.test.ts` (5):
+    pass.
+  - `content-tune.browser.test.mjs`: 4 pass, including a UI edit of a
+    Reaction's peak and an added sound saved to disk.
+  - `pnpm check`, `pnpm web:lint` and `pnpm test:source:unit`
+    (534 Vitest files): pass.
+- Manual evidence on the real checkout, all reverted afterwards. Saves went
+  through the running server:
+  - Arms Crossed gained an `sfx` event with an unshipped catalog sound
+    (`whoosh_01v1`).
+  - Air Guitar's first Particle Effect was replaced. The unused edge dropped,
+    and the clip stayed in Prettier form with a 2-line diff.
+  - Joy Reaction 2's peak dropped to 0.6 and it gained a pack sound.
+  - A stale save was refused with a clear message.
+  - `--pending` listed `whoosh_01v1` as a pack addition.
+  - With it, the integrity and catalog tests failed by design (2 failed).
+    After reverting Arms Crossed they passed (21).
+  - The clip baseline test flagged both changed Gestures, as designed.
+  - `pnpm -s animation:reel` of the edited Joy Reaction 2 and Air Guitar
+    recorded both with the new sound.
 
 #### Code Review #1 Findings
 
-_Pending._
+The same independent reviewer reviewed the Phase 3 files on `2f54b887` in a
+full initial review. It found no security or identity issue:
+- `/__tune/save` needs our Origin and Host and same-origin fetch metadata,
+  and caps the body.
+- `kind` is allow-listed and the stem pattern-checked.
+- Only the item's own clip and meta are written.
+- Only `events`, Reaction `expressions` and `dependencies` can change.
+
+Blocking:
+- **P3-R1-F1:** taking a peak to 0 and back flattened a Reaction expression's
+  curve, because scaling started from the current draft. Repeated 0.01
+  rounding also distorted low keys.
+
+Non-blocking:
+- **P3-R1-F2:** `save()` read the files twice, so it planned from a second
+  read rather than the revision's texts.
+- **P3-R1-F3:** a failed meta write after the clip rename left them
+  inconsistent.
+- **P3-R1-F4:** an expressions-only save dropped a stored `"events": []`.
+  21 Reactions store one.
+- **P3-R1-F5:** replacing within a kind dropped use settings: a muted
+  sound, and a Particle Effect's anchor and transform.
+- **P3-R1-F6:** switching items discarded a dirty draft silently, and Undo
+  recorded every keystroke.
+- **P3-R1-F7:** missing tests for the invalid-clip and size refusals and for
+  a zero peak.
 
 #### Code Review #1 Revisions
 
-_Pending._
+- **F1, accepted:** `setExpressionPeak` scales the loaded expression's shape
+  (`base`), falling back to the drafted shape, and rounds to 0.001. A peak
+  taken to 0 and back restores the curve, and repeated edits don't drift.
+  The number field no longer commits a 0 when cleared. Test: "keeps an
+  expression's shape through a peak of 0".
+- **F2, accepted:** `loadTuneItem` returns the texts its revision covers,
+  and `save()` plans from them.
+- **F3, accepted:** `replaceFiles` writes every temporary file before
+  renaming any. A failure says nothing changed, or names the files already
+  replaced.
+- **F4, accepted:** a clip that stored an event list keeps one. Test added.
+- **F5, accepted:** a same-kind replace keeps the event's own settings and
+  drops only its `override`. Test updated.
+- **F6, accepted:** switching items with unsaved edits asks first. Steps of
+  one continuous edit share an undo key, so Undo takes a whole edit back.
+- **F7, accepted:** added writer tests for the invalid-clip and oversize
+  refusals, a zero-peak draft test and an empty-event-list test.
+
+Rechecks:
+- the node unit tests: 21 pass;
+- the browser tests: 4 pass;
+- the scripts type check and eslint: pass;
+- Prettier: pass.
+
+Repair budget: one round used.
+
+#### Code Review #2 Findings
+
+This was a targeted recheck by the same reviewer. It verified F1–F7 as
+fixed, with no regressions in undo coalescing or in reloading a dirty draft.
+Result: **pass**.
+
+Its checks:
+- the node unit tests: 28 pass;
+- the browser tests: 4 pass;
+- Prettier and eslint: pass;
+- a script confirming that a peak taken to 0 and back keeps the start and
+  end keys.
+
+Two cosmetic notes were left as they are:
+- without a `base`, a multi-key expression taken to 0 collapses to one key.
+  The editor always passes `base`.
+- a focused number field shows stale text after Undo until it loses focus.
 
 ### Phase 4: Per-use placement, docs and acceptance
 

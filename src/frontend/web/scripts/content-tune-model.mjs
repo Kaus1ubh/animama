@@ -197,6 +197,9 @@ export async function loadTuneItem(kind, metaPath) {
     clip,
     metaPath,
     clipPath,
+    // The exact texts the revision covers, so a save plans from them.
+    metaText,
+    clipText,
     revision: itemRevision(metaText, clipText),
   };
 }
@@ -264,7 +267,13 @@ export async function listTuneEffects(contentRoot) {
   return effects;
 }
 
-/** An item as the page lists it: everything but local file paths. */
-export function publicItem({ metaPath: _meta, clipPath: _clip, ...item }) {
+/** An item as the page lists it: no local file paths or raw texts. */
+export function publicItem({
+  metaPath: _meta,
+  clipPath: _clip,
+  metaText: _metaText,
+  clipText: _clipText,
+  ...item
+}) {
   return item;
 }

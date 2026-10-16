@@ -1,5 +1,13 @@
 import assert from "node:assert/strict";
-import { cp, mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
+import {
+  cp,
+  mkdir,
+  mkdtemp,
+  readFile,
+  realpath,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
@@ -47,7 +55,8 @@ let tune;
 let browser;
 before(async () => {
   dir = await realpath(await mkdtemp(path.join(tmpdir(), "content-tune-")));
-  const content = path.join(dir, "included");
+  // A content/included tree, as the pack check expects.
+  const content = path.join(dir, "content/included");
   await cp(
     path.join(INCLUDED_CONTENT_ROOT, "gestures/air-guitar"),
     path.join(content, "gestures/air-guitar"),
@@ -142,7 +151,13 @@ test("lists content, auditions a sound and previews a Gesture with its sound", a
   const row = page.locator("li", { hasText: "Fixture Pop" });
   assert.equal(await row.getByText("In pack").count(), 1);
   // Manifest sounds with no local audio are listed but can't be played.
-  assert.equal(await page.locator("li button:not([disabled])").count(), 1);
+  assert.equal(
+    await page
+      .getByRole("tabpanel")
+      .locator("li button:not([disabled])")
+      .count(),
+    1,
+  );
 
   // Previewing the Gesture plays its sfx event's sound.
   await page.getByRole("tab", { name: "Gestures" }).click();
@@ -182,7 +197,7 @@ test("serves only listed sounds, resolves only Included effects and reports brok
   assert.deepEqual(body.clipMedia.avatarEffects, []);
   assert.equal(body.notices.length, 1);
   // A broken item is named instead of failing the page.
-  const broken = path.join(dir, "included/reactions/broken-1");
+  const broken = path.join(dir, "content/included/reactions/broken-1");
   await mkdir(broken, { recursive: true });
   await writeFile(path.join(broken, "broken-1.meta.json"), "{ nope");
   try {
@@ -210,4 +225,49 @@ test("refuses requests from other origins", async () => {
     headers: { "sec-fetch-site": "cross-site" },
   });
   assert.equal(audio.status, 403);
+});
+
+test("edits a Reaction's expression and sound and saves them", async () => {
+  const folder = path.join(dir, "content/included/reactions/joy-2");
+  const page = await browser.newPage({
+    viewport: { width: 1400, height: 900 },
+  });
+  page.setDefaultTimeout(90_000);
+  await page.goto(tune.url);
+  await page.getByRole("tab", { name: "Reaction ladder" }).click();
+  await page.getByRole("row", { name: /^joy/i }).getByRole("button").click();
+  await page.getByRole("heading", { name: /Joy Reaction 2/ }).waitFor();
+
+  await page.getByLabel("happy peak value").fill("0.4");
+  await page.getByRole("button", { name: "+ Sound" }).click();
+  await page.getByPlaceholder("Search sounds").fill("Fixture");
+  await page.getByRole("button", { name: /^Fixture Pop/ }).click();
+  await page.getByText("(edited)").waitFor();
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await page.getByText("Saved builtin:reaction:joy-2.").waitFor();
+
+  const clip = JSON.parse(
+    await readFile(path.join(folder, "joy-2.json"), "utf8"),
+  );
+  const meta = JSON.parse(
+    await readFile(path.join(folder, "joy-2.meta.json"), "utf8"),
+  );
+  assert.equal(clip.expressions.happy[0].v, 0.4);
+  const sound = clip.events.find((event) => event.kind === "sfx");
+  assert.ok(sound);
+  assert.deepEqual(
+    meta.dependencies.find((edge) => edge.alias === sound.cueId),
+    {
+      ref: `builtin:sound-effect:${SOUND_KEY}`,
+      alias: sound.cueId,
+      content_type: "sound_effect",
+      config: {},
+      optional: true,
+    },
+  );
+  // Saved and reloaded: no longer edited, and the pack check agrees.
+  assert.equal(await page.getByText("(edited)").count(), 0);
+  const pending = await (await fetch(`${tune.origin}/__tune/pending`)).json();
+  assert.deepEqual(pending.additions, []);
+  await page.close();
 });
