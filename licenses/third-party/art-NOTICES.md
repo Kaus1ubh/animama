@@ -51,6 +51,10 @@ license metadata, which now permits redistribution and use by everyone. On
 2026-10-01 he approved Caitlyn's unmodified pixiv VRoid sample
 (`AvatarSample_Y_0.vrm`). Both portraits are direct Animama renderer captures.
 
+On 2026-10-16 Raymond had one of Annie's textures recoloured: the grey
+hair-underside texture now matches the outer hair. The model is otherwise the
+preset as exported, including its embedded metadata.
+
 Annie retains pixiv VRoid Project credit and now links the applicable
 [VRoidPreset A–Z conditions](https://vroid.pixiv.help/hc/en-us/articles/4402394424089-VRoidPreset-A-Z)
 through `otherLicenseUrl`. The model is not CC0 or AGPL; preserve the prohibitions

@@ -251,7 +251,7 @@
     {
       "glob": "avatars/AvatarSample_A_1_New.vrm",
       "creator": "pixiv VRoid Project",
-      "provenance": "Owner confirms this Annie model is an unmodified VRoid Studio free preset, with no external assets or modifications (2026-09-02). Official terms: https://vroid.pixiv.help/hc/en-us/articles/4402394424089-VRoidPreset-A-Z ; AvatarSample_A redistribution conditions: https://hub.vroid.com/en/characters/2843975675147313744/models/5644550979324015604 . Source identification is resolved; review product use and required notices before release. Do not replace embedded metadata or describe the preset terms as CC0.",
+      "provenance": "Owner confirms this Annie model is a VRoid Studio free preset with no external assets (2026-09-02). On 2026-10-16 the owner had one texture recoloured: the grey hair-underside texture (material N00_000_Hair_00_HAIR_04) now follows the outer hair's brown-to-pink gradient. Geometry, every other texture and the embedded VRM metadata are unchanged; the new hash is in licenses/third-party/art-vroid-review.json. Official terms: https://vroid.pixiv.help/hc/en-us/articles/4402394424089-VRoidPreset-A-Z ; AvatarSample_A redistribution conditions: https://hub.vroid.com/en/characters/2843975675147313744/models/5644550979324015604 . Source identification is resolved; review product use and required notices before release. Do not replace embedded metadata or describe the preset terms as CC0.",
       "license_id": "LicenseRef-pixiv-VRoidPreset",
       "redistribution_review": "pending"
     },

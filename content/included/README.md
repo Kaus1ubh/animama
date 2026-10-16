@@ -45,8 +45,9 @@ file. The fallback project-owner assumption is historical development metadata,
 not clearance. Excluded downloaded media stay private; each admitted asset
 still needs the applicable terms and notices reviewed before public redistribution.
 
-On 2026-09-02 the owner confirmed Annie's current model is an unmodified VRoid
-free preset with no external assets. Its official pixiv preset terms are linked
+On 2026-09-02 the owner confirmed Annie's model is a VRoid free preset with no
+external assets. On 2026-10-16 its grey hair-underside texture was recoloured to
+match the outer hair; nothing else in the model changed. Its official pixiv preset terms are linked
 in the inventory. Those terms are not CC0; review the planned product use,
 including the restrictions on paid redistribution and character-creation
 services. Do not edit embedded permission flags to manufacture clearance.
