@@ -1,22 +1,11 @@
 // The app's full stylesheet, so DOM Scene layers cost what they cost in chat.
 import "@/index.css";
-import type * as THREE from "three";
 import { Avatar } from "@/lib/avatar";
 import {
   PreviewMediaProvider,
   type PreviewMedia,
 } from "@/lib/avatar/motion-authoring/preview/previewMedia";
 import { BUILT_IN_AVATAR_MOTION_CATALOG } from "@/lib/avatar/motion/AvatarMotionCatalog";
-import { installAvatarShaderRendering } from "@/lib/avatar/toon-shader/applyAvatarShader";
-import {
-  useAvatarShaderStore,
-  type AvatarShaderId,
-} from "@/lib/avatar/toon-shader/avatarShader";
-import {
-  DEFAULT_AVATAR_SHADER_LOOK,
-  useAvatarShaderLookStore,
-} from "@/lib/avatar/toon-shader/avatarShaderLook";
-import type { LilToonPreset } from "@/lib/avatar/toon-shader/lilToonLook";
 import { applyAvatarVFXEffectById } from "@/lib/avatar/vfx/runtime";
 import { EMPTY_RUNTIME_MEDIA_PROVIDER } from "@/lib/runtime-content/AnimaRuntimeMediaCatalog";
 import { buildSceneCameraPreset } from "@/ui/main/canvas/sceneCameraPresets";
@@ -112,87 +101,6 @@ function drawArt(
   return canvas.toDataURL("image/png");
 }
 
-type FrameSamples = { cpu: number[]; gpu: number[]; disjoint: number };
-
-type FrameTarget = {
-  gl: WebGL2RenderingContext;
-  timer: TimerExtension | null;
-  renderer: THREE.WebGLRenderer;
-  scene: THREE.Scene;
-  camera: THREE.Camera;
-};
-
-/**
- * Time `frames` frames of `avatar.update` plus render after `warmupFrames`
- * into `samples`, then collect the remaining GPU queries. Returns the last
- * measured frame's draw calls and triangles.
- */
-async function measureFrames(
-  { gl, timer, renderer, scene, camera }: FrameTarget,
-  avatar: Avatar,
-  warmupFrames: number,
-  frames: number,
-  samples: FrameSamples,
-): Promise<{ drawCalls: number; triangles: number }> {
-  let drawCalls = 0;
-  let triangles = 0;
-  const pending: WebGLQuery[] = [];
-  const collect = () => {
-    // Reading the flag also clears it. A disjoint event (for example a GPU
-    // clock change) voids every query in flight, not just the next one.
-    if (gl.getParameter(timer!.GPU_DISJOINT_EXT)) {
-      samples.disjoint += pending.length;
-      for (const query of pending) gl.deleteQuery(query);
-      pending.length = 0;
-      return;
-    }
-    while (pending.length) {
-      const query = pending[0]!;
-      if (!gl.getQueryParameter(query, gl.QUERY_RESULT_AVAILABLE)) return;
-      pending.shift();
-      samples.gpu.push(gl.getQueryParameter(query, gl.QUERY_RESULT) / 1e6);
-      gl.deleteQuery(query);
-    }
-  };
-  if (timer) gl.getParameter(timer.GPU_DISJOINT_EXT);
-  for (let index = 0; index < warmupFrames + frames; index++) {
-    await nextFrame();
-    const measured = index >= warmupFrames;
-    const query = measured && timer ? gl.createQuery() : null;
-    const start = performance.now();
-    avatar.update(FRAME_SEC);
-    if (query) gl.beginQuery(timer!.TIME_ELAPSED_EXT, query);
-    renderer.render(scene, camera);
-    if (query) gl.endQuery(timer!.TIME_ELAPSED_EXT);
-    const end = performance.now();
-    if (measured) {
-      samples.cpu.push(end - start);
-      if (query) pending.push(query);
-      drawCalls = renderer.info.render.calls;
-      triangles = renderer.info.render.triangles;
-    }
-    if (timer) collect();
-  }
-  for (let wait = 0; timer && pending.length && wait < 120; wait++) {
-    await nextFrame();
-    collect();
-  }
-  return { drawCalls, triangles };
-}
-
-function scenarioResult(
-  samples: FrameSamples,
-  timer: TimerExtension | null,
-  counts: { drawCalls: number; triangles: number },
-): ScenarioResult {
-  return {
-    cpu: stats(samples.cpu),
-    gpu: timer && samples.gpu.length ? stats(samples.gpu) : null,
-    disjointFrames: samples.disjoint,
-    ...counts,
-  };
-}
-
 /** The body and silhouette effects of the heavy combination. */
 function builtInAttachments(): EffectSource[] {
   const heart = drawArt(128, 128, (context) => {
@@ -279,7 +187,65 @@ async function runBench(request: BenchRequest): Promise<BenchResult> {
     mediaCatalog: EMPTY_RUNTIME_MEDIA_PROVIDER,
   });
 
-  const target: FrameTarget = { gl, timer, renderer, scene, camera };
+  type Samples = { cpu: number[]; gpu: number[]; disjoint: number };
+  let drawCalls = 0;
+  let triangles = 0;
+
+  /**
+   * Time `frames` frames after `warmupFrames` into `samples`, then collect the
+   * remaining GPU queries.
+   */
+  const measure = async (frames: number, samples: Samples): Promise<void> => {
+    const pending: WebGLQuery[] = [];
+    const collect = () => {
+      // Reading the flag also clears it. A disjoint event (for example a GPU
+      // clock change) voids every query in flight, not just the next one.
+      if (gl.getParameter(timer!.GPU_DISJOINT_EXT)) {
+        samples.disjoint += pending.length;
+        for (const query of pending) gl.deleteQuery(query);
+        pending.length = 0;
+        return;
+      }
+      while (pending.length) {
+        const query = pending[0]!;
+        if (!gl.getQueryParameter(query, gl.QUERY_RESULT_AVAILABLE)) return;
+        pending.shift();
+        samples.gpu.push(gl.getQueryParameter(query, gl.QUERY_RESULT) / 1e6);
+        gl.deleteQuery(query);
+      }
+    };
+    if (timer) gl.getParameter(timer.GPU_DISJOINT_EXT);
+    for (let index = 0; index < request.warmupFrames + frames; index++) {
+      await nextFrame();
+      const measured = index >= request.warmupFrames;
+      const query = measured && timer ? gl.createQuery() : null;
+      const start = performance.now();
+      avatar.update(FRAME_SEC);
+      if (query) gl.beginQuery(timer!.TIME_ELAPSED_EXT, query);
+      renderer.render(scene, camera);
+      if (query) gl.endQuery(timer!.TIME_ELAPSED_EXT);
+      const end = performance.now();
+      if (measured) {
+        samples.cpu.push(end - start);
+        if (query) pending.push(query);
+        drawCalls = renderer.info.render.calls;
+        triangles = renderer.info.render.triangles;
+      }
+      if (timer) collect();
+    }
+    for (let wait = 0; timer && pending.length && wait < 120; wait++) {
+      await nextFrame();
+      collect();
+    }
+  };
+
+  const result = (samples: Samples, calls: number, tris: number) => ({
+    cpu: stats(samples.cpu),
+    gpu: timer && samples.gpu.length ? stats(samples.gpu) : null,
+    disjointFrames: samples.disjoint,
+    drawCalls: calls,
+    triangles: tris,
+  });
 
   const applyHeavy = async () => {
     for (const effect of [...request.effects, ...builtInAttachments()]) {
@@ -308,33 +274,23 @@ async function runBench(request: BenchRequest): Promise<BenchResult> {
 
     // Alternate the scenarios (none, heavy, none, heavy, …) so clock and
     // thermal drift do not favour either one.
-    const noneSamples: FrameSamples = { cpu: [], gpu: [], disjoint: 0 };
-    const heavySamples: FrameSamples = { cpu: [], gpu: [], disjoint: 0 };
+    const noneSamples: Samples = { cpu: [], gpu: [], disjoint: 0 };
+    const heavySamples: Samples = { cpu: [], gpu: [], disjoint: 0 };
     const framesPerPass = Math.ceil(request.frames / request.rounds);
-    let noneCounts = { drawCalls: 0, triangles: 0 };
-    let heavyCounts = noneCounts;
+    let noneCalls = [0, 0];
+    let heavyCalls = [0, 0];
     let snapshot = avatar.vfxController?.getSnapshot();
     for (let round = 0; round < request.rounds; round++) {
       avatar.vfxController?.clearAllEffects();
-      noneCounts = await measureFrames(
-        target,
-        avatar,
-        request.warmupFrames,
-        framesPerPass,
-        noneSamples,
-      );
+      await measure(framesPerPass, noneSamples);
+      noneCalls = [drawCalls, triangles];
       await applyHeavy();
       snapshot = avatar.vfxController?.getSnapshot();
-      heavyCounts = await measureFrames(
-        target,
-        avatar,
-        request.warmupFrames,
-        framesPerPass,
-        heavySamples,
-      );
+      await measure(framesPerPass, heavySamples);
+      heavyCalls = [drawCalls, triangles];
     }
-    const none = scenarioResult(noneSamples, timer, noneCounts);
-    const heavy = scenarioResult(heavySamples, timer, heavyCounts);
+    const none = result(noneSamples, noneCalls[0]!, noneCalls[1]!);
+    const heavy = result(heavySamples, heavyCalls[0]!, heavyCalls[1]!);
     return {
       avatar: request.avatar.id,
       renderer: debugInfo
@@ -359,187 +315,6 @@ async function runBench(request: BenchRequest): Promise<BenchResult> {
   } finally {
     if (avatar.scene) scene.remove(avatar.scene);
     avatar.dispose();
-    renderer.dispose();
-    renderer.domElement.remove();
-  }
-}
-
-type ShaderBenchRequest = Omit<BenchRequest, "effects"> & {
-  /**
-   * Shaders to compare, the baseline first, each `<shader>` or
-   * `liltoon:<preset>` for a lilToon look preset.
-   */
-  shaders: string[];
-};
-
-type ShaderScenario = ScenarioResult & {
-  /** The requested `<shader>[:<preset>]`. */
-  shader: string;
-  /** `Avatar.load` wall time, including the shader's material conversion. */
-  loadMs: number;
-  /** CPU time of the first update and render, which compiles its programs. */
-  firstFrameMs: number;
-};
-
-type ShaderBenchResult = {
-  avatar: string;
-  renderer: string;
-  gpuTimer: boolean;
-  drawingBuffer: { width: number; height: number };
-  shaders: ShaderScenario[];
-};
-
-/**
- * Frame cost of the experimental Avatar shaders (`src/lib/avatar/toon-shader`)
- * on one Avatar. One `Avatar` is loaded per shader on the same canvas, then
- * the shaders take turns over `rounds` measured passes, so clock and thermal
- * drift do not favour any one. Only the measured Avatar is in the scene, and
- * lilToon's renderer passes are installed only during its own passes. The
- * first-frame time includes the programs that shader compiles; ones an
- * earlier shader already compiled are reused.
- */
-async function runShaderBench(
-  request: ShaderBenchRequest,
-): Promise<ShaderBenchResult> {
-  const { renderer, scene, camera } = createStage(
-    request.width,
-    request.height,
-    {
-      pixelRatio: request.pixelRatio,
-      preserveDrawingBuffer: false,
-      powerPreference: "high-performance",
-    },
-  );
-  document.body.appendChild(renderer.domElement);
-  const gl = renderer.getContext() as WebGL2RenderingContext;
-  const debugInfo = gl.getExtension("WEBGL_debug_renderer_info");
-  const timer = gl.getExtension(
-    "EXT_disjoint_timer_query_webgl2",
-  ) as TimerExtension | null;
-  const target: FrameTarget = { gl, timer, renderer, scene, camera };
-  const previousShader = useAvatarShaderStore.getState().shader;
-  const previousLook = useAvatarShaderLookStore.getState().look;
-
-  type Entry = {
-    spec: string;
-    shader: AvatarShaderId;
-    preset: LilToonPreset;
-    avatar: Avatar;
-    loadMs: number;
-    firstFrameMs: number;
-    samples: FrameSamples;
-    counts: { drawCalls: number; triangles: number };
-  };
-  const entries: Entry[] = [];
-
-  /** Select `entry`'s shader and lilToon preset in the page's stores. */
-  const select = (entry: Pick<Entry, "shader" | "preset">) => {
-    useAvatarShaderStore.setState({ shader: entry.shader });
-    // The look applies to every loaded lilToon Avatar on the next frame, so
-    // the warm-up frames absorb a preset switch.
-    useAvatarShaderLookStore.setState({
-      look: { ...DEFAULT_AVATAR_SHADER_LOOK, lilToonPreset: entry.preset },
-    });
-  };
-
-  /** Run `body` with only `entry`'s Avatar in the scene, under its shader. */
-  const withShader = async (entry: Entry, body: () => Promise<void>) => {
-    select(entry);
-    scene.add(entry.avatar.scene!);
-    const release = await installAvatarShaderRendering(renderer);
-    try {
-      await body();
-    } finally {
-      release();
-      scene.remove(entry.avatar.scene!);
-    }
-  };
-
-  try {
-    for (const spec of request.shaders) {
-      const [shader, preset = "current"] = spec.split(":") as [
-        AvatarShaderId,
-        LilToonPreset?,
-      ];
-      select({ shader, preset });
-      const entry: Entry = {
-        spec,
-        shader,
-        preset,
-        avatar: new Avatar(camera, renderer.domElement, {
-          motionCatalog: BUILT_IN_AVATAR_MOTION_CATALOG,
-          mediaCatalog: EMPTY_RUNTIME_MEDIA_PROVIDER,
-        }),
-        loadMs: 0,
-        firstFrameMs: 0,
-        samples: { cpu: [], gpu: [], disjoint: 0 },
-        counts: { drawCalls: 0, triangles: 0 },
-      };
-      entries.push(entry);
-      const loadStart = performance.now();
-      await entry.avatar.load({ filePath: request.avatar.url });
-      entry.loadMs = performance.now() - loadStart;
-      entry.avatar.setAutomaticAnimationPlaybackEnabled(false);
-      entry.avatar.prepareFirstFrame();
-      if (request.clip) {
-        entry.avatar.playAnimaPoseClip(request.clip as AnimaPoseClip);
-      }
-    }
-
-    const { position, orbitTarget, fov } = buildSceneCameraPreset("portrait", {
-      avatar: entries[0]!.avatar,
-    }).settings;
-    camera.fov = fov;
-    camera.position.set(position.x, position.y, position.z);
-    camera.lookAt(orbitTarget.x, orbitTarget.y, orbitTarget.z);
-    camera.updateProjectionMatrix();
-
-    for (const entry of entries) {
-      await withShader(entry, async () => {
-        await nextFrame();
-        const start = performance.now();
-        entry.avatar.update(FRAME_SEC);
-        renderer.render(scene, camera);
-        entry.firstFrameMs = performance.now() - start;
-      });
-    }
-
-    const framesPerPass = Math.ceil(request.frames / request.rounds);
-    for (let round = 0; round < request.rounds; round++) {
-      for (const entry of entries) {
-        await withShader(entry, async () => {
-          entry.counts = await measureFrames(
-            target,
-            entry.avatar,
-            request.warmupFrames,
-            framesPerPass,
-            entry.samples,
-          );
-        });
-      }
-    }
-
-    return {
-      avatar: request.avatar.id,
-      renderer: debugInfo
-        ? String(gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL))
-        : String(gl.getParameter(gl.RENDERER)),
-      gpuTimer: Boolean(timer),
-      drawingBuffer: {
-        width: gl.drawingBufferWidth,
-        height: gl.drawingBufferHeight,
-      },
-      shaders: entries.map((entry) => ({
-        shader: entry.spec,
-        loadMs: entry.loadMs,
-        firstFrameMs: entry.firstFrameMs,
-        ...scenarioResult(entry.samples, timer, entry.counts),
-      })),
-    };
-  } finally {
-    for (const entry of entries) entry.avatar.dispose();
-    useAvatarShaderStore.setState({ shader: previousShader });
-    useAvatarShaderLookStore.setState({ look: previousLook });
     renderer.dispose();
     renderer.domElement.remove();
   }
@@ -800,7 +575,6 @@ declare global {
   interface Window {
     runEffectBench: typeof runBench;
     runReactionBench: typeof runReactionBench;
-    runShaderBench: typeof runShaderBench;
     effectBenchRendererInfo: typeof rendererInfo;
     effectRendererReady: boolean;
   }
@@ -808,6 +582,5 @@ declare global {
 
 window.runEffectBench = runBench;
 window.runReactionBench = runReactionBench;
-window.runShaderBench = runShaderBench;
 window.effectBenchRendererInfo = rendererInfo;
 window.effectRendererReady = true;

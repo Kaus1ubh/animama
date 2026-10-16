@@ -13,7 +13,7 @@ import {
   hasBlockingNonTtsPresentationWork,
 } from "@/lib/avatar";
 import { buildAnimationPreloadPlan } from "@/lib/avatar/animationPreloadPlan";
-import { useAvatarShaderStore } from "@/lib/avatar/toon-shader/avatarShader";
+import { useEnhancedRenderingStore } from "@/lib/avatar/enhanced-rendering/enhancedRendering";
 import { useOptionalSoundController } from "@/hooks/use-sound-controller";
 import type { SceneVFXKind } from "@/lib/scene-vfx/types";
 import { createLogger } from "@/lib/logger";
@@ -273,8 +273,8 @@ export function AvatarCanvasActor({
     fetchPath: requestedAvatarPath,
     stableAvatarPath: runtimeAvatarLoadKey,
   });
-  // Dev-only shader switch: a change reloads the Avatar with the new materials.
-  const avatarShader = useAvatarShaderStore((state) => state.shader);
+  // Enhanced rendering retunes materials at load, so a change reloads the Avatar.
+  const enhancedRendering = useEnhancedRenderingStore((state) => state.enabled);
   const avatarLoadSpecRef = useRef<AvatarLoadSpec>({
     loadKey: avatarLoadKey,
     requestedAvatarPath,
@@ -597,7 +597,7 @@ export function AvatarCanvasActor({
     onAvatarInstanceChange,
     animaId,
     avatarLoadKey,
-    avatarShader,
+    enhancedRendering,
     poseClipEventSink,
     reactionClipEventSink,
     runtimeAvatarEntry,

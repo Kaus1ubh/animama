@@ -39,10 +39,6 @@ import {
  * `--threshold` (default 8 of 255), which absorbs antialiasing and float
  * rounding noise. Renders of the same source and revision are expected to
  * report 0 differing pixels; investigate any non-zero share.
- *
- * `--avatar-shader` renders with an experimental Avatar shader (see
- * `src/lib/avatar/toon-shader`). `CHROMIUM_PATH` points Playwright at a
- * preinstalled Chromium when its own download is unavailable.
  */
 const webRoot = fileURLToPath(new URL("..", import.meta.url));
 const avatarDir = path.join(REPO_ROOT, "content/included/avatars");
@@ -56,8 +52,8 @@ const VIEW_LABELS = {
   "three-quarter": "3/4 right",
   face: "face",
 };
-/** Avatar shaders `--avatar-shader` accepts (`src/lib/avatar/toon-shader`). */
-export const AVATAR_SHADERS = ["mtoon", "mtoon-tuned", "liltoon"];
+/** Avatar renderings `--rendering` accepts (`src/lib/avatar/enhanced-rendering`). */
+export const AVATAR_RENDERINGS = ["enhanced", "classic"];
 /** The Included Avatars every sheet and benchmark covers. */
 export const AVATARS = ["AvatarSample_Y_0", "AvatarSample_A_1_New"];
 
@@ -119,6 +115,7 @@ function truncate(text, limit = 240) {
 /** Software WebGL: deterministic review renders on any machine. */
 const SWIFTSHADER_LAUNCH = {
   headless: true,
+  // A preinstalled Chromium, where Playwright's own download is unavailable.
   ...(process.env.CHROMIUM_PATH
     ? { executablePath: process.env.CHROMIUM_PATH }
     : {}),
@@ -133,8 +130,8 @@ const SWIFTSHADER_LAUNCH = {
  * `pageDir` names the page under `scripts/` (default the review renderer); it
  * must set `window.effectRendererReady`. `launch` holds the Playwright
  * Chromium launch options plus an optional page `viewport` and
- * `deviceScaleFactor`. `avatarShader` loads Avatars with an experimental
- * shader instead of MToon.
+ * `deviceScaleFactor`. `rendering` picks the app's enhanced (default) or
+ * classic Avatar rendering.
  */
 export async function withRendererPage(
   {
@@ -142,7 +139,7 @@ export async function withRendererPage(
     extraRoots = [],
     pageDir = "effect-render",
     launch = SWIFTSHADER_LAUNCH,
-    avatarShader = "mtoon",
+    rendering = "enhanced",
   },
   callback,
 ) {
@@ -179,11 +176,9 @@ export async function withRendererPage(
       ...(viewport ? { viewport } : {}),
       ...(deviceScaleFactor ? { deviceScaleFactor } : {}),
     });
-    if (avatarShader !== "mtoon") {
-      await page.addInitScript((shader) => {
-        window.__animamaAvatarShaderOverride = shader;
-      }, avatarShader);
-    }
+    await page.addInitScript((value) => {
+      window.__animamaRenderingOverride = value;
+    }, rendering);
     const errors = [];
     // Any page error (including a failed module import) ends the wait early.
     const pageError = new Promise((_, reject) =>
@@ -441,14 +436,14 @@ export async function renderEffectSheets({
   clipMedia = null,
   clipStem = "clip",
   localContent = null,
-  avatarShader = "mtoon",
+  rendering = "enhanced",
   onResult,
 }) {
   const results = await withRendererPage(
     {
       localContent,
       extraRoots: await sourceRoots(effects, clipMedia),
-      avatarShader,
+      rendering,
     },
     async ({ page, fsUrl, imageUrl }) => {
       const avatars = AVATARS.map((id) => ({
@@ -567,10 +562,10 @@ export async function renderEffectThumbnail({
   expression = null,
   clip = null,
   localContent = null,
-  avatarShader = "mtoon",
+  rendering = "enhanced",
 }) {
   const result = await withRendererPage(
-    { localContent, avatarShader },
+    { localContent, rendering },
     (context) =>
       writeThumbnailOnPage(context, {
         effect,
@@ -726,7 +721,7 @@ const USAGE = [
   "  --together              apply every source at once on one sheet (<a+b+c>.png)",
   "  --local-content <dir>   content root for library:local/... (e.g. content/local)",
   "  --size 512              thumbnail edge in pixels (256-2048), Annie only",
-  `  --avatar-shader <id>    experimental Avatar shader: ${AVATAR_SHADERS.join(", ")} (default mtoon)`,
+  "  --rendering enhanced    Avatar rendering: enhanced (the app default) or classic",
   "",
   "The run exits 1 when an effect leaves a controller warning or no active effect.",
   `Diff: a pixel differs when a channel differs by more than --threshold (default`,
@@ -744,7 +739,7 @@ const VALUE_OPTIONS = new Set([
   "--thumbnail",
   "--size",
   "--threshold",
-  "--avatar-shader",
+  "--rendering",
 ]);
 const FLAG_OPTIONS = new Set([
   "--all-included",
@@ -863,10 +858,10 @@ async function main(argv) {
       ? await resolveClipSource(values["--with-clip"], sourceOptions)
       : null;
     const clip = clipSource?.clip ?? null;
-    const avatarShader = values["--avatar-shader"] ?? "mtoon";
-    if (!AVATAR_SHADERS.includes(avatarShader))
+    const rendering = values["--rendering"] ?? "enhanced";
+    if (!AVATAR_RENDERINGS.includes(rendering))
       throw new EffectSourceError(
-        `Invalid --avatar-shader ${avatarShader}; use ${AVATAR_SHADERS.join(", ")}.`,
+        `Invalid --rendering ${rendering}; use ${AVATAR_RENDERINGS.join(" or ")}.`,
       );
 
     if (values["--thumbnail"]) {
@@ -887,7 +882,7 @@ async function main(argv) {
         expression,
         clip,
         localContent,
-        avatarShader,
+        rendering,
       });
       console.log(`Wrote ${outFile}`);
       return 0;
@@ -951,7 +946,7 @@ async function main(argv) {
       expression,
       clip,
       localContent,
-      avatarShader,
+      rendering,
       onResult: (result) => {
         console.log(
           result.failures.length

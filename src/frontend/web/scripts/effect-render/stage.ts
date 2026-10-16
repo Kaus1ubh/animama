@@ -1,9 +1,12 @@
 import * as THREE from "three";
 
 import type { Avatar } from "@/lib/avatar";
-import { installAvatarShaderRendering } from "@/lib/avatar/toon-shader/applyAvatarShader";
 import {
-  DEFAULT_SCENE_LIGHTS,
+  applyAvatarToneMapping,
+  isEnhancedRenderingEnabled,
+} from "@/lib/avatar/enhanced-rendering/enhancedRendering";
+import {
+  avatarSceneLights,
   buildSceneCameraPreset,
   type SceneCameraPreset,
 } from "@/ui/main/canvas/sceneCameraPresets";
@@ -20,9 +23,12 @@ export {
   type EffectSource,
 } from "@/lib/avatar/vfx/effectSource";
 
-/** Tone mapping and colour output of the chat canvas (React Three Fiber defaults in `Scene.tsx`). */
+/**
+ * Tone mapping and colour output of the chat canvas (`AvatarSceneLighting`):
+ * Neutral at a raised exposure with enhanced rendering, otherwise ACES.
+ */
 export function applyChatColorPipeline(renderer: THREE.WebGLRenderer): void {
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  applyAvatarToneMapping(renderer, isEnhancedRenderingEnabled());
   renderer.outputColorSpace = THREE.SRGBColorSpace;
 }
 
@@ -53,21 +59,25 @@ export function chatCameraFraming(
   };
 }
 
-/** Add the chat canvas's default scene lights to `scene`. */
+/** Add the chat canvas's scene lights (classic or enhanced) to `scene`. */
 export function addChatLights(scene: THREE.Scene): void {
-  scene.add(
-    new THREE.AmbientLight(0xffffff, DEFAULT_SCENE_LIGHTS.ambientIntensity),
+  const { ambientIntensity, directional } = avatarSceneLights(
+    isEnhancedRenderingEnabled(),
   );
-  for (const light of DEFAULT_SCENE_LIGHTS.directional) {
-    const directional = new THREE.DirectionalLight(0xffffff, light.intensity);
-    directional.position.set(...light.position);
-    scene.add(directional);
+  scene.add(new THREE.AmbientLight(0xffffff, ambientIntensity));
+  for (const light of directional) {
+    const directionalLight = new THREE.DirectionalLight(
+      new THREE.Color(light.color ?? "#ffffff"),
+      light.intensity,
+    );
+    directionalLight.position.set(...light.position);
+    scene.add(directionalLight);
   }
 }
 
 /**
  * A renderer, scene and camera configured like the chat canvas (`Scene.tsx`):
- * antialiasing, ACES Filmic, sRGB output, the default scene lights, a
+ * antialiasing, its tone mapping, sRGB output and scene lights, a
  * transparent clear and no stencil buffer. `pixelRatio` 1 keeps review sheets
  * at their tile size; the benchmark uses the chat's DPR.
  */
@@ -93,9 +103,6 @@ export function createStage(
   renderer.setSize(width, height);
   applyChatColorPipeline(renderer);
   renderer.setClearColor(0x000000, 0);
-  // Extra passes for an `--avatar-shader` override. The Avatar load awaits the
-  // same shader module, so they are installed before the first frame.
-  void installAvatarShaderRendering(renderer);
   const scene = new THREE.Scene();
   addChatLights(scene);
   const camera = new THREE.PerspectiveCamera(35, width / height, 0.01, 20);

@@ -1,0 +1,39 @@
+import { useEffect } from "react";
+import { useThree } from "@react-three/fiber";
+
+import {
+  applyAvatarToneMapping,
+  useEnhancedRenderingStore,
+} from "@/lib/avatar/enhanced-rendering/enhancedRendering";
+import { avatarSceneLights } from "./sceneCameraPresets";
+
+/**
+ * The lights and tone mapping of an Avatar canvas, classic or enhanced per
+ * the "Enable premium renderer and shaders" setting. `lights={false}` keeps
+ * only the tone mapping, for canvases that bring their own lights.
+ */
+export function AvatarSceneLighting({ lights = true }: { lights?: boolean }) {
+  const gl = useThree((state) => state.gl);
+  const enhanced = useEnhancedRenderingStore((state) => state.enabled);
+
+  useEffect(() => {
+    // three recompiles the affected programs when the curve changes.
+    applyAvatarToneMapping(gl, enhanced);
+  }, [gl, enhanced]);
+
+  if (!lights) return null;
+  const { ambientIntensity, directional } = avatarSceneLights(enhanced);
+  return (
+    <>
+      <ambientLight intensity={ambientIntensity} />
+      {directional.map((light, index) => (
+        <directionalLight
+          key={index}
+          position={light.position}
+          intensity={light.intensity}
+          color={light.color ?? "#ffffff"}
+        />
+      ))}
+    </>
+  );
+}

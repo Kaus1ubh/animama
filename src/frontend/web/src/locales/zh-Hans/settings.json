@@ -32,6 +32,17 @@
       "tooltip": "按 G 移动、按 R 旋转、按 S 缩放虚拟形象。按 Esc 退出变换模式。在虚拟形象模式下，拖动或滚动画布可环绕和缩放。在虚拟形象聊天模式下，按住 Ctrl 拖动可环绕，按 Ctrl + 滚动可缩放。",
       "updateFailed": "无法更新虚拟形象变换控件。"
     },
+    "enhancedRendering": {
+      "description": "使用卡通着色、三点布光和更柔和的色调渲染虚拟形象。关闭后恢复经典外观。",
+      "keywords": [
+        "高级",
+        "渲染器",
+        "画面",
+        "画质"
+      ],
+      "label": "启用高级渲染器和着色器",
+      "updateFailed": "无法更新渲染器设置。"
+    },
     "markdown": {
       "label": "渲染助手的 Markdown",
       "updateFailed": "无法更新 Markdown 渲染设置。"
@@ -239,6 +250,7 @@
     "appData": "应用数据",
     "audio": "音频",
     "avatarControls": "虚拟形象控件",
+    "avatarRendering": "虚拟形象渲染",
     "defaultModels": "默认模型",
     "desktopShortcuts": "桌面快捷键",
     "diagnostics": "诊断",

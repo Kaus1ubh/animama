@@ -5811,6 +5811,12 @@ export default interface Resources {
         "tooltip": "Press G to move, R to rotate, and S to scale the avatar. Press Esc to exit a transform mode. In avatar mode, drag or scroll the canvas to orbit and zoom. In avatar-chat mode, hold Ctrl while dragging to orbit and Ctrl + scroll to zoom.",
         "updateFailed": "Failed to update avatar transform controls."
       },
+      "enhancedRendering": {
+        "description": "Toon-shaded Avatars with three-point lighting and a softer colour grade. Turn off for the classic look.",
+        "keywords": ["premium", "renderer", "graphics", "quality"],
+        "label": "Enable premium renderer and shaders",
+        "updateFailed": "Failed to update the renderer setting."
+      },
       "markdown": {
         "label": "Render assistant Markdown",
         "updateFailed": "Failed to update Markdown rendering."
@@ -6002,6 +6008,7 @@ export default interface Resources {
       "appData": "App data",
       "audio": "Audio",
       "avatarControls": "Avatar controls",
+      "avatarRendering": "Avatar rendering",
       "defaultModels": "Default models",
       "desktopShortcuts": "Desktop shortcuts",
       "diagnostics": "Diagnostics",

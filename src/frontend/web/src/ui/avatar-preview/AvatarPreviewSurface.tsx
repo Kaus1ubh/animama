@@ -26,9 +26,9 @@ import { cn } from "@/lib/utils";
 import { CONTINUOUS_CANVAS_RESIZE } from "@/ui/main/canvas/canvasResizeOptions";
 import { CanvasViewportProvider } from "@/ui/main/canvas/CanvasViewportContext";
 import { SceneRuntimeProvider } from "@/ui/main/canvas/SceneRuntimeContext";
+import { AvatarSceneLighting } from "@/ui/main/canvas/AvatarSceneLighting";
 import {
   buildCreatorCameraPreset,
-  DEFAULT_SCENE_LIGHTS,
   sceneVector3ToArray,
   type CreatorCameraPreset,
   type SceneCameraSettings,
@@ -37,7 +37,6 @@ import {
   SceneVFXOverlayLayers,
   SceneVFXUnderlayLayers,
 } from "@/ui/main/scene-vfx/SceneVFXLayers";
-import { AvatarShaderRendering } from "@/lib/avatar/toon-shader/AvatarShaderRendering";
 
 export type AvatarPreviewCameraProfile = CreatorCameraPreset | "custom";
 
@@ -165,7 +164,6 @@ export function AvatarPreviewSurface({
             onCreated={({ gl }) => gl.setClearColor(0x000000, 0)}
           >
             <AvatarPreviewLifecycleMarker owner={lifecycleOwner} />
-            <AvatarShaderRendering />
             <AvatarPreviewCameraController
               settings={camera}
               resetRequest={resetCameraRequest}
@@ -177,20 +175,7 @@ export function AvatarPreviewSurface({
               maxDistance={maxDistance}
               onChanged={onCameraChanged}
             />
-            {showDefaultLights ? (
-              <>
-                <ambientLight
-                  intensity={DEFAULT_SCENE_LIGHTS.ambientIntensity}
-                />
-                {DEFAULT_SCENE_LIGHTS.directional.map((light, index) => (
-                  <directionalLight
-                    key={index}
-                    position={light.position}
-                    intensity={light.intensity}
-                  />
-                ))}
-              </>
-            ) : null}
+            <AvatarSceneLighting lights={showDefaultLights} />
             {children}
           </Canvas>
           {showSceneVFX ? (

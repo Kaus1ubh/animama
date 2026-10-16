@@ -38,6 +38,7 @@ import {
   type SettingsPreferences,
 } from "@/lib/settings/preferences";
 import { createLogger } from "@/lib/logger";
+import { useEnhancedRenderingStore } from "@/lib/avatar/enhanced-rendering/enhancedRendering";
 import { useAnimaSettings } from "@/query/hooks/useAnimaSettings";
 import { useUserSettings } from "@/query/hooks/useUserSettings";
 import { useUpdateAnimaSettings } from "@/query/mutations/useUpdateAnimaSettings";
@@ -76,6 +77,9 @@ export type SettingsContextValue = {
   chatMarkdownEnabled: boolean;
   /** Saves `presentation.render_markdown` in app preferences. */
   setChatMarkdownEnabled: (enabled: boolean) => void;
+  enhancedRenderingEnabled: boolean;
+  /** Saves `presentation.enhanced_rendering` in app preferences. */
+  setEnhancedRenderingEnabled: (enabled: boolean) => void;
 };
 
 const SettingsContext = createContext<SettingsContextValue | null>(null);
@@ -224,6 +228,31 @@ export function SettingsProvider({
     [logger, t, updateUserPreferences],
   );
 
+  // Persisted app preference; enhanced Avatar rendering stays on unless
+  // turned off. The rendering store follows it once settings have loaded.
+  const enhancedRenderingEnabled =
+    userPreferences?.presentation?.enhanced_rendering !== false;
+  const userSettingsLoaded = userSettingsQuery.isSuccess;
+  useEffect(() => {
+    if (!userSettingsLoaded) return;
+    useEnhancedRenderingStore.getState().setEnabled(enhancedRenderingEnabled);
+  }, [enhancedRenderingEnabled, userSettingsLoaded]);
+  const setEnhancedRenderingEnabled = useCallback(
+    (enabled: boolean) => {
+      void updateUserPreferences({
+        presentation: { enhanced_rendering: enabled },
+      }).catch((error) => {
+        logger.error(
+          "Preferences",
+          "Enhanced rendering preference update failed",
+          error,
+        );
+        toast.error(t("advanced.enhancedRendering.updateFailed"));
+      });
+    },
+    [logger, t, updateUserPreferences],
+  );
+
   const chatRequestOptions = useMemo(() => {
     const entries: Array<[string, boolean | string | string[]]> = [];
     for (const [key, value] of Object.entries(chatRequestOverrides)) {
@@ -337,11 +366,15 @@ export function SettingsProvider({
       setChatRequestOverrides,
       chatMarkdownEnabled,
       setChatMarkdownEnabled,
+      enhancedRenderingEnabled,
+      setEnhancedRenderingEnabled,
     }),
     [
       chatRequestOptions,
       chatMarkdownEnabled,
       setChatMarkdownEnabled,
+      enhancedRenderingEnabled,
+      setEnhancedRenderingEnabled,
       effectivePreferences,
       animaPreferences,
       animaSettings,

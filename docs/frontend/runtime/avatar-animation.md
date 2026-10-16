@@ -1342,6 +1342,31 @@ inside the main `Canvas`. Live, management, creator, and Create Anima Avatar
 canvases share `CONTINUOUS_CANVAS_RESIZE` to keep renderer and camera dimensions
 aligned during sidebar resizing.
 
+### Enhanced rendering
+
+The Advanced setting **Enable premium renderer and shaders** (app preference
+`presentation.enhanced_rendering`, on unless turned off) switches every Avatar
+canvas between enhanced and classic rendering. `SettingsProvider` mirrors the
+preference into `useEnhancedRenderingStore`
+(`src/lib/avatar/enhanced-rendering/`), which non-React code reads.
+
+- **Materials:** `withEnhancedMToonPatch` retunes VRoid MToon materials in the
+  glTF after three-vrm's VRM 0.x conversion and before any material is built:
+  coloured shadows, a crisper terminator, rim light and screen-space outlines.
+  Colours come from VRoid material-name suffixes (`_SKIN`, `_CLOTH`, `_HAIR`,
+  `vroidPalette.ts`) tuned on Annie, so other models can look off; eyes, brows
+  and mouth stay flat. A change reloads the chat Avatar
+  (`AvatarCanvasActor`); other canvases pick it up on their next load.
+- **Lights and tone mapping:** `AvatarSceneLighting` gives the chat, preview
+  and Create Anima canvases three-point lighting (`ENHANCED_SCENE_LIGHTS`) and
+  Neutral tone mapping at exposure 1.1; classic keeps one key light and ACES.
+- **Chat canvas filter:** a CSS filter adds a soft colour grade and a white
+  glow around the Avatar, standing in for colour grading and bloom.
+
+On an Apple M5 the enhanced look adds about 0.1–0.15 ms per frame over classic.
+Review renders and benchmarks use enhanced rendering unless given
+`--rendering classic`.
+
 ### Actor setup
 
 `src/frontend/web/src/ui/main/canvas/AvatarCanvasActor.tsx`:
@@ -1413,53 +1438,6 @@ The modal currently exposes:
 - **Runtime** readouts for loaded/missing bones, active pose state, spring-bone manager counts, helper counts, and gust state.
 
 These controls are runtime-only tuning tools. They do not persist procedural parameters, spring-bone settings, pose selection, or helper visibility to anima settings or VRM files.
-
-### Experimental Avatar shaders
-
-The **Avatar shader** section of the Anima debug panel (development build with
-`VITE_ENABLE_DEBUG_PANEL=true`) switches Avatars between three-vrm's MToon (the
-default), MToon with retuned shading, outlines and rim, and three-liltoon
-materials. The choice is stored in this browser only
-(`animama.debug.avatarShader`) and read only while the panel is enabled.
-Switching reloads the chat Avatar; other canvases use the new shader on their
-next load. Production builds always use MToon and contain no lilToon code.
-Code lives in `src/frontend/web/src/lib/avatar/toon-shader/`:
-
-- `withAvatarShaderPatch` rewrites MToon parameters in the glTF after
-  three-vrm's VRM 0.x conversion and before materials are built: retuned values
-  for the tuned variant, and no MToon outline geometry for lilToon.
-- After load, the lilToon variant replaces each MToon material with a
-  `LilToonMaterial` that applies the chat canvas's ACES tone mapping itself.
-  Canvases mount `AvatarShaderRendering` for lilToon's outline pass.
-- Shadow, rim and outline colours come from VRoid material-name suffixes
-  (`_SKIN`, `_CLOTH`, `_HAIR`) and were tuned on the Annie preset, so other
-  models can look off.
-- The section's look controls (`avatarShaderLook.ts`) apply live and are
-  stored in this browser (`animama.debug.avatarShaderLook`):
-  - **Look preset** picks the lilToon property recipe (`lilToonLook.ts`):
-    **Current**, or **NiloToon-style** (brighter lighting response, pale
-    coloured shadows, a crisp lit-side rim, backlight on hair and skin, and
-    thin outlines tinted from the surface texture). Choosing a preset also
-    sets its exposure, lights, tone mapping and canvas filters.
-  - **Tone mapping** switches every Avatar canvas between ACES and three's
-    Neutral curve; lilToon applies the same curve in its shader.
-  - **Canvas filters** add CSS filters to the chat canvas: a soft colour grade
-    and a white glow around the silhouette. They stand in for colour grading
-    and bloom, and their compositing cost is not in `effects:bench`.
-  - Sliders: exposure (every Avatar canvas), ambient and key light (chat
-    canvas) under any shader; shadow, rim and outline scale the palette on
-    MToon tuned and lilToon only.
-
-  The defaults (multipliers 1, Current, ACES, no filters) keep the shaders as
-  tuned; **Copy values** copies the settings as JSON for new defaults.
-
-lilToon limits: it lights with only the first directional light, its outline
-pass skips the ACES curve, VRM expressions that bind material colours or
-texture transforms stop applying, and silhouette effects need a larger depth
-bias, so their edges can differ by a pixel. `pnpm -s effects:render ...
---avatar-shader liltoon` renders review sheets with a variant, and
-`pnpm -s effects:bench --shaders all` compares the shaders' frame, load and
-first-frame cost on the GPU ([frame-cost benchmark](avatar-vfx.md#frame-cost-benchmark)).
 
 ## 6) Dispatch lifecycle -> avatar behavior
 

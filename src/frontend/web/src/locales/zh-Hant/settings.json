@@ -32,6 +32,17 @@
       "tooltip": "按 G 移動、按 R 旋轉、按 S 縮放虛擬形象。按 Esc 結束變換模式。在虛擬形象模式下，拖曳或捲動畫布可環繞和縮放。在虛擬形象聊天模式下，按住 Ctrl 拖曳可環繞，按 Ctrl + 捲動可縮放。",
       "updateFailed": "無法更新虛擬形象變換控制項。"
     },
+    "enhancedRendering": {
+      "description": "使用卡通著色、三點打光與更柔和的色調呈現虛擬形象。關閉後恢復經典外觀。",
+      "keywords": [
+        "高級",
+        "渲染器",
+        "畫面",
+        "畫質"
+      ],
+      "label": "啟用高級渲染器與著色器",
+      "updateFailed": "無法更新渲染器設定。"
+    },
     "markdown": {
       "label": "呈現助理的 Markdown",
       "updateFailed": "無法更新 Markdown 呈現設定。"
@@ -239,6 +250,7 @@
     "appData": "應用程式資料",
     "audio": "音訊",
     "avatarControls": "虛擬形象控制項",
+    "avatarRendering": "虛擬形象呈現",
     "defaultModels": "預設模型",
     "desktopShortcuts": "桌面快速鍵",
     "diagnostics": "診斷",

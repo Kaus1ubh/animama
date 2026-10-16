@@ -110,6 +110,11 @@ export type PresentationPreferences = {
   enable_avatar_transform_controls?: boolean;
   /** Render assistant replies as Markdown (default on). */
   render_markdown?: boolean;
+  /**
+   * Enhanced Avatar rendering: toon-shaded MToon, three-point lighting,
+   * Neutral tone mapping and a soft chat-canvas grade (default on).
+   */
+  enhanced_rendering?: boolean;
   disable_animation?: boolean;
   disable_vfx?: boolean;
   /**

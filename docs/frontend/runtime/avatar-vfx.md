@@ -687,6 +687,10 @@ To watch effects in motion with their sounds, `pnpm -s animation:reel --effects
 - `--diff` counts a pixel when a channel changes by more than `--threshold`
   (default 8 of 255) and writes a diff image. The same source and revision diff
   to 0 pixels.
+- `--rendering classic` renders the classic Avatar look instead of the app's
+  default enhanced rendering (the chat canvas's CSS filter is not part of the
+  rendered pixels). `CHROMIUM_PATH` points Playwright at a preinstalled
+  Chromium.
 
 `pnpm -s effects:thumbnails [template-id...]` regenerates the picker's Avatar FX
 thumbnails (320 px WebP, 1 s after applying, or at the template's
@@ -758,7 +762,8 @@ animated eye plane, a body effect and a silhouette). The scenarios alternate
 over `--rounds` passes, and GPU samples voided by a disjoint event are dropped
 and counted. The budget is a mean added frame time of at most 2 ms. A software
 WebGL renderer is refused. Options: `--frames`, `--warmup`, `--rounds`,
-`--clip`, `--effects`, `--headed`, `--json <file>`.
+`--clip`, `--effects`, `--headed`, `--json <file>` and `--rendering
+<enhanced|classic>`.
 
 `--reaction <path|library:reaction/...>` measures one Reaction's Avatar,
 Particle and Scene Effects instead: the Reaction replays every `--replay`
@@ -767,14 +772,6 @@ draw around the canvas as in chat, and the frame rate is uncapped so the
 interval between frames includes the layers' style, layout and compositing.
 Its budget is a mean added frame interval (and GPU time) of at most 4 ms.
 `library:local/...` Reactions need `--local-content <content root>`.
-
-`--avatar-shader <mtoon-tuned|liltoon>` runs either measurement under an
-experimental Avatar shader. `--shaders <a,b|all>` compares the shaders
-instead, without effects: one Avatar per shader, the shaders alternating over
-`--rounds` passes, each reported with its load time, its first-frame time
-(which compiles its programs) and its difference from the first shader
-listed; `liltoon:nilotoon` selects a lilToon look preset. lilToon renders
-extra internal passes, so its draw-call count shows only the last of them.
 
 ## 10) Performance
 

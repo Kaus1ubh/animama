@@ -25,11 +25,6 @@ import {
 } from "three";
 
 import { getAvatarBackgroundOption } from "@/lib/avatar/backgroundOptions";
-import { AvatarShaderRendering } from "@/lib/avatar/toon-shader/AvatarShaderRendering";
-import {
-  avatarCanvasFilter,
-  useAvatarShaderLookStore,
-} from "@/lib/avatar/toon-shader/avatarShaderLook";
 import type { CursorLookAtInputProvider } from "@/lib/avatar";
 import { resolveAvatarBackgroundCrop } from "@/lib/avatar/backgroundCrop";
 import { AvatarCanvasActor } from "./AvatarCanvasActor";
@@ -44,7 +39,11 @@ import { StageBackgroundLayer } from "@/ui/main/canvas/StageBackgroundLayer";
 import type { Avatar } from "@/lib/avatar";
 import { CONTINUOUS_CANVAS_RESIZE } from "@/ui/main/canvas/canvasResizeOptions";
 import {
-  DEFAULT_SCENE_LIGHTS,
+  ENHANCED_CHAT_CANVAS_FILTER,
+  useEnhancedRenderingStore,
+} from "@/lib/avatar/enhanced-rendering/enhancedRendering";
+import { AvatarSceneLighting } from "./AvatarSceneLighting";
+import {
   sceneVector3ToArray,
   type SceneCameraSettings,
 } from "./sceneCameraPresets";
@@ -155,16 +154,7 @@ export default function Scene({
   const orbitControlsRef = useRef<OrbitControlsRef | null>(null);
   const logger = useMemo(() => createLogger("Scene"), []);
   const canvasViewport = useCanvasViewport();
-  // Dev-only debug panel multipliers; always 1 in production builds.
-  const ambientLightScale = useAvatarShaderLookStore(
-    (state) => state.look.ambientLight,
-  );
-  const keyLightScale = useAvatarShaderLookStore(
-    (state) => state.look.keyLight,
-  );
-  const canvasFilter = useAvatarShaderLookStore((state) =>
-    avatarCanvasFilter(state.look),
-  );
+  const enhancedRendering = useEnhancedRenderingStore((state) => state.enabled);
   const { animaPreferences, animaSettings } = useSettings();
   // Authoring surfaces reuse Scene outside an Anima route and intentionally
   // have no mounted runtime catalog.
@@ -273,7 +263,11 @@ export default function Scene({
       ) : null}
       <Canvas
         className="relative z-10 h-full w-full"
-        style={canvasFilter ? { filter: canvasFilter } : undefined}
+        style={
+          enhancedRendering
+            ? { filter: ENHANCED_CHAT_CANVAS_FILTER }
+            : undefined
+        }
         dpr={dpr}
         gl={{ antialias: true, alpha: true }}
         resize={CONTINUOUS_CANVAS_RESIZE}
@@ -292,17 +286,7 @@ export default function Scene({
           orbitControlsRef={orbitControlsRef}
           settings={sceneCameraSettings}
         />
-        <AvatarShaderRendering />
-        <ambientLight
-          intensity={DEFAULT_SCENE_LIGHTS.ambientIntensity * ambientLightScale}
-        />
-        {DEFAULT_SCENE_LIGHTS.directional.map((light, index) => (
-          <directionalLight
-            key={index}
-            position={light.position}
-            intensity={light.intensity * keyLightScale}
-          />
-        ))}
+        <AvatarSceneLighting />
         {/* {isDev ? <axesHelper args={[5]} /> : null}
         {isDev ? (
           <Grid

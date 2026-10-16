@@ -1,8 +1,7 @@
 import type { VRMLoaderPlugin } from "@pixiv/three-vrm";
 import type { GLTFParser } from "three/examples/jsm/loaders/GLTFLoader.js";
 
-import { getActiveAvatarShader } from "./avatarShader";
-import { getAvatarShaderLook, tunedMToonLook } from "./avatarShaderLook";
+import { isEnhancedRenderingEnabled } from "./enhancedRendering";
 import { vroidLookFor, type ToonLook } from "./vroidPalette";
 
 type MToonExtension = Record<string, unknown>;
@@ -19,43 +18,46 @@ const SHADING: Record<ToonLook["kind"], { shift: number; toony: number }> = {
   hair: { shift: -0.1, toony: 0.8 },
 };
 
+/** Screen-space outline widths (fraction of view height) per look. */
+const OUTLINE_WIDTH: Record<ToonLook["kind"], number> = {
+  face: 0.0035,
+  skin: 0.0045,
+  cloth: 0.0045,
+  hair: 0.004,
+};
+
 function retuneMToon(material: GltfMaterial, mtoon: MToonExtension): void {
   const look = vroidLookFor(material.name ?? "");
   if (!look) return;
-  const tuned = tunedMToonLook(look, getAvatarShaderLook());
-  mtoon.shadeColorFactor = tuned.shade;
+  mtoon.shadeColorFactor = look.shade;
   mtoon.shadingShiftFactor = SHADING[look.kind].shift;
   mtoon.shadingToonyFactor = SHADING[look.kind].toony;
-  mtoon.parametricRimColorFactor = tuned.rim;
+  mtoon.parametricRimColorFactor = look.rim;
   mtoon.parametricRimFresnelPowerFactor = look.rimPower;
   mtoon.parametricRimLiftFactor = 0;
   mtoon.rimLightingMixFactor = 0.5;
   mtoon.outlineWidthMode = "screenCoordinates";
-  mtoon.outlineWidthFactor = tuned.outlineWidth;
+  mtoon.outlineWidthFactor = OUTLINE_WIDTH[look.kind];
   mtoon.outlineColorFactor = look.outlineColor;
   mtoon.outlineLightingMixFactor = 0.6;
 }
 
 function patchMaterials(parser: GLTFParser): void {
-  const shader = getActiveAvatarShader();
-  if (shader === "mtoon") return;
+  if (!isEnhancedRenderingEnabled()) return;
   const materials = (parser.json.materials ?? []) as GltfMaterial[];
   for (const material of materials) {
     const mtoon = material.extensions?.VRMC_materials_mtoon;
-    if (!mtoon) continue;
-    if (shader === "mtoon-tuned") retuneMToon(material, mtoon);
-    // lilToon draws its own outlines; MToon's would duplicate the geometry.
-    else mtoon.outlineWidthMode = "none";
+    if (mtoon) retuneMToon(material, mtoon);
   }
 }
 
 /**
- * Patch the active shader's MToon parameters into `plugin`'s glTF before
- * three-vrm builds any material. The patch runs right after the VRM 0.x
- * compat step, which is where VRM 0.x files gain `VRMC_materials_mtoon`. The
- * shader is read per parse, so a cached loader follows later switches.
+ * Retune VRoid MToon parameters in `plugin`'s glTF for enhanced rendering,
+ * before three-vrm builds any material. The patch runs right after the VRM
+ * 0.x compat step, which is where VRM 0.x files gain `VRMC_materials_mtoon`.
+ * The setting is read per parse, so a cached loader follows later changes.
  */
-export function withAvatarShaderPatch(
+export function withEnhancedMToonPatch(
   plugin: VRMLoaderPlugin,
 ): VRMLoaderPlugin {
   const v0Compat = plugin.materialsV0CompatPlugin;

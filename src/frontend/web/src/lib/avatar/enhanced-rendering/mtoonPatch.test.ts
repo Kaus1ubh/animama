@@ -2,12 +2,8 @@ import { afterEach, describe, expect, it } from "vitest";
 import { VRMLoaderPlugin } from "@pixiv/three-vrm";
 import type { GLTFParser } from "three/examples/jsm/loaders/GLTFLoader.js";
 
-import { useAvatarShaderStore, type AvatarShaderId } from "./avatarShader";
-import {
-  DEFAULT_AVATAR_SHADER_LOOK,
-  useAvatarShaderLookStore,
-} from "./avatarShaderLook";
-import { withAvatarShaderPatch } from "./gltfPatch";
+import { useEnhancedRenderingStore } from "./enhancedRendering";
+import { withEnhancedMToonPatch } from "./mtoonPatch";
 
 type Json = {
   materials: { name: string; extensions?: Record<string, unknown> }[];
@@ -59,9 +55,9 @@ function vrm0Json(): Json {
 }
 
 /** Run three-vrm's material pre-pass with the patch, as a load would. */
-async function patch(shader: AvatarShaderId, json: Json): Promise<Mtoon[]> {
-  useAvatarShaderStore.setState({ shader });
-  const plugin = withAvatarShaderPatch(
+async function patch(enhanced: boolean, json: Json): Promise<Mtoon[]> {
+  useEnhancedRenderingStore.setState({ enabled: enhanced });
+  const plugin = withEnhancedMToonPatch(
     new VRMLoaderPlugin({ json } as unknown as GLTFParser),
   );
   await plugin.materialsV0CompatPlugin.beforeRoot();
@@ -70,20 +66,17 @@ async function patch(shader: AvatarShaderId, json: Json): Promise<Mtoon[]> {
   );
 }
 
-describe("withAvatarShaderPatch", () => {
-  afterEach(() => {
-    useAvatarShaderStore.setState({ shader: "mtoon" });
-    useAvatarShaderLookStore.setState({ look: DEFAULT_AVATAR_SHADER_LOOK });
-  });
+describe("withEnhancedMToonPatch", () => {
+  afterEach(() => useEnhancedRenderingStore.setState({ enabled: true }));
 
-  it("leaves MToon parameters untouched for the default shader", async () => {
+  it("leaves MToon parameters untouched with classic rendering", async () => {
     const json = vrm1Json();
-    await patch("mtoon", json);
+    await patch(false, json);
     expect(json.materials).toEqual(vrm1Json().materials);
   });
 
-  it("retunes VRoid skin and cloth and leaves eyes flat for tuned MToon", async () => {
-    const [face, cloth, iris] = await patch("mtoon-tuned", vrm1Json());
+  it("retunes VRoid skin and cloth and leaves eyes flat", async () => {
+    const [face, cloth, iris] = await patch(true, vrm1Json());
     expect(face).toMatchObject({
       shadingShiftFactor: 0.6,
       outlineWidthMode: "screenCoordinates",
@@ -98,36 +91,13 @@ describe("withAvatarShaderPatch", () => {
     );
   });
 
-  it("bakes the debug panel's look multipliers into tuned MToon", async () => {
-    useAvatarShaderLookStore.setState({
-      look: { ...DEFAULT_AVATAR_SHADER_LOOK, shadow: 0, rim: 0, outline: 2 },
-    });
-    const [face] = await patch("mtoon-tuned", vrm1Json());
-    expect(face).toMatchObject({
-      parametricRimColorFactor: [0, 0, 0],
-      outlineWidthFactor: 0.007,
-    });
-    for (const value of face!.shadeColorFactor as number[]) {
-      expect(value).toBeCloseTo(1);
-    }
-  });
-
-  it("drops MToon outline geometry for lilToon, which draws its own", async () => {
-    for (const mtoon of await patch("liltoon", vrm1Json())) {
-      expect(mtoon.outlineWidthMode).toBe("none");
-    }
-  });
-
   it("patches VRM 0.x materials after three-vrm converts them", async () => {
-    const tuned = await patch("mtoon-tuned", vrm0Json());
-    expect(tuned[0]).toMatchObject({
+    const [face] = await patch(true, vrm0Json());
+    expect(face).toMatchObject({
       shadingShiftFactor: 0.6,
       outlineWidthMode: "screenCoordinates",
     });
-    for (const mtoon of await patch("liltoon", vrm0Json())) {
-      expect(mtoon.outlineWidthMode).toBe("none");
-    }
-    const stock = await patch("mtoon", vrm0Json());
-    expect(stock[0]!.outlineWidthMode).toBe("worldCoordinates");
+    const [classic] = await patch(false, vrm0Json());
+    expect(classic!.outlineWidthMode).toBe("worldCoordinates");
   });
 });
