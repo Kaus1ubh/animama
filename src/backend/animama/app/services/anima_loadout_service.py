@@ -630,7 +630,10 @@ class AnimaLoadoutService:
             elif operation == "restore_starter":
                 cell = reaction_cell_key(intent.get("emotion"), intent.get("intensity"))
                 starters, warnings = await self._starter_reactions(
-                    user_id=user_id, version=root.starter_catalog_version, cell=cell, lock=lock_sources
+                    user_id=user_id,
+                    keys=starter_reaction_pools(root.starter_catalog_version).get(cell, ()),
+                    lock=lock_sources,
+                    visible=await self._catalog.list_visible(user_id=user_id),
                 )
                 members = _reaction_cell_rows(rows, cell)
                 starter_ids = {starter.item.id for starter in starters}
@@ -769,14 +772,10 @@ class AnimaLoadoutService:
         return counts
 
     async def _starter_reactions(
-        self, *, user_id: str, version: int, cell: str, lock: bool
+        self, *, user_id: str, keys: tuple[str, ...], lock: bool, visible: list[CatalogContentEntry]
     ) -> tuple[list[TypedCatalogItem], list[LoadoutDiagnostic]]:
-        """Resolve a cell's Included starter Reactions; an unavailable one is skipped with a warning."""
+        """Resolve one cell's Included starter Reactions; an unavailable one is skipped with a warning."""
 
-        keys = starter_reaction_pools(version).get(cell, ())
-        if not keys:
-            return [], []
-        visible = await self._catalog.list_visible(user_id=user_id)
         starters: list[TypedCatalogItem] = []
         warnings: list[LoadoutDiagnostic] = []
         for key in keys:
@@ -1128,18 +1127,34 @@ class AnimaLoadoutService:
 
         For compositions that equip a starter without a creation request: the
         loadout's starter version supplies its starter Gestures, and the starter
-        Idle pool is written from the Gestures installed now, exactly as creation
-        seeds it. Reaction pools start empty. Nothing is committed: the caller
-        then sets the Avatar and other selections through ordinary plan/commit
-        changes, whose first commit also commits the new loadout. An Anima
-        that already has a loadout fails on its key.
+        Idle and Reaction pools are written from the content installed now. The
+        Idle pool is seeded exactly as creation seeds it; each Reaction cell
+        holds its available Included starter Reactions, as ``restore_starter``
+        leaves it, and an unavailable one is left out. Nothing is committed: the
+        caller then sets the Avatar and other selections through ordinary
+        plan/commit changes, whose first commit also commits the new loadout.
+        An Anima that already has a loadout fails on its key.
         """
 
         if not await self._animas.is_owned_by_user(user_id=user_id, anima_id=anima_id):
             raise AnimaLoadoutError("anima_not_found")
-        visible = {item.id: item for item in await self._catalog.list_visible(user_id=user_id)}
-        idle = await resolve_starter_idle_pool(visible=visible, store=store)
-        await self._create_root(user_id=user_id, anima_id=anima_id, starter_exclusions=[], idle=idle)
+        visible = await self._catalog.list_visible(user_id=user_id)
+        idle = await resolve_starter_idle_pool(visible={item.id: item for item in visible}, store=store)
+        root = await self._create_root(user_id=user_id, anima_id=anima_id, starter_exclusions=[], idle=idle)
+        reaction_targets: list[TypedCatalogItem] = []
+        for cell, keys in starter_reaction_pools(root.starter_catalog_version).items():
+            starters, _ = await self._starter_reactions(user_id=user_id, keys=keys, lock=True, visible=visible)
+            for target in starters:
+                await self._upsert(
+                    root=root,
+                    slot=reaction_slot_key(cell, target.item.id),
+                    kind=ContentKind.REACTION,
+                    target=target,
+                    config={},
+                    current=None,
+                )
+            reaction_targets.extend(starters)
+        await self._dependency_counts(user_id=user_id, targets=reaction_targets)
         await self._session.flush()
 
     async def initialize(self, *, user_id: str, anima_id: str, spec: ResolvedAnimaSpec) -> None:
