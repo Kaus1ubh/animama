@@ -30,11 +30,13 @@ Rules agreed for this wave, on top of the first wave's house styles:
 ## Progress
 
 - [x] 2026-10-15 Owner agreed the lists; issue #585 opened.
-- [ ] Phase 1: Gesture drafts.
-- [ ] Phase 2: Avatar Effects (props, new effects, `doki_doki`).
-- [ ] Phase 3: Particle Effects.
-- [ ] Phase 4: Scene FX sprite restyle; pairing; blow-a-kiss revisions.
-- [ ] Phase 5: owner review, save, promote and journeys.
+- [x] Phase 1: Gesture drafts, agent and owner review rounds (G1).
+- [x] Phase 2: Avatar Effects (props, new effects, `doki_doki`).
+- [x] Phase 3: Particle Effects.
+- [x] Phase 4: Scene FX sprite restyle; pairing; blow-a-kiss revisions.
+- [x] Phase 5: owner approval (G2), save and promotion (`741032db`).
+- [x] Eyelid correction (owner-added scope, `8b445fed`).
+- [ ] PR and merge approval.
 
 ## Decision Log
 
@@ -52,6 +54,15 @@ Rules agreed for this wave, on top of the first wave's house styles:
   becomes heartbeat pulse lines.
 - 2026-10-15 agent: `detective_squint` holds a `magnifier` prop instead of
   miming a lens.
+- 2026-10-15 owner: removed `mojimoji_shy_sway`; renamed the tilt to
+  `surprised_head_tilt` and the snicker to `snicker_laugh`; `offer_a_rose`
+  keeps the rose prop and blush without a particle; `checking_phone` kept
+  with a camera-facing phone in the palm.
+- 2026-10-15 owner: fix over-closed eyelids (blink on top of happy/relaxed)
+  at runtime in this PR, calibrated per Avatar, with preview/render parity;
+  happy closes the lids more than relaxed.
+- 2026-10-15 owner: browser journeys skipped for this PR; Codex agents used
+  for drafting, Claude agents for the rest.
 
 ## Gates
 
@@ -97,4 +108,14 @@ dry-run first; a wrong promotion is undone by reverting its commit.
 
 ## Outcomes & Retrospective
 
-To be completed at the end of the plan.
+Delivered: 19 Gestures (152 Included), 9 Avatar Effects including four
+hand-held props (109 Included), 8 Particle Effects, `doki_doki` redrawn as
+heartbeat lines, symbol sprites redrawn in 32 Scene Effects, kiss lips for
+both blow-a-kiss Gestures, and a runtime eyelid correction
+(`src/frontend/web/src/lib/avatar/eyelidClosure.ts`).
+
+Validation is recorded in the PR. Lessons: props work as hand-attached Avatar
+Effects when the grip and the attachment are fitted together, and a
+camera-facing attachment reads better than a bone-facing one for flat props;
+VRoid mood expressions already close the eyelids, so blink needs an
+overrideBlink-style correction rather than per-clip thresholds.
