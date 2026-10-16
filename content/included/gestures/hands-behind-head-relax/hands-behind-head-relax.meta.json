@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:hands-behind-head-relax",
+  "version": 1,
+  "semantic_key": "hands_behind_head_relax",
+  "name": "Hands Behind Head Relax",
+  "description": "Leans back with hands behind the head, chill and content. Use for relaxing, taking a break or feeling carefree.",
+  "ai_description": "Leans back with hands behind the head, chill and content. Use for relaxing, taking a break or feeling carefree.",
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [],
+  "files": [
+    {
+      "path": "hands-behind-head-relax.json",
+      "role": "sequence"
+    }
+  ]
+}

@@ -12,9 +12,9 @@
   },
   "dependencies": [
     {
-      "ref": "builtin:avatar-effect:heart_pop",
-      "alias": "heart_pop",
-      "content_type": "avatar_effect",
+      "ref": "builtin:particle-effect:kiss-lips-float",
+      "alias": "kiss_lips_float",
+      "content_type": "particle_effect",
       "config": {}
     }
   ],

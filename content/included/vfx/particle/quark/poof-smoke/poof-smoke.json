@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "content_type": "particle_effect",
+  "content_id": "builtin:particle-effect:poof-smoke",
+  "version": 1,
+  "name": "Poof Smoke",
+  "description": "A luminous round poof of pearl-white smoke expands with silver star glints, then vanishes in a quick playful flourish.",
+  "runtime_defaults": {
+    "schema_version": 1,
+    "runtime_id": "poof-smoke",
+    "slots": {
+      "particle_vfx": {
+        "label": "Poof Smoke",
+        "description": "A luminous round poof of pearl-white smoke expands with silver star glints, then vanishes in a quick playful flourish.",
+        "anchor": "chest",
+        "duration_seconds": 1.2,
+        "max_duration_seconds": 1.2,
+        "preload_tier": "none",
+        "follow_anchor": true,
+        "transform": {
+          "offset": {
+            "x": 0,
+            "y": 0.08,
+            "z": 0
+          },
+          "depth_offset": 0.2,
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "looping_allowed": false,
+        "can_coexist": true,
+        "max_particles": 40
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "particle.json",
+      "role": "manifest"
+    },
+    {
+      "path": "textures/smoke-puff.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/glow-soft.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/poof-glint.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/brackeys-smoke.png",
+      "role": "texture"
+    }
+  ]
+}

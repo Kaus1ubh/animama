@@ -22,7 +22,10 @@ export interface AvatarLoadSpec {
   resourceUrls?: Readonly<Record<string, string>>;
   /** The Avatar's saved face part correction, if any. */
   facePartCorrections?: AvatarFacePartCorrections | null;
-  /** sha256 of the VRM bytes; a correction applies only when it matches. */
+  /**
+   * sha256 of the VRM bytes. A face part correction applies only when it
+   * matches; it also selects a verified eyelid closure profile.
+   */
   vrmSha256?: string | null;
 }
 

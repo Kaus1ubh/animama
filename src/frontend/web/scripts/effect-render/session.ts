@@ -19,6 +19,7 @@ import { getResolvedAvatarPose } from "@/lib/avatar/poses/catalog";
 import { applyAvatarVFXEffectById } from "@/lib/avatar/vfx/runtime";
 import { updatePoseCreatorAvatarFrame } from "@/ui/pose-creator/poseCreatorAvatarFrame";
 
+import { avatarFileSha256 } from "./avatarFile";
 import type { ReviewStage } from "./reviewStage";
 import { missingSceneMessage } from "./sceneBands";
 import { effectEntry, type EffectSource, type Framing } from "./stage";
@@ -217,7 +218,10 @@ export class EffectSession {
       mediaCatalog: media,
     });
     try {
-      await avatar.load({ filePath: url });
+      await avatar.load({
+        filePath: url,
+        vrmSha256: await avatarFileSha256(url),
+      });
       avatar.setAutomaticAnimationPlaybackEnabled(false);
       avatar.prepareFirstFrame();
       const session = new EffectSession(avatar, media, request, stage);

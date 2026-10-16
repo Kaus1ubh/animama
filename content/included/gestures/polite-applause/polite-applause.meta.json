@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:polite-applause",
+  "version": 1,
+  "semantic_key": "polite_applause",
+  "name": "Polite Applause",
+  "description": "Warm, light applause with a smile. Use to congratulate the user on a small win or appreciate a nice idea.",
+  "ai_description": "Warm, light applause with a smile. Use to congratulate the user on a small win or appreciate a nice idea.",
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [
+    {
+      "ref": "builtin:particle-effect:clap-sparks",
+      "alias": "clap_sparks",
+      "content_type": "particle_effect",
+      "config": {}
+    }
+  ],
+  "files": [
+    {
+      "path": "polite-applause.json",
+      "role": "sequence"
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:rose",
+  "version": 1,
+  "name": "Rose",
+  "description": "A hand-drawn red rose with a long green stem held in the right hand for a charming romantic offer.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "body",
+    "attachment": {
+      "kind": "body",
+      "bone": "rightHand",
+      "facing": "camera",
+      "offset": {
+        "x": -0.102,
+        "y": -0.008,
+        "z": 0.067
+      },
+      "size": 0.27
+    },
+    "art": {
+      "image": "rose-sheet.png",
+      "flipbook": {
+        "columns": 2,
+        "fps": 8,
+        "frames": 4,
+        "loop": "loop",
+        "rows": 2
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "rose-sheet.png",
+      "role": "image"
+    }
+  ]
+}

@@ -464,6 +464,20 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "content/included/gestures/aww-hands-to-chest/aww-hands-to-chest.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #585); owner-reviewed and approved 2026-10-15; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/gestures/aww-hands-to-chest/aww-hands-to-chest.meta.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #585); owner-reviewed and approved 2026-10-15; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "content/included/gestures/beckon/beckon.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #409); owner-reviewed and approved 2026-10-11; no third-party animation data",
@@ -564,28 +578,28 @@
     {
       "path": "content/included/gestures/blow-a-kiss-2/blow-a-kiss-2.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #314; effect event added in #409); owner-reviewed and approved 2026-10-09, revision approved 2026-10-11; no third-party animation data",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #314; effect event added in #409); owner-reviewed and approved 2026-10-09, revision approved 2026-10-11; effect event re-pointed to kiss-lips-float in #585, owner-reviewed and approved 2026-10-15; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
       "path": "content/included/gestures/blow-a-kiss-2/blow-a-kiss-2.meta.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #314; effect event added in #409); owner-reviewed and approved 2026-10-09, revision approved 2026-10-11; no third-party animation data",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #314; effect event added in #409); owner-reviewed and approved 2026-10-09, revision approved 2026-10-11; effect event re-pointed to kiss-lips-float in #585, owner-reviewed and approved 2026-10-15; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
       "path": "content/included/gestures/blow-a-kiss/blow-a-kiss.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #282, revised in #314 and #409); owner-reviewed and approved 2026-10-07, revisions approved 2026-10-09 and 2026-10-11; no third-party animation data",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #282, revised in #314 and #409); owner-reviewed and approved 2026-10-07, revisions approved 2026-10-09 and 2026-10-11; effect event re-pointed to kiss-lips-float in #585, owner-reviewed and approved 2026-10-15; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
       "path": "content/included/gestures/blow-a-kiss/blow-a-kiss.meta.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #282, revised in #314 and #409); owner-reviewed and approved 2026-10-07, revisions approved 2026-10-09 and 2026-10-11; no third-party animation data",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #282, revised in #314 and #409); owner-reviewed and approved 2026-10-07, revisions approved 2026-10-09 and 2026-10-11; effect event re-pointed to kiss-lips-float in #585, owner-reviewed and approved 2026-10-15; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -635,6 +649,20 @@
       "path": "content/included/gestures/brush-off-shoulders/brush-off-shoulders.meta.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #575); owner-reviewed and approved 2026-10-15; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/gestures/calm-down-pat/calm-down-pat.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #585); owner-reviewed and approved 2026-10-15; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/gestures/calm-down-pat/calm-down-pat.meta.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #585); owner-reviewed and approved 2026-10-15; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -695,6 +723,20 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "content/included/gestures/checking-phone/checking-phone.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #585); owner-reviewed and approved 2026-10-15; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/gestures/checking-phone/checking-phone.meta.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #585); owner-reviewed and approved 2026-10-15; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "content/included/gestures/cheeky-finger-guns/cheeky-finger-guns.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #282, revised in #314 and #409); owner-reviewed and approved 2026-10-07, revisions approved 2026-10-09 and 2026-10-11; no third-party animation data",
@@ -733,6 +775,20 @@
       "path": "content/included/gestures/clapping_v1/clapping_v1.meta.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/gestures/confession-letter-bow/confession-letter-bow.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #585); owner-reviewed and approved 2026-10-15; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/gestures/confession-letter-bow/confession-letter-bow.meta.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #585); owner-reviewed and approved 2026-10-15; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -810,6 +866,34 @@
       "path": "content/included/gestures/deflated-sigh/deflated-sigh.meta.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #282; effect event added in #409); owner-reviewed and approved 2026-10-07, revision approved 2026-10-11; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/gestures/detective-squint/detective-squint.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #585); owner-reviewed and approved 2026-10-15; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/gestures/detective-squint/detective-squint.meta.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #585); owner-reviewed and approved 2026-10-15; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/gestures/dismissive-hand-wave/dismissive-hand-wave.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #585); owner-reviewed and approved 2026-10-15; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/gestures/dismissive-hand-wave/dismissive-hand-wave.meta.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #585); owner-reviewed and approved 2026-10-15; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -1248,6 +1332,20 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "content/included/gestures/hand-hold-offer/hand-hold-offer.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #585); owner-reviewed and approved 2026-10-15; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/gestures/hand-hold-offer/hand-hold-offer.meta.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #585); owner-reviewed and approved 2026-10-15; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "content/included/gestures/hand-to-ear/hand-to-ear.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #409); owner-reviewed and approved 2026-10-11; no third-party animation data",
@@ -1258,6 +1356,20 @@
       "path": "content/included/gestures/hand-to-ear/hand-to-ear.meta.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #409); owner-reviewed and approved 2026-10-11; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/gestures/hands-behind-head-relax/hands-behind-head-relax.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #585); owner-reviewed and approved 2026-10-15; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/gestures/hands-behind-head-relax/hands-behind-head-relax.meta.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #585); owner-reviewed and approved 2026-10-15; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -1349,6 +1461,20 @@
       "path": "content/included/gestures/heart-hands-build/heart-hands-build.meta.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #409), re-animated from scratch to replace the owner-authored #337 conversion; owner-reviewed and approved 2026-10-11; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/gestures/heart-shot-oof/heart-shot-oof.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #585); owner-reviewed and approved 2026-10-15; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/gestures/heart-shot-oof/heart-shot-oof.meta.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #585); owner-reviewed and approved 2026-10-15; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -1528,6 +1654,20 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "content/included/gestures/lean-in-coy/lean-in-coy.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #585); owner-reviewed and approved 2026-10-15; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/gestures/lean-in-coy/lean-in-coy.meta.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #585); owner-reviewed and approved 2026-10-15; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "content/included/gestures/left-ok-sign/left-ok-sign.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #314), re-animated from scratch to replace the owner-authored #337 conversion; owner-reviewed and approved 2026-10-09; no third-party animation data",
@@ -1689,6 +1829,20 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "content/included/gestures/offer-a-rose/offer-a-rose.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #585); owner-reviewed and approved 2026-10-15; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/gestures/offer-a-rose/offer-a-rose.meta.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #585); owner-reviewed and approved 2026-10-15; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "content/included/gestures/offscreen-look/offscreen-look.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #409); owner-reviewed and approved 2026-10-11; no third-party animation data",
@@ -1699,6 +1853,20 @@
       "path": "content/included/gestures/offscreen-look/offscreen-look.meta.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #409); owner-reviewed and approved 2026-10-11; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/gestures/oh-no-cheeks-panic/oh-no-cheeks-panic.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #585); owner-reviewed and approved 2026-10-15; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/gestures/oh-no-cheeks-panic/oh-no-cheeks-panic.meta.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #585); owner-reviewed and approved 2026-10-15; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -1727,6 +1895,20 @@
       "path": "content/included/gestures/on-one-hand/on-one-hand.meta.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #409); owner-reviewed and approved 2026-10-11; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/gestures/one-moment-finger/one-moment-finger.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #585); owner-reviewed and approved 2026-10-15; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/gestures/one-moment-finger/one-moment-finger.meta.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #585); owner-reviewed and approved 2026-10-15; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -1773,6 +1955,20 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "content/included/gestures/pinch-nose-stinky/pinch-nose-stinky.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #585); owner-reviewed and approved 2026-10-15; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/gestures/pinch-nose-stinky/pinch-nose-stinky.meta.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #585); owner-reviewed and approved 2026-10-15; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "content/included/gestures/pinky-promise/pinky-promise.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #409); owner-reviewed and approved 2026-10-11; no third-party animation data",
@@ -1804,6 +2000,20 @@
       "path": "content/included/gestures/please-hands/please-hands.meta.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #409); owner-reviewed and approved 2026-10-11; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/gestures/polite-applause/polite-applause.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #585); owner-reviewed and approved 2026-10-15; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/gestures/polite-applause/polite-applause.meta.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #585); owner-reviewed and approved 2026-10-15; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -2319,6 +2529,20 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "content/included/gestures/snicker-laugh/snicker-laugh.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #585); owner-reviewed and approved 2026-10-15; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/gestures/snicker-laugh/snicker-laugh.meta.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #585); owner-reviewed and approved 2026-10-15; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "content/included/gestures/sniff-sniff/sniff-sniff.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #575); owner-reviewed and approved 2026-10-15; no third-party animation data",
@@ -2389,6 +2613,20 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "content/included/gestures/spooky-ghost-hands/spooky-ghost-hands.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #585); owner-reviewed and approved 2026-10-15; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/gestures/spooky-ghost-hands/spooky-ghost-hands.meta.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #585); owner-reviewed and approved 2026-10-15; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "content/included/gestures/stretch-break/stretch-break.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #409); owner-reviewed and approved 2026-10-11; no third-party animation data",
@@ -2417,6 +2655,20 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "content/included/gestures/surprised-head-tilt/surprised-head-tilt.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #585); owner-reviewed and approved 2026-10-15; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/gestures/surprised-head-tilt/surprised-head-tilt.meta.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #585); owner-reviewed and approved 2026-10-15; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "content/included/gestures/surprised/surprised.meta.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -2427,6 +2679,20 @@
       "path": "content/included/gestures/talk/talk.meta.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/gestures/tantrum-stomp/tantrum-stomp.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #585); owner-reviewed and approved 2026-10-15; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/gestures/tantrum-stomp/tantrum-stomp.meta.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #585); owner-reviewed and approved 2026-10-15; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -5742,6 +6008,20 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "content/included/vfx/avatar/cupid_arrow_stuck/cupid_arrow_stuck-sheet.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-generated artwork made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585), using Animama's Marker style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/avatar/cupid_arrow_stuck/cupid_arrow_stuck.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored Avatar Effect definition and descriptor under Raymond Van's direction (animama-avatar-vfx skill, #585), written from text briefs; artwork is recorded separately; owner-reviewed and approved 2026-10-15.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "content/included/vfx/avatar/delicious_sparkle/delicious_sparkle-sheet.png",
       "candidate_license": "AGPL-3.0-only",
       "basis": "AI-generated artwork made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #575), using Animama's Marker style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
@@ -5786,14 +6066,14 @@
     {
       "path": "content/included/vfx/avatar/doki_doki/doki_doki-sheet.png",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately; flipbook frames derived from doki_doki.png by the agent-run effects:assets frames tool (line boil, #543); owner-reviewed and approved 2026-10-14",
+      "basis": "AI-generated artwork made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585), using Animama's Marker style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
       "path": "content/included/vfx/avatar/doki_doki/doki_doki.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "basis": "AI-agent-authored Avatar Effect definition and descriptor under Raymond Van's direction (animama-avatar-vfx skill, #585), written from text briefs; artwork is recorded separately; owner-reviewed and approved 2026-10-15.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -6176,6 +6456,20 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "content/included/vfx/avatar/kiss_mark/kiss_mark.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored Avatar Effect definition and descriptor under Raymond Van's direction (animama-avatar-vfx skill, #585), written from text briefs; artwork is recorded separately; owner-reviewed and approved 2026-10-15.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/avatar/kiss_mark/kiss_mark.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-generated artwork made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585), using Animama's Marker style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "content/included/vfx/avatar/knockout-x-eyes/cross.png",
       "candidate_license": "AGPL-3.0-only",
       "basis": "AI-generated artwork made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #523), then prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records.",
@@ -6214,6 +6508,34 @@
       "path": "content/included/vfx/avatar/little-devil-horns/little-devil-horns.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "AI-agent-authored Avatar Effect definition and descriptor under Raymond Van's direction (animama-avatar-vfx skill, #575), written from text briefs; artwork is recorded separately; owner-reviewed and approved 2026-10-15.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/avatar/love_letter/love_letter-sheet.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-generated artwork made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585), using Animama's Marker style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/avatar/love_letter/love_letter.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored Avatar Effect definition and descriptor under Raymond Van's direction (animama-avatar-vfx skill, #585), written from text briefs; artwork is recorded separately; owner-reviewed and approved 2026-10-15.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/avatar/magnifier/magnifier-sheet.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-generated artwork made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585), using Animama's Marker style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/avatar/magnifier/magnifier.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored Avatar Effect definition and descriptor under Raymond Van's direction (animama-avatar-vfx skill, #585), written from text briefs; artwork is recorded separately; owner-reviewed and approved 2026-10-15.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -6435,6 +6757,20 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "content/included/vfx/avatar/rose/rose-sheet.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-generated artwork made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585), using Animama's Marker style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/avatar/rose/rose.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored Avatar Effect definition and descriptor under Raymond Van's direction (animama-avatar-vfx skill, #585), written from text briefs; artwork is recorded separately; owner-reviewed and approved 2026-10-15.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "content/included/vfx/avatar/scratch_ticks/scratch_ticks-draw-on.png",
       "candidate_license": "AGPL-3.0-only",
       "basis": "AI-agent-authored under Raymond Van's direction: vector art drawn by an agent-written script (animama-effect-assets skill, #409); owner-reviewed and approved 2026-10-11; no third-party art; flipbook frames derived from scratch_ticks.png by the agent-run effects:assets frames tool (draw-on, #543); owner-reviewed and approved 2026-10-14",
@@ -6519,6 +6855,20 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "content/included/vfx/avatar/shock_zigzag/shock_zigzag.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored Avatar Effect definition and descriptor under Raymond Van's direction (animama-avatar-vfx skill, #585), written from text briefs; artwork is recorded separately; owner-reviewed and approved 2026-10-15.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/avatar/shock_zigzag/shock_zigzag.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-generated artwork made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585), using Animama's Ink style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "content/included/vfx/avatar/sigh_puff_droop/sigh_puff.png",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -6571,6 +6921,20 @@
       "path": "content/included/vfx/avatar/sly_glint/sly_glint.png",
       "candidate_license": "AGPL-3.0-only",
       "basis": "AI-generated by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #409); owner-reviewed and approved 2026-10-11; no third-party art",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/avatar/smartphone/smartphone-sheet.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-generated artwork made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585), using Animama's Marker style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/avatar/smartphone/smartphone.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored Avatar Effect definition and descriptor under Raymond Van's direction (animama-avatar-vfx skill, #585), written from text briefs; artwork is recorded separately; owner-reviewed and approved 2026-10-15.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -6687,6 +7051,20 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "content/included/vfx/avatar/stink_lines/stink_lines.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored Avatar Effect definition and descriptor under Raymond Van's direction (animama-avatar-vfx skill, #585), written from text briefs; artwork is recorded separately; owner-reviewed and approved 2026-10-15.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/avatar/stink_lines/stink_lines.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-generated artwork made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585), using Animama's Ink style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "content/included/vfx/avatar/stomach_butterflies/stomach_butterflies-sheet.png",
       "candidate_license": "AGPL-3.0-only",
       "basis": "AI-generated by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #569) with Animama's Marker style reference image (#564): a key image, then flipbook frames each edited from the previous frame with the key as the style reference, prepared for Animama by agent-operated asset tooling; owner review (G2) pending; no third-party art",
@@ -6697,6 +7075,20 @@
       "path": "content/included/vfx/avatar/stomach_butterflies/stomach_butterflies.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "AI-agent-authored Avatar Effect definition and descriptor under Raymond Van's direction (animama-avatar-vfx skill, #569), written from text briefs; artwork is recorded separately; owner review (G2) pending",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/avatar/stomp_dust/stomp_dust.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored Avatar Effect definition and descriptor under Raymond Van's direction (animama-avatar-vfx skill, #585), written from text briefs; artwork is recorded separately; owner-reviewed and approved 2026-10-15.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/avatar/stomp_dust/stomp_dust.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-generated artwork made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585), using Animama's Marker style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -7636,6 +8028,34 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "content/included/vfx/particle/quark/clap-sparks/clap-sparks.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored Particle Effect descriptor and Quarks manifest under Raymond Van's direction (animama-particle-vfx skill, #585), written from text briefs; artwork and reused texture provenance are recorded separately; owner-reviewed and approved 2026-10-15.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/clap-sparks/particle.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored Particle Effect descriptor and Quarks manifest under Raymond Van's direction (animama-particle-vfx skill, #585), written from text briefs; artwork and reused texture provenance are recorded separately; owner-reviewed and approved 2026-10-15.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/clap-sparks/textures/clap-glint.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/clap-sparks/textures/clap-glow.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "content/included/vfx/particle/quark/cold-breeze/cold-breeze.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "AI-agent-authored Particle Effect descriptor and Quarks manifest under Raymond Van's direction (animama-particle-vfx skill, #569), written from text briefs by an agent-written build script; artwork is recorded separately; owner review (G2) pending",
@@ -7884,6 +8304,34 @@
     },
     {
       "path": "content/included/vfx/particle/quark/energy-wave-charge/textures/soft-dot.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/fireflies/fireflies.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored Particle Effect descriptor and Quarks manifest under Raymond Van's direction (animama-particle-vfx skill, #585), written from text briefs; artwork and reused texture provenance are recorded separately; owner-reviewed and approved 2026-10-15.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/fireflies/particle.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored Particle Effect descriptor and Quarks manifest under Raymond Van's direction (animama-particle-vfx skill, #585), written from text briefs; artwork and reused texture provenance are recorded separately; owner-reviewed and approved 2026-10-15.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/fireflies/textures/firefly-core.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/fireflies/textures/firefly-halo.png",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
@@ -8317,6 +8765,76 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "content/included/vfx/particle/quark/kiss-lips-float/kiss-lips-float.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored Particle Effect descriptor and Quarks manifest under Raymond Van's direction (animama-particle-vfx skill, #585), written from text briefs; artwork and reused texture provenance are recorded separately; owner-reviewed and approved 2026-10-15.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/kiss-lips-float/particle.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored Particle Effect descriptor and Quarks manifest under Raymond Van's direction (animama-particle-vfx skill, #585), written from text briefs; artwork and reused texture provenance are recorded separately; owner-reviewed and approved 2026-10-15.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/kiss-lips-float/textures/kiss-glint.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/kiss-lips-float/textures/kiss-haze.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/kiss-lips-float/textures/kiss-lips.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-generated artwork (a single soft glossy lips sprite) made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585) from a text prompt; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/love-letter-flutter/love-letter-flutter.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored Particle Effect descriptor and Quarks manifest under Raymond Van's direction (animama-particle-vfx skill, #585), written from text briefs; artwork and reused texture provenance are recorded separately; owner-reviewed and approved 2026-10-15.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/love-letter-flutter/particle.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored Particle Effect descriptor and Quarks manifest under Raymond Van's direction (animama-particle-vfx skill, #585), written from text briefs; artwork and reused texture provenance are recorded separately; owner-reviewed and approved 2026-10-15.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/love-letter-flutter/textures/letter-envelope.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-generated artwork (a single closed pearlescent envelope sprite) made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585) from a text prompt; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/love-letter-flutter/textures/letter-glint.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/love-letter-flutter/textures/letter-haze.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "content/included/vfx/particle/quark/musical-cascade/musical-cascade.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "AI-agent-authored Particle Effect descriptor and Quarks manifest under Raymond Van's direction (animama-particle-vfx skill, #575), written from text briefs; artwork and reused texture provenance are recorded separately; owner-reviewed and approved 2026-10-15.",
@@ -8433,6 +8951,79 @@
       "candidate_license": "AGPL-3.0-only",
       "basis": "AI-generated artwork made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #569), then prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner review (G2) pending; no third-party art",
       "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/poof-smoke/particle.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored Particle Effect descriptor and Quarks manifest under Raymond Van's direction (animama-particle-vfx skill, #585), written from text briefs; artwork and reused texture provenance are recorded separately; owner-reviewed and approved 2026-10-15.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/poof-smoke/poof-smoke.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored Particle Effect descriptor and Quarks manifest under Raymond Van's direction (animama-particle-vfx skill, #585), written from text briefs; artwork and reused texture provenance are recorded separately; owner-reviewed and approved 2026-10-15.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/poof-smoke/textures/brackeys-smoke.png",
+      "candidate_license": "CC0-1.0",
+      "basis": "Retained third-party artwork and verified source mapping",
+      "source": "brackeys",
+      "revision": "Exact archived source hashes in mapping",
+      "copyright": "Picster/Raffaele Picca and Kenney; repackaged by Brackeys",
+      "evidence": [
+        "licenses/third-party/art-particles.json"
+      ],
+      "notices": [
+        "licenses/third-party/art-Brackeys-License-and-Credits.txt",
+        "licenses/third-party/art-NOTICES.md",
+        "licenses/third-party/art-CC0-1.0.txt"
+      ],
+      "conditions": [],
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/poof-smoke/textures/glow-soft.png",
+      "candidate_license": "CC0-1.0",
+      "basis": "Retained third-party artwork and verified source mapping",
+      "source": "kenney",
+      "revision": "Exact archived source hashes in mapping",
+      "copyright": "Kenney Vleugels and credited contributors",
+      "evidence": [
+        "licenses/third-party/art-particles.json"
+      ],
+      "notices": [
+        "licenses/third-party/art-Kenney-License.txt",
+        "licenses/third-party/art-CC0-1.0.txt"
+      ],
+      "conditions": [],
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/poof-smoke/textures/poof-glint.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-generated artwork made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #569), then prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner review (G2) pending; no third-party art",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/poof-smoke/textures/smoke-puff.png",
+      "candidate_license": "CC0-1.0",
+      "basis": "Retained third-party artwork and verified source mapping",
+      "source": "kenney",
+      "revision": "Exact archived source hashes in mapping",
+      "copyright": "Kenney Vleugels and credited contributors",
+      "evidence": [
+        "licenses/third-party/art-particles.json"
+      ],
+      "notices": [
+        "licenses/third-party/art-Kenney-License.txt",
+        "licenses/third-party/art-CC0-1.0.txt"
+      ],
+      "conditions": [],
       "review": "prepared-not-release-approved"
     },
     {
@@ -8579,6 +9170,125 @@
       "path": "content/included/vfx/particle/quark/rain-cloud/textures/splash-glint.png",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/rose-bloom-burst/particle.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored Particle Effect descriptor and Quarks manifest under Raymond Van's direction (animama-particle-vfx skill, #585), written from text briefs; artwork and reused texture provenance are recorded separately; owner-reviewed and approved 2026-10-15.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/rose-bloom-burst/rose-bloom-burst.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored Particle Effect descriptor and Quarks manifest under Raymond Van's direction (animama-particle-vfx skill, #585), written from text briefs; artwork and reused texture provenance are recorded separately; owner-reviewed and approved 2026-10-15.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/rose-bloom-burst/textures/romance-curved-petal-sheet.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-generated artwork made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #569), then prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner review (G2) pending; no third-party art",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/rose-bloom-burst/textures/romance-glint.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/rose-bloom-burst/textures/romance-haze.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/rose-bloom-burst/textures/romance-rose.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-generated artwork (a single luminous rose sprite) made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585) from a text prompt; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/shooting-stars/particle.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored Particle Effect descriptor and Quarks manifest under Raymond Van's direction (animama-particle-vfx skill, #585), written from text briefs; artwork and reused texture provenance are recorded separately; owner-reviewed and approved 2026-10-15.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/shooting-stars/shooting-stars.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored Particle Effect descriptor and Quarks manifest under Raymond Van's direction (animama-particle-vfx skill, #585), written from text briefs; artwork and reused texture provenance are recorded separately; owner-reviewed and approved 2026-10-15.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/shooting-stars/textures/shooting-trail.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-generated artwork made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #569), then prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner review (G2) pending; no third-party art",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/shooting-stars/textures/soft-haze.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-generated artwork made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #569), then prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner review (G2) pending; no third-party art",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/shooting-stars/textures/star-glint.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-generated artwork made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #569), then prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner review (G2) pending; no third-party art",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/shoujo-sparkle-frame/particle.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored Particle Effect descriptor and Quarks manifest under Raymond Van's direction (animama-particle-vfx skill, #585), written from text briefs; artwork and reused texture provenance are recorded separately; owner-reviewed and approved 2026-10-15.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/shoujo-sparkle-frame/shoujo-sparkle-frame.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored Particle Effect descriptor and Quarks manifest under Raymond Van's direction (animama-particle-vfx skill, #585), written from text briefs; artwork and reused texture provenance are recorded separately; owner-reviewed and approved 2026-10-15.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/shoujo-sparkle-frame/textures/romance-bokeh.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/shoujo-sparkle-frame/textures/romance-glint.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/shoujo-sparkle-frame/textures/romance-haze.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/shoujo-sparkle-frame/textures/romance-rose.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-generated artwork (a single luminous rose sprite) made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585) from a text prompt; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -8900,14 +9610,14 @@
     {
       "path": "content/included/vfx/scene/awkward-silence/tumbleweed.png",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "AI-generated artwork made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #523), then prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records.",
+      "basis": "AI-generated redraw made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585) from the earlier Included sprite content/included/vfx/scene/awkward-silence/tumbleweed.png as subject and layout reference, using Animama's Ink style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
       "path": "content/included/vfx/scene/awkward-silence/wind-strokes.png",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "AI-agent-authored geometric artwork under Raymond Van's direction: vector art drawn by an agent-written script and rasterized to PNG (animama-effect-assets skill, #523).",
+      "basis": "AI-generated redraw made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585) from the earlier Included sprite content/included/vfx/scene/awkward-silence/wind-strokes.png as subject and layout reference, using Animama's Ink style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -8935,7 +9645,7 @@
     {
       "path": "content/included/vfx/scene/scene-vfx-emotion-admiration-b/shoujo-bubble.png",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "AI-generated artwork made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #569), then prepared for Animama by agent-operated asset tooling; owner review (G2) pending; no third-party art",
+      "basis": "AI-generated redraw made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585) from the earlier Included sprite content/included/vfx/scene/scene-vfx-emotion-admiration-b/shoujo-bubble.png as subject and layout reference, using Animama's Marker style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -8977,7 +9687,7 @@
     {
       "path": "content/included/vfx/scene/scene-vfx-emotion-amusement-b/giggle-squiggle.png",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "basis": "AI-generated redraw made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585) from the earlier Included sprite content/included/vfx/scene/scene-vfx-emotion-amusement-b/giggle-squiggle.png as subject and layout reference, using Animama's Marker style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -8991,14 +9701,14 @@
     {
       "path": "content/included/vfx/scene/scene-vfx-emotion-amusement/giggle-squiggle.png",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "basis": "AI-generated redraw made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585) from the earlier Included sprite content/included/vfx/scene/scene-vfx-emotion-amusement/giggle-squiggle.png as subject and layout reference, using Animama's Marker style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
       "path": "content/included/vfx/scene/scene-vfx-emotion-amusement/music-note.png",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "basis": "AI-generated redraw made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585) from the earlier Included sprite content/included/vfx/scene/scene-vfx-emotion-amusement/music-note.png as subject and layout reference, using Animama's Marker style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -9012,7 +9722,7 @@
     {
       "path": "content/included/vfx/scene/scene-vfx-emotion-anger-b/rumble-marks.png",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "AI-generated artwork made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #569) in Animama's Ink style, then prepared for Animama by agent-operated asset tooling; owner review (G2) pending; no third-party art",
+      "basis": "AI-generated redraw made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585) from the earlier Included sprite content/included/vfx/scene/scene-vfx-emotion-anger-b/rumble-marks.png as subject and layout reference, using Animama's Ink style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -9026,7 +9736,7 @@
     {
       "path": "content/included/vfx/scene/scene-vfx-emotion-anger/anger-mark.png",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "basis": "AI-generated redraw made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585) from the earlier Included sprite content/included/vfx/scene/scene-vfx-emotion-anger/anger-mark.png as subject and layout reference, using Animama's Ink style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -9040,7 +9750,7 @@
     {
       "path": "content/included/vfx/scene/scene-vfx-emotion-annoyance-b/rumble-marks.png",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "AI-generated artwork made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #569) in Animama's Ink style, then prepared for Animama by agent-operated asset tooling; owner review (G2) pending; no third-party art",
+      "basis": "AI-generated redraw made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585) from the earlier Included sprite content/included/vfx/scene/scene-vfx-emotion-annoyance-b/rumble-marks.png as subject and layout reference, using Animama's Ink style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -9054,7 +9764,7 @@
     {
       "path": "content/included/vfx/scene/scene-vfx-emotion-annoyance/anger-mark.png",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "basis": "AI-generated redraw made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585) from the earlier Included sprite content/included/vfx/scene/scene-vfx-emotion-annoyance/anger-mark.png as subject and layout reference, using Animama's Ink style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -9068,7 +9778,7 @@
     {
       "path": "content/included/vfx/scene/scene-vfx-emotion-annoyance/steam-puff.png",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "basis": "AI-generated redraw made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585) from the earlier Included sprite content/included/vfx/scene/scene-vfx-emotion-annoyance/steam-puff.png as subject and layout reference, using Animama's Marker style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -9082,7 +9792,7 @@
     {
       "path": "content/included/vfx/scene/scene-vfx-emotion-caring-b/shoujo-bubble.png",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "AI-generated artwork made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #569), then prepared for Animama by agent-operated asset tooling; owner review (G2) pending; no third-party art",
+      "basis": "AI-generated redraw made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585) from the earlier Included sprite content/included/vfx/scene/scene-vfx-emotion-caring-b/shoujo-bubble.png as subject and layout reference, using Animama's Marker style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -9096,7 +9806,7 @@
     {
       "path": "content/included/vfx/scene/scene-vfx-emotion-caring/apricot-blossom.png",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "basis": "AI-generated redraw made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585) from the earlier Included sprite content/included/vfx/scene/scene-vfx-emotion-caring/apricot-blossom.png as subject and layout reference, using Animama's Marker style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -9110,7 +9820,7 @@
     {
       "path": "content/included/vfx/scene/scene-vfx-emotion-caring/leaf.png",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "basis": "AI-generated redraw made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585) from the earlier Included sprite content/included/vfx/scene/scene-vfx-emotion-caring/leaf.png as subject and layout reference, using Animama's Marker style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -9180,7 +9890,7 @@
     {
       "path": "content/included/vfx/scene/scene-vfx-emotion-confusion/dizzy-spiral.png",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "basis": "AI-generated redraw made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585) from the earlier Included sprite content/included/vfx/scene/scene-vfx-emotion-confusion/dizzy-spiral.png as subject and layout reference, using Animama's Ink style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -9250,7 +9960,7 @@
     {
       "path": "content/included/vfx/scene/scene-vfx-emotion-desire/heart-star-pink.png",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "basis": "AI-generated redraw made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585) from the earlier Included sprite content/included/vfx/scene/scene-vfx-emotion-desire/heart-star-pink.png as subject and layout reference, using Animama's Marker style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -9292,7 +10002,7 @@
     {
       "path": "content/included/vfx/scene/scene-vfx-emotion-disapproval-b/rumble-marks.png",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "AI-generated artwork made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #569) in Animama's Ink style, then prepared for Animama by agent-operated asset tooling; owner review (G2) pending; no third-party art",
+      "basis": "AI-generated redraw made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585) from the earlier Included sprite content/included/vfx/scene/scene-vfx-emotion-disapproval-b/rumble-marks.png as subject and layout reference, using Animama's Ink style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -9306,7 +10016,7 @@
     {
       "path": "content/included/vfx/scene/scene-vfx-emotion-disapproval/cross-mark.png",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "basis": "AI-generated redraw made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585) from the earlier Included sprite content/included/vfx/scene/scene-vfx-emotion-disapproval/cross-mark.png as subject and layout reference, using Animama's Ink style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -9320,7 +10030,7 @@
     {
       "path": "content/included/vfx/scene/scene-vfx-emotion-disgust-b/bubble-green.png",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "basis": "AI-generated redraw made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585) from the earlier Included sprite content/included/vfx/scene/scene-vfx-emotion-disgust-b/bubble-green.png as subject and layout reference, using Animama's Ink style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -9341,7 +10051,7 @@
     {
       "path": "content/included/vfx/scene/scene-vfx-emotion-disgust/bubble-green.png",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "basis": "AI-generated redraw made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585) from the earlier Included sprite content/included/vfx/scene/scene-vfx-emotion-disgust/bubble-green.png as subject and layout reference, using Animama's Ink style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -9355,14 +10065,14 @@
     {
       "path": "content/included/vfx/scene/scene-vfx-emotion-disgust/spiral-green.png",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "basis": "AI-generated redraw made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585) from the earlier Included sprite content/included/vfx/scene/scene-vfx-emotion-disgust/spiral-green.png as subject and layout reference, using Animama's Ink style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
       "path": "content/included/vfx/scene/scene-vfx-emotion-embarrassment-b/blush-hatch-lines.png",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "AI-generated artwork made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #569), then prepared for Animama by agent-operated asset tooling; owner review (G2) pending; no third-party art",
+      "basis": "AI-generated redraw made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585) from the earlier Included sprite content/included/vfx/scene/scene-vfx-emotion-embarrassment-b/blush-hatch-lines.png as subject and layout reference, using Animama's Marker style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -9376,7 +10086,7 @@
     {
       "path": "content/included/vfx/scene/scene-vfx-emotion-embarrassment-b/shoujo-bubble.png",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "AI-generated artwork made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #569), then prepared for Animama by agent-operated asset tooling; owner review (G2) pending; no third-party art",
+      "basis": "AI-generated redraw made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585) from the earlier Included sprite content/included/vfx/scene/scene-vfx-emotion-embarrassment-b/shoujo-bubble.png as subject and layout reference, using Animama's Marker style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -9390,7 +10100,7 @@
     {
       "path": "content/included/vfx/scene/scene-vfx-emotion-embarrassment/blush-hatch.png",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "basis": "AI-generated redraw made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585) from the earlier Included sprite content/included/vfx/scene/scene-vfx-emotion-embarrassment/blush-hatch.png as subject and layout reference, using Animama's Marker style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -9418,14 +10128,14 @@
     {
       "path": "content/included/vfx/scene/scene-vfx-emotion-embarrassment/steam-puff.png",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "basis": "AI-generated redraw made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585) from the earlier Included sprite content/included/vfx/scene/scene-vfx-emotion-embarrassment/steam-puff.png as subject and layout reference, using Animama's Marker style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
       "path": "content/included/vfx/scene/scene-vfx-emotion-excitement-b/burst-zigzag.png",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "basis": "AI-generated redraw made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585) from the earlier Included sprite content/included/vfx/scene/scene-vfx-emotion-excitement-b/burst-zigzag.png as subject and layout reference, using Animama's Marker style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -9439,35 +10149,35 @@
     {
       "path": "content/included/vfx/scene/scene-vfx-emotion-excitement-b/zigzag-ribbon.png",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "AI-generated artwork made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #569) with the owner-authored Included sticker burst-zigzag.png as the style reference, then prepared for Animama by agent-operated asset tooling; owner review (G2) pending; no third-party art",
+      "basis": "AI-generated redraw made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585) from the earlier Included sprite content/included/vfx/scene/scene-vfx-emotion-excitement-b/zigzag-ribbon.png as subject and layout reference, using Animama's Marker style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
       "path": "content/included/vfx/scene/scene-vfx-emotion-excitement/burst-zigzag.png",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "basis": "AI-generated redraw made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585) from the earlier Included sprite content/included/vfx/scene/scene-vfx-emotion-excitement/burst-zigzag.png as subject and layout reference, using Animama's Marker style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
       "path": "content/included/vfx/scene/scene-vfx-emotion-excitement/confetti-chip-teal.png",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "basis": "AI-generated redraw made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585) from the earlier Included sprite content/included/vfx/scene/scene-vfx-emotion-excitement/confetti-chip-teal.png as subject and layout reference, using Animama's Marker style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
       "path": "content/included/vfx/scene/scene-vfx-emotion-excitement/confetti-chip-violet.png",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "basis": "AI-generated redraw made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585) from the earlier Included sprite content/included/vfx/scene/scene-vfx-emotion-excitement/confetti-chip-violet.png as subject and layout reference, using Animama's Marker style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
       "path": "content/included/vfx/scene/scene-vfx-emotion-excitement/confetti-curl-pink.png",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "basis": "AI-generated redraw made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585) from the earlier Included sprite content/included/vfx/scene/scene-vfx-emotion-excitement/confetti-curl-pink.png as subject and layout reference, using Animama's Marker style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -9495,7 +10205,7 @@
     {
       "path": "content/included/vfx/scene/scene-vfx-emotion-fear/lightning-bolt.png",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "basis": "AI-generated redraw made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585) from the earlier Included sprite content/included/vfx/scene/scene-vfx-emotion-fear/lightning-bolt.png as subject and layout reference, using Animama's Ink style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -9530,7 +10240,7 @@
     {
       "path": "content/included/vfx/scene/scene-vfx-emotion-gratitude/flower-bud.png",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "basis": "AI-generated redraw made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585) from the earlier Included sprite content/included/vfx/scene/scene-vfx-emotion-gratitude/flower-bud.png as subject and layout reference, using Animama's Marker style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -9544,7 +10254,7 @@
     {
       "path": "content/included/vfx/scene/scene-vfx-emotion-gratitude/heart-peach.png",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "basis": "AI-generated redraw made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585) from the earlier Included sprite content/included/vfx/scene/scene-vfx-emotion-gratitude/heart-peach.png as subject and layout reference, using Animama's Marker style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -9572,7 +10282,7 @@
     {
       "path": "content/included/vfx/scene/scene-vfx-emotion-grief-b/snowflake.png",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "AI-generated artwork made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #569) with the owner-authored Included stickers drizzle-streak.png and raindrop.png as style references, then prepared for Animama by agent-operated asset tooling; owner review (G2) pending; no third-party art",
+      "basis": "AI-generated redraw made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585) from the earlier Included sprite content/included/vfx/scene/scene-vfx-emotion-grief-b/snowflake.png as subject and layout reference, using Animama's Marker style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -9586,14 +10296,14 @@
     {
       "path": "content/included/vfx/scene/scene-vfx-emotion-grief/teardrop.png",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "basis": "AI-generated redraw made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585) from the earlier Included sprite content/included/vfx/scene/scene-vfx-emotion-grief/teardrop.png as subject and layout reference, using Animama's Ink style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
       "path": "content/included/vfx/scene/scene-vfx-emotion-joy-b/pop-star-yellow.png",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "basis": "AI-generated redraw made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585) from the earlier Included sprite content/included/vfx/scene/scene-vfx-emotion-joy-b/pop-star-yellow.png as subject and layout reference, using Animama's Marker style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -9607,28 +10317,28 @@
     {
       "path": "content/included/vfx/scene/scene-vfx-emotion-joy/confetti-chip-teal.png",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "basis": "AI-generated redraw made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585) from the earlier Included sprite content/included/vfx/scene/scene-vfx-emotion-joy/confetti-chip-teal.png as subject and layout reference, using Animama's Marker style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
       "path": "content/included/vfx/scene/scene-vfx-emotion-joy/confetti-chip-violet.png",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "basis": "AI-generated redraw made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585) from the earlier Included sprite content/included/vfx/scene/scene-vfx-emotion-joy/confetti-chip-violet.png as subject and layout reference, using Animama's Marker style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
       "path": "content/included/vfx/scene/scene-vfx-emotion-joy/confetti-curl-pink.png",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "basis": "AI-generated redraw made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585) from the earlier Included sprite content/included/vfx/scene/scene-vfx-emotion-joy/confetti-curl-pink.png as subject and layout reference, using Animama's Marker style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
       "path": "content/included/vfx/scene/scene-vfx-emotion-joy/pop-star-yellow.png",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "basis": "AI-generated redraw made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585) from the earlier Included sprite content/included/vfx/scene/scene-vfx-emotion-joy/pop-star-yellow.png as subject and layout reference, using Animama's Marker style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -9649,7 +10359,7 @@
     {
       "path": "content/included/vfx/scene/scene-vfx-emotion-love-b/shoujo-bubble.png",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "AI-generated artwork made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #569), then prepared for Animama by agent-operated asset tooling; owner review (G2) pending; no third-party art",
+      "basis": "AI-generated redraw made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585) from the earlier Included sprite content/included/vfx/scene/scene-vfx-emotion-love-b/shoujo-bubble.png as subject and layout reference, using Animama's Marker style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -9670,7 +10380,7 @@
     {
       "path": "content/included/vfx/scene/scene-vfx-emotion-love/rose-heart-petal.png",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "basis": "AI-generated redraw made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585) from the earlier Included sprite content/included/vfx/scene/scene-vfx-emotion-love/rose-heart-petal.png as subject and layout reference, using Animama's Marker style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -9712,7 +10422,7 @@
     {
       "path": "content/included/vfx/scene/scene-vfx-emotion-nervousness/sweat-drop.png",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "basis": "AI-generated redraw made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585) from the earlier Included sprite content/included/vfx/scene/scene-vfx-emotion-nervousness/sweat-drop.png as subject and layout reference, using Animama's Ink style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -9754,7 +10464,7 @@
     {
       "path": "content/included/vfx/scene/scene-vfx-emotion-remorse-b/bubble-mauve.png",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Recoloured from the owner-authored Included sticker bubble-green.png by an agent-written script under Raymond Van's direction (animama-scene-vfx skill, #569); owner review (G2) pending; no third-party art",
+      "basis": "AI-generated redraw made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585) from the earlier Included sprite content/included/vfx/scene/scene-vfx-emotion-remorse-b/bubble-mauve.png as subject and layout reference, using Animama's Ink style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -9775,7 +10485,7 @@
     {
       "path": "content/included/vfx/scene/scene-vfx-emotion-remorse/bubble-clear.png",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "basis": "AI-generated redraw made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585) from the earlier Included sprite content/included/vfx/scene/scene-vfx-emotion-remorse/bubble-clear.png as subject and layout reference, using Animama's Ink style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -9789,7 +10499,7 @@
     {
       "path": "content/included/vfx/scene/scene-vfx-emotion-remorse/spiral-dusk.png",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "basis": "AI-generated redraw made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585) from the earlier Included sprite content/included/vfx/scene/scene-vfx-emotion-remorse/spiral-dusk.png as subject and layout reference, using Animama's Ink style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -9852,7 +10562,7 @@
     {
       "path": "content/included/vfx/scene/scene-vfx-emotion-sadness/drop.png",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "basis": "AI-generated redraw made by an agent under Raymond Van's direction with OpenAI image generation (animama-effect-assets skill, #585) from the earlier Included sprite content/included/vfx/scene/scene-vfx-emotion-sadness/drop.png as subject and layout reference, using Animama's Ink style reference; prepared for Animama by agent-operated asset tooling; generation sources and prompt records are retained in the maintainer's working records; owner-reviewed and approved 2026-10-15.",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -16836,6 +17546,28 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "src/frontend/web/src/assets/effect-templates/cupid_arrow_stuck.webp",
+      "candidate_license": "LicenseRef-pixiv-VRoidPreset",
+      "basis": "Direct Animama renderer capture of Annie (owner-confirmed pixiv VRoid preset) wearing the Included Cupid Arrow Stuck Avatar Effect with AI-generated artwork under Raymond Van's direction (#585); retained under the corresponding model terms like Annie's portrait",
+      "source": "https://vrm.dev/licenses/1.0/",
+      "revision": "Regenerated by pnpm -s effects:thumbnails; exact VRM hashes and embedded metadata in evidence",
+      "copyright": [
+        "pixiv VRoid Project",
+        "2026 Raymond Van (effect artwork)"
+      ],
+      "evidence": [
+        "licenses/third-party/art-vroid-review.json",
+        "src/frontend/web/src/assets/effect-templates/README.md"
+      ],
+      "notices": [
+        "licenses/third-party/art-NOTICES.md"
+      ],
+      "conditions": [
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "src/frontend/web/src/assets/effect-templates/delicious_sparkle.webp",
       "candidate_license": "LicenseRef-pixiv-VRoidPreset",
       "basis": "Direct Animama renderer capture of Annie (owner-confirmed pixiv VRoid preset) wearing the Included Delicious Sparkle Avatar Effect with AI-generated artwork under Raymond Van's direction (#575); retained under the corresponding model terms like Annie's portrait",
@@ -16904,7 +17636,7 @@
     {
       "path": "src/frontend/web/src/assets/effect-templates/doki_doki.webp",
       "candidate_license": "LicenseRef-pixiv-VRoidPreset",
-      "basis": "Direct Animama renderer capture of Annie (owner-confirmed pixiv VRoid preset) wearing an owner-authored Included Avatar Effect; retained under the corresponding model terms like Annie's portrait",
+      "basis": "Direct Animama renderer capture of Annie (owner-confirmed pixiv VRoid preset) wearing the Included Doki Doki Avatar Effect with AI-generated artwork under Raymond Van's direction (#585); retained under the corresponding model terms like Annie's portrait",
       "source": "https://vrm.dev/licenses/1.0/",
       "revision": "Regenerated by pnpm -s effects:thumbnails; exact VRM hashes and embedded metadata in evidence",
       "copyright": [
@@ -17518,6 +18250,28 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "src/frontend/web/src/assets/effect-templates/kiss_mark.webp",
+      "candidate_license": "LicenseRef-pixiv-VRoidPreset",
+      "basis": "Direct Animama renderer capture of Annie (owner-confirmed pixiv VRoid preset) wearing the Included Kiss Mark Avatar Effect with AI-generated artwork under Raymond Van's direction (#585); retained under the corresponding model terms like Annie's portrait",
+      "source": "https://vrm.dev/licenses/1.0/",
+      "revision": "Regenerated by pnpm -s effects:thumbnails; exact VRM hashes and embedded metadata in evidence",
+      "copyright": [
+        "pixiv VRoid Project",
+        "2026 Raymond Van (effect artwork)"
+      ],
+      "evidence": [
+        "licenses/third-party/art-vroid-review.json",
+        "src/frontend/web/src/assets/effect-templates/README.md"
+      ],
+      "notices": [
+        "licenses/third-party/art-NOTICES.md"
+      ],
+      "conditions": [
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "src/frontend/web/src/assets/effect-templates/knockout-x-eyes.webp",
       "candidate_license": "LicenseRef-pixiv-VRoidPreset",
       "basis": "Direct Animama renderer capture of Annie (owner-confirmed pixiv VRoid preset) wearing the Included Knockout X Eyes Avatar Effect with agent-made art (#523); retained under the corresponding model terms like Annie's portrait",
@@ -17565,6 +18319,50 @@
       "path": "src/frontend/web/src/assets/effect-templates/little-devil-horns.webp",
       "candidate_license": "LicenseRef-pixiv-VRoidPreset",
       "basis": "Direct Animama renderer capture of Annie (owner-confirmed pixiv VRoid preset) wearing the Included Little Devil Horns Avatar Effect with AI-generated artwork under Raymond Van's direction (#575); retained under the corresponding model terms like Annie's portrait",
+      "source": "https://vrm.dev/licenses/1.0/",
+      "revision": "Regenerated by pnpm -s effects:thumbnails; exact VRM hashes and embedded metadata in evidence",
+      "copyright": [
+        "pixiv VRoid Project",
+        "2026 Raymond Van (effect artwork)"
+      ],
+      "evidence": [
+        "licenses/third-party/art-vroid-review.json",
+        "src/frontend/web/src/assets/effect-templates/README.md"
+      ],
+      "notices": [
+        "licenses/third-party/art-NOTICES.md"
+      ],
+      "conditions": [
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/assets/effect-templates/love_letter.webp",
+      "candidate_license": "LicenseRef-pixiv-VRoidPreset",
+      "basis": "Direct Animama renderer capture of Annie (owner-confirmed pixiv VRoid preset) wearing the Included Love Letter Avatar Effect with AI-generated artwork under Raymond Van's direction (#585), posed by the Included Gesture Confession Letter Bow; retained under the corresponding model terms like Annie's portrait",
+      "source": "https://vrm.dev/licenses/1.0/",
+      "revision": "Regenerated by pnpm -s effects:thumbnails; exact VRM hashes and embedded metadata in evidence",
+      "copyright": [
+        "pixiv VRoid Project",
+        "2026 Raymond Van (effect artwork)"
+      ],
+      "evidence": [
+        "licenses/third-party/art-vroid-review.json",
+        "src/frontend/web/src/assets/effect-templates/README.md"
+      ],
+      "notices": [
+        "licenses/third-party/art-NOTICES.md"
+      ],
+      "conditions": [
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/assets/effect-templates/magnifier.webp",
+      "candidate_license": "LicenseRef-pixiv-VRoidPreset",
+      "basis": "Direct Animama renderer capture of Annie (owner-confirmed pixiv VRoid preset) wearing the Included Magnifier Avatar Effect with AI-generated artwork under Raymond Van's direction (#585), posed by the Included Gesture Detective Squint; retained under the corresponding model terms like Annie's portrait",
       "source": "https://vrm.dev/licenses/1.0/",
       "revision": "Regenerated by pnpm -s effects:thumbnails; exact VRM hashes and embedded metadata in evidence",
       "copyright": [
@@ -17914,6 +18712,28 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "src/frontend/web/src/assets/effect-templates/rose.webp",
+      "candidate_license": "LicenseRef-pixiv-VRoidPreset",
+      "basis": "Direct Animama renderer capture of Annie (owner-confirmed pixiv VRoid preset) wearing the Included Rose Avatar Effect with AI-generated artwork under Raymond Van's direction (#585), posed by the Included Gesture Offer a Rose; retained under the corresponding model terms like Annie's portrait",
+      "source": "https://vrm.dev/licenses/1.0/",
+      "revision": "Regenerated by pnpm -s effects:thumbnails; exact VRM hashes and embedded metadata in evidence",
+      "copyright": [
+        "pixiv VRoid Project",
+        "2026 Raymond Van (effect artwork)"
+      ],
+      "evidence": [
+        "licenses/third-party/art-vroid-review.json",
+        "src/frontend/web/src/assets/effect-templates/README.md"
+      ],
+      "notices": [
+        "licenses/third-party/art-NOTICES.md"
+      ],
+      "conditions": [
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "src/frontend/web/src/assets/effect-templates/scratch_ticks.webp",
       "candidate_license": "LicenseRef-pixiv-VRoidPreset",
       "basis": "Direct Animama renderer capture of Annie (owner-confirmed pixiv VRoid preset) wearing an Included Avatar Effect with agent-made art (#409), posed by the Included Gesture Nervous Head Scratch; retained under the corresponding model terms like Annie's portrait",
@@ -18046,6 +18866,28 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "src/frontend/web/src/assets/effect-templates/shock_zigzag.webp",
+      "candidate_license": "LicenseRef-pixiv-VRoidPreset",
+      "basis": "Direct Animama renderer capture of Annie (owner-confirmed pixiv VRoid preset) wearing the Included Shock Zigzag Avatar Effect with AI-generated artwork under Raymond Van's direction (#585); retained under the corresponding model terms like Annie's portrait",
+      "source": "https://vrm.dev/licenses/1.0/",
+      "revision": "Regenerated by pnpm -s effects:thumbnails; exact VRM hashes and embedded metadata in evidence",
+      "copyright": [
+        "pixiv VRoid Project",
+        "2026 Raymond Van (effect artwork)"
+      ],
+      "evidence": [
+        "licenses/third-party/art-vroid-review.json",
+        "src/frontend/web/src/assets/effect-templates/README.md"
+      ],
+      "notices": [
+        "licenses/third-party/art-NOTICES.md"
+      ],
+      "conditions": [
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "src/frontend/web/src/assets/effect-templates/sigh_puff_droop.webp",
       "candidate_license": "LicenseRef-pixiv-VRoidPreset",
       "basis": "Direct Animama renderer capture of Annie (owner-confirmed pixiv VRoid preset) wearing an owner-authored Included Avatar Effect; retained under the corresponding model terms like Annie's portrait",
@@ -18115,6 +18957,28 @@
       "path": "src/frontend/web/src/assets/effect-templates/sly_glint.webp",
       "candidate_license": "LicenseRef-pixiv-VRoidPreset",
       "basis": "Direct Animama renderer capture of Annie (owner-confirmed pixiv VRoid preset) wearing an Included Avatar Effect with agent-made art (#409), posed by the Included Gesture Scheming Hands; retained under the corresponding model terms like Annie's portrait",
+      "source": "https://vrm.dev/licenses/1.0/",
+      "revision": "Regenerated by pnpm -s effects:thumbnails; exact VRM hashes and embedded metadata in evidence",
+      "copyright": [
+        "pixiv VRoid Project",
+        "2026 Raymond Van (effect artwork)"
+      ],
+      "evidence": [
+        "licenses/third-party/art-vroid-review.json",
+        "src/frontend/web/src/assets/effect-templates/README.md"
+      ],
+      "notices": [
+        "licenses/third-party/art-NOTICES.md"
+      ],
+      "conditions": [
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/assets/effect-templates/smartphone.webp",
+      "candidate_license": "LicenseRef-pixiv-VRoidPreset",
+      "basis": "Direct Animama renderer capture of Annie (owner-confirmed pixiv VRoid preset) wearing the Included Smartphone Avatar Effect with AI-generated artwork under Raymond Van's direction (#585); retained under the corresponding model terms like Annie's portrait",
       "source": "https://vrm.dev/licenses/1.0/",
       "revision": "Regenerated by pnpm -s effects:thumbnails; exact VRM hashes and embedded metadata in evidence",
       "copyright": [
@@ -18310,9 +19174,53 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "src/frontend/web/src/assets/effect-templates/stink_lines.webp",
+      "candidate_license": "LicenseRef-pixiv-VRoidPreset",
+      "basis": "Direct Animama renderer capture of Annie (owner-confirmed pixiv VRoid preset) wearing the Included Stink Lines Avatar Effect with AI-generated artwork under Raymond Van's direction (#585); retained under the corresponding model terms like Annie's portrait",
+      "source": "https://vrm.dev/licenses/1.0/",
+      "revision": "Regenerated by pnpm -s effects:thumbnails; exact VRM hashes and embedded metadata in evidence",
+      "copyright": [
+        "pixiv VRoid Project",
+        "2026 Raymond Van (effect artwork)"
+      ],
+      "evidence": [
+        "licenses/third-party/art-vroid-review.json",
+        "src/frontend/web/src/assets/effect-templates/README.md"
+      ],
+      "notices": [
+        "licenses/third-party/art-NOTICES.md"
+      ],
+      "conditions": [
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "src/frontend/web/src/assets/effect-templates/stomach_butterflies.webp",
       "candidate_license": "LicenseRef-pixiv-VRoidPreset",
       "basis": "Direct Animama renderer capture of Annie (owner-confirmed pixiv VRoid preset) wearing the Included Stomach Butterflies Avatar Effect with agent-made art (#569); retained under the corresponding model terms like Annie's portrait",
+      "source": "https://vrm.dev/licenses/1.0/",
+      "revision": "Regenerated by pnpm -s effects:thumbnails; exact VRM hashes and embedded metadata in evidence",
+      "copyright": [
+        "pixiv VRoid Project",
+        "2026 Raymond Van (effect artwork)"
+      ],
+      "evidence": [
+        "licenses/third-party/art-vroid-review.json",
+        "src/frontend/web/src/assets/effect-templates/README.md"
+      ],
+      "notices": [
+        "licenses/third-party/art-NOTICES.md"
+      ],
+      "conditions": [
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/assets/effect-templates/stomp_dust.webp",
+      "candidate_license": "LicenseRef-pixiv-VRoidPreset",
+      "basis": "Direct Animama renderer capture of Annie (owner-confirmed pixiv VRoid preset) wearing the Included Stomp Dust Avatar Effect with AI-generated artwork under Raymond Van's direction (#585); retained under the corresponding model terms like Annie's portrait",
       "source": "https://vrm.dev/licenses/1.0/",
       "revision": "Regenerated by pnpm -s effects:thumbnails; exact VRM hashes and embedded metadata in evidence",
       "copyright": [

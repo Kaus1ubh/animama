@@ -22,10 +22,6 @@ export function resolveRuntimeAvatarFaceParts(
   entry: RuntimeCatalogEntry | null,
 ): RuntimeAvatarFaceParts {
   if (!entry) return { facePartCorrections: null, vrmSha256: null };
-  const files = runtimeSourceHasFiles(entry.source) ? entry.source.files : [];
-  const model =
-    files.find((file) => file.role === "model") ??
-    files.find((file) => file.filename.toLowerCase().endsWith(".vrm"));
   const raw = entry.config.face_parts;
   let facePartCorrections: AvatarFacePartCorrections | null = null;
   if (raw !== undefined && raw !== null) {
@@ -38,5 +34,20 @@ export function resolveRuntimeAvatarFaceParts(
       });
     }
   }
-  return { facePartCorrections, vrmSha256: model?.sha256 ?? null };
+  return { facePartCorrections, vrmSha256: runtimeAvatarModelSha256(entry) };
+}
+
+/**
+ * The sha256 of an Avatar entry's VRM file, which `Avatar.load` uses to match
+ * face part corrections and verified eyelid closure profiles.
+ */
+export function runtimeAvatarModelSha256(
+  entry: RuntimeCatalogEntry | null | undefined,
+): string | null {
+  if (!entry) return null;
+  const files = runtimeSourceHasFiles(entry.source) ? entry.source.files : [];
+  const model =
+    files.find((file) => file.role === "model") ??
+    files.find((file) => file.filename.toLowerCase().endsWith(".vrm"));
+  return model?.sha256 ?? null;
 }

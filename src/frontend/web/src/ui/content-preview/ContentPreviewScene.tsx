@@ -37,6 +37,7 @@ import {
   runtimeContentDownloadUrl,
   type RuntimeContentUrlLease,
 } from "@/lib/runtime-content/runtimeContentDelivery";
+import { runtimeAvatarModelSha256 } from "@/lib/runtime-content/runtimeAvatarFaceParts";
 import type { SceneVFXRuntimeEntry } from "@/lib/scene-vfx/types";
 import {
   applyAvatarTransformToObject,
@@ -193,6 +194,7 @@ function PreviewActor({
           filePath: download.url,
           sourceUrl: logicalUrl,
           sourceKey: avatarSourceKey,
+          vrmSha256: runtimeAvatarModelSha256(entry),
         });
         if (
           controller.signal.aborted ||

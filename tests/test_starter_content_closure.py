@@ -102,6 +102,42 @@ CORE_LIBRARY_LOCATORS = (
     "vfx/particle/quark/overheat-steam",
     "vfx/particle/quark/spit-spray-mist",
     "vfx/particle/quark/ta-da-glitter",
+    "gestures/aww-hands-to-chest",
+    "gestures/calm-down-pat",
+    "gestures/checking-phone",
+    "gestures/confession-letter-bow",
+    "gestures/detective-squint",
+    "gestures/dismissive-hand-wave",
+    "gestures/hand-hold-offer",
+    "gestures/hands-behind-head-relax",
+    "gestures/heart-shot-oof",
+    "gestures/lean-in-coy",
+    "gestures/offer-a-rose",
+    "gestures/oh-no-cheeks-panic",
+    "gestures/one-moment-finger",
+    "gestures/pinch-nose-stinky",
+    "gestures/polite-applause",
+    "gestures/snicker-laugh",
+    "gestures/spooky-ghost-hands",
+    "gestures/surprised-head-tilt",
+    "gestures/tantrum-stomp",
+    "vfx/avatar/cupid_arrow_stuck",
+    "vfx/avatar/kiss_mark",
+    "vfx/avatar/love_letter",
+    "vfx/avatar/magnifier",
+    "vfx/avatar/rose",
+    "vfx/avatar/shock_zigzag",
+    "vfx/avatar/smartphone",
+    "vfx/avatar/stink_lines",
+    "vfx/avatar/stomp_dust",
+    "vfx/particle/quark/clap-sparks",
+    "vfx/particle/quark/fireflies",
+    "vfx/particle/quark/kiss-lips-float",
+    "vfx/particle/quark/love-letter-flutter",
+    "vfx/particle/quark/poof-smoke",
+    "vfx/particle/quark/rose-bloom-burst",
+    "vfx/particle/quark/shooting-stars",
+    "vfx/particle/quark/shoujo-sparkle-frame",
 )
 # Library Gestures reuse these real starter effects; the generated starter
 # fixture has no effects, so supply them alongside the Library.
@@ -117,6 +153,14 @@ SHARED_STARTER_EFFECT_LOCATORS = (
     "vfx/particle/quark/dizzy-stars",
     "vfx/particle/quark/sparkle-hearts",
     "vfx/particle/quark/star-burst",
+    "vfx/avatar/blush",
+    "vfx/avatar/emote",
+    "vfx/avatar/gloom_lines",
+    "vfx/avatar/laugh_marks",
+    "vfx/avatar/pale_blue_shade",
+    "vfx/avatar/steam_puffs",
+    "vfx/particle/quark/gloom-wisps",
+    "vfx/particle/quark/stink-miasma",
 )
 
 
@@ -147,10 +191,10 @@ def test_reviewed_library_ships_in_core_without_equipping_starters(tmp_path: Pat
     entries = {entry["locator"]: entry for entry in inventory["entries"]}
     library = [entries[locator] for locator in CORE_LIBRARY_LOCATORS]
 
-    assert len(library) == 81
+    assert len(library) == 117
     assert {entry["partition"] for entry in library} == {"core"}
     library_files = {file for entry in library for file in entry["files"]}
-    assert len(library_files) == 192
+    assert len(library_files) == 289
     assert {file["partition"] for file in inventory["files"] if file["path"] in library_files} == {"core"}
     library_keys = {entry["logical_key"] for entry in library}
     for starter in inventory["starters"]:

@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "content_type": "particle_effect",
+  "content_id": "builtin:particle-effect:kiss-lips-float",
+  "version": 1,
+  "name": "Kiss Lips Float",
+  "description": "Three glossy pink, rose and coral kisses drift toward the viewer with soft halos and twinkling glints.",
+  "runtime_defaults": {
+    "schema_version": 1,
+    "runtime_id": "kiss-lips-float",
+    "slots": {
+      "particle_vfx": {
+        "label": "Kiss Lips Float",
+        "description": "Three glossy pink, rose and coral kisses drift toward the viewer with soft halos and twinkling glints.",
+        "anchor": "rightHand",
+        "duration_seconds": 0.98,
+        "max_duration_seconds": 0.98,
+        "preload_tier": "none",
+        "follow_anchor": false,
+        "transform": {
+          "offset": {
+            "x": -0.045,
+            "y": 0.015,
+            "z": 0.115
+          },
+          "depth_offset": 0,
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "looping_allowed": false,
+        "can_coexist": true,
+        "max_particles": 24
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "particle.json",
+      "role": "manifest"
+    },
+    {
+      "path": "textures/kiss-lips.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/kiss-haze.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/kiss-glint.png",
+      "role": "texture"
+    }
+  ]
+}

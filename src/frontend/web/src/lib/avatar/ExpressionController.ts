@@ -835,7 +835,9 @@ export class ExpressionController {
   }
 
   /**
-   * Get current value of an expression.
+   * Get the current composed (authored) weight of an expression. The eyelid
+   * closure correction scales blink morphs at manager update without changing
+   * these weights.
    */
   getValue(name: string): number {
     const readLive = (key: string): number | null => {
@@ -1208,7 +1210,9 @@ export class ExpressionController {
       this._applyExpression(name, value);
     }
 
-    // 7. VRM expression manager update
+    // 7. VRM expression manager update. The manager also attenuates blink
+    // channels under happy/relaxed (see eyelidClosure.ts), so the weights set
+    // above stay as composed while the eyelids never close past shut.
     this._expressionManager?.update();
   }
 

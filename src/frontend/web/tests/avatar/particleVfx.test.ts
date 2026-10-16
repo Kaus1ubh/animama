@@ -35,12 +35,14 @@ const INCLUDED_PARTICLE_VFX_IDS = [
   "butterfly-flutter",
   "buzzing-flies",
   "cheer-streamers",
+  "clap-sparks",
   "cold-breeze",
   "confetti",
   "dizzy-stars",
   "drifting-leaves",
   "electric-crackle",
   "energy-wave-charge",
+  "fireflies",
   "fireworks-show",
   "flower-pop",
   "fright-jolt",
@@ -52,13 +54,19 @@ const INCLUDED_PARTICLE_VFX_IDS = [
   "heart-burst",
   "heart-fireworks",
   "hearts-v1",
+  "kiss-lips-float",
+  "love-letter-flutter",
   "musical-cascade",
   "overheat-steam",
   "petal-drift",
+  "poof-smoke",
   "question-orbit",
   "rage-aura",
   "rage-embers",
   "rain-cloud",
+  "rose-bloom-burst",
+  "shooting-stars",
+  "shoujo-sparkle-frame",
   "snow-crystal-flurry",
   "sparkle-bubbles",
   "sparkle-hearts",
@@ -541,12 +549,18 @@ describe("particle VFX catalog", () => {
       expect(entry.performanceBudget.maxParticles).toBeGreaterThan(0);
       expect(typeof entry.performanceBudget.canCoexist).toBe("boolean");
     }
-    // Only the sustained aroma and steam effects loop; all load on demand.
+    // Only the sustained aroma, firefly, steam and shoujo-frame effects loop;
+    // all load on demand.
     expect(
       AVATAR_PARTICLE_VFX_CATALOG.filter(
         (entry) => entry.performanceBudget.loopingAllowed,
       ).map((entry) => entry.id),
-    ).toEqual(["aroma-ribbons", "overheat-steam"]);
+    ).toEqual([
+      "aroma-ribbons",
+      "fireflies",
+      "overheat-steam",
+      "shoujo-sparkle-frame",
+    ]);
     expect(
       AVATAR_PARTICLE_VFX_CATALOG.filter(
         (entry) => entry.preloadTier === "tierA",
