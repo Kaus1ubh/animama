@@ -63,12 +63,13 @@ count, and clips with phase/state/run lifetimes are not idle-eligible
 Runtime admits each distinct member as its own root, so one unavailable or
 ineligible Gesture is dropped with a diagnostic while the rest keep playing.
 
-Creation seeds the pool from `resources/starter-idle-pool.v1.json`, which maps
-the twelve Included idle Gestures and the five `mixamo-motion` idle loops to
-Default and emotion cells. Only installed, idle-eligible Included Gestures are
-seeded, so an installation without the `mixamo-motion` source gets the core
-mapping unchanged. Installing content
-later does not change an existing pool. Old `idle-styles/` folders are not scanned.
+The [starter loadout](#starter-loadout)'s `idle` section seeds the pool: it maps the twelve Included
+idle Gestures and the five `mixamo-motion` idle loops to Default and emotion
+cells, each cell listing only what it adds. Only installed, idle-eligible
+Included Gestures are seeded, so an installation without the `mixamo-motion`
+source gets the core mapping unchanged. The pool is written once, with the
+loadout; installing content later does not change an existing pool. Old
+`idle-styles/` folders are not scanned.
 
 ## Reaction pools
 
@@ -102,10 +103,10 @@ The loadout lists each cell's `members` (name, availability, source and
 `state`: `empty` without members, `starter` when the members are exactly the
 cell's available starter Reactions, otherwise `custom`.
 
-The starter policy (`resources/starter-loadout.v1.json`) lists one `reactions`
-entry per starter member, so a cell may appear several times; a cell without
-entries starts empty. New and starter Animas start from those pools through the
-creation request; package import restores exactly the packaged pools. Runtime
+The [starter loadout](#starter-loadout) lists one `reactions` entry per
+starter member, so a cell may appear several times; a cell without entries starts empty. New and starter
+Animas start from those pools through the creation request; package import
+restores exactly the packaged pools. Runtime
 admits each distinct pooled Reaction as one root with all its cells, budgeted
 after the Avatar, Idle and Gestures from its lowest cell (intensity, then
 emotion), so one missing or over-budget Reaction is omitted with a diagnostic
@@ -225,6 +226,24 @@ use the same private command through `POST /v1/animas/starters:ensure` with
 retry retains the first result if the second fails. Spec version is metadata,
 not the stable owner/starter identity. Successful or deleted slots are never
 rewritten by a later spec version.
+
+### Starter loadout
+
+`resources/starter-loadout.v1.json` is the one definition of a starter Anima's
+assets: its pre-equipped `gestures`, its `reactions` pool members and its
+`idle` pool seed. Each loadout stores the policy `version` it started from and
+reads its starter Gestures and starter Reaction cells from that version; the
+Idle seed is copied into the pool when the loadout starts. `schema_version` 2
+added the `idle` section. The Starter Pack identity in creation options and
+drafts is the policy's SHA-256 revision, so any policy edit makes earlier drafts
+stale.
+
+Creation and starter provisioning apply it through the creation request. A
+composition that equips starters without one creates the loadout with
+`AnimaLoadoutService.create_starter_loadout`, in the owner's transaction: the
+loadout uses the version's starter Gestures and receives the same Idle pool as
+creation, while its Reaction pools start empty. It then sets the Avatar and
+other selections through ordinary plan/commit changes.
 
 Newly provisioned starters use Annie version 3 (`AvatarSample_A_1_New`, Eve Pocket
 voice) and Caitlyn version 6 (`AvatarSample_Y_0`, Azelma Pocket voice), with matching

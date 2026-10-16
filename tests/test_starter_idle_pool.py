@@ -8,7 +8,13 @@ from io import BytesIO
 
 import pytest
 
-from animama.app.services.starter_idle_pool import resolve_starter_idle_pool, starter_idle_keys
+from animama.app.services import starter_loadout_policy as policy_module
+from animama.app.services.starter_loadout_policy import (
+    resolve_starter_idle_pool,
+    starter_idle_keys,
+    starter_idle_pool,
+    starter_loadout_policy,
+)
 from animama.domain.content_catalog import (
     CatalogContentEntry,
     CatalogContentFile,
@@ -136,3 +142,32 @@ async def test_unavailable_or_ineligible_seed_gestures_are_left_out() -> None:
     # Cells that only held the ineligible Gesture add nothing to Default.
     assert "joy-2" not in cells
     assert cells["anger-2"] == {"builtin:gesture:simmering-huff"}
+
+
+def test_the_idle_seed_is_part_of_the_starter_loadout() -> None:
+    policy = starter_loadout_policy()
+    pools = starter_idle_pool()
+
+    assert policy["schema_version"] == 2
+    assert policy["version"] == 1
+    assert next(iter(pools)) == "default"
+    assert set(pools["default"]) == STREAMER_DEFAULT
+    assert pools["joy-1"] == ("builtin:gesture:mixamo-idle-happy",)
+    assert pools["disappointment-1"] == ("builtin:gesture:mixamo-idle-bored", "builtin:gesture:mixamo-idle-sad")
+    assert set(starter_idle_keys()) == {key for keys in pools.values() for key in keys}
+
+
+@pytest.mark.parametrize(
+    ("cells", "message"),
+    [
+        ({"joy": {"4": ["builtin:gesture:happy-sway"]}}, "Invalid starter Idle cell"),
+        ({"wonder": {"2": ["builtin:gesture:happy-sway"]}}, "Invalid starter Idle cell"),
+        ({"joy": {"2": ["builtin:gesture:happy-sway", "builtin:gesture:happy-sway"]}}, "repeats a Gesture"),
+    ],
+)
+def test_a_malformed_idle_seed_fails_clearly(monkeypatch: pytest.MonkeyPatch, cells: object, message: str) -> None:
+    policy = {**starter_loadout_policy(), "idle": {"default": [], "cells": cells}}
+    monkeypatch.setattr(policy_module, "starter_loadout_policy", lambda version=1: policy)
+
+    with pytest.raises(ValueError, match=message):
+        starter_idle_pool()
