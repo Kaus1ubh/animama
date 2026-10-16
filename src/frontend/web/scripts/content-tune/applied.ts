@@ -1,5 +1,5 @@
 import { draftOf, saveRequest, type TuneDraft } from "./draft.ts";
-import type { TuneItem } from "./model.ts";
+import { effectDefaultSound, type TuneEffect, type TuneItem } from "./model.ts";
 
 /*
  * Applied edits: drafts the owner has applied but not yet saved. They live
@@ -127,8 +127,80 @@ export function staleApplied(
     .map(([id]) => id);
 }
 
-/** The Save all request: one save edit per applied item. */
-export function saveAllRequest(applied: AppliedEdits, items: TuneItem[]) {
+/** An applied change to an Avatar Effect's own sound (null: silent). */
+export type AppliedEffectSound = { revision: string; sound: string | null };
+
+/** Applied effect sound changes by effect content ID. */
+export type AppliedEffectSounds = Record<string, AppliedEffectSound>;
+
+/** The storage key of a checkout's applied effect sound changes. */
+export function effectSoundsStorageKey(checkout: string): string {
+  return `content-tune:effect-sounds:v1:${checkout}`;
+}
+
+/** The applied effect sound changes kept in `storage`; none when unreadable. */
+export function readEffectSounds(
+  storage: Storage | undefined,
+  key: string,
+): AppliedEffectSounds {
+  try {
+    const value = JSON.parse(storage?.getItem(key) ?? "{}");
+    if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+    return Object.fromEntries(
+      Object.entries(value).filter(
+        ([, change]) =>
+          change &&
+          typeof (change as AppliedEffectSound).revision === "string" &&
+          ((change as AppliedEffectSound).sound === null ||
+            typeof (change as AppliedEffectSound).sound === "string"),
+      ),
+    ) as AppliedEffectSounds;
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * The effect sound changes after choosing `sound` for `effect`. Choosing the
+ * sound the effect's file already plays removes the entry.
+ */
+export function applyEffectSound(
+  applied: AppliedEffectSounds,
+  effect: TuneEffect,
+  sound: string | null,
+): AppliedEffectSounds {
+  const next = { ...applied };
+  if (sound === effectDefaultSound(effect)) delete next[effect.contentId];
+  else
+    next[effect.contentId] = {
+      revision: applied[effect.contentId]?.revision ?? effect.revision ?? "",
+      sound,
+    };
+  return next;
+}
+
+/** Applied effect sound changes whose effect is gone or changed since. */
+export function staleEffectSounds(
+  applied: AppliedEffectSounds,
+  effects: TuneEffect[],
+): string[] {
+  const revisions = new Map(
+    effects.map((effect) => [effect.contentId, effect.revision]),
+  );
+  return Object.entries(applied)
+    .filter(([id, change]) => revisions.get(id) !== change.revision)
+    .map(([id]) => id);
+}
+
+/**
+ * The Save all request: one save edit per applied item and one change per
+ * applied effect sound.
+ */
+export function saveAllRequest(
+  applied: AppliedEdits,
+  items: TuneItem[],
+  effectSounds: AppliedEffectSounds = {},
+) {
   const byId = new Map(items.map((item) => [item.contentId, item]));
   return {
     edits: Object.entries(applied).flatMap(([id, edit]) => {
@@ -137,5 +209,10 @@ export function saveAllRequest(applied: AppliedEdits, items: TuneItem[]) {
         ? [saveRequest({ ...item, revision: edit.revision }, edit.draft)]
         : [];
     }),
+    effects: Object.entries(effectSounds).map(([contentId, change]) => ({
+      contentId,
+      revision: change.revision,
+      sound: change.sound,
+    })),
   };
 }

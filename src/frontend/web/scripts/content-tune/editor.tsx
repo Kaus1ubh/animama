@@ -150,16 +150,27 @@ export function SoundPicker({
   audition,
   trigger,
   onPick,
+  onNone,
 }: {
   sounds: TuneSound[];
   audition: Audition;
   trigger: ReactNode;
   onPick: (sound: TuneSound) => void;
+  /** Offers "No sound" first, when given. */
+  onNone?: () => void;
 }) {
   const groups = useMemo(
-    () =>
-      soundGroups(sounds).map(
-        ([category, list]): [string, PickerOption<TuneSound>[]] => [
+    () => [
+      ...(onNone
+        ? [
+            ["None", [{ key: "none", label: "No sound", value: null }]] as [
+              string,
+              PickerOption<TuneSound | null>[],
+            ],
+          ]
+        : []),
+      ...soundGroups(sounds).map(
+        ([category, list]): [string, PickerOption<TuneSound | null>[]] => [
           category,
           list.map((sound) => ({
             key: sound.key,
@@ -169,29 +180,34 @@ export function SoundPicker({
           })),
         ],
       ),
-    [sounds],
+    ],
+    [sounds, onNone],
   );
   return (
-    <Picker
+    <Picker<TuneSound | null>
       trigger={trigger}
       groups={groups}
-      onPick={onPick}
+      onPick={(sound) => (sound ? onPick(sound) : onNone?.())}
       placeholder="Search sounds"
-      renderLead={(sound) => (
-        <Button
-          size="icon-sm"
-          variant="ghost"
-          disabled={!sound.available}
-          aria-label={
-            audition.playing === sound.key
-              ? `Stop ${sound.name}`
-              : `Preview ${sound.name}`
-          }
-          onClick={() => audition.toggle(sound)}
-        >
-          {audition.playing === sound.key ? "■" : "▶"}
-        </Button>
-      )}
+      renderLead={(sound) =>
+        sound ? (
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            disabled={!sound.available}
+            aria-label={
+              audition.playing === sound.key
+                ? `Stop ${sound.name}`
+                : `Preview ${sound.name}`
+            }
+            onClick={() => audition.toggle(sound)}
+          >
+            {audition.playing === sound.key ? "■" : "▶"}
+          </Button>
+        ) : (
+          <span className="w-8" />
+        )
+      }
     />
   );
 }
@@ -293,6 +309,7 @@ export function EventsEditor({
   audition,
   onChange,
   placement,
+  effectSound,
 }: {
   item: TuneItem;
   draft: TuneDraft;
@@ -307,6 +324,8 @@ export function EventsEditor({
    * while its effect is loading.
    */
   placement?: (event: TuneEvent) => ReactNode;
+  /** The Avatar Effect's own sound control for an event, if any. */
+  effectSound?: (event: TuneEvent) => ReactNode;
 }) {
   const [placing, setPlacing] = useState<string | null>(null);
   const view: TuneItem = { ...item, dependencies: draft.dependencies };
@@ -406,6 +425,7 @@ export function EventsEditor({
                         onChange(updateEvent(draft, event.id, patch), key)
                       }
                     />
+                    {event.kind === "avatar_vfx" && effectSound?.(event)}
                   </td>
                   <td className="whitespace-nowrap">
                     {placement && event.kind === "avatar_vfx" && (

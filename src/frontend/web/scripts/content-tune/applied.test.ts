@@ -4,6 +4,10 @@ import test from "node:test";
 import {
   appliedStorageKey,
   applyDraft,
+  applyEffectSound,
+  effectSoundsStorageKey,
+  readEffectSounds,
+  staleEffectSounds,
   discardApplied,
   readApplied,
   saveAllRequest,
@@ -133,4 +137,50 @@ test("keeps applied edits in storage and survives unreadable storage", () => {
   storage.setItem(key, "{ broken");
   assert.deepEqual(readApplied(storage, key), {});
   assert.deepEqual(readApplied(undefined, key), {});
+});
+
+test("keeps effect sound changes and builds them into Save all", () => {
+  const effect = {
+    kind: "avatar" as const,
+    contentType: "avatar_effect" as const,
+    contentId: "builtin:avatar-effect:sweat_drop",
+    stem: "sweat_drop",
+    name: "Sweat Drop",
+    sounds: { "on-apply": "builtin:sound-effect:funny_sweat_02" },
+    soundAlias: "on-apply",
+    revision: "eff-1",
+  };
+  const DING = "builtin:sound-effect:ding_02";
+  let changes = applyEffectSound({}, effect, DING);
+  assert.deepEqual(changes, {
+    [effect.contentId]: { revision: "eff-1", sound: DING },
+  });
+  assert.deepEqual(staleEffectSounds(changes, [effect]), []);
+  assert.deepEqual(staleEffectSounds(changes, [{ ...effect, revision: "x" }]), [
+    effect.contentId,
+  ]);
+  assert.deepEqual(saveAllRequest({}, [], changes), {
+    edits: [],
+    effects: [{ contentId: effect.contentId, revision: "eff-1", sound: DING }],
+  });
+  // Choosing the file's own sound again leaves nothing to save.
+  changes = applyEffectSound(changes, effect, effect.sounds["on-apply"]);
+  assert.deepEqual(changes, {});
+  // Silence is a change too.
+  assert.equal(
+    applyEffectSound({}, effect, null)[effect.contentId].sound,
+    null,
+  );
+  const storage = memoryStorage();
+  const key = effectSoundsStorageKey("checkout-a");
+  storage.setItem(
+    key,
+    JSON.stringify({
+      ...applyEffectSound({}, effect, DING),
+      broken: { sound: 3 },
+    }),
+  );
+  assert.deepEqual(Object.keys(readEffectSounds(storage, key)), [
+    effect.contentId,
+  ]);
 });

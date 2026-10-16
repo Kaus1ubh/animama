@@ -1038,6 +1038,47 @@ draft, and a final **Save all** that writes them. Apply should not reload.
     served on the same port keep their own.
 - **Final recheck (OF-R3):** all OF-R2 findings verified, with no
   regressions. Result: **pass**. Both repair rounds are used.
+
+On 2026-10-16 the owner also asked to fix an effect's own sound when it
+doesn't fit.
+
+- **Planner:** `content-tune-effects.mjs` changes an Avatar Effect's
+  default sound:
+  - it replaces the default edge's ref under its alias, so uses that pick a
+    sound by alias stay valid;
+  - a sound the effect already declares becomes the default by alias;
+  - a silent effect gains an optional `on-apply` edge;
+  - `null` removes a single sound, and is refused for a merged effect.
+- **Writer and server:** `saveAll(edits, effects)` checks effect revisions
+  and writes effects in the same all-or-nothing batch. The server re-lists
+  effects per request, from the edited content root when it has its own
+  `vfx` (test fixtures).
+- **Page:**
+  - Each Avatar Effect event shows "effect sound: …", a previewable
+    dropdown with "No sound" for single-sound effects, and a title saying
+    how many Gestures and Reactions use the effect.
+  - Effect sound changes are applied, kept per checkout, counted in the
+    header and written by Save all.
+  - The preview plays applied effect sounds.
+- **Tests:**
+  - `content-tune-effects.test.mjs` (5);
+  - a writer batch test with an effect;
+  - `applied.test.ts` for effect sounds;
+  - a browser test that changes `kira_star`'s sound and saves it.
+- **Effect Sound Review #1:** **pass**, no blocking findings. The reviewer
+  ran `planEffectSound` over all 109 Included Avatar Effects (215 results,
+  0 integrity-rule violations, the 3 merged-effect removals refused as
+  designed). All 11 per-use sound picks are on merged effects. Six
+  non-blocking findings, all taken:
+  - **F1:** the preview mirrors the writer when a declared sound becomes
+    the default (`patchEffectSound`).
+  - **F2:** the docs wording is fixed.
+  - **F3:** a change must name its sound. Test added.
+  - **F4:** removing a sound is refused while a use picks it by alias.
+  - **F5:** the placement panel shows applied effect sounds.
+  - **F6:** the use-count wording reads correctly for one use.
+- **Rechecks:** node unit tests pass, 6 browser tests pass, and the scripts
+  type check, eslint and Prettier pass.
 - **Checks:**
   - node unit tests: pass.
   - `content-tune.browser.test.mjs`: 5 pass. It now checks that Apply

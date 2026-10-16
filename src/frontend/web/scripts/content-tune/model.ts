@@ -29,7 +29,20 @@ export type TuneEffect = {
   name: string;
   /** A Scene Effect's layer kind, which its events name. */
   sceneKind?: "background_layers" | "focus_lines";
+  /** An Avatar Effect's declared sounds (alias → sound ID). */
+  sounds?: Record<string, string>;
+  /** The alias of the sound an Avatar Effect plays by default, or null. */
+  soundAlias?: string | null;
+  /** An Avatar Effect's file revision, for saving its sound. */
+  revision?: string;
 };
+
+/** The sound an Avatar Effect plays by default, or null when silent. */
+export function effectDefaultSound(effect: TuneEffect): string | null {
+  return effect.soundAlias
+    ? (effect.sounds?.[effect.soundAlias] ?? null)
+    : null;
+}
 
 export type TuneDependency = {
   ref: string;

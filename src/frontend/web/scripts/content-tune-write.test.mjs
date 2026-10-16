@@ -264,3 +264,94 @@ test("saves several items together, or none when one is refused", async (t) => {
   assert.equal(await read(other, "joy-3"), 0.3);
   assert.deepEqual(saved.rebaseline, []);
 });
+
+test("changes an Avatar Effect's sound together with item edits", async (t) => {
+  const { root, folder, writer } = await fixture(t);
+  const effectFolder = path.join(root, "content/included/vfx/avatar/star3");
+  await mkdir(effectFolder, { recursive: true });
+  const descriptor = {
+    schema_version: 1,
+    content_type: "avatar_effect",
+    content_id: STAR,
+    version: 1,
+    name: "Star3",
+    dependencies: [],
+    definition: { schema: "animama/avatar-effect/2" },
+  };
+  await writeFile(
+    path.join(effectFolder, "star3.json"),
+    `${JSON.stringify(descriptor, null, 2)}\n`,
+  );
+  const { loadTuneEffect } = await import("./content-tune-model.mjs");
+  const effect = await loadTuneEffect(
+    path.join(root, "content/included"),
+    STAR,
+  );
+  const item = await writer.find("reaction", "joy-2");
+
+  // A stale effect refuses the whole save.
+  await assert.rejects(
+    writer.saveAll([], [{ contentId: STAR, revision: "stale", sound: DING }]),
+    /Nothing was saved\. builtin:avatar-effect:star3: .*changed on disk/,
+  );
+  const saved = await writer.saveAll(
+    [
+      {
+        kind: "reaction",
+        stem: "joy-2",
+        revision: item.revision,
+        events: item.clip.events,
+        expressions: { happy: [{ v: 0.7, beat: "peak" }] },
+        dependencies: item.dependencies,
+      },
+    ],
+    [{ contentId: STAR, revision: effect.revision, sound: DING }],
+  );
+  const written = JSON.parse(
+    await readFile(path.join(effectFolder, "star3.json"), "utf8"),
+  );
+  assert.deepEqual(written.dependencies, [
+    {
+      ref: DING,
+      content_type: "sound_effect",
+      alias: "on-apply",
+      optional: true,
+    },
+  ]);
+  assert.equal(written.definition.soundAlias, "on-apply");
+  assert.deepEqual(saved.pendingSounds, [DING]);
+  assert.equal(saved.effects[0].contentId, STAR);
+  assert.equal(
+    JSON.parse(await readFile(path.join(folder, "joy-2.json"), "utf8"))
+      .expressions.happy[0].v,
+    0.7,
+  );
+});
+
+test("refuses an effect change that names no sound", async (t) => {
+  const { root, writer } = await fixture(t);
+  const folder = path.join(root, "content/included/vfx/avatar/star3");
+  await mkdir(folder, { recursive: true });
+  await writeFile(
+    path.join(folder, "star3.json"),
+    `${JSON.stringify(
+      {
+        content_type: "avatar_effect",
+        content_id: STAR,
+        dependencies: [],
+        definition: { schema: "animama/avatar-effect/2" },
+      },
+      null,
+      2,
+    )}\n`,
+  );
+  const { loadTuneEffect } = await import("./content-tune-model.mjs");
+  const effect = await loadTuneEffect(
+    path.join(root, "content/included"),
+    STAR,
+  );
+  await assert.rejects(
+    writer.saveAll([], [{ contentId: STAR, revision: effect.revision }]),
+    /Name the effect's new sound/,
+  );
+});

@@ -67,6 +67,12 @@ before(async () => {
     path.join(content, "reactions/joy-2"),
     { recursive: true },
   );
+  // The Avatar Effect joy-2 plays, so its own sound can be changed.
+  await cp(
+    path.join(INCLUDED_CONTENT_ROOT, "vfx/avatar/kira_star"),
+    path.join(content, "vfx/avatar/kira_star"),
+    { recursive: true },
+  );
   // A Gesture that plays the pack sound through an sfx event.
   const folder = path.join(content, "gestures/pop-wave");
   await writeJson(path.join(folder, "pop-wave.json"), {
@@ -348,5 +354,43 @@ test("places an Avatar Effect for one use and saves its override", async () => {
   );
   const placed = clip.events.find((event) => event.kind === "avatar_vfx");
   assert.ok(placed.override?.attachment, JSON.stringify(placed));
+  await page.close();
+});
+
+test("changes an Avatar Effect's own sound and saves it", async () => {
+  const descriptor = path.join(
+    dir,
+    "content/included/vfx/avatar/kira_star/kira_star.json",
+  );
+  const page = await browser.newPage({
+    viewport: { width: 1400, height: 900 },
+  });
+  page.setDefaultTimeout(90_000);
+  acceptDialogs(page);
+  await page.goto(tune.url);
+  await page.getByRole("tab", { name: "Reaction ladder" }).click();
+  await page.getByRole("row", { name: /^joy/i }).getByRole("button").click();
+  await page.getByRole("button", { name: /^effect sound:/ }).click();
+  await page.getByPlaceholder("Search sounds").fill("Fixture");
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: /^Fixture Pop/ })
+    .click();
+  await page.getByText("1 applied, not saved").waitFor();
+  const before = await readFile(descriptor, "utf8");
+  await page.getByRole("button", { name: "Save all" }).click();
+  await page.getByText(/Saved 1 effect sound\(s\): kira_star\./).waitFor();
+  const written = JSON.parse(await readFile(descriptor, "utf8"));
+  const { soundAlias } = written.definition;
+  assert.notEqual(await readFile(descriptor, "utf8"), before);
+  assert.deepEqual(
+    written.dependencies.find((edge) => edge.alias === soundAlias),
+    {
+      ref: `builtin:sound-effect:${SOUND_KEY}`,
+      content_type: "sound_effect",
+      alias: soundAlias,
+      optional: true,
+    },
+  );
   await page.close();
 });

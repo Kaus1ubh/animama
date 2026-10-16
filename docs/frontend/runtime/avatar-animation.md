@@ -791,6 +791,15 @@ Reactions. It is not part of any build.
   - Place an Avatar Effect for one event with the Action creator's "This
     use" controls (an `override`, ADR 0025). For an effect that declares
     several sounds, the same panel picks which one this use plays.
+  - Change an Avatar Effect's own sound (its "effect sound" under an event)
+    for every Gesture and Reaction that uses it. The control shows how many
+    use it. A new sound replaces the effect's default edge under the same
+    alias; a sound the effect already declares becomes its default; a
+    silent effect gains an optional `on-apply` edge. "No sound" removes a
+    single sound; it isn't offered for a merged effect (several sounds), and
+    is refused while a use picks that sound. The change is applied and saved
+    like any other edit, and the preview and placement panel show it once
+    applied.
   - Every sound dropdown entry can be previewed before it is picked.
 - **Apply and Save all:**
   - **Apply** keeps an item's edits as a draft in the browser's local

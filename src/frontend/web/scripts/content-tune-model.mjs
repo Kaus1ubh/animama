@@ -3,6 +3,7 @@ import { readdir, readFile, realpath, stat } from "node:fs/promises";
 import path from "node:path";
 
 import { loadSoundCatalog } from "./animation-reel.mjs";
+import { effectSounds } from "./content-tune-effects.mjs";
 import { scanLibrary } from "./effect-render-sources.mjs";
 import { SOUND_REF_PREFIX, packSoundRefs } from "./included-dependencies.mjs";
 
@@ -247,11 +248,18 @@ async function itemMetas(contentRoot, kind) {
   return metas;
 }
 
-/** Every Included Avatar, Particle and Scene Effect a clip event can play. */
+/**
+ * Every Included Avatar, Particle and Scene Effect a clip event can play. An
+ * Avatar Effect also lists its declared sounds, its default sound and its
+ * file revision, so the page can change the sound it plays.
+ */
 export async function listTuneEffects(contentRoot) {
   const effects = [];
   for (const { scan, kind, contentType } of EFFECT_SCANS)
-    for (const { stem, descriptor } of await scanLibrary(contentRoot, scan))
+    for (const { stem, descriptor, descriptorPath } of await scanLibrary(
+      contentRoot,
+      scan,
+    ))
       if (typeof descriptor.content_id === "string")
         effects.push({
           kind,
@@ -263,8 +271,37 @@ export async function listTuneEffects(contentRoot) {
           ...(kind === "scene"
             ? { sceneKind: descriptor.definition?.kind ?? "background_layers" }
             : {}),
+          ...(kind === "avatar"
+            ? {
+                ...effectSounds(descriptor),
+                revision: itemRevision(
+                  await readFile(descriptorPath, "utf8"),
+                  "",
+                ),
+              }
+            : {}),
         });
   return effects;
+}
+
+/**
+ * The Included Avatar Effect `contentId` names under `contentRoot`, as the
+ * writer edits it: its descriptor path, text, parsed value and revision.
+ */
+export async function loadTuneEffect(contentRoot, contentId) {
+  const entry = (await scanLibrary(contentRoot, "effect")).find(
+    ({ descriptor }) => descriptor.content_id === contentId,
+  );
+  if (!entry) return null;
+  const text = await readFile(entry.descriptorPath, "utf8");
+  return {
+    contentId,
+    stem: entry.stem,
+    path: entry.descriptorPath,
+    text,
+    descriptor: JSON.parse(text),
+    revision: itemRevision(text, ""),
+  };
 }
 
 /** An item as the page lists it: no local file paths or raw texts. */

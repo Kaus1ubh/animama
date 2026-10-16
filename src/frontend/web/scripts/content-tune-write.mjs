@@ -3,7 +3,12 @@ import { readFileSync, readdirSync } from "node:fs";
 import { readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-import { loadTuneItem } from "./content-tune-model.mjs";
+import { planEffectSound } from "./content-tune-effects.mjs";
+import {
+  listTuneItems,
+  loadTuneEffect,
+  loadTuneItem,
+} from "./content-tune-model.mjs";
 import {
   STARTER_IDLE_POOL,
   TuneSaveError,
@@ -82,7 +87,9 @@ async function replaceFiles(changes) {
 
 /**
  * The tuning server's writer. `repoRoot` holds the tracked pack manifest
- * and starter idle seed; `contentRoot` the Included content it edits.
+ * and starter idle seed; `contentRoot` the Included content it edits, and
+ * `effectsRoot` (default `contentRoot`) the one whose Avatar Effects' sounds
+ * it changes.
  * `validateClip(clip)` returns `{ ok, issues }` (the app's 2.0 validator),
  * `maxClipBytes` is the largest clip the app loads, `formatJson(value)`
  * formats a clip and `packSounds` lists every sound ID the page offers.
@@ -90,6 +97,7 @@ async function replaceFiles(changes) {
 export function createTuneWriter({
   repoRoot,
   contentRoot,
+  effectsRoot = contentRoot,
   includedTypes,
   packSounds,
   validateClip,
@@ -181,11 +189,71 @@ export function createTuneWriter({
    * they use that the tracked manifest lacks, and the Gestures whose clips
    * changed (their sample baselines then need updating).
    */
-  async function saveAll(edits) {
-    if (!Array.isArray(edits) || !edits.length)
+  /** Plan and check one effect sound change without writing. */
+  async function prepareEffect(change, { shipped }) {
+    const contentId = change?.contentId;
+    if (typeof contentId !== "string")
+      throw new TuneSaveError("Unknown effect.");
+    const effect = await loadTuneEffect(effectsRoot, contentId);
+    if (!effect)
+      throw new TuneSaveError(`No Included Avatar Effect ${contentId}.`);
+    if (change.revision !== effect.revision)
+      throw new TuneSaveError(
+        `${contentId} changed on disk since it was loaded; reload it and redo the change.`,
+      );
+    if (change.sound !== null && typeof change.sound !== "string")
+      throw new TuneSaveError("Name the effect's new sound, or null for none.");
+    const { sound } = change;
+    if (sound === null) {
+      // Removing a sound a use picks by alias would break that use.
+      const alias = effect.descriptor.definition?.soundAlias;
+      const { gestures, reactions } = await listTuneItems(contentRoot);
+      const users = [...gestures, ...reactions].filter((item) => {
+        const aliases = new Set(
+          item.dependencies
+            .filter((dependency) => dependency.ref === contentId)
+            .map((dependency) => dependency.alias),
+        );
+        return (item.clip.events ?? []).some(
+          (event) =>
+            event.kind === "avatar_vfx" &&
+            aliases.has(event.effectId) &&
+            event.override?.soundAlias === alias,
+        );
+      });
+      if (users.length)
+        throw new TuneSaveError(
+          `${users.map((item) => item.stem).join(", ")} pick this sound for their use; change those events first.`,
+        );
+    }
+    const next = planEffectSound(effect.descriptor, sound, { packSounds });
+    const text = jsonFile(next);
+    return {
+      effect,
+      changes: text === effect.text ? [] : [{ file: effect.path, text }],
+      pendingSounds: sound && !shipped.has(sound) ? [sound] : [],
+    };
+  }
+
+  /**
+   * Save item edits and effect sound changes together. Every change is
+   * planned and checked first; if any is refused (naming it), nothing is
+   * written. Otherwise all files are replaced together. Returns the
+   * reloaded items and effects, the pack sounds they use that the tracked
+   * manifest lacks, and the Gestures whose clips changed (their sample
+   * baselines then need updating).
+   */
+  async function saveAll(edits = [], effectChanges = []) {
+    if (!Array.isArray(edits) || !Array.isArray(effectChanges))
+      throw new TuneSaveError("Expected lists of edits and effect changes.");
+    if (!edits.length && !effectChanges.length)
       throw new TuneSaveError("Nothing to save.");
     const stems = edits.map((edit) => `${edit?.kind}:${edit?.stem}`);
-    if (new Set(stems).size !== stems.length)
+    const effectIds = effectChanges.map((change) => change?.contentId);
+    if (
+      new Set(stems).size !== stems.length ||
+      new Set(effectIds).size !== effectIds.length
+    )
       throw new TuneSaveError("An item appears twice in one save.");
     const rules = await context();
     const prepared = [];
@@ -199,13 +267,38 @@ export function createTuneWriter({
         );
       }
     }
-    await replaceFiles(prepared.flatMap(({ changes }) => changes));
+    const effects = [];
+    for (const change of effectChanges) {
+      try {
+        effects.push(await prepareEffect(change, rules));
+      } catch (error) {
+        const label =
+          typeof change?.contentId === "string"
+            ? change.contentId
+            : "an effect";
+        throw new TuneSaveError(
+          `Nothing was saved. ${label}: ${error.message}`,
+        );
+      }
+    }
+    await replaceFiles([
+      ...prepared.flatMap(({ changes }) => changes),
+      ...effects.flatMap(({ changes }) => changes),
+    ]);
     return {
       items: await Promise.all(
         prepared.map(({ current }) => find(current.kind, current.stem)),
       ),
+      effects: await Promise.all(
+        effects.map(({ effect }) =>
+          loadTuneEffect(effectsRoot, effect.contentId),
+        ),
+      ),
       pendingSounds: [
-        ...new Set(prepared.flatMap(({ plan }) => plan.pendingSounds)),
+        ...new Set([
+          ...prepared.flatMap(({ plan }) => plan.pendingSounds),
+          ...effects.flatMap(({ pendingSounds }) => pendingSounds),
+        ]),
       ],
       rebaseline: prepared
         .filter(

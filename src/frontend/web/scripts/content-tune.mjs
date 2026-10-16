@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { createReadStream } from "node:fs";
+import { createReadStream, existsSync } from "node:fs";
 import { readFile, realpath } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -146,7 +146,12 @@ export async function startTuneServer({
     ],
   });
 
-  const effects = await listTuneEffects(INCLUDED_CONTENT_ROOT);
+  // Effects come from the content root being edited when it has its own
+  // (tests use a small fixture tree), else from the checkout's Included.
+  const effectsRoot = existsSync(path.join(contentRoot, "vfx"))
+    ? contentRoot
+    : INCLUDED_CONTENT_ROOT;
+  const effects = await listTuneEffects(effectsRoot);
   const clipFormat = await server.ssrLoadModule(
     "/src/lib/avatar/poses/animaPoseClip/index.ts",
   );
@@ -154,6 +159,7 @@ export async function startTuneServer({
   const writer = createTuneWriter({
     repoRoot: REPO_ROOT,
     contentRoot,
+    effectsRoot,
     includedTypes: new Map(
       effects.map((effect) => [effect.contentId, effect.contentType]),
     ),
@@ -189,7 +195,8 @@ export async function startTuneServer({
       problems: items.problems.map((problem) =>
         problem.replace(`${realRepoRoot}/`, ""),
       ),
-      effects,
+      // Listed per request: Save all can change an effect's sound.
+      effects: await listTuneEffects(effectsRoot),
       sounds: sounds.map(({ file, ...sound }) => ({
         ...sound,
         available: Boolean(file),
@@ -231,9 +238,19 @@ export async function startTuneServer({
       });
     } else if (request.method === "POST" && route === "save") {
       await respond(response, async () => {
-        const { edits } = await readJsonBody(request, MAX_BODY_BYTES);
-        const saved = await writer.saveAll(edits);
-        return { ...saved, items: saved.items.map(publicItem) };
+        const { edits = [], effects = [] } = await readJsonBody(
+          request,
+          MAX_BODY_BYTES,
+        );
+        const saved = await writer.saveAll(edits, effects);
+        return {
+          ...saved,
+          items: saved.items.map(publicItem),
+          // Effects as the page lists them again.
+          effects: (await listTuneEffects(effectsRoot)).filter((effect) =>
+            saved.effects.some((one) => one.contentId === effect.contentId),
+          ),
+        };
       });
     } else if (request.method === "GET" && route === "pending") {
       await respond(response, () => writer.pending());

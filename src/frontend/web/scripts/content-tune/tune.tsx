@@ -15,15 +15,22 @@ import {
   ladderNotes,
   peakExpressions,
   soundGroups,
+  effectDefaultSound,
   type TuneEvent,
   type TuneItem,
   type TuneSound,
+  type TuneEffect,
   type TuneState,
 } from "./model";
 import {
   appliedStorageKey,
   applyDraft,
+  applyEffectSound,
   discardApplied,
+  effectSoundsStorageKey,
+  readEffectSounds,
+  staleEffectSounds,
+  type AppliedEffectSounds,
   readApplied,
   saveAllRequest,
   staleApplied,
@@ -32,7 +39,12 @@ import {
 } from "./applied";
 import { useAudition } from "./audition";
 import { draftOf, updateEvent, type TuneDraft } from "./draft";
-import { EventsEditor, ExpressionsEditor, type Audition } from "./editor";
+import {
+  EventsEditor,
+  ExpressionsEditor,
+  SoundPicker,
+  type Audition,
+} from "./editor";
 import { PlacementSection } from "./placement";
 import { PreviewPlayer, type PlayerState } from "./player";
 
@@ -46,6 +58,7 @@ import { PreviewPlayer, type PlayerState } from "./player";
 /** Save all's answer: the reloaded items and what the owner must do next. */
 type SaveResult = {
   items: TuneItem[];
+  effects: TuneEffect[];
   pendingSounds: string[];
   rebaseline: string[];
 };
@@ -374,14 +387,73 @@ function ReactionLadder({
   );
 }
 
+/**
+ * An effect as its applied (unsaved) sound change would play it, mirroring
+ * `planEffectSound`: a sound it already declares becomes the default by
+ * alias; otherwise the default alias plays the new sound (a silent effect
+ * gains `on-apply`); null removes the default sound.
+ */
+function patchEffectSound(
+  effect: EffectSource,
+  change: AppliedEffectSounds[string] | undefined,
+): EffectSource {
+  if (!change) return effect;
+  const definition = { ...(effect.definition as { soundAlias?: string }) };
+  const cues = { ...(effect.soundCueIds ?? {}) };
+  let alias = definition.soundAlias;
+  const declared = change.sound
+    ? Object.entries(cues).find(([, ref]) => ref === change.sound)?.[0]
+    : undefined;
+  if (change.sound === null) {
+    if (alias) delete cues[alias];
+    alias = undefined;
+  } else if (declared) alias = declared;
+  else {
+    if (!alias) {
+      alias = "on-apply";
+      for (let index = 2; Object.hasOwn(cues, alias); index += 1)
+        alias = `on-apply-${index}`;
+    }
+    cues[alias] = change.sound;
+  }
+  if (alias) definition.soundAlias = alias;
+  else delete definition.soundAlias;
+  return {
+    ...effect,
+    definition,
+    soundCueId: change.sound,
+    soundCueIds: cues,
+  };
+}
+
+/** The preview's media with applied (unsaved) effect sound changes. */
+function withEffectSounds(
+  clipMedia: PageClipMedia | null,
+  effectSounds: AppliedEffectSounds,
+): PageClipMedia | null {
+  if (!clipMedia) return clipMedia;
+  return {
+    ...clipMedia,
+    avatarEffects: clipMedia.avatarEffects.map((entry) => ({
+      ...entry,
+      effect: patchEffectSound(
+        entry.effect,
+        effectSounds[entry.effect.contentId],
+      ),
+    })),
+  };
+}
+
 function Preview({
   state,
   item,
   index,
+  effectSounds,
 }: {
   state: TuneState;
   item: TuneItem;
   index: TuneIndex;
+  effectSounds: AppliedEffectSounds;
 }) {
   const host = useRef<HTMLDivElement | null>(null);
   const player = useRef<PreviewPlayer | null>(null);
@@ -434,7 +506,7 @@ function Preview({
       await player.current?.play({
         avatarUrl: state.avatar.url,
         clip: item.clip,
-        clipMedia,
+        clipMedia: withEffectSounds(clipMedia, effectSounds),
         soundUrl: (cueId) => index.soundUrl(item, cueId),
         onState: setStatus,
         onError: fail,
@@ -485,6 +557,9 @@ function ItemDetail({
   applied,
   onApply,
   onDiscard,
+  effectSounds,
+  effectUses,
+  onEffectSound,
   onDirty,
 }: {
   state: TuneState;
@@ -500,6 +575,12 @@ function ItemDetail({
   onApply: (draft: TuneDraft, revision: string) => void;
   /** Drop the item's applied draft. */
   onDiscard: () => void;
+  /** Applied changes to Avatar Effects' own sounds. */
+  effectSounds: AppliedEffectSounds;
+  /** How many Gestures and Reactions use each effect. */
+  effectUses: Map<string, number>;
+  /** Apply a new own sound (null: silent) for an Avatar Effect. */
+  onEffectSound: (effect: TuneEffect, sound: string | null) => void;
   /** Reports whether the draft has edits that aren't applied yet. */
   onDirty: (dirty: boolean) => void;
 }) {
@@ -596,11 +677,61 @@ function ItemDetail({
     () => new Map(state.sounds.map((sound) => [sound.ref, sound])),
     [state.sounds],
   );
+  const soundNames = useMemo(
+    () => new Map(state.sounds.map((sound) => [sound.ref, sound.name])),
+    [state.sounds],
+  );
+  /** The Avatar Effect's own sound, changeable for every use of it. */
+  const effectSound = (event: TuneEvent) => {
+    const dependency = draft.dependencies.find(
+      (entry) =>
+        entry.alias === event.effectId &&
+        entry.content_type === "avatar_effect",
+    );
+    const effect = state.effects.find(
+      (candidate) =>
+        candidate.kind === "avatar" && candidate.contentId === dependency?.ref,
+    );
+    if (!effect) return null;
+    const change = effectSounds[effect.contentId];
+    const sound = change ? change.sound : effectDefaultSound(effect);
+    const uses = effectUses.get(effect.contentId) ?? 0;
+    return (
+      <SoundPicker
+        sounds={state.sounds}
+        audition={audition}
+        onPick={(picked) => onEffectSound(effect, picked.ref)}
+        // A merged effect keeps its default; its uses pick among its sounds.
+        onNone={
+          Object.keys(effect.sounds ?? {}).length > 1
+            ? undefined
+            : () => onEffectSound(effect, null)
+        }
+        trigger={
+          <button
+            type="button"
+            className={`hover:bg-muted mt-1 block max-w-56 truncate rounded px-1 text-left underline decoration-dotted ${change ? "text-amber-600" : ""}`}
+            title={`${effect.name}'s own sound: changing it changes ${
+              uses === 1
+                ? "the 1 Gesture or Reaction that uses it"
+                : `all ${uses} Gestures and Reactions that use it`
+            }${change ? " (applied, not saved)" : ""}`}
+          >
+            effect sound: {sound ? (soundNames.get(sound) ?? sound) : "none"}
+            {change ? " ●" : ""}
+          </button>
+        }
+      />
+    );
+  };
   const placement = (event: TuneEvent) => {
     if (!avatarEffects) return null;
-    const effect = event.effectId
+    const loaded = event.effectId
       ? avatarEffects.effects.get(event.effectId)
       : undefined;
+    // Shows an applied change to the effect's own sound before Save all.
+    const effect =
+      loaded && patchEffectSound(loaded, effectSounds[loaded.contentId]);
     if (!effect)
       return (
         <p className="text-destructive text-xs">
@@ -621,7 +752,12 @@ function ItemDetail({
   };
   return (
     <div className="flex min-h-0 flex-wrap gap-6 overflow-y-auto">
-      <Preview state={state} item={view} index={index} />
+      <Preview
+        state={state}
+        item={view}
+        index={index}
+        effectSounds={effectSounds}
+      />
       <div className="flex min-w-80 flex-1 flex-col gap-4">
         <header>
           <h2 className="text-lg font-semibold">
@@ -730,6 +866,7 @@ function ItemDetail({
           audition={audition}
           onChange={change}
           placement={placement}
+          effectSound={effectSound}
         />
       </div>
     </div>
@@ -740,7 +877,15 @@ function ItemDetail({
 function afterSave(result: SaveResult, sounds: TuneSound[]): string[] {
   const names = new Map(sounds.map((sound) => [sound.ref, sound.name]));
   return [
-    `Saved ${result.items.length} item(s): ${result.items.map((item) => item.stem).join(", ")}.`,
+    `Saved ${[
+      result.items.length ? `${result.items.length} item(s)` : "",
+      result.effects.length ? `${result.effects.length} effect sound(s)` : "",
+    ]
+      .filter(Boolean)
+      .join(" and ")}: ${[
+      ...result.items.map((item) => item.stem),
+      ...result.effects.map((effect) => effect.stem),
+    ].join(", ")}.`,
     ...result.pendingSounds.map(
       (ref) =>
         `${names.get(ref) ?? ref} isn't in the comedy pack yet: it needs a new pack version before this merges (pnpm -s content:tune --pending lists them).`,
@@ -762,17 +907,39 @@ function App() {
   // Applied edits, kept in this browser until Save all writes them.
   // Read once the checkout is known; written back on every change after.
   const [applied, setApplied] = useState<AppliedEdits>({});
+  // Applied changes to Avatar Effects' own sounds, kept the same way.
+  const [effectSounds, setEffectSounds] = useState<AppliedEffectSounds>({});
   const storageKey = state ? appliedStorageKey(state.checkout) : null;
   const [restored, setRestored] = useState<string | null>(null);
   useEffect(() => {
-    if (!storageKey || restored === storageKey) return;
+    if (!storageKey || !state || restored === storageKey) return;
     setApplied(readApplied(globalThis.localStorage, storageKey));
+    setEffectSounds(
+      readEffectSounds(
+        globalThis.localStorage,
+        effectSoundsStorageKey(state.checkout),
+      ),
+    );
     setRestored(storageKey);
-  }, [storageKey, restored]);
+  }, [storageKey, restored, state]);
   useEffect(() => {
     if (storageKey && restored === storageKey)
       writeApplied(globalThis.localStorage, storageKey, applied);
   }, [applied, storageKey, restored]);
+  const effectsKey = state ? effectSoundsStorageKey(state.checkout) : null;
+  useEffect(() => {
+    if (!effectsKey || restored !== storageKey) return;
+    try {
+      if (Object.keys(effectSounds).length)
+        globalThis.localStorage?.setItem(
+          effectsKey,
+          JSON.stringify(effectSounds),
+        );
+      else globalThis.localStorage?.removeItem(effectsKey);
+    } catch {
+      // Without storage the changes last for this page only.
+    }
+  }, [effectSounds, effectsKey, restored, storageKey]);
   const [saving, setSaving] = useState(false);
   // Whether the open item has edits not applied; switching away asks first.
   const dirty = useRef(false);
@@ -837,7 +1004,23 @@ function App() {
     () => (state ? [...state.gestures, ...state.reactions] : []),
     [state],
   );
-  const stale = useMemo(() => staleApplied(applied, items), [applied, items]);
+  const stale = useMemo(
+    () => [
+      ...staleApplied(applied, items),
+      ...staleEffectSounds(effectSounds, state?.effects ?? []),
+    ],
+    [applied, items, effectSounds, state],
+  );
+  const pendingCount =
+    Object.keys(applied).length + Object.keys(effectSounds).length;
+  // How many Gestures and Reactions use each effect.
+  const effectUses = useMemo(() => {
+    const uses = new Map<string, number>();
+    for (const item of items)
+      for (const ref of new Set(item.dependencies.map((entry) => entry.ref)))
+        uses.set(ref, (uses.get(ref) ?? 0) + 1);
+    return uses;
+  }, [items]);
   /** An item as its applied draft would play it, for the lists. */
   const viewOf = (item: TuneItem): TuneItem =>
     applied[item.contentId]
@@ -845,27 +1028,42 @@ function App() {
       : item;
   /** Write every applied edit, all or nothing. */
   const saveAll = async () => {
-    const count = Object.keys(applied).length;
+    const count = pendingCount;
     if (stale.length) {
       setNotice([
         `Not saved: these files changed since their edits were applied. Discard those edits (or redo them) first: ${stale.join(", ")}.`,
       ]);
       return;
     }
-    if (!window.confirm(`Write ${count} applied item(s) to content/included?`))
+    if (
+      !window.confirm(
+        `Write ${count} applied change(s) to content/included? Effect sound changes reach every Gesture and Reaction that uses the effect.`,
+      )
+    )
       return;
     setSaving(true);
     try {
       const result = await api<SaveResult>("save", {
         method: "POST",
-        body: JSON.stringify(saveAllRequest(applied, items)),
+        body: JSON.stringify(saveAllRequest(applied, items, effectSounds)),
       });
       const saved = new Map(result.items.map((item) => [item.contentId, item]));
+      const savedEffects = new Map(
+        result.effects.map((effect) => [effect.contentId, effect]),
+      );
       setApplied((current) => discardApplied(current, [...saved.keys()]));
+      setEffectSounds((current) =>
+        Object.fromEntries(
+          Object.entries(current).filter(([id]) => !savedEffects.has(id)),
+        ),
+      );
       setState(
         (current) =>
           current && {
             ...current,
+            effects: current.effects.map(
+              (effect) => savedEffects.get(effect.contentId) ?? effect,
+            ),
             gestures: current.gestures.map(
               (item) => saved.get(item.contentId) ?? item,
             ),
@@ -909,15 +1107,15 @@ function App() {
           </span>
         )}
         <span className="ml-auto flex items-center gap-2">
-          {Object.keys(applied).length > 0 && (
+          {pendingCount > 0 && (
             <span className="text-xs text-amber-600">
-              {Object.keys(applied).length} applied, not saved
+              {pendingCount} applied, not saved
               {stale.length > 0 && ` (${stale.length} out of date)`}
             </span>
           )}
           <Button
             size="sm"
-            disabled={!Object.keys(applied).length || saving}
+            disabled={!pendingCount || saving}
             title="Write every applied item to content/included, all or nothing"
             onClick={() => void saveAll()}
           >
@@ -926,14 +1124,16 @@ function App() {
           <Button
             size="sm"
             variant="ghost"
-            disabled={!Object.keys(applied).length || saving}
+            disabled={!pendingCount || saving}
             onClick={() => {
               if (
                 window.confirm(
                   "Discard every applied edit? The files stay as they are.",
                 )
-              )
+              ) {
                 setApplied({});
+                setEffectSounds({});
+              }
             }}
           >
             Discard all
@@ -1010,6 +1210,13 @@ function App() {
             onDiscard={() =>
               setApplied((current) =>
                 discardApplied(current, [selected.contentId]),
+              )
+            }
+            effectSounds={effectSounds}
+            effectUses={effectUses}
+            onEffectSound={(effect, sound) =>
+              setEffectSounds((current) =>
+                applyEffectSound(current, effect, sound),
               )
             }
             onDirty={onDirty}
