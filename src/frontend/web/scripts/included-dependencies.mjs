@@ -52,6 +52,9 @@ export function listIncludedMetas(root, { readFileSync, readdirSync }) {
   return metas;
 }
 
+/** The content ID prefix of a built-in (pack) Sound Effect. */
+export const SOUND_REF_PREFIX = "builtin:sound-effect:";
+
 /** The tracked manifest of the private comedy sound pack, from the repo root. */
 export const PACK_SOUND_MANIFEST =
   "src/backend/animama/resources/wow-comedy-sfx-manifest.json";
@@ -65,9 +68,7 @@ export function packSoundRefs(manifest) {
     (Array.isArray(manifest?.files) ? manifest.files : [])
       .map((file) => file?.path)
       .filter((file) => typeof file === "string" && file.endsWith(".ogg"))
-      .map(
-        (file) => `builtin:sound-effect:${path.posix.basename(file, ".ogg")}`,
-      ),
+      .map((file) => `${SOUND_REF_PREFIX}${path.posix.basename(file, ".ogg")}`),
   );
 }
 

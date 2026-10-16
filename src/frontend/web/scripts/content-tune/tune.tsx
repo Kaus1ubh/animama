@@ -1,0 +1,591 @@
+import "@/index.css";
+
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createRoot } from "react-dom/client";
+
+import { REACTION_INTENSITIES } from "@/lib/avatar/reactionPools";
+import { TRACKED_EMOTIONS } from "@/lib/emotion";
+import { Button } from "@/ui/components/button";
+import { Input } from "@/ui/components/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/components/tabs";
+
+import type { PageClipMedia } from "../effect-render/session";
+import {
+  EVENT_KIND_LABELS,
+  TuneIndex,
+  eventCounts,
+  ladderNotes,
+  peakExpressions,
+  soundGroups,
+  type TuneItem,
+  type TuneSound,
+  type TuneState,
+} from "./model";
+import { PreviewPlayer, type PlayerState } from "./player";
+
+/*
+ * The owner's content-tuning page (served by `scripts/content-tune.mjs`):
+ * Included Gestures, the Reaction ladder and the WOW Sound catalog, with a
+ * live preview of the selected item on an Included Avatar.
+ */
+
+const INTENSITY_LABELS: Record<number, string> = {
+  1: "Mild",
+  2: "Moderate",
+  3: "Strong",
+  4: "Intense",
+};
+const STAGE_SIZE = { width: 560, height: 420 };
+
+async function api<T>(route: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(`/__tune/${route}`, {
+    ...init,
+    headers: init?.body
+      ? { "content-type": "application/json", ...init.headers }
+      : init?.headers,
+  });
+  const body = (await response.json()) as T & { error?: string };
+  if (!response.ok) throw new Error(body.error ?? response.statusText);
+  return body;
+}
+
+/** One shared audition player, so starting one sound stops the last. */
+function useAudition() {
+  const audio = useRef<HTMLAudioElement | null>(null);
+  const [playing, setPlaying] = useState<string | null>(null);
+  useEffect(() => () => audio.current?.pause(), []);
+  const toggle = (sound: TuneSound) => {
+    audio.current?.pause();
+    if (playing === sound.key) {
+      setPlaying(null);
+      return;
+    }
+    const next = new Audio(`/__tune/sound/${encodeURIComponent(sound.key)}`);
+    next.addEventListener("ended", () => setPlaying(null));
+    audio.current = next;
+    setPlaying(sound.key);
+    void next.play().catch(() => setPlaying(null));
+  };
+  return { playing, toggle };
+}
+
+function SoundRow({
+  sound,
+  playing,
+  onToggle,
+}: {
+  sound: TuneSound;
+  playing: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <li className="flex items-center gap-2 py-1">
+      <Button
+        size="icon-sm"
+        variant="outline"
+        disabled={!sound.available}
+        aria-label={playing ? `Stop ${sound.name}` : `Play ${sound.name}`}
+        onClick={onToggle}
+      >
+        {playing ? "■" : "▶"}
+      </Button>
+      <span className="min-w-0 flex-1 truncate" title={sound.key}>
+        {sound.name}
+      </span>
+      {sound.duration !== null && (
+        <span className="text-muted-foreground text-xs tabular-nums">
+          {sound.duration.toFixed(1)} s
+        </span>
+      )}
+      {sound.shipped && (
+        <span className="bg-muted rounded px-1.5 py-0.5 text-xs">In pack</span>
+      )}
+    </li>
+  );
+}
+
+function SoundCatalog({
+  sounds,
+  catalog,
+}: {
+  sounds: TuneSound[];
+  catalog: boolean;
+}) {
+  const [query, setQuery] = useState("");
+  const { playing, toggle } = useAudition();
+  const shown = sounds.filter((sound) =>
+    `${sound.name} ${sound.key} ${sound.category}`
+      .toLowerCase()
+      .includes(query.trim().toLowerCase()),
+  );
+  return (
+    <div className="flex min-h-0 flex-col gap-2">
+      <Input
+        placeholder="Search sounds"
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+      />
+      {!sounds.some((sound) => sound.available) && (
+        <p className="text-destructive text-xs">
+          No sound files found, so nothing can be heard. Pass --sounds with the
+          comedy pack (such as the primary checkout&apos;s
+          build-inputs/wow-comedy-sfx) or --catalog with the vendor folder.
+        </p>
+      )}
+      {!catalog && (
+        <p className="text-muted-foreground text-xs">
+          Only the pack's sounds are listed. Pass --catalog to list the full WOW
+          Sound catalog.
+        </p>
+      )}
+      <div className="min-h-0 overflow-y-auto pr-1">
+        {soundGroups(shown).map(([category, group]) => (
+          <section key={category} className="mb-3">
+            <h3 className="text-muted-foreground mb-1 text-xs font-semibold tracking-wide uppercase">
+              {category} ({group.length})
+            </h3>
+            <ul>
+              {group.map((sound) => (
+                <SoundRow
+                  key={sound.key}
+                  sound={sound}
+                  playing={playing === sound.key}
+                  onToggle={() => toggle(sound)}
+                />
+              ))}
+            </ul>
+          </section>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function EventChips({ item }: { item: TuneItem }) {
+  const counts = eventCounts(item);
+  const chips = [
+    ["A", counts.avatar_vfx],
+    ["P", counts.particle_vfx],
+    ["S", counts.scene_vfx],
+    ["♪", counts.sfx],
+  ].filter(([, count]) => count);
+  return (
+    <span className="flex gap-1">
+      {chips.map(([label, count]) => (
+        <span
+          key={label}
+          className="bg-muted rounded px-1 text-[11px] tabular-nums"
+          title={`${count} ${label === "♪" ? "sound" : "effect"} event(s)`}
+        >
+          {label}
+          {count}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+function GestureList({
+  gestures,
+  selected,
+  onSelect,
+}: {
+  gestures: TuneItem[];
+  selected: string | null;
+  onSelect: (item: TuneItem) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const shown = gestures.filter((item) =>
+    `${item.name} ${item.stem}`
+      .toLowerCase()
+      .includes(query.trim().toLowerCase()),
+  );
+  return (
+    <div className="flex min-h-0 flex-col gap-2">
+      <Input
+        placeholder={`Search ${gestures.length} Gestures`}
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+      />
+      <ul className="min-h-0 overflow-y-auto pr-1">
+        {shown.map((item) => (
+          <li key={item.stem}>
+            <button
+              type="button"
+              className={`hover:bg-muted flex w-full items-center gap-2 rounded px-2 py-1 text-left text-sm ${
+                selected === item.contentId ? "bg-muted font-medium" : ""
+              }`}
+              onClick={() => onSelect(item)}
+            >
+              <span className="min-w-0 flex-1 truncate">{item.name}</span>
+              <EventChips item={item} />
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/** Peak weights as the ladder shows them: `happy .75 · relaxed .35`. */
+function peakSummary(item: TuneItem): string {
+  return peakExpressions(item)
+    .map(([name, value]) => `${name} ${value.toFixed(2).replace(/^0/, "")}`)
+    .join(" · ");
+}
+
+/** The sounds an item's sound events play, by name. */
+function soundNames(item: TuneItem, index: TuneIndex): string[] {
+  return (item.clip.events ?? [])
+    .filter((event) => event.kind === "sfx")
+    .map((event) => index.targetName(item, event));
+}
+
+function ReactionLadder({
+  reactions,
+  selected,
+  index,
+  onSelect,
+}: {
+  reactions: TuneItem[];
+  selected: string | null;
+  index: TuneIndex;
+  onSelect: (item: TuneItem) => void;
+}) {
+  const cells = useMemo(() => {
+    const map = new Map<string, TuneItem[]>();
+    for (const item of reactions) {
+      const key = `${item.emotion}:${item.intensity}`;
+      map.set(key, [...(map.get(key) ?? []), item]);
+    }
+    return map;
+  }, [reactions]);
+  return (
+    <div className="min-h-0 overflow-auto">
+      <table className="w-full border-separate border-spacing-1 text-sm">
+        <thead>
+          <tr>
+            <th className="text-left">Emotion</th>
+            {REACTION_INTENSITIES.map((intensity) => (
+              <th key={intensity} className="text-left font-medium">
+                {INTENSITY_LABELS[intensity]}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {TRACKED_EMOTIONS.map((emotion) => (
+            <tr key={emotion}>
+              <th className="pr-2 text-left align-top font-medium capitalize">
+                {emotion}
+              </th>
+              {REACTION_INTENSITIES.map((intensity) => (
+                <td key={intensity} className="align-top">
+                  <div className="flex flex-col gap-1">
+                    {(cells.get(`${emotion}:${intensity}`) ?? []).map(
+                      (item) => {
+                        const notes = ladderNotes(item);
+                        return (
+                          <button
+                            key={item.stem}
+                            type="button"
+                            title={notes.join("; ") || item.stem}
+                            className={`hover:bg-muted flex flex-col gap-0.5 rounded border px-1.5 py-1 text-left ${
+                              selected === item.contentId
+                                ? "border-primary bg-muted"
+                                : ""
+                            } ${notes.length ? "border-amber-500" : ""}`}
+                            onClick={() => onSelect(item)}
+                          >
+                            <span className="flex items-center justify-between gap-1">
+                              <span className="text-xs">
+                                {item.stem.endsWith("-b") ? "B" : "A"}
+                              </span>
+                              <EventChips item={item} />
+                            </span>
+                            <span className="text-muted-foreground text-[11px] leading-tight">
+                              {peakSummary(item) || "no expression"}
+                            </span>
+                            {soundNames(item, index).map((name) => (
+                              <span
+                                key={name}
+                                className="truncate text-[11px] leading-tight"
+                              >
+                                ♪ {name}
+                              </span>
+                            ))}
+                          </button>
+                        );
+                      },
+                    )}
+                  </div>
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function Preview({
+  state,
+  item,
+  index,
+}: {
+  state: TuneState;
+  item: TuneItem;
+  index: TuneIndex;
+}) {
+  const host = useRef<HTMLDivElement | null>(null);
+  const player = useRef<PreviewPlayer | null>(null);
+  const [status, setStatus] = useState<PlayerState | "idle">("idle");
+  const [notices, setNotices] = useState<string[]>([]);
+  // The review stage renders its Scene layers synchronously (flushSync), so
+  // it is created, stopped and disposed outside React's effect phase.
+  useEffect(() => {
+    const element = host.current;
+    if (!element) return;
+    let created: PreviewPlayer | null = null;
+    queueMicrotask(() => {
+      created = new PreviewPlayer(element, STAGE_SIZE.width, STAGE_SIZE.height);
+      player.current = created;
+    });
+    return () => {
+      player.current = null;
+      queueMicrotask(() => created?.dispose());
+    };
+  }, []);
+  useEffect(() => {
+    queueMicrotask(() => player.current?.stop());
+    setStatus("idle");
+    setNotices([]);
+  }, [item]);
+
+  // Bumped when the item changes, so a play started for the previous item
+  // stops after its media request instead of starting the wrong clip.
+  const playId = useRef(0);
+  useEffect(() => {
+    playId.current += 1;
+  }, [item]);
+  const play = async () => {
+    const id = ++playId.current;
+    const fail = (error: unknown) => {
+      if (id !== playId.current) return;
+      setStatus("error");
+      setNotices([error instanceof Error ? error.message : String(error)]);
+    };
+    try {
+      const { clipMedia, notices } = await api<{
+        clipMedia: PageClipMedia | null;
+        notices: string[];
+      }>("media", {
+        method: "POST",
+        body: JSON.stringify({ dependencies: item.dependencies }),
+      });
+      if (id !== playId.current) return;
+      setNotices(notices);
+      await player.current?.play({
+        avatarUrl: state.avatar.url,
+        clip: item.clip,
+        clipMedia,
+        soundUrl: (cueId) => index.soundUrl(item, cueId),
+        onState: setStatus,
+        onError: fail,
+      });
+    } catch (error) {
+      fail(error);
+    }
+  };
+
+  return (
+    <section className="flex flex-col gap-2">
+      <div ref={host} style={STAGE_SIZE} className="overflow-hidden rounded" />
+      <div className="flex items-center gap-2">
+        <Button onClick={() => void play()} disabled={status === "loading"}>
+          {status === "playing" ? "Replay" : "Play"}
+        </Button>
+        <Button
+          variant="outline"
+          onClick={() => {
+            player.current?.stop();
+            setStatus("stopped");
+          }}
+        >
+          Stop
+        </Button>
+        <span className="text-muted-foreground text-sm">
+          {status === "loading"
+            ? "Loading…"
+            : status === "error"
+              ? "Failed"
+              : ""}
+        </span>
+      </div>
+      {notices.map((notice) => (
+        <p key={notice} className="text-destructive text-xs">
+          {notice}
+        </p>
+      ))}
+    </section>
+  );
+}
+
+function ItemDetail({
+  state,
+  item,
+  index,
+}: {
+  state: TuneState;
+  item: TuneItem;
+  index: TuneIndex;
+}) {
+  const events = [...(item.clip.events ?? [])].sort((a, b) => a.time - b.time);
+  const notes = ladderNotes(item);
+  return (
+    <div className="flex min-h-0 flex-wrap gap-6 overflow-y-auto">
+      <Preview state={state} item={item} index={index} />
+      <div className="flex min-w-80 flex-1 flex-col gap-4">
+        <header>
+          <h2 className="text-lg font-semibold">{item.name}</h2>
+          <p className="text-muted-foreground text-xs">
+            {item.contentId}
+            {item.kind === "reaction" &&
+              ` · ${item.emotion} · ${INTENSITY_LABELS[item.intensity ?? 0] ?? "?"}`}
+            {` · ${item.clip.duration.toFixed(2)} s`}
+          </p>
+          {notes.length > 0 && (
+            <p className="mt-1 text-xs text-amber-600">
+              Ladder: {notes.join("; ")}
+            </p>
+          )}
+        </header>
+        {item.kind === "reaction" && (
+          <section>
+            <h3 className="mb-1 text-sm font-semibold">Peak expressions</h3>
+            <ul className="text-sm">
+              {peakExpressions(item).map(([name, value]) => (
+                <li key={name} className="flex gap-2">
+                  <span className="w-28">{name}</span>
+                  <span className="tabular-nums">{value.toFixed(2)}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+        <section>
+          <h3 className="mb-1 text-sm font-semibold">
+            Events ({events.length})
+          </h3>
+          {events.length === 0 ? (
+            <p className="text-muted-foreground text-sm">
+              No effects or sounds.
+            </p>
+          ) : (
+            <table className="w-full text-sm">
+              <thead className="text-muted-foreground text-left text-xs">
+                <tr>
+                  <th className="font-normal">Time</th>
+                  <th className="font-normal">Kind</th>
+                  <th className="font-normal">Plays</th>
+                  <th className="font-normal">Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {events.map((event) => (
+                  <tr key={event.id}>
+                    <td className="tabular-nums">{event.time.toFixed(2)}</td>
+                    <td>{EVENT_KIND_LABELS[event.kind] ?? event.kind}</td>
+                    <td>{index.targetName(item, event)}</td>
+                    <td className="text-muted-foreground text-xs">
+                      {[
+                        event.playAccompanyingSound === false && "muted",
+                        event.override?.soundAlias &&
+                          `sound ${event.override.soundAlias}`,
+                        event.kind === "sfx" &&
+                          event.volume !== undefined &&
+                          `volume ${event.volume}`,
+                        event.duration !== undefined && `${event.duration} s`,
+                      ]
+                        .filter(Boolean)
+                        .join(", ")}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </section>
+      </div>
+    </div>
+  );
+}
+
+function App() {
+  const [state, setState] = useState<TuneState | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [selected, setSelected] = useState<TuneItem | null>(null);
+  useEffect(() => {
+    api<TuneState>("state").then(setState, (reason: Error) =>
+      setError(reason.message),
+    );
+  }, []);
+  const index = useMemo(() => (state ? new TuneIndex(state) : null), [state]);
+  if (error) return <p className="text-destructive p-6">{error}</p>;
+  if (!state || !index) return <p className="p-6">Loading content…</p>;
+  return (
+    <div className="flex h-screen flex-col">
+      <header className="flex items-baseline gap-3 border-b px-4 py-2">
+        <h1 className="text-base font-semibold">Content tuning</h1>
+        <span className="text-muted-foreground text-xs">
+          {state.gestures.length} Gestures · {state.reactions.length} Reactions
+          · {state.sounds.length} sounds · {state.avatar.id}
+        </span>
+      </header>
+      {state.problems.length > 0 && (
+        <ul className="text-destructive border-b px-4 py-2 text-xs">
+          {state.problems.map((problem) => (
+            <li key={problem}>Not loaded: {problem}</li>
+          ))}
+        </ul>
+      )}
+      <main className="grid min-h-0 flex-1 grid-cols-[minmax(360px,1.1fr)_minmax(480px,1fr)] gap-4 p-4">
+        <Tabs defaultValue="gestures" className="flex min-h-0 flex-col">
+          <TabsList>
+            <TabsTrigger value="gestures">Gestures</TabsTrigger>
+            <TabsTrigger value="ladder">Reaction ladder</TabsTrigger>
+            <TabsTrigger value="sounds">Sounds</TabsTrigger>
+          </TabsList>
+          <TabsContent value="gestures" className="flex min-h-0 flex-col">
+            <GestureList
+              gestures={state.gestures}
+              selected={selected?.contentId ?? null}
+              onSelect={setSelected}
+            />
+          </TabsContent>
+          <TabsContent value="ladder" className="flex min-h-0 flex-col">
+            <ReactionLadder
+              reactions={state.reactions}
+              selected={selected?.contentId ?? null}
+              index={index}
+              onSelect={setSelected}
+            />
+          </TabsContent>
+          <TabsContent value="sounds" className="flex min-h-0 flex-col">
+            <SoundCatalog sounds={state.sounds} catalog={state.catalog} />
+          </TabsContent>
+        </Tabs>
+        {selected ? (
+          <ItemDetail state={state} item={selected} index={index} />
+        ) : (
+          <p className="text-muted-foreground">
+            Pick a Gesture or a Reaction to preview it.
+          </p>
+        )}
+      </main>
+    </div>
+  );
+}
+
+createRoot(document.getElementById("root")!).render(<App />);

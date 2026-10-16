@@ -1,4 +1,3 @@
-import { spawn } from "node:child_process";
 import { createReadStream, watch } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -10,6 +9,13 @@ import {
   PreviewMediaFiles,
   createPreviewMediaAdapter,
 } from "./animation-preview-media.mjs";
+import {
+  openBrowser,
+  readJsonBody,
+  respond,
+  sendJson,
+  trustedRequest,
+} from "./local-page-server.mjs";
 
 /**
  * Live motion and Avatar Effect preview with review notes.
@@ -111,14 +117,7 @@ export async function startPreviewServer({
   });
 
   /** Reject requests from other hosts or sites (DNS rebinding, CSRF). */
-  const trusted = (request) => {
-    if (`http://${request.headers.host ?? ""}` !== origin) return false;
-    const requestOrigin = request.headers.origin;
-    // Browsers send Origin on cross-origin GETs; writes must always carry ours.
-    return requestOrigin === undefined
-      ? request.method === "GET"
-      : requestOrigin === origin;
-  };
+  const trusted = (request) => trustedRequest(request, origin);
 
   async function handleApi(request, response) {
     const url = new URL(request.url ?? "/", "http://127.0.0.1");
@@ -138,7 +137,7 @@ export async function startPreviewServer({
       sendJson(response, 200, await listChoices());
     } else if (request.method === "POST" && route === "select") {
       await respond(response, async () =>
-        pageState(await select(await readJsonBody(request))),
+        pageState(await select(await readJsonBody(request, MAX_BODY_BYTES))),
       );
       broadcast();
     } else if (request.method === "GET" && route === "events") {
@@ -163,7 +162,11 @@ export async function startPreviewServer({
       );
     } else if (request.method === "POST" && route === "notes") {
       await respond(response, async () =>
-        pageState(await current.session.addNote(await readJsonBody(request))),
+        pageState(
+          await current.session.addNote(
+            await readJsonBody(request, MAX_BODY_BYTES),
+          ),
+        ),
       );
       broadcast();
     } else if (request.method === "DELETE" && route.startsWith("notes/")) {
@@ -364,57 +367,6 @@ export async function startPreviewServer({
       await server.close();
     },
   };
-}
-
-async function respond(response, action) {
-  try {
-    sendJson(response, 200, await action());
-  } catch (error) {
-    sendJson(response, 400, { error: error.message });
-  }
-}
-
-function sendJson(response, status, value) {
-  if (response.headersSent) return;
-  response.writeHead(status, { "content-type": "application/json" });
-  response.end(JSON.stringify(value));
-}
-
-function readJsonBody(request) {
-  return new Promise((resolve, reject) => {
-    let size = 0;
-    const chunks = [];
-    request.on("data", (chunk) => {
-      size += chunk.length;
-      if (size > MAX_BODY_BYTES) {
-        reject(new Error("Request body too large."));
-        request.destroy();
-      } else chunks.push(chunk);
-    });
-    request.on("end", () => {
-      try {
-        resolve(JSON.parse(Buffer.concat(chunks).toString("utf8")));
-      } catch {
-        reject(new Error("Expected a JSON body."));
-      }
-    });
-    request.on("error", reject);
-  });
-}
-
-/** Open the URL in the system's default (non-headless) browser. */
-function openBrowser(url) {
-  const [command, args] =
-    process.platform === "darwin"
-      ? ["open", [url]]
-      : process.platform === "win32"
-        ? ["cmd", ["/c", "start", "", url]]
-        : ["xdg-open", [url]];
-  const child = spawn(command, args, { detached: true, stdio: "ignore" });
-  child.on("error", () =>
-    console.log(`Could not open a browser; open ${url} yourself.`),
-  );
-  child.unref();
 }
 
 const USAGE = `Usage: pnpm -s animation:preview [<source>] [--compare <source>] [--notes <file>]

@@ -150,7 +150,7 @@ until the slug is listed in `REBASELINED` and the baseline is rewritten with
 ## Progress
 
 - [x] Phase 1: optional pack sounds for Included Gesture and Reaction `sfx` events. Done (2026-10-16): checks pass, Code Review #2 passed after one repair round. Hearing the sound in chat with the pack mounted is part of the owner's final check.
-- [ ] Phase 2: read-only tuning page with catalog audition and preview. Not started.
+- [x] Phase 2: read-only tuning page with catalog audition and preview. Done (2026-10-16): checks pass, Code Review #2 passed after one repair round. Hearing the sounds is part of the owner's final check.
 - [ ] Phase 3: editing and saving events and Reaction expressions. Not started.
 - [ ] Phase 4: per-use placement, docs and acceptance. Not started.
 - [ ] Final integration review. Not started.
@@ -328,6 +328,7 @@ Results (2026-10-16, working tree on `a7c090b2`):
     diagnostics.
 - With the pack: `pnpm -s animation:reel` of the same Gesture with
   `--sounds <pack>` mixed one sound (peak −1.3 dB).
+- Commit: `16af8074` `feat(content)[p1]: let Included actions play optional pack sounds`.
 - Limitation: the with-pack check used the reel, not a stack with the pack
   mounted through a Compose override. The catalog's with-pack path is covered
   by `test_an_included_gesture_plays_without_its_absent_optional_sound`.
@@ -491,15 +492,102 @@ Manual evidence:
 Completion: the read model's counts match `content/included`, previews play
 with sound dispatch logged, tests pass, and the review is complete.
 
-Results and commits: _pending_.
+Results (2026-10-16, on `16af8074`):
+
+- `pnpm -s content:tune` serves the page from
+  `src/frontend/web/scripts/content-tune.mjs`.
+  - The read model is in `content-tune-model.mjs`. The page is in
+    `scripts/content-tune/`: `tune.tsx`, the preview `player.ts` and
+    `model.ts`.
+  - Origin checks and JSON helpers are now shared with `animation:preview`
+    in `scripts/local-page-server.mjs`. GETs also refuse cross-site fetch
+    metadata.
+- Deviations from the plan:
+  - Clip sounds play through `HTMLAudioElement`, not a page `AudioContext`.
+    The player starts each sound when its event fires in real time, so no
+    shared clock is needed.
+  - Gesture and Reaction folders are walked without `scanLibrary`'s parsing,
+    so one malformed file is listed under "Not loaded" instead of failing
+    the page.
+- Checks:
+  - `node --test` on `content-tune.test.mjs`, `content-tune-model.test.mjs`
+    and `content-tune/model.test.ts`: pass.
+  - `node --test scripts/content-tune.browser.test.mjs`: 3 pass. These cover
+    listing, audition, preview with an `sfx` sound, unlisted and
+    traversal-shaped sound keys, `/__tune/media` with a non-Included ref, a
+    broken item, and cross-origin and cross-site refusals.
+  - `animation-preview.browser.test.mjs`: 9 pass after the helper move.
+  - `pnpm check` and `pnpm web:lint`: pass.
+  - Prettier: pass.
+- Manual, in the browser pane with the real catalog (228 sounds, 50 in the
+  pack):
+  - Air Guitar and Admiration Reaction 4 previewed with their effects.
+  - The ladder shows each cell's peak weights, effect counts and sounds, and
+    outlines departures from the ladder.
+  - Hearing the sounds is the owner's check.
 
 #### Code Review #1 Findings
 
-_Pending._
+The same independent reviewer reviewed the Phase 2 files on `16af8074` in a
+full initial review. It found no security issue. Sound keys resolve only
+through a server-side map, and `/__tune/media` can only resolve Included
+effects.
+
+Blocking:
+- **P2-R1-F1:** ladder cells did not show peak expression values or sounds
+  (R2 and plan step 3).
+
+Non-blocking:
+- **P2-R1-F2:** a play could start the previous item after a selection
+  change during the media request.
+- **P2-R1-F3:** frame errors were unhandled and left the status as
+  "playing".
+- **P2-R1-F4:** one malformed item made `/__tune/state` fail.
+- **P2-R1-F5:** helpers were copied from `animation-preview.mjs`.
+- **P2-R1-F6:** deviations to record, plus no page notice without sounds and
+  a silent bad `--catalog` path.
+- **P2-R1-F7:** missing tests for `model.ts` and the server edge cases.
+- **P2-R1-F8:** `SOUND_REF_PREFIX` was defined in several places.
+- Residual risk, also present in `animation-preview`: a cross-site
+  `<audio>` sends no Origin.
 
 #### Code Review #1 Revisions
 
-_Pending._
+- **F1, accepted:** each cell shows its effect counts, peak weights
+  (`happy .75 · relaxed .35`) and sound names.
+- **F2, accepted:** the play request carries a generation, and a stale play
+  stops after the media request.
+- **F3, accepted:** frame errors stop playback, set the status to error and
+  show the message.
+- **F4, accepted:** the model walks item folders itself and reports broken
+  items as page "problems".
+- **F5, accepted:** `scripts/local-page-server.mjs` is shared by both
+  servers. The residual cross-site risk is closed for both with a
+  `Sec-Fetch-Site` check.
+- **F6, accepted:** deviations recorded above. The page warns when no sound
+  is playable, and the console warns when `--catalog` yields no vendor
+  sounds.
+- **F7, accepted:** added `content-tune/model.test.ts` and the server
+  edge-case browser test.
+- **F8, partly accepted:** the Node side imports `SOUND_REF_PREFIX` from
+  `included-dependencies.mjs`. The browser `model.ts` keeps its own copy,
+  because the page doesn't import Node script modules.
+
+Repair budget: one round used.
+
+#### Code Review #2 Findings
+
+This was a targeted recheck by the same reviewer. It verified F1–F8 as fixed
+or recorded, with no regressions. Item counts still match: 152 Gestures,
+168 Reactions, 96 cells. Result: **pass**.
+
+Its checks:
+- the unit tests: 11 pass;
+- the `content-tune` and `animation-preview` browser tests: 12 pass;
+- Prettier and eslint on the changed files: pass.
+
+One cosmetic note: problem paths were relativized against a non-real repo
+root. Fixed by relativizing against the real path.
 
 ### Phase 3: Editing and saving events and Reaction expressions
 
