@@ -129,16 +129,11 @@ export function createTuneWriter({
     return item;
   }
 
-  /**
-   * Save one edit. Returns the reloaded item, the pack sounds it uses that
-   * the tracked manifest lacks, and whether a Gesture clip changed (its
-   * sample baseline then needs updating).
-   */
-  async function save(edit) {
+  /** Plan and check one edit without writing: its file changes and notes. */
+  async function prepare(edit, { shipped, idleKeys }) {
     // Plan from the very texts the revision was computed from.
     const current = await find(edit?.kind, edit?.stem);
     const { metaText, clipText } = current;
-    const { shipped, idleKeys } = await context();
     const plan = planTuneSave(
       {
         kind: current.kind,
@@ -166,17 +161,68 @@ export function createTuneWriter({
       );
     const nextMeta = jsonFile(plan.meta);
     const clipChanged = nextClip !== clipText;
-    await replaceFiles([
-      ...(clipChanged ? [{ file: current.clipPath, text: nextClip }] : []),
-      ...(nextMeta !== metaText
-        ? [{ file: current.metaPath, text: nextMeta }]
-        : []),
-    ]);
     return {
-      item: await find(current.kind, current.stem),
-      pendingSounds: plan.pendingSounds,
-      rebaseline:
-        current.kind === "gesture" && clipChanged ? current.stem : null,
+      current,
+      plan,
+      clipChanged,
+      changes: [
+        ...(clipChanged ? [{ file: current.clipPath, text: nextClip }] : []),
+        ...(nextMeta !== metaText
+          ? [{ file: current.metaPath, text: nextMeta }]
+          : []),
+      ],
+    };
+  }
+
+  /**
+   * Save several edits together. Every edit is planned and checked first;
+   * if any is refused (naming its item), nothing is written. Otherwise all
+   * files are replaced together. Returns the reloaded items, the pack sounds
+   * they use that the tracked manifest lacks, and the Gestures whose clips
+   * changed (their sample baselines then need updating).
+   */
+  async function saveAll(edits) {
+    if (!Array.isArray(edits) || !edits.length)
+      throw new TuneSaveError("Nothing to save.");
+    const stems = edits.map((edit) => `${edit?.kind}:${edit?.stem}`);
+    if (new Set(stems).size !== stems.length)
+      throw new TuneSaveError("An item appears twice in one save.");
+    const rules = await context();
+    const prepared = [];
+    for (const edit of edits) {
+      try {
+        prepared.push(await prepare(edit, rules));
+      } catch (error) {
+        const label = typeof edit?.stem === "string" ? edit.stem : "an item";
+        throw new TuneSaveError(
+          `Nothing was saved. ${label}: ${error.message}`,
+        );
+      }
+    }
+    await replaceFiles(prepared.flatMap(({ changes }) => changes));
+    return {
+      items: await Promise.all(
+        prepared.map(({ current }) => find(current.kind, current.stem)),
+      ),
+      pendingSounds: [
+        ...new Set(prepared.flatMap(({ plan }) => plan.pendingSounds)),
+      ],
+      rebaseline: prepared
+        .filter(
+          ({ current, clipChanged }) =>
+            current.kind === "gesture" && clipChanged,
+        )
+        .map(({ current }) => current.stem),
+    };
+  }
+
+  /** Save one edit: `saveAll` with a single item. */
+  async function save(edit) {
+    const { items, pendingSounds, rebaseline } = await saveAll([edit]);
+    return {
+      item: items[0],
+      pendingSounds,
+      rebaseline: rebaseline[0] ?? null,
     };
   }
 
@@ -196,5 +242,5 @@ export function createTuneWriter({
     );
   }
 
-  return { find, save, pending };
+  return { find, save, saveAll, pending };
 }

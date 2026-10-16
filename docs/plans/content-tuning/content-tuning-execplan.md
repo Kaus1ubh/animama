@@ -993,6 +993,61 @@ Journeys:
   untracked).
 - F1 closed. Final integration review: **pass**.
 
+## Owner feedback after the PR opened
+
+On 2026-10-16 the owner asked for a per-item **Apply** that keeps edits as a
+draft, and a final **Save all** that writes them. Apply should not reload.
+
+- **Delivered:**
+  - `scripts/content-tune/applied.ts` keeps applied drafts in the
+    browser's local storage, together with the file revision each edit
+    started from.
+  - The writer's `saveAll` plans and checks every applied item before
+    writing any, and refuses the whole batch with the item named.
+  - `POST /__tune/save` takes `{edits}`.
+  - In the page:
+    - Apply records the draft without remounting the editor or restarting
+      the preview.
+    - Save all, Discard applied and Discard all.
+    - Applied markers and applied views in the lists.
+    - A warning before leaving with edits that aren't applied.
+  - The default port is now fixed (4791), so applied drafts survive a
+    restart.
+- **Targeted review (OF-R1):**
+  - **F1, blocking, fixed:** after a Reload found a newer file, Apply
+    recorded the new revision for a draft built from the old file. Save all
+    could then overwrite the newer file. The editor now tracks the revision
+    its history started from, and Apply records that one.
+  - **F2, fixed:** applied drafts were lost on restart because the port was
+    random. The port is now fixed, and a busy port gets a clear message.
+  - **F3, fixed:** stored entries of another shape are dropped instead of
+    breaking the page. Test added.
+  - **F4, fixed:** a Reload of an unchanged file keeps the undo history.
+  - **F5, fixed:** a stale doc comment.
+  - **F6, fixed:** the docs now say a failed rename names the files
+    replaced, and how to recover them.
+- **Targeted recheck (OF-R2):** F1–F6 verified, with one new blocking
+  finding and two notes.
+  - **F1, blocking, fixed:** after Save all, further edits to the same open
+    item were wrongly refused as out of date. The editor now syncs its
+    start revision whenever the draft matches the newer file. A browser step
+    runs Apply, Save all, edit, Apply and Save all on one item.
+  - **F2, fixed:** Vite reports a taken strict port without an error code,
+    so the busy-port message now also matches on the message.
+  - **F3, fixed:** applied drafts are keyed by a checkout ID, so worktrees
+    served on the same port keep their own.
+- **Final recheck (OF-R3):** all OF-R2 findings verified, with no
+  regressions. Result: **pass**. Both repair rounds are used.
+- **Checks:**
+  - node unit tests: pass.
+  - `content-tune.browser.test.mjs`: 5 pass. It now checks that Apply
+    writes nothing and keeps the same stage element, that applied edits
+    survive a page reload, and that Save all writes them.
+  - `pnpm check` and `pnpm web:lint`: pass.
+  - `test:source:unit` fails only `includedClipBaseline`, for the owner's
+    own uncommitted Air Guitar edit in the worktree. That edit is not part
+    of this change.
+
 ## Validation and acceptance
 
 Acceptance is #590's checklist. Commands for the candidate:

@@ -81,6 +81,8 @@ export type TuneState = {
   catalog: boolean;
   /** Items that couldn't be loaded, each naming its file. */
   problems: string[];
+  /** Identifies the checkout's content (keys the applied drafts). */
+  checkout: string;
 };
 
 /** The clip alias an event plays, and the kind of content it names. */

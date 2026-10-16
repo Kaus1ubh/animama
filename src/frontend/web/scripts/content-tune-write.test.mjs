@@ -217,3 +217,50 @@ test("refuses an invalid or oversized clip and writes nothing", async (t) => {
     );
   }
 });
+
+test("saves several items together, or none when one is refused", async (t) => {
+  const { folder, writer } = await fixture(t);
+  // A second Reaction beside the first.
+  const other = path.join(path.dirname(folder), "joy-3");
+  await mkdir(other, { recursive: true });
+  for (const name of ["joy-2.json", "joy-2.meta.json"]) {
+    const text = (await readFile(path.join(folder, name), "utf8"))
+      .replaceAll("joy-2", "joy-3")
+      .replaceAll("Joy Reaction 2", "Joy Reaction 3");
+    await writeFile(path.join(other, name.replace("joy-2", "joy-3")), text);
+  }
+  const first = await writer.find("reaction", "joy-2");
+  const second = await writer.find("reaction", "joy-3");
+  const peak = (item, v) => ({
+    kind: "reaction",
+    stem: item.stem,
+    revision: item.revision,
+    events: item.clip.events,
+    expressions: { happy: [{ v, beat: "peak" }] },
+    dependencies: item.dependencies,
+  });
+  const read = async (dir, stem) =>
+    JSON.parse(await readFile(path.join(dir, `${stem}.json`), "utf8"))
+      .expressions.happy[0].v;
+
+  // One stale edit refuses the whole batch, naming the item.
+  await assert.rejects(
+    writer.saveAll([peak(first, 0.2), { ...peak(second, 0.3), revision: "x" }]),
+    /Nothing was saved\. joy-3: .*changed on disk/,
+  );
+  assert.equal(await read(folder, "joy-2"), 0.5);
+  await assert.rejects(
+    writer.saveAll([peak(first, 0.2), peak(first, 0.3)]),
+    /appears twice/,
+  );
+  await assert.rejects(writer.saveAll([]), /Nothing to save/);
+
+  const saved = await writer.saveAll([peak(first, 0.2), peak(second, 0.3)]);
+  assert.deepEqual(
+    saved.items.map((item) => item.stem),
+    ["joy-2", "joy-3"],
+  );
+  assert.equal(await read(folder, "joy-2"), 0.2);
+  assert.equal(await read(other, "joy-3"), 0.3);
+  assert.deepEqual(saved.rebaseline, []);
+});

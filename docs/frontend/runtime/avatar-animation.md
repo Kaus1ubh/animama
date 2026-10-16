@@ -792,14 +792,26 @@ Reactions. It is not part of any build.
     use" controls (an `override`, ADR 0025). For an effect that declares
     several sounds, the same panel picks which one this use plays.
   - Every sound dropdown entry can be previewed before it is picked.
-- **Save:** writes the item's clip and `.meta.json` in `content/included`.
+- **Apply and Save all:**
+  - **Apply** keeps an item's edits as a draft in the browser's local
+    storage, marked "applied, not saved" in the lists. It doesn't write
+    files or reload the editor or preview. Applied drafts survive switching
+    items, reloading the page and restarting `content:tune` on the same port
+    (default 4791). Drafts are kept per port and per checkout, so another
+    worktree's page has its own. **Discard applied** (per item) and
+    **Discard all** drop them.
+  - **Save all** writes every applied item's clip and `.meta.json` in
+    `content/included` together. If any item is refused, nothing is
+    written. If a file rename fails partway, the error names the files
+    already replaced; `git restore` recovers them.
+- **Saving rules:**
   - It rebuilds the dependencies from the events (unused edges drop) and
     writes pack sounds as optional edges.
   - It keeps the content ID, version and clip identity, and keeps the clip
     file's form.
   - It refuses audible events under 0.3 s apart, sounds on starter idle
-    Gestures, an invalid clip, and a file changed since it was loaded (use
-    Reload).
+    Gestures, an invalid clip, and a file changed since its edit was applied
+    (discard and redo that edit).
 - **After saving:**
   - A changed Gesture clip needs its sample baseline updated: add the slug
     to `REBASELINED` in

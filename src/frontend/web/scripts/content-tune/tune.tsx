@@ -20,14 +20,18 @@ import {
   type TuneSound,
   type TuneState,
 } from "./model";
-import { useAudition } from "./audition";
 import {
-  draftOf,
-  isDirty,
-  saveRequest,
-  updateEvent,
-  type TuneDraft,
-} from "./draft";
+  appliedStorageKey,
+  applyDraft,
+  discardApplied,
+  readApplied,
+  saveAllRequest,
+  staleApplied,
+  writeApplied,
+  type AppliedEdits,
+} from "./applied";
+import { useAudition } from "./audition";
+import { draftOf, updateEvent, type TuneDraft } from "./draft";
 import { EventsEditor, ExpressionsEditor, type Audition } from "./editor";
 import { PlacementSection } from "./placement";
 import { PreviewPlayer, type PlayerState } from "./player";
@@ -39,11 +43,11 @@ import { PreviewPlayer, type PlayerState } from "./player";
  * its events and (Reactions) peak expressions, saved to Included content.
  */
 
-/** A save's answer: the reloaded item and what the owner must do next. */
+/** Save all's answer: the reloaded items and what the owner must do next. */
 type SaveResult = {
-  item: TuneItem;
+  items: TuneItem[];
   pendingSounds: string[];
-  rebaseline: string | null;
+  rebaseline: string[];
 };
 
 /** The item as its draft would play it. */
@@ -208,10 +212,12 @@ function EventChips({ item }: { item: TuneItem }) {
 
 function GestureList({
   gestures,
+  applied,
   selected,
   onSelect,
 }: {
   gestures: TuneItem[];
+  applied: AppliedEdits;
   selected: string | null;
   onSelect: (item: TuneItem) => void;
 }) {
@@ -239,6 +245,14 @@ function GestureList({
               onClick={() => onSelect(item)}
             >
               <span className="min-w-0 flex-1 truncate">{item.name}</span>
+              {applied[item.contentId] && (
+                <span
+                  className="text-xs text-amber-600"
+                  title="Applied, not saved"
+                >
+                  ●
+                </span>
+              )}
               <EventChips item={item} />
             </button>
           </li>
@@ -264,11 +278,13 @@ function soundNames(item: TuneItem, index: TuneIndex): string[] {
 
 function ReactionLadder({
   reactions,
+  applied,
   selected,
   index,
   onSelect,
 }: {
   reactions: TuneItem[];
+  applied: AppliedEdits;
   selected: string | null;
   index: TuneIndex;
   onSelect: (item: TuneItem) => void;
@@ -321,6 +337,14 @@ function ReactionLadder({
                             <span className="flex items-center justify-between gap-1">
                               <span className="text-xs">
                                 {item.stem.endsWith("-b") ? "B" : "A"}
+                                {applied[item.contentId] && (
+                                  <span
+                                    className="ml-1 text-amber-600"
+                                    title="Applied, not saved"
+                                  >
+                                    ●
+                                  </span>
+                                )}
                               </span>
                               <EventChips item={item} />
                             </span>
@@ -458,26 +482,65 @@ function ItemDetail({
   item,
   index,
   audition,
-  onSaved,
+  applied,
+  onApply,
+  onDiscard,
   onDirty,
 }: {
   state: TuneState;
   item: TuneItem;
   index: TuneIndex;
   audition: Audition;
-  onSaved: (result: SaveResult) => void;
-  /** Reports whether the draft has unsaved edits. */
+  /** The item's applied (not yet saved) draft, or null. */
+  applied: TuneDraft | null;
+  /**
+   * Keep the draft as applied; Save all writes it. Nothing reloads.
+   * `revision` is the file revision the draft's history started from.
+   */
+  onApply: (draft: TuneDraft, revision: string) => void;
+  /** Drop the item's applied draft. */
+  onDiscard: () => void;
+  /** Reports whether the draft has edits that aren't applied yet. */
   onDirty: (dirty: boolean) => void;
 }) {
+  // What the editor starts from: the applied draft, else the file.
+  const baseline = useMemo(() => applied ?? draftOf(item), [applied, item]);
   // The draft's history: the last entry is the current draft, Undo pops it.
-  const [history, setHistory] = useState<TuneDraft[]>(() => [draftOf(item)]);
-  const [saving, setSaving] = useState(false);
+  const [history, setHistory] = useState<TuneDraft[]>(() => [baseline]);
   const [message, setMessage] = useState<{
     tone: "error" | "info";
     lines: string[];
   } | null>(null);
   const draft = history.at(-1)!;
-  const dirty = isDirty(item, draft);
+  const unapplied = JSON.stringify(draft) !== JSON.stringify(baseline);
+  // When the baseline changes under an untouched draft (Save all wrote it,
+  // or Reload found a newer file), the editor follows it. Applying an edit
+  // keeps the history, so Apply never resets or reloads anything.
+  // The file revision this history started from: an edit begun before a
+  // Reload found a newer file stays tied to the old one, so Save all
+  // refuses it instead of overwriting the newer file.
+  const startRevision = useRef(item.revision);
+  const currentRevision = useRef(item.revision);
+  currentRevision.current = item.revision;
+  const previousBaseline = useRef(baseline);
+  useEffect(() => {
+    const previous = JSON.stringify(previousBaseline.current);
+    const next = JSON.stringify(baseline);
+    previousBaseline.current = baseline;
+    setHistory((past) => {
+      const last = JSON.stringify(past.at(-1));
+      // In step with the newer file (Save all wrote this draft, or a Reload
+      // changed nothing it shows): keep the history, now from this revision.
+      if (last === next) {
+        startRevision.current = currentRevision.current;
+        return past;
+      }
+      // Unapplied edits stay tied to the revision they started from.
+      if (last !== previous) return past;
+      startRevision.current = currentRevision.current;
+      return [baseline];
+    });
+  }, [baseline]);
   // Stable per draft: the preview restarts when what it plays changes.
   const view = useMemo(() => withDraft(item, draft), [item, draft]);
   const notes = ladderNotes(view);
@@ -492,7 +555,7 @@ function ItemDetail({
     );
     setMessage(null);
   };
-  useEffect(() => onDirty(dirty), [dirty, onDirty]);
+  useEffect(() => onDirty(unapplied), [unapplied, onDirty]);
   // The Avatar Effects the draft names, by alias, for per-use placement.
   const avatarEffectDeps = JSON.stringify(
     draft.dependencies.filter(
@@ -556,25 +619,6 @@ function ItemDetail({
       />
     );
   };
-  const save = async () => {
-    setSaving(true);
-    try {
-      const result = await api<SaveResult>("save", {
-        method: "POST",
-        body: JSON.stringify(saveRequest(item, draft)),
-      });
-      onSaved(result);
-    } catch (error) {
-      setMessage({
-        tone: "error",
-        lines: (error instanceof Error ? error.message : String(error)).split(
-          "\n",
-        ),
-      });
-    } finally {
-      setSaving(false);
-    }
-  };
   return (
     <div className="flex min-h-0 flex-wrap gap-6 overflow-y-auto">
       <Preview state={state} item={view} index={index} />
@@ -582,11 +626,15 @@ function ItemDetail({
         <header>
           <h2 className="text-lg font-semibold">
             {item.name}
-            {dirty && (
+            {unapplied ? (
               <span className="text-muted-foreground ml-2 text-sm font-normal">
-                (edited)
+                (edited, not applied)
               </span>
-            )}
+            ) : applied ? (
+              <span className="ml-2 text-sm font-normal text-amber-600">
+                (applied, not saved)
+              </span>
+            ) : null}
           </h2>
           <p className="text-muted-foreground text-xs">
             {item.contentId}
@@ -602,10 +650,17 @@ function ItemDetail({
           <div className="mt-2 flex items-center gap-2">
             <Button
               size="sm"
-              disabled={!dirty || saving}
-              onClick={() => void save()}
+              disabled={!unapplied}
+              title="Keep these edits; Save all writes every applied item"
+              onClick={() => {
+                onApply(draft, startRevision.current);
+                setMessage({
+                  tone: "info",
+                  lines: ["Applied. Save all writes it to the files."],
+                });
+              }}
             >
-              {saving ? "Saving…" : "Save"}
+              Apply
             </Button>
             <Button
               size="sm"
@@ -621,14 +676,32 @@ function ItemDetail({
             <Button
               size="sm"
               variant="ghost"
-              disabled={!dirty}
+              disabled={!unapplied}
+              title="Back to the applied draft, or the file"
               onClick={() => {
                 lastKey.current = null;
-                setHistory([draftOf(item)]);
+                startRevision.current = item.revision;
+                setHistory([baseline]);
               }}
             >
               Revert
             </Button>
+            {applied && (
+              <Button
+                size="sm"
+                variant="ghost"
+                title="Drop the applied edits and return to the file"
+                onClick={() => {
+                  lastKey.current = null;
+                  onDiscard();
+                  startRevision.current = item.revision;
+                  setHistory([draftOf(item)]);
+                  setMessage(null);
+                }}
+              >
+                Discard applied
+              </Button>
+            )}
           </div>
           {message && (
             <ul
@@ -663,18 +736,18 @@ function ItemDetail({
   );
 }
 
-/** What the owner must do after a save, in the page's words. */
+/** What the owner must do after Save all, in the page's words. */
 function afterSave(result: SaveResult, sounds: TuneSound[]): string[] {
   const names = new Map(sounds.map((sound) => [sound.ref, sound.name]));
   return [
-    `Saved ${result.item.contentId}.`,
+    `Saved ${result.items.length} item(s): ${result.items.map((item) => item.stem).join(", ")}.`,
     ...result.pendingSounds.map(
       (ref) =>
         `${names.get(ref) ?? ref} isn't in the comedy pack yet: it needs a new pack version before this merges (pnpm -s content:tune --pending lists them).`,
     ),
-    ...(result.rebaseline
+    ...(result.rebaseline.length
       ? [
-          `The Gesture clip changed: add "${result.rebaseline}" to REBASELINED in src/lib/avatar/motion-authoring/includedClipBaseline.test.ts, then run UPDATE_CLIP_BASELINE=1 pnpm exec vitest run src/lib/avatar/motion-authoring/includedClipBaseline.test.ts.`,
+          `Gesture clips changed (${result.rebaseline.join(", ")}): add them to REBASELINED in src/lib/avatar/motion-authoring/includedClipBaseline.test.ts, then run UPDATE_CLIP_BASELINE=1 pnpm exec vitest run src/lib/avatar/motion-authoring/includedClipBaseline.test.ts.`,
         ]
       : []),
   ];
@@ -686,7 +759,22 @@ function App() {
   const [selected, setSelected] = useState<TuneItem | null>(null);
   const [notice, setNotice] = useState<string[]>([]);
   const audition = useAudition();
-  // Whether the open item has unsaved edits; switching away asks first.
+  // Applied edits, kept in this browser until Save all writes them.
+  // Read once the checkout is known; written back on every change after.
+  const [applied, setApplied] = useState<AppliedEdits>({});
+  const storageKey = state ? appliedStorageKey(state.checkout) : null;
+  const [restored, setRestored] = useState<string | null>(null);
+  useEffect(() => {
+    if (!storageKey || restored === storageKey) return;
+    setApplied(readApplied(globalThis.localStorage, storageKey));
+    setRestored(storageKey);
+  }, [storageKey, restored]);
+  useEffect(() => {
+    if (storageKey && restored === storageKey)
+      writeApplied(globalThis.localStorage, storageKey, applied);
+  }, [applied, storageKey, restored]);
+  const [saving, setSaving] = useState(false);
+  // Whether the open item has edits not applied; switching away asks first.
   const dirty = useRef(false);
   const onDirty = useCallback((value: boolean) => {
     dirty.current = value;
@@ -694,11 +782,18 @@ function App() {
   const select = (item: TuneItem) => {
     if (
       dirty.current &&
-      !window.confirm("Discard the unsaved edits to this item?")
+      !window.confirm(
+        "Leave this item? Its edits that aren't applied will be lost.",
+      )
     )
       return;
     dirty.current = false;
-    setSelected(item);
+    // The lists show applied views; the editor opens the item as loaded.
+    setSelected(
+      [...(state?.gestures ?? []), ...(state?.reactions ?? [])].find(
+        (candidate) => candidate.contentId === item.contentId,
+      ) ?? item,
+    );
   };
   /** Load the content again, keeping the selected item by its ID. */
   const load = async () => {
@@ -718,6 +813,12 @@ function App() {
   };
   useEffect(() => {
     void load();
+    // Edits not yet applied live only in the open editor.
+    const warn = (event: BeforeUnloadEvent) => {
+      if (dirty.current) event.preventDefault();
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
   }, []);
   // Pack sounds Included content needs added or no longer plays.
   const [pack, setPack] = useState<{
@@ -732,22 +833,57 @@ function App() {
   useEffect(() => {
     void loadPack();
   }, []);
-  const saved = (result: SaveResult) => {
-    void loadPack();
-    setNotice(afterSave(result, state?.sounds ?? []));
-    setState(
-      (current) =>
-        current && {
-          ...current,
-          gestures: current.gestures.map((item) =>
-            item.contentId === result.item.contentId ? result.item : item,
-          ),
-          reactions: current.reactions.map((item) =>
-            item.contentId === result.item.contentId ? result.item : item,
-          ),
-        },
-    );
-    setSelected(result.item);
+  const items = useMemo(
+    () => (state ? [...state.gestures, ...state.reactions] : []),
+    [state],
+  );
+  const stale = useMemo(() => staleApplied(applied, items), [applied, items]);
+  /** An item as its applied draft would play it, for the lists. */
+  const viewOf = (item: TuneItem): TuneItem =>
+    applied[item.contentId]
+      ? withDraft(item, applied[item.contentId].draft)
+      : item;
+  /** Write every applied edit, all or nothing. */
+  const saveAll = async () => {
+    const count = Object.keys(applied).length;
+    if (stale.length) {
+      setNotice([
+        `Not saved: these files changed since their edits were applied. Discard those edits (or redo them) first: ${stale.join(", ")}.`,
+      ]);
+      return;
+    }
+    if (!window.confirm(`Write ${count} applied item(s) to content/included?`))
+      return;
+    setSaving(true);
+    try {
+      const result = await api<SaveResult>("save", {
+        method: "POST",
+        body: JSON.stringify(saveAllRequest(applied, items)),
+      });
+      const saved = new Map(result.items.map((item) => [item.contentId, item]));
+      setApplied((current) => discardApplied(current, [...saved.keys()]));
+      setState(
+        (current) =>
+          current && {
+            ...current,
+            gestures: current.gestures.map(
+              (item) => saved.get(item.contentId) ?? item,
+            ),
+            reactions: current.reactions.map(
+              (item) => saved.get(item.contentId) ?? item,
+            ),
+          },
+      );
+      setSelected((current) =>
+        current ? (saved.get(current.contentId) ?? current) : null,
+      );
+      setNotice(afterSave(result, state?.sounds ?? []));
+      void loadPack();
+    } catch (error) {
+      setNotice([error instanceof Error ? error.message : String(error)]);
+    } finally {
+      setSaving(false);
+    }
   };
   const index = useMemo(() => (state ? new TuneIndex(state) : null), [state]);
   if (error) return <p className="text-destructive p-6">{error}</p>;
@@ -772,10 +908,40 @@ function App() {
             {pack.removals.length} to remove (content:tune --pending)
           </span>
         )}
+        <span className="ml-auto flex items-center gap-2">
+          {Object.keys(applied).length > 0 && (
+            <span className="text-xs text-amber-600">
+              {Object.keys(applied).length} applied, not saved
+              {stale.length > 0 && ` (${stale.length} out of date)`}
+            </span>
+          )}
+          <Button
+            size="sm"
+            disabled={!Object.keys(applied).length || saving}
+            title="Write every applied item to content/included, all or nothing"
+            onClick={() => void saveAll()}
+          >
+            {saving ? "Saving…" : "Save all"}
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={!Object.keys(applied).length || saving}
+            onClick={() => {
+              if (
+                window.confirm(
+                  "Discard every applied edit? The files stay as they are.",
+                )
+              )
+                setApplied({});
+            }}
+          >
+            Discard all
+          </Button>
+        </span>
         <Button
           size="sm"
           variant="ghost"
-          className="ml-auto"
           title="Load the files again, after editing them elsewhere"
           onClick={() => void load()}
         >
@@ -805,14 +971,16 @@ function App() {
           </TabsList>
           <TabsContent value="gestures" className="flex min-h-0 flex-col">
             <GestureList
-              gestures={state.gestures}
+              gestures={state.gestures.map(viewOf)}
+              applied={applied}
               selected={selected?.contentId ?? null}
               onSelect={select}
             />
           </TabsContent>
           <TabsContent value="ladder" className="flex min-h-0 flex-col">
             <ReactionLadder
-              reactions={state.reactions}
+              reactions={state.reactions.map(viewOf)}
+              applied={applied}
               selected={selected?.contentId ?? null}
               index={index}
               onSelect={select}
@@ -828,12 +996,22 @@ function App() {
         </Tabs>
         {selected ? (
           <ItemDetail
-            key={`${selected.contentId}:${selected.revision}`}
+            key={selected.contentId}
             state={state}
             item={selected}
             index={index}
             audition={audition}
-            onSaved={saved}
+            applied={applied[selected.contentId]?.draft ?? null}
+            onApply={(draft, revision) =>
+              setApplied((current) =>
+                applyDraft(current, selected, draft, revision),
+              )
+            }
+            onDiscard={() =>
+              setApplied((current) =>
+                discardApplied(current, [selected.contentId]),
+              )
+            }
             onDirty={onDirty}
           />
         ) : (

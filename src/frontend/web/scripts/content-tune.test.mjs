@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { parseTuneArgs } from "./content-tune.mjs";
+import { DEFAULT_TUNE_PORT, parseTuneArgs } from "./content-tune.mjs";
 
 test("reads the catalog from the option or the environment", () => {
   assert.equal(
@@ -35,6 +35,8 @@ test("collects sound roots, the Avatar, the port and --no-open", () => {
   assert.deepEqual(options.soundRoots, ["a", "b"]);
   assert.equal(options.avatar, "caitlyn");
   assert.equal(options.port, 8790);
+  // A fixed default port keeps applied edits across restarts.
+  assert.equal(parseTuneArgs([], {}).port, DEFAULT_TUNE_PORT);
   assert.equal(options.open, false);
   // Without --sounds, the checkout's pack input is the default.
   assert.match(

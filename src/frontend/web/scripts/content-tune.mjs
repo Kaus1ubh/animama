@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { readFile, realpath } from "node:fs/promises";
 import path from "node:path";
@@ -49,11 +50,18 @@ const webRoot = fileURLToPath(new URL("..", import.meta.url));
 const avatarDir = path.join(INCLUDED_CONTENT_ROOT, "avatars");
 const PAGE = "/scripts/content-tune/index.html";
 const API = "/__tune/";
-const MAX_BODY_BYTES = 256 * 1024;
+// Room for every applied edit in one Save all.
+const MAX_BODY_BYTES = 4 * 1024 * 1024;
 const AVATARS = {
   annie: "AvatarSample_A_1_New",
   caitlyn: "AvatarSample_Y_0",
 };
+/**
+ * The page's default port. Fixed, because applied (unsaved) edits live in
+ * the browser's storage for the page's origin, port included: the same port
+ * finds them again after a restart.
+ */
+export const DEFAULT_TUNE_PORT = 4791;
 const DEFAULT_SOUND_ROOTS = [
   path.join(REPO_ROOT, "build-inputs/wow-comedy-sfx"),
 ];
@@ -187,6 +195,12 @@ export async function startTuneServer({
         available: Boolean(file),
       })),
       catalog: Boolean(catalogDir) && sounds.some((sound) => !sound.shipped),
+      // Names this checkout's content, so applied drafts kept in the browser
+      // never cross to another worktree served on the same port.
+      checkout: createHash("sha256")
+        .update(contentRoot)
+        .digest("hex")
+        .slice(0, 16),
     };
   }
 
@@ -217,10 +231,9 @@ export async function startTuneServer({
       });
     } else if (request.method === "POST" && route === "save") {
       await respond(response, async () => {
-        const saved = await writer.save(
-          await readJsonBody(request, MAX_BODY_BYTES),
-        );
-        return { ...saved, item: publicItem(saved.item) };
+        const { edits } = await readJsonBody(request, MAX_BODY_BYTES);
+        const saved = await writer.saveAll(edits);
+        return { ...saved, items: saved.items.map(publicItem) };
       });
     } else if (request.method === "GET" && route === "pending") {
       await respond(response, () => writer.pending());
@@ -273,6 +286,8 @@ sounds, on an Included Avatar.
                     build-inputs/wow-comedy-sfx. A worktree passes the primary
                     checkout's copy.
   --avatar          Included Avatar (default annie)
+  --port <n>        serve on this port (default ${DEFAULT_TUNE_PORT}); applied,
+                    unsaved edits are kept per port in the browser
   --pending         print the pack sounds Included content needs added to or
                     removed from the comedy pack (with --catalog, each
                     addition's vendor file), then exit
@@ -286,7 +301,7 @@ export function parseTuneArgs(argv, env = process.env) {
     catalogDir: env.ANIMAMA_WOW_SOUND_CATALOG || null,
     soundRoots: [],
     avatar: "annie",
-    port: 0,
+    port: DEFAULT_TUNE_PORT,
     open: true,
     help: false,
     pending: false,
@@ -360,12 +375,23 @@ async function main(argv) {
     return 0;
   }
   const cwd = process.env.INIT_CWD ?? process.cwd();
-  const tune = await startTuneServer({
-    catalogDir: options.catalogDir && path.resolve(cwd, options.catalogDir),
-    soundRoots: options.soundRoots.map((root) => path.resolve(cwd, root)),
-    avatar: options.avatar,
-    port: options.port,
-  });
+  let tune;
+  try {
+    tune = await startTuneServer({
+      catalogDir: options.catalogDir && path.resolve(cwd, options.catalogDir),
+      soundRoots: options.soundRoots.map((root) => path.resolve(cwd, root)),
+      avatar: options.avatar,
+      port: options.port,
+    });
+  } catch (error) {
+    // Vite reports a taken strict port by message, without an error code.
+    if (error.code !== "EADDRINUSE" && !/already in use/i.test(error.message))
+      throw error;
+    console.log(
+      `Port ${options.port} is in use: content:tune may already be running there. Stop it, or pass --port <n> (applied edits are kept per port).`,
+    );
+    return 1;
+  }
   const shipped = tune.sounds.filter((sound) => sound.shipped).length;
   const playable = tune.sounds.filter((sound) => sound.file).length;
   console.log(`Content tuning: ${tune.url}`);

@@ -227,12 +227,18 @@ test("refuses requests from other origins", async () => {
   assert.equal(audio.status, 403);
 });
 
-test("edits a Reaction's expression and sound and saves them", async () => {
+/** Accept the page's confirmation dialogs (Save all). */
+function acceptDialogs(page) {
+  page.on("dialog", (dialog) => void dialog.accept());
+}
+
+test("applies a Reaction's expression and sound, then saves them all", async () => {
   const folder = path.join(dir, "content/included/reactions/joy-2");
   const page = await browser.newPage({
     viewport: { width: 1400, height: 900 },
   });
   page.setDefaultTimeout(90_000);
+  acceptDialogs(page);
   await page.goto(tune.url);
   await page.getByRole("tab", { name: "Reaction ladder" }).click();
   await page.getByRole("row", { name: /^joy/i }).getByRole("button").click();
@@ -242,9 +248,33 @@ test("edits a Reaction's expression and sound and saves them", async () => {
   await page.getByRole("button", { name: "+ Sound" }).click();
   await page.getByPlaceholder("Search sounds").fill("Fixture");
   await page.getByRole("button", { name: /^Fixture Pop/ }).click();
-  await page.getByText("(edited)").waitFor();
-  await page.getByRole("button", { name: "Save", exact: true }).click();
-  await page.getByText("Saved builtin:reaction:joy-2.").waitFor();
+  await page.getByText("(edited, not applied)").waitFor();
+  const before = await readFile(path.join(folder, "joy-2.json"), "utf8");
+  // Apply keeps the edit in the page: no write, no reload of the editor.
+  await page.evaluate(() => {
+    window.__stage = document.querySelector("#review-stage");
+  });
+  await page.getByRole("button", { name: "Apply", exact: true }).click();
+  await page.getByText("(applied, not saved)").waitFor();
+  await page.getByText("1 applied, not saved").waitFor();
+  assert.equal(
+    await page.evaluate(
+      () => window.__stage === document.querySelector("#review-stage"),
+    ),
+    true,
+  );
+  assert.equal(await readFile(path.join(folder, "joy-2.json"), "utf8"), before);
+  // Applied edits survive leaving the item and reloading the page.
+  await page.getByRole("tab", { name: "Gestures" }).click();
+  await page.getByRole("button", { name: /Pop Wave/ }).click();
+  await page.reload();
+  await page.getByText("1 applied, not saved").waitFor();
+  await page.getByRole("tab", { name: "Reaction ladder" }).click();
+  await page.getByRole("row", { name: /^joy/i }).getByRole("button").click();
+  await page.getByText("(applied, not saved)").waitFor();
+
+  await page.getByRole("button", { name: "Save all" }).click();
+  await page.getByText("Saved 1 item(s): joy-2.").waitFor();
 
   const clip = JSON.parse(
     await readFile(path.join(folder, "joy-2.json"), "utf8"),
@@ -265,13 +295,33 @@ test("edits a Reaction's expression and sound and saves them", async () => {
       optional: true,
     },
   );
-  // Saved and reloaded: no longer edited, and the pack check agrees.
-  assert.equal(await page.getByText("(edited)").count(), 0);
+  // Saved: nothing applied or edited any more, and the pack check agrees.
+  assert.equal(await page.getByText("(applied, not saved)").count(), 0);
+  assert.equal(await page.getByText("applied, not saved").count(), 0);
+
+  // Editing the same open item again applies and saves from the new file,
+  // not as an out-of-date edit.
+  await page.getByLabel("happy peak value").fill("0.45");
+  await page.getByRole("button", { name: "Apply", exact: true }).click();
+  assert.equal(await page.getByText("out of date").count(), 0);
+  const second = page.waitForResponse("**/__tune/save");
+  await page.getByRole("button", { name: "Save all" }).click();
+  assert.equal((await second).status(), 200);
+  assert.equal(
+    JSON.parse(await readFile(path.join(folder, "joy-2.json"), "utf8"))
+      .expressions.happy[0].v,
+    0.45,
+  );
+  // The saved sound is in the pack, so the pack check doesn't list it. (The
+  // fixture copies live Included files, which may hold other edits.)
   const pending = await (await fetch(`${tune.origin}/__tune/pending`)).json();
-  assert.deepEqual(pending.additions, []);
-  // The page shows what the pack still needs: the fixture's pack sound is the
-  // only one played, so every other manifest sound would be removed.
-  await page.getByText(/Pack changes needed: 0 to add/).waitFor();
+  assert.equal(
+    pending.additions.includes(`builtin:sound-effect:${SOUND_KEY}`),
+    false,
+  );
+  // The page shows what the pack still needs: most manifest sounds are
+  // played by nothing in the fixture, so they would be removed.
+  await page.getByText(/Pack changes needed: \d+ to add/).waitFor();
   await page.close();
 });
 
@@ -281,6 +331,7 @@ test("places an Avatar Effect for one use and saves its override", async () => {
     viewport: { width: 1400, height: 900 },
   });
   page.setDefaultTimeout(90_000);
+  acceptDialogs(page);
   await page.goto(tune.url);
   await page.getByRole("tab", { name: "Reaction ladder" }).click();
   await page.getByRole("row", { name: /^joy/i }).getByRole("button").click();
@@ -289,8 +340,9 @@ test("places an Avatar Effect for one use and saves its override", async () => {
   await size.fill("8");
   await size.blur();
   await page.getByText("placed").waitFor();
-  await page.getByRole("button", { name: "Save", exact: true }).click();
-  await page.getByText("Saved builtin:reaction:joy-2.").waitFor();
+  await page.getByRole("button", { name: "Apply", exact: true }).click();
+  await page.getByRole("button", { name: "Save all" }).click();
+  await page.getByText("Saved 1 item(s): joy-2.").waitFor();
   const clip = JSON.parse(
     await readFile(path.join(folder, "joy-2.json"), "utf8"),
   );
