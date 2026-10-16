@@ -31,6 +31,12 @@
       "alias": "cold-breeze",
       "content_type": "particle_effect",
       "config": {}
+    },
+    {
+      "ref": "builtin:avatar-effect:suspicious-side-eye",
+      "alias": "suspicious-side-eye",
+      "content_type": "avatar_effect",
+      "config": {}
     }
   ],
   "files": [

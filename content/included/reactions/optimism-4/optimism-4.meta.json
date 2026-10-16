@@ -21,15 +21,15 @@
       "config": {}
     },
     {
-      "ref": "builtin:particle-effect:golden-willow",
-      "alias": "golden-willow",
-      "content_type": "particle_effect",
-      "config": {}
-    },
-    {
       "ref": "builtin:avatar-effect:star3",
       "alias": "star3",
       "content_type": "avatar_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:particle-effect:shooting-stars",
+      "alias": "shooting-stars",
+      "content_type": "particle_effect",
       "config": {}
     }
   ],

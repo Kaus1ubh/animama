@@ -134,6 +134,13 @@ Moods are blends; start from these and adjust on the face close-up:
 - Lip-sync wins over mouth shapes while the Anima speaks.
 - Keep weights moderate (0.5–0.85) for warmth; 1.0 reads as exaggerated on
   most models.
-- `relaxed` and `happy` already narrow the eyes on these models, and a keyed
-  `blink` adds to that: 0.3 reads as a soft lid drop, 0.45+ as closed eyes.
-  Check the face column on both Avatars; they differ.
+- `happy` already closes the eyes on these models and `relaxed` narrows them
+  (about a fifth as much). The runtime scales every blink channel by the
+  closure left over, `blink × (1 − happy − k × relaxed)` with k ≈ 0.2 per
+  Avatar, so blink can no longer push lids past shut; under happy 0.8 a
+  keyed blink barely moves the lids. Author the look you want, not a
+  compensated blink: key `blink` high (up to 1) for genuinely closed eyes or
+  winks — under a partial smile it only fills the closure still open — and
+  lower `happy`/`relaxed` themselves for eyes that should stay open. On an
+  open-eyed face, blink 0.3 reads as a soft lid drop and 0.45+ as closed.
+  Review the face column on both Avatars; their lids differ.

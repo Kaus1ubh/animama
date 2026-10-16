@@ -1,0 +1,2923 @@
+{
+  "schema": "animaPoseClip/2.0",
+  "id": "polite-applause",
+  "name": "Polite Applause",
+  "duration": 3.4,
+  "basePose": "relaxedRest",
+  "fadeIn": {
+    "duration": 0.22
+  },
+  "fadeOut": {
+    "duration": 0.4
+  },
+  "mutedProceduralLayers": [
+    "sway",
+    "bounce",
+    "headNod",
+    "headSideTilt",
+    "cursorLookAt",
+    "emotionPosture"
+  ],
+  "plantFeet": true,
+  "beats": [
+    {
+      "id": "start",
+      "label": "Rest",
+      "time": 0
+    },
+    {
+      "id": "warm",
+      "label": "Warm recognition",
+      "time": 0.2
+    },
+    {
+      "id": "raise",
+      "label": "Gather hands",
+      "time": 0.43
+    },
+    {
+      "id": "clap1",
+      "label": "Light clap 1",
+      "time": 0.64
+    },
+    {
+      "id": "clap2",
+      "label": "Light clap 2",
+      "time": 1
+    },
+    {
+      "id": "clap3",
+      "label": "Light clap 3",
+      "time": 1.36
+    },
+    {
+      "id": "clap4",
+      "label": "Light clap 4",
+      "time": 1.72
+    },
+    {
+      "id": "clap5",
+      "label": "Light clap 5",
+      "time": 2.08
+    },
+    {
+      "id": "clap6",
+      "label": "Light clap 6",
+      "time": 2.44
+    },
+    {
+      "id": "release",
+      "label": "Release and nod",
+      "time": 2.8
+    },
+    {
+      "id": "settle",
+      "label": "Soft settle",
+      "time": 3.4
+    }
+  ],
+  "joints": {
+    "hips": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -0.6,
+          "beat": "warm",
+          "dt": 0.02
+        },
+        {
+          "v": 1.8,
+          "beat": "clap1",
+          "dt": -0.04
+        },
+        {
+          "v": 2.1,
+          "beat": "clap3",
+          "dt": 0.04
+        },
+        {
+          "v": 1.5,
+          "beat": "clap6",
+          "dt": -0.09
+        },
+        {
+          "v": 0.6,
+          "beat": "release",
+          "dt": 0.05
+        },
+        {
+          "v": -0.3,
+          "beat": "settle",
+          "dt": -0.1
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -1.5,
+          "beat": "raise",
+          "dt": 0.07
+        },
+        {
+          "v": 1.5,
+          "beat": "clap3",
+          "dt": -0.06
+        },
+        {
+          "v": -1.2,
+          "beat": "clap5",
+          "dt": 0.07
+        },
+        {
+          "v": 0.7,
+          "beat": "release"
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -1.7,
+          "beat": "clap1",
+          "dt": -0.04
+        },
+        {
+          "v": 1.6,
+          "beat": "clap3",
+          "dt": 0.14
+        },
+        {
+          "v": -1.1,
+          "beat": "clap6",
+          "dt": -0.04
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ]
+    },
+    "spine": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -0.6,
+          "beat": "warm",
+          "dt": -0.06
+        },
+        {
+          "v": 1.365,
+          "beat": "raise",
+          "dt": -0.06
+        },
+        {
+          "v": 2.65,
+          "beat": "clap1",
+          "dt": -0.06
+        },
+        {
+          "v": 1.65,
+          "beat": "clap1",
+          "dt": 0.11
+        },
+        {
+          "v": 2.6115,
+          "beat": "clap2",
+          "dt": -0.06
+        },
+        {
+          "v": 1.65,
+          "beat": "clap2",
+          "dt": 0.11
+        },
+        {
+          "v": 2.573,
+          "beat": "clap3",
+          "dt": -0.06
+        },
+        {
+          "v": 1.65,
+          "beat": "clap3",
+          "dt": 0.11
+        },
+        {
+          "v": 2.5345,
+          "beat": "clap4",
+          "dt": -0.06
+        },
+        {
+          "v": 1.65,
+          "beat": "clap4",
+          "dt": 0.11
+        },
+        {
+          "v": 2.496,
+          "beat": "clap5",
+          "dt": -0.06
+        },
+        {
+          "v": 1.65,
+          "beat": "clap5",
+          "dt": 0.11
+        },
+        {
+          "v": 2.4575,
+          "beat": "clap6",
+          "dt": -0.06
+        },
+        {
+          "v": 1.65,
+          "beat": "clap6",
+          "dt": 0.11
+        },
+        {
+          "v": 1.1,
+          "beat": "release",
+          "dt": -0.01
+        },
+        {
+          "v": -0.35,
+          "beat": "settle",
+          "dt": -0.24
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 1.1,
+          "beat": "raise",
+          "dt": 0.07
+        },
+        {
+          "v": -1.5,
+          "beat": "clap3",
+          "dt": -0.02
+        },
+        {
+          "v": 1.4,
+          "beat": "clap5",
+          "dt": 0.11
+        },
+        {
+          "v": -0.3,
+          "beat": "release",
+          "dt": 0.09
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -1.2,
+          "beat": "raise",
+          "dt": 0.01
+        },
+        {
+          "v": 2,
+          "beat": "clap3",
+          "dt": -0.02
+        },
+        {
+          "v": -1.8,
+          "beat": "clap6",
+          "dt": -0.15
+        },
+        {
+          "v": 0.4,
+          "beat": "release",
+          "dt": 0.09
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ]
+    },
+    "chest": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -0.6,
+          "beat": "warm",
+          "dt": -0.03
+        },
+        {
+          "v": 2.145,
+          "beat": "raise",
+          "dt": -0.03
+        },
+        {
+          "v": 3.85,
+          "beat": "clap1",
+          "dt": -0.03
+        },
+        {
+          "v": 2.85,
+          "beat": "clap1",
+          "dt": 0.14
+        },
+        {
+          "v": 3.8115,
+          "beat": "clap2",
+          "dt": -0.03
+        },
+        {
+          "v": 2.85,
+          "beat": "clap2",
+          "dt": 0.14
+        },
+        {
+          "v": 3.773,
+          "beat": "clap3",
+          "dt": -0.03
+        },
+        {
+          "v": 2.85,
+          "beat": "clap3",
+          "dt": 0.14
+        },
+        {
+          "v": 3.7345,
+          "beat": "clap4",
+          "dt": -0.03
+        },
+        {
+          "v": 2.85,
+          "beat": "clap4",
+          "dt": 0.14
+        },
+        {
+          "v": 3.696,
+          "beat": "clap5",
+          "dt": -0.03
+        },
+        {
+          "v": 2.85,
+          "beat": "clap5",
+          "dt": 0.14
+        },
+        {
+          "v": 3.6575,
+          "beat": "clap6",
+          "dt": -0.03
+        },
+        {
+          "v": 2.85,
+          "beat": "clap6",
+          "dt": 0.14
+        },
+        {
+          "v": 1.1,
+          "beat": "release",
+          "dt": 0.02
+        },
+        {
+          "v": -0.35,
+          "beat": "settle",
+          "dt": -0.21
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 1.1,
+          "beat": "raise",
+          "dt": 0.1
+        },
+        {
+          "v": -1.5,
+          "beat": "clap3",
+          "dt": 0.01
+        },
+        {
+          "v": 1.4,
+          "beat": "clap5",
+          "dt": 0.14
+        },
+        {
+          "v": -0.3,
+          "beat": "release",
+          "dt": 0.12
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -1.2,
+          "beat": "raise",
+          "dt": 0.04
+        },
+        {
+          "v": 2,
+          "beat": "clap3",
+          "dt": 0.01
+        },
+        {
+          "v": -1.8,
+          "beat": "clap6",
+          "dt": -0.12
+        },
+        {
+          "v": 0.4,
+          "beat": "release",
+          "dt": 0.12
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ]
+    },
+    "upperChest": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -0.6,
+          "beat": "warm",
+          "dt": 0.01
+        },
+        {
+          "v": 1.17,
+          "beat": "raise",
+          "dt": 0.01
+        },
+        {
+          "v": 2.35,
+          "beat": "clap1",
+          "dt": 0.01
+        },
+        {
+          "v": 1.35,
+          "beat": "clap1",
+          "dt": 0.18
+        },
+        {
+          "v": 2.3115,
+          "beat": "clap2",
+          "dt": 0.01
+        },
+        {
+          "v": 1.35,
+          "beat": "clap2",
+          "dt": 0.18
+        },
+        {
+          "v": 2.273,
+          "beat": "clap3",
+          "dt": 0.01
+        },
+        {
+          "v": 1.35,
+          "beat": "clap3",
+          "dt": 0.18
+        },
+        {
+          "v": 2.2345,
+          "beat": "clap4",
+          "dt": 0.01
+        },
+        {
+          "v": 1.35,
+          "beat": "clap4",
+          "dt": 0.18
+        },
+        {
+          "v": 2.196,
+          "beat": "clap5",
+          "dt": 0.01
+        },
+        {
+          "v": 1.35,
+          "beat": "clap5",
+          "dt": 0.18
+        },
+        {
+          "v": 2.1575,
+          "beat": "clap6",
+          "dt": 0.01
+        },
+        {
+          "v": 1.35,
+          "beat": "release",
+          "dt": -0.18
+        },
+        {
+          "v": 1.1,
+          "beat": "release",
+          "dt": 0.06
+        },
+        {
+          "v": -0.35,
+          "beat": "settle",
+          "dt": -0.17
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 1.1,
+          "beat": "clap1",
+          "dt": -0.07
+        },
+        {
+          "v": -1.5,
+          "beat": "clap3",
+          "dt": 0.05
+        },
+        {
+          "v": 1.4,
+          "beat": "clap5",
+          "dt": 0.18
+        },
+        {
+          "v": -0.3,
+          "beat": "release",
+          "dt": 0.16
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -1.2,
+          "beat": "raise",
+          "dt": 0.08
+        },
+        {
+          "v": 2,
+          "beat": "clap3",
+          "dt": 0.05
+        },
+        {
+          "v": -1.8,
+          "beat": "clap6",
+          "dt": -0.08
+        },
+        {
+          "v": 0.4,
+          "beat": "release",
+          "dt": 0.16
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ]
+    },
+    "neck": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -1.5,
+          "beat": "warm",
+          "dt": -0.02
+        },
+        {
+          "v": -2.5,
+          "beat": "raise",
+          "dt": 0.06
+        },
+        {
+          "v": 1.5,
+          "beat": "clap1",
+          "dt": 0.06
+        },
+        {
+          "v": -2.2,
+          "beat": "clap2",
+          "dt": 0.04
+        },
+        {
+          "v": 1.35,
+          "beat": "clap3",
+          "dt": 0.06
+        },
+        {
+          "v": -2.2,
+          "beat": "clap4",
+          "dt": 0.04
+        },
+        {
+          "v": 1.2,
+          "beat": "clap5",
+          "dt": 0.06
+        },
+        {
+          "v": -2.2,
+          "beat": "clap6",
+          "dt": 0.04
+        },
+        {
+          "v": -1,
+          "beat": "clap6",
+          "dt": 0.13
+        },
+        {
+          "v": 2.3,
+          "beat": "release",
+          "dt": 0.11
+        },
+        {
+          "v": -0.7,
+          "beat": "settle",
+          "dt": -0.19
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -1.3,
+          "beat": "raise",
+          "dt": -0.09
+        },
+        {
+          "v": -2,
+          "beat": "clap2",
+          "dt": 0.1
+        },
+        {
+          "v": 1.3,
+          "beat": "clap4",
+          "dt": 0.18
+        },
+        {
+          "v": -0.7,
+          "beat": "clap6",
+          "dt": 0.16
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 1,
+          "beat": "raise",
+          "dt": 0.05
+        },
+        {
+          "v": 1.4,
+          "beat": "clap3",
+          "dt": -0.06
+        },
+        {
+          "v": -0.6,
+          "beat": "clap5",
+          "dt": 0.02
+        },
+        {
+          "v": 0.8,
+          "beat": "release",
+          "dt": -0.1
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ]
+    },
+    "head": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -1.5,
+          "beat": "warm",
+          "dt": -0.02
+        },
+        {
+          "v": -2.5,
+          "beat": "raise",
+          "dt": 0.06
+        },
+        {
+          "v": 3.2,
+          "beat": "clap1",
+          "dt": 0.095
+        },
+        {
+          "v": -2.2,
+          "beat": "clap2",
+          "dt": 0.075
+        },
+        {
+          "v": 2.88,
+          "beat": "clap3",
+          "dt": 0.095
+        },
+        {
+          "v": -2.2,
+          "beat": "clap4",
+          "dt": 0.075
+        },
+        {
+          "v": 2.56,
+          "beat": "clap5",
+          "dt": 0.095
+        },
+        {
+          "v": -2.2,
+          "beat": "clap6",
+          "dt": 0.075
+        },
+        {
+          "v": -1,
+          "beat": "clap6",
+          "dt": 0.165
+        },
+        {
+          "v": 2.3,
+          "beat": "release",
+          "dt": 0.145
+        },
+        {
+          "v": -0.7,
+          "beat": "settle",
+          "dt": -0.155
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -1.3,
+          "beat": "raise",
+          "dt": -0.09
+        },
+        {
+          "v": -2,
+          "beat": "clap2",
+          "dt": 0.1
+        },
+        {
+          "v": 1.3,
+          "beat": "clap4",
+          "dt": 0.18
+        },
+        {
+          "v": -0.7,
+          "beat": "clap6",
+          "dt": 0.16
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 2.5,
+          "beat": "raise",
+          "dt": 0.05
+        },
+        {
+          "v": 3.8,
+          "beat": "clap3",
+          "dt": -0.06
+        },
+        {
+          "v": -1.5,
+          "beat": "clap5",
+          "dt": 0.02
+        },
+        {
+          "v": 2.4,
+          "beat": "release",
+          "dt": -0.1
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ]
+    },
+    "eyes": {
+      "pitch": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 1.5,
+          "beat": "warm",
+          "dt": 0.04
+        },
+        {
+          "v": -1,
+          "beat": "clap1",
+          "dt": -0.08
+        },
+        {
+          "v": 0.5,
+          "beat": "clap3",
+          "dt": 0.04
+        },
+        {
+          "v": 1,
+          "beat": "clap6",
+          "dt": 0.16
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "yaw": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 1,
+          "beat": "raise",
+          "dt": -0.03
+        },
+        {
+          "v": -1,
+          "beat": "clap3",
+          "dt": -0.01
+        },
+        {
+          "v": 0.5,
+          "beat": "clap6",
+          "dt": -0.09
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ]
+    },
+    "rightUpperArm": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 30,
+          "beat": "warm",
+          "dt": 0.04
+        },
+        {
+          "v": 41.34,
+          "beat": "raise",
+          "dt": 0.03
+        },
+        {
+          "v": 47.1,
+          "beat": "clap1"
+        },
+        {
+          "v": 41.34,
+          "beat": "clap1",
+          "dt": 0.17
+        },
+        {
+          "v": 47.1,
+          "beat": "clap2"
+        },
+        {
+          "v": 41.5992,
+          "beat": "clap2",
+          "dt": 0.17
+        },
+        {
+          "v": 47.1,
+          "beat": "clap3"
+        },
+        {
+          "v": 41.8584,
+          "beat": "clap3",
+          "dt": 0.17
+        },
+        {
+          "v": 47.1,
+          "beat": "clap4"
+        },
+        {
+          "v": 42.1176,
+          "beat": "clap4",
+          "dt": 0.17
+        },
+        {
+          "v": 47.1,
+          "beat": "clap5"
+        },
+        {
+          "v": 42.3768,
+          "beat": "clap5",
+          "dt": 0.17
+        },
+        {
+          "v": 47.1,
+          "beat": "clap6"
+        },
+        {
+          "v": 42.636,
+          "beat": "clap6",
+          "dt": 0.17
+        },
+        {
+          "v": 29,
+          "beat": "release",
+          "dt": 0.11
+        },
+        {
+          "v": 19,
+          "beat": "settle",
+          "dt": -0.18
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "planeOfElevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 25,
+          "beat": "warm",
+          "dt": 0.04
+        },
+        {
+          "v": 57.2,
+          "beat": "raise",
+          "dt": 0.03
+        },
+        {
+          "v": 63.1,
+          "beat": "clap1"
+        },
+        {
+          "v": 57.2,
+          "beat": "clap1",
+          "dt": 0.17
+        },
+        {
+          "v": 63.1,
+          "beat": "clap2"
+        },
+        {
+          "v": 57.4655,
+          "beat": "clap2",
+          "dt": 0.17
+        },
+        {
+          "v": 63.1,
+          "beat": "clap3"
+        },
+        {
+          "v": 57.731,
+          "beat": "clap3",
+          "dt": 0.17
+        },
+        {
+          "v": 63.1,
+          "beat": "clap4"
+        },
+        {
+          "v": 57.9965,
+          "beat": "clap4",
+          "dt": 0.17
+        },
+        {
+          "v": 63.1,
+          "beat": "clap5"
+        },
+        {
+          "v": 58.262,
+          "beat": "clap5",
+          "dt": 0.17
+        },
+        {
+          "v": 63.1,
+          "beat": "clap6"
+        },
+        {
+          "v": 58.5275,
+          "beat": "clap6",
+          "dt": 0.17
+        },
+        {
+          "v": 24,
+          "beat": "release",
+          "dt": 0.11
+        },
+        {
+          "v": -7,
+          "beat": "settle",
+          "dt": -0.18
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 22,
+          "beat": "warm",
+          "dt": 0.04
+        },
+        {
+          "v": 46.98,
+          "beat": "raise",
+          "dt": 0.03
+        },
+        {
+          "v": 35.7,
+          "beat": "clap1"
+        },
+        {
+          "v": 46.98,
+          "beat": "clap1",
+          "dt": 0.17
+        },
+        {
+          "v": 35.7,
+          "beat": "clap2"
+        },
+        {
+          "v": 46.4724,
+          "beat": "clap2",
+          "dt": 0.17
+        },
+        {
+          "v": 35.7,
+          "beat": "clap3"
+        },
+        {
+          "v": 45.9648,
+          "beat": "clap3",
+          "dt": 0.17
+        },
+        {
+          "v": 35.7,
+          "beat": "clap4"
+        },
+        {
+          "v": 45.4572,
+          "beat": "clap4",
+          "dt": 0.17
+        },
+        {
+          "v": 35.7,
+          "beat": "clap5"
+        },
+        {
+          "v": 44.9496,
+          "beat": "clap5",
+          "dt": 0.17
+        },
+        {
+          "v": 35.7,
+          "beat": "clap6"
+        },
+        {
+          "v": 44.442,
+          "beat": "clap6",
+          "dt": 0.17
+        },
+        {
+          "v": 12,
+          "beat": "release",
+          "dt": 0.11
+        },
+        {
+          "v": -2,
+          "beat": "settle",
+          "dt": -0.18
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "rightLowerArm": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 54,
+          "beat": "warm",
+          "dt": 0.04
+        },
+        {
+          "v": 97.16,
+          "beat": "raise",
+          "dt": 0.038
+        },
+        {
+          "v": 92,
+          "beat": "clap1",
+          "dt": 0.008
+        },
+        {
+          "v": 97.16,
+          "beat": "clap1",
+          "dt": 0.178
+        },
+        {
+          "v": 92,
+          "beat": "clap2",
+          "dt": 0.008
+        },
+        {
+          "v": 96.9278,
+          "beat": "clap2",
+          "dt": 0.178
+        },
+        {
+          "v": 92,
+          "beat": "clap3",
+          "dt": 0.008
+        },
+        {
+          "v": 96.6956,
+          "beat": "clap3",
+          "dt": 0.178
+        },
+        {
+          "v": 92,
+          "beat": "clap4",
+          "dt": 0.008
+        },
+        {
+          "v": 96.4634,
+          "beat": "clap4",
+          "dt": 0.178
+        },
+        {
+          "v": 92,
+          "beat": "clap5",
+          "dt": 0.008
+        },
+        {
+          "v": 96.2312,
+          "beat": "clap5",
+          "dt": 0.178
+        },
+        {
+          "v": 92,
+          "beat": "clap6",
+          "dt": 0.008
+        },
+        {
+          "v": 95.999,
+          "beat": "clap6",
+          "dt": 0.178
+        },
+        {
+          "v": 31,
+          "beat": "release",
+          "dt": 0.118
+        },
+        {
+          "v": 10,
+          "beat": "settle",
+          "dt": -0.172
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "supination": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 8,
+          "beat": "warm",
+          "dt": 0.04
+        },
+        {
+          "v": 19.7,
+          "beat": "raise",
+          "dt": 0.038
+        },
+        {
+          "v": 26.3,
+          "beat": "clap1",
+          "dt": 0.008
+        },
+        {
+          "v": 19.7,
+          "beat": "clap1",
+          "dt": 0.178
+        },
+        {
+          "v": 26.3,
+          "beat": "clap2",
+          "dt": 0.008
+        },
+        {
+          "v": 19.997,
+          "beat": "clap2",
+          "dt": 0.178
+        },
+        {
+          "v": 26.3,
+          "beat": "clap3",
+          "dt": 0.008
+        },
+        {
+          "v": 20.294,
+          "beat": "clap3",
+          "dt": 0.178
+        },
+        {
+          "v": 26.3,
+          "beat": "clap4",
+          "dt": 0.008
+        },
+        {
+          "v": 20.591,
+          "beat": "clap4",
+          "dt": 0.178
+        },
+        {
+          "v": 26.3,
+          "beat": "clap5",
+          "dt": 0.008
+        },
+        {
+          "v": 20.888,
+          "beat": "clap5",
+          "dt": 0.178
+        },
+        {
+          "v": 26.3,
+          "beat": "clap6",
+          "dt": 0.008
+        },
+        {
+          "v": 21.185,
+          "beat": "clap6",
+          "dt": 0.178
+        },
+        {
+          "v": 6,
+          "beat": "release",
+          "dt": 0.118
+        },
+        {
+          "v": 0,
+          "beat": "settle",
+          "dt": -0.172
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "rightHand": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": -12,
+          "beat": "warm",
+          "dt": 0.04
+        },
+        {
+          "v": -30.6,
+          "beat": "raise",
+          "dt": 0.045
+        },
+        {
+          "v": -40.8,
+          "beat": "clap1",
+          "dt": 0.015
+        },
+        {
+          "v": -30.6,
+          "beat": "clap2",
+          "dt": -0.175
+        },
+        {
+          "v": -40.8,
+          "beat": "clap2",
+          "dt": 0.015
+        },
+        {
+          "v": -31.059,
+          "beat": "clap3",
+          "dt": -0.175
+        },
+        {
+          "v": -40.8,
+          "beat": "clap3",
+          "dt": 0.015
+        },
+        {
+          "v": -31.518,
+          "beat": "clap4",
+          "dt": -0.175
+        },
+        {
+          "v": -40.8,
+          "beat": "clap4",
+          "dt": 0.015
+        },
+        {
+          "v": -31.977,
+          "beat": "clap5",
+          "dt": -0.175
+        },
+        {
+          "v": -40.8,
+          "beat": "clap5",
+          "dt": 0.015
+        },
+        {
+          "v": -32.436,
+          "beat": "clap6",
+          "dt": -0.175
+        },
+        {
+          "v": -40.8,
+          "beat": "clap6",
+          "dt": 0.015
+        },
+        {
+          "v": -32.895,
+          "beat": "release",
+          "dt": -0.175
+        },
+        {
+          "v": -4,
+          "beat": "release",
+          "dt": 0.125
+        },
+        {
+          "v": 8,
+          "beat": "settle",
+          "dt": -0.165
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "deviation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "warm",
+          "dt": 0.04
+        },
+        {
+          "v": 1.6,
+          "beat": "raise",
+          "dt": 0.045
+        },
+        {
+          "v": 4.6,
+          "beat": "clap1",
+          "dt": 0.015
+        },
+        {
+          "v": 1.6,
+          "beat": "clap2",
+          "dt": -0.175
+        },
+        {
+          "v": 4.6,
+          "beat": "clap2",
+          "dt": 0.015
+        },
+        {
+          "v": 1.735,
+          "beat": "clap3",
+          "dt": -0.175
+        },
+        {
+          "v": 4.6,
+          "beat": "clap3",
+          "dt": 0.015
+        },
+        {
+          "v": 1.87,
+          "beat": "clap4",
+          "dt": -0.175
+        },
+        {
+          "v": 4.6,
+          "beat": "clap4",
+          "dt": 0.015
+        },
+        {
+          "v": 2.005,
+          "beat": "clap5",
+          "dt": -0.175
+        },
+        {
+          "v": 4.6,
+          "beat": "clap5",
+          "dt": 0.015
+        },
+        {
+          "v": 2.14,
+          "beat": "clap6",
+          "dt": -0.175
+        },
+        {
+          "v": 4.6,
+          "beat": "clap6",
+          "dt": 0.015
+        },
+        {
+          "v": 2.275,
+          "beat": "release",
+          "dt": -0.175
+        },
+        {
+          "v": 0,
+          "beat": "release",
+          "dt": 0.125
+        },
+        {
+          "v": -1,
+          "beat": "settle",
+          "dt": -0.165
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "rightShoulder": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "warm",
+          "dt": 0.05
+        },
+        {
+          "v": 2,
+          "beat": "raise",
+          "dt": 0.03
+        },
+        {
+          "v": 3.4,
+          "beat": "clap1",
+          "dt": -0.025
+        },
+        {
+          "v": 2.1,
+          "beat": "clap1",
+          "dt": 0.15
+        },
+        {
+          "v": 3.28,
+          "beat": "clap2",
+          "dt": -0.025
+        },
+        {
+          "v": 2.1,
+          "beat": "clap2",
+          "dt": 0.15
+        },
+        {
+          "v": 3.16,
+          "beat": "clap3",
+          "dt": -0.025
+        },
+        {
+          "v": 2.1,
+          "beat": "clap3",
+          "dt": 0.15
+        },
+        {
+          "v": 3.04,
+          "beat": "clap4",
+          "dt": -0.025
+        },
+        {
+          "v": 2.1,
+          "beat": "clap4",
+          "dt": 0.15
+        },
+        {
+          "v": 2.92,
+          "beat": "clap5",
+          "dt": -0.025
+        },
+        {
+          "v": 2.1,
+          "beat": "clap5",
+          "dt": 0.15
+        },
+        {
+          "v": 2.8,
+          "beat": "clap6",
+          "dt": -0.025
+        },
+        {
+          "v": 2.1,
+          "beat": "clap6",
+          "dt": 0.15
+        },
+        {
+          "v": 0,
+          "beat": "release",
+          "dt": 0.09
+        },
+        {
+          "v": -3.8,
+          "beat": "settle",
+          "dt": -0.17
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "protraction": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 1,
+          "beat": "warm",
+          "dt": 0.05
+        },
+        {
+          "v": 3,
+          "beat": "raise",
+          "dt": 0.03
+        },
+        {
+          "v": 4.4,
+          "beat": "clap1",
+          "dt": -0.025
+        },
+        {
+          "v": 3.2,
+          "beat": "clap1",
+          "dt": 0.15
+        },
+        {
+          "v": 4.4,
+          "beat": "clap2",
+          "dt": -0.025
+        },
+        {
+          "v": 3.2,
+          "beat": "clap2",
+          "dt": 0.15
+        },
+        {
+          "v": 4.4,
+          "beat": "clap3",
+          "dt": -0.025
+        },
+        {
+          "v": 3.2,
+          "beat": "clap3",
+          "dt": 0.15
+        },
+        {
+          "v": 4.4,
+          "beat": "clap4",
+          "dt": -0.025
+        },
+        {
+          "v": 3.2,
+          "beat": "clap4",
+          "dt": 0.15
+        },
+        {
+          "v": 4.4,
+          "beat": "clap5",
+          "dt": -0.025
+        },
+        {
+          "v": 3.2,
+          "beat": "clap5",
+          "dt": 0.15
+        },
+        {
+          "v": 4.4,
+          "beat": "clap6",
+          "dt": -0.025
+        },
+        {
+          "v": 3.2,
+          "beat": "clap6",
+          "dt": 0.15
+        },
+        {
+          "v": 0,
+          "beat": "release",
+          "dt": 0.09
+        },
+        {
+          "v": -1,
+          "beat": "settle",
+          "dt": -0.17
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "leftUpperArm": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 30,
+          "beat": "warm",
+          "dt": 0.065
+        },
+        {
+          "v": 44.28,
+          "beat": "raise",
+          "dt": 0.03
+        },
+        {
+          "v": 47.4,
+          "beat": "clap1"
+        },
+        {
+          "v": 44.28,
+          "beat": "clap1",
+          "dt": 0.17
+        },
+        {
+          "v": 47.4,
+          "beat": "clap2"
+        },
+        {
+          "v": 44.4204,
+          "beat": "clap2",
+          "dt": 0.17
+        },
+        {
+          "v": 47.4,
+          "beat": "clap3"
+        },
+        {
+          "v": 44.5608,
+          "beat": "clap3",
+          "dt": 0.17
+        },
+        {
+          "v": 47.4,
+          "beat": "clap4"
+        },
+        {
+          "v": 44.7012,
+          "beat": "clap4",
+          "dt": 0.17
+        },
+        {
+          "v": 47.4,
+          "beat": "clap5"
+        },
+        {
+          "v": 44.8416,
+          "beat": "clap5",
+          "dt": 0.17
+        },
+        {
+          "v": 47.4,
+          "beat": "clap6"
+        },
+        {
+          "v": 44.982,
+          "beat": "clap6",
+          "dt": 0.17
+        },
+        {
+          "v": 29,
+          "beat": "release",
+          "dt": 0.11
+        },
+        {
+          "v": 19,
+          "beat": "settle",
+          "dt": -0.18
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "planeOfElevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 25,
+          "beat": "warm",
+          "dt": 0.065
+        },
+        {
+          "v": 59.9,
+          "beat": "raise",
+          "dt": 0.03
+        },
+        {
+          "v": 64.3,
+          "beat": "clap1"
+        },
+        {
+          "v": 59.9,
+          "beat": "clap1",
+          "dt": 0.17
+        },
+        {
+          "v": 64.3,
+          "beat": "clap2"
+        },
+        {
+          "v": 60.098,
+          "beat": "clap2",
+          "dt": 0.17
+        },
+        {
+          "v": 64.3,
+          "beat": "clap3"
+        },
+        {
+          "v": 60.296,
+          "beat": "clap3",
+          "dt": 0.17
+        },
+        {
+          "v": 64.3,
+          "beat": "clap4"
+        },
+        {
+          "v": 60.494,
+          "beat": "clap4",
+          "dt": 0.17
+        },
+        {
+          "v": 64.3,
+          "beat": "clap5"
+        },
+        {
+          "v": 60.692,
+          "beat": "clap5",
+          "dt": 0.17
+        },
+        {
+          "v": 64.3,
+          "beat": "clap6"
+        },
+        {
+          "v": 60.89,
+          "beat": "clap6",
+          "dt": 0.17
+        },
+        {
+          "v": 24,
+          "beat": "release",
+          "dt": 0.11
+        },
+        {
+          "v": -7,
+          "beat": "settle",
+          "dt": -0.18
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 22,
+          "beat": "warm",
+          "dt": 0.065
+        },
+        {
+          "v": 36.98,
+          "beat": "raise",
+          "dt": 0.03
+        },
+        {
+          "v": 30.5,
+          "beat": "clap1"
+        },
+        {
+          "v": 36.98,
+          "beat": "clap1",
+          "dt": 0.17
+        },
+        {
+          "v": 30.5,
+          "beat": "clap2"
+        },
+        {
+          "v": 36.6884,
+          "beat": "clap2",
+          "dt": 0.17
+        },
+        {
+          "v": 30.5,
+          "beat": "clap3"
+        },
+        {
+          "v": 36.3968,
+          "beat": "clap3",
+          "dt": 0.17
+        },
+        {
+          "v": 30.5,
+          "beat": "clap4"
+        },
+        {
+          "v": 36.1052,
+          "beat": "clap4",
+          "dt": 0.17
+        },
+        {
+          "v": 30.5,
+          "beat": "clap5"
+        },
+        {
+          "v": 35.8136,
+          "beat": "clap5",
+          "dt": 0.17
+        },
+        {
+          "v": 30.5,
+          "beat": "clap6"
+        },
+        {
+          "v": 35.522,
+          "beat": "clap6",
+          "dt": 0.17
+        },
+        {
+          "v": 12,
+          "beat": "release",
+          "dt": 0.11
+        },
+        {
+          "v": -2,
+          "beat": "settle",
+          "dt": -0.18
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "leftLowerArm": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 54,
+          "beat": "warm",
+          "dt": 0.065
+        },
+        {
+          "v": 97.3,
+          "beat": "raise",
+          "dt": 0.038
+        },
+        {
+          "v": 93.7,
+          "beat": "clap1",
+          "dt": 0.008
+        },
+        {
+          "v": 97.3,
+          "beat": "clap1",
+          "dt": 0.178
+        },
+        {
+          "v": 93.7,
+          "beat": "clap2",
+          "dt": 0.008
+        },
+        {
+          "v": 97.138,
+          "beat": "clap2",
+          "dt": 0.178
+        },
+        {
+          "v": 93.7,
+          "beat": "clap3",
+          "dt": 0.008
+        },
+        {
+          "v": 96.976,
+          "beat": "clap3",
+          "dt": 0.178
+        },
+        {
+          "v": 93.7,
+          "beat": "clap4",
+          "dt": 0.008
+        },
+        {
+          "v": 96.814,
+          "beat": "clap4",
+          "dt": 0.178
+        },
+        {
+          "v": 93.7,
+          "beat": "clap5",
+          "dt": 0.008
+        },
+        {
+          "v": 96.652,
+          "beat": "clap5",
+          "dt": 0.178
+        },
+        {
+          "v": 93.7,
+          "beat": "clap6",
+          "dt": 0.008
+        },
+        {
+          "v": 96.49,
+          "beat": "clap6",
+          "dt": 0.178
+        },
+        {
+          "v": 31,
+          "beat": "release",
+          "dt": 0.118
+        },
+        {
+          "v": 10,
+          "beat": "settle",
+          "dt": -0.172
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "supination": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 8,
+          "beat": "warm",
+          "dt": 0.065
+        },
+        {
+          "v": 21.68,
+          "beat": "raise",
+          "dt": 0.038
+        },
+        {
+          "v": 26,
+          "beat": "clap1",
+          "dt": 0.008
+        },
+        {
+          "v": 21.68,
+          "beat": "clap1",
+          "dt": 0.178
+        },
+        {
+          "v": 26,
+          "beat": "clap2",
+          "dt": 0.008
+        },
+        {
+          "v": 21.8744,
+          "beat": "clap2",
+          "dt": 0.178
+        },
+        {
+          "v": 26,
+          "beat": "clap3",
+          "dt": 0.008
+        },
+        {
+          "v": 22.0688,
+          "beat": "clap3",
+          "dt": 0.178
+        },
+        {
+          "v": 26,
+          "beat": "clap4",
+          "dt": 0.008
+        },
+        {
+          "v": 22.2632,
+          "beat": "clap4",
+          "dt": 0.178
+        },
+        {
+          "v": 26,
+          "beat": "clap5",
+          "dt": 0.008
+        },
+        {
+          "v": 22.4576,
+          "beat": "clap5",
+          "dt": 0.178
+        },
+        {
+          "v": 26,
+          "beat": "clap6",
+          "dt": 0.008
+        },
+        {
+          "v": 22.652,
+          "beat": "clap6",
+          "dt": 0.178
+        },
+        {
+          "v": 6,
+          "beat": "release",
+          "dt": 0.118
+        },
+        {
+          "v": 0,
+          "beat": "settle",
+          "dt": -0.172
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "leftHand": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": -12,
+          "beat": "warm",
+          "dt": 0.065
+        },
+        {
+          "v": -40.32,
+          "beat": "raise",
+          "dt": 0.045
+        },
+        {
+          "v": -47.4,
+          "beat": "clap1",
+          "dt": 0.015
+        },
+        {
+          "v": -40.32,
+          "beat": "clap2",
+          "dt": -0.175
+        },
+        {
+          "v": -47.4,
+          "beat": "clap2",
+          "dt": 0.015
+        },
+        {
+          "v": -40.6386,
+          "beat": "clap3",
+          "dt": -0.175
+        },
+        {
+          "v": -47.4,
+          "beat": "clap3",
+          "dt": 0.015
+        },
+        {
+          "v": -40.9572,
+          "beat": "clap4",
+          "dt": -0.175
+        },
+        {
+          "v": -47.4,
+          "beat": "clap4",
+          "dt": 0.015
+        },
+        {
+          "v": -41.2758,
+          "beat": "clap5",
+          "dt": -0.175
+        },
+        {
+          "v": -47.4,
+          "beat": "clap5",
+          "dt": 0.015
+        },
+        {
+          "v": -41.5944,
+          "beat": "clap6",
+          "dt": -0.175
+        },
+        {
+          "v": -47.4,
+          "beat": "clap6",
+          "dt": 0.015
+        },
+        {
+          "v": -41.913,
+          "beat": "release",
+          "dt": -0.175
+        },
+        {
+          "v": -4,
+          "beat": "release",
+          "dt": 0.125
+        },
+        {
+          "v": 8,
+          "beat": "settle",
+          "dt": -0.165
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "deviation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "warm",
+          "dt": 0.065
+        },
+        {
+          "v": 1.66,
+          "beat": "raise",
+          "dt": 0.045
+        },
+        {
+          "v": 4.9,
+          "beat": "clap1",
+          "dt": 0.015
+        },
+        {
+          "v": 1.66,
+          "beat": "clap2",
+          "dt": -0.175
+        },
+        {
+          "v": 4.9,
+          "beat": "clap2",
+          "dt": 0.015
+        },
+        {
+          "v": 1.8058,
+          "beat": "clap3",
+          "dt": -0.175
+        },
+        {
+          "v": 4.9,
+          "beat": "clap3",
+          "dt": 0.015
+        },
+        {
+          "v": 1.9516,
+          "beat": "clap4",
+          "dt": -0.175
+        },
+        {
+          "v": 4.9,
+          "beat": "clap4",
+          "dt": 0.015
+        },
+        {
+          "v": 2.0974,
+          "beat": "clap5",
+          "dt": -0.175
+        },
+        {
+          "v": 4.9,
+          "beat": "clap5",
+          "dt": 0.015
+        },
+        {
+          "v": 2.2432,
+          "beat": "clap6",
+          "dt": -0.175
+        },
+        {
+          "v": 4.9,
+          "beat": "clap6",
+          "dt": 0.015
+        },
+        {
+          "v": 2.389,
+          "beat": "release",
+          "dt": -0.175
+        },
+        {
+          "v": 0,
+          "beat": "release",
+          "dt": 0.125
+        },
+        {
+          "v": -1,
+          "beat": "settle",
+          "dt": -0.165
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "leftShoulder": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "warm",
+          "dt": 0.05
+        },
+        {
+          "v": 2,
+          "beat": "raise",
+          "dt": 0.03
+        },
+        {
+          "v": 3.4,
+          "beat": "clap1",
+          "dt": -0.013
+        },
+        {
+          "v": 2.1,
+          "beat": "clap1",
+          "dt": 0.162
+        },
+        {
+          "v": 3.28,
+          "beat": "clap2",
+          "dt": -0.013
+        },
+        {
+          "v": 2.1,
+          "beat": "clap2",
+          "dt": 0.162
+        },
+        {
+          "v": 3.16,
+          "beat": "clap3",
+          "dt": -0.013
+        },
+        {
+          "v": 2.1,
+          "beat": "clap3",
+          "dt": 0.162
+        },
+        {
+          "v": 3.04,
+          "beat": "clap4",
+          "dt": -0.013
+        },
+        {
+          "v": 2.1,
+          "beat": "clap4",
+          "dt": 0.162
+        },
+        {
+          "v": 2.92,
+          "beat": "clap5",
+          "dt": -0.013
+        },
+        {
+          "v": 2.1,
+          "beat": "clap5",
+          "dt": 0.162
+        },
+        {
+          "v": 2.8,
+          "beat": "clap6",
+          "dt": -0.013
+        },
+        {
+          "v": 2.1,
+          "beat": "clap6",
+          "dt": 0.162
+        },
+        {
+          "v": 0,
+          "beat": "release",
+          "dt": 0.09
+        },
+        {
+          "v": -3.8,
+          "beat": "settle",
+          "dt": -0.17
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "protraction": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 1,
+          "beat": "warm",
+          "dt": 0.05
+        },
+        {
+          "v": 3,
+          "beat": "raise",
+          "dt": 0.03
+        },
+        {
+          "v": 4.4,
+          "beat": "clap1",
+          "dt": -0.013
+        },
+        {
+          "v": 3.2,
+          "beat": "clap1",
+          "dt": 0.162
+        },
+        {
+          "v": 4.4,
+          "beat": "clap2",
+          "dt": -0.013
+        },
+        {
+          "v": 3.2,
+          "beat": "clap2",
+          "dt": 0.162
+        },
+        {
+          "v": 4.4,
+          "beat": "clap3",
+          "dt": -0.013
+        },
+        {
+          "v": 3.2,
+          "beat": "clap3",
+          "dt": 0.162
+        },
+        {
+          "v": 4.4,
+          "beat": "clap4",
+          "dt": -0.013
+        },
+        {
+          "v": 3.2,
+          "beat": "clap4",
+          "dt": 0.162
+        },
+        {
+          "v": 4.4,
+          "beat": "clap5",
+          "dt": -0.013
+        },
+        {
+          "v": 3.2,
+          "beat": "clap5",
+          "dt": 0.162
+        },
+        {
+          "v": 4.4,
+          "beat": "clap6",
+          "dt": -0.013
+        },
+        {
+          "v": 3.2,
+          "beat": "clap6",
+          "dt": 0.162
+        },
+        {
+          "v": 0,
+          "beat": "release",
+          "dt": 0.09
+        },
+        {
+          "v": -1,
+          "beat": "settle",
+          "dt": -0.17
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    }
+  },
+  "hipsPosition": {
+    "x": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0.012,
+        "beat": "raise",
+        "dt": 0.07
+      },
+      {
+        "v": -0.011,
+        "beat": "clap3",
+        "dt": 0.04
+      },
+      {
+        "v": 0.009,
+        "beat": "clap6",
+        "dt": -0.09
+      },
+      {
+        "v": -0.004,
+        "beat": "release",
+        "dt": 0.15
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ],
+    "y": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": -0.008,
+        "beat": "warm",
+        "dt": 0.04
+      },
+      {
+        "v": -0.015,
+        "beat": "clap1"
+      },
+      {
+        "v": -0.009,
+        "beat": "clap3",
+        "dt": -0.16
+      },
+      {
+        "v": -0.014,
+        "beat": "clap4",
+        "dt": -0.02
+      },
+      {
+        "v": -0.01,
+        "beat": "clap6",
+        "dt": -0.14
+      },
+      {
+        "v": -0.006,
+        "beat": "release",
+        "dt": 0.05
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ],
+    "z": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": -0.004,
+        "beat": "warm",
+        "dt": 0.02
+      },
+      {
+        "v": 0.012,
+        "beat": "clap1",
+        "dt": -0.01
+      },
+      {
+        "v": 0.016,
+        "beat": "clap3",
+        "dt": 0.04
+      },
+      {
+        "v": 0.012,
+        "beat": "clap6",
+        "dt": -0.04
+      },
+      {
+        "v": 0.003,
+        "beat": "release",
+        "dt": 0.15
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ]
+  },
+  "hands": {
+    "right": [
+      {
+        "preset": "relaxed",
+        "beat": "start"
+      },
+      {
+        "preset": "cupped",
+        "curl": -7,
+        "beat": "raise",
+        "dt": -0.07
+      },
+      {
+        "preset": "cupped",
+        "curl": -7,
+        "beat": "clap3",
+        "dt": -0.08
+      },
+      {
+        "preset": "cupped",
+        "curl": -7,
+        "beat": "clap6",
+        "dt": 0.08
+      },
+      {
+        "preset": "open-together",
+        "curl": 2,
+        "beat": "release",
+        "dt": 0.13
+      },
+      {
+        "preset": "relaxed",
+        "fingers": {
+          "index": {
+            "curl": [-2, -3, -2]
+          },
+          "little": {
+            "curl": [2, 2, 1]
+          }
+        },
+        "beat": "settle",
+        "dt": -0.2
+      },
+      {
+        "preset": "relaxed",
+        "beat": "settle"
+      }
+    ],
+    "left": [
+      {
+        "preset": "relaxed",
+        "beat": "start"
+      },
+      {
+        "preset": "cupped",
+        "curl": -7,
+        "beat": "raise",
+        "dt": -0.07
+      },
+      {
+        "preset": "cupped",
+        "curl": -7,
+        "beat": "clap3",
+        "dt": -0.08
+      },
+      {
+        "preset": "cupped",
+        "curl": -7,
+        "beat": "clap6",
+        "dt": 0.08
+      },
+      {
+        "preset": "open-together",
+        "curl": 2,
+        "beat": "release",
+        "dt": 0.13
+      },
+      {
+        "preset": "relaxed",
+        "fingers": {
+          "index": {
+            "curl": [-2, -3, -2]
+          },
+          "little": {
+            "curl": [2, 2, 1]
+          }
+        },
+        "beat": "settle",
+        "dt": -0.17
+      },
+      {
+        "preset": "relaxed",
+        "beat": "settle"
+      }
+    ]
+  },
+  "expressions": {
+    "happy": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0.6,
+        "beat": "warm"
+      },
+      {
+        "v": 0.8,
+        "beat": "clap3",
+        "dt": -0.16
+      },
+      {
+        "v": 0.8,
+        "beat": "clap6",
+        "dt": 0.11
+      },
+      {
+        "v": 0.56,
+        "beat": "release",
+        "dt": 0.15
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ],
+    "blink": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0,
+        "beat": "clap2",
+        "dt": -0.05
+      },
+      {
+        "v": 0.35,
+        "beat": "clap3",
+        "dt": -0.16
+      },
+      {
+        "v": 0.35,
+        "beat": "clap3",
+        "dt": 0.16
+      },
+      {
+        "v": 0.05,
+        "beat": "clap4",
+        "dt": 0.06
+      },
+      {
+        "v": 0.05,
+        "beat": "clap6",
+        "dt": 0.01
+      },
+      {
+        "v": 0.22,
+        "beat": "release",
+        "dt": -0.14
+      },
+      {
+        "v": 0,
+        "beat": "release",
+        "dt": 0.11
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ]
+  },
+  "contacts": [
+    {
+      "bone": "rightHand",
+      "target": "leftHand",
+      "beat": "clap1",
+      "from": -0.01,
+      "to": 0.025,
+      "offset": [0, -0.006, 0],
+      "point": "palm",
+      "targetPoint": "palm",
+      "facing": true,
+      "solve": {
+        "blendIn": 0.14,
+        "blendOut": 0.14
+      }
+    },
+    {
+      "bone": "rightHand",
+      "target": "leftHand",
+      "beat": "clap2",
+      "from": -0.01,
+      "to": 0.025,
+      "offset": [0, -0.006, 0],
+      "point": "palm",
+      "targetPoint": "palm",
+      "facing": true,
+      "solve": {
+        "blendIn": 0.14,
+        "blendOut": 0.14
+      }
+    },
+    {
+      "bone": "rightHand",
+      "target": "leftHand",
+      "beat": "clap3",
+      "from": -0.01,
+      "to": 0.025,
+      "offset": [0, -0.006, 0],
+      "point": "palm",
+      "targetPoint": "palm",
+      "facing": true,
+      "solve": {
+        "blendIn": 0.14,
+        "blendOut": 0.14
+      }
+    },
+    {
+      "bone": "rightHand",
+      "target": "leftHand",
+      "beat": "clap4",
+      "from": -0.01,
+      "to": 0.025,
+      "offset": [0, -0.006, 0],
+      "point": "palm",
+      "targetPoint": "palm",
+      "facing": true,
+      "solve": {
+        "blendIn": 0.14,
+        "blendOut": 0.14
+      }
+    },
+    {
+      "bone": "rightHand",
+      "target": "leftHand",
+      "beat": "clap5",
+      "from": -0.01,
+      "to": 0.025,
+      "offset": [0, -0.006, 0],
+      "point": "palm",
+      "targetPoint": "palm",
+      "facing": true,
+      "solve": {
+        "blendIn": 0.14,
+        "blendOut": 0.14
+      }
+    },
+    {
+      "bone": "rightHand",
+      "target": "leftHand",
+      "beat": "clap6",
+      "from": -0.01,
+      "to": 0.025,
+      "offset": [0, -0.006, 0],
+      "point": "palm",
+      "targetPoint": "palm",
+      "facing": true,
+      "solve": {
+        "blendIn": 0.14,
+        "blendOut": 0.14
+      }
+    }
+  ],
+  "events": [
+    {
+      "id": "clap-sparks",
+      "time": 0,
+      "kind": "particle_vfx",
+      "effectId": "clap_sparks",
+      "duration": 3
+    }
+  ]
+}

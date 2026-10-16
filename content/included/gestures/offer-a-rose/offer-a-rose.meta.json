@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:offer-a-rose",
+  "version": 1,
+  "semantic_key": "offer_a_rose",
+  "name": "Offer a Rose",
+  "description": "Brings a rose from behind the back and shyly offers it. Use for romantic gestures, apologies or thanking the user sweetly.",
+  "ai_description": "Brings a rose from behind the back and shyly offers it. Use for romantic gestures, apologies or thanking the user sweetly.",
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [
+    {
+      "ref": "builtin:avatar-effect:rose",
+      "alias": "rose",
+      "content_type": "avatar_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:avatar-effect:blush",
+      "alias": "blush",
+      "content_type": "avatar_effect",
+      "config": {}
+    }
+  ],
+  "files": [
+    {
+      "path": "offer-a-rose.json",
+      "role": "sequence"
+    }
+  ]
+}

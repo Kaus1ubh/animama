@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "content_type": "particle_effect",
+  "content_id": "builtin:particle-effect:love-letter-flutter",
+  "version": 1,
+  "name": "Love Letter Flutter",
+  "description": "Pearlescent tiny envelopes flutter upward in three rose-gold lanes, with soft halos and twinkling glints for a shy confession.",
+  "runtime_defaults": {
+    "schema_version": 1,
+    "runtime_id": "love-letter-flutter",
+    "slots": {
+      "particle_vfx": {
+        "label": "Love Letter Flutter",
+        "description": "Pearlescent tiny envelopes flutter upward in three rose-gold lanes, with soft halos and twinkling glints for a shy confession.",
+        "anchor": "chest",
+        "duration_seconds": 2.5,
+        "max_duration_seconds": 2.5,
+        "preload_tier": "none",
+        "follow_anchor": true,
+        "transform": {
+          "offset": {
+            "x": 0,
+            "y": -0.06,
+            "z": 0.24
+          },
+          "depth_offset": 0,
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "looping_allowed": false,
+        "can_coexist": true,
+        "max_particles": 22
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "particle.json",
+      "role": "manifest"
+    },
+    {
+      "path": "textures/letter-envelope.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/letter-haze.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/letter-glint.png",
+      "role": "texture"
+    }
+  ]
+}

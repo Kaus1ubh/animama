@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:spooky-ghost-hands",
+  "version": 1,
+  "semantic_key": "spooky_ghost_hands",
+  "name": "Spooky Ghost Hands",
+  "description": "Wiggles limp ghost hands with a spooky 'oooh'. Use for ghost stories, Halloween or playfully creepy moments.",
+  "ai_description": "Wiggles limp ghost hands with a spooky 'oooh'. Use for ghost stories, Halloween or playfully creepy moments.",
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [
+    {
+      "ref": "builtin:avatar-effect:hitodama_flames",
+      "alias": "hitodama_flames",
+      "content_type": "avatar_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:particle-effect:gloom-wisps",
+      "alias": "gloom_wisps",
+      "content_type": "particle_effect",
+      "config": {}
+    }
+  ],
+  "files": [
+    {
+      "path": "spooky-ghost-hands.json",
+      "role": "sequence"
+    }
+  ]
+}

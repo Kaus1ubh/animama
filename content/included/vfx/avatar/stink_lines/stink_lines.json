@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:stink_lines",
+  "version": 1,
+  "name": "Stink Lines",
+  "description": "Green manga stench squiggles waver beside the nose for nose-pinching disgust.",
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:funny_downer_02",
+      "content_type": "sound_effect",
+      "alias": "on-apply",
+      "optional": true
+    }
+  ],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "emote",
+    "attachment": {
+      "kind": "face_landmark",
+      "landmark": "forehead",
+      "offset": {
+        "x": 0.115,
+        "y": -0.1,
+        "z": 0.055
+      },
+      "position": "right",
+      "scale": {
+        "x": 1.2,
+        "y": 1.2
+      }
+    },
+    "art": {
+      "image": "stink_lines.png",
+      "flipbook": {
+        "columns": 2,
+        "fps": 6,
+        "frames": 4,
+        "loop": "loop",
+        "rows": 2
+      }
+    },
+    "soundAlias": "on-apply"
+  },
+  "files": [
+    {
+      "path": "stink_lines.png",
+      "role": "image"
+    }
+  ]
+}

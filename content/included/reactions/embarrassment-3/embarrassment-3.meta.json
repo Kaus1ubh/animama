@@ -31,6 +31,12 @@
       "alias": "sweat_drop",
       "content_type": "avatar_effect",
       "config": {}
+    },
+    {
+      "ref": "builtin:particle-effect:overheat-steam",
+      "alias": "overheat-steam",
+      "content_type": "particle_effect",
+      "config": {}
     }
   ],
   "files": [

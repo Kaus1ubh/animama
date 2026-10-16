@@ -31,12 +31,18 @@ import { EMPTY_RUNTIME_MEDIA_PROVIDER } from "@/lib/runtime-content/AnimaRuntime
  * folder stems), which the catalog reads from their descriptors.
  */
 const INCLUDED_PARTICLE_VFX_IDS = [
+  "aroma-ribbons",
   "butterfly-flutter",
   "buzzing-flies",
+  "cheer-streamers",
+  "clap-sparks",
   "cold-breeze",
   "confetti",
   "dizzy-stars",
   "drifting-leaves",
+  "electric-crackle",
+  "energy-wave-charge",
+  "fireflies",
   "fireworks-show",
   "flower-pop",
   "fright-jolt",
@@ -48,18 +54,27 @@ const INCLUDED_PARTICLE_VFX_IDS = [
   "heart-burst",
   "heart-fireworks",
   "hearts-v1",
+  "kiss-lips-float",
+  "love-letter-flutter",
   "musical-cascade",
+  "overheat-steam",
   "petal-drift",
+  "poof-smoke",
   "question-orbit",
   "rage-aura",
   "rage-embers",
   "rain-cloud",
+  "rose-bloom-burst",
+  "shooting-stars",
+  "shoujo-sparkle-frame",
   "snow-crystal-flurry",
   "sparkle-bubbles",
   "sparkle-hearts",
+  "spit-spray-mist",
   "star-burst",
   "stink-miasma",
   "sweat-spray",
+  "ta-da-glitter",
   "twinkle-shimmer",
 ] as const;
 
@@ -467,13 +482,13 @@ describe("particle VFX catalog", () => {
     });
     expect(getParticleVFXCatalogEntryById("hearts-v1")).toMatchObject({
       defaultAnchor: "head",
-      defaultDurationSec: 15,
+      defaultDurationSec: 5.1,
       defaultTransform: {
-        offset: { x: 0, y: 0.1, z: -0.15 },
-        rotation: { x: 1, y: 0.1, z: 0 },
+        offset: { x: 0, y: 0, z: 0 },
+        rotation: { x: 0, y: 0, z: 0 },
       },
-      preloadTier: "tierA",
-      performanceBudget: { maxDurationSec: 30, loopingAllowed: true },
+      preloadTier: "none",
+      performanceBudget: { maxDurationSec: 5.1, loopingAllowed: false },
     });
     expect(getParticleVFXCatalogEntryById("missing-effect")).toBeNull();
   });
@@ -534,17 +549,23 @@ describe("particle VFX catalog", () => {
       expect(entry.performanceBudget.maxParticles).toBeGreaterThan(0);
       expect(typeof entry.performanceBudget.canCoexist).toBe("boolean");
     }
-    // Only the steady Heart stream loops and preloads eagerly.
+    // Only the sustained aroma, firefly, steam and shoujo-frame effects loop;
+    // all load on demand.
     expect(
       AVATAR_PARTICLE_VFX_CATALOG.filter(
         (entry) => entry.performanceBudget.loopingAllowed,
       ).map((entry) => entry.id),
-    ).toEqual(["hearts-v1"]);
+    ).toEqual([
+      "aroma-ribbons",
+      "fireflies",
+      "overheat-steam",
+      "shoujo-sparkle-frame",
+    ]);
     expect(
       AVATAR_PARTICLE_VFX_CATALOG.filter(
         (entry) => entry.preloadTier === "tierA",
       ).map((entry) => entry.id),
-    ).toEqual(["hearts-v1"]);
+    ).toEqual([]);
   });
 
   it("uses runtime-safe relative texture urls in catalog quarks JSON", () => {

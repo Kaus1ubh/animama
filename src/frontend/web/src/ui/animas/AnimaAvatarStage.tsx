@@ -56,6 +56,7 @@ import {
   runtimeContentDownloadUrl,
   type RuntimeContentUrlLease,
 } from "@/lib/runtime-content/runtimeContentDelivery";
+import { runtimeAvatarModelSha256 } from "@/lib/runtime-content/runtimeAvatarFaceParts";
 import type { SceneVFXRuntimeEntry } from "@/lib/scene-vfx/types";
 import { cn } from "@/lib/utils";
 import { AvatarPreviewSurface } from "@/ui/avatar-preview/AvatarPreviewSurface";
@@ -250,6 +251,10 @@ function StageAvatarActor({
         await avatar.load({
           filePath: resolvedLoadPath,
           sourceUrl: loadPath,
+          vrmSha256:
+            source.kind === "url"
+              ? runtimeAvatarModelSha256(source.runtimeContentEntry)
+              : null,
         });
         if (cancelled || avatar.isDisposed || !avatar.scene) return;
         setSceneObject(avatar.scene);

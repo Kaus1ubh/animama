@@ -10,7 +10,7 @@ import pytest
 from animama.adapters.content_store import FilesystemContentStore
 from animama.app.services.content_kind_registry import definition_for_kind, descriptor_filename, handler_for_kind
 from animama.app.services.idle_playback import derive_idle_playback
-from animama.app.services.starter_idle_pool import starter_idle_keys, starter_idle_pool
+from animama.app.services.starter_loadout_policy import starter_idle_keys, starter_idle_pool
 from animama.domain.content_catalog import ContentKind, ContentSource, ContentStatus
 from animama.domain.content_documents import GestureDocumentV1
 from tests.anima_creation_service_support import (

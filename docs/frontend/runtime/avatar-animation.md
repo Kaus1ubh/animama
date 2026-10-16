@@ -708,7 +708,11 @@ from `src/frontend/web`:
   (about real time) and with SwiftShader elsewhere.
 - `pnpm -s animation:save <items.json>` saves clips as Local Gestures through
   the Gesture creator in a headless browser, revising an existing Local
-  Gesture with the same Selector ID.
+  Gesture with the same Selector ID. An optional `project` path (absolute or
+  relative to the items file) imports its sequence and dependencies instead
+  of `clip`, resolving Local and Included effect refs against the running
+  Library and replacing dependencies on revisions too; name, AI description
+  and Selector ID still come from the item.
 - `pnpm -s animation:preview [<source>]` plays a clip, project file or Library
   item live on both Included Avatars through `Avatar`/`PoseController`, lit
   like the chat canvas, with the chat's Scene layers around each view. A
@@ -718,7 +722,9 @@ from `src/frontend/web`:
   played, and the page says so. It also previews Avatar, Particle and Scene
   Effect sources (see the [Avatar VFX guide](avatar-vfx.md#headed-preview)).
   Its Review and Compare pickers switch to any clip beside a file source and
-  any Library Gesture, Reaction or effect without a restart. Review notes are saved beside a
+  any Library Gesture, Reaction or effect without a restart; Prev and Next
+  (or `[` and `]`) step through the Review item's picker group, such as a
+  folder of drafts, and show its position. Review notes are saved beside a
   file source (in the working directory for a Library item or any file inside
   Library content); `animation review` and `animation resolve` manage them.
 
@@ -774,6 +780,20 @@ Important behavior:
   `BLINK_OPEN_MAX`, eases eyelids closed and open, randomizes the fully closed
   hold with `BLINK_CLOSE_MAX`, and occasionally schedules shorter partial
   follow-up blinks.
+- Eyelid closure correction (`eyelidClosure.ts`, installed by `Avatar.load`):
+  VRM morphs add up, and on VRoid faces `happy` already closes the eyelids
+  while `relaxed` partly does, so blink on top deformed the lids past shut.
+  At every expression-manager update, `blink`, `blinkLeft` and `blinkRight`
+  are multiplied by `clamp01(1 − happy − k × relaxed)` through three-vrm's
+  `overrideBlinkAmount`. Expression weights keep their composed values
+  (inspectors, `getValue`), and every path that updates the manager — chat,
+  creator writes, previews and review renders — gets the same correction.
+  The profile is chosen by the VRM's `vrmSha256`: verified for the Included
+  Avatars (k 0.2164 Annie, 0.1767 Y_0). Other Avatars get happy 1 / k 0.2 for
+  each of happy and relaxed whose morphs measurably move blink's vertices
+  closed, and nothing otherwise. An expression with a native `overrideBlink`
+  keeps it uncorrected. Load paths that know the model digest must pass it;
+  the review harness pages hash their Avatar files for parity.
 - Lip-sync has:
   - segment scheduling by audio start,
   - interpolation between frames,

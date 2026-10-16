@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:love_letter",
+  "version": 1,
+  "name": "Love Letter",
+  "description": "A pink confession envelope with a flower wax seal, offered gently with both hands.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "body",
+    "attachment": {
+      "kind": "body",
+      "bone": "rightHand",
+      "facing": "camera",
+      "offset": {
+        "x": -0.093,
+        "y": -0.116,
+        "z": 0.055
+      },
+      "size": 0.25
+    },
+    "art": {
+      "image": "love_letter-sheet.png",
+      "flipbook": {
+        "columns": 2,
+        "fps": 8,
+        "frames": 4,
+        "loop": "loop",
+        "rows": 2
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "love_letter-sheet.png",
+      "role": "image"
+    }
+  ]
+}

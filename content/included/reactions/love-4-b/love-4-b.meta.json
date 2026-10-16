@@ -15,27 +15,21 @@
   },
   "dependencies": [
     {
-      "ref": "builtin:avatar-effect:kirakira_cluster",
-      "alias": "kirakira_cluster",
-      "content_type": "avatar_effect",
-      "config": {}
-    },
-    {
       "ref": "builtin:avatar-effect:blush_deep",
       "alias": "blush_deep",
       "content_type": "avatar_effect",
       "config": {}
     },
     {
-      "ref": "builtin:particle-effect:petal-drift",
-      "alias": "petal-drift",
-      "content_type": "particle_effect",
-      "config": {}
-    },
-    {
       "ref": "builtin:scene-effect:background:scene-vfx-emotion-love-b",
       "alias": "scene-b-love",
       "content_type": "scene_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:particle-effect:shoujo-sparkle-frame",
+      "alias": "shoujo-sparkle-frame",
+      "content_type": "particle_effect",
       "config": {}
     }
   ],

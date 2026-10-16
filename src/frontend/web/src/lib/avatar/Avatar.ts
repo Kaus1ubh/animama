@@ -85,6 +85,7 @@ import {
 } from "./poses/poseRetargeting";
 import { canonicalizeCustomPresetExpressions } from "./vrmExpressionPresets";
 import { withEnhancedMToonPatch } from "./enhanced-rendering/mtoonPatch";
+import { applyEyelidClosureCorrection } from "./eyelidClosure";
 import {
   countAnimaPoseClipEventsByKind,
   DEFAULT_ANIMA_POSE_CLIP_TRANSITION,
@@ -472,6 +473,11 @@ export class Avatar {
 
     this.vrm = vrm;
     this._isVrm0 = isVrm0(vrm);
+    this._vrmSha256 = spec.vrmSha256?.trim().toLowerCase() || null;
+    const eyelidClosure = applyEyelidClosureCorrection(vrm, this._vrmSha256);
+    if (eyelidClosure) {
+      logger.info("Load", "Eyelid closure correction", eyelidClosure);
+    }
     this.poseController = new PoseController(vrm, {
       isVrm0: this._isVrm0,
       motionCatalog: this._motionCatalog,
@@ -518,7 +524,6 @@ export class Avatar {
       obj.frustumCulled = false;
     });
 
-    this._vrmSha256 = spec.vrmSha256?.trim().toLowerCase() || null;
     this._detectFaceParts(spec.facePartCorrections ?? null);
     this.faceLandmarks = new AvatarFaceLandmarks(this);
     this.faceTextureAnchors = new AvatarFaceTextureAnchors(this);

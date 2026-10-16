@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:confession-letter-bow",
+  "version": 1,
+  "semantic_key": "confession_letter_bow",
+  "name": "Confession Letter Bow",
+  "description": "Bows deeply holding out a love letter, eyes shut, then peeks up shyly. Use for heartfelt confessions or nervously sharing feelings.",
+  "ai_description": "Bows deeply holding out a love letter, eyes shut, then peeks up shyly. Use for heartfelt confessions or nervously sharing feelings.",
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [
+    {
+      "ref": "builtin:avatar-effect:love_letter",
+      "alias": "love_letter",
+      "content_type": "avatar_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:avatar-effect:blush",
+      "alias": "blush",
+      "content_type": "avatar_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:particle-effect:love-letter-flutter",
+      "alias": "love_letter_flutter",
+      "content_type": "particle_effect",
+      "config": {}
+    }
+  ],
+  "files": [
+    {
+      "path": "confession-letter-bow.json",
+      "role": "sequence"
+    }
+  ]
+}

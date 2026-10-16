@@ -332,6 +332,34 @@ async def test_restore_skips_an_unavailable_starter_with_a_warning(async_session
 
 
 @pytest.mark.asyncio
+async def test_starting_a_loadout_leaves_out_an_unavailable_starter_reaction(async_session) -> None:  # noqa: ANN001
+    """The shared starter step seeds each cell's available starter Reactions, like restore_starter."""
+
+    fixture = await create_loadout_fixture(async_session)
+    # The fixture starts a loadout itself; the shared step needs an Anima without one.
+    await async_session.execute(delete(ORMAnimaLoadout).where(ORMAnimaLoadout.anima_id == fixture.anima_id))
+    joy = await _included_reaction(async_session, "builtin:reaction:joy-2", "Joy Starter")
+    unavailable = await _included_reaction(async_session, "builtin:reaction:joy-2-b", "Joy Starter B")
+    unavailable.status = "invalid"
+    anger = await _included_reaction(async_session, "builtin:reaction:anger-1", "Anger Starter")
+    included_ids = [joy.id, unavailable.id, anger.id]
+    service = AnimaLoadoutService(async_session)
+    try:
+        await service.create_starter_loadout(user_id=fixture.user_id, anima_id=fixture.anima_id, store=Mock())
+        loadout = await service.read_model(user_id=fixture.user_id, anima_id=fixture.anima_id)
+        cells = {(cell.emotion, cell.intensity): cell for cell in loadout.reactions}
+        assert [member.item_id for member in cells["joy", 2].members] == [joy.id]
+        assert cells["joy", 2].state == "starter"
+        assert [member.item_id for member in cells["anger", 1].members] == [anger.id]
+        # Cells whose starters are not installed start empty.
+        assert cells["joy", 1].members == ()
+    finally:
+        await cleanup_loadout_fixture(async_session, fixture)
+        await async_session.execute(delete(ORMContentCatalogItem).where(ORMContentCatalogItem.id.in_(included_ids)))
+        await async_session.commit()
+
+
+@pytest.mark.asyncio
 async def test_invalid_reaction_changes_are_rejected_without_a_revision(async_session) -> None:  # noqa: ANN001
     fixture = await create_loadout_fixture(async_session)
     reactions = [await _reaction(async_session, fixture, f"Reaction {index}") for index in range(5)]

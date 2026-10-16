@@ -15,8 +15,8 @@
   },
   "dependencies": [
     {
-      "ref": "builtin:avatar-effect:kirakira_cluster",
-      "alias": "kirakira_cluster",
+      "ref": "builtin:avatar-effect:star_pupils",
+      "alias": "star_pupils",
       "content_type": "avatar_effect",
       "config": {}
     }

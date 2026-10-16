@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:shock_zigzag",
+  "version": 1,
+  "name": "Shock Zigzag",
+  "description": "Yellow-white comic electric zigzags crackle around the body for an exaggerated sudden shock.",
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:stun_expression_02v1",
+      "content_type": "sound_effect",
+      "alias": "on-apply",
+      "optional": true
+    }
+  ],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "body",
+    "attachment": {
+      "kind": "body",
+      "bone": "chest",
+      "facing": "camera",
+      "offset": {
+        "x": 0,
+        "y": 0.02,
+        "z": 0.14
+      },
+      "size": 0.55
+    },
+    "art": {
+      "image": "shock_zigzag.png",
+      "flipbook": {
+        "columns": 2,
+        "fps": 8,
+        "frames": 4,
+        "loop": "loop",
+        "rows": 2
+      }
+    },
+    "soundAlias": "on-apply"
+  },
+  "files": [
+    {
+      "path": "shock_zigzag.png",
+      "role": "image"
+    }
+  ]
+}

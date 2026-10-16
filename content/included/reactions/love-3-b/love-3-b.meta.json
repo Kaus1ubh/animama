@@ -15,15 +15,21 @@
   },
   "dependencies": [
     {
-      "ref": "builtin:avatar-effect:heart_eyes",
-      "alias": "heart_eyes",
+      "ref": "builtin:particle-effect:sparkle-hearts",
+      "alias": "sparkle-hearts",
+      "content_type": "particle_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:avatar-effect:cupid_arrow_stuck",
+      "alias": "cupid_arrow_stuck",
       "content_type": "avatar_effect",
       "config": {}
     },
     {
-      "ref": "builtin:particle-effect:sparkle-hearts",
-      "alias": "sparkle-hearts",
-      "content_type": "particle_effect",
+      "ref": "builtin:avatar-effect:blush",
+      "alias": "blush",
+      "content_type": "avatar_effect",
       "config": {}
     }
   ],

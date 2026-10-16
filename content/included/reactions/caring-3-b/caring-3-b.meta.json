@@ -21,8 +21,8 @@
       "config": {}
     },
     {
-      "ref": "builtin:particle-effect:petal-drift",
-      "alias": "petal-drift",
+      "ref": "builtin:particle-effect:fireflies",
+      "alias": "fireflies",
       "content_type": "particle_effect",
       "config": {}
     }

@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:kiss_mark",
+  "version": 1,
+  "name": "Kiss Mark",
+  "description": "A red crayon lipstick kiss print pops onto one cheek and gently boils for affectionate, flustered moments.",
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:accidental_kiss_02",
+      "content_type": "sound_effect",
+      "alias": "on-apply",
+      "optional": true
+    }
+  ],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "emote",
+    "attachment": {
+      "kind": "face_surface",
+      "area": "blush",
+      "layout": "single",
+      "offset": {
+        "x": 0,
+        "y": -0.004
+      },
+      "part": "face_skin",
+      "pivot": "center",
+      "rotationDeg": -18,
+      "scale": {
+        "x": 1.8,
+        "y": 1.8
+      },
+      "side": "right"
+    },
+    "art": {
+      "image": "kiss_mark.png",
+      "flipbook": {
+        "columns": 2,
+        "fps": 8,
+        "frames": 4,
+        "loop": "loop",
+        "rows": 2
+      }
+    },
+    "motion": {
+      "keyframes": {
+        "frames": [
+          {
+            "opacity": 0,
+            "scale": 0.25,
+            "t": 0
+          },
+          {
+            "opacity": 1,
+            "scale": 1.2,
+            "t": 0.08
+          },
+          {
+            "scale": 0.92,
+            "t": 0.16
+          },
+          {
+            "scale": 1,
+            "t": 0.26
+          }
+        ]
+      }
+    },
+    "soundAlias": "on-apply"
+  },
+  "files": [
+    {
+      "path": "kiss_mark.png",
+      "role": "image"
+    }
+  ]
+}

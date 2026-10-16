@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:detective-squint",
+  "version": 1,
+  "semantic_key": "detective_squint",
+  "name": "Detective Squint",
+  "description": "Leans in with a magnifying glass and scans suspiciously. Use when investigating, being suspicious or saying 'interesting...'.",
+  "ai_description": "Leans in with a magnifying glass and scans suspiciously. Use when investigating, being suspicious or saying 'interesting...'.",
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [
+    {
+      "ref": "builtin:avatar-effect:magnifier",
+      "alias": "magnifier",
+      "content_type": "avatar_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:avatar-effect:sly_glint",
+      "alias": "sly_glint",
+      "content_type": "avatar_effect",
+      "config": {}
+    }
+  ],
+  "files": [
+    {
+      "path": "detective-squint.json",
+      "role": "sequence"
+    }
+  ]
+}
