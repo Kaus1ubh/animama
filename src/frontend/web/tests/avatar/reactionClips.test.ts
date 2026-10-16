@@ -68,25 +68,32 @@ const INTENSITY_ONE_AVATAR_EFFECTS: Record<string, string> = {
 
 /**
  * Ladder departures (R2): effect kinds a Reaction lacks at its step because
- * the owner removed them in the G2 review (2026-10-15) without a replacement.
+ * the owner removed them without a replacement, in the G2 review (2026-10-15)
+ * or the review of Reactions refreshed with the new effects (2026-10-16).
  */
 const LADDER_DEPARTURES: Record<string, Array<"avatar" | "particle">> = {
-  "admiration-3-b": ["particle"],
+  "admiration-3-b": ["avatar"],
   "amusement-3": ["particle"],
   "amusement-3-b": ["particle"],
   "amusement-4-b": ["particle"],
   "anger-4": ["particle"],
+  "anger-4-b": ["particle"],
   "caring-3": ["avatar"],
   "confidence-3": ["avatar"],
-  "curiosity-2-b": ["avatar"],
+  "confusion-4-b": ["particle"],
   "curiosity-4": ["particle"],
   "curiosity-4-b": ["particle"],
-  "embarrassment-3": ["particle"],
   "embarrassment-3-b": ["particle"],
   "optimism-4-b": ["avatar"],
   "remorse-3-b": ["particle"],
   "sadness-3-b": ["particle"],
 };
+
+/**
+ * Second Reactions that keep the first's expression and differ only in their
+ * effects, by owner choice (R15 exception, 2026-10-16).
+ */
+const SHARED_EXPRESSIONS = new Set(["curiosity-2-b"]);
 
 /** A clip's Avatar, Particle and Scene Effect aliases, by kind. */
 function reactionEffects(clip: AnimaPoseClipV2) {
@@ -564,9 +571,13 @@ describe("reaction clip catalog", () => {
           .flat()
           .sort();
       expect(effectSet(clipId), clipId).not.toEqual(effectSet(firstId));
-      expect(getAvatarReactionClip(clipId).expressions, clipId).not.toEqual(
-        getAvatarReactionClip(firstId).expressions,
+      const expressions = expect(
+        getAvatarReactionClip(clipId).expressions,
+        clipId,
       );
+      if (SHARED_EXPRESSIONS.has(clipId))
+        expressions.toEqual(getAvatarReactionClip(firstId).expressions);
+      else expressions.not.toEqual(getAvatarReactionClip(firstId).expressions);
     }
   });
 

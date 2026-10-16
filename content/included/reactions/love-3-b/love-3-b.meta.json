@@ -25,6 +25,12 @@
       "alias": "sparkle-hearts",
       "content_type": "particle_effect",
       "config": {}
+    },
+    {
+      "ref": "builtin:avatar-effect:cupid_arrow_stuck",
+      "alias": "cupid_arrow_stuck",
+      "content_type": "avatar_effect",
+      "config": {}
     }
   ],
   "files": [

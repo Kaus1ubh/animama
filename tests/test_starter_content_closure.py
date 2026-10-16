@@ -138,6 +138,8 @@ CORE_LIBRARY_LOCATORS = (
     "vfx/particle/quark/rose-bloom-burst",
     "vfx/particle/quark/shooting-stars",
     "vfx/particle/quark/shoujo-sparkle-frame",
+    # No Included Reaction or Gesture plays it since 2026-10-16.
+    "vfx/avatar/doki_doki",
 )
 # Library Gestures reuse these real starter effects; the generated starter
 # fixture has no effects, so supply them alongside the Library.
@@ -191,10 +193,10 @@ def test_reviewed_library_ships_in_core_without_equipping_starters(tmp_path: Pat
     entries = {entry["locator"]: entry for entry in inventory["entries"]}
     library = [entries[locator] for locator in CORE_LIBRARY_LOCATORS]
 
-    assert len(library) == 117
+    assert len(library) == 118
     assert {entry["partition"] for entry in library} == {"core"}
     library_files = {file for entry in library for file in entry["files"]}
-    assert len(library_files) == 289
+    assert len(library_files) == 291
     assert {file["partition"] for file in inventory["files"] if file["path"] in library_files} == {"core"}
     library_keys = {entry["logical_key"] for entry in library}
     for starter in inventory["starters"]:

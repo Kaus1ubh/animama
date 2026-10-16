@@ -27,8 +27,8 @@
       "config": {}
     },
     {
-      "ref": "builtin:avatar-effect:doki_doki",
-      "alias": "doki_doki",
+      "ref": "builtin:avatar-effect:cupid_arrow_stuck",
+      "alias": "cupid_arrow_stuck",
       "content_type": "avatar_effect",
       "config": {}
     }

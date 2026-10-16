@@ -31,6 +31,12 @@
       "alias": "question-orbit",
       "content_type": "particle_effect",
       "config": {}
+    },
+    {
+      "ref": "builtin:avatar-effect:overheat_smoke",
+      "alias": "overheat_smoke",
+      "content_type": "avatar_effect",
+      "config": {}
     }
   ],
   "files": [

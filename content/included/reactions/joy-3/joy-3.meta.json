@@ -15,15 +15,15 @@
   },
   "dependencies": [
     {
-      "ref": "builtin:particle-effect:confetti",
-      "alias": "confetti",
-      "content_type": "particle_effect",
-      "config": {}
-    },
-    {
       "ref": "builtin:avatar-effect:star3",
       "alias": "star3",
       "content_type": "avatar_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:particle-effect:cheer-streamers",
+      "alias": "cheer-streamers",
+      "content_type": "particle_effect",
       "config": {}
     }
   ],

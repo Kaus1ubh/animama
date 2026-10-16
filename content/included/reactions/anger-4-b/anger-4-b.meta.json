@@ -27,12 +27,6 @@
       "config": {}
     },
     {
-      "ref": "builtin:particle-effect:rage-embers",
-      "alias": "rage-embers",
-      "content_type": "particle_effect",
-      "config": {}
-    },
-    {
       "ref": "builtin:scene-effect:background:scene-vfx-emotion-anger-b",
       "alias": "scene-b-anger",
       "content_type": "scene_effect",
