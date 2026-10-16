@@ -56,8 +56,12 @@ from .content_image import (
 )
 from .runtime_budget_policy import MAX_RUNTIME_BYTES, MAX_RUNTIME_CONFIG_BYTES, MAX_RUNTIME_ENTRIES
 from .runtime_content_closure import RuntimeContentClosureCompiler
-from .starter_idle_pool import resolve_starter_idle_pool
-from .starter_loadout_policy import starter_loadout_policy, starter_pack_identity, starter_reaction_pools
+from .starter_loadout_policy import (
+    resolve_starter_idle_pool,
+    starter_loadout_policy,
+    starter_pack_identity,
+    starter_reaction_pools,
+)
 from .typed_content_service import TypedCatalogItem, TypedContentAdmissionError, TypedContentService
 
 

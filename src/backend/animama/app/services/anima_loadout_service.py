@@ -19,13 +19,17 @@ from animama.app.ports.content_store import ContentStore
 from animama.app.services.avatar_effect_conversion import is_unconverted_avatar_effect
 from animama.app.services.content_kind_registry import RETIRED_CONTENT_KINDS
 from animama.app.services.idle_playback import read_gesture_idle_playback
-from animama.app.services.starter_loadout_policy import starter_loadout_policy, starter_reaction_pools
+from animama.app.services.starter_loadout_policy import (
+    resolve_starter_idle_pool,
+    starter_loadout_policy,
+    starter_reaction_pools,
+)
 from animama.app.services.typed_content_service import (
     TypedCatalogItem,
     TypedContentAdmissionError,
     TypedContentService,
 )
-from animama.domain.anima_creation import ResolvedAnimaSpec
+from animama.domain.anima_creation import ResolvedAnimaSpec, ResolvedIdleMember
 from animama.domain.anima_definition import AnimaDefinitionError
 from animama.domain.anima_loadout import (
     IDLE_INTENSITIES,
@@ -1073,12 +1077,76 @@ class AnimaLoadoutService:
                 self._session.expire(anima, ["avatar"])
         await self._session.flush()
 
+    async def _create_root(
+        self,
+        *,
+        user_id: str,
+        anima_id: str,
+        starter_exclusions: list[dict[str, str]],
+        idle: tuple[ResolvedIdleMember, ...],
+    ) -> ORMAnimaLoadout:
+        """Write a new Revision 1 loadout on starter loadout version 1 with its exact Idle pool.
+
+        The Idle pool is written only here, with the loadout, so content
+        installed later never changes an existing Anima's pool.
+        """
+
+        root = ORMAnimaLoadout(
+            anima_id=anima_id,
+            owner_user_id=user_id,
+            revision=1,
+            starter_catalog_version=1,
+            starter_exclusions=starter_exclusions,
+        )
+        self._session.add(root)
+        await self._session.flush()
+        # The starter seed keeps only finite-playback Gestures and package
+        # archives check packaged members; a rebound Included member is checked
+        # at runtime, which drops an ineligible Gesture alone. Here every member
+        # passes the typed source checks.
+        for member in idle:
+            target = await self._target(
+                user_id=user_id,
+                source={"type": "catalog", "catalog_item_id": member.source.id},
+                expected_kind=ContentKind.GESTURE,
+                lock=True,
+            )
+            if target.item.revision_sha256 != member.source.revision_sha256:
+                raise AnimaLoadoutError("loadout_source_stale")
+            await self._upsert(
+                root=root,
+                slot=idle_slot_key(member.cell, member.source.id),
+                kind=ContentKind.GESTURE,
+                target=target,
+                config={},
+                current=None,
+            )
+        return root
+
+    async def create_starter_loadout(self, *, user_id: str, anima_id: str, store: ContentStore) -> None:
+        """Start an owned Anima's first loadout from the starter loadout alone.
+
+        For compositions that equip a starter without a creation request: the
+        loadout's starter version supplies its starter Gestures, and the starter
+        Idle pool is written from the Gestures installed now, exactly as creation
+        seeds it. Reaction pools start empty. The caller then sets the Avatar
+        and other selections through ordinary plan/commit changes in the same
+        transaction. An Anima that already has a loadout fails on its key.
+        """
+
+        if not await self._animas.is_owned_by_user(user_id=user_id, anima_id=anima_id):
+            raise AnimaLoadoutError("anima_not_found")
+        visible = {item.id: item for item in await self._catalog.list_visible(user_id=user_id)}
+        idle = await resolve_starter_idle_pool(visible=visible, store=store)
+        await self._create_root(user_id=user_id, anima_id=anima_id, starter_exclusions=[], idle=idle)
+        await self._session.flush()
+
     async def initialize(self, *, user_id: str, anima_id: str, spec: ResolvedAnimaSpec) -> None:
         """Compose exact Revision 1 selections using the normal typed validators.
 
         Explicit exclusions prevent unselected Recommended Starter Gestures from
-        being implicitly restored; Reaction pools hold exactly the spec's
-        members. No intermediate equipment revisions escape.
+        being implicitly restored; Reaction and Idle pools hold exactly the
+        spec's members. No intermediate equipment revisions escape.
         """
 
         reaction_pools: dict[str, list[str]] = {}
@@ -1089,18 +1157,15 @@ class AnimaLoadoutService:
             if len(pool) >= REACTION_POOL_LIMIT:
                 raise AnimaLoadoutError("reaction_pool_full")
             pool.append(reaction.source.id)
-        root = ORMAnimaLoadout(
+        root = await self._create_root(
+            user_id=user_id,
             anima_id=anima_id,
-            owner_user_id=user_id,
-            revision=1,
-            starter_catalog_version=1,
             starter_exclusions=[
                 {"slot": "gesture", "runtime_id": raw["content_id"].rsplit(":", 1)[-1]}
                 for raw in starter_loadout_policy(1)["gestures"]
             ],
+            idle=spec.idle,
         )
-        self._session.add(root)
-        await self._session.flush()
 
         async def apply(
             family: LoadoutFamily, intent: dict[str, Any], source: CatalogContentEntry | None = None
@@ -1124,27 +1189,6 @@ class AnimaLoadoutService:
         await apply("avatar", {"operation": "set"}, spec.avatar)
         if spec.voice_source is not None:
             await apply("voice", {"operation": "set"}, spec.voice_source)
-        # Creation seeds only finite-playback Gestures and package archives check
-        # packaged members; a rebound Included member is checked at runtime, which
-        # drops an ineligible Gesture alone. Here every member passes the typed
-        # source checks.
-        for member in spec.idle:
-            target = await self._target(
-                user_id=user_id,
-                source={"type": "catalog", "catalog_item_id": member.source.id},
-                expected_kind=ContentKind.GESTURE,
-                lock=True,
-            )
-            if target.item.revision_sha256 != member.source.revision_sha256:
-                raise AnimaLoadoutError("loadout_source_stale")
-            await self._upsert(
-                root=root,
-                slot=idle_slot_key(member.cell, member.source.id),
-                kind=ContentKind.GESTURE,
-                target=target,
-                config={},
-                current=None,
-            )
         for selection in spec.gestures:
             await apply("gesture", {"operation": "add", "config_overrides": selection.config}, selection.source)
         # Pool members are written directly from the validated pools above; one

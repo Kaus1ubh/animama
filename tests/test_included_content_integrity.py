@@ -7,7 +7,7 @@ from typing import Any
 
 import pytest
 
-from animama.app.services.starter_idle_pool import starter_idle_keys, starter_idle_pool
+from animama.app.services.starter_loadout_policy import starter_idle_keys, starter_idle_pool
 from tests.anima_creation_service_support import copy_tracked_included
 
 ROOT = Path(__file__).parents[1]
@@ -358,7 +358,7 @@ def test_starter_idle_gestures_play_no_accompanying_sound() -> None:
     """
 
     seed = starter_idle_pool()
-    keys = set(starter_idle_keys(seed))
+    keys = set(starter_idle_keys())
     checked = set()
     for key in sorted(keys):
         slug = key.removeprefix("builtin:gesture:")

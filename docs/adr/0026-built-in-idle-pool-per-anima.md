@@ -9,6 +9,9 @@
   [ADR 0018](0018-non-portable-included-content.md) decision 3
 - Decision basis: [issue #559](https://github.com/raymond-van/animama/issues/559)
   and the [execution plan](../plans/anima-idle-pool/anima-idle-pool-execplan.md)
+- Amended: 2026-10-16, the seed is part of the starter loadout (owner request
+  in [issue #589](https://github.com/raymond-van/animama/issues/589)). The seed
+  and the resulting pools are unchanged.
 
 ## Context
 
@@ -35,10 +38,12 @@ that a user had to find and select.
    per cell, one plan/commit change at a time, without the Reaction review
    dialog. Only finite-playback Gestures qualify, and membership never makes a
    Gesture AI-callable.
-4. **Seeded at creation.** New and starter Animas receive a tracked seed:
-   Streamer Idle's mapping plus the Mixamo idles in the cells Emotive Idle mapped
-   them to, where the `mixamo-motion` source is installed. Later installs never
-   change an existing pool.
+4. **Seeded with the starter loadout.** New and starter Animas receive the
+   starter loadout's Idle seed: Streamer Idle's mapping plus the Mixamo idles in
+   the cells Emotive Idle mapped them to, where the `mixamo-motion` source is
+   installed. Every path that starts a loadout from the starter loadout seeds it
+   with the loadout, including a composition that equips starters without the
+   creation request. Later installs never change an existing pool.
 5. **Idle Style is not a content kind.** Its catalog items, routes, editor,
    conversion and Included set are removed. Old `idle-styles/` folders are not
    scanned. The Mixamo pack keeps its unused Emotive Idle file until its next
@@ -65,7 +70,9 @@ checks that Gestures and Reactions already have.
 
 - [Spec snapshot](../plans/anima-idle-pool/anima-idle-pool-spec.md): agreed
   requirements R1–R11 and decisions D1–D11.
-- `src/backend/animama/resources/starter-idle-pool.v1.json` and
-  `app/services/starter_idle_pool.py`: the seed and its resolution.
+- `src/backend/animama/resources/starter-loadout.v1.json` (schema 2, `idle`)
+  and `app/services/starter_loadout_policy.py`: the seed and its resolution;
+  `AnimaLoadoutService.create_starter_loadout` applies it without a creation
+  request.
 - `app/services/anima_loadout_service.py`: the `idle` family and binding slots
   `idle:<cell>:<item>`.
