@@ -664,7 +664,9 @@ pnpm -s effects:render --diff before.png after.png --out diff.png
 
 To watch effects in motion with their sounds, `pnpm -s animation:reel --effects
 --out effects.mp4` records every Included effect into one video (see the
-[animation guide](avatar-animation.md)).
+[animation guide](avatar-animation.md)). To add, swap, retime or place effects
+and sounds on Included Gestures and Reactions, use `pnpm -s content:tune`
+([Tuning Included content](avatar-animation.md#tuning-included-content)).
 
 - A source is an Avatar, Particle or Scene effect folder, a descriptor `.json`
   or `library:[particle-effect/|scene-effect/][included/|local/]<stem|content_id|name>`

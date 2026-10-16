@@ -1,9 +1,8 @@
-import "@/index.css";
-
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 
 import { REACTION_INTENSITIES } from "@/lib/avatar/reactionPools";
+import type { EffectSource } from "@/lib/avatar/vfx/effectSource";
 import { TRACKED_EMOTIONS } from "@/lib/emotion";
 import { Button } from "@/ui/components/button";
 import { Input } from "@/ui/components/input";
@@ -16,13 +15,21 @@ import {
   ladderNotes,
   peakExpressions,
   soundGroups,
+  type TuneEvent,
   type TuneItem,
   type TuneSound,
   type TuneState,
 } from "./model";
 import { useAudition } from "./audition";
-import { draftOf, isDirty, saveRequest, type TuneDraft } from "./draft";
+import {
+  draftOf,
+  isDirty,
+  saveRequest,
+  updateEvent,
+  type TuneDraft,
+} from "./draft";
 import { EventsEditor, ExpressionsEditor, type Audition } from "./editor";
+import { PlacementSection } from "./placement";
 import { PreviewPlayer, type PlayerState } from "./player";
 
 /*
@@ -486,6 +493,69 @@ function ItemDetail({
     setMessage(null);
   };
   useEffect(() => onDirty(dirty), [dirty, onDirty]);
+  // The Avatar Effects the draft names, by alias, for per-use placement.
+  const avatarEffectDeps = JSON.stringify(
+    draft.dependencies.filter(
+      (dependency) => dependency.content_type === "avatar_effect",
+    ),
+  );
+  const [avatarEffects, setAvatarEffects] = useState<{
+    effects: Map<string, EffectSource>;
+    error: string | null;
+  } | null>(null);
+  useEffect(() => {
+    let current = true;
+    setAvatarEffects(null);
+    void api<{ clipMedia: PageClipMedia | null; notices: string[] }>("media", {
+      method: "POST",
+      body: JSON.stringify({ dependencies: JSON.parse(avatarEffectDeps) }),
+    }).then(
+      ({ clipMedia, notices }) =>
+        current &&
+        setAvatarEffects({
+          effects: new Map(
+            (clipMedia?.avatarEffects ?? []).map(({ alias, effect }) => [
+              alias,
+              effect,
+            ]),
+          ),
+          error: notices.length ? notices.join(" ") : null,
+        }),
+      (error: Error) =>
+        current &&
+        setAvatarEffects({ effects: new Map(), error: error.message }),
+    );
+    return () => {
+      current = false;
+    };
+  }, [avatarEffectDeps]);
+  const soundsByRef = useMemo(
+    () => new Map(state.sounds.map((sound) => [sound.ref, sound])),
+    [state.sounds],
+  );
+  const placement = (event: TuneEvent) => {
+    if (!avatarEffects) return null;
+    const effect = event.effectId
+      ? avatarEffects.effects.get(event.effectId)
+      : undefined;
+    if (!effect)
+      return (
+        <p className="text-destructive text-xs">
+          This effect can&apos;t be loaded for placement
+          {avatarEffects.error ? `: ${avatarEffects.error}` : "."}
+        </p>
+      );
+    return (
+      <PlacementSection
+        event={event}
+        effect={effect}
+        sounds={soundsByRef}
+        onOverride={(override, key) =>
+          change(updateEvent(draft, event.id, { override }), key)
+        }
+      />
+    );
+  };
   const save = async () => {
     setSaving(true);
     try {
@@ -586,6 +656,7 @@ function ItemDetail({
           sounds={state.sounds}
           audition={audition}
           onChange={change}
+          placement={placement}
         />
       </div>
     </div>
@@ -749,4 +820,7 @@ function App() {
   );
 }
 
-createRoot(document.getElementById("root")!).render(<App />);
+/** Render the page into `root`. Call only once i18n exists (`main.ts`). */
+export function mountTunePage(root: HTMLElement): void {
+  createRoot(root).render(<App />);
+}

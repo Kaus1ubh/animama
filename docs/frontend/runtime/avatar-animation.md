@@ -711,6 +711,8 @@ from `src/frontend/web`:
   with pack sounds contains licensed audio, so keep it out of Git and public
   channels. Requires `ffmpeg` with libx264. Frames render on the GPU on macOS
   (about real time) and with SwiftShader elsewhere.
+- `pnpm -s content:tune` opens the owner's tuning page for Included Gestures
+  and the Reaction ladder (see [Tuning Included content](#tuning-included-content)).
 - `pnpm -s animation:save <items.json>` saves clips as Local Gestures through
   the Gesture creator in a headless browser, revising an existing Local
   Gesture with the same Selector ID. An optional `project` path (absolute or
@@ -758,6 +760,58 @@ Saving updates the Local catalog item. It does not advance immutable releases
 or hot-swap a mounted chat: active chats retain their prepared bytes until
 reopened. See [Local content runtime](../architecture/local-content-runtime.md)
 for revision checks, preparation, and recovery behavior.
+
+#### Tuning Included content
+
+`pnpm -s content:tune` (from `src/frontend/web`) opens a local page, served
+on 127.0.0.1 only, for the owner to review and change Included Gestures and
+Reactions. It is not part of any build.
+
+- **Lists:** every Included Gesture, and the Reaction ladder as a grid of
+  emotions by intensity. Each cell shows its Reactions' effect counts, peak
+  expression weights and sounds, and outlines departures from the ladder
+  guidance.
+- **Sounds tab:** auditions the WOW Sound catalog.
+  - `--catalog <dir>` (or `ANIMAMA_WOW_SOUND_CATALOG`) names the vendor
+    folder, with category subfolders of `AC_*.ogg` files.
+  - `--sounds <dir>` names the comedy pack (default
+    `build-inputs/wow-comedy-sfx`; a worktree passes the primary checkout's
+    copy).
+  - Sounds in the tracked pack manifest are marked "In pack".
+  - Licensed audio is streamed from those folders and never copied.
+- **Preview:** plays the selected item, as edited, on Annie
+  (`--avatar caitlyn` for Caitlyn) in real time through the review stage,
+  with its effects and sounds.
+- **Editing:**
+  - Add, remove or replace effect events (Avatar, Particle, Scene) and `sfx`
+    sound events, and change their times.
+  - Change a sound's volume, mute an Avatar Effect's accompanying sound, or
+    change a Particle Effect's duration.
+  - Set a Reaction's peak expression weights.
+  - Place an Avatar Effect for one event with the Action creator's "This
+    use" controls (an `override`, ADR 0025). For an effect that declares
+    several sounds, the same panel picks which one this use plays.
+  - Every sound dropdown entry can be previewed before it is picked.
+- **Save:** writes the item's clip and `.meta.json` in `content/included`.
+  - It rebuilds the dependencies from the events (unused edges drop) and
+    writes pack sounds as optional edges.
+  - It keeps the content ID, version and clip identity, and keeps the clip
+    file's form.
+  - It refuses audible events under 0.3 s apart, sounds on starter idle
+    Gestures, an invalid clip, and a file changed since it was loaded (use
+    Reload).
+- **After saving:**
+  - A changed Gesture clip needs its sample baseline updated: add the slug
+    to `REBASELINED` in
+    `src/lib/avatar/motion-authoring/includedClipBaseline.test.ts`, then run
+    `UPDATE_CLIP_BASELINE=1 pnpm exec vitest run src/lib/avatar/motion-authoring/includedClipBaseline.test.ts`.
+  - A sound not yet in the pack needs a new pack version before the content
+    merges (see the [comedy sound pack](../../backend/operations/comedy-sound-pack.md)).
+    `pnpm -s content:tune --pending` lists the sounds to add or remove; the
+    Included-content tests fail until the pack matches.
+  - Re-record the changed items with `pnpm -s animation:reel`, run the
+    backend Included-content tests, and ship the edits in their own PR. Edits
+    to Reactions in starter pools also need the full browser journeys.
 
 ### `AvatarPlanner`
 

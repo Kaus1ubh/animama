@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { Fragment, useMemo, useState, type ReactNode } from "react";
 
 import { Button } from "@/ui/components/button";
 import { Input } from "@/ui/components/input";
@@ -292,6 +292,7 @@ export function EventsEditor({
   sounds,
   audition,
   onChange,
+  placement,
 }: {
   item: TuneItem;
   draft: TuneDraft;
@@ -301,7 +302,13 @@ export function EventsEditor({
   audition: Audition;
   /** `key` names a continuous edit, so its steps make one Undo entry. */
   onChange: (draft: TuneDraft, key?: string) => void;
+  /**
+   * The per-use placement controls for an Avatar Effect event, or null
+   * while its effect is loading.
+   */
+  placement?: (event: TuneEvent) => ReactNode;
 }) {
+  const [placing, setPlacing] = useState<string | null>(null);
   const view: TuneItem = { ...item, dependencies: draft.dependencies };
   const events = [...draft.events].sort((a, b) => a.time - b.time);
   const nextTime = events.length ? events.at(-1)!.time + 0.3 : 0.1;
@@ -374,42 +381,69 @@ export function EventsEditor({
           </thead>
           <tbody>
             {events.map((event) => (
-              <tr key={event.id} className="align-middle">
-                <td>
-                  <NumberField
-                    label={`${event.id} time`}
-                    value={event.time}
-                    step={0.05}
-                    min={0}
-                    onCommit={(time) =>
-                      onChange(
-                        updateEvent(draft, event.id, { time }),
-                        `time:${event.id}`,
-                      )
-                    }
-                  />
-                </td>
-                <td>{EVENT_KIND_LABELS[event.kind] ?? event.kind}</td>
-                <td>{targetPicker(event)}</td>
-                <td className="text-xs">
-                  <EventSettings
-                    event={event}
-                    onPatch={(patch, key) =>
-                      onChange(updateEvent(draft, event.id, patch), key)
-                    }
-                  />
-                </td>
-                <td>
-                  <Button
-                    size="icon-sm"
-                    variant="ghost"
-                    aria-label={`Remove ${event.id}`}
-                    onClick={() => onChange(removeEvent(draft, event.id))}
-                  >
-                    ✕
-                  </Button>
-                </td>
-              </tr>
+              <Fragment key={event.id}>
+                <tr className="align-middle">
+                  <td>
+                    <NumberField
+                      label={`${event.id} time`}
+                      value={event.time}
+                      step={0.05}
+                      min={0}
+                      onCommit={(time) =>
+                        onChange(
+                          updateEvent(draft, event.id, { time }),
+                          `time:${event.id}`,
+                        )
+                      }
+                    />
+                  </td>
+                  <td>{EVENT_KIND_LABELS[event.kind] ?? event.kind}</td>
+                  <td>{targetPicker(event)}</td>
+                  <td className="text-xs">
+                    <EventSettings
+                      event={event}
+                      onPatch={(patch, key) =>
+                        onChange(updateEvent(draft, event.id, patch), key)
+                      }
+                    />
+                  </td>
+                  <td className="whitespace-nowrap">
+                    {placement && event.kind === "avatar_vfx" && (
+                      <Button
+                        size="sm"
+                        variant={placing === event.id ? "secondary" : "ghost"}
+                        aria-expanded={placing === event.id}
+                        onClick={() =>
+                          setPlacing((current) =>
+                            current === event.id ? null : event.id,
+                          )
+                        }
+                      >
+                        Place
+                      </Button>
+                    )}
+                    <Button
+                      size="icon-sm"
+                      variant="ghost"
+                      aria-label={`Remove ${event.id}`}
+                      onClick={() => onChange(removeEvent(draft, event.id))}
+                    >
+                      ✕
+                    </Button>
+                  </td>
+                </tr>
+                {placing === event.id && placement && (
+                  <tr>
+                    <td colSpan={5} className="pb-3">
+                      {placement(event) ?? (
+                        <p className="text-muted-foreground text-xs">
+                          Loading the effect…
+                        </p>
+                      )}
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
             ))}
           </tbody>
         </table>

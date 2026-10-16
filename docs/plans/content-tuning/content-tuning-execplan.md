@@ -152,7 +152,7 @@ until the slug is listed in `REBASELINED` and the baseline is rewritten with
 - [x] Phase 1: optional pack sounds for Included Gesture and Reaction `sfx` events. Done (2026-10-16): checks pass, Code Review #2 passed after one repair round. Hearing the sound in chat with the pack mounted is part of the owner's final check.
 - [x] Phase 2: read-only tuning page with catalog audition and preview. Done (2026-10-16): checks pass, Code Review #2 passed after one repair round. Hearing the sounds is part of the owner's final check.
 - [x] Phase 3: editing and saving events and Reaction expressions. Done (2026-10-16): checks pass, Code Review #2 passed after one repair round.
-- [ ] Phase 4: per-use placement, docs and acceptance. Not started.
+- [x] Phase 4: per-use placement, docs and acceptance. Agent work done (2026-10-16): checks pass, Code Review #2 passed after one repair round. The owner's live check is pending.
 - [ ] Final integration review. Not started.
 - [ ] Owner gates: live audio check of the page; pack publish for any new sounds. Not started.
 
@@ -813,15 +813,103 @@ Owner gates:
   narrower window.
 - Any content edits follow the separate content PR path.
 
-Results and commits: _pending_.
+Results (2026-10-16, on `9fe47cd3`, the Phase 3 commit). Phase 3 commit: `9fe47cd3`.
+
+- **Placement.** `scripts/content-tune/placement.tsx` embeds
+  `PoseCreatorAvatarEffectUseSection` with `useAvatarEffectUse`.
+  - The section's source (validated `/2` definition and declared sounds)
+    comes from the effect as `/__tune/media` serves it; no runtime snapshot
+    or preview provider is needed.
+  - Each Avatar Effect event row has a Place toggle. Its override edits
+    share an undo key and save into the event's `override`.
+- **Entry.** The page now starts from `scripts/content-tune/main.ts`, which
+  creates the app's i18n before importing the page. The creator modules
+  read translations as they load, as `main.local.tsx` arranges for the app.
+- **Docs.**
+  - A "Tuning Included content" section in
+    `docs/frontend/runtime/avatar-animation.md` (command, inputs, editing,
+    save rules, after-save steps), listed among the authoring commands.
+  - A pointer from `docs/frontend/runtime/avatar-vfx.md`.
+- **Tests.**
+  - `tests/contentTunePlacement.test.ts` (Vitest): an override made with
+    the section's edit path round-trips through `planTuneSave`, and an
+    invalid definition is refused.
+  - A browser test that places a Reaction's Avatar Effect and saves its
+    override.
+- **Manual check at desktop size (1440×900):** Place opened the Action
+  creator's "This use" controls on Apology Bow. Setting Size to 8 cm marked
+  the draft edited and the event "placed", with no console errors.
+
+- **Gate on the Phase 4 working tree:** all pass.
+  - `pnpm check`, `pnpm web:lint` and `pnpm desktop:check`.
+  - `pnpm web:test`: 534 files, 5227 tests.
+  - `pnpm build`: 0 matches for `__tune/` in `dist`.
+  - `pnpm desktop:private-pack --pack wow-comedy-sfx scan --git`: "No pack
+    bytes found".
+  - `pnpm test:source:unit` and Prettier on `scripts`.
 
 #### Code Review #1 Findings
 
-_Pending._
+The same independent reviewer reviewed the Phase 4 files on `9fe47cd3` in a
+full initial review. It confirmed:
+- the placement wiring, the i18n entry and the build boundary;
+- every other docs claim, checked against the code.
+
+Blocking:
+- **P4-R1-F1:** the docs said the page could change an Avatar Effect's
+  accompanying sound. It could only mute it, because the creator's per-use
+  sound choice lives in its inspector, not in the embedded section.
+
+Non-blocking:
+- **P4-R1-F2:** a failed or unresolved effect left Place showing "Loading"
+  forever.
+- **P4-R1-F3:** `placementSource` didn't put the effect's own sound first.
+- **P4-R1-F4:** every placement change shared one undo key.
+- **P4-R1-F5:** the docs section sits under "Mounted motion catalog", beside
+  the authoring commands.
+- **P4-R1-F6:** one browser-test failure under a concurrent full gate;
+  four reruns passed.
+- Edited docs files were already non-Prettier at baseline.
 
 #### Code Review #1 Revisions
 
-_Pending._
+- **F1, accepted, fixed in code:** for an effect that declares several
+  sounds, the placement panel now shows "Sound for this use" and calls
+  `use.chooseSound`, as the creator's inspector does. The docs now say
+  "mute an Avatar Effect's accompanying sound" and describe the per-use
+  sound choice. Checked live: Finger Heart Pose (`heart_pop`) offered four
+  sounds.
+- **F2, accepted:** the media request reports failures and notices. Place
+  shows "This effect can't be loaded for placement" with the reason.
+- **F3, accepted:** the effect's own sound is listed first. Test: "lists a
+  merged effect's sounds with its own sound first".
+- **F4, accepted:** each focus visit to a placement control is one undo
+  step (`place:<event>:<visit>`), like the creator's per-control grouping.
+- **F5, kept:** the section stays beside the authoring command list it
+  extends, and that list links to it.
+- **F6, recorded:** not reproduced in four reruns or the final runs. The
+  likely cause is concurrent servers sharing the Vite `cacheDir`; run the
+  browser tests on their own, as `test:source` already does with
+  `--test-concurrency=1`.
+
+Rechecks:
+- `vitest` on the placement test: 3 pass.
+- The browser tests: 5 pass.
+- The scripts type check and eslint: pass.
+
+Repair budget: one round used.
+
+#### Code Review #2 Findings
+
+This was a targeted recheck by the same reviewer. It verified F1–F4 as
+fixed and F5–F6 as kept or recorded with reasons. No regressions: the
+Select's portal focus only bumps the visit counter, and override edits
+don't refetch media. Result: **pass**.
+
+Its checks:
+- the placement Vitest file: 3 pass;
+- the browser tests: 5 pass;
+- Prettier and eslint: pass.
 
 ## Final integration review
 

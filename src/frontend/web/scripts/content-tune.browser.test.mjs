@@ -271,3 +271,27 @@ test("edits a Reaction's expression and sound and saves them", async () => {
   assert.deepEqual(pending.additions, []);
   await page.close();
 });
+
+test("places an Avatar Effect for one use and saves its override", async () => {
+  const folder = path.join(dir, "content/included/reactions/joy-2");
+  const page = await browser.newPage({
+    viewport: { width: 1400, height: 900 },
+  });
+  page.setDefaultTimeout(90_000);
+  await page.goto(tune.url);
+  await page.getByRole("tab", { name: "Reaction ladder" }).click();
+  await page.getByRole("row", { name: /^joy/i }).getByRole("button").click();
+  await page.getByRole("button", { name: "Place" }).click();
+  const size = page.getByRole("spinbutton", { name: "Size (cm)" });
+  await size.fill("8");
+  await size.blur();
+  await page.getByText("placed").waitFor();
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await page.getByText("Saved builtin:reaction:joy-2.").waitFor();
+  const clip = JSON.parse(
+    await readFile(path.join(folder, "joy-2.json"), "utf8"),
+  );
+  const placed = clip.events.find((event) => event.kind === "avatar_vfx");
+  assert.ok(placed.override?.attachment, JSON.stringify(placed));
+  await page.close();
+});
