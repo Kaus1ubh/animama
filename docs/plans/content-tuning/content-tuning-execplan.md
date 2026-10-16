@@ -153,7 +153,7 @@ until the slug is listed in `REBASELINED` and the baseline is rewritten with
 - [x] Phase 2: read-only tuning page with catalog audition and preview. Done (2026-10-16): checks pass, Code Review #2 passed after one repair round. Hearing the sounds is part of the owner's final check.
 - [x] Phase 3: editing and saving events and Reaction expressions. Done (2026-10-16): checks pass, Code Review #2 passed after one repair round.
 - [x] Phase 4: per-use placement, docs and acceptance. Agent work done (2026-10-16): checks pass, Code Review #2 passed after one repair round. The owner's live check is pending.
-- [ ] Final integration review: round 1 found one blocking record issue (journeys); the full `pnpm e2e:test` run and round 2 are in progress.
+- [x] Final integration review: round 1 found one blocking record issue (the journeys). Round 2 passed F2–F5, and F1 closed when the full `pnpm e2e:test` passed (40/40).
 - [ ] Owner gates, still open:
   - Run the page with the vendor catalog and the pack. Confirm audition and
     preview are audible, and that editing, placement and saving work on
@@ -820,7 +820,7 @@ Owner gates:
   narrower window.
 - Any content edits follow the separate content PR path.
 
-Results (2026-10-16, on `9fe47cd3`, the Phase 3 commit). Phase 3 commit: `9fe47cd3`.
+Results (2026-10-16, on the Phase 3 commit `9fe47cd3`; Phase 4 commit `4b98d989`):
 
 - **Placement.** `scripts/content-tune/placement.tsx` embeds
   `PoseCreatorAvatarEffectUseSection` with `useAvatarEffectUse`.
@@ -974,6 +974,25 @@ Non-blocking:
 
 Repair budget: one round used.
 
+#### Final Integration Review #2 Findings
+
+This was a targeted recheck by the same reviewer of `ce3053af`. F2–F5 are
+fixed, with no regressions. F1 stayed open until the journeys passed, as
+recorded below. Two cosmetic commit-hash leftovers it noted are fixed.
+
+Journeys:
+- Command: `pnpm e2e:test` (full).
+- Stack: the disposable built stack `animama-tune-e2e`
+  (`ANIMAMA_LLM_SKIP=1`, production web build, port 8800), stopped
+  afterwards.
+- Image: built from the working tree, whose app code matches `4b98d989`.
+  `ce3053af` changes only `scripts/content-tune*` and the plan, which aren't
+  in the image.
+- Result: **40 passed in 50.7 min**, including the `@complete-anima`
+  package journeys. Evidence: `.animama-e2e/runs/run-1016133909` (local,
+  untracked).
+- F1 closed. Final integration review: **pass**.
+
 ## Validation and acceptance
 
 Acceptance is #590's checklist. Commands for the candidate:
@@ -1039,7 +1058,8 @@ Delivered on `feat/content-tuning-page`:
 - `2f54b887` (p2): the read-only page.
 - `9fe47cd3` (p3): editing and saving.
 - `4b98d989` (p4): per-use placement and docs.
-- A final-review revision commit.
+- `ce3053af`: final-review revisions.
+- The commit recording the journey result.
 
 Each phase passed its review after one repair round. The final integration
 review is recorded above.
