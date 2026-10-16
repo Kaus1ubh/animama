@@ -242,8 +242,9 @@ Creation and starter provisioning apply it through the creation request. A
 composition that equips starters without one creates the loadout with
 `AnimaLoadoutService.create_starter_loadout`, in the owner's transaction: the
 loadout uses the version's starter Gestures and receives the same Idle pool as
-creation, while its Reaction pools start empty. It then sets the Avatar and
-other selections through ordinary plan/commit changes.
+creation, and each Reaction cell holds its available starter Reactions, as
+`restore_starter` leaves it. It then sets the Avatar and other selections
+through ordinary plan/commit changes.
 
 Newly provisioned starters use Annie version 3 (`AvatarSample_A_1_New`, Eve Pocket
 voice) and Caitlyn version 6 (`AvatarSample_Y_0`, Azelma Pocket voice), with matching

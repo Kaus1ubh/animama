@@ -556,7 +556,8 @@ async def test_tracked_checkout_materializes_both_starters_without_optional_loca
             assert gesture_keys.isdisjoint(idle_seed_keys())
 
         # A composition that applies the starter loadout to a bare Anima, without
-        # the creation request, receives the same Idle pool as a created starter.
+        # the creation request, receives the same Idle and Reaction pools as a
+        # created starter.
         bare = ORMAnima(id=f"bare-{uuid4().hex}", user_id=fixture.owner)
         async_session.add(bare)
         await async_session.flush()
@@ -572,6 +573,10 @@ async def test_tracked_checkout_materializes_both_starters_without_optional_loca
             return pool
 
         assert idle_pool(applied) == idle_pool(loadout)
+        assert_starter_reaction_pools(applied)
+        assert [sorted(member.item_id for member in cell.members) for cell in applied.reactions] == [
+            sorted(member.item_id for member in cell.members) for cell in loadout.reactions
+        ]
         # Its starter Gestures follow the stored starter loadout version.
         assert {gesture.origin for gesture in applied.gestures} == {"starter"}
         assert len(applied.gestures) == 99
