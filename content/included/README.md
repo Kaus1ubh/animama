@@ -13,7 +13,8 @@ used.
 The library ships 111 Gestures, 168 Reactions and 85 Avatar Effects; frontend
 and backend tests pin these counts, so update them with any promotion. Twelve
 of the Gestures are idle motions that seed every new Anima's Idle pool by
-emotion and intensity (`src/backend/animama/resources/starter-idle-pool.v1.json`).
+emotion and intensity (the `idle` section of
+`src/backend/animama/resources/starter-loadout.v1.json`).
 Idle plays while the Anima is quiet, so every Avatar Effect event in a seeded
 idle Gesture sets `playAccompanyingSound: false`.
 

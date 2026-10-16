@@ -76,8 +76,9 @@ Each staging pass clears only `desktop/.desktop-runtime/darwin-arm64`, then:
 1. Resolves starter specifications, the full recommended typed dependency
    closure, authoring Poses and the explicit `CORE_LIBRARY_ROOTS` in
    `animama/runtime/starter_content.py`. These Library roots and their
-   dependencies ship in core without entering starter loadouts or per-starter
-   receipts. With the starter closure and Poses they cover every valid tracked
+   dependencies ship in core without entering the starter loadout's Gestures and
+   Reactions or per-starter receipts (its Idle seed names the idle Gestures among
+   them). With the starter closure and Poses they cover every valid tracked
    Included item, so desktop core matches self-host and the expanded input is
    empty; add each new Included item that no starter selects to these roots
    (a new non-idle Gesture joins the starter loadout instead). Only tracked distribution

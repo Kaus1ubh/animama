@@ -184,8 +184,8 @@ no change and are refused).
    entry/file counts) to `CORE_LIBRARY_LOCATORS` in
    `tests/test_starter_content_closure.py`; that test fails while any valid
    Included item is left out of core. A new idle Gesture reaches new Animas
-   only when, with the owner's approval, it is added to a pool in
-   `src/backend/animama/resources/starter-idle-pool.v1.json`; update the seed
+   only when, with the owner's approval, it is added to a pool in the `idle`
+   section of `src/backend/animama/resources/starter-loadout.v1.json`; update the seed
    expectations in `tests/test_starter_idle_pool.py` and
    `tests/test_anima_starters.py` with it.
 3. Run the backend Included-content tests (full `uv run pytest -q`

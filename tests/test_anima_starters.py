@@ -20,12 +20,17 @@ from animama.app.services.anima_loadout_service import AnimaLoadoutService
 from animama.app.services.anima_starter_service import STARTER_ANIMA_SPECS, AnimaStarterService
 from animama.app.services.content_catalog_service import ContentCatalogService
 from animama.app.services.memory_entry_service import MemoryEntryService
-from animama.app.services.starter_idle_pool import starter_idle_keys, starter_idle_pool
-from animama.app.services.starter_loadout_policy import starter_loadout_policy, starter_reaction_pools
+from animama.app.services.starter_loadout_policy import (
+    starter_idle_keys,
+    starter_idle_pool,
+    starter_loadout_policy,
+    starter_reaction_pools,
+)
 from animama.domain.anima import Anima
 from animama.domain.anima_chat_profile import AnimaChatProfile
 from animama.domain.anima_creation_error import AnimaCreationError
 from animama.domain.anima_definition import ANIMA_MEMORIES_TEMPLATE, DEFAULT_ANIMA_VOICE_ID
+from animama.domain.anima_loadout import AnimaLoadoutError
 from animama.domain.avatar import Avatar
 from animama.domain.request_principal import RequestPrincipal
 from animama.domain.settings import AnimaSettings
@@ -549,3 +554,33 @@ async def test_tracked_checkout_materializes_both_starters_without_optional_loca
             assert cells["joy", 1] == cells["joy", 3] == cells["admiration", 1] == []
             gesture_keys = {gesture.source.logical_key for gesture in loadout.gestures if gesture.source}
             assert gesture_keys.isdisjoint(idle_seed_keys())
+
+        # A composition that applies the starter loadout to a bare Anima, without
+        # the creation request, receives the same Idle and Reaction pools as a
+        # created starter.
+        bare = ORMAnima(id=f"bare-{uuid4().hex}", user_id=fixture.owner)
+        async_session.add(bare)
+        await async_session.flush()
+        service = AnimaLoadoutService(async_session)
+        await service.create_starter_loadout(user_id=fixture.owner, anima_id=bare.id, store=fixture.store())
+        applied = await service.read_model(user_id=fixture.owner, anima_id=bare.id)
+
+        def idle_pool(value) -> dict[str, list[str]]:  # noqa: ANN001
+            pool = {"default": sorted(idle_keys(value.idle.default_pool))}
+            pool.update(
+                (f"{cell.emotion}-{cell.intensity}", sorted(idle_keys(cell.gestures))) for cell in value.idle.cells
+            )
+            return pool
+
+        assert idle_pool(applied) == idle_pool(loadout)
+        assert_starter_reaction_pools(applied)
+        assert [sorted(member.item_id for member in cell.members) for cell in applied.reactions] == [
+            sorted(member.item_id for member in cell.members) for cell in loadout.reactions
+        ]
+        # Its starter Gestures follow the stored starter loadout version.
+        assert {gesture.origin for gesture in applied.gestures} == {"starter"}
+        assert len(applied.gestures) == 99
+        with pytest.raises(AnimaLoadoutError, match="anima_not_found"):
+            await service.create_starter_loadout(
+                user_id=f"other-{uuid4().hex}", anima_id=bare.id, store=fixture.store()
+            )
