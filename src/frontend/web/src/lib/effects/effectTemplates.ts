@@ -136,7 +136,7 @@ export const AVATAR_EFFECT_TEMPLATES: readonly AvatarEffectTemplate[] = [
     framing: "wide",
     time: 1.5,
   }),
-  included("doki_doki", "Doki Doki", "around-head", { framing: "wide" }),
+  included("doki_doki", "Doki Doki", "body", { framing: "wide" }),
   included("idea_bulb", "Idea Bulb", "around-head", { framing: "wide" }),
   included("awkward-ellipsis", "Awkward Ellipsis", "around-head", {
     framing: "wide",

@@ -91,15 +91,15 @@ skills, with a save lock so two creator saves never overlap.
   events paired into the new Gestures and the two blow-a-kiss Gestures.
 - **Phase 5:** owner review, `effects save` / `animation:save` (with
   `project` items for effect dependencies), promote dry-runs, promotion,
-  thumbnails and pinned counts, Included checks and the full browser journeys.
+  thumbnails and pinned counts and Included checks (browser journeys skipped by owner decision).
 
 ## Validation and acceptance
 
 - Per item: `pnpm -s animation validate`, `pnpm -s animation check`,
   `pnpm -s effects check` — zero FAIL; accepted WARNs listed in the PR.
 - Before merge: backend Included/starter tests, `pnpm check`, `pnpm web:lint`,
-  `pnpm build`, focused content tests, `make format-check` and `pnpm e2e:test`
-  on a disposable built stack.
+  `pnpm build`, focused content tests and `make format-check`. `pnpm e2e:test`
+  is skipped for this PR (owner, 2026-10-15).
 
 ## Idempotence and recovery
 

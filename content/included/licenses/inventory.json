@@ -32,7 +32,7 @@
     {
       "glob": "vfx/particle/quark/shooting-stars/**",
       "creator": "Animama project; authored by an AI coding agent under the owner's direction",
-      "provenance": "Agent-authored three.quarks Particle Effect (descriptor and Quarks manifest), written with the animama-particle-vfx skill (#585) under the owner's direction from text briefs. Its other textures (textures/shooting-trail.png, textures/soft-haze.png, textures/star-glint.png) are unmodified copies of Included particle textures and keep those files' records and terms. The owner reviewed this content in animation:preview on both Included Avatars (2026-10-15) and approved inclusion on 2026-10-15. Copyright status of AI-generated material must be reviewed before public release.",
+      "provenance": "Agent-authored three.quarks Particle Effect (descriptor and Quarks manifest), written with the animama-particle-vfx skill (#585) under the owner's direction from text briefs. Its textures (textures/shooting-trail.png, textures/soft-haze.png, textures/star-glint.png) are unmodified copies of Included particle textures and keep those files' records and terms. The owner reviewed this content in animation:preview on both Included Avatars (2026-10-15) and approved inclusion on 2026-10-15. Copyright status of AI-generated material must be reviewed before public release.",
       "license_id": "LicenseRef-Animama-agent-authored",
       "redistribution_review": "pending"
     },
