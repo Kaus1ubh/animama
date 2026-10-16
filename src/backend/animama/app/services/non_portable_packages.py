@@ -1,9 +1,10 @@
-"""Remove non-portable references from exported descriptors.
+"""Remove non-portable references from exported descriptors and clips.
 
-A built-in effect's optional accompanying sound may be non-portable. Export
-removes that edge and the ``soundAlias`` naming it without a reference: Local
-content never carries a licensed sound, so an imported copy of the effect plays
-without it (ADR 0022). Non-portable Gestures an Anima uses are omitted by the
+A built-in effect's optional accompanying sound, or a built-in Gesture or
+Reaction's optional ``sfx`` sound, may be non-portable. Export removes that edge
+and the ``soundAlias`` or ``sfx`` events naming it without a reference: Local
+content never carries a licensed sound, so an imported copy plays without it
+(ADR 0022). Non-portable Gestures an Anima uses are omitted by the
 Anima capture and recorded as package references instead.
 """
 
@@ -37,4 +38,22 @@ def strip_optional_refs(projection: Mapping[str, Any], refs: Collection[str]) ->
     definition = result.get("definition")
     if isinstance(definition, dict) and definition.get("soundAlias") in removed_aliases:
         del definition["soundAlias"]
+    return result
+
+
+def strip_sound_events(value: Any, aliases: Collection[str]) -> Any:  # noqa: ANN401
+    """Drop a clip's ``sfx`` events whose cue names one of ``aliases``.
+
+    Any other JSON document is returned unchanged.
+    """
+
+    if not aliases or not isinstance(value, Mapping) or not isinstance(value.get("events"), list):
+        return value
+    result = copy.deepcopy(dict(value))
+    events = result["events"]
+    result["events"] = [
+        event
+        for event in events
+        if not (isinstance(event, dict) and event.get("kind") == "sfx" and event.get("cueId") in aliases)
+    ]
     return result

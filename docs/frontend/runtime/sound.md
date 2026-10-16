@@ -28,10 +28,14 @@ declare a Sound dependency, but nothing plays it.
 A built-in Avatar Effect plays licensed sounds from the private
 [comedy sound pack](../../backend/operations/comedy-sound-pack.md) through
 optional dependencies: usually one, while a merged effect declares several and
-each Gesture or Reaction event picks one with its override's `soundAlias`. Some
-are silent by design, and without the pack they all play silently. Licensed sounds never
-appear in Library, the sound pickers or the export picker, and copying a
-built-in Avatar Effect leaves its sound behind with a note. Where a Reaction starts several effects together, all
+each Gesture or Reaction event picks one with its override's `soundAlias`. A
+built-in Gesture or Reaction may also play a pack sound from an `sfx` event
+with an optional edge. Some are silent by design, and without the pack they all
+play silently: the runtime skips a built-in Action's `sfx` events whose sound
+isn't installed. Licensed sounds never appear in Library, the sound pickers or
+the export picker. Copying a built-in Avatar Effect leaves its sound behind
+with a note; customizing a built-in Gesture or Reaction drops its licensed
+`sfx` events without one. Where a Reaction starts several effects together, all
 but one set `playAccompanyingSound: false`, and an intensity-1 Reaction sets it
 on its Avatar Effect. Gestures used by an Included Idle
 Style set it on every Avatar Effect event, because idle plays while the Anima

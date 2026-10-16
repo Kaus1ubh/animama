@@ -281,6 +281,69 @@ describe("Starter action customization", () => {
     ]);
   });
 
+  it("leaves a built-in Action's licensed sound events out of a customized copy", async () => {
+    const starter = item({
+      intent: "gesture",
+      id: "builtin:gesture:wave-pop",
+      name: "Wave Pop",
+    });
+    const starterPreview = preview({
+      intent: "gesture",
+      id: starter.item_id,
+      key: "wave-pop",
+    });
+    const root = (
+      starterPreview.closure as unknown as { root: Record<string, unknown> }
+    ).root;
+    root.implementation = { kind: "anima_clip" };
+    root.files = [{ role: "sequence", ordinal: 1, file_ref: "sequence-ref" }];
+    // ``chime`` is installed but licensed; ``pop`` isn't in this build.
+    (root.reference_map as Record<string, string>).chime = "support-2";
+    root.missing_references = { pop: "builtin:sound-effect:pop" };
+    (
+      starterPreview.closure as unknown as { supports: unknown[] }
+    ).supports.push({
+      runtime_id: "support-2",
+      content_type: "sound_effect",
+      portability: "non-portable",
+      source: { type: "catalog", catalog_item_id: "licensed-sound" },
+    });
+    const sequence = {
+      schema: "animaPoseClip/2.0",
+      id: "wave-pop",
+      name: "Wave Pop",
+      duration: 1,
+      beats: [],
+      events: [
+        { id: "chime", kind: "sfx", time: 0, cueId: "chime" },
+        { id: "pop", kind: "sfx", time: 0.2, cueId: "pop" },
+        { id: "spark", kind: "particle_vfx", time: 0, effectId: "sparkle" },
+      ],
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(JSON.stringify(sequence))),
+    );
+
+    const document = await actionDocumentFromPreview({
+      intent: "gesture",
+      item: starter,
+      preview: starterPreview,
+      base: createGestureDocument(),
+      customizeStarter: true,
+      semanticSuffix: "abcdef12",
+    });
+
+    expect(
+      (document.sequence.events as { id: string }[]).map((event) => event.id),
+    ).toEqual(["spark"]);
+    expect(
+      unresolvedActionReferences(document.sequence, document.dependencies),
+    ).toEqual([]);
+    // A sound left behind is not a removed effect to repair.
+    expect(removedActionEffects(starterPreview)).toEqual([]);
+  });
+
   it("reconstructs exact sources from readable Included dependency refs", async () => {
     const starter = item({
       intent: "reaction",

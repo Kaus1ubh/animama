@@ -464,7 +464,12 @@ use resolved emotion weights and finite loop metadata; preload tiers come from
 the binding configuration. Private pose/reaction manifests stay lazy, have a
 2 MiB streamed-read limit, parse once, and are aborted/released when their
 catalog is disposed. User clip event references are accepted only when their
-SFX/VFX runtime IDs occur in the same effective response. Duplicate or invalid
+SFX/VFX runtime IDs occur in the same effective response. Events whose alias the
+projection lists in `missing_references` are skipped instead: a Local Action's
+removed Included effects (with a `missing_effect_dependency` diagnostic), and a
+built-in Action's optional pack sound that this build doesn't install
+(silently; see the [comedy sound pack](../../backend/operations/comedy-sound-pack.md)).
+Duplicate or invalid
 motion identities are omitted with safe diagnostics. Effect and audio resources
 resolve through the mounted media providers with the same revision and
 prepared-byte boundary.

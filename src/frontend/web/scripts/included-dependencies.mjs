@@ -52,6 +52,25 @@ export function listIncludedMetas(root, { readFileSync, readdirSync }) {
   return metas;
 }
 
+/** The tracked manifest of the private comedy sound pack, from the repo root. */
+export const PACK_SOUND_MANIFEST =
+  "src/backend/animama/resources/wow-comedy-sfx-manifest.json";
+
+/**
+ * The content IDs (`builtin:sound-effect:<key>`) of the sounds in the private
+ * comedy pack, from its parsed tracked manifest.
+ */
+export function packSoundRefs(manifest) {
+  return new Set(
+    (Array.isArray(manifest?.files) ? manifest.files : [])
+      .map((file) => file?.path)
+      .filter((file) => typeof file === "string" && file.endsWith(".ogg"))
+      .map(
+        (file) => `builtin:sound-effect:${path.posix.basename(file, ".ogg")}`,
+      ),
+  );
+}
+
 /** The content type of each Included content ID, from Included descriptors. */
 export function includedContentTypes(metas) {
   return new Map(
@@ -67,8 +86,11 @@ export function includedContentTypes(metas) {
  * `alias`, a `ref` and a `content_type` (`config`, when given, is an
  * object); aliases are unique; each `ref`, re-pointed through
  * `promotedRefs` (a Local effect's ID → its Included ID in this run), must
- * be Included content of that type (`includedTypes`, after the run); and
- * every event that plays content must name a declared alias of its type.
+ * be Included content of that type (`includedTypes`, after the run) or a
+ * sound in the private comedy pack (`packSounds`, from `packSoundRefs`),
+ * which is written as an optional edge so builds without the pack play the
+ * item silently (ADR 0022); and every event that plays content must name a
+ * declared alias of its type.
  * `missing` tells the reader how to fix a ref that is not Included. Throws
  * an `Error` naming the problem; callers add the item.
  */
@@ -78,6 +100,7 @@ export function includedActionDependencies(
   {
     includedTypes,
     promotedRefs = new Map(),
+    packSounds = new Set(),
     missing = "promote it in the same run",
   },
 ) {
@@ -103,13 +126,16 @@ export function includedActionDependencies(
     if (declared.has(alias))
       throw new Error(`dependency alias "${alias}" repeats.`);
     const included = promotedRefs.get(ref) ?? ref;
-    if (!includedTypes.has(included))
+    // A pack sound stays optional even where a loose copy sits in the tree.
+    const packSound = packSounds.has(included);
+    if (!packSound && !includedTypes.has(included))
       throw new Error(
         `dependency "${alias}" (${ref}) is not Included content after this promotion; ${missing}.`,
       );
-    if (includedTypes.get(included) !== contentType)
+    const actualType = packSound ? "sound_effect" : includedTypes.get(included);
+    if (actualType !== contentType)
       throw new Error(
-        `dependency "${alias}" is declared as a ${contentType}, but ${included} is a ${includedTypes.get(included)}.`,
+        `dependency "${alias}" is declared as a ${contentType}, but ${included} is a ${actualType}.`,
       );
     declared.set(alias, contentType);
     result.push({
@@ -117,6 +143,7 @@ export function includedActionDependencies(
       alias,
       content_type: contentType,
       config: config ?? {},
+      ...(packSound ? { optional: true } : {}),
     });
   }
   for (const event of Array.isArray(events) ? events : []) {

@@ -18,6 +18,8 @@ from typing import Any, Literal
 
 from animama.domain.anima_loadout import REACTION_INTENSITIES
 from animama.domain.content_catalog import (
+    ACTION_KINDS,
+    OPTIONAL_OMITTED_KEY,
     ContentDiagnostic,
     ContentKind,
     ContentSource,
@@ -103,7 +105,8 @@ class RuntimeProjectionInput:
     logical_files: dict[str, dict[str, Any]]
     dependency_files: dict[str, list[dict[str, Any]]]
     reference_map: dict[str, str]
-    # Alias → ref of each removed Included effect a Local Action plays without.
+    # Alias → ref of each removed Included effect a Local Action plays without,
+    # or optional pack sound a built-in Action plays without in this build.
     missing_references: dict[str, str] = field(default_factory=dict)
 
 
@@ -577,19 +580,25 @@ def _dependencies(raw: Mapping[str, Any], kind: ContentKind) -> tuple[ContentDep
     return tuple(result)
 
 
-# Effects whose accompanying sound may come from a private pack absent in some
-# builds; see ``resolve_optional_dependencies``.
-_OPTIONAL_SOUND_OWNERS = frozenset({ContentKind.AVATAR_EFFECT, ContentKind.SCENE_EFFECT})
+# Built-in content whose sound may come from a private pack absent in some
+# builds: an effect's accompanying sound, or a Gesture or Reaction ``sfx``
+# event's sound. See ``resolve_optional_dependencies``.
+_OPTIONAL_SOUND_OWNERS = frozenset(
+    {ContentKind.AVATAR_EFFECT, ContentKind.SCENE_EFFECT, ContentKind.GESTURE, ContentKind.REACTION}
+)
 
 
 def resolve_optional_dependencies(entries: Iterable[ScannedContentEntry]) -> list[ScannedContentEntry]:
     """Drop optional edges whose target isn't a VALID entry in ``entries``.
 
-    Run over every Included entry a build mounts (or stages), so an effect
-    whose accompanying sound lives in an absent private pack stays a plain,
-    valid effect without that sound: its effective metadata loses the edge and
-    the ``definition.soundAlias`` naming it, and its revision records the
-    omission. Downstream code then never meets an unresolved edge.
+    Run over every Included entry a build mounts (or stages), so content
+    whose sound lives in an absent private pack stays valid without that sound:
+    its effective metadata loses the edge (and an effect the
+    ``definition.soundAlias`` naming it), and its revision records the
+    omission. Downstream code then never meets an unresolved edge. A Gesture or
+    Reaction can't drop the ``sfx`` events in its verified clip, so the omitted
+    edges are kept, by alias, in its provenance (``OPTIONAL_OMITTED_KEY``) for
+    the runtime projection to report as missing references.
     """
 
     entries = list(entries)
@@ -627,11 +636,15 @@ def _without_unavailable_optional(
     if revision is not None:
         marker = json.dumps({"revision": revision, "optional_omitted": sorted(omitted)}, sort_keys=True)
         revision = hashlib.sha256(marker.encode()).hexdigest()
+    provenance = entry.provenance
+    if entry.kind in ACTION_KINDS:
+        provenance = {**provenance, OPTIONAL_OMITTED_KEY: {alias: ref for ref, alias in omitted.items()}}
     return replace(
         entry,
         metadata=metadata,
         dependencies=tuple(ref for ref in entry.dependencies if ref not in omitted),
         revision_sha256=revision,
+        provenance=provenance,
     )
 
 
@@ -641,7 +654,7 @@ def _optional_edge(value: Any, *, kind: ContentKind, dependency_kind: ContentKin
     if value and (kind not in _OPTIONAL_SOUND_OWNERS or dependency_kind is not ContentKind.SOUND_EFFECT):
         raise ContentDocumentError(
             "dependency_optional_not_allowed",
-            "Only an Avatar or Scene Effect's Sound Effect dependency can be optional",
+            "Only a Sound Effect dependency of an Avatar or Scene Effect, Gesture or Reaction can be optional",
         )
     return value
 

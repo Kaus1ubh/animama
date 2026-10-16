@@ -1067,7 +1067,9 @@ export class AnimaRuntimeCatalog
         ? (entry.config.runtime_reference_map as Record<string, unknown>)
         : {};
     // A Local Action outlives an Included effect removed before launch: its
-    // events for that effect are skipped and the rest of the clip plays.
+    // events for that effect are skipped and the rest of the clip plays. A
+    // built-in Action's optional pack sound this build doesn't install is
+    // skipped the same way, silently, as an effect's absent sound is.
     const removed =
       entry.config.runtime_missing_references &&
       typeof entry.config.runtime_missing_references === "object"
@@ -1075,6 +1077,11 @@ export class AnimaRuntimeCatalog
         : {};
     const skipped = new Set<string>();
     const playable = clip.events?.filter((event) => {
+      if (event.kind === "sfx")
+        return (
+          !Object.hasOwn(removed, event.cueId) ||
+          Object.hasOwn(referenceMap, event.cueId)
+        );
       const alias =
         event.kind === "scene_vfx"
           ? event.presetId

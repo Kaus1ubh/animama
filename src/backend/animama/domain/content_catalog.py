@@ -64,6 +64,10 @@ class ContentKind(str, Enum):
 # and plays without it: its catalog row carries this diagnostic per removed
 # effect, and the edge is reported as a missing dependency, not a member.
 MISSING_EFFECT_DEPENDENCY = "missing_effect_dependency"
+# Scan provenance naming, by clip alias, the optional edges of a Gesture or
+# Reaction that this build omitted (their sounds aren't installed). Only the
+# scanner sets it; a descriptor-supplied value is discarded.
+OPTIONAL_OMITTED_KEY = "optional_omitted"
 # Animama no longer provides Twemoji. A Local Scene Effect saved with an
 # ``emoji`` marquee or scatter item stays valid and plays without the item; its
 # scan reports this diagnostic per item until its creator replaces or removes

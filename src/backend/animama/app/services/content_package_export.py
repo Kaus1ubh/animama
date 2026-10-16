@@ -47,10 +47,11 @@ from animama.app.services.content_kind_registry import MAX_JSON_BYTES, handler_f
 from animama.app.services.content_package_staging import PackageStageService
 from animama.app.services.content_portability import is_non_portable
 from animama.app.services.local_content_mutations import _finish_owned_work, mutation_digest
-from animama.app.services.non_portable_packages import strip_optional_refs
+from animama.app.services.non_portable_packages import strip_optional_refs, strip_sound_events
 from animama.app.services.package_inspection import inspect_package
 from animama.app.services.typed_content_service import TypedCatalogItem, TypedContentResolutionContext
 from animama.domain.content_catalog import (
+    OPTIONAL_OMITTED_KEY,
     SCENE_EMOJI_ITEM_REMOVED,
     CatalogContentEntry,
     CatalogContentFile,
@@ -754,6 +755,13 @@ class ContentPackageExportService:
                     if target in removed
                 }
                 projection = strip_optional_refs(projection, removed_refs)
+                # An Action's clip loses the sound events of every optional
+                # sound left behind: stripped here, or omitted by this build.
+                omitted = entry.provenance.get(OPTIONAL_OMITTED_KEY)
+                silenced = {
+                    *(edge.alias for edge in document.dependencies if edge.alias and edge.ref in removed_refs),
+                    *(omitted if isinstance(omitted, dict) else ()),
+                }
                 if isinstance(document, AvatarDocumentV1):
                     projection.pop("face_parts", None)
                     if entry.id in selected.face_parts:
@@ -791,7 +799,9 @@ class ContentPackageExportService:
                                 raise ContentConflictError("package_json_too_large")
                             rewritten = _json_stream(
                                 portable_json(
-                                    json.loads(opened.handle.read(MAX_JSON_BYTES + 1)), references, aliases=aliases
+                                    strip_sound_events(json.loads(opened.handle.read(MAX_JSON_BYTES + 1)), silenced),
+                                    references,
+                                    aliases=aliases,
                                 )
                             )
                         source = rewritten if rewritten is not None else opened.handle

@@ -4,9 +4,11 @@ import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
 
 import {
+  PACK_SOUND_MANIFEST,
   includedActionDependencies,
   includedContentTypes,
   listIncludedMetas,
+  packSoundRefs,
 } from "./included-dependencies.mjs";
 
 /**
@@ -242,6 +244,10 @@ export async function planPromotion(
   };
 
   const includedTypes = includedContentTypes(await repo.includedMetas());
+  const packManifest = current(PACK_SOUND_MANIFEST);
+  const packSounds = packSoundRefs(
+    packManifest === null ? null : JSON.parse(packManifest),
+  );
   const includedMetas = new Map();
   for (const slug of await repo.gestureSlugs()) {
     const text = repo.read(
@@ -354,6 +360,7 @@ export async function planPromotion(
       // The kept dependencies must still cover the new clip's events.
       checkDependencies(item.slug, original.dependencies, compacted.clip, {
         includedTypes,
+        packSounds,
         missing:
           "re-point the Gesture's dependencies with `pnpm -s effects promote` first",
       });
@@ -374,6 +381,7 @@ export async function planPromotion(
         compacted.clip,
         {
           includedTypes,
+          packSounds,
           missing:
             "promote it first with `pnpm -s effects promote`, then this Gesture",
         },

@@ -1,9 +1,11 @@
-"""Built-in effects keep working, silently, when their licensed sound is absent.
+"""Built-in content keeps working, silently, when its licensed sound is absent.
 
-An Included Avatar or Scene Effect may declare its sound edge ``optional``. The
-Included scan drops an optional edge whose sound isn't installed, so every
-consumer sees an ordinary effect without a sound. Local content never declares
-optional edges and never depends on non-portable sounds.
+An Included Avatar or Scene Effect, Gesture or Reaction may declare its sound
+edge ``optional``. The Included scan drops an optional edge whose sound isn't
+installed, so every consumer sees ordinary content without that sound: an
+effect loses its ``soundAlias``, and an Action's runtime projection names the
+dropped clip alias so the player skips its ``sfx`` event. Local content never
+declares optional edges and never depends on non-portable sounds.
 """
 
 from __future__ import annotations
@@ -24,7 +26,11 @@ from animama.adapters.content_store import FilesystemContentStore
 from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlchemyContentCatalog
 from animama.app.contracts.content_package import portable_revision
 from animama.app.services.content_kind_registry import handler_for_kind
+from animama.app.services.content_portability import effective_provenance
+from animama.app.services.runtime_content_closure import RuntimeContentClosureCompiler
+from animama.app.services.typed_runtime_projection import project_typed_runtime_catalog
 from animama.domain.content_catalog import (
+    OPTIONAL_OMITTED_KEY,
     ContentConflictError,
     ContentKind,
     ContentScope,
@@ -33,6 +39,7 @@ from animama.domain.content_catalog import (
 )
 from animama.domain.content_documents import ContentDocumentError
 from animama.domain.content_sources import IncludedContentSource
+from animama.domain.runtime_content_descriptor import RuntimeContentRootSelection
 from animama.orm.content_catalog import ORMContentCatalogItem
 from animama.runtime.starter_content import starter_inventory
 from tests.anima_creation_service_support import copy_tracked_included, write_json
@@ -98,26 +105,44 @@ def _parse(kind: ContentKind, raw: dict[str, Any]) -> Any:
     return handler_for_kind(kind).parse_document(raw, fallback_path=Path("x"), descriptor_backed=True)
 
 
-def test_optional_is_accepted_only_on_effect_sound_edges() -> None:
+def _gesture_descriptor(**dependency: Any) -> dict[str, Any]:
+    return {
+        "schema_version": 1,
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:poke",
+        "name": "Poke",
+        "semantic_key": "poke",
+        "implementation": {"kind": "vrma", "file_role": "animation"},
+        "files": [{"path": "poke.vrma", "role": "animation"}],
+        "dependencies": [{"optional": True, **dependency}],
+    }
+
+
+def test_optional_is_accepted_only_on_sound_edges_of_effects_and_actions() -> None:
     descriptor = json.loads((ROOT / "content/included" / EFFECT / "sweat_drop.json").read_text(encoding="utf-8"))
     descriptor["dependencies"] = [{"ref": SOUND, "content_type": "sound_effect", "optional": True}]
     [edge] = _parse(ContentKind.AVATAR_EFFECT, descriptor).document.dependencies
     assert edge.optional is True
 
+    # A Gesture or Reaction may play a pack sound through an ``sfx`` event.
+    [edge] = _parse(
+        ContentKind.GESTURE, _gesture_descriptor(ref=SOUND, content_type="sound_effect")
+    ).document.dependencies
+    assert edge.optional is True
+
+    # Only Sound Effect edges, and only for those owners, may be optional.
     with pytest.raises(ContentDocumentError) as refused:
         _parse(
             ContentKind.GESTURE,
-            {
-                "schema_version": 1,
-                "content_type": "gesture",
-                "content_id": "builtin:gesture:poke",
-                "name": "Poke",
-                "semantic_key": "poke",
-                "implementation": {"kind": "vrma", "file_role": "animation"},
-                "files": [{"path": "poke.vrma", "role": "animation"}],
-                "dependencies": [{"ref": SOUND, "content_type": "sound_effect", "optional": True}],
-            },
+            _gesture_descriptor(ref="builtin:avatar-effect:sweat_drop", content_type="avatar_effect"),
         )
+    assert refused.value.code == "dependency_optional_not_allowed"
+    particle = json.loads(
+        (ROOT / "content/included/vfx/particle/quark/hearts-v1/hearts-v1.json").read_text(encoding="utf-8")
+    )
+    particle["dependencies"] = [{"ref": SOUND, "content_type": "sound_effect", "optional": True}]
+    with pytest.raises(ContentDocumentError) as refused:
+        _parse(ContentKind.PARTICLE_EFFECT, particle)
     assert refused.value.code == "dependency_optional_not_allowed"
     descriptor["dependencies"] = [{"ref": SOUND, "content_type": "sound_effect", "optional": "yes"}]
     with pytest.raises(ContentDocumentError):
@@ -475,3 +500,142 @@ async def test_licensed_sound_bytes_cannot_be_saved_as_own_content(  # noqa: ANN
         await async_session.rollback()
         await async_session.execute(delete(ORMContentCatalogItem))
         await async_session.commit()
+
+
+GESTURE = "gestures/wave-pop"
+
+
+def _sfx_gesture(root: Path, *, content_id: str = "builtin:gesture:wave-pop") -> None:
+    """A Gesture that plays the pack sound through an optional ``sfx`` edge."""
+
+    folder = root / GESTURE
+    folder.mkdir(parents=True, exist_ok=True)
+    clip = json.loads((ROOT / "content/included/gestures/air-guitar/air-guitar.json").read_text(encoding="utf-8"))
+    clip["id"] = "wave-pop"
+    clip["events"] = [{"id": "pop", "time": 0.2, "kind": "sfx", "cueId": "pop", "volume": 0.8}]
+    write_json(folder / "wave-pop.json", clip)
+    write_json(
+        folder / "wave-pop.meta.json",
+        {
+            "schema_version": 1,
+            "content_type": "gesture",
+            "content_id": content_id,
+            "version": 1,
+            "name": "Wave Pop",
+            "semantic_key": "wave_pop",
+            "implementation": {"kind": "anima_clip", "file_role": "sequence"},
+            "dependencies": [{"ref": SOUND, "content_type": "sound_effect", "alias": "pop", "optional": True}],
+            "files": [{"path": "wave-pop.json", "role": "sequence"}],
+        },
+    )
+
+
+async def test_an_included_gesture_plays_without_its_absent_optional_sound(  # noqa: ANN001
+    async_session, tmp_path: Path
+) -> None:
+    paths, catalog, content, _saves, _packages = package_services(async_session, tmp_path)
+    _inventory(paths.included_root)
+    _sfx_gesture(paths.included_root)
+    owner = "package-owner"
+    store = FilesystemContentStore(
+        included_root=paths.included_root, local_root=paths.local_root, operations_root=paths.operations_root
+    )
+
+    async def project() -> tuple[Any, dict[str, Any]]:
+        items = {item.relative_locator: item for item in (await content.rescan(user_id=owner)).items}
+        gesture = items[GESTURE]
+        descriptor = await RuntimeContentClosureCompiler(catalog=catalog, store=store).compile(
+            user_id=owner,
+            loadout_revision=1,
+            selections=(RuntimeContentRootSelection("gesture:wave-pop", gesture.id, ContentKind.GESTURE),),
+        )
+        assert descriptor.diagnostics == ()
+        visible = await catalog.list_visible(user_id=owner)
+        [action] = project_typed_runtime_catalog(loadout_revision=1, descriptor=descriptor, visible=visible)["gestures"]
+        return gesture, action
+
+    try:
+        # Without the pack the Gesture stays valid and offered; the runtime
+        # names the dropped alias so the player skips that sound event.
+        gesture, action = await project()
+        assert gesture.status is ContentStatus.VALID and gesture.dependencies == ()
+        assert action["missing_references"] == {"pop": SOUND}
+        assert action["reference_map"] == {}
+
+        # With the pack the sound resolves like any dependency.
+        _sound(paths.included_root)
+        gesture, action = await project()
+        assert gesture.status is ContentStatus.VALID and gesture.dependencies == (SOUND,)
+        assert action["missing_references"] == {}
+        assert set(action["reference_map"]) == {"pop"}
+    finally:
+        await async_session.rollback()
+        await async_session.execute(delete(ORMContentCatalogItem))
+        await async_session.commit()
+
+
+@pytest.mark.parametrize("installed", [True, False])
+async def test_export_drops_the_sound_events_of_an_omitted_optional_sound(  # noqa: ANN001
+    async_session, tmp_path: Path, installed: bool
+) -> None:
+    paths, _catalog, content, _saves, packages = package_services(async_session, tmp_path)
+    _inventory(
+        paths.included_root, {"glob": "sfx/**", "distribution": "non-portable", **_RULE}, {"glob": "**", **_RULE}
+    )
+    payload = _sound(paths.included_root) if installed else None
+    _sfx_gesture(paths.included_root)
+    owner = "package-owner"
+    try:
+        items = {item.relative_locator: item for item in (await content.rescan(user_id=owner)).items}
+        gesture = items[GESTURE]
+        summary = await packages.summarize(user_id=owner, item_ids=(gesture.id,))
+        assert [(item.kind, item.name) for item in summary.omitted] == ([("sound_effect", "Pop")] if installed else [])
+        review = await packages.prepare_export(user_id=owner, item_ids=(gesture.id,), expected_digest=summary.digest)
+        cached = await packages.get_export(user_id=owner, export_id=review.export_id)
+        with ZipFile(cached.path) as archive:
+            manifest = json.loads(archive.read("package.json"))
+            members = {name: archive.read(name) for name in archive.namelist()}
+        [entry] = manifest["entries"]
+        assert entry["kind"] == "gesture" and entry["dependencies"] == []
+        assert payload is None or payload not in members.values()
+        documents = [json.loads(data) for name, data in members.items() if name.endswith(".json")]
+        [clip] = [document for document in documents if document.get("schema") == "animaPoseClip/2.0"]
+        assert all(event["kind"] != "sfx" for event in clip.get("events", []))
+    finally:
+        await async_session.rollback()
+        await async_session.execute(delete(ORMContentCatalogItem))
+        await async_session.commit()
+
+
+async def test_a_local_gesture_cannot_declare_an_optional_sound(  # noqa: ANN001
+    async_session, tmp_path: Path
+) -> None:
+    """The parser accepts optional Action sound edges; only built-in content may use them."""
+
+    paths, _catalog, content, _saves, _packages = package_services(async_session, tmp_path)
+    _inventory(paths.included_root)
+    _sound(paths.included_root)
+    _sfx_gesture(paths.local_root, content_id="local:gesture:wave-pop")
+    owner = "package-owner"
+    try:
+        items = {item.relative_locator: item for item in (await content.rescan(user_id=owner)).items}
+        gesture = items[GESTURE]
+        assert gesture.source is ContentSource.LOCAL and gesture.status is ContentStatus.INVALID
+        assert "dependency_optional_not_allowed" in {d.code for d in gesture.diagnostics}
+    finally:
+        await async_session.rollback()
+        await async_session.execute(delete(ORMContentCatalogItem))
+        await async_session.commit()
+
+
+def test_only_the_scanner_records_omitted_optional_edges() -> None:
+    """A descriptor can't supply the scanner's omissions to hide its own sound events."""
+
+    provenance = effective_provenance(
+        {"creator": "Someone", OPTIONAL_OMITTED_KEY: {"pop": SOUND}},
+        source=ContentSource.LOCAL,
+        rule_distribution=None,
+        file_sha256=(),
+        restricted=frozenset(),
+    )
+    assert provenance == {"creator": "Someone"}

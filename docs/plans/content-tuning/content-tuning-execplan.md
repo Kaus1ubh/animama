@@ -149,7 +149,7 @@ until the slug is listed in `REBASELINED` and the baseline is rewritten with
 
 ## Progress
 
-- [ ] Phase 1: optional pack sounds for Included Gesture and Reaction `sfx` events. Not started.
+- [x] Phase 1: optional pack sounds for Included Gesture and Reaction `sfx` events. Done (2026-10-16): checks pass, Code Review #2 passed after one repair round. Hearing the sound in chat with the pack mounted is part of the owner's final check.
 - [ ] Phase 2: read-only tuning page with catalog audition and preview. Not started.
 - [ ] Phase 3: editing and saving events and Reaction expressions. Not started.
 - [ ] Phase 4: per-use placement, docs and acceptance. Not started.
@@ -188,8 +188,14 @@ until the slug is listed in `REBASELINED` and the baseline is rewritten with
 
 ## Phased implementation
 
-Before implementation, create one phase issue per authorized phase under #590,
-using `.github/ISSUE_TEMPLATE/task.yml`. Phase commits use
+Phase issues (sub-issues of #590, each blocked by the previous):
+[#592](https://github.com/raymond-van/animama/issues/592) (Phase 1),
+[#593](https://github.com/raymond-van/animama/issues/593) (Phase 2),
+[#594](https://github.com/raymond-van/animama/issues/594) (Phase 3) and
+[#595](https://github.com/raymond-van/animama/issues/595) (Phase 4).
+Workspace: this plan's worktree on `feat/content-tuning-page`; backend
+environment from `uv sync --python 3.12.13`; frontend dependencies installed
+and workspace packages built. No task stack runs yet. Phase commits use
 `<type>(<scope>)[p#]: <summary>`, for example
 `feat(content)[p1]: let Included actions play optional pack sounds`.
 
@@ -212,8 +218,8 @@ Intended changes:
 3. **Web runtime.** In `AnimaRuntimeCatalog.normalizeLoadedClip`, extend the
    removed-reference filter to `sfx` events by `cueId`. A clip whose sound was
    dropped then loads and plays its motion, expressions and effects silently.
-   It logs one diagnostic, as removed effects do, and does not report
-   `missing_event_reference`.
+   It does not report `missing_event_reference`. The skip is silent, as an
+   effect's dropped sound is (Code Review #1, F4).
 4. **Export.** Make package export of a built-in Gesture or Reaction drop `sfx`
    events whose optional non-portable sound it strips, and report them in the
    export review with the existing effect-sound wording. Export of built-in
@@ -283,7 +289,7 @@ an Included Gesture on a task stack, which has no pack by default:
    "Reviewing the pack on a task stack") and confirm the sound plays.
 
 Audio audibility is an owner check (the hidden browser pane plays no audio).
-Agents verify sound dispatch through the runtime diagnostics instead.
+Agents verify the loaded clip and runtime diagnostics instead.
 
 Recovery: the changes are additive to the optional-edge path. Reverting the
 phase restores today's refusal. No database migration (`0001_baseline.sql`
@@ -292,15 +298,132 @@ unchanged).
 Completion: the tests above pass, the review below has no open blocking
 findings, and the manual evidence is recorded with stack URL and source.
 
-Results and commits: _pending_.
+Results (2026-10-16, working tree on `a7c090b2`):
+
+- Implemented as planned. The scan records dropped edges as
+  `provenance.optional_omitted` (alias → ref) for Gestures and Reactions only.
+  Strict document parsing rejects unknown metadata fields, so provenance is
+  the scan-derived place for them. `missing_references` merges them in.
+- The Action creator also needed a change. Customizing a built-in Action now
+  leaves licensed and omitted `sfx` events behind, matching ADR 0022's
+  "copying a built-in effect leaves its sound behind". `removedActionEffects`
+  no longer lists sounds as removed effects to repair.
+- Checks:
+  - `uv run ruff check` and `make format-check`: pass.
+  - `uv run pytest -q -x -p no:randomly`: 4702 passed, 29 skipped.
+  - `pnpm check` and `pnpm web:lint`: pass.
+  - `pnpm web:test`: 533 files, 5225 tests pass. A first run failed 7 files
+    because a failed `pnpm check` had left `@animama/runtime-contracts` half
+    built; the rerun after the rebuild passed.
+  - `pnpm test:source:unit`: pass.
+- Stack evidence on `animama-tune` (`http://animama-tune.localhost:8800`, no
+  pack mounted):
+  - Arms Crossed was temporarily given an optional `bubble_pop_01` `sfx`
+    event (reverted afterwards).
+  - After `POST /v1/content:rescan`, all 557 Included items stayed valid.
+    `GET /v1/animas/{id}/runtime` still offered Arms Crossed among 99
+    Gestures, with `missing_references: {"pop": "builtin:sound-effect:bubble_pop_01"}`.
+  - In chat, the live `AnimaRuntimeCatalog` loaded the edited clip
+    (sha256 matched the file) with the `sfx` event skipped and no
+    diagnostics.
+- With the pack: `pnpm -s animation:reel` of the same Gesture with
+  `--sounds <pack>` mixed one sound (peak −1.3 dB).
+- Limitation: the with-pack check used the reel, not a stack with the pack
+  mounted through a Compose override. The catalog's with-pack path is covered
+  by `test_an_included_gesture_plays_without_its_absent_optional_sound`.
+  Whether the sound is audible in chat is an owner check.
+
 
 #### Code Review #1 Findings
 
-_Pending._
+An independent reviewer (read-only) reviewed the Phase 1 working tree on
+`a7c090b2`, with a full initial review. Its checks:
+- the four affected backend test files: 42 passed;
+- the two changed Vitest files: 42 tests passed;
+- the script tests: 47 passed;
+- ruff: pass;
+- `pnpm -s prettier:check`: failed on one Phase 1 file.
+
+It verified:
+- pack mount and unmount transitions;
+- that `optional_omitted` stays out of exports;
+- export with and without the pack;
+- the customized copy;
+- that Local non-portable refusal is unchanged.
+
+Blocking:
+- **P1-R1-F1:** `scripts/included-dependencies.mjs` failed Prettier.
+- **P1-R1-F2:** no test covered a Local Gesture or Reaction declaring an
+  optional edge. The parser now accepts one, so the reconcile guard is the
+  only barrier.
+
+Non-blocking:
+- **P1-R1-F3:** a descriptor's own `provenance` could supply
+  `optional_omitted`. That would add fake missing references and strip its
+  own `sfx` events on export.
+- **P1-R1-F4:** dropped `sfx` events are skipped without the diagnostic the
+  plan described.
+- **P1-R1-F5:** plan items changed in delivery:
+  - `effect-render-sources.mjs` is untouched; the reel already resolves `sfx`
+    edges.
+  - `test_included_content_catalog.py` is unchanged.
+  - Promote makes a required pack edge optional instead of refusing it.
+  - A promote replace keeps existing edges, which the docs overstated.
+- **P1-R1-F6:** a loose pack copy under `content/included` would make promote
+  write a required edge.
+- **P1-R1-F7:** three comments still described missing references and
+  optional edges as effect-only.
+- **P1-R1-F8:** `docs/frontend/runtime/sound.md` was not updated, and the
+  ADR's "likewise" implied a note on copy.
 
 #### Code Review #1 Revisions
 
-_Pending._
+- **F1, accepted:** fixed. Prettier passes on every changed Phase 1 script
+  and source file.
+- **F2, accepted:** added
+  `test_a_local_gesture_cannot_declare_an_optional_sound`.
+- **F3, accepted:** moved `OPTIONAL_OMITTED_KEY` to
+  `domain/content_catalog.py`. `effective_provenance` now drops a
+  descriptor's value, as it does for `distribution`. Test:
+  `test_only_the_scanner_records_omitted_optional_edges`.
+- **F4, accepted as a recorded decision:** a build without the pack is
+  expected, so the skip stays silent, as an effect's dropped `soundAlias` is.
+  The Phase 1 evidence used the live catalog's loaded clip and diagnostics
+  instead.
+- **F5, accepted:**
+  - Recorded in Results.
+  - Writing pack edges as optional, rather than refusing required ones, is
+    deliberate: authors never choose optionality.
+  - `comedy-sound-pack.md` now says a replace keeps existing edges, and the
+    integrity test catches a required one.
+- **F6, accepted:** `packSounds` is checked before `includedTypes`. Test:
+  "keeps a pack sound optional when a loose copy is Included too".
+- **F7, accepted:** comments updated in `contracts/runtime_content.py`,
+  `content_kind_registry.py` and `content_catalog_repo.py`.
+- **F8, accepted:** updated `sound.md`, and the ADR now says customizing
+  drops the events without a note.
+
+Rechecks:
+- the five affected backend test files: 53 passed;
+- the script tests: 48 passed;
+- ruff check and format: pass;
+- Prettier on the changed Phase 1 scripts and sources: pass.
+
+Docs are not Prettier-formatted at baseline, so no doc formatting gate
+applies. Repair budget: one round used, one left.
+
+#### Code Review #2 Findings
+
+This was a targeted recheck by the same independent reviewer, for repair
+round 1. It verified F1–F3 and F5–F8 as fixed, and F4 as recorded. The fixes
+introduced no regressions: no import cycle from the domain constant, and the
+pack mount and export paths are unchanged. No new findings. Result: **pass**.
+
+Its checks:
+- five backend test files: 53 passed;
+- `ruff check` and `make format-check`: pass;
+- Prettier on the changed scripts: pass;
+- script tests: 48 passed.
 
 ### Phase 2: Read-only tuning page with catalog audition and preview
 

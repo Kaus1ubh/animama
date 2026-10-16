@@ -582,14 +582,14 @@ class SQLAlchemyContentCatalog(ContentCatalog):
                 )
                 declared_kinds = {item.ref: item.kind for item in parsed.dependencies}
                 if entry.source is ContentSource.LOCAL and any(item.optional for item in parsed.dependencies):
-                    # Optional edges exist only for Included effects whose sound a
+                    # Optional edges exist only for built-in content whose sound a
                     # build may not ship; Local content always names real files.
                     row.status = ContentStatus.INVALID.value
                     row.diagnostics = [
                         *list(row.diagnostics or []),
                         {
                             "code": "dependency_optional_not_allowed",
-                            "message": "Only built-in effects can declare an optional sound",
+                            "message": "Only built-in content can declare an optional sound",
                         },
                     ]
             except (ContentDocumentError, TypeError):

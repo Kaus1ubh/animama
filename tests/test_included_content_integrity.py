@@ -284,13 +284,15 @@ def test_every_reaction_emotion_has_a_variant_with_an_avatar_effect() -> None:
     assert [emotion for emotion, has_effect in emotions.items() if not has_effect] == []
 
 
-def test_included_avatar_effect_sounds_are_optional_licensed_pack_sounds() -> None:
-    """A built-in Avatar Effect's sounds come from the private comedy pack.
+def test_included_sounds_are_optional_licensed_pack_sounds() -> None:
+    """Built-in Avatar Effect and Gesture/Reaction sounds come from the private comedy pack.
 
-    Most effects have one; a merged effect declares each of its uses' sounds
-    and names its own in ``soundAlias`` (ADR 0025); some are silent by owner
-    choice (idle-only effects, and gags the owner preferred quiet, #409).
-    Events that pick a sound name one the effect declares.
+    Most Avatar Effects have one; a merged effect declares each of its uses'
+    sounds and names its own in ``soundAlias`` (ADR 0025); some are silent by
+    owner choice (idle-only effects, and gags the owner preferred quiet, #409).
+    Events that pick a sound name one the effect declares. A Gesture or
+    Reaction may also play a pack sound through an ``sfx`` event; that edge is
+    optional too, so builds without the pack play the Action silently.
     """
 
     manifest = json.loads(
@@ -316,24 +318,31 @@ def test_included_avatar_effect_sounds_are_optional_licensed_pack_sounds() -> No
             key = edge["ref"].removeprefix("builtin:sound-effect:")
             assert {f"sfx/wow-comedy/{key}.ogg", f"sfx/wow-comedy/{key}.meta.json"} <= shipped, path.name
             referenced.add(key)
-    # Only sounds that built-in effects use are shipped (owner decision Q3).
-    expected = {f"sfx/wow-comedy/{key}{suffix}" for key in referenced for suffix in (".ogg", ".meta.json")}
-    assert shipped == expected
-
     for meta in sorted((ROOT / "content/included").glob("*/*/*.meta.json")):
         if meta.parts[-3] not in {"reactions", "gestures"}:
             continue
         descriptor = json.loads(meta.read_text(encoding="utf-8"))
         refs = {edge.get("alias"): edge["ref"] for edge in descriptor.get("dependencies", [])}
+        for edge in descriptor.get("dependencies", []):
+            if edge["content_type"] != "sound_effect":
+                continue
+            assert edge.get("optional") is True, (meta.name, edge["ref"])
+            key = edge["ref"].removeprefix("builtin:sound-effect:")
+            assert {f"sfx/wow-comedy/{key}.ogg", f"sfx/wow-comedy/{key}.meta.json"} <= shipped, meta.name
+            referenced.add(key)
         clip = json.loads((meta.parent / meta.name.replace(".meta.json", ".json")).read_text(encoding="utf-8"))
         for event in clip.get("events", []) if isinstance(clip, dict) else []:
             alias = (event.get("override") or {}).get("soundAlias") if event.get("kind") == "avatar_vfx" else None
             if alias is not None:
                 assert alias in declared[refs[event["effectId"]]], (meta.name, event["id"])
 
+    # Only sounds that built-in content uses are shipped (owner decision Q3).
+    expected = {f"sfx/wow-comedy/{key}{suffix}" for key in referenced for suffix in (".ogg", ".meta.json")}
+    assert shipped == expected
 
-def test_stacked_avatar_effects_play_one_accompanying_sound_at_a_time() -> None:
-    """Effects applied together would otherwise play their sounds over each other."""
+
+def test_stacked_sounds_play_one_at_a_time() -> None:
+    """Effect sounds and ``sfx`` events played together would talk over each other."""
 
     for path in sorted((ROOT / "content/included").glob("*/*/*.json")):
         if path.parts[-3] not in {"reactions", "gestures"}:
@@ -345,7 +354,8 @@ def test_stacked_avatar_effects_play_one_accompanying_sound_at_a_time() -> None:
         audible = sorted(
             float(event.get("time", 0))
             for event in events
-            if event.get("kind") == "avatar_vfx" and event.get("playAccompanyingSound", True)
+            if event.get("kind") == "sfx"
+            or (event.get("kind") == "avatar_vfx" and event.get("playAccompanyingSound", True))
         )
         assert all(later - earlier >= 0.3 for earlier, later in pairwise(audible)), path.name
 
