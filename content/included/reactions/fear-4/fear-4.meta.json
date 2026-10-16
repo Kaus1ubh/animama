@@ -15,12 +15,6 @@
   },
   "dependencies": [
     {
-      "ref": "builtin:avatar-effect:emote",
-      "alias": "emote_!",
-      "content_type": "avatar_effect",
-      "config": {}
-    },
-    {
       "ref": "builtin:avatar-effect:eye_o",
       "alias": "eye_o",
       "content_type": "avatar_effect",
@@ -36,6 +30,12 @@
       "ref": "builtin:particle-effect:fright-jolt",
       "alias": "fright-jolt",
       "content_type": "particle_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:avatar-effect:shock_zigzag",
+      "alias": "shock_zigzag",
+      "content_type": "avatar_effect",
       "config": {}
     }
   ],

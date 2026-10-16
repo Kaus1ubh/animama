@@ -158,6 +158,8 @@ CORE_LIBRARY_ROOTS = (
     "builtin:particle-effect:rose-bloom-burst",
     "builtin:particle-effect:shooting-stars",
     "builtin:particle-effect:shoujo-sparkle-frame",
+    # No Included Reaction or Gesture plays it since 2026-10-16.
+    "builtin:avatar-effect:doki_doki",
 )
 
 

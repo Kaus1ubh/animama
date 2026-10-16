@@ -21,8 +21,8 @@
       "config": {}
     },
     {
-      "ref": "builtin:particle-effect:rage-embers",
-      "alias": "rage-embers",
+      "ref": "builtin:particle-effect:electric-crackle",
+      "alias": "electric-crackle",
       "content_type": "particle_effect",
       "config": {}
     }

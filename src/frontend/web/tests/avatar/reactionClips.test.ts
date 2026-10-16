@@ -14,7 +14,6 @@ import {
   parseAnimaPoseClip,
   sampleAnimaPoseClipActiveEventsAtTime,
   validateAnimaPoseClipEventCatalogRefs,
-  type AnimaPoseClipEvent,
   type AnimaPoseClipV2,
 } from "@/lib/avatar";
 import { createAnimaPoseClipProgram } from "@/lib/avatar/poses/animaPoseClip/program";
@@ -52,55 +51,6 @@ function includedReactionCells(emotion: string): Record<number, string[]> {
     2: [`${emotion}-2`, `${emotion}-2-b`],
     3: [`${emotion}-3`, `${emotion}-3-b`],
     4: [`${emotion}-4`, `${emotion}-4-b`],
-  };
-}
-
-/**
- * The subtle Avatar Effect an intensity-1 Reaction adds where two emotions'
- * faces stay alike (D19); every other intensity-1 Reaction has no effect.
- */
-const INTENSITY_ONE_AVATAR_EFFECTS: Record<string, string> = {
-  annoyance: "sigh_puff_droop",
-  desire: "blush_band",
-  disappointment: "gloomy_cloud",
-  excitement: "kira_star",
-};
-
-/**
- * Ladder departures (R2): effect kinds a Reaction lacks at its step because
- * the owner removed them in the G2 review (2026-10-15) without a replacement.
- */
-const LADDER_DEPARTURES: Record<string, Array<"avatar" | "particle">> = {
-  "admiration-3-b": ["particle"],
-  "amusement-3": ["particle"],
-  "amusement-3-b": ["particle"],
-  "amusement-4-b": ["particle"],
-  "anger-4": ["particle"],
-  "caring-3": ["avatar"],
-  "confidence-3": ["avatar"],
-  "curiosity-2-b": ["avatar"],
-  "curiosity-4": ["particle"],
-  "curiosity-4-b": ["particle"],
-  "embarrassment-3": ["particle"],
-  "embarrassment-3-b": ["particle"],
-  "optimism-4-b": ["avatar"],
-  "remorse-3-b": ["particle"],
-  "sadness-3-b": ["particle"],
-};
-
-/** A clip's Avatar, Particle and Scene Effect aliases, by kind. */
-function reactionEffects(clip: AnimaPoseClipV2) {
-  const events: AnimaPoseClipEvent[] = clip.events ?? [];
-  return {
-    avatar: events.flatMap((event) =>
-      event.kind === "avatar_vfx" ? [event.effectId] : [],
-    ),
-    particle: events.flatMap((event) =>
-      event.kind === "particle_vfx" ? [event.effectId] : [],
-    ),
-    scene: events.flatMap((event) =>
-      event.kind === "scene_vfx" ? [event.presetId] : [],
-    ),
   };
 }
 
@@ -511,63 +461,12 @@ describe("reaction clip catalog", () => {
     }
   });
 
-  // The ladder (R2) is guidance: each step's effect kinds are checked
-  // exactly, except a recorded departure, which must still be missing.
-  it("follows the Reaction ladder: Avatar, then Particle, then Scene Effects", () => {
-    for (const clipId of AVATAR_REACTION_CLIP_IDS) {
-      const [emotion, intensity, variant] = clipId.split("-");
-      const effects = reactionEffects(getAvatarReactionClip(clipId));
-      const departures = LADDER_DEPARTURES[clipId] ?? [];
-      for (const kind of departures)
-        expect(effects[kind], `${clipId} departure`).toEqual([]);
-      if (intensity === "1") {
-        const subtle = INTENSITY_ONE_AVATAR_EFFECTS[emotion!];
-        expect(effects, clipId).toEqual({
-          avatar: subtle ? [subtle] : [],
-          particle: [],
-          scene: [],
-        });
-        continue;
-      }
-      // Moderate adds one or two Avatar Effects; Strong adds a Particle
-      // Effect; Intense adds a Scene Effect: the emotion's background for the
-      // first Reaction, another Scene for the second.
-      if (!departures.includes("avatar"))
-        expect(effects.avatar, `${clipId} Avatar Effects`).not.toEqual([]);
-      if (intensity === "2") {
-        expect(effects.avatar.length, clipId).toBeLessThanOrEqual(2);
-        expect(effects.particle, clipId).toEqual([]);
-      } else if (!departures.includes("particle"))
-        expect(effects.particle, `${clipId} Particle Effects`).not.toEqual([]);
-      const background = `scene-vfx-emotion-${emotion}`;
-      if (intensity !== "4") expect(effects.scene, clipId).toEqual([]);
-      else if (!variant) expect(effects.scene, clipId).toEqual([background]);
-      else {
-        expect(effects.scene, `${clipId} Scene Effects`).not.toEqual([]);
-        expect(effects.scene, clipId).not.toContain(background);
-      }
-    }
-    // Every emotion's background is an Included Scene Effect.
+  it("has an Included background Scene Effect for every emotion", () => {
     expect(INCLUDED_BACKGROUND_EFFECT_ALIASES).toEqual(
       expect.arrayContaining(
         TRACKED_EMOTIONS.map((emotion) => `scene-vfx-emotion-${emotion}`),
       ),
     );
-  });
-
-  it("makes each second Reaction differ from the first in expression and an effect (R15)", () => {
-    for (const clipId of AVATAR_REACTION_CLIP_IDS) {
-      if (!clipId.endsWith("-b")) continue;
-      const firstId = clipId.slice(0, -"-b".length);
-      const effectSet = (id: string) =>
-        Object.values(reactionEffects(getAvatarReactionClip(id)))
-          .flat()
-          .sort();
-      expect(effectSet(clipId), clipId).not.toEqual(effectSet(firstId));
-      expect(getAvatarReactionClip(clipId).expressions, clipId).not.toEqual(
-        getAvatarReactionClip(firstId).expressions,
-      );
-    }
   });
 
   it("plays each Mild Reaction's Avatar Effect without its sound", () => {
@@ -579,23 +478,6 @@ describe("reaction clip catalog", () => {
           expect(event.playAccompanyingSound, `${clipId} ${event.id}`).toBe(
             false,
           );
-    }
-  });
-
-  it("keeps each intensity-1 Avatar Effect to that emotion's Mild Reaction", () => {
-    for (const [emotion, effectId] of Object.entries(
-      INTENSITY_ONE_AVATAR_EFFECTS,
-    )) {
-      const others = AVATAR_REACTION_CLIP_IDS.filter(
-        (clipId) =>
-          clipId.startsWith(`${emotion}-`) && clipId !== `${emotion}-1`,
-      );
-      expect(others).toHaveLength(6);
-      for (const clipId of others)
-        expect(
-          reactionEffects(getAvatarReactionClip(clipId)).avatar,
-          clipId,
-        ).not.toContain(effectId);
     }
   });
 

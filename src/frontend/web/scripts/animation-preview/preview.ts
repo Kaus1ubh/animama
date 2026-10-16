@@ -143,6 +143,7 @@ const ui = {
   status: element<HTMLSpanElement>("status"),
   pickSource: element<HTMLSelectElement>("pick-source"),
   pickCompare: element<HTMLSelectElement>("pick-compare"),
+  compareOriginal: element<HTMLInputElement>("compare-original"),
   pickPrevious: element<HTMLButtonElement>("pick-previous"),
   pickNext: element<HTMLButtonElement>("pick-next"),
   pickPosition: element<HTMLSpanElement>("pick-position"),
@@ -986,12 +987,29 @@ function showPosition() {
   ui.pickNext.disabled = !cycling;
 }
 
+/**
+ * With "Library original" on, point Compare at the Library item named like
+ * the Review file (`love-3.project.json` -> `love-3`, Included first), so
+ * stepping through revised drafts shows each beside the item it revises.
+ */
+function followOriginal() {
+  if (!ui.compareOriginal.checked) return;
+  const current = choices.find(({ spec }) => spec === ui.pickSource.value);
+  if (!current || current.spec.startsWith("library:")) return;
+  const stem = current.label.split(".")[0];
+  const original = ["included", "local"]
+    .map((origin) => `library:${origin}/${stem}`)
+    .find((spec) => choices.some((choice) => choice.spec === spec));
+  ui.pickCompare.value = original ?? "";
+}
+
 /** Review the previous (-1) or next (+1) item in the group, wrapping around. */
 function stepReview(direction: -1 | 1) {
   const { items, index } = reviewGroup();
   if (items.length < 2) return;
   const next = items[(index + direction + items.length) % items.length];
   ui.pickSource.value = next.spec;
+  followOriginal();
   void pick();
 }
 
@@ -1023,7 +1041,14 @@ async function pick() {
   }
   await applyState(result);
 }
-ui.pickSource.addEventListener("change", () => void pick());
+ui.pickSource.addEventListener("change", () => {
+  followOriginal();
+  void pick();
+});
+ui.compareOriginal.addEventListener("change", () => {
+  followOriginal();
+  void pick();
+});
 ui.pickCompare.addEventListener("change", () => void pick());
 ui.pickPrevious.addEventListener("click", () => stepReview(-1));
 ui.pickNext.addEventListener("click", () => stepReview(1));

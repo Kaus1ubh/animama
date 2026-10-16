@@ -21,12 +21,6 @@
       "config": {}
     },
     {
-      "ref": "builtin:particle-effect:dizzy-stars",
-      "alias": "dizzy-stars",
-      "content_type": "particle_effect",
-      "config": {}
-    },
-    {
       "ref": "builtin:scene-effect:focus:scene-vfx-emotion-confusion-b",
       "alias": "scene-b-confusion",
       "content_type": "scene_effect",
@@ -36,6 +30,12 @@
       "ref": "builtin:scene-effect:background:scene-vfx-emotion-confusion-b-backdrop",
       "alias": "scene-b-confusion-backdrop",
       "content_type": "scene_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:avatar-effect:dizzy_birds",
+      "alias": "dizzy_birds",
+      "content_type": "avatar_effect",
       "config": {}
     }
   ],
