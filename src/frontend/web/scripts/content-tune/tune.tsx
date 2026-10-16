@@ -719,7 +719,21 @@ function App() {
   useEffect(() => {
     void load();
   }, []);
+  // Pack sounds Included content needs added or no longer plays.
+  const [pack, setPack] = useState<{
+    additions: string[];
+    removals: string[];
+  } | null>(null);
+  const loadPack = () =>
+    api<{ additions: string[]; removals: string[] }>("pending").then(
+      setPack,
+      () => setPack(null),
+    );
+  useEffect(() => {
+    void loadPack();
+  }, []);
   const saved = (result: SaveResult) => {
+    void loadPack();
     setNotice(afterSave(result, state?.sounds ?? []));
     setState(
       (current) =>
@@ -746,6 +760,18 @@ function App() {
           {state.gestures.length} Gestures · {state.reactions.length} Reactions
           · {state.sounds.length} sounds · {state.avatar.id}
         </span>
+        {pack && (pack.additions.length > 0 || pack.removals.length > 0) && (
+          <span
+            className="text-xs text-amber-600"
+            title={[
+              ...pack.additions.map((ref) => `Add ${ref}`),
+              ...pack.removals.map((ref) => `Remove ${ref}`),
+            ].join("\n")}
+          >
+            Pack changes needed: {pack.additions.length} to add,{" "}
+            {pack.removals.length} to remove (content:tune --pending)
+          </span>
+        )}
         <Button
           size="sm"
           variant="ghost"

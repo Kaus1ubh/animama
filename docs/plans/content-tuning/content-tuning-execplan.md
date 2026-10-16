@@ -153,8 +153,15 @@ until the slug is listed in `REBASELINED` and the baseline is rewritten with
 - [x] Phase 2: read-only tuning page with catalog audition and preview. Done (2026-10-16): checks pass, Code Review #2 passed after one repair round. Hearing the sounds is part of the owner's final check.
 - [x] Phase 3: editing and saving events and Reaction expressions. Done (2026-10-16): checks pass, Code Review #2 passed after one repair round.
 - [x] Phase 4: per-use placement, docs and acceptance. Agent work done (2026-10-16): checks pass, Code Review #2 passed after one repair round. The owner's live check is pending.
-- [ ] Final integration review. Not started.
-- [ ] Owner gates: live audio check of the page; pack publish for any new sounds. Not started.
+- [ ] Final integration review: round 1 found one blocking record issue (journeys); the full `pnpm e2e:test` run and round 2 are in progress.
+- [ ] Owner gates, still open:
+  - Run the page with the vendor catalog and the pack. Confirm audition and
+    preview are audible, and that editing, placement and saving work on
+    desktop and then a narrower window.
+  - Hear a pack `sfx` sound in chat with the pack mounted (#590 acceptance
+    item 1; the evidence used the reel).
+  - Approve this exact candidate for merge.
+  - Publishing new pack versions belongs to the later content PRs.
 
 ## Surprises & Discoveries
 
@@ -920,7 +927,52 @@ The final review covers R0–R7 across all phases:
 - that the page is absent from `pnpm build` output and desktop staging;
 - the docs.
 
-It reuses still-valid phase evidence. Results: _pending_.
+It reuses still-valid phase evidence.
+
+### Final Integration Review #1 Findings
+
+A fresh independent reviewer reviewed HEAD `4b98d989` against `fce7e92f`.
+It found no cross-phase defect:
+- R0 is consistent from promote and page writes through scan, projection,
+  runtime, export and the creator copy.
+- Saves meet the backend rules.
+- The licensing boundary holds: no audio or private paths, and the page is
+  not in builds.
+- The docs agree with each other and with the code.
+
+Its checks:
+- three backend test files: 38 passed;
+- seven node unit test files: 33 pass;
+- diff audits for audio files and private paths: none found.
+
+Blocking:
+- **FI-R1-F1:** the plan called the full journeys unnecessary, though the PR
+  changes package export and AGENTS.md requires them for export changes.
+
+Non-blocking:
+- **FI-R1-F2:** the owner gates didn't map #590's acceptance items, and the
+  validation text listed a stack check already done.
+- **FI-R1-F3:** pending pack additions were shown only per save, the
+  `/__tune/pending` route was unused, and `--pending` didn't name vendor
+  files.
+- **FI-R1-F4:** no recorded result for `pnpm -s effects check`.
+- **FI-R1-F5:** the Phase 4 commit wasn't recorded.
+
+### Final Integration Review #1 Revisions
+
+- **F1, accepted:** running the full `pnpm e2e:test` on a disposable built
+  stack. The validation text now gives the export reason.
+- **F2, accepted:** Progress lists the owner gates, and Validation maps each
+  #590 acceptance item to its evidence or gate.
+- **F3, accepted:** the page header shows "Pack changes needed: N to add,
+  M to remove" from `/__tune/pending`, refreshed after each save (browser
+  test added). With `--catalog`, `--pending` names each addition's vendor
+  file.
+- **F4, accepted:** recorded as not applicable, with the reason, under
+  Validation.
+- **F5, accepted:** commits are listed under Outcomes.
+
+Repair budget: one round used.
 
 ## Validation and acceptance
 
@@ -938,14 +990,34 @@ cd src/frontend/web && pnpm test:source:unit
 cd src/frontend && pnpm desktop:private-pack --pack wow-comedy-sfx scan --git
 ```
 
-The PR changes no Included content, so the full `pnpm e2e:test` is not
-required for it. `pnpm e2e:test:fast` is not needed either, because the
-product UI is unchanged; record the Phase 1 chat check instead. Content PRs
-made with the page need the full journeys when they touch starter-pool
-Reactions or loadouts.
+The PR changes package export (`content_package_export.py`,
+`non_portable_packages.py`) and the Action creator's customize path, so
+AGENTS.md requires the full `pnpm e2e:test` before merge. It runs on a
+disposable built stack (`tune-e2e`). Content PRs made with the page need
+the full journeys too when they touch starter-pool Reactions or loadouts.
 
-Outstanding manual checks: the owner's live audio check (Phase 4) and the
-Phase 1 stack check with and without the pack.
+`pnpm -s effects check` validates effect folders. This PR changes none, and
+page saves never write effects, so it doesn't apply here or to page saves.
+
+How #590's acceptance items stand:
+
+1. A Gesture with no effects plays a pack sound through an `sfx` event: the
+   reel mixes it (Phase 1). Hearing it in chat with the pack mounted is an
+   owner gate.
+2. Without the pack, the item stays valid, offered and silent: Phase 1 stack
+   evidence plus backend and web tests.
+3. Audition, assign and preview a sound on Annie: Phase 2 and 3 browser
+   tests and the manual check. Audibility is an owner gate.
+4. Ladder cells edited, previewed and saved: Phase 3 browser test and the
+   real-checkout edits (reverted).
+5. A Gesture effect added, removed, replaced or repositioned, and saved:
+   Phase 3 and 4 browser tests and the real-checkout edits.
+6. Saved changes pass `pnpm -s effects check` and the integrity tests: the
+   integrity tests passed on the real-checkout edits that used shipped
+   sounds. `effects check` doesn't apply (see above).
+7. Re-recorded reels show the changes: Phase 3 manual evidence.
+8. Pack additions are reported and no licensed audio is tracked: `--pending`
+   and the page's pack notice, plus `scan --git` ("No pack bytes found").
 
 ## Idempotence and recovery
 
@@ -956,9 +1028,34 @@ Phase 1 stack check with and without the pack.
 - Phase 1 needs no data migration. Existing stacks rescan Included content on
   reset. A stack that scanned before the change picks up the new effective
   metadata on its next Included scan.
-- Task stacks started for evidence are named (`--name tune`) and torn down
-  after the phase's last use.
+- Task stacks started for evidence are named (`--name tune`, `--name
+  tune-e2e`) and torn down after their last use. Their volumes are kept.
 
 ## Outcomes & Retrospective
 
-_Pending._
+Delivered on `feat/content-tuning-page`:
+- `a7c090b2`: the plan.
+- `16af8074` (p1): optional pack sounds for Actions.
+- `2f54b887` (p2): the read-only page.
+- `9fe47cd3` (p3): editing and saving.
+- `4b98d989` (p4): per-use placement and docs.
+- A final-review revision commit.
+
+Each phase passed its review after one repair round. The final integration
+review is recorded above.
+
+- **Outcome:** the owner can audition the full WOW Sound catalog, tune
+  Included Gestures and the Reaction ladder in one page, and save directly
+  into `content/included`. Built-in Actions can play licensed sounds and
+  still degrade cleanly without the pack.
+- **Remaining limitations:**
+  - Audibility and real avatar fidelity are owner checks.
+  - A sound outside the shipped pack needs a new pack version before its
+    content merges.
+  - Changed Gesture clips need re-baselining.
+- **Lessons:**
+  - The `sfx` event already existed. Asking the owner about it, and
+    checking the runtime, corrected the spec before planning.
+  - The `includedClipBaseline` test, the shared Vite cache and modules that
+    read i18n at load were the main surprises. Each is recorded where it
+    applies.

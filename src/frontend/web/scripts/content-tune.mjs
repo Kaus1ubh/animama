@@ -14,10 +14,14 @@ import {
   listTuneEffects,
   listTuneItems,
   listTuneSounds,
+  listVendorCatalog,
   publicItem,
 } from "./content-tune-model.mjs";
 import { createTuneWriter } from "./content-tune-write.mjs";
-import { PACK_SOUND_MANIFEST } from "./included-dependencies.mjs";
+import {
+  PACK_SOUND_MANIFEST,
+  SOUND_REF_PREFIX,
+} from "./included-dependencies.mjs";
 import {
   openBrowser,
   readJsonBody,
@@ -270,7 +274,8 @@ sounds, on an Included Avatar.
                     checkout's copy.
   --avatar          Included Avatar (default annie)
   --pending         print the pack sounds Included content needs added to or
-                    removed from the comedy pack, then exit
+                    removed from the comedy pack (with --catalog, each
+                    addition's vendor file), then exit
 
 Saving writes the item's clip and meta in content/included. A changed
 Gesture clip also needs its sample baseline updated (the page says how);
@@ -331,11 +336,24 @@ async function main(argv) {
     return 0;
   }
   if (options.pending) {
+    const cwd = process.env.INIT_CWD ?? process.cwd();
     const { additions, removals } = await createTuneWriter({
       repoRoot: REPO_ROOT,
       contentRoot: INCLUDED_CONTENT_ROOT,
     }).pending();
-    for (const ref of additions) console.log(`Add to the pack: ${ref}`);
+    // The vendor file each addition copies, when the catalog is given.
+    const catalogDir =
+      options.catalogDir && path.resolve(cwd, options.catalogDir);
+    const vendor = new Map(
+      (await listVendorCatalog(catalogDir)).map((sound) => [
+        `${SOUND_REF_PREFIX}${sound.key}`,
+        path.relative(catalogDir, sound.file),
+      ]),
+    );
+    for (const ref of additions)
+      console.log(
+        `Add to the pack: ${ref}${vendor.has(ref) ? ` (vendor file ${vendor.get(ref)})` : ""}`,
+      );
     for (const ref of removals) console.log(`Remove from the pack: ${ref}`);
     if (!additions.length && !removals.length)
       console.log("The pack matches the sounds Included content plays.");

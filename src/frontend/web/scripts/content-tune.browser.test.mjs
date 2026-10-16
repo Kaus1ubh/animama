@@ -269,6 +269,9 @@ test("edits a Reaction's expression and sound and saves them", async () => {
   assert.equal(await page.getByText("(edited)").count(), 0);
   const pending = await (await fetch(`${tune.origin}/__tune/pending`)).json();
   assert.deepEqual(pending.additions, []);
+  // The page shows what the pack still needs: the fixture's pack sound is the
+  // only one played, so every other manifest sound would be removed.
+  await page.getByText(/Pack changes needed: 0 to add/).waitFor();
   await page.close();
 });
 
