@@ -1434,6 +1434,12 @@ Code lives in `src/frontend/web/src/lib/avatar/toon-shader/`:
 - Shadow, rim and outline colours come from VRoid material-name suffixes
   (`_SKIN`, `_CLOTH`, `_HAIR`) and were tuned on the Annie preset, so other
   models can look off.
+- The section's look sliders (`avatarShaderLook.ts`) apply live and are
+  stored in this browser (`animama.debug.avatarShaderLook`). Exposure covers
+  every Avatar canvas and the ambient and key light multipliers cover the chat
+  canvas, under any shader. Shadow, rim and outline scale the tuned palette on
+  MToon tuned and lilToon Avatars only. Every value defaults to 1, which keeps
+  the shaders as tuned; **Copy values** copies them as JSON for new defaults.
 
 lilToon limits: it lights with only the first directional light, its outline
 pass skips the ACES curve, VRM expressions that bind material colours or

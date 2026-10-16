@@ -26,6 +26,7 @@ import {
 
 import { getAvatarBackgroundOption } from "@/lib/avatar/backgroundOptions";
 import { AvatarShaderRendering } from "@/lib/avatar/toon-shader/AvatarShaderRendering";
+import { useAvatarShaderLookStore } from "@/lib/avatar/toon-shader/avatarShaderLook";
 import type { CursorLookAtInputProvider } from "@/lib/avatar";
 import { resolveAvatarBackgroundCrop } from "@/lib/avatar/backgroundCrop";
 import { AvatarCanvasActor } from "./AvatarCanvasActor";
@@ -151,6 +152,13 @@ export default function Scene({
   const orbitControlsRef = useRef<OrbitControlsRef | null>(null);
   const logger = useMemo(() => createLogger("Scene"), []);
   const canvasViewport = useCanvasViewport();
+  // Dev-only debug panel multipliers; always 1 in production builds.
+  const ambientLightScale = useAvatarShaderLookStore(
+    (state) => state.look.ambientLight,
+  );
+  const keyLightScale = useAvatarShaderLookStore(
+    (state) => state.look.keyLight,
+  );
   const { animaPreferences, animaSettings } = useSettings();
   // Authoring surfaces reuse Scene outside an Anima route and intentionally
   // have no mounted runtime catalog.
@@ -278,12 +286,14 @@ export default function Scene({
           settings={sceneCameraSettings}
         />
         <AvatarShaderRendering />
-        <ambientLight intensity={DEFAULT_SCENE_LIGHTS.ambientIntensity} />
+        <ambientLight
+          intensity={DEFAULT_SCENE_LIGHTS.ambientIntensity * ambientLightScale}
+        />
         {DEFAULT_SCENE_LIGHTS.directional.map((light, index) => (
           <directionalLight
             key={index}
             position={light.position}
-            intensity={light.intensity}
+            intensity={light.intensity * keyLightScale}
           />
         ))}
         {/* {isDev ? <axesHelper args={[5]} /> : null}

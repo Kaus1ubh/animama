@@ -27,17 +27,30 @@ function isAvatarShaderId(value: unknown): value is AvatarShaderId {
   return (AVATAR_SHADER_IDS as readonly unknown[]).includes(value);
 }
 
+/** A value the debug panel stored; null unless the panel is enabled. */
+export function readDebugSetting(key: string): string | null {
+  if (!DEBUG_ENABLED || typeof window === "undefined") return null;
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+export function writeDebugSetting(key: string, value: string): void {
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    // Storage can be unavailable; the choice still applies this session.
+  }
+}
+
 function readInitialShader(): AvatarShaderId {
   if (!import.meta.env.DEV || typeof window === "undefined") return "mtoon";
   const override = (window as AvatarShaderWindow).__animamaAvatarShaderOverride;
   if (isAvatarShaderId(override)) return override;
-  if (!DEBUG_ENABLED) return "mtoon";
-  try {
-    const stored = window.localStorage.getItem(AVATAR_SHADER_STORAGE_KEY);
-    return isAvatarShaderId(stored) ? stored : "mtoon";
-  } catch {
-    return "mtoon";
-  }
+  const stored = readDebugSetting(AVATAR_SHADER_STORAGE_KEY);
+  return isAvatarShaderId(stored) ? stored : "mtoon";
 }
 
 type AvatarShaderState = {
@@ -48,11 +61,7 @@ type AvatarShaderState = {
 export const useAvatarShaderStore = create<AvatarShaderState>((set) => ({
   shader: readInitialShader(),
   setShader: (shader) => {
-    try {
-      window.localStorage.setItem(AVATAR_SHADER_STORAGE_KEY, shader);
-    } catch {
-      // Storage can be unavailable; the choice still applies this session.
-    }
+    writeDebugSetting(AVATAR_SHADER_STORAGE_KEY, shader);
     set({ shader });
   },
 }));

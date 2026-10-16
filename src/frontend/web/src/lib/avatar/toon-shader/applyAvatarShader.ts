@@ -2,6 +2,7 @@ import type { WebGLRenderer } from "three";
 import type { VRM } from "@pixiv/three-vrm";
 
 import { getActiveAvatarShader } from "./avatarShader";
+import { trackAvatarShaderLook } from "./avatarShaderLook";
 
 /*
  * `import.meta.env.DEV` keeps lilToon out of production bundles: the dynamic
@@ -10,10 +11,13 @@ import { getActiveAvatarShader } from "./avatarShader";
 
 /** Apply the active shader's material changes to a freshly loaded VRM. */
 export async function applyAvatarShader(vrm: VRM): Promise<void> {
-  if (import.meta.env.DEV && getActiveAvatarShader() === "liltoon") {
+  if (!import.meta.env.DEV) return;
+  const shader = getActiveAvatarShader();
+  if (shader === "liltoon") {
     const { convertVrmToLilToon } = await import("./lilToon");
     convertVrmToLilToon(vrm);
   }
+  trackAvatarShaderLook(vrm.scene, shader);
 }
 
 /**

@@ -2,6 +2,7 @@ import type { VRMLoaderPlugin } from "@pixiv/three-vrm";
 import type { GLTFParser } from "three/examples/jsm/loaders/GLTFLoader.js";
 
 import { getActiveAvatarShader } from "./avatarShader";
+import { getAvatarShaderLook, tunedMToonLook } from "./avatarShaderLook";
 import { vroidLookFor, type ToonLook } from "./vroidPalette";
 
 type MToonExtension = Record<string, unknown>;
@@ -18,26 +19,19 @@ const SHADING: Record<ToonLook["kind"], { shift: number; toony: number }> = {
   hair: { shift: -0.1, toony: 0.8 },
 };
 
-/** Screen-space outline widths (fraction of view height) per look. */
-const OUTLINE_WIDTH: Record<ToonLook["kind"], number> = {
-  face: 0.0035,
-  skin: 0.0045,
-  cloth: 0.0045,
-  hair: 0.004,
-};
-
 function retuneMToon(material: GltfMaterial, mtoon: MToonExtension): void {
   const look = vroidLookFor(material.name ?? "");
   if (!look) return;
-  mtoon.shadeColorFactor = look.shade;
+  const tuned = tunedMToonLook(look, getAvatarShaderLook());
+  mtoon.shadeColorFactor = tuned.shade;
   mtoon.shadingShiftFactor = SHADING[look.kind].shift;
   mtoon.shadingToonyFactor = SHADING[look.kind].toony;
-  mtoon.parametricRimColorFactor = look.rim;
+  mtoon.parametricRimColorFactor = tuned.rim;
   mtoon.parametricRimFresnelPowerFactor = look.rimPower;
   mtoon.parametricRimLiftFactor = 0;
   mtoon.rimLightingMixFactor = 0.5;
   mtoon.outlineWidthMode = "screenCoordinates";
-  mtoon.outlineWidthFactor = OUTLINE_WIDTH[look.kind];
+  mtoon.outlineWidthFactor = tuned.outlineWidth;
   mtoon.outlineColorFactor = look.outlineColor;
   mtoon.outlineLightingMixFactor = 0.6;
 }

@@ -2,6 +2,11 @@ import * as THREE from "three";
 import { LilToonMaterial, enableLilToon } from "@mochiya/three-liltoon";
 import type { VRM } from "@pixiv/three-vrm";
 
+import {
+  getAvatarShaderLook,
+  lilToonLookProperties,
+  useAvatarShaderLookStore,
+} from "./avatarShaderLook";
 import { vroidLookFor } from "./vroidPalette";
 
 /*
@@ -11,8 +16,15 @@ import { vroidLookFor } from "./vroidPalette";
  */
 
 // three-liltoon writes sRGB itself and ignores `renderer.toneMapping`; apply
-// three's ACES Filmic curve (the chat canvas's) just before that conversion.
+// three's ACES Filmic curve (the chat canvas's) just before that conversion,
+// with the debug panel's exposure in place of `toneMappingExposure`.
+const exposure = { value: getAvatarShaderLook().exposure };
+useAvatarShaderLookStore.subscribe(({ look }) => {
+  exposure.value = look.exposure;
+});
+
 const ACES_GLSL = `
+uniform highp float animamaExposure;
 highp vec3 animamaRRTAndODTFit(highp vec3 v) {
   highp vec3 a = v * (v + 0.0245786) - 0.000090537;
   highp vec3 b = v * (0.983729 * v + 0.4329510) + 0.238081;
@@ -23,7 +35,7 @@ highp vec3 animamaACESFilmic(highp vec3 color) {
     vec3(0.59719, 0.07600, 0.02840), vec3(0.35458, 0.90834, 0.13383), vec3(0.04823, 0.01566, 0.83777));
   const highp mat3 outputMat = mat3(
     vec3(1.60475, -0.10208, -0.00327), vec3(-0.53108, 1.10813, -0.07276), vec3(-0.07367, -0.00605, 1.07602));
-  color *= 1.0 / 0.6;
+  color *= animamaExposure / 0.6;
   color = outputMat * animamaRRTAndODTFit(inputMat * color);
   return clamp(color, 0.0, 1.0);
 }
@@ -38,6 +50,7 @@ const SRGB_INPUT =
 class ToneMappedLilToonMaterial extends LilToonMaterial {
   override onBeforeCompile(shader: THREE.WebGLProgramParametersWithUniforms) {
     if (!shader.fragmentShader.includes(SRGB_INPUT)) return;
+    shader.uniforms.animamaExposure = exposure;
     shader.fragmentShader = shader.fragmentShader
       .replace("void main()", `${ACES_GLSL}\nvoid main()`)
       .replace(
@@ -68,23 +81,19 @@ function toLilToon(source: MToonLike): LilToonMaterial {
     _UseOutline: look ? 1 : 0,
   };
   if (look) {
-    const [r, g, b] = look.shade;
     Object.assign(properties, {
-      _ShadowColor: [r, g, b, 1],
+      ...lilToonLookProperties(look, getAvatarShaderLook()),
       _ShadowBorder: isFace ? 0.2 : 0.55,
       _ShadowBlur: 0.08,
       // lilToon's warm terminator band suits skin but tints cloth pink.
       _ShadowBorderRange:
         look.kind === "face" || look.kind === "skin" ? 0.08 : 0,
-      _Shadow2ndColor: [r * 0.8, g * 0.75, b * 0.85, 0.6],
       _Shadow2ndBorder: isFace ? 0.05 : 0.3,
       _Shadow2ndBlur: 0.15,
-      _RimColor: [...look.rim.map((value) => value * 2.5), 1],
       _RimBorder: 0.5,
       _RimBlur: 0.5,
       _RimFresnelPower: look.rimPower,
       _RimEnableLighting: 1,
-      _OutlineWidth: isFace ? 0.05 : 0.1,
       _OutlineColor: [...look.outlineColor, 1],
     });
   }

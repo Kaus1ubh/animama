@@ -3,6 +3,10 @@ import { VRMLoaderPlugin } from "@pixiv/three-vrm";
 import type { GLTFParser } from "three/examples/jsm/loaders/GLTFLoader.js";
 
 import { useAvatarShaderStore, type AvatarShaderId } from "./avatarShader";
+import {
+  DEFAULT_AVATAR_SHADER_LOOK,
+  useAvatarShaderLookStore,
+} from "./avatarShaderLook";
 import { withAvatarShaderPatch } from "./gltfPatch";
 
 type Json = {
@@ -67,7 +71,10 @@ async function patch(shader: AvatarShaderId, json: Json): Promise<Mtoon[]> {
 }
 
 describe("withAvatarShaderPatch", () => {
-  afterEach(() => useAvatarShaderStore.setState({ shader: "mtoon" }));
+  afterEach(() => {
+    useAvatarShaderStore.setState({ shader: "mtoon" });
+    useAvatarShaderLookStore.setState({ look: DEFAULT_AVATAR_SHADER_LOOK });
+  });
 
   it("leaves MToon parameters untouched for the default shader", async () => {
     const json = vrm1Json();
@@ -89,6 +96,20 @@ describe("withAvatarShaderPatch", () => {
     expect(iris).toEqual(
       vrm1Json().materials[2]!.extensions!.VRMC_materials_mtoon,
     );
+  });
+
+  it("bakes the debug panel's look multipliers into tuned MToon", async () => {
+    useAvatarShaderLookStore.setState({
+      look: { ...DEFAULT_AVATAR_SHADER_LOOK, shadow: 0, rim: 0, outline: 2 },
+    });
+    const [face] = await patch("mtoon-tuned", vrm1Json());
+    expect(face).toMatchObject({
+      parametricRimColorFactor: [0, 0, 0],
+      outlineWidthFactor: 0.007,
+    });
+    for (const value of face!.shadeColorFactor as number[]) {
+      expect(value).toBeCloseTo(1);
+    }
   });
 
   it("drops MToon outline geometry for lilToon, which draws its own", async () => {
