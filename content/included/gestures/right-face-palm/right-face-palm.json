@@ -845,5 +845,14 @@
         "blendOut": 0.25
       }
     }
+  ],
+  "events": [
+    {
+      "id": "slap_02",
+      "time": 0.7,
+      "kind": "sfx",
+      "cueId": "slap_02",
+      "volume": 0.7
+    }
   ]
 }

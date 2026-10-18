@@ -1075,6 +1075,12 @@
   ],
   "events": [
     {
+      "id": "accidental_kiss_01",
+      "time": 0.85,
+      "kind": "sfx",
+      "cueId": "accidental_kiss_01"
+    },
+    {
       "id": "kiss-lips-release",
       "kind": "particle_vfx",
       "effectId": "kiss_lips_float",

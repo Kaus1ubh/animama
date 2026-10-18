@@ -2739,6 +2739,20 @@
   ],
   "events": [
     {
+      "id": "slap_01_simple",
+      "time": 0.69,
+      "kind": "sfx",
+      "cueId": "slap_03",
+      "volume": 0.6
+    },
+    {
+      "id": "slap_01_simple-2",
+      "time": 1.5,
+      "kind": "sfx",
+      "cueId": "slap_03",
+      "volume": 0.6
+    },
+    {
       "id": "slow_sarcastic_clap-accent",
       "time": 2.4,
       "kind": "avatar_vfx",
@@ -2750,6 +2764,13 @@
           "fadeOut": 0.16
         }
       }
+    },
+    {
+      "id": "slap_01_simple-3",
+      "time": 3.11,
+      "kind": "sfx",
+      "cueId": "slap_03",
+      "volume": 0.6
     }
   ]
 }

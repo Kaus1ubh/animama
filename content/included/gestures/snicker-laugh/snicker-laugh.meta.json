@@ -17,6 +17,13 @@
       "alias": "laugh_marks",
       "content_type": "avatar_effect",
       "config": {}
+    },
+    {
+      "ref": "builtin:sound-effect:giddy_02v2",
+      "alias": "giddy_02v2",
+      "content_type": "sound_effect",
+      "config": {},
+      "optional": true
     }
   ],
   "files": [

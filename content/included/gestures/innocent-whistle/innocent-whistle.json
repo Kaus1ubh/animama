@@ -2095,7 +2095,14 @@
           },
           "size": 0.09
         }
-      }
+      },
+      "playAccompanyingSound": false
+    },
+    {
+      "id": "cute_whistle_01",
+      "time": 0.3,
+      "kind": "sfx",
+      "cueId": "cute_whistle_03_funny"
     },
     {
       "id": "sweat_drop_v2",

@@ -1165,5 +1165,14 @@
         "dt": 0.33
       }
     ]
-  }
+  },
+  "events": [
+    {
+      "id": "cute_chirpy_09",
+      "time": 0.99,
+      "kind": "sfx",
+      "cueId": "cute_chirpy_09",
+      "volume": 0.7
+    }
+  ]
 }

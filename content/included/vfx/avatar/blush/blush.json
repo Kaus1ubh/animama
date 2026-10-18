@@ -5,14 +5,7 @@
   "version": 1,
   "name": "Blush",
   "description": "Soft pink blush ovals with diagonal hatch lines painted across both cheeks, for embarrassed, flustered or smitten moments.",
-  "dependencies": [
-    {
-      "ref": "builtin:sound-effect:cute_chirpy_02",
-      "content_type": "sound_effect",
-      "alias": "on-apply",
-      "optional": true
-    }
-  ],
+  "dependencies": [],
   "definition": {
     "schema": "animama/avatar-effect/2",
     "region": "blush",
@@ -31,8 +24,7 @@
     },
     "art": {
       "image": "blush.png"
-    },
-    "soundAlias": "on-apply"
+    }
   },
   "files": [
     {

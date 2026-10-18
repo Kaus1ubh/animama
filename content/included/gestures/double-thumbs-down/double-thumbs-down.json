@@ -1616,5 +1616,13 @@
         "beat": "settle"
       }
     ]
-  }
+  },
+  "events": [
+    {
+      "id": "funny_downer_02",
+      "time": 0.52,
+      "kind": "sfx",
+      "cueId": "funny_downer_02"
+    }
+  ]
 }

@@ -2089,6 +2089,12 @@
           "fadeOut": 0.45
         }
       }
+    },
+    {
+      "id": "correct_answer_06",
+      "time": 0.92,
+      "kind": "sfx",
+      "cueId": "correct_answer_06"
     }
   ]
 }

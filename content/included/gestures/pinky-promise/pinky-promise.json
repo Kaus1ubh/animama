@@ -1002,5 +1002,13 @@
         "beat": "hook"
       }
     ]
-  }
+  },
+  "events": [
+    {
+      "id": "dreamy_bell_02v2",
+      "time": 1.12,
+      "kind": "sfx",
+      "cueId": "dreamy_bell_02v2"
+    }
+  ]
 }

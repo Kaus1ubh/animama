@@ -23,6 +23,13 @@
       "alias": "overheat_steam",
       "content_type": "particle_effect",
       "config": {}
+    },
+    {
+      "ref": "builtin:sound-effect:retro_explosion_02_subtle",
+      "alias": "retro_explosion_02_subtle",
+      "content_type": "sound_effect",
+      "config": {},
+      "optional": true
     }
   ],
   "files": [

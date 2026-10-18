@@ -17,6 +17,20 @@
       "alias": "energy_wave_charge",
       "content_type": "particle_effect",
       "config": {}
+    },
+    {
+      "ref": "builtin:sound-effect:power_up_01",
+      "alias": "power_up_01",
+      "content_type": "sound_effect",
+      "config": {},
+      "optional": true
+    },
+    {
+      "ref": "builtin:sound-effect:skill_whoosh_02v1",
+      "alias": "skill_whoosh_02v1",
+      "content_type": "sound_effect",
+      "config": {},
+      "optional": true
     }
   ],
   "files": [

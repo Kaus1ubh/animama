@@ -1418,7 +1418,8 @@
           "fadeIn": 0.25,
           "fadeOut": 0.4
         }
-      }
+      },
+      "playAccompanyingSound": false
     }
   ]
 }

@@ -56,6 +56,7 @@ CORE_LIBRARY_LOCATORS = (
     "vfx/avatar/ticking-fuse",
     "vfx/avatar/tiny-victory-crown",
     "vfx/avatar/twitching-cat-ears",
+    "vfx/avatar/shock_marks",
     "vfx/particle/quark/butterfly-flutter",
     "vfx/particle/quark/musical-cascade",
     "vfx/particle/quark/snow-crystal-flurry",

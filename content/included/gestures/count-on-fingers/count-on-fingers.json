@@ -746,5 +746,28 @@
         "dt": -0.132
       }
     ]
-  }
+  },
+  "events": [
+    {
+      "id": "bouncy_bubble_01v2",
+      "time": 0.9,
+      "kind": "sfx",
+      "cueId": "bouncy_bubble_01v2",
+      "volume": 0.7
+    },
+    {
+      "id": "bouncy_bubble_02",
+      "time": 1.43,
+      "kind": "sfx",
+      "cueId": "bouncy_bubble_02",
+      "volume": 0.7
+    },
+    {
+      "id": "bubble_pop_01",
+      "time": 1.96,
+      "kind": "sfx",
+      "cueId": "bubble_pop_01",
+      "volume": 0.7
+    }
+  ]
 }

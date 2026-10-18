@@ -1091,5 +1091,14 @@
       "offset": [-0.125, 0.03, 0.13],
       "tolerance": 0.06
     }
+  ],
+  "events": [
+    {
+      "id": "dreamy_chimes_04_short",
+      "time": 0.64,
+      "kind": "sfx",
+      "cueId": "dreamy_chimes_04_short",
+      "volume": 0.6
+    }
   ]
 }

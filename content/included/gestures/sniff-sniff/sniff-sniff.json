@@ -2383,7 +2383,14 @@
           "fadeIn": 0.06,
           "fadeOut": 0.15
         }
-      }
+      },
+      "playAccompanyingSound": false
+    },
+    {
+      "id": "windy_digital_whoosh_05_subtle",
+      "time": 0.6,
+      "kind": "sfx",
+      "cueId": "windy_digital_whoosh_05_subtle"
     },
     {
       "id": "sniff-lines-2",
@@ -2409,7 +2416,8 @@
           "fadeIn": 0.06,
           "fadeOut": 0.15
         }
-      }
+      },
+      "playAccompanyingSound": false
     }
   ]
 }

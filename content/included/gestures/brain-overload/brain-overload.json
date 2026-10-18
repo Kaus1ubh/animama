@@ -3015,6 +3015,12 @@
           "fadeOut": 0.65
         }
       }
+    },
+    {
+      "id": "retro_explosion_02_subtle",
+      "time": 2.76,
+      "kind": "sfx",
+      "cueId": "retro_explosion_02_subtle"
     }
   ]
 }

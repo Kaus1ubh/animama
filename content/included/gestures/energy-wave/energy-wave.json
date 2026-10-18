@@ -2471,6 +2471,18 @@
           "fadeOut": 0.35
         }
       }
+    },
+    {
+      "id": "power_up_01",
+      "time": 1.38,
+      "kind": "sfx",
+      "cueId": "power_up_01"
+    },
+    {
+      "id": "skill_whoosh_02v1",
+      "time": 2.3,
+      "kind": "sfx",
+      "cueId": "skill_whoosh_02v1"
     }
   ]
 }

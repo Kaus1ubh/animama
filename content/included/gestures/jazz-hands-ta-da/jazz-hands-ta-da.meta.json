@@ -17,6 +17,13 @@
       "alias": "ta_da_glitter",
       "content_type": "particle_effect",
       "config": {}
+    },
+    {
+      "ref": "builtin:sound-effect:correct_answer_06",
+      "alias": "correct_answer_06",
+      "content_type": "sound_effect",
+      "config": {},
+      "optional": true
     }
   ],
   "files": [

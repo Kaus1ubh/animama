@@ -1080,5 +1080,13 @@
         "blendOut": 0.22
       }
     }
+  ],
+  "events": [
+    {
+      "id": "ng_01",
+      "time": 0.55,
+      "kind": "sfx",
+      "cueId": "ng_01"
+    }
   ]
 }

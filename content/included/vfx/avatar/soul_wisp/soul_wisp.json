@@ -7,7 +7,7 @@
   "description": "The anime \"soul leaving the body\" gag: a little pale-blue ghost with a peaceful face floats up out of the open mouth, wavers above the face and zips back in, for an overwhelmed \"I'm dead\" moment.",
   "dependencies": [
     {
-      "ref": "builtin:sound-effect:wobble_riser_01v1",
+      "ref": "builtin:sound-effect:too_lame_synth_descending",
       "content_type": "sound_effect",
       "alias": "on-apply",
       "optional": true

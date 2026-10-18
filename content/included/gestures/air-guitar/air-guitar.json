@@ -2565,6 +2565,12 @@
       }
     },
     {
+      "id": "love_musical_chimes_01",
+      "time": 1.5,
+      "kind": "sfx",
+      "cueId": "love_musical_chimes_01"
+    },
+    {
       "id": "electric_crackle",
       "time": 3.35,
       "kind": "particle_vfx",

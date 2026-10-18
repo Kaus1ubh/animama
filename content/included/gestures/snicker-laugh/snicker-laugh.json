@@ -2528,6 +2528,13 @@
           "fadeOut": 0.3
         }
       }
+    },
+    {
+      "id": "giddy_02v2",
+      "time": 1.58,
+      "kind": "sfx",
+      "cueId": "giddy_02v2",
+      "volume": 0.7
     }
   ]
 }

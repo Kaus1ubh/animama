@@ -17,6 +17,13 @@
       "alias": "awkward-ellipsis",
       "content_type": "avatar_effect",
       "config": {}
+    },
+    {
+      "ref": "builtin:sound-effect:slap_03",
+      "alias": "slap_03",
+      "content_type": "sound_effect",
+      "config": {},
+      "optional": true
     }
   ],
   "files": [

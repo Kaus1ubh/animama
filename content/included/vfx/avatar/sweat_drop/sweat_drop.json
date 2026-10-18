@@ -7,7 +7,7 @@
   "description": "A big comic anime sweat drop that pops onto the forehead beside the temple and slowly slides down, for nervous, caught-out or embarrassed moments.",
   "dependencies": [
     {
-      "ref": "builtin:sound-effect:funny_sweat_02",
+      "ref": "builtin:sound-effect:funny_sweat_01v1",
       "content_type": "sound_effect",
       "alias": "on-apply",
       "optional": true

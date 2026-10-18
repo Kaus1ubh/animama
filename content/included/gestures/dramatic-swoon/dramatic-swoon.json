@@ -2136,6 +2136,12 @@
           "z": 0.72
         }
       }
+    },
+    {
+      "id": "dreamy_chimes_03_descending",
+      "time": 1.1,
+      "kind": "sfx",
+      "cueId": "dreamy_chimes_03_descending"
     }
   ]
 }

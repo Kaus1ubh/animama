@@ -7,7 +7,7 @@
   "description": "A cartoon light bulb pops on above and beside the head, then glows with a gentle pulse, for sudden bright ideas and confident \"got it!\" moments.",
   "dependencies": [
     {
-      "ref": "builtin:sound-effect:realization",
+      "ref": "builtin:sound-effect:thought_bubble_chime",
       "content_type": "sound_effect",
       "alias": "on-apply",
       "optional": true

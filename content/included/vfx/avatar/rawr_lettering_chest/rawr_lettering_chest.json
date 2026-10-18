@@ -5,7 +5,14 @@
   "version": 1,
   "name": "Rawr Lettering",
   "description": "Green manga lettering \"RAWR!\" pops up and shakes beside the raised right claw on the roar and stays beside the head through the swipes. Anchored to the chest. For a playful pretend-monster growl.",
-  "dependencies": [],
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:cute_chirpy_11_intense",
+      "content_type": "sound_effect",
+      "alias": "on-apply",
+      "optional": true
+    }
+  ],
   "definition": {
     "schema": "animama/avatar-effect/2",
     "region": "body",
@@ -69,7 +76,8 @@
           }
         ]
       }
-    }
+    },
+    "soundAlias": "on-apply"
   },
   "files": [
     {

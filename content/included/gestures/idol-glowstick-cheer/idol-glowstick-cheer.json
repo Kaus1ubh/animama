@@ -2697,6 +2697,12 @@
           "blend": "normal"
         }
       }
+    },
+    {
+      "id": "digital_chime_magical_03",
+      "time": 3.45,
+      "kind": "sfx",
+      "cueId": "digital_chime_magical_03"
     }
   ]
 }

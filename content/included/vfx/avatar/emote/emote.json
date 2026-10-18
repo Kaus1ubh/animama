@@ -7,7 +7,7 @@
   "description": "Floating exclamation mark for sudden alarm, urgency, or alerted curiosity.",
   "dependencies": [
     {
-      "ref": "builtin:sound-effect:surprised_02",
+      "ref": "builtin:sound-effect:surprised_03",
       "content_type": "sound_effect",
       "alias": "on-apply",
       "optional": true

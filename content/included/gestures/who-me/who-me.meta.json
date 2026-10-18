@@ -10,7 +10,15 @@
     "kind": "anima_clip",
     "file_role": "sequence"
   },
-  "dependencies": [],
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:stun_expression_01",
+      "alias": "stun_expression_01",
+      "content_type": "sound_effect",
+      "config": {},
+      "optional": true
+    }
+  ],
   "files": [
     {
       "path": "who-me.json",

@@ -5,7 +5,7 @@
       "glob": "**",
       "creator": "WOW Sound (Anime Comedy Sound Effects Pack)",
       "license_id": "LicenseRef-WOW-Sound-Media-embedded-product",
-      "provenance": "Sound effects from WOW Sound's Anime Comedy Sound Effects Pack, purchased by the Animama project owner under the Media license tier (formerly Rare). Shipped only inside the desktop app and the hosted service as non-portable Included content that plays when a built-in Avatar Effect appears: never in source, self-host images or public packages, never exportable, copyable or attachable to user content, and never used to create, train, test or improve machine-learning systems. Purchase records are kept privately by the owner. Decision: https://github.com/raymond-van/animama/issues/399, docs/adr/0018-non-portable-included-content.md and docs/adr/0022-optional-licensed-effect-sounds.md.",
+      "provenance": "Sound effects from WOW Sound's Anime Comedy Sound Effects Pack, purchased by the Animama project owner under the Media license tier (formerly Rare). Shipped only inside the desktop app and the hosted service as non-portable Included content that plays when a built-in Avatar Effect, Gesture or Reaction plays it: never in source, self-host images or public packages, never exportable, copyable or attachable to user content, and never used to create, train, test or improve machine-learning systems. Purchase records are kept privately by the owner. Decision: https://github.com/raymond-van/animama/issues/399, docs/adr/0018-non-portable-included-content.md and docs/adr/0022-optional-licensed-effect-sounds.md.",
       "redistribution_review": "pending",
       "distribution": "non-portable"
     }

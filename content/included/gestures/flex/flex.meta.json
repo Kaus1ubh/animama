@@ -10,14 +10,7 @@
     "kind": "anima_clip",
     "file_role": "sequence"
   },
-  "dependencies": [
-    {
-      "ref": "builtin:avatar-effect:shock_marks",
-      "alias": "shock_marks",
-      "content_type": "avatar_effect",
-      "config": {}
-    }
-  ],
+  "dependencies": [],
   "files": [
     {
       "path": "flex.json",

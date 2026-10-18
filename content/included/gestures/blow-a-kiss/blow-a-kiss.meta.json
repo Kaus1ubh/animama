@@ -16,6 +16,13 @@
       "alias": "kiss_lips_float",
       "content_type": "particle_effect",
       "config": {}
+    },
+    {
+      "ref": "builtin:sound-effect:accidental_kiss_02",
+      "alias": "accidental_kiss_02",
+      "content_type": "sound_effect",
+      "config": {},
+      "optional": true
     }
   ],
   "files": [

@@ -10,7 +10,15 @@
     "kind": "anima_clip",
     "file_role": "sequence"
   },
-  "dependencies": [],
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:dreamy_chimes_04_short",
+      "alias": "dreamy_chimes_04_short",
+      "content_type": "sound_effect",
+      "config": {},
+      "optional": true
+    }
+  ],
   "files": [
     {
       "path": "goodbye-wave.json",

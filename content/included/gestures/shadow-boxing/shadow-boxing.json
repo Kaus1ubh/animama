@@ -2992,7 +2992,14 @@
           },
           "size": 0.16
         }
-      }
+      },
+      "playAccompanyingSound": false
+    },
+    {
+      "id": "punch_01_with_effects",
+      "time": 1.98,
+      "kind": "sfx",
+      "cueId": "punch_01_with_effects"
     }
   ]
 }
