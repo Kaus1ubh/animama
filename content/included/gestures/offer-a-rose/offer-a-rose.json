@@ -2032,7 +2032,14 @@
           "fadeIn": 0.12,
           "fadeOut": 0.15
         }
-      }
+      },
+      "playAccompanyingSound": false
+    },
+    {
+      "id": "love_musical_chimes_03v1",
+      "time": 0.9,
+      "kind": "sfx",
+      "cueId": "love_at_first_sight_2v1"
     },
     {
       "id": "offer-blush",
@@ -2045,7 +2052,8 @@
           "fadeIn": 0.3,
           "fadeOut": 0.4
         }
-      }
+      },
+      "playAccompanyingSound": false
     }
   ]
 }

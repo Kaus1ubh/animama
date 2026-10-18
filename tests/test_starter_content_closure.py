@@ -56,6 +56,7 @@ CORE_LIBRARY_LOCATORS = (
     "vfx/avatar/ticking-fuse",
     "vfx/avatar/tiny-victory-crown",
     "vfx/avatar/twitching-cat-ears",
+    "vfx/avatar/shock_marks",
     "vfx/particle/quark/butterfly-flutter",
     "vfx/particle/quark/musical-cascade",
     "vfx/particle/quark/snow-crystal-flurry",
@@ -191,10 +192,10 @@ def test_reviewed_library_ships_in_core_without_equipping_starters(tmp_path: Pat
     entries = {entry["locator"]: entry for entry in inventory["entries"]}
     library = [entries[locator] for locator in CORE_LIBRARY_LOCATORS]
 
-    assert len(library) == 117
+    assert len(library) == 118
     assert {entry["partition"] for entry in library} == {"core"}
     library_files = {file for entry in library for file in entry["files"]}
-    assert len(library_files) == 289
+    assert len(library_files) == 291
     assert {file["partition"] for file in inventory["files"] if file["path"] in library_files} == {"core"}
     library_keys = {entry["logical_key"] for entry in library}
     for starter in inventory["starters"]:

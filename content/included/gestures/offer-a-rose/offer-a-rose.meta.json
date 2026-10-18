@@ -23,6 +23,13 @@
       "alias": "blush",
       "content_type": "avatar_effect",
       "config": {}
+    },
+    {
+      "ref": "builtin:sound-effect:love_at_first_sight_2v1",
+      "alias": "love_at_first_sight_2v1",
+      "content_type": "sound_effect",
+      "config": {},
+      "optional": true
     }
   ],
   "files": [

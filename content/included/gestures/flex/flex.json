@@ -1552,18 +1552,5 @@
       }
     }
   ],
-  "events": [
-    {
-      "id": "shock-marks",
-      "time": 1.18,
-      "kind": "avatar_vfx",
-      "effectId": "shock_marks",
-      "duration": 1.44,
-      "envelope": {
-        "intensity": {
-          "fadeOut": 0.22
-        }
-      }
-    }
-  ]
+  "events": []
 }

@@ -17,6 +17,13 @@
       "alias": "impact_burst_v2",
       "content_type": "avatar_effect",
       "config": {}
+    },
+    {
+      "ref": "builtin:sound-effect:punch_01_with_effects",
+      "alias": "punch_01_with_effects",
+      "content_type": "sound_effect",
+      "config": {},
+      "optional": true
     }
   ],
   "files": [

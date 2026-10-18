@@ -23,6 +23,13 @@
       "alias": "aroma_ribbons",
       "content_type": "particle_effect",
       "config": {}
+    },
+    {
+      "ref": "builtin:sound-effect:windy_digital_whoosh_05_subtle",
+      "alias": "windy_digital_whoosh_05_subtle",
+      "content_type": "sound_effect",
+      "config": {},
+      "optional": true
     }
   ],
   "files": [

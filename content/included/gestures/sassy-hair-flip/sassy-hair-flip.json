@@ -1893,6 +1893,12 @@
         }
       },
       "followAnchor": true
+    },
+    {
+      "id": "fast_swish_02",
+      "time": 0.81,
+      "kind": "sfx",
+      "cueId": "fast_swish_02"
     }
   ]
 }

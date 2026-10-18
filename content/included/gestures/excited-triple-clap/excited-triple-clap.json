@@ -2246,5 +2246,28 @@
         "blendOut": 0.12
       }
     }
+  ],
+  "events": [
+    {
+      "id": "slap_01_simple",
+      "time": 0.62,
+      "kind": "sfx",
+      "cueId": "slap_03",
+      "volume": 0.6
+    },
+    {
+      "id": "slap_01_simple-2",
+      "time": 0.96,
+      "kind": "sfx",
+      "cueId": "slap_03",
+      "volume": 0.6
+    },
+    {
+      "id": "slap_01_simple-3",
+      "time": 1.3,
+      "kind": "sfx",
+      "cueId": "slap_03",
+      "volume": 0.6
+    }
   ]
 }

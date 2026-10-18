@@ -5,7 +5,14 @@
   "version": 1,
   "name": "Gloomy Cloud",
   "description": "A small dark purple-blue gloom cloud with fading streaks hovers just above the head, the anime personal rain cloud for a sad, deflated sigh.",
-  "dependencies": [],
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:disappointment_03",
+      "content_type": "sound_effect",
+      "alias": "on-apply",
+      "optional": true
+    }
+  ],
   "definition": {
     "schema": "animama/avatar-effect/2",
     "region": "body",
@@ -71,7 +78,8 @@
           }
         ]
       }
-    }
+    },
+    "soundAlias": "on-apply"
   },
   "files": [
     {

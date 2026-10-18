@@ -10,7 +10,15 @@
     "kind": "anima_clip",
     "file_role": "sequence"
   },
-  "dependencies": [],
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:stun_expression_02v1",
+      "alias": "stun_expression_02v1",
+      "content_type": "sound_effect",
+      "config": {},
+      "optional": true
+    }
+  ],
   "files": [
     {
       "path": "double-take.json",

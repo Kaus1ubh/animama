@@ -1071,5 +1071,13 @@
         "blendOut": 0.3
       }
     }
+  ],
+  "events": [
+    {
+      "id": "bell_ding_02",
+      "time": 3.4,
+      "kind": "sfx",
+      "cueId": "bell_ding_02"
+    }
   ]
 }

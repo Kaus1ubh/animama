@@ -23,6 +23,13 @@
       "alias": "electric_crackle",
       "content_type": "particle_effect",
       "config": {}
+    },
+    {
+      "ref": "builtin:sound-effect:love_musical_chimes_01",
+      "alias": "love_musical_chimes_01",
+      "content_type": "sound_effect",
+      "config": {},
+      "optional": true
     }
   ],
   "files": [

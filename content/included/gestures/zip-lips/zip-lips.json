@@ -1224,5 +1224,20 @@
         "blendOut": 0.242
       }
     }
+  ],
+  "events": [
+    {
+      "id": "sweeping_slide_01v2",
+      "time": 1.12,
+      "kind": "sfx",
+      "cueId": "sweeping_slide_01v2"
+    },
+    {
+      "id": "metal_ding",
+      "time": 1.43,
+      "kind": "sfx",
+      "cueId": "metal_ding",
+      "volume": 0.7
+    }
   ]
 }

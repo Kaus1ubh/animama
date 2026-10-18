@@ -7,7 +7,7 @@
   "description": "Purple manga lettering \"BLEH~\" pops up beside the head on the Avatar's right, above the hand pulling down an eyelid, and wobbles once, for a cheeky akanbe tease. Head-anchored, so it stays after the hand lets go.",
   "dependencies": [
     {
-      "ref": "builtin:sound-effect:funny_bubble_02",
+      "ref": "builtin:sound-effect:funny_riser_02",
       "content_type": "sound_effect",
       "alias": "on-apply",
       "optional": true

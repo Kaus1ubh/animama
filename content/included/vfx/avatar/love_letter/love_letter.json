@@ -5,7 +5,14 @@
   "version": 1,
   "name": "Love Letter",
   "description": "A pink confession envelope with a flower wax seal, offered gently with both hands.",
-  "dependencies": [],
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:digital_chime_magical_03",
+      "content_type": "sound_effect",
+      "alias": "on-apply",
+      "optional": true
+    }
+  ],
   "definition": {
     "schema": "animama/avatar-effect/2",
     "region": "body",
@@ -29,7 +36,8 @@
         "loop": "loop",
         "rows": 2
       }
-    }
+    },
+    "soundAlias": "on-apply"
   },
   "files": [
     {

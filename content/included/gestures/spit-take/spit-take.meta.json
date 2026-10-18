@@ -17,6 +17,13 @@
       "alias": "spit_spray_mist",
       "content_type": "particle_effect",
       "config": {}
+    },
+    {
+      "ref": "builtin:sound-effect:squirt_01v2",
+      "alias": "squirt_01v2",
+      "content_type": "sound_effect",
+      "config": {},
+      "optional": true
     }
   ],
   "files": [

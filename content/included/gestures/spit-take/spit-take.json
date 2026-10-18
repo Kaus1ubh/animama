@@ -2226,6 +2226,12 @@
           "fadeOut": 0.25
         }
       }
+    },
+    {
+      "id": "squirt_01v2",
+      "time": 1.61,
+      "kind": "sfx",
+      "cueId": "squirt_01v2"
     }
   ]
 }

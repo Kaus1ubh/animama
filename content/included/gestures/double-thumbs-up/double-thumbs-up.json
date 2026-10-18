@@ -1565,5 +1565,13 @@
         "dt": 0.4
       }
     ]
-  }
+  },
+  "events": [
+    {
+      "id": "correct_answer_01v1",
+      "time": 0.52,
+      "kind": "sfx",
+      "cueId": "correct_answer_01v1"
+    }
+  ]
 }

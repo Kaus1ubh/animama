@@ -10,7 +10,15 @@
     "kind": "anima_clip",
     "file_role": "sequence"
   },
-  "dependencies": [],
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:cute_chirpy_09",
+      "alias": "cute_chirpy_09",
+      "content_type": "sound_effect",
+      "config": {},
+      "optional": true
+    }
+  ],
   "files": [
     {
       "path": "tiny-bit.json",

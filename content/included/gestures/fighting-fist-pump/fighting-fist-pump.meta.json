@@ -10,7 +10,15 @@
     "kind": "anima_clip",
     "file_role": "sequence"
   },
-  "dependencies": [],
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:fast_swish_02",
+      "alias": "fast_swish_02",
+      "content_type": "sound_effect",
+      "config": {},
+      "optional": true
+    }
+  ],
   "files": [
     {
       "path": "fighting-fist-pump.json",

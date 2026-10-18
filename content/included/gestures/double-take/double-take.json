@@ -1744,5 +1744,13 @@
         "beat": "settle"
       }
     ]
-  }
+  },
+  "events": [
+    {
+      "id": "stun_expression_02v1",
+      "time": 1.86,
+      "kind": "sfx",
+      "cueId": "stun_expression_02v1"
+    }
+  ]
 }

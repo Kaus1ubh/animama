@@ -1355,5 +1355,13 @@
         "beat": "hold"
       }
     ]
-  }
+  },
+  "events": [
+    {
+      "id": "fast_swish_02",
+      "time": 0.73,
+      "kind": "sfx",
+      "cueId": "fast_swish_02"
+    }
+  ]
 }

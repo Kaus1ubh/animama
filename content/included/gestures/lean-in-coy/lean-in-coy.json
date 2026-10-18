@@ -1962,6 +1962,12 @@
       "duration": 2.6
     },
     {
+      "id": "love_at_first_sight_1v1",
+      "time": 1.2,
+      "kind": "sfx",
+      "cueId": "love_at_first_sight_1v1"
+    },
+    {
       "id": "coy-blush",
       "time": 1.4,
       "kind": "avatar_vfx",
@@ -1972,7 +1978,8 @@
           "fadeIn": 0.3,
           "fadeOut": 0.4
         }
-      }
+      },
+      "playAccompanyingSound": false
     }
   ]
 }

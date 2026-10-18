@@ -76,6 +76,7 @@ CORE_LIBRARY_ROOTS = (
     "builtin:avatar-effect:ticking-fuse",
     "builtin:avatar-effect:tiny-victory-crown",
     "builtin:avatar-effect:twitching-cat-ears",
+    "builtin:avatar-effect:shock_marks",
     "builtin:particle-effect:butterfly-flutter",
     "builtin:particle-effect:musical-cascade",
     "builtin:particle-effect:snow-crystal-flurry",

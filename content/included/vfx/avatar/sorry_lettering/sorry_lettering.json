@@ -7,7 +7,7 @@
   "description": "Blue manga lettering \"SORRY!\" pops up above the head on the Avatar's left and rides down with a quick apologetic bow, for a sorry, my-bad moment.",
   "dependencies": [
     {
-      "ref": "builtin:sound-effect:shrink_04",
+      "ref": "builtin:sound-effect:depressed",
       "content_type": "sound_effect",
       "alias": "on-apply",
       "optional": true

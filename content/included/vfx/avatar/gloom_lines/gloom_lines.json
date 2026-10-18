@@ -7,7 +7,7 @@
   "description": "Dark blue-purple vertical gloom lines that slide down over the brow like a curtain, for deflated, disappointed or remorseful moments.",
   "dependencies": [
     {
-      "ref": "builtin:sound-effect:shrink_03",
+      "ref": "builtin:sound-effect:horror_surprise",
       "content_type": "sound_effect",
       "alias": "on-apply",
       "optional": true

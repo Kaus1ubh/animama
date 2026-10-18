@@ -810,5 +810,14 @@
         "dt": -0.05
       }
     ]
-  }
+  },
+  "events": [
+    {
+      "id": "funny_downer_01v1",
+      "time": 0.55,
+      "kind": "sfx",
+      "cueId": "funny_downer_01v1",
+      "volume": 0.8
+    }
+  ]
 }

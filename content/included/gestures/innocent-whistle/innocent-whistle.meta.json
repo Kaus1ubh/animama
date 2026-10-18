@@ -23,6 +23,13 @@
       "alias": "sweat_drop_v2",
       "content_type": "avatar_effect",
       "config": {}
+    },
+    {
+      "ref": "builtin:sound-effect:cute_whistle_03_funny",
+      "alias": "cute_whistle_03_funny",
+      "content_type": "sound_effect",
+      "config": {},
+      "optional": true
     }
   ],
   "files": [

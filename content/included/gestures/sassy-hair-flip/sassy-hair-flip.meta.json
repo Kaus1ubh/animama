@@ -17,6 +17,13 @@
       "alias": "hair_flip_sparkle",
       "content_type": "particle_effect",
       "config": {}
+    },
+    {
+      "ref": "builtin:sound-effect:fast_swish_02",
+      "alias": "fast_swish_02",
+      "content_type": "sound_effect",
+      "config": {},
+      "optional": true
     }
   ],
   "files": [

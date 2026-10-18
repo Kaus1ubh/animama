@@ -5,7 +5,14 @@
   "version": 1,
   "name": "Heh Lettering",
   "description": "Teal manga lettering \"HEH~\" with a tiny sparkle puffs out beside the nose on the Avatar's right, bumps on the nod and drifts up, for a smug, pleased-with-yourself heh.",
-  "dependencies": [],
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:funny_bubble_02",
+      "content_type": "sound_effect",
+      "alias": "on-apply",
+      "optional": true
+    }
+  ],
   "definition": {
     "schema": "animama/avatar-effect/2",
     "region": "body",
@@ -76,7 +83,8 @@
           }
         ]
       }
-    }
+    },
+    "soundAlias": "on-apply"
   },
   "files": [
     {

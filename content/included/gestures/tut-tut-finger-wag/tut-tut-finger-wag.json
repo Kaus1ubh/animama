@@ -723,5 +723,21 @@
         "beat": "settle"
       }
     ]
-  }
+  },
+  "events": [
+    {
+      "id": "cute_chirpy_01v1",
+      "time": 1.18,
+      "kind": "sfx",
+      "cueId": "cute_chirpy_01v1",
+      "volume": 0.6
+    },
+    {
+      "id": "cute_chirpy_01v1-2",
+      "time": 1.78,
+      "kind": "sfx",
+      "cueId": "cute_chirpy_01v1",
+      "volume": 0.6
+    }
+  ]
 }

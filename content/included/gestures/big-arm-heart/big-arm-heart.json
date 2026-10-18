@@ -2148,6 +2148,12 @@
           "fadeOut": 0.4
         }
       }
+    },
+    {
+      "id": "love_bubble_01",
+      "time": 0.92,
+      "kind": "sfx",
+      "cueId": "love_bubble_01"
     }
   ]
 }

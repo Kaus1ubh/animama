@@ -1640,5 +1640,13 @@
       "point": "tip",
       "targetPoint": "tip"
     }
+  ],
+  "events": [
+    {
+      "id": "correct_answer_04",
+      "time": 0.79,
+      "kind": "sfx",
+      "cueId": "correct_answer_04"
+    }
   ]
 }

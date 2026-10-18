@@ -17,6 +17,13 @@
       "alias": "sparkle_hearts",
       "content_type": "particle_effect",
       "config": {}
+    },
+    {
+      "ref": "builtin:sound-effect:love_bubble_01",
+      "alias": "love_bubble_01",
+      "content_type": "sound_effect",
+      "config": {},
+      "optional": true
     }
   ],
   "files": [

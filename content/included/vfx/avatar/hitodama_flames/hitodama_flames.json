@@ -7,7 +7,7 @@
   "description": "Two pale blue-violet crayon spirit flames flicker beside the head for spooky, gloomy beats.",
   "dependencies": [
     {
-      "ref": "builtin:sound-effect:wobble_riser_01v1",
+      "ref": "builtin:sound-effect:horror_surprise",
       "content_type": "sound_effect",
       "alias": "on-apply",
       "optional": true

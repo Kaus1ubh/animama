@@ -17,6 +17,13 @@
       "alias": "dizzy-stars",
       "content_type": "particle_effect",
       "config": {}
+    },
+    {
+      "ref": "builtin:sound-effect:dreamy_chimes_03_descending",
+      "alias": "dreamy_chimes_03_descending",
+      "content_type": "sound_effect",
+      "config": {},
+      "optional": true
     }
   ],
   "files": [

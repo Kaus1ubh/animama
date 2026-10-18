@@ -17,6 +17,13 @@
       "alias": "glowstick",
       "content_type": "avatar_effect",
       "config": {}
+    },
+    {
+      "ref": "builtin:sound-effect:digital_chime_magical_03",
+      "alias": "digital_chime_magical_03",
+      "content_type": "sound_effect",
+      "config": {},
+      "optional": true
     }
   ],
   "files": [

@@ -938,5 +938,13 @@
         "blendOut": 0.165
       }
     }
+  ],
+  "events": [
+    {
+      "id": "surprised_01v2",
+      "time": 0.99,
+      "kind": "sfx",
+      "cueId": "stun_expression_01"
+    }
   ]
 }

@@ -1909,7 +1909,8 @@
           "fadeIn": 0.3,
           "fadeOut": 0.45
         }
-      }
+      },
+      "playAccompanyingSound": false
     },
     {
       "id": "emphasis-lines",
