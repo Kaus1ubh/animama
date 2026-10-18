@@ -119,6 +119,47 @@ function dependenciesFromPreview(
   });
 }
 
+/** The built-in sound ref prefix; sounds are left behind, never "removed effects". */
+const BUILTIN_SOUND_PREFIX = "builtin:sound-effect:";
+
+/**
+ * Clip aliases of the sounds an opened Action can't carry into owner content:
+ * licensed built-in sounds, and optional pack sounds this build doesn't
+ * install. Their `sfx` events are left out of the copy, as a built-in effect's
+ * sound is (ADR 0022).
+ */
+function soundsLeftBehind(preview: PyActionPreview): Set<string> {
+  const closure = actionClosure(preview);
+  const supports = new Map(
+    closure.supports.map((support) => [String(support.runtime_id), support]),
+  );
+  const licensed = Object.entries(object(closure.root.reference_map))
+    .filter(([, runtimeId]) => isNonPortable(supports.get(String(runtimeId))))
+    .map(([alias]) => alias);
+  const omitted = Object.entries(object(closure.root.missing_references))
+    .filter(([, ref]) => String(ref).startsWith(BUILTIN_SOUND_PREFIX))
+    .map(([alias]) => alias);
+  return new Set([...licensed, ...omitted]);
+}
+
+function withoutSoundEvents(
+  sequence: Record<string, unknown>,
+  aliases: Set<string>,
+): Record<string, unknown> {
+  if (!aliases.size || !Array.isArray(sequence.events)) return sequence;
+  return {
+    ...sequence,
+    events: sequence.events.filter((raw) => {
+      const event = object(raw);
+      return !(
+        event.kind === "sfx" &&
+        typeof event.cueId === "string" &&
+        aliases.has(event.cueId)
+      );
+    }),
+  };
+}
+
 async function ownedSequence(
   preview: PyActionPreview,
   root: Record<string, unknown>,
@@ -174,9 +215,9 @@ function builtinSequence(
 export function removedActionEffects(
   preview: PyActionPreview,
 ): { alias: string; ref: string }[] {
-  return Object.entries(
-    object(actionClosure(preview).root.missing_references),
-  ).map(([alias, ref]) => ({ alias, ref: String(ref) }));
+  return Object.entries(object(actionClosure(preview).root.missing_references))
+    .map(([alias, ref]) => ({ alias, ref: String(ref) }))
+    .filter(({ ref }) => !ref.startsWith(BUILTIN_SOUND_PREFIX));
 }
 
 /** Return whether one catalog row is an editable built-in Anima Pose Clip. */
@@ -235,9 +276,12 @@ export async function actionDocumentFromPreview(args: {
     implementation.kind === "vrma" ? "vrma" : "anima_clip";
   const sequence =
     implementationKind === "anima_clip"
-      ? hasOwnedSequence || !isBuiltin
-        ? await ownedSequence(preview, root)
-        : builtinSequence(intent, root)
+      ? withoutSoundEvents(
+          hasOwnedSequence || !isBuiltin
+            ? await ownedSequence(preview, root)
+            : builtinSequence(intent, root),
+          isBuiltin ? soundsLeftBehind(preview) : new Set(),
+        )
       : base.sequence;
   // Only `animaPoseClip/2.0` clips open: a retired 1.0 or invalid clip throws
   // its reason instead of opening as an empty timeline.

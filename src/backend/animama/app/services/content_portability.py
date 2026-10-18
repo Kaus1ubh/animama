@@ -20,7 +20,12 @@ from functools import cache
 from importlib.resources import files
 from typing import Any, BinaryIO, Literal
 
-from animama.domain.content_catalog import CatalogContentEntry, ContentConflictError, ContentSource
+from animama.domain.content_catalog import (
+    OPTIONAL_OMITTED_KEY,
+    CatalogContentEntry,
+    ContentConflictError,
+    ContentSource,
+)
 
 DISTRIBUTION_KEY = "distribution"
 DISTRIBUTION_EXCLUDED = "excluded"
@@ -124,10 +129,12 @@ def effective_provenance(
     """Replace any descriptor-supplied distribution with the trusted value.
 
     Only an Included rule can set a distribution. A restricted byte match makes
-    any entry non-portable, whatever its source.
+    any entry non-portable, whatever its source. The scanner alone records
+    omitted optional edges (``OPTIONAL_OMITTED_KEY``), so a descriptor's value
+    is dropped too.
     """
 
-    result = {key: value for key, value in provenance.items() if key != DISTRIBUTION_KEY}
+    result = {key: value for key, value in provenance.items() if key not in {DISTRIBUTION_KEY, OPTIONAL_OMITTED_KEY}}
     if source is ContentSource.INCLUDED and rule_distribution in INVENTORY_DISTRIBUTIONS:
         result[DISTRIBUTION_KEY] = rule_distribution
     if any(digest in restricted for digest in file_sha256):

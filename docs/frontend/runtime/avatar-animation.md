@@ -464,7 +464,12 @@ use resolved emotion weights and finite loop metadata; preload tiers come from
 the binding configuration. Private pose/reaction manifests stay lazy, have a
 2 MiB streamed-read limit, parse once, and are aborted/released when their
 catalog is disposed. User clip event references are accepted only when their
-SFX/VFX runtime IDs occur in the same effective response. Duplicate or invalid
+SFX/VFX runtime IDs occur in the same effective response. Events whose alias the
+projection lists in `missing_references` are skipped instead: a Local Action's
+removed Included effects (with a `missing_effect_dependency` diagnostic), and a
+built-in Action's optional pack sound that this build doesn't install
+(silently; see the [comedy sound pack](../../backend/operations/comedy-sound-pack.md)).
+Duplicate or invalid
 motion identities are omitted with safe diagnostics. Effect and audio resources
 resolve through the mounted media providers with the same revision and
 prepared-byte boundary.
@@ -706,6 +711,8 @@ from `src/frontend/web`:
   with pack sounds contains licensed audio, so keep it out of Git and public
   channels. Requires `ffmpeg` with libx264. Frames render on the GPU on macOS
   (about real time) and with SwiftShader elsewhere.
+- `pnpm -s content:tune` opens the owner's tuning page for Included Gestures
+  and the Reaction ladder (see [Tuning Included content](#tuning-included-content)).
 - `pnpm -s animation:save <items.json>` saves clips as Local Gestures through
   the Gesture creator in a headless browser, revising an existing Local
   Gesture with the same Selector ID. An optional `project` path (absolute or
@@ -753,6 +760,94 @@ Saving updates the Local catalog item. It does not advance immutable releases
 or hot-swap a mounted chat: active chats retain their prepared bytes until
 reopened. See [Local content runtime](../architecture/local-content-runtime.md)
 for revision checks, preparation, and recovery behavior.
+
+#### Tuning Included content
+
+`pnpm -s content:tune` (from `src/frontend/web`) opens a local page, served
+on 127.0.0.1 only, for the owner to review and change Included Gestures and
+Reactions. It is not part of any build.
+
+- **Lists:** every Included Gesture, and the Reaction ladder as a grid of
+  emotions by intensity. Each cell shows its Reactions' effect counts, peak
+  expression weights and sounds, and outlines departures from the ladder
+  guidance.
+- **Sounds tab:** auditions the WOW Sound catalog.
+  - `--catalog <dir>` (or `ANIMAMA_WOW_SOUND_CATALOG`) names the vendor
+    folder, with category subfolders of `AC_*.ogg` files.
+  - `--sounds <dir>` names the comedy pack (default
+    `build-inputs/wow-comedy-sfx`; a worktree passes the primary checkout's
+    copy).
+  - Sounds in the tracked pack manifest are marked "In pack".
+  - Licensed audio is streamed from those folders and never copied.
+- **Preview:** plays the selected item, as edited, on Annie
+  (`--avatar caitlyn` for Caitlyn) in real time through the review stage,
+  with its effects and sounds.
+- **Editing:**
+  - Add, remove or replace effect events (Avatar, Particle, Scene) and `sfx`
+    sound events, and change their times.
+  - Change a sound's volume, mute an Avatar Effect's accompanying sound, or
+    change a Particle Effect's duration.
+  - Set a Reaction's peak expression weights.
+  - Place an Avatar Effect for one event with the Action creator's "This
+    use" controls (an `override`, ADR 0025). For an effect that declares
+    several sounds, the same panel picks which one this use plays.
+  - Change an Avatar Effect's own sound (its "effect sound" under an event)
+    for every Gesture and Reaction that uses it. The control shows how many
+    use it. A new sound replaces the effect's default edge under the same
+    alias; a sound the effect already declares becomes its default; a
+    silent effect gains an optional `on-apply` edge. "No sound" removes a
+    single sound; it isn't offered for a merged effect (several sounds), and
+    is refused while a use picks that sound. The change is applied and saved
+    like any other edit, and the preview and placement panel show it once
+    applied.
+  - Every sound dropdown entry can be previewed before it is picked.
+- **Apply and Save all:**
+  - **Apply** keeps an item's edits as a draft in the browser's local
+    storage, marked "applied, not saved" in the lists. It doesn't write
+    files or reload the editor or preview. Applied drafts survive switching
+    items, reloading the page and restarting `content:tune` on the same port
+    (default 4791). Drafts are kept per port and per checkout, so another
+    worktree's page has its own. **Discard applied** (per item) and
+    **Discard all** drop them.
+  - **Save all** writes every applied item's clip and `.meta.json` in
+    `content/included` together. If any item is refused, nothing is
+    written. If a file rename fails partway, the error names the files
+    already replaced; `git restore` recovers them.
+- **Proposals:** `--proposals <file>` loads suggested edits for review, each
+  applied once as a draft, so they show as "applied, not saved". The file is
+  JSON. `items` maps a Gesture or Reaction content ID to
+  `{ "note", "add": [{ "time", "sound", "volume"? }] }`, where `sound` is a
+  catalog sound ID. `effects` maps an Avatar Effect content ID to
+  `{ "note", "sound" }`, where `null` makes it silent. An item's note shows
+  on the item; effect proposals are listed at the top with their notes. Keep
+  a proposal with Save all, or drop it with **Discard applied**. A discarded
+  or saved proposal isn't applied again unless its sounds change (not its
+  note); a changed one is applied on top of the file as it is then. A
+  proposal for an item that already has an applied edit waits until that
+  edit is saved or discarded, then applies on the next load. Proposals that
+  can't be applied (malformed entry, unknown item or sound) are listed at
+  the top. Keep proposal files outside Git, for example under
+  `.animama-drafts/`.
+- **Saving rules:**
+  - It rebuilds the dependencies from the events (unused edges drop) and
+    writes pack sounds as optional edges.
+  - It keeps the content ID, version and clip identity, and keeps the clip
+    file's form.
+  - It refuses audible events under 0.3 s apart, sounds on starter idle
+    Gestures, an invalid clip, and a file changed since its edit was applied
+    (discard and redo that edit).
+- **After saving:**
+  - A changed Gesture clip needs its sample baseline updated: add the slug
+    to `REBASELINED` in
+    `src/lib/avatar/motion-authoring/includedClipBaseline.test.ts`, then run
+    `UPDATE_CLIP_BASELINE=1 pnpm exec vitest run src/lib/avatar/motion-authoring/includedClipBaseline.test.ts`.
+  - A sound not yet in the pack needs a new pack version before the content
+    merges (see the [comedy sound pack](../../backend/operations/comedy-sound-pack.md)).
+    `pnpm -s content:tune --pending` lists the sounds to add or remove; the
+    Included-content tests fail until the pack matches.
+  - Re-record the changed items with `pnpm -s animation:reel`, run the
+    backend Included-content tests, and ship the edits in their own PR. Edits
+    to Reactions in starter pools also need the full browser journeys.
 
 ### `AvatarPlanner`
 

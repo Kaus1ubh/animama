@@ -9,6 +9,9 @@
   and the [execution plan](../plans/licensed-comedy-sfx/licensed-comedy-sfx-execplan.md)
 - Amended: 2026-10-14, a built-in effect may declare several sounds and each
   use picks one ([ADR 0025](0025-per-use-avatar-effect-overrides.md))
+- Amended: 2026-10-16, built-in Gestures and Reactions may play pack sounds
+  through optional `sfx` edges (owner decision 1 and plan review in
+  [issue #590](https://github.com/raymond-van/animama/issues/590))
 
 ## Context
 
@@ -32,18 +35,30 @@ every Reaction and Gesture that uses it.
    metadata, with the `soundAlias` that names it, so the effect is an ordinary,
    valid effect without a sound. Its revision records the omission. The
    descriptor in Git still names the sound.
+   *Amendment (2026-10-16):* a built-in Gesture or Reaction may also declare
+   an optional `sound_effect` edge for a pack sound that one of its `sfx` clip
+   events plays. The scan drops it the same way. The clip file is
+   hash-verified, so its events can't be rewritten: the scan records the
+   dropped alias in the item's provenance (`optional_omitted`), the runtime
+   projection reports it as a missing reference, and the player skips that
+   `sfx` event. The motion, expressions and effects still play.
 2. **The sounds are a second private pack.** They ship as the non-portable
    Included source `wow-comedy-sfx`, built, verified, staged, mounted and
    leak-scanned like the Mixamo-motion pack. Only sounds that built-in effects
-   use are included.
+   use are included (amended 2026-10-16: or that built-in Gestures and
+   Reactions play).
 3. **Licensed sounds stay with built-in content.** Local content may not declare
    optional edges, and may not depend on a non-portable Sound Effect: catalog
    reconciliation marks such items invalid, so save and import fail. The UI
    never lists licensed sounds in the Library or any creator, and copying a
    built-in effect leaves its sound behind with a note. Users can still use the
    built-in effects, sound included, in their own Gestures and Reactions.
+   Customizing a built-in Gesture or Reaction leaves its licensed `sfx` events
+   behind, without a note (amended 2026-10-16).
 4. **Export leaves the sound out.** A package never carries a licensed sound. An
-   exported effect loses the optional edge and its `soundAlias`, and the export
+   exported effect loses the optional edge and its `soundAlias` (amended
+   2026-10-16: an exported Gesture or Reaction loses the edge and the `sfx`
+   events that play it), and the export
    review says how many built-in effect sounds stay with this app. No bytes-free
    reference is recorded: import installs every entry as a fresh Local copy,
    and Local content never carries a licensed sound, so an imported copy of a

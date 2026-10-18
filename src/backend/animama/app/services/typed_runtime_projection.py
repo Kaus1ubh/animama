@@ -8,7 +8,7 @@ from typing import Any
 
 from animama.app.services.content_kind_registry import RuntimeProjectionInput, handler_for_kind
 from animama.domain.anima_loadout import IDLE_DEFAULT_CELL, IDLE_INTENSITIES, REACTION_INTENSITIES, parse_cell_key
-from animama.domain.content_catalog import CatalogContentEntry, ContentKind
+from animama.domain.content_catalog import OPTIONAL_OMITTED_KEY, CatalogContentEntry, ContentKind
 from animama.domain.content_documents import (
     ContentDocumentError,
     GestureDocumentV1,
@@ -169,14 +169,23 @@ def project_typed_runtime_catalog(
         return result
 
     def missing_references(owner_id: str, document: TypedContentDocument) -> dict[str, str]:
-        """Alias → ref of each removed Included effect the owner plays without."""
+        """Alias → ref of each removed Included effect, or optional sound this
+        build doesn't install, that the owner plays without."""
 
         owner = visible_by_id.get(owner_id)
         missing = set(owner.missing_dependencies) if owner is not None else set()
+        omitted = owner.provenance.get(OPTIONAL_OMITTED_KEY) if owner is not None else None
         return {
-            dependency.alias: dependency.ref
-            for dependency in document.dependencies
-            if dependency.alias and dependency.ref in missing
+            **(
+                {alias: ref for alias, ref in omitted.items() if isinstance(alias, str) and isinstance(ref, str)}
+                if isinstance(omitted, dict)
+                else {}
+            ),
+            **{
+                dependency.alias: dependency.ref
+                for dependency in document.dependencies
+                if dependency.alias and dependency.ref in missing
+            },
         }
 
     def projection_input(

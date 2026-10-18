@@ -35,7 +35,7 @@ production readiness or publication rights.
 | 0019 | [Hand keys with fitted presets and per-finger offsets](0019-hand-keys-with-fitted-presets-and-finger-offsets.md)                                   | accepted                                     |
 | 0020 | [Solved hand contacts](0020-solved-hand-contacts.md)                                                                                               | accepted                                     |
 | 0021 | [Shared product HTTP routes for every composition](0021-shared-product-http-routes.md)                                                             | accepted                                     |
-| 0022 | [Optional licensed sounds for built-in effects](0022-optional-licensed-effect-sounds.md)                                                           | proposed; sound count amended by 0025        |
+| 0022 | [Optional licensed sounds for built-in effects](0022-optional-licensed-effect-sounds.md)                                                           | proposed; amended by 0025 and on 2026-10-16  |
 | 0023 | [Native Anthropic Messages provider](0023-native-anthropic-messages-provider.md)                                                                   | accepted                                     |
 | 0024 | [The UI Locale is the conversation language](0024-ui-locale-is-the-conversation-language.md)                                                       | accepted                                     |
 | 0025 | [Per-use Avatar Effect overrides](0025-per-use-avatar-effect-overrides.md)                                                                         | accepted                                     |

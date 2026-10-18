@@ -1,0 +1,463 @@
+import assert from "node:assert/strict";
+import {
+  cp,
+  mkdir,
+  mkdtemp,
+  readFile,
+  realpath,
+  rm,
+  writeFile,
+} from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { after, before, test } from "node:test";
+import { chromium } from "playwright";
+
+import { startTuneServer } from "./content-tune.mjs";
+import { INCLUDED_CONTENT_ROOT } from "./effect-render-sources.mjs";
+
+// The fixture plays a generated tone under a key the tracked pack manifest
+// lists, so no licensed audio is needed.
+const SOUND_KEY = "bubble_pop_01";
+
+/** A short mono 16-bit WAV tone. */
+function tone(seconds = 0.2, rate = 8000) {
+  const samples = Math.round(seconds * rate);
+  const data = Buffer.alloc(samples * 2);
+  for (let index = 0; index < samples; index += 1)
+    data.writeInt16LE(
+      Math.round(8000 * Math.sin((2 * Math.PI * 440 * index) / rate)),
+      index * 2,
+    );
+  const header = Buffer.alloc(44);
+  header.write("RIFF", 0);
+  header.writeUInt32LE(36 + data.length, 4);
+  header.write("WAVEfmt ", 8);
+  header.writeUInt32LE(16, 16);
+  header.writeUInt16LE(1, 20);
+  header.writeUInt16LE(1, 22);
+  header.writeUInt32LE(rate, 24);
+  header.writeUInt32LE(rate * 2, 28);
+  header.writeUInt16LE(2, 32);
+  header.writeUInt16LE(16, 34);
+  header.write("data", 36);
+  header.writeUInt32LE(data.length, 40);
+  return Buffer.concat([header, data]);
+}
+
+async function writeJson(file, value) {
+  await mkdir(path.dirname(file), { recursive: true });
+  await writeFile(file, JSON.stringify(value, null, 2));
+}
+
+let dir;
+let tune;
+let browser;
+before(async () => {
+  dir = await realpath(await mkdtemp(path.join(tmpdir(), "content-tune-")));
+  // A content/included tree, as the pack check expects.
+  const content = path.join(dir, "content/included");
+  await cp(
+    path.join(INCLUDED_CONTENT_ROOT, "gestures/air-guitar"),
+    path.join(content, "gestures/air-guitar"),
+    { recursive: true },
+  );
+  await cp(
+    path.join(INCLUDED_CONTENT_ROOT, "reactions/joy-2"),
+    path.join(content, "reactions/joy-2"),
+    { recursive: true },
+  );
+  // The Avatar Effect joy-2 plays, so its own sound can be changed.
+  await cp(
+    path.join(INCLUDED_CONTENT_ROOT, "vfx/avatar/kira_star"),
+    path.join(content, "vfx/avatar/kira_star"),
+    { recursive: true },
+  );
+  // A Gesture that plays the pack sound through an sfx event.
+  const folder = path.join(content, "gestures/pop-wave");
+  await writeJson(path.join(folder, "pop-wave.json"), {
+    schema: "animaPoseClip/2.0",
+    id: "pop-wave",
+    name: "Pop Wave",
+    duration: 1,
+    beats: [{ id: "a", label: "A", time: 0 }],
+    expressions: { happy: [{ v: 0.6, beat: "a" }] },
+    events: [{ id: "pop", time: 0.1, kind: "sfx", cueId: "pop" }],
+  });
+  await writeJson(path.join(folder, "pop-wave.meta.json"), {
+    schema_version: 1,
+    content_type: "gesture",
+    content_id: "builtin:gesture:pop-wave",
+    version: 1,
+    name: "Pop Wave",
+    semantic_key: "pop_wave",
+    implementation: { kind: "anima_clip", file_role: "sequence" },
+    dependencies: [
+      {
+        ref: `builtin:sound-effect:${SOUND_KEY}`,
+        alias: "pop",
+        content_type: "sound_effect",
+        optional: true,
+        config: {},
+      },
+    ],
+    files: [{ path: "pop-wave.json", role: "sequence" }],
+  });
+  const pack = path.join(dir, "pack/sfx/wow-comedy");
+  await mkdir(pack, { recursive: true });
+  await writeFile(path.join(pack, `${SOUND_KEY}.wav`), tone());
+  await writeJson(path.join(pack, `${SOUND_KEY}.meta.json`), {
+    content_type: "sound_effect",
+    content_id: `builtin:sound-effect:${SOUND_KEY}`,
+    name: "Fixture Pop",
+    files: [{ path: `${SOUND_KEY}.wav` }],
+  });
+  tune = await startTuneServer({
+    contentRoot: content,
+    soundRoots: [path.join(dir, "pack")],
+  });
+  browser = await chromium.launch({
+    headless: true,
+    args: [
+      "--use-angle=swiftshader",
+      "--enable-unsafe-swiftshader",
+      "--autoplay-policy=no-user-gesture-required",
+    ],
+  });
+});
+after(async () => {
+  await browser?.close();
+  await tune?.close();
+  if (dir) await rm(dir, { recursive: true, force: true });
+});
+
+test("lists content, auditions a sound and previews a Gesture with its sound", async () => {
+  const page = await browser.newPage({
+    viewport: { width: 1280, height: 800 },
+  });
+  page.setDefaultTimeout(90_000);
+  const errors = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error") errors.push(message.text());
+  });
+  await page.goto(tune.url);
+  await page.getByText("2 Gestures · 1 Reactions").waitFor();
+
+  // The ladder places the Reaction in its cell.
+  await page.getByRole("tab", { name: "Reaction ladder" }).click();
+  await page.getByRole("row", { name: /^joy/i }).getByRole("button").click();
+  await page.getByRole("heading", { name: "Joy Reaction 2" }).waitFor();
+
+  // The pack's sound is listed as shipped and can be auditioned.
+  await page.getByRole("tab", { name: "Sounds" }).click();
+  const audition = page.waitForRequest(`**/__tune/sound/${SOUND_KEY}`);
+  await page.getByRole("button", { name: "Play Fixture Pop" }).click();
+  await audition;
+  const row = page.locator("li", { hasText: "Fixture Pop" });
+  assert.equal(await row.getByText("In pack").count(), 1);
+  // Manifest sounds with no local audio are listed but can't be played.
+  assert.equal(
+    await page
+      .getByRole("tabpanel")
+      .locator("li button:not([disabled])")
+      .count(),
+    1,
+  );
+
+  // Previewing the Gesture plays its sfx event's sound.
+  await page.getByRole("tab", { name: "Gestures" }).click();
+  await page.getByRole("button", { name: /Pop Wave/ }).click();
+  assert.equal(
+    await page.getByRole("cell", { name: "Fixture Pop" }).count(),
+    1,
+  );
+  const played = page.waitForRequest(`**/__tune/sound/${SOUND_KEY}`);
+  await page.getByRole("button", { name: "Play", exact: true }).click();
+  await played;
+  assert.deepEqual(errors, []);
+  await page.close();
+});
+
+test("serves only listed sounds, resolves only Included effects and reports broken items", async () => {
+  for (const key of ["unknown_01", "..%2F..%2Fpackage.json", "%2Fetc%2Fpasswd"])
+    assert.equal(
+      (await fetch(`${tune.origin}/__tune/sound/${key}`)).status,
+      404,
+    );
+  const media = await fetch(`${tune.origin}/__tune/media`, {
+    method: "POST",
+    headers: { origin: tune.origin, "content-type": "application/json" },
+    body: JSON.stringify({
+      dependencies: [
+        {
+          alias: "x",
+          ref: "../../../package.json",
+          content_type: "avatar_effect",
+        },
+      ],
+    }),
+  });
+  const body = await media.json();
+  assert.equal(media.status, 200);
+  assert.deepEqual(body.clipMedia.avatarEffects, []);
+  assert.equal(body.notices.length, 1);
+  // A broken item is named instead of failing the page.
+  const broken = path.join(dir, "content/included/reactions/broken-1");
+  await mkdir(broken, { recursive: true });
+  await writeFile(path.join(broken, "broken-1.meta.json"), "{ nope");
+  try {
+    const state = await (await fetch(`${tune.origin}/__tune/state`)).json();
+    assert.equal(state.reactions.length, 1);
+    assert.match(state.problems[0], /broken-1\.meta\.json/);
+  } finally {
+    await rm(broken, { recursive: true, force: true });
+  }
+});
+
+test("refuses requests from other origins", async () => {
+  const response = await fetch(`${tune.origin}/__tune/state`, {
+    headers: { origin: "http://example.test" },
+  });
+  assert.equal(response.status, 403);
+  const media = await fetch(`${tune.origin}/__tune/media`, {
+    method: "POST",
+    body: JSON.stringify({ dependencies: [] }),
+  });
+  // A write without our Origin header is refused too.
+  assert.equal(media.status, 403);
+  // So is another site's subresource request, which carries no Origin.
+  const audio = await fetch(`${tune.origin}/__tune/sound/${SOUND_KEY}`, {
+    headers: { "sec-fetch-site": "cross-site" },
+  });
+  assert.equal(audio.status, 403);
+});
+
+/** Accept the page's confirmation dialogs (Save all). */
+function acceptDialogs(page) {
+  page.on("dialog", (dialog) => void dialog.accept());
+}
+
+test("applies a Reaction's expression and sound, then saves them all", async () => {
+  const folder = path.join(dir, "content/included/reactions/joy-2");
+  const page = await browser.newPage({
+    viewport: { width: 1400, height: 900 },
+  });
+  page.setDefaultTimeout(90_000);
+  acceptDialogs(page);
+  await page.goto(tune.url);
+  await page.getByRole("tab", { name: "Reaction ladder" }).click();
+  await page.getByRole("row", { name: /^joy/i }).getByRole("button").click();
+  await page.getByRole("heading", { name: /Joy Reaction 2/ }).waitFor();
+
+  await page.getByLabel("happy peak value").fill("0.4");
+  await page.getByRole("button", { name: "+ Sound" }).click();
+  await page.getByPlaceholder("Search sounds").fill("Fixture");
+  await page.getByRole("button", { name: /^Fixture Pop/ }).click();
+  await page.getByText("(edited, not applied)").waitFor();
+  const before = await readFile(path.join(folder, "joy-2.json"), "utf8");
+  // Apply keeps the edit in the page: no write, no reload of the editor.
+  await page.evaluate(() => {
+    window.__stage = document.querySelector("#review-stage");
+  });
+  await page.getByRole("button", { name: "Apply", exact: true }).click();
+  await page.getByText("(applied, not saved)").waitFor();
+  await page.getByText("1 applied, not saved").waitFor();
+  assert.equal(
+    await page.evaluate(
+      () => window.__stage === document.querySelector("#review-stage"),
+    ),
+    true,
+  );
+  assert.equal(await readFile(path.join(folder, "joy-2.json"), "utf8"), before);
+  // Applied edits survive leaving the item and reloading the page.
+  await page.getByRole("tab", { name: "Gestures" }).click();
+  await page.getByRole("button", { name: /Pop Wave/ }).click();
+  await page.reload();
+  await page.getByText("1 applied, not saved").waitFor();
+  await page.getByRole("tab", { name: "Reaction ladder" }).click();
+  await page.getByRole("row", { name: /^joy/i }).getByRole("button").click();
+  await page.getByText("(applied, not saved)").waitFor();
+
+  await page.getByRole("button", { name: "Save all" }).click();
+  await page.getByText("Saved 1 item(s): joy-2.").waitFor();
+
+  const clip = JSON.parse(
+    await readFile(path.join(folder, "joy-2.json"), "utf8"),
+  );
+  const meta = JSON.parse(
+    await readFile(path.join(folder, "joy-2.meta.json"), "utf8"),
+  );
+  assert.equal(clip.expressions.happy[0].v, 0.4);
+  const sound = clip.events.find((event) => event.kind === "sfx");
+  assert.ok(sound);
+  assert.deepEqual(
+    meta.dependencies.find((edge) => edge.alias === sound.cueId),
+    {
+      ref: `builtin:sound-effect:${SOUND_KEY}`,
+      alias: sound.cueId,
+      content_type: "sound_effect",
+      config: {},
+      optional: true,
+    },
+  );
+  // Saved: nothing applied or edited any more, and the pack check agrees.
+  assert.equal(await page.getByText("(applied, not saved)").count(), 0);
+  assert.equal(await page.getByText("applied, not saved").count(), 0);
+
+  // Editing the same open item again applies and saves from the new file,
+  // not as an out-of-date edit.
+  await page.getByLabel("happy peak value").fill("0.45");
+  await page.getByRole("button", { name: "Apply", exact: true }).click();
+  assert.equal(await page.getByText("out of date").count(), 0);
+  const second = page.waitForResponse("**/__tune/save");
+  await page.getByRole("button", { name: "Save all" }).click();
+  assert.equal((await second).status(), 200);
+  assert.equal(
+    JSON.parse(await readFile(path.join(folder, "joy-2.json"), "utf8"))
+      .expressions.happy[0].v,
+    0.45,
+  );
+  // The saved sound is in the pack, so the pack check doesn't list it. (The
+  // fixture copies live Included files, which may hold other edits.)
+  const pending = await (await fetch(`${tune.origin}/__tune/pending`)).json();
+  assert.equal(
+    pending.additions.includes(`builtin:sound-effect:${SOUND_KEY}`),
+    false,
+  );
+  // The page shows what the pack still needs: most manifest sounds are
+  // played by nothing in the fixture, so they would be removed.
+  await page.getByText(/Pack changes needed: \d+ to add/).waitFor();
+  await page.close();
+});
+
+test("places an Avatar Effect for one use and saves its override", async () => {
+  const folder = path.join(dir, "content/included/reactions/joy-2");
+  const page = await browser.newPage({
+    viewport: { width: 1400, height: 900 },
+  });
+  page.setDefaultTimeout(90_000);
+  acceptDialogs(page);
+  await page.goto(tune.url);
+  await page.getByRole("tab", { name: "Reaction ladder" }).click();
+  await page.getByRole("row", { name: /^joy/i }).getByRole("button").click();
+  await page.getByRole("button", { name: "Place" }).click();
+  const size = page.getByRole("spinbutton", { name: "Size (cm)" });
+  await size.fill("8");
+  await size.blur();
+  await page.getByText("placed").waitFor();
+  await page.getByRole("button", { name: "Apply", exact: true }).click();
+  await page.getByRole("button", { name: "Save all" }).click();
+  await page.getByText("Saved 1 item(s): joy-2.").waitFor();
+  const clip = JSON.parse(
+    await readFile(path.join(folder, "joy-2.json"), "utf8"),
+  );
+  const placed = clip.events.find((event) => event.kind === "avatar_vfx");
+  assert.ok(placed.override?.attachment, JSON.stringify(placed));
+  await page.close();
+});
+
+test("changes an Avatar Effect's own sound and saves it", async () => {
+  const descriptor = path.join(
+    dir,
+    "content/included/vfx/avatar/kira_star/kira_star.json",
+  );
+  const page = await browser.newPage({
+    viewport: { width: 1400, height: 900 },
+  });
+  page.setDefaultTimeout(90_000);
+  acceptDialogs(page);
+  await page.goto(tune.url);
+  await page.getByRole("tab", { name: "Reaction ladder" }).click();
+  await page.getByRole("row", { name: /^joy/i }).getByRole("button").click();
+  await page.getByRole("button", { name: /^effect sound:/ }).click();
+  await page.getByPlaceholder("Search sounds").fill("Fixture");
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: /^Fixture Pop/ })
+    .click();
+  await page.getByText("1 applied, not saved").waitFor();
+  const before = await readFile(descriptor, "utf8");
+  await page.getByRole("button", { name: "Save all" }).click();
+  await page.getByText(/Saved 1 effect sound\(s\): kira_star\./).waitFor();
+  const written = JSON.parse(await readFile(descriptor, "utf8"));
+  const { soundAlias } = written.definition;
+  assert.notEqual(await readFile(descriptor, "utf8"), before);
+  assert.deepEqual(
+    written.dependencies.find((edge) => edge.alias === soundAlias),
+    {
+      ref: `builtin:sound-effect:${SOUND_KEY}`,
+      content_type: "sound_effect",
+      alias: soundAlias,
+      optional: true,
+    },
+  );
+  await page.close();
+});
+
+test("applies proposals once as drafts for review", async () => {
+  const proposalsFile = path.join(dir, "proposals.json");
+  await writeJson(proposalsFile, {
+    items: {
+      "builtin:gesture:pop-wave": {
+        note: "A second pop on the wave.",
+        add: [
+          {
+            time: 0.6,
+            sound: `builtin:sound-effect:${SOUND_KEY}`,
+            volume: 0.5,
+          },
+        ],
+      },
+      "builtin:gesture:no-such-gesture": { note: "Gone.", add: [] },
+    },
+    effects: {
+      "builtin:avatar-effect:kira_star": {
+        // An earlier test gave it the fixture sound; propose silence.
+        note: "Quiet the star.",
+        sound: null,
+      },
+    },
+  });
+  const clipFile = path.join(
+    dir,
+    "content/included/gestures/pop-wave/pop-wave.json",
+  );
+  const before = await readFile(clipFile, "utf8");
+  // Its own server (and so origin and storage), reading the proposals.
+  const proposing = await startTuneServer({
+    contentRoot: path.join(dir, "content/included"),
+    soundRoots: [path.join(dir, "pack")],
+    proposalsFile,
+  });
+  const page = await browser.newPage({
+    viewport: { width: 1400, height: 900 },
+  });
+  try {
+    page.setDefaultTimeout(90_000);
+    acceptDialogs(page);
+    await page.goto(proposing.url);
+    await page.getByText("2 applied, not saved").waitFor();
+    await page.getByText(/Proposed effect sound, Kira Star/).waitFor();
+    await page.getByText(/Quiet the star\./).waitFor();
+    await page
+      .getByText(/Proposal not applied: builtin:gesture:no-such-gesture/)
+      .waitFor();
+    await page.getByRole("button", { name: /Pop Wave/ }).click();
+    await page.getByText("(applied, not saved)", { exact: true }).waitFor();
+    await page.getByText("A second pop on the wave.").waitFor();
+    // A proposal is only a draft: nothing is written.
+    assert.equal(await readFile(clipFile, "utf8"), before);
+
+    // A discarded proposal stays discarded after a reload.
+    await page.getByRole("button", { name: "Discard applied" }).click();
+    await page.getByText("1 applied, not saved").waitFor();
+    await page.reload();
+    await page.getByRole("button", { name: /Pop Wave/ }).click();
+    await page.getByText("A second pop on the wave.").waitFor();
+    await page.getByText("1 applied, not saved").waitFor();
+  } finally {
+    await page.close();
+    await proposing.close();
+  }
+});

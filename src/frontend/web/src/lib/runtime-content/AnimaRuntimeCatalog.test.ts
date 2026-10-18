@@ -871,6 +871,46 @@ describe("AnimaRuntimeCatalog", () => {
     );
   });
 
+  it("plays an Action silently without a sound this build doesn't install", async () => {
+    const reaction = runtimeEntry({
+      slot: "reaction",
+      runtimeId: "wave-pop",
+      kind: "anima_pose_clip",
+      config: {
+        runtime_reference_map: { ding: "opaque-sfx" },
+        runtime_missing_references: { pop: "builtin:sound-effect:pop" },
+      },
+    });
+    const sfx = runtimeEntry({
+      slot: "sfx",
+      runtimeId: "opaque-sfx",
+      kind: "audio",
+      role: "audio",
+    });
+    const payload = poseClip({
+      events: [
+        { id: "pop", time: 0.2, kind: "sfx", cueId: "pop", volume: 0.8 },
+        { id: "ding", time: 0.5, kind: "sfx", cueId: "ding" },
+      ],
+    });
+    const catalog = new AnimaRuntimeCatalog(
+      runtimeContent({ reactions: [reaction], sfx: [sfx] }),
+      {
+        fetcher: async (input) =>
+          authorizedSource(input)
+            ? new Response(JSON.stringify(payload), { status: 200 })
+            : authorizedDownload(String(input)),
+      },
+    );
+
+    const played = await catalog.loadReactionClip("wave-pop");
+    expect(played?.events).toEqual([
+      expect.objectContaining({ kind: "sfx", cueId: "opaque-sfx" }),
+    ]);
+    // An optional pack sound left out of a build is expected, not a fault.
+    expect(catalog.diagnostics).toEqual([]);
+  });
+
   it("keeps missing effect references playable only for an isolated Library preview", async () => {
     const clipEntry = runtimeEntry({
       slot: "pose",

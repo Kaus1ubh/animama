@@ -8,6 +8,7 @@ import {
   includedActionDependencies,
   includedContentTypes,
   listIncludedMetas,
+  packSoundRefs,
 } from "./included-dependencies.mjs";
 
 /**
@@ -475,16 +476,11 @@ export async function planEffectPromotion(
     if (text === null) throw new EffectPromoteError(`${relative} is missing.`);
     return JSON.parse(text);
   };
-  let soundKeys = null;
-  /** Sound keys in the tracked comedy pack manifest (read when first needed). */
+  let soundRefs = null;
+  /** Sound IDs in the tracked comedy pack manifest (read when first needed). */
   const packSounds = () => {
-    soundKeys ??= new Set(
-      (readJson(EFFECT_PROMOTE_PATHS.soundManifest).files ?? [])
-        .map((file) => file.path)
-        .filter((file) => file.endsWith(".ogg"))
-        .map((file) => path.posix.basename(file, ".ogg")),
-    );
-    return soundKeys;
+    soundRefs ??= packSoundRefs(readJson(EFFECT_PROMOTE_PATHS.soundManifest));
+    return soundRefs;
   };
   /**
    * The licensed sound edges an Avatar Effect add or replace writes, and the
@@ -508,7 +504,7 @@ export async function planEffectPromotion(
         alias: edges.length ? (original.definition?.soundAlias ?? null) : null,
       };
     }
-    if (!packSounds().has(item.sound))
+    if (!packSounds().has(`builtin:sound-effect:${item.sound}`))
       throw new EffectPromoteError(
         `${item.stem}: "${item.sound}" is not a sound in the tracked comedy pack manifest.`,
       );
@@ -701,6 +697,7 @@ export async function planEffectPromotion(
         validateClip,
         includedTypes,
         promotedRefs,
+        packSounds: packSounds(),
       });
       // An unchanged clip keeps its file as it is; a changed one keeps its
       // form (compact, or indented in the repository's style).
@@ -1106,7 +1103,7 @@ const REACTION_AI_DESCRIPTION = "Reusable avatar reaction clip";
 function planAction(
   item,
   kind,
-  { repo, validateClip, includedTypes, promotedRefs },
+  { repo, validateClip, includedTypes, promotedRefs, packSounds },
 ) {
   const fail = (message) => {
     throw new EffectPromoteError(`${item.stem}: ${message}`);
@@ -1170,7 +1167,7 @@ function planAction(
     dependencies = includedActionDependencies(
       project.dependencies,
       clip.events,
-      { includedTypes, promotedRefs },
+      { includedTypes, promotedRefs, packSounds },
     );
   } catch (error) {
     fail(error.message);

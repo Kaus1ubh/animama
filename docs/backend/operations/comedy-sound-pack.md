@@ -1,7 +1,7 @@
 # Comedy sound pack
 
-Desktop and hosted builds give built-in Avatar Effects their sounds from WOW
-Sound's Anime Comedy Sound Effects Pack, licensed by the owner under the Media
+Desktop and hosted builds give built-in Avatar Effects, Gestures and Reactions
+their sounds from WOW Sound's Anime Comedy Sound Effects Pack, licensed by the owner under the Media
 tier (formerly Rare). The sounds are a second **non-portable** private Included
 source, `wow-comedy-sfx`, handled like the
 [Mixamo-motion pack](mixamo-motion-pack.md): never in Git, Docker build contexts,
@@ -9,7 +9,7 @@ self-host images or the public package set. See
 [ADR 0022](../../adr/0022-optional-licensed-effect-sounds.md) and
 [issue #399](https://github.com/raymond-van/animama/issues/399).
 
-## How effects use the sounds
+## How built-in content uses the sounds
 
 A built-in effect descriptor under `content/included/vfx/avatar/` declares its
 sounds as optional edges and names the one it plays by default in
@@ -25,14 +25,42 @@ owner chose to keep quiet (for example one used only by idles) has none:
 ]
 ```
 
+A built-in Gesture or Reaction can also play a pack sound directly, from an
+`sfx` clip event whose `cueId` names an optional `sound_effect` edge in its
+`.meta.json`:
+
+```json
+{"id": "pop", "time": 0.2, "kind": "sfx", "cueId": "pop", "volume": 0.8}
+```
+
+```json
+"dependencies": [
+  {"ref": "builtin:sound-effect:bubble_pop_01", "content_type": "sound_effect",
+   "alias": "pop", "optional": true, "config": {}}
+]
+```
+
+`pnpm -s animation promote` and `pnpm -s effects promote` accept such an edge
+only for a sound in the tracked pack manifest, and write the edges they add
+as optional. A replace keeps the item's existing edges, so a hand-written
+required pack edge is caught by the Included-content integrity test.
+
 Where the pack isn't mounted (self-host, public source, a desktop build without
 the input), the Included scan drops those edges and the alias, and the effect
-plays silently, as does an event that picks one of the dropped sounds. Where several effects start together in a Reaction, only one plays its
+plays silently, as does an event that picks one of the dropped sounds. A
+Gesture or Reaction stays valid and offered in chat: the scan records the
+dropped alias in the item's provenance (`optional_omitted`), the runtime
+projection reports it in `missing_references`, and the player skips just that
+`sfx` event. Where several effects start together in a Reaction, only one plays its
 sound; the others set `playAccompanyingSound: false` on their clip events.
-`tests/test_included_content_integrity.py` enforces both rules.
+Audible effect events and `sfx` events in one clip start at least 0.3 s apart.
+`tests/test_included_content_integrity.py` enforces these rules and requires
+every built-in pack-sound edge to be optional.
 
 Licensed sounds never appear in the Library or creator pickers, can't be used
-by Local content, and are left out of exports.
+by Local content, and are left out of exports and customized copies. An
+exported or customized Gesture or Reaction loses the `sfx` events that play
+them.
 
 ## What is tracked
 
@@ -87,10 +115,10 @@ new tracked manifest.
 1. Copy the chosen vendor files into `build-inputs/wow-comedy-sfx/sfx/wow-comedy/`
    under their keys, with sidecars, and add each sound's record to
    `build-inputs/wow-comedy-sfx.private.json`.
-2. Point the effect's optional edge at the new key.
+2. Point the effect's, Gesture's or Reaction's optional edge at the new key.
 3. Print a manifest with a new version, then run `scan --git`, `verify`,
    `publish --confirm` and commit the manifest with the descriptor change.
-   Only sounds that built-in effects use belong in the pack, so making an
+   Only sounds that built-in content uses belong in the pack, so making an
    effect silent (`"sound": null` on promote) can also need a new pack
    version without its sound.
 
