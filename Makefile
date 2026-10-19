@@ -3,17 +3,21 @@ SHELL := /bin/bash
 
 .PHONY: help sync test test-q test-v test-cov test-live test-live-v test-full lint mypy format format-check check audit-typed-content check-test check-ci
 
+# pytest-xdist workers for test, test-q and check-test; 0 runs in-process.
+# Workers share one PostgreSQL container, each with its own database.
+PYTEST_WORKERS ?= 2
+
 help: ## Show backend tasks (frontend tasks use pnpm in src/frontend).
 	@awk 'BEGIN {FS = ":.*## "} /^[a-z-]+:.*## / {printf "  %-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 sync: ## Install backend development dependencies and supported local extras.
 	uv sync --extra voice --extra viz --extra realtime --extra encrypt --all-packages --group dev
 
-test: ## Run offline backend tests; database tests use disposable containers.
-	uv run pytest
+test: ## Run offline backend tests in PYTEST_WORKERS xdist workers (default 2).
+	uv run pytest -n $(PYTEST_WORKERS)
 
 test-q: ## Run offline backend tests with concise output.
-	uv run pytest -q
+	uv run pytest -q -n $(PYTEST_WORKERS)
 
 test-v: ## Run offline backend tests with verbose output.
 	uv run pytest -vv

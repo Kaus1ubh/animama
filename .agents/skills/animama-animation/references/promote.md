@@ -189,8 +189,8 @@ no change and are refused).
    expectations in `tests/test_starter_idle_pool.py` and
    `tests/test_anima_starters.py` with it.
 3. Run the backend Included-content tests (full `uv run pytest -q`
-   preferred), `pnpm check`, `pnpm web:lint`, `pnpm web:test`, `pnpm build`,
-   and the desktop runtime stage and audit.
+   preferred), `pnpm verify`, `pnpm web:test:browser`, and the desktop runtime
+   stage and audit.
 4. In the PR, record the owner's approvals and the licence wording. Installed
    apps rehash a replaced item at startup (same logical ID, new revision);
    Local copies stay independent, and the owner may delete them once the

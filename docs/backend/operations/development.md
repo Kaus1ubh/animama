@@ -537,7 +537,11 @@ or failure; normal client generation should use that wrapper.
 ## Tests
 
 Backend tests live in `tests/`. The test suite uses pytest and testcontainers
-for PostgreSQL/pgvector.
+for PostgreSQL/pgvector. A serial run starts its own container. Under
+pytest-xdist the controller starts one container, removed when it exits, and
+gives each worker its own empty database (`test_gw0`, `test_gw1`, ...).
+`make test`, `make test-q` and `make check-test` use `PYTEST_WORKERS` workers
+(default 2); `PYTEST_WORKERS=0` runs in-process.
 
 Ordinary pytest does not load `.env`. Offline fixtures use a dummy provider key
 and a temporary private data root; Included-content checks still read the
@@ -729,8 +733,8 @@ in its own process with a 20-minute bound and writes its own result row. The
 files run one at a time: on the two-vCPU runner, two concurrent lanes doubled
 each file's time and timed out a preview. The runner keeps a lane table for a
 larger runner. The gate checks that the files that ran match the selected
-groups. Locally, `pnpm --filter animama-web test:source` still runs every file,
-one at a time.
+groups. Locally, `pnpm web:test:browser` and `pnpm ci:source` run every file,
+one at a time; `pnpm web:test` and `pnpm verify` run none.
 
 ### Path-routed profiles
 
@@ -852,6 +856,9 @@ store through `ANIMAMA_MODEL_ROOT`; the `full` profile also acquires the
 baseline's own pinned browser speech set there (`build.py models`) before
 building that baseline. The backend profile does not acquire models.
 Provider calls remain disabled. Retain invocation, command logs and results.
+The container is limited to `min(4, Docker CPUs)` CPUs and 8 GB of memory;
+`ANIMAMA_LOCAL_VALIDATE_CPUS` and `ANIMAMA_LOCAL_VALIDATE_MEMORY` (a Docker size
+such as `12g`) override them. Raise the memory if a check is killed with exit 137.
 
 A successful run writes `receipt-comment.md` and `receipt-sha256.txt` beside the
 receipt. The receipt binds commit/tree, baseline, environment, commands, outcomes,
@@ -897,7 +904,8 @@ hosted steps. `UV_NO_SYNC=1` prevents re-resolution after the frozen install.
 Missing fixtures remain failures, not automatic skips. The hosted backend suite
 runs with two pytest-xdist workers (`pytest -n 2`), and the web unit step sets
 `VITEST_MAX_WORKERS=2` (Vitest otherwise uses one worker on the two-vCPU
-runner). `make check-test` and local `pnpm` commands keep their defaults. Full frontend validation
+runner). Locally, `make check-test` uses `PYTEST_WORKERS` (default 2) and
+Vitest uses three workers unless `CI` is set. Full frontend validation
 prepares shared packages once and invokes the individual source/harness/type/test/
 build commands; standalone developer commands still prepare their dependencies.
 `pnpm ci:source` remains a local convenience, not an opaque hosted CI step.
@@ -1659,6 +1667,10 @@ Core:
 - `ANIMAMA_LOCAL_BIND_HOST` and `ANIMAMA_LOCAL_API_PORT` (supported native
   FastAPI launcher only; Compose ignores them)
 - `ANIMAMA_LLM_SKIP`
+- `ANIMAMA_SERVER_CPUS`, `ANIMAMA_WEB_CPUS` (development Compose CPU caps for
+  `animama-server` and `web`, default 2 each so parallel stacks share the host;
+  `0` removes a cap, and a cap above the Docker daemon's CPU count stops the
+  container from starting)
 
 Models (connections, models and role assignments are managed in App Settings →
 Models; see [local model servers](local-models.md)):

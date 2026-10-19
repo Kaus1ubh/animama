@@ -21,6 +21,7 @@ test("full source plan prepares packages once before every consumer", () => {
     "e2e:check:source",
     "check:source",
     "test:source",
+    "test:browser:source",
     "build:source",
     "packages:check",
     "packages:test",
@@ -50,7 +51,7 @@ test("standalone wrappers prepare packages while internal leaves do not rebuild"
   const frontend = JSON.parse(
     await readFile(new URL("../package.json", import.meta.url), "utf8"),
   );
-  for (const script of ["check", "test", "build"]) {
+  for (const script of ["check", "test", "test:browser", "build"]) {
     assert.equal(
       web.scripts[script],
       `pnpm --dir .. packages:build && pnpm ${script}:source`,
@@ -65,6 +66,36 @@ test("standalone wrappers prepare packages while internal leaves do not rebuild"
     web.scripts["build:source"],
     "pnpm --dir .. poses:check && pnpm routes:generate && tsc -b && vite build",
   );
+});
+
+test("routine verify builds packages once, type-checks once and skips browser files", async () => {
+  const read = async (file) =>
+    JSON.parse(await readFile(new URL(file, import.meta.url), "utf8")).scripts;
+  const frontend = await read("../package.json");
+  const web = await read("../web/package.json");
+  const desktop = await read("../desktop/package.json");
+  assert.equal(frontend.verify, "pnpm packages:build && pnpm verify:source");
+  const steps = frontend["verify:source"].split(" && ");
+  assert.deepEqual(steps, [
+    "pnpm --filter animama-web check:source",
+    "pnpm --filter animama-desktop check:source",
+    "pnpm i18n:check",
+    "pnpm web:lint",
+    "pnpm --filter animama-web test:source",
+    "pnpm --filter animama-web bundle:source",
+  ]);
+  for (const leaf of [
+    web["check:source"],
+    desktop["check:source"],
+    web["test:source"],
+    web["bundle:source"],
+  ])
+    assert.ok(!/packages:build|contracts:build/.test(leaf), leaf);
+  assert.ok(web["check:source"].includes("tsc -b"));
+  assert.ok(!web["bundle:source"].includes("tsc"));
+  for (const script of ["test:source", "test:source:unit"])
+    assert.ok(!web[script].includes("browser.test"), script);
+  assert.ok(web["test:browser:source"].includes("scripts/*.browser.test.mjs"));
 });
 
 test("executes sequentially and records durations and success", async () => {

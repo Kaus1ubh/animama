@@ -130,6 +130,7 @@ jobs:
       - run: pnpm web:lint
       - run: pnpm exec playwright install chromium
       - run: pnpm web:test
+      - run: pnpm web:test:browser
       - run: pnpm desktop:test
       - name: Acquire exact reviewed model inputs before pack production
         working-directory: .

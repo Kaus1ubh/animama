@@ -171,10 +171,12 @@ and always disabled in embedded desktop. See [Local HTTP boundary](auth-server.m
 Run from `src/frontend`:
 
 - `pnpm web:dev`
+- `pnpm verify` (routine: packages once, types, i18n, lint, unit tests, bundle)
 - `pnpm web:check`
 - `pnpm check`
 - `pnpm web:lint`
 - `pnpm web:test`
+- `pnpm web:test:browser` (Vite + Chromium render files)
 - `pnpm web:build`
 - `pnpm verify:tts-assets`
 - `pnpm openapi-ts`

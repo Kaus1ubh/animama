@@ -359,15 +359,21 @@ uv run ruff check
 make check-test
 ```
 
+`make test` and `make check-test` run pytest with `PYTEST_WORKERS` xdist workers
+(default 2; 0 runs in-process). The workers share one PostgreSQL container, each
+with its own database.
+
 Frontend commands from `src/frontend`:
 
 ```bash
-pnpm check
-pnpm web:lint
-pnpm web:test
-pnpm build
-pnpm desktop:check
+pnpm verify
+pnpm web:test:browser
 ```
+
+`pnpm verify` covers `pnpm check`, `pnpm web:lint`, `pnpm web:test` and
+`pnpm build` with one package build and one `tsc -b`. The full pre-push suite
+runs both commands; while iterating, run the slower `pnpm web:test:browser` only
+for the changes listed in the [frontend guide](src/frontend/AGENTS.md#validation-checklist).
 
 Root/local-stack checks:
 

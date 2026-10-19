@@ -338,13 +338,22 @@ Run from `src/frontend`:
 - Local web dev/build/check/test commands build their package dependencies first.
   After changing package source during an active dev session, rerun the package
   build so Vite receives fresh artifacts.
-- Type-check web, packages and desktop: `pnpm check`
-- Lint web: `pnpm web:lint`
-- Test web: `pnpm web:test`
+- Routine check: `pnpm verify` builds packages once, then runs web and desktop
+  types, i18n, lint, web unit tests and a Vite bundle (one `tsc -b`). It covers
+  `pnpm check`, `pnpm web:lint`, `pnpm web:test` and `pnpm build` below.
+- Browser render tests: `pnpm web:test:browser` runs the Vite + Chromium
+  `web/scripts/*.browser.test.mjs` files one at a time; run it for rendering,
+  effect/animation tooling, setup downloads or hosted-screen changes.
+  `pnpm web:test` runs no browser files.
+- Full frontend source validation, as local validation runs it:
+  `pnpm ci:source --receipt /absolute/path/outside/the/repository.json`
+- Type-check web, packages and desktop, plus i18n: `pnpm check`
+- Lint web (cached in `web/node_modules/.cache/eslint`): `pnpm web:lint`
+- Test web: `pnpm web:test` (Vitest uses three workers outside CI; set
+  `VITEST_MAX_WORKERS` to change it)
 - Build web and packages: `pnpm build`
 - Check formatting: `pnpm prettier:check`
 - Verify TTS assets: `pnpm verify:tts-assets`
-- Check desktop only: `pnpm desktop:check`
 - Build desktop main/preload only: `pnpm desktop:build`
 
 Run `pnpm desktop:test` for supervisor/vault/IPC/packaging checks. Native package

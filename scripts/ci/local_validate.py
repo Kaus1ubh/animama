@@ -356,11 +356,20 @@ def main() -> int:
     # An empty build context cannot leak checkout bytes or local credentials.
     subprocess.run(build, check=True)
     image_id = capture(["docker", "image", "inspect", image, "--format", "{{.Id}}"], ROOT)
+    # Leave host capacity for other work. Docker rejects a CPU limit above its own
+    # CPU count; raise the memory limit if a check is killed (exit 137).
+    daemon_cpus = int(capture(["docker", "info", "--format", "{{.NCPU}}"], ROOT))
+    cpus = os.environ.get("ANIMAMA_LOCAL_VALIDATE_CPUS") or str(min(4, daemon_cpus))
+    memory = os.environ.get("ANIMAMA_LOCAL_VALIDATE_MEMORY") or "8g"
     command = [
         "docker",
         "run",
         "--rm",
         "--init",
+        "--cpus",
+        cpus,
+        "--memory",
+        memory,
         "--group-add",
         str(socket.stat().st_gid),
         "--add-host",

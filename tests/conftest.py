@@ -182,37 +182,76 @@ def set_runtime_credentials() -> Any:
     return install
 
 
-@pytest.fixture(scope="session")
-def pg_container() -> Iterator[PostgresContainer]:
-    """Session-scoped Postgres with pgvector image for full compatibility.
+# Under pytest-xdist the controller owns one container and each worker gets its own
+# database in it; see pytest_xdist_setupnodes. Serial runs start their own container.
+_SHARED_POSTGRES = pytest.StashKey["PostgresContainer | str"]()
+_WORKER_DATABASE_URL = "animama_postgres_url"
+_WORKER_DATABASE_ERROR = "animama_postgres_error"
 
-    We use the pgvector image so VECTOR columns work if pgvector type is available.
-    """
+
+def _start_postgres() -> PostgresContainer:
+    """Start Postgres from the pgvector image so VECTOR columns work."""
     container = PostgresContainer(image="pgvector/pgvector:pg16")
     container.start()
+    return container
+
+
+def _database_url(container: PostgresContainer, database: str | None = None) -> str:
+    """Async SQLAlchemy URL for ``database`` (default: the container's own) in ``container``."""
+    from sqlalchemy.engine import make_url
+
+    url = make_url(container.get_connection_url(driver="asyncpg"))
+    return url.set(database=database or url.database).render_as_string(hide_password=False)
+
+
+@pytest.hookimpl(optionalhook=True)
+def pytest_xdist_setupnodes(config: pytest.Config) -> None:
+    """Start the one container that every xdist worker shares.
+
+    Workers shut down independently as their queues empty, so only the
+    controller outlives them all. Testcontainers' reaper removes the container if
+    the controller is killed. A start failure errors every worker test that
+    needs the database, so tests without one still run.
+    """
     try:
-        yield container
-    finally:
-        container.stop()
+        container = _start_postgres()
+    except Exception as exc:  # Deferred to the workers' db_url fixture.
+        config.stash[_SHARED_POSTGRES] = f"Test PostgreSQL did not start: {type(exc).__name__}: {exc}"
+        return
+    config.add_cleanup(container.stop)
+    config.stash[_SHARED_POSTGRES] = container
+
+
+@pytest.hookimpl(optionalhook=True)
+def pytest_configure_node(node: Any) -> None:
+    """Give each worker a fresh database of its own in the shared container."""
+    import psycopg
+
+    shared = node.config.stash.get(_SHARED_POSTGRES, "Test PostgreSQL was not started for xdist workers")
+    if isinstance(shared, str):
+        node.workerinput[_WORKER_DATABASE_ERROR] = shared
+        return
+    # Worker IDs are unique within a run; a restarted worker gets a new one.
+    database = f"test_{node.workerinput['workerid']}"
+    with psycopg.connect(shared.get_connection_url(driver=None), autocommit=True) as connection:
+        connection.execute(f'CREATE DATABASE "{database}"')
+    node.workerinput[_WORKER_DATABASE_URL] = _database_url(shared, database)
 
 
 @pytest.fixture(scope="session")
-def db_url(pg_container: PostgresContainer) -> str:
-    """Async SQLAlchemy URL for the running container.
-
-    We derive from the sync URL and swap the driver.
-    """
-    from urllib.parse import urlparse
-
-    sync_url = pg_container.get_connection_url()
-    # Convert e.g. postgresql://user:pass@host:port/db -> postgresql+asyncpg://...
-    parsed = urlparse(sync_url)
-    username = parsed.username or "postgres"
-    password = parsed.password or "postgres"
-    host = parsed.hostname or pg_container.get_container_host_ip()
-    port = parsed.port or int(pg_container.get_exposed_port(5432))
-    db = (parsed.path or "/test").lstrip("/")
-    return f"postgresql+asyncpg://{username}:{password}@{host}:{port}/{db}"
+def db_url(request: pytest.FixtureRequest) -> Iterator[str]:
+    """Async SQLAlchemy URL of this process's empty test database."""
+    workerinput = getattr(request.config, "workerinput", None)
+    if workerinput is None:
+        container = _start_postgres()
+        try:
+            yield _database_url(container)
+        finally:
+            container.stop()
+        return
+    if _WORKER_DATABASE_ERROR in workerinput:
+        raise RuntimeError(workerinput[_WORKER_DATABASE_ERROR])
+    yield workerinput[_WORKER_DATABASE_URL]
 
 
 @pytest_asyncio.fixture(scope="session")

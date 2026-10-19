@@ -24,6 +24,7 @@ export function sourceCommands(e2eTests) {
     ["pnpm", "packages:test"],
     ["pnpm", "web:lint"],
     ["pnpm", "--filter", "animama-web", "test:source"],
+    ["pnpm", "--filter", "animama-web", "test:browser:source"],
     ["pnpm", "desktop:test"],
     ["pnpm", "--filter", "animama-web", "build:source"],
   ];

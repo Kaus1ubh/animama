@@ -74,7 +74,7 @@ Included IDs. Show the owner the dry-run list before writing.
 3. Run `uv run pytest -q tests/test_included_content_integrity.py
    tests/test_included_content_catalog.py tests/test_starter_content_closure.py
    scripts/public-release/test_prepare_source.py`, then from `src/frontend`
-   `pnpm check`, `pnpm web:lint`, `pnpm web:test` and `pnpm build`.
+   `pnpm verify` and `pnpm web:test:browser`.
 4. Do not change the starter loadout or equip anything unless asked.
 
 A Local Reaction or Gesture that still names a deleted Included Scene keeps

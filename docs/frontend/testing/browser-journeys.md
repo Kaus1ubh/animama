@@ -48,7 +48,7 @@ The runner filters out the real-avatar pose journey in the same spec.
 
 ## Current Automation Status
 
-Hosted composition fixtures run through `pnpm web:test`; they require neither
+Hosted composition fixtures run through `pnpm web:test:browser`; they require neither
 an installation bootstrap nor a Cloud checkout. To run the retained workflow
 HTTP fixture alone, first build the public packages, then run from `src/frontend`:
 
