@@ -7,8 +7,9 @@ import { includedActionDependencies } from "./included-dependencies.mjs";
  * functions over parsed values; the server reads and writes the files.
  */
 
-export const STARTER_IDLE_POOL =
-  "src/backend/animama/resources/starter-idle-pool.v1.json";
+/** The starter loadout policy; its `idle` section seeds each starter's Idle pool. */
+export const STARTER_LOADOUT =
+  "src/backend/animama/resources/starter-loadout.v1.json";
 /** Audible events in one clip start at least this far apart (seconds). */
 export const AUDIBLE_SPACING_SEC = 0.3;
 /** The event field naming the dependency alias each kind plays. */
@@ -21,7 +22,7 @@ const EVENT_ALIAS_FIELDS = {
 
 export class TuneSaveError extends Error {}
 
-/** Every Gesture key the starter Idle pool seed names (its idle members). */
+/** Every Gesture key the starter Idle pool seed (the loadout's `idle`) names. */
 export function starterIdleKeys(seed) {
   const cells = Object.values(seed?.cells ?? {}).flatMap((levels) =>
     Object.values(levels).flat(),

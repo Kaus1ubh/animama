@@ -10,7 +10,7 @@ import {
   loadTuneItem,
 } from "./content-tune-model.mjs";
 import {
-  STARTER_IDLE_POOL,
+  STARTER_LOADOUT,
   TuneSaveError,
   packChanges,
   planTuneSave,
@@ -87,7 +87,7 @@ async function replaceFiles(changes) {
 
 /**
  * The tuning server's writer. `repoRoot` holds the tracked pack manifest
- * and starter idle seed; `contentRoot` the Included content it edits, and
+ * and starter loadout (its Idle seed); `contentRoot` the Included content it edits, and
  * `effectsRoot` (default `contentRoot`) the one whose Avatar Effects' sounds
  * it changes.
  * `validateClip(clip)` returns `{ ok, issues }` (the app's 2.0 validator),
@@ -107,10 +107,18 @@ export function createTuneWriter({
   const readJson = async (relative) =>
     JSON.parse(await readFile(path.join(repoRoot, relative), "utf8"));
 
+  /** The loadout's Idle seed; without it no idle check could run. */
+  async function starterIdleSeed() {
+    const { idle } = await readJson(STARTER_LOADOUT);
+    if (!idle)
+      throw new TuneSaveError(`${STARTER_LOADOUT} has no idle section.`);
+    return idle;
+  }
+
   async function context() {
     return {
       shipped: packSoundRefs(await readJson(PACK_SOUND_MANIFEST)),
-      idleKeys: starterIdleKeys(await readJson(STARTER_IDLE_POOL)),
+      idleKeys: starterIdleKeys(await starterIdleSeed()),
     };
   }
 

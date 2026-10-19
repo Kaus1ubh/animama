@@ -1,13 +1,17 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import test from "node:test";
 
 import {
+  STARTER_LOADOUT,
   TuneSaveError,
   eventIssues,
   packChanges,
   planTuneSave,
   starterIdleKeys,
 } from "./content-tune-save.mjs";
+import { REPO_ROOT } from "./effect-render-sources.mjs";
 
 const POP = "builtin:sound-effect:bubble_pop_01";
 const DING = "builtin:sound-effect:ding_02";
@@ -229,6 +233,13 @@ test("reads the starter idle keys from the seed", () => {
     }),
     new Set(["builtin:gesture:a", "builtin:gesture:b"]),
   );
+});
+
+test("reads the starter idle keys from the tracked starter loadout", async () => {
+  const policy = JSON.parse(
+    await readFile(path.join(REPO_ROOT, STARTER_LOADOUT), "utf8"),
+  );
+  assert.ok(starterIdleKeys(policy.idle).size > 0);
 });
 
 test("reports the pack sounds content needs added or no longer uses", () => {
