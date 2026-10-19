@@ -52,13 +52,15 @@ facts instead of inventing them. Keep implementation choices consistent with the
 spec; material changes to behavior, scope or constraints require an owner decision.
 
 Organize phases around verifiable outcomes. Each phase names its requirements,
-issue, starting revision, intended changes, checks, completion criteria and any
-human, hardware, provider or release gate. Default to one branch and PR per plan
-in each affected repository and one issue per authorized implementation phase;
-human, hardware, provider and release gates stay in the plan and PR, not in
-separate issues. New phases may
-advance after their required checks and review pass within the authorized scope;
-preserve every explicit gate in an existing plan unless the owner changes it.
+[review tier](SDLC.md#review-tiers), starting revision, intended changes, checks,
+completion criteria and any human, hardware, provider or release gate. Default to
+one branch and PR per plan in each affected repository. The parent issue and the
+phase sections track phases; add a phase issue only where
+[artifact ownership](SDLC.md#artifact-ownership) calls for one. Human, hardware,
+provider and release gates stay in the plan and PR, not in separate issues. New
+phases may advance after their required checks and review pass within the
+authorized scope; preserve every explicit gate in an existing plan unless the
+owner changes it.
 
 At each stopping point, update progress, discoveries, decisions, validation and
 remaining work. Record exact source and commands with results and limitations.
@@ -67,11 +69,18 @@ applicable; never mark an unperformed check passed. Record phase commits using
 [the naming convention](SDLC.md#names-and-labels). Update current guidance when
 it becomes incomplete or misleading; the plan remains delivery history.
 
+Commit records with the work they describe: a phase's check record, findings and
+revisions go into its phase or repair commit, and the final integration review
+into the PR's last commit. Make a record-only commit only to preserve the record
+at a stopping point or handoff. The PR, not a later plan commit, carries the final
+candidate's full pre-push results.
+
 ## Independent review
 
 Follow [bounded code review](SDLC.md#bounded-code-review): one full initial review
-and at most two repair rounds per phase and final integration scope. Record
-`Code Review #1 Findings` with source, stable finding IDs, evidence and impact.
+and at most two repair rounds per reviewed phase and final integration scope, at
+the phase's tier. Give the reviewer the phase's [check record](SDLC.md#check-records).
+Record `Code Review #1 Findings` with source, stable finding IDs, evidence and impact.
 The implementing agent verifies each finding and records its disposition, reason,
 change and checks under `Code Review #1 Revisions`. No actionable findings is a
 valid result; optional preferences do not block completion.
@@ -79,7 +88,8 @@ valid result; optional preferences do not block completion.
 Subsequent reviews target accepted fixes and resulting regressions. Preserve the
 review count across resumption and migration. Stop automatic progression when
 supported blockers remain at the limit. Final integration review covers combined
-acceptance using still-valid phase evidence. Agent readiness does not replace
+acceptance and any light phases that skipped their own review, using still-valid
+phase evidence. Agent readiness does not replace
 owner acceptance or exact-candidate merge approval.
 
 ## Template
@@ -112,14 +122,17 @@ Authorized scope: <whole plan or selected phases>
 
 ### Phase 1: <Verifiable outcome>
 
-<Requirements, issue, starting source, dependencies and intended changes.>
+Review tier: <light | standard | high risk>, with the reason.
+
+<Requirements, issue if any, starting source, dependencies and intended changes.>
 <Steps, working directories, checks and expected observations.>
 <Recovery, completion criteria and explicit gates.>
+<Check record: command, working directory, result and Git tree for each check run.>
 <Results, limitations and phase commits as work proceeds.>
 
 #### Code Review #1 Findings
 
-<Reviewed source, checks, stable findings and supporting evidence.>
+<Reviewed source, reused and rerun checks, stable findings and supporting evidence.>
 
 #### Code Review #1 Revisions
 

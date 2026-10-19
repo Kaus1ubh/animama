@@ -119,12 +119,28 @@ git commit -m "$task_commit_subject"
 git rev-parse HEAD
 ```
 
-Commit after applicable validation and review pass. Record phase commits in the
-plan. Preserve published history; ordinary revisions use new commits.
+Commit after applicable validation and review pass, with the phase's plan records
+in the same commit. Record phase commits in the plan. Preserve published history;
+ordinary revisions use new commits.
+
+A check record names the Git tree a check ran against. For a clean commit use
+`git rev-parse HEAD^{tree}`. For uncommitted work, hash the working tree (tracked
+changes and unignored untracked files) through a temporary index, leaving the real
+index untouched; the result equals the tree of a commit containing exactly those changes:
+
+```bash
+task_index="$(mktemp -d)/index"
+GIT_INDEX_FILE="$task_index" git read-tree HEAD
+GIT_INDEX_FILE="$task_index" git add -A
+GIT_INDEX_FILE="$task_index" git write-tree
+rm -rf "$(dirname "$task_index")"
+```
 
 ## Open or update the PR
 
-Complete configured local checks before pushing. Write `task_pr_body` using the
+Run the configured full pre-push checks once on the final candidate before the push
+that opens or updates the PR for review; a push that starts no CI and presents
+nothing for review needs none. Write `task_pr_body` using the
 configured PR template, including one compact validated-revision/baseline reference
 with unique short SHAs linked to full commits, artifact links, review outcomes,
 actual local evidence and remaining gates. Refer back to that revision reference

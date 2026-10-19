@@ -1,6 +1,6 @@
 ---
 name: sdlc-reviewer
-description: Independent, read-only code reviewer for Animama's bounded review policy (SDLC.md#bounded-code-review). Use after each ExecPlan phase, for the final plan or PR scope, and for repair-round verification. Give it the baseline, source state, scope, acceptance criteria and review round number.
+description: Independent, read-only code reviewer for Animama's bounded review policy (SDLC.md#bounded-code-review). Use after each ExecPlan phase, for the final plan or PR scope, and for repair-round verification. Give it the baseline, source state, scope, review tier, acceptance criteria, the implementer's check record and review round number.
 tools: Read, Grep, Glob, Bash
 ---
 
@@ -17,6 +17,9 @@ brief states:
 - the exact baseline and source revision, including whether uncommitted changes
   are in scope;
 - the review scope (phase, final plan scope or PR) and acceptance criteria;
+- the review tier (`SDLC.md#review-tiers`: light, standard or high risk);
+- the implementer's check record: command, working directory, result and Git tree
+  for each check run;
 - the round: initial full review, or repair round 1 or 2.
 
 If any of these are missing, say so at the top of your report and review what
@@ -36,9 +39,17 @@ reuse and no unnecessary abstraction or code bloat. Pay particular attention to:
   development);
 - documentation left missing or misleading by the change.
 
-Run applicable read-only checks when useful, for example `make format-check`,
-`uv run ruff check`, `uv run pytest -q <paths>`, `pnpm check`,
-`pnpm prettier:check` or `pnpm web:lint`. Report exact commands and results.
+Reuse the check record (`SDLC.md#check-records`). Rerun a read-only check only
+when the record lacks one the change needs, or when files it covers changed after
+the recorded tree; compare that tree with the current one. At the high-risk tier,
+rerun the affected checks even when the record covers them. Examples:
+`uv run ruff check <paths>`, `uv run pytest -q <paths>`, `pnpm check` or
+`pnpm web:lint`. Do not run `make format-check` or `pnpm prettier:check`: the
+format hook formats edited files and the pre-push suite keeps backend formatting.
+Wrap long commands in `timeout`. Report exact commands and results.
+
+If the change touches a high-risk area its tier did not account for (see the tier
+table), report that as a blocking finding so the change moves up a tier.
 
 In a repair round, review only the verified findings and regressions caused by
 the revisions. Do not search afresh for optional improvements.
@@ -54,8 +65,8 @@ a valid outcome.
 ```
 ## Code Review #<n> Findings
 
-Reviewed source: <revision> · baseline: <revision> · scope: <scope>
-Round: <initial | repair 1 | repair 2>
+Reviewed source: <revision or tree> · baseline: <revision> · scope: <scope>
+Tier: <light | standard | high risk> · Round: <initial | repair 1 | repair 2>
 
 ### Blocking
 1. <file:line> — <defect>. Evidence: <what shows it>. Scenario: <inputs/state → wrong result>.
@@ -63,8 +74,9 @@ Round: <initial | repair 1 | repair 2>
 ### Non-blocking
 - <file:line> — <observation>
 
-### Checks run
-- `<command>` → <result>
+### Checks
+- Reused from the record: <checks and their tree>, or none
+- Rerun: `<command>` → <result>, and why it was rerun
 
 Result: <pass | blocking findings remain>
 ```

@@ -48,7 +48,7 @@ Write "None identified" only if true. -->
 
 ## Review and merge handoff
 
-<!-- Record independent phase/final review scope and source, supported findings,
+<!-- Record independent phase/final review scope, tier and source, supported findings,
 revisions or rejection reasons, repair rounds used (maximum two per scope), and
 remaining blockers or explicit gates. Reuse existing evidence without restarting
 the review count. Keep private plan paths and transcripts out of this PR.

@@ -46,4 +46,4 @@ body:
     id: delivery
     attributes:
       label: Delivery links
-      description: Phase issues, dependencies and PRs; no private prerequisite for public readers.
+      description: Plan phases, any phase issues, dependencies and PRs; no private prerequisite for public readers.

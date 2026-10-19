@@ -13,15 +13,20 @@ changes afterward require affected evidence to be refreshed.
 
 ## Delegate independent work
 
-Use available subagents for two bounded responsibilities: applicable read-only
-checks, and independent analysis against requirements and engineering standards.
-They may run concurrently when safe; add another specialist only for a concrete
-risk. Give them the source boundary, spec, relevant plan/standards and existing
-evidence without instructing them to find a minimum number of problems.
+Use the configured review tier; without configured tiers, use standard. Every tier
+uses one independent analysis subagent against requirements and engineering
+standards. Start checks from the implementer's check record (command, working
+directory, result and Git tree). Rerun only checks the record lacks, or whose
+covered files changed after its recorded tree, through a read-only checks subagent.
+At the high-risk tier, a checks subagent reruns the affected checks independently
+even when the record covers them. Subagents may run concurrently when safe; add
+another specialist only for a concrete risk. Give them the source boundary, tier,
+spec, relevant plan/standards and check record without instructing them to find a
+minimum number of problems.
 
-Checks use configured commands and working directories: relevant lint/type/format
-checks, tests or builds. Do not run autofix formatters or duplicate valid unchanged
-checks. Analysis covers observable behavior, failure/recovery paths, ownership,
+Checks use configured commands and working directories. Do not run autofix
+formatters, formatting checks that the configured edit hook already enforces, or
+valid unchanged checks. Analysis covers observable behavior, failure/recovery paths, ownership,
 security where relevant, architecture, useful reuse and unnecessary complexity.
 Reviewers remain read-only, return evidence and never implement their own findings.
 If delegation is unavailable, report that limitation; a self-review cannot be
@@ -49,6 +54,9 @@ by revisions; number Findings/Revisions consistently. Thus the default permits
 review #1, repair #1, review #2, repair #2, and final targeted review #3. Persist
 counts and dispositions across resumptions. Do not launch another broad audit to
 search for optional improvements or reopen resolved findings without new evidence.
+Below the high-risk tier, the coordinator may verify a trivial repair itself
+(wording, a link, a rename, or a one-line fix whose test it reruns) and record
+how, instead of a reviewer recheck.
 
 Pass only when required checks succeed, concrete blockers are resolved and all
 applicable gates are satisfied. Optional suggestions do not block. If blockers
@@ -56,6 +64,8 @@ remain at the budget limit, return them and stop automatic progression; the limi
 does not waive requirements. Tool failures and unrun checks remain explicit.
 
 Final integration mode checks cross-phase behavior and overall acceptance using
-valid phase evidence. It does not restart every completed phase review. Return
+valid phase evidence, and reviews light phases that skipped their own review. It
+does not restart every completed phase review, and it runs no checks unless source
+changed after the last full pre-push run. Return
 pass, blocked or incomplete with the reviewed source, evidence, dispositions,
 remaining repair budget and next action. The coordinator owns fixes and progression.
