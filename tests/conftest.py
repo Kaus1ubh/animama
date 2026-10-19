@@ -210,8 +210,8 @@ def pytest_xdist_setupnodes(config: pytest.Config) -> None:
 
     Workers shut down independently as their queues empty, so only the
     controller outlives them all. Testcontainers' reaper removes the container if
-    the controller is killed. A start failure is reported by the first worker
-    test that needs the database, so tests without one still run.
+    the controller is killed. A start failure errors every worker test that
+    needs the database, so tests without one still run.
     """
     try:
         container = _start_postgres()

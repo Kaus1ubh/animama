@@ -804,6 +804,9 @@ store through `ANIMAMA_MODEL_ROOT`; the `full` profile also acquires the
 baseline's own pinned browser speech set there (`build.py models`) before
 building that baseline. The backend profile does not acquire models.
 Provider calls remain disabled. Retain invocation, command logs and results.
+The container is limited to `min(4, Docker CPUs)` CPUs and 8 GB of memory;
+`ANIMAMA_LOCAL_VALIDATE_CPUS` and `ANIMAMA_LOCAL_VALIDATE_MEMORY` (a Docker size
+such as `12g`) override them. Raise the memory if a check is killed with exit 137.
 
 A successful run writes `receipt-comment.md` and `receipt-sha256.txt` beside the
 receipt. The receipt binds commit/tree, baseline, environment, commands, outcomes,
@@ -1612,6 +1615,10 @@ Core:
 - `ANIMAMA_LOCAL_BIND_HOST` and `ANIMAMA_LOCAL_API_PORT` (supported native
   FastAPI launcher only; Compose ignores them)
 - `ANIMAMA_LLM_SKIP`
+- `ANIMAMA_SERVER_CPUS`, `ANIMAMA_WEB_CPUS` (development Compose CPU caps for
+  `animama-server` and `web`, default 2 each so parallel stacks share the host;
+  `0` removes a cap, and a cap above the Docker daemon's CPU count stops the
+  container from starting)
 
 Models (connections, models and role assignments are managed in App Settings →
 Models; see [local model servers](local-models.md)):

@@ -4,6 +4,8 @@ services:
   animama-server:
     build:
       target: animama-server-development
+    # CPU caps let parallel development stacks share the host; 0 removes one.
+    cpus: ${ANIMAMA_SERVER_CPUS:-2}
     ports: !reset []
     environment:
       ANIMAMA_WEB_ROOT: ""
@@ -35,7 +37,6 @@ services:
     working_dir: /app
     user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
     restart: unless-stopped
-    # CPU cap so parallel local stacks share the host; 0 removes it.
     cpus: ${ANIMAMA_WEB_CPUS:-2}
     tmpfs:
       - /app/desktop/node_modules:uid=${HOST_UID:-1000},gid=${HOST_GID:-1000},mode=0775,exec

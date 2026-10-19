@@ -367,15 +367,10 @@ pnpm verify
 pnpm web:test:browser
 ```
 
-`pnpm verify` builds the packages once, then checks web and desktop types and
-i18n, lints, runs the web unit tests and bundles with Vite. It covers `pnpm
-check`, `pnpm web:lint`, `pnpm web:test` and `pnpm build` without repeating
-package builds or `tsc -b`. `pnpm web:test:browser` runs the Vite + Chromium
-files in `web/scripts/*.browser.test.mjs` one at a time (several minutes); run it
-for rendering, effect/animation tooling, setup downloads or hosted-screen
-changes. `pnpm ci:source` runs the full frontend source validation that local
-validation uses. Vitest uses three workers outside CI; set `VITEST_MAX_WORKERS`
-to change it.
+`pnpm verify` covers `pnpm check`, `pnpm web:lint`, `pnpm web:test` and
+`pnpm build` with one package build and one `tsc -b`. Run the slower
+`pnpm web:test:browser` for the changes listed in the
+[frontend guide](src/frontend/AGENTS.md#validation-checklist).
 
 Root/local-stack checks:
 
