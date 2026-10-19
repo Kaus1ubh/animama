@@ -31,8 +31,9 @@ Review depth follows a risk tier recorded for each phase:
   depth and adds an independent rerun of the affected checks. Any change matching
   a high-risk description is high risk.
 - **Standard:** other behavior changes get one analysis reviewer per scope.
-- **Light:** documentation, test-only and mechanical edits. A light phase may be
-  reviewed inside the final integration review instead of separately.
+- **Light:** documentation, test-only and mechanical edits, and small changes
+  inside one module that existing tests cover. A light phase may be reviewed
+  inside the final integration review instead of separately.
 
 Below high risk, the implementing agent verifies trivial repairs and records how,
 instead of starting a reviewer recheck.
@@ -43,7 +44,8 @@ leave formatting to the edit hook and the full pre-push suite.
 
 Phases run the checks their changes affect. The full pre-push suite runs once, on
 the final candidate after the final integration review and its repairs. Phase
-issues and record-only commits become optional.
+issues become optional, and record-only commits are limited to the final review
+and stopping points.
 
 The rest of ADR 0006 stays in force: bounded repair rounds, verified dispositions,
 explicit gates, exact-candidate merge approval and separate release authority.

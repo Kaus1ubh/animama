@@ -127,12 +127,13 @@ A check record names the Git tree a check ran against. For a clean commit use
 `git rev-parse HEAD^{tree}`. For uncommitted work, hash the working tree (tracked
 changes and unignored untracked files) through a copy of the index, leaving the
 real index untouched; the result equals the tree of a commit containing exactly
-those changes. Copying keeps the index's file stat data, so unchanged files are
-not rehashed:
+those changes. The copy keeps the index's file stat data, so unchanged files are
+not rehashed; `cp -p` keeps its modification time too, which Git needs to catch
+edits made in the same second as the last index write:
 
 ```bash
 task_index_dir="$(mktemp -d)"
-cp "$(git rev-parse --git-path index)" "$task_index_dir/index"
+cp -p "$(git rev-parse --git-path index)" "$task_index_dir/index"
 GIT_INDEX_FILE="$task_index_dir/index" git add -A
 GIT_INDEX_FILE="$task_index_dir/index" git write-tree
 rm "$task_index_dir/index" && rmdir "$task_index_dir"
@@ -141,8 +142,9 @@ rm "$task_index_dir/index" && rmdir "$task_index_dir"
 ## Open or update the PR
 
 Run the configured full pre-push checks once on the final candidate before the
-first push for review. Later pushes rerun the checks their changes affect; a push
-that starts no CI and presents nothing for review needs none. Write `task_pr_body` using the
+first push for review, and again before a later push for review that changes
+anything other than plan records, so the PR head is the checked tree. A push that
+starts no CI and presents nothing for review needs none. Write `task_pr_body` using the
 configured PR template, including one compact validated-revision/baseline reference
 with unique short SHAs linked to full commits, artifact links, review outcomes,
 actual local evidence and remaining gates. Refer back to that revision reference

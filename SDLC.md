@@ -268,8 +268,9 @@ only to the plan's own records leave other checks valid.
 Reviewers do not run formatting checks (`make format-check`, `pnpm prettier:check`).
 Claude Code's [format hook](.claude/hooks/format-edited-file.sh) formats Python and
 web/desktop TypeScript edited through its edit tools when the checkout has its
-dependencies installed. The full pre-push suite checks formatting for everything
-else: `make check-test` for Python and `pnpm prettier:check` for the frontend.
+dependencies installed. The full pre-push suite checks backend and test Python
+formatting (`make check-test`) and web/desktop formatting (`pnpm prettier:check`);
+other Python, such as `scripts/`, has no formatting check.
 
 ## CI and merge evidence
 
