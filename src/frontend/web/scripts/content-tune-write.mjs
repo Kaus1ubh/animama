@@ -10,7 +10,7 @@ import {
   loadTuneItem,
 } from "./content-tune-model.mjs";
 import {
-  STARTER_IDLE_POOL,
+  STARTER_LOADOUT,
   TuneSaveError,
   packChanges,
   planTuneSave,
@@ -87,9 +87,9 @@ async function replaceFiles(changes) {
 
 /**
  * The tuning server's writer. `repoRoot` holds the tracked pack manifest
- * and starter idle seed; `contentRoot` the Included content it edits, and
- * `effectsRoot` (default `contentRoot`) the one whose Avatar Effects' sounds
- * it changes.
+ * and starter loadout (its Idle seed); `contentRoot` the Included content it
+ * edits, and `effectsRoot` (default `contentRoot`) the one whose Avatar
+ * Effects' sounds it changes.
  * `validateClip(clip)` returns `{ ok, issues }` (the app's 2.0 validator),
  * `maxClipBytes` is the largest clip the app loads, `formatJson(value)`
  * formats a clip and `packSounds` lists every sound ID the page offers.
@@ -110,7 +110,7 @@ export function createTuneWriter({
   async function context() {
     return {
       shipped: packSoundRefs(await readJson(PACK_SOUND_MANIFEST)),
-      idleKeys: starterIdleKeys(await readJson(STARTER_IDLE_POOL)),
+      idleKeys: starterIdleKeys(await readJson(STARTER_LOADOUT)),
     };
   }
 

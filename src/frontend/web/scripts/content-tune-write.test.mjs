@@ -42,8 +42,10 @@ async function fixture(
     JSON.stringify({ files: [{ path: "sfx/wow-comedy/bubble_pop_01.ogg" }] }),
   );
   await write(
-    path.join(root, "src/backend/animama/resources/starter-idle-pool.v1.json"),
-    JSON.stringify({ default: ["builtin:gesture:idle-sway"], cells: {} }),
+    path.join(root, "src/backend/animama/resources/starter-loadout.v1.json"),
+    JSON.stringify({
+      idle: { default: ["builtin:gesture:idle-sway"], cells: {} },
+    }),
   );
   const contentRoot = path.join(root, "content/included");
   const folder = path.join(contentRoot, "reactions/joy-2");
