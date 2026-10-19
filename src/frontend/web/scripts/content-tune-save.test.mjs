@@ -225,21 +225,24 @@ test("refuses sounds closer than 0.3 s and sounds on starter idles", () => {
   );
 });
 
-test("reads the starter idle keys from the seed", () => {
+test("reads the starter idle keys from the loadout's seed", () => {
   assert.deepEqual(
     starterIdleKeys({
-      default: ["builtin:gesture:a"],
-      cells: { joy: { 1: ["builtin:gesture:b"], 2: ["builtin:gesture:a"] } },
+      idle: {
+        default: ["builtin:gesture:a"],
+        cells: { joy: { 1: ["builtin:gesture:b"], 2: ["builtin:gesture:a"] } },
+      },
     }),
     new Set(["builtin:gesture:a", "builtin:gesture:b"]),
   );
+  assert.throws(() => starterIdleKeys({ gestures: [] }), TuneSaveError);
 });
 
 test("reads the starter idle keys from the tracked starter loadout", async () => {
   const policy = JSON.parse(
     await readFile(path.join(REPO_ROOT, STARTER_LOADOUT), "utf8"),
   );
-  assert.ok(starterIdleKeys(policy.idle).size > 0);
+  assert.ok(starterIdleKeys(policy).size > 0);
 });
 
 test("reports the pack sounds content needs added or no longer uses", () => {

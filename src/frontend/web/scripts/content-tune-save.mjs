@@ -22,12 +22,17 @@ const EVENT_ALIAS_FIELDS = {
 
 export class TuneSaveError extends Error {}
 
-/** Every Gesture key the starter Idle pool seed (the loadout's `idle`) names. */
-export function starterIdleKeys(seed) {
-  const cells = Object.values(seed?.cells ?? {}).flatMap((levels) =>
+/**
+ * Every Gesture key the starter loadout's Idle seed (its `idle` section)
+ * names. Without the seed no idle check could run, so its absence is an error.
+ */
+export function starterIdleKeys(loadout) {
+  const seed = loadout?.idle;
+  if (!seed) throw new TuneSaveError(`${STARTER_LOADOUT} has no idle section.`);
+  const cells = Object.values(seed.cells ?? {}).flatMap((levels) =>
     Object.values(levels).flat(),
   );
-  return new Set([...(seed?.default ?? []), ...cells]);
+  return new Set([...(seed.default ?? []), ...cells]);
 }
 
 /** Whether an event plays a sound: an `sfx` event or an unmuted Avatar Effect. */
