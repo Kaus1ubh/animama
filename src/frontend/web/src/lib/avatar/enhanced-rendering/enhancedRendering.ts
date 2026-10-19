@@ -8,7 +8,8 @@ import { create } from "zustand";
  *   shadows, a crisper terminator, rim light and screen-space outlines;
  * - Avatar canvases use three-point lighting and Neutral tone mapping at a
  *   slightly higher exposure (`AvatarSceneLighting`);
- * - the chat canvas gets a soft colour grade and a glow around the Avatar.
+ * - the chat canvas gets a soft colour grade and a glow around the Avatar
+ *   that follows its backdrop (`backdropGlow.ts`).
  * Off restores the classic look: unmodified MToon, one key light and ACES.
  */
 
@@ -52,11 +53,3 @@ export function applyAvatarToneMapping(
     : THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = enhanced ? ENHANCED_TONE_MAPPING_EXPOSURE : 1;
 }
-
-/**
- * The chat canvas's CSS filter: slightly brighter, softer and less saturated,
- * with a soft white glow around the Avatar. A browser filter stands in for
- * colour grading and bloom, which the transparent canvas makes costly in WebGL.
- */
-export const ENHANCED_CHAT_CANVAS_FILTER =
-  "brightness(1.04) contrast(0.92) saturate(0.88) drop-shadow(0 0 6px rgba(255, 255, 255, 0.55))";

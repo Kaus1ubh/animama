@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useTheme } from "next-themes";
 
 import { runtimeImagePresentation } from "@/lib/runtime-content/animaRuntimeSnapshot";
@@ -23,11 +24,14 @@ export function StageBackgroundLayer({
   variant,
   boundImage = null,
   className,
+  onImageChange,
 }: {
   variant: StageBackgroundVariant;
   /** The Anima's bound Background image; chat only. */
   boundImage?: RuntimeCatalogEntry | null;
   className?: string;
+  /** Receives the URL of the image drawn, or null while none is drawn. */
+  onImageChange?: (src: string | null) => void;
 }) {
   const { effectivePreferences } = useSettings();
   const { resolvedTheme } = useTheme();
@@ -38,6 +42,16 @@ export function StageBackgroundLayer({
     variant,
     theme: resolvedTheme === "dark" ? "dark" : "light",
   });
+  const drawnSrc =
+    background.kind === "bound"
+      ? boundMedia.url
+      : background.kind === "app"
+        ? background.src
+        : null;
+
+  useEffect(() => {
+    onImageChange?.(drawnSrc);
+  }, [drawnSrc, onImageChange]);
 
   if (background.kind === "none") return null;
   // A bound image keeps the plain theme background while its bytes load

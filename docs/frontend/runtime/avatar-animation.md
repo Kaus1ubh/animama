@@ -1475,8 +1475,13 @@ preference into `useEnhancedRenderingStore`
 - **Lights and tone mapping:** `AvatarSceneLighting` gives the chat, preview
   and Create Anima canvases three-point lighting (`ENHANCED_SCENE_LIGHTS`) and
   Neutral tone mapping at exposure 1.1; classic keeps one key light and ACES.
-- **Chat canvas filter:** a CSS filter adds a soft colour grade and a white
-  glow around the Avatar, standing in for colour grading and bloom.
+- **Chat canvas filter:** a CSS filter adds a soft colour grade and a glow
+  around the Avatar, standing in for colour grading and bloom. The glow
+  follows the backdrop's average colour (`backdropGlow.ts`): white on light
+  stage images, a faint tint of the backdrop on dark ones, and none in a
+  transparent window or while an image is being sampled. It samples the stage
+  image, or the theme background (including Appearance colour overrides) when
+  no image is drawn, not Scene Effect backgrounds drawn over them.
 
 On an Apple M5 the enhanced look adds about 0.1–0.15 ms per frame over classic.
 Review renders and benchmarks use enhanced rendering unless given
