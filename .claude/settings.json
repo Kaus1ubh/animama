@@ -19,6 +19,8 @@
       "Bash(pnpm check)",
       "Bash(pnpm web:lint)",
       "Bash(pnpm web:test)",
+      "Bash(pnpm web:test:browser)",
+      "Bash(pnpm verify)",
       "Bash(pnpm prettier:check)",
       "Bash(pnpm e2e:check:source)",
       "Bash(pnpm exec tsc -b)",

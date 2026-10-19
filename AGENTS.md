@@ -356,15 +356,26 @@ uv run ruff check
 make check-test
 ```
 
+`make test` and `make check-test` run pytest with `PYTEST_WORKERS` xdist workers
+(default 2; 0 runs in-process). The workers share one PostgreSQL container, each
+with its own database.
+
 Frontend commands from `src/frontend`:
 
 ```bash
-pnpm check
-pnpm web:lint
-pnpm web:test
-pnpm build
-pnpm desktop:check
+pnpm verify
+pnpm web:test:browser
 ```
+
+`pnpm verify` builds the packages once, then checks web and desktop types and
+i18n, lints, runs the web unit tests and bundles with Vite. It covers `pnpm
+check`, `pnpm web:lint`, `pnpm web:test` and `pnpm build` without repeating
+package builds or `tsc -b`. `pnpm web:test:browser` runs the Vite + Chromium
+files in `web/scripts/*.browser.test.mjs` one at a time (several minutes); run it
+for rendering, effect/animation tooling, setup downloads or hosted-screen
+changes. `pnpm ci:source` runs the full frontend source validation that local
+validation uses. Vitest uses three workers outside CI; set `VITEST_MAX_WORKERS`
+to change it.
 
 Root/local-stack checks:
 
