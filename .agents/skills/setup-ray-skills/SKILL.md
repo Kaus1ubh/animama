@@ -35,8 +35,9 @@ explicit route in the repository's agent entrypoint. Record these facts:
 - Repository and default base; guide, template and artifact locations.
 - Planning root, spec authority before/after publication, and privacy boundaries.
 - Naming, existing label mapping, actual CI requirements and merge authority.
-- Applicable checks with working directories, plus environment preparation.
-- Human gates, bounded review policy, glossary and ADR locations.
+- Applicable checks with working directories, the full pre-push suite, environment
+  preparation and any machine-wide heavy-job wrapper.
+- Human gates, bounded review policy with its risk tiers, glossary and ADR locations.
 - Bundle availability, missing prerequisites and the scope of setup readiness.
 
 For a new repository, default to root `SDLC.md`, `SPECS.md`, `PLANS.md` and

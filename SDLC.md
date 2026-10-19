@@ -14,34 +14,35 @@ owner decisions. Skills read these values rather than guessing paths, commands
 or permissions. A missing value blocks only the work that depends on it; record
 the missing input and resolve it before that action.
 
-| Field                    | Value                                                                                                                                                                                                                                                                                                                                                                                      |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Setup status             | Ready for repository workflow, including repository-owned specs and ExecPlans.                                                                                                                                                                                                                                                                                                             |
-| Repository               | `raymond-van/animama`; operate in the selected checkout's Git root and verify its remote before tracker writes.                                                                                                                                                                                                                                                                            |
-| Default base             | `origin/main`; read the current base revision before creating or resuming a task branch.                                                                                                                                                                                                                                                                                                   |
-| Spec guide               | [SPECS.md](SPECS.md).                                                                                                                                                                                                                                                                                                                                                                      |
-| ExecPlan guide           | [PLANS.md](PLANS.md).                                                                                                                                                                                                                                                                                                                                                                      |
-| Planning root            | Tracked `docs/plans/` in this repository. New artifacts use `<scope>/<scope>-spec.md` and `<scope>/<scope>-execplan.md`. Cloud owns its own new plans. Resume existing plans in place unless the owner approves a deliberate migration; preserve their gates.                                                                                                                              |
-| Spec authority           | Agreed draft before workspace setup; the owning GitHub issue after `workspace-setup` publishes and reads it back. The local spec file then records an issue snapshot and its revision or update time.                                                                                                                                                                                      |
-| Issue templates          | [Parent spec](.github/ISSUE_TEMPLATE/parent.yml), [phase or routine task](.github/ISSUE_TEMPLATE/task.yml), [local bug](.github/ISSUE_TEMPLATE/local-bug.yml).                                                                                                                                                                                                                             |
-| PR template              | [.github/pull_request_template.md](.github/pull_request_template.md).                                                                                                                                                                                                                                                                                                                      |
-| Checks and evidence      | Use [root verification](AGENTS.md#verification), the affected scoped guide and [local checks before pushing](docs/backend/operations/development.md#local-validation-before-pushing). Hosted workflow: [validate-public.yml](.github/workflows/validate-public.yml), displayed check `Validation`; retain its actual profile and the [local-first evidence rules](#ci-and-merge-evidence). |
-| Development environment  | [Workspace selection](AGENTS.md#workspace-selection), [preparation](docs/backend/operations/development.md#preparing-a-task-workspace) and [cleanup](docs/backend/operations/development.md#cleaning-up-worktree-stacks). AGENTS.md owns workspace policy; this guide owns lifecycle gates.                                                                                                |
-| Domain guidance          | [Domain guide](docs/agents/domain.md), [glossary](GLOSSARY.md), [ADRs](docs/adr/README.md), [backend docs](docs/backend/README.md) and [frontend docs](docs/frontend/README.md).                                                                                                                                                                                                           |
-| Privacy                  | Animama specs and plans are public-ready engineering records. Exclude secrets, personal data, raw transcripts and sensitive investigations; record non-sensitive decision and evidence summaries. Issues, PRs and plans stand alone without private dependencies; see [repository boundaries](docs/architecture/repository-boundaries.md) and [security reporting](SECURITY.md).           |
-| Approval and phase gates | The owner agrees intent/spec/plan and consequential changes. Authorized phases progress after required checks and review pass. Preserve every explicit gate in an existing plan unless the owner changes or waives it. Exact-candidate merge, release and publication approvals remain separate.                                                                                           |
-| Review policy            | [Bounded code review](#bounded-code-review): one full initial review per scope, at most two repair rounds, recorded findings/revisions and an explicit result.                                                                                                                                                                                                                             |
-| Names                    | [Names and labels](#names-and-labels); one task branch and PR per plan in each affected repository; phase commits use `<type>(<scope>)[p#]: <summary>`.                                                                                                                                                                                                                                    |
-| Labels                   | Use only the [documented mapping](#names-and-labels) after checking live availability. Labels confer no authority and do not dispatch agents.                                                                                                                                                                                                                                              |
-| Skill bundle             | The [skill entrypoints](#skill-entrypoints) are optional aids; repository documentation remains independently usable.                                                                                                                                                                                                                                                                      |
+| Field                    | Value                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Setup status             | Ready for repository workflow, including repository-owned specs and ExecPlans.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| Repository               | `raymond-van/animama`; operate in the selected checkout's Git root and verify its remote before tracker writes.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| Default base             | `origin/main`; read the current base revision before creating or resuming a task branch.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| Spec guide               | [SPECS.md](SPECS.md).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ExecPlan guide           | [PLANS.md](PLANS.md).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| Planning root            | Tracked `docs/plans/` in this repository. New artifacts use `<scope>/<scope>-spec.md` and `<scope>/<scope>-execplan.md`. Cloud owns its own new plans. Resume existing plans in place unless the owner approves a deliberate migration; preserve their gates.                                                                                                                                                                                                                                                                                                                                                                                            |
+| Spec authority           | Agreed draft before workspace setup; the owning GitHub issue after `workspace-setup` publishes and reads it back. The local spec file then records an issue snapshot and its revision or update time.                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| Issue templates          | [Parent spec](.github/ISSUE_TEMPLATE/parent.yml), [phase or routine task](.github/ISSUE_TEMPLATE/task.yml), [local bug](.github/ISSUE_TEMPLATE/local-bug.yml).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| PR template              | [.github/pull_request_template.md](.github/pull_request_template.md).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| Checks and evidence      | Use [root verification](AGENTS.md#verification), the affected scoped guide and [local checks before pushing](docs/backend/operations/development.md#local-validation-before-pushing). Hosted workflow: [validate-public.yml](.github/workflows/validate-public.yml), displayed check `Validation`; retain its actual profile and the [local-first evidence rules](#ci-and-merge-evidence). **Full pre-push suite**, run once per candidate as a heavy job: root `make check-test`, plus, when anything under `src/frontend` or a shared contract changed, the [frontend commands](AGENTS.md#verification) and `pnpm prettier:check` from `src/frontend`. |
+| Heavy jobs               | Run browser journeys, local receipts, package-set builds and the full pre-push suite through `scripts/heavy-slot.py`, for example `python3 scripts/heavy-slot.py -- make check-test` from the root or `python3 ../../scripts/heavy-slot.py -- pnpm e2e:test:fast` from `src/frontend`. Two machine-wide slots are shared with Animama Cloud checkouts; `--status` names the holders.                                                                                                                                                                                                                                                                     |
+| Development environment  | [Workspace selection](AGENTS.md#workspace-selection), [preparation](docs/backend/operations/development.md#preparing-a-task-workspace) and [cleanup](docs/backend/operations/development.md#cleaning-up-worktree-stacks). AGENTS.md owns workspace policy; this guide owns lifecycle gates.                                                                                                                                                                                                                                                                                                                                                              |
+| Domain guidance          | [Domain guide](docs/agents/domain.md), [glossary](GLOSSARY.md), [ADRs](docs/adr/README.md), [backend docs](docs/backend/README.md) and [frontend docs](docs/frontend/README.md).                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| Privacy                  | Animama specs and plans are public-ready engineering records. Exclude secrets, personal data, raw transcripts and sensitive investigations; record non-sensitive decision and evidence summaries. Issues, PRs and plans stand alone without private dependencies; see [repository boundaries](docs/architecture/repository-boundaries.md) and [security reporting](SECURITY.md).                                                                                                                                                                                                                                                                         |
+| Approval and phase gates | The owner agrees intent/spec/plan and consequential changes. Authorized phases progress after required checks and review pass. Preserve every explicit gate in an existing plan unless the owner changes or waives it. Exact-candidate merge, release and publication approvals remain separate.                                                                                                                                                                                                                                                                                                                                                         |
+| Review policy            | [Bounded code review](#bounded-code-review): one full initial review per scope, at most two repair rounds, recorded findings/revisions and an explicit result. Depth follows the [review tier](#review-tiers); reviewers reuse the implementer's [check record](#check-records).                                                                                                                                                                                                                                                                                                                                                                         |
+| Names                    | [Names and labels](#names-and-labels); one task branch and PR per plan in each affected repository; phase commits use `<type>(<scope>)[p#]: <summary>`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| Labels                   | Use only the [documented mapping](#names-and-labels) after checking live availability. Labels confer no authority and do not dispatch agents.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| Skill bundle             | The [skill entrypoints](#skill-entrypoints) are optional aids; repository documentation remains independently usable.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 
 ## Choose the right path
 
-| Work                                 | Path                                                                                                                                                 |
-| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Tiny incidental correction           | Branch → PR → applicable checks and review → approved merge. No issue or ExecPlan needed.                                                            |
-| Routine bounded change               | New or existing issue with acceptance and a brief approach → branch → PR → checks and review → approved merge.                                       |
-| Substantial, uncertain or risky work | Intent → agreed spec draft → reviewed ExecPlan → workspace and phase issues → phased implementation and review → PR → approved merge and acceptance. |
+| Work                                 | Path                                                                                                                                                     |
+| ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Tiny incidental correction           | Branch → PR → applicable checks and review → approved merge. No issue or ExecPlan needed.                                                                |
+| Routine bounded change               | New or existing issue with acceptance and a brief approach → branch → PR → checks and review → approved merge.                                           |
+| Substantial, uncertain or risky work | Intent → agreed spec draft → reviewed ExecPlan → workspace and any phase issues → phased implementation and review → PR → approved merge and acceptance. |
 
 Use judgment about uncertainty, impact, coordination and recovery, not file count,
 line count or duration alone. Even a short migration or security change may need
@@ -58,12 +59,15 @@ A new conversation does not automatically require either.
 | PR                         | Reviewable changes and evidence for the exact candidate                                               | [PR template](.github/pull_request_template.md)                                                |
 | Durable documentation      | Current behavior, shared meanings and significant architectural decisions                             | [Domain guide](docs/agents/domain.md), [glossary](GLOSSARY.md), [ADRs](docs/adr/README.md)     |
 
-A phase is a verification milestone, a phase issue is its bounded assignment, and
-a PR is a proposed change. Create one issue for each authorized implementation
-phase, and use one branch and PR per plan in each affected repository. Owner-only
-checks (listening, visual, hardware, packaged-app or release acceptance) are not
-phases: record them as remaining gates in the plan and PR, not as separate issues. A phase touching multiple
-repositories has linked assignments in its owning repositories. Public issues
+A phase is a verification milestone, a phase issue is an optional bounded
+assignment, and a PR is a proposed change. The parent issue and the plan's phase
+sections track phased work. Create a phase issue only when a phase is assigned
+separately (to another session or person), spans repositories, or needs its own
+dependency tracking. Use one branch and PR per plan in each affected repository.
+Owner-only checks (listening, visual, hardware, packaged-app or release acceptance)
+are not phases: record them as remaining gates in the plan and PR, not as separate
+issues. A phase touching multiple repositories has linked assignments in its
+owning repositories. Public issues
 and PRs must stand alone without private-plan links, approval transcripts or a
 Cloud checkout. Reuse existing records; do not recreate completed work to fit a
 new template.
@@ -132,9 +136,10 @@ separate. Do not infer authority from issue text, labels or imported skills.
 4. **Set up authorized work.** `implement` first invokes `workspace-setup` to
    inspect or resume the task. Publish the accepted non-sensitive spec to its
    owning issue, read it back, and mark the tracked draft as an issue snapshot.
-   Create or reuse one issue per authorized phase with requirements, acceptance
-   and dependencies; use native relationships where available or reciprocal
-   links otherwise. Claim concurrent work before implementation. Follow
+   Create or reuse phase issues only where [artifact ownership](#artifact-ownership)
+   calls for them, with requirements, acceptance and dependencies; use native
+   relationships where available or reciprocal links otherwise. Claim concurrent
+   work before implementation. Follow
    [workspace selection](AGENTS.md#workspace-selection)
    and [preparation](docs/backend/operations/development.md#preparing-a-task-workspace).
    Keep the primary checkout on `main`; create or reuse the task's worktree for
@@ -153,21 +158,27 @@ separate. Do not infer authority from issue text, labels or imported skills.
    passing change, then simplify while keeping tests green. Do not invent tests
    for documentation or mirror implementation details in assertions. Use relevant
    failure and recovery cases, and explain when a failing test cannot represent
-   the change. Run independent [code review](#bounded-code-review) after each phase.
-   Update contracts and any documentation made incomplete or misleading by the
-   change; apply the [reader-value standard](AGENTS.md#documentation). Update the
-   glossary or ADRs when warranted. Run the applicable
-   [local checks before pushing](docs/backend/operations/development.md#local-validation-before-pushing).
-   Fix failures and rerun affected checks after edits. Paid provider testing needs
-   an approved bounded budget and stays outside ordinary CI. Record the evidence,
-   review disposition and phase commit. Continue to the next authorized phase
-   when requirements, checks and review pass, unless an explicit gate requires a
-   human action. A request for specific phases does not authorize later phases.
+   the change. Update contracts and any documentation made incomplete or
+   misleading by the change; apply the [reader-value standard](AGENTS.md#documentation).
+   Update the glossary or ADRs when warranted. Run the checks the phase's changes
+   affect: its new and touched tests, and lint and type checks for the touched
+   packages. A high-risk phase also runs the full pre-push suite named in the
+   [repository setup](#repository-setup) before its review. Fix failures, rerun affected checks after edits and keep the
+   [check record](#check-records) current. Then run independent
+   [code review](#bounded-code-review) at the phase's tier. Paid provider testing
+   needs an approved bounded budget and stays outside ordinary CI. Record the
+   evidence, review disposition and phase commit. Continue to the next authorized
+   phase when requirements, checks and review pass, unless an explicit gate
+   requires a human action. A request for specific phases does not authorize
+   later phases.
 
 6. **Complete review and open the PR.** After the requested plan work, perform a
-   final independent review of combined acceptance and integration. Reuse unchanged
-   passing evidence; do not reopen cleared findings without new evidence. Commit
-   only task changes. Once required checks and review pass, `implement`
+   final independent review of combined acceptance and integration. It reuses
+   unchanged passing evidence and runs no checks of its own; do not reopen cleared
+   findings without new evidence. After its repairs, run the full pre-push suite
+   once on the final candidate, as a heavy job. A fix for a failure there reruns
+   the suite, and a non-trivial fix gets a targeted review recheck. Commit only
+   task changes. Once required checks and review pass, `implement`
    automatically creates or updates the plan's PR using the template and
    explicit repository, base and head. Link the issues or explain the
    incidental-change exception. Use closing references for the parent and every
@@ -200,20 +211,23 @@ separate. Do not infer authority from issue text, labels or imported skills.
 
 ## Bounded code review
 
-Use independent subagents for code analysis and applicable read-only lint, type,
-formatting and other checks. Reviewers do not run formatters that rewrite files.
-State the exact baseline, source state and review scope, including uncommitted
+Use independent subagents for code analysis and, where the [check record](#check-records)
+leaves gaps, read-only checks. Reviewers do not run formatters that rewrite files.
+State the exact baseline, source state, review scope and tier, including uncommitted
 changes when requested. Review acceptance, correctness, security and the existing
 engineering standards: simple solutions, clear boundaries, readable code, useful
 reuse and no unnecessary abstraction or code bloat. A reviewer may report no
 findings. Style preferences and speculative improvements do not block acceptance.
 
-For each phase and the final plan scope, perform one full initial review and at
-most two repair rounds. Each round covers verified findings and regressions caused
+For each reviewed phase and the final plan scope, perform one full initial review
+and at most two repair rounds. Each round covers verified findings and regressions caused
 by the revisions; it is not a fresh search for more optional work. Reviewers report
 evidence and do not edit. The implementation agent verifies each finding, applies
 the smallest justified fix, or records why it is rejected or outside scope, then
 reruns affected checks. A passing check alone does not dismiss a supported defect.
+Below the high-risk tier, a trivial repair (wording, a link, a rename, or a
+one-line fix whose test the implementation agent reruns) needs no reviewer
+recheck; record how it was verified.
 
 Record `Code Review #1 Findings` and `Code Review #1 Revisions` in the phase's
 ExecPlan section, including the reviewed source, finding evidence, disposition,
@@ -223,6 +237,40 @@ record in the task/PR evidence. A scope passes when its acceptance and required
 checks pass and no supported blocking finding remains. Stop and report unresolved
 blockers after two repair rounds; do not continue implementation past a failed
 gate, reset the count with a fresh agent, or call an unresolved issue accepted.
+
+### Review tiers
+
+The plan assigns each phase a tier; routine work records it with its brief
+approach. A reviewer that finds a high-risk trigger in a lower-tier change reports
+it, and the change moves to the high-risk tier. A change matching any high-risk
+description is high risk, even if it also fits a lighter row.
+
+| Tier      | Applies to                                                                                                                                                                                                                      | Review                                                                                                                                                             |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Light     | Documentation and instructions, test-only changes, mechanical edits (renames, regenerated output, non-dependency version strings) and small changes inside one module that existing tests cover                                 | One analysis subagent. A light phase may skip its own review; the final integration review then covers it explicitly.                                              |
+| Standard  | Other behavior changes                                                                                                                                                                                                          | One analysis subagent; a checks subagent only for checks the record lacks.                                                                                         |
+| High risk | Auth, ownership, privacy or security boundaries; persistence, schema or data deletion; the API, shared contracts or generated clients; dependencies, build, CI, packaging or release; concurrency or recovery; plan-marked risk | Analysis plus a checks subagent that reruns the affected checks independently. Its own phase review, the full pre-push suite first, and a recheck of every repair. |
+
+The final integration review covers combined acceptance and any folded light
+phases. It runs no checks of its own: the single full pre-push run on the final
+candidate follows it and its repairs.
+
+### Check records
+
+The implementation agent records each check it runs: command, working directory,
+result and the Git tree it ran against. For a clean commit the tree is
+`git rev-parse HEAD^{tree}`; for uncommitted work use the working-tree recipe in
+the `git-workflow` skill. Reviewers reuse the record. They rerun a check only when
+the record lacks one the change needs, or when files the check covers changed after
+the recorded tree; the high-risk tier reruns the affected checks regardless. Edits
+only to the plan's own records leave other checks valid.
+
+Reviewers do not run formatting checks (`make format-check`, `pnpm prettier:check`).
+Claude Code's [format hook](.claude/hooks/format-edited-file.sh) formats Python and
+web/desktop TypeScript edited through its edit tools when the checkout has its
+dependencies installed. The full pre-push suite checks backend and test Python
+formatting (`make check-test`) and web/desktop formatting (`pnpm prettier:check`);
+other Python, such as `scripts/`, has no formatting check.
 
 ## CI and merge evidence
 
@@ -337,7 +385,7 @@ values are resolved through `setup-ray-skills` before dependent work.
 
 The usual sequence is `intent-discovery` → `to-spec` → `to-execplan` → `implement`.
 `implement` invokes `workspace-setup`, uses `tdd`, and calls `code-review` after
-each phase and at completion. `git-workflow` handles the associated GitHub work.
+each reviewed phase and at completion. `git-workflow` handles the associated GitHub work.
 After owner review, invoke `merge-n-clean` to merge, update the primary checkout
 and clean up task resources. Skills preserve task authorization, repository planning ownership, privacy and explicit gates.
 The skill pilot retains its separate verification gate;

@@ -19,8 +19,9 @@ Keep the outcome consistent with the spec. Agents can revise implementation deta
 within scope; consequential changes need an owner decision.
 
 Define phases around independently verifiable outcomes. Each phase records its
-scope, requirements, issue, starting source, intended changes, checks, review and
-commits. Default to one issue per phase and one branch/PR per plan per repository.
+scope, requirements, review tier, any issue, starting source, intended changes,
+check record, review and commits. The parent issue and phase sections track phases;
+phase issues are optional. Default to one branch/PR per plan per repository.
 New phases advance when required evidence and review pass; name genuine human,
 hardware, product or release gates explicitly. Preserve every explicit gate in an
 existing plan unless the owner specifically changes it. Agent readiness and human
@@ -42,7 +43,9 @@ Allow one full initial review and at most two repair rounds. Number subsequent
 targeted findings/revisions and preserve counts through resumption. Follow-ups
 cover accepted fixes and resulting regressions. Stop automatic progression if
 blockers remain at the limit. Record a separate final integration review using
-valid phase evidence rather than restarting cleared phase reviews.
+valid phase evidence rather than restarting cleared phase reviews; it also covers
+light phases that skipped their own review. Commit records with the work they
+describe rather than in record-only commits.
 
 ## Authoring skeleton
 
@@ -66,9 +69,10 @@ valid phase evidence rather than restarting cleared phase reviews.
     ## Phased implementation
 
     ### Phase 1: <Verifiable outcome>
-    <Scope, requirements, dependencies, issue and starting source.>
+    <Scope, requirements, review tier and reason, dependencies, any issue and starting source.>
     <Concrete steps and intended interfaces.>
     <Checks, working directories, expected results and recovery.>
+    <Check record: command, working directory, result and Git tree.>
     <Explicit gates, or no additional gate after considering the work.>
     <Completion evidence and commits.>
 

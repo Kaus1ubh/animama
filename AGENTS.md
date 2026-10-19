@@ -334,11 +334,14 @@ practical. After changes, rerun affected checks; do not repeat unchanged passing
 checks without a reason. Use read-only checks such as `make format-check` to
 verify formatting, rather than commands that rewrite files.
 
-Run expensive checks locally before pushing. For explicitly allowlisted routine
+Run expensive checks locally before pushing, through the machine-wide
+[heavy-job slots](SDLC.md#repository-setup) so parallel sessions queue instead of
+competing for cores. For explicitly allowlisted routine
 changes, a fresh exact-source Linux receipt reviewed by the repository owner can
 replace selected hosted work under the local-first validation policy. This is an
-owner-reviewed local assertion, not independent CI evidence. Agents may prepare
-receipts but must never impersonate the owner's review. Documentation-only changes
+owner-reviewed local assertion, not independent CI evidence. Receipts are not part
+of the default flow: agents prepare one only when the owner plans a reduced hosted
+run for that PR, and never impersonate the owner's review. Documentation-only changes
 need no receipt; high-risk or uncertain changes, persistent `ci:full`, manual runs
 and release callers retain full hosted validation.
 

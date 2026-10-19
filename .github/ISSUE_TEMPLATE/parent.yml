@@ -58,4 +58,4 @@ body:
     id: delivery
     attributes:
       label: Delivery links
-      description: Add one issue per authorized phase, dependencies and the plan's PR in this repository. Establish native issue relationships where available; text alone does not create them. Keep private planning paths out of this issue.
+      description: List the plan's phases with any phase issues (needed only for separately assigned, cross-repository or dependency-tracked phases), dependencies and the plan's PR in this repository. Establish native issue relationships where available; text alone does not create them. Keep private planning paths out of this issue.
