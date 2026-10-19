@@ -22,8 +22,10 @@ ENV NODE_ENV=production \
     VITE_DISABLE_WEBUI_TELEMETRY=true \
     ANIMAMA_BROWSER_MODEL_DIR=/opt/animama/browser-models
 # Explicit verified input, never a download during build. Only dist enters runtime.
+# Bundle without `tsc -b`: type checking belongs to the source checks, not every
+# image build. Package builds still emit their declarations.
 RUN --mount=from=browser_models,target=/opt/animama/browser-models \
-    pnpm --filter animama-web build
+    pnpm packages:build && pnpm --filter animama-web bundle:source
 
 FROM python:3.12-slim AS base
 ARG TARGETARCH

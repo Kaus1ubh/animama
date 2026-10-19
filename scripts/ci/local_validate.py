@@ -361,6 +361,11 @@ def main() -> int:
         "run",
         "--rm",
         "--init",
+        # Leave host capacity for other work; raise these if a check is killed (exit 137).
+        "--cpus",
+        os.environ.get("ANIMAMA_LOCAL_VALIDATE_CPUS", "4"),
+        "--memory",
+        os.environ.get("ANIMAMA_LOCAL_VALIDATE_MEMORY", "8g"),
         "--group-add",
         str(socket.stat().st_gid),
         "--add-host",

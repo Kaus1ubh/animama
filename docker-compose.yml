@@ -50,6 +50,8 @@ services:
       target: animama-server
     container_name: "${ANIMAMA_CONTAINER_NAME_PREFIX:-}animama-server"
     restart: unless-stopped
+    # CPU cap so parallel local stacks share the host; 0 removes it.
+    cpus: ${ANIMAMA_SERVER_CPUS:-2}
     user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
     # Owner-configured model servers on the host (Ollama, LM Studio, llama.cpp)
     # are reached as host.docker.internal. On Linux this is the bridge gateway,
