@@ -8,7 +8,6 @@ import {
   Suspense,
   useCallback,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -513,14 +512,10 @@ function AnimaAvatarStageInner({
     noRuntimeFileRef.current = noRuntimeFileText;
   }, [noRuntimeFileText]);
   const formatters = useFormatters();
-  const [hostElement, setHostElement] = useState<HTMLDivElement | null>(null);
   const [activeAvatar, setActiveAvatar] = useState<Avatar | null>(null);
   const [sceneVFX, setSceneVFX] = useState<SceneVFXRuntimeEntry | null>(null);
   const [cameraChanged, setCameraChanged] = useState(false);
   const [resetCameraRequest, setResetCameraRequest] = useState(0);
-  const [previewOverlayBottom, setPreviewOverlayBottom] = useState<
-    number | null
-  >(null);
   const [avatarTransform, setAvatarTransform] = useState<AvatarTransform>(() =>
     cloneAvatarTransform(DEFAULT_AVATAR_TRANSFORM),
   );
@@ -617,29 +612,6 @@ function AnimaAvatarStageInner({
     if (!contentPreview) setSceneVFX(null);
   }, [contentPreview]);
 
-  useLayoutEffect(() => {
-    if (!contentPreview || !hostElement) {
-      setPreviewOverlayBottom(null);
-      return;
-    }
-    const previewOverlay = hostElement.querySelector<HTMLElement>(
-      "[data-anima-preview-overlay]",
-    );
-    if (!previewOverlay) {
-      setPreviewOverlayBottom(null);
-      return;
-    }
-    const measureOverlay = () => {
-      setPreviewOverlayBottom(
-        previewOverlay.offsetTop + previewOverlay.offsetHeight,
-      );
-    };
-    measureOverlay();
-    const observer = new ResizeObserver(measureOverlay);
-    observer.observe(previewOverlay);
-    return () => observer.disconnect();
-  }, [contentPreview, hostElement]);
-
   useEffect(() => {
     if (!contentPreview) return;
     return acquireContentPreviewResource("management", "catalog");
@@ -689,7 +661,6 @@ function AnimaAvatarStageInner({
 
   return (
     <div
-      ref={setHostElement}
       className={cn(
         "relative overflow-hidden",
         transparent ? "bg-transparent" : "bg-background",
@@ -761,10 +732,7 @@ function AnimaAvatarStageInner({
           </AvatarPreviewSurface>
 
           {contentPreview && cameraChanged ? (
-            <div
-              className="pointer-events-auto absolute right-5 z-40 flex items-center gap-1.5"
-              style={{ top: (previewOverlayBottom ?? 88) + 8 }}
-            >
+            <div className="pointer-events-auto absolute top-5 right-5 z-40 flex items-center gap-1.5">
               <Button
                 type="button"
                 size="sm"
@@ -779,10 +747,10 @@ function AnimaAvatarStageInner({
           ) : null}
           {contentPreview && contentPreviewMoveAvatar ? (
             <div
-              className="absolute right-5 z-40"
-              style={{
-                top: (previewOverlayBottom ?? 88) + (cameraChanged ? 56 : 8),
-              }}
+              className={cn(
+                "absolute right-5 z-40",
+                cameraChanged ? "top-[4.25rem]" : "top-5",
+              )}
             >
               <TransformPanel
                 className="static w-44 max-w-none"

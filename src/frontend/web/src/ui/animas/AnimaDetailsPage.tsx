@@ -612,20 +612,138 @@ export function AnimaDetailsPage({
                   <ChevronRight className="size-5" />
                 </Button>
 
-                <div className="bg-background/84 text-muted-foreground absolute bottom-[7.75rem] left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-xl border px-3 py-2 text-xs shadow-md backdrop-blur-md md:bottom-[10rem] xl:bottom-[10.25rem]">
-                  <MousePointer2 className="size-3.5" />
-                  <span className="min-[360px]:hidden">
-                    {t("management.gestureHint.short")}
-                  </span>
-                  <span className="hidden min-[360px]:inline md:hidden">
-                    {t("management.gestureHint.pinch")}
-                  </span>
-                  <span className="hidden md:inline xl:hidden">
-                    {t("management.gestureHint.touch")}
-                  </span>
-                  <span className="hidden xl:inline">
-                    {t("management.gestureHint.pointer")}
-                  </span>
+                {/* The preview controls sit under the gesture hint, clear of the
+                    Avatar's face. */}
+                <div className="absolute inset-x-3 bottom-[7.75rem] flex flex-col items-center gap-2 md:bottom-[10rem] xl:bottom-[10.25rem]">
+                  <div className="bg-background/84 text-muted-foreground flex items-center gap-2 rounded-xl border px-3 py-2 text-xs shadow-md backdrop-blur-md">
+                    <MousePointer2 className="size-3.5" />
+                    <span className="min-[360px]:hidden">
+                      {t("management.gestureHint.short")}
+                    </span>
+                    <span className="hidden min-[360px]:inline md:hidden">
+                      {t("management.gestureHint.pinch")}
+                    </span>
+                    <span className="hidden md:inline xl:hidden">
+                      {t("management.gestureHint.touch")}
+                    </span>
+                    <span className="hidden xl:inline">
+                      {t("management.gestureHint.pointer")}
+                    </span>
+                  </div>
+                  {stagePreview.target ? (
+                    <div
+                      role="region"
+                      aria-label={t("management.preview.region", {
+                        name: stagePreview.target.displayName,
+                      })}
+                      aria-busy={stagePreview.status === "loading"}
+                      className="bg-background/90 pointer-events-auto flex w-full max-w-[42rem] flex-wrap items-center gap-2 rounded-xl border px-3 py-2 shadow-lg backdrop-blur-md"
+                    >
+                      <p
+                        className="sr-only"
+                        role="status"
+                        aria-live="polite"
+                        aria-atomic="true"
+                      >
+                        {t("management.preview.status", {
+                          name: stagePreview.target.displayName,
+                          status:
+                            stagePreview.error ??
+                            stagePreviewStatusLabel(t, stagePreview.status),
+                        })}
+                      </p>
+                      <div className="min-w-0 flex-1 basis-28">
+                        <p className="truncate text-sm font-semibold">
+                          {stagePreview.target.displayName}
+                        </p>
+                        <p className="text-muted-foreground truncate text-xs">
+                          {t("management.preview.summary", {
+                            version: stagePreview.target.versionLabel,
+                            status:
+                              stagePreview.error ??
+                              stagePreviewStatusLabel(t, stagePreview.status),
+                          })}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 flex-wrap items-center gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="min-h-10"
+                          disabled={
+                            stagePreview.status === "loading" ||
+                            !stagePreview.prepared
+                          }
+                          aria-label={t("management.preview.replay", {
+                            name: stagePreview.target.displayName,
+                          })}
+                          onClick={() =>
+                            dispatchStagePreview({ type: "replay" })
+                          }
+                        >
+                          <RotateCcw className="size-3.5" />{" "}
+                          {t("actions.replay")}
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="min-h-10"
+                          aria-label={t("management.preview.stop", {
+                            name: stagePreview.target.displayName,
+                          })}
+                          onClick={stopStagePreview}
+                        >
+                          <Square className="size-3.5" /> {t("actions.stop")}
+                        </Button>
+                        {stagePreview.target.kind === "animation" ? (
+                          <label className="flex min-h-10 items-center gap-2 text-xs font-medium">
+                            <Switch
+                              checked={stagePreview.loop}
+                              aria-label={t("management.preview.loop", {
+                                name: stagePreview.target.displayName,
+                              })}
+                              onCheckedChange={(loop) =>
+                                dispatchStagePreview({ type: "set_loop", loop })
+                              }
+                            />
+                            {t("actions.loop")}
+                          </label>
+                        ) : null}
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant={
+                            stagePreviewMoveAvatar ? "default" : "outline"
+                          }
+                          className="min-h-10"
+                          aria-expanded={stagePreviewMoveAvatar}
+                          aria-label={t("management.preview.move", {
+                            name: stagePreview.target.displayName,
+                          })}
+                          onClick={() =>
+                            setStagePreviewMoveAvatar((current) => !current)
+                          }
+                        >
+                          {t("actions.move")} <Move3D className="size-3.5" />
+                        </Button>
+                        {stagePreview.error && !stagePreview.prepared ? (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="min-h-10"
+                            aria-label={t("management.preview.retry", {
+                              name: stagePreview.target.displayName,
+                            })}
+                            onClick={() => void stagePreparation.retry()}
+                          >
+                            {t("actions.retry")}
+                          </Button>
+                        ) : null}
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
 
                 {runtimeContentQuery.isError ? (
@@ -638,117 +756,6 @@ export function AnimaDetailsPage({
                     >
                       {t("management.avatar.retry")}
                     </Button>
-                  </div>
-                ) : null}
-
-                {stagePreview.target ? (
-                  <div
-                    role="region"
-                    data-anima-preview-overlay
-                    aria-label={t("management.preview.region", {
-                      name: stagePreview.target.displayName,
-                    })}
-                    aria-busy={stagePreview.status === "loading"}
-                    className="bg-background/90 pointer-events-auto absolute inset-x-3 top-3 flex max-w-[42rem] flex-wrap items-center gap-2 rounded-xl border px-3 py-2 shadow-lg backdrop-blur-md sm:right-auto sm:left-1/2 sm:w-[calc(100%-2rem)] sm:-translate-x-1/2 md:top-5"
-                  >
-                    <p
-                      className="sr-only"
-                      role="status"
-                      aria-live="polite"
-                      aria-atomic="true"
-                    >
-                      {t("management.preview.status", {
-                        name: stagePreview.target.displayName,
-                        status:
-                          stagePreview.error ??
-                          stagePreviewStatusLabel(t, stagePreview.status),
-                      })}
-                    </p>
-                    <div className="min-w-0 flex-1 basis-28">
-                      <p className="truncate text-sm font-semibold">
-                        {stagePreview.target.displayName}
-                      </p>
-                      <p className="text-muted-foreground truncate text-xs">
-                        {t("management.preview.summary", {
-                          version: stagePreview.target.versionLabel,
-                          status:
-                            stagePreview.error ??
-                            stagePreviewStatusLabel(t, stagePreview.status),
-                        })}
-                      </p>
-                    </div>
-                    <div className="flex shrink-0 flex-wrap items-center gap-2">
-                      <Button
-                        type="button"
-                        size="sm"
-                        className="min-h-10"
-                        disabled={
-                          stagePreview.status === "loading" ||
-                          !stagePreview.prepared
-                        }
-                        aria-label={t("management.preview.replay", {
-                          name: stagePreview.target.displayName,
-                        })}
-                        onClick={() => dispatchStagePreview({ type: "replay" })}
-                      >
-                        <RotateCcw className="size-3.5" /> {t("actions.replay")}
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        className="min-h-10"
-                        aria-label={t("management.preview.stop", {
-                          name: stagePreview.target.displayName,
-                        })}
-                        onClick={stopStagePreview}
-                      >
-                        <Square className="size-3.5" /> {t("actions.stop")}
-                      </Button>
-                      {stagePreview.target.kind === "animation" ? (
-                        <label className="flex min-h-10 items-center gap-2 text-xs font-medium">
-                          <Switch
-                            checked={stagePreview.loop}
-                            aria-label={t("management.preview.loop", {
-                              name: stagePreview.target.displayName,
-                            })}
-                            onCheckedChange={(loop) =>
-                              dispatchStagePreview({ type: "set_loop", loop })
-                            }
-                          />
-                          {t("actions.loop")}
-                        </label>
-                      ) : null}
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant={stagePreviewMoveAvatar ? "default" : "outline"}
-                        className="min-h-10"
-                        aria-expanded={stagePreviewMoveAvatar}
-                        aria-label={t("management.preview.move", {
-                          name: stagePreview.target.displayName,
-                        })}
-                        onClick={() =>
-                          setStagePreviewMoveAvatar((current) => !current)
-                        }
-                      >
-                        {t("actions.move")} <Move3D className="size-3.5" />
-                      </Button>
-                      {stagePreview.error && !stagePreview.prepared ? (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          className="min-h-10"
-                          aria-label={t("management.preview.retry", {
-                            name: stagePreview.target.displayName,
-                          })}
-                          onClick={() => void stagePreparation.retry()}
-                        >
-                          {t("actions.retry")}
-                        </Button>
-                      ) : null}
-                    </div>
                   </div>
                 ) : null}
               </>
