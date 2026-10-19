@@ -7,13 +7,16 @@ take a slot; further jobs wait for one instead of competing for cores and memory
 Animama and Animama Cloud keep identical copies of this script and share one
 slot directory, so the limit covers every checkout on the machine.
 
-    python3 scripts/heavy-slot.py -- pnpm e2e:test:fast
+    python3 scripts/heavy-slot.py -- make check-test            # Animama
+    python3 scripts/heavy-slot.py -- pnpm check:pre-pr:full     # Cloud
     python3 scripts/heavy-slot.py --status
 
 A slot is a flock(2) lock held by the job's own process: the wrapper replaces
 itself with the command, so exit status and signals are the command's, and the
 kernel frees the slot when the job (and any child still holding it) exits, even
-after a crash. A job started inside a slotted job runs without taking another.
+after a crash. A background process the job leaves running keeps the slot;
+`--status` marks a holder whose own pid has exited, and `lsof` on the slot file
+names the process. A job started inside a slotted job runs without taking another.
 
 Environment:
     ANIMAMA_HEAVY_SLOTS     number of slots (default 2)
@@ -26,7 +29,9 @@ import argparse
 import datetime
 import fcntl
 import os
+import re
 import shlex
+import signal
 import sys
 import time
 from pathlib import Path
@@ -69,10 +74,24 @@ def holders(paths: list[Path]) -> list[str]:
         try:
             fcntl.flock(descriptor, fcntl.LOCK_SH | fcntl.LOCK_NB)
         except BlockingIOError:
-            described.append(f"{path.name}: {path.read_text().strip() or 'held'}")
+            text = path.read_text().strip() or "held"
+            match = re.match(r"pid (\d+) ", text)
+            if match and not pid_alive(int(match.group(1))):
+                text += f" (pid exited; a child still holds the slot: lsof {path})"
+            described.append(f"{path.name}: {text}")
         finally:
             os.close(descriptor)
     return described
+
+
+def pid_alive(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
 
 
 def describe_holder(descriptor: int, command: list[str]) -> None:
@@ -145,6 +164,11 @@ def main(argv: list[str]) -> int:
 
 
 def run(command: list[str]) -> int:
+    # Python ignores SIGPIPE and SIGXFSZ; restore the defaults the job expects, as
+    # subprocess does, so pipelines such as `producer | head` end normally.
+    for name in ("SIGPIPE", "SIGXFSZ"):
+        if hasattr(signal, name):
+            signal.signal(getattr(signal, name), signal.SIG_DFL)
     try:
         os.execvp(command[0], command)
     except OSError as error:

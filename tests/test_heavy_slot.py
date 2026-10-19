@@ -64,6 +64,11 @@ class HeavySlotTest(unittest.TestCase):
         self.assertEqual(result.returncode, 3)
         self.assertIn("['--flag']", result.stdout)
 
+    def test_the_job_gets_default_signal_handling(self) -> None:
+        result = self.slot("--", "/bin/sh", "-c", "yes | head -n 1")
+
+        self.assertEqual((result.returncode, result.stdout, result.stderr), (0, "y\n", ""))
+
     def test_busy_slots_refuse_a_no_wait_job_and_name_the_holder(self) -> None:
         self.hold_only_slot()
 
