@@ -104,6 +104,8 @@ export function useCreateAnimaController(
   } | null>(null);
   const [focusErrors, setFocusErrors] = useState(0);
   const inFlight = useRef(false);
+  // The last draft signature sent for validation, so Review rechecks each edit once.
+  const recheckedSignature = useRef<string | null>(null);
   const handoffApplied = useRef(false);
   const alive = useRef(true);
   useEffect(() => {
@@ -314,6 +316,7 @@ export function useCreateAnimaController(
       return;
     }
     const signature = creationDraftSignature(snapshot);
+    recheckedSignature.current = signature;
     setMessage(null);
     setValidation(null);
     try {
@@ -488,7 +491,6 @@ export function useCreateAnimaController(
   const valid = validation?.signature === signature ? validation : null;
   const validateLatest = useRef(validate);
   validateLatest.current = validate;
-  const recheckedSignature = useRef<string | null>(null);
   // An edit on Review, such as renaming on the name plate, stales the checked
   // spec that Create needs. Recheck each edited draft once typing settles; a
   // failed check shows its issues and waits for the next edit.
@@ -502,10 +504,10 @@ export function useCreateAnimaController(
     !completedId;
   useEffect(() => {
     if (!reviewStale || recheckedSignature.current === signature) return;
-    const timer = window.setTimeout(() => {
-      recheckedSignature.current = signature;
-      void validateLatest.current(false);
-    }, 400);
+    const timer = window.setTimeout(
+      () => void validateLatest.current(false),
+      400,
+    );
     return () => window.clearTimeout(timer);
   }, [reviewStale, signature]);
   const submit = async (replay = false) => {
