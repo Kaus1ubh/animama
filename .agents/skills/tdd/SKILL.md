@@ -31,5 +31,7 @@ new failing test. Record the reason and use meaningful existing regression or
 artifact checks. Do not manufacture tests merely to claim TDD. If a manual/provider
 check is required, distinguish it from automated evidence and respect its gate.
 
-Return the behavior tested, observed red/green results, relevant commands and any
+Inside the loop, run the slice's tests and their close neighbours; broader suites
+belong to the phase checks and the final pre-push run. Return the behavior tested,
+observed red/green results, the commands and results for the check record, and any
 exceptions or remaining validation to the invoking implementation workflow.

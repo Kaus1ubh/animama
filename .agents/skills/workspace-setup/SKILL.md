@@ -17,9 +17,10 @@ Read back uncertain creation results before retrying. Preserve completed phases;
 do not manufacture retrospective issues simply to populate the new convention.
 
 Use `git-workflow` for tracker and branch operations. Publish the agreed draft spec
-to the owning issue, identify the authority/revision in the retained snapshot, and
-create or reuse one issue per authorized phase. Include bounded scope, requirements,
-acceptance, dependencies and relevant handoff. Use native relationships where
+to the owning issue and identify the authority/revision in the retained snapshot.
+The parent issue and the plan's phase sections track phases; create or reuse a
+phase issue only where the configured setup calls for one, with bounded scope,
+requirements, acceptance, dependencies and relevant handoff. Use native relationships where
 available or reciprocal links otherwise. Routine work may use a single issue;
 apply the configured incidental-change exception without inventing an ExecPlan.
 

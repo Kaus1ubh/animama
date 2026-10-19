@@ -23,10 +23,12 @@ advance after required evidence and bounded review pass; preserve every explicit
 gate in an existing plan unless the owner specifically changes it.
 
 Keep Progress, Surprises & Discoveries, Decision Log and Outcomes & Retrospective
-live. Provide a place per phase for issue/commit/evidence references and numbered
-Code Review Findings/Revisions. Plan one full initial review and at most two repair
-rounds, plus a final integration review. Specify phase ranges or necessary PR splits
-when agreed; otherwise one branch/PR per plan per affected repository is the default.
+live. Provide a place per phase for its commits, check record, any phase issue and
+numbered Code Review Findings/Revisions. Assign each phase a review tier from the
+configured review policy, with the reason. Plan one full initial review and at most
+two repair rounds per reviewed phase, plus a final integration review that also
+covers light phases without their own review. Specify phase ranges or necessary PR
+splits when agreed; otherwise one branch/PR per plan per affected repository is the default.
 
 Inspect discoverable details rather than asking the owner to supply them. Resolve
 consequential uncertainty before dependent execution; agents may later revise
