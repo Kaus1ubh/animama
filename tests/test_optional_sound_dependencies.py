@@ -25,9 +25,11 @@ from sqlalchemy import delete
 from animama.adapters.content_store import FilesystemContentStore
 from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlchemyContentCatalog
 from animama.app.contracts.content_package import portable_revision
+from animama.app.contracts.typed_content import PyTypedContentPreview
 from animama.app.services.content_kind_registry import handler_for_kind
 from animama.app.services.content_portability import effective_provenance
 from animama.app.services.runtime_content_closure import RuntimeContentClosureCompiler
+from animama.app.services.typed_content_service import TypedContentService
 from animama.app.services.typed_runtime_projection import project_typed_runtime_catalog
 from animama.domain.content_catalog import (
     OPTIONAL_OMITTED_KEY,
@@ -541,7 +543,7 @@ async def test_an_included_gesture_plays_without_its_absent_optional_sound(  # n
         included_root=paths.included_root, local_root=paths.local_root, operations_root=paths.operations_root
     )
 
-    async def project() -> tuple[Any, dict[str, Any]]:
+    async def project() -> tuple[Any, dict[str, Any], PyTypedContentPreview]:
         items = {item.relative_locator: item for item in (await content.rescan(user_id=owner)).items}
         gesture = items[GESTURE]
         descriptor = await RuntimeContentClosureCompiler(catalog=catalog, store=store).compile(
@@ -552,22 +554,28 @@ async def test_an_included_gesture_plays_without_its_absent_optional_sound(  # n
         assert descriptor.diagnostics == ()
         visible = await catalog.list_visible(user_id=owner)
         [action] = project_typed_runtime_catalog(loadout_revision=1, descriptor=descriptor, visible=visible)["gestures"]
-        return gesture, action
+        preview = await TypedContentService(catalog=catalog, content=content).preview(
+            user_id=owner, kind=ContentKind.GESTURE, item_id=gesture.id
+        )
+        return gesture, action, PyTypedContentPreview.from_domain(preview)
 
     try:
         # Without the pack the Gesture stays valid and offered; the runtime
-        # names the dropped alias so the player skips that sound event.
-        gesture, action = await project()
+        # and the Library preview name the dropped alias so the player skips
+        # that sound event.
+        gesture, action, preview = await project()
         assert gesture.status is ContentStatus.VALID and gesture.dependencies == ()
         assert action["missing_references"] == {"pop": SOUND}
         assert action["reference_map"] == {}
+        assert preview.optional_omitted == {"pop": SOUND}
 
         # With the pack the sound resolves like any dependency.
         _sound(paths.included_root)
-        gesture, action = await project()
+        gesture, action, preview = await project()
         assert gesture.status is ContentStatus.VALID and gesture.dependencies == (SOUND,)
         assert action["missing_references"] == {}
         assert set(action["reference_map"]) == {"pop"}
+        assert preview.optional_omitted == {}
     finally:
         await async_session.rollback()
         await async_session.execute(delete(ORMContentCatalogItem))

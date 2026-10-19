@@ -68,6 +68,17 @@ MISSING_EFFECT_DEPENDENCY = "missing_effect_dependency"
 # Reaction that this build omitted (their sounds aren't installed). Only the
 # scanner sets it; a descriptor-supplied value is discarded.
 OPTIONAL_OMITTED_KEY = "optional_omitted"
+
+
+def optional_omitted_references(provenance: dict[str, Any]) -> dict[str, str]:
+    """Return alias → ref of each optional edge the scanner omitted (``OPTIONAL_OMITTED_KEY``)."""
+
+    omitted = provenance.get(OPTIONAL_OMITTED_KEY)
+    if not isinstance(omitted, dict):
+        return {}
+    return {alias: ref for alias, ref in omitted.items() if isinstance(alias, str) and isinstance(ref, str)}
+
+
 # Animama no longer provides Twemoji. A Local Scene Effect saved with an
 # ``emoji`` marquee or scatter item stays valid and plays without the item; its
 # scan reports this diagnostic per item until its creator replaces or removes

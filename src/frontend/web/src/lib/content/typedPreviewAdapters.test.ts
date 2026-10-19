@@ -176,7 +176,7 @@ describe("typed preview adapters", () => {
     expect(localTarget.runtimeId).toBe("react-0827123456");
   });
 
-  it("names the removed Included effects a Local Action plays without", () => {
+  it("names the removed effects and omitted optional sounds an Action plays without", () => {
     const digest = "b".repeat(64);
     const preview = {
       preview_id: "preview-cheer",
@@ -291,6 +291,8 @@ describe("typed preview adapters", () => {
           url: "/v1/content/previews/preview-cheer/files/sequence-ref",
         },
       ],
+      // The scanner dropped this optional pack sound from `dependencies`.
+      optional_omitted: { chime: "builtin:sound-effect:chime" },
     } as unknown as PyTypedContentPreview;
 
     const adapted = typedActionPreview(preview);
@@ -300,6 +302,7 @@ describe("typed preview adapters", () => {
         eye: "builtin:avatar-effect:hearts",
         joy: "builtin:scene-effect:background:joy",
         sparkle: "builtin:particle-effect:sparkle",
+        chime: "builtin:sound-effect:chime",
       },
     });
     expect(
@@ -313,6 +316,7 @@ describe("typed preview adapters", () => {
         eye: "builtin:avatar-effect:hearts",
         joy: "builtin:scene-effect:background:joy",
         sparkle: "builtin:particle-effect:sparkle",
+        chime: "builtin:sound-effect:chime",
       },
     });
   });
