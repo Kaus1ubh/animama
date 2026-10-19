@@ -8,7 +8,8 @@ establishes common meanings between Raymond and agents.
 ## Index
 
 Records 0001–0005 document foundational decisions retrospectively; records 0006–0007
-record lifecycle and planning ownership decisions; later records document product decisions. Each record states its decision basis
+record lifecycle and planning ownership decisions; later records document product
+decisions, except 0027, which proposes risk-tiered review. Each record states its decision basis
 and dates. Acceptance is not proof of unknown historical human approval,
 production readiness or publication rights.
 
@@ -40,6 +41,7 @@ production readiness or publication rights.
 | 0024 | [The UI Locale is the conversation language](0024-ui-locale-is-the-conversation-language.md)                                                       | accepted                                     |
 | 0025 | [Per-use Avatar Effect overrides](0025-per-use-avatar-effect-overrides.md)                                                                         | accepted                                     |
 | 0026 | [One built-in Idle pool per Anima replaces Idle Style content](0026-built-in-idle-pool-per-anima.md)                                               | accepted                                     |
+| 0027 | [Risk-tiered review and a single suite run per candidate](0027-risk-tiered-review-and-single-suite-run.md)                                         | proposed; amends 0006                        |
 
 ## When and how to record a decision
 

@@ -616,7 +616,9 @@ builds for the changed behavior. Fix failures locally before pushing a candidate
 that triggers CI, and batch intermediate edits rather than using Actions as the
 first debugging loop. Rerun checks affected by subsequent edits; repeat an
 unchanged successful check only when a new failure, changed environment or other
-specific concern warrants it. Verification commands should be read-only:
+specific concern warrants it. Before the first push for review, run the full
+pre-push suite named in the [repository setup](../../../SDLC.md#repository-setup)
+once on the final candidate. Verification commands should be read-only:
 `make format-check` checks formatting; `make format` changes files.
 
 For each candidate, record the tested commit or working-tree state, exact commands,

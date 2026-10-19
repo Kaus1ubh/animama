@@ -1,6 +1,6 @@
 ---
 name: sdlc-reviewer
-description: Independent, read-only code reviewer for Animama's bounded review policy (SDLC.md#bounded-code-review). Use after each ExecPlan phase, for the final plan or PR scope, and for repair-round verification. Give it the baseline, source state, scope, review tier, acceptance criteria, the implementer's check record and review round number.
+description: Independent, read-only code reviewer for Animama's bounded review policy (SDLC.md#bounded-code-review). Use after each reviewed ExecPlan phase, for the final plan or PR scope, and for repair-round verification. Give it the baseline, source state, scope, review tier, acceptance criteria, the implementer's check record and review round number.
 tools: Read, Grep, Glob, Bash
 ---
 
@@ -45,7 +45,8 @@ the recorded tree; compare that tree with the current one. At the high-risk tier
 rerun the affected checks even when the record covers them. Examples:
 `uv run ruff check <paths>`, `uv run pytest -q <paths>`, `pnpm check` or
 `pnpm web:lint`. Do not run `make format-check` or `pnpm prettier:check`: the
-format hook formats edited files and the pre-push suite keeps backend formatting.
+format hook formats files edited through Claude Code's edit tools and the full
+pre-push suite checks formatting.
 Wrap long commands in `timeout`. Report exact commands and results.
 
 If the change touches a high-risk area its tier did not account for (see the tier

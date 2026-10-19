@@ -49,12 +49,12 @@ when no gate remains; do not start unrequested phases.
 
 ## Finish the requested scope
 
-Run the configured full pre-push checks once on the candidate. For a full plan,
-then run `code-review` in final integration mode: assess cross-phase behavior and
-all accepted requirements, reusing that run and valid phase evidence. For a phase
+For a full plan, run `code-review` in final integration mode: assess cross-phase
+behavior and all accepted requirements, reusing valid phase evidence. For a phase
 subset, review the completed scope and its integration without claiming the rest
-of the plan is delivered. Apply the same bounded repair policy, rerunning only the
-checks a repair affects.
+of the plan is delivered. Apply the same bounded repair policy. Then run the
+configured full pre-push checks once on the final candidate; a fix for a failure
+reruns them, and a non-trivial fix gets a targeted review recheck.
 
 Use `git-workflow` to finish scoped commits, push and create/update the PR automatically. Automatically convert drafts when ready for
 review, unless explicitly instructed otherwise. Follow the actual CI policy and report

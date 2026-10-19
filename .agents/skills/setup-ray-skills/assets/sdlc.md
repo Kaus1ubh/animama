@@ -75,8 +75,8 @@ evidence with the phase it describes.
 Advance automatically after required evidence and gates pass within the authorized
 phase range. Preserve every explicit gate in existing plans.
 
-Run the full pre-push suite once on the candidate, then review the final
-integration against overall acceptance, reusing that run and valid phase evidence.
+Review the final integration against overall acceptance, reusing valid phase
+evidence, then run the full pre-push suite once on the final candidate.
 `git-workflow` pushes and opens/updates the PR. Open
 regular PRs by default; automatically convert drafts when ready for review,
 unless explicitly instructed otherwise. Present
@@ -101,19 +101,20 @@ Remaining blockers at the limit stop progression; they are not waived.
 
 Each phase has a review tier. **Light** (documentation, test-only, mechanical and
 small covered changes): one analysis subagent; the phase may skip its own review
-when the final integration review covers it; the coordinator verifies trivial
-repairs. **Standard** (other behavior changes): one analysis subagent, and checks
+when the final integration review covers it. **Standard** (other behavior changes): one analysis subagent, and checks
 only where the record has gaps. **High risk** (security, ownership, persistence,
 contracts, dependencies, build, CI, release, concurrency, recovery): analysis plus
 an independent rerun of affected checks, its own review, the full pre-push suite
-first and a recheck of every repair. A reviewer moves a change up a tier when it
-finds a high-risk trigger.
+first and a recheck of every repair. A change matching any high-risk description
+is high risk, and a reviewer moves a change up a tier when it finds a trigger.
+Light "mechanical" edits exclude dependency versions. Below high risk, the
+coordinator verifies trivial repairs itself and records how.
 
 The implementing agent records each check's command, working directory, result and
 Git tree. Reviewers rerun only checks the record lacks or whose covered files
 changed after that tree, and skip formatting checks that an edit hook enforces.
-The final integration review runs no checks unless source changed after the last
-full pre-push run.
+The final integration review runs no checks of its own; the single full
+pre-push run on the final candidate follows it and its repairs.
 
 ## Evidence and boundaries
 

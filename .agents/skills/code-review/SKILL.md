@@ -65,7 +65,7 @@ does not waive requirements. Tool failures and unrun checks remain explicit.
 
 Final integration mode checks cross-phase behavior and overall acceptance using
 valid phase evidence, and reviews light phases that skipped their own review. It
-does not restart every completed phase review, and it runs no checks unless source
-changed after the last full pre-push run. Return
+does not restart every completed phase review and runs no checks of its own: the
+configured full pre-push run on the final candidate follows it. Return
 pass, blocked or incomplete with the reviewed source, evidence, dispositions,
 remaining repair budget and next action. The coordinator owns fixes and progression.

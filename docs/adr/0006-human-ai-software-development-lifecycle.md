@@ -1,6 +1,7 @@
 # 0006: Human and AI software development lifecycle
 
 - Status: accepted; planning location/privacy superseded by [ADR 0007](0007-repository-owned-planning.md)
+- Review-depth proposal: [ADR 0027](0027-risk-tiered-review-and-single-suite-run.md) (proposed) would replace the per-phase review rule with risk-tiered review; this record's rule applies until it is accepted.
 - Recorded: 2026-09-19
 - Retrospective: no
 - Original decision date: 2026-09-19, through the owner's portable lifecycle implementation request and request for this record.

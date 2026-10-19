@@ -70,8 +70,8 @@ applicable; never mark an unperformed check passed. Record phase commits using
 it becomes incomplete or misleading; the plan remains delivery history.
 
 Commit records with the work they describe: a phase's check record, findings and
-revisions go into its phase or repair commit, and the final integration review
-into the PR's last commit. Make a record-only commit only to preserve the record
+revisions go into its phase or repair commit. Make a record-only commit only for
+the final integration review (when no repair follows it) or to preserve the record
 at a stopping point or handoff. The PR, not a later plan commit, carries the final
 candidate's full pre-push results.
 
@@ -140,7 +140,8 @@ Review tier: <light | standard | high risk>, with the reason.
 
 ## Final integration review
 
-<Combined acceptance, reused evidence, findings/revisions and remaining gates.>
+<Combined acceptance, folded light phases, reused evidence, findings/revisions and remaining gates.>
+<Then the full pre-push suite once on the final candidate; its results go in the PR.>
 
 ## Validation and acceptance
 
