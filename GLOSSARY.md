@@ -162,6 +162,8 @@ Import creates independent Local content and, for an Anima package, a new compan
 
 An Anima's persisted, revisioned selection of content and bindings. It describes
 what is equipped, not copied content bytes or an already mounted runtime snapshot.
+The Anima page shows it as the **Behavior** tab; code, API and docs keep the
+name Loadout.
 
 ## Runtime snapshot
 

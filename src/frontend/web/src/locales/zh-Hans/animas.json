@@ -197,7 +197,7 @@
       "result": "结果：",
       "title": "检查装备更改"
     },
-    "title": "装备",
+    "title": "行为",
     "unavailable": "装备不可用。",
     "updated": "装备已更新。更改将在下次挂载聊天时生效。"
   },
@@ -272,7 +272,7 @@
     },
     "tabs": {
       "emotions": "情绪",
-      "loadout": "装备",
+      "loadout": "行为",
       "memories": "记忆",
       "overview": "身份设定",
       "settings": "设置"

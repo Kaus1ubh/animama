@@ -177,8 +177,8 @@
       "reaction": "Reaction"
     },
     "gestureNotLocal": "This Gesture is not available in the local catalog.",
-    "loading": "Loading Gesture and Reaction Loadout…",
-    "noPreviewSource": "This Loadout entry does not have a preview source.",
+    "loading": "Loading Behavior…",
+    "noPreviewSource": "This Behavior entry does not have a preview source.",
     "previewContextLoading": "The Anima preview context is still loading.",
     "reactionNotLocal": "This Reaction is not available in the local catalog.",
     "review": {
@@ -196,11 +196,11 @@
       "current": "Current:",
       "description": "This changes the next mounted chat runtime. An active chat keeps its current revision.",
       "result": "Result:",
-      "title": "Review Loadout change"
+      "title": "Review Behavior change"
     },
-    "title": "Loadout",
-    "unavailable": "The Loadout is unavailable.",
-    "updated": "Loadout updated. Changes apply to the next chat mount."
+    "title": "Behavior",
+    "unavailable": "Behavior is unavailable.",
+    "updated": "Behavior updated. Changes apply to the next chat mount."
   },
   "manage": {
     "animaFallback": "Anima",
@@ -215,7 +215,7 @@
       "added": "{{name}} added to {{anima}} at {{cell}}.",
       "addTo": "Add to {{anima}}'s {{cell}}",
       "emotion": "Emotion",
-      "full": "This cell already holds four Reactions. Remove one in this Anima's Loadout to add this one.",
+      "full": "This cell already holds four Reactions. Remove one in this Anima's Behavior tab to add this one.",
       "inCell": "In this cell",
       "intensity": "Intensity",
       "notInCell": "Not in this cell",
@@ -273,7 +273,7 @@
     },
     "tabs": {
       "emotions": "Emotions",
-      "loadout": "Loadout",
+      "loadout": "Behavior",
       "memories": "Memories",
       "overview": "Identity",
       "settings": "Settings"

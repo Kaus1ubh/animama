@@ -197,7 +197,7 @@
       "result": "結果：",
       "title": "檢查裝備變更"
     },
-    "title": "裝備",
+    "title": "行為",
     "unavailable": "裝備無法使用。",
     "updated": "裝備已更新。變更將在下次掛載聊天時生效。"
   },
@@ -272,7 +272,7 @@
     },
     "tabs": {
       "emotions": "情緒",
-      "loadout": "裝備",
+      "loadout": "行為",
       "memories": "記憶",
       "overview": "身分設定",
       "settings": "設定"

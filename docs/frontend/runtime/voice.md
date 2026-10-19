@@ -1035,7 +1035,7 @@ the public ORT 1.24.2 inventory does not replace those dependency versions.
   - Only the default state loads at startup. Others load on first use, and at
     most four more compact states stay cached.
   - It generates with temperature 0.3.
-- Anima Loadout → Voices shows the selected provider's controls, including while
+- Anima Behavior → Voices shows the selected provider's controls, including while
   speech is disabled. Its TTS Provider selector saves
   `speech.tts_provider` for that Anima without changing the application enable
   flag or either voice. Animas without an override inherit the application provider,

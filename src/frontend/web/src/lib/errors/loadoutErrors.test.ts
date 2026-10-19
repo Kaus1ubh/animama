@@ -16,7 +16,7 @@ describe("Loadout failures", () => {
       ),
     ).toEqual({
       message:
-        "The Loadout changed since you opened it. Review the change again.",
+        "Behavior changed since you opened it. Review the change again.",
       detail: null,
     });
   });
@@ -28,7 +28,7 @@ describe("Loadout failures", () => {
         "Review failed.",
       ).message,
     ).toBe(
-      "The Gesture's semantic key conflicts with another Gesture in the Loadout.",
+      "The Gesture's semantic key conflicts with another equipped Gesture.",
     );
   });
 
