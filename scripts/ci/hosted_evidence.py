@@ -1,7 +1,8 @@
-"""Reuse successful hosted full validation only for the identical merge result.
+"""Reuse a successful hosted PR run only for the identical merge result.
 
-The API establishes run provenance; a digest-checked artifact carries the full
-contract and tested Git identity. Any discovery uncertainty retains full CI.
+The API establishes run provenance; a digest-checked artifact carries the
+executed contract and tested Git identity. The run must cover the `main` push's
+own selection. Any discovery uncertainty retains the push's own validation.
 """
 
 from __future__ import annotations
@@ -18,7 +19,7 @@ import zipfile
 from datetime import UTC, datetime, timedelta
 
 from github_evidence import _full_requested, _get_json, _merged_pull, _NoRedirect, _number, _repository, _sha
-from validation_policy import SUITES, UNTIMED, evaluate
+from validation_policy import REUSABLE, SUITES, UNTIMED, covers, evaluate
 
 WORKFLOW_PATH = ".github/workflows/validate-public.yml"
 MAX_BYTES = 8 * 1024 * 1024
@@ -92,9 +93,9 @@ def _receipt(data: bytes, artifact: dict, modes: frozenset[str] = frozenset({"fu
         selection = json.loads(archive.read("selection.json"))
         receipt = json.loads(archive.read("validation.json"))
         _require(receipt["selection"] == selection, "Inconsistent artifact selection")
-        _require(receipt["schema_version"] == 3 and receipt["success"] is True, "Unsuccessful full receipt")
-        _require(selection["plan"]["mode"] in modes, "Prior run did not execute full validation")
-        _require(evaluate(selection["plan"], receipt["steps"])["success"], "Full contract did not pass")
+        _require(receipt["schema_version"] == 3 and receipt["success"] is True, "Unsuccessful receipt")
+        _require(selection["plan"]["mode"] in modes, "Prior run mode cannot be reused")
+        _require(evaluate(selection["plan"], receipt["steps"])["success"], "Recorded contract did not pass")
         checks = receipt["checks"]
         ids = [check["id"] for check in checks]
         _require(len(ids) == len(set(ids)), "Duplicate command receipt")
@@ -150,15 +151,18 @@ def hosted_for_main(
     source_commit: str,
     source_tree: str,
     baseline: str,
+    selected: dict,
     now: datetime,
     get_json=None,
     get_archive=None,
 ) -> dict:
     """Require one current successful PR run, exact source tree and merge baseline.
 
-    Same-repository ordinary merges are supported. Squash/rebase, forks, batched
-    pushes and unavailable evidence conservatively retain existing full checks.
-    No recursive reuse: the imported receipt must describe actual full execution.
+    The run's plan must cover `selected`, the push's own plan: every step it
+    requires and every suite it runs. Same-repository ordinary merges are
+    supported. Squash/rebase, forks, batched pushes and unavailable evidence
+    conservatively retain the push's own validation. No recursive reuse: the
+    imported receipt must describe actual execution.
     """
     fetch = get_json or _get_json
     download = get_archive or _download
@@ -245,8 +249,10 @@ def hosted_for_main(
             and provenance["head_repository_id"] == run["repository"]["id"],
             "Artifact provenance unavailable or mismatched",
         )
-        receipt = _receipt(download(repository, artifact["id"]), artifact)
+        receipt = _receipt(download(repository, artifact["id"]), artifact, REUSABLE)
         selection = receipt["selection"]
+        tested_plan = selection["plan"]
+        _require(covers(tested_plan, selected), "PR run did not cover this push's selection")
         tested = selection["source_commit"]
         _require(_sha(tested), "Malformed tested commit")
         _require(
@@ -271,10 +277,15 @@ def hosted_for_main(
             and [parent["sha"] for parent in commit["parents"]] == [baseline, head],
             "Hosted run did not test this proposed merged result",
         )
-        package_set = _package_set(receipt, run, tested, source_tree, [baseline, head], prefix, fetch)
+        # Only a full run executed the promotion suite and uploaded a set.
+        package_set = (
+            _package_set(receipt, run, tested, source_tree, [baseline, head], prefix, fetch)
+            if tested_plan["mode"] == "full"
+            else None
+        )
         return {
             "accepted": True,
-            "reason": "Verified full hosted PR validation for identical tree and baseline",
+            "reason": f"Verified {tested_plan['mode']} hosted PR validation for identical tree and baseline",
             "source_commit": source_commit,
             "source_tree": source_tree,
             "baseline": baseline,
@@ -286,12 +297,14 @@ def hosted_for_main(
             "run_url": f"https://github.com/{repository}/actions/runs/{run['id']}",
             "artifact_id": artifact["id"],
             "artifact_digest": artifact["digest"],
+            "tested_plan": tested_plan,
+            "selected_plan": selected,
             "package_set": package_set,
             "verified_at": now.astimezone(UTC).isoformat(),
         }
     except Exception:
         # Transport exceptions may contain signed URLs. Never print their text.
-        return {"accepted": False, "reason": "No verifiable matching full hosted PR run; full validation retained"}
+        return {"accepted": False, "reason": "No verifiable covering hosted PR run; this push's validation retained"}
 
 
 def bound_evidence(selection: dict) -> bool:
@@ -315,7 +328,12 @@ def bound_evidence(selection: dict) -> bool:
         and re.fullmatch(r"https://github.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/actions/runs/[0-9]+", evidence["run_url"])
         is not None
         and evidence.get("workflow") == WORKFLOW_PATH
-        and _bound_package_set(evidence, selection)
+        and covers(evidence.get("tested_plan"), evidence.get("selected_plan"))
+        and (
+            _bound_package_set(evidence, selection)
+            if evidence["tested_plan"]["mode"] == "full"
+            else evidence.get("package_set") is None
+        )
     )
 
 

@@ -50,7 +50,7 @@ class SummaryTests(unittest.TestCase):
         plan = choose_plan(
             "pull_request",
             {"action": "opened", "pull_request": {"draft": False, "labels": []}},
-            [{"status": "M", "old_path": None, "path": "tests/test_chat.py"}],
+            [{"status": "M", "old_path": None, "path": "tests/conftest.py"}],
         )
         browser = {
             "groups": ["core"],
@@ -68,6 +68,15 @@ class SummaryTests(unittest.TestCase):
         self.assertIn("| x | success | 3 |", text)
         self.assertIn("| a.browser.test.mjs | core | prelude | passed | 4 |", text)
         self.assertNotIn("owner-reviewed", text)
+        # Routed runs list their skipped suites the same way.
+        routed = choose_plan(
+            "pull_request",
+            {"action": "opened", "pull_request": {"draft": False, "labels": []}},
+            [{"status": "M", "old_path": None, "path": "tests/test_chat.py"}],
+        )
+        text = render(routed, "All passed", [], None, steps=lambda: (rows, 600))
+        self.assertIn("Profile: **backend-only**. Backend-only change", text)
+        self.assertIn("| browser-hosted | no |", text)
 
     def test_unavailable_timings_fall_back_to_command_receipts(self):
         def fail():

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable, Mapping
 from pathlib import PurePosixPath
 
@@ -78,10 +79,19 @@ SUITE_REASONS = {
     "browser-hosted": "No hosted-screen input changed; the hosted screens run on promotion runs",
     "browser-tooling": "No effect or animation tooling input changed; the tooling renders run on promotion runs",
 }
+# Path-routed ordinary runs (#608): when only one side of the application
+# changed, the other side's checks wait for the next full or mixed run. The
+# owner accepted that trade-off on 2026-10-19 (#607, item 5).
+WEB_CHECKS = {"frontend-lint", "frontend-types", "desktop-types", "packages-types", "harness-types"}
+BACKEND_ONLY_OMITS = WEB_CHECKS | {"web-tests", "browser-tests", "packages-tests"}
+# The accountless guard scans every web source file, so frontend-only runs keep it.
+FRONTEND_ONLY_OMITS = PYTHON | {"backend-tests"}
 PROFILES = {
     "full": FULL,
     # An ordinary PR or main run with recorded skips; never promotion-complete.
     "selective": FULL,
+    "backend-only": FULL - BACKEND_ONLY_OMITS,
+    "frontend-only": FULL - FRONTEND_ONLY_OMITS | {"accountless-guards"},
     "docs": COMMON | {"docs-tests"},
     "backend": COMMON | PYTHON | {"accountless-guards"},
     "web": COMMON | FRONTEND | {"accountless-guards"},
@@ -89,6 +99,11 @@ PROFILES = {
     "unchanged": set(),
     "reused": set(),
 }
+# Ordinary runs record the suites they skip; the promotion suite is always one.
+ORDINARY = frozenset({"selective", "backend-only", "frontend-only"})
+# Hosted PR runs whose receipt a `main` push may reuse when it covers the push's
+# own selection (see `covers`).
+REUSABLE = frozenset({"full", *ORDINARY})
 LOCAL_CHECKS = {"backend": {"backend-full"}, "web": {"frontend-source", "browser-smoke"}}
 PR_ACTIONS = {
     "opened",
@@ -100,6 +115,8 @@ PR_ACTIONS = {
     "unlabeled",
     "edited",
 }
+# Repository and skill instructions always keep full or selective validation.
+INSTRUCTIONS = {"AGENTS.md", "SKILL.md", "PLANS.md"}
 SHARED_TESTS = {
     "test_accountless_repository_boundaries.py",
     "test_compose_network_boundaries.py",
@@ -141,7 +158,7 @@ def _path(value: object) -> bool:
 
 def _area(path: str, excluded: set[str]) -> str | None:
     p = PurePosixPath(path)
-    if path in excluded or p.name in {"AGENTS.md", "SKILL.md", "PLANS.md"}:
+    if path in excluded or p.name in INSTRUCTIONS:
         return None
     # docs/safety is bundled into the web app (Safety page and dialog), so it is
     # a frontend build input rather than documentation-only.
@@ -296,6 +313,76 @@ def select_suites(changes: object, excluded_paths: Iterable[str] = ()) -> set[st
     return selected
 
 
+# Backend inputs the frontend also reads: Included resources and contracts
+# (web and desktop tests, effect and content tools) and desktop packaging.
+BACKEND_SHARED_PREFIXES = (
+    "src/backend/animama/resources/",
+    "src/backend/animama/app/contracts/",
+    "src/backend/packaging/",
+)
+FRONTEND_SOURCES = ("src/frontend/web/src/", "src/frontend/desktop/src/")
+# Frontend sources that backend tests read, beyond `fixtures/` directories.
+FRONTEND_SHARED_FILES = {
+    "src/frontend/desktop/src/main-process/runtime/vault.ts",
+    "src/frontend/web/src/app/hosted-runtime/hosted-composition.ts",
+}
+ROUTE_REASONS = {
+    "backend": "Backend-only change; web unit, browser, web lint/type and package tests wait for the next "
+    "full or mixed run, and unselected suites for a promotion run",
+    "frontend": "Frontend-only change; the backend suite and Python checks wait for the next full or mixed run, "
+    "and unselected suites for a promotion run",
+}
+
+
+def _side(path: str) -> str | None:
+    """The one application side a path can affect, or None when it may affect both."""
+    p = PurePosixPath(path)
+    if path in EVERYTHING_FILES or path.startswith(EVERYTHING_PREFIXES) or p.name in INSTRUCTIONS:
+        return None
+    if path.startswith("src/backend/"):
+        return None if path.startswith(BACKEND_SHARED_PREFIXES) else "backend"
+    if p.parent == PurePosixPath("tests") and p.name.startswith("test_") and p.suffix == ".py":
+        if p.name not in SHARED_TESTS and not any(word in p.stem for word in ("support", "helper", "fixture")):
+            return "backend"
+        return None
+    if path.startswith(FRONTEND_SOURCES):
+        # Backend tests read shared fixtures as parity records.
+        if "fixtures" in p.parts or path in FRONTEND_SHARED_FILES:
+            return None
+        return "frontend"
+    return None
+
+
+def route(changes: object, excluded_paths: Iterable[str] = ()) -> str | None:
+    """The side every change belongs to; mixed, special or uncertain changes return None."""
+    if not isinstance(changes, list) or not changes or isinstance(excluded_paths, str | bytes):
+        return None
+    try:
+        excluded = set(excluded_paths)
+    except (TypeError, ValueError):
+        return None
+    if any(not _path(path) for path in excluded):
+        return None
+    sides = set()
+    for change in changes:
+        if not isinstance(change, dict) or set(change) != {"status", "old_path", "path"}:
+            return None
+        status = change["status"]
+        # Additions, deletions, edits, renames and copies; type changes and
+        # unmerged or unknown entries stay full or selective.
+        if not isinstance(status, str) or not re.fullmatch(r"[ACDMR][0-9]*", status):
+            return None
+        if (status[0] in "RC") != (change["old_path"] is not None):
+            return None
+        for path in (change["old_path"], change["path"]):
+            if path is None and status[0] not in "RC":
+                continue
+            if not _path(path) or path in excluded:
+                return None
+            sides.add(_side(path))
+    return sides.pop() if len(sides) == 1 and None not in sides else None
+
+
 def choose_plan(
     event_name: str,
     event: Mapping[str, object],
@@ -341,7 +428,7 @@ def choose_plan(
     if diff_error is not None:
         return _plan("full", "Complete changed-file discovery unavailable")
     if event_name == "push" and hosted_verified is True:
-        return _plan("reused", "Verified full hosted PR validation covers this exact merged result and baseline")
+        return _plan("reused", "Verified hosted PR validation covers this exact merged result and baseline")
     area = classify(changes, excluded_paths)
     if area == "docs":
         return _plan("docs", "Existing eligible documentation: independent focused hosted checks")
@@ -353,6 +440,9 @@ def choose_plan(
         # special files here; changed imports do not alter suite inputs.
         special = excluded_paths if special_paths is None else special_paths
         skipped = ALL_SUITES - select_suites(changes, special)
+        side = route(changes, special)
+        if side is not None and "promotion" in skipped:
+            return _plan(f"{side}-only", ROUTE_REASONS[side], skipped)
         if skipped:
             return _plan("selective", "Ordinary run; unselected suites run on promotion runs", skipped)
     return _plan("full", "Validation, dependency, browser-harness or uncertain inputs select every suite")
@@ -376,6 +466,44 @@ def _skipped_suites(rows: object) -> list[str] | None:
     return suites if suites == sorted(set(suites)) else None
 
 
+def _consistent(plan: object) -> list[str] | None:
+    """Skipped suites of a well-formed plan whose required steps match its mode and skips."""
+    if not isinstance(plan, dict) or set(plan) != PLAN_KEYS:
+        return None
+    mode = plan["mode"]
+    if (
+        type(plan["schema_version"]) is not int
+        or plan["schema_version"] != 3
+        or not isinstance(mode, str)
+        or mode not in PROFILES
+        or not isinstance(plan["reason"], str)
+        or not plan["reason"].strip()
+    ):
+        return None
+    skipped = _skipped_suites(plan["skipped"])
+    if skipped is None or bool(skipped) != (mode in ORDINARY) or plan["required"] != _required(mode, skipped):
+        return None
+    if mode in ORDINARY - {"selective"} and "promotion" not in skipped:
+        return None
+    return skipped
+
+
+def covers(tested: object, selected: object) -> bool:
+    """A prior run covers a selection when it required each of its steps and ran each suite it runs.
+
+    A `main` push may then reuse the run for an identical tree and baseline.
+    """
+    tested_skips, selected_skips = _consistent(tested), _consistent(selected)
+    return (
+        tested_skips is not None
+        and selected_skips is not None
+        and tested["mode"] in REUSABLE
+        and selected["mode"] in REUSABLE
+        and set(selected["required"]) <= set(tested["required"])
+        and set(tested_skips) <= set(selected_skips)
+    )
+
+
 def evaluate(plan: object, steps: object) -> dict[str, object]:
     """Failed, absent or unexpected skips cannot be hidden by a successful final step."""
 
@@ -384,19 +512,10 @@ def evaluate(plan: object, steps: object) -> dict[str, object]:
 
     if not isinstance(plan, dict) or set(plan) != PLAN_KEYS:
         return fail("Malformed plan fields")
-    mode = plan.get("mode")
-    if (
-        type(plan.get("schema_version")) is not int
-        or plan["schema_version"] != 3
-        or not isinstance(mode, str)
-        or mode not in PROFILES
-        or not isinstance(plan.get("reason"), str)
-        or not plan["reason"].strip()
-    ):
+    skipped = _consistent(plan)
+    if skipped is None:
         return fail("Malformed or inconsistent required-step plan")
-    skipped = _skipped_suites(plan.get("skipped"))
-    if skipped is None or bool(skipped) != (mode == "selective") or plan.get("required") != _required(mode, skipped):
-        return fail("Malformed or inconsistent required-step plan")
+    mode = plan["mode"]
     if not isinstance(steps, dict):
         return fail("Missing step results")
     for name in set().union(*(SUITES[suite] for suite in skipped)):

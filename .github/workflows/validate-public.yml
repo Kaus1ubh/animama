@@ -36,13 +36,16 @@ permissions:
   pull-requests: read
 
 concurrency:
-  # Ignore metadata edits without cancelling a real run; PR and push runs never collide.
-  # Reusable release callers retain their own run identity.
+  # Ignore metadata edits and labels other than ci:full without cancelling a
+  # real run; PR and push runs never collide. Reusable release callers retain
+  # their own run identity.
   group: >-
     portable-product-${{ github.workflow }}-${{
       github.workflow != 'Portable product validation' && format('release-{0}', github.run_id) ||
       github.event_name == 'pull_request' &&
-      (github.event.pull_request.state != 'open' || github.event.action == 'edited' && !github.event.changes.base) &&
+      (github.event.pull_request.state != 'open' || github.event.action == 'edited' && !github.event.changes.base ||
+       (github.event.action == 'labeled' || github.event.action == 'unlabeled') &&
+       github.event.label.name != 'ci:full') &&
       format('ignored-{0}', github.run_id) ||
       github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) ||
       format('{0}-{1}', github.event_name, github.ref)
@@ -56,10 +59,14 @@ defaults:
 jobs:
   validation:
     name: Validation
+    # Selection reads only the ci:full label and the draft flag, so other label
+    # changes cannot change the plan.
     if: >-
       github.event_name != 'pull_request' ||
       (github.event.pull_request.state == 'open' &&
-       (github.event.action != 'edited' || github.event.changes.base))
+       (github.event.action != 'edited' || github.event.changes.base) &&
+       (github.event.action != 'labeled' && github.event.action != 'unlabeled' ||
+        github.event.label.name == 'ci:full'))
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     env:
@@ -68,7 +75,8 @@ jobs:
     steps:
       # Setup: one candidate checkout; exact baseline checkout happens only for packaging.
       # Ordinary PR runs and main pushes may record a `selective` mode that
-      # skips the promotion suite and unchanged browser groups.
+      # skips the promotion suite and unchanged browser groups, or a routed
+      # `backend-only`/`frontend-only` mode that also skips the other side's checks.
       - name: Check out exact candidate without asset hydration
         id: checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
@@ -89,13 +97,13 @@ jobs:
         run: python3 scripts/ci/validation.py plan --output "$RUNNER_TEMP/selection.json"
       - name: Hydrate assets required by full validation
         id: hydrate
-        if: contains(fromJSON('["full","selective"]'), steps.select.outputs.mode)
+        if: contains(fromJSON('["full","selective","backend-only","frontend-only"]'), steps.select.outputs.mode)
         env:
           CI_READ_TOKEN: ${{ github.token }}
         run: python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" hydrate -- python3 scripts/ci/validation.py hydrate
       - name: Set up locked Python toolchain and download cache
         id: uv
-        if: contains(fromJSON('["full","selective","docs","backend","web"]'), steps.select.outputs.mode)
+        if: contains(fromJSON('["full","selective","backend-only","frontend-only","docs","backend","web"]'), steps.select.outputs.mode)
         uses: astral-sh/setup-uv@cec208311dfd045dd5311c1add060b2062131d57 # v8.0.0
         with:
           version: "0.11.28"
@@ -108,29 +116,29 @@ jobs:
           cache-suffix: p96-uv0.11.28-python3.12.13-${{ runner.os }}-${{ runner.arch }}
       - name: Install frozen backend dependencies
         id: uv-sync
-        if: contains(fromJSON('["full","selective","docs","backend","web"]'), steps.select.outputs.mode)
+        if: contains(fromJSON('["full","selective","backend-only","frontend-only","docs","backend","web"]'), steps.select.outputs.mode)
         run: |
           python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" uv-sync -- uv sync --frozen --python 3.12.13
       - name: Ensure the typed-content audit prerequisite exists
         id: rg-setup
-        if: contains(fromJSON('["full","selective","docs","backend","web"]'), steps.select.outputs.mode)
+        if: contains(fromJSON('["full","selective","backend-only","frontend-only","docs","backend","web"]'), steps.select.outputs.mode)
         run: |
           python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" rg-setup -- bash -e -o pipefail -c 'if ! command -v rg; then sudo apt-get update; sudo apt-get install --yes ripgrep; fi'
       - name: Set up Node for frontend validation
         id: node
-        if: contains(fromJSON('["full","selective","web"]'), steps.select.outputs.mode)
+        if: contains(fromJSON('["full","selective","backend-only","frontend-only","web"]'), steps.select.outputs.mode)
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: "24.15.0"
           package-manager-cache: false
       - name: Install the pinned package manager
         id: pnpm-setup
-        if: contains(fromJSON('["full","selective","web"]'), steps.select.outputs.mode)
+        if: contains(fromJSON('["full","selective","backend-only","frontend-only","web"]'), steps.select.outputs.mode)
         run: |
           python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" pnpm-setup -- npm install --global pnpm@10.33.0
       - name: Locate the pnpm download store
         id: pnpm-store
-        if: contains(fromJSON('["full","selective","web"]'), steps.select.outputs.mode)
+        if: contains(fromJSON('["full","selective","backend-only","frontend-only","web"]'), steps.select.outputs.mode)
         run: |
           python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" pnpm-store --cwd src/frontend -- bash -e -o pipefail -c '
           store_path=$(pnpm store path --silent)
@@ -139,86 +147,86 @@ jobs:
           '
       - name: Restore pnpm downloads without installed environments
         id: pnpm-cache
-        if: contains(fromJSON('["full","selective","web"]'), steps.select.outputs.mode) && !inputs.cold-cache
+        if: contains(fromJSON('["full","selective","backend-only","frontend-only","web"]'), steps.select.outputs.mode) && !inputs.cold-cache
         uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
         with:
           path: ${{ steps.pnpm-store.outputs.path }}
           key: pnpm-${{ runner.os }}-${{ runner.arch }}-node24.15.0-pnpm10.33.0-${{ hashFiles('src/frontend/pnpm-lock.yaml', 'src/frontend/pnpm-workspace.yaml') }}
       - name: Install frozen frontend dependencies
         id: pnpm-install
-        if: contains(fromJSON('["full","selective","web"]'), steps.select.outputs.mode)
+        if: contains(fromJSON('["full","selective","backend-only","frontend-only","web"]'), steps.select.outputs.mode)
         run: |
           python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" pnpm-install --cwd src/frontend -- pnpm install --frozen-lockfile
       - name: Prepare shared frontend package outputs once
         id: frontend-prepare
-        if: contains(fromJSON('["full","selective","web"]'), steps.select.outputs.mode)
+        if: contains(fromJSON('["full","selective","backend-only","frontend-only","web"]'), steps.select.outputs.mode)
         run: |
           python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" frontend-prepare --cwd src/frontend -- pnpm packages:build
       # Lint and repository invariants.
       - name: Audit typed-content boundaries
         id: audit
-        if: contains(fromJSON('["full","selective","docs","backend","web"]'), steps.select.outputs.mode)
+        if: contains(fromJSON('["full","selective","backend-only","frontend-only","docs","backend","web"]'), steps.select.outputs.mode)
         run: |
           python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" audit -- bash scripts/audit-typed-content.sh
       - name: Check backend formatting
         id: backend-format
-        if: contains(fromJSON('["full","selective","backend"]'), steps.select.outputs.mode)
+        if: contains(fromJSON('["full","selective","backend-only","backend"]'), steps.select.outputs.mode)
         run: |
           python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" backend-format -- uv run --no-sync ruff format --check src/backend/animama tests
       - name: Lint Python source and tooling
         id: backend-lint
-        if: contains(fromJSON('["full","selective","backend"]'), steps.select.outputs.mode)
+        if: contains(fromJSON('["full","selective","backend-only","backend"]'), steps.select.outputs.mode)
         run: |
           python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" backend-lint -- uv run --no-sync ruff check
       - name: Lint web source
         id: frontend-lint
-        if: contains(fromJSON('["full","selective","web"]'), steps.select.outputs.mode)
+        if: contains(fromJSON('["full","selective","frontend-only","web"]'), steps.select.outputs.mode)
         run: |
           python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" frontend-lint --cwd src/frontend -- pnpm web:lint
       - name: Repository Imports
         id: repository-imports
-        if: contains(fromJSON('["full","selective"]'), steps.select.outputs.mode)
+        if: contains(fromJSON('["full","selective","backend-only","frontend-only"]'), steps.select.outputs.mode)
         run: |
           python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" repository-imports -- uv run --no-sync python scripts/repository-boundary/check-python-imports.py
       - name: Check repository dependency boundaries
         id: repository-dependencies
-        if: contains(fromJSON('["full","selective"]'), steps.select.outputs.mode)
+        if: contains(fromJSON('["full","selective","backend-only","frontend-only"]'), steps.select.outputs.mode)
         run: |
           python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" repository-dependencies -- uv run --no-sync python scripts/check-repository-dependencies.py
       - name: Verify materialized LFS inputs
         id: lfs-integrity
-        if: contains(fromJSON('["full","selective"]'), steps.select.outputs.mode)
+        if: contains(fromJSON('["full","selective","backend-only","frontend-only"]'), steps.select.outputs.mode)
         run: |
           python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" lfs-integrity -- git lfs fsck
       # Types and generated SDK freshness.
       - name: Check backend and test types
         id: backend-types
-        if: contains(fromJSON('["full","selective","backend"]'), steps.select.outputs.mode)
+        if: contains(fromJSON('["full","selective","backend-only","backend"]'), steps.select.outputs.mode)
         run: |
           python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" backend-types -- uv run --no-sync mypy src/backend/animama tests --exclude web-ui --exclude deprecated --exclude templates
       - name: Check web types
         id: frontend-types
-        if: contains(fromJSON('["full","selective","web"]'), steps.select.outputs.mode)
+        if: contains(fromJSON('["full","selective","frontend-only","web"]'), steps.select.outputs.mode)
         run: |
           python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" frontend-types --cwd src/frontend -- pnpm --filter animama-web check:source
       - name: Check desktop types
         id: desktop-types
-        if: contains(fromJSON('["full","selective","web"]'), steps.select.outputs.mode)
+        if: contains(fromJSON('["full","selective","frontend-only","web"]'), steps.select.outputs.mode)
         run: |
           python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" desktop-types --cwd src/frontend -- pnpm desktop:check
       - name: Check shared package types
         id: packages-types
-        if: contains(fromJSON('["full","selective","web"]'), steps.select.outputs.mode)
+        if: contains(fromJSON('["full","selective","frontend-only","web"]'), steps.select.outputs.mode)
         run: |
           python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" packages-types --cwd src/frontend -- pnpm packages:check
       - name: Check browser harness types
         id: harness-types
-        if: contains(fromJSON('["full","selective","web"]'), steps.select.outputs.mode)
+        if: contains(fromJSON('["full","selective","frontend-only","web"]'), steps.select.outputs.mode)
         run: |
           python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" harness-types --cwd src/frontend -- pnpm e2e:check:source
       - name: Check generated SDK freshness
         id: sdk-freshness
-        if: contains(fromJSON('["full","selective","web"]'), steps.select.outputs.mode)
+        if: contains(fromJSON('["full","selective","backend-only","frontend-only","web"]'), steps.select.outputs.mode)
         run: |
           python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" sdk-freshness --cwd src/frontend -- pnpm openapi-ts:check
       # Tests: lightweight profiles have explicit, bounded test selections.
@@ -229,12 +237,12 @@ jobs:
           python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" docs-tests -- uv run --no-sync pytest -q tests/test_generate_synthetic_docs.py tests/test_accountless_repository_boundaries.py
       - name: Run accountless source boundary guards
         id: accountless-guards
-        if: contains(fromJSON('["backend","web"]'), steps.select.outputs.mode)
+        if: contains(fromJSON('["frontend-only","backend","web"]'), steps.select.outputs.mode)
         run: |
           python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" accountless-guards -- uv run --no-sync pytest -q tests/test_accountless_repository_boundaries.py
       - name: Run the complete offline backend suite
         id: backend-tests
-        if: contains(fromJSON('["full","selective"]'), steps.select.outputs.mode)
+        if: contains(fromJSON('["full","selective","backend-only"]'), steps.select.outputs.mode)
         env:
           PYTEST_ADDOPTS: --junitxml=${{ runner.temp }}/backend-pytest.xml
         run: |
@@ -242,24 +250,24 @@ jobs:
           python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" backend-tests -- uv run --no-sync pytest -n 2
       - name: Run every nonempty CI and release tooling suite
         id: tooling-tests
-        if: contains(fromJSON('["full","selective"]'), steps.select.outputs.mode)
+        if: contains(fromJSON('["full","selective","backend-only","frontend-only"]'), steps.select.outputs.mode)
         run: |
           python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" tooling-tests -- uv run --no-sync python scripts/ci/tooling_tests.py
       - name: Install Chromium for full browser-dependent tests
         id: browser-install
-        if: contains(fromJSON('["full","selective"]'), steps.select.outputs.mode)
+        if: contains(fromJSON('["full","selective","backend-only","frontend-only"]'), steps.select.outputs.mode)
         run: |
           python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" browser-install --cwd src/frontend -- pnpm exec playwright install chromium
       - name: Reuse immutable verified speech model inputs
         id: speech-cache
-        if: contains(fromJSON('["full","selective"]'), steps.select.outputs.mode) && !inputs.cold-cache
+        if: contains(fromJSON('["full","selective","backend-only","frontend-only"]'), steps.select.outputs.mode) && !inputs.cold-cache
         uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
         with:
           path: ${{ runner.temp }}/animama-models
           key: speech-${{ hashFiles('models/parakeet-tdt-0.6b-v2/manifest.json', 'models/browser-speech/manifest.json') }}
       - name: Acquire and verify exact model inputs before local serving
         id: model-inputs
-        if: contains(fromJSON('["full","selective"]'), steps.select.outputs.mode)
+        if: contains(fromJSON('["full","selective","backend-only","frontend-only"]'), steps.select.outputs.mode)
         env:
           ANIMAMA_MODEL_ROOT: ${{ runner.temp }}/animama-models
         run: |
@@ -274,27 +282,27 @@ jobs:
           '
       - name: Run browser harness unit tests
         id: harness-unit
-        if: contains(fromJSON('["full","selective"]'), steps.select.outputs.mode)
+        if: contains(fromJSON('["full","selective","backend-only","frontend-only"]'), steps.select.outputs.mode)
         run: |
           python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" harness-unit --cwd src/frontend -- pnpm e2e:test:unit
       - name: Run source runner and E2E script tests
         id: harness-scripts
-        if: contains(fromJSON('["full","selective"]'), steps.select.outputs.mode)
+        if: contains(fromJSON('["full","selective","backend-only","frontend-only"]'), steps.select.outputs.mode)
         run: |
           python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" harness-scripts --cwd src/frontend -- bash -e -o pipefail -c 'node --test scripts/ci-source.test.mjs scripts/e2e/*.test.mjs'
       - name: Run generated SDK tooling tests
         id: sdk-tests
-        if: contains(fromJSON('["full","selective"]'), steps.select.outputs.mode)
+        if: contains(fromJSON('["full","selective","backend-only","frontend-only"]'), steps.select.outputs.mode)
         run: |
           python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" sdk-tests --cwd src/frontend -- node --test scripts/generate-openapi-client.test.mjs
       - name: Run shared package tests
         id: packages-tests
-        if: contains(fromJSON('["full","selective"]'), steps.select.outputs.mode)
+        if: contains(fromJSON('["full","selective","frontend-only"]'), steps.select.outputs.mode)
         run: |
           python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" packages-tests --cwd src/frontend -- pnpm packages:test
       - name: Run web unit and tooling tests
         id: web-tests
-        if: contains(fromJSON('["full","selective"]'), steps.select.outputs.mode)
+        if: contains(fromJSON('["full","selective","frontend-only"]'), steps.select.outputs.mode)
         env:
           # Vitest defaults to CPUs - 1 (one worker on this runner); two measured 26% faster.
           VITEST_MAX_WORKERS: "2"
@@ -302,25 +310,25 @@ jobs:
           python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" web-tests --cwd src/frontend -- pnpm --filter animama-web test:source:unit
       - name: Run the selected browser test groups
         id: browser-tests
-        if: contains(fromJSON('["full","selective"]'), steps.select.outputs.mode)
+        if: contains(fromJSON('["full","selective","frontend-only"]'), steps.select.outputs.mode)
         env:
           BROWSER_GROUPS: ${{ steps.select.outputs.browser-groups }}
         run: |
           python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" browser-tests -- python3 scripts/ci/browser_tests.py --groups "$BROWSER_GROUPS" --output "$RUNNER_TEMP/browser-tests"
       - name: Run desktop tests
         id: desktop-tests
-        if: contains(fromJSON('["full","selective"]'), steps.select.outputs.mode)
+        if: contains(fromJSON('["full","selective","backend-only","frontend-only"]'), steps.select.outputs.mode)
         run: |
           python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" desktop-tests --cwd src/frontend -- pnpm desktop:test
       # Build and rendered browser acceptance.
       - name: Build the production web app
         id: web-build
-        if: contains(fromJSON('["full","selective"]'), steps.select.outputs.mode)
+        if: contains(fromJSON('["full","selective","backend-only","frontend-only"]'), steps.select.outputs.mode)
         run: |
           python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" web-build --cwd src/frontend -- pnpm --filter animama-web build:source
       - name: Verify loaded accountless Library in both serving modes
         id: browser-smoke
-        if: contains(fromJSON('["full","selective"]'), steps.select.outputs.mode)
+        if: contains(fromJSON('["full","selective","backend-only","frontend-only"]'), steps.select.outputs.mode)
         run: |
           python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" browser-smoke -- uv run --no-sync python src/frontend/scripts/e2e/run-accountless-smoke.py --evidence "$RUNNER_TEMP/accountless-smoke"
       # Independent frozen producer and installed consumers remain separate.
@@ -336,7 +344,7 @@ jobs:
           python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" package-consumers -- uv run --no-sync python scripts/package-sets/build.py validate "$RUNNER_TEMP/public-artifacts" --work-dir "$RUNNER_TEMP/public-consumer"
       - name: Validate Compose topology
         id: compose-check
-        if: contains(fromJSON('["full","selective"]'), steps.select.outputs.mode)
+        if: contains(fromJSON('["full","selective","backend-only","frontend-only"]'), steps.select.outputs.mode)
         run: |
           python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" compose-check -- bash -e -o pipefail -c '
           bash -n reset.sh

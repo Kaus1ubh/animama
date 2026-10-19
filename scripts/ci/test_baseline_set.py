@@ -156,6 +156,11 @@ class FindTests(unittest.TestCase):
         fixture.set_artifact["digest"] = "sha256:" + "f" * 64
         with self.assertRaises(ValueError):
             fixture.find()
+        # A main run that reused a selective or routed PR run names no set.
+        fixture = Fixture("reused")
+        fixture.selection["hosted_evidence"]["package_set"] = None
+        with self.assertRaises(ValueError):
+            fixture.find()
 
 
 class RecipeAndArchiveTests(unittest.TestCase):
