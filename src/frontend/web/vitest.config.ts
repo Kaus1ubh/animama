@@ -41,6 +41,9 @@ export default defineConfig({
       "src/**/*.{test,spec}.{ts,tsx}",
       "tests/**/*.{test,spec}.{ts,tsx}",
     ],
+    // Leave CPUs for parallel local work; CI keeps Vitest's default. Vitest's
+    // VITEST_MAX_WORKERS environment variable overrides either value.
+    maxWorkers: process.env.CI ? undefined : 3,
     restoreMocks: true,
     setupFiles: ["src/test/i18n-setup.ts"],
   },
