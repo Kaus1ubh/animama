@@ -15,8 +15,7 @@ describe("Loadout failures", () => {
         "Review failed.",
       ),
     ).toEqual({
-      message:
-        "Behavior changed since you opened it. Review the change again.",
+      message: "Behavior changed since you opened it. Review the change again.",
       detail: null,
     });
   });
