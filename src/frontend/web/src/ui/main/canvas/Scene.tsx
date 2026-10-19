@@ -38,11 +38,10 @@ import { SceneVFXUnderlayHost } from "@/ui/main/scene-vfx/SceneVFXUnderlayHost";
 import { StageBackgroundLayer } from "@/ui/main/canvas/StageBackgroundLayer";
 import type { Avatar } from "@/lib/avatar";
 import { CONTINUOUS_CANVAS_RESIZE } from "@/ui/main/canvas/canvasResizeOptions";
-import {
-  ENHANCED_CHAT_CANVAS_FILTER,
-  useEnhancedRenderingStore,
-} from "@/lib/avatar/enhanced-rendering/enhancedRendering";
+import { useEnhancedRenderingStore } from "@/lib/avatar/enhanced-rendering/enhancedRendering";
+import { chatCanvasFilter } from "@/lib/avatar/enhanced-rendering/backdropGlow";
 import { AvatarSceneLighting } from "./AvatarSceneLighting";
+import { type Backdrop, useBackdropColor } from "./useBackdropColor";
 import {
   sceneVector3ToArray,
   type SceneCameraSettings,
@@ -150,6 +149,8 @@ export default function Scene({
 }: SceneProps) {
   const [avatarRoot, setAvatarRoot] = useState<Group | null>(null);
   const [dpr, setDpr] = useState(1);
+  const [stageImageSrc, setStageImageSrc] = useState<string | null>(null);
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const cameraRef = useRef<PerspectiveCameraRef | null>(null);
   const orbitControlsRef = useRef<OrbitControlsRef | null>(null);
   const logger = useMemo(() => createLogger("Scene"), []);
@@ -169,6 +170,26 @@ export default function Scene({
   const backgroundCrop = backgroundOption
     ? resolveAvatarBackgroundCrop(backgroundOption, animaPreferences)
     : null;
+  const showStageBackground =
+    !transparentBackground &&
+    backgroundMediaEnabled &&
+    Boolean(mountedRuntimeContent);
+  const optionBackground =
+    !transparentBackground && !showStageBackground && canvasViewport.hasSize
+      ? backgroundOption
+      : null;
+  // The enhanced glow follows what the canvas is drawn over; a transparent
+  // window shows the unknown desktop, so it gets no glow.
+  const backdropImageSrc = showStageBackground
+    ? stageImageSrc
+    : (optionBackground?.imageSrc ?? null);
+  const backdrop: Backdrop =
+    !enhancedRendering || transparentBackground
+      ? null
+      : backdropImageSrc
+        ? { kind: "image", src: backdropImageSrc }
+        : { kind: "element" };
+  const backdropColor = useBackdropColor(backdrop, rootRef);
   const mouseButtons = useMemo(
     () =>
       orbitModifierActive
@@ -233,25 +254,23 @@ export default function Scene({
 
   return (
     <div
+      ref={rootRef}
       className={cn(
         "relative h-full w-full overflow-hidden",
         !transparentBackground && "bg-background",
         orbitInteractionEnabled && "cursor-grab",
       )}
     >
-      {!transparentBackground &&
-      backgroundMediaEnabled &&
-      mountedRuntimeContent ? (
+      {showStageBackground ? (
         <StageBackgroundLayer
           variant="chat"
           boundImage={runtimeBackgroundEntry}
+          onImageChange={setStageImageSrc}
         />
-      ) : !transparentBackground &&
-        backgroundOption &&
-        canvasViewport.hasSize ? (
+      ) : optionBackground ? (
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
           <AvatarBackgroundMedia
-            option={backgroundOption}
+            option={optionBackground}
             crop={backgroundCrop}
             frameWidth={canvasViewport.width}
             frameHeight={canvasViewport.height}
@@ -265,7 +284,7 @@ export default function Scene({
         className="relative z-10 h-full w-full"
         style={
           enhancedRendering
-            ? { filter: ENHANCED_CHAT_CANVAS_FILTER }
+            ? { filter: chatCanvasFilter(backdropColor) }
             : undefined
         }
         dpr={dpr}
