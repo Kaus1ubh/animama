@@ -138,7 +138,9 @@ class WorkflowContractTests(unittest.TestCase):
         self.assertTrue(meaningful)
         for action in ("labeled", "unlabeled"):
             # A deleted label may arrive without its name; it cannot be ci:full being added.
-            for label in ("type:feat", "documentation", "ci:fully", "CI:FULL", None):
+            # GitHub compares names case-insensitively and keeps them unique that way,
+            # so no other label can match ci:full.
+            for label in ("type:feat", "documentation", "ci:fully", None):
                 with self.subTest(action=action, label=label):
                     enabled, ignored = self.workflow_event(action=action, label=label)
                     self.assertFalse(enabled)

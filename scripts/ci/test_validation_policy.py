@@ -592,6 +592,10 @@ UNROUTED_PATHS = (
     "src/frontend/web/src/lib/avatar/poses/animaPoseClip/fixtures/v2-vocabulary.json",
     "src/frontend/desktop/src/main-process/runtime/vault.ts",
     "src/frontend/web/src/app/hosted-runtime/hosted-composition.ts",
+    "src/frontend/web/src/assets/vrm/animations/manifest.json",
+    "src/frontend/web/src/assets/effect-templates/sparkle.webp",
+    "src/frontend/web/src/lib/lipsync/text/english-dictionary.data.ts",
+    "src/frontend/web/src/lib/speech/pocket/voice-catalog.ts",
     "src/frontend/web/src/AGENTS.md",
     "src/frontend/web/vite.config.ts",
     "src/frontend/web/vite-plugins/app-version.ts",
@@ -735,6 +739,8 @@ class RoutingTests(unittest.TestCase):
         # A rename needs both sides; other statuses have only one.
         self.assertIsNone(route([change("R100", path)]))
         self.assertIsNone(route([change("M", path, path)]))
+        # A missing path never routes, even beside routable changes.
+        self.assertIsNone(route([modified(path), modified(None)]))
         for changes in (None, [], {}, (), [{}], [None], [modified(path) | {"extra": True}]):
             self.assertIsNone(route(changes))
         for bad in (None, [], "", "../tests/test_chat.py", "/src/backend/a.py", "src//backend/a.py", "src\\a.py"):
@@ -788,18 +794,26 @@ class RoutingTests(unittest.TestCase):
 ROOT = Path(__file__).resolve().parents[2]
 # Repository paths, or paths relative to src/frontend such as "desktop/src/...".
 FRONTEND_REFERENCE = re.compile(r"(?<![\w./-])(?:src/frontend/)?(?:web|desktop)/src(?:/[\w.@-]+)*")
+# Segmented joins such as `ROOT / "src" / "frontend" / "web" / "src" / ...`.
+FRONTEND_SEGMENTS = re.compile(r'"src"(?:\s*/\s*"[\w.@-]+")+')
 BACKEND_REFERENCE = re.compile(r"(?:\bsrc/|(?:\.\./)+)backend(?:/[\w.@-]+)*")
-# Directory reads reviewed against the routing tables.
-REVIEWED_DIRECTORIES = {
+# Mentions and directory reads reviewed against the routing tables.
+REVIEWED = {
     # The accountless guard scans all web sources; frontend-only runs it.
     ("tests/test_accountless_repository_boundaries.py", "src/frontend/web/src"),
     # Joined only with fixtures paths (checked below).
     ("tests/test_content_package_capabilities.py", "src/frontend/web/src/lib"),
     ("tests/test_content_package_import_resources.py", "src/frontend/web/src/lib"),
+    # Docstrings naming the frontend counterpart; the shared fixtures are the parity records.
+    ("src/backend/animama/app/services/content_names.py", "src/frontend/web/src/lib/content/nameIdentifiers.ts"),
+    ("src/backend/animama/app/contracts/scene_effect_limits.py", "src/frontend/web/src/lib/scene-vfx"),
+    # Synthetic paths the cleanup measurement test writes in a temporary tree.
+    ("scripts/repository-cleanup/test_measure.py", "src/frontend/web/src/lib/speech/pocket/index.js"),
     # The accountless smoke runs the backend; both routed profiles run it.
     ("src/frontend/scripts/e2e/run-accountless-smoke.py", "src/backend"),
 }
 SCANNED = (".py", ".ts", ".tsx", ".mts", ".cts", ".js", ".mjs", ".cjs", ".json", ".sh")
+FRONTEND_PREFIXES = ("src/frontend/web/src", "src/frontend/desktop/src")
 
 
 class CrossReadTests(unittest.TestCase):
@@ -810,32 +824,45 @@ class CrossReadTests(unittest.TestCase):
         listing = subprocess.run(["git", "-C", str(ROOT), "ls-files", "-z"], capture_output=True, check=True)
         cls.files = [name for name in listing.stdout.decode().split("\0") if name]
 
-    def check_references(self, sources, pattern, normalize, side):
+    def check_references(self, sources, references, side):
         tracked = set(self.files)
         found = 0
         for source in sources:
             text = (ROOT / source).read_text(errors="replace")
-            for reference in sorted(set(pattern.findall(text))):
-                path = normalize(reference).rstrip("/.")
+            for path in sorted({path.rstrip("/.") for path in references(text)}):
+                if (source, path) in REVIEWED:
+                    continue
                 if path in tracked:
                     found += 1
                     self.assertNotEqual(route([modified(path)]), side, (source, path))
                     continue
                 inside = [name for name in self.files if name.startswith(path + "/")]
-                if not inside or "fixtures" in PurePosixPath(path).parts or (source, path) in REVIEWED_DIRECTORIES:
+                if not inside or "fixtures" in PurePosixPath(path).parts:
                     continue
                 found += 1
                 routed = [name for name in inside if route([modified(name)]) == side]
                 self.assertEqual(routed, [], (source, path))
         return found
 
-    def test_backend_tests_read_no_routable_frontend_source(self):
-        sources = [name for name in self.files if name.startswith("tests/") and name.endswith(".py")]
+    def test_backend_tests_and_their_code_read_no_routable_frontend_source(self):
+        # Backend tests import backend code and, through the repository root, scripts.
+        sources = [
+            name
+            for name in self.files
+            if name.startswith(("tests/", "src/backend/", "scripts/"))
+            and not name.startswith("scripts/ci/")
+            and name.endswith(".py")
+        ]
 
-        def normalize(reference):
-            return reference if reference.startswith("src/") else "src/frontend/" + reference
+        def references(text):
+            for reference in FRONTEND_REFERENCE.findall(text):
+                yield reference if reference.startswith("src/") else "src/frontend/" + reference
+            for joined in FRONTEND_SEGMENTS.findall(text):
+                path = "/".join(re.findall(r'"([^"]+)"', joined))
+                if path.startswith(FRONTEND_PREFIXES):
+                    yield path
 
-        self.assertGreater(self.check_references(sources, FRONTEND_REFERENCE, normalize, "frontend"), 5)
+        self.assertGreater(self.check_references(sources, references, "frontend"), 5)
         for source in ("tests/test_content_package_capabilities.py", "tests/test_content_package_import_resources.py"):
             joined = re.findall(r'FRONTEND\s*/\s*"([^"]+)"', (ROOT / source).read_text())
             self.assertTrue(joined, source)
@@ -850,10 +877,11 @@ class CrossReadTests(unittest.TestCase):
             if name.startswith("src/frontend/") and name.endswith(SCANNED) and not name.startswith(generated)
         ]
 
-        def normalize(reference):
-            return "src/" + reference[reference.index("backend") :]
+        def references(text):
+            for reference in BACKEND_REFERENCE.findall(text):
+                yield "src/" + reference[reference.index("backend") :]
 
-        self.assertGreater(self.check_references(sources, BACKEND_REFERENCE, normalize, "backend"), 5)
+        self.assertGreater(self.check_references(sources, references, "backend"), 5)
 
 
 class CoverageTests(unittest.TestCase):

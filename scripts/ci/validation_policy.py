@@ -321,11 +321,17 @@ BACKEND_SHARED_PREFIXES = (
     "src/backend/packaging/",
 )
 FRONTEND_SOURCES = ("src/frontend/web/src/", "src/frontend/desktop/src/")
-# Frontend sources that backend tests read, beyond `fixtures/` directories.
+# Frontend sources that backend tests, or the backend and script code they run,
+# read beyond `fixtures/` directories: parity checks, generated catalogs and
+# content-tool inputs.
 FRONTEND_SHARED_FILES = {
     "src/frontend/desktop/src/main-process/runtime/vault.ts",
     "src/frontend/web/src/app/hosted-runtime/hosted-composition.ts",
+    "src/frontend/web/src/assets/vrm/animations/manifest.json",
+    "src/frontend/web/src/lib/lipsync/text/english-dictionary.data.ts",
+    "src/frontend/web/src/lib/speech/pocket/voice-catalog.ts",
 }
+FRONTEND_SHARED_PREFIXES = ("src/frontend/web/src/assets/effect-templates/",)
 ROUTE_REASONS = {
     "backend": "Backend-only change; web unit, browser, web lint/type and package tests wait for the next "
     "full or mixed run, and unselected suites for a promotion run",
@@ -347,7 +353,7 @@ def _side(path: str) -> str | None:
         return None
     if path.startswith(FRONTEND_SOURCES):
         # Backend tests read shared fixtures as parity records.
-        if "fixtures" in p.parts or path in FRONTEND_SHARED_FILES:
+        if "fixtures" in p.parts or path in FRONTEND_SHARED_FILES or path.startswith(FRONTEND_SHARED_PREFIXES):
             return None
         return "frontend"
     return None
@@ -372,11 +378,10 @@ def route(changes: object, excluded_paths: Iterable[str] = ()) -> str | None:
         # unmerged or unknown entries stay full or selective.
         if not isinstance(status, str) or not re.fullmatch(r"[ACDMR][0-9]*", status):
             return None
-        if (status[0] in "RC") != (change["old_path"] is not None):
+        renamed = status[0] in "RC"
+        if renamed != (change["old_path"] is not None):
             return None
-        for path in (change["old_path"], change["path"]):
-            if path is None and status[0] not in "RC":
-                continue
+        for path in (change["old_path"], change["path"]) if renamed else (change["path"],):
             if not _path(path) or path in excluded:
                 return None
             sides.add(_side(path))

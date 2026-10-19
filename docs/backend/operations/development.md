@@ -736,10 +736,10 @@ An ordinary run whose changes all belong to one side of the application records
 a routed profile instead of `selective`. It skips the suites `selective` would
 skip, and the other side's checks:
 
-| Profile | Changed paths | Also skipped |
-| --- | --- | --- |
-| `backend-only` | `src/backend/**` except instructions, `animama/resources/`, `animama/app/contracts/` and `packaging/`; ordinary root `tests/test_*.py` | Web unit tests, browser files, web lint, web/desktop/package/harness types and shared package tests |
-| `frontend-only` | `src/frontend/web/src/**` and `src/frontend/desktop/src/**` except instructions, `fixtures/` directories and the source files backend tests read | The backend suite and Python format, Ruff and mypy |
+| Profile         | Changed paths                                                                                                                                                  | Also skipped                                                                                        |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `backend-only`  | `src/backend/**` except instructions, `animama/resources/`, `animama/app/contracts/` and `packaging/`; ordinary root `tests/test_*.py`                         | Web unit tests, browser files, web lint, web/desktop/package/harness types and shared package tests |
+| `frontend-only` | `src/frontend/web/src/**` and `src/frontend/desktop/src/**` except instructions, `fixtures/` directories and the files backend tests or the code they run read | The backend suite and Python format, Ruff and mypy                                                  |
 
 Both keep every other check: the typed-content audit, import, dependency and LFS
 checks, CI tooling tests, SDK freshness, harness and desktop tests, the web
@@ -757,10 +757,10 @@ executables, LFS inputs and type changes.
 The owner accepted this on 2026-10-19 (#607, item 5): a backend change that
 breaks a frontend unit or browser test, or a frontend change that breaks a
 backend test, surfaces on the next full or mixed run. The excluded paths are the
-known cross-reads. `test_validation_policy.py` fails when a backend test names a
-routable frontend file, or frontend code names a routable backend file, so a new
-cross-read must extend the exclusions. A computed path it cannot see still needs
-review. Use `ci:full` when a one-sided change needs the other side's checks
+known cross-reads. `test_validation_policy.py` fails when a backend test, backend
+module or script names a routable frontend file, or frontend code names a
+routable backend file, so a new cross-read must extend the exclusions. A path it
+cannot see, such as one computed at run time, still needs review. Use `ci:full` when a one-sided change needs the other side's checks
 before merge.
 
 ### Reuse a hosted PR result after merging
