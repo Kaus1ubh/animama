@@ -1,10 +1,10 @@
 # 0027: Risk-tiered review and a single suite run per candidate
 
-- Status: proposed; amends the per-phase review rule of [ADR 0006](0006-human-ai-software-development-lifecycle.md)
+- Status: accepted; amends the per-phase review rule of [ADR 0006](0006-human-ai-software-development-lifecycle.md)
 - Recorded: 2026-10-19
 - Retrospective: no
-- Original decision date: unknown; awaiting the owner's decision
-- Decision basis: new proposal
+- Original decision date: 2026-10-19, through the owner's approval of the proposal in [#607](https://github.com/raymond-van/animama/pull/607)
+- Decision basis: Explicit owner decision
 
 ## Context
 
