@@ -484,8 +484,30 @@ export function useCreateAnimaController(
     }
   };
 
-  const valid =
-    validation?.signature === creationDraftSignature(draft) ? validation : null;
+  const signature = creationDraftSignature(draft);
+  const valid = validation?.signature === signature ? validation : null;
+  const validateLatest = useRef(validate);
+  validateLatest.current = validate;
+  const recheckedSignature = useRef<string | null>(null);
+  // An edit on Review, such as renaming on the name plate, stales the checked
+  // spec that Create needs. Recheck each edited draft once typing settles; a
+  // failed check shows its issues and waits for the next edit.
+  const reviewStale =
+    draft.step === 4 &&
+    recovery === "ready" &&
+    !valid &&
+    !busy &&
+    !locked &&
+    !conflict &&
+    !completedId;
+  useEffect(() => {
+    if (!reviewStale || recheckedSignature.current === signature) return;
+    const timer = window.setTimeout(() => {
+      recheckedSignature.current = signature;
+      void validateLatest.current(false);
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [reviewStale, signature]);
   const submit = async (replay = false) => {
     if (inFlight.current || busy || conflict || completedId) return;
     if (!replay && (!valid || locked)) {
