@@ -87,8 +87,10 @@ def find(baseline: str, baseline_tree: str, *, fetch=_get_json, download=_downlo
                 name = f"animama-set-{baseline}-{attempt}"
                 artifact = _artifact(prefix, by_name.get(name, {}).get("id"), run["id"], name, fetch)
                 return {"run_id": run["id"], "artifact": artifact, "source_commit": baseline}
-            # A reused main run names the promotion-complete PR set for the same tree.
+            # A reused main run names the promotion-complete PR set for the same tree;
+            # one that reused a selective or routed PR run names none.
             named = selection["hosted_evidence"]["package_set"]
+            _require(isinstance(named, dict), "Reused run names no package set")
             _require(named["source"]["tree"] == baseline_tree, "Named set describes another tree")
             artifact = _artifact(
                 prefix,

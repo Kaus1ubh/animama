@@ -1,4 +1,4 @@
-"""Hosted reuse must prove the exact merged tree, baseline and full run."""
+"""Hosted reuse must prove the exact merged tree, baseline and a covering run."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 from hosted_evidence import MAX_BYTES, WORKFLOW_PATH, _download, bound_evidence, hosted_for_main
-from validation_policy import SUITES, UNTIMED, _plan
+from validation_policy import SUITES, UNTIMED, _plan, choose_plan
 
 REPO = "raymond-van/animama"
 PREFIX = f"/repos/{REPO}"
@@ -28,6 +28,19 @@ ARTIFACTS_PATH = f"{RUN_PATH}/artifacts?per_page=100&page=1"
 JOBS_PATH = f"{RUN_PATH}/attempts/1/jobs?per_page=100&page=1"
 SET_PATH = f"{PREFIX}/actions/artifacts/300"
 SET_DIGEST = "sha256:" + "9" * 64
+FULL = _plan("full", "Full checks")
+PUSH = {"ref": "refs/heads/main", "before": BASE, "after": MERGE}
+
+
+def ordinary(*paths):
+    """The plan an ordinary run selects for modified paths."""
+    return choose_plan("push", PUSH, [{"status": "M", "old_path": None, "path": path} for path in paths])
+
+
+SELECTIVE = ordinary("tests/conftest.py")
+TOOLING = ordinary("src/frontend/web/scripts/effect-check.mjs")
+BACKEND_ONLY = ordinary("src/backend/animama/app/services/chat.py")
+FRONTEND_ONLY = ordinary("src/frontend/web/src/ui/Chat.tsx")
 
 
 class Fixture:
@@ -49,26 +62,12 @@ class Fixture:
             "pull_request": 7,
             "run_id": "90",
             "run_attempt": "1",
-            "plan": _plan("full", "Full checks"),
+            "plan": FULL,
         }
         self.receipt = {
             "schema_version": 3,
             "success": True,
             "selection": self.selection,
-            "steps": {
-                name: {"outcome": "success", "conclusion": "success"} for name in self.selection["plan"]["required"]
-            },
-            "checks": [
-                {
-                    "id": name,
-                    "status": "passed",
-                    "exit_code": 0,
-                    "duration_seconds": 1.0,
-                    "log_sha256": "f" * 64,
-                    "command": ["test", name],
-                }
-                for name in sorted(set(self.selection["plan"]["required"]) - UNTIMED)
-            ],
             "package_set": {
                 "artifact_id": 300,
                 "artifact_digest": SET_DIGEST,
@@ -129,6 +128,25 @@ class Fixture:
                 "tree": {"sha": TREE},
                 "parents": [{"sha": BASE}, {"sha": HEAD}],
             }
+        self.use_plan(FULL)
+
+    def use_plan(self, plan):
+        """Record a successful PR run of `plan`; only a full run uploads a package set."""
+        self.selection["plan"] = copy.deepcopy(plan)
+        self.receipt["steps"] = {name: {"outcome": "success", "conclusion": "success"} for name in plan["required"]}
+        self.receipt["checks"] = [
+            {
+                "id": name,
+                "status": "passed",
+                "exit_code": 0,
+                "duration_seconds": 1.0,
+                "log_sha256": "f" * 64,
+                "command": ["test", name],
+            }
+            for name in sorted(set(plan["required"]) - UNTIMED)
+        ]
+        if plan["mode"] != "full":
+            self.receipt.pop("package_set", None)
         self.pack()
 
     def pack(self, extra=None):
@@ -164,6 +182,7 @@ class Fixture:
             "source_commit": MERGE,
             "source_tree": TREE,
             "baseline": BASE,
+            "selected": FULL,
             "now": NOW,
             "get_json": self.get_json,
             "get_archive": self.get_archive,
@@ -329,7 +348,7 @@ class HostedEvidenceTests(unittest.TestCase):
                 if kind == "reduced":
                     fixture.selection["plan"] = _plan("docs", "Documentation")
                 elif kind == "selective":
-                    # A full PR run that skipped the promotion suite is never promotion-complete.
+                    # A run that skipped the promotion suite cannot stand in for a full push.
                     fixture.selection["plan"] = _plan("selective", "Full PR", ["promotion"])
                 elif kind == "old_schema":
                     fixture.receipt["schema_version"] = 2
@@ -439,6 +458,98 @@ class HostedEvidenceTests(unittest.TestCase):
         ):
             package_set = evidence["package_set"] | changes
             self.assertFalse(bound_evidence(selection | {"hosted_evidence": evidence | {"package_set": package_set}}))
+
+    def test_covering_selective_and_routed_runs_are_reused_without_a_set(self):
+        for tested, selected in (
+            (SELECTIVE, SELECTIVE),
+            (TOOLING, SELECTIVE),
+            (SELECTIVE, BACKEND_ONLY),
+            (BACKEND_ONLY, BACKEND_ONLY),
+            (FRONTEND_ONLY, FRONTEND_ONLY),
+        ):
+            with self.subTest(tested=tested["mode"], selected=selected["mode"]):
+                fixture = Fixture()
+                fixture.use_plan(tested)
+                result = fixture.verify(selected=selected)
+                self.assertTrue(result["accepted"], result["reason"])
+                self.assertEqual((result["tested_plan"], result["selected_plan"]), (tested, selected))
+                self.assertIsNone(result["package_set"])
+                self.assertNotIn(SET_PATH, fixture.paths)
+                self.assertEqual(result["tested_commit"], TESTED)
+        # A full PR run covers an ordinary push and still names its set.
+        result = Fixture().verify(selected=SELECTIVE)
+        self.assertTrue(result["accepted"])
+        self.assertEqual(result["package_set"]["artifact_id"], 300)
+
+    def test_reuse_requires_the_pr_run_to_cover_the_push_selection(self):
+        for tested, selected in (
+            (SELECTIVE, FULL),
+            (SELECTIVE, TOOLING),
+            (SELECTIVE, FRONTEND_ONLY),
+            (BACKEND_ONLY, SELECTIVE),
+            (BACKEND_ONLY, FRONTEND_ONLY),
+            (FRONTEND_ONLY, SELECTIVE),
+            (FULL, FRONTEND_ONLY),
+            (FULL, _plan("docs", "Documentation")),
+            (FULL, choose_plan("push", PUSH, [], hosted_verified=True)),
+            (FULL, SELECTIVE | {"required": FULL["required"]}),
+            (FULL, None),
+        ):
+            with self.subTest(tested=tested["mode"], selected=selected and selected["mode"]):
+                fixture = Fixture()
+                fixture.use_plan(tested)
+                self.assertFalse(fixture.verify(selected=selected)["accepted"])
+
+    def test_selective_reuse_keeps_every_identity_check(self):
+        for kind in ("tree", "baseline", "head", "digest", "failed_step", "stale", "ci_full"):
+            with self.subTest(kind=kind):
+                fixture = Fixture()
+                fixture.use_plan(SELECTIVE)
+                tested = fixture.responses[f"{PREFIX}/git/commits/{TESTED}"]
+                if kind == "tree":
+                    tested["tree"]["sha"] = "f" * 40
+                elif kind == "baseline":
+                    tested["parents"][0]["sha"] = "f" * 40
+                elif kind == "head":
+                    tested["parents"][1]["sha"] = "f" * 40
+                elif kind == "digest":
+                    fixture.artifact["digest"] = "sha256:" + "0" * 64
+                elif kind == "failed_step":
+                    fixture.receipt["steps"]["backend-tests"]["outcome"] = "failure"
+                    fixture.pack()
+                elif kind == "stale":
+                    fixture.responses[RUN_PATH]["updated_at"] = "2026-09-10T11:55:00Z"
+                else:
+                    fixture.responses[f"{PREFIX}/pulls/7"]["labels"] = [{"name": "ci:full"}]
+                self.assertFalse(fixture.verify(selected=SELECTIVE)["accepted"])
+
+    def test_bound_evidence_matches_the_recorded_plans_and_package_set(self):
+        fixture = Fixture()
+        fixture.use_plan(SELECTIVE)
+        evidence = fixture.verify(selected=SELECTIVE)
+        selection = {
+            "event": "push",
+            "reusable": False,
+            "source_commit": MERGE,
+            "source_tree": TREE,
+            "base": BASE,
+            "hosted_evidence": evidence,
+        }
+        self.assertTrue(bound_evidence(selection))
+        full = Fixture().verify()
+        for changes in (
+            {"package_set": full["package_set"]},
+            {"tested_plan": FULL},
+            {"tested_plan": TOOLING | {"mode": "docs"}},
+            {"selected_plan": FULL},
+            {"selected_plan": None},
+            {"tested_plan": None},
+        ):
+            with self.subTest(changes=changes):
+                self.assertFalse(bound_evidence(selection | {"hosted_evidence": evidence | changes}))
+        for changes in ({"tested_plan": SELECTIVE}, {"selected_plan": FRONTEND_ONLY}):
+            self.assertFalse(bound_evidence(selection | {"hosted_evidence": full | changes}))
+        self.assertTrue(bound_evidence(selection | {"hosted_evidence": full | {"selected_plan": SELECTIVE}}))
 
 
 class ArtifactDownloadTests(unittest.TestCase):

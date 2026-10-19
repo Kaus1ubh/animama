@@ -668,7 +668,8 @@ is not owner acceptance of the coverage or budget tradeoff.
 | Modified eligible documentation only                                 | Frozen Python install, typed-content audit, synthetic-document and accountless repository tests                                         | None                                                                                        |
 | Allowlisted existing backend tests or pure formatter                 | Frozen Python install, typed-content audit, format/Ruff/mypy and accountless repository guards                                          | Full backend checks in a fresh reviewed receipt                                             |
 | Allowlisted web UI implementation                                    | Frozen Python/frontend installs, package preparation, web lint, web/desktop/package/harness types, SDK freshness and accountless guards | Complete frontend source checks and both rendered browser modes in a fresh reviewed receipt |
-| High-risk, mixed, added/deleted/renamed, unknown or uncertain inputs | Full hosted validation; an ordinary PR run or `main` push skips suites whose inputs did not change (`selective`, below)                  | Local evidence cannot narrow these changes                                                  |
+| One-sided backend or frontend change                                 | Every check except the other side's, with unchanged suites skipped as for `selective` (`backend-only`, `frontend-only`, below)          | None                                                                                        |
+| High-risk, mixed, unknown or uncertain inputs                        | Full hosted validation; an ordinary PR run or `main` push skips suites whose inputs did not change (`selective`, below)                 | Local evidence cannot narrow these changes                                                  |
 | Persistent `ci:full`, manual dispatch or release reuse               | Full hosted validation of exact source                                                                                                  | No substitution                                                                             |
 | Draft without `ci:full`                                              | Selection and a non-accepting final gate                                                                                                | Draft deferral is not acceptance                                                            |
 
@@ -714,13 +715,14 @@ workspace, web or desktop `package.json`, the Vite configuration or plugins, pat
 the shared browser setup change, or when links, executables or LFS inputs do.
 Such a run records `full`, so every package set comes from a `full` run.
 Promotion runs mostly rebuild their baseline set: `main` pushes are usually
-selective and retain none. After a selective PR the `main` push is selective
-too, not `reused`. `scripts/ci/validation_policy.py` owns the exact tables. Every other
-check runs on every full or selective run, including the backend suite, Vitest,
-the remaining browser files, the web build and the accountless smoke.
+selective, routed or reused from such a PR run, and retain none.
+`scripts/ci/validation_policy.py` owns the exact tables. Every other check runs
+on every full or selective run, including the backend suite, Vitest, the
+remaining browser files, the web build and the accountless smoke; routed runs
+(below) also skip one side's checks.
 
-A selective run is never promotion-complete: it cannot serve reuse after merge
-(below) and uploads no set.
+A selective or routed run is never promotion-complete: it uploads no set. Its
+`main` push may still reuse it (below).
 
 `scripts/ci/browser_tests.py` runs the selected browser groups. Each file runs
 in its own process with a 20-minute bound and writes its own result row. The
@@ -730,29 +732,75 @@ larger runner. The gate checks that the files that ran match the selected
 groups. Locally, `pnpm --filter animama-web test:source` still runs every file,
 one at a time.
 
-### Reuse a full hosted PR result after merging
+### Path-routed profiles
 
-A `main` push whose changes select every suite would otherwise run in full. It
-can use the `reused` profile instead when the latest PR validation run successfully executed the complete
-hosted contract within seven days and before the merge. The selector verifies
-GitHub run and artifact provenance, the artifact SHA-256 digest, successful full
-step/command receipts, and the tested merge commit's Git tree and parents.
-The tested tree must equal the new `main` tree (including the workflow and all
-validation scripts), and its base must equal the push's previous `main` commit.
-A green feature-branch check alone does not qualify. If `main` advanced since the
-PR run, the different baseline requires full validation even if files happen to
-match. Local assertions and previously reused results cannot supply this proof.
-The PR run must have recorded `full` (a `selective` run does not qualify), and
-its uploaded package set must still exist, with the digest its receipt
-recorded.
+An ordinary run whose changes all belong to one side of the application records
+a routed profile instead of `selective`. It skips the suites `selective` would
+skip, and the other side's checks:
+
+| Profile         | Changed paths                                                                                                                                                  | Also skipped                                                                                        |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `backend-only`  | `src/backend/**` except instructions, `animama/resources/`, `animama/app/contracts/` and `packaging/`; ordinary root `tests/test_*.py`                         | Web unit tests, browser files, web lint, web/desktop/package/harness types and shared package tests |
+| `frontend-only` | `src/frontend/web/src/**` and `src/frontend/desktop/src/**` except instructions, `fixtures/` directories and the files backend tests or the code they run read | The backend suite and Python format, Ruff and mypy                                                  |
+
+Both keep every other check: the typed-content audit, import, dependency and LFS
+checks, CI tooling tests, SDK freshness, harness and desktop tests, the web
+build, Compose and the accountless smoke. `frontend-only` also runs the
+accountless source guard, which scans every web source file. Additions,
+deletions, edits, renames and copies qualify when every path stays on one side.
+
+Anything else stays `selective` or `full`: changes on both sides or with
+documentation, shared guard tests and support, helper or fixture code under
+`tests/`, configuration, lockfiles, `package.json`, the Vite configuration and
+plugins, patches, frontend files outside `src/` (such as `web/tests/`,
+`web/scripts/` and `web/public/`), the every-suite inputs above, links,
+executables, LFS inputs and type changes.
+
+The owner accepted this on 2026-10-19 (#607, item 5): a backend change that
+breaks a frontend unit or browser test, or a frontend change that breaks a
+backend test, surfaces on the next full or mixed run. The excluded paths are the
+known cross-reads. `test_validation_policy.py` fails when a backend test, backend
+module or script names a routable frontend file, or frontend code names a
+routable backend file, so a new cross-read must extend the exclusions. A path it
+cannot see, such as one computed at run time, still needs review. Use `ci:full` when a one-sided change needs the other side's checks
+before merge.
+
+### Reuse a hosted PR result after merging
+
+A `main` push can use the `reused` profile instead of running its own `full`,
+`selective` or routed plan. The latest PR validation run must have succeeded
+within seven days and before the merge, and covered that plan: it required each
+step the push requires and ran each suite the push runs. A `full` run covers any
+of these plans, a `selective` run a `selective` push with the same or more
+skipped suites or a `backend-only` push, and a routed run the same routed
+profile. Only `frontend-only` runs execute the accountless guard as a separate
+step, so only they cover a `frontend-only` push.
+
+The selector verifies GitHub run and artifact provenance, the artifact SHA-256
+digest, successful step/command receipts, and the tested merge commit's Git tree
+and parents. The tested tree must equal the new `main` tree (including the
+workflow and all validation scripts), and its base must equal the push's
+previous `main` commit. A green feature-branch check alone does not qualify. If
+`main` advanced since the PR run, the different baseline requires the push's own
+validation even if files happen to match. Local assertions and previously reused results cannot supply this proof.
+After a `full` PR run, its uploaded package set must still exist, with the digest
+its receipt recorded.
+
+The owner accepted on 2026-10-19 (#607, item 5) that a `main` push reusing a
+selective or routed run does not execute the merged tree again, so a
+time-dependent or flaky failure there goes unseen until a later run.
 
 The lightweight run still executes CI policy tests, source/evidence selection
-and the aggregate gate. Its receipt and job summary link the original full run
-and record the artifact digest. Its `selection.json` `hosted_evidence.package_set`
-names the PR run's set so the hosted consumer can promote it without a second
-full run. The consumer's acceptance of this record is tracked in its own
-repository; until it lands, promoting a reused merge still needs a full `main`
-run, such as a manual dispatch. The record holds:
+and the aggregate gate. Its receipt and job summary link the original run and
+record the artifact digest. `hosted_evidence` records the PR run's plan
+(`tested_plan`) and the push's own plan (`selected_plan`); the gate checks again
+that the first covers the second. A selective or routed PR run built no package
+set, so its `package_set` is `null` and promoting that merge needs a full `main`
+run, such as a manual dispatch; the weekly full checkpoint still runs. After a
+`full` PR run, `selection.json` `hosted_evidence.package_set` names the PR run's
+set so the hosted consumer can promote it without a second full run. The
+consumer's acceptance of this record is tracked in its own repository; until it
+lands, promoting a reused merge still needs a full `main` run. The record holds:
 
 - the artifact ID, name and digest, and its expiry;
 - the manifest digest and the manifest's `source` record;
@@ -763,16 +811,18 @@ run, such as a manual dispatch. The record holds:
 The set records the PR's test-merge commit, not the `main` commit, and cannot
 be relabelled. A consumer binds it through the identical tree
 (`package_set.source.tree`) and parents (`[previous main, PR head]`) of the
-`main` commit, then validates the set's own receipt. Missing, expired, stale, failed, reduced,
-ambiguous or mismatched evidence retains full validation. Initially this supports
-same-repository PRs merged with an ordinary merge commit; forks, squash/rebase
-merges and batched pushes do not qualify. `ci:full`, manual dispatch,
+`main` commit, then validates the set's own receipt. Missing, expired, stale,
+failed, non-covering, ambiguous or mismatched evidence retains the push's own
+validation. Initially this supports same-repository PRs merged with an ordinary
+merge commit; forks, squash/rebase merges and batched pushes do not qualify. `ci:full`, manual dispatch,
 release validation and scheduled checkpoints do not use this substitution.
 Existing focused documentation and reviewed-local profiles remain unchanged.
 
-PR title/body edits and edits after closing a PR do not run validation. Base
-branch edits still do. Ignored edits have isolated concurrency groups; meaningful
-PR runs and `main` pushes cannot cancel each other.
+PR title/body edits, edits after closing a PR, and adding or removing any label
+other than `ci:full` do not run validation: selection reads only `ci:full` and
+the draft flag. Base branch edits and `ci:full` label changes still do. Ignored
+events have isolated concurrency groups, so they cannot cancel a real run;
+meaningful PR runs and `main` pushes cannot cancel each other.
 
 ### Produce and review a local receipt
 
@@ -820,17 +870,17 @@ Both evidence and review must be fresh within seven days and match the exact
 source and baseline; stale, missing, mismatched, failed or unverifiable evidence
 falls back to full hosted validation. This is an owner-reviewed assertion whose
 identity is checked through GitHub, not independent execution attested by Actions.
-Replanning occurs on the workflow's existing source/ready/edit/label events;
+Replanning occurs on the workflow's source, ready, base-edit and `ci:full` label events;
 a comment alone does not imply a new run has been scheduled. The persistent
 `ci:full` label can request full validation without any local substitution.
 
 ### Main, periodic and release behavior
 
-A routine code push to `main` may use reduced validation only when the policy
-finds the exact merged PR and reviewed receipt bound to the integrated commit,
-tree and push's before-baseline. A successful PR-head result alone is insufficient.
-Direct pushes, unsupported merge identities, stale evidence and unavailable API
-records retain full validation. Release callers always validate their exact
+A routine code push to `main` may use a reviewed-local profile (`backend` or
+`web`) only when the policy finds the exact merged PR and reviewed receipt bound
+to the integrated commit, tree and push's before-baseline. A successful PR-head
+result alone is insufficient. Direct pushes, unsupported merge identities, stale
+evidence and unavailable API records retain the push's own validation. Release callers always validate their exact
 checkout in full and do not rely on previous branch runs or local assertions.
 
 The workflow schedules a weekly backstop for Monday at **09:17 UTC**. Changed main receives

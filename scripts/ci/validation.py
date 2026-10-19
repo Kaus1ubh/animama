@@ -14,7 +14,7 @@ import subprocess
 from pathlib import Path
 
 from browser_tests import browser_groups
-from validation_policy import LOCAL_CHECKS, SUITES, UNTIMED, choose_plan, classify, evaluate
+from validation_policy import LOCAL_CHECKS, REUSABLE, SUITES, UNTIMED, choose_plan, classify, evaluate
 
 SHA = re.compile(r"[0-9a-f]{40}")
 WORKFLOW = "Portable product validation"
@@ -312,11 +312,17 @@ def plan(root: Path, output: Path) -> None:
             event_name, event, changes, reusable=False, periodic_unchanged=periodic_unchanged(source)
         )
     hosted = {"accepted": False, "reason": "Not applicable to this selection"}
-    if event_name == "push" and selected["mode"] == "full" and not explicit and not error:
+    # A main push may reuse a PR run that covered its own full, selective or routed plan.
+    if event_name == "push" and selected["mode"] in REUSABLE and not explicit and not error:
         from hosted_evidence import hosted_for_main
 
         hosted = hosted_for_main(
-            event, source_commit=source, source_tree=tree, baseline=baseline, now=datetime.now(UTC)
+            event,
+            source_commit=source,
+            source_tree=tree,
+            baseline=baseline,
+            selected=selected,
+            now=datetime.now(UTC),
         )
         if hosted.get("accepted") is True:
             selected = choose_plan(event_name, event, changes, hosted_verified=True)
@@ -487,12 +493,18 @@ def gate(output: Path) -> int:
                 hosted = selection["hosted_evidence"]
                 named = hosted["package_set"]
                 evidence = (
-                    f"Full hosted evidence: [run {hosted['run_id']}]({hosted['run_url']}); "
+                    f"Reused `{hosted['tested_plan']['mode']}` hosted evidence: "
+                    f"[run {hosted['run_id']}]({hosted['run_url']}); "
                     f"artifact `{hosted['artifact_id']}`, digest `{hosted['artifact_digest']}`.\n\n"
-                    f"Package set for promotion: `{named['artifact_name']}` "
-                    f"(artifact `{named['artifact_id']}`, manifest `{named['manifest_sha256']}`), "
-                    f"built from tested merge `{hosted['tested_commit']}` with this tree."
                 )
+                if named is None:
+                    evidence += "No package set: the PR run skipped the promotion suite. Promote from a full run."
+                else:
+                    evidence += (
+                        f"Package set for promotion: `{named['artifact_name']}` "
+                        f"(artifact `{named['artifact_id']}`, manifest `{named['manifest_sha256']}`), "
+                        f"built from tested merge `{hosted['tested_commit']}` with this tree."
+                    )
             text = render(selected, result["reason"], checks, browser, evidence)
         except (KeyError, TypeError, ValueError):
             # The summary is informational; acceptance is already decided above.

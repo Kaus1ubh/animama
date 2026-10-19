@@ -78,6 +78,7 @@ class GitSelectionTests(unittest.TestCase):
             with patch("hosted_evidence.hosted_for_main", return_value={"accepted": accepted}) as evidence:
                 receipt = self.run_plan("push", {"ref": "refs/heads/main", "before": self.base, "after": head})
             self.assertEqual(receipt["plan"]["mode"], "reused" if accepted is True else "full")
+            self.assertEqual(evidence.call_args.kwargs["selected"]["mode"], "full")
             self.assertEqual(evidence.call_args.kwargs["baseline"], self.base)
             self.assertEqual(evidence.call_args.kwargs["source_tree"], self.git("rev-parse", "HEAD^{tree}"))
         with patch("hosted_evidence.hosted_for_main") as evidence:
@@ -94,9 +95,9 @@ class GitSelectionTests(unittest.TestCase):
             self.write(path, "original\n")
         self.base = self.commit("inputs")
         for path, mode, promotion, groups, retention in (
-            ("tests/test_example.py", "selective", "false", "core", "3"),
+            ("tests/test_example.py", "backend-only", "false", "core", "3"),
             # Product code defers every suite to promotion runs.
-            ("src/backend/animama/example.py", "selective", "false", "core", "3"),
+            ("src/backend/animama/example.py", "backend-only", "false", "core", "3"),
             ("uv.lock", "full", "true", "core,hosted,tooling", "14"),
         ):
             with self.subTest(path=path):
@@ -118,19 +119,30 @@ class GitSelectionTests(unittest.TestCase):
             self.run_plan("push", {"ref": "refs/heads/main", "before": self.base, "after": head})
         outputs = self.outputs()
         self.assertEqual((outputs["mode"], outputs["promotion"], outputs["retention"]), ("full", "true", "14"))
-        # An ordinary main push of product code is selective as well.
+        # An ordinary main push of product code is routed as well, and may reuse
+        # a PR run that covered that selection.
         self.git("checkout", "-q", "--detach", self.base)
         self.write("src/backend/animama/example.py", "main change\n")
         head = self.commit("main product change")
+        # A reused plan runs no browser step, so its group output is unused.
+        for accepted, mode, groups in ((False, "backend-only", "core"), (True, "reused", "core,hosted,tooling")):
+            (Path(self.directory.name) / "outputs").unlink()
+            with patch("hosted_evidence.hosted_for_main", return_value={"accepted": accepted}) as evidence:
+                self.run_plan("push", {"ref": "refs/heads/main", "before": self.base, "after": head})
+            self.assertEqual(evidence.call_args.kwargs["selected"]["mode"], "backend-only")
+            outputs = self.outputs()
+            self.assertEqual(
+                (outputs["mode"], outputs["promotion"], outputs["browser-groups"], outputs["retention"]),
+                (mode, "false", groups, "3"),
+            )
+        # Mixed product changes are selective and consult reuse too.
+        self.write("src/frontend/web/src/ui/Chat.tsx", "main change\n")
+        head = self.commit("mixed product change")
         (Path(self.directory.name) / "outputs").unlink()
-        with patch("hosted_evidence.hosted_for_main") as evidence:
-            self.run_plan("push", {"ref": "refs/heads/main", "before": self.base, "after": head})
-        evidence.assert_not_called()
-        outputs = self.outputs()
-        self.assertEqual(
-            (outputs["mode"], outputs["promotion"], outputs["browser-groups"], outputs["retention"]),
-            ("selective", "false", "core", "3"),
-        )
+        with patch("hosted_evidence.hosted_for_main", return_value={"accepted": False}) as evidence:
+            receipt = self.run_plan("push", {"ref": "refs/heads/main", "before": self.base, "after": head})
+        self.assertEqual(receipt["plan"]["mode"], "selective")
+        self.assertEqual(evidence.call_args.kwargs["selected"], receipt["plan"])
 
     def test_complete_diff_includes_earlier_commits(self):
         self.write("docs/backend/a.md", "earlier\n")
@@ -225,8 +237,8 @@ class GitSelectionTests(unittest.TestCase):
                     "github_evidence.review_for_event", return_value={"accepted": reviewed, "reason": "fixture"}
                 ) as review:
                     receipt = self.run_plan(event_name, event)
-                # An ordinary run of a test file skips every expensive suite.
-                unreviewed = "selective"
+                # An ordinary run of a test file is backend-only and skips every expensive suite.
+                unreviewed = "backend-only"
                 self.assertEqual(receipt["plan"]["mode"], "backend" if reviewed is True else unreviewed)
                 review.assert_called_once()
                 self.assertEqual(review.call_args.kwargs["source_commit"], head)
@@ -242,7 +254,7 @@ class GitSelectionTests(unittest.TestCase):
         head = self.commit("test imports")
         with patch("github_evidence.review_for_event", return_value={"accepted": False, "reason": "fixture"}):
             receipt = self.run_plan("pull_request", self.event(head))
-        self.assertEqual(receipt["plan"]["mode"], "selective")
+        self.assertEqual(receipt["plan"]["mode"], "backend-only")
         self.assertEqual([row["suite"] for row in receipt["plan"]["skipped"]], sorted(SUITES))
         self.base = head
         (self.root / "tests/run_example.sh").chmod(0o755)
@@ -292,8 +304,8 @@ class GitSelectionTests(unittest.TestCase):
         head = self.commit("later presentation change")
         with patch("github_evidence.review_for_event") as review:
             receipt = self.run_plan("pull_request", self.event(head))
-        # Not the reduced web profile: the ordinary run keeps every always-run check.
-        self.assertEqual(receipt["plan"]["mode"], "selective")
+        # Not the reduced web profile: the routed run keeps every web check.
+        self.assertEqual(receipt["plan"]["mode"], "frontend-only")
         review.assert_not_called()
 
     def test_dependency_comparison_uses_pr_head_not_checked_out_merge(self):
@@ -308,7 +320,7 @@ class GitSelectionTests(unittest.TestCase):
         self.commit("different integrated content")
         with patch("github_evidence.review_for_event") as review:
             receipt = self.run_plan("pull_request", self.event(head))
-        self.assertEqual(receipt["plan"]["mode"], "selective")
+        self.assertEqual(receipt["plan"]["mode"], "frontend-only")
         review.assert_not_called()
 
     def test_same_imports_allow_presentation_change_and_python_added_import_excludes(self):
@@ -564,6 +576,8 @@ class GateReceiptTests(unittest.TestCase):
             "run_url": "https://github.com/owner/repo/actions/runs/10",
             "workflow": WORKFLOW_PATH,
             "tested_commit": "e" * 40,
+            "tested_plan": self.plan,
+            "selected_plan": self.plan,
             "package_set": {
                 "artifact_id": 30,
                 "artifact_name": f"animama-set-{'e' * 40}-1",
@@ -584,10 +598,28 @@ class GateReceiptTests(unittest.TestCase):
             "source_tree": "b" * 40,
             "base": "c" * 40,
         }
-        for value in (None, {}, evidence | {"source_tree": "d" * 40}, evidence | {"package_set": {}}, evidence):
+        ordinary = choose_plan("push", {"ref": "refs/heads/main"}, [{"status": "M", "old_path": None, "path": "a/b"}])
+        self.assertEqual(ordinary["mode"], "selective")
+        selective = evidence | {"tested_plan": ordinary, "selected_plan": ordinary, "package_set": None}
+        accepted = (evidence, selective)
+        for value in (
+            None,
+            {},
+            evidence | {"source_tree": "d" * 40},
+            evidence | {"package_set": {}},
+            evidence | {"tested_plan": ordinary},
+            selective | {"package_set": evidence["package_set"]},
+            selective | {"selected_plan": self.plan},
+            *accepted,
+        ):
             selection["hosted_evidence"] = value
             self.selection.write_text(json.dumps(selection))
-            self.assertEqual(self.gate()[0], 0 if value == evidence else 1)
+            (self.root / "summary.md").unlink(missing_ok=True)
+            self.assertEqual(self.gate()[0], 0 if value in accepted else 1)
+            if value in accepted:
+                summary = (self.root / "summary.md").read_text()
+                self.assertIn(f"Reused `{value['tested_plan']['mode']}` hosted evidence", summary)
+                self.assertIn("No package set" if value is selective else "Package set for promotion", summary)
 
     def test_full_gate_requires_successful_hashed_command_receipts(self):
         code, receipt = self.gate()

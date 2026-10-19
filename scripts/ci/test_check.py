@@ -13,7 +13,7 @@ import unittest
 from pathlib import Path
 
 import validation
-from validation_policy import BASE, PROFILES, SUITES, UNTIMED
+from validation_policy import BASE, ORDINARY, PROFILES, SUITES, UNTIMED
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -91,6 +91,7 @@ class WorkflowContractTests(unittest.TestCase):
         action="synchronize",
         state="open",
         base_changed=False,
+        label=None,
         number=4,
         ref="refs/pull/4/merge",
         run_id=100,
@@ -105,6 +106,7 @@ class WorkflowContractTests(unittest.TestCase):
             "github.event.pull_request.state": state,
             "github.event.pull_request.number": number,
             "github.event.changes.base": base_changed,
+            "github.event.label.name": label,
             "github.ref": ref,
             "github.run_id": run_id,
         }
@@ -131,6 +133,24 @@ class WorkflowContractTests(unittest.TestCase):
                 self.assertNotEqual(ignored, self.workflow_event(event="push", ref="refs/heads/main")[1])
                 self.assertNotEqual(ignored, self.workflow_event(state=state, action=action, run_id=101)[1])
 
+    def test_labels_other_than_ci_full_neither_run_nor_cancel_validation(self):
+        meaningful, pr_group = self.workflow_event()
+        self.assertTrue(meaningful)
+        for action in ("labeled", "unlabeled"):
+            # A deleted label may arrive without its name; it cannot be ci:full being added.
+            # GitHub compares names case-insensitively and keeps them unique that way,
+            # so no other label can match ci:full.
+            for label in ("type:feat", "documentation", "ci:fully", None):
+                with self.subTest(action=action, label=label):
+                    enabled, ignored = self.workflow_event(action=action, label=label)
+                    self.assertFalse(enabled)
+                    self.assertNotEqual(ignored, pr_group)
+                    self.assertNotEqual(ignored, self.workflow_event(action=action, label=label, run_id=101)[1])
+            with self.subTest(action=action, label="ci:full"):
+                self.assertEqual(self.workflow_event(action=action, label="ci:full"), (True, pr_group))
+        # Other actions carry no label and are unaffected.
+        self.assertEqual(self.workflow_event(action="synchronize", label="type:feat"), (True, pr_group))
+
     def test_base_edits_and_existing_pr_actions_keep_pr_concurrency(self):
         expected = self.workflow_event()[1]
         for action in (
@@ -139,11 +159,11 @@ class WorkflowContractTests(unittest.TestCase):
             "reopened",
             "ready_for_review",
             "converted_to_draft",
-            "labeled",
-            "unlabeled",
         ):
             with self.subTest(action=action):
                 self.assertEqual(self.workflow_event(action=action), (True, expected))
+        for action in ("labeled", "unlabeled"):
+            self.assertEqual(self.workflow_event(action=action, label="ci:full"), (True, expected))
         self.assertEqual(self.workflow_event(action="edited", base_changed=True), (True, expected))
         self.assertNotEqual(self.workflow_event(number=5)[1], expected)
 
@@ -168,7 +188,9 @@ class WorkflowContractTests(unittest.TestCase):
             ids.append(identity[1])
         self.assertEqual(len(ids), len(set(ids)))
         cases = [(mode, mode in {"full", "selective"}, BASE | required) for mode, required in PROFILES.items()]
-        cases.append(("selective", False, BASE | PROFILES["selective"] - SUITES["promotion"]))
+        cases = [case for case in cases if case[0] not in ORDINARY - {"selective"}]
+        # Ordinary runs skip the promotion suite; routed runs always do.
+        cases += [(mode, False, BASE | PROFILES[mode] - SUITES["promotion"]) for mode in sorted(ORDINARY)]
         for mode, promotion, required in cases:
             selected = set()
             for block in blocks:
@@ -196,6 +218,14 @@ class WorkflowContractTests(unittest.TestCase):
                 if identifier not in UNTIMED:
                     self.assertIn(f'check.py" {identifier} --', block)
             self.assertEqual(selected, required, (mode, promotion))
+
+        # Cache restores follow the steps that use them.
+        def modes(identifier):
+            block = next(block for block in blocks if f"id: {identifier}\n" in block)
+            return re.search(r"^        if: contains\(fromJSON\('(.+?)'\)", block, re.M)[1]
+
+        self.assertEqual(modes("pnpm-cache"), modes("pnpm-install"))
+        self.assertEqual(modes("speech-cache"), modes("model-inputs"))
         # Every promotion-suite step carries the promotion condition.
         for identifier in SUITES["promotion"] - UNTIMED | {"baseline-checkout", "package-artifacts"}:
             block = next(block for block in blocks if f"id: {identifier}\n" in block)

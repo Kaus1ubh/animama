@@ -288,8 +288,8 @@ Local-first reductions require the existing evidence and actual owner review;
 agents must not impersonate that review. Untrusted changes receive no development
 credentials. Report unperformed or failed checks honestly.
 
-Ordinary merges can reuse a qualifying full hosted PR result under the existing
-[source-bound reuse rules](docs/backend/operations/development.md#reuse-a-full-hosted-pr-result-after-merging).
+Ordinary merges can reuse a qualifying hosted PR result under the existing
+[source-bound reuse rules](docs/backend/operations/development.md#reuse-a-hosted-pr-result-after-merging).
 The merge method alone does not establish eligibility. Squash/rebase cannot use
 that reuse path. Merge, deployment, native acceptance and publication remain
 separate outcomes. Record regressions and obtain authorization for a revert or fix.
