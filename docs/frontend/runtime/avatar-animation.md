@@ -886,8 +886,11 @@ Important behavior:
   The profile is chosen by the VRM's `vrmSha256`: verified for the Included
   Avatars (k 0.2164 Annie, 0.1767 Y_0). Other Avatars get happy 1 / k 0.2 for
   each of happy and relaxed whose morphs measurably move blink's vertices
-  closed, and nothing otherwise. An expression with a native `overrideBlink`
-  keeps it uncorrected. Load paths that know the model digest must pass it;
+  closed, and nothing otherwise. VRoid's eye parts `Fcl_EYE_Joy` and
+  `Fcl_EYE_Fun` carry all of happy's and relaxed's eyelid motion, so they take
+  the same factors; the correction registers them from the face's morph
+  targets when a VRM 0 file has no expressions for them. An expression with a
+  native `overrideBlink` keeps it uncorrected. Load paths that know the model digest must pass it;
   the review harness pages hash their Avatar files for parity.
 - Lip-sync has:
   - segment scheduling by audio start,
@@ -941,7 +944,8 @@ Default activation policy:
   inside its tracking windows.
 - `bounce`, `headNod`, `talkingHands`, and `emotionPosture` are disabled by
   default. The avatar planner can policy-enable `bounce` or `headNod` during
-  listening, `talkingHands` during talking after no-hint emotion arbitration,
+  listening, `talkingHands` during talking after no-hint emotion arbitration
+  or once the run's gesture has finished,
   and `emotionPosture` whenever the dominant emotion group is `gloom`,
   `revulsion`, or `rejection` with an enabled level 1-3 posture preset. The
   controller executes those actions and
@@ -1024,8 +1028,9 @@ Activation:
 
 - The layer default is `enabled=false`.
 - `AvatarPlanner` can request policy enablement while `avatarState="talking"`;
-  it does so only after same-run emotion arbitration confirms no primary-chat
-  gesture request has claimed talking motion. `ProceduralAnimationController`
+  it does so after same-run emotion arbitration confirms no primary-chat
+  gesture request has claimed talking motion, or after the run's gesture has
+  finished (including its exit fade) while the reply is still talking. `ProceduralAnimationController`
   owns the activation blend and offsets.
 - The animation debug modal exposes a one-shot Play control instead of a
   persistent talking-hands toggle. Pressing Play enables the layer if needed

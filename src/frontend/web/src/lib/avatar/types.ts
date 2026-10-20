@@ -157,7 +157,8 @@ export type AvatarAnimationState =
 
 export type AvatarThinkingPoseClipId =
   | "thinking-head-scratch"
-  | "thinking-hand-on-chin-hold";
+  | "thinking-hand-on-chin-hold"
+  | "thinking-chin-rest";
 
 export type AvatarAnimationSignals = {
   interactionPhase: AvatarInteractionPhase;

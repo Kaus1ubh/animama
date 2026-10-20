@@ -188,7 +188,14 @@ for the run, that gesture owns talking motion. Planner-owned `talkingHands` can 
 fallback only after a same-run `emotionUpdated` event confirms no manifest
 gesture request is pending for that run. Until that arbitration resolves, the
 avatar may be talking, but the planner keeps `talkingHands` disabled so it
-cannot overlap with a late manifest gesture request.
+cannot overlap with a late manifest gesture request. Once the run's gesture is
+no longer playing, loading or queued (it completed, its clip was missing or
+the request was rejected), the run moves to `gestureFinished` and
+`talkingHands` covers the rest of the reply; a gesture that outlives the reply
+never hands off. The switch waits for a Pose Clip gesture's exit fade (not a
+VRMA gesture's crossfade), and
+`gestureFinished` rejects further gesture requests in the run, as
+`talkingHandsAllowed` does.
 `responding_no_tts` is a non-audio assistant presentation phase: it can play
 same-run gestures and emotion reaction clips, but it does not enable
 `talkingHands` and it does not require lip-sync or speech timing. Reaction
@@ -202,7 +209,10 @@ posture instead of falling back to another group.
 
 Planner events are the bridge from runtime facts to autonomous motion policy:
 
-- `runStarted`: used for delayed thinking pose selection.
+- `runStarted`: used for delayed thinking pose selection. Prompts over 10
+  characters get a 20–80% chance of a thinking pose (rising with length),
+  split evenly across `thinking-head-scratch`, `thinking-hand-on-chin-hold`
+  and `thinking-chin-rest`.
 - `emotionUpdated`: consumed every time for debug accounting. The first same-run
   emotion update also arbitrates talking motion for that run when no gesture
   request already claimed it; no gesture request allows `talkingHands`.

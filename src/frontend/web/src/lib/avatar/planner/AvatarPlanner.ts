@@ -145,11 +145,19 @@ export type AvatarPlannerProceduralStint = {
   enabled: boolean;
 };
 
+/**
+ * How a run moves its body while talking. The run commits once: a Gesture
+ * request (`manifestAnimationRequested`) or an emotion update without one
+ * (`talkingHandsAllowed`). After the run's Gesture plays out or is rejected
+ * (`gestureFinished`), talking hands cover the rest of the reply; no second
+ * Gesture starts in the same run.
+ */
 export type AvatarPlannerTalkingMotionArbitrationStatus =
   | "inactive"
   | "awaitingEmotionUpdate"
   | "talkingHandsAllowed"
-  | "manifestAnimationRequested";
+  | "manifestAnimationRequested"
+  | "gestureFinished";
 
 export type AvatarPlannerTalkingMotionArbitration = {
   runId: string | null;
@@ -1016,15 +1024,27 @@ function planAvatarMotion(
     ignoredEventReasons,
   });
 
+  const manifestGestureActive = Boolean(
+    vrma.activeGestureVrma?.manifestGestureId ||
+    isGesturePoseClip(pose.activePlannerPoseClip),
+  );
+  const talkingMotionArbitration = resolveFinishedGestureArbitration({
+    arbitration: vrma.talkingMotionArbitration,
+    manifestGestureActive,
+    // A clip stopped this frame, or released earlier, is still fading out.
+    gestureExitFading:
+      input.manualPoseClipActive ||
+      pose.actions.some((action) => action.type === "stopPoseClip"),
+    pendingEvents: pose.pendingEvents,
+    ignoredEventReasons,
+  });
+
   const procedural = planProcedural({
     previous: baseline,
     input,
     baseState,
-    manifestGestureActive: Boolean(
-      vrma.activeGestureVrma?.manifestGestureId ||
-      isGesturePoseClip(pose.activePlannerPoseClip),
-    ),
-    talkingMotionArbitration: vrma.talkingMotionArbitration,
+    manifestGestureActive,
+    talkingMotionArbitration,
     nextRandomRoll: random.next,
   });
 
@@ -1038,7 +1058,7 @@ function planAvatarMotion(
     activeGestureVrma: vrma.activeGestureVrma,
     activePlannerPoseClip: pose.activePlannerPoseClip,
     idleStint: vrma.idleStint,
-    talkingMotionArbitration: vrma.talkingMotionArbitration,
+    talkingMotionArbitration,
     pendingEvents: pose.pendingEvents,
     proceduralStints: procedural.proceduralStints,
     lastCancellationReason:
@@ -1104,6 +1124,43 @@ function planAvatarMotion(
       lastCancellationReason: nextState.lastCancellationReason,
     },
   };
+}
+
+/**
+ * Move a run from `manifestAnimationRequested` to `gestureFinished` once its
+ * Gesture is no longer playing, loading or queued: it completed, its clip was
+ * missing, or the request was rejected. In production the status is set only by
+ * reading the run's Gesture request (`emotionUpdated` events carry no
+ * animation hint), so an empty Gesture lane means that request has been
+ * handled. An `emotionUpdated` hint would need its Gesture request in the same
+ * frame, or this would finish the run before the request arrives. A Pose Clip's
+ * exit fade (a stop issued this frame, then a manual Pose Clip once the planner
+ * has released it) delays the switch so talking hands start after it; a VRMA
+ * Gesture's crossfade is not waited for.
+ */
+function resolveFinishedGestureArbitration(args: {
+  arbitration: AvatarPlannerTalkingMotionArbitration;
+  manifestGestureActive: boolean;
+  gestureExitFading: boolean;
+  pendingEvents: readonly AvatarPlannerMotionEvent[];
+  ignoredEventReasons: string[];
+}): AvatarPlannerTalkingMotionArbitration {
+  const { arbitration } = args;
+  if (
+    arbitration.status !== "manifestAnimationRequested" ||
+    args.manifestGestureActive ||
+    args.gestureExitFading ||
+    args.pendingEvents.some(
+      (event) =>
+        event.type === "gestureRequested" && event.runId === arbitration.runId,
+    )
+  ) {
+    return arbitration;
+  }
+  args.ignoredEventReasons.push(
+    `talkingMotion:${arbitration.runId}:gestureFinished`,
+  );
+  return { ...arbitration, status: "gestureFinished" };
 }
 
 function mergeAvatarPlannerMotionEvents(
@@ -1774,6 +1831,13 @@ function resolveTalkingMotionArbitrationFromGesture(args: {
     return {
       arbitration: args.arbitration,
       blockedReason: `gestureRequested:${args.event.requestId}:talkingMotionAlreadyAllowed`,
+    };
+  }
+
+  if (args.arbitration.status === "gestureFinished") {
+    return {
+      arbitration: args.arbitration,
+      blockedReason: `gestureRequested:${args.event.requestId}:runGestureFinished`,
     };
   }
 
@@ -2866,7 +2930,8 @@ function getDesiredProceduralPolicies(
     interactionPhase === "talking" &&
     baseState === "talking" &&
     !manifestGestureActive &&
-    talkingMotionArbitration.status === "talkingHandsAllowed"
+    (talkingMotionArbitration.status === "talkingHandsAllowed" ||
+      talkingMotionArbitration.status === "gestureFinished")
   ) {
     policies.push("talking");
     return policies;

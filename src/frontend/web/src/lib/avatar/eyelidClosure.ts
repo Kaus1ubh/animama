@@ -5,6 +5,8 @@ import {
 } from "@pixiv/three-vrm";
 import type { BufferGeometry } from "three";
 
+import { registerMorphTargetExpressions } from "./morphTargetExpressions";
+
 /**
  * Eyelid closure correction: stop `blink` closing the eyes past shut when a
  * mood expression has already closed them.
@@ -24,7 +26,10 @@ import type { BufferGeometry } from "three";
  *
  *   effective blink = blink × clamp01(1 − happy × profile.happy − relaxed × profile.relaxed)
  *
- * (each eye's channel alike). Because the rule lives in the manager, every
+ * (each eye's channel alike). VRoid's per-feature eye morphs `Fcl_EYE_Joy` and
+ * `Fcl_EYE_Fun` carry all of happy's and relaxed's eyelid motion (the
+ * whole-face morph is exactly brow + eye + mouth), so content that keys them
+ * instead of the whole face gets the same correction from the same profile. Because the rule lives in the manager, every
  * surface that applies expressions — the chat runtime, creator writes, review
  * renders — inherits it, and expression weights keep their authored values.
  */
@@ -71,7 +76,22 @@ export const DEFAULT_EYELID_CLOSURE_PROFILE: EyelidClosureProfile = {
  */
 const EYELID_CLOSING_MIN_SHARE = 0.05;
 
-const MOOD_EXPRESSIONS = ["happy", "relaxed"] as const;
+/**
+ * Expressions whose morphs close the eyelids, each with the profile entry that
+ * calibrates it.
+ */
+const CORRECTED_EXPRESSIONS: readonly {
+  name: string;
+  profile: keyof EyelidClosureProfile;
+}[] = [
+  { name: "happy", profile: "happy" },
+  { name: "relaxed", profile: "relaxed" },
+  { name: "Fcl_EYE_Joy", profile: "happy" },
+  { name: "Fcl_EYE_Fun", profile: "relaxed" },
+];
+
+/** Corrected names a VRM 0 model may keep only as raw morph targets. */
+const PART_EXPRESSIONS = ["Fcl_EYE_Joy", "Fcl_EYE_Fun"];
 
 export type EyelidClosureCorrection = {
   source: "verified" | "default";
@@ -84,7 +104,9 @@ export type EyelidClosureCorrection = {
  *
  * A verified profile is chosen by `vrmSha256`. Other Avatars use the default
  * profile for each mood expression whose morphs measurably close the eyelids,
- * and no correction for the rest. An expression that declares its own
+ * and no correction for the rest. VRoid eye parts that exist only as morph
+ * targets are registered as expressions first, so the correction is installed
+ * on the instances the runtime later drives. An expression that declares its own
  * `overrideBlink` keeps the native behavior, so it is never corrected twice.
  *
  * @returns The profile in effect, or null when the model has no blink.
@@ -100,18 +122,25 @@ export function applyEyelidClosureCorrection(
     manager?.getExpression("blinkRight");
   if (!manager || !blink) return null;
 
+  registerMorphTargetExpressions(vrm, PART_EXPRESSIONS);
+
   const verified =
     VERIFIED_EYELID_CLOSURE_PROFILES[vrmSha256?.trim().toLowerCase() ?? ""];
+  const blinkMotion = morphDisplacements(blink);
+  const closes = (expression: VRMExpression) =>
+    eyelidClosingShare(morphDisplacements(expression), blinkMotion) >=
+    EYELID_CLOSING_MIN_SHARE;
   const correction: EyelidClosureCorrection = verified
     ? { source: "verified", profile: verified.profile }
-    : { source: "default", profile: defaultProfileFor(vrm, blink) };
+    : { source: "default", profile: defaultProfileFor(vrm, closes) };
 
-  for (const name of MOOD_EXPRESSIONS) {
+  for (const { name, profile } of CORRECTED_EXPRESSIONS) {
     const expression = manager.getExpression(name);
-    const share = correction.profile[name];
-    if (!expression || share <= 0 || expression.overrideBlink !== "none") {
-      continue;
-    }
+    if (!expression || expression.overrideBlink !== "none") continue;
+    // Unverified models correct each expression only if it closes the lids.
+    const share =
+      verified || closes(expression) ? correction.profile[profile] : 0;
+    if (share <= 0) continue;
     // Replaces the library's `none` amount (always 0) for this instance only.
     Object.defineProperty(expression, "overrideBlinkAmount", {
       configurable: true,
@@ -121,21 +150,25 @@ export function applyEyelidClosureCorrection(
   return correction;
 }
 
+/**
+ * The default profile, keeping each entry only when its whole-face expression
+ * (or, without one, its VRoid eye part) closes the eyelids.
+ */
 function defaultProfileFor(
   vrm: VRM,
-  blink: VRMExpression,
+  closes: (expression: VRMExpression) => boolean,
 ): EyelidClosureProfile {
-  const blinkMotion = morphDisplacements(blink);
-  const closes = (name: "happy" | "relaxed") => {
-    const expression = vrm.expressionManager?.getExpression(name);
-    return expression
-      ? eyelidClosingShare(morphDisplacements(expression), blinkMotion) >=
-          EYELID_CLOSING_MIN_SHARE
-      : false;
+  const closing = (entry: keyof EyelidClosureProfile) => {
+    const expression = CORRECTED_EXPRESSIONS.filter(
+      ({ profile }) => profile === entry,
+    )
+      .map(({ name }) => vrm.expressionManager?.getExpression(name))
+      .find((candidate) => candidate);
+    return expression ? closes(expression) : false;
   };
   return {
-    happy: closes("happy") ? DEFAULT_EYELID_CLOSURE_PROFILE.happy : 0,
-    relaxed: closes("relaxed") ? DEFAULT_EYELID_CLOSURE_PROFILE.relaxed : 0,
+    happy: closing("happy") ? DEFAULT_EYELID_CLOSURE_PROFILE.happy : 0,
+    relaxed: closing("relaxed") ? DEFAULT_EYELID_CLOSURE_PROFILE.relaxed : 0,
   };
 }
 

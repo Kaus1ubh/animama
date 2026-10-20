@@ -251,10 +251,12 @@ export type {
   AvatarPlannerVrmaDebugSnapshot,
 } from "./planner";
 export {
+  THINKING_CHIN_REST_CLIP_ID,
   THINKING_HAND_ON_CHIN_HOLD_CLIP_ID,
   THINKING_HEAD_SCRATCH_CLIP_ID,
+  THINKING_POSE_CLIP_IDS,
   THINKING_POSE_MIN_INPUT_LENGTH,
-  getThinkingPoseClipChance,
+  getThinkingPoseChance,
   selectThinkingPoseClip,
   selectThinkingPoseClipId,
 } from "./thinkingPoseSelection";

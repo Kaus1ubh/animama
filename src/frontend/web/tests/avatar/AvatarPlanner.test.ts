@@ -624,7 +624,7 @@ describe("AvatarPlanner reaction clips", () => {
       type: "runStarted" as const,
       eventId: "run-started-1",
       runId: "run-1",
-      // Long enough for a 40% thinking-pose chance.
+      // Long enough for an 80% thinking-pose chance.
       inputText: "x".repeat(90),
       createdAtMs: 1_000,
     };
