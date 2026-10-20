@@ -606,8 +606,8 @@ export type CreatorParticleId = (typeof CREATOR_PARTICLES)[number]["id"];
 
 /** Every Library source the page plays, for the server to resolve. */
 /**
- * The hero entrance's scratch walk: its upper-body clip (from `--walk-clips`;
- * head scratch, double take and turn, played over the procedural walk) and
+ * The hero entrance's scratch walk: its upper-body clip (in `clips/`; head
+ * scratch, double take and turn, played over the procedural walk) and
  * the Library items whose Avatar Effects it borrows (`question_mark`;
  * `startle_ticks`).
  */

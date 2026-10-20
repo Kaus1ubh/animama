@@ -61,7 +61,7 @@ import {
  *
  * `?hud` shows the live camera values; `?stop=<id>` opens at a stop;
  * the walk-on is procedural; `?walk=<id>` tries a clip cycle from
- * `WALK_VARIANTS` instead, when the server has walk clips; `?nopuzzle` skips
+ * `WALK_VARIANTS` instead, when `--walk-clips` supplies them; `?nopuzzle` skips
  * the head scratch and double take; `?nointro` skips the entrance;
  * `?classic` renders the Avatar without the app's enhanced shaders and
  * lighting (set before any module loads, in `index.html`); `?washes` brings
@@ -79,8 +79,8 @@ type Program = {
     }
   >;
   problems: string[];
-  /** Walk-on clip paths by file name, when the server has walk clips. */
-  walk: Record<string, string> | null;
+  /** Entrance clip paths by file name (bundled, plus `--walk-clips`). */
+  walk: Record<string, string>;
 };
 
 type SceneEffect = Extract<PreviewEffect, { kind: "scene_effect" }>;

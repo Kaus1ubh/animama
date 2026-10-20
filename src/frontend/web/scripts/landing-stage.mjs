@@ -20,9 +20,10 @@ import { openBrowser, sendJson, trustedRequest } from "./local-page-server.mjs";
  *
  * The page lists its stops in `landing-stage/stops.ts`; this server resolves
  * the Library clips and Scene Effects they name (as `animation:preview` does)
- * and serves their files. `--walk-clips` names a folder of VRMA clips for the
- * hero's walk-on (the stage picks them by file name); without it the walk is
- * procedural. Serves on
+ * and serves their files. It also serves the hero entrance's clips by file
+ * name: the harness's own (`landing-stage/clips/`, such as the head scratch)
+ * and any in a `--walk-clips` folder, which can add walk cycles to compare
+ * (`?walk=<id>`) or replace a bundled clip of the same name. Serves on
  * 127.0.0.1 only and writes nothing.
  */
 const webRoot = fileURLToPath(new URL("..", import.meta.url));
@@ -53,9 +54,13 @@ const rechartsCompatAliases = Object.fromEntries(
 );
 const PREVIEW_MODULES = "/src/lib/avatar/motion-authoring/preview";
 
-/** Walk-on clips are served by plain file name, from `--walk-clips` only. */
+/**
+ * Entrance clips are served by plain file name, from the harness's `clips/`
+ * folder and `--walk-clips`, and nothing else.
+ */
 const WALK_ROUTE = "/__stage/walk/";
 const WALK_FILE = /^[\w.-]+\.(vrma|clip\.json)$/;
+const BUNDLED_CLIPS = path.join(webRoot, "scripts/landing-stage/clips");
 
 /** Start the stage server. Resolves once it listens. */
 export async function startStageServer({ port = 0, walkClips = null } = {}) {
@@ -119,19 +124,21 @@ export async function startStageServer({ port = 0, walkClips = null } = {}) {
    * Every clip and Scene Effect the stops name, resolved once. A source that
    * fails to resolve is reported to the page instead of stopping the stage.
    */
-  const program = { avatar: null, sources: {}, problems: [], walk: null };
-  // Walk-on clips: every VRMA and pose clip file in the folder, by name.
-  if (walkClips) {
+  const program = { avatar: null, sources: {}, problems: [], walk: {} };
+  // Entrance clips by file name: the bundled ones, then `--walk-clips`
+  // (which wins on a shared name).
+  const walkFiles = new Map();
+  for (const folder of [BUNDLED_CLIPS, walkClips].filter(Boolean)) {
     try {
-      program.walk = Object.fromEntries(
-        readdirSync(walkClips)
-          .filter((name) => WALK_FILE.test(name))
-          .map((name) => [name, `${WALK_ROUTE}${name}`]),
-      );
+      for (const name of readdirSync(folder).filter((n) => WALK_FILE.test(n)))
+        walkFiles.set(name, path.join(folder, name));
     } catch (error) {
       program.problems.push(`walk clips: ${error.message}`);
     }
   }
+  program.walk = Object.fromEntries(
+    [...walkFiles.keys()].map((name) => [name, `${WALK_ROUTE}${name}`]),
+  );
   program.avatar = {
     id: STAGE_AVATAR,
     url: `/@fs${path.join(avatarDir, `${STAGE_AVATAR}.vrm`)}`,
@@ -183,10 +190,11 @@ export async function startStageServer({ port = 0, walkClips = null } = {}) {
     return true;
   }
 
-  /** Stream a walk-on clip listed at start-up, and nothing else. */
+  /** Stream an entrance clip listed at start-up, and nothing else. */
   function sendWalkClip(response, url) {
     const name = url.pathname.slice(WALK_ROUTE.length);
-    if (!program.walk || !Object.hasOwn(program.walk, name)) {
+    const file = walkFiles.get(name);
+    if (!file) {
       sendJson(response, 404, { error: "Not found" });
       return;
     }
@@ -197,7 +205,7 @@ export async function startStageServer({ port = 0, walkClips = null } = {}) {
       "cache-control": "no-store",
       "x-content-type-options": "nosniff",
     });
-    createReadStream(path.join(walkClips, name))
+    createReadStream(file)
       .on("error", () => response.destroy())
       .pipe(response);
   }
