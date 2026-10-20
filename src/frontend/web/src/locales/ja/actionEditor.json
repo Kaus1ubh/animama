@@ -311,7 +311,7 @@
       "avatarUnauthorized": "プレビュー用アバターを承認できませんでした。",
       "fileUnauthorized": "非公開のプレビューファイルが承認されていません。",
       "idleAnimationUnavailable": "選択した待機アニメーションは利用できません。",
-      "idlePlaybackUnavailable": "このジェスチャーでは有限の待機再生を利用できません。ロードアウトを更新してもう一度お試しください。",
+      "idlePlaybackUnavailable": "このジェスチャーでは有限の待機再生を利用できません。ふるまいを更新してもう一度お試しください。",
       "invalidClosure": "アクションのプレビューが無効な依存関係のまとまりを返しました。",
       "particleFailed": "選択したパーティクルエフェクトを再生できませんでした。",
       "particlesUnsupported": "プレビュー用アバターではパーティクルを再生できません。",
@@ -339,8 +339,8 @@
       "title": "アバターを移動"
     },
     "movePanel": "コンテンツプレビューを移動",
-    "openLoadout": "Anima のロードアウトを開く",
-    "openLoadoutNamed": "{{name}} のロードアウトを開く",
+    "openLoadout": "Anima のふるまいを開く",
+    "openLoadoutNamed": "{{name}} のふるまいを開く",
     "preparingPlayback": "再生を準備しています…",
     "replay": "もう一度再生",
     "resetCamera": {

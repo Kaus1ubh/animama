@@ -166,7 +166,7 @@
     "fallback": {
       "customMissing": "已選擇自訂 PocketTTS 語音，但尚未上傳自訂語音。",
       "downloadFailed": "無法下載語音「{{voice}}」，因此改用預設語音。下次回覆時或你再次選擇該語音時會重試下載。",
-      "unknownVoice": "已儲存的語音「{{voice}}」已無法使用，因此改用預設語音。請在「裝備 → 語音」中選擇其他語音。"
+      "unknownVoice": "已儲存的語音「{{voice}}」已無法使用，因此改用預設語音。請在「行為 → 語音」中選擇其他語音。"
     },
     "sample": {
       "playFailed": "無法播放 {{name}} 的樣本。請檢查網路連線後再試一次。"

@@ -68,7 +68,7 @@ Gestures and Reactions are complete actions. Their Particle, Avatar, and
 Scene Effects and Sound Effects are compiler-managed dependencies, so those
 ingredients never appear as separate loadout checkboxes.
 
-The Loadout panel contains Voices, Gestures, Reactions and Idle.
+The Behavior tab shows the Anima's Loadout: Voices, Gestures, Reactions and Idle.
 Voices configures PocketTTS and ElevenLabs for this Anima, regardless of the
 active application provider. Avatar and Appearance use their own focused controls.
 Imported encoded-only voice clones remain selectable for speech; their original

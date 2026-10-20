@@ -196,7 +196,7 @@
     "fallback": {
       "customMissing": "Custom PocketTTS voice is selected but no custom voice has been uploaded.",
       "downloadFailed": "The voice \"{{voice}}\" could not be downloaded, so the default voice is used. The download is retried on the next reply or when you pick the voice again.",
-      "unknownVoice": "The saved voice \"{{voice}}\" is no longer available, so the default voice is used. Choose another voice in Loadout → Voices."
+      "unknownVoice": "The saved voice \"{{voice}}\" is no longer available, so the default voice is used. Choose another voice in Behavior → Voices."
     },
     "sample": {
       "playFailed": "{{name}}'s sample could not play. Check your connection and try again."

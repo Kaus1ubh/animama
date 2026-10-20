@@ -355,13 +355,13 @@ export async function openAnnieLoadoutPreview(args: {
   args.page.off("response", recordReadyRuntime);
 
   const loadoutTab = args.page.getByRole("tab", {
-    name: "Loadout",
+    name: "Behavior",
     exact: true,
   });
   await expect(loadoutTab).toBeVisible({ timeout: 15_000 });
   await loadoutTab.click();
   await expect(
-    args.page.getByRole("heading", { name: "Loadout", exact: true }),
+    args.page.getByRole("heading", { name: "Behavior", exact: true }),
   ).toBeVisible({ timeout: 15_000 });
 
   const sectionName = args.section === "gesture" ? "Gestures" : "Reactions";

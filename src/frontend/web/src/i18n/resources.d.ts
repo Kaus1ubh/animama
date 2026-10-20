@@ -316,7 +316,7 @@ export default interface Resources {
         "avatarUnauthorized": "The preview avatar could not be authorized.",
         "fileUnauthorized": "A private preview file is unauthorized.",
         "idleAnimationUnavailable": "The selected idle animation is unavailable.",
-        "idlePlaybackUnavailable": "Finite idle playback is unavailable for this Gesture. Refresh the Loadout and try again.",
+        "idlePlaybackUnavailable": "Finite idle playback is unavailable for this Gesture. Refresh Behavior and try again.",
         "invalidClosure": "The action preview returned an invalid closure.",
         "particleFailed": "The selected particle effect could not play.",
         "particleUnavailable": "The selected particle effect is unavailable.",
@@ -344,8 +344,8 @@ export default interface Resources {
         "title": "Move avatar"
       },
       "movePanel": "Move content preview",
-      "openLoadout": "Open Anima Loadout",
-      "openLoadoutNamed": "Open {{name}} Loadout",
+      "openLoadout": "Open Anima Behavior",
+      "openLoadoutNamed": "Open {{name}}'s Behavior",
       "preparingPlayback": "Preparing playback…",
       "replay": "Replay",
       "resetCamera": {
@@ -485,16 +485,13 @@ export default interface Resources {
       "done": "Done",
       "equip": "Equip",
       "equipped": "Equipped",
-      "loop": "Loop",
       "moreActions": "More actions",
       "moreActionsFor": "More actions for {{name}}",
-      "move": "Move",
       "preview": "Preview",
       "previewNamed": "Preview {{name}}",
       "previewUnavailable": "Preview unavailable",
       "remove": "Remove",
       "replace": "Replace",
-      "replay": "Replay",
       "reset": "Reset",
       "retry": "Retry",
       "save": "Save",
@@ -658,8 +655,8 @@ export default interface Resources {
         "reaction": "Reaction"
       },
       "gestureNotLocal": "This Gesture is not available in the local catalog.",
-      "loading": "Loading Gesture and Reaction Loadout…",
-      "noPreviewSource": "This Loadout entry does not have a preview source.",
+      "loading": "Loading Behavior…",
+      "noPreviewSource": "This Behavior entry does not have a preview source.",
       "previewContextLoading": "The Anima preview context is still loading.",
       "reactionNotLocal": "This Reaction is not available in the local catalog.",
       "review": {
@@ -677,11 +674,11 @@ export default interface Resources {
         "current": "Current:",
         "description": "This changes the next mounted chat runtime. An active chat keeps its current revision.",
         "result": "Result:",
-        "title": "Review Loadout change"
+        "title": "Review Behavior change"
       },
-      "title": "Loadout",
-      "unavailable": "The Loadout is unavailable.",
-      "updated": "Loadout updated. Changes apply to the next chat mount."
+      "title": "Behavior",
+      "unavailable": "Behavior is unavailable.",
+      "updated": "Behavior updated. Changes apply to the next chat mount."
     },
     "manage": {
       "animaFallback": "Anima",
@@ -696,7 +693,7 @@ export default interface Resources {
         "addTo": "Add to {{anima}}'s {{cell}}",
         "added": "{{name}} added to {{anima}} at {{cell}}.",
         "emotion": "Emotion",
-        "full": "This cell already holds four Reactions. Remove one in this Anima's Loadout to add this one.",
+        "full": "This cell already holds four Reactions. Remove one in this Anima's Behavior tab to add this one.",
         "inCell": "In this cell",
         "intensity": "Intensity",
         "notInCell": "Not in this cell",
@@ -736,11 +733,7 @@ export default interface Resources {
       },
       "openEmotions": "Open Emotions tab. {{feeling}}",
       "preview": {
-        "loop": "Loop {{name}} preview",
-        "move": "Move {{name}} preview avatar",
         "region": "Previewing {{name}}",
-        "replay": "Replay {{name}} preview",
-        "retry": "Retry {{name}} preview",
         "states": {
           "error": "Preview unavailable",
           "idle": "Preview idle",
@@ -749,12 +742,11 @@ export default interface Resources {
           "ready": "Ready"
         },
         "status": "{{name}} preview: {{status}}",
-        "stop": "Stop {{name}} preview",
-        "summary": "{{version}} · {{status}}"
+        "stop": "Stop {{name}} preview"
       },
       "tabs": {
         "emotions": "Emotions",
-        "loadout": "Loadout",
+        "loadout": "Behavior",
         "memories": "Memories",
         "overview": "Identity",
         "settings": "Settings"
@@ -3282,11 +3274,11 @@ export default interface Resources {
       "catalog_source_required": "Choose content from the Library.",
       "content_dependency_retired": "This Action needs conversion before it can be used.",
       "content_kind_retired": "This content kind is no longer supported.",
-      "equipFailed": "Loadout update failed.",
-      "gesture_binding_unavailable": "That Gesture is no longer in the Loadout.",
+      "equipFailed": "Behavior update failed.",
+      "gesture_binding_unavailable": "That Gesture is no longer equipped.",
       "gesture_operation_invalid": "This Gesture change is not valid.",
       "gesture_semantic_key_conflict": "Gesture {{name}} has a conflicting semantic key.",
-      "gesture_semantic_key_conflict_failure": "The Gesture's semantic key conflicts with another Gesture in the Loadout.",
+      "gesture_semantic_key_conflict_failure": "The Gesture's semantic key conflicts with another equipped Gesture.",
       "idempotency_key_reused": "This change was already submitted with different contents. Review it again.",
       "idle_cell_invalid": "That emotion and intensity is not an Idle cell.",
       "idle_gesture_duplicate": "This Gesture is already in that Idle cell.",
@@ -3294,7 +3286,7 @@ export default interface Resources {
       "idle_operation_invalid": "This Idle change is not valid.",
       "idle_playback_unavailable": "Idle playback could not be checked. Try again.",
       "loadout_plan_stale": "The reviewed change is out of date. Review it again.",
-      "loadout_revision_conflict": "The Loadout changed since you opened it. Review the change again.",
+      "loadout_revision_conflict": "Behavior changed since you opened it. Review the change again.",
       "loadout_source_invalid": "The selected content is invalid.",
       "loadout_source_stale": "The selected content changed. Review the change again.",
       "loadout_source_unavailable": "{{slot}} is unavailable and will be omitted until corrected.",
@@ -5976,7 +5968,7 @@ export default interface Resources {
         "remove": "Remove"
       },
       "cleanupPending": "The pack is no longer active, but some files remain. Close applications using those files, then retry Remove.",
-      "inUse": "Finish active document jobs, close content previews, and remove this pack’s entries from Anima loadouts before retrying.",
+      "inUse": "Finish active document jobs, close content previews, and unequip this pack’s entries in each Anima’s Behavior before retrying.",
       "noCompatiblePack": "No compatible released pack is included in this app’s catalog.",
       "packs": {
         "documentProcessing": {
@@ -5984,7 +5976,7 @@ export default interface Resources {
           "name": "Document processing"
         },
         "expandedIncludedContent": {
-          "description": "Adds selectable content to Included. It never changes your Anima’s loadout automatically.",
+          "description": "Adds selectable content to Included. It never changes your Anima’s Behavior automatically.",
           "name": "Expanded Included content"
         }
       },
@@ -6186,7 +6178,7 @@ export default interface Resources {
               "flashLite": "Lower-latency, lower-cost Gemini speech."
             },
             "label": "Gemini model",
-            "note": "Google bills Gemini speech to your API key. Choose each Anima's voice in Loadout → Voices.",
+            "note": "Google bills Gemini speech to your API key. Choose each Anima's voice in Behavior → Voices.",
             "placeholder": "Select model",
             "updateFailed": "Failed to update Gemini model."
           }
@@ -6197,7 +6189,7 @@ export default interface Resources {
           "enableFirst": "Enable Text-to-Speech to select a provider.",
           "entryLabel": "Default Text-to-Speech provider",
           "label": "Default provider",
-          "note": "Used by Animas without their own provider. Choose providers and voices for each Anima in Loadout → Voices.",
+          "note": "Used by Animas without their own provider. Choose providers and voices for each Anima in Behavior → Voices.",
           "updateFailed": "Failed to update TTS provider."
         },
         "stream": {
@@ -6663,7 +6655,7 @@ export default interface Resources {
       "fallback": {
         "customMissing": "Custom PocketTTS voice is selected but no custom voice has been uploaded.",
         "downloadFailed": "The voice \"{{voice}}\" could not be downloaded, so the default voice is used. The download is retried on the next reply or when you pick the voice again.",
-        "unknownVoice": "The saved voice \"{{voice}}\" is no longer available, so the default voice is used. Choose another voice in Loadout → Voices."
+        "unknownVoice": "The saved voice \"{{voice}}\" is no longer available, so the default voice is used. Choose another voice in Behavior → Voices."
       },
       "sample": {
         "playFailed": "{{name}}'s sample could not play. Check your connection and try again."

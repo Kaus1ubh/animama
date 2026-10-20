@@ -74,7 +74,7 @@ The hosted server transport keeps the frames its consumer validates:
 `{"text": " "}` on open, `{"text": chunk}` per chunk, and `{"text": ""}` at the
 end, with no flush or keep-alive frames. It ends on `isFinal` or `is_final`.
 
-Loadout → Voices saves the Anima voice ID without contacting ElevenLabs, even
+Behavior → Voices saves the Anima voice ID without contacting ElevenLabs, even
 when another provider is selected. The backend checks voice accessibility when
 starting ElevenLabs playback and keeps a short process-local runtime cache. Realtime chat still
 resolves the selected voice and mints a single-use `ttd_websocket` token per run

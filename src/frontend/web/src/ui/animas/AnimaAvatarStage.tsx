@@ -1,6 +1,5 @@
 "use client";
 
-import { AvatarTransformControls as TransformControls } from "@/ui/avatar-preview/AvatarTransformControls";
 import { useFrame, useThree } from "@react-three/fiber";
 import { Camera } from "lucide-react";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
@@ -8,12 +7,11 @@ import {
   Suspense,
   useCallback,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
-import type { Group, Object3D } from "three";
+import type { Object3D } from "three";
 import { useTranslation } from "react-i18next";
 import { useFormatters } from "@animama/product-ui/i18n";
 
@@ -62,16 +60,6 @@ import { cn } from "@/lib/utils";
 import { AvatarPreviewSurface } from "@/ui/avatar-preview/AvatarPreviewSurface";
 import { PlaybackObservationOutput } from "@/ui/avatar-preview/PlaybackObservationOutput";
 import { Button } from "@/ui/components/button";
-import { TransformPanel } from "@/ui/main/canvas/TransformPanel";
-import {
-  applyAvatarTransformToObject,
-  areAvatarTransformsEqual,
-  avatarTransformFromObject,
-  cloneAvatarTransform,
-  DEFAULT_AVATAR_TRANSFORM,
-  type AvatarTransform,
-  type TransformAxis,
-} from "@/ui/main/canvas/transform-state";
 import {
   DEFAULT_SCENE_CAMERA,
   DEFAULT_SCENE_ORBIT_TARGET,
@@ -100,9 +88,6 @@ type StageActorProps = {
   previewModelFailed: boolean;
   temporaryPreviewModel: boolean;
   onTemporaryPreviewModelError: () => void;
-  avatarTransform: AvatarTransform;
-  moveAvatar: boolean;
-  onAvatarTransformChange: (transform: AvatarTransform) => void;
   setStatus: Dispatch<SetStateAction<StageStatus>>;
   setErrorMessage: Dispatch<SetStateAction<string | null>>;
 };
@@ -126,9 +111,7 @@ export type AnimaAvatarStageProps = {
   contentPreviewTarget?: ContentPreviewTarget | null;
   contentPreviewStatus?: ContentPreviewLoadStatus;
   contentPreviewLoop?: boolean;
-  contentPreviewMoveAvatar?: boolean;
   contentPreviewPlayRequest?: number;
-  onContentPreviewMoveAvatarChange?: (moving: boolean) => void;
   onContentPreviewStatusChange?: (
     status: ContentPreviewLoadStatus,
     message?: string,
@@ -151,9 +134,6 @@ function StageAvatarActor({
   previewModelFailed,
   temporaryPreviewModel,
   onTemporaryPreviewModelError,
-  avatarTransform,
-  moveAvatar,
-  onAvatarTransformChange,
   setStatus,
   setErrorMessage,
 }: StageActorProps) {
@@ -196,7 +176,6 @@ function StageAvatarActor({
     runtimeId: string;
   } | null>(null);
   const [sceneObject, setSceneObject] = useState<Object3D | null>(null);
-  const [avatarRoot, setAvatarRoot] = useState<Group | null>(null);
   const [avatarReady, setAvatarReady] = useState(false);
   useEffect(() => {
     temporaryModelErrorRef.current = onTemporaryPreviewModelError;
@@ -344,10 +323,6 @@ function StageAvatarActor({
   }, [contentPreview, temporaryPreviewModel]);
 
   useEffect(() => {
-    if (avatarRoot) applyAvatarTransformToObject(avatarRoot, avatarTransform);
-  }, [avatarRoot, avatarTransform]);
-
-  useEffect(() => {
     const avatar = avatarRef.current;
     if (
       !contentPreview ||
@@ -460,24 +435,9 @@ function StageAvatarActor({
   return (
     <>
       {/* Preserve Avatar.load()'s VRM0 orientation on the child model. */}
-      <group ref={setAvatarRoot}>
+      <group>
         <primitive object={sceneObject} dispose={null} />
       </group>
-      {contentPreview && moveAvatar && avatarRoot ? (
-        <TransformControls
-          enabled
-          mode="translate"
-          object={avatarRoot}
-          onObjectChange={() =>
-            onAvatarTransformChange(avatarTransformFromObject(avatarRoot))
-          }
-          showX
-          showY
-          showZ
-          size={0.75}
-          space="world"
-        />
-      ) : null}
     </>
   );
 }
@@ -497,9 +457,7 @@ function AnimaAvatarStageInner({
   contentPreviewTarget = null,
   contentPreviewStatus = "idle",
   contentPreviewLoop = false,
-  contentPreviewMoveAvatar = false,
   contentPreviewPlayRequest = 0,
-  onContentPreviewMoveAvatarChange,
   onContentPreviewStatusChange,
   transparent = false,
   showMetadata = true,
@@ -513,17 +471,10 @@ function AnimaAvatarStageInner({
     noRuntimeFileRef.current = noRuntimeFileText;
   }, [noRuntimeFileText]);
   const formatters = useFormatters();
-  const [hostElement, setHostElement] = useState<HTMLDivElement | null>(null);
   const [activeAvatar, setActiveAvatar] = useState<Avatar | null>(null);
   const [sceneVFX, setSceneVFX] = useState<SceneVFXRuntimeEntry | null>(null);
   const [cameraChanged, setCameraChanged] = useState(false);
   const [resetCameraRequest, setResetCameraRequest] = useState(0);
-  const [previewOverlayBottom, setPreviewOverlayBottom] = useState<
-    number | null
-  >(null);
-  const [avatarTransform, setAvatarTransform] = useState<AvatarTransform>(() =>
-    cloneAvatarTransform(DEFAULT_AVATAR_TRANSFORM),
-  );
   const observationTarget = contentPreviewTarget ?? contentPreview?.target;
   const previewModelEntry =
     contentPreview?.target.kind === "avatar_model"
@@ -608,57 +559,18 @@ function AnimaAvatarStageInner({
 
   useEffect(() => {
     setFailedPreviewModel(null);
-    onContentPreviewMoveAvatarChange?.(false);
-    setAvatarTransform(cloneAvatarTransform(DEFAULT_AVATAR_TRANSFORM));
     setResetCameraRequest((current) => current + 1);
-  }, [contentPreview?.entryKey, onContentPreviewMoveAvatarChange]);
+  }, [contentPreview?.entryKey]);
 
   useEffect(() => {
     if (!contentPreview) setSceneVFX(null);
   }, [contentPreview]);
-
-  useLayoutEffect(() => {
-    if (!contentPreview || !hostElement) {
-      setPreviewOverlayBottom(null);
-      return;
-    }
-    const previewOverlay = hostElement.querySelector<HTMLElement>(
-      "[data-anima-preview-overlay]",
-    );
-    if (!previewOverlay) {
-      setPreviewOverlayBottom(null);
-      return;
-    }
-    const measureOverlay = () => {
-      setPreviewOverlayBottom(
-        previewOverlay.offsetTop + previewOverlay.offsetHeight,
-      );
-    };
-    measureOverlay();
-    const observer = new ResizeObserver(measureOverlay);
-    observer.observe(previewOverlay);
-    return () => observer.disconnect();
-  }, [contentPreview, hostElement]);
 
   useEffect(() => {
     if (!contentPreview) return;
     return acquireContentPreviewResource("management", "catalog");
   }, [contentPreview]);
 
-  const handleAvatarTransformChange = (nextTransform: AvatarTransform) => {
-    setAvatarTransform((current) =>
-      areAvatarTransformsEqual(current, nextTransform)
-        ? current
-        : cloneAvatarTransform(nextTransform),
-    );
-  };
-  const handlePositionChange = (axis: TransformAxis, value: number) => {
-    setAvatarTransform((current) => {
-      const next = cloneAvatarTransform(current);
-      next.position[axis] = value;
-      return areAvatarTransformsEqual(current, next) ? current : next;
-    });
-  };
   const handleTemporaryPreviewModelError = useCallback(() => {
     if (!previewModelKey) return;
     setFailedPreviewModel({
@@ -689,7 +601,6 @@ function AnimaAvatarStageInner({
 
   return (
     <div
-      ref={setHostElement}
       className={cn(
         "relative overflow-hidden",
         transparent ? "bg-transparent" : "bg-background",
@@ -751,20 +662,15 @@ function AnimaAvatarStageInner({
                 }
                 temporaryPreviewModel={temporaryPreviewModel}
                 onTemporaryPreviewModelError={handleTemporaryPreviewModelError}
-                avatarTransform={avatarTransform}
-                moveAvatar={contentPreviewMoveAvatar}
-                onAvatarTransformChange={handleAvatarTransformChange}
                 setStatus={setStatus}
                 setErrorMessage={setErrorMessage}
               />
             </Suspense>
           </AvatarPreviewSurface>
 
+          {/* Sits below the page's top-right Stop button for the preview. */}
           {contentPreview && cameraChanged ? (
-            <div
-              className="pointer-events-auto absolute right-5 z-40 flex items-center gap-1.5"
-              style={{ top: (previewOverlayBottom ?? 88) + 8 }}
-            >
+            <div className="pointer-events-auto absolute top-[4.25rem] right-5 z-40 flex items-center gap-1.5">
               <Button
                 type="button"
                 size="sm"
@@ -775,27 +681,6 @@ function AnimaAvatarStageInner({
               >
                 {t("actions.reset")} <Camera className="size-3.5" />
               </Button>
-            </div>
-          ) : null}
-          {contentPreview && contentPreviewMoveAvatar ? (
-            <div
-              className="absolute right-5 z-40"
-              style={{
-                top: (previewOverlayBottom ?? 88) + (cameraChanged ? 56 : 8),
-              }}
-            >
-              <TransformPanel
-                className="static w-44 max-w-none"
-                compact
-                mode="translate"
-                transform={avatarTransform}
-                uniformScaleLocked
-                onPositionChange={handlePositionChange}
-                onRotationChangeDegrees={() => undefined}
-                onScaleChange={() => undefined}
-                onUniformScaleLockedChange={() => undefined}
-                showShortcut={false}
-              />
             </div>
           ) : null}
 

@@ -1141,7 +1141,7 @@ test("imported playback complete Anima retains imported Avatar, appearance and p
   await expect(page.getByText("Loading anima", { exact: true })).toBeHidden({
     timeout: 30_000,
   });
-  await page.getByRole("tab", { name: "Loadout", exact: true }).click();
+  await page.getByRole("tab", { name: "Behavior", exact: true }).click();
 
   const importedFor = (entryId: string): OwnedPlaybackItem => {
     const proposal = reviewed.items.find(

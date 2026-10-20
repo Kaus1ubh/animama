@@ -36,7 +36,7 @@ from animama.app.services.typed_content_batch_service import (
 )
 from animama.app.services.typed_content_service import TypedCatalogItem, TypedContentPreview
 from animama.domain.anima_loadout import ReactionIntensity
-from animama.domain.content_catalog import CatalogContentFile, ContentPreview
+from animama.domain.content_catalog import CatalogContentFile, ContentPreview, optional_omitted_references
 from animama.domain.content_documents import (
     AppearanceDocumentV1,
     AvatarDocumentV1,
@@ -492,6 +492,9 @@ class PyTypedContentPreview(BaseModel):
     files: list[PyTypedPreviewFile]
     expected_source_revisions: dict[str, SourceRevision] = Field(default_factory=dict)
     idle_playback: dict[str, PyIdlePlayback] = Field(default_factory=dict)
+    # Alias → ref of each optional dependency of ``item`` (a sound in a pack this
+    # installation lacks) dropped from its ``dependencies``; it plays without them.
+    optional_omitted: dict[str, str] = Field(default_factory=dict)
 
     @classmethod
     def from_domain(cls, value: TypedContentPreview) -> PyTypedContentPreview:
@@ -509,6 +512,7 @@ class PyTypedContentPreview(BaseModel):
             item=typed_content_response(value.item),
             supports=[typed_content_response(item) for item in value.supports],
             expected_source_revisions=_source_revisions(typed_items),
+            optional_omitted=optional_omitted_references(value.item.item.provenance),
             idle_playback={
                 ref: PyIdlePlayback.model_validate(asdict(facts)) for ref, facts in value.idle_playback.items()
             },

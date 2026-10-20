@@ -4,16 +4,13 @@
     "done": "完了",
     "equip": "装備",
     "equipped": "装備中",
-    "loop": "ループ",
     "moreActions": "その他の操作",
     "moreActionsFor": "{{name}} のその他の操作",
-    "move": "移動",
     "preview": "プレビュー",
     "previewNamed": "{{name}} をプレビュー",
     "previewUnavailable": "プレビューは利用できません",
     "remove": "外す",
     "replace": "置き換え",
-    "replay": "もう一度再生",
     "reset": "リセット",
     "retry": "再試行",
     "save": "保存",
@@ -176,8 +173,8 @@
       "reaction": "リアクション"
     },
     "gestureNotLocal": "このジェスチャーはローカルカタログにありません。",
-    "loading": "ジェスチャーとリアクションのロードアウトを読み込んでいます…",
-    "noPreviewSource": "このロードアウト項目にはプレビュー元がありません。",
+    "loading": "ジェスチャーとリアクションのふるまいを読み込んでいます…",
+    "noPreviewSource": "このふるまい項目にはプレビュー元がありません。",
     "previewContextLoading": "Anima のプレビュー環境をまだ読み込んでいます。",
     "reactionNotLocal": "このリアクションはローカルカタログにありません。",
     "review": {
@@ -195,11 +192,11 @@
       "current": "現在:",
       "description": "この変更は次にマウントされるチャットのランタイムに反映されます。進行中のチャットは現在のリビジョンのままです。",
       "result": "結果:",
-      "title": "ロードアウトの変更を確認"
+      "title": "ふるまいの変更を確認"
     },
-    "title": "ロードアウト",
-    "unavailable": "ロードアウトは利用できません。",
-    "updated": "ロードアウトを更新しました。変更は次にチャットをマウントしたときに反映されます。"
+    "title": "ふるまい",
+    "unavailable": "ふるまいは利用できません。",
+    "updated": "ふるまいを更新しました。変更は次にチャットをマウントしたときに反映されます。"
   },
   "manage": {
     "animaFallback": "Anima",
@@ -214,7 +211,7 @@
       "addTo": "{{anima}} の {{cell}} に追加",
       "added": "{{name}} を {{anima}} の {{cell}} に追加しました。",
       "emotion": "感情",
-      "full": "このセルにはすでに 4 件のリアクションがあります。追加するには、この Anima のロードアウトで 1 件外してください。",
+      "full": "このセルにはすでに 4 件のリアクションがあります。追加するには、この Anima のふるまいで 1 件外してください。",
       "inCell": "このセルにあります",
       "intensity": "強さ",
       "notInCell": "このセルにはありません",
@@ -254,11 +251,7 @@
     },
     "openEmotions": "感情タブを開く。{{feeling}}",
     "preview": {
-      "loop": "{{name}} のプレビューをループ",
-      "move": "{{name}} のプレビューのアバターを移動",
       "region": "{{name}} をプレビュー中",
-      "replay": "{{name}} のプレビューをもう一度再生",
-      "retry": "{{name}} のプレビューを再試行",
       "states": {
         "error": "プレビューは利用できません",
         "idle": "プレビュー待機中",
@@ -267,12 +260,11 @@
         "ready": "準備完了"
       },
       "status": "{{name}} のプレビュー: {{status}}",
-      "stop": "{{name}} のプレビューを停止",
-      "summary": "{{version}} · {{status}}"
+      "stop": "{{name}} のプレビューを停止"
     },
     "tabs": {
       "emotions": "感情",
-      "loadout": "ロードアウト",
+      "loadout": "ふるまい",
       "memories": "記憶",
       "overview": "アイデンティティ",
       "settings": "設定"
