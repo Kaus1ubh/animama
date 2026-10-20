@@ -102,9 +102,10 @@ describe("verified eyelid closure profiles", () => {
     );
   });
 
-  it("are keyed by the digests of the current Included Avatar files", async () => {
+  it("are keyed by the digests of current Included Avatar files", async () => {
     // A replaced or re-exported VRM changes its digest; its profile must be
     // re-keyed (or re-measured if the eyelid geometry changed) to stay in use.
+    // Andrew has no measured profile, so only measured Avatars are compared.
     const included = Object.fromEntries(
       await Promise.all(
         (Object.keys(INCLUDED_AVATAR_FILES) as IncludedAvatarId[]).map(
@@ -118,14 +119,18 @@ describe("verified eyelid closure profiles", () => {
           ([sha256, { avatar }]) => [sha256, avatar],
         ),
       ),
-    ).toEqual(included);
+    ).toEqual(
+      Object.fromEntries(
+        Object.entries(included).filter(([, id]) => id !== "Andrew"),
+      ),
+    );
   });
 });
 
-describe.each([
-  ["AvatarSample_A_1_New", 0.2164],
-  ["AvatarSample_Y_0", 0.1767],
-] as [IncludedAvatarId, number][])("eyelid closure on %s", (id, k) => {
+describe.each([["AvatarSample_A_1_New", 0.2164]] as [
+  IncludedAvatarId,
+  number,
+][])("eyelid closure on %s", (id, k) => {
   let vrm: VRM;
   beforeAll(async () => {
     vrm = (await loadTestAvatarWithGltf(id)).vrm;
@@ -220,6 +225,16 @@ describe.each([
 });
 
 describe("eyelid closure for Avatars without a verified profile", () => {
+  it("uses the default profile for Andrew, whose happy and relaxed close the eyelids", async () => {
+    const { vrm } = await loadTestAvatarWithGltf("Andrew");
+    expect(
+      applyEyelidClosureCorrection(vrm, await readTestAvatarSha256("Andrew")),
+    ).toEqual({
+      source: "default",
+      profile: DEFAULT_EYELID_CLOSURE_PROFILE,
+    });
+  });
+
   it("uses the default profile when happy and relaxed close the eyelids", async () => {
     const { vrm } = await loadTestAvatarWithGltf("AvatarSample_A_1_New");
     expect(applyEyelidClosureCorrection(vrm, null)).toEqual({

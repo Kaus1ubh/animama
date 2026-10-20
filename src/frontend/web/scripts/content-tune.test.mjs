@@ -25,7 +25,7 @@ test("collects sound roots, the Avatar, the port and --no-open", () => {
       "--sounds",
       "b",
       "--avatar",
-      "caitlyn",
+      "andrew",
       "--port",
       "8790",
       "--no-open",
@@ -33,7 +33,7 @@ test("collects sound roots, the Avatar, the port and --no-open", () => {
     {},
   );
   assert.deepEqual(options.soundRoots, ["a", "b"]);
-  assert.equal(options.avatar, "caitlyn");
+  assert.equal(options.avatar, "andrew");
   assert.equal(options.port, 8790);
   // A fixed default port keeps applied edits across restarts.
   assert.equal(parseTuneArgs([], {}).port, DEFAULT_TUNE_PORT);

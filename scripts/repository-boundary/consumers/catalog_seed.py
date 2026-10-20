@@ -21,7 +21,7 @@ allowed = {name.removeprefix("included/") for name in paths if name.startswith("
 resolved = starter_inventory(root / "included", allowed_paths=allowed)
 assert resolved == manifest["inventory"]
 assert len(resolved["starters"]) == 2 and all(not starter["diagnostics"] for starter in resolved["starters"])
-assert {starter["id"] for starter in resolved["starters"]} == {"starter:annie", "starter:caitlyn"}
+assert {starter["id"] for starter in resolved["starters"]} == {"starter:annie", "starter:andrew"}
 assert not [name for name in sys.modules if name.startswith(("animama.local", "animama.server"))]
 print(
     json.dumps(

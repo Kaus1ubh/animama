@@ -56,7 +56,7 @@ require Docker, Python, Node.js, PostgreSQL, Homebrew or a source checkout.
    that you are 18 or older in the short modal before Annie's chat opens. Later launches open the last Anima you visited, or the
    first available Anima if that Anima has been deleted.
 
-Fresh installations create Annie and Caitlyn. Starter defaults do not overwrite
+Fresh installations create Annie and Andrew. Starter defaults do not overwrite
 existing Animas or restore a deliberately deleted starter.
 
 ## Provider keys and speech

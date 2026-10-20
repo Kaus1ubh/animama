@@ -83,7 +83,8 @@ about 4 Hz; the checks warn when three cycles or more run that fast
   arm hanging, supination 0 → palm faces the thigh; +80 → palm forward;
   −60 → palm back. Declare `facing` on the contact (or a large-tolerance
   contact on the part the palm should face) and the checks warn when the palm
-  turns more than 45° away. Measured on both Included Avatars:
+  turns more than 45° away. Measured on Annie and the VRoid VRM 0 test fixture
+  (not yet re-measured on Andrew):
   - **Wave, palm to the viewer:** external rotation ~80 and elbow 90–110,
     then either plane 0 with supination 0 (about 16° from the viewer at
     elevation 60–90), or plane ~20 with supination −20 and elbow ~110 (8° at

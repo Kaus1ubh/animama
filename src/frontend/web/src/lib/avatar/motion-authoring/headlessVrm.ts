@@ -8,9 +8,9 @@ import type {
 
 import { canonicalizeCustomPresetExpressions } from "../vrmExpressionPresets";
 
-/** Included Avatars used for motion authoring checks. */
+/** Included Avatars used for motion authoring checks: Andrew and Annie. */
 export const INCLUDED_AVATAR_FILES = {
-  AvatarSample_Y_0: "AvatarSample_Y_0.vrm",
+  Andrew: "Andrew.vrm",
   AvatarSample_A_1_New: "AvatarSample_A_1_New.vrm",
 } as const;
 

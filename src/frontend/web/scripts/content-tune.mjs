@@ -34,7 +34,7 @@ import {
 /**
  * The owner's content-tuning page for Included Gestures and Reactions.
  *
- *   pnpm -s content:tune [--catalog <dir>] [--sounds <dir>]... [--avatar annie|caitlyn]
+ *   pnpm -s content:tune [--catalog <dir>] [--sounds <dir>]... [--avatar annie|andrew]
  *     [--port <n>] [--no-open]
  *   pnpm -s content:tune --pending
  *
@@ -54,7 +54,7 @@ const API = "/__tune/";
 const MAX_BODY_BYTES = 4 * 1024 * 1024;
 const AVATARS = {
   annie: "AvatarSample_A_1_New",
-  caitlyn: "AvatarSample_Y_0",
+  andrew: "Andrew",
 };
 /**
  * The page's default port. Fixed, because applied (unsaved) edits live in
@@ -305,7 +305,7 @@ export async function startTuneServer({
 }
 
 const USAGE = `Usage: pnpm -s content:tune [--catalog <dir>] [--sounds <dir>]...
-                           [--avatar annie|caitlyn] [--port <n>] [--no-open]
+                           [--avatar annie|andrew] [--port <n>] [--no-open]
                            [--proposals <file>]
 
 Opens the owner's tuning page for Included Gestures and the Reaction ladder:

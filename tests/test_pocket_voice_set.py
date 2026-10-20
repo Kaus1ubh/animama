@@ -36,7 +36,7 @@ def test_tracked_set_holds_the_hosted_voices_and_notices() -> None:
         f"{v['id']}.safetensors" for v in selection() if v["delivery"] == "download" or v["source"].startswith("vctk-")
     }
     assert names == hosted | {"ATTRIBUTION.md", "README.md"}
-    assert len(hosted) == 36
+    assert len(hosted) == 35
     for entry in manifest["files"]:
         if entry["source"].get("kind") == "release":
             voice = entry["path"]
@@ -103,7 +103,7 @@ def test_downloadable_voices_are_pinned_in_the_packaged_catalog() -> None:
     assets = {a.id: a for a in load_packaged_asset_catalog().assets if a.id.startswith("pocket-voice-")}
     downloadable = [v for v in selection() if v["delivery"] == "download"]
     assert set(assets) == {f"pocket-voice-{v['id']}" for v in downloadable}
-    assert len(assets) == 36
+    assert len(assets) == 35
     for voice in downloadable:
         asset, entry = assets[f"pocket-voice-{voice['id']}"], manifest[f"{voice['id']}.safetensors"]
         (file,) = asset.files

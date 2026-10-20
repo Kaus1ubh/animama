@@ -312,7 +312,7 @@ def test_every_shipped_voice_is_licensed_recorded_and_credited():
     assert voices.voice_notice(sources, selection) in voices.ATTRIBUTION.read_text()
     assert selection["default"] == "eve"
     assert sum(voice["recommended"] for voice in selection["voices"]) == 14
-    assert {v["id"] for v in selection["voices"] if v["delivery"] == "core"} == {"eve", "azelma"}
+    assert {v["id"] for v in selection["voices"] if v["delivery"] == "core"} == {"eve", "azelma", "michael"}
 
 
 def test_selection_rejects_unsafe_voice_ids(tmp_path):
@@ -409,14 +409,14 @@ def test_voice_previews_reject_unreviewed_or_arbitrary_urls(change):
 
 
 def test_core_delivery_excludes_optional_voices_and_cloning_encoder():
-    """Fresh speech works with two voices; recommendations do not add bundled weights."""
+    """Fresh speech works with the three core voices; recommendations do not add bundled weights."""
     selection = voices.load_selection()
-    assert {v["id"] for v in selection["voices"] if v["delivery"] == "core"} == {"eve", "azelma"}
-    assert sum(v["delivery"] == "download" for v in selection["voices"]) == 36
+    assert {v["id"] for v in selection["voices"] if v["delivery"] == "core"} == {"eve", "azelma", "michael"}
+    assert sum(v["delivery"] == "download" for v in selection["voices"]) == 35
     model = json.loads(voices.BROWSER_MANIFEST.read_text())
     runtime = json.loads(voices.RUNTIME_MANIFEST.read_text())
-    assert len(model["files"]) == 10
-    assert len(runtime["files"]) == 21
+    assert len(model["files"]) == 11
+    assert len(runtime["files"]) == 22
     assert all(e["path"] != "mimi_encoder.onnx" for e in model["files"])
     assert all(not e["path"].endswith("/mimi_encoder.onnx") for e in runtime["files"])
 

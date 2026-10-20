@@ -83,7 +83,7 @@ def test_pinned_april_bundle_and_voice_states(inventory):
     assert targets["mimi_decoder.onnx"] == "models/pocket-tts/mimi_decoder.onnx"
     assert targets["bundle.json"] == "models/pocket-tts/bundle.json"
     voices = {voice["id"] for voice in shipped_voices() if voice["delivery"] == "core"}
-    assert voices == {"eve", "azelma"}
+    assert voices == {"eve", "azelma", "michael"}
     assert "mary" not in voices  # Downloaded on demand since 2026-09-27.
     for voice in voices:
         assert targets[f"{voice}.safetensors"] == f"models/pocket-tts/voices/{voice}.safetensors"

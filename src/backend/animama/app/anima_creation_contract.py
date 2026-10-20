@@ -252,7 +252,7 @@ def canonical_spec_hash(spec: AnimaSpec | LegacyAnimaSpec) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
-StarterId = Literal["starter:annie", "starter:caitlyn"]
+StarterId = Literal["starter:annie", "starter:andrew"]
 
 
 class AdoptStarterRepair(StrictCreationModel):

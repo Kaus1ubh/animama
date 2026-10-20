@@ -211,7 +211,7 @@ async def test_equip_selects_a_logical_catalog_item_for_the_next_loadout_revisio
         ORMAvatar(
             id=avatar_id,
             name=f"Equip Avatar {suffix}",
-            file_path="/vrm/AvatarSample_Y_0.vrm",
+            file_path="/vrm/Andrew.vrm",
             identity="Equip test",
         )
     )

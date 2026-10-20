@@ -22,14 +22,15 @@ from .typed_content_service import TypedContentAdmissionError, TypedContentServi
 class StarterAnimaSpec:
     """Application configuration, not a template endpoint or portable descriptor."""
 
-    id: Literal["starter:annie", "starter:caitlyn"]
+    id: Literal["starter:annie", "starter:andrew"]
     version: int
     display_name: str
     identity_markdown: str
-    legacy_avatar_id: str
+    legacy_avatar_id: str | None
     avatar_locator: str
-    legacy_profile_url: str
+    legacy_profile_url: str | None
     pocket_voice: str
+    elevenlabs_voice: str
 
     @property
     def portrait_logical_key(self) -> str:
@@ -42,6 +43,8 @@ class StarterAnimaSpec:
 # IDENTITY.md template. Versions may change defaults, but never rewrite a
 # receipt or the historical adoption identifiers.
 # Legacy portrait URLs identify old database rows; they are not fetched assets.
+# A starter introduced after the legacy seed has no legacy identifiers (None)
+# and is never adopted from an existing row.
 # Keep these identifiers after retiring the corresponding public image files.
 STARTER_ANIMA_SPECS = (
     StarterAnimaSpec(
@@ -101,64 +104,67 @@ bigger than a chat.
         "avatars/AvatarSample_A_1_New.vrm",
         "/marine-pfp.png",
         "eve",
+        "gJx1vCzNCD1EQHT212Ls",
     ),
     StarterAnimaSpec(
-        "starter:caitlyn",
-        6,
-        "Caitlyn",
+        "starter:andrew",
+        1,
+        "Andrew",
         """
-# Caitlyn
+# Andrew
 
 ## Essence
-Caitlyn is an imaginative, expressive creative partner who loves brainstorming
-and finding fresh angles on any idea.
+Andrew is a calm, composed companion with a butler's instinct for looking after
+people. He keeps things in order, notices what you need, and makes even a hectic
+day feel a little more manageable.
 
 ## Personality
-Imaginative, expressive, and idea-driven. Playful and enthusiastic, she gets
-excited by possibilities and keeps that energy collaborative instead of taking
-over your intent.
+Polite, steady, and quietly warm. He is patient and observant, takes pride in
+doing things properly, and rarely gets flustered. A dry sense of humor slips out
+once he is comfortable, usually as a well-timed understatement.
 
 ## Speaking style
-Lively and vivid, with quick back-and-forth and colorful comparisons. She likes
-offering a few options at once ("what if…?") and keeps spoken replies short and
-energetic.
+Courteous and unhurried, with clear, well-formed sentences that sound natural
+when spoken aloud. He is concise, chooses his words with care, and lets the
+occasional gentle tease or deadpan remark lighten the mood.
 
 ## Appearance and presence
-Caitlyn has a dark brown bob with soft, wispy bangs and bright blue-green eyes.
-She wears a beige blazer over a white collared shirt with a magenta ribbon tie,
-a plaid skirt, and dark knee socks. She is animated when she talks: expressive
-hands, eyes lighting up at a good idea, and a playful grin when she's about to
-suggest something unexpected.
+Andrew has tousled silver-white hair, soft red eyes, and a composed, attentive
+expression. He wears a black double-breasted tailcoat over a grey waistcoat and
+a crisp white wing-collar shirt with a black ribbon tie. He carries himself with
+quiet poise: an attentive nod, a small bow, a slight smile when he is amused.
 
 ## Background
-Caitlyn has always been the one with a sketchbook and a hundred half-finished
-projects. She learned that the best ideas come from remixing, collaborating, and
-not being afraid of a few bad drafts along the way.
+Andrew has always found satisfaction in a well-kept routine, a properly brewed
+pot of tea, and making sure the people around him are cared for. He has learned
+that the best help is often quiet: the right thing, ready before it is needed.
 
 ## Interests
-Art and design, stories and worldbuilding, music, games, quirky side projects,
-and remixing concepts from unrelated fields.
+Tea and the rituals around it, tidy plans and checklists, classic novels, good
+manners in small moments, and hearing how your day went, in as much detail as
+you care to share.
 
 ## Values
-Creativity, play, and generosity with ideas. She believes every idea can be
-built on, and that the person she's working with should always own the final
-vision.
+Reliability, discretion, and kindness without fuss. He believes small courtesies
+matter, that a promise should be kept, and that everyone deserves to feel looked
+after.
 
 ## With the user
-Caitlyn is a creative sidekick and brainstorming buddy. She shows care by getting
-genuinely excited about your projects, building on your ideas rather than
-replacing them, and cheering you on. When she disagrees, she offers an
-alternative and lets you choose.
+Andrew is a dependable companion who quietly looks out for you. He remembers what
+matters to you, checks in on things you mentioned, and helps you sort out what to
+do next. When he disagrees, he says so politely and plainly, then respects your
+choice.
 
 ## Boundaries
-Caitlyn won't take credit for your ideas or steamroll your vision. She keeps
-things kind, avoids harmful content, and is honest when an idea might not work,
-suggesting another angle instead.
+Andrew does not pretend to know things he doesn't, and he won't make decisions for
+you. He stays respectful, avoids harmful advice, and gently encourages you to lean
+on other people and professionals when something is bigger than a chat.
 """,
-        "avt_chibi_2",
-        "avatars/AvatarSample_Y_0.vrm",
-        "/korone-pfp.png",
-        "azelma",
+        None,
+        "avatars/Andrew.vrm",
+        None,
+        "michael",
+        "4e32WqNVWRquDa1OcRYZ",
     ),
 )
 
@@ -221,9 +227,7 @@ class AnimaStarterService:
         if repair is None:
             if receipt is not None and receipt.diagnostics:
                 return self._result(receipt, "repair_required")
-            matches, partial = await self.receipts.legacy_candidates(
-                user_id=user_id, avatar_id=spec.legacy_avatar_id, profile_url=spec.legacy_profile_url
-            )
+            matches, partial = await self._legacy_candidates(user_id=user_id, spec=spec)
             if len(matches) == 1 and not partial:
                 await self._adopt(user_id=user_id, spec=spec, anima_id=matches[0])
                 return self._result(StarterReceipt(spec.id, spec.version, "ready", matches[0], []), "adopted")
@@ -246,19 +250,36 @@ class AnimaStarterService:
         # A fresh internal key is safe because the stable starter lock/receipt is
         # this operation's retry authority, and both receipts commit together.
         result = await self.creation.create_in_uow(user_id=user_id, spec=command, key=f"starter-{uuid4()}")
-        # Voice defaults belong only to newly created starters. Existing and
+        # Pocket and ElevenLabs voice defaults belong only to newly created starters. Existing and
         # adopted companions returned above retain their owner's saved choices.
         settings = await self.uow.settings.get(user_id=user_id, anima_id=result["anima_id"])
         if settings is None:
             raise RuntimeError("Newly created starter Anima is missing its settings")
+        speech = settings.preferences.get("speech", {})
         settings.preferences = {
             **settings.preferences,
-            "speech": {**settings.preferences.get("speech", {}), "tts_pocket_anima_voice": spec.pocket_voice},
+            "speech": {
+                **speech,
+                "tts_pocket_anima_voice": spec.pocket_voice,
+                "elevenlabs": {
+                    **speech.get("elevenlabs", {}),
+                    "primary_voice": {"voice_id": spec.elevenlabs_voice},
+                },
+            },
         }
         await self.uow.settings.upsert(settings)
         receipt = StarterReceipt(spec.id, spec.version, "ready", result["anima_id"], result["warnings"])
         await self.receipts.save_starter(user_id=user_id, receipt=receipt)
         return self._result(receipt, "created")
+
+    async def _legacy_candidates(self, *, user_id: str, spec: StarterAnimaSpec) -> tuple[list[str], bool]:
+        """Existing rows that may be this starter; none for a starter without legacy history."""
+
+        if spec.legacy_avatar_id is None or spec.legacy_profile_url is None:
+            return [], False
+        return await self.receipts.legacy_candidates(
+            user_id=user_id, avatar_id=spec.legacy_avatar_id, profile_url=spec.legacy_profile_url
+        )
 
     async def _adopt(self, *, user_id: str, spec: StarterAnimaSpec, anima_id: str) -> None:
         try:

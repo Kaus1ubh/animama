@@ -116,7 +116,7 @@ test("check results become pass, warn and fail lines", () => {
     page: {
       parseError: null,
       avatars: [
-        avatar("AvatarSample_Y_0", [
+        avatar("Andrew", [
           [50, 0],
           [80, 3],
         ]),
@@ -143,7 +143,7 @@ test("check results become pass, warn and fail lines", () => {
   lines.splice(1, 1);
   assert.match(
     lines[1].message,
-    /^Y_0: visible in 2 of 4 frames, up to 80 px \(front, 1s\) \(not in face 0\.25s, face 1s\)$/,
+    /^Andrew: visible in 2 of 4 frames, up to 80 px \(front, 1s\) \(not in face 0\.25s, face 1s\)$/,
   );
   assert.match(lines[2].message, /nothing shows at 0\.25s/);
 
@@ -152,7 +152,7 @@ test("check results become pass, warn and fail lines", () => {
     page: {
       parseError: null,
       avatars: [
-        avatar("AvatarSample_Y_0", [[2]], { warnings: ["No eye_iris part"] }),
+        avatar("Andrew", [[2]], { warnings: ["No eye_iris part"] }),
         avatar("AvatarSample_A_1_New", [[0]], {
           applied: false,
           activeEffectIds: [],
@@ -166,8 +166,8 @@ test("check results become pass, warn and fail lines", () => {
   assert.deepEqual(
     failing.map((line) => `${line.level} ${line.message}`),
     [
-      "FAIL Y_0: No eye_iris part",
-      "FAIL Y_0: no visible art (at most 2 px changed; 10 needed; if it appears later, try --times)",
+      "FAIL Andrew: No eye_iris part",
+      "FAIL Andrew: no visible art (at most 2 px changed; 10 needed; if it appears later, try --times)",
       "FAIL A_1_New: the effect is not active",
     ],
   );
@@ -178,7 +178,7 @@ test("check results become pass, warn and fail lines", () => {
       page: {
         parseError: null,
         avatars: [
-          avatar("AvatarSample_Y_0", [[50]], { missingPoseRefs: ["salute"] }),
+          avatar("Andrew", [[50]], { missingPoseRefs: ["salute"] }),
           avatar("AvatarSample_A_1_New", [[50]], {
             missingPoseRefs: ["salute"],
           }),
@@ -189,7 +189,7 @@ test("check results become pass, warn and fail lines", () => {
       tile,
     }).map((line) => `${line.level} ${line.message}`),
     [
-      "PASS Y_0: visible in 1 of 1 frames, up to 50 px (front, 1s)",
+      "PASS Andrew: visible in 1 of 1 frames, up to 50 px (front, 1s)",
       "PASS A_1_New: visible in 1 of 1 frames, up to 50 px (front, 1s)",
       "WARN clip poses not in the app catalog rendered as the base pose: salute",
     ],
@@ -200,7 +200,7 @@ test("check results become pass, warn and fail lines", () => {
       assets: [],
       page: {
         parseError: null,
-        avatars: [avatar("AvatarSample_Y_0", [[0]])],
+        avatars: [avatar("Andrew", [[0]])],
       },
       times: [1],
       views: ["front"],

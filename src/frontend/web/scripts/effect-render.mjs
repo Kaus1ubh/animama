@@ -55,7 +55,7 @@ const VIEW_LABELS = {
 /** Avatar renderings `--rendering` accepts (`src/lib/avatar/enhanced-rendering`). */
 export const AVATAR_RENDERINGS = ["enhanced", "classic"];
 /** The Included Avatars every sheet and benchmark covers. */
-export const AVATARS = ["AvatarSample_Y_0", "AvatarSample_A_1_New"];
+export const AVATARS = ["Andrew", "AvatarSample_A_1_New"];
 
 /** The page URL of an Included Avatar's VRM. */
 export const avatarFileUrl = (fsUrl, id) =>

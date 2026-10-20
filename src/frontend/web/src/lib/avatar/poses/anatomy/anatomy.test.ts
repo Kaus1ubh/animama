@@ -16,12 +16,15 @@ import {
   applyCanonicalPose,
   rawBoneWorldPosition,
 } from "../../motion-authoring/kinematics";
-import { loadTestAvatar } from "../../motion-authoring/testing/includedAvatars";
+import {
+  loadTestAvatar,
+  loadVrm0Fixture,
+} from "../../motion-authoring/testing/includedAvatars";
 
 const avatars: Record<string, VRM> = {};
 
 beforeAll(async () => {
-  avatars.vrm0 = await loadTestAvatar("AvatarSample_Y_0");
+  avatars.vrm0 = await loadVrm0Fixture();
   avatars.vrm1 = await loadTestAvatar("AvatarSample_A_1_New");
 });
 

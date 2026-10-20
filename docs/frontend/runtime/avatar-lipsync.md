@@ -143,9 +143,8 @@ one (`replaceLipSyncFrames`). The mouth keeps playing without restarting.
 reset. Overlays ramp in over 0.15 s and out over 0.3 s, so a tag a progressive
 plan shows only briefly barely registers.
 
-Both Included Avatars set `overrideMouth` to `none`. Avatar A declares it on
-its VRM 1 expressions, and three-vrm imports Avatar Y's VRM 0 expressions with
-`none`. So the overlays never suppress the mouth, and the vowel shapes add to
+Both Included Avatars, Annie and Andrew, declare `overrideMouth: none` on
+their VRM 1 expressions, and three-vrm imports VRM 0 expressions with `none`. So the overlays never suppress the mouth, and the vowel shapes add to
 the expression's own mouth shape.
 
 ### Talking hands

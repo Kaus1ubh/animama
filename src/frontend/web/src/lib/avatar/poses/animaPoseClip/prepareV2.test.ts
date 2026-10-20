@@ -6,7 +6,11 @@ import {
   applyCanonicalPose,
   rawBoneWorldPosition,
 } from "../../motion-authoring/kinematics";
-import { loadTestAvatar } from "../../motion-authoring/testing/includedAvatars";
+import {
+  VRM0_FIXTURE_ID,
+  loadTestAvatar,
+  loadVrm0Fixture,
+} from "../../motion-authoring/testing/includedAvatars";
 import {
   angularDistanceDegrees,
   decomposeJointRotation,
@@ -30,7 +34,7 @@ let y0: VRM;
 let a1: VRM;
 beforeAll(async () => {
   [y0, a1] = await Promise.all([
-    loadTestAvatar("AvatarSample_Y_0"),
+    loadVrm0Fixture(),
     loadTestAvatar("AvatarSample_A_1_New"),
   ]);
 });
@@ -416,10 +420,10 @@ const chinClip = (contact: AnimaPoseClipContact) => {
   });
 };
 
-describe.each(["AvatarSample_Y_0", "AvatarSample_A_1_New"] as const)(
+describe.each([VRM0_FIXTURE_ID, "AvatarSample_A_1_New"] as const)(
   "solved contacts on %s",
   (id) => {
-    const vrmOf = () => (id === "AvatarSample_Y_0" ? y0 : a1);
+    const vrmOf = () => (id === VRM0_FIXTURE_ID ? y0 : a1);
 
     it("lands a solved palm on the chin that the authored arm misses", () => {
       const vrm = vrmOf();

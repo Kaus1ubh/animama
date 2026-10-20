@@ -24,7 +24,7 @@ test("parses reel options and rejects invalid ones", () => {
     "--out",
     "reel.mp4",
     "--avatar",
-    "Caitlyn",
+    "ANDREW",
     "--size",
     "1280x720",
     "--fps",
@@ -42,7 +42,7 @@ test("parses reel options and rejects invalid ones", () => {
   assert.equal(options.reactions, true);
   assert.equal(options.gestures, false);
   assert.deepEqual(options.sources, ["library:gesture/wave"]);
-  assert.equal(options.avatar, "AvatarSample_Y_0");
+  assert.equal(options.avatar, "Andrew");
   assert.deepEqual(options.size, { width: 1280, height: 720 });
   assert.equal(options.fps, 24);
   assert.equal(options.talk, 2.5);

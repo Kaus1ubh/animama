@@ -214,4 +214,6 @@ Clips store keys, not frames: the six migrated evaluation Gestures save at
 3–13 KB, 1.1–8.2% of their former baked size, and a 20 s Gesture stays far below the 2 MB the app loads
 (`validate` reports the saved size). Each Avatar prepares the clip when it
 starts playing: hand presets are fitted to its fingers and planted legs are
-solved on its own rig, so both Included Avatars keep their feet still.
+solved on its own rig, so both Included Avatars keep their feet still (within
+about a millimetre on Andrew, whose straight rest legs leave a wide hip shift
+slightly out of reach).

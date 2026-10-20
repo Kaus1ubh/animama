@@ -132,7 +132,7 @@ or React rendering.
 1. Start from the Effects template picker (sidebar Create → **Effects**, the
    Create page's Avatar FX card or `/effects/new`), choose **Avatar FX**, then a
    template or **Start from scratch**. Saved effects reopen at
-   `/avatar-effects/{id}/edit`. Choose the **Model** (Annie, Caitlyn or the
+   `/avatar-effects/{id}/edit`. Choose the **Model** (Annie, Andrew or the
    active Anima's model) and **View** (Face, Three-quarter, Portrait, Full
    body).
 2. In **Effect Setup**, choose **Attach to** (Floating on the face, Painted on

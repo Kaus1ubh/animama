@@ -356,12 +356,12 @@ export async function runSmokeJourney({ report, provider, platform }) {
     const list = Array.isArray(animas) ? animas : animas.items;
     evidence(
       "two_starters",
-      ["Annie", "Caitlyn"].every((name) =>
+      ["Annie", "Andrew"].every((name) =>
         list?.some((entry) => entry.display_name === name),
       ),
     );
     const chatIds = [];
-    for (const name of ["Annie", "Caitlyn"]) {
+    for (const name of ["Annie", "Andrew"]) {
       const anima = list.find((entry) => entry.display_name === name);
       await page.goto(`${origin}/${anima.id}`);
       const chat = await request(page, "/v1/chats", {

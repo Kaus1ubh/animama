@@ -372,7 +372,7 @@ Resource decisions for the full app:
 | Resource                                                                     | Delivery and integrity                                                                                                                                                                                                                                                          |
 | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Entry, chunks, workers, CSS/fonts/icons and reviewed small runtime art       | Shipped in the closed app inventory; Vite dependencies and notices retained.                                                                                                                                                                                                    |
-| Existing 21-file browser speech runtime                                      | Preserve every pinned engine/model variant from `models/browser-runtime/manifest.json`. Ship verified engine/runtime and baseline Pocket/Smart Turn bytes; fetch model bytes only when voice requests them. A hosted build may not pass by silently omitting its speech models. |
+| Existing 22-file browser speech runtime                                      | Preserve every pinned engine/model variant from `models/browser-runtime/manifest.json`. Ship verified engine/runtime and baseline Pocket/Smart Turn bytes; fetch model bytes only when voice requests them. A hosted build may not pass by silently omitting its speech models. |
 | Optional Pocket voice/language sets, cloning encoder and Parakeet CPU/WebGPU | Fixed, versioned lazy resource descriptors from the existing model manifests; separately admitted public model bytes from the application origin. Retain the browser download/readiness flow; no user-triggered global server install or arbitrary download URL.                |
 | Included avatars, loadouts, appearances/effects and content dependencies     | The archive carries the closed non-static seed resolved by the existing `starter_inventory`. Consumer owner APIs supply its catalog/runtime descriptors and authenticated bytes. Seed members never become ordinary static routes.                                              |
 | Owner VRM/image/audio/samples, drafts, exports and previews                  | Account-owned service bytes outside the static inventory and shared caches; ownership, quota, validation, leases and cleanup remain server-enforced.                                                                                                                            |
@@ -389,7 +389,7 @@ Each optional route is `/_animama/models/<id>/<raw-manifest-sha256>/<file.path>`
 Only verified regular files from that exact manifest may be opened; an active
 application switch cannot replace an older tab's model bytes. The archive includes
 the original manifest and its notice bytes, not optional weights. The baseline
-speech inventory retains all 21 files (280,549,335 bytes), including unused model
+speech inventory retains all 22 files (287,825,103 bytes), including unused model
 variants; readiness cannot silently replace or omit them.
 
 `catalog_seed` is exactly `{manifest,sha256,size}`, naming

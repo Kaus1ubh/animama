@@ -393,8 +393,8 @@ export const POCKET_VOICES: readonly PocketVoice[] = [
     gender: "male",
     accent: "American",
     recommended: true,
-    delivery: "download",
-    assetId: "pocket-voice-michael",
+    delivery: "core",
+    assetId: null,
     sizeBytes: 7275768,
     previewUrl:
       "https://huggingface.co/kyutai/tts-voices/resolve/323332d33f997de8394f24a193e1a76df720e01a/vctk/p360_023_enhanced.wav",

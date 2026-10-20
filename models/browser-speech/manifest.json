@@ -111,6 +111,18 @@
       }
     },
     {
+      "path": "michael.safetensors",
+      "target": "models/pocket-tts/voices/michael.safetensors",
+      "size": 7275768,
+      "sha256": "8937f724ac4719b9aa51ea0ba1f18f9de0af7a663ad6263558266c1a53c9722d",
+      "license": "CC-BY-4.0",
+      "source": {
+        "repository": "kyutai/pocket-tts-without-voice-cloning",
+        "revision": "4e1e0a3e611c51c0b4ed8174fc10f32a54644303",
+        "path": "languages/english_2026-04/embeddings/michael.safetensors"
+      }
+    },
+    {
       "path": "smart-turn-v3.2-cpu.onnx",
       "target": "models/smart-turn/smart-turn-v3.2-cpu.onnx",
       "size": 8679182,
@@ -126,8 +138,8 @@
   "notices": [
     {
       "path": "src/frontend/desktop/runtime/notices/pocket-tts-attribution.txt",
-      "size": 6584,
-      "sha256": "50f786a4e7b312d446ee995893bd1e248dd79987f9c43eac33869cdca8113679"
+      "size": 6561,
+      "sha256": "49efe54c306c5a1025f024cf8b550030fa9166f514879e5a67f22a972ae6bcf1"
     },
     {
       "path": "src/frontend/desktop/runtime/notices/pocket-tts-onnx-license.txt",

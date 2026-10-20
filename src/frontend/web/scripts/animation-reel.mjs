@@ -58,7 +58,7 @@ const DEFAULT_SOUND_ROOTS = [
 ];
 const AVATAR_ALIASES = {
   annie: "AvatarSample_A_1_New",
-  caitlyn: "AvatarSample_Y_0",
+  andrew: "Andrew",
 };
 const CAMERAS = ["portrait", "portrait-close", "full-body", "full-body-close"];
 const EFFECT_KINDS = {
@@ -135,7 +135,7 @@ const USAGE = [
   "An effect plays for --hold seconds from a one-event clip, with its sound.",
   "",
   "Options:",
-  "  --avatar annie|caitlyn|<id>   Included Avatar (default annie)",
+  "  --avatar annie|andrew|<id>   Included Avatar (default annie)",
   `  --camera ${CAMERAS.join("|")}  chat camera preset (default portrait)`,
   "  --size 1920x1080              video size in pixels",
   "  --fps 30                      frames per second (1-60)",

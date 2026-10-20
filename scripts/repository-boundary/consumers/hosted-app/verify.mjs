@@ -333,10 +333,10 @@ try {
     const runtime = JSON.parse(
         readFileSync(path.join(candidate.directory, runtimePath)),
     );
-    assert.equal(runtime.files.length, 21);
+    assert.equal(runtime.files.length, 22);
     assert.equal(
         runtime.files.reduce((sum, file) => sum + file.size, 0),
-        280549335,
+        287825103,
     );
     for (const expected of runtime.files) {
         const file = candidate.manifest.files.find(
@@ -654,8 +654,8 @@ try {
         source_commit: candidate.manifest.source_commit,
         app_version: candidate.manifest.app_version,
         files: candidate.manifest.files.length,
-        baseline_speech_files: 21,
-        baseline_speech_bytes: 280549335,
+        baseline_speech_files: 22,
+        baseline_speech_bytes: 287825103,
         source_modules_available_to_browser: false,
         installation_calls: 0,
         provider_calls: 0,

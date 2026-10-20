@@ -17,16 +17,16 @@ human review; stored receipts apply only to their exact inputs.
 - [Source review inventory](../../../licenses/README.md) describes the broader
   source-publication review, which is distinct from packaged redistribution.
 
-Pocket ONNX weights, tokenizer and the two core voice states are CC BY 4.0, which
+Pocket ONNX weights, tokenizer and the three core voice states are CC BY 4.0, which
 permits commercial use with attribution. Kyutai's model-card prohibited-use
-terms still apply. The 36 downloadable voices, four of which derive from CC0
+terms still apply. The 35 downloadable voices, four of which derive from CC0
 recordings, are installed at runtime, outside the packaged core. `runtime/release-policy.json`
 separately records a noncommercial distribution basis, which release validation
 requires; changing it is a separate owner decision. Per-file terms are documented
 in the code/model notices; source-code licensing does not replace model terms.
 
-Annie's model uses VRoid preset terms. Caitlyn is authored by Raymond Van using
-VRoid Studio; component terms remain applicable. Their embedded metadata and
+Annie's model uses VRoid preset terms. Andrew is Raymond Van's edit of a VRoid
+preset, so the preset terms still apply to its pixiv components. Their embedded metadata and
 renderer-captured portraits do not make all underlying material AGPL or CC0.
 Keep notices and exact file mappings with each candidate.
 

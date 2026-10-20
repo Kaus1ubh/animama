@@ -166,7 +166,9 @@ no change and are refused).
    and 2.0 counts), `includedGestures.test.ts` (2.0 Gesture count) and the
    lower bound in `tests/test_included_content_integrity.py`. Record new and
    replaced clips in `includedClipBaseline.test.ts` by its documented
-   procedure, and drop a re-animated Gesture from `MOTION_CHECK_EXEMPT`. When
+   procedure, and drop a re-animated Gesture from `MOTION_CHECK_EXEMPT`, or a
+   retuned one from `KNOWN_ANDREW_FAILURES` (the test fails while a listed clip
+   already passes on Andrew). When
    a replace changes a clip's duration or loop, update its motion manifest
    entry (`duration`, `loop_count`). After a rename or kind
    change, update what names the Gesture or its kind: the motion manifest

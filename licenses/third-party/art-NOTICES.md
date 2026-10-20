@@ -47,9 +47,8 @@ require shipping the OFL text with it.
 
 On 2026-09-15 Raymond confirmed that Annie (`AvatarSample_A_1_New.vrm`) is the
 freely distributable pixiv VRoid preset and authorized correcting its embedded
-license metadata, which now permits redistribution and use by everyone. On
-2026-10-01 he approved Caitlyn's unmodified pixiv VRoid sample
-(`AvatarSample_Y_0.vrm`). Both portraits are direct Animama renderer captures.
+license metadata, which now permits redistribution and use by everyone. Its
+portrait is a direct Animama renderer capture.
 
 On 2026-10-16 Raymond had one of Annie's textures recoloured: the grey
 hair-underside texture now matches the outer hair. The model is otherwise the
@@ -66,10 +65,19 @@ The metadata correction does not grant CC0/AGPL rights over Annie's
 underlying components or expand its other use/modification settings; it retains
 its noncommercial setting.
 
-Caitlyn (`AvatarSample_Y_0.vrm`) is © pixiv VRoid Project and used unmodified.
-Its embedded VRM 0 metadata declares [CC BY 4.0](art-CC-BY-4.0.txt) with commercial
-use allowed and violent or sexual use disallowed; its portrait follows the same
-terms. Do not edit its embedded permission flags.
+`tests/fixtures/vrm/AvatarSample_Y_0.vrm`, Caitlyn's former model, is a
+test-only VRM 0 fixture that is never packaged with Animama. It is © pixiv
+VRoid Project and unmodified. Its embedded VRM 0 metadata declares
+[CC BY 4.0](art-CC-BY-4.0.txt) with commercial use allowed and violent or
+sexual use disallowed. Do not edit its embedded permission flags.
+
+Andrew (`Andrew.vrm`) is Raymond Van's edit of a VRoid Studio A–Z preset (he
+replaced the hair; the base preset is not identified), approved on 2026-10-19.
+Its embedded VRM 1.0 metadata names Raymond Van as author, allows corporate
+commercial use, and disallows redistribution and modification. The
+[VRoidPreset A–Z conditions](https://vroid.pixiv.help/hc/en-us/articles/4402394424089-VRoidPreset-A-Z)
+still apply to the underlying pixiv components. Its portrait is a direct
+Animama renderer capture under the same terms.
 
 The Avatar FX template thumbnails in
 `src/frontend/web/src/assets/effect-templates/` are also direct Animama renderer

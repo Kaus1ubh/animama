@@ -3,8 +3,11 @@ import * as THREE from "three";
 import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { describe, expect, it } from "vitest";
 
-import type { IncludedAvatarId } from "../motion-authoring/headlessVrm";
-import { loadTestAvatarWithGltf } from "../motion-authoring/testing/includedAvatars";
+import {
+  VRM0_FIXTURE_ID,
+  loadTestAvatarWithGltf,
+  type TestAvatarId,
+} from "../motion-authoring/testing/includedAvatars";
 import {
   AVATAR_FACE_PART_ROLES,
   AVATAR_FACE_PARTS_SCHEMA,
@@ -17,11 +20,11 @@ import {
 const DIGEST = "a".repeat(64);
 
 /**
- * Name-free detection on the Included Avatars must agree with what material
+ * Name-free detection on the Included Avatars and the VRM 0 fixture must agree with what material
  * names find, so converted effects keep rendering on the same primitives.
  */
 const EXPECTED: Record<
-  IncludedAvatarId,
+  TestAvatarId,
   Record<(typeof AVATAR_FACE_PART_ROLES)[number], string[]>
 > = {
   AvatarSample_A_1_New: {
@@ -42,9 +45,18 @@ const EXPECTED: Record<
     eyelash: ["143:0:6"],
     hair: ["145:2:0", "145:2:1"],
   },
+  Andrew: {
+    face_skin: ["149:0:3"],
+    eye_left: ["149:0:1"],
+    eye_right: ["149:0:1"],
+    eye_highlight: ["149:0:2"],
+    eyeline: ["149:0:7"],
+    eyelash: ["149:0:6"],
+    hair: ["151:2:0"],
+  },
 };
 
-describe.each(Object.keys(EXPECTED) as IncludedAvatarId[])(
+describe.each(Object.keys(EXPECTED) as TestAvatarId[])(
   "detectAvatarFaceParts on %s",
   (id) => {
     it("finds face skin and both eyes from spec signals alone", async () => {
@@ -125,7 +137,7 @@ describe("detectAvatarFaceParts world matrices", () => {
   it("never writes a raw bone or mesh world matrix", async () => {
     // Before the first frame a VRM 0 scene's raw bones hold pre-rotation
     // matrices that its bind matrices agree with; landmarks read them next.
-    const { vrm, gltf } = await loadTestAvatarWithGltf("AvatarSample_Y_0");
+    const { vrm, gltf } = await loadTestAvatarWithGltf(VRM0_FIXTURE_ID);
     const normalizedRoot = vrm.humanoid.normalizedHumanBonesRoot;
     const sentinel = new THREE.Matrix4().makeScale(2, 3, 4);
     const watched: THREE.Object3D[] = [];
@@ -231,7 +243,7 @@ describe("detectAvatarFaceParts with one iris mesh per eye", () => {
 
 describe("resolveFacePartTargetRole", () => {
   it("maps parts to VFX target roles with detail roles first", async () => {
-    const { vrm, gltf } = await loadTestAvatarWithGltf("AvatarSample_Y_0");
+    const { vrm, gltf } = await loadTestAvatarWithGltf(VRM0_FIXTURE_ID);
     const map = detectAvatarFaceParts(vrm, gltf);
     expect(resolveFacePartTargetRole(map, "143:0:3")).toBe("face_skin");
     expect(resolveFacePartTargetRole(map, "143:0:1")).toBe("eye_iris");

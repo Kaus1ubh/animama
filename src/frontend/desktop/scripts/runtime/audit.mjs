@@ -184,7 +184,7 @@ try {
     content.starters.some((starter) => starter.diagnostics.length)
   )
     throw new Error("Staged starter closure differs from the manifest");
-  console.log("Annie + Caitlyn: zero content diagnostics");
+  console.log("Annie + Andrew: zero content diagnostics");
   const publicRoot = path.join(repoRoot, "src/frontend/web/public");
   assertNoIncludedAliasCopies(path.join(target.runtime, "web"), publicRoot);
   for (const model of ["parakeet-tdt-0.6b-v2", "parakeet-tdt-0.6b-v2-webgpu"])

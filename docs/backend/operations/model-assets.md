@@ -190,7 +190,7 @@ as `asset_download_failed`.
 
 Current catalog entries are the Parakeet sets `parakeet-stt` (base, seven
 files) and `parakeet-stt-webgpu` (three files; requires `parakeet-stt`, which
-cannot be removed while it is installed), and the 36 downloadable Pocket TTS
+cannot be removed while it is installed), and the 35 downloadable Pocket TTS
 voices (`pocket-voice-<id>`, set `models/pocket-tts-voices`). FastAPI serves
 installed Parakeet sets and reports them in runtime capabilities under the
 default `ANIMAMA_PARAKEET_SOURCE=asset-store`; development Compose sets
@@ -272,10 +272,10 @@ under `browser-speech/<manifest-digest>/`. The Pocket files are:
 - the `english_2026-04` ONNX bundle (INT8 flow LM; FP32 flow head, Mimi decoder
   and text conditioner), with its tokenizer, `bundle.json` and
   `bos_before_voice.npy`;
-- two Kyutai precomputed voice states, Eve (the default) and Azelma, pinned on
-  Hugging Face.
+- three Kyutai precomputed voice states, Eve (the default), Azelma and Michael,
+  pinned on Hugging Face.
 
-The other 36 voices are not in this store. The app installs them on demand
+The other 35 voices are not in this store. The app installs them on demand
 through `/v1/model-assets` (the `pocket-voice-<id>` catalog entries), as
 described under Downloaded model assets.
 

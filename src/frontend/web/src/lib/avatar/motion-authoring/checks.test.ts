@@ -32,7 +32,7 @@ import armsCrossed from "../../../../../../../content/included/gestures/arms-cro
 import excitedTripleClap from "../../../../../../../content/included/gestures/excited-triple-clap/excited-triple-clap.json";
 import wave from "../../../../../../../content/included/gestures/wave-hello/wave-hello.json";
 import { getAvatarPoseClip, getResolvedAvatarPose } from "../poses/catalog";
-import { loadTestAvatar } from "./testing/includedAvatars";
+import { loadTestAvatar, loadVrm0Fixture } from "./testing/includedAvatars";
 // The laughs as Included on main at bfc0de4f, before their #314 revision.
 import heartyLaugh from "./testing/laughs-bfc0de4f/hearty-laugh.json";
 import mediumLaugh from "./testing/laughs-bfc0de4f/medium-laugh.json";
@@ -40,6 +40,7 @@ import mediumLaugh from "./testing/laughs-bfc0de4f/medium-laugh.json";
 // re-animation: its hand rests on the face with no declared contact.
 import legacyThinkingHandOnChin from "./testing/owner-clips-bfc0de4f/thinking-hand-on-chin-hold.json";
 
+/** The VRM 0 test fixture and Annie (VRM 1.0), for the VRM 0/1 conversion. */
 let vrm0: VRM;
 let vrm1: VRM;
 const avatars = () => [
@@ -48,7 +49,7 @@ const avatars = () => [
 ];
 
 beforeAll(async () => {
-  vrm0 = await loadTestAvatar("AvatarSample_Y_0");
+  vrm0 = await loadVrm0Fixture();
   vrm1 = await loadTestAvatar("AvatarSample_A_1_New");
 });
 

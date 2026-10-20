@@ -41,7 +41,7 @@ which records each recording's license, listed per voice:
 - bill_boerst (downloaded on demand): kyutai/tts-voices voice-zero/bill_boerst.wav (Voice-Zero, LibriVox); CC0-1.0
 - javert (downloaded on demand): kyutai/tts-voices voice-donations/Butter.wav (Unmute Voice Donation Project, Kyutai); CC0-1.0
 - marius (downloaded on demand): kyutai/tts-voices voice-donations/Selfie.wav (Unmute Voice Donation Project, Kyutai); CC0-1.0
-- michael (downloaded on demand): kyutai/tts-voices vctk/p360_023_enhanced.wav (CSTR VCTK Corpus, University of Edinburgh); CC-BY-4.0
+- michael: kyutai/tts-voices vctk/p360_023_enhanced.wav (CSTR VCTK Corpus, University of Edinburgh); CC-BY-4.0
 - paul (downloaded on demand): kyutai/tts-voices vctk/p259_023_enhanced.wav (CSTR VCTK Corpus, University of Edinburgh); CC-BY-4.0
 - charles (downloaded on demand): kyutai/tts-voices vctk/p254_023_enhanced.wav (CSTR VCTK Corpus, University of Edinburgh); CC-BY-4.0
 

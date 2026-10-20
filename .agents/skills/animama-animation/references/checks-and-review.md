@@ -3,12 +3,12 @@
 ## Motion checks
 
 `pnpm -s animation check <clip.json> [--json]` plays the clip through the
-production sampler on `AvatarSample_Y_0` (VRM 0) and `AvatarSample_A_1_New`
-(VRM 1), each with its own fitted hands, solved legs and solved contacts, and
-exits 1 on any FAIL. A 2.0 clip supplies its `contacts`; feet are checked
-unless it keys its legs itself without `plantFeet`. Findings marked
-`[canonical]` come from the first Avatar's playback and stand for both; others
-name the Avatar. Arms moved by solved contacts are the exception: there a
+production sampler on both Included Avatars, `Andrew` and
+`AvatarSample_A_1_New` (Annie, both VRM 1), each with its own fitted hands,
+solved legs and solved contacts, and exits 1 on any FAIL. A 2.0 clip supplies
+its `contacts`; feet are checked unless it keys its legs itself without
+`plantFeet`. Findings marked `[canonical]` come from the first Avatar's
+playback and stand for both; others name the Avatar. Arms moved by solved contacts are the exception: there a
 `[canonical]` range or smoothness finding describes the first Avatar's solve
 only, and each other Avatar's solved arms are reported under its own name.
 
@@ -68,7 +68,8 @@ bone: for a hand target, the palm faces −y and the fingers point outward
 (+x for the left hand, −x for the right).
 
 **Unsolved contacts** are only measured, within `tolerance` (default 6 cm).
-The Included Avatars differ by about 6 cm in arm length, so a touch keyed by
+The Included Avatars' arms are about as long, but Andrew's shoulder joints
+sit about 15 cm further apart and his torso is broader, so a touch keyed by
 joint angles lands a few centimetres apart on them. Use tolerances of 4–7 cm
 and check both Avatars' renders, or solve the contact.
 

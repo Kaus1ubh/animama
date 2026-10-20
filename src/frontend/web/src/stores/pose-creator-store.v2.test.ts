@@ -756,7 +756,7 @@ describe("pose creator store with hand keys", () => {
   });
 });
 
-describe.each(["AvatarSample_A_1_New", "AvatarSample_Y_0"] as const)(
+describe.each(["AvatarSample_A_1_New", "Andrew"] as const)(
   "pose creator store with a solved contact on %s",
   (avatarId) => {
     let vrm: VRM;

@@ -300,7 +300,7 @@ describe("setBeatPose", () => {
   });
 });
 
-describe.each(["AvatarSample_A_1_New", "AvatarSample_Y_0"] as const)(
+describe.each(["AvatarSample_A_1_New", "Andrew"] as const)(
   "hand keys on %s",
   (avatarId) => {
     let avatar: BeatEditContext;
@@ -951,7 +951,7 @@ describe("contacts follow the clip", () => {
   });
 });
 
-describe.each(["AvatarSample_A_1_New", "AvatarSample_Y_0"] as const)(
+describe.each(["AvatarSample_A_1_New", "Andrew"] as const)(
   "pose edits at solved beats on %s",
   (avatarId) => {
     let avatar: BeatEditContext;

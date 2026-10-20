@@ -3,6 +3,7 @@
 - Status: accepted; items 2, 8 (Parakeet clause), 3 (built self-host) and 9
   (setup draft, GPU visibility) superseded by [0012](0012-backend-parakeet-model-assets.md)
 - Recorded: 2026-09-28
+- Amended: 2026-10-20, Michael is a core voice for the Andrew starter ([issue #618](https://github.com/raymond-van/animama/issues/618))
 - Retrospective: no
 - Original decision date: 2026-09-28
 - Decision basis: owner decisions and implementation authorization in [issue #188](https://github.com/raymond-van/animama/issues/188), synchronized 2026-09-28
@@ -63,7 +64,9 @@ their archive transport.
    archive handling and signed-code verification for `document-processing`, and
    archive handling for non-model `expanded-included-content`. This decision
    does not authorize deleting existing remote objects.
-7. Bundle the Pocket generation models with only Eve and Azelma voice states.
+7. Bundle the Pocket generation models with only the core voice states (Eve and
+   Azelma at the decision; Michael joined them for the Andrew starter on
+   2026-10-19).
    Retain the complete catalog and recommendation metadata; all other voices
    download individually from pinned model objects through the existing backend
    optional-asset service. Recommendation is discovery metadata, not permission

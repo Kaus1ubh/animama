@@ -41,10 +41,11 @@ export type EyelidClosureProfile = {
 };
 
 /**
- * Profiles measured on the Included Avatars' eyelid geometry, keyed by the
+ * Profiles measured on an Included Avatar's eyelid geometry, keyed by the
  * SHA-256 of the VRM file (the digest Animama already uses for Avatar
  * identity). Happy closes the eyes fully; relaxed contributes its measured
- * share of happy's closure.
+ * share of happy's closure. Andrew has no measured profile and uses the
+ * default.
  */
 export const VERIFIED_EYELID_CLOSURE_PROFILES: Readonly<
   Record<string, { readonly avatar: string; profile: EyelidClosureProfile }>
@@ -53,15 +54,12 @@ export const VERIFIED_EYELID_CLOSURE_PROFILES: Readonly<
     avatar: "AvatarSample_A_1_New",
     profile: { happy: 1, relaxed: 0.2164 },
   },
-  "0b37c351c9414f7d0359ba1daa9a1e2ced1a6acd9ed19990002655ac7d7c16e7": {
-    avatar: "AvatarSample_Y_0",
-    profile: { happy: 1, relaxed: 0.1767 },
-  },
 };
 
 /**
  * Applied to other Avatars for each mood expression whose morphs move the
- * eyelids closed, rounded from the VRoid measurements above.
+ * eyelids closed, rounded from VRoid measurements: Annie's above and 0.1767
+ * on a VRoid VRM 0 sample.
  */
 export const DEFAULT_EYELID_CLOSURE_PROFILE: EyelidClosureProfile = {
   happy: 1,
@@ -70,7 +68,7 @@ export const DEFAULT_EYELID_CLOSURE_PROFILE: EyelidClosureProfile = {
 
 /**
  * Smallest eyelid motion, as a share of blink's motion on the same vertices,
- * that counts as an expression closing the eyelids. The Included Avatars
+ * that counts as an expression closing the eyelids. The VRoid samples
  * measure about 0.62 for happy and 0.10 for relaxed; a mouth-only smile
  * measures 0.
  */

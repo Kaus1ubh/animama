@@ -337,18 +337,18 @@ async def _seed_setup_models(session, owner_id: str):  # noqa: ANN001
         _chat_row(f"{suffix}-other"),
     )
     await SQLAlchemyModelProviderRepository(session).upsert_many([creation, chosen, other])
-    annie, caitlyn, custom = (f"anima-{name}-{suffix}" for name in ("annie", "caitlyn", "custom"))
-    for anima_id in (annie, caitlyn, custom):
+    annie, andrew, custom = (f"anima-{name}-{suffix}" for name in ("annie", "andrew", "custom"))
+    for anima_id in (annie, andrew, custom):
         session.add(ORMAnima(id=anima_id, user_id=owner_id, metadata_={}))
     await session.flush()
     profiles = SQLAlchemyAnimaChatProfileRepository(session)
-    # Caitlyn was moved to another model; the custom Anima is not a starter.
-    for anima_id, model_id in ((annie, creation.id), (caitlyn, other.id), (custom, creation.id)):
+    # Andrew was moved to another model; the custom Anima is not a starter.
+    for anima_id, model_id in ((annie, creation.id), (andrew, other.id), (custom, creation.id)):
         await profiles.upsert(
             AnimaChatProfile(anima_id=anima_id, default_model_provider_id=model_id, metadata={"source": "anima_create"})
         )
     receipts = SQLAlchemyAnimaCreationRepository(session)
-    for spec, anima_id in zip(STARTER_ANIMA_SPECS, (annie, caitlyn), strict=True):
+    for spec, anima_id in zip(STARTER_ANIMA_SPECS, (annie, andrew), strict=True):
         await receipts.save_starter(
             user_id=owner_id, receipt=StarterReceipt(spec.id, spec.version, "ready", anima_id, [])
         )
@@ -364,7 +364,7 @@ async def _seed_setup_models(session, owner_id: str):  # noqa: ANN001
         "chosen": chosen,
         "other": other,
         "annie": annie,
-        "caitlyn": caitlyn,
+        "andrew": andrew,
         "custom": custom,
     }
 
@@ -401,7 +401,7 @@ async def test_setup_model_becomes_the_chat_default_and_unchanged_starters_follo
     }
     assert await _pinned(async_session, seeded["annie"]) == seeded["chosen"].id
     # A starter already on another model, and a non-starter, keep their models.
-    assert await _pinned(async_session, seeded["caitlyn"]) == seeded["other"].id
+    assert await _pinned(async_session, seeded["andrew"]) == seeded["other"].id
     assert await _pinned(async_session, seeded["custom"]) == seeded["creation"].id
     profile = await SQLAlchemyAnimaChatProfileRepository(async_session).get(seeded["annie"])
     assert profile is not None and profile.metadata["source"] == "onboarding_chat_model"

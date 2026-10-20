@@ -5,8 +5,8 @@
   "files": [
     {
       "path": "ATTRIBUTION.md",
-      "size": 5677,
-      "sha256": "195681fb47f6925bc3083f0f34dee1b074033d99d67f42955d13c46bdbce1ee7",
+      "size": 5543,
+      "sha256": "94c1cafea468c6af29b76aee6470c16e7c089d394526138da70c8cdcb0749d5e",
       "source": {
         "local": "ATTRIBUTION.md"
       }
@@ -278,16 +278,6 @@
         "repository": "kyutai/pocket-tts-without-voice-cloning",
         "revision": "4e1e0a3e611c51c0b4ed8174fc10f32a54644303",
         "path": "languages/english_2026-04/embeddings/marius.safetensors"
-      }
-    },
-    {
-      "path": "michael.safetensors",
-      "size": 7275768,
-      "sha256": "8937f724ac4719b9aa51ea0ba1f18f9de0af7a663ad6263558266c1a53c9722d",
-      "source": {
-        "repository": "kyutai/pocket-tts-without-voice-cloning",
-        "revision": "4e1e0a3e611c51c0b4ed8174fc10f32a54644303",
-        "path": "languages/english_2026-04/embeddings/michael.safetensors"
       }
     },
     {

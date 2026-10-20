@@ -183,7 +183,7 @@ CREATE TABLE anima_starter_receipts (
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     deleted_at timestamp with time zone,
-    CONSTRAINT ck_anima_starter_receipts_starter_identity CHECK (((starter_id)::text = ANY ((ARRAY['starter:annie'::character varying, 'starter:caitlyn'::character varying])::text[]))),
+    CONSTRAINT ck_anima_starter_receipts_starter_identity CHECK (((starter_id)::text = ANY ((ARRAY['starter:annie'::character varying, 'starter:andrew'::character varying])::text[]))),
     CONSTRAINT ck_anima_starter_receipts_starter_result_required CHECK ((((state)::text <> 'ready'::text) OR (anima_id IS NOT NULL))),
     CONSTRAINT ck_anima_starter_receipts_starter_state CHECK (((state)::text = ANY ((ARRAY['ready'::character varying, 'deleted'::character varying, 'legacy_unresolved'::character varying])::text[]))),
     CONSTRAINT ck_anima_starter_receipts_starter_version CHECK ((spec_version >= 1))

@@ -40,7 +40,7 @@ class ORMAnimaStarterReceipt(SqlalchemyBase):
 
     __tablename__ = "anima_starter_receipts"
     __table_args__ = (
-        CheckConstraint("starter_id IN ('starter:annie', 'starter:caitlyn')", name="starter_identity"),
+        CheckConstraint("starter_id IN ('starter:annie', 'starter:andrew')", name="starter_identity"),
         CheckConstraint("spec_version >= 1", name="starter_version"),
         CheckConstraint("state IN ('ready', 'deleted', 'legacy_unresolved')", name="starter_state"),
         CheckConstraint("state != 'ready' OR anima_id IS NOT NULL", name="starter_result_required"),
