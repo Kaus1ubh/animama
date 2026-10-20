@@ -121,9 +121,12 @@ async def legacy_anima(session, fixture, spec, *, profile: bool = True, pocket_v
     return stored
 
 
+LEGACY_STARTER_SPECS = tuple(spec for spec in STARTER_ANIMA_SPECS if spec.legacy_avatar_id is not None)
+
+
 async def mark_legacy(session, fixture):
     repository = fixture.service(session).receipts
-    for spec in STARTER_ANIMA_SPECS:
+    for spec in LEGACY_STARTER_SPECS:
         await repository.save_starter(
             user_id=fixture.owner, receipt=StarterReceipt(spec.id, 1, "legacy_unresolved", None, [])
         )
@@ -169,7 +172,7 @@ async def test_fresh_starters_retry_preserve_customization_and_deletion(
         assert [value["outcome"] for value in first["starters"]] == ["created", "created"]
         ids = [value["anima_id"] for value in first["starters"]]
         versions = [value["spec_version"] for value in first["starters"]]
-        expected_pocket_voices = {"starter:annie": "eve", "starter:caitlyn": "azelma"}
+        expected_pocket_voices = {"starter:annie": "eve", "starter:andrew": "michael"}
         avatar_ids = []
         for anima_id, spec in zip(ids, STARTER_ANIMA_SPECS, strict=True):
             anima = await async_session.get(ORMAnima, anima_id)
@@ -282,7 +285,7 @@ async def test_partial_ensure_commits_first_and_retry_only_finishes_second(async
         original = creation.materializer.materialize
 
         async def fail_second(*args, **kwargs):
-            if kwargs["spec"].display_name == "Caitlyn":
+            if kwargs["spec"].display_name == "Andrew":
                 raise RuntimeError("temporary second-starter failure")
             return await original(*args, **kwargs)
 
@@ -312,10 +315,10 @@ async def test_partial_ensure_commits_first_and_retry_only_finishes_second(async
 
 @pytest.mark.parametrize("pocket_voice", [None, "jane"])
 async def test_unambiguous_legacy_adoption_preserves_identity_voice_and_history(async_session, tmp_path, pocket_voice):
-    async with anima_creation_fixture(async_session, tmp_path) as fixture:
+    async with anima_creation_fixture(async_session, tmp_path, full_starter=True) as fixture:
         await mark_legacy(async_session, fixture)
         created = [
-            await legacy_anima(async_session, fixture, spec, pocket_voice=pocket_voice) for spec in STARTER_ANIMA_SPECS
+            await legacy_anima(async_session, fixture, spec, pocket_voice=pocket_voice) for spec in LEGACY_STARTER_SPECS
         ]
         await async_session.execute(
             update(ORMAnima).where(ORMAnima.id == created[0].id).values(display_name="Custom live name")
@@ -329,8 +332,9 @@ async def test_unambiguous_legacy_adoption_preserves_identity_voice_and_history(
         result = await AnimaStarterService(fixture.service(async_session)).ensure(
             user_id=fixture.owner, request=REQUEST
         )
-        assert [value["outcome"] for value in result["starters"]] == ["adopted", "adopted"]
-        assert [value["anima_id"] for value in result["starters"]] == [value.id for value in created]
+        # Only starters with legacy history are adopted; Andrew has none and is created.
+        assert [value["outcome"] for value in result["starters"]] == ["adopted", "created"]
+        assert [value["anima_id"] for value in result["starters"]][: len(created)] == [value.id for value in created]
         assert (
             await async_session.get(ORMAnima, created[0].id, populate_existing=True)
         ).display_name == "Custom live name"
@@ -343,9 +347,42 @@ async def test_unambiguous_legacy_adoption_preserves_identity_voice_and_history(
         assert settings.preferences["speech"].get("tts_pocket_anima_voice") == pocket_voice
 
 
+async def test_starter_without_legacy_history_never_looks_for_legacy_rows(async_session, tmp_path, monkeypatch):
+    async with anima_creation_fixture(async_session, tmp_path, full_starter=True) as fixture:
+        creation = fixture.service(async_session)
+        looked_up = []
+        original = creation.receipts.legacy_candidates
+
+        async def record(**kwargs):
+            looked_up.append(kwargs["avatar_id"])
+            return await original(**kwargs)
+
+        monkeypatch.setattr(creation.receipts, "legacy_candidates", record)
+        result = await AnimaStarterService(creation).ensure(user_id=fixture.owner, request=REQUEST)
+        assert [value["starter_id"] for value in result["starters"]] == ["starter:annie", "starter:andrew"]
+        assert [value["outcome"] for value in result["starters"]] == ["created", "created"]
+        assert looked_up == [spec.legacy_avatar_id for spec in LEGACY_STARTER_SPECS]
+
+
+def test_andrew_replaces_caitlyn_in_the_starter_set():
+    assert [spec.id for spec in STARTER_ANIMA_SPECS] == ["starter:annie", "starter:andrew"]
+    andrew = STARTER_ANIMA_SPECS[1]
+    assert (andrew.display_name, andrew.avatar_locator, andrew.pocket_voice) == (
+        "Andrew",
+        "avatars/Andrew.vrm",
+        "michael",
+    )
+    assert andrew.portrait_logical_key == "builtin:avatar-portrait:Andrew"
+    assert (andrew.legacy_avatar_id, andrew.legacy_profile_url) == (None, None)
+    with pytest.raises(ValidationError):
+        EnsureAnimaStartersRequest.model_validate(
+            {"schema_version": 1, "repairs": [{"starter_id": "starter:caitlyn", "action": "create_missing"}]}
+        )
+
+
 @pytest.mark.parametrize("signature", ["absent", "partial", "ambiguous"])
 async def test_legacy_uncertainty_never_automatically_recreates(async_session, tmp_path, signature):
-    async with anima_creation_fixture(async_session, tmp_path) as fixture:
+    async with anima_creation_fixture(async_session, tmp_path, full_starter=True) as fixture:
         await mark_legacy(async_session, fixture)
         if signature != "absent":
             await legacy_anima(async_session, fixture, STARTER_ANIMA_SPECS[0], profile=signature != "partial")
@@ -357,35 +394,38 @@ async def test_legacy_uncertainty_never_automatically_recreates(async_session, t
         service = AnimaStarterService(fixture.service(async_session))
         result = await service.ensure(user_id=fixture.owner, request=REQUEST)
         assert result["complete"] is False
-        assert all(value["outcome"] == "repair_required" for value in result["starters"])
-        assert result == await service.ensure(user_id=fixture.owner, request=REQUEST)
+        # Legacy starters wait for explicit repair; Andrew has no legacy history.
+        assert [value["outcome"] for value in result["starters"]] == ["repair_required", "created"]
+        again = await service.ensure(user_id=fixture.owner, request=REQUEST)
+        assert [value["outcome"] for value in again["starters"]] == ["repair_required", "existing"]
+        assert again["starters"][0] == result["starters"][0]
         assert (
             await async_session.scalar(
                 select(func.count()).select_from(ORMAnima).where(ORMAnima.user_id == fixture.owner)
             )
-            == count
+            == count + 1
         )
 
 
-async def test_explicit_legacy_repairs_are_owned_and_cannot_override_success(async_session, tmp_path, monkeypatch):
+@pytest.mark.parametrize("action", ["adopt", "create_missing"])
+async def test_explicit_legacy_repairs_are_owned_and_cannot_override_success(
+    async_session, tmp_path, monkeypatch, action
+):
     async with anima_creation_fixture(async_session, tmp_path, full_starter=True) as fixture:
         await mark_legacy(async_session, fixture)
         creation = fixture.service(async_session)
         service = AnimaStarterService(creation)
         await service.ensure(user_id=fixture.owner, request=REQUEST)
         candidate = await creation.create(user_id=fixture.owner, request=fixture.request())
-        request = EnsureAnimaStartersRequest.model_validate(
-            {
-                "schema_version": 1,
-                "repairs": [
-                    {"starter_id": "starter:annie", "action": "adopt", "anima_id": candidate["anima_id"]},
-                    {"starter_id": "starter:caitlyn", "action": "create_missing"},
-                ],
-            }
-        )
+        repair = {"starter_id": "starter:annie", "action": action}
+        if action == "adopt":
+            repair["anima_id"] = candidate["anima_id"]
+        request = EnsureAnimaStartersRequest.model_validate({"schema_version": 1, "repairs": [repair]})
         result = await service.ensure(user_id=fixture.owner, request=request)
         assert result["complete"] is True
-        assert [value["outcome"] for value in result["starters"]] == ["adopted", "created"]
+        # Andrew has no legacy history, so the first ensure already created him.
+        expected = "adopted" if action == "adopt" else "created"
+        assert [value["outcome"] for value in result["starters"]] == [expected, "existing"]
         replay = await service.ensure(user_id=fixture.owner, request=REQUEST)
         assert [value["anima_id"] for value in replay["starters"]] == [
             value["anima_id"] for value in result["starters"]

@@ -293,6 +293,34 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "content/included/appearances/avatar-portraits/app-avatar-model-andrew-v1.meta.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/appearances/avatar-portraits/app-avatar-model-andrew-v1.webp",
+      "candidate_license": "LicenseRef-pixiv-VRoidPreset",
+      "basis": "Owner-authored edit of a pixiv VRoid preset with owner-set embedded metadata; derived renderer portrait retained under corresponding model terms",
+      "source": "https://vroid.pixiv.help/hc/en-us/articles/4402394424089-VRoidPreset-A-Z",
+      "revision": "Exact VRM hashes and embedded metadata in evidence",
+      "copyright": [
+        "Raymond Van",
+        "pixiv VRoid Project"
+      ],
+      "evidence": [
+        "licenses/third-party/art-vroid-review.json"
+      ],
+      "notices": [
+        "licenses/third-party/art-NOTICES.md"
+      ],
+      "conditions": [
+        "Raymond authored this edit of a VRoid A-Z preset and approved its inclusion as the Andrew starter's model on 2026-10-19. The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "content/included/appearances/avatar-portraits/app-avatar-model-avatarsample-a-1-new-v1.meta.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -315,24 +343,18 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/appearances/avatar-portraits/app-avatar-model-avatarsample-y-0-v1.meta.json",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "content/included/appearances/avatar-portraits/app-avatar-model-avatarsample-y-0-v1.webp",
-      "candidate_license": "LicenseRef-pixiv-VRoid-sample-CC-BY",
-      "basis": "Explicit owner approval of the unmodified pixiv VRoid sample with embedded CC BY metadata; derived renderer portrait retained under corresponding model terms",
-      "source": "https://creativecommons.org/licenses/by/4.0/",
+      "path": "content/included/avatars/Andrew.vrm",
+      "candidate_license": "LicenseRef-pixiv-VRoidPreset",
+      "basis": "Owner-authored edit of a pixiv VRoid preset with owner-set embedded metadata; derived renderer portrait retained under corresponding model terms",
+      "source": "https://vroid.pixiv.help/hc/en-us/articles/4402394424089-VRoidPreset-A-Z",
       "revision": "Exact VRM hashes and embedded metadata in evidence",
       "copyright": [
+        "Raymond Van",
         "pixiv VRoid Project"
       ],
       "evidence": [
@@ -342,7 +364,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond approved this exact unmodified pixiv VRoid sample as Caitlyn's model on 2026-10-01. Embedded VRM 0 metadata is unchanged; credit pixiv VRoid Project under CC BY and preserve the violent/sexual-use prohibitions. Final candidate and binary publication approval remain separate."
+        "Raymond authored this edit of a VRoid A-Z preset and approved its inclusion as the Andrew starter's model on 2026-10-19. The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -362,27 +384,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
-      ],
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "content/included/avatars/AvatarSample_Y_0.vrm",
-      "candidate_license": "LicenseRef-pixiv-VRoid-sample-CC-BY",
-      "basis": "Explicit owner approval of the unmodified pixiv VRoid sample with embedded CC BY metadata; derived renderer portrait retained under corresponding model terms",
-      "source": "https://creativecommons.org/licenses/by/4.0/",
-      "revision": "Exact VRM hashes and embedded metadata in evidence",
-      "copyright": [
-        "pixiv VRoid Project"
-      ],
-      "evidence": [
-        "licenses/third-party/art-vroid-review.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-NOTICES.md"
-      ],
-      "conditions": [
-        "Raymond approved this exact unmodified pixiv VRoid sample as Caitlyn's model on 2026-10-01. Embedded VRM 0 metadata is unchanged; credit pixiv VRoid Project under CC BY and preserve the violent/sexual-use prohibitions. Final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17263,7 +17265,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17285,7 +17287,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17307,7 +17309,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17329,7 +17331,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17351,7 +17353,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17373,7 +17375,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17395,7 +17397,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17417,7 +17419,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17439,7 +17441,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17461,7 +17463,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17483,7 +17485,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17505,7 +17507,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17527,7 +17529,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17549,7 +17551,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17571,7 +17573,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17593,7 +17595,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17615,7 +17617,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17637,7 +17639,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17659,7 +17661,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17681,7 +17683,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17703,7 +17705,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17725,7 +17727,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17747,7 +17749,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17769,7 +17771,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17791,7 +17793,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17813,7 +17815,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17835,7 +17837,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17857,7 +17859,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17879,7 +17881,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17901,7 +17903,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17923,7 +17925,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17945,7 +17947,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17967,7 +17969,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17989,7 +17991,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18011,7 +18013,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18033,7 +18035,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18055,7 +18057,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18077,7 +18079,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18099,7 +18101,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18121,7 +18123,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18143,7 +18145,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18165,7 +18167,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18187,7 +18189,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18209,7 +18211,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18231,7 +18233,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18253,7 +18255,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18275,7 +18277,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18297,7 +18299,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18319,7 +18321,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18341,7 +18343,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18363,7 +18365,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18385,7 +18387,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18407,7 +18409,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18429,7 +18431,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18451,7 +18453,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18473,7 +18475,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18495,7 +18497,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18517,7 +18519,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18539,7 +18541,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18561,7 +18563,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18583,7 +18585,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18605,7 +18607,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18627,7 +18629,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18649,7 +18651,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18671,7 +18673,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18693,7 +18695,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18715,7 +18717,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18737,7 +18739,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18759,7 +18761,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18781,7 +18783,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18803,7 +18805,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18825,7 +18827,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18847,7 +18849,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18869,7 +18871,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18891,7 +18893,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18913,7 +18915,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18935,7 +18937,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18957,7 +18959,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18979,7 +18981,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19001,7 +19003,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19023,7 +19025,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19045,7 +19047,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19067,7 +19069,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19089,7 +19091,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19111,7 +19113,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19133,7 +19135,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19155,7 +19157,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19177,7 +19179,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19199,7 +19201,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19221,7 +19223,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19243,7 +19245,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19265,7 +19267,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19287,7 +19289,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19309,7 +19311,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19331,7 +19333,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19353,7 +19355,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19375,7 +19377,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19397,7 +19399,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19419,7 +19421,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19441,7 +19443,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19463,7 +19465,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19485,7 +19487,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19507,7 +19509,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19529,7 +19531,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19551,7 +19553,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19573,7 +19575,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19595,7 +19597,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -27219,6 +27221,26 @@
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "tests/fixtures/vrm/AvatarSample_Y_0.vrm",
+      "candidate_license": "LicenseRef-pixiv-VRoid-sample-CC-BY",
+      "basis": "Explicit owner approval of the unmodified pixiv VRoid sample with embedded CC BY metadata; retained only as a test fixture, not distributed",
+      "source": "https://creativecommons.org/licenses/by/4.0/",
+      "revision": "Exact VRM hashes and embedded metadata in evidence",
+      "copyright": [
+        "pixiv VRoid Project"
+      ],
+      "evidence": [
+        "licenses/third-party/art-vroid-review.json"
+      ],
+      "notices": [
+        "licenses/third-party/art-NOTICES.md"
+      ],
+      "conditions": [
+        "Raymond approved this exact unmodified pixiv VRoid sample on 2026-10-01; on 2026-10-19 it was retired from Included content and kept only as a test-only VRM 0 fixture that is never packaged or distributed with Animama builds. Embedded VRM 0 metadata is unchanged; credit pixiv VRoid Project under CC BY and preserve the violent/sexual-use prohibitions."
+      ],
       "review": "prepared-not-release-approved"
     },
     {

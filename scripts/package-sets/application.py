@@ -20,6 +20,8 @@ MAX_ARCHIVE = 1024 * 1024 * 1024
 MAX_TOTAL = 2 * MAX_ARCHIVE
 MAX_FILE = 256 * 1024 * 1024
 MAX_FILES = 4096
+# Exact baseline speech inventory: the file count of models/browser-runtime/manifest.json.
+BASELINE_RUNTIME_FILES = 22
 MAX_MANIFEST = 4 * 1024 * 1024
 MAX_TEXT = 16 * 1024 * 1024
 MAX_TEXT_TOTAL = 64 * 1024 * 1024
@@ -284,7 +286,7 @@ def verified_application_inventory(path, source, version, contracts, *, source_t
         or type(baseline.get("schema_version")) is not int
         or baseline.get("schema_version") != 1
         or not isinstance(baseline.get("files"), list)
-        or len(baseline["files"]) != 21
+        or len(baseline["files"]) != BASELINE_RUNTIME_FILES
     ):
         raise ValueError("Invalid baseline browser runtime inventory")
     closed(app["backend_contracts"], {"runtime-owner", "local-http"}, "backend contracts")

@@ -124,7 +124,7 @@ def staged_core(tmp_path_factory: pytest.TempPathFactory) -> Path:
 def test_tracked_checkout_packages_both_starters_without_private_animations(tmp_path: Path) -> None:
     root = copy_tracked_included(tmp_path / "included")
     inventory = starter_inventory(root)
-    assert [starter["name"] for starter in inventory["starters"]] == ["Annie", "Caitlyn"]
+    assert [starter["name"] for starter in inventory["starters"]] == ["Annie", "Andrew"]
     assert not list(root.rglob("*.vrma"))
     poses = [entry for entry in inventory["entries"] if entry["kind"] == "pose"]
     assert all(entry["partition"] == "core" for entry in poses)
@@ -226,10 +226,10 @@ def test_core_library_includes_required_dependencies_without_equipping_them(stag
 
 def test_supplied_fixture_core_resolves_both_starters_without_expanded_content(staged_core: Path) -> None:
     inventory = starter_inventory(staged_core)
-    assert [starter["name"] for starter in inventory["starters"]] == ["Annie", "Caitlyn"]
+    assert [starter["name"] for starter in inventory["starters"]] == ["Annie", "Andrew"]
     assert all(not starter["diagnostics"] for starter in inventory["starters"])
-    assert "avatars/AvatarSample_Y_0.vrm" in inventory["starters"][1]["roots"]
-    assert "builtin:avatar-portrait:AvatarSample_Y_0" in inventory["starters"][1]["roots"]
+    assert "avatars/Andrew.vrm" in inventory["starters"][1]["roots"]
+    assert "builtin:avatar-portrait:Andrew" in inventory["starters"][1]["roots"]
     assert set(EXPECTED_STARTER_GESTURE_IDS) <= set(inventory["starters"][1]["roots"])
     assert all(file["partition"] == "core" for file in inventory["files"])
     assert all(
@@ -266,7 +266,7 @@ def test_excluded_required_avatar_fails_instead_of_entering_either_pack(staged_c
     policy["rules"].insert(
         0,
         {
-            "glob": "avatars/AvatarSample_Y_0.vrm",
+            "glob": "avatars/Andrew.vrm",
             "license_id": "test-excluded",
             "provenance": "Explicitly excluded test input",
             "distribution": "excluded",

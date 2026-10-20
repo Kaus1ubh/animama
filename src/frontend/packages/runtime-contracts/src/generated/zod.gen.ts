@@ -8,7 +8,7 @@ import { z } from 'zod';
 export const zAdoptStarterRepair = z.object({
     action: z.literal('adopt'),
     anima_id: z.string().min(1).max(128).regex(/^[A-Za-z0-9][A-Za-z0-9:_-]*$/),
-    starter_id: z.enum(['starter:annie', 'starter:caitlyn'])
+    starter_id: z.enum(['starter:annie', 'starter:andrew'])
 });
 
 /**
@@ -115,7 +115,7 @@ export const zAnimaStarterResult = z.object({
         'repair_required'
     ]),
     spec_version: z.int(),
-    starter_id: z.enum(['starter:annie', 'starter:caitlyn'])
+    starter_id: z.enum(['starter:annie', 'starter:andrew'])
 });
 
 /**
@@ -846,7 +846,7 @@ export const zContentKind = z.enum([
  */
 export const zCreateMissingStarterRepair = z.object({
     action: z.literal('create_missing'),
-    starter_id: z.enum(['starter:annie', 'starter:caitlyn'])
+    starter_id: z.enum(['starter:annie', 'starter:andrew'])
 });
 
 /**

@@ -21,7 +21,7 @@ from animama.domain.settings import UserSettings
 
 POLICY = OwnerBootstrapPolicy(
     profile_template_version="2",
-    starter_anima_ids=("starter:annie", "starter:caitlyn"),
+    starter_anima_ids=("starter:annie", "starter:andrew"),
 )
 
 
@@ -35,7 +35,7 @@ class FakeStarters:
             "complete": True,
             "starters": [
                 {"starter_id": "starter:annie"},
-                {"starter_id": "starter:caitlyn"},
+                {"starter_id": "starter:andrew"},
             ],
         }
 

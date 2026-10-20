@@ -1,6 +1,5 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { isDeepStrictEqual } from "node:util";
 import type { VRM } from "@pixiv/three-vrm";
 import { beforeAll, describe, expect, it } from "vitest";
 
@@ -20,7 +19,8 @@ import {
  * schema. The baseline was generated from `main` at bfc0de4f and re-recorded
  * after the #314 and #409 Gesture revisions, additions and removals were
  * promoted, and after the #543 effect merge rewrote the effect events of 28
- * Gestures (their samples were unchanged).
+ * Gestures (their samples were unchanged). Andrew's samples replaced the
+ * retired VRM 0 sample's when he became Included (Annie's were unchanged).
  *
  * A clip changed on purpose is listed in REBASELINED, which skips its samples;
  * one deleted on purpose is listed in REMOVED. Clips missing from the baseline
@@ -31,6 +31,8 @@ import {
  *
  * which refuses while an unlisted clip differs from the baseline, then
  * rewrites the baseline from the current clips; empty both sets afterwards.
+ * After a change to the Included Avatars it records the new Avatars' samples
+ * and drops the retired ones', refusing only if an Avatar in both changed.
  */
 
 /** Included Gestures revised on purpose since the baseline. */
@@ -49,6 +51,24 @@ const baseline: Record<string, ClipSampleFingerprint> =
 
 const fileSha256 = (slug: string) =>
   sha256(readFileSync(includedGestureClipPath(slug)));
+
+/**
+ * Whether a clip's file and its samples on every Avatar in both fingerprints
+ * are unchanged; with no Avatar in both, nothing is proven and it differs.
+ */
+function unchangedOnSharedAvatars(
+  current: ClipSampleFingerprint | undefined,
+  recorded: ClipSampleFingerprint,
+): boolean {
+  if (!current || current.fileSha256 !== recorded.fileSha256) return false;
+  const shared = Object.keys(recorded.samples).filter(
+    (id) => id in current.samples,
+  );
+  return (
+    shared.length > 0 &&
+    shared.every((id) => current.samples[id] === recorded.samples[id])
+  );
+}
 
 let avatars: { id: IncludedAvatarId; vrm: VRM }[];
 beforeAll(async () => {
@@ -110,7 +130,7 @@ describe("Included Gesture sample baseline", () => {
           (slug) =>
             !REBASELINED.has(slug) &&
             !REMOVED.has(slug) &&
-            !isDeepStrictEqual(current[slug], baseline[slug]),
+            !unchangedOnSharedAvatars(current[slug], baseline[slug]),
         ),
         "unlisted clips differ from the baseline",
       ).toEqual([]);

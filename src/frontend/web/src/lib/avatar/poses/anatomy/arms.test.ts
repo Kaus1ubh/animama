@@ -6,7 +6,10 @@ import {
   applyCanonicalPose,
   rawBoneWorldPosition,
 } from "../../motion-authoring/kinematics";
-import { loadTestAvatar } from "../../motion-authoring/testing/includedAvatars";
+import {
+  VRM0_FIXTURE_ID,
+  loadTestAvatar,
+} from "../../motion-authoring/testing/includedAvatars";
 import { RELAXED_REST_POSE_ID, getResolvedAvatarPose } from "../catalog";
 import {
   JOINT_DEFINITIONS,
@@ -18,6 +21,7 @@ import {
 } from "./anatomy";
 import {
   ArmReachSolver,
+  CONTACT_REFERENCE_HEIGHT,
   CanonicalSkeleton,
   SOFT_REACH,
   SkeletonPose,
@@ -29,9 +33,16 @@ import {
   type ArmContactSolve,
 } from "./arms";
 
-const AVATARS = ["AvatarSample_Y_0", "AvatarSample_A_1_New"] as const;
+/** The VRM 0 test fixture and both Included Avatars. */
+const AVATARS = [VRM0_FIXTURE_ID, "AvatarSample_A_1_New", "Andrew"] as const;
 type AvatarId = (typeof AVATARS)[number];
 const vrms = new Map<AvatarId, VRM>();
+/** Rest height of each rig's head bone above its feet, in metres. */
+const HEAD_HEIGHT: Record<AvatarId, number> = {
+  AvatarSample_Y_0: 1.242,
+  AvatarSample_A_1_New: 1.265,
+  Andrew: 1.46,
+};
 
 beforeAll(async () => {
   for (const id of AVATARS) vrms.set(id, await loadTestAvatar(id));
@@ -64,7 +75,10 @@ function posed(joints: Joints): VRMPose {
 
 type Tuple4 = [number, number, number, number];
 
-/** Declared contacts near natural authored arms (2–5 cm away on both Avatars). */
+/**
+ * Declared contacts near natural authored arms: 2–5 cm away on Annie and the
+ * VRM 0 fixture, 6–9 cm on Andrew, who is taller with longer arms.
+ */
 const SCENARIOS: {
   name: string;
   joints: Joints;
@@ -308,9 +322,7 @@ describe("CanonicalSkeleton", () => {
     "matches %s's skinned rig: joints, rest scale and contact points",
     (id) => {
       const { vrm, skeleton, pose, scale } = rig(id);
-      // The Included Avatars' head bones are 1.242 m and 1.265 m above their feet.
-      expect(scale).toBeGreaterThan(0.99);
-      expect(scale).toBeLessThan(1.02);
+      expect(scale * CONTACT_REFERENCE_HEIGHT).toBeCloseTo(HEAD_HEIGHT[id], 2);
 
       applyCanonicalPose(vrm, {});
       const restRotations = new Map(
@@ -477,7 +489,7 @@ describe.each(AVATARS)("ArmReachSolver on %s", (id) => {
     const before = miss(avatar, contact);
     // The authored arm is close but off its contact.
     expect(before).toBeGreaterThan(0.01);
-    expect(before).toBeLessThan(0.06);
+    expect(before).toBeLessThan(0.1);
 
     const errors = solveArmContacts(
       pose,

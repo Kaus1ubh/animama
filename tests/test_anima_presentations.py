@@ -45,7 +45,7 @@ async def test_builtin_avatar_presentation_resolves_on_the_clean_typed_schema(
             ORMAvatar(
                 id=avatar_id,
                 name=f"Avatar {suffix}",
-                file_path="/shared/avatars/AvatarSample_Y_0.vrm",
+                file_path="/shared/avatars/Andrew.vrm",
                 identity="A typed-schema test Avatar.",
                 private=False,
             )
@@ -76,11 +76,11 @@ async def test_builtin_avatar_presentation_resolves_on_the_clean_typed_schema(
                 scope="included",
                 kind="appearance",
                 relative_locator=f"appearances/avatar-portraits/{suffix}.webp",
-                logical_key="builtin:avatar-portrait:AvatarSample_Y_0",
-                display_name="Avatar Sample R1 Portrait",
+                logical_key="builtin:avatar-portrait:Andrew",
+                display_name="Andrew Portrait",
                 status="valid",
                 revision_sha256="a" * 64,
-                content_metadata={"avatar_model": "AvatarSample_Y_0", "width": 256, "height": 256},
+                content_metadata={"avatar_model": "Andrew", "width": 256, "height": 256},
             )
         )
         # The file model intentionally has no ORM relationship; make the catalog
@@ -108,7 +108,7 @@ async def test_builtin_avatar_presentation_resolves_on_the_clean_typed_schema(
         assert records[anima_id].profile_image is None
         assert records[anima_id].primary_model is not None
         assert _required(records[anima_id].primary_model).source_type == "builtin"
-        assert _required(records[anima_id].primary_model).builtin_id == "app:avatar_model:AvatarSample_Y_0"
+        assert _required(records[anima_id].primary_model).builtin_id == "app:avatar_model:Andrew"
         assert records[anima_id].avatar_portrait is not None
         assert _required(records[anima_id].avatar_portrait).catalog_item_id == portrait_item_id
     finally:

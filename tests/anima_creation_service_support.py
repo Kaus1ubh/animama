@@ -215,7 +215,7 @@ async def anima_creation_fixture(
         Settings(animama_content_root=tmp_path / "content", animama_data_root=tmp_path / "data")
     )
     write_json(paths.included_root / "licenses/inventory.json", {"rules": [{"glob": "**/*", "license_id": "test"}]})
-    for name in ("AvatarSample_A_1_New", "AvatarSample_Y_0"):
+    for name in ("AvatarSample_A_1_New", "Andrew"):
         write_file(paths.included_root / f"avatars/{name}.vrm", vrm(name))
     write_file(paths.local_root / "avatars/local-avatar.vrm", vrm(owner))
     write_file(paths.local_root / "appearances/picture.png", image_bytes())
@@ -574,7 +574,7 @@ def write_supplied_starter_fixture(root: Path) -> Path:
             ]
         },
     )
-    for name in ("AvatarSample_A_1_New", "AvatarSample_Y_0"):
+    for name in ("AvatarSample_A_1_New", "Andrew"):
         write_file(root / f"avatars/{name}.vrm", vrm(name))
         portrait = root / f"appearances/avatar-portraits/{name}"
         write_file(portrait.with_suffix(".webp"), image_bytes(portrait=True, format="WEBP"))

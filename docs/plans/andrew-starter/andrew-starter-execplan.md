@@ -106,6 +106,12 @@ run.
   core removes him from the hosted download set (36 voices become 35) and adds
   7,275,768 bytes to the core payload.
 
+- 2026-10-19: Phase 2 cannot commit on its own. The starter content inventory
+  requires every valid tracked Included item to be in the desktop core
+  partition (`test_reviewed_library_ships_in_core_without_equipping_starters`),
+  and an Avatar enters core only as a starter root. Andrew is not a starter
+  until Phase 3, so Phases 2 and 3 share one commit.
+
 ## Decision Log
 
 - 2026-10-19, owner: replace Caitlyn with a male starter, Andrew, to offer a male
@@ -123,8 +129,22 @@ run.
   adoption fields become optional (`None` skips adoption) rather than carrying
   placeholder values.
 - 2026-10-19, owner: after review finding P1-F1, fix Cloud's hard-coded hosted
-  baseline count in this task, as a separate Cloud issue and PR. This amends
+  baseline count in this task, as a separate Cloud issue and PR. After P2-N6,
+  the same Cloud PR also switches the hosted starters to `starter:andrew`
+  through a new Cloud migration. This amends
   the "no Cloud changes" boundary. Animama still has no Cloud code dependency.
+- 2026-10-20, owner: the Phase 4 motion gate fired. 24 Included Gestures fail
+  their motion checks on Andrew because of his wider shoulders (0.31 m against
+  0.16 m) and broader torso; all Reactions pass. The owner chose to retune
+  those 24 Gestures in this PR so they pass on both Annie and Andrew. No check
+  thresholds or exemptions change.
+- 2026-10-20, owner: after reviewing before/after renders and video, keep all
+  24 original Gesture clips. The Andrew-only faults are not visible at chat
+  framing. The retuned drafts are parked outside the repository for possible
+  later use. `includedGestures.test.ts` lists the 24 in
+  `KNOWN_ANDREW_FAILURES`: each must still pass on Annie, and stays listed
+  only while it fails on Andrew. This supersedes the plan's no-exemptions
+  wording for these clips; thresholds are unchanged.
 - 2026-10-19, agent: make the meta edit with a small one-off script. It rewrites
   only the JSON chunk of the GLB, padded to 4 bytes, and leaves the binary chunk
   byte-identical. Reviewers verify the edit by diffing the decoded JSON.
@@ -301,16 +321,74 @@ licence records. Caitlyn is still the second starter at this point.
 Recovery: remove the two files and their licence entries; nothing persistent
 references them yet.
 
-Check record: _to be filled._
-Phase commit: `feat(content)[p2]: add the Andrew Included Avatar`.
+Check record (2026-10-19):
+
+- Meta edit with a one-off GLB JSON-chunk rewrite: the source sha256 is
+  `895d48c9…` (15,608,996 bytes). The output, `content/included/avatars/Andrew.vrm`,
+  has sha256 `fdcb8f78967be017f8adaf4debe375790d37f66109c0b5e7a7b1e246c17b2bc9`
+  (15,608,968 bytes). The BIN chunk is byte-identical, and the parsed JSON is
+  equal except for `VRMC_vrm.meta`. The five R8 values were changed: name
+  `Andrew1.0\t` → `Andrew`, commercialUsage `personalProfit` → `corporation`,
+  allowRedistribution true → false, modification `allowModification` →
+  `prohibited`, and avatarPermission `everyone` → `onlySeparatelyLicensedPerson`.
+- The file is named `Andrew.vrm`, not `Andrew_1_0.vrm`, because Included Avatar
+  display names derive from the file stem (`content_kind_registry.py`).
+- Portrait: captured with `/avatar-portrait-debug` on stack `animama-andrew` (512
+  WebP), downscaled with PIL Lanczos to 256 px WebP q90, and saved as
+  `app-avatar-model-andrew-v1.webp` (sha256 `b07fc187…`) with
+  `content_id` `builtin:avatar-portrait:Andrew`.
+- Root, Andrew files untracked:
+  - `timeout 900 uv run --no-sync pytest -q tests/test_included_content_integrity.py tests/test_included_content_catalog.py tests/test_starter_content_closure.py tests/test_model_assets.py tests/test_anima_starters.py tests/test_local_content_scan.py tests/test_content_portability.py scripts/public-release/test_prepare_source.py scripts/package-sets/test_hosted_application.py`
+    passed (168).
+  - Full pre-push run on tree `4c13d922` passed: check-test 4714/29 skipped,
+    `pnpm verify`, prettier, and browser 122/122.
+- On the stack, Andrew is selectable as an Included Avatar in the creator and
+  loads with no console errors.
+- With the Andrew files staged, the same backend set plus the content-package
+  tests found 1 failure in 152:
+  `test_reviewed_library_ships_in_core_without_equipping_starters`. Andrew's
+  two files land in the `expanded` partition. The invariant says desktop core
+  equals self-host, so no Included item may be left for the expanded pack.
+  Andrew joins core once he is a starter root, in Phase 3.
+
+Phase commit: Phases 2 and 3 land as one commit (see the Surprises entry).
 
 #### Code Review #1 Findings
 
-_Pending._
+Reviewed the uncommitted and untracked tree on `c567d481`, high-risk tier,
+round 1. The analysis subagent also reran the content and packaging pytest
+set (71 passed).
+
+- **P2-F1 (blocking).** `licenses/README.md` was not updated, although the
+  plan step listed it.
+- **P2-N1.** Checks that list only Git-tracked files did not see the
+  untracked Andrew files. Rerun them on the staged or committed tree.
+- **P2-N2.** Andrew's meta has no `otherLicenseUrl`/`thirdPartyLicenses`
+  pointer to the VRoid preset terms, which follows R8 ("other meta unchanged").
+  Adding one is an owner decision.
+- **P2-N3.** The interim docs (`content/included/README.md`,
+  `runtime-staging.md`) still list only Annie and Caitlyn. Phases 4 and 5
+  cover them.
+- **P2-N4.** Pre-existing condition text in `art-vroid-review.json` and
+  `source-review.json` still calls Caitlyn the owner's own creation, and the
+  "Both embedded authors arrays" remark is outdated. Clean them up in Phase 4.
+- **P2-N5.** The Phase 1 voice counts in prose belong to Phase 5.
+- **P2-N6.** Cloud hard-codes `starter:caitlyn` in hosted migration 007,
+  `policy.py` and tests.
 
 #### Code Review #1 Revisions
 
-_Pending._
+- **P2-F1: accepted.** `licenses/README.md` now records Andrew's 2026-10-19
+  approval with restrictive owner-set metadata. The coordinator verified it by
+  reading it back; it is prose only.
+- **P2-N1: accepted.** The checks were rerun with the files staged and caught
+  the core-partition invariant above. Phases 2 and 3 are therefore committed
+  together.
+- **P2-N2: no change.** This follows agreed R8. It is noted for the owner.
+- **P2-N3, P2-N4 and P2-N5: deferred** to Phases 4 and 5, as planned.
+- **P2-N6: accepted.** On 2026-10-19 the owner extended the Cloud PR to switch
+  hosted starters to `starter:andrew` through a new Cloud migration.
+- Remaining repair budget: 2 rounds.
 
 ### Phase 3: the Andrew starter replaces Caitlyn
 

@@ -27,6 +27,7 @@ from animama.product_http.principal import get_current_principal
 
 # Removed shipped models may retain rows while historical Animas reference them.
 _RETIRED_BUILTINS = {
+    "avt_caitlyn": "AvatarSample_Y_0.vrm",
     "avt_sample_r2": "AvatarSample_R2.vrm",
     "avt_sample_a1": "AvatarSample_A_1.vrm",
     "avt_sample_y0": "AvatarSample_Y_1.vrm",

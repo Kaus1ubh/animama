@@ -12,7 +12,7 @@ from unittest.mock import patch
 
 import application
 import test_package_sets as helpers
-from application import TEMPLATE_BASE, inspect_archive, unpack_application
+from application import BASELINE_RUNTIME_FILES, TEMPLATE_BASE, inspect_archive, unpack_application
 from package_set import canonical, file_record, sha, verify
 
 
@@ -28,7 +28,7 @@ class HostedApplicationTests(unittest.TestCase):
         }
         template["tts/workers/inference-worker.js"] = b"self.postMessage({type:'ready'})"
         assets = []
-        for i in range(21):
+        for i in range(BASELINE_RUNTIME_FILES):
             data, name = bytes([i]), f"models/fixture-{i}.onnx"
             template["onnx/" + name] = data
             assets.append({"path": name, "size": len(data), "sha256": sha(data)})
@@ -133,6 +133,10 @@ class HostedApplicationTests(unittest.TestCase):
 
     def test_format2_selects_verified_whole_application(self):
         self.assertEqual(verify(self.old), self.m)
+
+    def test_baseline_count_matches_the_tracked_runtime_manifest(self):
+        manifest = Path(__file__).resolve().parents[2] / "models/browser-runtime/manifest.json"
+        self.assertEqual(len(json.loads(manifest.read_text())["files"]), BASELINE_RUNTIME_FILES)
 
     def test_text_only_application_cannot_pass_the_speech_inventory_gate(self):
         self.files.pop(next(name for name in self.files if name.endswith("/resource-manifests/browser-runtime.json")))

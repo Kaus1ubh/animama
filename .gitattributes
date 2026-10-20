@@ -29,6 +29,7 @@ content/included/**/*.vrm filter=lfs diff=lfs merge=lfs -text
 content/included/**/*.vrma filter=lfs diff=lfs merge=lfs -text
 content/included/**/*.wav filter=lfs diff=lfs merge=lfs -text
 content/included/**/*.webp filter=lfs diff=lfs merge=lfs -text
+tests/fixtures/vrm/*.vrm filter=lfs diff=lfs merge=lfs -text
 
 # Preserve these upstream legal texts byte-for-byte, including their original
 # CRLF, trailing spaces and final blank lines. Authored source keeps normal checks.

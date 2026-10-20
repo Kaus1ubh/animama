@@ -573,17 +573,17 @@
       "distribution": "excluded"
     },
     {
-      "glob": "avatars/AvatarSample_Y_0.vrm",
-      "creator": "pixiv VRoid Project",
-      "provenance": "Unmodified pixiv VRoid sample model, Caitlyn's default from starter version 6 and the Caitlyn avatar seed (avt_caitlyn). Embedded VRM 0 metadata: author pixiv VRoid Project, title AvatarSample_Y_0, license CC_BY, allowed user Everyone, commercial use Allow, violent and sexual use Disallow. The owner approved its inclusion on 2026-10-01; hashes are recorded in licenses/third-party/art-vroid-review.json. Credit pixiv VRoid Project and do not edit embedded permission flags. Final binary publication approval remains separate.",
-      "license_id": "LicenseRef-pixiv-VRoid-sample-CC-BY",
+      "glob": "avatars/Andrew.vrm",
+      "creator": "Raymond Van (edit of a pixiv VRoid Project preset)",
+      "provenance": "On 2026-10-19 Raymond confirmed this Andrew model is a VRoid Studio A-Z preset whose hair he replaced; the base preset is not identified. He set its embedded VRM metadata (name Andrew, commercial use corporation, redistribution disallowed, modification prohibited, avatar use only by separately licensed persons); geometry, textures, expressions and spring bones are as he exported them. Hashes are recorded in licenses/third-party/art-vroid-review.json. Official terms: https://vroid.pixiv.help/hc/en-us/articles/4402394424089-VRoidPreset-A-Z . Do not describe the preset terms as CC0. Final binary publication approval remains separate.",
+      "license_id": "LicenseRef-pixiv-VRoidPreset",
       "redistribution_review": "pending"
     },
     {
-      "glob": "appearances/avatar-portraits/app-avatar-model-avatarsample-y-0-v1.*",
-      "creator": "Animama render of pixiv VRoid Project model",
-      "provenance": "Direct Animama portrait-capture renderer output (renderer 1, capture preset 2) of AvatarSample_Y_0, downscaled to 256x256 WebP; contains no external artwork and its metadata is project-authored (2026-10-01). Follows the underlying model's CC_BY attribution terms.",
-      "license_id": "LicenseRef-pixiv-VRoid-sample-CC-BY",
+      "glob": "appearances/avatar-portraits/app-avatar-model-andrew-v1.*",
+      "creator": "Animama render of Raymond Van's VRoid preset edit",
+      "provenance": "Direct Animama portrait-capture renderer output (renderer 1, capture preset 2) of Andrew, downscaled from 512 to 256x256 WebP; contains no external artwork and its metadata is project-authored (2026-10-19). Follows the underlying model's terms.",
+      "license_id": "LicenseRef-pixiv-VRoidPreset",
       "redistribution_review": "pending"
     },
     {

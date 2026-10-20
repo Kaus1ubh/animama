@@ -19,7 +19,7 @@ export type AdoptStarterRepair = {
     /**
      * Starter Id
      */
-    starter_id: 'starter:annie' | 'starter:caitlyn';
+    starter_id: 'starter:annie' | 'starter:andrew';
 };
 
 /**
@@ -343,7 +343,7 @@ export type AnimaStarterResult = {
     /**
      * Starter Id
      */
-    starter_id: 'starter:annie' | 'starter:caitlyn';
+    starter_id: 'starter:annie' | 'starter:andrew';
 };
 
 /**
@@ -1355,7 +1355,7 @@ export type CreateMissingStarterRepair = {
     /**
      * Starter Id
      */
-    starter_id: 'starter:annie' | 'starter:caitlyn';
+    starter_id: 'starter:annie' | 'starter:andrew';
 };
 
 /**

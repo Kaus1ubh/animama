@@ -7,7 +7,10 @@ import {
   applyCanonicalPose,
   rawBoneWorldPosition,
 } from "@/lib/avatar/motion-authoring/kinematics";
-import { loadTestAvatar } from "@/lib/avatar/motion-authoring/testing/includedAvatars";
+import {
+  VRM0_FIXTURE_ID,
+  loadTestAvatar,
+} from "@/lib/avatar/motion-authoring/testing/includedAvatars";
 import {
   AVATAR_POSE_CATALOG,
   RELAXED_REST_POSE_ID,
@@ -431,7 +434,8 @@ describe("additional hand presets", () => {
 
 const base = getResolvedAvatarPose(RELAXED_REST_POSE_ID).humanoid ?? {};
 const SIDES = ["left", "right"] as const;
-const AVATAR_IDS = ["AvatarSample_Y_0", "AvatarSample_A_1_New"] as const;
+/** The VRM 0 test fixture and both Included Avatars. */
+const AVATAR_IDS = [VRM0_FIXTURE_ID, "AvatarSample_A_1_New", "Andrew"] as const;
 type AvatarLabel = "none" | (typeof AVATAR_IDS)[number];
 
 /** Rotations of a hand shape with the base pose's thumb metacarpal. */
@@ -443,7 +447,7 @@ const shapeOf = (vrm: VRM | null, side: HandSide, shape: HandShape) =>
     base[`${side}ThumbMetacarpal`]?.rotation,
   );
 
-describe("hand shapes on the Included Avatars", () => {
+describe("hand shapes on the Included Avatars and the VRM 0 fixture", () => {
   const avatars = {} as Record<AvatarLabel, VRM | null>;
   beforeAll(async () => {
     avatars.none = null;
@@ -459,7 +463,8 @@ describe("hand shapes on the Included Avatars", () => {
    * −70°, past the joint's −60° limit, so its thumb now stops at the natural
    * range (−50°) and its tip bends back 25°. No Included Gesture uses it.
    * Other fitted thumbs change only where they were past the anatomical limit,
-   * which these Relaxed Rest metacarpals never are.
+   * which these Relaxed Rest metacarpals never are. Andrew's digests were
+   * recorded from the current implementation when he became Included.
    */
   const ORIGINAL_PRESET_DIGESTS: Record<AvatarLabel, Record<string, string>> = {
     none: {
@@ -488,6 +493,15 @@ describe("hand shapes on the Included Avatars", () => {
       point: "29fd8cd5ba298dee",
       peace: "772b821ede66c545",
       "thumbs-up": "feb9dcb6aaebe6a2",
+    },
+    Andrew: {
+      fist: "388b34194ac402e2",
+      "open-spread": "63c05c81d9c40dea",
+      "open-together": "67e5d84a3daca245",
+      relaxed: "6407426a36961be2",
+      point: "c88ae2c7096bc45e",
+      peace: "8d9a453209f45625",
+      "thumbs-up": "d8c5b5dbaa224501",
     },
   };
   const ORIGINAL_PRESETS = Object.keys(ORIGINAL_PRESET_DIGESTS.none);
@@ -607,7 +621,7 @@ describe("hand shapes on the Included Avatars", () => {
     for (const { pose, side, preset, expected } of cases)
       expect(
         angularDistanceDegrees(
-          fittedThumb("AvatarSample_Y_0", side, pose, preset),
+          fittedThumb(VRM0_FIXTURE_ID, side, pose, preset),
           new Quaternion(...expected),
         ),
       ).toBeLessThan(1e-5);
@@ -623,7 +637,7 @@ describe("hand shapes on the Included Avatars", () => {
     expect(before.curl).toBeGreaterThan(96);
     expect(
       angularDistanceDegrees(
-        fittedThumb("AvatarSample_Y_0", "left", "identity", "fist"),
+        fittedThumb(VRM0_FIXTURE_ID, "left", "identity", "fist"),
         composeJointRotation(joint, {
           ...before,
           curl: JOINT_DEFINITIONS.thumb.components.curl.hard[1],

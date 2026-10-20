@@ -17,7 +17,7 @@ import { createServer } from "vite";
 const webRoot = fileURLToPath(new URL("..", import.meta.url));
 const repoRoot = path.resolve(webRoot, "../../..");
 const avatarDir = path.join(repoRoot, "content/included/avatars");
-const AVATARS = ["AvatarSample_Y_0", "AvatarSample_A_1_New"];
+const AVATARS = ["Andrew", "AvatarSample_A_1_New"];
 
 export async function renderGestureSheet({
   clip,

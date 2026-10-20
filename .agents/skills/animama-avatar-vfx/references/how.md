@@ -29,7 +29,7 @@ visual judgment; a DOM snapshot alone cannot verify a rendered effect.
    earlier draft differs from the template, the creator asks to continue it or
    discard it; continue only if it belongs to this task. Do not accept a discard
    prompt blindly.
-4. Select the intended avatar with **Model** (Annie, Caitlyn or the active
+4. Select the intended avatar with **Model** (Annie, Andrew or the active
    Anima's model). Use **View → Face** for fitting, **Three-quarter** for depth
    and **Portrait** for normal-size readability. Preview selection is not an
    assignment of the effect to that Anima.
