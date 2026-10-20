@@ -53,8 +53,8 @@ in the inventory. Those terms are not CC0; review the planned product use,
 including the restrictions on paid redistribution and character-creation
 services. Do not edit embedded permission flags to manufacture clearance.
 Andrew's starter uses `Andrew.vrm`, the owner's edit of a VRoid A–Z preset
-(new hair; base preset not identified). Its embedded VRM 1.0 metadata names the
-owner as author, allows corporate commercial use and disallows redistribution
+(new hair; base preset not identified). Its embedded VRM 1.0 metadata, which the owner
+set as author on 2026-10-19, names the owner as author, allows corporate commercial use and disallows redistribution
 and modification; the preset terms still apply to its pixiv components. It
 replaced Caitlyn's `AvatarSample_Y_0` on 2026-10-19, which now survives only as
 the test-only VRM 0 fixture `tests/fixtures/vrm/AvatarSample_Y_0.vrm`. R2's

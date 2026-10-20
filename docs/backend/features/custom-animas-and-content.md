@@ -252,7 +252,7 @@ Included portraits when available.
 Their identities write out every section of the `IDENTITY.md` template.
 Existing ready/deleted starter receipts are preserved. Automatic adoption
 recognizes existing data only for a starter with legacy identifiers (Annie);
-Andrew has none and is always created.
+Andrew has none, so he is created rather than adopted.
 
 Desktop staging excludes Chibi 2, `AvatarSample_R2`, their derived portraits,
 downloaded voice samples, and Tokyo backgrounds/thumbnails.

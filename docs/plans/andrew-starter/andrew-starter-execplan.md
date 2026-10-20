@@ -94,7 +94,8 @@ run.
 - 2026-10-19: Annie's eyelid-profile key in `eyelidClosure.ts` (`37a01dc…`) no
   longer matches her current VRM (LFS oid `1119bfc…`, changed by the 2026-10-16
   recolour), so Annie silently gets the default auto-measured profile. This is
-  out of scope here and should be a separate fix.
+  out of scope here and should be a separate fix. Resolved by #620, which
+  main merged on 2026-10-20 and this branch merged in `0344fdd2`.
 - 2026-10-19: Annie's Avatar and Andrew's are both VRM 1.0. Without a fixture,
   the VRM 0 paths would lose their only test model. The owner chose to keep Y_0
   as a fixture.
@@ -292,14 +293,15 @@ Steps:
 1. Meta edit: copy the owner's VRM into the scratch directory and confirm its
    sha256 matches the value under Boundaries. Rewrite `VRMC_vrm.meta` to the
    values in R8. Save the result as
-   `content/included/avatars/Andrew_1_0.vrm` (LFS). Record the new sha256 and
+   `content/included/avatars/Andrew.vrm` (LFS; renamed from the planned
+   `Andrew_1_0.vrm`, see the check record). Record the new sha256 and
    the JSON diff in this plan.
 2. Portrait: on the task stack with `VITE_ENABLE_DEBUG_PANEL=true`, load the
    Avatar in `/avatar-portrait-debug` and use Capture portrait (512 px, renderer
    1, preset 2). Downscale the capture to 256×256 and save it as
-   `content/included/appearances/avatar-portraits/app-avatar-model-andrew-1-0-v1.webp`.
+   `content/included/appearances/avatar-portraits/app-avatar-model-andrew-v1.webp`.
    Add a `.meta.json` with `content_id` set to
-   `builtin:avatar-portrait:Andrew_1_0`, `avatar_model` set to `Andrew_1_0`,
+   `builtin:avatar-portrait:Andrew`, `avatar_model` set to `Andrew`,
    width and height 256, `renderer_version` 1 and `capture_preset_version` 2.
 3. Licences:
    - add rules for both files in `content/included/licenses/inventory.json`,
@@ -409,7 +411,7 @@ Steps:
 1. In `anima_starter_service.py`:
    - replace the Caitlyn spec with `starter:andrew`, version 1;
    - set its display name to `Andrew`;
-   - set `avatar_locator` to `avatars/Andrew_1_0.vrm` and `pocket_voice` to
+   - set `avatar_locator` to `avatars/Andrew.vrm` and `pocket_voice` to
      `michael`;
    - leave `legacy_avatar_id` and `legacy_profile_url` as `None`.
    Make those two fields optional, and skip the legacy-candidate lookup when
@@ -458,8 +460,9 @@ Check record (2026-10-20). All commands ran at the root unless noted.
     `tests/test_installation_personalization.py` and
     `tests/test_anima_creation_voice.py` passed (53).
   - `scripts/package-sets` passed (28).
-  - `tests/test_alembic_fresh_install.py` passed (7) once the deliberate
-    baseline SQL change was re-fingerprinted.
+  - `tests/test_alembic_fresh_install.py` passed (7) only after the fingerprint
+    update in `5b34012d`. Commits `42ffbed4` and `0344fdd2` carry the new
+    baseline SQL with the old fingerprint, so that one test fails on them.
 - Lint and client:
   - `uv run --no-sync ruff check` passed.
   - From `src/frontend`, `pnpm openapi-ts` then `pnpm openapi-ts:check`
@@ -556,6 +559,9 @@ Check record (2026-10-20):
     `_RETIRED_BUILTINS`;
   - the tests that retire `avt_caitlyn` and reject `starter:caitlyn`;
   - dated licence history in `art-vroid-review.json` `owner_confirmation`;
+  - ADR 0019's historical measurement on Y_0;
+  - the VRM 0 fixture keys in `checks.test.ts`, `handPresets.test.ts`,
+    `faceParts.test.ts` and `arms.test.ts`;
   - fixture provenance in `licenses/README.md`, `art-NOTICES.md` and
     `content/included/README.md`;
   - generic test names.
@@ -640,7 +646,9 @@ Steps:
 - Update the comments in `pocket_voices.py` and `browser_speech.py`.
 - Check that ADR 0010 still reads "both starter voices", and add only the
   third core voice if its wording needs it.
-- Add a "Starter Anima" glossary entry if the docs need the term.
+- Add a "Starter Anima" glossary entry if the docs need the term. The final
+  review found that the glossary has no starter or voice entries and the docs
+  introduce no new term, so it is unchanged.
 
 Checks: `pnpm prettier:check`, or the repository's docs formatting check, and
 link checks if configured.
@@ -656,6 +664,30 @@ suite once on the final candidate, as a heavy job: `uv run pytest -q`,
 Then run the full `pnpm e2e:test` (about 35 minutes) against a disposable built
 stack, as AGENTS.md requires for changes to Animas and content. Record the
 results in the PR.
+
+### Final integration review
+
+Reviewed `5b34012d` (tree `84799a00`) on the merge-base `54f4d08d`, covering
+combined R1–R9, Phase 5 and rechecks of every earlier repair. All rechecks
+are verified; no cleared finding was reopened.
+
+- **FR-F1 (blocking).** `runtime-staging.md` still said "ten core" files.
+  Fixed to 11.
+- **FR-F2 (optional).** No glossary change is needed. This is recorded in the
+  Phase 5 step.
+- **FR-F3 (optional).** ADR 0010 now has an `Amended:` header line for
+  Michael.
+- **FR-F4 (optional).** `content/included/README.md` now says Andrew's
+  metadata was set by its author.
+- **FR-F5 (optional).** The custom-animas doc now says Andrew "is created
+  rather than adopted".
+- Record corrections: the Annie eyelid surprise is marked resolved, the Phase
+  2 and 3 file names are corrected, the fingerprint note is accurate, and the
+  allowed-reference list is complete.
+
+Verification: the fixes are prose only. They were read back, and a
+repository search finds no remaining "ten core" text. The full pre-push suite
+on the final candidate follows.
 
 ## Validation and acceptance
 
@@ -681,7 +713,8 @@ Owner gates (recorded in the PR; these are not phases):
 
 ## Idempotence and recovery
 
-- Every phase is a single revertible commit.
+- Every phase commit can be reverted. Phases 2–4 share one commit, which on
+  its own fails only the schema-fingerprint test, fixed in `5b34012d`.
 - The voice release and the clip baseline are regenerated deterministically
   from source.
 - Development databases are rebuilt with `./reset.sh --purge`. No migration is

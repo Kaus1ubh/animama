@@ -175,7 +175,7 @@ https://github.com/raymond-van/animama/issues/618
 
 Required. This change touches packaging, persistence constraints, core voice
 delivery, per-Avatar baselines and the full browser suite, so it is substantial.
-See [andrew-starter-execplan.md](andrew-starter-execplan.md) (draft, unreviewed).
+See [andrew-starter-execplan.md](andrew-starter-execplan.md).
 
 ## Delivery links
 

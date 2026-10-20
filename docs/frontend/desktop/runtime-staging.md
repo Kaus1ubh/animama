@@ -208,7 +208,7 @@ mappings and the pending artifact review.
 
 ## Verified browser engine inputs
 
-`models/browser-speech/manifest.json` pins the ten core Pocket TTS/Smart Turn
+`models/browser-speech/manifest.json` pins the 11 core Pocket TTS/Smart Turn
 files. `models/browser-runtime/manifest.json` binds those plus nine ORT 1.24.2
 files from `onnxruntime-web-assets` and two VAD 0.0.30 files from its pinned
 package. Package installation supplies dependency files; staging only verifies
