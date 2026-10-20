@@ -481,7 +481,7 @@ async def test_supplied_fixture_content_can_materialize_both_starters(async_sess
             assert {gesture.source.logical_key for gesture in loadout.gestures if gesture.source} == set(
                 EXPECTED_STARTER_GESTURE_IDS
             )
-            assert len(loadout.gestures) == 99
+            assert len(loadout.gestures) == 140
             # The supplied library ships no Gesture of the Idle seed, so the pool is empty.
             assert loadout.idle.default_pool == ()
             assert len(loadout.idle.cells) == 72 and all(not cell.gestures for cell in loadout.idle.cells)
@@ -521,12 +521,12 @@ def test_starter_gestures_include_every_non_library_gesture_and_exclude_idle_see
     starter_ids = {choice["content_id"] for choice in starter_loadout_policy()["gestures"]}
 
     assert len(included_ids) == 152
-    assert len(library_ids) == 53
+    assert len(library_ids) == 12
     assert len(idle_ids) == 12
     assert idle_ids <= library_ids <= included_ids
     assert starter_ids.isdisjoint(idle_ids)
     assert starter_ids == included_ids - library_ids
-    assert len(starter_ids) == 99
+    assert len(starter_ids) == 140
 
 
 async def test_tracked_checkout_materializes_both_starters_without_optional_local_assets(async_session, tmp_path):
@@ -544,7 +544,7 @@ async def test_tracked_checkout_materializes_both_starters_without_optional_loca
             loadout = await AnimaLoadoutService(async_session).read_model(
                 user_id=fixture.owner, anima_id=starter["anima_id"]
             )
-            assert len(loadout.gestures) == 99
+            assert len(loadout.gestures) == 140
             assert_starter_reaction_pools(loadout)
             # Starters receive the reviewed Idle seed; its Gestures are never AI-callable.
             assert sorted(idle_keys(loadout.idle.default_pool)) == sorted(starter_idle_pool()["default"])
@@ -579,7 +579,7 @@ async def test_tracked_checkout_materializes_both_starters_without_optional_loca
         ]
         # Its starter Gestures follow the stored starter loadout version.
         assert {gesture.origin for gesture in applied.gestures} == {"starter"}
-        assert len(applied.gestures) == 99
+        assert len(applied.gestures) == 140
         with pytest.raises(AnimaLoadoutError, match="anima_not_found"):
             await service.create_starter_loadout(
                 user_id=f"other-{uuid4().hex}", anima_id=bare.id, store=fixture.store()
