@@ -303,14 +303,6 @@
       "license_ref": "CC-BY-4.0"
     },
     {
-      "id": "pocket-voice-michael",
-      "url": "https://downloads.animama.ai/models/pocket-tts-voices/8937f724ac4719b9aa51ea0ba1f18f9de0af7a663ad6263558266c1a53c9722d/michael.safetensors",
-      "size": 7275768,
-      "sha256": "8937f724ac4719b9aa51ea0ba1f18f9de0af7a663ad6263558266c1a53c9722d",
-      "media_type": "application/octet-stream",
-      "license_ref": "CC-BY-4.0"
-    },
-    {
       "id": "pocket-voice-noah",
       "url": "https://downloads.animama.ai/models/pocket-tts-voices/737ca868cff2fca0024fd28ae34027e99fde040a156f5d6d43b63b59ddf41db2/noah.safetensors",
       "size": 5948720,

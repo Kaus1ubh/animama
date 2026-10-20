@@ -77,7 +77,8 @@ run.
 
 ## Progress
 
-- [ ] Phase 1: Michael becomes a core voice.
+- [x] Phase 1: Michael becomes a core voice (review #1 repaired; Cloud follow-up
+  tracked separately).
 - [ ] Phase 2: Andrew is an Included Avatar with a portrait and licence records.
 - [ ] Phase 3: the `starter:andrew` starter replaces `starter:caitlyn`.
 - [ ] Phase 4: Y_0 is retired to a test fixture, and tooling and baselines cover
@@ -121,6 +122,9 @@ run.
 - 2026-10-19, agent: a new starter has no legacy history, so its legacy
   adoption fields become optional (`None` skips adoption) rather than carrying
   placeholder values.
+- 2026-10-19, owner: after review finding P1-F1, fix Cloud's hard-coded hosted
+  baseline count in this task, as a separate Cloud issue and PR. This amends
+  the "no Cloud changes" boundary. Animama still has no Cloud code dependency.
 - 2026-10-19, agent: make the meta edit with a small one-off script. It rewrites
   only the JSON chunk of the GLB, padded to 4 bytes, and leaves the binary chunk
   byte-identical. Reviewers verify the edit by diffing the decoded JSON.
@@ -170,16 +174,84 @@ checks pass.
 Recovery: the release is deterministic from `selection.json`. To undo, revert
 the delivery change and rerun steps 3–5.
 
-Check record: _to be filled._
+Check record (2026-10-19, base `38acd494`; Python 3.12.13):
+
+- `voices.py fetch` reported 133 files plus speaker info verified. The encoded
+  VCTK states were seeded from the installed voice set, and `release` checked
+  each one against `encoded-states.json`. `release --model-inputs <store>`
+  reported 3 core, 35 downloadable, a hosted set of 37 files, 11 model files and
+  22 runtime files. `shared_catalogs.py --write`, then the offline `acquire` of
+  both stores, passed.
+- The new core payload is 22 runtime files and 287,825,103 bytes, measured
+  from `models/browser-runtime/manifest.json`.
+- Root, tree `44e86a40`:
+  - `timeout 600 uv run pytest -q tests/test_voice_tools.py tests/test_browser_model_store.py tests/test_pocket_voice_set.py`
+    passed.
+  - Full pre-push run through `scripts/heavy-slot.py`: `make check-test` passed
+    (4714 passed, 29 skipped, 243 s); `pnpm prettier:check` passed;
+    `pnpm web:test:browser` passed (122/122).
+  - `pnpm verify` failed: `tests/browserRuntimeAssets.test.ts` hard-coded 21
+    runtime files. Fixed to 22.
+- From `src/frontend`, tree `88c406be`: `pnpm verify` passed after the fix,
+  and `pnpm exec vitest run tests/speech src/lib/speech src/ui/animas/VoiceLoadoutSection.test.tsx`
+  passed (355/355).
+
 Phase commit: `feat(voice)[p1]: ship Michael as a core voice`.
 
 #### Code Review #1 Findings
 
-_Pending._
+Reviewed the uncommitted tree on `38acd494`, high-risk tier, round 1. An
+analysis subagent reviewed the change, and a checks subagent independently
+reran the affected checks on tree `68aa6422`. All of these passed:
+
+- the voice, browser-model-store, voice-set and model-asset pytest files
+  (130 passed);
+- `ruff check`;
+- vitest on the runtime-asset, speech and voice-loadout tests (370 passed);
+- `pnpm check`;
+- `shared_catalogs.py` in verify mode;
+- `browser_speech.py path` and `pocket_voices.py path`, which verify against
+  the new manifests;
+- `pnpm -s verify:tts-assets` (22 files, 287,825,103 bytes).
+
+Not run: hosted `verify.mjs`, which needs a built hosted candidate.
+
+- **P1-F1 (blocking).** Cloud's artifact admission
+  (`services/hosted-api/src/animama_hosted/artifacts/application.py` on Cloud
+  `c8985d2`) requires exactly 21 baseline runtime files, and
+  `contracts/hosted-web.md` states 21 files and 280,549,335 bytes. A hosted
+  build of this candidate would fail with "Incomplete baseline runtime".
+- **P1-F2 (blocking).** The `browser-pocket` revision text in
+  `licenses/third-party/code-and-models.json` still says Eve and Azelma are
+  bundled with 36 hosted voices.
+- **P1-F3 (blocking).** The `browser-pocket` licence field in
+  `src/frontend/desktop/runtime/license-sources.json` still says "2 core voice
+  states", contradicting the updated source field. Both fields are rendered
+  into the desktop notice.
+- **Non-blocking.**
+  - Phase 5 covers the stale prose counts in `pocket_voices.py`,
+    `scripts/models/README.md` and `contracts/hosted-web.md`.
+  - The published voice-set `ATTRIBUTION.md` is the old version. URLs are
+    content-addressed, and republishing is owner-run.
+  - The desktop size budget was not measured; the extra 7.3 MB is probably
+    within it.
 
 #### Code Review #1 Revisions
 
-_Pending._
+- **P1-F1: accepted.** On 2026-10-19 the owner chose to fix Cloud within this
+  task, as a separate Cloud issue and PR. The hosted contract wording is
+  updated in Phase 5. The plan boundary "no Cloud changes" is amended in the
+  Decision Log. The Cloud PR must merge before a hosted deploy of an Animama
+  build that contains this change.
+- **P1-F2: accepted.** The text now reads "bundles Eve, Azelma and Michael and
+  hosts the other 35 on-demand voices (11 Kyutai states and all 24 …)". The
+  JSON parses.
+- **P1-F3: accepted.** The text now reads "3 core voice states". The JSON
+  parses.
+- Verification: the P1-F2 and P1-F3 changes are licence prose and need no
+  behaviour test. The Cloud change carries its own checks. The repair budget
+  is 2 rounds; no recheck is needed for prose-only fixes, and the coordinator
+  verified both with grep and a JSON parse.
 
 ### Phase 2: Andrew becomes an Included Avatar
 

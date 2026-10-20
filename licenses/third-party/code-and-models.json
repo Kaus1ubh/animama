@@ -87,7 +87,7 @@
       "id": "browser-pocket",
       "license": "CC-BY-4.0 (ONNX export, tokenizer, metadata and all 38 voice states; the bill_boerst, caro_davy, javert and marius states derive from CC0-1.0 recordings)",
       "source": "https://huggingface.co/KevinAHM/pocket-tts-onnx",
-      "revision": "58a6d00cf13d239b6748cb0769f35c580a8f606c (onnx/english_2026-04 export, tokenizer and metadata); kyutai/pocket-tts-without-voice-cloning 4e1e0a3e611c51c0b4ed8174fc10f32a54644303 (14 precomputed voice states); kyutai/tts-voices 323332d33f997de8394f24a193e1a76df720e01a (source clips of 24 Animama-encoded VCTK voice states). Animama bundles Eve and Azelma and hosts the other 36 on-demand voices (12 Kyutai states and all 24 Animama-encoded VCTK states) at https://downloads.animama.ai/models/pocket-tts-voices/<sha256>/<voice>.safetensors (tracked set models/pocket-tts-voices).",
+      "revision": "58a6d00cf13d239b6748cb0769f35c580a8f606c (onnx/english_2026-04 export, tokenizer and metadata); kyutai/pocket-tts-without-voice-cloning 4e1e0a3e611c51c0b4ed8174fc10f32a54644303 (14 precomputed voice states); kyutai/tts-voices 323332d33f997de8394f24a193e1a76df720e01a (source clips of 24 Animama-encoded VCTK voice states). Animama bundles Eve, Azelma and Michael and hosts the other 35 on-demand voices (11 Kyutai states and all 24 Animama-encoded VCTK states) at https://downloads.animama.ai/models/pocket-tts-voices/<sha256>/<voice>.safetensors (tracked set models/pocket-tts-voices).",
       "paths": [],
       "notice_files": [
         "src/frontend/desktop/runtime/notices/pocket-tts-attribution.txt",
@@ -135,6 +135,10 @@
         {
           "path": "models/pocket-tts/voices/eve.safetensors",
           "sha256": "ea9c2faf862a6c9d2cb61910fdf02842ae56940382cc8c1000fdb1b43269692b"
+        },
+        {
+          "path": "models/pocket-tts/voices/michael.safetensors",
+          "sha256": "8937f724ac4719b9aa51ea0ba1f18f9de0af7a663ad6263558266c1a53c9722d"
         },
         {
           "path": "models/pocket-tts-voices/clara.safetensors",
@@ -247,10 +251,6 @@
         {
           "path": "models/pocket-tts-voices/marius.safetensors",
           "sha256": "04f84efcb77a0547ba582c058db496f7ff4920891d49d37b9950d128422582a8"
-        },
-        {
-          "path": "models/pocket-tts-voices/michael.safetensors",
-          "sha256": "8937f724ac4719b9aa51ea0ba1f18f9de0af7a663ad6263558266c1a53c9722d"
         },
         {
           "path": "models/pocket-tts-voices/noah.safetensors",

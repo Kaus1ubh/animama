@@ -249,7 +249,7 @@
       "name": "Michael",
       "gender": "male",
       "recommended": true,
-      "delivery": "download"
+      "delivery": "core"
     },
     {
       "id": "noah",

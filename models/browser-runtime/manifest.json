@@ -84,6 +84,15 @@
       }
     },
     {
+      "path": "models/pocket-tts/voices/michael.safetensors",
+      "size": 7275768,
+      "sha256": "8937f724ac4719b9aa51ea0ba1f18f9de0af7a663ad6263558266c1a53c9722d",
+      "source": {
+        "kind": "model-store",
+        "path": "michael.safetensors"
+      }
+    },
+    {
       "path": "models/smart-turn/smart-turn-v3.2-cpu.onnx",
       "size": 8679182,
       "sha256": "2bb026316b14a660486a75b1733cd3fbab8c2fd0314dc9af7be49f8cca967e4f",

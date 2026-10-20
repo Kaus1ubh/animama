@@ -1,8 +1,8 @@
 # Pocket TTS voice states hosted by Animama
 
-This set holds 36 Pocket TTS `english_2026-04` voice states: 36 that
+This set holds 35 Pocket TTS `english_2026-04` voice states: 35 that
 the Animama app downloads on demand, and the self-encoded states of core voices
-that ship with the app. 12 are Kyutai precomputed states, redistributed
+that ship with the app. 11 are Kyutai precomputed states, redistributed
 unmodified; 24 are encoded by Animama. Other core voices come from Hugging Face
 directly and are not part of this set.
 
@@ -17,9 +17,9 @@ KevinAHM/pocket-tts-onnx (revision 58a6d00cf13d239b6748cb0769f35c580a8f606c,
 onnx/english_2026-04; CC BY 4.0, inherited from Kyutai): its FP32 Mimi encoder,
 learned BOS row and INT8 flow LM.
 
-Voices in this set (36)
+Voices in this set (35)
 
-Kyutai precomputed voice states (12), redistributed unmodified
+Kyutai precomputed voice states (11), redistributed unmodified
 Source: https://huggingface.co/kyutai/pocket-tts-without-voice-cloning/tree/4e1e0a3e611c51c0b4ed8174fc10f32a54644303/languages/english_2026-04/embeddings
 Pinned revision: 4e1e0a3e611c51c0b4ed8174fc10f32a54644303
 Repository license: CC-BY-4.0 (the published states)
@@ -36,7 +36,6 @@ which records each recording's license, listed per voice:
 - bill_boerst (downloaded on demand): kyutai/tts-voices voice-zero/bill_boerst.wav (Voice-Zero, LibriVox); CC0-1.0
 - javert (downloaded on demand): kyutai/tts-voices voice-donations/Butter.wav (Unmute Voice Donation Project, Kyutai); CC0-1.0
 - marius (downloaded on demand): kyutai/tts-voices voice-donations/Selfie.wav (Unmute Voice Donation Project, Kyutai); CC0-1.0
-- michael (downloaded on demand): kyutai/tts-voices vctk/p360_023_enhanced.wav (CSTR VCTK Corpus, University of Edinburgh); CC-BY-4.0
 - paul (downloaded on demand): kyutai/tts-voices vctk/p259_023_enhanced.wav (CSTR VCTK Corpus, University of Edinburgh); CC-BY-4.0
 - charles (downloaded on demand): kyutai/tts-voices vctk/p254_023_enhanced.wav (CSTR VCTK Corpus, University of Edinburgh); CC-BY-4.0
 

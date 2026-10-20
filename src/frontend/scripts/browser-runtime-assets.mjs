@@ -22,10 +22,10 @@ const defaultManifest = path.join(
   repositoryRoot,
   "models/browser-runtime/manifest.json",
 );
-// Reviewed inventory: generation/support files, Eve/Azelma and Smart Turn,
+// Reviewed inventory: generation/support files, Eve, Azelma, Michael and Smart Turn,
 // plus 11 pinned package files. Other voices and Mimi install through /v1/model-assets.
-const RUNTIME_FILE_COUNT = 21;
-const MODEL_FILE_COUNT = 10;
+const RUNTIME_FILE_COUNT = 22;
+const MODEL_FILE_COUNT = 11;
 const packageSources = new Map([
   ["onnxruntime-web-assets", ["onnxruntime-web", "1.24.2"]],
   ["@ricky0123/vad-web", ["@ricky0123/vad-web", "0.0.30"]],
