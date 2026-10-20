@@ -178,6 +178,20 @@ describe.each([["AvatarSample_A_1_New", 0.2164]] as [
     expect(morphInfluence(vrm, "blink")).toBeCloseTo(0.45 * 0.3, 5);
   });
 
+  it("corrects blink under VRoid's eye parts as under their whole face", () => {
+    setWeights(vrm, { Fcl_EYE_Joy: 0.75, blink: 1 });
+    expect(morphInfluence(vrm, "blink")).toBeCloseTo(0.25, 5);
+    setWeights(vrm, { Fcl_EYE_Fun: 1, blink: 0.8 });
+    expect(morphInfluence(vrm, "blink")).toBeCloseTo(0.8 * (1 - k), 5);
+    setWeights(vrm, { Fcl_EYE_Joy: 1, blink: 1 });
+    expect(morphInfluence(vrm, "blink")).toBe(0);
+  });
+
+  it("leaves blink unchanged under parts that do not close the eyelids", () => {
+    setWeights(vrm, { Fcl_EYE_Surprised: 1, Fcl_BRW_Joy: 1, blink: 0.7 });
+    expect(morphInfluence(vrm, "blink")).toBeCloseTo(0.7, 5);
+  });
+
   it("corrects the composed face of the expression controller", () => {
     const controller = new ExpressionController(vrm);
     controller.setClipExpressionPrecedence({
@@ -189,6 +203,17 @@ describe.each([["AvatarSample_A_1_New", 0.2164]] as [
     controller.update(0);
     expect(controller.getValue("blink")).toBeCloseTo(0.15, 5);
     expect(morphInfluence(vrm, "blink")).toBeCloseTo(0.15 * 0.1, 5);
+
+    // Reaction overlays keying VRoid eye parts reach the corrected instance.
+    controller.setClipExpressionPrecedence(null);
+    controller.setExpressionOverlay("reaction", {
+      Fcl_EYE_Joy: 0.75,
+      blink: 1,
+    });
+    controller.update(1 / 60);
+    expect(morphInfluence(vrm, "blink")).toBeCloseTo(0.25, 5);
+    controller.clearExpressionOverlay("reaction");
+    controller.update(1 / 60);
 
     // An immediate creator write is corrected by the next VRM update.
     controller.setValue("happy", 0.5);
@@ -217,6 +242,11 @@ describe("eyelid closure for Avatars without a verified profile", () => {
       profile: DEFAULT_EYELID_CLOSURE_PROFILE,
     });
     setWeights(vrm, { happy: 0.5, relaxed: 0.5, blink: 1 });
+    expect(morphInfluence(vrm, "blink")).toBeCloseTo(
+      1 - 0.5 - DEFAULT_EYELID_CLOSURE_PROFILE.relaxed * 0.5,
+      5,
+    );
+    setWeights(vrm, { Fcl_EYE_Joy: 0.5, Fcl_EYE_Fun: 0.5, blink: 1 });
     expect(morphInfluence(vrm, "blink")).toBeCloseTo(
       1 - 0.5 - DEFAULT_EYELID_CLOSURE_PROFILE.relaxed * 0.5,
       5,
