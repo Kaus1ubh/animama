@@ -87,6 +87,11 @@ export type StageStop = {
   /** Wide (desktop) framing, and overrides for tall (phone) viewports. */
   camera: StageCamera;
   tall?: Partial<StageCamera>;
+  /**
+   * Framing while the hero entrance plays: wider than `camera` (waist up, so
+   * her walk shows); the camera pushes in to `camera` as the title appears.
+   */
+  introCamera?: Partial<StageCamera>;
   /** CSS background behind the Avatar and any Scene Effect. */
   backdrop: string;
   /** Caption and chrome colour that reads on the backdrop. */
@@ -400,6 +405,7 @@ export const STAGE_STOPS: StageStop[] = [
       lift: 0.06,
     },
     tall: { distance: 0.94, lift: -0.02 },
+    introCamera: { distance: 1.4, aim: 0.9, lift: 0 },
     backdrop: HERO,
     ink: "dark",
     clips: [gesture("small-shy-wave", "Small wave")],
@@ -599,12 +605,25 @@ export const CREATOR_PARTICLES = [
 export type CreatorParticleId = (typeof CREATOR_PARTICLES)[number]["id"];
 
 /** Every Library source the page plays, for the server to resolve. */
+/**
+ * The hero entrance's scratch walk: its upper-body clip (from `--walk-clips`;
+ * head scratch, double take and turn, played over the procedural walk) and
+ * the Library items whose Avatar Effects it borrows (`question_mark`;
+ * `startle_ticks`).
+ */
+export const PUZZLE_CLIP_FILE = "landing-walk-scratch-take.clip.json";
+export const PUZZLE_EFFECT_SOURCES = [
+  "library:included/thinking-head-scratch",
+  "library:included/embarrassment-3-b",
+];
+
 export function stageSources(): string[] {
   return [
     ...new Set([
       ...STAGE_STOPS.flatMap((stop) => stop.clips.map(({ spec }) => spec)),
       CREATOR_SCENE,
       ...CREATOR_PARTICLES.map(({ spec }) => spec),
+      ...PUZZLE_EFFECT_SOURCES,
     ]),
   ];
 }

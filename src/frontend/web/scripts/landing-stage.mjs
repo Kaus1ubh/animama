@@ -1,4 +1,4 @@
-import { createReadStream, readdirSync } from "node:fs";
+import { createReadStream, existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createServer } from "vite";
@@ -16,11 +16,14 @@ import { openBrowser, sendJson, trustedRequest } from "./local-page-server.mjs";
  * stop's Gestures and Reactions with their Avatar, Particle and Scene Effects
  * through the app's own `Avatar` playback.
  *
- *   pnpm -s landing:stage [--port <n>] [--no-open]
+ *   pnpm -s landing:stage [--port <n>] [--no-open] [--walk-clips <dir>]
  *
  * The page lists its stops in `landing-stage/stops.ts`; this server resolves
  * the Library clips and Scene Effects they name (as `animation:preview` does)
- * and serves their files. Serves on 127.0.0.1 only and writes nothing.
+ * and serves their files. `--walk-clips` names a folder of VRMA clips for the
+ * hero's walk-on (the stage picks them by file name); without it the walk is
+ * procedural. Serves on
+ * 127.0.0.1 only and writes nothing.
  */
 const webRoot = fileURLToPath(new URL("..", import.meta.url));
 const repoRoot = path.resolve(webRoot, "../../..");
@@ -50,8 +53,12 @@ const rechartsCompatAliases = Object.fromEntries(
 );
 const PREVIEW_MODULES = "/src/lib/avatar/motion-authoring/preview";
 
+/** Walk-on clips are served by plain file name, from `--walk-clips` only. */
+const WALK_ROUTE = "/__stage/walk/";
+const WALK_FILE = /^[\w.-]+\.(vrma|clip\.json)$/;
+
 /** Start the stage server. Resolves once it listens. */
-export async function startStageServer({ port = 0 } = {}) {
+export async function startStageServer({ port = 0, walkClips = null } = {}) {
   let origin = "";
   const roots = { cwd: process.cwd(), included: includedDir, local: null };
   const files = new PreviewMediaFiles();
@@ -112,7 +119,19 @@ export async function startStageServer({ port = 0 } = {}) {
    * Every clip and Scene Effect the stops name, resolved once. A source that
    * fails to resolve is reported to the page instead of stopping the stage.
    */
-  const program = { avatar: null, sources: {}, problems: [] };
+  const program = { avatar: null, sources: {}, problems: [], walk: null };
+  // Walk-on clips: every VRMA and pose clip file in the folder, by name.
+  if (walkClips) {
+    try {
+      program.walk = Object.fromEntries(
+        readdirSync(walkClips)
+          .filter((name) => WALK_FILE.test(name))
+          .map((name) => [name, `${WALK_ROUTE}${name}`]),
+      );
+    } catch (error) {
+      program.problems.push(`walk clips: ${error.message}`);
+    }
+  }
   program.avatar = {
     id: STAGE_AVATAR,
     url: `/@fs${path.join(avatarDir, `${STAGE_AVATAR}.vrm`)}`,
@@ -154,6 +173,7 @@ export async function startStageServer({ port = 0 } = {}) {
     if (isMedia) await sendMediaFile(response, url);
     else if (url.pathname === "/__stage/program")
       sendJson(response, 200, program);
+    else if (url.pathname.startsWith(WALK_ROUTE)) sendWalkClip(response, url);
     else if (url.pathname === "/__stage/portrait") {
       response.writeHead(200, { "content-type": "image/webp" });
       createReadStream(portraitFile)
@@ -161,6 +181,25 @@ export async function startStageServer({ port = 0 } = {}) {
         .pipe(response);
     } else sendJson(response, 404, { error: "Not found" });
     return true;
+  }
+
+  /** Stream a walk-on clip listed at start-up, and nothing else. */
+  function sendWalkClip(response, url) {
+    const name = url.pathname.slice(WALK_ROUTE.length);
+    if (!program.walk || !Object.hasOwn(program.walk, name)) {
+      sendJson(response, 404, { error: "Not found" });
+      return;
+    }
+    response.writeHead(200, {
+      "content-type": name.endsWith(".json")
+        ? "application/json"
+        : "model/gltf-binary",
+      "cache-control": "no-store",
+      "x-content-type-options": "nosniff",
+    });
+    createReadStream(path.join(walkClips, name))
+      .on("error", () => response.destroy())
+      .pipe(response);
   }
 
   /** Stream an effect file a resolved source offered to the page. */
@@ -191,15 +230,20 @@ export async function startStageServer({ port = 0 } = {}) {
   };
 }
 
-const USAGE = "Usage: pnpm -s landing:stage [--port <n>] [--no-open]";
+const USAGE =
+  "Usage: pnpm -s landing:stage [--port <n>] [--no-open] [--walk-clips <dir>]";
 
 async function main(argv) {
   let port = 0;
   let open = true;
+  let walkClips = null;
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
     if (argument === "--no-open") open = false;
-    else if (argument === "--port") {
+    else if (argument === "--walk-clips") {
+      walkClips = path.resolve(argv[index + 1] ?? "");
+      index += 1;
+    } else if (argument === "--port") {
       port = Number(argv[index + 1]);
       index += 1;
     } else {
@@ -211,7 +255,7 @@ async function main(argv) {
     console.log(USAGE);
     return 2;
   }
-  const stage = await startStageServer({ port });
+  const stage = await startStageServer({ port, walkClips });
   for (const problem of stage.problems) console.log(`Skipped ${problem}`);
   console.log(`Stage: ${stage.url}`);
   console.log("Press Ctrl+C to stop.");

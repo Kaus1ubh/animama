@@ -109,7 +109,12 @@ function Overlay({ controller }: { controller: StageController }) {
   return (
     <>
       <Header light={light} controller={controller} />
-      <ProgressThread active={active} light={light} controller={controller} />
+      <ProgressThread
+        active={active}
+        light={light}
+        revealed={state.revealed}
+        controller={controller}
+      />
       <main>
         {STAGE_STOPS.map((stop, index) => (
           <section
@@ -159,10 +164,13 @@ function useScrollProgress() {
 function ProgressThread({
   active,
   light,
+  revealed,
   controller,
 }: {
   active: number;
   light: boolean;
+  /** Hidden until the hero entrance reaches her wave. */
+  revealed: boolean;
   controller: StageController;
 }) {
   const progress = useScrollProgress();
@@ -172,7 +180,10 @@ function ProgressThread({
   return (
     <nav
       aria-label="Features"
-      className="fixed top-1/2 left-10 z-40 hidden h-[min(26rem,54vh)] -translate-y-1/2 md:block"
+      className={cn(
+        "fixed top-1/2 left-10 z-40 hidden h-[min(26rem,54vh)] -translate-y-1/2 transition-opacity duration-700 md:block",
+        revealed ? "opacity-100 delay-700" : "pointer-events-none opacity-0",
+      )}
     >
       <div
         className={cn(
@@ -579,7 +590,16 @@ function Stop(props: StopProps) {
  * The opening title and line. The logo already sits in the header, so the
  * line says what an Anima does; its feature words jump to their stops.
  */
-function Hero({ stop, active, controller }: StopProps) {
+function Hero({ stop, active, state, controller }: StopProps) {
+  // The title and line wait for her wave, then rise in one after another.
+  const revealed = state.revealed;
+  const reveal = (delay: string) =>
+    cn(
+      "transition-[opacity,translate] duration-700 ease-out",
+      revealed
+        ? cn("translate-y-0 opacity-100", delay)
+        : "translate-y-4 opacity-0",
+    );
   return (
     <div
       className={cn(
@@ -591,10 +611,20 @@ function Hero({ stop, active, controller }: StopProps) {
       aria-hidden={!active}
     >
       <div className="flex flex-col items-center">
-        <h1 className="font-hero text-foreground text-[2.75rem] leading-tight md:text-[4.375rem]">
+        <h1
+          className={cn(
+            "font-hero text-foreground text-[2.75rem] leading-tight md:text-[4.375rem]",
+            reveal("delay-0"),
+          )}
+        >
           {stop.title}
         </h1>
-        <p className="font-hero-line text-muted-foreground mt-2 max-w-[22ch] text-[1.375rem] leading-snug text-balance md:mt-3 md:max-w-none md:text-[1.9375rem]">
+        <p
+          className={cn(
+            "font-hero-line text-muted-foreground mt-2 max-w-[22ch] text-[1.375rem] leading-snug text-balance md:mt-3 md:max-w-none md:text-[1.9375rem]",
+            reveal("delay-300"),
+          )}
+        >
           <LinkedText stop={stop} controller={controller} />
         </p>
       </div>

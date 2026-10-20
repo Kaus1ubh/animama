@@ -27,6 +27,7 @@ import type { PreviewClip } from "@/lib/avatar/motion-authoring/preview/sources"
 
 import { SceneBands, missingSceneMessage } from "../effect-render/sceneBands";
 import { AmbientLayer, type AmbientWeights } from "./ambient";
+import { Intro, WALK_VARIANTS, type WalkVariantId } from "./intro";
 import { CursorTrail } from "./trail";
 import { addChatLights, applyChatColorPipeline } from "../effect-render/stage";
 import {
@@ -41,6 +42,8 @@ import {
   CREATOR_PARTICLES,
   CREATOR_SCENE,
   PLAIN_BACKDROP,
+  PUZZLE_CLIP_FILE,
+  PUZZLE_EFFECT_SOURCES,
   STAGE_STOPS,
   type StageCamera,
   type StageStop,
@@ -57,6 +60,9 @@ import {
  * (`overlay.tsx`) draws the captions and demos through `StageController`.
  *
  * `?hud` shows the live camera values; `?stop=<id>` opens at a stop;
+ * the walk-on is procedural; `?walk=<id>` tries a clip cycle from
+ * `WALK_VARIANTS` instead, when the server has walk clips; `?nopuzzle` skips
+ * the head scratch and double take; `?nointro` skips the entrance;
  * `?classic` renders the Avatar without the app's enhanced shaders and
  * lighting (set before any module loads, in `index.html`); `?washes` brings
  * back the pastel gradient washes behind the light stops.
@@ -73,6 +79,8 @@ type Program = {
     }
   >;
   problems: string[];
+  /** Walk-on clip paths by file name, when the server has walk clips. */
+  walk: Record<string, string> | null;
 };
 
 type SceneEffect = Extract<PreviewEffect, { kind: "scene_effect" }>;
@@ -130,6 +138,14 @@ const CAMERA_KEYS = [
 
 const params = new URLSearchParams(location.search);
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const openingStop = STAGE_STOPS.findIndex(
+  ({ id }) => id === params.get("stop"),
+);
+/**
+ * Whether she walks on stage first: only when the page opens at the hero,
+ * motion is allowed and `?nointro` is absent.
+ */
+const playIntro = openingStop <= 0 && !reducedMotion && !params.has("nointro");
 const ui = {
   canvas: document.getElementById("canvas") as HTMLCanvasElement,
   backdrop: document.getElementById("backdrop") as HTMLDivElement,
@@ -171,10 +187,14 @@ const store = createStore<StageState>({
   active: -1,
   playing: null,
   problems: [],
+  intro: playIntro ? "walking" : "done",
+  revealed: !playIntro,
 });
 
 let program: Program | null = null;
 let avatar: Avatar | null = null;
+/** The hero entrance while it plays; null once she is on her mark. */
+let intro: Intro | null = null;
 /** Rest height of the head bone; the unit of every camera length. */
 let headHeight = 1;
 /** Session seconds, the clock Scene animations are seeked to. */
@@ -187,6 +207,23 @@ let lookBack = 0;
 let turn = 0;
 /** Smoothed dusk lighting weight (0–1). */
 let dusk = 0;
+/**
+ * When her smile began to grow (session seconds): from the double take,
+ * happy rises from 0 to 1 over `HAPPY_RAMP_SEC`, through the turn and into
+ * the wave, and holds until the wave ends.
+ */
+let happyFrom: number | null = null;
+const HAPPY_RAMP_SEC = 1.2;
+/** When her wave began (session seconds), and how far into it the reveal starts. */
+let waveFrom: number | null = null;
+const REVEAL_DELAY_SEC = 0.5;
+/**
+ * When her smile began to fade (session seconds): once the wave ends, with
+ * the camera already pushed in, happy eases back to 0 over `HAPPY_FADE_SEC`
+ * and hands her face back to the Avatar.
+ */
+let happyFadeFrom: number | null = null;
+const HAPPY_FADE_SEC = 1;
 /** Whether a clip is playing (a finished clip stays marked in the store). */
 let clipBusy = false;
 /** Smoothed cursor look-at strength (0–1), and the value last applied. */
@@ -261,10 +298,12 @@ const aimPoint = new THREE.Vector3();
  * front of her; she faces +Z and her left is +X), aim it and shift the lens.
  */
 function placeCamera(view: StageCamera, width: number, height: number) {
-  aimPoint.set(0, view.aim * headHeight, 0);
+  // The camera follows her sideways while she walks on.
+  const pan = intro?.cameraX ?? 0;
+  aimPoint.set(pan, view.aim * headHeight, 0);
   const distance = view.distance * headHeight;
   camera.position.set(
-    Math.sin(view.yaw * DEG) * distance,
+    pan + Math.sin(view.yaw * DEG) * distance,
     aimPoint.y + view.rise * headHeight,
     Math.cos(view.yaw * DEG) * distance,
   );
@@ -376,20 +415,29 @@ function playClip(stopIndex: number, index: number) {
   cursors[stopIndex] = (index + 1) % stop.clips.length;
   media.setMedia(source.media ?? EMPTY_PREVIEW_MEDIA);
   const { clip, finitePlayback } = demoPlayback(source.clip);
-  avatar.playAnimaPoseClip(clip, {
-    preserveProceduralOffsets: true,
-    finitePlayback,
-    onFinished: () => {
-      // The finished clip stays marked until the next one starts.
-      if (token !== playToken) return;
-      clipBusy = false;
-      if (stop.clipMode === "cycle")
-        clipTimer = window.setTimeout(
-          () => playClip(stopIndex, cursors[stopIndex]),
-          CLIP_GAP_SEC * 1000,
-        );
+  // During the entrance her face follows the stage's growing smile, not the
+  // wave's own expressions.
+  avatar.playAnimaPoseClip(
+    happyFrom === null ? clip : { ...clip, expressions: {} },
+    {
+      preserveProceduralOffsets: true,
+      finitePlayback,
+      onFinished: () => {
+        // The finished clip stays marked until the next one starts.
+        if (token !== playToken) return;
+        clipBusy = false;
+        if (stopIndex === 0 && store.get().intro === "waving") {
+          finishIntro();
+          if (happyFrom !== null) happyFadeFrom = time;
+        }
+        if (stop.clipMode === "cycle")
+          clipTimer = window.setTimeout(
+            () => playClip(stopIndex, cursors[stopIndex]),
+            CLIP_GAP_SEC * 1000,
+          );
+      },
     },
-  });
+  );
   clipBusy = true;
   store.set({ playing: { stop: stopIndex, clip: index } });
 }
@@ -459,6 +507,14 @@ function creatorMedia(): PreviewMedia {
 // ── Stops ──────────────────────────────────────────────────────────────────
 
 function enterStop(index: number) {
+  // Leaving the hero mid-entrance puts her straight on her mark, and hands
+  // her face back to the stops' clips.
+  if (index !== 0) {
+    finishIntro();
+    if (happyFrom !== null) avatar?.clearExpressionOverride("happy");
+    happyFrom = null;
+    happyFadeFrom = null;
+  }
   stopPlayback();
   const stop = STAGE_STOPS[index];
   document.body.dataset.ink = stop.ink;
@@ -472,11 +528,93 @@ function enterStop(index: number) {
     applyCreator();
     return;
   }
-  if (stop.clips.length === 0) return;
+  // The entrance plays the hero's wave itself once she has turned.
+  if (stop.clips.length === 0 || (index === 0 && intro)) return;
   const token = playToken;
   clipTimer = window.setTimeout(() => {
     if (token === playToken) playClip(index, cursors[index]);
   }, CLIP_LEAD_SEC * 1000);
+}
+
+// ── Intro ──────────────────────────────────────────────────────────────────
+
+/** The scratch walk's clip, when the walk-clips folder has one. */
+let puzzleClip: PreviewClip["clip"] | null = null;
+
+/** The hero entrance with the requested walk. */
+async function createIntro(target: Avatar) {
+  const puzzlePath = program?.walk?.[PUZZLE_CLIP_FILE];
+  if (puzzlePath && !params.has("nopuzzle")) {
+    const response = await fetch(puzzlePath);
+    if (response.ok) puzzleClip = await response.json();
+  }
+  const requested = params.get("walk") ?? "";
+  const variant: WalkVariantId =
+    requested in WALK_VARIANTS ? (requested as WalkVariantId) : "overte";
+  // The screen's left edge at her depth, for the intro framing.
+  const view = { ...stopCamera(STAGE_STOPS[0]), ...STAGE_STOPS[0].introCamera };
+  const edgeX =
+    Math.tan((view.fov * DEG) / 2) *
+    view.distance *
+    headHeight *
+    (window.innerWidth / window.innerHeight);
+  const clipUrls =
+    program?.walk && params.has("walk")
+      ? Object.fromEntries(
+          Object.entries(program.walk).map(([name, path]) => [
+            name,
+            new URL(path, location.origin).href,
+          ]),
+        )
+      : null;
+  return Intro.create(target, headHeight, {
+    clipUrls,
+    variant,
+    edgeX,
+    puzzle: puzzleClip !== null,
+  });
+}
+
+/**
+ * Play the scratch walk's clip, with the Avatar Effects it borrows from the
+ * Library items that ship them.
+ */
+function playPuzzle() {
+  if (!avatar || !puzzleClip) return;
+  const avatarEffects = new Map<
+    string,
+    PreviewMedia["avatarEffects"][number]
+  >();
+  for (const spec of PUZZLE_EFFECT_SOURCES)
+    for (const entry of program?.sources[spec]?.media?.avatarEffects ?? [])
+      avatarEffects.set(entry.alias, entry);
+  media.setMedia({
+    ...EMPTY_PREVIEW_MEDIA,
+    avatarEffects: [...avatarEffects.values()],
+  });
+  avatar.playAnimaPoseClip(puzzleClip, { preserveProceduralOffsets: true });
+}
+
+/** Advance the hero entrance; once she faces the camera she waves. */
+function updateIntro(delta: number) {
+  if (!intro || intro.phase === "waving") return;
+  const before = intro.phase;
+  const phase = intro.update(delta);
+  store.set({ intro: phase });
+  if (phase === "puzzled" && before !== "puzzled") playPuzzle();
+  if (phase === "turning" && happyFrom === null) happyFrom = time;
+  if (phase === "waving") {
+    waveFrom = time;
+    playClip(0, 0);
+  }
+}
+
+/** End the entrance (after the wave, or early): reveal the hero's text. */
+function finishIntro() {
+  if (!intro) return;
+  intro.finish();
+  intro = null;
+  store.set({ intro: "done", revealed: true });
 }
 
 function scrollToStop(index: number) {
@@ -497,7 +635,9 @@ const FOLLOW_FOREVER_SEC = 1e6;
  */
 function showFollow(stop: StageStop, ease: number) {
   const target =
-    stop.followCursor && !(stop.clipMode === "once" && clipBusy) ? 1 : 0;
+    stop.followCursor && !intro && !(stop.clipMode === "once" && clipBusy)
+      ? 1
+      : 0;
   cursorFollow += (target - cursorFollow) * ease;
   // Snap the tail of a fade-out so the layer fully releases her.
   if (target === 0 && cursorFollow < 0.01) cursorFollow = 0;
@@ -590,7 +730,15 @@ function frame() {
   const { from, blend, active } = scrollPosition();
   const a = STAGE_STOPS[from];
   const b = STAGE_STOPS[from + 1];
-  follow(blendCameras(stopCamera(a), stopCamera(b), blend), delta);
+  const target = blendCameras(stopCamera(a), stopCamera(b), blend);
+  // The entrance is framed wider; the camera pushes in to the stop a second
+  // into her wave, with the text.
+  follow(
+    store.get().revealed
+      ? target
+      : { ...target, ...STAGE_STOPS[0].introCamera },
+    delta,
+  );
   backdrops.forEach((layer, index) => {
     layer.style.opacity = String(
       index === from ? 1 - blend : index === from + 1 ? blend : 0,
@@ -603,7 +751,8 @@ function frame() {
   lookBack +=
     (THREE.MathUtils.lerp(a.lookBack ?? 0, b.lookBack ?? 0, blend) - lookBack) *
     ease;
-  turn = lookBackTurn(lookBack);
+  updateIntro(delta);
+  turn = lookBackTurn(lookBack) + (intro?.glanceTurn ?? 0);
   dusk +=
     (THREE.MathUtils.lerp(a.dusk ? 1 : 0, b.dusk ? 1 : 0, blend) - dusk) * ease;
   for (const mood of ["sparkles", "stars"] as const) {
@@ -624,6 +773,26 @@ function frame() {
   avatar?.update(delta);
   renderer.render(scene, camera);
 
+  if (
+    waveFrom !== null &&
+    !store.get().revealed &&
+    time - waveFrom >= REVEAL_DELAY_SEC
+  )
+    store.set({ revealed: true });
+  if (happyFrom !== null) {
+    const smooth = (t: number) => t * t * (3 - 2 * t);
+    const rise = smooth(Math.min(1, (time - happyFrom) / HAPPY_RAMP_SEC));
+    const fade =
+      happyFadeFrom === null
+        ? 0
+        : smooth(Math.min(1, (time - happyFadeFrom) / HAPPY_FADE_SEC));
+    avatar?.setExpression("happy", rise * (1 - fade));
+    if (fade >= 1) {
+      avatar?.clearExpressionOverride("happy");
+      happyFrom = null;
+      happyFadeFrom = null;
+    }
+  }
   bands.setSize(width, height);
   bands.expire(time);
   bands.seekAnimations(time);
@@ -639,6 +808,7 @@ function showHud() {
     `stop   ${STAGE_STOPS[active]?.id ?? "-"} (${isTall() ? "tall" : "wide"})`,
     ...CAMERA_KEYS.map((key) => `${key.padEnd(8)} ${view[key].toFixed(3)}`),
     `turn   ${(turn / DEG).toFixed(1)}°`,
+    `intro  ${store.get().intro}`,
     `clip   ${avatar?.getClipSnapshot().clipId ?? "-"}`,
     `scenes ${bands.sceneLabels().join(", ") || "-"}`,
     ...problems.map((problem) => `! ${problem}`),
@@ -690,8 +860,8 @@ async function start() {
   ui.hud.hidden = !params.has("hud");
   // The app's components read their labels from its English catalogs.
   mountOverlay(ui.overlay, controller, await createWebI18n("en"));
-  const opening = STAGE_STOPS.findIndex(({ id }) => id === params.get("stop"));
-  if (opening > 0) window.scrollTo({ top: opening * window.innerHeight });
+  if (openingStop > 0)
+    window.scrollTo({ top: openingStop * window.innerHeight });
   // Captions and camera follow the scroll while the Avatar loads.
   requestAnimationFrame(frame);
 
@@ -709,12 +879,15 @@ async function start() {
   await avatar.load({ filePath: program.avatar.url });
   if (!avatar.scene || !avatar.vrm)
     throw new Error(`Cannot load ${program.avatar.id}.`);
-  scene.add(avatar.scene);
   avatar.update(0);
   headHeight = avatar.vrm.humanoid
     .getRawBoneNode("head")!
     .getWorldPosition(new THREE.Vector3()).y;
   installLookBack(avatar);
+  // Placed at the start of her entrance before she joins the scene, so she
+  // never shows on her mark first.
+  if (playIntro) intro = await createIntro(avatar);
+  scene.add(avatar.scene);
   // Track the cursor continuously while a stop allows it, rather than in the
   // chat's occasional glances; `followCursor` fades the strength in and out.
   avatar.setProceduralAnimationLayerParams("cursorLookAt", {

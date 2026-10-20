@@ -1,3 +1,4 @@
+import type { IntroPhase } from "./intro";
 import type {
   CreatorLayerId,
   CreatorPaletteId,
@@ -26,6 +27,15 @@ export type StageState = {
   playing: { stop: number; clip: number } | null;
   /** Problems resolving sources, shown in the HUD. */
   problems: string[];
+  /**
+   * The hero entrance's progress.
+   */
+  intro: IntroPhase;
+  /**
+   * Whether the hero's text, the progress thread and the stop framing are
+   * shown: from a second into her wave (at once when there is no entrance).
+   */
+  revealed: boolean;
 };
 
 export type StageController = {

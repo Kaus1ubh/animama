@@ -33,7 +33,9 @@
       <div class="backdrop" id="backdrop"></div>
       <canvas class="ambient" id="ambient"></canvas>
       <div class="bands" id="bands"></div>
-      <canvas id="canvas"></canvas>
+      <!-- Hidden inline too: in development the stylesheet loads after the
+           first paint, and the Avatar must not show before she is placed. -->
+      <canvas id="canvas" style="opacity: 0"></canvas>
     </div>
     <div id="overlay"></div>
     <canvas class="cursor-trail" id="trail" aria-hidden="true"></canvas>
