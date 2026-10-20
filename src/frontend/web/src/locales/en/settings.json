@@ -220,7 +220,7 @@
       "remove": "Remove"
     },
     "cleanupPending": "The pack is no longer active, but some files remain. Close applications using those files, then retry Remove.",
-    "inUse": "Finish active document jobs, close content previews, and remove this pack’s entries from Anima loadouts before retrying.",
+    "inUse": "Finish active document jobs, close content previews, and unequip this pack’s entries in each Anima’s Behavior before retrying.",
     "noCompatiblePack": "No compatible released pack is included in this app’s catalog.",
     "packs": {
       "documentProcessing": {
@@ -228,7 +228,7 @@
         "name": "Document processing"
       },
       "expandedIncludedContent": {
-        "description": "Adds selectable content to Included. It never changes your Anima’s loadout automatically.",
+        "description": "Adds selectable content to Included. It never changes your Anima’s Behavior automatically.",
         "name": "Expanded Included content"
       }
     },
@@ -434,7 +434,7 @@
             "flashLite": "Lower-latency, lower-cost Gemini speech."
           },
           "label": "Gemini model",
-          "note": "Google bills Gemini speech to your API key. Choose each Anima's voice in Loadout → Voices.",
+          "note": "Google bills Gemini speech to your API key. Choose each Anima's voice in Behavior → Voices.",
           "placeholder": "Select model",
           "updateFailed": "Failed to update Gemini model."
         }
@@ -445,7 +445,7 @@
         "enableFirst": "Enable Text-to-Speech to select a provider.",
         "entryLabel": "Default Text-to-Speech provider",
         "label": "Default provider",
-        "note": "Used by Animas without their own provider. Choose providers and voices for each Anima in Loadout → Voices.",
+        "note": "Used by Animas without their own provider. Choose providers and voices for each Anima in Behavior → Voices.",
         "updateFailed": "Failed to update TTS provider."
       },
       "stream": {

@@ -398,6 +398,170 @@
     {
       "content_id": "builtin:gesture:zip-lips",
       "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:air-guitar",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:aww-hands-to-chest",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:big-arm-heart",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:big-yawn",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:brain-overload",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:brush-off-shoulders",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:calm-down-pat",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:checking-phone",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:confession-letter-bow",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:detective-squint",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:dismissive-hand-wave",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:dramatic-swoon",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:energy-wave",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:excited-two-arm-wave",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:freezing-shiver",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:hand-hold-offer",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:hands-behind-head-relax",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:heart-shot-oof",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:idol-glowstick-cheer",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:innocent-whistle",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:jazz-hands-ta-da",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:lean-in-coy",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:nom-nom",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:offer-a-rose",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:oh-no-cheeks-panic",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:one-moment-finger",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:pinch-nose-stinky",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:polite-applause",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:raise-the-roof",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:rock-paper-scissors-paper",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:rock-paper-scissors-rock",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:rock-paper-scissors-scissors",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:sassy-hair-flip",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:shadow-boxing",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:slow-sarcastic-clap",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:snicker-laugh",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:sniff-sniff",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:spit-take",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:spooky-ghost-hands",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:surprised-head-tilt",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:tantrum-stomp",
+      "version": 1
     }
   ],
   "reactions": [

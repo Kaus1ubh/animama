@@ -61,28 +61,6 @@ CORE_LIBRARY_LOCATORS = (
     "vfx/particle/quark/musical-cascade",
     "vfx/particle/quark/snow-crystal-flurry",
     "vfx/scene/awkward-silence",
-    "gestures/air-guitar",
-    "gestures/big-arm-heart",
-    "gestures/big-yawn",
-    "gestures/brain-overload",
-    "gestures/brush-off-shoulders",
-    "gestures/dramatic-swoon",
-    "gestures/energy-wave",
-    "gestures/excited-two-arm-wave",
-    "gestures/freezing-shiver",
-    "gestures/idol-glowstick-cheer",
-    "gestures/innocent-whistle",
-    "gestures/jazz-hands-ta-da",
-    "gestures/nom-nom",
-    "gestures/raise-the-roof",
-    "gestures/rock-paper-scissors-paper",
-    "gestures/rock-paper-scissors-rock",
-    "gestures/rock-paper-scissors-scissors",
-    "gestures/sassy-hair-flip",
-    "gestures/shadow-boxing",
-    "gestures/slow-sarcastic-clap",
-    "gestures/sniff-sniff",
-    "gestures/spit-take",
     "vfx/avatar/delicious_sparkle",
     "vfx/avatar/dizzy_birds",
     "vfx/avatar/glowstick",
@@ -103,25 +81,6 @@ CORE_LIBRARY_LOCATORS = (
     "vfx/particle/quark/overheat-steam",
     "vfx/particle/quark/spit-spray-mist",
     "vfx/particle/quark/ta-da-glitter",
-    "gestures/aww-hands-to-chest",
-    "gestures/calm-down-pat",
-    "gestures/checking-phone",
-    "gestures/confession-letter-bow",
-    "gestures/detective-squint",
-    "gestures/dismissive-hand-wave",
-    "gestures/hand-hold-offer",
-    "gestures/hands-behind-head-relax",
-    "gestures/heart-shot-oof",
-    "gestures/lean-in-coy",
-    "gestures/offer-a-rose",
-    "gestures/oh-no-cheeks-panic",
-    "gestures/one-moment-finger",
-    "gestures/pinch-nose-stinky",
-    "gestures/polite-applause",
-    "gestures/snicker-laugh",
-    "gestures/spooky-ghost-hands",
-    "gestures/surprised-head-tilt",
-    "gestures/tantrum-stomp",
     "vfx/avatar/cupid_arrow_stuck",
     "vfx/avatar/kiss_mark",
     "vfx/avatar/love_letter",
@@ -149,21 +108,6 @@ SHARED_STARTER_EFFECT_LOCATORS = (
     "vfx/avatar/hearts_burst",
     "vfx/avatar/puff",
     "vfx/avatar/sweat_drop",
-    "vfx/avatar/happy_flowers",
-    "vfx/avatar/impact_burst",
-    "vfx/avatar/kira_star",
-    "vfx/avatar/sly_glint",
-    "vfx/particle/quark/dizzy-stars",
-    "vfx/particle/quark/sparkle-hearts",
-    "vfx/particle/quark/star-burst",
-    "vfx/avatar/blush",
-    "vfx/avatar/emote",
-    "vfx/avatar/gloom_lines",
-    "vfx/avatar/laugh_marks",
-    "vfx/avatar/pale_blue_shade",
-    "vfx/avatar/steam_puffs",
-    "vfx/particle/quark/gloom-wisps",
-    "vfx/particle/quark/stink-miasma",
 )
 
 
@@ -194,10 +138,10 @@ def test_reviewed_library_ships_in_core_without_equipping_starters(tmp_path: Pat
     entries = {entry["locator"]: entry for entry in inventory["entries"]}
     library = [entries[locator] for locator in CORE_LIBRARY_LOCATORS]
 
-    assert len(library) == 119
+    assert len(library) == 78
     assert {entry["partition"] for entry in library} == {"core"}
     library_files = {file for entry in library for file in entry["files"]}
-    assert len(library_files) == 293
+    assert len(library_files) == 211
     assert {file["partition"] for file in inventory["files"] if file["path"] in library_files} == {"core"}
     library_keys = {entry["logical_key"] for entry in library}
     for starter in inventory["starters"]:

@@ -8798,6 +8798,12 @@ export type PyTypedContentPreview = {
         kind: 'voice';
     } & PyVoiceContent);
     /**
+     * Optional Omitted
+     */
+    optional_omitted?: {
+        [key: string]: string;
+    };
+    /**
      * Preview Id
      */
     preview_id: string;

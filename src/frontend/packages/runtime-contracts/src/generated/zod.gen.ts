@@ -6631,6 +6631,7 @@ export const zPyTypedContentPreview = z.object({
             kind: z.literal('voice')
         }).and(zPyVoiceContent)
     ]),
+    optional_omitted: z.optional(z.record(z.string(), z.string())),
     preview_id: z.string(),
     revision_sha256: z.string().regex(/^[0-9a-f]{64}$/),
     supports: z.optional(z.array(z.union([

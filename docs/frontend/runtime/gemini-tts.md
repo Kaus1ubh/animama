@@ -85,7 +85,7 @@ to that part's own audio; see [Avatar lip-sync](avatar-lipsync.md).
 - "Stream chunked Text-to-Speech" is off and disabled with Gemini, because the
   server pushes finalized audio. The saved preference is kept for other
   providers.
-- Loadout → Voices offers Gemini as the Anima's TTS provider where it is
+- Behavior → Voices offers Gemini as the Anima's TTS provider where it is
   offered. With Gemini chosen, `GeminiVoicePicker` lists the prebuilt voices in
   the PocketTTS picker's layout:
   - search, and All/Female/Male tabs;

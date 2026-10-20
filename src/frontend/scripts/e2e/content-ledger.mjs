@@ -3,6 +3,10 @@ import path from "node:path";
 
 import { ensurePrivateDirectory } from "./run-support.mjs";
 
+// One Anima package holds at most the backend's runtime entry budget
+// (MAX_RUNTIME_ENTRIES); the starter Animas alone carry about 500.
+const MAX_PACKAGE_LEDGER_ENTRIES = 1000;
+
 const CONTENT_LEDGER_SCHEMA_VERSION = 1;
 const CONTENT_LEDGER_EVENTS = [
   "planned",
@@ -155,7 +159,7 @@ function validateCommon(event) {
       if (
         !Array.isArray(event.packageEntries) ||
         !event.packageEntries.length ||
-        event.packageEntries.length > 512
+        event.packageEntries.length > MAX_PACKAGE_LEDGER_ENTRIES
       )
         throw new Error(
           "Package ownership requires a bounded complete entry list.",

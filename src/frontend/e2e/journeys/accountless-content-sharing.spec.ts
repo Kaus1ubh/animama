@@ -76,7 +76,7 @@ async function openReactionCell(
   await expect(page.getByText("Loading anima", { exact: true })).toBeHidden({
     timeout: 30_000,
   });
-  await page.getByRole("tab", { name: "Loadout", exact: true }).click();
+  await page.getByRole("tab", { name: "Behavior", exact: true }).click();
   const section = page.getByRole("region", { name: "Reactions", exact: true });
   const disclosure = section.getByRole("button", {
     name: "Reactions",

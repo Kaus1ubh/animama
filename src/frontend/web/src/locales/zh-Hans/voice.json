@@ -166,7 +166,7 @@
     "fallback": {
       "customMissing": "已选择自定义 PocketTTS 语音，但尚未上传自定义语音。",
       "downloadFailed": "无法下载语音“{{voice}}”，因此使用默认语音。下次回复时或你再次选择该语音时会重试下载。",
-      "unknownVoice": "已保存的语音“{{voice}}”已不可用，因此使用默认语音。请在“装备 → 语音”中选择其他语音。"
+      "unknownVoice": "已保存的语音“{{voice}}”已不可用，因此使用默认语音。请在“行为 → 语音”中选择其他语音。"
     },
     "sample": {
       "playFailed": "无法播放 {{name}} 的样本。请检查网络连接后重试。"

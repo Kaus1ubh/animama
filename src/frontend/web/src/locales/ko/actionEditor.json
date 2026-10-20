@@ -311,7 +311,7 @@
       "avatarUnauthorized": "미리 보기 아바타를 승인할 수 없습니다.",
       "fileUnauthorized": "비공개 미리 보기 파일이 승인되지 않았습니다.",
       "idleAnimationUnavailable": "선택한 대기 애니메이션을 사용할 수 없습니다.",
-      "idlePlaybackUnavailable": "이 제스처는 유한 대기 재생을 사용할 수 없습니다. 로드아웃을 새로 고치고 다시 시도하세요.",
+      "idlePlaybackUnavailable": "이 제스처는 유한 대기 재생을 사용할 수 없습니다. 행동을 새로 고치고 다시 시도하세요.",
       "invalidClosure": "액션 미리 보기가 잘못된 종속 항목 묶음을 반환했습니다.",
       "particleFailed": "선택한 파티클 효과를 재생할 수 없습니다.",
       "particlesUnsupported": "미리 보기 아바타는 파티클을 재생할 수 없습니다.",
@@ -339,8 +339,8 @@
       "title": "아바타 이동"
     },
     "movePanel": "콘텐츠 미리 보기 이동",
-    "openLoadout": "Anima 로드아웃 열기",
-    "openLoadoutNamed": "{{name}} 로드아웃 열기",
+    "openLoadout": "Anima 행동 열기",
+    "openLoadoutNamed": "{{name}} 행동 열기",
     "preparingPlayback": "재생을 준비하는 중…",
     "replay": "다시 재생",
     "resetCamera": {

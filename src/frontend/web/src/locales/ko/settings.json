@@ -218,7 +218,7 @@
       "remove": "제거"
     },
     "cleanupPending": "팩은 더 이상 활성 상태가 아니지만 일부 파일이 남아 있습니다. 해당 파일을 사용하는 애플리케이션을 닫은 후 다시 제거하세요.",
-    "inUse": "진행 중인 문서 작업을 마치고, 콘텐츠 미리보기를 닫고, Anima 로드아웃에서 이 팩의 항목을 제거한 후 다시 시도하세요.",
+    "inUse": "진행 중인 문서 작업을 마치고, 콘텐츠 미리보기를 닫고, Anima 행동에서 이 팩의 항목을 제거한 후 다시 시도하세요.",
     "noCompatiblePack": "이 앱의 카탈로그에 호환되는 출시 팩이 없습니다.",
     "packs": {
       "documentProcessing": {
@@ -226,7 +226,7 @@
         "name": "문서 처리"
       },
       "expandedIncludedContent": {
-        "description": "기본 제공에 선택할 수 있는 콘텐츠를 추가합니다. Anima의 로드아웃을 자동으로 바꾸지 않습니다.",
+        "description": "기본 제공에 선택할 수 있는 콘텐츠를 추가합니다. Anima의 행동을 자동으로 바꾸지 않습니다.",
         "name": "확장 기본 제공 콘텐츠"
       }
     },
@@ -430,7 +430,7 @@
             "flashLite": "지연 시간과 비용이 더 낮은 Gemini 음성입니다."
           },
           "label": "Gemini 모델",
-          "note": "Gemini 음성 요금은 Google이 API 키로 청구합니다. Anima별 음성은 로드아웃 → 음성에서 선택하세요.",
+          "note": "Gemini 음성 요금은 Google이 API 키로 청구합니다. Anima별 음성은 행동 → 음성에서 선택하세요.",
           "placeholder": "모델 선택",
           "updateFailed": "Gemini 모델을 업데이트하지 못했습니다."
         }
@@ -441,7 +441,7 @@
         "enableFirst": "제공자를 선택하려면 텍스트 음성 변환을 사용하세요.",
         "entryLabel": "기본 텍스트 음성 변환 제공자",
         "label": "기본 제공자",
-        "note": "자체 제공자가 없는 Anima에 사용됩니다. Anima별 제공자와 음성은 로드아웃 → 음성에서 선택하세요.",
+        "note": "자체 제공자가 없는 Anima에 사용됩니다. Anima별 제공자와 음성은 행동 → 음성에서 선택하세요.",
         "updateFailed": "TTS 제공자를 업데이트하지 못했습니다."
       },
       "stream": {

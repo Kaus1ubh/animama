@@ -314,7 +314,7 @@
       "avatarUnauthorized": "The preview avatar could not be authorized.",
       "fileUnauthorized": "A private preview file is unauthorized.",
       "idleAnimationUnavailable": "The selected idle animation is unavailable.",
-      "idlePlaybackUnavailable": "Finite idle playback is unavailable for this Gesture. Refresh the Loadout and try again.",
+      "idlePlaybackUnavailable": "Finite idle playback is unavailable for this Gesture. Refresh Behavior and try again.",
       "invalidClosure": "The action preview returned an invalid closure.",
       "particleFailed": "The selected particle effect could not play.",
       "particlesUnsupported": "The preview avatar cannot play particles.",
@@ -342,8 +342,8 @@
       "title": "Move avatar"
     },
     "movePanel": "Move content preview",
-    "openLoadout": "Open Anima Loadout",
-    "openLoadoutNamed": "Open {{name}} Loadout",
+    "openLoadout": "Open Anima Behavior",
+    "openLoadoutNamed": "Open {{name}}'s Behavior",
     "preparingPlayback": "Preparing playback…",
     "replay": "Replay",
     "resetCamera": {

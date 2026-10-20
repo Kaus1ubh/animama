@@ -50,23 +50,27 @@ const REMOVABLE_EFFECT_KINDS = new Set([
 ]);
 
 /**
- * Alias → ref of each Included effect the Action names that was removed: no
- * preview item carries it, and the Action plays without it.
+ * Alias → ref of each Included effect the Action names that was removed (no
+ * preview item carries it) and each optional sound this installation omitted.
+ * The Action plays without them.
  */
 function missingReferences(
   preview: PyTypedContentPreview,
   dependencies: readonly PyTypedDependency[] | undefined,
 ): Record<string, string> {
-  return Object.fromEntries(
-    (dependencies ?? []).flatMap((dependency) =>
-      !targetForDependency(preview, dependency) &&
-      dependency.alias &&
-      REMOVABLE_EFFECT_KINDS.has(dependency.kind) &&
-      dependency.ref.startsWith("builtin:")
-        ? [[dependency.alias, dependency.ref]]
-        : [],
+  return {
+    ...(preview.optional_omitted ?? {}),
+    ...Object.fromEntries(
+      (dependencies ?? []).flatMap((dependency) =>
+        !targetForDependency(preview, dependency) &&
+        dependency.alias &&
+        REMOVABLE_EFFECT_KINDS.has(dependency.kind) &&
+        dependency.ref.startsWith("builtin:")
+          ? [[dependency.alias, dependency.ref]]
+          : [],
+      ),
     ),
-  );
+  };
 }
 
 function previewFiles(preview: PyTypedContentPreview): PyContentPreviewFile[] {
