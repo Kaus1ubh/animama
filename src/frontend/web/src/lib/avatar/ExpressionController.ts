@@ -1,12 +1,15 @@
-import * as THREE from "three";
 import {
   VRM,
-  VRMExpression,
   VRMExpressionManager,
-  VRMExpressionMorphTargetBind,
   VRMExpressionPresetName,
 } from "@pixiv/three-vrm";
 import { ARKIT_BLENDSHAPES, EYE_MOVEMENT_BLENDSHAPES } from "./arkit";
+import { registerMorphTargetExpressions } from "./morphTargetExpressions";
+import {
+  fallbackPresetForPart,
+  resolvePartExpressionFallbacks,
+  wholeFacePresetForPart,
+} from "./partExpressionFallback";
 import { createLogger } from "@/lib/logger";
 import {
   BLINK_CLOSE_MAX,
@@ -764,7 +767,9 @@ export class ExpressionController {
    * clip's fade `weight`. If the clip keys any emotion preset, the emotion
    * system's whole contribution is faded out by the same weight so faces do
    * not mix. A keyed `blink` overrides automatic blinking the same way.
-   * Lip-sync and manual overrides still apply afterwards.
+   * Lip-sync and manual overrides still apply afterwards. VRoid part keys the
+   * Avatar lacks play as their mood's VRM preset (see
+   * `partExpressionFallback.ts`).
    */
   setClipExpressionPrecedence(
     clip: {
@@ -776,7 +781,13 @@ export class ExpressionController {
       clip && Object.keys(clip.expressions).length > 0
         ? {
             weight: clampUnit(clip.weight),
-            expressions: { ...clip.expressions },
+            // Only missing VRoid parts are rewritten; other names pass through.
+            expressions: resolvePartExpressionFallbacks(
+              clip.expressions,
+              (name) =>
+                this._hasBlendshape(name) ||
+                fallbackPresetForPart(name) === null,
+            ),
           }
         : null;
   }
@@ -922,7 +933,8 @@ export class ExpressionController {
 
   /**
    * Set an additive expression overlay owned by a runtime subsystem. Unsupported
-   * expression names are ignored so clips remain portable across VRM models.
+   * expression names are ignored so clips remain portable across VRM models,
+   * except VRoid part keys, which fall back to their mood's VRM preset.
    */
   setExpressionOverlay(
     ownerId: string,
@@ -1160,15 +1172,24 @@ export class ExpressionController {
       ...Object.keys(clip?.expressions ?? {}),
       ...this._lastClipExpressionKeys,
     ]);
-    for (const key of expressionKeys) {
-      if (key === "blink") continue;
+    const composedWeight = (key: string): number => {
       const emotion = this._currentWeights.get(key) ?? 0;
       const clipValue = clip?.expressions[key];
-      const composed =
-        clipValue === undefined
-          ? emotion * emotionScale
-          : emotion * (1 - clipWeight) + clipValue * clipWeight;
-      const weight = clampUnit(composed + (expressionOverlay.get(key) ?? 0));
+      return clipValue === undefined
+        ? emotion * emotionScale
+        : emotion * (1 - clipWeight) + clipValue * clipWeight;
+    };
+    for (const key of expressionKeys) {
+      if (key === "blink") continue;
+      let overlay = expressionOverlay.get(key) ?? 0;
+      // A VRoid part shares morphs with its mood's whole-face preset, so an
+      // overlay part only fills the room that preset leaves (see
+      // `wholeFacePresetForPart`), as an overlay of the preset itself would.
+      const preset = overlay > 0 ? wholeFacePresetForPart(key) : null;
+      if (preset && preset !== key) {
+        overlay = Math.min(overlay, Math.max(0, 1 - composedWeight(preset)));
+      }
+      const weight = clampUnit(composedWeight(key) + overlay);
       this._expressionManager?.setValue(key, weight);
     }
     this._lastExpressionOverlayKeys = new Set(expressionOverlay.keys());
@@ -1261,8 +1282,10 @@ export class ExpressionController {
     expressions: EmotionExpressionComposition,
   ): ExpressionOverlayMap {
     const result: ExpressionOverlayMap = new Map();
-    for (const [name, value] of Object.entries(expressions)) {
-      if (!this._hasBlendshape(name)) continue;
+    const supported = resolvePartExpressionFallbacks(expressions, (name) =>
+      this._hasBlendshape(name),
+    );
+    for (const [name, value] of Object.entries(supported)) {
       result.set(name, clampUnit(value));
     }
     return result;
@@ -1364,38 +1387,7 @@ export class ExpressionController {
   }
 
   private _registerArkitExpressions(): void {
-    if (!this._expressionManager) return;
-
-    const arkitExpressionNames = new Set<string>();
-    const meshes: THREE.SkinnedMesh[] = [];
-
-    this._vrm.scene.traverse((obj) => {
-      const mesh = obj as THREE.SkinnedMesh;
-      if (mesh.isMesh && mesh.morphTargetDictionary) {
-        meshes.push(mesh);
-        Object.keys(mesh.morphTargetDictionary).forEach((name) => {
-          arkitExpressionNames.add(name);
-        });
-      }
-    });
-
-    arkitExpressionNames.forEach((arkitName) => {
-      if (!this._expressionManager?.getExpression(arkitName)) {
-        const expression = new VRMExpression(arkitName);
-        meshes.forEach((mesh) => {
-          const morphTargetIndex = mesh.morphTargetDictionary?.[arkitName];
-          if (morphTargetIndex !== undefined) {
-            const bind = new VRMExpressionMorphTargetBind({
-              primitives: [mesh],
-              index: morphTargetIndex,
-              weight: 1.0,
-            });
-            expression.addBind(bind);
-          }
-        });
-        this._expressionManager?.registerExpression(expression);
-      }
-    });
+    registerMorphTargetExpressions(this._vrm);
   }
 
   private _applyLipSyncFrame(frame: InternalFrame): void {

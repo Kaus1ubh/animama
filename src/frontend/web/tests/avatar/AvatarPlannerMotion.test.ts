@@ -597,7 +597,7 @@ describe("AvatarPlanner", () => {
     expect(talking.debug.talkingMotionSource).toBe("manifestGesture");
   });
 
-  it("blocks talkingHands when a talking gesture id is invalid", () => {
+  it("falls back to talkingHands when a talking gesture id is invalid", () => {
     const gestureEvent = createGestureEvent({
       animationHint: "not-a-real-gesture",
       sourceEventId: "gesture-sse-1",
@@ -620,55 +620,169 @@ describe("AvatarPlanner", () => {
 
     expect(findAction(output.actions, "playVrmaGesture")).toBeNull();
     expect(findAction(output.actions, "playPoseClip")).toBeNull();
-    expect(talkingHandsAction).toBeNull();
+    expect(talkingHandsAction).toMatchObject({
+      layerId: "talkingHands",
+      enabled: true,
+    });
     expect(output.debug.ignoredEventReasons).toContain(
       `gestureRequested:${gestureEvent.requestId}:noAnimationClip`,
     );
     expect(output.state.talkingMotionArbitration.status).toBe(
-      "manifestAnimationRequested",
+      "gestureFinished",
     );
-    expect(output.debug.talkingMotionSource).toBe("none");
+    expect(output.debug.talkingMotionSource).toBe("talkingHands");
   });
 
-  it("does not restore talkingHands after a same-run gesture pose clip completes", () => {
-    const activePoseClip = createActiveGesturePoseClip();
-    const previous: AvatarPlannerState = {
+  describe("after the run's gesture finishes", () => {
+    const gestureRequestedArbitration = {
+      runId: "run-1",
+      status: "manifestAnimationRequested" as const,
+      sourceMotionEventId: "motion-emotion-1",
+      sourceEmotionEventId: "emotion-1",
+      animationHint: "double-thumbs-up",
+    };
+    const talkingWithGesture = (
+      overrides: Partial<AvatarPlannerState> = {},
+    ): AvatarPlannerState => ({
       ...createInitialAvatarPlannerState(),
       animaId: "anima:test",
       activeRunId: "run-1",
       interactionPhase: "talking",
       phaseEnteredAtMs: 1_000,
-      activePlannerPoseClip: activePoseClip,
-      talkingMotionArbitration: {
-        runId: "run-1",
-        status: "manifestAnimationRequested",
-        sourceMotionEventId: "motion-emotion-1",
-        sourceEmotionEventId: "emotion-1",
-        animationHint: "double-thumbs-up",
-      },
-    };
+      activePlannerPoseClip: createActiveGesturePoseClip(),
+      talkingMotionArbitration: gestureRequestedArbitration,
+      ...overrides,
+    });
+    const talkingHandsEnabled = (output: { actions: unknown[] }) =>
+      (
+        output.actions as {
+          type: string;
+          layerId?: string;
+          enabled?: boolean;
+        }[]
+      ).find(
+        (action) =>
+          action.type === "setProceduralPolicy" &&
+          action.layerId === "talkingHands",
+      )?.enabled === true;
 
-    const output = planAvatar(
-      previous,
-      createPlannerInput({
-        nowMs: 2_000,
-        interactionPhase: "talking",
-        avatarState: "talking",
-        activePlannerPoseClip: activePoseClip,
-        plannerPoseClipRuntimeActive: false,
-        eligiblePlannerProceduralLayerIds: ["talkingHands"],
-      }),
-    );
+    it("hands the rest of a long reply to talkingHands", () => {
+      const activePoseClip = createActiveGesturePoseClip();
+      const output = planAvatar(
+        talkingWithGesture(),
+        createPlannerInput({
+          nowMs: 2_000,
+          interactionPhase: "talking",
+          avatarState: "talking",
+          activePlannerPoseClip: activePoseClip,
+          plannerPoseClipRuntimeActive: false,
+          eligiblePlannerProceduralLayerIds: ["talkingHands"],
+        }),
+      );
 
-    const talkingHandsAction = findAction(
-      output.actions,
-      "setProceduralPolicy",
-    );
+      expect(output.state.activePlannerPoseClip).toBeNull();
+      expect(output.state.lastCancellationReason).toBe("poseClipCompleted");
+      expect(output.state.talkingMotionArbitration.status).toBe(
+        "gestureFinished",
+      );
+      expect(talkingHandsEnabled(output)).toBe(true);
+      expect(output.debug.talkingMotionSource).toBe("talkingHands");
+    });
 
-    expect(output.state.activePlannerPoseClip).toBeNull();
-    expect(output.state.lastCancellationReason).toBe("poseClipCompleted");
-    expect(talkingHandsAction).toBeNull();
-    expect(output.debug.talkingMotionSource).toBe("none");
+    it("waits for the gesture's exit fade before starting talkingHands", () => {
+      const fading = planAvatar(
+        talkingWithGesture({ activePlannerPoseClip: null }),
+        createPlannerInput({
+          nowMs: 2_000,
+          interactionPhase: "talking",
+          avatarState: "talking",
+          activePlannerPoseClip: null,
+          manualPoseClipActive: true,
+          eligiblePlannerProceduralLayerIds: ["talkingHands"],
+        }),
+      );
+      expect(fading.state.talkingMotionArbitration.status).toBe(
+        "manifestAnimationRequested",
+      );
+      expect(talkingHandsEnabled(fading)).toBe(false);
+
+      const released = planAvatar(
+        fading.state,
+        createPlannerInput({
+          nowMs: 2_400,
+          interactionPhase: "talking",
+          avatarState: "talking",
+          activePlannerPoseClip: null,
+          eligiblePlannerProceduralLayerIds: ["talkingHands"],
+        }),
+      );
+      expect(talkingHandsEnabled(released)).toBe(true);
+    });
+
+    it("keeps talkingHands off while the gesture still plays", () => {
+      const activePoseClip = createActiveGesturePoseClip();
+      const output = planAvatar(
+        talkingWithGesture(),
+        createPlannerInput({
+          nowMs: 1_500,
+          interactionPhase: "talking",
+          avatarState: "talking",
+          activePlannerPoseClip: activePoseClip,
+          plannerPoseClipRuntimeActive: true,
+          eligiblePlannerProceduralLayerIds: ["talkingHands"],
+        }),
+      );
+
+      expect(output.state.talkingMotionArbitration.status).toBe(
+        "manifestAnimationRequested",
+      );
+      expect(talkingHandsEnabled(output)).toBe(false);
+    });
+
+    it("does not start talkingHands when the gesture outlives the reply", () => {
+      const output = planAvatar(
+        talkingWithGesture({ activePlannerPoseClip: null }),
+        createPlannerInput({
+          nowMs: 2_000,
+          interactionPhase: "idle",
+          avatarState: "idle",
+          activePlannerPoseClip: null,
+          eligiblePlannerProceduralLayerIds: ["talkingHands"],
+        }),
+      );
+
+      expect(talkingHandsEnabled(output)).toBe(false);
+    });
+
+    it("rejects a second gesture request in the same run", () => {
+      const secondGesture = createGestureEvent({
+        sourceEventId: "gesture-sse-2",
+      });
+      const output = planAvatar(
+        talkingWithGesture({
+          activePlannerPoseClip: null,
+          talkingMotionArbitration: {
+            ...gestureRequestedArbitration,
+            status: "gestureFinished",
+          },
+        }),
+        createPlannerInput({
+          nowMs: 3_000,
+          interactionPhase: "talking",
+          avatarState: "talking",
+          activePlannerPoseClip: null,
+          pendingEvents: [secondGesture],
+          eligiblePlannerProceduralLayerIds: ["talkingHands"],
+        }),
+      );
+
+      expect(findAction(output.actions, "playVrmaGesture")).toBeNull();
+      expect(findAction(output.actions, "playPoseClip")).toBeNull();
+      expect(output.debug.ignoredEventReasons).toContain(
+        `gestureRequested:${secondGesture.requestId}:runGestureFinished`,
+      );
+      expect(talkingHandsEnabled(output)).toBe(true);
+    });
   });
 
   it("keeps idle quiet until the default idle stint interval elapses", () => {

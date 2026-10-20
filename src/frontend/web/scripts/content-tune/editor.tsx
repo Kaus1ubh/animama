@@ -36,13 +36,21 @@ import {
  * expression weights. Every change goes through `onChange` with a new draft.
  */
 
-/** Expressions a Reaction can set: the VRM emotion presets and blinks. */
+/**
+ * Expressions offered for a Reaction: VRoid brow, eye and mouth parts (mouths
+ * closed or barely open, since Reactions play over lip-sync) and blinks.
+ * Avatars without the parts play brows and eyes as the matching VRM preset.
+ */
 export const REACTION_EXPRESSIONS = [
-  "happy",
-  "angry",
-  "sad",
-  "relaxed",
-  "surprised",
+  ...["Joy", "Fun", "Sorrow", "Surprised", "Angry"].flatMap((mood) => [
+    `Fcl_BRW_${mood}`,
+    `Fcl_EYE_${mood}`,
+  ]),
+  "Fcl_MTH_Fun",
+  "Fcl_MTH_Angry",
+  "Fcl_MTH_Joy",
+  "Fcl_MTH_Sorrow",
+  "Fcl_MTH_Surprised",
   "blink",
   "blinkLeft",
   "blinkRight",

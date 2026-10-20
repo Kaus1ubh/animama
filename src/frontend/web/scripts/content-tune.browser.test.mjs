@@ -250,7 +250,7 @@ test("applies a Reaction's expression and sound, then saves them all", async () 
   await page.getByRole("row", { name: /^joy/i }).getByRole("button").click();
   await page.getByRole("heading", { name: /Joy Reaction 2/ }).waitFor();
 
-  await page.getByLabel("happy peak value").fill("0.4");
+  await page.getByLabel("Fcl_EYE_Joy peak value").fill("0.4");
   await page.getByRole("button", { name: "+ Sound" }).click();
   await page.getByPlaceholder("Search sounds").fill("Fixture");
   await page.getByRole("button", { name: /^Fixture Pop/ }).click();
@@ -288,7 +288,7 @@ test("applies a Reaction's expression and sound, then saves them all", async () 
   const meta = JSON.parse(
     await readFile(path.join(folder, "joy-2.meta.json"), "utf8"),
   );
-  assert.equal(clip.expressions.happy[0].v, 0.4);
+  assert.equal(clip.expressions.Fcl_EYE_Joy[0].v, 0.4);
   const sound = clip.events.find((event) => event.kind === "sfx");
   assert.ok(sound);
   assert.deepEqual(
@@ -307,7 +307,7 @@ test("applies a Reaction's expression and sound, then saves them all", async () 
 
   // Editing the same open item again applies and saves from the new file,
   // not as an out-of-date edit.
-  await page.getByLabel("happy peak value").fill("0.45");
+  await page.getByLabel("Fcl_EYE_Joy peak value").fill("0.45");
   await page.getByRole("button", { name: "Apply", exact: true }).click();
   assert.equal(await page.getByText("out of date").count(), 0);
   const second = page.waitForResponse("**/__tune/save");
@@ -315,7 +315,7 @@ test("applies a Reaction's expression and sound, then saves them all", async () 
   assert.equal((await second).status(), 200);
   assert.equal(
     JSON.parse(await readFile(path.join(folder, "joy-2.json"), "utf8"))
-      .expressions.happy[0].v,
+      .expressions.Fcl_EYE_Joy[0].v,
     0.45,
   );
   // The saved sound is in the pack, so the pack check doesn't list it. (The

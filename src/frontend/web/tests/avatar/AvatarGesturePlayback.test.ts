@@ -85,12 +85,13 @@ function harness(
     events: AvatarPlannerGestureEvent[] = [],
     runId: string | null = "run-1",
     context: AvatarStateUpdateContext = {},
+    phase: "responding_no_tts" | "talking" = "responding_no_tts",
   ) => {
     vi.setSystemTime(nowMs);
     return avatar.updateState(
       {
         emotionalState: emotion,
-        signals: { interactionPhase: runId ? "responding_no_tts" : "idle" },
+        signals: { interactionPhase: runId ? phase : "idle" },
       },
       {
         nowMs,
@@ -351,6 +352,49 @@ describe("Avatar Gesture delivery and playback lifetime", () => {
       clipId: "long",
       status: "active",
     });
+  });
+
+  it("hands a long spoken reply to talking hands after the Gesture fades out", async () => {
+    vi.useFakeTimers();
+    const h = harness({ duration: 1, loop: true, configuredDuration: 2 });
+    const talking = (nowMs: number, events: AvatarPlannerGestureEvent[] = []) =>
+      h.tick(
+        nowMs,
+        events,
+        "run-1",
+        { eligiblePlannerProceduralLayerIds: ["talkingHands"] },
+        "talking",
+      );
+    const talkingHandsEnabled = (output: ReturnType<typeof talking>) =>
+      output.actions.some(
+        (action) =>
+          action.type === "setProceduralPolicy" &&
+          action.layerId === "talkingHands" &&
+          action.enabled,
+      );
+
+    expect(talkingHandsEnabled(talking(1_000, [h.event()]))).toBe(false);
+    await h.deliver();
+    h.avatar.poseController!.update(1);
+    expect(talkingHandsEnabled(talking(2_000))).toBe(false);
+
+    // The looping Gesture reaches its configured length and starts fading.
+    h.avatar.poseController!.update(1.1);
+    const stopping = talking(3_100);
+    expect(stopping.state.lastCancellationReason).toBe(
+      "gesturePoseClipCompleted",
+    );
+    expect(talkingHandsEnabled(stopping)).toBe(false);
+    h.avatar.poseController!.update(0.1);
+    expect(talkingHandsEnabled(talking(3_200))).toBe(false);
+
+    // Once the fade has released the clip, talking hands take over.
+    h.avatar.poseController!.update(0.3);
+    const released = talking(3_500);
+    expect(released.state.talkingMotionArbitration.status).toBe(
+      "gestureFinished",
+    );
+    expect(talkingHandsEnabled(released)).toBe(true);
   });
 
   it("releases presentation when the pending clip cannot be delivered", async () => {

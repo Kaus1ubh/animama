@@ -366,10 +366,25 @@ out when talking ends or the run changes. VFX events without `duration` hold
 until the reaction clears; SFX events fire once and do not replay during the
 hold.
 
+Because Reactions play over lip-sync, Included Reactions shape the face with
+VRoid's per-feature morphs instead of whole-face presets: brows and eyes
+(`Fcl_BRW_*`, `Fcl_EYE_*`) carry the emotion, and mouths stay closed
+(`Fcl_MTH_Fun`, `Fcl_MTH_Angry`) or open only slightly (`Fcl_MTH_Joy`,
+`Fcl_MTH_Sorrow`, `Fcl_MTH_Surprised` at low weights). Prefer the same for new
+Reactions. On an Avatar without those morphs, each missing whole-face, brow or
+eye part plays as its mood's VRM preset (`partExpressionFallback.ts`; Joy
+`happy`, Fun `relaxed`, Sorrow `sad`, Surprised `surprised`, Angry `angry`),
+taking the largest weight among those parts and any value keyed for the preset
+itself, for Reaction overlays and Gesture clips alike; mouth parts have no
+fallback. Where the parts exist, a Reaction's part only fills the room left by
+the same mood's whole-face expression in the resting face, so a Reaction never
+pushes brows or eyes past a full expression.
+
 Relevant files:
 
 - `src/frontend/web/src/lib/avatar/reactionClips.ts`
 - `src/frontend/web/src/lib/avatar/reactionPools.ts`
+- `src/frontend/web/src/lib/avatar/partExpressionFallback.ts`
 - `src/frontend/web/src/lib/avatar/reaction/ReactionClipPlayer.ts`
 - `src/frontend/web/src/lib/avatar/planner/AvatarPlanner.ts`
 
