@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Animama</title>
+    <link rel="icon" href="/brand/animama-mark.png" />
+    <!-- Manrope: the hero's clean display face. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;800&display=swap"
+    />
+    <script>
+      // `?classic` compares against the look before enhanced rendering.
+      if (new URLSearchParams(location.search).has("classic"))
+        window.__animamaRenderingOverride = "classic";
+      // The visitor's saved theme, applied before first paint.
+      try {
+        if (localStorage.getItem("landing-stage-theme") === "dark")
+          document.documentElement.classList.add("dark");
+      } catch {}
+    </script>
+  </head>
+  <body>
+    <!--
+      The fixed stage: backdrop, ambient particles and Scene underlay band
+      (z 0), the Avatar canvas (z 10) and Scene overlay band (z 20). The overlay holds the
+      header, captions, demos and the scroll sections.
+    -->
+    <div class="stage" aria-hidden="true">
+      <div class="backdrop" id="backdrop"></div>
+      <canvas class="ambient" id="ambient"></canvas>
+      <div class="bands" id="bands"></div>
+      <canvas id="canvas"></canvas>
+    </div>
+    <div id="overlay"></div>
+    <canvas class="cursor-trail" id="trail" aria-hidden="true"></canvas>
+    <pre class="hud" id="hud" hidden></pre>
+    <script type="module" src="./stage.ts"></script>
+  </body>
+</html>

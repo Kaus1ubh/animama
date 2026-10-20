@@ -17,6 +17,7 @@
     "lipsync:fixtures": "node scripts/lipsync.mjs fixtures",
     "lipsync:captures": "node scripts/lipsync.mjs captures",
     "animation:preview": "node scripts/animation-preview.mjs",
+    "landing:stage": "node scripts/landing-stage.mjs",
     "content:tune": "node scripts/content-tune.mjs",
     "animation:save": "node scripts/animation-save.mjs",
     "dev": "pnpm --dir .. poses:check && pnpm --dir .. packages:build && pnpm routes:generate && vite",
