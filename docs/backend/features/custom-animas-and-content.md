@@ -220,7 +220,7 @@ playback consumers such as edited Action dependencies. It can issue one
 short-lived capability for several overlapping roots, but it cannot create,
 validate, equip, or mutate an Anima.
 
-Backend-owned `StarterAnimaSpec` values `starter:annie` and `starter:caitlyn`
+Backend-owned `StarterAnimaSpec` values `starter:annie` and `starter:andrew`
 use the same private command through `POST /v1/animas/starters:ensure` with
 `{"schema_version":1,"repairs":[]}`. Each starter commits independently, so
 retry retains the first result if the second fails. Spec version is metadata,
@@ -247,11 +247,12 @@ creation, and each Reaction cell holds its available starter Reactions, as
 through ordinary plan/commit changes.
 
 Newly provisioned starters use Annie version 3 (`AvatarSample_A_1_New`, Eve Pocket
-voice) and Caitlyn version 6 (`AvatarSample_Y_0`, Azelma Pocket voice), with matching
+voice) and Andrew version 1 (`Andrew`, Michael Pocket voice), with matching
 Included portraits when available.
 Their identities write out every section of the `IDENTITY.md` template.
-Existing ready/deleted starter receipts are preserved. Automatic adoption uses
-the historical `avt_chibi_2` identifier only to recognize existing data.
+Existing ready/deleted starter receipts are preserved. Automatic adoption
+recognizes existing data only for a starter with legacy identifiers (Annie);
+Andrew has none and is always created.
 
 Desktop staging excludes Chibi 2, `AvatarSample_R2`, their derived portraits,
 downloaded voice samples, and Tokyo backgrounds/thumbnails.

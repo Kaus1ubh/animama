@@ -693,8 +693,8 @@ from `src/frontend/web`:
   records a 1920×1080, 30 fps video of every Included Gesture, Reaction (by
   emotion, then intensity) or Avatar, Particle and Scene Effect
   (`--avatar-effects`, `--particle-effects` or `--scene-effects` for one
-  kind), or the named sources, one at a time on Annie (`--avatar caitlyn` for
-  Caitlyn). Each clip plays through the Avatar's own clip player with its
+  kind), or the named sources, one at a time on Annie (`--avatar andrew` for
+  Andrew). Each clip plays through the Avatar's own clip player with its
   Avatar, Particle and Scene Effects and its sounds. An effect plays for
   `--hold` seconds (default 3) from a one-event clip, as an Action event
   would play it, with its accompanying sound. A
@@ -780,7 +780,7 @@ Reactions. It is not part of any build.
   - Sounds in the tracked pack manifest are marked "In pack".
   - Licensed audio is streamed from those folders and never copied.
 - **Preview:** plays the selected item, as edited, on Annie
-  (`--avatar caitlyn` for Caitlyn) in real time through the review stage,
+  (`--avatar andrew` for Andrew) in real time through the review stage,
   with its effects and sounds.
 - **Editing:**
   - Add, remove or replace effect events (Avatar, Particle, Scene) and `sfx`
@@ -883,8 +883,8 @@ Important behavior:
   `overrideBlinkAmount`. Expression weights keep their composed values
   (inspectors, `getValue`), and every path that updates the manager — chat,
   creator writes, previews and review renders — gets the same correction.
-  The profile is chosen by the VRM's `vrmSha256`: verified for the Included
-  Avatars (k 0.2164 Annie, 0.1767 Y_0). Other Avatars get happy 1 / k 0.2 for
+  The profile is chosen by the VRM's `vrmSha256`: verified for Annie (k 0.2164).
+  Other Avatars, including Andrew, get happy 1 / k 0.2 for
   each of happy and relaxed whose morphs measurably move blink's vertices
   closed, and nothing otherwise. An expression with a native `overrideBlink`
   keeps it uncorrected. Load paths that know the model digest must pass it;

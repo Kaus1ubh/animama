@@ -114,10 +114,10 @@ remains required.
 
 ## Browser core and optional cloning
 
-`python3 scripts/models/browser_speech.py acquire|verify|path` manages the ten
-core model files: Pocket generation with Eve and Azelma, plus Smart Turn. Vite
-combines them with eleven pinned dependency files into the 21-file browser
-runtime. Ordinary serving and builds verify these inputs offline; they do not
+`python3 scripts/models/browser_speech.py acquire|verify|path` manages the 11
+core model files: Pocket generation with Eve, Azelma and Michael, plus Smart
+Turn. Vite combines them with 11 pinned dependency files into the 22-file
+browser runtime. Ordinary serving and builds verify these inputs offline; they do not
 require optional voices or the cloning encoder.
 
 `python3 scripts/models/pocket_cloning.py acquire|verify|path` manages the

@@ -215,10 +215,10 @@ package. Package installation supplies dependency files; staging only verifies
 and copies already acquired model inputs. It never silently downloads them or
 substitutes an installed ORT version.
 
-The complete 21-file browser engine set occupies 280,549,335 bytes before distribution
+The complete 22-file browser engine set occupies 287,825,103 bytes before distribution
 compression. It is included in `runtime/web/onnx` as independent regular files,
 so clearing a developer model cache cannot break an installed application's
-Pocket TTS, VAD or Smart Turn engine. Eve and Azelma are included; the other 36
+Pocket TTS, VAD or Smart Turn engine. Eve, Azelma and Michael are included; the other 35
 voice states and the cloning encoder download separately. Ordinary web builds
 and runtime staging do not require those optional inputs. The model-store workflow does not replace signing, redistribution or native
 acceptance gates.
@@ -409,11 +409,11 @@ closed while provenance, required notices, or owner approvals are missing.
 
 ## Current content gate
 
-The core starter models are Annie (`AvatarSample_A_1_New.vrm`) and Caitlyn
-(`AvatarSample_Y_0.vrm`), with renderer-captured portraits. Their provenance and
+The core starter models are Annie (`AvatarSample_A_1_New.vrm`) and Andrew
+(`Andrew.vrm`), with renderer-captured portraits. Their provenance and
 distinct permission terms are recorded in `content/included/licenses/inventory.json`
 and [source notices](../../../licenses/third-party/art-NOTICES.md). Annie is a
-VRoid preset; Caitlyn is a pixiv VRoid sample model under CC BY. Existing
+VRoid preset; Andrew is the owner's edit of a VRoid preset. Existing
 starter receipts and adoption identifiers remain valid compatibility data; they
 do not authorize restoring excluded bytes or silently changing an Anima.
 

@@ -52,12 +52,14 @@ match the outer hair; nothing else in the model changed. Its official pixiv pres
 in the inventory. Those terms are not CC0; review the planned product use,
 including the restrictions on paid redistribution and character-creation
 services. Do not edit embedded permission flags to manufacture clearance.
-Caitlyn's version-6 starter uses `AvatarSample_Y_0`, an unmodified pixiv VRoid
-sample whose embedded VRM 0 metadata declares CC BY with commercial use allowed;
-credit pixiv VRoid Project. The owner approved it on 2026-10-01 and removed the
-previous `AvatarSample_R1` model and portrait; R2's earlier owner-created
-attribution remains withdrawn. Existing starter receipts preserve their previous
-content and edits.
+Andrew's starter uses `Andrew.vrm`, the owner's edit of a VRoid A–Z preset
+(new hair; base preset not identified). Its embedded VRM 1.0 metadata names the
+owner as author, allows corporate commercial use and disallows redistribution
+and modification; the preset terms still apply to its pixiv components. It
+replaced Caitlyn's `AvatarSample_Y_0` on 2026-10-19, which now survives only as
+the test-only VRM 0 fixture `tests/fixtures/vrm/AvatarSample_Y_0.vrm`. R2's
+earlier owner-created attribution remains withdrawn. Existing starter receipts
+preserve their previous content and edits.
 
 Rules with `"distribution": "excluded"` exclude the whole typed entry from
 **both** desktop partitions; an excluded required starter dependency fails the
@@ -95,7 +97,7 @@ fonts, and UI images remain frontend application assets.
 ## Retained avatar and effect artwork
 
 The source library contains only the Annie (`AvatarSample_A_1_New.vrm`) and
-Caitlyn (`AvatarSample_Y_0.vrm`) models and their generated portrait pairs.
+Andrew (`Andrew.vrm`) models and their generated portrait pairs.
 Other sample models, portraits and the combined contact sheet have been retired.
 Existing installations are not rewritten by this source cleanup; a saved
 reference to retired Included content needs an explicit replacement.

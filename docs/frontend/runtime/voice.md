@@ -1021,7 +1021,7 @@ the public ORT 1.24.2 inventory does not replace those dependency versions.
   the verified sources:
   - the four generation ONNX graphs;
   - `tokenizer.model`, `bundle.json` and `bos_before_voice.npy`;
-  - Eve and Azelma's core voice states at `voices/<id>.safetensors`.
+  - Eve, Azelma and Michael's core voice states at `voices/<id>.safetensors`.
 - `src/frontend/web/src/lib/speech/pocket/voice-catalog.ts` lists all 38
   voices, with `eve` as default. Each has an ID, display name, gender, accent,
   recommended flag and delivery: `core`, or `download` with its asset ID and
@@ -1102,7 +1102,7 @@ the public ORT 1.24.2 inventory does not replace those dependency versions.
   after interruption.
 - Anima voice catalogs are separate user/catalog inputs; their persisted URLs
   and legacy `/onnx/models/pocket-tts/animas/{animaId}_voices.bin` reference format
-  are not members of the 21-file engine inventory.
+  are not members of the 22-file engine inventory.
 
 Optional operator voice catalogs are separate from the engine inventory; see
 [Content and workers](../architecture/content-and-workers.md#vite-application-resources).

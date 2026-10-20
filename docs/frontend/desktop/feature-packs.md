@@ -95,7 +95,7 @@ never selects a provider, and the GPU action never installs the CPU model.
 Every download can be skipped. A finished install is available at once:
 FastAPI keeps running, no window reloads and dictation works offline.
 
-Eve and Azelma are included voices. The other 36 voices download individually
+Eve, Azelma and Michael are included voices. The other 35 voices download individually
 from the compact picker in Anima voice selection. **Voice Clone** contains the
 cloning encoder download; App Settings also reuses the Anima voice-cloning form
 there, after Text-to-Speech. Downloading or previewing changes neither the

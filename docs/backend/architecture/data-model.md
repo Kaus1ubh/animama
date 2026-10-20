@@ -305,7 +305,7 @@ normalized-spec SHA-256 and compact original result, never the submitted
 identity/spec. Transaction-scoped locks serialize first attempts and retries.
 Successful creation receipts and deletion tombstones
 are retained for owner lifetime, not the loadout mutation receipt's expiry.
-Starter uniqueness is owner plus `starter:annie`/`starter:caitlyn`, independent
+Starter uniqueness is owner plus `starter:annie`/`starter:andrew`, independent
 of specification version. The baseline neither reads an account table nor
 pre-populates account-derived receipts. The local installation bootstrap creates missing
 Starter receipts for the generated principal through the normal idempotent

@@ -63,7 +63,9 @@ their archive transport.
    archive handling and signed-code verification for `document-processing`, and
    archive handling for non-model `expanded-included-content`. This decision
    does not authorize deleting existing remote objects.
-7. Bundle the Pocket generation models with only Eve and Azelma voice states.
+7. Bundle the Pocket generation models with only the core voice states (Eve and
+   Azelma at the decision; Michael joined them for the Andrew starter on
+   2026-10-19).
    Retain the complete catalog and recommendation metadata; all other voices
    download individually from pinned model objects through the existing backend
    optional-asset service. Recommendation is discovery metadata, not permission
