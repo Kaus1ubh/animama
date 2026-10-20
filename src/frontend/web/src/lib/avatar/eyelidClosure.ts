@@ -44,7 +44,7 @@ export type EyelidClosureProfile = {
 export const VERIFIED_EYELID_CLOSURE_PROFILES: Readonly<
   Record<string, { readonly avatar: string; profile: EyelidClosureProfile }>
 > = {
-  "37a01dc3368959ac33e459f6ebb147af721a0fa02f6459ee26fd694e95bbcfcc": {
+  "1119bfc689979031151e54e519db45be0f31eb504ec38c71efb905944e2752ae": {
     avatar: "AvatarSample_A_1_New",
     profile: { happy: 1, relaxed: 0.2164 },
   },
