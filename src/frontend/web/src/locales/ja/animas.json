@@ -4,16 +4,13 @@
     "done": "完了",
     "equip": "装備",
     "equipped": "装備中",
-    "loop": "ループ",
     "moreActions": "その他の操作",
     "moreActionsFor": "{{name}} のその他の操作",
-    "move": "移動",
     "preview": "プレビュー",
     "previewNamed": "{{name}} をプレビュー",
     "previewUnavailable": "プレビューは利用できません",
     "remove": "外す",
     "replace": "置き換え",
-    "replay": "もう一度再生",
     "reset": "リセット",
     "retry": "再試行",
     "save": "保存",
@@ -254,11 +251,7 @@
     },
     "openEmotions": "感情タブを開く。{{feeling}}",
     "preview": {
-      "loop": "{{name}} のプレビューをループ",
-      "move": "{{name}} のプレビューのアバターを移動",
       "region": "{{name}} をプレビュー中",
-      "replay": "{{name}} のプレビューをもう一度再生",
-      "retry": "{{name}} のプレビューを再試行",
       "states": {
         "error": "プレビューは利用できません",
         "idle": "プレビュー待機中",
@@ -267,8 +260,7 @@
         "ready": "準備完了"
       },
       "status": "{{name}} のプレビュー: {{status}}",
-      "stop": "{{name}} のプレビューを停止",
-      "summary": "{{version}} · {{status}}"
+      "stop": "{{name}} のプレビューを停止"
     },
     "tabs": {
       "emotions": "感情",

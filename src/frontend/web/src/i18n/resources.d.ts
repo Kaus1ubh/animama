@@ -485,16 +485,13 @@ export default interface Resources {
       "done": "Done",
       "equip": "Equip",
       "equipped": "Equipped",
-      "loop": "Loop",
       "moreActions": "More actions",
       "moreActionsFor": "More actions for {{name}}",
-      "move": "Move",
       "preview": "Preview",
       "previewNamed": "Preview {{name}}",
       "previewUnavailable": "Preview unavailable",
       "remove": "Remove",
       "replace": "Replace",
-      "replay": "Replay",
       "reset": "Reset",
       "retry": "Retry",
       "save": "Save",
@@ -736,11 +733,7 @@ export default interface Resources {
       },
       "openEmotions": "Open Emotions tab. {{feeling}}",
       "preview": {
-        "loop": "Loop {{name}} preview",
-        "move": "Move {{name}} preview avatar",
         "region": "Previewing {{name}}",
-        "replay": "Replay {{name}} preview",
-        "retry": "Retry {{name}} preview",
         "states": {
           "error": "Preview unavailable",
           "idle": "Preview idle",
@@ -749,8 +742,7 @@ export default interface Resources {
           "ready": "Ready"
         },
         "status": "{{name}} preview: {{status}}",
-        "stop": "Stop {{name}} preview",
-        "summary": "{{version}} · {{status}}"
+        "stop": "Stop {{name}} preview"
       },
       "tabs": {
         "emotions": "Emotions",

@@ -4,16 +4,13 @@
     "done": "完成",
     "equip": "裝備",
     "equipped": "已裝備",
-    "loop": "循環",
     "moreActions": "更多操作",
     "moreActionsFor": "{{name}} 的更多操作",
-    "move": "移動",
     "preview": "預覽",
     "previewNamed": "預覽 {{name}}",
     "previewUnavailable": "無法預覽",
     "remove": "移除",
     "replace": "替換",
-    "replay": "重播",
     "reset": "重設",
     "retry": "重試",
     "save": "儲存",
@@ -254,11 +251,7 @@
     },
     "openEmotions": "開啟情緒分頁。{{feeling}}",
     "preview": {
-      "loop": "循環預覽 {{name}}",
-      "move": "移動 {{name}} 預覽中的虛擬形象",
       "region": "正在預覽 {{name}}",
-      "replay": "重播 {{name}} 預覽",
-      "retry": "重試 {{name}} 預覽",
       "states": {
         "error": "無法預覽",
         "idle": "預覽閒置",
@@ -267,8 +260,7 @@
         "ready": "就緒"
       },
       "status": "{{name}} 預覽：{{status}}",
-      "stop": "停止 {{name}} 預覽",
-      "summary": "{{version}} · {{status}}"
+      "stop": "停止 {{name}} 預覽"
     },
     "tabs": {
       "emotions": "情緒",

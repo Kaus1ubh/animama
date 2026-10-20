@@ -4,16 +4,13 @@
     "done": "完成",
     "equip": "装备",
     "equipped": "已装备",
-    "loop": "循环",
     "moreActions": "更多操作",
     "moreActionsFor": "{{name}} 的更多操作",
-    "move": "移动",
     "preview": "预览",
     "previewNamed": "预览 {{name}}",
     "previewUnavailable": "无法预览",
     "remove": "移除",
     "replace": "替换",
-    "replay": "重播",
     "reset": "重置",
     "retry": "重试",
     "save": "保存",
@@ -254,11 +251,7 @@
     },
     "openEmotions": "打开情绪标签页。{{feeling}}",
     "preview": {
-      "loop": "循环预览 {{name}}",
-      "move": "移动 {{name}} 预览中的虚拟形象",
       "region": "正在预览 {{name}}",
-      "replay": "重播 {{name}} 预览",
-      "retry": "重试 {{name}} 预览",
       "states": {
         "error": "无法预览",
         "idle": "预览空闲",
@@ -267,8 +260,7 @@
         "ready": "就绪"
       },
       "status": "{{name}} 预览：{{status}}",
-      "stop": "停止 {{name}} 预览",
-      "summary": "{{version}} · {{status}}"
+      "stop": "停止 {{name}} 预览"
     },
     "tabs": {
       "emotions": "情绪",

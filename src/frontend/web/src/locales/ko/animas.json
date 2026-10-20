@@ -4,16 +4,13 @@
     "done": "완료",
     "equip": "장착",
     "equipped": "장착됨",
-    "loop": "반복",
     "moreActions": "추가 작업",
     "moreActionsFor": "{{name}} 추가 작업",
-    "move": "이동",
     "preview": "미리 보기",
     "previewNamed": "{{name}} 미리 보기",
     "previewUnavailable": "미리 보기를 사용할 수 없음",
     "remove": "제거",
     "replace": "교체",
-    "replay": "다시 재생",
     "reset": "재설정",
     "retry": "다시 시도",
     "save": "저장",
@@ -254,11 +251,7 @@
     },
     "openEmotions": "감정 탭 열기. {{feeling}}",
     "preview": {
-      "loop": "{{name}} 미리 보기 반복",
-      "move": "{{name}} 미리 보기 아바타 이동",
       "region": "{{name}} 미리 보기 중",
-      "replay": "{{name}} 미리 보기 다시 재생",
-      "retry": "{{name}} 미리 보기 다시 시도",
       "states": {
         "error": "미리 보기를 사용할 수 없음",
         "idle": "미리 보기 대기 중",
@@ -267,8 +260,7 @@
         "ready": "준비됨"
       },
       "status": "{{name}} 미리 보기: {{status}}",
-      "stop": "{{name}} 미리 보기 정지",
-      "summary": "{{version}} · {{status}}"
+      "stop": "{{name}} 미리 보기 정지"
     },
     "tabs": {
       "emotions": "감정",
