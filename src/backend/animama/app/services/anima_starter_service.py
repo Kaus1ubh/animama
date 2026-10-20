@@ -30,6 +30,7 @@ class StarterAnimaSpec:
     avatar_locator: str
     legacy_profile_url: str | None
     pocket_voice: str
+    elevenlabs_voice: str
 
     @property
     def portrait_logical_key(self) -> str:
@@ -103,6 +104,7 @@ bigger than a chat.
         "avatars/AvatarSample_A_1_New.vrm",
         "/marine-pfp.png",
         "eve",
+        "gJx1vCzNCD1EQHT212Ls",
     ),
     StarterAnimaSpec(
         "starter:andrew",
@@ -162,6 +164,7 @@ on other people and professionals when something is bigger than a chat.
         "avatars/Andrew.vrm",
         None,
         "michael",
+        "4e32WqNVWRquDa1OcRYZ",
     ),
 )
 
@@ -247,14 +250,22 @@ class AnimaStarterService:
         # A fresh internal key is safe because the stable starter lock/receipt is
         # this operation's retry authority, and both receipts commit together.
         result = await self.creation.create_in_uow(user_id=user_id, spec=command, key=f"starter-{uuid4()}")
-        # Voice defaults belong only to newly created starters. Existing and
+        # Pocket and ElevenLabs voice defaults belong only to newly created starters. Existing and
         # adopted companions returned above retain their owner's saved choices.
         settings = await self.uow.settings.get(user_id=user_id, anima_id=result["anima_id"])
         if settings is None:
             raise RuntimeError("Newly created starter Anima is missing its settings")
+        speech = settings.preferences.get("speech", {})
         settings.preferences = {
             **settings.preferences,
-            "speech": {**settings.preferences.get("speech", {}), "tts_pocket_anima_voice": spec.pocket_voice},
+            "speech": {
+                **speech,
+                "tts_pocket_anima_voice": spec.pocket_voice,
+                "elevenlabs": {
+                    **speech.get("elevenlabs", {}),
+                    "primary_voice": {"voice_id": spec.elevenlabs_voice},
+                },
+            },
         }
         await self.uow.settings.upsert(settings)
         receipt = StarterReceipt(spec.id, spec.version, "ready", result["anima_id"], result["warnings"])

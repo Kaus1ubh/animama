@@ -4,7 +4,7 @@ Status: Agreed.
 Owner decision: 2026-10-19 discovery answers and voice choice set the outcome
 and choices below; implementation authorized the same day.
 Authority: https://github.com/raymond-van/animama/issues/618 (this file is a
-snapshot captured at the issue's 2026-10-20T14:43:50Z revision).
+snapshot captured at the issue's 2026-10-20T17:07:03Z revision).
 
 ## Problem and intended users
 
@@ -56,7 +56,9 @@ Non-goals:
 - R4 Voice: Andrew's starter voice is the PocketTTS preset Michael. Michael
   becomes a core voice, so Andrew speaks on a fresh offline installation with no
   downloads. The core voices are then Eve, Azelma and Michael, and Michael is
-  removed from the download catalogue.
+  removed from the download catalogue. Andrew's default ElevenLabs voice is
+  `4e32WqNVWRquDa1OcRYZ` (male). Annie keeps `gJx1vCzNCD1EQHT212Ls`. Each
+  starter's ElevenLabs voice is set on its own spec.
 - R5 Identity: Andrew's starter identity is English Markdown in the existing
   starter section structure, written in the voice of a calm butler. He is
   composed and warm, has a dry sense of humour, and takes care of the user. It

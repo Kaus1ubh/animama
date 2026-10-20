@@ -29,7 +29,7 @@ from animama.app.services.starter_loadout_policy import (
 from animama.domain.anima import Anima
 from animama.domain.anima_chat_profile import AnimaChatProfile
 from animama.domain.anima_creation_error import AnimaCreationError
-from animama.domain.anima_definition import ANIMA_MEMORIES_TEMPLATE, DEFAULT_ANIMA_VOICE_ID
+from animama.domain.anima_definition import ANIMA_MEMORIES_TEMPLATE
 from animama.domain.anima_loadout import AnimaLoadoutError
 from animama.domain.avatar import Avatar
 from animama.domain.request_principal import RequestPrincipal
@@ -173,6 +173,7 @@ async def test_fresh_starters_retry_preserve_customization_and_deletion(
         ids = [value["anima_id"] for value in first["starters"]]
         versions = [value["spec_version"] for value in first["starters"]]
         expected_pocket_voices = {"starter:annie": "eve", "starter:andrew": "michael"}
+        expected_elevenlabs_voices = {"starter:annie": "gJx1vCzNCD1EQHT212Ls", "starter:andrew": "4e32WqNVWRquDa1OcRYZ"}
         avatar_ids = []
         for anima_id, spec in zip(ids, STARTER_ANIMA_SPECS, strict=True):
             anima = await async_session.get(ORMAnima, anima_id)
@@ -191,8 +192,11 @@ async def test_fresh_starters_retry_preserve_customization_and_deletion(
             assert files["IDENTITY.md"].content == spec.identity_markdown
             assert files["MEMORIES.md"].content == ANIMA_MEMORIES_TEMPLATE
             settings = await async_session.scalar(select(ORMAnimaSettings).where(ORMAnimaSettings.anima_id == anima_id))
-            assert settings.preferences["speech"]["elevenlabs"]["primary_voice"]["voice_id"] == DEFAULT_ANIMA_VOICE_ID
             assert settings.preferences["speech"]["tts_pocket_anima_voice"] == expected_pocket_voices[spec.id]
+            assert (
+                settings.preferences["speech"]["elevenlabs"]["primary_voice"]["voice_id"]
+                == expected_elevenlabs_voices[spec.id]
+            )
             loadout = await AnimaLoadoutService(async_session).read_model(user_id=fixture.owner, anima_id=anima_id)
             assert len(loadout.gestures) == len(starter_loadout_policy()["gestures"])
             assert_starter_reaction_pools(loadout)
@@ -373,6 +377,7 @@ def test_andrew_replaces_caitlyn_in_the_starter_set():
         "michael",
     )
     assert andrew.portrait_logical_key == "builtin:avatar-portrait:Andrew"
+    assert andrew.elevenlabs_voice == "4e32WqNVWRquDa1OcRYZ"
     assert (andrew.legacy_avatar_id, andrew.legacy_profile_url) == (None, None)
     with pytest.raises(ValidationError):
         EnsureAnimaStartersRequest.model_validate(

@@ -153,6 +153,10 @@ run.
   `KNOWN_ANDREW_FAILURES`: each must still pass on Annie, and stays listed
   only while it fails on Andrew. This supersedes the plan's no-exemptions
   wording for these clips; thresholds are unchanged.
+- 2026-10-20, owner: each starter has its own ElevenLabs voice. Annie keeps
+  `gJx1vCzNCD1EQHT212Ls` (now explicit on her spec) and Andrew gets
+  `4e32WqNVWRquDa1OcRYZ`. Like the Pocket voice, it is written only to newly
+  created starters.
 - 2026-10-19, agent: make the meta edit with a small one-off script. It rewrites
   only the JSON chunk of the GLB, padded to 4 bytes, and leaves the binary chunk
   byte-identical. Reviewers verify the edit by diffing the decoded JSON.

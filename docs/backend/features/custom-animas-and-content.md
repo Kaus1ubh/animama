@@ -247,7 +247,8 @@ creation, and each Reaction cell holds its available starter Reactions, as
 through ordinary plan/commit changes.
 
 Newly provisioned starters use Annie version 3 (`AvatarSample_A_1_New`, Eve Pocket
-voice) and Andrew version 1 (`Andrew`, Michael Pocket voice), with matching
+voice, ElevenLabs `gJx1vCzNCD1EQHT212Ls`) and Andrew version 1 (`Andrew`, Michael
+Pocket voice, ElevenLabs `4e32WqNVWRquDa1OcRYZ`), with matching
 Included portraits when available.
 Their identities write out every section of the `IDENTITY.md` template.
 Existing ready/deleted starter receipts are preserved. Automatic adoption
