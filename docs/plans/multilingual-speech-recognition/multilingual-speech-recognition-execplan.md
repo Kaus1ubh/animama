@@ -1,0 +1,654 @@
+# Deliver multilingual offline speech recognition
+
+Source agreement: [spec](multilingual-speech-recognition-spec.md) for issue
+#509, accepted by the owner on 2026-10-14 by requesting this plan after the
+intent-discovery decisions D1–D12
+([brief](https://github.com/raymond-van/animama/issues/509#issuecomment-6171691667)).
+Spec questions Q1–Q7 stay open and are decided at gate G1.
+Authorized scope: the whole plan (owner instruction to implement, 2026-10-14).
+Gate G1 stops work after Phase 2 until the owner records the model decision.
+Branch: `feat/multilingual-speech-recognition` in its own worktree, created from
+`main` at `b943a908` and fast-forwarded to `0019e280` on 2026-10-14.
+Delivery: #509 holds the published spec (2026-10-14T15:53:03Z); phase
+sub-issues #535 (Phase 1) and #536 (Phase 2, blocked by #535). One PR for the
+plan; it lists `Closes #N` only for issues it delivers.
+
+## Purpose and context
+
+Offline dictation and Voice Mode understand Japanese, Korean, Mandarin Chinese
+and English, choosing the engine by the conversation language (the UI Locale,
+ADR 0024). Phases 1–2 measure SenseVoice-Small and Nemotron 3.5 ASR against
+Parakeet v2 and stop for the owner's choice (G1). Phases 3–6 ship the chosen
+model the way Parakeet ships: a verified asset set downloaded in the app, an
+onnxruntime-web worker on the CPU and WebGPU paths, and language-aware settings.
+
+Paths are relative to `src/frontend/web/src/` unless they start with `src/`,
+`docs/`, `tests/`, `models/`, `scripts/` or `licenses/`.
+
+| Area | Entry points |
+| --- | --- |
+| Parakeet engine | `lib/speech/client-parakeet/{assets,client,worker-protocol,webgpu,lease,preview-controller}.ts`, `workers/client-parakeet-worker.ts` (listed in `src/frontend/knip.json`), `parakeet.js` 1.4.4 on the app's `onnxruntime-web` (numThreads 1, SIMD; JSEP for WebGPU) |
+| Dictation | `hooks/use-dictation.ts` (`startDictation`, `startParakeetDictation` ~1831, `transcribeParakeetSpeechWindow` ~1543, `normalizeSmartTurnOverrideText` 287), `hooks/voice/mic-vad-runtime.ts` (`VadSttProvider`, line 316), `lib/types/voice-types.ts` (`SttSegmentSource`) |
+| Provider and language | `lib/speech/{stt-provider,stt-settings,speech-language}.ts`, `lib/settings/preferences.ts` (`stt_provider`, `stt_parakeet_webgpu`), `ui/settings/SpeechLanguageNotice.tsx` |
+| Settings and Setup | `ui/sidebar/ApplicationSettingsModal.tsx` (STT section, `stt-downloads`), `ui/settings/{OfflineSpeechDownloads,VoiceDownloads}.tsx`, `app/local-runtime/setup/{SetupSpeechDownloads,SetupVoiceStep}.tsx`, `ui/main/chat/ChatInterface.tsx` (`speechAvailable`), `query/model-download-coordination.ts`, `query/hooks/useModelAssets.ts` |
+| Catalogs | `locales/<locale>/{voice,setup,app,settings}.json`; `src/frontend/i18n/terms.json`; `pnpm i18n:extract`, `i18n:check`, `i18n:status` |
+| Capabilities | `src/backend/animama/app/contracts/runtime_capabilities.py`, `server/runtime_capabilities.py`, `product_http/routes/runtime_capabilities.py`, generated SDK (`pnpm openapi-ts`), `contracts/runtime-capabilities/hosted.json`, web fixtures |
+| Model assets | `src/backend/animama/server/model_assets.py` (`parakeet_availability`, mounts), `local/http/assets.py` (`MODEL_MOUNT_PATHS`), `server/config.py`, `resources/model-assets.v1.json`, `app/services/model_asset_service.py`, `domain/model_assets.py` |
+| Acquisition | `scripts/models/{parakeet,parakeet_webgpu,release_inputs}.py`, `scripts/models/README.md`, `reset.sh` (`resolve_optional_model`), `scripts/local-stack-state-common.sh`, `docker-compose.development.yml`, `web/vite.config.ts` + `web/vite-plugins/local-parakeet-models.ts` |
+| Publication and notices | `src/frontend/desktop/scripts/runtime/{optional-inputs,model-publication,release-models}.mjs`, `licenses/third-party/code-and-models.{md,json}`, `licenses/source-review.json`, `desktop/runtime/license-sources.json`, `desktop/runtime/notices/`, `desktop/scripts/runtime/audit.mjs`, `vite.config.ts` `modelNoticeRoots` |
+| Turn-taking | `lib/voice/smart-turn-short-utterance-overrides.ts`, Smart Turn and MicVAD workers |
+| Benchmark | `web/speech-bench.html`, `dev/speech-bench/*`, `src/frontend/scripts/speech-bench.mjs` (`pnpm speech:bench`), `scripts/speech-eval/` (development-only; built output must not contain it) |
+
+Boundaries:
+
+- Recognition stays in the browser worker; no native sidecar, no cloud (D1).
+- Startup and builds never download models; only `scripts/models` and the
+  in-app model-asset service do.
+- Stored preference values (`stt_provider: "parakeet"`, `stt_parakeet_webgpu`)
+  keep their names; no database or Alembic change is expected.
+- Test-set audio and evaluation model files stay outside the repository
+  (`ANIMAMA_SPEECH_EVAL_ROOT`, default under the per-OS model cache). Common
+  Voice data may not be re-hosted.
+- Generated SDK and router output are regenerated, never hand-edited.
+
+## Progress
+
+- [x] 2026-10-14 Discovery brief posted to #509; spec drafted and accepted by
+      requesting this plan.
+- [x] Phase 1 — Benchmark harness, test set and Parakeet baseline (#535):
+      review passed 2026-10-20 (three rounds); committed.
+- [ ] Phase 2 — Candidate engines and comparison report (#536). Gate G1.
+- [ ] Phase 3 — Multilingual model asset set (after G1).
+- [ ] Phase 4 — Engine integration and language routing (after G1).
+- [ ] Phase 5 — Settings, Setup, language notice and turn-taking (after G1).
+- [ ] Phase 6 — Acceptance runs, packaging checks and documentation.
+- [ ] Final integration review.
+
+## Surprises & Discoveries
+
+- 2026-10-14: Common Voice moved to Mozilla Data Collective in October 2025.
+  Taiwan Mandarin (`zh-TW`, v25.0, about 2.95 GB, CC0) needs an account and
+  acceptance of terms that forbid re-hosting, so it cannot be fetched by a
+  script. FLEURS (`google/fleurs`, revision `70bb2e84`) is ungated but has no
+  Taiwan Mandarin. See gate G0.
+- 2026-10-14: `desktop/scripts/runtime/optional-inputs.mjs` (`modelManifest`,
+  line 60) accepts only `CC-BY-4.0` model manifests. SenseVoice (FunASR Model
+  License v1.1) and Nemotron (OpenMDW-1.1) need that check generalized.
+- 2026-10-14: The Smart Turn short-reply normalization is ASCII-only (`\w`
+  without the `u` flag) and duplicated in `use-dictation.ts:287`, so any
+  Japanese, Korean or Chinese entry would normalize to an empty string.
+- 2026-10-14: The Parakeet worker runs on the app's `onnxruntime-web` (1.24.3 in
+  the lockfile); the pinned public copy at `/onnx/ort/1.24.2/` serves MicVAD and
+  Smart Turn. New engines should share the worker's ORT copy, not add a third.
+- 2026-10-14: `SetupVoiceStep.tsx:61` passes `provider="parakeet"` to
+  `SpeechLanguageNotice` unconditionally.
+- 2026-10-14: FLEURS test clips are 16 kHz mono IEEE-float WAV and mostly long
+  read sentences (median 9.5–12.5 s); 1–15 s clips leave 210–331 distinct
+  sentences per language, enough for 75.
+- 2026-10-20: Peak memory varies up to twofold between identical runs (for
+  Parakeet on WASM, 2.3 and 4.5 GB clip-phase peaks), apparently with
+  garbage-collection timing; an earlier reading of steady WebGPU growth did not
+  repeat. The benchmark therefore also reports the median footprint while
+  transcribing, and comparisons use it.
+- 2026-10-14: The desktop app's Electron 39.8.9 runs Chromium 142, while
+  Playwright's bundled Chromium is 145, so the benchmark runs in Electron.
+- 2026-10-14: Parakeet's WebGPU (FP16 encoder) English WER is 3.8% against 4.1%
+  for the INT8 encoder on WASM; WASM decodes at 0.31× real time, so a 10 s
+  window waits about 3 s for its final text.
+
+## Decision Log
+
+- 2026-10-14, owner (discovery): D1–D12 as recorded in the spec.
+- 2026-10-14, owner: the spec is accepted by requesting the ExecPlan; Q1–Q7
+  remain open for G1.
+- 2026-10-14, owner: implement the plan (`/implement`). Work proceeds through
+  Phase 2 and stops at G1; phase issues for Phases 3–6 are created after G1.
+- 2026-10-14, agent (plan): the comparison extends the existing
+  development-only `parakeet-bench` page instead of an out-of-repo lab, so the
+  harness is reviewable and reusable for later acceptance runs.
+- 2026-10-14, agent (plan): every R1 run treats one test clip as one speech
+  window. Latency is measured from the moment the last audio sample is
+  delivered, with audio paced in real time when interim text or streaming is
+  measured, so window and streaming engines are compared on the same basis.
+- 2026-10-14, agent (plan): reference transcripts are read from the fetched
+  datasets at run time; only clip identifiers, dataset revisions and selection
+  rules are tracked.
+- 2026-10-14, agent (Phase 1): accuracy and window-engine final latency come
+  from `throughput` runs; interim text and streaming final delay come from
+  real-time `paced` runs. A streaming engine's throughput final delay is derived
+  from its per-chunk timings (`streamTailLatencyMs`, which lets a partial last
+  chunk arrive when the audio ends), exact for one serial worker. The `parakeet-bench` page is replaced rather than kept beside
+  the new benchmark.
+
+- 2026-10-20, owner: G0 resolved with the fallback; no Common Voice download.
+
+## Owner gates
+
+- **G0 — Taiwan Mandarin test data (Phase 1).** The owner creates a Mozilla Data
+  Collective account, accepts the Common Voice terms, downloads Common Voice
+  Scripted Speech (latest) Chinese (Taiwan), and gives the agent its local path.
+  If declined, `zh-Hant` is measured on FLEURS Mandarin with references
+  converted to Traditional, and the report says Taiwan accents were not tested.
+  Blocks only the `zh-Hant` accuracy figures.
+- **G1 — Model decision (end of Phase 2).** The owner records the chosen model,
+  whether it also serves English (D8), the numeric accuracy and latency targets
+  (D10), any GPU add-on budget (Q5) and answers to Q1–Q4, Q6 and Q7. Blocks
+  Phases 3–6.
+- **G2 — Shared-object publication (release).** The owner publishes the new
+  set's objects to `downloads.animama.ai` with
+  `pnpm --filter animama-desktop models:publish -- --model <id>`. Until then,
+  development uses `scripts/models/<engine>.py acquire --source upstream`, and
+  packaged or built-mode downloads cannot complete. Recorded in the PR; does
+  not block phase progression.
+- **G3 — Windows smoke check.** On the owner's Windows machine, a desktop build
+  installs the set and transcribes Japanese on the CPU path.
+- **G4 — Live check on the reference Mac.** The owner tries dictation and Voice
+  Mode under each non-English locale, with live speech or played clips.
+
+G2–G4 do not block phase progression; outstanding ones are recorded in the PR.
+
+## Phased implementation
+
+Every phase: tests first where behavior is observable; the phase's checks;
+bounded independent review (`sdlc-reviewer`: one full review, at most two repair
+rounds) recorded below; commits `<type>(speech)[p#]: <summary>`. New UI strings
+get English plus `ja`, `ko`, `zh-Hans` and `zh-Hant` translations using
+`src/frontend/i18n/terms.json`, with placeholders preserved.
+
+Review tiers ([SDLC](../../../SDLC.md#review-tiers), added 2026-10-20): Phase 1
+standard; Phase 2 high risk (adds the Chinese script converter dependency);
+Phase 3 high risk (shared contracts, generated client, packaging and release
+inputs); Phases 4 and 5 standard; Phase 6 light, covered by the final
+integration review.
+
+### Phase 1 — Benchmark harness, test set and Parakeet baseline (R1)
+
+Dependencies: workspace setup; G0 for the Taiwan Mandarin subset.
+
+Changes:
+
+1. `scripts/speech-eval/` (Python standard library, like `scripts/models`):
+   - `testset.json`: dataset name, pinned revision and split, and a seeded,
+     deterministic selection of 75 clips per language (en, ja, ko, Mainland
+     Mandarin, Taiwan Mandarin; optional Cantonese for D9), 1–15 s long. Clip
+     identifiers only.
+   - `fetch`: downloads the FLEURS `test` archives and TSVs for `en_us`,
+     `ja_jp`, `ko_kr`, `cmn_hans_cn` (and `yue_hant_hk`) at the pinned revision
+     into `ANIMAMA_SPEECH_EVAL_ROOT`, verifies their SHA-256, and extracts the
+     selected clips plus a `clips.json` with references. `import-common-voice
+     <path>` copies the selected clips and references from the owner's local
+     Common Voice download; that data has no pinned hash because it is not
+     fetched by the tool.
+   - `score`: per-language normalization (NFKC; English lowercase and
+     punctuation removal; ja/ko/zh punctuation and whitespace removal), CER for
+     ja/ko/zh and WER for en by edit distance, p50/p90 latency, real-time
+     factor, and a Markdown table for the plan.
+2. Development benchmark: generalize `dev/parakeet-bench/*` into a speech
+   benchmark with an engine adapter interface (`load`, `transcribeWindow`, and
+   optional `pushAudio`/`flush` for streaming engines). Parakeet becomes the
+   first adapter. The page loads clips from a local URL, can pace audio in real
+   time, records final and first-interim latency, load time and per-clip text,
+   and exposes the result object as today. Clips are decoded in the browser
+   (Web Audio) and resampled to 16 kHz, so no audio tooling is needed.
+3. A runner that drives the page in the reference runtime and writes results
+   JSON to the evaluation root. Prefer the desktop renderer; if the harness
+   cannot load there, use Chromium of the same major version and record the
+   deviation. Memory is sampled over the whole Electron process tree, with the
+   method recorded.
+4. Parakeet v2 English baseline on CPU and WebGPU.
+
+Checks: `uv run pytest -q tests/test_speech_eval*.py` (selection
+determinism, normalization, CER/WER against hand-computed cases),
+`uv run ruff check`, `make format-check`, from `src/frontend` `pnpm check`,
+`pnpm web:lint`, `pnpm web:test`, `pnpm build` and a scan confirming the built
+output contains no benchmark page or strings.
+
+Completion: the test set is tracked; `fetch` and `score` reproduce the Parakeet
+baseline on the reference Mac; G0 status recorded.
+
+#### Phase 1 results (2026-10-14)
+
+Changes:
+
+- `scripts/speech-eval/speech_eval.py` (`select`, `fetch`,
+  `import-common-voice`, `score`, `root`) and `testset.json`: FLEURS at
+  revision `70bb2e84`, pinned TSV and archive hashes, 75 clips per set for
+  `en`, `ja`, `ko`, `zh-Hans` and `yue` (643–831 s of audio per set), selected
+  per sentence across three duration buckets. `zh-Hant` waits for G0.
+- `web/speech-bench.html` and `web/src/dev/speech-bench/*` replace the
+  Parakeet-only `parakeet-bench` page: engine adapters (`window` and `stream`
+  kinds), `throughput` and real-time `paced` modes, interim text through the
+  app's preview controller, one serial engine queue as in the product worker.
+- `src/frontend/scripts/speech-bench.mjs` (`pnpm speech:bench`) runs the page in
+  a bare Electron 39.8.9 window (Chromium 142.0.7444.265, the desktop app's
+  build) through Playwright: a fresh profile per run, a load-only launch for the
+  cold load, then a second launch for the warm load and the clips. It serves
+  clips to the app origin only and samples the process tree's macOS footprint
+  by phase; `speech-bench-electron-main.cjs` is the window shell.
+- `knip.json` lists the benchmark entry points.
+
+Reproduce (reference Mac, Apple M5, 24 GB):
+
+```bash
+uv run python scripts/speech-eval/speech_eval.py fetch
+pnpm --dir src/frontend/web exec vite --port 5179 --strictPort --host 127.0.0.1
+pnpm --dir src/frontend -s speech:bench --app http://127.0.0.1:5179 --engine parakeet --backend wasm --mode throughput --sets en
+pnpm --dir src/frontend -s speech:bench --app http://127.0.0.1:5179 --engine parakeet --backend webgpu --mode throughput --sets en
+pnpm --dir src/frontend -s speech:bench --app http://127.0.0.1:5179 --engine parakeet --backend webgpu --mode paced --sets en
+uv run python scripts/speech-eval/speech_eval.py score <results>/parakeet-*.json
+```
+
+Parakeet v2 English baseline (75 FLEURS clips, Electron 39.8.9), measured on
+2026-10-20 with the final runner (one fresh profile per run, a load-only launch
+for the cold load, memory as summed macOS footprint of the second launch):
+
+| Backend | Mode | WER | Final p50 / p90 ms | First interim p50 ms | RTF | Cold / warm load ms | Clip median / peak MB | Peak by process MB |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| wasm | throughput | 4.1% | 2,486 / 4,010 | – | 0.30 | 1,458 / 1,369 | 1,653 / 2,296 | renderer 2,143, GPU 109 |
+| webgpu | throughput | 3.8% | 168 / 227 | – | 0.02 | 2,068 / 2,103 | 4,424 / 4,496 | renderer 2,896, GPU 1,555 |
+| webgpu | paced, interim | 3.8% | 256 / 422 | 789 | 0.02 | 2,069 / 2,040 | 4,937 / 5,024 | renderer 3,137, GPU 1,842 |
+
+On WASM the app shows no interim text. Loading takes under two seconds, so the
+two-second memory sampler often misses it; read the load-phase peak as a lower
+bound. Repeated runs differ by a few hundred milliseconds in load time.
+
+Check record (working tree; tree hashes from the `git-workflow` recipe):
+
+| Check | Directory | Tree | Result |
+| --- | --- | --- | --- |
+| `uv run pytest -q tests/test_speech_eval.py` | root | `de586358` | 21 passed |
+| `uv run ruff check scripts/speech-eval tests/test_speech_eval.py` | root | `de586358` | pass |
+| `uv run ruff format --check scripts/speech-eval tests/test_speech_eval.py` | root | `de586358` | pass |
+| `node --check` on `speech-bench.mjs` and `speech-bench-electron-main.cjs` | `src/frontend` | `de586358` | pass |
+| `pnpm exec vitest run src/dev/speech-bench` | `src/frontend/web` | `de586358` | 9 passed |
+| `pnpm exec tsc -b --noEmit` | `src/frontend/web` | `de586358` | pass |
+| `pnpm exec eslint src/dev/speech-bench` | `src/frontend/web` | `de586358` | pass |
+| `pnpm exec prettier --check src/dev/speech-bench speech-bench.html` | `src/frontend/web` | `de586358` | pass |
+| `pnpm exec knip` (benchmark files) | `src/frontend` | `2fde40df` | nothing reported |
+
+`2fde40df` differs from `de586358` only by `ignoreBinaries` in `knip.json`.
+
+Earlier on 2026-10-14 (before the repairs, at `0019e280`): `pnpm check`,
+`pnpm web:lint`, `pnpm web:test` (vitest and 114 browser tests) and `pnpm build`
+passed, and the built `web/dist` contained no `speech-bench` strings. The full
+pre-push suite runs once on the final candidate.
+
+G0: the owner chose the fallback on 2026-10-20. `zh-Hant` is measured on the
+FLEURS Mainland Mandarin clips with references converted to Traditional by the
+same converter as the output; Taiwan accents are not tested.
+
+Records: issue #535; commits —; evidence: Phase 1 results above.
+
+#### Code Review #1 Findings
+
+Full initial review by an independent `sdlc-reviewer` subagent on 2026-10-14,
+working tree at `0019e280` (Phase 2 drafts excluded). Its checks: speech-eval
+tests 20 passed, ruff and format pass, benchmark vitest 7 passed, eslint pass,
+built `dist` free of benchmark strings, and `score` reproduced the plan table.
+Result: blocked.
+
+- **P1-CR1-01 (required)** `bench-runner.ts`: paced window final latency started
+  at `max(now, scheduled end)`, so a preview still holding the worker at the end
+  of the clip was left out. Streaming measured from the scheduled arrival, so the
+  two engine kinds were not compared on the same basis. Reproduced: 260 ms
+  reported against 367 ms elapsed.
+- **P1-CR1-02 (required)** `speech_eval.py summarize`: results grouped only by
+  engine, backend, mode and set, so reruns, paced runs without interim text and
+  other runtimes merged silently into one row.
+- **P1-CR1-03 (required)** R1 asks for cold and warm load; `loadMs` was neither,
+  and Playwright's default Electron profile kept HTTP, code and shader caches
+  between runs.
+- **P1-CR1-04 (required)** Plan and code text: stale benchmark entry points,
+  `import-common-voice` described as hash-verified, a wrong script name, a CORS
+  comment that did not match the code, and missing issue reference.
+- **P1-CR1-05 (optional)** `streamTailLatencyMs` assumed a full last chunk.
+- **P1-CR1-06 (optional)** Clip server sent `Access-Control-Allow-Origin: *` for
+  the whole evaluation root; a malformed `%` request crashed the runner.
+- **P1-CR1-07 (optional)** A zero-clip run succeeded silently; preview budget
+  stops were dropped.
+- **P1-CR1-08 (optional)** The Parakeet adapter copies the product worker's load
+  options and ignores `models=`; `dispose` was unused; `fetch` downloaded the
+  optional Cantonese set by default.
+
+#### Code Review #1 Revisions
+
+- **P1-CR1-01 accepted.** Paced window latency now counts from the scheduled end
+  of the audio; new test "counts a preview still running at the end of the audio
+  in the final delay" (fails with the old expression).
+- **P1-CR1-02 accepted.** A configuration is engine, backend, mode, interim and
+  runtime; a repeated clip within one configuration raises an error. Test added.
+- **P1-CR1-03 accepted.** The runner gives Electron a fresh temporary profile
+  per run (`SPEECH_BENCH_USER_DATA`), and the worker reports `coldLoadMs` and
+  `warmLoadMs` (the same load after disposing the first). Baseline re-measured.
+- **P1-CR1-04 accepted.** Context table, `import-common-voice` wording, recovery
+  text, docstring, CORS comment and Records line corrected.
+- **P1-CR1-05 accepted.** `streamTailLatencyMs` takes the audio length and lets
+  a partial last chunk arrive when the audio ends; test added (2.2 s case).
+- **P1-CR1-06 accepted.** CORS limited to the app origin; URL decoding moved
+  inside the guarded block.
+- **P1-CR1-07 accepted.** The page fails when no clips match; budget stops and
+  preview failures are counted per clip (`interimStops`).
+- **P1-CR1-08 partly accepted.** Parakeet now rejects `models=` and releases its
+  sessions in `dispose` (used by the warm load); `fetch` skips optional sets
+  unless named. Sharing the product worker's load and release code is deferred
+  to Phase 4, which replaces that worker with the routed engine module; the
+  copy is marked in the adapter.
+
+Repair budget: one of two rounds used.
+
+#### Code Review #2 Findings
+
+Targeted recheck by an independent `sdlc-reviewer` subagent on 2026-10-20,
+working tree `3786f449` (baseline `e8c3233a`). It confirmed P1-CR1-01 to 08
+resolved (the new tests fail against the old logic; the Electron shell writes
+its caches into the scratch profile) and reran `score` against the re-measured
+results. Result: blocked.
+
+- **P1-CR2-01 (required)** `bench-worker.ts`: the warm load ran in the same
+  worker as the cold load, so peak memory and warm load time measured the
+  benchmark's own double load (peak RSS 1,611 → 2,812 MB on WASM throughput).
+- **P1-CR2-02 (optional)** The score table had no runtime column.
+- **P1-CR2-03 (optional)** "No GPU shader cache" overstates a fresh profile:
+  macOS keeps a Metal shader cache outside it, and model files stay in the OS
+  file cache.
+- **(optional)** `interimStops` was not shown by `score`.
+
+#### Code Review #2 Revisions
+
+- **P1-CR2-01 accepted.** A separate worker in the same renderer still left the
+  first load's memory in the process, so the runner now launches Electron twice
+  on one fresh profile: a load-only launch (`loadOnly=1`) gives the cold load,
+  and the second launch gives the warm load and runs the clips. Memory is
+  sampled only in the second launch and split by the page's phase
+  (`loadPeakMb`, `peakMb`). RSS swung by 1–2 GB between identical runs because
+  it counts shared pages per process, so the sampler now sums macOS
+  `footprint` (Activity Monitor's figure) every two seconds and records the
+  clip-phase median and peak, with the peak split by Electron process type
+  (`peakByProcessMb`). The unused
+  Chromium path was removed; the runner targets the reference Mac (D2).
+  Baseline re-measured.
+- **P1-CR2-02 accepted.** `score` shows the runtime.
+- **P1-CR2-03 accepted.** Comments and the plan say "fresh browser profile" and
+  no longer claim an empty GPU shader cache.
+- **`interimStops` accepted.** Shown as "Interim stops" by `score`.
+
+Repair budget: two of two rounds used.
+
+#### Code Review #3 Findings
+
+Final targeted recheck by an independent `sdlc-reviewer` subagent on
+2026-10-20, working tree `f74252fa`. P1-CR2-01 to 03 and the interim-stops note
+are resolved: cold and warm loads run in separate launches, memory comes only
+from the warm launch, the `footprint` parsing and process-tree logic are
+correct and fail per sample, and the plan's table matches the result files and
+a rerun of `score`. No regressions. Result: pass.
+
+- **P1-CR3-01 (optional)** A phase with no memory sample was written as `0`.
+- **P1-CR3-02 (optional)** Two comments still claimed a fully cold start.
+- (non-blocking) The median took the upper middle value for an even sample
+  count; the plan's step 3 still named only the renderer and GPU processes.
+
+#### Code Review #3 Revisions
+
+All accepted after the pass: memory figures with no sample are `null` (a short
+WebGPU smoke run wrote `null` for the clip phase), the median averages the two
+middle samples, and the comments and step 3 describe the fresh profile and the
+whole process tree. `node --check` passes on the runner.
+
+### Phase 2 — Candidate engines and comparison report (R1, gate G1)
+
+Dependencies: Phase 1.
+
+Changes:
+
+1. Evaluation-only acquisition of pinned upstream candidate files into the
+   evaluation root (not the catalog): SenseVoice-Small int8 ONNX (an export
+   with frame stacking and normalization in the graph, or the sherpa-onnx
+   export with those steps in JS) and Nemotron 3.5 ASR ONNX (int8; int4 for
+   WebGPU if it is the only working export). Record the source, revision,
+   licence, and the licence of any community code reused.
+2. SenseVoice adapter: 80-bin Kaldi fbank front end in the worker, language
+   and text-normalization prompt for the conversation language, greedy CTC
+   collapse, token table, tag stripping. Interim text by re-decoding the
+   growing window through the existing preview controller.
+3. Nemotron adapter: cache-aware streaming encoder fed in chunks (measure 560
+   ms and 1.12 s), RNNT greedy decoding, language prompt, partial and final
+   text.
+4. Chinese script: test a compact OpenCC-derived converter for Simplified →
+   Traditional (and the reverse if a model emits Traditional); record its size
+   and licence.
+5. Run every candidate, language and backend; write the comparison report
+   below with every R1 measurement, the Parakeet baseline, failures (with
+   evidence) and a recommendation. State the Nemotron worker-protocol cost.
+
+Checks: Phase 1 checks plus adapter unit tests (front-end features against a
+fixture, CTC collapse, tag stripping, RNNT greedy decode on a toy graph where
+practical, script conversion).
+
+Completion and gate: report recorded; G1 decisions recorded in the Decision
+Log. Work stops here until G1. The losing adapter is removed in Phase 4.
+
+Records: issue —; commits —; evidence —.
+
+#### Code Review #1 Findings
+
+Not run.
+
+#### Code Review #1 Revisions
+
+Not run.
+
+#### Comparison report
+
+To be written in Phase 2.
+
+### Phase 3 — Multilingual model asset set (R4)
+
+Dependencies: G1 (model, files and asset ID; written `<model-id>` below).
+
+Changes:
+
+1. `models/<model-id>/{manifest.json, README.md, ATTRIBUTION.md}`, plus a GPU
+   add-on set if G1 approves one.
+2. `scripts/models/<engine>.py` (`acquire`, `verify`, `path`, `root`, `--source
+   animama|upstream`) reusing `parakeet.py` primitives; README section;
+   `release_inputs.py`.
+3. `reset.sh` and `scripts/local-stack-state-common.sh`: resolve the set
+   offline with `resolve_optional_model` (missing disables multilingual
+   recognition only; failed verification stops the reset) and record its
+   directory in the stack record. Development Compose binds the directory and
+   sets a `VITE_CLIENT_*_MODEL_DIR`; the Vite plugin and model define serve it
+   at a development route.
+4. Backend: catalog entry in `resources/model-assets.v1.json` with
+   `license_ref`; a mount path in `local/http/assets.py`; availability for the
+   new set beside `parakeet_availability`; runtime-capability fields for its
+   installed version(s); regenerated SDK; hosted capability fixture.
+5. Publication and notices: generalize the licence check in
+   `optional-inputs.mjs`; `release-models.mjs` model spec; `code-and-models.md`
+   and `.json`; `source-review.json`; `desktop/runtime/license-sources.json`
+   and a notice file; `audit.mjs` exclusion from packaged web output;
+   `redistribution-review.md`; `.env.example`.
+
+Checks: `uv run pytest -q tests/test_model_assets.py
+tests/test_model_asset_sets.py tests/test_runtime_capabilities.py
+tests/test_product_http_runtime_capabilities.py tests/test_local_http_assets.py
+tests/test_release_model_inputs.py tests/test_local_state_scripts.py` plus a new
+`tests/test_<engine>_model_sources.py`; `pnpm openapi-ts:check`;
+`pnpm desktop:test`; `bash -n reset.sh`; both `docker compose ... config
+--quiet` commands; `uv run ruff check`; `make format-check`.
+
+Completion: `acquire --source upstream`, `verify` and `path` work on the
+reference Mac; a fresh `reset.sh` reports the set; the catalog equals the
+tracked manifest; capabilities report the installed version.
+
+Records: issue —; commits —; evidence —.
+
+#### Code Review #1 Findings
+
+Not run.
+
+#### Code Review #1 Revisions
+
+Not run.
+
+### Phase 4 — Engine integration and language routing (R2, R3)
+
+Dependencies: Phase 3.
+
+Changes:
+
+1. Production engine module and worker for the chosen model, promoted from the
+   Phase 2 adapter (`lib/speech/client-<engine>/`,
+   `workers/client-<engine>-worker.ts`, knip entry). Same lifecycle as
+   Parakeet: version-pinned same-origin URLs, model-asset leases, idle disposal,
+   WebGPU probe and fallback to the CPU with the existing notice, one worker per
+   backend.
+2. A pure routing function from conversation locale, capabilities and
+   preferences to `{engine, languageHint}`; `use-dictation.ts` starts the
+   routed engine. The locale is read at start (Q3 per G1). `SttSegmentSource`
+   and `VadSttProvider` gain the new engine without renaming stored values.
+3. Output processing: tag removal, script conversion per locale, CJK spacing,
+   no segment for empty text.
+4. Interim text through the preview controller (window engine) or streaming
+   partials (Nemotron), within the budget G1 approves; display-only as today.
+5. Errors: "speech model for <language> not installed" pointing to its
+   download, load and transcription failures surfaced without silent provider
+   switches.
+6. If G1 makes the model the default for English, English routes to it while
+   Parakeet stays selectable (D8).
+7. Remove the losing Phase 2 adapter; the benchmark keeps the Parakeet and
+   chosen-engine adapters.
+
+Checks: unit tests for routing, output processing, worker protocol and
+backend fallback; existing `client-parakeet` and dictation tests;
+`pnpm check`, `pnpm web:lint`, `pnpm web:test`, `pnpm build`; the Phase 1
+harness run through the production worker for every language on CPU and WebGPU
+against the G1 targets.
+
+Completion: dictation and Voice Mode transcribe the test clips in every
+language through the app path; targets met or the gap reported to the owner.
+
+Records: issue —; commits —; evidence —.
+
+#### Code Review #1 Findings
+
+Not run.
+
+#### Code Review #1 Revisions
+
+Not run.
+
+### Phase 5 — Settings, Setup, language notice and turn-taking (R4, R5, R6)
+
+Dependencies: Phase 4.
+
+Changes:
+
+1. Replace `speechEngineIsEnglishOnly` for speech-to-text with a check of
+   whether the routed engine supports the active locale and is installed.
+   `SpeechLanguageNotice` shows nothing when it is, a download prompt when the
+   model is missing, and the Pocket TTS notice unchanged. Fix
+   `SetupVoiceStep.tsx:61`.
+2. Offline speech downloads list the new set (and add-on) with attribution
+   (`?raw` import plus its folder in `modelNoticeRoots`); generalize
+   `useOfflineSpeechDownloads`, `knownAssetIds` and `installedSpeechSets`;
+   `ChatInterface` speech availability follows the routed engine.
+3. Settings labels per Q1 and Setup offers per Q2, as decided at G1; Setup's
+   English-only Parakeet description is updated.
+4. Translations in all catalogs; `terms.json` gains the model name.
+5. Smart Turn: one shared Unicode-aware normalization (remove the duplicate in
+   `use-dictation.ts`), localized short replies for `ja`, `ko`, `zh-Hans` and
+   `zh-Hant`, and a new test file.
+6. Smoke check (D11): the harness plays the ja, ko and zh clips through MicVAD
+   and Smart Turn and records speech detection and end-of-turn decisions below.
+
+Checks: `SpeechLanguageNotice`, `VoiceDownloads`, `stt-settings`,
+`ChatSpeechAvailability`, Smart Turn override and model-download coordination
+tests; `web/scripts/setup-downloads.browser.test.mjs`; `pnpm i18n:check` and
+`pnpm i18n:status`; `pnpm check`, `pnpm web:lint`, `pnpm web:test`,
+`pnpm build`; screenshots of each notice state at desktop size and one narrow
+width.
+
+Completion: notice, downloads and Setup behave per R4 and R5 under every
+locale; smoke-check results recorded.
+
+Records: issue —; commits —; evidence —.
+
+#### Code Review #1 Findings
+
+Not run.
+
+#### Code Review #1 Revisions
+
+Not run.
+
+### Phase 6 — Acceptance runs, packaging checks and documentation (R7, acceptance)
+
+Dependencies: Phase 5.
+
+Changes and checks:
+
+1. Documentation: `docs/frontend/runtime/voice.md`,
+   `docs/backend/operations/model-assets.md`,
+   `docs/backend/architecture/http-api.md`, `scripts/models/README.md`,
+   `docs/frontend/architecture/{i18n,content-and-workers}.md`,
+   `docs/frontend/desktop/redistribution-review.md`, `contracts/hosted-web.md`,
+   `GLOSSARY.md` (Conversation language, Model asset) and, if Q6 is agreed,
+   ADR 0025 with a history note in ADR 0024 and the ADR index.
+2. Acceptance run of the full test set through the production path on the
+   reference Mac, CPU and WebGPU: accuracy, latency, script check, English,
+   silence and noise windows, absence of tags.
+3. Network inspection during a recorded dictation run with the model
+   installed: no outbound requests.
+4. Built self-host stack (`ANIMAMA_WEB_BUILD_MODE=production ./reset.sh --name
+   <name> --base-port <port>`): download, resume, removal, lease refusal and
+   transcription. Needs G2 for downloads from the shared origin; otherwise
+   recorded as outstanding.
+5. Packaged desktop build on the reference Mac: same checks; `pnpm
+   desktop:check`, desktop runtime audit and packaging tests.
+6. `pnpm e2e:test:fast` against a disposable built stack.
+7. Owner gates G3 and G4 recorded in the PR.
+
+Completion: every spec acceptance item is checked or recorded as an outstanding
+owner gate.
+
+Records: issue —; commits —; evidence —.
+
+#### Code Review #1 Findings
+
+Not run.
+
+#### Code Review #1 Revisions
+
+Not run.
+
+## Final integration review
+
+Covers combined acceptance, reusing still-valid phase evidence; findings and
+revisions recorded here.
+
+## Validation and acceptance
+
+Spec acceptance criteria map to: R1 report (Phase 2); language runs, script and
+silence checks (Phases 4 and 6); Smart Turn (Phase 5); notice (Phase 5);
+assets (Phases 3 and 6); network (Phase 6); notices and redistribution (Phase 3
+and 6); Windows (G3); live check (G4). Local checks are recorded with exact
+commands and results; hosted validation is run only as the owner decides, and
+recorded separately from local evidence.
+
+## Idempotence and recovery
+
+- `fetch` and evaluation acquisition verify pinned hashes and can be rerun;
+  deleting the evaluation root only costs a re-download. `import-common-voice`
+  can be rerun from the owner's local download.
+- Model-set acquisition is atomic and versioned by manifest digest, like
+  Parakeet's. A bad set fails verification and is reacquired.
+- No database migration: reverting the code leaves installed sets as unused
+  files that the model-asset removal action deletes. Preferences keep their
+  stored values, so Parakeet users are unaffected by a rollback.
+- If G1 changes the model after Phase 3 starts, the unpublished set is replaced
+  in place: there are no released installs to migrate.
+
+## Outcomes & Retrospective
+
+Not started.
