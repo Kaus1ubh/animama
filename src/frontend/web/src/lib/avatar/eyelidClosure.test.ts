@@ -13,13 +13,14 @@ import {
   DEFAULT_EYELID_CLOSURE_PROFILE,
   VERIFIED_EYELID_CLOSURE_PROFILES,
 } from "./eyelidClosure";
-import type { IncludedAvatarId } from "./motion-authoring/headlessVrm";
-import { loadTestAvatarWithGltf } from "./motion-authoring/testing/includedAvatars";
-
-const ANNIE_SHA256 =
-  "37a01dc3368959ac33e459f6ebb147af721a0fa02f6459ee26fd694e95bbcfcc";
-const ANDREW_SHA256 =
-  "fdcb8f78967be017f8adaf4debe375790d37f66109c0b5e7a7b1e246c17b2bc9";
+import {
+  INCLUDED_AVATAR_FILES,
+  type IncludedAvatarId,
+} from "./motion-authoring/headlessVrm";
+import {
+  loadTestAvatarWithGltf,
+  readTestAvatarSha256,
+} from "./motion-authoring/testing/includedAvatars";
 
 /** The applied influence of an expression's first morph target bind. */
 function morphInfluence(vrm: VRM, name: string): number {
@@ -100,16 +101,40 @@ describe("verified eyelid closure profiles", () => {
       DEFAULT_EYELID_CLOSURE_PROFILE.happy,
     );
   });
+
+  it("are keyed by the digests of current Included Avatar files", async () => {
+    // A replaced or re-exported VRM changes its digest; its profile must be
+    // re-keyed (or re-measured if the eyelid geometry changed) to stay in use.
+    // Andrew has no measured profile, so only measured Avatars are compared.
+    const included = Object.fromEntries(
+      await Promise.all(
+        (Object.keys(INCLUDED_AVATAR_FILES) as IncludedAvatarId[]).map(
+          async (id) => [await readTestAvatarSha256(id), id] as const,
+        ),
+      ),
+    );
+    expect(
+      Object.fromEntries(
+        Object.entries(VERIFIED_EYELID_CLOSURE_PROFILES).map(
+          ([sha256, { avatar }]) => [sha256, avatar],
+        ),
+      ),
+    ).toEqual(
+      Object.fromEntries(
+        Object.entries(included).filter(([, id]) => id !== "Andrew"),
+      ),
+    );
+  });
 });
 
-describe.each([["AvatarSample_A_1_New", ANNIE_SHA256, 0.2164]] as [
+describe.each([["AvatarSample_A_1_New", 0.2164]] as [
   IncludedAvatarId,
-  string,
   number,
-][])("eyelid closure on %s", (id, sha256, k) => {
+][])("eyelid closure on %s", (id, k) => {
   let vrm: VRM;
   beforeAll(async () => {
     vrm = (await loadTestAvatarWithGltf(id)).vrm;
+    const sha256 = await readTestAvatarSha256(id);
     expect(applyEyelidClosureCorrection(vrm, sha256)).toEqual({
       source: "verified",
       profile: { happy: 1, relaxed: k },
@@ -177,7 +202,9 @@ describe.each([["AvatarSample_A_1_New", ANNIE_SHA256, 0.2164]] as [
 describe("eyelid closure for Avatars without a verified profile", () => {
   it("uses the default profile for Andrew, whose happy and relaxed close the eyelids", async () => {
     const { vrm } = await loadTestAvatarWithGltf("Andrew");
-    expect(applyEyelidClosureCorrection(vrm, ANDREW_SHA256)).toEqual({
+    expect(
+      applyEyelidClosureCorrection(vrm, await readTestAvatarSha256("Andrew")),
+    ).toEqual({
       source: "default",
       profile: DEFAULT_EYELID_CLOSURE_PROFILE,
     });

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import type { VRM } from "@pixiv/three-vrm";
@@ -53,6 +54,15 @@ export async function loadTestAvatarWithGltf(
 /** Load a fresh headless copy of the VRM 0 test fixture. */
 export function loadVrm0Fixture(): Promise<VRM> {
   return loadTestAvatar(VRM0_FIXTURE_ID);
+}
+
+/** The SHA-256 of an Included Avatar's VRM file, as Animama identifies it. */
+export async function readTestAvatarSha256(
+  id: IncludedAvatarId,
+): Promise<string> {
+  return createHash("sha256")
+    .update(new Uint8Array(await readTestAvatarBytes(id)))
+    .digest("hex");
 }
 
 function testAvatarPath(id: TestAvatarId): string {
