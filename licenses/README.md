@@ -23,7 +23,7 @@ metadata, and on 2026-10-19 approved Andrew, his own edit of a VRoid preset
 with owner-set restrictive metadata; their derived portraits retain the
 corresponding model terms. Caitlyn's former unmodified CC BY sample remains
 only as a test fixture. Retained
-PocketTTS assets, including all 38 voice states (2 core, 36 downloaded on demand), are CC BY 4.0, which permits commercial use with attribution;
+PocketTTS assets, including all 38 voice states (3 core, 35 downloaded on demand), are CC BY 4.0, which permits commercial use with attribution;
 Kyutai's model-card prohibited-use terms still apply. They are not relicensed
 as AGPL. The desktop release policy separately records a noncommercial
 distribution basis; changing it is a separate owner decision.

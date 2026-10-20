@@ -529,7 +529,7 @@
     {
       "glob": "avatars/AvatarChibi_2.vrm",
       "creator": "灰色の猫",
-      "provenance": "Former Caitlyn model; embedded terms prohibit redistribution and no separate permission was supplied. The owner corrected the replacement to Janna's AvatarSample_R1 on 2026-09-02. Retain only in the private development source library.",
+      "provenance": "Former starter model; embedded terms prohibit redistribution and no separate permission was supplied. The owner corrected the replacement to Janna's AvatarSample_R1 on 2026-09-02. Retain only in the private development source library.",
       "license_id": "LicenseRef-chibi-akari-unapproved",
       "redistribution_review": "pending",
       "distribution": "excluded"
@@ -537,7 +537,7 @@
     {
       "glob": "appearances/avatar-portraits/app-avatar-model-avatarchibi-2-v1.*",
       "creator": "Animama render of 灰色の猫 model",
-      "provenance": "Portrait and metadata derived from the excluded former Caitlyn model; excluded from both desktop content partitions with that model.",
+      "provenance": "Portrait and metadata derived from the excluded former starter model; excluded from both desktop content partitions with that model.",
       "license_id": "LicenseRef-chibi-akari-unapproved",
       "redistribution_review": "pending",
       "distribution": "excluded"

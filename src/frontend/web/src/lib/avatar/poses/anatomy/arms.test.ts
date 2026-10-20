@@ -487,9 +487,10 @@ describe.each(AVATARS)("ArmReachSolver on %s", (id) => {
     const canonical = posed(joints);
     pose.setPose(canonical);
     const before = miss(avatar, contact);
-    // The authored arm is close but off its contact.
+    // The authored arm is close but off its contact; Andrew's wider shoulders
+    // leave it 6–9 cm off where the other rigs stay within 6 cm.
     expect(before).toBeGreaterThan(0.01);
-    expect(before).toBeLessThan(0.1);
+    expect(before).toBeLessThan(id === "Andrew" ? 0.1 : 0.06);
 
     const errors = solveArmContacts(
       pose,

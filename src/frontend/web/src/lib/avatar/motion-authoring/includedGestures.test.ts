@@ -86,6 +86,13 @@ describe("Included 2.0 Gestures", () => {
     expect(clips).toHaveLength(152);
   });
 
+  it("lists only existing Gestures as exempt or as known Andrew failures", () => {
+    const slugs = new Set(clips.map((file) => file.split("/")[0]));
+    for (const slug of [...MOTION_CHECK_EXEMPT, ...KNOWN_ANDREW_FAILURES]) {
+      expect(slugs.has(slug), slug).toBe(true);
+    }
+  });
+
   it.each(clips)(
     "%s validates and passes the checks",
     (file) => {

@@ -79,11 +79,11 @@ run.
 
 - [x] Phase 1: Michael becomes a core voice (review #1 repaired; Cloud follow-up
   tracked separately).
-- [ ] Phase 2: Andrew is an Included Avatar with a portrait and licence records.
-- [ ] Phase 3: the `starter:andrew` starter replaces `starter:caitlyn`.
-- [ ] Phase 4: Y_0 is retired to a test fixture, and tooling and baselines cover
-  Annie and Andrew.
-- [ ] Phase 5: documentation, glossary and ADR wording.
+- [x] Phases 2–4 (one commit `42ffbed4`, merged with main in `0344fdd2`):
+  Andrew Included Avatar, starter swap, Y_0 retired to a fixture, tooling and
+  baselines on Annie and Andrew. Review #1 is repaired.
+- [x] Phase 5: documentation (`150f6193`); the final integration review
+  covers it.
 - [ ] Final integration review, full pre-push suite and full `pnpm e2e:test`.
 - [ ] Owner gates G1–G3 (listed under Validation and acceptance).
 
@@ -110,7 +110,14 @@ run.
   requires every valid tracked Included item to be in the desktop core
   partition (`test_reviewed_library_ships_in_core_without_equipping_starters`),
   and an Avatar enters core only as a starter root. Andrew is not a starter
-  until Phase 3, so Phases 2 and 3 share one commit.
+  until Phase 3. Once Caitlyn stops being a starter, the tracked Y_0 file
+  would fall into the expanded partition until Phase 4 moves it. So Phases 2,
+  3 and 4 share one commit, `feat(starters)[p2-p4]`, a range form of the
+  `[p#]` subject marker.
+- 2026-10-20: Phase 1 missed `scripts/package-sets/application.py`, which also
+  pinned 21 baseline runtime files; the Cloud agent found it (P1-F4). It is
+  fixed in the Phases 2–4 commit. `BASELINE_RUNTIME_FILES = 22` now has a test
+  that it equals the file count of `models/browser-runtime/manifest.json`.
 
 ## Decision Log
 
@@ -439,16 +446,36 @@ Recovery: development databases are reset with `--purge`. Because the
 baseline is edited in place, a stale development database must be reset and
 not migrated.
 
-Check record: _to be filled._
-Phase commit: `feat(starters)[p3]: replace Caitlyn with the Andrew starter`.
+Check record (2026-10-20). All commands ran at the root unless noted.
 
-#### Code Review #1 Findings
+- Tests:
+  - `uv run --no-sync pytest -q tests/test_anima_starters.py` passed (all,
+    including the new no-legacy-lookup and starter-set tests).
+  - `tests/test_starter_content_closure.py` passed (22).
+  - `tests/test_owner_bootstrap.py`, `tests/test_db_bootstrap.py`,
+    `tests/test_avatar_access.py`, `tests/test_anima_avatar_mapping.py`,
+    `tests/test_anima_presentations.py`,
+    `tests/test_installation_personalization.py` and
+    `tests/test_anima_creation_voice.py` passed (53).
+  - `scripts/package-sets` passed (28).
+  - `tests/test_alembic_fresh_install.py` passed (7) once the deliberate
+    baseline SQL change was re-fingerprinted.
+- Lint and client:
+  - `uv run --no-sync ruff check` passed.
+  - From `src/frontend`, `pnpm openapi-ts` then `pnpm openapi-ts:check`
+    reported "Generated SDK is current".
+- Stack `animama-andrew`:
+  - `./reset.sh --name andrew --base-port 8800 --purge` was followed by
+    first-run setup.
+  - `/v1/animas` lists exactly Annie and Andrew.
+  - Andrew's settings have `tts_pocket_anima_voice: michael`. His chat renders
+    the Avatar, and his portrait shows in the sidebar.
 
-_Pending._
+The phase commit is shared with Phases 2 and 4.
 
-#### Code Review #1 Revisions
+#### Code Review #1
 
-_Pending._
+Reviewed with Phase 4 (shared commit); see the Phase 4 findings and revisions.
 
 ### Phase 4: retire Y_0 and cover Annie and Andrew
 
@@ -505,16 +532,93 @@ per-Avatar checks pass on Annie and Andrew, and the reference search is clean.
 Recovery: the fixture move is a Git rename, and the regenerated baselines are
 derived from tests, so reverting the phase commit restores the previous state.
 
-Check record: _to be filled._
-Phase commit: `refactor(content)[p4]: retire Y_0 and cover Andrew in tooling`.
+Check record (2026-10-20):
+
+- Motion checks on all 320 Included clips: Reactions 168/168 pass on Annie,
+  Andrew and the VRM 0 fixture. 24 Gestures fail on Andrew only (gate). The
+  owner kept the originals, and the test lists them in `KNOWN_ANDREW_FAILURES`.
+- Effects checks: there are no Andrew-only failures once each effect is posed
+  with its Gesture.
+- From `src/frontend/web`:
+  - `node --test scripts/effects.test.mjs scripts/animation-reel.test.mjs scripts/content-tune.test.mjs`
+    passed (46).
+  - The clip baseline was regenerated with `UPDATE_CLIP_BASELINE=1`. Annie's
+    samples and every file hash are unchanged.
+  - `includedGestures.test.ts` passed (173).
+- Full pre-push run through `heavy-slot` on tree `65094a9e`:
+  - `pnpm verify` passed (5296).
+  - `pnpm prettier:check` passed.
+  - `pnpm web:test:browser` passed (122).
+  - `make check-test` had 1 failure: the deliberate baseline-SQL fingerprint,
+    which was then updated.
+- Allowed remaining "Caitlyn" references:
+  - the retirement entries in `alembic/seeds/02-seed-avatars.sql` and
+    `_RETIRED_BUILTINS`;
+  - the tests that retire `avt_caitlyn` and reject `starter:caitlyn`;
+  - dated licence history in `art-vroid-review.json` `owner_confirmation`;
+  - fixture provenance in `licenses/README.md`, `art-NOTICES.md` and
+    `content/included/README.md`;
+  - generic test names.
+
+The phase commit is shared with Phases 2 and 3.
 
 #### Code Review #1 Findings
 
-_Pending._
+Reviewed `0344fdd2` (tree `65094a9e`), covering Phases 3 and 4, the P2-F1
+repair, P1-F4 and the merge resolution. High-risk tier, round 1. The reviewer
+reran these on that tree, and all passed:
+
+- `ruff check` on the touched backend files;
+- the package-set unittest (17);
+- `generate-openapi-client --check`;
+- `node --test` on the script tests (46);
+- vitest on eyelid, legs and arms (136).
+
+- **P34-F1 (blocking).** The shipped `content/included/licenses/inventory.json`
+  provenance for the former Chibi 2 model still said "Former Caitlyn model",
+  which breaks R6. New licence-history text also names Caitlyn. The Phase 4
+  search pattern could not detect either.
+- **Non-blocking:**
+  - Stale text:
+    - `licenses/README.md` voice counts;
+    - `avatar-lipsync.md` "Avatar A/Y" wording;
+    - skill measurement notes in `human-movement.md` and `clip-format.md`.
+  - Plan records: the commit note left out Phase 4, and P1-F4 was not
+    recorded.
+  - Spec/issue R7 acceptance wording predates the `KNOWN_ANDREW_FAILURES`
+    decision.
+  - The `arms.test.ts` precondition was widened to 0.1 m for every rig.
+  - There is no guard against stale entries in the exempt and known-failure
+    lists.
+  - Some composed editing tests moved from Y_0 to Andrew, so their VRM 0
+    coverage is gone. The underlying VRM 0 code keeps fixture coverage.
+  - The backend starter swap, VRM meta and merge resolution were checked with
+    no defects.
 
 #### Code Review #1 Revisions
 
-_Pending._
+- **P34-F1: accepted.** The two shipped provenance strings now say "Former
+  starter model". The remaining historical and retirement mentions are
+  recorded above as allowed references, and the spec and issue were amended
+  the same way.
+- **Stale text: accepted.** The licence README counts (3 core, 35 on demand),
+  the lipsync wording (Annie and Andrew, both VRM 1) and both skill notes are
+  fixed.
+- **Plan records: accepted.** They are updated in this plan.
+- **R7 wording: accepted.** The spec and issue #618 were amended to describe
+  `KNOWN_ANDREW_FAILURES`.
+- **`arms.test.ts` precondition: accepted.** It is now 0.06 m for Annie and the
+  fixture and 0.1 m for Andrew.
+- **List guard: accepted.** A new test checks that every exempt or
+  known-failure slug names an existing Included Gesture.
+- **Moved editing tests: no change.** VRM 0 coverage of the underlying solvers
+  remains through the fixture.
+- Verification:
+  - vitest `arms.test.ts` and `includedGestures.test.ts` passed (294).
+  - `tests/test_alembic_fresh_install.py` passed (7).
+  - The prose fixes were read back.
+- Remaining repair budget: 1 round. A targeted recheck is part of the final
+  integration review.
 
 ### Phase 5: documentation
 

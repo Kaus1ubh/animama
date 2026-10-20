@@ -4,7 +4,7 @@ Status: Agreed.
 Owner decision: 2026-10-19 discovery answers and voice choice set the outcome
 and choices below; implementation authorized the same day.
 Authority: https://github.com/raymond-van/animama/issues/618 (this file is a
-snapshot captured at the issue's 2026-10-20T02:55:28Z revision).
+snapshot captured at the issue's 2026-10-20T14:43:50Z revision).
 
 ## Problem and intended users
 
@@ -69,7 +69,9 @@ Non-goals:
   test-only VRM 0 fixture. It is stored in Git LFS outside `content/included`,
   so it is never packaged, scanned as content or listed as an Avatar, and tests
   that need a VRM 0 model keep using it. Generic test data that only borrows the
-  name "Caitlyn" may stay.
+  name "Caitlyn" may stay, as may retirement entries (the seed's guarded
+  DELETE, `_RETIRED_BUILTINS`, tests that retire or reject the old ids) and
+  dated licence history or fixture provenance that names Caitlyn.
 - R7 Tooling and tuning: every place that covers "both Included Avatars" uses
   Annie and Andrew. This includes:
   - effect, animation and content-tune renders and their aliases;
@@ -77,8 +79,12 @@ Non-goals:
   - per-Avatar tuning and baselines: eyelid closure profile, headless VRM fixture,
     hand presets and hand offsets, and the Included clip-sample baseline;
   - the authoring skills.
-  The baselines are regenerated or retuned for Andrew rather than deleted, and
-  every Included Gesture and Reaction still passes its motion checks on him.
+  The baselines are regenerated or retuned for Andrew rather than deleted.
+  Every Included Reaction passes its motion checks on Andrew. Gestures pass on
+  Annie, and pass on Andrew except those listed in `KNOWN_ANDREW_FAILURES`
+  (owner decision on 2026-10-20). Those 24 original clips keep small
+  Andrew-only contact and clearance faults that are not visible at chat
+  framing. Each stays listed only while it still fails on Andrew.
 - R8 Licensing: the licence inventory and notices record Andrew 1.0 and his
   portrait as owner-authored edits of a VRoid A–Z sample preset under VRoid's
   sample and component terms. The base preset is unidentified, which is
@@ -133,7 +139,8 @@ Non-goals:
 - [ ] R6: a repository search finds no remaining references to Y_0 or the
   Caitlyn starter outside generic test names and historical plans.
 - [ ] R7: review renders exist for Andrew; per-Avatar tests and baselines pass;
-  the motion checks pass for all Included Gestures and Reactions on Andrew.
+  the motion checks pass on Andrew for all Included Reactions and for every
+  Gesture not in `KNOWN_ANDREW_FAILURES`, and on Annie for all of them.
 - [ ] R8: licence and redistribution checks pass with Andrew's entries, and the
   VRM meta has been reviewed.
 - [ ] `uv run pytest`, `make check-test`, `pnpm verify` and the full
@@ -150,6 +157,9 @@ Non-goals:
   previews, the owner chose Michael as Andrew's voice.
 - 2026-10-19, agreed: Annie and Andrew are both VRM 1.0, so `AvatarSample_Y_0`
   stays as a test-only VRM 0 fixture to keep VRM 0 code paths covered (R6).
+- 2026-10-20, agreed: keep the 24 original Gesture clips that fail only on
+  Andrew. They are listed in the test, and retuned drafts are kept outside
+  the repository (R7).
 - 2026-10-19, agreed: clean up Andrew's VRM meta (R8). The source file has the
   name `Andrew1.0` plus a tab, `commercialUsage: personalProfit`, and open
   redistribution, modification and avatar use. The owner, as author, may set
