@@ -689,6 +689,30 @@ Verification: the fixes are prose only. They were read back, and a
 repository search finds no remaining "ten core" text. The full pre-push suite
 on the final candidate follows.
 
+### Final candidate checks
+
+Candidate `3a372163` (tree `b9462799`), recorded 2026-10-20.
+
+- Full pre-push suite through `heavy-slot`, all passed:
+  - `make check-test`: 4717 passed, 29 skipped;
+  - `pnpm verify`: 5297 passed, 1 skipped;
+  - `pnpm prettier:check`;
+  - `pnpm web:test:browser`: 122/122.
+- Full `pnpm e2e:test` against a built disposable stack (`animama-browser-andrew`,
+  `ANIMAMA_LLM_SKIP=1`, `ANIMAMA_WEB_BUILD_MODE=production`): **partial**.
+  - A one-hour `timeout` stopped the run after 20 of its 40 tests:
+    - setup and 18 journeys passed;
+    - `accountless-imported-playback.spec.ts:620` failed in the full run but
+      passed on its own (2.2 min). It ran while another worktree's browser
+      journeys were active.
+  - The stopped runner left a lock, which was moved into its run evidence per
+    the recovery note.
+  - The owner chose not to rerun the whole suite. These 20 tests did not run:
+    - the second `@complete-anima` journey (`accountless-imported-playback.spec.ts:1060`);
+    - `accountless-journeys`, `accountless-library`, `accountless-numeric-input`,
+      `accountless-particle-texture-import`, `accountless-pose-content`,
+      `accountless-scene-layers` and `accountless-vfx-layout`.
+
 ## Validation and acceptance
 
 Spec acceptance mapping:
