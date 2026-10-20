@@ -128,7 +128,7 @@ source edits to appear immediately. It has no reload watcher or Vite, so it
 starts warm and uses less memory and CPU per stack, which matters when several
 agents run stacks in parallel. The full suite is slower still on a
 development stack. Most of its time goes to the two `@complete-anima`
-journeys, whose starter Animas carry about 450 entries each. Use a development stack when you are editing and checking UI
+journeys, whose starter Animas carry about 500 entries each. Use a development stack when you are editing and checking UI
 changes interactively. A built stack serves the image baked at reset, so rerun
 `./reset.sh` after source changes. When several stacks run at once, raising
 OrbStack's VM memory limit adds a safety margin. It does not replace built
