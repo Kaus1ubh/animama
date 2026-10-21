@@ -68,7 +68,8 @@ async def test_registered_delivery_authorizes_then_verifies_etag_and_bytes(async
         assert response.status_code == 200
         assert response.content == _glb()
         assert response.headers["etag"] == f'"{item.files[0].sha256}"'
-        assert response.headers["cache-control"].startswith("private")
+        # A content file is revalidated, never kept as immutable (ADR 0028 covers runtime members only).
+        assert response.headers["cache-control"] == "private, no-cache"
 
         conditional = await client.get(
             f"/v1/content/files/{file_ref}", headers={"If-None-Match": response.headers["etag"]}

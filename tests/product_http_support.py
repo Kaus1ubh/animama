@@ -383,7 +383,13 @@ class DoubleCollaborators:
         )
 
     def file_response(
-        self, request: Request, file: VerifiedContentFile, *, if_none_match: str | None, revalidate: bool
+        self,
+        request: Request,
+        file: VerifiedContentFile,
+        *,
+        if_none_match: str | None,
+        revalidate: bool,
+        immutable: bool = False,
     ) -> Response:
         return verified_file_response(file, if_none_match=if_none_match, cache_control="private, no-store")
 

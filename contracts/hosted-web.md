@@ -15,7 +15,13 @@ services and byte delivery, upload storage, speech, the model catalog policy, ro
 defaults and embedding refresh status, the Memory Manager service, and the chat
 policy, chat-turn guard and turn collaborators) and sets its request-principal
 resolver as `app.state.request_principal_resolver`; without either, shared routes
-answer 503. Its content port decides package admission: a
+answer 503. Its byte delivery (`file_response`) receives `immutable=True` for
+revision-named runtime members and complete binary bundles and chooses its own
+cache policy for them ([ADR 0028](../docs/adr/0028-cacheable-runtime-revision-members.md)).
+A composition whose shared catalog rows never change at runtime sets
+`SHARED_CATALOG_ROWS_IMMUTABLE` (from `content_catalog_repo`) in the `info` of owner
+sessions that run the shared loadout services, so their reads lock only owner rows.
+Its content port decides package admission: a
 composition that withholds Anima creation builds
 `ContentPackageService(allow_anima_import=False)`. A composition that serves only
 its own catalog sets `ModelCatalogPolicy(validate_role_preferences=True)`, so
@@ -196,10 +202,10 @@ shows that a newer sign-in replaced the one it targeted.
 ## Capabilities and requests
 
 The sole wire schema is `app/contracts/runtime_capabilities.py`, exported offline
-in `local-http` version **9.0.0** with capability `schema_version: 2`. The generated
+in `local-http` version **10.0.0** with capability `schema_version: 2`. The generated
 TypeScript `RuntimeCapabilities` and validator are the same contract.
 `ProductRuntimeCapabilities` is a derived `Pick` for the existing extracted chat
-surface, not another wire schema. `runtime-contracts` is version 0.9.0 and
+surface, not another wire schema. `runtime-contracts` is version 0.10.0 and
 `product-ui` is version 0.14.0. Consumers explicitly admit
 the new contract major before adoption.
 

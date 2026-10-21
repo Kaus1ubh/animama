@@ -6,7 +6,7 @@ import hashlib
 import json
 import uuid
 from collections import defaultdict
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Iterable
 from contextlib import asynccontextmanager
 from copy import deepcopy
 from dataclasses import dataclass
@@ -55,6 +55,13 @@ from animama.orm.content_catalog import (
 from animama.orm.content_mutation import ORMContentMutationReceipt
 
 _MUTATION_TRANSACTION_KEY = "animama.content_mutation_transaction"
+# ``Session.info`` key a composition sets when its shared catalog rows (those with no
+# owner) never change at runtime. ``get_visible_item`` and ``get_visible_items`` then
+# lock only owner rows, so a loadout write never queues another owner behind a shared
+# row; ``lock_items`` and reconciliation lock as before. The local composition leaves
+# it unset: its Included rows can be retired by a rescan, so every row read for a
+# write is locked.
+SHARED_CATALOG_ROWS_IMMUTABLE = "animama.shared_catalog_rows_immutable"
 
 
 @dataclass(slots=True)
@@ -853,13 +860,56 @@ class SQLAlchemyContentCatalog(ContentCatalog):
     ) -> CatalogContentEntry | None:
         """Return one catalog item only when its persisted scope admits the caller."""
 
+        lock = for_update and not self._session.info.get(SHARED_CATALOG_ROWS_IMMUTABLE)
         row = await self._session.get(
             ORMContentCatalogItem,
             item_id,
-            with_for_update=True if for_update else None,
+            with_for_update=True if lock else None,
             populate_existing=for_update,
         )
+        if for_update and not lock and row is not None and row.owner_user_id is not None:
+            # Shared rows are immutable here; an owner row keeps its lock.
+            row = await self._session.get(ORMContentCatalogItem, item_id, with_for_update=True, populate_existing=True)
         return await self._visible_entry(row, user_id=user_id)
+
+    async def get_visible_items(
+        self, *, item_ids: Iterable[str], user_id: str, for_update: bool = False
+    ) -> dict[str, CatalogContentEntry]:
+        """The visible items among ``item_ids``, read (and locked) in one statement.
+
+        With ``for_update`` every named row that exists is locked, as
+        ``get_visible_item`` locks one, in item ID order (only owner rows when the
+        session declares ``SHARED_CATALOG_ROWS_IMMUTABLE``); only the rows the caller
+        may read are returned, keyed by ID.
+        """
+
+        ids = sorted(set(item_ids))
+        if not ids:
+            return {}
+        statement = (
+            select(ORMContentCatalogItem)
+            .where(ORMContentCatalogItem.id.in_(ids))
+            .order_by(ORMContentCatalogItem.id)
+            .execution_options(populate_existing=True)
+        )
+        if for_update and self._session.info.get(SHARED_CATALOG_ROWS_IMMUTABLE):
+            # Lock the owner rows first; the read below then sees them as locked.
+            await self._session.execute(
+                select(ORMContentCatalogItem.id)
+                .where(ORMContentCatalogItem.id.in_(ids), ORMContentCatalogItem.owner_user_id.is_not(None))
+                .order_by(ORMContentCatalogItem.id)
+                .with_for_update()
+            )
+        elif for_update:
+            statement = statement.with_for_update()
+        rows = [
+            row
+            for row in (await self._session.execute(statement)).scalars()
+            if ContentAccessPolicy.can_read(
+                scope=ContentScope(row.scope), owner_user_id=row.owner_user_id, user_id=user_id
+            )
+        ]
+        return {entry.id: entry for entry in await self._load_entries(rows)}
 
     async def _visible_entry(self, row: ORMContentCatalogItem | None, *, user_id: str) -> CatalogContentEntry | None:
         if row is None:
@@ -1330,4 +1380,4 @@ class SQLAlchemyContentCatalog(ContentCatalog):
         await self._complete_write()
 
 
-__all__ = ["SQLAlchemyContentCatalog"]
+__all__ = ["SHARED_CATALOG_ROWS_IMMUTABLE", "SQLAlchemyContentCatalog"]

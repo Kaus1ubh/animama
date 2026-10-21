@@ -6,16 +6,19 @@ import {
   type VerifiedByte,
 } from "./VerifiedByteLoader";
 import {
-  RuntimeJsonBundleLoader,
-  RuntimeJsonBundleUnavailable,
-} from "./RuntimeJsonBundleLoader";
+  BINARY_BUNDLE_MEDIA_TYPES,
+  RuntimeBundleLoader,
+  RuntimeBundleUnavailable,
+} from "./RuntimeBundleLoader";
 
 export type RuntimePlaybackStatus = "preparing" | "ready" | "degraded";
 export type RuntimeRootReadiness = "pending" | "ready" | "failed";
 
-/** One owner/revision, one byte budget, and one disposal boundary for both stages. */
+/** One owner/revision, one byte budget, and one disposal boundary for every stage. */
 export interface RuntimePreparationSession {
   essentialReady: Promise<PreparedRuntimeMount>;
+  /** The Idle pool's roots are prepared (or failed); the rest may still be loading. */
+  idleReady: Promise<PreparedRuntimeMount>;
   settled: Promise<PreparedRuntimeMount>;
   startOptional(): void;
   getRootReadiness(rootId: string): RuntimeRootReadiness;
@@ -150,7 +153,7 @@ export class PreparedRuntimeMount {
 
 type RuntimeMountPreparerOptions = {
   loader?: VerifiedByteLoader;
-  jsonBundleLoader?: RuntimeJsonBundleLoader;
+  bundleLoader?: RuntimeBundleLoader;
   concurrency?: number;
   maxTotalBytes?: number;
   createObjectURL?: (blob: Blob) => string;
@@ -326,7 +329,7 @@ function checkAborted(signal: AbortSignal): void {
 /** Prepare one descriptor into mount-scoped verified Blobs with bounded work. */
 export class RuntimeMountPreparer {
   private readonly loader: VerifiedByteLoader;
-  private readonly jsonBundleLoader: RuntimeJsonBundleLoader;
+  private readonly bundleLoader: RuntimeBundleLoader;
   private readonly concurrency: number;
   private readonly maxTotalBytes: number;
   private readonly createObjectURL: (blob: Blob) => string;
@@ -334,9 +337,8 @@ export class RuntimeMountPreparer {
 
   constructor(options: RuntimeMountPreparerOptions = {}) {
     this.loader = options.loader ?? new VerifiedByteLoader();
-    this.jsonBundleLoader =
-      options.jsonBundleLoader ?? new RuntimeJsonBundleLoader();
-    this.concurrency = Math.max(1, Math.min(8, options.concurrency ?? 4));
+    this.bundleLoader = options.bundleLoader ?? new RuntimeBundleLoader();
+    this.concurrency = Math.max(1, Math.min(8, options.concurrency ?? 8));
     this.maxTotalBytes = options.maxTotalBytes ?? 512 * 1024 * 1024;
     this.createObjectURL = options.createObjectURL ?? URL.createObjectURL;
     this.revokeObjectURL = options.revokeObjectURL ?? URL.revokeObjectURL;
@@ -419,6 +421,15 @@ export class RuntimeMountPreparer {
     for (const id of essentialRootIds) {
       for (const ref of rootRefs.get(id) ?? []) essentialRefs.add(ref);
     }
+    // The Idle pool plays as soon as the model is drawn, so its roots load
+    // before every other optional member.
+    const idleRefs = new Set<string>();
+    for (const gesture of typed.idle?.gestures ?? []) {
+      for (const id of rootIds(gesture)) {
+        for (const ref of rootRefs.get(id) ?? [])
+          if (!essentialRefs.has(ref)) idleRefs.add(ref);
+      }
+    }
     const totalBytes = members.reduce(
       (total, member) => total + member.size_bytes,
       0,
@@ -431,6 +442,7 @@ export class RuntimeMountPreparer {
     const listeners = new Set<() => void>();
     const controller = new AbortController();
     const essential = deferred<PreparedRuntimeMount>();
+    const idle = deferred<PreparedRuntimeMount>();
     const settled = deferred<PreparedRuntimeMount>();
     const optionalStart = deferred<void>();
     let optionalStarted = false;
@@ -476,6 +488,41 @@ export class RuntimeMountPreparer {
       } else {
         remainingBytes -= member.size_bytes;
       }
+    }
+    // A usable bundle is one request: every member optional, reserved, of the
+    // bundle's kind and in no earlier bundle. One that carries an Idle member
+    // joins the Idle stage; otherwise only Idle members load in that stage.
+    const memberByRef = new Map(members.map((item) => [item.file_ref, item]));
+    const claimed = new Set<string>();
+    const bundleable = (
+      format: string,
+      member: RuntimeDescriptorMember,
+    ): boolean =>
+      format === "json"
+        ? ["sequence", "manifest"].includes(member.role)
+        : format === "binary" &&
+          BINARY_BUNDLE_MEDIA_TYPES.has(member.media_type);
+    const usableBundles = (typed.bundles ?? []).filter((bundle) => {
+      const refs = new Set(bundle.file_refs);
+      const usable =
+        refs.size >= 2 &&
+        [...refs].every((ref) => {
+          const member = memberByRef.get(ref);
+          return (
+            member !== undefined &&
+            !essentialRefs.has(ref) &&
+            !failures.has(ref) &&
+            !claimed.has(ref) &&
+            bundleable(bundle.format, member)
+          );
+        });
+      if (usable) for (const ref of refs) claimed.add(ref);
+      return usable;
+    });
+    const idleStageRefs = new Set(idleRefs);
+    for (const bundle of usableBundles) {
+      if (bundle.file_refs.some((ref) => idleRefs.has(ref)))
+        for (const ref of bundle.file_refs) idleStageRefs.add(ref);
     }
 
     let published = false;
@@ -559,32 +606,35 @@ export class RuntimeMountPreparer {
         completedMembers += 1;
       }
     };
+    // A bundle fallback may hand members that belong to a later stage here.
     const loadStage = async (
       stage: RuntimeDescriptorMember[],
       background: boolean,
+      later?: (member: RuntimeDescriptorMember) => boolean,
+      postponed: RuntimeDescriptorMember[] = [],
     ) => {
-      const bundle = background ? typed.json_bundle : null;
-      const bundleRefs = new Set(bundle?.file_refs ?? []);
-      const bundled = stage.filter((member) => bundleRefs.has(member.file_ref));
-      // Fetch only if the whole advertised set belongs to this optional stage
-      // and has already reserved space in this mount's single byte budget.
-      const useBundle =
-        bundle &&
-        bundled.length >= 2 &&
-        bundled.length === bundleRefs.size &&
-        bundled.every(
-          (member) =>
-            !failures.has(member.file_ref) &&
-            ["sequence", "manifest"].includes(member.role),
-        );
+      // Bundles whose whole advertised set belongs to this optional stage;
+      // each already reserved space in this mount's single byte budget.
+      const stageRefs = new Set(stage.map((member) => member.file_ref));
+      const bundles = background
+        ? usableBundles.filter((bundle) =>
+            bundle.file_refs.every((ref) => stageRefs.has(ref)),
+          )
+        : [];
+      const bundledRefs = new Set(
+        bundles.flatMap((bundle) => bundle.file_refs),
+      );
       const jobs: (() => Promise<void>)[] = stage
-        .filter((member) => !useBundle || !bundleRefs.has(member.file_ref))
+        .filter((member) => !bundledRefs.has(member.file_ref))
         .map((member) => () => loadMember(member));
-      if (useBundle)
-        jobs.unshift(async () => {
+      const bundleJob =
+        (bundle: (typeof usableBundles)[number]) => async () => {
+          const bundled = [...new Set(bundle.file_refs)].map(
+            (ref) => memberByRef.get(ref)!,
+          );
           let results: Map<string, VerifiedByte | VerifiedByteError>;
           try {
-            results = await this.jsonBundleLoader.load(
+            results = await this.bundleLoader.load(
               bundle,
               bundled,
               typed.effective_revision,
@@ -592,10 +642,14 @@ export class RuntimeMountPreparer {
             );
           } catch (error) {
             checkAborted(controller.signal);
-            if (error instanceof RuntimeJsonBundleUnavailable) {
-              // One fallback only, in this same bounded worker queue. The file
+            if (error instanceof RuntimeBundleUnavailable) {
+              // One fallback only, in this same bounded worker pool. The file
               // route rechecks the same lease/owner; nothing is trusted locally.
-              jobs.push(...bundled.map((member) => () => loadMember(member)));
+              for (const member of bundled) {
+                if (later?.(member)) postponed.push(member);
+                else jobs.push(() => loadMember(member));
+              }
+              fill();
             } else {
               for (const member of bundled) {
                 fail(member, error);
@@ -615,26 +669,47 @@ export class RuntimeMountPreparer {
               completedMembers += 1;
             }
           }
-        });
+        };
+      jobs.unshift(...bundles.map(bundleJob));
       let cursor = 0;
+      let active = 0;
+      const running: Promise<void>[] = [];
+      let failure = null as { reason: unknown } | null;
       const worker = async () => {
-        while (cursor < jobs.length) {
-          const job = jobs[cursor++]!;
-          checkAborted(controller.signal);
-          // Each worker yields between items; a slow optional response holds
-          // only its own worker, not the rest of the catalog's preparation.
-          if (background)
-            await new Promise<void>((resolve) => setTimeout(resolve, 0));
-          await job();
-          checkAborted(controller.signal);
-          publish();
+        try {
+          while (cursor < jobs.length) {
+            const job = jobs[cursor++]!;
+            checkAborted(controller.signal);
+            // Each worker yields between items; a slow optional response holds
+            // only its own worker, not the rest of the catalog's preparation.
+            if (background)
+              await new Promise<void>((resolve) => setTimeout(resolve, 0));
+            await job();
+            checkAborted(controller.signal);
+            publish();
+          }
+        } finally {
+          active -= 1;
         }
       };
-      const results = await Promise.allSettled(
-        Array.from({ length: Math.min(this.concurrency, jobs.length) }, worker),
-      );
-      const rejected = results.find((result) => result.status === "rejected");
-      if (rejected?.status === "rejected") throw rejected.reason;
+      // Top the pool up to its bound whenever jobs wait, including fallback
+      // jobs queued after the other workers finished. A worker claims its
+      // first job synchronously, so each one started here has work. Each
+      // worker's failure is observed at once; the first one is rethrown.
+      const fill = () => {
+        while (active < this.concurrency && cursor < jobs.length) {
+          active += 1;
+          running.push(
+            worker().catch((reason: unknown) => {
+              failure ??= { reason };
+            }),
+          );
+        }
+      };
+      fill();
+      for (let index = 0; index < running.length; index += 1)
+        await running[index];
+      if (failure) throw failure.reason;
     };
     const startOptional = () => optionalStart.resolve();
     const work = (async () => {
@@ -653,8 +728,24 @@ export class RuntimeMountPreparer {
       checkAborted(controller.signal);
       optionalStarted = true;
       publish();
+      const optional = members.filter(
+        (member) => !essentialRefs.has(member.file_ref),
+      );
+      // A bundle fallback in the Idle stage loads only its Idle members there.
+      const postponed: RuntimeDescriptorMember[] = [];
       await loadStage(
-        members.filter((member) => !essentialRefs.has(member.file_ref)),
+        optional.filter((member) => idleStageRefs.has(member.file_ref)),
+        true,
+        (member) => !idleRefs.has(member.file_ref),
+        postponed,
+      );
+      checkAborted(controller.signal);
+      idle.resolve(mount);
+      await loadStage(
+        [
+          ...postponed,
+          ...optional.filter((member) => !idleStageRefs.has(member.file_ref)),
+        ],
         true,
       );
       checkAborted(controller.signal);
@@ -664,12 +755,14 @@ export class RuntimeMountPreparer {
       .catch((error: unknown) => {
         mount.dispose();
         essential.reject(error);
+        idle.reject(error);
         settled.reject(error);
       })
       .finally(() => options.signal?.removeEventListener("abort", abort));
 
     return {
       essentialReady: essential.promise,
+      idleReady: idle.promise,
       settled: settled.promise,
       startOptional,
       getRootReadiness: (rootId) => readiness.get(rootId) ?? "failed",

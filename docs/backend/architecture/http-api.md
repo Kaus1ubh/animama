@@ -71,7 +71,7 @@ Local setup and host/key administration schemas remain in the server composition
 - `product_http/routes/loadouts.py` (shared): typed Anima loadout read plus optimistic,
   idempotent family plan/commit commands.
 - `product_http/routes/anima_runtime.py` (shared): exact runtime issuance, lease
-  renewal, JSON bundles and revision-scoped registered-byte streaming.
+  renewal, delivery bundles and revision-scoped registered-byte streaming.
 - `product_http/routes/avatars.py` (shared): logical Avatar CRUD and catalog
   projection over the Avatar repository and the owner's content catalog.
 - `server/routers/user_files.py`: installation-owned file upload initialization,
@@ -169,7 +169,7 @@ local server package, so any composition can return the same contract; the local
 router is a thin adapter. `runtime_kind` is presentation metadata (`desktop`,
 `self_hosted_web` or `hosted`), not an authentication mode or a feature gate;
 the local composition never reports `hosted`. Capability schema version 2 is
-exported in `local-http` contract version 9.0.0. `chat`, `model_selection` and
+exported in `local-http` contract version 10.0.0. `chat`, `model_selection` and
 `model_role_selection` admit chat and choices from the composition's catalog,
 independently of provider administration. The local adapter reports them true.
 `provider_credentials` and `local_filesystem_administration` describe owner key
@@ -550,7 +550,10 @@ member carries its canonical opaque `content_catalog_files.file_ref`. The file
 route uses one read-only joined query to recheck owner, Anima, expiry, current
 access, parent pin, item status/revision, and canonical file facts, then checks
 containment, size, and digest before streaming bytes. It never returns a second
-download URL and never renews the lease as a side effect of a GET.
+download URL and never renews the lease as a side effect of a GET. Its URL names the
+exact revision and file, so the local composition serves it
+`private, max-age=31536000, immutable` (ADR 0028); a browser that reuses a cached
+copy sends no request, so these checks run only on requests that reach the server.
 
 The manifest GET negotiates gzip or identity and returns the complete
 `PyAnimaRuntime` JSON. Gzip work runs off the event loop; Content-Length is the
@@ -564,26 +567,42 @@ forbidden too; no acceptable representation returns the bounded 406
 compressed stream without recompression. Private files retain their exact
 size/digest bytes, and SSE, WebSockets, uploads and range streams are unaffected.
 
-The optional `json_bundle` manifest field advertises a version-1 URL, `file_refs`,
-and total original bytes. `GET /v1/animas/{anima_id}/runtime/revisions/{revision}/json-bundle`
-combines projected optional `application/json` sequences and manifests, excluding
-the Avatar's essential closure and descriptor/meta files. Selection is deterministic
-and server-owned: at least two, at most 256 files, 256 KiB each and 2 MiB in total.
-Other content retains individual delivery. It accepts no client paths or member lists.
+The manifest's `bundles` list advertises delivery bundles of optional members, each
+with an `id`, a `format` (`json` or `binary`), its URL, `file_refs` and total original
+bytes. `GET /v1/animas/{anima_id}/runtime/revisions/{revision}/bundles/{bundle_id}`
+serves one. Selection is deterministic and server-owned (`domain/runtime_bundles.py`),
+run on the stored catalog at issuance and again when serving, so a bundle ID (a
+SHA-256 of its format and member set) names the same members for the revision's
+life; an unknown ID returns 404. Selection takes projected optional members only,
+never the Avatar's or voice's closures or descriptor/meta files. It partitions them
+into Idle JSON, Idle binary, other JSON and other binary (Idle bundles come first),
+sorts each by `file_ref` and packs it next-fit: JSON `sequence` and `manifest` files
+of at most 256 KiB, up to 256 members and 2 MiB per bundle; PNG, JPEG and WebP images
+of at most 512 KiB, up to 64 members and 4 MiB per bundle. A bundle needs at least
+two members, and a revision has at most 32. Other content keeps individual delivery.
+The route accepts no client paths or member lists.
 
-The bundle envelope is `{version: 1, revision, members: [{file_ref, text}]}`;
-an unavailable member has `error` instead of `text`. Text preserves the original
-UTF-8 bytes, including whitespace, for browser size/SHA-256 verification. After
-loading the owner's issued snapshot, one joined query checks all selected members
-against the live lease, current visibility and pinned revisions. Each file is then
-opened and verified on disk, with bounded reads off the event loop. Physical
-changes mark the catalog scan-required; independent good members remain usable.
+A JSON bundle answers `{version: 1, revision, members: [{file_ref, text}]}`; an
+unavailable member has `error` instead of `text`. Text preserves the original UTF-8
+bytes, including whitespace, for browser size/SHA-256 verification. A binary bundle
+answers the frame `AMB1`, a 4-byte big-endian header length, a UTF-8 JSON header
+`{version: 1, revision, members: [{file_ref, size}]}` (or `error` instead of `size`),
+then the available members' bytes in header order. After loading the owner's issued
+snapshot, one joined query checks all of a bundle's members against the live lease,
+current visibility and pinned revisions. Each file is then opened and verified on
+disk, with bounded reads off the event loop. Physical changes mark the catalog
+scan-required in a write session of their own; independent good members remain
+usable.
 
-Complete bundles use the same gzip/identity negotiation, wire ETag/length and
-`Vary: Accept-Encoding` as manifests, with the local `private, no-cache`. Unlike issuance,
-bundle GET does not change a lease, so it may return 304 **after all authorization
-and physical checks**. Mixed-error responses use `no-store`, omit ETag and never
-return 304. Wrong owners/revisions return 404 and expired snapshots return 409.
+Complete JSON bundles use the same gzip/identity negotiation, wire ETag/length and
+`Vary: Accept-Encoding` as manifests, with the local `private, no-cache`; binary
+bundles are never compressed, carry an ETag of the frame's SHA-256 and, when
+complete, the local `private, max-age=31536000, immutable` (ADR 0028), like runtime
+file responses. Unlike
+issuance, bundle GET does not change a lease, so it may return 304 **after all
+authorization and physical checks**. A bundle with an unavailable member is never
+cached (`no-store`); a JSON one omits ETag and never returns 304. Wrong
+owners/revisions return 404 and expired snapshots return 409.
 There is no persistent archive or server authorization cache.
 
 Mounted clients may renew an unexpired revision and send `runtime_revision` on

@@ -174,8 +174,31 @@ export class VerifiedByteLoader {
     const url = this.apiBaseUrl
       ? resolvePrivateRuntimeContentUrl(member.url, this.apiBaseUrl)
       : member.url;
+    try {
+      // Revision members may come from the browser cache (ADR 0028).
+      return await this.fetchOnce(member, url, "default", signal);
+    } catch (error) {
+      // A cached copy could be damaged: read it once more from the network
+      // before failing the member, so a bad copy never sticks.
+      if (
+        error instanceof VerifiedByteError &&
+        (error.code === "size_mismatch" || error.code === "digest_mismatch")
+      ) {
+        throwIfAborted(signal);
+        return this.fetchOnce(member, url, "reload", signal);
+      }
+      throw error;
+    }
+  }
+
+  private async fetchOnce(
+    member: VerifiedByteMember,
+    url: string,
+    cache: RequestCache,
+    signal?: AbortSignal,
+  ): Promise<VerifiedByte> {
     const response = await this.fetcher(url, {
-      cache: "no-cache",
+      cache,
       credentials: "same-origin",
       redirect: "error",
       signal,

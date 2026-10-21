@@ -100,7 +100,13 @@ chosen: its PNG is then copied into the effect as the effect's own image.
   mount. `startOptional()` releases the remaining work only after the canvas
   draws the model in canonical relaxed-rest. A missing or failed model starts
   optional work from the fallback boundary instead of waiting for a frame.
-  Both stages share four workers (configurable up to eight), duplicate-member
+  Optional work runs in two stages: the Idle pool's roots first, then the rest.
+  `idleReady` resolves between them (at once for an empty pool). The Idle stage
+  requests only Idle members, plus each usable bundle (JSON or binary) that carries
+  an Idle member (one request each; if one falls back, its other members wait for
+  the later stage). Each
+  stage keeps up to eight requests in flight (configurable from one to eight),
+  topping the pool up when a bundle falls back, with duplicate-member
   elimination, cancellation, and a 512 MiB total byte budget reserved for
   essential files first. Optional files that exceed the remainder degrade
   their roots without evicting the model. Background workers yield between
@@ -108,9 +114,9 @@ chosen: its PNG is then copied into the effect as the effect's own image.
 - `PreparedRuntimeMount` owns Blob URLs and decoded resource disposers until
   unmount, remount, runtime-owner replacement, or route replacement.
 
-There are four distinct milestones: essential bytes verified, first posed frame
-rendered, each root's playback resources verified, and preparation settled
-(`ready` or `degraded`). Visual readiness does not imply full playback readiness.
+There are five distinct milestones: essential bytes verified, first posed frame
+rendered, the Idle pool's roots prepared, each root's playback resources
+verified, and preparation settled (`ready` or `degraded`). Visual readiness does not imply full playback readiness.
 Optional private requests continue through the same verifier after the avatar
 appears; after settlement, playback uses prepared Blobs without another
 typed-content HTTP fetch. Decoding those Blobs may still be asynchronous.
@@ -137,10 +143,13 @@ without downloading the files again.
 
 Performance traces include four bounded marks per live mount:
 `animama:runtime-N:manifest-ready`, `essential-bytes-ready`, `first-posed-frame`,
-and `optional-settled` (all with the same prefix). The first-frame mark is emitted
-on the frame following an actual main-camera mesh draw, not on `Avatar.load` or
-a React update. Marks contain no content/owner identity and are cleared on
-unmount.
+and `optional-settled` (all with the same prefix). Three milestone marks share one
+name across mounts, with the mount number `N` in `detail.mount`:
+`animama:runtime-first-frame`, `animama:runtime-idle-ready` and
+`animama:runtime-settled`; only the newest mount's entry is kept under each name.
+The first-frame marks are emitted on the frame following an actual main-camera
+mesh draw, not on `Avatar.load` or a React update. Marks contain no content/owner
+identity and are cleared on unmount.
 
 Avatar canvases without a mounted typed catalog use an explicitly empty media
 provider. They never fall back to the old code-shipped Particle/Avatar/Scene
@@ -155,9 +164,11 @@ catalog item changes before preparation finishes, the old URL requires a
 remount instead of serving replacement bytes.
 
 There is no application Cache Storage, IndexedDB, or OPFS copy of the content
-library. Normal Chromium HTTP caching may revalidate protected responses, but a
-cache hit is never required for correctness. Browser memory and HTTP caches are
-disposable and are not backed up.
+library. Chromium's HTTP cache may reuse runtime revision members and complete
+binary bundles without a request (ADR 0028) and revalidates other protected
+responses; a cache hit is never required for correctness, and every reused member
+is verified again. Browser memory and HTTP caches are disposable and are not
+backed up.
 
 The manifest GET negotiates gzip with an identity fallback. Its
 JSON is compressed; the complete descriptor, diagnostics, limits and
@@ -167,39 +178,55 @@ The development proxy preserves that representation. Responses use `private, no-
 wire representation. Every GET still authorizes and issues current lease
 information, even with If-None-Match. `effective_revision` is not a validator
 for the whole body because lease fields can change without a content change.
-Registered file responses remain uncompressed with their exact size/digest and
-private revalidation. Do not apply the app JS/CSS immutable cache policy to
-runtime manifests or private content.
+Registered file responses remain uncompressed with their exact size/digest. Runtime
+revision members and complete binary bundles are `private, max-age=31536000,
+immutable` in the local composition (ADR 0028), since their URLs name an exact
+revision; other private bytes keep private revalidation, and manifests never take
+the immutable policy. `VerifiedByteLoader` and `RuntimeBundleLoader` fetch with
+`cache: "default"` and, after a size or digest mismatch or a malformed bundle, read
+once more with `cache: "reload"` before failing the member.
 
-### Optional JSON bundle delivery
+### Optional bundle delivery
 
-`PyAnimaRuntime.json_bundle`, when present, advertises one versioned same-origin
-bundle of optional JSON sequences and manifests. This is a transport optimization,
+`PyAnimaRuntime.bundles` advertises same-origin delivery bundles of optional
+members, Idle members' bundles first: `json` bundles of small JSON sequences and
+manifests and `binary` bundles of small images. This is a transport optimization,
 not a merged authoring format. Models and their essential dependencies, VRMA,
-textures, audio, metadata, and oversized JSON still use individual routes.
+audio, metadata, and oversized files still use individual routes.
 
-`RuntimeMountPreparer` puts one bundle job in its existing optional queue after
-the first posed frame. Other workers continue loading binaries while it waits.
+`RuntimeMountPreparer` puts each usable bundle's job first in an optional stage
+after the first posed frame: the Idle stage when the bundle carries an Idle member,
+otherwise the later stage. A bundle is usable when every member is optional,
+reserved, of the bundle's kind (JSON sequences and manifests, or PNG, JPEG and WebP
+images) and in no earlier bundle. Other workers continue loading binaries while it waits.
 All advertised members must already fit the mount's single reserved byte budget;
 otherwise the existing individual path loads only members that fit. No bundle
 fetch is needed for old snapshots or preview callers without an advertisement.
 
-`RuntimeJsonBundleLoader` allows at most 256 members, 256 KiB each, 2 MiB original
-bytes and a 16 MiB decoded envelope. It validates the exact revision/ref set,
-rejects duplicates and foreign origins, reconstructs original UTF-8 bytes, then
-uses the same size/SHA-256 verifier as individual files. A bad member fails only
-its dependent roots; a malformed envelope admits none. Successful members become
+`RuntimeBundleLoader` checks each advertisement against its format's limits (JSON:
+at most 256 members, 256 KiB each, 2 MiB original bytes and a 16 MiB decoded
+envelope; binary: at most 64 images, 512 KiB each, 4 MiB) and requires a same-origin
+URL that ends in the revision and the bundle's own ID. A JSON envelope's exact
+revision/ref set is validated and its original UTF-8 bytes reconstructed. A binary
+frame is validated whole before any member is used: the `AMB1` magic, a header of at
+most 64 KiB naming the exact member set, each delivered member's descriptor size,
+and a total length with no missing or trailing bytes. Each member then goes through
+the same size/SHA-256 verifier as individual files. A bad member fails only its
+dependent roots; a malformed envelope or frame admits none and does not fall back. Successful members become
 the same mount-owned Blobs and use the existing root publication/disposal path.
-Cancellation stops admission and cancels the request; no persistent or cross-Anima
-cache is added. Successfully bundled files are never fetched individually too.
+Cancellation stops admission and cancels the request; the app adds no cache of its
+own beyond the browser's HTTP cache. Successfully bundled files are never fetched
+individually too.
 
-Browser HTTP caching can replace many file revalidations with one bundle
-revalidation. The backend still checks current access, lease and every physical
-file before 304; it does not renew a lease. Gzip/identity representation validators
+A complete binary bundle, like a runtime file, may be reused from the browser cache
+for a year with no request (ADR 0028), so the server checks nothing for that read. A
+JSON bundle is revalidated: the backend still checks current access, lease and every
+physical file before 304, and it does not renew a lease. Gzip/identity representation validators
 are distinct. Mixed errors are `no-store`. Transport failure, 404 (unavailable
 endpoint) or 5xx may fall back once to individual requests in the same bounded
-queue, which rechecks the same authorization. Auth/lease denial, malformed or
-oversized envelopes, and checksum failures do not trigger fallback. Reload/remount
+queue, which rechecks the same authorization. Auth/lease denial (401, 403, 409),
+other 4xx, malformed or oversized envelopes and frames, and checksum failures do not
+trigger fallback. Reload/remount
 to recover changed content; do not clear the installation or alter its owner.
 
 ## Fault isolation and no hot swap
