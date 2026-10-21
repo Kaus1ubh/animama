@@ -1,4 +1,9 @@
 {
+  "bloom": {
+    "group": "{{group}}: {{maximum}}. {{emotions}}",
+    "groupEmotion": "{{emotion}} {{value}}",
+    "label": "감정 꽃: 8개 그룹으로 나뉜 감정 24개"
+  },
   "details": {
     "label": "감정 상태"
   },
@@ -160,11 +165,5 @@
     "gloom": "우울",
     "rejection": "반발",
     "revulsion": "혐오"
-  },
-  "radar": {
-    "axis": "{{group}}: {{maximum}}. {{emotions}}",
-    "axisEmotion": "{{emotion}} {{value}}",
-    "label": "감정 스펙트럼: 8개 그룹과 각 그룹에서 가장 강한 감정",
-    "series": "가장 강한 감정"
   }
 }

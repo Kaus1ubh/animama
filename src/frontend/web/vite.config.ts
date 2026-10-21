@@ -76,9 +76,6 @@ const requireFromWeb = createRequire(import.meta.url);
 const fontPackageRoot = path.dirname(
   requireFromWeb.resolve("@fontsource-variable/dm-sans/package.json"),
 );
-const rechartsEsToolkitCompat = fileURLToPath(
-  new URL("./src/lib/recharts/es-toolkit-compat", import.meta.url),
-);
 
 const routerConfig = {
   target: "react",
@@ -234,45 +231,6 @@ export default defineConfig(({ mode, command, isPreview }) => {
       alias: {
         "@": webSrc,
         "@web": webSrc,
-        // Recharts imports `es-toolkit/compat/*`, but Vite's dep optimizer can
-        // mis-bundle those CJS wrappers into broken self-calling requires
-        // (`require_isUnsafeProperty is not a function`). Keep `es-toolkit`
-        // direct and route Recharts through our ESM wrapper files.
-        "es-toolkit/compat/get": path.join(rechartsEsToolkitCompat, "get.js"),
-        "es-toolkit/compat/isPlainObject": path.join(
-          rechartsEsToolkitCompat,
-          "isPlainObject.js",
-        ),
-        "es-toolkit/compat/last": path.join(rechartsEsToolkitCompat, "last.js"),
-        "es-toolkit/compat/maxBy": path.join(
-          rechartsEsToolkitCompat,
-          "maxBy.js",
-        ),
-        "es-toolkit/compat/minBy": path.join(
-          rechartsEsToolkitCompat,
-          "minBy.js",
-        ),
-        "es-toolkit/compat/omit": path.join(rechartsEsToolkitCompat, "omit.js"),
-        "es-toolkit/compat/range": path.join(
-          rechartsEsToolkitCompat,
-          "range.js",
-        ),
-        "es-toolkit/compat/sortBy": path.join(
-          rechartsEsToolkitCompat,
-          "sortBy.js",
-        ),
-        "es-toolkit/compat/sumBy": path.join(
-          rechartsEsToolkitCompat,
-          "sumBy.js",
-        ),
-        "es-toolkit/compat/throttle": path.join(
-          rechartsEsToolkitCompat,
-          "throttle.js",
-        ),
-        "es-toolkit/compat/uniqBy": path.join(
-          rechartsEsToolkitCompat,
-          "uniqBy.js",
-        ),
       },
       dedupe: [...appDependencies],
       tsconfigPaths: true,

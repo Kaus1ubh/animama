@@ -418,9 +418,10 @@ Relevant files:
 
 The primary emotion UI is group-first.
 
-Relevant file:
+Relevant files:
 
 - `src/frontend/web/src/ui/components/emotional-state.tsx`
+- `src/frontend/web/src/ui/components/mood-bloom.tsx`
 
 Current behavior:
 
@@ -432,18 +433,25 @@ Current behavior:
   neutral remains 😐. Both the profile and management header use this mapping.
 - `web/src/lib/emotion/presentation.ts` owns the shared group palette and headline
   mappings. Domain normalization, averages and canonical tie-breaking are unchanged.
-- Expanded details use a Recharts radar with circular rings and a fixed 0–30 scale.
-  All eight groups remain in canonical axis order; each spoke plots the maximum
-  constituent score in its group. Three faint rings mark 10, 20 and 30. Hovering
-  the plot or focusing/tapping an axis label reveals that group and its three
-  constituents in a reserved caption below the plot, so details never obscure it.
-  There is no separate legend, permanent detail card or diagnostic source/scale copy.
-  Hover emphasizes the matching label and point using its group color, without
-  a label background. Leaving the plot clears pointer selection; keyboard focus
-  remains independently inspectable. Color supplements labels rather than replacing them.
+- Expanded details use the mood bloom: each group, in canonical order clockwise
+  from the top, is a fan of three petals in its color, one per emotion, whose
+  length grows linearly with the score on a fixed 0–30 scale. The current mascot
+  sits at the center on a glow of the dominant group's color, and the three
+  strongest groups carry a symbol at their petal tips. Petals open from a bud on
+  mount and sway; once the strongest emotion reaches 3, its petal sheds pollen,
+  and it pulses when a consumer passes a reaction `beat` (the details surfaces
+  pass none). Reduced motion shows a still bloom.
+- Each group's slot is a button: hovering, focusing or tapping it brightens that
+  group, dims the others and reveals the group with its three constituents in a
+  reserved caption below the bloom, so details never obscure it. Its accessible
+  name lists the group maximum and constituent scores. There is no separate
+  legend, permanent detail card or diagnostic source/scale copy. Leaving the bloom
+  clears pointer selection, a tap elsewhere clears touch selection, and keyboard
+  focus remains independently inspectable. Color supplements labels rather than
+  replacing them.
 - Neutral shows “Feeling neutral” without empty-state copy or fabricated bars.
   The profile hides its emotion disclosure while neutral; management retains the
-  zero-valued eight-axis radar.
+  zero-valued bloom, whose petals rest behind the neutral mascot.
 - Existing `default`, `compact`, `showcase` and `inline` chart consumers use the
   same presentation data, with compact chart sizing where appropriate.
 
@@ -463,7 +471,7 @@ group color, with a full-feeling tooltip; clicking it still selects Emotions.
 Emotions opens a 360px panel 16px to the right of the stationary centered profile
 only when the measured desktop position leaves another 16px at the viewport edge.
 With a fine hover pointer, the summary opens the compact panel on hover or focus;
-a short close delay lets the pointer cross the gap. Keyboard Tab enters the axes.
+a short close delay lets the pointer cross the gap. Keyboard Tab enters the bloom.
 The panel uses an inset heading without a close icon or hover instructions.
 Without hover support, an explicit toggle controls the disclosure. When the
 viewport has insufficient side space, details expand inline above identity.
