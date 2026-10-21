@@ -177,3 +177,5 @@ async def test_runtime_private_file_does_not_use_manifest_compression(
         assert "content-encoding" not in response.headers
         assert response.headers["etag"] == f'"{digest}"'
         assert int(response.headers["content-length"]) == len(body)
+        # The URL names the exact revision and file, so the local policy keeps it a year.
+        assert response.headers["cache-control"] == "private, max-age=31536000, immutable"

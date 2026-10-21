@@ -176,9 +176,13 @@ The development proxy preserves that representation. Responses use `private, no-
 wire representation. Every GET still authorizes and issues current lease
 information, even with If-None-Match. `effective_revision` is not a validator
 for the whole body because lease fields can change without a content change.
-Registered file responses remain uncompressed with their exact size/digest and
-private revalidation. Do not apply the app JS/CSS immutable cache policy to
-runtime manifests or private content.
+Registered file responses remain uncompressed with their exact size/digest. Runtime
+revision members and complete binary bundles are `private, max-age=31536000,
+immutable` in the local composition (ADR 0028), since their URLs name an exact
+revision; other private bytes keep private revalidation, and manifests never take
+the immutable policy. `VerifiedByteLoader` and `RuntimeBundleLoader` fetch with
+`cache: "default"` and, after a size or digest mismatch or a malformed bundle, read
+once more with `cache: "reload"` before failing the member.
 
 ### Optional bundle delivery
 

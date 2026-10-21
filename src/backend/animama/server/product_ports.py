@@ -165,10 +165,20 @@ class LocalChatTurnServices:
         return None
 
 
-def local_file_response(file: VerifiedContentFile, *, if_none_match: str | None, revalidate: bool) -> Response:
-    """The local policy: private bytes revalidated by ETag, or never stored; no Range or HEAD."""
+# Bytes named by an exact runtime revision never change under that name (ADR 0028).
+IMMUTABLE_PRIVATE = "private, max-age=31536000, immutable"
 
-    cache_control = "private, no-cache" if revalidate else "private, no-store"
+
+def local_file_response(
+    file: VerifiedContentFile, *, if_none_match: str | None, revalidate: bool, immutable: bool = False
+) -> Response:
+    """The local policy: private bytes kept for a year when immutable, else revalidated
+    by ETag, or never stored (which ``immutable`` cannot override); no Range or HEAD."""
+
+    if not revalidate:
+        cache_control = "private, no-store"
+    else:
+        cache_control = IMMUTABLE_PRIVATE if immutable else "private, no-cache"
     return verified_file_response(file, if_none_match=if_none_match, cache_control=cache_control)
 
 
@@ -278,9 +288,15 @@ class LocalProductPorts:
         )
 
     def file_response(
-        self, request: Request, file: VerifiedContentFile, *, if_none_match: str | None, revalidate: bool
+        self,
+        request: Request,
+        file: VerifiedContentFile,
+        *,
+        if_none_match: str | None,
+        revalidate: bool,
+        immutable: bool = False,
     ) -> Response:
-        return local_file_response(file, if_none_match=if_none_match, revalidate=revalidate)
+        return local_file_response(file, if_none_match=if_none_match, revalidate=revalidate, immutable=immutable)
 
     async def json_response(
         self,

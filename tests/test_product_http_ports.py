@@ -112,7 +112,13 @@ class RecordingPorts:
         raise NotImplementedError
 
     def file_response(
-        self, request: Request, file: VerifiedContentFile, *, if_none_match: str | None, revalidate: bool
+        self,
+        request: Request,
+        file: VerifiedContentFile,
+        *,
+        if_none_match: str | None,
+        revalidate: bool,
+        immutable: bool = False,
     ) -> Response:
         raise NotImplementedError
 
@@ -343,6 +349,13 @@ def test_local_files_are_revalidated_or_never_stored() -> None:
     file = verified(b"abc")
     unchanged = local_file_response(file, if_none_match=etag, revalidate=True)
     assert unchanged.status_code == 304 and "content-length" not in unchanged.headers
+
+    kept = local_file_response(verified(b"abc"), if_none_match=None, revalidate=True, immutable=True)
+    assert (kept.status_code, kept.headers["cache-control"]) == (200, "private, max-age=31536000, immutable")
+    assert local_file_response(verified(b"abc"), if_none_match=etag, revalidate=True, immutable=True).status_code == 304
+    # Bytes that must never be stored stay unstored, whatever ``immutable`` says.
+    unstored = local_file_response(verified(b"abc"), if_none_match=None, revalidate=False, immutable=True)
+    assert unstored.headers["cache-control"] == "private, no-store"
     assert file.handle.closed
 
     never_stored = local_file_response(verified(b"abc"), if_none_match=None, revalidate=False)

@@ -15,7 +15,10 @@ services and byte delivery, upload storage, speech, the model catalog policy, ro
 defaults and embedding refresh status, the Memory Manager service, and the chat
 policy, chat-turn guard and turn collaborators) and sets its request-principal
 resolver as `app.state.request_principal_resolver`; without either, shared routes
-answer 503. Its content port decides package admission: a
+answer 503. Its byte delivery (`file_response`) receives `immutable=True` for
+revision-named runtime members and complete binary bundles and chooses its own
+cache policy for them ([ADR 0028](../docs/adr/0028-cacheable-runtime-revision-members.md)).
+Its content port decides package admission: a
 composition that withholds Anima creation builds
 `ContentPackageService(allow_anima_import=False)`. A composition that serves only
 its own catalog sets `ModelCatalogPolicy(validate_role_preferences=True)`, so

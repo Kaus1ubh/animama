@@ -61,14 +61,15 @@ artifacts by reviewed repin and keeps its own caching policy.
 ## Progress
 
 - [x] Plan review (owner): approved 2026-10-21 with the decisions below.
-- [ ] Baseline measurement (no commit).
+- [x] Baseline measurement (no commit): recorded with Phase 5's after-measurement.
 - [x] Phase 1: bounded starter loadout writes (16 statements for a real starter, from 993;
   three reviews, 2 of 2 repair rounds).
 - [x] Phase 2: Idle first, eight workers, milestones (three reviews, 2 of 2 repair
   rounds).
 - [x] Phase 3: plural bundles: contract and backend (one high-risk review, passed).
 - [x] Phase 4: binary bundles in the client (one high-risk review, passed).
-- [ ] Phase 5: cacheable revision members and the after-measurement.
+- [x] Phase 5: cacheable revision members and the after-measurement (one high-risk
+  review, passed).
 - [ ] Final integration review and full pre-push suite.
 
 ## Surprises & Discoveries
@@ -123,6 +124,10 @@ plan's approval.
   hosted composition chooses its own policy and may stay stricter.
 - P-8 Creation path: leave `initialize()`'s Reaction loop as is (creation scope);
   `_create_root` batching already covers its Idle pool.
+- P-10 Hosted adoption of the byte policy (implementer, 2026-10-21, from Phase 5's
+  review): `ProductPorts.file_response` now takes `immutable`; a hosted composition
+  must accept it (else every runtime member and complete binary bundle request
+  fails) and chooses its own policy for it.
 - P-9 Shared-row locks (implementer, 2026-10-21, from review R1-1): a composition
   whose shared catalog rows never change at runtime sets
   `SHARED_CATALOG_ROWS_IMMUTABLE` in the session's `info`, and catalog reads then
@@ -522,6 +527,102 @@ Review tier: high risk (privacy and caching, ports contract).
   bundle with errors is not; the loader's cache mode and its single reload retry.
 - Validation: the full pre-push suite and the full browser journeys
   (`pnpm e2e:test`, required for loadout and Anima changes) on a built named stack.
+
+Measurement (a new installation's first starter mount, Chromium with CDP network
+events, first-run setup completed through the UI; one run per row; script kept
+outside the repository). First frame, Idle ready (after Phase 2) and Settled are
+User Timing marks measured from the `manifest-ready` mark; the before rows' Idle
+column and Last response are CDP network times from the start of the runtime
+request, about 0.3–0.4 s earlier, so those columns do not compare with the marks.
+
+| Build | Latency | Runtime byte requests | First frame | Idle ready | Settled | Last response |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `e8c3233a` (before) | 0 ms | 539 + 1 JSON bundle | 518 ms | ~2,600 ms (last Idle member, network) | 2,280 ms | 2,699 ms |
+| `e8c3233a` (before) | 40 ms | 539 + 1 JSON bundle | 524 ms | ~7,350 ms (last Idle member, network) | 7,311 ms | 7,753 ms |
+| this branch | 0 ms | 4 + 14 bundles | 538 ms | 608 ms | 1,126 ms | 1,449 ms |
+| this branch | 40 ms | 4 + 14 bundles | 497 ms | 571 ms | 1,037 ms | 1,404 ms |
+
+The descriptor names 1,199 members in both. A warm remount of the same revision in
+a persistent browser profile (disk cache), on this branch: the same 18 requests, 14
+answered by the browser cache without a request (the 4 files and 10 binary
+bundles) and the 4 JSON bundles revalidated with 304 (CDP reports a revalidated
+response as 200 from the network; the wire status was 304). Playwright's default
+in-memory context cache evicts the larger binary bundles, so it understates reuse.
+
+Check record (before review), on tree `389dbe9` over `aa3593e0`:
+
+- `make check-test` 4725 passed, 29 skipped; `pnpm web:test:browser` and
+  `pnpm prettier:check` passed (heavy slot).
+- `pnpm verify`: 1 failure, `poseContent.test.ts` reused one mocked `Response` for
+  the new reload retry ("ReadableStream is locked"); fixed to a fresh response per
+  read. On tree `bf13c66`: `npx vitest run src/lib/runtime-content src/ui src/lib/content`
+  (1,993 passed), and the checks reviewer's `pnpm verify` (541 files, 5,355 passed,
+  1 skipped, `bundle:source` built).
+- `pnpm e2e:test` on the built `m630after` stack: 38 passed, 2 failed.
+  `avatar-effect-direct-manipulation` timed out in `page.unroute` during the full
+  run and passes alone (9.8 s). The `@complete-anima` imported-playback journey's
+  pose-clip playback proof fails alone too, and fails the same way on a clean
+  `e8c3233a` stack (`m630base` from a detached `e8c3233a` worktree): "Playback proof
+  for anima_pose_clip/… did not pass within 5000ms (25 samples)" at
+  `accountless-imported-playback.spec.ts:1227`. It predates this plan.
+
+#### Code Review #1 Findings
+
+High-risk review of tree `bf13c66` (one analysis reviewer, one checks reviewer); both
+passed with advisories only. The analysis reviewer checked every `file_response`
+caller (only the runtime file route and complete binary bundles become immutable),
+that a revision URL always names the same bytes, the retry paths and the privacy
+consequences for the accountless local composition (ADR 0002). The checks reviewer
+reran 184 backend and 1,993 frontend tests, `make mypy`, `tsc -b`, eslint and the full
+`pnpm verify`, mutation-tested both loaders and the backend flags, matched the
+measurement JSON to the table and confirmed the journey claims from the logs and a
+trace.
+
+- R1-1 (advisory): a reload that failed in transport after a malformed first read
+  fell back to individual requests, contrary to requirement 3.
+- R1-2 / R1-C3 (advisory): tests did not pin a size-mismatch reload, that a
+  server-reported member error is not reloaded, or an abort between reads.
+- R1-3, R1-4, R1-5 (advisory): the ADR implied reuse across revisions, overstated
+  the drift consequence (issuance hashes every member, and the watcher reports
+  changes), spoke of signing out for an accountless app, lacked an Evidence section;
+  `http-api.md` did not state the file route's policy.
+- R1-6 (advisory): `immutable` overrode "never store".
+- R1-7 / R1-C5 (advisory): hosted must accept the new `immutable` keyword before it
+  adopts this build; name it with P-9 as an adoption follow-up.
+- R1-8 / R1-C1 / R1-C2 (advisory): the before rows counted the JSON bundle twice; the
+  caption mixed start points; runs per row unstated; no warm-remount evidence.
+- R1-9 / R1-C6 (advisory): the rerun after the `poseContent` fix named no tree;
+  Progress still listed the baseline measurement as open.
+- R1-C4 (advisory): nothing pinned the content routes' local cache policy.
+- R1-C7 (advisory): the direct-manipulation failure was dismissed by an isolated
+  pass only; the final full journeys should confirm it.
+
+#### Code Review #1 Revisions
+
+- R1-1 accepted: when the reload fails, the loader returns the first read's results
+  (members already verified) or rethrows its error, never a fallback. Test: a
+  malformed first read whose reload gets 503 admits nothing and does not fall back
+  (fails with the old behaviour).
+- R1-2, R1-C3 accepted: tests for a truncated cached file and a truncated JSON bundle
+  member (both reloaded once), the bundle fetch counts in the isolation test
+  (digest: default then reload; server error: one read), and an abort before the
+  reload (no second read).
+- R1-3, R1-4, R1-5 accepted: ADR 0028 corrected (same revision only; drift found at
+  every issuance, only a change within one mount goes unnoticed on a cache hit, and
+  the bundle route's check is named; remote self-hosting instead of signing out; an
+  Evidence section), and its index row aligned; `http-api.md` states the file route's
+  policy and that cache hits skip its checks.
+- R1-6 accepted: `local_file_response` lets no-store win; test added.
+- R1-7, R1-C5 accepted: listed with P-9 as a hosted adoption requirement (here and in
+  the PR); Cloud's plan already records it.
+- R1-8, R1-C1, R1-C2 accepted: table corrected (539 + 1), start points named, one run
+  per row stated, warm-remount evidence added.
+- R1-9, R1-C6 accepted: trees named; Progress updated.
+- R1-C4 accepted: `test_local_content_delivery` asserts `private, no-cache` exactly.
+- R1-C7: the final integration run of the full journeys will confirm it.
+- Checks after the revisions: backend `pytest` on the ports, delivery, bundle and
+  local content tests (45 passed) and ruff; `npx vitest run src/lib/runtime-content src/lib/content`
+  (495 passed), `npx tsc -b`, eslint and prettier. No repair round was needed.
 
 ## Final integration review
 

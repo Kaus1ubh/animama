@@ -15,6 +15,18 @@ export type RuntimeBundle = PyRuntimeBundle;
 /** Only transport unavailability may fall back; integrity/auth failures cannot. */
 export class RuntimeBundleUnavailable extends Error {}
 
+/** The server refused the bundle (401, 403, 409 or another 4xx). */
+class RuntimeBundleRejected extends Error {}
+
+type BundleRead = Map<string, VerifiedByte | VerifiedByteError>;
+
+function integrityFailure(result: VerifiedByte | VerifiedByteError): boolean {
+  return (
+    result instanceof VerifiedByteError &&
+    (result.code === "size_mismatch" || result.code === "digest_mismatch")
+  );
+}
+
 const MAX_ENVELOPE_BYTES = 16 * 1024 * 1024;
 const MAX_FRAME_HEADER_BYTES = 64 * 1024;
 const FRAME_MAGIC = [0x41, 0x4d, 0x42, 0x31]; // "AMB1"
@@ -106,11 +118,61 @@ export class RuntimeBundleLoader {
       )
     )
       throw new Error("Invalid runtime bundle advertisement.");
+    // Bundles may come from the browser cache (ADR 0028). A malformed body or a
+    // member that fails verification may be a damaged cached copy: read the bundle
+    // once more from the network before failing anything.
+    let first: BundleRead | null = null;
+    let firstError: unknown = null;
+    try {
+      first = await this.attempt(
+        bundle,
+        url,
+        expected,
+        revision,
+        signal,
+        "default",
+      );
+    } catch (error) {
+      signal.throwIfAborted();
+      if (
+        error instanceof RuntimeBundleUnavailable ||
+        error instanceof RuntimeBundleRejected
+      )
+        throw error;
+      firstError = error;
+    }
+    if (first && ![...first.values()].some(integrityFailure)) return first;
+    try {
+      return await this.attempt(
+        bundle,
+        url,
+        expected,
+        revision,
+        signal,
+        "reload",
+      );
+    } catch {
+      signal.throwIfAborted();
+      // The reload only repairs a cached copy; its own failure must not turn an
+      // integrity failure into a fallback or discard members already verified.
+      if (first) return first;
+      throw firstError;
+    }
+  }
+
+  private async attempt(
+    bundle: RuntimeBundle,
+    url: URL,
+    expected: ReadonlyMap<string, VerifiedByteMember>,
+    revision: string,
+    signal: AbortSignal,
+    cache: RequestCache,
+  ): Promise<BundleRead> {
     signal.throwIfAborted();
     let response: Response;
     try {
       response = await this.fetcher(url.href, {
-        cache: "no-cache",
+        cache,
         credentials: "same-origin",
         redirect: "error",
         signal,
@@ -128,7 +190,9 @@ export class RuntimeBundleLoader {
           `Runtime bundle unavailable (HTTP ${response.status}).`,
         );
       }
-      throw new Error(`Runtime bundle rejected (HTTP ${response.status}).`);
+      throw new RuntimeBundleRejected(
+        `Runtime bundle rejected (HTTP ${response.status}).`,
+      );
     }
     let read: Awaited<ReturnType<RuntimeBundleLoader["readEnvelope"]>>;
     try {
@@ -149,7 +213,7 @@ export class RuntimeBundleLoader {
     }
     const { entries, bytes } = read;
     signal.throwIfAborted();
-    const result = new Map<string, VerifiedByte | VerifiedByteError>();
+    const result: BundleRead = new Map();
     for (const entry of entries) {
       signal.throwIfAborted();
       const member = expected.get(entry.file_ref)!;

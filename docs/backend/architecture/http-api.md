@@ -550,7 +550,10 @@ member carries its canonical opaque `content_catalog_files.file_ref`. The file
 route uses one read-only joined query to recheck owner, Anima, expiry, current
 access, parent pin, item status/revision, and canonical file facts, then checks
 containment, size, and digest before streaming bytes. It never returns a second
-download URL and never renews the lease as a side effect of a GET.
+download URL and never renews the lease as a side effect of a GET. Its URL names the
+exact revision and file, so the local composition serves it
+`private, max-age=31536000, immutable` (ADR 0028); a browser that reuses a cached
+copy sends no request, so these checks run only on requests that reach the server.
 
 The manifest GET negotiates gzip or identity and returns the complete
 `PyAnimaRuntime` JSON. Gzip work runs off the event loop; Content-Length is the
@@ -592,8 +595,10 @@ scan-required in a write session of their own; independent good members remain
 usable.
 
 Complete JSON bundles use the same gzip/identity negotiation, wire ETag/length and
-`Vary: Accept-Encoding` as manifests; binary bundles are never compressed and carry
-an ETag of the frame's SHA-256. Both use the local `private, no-cache`. Unlike
+`Vary: Accept-Encoding` as manifests, with the local `private, no-cache`; binary
+bundles are never compressed, carry an ETag of the frame's SHA-256 and, when
+complete, the local `private, max-age=31536000, immutable` (ADR 0028), like runtime
+file responses. Unlike
 issuance, bundle GET does not change a lease, so it may return 304 **after all
 authorization and physical checks**. A bundle with an unavailable member is never
 cached (`no-store`); a JSON one omits ETag and never returns 304. Wrong

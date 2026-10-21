@@ -42,6 +42,7 @@ production readiness or publication rights.
 | 0025 | [Per-use Avatar Effect overrides](0025-per-use-avatar-effect-overrides.md)                                                                         | accepted                                                      |
 | 0026 | [One built-in Idle pool per Anima replaces Idle Style content](0026-built-in-idle-pool-per-anima.md)                                               | accepted                                                      |
 | 0027 | [Risk-tiered review and a single suite run per candidate](0027-risk-tiered-review-and-single-suite-run.md)                                         | accepted; amends 0006                                         |
+| 0028 | [Browser-cacheable runtime revision members](0028-cacheable-runtime-revision-members.md)                                                           | accepted                                                      |
 
 ## When and how to record a decision
 

@@ -334,6 +334,27 @@ describe("RuntimeMountPreparer", () => {
     expect(f.revoke).toHaveBeenCalledTimes(4);
   });
 
+  it("reads a JSON bundle with a truncated member once more from the network", async () => {
+    const f = bundledFixture();
+    f.bundleFetch.mockImplementation(async (_url, init) =>
+      Response.json({
+        ...f.envelope,
+        members: f.envelope.members.map((member, index) =>
+          index === 0 && init?.cache !== "reload"
+            ? { ...member, text: member.text.slice(0, -1) }
+            : member,
+        ),
+      }),
+    );
+    const mount = await new RuntimeMountPreparer(f.options).prepare(f.typed);
+    expect(f.bundleFetch.mock.calls.map(([, init]) => init?.cache)).toEqual([
+      "default",
+      "reload",
+    ]);
+    expect(await mount.files.get("file-1")!.blob.text()).toBe(f.texts[1]);
+    mount.dispose();
+  });
+
   it.each(["digest", "member-error"])(
     "isolates a bundled %s failure to affected roots",
     async (failure) => {
@@ -375,13 +396,14 @@ describe("RuntimeMountPreparer", () => {
     if (failure === "both")
       Object.assign(f.envelope.members[0]!, { error: "bad" });
     if (failure === "oversize")
-      f.bundleFetch.mockResolvedValue(
-        new Response("{}", {
-          headers: { "Content-Length": String(16 * 1024 * 1024 + 1) },
-        }),
+      f.bundleFetch.mockImplementation(
+        async () =>
+          new Response("{}", {
+            headers: { "Content-Length": String(16 * 1024 * 1024 + 1) },
+          }),
       );
     if (failure === "invalid-json")
-      f.bundleFetch.mockResolvedValue(new Response("{"));
+      f.bundleFetch.mockImplementation(async () => new Response("{"));
     const mount = await new RuntimeMountPreparer(f.options).prepare(f.typed);
     expect([...mount.files.keys()].sort()).toEqual(["file-0", "file-3"]);
     expect(f.fetcher).toHaveBeenCalledTimes(2);
@@ -392,7 +414,9 @@ describe("RuntimeMountPreparer", () => {
     "only falls back for endpoint unavailability, HTTP %s",
     async (status) => {
       const f = bundledFixture();
-      f.bundleFetch.mockResolvedValue(new Response(null, { status }));
+      f.bundleFetch.mockImplementation(
+        async () => new Response(null, { status }),
+      );
       const mount = await new RuntimeMountPreparer(f.options).prepare(f.typed);
       expect(f.bundleFetch).toHaveBeenCalledTimes(1);
       expect(f.fetcher).toHaveBeenCalledTimes(
@@ -421,18 +445,24 @@ describe("RuntimeMountPreparer", () => {
   it("cancels an oversized decoded stream before admitting bundle members", async () => {
     const f = bundledFixture();
     const cancelled = vi.fn();
-    f.bundleFetch.mockResolvedValue(
-      new Response(
-        new ReadableStream({
-          pull(controller) {
-            controller.enqueue(new Uint8Array(1024 * 1024));
-          },
-          cancel: cancelled,
-        }),
-      ),
+    f.bundleFetch.mockImplementation(
+      async () =>
+        new Response(
+          new ReadableStream({
+            pull(controller) {
+              controller.enqueue(new Uint8Array(1024 * 1024));
+            },
+            cancel: cancelled,
+          }),
+        ),
     );
     const mount = await new RuntimeMountPreparer(f.options).prepare(f.typed);
-    expect(cancelled).toHaveBeenCalledOnce();
+    // Each read (the cached one, then the network's) is cancelled at the limit.
+    expect(cancelled).toHaveBeenCalledTimes(2);
+    expect(f.bundleFetch.mock.calls.map(([, init]) => init?.cache)).toEqual([
+      "default",
+      "reload",
+    ]);
     expect(mount.files.has("file-1")).toBe(false);
     expect(f.fetcher).toHaveBeenCalledTimes(2);
     mount.dispose();
@@ -1381,27 +1411,55 @@ describe("binary delivery bundles", () => {
     "isolates a bundled %s failure to its own root",
     async (failure) => {
       const f = binaryFixture();
-      f.bundleFetch.mockResolvedValue(
-        new Response(
-          frame([
-            [
-              "file-1",
-              failure === "digest"
-                ? new TextEncoder().encode("png-X")
-                : "runtime_file_changed_remount_required",
-            ],
-            ["file-2", f.payloads[2]!],
-          ]),
-        ),
+      f.bundleFetch.mockImplementation(
+        async () =>
+          new Response(
+            frame([
+              [
+                "file-1",
+                failure === "digest"
+                  ? new TextEncoder().encode("png-X")
+                  : "runtime_file_changed_remount_required",
+              ],
+              ["file-2", f.payloads[2]!],
+            ]),
+          ),
       );
       const mount = await new RuntimeMountPreparer(f.options).prepare(f.typed);
       expect(mount.files.has("file-1")).toBe(false);
       expect(mount.files.has("file-2")).toBe(true);
       expect(mount.playbackStatus).toBe("degraded");
       expect(f.individual).toHaveBeenCalledTimes(2);
+      // Only a verification failure reads the bundle again; a member the server
+      // reports unavailable does not.
+      expect(f.bundleFetch.mock.calls.map(([, init]) => init?.cache)).toEqual(
+        failure === "digest" ? ["default", "reload"] : ["default"],
+      );
       mount.dispose();
     },
   );
+
+  it("does not fall back when the reload of a malformed bundle fails", async () => {
+    const f = binaryFixture();
+    f.bundleFetch.mockImplementation(async (_url, init) =>
+      init?.cache === "reload"
+        ? new Response(null, { status: 503 })
+        : new Response(
+            frame(
+              [
+                ["file-1", f.payloads[1]!],
+                ["file-2", f.payloads[2]!],
+              ],
+              { magic: "AMB2" },
+            ),
+          ),
+    );
+    const mount = await new RuntimeMountPreparer(f.options).prepare(f.typed);
+    expect(f.bundleFetch).toHaveBeenCalledTimes(2);
+    expect([...mount.files.keys()].sort()).toEqual(["file-0", "file-3"]);
+    expect(f.individual).toHaveBeenCalledTimes(2);
+    mount.dispose();
+  });
 
   it.each(["magic", "revision", "size", "trailing", "short", "header"])(
     "admits nothing from a frame with a bad %s, and does not fall back",
@@ -1426,7 +1484,7 @@ describe("binary delivery bundles", () => {
         body = frame(good);
         new DataView(body.buffer).setUint32(4, body.length);
       }
-      f.bundleFetch.mockResolvedValue(new Response(body));
+      f.bundleFetch.mockImplementation(async () => new Response(body));
       const mount = await new RuntimeMountPreparer(f.options).prepare(f.typed);
       expect([...mount.files.keys()].sort()).toEqual(["file-0", "file-3"]);
       expect(f.individual).toHaveBeenCalledTimes(2);
@@ -1441,8 +1499,8 @@ describe("binary delivery bundles", () => {
       if (failure === "network")
         f.bundleFetch.mockRejectedValue(new TypeError("Failed to fetch"));
       else
-        f.bundleFetch.mockResolvedValue(
-          new Response(null, { status: failure as number }),
+        f.bundleFetch.mockImplementation(
+          async () => new Response(null, { status: failure as number }),
         );
       const mount = await new RuntimeMountPreparer(f.options).prepare(f.typed);
       const fallback =
@@ -1456,15 +1514,16 @@ describe("binary delivery bundles", () => {
 
   it("falls back once when the connection fails while the frame is read", async () => {
     const f = binaryFixture();
-    f.bundleFetch.mockResolvedValue(
-      new Response(
-        new ReadableStream<Uint8Array>({
-          start(controller) {
-            controller.enqueue(new TextEncoder().encode("AMB1"));
-            controller.error(new TypeError("network error"));
-          },
-        }),
-      ),
+    f.bundleFetch.mockImplementation(
+      async () =>
+        new Response(
+          new ReadableStream<Uint8Array>({
+            start(controller) {
+              controller.enqueue(new TextEncoder().encode("AMB1"));
+              controller.error(new TypeError("network error"));
+            },
+          }),
+        ),
     );
     const mount = await new RuntimeMountPreparer(f.options).prepare(f.typed);
     expect(f.individual).toHaveBeenCalledTimes(4);
@@ -1543,7 +1602,7 @@ describe("binary delivery bundles", () => {
           ["file-1", f.payloads[1]!],
         ]);
       }
-      f.bundleFetch.mockResolvedValue(new Response(body));
+      f.bundleFetch.mockImplementation(async () => new Response(body));
       const mount = await new RuntimeMountPreparer(f.options).prepare(f.typed);
       expect([...mount.files.keys()].sort()).toEqual(["file-0", "file-3"]);
       expect(f.individual).toHaveBeenCalledTimes(2);
@@ -1559,6 +1618,34 @@ describe("binary delivery bundles", () => {
     expect(f.bundleFetch).not.toHaveBeenCalled();
     expect(f.individual).toHaveBeenCalledTimes(4);
     expect(mount.files.size).toBe(4);
+    mount.dispose();
+  });
+
+  it("reads a bundle that fails verification once more from the network", async () => {
+    const f = binaryFixture();
+    // A damaged copy from the browser cache, then the network's.
+    f.bundleFetch.mockImplementation(async (_url, init) =>
+      init?.cache === "reload"
+        ? new Response(
+            frame([
+              ["file-1", f.payloads[1]!],
+              ["file-2", f.payloads[2]!],
+            ]),
+          )
+        : new Response(
+            frame([
+              ["file-1", new TextEncoder().encode("png-X")],
+              ["file-2", f.payloads[2]!],
+            ]),
+          ),
+    );
+    const mount = await new RuntimeMountPreparer(f.options).prepare(f.typed);
+    expect(f.bundleFetch.mock.calls.map(([, init]) => init?.cache)).toEqual([
+      "default",
+      "reload",
+    ]);
+    expect(mount.files.has("file-1")).toBe(true);
+    expect(f.individual).toHaveBeenCalledTimes(2);
     mount.dispose();
   });
 

@@ -366,7 +366,8 @@ async def test_binary_bundle_frame_layout_revalidation_and_isolated_failure(bund
         assert int(response.headers["content-length"]) == len(response.content)
         assert "content-encoding" not in response.headers
         assert response.headers["etag"] == f'"{hashlib.sha256(response.content).hexdigest()}"'
-        assert response.headers["cache-control"] == "private, no-cache"
+        # A complete binary bundle names fixed bytes, so the local policy keeps it a year.
+        assert response.headers["cache-control"] == "private, max-age=31536000, immutable"
         # A conditional request still rechecks and rereads every member first.
         cached = await client.get(url, headers={"If-None-Match": response.headers["etag"]})
         assert (cached.status_code, cached.content) == (304, b"")

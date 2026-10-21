@@ -139,7 +139,9 @@ async def get_runtime_bundle(
         sha256=hashlib.sha256(bundle.body).hexdigest(),
         media_type="application/octet-stream",
     )
-    return ports.file_response(request, frame, if_none_match=if_none_match, revalidate=bundle.complete)
+    return ports.file_response(
+        request, frame, if_none_match=if_none_match, revalidate=bundle.complete, immutable=bundle.complete
+    )
 
 
 @router.get("/v1/animas/{anima_id}/runtime/revisions/{revision}/files/{file_ref}")
@@ -189,7 +191,8 @@ async def stream_anima_runtime_file(
         ) from exc
     except RuntimeSnapshotError as exc:
         _raise_runtime(exc)
-    return ports.file_response(request, file, if_none_match=if_none_match, revalidate=True)
+    # Its URL names the exact revision and file, so the bytes never change under it.
+    return ports.file_response(request, file, if_none_match=if_none_match, revalidate=True, immutable=True)
 
 
 __all__ = ["router"]

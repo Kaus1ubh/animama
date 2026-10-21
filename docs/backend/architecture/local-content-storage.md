@@ -322,8 +322,10 @@ Registered-byte routes resolve the admitted installation principal first, verify
 resolve the safe relative locator inside its configured root, reject links and
 non-regular files, and recheck exact size and SHA-256 before streaming. They
 accept no path. Digest ETags are evaluated after authorization and integrity
-checks. Local delivery uses private revalidation; authorization never depends on
-browser cache state.
+checks. Local delivery uses private revalidation, except runtime revision members
+and complete binary bundles, which the browser may keep for a year
+(`private, max-age=31536000, immutable`, ADR 0028); authorization never depends on
+browser cache state for any request that reaches the server.
 
 Mounted runtime-manifest JSON has gzip/identity content
 negotiation. Its full descriptor and current lease remain in each response;
@@ -342,7 +344,8 @@ the Avatar's and voice's closures, Idle members first (limits in the
 bulk-authorizes current catalog pins, then reopens and verifies each source file
 before considering a 304. JSON text retains original bytes; images keep their exact
 bytes in a framed body. One changed file produces an isolated error and
-scan-required marking. Complete bundles use private revalidation (JSON also gzip);
+scan-required marking. Complete JSON bundles use private revalidation and gzip,
+complete binary bundles the immutable policy;
 mixed errors use `no-store`. Bundles create no files, schema, lease extensions,
 shared cross-Anima caches, or backup requirements. VRM/VRMA, audio and larger files
 retain their individual byte routes.
