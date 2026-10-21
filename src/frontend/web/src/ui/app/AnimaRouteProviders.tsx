@@ -206,9 +206,17 @@ export function AnimaRouteProviders({ children }: AnimaRouteProvidersProps) {
           );
         },
       });
+      void session.idleReady.then(
+        () => {
+          if (active) timings.milestone("idle-ready");
+        },
+        () => undefined,
+      );
       void session.settled.then(
         () => {
-          if (active) timings.mark("optional-settled");
+          if (!active) return;
+          timings.mark("optional-settled");
+          timings.milestone("settled");
         },
         () => undefined,
       );
@@ -221,7 +229,12 @@ export function AnimaRouteProviders({ children }: AnimaRouteProvidersProps) {
           return;
         }
         timings.mark("essential-bytes-ready");
-        if (handoff) timings.mark("optional-settled");
+        if (handoff) {
+          // A handed-off mount is already fully prepared.
+          timings.mark("optional-settled");
+          timings.milestone("idle-ready");
+          timings.milestone("settled");
+        }
         let data = adaptRuntimeSnapshot(mount.data);
         let projected = mount.data;
         const catalog = new AnimaRuntimeCatalog(
@@ -246,7 +259,10 @@ export function AnimaRouteProviders({ children }: AnimaRouteProvidersProps) {
         ) => {
           if (!active || visualStatus !== "loading") return;
           visualStatus = status;
-          if (status === "visible") timings.mark("first-posed-frame");
+          if (status === "visible") {
+            timings.mark("first-posed-frame");
+            timings.milestone("first-frame");
+          }
           session?.startOptional();
           update();
         };

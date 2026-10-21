@@ -4671,6 +4671,23 @@ export const zPyRuntimeActionImplementation = z.object({
 });
 
 /**
+ * PyRuntimeBundle
+ *
+ * Optional delivery hint; original descriptor members remain the integrity authority.
+ *
+ * A ``json`` bundle answers a JSON envelope of member texts; a ``binary`` bundle answers
+ * ``AMB1``, a 4-byte big-endian header length, a JSON header naming each member's
+ * ``size`` or ``error``, then the members' bytes in header order.
+ */
+export const zPyRuntimeBundle = z.object({
+    file_refs: z.array(z.string()).min(2).max(256),
+    format: z.enum(['json', 'binary']),
+    id: z.string().regex(/^[0-9a-f]{64}$/),
+    total_bytes: z.int().gt(0).lte(4194304),
+    url: z.string()
+});
+
+/**
  * PyRuntimeCatalogItemSource
  *
  * Catalog provenance for a mounted Included or Local entry.
@@ -5011,18 +5028,6 @@ export const zPyAnimaListItem = z.object({
         z.iso.datetime(),
         z.null()
     ]))
-});
-
-/**
- * PyRuntimeJsonBundle
- *
- * Optional delivery hint; original descriptor members remain the integrity authority.
- */
-export const zPyRuntimeJsonBundle = z.object({
-    file_refs: z.array(z.string()).min(2).max(256),
-    total_bytes: z.int().gt(0).lte(2097152),
-    url: z.string(),
-    version: z.optional(z.literal(1)).default(1)
 });
 
 /**
@@ -6566,16 +6571,13 @@ export const zPyAnimaRuntime = z.object({
         z.null()
     ])),
     avatar_effects: z.optional(z.array(zPyRuntimeAvatarEffect)),
+    bundles: z.optional(z.array(zPyRuntimeBundle).max(32)),
     can_chat: z.optional(z.boolean()).default(true),
     catalog_version: z.optional(z.int()).default(4),
     content_descriptor: zPyRuntimeContentDescriptor,
     effective_revision: z.string(),
     gestures: z.optional(z.array(zPyRuntimeAction)),
     idle: z.optional(zPyRuntimeIdle),
-    json_bundle: z.optional(z.union([
-        zPyRuntimeJsonBundle,
-        z.null()
-    ])),
     lease_expires_at: z.iso.datetime(),
     loadout_revision: z.int(),
     particle_effects: z.optional(z.array(zPyRuntimeSupport)),
@@ -7197,12 +7199,12 @@ export const zGetAnimaRuntimeV1AnimasAnimaIdRuntimeGetData = z.object({
  */
 export const zGetAnimaRuntimeV1AnimasAnimaIdRuntimeGetResponse = zPyAnimaRuntime;
 
-export const zStreamAnimaRuntimeFileV1AnimasAnimaIdRuntimeRevisionsRevisionFilesFileRefGetData = z.object({
+export const zGetRuntimeBundleV1AnimasAnimaIdRuntimeRevisionsRevisionBundlesBundleIdGetData = z.object({
     body: z.optional(z.never()),
     path: z.object({
         anima_id: z.string(),
         revision: z.string(),
-        file_ref: z.string()
+        bundle_id: z.string()
     }),
     query: z.optional(z.never()),
     headers: z.optional(z.object({
@@ -7213,11 +7215,12 @@ export const zStreamAnimaRuntimeFileV1AnimasAnimaIdRuntimeRevisionsRevisionFiles
     }))
 });
 
-export const zGetRuntimeJsonBundleV1AnimasAnimaIdRuntimeRevisionsRevisionJsonBundleGetData = z.object({
+export const zStreamAnimaRuntimeFileV1AnimasAnimaIdRuntimeRevisionsRevisionFilesFileRefGetData = z.object({
     body: z.optional(z.never()),
     path: z.object({
         anima_id: z.string(),
-        revision: z.string()
+        revision: z.string(),
+        file_ref: z.string()
     }),
     query: z.optional(z.never()),
     headers: z.optional(z.object({

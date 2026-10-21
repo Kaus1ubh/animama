@@ -9,7 +9,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any, Literal, cast
 from uuid import uuid4
 
-from sqlalchemy import select
+from sqlalchemy import insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from animama.adapters.repositories.sqlalchemy.anima_repo import SQLAlchemyAnimaRepository
@@ -491,6 +491,12 @@ class AnimaLoadoutService:
         if not isinstance(item_id, str) or not item_id:
             raise AnimaLoadoutError("catalog_source_required")
         item = await self._catalog.get_visible_item(item_id=item_id, user_id=user_id, for_update=lock)
+        return self._typed_target(item, expected_kind)
+
+    @staticmethod
+    def _typed_target(item: CatalogContentEntry | None, expected_kind: ContentKind) -> TypedCatalogItem:
+        """A visible, valid catalog item of ``expected_kind`` as a typed loadout source."""
+
         if item is None or item.status is not ContentStatus.VALID or item.kind is not expected_kind:
             raise AnimaLoadoutError("loadout_source_unavailable")
         try:
@@ -501,6 +507,39 @@ class AnimaLoadoutService:
         if any(dependency.kind in RETIRED_CONTENT_KINDS for dependency in typed.document.dependencies):
             raise AnimaLoadoutError("content_dependency_retired")
         return typed
+
+    async def _targets(
+        self, *, user_id: str, item_ids: list[str], expected_kind: ContentKind, lock: bool
+    ) -> dict[str, TypedCatalogItem | AnimaLoadoutError]:
+        """Each item's typed source, or the error ``_target`` would raise for it, read in one batch."""
+
+        items = await self._catalog.get_visible_items(item_ids=item_ids, user_id=user_id, for_update=lock)
+        targets: dict[str, TypedCatalogItem | AnimaLoadoutError] = {}
+        for item_id in dict.fromkeys(item_ids):
+            try:
+                targets[item_id] = self._typed_target(items.get(item_id), expected_kind)
+            except AnimaLoadoutError as error:
+                targets[item_id] = error
+        return targets
+
+    async def _insert_bindings(
+        self, *, root: ORMAnimaLoadout, kind: ContentKind, members: list[tuple[str, TypedCatalogItem]]
+    ) -> None:
+        """Write a new loadout's pool members in one statement; a repeated slot keeps its last member."""
+
+        rows: dict[str, dict[str, Any]] = {
+            slot: {
+                "id": str(uuid4()),
+                "anima_id": root.anima_id,
+                "slot_key": slot,
+                "catalog_item_id": target.item.id,
+                "kind": kind.value,
+                "config": {},
+            }
+            for slot, target in members
+        }
+        if rows:
+            await self._session.execute(insert(ORMAnimaContentBinding).values(list(rows.values())))
 
     async def _require_idle_playback(
         self, *, user_id: str, target: TypedCatalogItem, store: ContentStore | None
@@ -774,10 +813,9 @@ class AnimaLoadoutService:
     async def _starter_reactions(
         self, *, user_id: str, keys: tuple[str, ...], lock: bool, visible: list[CatalogContentEntry]
     ) -> tuple[list[TypedCatalogItem], list[LoadoutDiagnostic]]:
-        """Resolve one cell's Included starter Reactions; an unavailable one is skipped with a warning."""
+        """Resolve Included starter Reactions by key in one read; an unavailable one is skipped with a warning."""
 
-        starters: list[TypedCatalogItem] = []
-        warnings: list[LoadoutDiagnostic] = []
+        matched: dict[str, str | None] = {}
         for key in keys:
             matches = [
                 item
@@ -786,18 +824,22 @@ class AnimaLoadoutService:
                 and item.kind is ContentKind.REACTION
                 and item.logical_key == key
             ]
-            try:
-                if len(matches) != 1:
-                    raise AnimaLoadoutError("loadout_source_unavailable")
-                starters.append(
-                    await self._target(
-                        user_id=user_id,
-                        source={"type": "catalog", "catalog_item_id": matches[0].id},
-                        expected_kind=ContentKind.REACTION,
-                        lock=lock,
-                    )
-                )
-            except AnimaLoadoutError:
+            matched[key] = matches[0].id if len(matches) == 1 else None
+        # One locked read for every member, not one per member.
+        targets = await self._targets(
+            user_id=user_id,
+            item_ids=[item_id for item_id in matched.values() if item_id is not None],
+            expected_kind=ContentKind.REACTION,
+            lock=lock,
+        )
+        starters: list[TypedCatalogItem] = []
+        warnings: list[LoadoutDiagnostic] = []
+        for key in keys:
+            item_id = matched[key]
+            target = targets.get(item_id) if item_id is not None else None
+            if isinstance(target, TypedCatalogItem):
+                starters.append(target)
+            else:
                 warnings.append(
                     LoadoutDiagnostic(
                         code="starter_reaction_unavailable",
@@ -1102,24 +1144,23 @@ class AnimaLoadoutService:
         # The starter seed keeps only finite-playback Gestures and package
         # archives check packaged members; a rebound Included member is checked
         # at runtime, which drops an ineligible Gesture alone. Here every member
-        # passes the typed source checks.
+        # passes the typed source checks, all locked and read in one batch, and the
+        # first failing member (in pool order) decides the error.
+        targets = await self._targets(
+            user_id=user_id,
+            item_ids=[member.source.id for member in idle],
+            expected_kind=ContentKind.GESTURE,
+            lock=True,
+        )
+        members: list[tuple[str, TypedCatalogItem]] = []
         for member in idle:
-            target = await self._target(
-                user_id=user_id,
-                source={"type": "catalog", "catalog_item_id": member.source.id},
-                expected_kind=ContentKind.GESTURE,
-                lock=True,
-            )
+            target = targets[member.source.id]
+            if isinstance(target, AnimaLoadoutError):
+                raise target
             if target.item.revision_sha256 != member.source.revision_sha256:
                 raise AnimaLoadoutError("loadout_source_stale")
-            await self._upsert(
-                root=root,
-                slot=idle_slot_key(member.cell, member.source.id),
-                kind=ContentKind.GESTURE,
-                target=target,
-                config={},
-                current=None,
-            )
+            members.append((idle_slot_key(member.cell, member.source.id), target))
+        await self._insert_bindings(root=root, kind=ContentKind.GESTURE, members=members)
         return root
 
     async def create_starter_loadout(self, *, user_id: str, anima_id: str, store: ContentStore) -> None:
@@ -1141,19 +1182,22 @@ class AnimaLoadoutService:
         visible = await self._catalog.list_visible(user_id=user_id)
         idle = await resolve_starter_idle_pool(visible={item.id: item for item in visible}, store=store)
         root = await self._create_root(user_id=user_id, anima_id=anima_id, starter_exclusions=[], idle=idle)
+        pools = starter_reaction_pools(root.starter_catalog_version)
+        # Every cell's starters are resolved, locked and written together.
+        starters, _ = await self._starter_reactions(
+            user_id=user_id,
+            keys=tuple(dict.fromkeys(key for keys in pools.values() for key in keys)),
+            lock=True,
+            visible=visible,
+        )
+        by_key = {target.item.logical_key: target for target in starters}
+        members: list[tuple[str, TypedCatalogItem]] = []
         reaction_targets: list[TypedCatalogItem] = []
-        for cell, keys in starter_reaction_pools(root.starter_catalog_version).items():
-            starters, _ = await self._starter_reactions(user_id=user_id, keys=keys, lock=True, visible=visible)
-            for target in starters:
-                await self._upsert(
-                    root=root,
-                    slot=reaction_slot_key(cell, target.item.id),
-                    kind=ContentKind.REACTION,
-                    target=target,
-                    config={},
-                    current=None,
-                )
-            reaction_targets.extend(starters)
+        for cell, keys in pools.items():
+            cell_targets = [by_key[key] for key in keys if key in by_key]
+            members.extend((reaction_slot_key(cell, target.item.id), target) for target in cell_targets)
+            reaction_targets.extend(cell_targets)
+        await self._insert_bindings(root=root, kind=ContentKind.REACTION, members=members)
         await self._dependency_counts(user_id=user_id, targets=reaction_targets)
         await self._session.flush()
 

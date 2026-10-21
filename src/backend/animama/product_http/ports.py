@@ -560,12 +560,22 @@ class ProductPorts(Protocol):
         ...
 
     def file_response(
-        self, request: Request, file: VerifiedContentFile, *, if_none_match: str | None, revalidate: bool
+        self,
+        request: Request,
+        file: VerifiedContentFile,
+        *,
+        if_none_match: str | None,
+        revalidate: bool,
+        immutable: bool = False,
     ) -> Response:
         """Deliver verified content bytes under this composition's caching policy.
 
         ``revalidate`` marks bytes a client may keep and revalidate by ETag; other
-        bytes must not be stored. The response owns ``file`` and closes its handle.
+        bytes must not be stored. ``immutable`` marks bytes named by an exact runtime
+        revision, which a composition may let a client reuse without revalidating
+        (ADR 0028). The response owns ``file`` and closes its handle. A binary runtime
+        bundle arrives here too, as an in-memory frame whose digest is its ETag; it is
+        revalidatable and immutable only when every member was read.
         """
         ...
 

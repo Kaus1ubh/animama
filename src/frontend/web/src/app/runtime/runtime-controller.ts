@@ -2,6 +2,7 @@ import { QueryClient } from "@tanstack/react-query";
 import type { RuntimeAdmission } from "@animama/runtime-contracts";
 import { getI18n } from "react-i18next";
 import { createLogger } from "@/lib/logger";
+import { queryKeys } from "@/query/keys";
 import { queryClientOptions } from "@/query/queryClientOptions";
 import type {
   AccountAffordances,
@@ -35,6 +36,8 @@ export type RuntimeSnapshot = {
   reconnecting: boolean;
   /** The composition's account controls as of this admission. */
   account: AccountAffordances;
+  /** The server is still preparing this account's starter data. */
+  setupPending: boolean;
 };
 
 /** Owns a composition's caches and invalidates requests before exposing a new admission. */
@@ -54,6 +57,7 @@ export class RuntimeController {
     scope: null,
     reconnecting: false,
     account: NO_ACCOUNT,
+    setupPending: false,
   };
 
   readonly composition: AppComposition;
@@ -70,6 +74,9 @@ export class RuntimeController {
   private publish(admission: RuntimeAdmission): void {
     const previous = this.snapshot;
     const account = this.composition.accountAffordances?.() ?? NO_ACCOUNT;
+    const setupPending =
+      admission.status === "ready" &&
+      (this.composition.setupPending?.() ?? false);
     if (
       admission.status === "ready" &&
       previous.admission.status === "ready" &&
@@ -77,7 +84,29 @@ export class RuntimeController {
       admission.session.owner.id === previous.admission.session.owner.id
     ) {
       previous.scope?.resume();
-      this.snapshot = { ...previous, admission, reconnecting: false, account };
+      if (
+        this.composition.kind === "hosted" &&
+        previous.admission.onboardingRequired &&
+        !admission.onboardingRequired
+      )
+        // Hosted refused requests while confirmation was pending: fetch them again.
+        void previous.queryClient.invalidateQueries();
+      if (previous.setupPending && !setupPending) {
+        // The server finished the starter data: its Animas and settings exist now.
+        const owner = admission.session.owner.id;
+        for (const queryKey of [
+          queryKeys.animas.all(owner),
+          queryKeys.settings.all(owner),
+        ])
+          void previous.queryClient.invalidateQueries({ queryKey });
+      }
+      this.snapshot = {
+        ...previous,
+        admission,
+        reconnecting: false,
+        account,
+        setupPending,
+      };
       this.listeners.forEach((listener) => listener());
       return;
     }
@@ -113,6 +142,7 @@ export class RuntimeController {
       scope,
       reconnecting: false,
       account,
+      setupPending,
     };
     this.composition.bindSession?.(scope);
     this.listeners.forEach((listener) => listener());
@@ -225,6 +255,36 @@ export class RuntimeController {
     const generation = this.generation;
     const admission = await this.composition.completeOnboarding(input);
     if (generation === this.generation) this.publish(admission);
+  };
+
+  /**
+   * Publishes the admission that follows an explicit 18+ confirmation, keeping the
+   * session. The relay's reply is the newest context, so a read begun before or
+   * during it is discarded rather than allowed to reopen the dialog.
+   */
+  readonly confirmAge = async (): Promise<void> => {
+    if (!this.composition.confirmAge)
+      throw new Error("Age confirmation is unavailable in this application.");
+    const generation = this.generation;
+    const admission = await this.composition.confirmAge();
+    const current = this.snapshot.admission;
+    const sameSession =
+      admission.status === "ready" &&
+      current.status === "ready" &&
+      admission.session.key === current.session.key &&
+      admission.session.owner.id === current.session.owner.id;
+    // A sign-out or another session replaced this one meanwhile: that view decides.
+    if (!sameSession && generation !== this.generation) return;
+    // A read begun or scheduled before the reply may be stale, but it may also be a
+    // revocation check: cancel it and read again, since a read started now follows
+    // the relay.
+    const interrupted = this.pending !== null || this.retry !== null;
+    if (this.retry) clearTimeout(this.retry);
+    this.retry = null;
+    this.pending?.abort();
+    ++this.generation;
+    this.publish(admission);
+    if (interrupted) void this.refresh();
   };
 
   dispose(): void {

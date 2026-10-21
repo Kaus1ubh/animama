@@ -53,6 +53,17 @@ export function useOptionalRuntimeController() {
 
 const withoutController = () => () => {};
 
+/** Whether the server is still preparing starter data; isolated previews have none. */
+export function useOptionalRuntimeSetupPending(): boolean {
+  const controller = useContext(RuntimeAdmissionContext);
+  const snapshot = () => controller?.getSnapshot().setupPending ?? false;
+  return useSyncExternalStore(
+    controller?.subscribe ?? withoutController,
+    snapshot,
+    snapshot,
+  );
+}
+
 /** Account controls that follow admission; isolated previews have none. */
 export function useOptionalAccountAffordances(): AccountAffordances | null {
   const controller = useContext(RuntimeAdmissionContext);
