@@ -64,7 +64,8 @@ artifacts by reviewed repin and keeps its own caching policy.
 - [ ] Baseline measurement (no commit).
 - [x] Phase 1: bounded starter loadout writes (16 statements for a real starter, from 993;
   three reviews, 2 of 2 repair rounds).
-- [ ] Phase 2: Idle first, eight workers, milestones.
+- [x] Phase 2: Idle first, eight workers, milestones (three reviews, 2 of 2 repair
+  rounds).
 - [ ] Phase 3: plural bundles: contract and backend.
 - [ ] Phase 4: binary bundles in the client.
 - [ ] Phase 5: cacheable revision members and the after-measurement.
@@ -283,6 +284,74 @@ Review tier: standard (high risk if P-1 renames the existing marks).
   tests still pass; mark names and details.
 - Validation: `pnpm --dir src/frontend/web exec vitest run src/lib/runtime-content`,
   `pnpm verify`, `pnpm prettier:check`.
+
+Check record (before review), on tree `92ff416` over `92ecfe4d`:
+
+- `npx vitest run src/lib/runtime-content src/ui/app` (`src/frontend/web`): 140
+  passed; the four new preparer tests and two timing tests failed first.
+- `npx tsc -b` and eslint on the touched files passed.
+- `python3 ../../scripts/heavy-slot.py -- pnpm verify` (`src/frontend`): 541 files,
+  5319 passed, 1 skipped; `pnpm prettier:check` passed.
+
+#### Code Review #1 Findings
+
+Standard-tier review of tree `92ff416`. It reran the runtime-content and route tests
+(140 passed) and probed the preparer against the baseline in a scratch harness.
+
+- R1-1 (blocking): a bundle fallback in the Idle stage ran on one worker. The other
+  Idle workers had exited by the time the fallback jobs were queued, so up to about
+  170 JSON members would load one at a time before `idleReady` (probe: 1 in flight
+  against 4 or 8 on the baseline).
+- R1-2 (advisory): the bundle joined the Idle stage before the budget pass, so a
+  fallback or an over-budget member loaded non-Idle JSON members before
+  `idleReady`; the doc overstated the guarantee and still listed four milestones.
+- R1-3 (advisory): no test covers how the route records the milestones.
+
+#### Code Review #1 Revisions
+
+- R1-1 accepted. Each stage's worker pool tops itself up to its bound whenever jobs
+  wait, including fallback jobs queued late. Test: a failed Idle-stage bundle loads
+  both Idle members at once.
+- R1-2 accepted. The bundle joins the Idle stage only after the budget pass, when
+  every member is optional, reserved and bundleable; on a fallback there, its
+  non-Idle members wait for the later stage. Tests: the fallback test above (the
+  other members start only after `idleReady`) and an unusable bundle kept out of the
+  Idle stage. The doc qualifies the guarantee and lists five milestones.
+- R1-3 not adopted: no route-provider test harness exists, and Phase 5's measurement
+  reads these marks on a built stack, so missing marks fail it visibly.
+- Checks on tree `bc86022`: `npx vitest run src/lib/runtime-content src/ui/app` (142
+  passed; the two new tests failed first), `npx tsc -b`, eslint and prettier passed.
+
+#### Code Review #2 Findings
+
+Targeted recheck (repair round 1) of tree `97cf55c`: R1-1 and R1-2 resolved (probe:
+8 in flight during a fallback, no non-Idle request before `idleReady`).
+
+- R2-1 (blocking): the pool's worker promises had no handler until the await loop
+  reached them in order, so a cancellation while the first worker was busy with
+  signal-ignoring work left the others' `AbortError` rejections unhandled (probe: 7
+  on the new tree, 0 on the baseline); a browser journey would likely fail on such
+  page errors.
+- R2-2 (advisory): `active` dropped in a `.finally` microtask, so a fallback's top-up
+  could start one worker fewer.
+
+#### Code Review #2 Revisions
+
+- R2-1 accepted: each worker's failure is observed when it starts and the first is
+  rethrown after all settle. Test: cancelling while one worker is busy leaves no
+  unhandled rejection (it failed before the fix).
+- R2-2 accepted: a worker decrements `active` in its own `finally`, before its
+  promise settles.
+- Checks on tree `20ee5be`: `npx vitest run src/lib/runtime-content src/ui/app` (143
+  passed), `npx tsc -b`, eslint and prettier passed. Repair rounds used: 2 of 2.
+
+#### Code Review #3 Findings
+
+Final targeted recheck (repair round 2) of tree `20ee5be`: pass. R2-1 and R2-2
+resolved (its abort probe: no unhandled rejection; fallback probe: 8 in flight, no
+non-Idle request before `idleReady`, all files admitted). Two advisory wording points
+in this record (R3-1: say "would likely fail"; R3-2: name the checked tree), both
+applied.
 
 ### Phase 3: Plural bundles: contract and backend
 

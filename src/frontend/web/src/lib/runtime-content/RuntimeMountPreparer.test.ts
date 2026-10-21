@@ -924,3 +924,345 @@ describe("RuntimeMountPreparer", () => {
     expect(revoke).toHaveBeenCalledTimes(1);
   });
 });
+
+/** ``runtime(payloads)`` with the Gestures at ``idle`` moved into the Idle pool. */
+function idleRuntime(
+  payloads: Uint8Array<ArrayBuffer>[],
+  idle: number[],
+): PyAnimaRuntime {
+  const typed = runtime(payloads);
+  const gestures = typed.gestures!;
+  const isIdle = (index: number) => idle.includes(index + 1);
+  typed.idle = {
+    default_pool: idle.map((index) => `item-${index}`),
+    cells: {},
+    gestures: gestures
+      .filter((_, index) => isIdle(index))
+      .map((value) => ({
+        ...value,
+        content_type: "gesture" as const,
+        binding_id: `idle:${value.source.item_id}`,
+        idle_playback: { eligible: true },
+      })),
+  };
+  typed.gestures = gestures.filter((_, index) => !isIdle(index));
+  return typed;
+}
+
+function heldFetcher(
+  payloads: Uint8Array<ArrayBuffer>[],
+  held: (index: number) => boolean,
+) {
+  const started: number[] = [];
+  const releases: (() => void)[] = [];
+  const fetcher = vi.fn(async (url: string | URL | Request) => {
+    const index = Number(String(url).split("/").at(-1));
+    started.push(index);
+    if (held(index))
+      await new Promise<void>((resolve) => releases.push(resolve));
+    return new Response(payloads[index]);
+  });
+  return {
+    fetcher,
+    started,
+    releaseAll: () => releases.splice(0).forEach((release) => release()),
+  };
+}
+
+describe("Idle-first preparation", () => {
+  it("prepares the Idle pool before any other optional member", async () => {
+    const payloads = ["avatar", "wave", "breathe", "sway"].map((text) =>
+      new TextEncoder().encode(text),
+    );
+    const f = heldFetcher(payloads, (index) => index === 2);
+    const session = new RuntimeMountPreparer({
+      loader: new VerifiedByteLoader({ fetcher: f.fetcher }),
+      createObjectURL: () => "blob:verified",
+      revokeObjectURL: vi.fn(),
+    }).start(idleRuntime(payloads, [2, 3]));
+    let idleReady = false;
+    void session.idleReady.then(() => (idleReady = true));
+    await session.essentialReady;
+    session.startOptional();
+    try {
+      await vi.waitFor(() =>
+        expect(session.getRootReadiness("root-3")).toBe("ready"),
+      );
+      // One Idle member is still held: nothing else has started.
+      expect(f.started).toEqual([0, 2, 3]);
+      expect(session.getRootReadiness("root-2")).toBe("pending");
+      expect(session.getRootReadiness("root-1")).toBe("pending");
+      expect(idleReady).toBe(false);
+      f.releaseAll();
+      await session.idleReady;
+      expect(session.getRootReadiness("root-2")).toBe("ready");
+      await session.settled;
+      expect(f.started).toEqual([0, 2, 3, 1]);
+      expect(session.getRootReadiness("root-1")).toBe("ready");
+    } finally {
+      f.releaseAll();
+      await session.dispose();
+    }
+  });
+
+  it("resolves idleReady at once for an empty pool and rejects it when cancelled", async () => {
+    const payloads = ["avatar", "wave"].map((text) =>
+      new TextEncoder().encode(text),
+    );
+    const f = heldFetcher(payloads, (index) => index === 1);
+    const options = {
+      loader: new VerifiedByteLoader({ fetcher: f.fetcher }),
+      createObjectURL: () => "blob:verified",
+      revokeObjectURL: vi.fn(),
+    };
+    const empty = new RuntimeMountPreparer(options).start(runtime(payloads));
+    await empty.essentialReady;
+    empty.startOptional();
+    await empty.idleReady;
+    expect(empty.getRootReadiness("root-1")).toBe("pending");
+    await vi.waitFor(() => expect(f.started).toContain(1));
+    f.releaseAll();
+    await empty.settled;
+    await empty.dispose();
+
+    const cancelled = new RuntimeMountPreparer(options).start(
+      idleRuntime(payloads, [1]),
+    );
+    await cancelled.essentialReady;
+    cancelled.startOptional();
+    await vi.waitFor(() => expect(f.started).toContain(1));
+    const disposed = cancelled.dispose();
+    await expect(cancelled.idleReady).rejects.toMatchObject({
+      name: "AbortError",
+    });
+    f.releaseAll();
+    await disposed;
+  });
+
+  it("observes every worker's cancellation while one is still busy", async () => {
+    const payloads = Array.from({ length: 9 }, (_, index) =>
+      new TextEncoder().encode(`member ${index}`),
+    );
+    const unhandled: unknown[] = [];
+    const record = (reason: unknown) => unhandled.push(reason);
+    process.on("unhandledRejection", record);
+    const started: number[] = [];
+    const fetcher = vi.fn(
+      async (url: string | URL | Request, init?: RequestInit) => {
+        const index = Number(String(url).split("/").at(-1));
+        started.push(index);
+        if (index === 1) {
+          // Work that ignores the signal, as a digest of a large file does.
+          await new Promise((resolve) => setTimeout(resolve, 50));
+          return new Response(payloads[index]);
+        }
+        if (index === 0) return new Response(payloads[index]);
+        return new Promise<Response>((_, reject) =>
+          init?.signal?.addEventListener("abort", () =>
+            reject(new DOMException("Aborted", "AbortError")),
+          ),
+        );
+      },
+    );
+    const session = new RuntimeMountPreparer({
+      loader: new VerifiedByteLoader({ fetcher }),
+      createObjectURL: () => "blob:verified",
+      revokeObjectURL: vi.fn(),
+    }).start(runtime(payloads));
+    try {
+      await session.essentialReady;
+      session.startOptional();
+      await vi.waitFor(() => expect(started).toHaveLength(9));
+      await session.dispose();
+      await new Promise((resolve) => setTimeout(resolve, 80));
+      expect(unhandled).toEqual([]);
+    } finally {
+      process.off("unhandledRejection", record);
+    }
+  });
+
+  it("keeps eight optional members in flight by default, never a ninth", async () => {
+    const payloads = Array.from({ length: 11 }, (_, index) =>
+      new TextEncoder().encode(`member ${index}`),
+    );
+    const f = heldFetcher(payloads, (index) => index > 0);
+    const session = new RuntimeMountPreparer({
+      loader: new VerifiedByteLoader({ fetcher: f.fetcher }),
+      createObjectURL: () => "blob:verified",
+      revokeObjectURL: vi.fn(),
+    }).start(runtime(payloads));
+    await session.essentialReady;
+    session.startOptional();
+    try {
+      await vi.waitFor(() => expect(f.started).toHaveLength(9));
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(f.started).toHaveLength(9);
+    } finally {
+      f.releaseAll();
+      await vi.waitFor(() => expect(f.started).toHaveLength(11));
+      f.releaseAll();
+      await session.settled;
+      await session.dispose();
+    }
+  });
+
+  function jsonBundleRuntime(
+    texts: string[],
+    idle: number[],
+    bundled: number[],
+  ) {
+    const payloads = texts.map((text) => new TextEncoder().encode(text));
+    const typed = idleRuntime(payloads, idle);
+    for (const index of bundled) {
+      const member = typed.content_descriptor.members![index]!;
+      member.role = "sequence";
+      member.media_type = "application/json";
+    }
+    typed.json_bundle = {
+      version: 1,
+      url: "/v1/animas/anima/runtime/revisions/tr2-test/json-bundle",
+      file_refs: bundled.map((index) => `file-${index}`),
+      total_bytes: bundled.reduce(
+        (total, index) => total + payloads[index]!.length,
+        0,
+      ),
+    };
+    return { payloads, typed };
+  }
+
+  it("falls back from a failed Idle-stage bundle with several workers, Idle members first", async () => {
+    const texts = [
+      "avatar",
+      '{"i":1}',
+      '{"i":2}',
+      '{"w":3}',
+      '{"w":4}',
+      '{"w":5}',
+    ];
+    const { payloads, typed } = jsonBundleRuntime(
+      texts,
+      [1, 2],
+      [1, 2, 3, 4, 5],
+    );
+    const f = heldFetcher(payloads, (index) => index > 0);
+    const session = new RuntimeMountPreparer({
+      loader: new VerifiedByteLoader({ fetcher: f.fetcher }),
+      jsonBundleLoader: new RuntimeJsonBundleLoader(
+        vi.fn<typeof fetch>(async () => new Response(null, { status: 503 })),
+      ),
+      createObjectURL: () => "blob:verified",
+      revokeObjectURL: vi.fn(),
+    }).start(typed);
+    let idleReady = false;
+    void session.idleReady.then(() => (idleReady = true));
+    await session.essentialReady;
+    session.startOptional();
+    try {
+      // Both Idle members are requested at once; the others wait for idleReady.
+      await vi.waitFor(() => expect(f.started).toEqual([0, 1, 2]));
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(f.started).toEqual([0, 1, 2]);
+      expect(idleReady).toBe(false);
+      f.releaseAll();
+      await session.idleReady;
+      await vi.waitFor(() => expect(f.started).toHaveLength(6));
+      expect(f.started.slice(3).sort()).toEqual([3, 4, 5]);
+      f.releaseAll();
+      const mount = await session.settled;
+      expect(mount.files.size).toBe(6);
+    } finally {
+      f.releaseAll();
+      await session.dispose();
+    }
+  });
+
+  it("keeps a bundle that cannot be used out of the Idle stage", async () => {
+    const texts = [
+      "avatar",
+      '{"i":1}',
+      '{"w":2}',
+      `{"big":"${"x".repeat(64)}"}`,
+    ];
+    const { payloads, typed } = jsonBundleRuntime(texts, [1], [1, 2, 3]);
+    const bundleFetch = vi.fn<typeof fetch>();
+    const f = heldFetcher(payloads, (index) => index === 1);
+    const session = new RuntimeMountPreparer({
+      loader: new VerifiedByteLoader({ fetcher: f.fetcher }),
+      jsonBundleLoader: new RuntimeJsonBundleLoader(bundleFetch),
+      // The big member does not fit, so the bundle is not fetched.
+      maxTotalBytes: 6 + 7 + 7,
+      createObjectURL: () => "blob:verified",
+      revokeObjectURL: vi.fn(),
+    }).start(typed);
+    await session.essentialReady;
+    session.startOptional();
+    try {
+      await vi.waitFor(() => expect(f.started).toEqual([0, 1]));
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(f.started).toEqual([0, 1]);
+      f.releaseAll();
+      await session.idleReady;
+      await session.settled;
+      expect(f.started).toEqual([0, 1, 2]);
+      expect(bundleFetch).not.toHaveBeenCalled();
+    } finally {
+      f.releaseAll();
+      await session.dispose();
+    }
+  });
+
+  it("joins the JSON bundle to the Idle stage when it holds an Idle member", async () => {
+    const texts = ["avatar", '{"idle": 1}', '{"wave": 2}', "vrma"];
+    const payloads = texts.map((text) => new TextEncoder().encode(text));
+    const typed = idleRuntime(payloads, [1]);
+    for (const index of [1, 2]) {
+      const member = typed.content_descriptor.members![index]!;
+      member.role = "sequence";
+      member.media_type = "application/json";
+    }
+    typed.json_bundle = {
+      version: 1,
+      url: "/v1/animas/anima/runtime/revisions/tr2-test/json-bundle",
+      file_refs: ["file-1", "file-2"],
+      total_bytes: payloads[1]!.length + payloads[2]!.length,
+    };
+    const envelope = {
+      version: 1,
+      revision: "tr2-test",
+      members: [
+        { file_ref: "file-1", text: texts[1] },
+        { file_ref: "file-2", text: texts[2] },
+      ],
+    };
+    const order: string[] = [];
+    const f = heldFetcher(payloads, () => false);
+    f.fetcher.mockImplementation(async (url: string | URL | Request) => {
+      order.push(String(url));
+      return new Response(payloads[Number(String(url).split("/").at(-1))]);
+    });
+    let idleReadyAt = -1;
+    const session = new RuntimeMountPreparer({
+      loader: new VerifiedByteLoader({ fetcher: f.fetcher }),
+      jsonBundleLoader: new RuntimeJsonBundleLoader(
+        vi.fn<typeof fetch>(async (url) => {
+          order.push(new URL(String(url)).pathname);
+          return Response.json(envelope);
+        }),
+      ),
+      createObjectURL: () => "blob:verified",
+      revokeObjectURL: vi.fn(),
+    }).start(typed);
+    void session.idleReady.then(() => (idleReadyAt = order.length));
+    await session.essentialReady;
+    session.startOptional();
+    const mount = await session.settled;
+    expect(order).toEqual([
+      "/files/0",
+      "/v1/animas/anima/runtime/revisions/tr2-test/json-bundle",
+      "/files/3",
+    ]);
+    expect(idleReadyAt).toBe(2);
+    expect(mount.files.size).toBe(4);
+    await session.dispose();
+  });
+});

@@ -100,7 +100,13 @@ chosen: its PNG is then copied into the effect as the effect's own image.
   mount. `startOptional()` releases the remaining work only after the canvas
   draws the model in canonical relaxed-rest. A missing or failed model starts
   optional work from the fallback boundary instead of waiting for a frame.
-  Both stages share four workers (configurable up to eight), duplicate-member
+  Optional work runs in two stages: the Idle pool's roots first, then the rest.
+  `idleReady` resolves between them (at once for an empty pool). The Idle stage
+  requests only Idle members, plus the JSON bundle when it carries an Idle member
+  and fits whole (one request; if it falls back, its other members wait for the
+  later stage). Each
+  stage keeps up to eight requests in flight (configurable from one to eight),
+  topping the pool up when a bundle falls back, with duplicate-member
   elimination, cancellation, and a 512 MiB total byte budget reserved for
   essential files first. Optional files that exceed the remainder degrade
   their roots without evicting the model. Background workers yield between
@@ -108,9 +114,9 @@ chosen: its PNG is then copied into the effect as the effect's own image.
 - `PreparedRuntimeMount` owns Blob URLs and decoded resource disposers until
   unmount, remount, runtime-owner replacement, or route replacement.
 
-There are four distinct milestones: essential bytes verified, first posed frame
-rendered, each root's playback resources verified, and preparation settled
-(`ready` or `degraded`). Visual readiness does not imply full playback readiness.
+There are five distinct milestones: essential bytes verified, first posed frame
+rendered, the Idle pool's roots prepared, each root's playback resources
+verified, and preparation settled (`ready` or `degraded`). Visual readiness does not imply full playback readiness.
 Optional private requests continue through the same verifier after the avatar
 appears; after settlement, playback uses prepared Blobs without another
 typed-content HTTP fetch. Decoding those Blobs may still be asynchronous.
@@ -137,10 +143,13 @@ without downloading the files again.
 
 Performance traces include four bounded marks per live mount:
 `animama:runtime-N:manifest-ready`, `essential-bytes-ready`, `first-posed-frame`,
-and `optional-settled` (all with the same prefix). The first-frame mark is emitted
-on the frame following an actual main-camera mesh draw, not on `Avatar.load` or
-a React update. Marks contain no content/owner identity and are cleared on
-unmount.
+and `optional-settled` (all with the same prefix). Three milestone marks share one
+name across mounts, with the mount number `N` in `detail.mount`:
+`animama:runtime-first-frame`, `animama:runtime-idle-ready` and
+`animama:runtime-settled`; only the newest mount's entry is kept under each name.
+The first-frame marks are emitted on the frame following an actual main-camera
+mesh draw, not on `Avatar.load` or a React update. Marks contain no content/owner
+identity and are cleared on unmount.
 
 Avatar canvases without a mounted typed catalog use an explicitly empty media
 provider. They never fall back to the old code-shipped Particle/Avatar/Scene
@@ -178,8 +187,9 @@ bundle of optional JSON sequences and manifests. This is a transport optimizatio
 not a merged authoring format. Models and their essential dependencies, VRMA,
 textures, audio, metadata, and oversized JSON still use individual routes.
 
-`RuntimeMountPreparer` puts one bundle job in its existing optional queue after
-the first posed frame. Other workers continue loading binaries while it waits.
+`RuntimeMountPreparer` puts one bundle job first in an optional stage after the
+first posed frame: the Idle stage when the bundle carries an Idle member,
+otherwise the later stage. Other workers continue loading binaries while it waits.
 All advertised members must already fit the mount's single reserved byte budget;
 otherwise the existing individual path loads only members that fit. No bundle
 fetch is needed for old snapshots or preview callers without an advertisement.
