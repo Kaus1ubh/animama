@@ -48,6 +48,7 @@ import {
   STAGE_STOPS,
   type StageCamera,
   type StageStop,
+  stopClips,
 } from "./stops";
 
 /**
@@ -104,8 +105,8 @@ const CAMERA_FOLLOW = 5;
 /** Viewports narrower than this aspect ratio use each stop's `tall` framing. */
 const TALL_ASPECT = 0.8;
 /** Pause before a stop's first clip and between its clips, in seconds. */
-const CLIP_LEAD_SEC = 0.5;
-const CLIP_GAP_SEC = 0.7;
+const CLIP_LEAD_SEC = 0.3;
+const CLIP_GAP_SEC = 0.15;
 /**
  * Reactions loop while she talks and looping Gestures never end, so both play
  * a whole number of times adding up to at least this long.
@@ -432,13 +433,14 @@ function stopPlayback() {
 function playClip(stopIndex: number, index: number) {
   stopPlayback();
   const stop = STAGE_STOPS[stopIndex];
-  const item = stop.clips[index];
+  const clips = stopClips(stop, store.get().avatar);
+  const item = clips[index];
   const source = item ? program?.sources[item.spec] : undefined;
   if (!avatar || !source?.clip) return;
   const token = playToken;
   // A cycling stop moves on; a `once` stop replays the same clip next visit.
   if (stop.clipMode === "cycle")
-    cursors[stopIndex] = (index + 1) % stop.clips.length;
+    cursors[stopIndex] = (index + 1) % clips.length;
   media.setMedia(source.media ?? EMPTY_PREVIEW_MEDIA);
   const { clip, finitePlayback } = demoPlayback(source.clip);
   // During the entrance her face follows the stage's growing smile, not the
@@ -555,7 +557,11 @@ function enterStop(index: number) {
     return;
   }
   // The entrance plays the hero's wave itself once she has turned.
-  if (stop.clips.length === 0 || (index === 0 && intro)) return;
+  if (
+    stopClips(stop, store.get().avatar).length === 0 ||
+    (index === 0 && intro)
+  )
+    return;
   const token = playToken;
   clipTimer = window.setTimeout(() => {
     if (token === playToken) playClip(index, cursors[index]);
@@ -994,6 +1000,10 @@ async function selectAvatar(id: string) {
     if (previous?.scene) scene.remove(previous.scene);
     previous?.dispose();
     attachAvatar(loaded);
+    // Stops with their own clips per Avatar start that Avatar's set over.
+    STAGE_STOPS.forEach((stop, index) => {
+      if (stop.avatarClips) cursors[index] = 0;
+    });
     store.set({ avatar: id });
     enterStop(Math.max(0, store.get().active));
   } catch (error) {

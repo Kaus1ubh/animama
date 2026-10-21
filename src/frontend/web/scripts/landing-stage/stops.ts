@@ -180,6 +180,11 @@ export type StageStop = {
    * where the visitor left off; `once` plays the first clip on arrival.
    */
   clips: StageClip[];
+  /**
+   * Clips for particular Avatars (by `StageAvatar` id) in place of `clips`,
+   * so each Anima shows its own behaviors.
+   */
+  avatarClips?: Record<string, StageClip[]>;
   clipMode: "once" | "cycle";
   panel?: StagePanel;
   /**
@@ -430,18 +435,14 @@ const FEELINGS: Partial<
   },
 };
 
-/** Reaction intensity names by level (the `-1` to `-4` in a Reaction id). */
-const INTENSITIES = ["Mild", "Moderate", "Strong", "Intense"];
-
 /**
- * A Reaction chip, labelled "Joy (Strong)": its feeling's mascot and made-up
+ * A Reaction chip, labelled with its feeling ("Joy"): its mascot and made-up
  * emotional state.
  */
 const reaction = (stem: string, feeling: TrackedEmotion): StageClip => {
-  const level = Number(/-(\d)(?:-b)?$/.exec(stem)?.[1]);
   const name = feeling.charAt(0).toUpperCase() + feeling.slice(1);
   return {
-    label: `${name} (${INTENSITIES[level - 1]})`,
+    label: name,
     spec: `library:included/${stem}`,
     mascot: `${feeling}-very.webp`,
     emotion: FEELINGS[feeling],
@@ -459,11 +460,11 @@ export const STAGE_STOPS: StageStop[] = [
     label: "Meet",
     followCursor: true,
     title: "Meet your Anima",
-    body: "An AI companion who moves, feels and remembers you",
+    body: "AI companions that feel alive with their own behaviors, emotions and memories.",
     links: [
-      { word: "feels", stop: "emotion" },
-      { word: "moves", stop: "gestures" },
-      { word: "remembers", stop: "memory" },
+      { word: "behaviors", stop: "gestures" },
+      { word: "emotions", stop: "emotion" },
+      { word: "memories", stop: "memory" },
     ],
     camera: {
       yaw: 0,
@@ -488,9 +489,9 @@ export const STAGE_STOPS: StageStop[] = [
   {
     id: "gestures",
     accent: "#2f9fd0",
-    label: "Moves",
-    title: "{Subject} talks with {possessive} hands",
-    body: "152 gestures and 168 reactions, chosen as {subject} speaks.",
+    label: "Behaviors",
+    title: "Body Language",
+    body: "From laughing at your jokes to romantic gestures: **over 300 unique gestures and reactions**, picked as {subject} talks.",
     camera: {
       yaw: 16,
       distance: 1.25,
@@ -504,26 +505,36 @@ export const STAGE_STOPS: StageStop[] = [
     backdrop: LAVENDER,
     ink: "dark",
     clips: [
-      gesture("lean-in-coy", "Coy lean"),
-      gesture("soul-leaves-body", "Soul leaves"),
+      gesture("lean-in-coy", "Coy"),
+      gesture("soul-leaves-body", "Soulless"),
       gesture("flustered-fan", "Flustered fan"),
       gesture("innocent-whistle", "Innocent whistle"),
       gesture("finger-heart-pose", "Finger heart"),
       gesture("double-peace-pop", "Double peace"),
-      gesture("nervous-head-scratch", "Head scratch"),
       gesture("dramatic-swoon", "Dramatic swoon"),
       gesture("snicker-laugh", "Snicker"),
     ],
+    avatarClips: {
+      Andrew: [
+        gesture("air-guitar", "Air guitar"),
+        gesture("beckon", "Beckon"),
+        gesture("offer-a-rose", "Rose"),
+        gesture("brush-off-shoulders", "Brush shoulders"),
+        gesture("lean-in-coy", "Coy"),
+        gesture("ohohoho-noble-laugh", "Noble laugh"),
+        gesture("nervous-head-scratch", "Head scratch"),
+      ],
+    },
     clipMode: "cycle",
     panel: "chips",
   },
   {
     id: "emotion",
     accent: "#e8557c",
-    label: "Feels",
+    label: "Emotions",
     followCursor: true,
-    title: "{Subject} feels the conversation",
-    body: "Every reply shifts {possessive} emotional state, and {possessive} face, effects and mood follow.",
+    title: "{Possessive} heart on {possessive} sleeve",
+    body: "24 emotions that shift and evolve during your time together.",
     camera: {
       yaw: 25,
       distance: 0.62,
@@ -552,9 +563,9 @@ export const STAGE_STOPS: StageStop[] = [
   {
     id: "memory",
     accent: "#68a614",
-    label: "Remembers",
-    title: "{Subject} remembers your story",
-    body: "Your profile, {possessive} identity and your story together live in notes you can read, edit and roll back.",
+    label: "Memories",
+    title: "{Subject} remembers the little things",
+    body: "Your cat's name, Friday's recital: {subject} follows up so you don't have to.",
     camera: {
       yaw: 160,
       distance: 0.9,
@@ -678,6 +689,11 @@ export const CREATOR_PARTICLES = [
 ] as const;
 export type CreatorParticleId = (typeof CREATOR_PARTICLES)[number]["id"];
 
+/** The clips a stop plays for an Avatar: its own set, else the stop's. */
+export function stopClips(stop: StageStop, avatarId: string): StageClip[] {
+  return stop.avatarClips?.[avatarId] ?? stop.clips;
+}
+
 /** Every Library source the page plays, for the server to resolve. */
 /**
  * The hero entrance's scratch walk: its upper-body clip (in `clips/`; head
@@ -694,7 +710,11 @@ export const PUZZLE_EFFECT_SOURCES = [
 export function stageSources(): string[] {
   return [
     ...new Set([
-      ...STAGE_STOPS.flatMap((stop) => stop.clips.map(({ spec }) => spec)),
+      ...STAGE_STOPS.flatMap((stop) =>
+        [stop.clips, ...Object.values(stop.avatarClips ?? {})].flatMap(
+          (clips) => clips.map(({ spec }) => spec),
+        ),
+      ),
       CREATOR_SCENE,
       ...CREATOR_PARTICLES.map(({ spec }) => spec),
       ...PUZZLE_EFFECT_SOURCES,

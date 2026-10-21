@@ -72,6 +72,7 @@ import {
   type StageAvatar,
   type CreatorParticleId,
   type StageStop,
+  stopClips,
 } from "./stops";
 
 /*
@@ -192,7 +193,7 @@ function AvatarSwitcher({
     <nav
       aria-label="Avatars"
       className={cn(
-        "fixed top-24 right-3 z-40 flex flex-col gap-2 transition-opacity duration-700 md:top-1/2 md:right-5 md:-translate-y-1/2",
+        "fixed top-1/2 right-3 z-40 flex -translate-y-1/2 flex-col gap-2 transition-opacity duration-700 md:right-5",
         state.revealed
           ? "opacity-100 delay-700"
           : "pointer-events-none opacity-0",
@@ -734,7 +735,10 @@ function Stop(props: StopProps) {
             stop.panel === "mascots" && "max-md:hidden",
           )}
         >
-          {voice(stop.body ?? "", props.avatar)}
+          <Emphasis
+            text={voice(stop.body ?? "", props.avatar)}
+            className={light ? "text-white" : "text-foreground"}
+          />
         </p>
         {stop.panel === "mascots" ? (
           <EmotionSummary
@@ -817,14 +821,31 @@ function Hero({ stop, active, state, controller }: StopProps) {
         </h1>
         <p
           className={cn(
-            "font-hero-line text-muted-foreground mt-2 max-w-[22ch] text-[1.375rem] leading-snug text-balance md:mt-3 md:max-w-none md:text-[1.9375rem]",
+            "font-hero-line text-muted-foreground mt-2 max-w-[30ch] text-[1.125rem] leading-snug text-balance md:mt-3 md:max-w-[32ch] md:text-[1.9375rem]",
+            "relative",
             reveal("delay-300"),
           )}
         >
           <LinkedText stop={stop} controller={controller} />
+          <span aria-hidden="true" className="text-shimmer">
+            <LinkedText stop={stop} controller={controller} ghost />
+          </span>
         </p>
       </div>
     </div>
+  );
+}
+
+/** Caption text with its `**bold**` runs set in a stronger weight and colour. */
+function Emphasis({ text, className }: { text: string; className: string }) {
+  return text.split("**").map((part, index) =>
+    index % 2 ? (
+      <strong key={index} className={cn("font-semibold", className)}>
+        {part}
+      </strong>
+    ) : (
+      part
+    ),
   );
 }
 
@@ -832,9 +853,15 @@ function Hero({ stop, active, state, controller }: StopProps) {
 function LinkedText({
   stop,
   controller,
+  ghost = false,
 }: {
   stop: StageStop;
   controller: StageController;
+  /**
+   * Lay the text out with its link words left blank, for the shimmer copy
+   * drawn over the line: the words keep their own colours and wave.
+   */
+  ghost?: boolean;
 }) {
   const text = stop.body ?? "";
   const links = stop.links ?? [];
@@ -848,6 +875,13 @@ function LinkedText({
     // split() returns text, word, punctuation, text, ...
     if (index % 3 === 0) return part;
     if (index % 3 === 2) return null;
+    if (ghost)
+      return (
+        <span key={index} className="whitespace-nowrap">
+          <span className="invisible">{part}</span>
+          {parts[index + 1]}
+        </span>
+      );
     const link = links.find(({ word }) => word === part)!;
     const target = STAGE_STOPS.findIndex(({ id }) => id === link.stop);
     return (
@@ -942,9 +976,11 @@ const EMOTION_EASE_MS = 900;
  * The made-up emotional state of the clip playing at this stop, eased from
  * the previous one so the bars and radar glide between feelings.
  */
-function useEmotionalState({ stop, index, state }: StopProps) {
+function useEmotionalState({ stop, index, state, avatar }: StopProps) {
   const clip =
-    state.playing?.stop === index ? stop.clips[state.playing.clip] : null;
+    state.playing?.stop === index
+      ? stopClips(stop, avatar.id)[state.playing.clip]
+      : null;
   const target = clip?.emotion;
   const [values, setValues] = useState(NEUTRAL_STATE);
   const shown = useRef(values);
@@ -971,11 +1007,11 @@ function useEmotionalState({ stop, index, state }: StopProps) {
 }
 
 /** Mascot or text chips for a stop's clips; the playing one is marked. */
-function ClipChips({ stop, index, state, controller }: StopProps) {
+function ClipChips({ stop, index, state, avatar, controller }: StopProps) {
   const playing = state.playing?.stop === index ? state.playing.clip : null;
   return (
     <div className="-mx-5 mt-4 flex gap-2 overflow-x-auto px-5 pb-1 md:mx-0 md:mt-6 md:flex-wrap md:overflow-visible md:px-0">
-      {stop.clips.map((clip, clipIndex) => (
+      {stopClips(stop, avatar.id).map((clip, clipIndex) => (
         <button
           key={clip.spec}
           type="button"
