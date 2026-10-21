@@ -25,8 +25,8 @@ const json = (res, value, status = 200) => {
  * - Enhanced Avatar rendering: its MToon outlines and extra lights cost about
  *   1.7 times the software-WebGL work per Avatar frame. The GPU process then
  *   falls behind, and leaving an Anima page waits for it: a navigation after
- *   sign-out exceeded the 45-second step bound. The classic look still renders
- *   and poses the Avatar from the emitted bytes.
+ *   sign-out exceeded the 45-second step bound (#637). The classic look still
+ *   renders and poses the Avatar from the emitted bytes.
  */
 export function applyFixtureOwnerDefaults(preferences) {
     preferences.speech ??= { tts_enabled: false };

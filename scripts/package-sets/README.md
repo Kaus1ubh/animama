@@ -85,8 +85,8 @@ exclude the warm-up that the product default adds. Owners also start with
 enhanced Avatar rendering off. In software WebGL on a two-core runner its
 outlines and extra lights put the GPU process so far behind that leaving an Anima
 page took over 45 seconds, so the harness renders and poses the Avatar in the
-classic look and does not check the enhanced one. Each browser step may take 45
-seconds, enough for a two-core CI runner; wall times are measured separately.
+classic look and never draws the enhanced one (#637). Each browser step may take
+45 seconds, enough for a two-core CI runner; wall times are measured separately.
 The clip journey checks clip data, so it hides the Gesture creator's 3D preview
 and signs its owner out from the Library. Software WebGL drawing an Avatar slowed
 each of its steps to seconds. With its host hidden the creator's preview never
