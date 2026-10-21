@@ -36,6 +36,10 @@ export type StageState = {
    * shown: from a second into her wave (at once when there is no entrance).
    */
   revealed: boolean;
+  /** The Avatar on stage (a `STAGE_AVATARS` id). */
+  avatar: string;
+  /** The Avatar being loaded to replace it, or null. */
+  avatarLoading: string | null;
 };
 
 export type StageController = {
@@ -43,6 +47,8 @@ export type StageController = {
   subscribe(listener: () => void): () => void;
   /** Scroll the page to a stop. */
   scrollToStop(index: number): void;
+  /** Load another of `STAGE_AVATARS` in place of the one on stage. */
+  selectAvatar(id: string): void;
   /** Play one of a stop's clips now; a cycling stop continues from it. */
   playClip(stop: number, clip: number): void;
   /** Rebuild the creator demo's Scene and Particle Effects. */

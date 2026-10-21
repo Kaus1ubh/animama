@@ -10,10 +10,80 @@ import type { AmbientMood } from "./ambient";
  * resolve the Library sources the page plays.
  */
 
-/** The Included Avatar the stage shows. */
-export const STAGE_AVATAR = "AvatarSample_A_1_New";
-/** Her name in captions and the memory demo. */
-export const STAGE_ANIMA_NAME = "Annie";
+/** An Included Avatar the visitor can switch to, with its starter Anima. */
+export type StageAvatar = {
+  /** Included VRM file name, without `.vrm`. */
+  id: string;
+  /** The starter Anima's name, used in the demos. */
+  name: string;
+  /** Portrait file in `content/included/appearances/avatar-portraits`. */
+  portrait: string;
+  /** The pronouns captions use for this Anima (see `voice`). */
+  pronouns: { subject: string; object: string; possessive: string };
+  /** IDENTITY.md excerpts for the memory demo, from the starter identity. */
+  identity: { heading: string; line: string }[];
+};
+
+/** The Avatars the stage offers; the first loads with the page. */
+export const STAGE_AVATARS: StageAvatar[] = [
+  {
+    id: "AvatarSample_A_1_New",
+    name: "Annie",
+    portrait: "app-avatar-model-avatarsample-a-1-new-v1.webp",
+    pronouns: { subject: "she", object: "her", possessive: "her" },
+    identity: [
+      {
+        heading: "Essence",
+        line: "A warm, curious companion who helps you think out loud and turn vague ideas into clear next steps.",
+      },
+      {
+        heading: "Speaking style",
+        line: "Relaxed and clear, with short sentences that sound natural.",
+      },
+      {
+        heading: "Interests",
+        line: "Journaling, cozy cafés and whatever you're excited about.",
+      },
+    ],
+  },
+  {
+    id: "Andrew",
+    name: "Andrew",
+    portrait: "app-avatar-model-andrew-v1.webp",
+    pronouns: { subject: "he", object: "him", possessive: "his" },
+    identity: [
+      {
+        heading: "Essence",
+        line: "A calm, composed companion with a butler's instinct for looking after people.",
+      },
+      {
+        heading: "Speaking style",
+        line: "Courteous and unhurried, with the occasional gentle tease.",
+      },
+      {
+        heading: "Interests",
+        line: "Tea and its rituals, tidy plans, classic novels and how your day went.",
+      },
+    ],
+  },
+];
+
+/**
+ * Fill a caption's pronoun tokens for an Avatar: `{subject}`, `{object}`
+ * and `{possessive}`, capitalised when the token is (`{Subject}`).
+ */
+export function voice(text: string, avatar: StageAvatar): string {
+  return text.replace(
+    /\{(subject|object|possessive)\}/gi,
+    (_match, token: string) => {
+      const key = token.toLowerCase() as keyof StageAvatar["pronouns"];
+      const word = avatar.pronouns[key];
+      return token[0] === token[0].toUpperCase()
+        ? word[0].toUpperCase() + word.slice(1)
+        : word;
+    },
+  );
+}
 
 /**
  * Where the camera stands for a stop. Lengths are in head heights (the rest
@@ -408,15 +478,19 @@ export const STAGE_STOPS: StageStop[] = [
     introCamera: { distance: 1.4, aim: 0.9, lift: 0 },
     backdrop: HERO,
     ink: "dark",
-    clips: [gesture("small-shy-wave", "Small wave")],
+    // The stage plays the first unless `?wave=small` picks the second.
+    clips: [
+      gesture("wave-hello", "Wave hello"),
+      gesture("small-shy-wave", "Small wave"),
+    ],
     clipMode: "once",
   },
   {
     id: "gestures",
     accent: "#2f9fd0",
     label: "Moves",
-    title: "She talks with her hands",
-    body: "152 gestures and 168 reactions, chosen as she speaks.",
+    title: "{Subject} talks with {possessive} hands",
+    body: "152 gestures and 168 reactions, chosen as {subject} speaks.",
     camera: {
       yaw: 16,
       distance: 1.25,
@@ -448,8 +522,8 @@ export const STAGE_STOPS: StageStop[] = [
     accent: "#e8557c",
     label: "Feels",
     followCursor: true,
-    title: "She feels the conversation",
-    body: "Every reply shifts her emotional state, and her face, effects and mood follow.",
+    title: "{Subject} feels the conversation",
+    body: "Every reply shifts {possessive} emotional state, and {possessive} face, effects and mood follow.",
     camera: {
       yaw: 25,
       distance: 0.62,
@@ -479,8 +553,8 @@ export const STAGE_STOPS: StageStop[] = [
     id: "memory",
     accent: "#68a614",
     label: "Remembers",
-    title: "She remembers your story",
-    body: "Your profile, her identity and your story together live in notes you can read, edit and roll back.",
+    title: "{Subject} remembers your story",
+    body: "Your profile, {possessive} identity and your story together live in notes you can read, edit and roll back.",
     camera: {
       yaw: 160,
       distance: 0.9,
@@ -526,7 +600,7 @@ export const STAGE_STOPS: StageStop[] = [
     id: "download",
     accent: "#8b7cf6",
     label: "Download",
-    title: "Meet her on your desktop",
+    title: "Meet {object} on your desktop",
     body: "Coming soon to macOS and Windows.",
     camera: {
       yaw: 372,

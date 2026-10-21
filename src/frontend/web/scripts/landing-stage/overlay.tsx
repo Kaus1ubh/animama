@@ -17,6 +17,7 @@ import {
   FileText,
   Flower2,
   Heart,
+  Menu,
   Moon,
   Monitor,
   PartyPopper,
@@ -34,12 +35,17 @@ import {
 
 import { TRACKED_EMOTIONS, type TrackedEmotion } from "@/lib/emotion";
 import { cn } from "@/lib/utils";
+import { Avatar, AvatarFallback, AvatarImage } from "@/ui/components/avatar";
 import { Button } from "@/ui/components/button";
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/ui/components/dropdown-menu";
 import {
@@ -48,6 +54,11 @@ import {
 } from "@/ui/components/emotional-state";
 import { Switch } from "@/ui/components/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/components/tabs";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/ui/components/tooltip";
 
 import type { CreatorState, StageController, StageState } from "./controller";
 import { LocaleFlag } from "./flags";
@@ -55,8 +66,10 @@ import {
   CREATOR_LAYERS,
   CREATOR_PALETTES,
   CREATOR_PARTICLES,
-  STAGE_ANIMA_NAME,
+  STAGE_AVATARS,
   STAGE_STOPS,
+  voice,
+  type StageAvatar,
   type CreatorParticleId,
   type StageStop,
 } from "./stops";
@@ -82,6 +95,8 @@ type StopProps = {
   stop: StageStop;
   index: number;
   active: boolean;
+  /** The Avatar on stage, for names and pronouns. */
+  avatar: StageAvatar;
   state: StageState;
   controller: StageController;
 };
@@ -106,6 +121,8 @@ function Overlay({ controller }: { controller: StageController }) {
   const state = useSyncExternalStore(controller.subscribe, controller.getState);
   const active = Math.max(0, state.active);
   const light = STAGE_STOPS[active].ink === "light";
+  const avatar =
+    STAGE_AVATARS.find(({ id }) => id === state.avatar) ?? STAGE_AVATARS[0];
   return (
     <>
       <Header light={light} controller={controller} />
@@ -113,8 +130,10 @@ function Overlay({ controller }: { controller: StageController }) {
         active={active}
         light={light}
         revealed={state.revealed}
+        avatar={avatar}
         controller={controller}
       />
+      <AvatarSwitcher state={state} controller={controller} />
       <main>
         {STAGE_STOPS.map((stop, index) => (
           <section
@@ -126,6 +145,7 @@ function Overlay({ controller }: { controller: StageController }) {
               stop={stop}
               index={index}
               active={index === active}
+              avatar={avatar}
               state={state}
               controller={controller}
             />
@@ -156,6 +176,74 @@ function useScrollProgress() {
 }
 
 /**
+ * The Avatars the page can show, as the app's collapsed sidebar lists
+ * Animas: round portraits at the right edge, the one on stage highlighted
+ * and the others in greyscale. Choosing one loads it in place; it pulses
+ * while it loads. Shown once the hero entrance reaches her wave.
+ */
+function AvatarSwitcher({
+  state,
+  controller,
+}: {
+  state: StageState;
+  controller: StageController;
+}) {
+  return (
+    <nav
+      aria-label="Avatars"
+      className={cn(
+        "fixed top-24 right-3 z-40 flex flex-col gap-2 transition-opacity duration-700 md:top-1/2 md:right-5 md:-translate-y-1/2",
+        state.revealed
+          ? "opacity-100 delay-700"
+          : "pointer-events-none opacity-0",
+      )}
+    >
+      {STAGE_AVATARS.map((avatar) => {
+        const isActive = avatar.id === state.avatar;
+        const loading = avatar.id === state.avatarLoading;
+        return (
+          <Tooltip key={avatar.id}>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                aria-label={avatar.name}
+                aria-pressed={isActive}
+                aria-busy={loading}
+                disabled={state.avatarLoading !== null && !loading}
+                onClick={() => controller.selectAvatar(avatar.id)}
+                className={cn(
+                  "border-border/60 bg-background/60 text-foreground/80 hover:bg-muted/70 hover:text-foreground focus-visible:ring-ring flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border p-0 shadow-sm backdrop-blur-md transition-colors outline-none focus-visible:ring-2",
+                  isActive &&
+                    "bg-sidebar-accent/80 text-foreground ring-sidebar-border/80 ring-1",
+                  loading && "animate-pulse",
+                )}
+              >
+                <Avatar className="size-12">
+                  <AvatarImage
+                    alt=""
+                    src={`/__stage/portrait/${avatar.id}`}
+                    className={cn(
+                      "transition-[filter,opacity] duration-200",
+                      !isActive && !loading && "opacity-70 grayscale",
+                    )}
+                  />
+                  <AvatarFallback className="text-xs font-medium">
+                    {avatar.name.slice(0, 2)}
+                  </AvatarFallback>
+                </Avatar>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="left" sideOffset={8}>
+              {loading ? `Loading ${avatar.name}…` : avatar.name}
+            </TooltipContent>
+          </Tooltip>
+        );
+      })}
+    </nav>
+  );
+}
+
+/**
  * Where the visitor is: a thin vertical thread that fills as the page
  * scrolls, the caring mascot riding its tip, and the stop counter and name
  * beside it. Each stop is a dot on the thread that scrolls to it; a ring
@@ -165,12 +253,14 @@ function ProgressThread({
   active,
   light,
   revealed,
+  avatar,
   controller,
 }: {
   active: number;
   light: boolean;
   /** Hidden until the hero entrance reaches her wave. */
   revealed: boolean;
+  avatar: StageAvatar;
   controller: StageController;
 }) {
   const progress = useScrollProgress();
@@ -201,7 +291,7 @@ function ProgressThread({
         <button
           key={stop.id}
           type="button"
-          aria-label={stop.title}
+          aria-label={voice(stop.title, avatar)}
           aria-current={index === active ? "step" : undefined}
           onClick={() => controller.scrollToStop(index)}
           className="group focus-visible:ring-ring absolute left-0 flex w-12 -translate-1/2 cursor-pointer items-center justify-center rounded-full outline-none focus-visible:ring-2"
@@ -276,8 +366,8 @@ function ProgressThread({
  * holding Home, About (both scroll the tour) and Docs, the theme toggle and
  * language picker, Log in and Sign up (placeholders until accounts exist),
  * and Download as its one solid button. A single soft highlight glides to
- * whichever item the pointer is over. Below 1024px only the logo and
- * Download remain.
+ * whichever item the pointer is over. Below 1024px the pill gives way to
+ * Download and a menu button that holds the same items (`SiteMenu`).
  */
 function Header({
   light,
@@ -288,6 +378,8 @@ function Header({
 }) {
   const pill = useRef<HTMLElement>(null);
   const [glow, setGlow] = useState<{ x: number; w: number } | null>(null);
+  const theme = useThemeMode();
+  const [locale, setLocale] = useState<UiLocale>("en");
   /** Move the highlight to the item under the pointer (or keyboard focus). */
   const track = (event: { target: EventTarget }) => {
     const item = (event.target as HTMLElement).closest("[data-pill-item]");
@@ -373,8 +465,8 @@ function Header({
           Docs
         </a>
         {divider}
-        <ThemeToggle light={light} />
-        <LanguagePicker />
+        <ThemeToggle light={light} theme={theme} />
+        <LanguagePicker locale={locale} onLocaleChange={setLocale} />
         {divider}
         <button type="button" data-pill-item="" className={link}>
           Log in
@@ -384,18 +476,31 @@ function Header({
         </button>
         {download("ml-1 hover:brightness-105")}
       </nav>
-      {download("lg:hidden")}
+      {/* Narrow-only, as `hidden max-lg:flex`: the Scene layers' later `.flex`
+          would override `lg:hidden`. */}
+      <div className="hidden items-center gap-2 max-lg:flex">
+        {download("max-sm:px-3 max-sm:[&>svg]:hidden")}
+        <SiteMenu
+          light={light}
+          controller={controller}
+          theme={theme}
+          locale={locale}
+          onLocaleChange={setLocale}
+        />
+      </div>
     </header>
   );
 }
 
 const THEME_KEY = "landing-stage-theme";
 
+type ThemeMode = { dark: boolean; toggle: () => void };
+
 /**
  * Light and dark mode, using the app's own `.dark` theme. The choice is
  * remembered in this browser (`index.html` applies it before first paint).
  */
-function ThemeToggle({ light }: { light: boolean }) {
+function useThemeMode(): ThemeMode {
   const [dark, setDark] = useState(() =>
     document.documentElement.classList.contains("dark"),
   );
@@ -409,6 +514,16 @@ function ThemeToggle({ light }: { light: boolean }) {
     }
     setDark(next);
   };
+  return { dark, toggle };
+}
+
+function ThemeToggle({
+  light,
+  theme: { dark, toggle },
+}: {
+  light: boolean;
+  theme: ThemeMode;
+}) {
   const Icon = dark ? Sun : Moon;
   return (
     <button
@@ -434,8 +549,12 @@ function ThemeToggle({ light }: { light: boolean }) {
  * Locales by flag and their own names. The landing copy is English-only for
  * now, so a choice is only remembered for the menu.
  */
-function LanguagePicker() {
-  const [locale, setLocale] = useState<UiLocale>("en");
+type LocaleChoice = {
+  locale: UiLocale;
+  onLocaleChange: (locale: UiLocale) => void;
+};
+
+function LanguagePicker({ locale, onLocaleChange }: LocaleChoice) {
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger
@@ -446,22 +565,95 @@ function LanguagePicker() {
         <LocaleFlag locale={locale} className="size-5" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="z-50 min-w-44">
-        <DropdownMenuRadioGroup
-          value={locale}
-          onValueChange={(value) => setLocale(value as UiLocale)}
+        <LanguageOptions locale={locale} onLocaleChange={onLocaleChange} />
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+/** The app's UI Locales by flag and their own names, as menu radio items. */
+function LanguageOptions({ locale, onLocaleChange }: LocaleChoice) {
+  return (
+    <DropdownMenuRadioGroup
+      value={locale}
+      onValueChange={(value) => onLocaleChange(value as UiLocale)}
+    >
+      {SUPPORTED_LOCALES.map((option) => (
+        <DropdownMenuRadioItem
+          key={option}
+          value={option}
+          lang={option}
+          className="gap-2.5"
         >
-          {SUPPORTED_LOCALES.map((option) => (
-            <DropdownMenuRadioItem
-              key={option}
-              value={option}
-              lang={option}
-              className="gap-2.5"
-            >
-              <LocaleFlag locale={option} className="size-4" />
-              {localeNativeName(option)}
-            </DropdownMenuRadioItem>
-          ))}
-        </DropdownMenuRadioGroup>
+          <LocaleFlag locale={option} className="size-4" />
+          {localeNativeName(option)}
+        </DropdownMenuRadioItem>
+      ))}
+    </DropdownMenuRadioGroup>
+  );
+}
+
+/**
+ * The header's items for screens narrower than the pill (below 1024px): a
+ * glass menu button opening Home, About, Docs, dark mode, the language list,
+ * Log in and Sign up. Toggling dark mode keeps the menu open so the change
+ * shows behind it.
+ */
+function SiteMenu({
+  light,
+  controller,
+  theme,
+  locale,
+  onLocaleChange,
+}: LocaleChoice & {
+  light: boolean;
+  controller: StageController;
+  theme: ThemeMode;
+}) {
+  return (
+    <DropdownMenu modal={false}>
+      <DropdownMenuTrigger
+        aria-label="Menu"
+        data-ink={light ? "light" : "dark"}
+        className={cn(
+          "liquid-glass focus-visible:ring-ring flex size-9 cursor-pointer items-center justify-center rounded-full outline-none focus-visible:ring-2",
+          light ? "text-white" : "text-foreground",
+        )}
+      >
+        <Menu className="size-4.5" aria-hidden="true" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="end"
+        sideOffset={8}
+        className="z-50 w-60 max-w-[calc(100vw-2.5rem)]"
+      >
+        <DropdownMenuItem onSelect={() => controller.scrollToStop(0)}>
+          Home
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => controller.scrollToStop(1)}>
+          About
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <a href={DOCS_URL} target="_blank" rel="noreferrer">
+            Docs
+          </a>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuCheckboxItem
+          checked={theme.dark}
+          onCheckedChange={theme.toggle}
+          onSelect={(event) => event.preventDefault()}
+        >
+          Dark mode
+        </DropdownMenuCheckboxItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuLabel className="text-muted-foreground text-xs font-medium">
+          Language
+        </DropdownMenuLabel>
+        <LanguageOptions locale={locale} onLocaleChange={onLocaleChange} />
+        <DropdownMenuSeparator />
+        <DropdownMenuItem>Log in</DropdownMenuItem>
+        <DropdownMenuItem>Sign up</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -471,15 +663,11 @@ function LanguagePicker() {
 function Wordmark({ light }: { light: boolean }) {
   return (
     <span className="flex items-center gap-2" aria-label="Animama">
-      <img
-        src="/brand/animama-mark.png"
-        alt=""
-        className="size-10 md:size-12"
-      />
+      <img src="/brand/animama-mark.png" alt="" className="size-9 md:size-12" />
       <span
         aria-hidden="true"
         className={cn(
-          "block h-9 w-[108px] transition-colors duration-500 md:h-11 md:w-[132px]",
+          "block h-8 w-[92px] transition-colors duration-500 md:h-11 md:w-[132px]",
           light ? "bg-white" : "bg-foreground",
         )}
         style={wordmarkMask}
@@ -508,14 +696,16 @@ function Stop(props: StopProps) {
     effects: "md:top-[13vh] md:bottom-auto md:w-[min(24rem,30vw)]",
     emotion: "md:w-[min(26rem,29vw)]",
   }[stop.id];
+  // Hidden (not just transparent) once faded, so the browser stops keeping
+  // composited layers for every inactive stop.
   const fade = active
-    ? "translate-y-0 opacity-100"
-    : "pointer-events-none translate-y-3 opacity-0";
+    ? "visible translate-y-0 opacity-100"
+    : "pointer-events-none invisible translate-y-3 opacity-0";
   return (
     <>
       <div
         className={cn(
-          "fixed inset-x-0 bottom-0 z-30 px-5 pt-24 pb-7 transition-[opacity,translate] duration-500",
+          "fixed inset-x-0 bottom-0 z-30 px-5 pt-24 pb-7 transition-[opacity,translate,visibility] duration-500",
           "md:inset-x-auto md:bottom-[12vh] md:left-(--rail) md:w-[min(34rem,40vw)] md:bg-none md:p-0",
           light
             ? "bg-linear-to-t from-[#3d3f8f] from-45% via-[#3d3f8f]/85 to-transparent"
@@ -531,7 +721,7 @@ function Stop(props: StopProps) {
             light ? "text-white" : "text-foreground caption-halo",
           )}
         >
-          {stop.title}
+          {voice(stop.title, props.avatar)}
         </h2>
         <p
           className={cn(
@@ -540,18 +730,20 @@ function Stop(props: StopProps) {
             stop.panel === "mascots" && "max-md:hidden",
           )}
         >
-          {stop.body}
+          {voice(stop.body ?? "", props.avatar)}
         </p>
         {stop.panel === "mascots" ? (
           <EmotionSummary
             emotionalState={emotion}
-            className="bg-card/90 mt-3 rounded-2xl border p-3 text-sm backdrop-blur md:hidden"
+            className="bg-card/90 mt-3 rounded-2xl border p-3 text-sm md:hidden"
           />
         ) : null}
         {stop.panel === "mascots" || stop.panel === "chips" ? (
           <ClipChips {...props} />
         ) : null}
-        {stop.panel === "memory" ? <MemoryStory active={active} /> : null}
+        {stop.panel === "memory" ? (
+          <MemoryStory active={active} avatar={props.avatar} />
+        ) : null}
         {stop.panel === "creator" ? (
           <>
             <SceneCard {...creator} />
@@ -563,12 +755,12 @@ function Stop(props: StopProps) {
       {stop.panel === "mascots" ? (
         <div
           className={cn(
-            "bg-card/95 text-card-foreground fixed top-[14vh] right-[var(--gutter)] z-30 hidden w-[21rem] rounded-2xl border p-4 shadow-xl backdrop-blur transition-[opacity,translate] duration-500 md:block",
+            "bg-card/95 text-card-foreground fixed top-[14vh] right-[var(--gutter)] z-30 hidden w-[21rem] rounded-2xl border p-4 shadow-xl transition-[opacity,translate,visibility] duration-500 md:block",
             fade,
           )}
         >
           <p className="text-muted-foreground mb-3 text-xs font-medium">
-            {STAGE_ANIMA_NAME}&apos;s emotional state
+            {props.avatar.name}&apos;s emotional state
           </p>
           <EmotionalState emotionalState={emotion} variant="compact" />
         </div>
@@ -577,7 +769,7 @@ function Stop(props: StopProps) {
         <ParticleCard
           {...creator}
           className={cn(
-            "fixed top-[30vh] right-[var(--gutter)] z-30 hidden w-[15rem] transition-[opacity,translate] duration-500 md:block",
+            "fixed top-[30vh] right-[var(--gutter)] z-30 hidden w-[15rem] transition-[opacity,translate,visibility] duration-500 md:block",
             fade,
           )}
         />
@@ -603,10 +795,10 @@ function Hero({ stop, active, state, controller }: StopProps) {
   return (
     <div
       className={cn(
-        "fixed inset-x-0 top-[12vh] z-30 flex justify-center px-5 text-center transition-[opacity,translate] duration-500 md:top-[14vh]",
+        "fixed inset-x-0 top-[12vh] z-30 flex justify-center px-5 text-center transition-[opacity,translate,visibility] duration-500 md:top-[14vh]",
         active
-          ? "translate-y-0 opacity-100"
-          : "pointer-events-none -translate-y-3 opacity-0",
+          ? "visible translate-y-0 opacity-100"
+          : "pointer-events-none invisible -translate-y-3 opacity-0",
       )}
       aria-hidden={!active}
     >
@@ -786,7 +978,7 @@ function ClipChips({ stop, index, state, controller }: StopProps) {
           aria-pressed={playing === clipIndex}
           onClick={() => controller.playClip(index, clipIndex)}
           className={cn(
-            "bg-card/85 focus-visible:ring-ring inline-flex shrink-0 items-center gap-2 rounded-full border text-sm font-medium shadow-xs backdrop-blur transition outline-none focus-visible:ring-2",
+            "bg-card/85 focus-visible:ring-ring inline-flex shrink-0 items-center gap-2 rounded-full border text-sm font-medium shadow-xs transition outline-none focus-visible:ring-2",
             clip.mascot ? "py-1 pr-3.5 pl-1" : "px-3.5 py-1.5",
             playing === clipIndex
               ? "border-primary bg-primary/25 ring-primary/40 ring-2"
@@ -819,10 +1011,10 @@ type MemoryFile = {
 
 /**
  * The three built-in notes: the owner's profile (shared by every Anima), the
- * Anima's identity, and the relationship she writes herself while chatting.
- * Identity lines are from Annie's starter definition.
+ * Anima's identity, and the relationship it writes itself while chatting.
+ * Identity lines come from the Avatar's starter Anima (`StageAvatar`).
  */
-const MEMORY_FILES: MemoryFile[] = [
+const memoryFiles = (avatar: StageAvatar): MemoryFile[] => [
   {
     id: "profile",
     file: "PROFILE.md",
@@ -842,28 +1034,16 @@ const MEMORY_FILES: MemoryFile[] = [
   {
     id: "identity",
     file: "IDENTITY.md",
-    about: `Who ${STAGE_ANIMA_NAME} is: personality, voice and boundaries.`,
-    sections: [
-      {
-        heading: "Essence",
-        lines: [
-          "A warm, curious companion who helps you think out loud and turn vague ideas into clear next steps.",
-        ],
-      },
-      {
-        heading: "Speaking style",
-        lines: ["Relaxed and clear, with short sentences that sound natural."],
-      },
-      {
-        heading: "Interests",
-        lines: ["Journaling, cozy cafés and whatever you're excited about."],
-      },
-    ],
+    about: `Who ${avatar.name} is: personality, voice and boundaries.`,
+    sections: avatar.identity.map(({ heading, line }) => ({
+      heading,
+      lines: [line],
+    })),
   },
   {
     id: "memories",
     file: "MEMORIES.md",
-    about: `Your story together, kept by ${STAGE_ANIMA_NAME} as you chat.`,
+    about: `Your story together, kept by ${avatar.name} as you chat.`,
     sections: [
       {
         heading: "Our story",
@@ -878,13 +1058,22 @@ const MEMORY_FILES: MemoryFile[] = [
   },
 ];
 const MEMORY_FILE_MS = 5500;
+/** The order the tabs cycle in: profile, identity, then memories. */
+const MEMORY_FILE_ORDER: MemoryFileId[] = ["profile", "identity", "memories"];
 
 /**
  * The memory feature as it works in the app: a chat line, the reply's
  * "Memory updated" cue, then the notes memory is built from, one tab each.
  * The tabs cycle until the visitor picks one.
  */
-function MemoryStory({ active }: { active: boolean }) {
+function MemoryStory({
+  active,
+  avatar,
+}: {
+  active: boolean;
+  avatar: StageAvatar;
+}) {
+  const files = memoryFiles(avatar);
   const step = useSteps(active, [300, 1300, 2500]);
   const [tab, setTab] = useState<MemoryFileId>("profile");
   const [touched, setTouched] = useState(false);
@@ -906,15 +1095,15 @@ function MemoryStory({ active }: { active: boolean }) {
   useEffect(() => {
     if (!active || touched) return;
     const timer = window.setTimeout(() => {
-      const index = MEMORY_FILES.findIndex(({ id }) => id === tab);
-      setTab(MEMORY_FILES[(index + 1) % MEMORY_FILES.length].id);
+      const index = MEMORY_FILE_ORDER.indexOf(tab);
+      setTab(MEMORY_FILE_ORDER[(index + 1) % MEMORY_FILE_ORDER.length]);
     }, MEMORY_FILE_MS);
     return () => window.clearTimeout(timer);
   }, [active, touched, tab]);
 
   return (
     <div className="mt-5 space-y-3 text-left">
-      <div className="bg-card/95 text-card-foreground hidden rounded-2xl border p-3.5 shadow-xl backdrop-blur md:block">
+      <div className="bg-card/95 text-card-foreground hidden rounded-2xl border p-3.5 shadow-xl md:block">
         <Reveal shown={step >= 1} className="flex justify-end">
           <p className="bg-secondary/70 max-w-[85%] rounded-2xl rounded-br-md px-3.5 py-2 text-sm">
             We adopted a kitten today! Her name is Miso.
@@ -922,8 +1111,8 @@ function MemoryStory({ active }: { active: boolean }) {
         </Reveal>
         <Reveal shown={step >= 2} className="mt-2.5 flex items-end gap-2">
           <img
-            src="/__stage/portrait"
-            alt={STAGE_ANIMA_NAME}
+            src={`/__stage/portrait/${avatar.id}`}
+            alt={avatar.name}
             className="bg-muted size-7 shrink-0 rounded-full object-cover"
           />
           <div className="max-w-[85%]">
@@ -947,16 +1136,16 @@ function MemoryStory({ active }: { active: boolean }) {
           setTouched(true);
           setTab(value as MemoryFileId);
         }}
-        className="bg-card/95 text-card-foreground relative gap-0 overflow-hidden rounded-2xl border p-3 shadow-xl backdrop-blur"
+        className="bg-card/95 text-card-foreground relative gap-0 overflow-hidden rounded-2xl border p-3 shadow-xl"
       >
         <TabsList className="grid w-full grid-cols-3">
-          {MEMORY_FILES.map((file) => (
+          {files.map((file) => (
             <TabsTrigger key={file.id} value={file.id} className="text-xs">
               {file.file}
             </TabsTrigger>
           ))}
         </TabsList>
-        {MEMORY_FILES.map((file) => (
+        {files.map((file) => (
           <TabsContent
             key={file.id}
             value={file.id}
@@ -1038,7 +1227,7 @@ function Reveal({
   return (
     <div
       className={cn(
-        "transition-[opacity,translate] duration-500",
+        "transition-[opacity,translate,visibility] duration-500",
         shown ? "translate-y-0 opacity-100" : "translate-y-1.5 opacity-0",
         className,
       )}
@@ -1115,7 +1304,7 @@ function useCreator(active: boolean, controller: StageController): CreatorDemo {
 
 function SceneCard({ state, edit }: CreatorDemo) {
   return (
-    <div className="bg-card/95 text-card-foreground mt-5 hidden rounded-2xl border p-3.5 shadow-xl backdrop-blur md:block">
+    <div className="bg-card/95 text-card-foreground mt-5 hidden rounded-2xl border p-3.5 shadow-xl md:block">
       <p className="text-sm font-semibold">Scene layers</p>
       <ul className="mt-2.5 space-y-1.5">
         {CREATOR_LAYERS.map((layer) => (
@@ -1179,7 +1368,7 @@ function ParticleCard({
   return (
     <div
       className={cn(
-        "bg-card/95 text-card-foreground rounded-2xl border p-3 shadow-xl backdrop-blur",
+        "bg-card/95 text-card-foreground rounded-2xl border p-3 shadow-xl",
         className,
       )}
     >

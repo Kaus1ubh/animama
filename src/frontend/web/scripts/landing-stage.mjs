@@ -30,10 +30,7 @@ const webRoot = fileURLToPath(new URL("..", import.meta.url));
 const repoRoot = path.resolve(webRoot, "../../..");
 const avatarDir = path.join(repoRoot, "content/included/avatars");
 const includedDir = path.join(repoRoot, "content/included");
-const portraitFile = path.join(
-  includedDir,
-  "appearances/avatar-portraits/app-avatar-model-avatarsample-a-1-new-v1.webp",
-);
+const portraitDir = path.join(includedDir, "appearances/avatar-portraits");
 const PAGE = "/scripts/landing-stage/index.html";
 /**
  * Recharts (the emotion radar) imports `es-toolkit/compat/*`, which Vite's dep
@@ -53,6 +50,7 @@ const rechartsCompatAliases = Object.fromEntries(
     ]),
 );
 const PREVIEW_MODULES = "/src/lib/avatar/motion-authoring/preview";
+const PORTRAIT_ROUTE = "/__stage/portrait/";
 
 /**
  * Entrance clips are served by plain file name, from the harness's `clips/`
@@ -116,7 +114,7 @@ export async function startStageServer({ port = 0, walkClips = null } = {}) {
   const { PreviewSession } = await server.ssrLoadModule(
     `${PREVIEW_MODULES}/previewSession.ts`,
   );
-  const { STAGE_AVATAR, stageSources } = await server.ssrLoadModule(
+  const { STAGE_AVATARS, stageSources } = await server.ssrLoadModule(
     "/scripts/landing-stage/stops.ts",
   );
 
@@ -124,7 +122,7 @@ export async function startStageServer({ port = 0, walkClips = null } = {}) {
    * Every clip and Scene Effect the stops name, resolved once. A source that
    * fails to resolve is reported to the page instead of stopping the stage.
    */
-  const program = { avatar: null, sources: {}, problems: [], walk: {} };
+  const program = { avatars: [], sources: {}, problems: [], walk: {} };
   // Entrance clips by file name: the bundled ones, then `--walk-clips`
   // (which wins on a shared name).
   const walkFiles = new Map();
@@ -139,10 +137,17 @@ export async function startStageServer({ port = 0, walkClips = null } = {}) {
   program.walk = Object.fromEntries(
     [...walkFiles.keys()].map((name) => [name, `${WALK_ROUTE}${name}`]),
   );
-  program.avatar = {
-    id: STAGE_AVATAR,
-    url: `/@fs${path.join(avatarDir, `${STAGE_AVATAR}.vrm`)}`,
-  };
+  program.avatars = STAGE_AVATARS.map(({ id }) => ({
+    id,
+    url: `/@fs${path.join(avatarDir, `${id}.vrm`)}`,
+  }));
+  /** Portrait files by Avatar id, served at `/__stage/portrait/<id>`. */
+  const portraits = new Map(
+    STAGE_AVATARS.map(({ id, portrait }) => [
+      id,
+      path.join(portraitDir, portrait),
+    ]),
+  );
   for (const spec of stageSources()) {
     try {
       const session = await PreviewSession.open({
@@ -181,11 +186,16 @@ export async function startStageServer({ port = 0, walkClips = null } = {}) {
     else if (url.pathname === "/__stage/program")
       sendJson(response, 200, program);
     else if (url.pathname.startsWith(WALK_ROUTE)) sendWalkClip(response, url);
-    else if (url.pathname === "/__stage/portrait") {
-      response.writeHead(200, { "content-type": "image/webp" });
-      createReadStream(portraitFile)
-        .on("error", () => response.destroy())
-        .pipe(response);
+    else if (url.pathname.startsWith(PORTRAIT_ROUTE)) {
+      // Only the listed Avatars' portraits, by id.
+      const file = portraits.get(url.pathname.slice(PORTRAIT_ROUTE.length));
+      if (!file) sendJson(response, 404, { error: "Not found" });
+      else {
+        response.writeHead(200, { "content-type": "image/webp" });
+        createReadStream(file)
+          .on("error", () => response.destroy())
+          .pipe(response);
+      }
     } else sendJson(response, 404, { error: "Not found" });
     return true;
   }

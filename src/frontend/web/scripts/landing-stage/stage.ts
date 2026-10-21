@@ -44,6 +44,7 @@ import {
   PLAIN_BACKDROP,
   PUZZLE_CLIP_FILE,
   PUZZLE_EFFECT_SOURCES,
+  STAGE_AVATARS,
   STAGE_STOPS,
   type StageCamera,
   type StageStop,
@@ -65,11 +66,13 @@ import {
  * the head scratch and double take; `?nointro` skips the entrance;
  * `?classic` renders the Avatar without the app's enhanced shaders and
  * lighting (set before any module loads, in `index.html`); `?washes` brings
- * back the pastel gradient washes behind the light stops.
+ * back the pastel gradient washes behind the light stops; `?wave=small`
+ * plays the small shy wave instead of Wave hello.
  */
 
 type Program = {
-  avatar: { id: string; url: string };
+  /** Each of `STAGE_AVATARS` with its VRM's URL, in the same order. */
+  avatars: { id: string; url: string }[];
   sources: Record<
     string,
     {
@@ -157,7 +160,9 @@ const ui = {
 
 const renderer = new THREE.WebGLRenderer({
   canvas: ui.canvas,
-  antialias: true,
+  // At 2x the pixel grid already smooths edges, and multisampling a
+  // full-screen Retina buffer is the page's largest GPU allocation.
+  antialias: window.devicePixelRatio < 2,
   alpha: true,
   stencil: false,
 });
@@ -189,6 +194,8 @@ const store = createStore<StageState>({
   problems: [],
   intro: playIntro ? "walking" : "done",
   revealed: !playIntro,
+  avatar: STAGE_AVATARS[0].id,
+  avatarLoading: null,
 });
 
 let program: Program | null = null;
@@ -214,6 +221,14 @@ let dusk = 0;
  */
 let happyFrom: number | null = null;
 const HAPPY_RAMP_SEC = 1.2;
+/**
+ * With the head scratch, her smile waits for the double take's surprise to
+ * start fading: the clip holds `surprised` from its take (2.16 s) to just
+ * after her hand comes down (2.85 s), and the turn begins at 2.1 s.
+ */
+const HAPPY_AFTER_TAKE_SEC = 0.7;
+/** Whether the entrance played the head scratch and double take. */
+let puzzled = false;
 /** When her wave began (session seconds), and how far into it the reveal starts. */
 let waveFrom: number | null = null;
 const REVEAL_DELAY_SEC = 0.5;
@@ -238,6 +253,9 @@ let particleTimer: number | undefined;
 let particleCount = 0;
 /** The next clip each cycling stop plays, so a return visit moves on. */
 const cursors = STAGE_STOPS.map(() => 0);
+/** The hero's wave: Wave hello, or the small shy wave with `?wave=small`. */
+const HERO_WAVE = params.get("wave") === "small" ? 1 : 0;
+cursors[0] = HERO_WAVE;
 /** The creator demo's selections, applied while its stop is active. */
 let creator: CreatorState | null = null;
 /** When the creator's Scene started, so its animations keep running. */
@@ -412,7 +430,9 @@ function playClip(stopIndex: number, index: number) {
   const source = item ? program?.sources[item.spec] : undefined;
   if (!avatar || !source?.clip) return;
   const token = playToken;
-  cursors[stopIndex] = (index + 1) % stop.clips.length;
+  // A cycling stop moves on; a `once` stop replays the same clip next visit.
+  if (stop.clipMode === "cycle")
+    cursors[stopIndex] = (index + 1) % stop.clips.length;
   media.setMedia(source.media ?? EMPTY_PREVIEW_MEDIA);
   const { clip, finitePlayback } = demoPlayback(source.clip);
   // During the entrance her face follows the stage's growing smile, not the
@@ -593,6 +613,7 @@ function playPuzzle() {
     avatarEffects: [...avatarEffects.values()],
   });
   avatar.playAnimaPoseClip(puzzleClip, { preserveProceduralOffsets: true });
+  puzzled = true;
 }
 
 /** Advance the hero entrance; once she faces the camera she waves. */
@@ -600,12 +621,14 @@ function updateIntro(delta: number) {
   if (!intro || intro.phase === "waving") return;
   const before = intro.phase;
   const phase = intro.update(delta);
-  store.set({ intro: phase });
+  // Only on a change: every store update re-renders the overlay.
+  if (phase !== store.get().intro) store.set({ intro: phase });
   if (phase === "puzzled" && before !== "puzzled") playPuzzle();
-  if (phase === "turning" && happyFrom === null) happyFrom = time;
+  if (phase === "turning" && happyFrom === null)
+    happyFrom = time + (puzzled ? HAPPY_AFTER_TAKE_SEC : 0);
   if (phase === "waving") {
     waveFrom = time;
-    playClip(0, 0);
+    playClip(0, HERO_WAVE);
   }
 }
 
@@ -781,7 +804,9 @@ function frame() {
     store.set({ revealed: true });
   if (happyFrom !== null) {
     const smooth = (t: number) => t * t * (3 - 2 * t);
-    const rise = smooth(Math.min(1, (time - happyFrom) / HAPPY_RAMP_SEC));
+    const rise = smooth(
+      THREE.MathUtils.clamp((time - happyFrom) / HAPPY_RAMP_SEC, 0, 1),
+    );
     const fade =
       happyFadeFrom === null
         ? 0
@@ -817,11 +842,91 @@ function showHud() {
 
 // ── Start ──────────────────────────────────────────────────────────────────
 
+// ── Avatars ────────────────────────────────────────────────────────────────
+
+type LoadedAvatar = { avatar: Avatar; headHeight: number };
+
+/** Load one of the program's Avatars and wire it for the stage, off stage. */
+async function createAvatar(entry: Program["avatars"][number]) {
+  const next = new Avatar(camera, ui.canvas, {
+    motionCatalog: BUILT_IN_AVATAR_MOTION_CATALOG,
+    mediaCatalog: media,
+  });
+  await next.load({ filePath: entry.url });
+  if (!next.scene || !next.vrm) throw new Error(`Cannot load ${entry.id}.`);
+  next.update(0);
+  const height = next.vrm.humanoid
+    .getRawBoneNode("head")!
+    .getWorldPosition(new THREE.Vector3()).y;
+  installLookBack(next);
+  // Track the cursor continuously while a stop allows it, rather than in the
+  // chat's occasional glances; `followCursor` fades the strength in and out.
+  next.setProceduralAnimationLayerParams("cursorLookAt", {
+    durationMinSec: FOLLOW_FOREVER_SEC,
+    durationMaxSec: FOLLOW_FOREVER_SEC,
+    pauseMinSec: 0,
+    pauseMaxSec: 0,
+    intensity: 0,
+  });
+  next.setPoseClipExternalEventSink(
+    bands.clipSceneSink(
+      (kind, alias) => media.resolveSceneVFX(kind, alias),
+      () => time,
+      (alias, kind) => {
+        throw new Error(missingSceneMessage(alias, kind));
+      },
+    ),
+  );
+  return { avatar: next, headHeight: height } satisfies LoadedAvatar;
+}
+
+/** Put a loaded Avatar on stage; camera lengths follow its head height. */
+function attachAvatar(loaded: LoadedAvatar) {
+  avatar = loaded.avatar;
+  headHeight = loaded.headHeight;
+  scene.add(loaded.avatar.scene!);
+  bands.setAvatar(loaded.avatar);
+  // Reapply the cursor look-at strength to the new Avatar.
+  shownCursorFollow = -1;
+}
+
+/**
+ * Swap the Avatar on stage for another of `STAGE_AVATARS`. The current one
+ * stays until the new one has loaded, then the active stop starts over with
+ * the new one (an entrance in progress ends first).
+ */
+async function selectAvatar(id: string) {
+  const { avatar: current, avatarLoading } = store.get();
+  const entry = program?.avatars.find((candidate) => candidate.id === id);
+  if (!entry || id === current || avatarLoading) return;
+  store.set({ avatarLoading: id });
+  try {
+    const loaded = await createAvatar(entry);
+    finishIntro();
+    stopPlayback();
+    if (happyFrom !== null) avatar?.clearExpressionOverride("happy");
+    happyFrom = null;
+    happyFadeFrom = null;
+    const previous = avatar;
+    if (previous?.scene) scene.remove(previous.scene);
+    previous?.dispose();
+    attachAvatar(loaded);
+    store.set({ avatar: id });
+    enterStop(Math.max(0, store.get().active));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    store.set({ problems: [...store.get().problems, message] });
+  } finally {
+    store.set({ avatarLoading: null });
+  }
+}
+
 const controller: StageController = {
   getState: store.get,
   subscribe: store.subscribe,
   scrollToStop,
   playClip,
+  selectAvatar: (id) => void selectAvatar(id),
   setCreator(state) {
     creator = state;
     // The overlay calls this from an effect, and `SceneBands` renders with
@@ -839,14 +944,26 @@ declare global {
       error: string | null;
       stop: () => string | null;
       problems: string[];
+      /** The renderer's live geometries, textures and shader programs. */
+      renderInfo: () => {
+        geometries: number;
+        textures: number;
+        programs: number;
+      };
     };
   }
 }
+// The renderer's live GPU resources, for memory checks.
+const renderInfo = () => ({
+  ...renderer.info.memory,
+  programs: renderer.info.programs?.length ?? 0,
+});
 window.landingStage = {
   ready: false,
   error: null,
   stop: () => STAGE_STOPS[store.get().active]?.id ?? null,
   problems: [],
+  renderInfo,
 };
 
 async function start() {
@@ -872,41 +989,12 @@ async function start() {
   window.landingStage.problems = program.problems;
   store.set({ problems: program.problems });
 
-  avatar = new Avatar(camera, ui.canvas, {
-    motionCatalog: BUILT_IN_AVATAR_MOTION_CATALOG,
-    mediaCatalog: media,
-  });
-  await avatar.load({ filePath: program.avatar.url });
-  if (!avatar.scene || !avatar.vrm)
-    throw new Error(`Cannot load ${program.avatar.id}.`);
-  avatar.update(0);
-  headHeight = avatar.vrm.humanoid
-    .getRawBoneNode("head")!
-    .getWorldPosition(new THREE.Vector3()).y;
-  installLookBack(avatar);
+  const first = await createAvatar(program.avatars[0]);
+  headHeight = first.headHeight;
   // Placed at the start of her entrance before she joins the scene, so she
   // never shows on her mark first.
-  if (playIntro) intro = await createIntro(avatar);
-  scene.add(avatar.scene);
-  // Track the cursor continuously while a stop allows it, rather than in the
-  // chat's occasional glances; `followCursor` fades the strength in and out.
-  avatar.setProceduralAnimationLayerParams("cursorLookAt", {
-    durationMinSec: FOLLOW_FOREVER_SEC,
-    durationMaxSec: FOLLOW_FOREVER_SEC,
-    pauseMinSec: 0,
-    pauseMaxSec: 0,
-    intensity: 0,
-  });
-  bands.setAvatar(avatar);
-  avatar.setPoseClipExternalEventSink(
-    bands.clipSceneSink(
-      (kind, alias) => media.resolveSceneVFX(kind, alias),
-      () => time,
-      (alias, kind) => {
-        throw new Error(missingSceneMessage(alias, kind));
-      },
-    ),
-  );
+  if (playIntro) intro = await createIntro(first.avatar);
+  attachAvatar(first);
   // Enter the current stop again now that the Avatar can play it.
   store.set({ ready: true });
   enterStop(Math.max(0, store.get().active));

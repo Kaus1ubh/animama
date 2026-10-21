@@ -172,6 +172,16 @@ export class AmbientLayer {
   private width = 0;
   private height = 0;
   private time = 0;
+  /** Whether the canvas is collapsed while no stop shows the ambient layer. */
+  private parked = true;
+
+  /** Size the canvas's backing store to the screen (resetting its context). */
+  private allocate() {
+    const ratio = Math.min(window.devicePixelRatio, 2);
+    this.canvas.width = Math.round(this.width * ratio);
+    this.canvas.height = Math.round(this.height * ratio);
+    this.context.setTransform(ratio, 0, 0, ratio, 0, 0);
+  }
 
   private readonly canvas: HTMLCanvasElement;
 
@@ -182,13 +192,10 @@ export class AmbientLayer {
 
   /** Match the viewport; reseeds only when the particle counts change. */
   setSize(width: number, height: number) {
-    const ratio = Math.min(window.devicePixelRatio, 2);
     if (width === this.width && height === this.height) return;
     this.width = width;
     this.height = height;
-    this.canvas.width = Math.round(width * ratio);
-    this.canvas.height = Math.round(height * ratio);
-    this.context.setTransform(ratio, 0, 0, ratio, 0, 0);
+    if (!this.parked) this.allocate();
     const megapixels = (width * height) / 1e6;
     const count = (density: number, [min, max]: readonly [number, number]) =>
       Math.round(Math.min(max, Math.max(min, density * megapixels)));
@@ -206,6 +213,22 @@ export class AmbientLayer {
    * a gentle parallax on the sparkles.
    */
   frame(delta: number, weights: AmbientWeights, scroll: number) {
+    // Park the full-screen canvas while nothing shows on it: a backing store
+    // the size of the screen (20 MB on Retina) would otherwise be cleared and
+    // composited every frame for nothing.
+    if (weights.sparkles <= 0.002 && weights.stars <= 0.002) {
+      if (!this.parked) {
+        this.parked = true;
+        this.canvas.width = 0;
+        this.canvas.height = 0;
+        this.shooting = [];
+      }
+      return;
+    }
+    if (this.parked) {
+      this.parked = false;
+      this.allocate();
+    }
     const { context, width, height } = this;
     const still = this.still.matches;
     const step = still ? 0 : delta;
