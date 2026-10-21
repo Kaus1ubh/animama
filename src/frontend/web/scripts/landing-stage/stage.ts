@@ -604,6 +604,7 @@ async function createIntro(target: Avatar) {
     variant,
     edgeX,
     puzzle: puzzleClip !== null,
+    viewer: camera,
   });
 }
 

@@ -137,10 +137,43 @@ const SCRATCH = {
    */
   armUp: [0, 0.42],
   armDown: [0.95, 1.46],
-  /** Stepping in place while she turns: strength and pace (head heights/s). */
-  turnGait: 0.5,
-  turnStepPace: 0.5,
 } as const;
+/**
+ * The scratch walk's turn as two steps, in shares of its window: her right
+ * foot opens toward the camera, then her left brings her round. `hips` is
+ * the share of her hips' turn each step carries and `feet` how far each foot
+ * (right, left) turns in it: the stepping foot most, while the planted one
+ * pivots a little. Her upper body keeps to the smooth turn the clip's twist
+ * is keyed to, so her hips trail it and her head stays on the camera.
+ */
+const SCRATCH_STEPS = [
+  { from: 0.15, to: 0.6, hips: 0.55, feet: [0.75, 0.2], swing: 0 },
+  { from: 0.55, to: 1, hips: 0.45, feet: [0.25, 0.8], swing: 1 },
+] as const;
+/** How the upper body's lead over her hips is shared along the spine. */
+const TWIST_SHARES = { spine: 0.45, chest: 0.35, neck: 0.2 } as const;
+/**
+ * Her weight moving onto the planted foot while the other steps: the
+ * sideways shift (head heights) and the hips' roll down on the lifted side.
+ */
+const STEP_SHIFT = 0.08;
+const STEP_ROLL = 2.5 * DEG;
+/**
+ * Her arms as damped pendulums on her turning shoulders: they trail as each
+ * step starts her hips turning and swing on as it stops them. Natural
+ * frequency (rad/s), damping ratio and the response to the hips' angular
+ * acceleration.
+ */
+const ARM_SPRING = { frequency: 7, damping: 0.35, gain: 0.28 } as const;
+/**
+ * From the double take her eyes are on the camera and her head stops at it
+ * rather than turning past: any turn beyond it is eased back (allowing at
+ * most `AIM_SLACK`), shared between neck and head. The hold lasts through
+ * her wave and lets go over `AIM_RELEASE_SEC` once the entrance ends.
+ */
+const AIM_SHARES = { neck: 0.4, head: 0.6 } as const;
+const AIM_SLACK = 0.5 * DEG;
+const AIM_RELEASE_SEC = 0.8;
 const TURN_STEPS = [
   { from: 0.12, to: 0.55, share: 0.55, foot: 0 },
   { from: 0.5, to: 0.95, share: 0.45, foot: 1 },
@@ -243,8 +276,6 @@ export class Intro {
   private cruise = CRUISE;
   /** When the scratch walk's clip starts, in seconds from the intro's start. */
   private clipStart = 0;
-  /** Gait cycle position (head heights walked, plus steps while turning). */
-  private stride = 0;
   /** How free her right arm is to swing (0 while it scratches her head). */
   private rightArmSwing = 1;
   /** Her heading when the turn began (radians), which it turns from. */
@@ -253,6 +284,21 @@ export class Intro {
   private turnGlanceFrom = GLANCE;
   /** Lift of the right and left turning steps (0–1). */
   private stepLift: [number, number] = [0, 0];
+  /** Each leg's turn against her hips (radians, about the vertical). */
+  private legTurn: [number, number] = [0, 0];
+  /** Her upper body's turn ahead of her hips (radians). */
+  private twist = 0;
+  /** Her hips' roll down on the stepping side (radians). */
+  private hipRoll = 0;
+  /** Her arms' swing (radians, right arm forward) and its speed. */
+  private armSwing = 0;
+  private armSwingSpeed = 0;
+  /** Her weight shift off her path (metres), which the camera ignores. */
+  private readonly sway = new THREE.Vector3();
+  /** The camera she looks at from the double take, or null. */
+  private readonly viewer: THREE.Object3D | null;
+  /** How firmly her eyes and head hold on the camera (0–1). */
+  private aim = 0;
   private glance = 0;
   /** Clip cues already played, by name. */
   private readonly played = new Set<string>();
@@ -276,6 +322,8 @@ export class Intro {
       edgeX: number;
       /** Stop for the puzzled head scratch before turning (procedural walk). */
       puzzle: boolean;
+      /** The camera, which the scratch walk's double take finds. */
+      viewer?: THREE.Object3D;
     },
   ): Promise<Intro> {
     const variant: WalkVariant = WALK_VARIANTS[options.variant];
@@ -315,6 +363,7 @@ export class Intro {
       variant,
       options.edgeX,
       options.puzzle,
+      options.viewer ?? null,
     );
   }
 
@@ -325,9 +374,11 @@ export class Intro {
     variant: WalkVariant,
     edgeX: number,
     puzzle: boolean,
+    viewer: THREE.Object3D | null,
   ) {
     this.avatar = avatar;
     this.puzzle = puzzle;
+    this.viewer = viewer;
     this.vrm = avatar.vrm!;
     this.height = headHeight;
     this.plan = clips ? this.planClips(clips, variant, edgeX) : null;
@@ -359,6 +410,18 @@ export class Intro {
     }
   }
 
+  /** Whether any turning-step offset is still visible. */
+  private get stepping() {
+    const offsets = [
+      ...this.stepLift,
+      ...this.legTurn,
+      this.twist,
+      this.hipRoll,
+      this.armSwing,
+    ];
+    return offsets.some((offset) => Math.abs(offset) >= 1e-3);
+  }
+
   /** Whether the walk plays clips rather than the procedural gait. */
   get usesClips() {
     return this.plan !== null;
@@ -366,7 +429,7 @@ export class Intro {
 
   /** The camera's sideways follow (metres) while she walks in. */
   get cameraX() {
-    return this.vrm.scene.position.x * CAMERA_PAN;
+    return (this.vrm.scene.position.x - this.sway.x) * CAMERA_PAN;
   }
 
   /**
@@ -398,21 +461,38 @@ export class Intro {
     // Along her path: full pace, then slowing to a stop on her mark.
     const before = this.walked;
     this.walked = this.distanceAt(Math.min(t, this.walkSec));
-    scene.position.x = (this.startX + this.walked) * this.height;
     const speed = (this.walked - before) / Math.max(delta, 1e-4);
-    // Turning: side-on to facing the camera, starting with the double take.
-    const turn = clamp01(
-      (c - SCRATCH.turnFrom) / (SCRATCH.turnTo - SCRATCH.turnFrom),
+    this.gait = Math.sqrt(Math.min(1, speed / this.cruise));
+    // Turning: side-on to facing the camera in two steps, starting with the
+    // double take.
+    const turnSec = SCRATCH.turnTo - SCRATCH.turnFrom;
+    const turned = this.stepTurn(
+      clamp01((c - SCRATCH.turnFrom) / turnSec),
+      turnSec,
+      delta,
     );
-    scene.rotation.y = WALK_HEADING * (1 - smootherstep(turn));
-    // Her feet keep stepping through the turn, then settle.
-    const turnGait = SCRATCH.turnGait * Math.sin(Math.PI * turn);
-    this.gait = Math.max(Math.sqrt(Math.min(1, speed / this.cruise)), turnGait);
-    this.stride +=
-      this.walked - before + turnGait * SCRATCH.turnStepPace * delta;
-    const phase = (this.stride / STRIDE) * Math.PI * 2;
-    scene.position.y =
-      -BOB * this.height * this.gait * (0.5 - 0.5 * Math.cos(2 * phase));
+    scene.rotation.y = WALK_HEADING * (1 - turned);
+    if (c >= SCRATCH.turnFrom) this.aim = 1;
+    // Her weight shifts onto the planted foot (her left is +x facing +z).
+    const [right, left] = this.stepLift;
+    const shift = STEP_SHIFT * this.height * (right - left);
+    this.sway.set(
+      Math.cos(scene.rotation.y) * shift,
+      0,
+      -Math.sin(scene.rotation.y) * shift,
+    );
+    // She bobs with each stride and sinks a little into each turning step.
+    const phase = (this.walked / STRIDE) * Math.PI * 2;
+    scene.position
+      .set(
+        (this.startX + this.walked) * this.height,
+        -BOB *
+          this.height *
+          (this.gait * (0.5 - 0.5 * Math.cos(2 * phase)) +
+            0.35 * Math.max(right, left)),
+        0,
+      )
+      .add(this.sway);
     // The scratching arm leaves the walk's swing, and rejoins it lowered.
     const [upFrom, upTo] = SCRATCH.armUp;
     const [downFrom, downTo] = SCRATCH.armDown;
@@ -431,6 +511,57 @@ export class Intro {
             : "walking";
   }
 
+  /**
+   * The scratch turn's steps at progress `u` (0–1 over `turnSec` seconds):
+   * sets the step lifts, each leg's turn against her hips, the upper body's
+   * lead, the hips' roll and her arms' swing, and returns how far her hips
+   * have turned (0–1).
+   */
+  private stepTurn(u: number, turnSec: number, delta: number) {
+    let hips = 0;
+    /** The hips' angular acceleration, in turns per second squared. */
+    let acceleration = 0;
+    const feet = [0, 0];
+    for (const step of SCRATCH_STEPS) {
+      const span = step.to - step.from;
+      const s = THREE.MathUtils.clamp((u - step.from) / span, 0, 1);
+      const eased = smootherstep(s);
+      hips += step.hips * eased;
+      step.feet.forEach((share, foot) => (feet[foot] += share * eased));
+      this.stepLift[step.swing] = Math.sin(Math.PI * s);
+      // smootherstep's second derivative, over the step's length in seconds.
+      acceleration +=
+        (step.hips * 60 * s * (1 - s) * (1 - 2 * s)) / (span * turnSec) ** 2;
+    }
+    // A planted foot stays put while her hips turn over it.
+    this.legTurn = [
+      (hips - feet[0]) * WALK_HEADING,
+      (hips - feet[1]) * WALK_HEADING,
+    ];
+    this.twist = (hips - smootherstep(u)) * WALK_HEADING;
+    this.hipRoll = STEP_ROLL * (this.stepLift[0] - this.stepLift[1]);
+    const { frequency, damping, gain } = ARM_SPRING;
+    const dt = Math.min(delta, 1 / 30);
+    this.armSwingSpeed +=
+      (gain * acceleration * WALK_HEADING -
+        frequency ** 2 * this.armSwing -
+        2 * damping * frequency * this.armSwingSpeed) *
+      dt;
+    this.armSwing += this.armSwingSpeed * dt;
+    return hips;
+  }
+
+  /** Her arms swinging to rest after the turn, with nothing driving them. */
+  private settleArms(delta: number) {
+    const { frequency, damping } = ARM_SPRING;
+    const dt = Math.min(delta, 1 / 30);
+    this.armSwingSpeed -=
+      (frequency ** 2 * this.armSwing +
+        2 * damping * frequency * this.armSwingSpeed) *
+      dt;
+    this.armSwing += this.armSwingSpeed * dt;
+  }
+
   /** Jump to the end: facing the camera on her mark, the walk gone. */
   finish() {
     const scene = this.vrm.scene;
@@ -438,6 +569,12 @@ export class Intro {
     scene.rotation.y = 0;
     this.gait = 0;
     this.stepLift = [0, 0];
+    this.legTurn = [0, 0];
+    this.twist = 0;
+    this.hipRoll = 0;
+    this.armSwing = 0;
+    this.armSwingSpeed = 0;
+    this.sway.set(0, 0, 0);
     this.glance = 0;
     if (this.plan && this.phase !== "waving") {
       for (const name of Object.values(CLIP_NAMES))
@@ -641,8 +778,7 @@ export class Intro {
       const node = vrm.humanoid.getNormalizedBoneNode(name);
       return node ? [{ node, axis, angle }] : [];
     };
-    const phase = () =>
-      ((this.puzzle ? this.stride : this.walked) / STRIDE) * Math.PI * 2;
+    const phase = () => (this.walked / STRIDE) * Math.PI * 2;
     // The right arm's swing gives way while that hand scratches her head.
     const swing = (name: VRMHumanBoneName) =>
       name.startsWith("rightUpperArm") || name.startsWith("rightLowerArm")
@@ -657,6 +793,21 @@ export class Intro {
           drive(name, axis, () => offset(this.stepLift[index])),
         ),
       ),
+      // The scratch turn: each leg turned against her hips (after its lift,
+      // so a stepping foot lands turned), the upper body leading them, the
+      // hips' roll with the spine levelling it, and her arms' swing.
+      ...(["right", "left"] as const).flatMap((side, index) =>
+        drive(`${side}UpperLeg`, "up", () => this.legTurn[index]),
+      ),
+      ...Object.entries(TWIST_SHARES).flatMap(([name, share]) =>
+        drive(name as VRMHumanBoneName, "up", () => this.twist * share),
+      ),
+      ...drive("hips", "forward", () => this.hipRoll),
+      ...drive("spine", "forward", () => -0.8 * this.hipRoll),
+      ...drive("rightUpperArm", "lateral", () => -this.armSwing),
+      ...drive("leftUpperArm", "lateral", () => this.armSwing),
+      ...drive("rightLowerArm", "lateral", () => -0.4 * this.armSwing),
+      ...drive("leftLowerArm", "lateral", () => 0.4 * this.armSwing),
     ];
     const nodes = [...new Set(bones.map(({ node }) => node))];
     const saved = nodes.map(() => new THREE.Quaternion());
@@ -669,25 +820,66 @@ export class Intro {
     const parentWorld = new THREE.Quaternion();
     const worldTurn = new THREE.Quaternion();
     const localTurn = new THREE.Quaternion();
+    /** Rotate a bone about one of her own axes, through its own pivot. */
+    const turnBone = (node: THREE.Object3D, axis: Axis, angle: number) => {
+      // Her own axes (right, up, forward) as they point in the world now.
+      worldAxis.copy(axes[axis]).applyQuaternion(vrm.scene.quaternion);
+      node.parent!.getWorldQuaternion(parentWorld);
+      worldTurn.setFromAxisAngle(worldAxis, angle);
+      localTurn
+        .copy(parentWorld)
+        .invert()
+        .multiply(worldTurn)
+        .multiply(parentWorld);
+      node.quaternion.premultiply(localTurn);
+    };
+    const head = vrm.humanoid.getNormalizedBoneNode("head");
+    const aimBones = Object.entries(AIM_SHARES).flatMap(([name, share]) => {
+      const node = vrm.humanoid.getNormalizedBoneNode(name as VRMHumanBoneName);
+      return node ? [{ node, share }] : [];
+    });
+    const headTurn = new THREE.Quaternion();
+    const headAt = new THREE.Vector3();
+    const facing = new THREE.Vector3();
+    const toViewer = new THREE.Vector3();
+    /** Ease her head back if it has turned past the camera. */
+    const holdOnViewer = (viewer: THREE.Object3D) => {
+      if (!head) return;
+      head.getWorldQuaternion(headTurn);
+      head.getWorldPosition(headAt);
+      facing.set(0, 0, 1).applyQuaternion(headTurn);
+      viewer.getWorldPosition(toViewer).sub(headAt);
+      // How far she has turned past it: the camera is then to her left.
+      const past = Math.atan2(
+        facing.z * toViewer.x - facing.x * toViewer.z,
+        facing.x * toViewer.x + facing.z * toViewer.z,
+      );
+      if (past <= 0) return;
+      const back = past - AIM_SLACK * (1 - Math.exp(-past / AIM_SLACK));
+      for (const { node, share } of aimBones)
+        turnBone(node, "up", back * share * this.aim);
+    };
     const update = vrm.update.bind(vrm);
     vrm.update = (delta: number) => {
-      if (this.gait < 1e-3 && Math.max(...this.stepLift) < 1e-3)
-        return update(delta);
+      // The stage stops advancing the entrance at her wave, and ends it
+      // after: her arms settle and her hold on the camera lets go here.
+      if (this.phase === "waving") this.settleArms(delta);
+      if (this.phase === "done")
+        this.aim = Math.max(0, this.aim - delta / AIM_RELEASE_SEC);
+      const viewer = this.aim > 0 ? this.viewer : null;
+      if (this.gait < 1e-3 && !this.stepping && !viewer) return update(delta);
       nodes.forEach((node, index) => saved[index].copy(node.quaternion));
-      for (const { node, axis, angle } of bones) {
-        // Her own axes (right, up, forward) as they point in the world now.
-        worldAxis.copy(axes[axis]).applyQuaternion(vrm.scene.quaternion);
-        node.parent!.getWorldQuaternion(parentWorld);
-        worldTurn.setFromAxisAngle(worldAxis, angle());
-        // Rotate about that axis through the bone's own pivot.
-        localTurn
-          .copy(parentWorld)
-          .invert()
-          .multiply(worldTurn)
-          .multiply(parentWorld);
-        node.quaternion.premultiply(localTurn);
+      for (const { node, axis, angle } of bones) turnBone(node, axis, angle());
+      // Her eyes find the camera through the look-at, for this update only:
+      // the cursor look-at keeps its own target.
+      const lookAt = vrm.lookAt;
+      const target = lookAt?.target ?? null;
+      if (viewer) {
+        holdOnViewer(viewer);
+        if (lookAt) lookAt.target = viewer;
       }
       update(delta);
+      if (lookAt && viewer) lookAt.target = target;
       nodes.forEach((node, index) => node.quaternion.copy(saved[index]));
     };
   }
