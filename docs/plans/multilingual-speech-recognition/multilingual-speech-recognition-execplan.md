@@ -56,8 +56,10 @@ Boundaries:
 - [x] 2026-10-14 Discovery brief posted to #509; spec drafted and accepted by
       requesting this plan.
 - [x] Phase 1 — Benchmark harness, test set and Parakeet baseline (#535):
-      review passed 2026-10-20 (three rounds); committed.
+      review passed 2026-10-20 (three rounds); committed `02f44b3e`.
 - [ ] Phase 2 — Candidate engines and comparison report (#536). Gate G1.
+      2026-10-21: comparison report written; review passed (two rounds);
+      waiting for the owner's G1 decision.
 - [ ] Phase 3 — Multilingual model asset set (after G1).
 - [ ] Phase 4 — Engine integration and language routing (after G1).
 - [ ] Phase 5 — Settings, Setup, language notice and turn-taking (after G1).
@@ -90,6 +92,16 @@ Boundaries:
   garbage-collection timing; an earlier reading of steady WebGPU growth did not
   repeat. The benchmark therefore also reports the median footprint while
   transcribing, and comparisons use it.
+- 2026-10-20: Nemotron 3.5 on the app's onnxruntime-web 1.24 runs only on
+  WASM. The onnx-community INT4 export returns empty transcripts on WebGPU but
+  correct ones on WASM (where it is slower than real time), and the sherpa INT8
+  export fails on WebGPU (`Concat` kernel: "non concat dimensions must match").
+  Creating its WebGPU and WASM sessions in parallel also raced ORT's
+  initialization ("multiple calls to 'initWasm()'"); the adapter creates them
+  one after another.
+- 2026-10-20: Nemotron's `zh-TW` language prompt produced only noise on
+  Mandarin speech, so `zh-Hant` uses `zh-CN` plus OpenCC conversion, like
+  SenseVoice.
 - 2026-10-14: The desktop app's Electron 39.8.9 runs Chromium 142, while
   Playwright's bundled Chromium is 145, so the benchmark runs in Electron.
 - 2026-10-14: Parakeet's WebGPU (FP16 encoder) English WER is 3.8% against 4.1%
@@ -121,6 +133,20 @@ Boundaries:
   the new benchmark.
 
 - 2026-10-20, owner: G0 resolved with the fallback; no Common Voice download.
+- 2026-10-20, agent (Phase 2): with the G0 fallback, `zh-Hant` reuses the 75
+  Mainland Mandarin clips (`sameClipsAs`), and the page converts both the
+  engine's output and the Simplified reference to Taiwan Traditional with
+  OpenCC (`opencc-js` 1.4.2, `cn2t`); `yue` output is converted the same way
+  (revised by Code Review #1). `import-common-voice` and the Common Voice source
+  were removed as unused. Real-time paced runs use the first 20 clips of each set; accuracy and
+  CPU latency use all 75 in throughput runs. Engines receive the set id as the
+  app locale.
+- 2026-10-20, agent (Phase 2, Code Review #1): streaming engines receive the
+  same 512-sample MicVAD frames as window engines and encode each chunk as soon
+  as its mel frames are complete; `streamTailLatencyMs` takes per-frame timings.
+  Cantonese is converted to the Taiwan standard like `zh-Hant`, which matches
+  the FLEURS Cantonese references and what the app would show under `zh-Hant`
+  (D9). `opencc-js` stays a development dependency until Phase 4 uses it.
 
 ## Owner gates
 
@@ -277,7 +303,7 @@ G0: the owner chose the fallback on 2026-10-20. `zh-Hant` is measured on the
 FLEURS Mainland Mandarin clips with references converted to Traditional by the
 same converter as the output; Taiwan accents are not tested.
 
-Records: issue #535; commits —; evidence: Phase 1 results above.
+Records: issue #535; commit `02f44b3e`; evidence: Phase 1 results above.
 
 #### Code Review #1 Findings
 
@@ -428,19 +454,304 @@ practical, script conversion).
 Completion and gate: report recorded; G1 decisions recorded in the Decision
 Log. Work stops here until G1. The losing adapter is removed in Phase 4.
 
-Records: issue —; commits —; evidence —.
+#### Phase 2 results (2026-10-20)
+
+Changes:
+
+- `scripts/speech-eval/models.json` pins the evaluation-only candidate files
+  (repository, revision, size, SHA-256, licence); `speech_eval.py models`
+  fetches them into the evaluation root and writes each set's `metadata.json`
+  from the ONNX `metadata_props`, read without loading the graph
+  (`onnx_metadata`). The onnx-community export takes its metadata from the
+  sherpa 560 ms set.
+- `testset.json`: `zh-Hant` reuses the `zh-Hans` clips (`sameClipsAs`) with
+  `script: "Hant"` and `referenceScript: "Hans"`; `yue` has `script: "Hant"`.
+  `import-common-voice` and the Common Voice source were removed (G0
+  fallback).
+- `web/src/dev/speech-bench/engines/`: `kaldi-fbank.ts` (Kaldi fbank, 7×6
+  frame stacking, CMVN), `sensevoice.ts` (greedy CTC with tag removal),
+  `rnnt.ts` (mel chunking with the pre-encode cache, greedy RNNT,
+  detokenization), `nemotron.ts` (cache-aware streaming over the sherpa and
+  onnx-community contracts), `model-files.ts`; tests for each pure part. The
+  adapters are written for this benchmark from the exports' graph inputs,
+  outputs and metadata; no sherpa-onnx or FunASR code is copied. They reuse
+  `parakeet.js` 1.4.4 (MIT), already an app dependency: its FFT for the fbank
+  and its NeMo mel front end (`JsPreprocessor`) for Nemotron.
+- `script-conversion.ts` converts `Hant` sets with `opencc-js` 1.4.2 (`cn2t`,
+  Simplified to Taiwan standard; MIT and Apache-2.0; a development dependency)
+  and records the raw text and converted reference; `score` uses the converted
+  reference and rejects a `zh-Hant` result without one. Engines receive the set
+  id as the locale. The `cn2t` module is 1.1 MB (452 KB gzipped), so it is not
+  compact: Phase 4 should load it on demand under `zh-Hant`, or test a smaller
+  character table.
+- The runner accepts `--models NAME` for files under the evaluation root and
+  records the model set, which `score` uses to keep variants apart.
+
+Reproduce: `uv run python scripts/speech-eval/speech_eval.py models`, then the
+run matrix below (one at a time, Vite on port 5179), then
+`speech_eval.py score <results>/*-electron-*.json`.
+
+```bash
+pnpm -s speech:bench --app http://127.0.0.1:5179 --engine sensevoice --models sensevoice-sherpa --backend wasm --mode throughput --sets en,ja,ko,zh-Hans,zh-Hant,yue
+pnpm -s speech:bench --app http://127.0.0.1:5179 --engine sensevoice --models sensevoice-sherpa --backend webgpu --mode throughput --sets en,ja,ko,zh-Hans,zh-Hant,yue
+pnpm -s speech:bench --app http://127.0.0.1:5179 --engine nemotron --models nemotron-sherpa-560ms --backend wasm --mode throughput --sets en,ja,ko,zh-Hans,zh-Hant
+pnpm -s speech:bench --app http://127.0.0.1:5179 --engine nemotron --models nemotron-sherpa-1120ms --backend wasm --mode throughput --sets en,ja,ko,zh-Hans,zh-Hant
+pnpm -s speech:bench --app http://127.0.0.1:5179 --engine sensevoice --models sensevoice-sherpa --backend webgpu --mode paced --sets en,ja,ko,zh-Hans,zh-Hant,yue --limit 20
+pnpm -s speech:bench --app http://127.0.0.1:5179 --engine sensevoice --models sensevoice-sherpa --backend wasm --mode paced --sets en,ja,ko,zh-Hans,zh-Hant,yue --limit 20
+pnpm -s speech:bench --app http://127.0.0.1:5179 --engine nemotron --models nemotron-sherpa-560ms --backend wasm --mode paced --sets en,ja,ko,zh-Hans,zh-Hant --limit 20
+pnpm -s speech:bench --app http://127.0.0.1:5179 --engine nemotron --models nemotron-sherpa-1120ms --backend wasm --mode paced --sets en,ja,ko,zh-Hans,zh-Hant --limit 20
+```
+
+After Code Review #1 the four SenseVoice configurations were rerun for `yue`
+alone (`--sets yue`), and the `yue` clips were removed from the earlier
+SenseVoice result files, whose originals are kept under
+`results/superseded-2026-10-20-review/` with the superseded Nemotron runs.
+
+Check record (working tree; tree hashes from the `git-workflow` recipe; logs
+under `<evaluation root>/logs/prepush*/`). `601980b4` is the reviewed
+candidate; `a83ce6ac` is the candidate after the Code Review #1 repairs, and
+later edits touch only this plan.
+
+| Check | Directory | Tree | Result |
+| --- | --- | --- | --- |
+| `make check-test` (via `heavy-slot.py`) | root | `601980b4` | pass; 4741 passed, 29 skipped |
+| `pnpm verify` (via `heavy-slot.py`) | `src/frontend` | `601980b4` | pass; vitest 5336 passed, 1 skipped |
+| `pnpm web:test:browser` (via `heavy-slot.py`) | `src/frontend` | `601980b4` | 122 passed |
+| `pnpm prettier:check` | `src/frontend` | `601980b4` | pass |
+| `uv run pytest -q -p no:xdist tests/test_speech_eval.py` | root | `a83ce6ac` | 25 passed |
+| `uv run ruff check` and `ruff format --check` on `scripts/speech-eval` and the test | root | `a83ce6ac` | pass |
+| `pnpm exec vitest run src/dev/speech-bench` | `src/frontend/web` | `a83ce6ac` | 26 passed |
+| `pnpm exec tsc -b --noEmit`; `pnpm exec eslint --max-warnings=0 src/dev/speech-bench` | `src/frontend/web` | `a83ce6ac` | pass |
+| `make check-test` (via `heavy-slot.py`) | root | `a83ce6ac` | pass; 4742 passed, 29 skipped |
+| `pnpm verify` (via `heavy-slot.py`) | `src/frontend` | `a83ce6ac` | pass; vitest 5339 passed, 1 skipped |
+| `pnpm web:test:browser` (via `heavy-slot.py`) | `src/frontend` | `a83ce6ac` | 122 passed |
+| `pnpm prettier:check` | `src/frontend` | `a83ce6ac` | pass |
+
+The first suite run stopped at `make check-test`: mypy rejected two
+unparameterized annotations in `tests/test_speech_eval.py`, fixed before the
+`601980b4` run.
+
+Records: issue #536; commits —; evidence: Phase 2 results and the comparison
+report below.
 
 #### Code Review #1 Findings
 
-Not run.
+Reviewed working tree `4d29f264` (baseline `02f44b3e`), high-risk tier: one
+analysis subagent and one checks subagent.
+
+The checks subagent reran every affected check independently on `4d29f264`
+(pytest 24, ruff, mypy, vitest 23, `tsc -b`, ESLint, knip, `node --check`),
+confirmed that the built `web/dist` holds no benchmark or OpenCC code, and
+checked the `opencc-js` pin, integrity hash and licence: all passed.
+
+- **P2-CR1-01 (blocking).** Nemotron chunks were encoded one delivery late:
+  with 560 ms deliveries the last mel frame of a chunk needs 96 samples of the
+  next delivery, so each chunk waited 560 ms (or 1.12 s), inflating final and
+  first-interim latency. Window engines were paced in MicVAD frames, so the
+  comparison was not on the same basis.
+- **P2-CR1-02 (blocking).** Recommendation 1 called SenseVoice the fastest on
+  both backends, but on WASM Nemotron's final text arrived sooner.
+- **P2-CR1-03 (blocking).** `yue` was converted to Hong Kong forms (説, 羣, 着)
+  while the FLEURS Cantonese references use Taiwan forms (說, 群, 著); the
+  reviewer's rescoring gave 7.7% with the Taiwan standard against 8.6%.
+- **P2-CR1-04 (blocking).** The report lacked the Nemotron worker-protocol cost,
+  the converter's size, the FLEURS attribution and the licence of reused code.
+- **P2-CR1-05 (blocking).** No test covered script conversion, which lived in
+  the page script.
+- Non-blocking: `opencc-js` was a runtime dependency (both subagents), so
+  desktop licence notices would list it; `models` raised a raw
+  `FileNotFoundError` when the shared metadata was missing and wrote
+  `metadata.json` without an explicit encoding; `score` accepted a `zh-Hant`
+  result without a converted reference; stale Progress and recovery text; the
+  report did not say SenseVoice runs with inverse text normalization, or that
+  first interim counts from the clip's first sample; the 1.12 s paced run was
+  missing; the fbank test checks shape rather than reference values; neither
+  adapter was compared with the upstream decoder; the OpenCC tables count
+  toward clip-phase memory for Traditional sets.
 
 #### Code Review #1 Revisions
 
-Not run.
+- **P2-CR1-01 accepted.** `bench-runner.ts` delivers 512-sample MicVAD frames
+  to streaming engines too (`StreamingEngine.chunkSamples` removed;
+  `streamTailLatencyMs` takes per-frame timings; a changed partial counts as
+  one interim). `nemotron.ts` buffers frames and joins them only when the next
+  chunk's mel frames are complete. Runner tests updated. A three-clip smoke run
+  gave identical transcripts and final text about 0.4 s sooner; all three
+  Nemotron runs were repeated and the 1.12 s paced run added. Transcripts match
+  the superseded runs clip for clip (375/375, 375/375, 100/100).
+- **P2-CR1-02 accepted.** Recommendations 1 and 4 and the latency notes now
+  state that Nemotron returns final text sooner on WASM, at five times the CPU.
+- **P2-CR1-03 accepted.** The OpenCC `variant` field was removed; every `Hant`
+  set converts to the Taiwan standard. `clips.json` was refreshed with `fetch
+  --set zh-Hant --set yue` and the SenseVoice `yue` sets were rerun: CER 7.7% on
+  both backends (was 8.6%). The Cantonese target is now 8%.
+- **P2-CR1-04 accepted.** The report adds the FLEURS attribution, the
+  worker-protocol cost and the converter's size; Phase 2 results state that the
+  adapters copy no sherpa-onnx or FunASR code and reuse `parakeet.js` (MIT).
+- **P2-CR1-05 accepted.** Conversion moved to `script-conversion.ts` with three
+  tests (Simplified unchanged, `zh-Hant` output and reference, `yue` output
+  only).
+- Non-blocking, accepted: `opencc-js` moved to `devDependencies`; `models`
+  raises `EvalError` when the shared metadata is missing and writes UTF-8;
+  `score` rejects a missing converted reference (new test); Progress and
+  recovery text, `with_itn` and the first-interim definition corrected.
+- Non-blocking, deferred to Phase 4 for the chosen engine: reference-value
+  fbank fixtures and a few-clip comparison against sherpa-onnx's decoder. The
+  end-to-end error rates (7–11%) show the front end is sound, and Nemotron is
+  not recommended on several independent grounds. The OpenCC tables' share of
+  clip-phase memory for Traditional sets is accepted for a benchmark.
+
+Validation after the revisions: see the Phase 2 check record above.
+
+#### Code Review #2 Findings
+
+Repair round 1 of 2 on working tree `a83ce6ac`, high-risk tier. The analysis
+subagent found P2-CR1-01 to P2-CR1-05 and the accepted non-blocking items
+resolved; rescoring every current result file reproduced the revised tables,
+and the repaired Nemotron runs keep their transcripts while final latency per
+encode fell from a median of 2.42 to 1.49 (560 ms) and from 2.12 to 1.18
+(1.12 s). The checks subagent reran every affected check on the `a83ce6ac`
+code (pytest 25, ruff, mypy, vitest 26, `tsc -b`, ESLint, knip, `node --check`),
+found no benchmark or OpenCC code in the rebuilt `web/dist`, and confirmed with
+`javascriptLicenses` that `opencc-js` no longer reaches the web or desktop
+runtime licence closure (P2-CR1-CK-01 resolved).
+
+- **P2-CR1-R1-01 (non-blocking).** Nemotron's RTF column showed only throughput
+  runs, understating real-time CPU use (paced 0.85–0.91 for 560 ms).
+- **P2-CR1-R1-02 (non-blocking).** The check record lacked the repaired tree.
+
+#### Code Review #2 Revisions
+
+- **P2-CR1-R1-01 accepted.** The latency table shows paced RTF for Nemotron;
+  the latency note and recommendation 4 give the final-text gap per chunk size
+  and mode and real-time CPU use of 85–90% of a core. Plan-only.
+- **P2-CR1-R1-02 accepted.** The check record now includes the repaired tree.
+
+No blocking finding remains; the phase passes its review.
 
 #### Comparison report
 
-To be written in Phase 2.
+Measured 2026-10-20 and, after Code Review #1, 2026-10-21 on the reference Mac
+(Apple M5, 24 GB) in Electron 39.8.9 (Chromium 142) with the app's
+onnxruntime-web, using the Phase 1 harness: throughput runs over all 75 clips
+per set, real-time paced runs with interim text over the first 20 clips per
+set. Candidate files are pinned in `scripts/speech-eval/models.json`
+(evaluation only). Test clips and references: FLEURS (Conneau et al., 2022,
+Google, CC-BY-4.0), `google/fleurs` revision `70bb2e84`.
+
+Configurations:
+
+- **SenseVoice-Small** (sherpa-onnx export, FunASR Model License 1.1): INT8
+  graph (239 MB) on WASM; FP32 graph (938 MB) on WebGPU, because the INT8
+  graph's dynamic-quantization operators have no WebGPU kernels. Prompted with
+  the set's language and inverse text normalization (`with_itn`), so numbers
+  and units come out as digits. Interim text by re-decoding the growing window
+  through the app's preview controller.
+- **Nemotron 3.5 ASR** (sherpa-onnx INT8 export, OpenMDW-1.1): 560 ms and
+  1.12 s chunks on WASM (682 MB per chunk size). No working WebGPU build on ORT
+  1.24 (see Surprises & Discoveries). Streams partial text natively.
+- **Parakeet v2** (English baseline from Phase 1).
+
+Accuracy (throughput, 75 clips; CER for ja/ko/zh/yue, WER for en; lower is
+better):
+
+| Set | SenseVoice WASM / WebGPU | Nemotron 560 ms | Nemotron 1.12 s | Parakeet WASM / WebGPU |
+| --- | ---: | ---: | ---: | ---: |
+| en | 7.9% / 7.8% | 11.9% | 11.5% | 4.1% / 3.8% |
+| ja | 7.6% / 7.2% | 15.7% | 15.1% | – |
+| ko | 10.5% / 10.6% | 12.9% | 12.6% | – |
+| zh-Hans | 8.2% / 8.1% | 21.5% | 21.6% | – |
+| zh-Hant (fallback) | 8.2% / 8.1% | 21.5% | 21.7% | – |
+| yue | 7.7% / 7.7% | not supported | not supported | – |
+
+Absolute rates include reference artifacts that affect every engine alike:
+FLEURS Korean references carry unspoken Latin glosses such as "(Great
+Yarmouth)", and units and numbers differ in form ("70km" against
+"70キロメートル"). The ranking, not the absolute figure, is the basis for the
+choice. `zh-Hant` reuses the Mainland audio, so it differs from `zh-Hans` only
+by conversion; Taiwan accents are untested (G0). `yue` output is converted to
+the Taiwan standard, the forms the FLEURS Cantonese references use.
+
+Latency (final text after the last delivered sample, p50 / p90 ms; RTF is
+processing time over audio time; first interim from the clip's first sample,
+including any leading silence):
+
+| Configuration | Final, throughput | Final, paced with interim | First interim p50 | Interim stops | RTF |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| SenseVoice WASM | 1,230–1,670 / 2,010–2,129 | 1,292–1,612 / 1,799–2,059 | 781–788 | 11–20 per 20 clips | 0.15 |
+| SenseVoice WebGPU | 86–106 / 120–122 | 104–133 / 148–189 | 678–682 | 0 | 0.01 |
+| Nemotron 560 ms WASM | 613–686 / 791–851 | 798–1,162 / 1,107–1,696 | 2,156–3,264 | – | 0.79–0.80 (paced 0.85–0.91) |
+| Nemotron 1.12 s WASM | 626–822 / 1,089–1,192 | 795–1,132 / 1,082–1,406 | 2,915–4,032 | – | 0.57–0.59 (paced 0.60–0.66) |
+| Parakeet WASM (en) | 2,486 / 4,010 | – | – | – | 0.30 |
+| Parakeet WebGPU (en) | 168 / 227 | 256 / 422 | 789 | 0 | 0.02 |
+
+Ranges span the sets. On WASM, SenseVoice previews mostly stop at the
+controller's 800 ms decode budget, as Parakeet's did, so WASM interim text
+covers only the start of longer windows. On the CPU path Nemotron returns final
+text sooner than SenseVoice (560 ms chunks: p50 0.5–1.0 s sooner per set in
+throughput runs, 0.2–0.8 s paced), because most of each window is already encoded when speech
+ends, but it uses five times the CPU (RTF 0.8–0.9 against 0.15) and its first
+partial text arrives after 2.2–4.0 s. Nemotron's RTF is higher when paced,
+where audio arrives in 32 ms frames.
+
+Load and memory (cold / warm load ms; median / peak footprint MB of the Electron
+tree while transcribing):
+
+| Configuration | Load | Memory |
+| --- | ---: | ---: |
+| SenseVoice WASM | 841 / 731 | 964 / 1,080 |
+| SenseVoice WebGPU | 1,808 / 1,862 | 3,977 / 4,382 |
+| Nemotron 560 ms WASM | 2,052 / 1,909 | 1,791 / 2,262 |
+| Nemotron 1.12 s WASM | 1,785 / 1,656 | 1,796 / 2,325 |
+| Parakeet WASM | 1,458 / 1,369 | 1,653 / 2,296 |
+| Parakeet WebGPU | 2,068 / 2,103 | 4,424 / 4,496 |
+
+The SenseVoice rows come from the all-set runs; the `yue` reruns measured
+834 / 1,110 MB (WASM) and 3,828 / 3,889 MB (WebGPU).
+
+Download: SenseVoice CPU set about 240 MB (D3: within 700 MB); its FP32 WebGPU
+graph adds 938 MB (an FP16 conversion, about 470 MB, is untested). Nemotron:
+about 682 MB per chunk size, CPU only. A Traditional-script converter adds the
+OpenCC tables (1.1 MB, 452 KB gzipped, for `cn2t`) to either choice.
+
+Worker-protocol cost: the app's speech worker is stateless per request
+(`load`, `transcribe` a whole window as `preview` or `final`, `dispose`).
+SenseVoice fits it with one added field, the language. Nemotron would need a
+stateful session protocol: open a session per speech window with its language,
+forward every MicVAD frame (or batches) to the worker, emit partial results,
+finish or discard the session on a VAD misfire or turn change, and keep the
+encoder caches and decoder state per session in the worker. Its partial text
+would replace the preview controller for that engine.
+
+Recommendation (agent, for G1):
+
+1. **Choose SenseVoice-Small** for `ja`, `ko`, `zh-Hans` and `zh-Hant`, with
+   Cantonese under `zh-Hant` (D9). It is the most accurate candidate in every
+   non-English set, about two and a half times as accurate as Nemotron on
+   Mandarin, needs the least CPU (RTF 0.15 against 0.8) and the smallest
+   download, is the fastest on WebGPU (final text about 0.1 s), and fits the
+   existing per-window worker. On WASM its final text p90 (about 2.1 s) is
+   about half of Parakeet's English figure today.
+2. **Keep Parakeet for English.** SenseVoice's English WER (7.9%) is 3.8 points
+   worse than Parakeet's, beyond D8's 1.5-point tolerance.
+3. **Interim text on WebGPU only**, as for Parakeet today: first interim about
+   0.7 s with no budget stops; on WASM previews stop early and add little.
+4. **Do not pursue Nemotron 3.5 now.** It loses on accuracy everywhere (Mandarin
+   21.5% CER), has no Cantonese, does not run on WebGPU with ORT 1.24, shows its
+   first partial text after 2.2–4.0 s, uses 85–90% of a core in real time and
+   needs a stateful worker protocol. Its one advantage, final text 0.2–1.0 s
+   sooner on the CPU path, does not outweigh these; on WebGPU a full SenseVoice
+   re-decode of a 15 s window takes about 0.1 s.
+5. **Proposed numeric targets** (this test set, reference Mac): CER at most 8%
+   for `ja`, 11% for `ko`, 8.5% for `zh-Hans` and `zh-Hant` (Cantonese 8%,
+   informative); final text p90 at most 2.2 s on WASM and 0.25 s on WebGPU;
+   WebGPU first interim p50 at most 0.8 s; English stays on Parakeet's current
+   figures.
+6. **Spec questions:** Q1 engine-neutral offline labels; Q2 Setup offers the
+   SenseVoice set under a non-English locale; Q3 a locale change applies from
+   the next start; Q4 no memory limit, report medians; Q5 a WebGPU add-on set
+   for the GPU graph, trying FP16 in Phase 3 and falling back to the 938 MB FP32
+   graph; Q6 record the choice in ADR 0025; Q7 runtime downloads, not bundled.
 
 ### Phase 3 — Multilingual model asset set (R4)
 
@@ -639,8 +950,7 @@ recorded separately from local evidence.
 ## Idempotence and recovery
 
 - `fetch` and evaluation acquisition verify pinned hashes and can be rerun;
-  deleting the evaluation root only costs a re-download. `import-common-voice`
-  can be rerun from the owner's local download.
+  deleting the evaluation root only costs a re-download.
 - Model-set acquisition is atomic and versioned by manifest digest, like
   Parakeet's. A bad set fails verification and is reacquired.
 - No database migration: reverting the code leaves installed sets as unused

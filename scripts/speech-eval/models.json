@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "note": "Evaluation-only candidate files for issue #509, fetched into <evaluation root>/models/<name>/ by speech_eval.py models. Not the app's model catalog.",
+  "models": {
+    "sensevoice-sherpa": {
+      "engine": "sensevoice",
+      "repository": "csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17",
+      "revision": "2365baeacb507f821a0c8120fcee3d484dba7a07",
+      "license": "FunASR Model License 1.1",
+      "metadataFrom": "model.int8.onnx",
+      "files": {
+        "model.int8.onnx": {"size": 239233841, "sha256": "c71f0ce00bec95b07744e116345e33d8cbbe08cef896382cf907bf4b51a2cd51"},
+        "model.onnx": {"size": 937617178, "sha256": "977016bd9c79f9eb343430b5cc305e07ab64d5212dff41b0dcfa1694bee9a8cb"},
+        "tokens.txt": {"size": 315894, "sha256": "f449eb28dc567533d7fa59be34e2abca8784f771850c78a47fb731a31429a1dc"}
+      }
+    },
+    "nemotron-sherpa-560ms": {
+      "engine": "nemotron",
+      "contract": "sherpa",
+      "repository": "csukuangfj2/sherpa-onnx-nemotron-3.5-asr-streaming-0.6b-560ms-int8-2026-06-11",
+      "revision": "ab43d895f5985b1bbab8b6eac8607fcdc05343f3",
+      "license": "OpenMDW-1.1",
+      "metadataFrom": "encoder.int8.onnx",
+      "files": {
+        "encoder.int8.onnx": {"size": 657601403, "sha256": "012e9321373af99021415e0b0eb3ec827b4be3153be6f30d9b448fe65e896e68"},
+        "decoder.int8.onnx": {"size": 14978075, "sha256": "19f9c98fc6d0a2c33a65a43b36fdb2e914c26c0aa9764be3aebc502a1e982fb0"},
+        "joiner.int8.onnx": {"size": 9504438, "sha256": "4101c7c679a0bc30483794b27a059e34e79232aa2068d78d51231a22c8b0d7ce"},
+        "tokens.txt": {"size": 131440, "sha256": "729cc103155bafa785f9cd45746cd41cabe97eab7182fc04d594129587958f8a"}
+      }
+    },
+    "nemotron-sherpa-1120ms": {
+      "engine": "nemotron",
+      "contract": "sherpa",
+      "repository": "csukuangfj2/sherpa-onnx-nemotron-3.5-asr-streaming-0.6b-1120ms-int8-2026-06-11",
+      "revision": "cba1c96ca5ef0e8393b50584ae153a79145dc492",
+      "license": "OpenMDW-1.1",
+      "metadataFrom": "encoder.int8.onnx",
+      "files": {
+        "encoder.int8.onnx": {"size": 657601521, "sha256": "2fff2166acaa535bd969fb223c1f0783d71029f143cb298bc54c2afe85abf772"},
+        "decoder.int8.onnx": {"size": 14978075, "sha256": "19f9c98fc6d0a2c33a65a43b36fdb2e914c26c0aa9764be3aebc502a1e982fb0"},
+        "joiner.int8.onnx": {"size": 9504438, "sha256": "4101c7c679a0bc30483794b27a059e34e79232aa2068d78d51231a22c8b0d7ce"},
+        "tokens.txt": {"size": 131440, "sha256": "729cc103155bafa785f9cd45746cd41cabe97eab7182fc04d594129587958f8a"}
+      }
+    },
+    "nemotron-onnx-community-int4": {
+      "engine": "nemotron",
+      "contract": "onnx-community",
+      "repository": "onnx-community/nemotron-3.5-asr-streaming-0.6b-onnx-int4",
+      "revision": "8364d9e2dd9da23789b480bdbba9e423717e42ee",
+      "license": "OpenMDW-1.1",
+      "metadataFrom": "nemotron-sherpa-560ms",
+      "files": {
+        "encoder.onnx": {"size": 2677548, "sha256": "0b05217594ec0bda442e43a90a298ac2471a3bdcea9b169de34214e61a730e17"},
+        "encoder.onnx.data": {"size": 690089984, "sha256": "2f27295855aeb99ab1f8cd2254418d9ad7a087ea8dbe85f5596b4d887ea7d630"},
+        "decoder.onnx": {"size": 4696, "sha256": "6a9f608dcbab71ebd81ffa4c198e82a5b6bb10f1c1830a94c752c5f543454df3"},
+        "decoder.onnx.data": {"size": 59785216, "sha256": "e5fd55cbeeb268f9d383e2ee72735b9fbbb13aea4bc7cd38cb73b8e16f1366c7"},
+        "joint.onnx": {"size": 2136, "sha256": "e2c7d2fa40a243bf82eaca36c15698c52129de9361d2875d7f223f67fcd9482d"},
+        "joint.onnx.data": {"size": 37830656, "sha256": "2e0fb1c060f3777a1a76e78d5589dd54f01505a06dffbd2588e315508b402c12"},
+        "vocab.txt": {"size": 64024, "sha256": "ca88922ac5a92c911b79985b69634d7a4c2ef604d61b71bbe2982210dd77cd43"}
+      }
+    }
+  }
+}

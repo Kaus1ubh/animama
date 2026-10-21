@@ -42,6 +42,10 @@ function windowEngine(
   };
 }
 
+/**
+ * Encodes one chunk, at `chunkCostMs`, for every 16 MicVAD frames (512 ms) it
+ * receives; partial text appears from the second chunk.
+ */
 function streamingEngine(
   clock: ReturnType<typeof virtualClock>,
   chunkCostMs: number,
@@ -49,14 +53,17 @@ function streamingEngine(
 ): StreamingEngine {
   return {
     kind: "stream",
-    chunkSamples: BENCH_SAMPLE_RATE / 2,
     start: () => {
-      let pushed = 0;
+      let frames = 0;
+      let encoded = 0;
       return {
         push: async () => {
-          pushed += 1;
-          clock.advance(chunkCostMs);
-          return pushed > 1 ? "partial" : "";
+          frames += 1;
+          if (frames % 16 === 0) {
+            encoded += 1;
+            clock.advance(chunkCostMs);
+          }
+          return encoded > 1 ? `partial ${encoded}` : "";
         },
         finish: async () => {
           clock.advance(finishCostMs);
@@ -68,7 +75,7 @@ function streamingEngine(
 }
 
 describe("streamTailLatencyMs", () => {
-  it("counts only the last chunk when processing keeps up", () => {
+  it("counts only the last frame when processing keeps up", () => {
     expect(streamTailLatencyMs([100, 100, 100], 500, 1500)).toBe(100);
   });
 
@@ -76,8 +83,8 @@ describe("streamTailLatencyMs", () => {
     expect(streamTailLatencyMs([600, 600, 600], 500, 1500)).toBe(800);
   });
 
-  it("lets a partial last chunk arrive when the audio ends", () => {
-    // 2.2 s in 500 ms chunks: the fifth chunk holds 200 ms and arrives at 2.2 s.
+  it("lets a partial last frame arrive when the audio ends", () => {
+    // 2.2 s in 500 ms frames: the fifth frame holds 200 ms and arrives at 2.2 s.
     expect(streamTailLatencyMs([600, 600, 600, 600, 600], 500, 2200)).toBe(
       1300,
     );
@@ -159,7 +166,7 @@ describe("runClip", () => {
 
     const result = await runClip(
       streamingEngine(clock, 100, 40),
-      seconds(2),
+      seconds(2.048),
       "zh",
       {
         mode: "throughput",
@@ -168,7 +175,7 @@ describe("runClip", () => {
       },
     );
 
-    // Four 500 ms chunks at 100 ms each keep up; the 40 ms flush follows the last one.
+    // Four 512 ms chunks at 100 ms each keep up; the 40 ms flush follows the last one.
     expect(result.finalLatencyMs).toBe(140);
     expect(result.processingMs).toBe(440);
     expect(result.text).toBe("final");
@@ -179,7 +186,7 @@ describe("runClip", () => {
 
     const result = await runClip(
       streamingEngine(clock, 100, 40),
-      seconds(2),
+      seconds(2.048),
       "zh",
       {
         mode: "paced",
@@ -188,7 +195,8 @@ describe("runClip", () => {
       },
     );
 
-    expect(result.firstInterimMs).toBe(1100);
+    // The second chunk completes at 1,024 ms; each changed partial counts once.
+    expect(result.firstInterimMs).toBe(1124);
     expect(result.interimCount).toBe(3);
     expect(result.finalLatencyMs).toBe(140);
   });

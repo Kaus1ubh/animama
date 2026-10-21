@@ -13,9 +13,8 @@ Commands:
   them in ``testset.json`` (maintainer step; reruns are deterministic).
 - ``fetch``: download the pinned FLEURS files, verify their hashes and extract the
   selected clips plus ``clips/clips.json`` for the benchmark page.
-- ``import-common-voice``: add a locally downloaded Common Voice set (for example
-  Taiwan Mandarin from Mozilla Data Collective, which cannot be fetched
-  anonymously and may not be re-hosted).
+- ``models``: download the pinned evaluation-only candidate model files listed in
+  ``models.json`` into ``<root>/models/<name>/`` and write their ``metadata.json``.
 - ``score``: turn benchmark result files into error rates, latency percentiles
   and a Markdown table.
 - ``root``: print the evaluation root (used by the benchmark runner).
@@ -24,7 +23,7 @@ Commands:
 from __future__ import annotations
 
 import argparse
-import csv
+import io
 import json
 import os
 import random
@@ -40,6 +39,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "models"))
 import parakeet as store  # noqa: E402  (reuse the reviewed HTTPS download helpers)
 
 TESTSET = Path(__file__).with_name("testset.json")
+MODELS = Path(__file__).with_name("models.json")
 SAMPLE_RATE = 16000
 MIN_SECONDS = 1.0
 MAX_SECONDS = 15.0
@@ -157,8 +157,9 @@ def percentile(values: list[float], q: float) -> float:
 def summarize(result_paths: list[Path], references: dict[tuple[str, str], dict]) -> list[dict]:
     """Corpus-level error rates and latency per engine configuration and set.
 
-    A configuration is engine, backend, mode, interim text and runtime; scoring two
-    runs of the same configuration together is refused rather than merged.
+    A configuration is engine and model set, backend, mode, interim text and
+    runtime; scoring two runs of the same configuration together is refused
+    rather than merged.
     """
     groups: dict[tuple, dict] = {}
     for path in result_paths:
@@ -168,7 +169,8 @@ def summarize(result_paths: list[Path], references: dict[tuple[str, str], dict])
             if key not in references:
                 raise EvalError(f"Result clip {clip['set']}/{clip['id']} is not in the test set ({path})")
             reference = references[key]
-            configuration = (run["engine"], run["backend"], run["mode"], bool(run.get("interim")), run["runtime"])
+            engine = f"{run['engine']} ({run['models']})" if run.get("models") else run["engine"]
+            configuration = (engine, run["backend"], run["mode"], bool(run.get("interim")), run["runtime"])
             group = groups.setdefault(
                 (*configuration, clip["set"]),
                 {
@@ -193,7 +195,12 @@ def summarize(result_paths: list[Path], references: dict[tuple[str, str], dict])
             if clip["id"] in group["ids"]:
                 raise EvalError(f"{clip['set']}/{clip['id']} appears twice for one configuration; score one run each")
             group["ids"].add(clip["id"])
-            edits, count = error_counts(reference["text"], clip["text"], reference["language"])
+            # The page converts the reference too when a set is scored in another
+            # script than its source (zh-Hant from Mainland Mandarin clips).
+            if reference.get("referenceScript") and not clip.get("reference"):
+                raise EvalError(f"{clip['set']}/{clip['id']} has no converted reference; rerun it")
+            reference_text = clip.get("reference") or reference["text"]
+            edits, count = error_counts(reference_text, clip["text"], reference["language"])
             group["edits"] += edits
             group["units"] += count
             group["final"].append(clip["finalLatencyMs"])
@@ -305,8 +312,12 @@ def _fleurs_rows(testset: dict, entry: dict, root: Path) -> list[SourceRow]:
 
 
 def command_select(testset: dict, root: Path, set_ids: list[str] | None) -> None:
+    by_id = {entry["id"]: entry for entry in testset["sets"]}
     for entry in testset["sets"]:
         if entry["source"] != "fleurs" or (set_ids and entry["id"] not in set_ids):
+            continue
+        if "sameClipsAs" in entry:
+            entry["clips"] = list(by_id[entry["sameClipsAs"]]["clips"])
             continue
         rows = _fleurs_rows(testset, entry, root)
         chosen = select_clips(rows, count=testset["clipsPerSet"], seed=f"{testset['seed']}:{entry['id']}")
@@ -353,6 +364,7 @@ def command_fetch(testset: dict, root: Path, set_ids: list[str] | None) -> None:
                     "language": entry["language"],
                     "text": rows[name].text,
                     "url": f"{entry['id']}/{name}",
+                    **{key: entry[key] for key in ("script", "referenceScript") if key in entry},
                 }
                 for name in entry["clips"]
             ],
@@ -360,52 +372,80 @@ def command_fetch(testset: dict, root: Path, set_ids: list[str] | None) -> None:
         print(f"{entry['id']}: {len(written)} clips ready")
 
 
-def _common_voice_rows(directory: Path) -> list[SourceRow]:
-    tsv = next(directory.rglob("test.tsv"), None)
-    durations_tsv = next(directory.rglob("clip_durations.tsv"), None)
-    if tsv is None or durations_tsv is None:
-        raise EvalError(f"Expected test.tsv and clip_durations.tsv under {directory}")
-    with durations_tsv.open(encoding="utf-8", newline="") as stream:
-        durations = {row["clip"]: int(row["duration[ms]"]) / 1000 for row in csv.DictReader(stream, delimiter="\t")}
-    with tsv.open(encoding="utf-8", newline="") as stream:
-        reader = csv.DictReader(stream, delimiter="\t", quoting=csv.QUOTE_NONE)
-        return [
-            SourceRow(row.get("sentence_id") or row["sentence"], row["path"], row["sentence"], durations[row["path"]])
-            for row in reader
-            if row["path"] in durations
-        ]
+METADATA_FIELD = 14  # ModelProto.metadata_props
 
 
-def command_import_common_voice(testset: dict, root: Path, directory: Path, set_id: str) -> None:
-    entry = next((entry for entry in testset["sets"] if entry["id"] == set_id), None)
-    if entry is None or entry["source"] != "common_voice":
-        raise EvalError(f"{set_id} is not a Common Voice set in testset.json")
-    rows = {row.file_name: row for row in _common_voice_rows(directory)}
-    if not entry.get("clips"):
-        chosen = select_clips(list(rows.values()), count=testset["clipsPerSet"], seed=f"{testset['seed']}:{set_id}")
-        entry["clips"] = [row.file_name for row in chosen]
-        save_testset(testset)
-    clips_dir = next(directory.rglob("clips"), None)
-    if clips_dir is None:
-        raise EvalError(f"No clips directory under {directory}")
-    target = root / "clips" / set_id
-    target.mkdir(parents=True, exist_ok=True)
-    for name in entry["clips"]:
-        shutil.copyfile(clips_dir / name, target / name)
-    _write_manifest(
-        root,
-        [
-            {
-                "set": set_id,
-                "id": name,
-                "language": entry["language"],
-                "text": rows[name].text,
-                "url": f"{set_id}/{name}",
-            }
-            for name in entry["clips"]
-        ],
-    )
-    print(f"{set_id}: {len(entry['clips'])} clips ready")
+def _varint(stream) -> int:
+    shift = result = 0
+    while True:
+        byte = stream.read(1)
+        if not byte:
+            raise EOFError
+        result |= (byte[0] & 0x7F) << shift
+        shift += 7
+        if not byte[0] & 0x80:
+            return result
+
+
+def onnx_metadata(path: Path) -> dict[str, str]:
+    """Read an ONNX model's metadata_props without loading its graph.
+
+    Walks the top-level ModelProto fields and skips every length-delimited field
+    other than metadata_props, so a large model is never read into memory.
+    """
+    metadata: dict[str, str] = {}
+    with path.open("rb") as stream:
+        while True:
+            try:
+                tag = _varint(stream)
+            except EOFError:
+                break
+            field, wire = tag >> 3, tag & 7
+            if wire == 0:
+                _varint(stream)
+            elif wire == 1:
+                stream.seek(8, 1)
+            elif wire == 5:
+                stream.seek(4, 1)
+            elif wire == 2:
+                size = _varint(stream)
+                if field != METADATA_FIELD:
+                    stream.seek(size, 1)
+                    continue
+                entry = io.BytesIO(stream.read(size))
+                pair = {}
+                while entry.tell() < size:
+                    key = _varint(entry)
+                    pair[key >> 3] = entry.read(_varint(entry)).decode("utf-8")
+                metadata[pair.get(1, "")] = pair.get(2, "")
+            else:
+                raise EvalError(f"Unsupported protobuf wire type {wire} in {path.name}")
+    return metadata
+
+
+def command_models(root: Path, names: list[str] | None) -> None:
+    """Fetch pinned evaluation-only candidate files and write metadata.json."""
+    catalog = json.loads(MODELS.read_text(encoding="utf-8"))["models"]
+    for name, model in catalog.items():
+        if names and name not in names:
+            continue
+        directory = root / "models" / name
+        for file, entry in model["files"].items():
+            url = f"https://huggingface.co/{model['repository']}/resolve/{model['revision']}/{file}"
+            _download(url, {"path": file} | entry, directory / file)
+        source = model["metadataFrom"]
+        if source in catalog:
+            shared = root / "models" / source / "metadata.json"
+            if not shared.is_file():
+                raise EvalError(f"{name} takes its metadata from {source}; fetch that model first")
+            base = json.loads(shared.read_text(encoding="utf-8"))
+        else:
+            base = onnx_metadata(directory / source)
+        metadata = base | {"contract": model.get("contract", model["engine"])}
+        (directory / "metadata.json").write_text(
+            json.dumps(metadata, ensure_ascii=False, indent=1) + "\n", encoding="utf-8"
+        )
+        print(f"{name}: ready ({model['license']})")
 
 
 def load_references(root: Path) -> dict[tuple[str, str], dict]:
@@ -428,9 +468,8 @@ def main(argv: list[str] | None = None) -> int:
     for name in ("select", "fetch"):
         command = commands.add_parser(name)
         command.add_argument("--set", action="append", dest="sets", help="limit to a set id (repeatable)")
-    imported = commands.add_parser("import-common-voice")
-    imported.add_argument("directory", type=Path, help="extracted Common Voice language directory")
-    imported.add_argument("--set", default="zh-Hant")
+    models = commands.add_parser("models")
+    models.add_argument("--model", action="append", dest="models", help="limit to a model name (repeatable)")
     score = commands.add_parser("score")
     score.add_argument("results", type=Path, nargs="+")
     score.add_argument("--output", type=Path)
@@ -446,8 +485,8 @@ def main(argv: list[str] | None = None) -> int:
             command_select(testset, root, args.sets)
         elif args.command == "fetch":
             command_fetch(testset, root, args.sets)
-        elif args.command == "import-common-voice":
-            command_import_common_voice(testset, root, args.directory.expanduser().resolve(), args.set)
+        elif args.command == "models":
+            command_models(root, args.models)
         else:
             command_score(root, args.results, args.output)
     except (EvalError, store.ModelStoreError) as exc:

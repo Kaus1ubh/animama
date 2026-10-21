@@ -6,7 +6,7 @@
  * from the result. It is not part of the product runtime.
  */
 
-export type BenchEngineId = "parakeet";
+export type BenchEngineId = "parakeet" | "sensevoice" | "nemotron";
 export type BenchBackend = "wasm" | "webgpu";
 /**
  * `throughput` decodes each clip as one finished speech window, back to back.
@@ -15,11 +15,20 @@ export type BenchBackend = "wasm" | "webgpu";
  */
 export type BenchMode = "throughput" | "paced";
 
+/**
+ * A test clip. `set` is also the app locale the engine is prompted with
+ * (`en`, `ja`, `ko`, `zh-Hans`, `zh-Hant`, `yue`). Sets scored in Traditional
+ * script have `script: "Hant"`, and `referenceScript: "Hans"` when their
+ * reference text is Simplified and must be converted too.
+ */
 export type BenchClip = {
   set: string;
   id: string;
   language: string;
   url: string;
+  text: string;
+  script?: "Hans" | "Hant";
+  referenceScript?: "Hans";
 };
 
 export type BenchConfig = {
@@ -38,7 +47,12 @@ export type BenchClipResult = {
   set: string;
   id: string;
   audioSeconds: number;
+  /** Final text in the set's script, as the app would show it. */
   text: string;
+  /** The engine's own output when the page converted its script. */
+  rawText?: string;
+  /** The converted reference, when the page converted it. */
+  reference?: string;
   /** From the last delivered audio sample to the final text. */
   finalLatencyMs: number;
   /** Engine processing time for the final text (real-time factor input). */
@@ -77,7 +91,7 @@ export type BenchWorkerRequest =
   | { type: "load"; config: BenchConfig }
   | {
       type: "run";
-      clip: Omit<BenchClip, "url">;
+      clip: Pick<BenchClip, "set" | "id">;
       audio: Float32Array;
     };
 

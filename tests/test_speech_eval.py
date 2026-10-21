@@ -8,6 +8,7 @@ import json
 import sys
 import tarfile
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -36,7 +37,7 @@ def test_parse_fleurs_tsv_rejects_unexpected_columns():
         speech_eval.parse_fleurs_tsv("1\ta.wav\ttext\n")
 
 
-def rows_for_selection() -> list:
+def rows_for_selection() -> list[Any]:
     rows = []
     for sentence in range(60):
         seconds = 2 + (sentence % 13)  # 2–14 s
@@ -114,7 +115,7 @@ def test_percentile_interpolates():
     assert speech_eval.percentile([0, 10], 90) == pytest.approx(9.0)
 
 
-def result_file(tmp_path: Path, clips: list[dict], **overrides) -> Path:
+def result_file(tmp_path: Path, clips: list[dict[str, object]], **overrides: object) -> Path:
     payload = {
         "engine": "parakeet",
         "backend": "wasm",
@@ -170,6 +171,17 @@ def test_summarize_keeps_configurations_apart_and_refuses_repeated_runs(tmp_path
     assert sorted(row["mode"] for row in rows) == ["paced", "paced, interim"]
     with pytest.raises(speech_eval.EvalError, match="twice"):
         speech_eval.summarize([paced, result_file(tmp_path, [clip], mode="paced", interim=True)], references)
+
+
+def test_summarize_separates_model_sets_of_one_engine(tmp_path):
+    references = {("en", "a"): {"language": "en", "text": "hi"}}
+    clip = {"set": "en", "id": "a", "audioSeconds": 1.0, "text": "hi", "finalLatencyMs": 50}
+    small = result_file(tmp_path, [clip], engine="nemotron", models="nemotron-560ms")
+    large = result_file(tmp_path, [clip], engine="nemotron", models="nemotron-1120ms")
+
+    rows = speech_eval.summarize([small, large], references)
+
+    assert [row["engine"] for row in rows] == ["nemotron (nemotron-1120ms)", "nemotron (nemotron-560ms)"]
 
 
 def test_summarize_rejects_unknown_clips(tmp_path):
@@ -270,3 +282,43 @@ def test_tracked_testset_is_well_formed():
         if entry.get("clips"):
             assert len(entry["clips"]) == len(set(entry["clips"]))
             assert 50 <= len(entry["clips"]) <= 100
+
+
+def protobuf_string(field: int, value: bytes) -> bytes:
+    return bytes([(field << 3) | 2, len(value)]) + value
+
+
+def test_onnx_metadata_reads_metadata_props_and_skips_the_graph(tmp_path):
+    entry = protobuf_string(1, b"lang_ja") + protobuf_string(2, b"11")
+    model = (
+        bytes([0x08, 7])  # ir_version
+        + protobuf_string(7, b"\x01" * 40)  # graph, skipped
+        + protobuf_string(14, entry)
+        + protobuf_string(14, protobuf_string(1, "名前".encode()) + protobuf_string(2, b""))
+    )
+    path = tmp_path / "model.onnx"
+    path.write_bytes(model)
+
+    assert speech_eval.onnx_metadata(path) == {"lang_ja": "11", "名前": ""}
+
+
+CONVERTED_REFERENCES = {("zh-Hant", "a"): {"language": "zh", "text": "简体字", "referenceScript": "Hans"}}
+
+
+def converted_clip(**overrides: object) -> dict[str, object]:
+    return {"set": "zh-Hant", "id": "a", "audioSeconds": 1.0, "text": "簡體字", "finalLatencyMs": 1} | overrides
+
+
+def test_summarize_scores_against_a_reference_the_page_converted(tmp_path):
+    path = result_file(tmp_path, [converted_clip(reference="簡體字")])
+
+    (row,) = speech_eval.summarize([path], CONVERTED_REFERENCES)
+
+    assert row["errorRate"] == 0
+
+
+def test_summarize_rejects_a_missing_converted_reference(tmp_path):
+    path = result_file(tmp_path, [converted_clip()])
+
+    with pytest.raises(speech_eval.EvalError, match="converted reference"):
+        speech_eval.summarize([path], CONVERTED_REFERENCES)

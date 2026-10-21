@@ -8,7 +8,10 @@
  *
  *   pnpm speech:bench --app http://127.0.0.1:5179 --engine parakeet \
  *     --backend wasm --mode throughput [--sets en,ja] [--limit 5] \
- *     [--interim 0|1] [--models URL] [--gpuModels URL] [--out FILE]
+ *     [--interim 0|1] [--models NAME|URL] [--gpuModels NAME|URL] [--out FILE]
+ *
+ * `--models NAME` serves `<evaluation root>/models/NAME/` (fetched by
+ * `speech_eval.py models`); a full URL is passed through.
  *
  * Each run uses a fresh Electron profile and two launches: a load-only launch
  * measures the cold load, then a second launch on the now-populated profile
@@ -251,14 +254,20 @@ async function runPage(url, userData, { measureMemory }) {
 
 async function main() {
   const server = await serveEvalRoot(new URL(args.app).origin);
+  const served = `http://127.0.0.1:${server.address().port}`;
+  const modelUrl = (value) =>
+    /^https?:/.test(value) ? value : `${served}/models/${value}`;
   const query = new URLSearchParams({
     engine: args.engine,
     backend: args.backend,
     mode: args.mode,
-    clips: `http://127.0.0.1:${server.address().port}/clips`,
+    clips: `${served}/clips`,
   });
-  for (const name of ["interim", "sets", "limit", "models", "gpuModels"]) {
+  for (const name of ["interim", "sets", "limit"]) {
     if (args[name] !== undefined) query.set(name, args[name]);
+  }
+  for (const name of ["models", "gpuModels"]) {
+    if (args[name] !== undefined) query.set(name, modelUrl(args[name]));
   }
   const url = `${args.app.replace(/\/$/, "")}/speech-bench.html?${query}`;
   // A fresh profile per run: no HTTP, code or Chromium GPU cache from an
@@ -286,6 +295,8 @@ async function main() {
       `${JSON.stringify(
         {
           ...result,
+          // The model set name, so variants of one engine score separately.
+          models: args.models ?? null,
           coldLoadMs: cold.result.loadMs,
           warmLoadMs: loadMs,
           runtime: warm.runtime,

@@ -2,12 +2,13 @@
  * Timing logic for the development speech benchmark, independent of any
  * engine or clock so it can be tested deterministically.
  *
- * Two kinds of engine are compared on the same basis:
+ * Both kinds of engine receive audio as MicVAD delivers it, in 512-sample
+ * frames:
  * - window engines (Parakeet, SenseVoice) transcribe a finished speech window,
  *   and may show interim text by re-decoding the growing window through the
  *   app's preview controller;
- * - streaming engines (Nemotron) consume fixed-size chunks as audio arrives and
- *   return a partial transcript after each one.
+ * - streaming engines (Nemotron) take every frame, encode each of their own
+ *   chunks as soon as its audio is complete and return the partial transcript.
  *
  * Every engine call goes through one serial queue, as in the app's worker, so a
  * preview in flight delays the final decode that follows it.
@@ -26,20 +27,19 @@ const BENCH_FRAME_SAMPLES = 512;
 
 export type WindowEngine = {
   kind: "window";
-  transcribe: (audio: Float32Array, language: string) => Promise<string>;
+  transcribe: (audio: Float32Array, locale: string) => Promise<string>;
 };
 
 type StreamingSession = {
-  /** Feed one chunk; resolves to the partial transcript so far. */
-  push: (chunk: Float32Array) => Promise<string>;
+  /** Feed one MicVAD frame; resolves to the partial transcript so far. */
+  push: (frame: Float32Array) => Promise<string>;
   /** Flush buffered audio; resolves to the final transcript. */
   finish: () => Promise<string>;
 };
 
 export type StreamingEngine = {
   kind: "stream";
-  chunkSamples: number;
-  start: (language: string) => StreamingSession;
+  start: (locale: string) => StreamingSession;
 };
 
 export type BenchEngine = WindowEngine | StreamingEngine;
@@ -55,19 +55,19 @@ type RunOptions = { mode: BenchMode; interim: boolean; clock: BenchClock };
 
 /**
  * Final-text delay after the last audio sample for a serial streaming engine.
- * Chunk `i` arrives once its last sample has been spoken (the final chunk may
+ * Frame `i` arrives once its last sample has been spoken (the final frame may
  * be partial, ending at `audioMs`) and starts when it has arrived and the
- * previous chunk has finished; the end-of-stream flush follows the last chunk.
+ * previous frame has finished; the end-of-stream flush follows the last frame.
  */
 export function streamTailLatencyMs(
-  chunkProcessingMs: readonly number[],
-  chunkMs: number,
+  frameProcessingMs: readonly number[],
+  frameMs: number,
   audioMs: number,
   flushMs = 0,
 ): number {
   let finished = 0;
-  chunkProcessingMs.forEach((processing, index) => {
-    const arrival = Math.min((index + 1) * chunkMs, audioMs);
+  frameProcessingMs.forEach((processing, index) => {
+    const arrival = Math.min((index + 1) * frameMs, audioMs);
     finished = Math.max(arrival, finished) + processing;
   });
   return Math.max(finished, audioMs) + flushMs - audioMs;
@@ -95,11 +95,11 @@ const samplesToMs = (samples: number) => (samples / BENCH_SAMPLE_RATE) * 1000;
 async function windowThroughput(
   engine: WindowEngine,
   audio: Float32Array,
-  language: string,
+  locale: string,
   clock: BenchClock,
 ): Promise<ClipTiming> {
   const startedAt = clock.now();
-  const text = await engine.transcribe(audio, language);
+  const text = await engine.transcribe(audio, locale);
   const processingMs = clock.now() - startedAt;
   return {
     audioSeconds: audio.length / BENCH_SAMPLE_RATE,
@@ -115,7 +115,7 @@ async function windowThroughput(
 async function windowPaced(
   engine: WindowEngine,
   audio: Float32Array,
-  language: string,
+  locale: string,
   { interim, clock }: RunOptions,
 ): Promise<ClipTiming> {
   const queue = serialQueue();
@@ -134,7 +134,7 @@ async function windowPaced(
         transcribe: ({ audio: windowAudio }) =>
           queue(async () => {
             const decodeStartedAt = clock.now();
-            const text = await engine.transcribe(windowAudio, language);
+            const text = await engine.transcribe(windowAudio, locale);
             return { text, decodeMs: clock.now() - decodeStartedAt };
           }),
         onPreview: ({ text }) => {
@@ -164,7 +164,7 @@ async function windowPaced(
   let processingMs = 0;
   const text = await queue(async () => {
     const decodeStartedAt = clock.now();
-    const finalText = await engine.transcribe(audio, language);
+    const finalText = await engine.transcribe(audio, locale);
     processingMs = clock.now() - decodeStartedAt;
     return finalText;
   });
@@ -182,37 +182,40 @@ async function windowPaced(
 async function stream(
   engine: StreamingEngine,
   audio: Float32Array,
-  language: string,
+  locale: string,
   { mode, clock }: RunOptions,
 ): Promise<ClipTiming> {
-  const session = engine.start(language);
+  const session = engine.start(locale);
   const startedAt = clock.now();
-  const chunkProcessingMs: number[] = [];
+  const frameProcessingMs: number[] = [];
   let firstInterimMs: number | null = null;
   let interimCount = 0;
+  let lastPartial = "";
   let delivered = 0;
   let lastArrivalAt = startedAt;
 
-  for (const chunk of chunks(audio, engine.chunkSamples)) {
-    delivered += chunk.length;
+  for (const frame of chunks(audio, BENCH_FRAME_SAMPLES)) {
+    delivered += frame.length;
     if (mode === "paced") {
       lastArrivalAt = startedAt + samplesToMs(delivered);
       await clock.sleepUntil(lastArrivalAt);
     }
     const pushStartedAt = clock.now();
-    const partial = await session.push(chunk);
-    chunkProcessingMs.push(clock.now() - pushStartedAt);
-    if (mode === "paced" && partial.trim()) {
+    const partial = await session.push(frame);
+    frameProcessingMs.push(clock.now() - pushStartedAt);
+    // Count each new partial transcript once, as the app would show it.
+    if (mode === "paced" && partial.trim() && partial !== lastPartial) {
       interimCount += 1;
       firstInterimMs ??= clock.now() - startedAt;
     }
+    lastPartial = partial;
   }
   const finishStartedAt = clock.now();
   const text = await session.finish();
   const flushMs = clock.now() - finishStartedAt;
 
   const processingMs =
-    chunkProcessingMs.reduce((sum, ms) => sum + ms, 0) + flushMs;
+    frameProcessingMs.reduce((sum, ms) => sum + ms, 0) + flushMs;
   return {
     audioSeconds: audio.length / BENCH_SAMPLE_RATE,
     text,
@@ -220,8 +223,8 @@ async function stream(
       mode === "paced"
         ? clock.now() - lastArrivalAt
         : streamTailLatencyMs(
-            chunkProcessingMs,
-            samplesToMs(engine.chunkSamples),
+            frameProcessingMs,
+            samplesToMs(BENCH_FRAME_SAMPLES),
             samplesToMs(audio.length),
             flushMs,
           ),
@@ -236,11 +239,11 @@ async function stream(
 export function runClip(
   engine: BenchEngine,
   audio: Float32Array,
-  language: string,
+  locale: string,
   options: RunOptions,
 ): Promise<ClipTiming> {
-  if (engine.kind === "stream") return stream(engine, audio, language, options);
+  if (engine.kind === "stream") return stream(engine, audio, locale, options);
   return options.mode === "paced"
-    ? windowPaced(engine, audio, language, options)
-    : windowThroughput(engine, audio, language, options.clock);
+    ? windowPaced(engine, audio, locale, options)
+    : windowThroughput(engine, audio, locale, options.clock);
 }

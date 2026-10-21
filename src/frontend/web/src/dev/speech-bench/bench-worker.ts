@@ -19,13 +19,17 @@ import {
   type BenchClock,
   type BenchEngine,
 } from "./bench-runner";
+import { loadNemotronEngine } from "./engines/nemotron";
 import { loadParakeetEngine } from "./engines/parakeet";
+import { loadSenseVoiceEngine } from "./engines/sensevoice";
 
 const ENGINES: Record<
   BenchEngineId,
   (config: BenchConfig) => Promise<BenchEngine>
 > = {
   parakeet: loadParakeetEngine,
+  sensevoice: loadSenseVoiceEngine,
+  nemotron: loadNemotronEngine,
 };
 
 const clock: BenchClock = {
@@ -122,7 +126,8 @@ async function handle(request: BenchWorkerRequest): Promise<void> {
   }
   if (!config || !engine)
     throw new Error("Load an engine before running clips.");
-  const timing = await runClip(engine, request.audio, request.clip.language, {
+  // Each set id is the app locale the engine is prompted with.
+  const timing = await runClip(engine, request.audio, request.clip.set, {
     mode: config.mode,
     interim: config.interim,
     clock,
