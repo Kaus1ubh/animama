@@ -415,8 +415,8 @@ Loading behavior:
   and the settings panel says WebGPU failed to load and the CPU was used. For
   the rest of the page it uses WASM directly (`load_failed`), until the
   settings panel refreshes the status.
-- **Warm-up.** The Parakeet worker warms WebGPU with one second of silence
-  during load, so shader compilation does not make the first preview look over
+- **Warm-up.** Both workers warm WebGPU with one second of silence during
+  load, so shader compilation does not make the first preview look over
   budget.
 
 The build defines `__CLIENT_PARAKEET_MODELS__` and
@@ -927,7 +927,8 @@ Shows:
 
 Common categories you will see:
 
-- STT/voice: `Dictation`, `BrowserSTT`, `VADInit`, `VADLifecycle`, `VADEvent`, `VADGate`
+- STT/voice: `Dictation`, `BrowserSTT`, `OfflineSTT`, `VADInit`, `VADLifecycle`, `VADEvent`, `VADGate`
+- offline workers: `ClientParakeetWorker`, `ClientSenseVoiceWorker` (each final window's `wordConfidence` for SenseVoice)
 - smart-turn: `SmartTurnWorker`, `SmartTurnWorkerClient`, `SmartTurnJob`, `SmartTurnDecision`, `SmartTurnSubmit`, `SmartTurnAudio`
 - chat integration: `ChatInterface` (`Submit`, `Dispatch`, `TTS`, etc.)
 - pocket runtime: `PocketTTSRuntime`, `TTSPlayback`

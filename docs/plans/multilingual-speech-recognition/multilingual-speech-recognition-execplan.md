@@ -66,14 +66,15 @@ Boundaries:
       passed 2026-10-21 (re-tiered high risk; initial review and two repair
       rounds); committed `5974b113`. App-path transcription moves to the
       Phase 5 smoke check.
-- [ ] Phase 5 — Settings, Setup, language notice and turn-taking (#633).
-      Implemented and smoke-checked 2026-10-21 (results below); the
-      microphone-path short-reply findings go to G4. Review passed with
-      non-blocking findings, all addressed (Code Review #1).
-- [ ] Phase 6 — Acceptance runs, packaging checks and documentation (#634):
-      checks run 2026-10-21 (results below); outstanding owner items: G2–G4
-      and the first-interim target. Final integration review next.
-- [ ] Final integration review.
+- [x] Phase 5 — Settings, Setup, language notice and turn-taking (#633):
+      review passed 2026-10-21 with non-blocking findings, all addressed;
+      committed `c56ebcc5`. The microphone-path short-reply findings go to G4.
+- [x] Phase 6 — Acceptance runs, packaging checks and documentation (#634):
+      checks run 2026-10-21; committed `7eab5102`, `8d45eef5`, `37d48a3e`,
+      `170e1064`; covered by the final integration review. Outstanding owner
+      items: G2–G4 and the first-interim and `zh-Hans` WASM latency targets.
+- [x] Final integration review (2026-10-21): one blocking finding (contract
+      versions) and nine non-blocking, repaired in one round.
 
 ## Surprises & Discoveries
 
@@ -259,6 +260,9 @@ Boundaries:
   (Code Review #1).
 - 2026-10-21, agent (Phase 6): Q6's ADR is numbered 0029, since 0025–0027
   were taken on this branch and 0028 on `main` after G1.
+- 2026-10-21, agent (final review FIR-01): `local-http` becomes 11.0.0 and
+  `@animama/runtime-contracts` 0.11.0 for the added capability fields, as the
+  package-set compatibility rules require.
 
 ## Owner gates
 
@@ -272,20 +276,32 @@ Boundaries:
   whether it also serves English (D8), the numeric accuracy and latency targets
   (D10), any GPU add-on budget (Q5) and answers to Q1–Q4, Q6 and Q7. Blocks
   Phases 3–6.
-- **G2 — Shared-object publication (release).** The owner publishes the new
-  set's objects to `downloads.animama.ai` with
-  `pnpm --filter animama-desktop models:publish -- --model <id>`. Until then,
-  development uses `scripts/models/<engine>.py acquire --source upstream`, and
-  packaged or built-mode downloads cannot complete. After publication, drop
-  the `--source upstream` hint in `reset.sh` and the SenseVoice spec's
-  `acquireArgs` in `optional-inputs.mjs`. Recorded in the PR; does not block
-  phase progression.
+- **G2 — Shared-object publication (release).** The owner publishes both
+  sets' objects to `downloads.animama.ai` with
+  `pnpm --filter animama-desktop models:publish -- --model sensevoice-small`
+  and `-- --model sensevoice-small-webgpu`. Until then, development uses
+  `python3 scripts/models/sensevoice.py acquire --source upstream`, and built
+  or packaged downloads end `failed` (`asset_download_failed`). After
+  publication: verify SenseVoice download, resume after a backend restart,
+  removal and the in-use refusal for both sets on a built stack and in the
+  packaged app, with the harness's network inspection in built mode; then
+  drop every `--source upstream` hint (`git grep -n "acquire --source
+  upstream"`: `reset.sh`, `optional-inputs.mjs`'s `acquireArgs`,
+  `OfflineSpeechDownloads.tsx`, `AGENTS.md`, `.env.example`,
+  `docs/backend/operations/model-assets.md`,
+  `docs/frontend/desktop/runtime-staging.md`, `scripts/models/README.md` and
+  `publish-models-r2.test.mjs`). Recorded in the PR; does not block phase
+  progression.
 - **G3 — Windows smoke check.** On the owner's Windows machine, a desktop build
   installs the set and transcribes Japanese on the CPU path.
 - **G4 — Live check on the reference Mac.** The owner tries dictation and Voice
   Mode under each non-English locale, with live speech or played clips,
-  including one-word replies such as 네 and Cantonese 係 (the Phase 5 smoke
-  check misread both from synthetic voices through browser capture).
+  including one-word replies such as 네 and Cantonese 係 or 唔該 (the Phase 5
+  smoke check misread 네 and 係 from synthetic voices through browser capture),
+  a noisy room (the confidence gate drops a final window whose words average
+  below 0.4; `ClientSenseVoiceWorker` logs each final window's
+  `wordConfidence`), and short replies under `zh-Hant`'s automatic language
+  detection.
 
 G2–G4 do not block phase progression; outstanding ones are recorded in the PR.
 
@@ -1392,7 +1408,7 @@ Check record (working tree; later edits touch only this plan; logs in
 | `pnpm prettier:check` | `src/frontend` | `7abd637f` | pass |
 | Smoke check and screenshots above | task stack `animama-msr` | working tree before the punctuation fix; the reversed-speech cases reran after it | as recorded |
 
-Records: issue #633; commits —; evidence: Phase 5 results.
+Records: issue #633; commit `c56ebcc5`; evidence: Phase 5 results.
 
 #### Code Review #1 Findings
 
@@ -1489,8 +1505,9 @@ Changes and checks:
 6. `pnpm e2e:test:fast` against a disposable built stack.
 7. Owner gates G3 and G4 recorded in the PR.
 8. Cloud follow-up recorded in the PR as outstanding: animama-cloud must
-   support or skip `sensevoice-stt` and `sensevoice-stt-webgpu` before it
-   repins to an Animama release with this catalog (Surprises, 2026-10-21).
+   support or skip `sensevoice-stt` and `sensevoice-stt-webgpu`, and admit
+   `local-http` major 11, before it repins to an Animama release with this
+   catalog (Surprises, 2026-10-21).
    If it skips them, hosted Settings shows the SenseVoice section as "Not
    available" and non-English locales get the "not available on this server"
    notice.
@@ -1531,8 +1548,11 @@ Every accuracy target is met, as is the WebGPU final p90 (0.25 s). WASM final
 p90 meets 2.2 s except `zh-Hans` at 2.23 s (load 2.4–3.5 during that run;
 2.28 s at load 4 in the first pass). English through the production Parakeet
 worker matches the Phase 1 baseline: WER 4.1% WASM and 3.8% WebGPU, final
-p50/p90 2,501/4,042 ms (baseline 2,486/4,010) and 200/314 ms (168/227) on a
-machine busier than Phase 1's. No output in any run contains a recognizer tag
+p50/p90 2,501/4,042 ms and 200/314 ms. Phase 1's 2,486/4,010 and 168/227 ms
+are not like for like: that adapter called `parakeet.js` directly, while the
+production worker adds its messaging and requests per-final profiling (as on
+`main`), so these figures are reported rather than compared; the English path
+is otherwise unchanged from `main`. No output in any run contains a recognizer tag
 (tag leaks 0). Script check (`drafts/phase6_script_check.mjs`, OpenCC
 whole-text conversion): every `zh-Hans` output is Simplified and every
 `zh-Hant` and Cantonese output Traditional, except one 岩 that a second
@@ -1620,7 +1640,24 @@ to G4.
 (run evidence `src/frontend/.animama-e2e/runs/run-1021120900`), on the image
 built from the working tree after the confidence gate.
 
-Records: issue #634; commits —; evidence —.
+Check record (logs in `<evaluation root>/logs/`; the full pre-push suite on
+the final candidate is under Final integration review):
+
+| Check | Directory | Source | Result |
+| --- | --- | --- | --- |
+| `tsc -b`; ESLint on `dev/speech-bench`, `client-sensevoice`, the SenseVoice worker and `use-dictation.ts`; vitest `src/lib/speech src/hooks src/dev`; `pnpm prettier:check` | `src/frontend/web`, `src/frontend` | commit `170e1064` (tree `0ff451cf`) | pass; 327 tests |
+| `pnpm desktop:check`; `pnpm --filter animama-desktop test` | `src/frontend` | working tree at 12:20, before `7eab5102` (no desktop source changed after) | pass; 539 passed, 14 skipped |
+| `pnpm --filter animama-desktop build:mac` (stage, `runtime audit: OK`, pack) | `src/frontend` | same | pass |
+| `pnpm e2e:test:fast` | `src/frontend` | image built at 12:05 from the working tree with the gate on every window, before `7eab5102` and main's merge | 38 passed |
+| Benchmark, probes, smoke, assets and lease checks above | evaluation root | as dated in each result | as recorded |
+
+The script check, silence and noise probes, smoke and asset harnesses are
+local evidence: their scripts live in the evaluation root (`drafts/`), not in
+the repository; tracked tests cover the decoder with synthetic logits and the
+loaded model with a mocked session.
+
+Records: issue #634; commits `7eab5102`, `8d45eef5`, `37d48a3e`, `170e1064`;
+evidence: Phase 6 results.
 
 #### Code Review #1 Findings
 
@@ -1634,6 +1671,57 @@ Not run.
 
 Covers combined acceptance, reusing still-valid phase evidence; findings and
 revisions recorded here.
+
+### Code Review #1 Findings
+
+Initial final review of `4d73d903` (the branch with `main` at `293d7716`
+merged) against `293d7716`, Phase 6 folded in as light; no checks rerun.
+Verdict: one blocking finding; pass with non-blocking findings after it.
+
+- **FIR-01 (blocking).** The added capability fields change the `local-http`
+  schema and the generated declarations without bumping `local-http` (10.0.0)
+  or `@animama/runtime-contracts` (0.10.0); the package-set comparison
+  (`scripts/package-sets/package_set.py` `compare`) fails both rules.
+- **FIR-02.** No gate owns verifying SenseVoice downloads, resume, removal and
+  leases after publication.
+- **FIR-03.** The G2 hint list missed most `--source upstream` mentions.
+- **FIR-04.** The English latency comparison with Phase 1 was not like for
+  like.
+- **FIR-05.** The confidence gate was calibrated on clean audio, G4 did not
+  name noisy capture, and a dropped window was not diagnosable from logs.
+- **FIR-06.** Offline load logs still named Parakeet for either engine.
+- **FIR-07.** No test covered the window kind reaching the gate.
+- **FIR-08.** Phase 6 had no check record; stale commit records, Progress
+  and spec note.
+- **FIR-09.** The automated Phase 6 evidence uses untracked scripts.
+- **FIR-10.** Minor doc and comment inaccuracies (WebGPU warm-up, logger
+  categories, the benchmark driver's comments, a test's probability comment,
+  delivery status in ADR 0029).
+
+### Code Review #1 Revisions
+
+- **FIR-01 accepted.** `local-http` 11.0.0 and `runtime-contracts` 0.11.0,
+  with `contracts/hosted-web.md`, `http-api.md`, ADR 0029 and Phase 6 item 8
+  (Cloud admits major 11).
+- **FIR-02 and FIR-03 accepted.** G2 names both set ids, the post-publication
+  checks (both sets, built and packaged, with network inspection) and every
+  hint location.
+- **FIR-04 accepted.** The figures are reported with the configuration
+  difference instead of compared.
+- **FIR-05 accepted.** G4 names noisy capture and one-word replies; the
+  decoder returns the mean word confidence, which the SenseVoice worker logs
+  for each window.
+- **FIR-06 accepted.** "Loading offline speech runtime" and "Offline speech
+  runtime ready" carry the engine and language; the suspend reasons read
+  `resume-offline`.
+- **FIR-07 accepted.** `wordConfidenceFloor(kind)` is tested, and a
+  `loadSenseVoiceModel` test with a mocked session shows a final window gated
+  and a preview of the same audio not.
+- **FIR-08 and FIR-09 accepted.** Phase 6 check record, commit records,
+  Progress and the spec note updated; the local-evidence scripts are named as
+  such.
+- **FIR-10 accepted.** All corrected; ADR 0029 keeps only decision
+  consequences (the gates live here and in the PR).
 
 ## Validation and acceptance
 

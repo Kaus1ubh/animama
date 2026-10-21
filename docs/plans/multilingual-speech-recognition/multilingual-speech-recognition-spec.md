@@ -312,7 +312,7 @@ https://github.com/raymond-van/animama/issues/509
 ## ExecPlan
 
 [multilingual-speech-recognition-execplan.md](multilingual-speech-recognition-execplan.md)
-(not yet reviewed).
+(each phase reviewed; final integration review 2026-10-21).
 
 ## Delivery links
 
