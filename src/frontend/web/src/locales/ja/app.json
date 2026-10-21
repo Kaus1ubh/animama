@@ -77,7 +77,7 @@
   },
   "dictation": {
     "errors": {
-      "audioWorkletParakeet": "ローカルの Parakeet 音声認識には AudioWorklet のサポートが必要です。",
+      "audioWorkletOffline": "オフライン音声認識には AudioWorklet のサポートが必要です。",
       "audioWorkletVad": "音響 VAD には AudioWorklet のサポートが必要です。",
       "browser": {
         "aborted": "音声認識が停止しました。",
@@ -91,11 +91,12 @@
       },
       "browserStartFailed": "ブラウザーの音声入力を開始できませんでした",
       "failed": "音声入力に失敗しました",
+      "languageSpeechMissing": "音声入力と音声モードを使うには、設定でこの言語のオフライン音声認識をインストールしてください。",
       "localWebSpeechNotEnabled": "ブラウザーのローカル音声認識を有効にできませんでした",
       "localWebSpeechUnsupported": "ローカル専用のブラウザー音声認識には対応していません",
+      "offlineSpeechFailed": "オフライン音声認識に失敗しました",
       "offlineSpeechMissing": "音声入力と音声モードを使うには、設定でオフライン音声認識をインストールしてください。",
-      "parakeetFailed": "ローカルの Parakeet 音声認識に失敗しました",
-      "transcriptionFailed": "ローカルの Parakeet 文字起こしに失敗しました",
+      "transcriptionFailed": "オフライン文字起こしに失敗しました",
       "unmuteFailed": "音声モードのミュートを解除できませんでした",
       "webSpeechUnsupported": "このブラウザーは Web Speech API に対応していません"
     }

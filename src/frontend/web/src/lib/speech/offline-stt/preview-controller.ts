@@ -1,8 +1,9 @@
 /**
- * Live (interim) Parakeet transcript previews for an open MicVAD speech window.
+ * Live (interim) transcript previews for an open MicVAD speech window.
  *
- * Parakeet TDT is an offline, full-context model, so previews re-decode the
- * growing window buffer rather than stitching independent chunks. Previews are
+ * The offline engines (Parakeet TDT, SenseVoice) are full-context models, so
+ * previews re-decode the growing window buffer rather than stitching
+ * independent chunks. Previews are
  * display-only: the single full-window decode after `onSpeechEnd` remains the
  * only source of final text, Smart Turn input and submission.
  *
@@ -21,9 +22,9 @@
  * timers and can be tested deterministically.
  */
 
-import type { ClientParakeetBackend } from "./worker-protocol";
+import type { OfflineSttBackend } from "./worker-protocol";
 
-export type ParakeetPreviewConfig = {
+export type SpeechPreviewConfig = {
   sampleRateHz: number;
   /** Audio retained from before a window opens, matching MicVAD's pre-speech pad. */
   preSpeechPadMs: number;
@@ -40,8 +41,8 @@ export type ParakeetPreviewConfig = {
   maxPreviewAudioMs: number;
 };
 
-export const DEFAULT_PARAKEET_PREVIEW_CONFIG: Omit<
-  ParakeetPreviewConfig,
+export const DEFAULT_SPEECH_PREVIEW_CONFIG: Omit<
+  SpeechPreviewConfig,
   "sampleRateHz" | "preSpeechPadMs"
 > = {
   firstPreviewMs: 600,
@@ -53,29 +54,30 @@ export const DEFAULT_PARAKEET_PREVIEW_CONFIG: Omit<
 
 /**
  * Previews re-decode the whole growing window, so they need a backend fast
- * enough to keep up for full utterances. Single-thread WASM covered only about
- * 2 s before the budget stopped it (see the parakeet-live-partials ExecPlan), so
+ * enough to keep up for full utterances. On single-thread WASM, Parakeet covered
+ * only about 2 s before the budget stopped it (see the parakeet-live-partials
+ * ExecPlan), and SenseVoice also stopped early on most windows (issue #509), so
  * only WebGPU qualifies; WASM stays final-only.
  */
-export function shouldEnableParakeetPreviews(
-  backend: ClientParakeetBackend,
+export function shouldEnableSpeechPreviews(
+  backend: OfflineSttBackend,
 ): boolean {
   return backend === "webgpu";
 }
 
-export type ParakeetPreviewRequest = {
+export type SpeechPreviewRequest = {
   turnId: string;
   windowId: string;
   audio: Float32Array;
 };
 
-export type ParakeetPreview = {
+export type SpeechPreview = {
   turnId: string;
   windowId: string;
   text: string;
 };
 
-export type ParakeetPreviewEvent =
+export type SpeechPreviewEvent =
   | {
       type: "preview_ready";
       windowId: string;
@@ -92,19 +94,19 @@ export type ParakeetPreviewEvent =
     }
   | { type: "preview_failed"; windowId: string; message: string };
 
-type ParakeetPreviewControllerDeps = {
-  config: ParakeetPreviewConfig;
+type SpeechPreviewControllerDeps = {
+  config: SpeechPreviewConfig;
   now: () => number;
   transcribe: (
-    request: ParakeetPreviewRequest,
+    request: SpeechPreviewRequest,
   ) => Promise<{ text: string; decodeMs: number }>;
-  onPreview: (preview: ParakeetPreview) => void;
-  onEvent?: (event: ParakeetPreviewEvent) => void;
+  onPreview: (preview: SpeechPreview) => void;
+  onEvent?: (event: SpeechPreviewEvent) => void;
   /** Checked before each dispatch; `false` skips decoding without ending the window. */
   shouldPreview?: (turnId: string) => boolean;
 };
 
-export type ParakeetPreviewController = {
+export type SpeechPreviewController = {
   /** Feed every MicVAD frame, inside or outside a speech window. */
   pushFrame: (frame: Float32Array) => void;
   startWindow: (args: { turnId: string; windowId: string }) => void;
@@ -141,14 +143,14 @@ function concatenateTail(
   return output;
 }
 
-export function createParakeetPreviewController({
+export function createSpeechPreviewController({
   config,
   now,
   transcribe,
   onPreview,
   onEvent,
   shouldPreview,
-}: ParakeetPreviewControllerDeps): ParakeetPreviewController {
+}: SpeechPreviewControllerDeps): SpeechPreviewController {
   const samplesPerMs = config.sampleRateHz / 1000;
   const padSamples = Math.round(config.preSpeechPadMs * samplesPerMs);
   const maxPreviewSamples = Math.round(config.maxPreviewAudioMs * samplesPerMs);

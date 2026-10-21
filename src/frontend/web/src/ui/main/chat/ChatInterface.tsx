@@ -65,6 +65,7 @@ import {
 import { OfflineSpeechDownloads } from "@/ui/settings/OfflineSpeechDownloads";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
 import { isWebSpeechSupported } from "@/lib/speech/stt-provider";
+import { joinSpeechText } from "@/lib/speech/speech-text";
 import { useSettings } from "@/ui/settings/SettingsProvider";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
@@ -158,12 +159,7 @@ type ChatInterfaceViewProps = {
 const USER_TYPING_INACTIVITY_TIMEOUT_MS = 3000;
 
 function combineDictationText(committed: string, interim: string): string {
-  const committedText = committed.trim();
-  const interimText = interim.trim();
-  if (committedText && interimText) {
-    return `${committedText} ${interimText}`;
-  }
-  return committedText || interimText;
+  return joinSpeechText(committed.trim(), interim.trim());
 }
 
 export function ChatInterfaceView({
@@ -679,8 +675,7 @@ export const ChatInterface = ({
         setInput(base);
         return;
       }
-      const spacer = base && !base.endsWith(" ") ? " " : "";
-      setInput(`${base}${spacer}${dictated}`);
+      setInput(joinSpeechText(base, dictated));
     },
     [setInput],
   );
@@ -700,11 +695,10 @@ export const ChatInterface = ({
     onSegment: (segment) => {
       const text = segment.text.trim();
       if (!text) return;
-      const next =
-        dictationCommittedRef.current.length > 0
-          ? `${dictationCommittedRef.current} ${text}`
-          : text;
-      applyDictationText(next, dictationInterimRef.current);
+      applyDictationText(
+        joinSpeechText(dictationCommittedRef.current, text),
+        dictationInterimRef.current,
+      );
     },
     onTranscriptPreview: (preview) => {
       const nextInterim = preview.interimText.trim();

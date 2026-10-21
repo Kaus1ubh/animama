@@ -1,7 +1,8 @@
 import { client as testApiClient } from "@animama/runtime-contracts/default-client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { ClientParakeetWorkerRequest } from "./worker-protocol";
+import { LEASE_RELEASE_WAIT_MS } from "@/lib/speech/offline-stt/worker-client";
+import type { OfflineSttWorkerRequest } from "@/lib/speech/offline-stt/worker-protocol";
 
 const fixture = vi.hoisted(() => ({
   events: [] as string[],
@@ -21,8 +22,8 @@ const fixture = vi.hoisted(() => ({
 vi.mock("@/query/runtime-capabilities", () => ({
   fetchRuntimeCapabilities: async () => fixture.capabilities,
 }));
-vi.mock("@/lib/speech/client-parakeet/lease", async (original) => ({
-  ...(await original<typeof import("@/lib/speech/client-parakeet/lease")>()),
+vi.mock("@/lib/speech/offline-stt/lease", async (original) => ({
+  ...(await original<typeof import("@/lib/speech/offline-stt/lease")>()),
   holdModelAssetLease: async (assetId: string) => {
     fixture.events.push(`lease:${assetId}`);
     return {
@@ -37,11 +38,9 @@ vi.mock("@/lib/speech/client-parakeet/lease", async (original) => ({
     };
   },
 }));
-vi.mock("@/lib/speech/client-parakeet/webgpu", async (importOriginal) => ({
-  ...(await importOriginal<
-    typeof import("@/lib/speech/client-parakeet/webgpu")
-  >()),
-  cacheParakeetWebgpuProbe: () => async () => fixture.webgpu,
+vi.mock("@/lib/speech/offline-stt/webgpu", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/speech/offline-stt/webgpu")>()),
+  cacheWebgpuProbe: () => async () => fixture.webgpu,
 }));
 
 /** Answers worker requests like the real worker, recording their order. */
@@ -55,15 +54,15 @@ class FakeWorker {
   addEventListener(type: string, listener: (event: unknown) => void) {
     this.listeners.set(type, [...(this.listeners.get(type) ?? []), listener]);
   }
-  postMessage(request: ClientParakeetWorkerRequest) {
+  postMessage(request: OfflineSttWorkerRequest) {
     fixture.events.push(
-      request.type === "client_parakeet/load"
+      request.type === "offline_stt/load"
         ? `load:${request.backend}`
         : request.type,
     );
     if (this.terminated || fixture.holdReplies) return;
     const failed =
-      request.type === "client_parakeet/load" &&
+      request.type === "offline_stt/load" &&
       (fixture.failLoads || request.backend === "webgpu");
     const data = failed
       ? {
@@ -77,7 +76,7 @@ class FakeWorker {
           type: request.type,
           ok: true,
           result:
-            request.type === "client_parakeet/load"
+            request.type === "offline_stt/load"
               ? { backend: request.backend, modelUrls: request.modelUrls }
               : { disposed: true },
         };
@@ -112,7 +111,7 @@ afterEach(() => {
 describe("client Parakeet set leases", () => {
   it("leases the installed CPU set before loading it", async () => {
     const parakeet = await client();
-    await parakeet.loadClientParakeetWorker(testApiClient);
+    await parakeet.parakeetSttClient.load(testApiClient);
     expect(fixture.events).toEqual(["lease:parakeet-stt", "load:wasm"]);
   });
 
@@ -121,7 +120,7 @@ describe("client Parakeet set leases", () => {
     const parakeet = await client();
     // The fake worker fails WebGPU loads, so the client falls back to WASM
     // and releases the GPU lease it no longer needs.
-    await parakeet.loadClientParakeetWorker(testApiClient, {
+    await parakeet.parakeetSttClient.load(testApiClient, {
       preferWebgpu: true,
     });
     expect(fixture.events.slice(0, 3)).toEqual([
@@ -145,7 +144,7 @@ describe("client Parakeet set leases", () => {
       offline_speech_gpu_asset_version: null,
     };
     const parakeet = await client();
-    await parakeet.loadClientParakeetWorker(testApiClient);
+    await parakeet.parakeetSttClient.load(testApiClient);
     expect(fixture.events).toEqual(["load:wasm"]);
     fixture.capabilities = {
       ...fixture.capabilities,
@@ -158,7 +157,7 @@ describe("client Parakeet set leases", () => {
     fixture.failLoads = true;
     const parakeet = await client();
     await expect(
-      parakeet.loadClientParakeetWorker(testApiClient),
+      parakeet.parakeetSttClient.load(testApiClient),
     ).rejects.toThrow("load failed");
     await vi.waitFor(() =>
       expect(fixture.events).toContain("release:parakeet-stt"),
@@ -169,32 +168,28 @@ describe("client Parakeet set leases", () => {
 describe("disposing an idle worker before removal", () => {
   it("refuses while a dictation session uses the worker", async () => {
     const parakeet = await client();
-    await parakeet.loadClientParakeetWorker(testApiClient);
-    await expect(parakeet.disposeIdleClientParakeetWorker()).resolves.toBe(
-      false,
-    );
+    await parakeet.parakeetSttClient.load(testApiClient);
+    await expect(parakeet.parakeetSttClient.disposeIdle()).resolves.toBe(false);
     expect(fixture.events).not.toContain("release:parakeet-stt");
   });
 
   it("disposes an idle worker and waits for its lease releases", async () => {
     const parakeet = await client();
-    await parakeet.loadClientParakeetWorker(testApiClient);
-    parakeet.armClientParakeetIdleDispose("test");
+    await parakeet.parakeetSttClient.load(testApiClient);
+    parakeet.parakeetSttClient.armIdleDispose("test");
     fixture.releaseDelayMs = 50;
-    await expect(parakeet.disposeIdleClientParakeetWorker()).resolves.toBe(
-      true,
-    );
+    await expect(parakeet.parakeetSttClient.disposeIdle()).resolves.toBe(true);
     expect(fixture.events.at(-1)).toBe("release:parakeet-stt");
   });
 
   it("stops waiting for a slow release after its bound", async () => {
     vi.useFakeTimers();
     const parakeet = await client();
-    await parakeet.loadClientParakeetWorker(testApiClient);
-    parakeet.armClientParakeetIdleDispose("test");
+    await parakeet.parakeetSttClient.load(testApiClient);
+    parakeet.parakeetSttClient.armIdleDispose("test");
     fixture.releaseDelayMs = 60_000;
-    const disposed = parakeet.disposeIdleClientParakeetWorker();
-    await vi.advanceTimersByTimeAsync(parakeet.LEASE_RELEASE_WAIT_MS);
+    const disposed = parakeet.parakeetSttClient.disposeIdle();
+    await vi.advanceTimersByTimeAsync(LEASE_RELEASE_WAIT_MS);
     await expect(disposed).resolves.toBe(true);
     expect(fixture.events).not.toContain("release:parakeet-stt");
   });
@@ -203,37 +198,37 @@ describe("disposing an idle worker before removal", () => {
 describe("ending a session", () => {
   it("terminates the worker at once so the next session loads a new one", async () => {
     const parakeet = await client();
-    await parakeet.loadClientParakeetWorker(testApiClient);
-    parakeet.terminateClientParakeetWorker();
+    await parakeet.parakeetSttClient.load(testApiClient);
+    parakeet.parakeetSttClient.terminate();
     expect(fixture.workers[0].terminated).toBe(true);
     await vi.waitFor(() =>
       expect(fixture.events).toContain("release:parakeet-stt"),
     );
-    await parakeet.loadClientParakeetWorker(testApiClient);
+    await parakeet.parakeetSttClient.load(testApiClient);
     expect(fixture.workers).toHaveLength(2);
     expect(fixture.workers[1].terminated).toBe(false);
   });
 
   it("settles work a terminated worker can no longer answer", async () => {
     const parakeet = await client();
-    await parakeet.loadClientParakeetWorker(testApiClient);
+    await parakeet.parakeetSttClient.load(testApiClient);
     fixture.holdReplies = true;
-    const transcribing = parakeet.transcribeClientParakeetWindow({
+    const transcribing = parakeet.parakeetSttClient.transcribe({
       jobId: "job",
       runId: "run",
       turnId: "turn",
       windowId: "window",
       audio: new Float32Array(16),
     });
-    const disposing = parakeet.disposeClientParakeetWorker();
+    const disposing = parakeet.parakeetSttClient.dispose();
     // The session's resource scope stops the browser worker before any reply.
     fixture.workers[0].terminate();
-    parakeet.terminateClientParakeetWorker();
+    parakeet.parakeetSttClient.terminate();
     await expect(transcribing).rejects.toThrow("terminated");
     await expect(disposing).resolves.toEqual({ disposed: true });
     fixture.holdReplies = false;
     await expect(
-      parakeet.loadClientParakeetWorker(testApiClient),
+      parakeet.parakeetSttClient.load(testApiClient),
     ).resolves.toMatchObject({ backend: "wasm" });
     expect(fixture.workers).toHaveLength(2);
   });
@@ -241,14 +236,14 @@ describe("ending a session", () => {
   it("cancels the idle timer so it cannot stall the next session's load", async () => {
     vi.useFakeTimers();
     const parakeet = await client();
-    await parakeet.loadClientParakeetWorker(testApiClient);
-    parakeet.armClientParakeetIdleDispose("test");
+    await parakeet.parakeetSttClient.load(testApiClient);
+    parakeet.parakeetSttClient.armIdleDispose("test");
     fixture.workers[0].terminate();
-    parakeet.terminateClientParakeetWorker();
+    parakeet.parakeetSttClient.terminate();
     await vi.advanceTimersByTimeAsync(300_000);
     await expect(
-      parakeet.loadClientParakeetWorker(testApiClient),
+      parakeet.parakeetSttClient.load(testApiClient),
     ).resolves.toMatchObject({ backend: "wasm" });
-    expect(fixture.events).not.toContain("client_parakeet/dispose");
+    expect(fixture.events).not.toContain("offline_stt/dispose");
   });
 });

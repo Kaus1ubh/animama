@@ -5,8 +5,13 @@ import {
   CLIENT_PARAKEET_WEBGPU_ENCODER_URL,
 } from "@/lib/speech/client-parakeet/assets";
 
+import {
+  configureOrt,
+  webgpuInitialized,
+} from "@/workers/offline-stt-worker-runtime";
+
 import type { BenchConfig } from "../bench-protocol";
-import { BENCH_SAMPLE_RATE, type WindowEngine } from "../bench-runner";
+import { BENCH_SAMPLE_RATE, type BenchEngine } from "../bench-runner";
 
 const absolute = (path: string) => new URL(path, self.location.origin).href;
 
@@ -17,12 +22,14 @@ const absolute = (path: string) => new URL(path, self.location.origin).href;
  */
 export async function loadParakeetEngine(
   config: BenchConfig,
-): Promise<WindowEngine> {
+): Promise<BenchEngine> {
   if (config.modelBaseUrl || config.gpuModelBaseUrl) {
     throw new Error(
       "Parakeet loads from the app's own model routes; omit models=.",
     );
   }
+  // The product worker's ORT setup: one thread, SIMD, JSEP for WebGPU.
+  configureOrt(config.backend, "Parakeet");
   const model = await fromUrls({
     backend: config.backend === "webgpu" ? "webgpu-hybrid" : "wasm",
     cpuThreads: 1,
@@ -39,8 +46,12 @@ export async function loadParakeetEngine(
     tokenizerUrl: absolute(CLIENT_PARAKEET_MODEL_ASSET_PATHS.tokenizer),
     verbose: false,
   });
+  // ORT silently runs on WASM when WebGPU fails; refuse to report that as WebGPU.
+  if (config.backend === "webgpu" && !webgpuInitialized())
+    throw new Error(
+      "WebGPU did not initialize; ONNX Runtime fell back to WASM.",
+    );
   return {
-    kind: "window",
     transcribe: async (audio) => {
       const result = await model.transcribe(audio, BENCH_SAMPLE_RATE, {
         returnConfidences: false,

@@ -62,7 +62,9 @@ Boundaries:
       2026-10-21 (two rounds); committed `73913350`. G1 recorded 2026-10-21.
 - [x] Phase 3 — Multilingual model asset set (#631): review passed 2026-10-21
       (initial review and two repair rounds).
-- [ ] Phase 4 — Engine integration and language routing (#632).
+- [x] Phase 4 — Engine integration and language routing (#632): review
+      passed 2026-10-21 (re-tiered high risk; initial review and two repair
+      rounds). App-path transcription moves to the Phase 5 smoke check.
 - [ ] Phase 5 — Settings, Setup, language notice and turn-taking (#633).
 - [ ] Phase 6 — Acceptance runs, packaging checks and documentation (#634).
 - [ ] Final integration review.
@@ -194,6 +196,34 @@ Boundaries:
   `offline_multilingual_speech_enabled` and its two versions, defaulting to
   off so existing adapters stay valid. Hosted builds do not list the SenseVoice
   sets until Cloud supports them.
+- 2026-10-21, agent (Phase 4): both engines share one page-side lifecycle in
+  `lib/speech/offline-stt/` (`createOfflineSttClient`: worker, `?v=` pinning,
+  leases, idle disposal, WebGPU probe and fallback; the worker protocol
+  `offline_stt/*`; the worker runtime; leases, WebGPU selection and the preview
+  controller, moved there from `client-parakeet`) instead of a second copy of
+  Parakeet's client. `client-parakeet` keeps its exports as a configuration of
+  it; `client-sensevoice` adds its assets, model module (promoted from the
+  Phase 2 adapter) and client. Each engine keeps its own worker.
+- 2026-10-21, agent (Phase 4): the stored `stt_provider: "parakeet"` keeps
+  meaning offline recognition, and the dictation hook's provider stays
+  `"parakeet"` for either engine, so turn-taking, Smart Turn and stored
+  preferences are unchanged; `VadSttProvider` therefore does not change. The
+  engine and language come from `routeOfflineSpeech` when a session starts (a
+  resumed Voice Mode session keeps them), segments name their engine
+  (`SttSegmentSource` gains `"sensevoice"`), and the GPU setting applies to
+  both engines.
+- 2026-10-21, agent (Phase 4): `zh-Hant` prompts SenseVoice with automatic
+  language detection so Cantonese and Mandarin speakers both get text; the
+  worker converts Chinese under `zh-Hant` to the Taiwan standard, loading the
+  OpenCC tables on first use, so `opencc-js` is again a runtime dependency.
+  Transcript joining adds no space beside Chinese or Japanese text. The three
+  dictation errors that named Parakeet are engine-neutral, and a missing
+  multilingual set has its own message.
+- 2026-10-21, agent (Phase 4): the benchmark drops the Nemotron adapter and
+  streaming support; its SenseVoice adapter drives the production worker
+  (revised by Code Review #1) from the app's model routes, plays `yue` under
+  `zh-Hant`, and converts only Simplified references, since the engine already
+  writes Traditional script.
 
 ## Owner gates
 
@@ -233,8 +263,10 @@ get English plus `ja`, `ko`, `zh-Hans` and `zh-Hant` translations using
 Review tiers ([SDLC](../../../SDLC.md#review-tiers), added 2026-10-20): Phase 1
 standard; Phase 2 high risk (adds the Chinese script converter dependency);
 Phase 3 high risk (shared contracts, generated client, packaging and release
-inputs); Phases 4 and 5 standard; Phase 6 light, covered by the final
-integration review.
+inputs); Phase 4 high risk (re-tiered by its Code Review #1: it ships
+`opencc-js` in the app and decides whether dictation audio may leave the
+device); Phase 5 standard; Phase 6 light, covered by the final integration
+review.
 
 ### Phase 1 — Benchmark harness, test set and Parakeet baseline (R1)
 
@@ -1028,16 +1060,190 @@ against the G1 targets.
 
 Completion: dictation and Voice Mode transcribe the test clips in every
 language through the app path; targets met or the gap reported to the owner.
+(Code Review #1 moved app-path transcription to Phase 5 item 6 and Phase 6;
+Phase 4 measures the production worker.)
 
-Records: issue #632; commits —; evidence —.
+#### Phase 4 results (2026-10-21)
+
+Changes:
+
+- `lib/speech/offline-stt/`: `worker-client.ts` (`createOfflineSttClient`),
+  `worker-protocol.ts` (`offline_stt/*`), `routing.ts` (`routeOfflineSpeech`,
+  `offlineSpeechAvailable`), `clients.ts` (both clients and session
+  teardown), and `lease.ts`, `webgpu.ts`, `preview-controller.ts` moved from
+  `client-parakeet` with engine-neutral names; `workers/offline-stt-worker-runtime.ts`
+  holds the ORT setup, WebGPU check and serial request queue both workers use.
+- `client-parakeet/client.ts` configures the shared client and keeps its
+  exports; its worker uses the shared runtime.
+- `client-sensevoice/`: `assets.ts` (model routes from
+  `__CLIENT_SENSEVOICE_MODELS__`), `model.ts` (fbank, language prompt, greedy
+  CTC, tag removal, `zh-Hant` conversion), `kaldi-fbank.ts`, `script.ts`
+  (OpenCC on first use), `client.ts`, and `workers/client-sensevoice-worker.ts`.
+- `use-dictation.ts`: the offline path (renamed from the Parakeet path) runs
+  the routed engine, sends the language with each window and names the engine
+  in segments; `startDictation` checks the routed engine's capability.
+  `lib/speech/speech-text.ts` (`joinSpeechText`) joins transcripts in the
+  voice buffers and the composer. Five catalogs gain the engine-neutral errors.
+- Benchmark: Nemotron, RNNT and streaming removed; SenseVoice runs in the
+  production worker, driven over `offline_stt/*`, from the app's routes;
+  `speech_eval.py` and `models.json` keep only SenseVoice. `knip.json` lists the
+  new worker.
+
+Harness through the production SenseVoice worker (`client-sensevoice-worker.ts`
+and its `offline_stt/*` messages, driven from the benchmark worker) and the
+development model routes (reference Mac, Electron 39.8.9; results under
+`<evaluation root>/results/phase4/`, earlier runs through the model module
+alone under `results/phase4/model-module-2026-10-21/`):
+
+| Set | CER/WER WASM / WebGPU | Final p50 / p90 ms, WASM | Final p50 / p90 ms, WebGPU | First interim p50, WebGPU paced |
+| --- | ---: | ---: | ---: | ---: |
+| en | 7.9% / 7.8% | 1,284 / 2,134 | 88 / 124 | 671 |
+| ja | 7.6% / 7.2% | 1,783 / 2,230 | 111 / 131 | 675 |
+| ko | 10.5% / 10.6% | 1,870 / 2,412 | 107 / 131 | 674 |
+| zh-Hans | 8.2% / 8.1% | 1,494 / 2,299 | 92 / 132 | 676 |
+| zh-Hant | 8.2% / 8.2% | 1,408 / 2,139 | 96 / 129 | 673 |
+| yue (under `zh-Hant`) | 7.6% / 7.7% | 1,434 / 2,051 | 99 / 129 | 672 |
+
+Against the G1 targets: accuracy (ja 8%, ko 11%, zh 8.5%, Cantonese 8%),
+WebGPU final p90 (0.25 s) and WebGPU first interim (0.8 s) are met, with error
+rates within 0.1 point of Phase 2's. The automatic language prompt under
+`zh-Hant` costs nothing on Mandarin (8.2%) and gives Cantonese 7.6% (7.7% with
+the Cantonese prompt in Phase 2). WASM final p90 is 2.05–2.41 s against the
+2.2 s target (over it for ja, ko and zh-Hans), measured while other sessions'
+test suites ran (load average about 3, earlier 4–5); RTF is 0.15–0.17 against
+0.15 in Phase 2 for the same computation, and two earlier runs through the
+model module alone gave 2.13–2.45 s and 2.20–2.36 s under similar load. Phase
+6's acceptance run repeats it on a quiet machine; if it still misses, the gap
+goes to the owner. Memory: WASM median 998 MB, WebGPU about 3.7–4.0 GB, as in
+Phase 2.
+
+Front-end and decoder checks deferred from the Phase 2 review:
+`kaldi-fbank.test.ts` now compares frames 0, 5 and 22 of a mixed signal with
+kaldi-native-fbank 1.22.4 under FunASR's options (equal to two decimals), and
+sherpa-onnx 1.13.8's own SenseVoice decoder (`from_sense_voice`, INT8 graph,
+ITN on) scores the same sets alike: WER 8.1% en, CER 7.6% ja, 10.6% ko, 8.1%
+zh-Hans, against 7.9%, 7.6%, 10.5% and 8.2% for the app; 30 of the first 40
+clips are identical, the rest differ by a space or one word.
+
+Check record (working tree; later edits touch only this plan):
+
+| Check | Directory | Tree | Result |
+| --- | --- | --- | --- |
+| `pnpm verify` (via `heavy-slot.py`; `pnpm check` with `i18n:check`, lint, vitest, build) | `src/frontend` | `ac28421d` | pass; vitest 5346 passed, 1 skipped |
+| `pnpm web:test:browser` (via `heavy-slot.py`) | `src/frontend` | `ac28421d` | 122 passed |
+| `pnpm prettier:check` | `src/frontend` | `ac28421d` | pass |
+| `uv run pytest -q -p no:xdist tests/test_speech_eval.py`; ruff check and format check on `scripts/speech-eval` and the test | root | `ac28421d` | 25 passed; pass |
+| Harness runs above (`<evaluation root>/logs/phase4/`) | `src/frontend` | `ac28421d` code | all exit 0 |
+
+Records: issue #632; commits —; evidence: Phase 4 results.
 
 #### Code Review #1 Findings
 
-Not run.
+Reviewed working tree `b683fe49` (baseline `abe7dba4`) at the standard tier;
+the reviewer re-tiered the phase. It reused the check record, reran knip (no
+Phase 4 regressions) and the scoring, and resolved the licence closure.
+
+- **P4-CR1-01 (blocking).** Phase 4 ships `opencc-js` in the app (a `cn2t`
+  chunk beside the SenseVoice worker, and an entry in the desktop and hosted
+  JavaScript notices) and changes which recognizer receives dictation audio,
+  so it is high risk, not standard.
+- **P4-CR1-02 (blocking).** With a saved offline choice, a missing SenseVoice
+  set and Web Speech available, provider resolution silently started the
+  browser's server-based recognizer, against R3, D1 and item 5.
+- **P4-CR1-03 (blocking).** The generated notices kept only opencc-js's MIT
+  `LICENSE`, not the Apache-2.0 terms of the `opencc-data` tables it bundles.
+- **P4-CR1-04 (blocking).** The harness ran the model module in the benchmark
+  worker, not the production worker, and the completion item (dictation and
+  Voice Mode through the app path) was neither met nor deferred.
+- Non-blocking: the Phase 2 deferrals (fbank fixtures, sherpa-onnx parity)
+  were unaddressed at `b683fe49`; the record claimed `pnpm check` runs knip;
+  the WASM narrative omitted the rerun and misquoted two figures; unused
+  Parakeet alias exports; `opencc-js/cn2t` not pre-bundled for development;
+  Phase 5 must give SenseVoice the WebGPU fallback notice and idle release;
+  `zh-Hant`'s automatic language detection is untested on short replies and
+  noise; Phase 6 must update `voice.md`'s Parakeet-only names; nits
+  (dependency order, the bench's leftover engine discriminant, the Katakana
+  prolonged sound mark ー joining with a space).
 
 #### Code Review #1 Revisions
 
-Not run.
+- **P4-CR1-01 accepted.** Review tiers now list Phase 4 as high risk; the
+  full pre-push suite, an independent checks rerun and a recheck of every
+  repair follow.
+- **P4-CR1-02 accepted.** `offlineLanguageMissing` (routing) stops a saved
+  offline choice with "not installed for this language" when the routed
+  SenseVoice set is missing, before provider resolution; English is
+  unchanged. Unit tests cover it.
+- **P4-CR1-03 accepted.** `desktop/runtime/license-sources.json` gains the
+  `opencc-dictionary-data` group with `opencc-data-apache-2.0.txt`, opencc-js's
+  `THIRD_PARTY_LICENSES.md` reproduced unchanged (source review record added);
+  `runtime-packaging.test.mjs` checks it.
+- **P4-CR1-04 accepted.** The benchmark's SenseVoice adapter now drives the
+  production worker through `offline_stt/*`, and the measurements above were
+  repeated through it. App-path transcription through the dictation hook moves
+  explicitly to the Phase 5 smoke check (item 6) and Phase 6's acceptance run.
+- Non-blocking, accepted: the deferrals are addressed (results above); the
+  check record and WASM narrative corrected; unused alias exports removed
+  (the Parakeet client test calls `parakeetSttClient`); `opencc-js/cn2t`
+  pre-bundled; Phase 5 items 2 and 6 and Phase 6 item 1 extended; dependency
+  order, the bench engine type and `Script_Extensions` joining fixed (new test
+  case). The bench's own ORT setup and WebGPU check moved into its Parakeet
+  adapter, since SenseVoice now runs in the production worker.
+- The first full pre-push run after these revisions stopped at
+  `scripts/audit-typed-content.sh`, whose retired-vocabulary pattern
+  `AssetVersion` matched the new `gpuAssetVersion`; the shared client's
+  availability fields are now `version` and `gpuVersion`.
+
+Repair check record (working tree; later edits touch only this plan; logs
+under `<evaluation root>/logs/prepush-p4/`):
+
+| Check | Directory | Tree | Result |
+| --- | --- | --- | --- |
+| `make check-test` (via `heavy-slot.py`, with the typed-content audit) | root | `3c595c6b` | pass; 4769 passed, 29 skipped |
+| `pnpm verify` (via `heavy-slot.py`) | `src/frontend` | `3c595c6b` | pass; vitest 5349 passed, 1 skipped |
+| `pnpm web:test:browser` (via `heavy-slot.py`) | `src/frontend` | `3c595c6b` | 122 passed |
+| `pnpm prettier:check` | `src/frontend` | `3c595c6b` | pass |
+| `vitest run tests/runtime-packaging.test.mjs` | `src/frontend/desktop` | `3c595c6b` code | 72 passed |
+| Harness through the production worker (`<evaluation root>/logs/phase4/`) | `src/frontend` | `3c595c6b` code, before the rename | all exit 0 |
+
+#### Code Review #2 Findings
+
+Repair round 1 recheck of `a0fa4fce` (high-risk tier): P4-CR1-01 to 04 and the
+accepted non-blocking items resolved; the fbank reference values reproduced
+independently; no blocking regression. The checks subagent reran `tsc -b`,
+vitest on the speech, benchmark, hook, settings, chat and runtime tests (573),
+ESLint, `pnpm i18n:check`, knip (no Phase 4 findings), `pnpm desktop:test`
+(539), the licence closure and notice (`cmp` identical), the built bundle
+(SenseVoice worker and a lazily imported `cn2t` chunk; no benchmark code), the
+typed-content audit, `test_speech_eval.py`, `test_model_assets.py`,
+`test_prepare_source.py` and the scoring: all pass.
+
+- **P4-CR1-R1-01 (non-blocking).** Plan wording: the Decision Log and Phase 4
+  changes still said the benchmark runs the model module, "three earlier
+  runs" were two, and Phase 4's completion item did not point to its
+  deferral; `model.ts`'s header named the benchmark.
+- **P4-CR1-R1-02 (non-blocking).** The benchmark's nested-worker requests had
+  no crash handling, and paced previews were sent as finals.
+
+#### Code Review #2 Revisions
+
+- **P4-CR1-R1-01 accepted.** Wording corrected in the Decision Log, changes,
+  results and completion item; `model.ts`'s header names only the worker.
+- **P4-CR1-R1-02 accepted.** A worker `error` rejects the benchmark's pending
+  requests; `BenchEngine.transcribe` takes the decode kind, so previews go to
+  the worker as previews. `tsc -b`, `vitest run src/dev/speech-bench` (6),
+  ESLint and a two-clip paced WebGPU run through the production worker (first
+  interim 671–678 ms, final 84–131 ms) pass.
+
+#### Code Review #3 Findings
+
+Repair round 2 recheck of `b535d205`: P4-CR1-R1-01 and R1-02 resolved; no
+regression. Optional: two edited plan lines ran past the 80-column wrap.
+
+#### Code Review #3 Revisions
+
+The two lines were rewrapped (plan only). No findings remain; the phase
+passes its review.
 
 ### Phase 5 — Settings, Setup, language notice and turn-taking (R4, R5, R6)
 
@@ -1053,7 +1259,10 @@ Changes:
 2. Offline speech downloads list the new set (and add-on) with attribution
    (`?raw` import plus its folder in `modelNoticeRoots`); generalize
    `useOfflineSpeechDownloads`, `knownAssetIds` and `installedSpeechSets`;
-   `ChatInterface` speech availability follows the routed engine.
+   `ChatInterface` speech availability follows the routed engine. SenseVoice
+   also needs the WebGPU fallback notice and the idle release before removal
+   (`senseVoiceSttClient.getLastBackendState()` and `disposeIdle()`), which
+   Parakeet already has.
 3. Settings labels per Q1 and Setup offers per Q2, as decided at G1; Setup's
    English-only Parakeet description is updated.
 4. Translations in all catalogs; `terms.json` gains the model name.
@@ -1062,6 +1271,10 @@ Changes:
    `zh-Hant`, and a new test file.
 6. Smoke check (D11): the harness plays the ja, ko and zh clips through MicVAD
    and Smart Turn and records speech detection and end-of-turn decisions below.
+   It also plays them through the dictation hook's offline path, the first
+   app-path transcription of the test clips (Phase 4 measured the production
+   worker), with short replies and noise windows under `zh-Hant`'s automatic
+   language detection.
 
 Checks: `SpeechLanguageNotice`, `VoiceDownloads`, `stt-settings`,
 `ChatSpeechAvailability`, Smart Turn override and model-download coordination
@@ -1099,7 +1312,10 @@ Changes and checks:
    speech model source and switches in
    `docs/backend/operations/{development,desktop-runtime,local-http-components}.md`,
    `docs/frontend/architecture/auth-server.md` and the root `AGENTS.md` Local
-   Stacks section (Phase 3 Code Review #1).
+   Stacks section (Phase 3 Code Review #1), and `voice.md`'s references to the
+   former `client_parakeet/*` messages, `loadClientParakeetWorker`,
+   `createParakeetPreviewController` and `client-parakeet/preview-controller.ts`
+   (Phase 4 Code Review #1).
 2. Acceptance run of the full test set through the production path on the
    reference Mac, CPU and WebGPU: accuracy, latency, script check, English,
    silence and noise windows, absence of tags.

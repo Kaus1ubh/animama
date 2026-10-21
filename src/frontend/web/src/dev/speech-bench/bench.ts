@@ -4,7 +4,7 @@
  * `pnpm speech:bench` (`src/frontend/scripts/speech-bench.mjs`). Query
  * parameters:
  *
- * - `engine`: `parakeet` (default), `sensevoice` or `nemotron`
+ * - `engine`: `parakeet` (default) or `sensevoice`
  * - `backend`: `wasm` (default) or `webgpu`
  * - `mode`: `throughput` (default) or `paced` (real-time audio delivery)
  * - `interim`: `1` or `0`; defaults to `1` when paced
@@ -16,8 +16,8 @@
  *
  * Clips come from `scripts/speech-eval/speech_eval.py fetch`; they are decoded
  * and resampled to 16 kHz mono here, then transcribed one at a time in a
- * worker. Sets scored in Traditional script get the engine's output converted
- * with OpenCC, as the app would for `zh-Hant`. Results render as JSON and are
+ * worker. The engine already writes `zh-Hant` in Traditional script, as the
+ * app does; a Simplified reference is converted to match. Results render as JSON and are
  * exposed as `window.__speechBenchResult`.
  */
 import type {
@@ -32,7 +32,7 @@ import type {
   BenchWorkerResponse,
 } from "./bench-protocol";
 import { BENCH_SAMPLE_RATE } from "./bench-runner";
-import { inSetScript } from "./script-conversion";
+import { withSetReference } from "./set-reference";
 
 declare global {
   interface Window {
@@ -65,11 +65,7 @@ function buildConfig(params: URLSearchParams): BenchConfig {
   const models = params.get("models");
   const gpuModels = params.get("gpuModels");
   return {
-    engine: oneOf<BenchEngineId>(params, "engine", [
-      "parakeet",
-      "sensevoice",
-      "nemotron",
-    ]),
+    engine: oneOf<BenchEngineId>(params, "engine", ["parakeet", "sensevoice"]),
     backend: oneOf<BenchBackend>(params, "backend", ["wasm", "webgpu"]),
     mode,
     interim: interim === null ? mode === "paced" : interim === "1",
@@ -205,7 +201,7 @@ async function main(): Promise<void> {
         response.type === "error" ? response.message : "Run failed",
       );
     }
-    results.push(inSetScript(clip, response.result));
+    results.push(await withSetReference(clip, response.result));
   }
   worker.terminate();
   finish({ ...summary, ...load, clips: results });

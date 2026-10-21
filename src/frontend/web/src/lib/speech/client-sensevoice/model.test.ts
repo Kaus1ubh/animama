@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { parseTokenTable } from "./model-files";
-import { decodeSenseVoiceLogits } from "./sensevoice";
+import { decodeSenseVoiceLogits, parseTokenTable } from "./model";
 
 /** One-hot logits for a frame sequence of token ids. */
 function logits(ids: number[], vocab: number): Float32Array {

@@ -14955,6 +14955,21 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "src/frontend/desktop/runtime/notices/opencc-data-apache-2.0.txt",
+      "candidate_license": "Preserved upstream license/notice text; local attribution additions follow repository license",
+      "basis": "License or notice document; do not relabel its underlying third-party terms",
+      "copyright": "Respective upstream holders identified in the preserved document",
+      "source": "opencc-js 1.4.2 THIRD_PARTY_LICENSES.md",
+      "revision": "Reviewed source document bytes",
+      "evidence": [
+        "src/frontend/desktop/runtime/notices/opencc-data-apache-2.0.txt"
+      ],
+      "notices": [
+        "src/frontend/desktop/runtime/notices/opencc-data-apache-2.0.txt"
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "src/frontend/desktop/runtime/notices/parakeet-attribution.txt",
       "candidate_license": "Preserved upstream license/notice text; local attribution additions follow repository license",
       "basis": "License or notice document; do not relabel its underlying third-party terms",

@@ -1040,7 +1040,7 @@ export default interface Resources {
     },
     "dictation": {
       "errors": {
-        "audioWorkletParakeet": "AudioWorklet support is required for local Parakeet speech recognition.",
+        "audioWorkletOffline": "AudioWorklet support is required for offline speech recognition.",
         "audioWorkletVad": "AudioWorklet support is required for acoustic VAD.",
         "browser": {
           "aborted": "Speech recognition was stopped.",
@@ -1054,11 +1054,12 @@ export default interface Resources {
         },
         "browserStartFailed": "Failed to start browser dictation",
         "failed": "Dictation failed",
+        "languageSpeechMissing": "Install offline speech recognition for this language in Settings to use dictation and Voice Mode.",
         "localWebSpeechNotEnabled": "Local browser speech recognition could not be enabled",
         "localWebSpeechUnsupported": "Local-only browser speech recognition is not supported",
+        "offlineSpeechFailed": "Offline speech recognition failed",
         "offlineSpeechMissing": "Install offline speech recognition in Settings to use dictation and Voice Mode.",
-        "parakeetFailed": "Local Parakeet speech recognition failed",
-        "transcriptionFailed": "Local Parakeet transcription failed",
+        "transcriptionFailed": "Offline transcription failed",
         "unmuteFailed": "Failed to unmute voice mode",
         "webSpeechUnsupported": "Web Speech API is not supported in this browser"
       }

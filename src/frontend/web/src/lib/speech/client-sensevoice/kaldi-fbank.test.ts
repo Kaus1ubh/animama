@@ -28,6 +28,32 @@ describe("kaldiFbank", () => {
     expect(peak).toBeLessThan(30);
     expect(frame[peak] - frame[79]).toBeGreaterThan(5);
   });
+
+  it("matches Kaldi's own filterbank on a mixed signal", () => {
+    // Two tones plus a deterministic ramp of noise, 0.25 s.
+    const signal = Float32Array.from(
+      { length: 4000 },
+      (_, n) =>
+        0.3 * Math.sin((2 * Math.PI * 440 * n) / 16000) +
+        0.2 * Math.sin((2 * Math.PI * 1700 * n) / 16000) +
+        0.05 * (((n * 7919) % 1000) / 1000 - 0.5),
+    );
+    // kaldi-native-fbank 1.22.4 with FunASR's options (80 bins, 20 Hz to
+    // Nyquist, Hamming, pre-emphasis 0.97, DC removal, snip edges, no
+    // dither), samples scaled by 32768; bins 0, 10, 40 and 79.
+    const reference: Record<number, number[]> = {
+      0: [11.6523, 12.7266, 16.6814, 20.0935],
+      5: [11.8799, 12.9523, 16.8583, 20.1255],
+      22: [13.1619, 12.704, 16.7133, 20.1147],
+    };
+    const frames = kaldiFbank(signal);
+    expect(frames).toHaveLength(23);
+    for (const [frame, values] of Object.entries(reference)) {
+      [0, 10, 40, 79].forEach((bin, index) =>
+        expect(frames[Number(frame)][bin]).toBeCloseTo(values[index], 2),
+      );
+    }
+  });
 });
 
 describe("stackLowFrameRate", () => {

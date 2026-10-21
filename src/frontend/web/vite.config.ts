@@ -174,6 +174,9 @@ export const devOptimizedDependencies = [
   // The lip-sync worker loads Chinese readings with the first spoken reply; a
   // late optimization would reload the page as that reply starts speaking.
   "pinyin-pro",
+  // The SenseVoice worker loads the Simplified-to-Traditional tables with the
+  // first zh-Hant transcription; pre-bundle them for the same reason.
+  "opencc-js/cn2t",
 ] as const;
 
 // Vite is a development-only application origin; keep its host policy enabled.

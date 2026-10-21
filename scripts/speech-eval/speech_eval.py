@@ -433,15 +433,8 @@ def command_models(root: Path, names: list[str] | None) -> None:
         for file, entry in model["files"].items():
             url = f"https://huggingface.co/{model['repository']}/resolve/{model['revision']}/{file}"
             _download(url, {"path": file} | entry, directory / file)
-        source = model["metadataFrom"]
-        if source in catalog:
-            shared = root / "models" / source / "metadata.json"
-            if not shared.is_file():
-                raise EvalError(f"{name} takes its metadata from {source}; fetch that model first")
-            base = json.loads(shared.read_text(encoding="utf-8"))
-        else:
-            base = onnx_metadata(directory / source)
-        metadata = base | {"contract": model.get("contract", model["engine"])}
+        # The browser runtime cannot read ONNX metadata, so it is saved beside the files.
+        metadata = onnx_metadata(directory / model["metadataFrom"])
         (directory / "metadata.json").write_text(
             json.dumps(metadata, ensure_ascii=False, indent=1) + "\n", encoding="utf-8"
         )

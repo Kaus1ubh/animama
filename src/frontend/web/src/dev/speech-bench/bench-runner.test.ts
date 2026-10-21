@@ -3,10 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   BENCH_SAMPLE_RATE,
   runClip,
-  streamTailLatencyMs,
   type BenchClock,
-  type StreamingEngine,
-  type WindowEngine,
+  type BenchEngine,
 } from "./bench-runner";
 
 function virtualClock(): BenchClock & { advance: (ms: number) => void } {
@@ -29,10 +27,9 @@ const seconds = (value: number) =>
 function windowEngine(
   clock: ReturnType<typeof virtualClock>,
   msPerAudioSecond: number,
-): WindowEngine & { calls: number[] } {
+): BenchEngine & { calls: number[] } {
   const calls: number[] = [];
   return {
-    kind: "window",
     calls,
     transcribe: async (audio) => {
       calls.push(audio.length);
@@ -41,55 +38,6 @@ function windowEngine(
     },
   };
 }
-
-/**
- * Encodes one chunk, at `chunkCostMs`, for every 16 MicVAD frames (512 ms) it
- * receives; partial text appears from the second chunk.
- */
-function streamingEngine(
-  clock: ReturnType<typeof virtualClock>,
-  chunkCostMs: number,
-  finishCostMs: number,
-): StreamingEngine {
-  return {
-    kind: "stream",
-    start: () => {
-      let frames = 0;
-      let encoded = 0;
-      return {
-        push: async () => {
-          frames += 1;
-          if (frames % 16 === 0) {
-            encoded += 1;
-            clock.advance(chunkCostMs);
-          }
-          return encoded > 1 ? `partial ${encoded}` : "";
-        },
-        finish: async () => {
-          clock.advance(finishCostMs);
-          return "final";
-        },
-      };
-    },
-  };
-}
-
-describe("streamTailLatencyMs", () => {
-  it("counts only the last frame when processing keeps up", () => {
-    expect(streamTailLatencyMs([100, 100, 100], 500, 1500)).toBe(100);
-  });
-
-  it("adds the backlog when processing falls behind", () => {
-    expect(streamTailLatencyMs([600, 600, 600], 500, 1500)).toBe(800);
-  });
-
-  it("lets a partial last frame arrive when the audio ends", () => {
-    // 2.2 s in 500 ms frames: the fifth frame holds 200 ms and arrives at 2.2 s.
-    expect(streamTailLatencyMs([600, 600, 600, 600, 600], 500, 2200)).toBe(
-      1300,
-    );
-  });
-});
 
 describe("runClip", () => {
   it("times a finished window as one decode in throughput mode", async () => {
@@ -159,45 +107,5 @@ describe("runClip", () => {
     expect(engine.calls).toEqual([2 * BENCH_SAMPLE_RATE]);
     expect(result.finalLatencyMs).toBe(100);
     expect(clock.now()).toBe(2100);
-  });
-
-  it("derives a streaming engine's tail latency from chunk timings in throughput mode", async () => {
-    const clock = virtualClock();
-
-    const result = await runClip(
-      streamingEngine(clock, 100, 40),
-      seconds(2.048),
-      "zh",
-      {
-        mode: "throughput",
-        interim: false,
-        clock,
-      },
-    );
-
-    // Four 512 ms chunks at 100 ms each keep up; the 40 ms flush follows the last one.
-    expect(result.finalLatencyMs).toBe(140);
-    expect(result.processingMs).toBe(440);
-    expect(result.text).toBe("final");
-  });
-
-  it("measures partials and the final delay in real time for a paced stream", async () => {
-    const clock = virtualClock();
-
-    const result = await runClip(
-      streamingEngine(clock, 100, 40),
-      seconds(2.048),
-      "zh",
-      {
-        mode: "paced",
-        interim: true,
-        clock,
-      },
-    );
-
-    // The second chunk completes at 1,024 ms; each changed partial counts once.
-    expect(result.firstInterimMs).toBe(1124);
-    expect(result.interimCount).toBe(3);
-    expect(result.finalLatencyMs).toBe(140);
   });
 });

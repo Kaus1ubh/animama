@@ -176,12 +176,12 @@ def test_summarize_keeps_configurations_apart_and_refuses_repeated_runs(tmp_path
 def test_summarize_separates_model_sets_of_one_engine(tmp_path):
     references = {("en", "a"): {"language": "en", "text": "hi"}}
     clip = {"set": "en", "id": "a", "audioSeconds": 1.0, "text": "hi", "finalLatencyMs": 50}
-    small = result_file(tmp_path, [clip], engine="nemotron", models="nemotron-560ms")
-    large = result_file(tmp_path, [clip], engine="nemotron", models="nemotron-1120ms")
+    small = result_file(tmp_path, [clip], engine="sensevoice", models="sensevoice-int8")
+    large = result_file(tmp_path, [clip], engine="sensevoice", models="sensevoice-fp32")
 
     rows = speech_eval.summarize([small, large], references)
 
-    assert [row["engine"] for row in rows] == ["nemotron (nemotron-1120ms)", "nemotron (nemotron-560ms)"]
+    assert [row["engine"] for row in rows] == ["sensevoice (sensevoice-fp32)", "sensevoice (sensevoice-int8)"]
 
 
 def test_summarize_rejects_unknown_clips(tmp_path):

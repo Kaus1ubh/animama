@@ -6,7 +6,7 @@
  * from the result. It is not part of the product runtime.
  */
 
-export type BenchEngineId = "parakeet" | "sensevoice" | "nemotron";
+export type BenchEngineId = "parakeet" | "sensevoice";
 export type BenchBackend = "wasm" | "webgpu";
 /**
  * `throughput` decodes each clip as one finished speech window, back to back.
@@ -16,10 +16,11 @@ export type BenchBackend = "wasm" | "webgpu";
 export type BenchMode = "throughput" | "paced";
 
 /**
- * A test clip. `set` is also the app locale the engine is prompted with
- * (`en`, `ja`, `ko`, `zh-Hans`, `zh-Hant`, `yue`). Sets scored in Traditional
- * script have `script: "Hant"`, and `referenceScript: "Hans"` when their
- * reference text is Simplified and must be converted too.
+ * A test clip. `set` names the app locale the engine is routed and prompted
+ * with (`en`, `ja`, `ko`, `zh-Hans`, `zh-Hant`; `yue` plays under `zh-Hant`).
+ * Sets scored in Traditional script have `script: "Hant"`, and
+ * `referenceScript: "Hans"` when their reference text is Simplified and is
+ * converted to compare with the app's Traditional output.
  */
 export type BenchClip = {
   set: string;
@@ -47,11 +48,9 @@ export type BenchClipResult = {
   set: string;
   id: string;
   audioSeconds: number;
-  /** Final text in the set's script, as the app would show it. */
+  /** Final text in the set's script, as the app shows it. */
   text: string;
-  /** The engine's own output when the page converted its script. */
-  rawText?: string;
-  /** The converted reference, when the page converted it. */
+  /** The reference converted to the set's script, when the page converted it. */
   reference?: string;
   /** From the last delivered audio sample to the final text. */
   finalLatencyMs: number;

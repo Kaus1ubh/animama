@@ -189,6 +189,24 @@ describe("desktop runtime packaging", () => {
     ).toContain("FunASR Model Open Source License Agreement");
   });
 
+  it("ships the Apache-2.0 terms of the bundled Chinese conversion tables", () => {
+    // opencc-js's own scan finds only its MIT LICENSE; the tables it bundles
+    // come from opencc-data under Apache-2.0.
+    const policy = JSON.parse(
+      readFileSync(
+        new URL("../runtime/license-sources.json", import.meta.url),
+        "utf8",
+      ),
+    );
+    const group = policy.groups.find(
+      (entry) => entry.id === "opencc-dictionary-data",
+    );
+    expect(group.notice_files).toEqual(["opencc-data-apache-2.0.txt"]);
+    const notice = readStaticLicenseNotice("opencc-data-apache-2.0.txt").text;
+    expect(notice).toContain("opencc-data");
+    expect(notice).toContain("Apache License");
+  });
+
   it.each([
     "../notice.txt",
     "/notice.txt",

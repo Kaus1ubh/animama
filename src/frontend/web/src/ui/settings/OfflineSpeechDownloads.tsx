@@ -15,7 +15,7 @@ import {
   getLastClientParakeetBackendState,
   getParakeetWebgpuStatus,
 } from "@/lib/speech/client-parakeet/client";
-import type { ParakeetWebgpuStatus } from "@/lib/speech/client-parakeet/webgpu";
+import type { WebgpuModelStatus } from "@/lib/speech/offline-stt/webgpu";
 import {
   useModelAssets,
   useOperatorManagedModelAssets,
@@ -91,7 +91,7 @@ export function gpuInstallBlockedReason({
 }: {
   gpu: PyModelAssetState | undefined;
   cpuInstalled: boolean;
-  support: ParakeetWebgpuStatus | null;
+  support: WebgpuModelStatus | null;
 }): string | null {
   const t = getI18n().getFixedT(null, "voice");
   if (!gpu) return t("offlineSpeech.gpu.blocked.missing");
@@ -108,7 +108,7 @@ export type OfflineSpeechDownloadsViewProps = {
   gpu: PyModelAssetState | undefined;
   freeBytes?: number | null;
   /** WebGPU probe result; `null` while probing. */
-  gpuSupport: ParakeetWebgpuStatus | null;
+  gpuSupport: WebgpuModelStatus | null;
   retryAssetIds?: ReadonlySet<string>;
   /** A change request is in flight, or a feature pack change blocks downloads. */
   pending: boolean;
@@ -492,9 +492,7 @@ export function useOfflineSpeechDownloads(): Omit<
   const capabilities = useRuntimeCapabilities();
   const operatorManaged = useOperatorManagedModelAssets();
   const action = useModelAssetAction();
-  const [gpuSupport, setGpuSupport] = useState<ParakeetWebgpuStatus | null>(
-    null,
-  );
+  const [gpuSupport, setGpuSupport] = useState<WebgpuModelStatus | null>(null);
   // The cause is kept so its wording follows the UI Locale.
   const [error, setError] = useState<{
     assetId: string;

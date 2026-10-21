@@ -164,6 +164,14 @@
       "source": "CMUdict 74790861f652b15e4ac49015a90074ad62a27690 and SCOWL 2020.12.07, reduced by scripts/lipsync/build_english_dictionary.py. Source mapping: licenses/third-party/code-and-models.json",
       "notice_files": ["cmudict-bsd-2-clause.txt", "scowl-copyright.txt"],
       "review": "pending"
+    },
+    {
+      "id": "opencc-dictionary-data",
+      "name": "Chinese script conversion tables (opencc-js) from opencc-data",
+      "license": "Apache-2.0",
+      "source": "opencc-js 1.4.2 (npm, MIT) bundles dictionary data generated from opencc-data (Apache-2.0); its THIRD_PARTY_LICENSES.md is reproduced unchanged. The app loads the cn2t tables to write zh-Hant speech recognition output in Traditional script.",
+      "notice_files": ["opencc-data-apache-2.0.txt"],
+      "review": "pending"
     }
   ]
 }

@@ -45,7 +45,8 @@ export type TurnAudioBufferState = {
   maxSilenceMs: number;
 };
 
-export type SttSegmentSource = "browser_web_speech" | "parakeet";
+/** Which recognizer produced a segment; the offline engines name themselves. */
+export type SttSegmentSource = "browser_web_speech" | "parakeet" | "sensevoice";
 
 export type SttSegment = {
   turnId: RuntimeTurnId;

@@ -61,6 +61,7 @@ src/frontend/desktop/runtime/notices/pocket-tts-attribution.txt -text
 src/frontend/desktop/runtime/notices/pocket-tts-onnx-license.txt -text
 src/frontend/desktop/runtime/notices/smart-turn-bsd-2-clause.txt -text
 src/frontend/desktop/runtime/notices/sensevoice-attribution.txt -text
+src/frontend/desktop/runtime/notices/opencc-data-apache-2.0.txt -text -whitespace
 src/frontend/desktop/runtime/notices/sensevoice-funasr-model-license.txt -text -whitespace
 models/browser-speech/manifest.json text eol=lf
 models/browser-runtime/manifest.json text eol=lf

@@ -315,6 +315,9 @@ importers:
       onnxruntime-web-assets:
         specifier: npm:onnxruntime-web@1.24.2
         version: onnxruntime-web@1.24.2
+      opencc-js:
+        specifier: 1.4.2
+        version: 1.4.2
       parakeet.js:
         specifier: 1.4.4
         version: 1.4.4
@@ -421,9 +424,6 @@ importers:
       happy-dom:
         specifier: ^20.14.5
         version: 20.14.5
-      opencc-js:
-        specifier: 1.4.2
-        version: 1.4.2
       prettier:
         specifier: ^3.7.4
         version: 3.8.3

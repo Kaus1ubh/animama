@@ -77,7 +77,7 @@
   },
   "dictation": {
     "errors": {
-      "audioWorkletParakeet": "本地 Parakeet 语音识别需要 AudioWorklet 支持。",
+      "audioWorkletOffline": "离线语音识别需要 AudioWorklet 支持。",
       "audioWorkletVad": "声学 VAD 需要 AudioWorklet 支持。",
       "browser": {
         "aborted": "语音识别已停止。",
@@ -91,11 +91,12 @@
       },
       "browserStartFailed": "无法启动浏览器听写",
       "failed": "听写失败",
+      "languageSpeechMissing": "请在设置中安装此语言的离线语音识别，以使用听写和语音模式。",
       "localWebSpeechNotEnabled": "无法启用浏览器本地语音识别",
       "localWebSpeechUnsupported": "不支持仅限本地的浏览器语音识别",
+      "offlineSpeechFailed": "离线语音识别失败",
       "offlineSpeechMissing": "请在设置中安装离线语音识别，以使用听写和语音模式。",
-      "parakeetFailed": "本地 Parakeet 语音识别失败",
-      "transcriptionFailed": "本地 Parakeet 转写失败",
+      "transcriptionFailed": "离线转写失败",
       "unmuteFailed": "无法取消语音模式静音",
       "webSpeechUnsupported": "此浏览器不支持 Web Speech API"
     }
