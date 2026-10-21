@@ -1560,7 +1560,7 @@ export function useDictation(options: UseDictationOptions = {}) {
       offlineJobCounterRef.current += 1;
       const sequence = offlineJobCounterRef.current;
 
-      logger.info("ClientParakeet", "Queued speech window transcription", {
+      logger.info("OfflineSTT", "Queued speech window transcription", {
         jobId,
         sequence,
         runId: args.runId,
@@ -1592,7 +1592,7 @@ export function useDictation(options: UseDictationOptions = {}) {
           !isDictatingRef.current
         ) {
           logger.info(
-            "ClientParakeet",
+            "OfflineSTT",
             "Ignored stale speech window transcription",
             {
               jobId,
@@ -1606,7 +1606,7 @@ export function useDictation(options: UseDictationOptions = {}) {
 
         clearOfflinePreview({ windowId: args.windowId, mode: args.mode });
 
-        logger.info("ClientParakeet", "Speech window transcription ready", {
+        logger.info("OfflineSTT", "Speech window transcription ready", {
           jobId,
           runId: result.runId,
           turnId: result.turnId,
@@ -1621,7 +1621,7 @@ export function useDictation(options: UseDictationOptions = {}) {
           const runtimeState = useAvatarRuntimeStore.getState();
           if (runtimeState.activeRunId || runtimeState.activeSpeechRunId) {
             logger.info(
-              "ClientParakeet",
+              "OfflineSTT",
               "Ignored speech window transcription while assistant run is active",
               {
                 jobId,
@@ -1702,7 +1702,7 @@ export function useDictation(options: UseDictationOptions = {}) {
         onErrorRef.current?.(errorObj);
         getVoiceDebugSink()?.setError(errorObj.message);
         logger.error(
-          "ClientParakeet",
+          "OfflineSTT",
           "Speech window transcription failed",
           errorObj,
         );
@@ -1720,7 +1720,7 @@ export function useDictation(options: UseDictationOptions = {}) {
   );
 
   /**
-   * Create the live-preview controller for one Parakeet capture session. Preview
+   * Create the live-preview controller for one offline capture session. Preview
    * text is display-only and is dropped whenever the session, mode, run or turn
    * has moved on, or an assistant run owns the Voice Mode floor.
    */
@@ -1784,13 +1784,13 @@ export function useDictation(options: UseDictationOptions = {}) {
         },
         onEvent: (event) => {
           if (event.type === "preview_ready") {
-            logger.debug("ClientParakeet", "Preview transcription ready", {
+            logger.debug("OfflineSTT", "Preview transcription ready", {
               ...event,
             });
             return;
           }
           logger.info(
-            "ClientParakeet",
+            "OfflineSTT",
             event.type === "budget_exceeded"
               ? "Stopped previews for a speech window over the decode budget"
               : "Preview transcription failed; stopped previews for the window",
@@ -1829,7 +1829,7 @@ export function useDictation(options: UseDictationOptions = {}) {
         browserVisualizerStreamRef.current = visualizerStream;
         setStream(visualizerStream);
       } catch (err) {
-        logger.warn("ClientParakeet", "Visualizer stream unavailable", {
+        logger.warn("OfflineSTT", "Visualizer stream unavailable", {
           error: err instanceof Error ? err.message : String(err),
         });
       }
@@ -1934,7 +1934,7 @@ export function useDictation(options: UseDictationOptions = {}) {
       syncGateDebugStats();
 
       try {
-        logger.info("ClientParakeet", "Loading local Parakeet runtime", {
+        logger.info("OfflineSTT", "Loading local Parakeet runtime", {
           runId,
           turnId,
           sessionId,
@@ -2078,20 +2078,16 @@ export function useDictation(options: UseDictationOptions = {}) {
           if (activeOfflineSessionIdRef.current === null) {
             setIsDictationPreparing(false);
           }
-          logger.info(
-            "ClientParakeet",
-            "Parakeet start superseded after load",
-            {
-              runId,
-              turnId,
-              sessionId,
-              mode,
-            },
-          );
+          logger.info("OfflineSTT", "Offline start superseded after load", {
+            runId,
+            turnId,
+            sessionId,
+            mode,
+          });
           return;
         }
 
-        logger.info("ClientParakeet", "Local Parakeet runtime ready", {
+        logger.info("OfflineSTT", "Local Parakeet runtime ready", {
           runId,
           turnId,
           sessionId,
@@ -2127,8 +2123,8 @@ export function useDictation(options: UseDictationOptions = {}) {
             setIsDictationPreparing(false);
           }
           logger.info(
-            "ClientParakeet",
-            "Parakeet start superseded after smart-turn load",
+            "OfflineSTT",
+            "Offline start superseded after smart-turn load",
             {
               runId,
               turnId,
@@ -2211,7 +2207,7 @@ export function useDictation(options: UseDictationOptions = {}) {
           redemptionMs: MICVAD_REDEMPTION_MS,
           preSpeechPadMs: MICVAD_PRESPEECH_PAD_MS,
           // Only override vad-web's own stream when a device was chosen
-          // (Parakeet; browser recognition cannot target a device).
+          // (offline engines; browser recognition cannot target a device).
           ...(readSelectedMicrophoneId()
             ? { getStream: openSelectedMicrophone }
             : {}),
@@ -2243,7 +2239,7 @@ export function useDictation(options: UseDictationOptions = {}) {
           voiceMuted: false,
         });
         void startOfflineVisualizerStream(sessionId);
-        logger.info("State", "Client Parakeet speech recognition started", {
+        logger.info("State", "Offline speech recognition started", {
           runId,
           turnId,
           sessionId,
@@ -2265,17 +2261,13 @@ export function useDictation(options: UseDictationOptions = {}) {
           if (activeOfflineSessionIdRef.current === null) {
             setIsDictationPreparing(false);
           }
-          logger.info(
-            "ClientParakeet",
-            "Ignored stale Parakeet start failure",
-            {
-              runId,
-              turnId,
-              sessionId,
-              mode,
-              error: errorObj.message,
-            },
-          );
+          logger.info("OfflineSTT", "Ignored stale offline start failure", {
+            runId,
+            turnId,
+            sessionId,
+            mode,
+            error: errorObj.message,
+          });
           return;
         }
         if (canReuseTurnState) {
@@ -2289,11 +2281,7 @@ export function useDictation(options: UseDictationOptions = {}) {
           teardownBrowserVisualizerStream();
           await suspendVadCapture("resume-parakeet-start-failure");
           getVoiceDebugSink()?.setError(errorObj.message);
-          logger.error(
-            "State",
-            "Client Parakeet voice resume failed",
-            errorObj,
-          );
+          logger.error("State", "Offline voice resume failed", errorObj);
           throw errorObj;
         }
         activeOfflineSessionIdRef.current = null;
@@ -2311,7 +2299,7 @@ export function useDictation(options: UseDictationOptions = {}) {
         getVoiceDebugSink()?.setError(errorObj.message);
         logger.error(
           "State",
-          "Client Parakeet speech recognition start failed",
+          "Offline speech recognition start failed",
           errorObj,
         );
         throw errorObj;
