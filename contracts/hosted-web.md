@@ -200,8 +200,16 @@ settings stay unavailable.
 
 `offline_speech_enabled` and its versions describe current Parakeet (English)
 availability, and `offline_multilingual_speech_enabled` and its versions current
-SenseVoice (Japanese, Korean and Chinese) availability, not permission to use voice. An absent optional set does not remove browser voice,
-Pocket TTS, supported server speech, or the workflow to download a permitted set.
+SenseVoice-Small (Japanese, Korean and Chinese) availability, not permission to
+use voice. An absent optional set does not remove browser voice, Pocket TTS,
+supported server speech, or the workflow to download a permitted set. The
+hosted capability fixture reports SenseVoice off, and the hosted build lists no
+SenseVoice lazy resource. The packaged model-asset catalog nevertheless
+contains `sensevoice-stt` and `sensevoice-stt-webgpu`, so a hosted consumer that
+accepts only catalog IDs it knows must support or skip both before adopting a
+release with that catalog. Skipped, hosted Settings shows the SenseVoice section
+as not available, and the offline choice under a non-English locale shows the
+"not available on this server" notice.
 Content, avatar/effect runtime, memory, creators and voice stay retained without
 adding blanket permissions for implementation gaps. Unknown/missing capability
 responses keep hosted operations pending rather than granting permission. No

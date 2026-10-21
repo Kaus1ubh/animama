@@ -66,11 +66,12 @@ Missing or malformed inventories degrade safely. MIME types, HEAD and conditiona
 responses are preserved. Registered content retains its existing authorization,
 integrity and range handling.
 
-With `ANIMAMA_PARAKEET_SOURCE=asset-store`, the optional Parakeet mounts are
-resolved on each request from the installed model-asset sets, with their exact
-version and validated file inventory; with `operator`, FastAPI serves no models
-because Vite serves the host sets. The fixed `/onnx/models/parakeet-tdt-0.6b-v2/` and
-`/onnx/models/parakeet-tdt-0.6b-v2-webgpu/` routes serve only those regular
+With `ANIMAMA_PARAKEET_SOURCE=asset-store`, the optional speech-to-text mounts
+(Parakeet and SenseVoice) are resolved on each request from the installed
+model-asset sets, with their exact version and validated file inventory; with
+`operator`, FastAPI serves no models because Vite serves the host sets. The
+fixed `/onnx/models/parakeet-tdt-0.6b-v2[-webgpu]/` and
+`/onnx/models/sensevoice-small[-webgpu]/` routes serve only those regular
 files, including single byte ranges and If-Range. Exact `?v=<version>`
 requests may be immutable; stale versions and undeclared files return 404.
 Static application assets retain full-response behavior for Range requests.

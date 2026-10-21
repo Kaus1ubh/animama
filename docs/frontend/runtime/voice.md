@@ -1,7 +1,8 @@
 # Voice Guide (`src/frontend/web`)
 
-Voice input uses browser recognition or local Parakeet with acoustic and semantic
-VAD. Output uses browser speech, PocketTTS, ElevenLabs or Gemini. See
+Voice input uses browser recognition or offline recognition (Parakeet for
+English, SenseVoice-Small for Japanese, Korean and Chinese) with acoustic and
+semantic VAD. Output uses browser speech, PocketTTS, ElevenLabs or Gemini. See
 [Avatar lip-sync](avatar-lipsync.md) for synchronization and
 [Pocket catalogs](../features/emotional-voice-catalog.md) for voice embeddings.
 
@@ -9,66 +10,123 @@ VAD. Output uses browser speech, PocketTTS, ElevenLabs or Gemini. See
 
 ### Input modes
 
-| Mode        | How user starts it                          | STT provider path                         | Acoustic VAD             | Semantic VAD (smart-turn) | Submit behavior    |
-| ----------- | ------------------------------------------- | ----------------------------------------- | ------------------------ | ------------------------- | ------------------ |
-| `typed`     | text input                                  | none                                      | n/a                      | n/a                       | manual             |
-| `dictation` | mic button                                  | resolved provider (`parakeet` or browser) | yes for Parakeet/browser | no                        | manual             |
-| `voice`     | voice button or voice-mode switch from chat | resolved provider (`parakeet` or browser) | yes                      | yes                       | auto on `end_turn` |
+| Mode        | How user starts it                          | STT provider path                         | Acoustic VAD            | Semantic VAD (smart-turn) | Submit behavior    |
+| ----------- | ------------------------------------------- | ----------------------------------------- | ----------------------- | ------------------------- | ------------------ |
+| `typed`     | text input                                  | none                                      | n/a                     | n/a                       | manual             |
+| `dictation` | mic button                                  | resolved provider (`parakeet` or browser) | yes for offline/browser | no                        | manual             |
+| `voice`     | voice button or voice-mode switch from chat | resolved provider (`parakeet` or browser) | yes                     | yes                       | auto on `end_turn` |
 
 ### STT provider matrix
 
-| Provider           | Source                               | Where used        | Notes                                                            |
-| ------------------ | ------------------------------------ | ----------------- | ---------------------------------------------------------------- |
-| `browser_external` | Web Speech API                       | dictation + voice | default browser path                                             |
-| `browser_local`    | Web Speech API with `processLocally` | dictation + voice | strict capability check; en-US fallback on unsupported locale    |
-| `parakeet`         | local Parakeet ONNX worker           | dictation + voice | MicVAD windows transcribed locally; live previews on WebGPU only |
+| Provider           | Source                                       | Where used        | Notes                                                            |
+| ------------------ | -------------------------------------------- | ----------------- | ---------------------------------------------------------------- |
+| `browser_external` | Web Speech API                               | dictation + voice | default browser path                                             |
+| `browser_local`    | Web Speech API with `processLocally`         | dictation + voice | strict capability check; en-US fallback on unsupported locale    |
+| `parakeet`         | offline ONNX worker of the language's engine | dictation + voice | MicVAD windows transcribed locally; live previews on WebGPU only |
 
 In the Animama Electron desktop shell, browser Web Speech providers are treated
 as unavailable even if Chromium exposes `SpeechRecognition` or
 `webkitSpeechRecognition`. Electron can surface the API but fail recognition
-with a `network` error, so desktop dictation and voice mode use Parakeet only
-when its runtime capability is available.
+with a `network` error, so desktop dictation and voice mode use offline
+recognition only when the routed engine's runtime capability is available.
+
+### Offline engine by conversation language
+
+The stored `parakeet` provider means offline recognition, whichever engine
+runs. When dictation or Voice Mode starts with it, `routeOfflineSpeech()`
+(`lib/speech/offline-stt/routing.ts`) chooses the engine from the conversation
+language, which is the UI Locale
+([ADR 0024](../../adr/0024-ui-locale-is-the-conversation-language.md),
+[ADR 0029](../../adr/0029-sensevoice-offline-speech-recognition.md)):
+
+| UI Locale                  | Engine               | Language prompt and output                                                                 |
+| -------------------------- | -------------------- | ------------------------------------------------------------------------------------------ |
+| `en`, unset or unsupported | Parakeet TDT 0.6B v2 | none (English only)                                                                        |
+| `ja`, `ko`, `zh-Hans`      | SenseVoice-Small     | `lang_ja`, `lang_ko`, `lang_zh` (Simplified)                                               |
+| `zh-Hant`                  | SenseVoice-Small     | `lang_auto`, so Mandarin and Cantonese both work; converted to Taiwan-standard Traditional |
+
+- The route is read once per start, and unmuting Voice Mode keeps it, so a
+  locale change applies from the next start.
+- `speech.stt_parakeet_webgpu` is the GPU preference for both engines; neither
+  stored value is renamed.
+- `resolveRoutedSttProvider` (`lib/speech/stt-provider.ts`) resolves the
+  provider for dictation and for Settings. A saved offline choice whose
+  SenseVoice set is missing stops with "Install offline speech recognition for
+  this language" (`languageSpeechMissing`) instead of falling back to a browser
+  recognizer, which may send audio to a cloud service. Under English, a missing
+  Parakeet set falls back to an available browser recognizer
+  (`resolvePreferredSttProvider`).
+- Segments name their engine (`SttSegmentSource` is `"parakeet"` or
+  `"sensevoice"`), while the active provider stays `"parakeet"`, so Smart
+  Turn, mute and stored preferences treat both engines alike.
 
 ### Optional offline speech models
 
-The embedded core does not contain Parakeet weights. On packaged desktop and
-built self-host, App Settings → Voice shows one `OfflineSpeechDownloads` block:
-the CPU model (`parakeet-stt`) and its GPU acceleration add-on
-(`parakeet-stt-webgpu`), installed in place through the backend
-[model assets](../../backend/architecture/http-api.md#model-assets) with sizes,
-progress, cancel, retry, removal and the GPU set's attribution. The add-on is
-always shown; when it cannot be installed (CPU model missing, no WebGPU adapter,
-or not in this build) its action is disabled with the reason. Setup's Voice step
-shows the same two sets as "Parakeet (CPU, size)" and "Parakeet (GPU, size)"
-tabs (`SetupSpeechDownloads`, sharing `useOfflineSpeechDownloads`) with a
-WebGPU ✓/✗ check; asking for the GPU set first says to download the CPU
-version. Removal and attribution stay in App Settings. Every download can be
-skipped; downloads do not change provider or voice selection. Vite
-development serves the operator's host sets and shows no downloads.
-`GET /v1/runtime-capabilities` supplies `offline_speech_enabled` and nullable
-`offline_speech_asset_version` and `offline_speech_gpu_asset_version`, derived
+The embedded core does not contain offline speech weights. On packaged desktop
+and built self-host, App Settings → Voice shows one `OfflineSpeechDownloads`
+block with a section per engine, under the languages it serves and with its
+model name and attribution; the UI Locale's engine comes first:
+
+| Engine           | Languages                 | CPU model        | GPU acceleration add-on |
+| ---------------- | ------------------------- | ---------------- | ----------------------- |
+| Parakeet         | English                   | `parakeet-stt`   | `parakeet-stt-webgpu`   |
+| SenseVoice-Small | Japanese, Korean, Chinese | `sensevoice-stt` | `sensevoice-stt-webgpu` |
+
+Each set installs in place through the backend
+[model assets](../../backend/architecture/http-api.md#model-assets) with size,
+progress, cancel, retry and removal. The add-on is always shown; when it cannot
+be installed (CPU model missing, no WebGPU adapter, or not in this build) its
+action is disabled with the reason. A loaded asset list without an engine's
+sets shows them as not available, for example on a runtime whose operator does
+not provide SenseVoice. Setup's Voice step offers only the UI Locale's engine,
+as "<model> (CPU, size)" and "<model> (GPU, size)" tabs (`SetupSpeechDownloads`,
+sharing `useOfflineSpeechDownloads(engine)`) with a WebGPU ✓/✗ check; asking for
+the GPU set first says to download the CPU version. The composer's install hint
+(`OfflineSpeechDownloads routedOnly`) also offers only that engine. Removal,
+attribution and the other engine's sets stay in App Settings. Every download
+can be skipped; downloads do not change provider or voice selection. Vite
+development serves the operator's host sets and shows each engine's acquire
+commands instead of downloads.
+
+`GET /v1/runtime-capabilities` reports each engine's availability and nullable
+CPU and GPU set versions: `offline_speech_enabled`,
+`offline_speech_asset_version` and `offline_speech_gpu_asset_version` for
+Parakeet, and `offline_multilingual_speech_enabled`,
+`offline_multilingual_speech_asset_version` and
+`offline_multilingual_speech_gpu_asset_version` for SenseVoice. They are derived
 from the installed sets on each request; the renderer refetches them when an
 install or removal settles. Unknown
 or disabled availability is not treated as support; dictation checks fresh
 metadata before starting and the worker loader checks it again. Saved provider
 preferences are not rewritten just because a capability request failed.
 
-Without the CPU model, desktop offline dictation and Voice Mode cannot start. Text
-chat, avatar animation, microphone permission, and PocketTTS are independent.
-The main chat/settings surface offers installation; companion windows direct
-the user to main-window Settings. Browser Web Speech fallback remains available
-only where the ordinary web platform supports it.
+Without the routed engine's CPU model, desktop offline dictation and Voice Mode
+cannot start. Text chat, avatar animation, microphone permission, and PocketTTS
+are independent. The main chat/settings surface offers installation; companion
+windows direct the user to main-window Settings. Browser Web Speech fallback
+remains available only where the ordinary web platform supports it; a saved
+offline choice never falls back to it for a language whose SenseVoice set is
+missing.
+
+`SpeechLanguageNotice` sits beside the speech provider choices. With the
+offline choice under a non-English locale and no available SenseVoice set, it
+asks for the language's download; where the operator manages models, or the
+runtime reports an installed SenseVoice version that is turned off, it says
+the server does not provide offline recognition in that language. It shows
+nothing under English or once the set is available. Pocket TTS keeps its
+English-only notice.
 
 Installed model requests stay on the protected local origin at
-`/onnx/models/parakeet-tdt-0.6b-v2[-webgpu]/` with `?v=<manifest digest>` from
+`/onnx/models/<model-id>/` and `/onnx/models/<model-id>-webgpu/`
+(`parakeet-tdt-0.6b-v2`, `sensevoice-small`) with `?v=<manifest digest>` from
 the matching capability version. FastAPI checks inventory and containment,
 supports single byte ranges, and rejects stale versions. While a worker has a
 set loaded, the client holds a use lease (`POST /v1/model-assets/{id}:lease`,
 renewed every 10 s, released when the worker is disposed); the backend refuses
-to remove a leased set (`model_asset_in_use`) and refuses to remove the CPU
-model while GPU acceleration is installed (`model_asset_required_by`). Removing
-a set from the settings first disposes this page's idle worker. Lease failures
-are logged and never stop dictation.
+to remove a leased set (`model_asset_in_use`) and refuses to remove a CPU
+model while its GPU acceleration is installed (`model_asset_required_by`).
+Removing a set from the settings first disposes this page's idle worker for
+that engine. Lease failures are logged and never stop dictation.
 
 ### TTS provider matrix
 
@@ -124,8 +182,9 @@ Why this matters:
 
 ## Developer and self-host model inputs
 
-Parakeet and the ten reviewed Pocket TTS/Smart Turn core inputs are acquired from
-exact pinned revisions into a verified shared store outside Git worktrees.
+The offline speech-to-text sets and the ten reviewed Pocket TTS/Smart Turn core
+inputs are acquired from exact pinned revisions into a verified shared store
+outside Git worktrees.
 `models/browser-runtime/manifest.json` also binds nine ORT 1.24.2 files from the
 exact dependency alias and two VAD 0.0.30 files from its pinned package. Other
 bundled ORT imports keep their existing locked versions.
@@ -135,9 +194,9 @@ starting Vite or Compose, or building the web application. It documents
 `ANIMAMA_MODEL_ROOT`, the native Windows `%LOCALAPPDATA%\Animama\models` default,
 and the Linux default used by WSL. Development verifies and serves engine inputs
 at the existing same-origin URLs; built self-host and desktop outputs contain
-independent verified copies of the 21 browser assets. Parakeet remains outside
-the web build: development serves the host store, while packaged desktop and
-built self-host download it in the app (see
+independent verified copies of the 21 browser assets. The speech-to-text sets
+remain outside the web build: development serves the host store, while packaged
+desktop and built self-host download them in the app (see
 [Optional offline speech models](#optional-offline-speech-models)).
 
 Startup and builds do not acquire models implicitly. Browsers do not receive
@@ -158,15 +217,21 @@ Entrypoint:
 
 Rules:
 
-- `mode === "voice"` resolves the preferred provider:
-  - Parakeet is used when available and selected, or as an available fallback
-    when browser STT is unavailable
+- both modes read fresh runtime capabilities, route the offline engine
+  (`routeOfflineSpeech()`) and resolve the provider with
+  `resolveRoutedSttProvider(...)`:
+  - offline recognition is used when available and selected, or as an
+    available fallback when browser STT is unavailable
   - browser STT remains the normal web default when available
-- `mode === "dictation"` resolves preferred provider via `resolvePreferredSttProvider(...)`:
-  - may choose Parakeet
-  - surfaces Parakeet startup/transcription errors instead of silently switching providers
-- desktop shell detection disables Web Speech availability; without an
-  installed Parakeet capability, desktop dictation and Voice Mode stay disabled
+  - when offline recognition is resolved but the routed set is unavailable
+    (for example on desktop, which has no browser fallback), the start stops
+    with `offlineSpeechMissing` (Parakeet) or `languageSpeechMissing`
+    (SenseVoice); a saved offline choice whose SenseVoice set is missing always
+    stops with `languageSpeechMissing`
+  - offline startup/transcription errors surface instead of silently switching
+    providers
+- desktop shell detection disables Web Speech availability; without the routed
+  engine's installed capability, desktop dictation and Voice Mode stay disabled
 - `switchMode("voice")` is used by `ChatInterface` to hand off from active plain dictation into voice mode
 
 Provider helpers:
@@ -181,7 +246,7 @@ sensitivity and offers an opt-in level meter
 
 - The device ID is stored per machine in local storage and requested with an
   `ideal` constraint, so an unplugged device falls back to the system default.
-  Parakeet dictation and Voice Mode pass it to MicVAD through `getStream` and
+  Offline dictation and Voice Mode pass it to MicVAD through `getStream` and
   to the visualizer. Browser speech recognition cannot target a device, so the
   browser path keeps its visualizer and MicVAD on the system default to match
   the recognizer.
@@ -228,13 +293,14 @@ Browser voice mode is recognition-event driven:
 Browser voice mode can show live interim text because the browser recognition
 API exposes interim transcript events.
 
-#### Parakeet STT voice mode
+#### Offline STT voice mode
 
-MicVAD supplies accepted mono 16 kHz windows to `client_parakeet/transcribe`.
-Parakeet commits final text before smart-turn runs on the accepted audio, so the
-end-turn coordinator normally has text ready immediately. On the WebGPU
-backend, display-only previews show interim text while a window is open; see
-[Live Parakeet previews](#live-parakeet-previews).
+MicVAD supplies accepted mono 16 kHz windows to the routed engine's worker
+(`offline_stt/transcribe`, with the route's language). The engine commits final
+text before smart-turn runs on the accepted audio, so the end-turn coordinator
+normally has text ready immediately. On the WebGPU backend, display-only
+previews show interim text while a window is open; see
+[Live previews](#live-previews).
 
 #### Shared voice-mode behavior
 
@@ -249,8 +315,8 @@ backend, display-only previews show interim text while a window is open; see
   still runs for that flushed speech window, but with a lower `0.05` threshold
   so Press to talk release strongly biases the turn toward `end_turn`.
 - Browser mute stops browser recognition, MicVAD, and the visualizer.
-- Parakeet mute stops MicVAD and the visualizer while preserving the warmed
-  Parakeet worker, smart-turn worker, turn id, and text/audio buffers.
+- Offline mute stops MicVAD and the visualizer while preserving the warmed
+  engine worker, smart-turn worker, turn id, and text/audio buffers.
 - `unmuteVoiceMic()` resumes capture for the same voice turn and reuses the
   smart-turn worker when possible.
 - `stopDictation()` fully tears down the active voice session.
@@ -258,64 +324,86 @@ backend, display-only previews show interim text while a window is open; see
   smart-turn audio remains after the timeout, it rotates to a new `turnId` and
   clears the visible chat input.
 
-### Parakeet STT details
+### Offline STT details
 
-Parakeet STT is local client-side STT:
+Offline STT is local client-side STT, with one worker per engine:
 
-- the browser worker loads `parakeet.js` from local v2 int8 assets with
-  `backend: "wasm"`, or with the experimental WebGPU backend (see
-  [Experimental WebGPU backend](#experimental-webgpu-backend))
+- **Parakeet** (`workers/client-parakeet-worker.ts`) runs `parakeet.js` on the
+  CPU set's INT8 encoder and decoder, or with the GPU set's FP16 encoder on
+  WebGPU while the INT8 decoder stays on WASM.
+- **SenseVoice-Small** (`workers/client-sensevoice-worker.ts`,
+  `lib/speech/client-sensevoice/model.ts`) computes an 80-bin Kaldi fbank with
+  7×6 frame stacking and CMVN in JavaScript, runs one pass of the CPU set's
+  INT8 graph or, on WebGPU, the GPU set's FP32 graph, and decodes greedy CTC
+  with inverse text normalization, so numbers come out as digits. It removes
+  the model's `<|…|>` tags, joins Chinese and Japanese text without the spaces
+  its word marks leave (Korean keeps its spacing), and returns no text for a
+  window that decodes to punctuation alone. Prompted with a language, the model
+  writes one word for silence or noise (こ, 그, 我), so a final window whose
+  word tokens average below 0.4 softmax probability (`MIN_WORD_CONFIDENCE`)
+  also returns no text; previews skip that check. Under `zh-Hant` it converts
+  the text with OpenCC's Taiwan standard (`opencc-js/cn2t`), whose tables load
+  on the first `zh-Hant` window.
+- Both workers share `workers/offline-stt-worker-runtime.ts`: the app's bundled
+  `onnxruntime-web` (one thread, SIMD), the WebGPU initialization check and one
+  serial request queue.
 - MicVAD owns speech-window segmentation and stop/start decisions
 - accepted MicVAD windows are sent to the worker for final-window transcription
-- on the WebGPU backend, open windows are re-decoded for display-only previews (see
-  [Live Parakeet previews](#live-parakeet-previews))
+- on the WebGPU backend, open windows are re-decoded for display-only previews
+  (see [Live previews](#live-previews))
 - the model stays warm for the current app session; mic/VAD/audio resources are
   stopped on every stop
 
-#### Parakeet startup
+#### Offline startup
 
-`startParakeetDictation(mode)` sets the active provider to `parakeet`, enters
-`dictation` or `voice` mode, and exposes the preparation/loading state used by
-the chat mic/voice controls. It then tears down or reuses VAD/smart-turn state
-as appropriate before creating or reusing a local `runId`, `turnId`, and
-acoustic gate.
+`startOfflineDictation(mode)` takes the route chosen at start, sets the active
+provider to `parakeet`, enters `dictation` or `voice` mode, and exposes the
+preparation/loading state used by the chat mic/voice controls. It then tears
+down or reuses VAD/smart-turn state as appropriate before creating or reusing a
+local `runId`, `turnId`, and acoustic gate.
 
-The Parakeet worker is loaded with:
+Each engine's page-side client is a `createOfflineSttClient` configuration
+(`lib/speech/offline-stt/worker-client.ts`; `parakeetSttClient` and
+`senseVoiceSttClient`, looked up through `offlineSttClients`). The client loads
+its worker with:
 
-- `loadClientParakeetWorker({ preferWebgpu, sampleRateHz: 16000 })`. Here
+- `client.load(apiClient, { preferWebgpu, sampleRateHz: 16000 })`. Here
   `preferWebgpu` is the `speech.stt_parakeet_webgpu` preference, read at each
   start.
-- local model URLs from `CLIENT_PARAKEET_MODEL_ASSET_PATHS`
+- the CPU set's file URLs (`CLIENT_PARAKEET_MODEL_ASSET_PATHS`,
+  `CLIENT_SENSEVOICE_MODEL_PATHS`), pinned with the set's capability version
 - ORT WASM URLs bundled through Vite `?url` imports: the plain build for WASM,
   and the JSEP build for WebGPU
 
 #### Experimental WebGPU backend
 
 App Settings → **Voice** → **Speech-to-Text** → **Provider** offers
-**Parakeet (CPU)** and **Parakeet (WebGPU · Experimental)**. Both store the
-`parakeet` provider; the WebGPU choice enables `speech.stt_parakeet_webgpu`,
-while the CPU choice disables it. The flag is off by default.
+**Offline (CPU)** and **Offline (WebGPU · Experimental)**; their descriptions
+name the model serving the UI Locale. Both store the `parakeet` provider; the
+WebGPU choice enables `speech.stt_parakeet_webgpu`, while the CPU choice
+disables it. The flag is off by default and applies to either engine.
 
-When WebGPU is selected, `loadClientParakeetWorker` probes
-(`getParakeetWebgpuStatus`) for two things:
+When WebGPU is selected, the client probes (`getWebgpuStatus`,
+`probeWebgpuModel` in `lib/speech/offline-stt/webgpu.ts`) for two things:
 
 - a WebGPU adapter;
-- a `HEAD` response for the optional FP16 encoder
-  (`CLIENT_PARAKEET_WEBGPU_ENCODER_URL`).
+- a `HEAD` response for the GPU set's model file (Parakeet's
+  `encoder-model.fp16.onnx`, SenseVoice's FP32 `model.onnx`).
 
-`resolveParakeetBackend` then picks one of these backends:
+`resolveSpeechBackend` then picks one of these backends:
 
-| Result          | Backend                                                | Status line                    |
-| --------------- | ------------------------------------------------------ | ------------------------------ |
-| `available`     | `webgpu`: FP16 encoder on WebGPU, INT8 decoder on WASM | Available; Active once loaded  |
-| `unsupported`   | `wasm`                                                 | WebGPU not available           |
-| `model_missing` | `wasm`                                                 | GPU speech model not installed |
+| Result          | Backend                                                                         | Status line                    |
+| --------------- | ------------------------------------------------------------------------------- | ------------------------------ |
+| `available`     | `webgpu`: the GPU set's graph on WebGPU (Parakeet's INT8 decoder stays on WASM) | Available; Active once loaded  |
+| `unsupported`   | `wasm`                                                                          | WebGPU not available           |
+| `model_missing` | `wasm`                                                                          | GPU speech model not installed |
 
-The GPU add-on in `OfflineSpeechDownloads` installs `parakeet-stt-webgpu`
-independently of provider selection; it never chains a CPU download or changes
-the selected provider. No reload is needed: the probe refreshes when the set
-settles, and the next dictation or Voice Mode start loads the encoder. The
-set's attribution is bundled and shown below the control.
+The GPU add-on in `OfflineSpeechDownloads` installs `parakeet-stt-webgpu` or
+`sensevoice-stt-webgpu` independently of provider selection; it never chains a
+CPU download or changes the selected provider. No reload is needed: the probe
+refreshes when the set settles, and the next dictation or Voice Mode start loads
+the GPU graph. Each engine's attribution is bundled and shown below its
+section.
 
 Loading behavior:
 
@@ -327,28 +415,33 @@ Loading behavior:
   and the settings panel says WebGPU failed to load and the CPU was used. For
   the rest of the page it uses WASM directly (`load_failed`), until the
   settings panel refreshes the status.
-- **Warm-up.** The worker warms WebGPU with one second of silence during load,
-  so shader compilation does not make the first preview look over budget.
+- **Warm-up.** The Parakeet worker warms WebGPU with one second of silence
+  during load, so shader compilation does not make the first preview look over
+  budget.
 
-The build define `__CLIENT_PARAKEET_MODELS__` (`CLIENT_PARAKEET_MODELS`) sets
-where both sets are served and whether downloads are offered:
+The build defines `__CLIENT_PARAKEET_MODELS__` and
+`__CLIENT_SENSEVOICE_MODELS__` set where each engine's sets are served, and
+the Parakeet define's source decides whether downloads are offered
+(`OFFLINE_SPEECH_DOWNLOADS_OFFERED`):
 
-| Build                             | Source        | Base URL / GPU base URL                                                           |
-| --------------------------------- | ------------- | --------------------------------------------------------------------------------- |
-| Packaged desktop, built self-host | `asset-store` | `/onnx/models/parakeet-tdt-0.6b-v2/`, `/onnx/models/parakeet-tdt-0.6b-v2-webgpu/` |
-| Vite development                  | `operator`    | `/__client-parakeet-models/`, `/__client-parakeet-webgpu-models/`                 |
+| Build                             | Source        | Base URL / GPU base URL                                           |
+| --------------------------------- | ------------- | ----------------------------------------------------------------- |
+| Packaged desktop, built self-host | `asset-store` | `/onnx/models/<model-id>/`, `/onnx/models/<model-id>-webgpu/`     |
+| Vite development                  | `operator`    | `/__client-<engine>-models/`, `/__client-<engine>-webgpu-models/` |
 
-A `HEAD` probe of `encoder-model.fp16.onnx` decides availability: each source
-answers 404 until the set is installed. The encoder carries the GPU set's own
-`?v=` version, never the base set's. See
-[model setup](../../backend/operations/model-assets.md#optional-parakeet-webgpu-encoder).
+The model IDs are `parakeet-tdt-0.6b-v2` and `sensevoice-small`; the engines
+are `parakeet` and `sensevoice`. A `HEAD` probe of the GPU set's model file
+decides availability: each source answers 404 until the set is installed. The
+GPU file carries the GPU set's own `?v=` version, never the base set's. See
+[model setup](../../backend/operations/model-assets.md#optional-parakeet-webgpu-encoder)
+and [SenseVoice sets](../../backend/operations/model-assets.md#sensevoice-multilingual-sets).
 
 The worker serializes all requests through a promise queue so load,
 transcription, and dispose operations cannot use the model concurrently. If the
 same model URLs/backend/sample rate are already loaded, the worker returns
 `reused: true` and keeps the warmed model.
 
-After the worker is ready, Parakeet starts MicVAD with:
+After the worker is ready, the offline path starts MicVAD with:
 
 - model `v5`
 - `processorType: "AudioWorklet"`
@@ -359,13 +452,13 @@ After the worker is ready, Parakeet starts MicVAD with:
 - minimum speech `180ms`
 
 Those thresholds live in `use-dictation.ts`. They apply to the MicVAD speech
-window, not to Parakeet decoding.
+window, not to decoding.
 
-#### MicVAD window lifecycle for Parakeet
+#### MicVAD window lifecycle for offline STT
 
-Parakeet uses the same acoustic gate callbacks as browser STT, but it does not
-route Web Speech transcript text through the gate. MicVAD is the source of truth
-for when Parakeet should transcribe.
+Offline STT uses the same acoustic gate callbacks as browser STT, but it does
+not route Web Speech transcript text through the gate. MicVAD is the source of
+truth for when the engine should transcribe.
 
 Window events:
 
@@ -390,56 +483,58 @@ Window events:
 Only accepted windows are transcribed. Rejected windows and VAD misfires are
 discarded and do not emit chat input text.
 
-#### Final-window Parakeet path
+#### Final-window offline path
 
-Parakeet uses final-window transcription:
+Offline STT uses final-window transcription:
 
-1. `startParakeetDictation()` loads/reuses the Parakeet worker.
+1. `startOfflineDictation()` loads/reuses the routed engine's worker.
 2. It starts MicVAD and a separate visualizer `getUserMedia` stream for the chat
    mic waveform.
 3. MicVAD records each speech window and passes the accepted mono `Float32Array`
    to `onAcceptedSpeechEnd(...)`.
-4. `onAcceptedSpeechEnd(...)` calls `transcribeParakeetSpeechWindow(...)`.
-5. `transcribeParakeetSpeechWindow(...)` sends one
-   `client_parakeet/transcribe` worker request containing the complete accepted
-   window.
-6. The worker calls `model.transcribe(audio, 16000, ...)` once and returns final
-   text plus timing/metric data.
+4. `onAcceptedSpeechEnd(...)` calls `transcribeOfflineSpeechWindow(...)`.
+5. `transcribeOfflineSpeechWindow(...)` sends one `offline_stt/transcribe`
+   worker request (`kind: "final"`) containing the complete accepted window and
+   the route's language.
+6. The worker decodes the window once and returns final text plus timing/metric
+   data.
 7. `useDictation` ignores stale results by session id, provider, run id, turn
    id, and current dictation state.
-8. Non-empty final text is emitted through `onSegment(...)` with
-   `source: "parakeet"` and `isFinal: true`, which lets `ChatInterface` insert
-   it into the chat input.
+8. Non-empty final text is emitted through `onSegment(...)` with the engine as
+   `source` (`"parakeet"` or `"sensevoice"`) and `isFinal: true`, which lets
+   `ChatInterface` insert it into the chat input. `joinSpeechText`
+   (`lib/speech/speech-text.ts`) joins transcript pieces with one space
+   between words and none beside Chinese or Japanese text.
 
-In voice mode, Parakeet commits that final text to the current voice turn before
-running smart-turn for the accepted window. This keeps the existing browser
-voice-mode auto-submit timeout unchanged: when smart-turn returns `end_turn`,
-the committed Parakeet transcript is already available to the end-turn
+In voice mode, the engine commits that final text to the current voice turn
+before running smart-turn for the accepted window. This keeps the existing
+browser voice-mode auto-submit timeout unchanged: when smart-turn returns
+`end_turn`, the committed transcript is already available to the end-turn
 coordinator.
 
-This final decode is the only source of committed Parakeet text and of Voice
+This final decode is the only source of committed offline text and of Voice
 Mode auto-submission. As with browser interim text, a manual send includes
 whatever preview is visible in the input.
 
-#### Live Parakeet previews
+#### Live previews
 
-Previews run only when the loaded Parakeet backend is WebGPU
-(`shouldEnableParakeetPreviews`), which the experimental setting enables. The
+Previews run only when the loaded backend is WebGPU
+(`shouldEnableSpeechPreviews`), which the experimental setting enables. The
 default single-thread WASM backend is final-only, because a preview there
 covered only about 2 s of a window before the decode budget stopped it.
 
-While a MicVAD window is open on WebGPU, `createParakeetPreviewController(...)`
-(`lib/speech/client-parakeet/preview-controller.ts`) re-decodes the growing
-window buffer and shows the result as interim text. Parakeet TDT is a
-full-context model, so previews re-run the whole buffer instead of stitching
+While a MicVAD window is open on WebGPU, `createSpeechPreviewController(...)`
+(`lib/speech/offline-stt/preview-controller.ts`) re-decodes the growing window
+buffer and shows the result as interim text. Both engines decode the whole
+window at once, so previews re-run the whole buffer instead of stitching
 chunks.
 
 - MicVAD frames reach the controller through `onVadFrame`. The window buffer
   starts with the same 200 ms pre-speech pad MicVAD prepends.
 - The first preview is sent after 600 ms of window audio. Later previews wait
   `max(600 ms, 1.5 × last preview decode)`, and at most one is in flight. The
-  controller sends them to the same worker with `kind: "preview"`. Previews
-  are not profiled, which keeps `parakeet.js` console output down.
+  controller sends them to the same worker with `kind: "preview"`. Parakeet
+  previews are not profiled, which keeps `parakeet.js` console output down.
 - A preview in flight delays the final decode that follows it. The controller
   therefore predicts each decode from the measured rate. It stops previewing a
   window once the prediction exceeds 800 ms, and it decodes and keeps at most
@@ -448,10 +543,10 @@ chunks.
   after a slow spell such as a cold first decode. A first preview held back
   while an assistant run is active is predicted like any other. If no rate has
   been measured yet in that capture session, that window gets no previews.
-  - Measured on Apple Silicon (Metal), WebGPU keeps previews within budget
-    for about 15–18 s of window audio in Electron, and up to the 20 s cap in
-    Chrome.
-  - `maxPreviewDecodeMs: 0` in `DEFAULT_PARAKEET_PREVIEW_CONFIG` disables
+  - Measured on Apple Silicon (Metal) in Electron, Parakeet on WebGPU keeps
+    previews within budget for about 15–18 s of window audio (up to the 20 s
+    cap in Chrome), and SenseVoice re-decodes a 15 s window in about 0.1 s.
+  - `maxPreviewDecodeMs: 0` in `DEFAULT_SPEECH_PREVIEW_CONFIG` disables
     previews. It is an internal constant, not a user setting.
 - Previews are display-only. They are published through
   `publishTranscriptPreview(...)` as `interimText` but never written to gate
@@ -468,7 +563,7 @@ chunks.
   the window is rejected or fails. Preview failures only stop previews for that
   window.
 - Worker preview logs use `debug`. Budget stops and preview failures are logged
-  at `info` under `ClientParakeet`.
+  at `info` under `OfflineSTT` for either engine.
 
 ### Browser recognition details
 
@@ -567,7 +662,7 @@ Display model:
 
 - Chat input preview is rendered as `finalText + interimText`.
 - Interim text is shown as a lighter overlay in `ChatInputTextArea`.
-- Parakeet previews use the same `interimText` display channel but are kept
+- Offline previews use the same `interimText` display channel but are kept
   outside the per-turn buffers, so fallback submission never uses them.
 
 Interim clearing rules:
@@ -594,14 +689,14 @@ In muted voice mode:
 
 This is intentional because Web Speech does not expose raw transcript audio for custom processing.
 
-Parakeet uses MicVAD's accepted audio window for transcription and a separate
-visualizer stream for the waveform. In muted Parakeet voice mode, MicVAD and
-the visualizer are stopped while the active turn, transcript buffer,
-smart-turn worker, and warmed Parakeet worker are preserved.
+Offline STT uses MicVAD's accepted audio window for transcription and a
+separate visualizer stream for the waveform. In muted offline voice mode, MicVAD
+and the visualizer are stopped while the active turn, transcript buffer,
+smart-turn worker, and warmed engine worker are preserved.
 
 ## Voice Mode Semantic VAD (Smart-Turn)
 
-Voice mode extends browser or Parakeet STT with semantic end-of-turn
+Voice mode extends browser or offline STT with semantic end-of-turn
 classification.
 
 Main files:
@@ -644,7 +739,7 @@ In `use-dictation.ts`:
 
 - accepted VAD speech segments append to `smartTurnAudioRef` (rolling turn audio buffer)
 - browser STT appends accepted audio immediately at speech end
-- Parakeet voice mode transcribes the accepted window first, commits final text,
+- offline voice mode transcribes the accepted window first, commits final text,
   then appends the same accepted audio
 - semantic check runs once per accepted speech window after that provider has
   updated its turn transcript/audio state
@@ -686,10 +781,11 @@ Provider timing:
 - Browser STT may run smart-turn before final browser text has arrived, so the
   pending submit path often waits for transcript updates or uses timeout
   fallback buffers.
-- Parakeet STT commits final text before running smart-turn for the accepted
+- Offline STT commits final text before running smart-turn for the accepted
   window, so `smart_turn_decision` usually submits immediately when the
   semantic decision is `end_turn`.
-- If Parakeet returns empty text, smart-turn can still produce `end_turn`, but
+- If the offline engine returns empty text (silence, noise or punctuation
+  alone), smart-turn can still produce `end_turn`, but
   the coordinator skips auto-submit after the normal timeout rather than
   submitting an empty message.
 
@@ -703,14 +799,21 @@ To reduce false `continue` decisions on short utterances:
 
 then effective decision is forced to `end_turn`.
 
+The list holds English, Japanese, Korean and Chinese (Simplified, Traditional
+and Cantonese) replies, such as はい, 네, 好的 and 唔該; it also holds 系, the
+character SenseVoice writes for Cantonese 係. `normalizeSmartTurnOverrideText`
+normalizes both sides once: NFKC, lowercase, punctuation and symbols other than
+apostrophes removed in any script, whitespace collapsed. Words that also open a longer turn while the
+speaker thinks are left out (嗯, 어, ええ, そうだね, そうですね, 아니).
+
 Matching source priority:
 
 1. current turn buffered `finalText`
 2. current turn buffered `interimText`
 
 For browser STT, the match can come from final or interim recognition text. For
-Parakeet STT, the match comes from final text only, because Parakeet previews
-are display-only and never enter the per-turn buffers.
+offline STT, the match comes from final text only, because previews are
+display-only and never enter the per-turn buffers.
 
 ## Chat and Avatar Runtime Integration
 
@@ -724,7 +827,7 @@ are display-only and never enter the per-turn buffers.
   - `dictationInterimRef` (live interim dictation preview)
 - merges display text as `base + (committed + interim)`
 - updates interim preview from `onTranscriptPreview` (browser STT buffer updates
-  and Parakeet previews)
+  and offline previews)
 - starts:
   - `startDictation("dictation")`
   - `startDictation("voice")`
@@ -1098,8 +1201,8 @@ the public ORT 1.24.2 inventory does not replace those dependency versions.
   selection nor provider. Setup and App Settings do not contain a preset browser.
   App Settings → Voice → Voice Clone reuses the Anima cloning form and exposes
   the encoder download independently of TTS. Setup offers only Speech-to-Text and
-  Voice Clone downloads. Parakeet set downloads resume from verified bytes
-  after interruption.
+  Voice Clone downloads. Offline speech set downloads resume from verified
+  bytes after interruption.
 - Anima voice catalogs are separate user/catalog inputs; their persisted URLs
   and legacy `/onnx/models/pocket-tts/animas/{animaId}_voices.bin` reference format
   are not members of the 22-file engine inventory.
@@ -1122,7 +1225,7 @@ verify the complete engine inventory and required small TTS runtime files.
 
 2. STT starts but VAD fails immediately:
 
-- AudioWorklet support is required for acoustic VAD in browser and Parakeet
+- AudioWorklet support is required for acoustic VAD in browser and offline
   STT paths.
 
 3. Browser local STT fails on locale:
@@ -1170,6 +1273,14 @@ verify the complete engine inventory and required small TTS runtime files.
 - Browser STT result processing ignores transcript updates while assistant run/TTS is active (`activeRunId` or `activeSpeechRunId`).
 - In that state, interim preview is explicitly cleared to avoid self-transcription echo.
 
+10. Offline dictation says "Install offline speech recognition for this language":
+
+- The UI Locale routes to SenseVoice, and its CPU set is not available: not
+  installed, or turned off with `ANIMAMA_SENSEVOICE_STT_ENABLED=false`.
+- Install it in App Settings → Voice. On a Vite development stack, acquire it
+  on the host and rerun `reset.sh`. The app never substitutes a browser
+  recognizer for that language.
+
 ## Implementation File Map
 
 ### STT + voice mode
@@ -1178,12 +1289,22 @@ verify the complete engine inventory and required small TTS runtime files.
 - Dictation/voice orchestrator: `src/frontend/web/src/hooks/use-dictation.ts`
 - Browser STT runtime helpers: `src/frontend/web/src/hooks/voice/browser-recognition-runtime.ts`
 - MicVAD runtime helpers: `src/frontend/web/src/hooks/voice/mic-vad-runtime.ts`
-- Client Parakeet worker client:
-  `src/frontend/web/src/lib/speech/client-parakeet/client.ts`
-- Client Parakeet worker protocol:
-  `src/frontend/web/src/lib/speech/client-parakeet/worker-protocol.ts`
-- Client Parakeet worker runtime:
-  `src/frontend/web/src/workers/client-parakeet-worker.ts`
+- Offline engine routing: `src/frontend/web/src/lib/speech/offline-stt/routing.ts`
+- Offline STT client, protocol, leases, WebGPU selection and previews:
+  `src/frontend/web/src/lib/speech/offline-stt/` (`worker-client.ts`,
+  `worker-protocol.ts`, `clients.ts`, `asset-ids.ts`, `lease.ts`, `webgpu.ts`,
+  `preview-controller.ts`)
+- Engine configurations: `src/frontend/web/src/lib/speech/client-parakeet/`,
+  `src/frontend/web/src/lib/speech/client-sensevoice/` (`model.ts`,
+  `kaldi-fbank.ts`, `script.ts`)
+- Offline STT workers: `src/frontend/web/src/workers/client-parakeet-worker.ts`,
+  `src/frontend/web/src/workers/client-sensevoice-worker.ts` and their shared
+  `src/frontend/web/src/workers/offline-stt-worker-runtime.ts`
+- Transcript joining: `src/frontend/web/src/lib/speech/speech-text.ts`
+- Speech downloads and language notice:
+  `src/frontend/web/src/ui/settings/OfflineSpeechDownloads.tsx`,
+  `src/frontend/web/src/app/local-runtime/setup/SetupSpeechDownloads.tsx`,
+  `src/frontend/web/src/ui/settings/SpeechLanguageNotice.tsx`
 - Voice end-turn coordinator: `src/frontend/web/src/hooks/voice/use-voice-end-turn-coordinator.ts`
 - Acoustic gate state machine: `src/frontend/web/src/lib/voice/acoustic-vad-gate.ts`
 - Smart-turn protocol/client: `src/frontend/web/src/lib/voice/smart-turn-worker-protocol.ts`, `src/frontend/web/src/lib/voice/smart-turn-worker-client.ts`

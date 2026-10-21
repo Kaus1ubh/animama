@@ -222,8 +222,9 @@ neither source paths nor arbitrary filesystem access. Only Local is watched.
 ## Optional Feature Packs
 
 The optional packs are expanded Included content and document processing; both
-are deferred from the first release. Offline speech (Parakeet) is a backend model
-asset that installs without a restart, not a pack.
+are deferred from the first release. Offline speech recognition (the Parakeet
+and SenseVoice-Small sets) uses backend model assets that install without a
+restart, not packs.
 [Feature packs](feature-packs.md) describes availability, setup and removal
 behavior for both.
 
@@ -251,9 +252,9 @@ active import/reconciliation work, and running document jobs prevent removal;
 affected labels appear in Settings. Expanded entries are never auto-equipped.
 Queued document jobs survive removal and resume with the worker installed again.
 
-Installed Parakeet sets are served from the backend model-asset store at the
-protected same-origin `/onnx/models/parakeet-tdt-0.6b-v2/` and
-`/onnx/models/parakeet-tdt-0.6b-v2-webgpu/` paths. FastAPI resolves the
+Installed speech-to-text sets are served from the backend model-asset store at
+the protected same-origin `/onnx/models/parakeet-tdt-0.6b-v2[-webgpu]/` and
+`/onnx/models/sensevoice-small[-webgpu]/` paths. FastAPI resolves the
 installed set on each request, so an install or removal needs no restart. Exact
 `?v=<manifest-digest>` requests support immutable private caching, ETags, HEAD,
 and single byte ranges. Stale versions and unlisted files return 404. No store
@@ -404,8 +405,10 @@ practice. Desktop mode hides browser STT/TTS options from the app UI.
 
 Desktop speech behavior:
 
-- STT uses client-side Parakeet only when runtime capabilities report it
-  available. Embedded mode requires the installed `parakeet-stt` model asset;
+- STT uses the client-side offline engine for the UI Locale (Parakeet for
+  English, SenseVoice-Small for Japanese, Korean and Chinese) only when runtime
+  capabilities report it available. Embedded mode requires that engine's
+  installed CPU model asset (`parakeet-stt` or `sensevoice-stt`);
   external-stack development retains its configured same-origin model source.
 - TTS uses PocketTTS, ElevenLabs or Gemini.
 - Browser TTS/STT providers are not offered in desktop settings.

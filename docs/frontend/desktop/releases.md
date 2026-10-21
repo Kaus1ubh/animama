@@ -32,8 +32,9 @@ distribution (see [Distribution selection](#distribution-selection)): for R2,
 only the platform's feed (`<base_url>/latest-mac.yml` on macOS,
 `<base_url>/latest.yml` on Windows) and `<base_url>/v<version>/` files; for GitHub,
 only the configured repository's releases and asset CDN. Archive packs follow
-the same rule. Backend model-asset downloads, including Parakeet, always use the
-fixed `https://downloads.animama.ai/models/` origin, with no redirects. R2 app downloads
+the same rule. Backend model-asset downloads, including the speech-to-text
+sets, always use the fixed `https://downloads.animama.ai/models/` origin, with
+no redirects. R2 app downloads
 also follow no redirects. No Animama account or token
 is required for the installed application.
 
@@ -588,8 +589,9 @@ Model files that the app downloads at runtime are published once under
 `models/<model-id>/<file-sha256>/<file-name>`, independent of app versions. A
 file's key is its own SHA-256, so published objects never change and an
 unchanged file is never uploaded again. The packaged backend model-asset catalog
-pins these URLs for both Parakeet sets, the Pocket voices and the cloning
-encoder, including notice objects in each verified model inventory (see
+pins these URLs for both Parakeet sets, both SenseVoice sets, the Pocket
+voices and the cloning encoder, including notice objects in each verified model
+inventory (see
 [downloaded model assets](../../backend/operations/model-assets.md#downloaded-model-assets)).
 
 Signed app candidates seal the required model manifests into

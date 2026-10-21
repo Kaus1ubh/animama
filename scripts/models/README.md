@@ -39,8 +39,9 @@ repositories, moving revisions or inventory paths.
 
 Each ordinary base download uses
 `https://downloads.animama.ai/models/parakeet-tdt-0.6b-v2/<sha256>/<filename>`,
-including both notices. These are the same verified raw objects desktop packs
-use. A missing object fails without falling back to another source.
+including both notices. The app's in-app speech downloads use the same
+verified raw objects. A missing object fails without falling back to another
+source.
 
 Build/release maintainers can explicitly acquire the original pinned upstream
 weights and checked-in notices before the first model publication:
@@ -91,9 +92,9 @@ automatic retries hide repeated failures. Interrupted/failed transfers restart
 rather than attempting unvalidated byte-range resume. Serving and ordinary
 startup never download or choose a different model version.
 
-The installed desktop application continues using its own verified feature-pack
-storage and distribution workflow. The developer store is a build/setup input,
-not an installed application's persistent pack directory.
+Packaged desktop and built self-host download speech-to-text sets through their
+own backend model-asset service into the application's data root. The developer
+store is a build/setup input, not the installed application's model store.
 
 Native Windows model-store tests can be run with
 `uv run --no-project --with pytest==8.4.2 python -m pytest --noconftest -o addopts= tests/test_model_store.py -q`.

@@ -82,7 +82,7 @@ The approved core inventory in `release-policy.json` predates the removal of
 the `google-genai` and `litellm` runtime dependencies, so the next stage needs a
 fresh inventory review. Allowlist entries in `release-scan.gitleaks.toml` that
 only covered `litellm` can be dropped once that scan passes without them; keep
-any that the returned `google-genai` package still needs. The inventory also predates three
+any that the returned `google-genai` package still needs. The inventory also predates four
 later changes that the owner must re-review before the next desktop release:
 
 - the Python license inventory gains the `anthropic` client SDK and its new
@@ -99,7 +99,14 @@ later changes that the owner must re-review before the next desktop release:
   and that TLS succeeds;
 - the notice inventory changes because the `model-provider-logos` group in
   `runtime/license-sources.json` now covers ten logos, including the
-  Anthropic mark from models.dev.
+  Anthropic mark from models.dev;
+- offline speech recognition for Japanese, Korean and Chinese adds the
+  `sensevoice-input` and `sensevoice-webgpu-input` notice groups
+  (`sensevoice-attribution.txt` and the FunASR Model License 1.1 text in
+  `sensevoice-funasr-model-license.txt`) and the `opencc-dictionary-data` group
+  (`opencc-data-apache-2.0.txt`). The JavaScript inventory gains `opencc-js`
+  1.4.2 (MIT), whose bundled `cn2t` tables come from opencc-data
+  (Apache-2.0). The SenseVoice weights stay runtime downloads.
 
 The generated `desktop/release/review/redistribution-review.md` packet links the
 current local artifacts for the target last staged. Keep the reviewer's

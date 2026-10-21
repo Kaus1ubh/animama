@@ -49,9 +49,11 @@ require Docker, Python, Node.js, PostgreSQL, Homebrew or a source checkout.
    you set up last (saving the OpenAI key, saving the Anthropic key for Claude
    Haiku 5.5, or adding a model) becomes the default Chat model, and the
    starter Animas switch to it. **Skip for now** keeps the default.
-6. **Voice** offers Parakeet speech recognition downloads (CPU, and GPU
-   acceleration) and the Text-to-Speech provider: built-in PocketTTS, on by
-   default, or ElevenLabs with its key. Nothing downloads unless you choose it,
+6. **Voice** offers the speech recognition downloads for the app's language
+   (CPU, and GPU acceleration): Parakeet for English, SenseVoice for Japanese,
+   Korean and Chinese. It also offers the Text-to-Speech provider: built-in
+   PocketTTS, on by default, or ElevenLabs with its key. Nothing downloads
+   unless you choose it,
    and downloads keep going after you finish. Choose **Finish**, then confirm
    that you are 18 or older in the short modal before Annie's chat opens. Later launches open the last Anima you visited, or the
    first available Anima if that Anima has been deleted.
@@ -89,9 +91,10 @@ services from the saved keys, which reloads the window. If that restart fails,
 runtime recovery's Retry uses the saved keys; do not remove the vault or
 re-enter a key merely to repair it.
 
-PocketTTS and microphone permission do not require Parakeet. Offline dictation
-and Voice Mode require the offline speech recognition CPU model, downloaded in
-setup's Voice step or App Settings → Voice without restarting the app. Open the app
+PocketTTS and microphone permission do not require a speech recognition model.
+Offline dictation and Voice Mode require the offline speech recognition CPU
+model for the app's language, downloaded in setup's Voice step or App Settings
+→ Voice without restarting the app. Open the app
 normally through Finder for microphone permission tests and allow Animama in
 macOS Privacy & Security when prompted. On Windows, microphone access follows
 Settings → Privacy & security → Microphone, including **Let desktop apps access

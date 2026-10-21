@@ -10,7 +10,9 @@ Normal acquisition downloads the verified raw files and notices from Animama's
 shared content-addressed model origin. No Cloud checkout, Hugging Face account
 or API credential is needed. Before those objects are published, release
 maintainers can explicitly use `parakeet.py acquire --source upstream`; missing
-ordinary objects never trigger an upstream fallback.
+ordinary objects never trigger an upstream fallback. The SenseVoice-Small sets
+for Japanese, Korean and Chinese use the same store and commands; see
+[SenseVoice multilingual sets](#sensevoice-multilingual-sets).
 
 ## Acquire once, verify offline
 
@@ -91,22 +93,26 @@ docker compose -p "$COMPOSE_PROJECT_NAME" restart animama-server
 ```
 
 Acquisition is the networked setup step. The subsequent verification, startup and
-restart reuse local bytes offline. Built self-host does not use host Parakeet
-sets; install offline speech in the app (see
+restart reuse local bytes offline. Built self-host does not use host
+speech-to-text sets; install offline speech in the app (see
 [Downloaded model assets](#downloaded-model-assets)). Docker images/dependencies must also already
 be available for a fully offline rebuild; model reuse alone does not cache those.
 Container replacement preserves the external model directory and database volume.
 
 `reset.sh` checks each model set before changing the selected stack and writes
-`ANIMAMA_MODEL_ROOT` plus the derived `ANIMAMA_PARAKEET_MODEL_DIR` and
-`ANIMAMA_BROWSER_MODEL_DIR` into the stack record. Every set is optional. An
-unacquired set is recorded as empty and warns: Compose then mounts its checked-in
-notices directory, a missing Parakeet set in development sets
-`ANIMAMA_PARAKEET_STT_ENABLED=false` so dictation reports offline speech as not
+`ANIMAMA_MODEL_ROOT` plus the derived `ANIMAMA_PARAKEET_MODEL_DIR`,
+`ANIMAMA_PARAKEET_WEBGPU_MODEL_DIR`, `ANIMAMA_SENSEVOICE_MODEL_DIR`,
+`ANIMAMA_SENSEVOICE_WEBGPU_MODEL_DIR` and `ANIMAMA_BROWSER_MODEL_DIR` into the
+stack record; the speech-to-text directories stay empty in built mode. Every
+set is optional. An unacquired set is recorded as empty and warns: Compose then
+mounts its checked-in notices directory, a missing Parakeet or SenseVoice set in
+development sets `ANIMAMA_PARAKEET_STT_ENABLED=false` or
+`ANIMAMA_SENSEVOICE_STT_ENABLED=false` so dictation reports that engine as not
 installed, and a missing browser speech
 set builds/serves only the pinned package files, leaving Pocket TTS and Smart Turn
 unavailable. A present set that fails verification stops the reset before any
-mutation. Source the record before project-scoped Compose commands. For a direct
+mutation, except a WebGPU add-on, which only warns. Source the record before
+project-scoped Compose commands. For a direct
 Compose configuration check with acquired models, derive the paths first:
 
 ```bash
@@ -117,16 +123,17 @@ docker compose -f docker-compose.yml -f docker-compose.development.yml config --
 ```
 
 Development uses read-only bind mounts that refuse to create a missing host
-path, and Vite serves Parakeet at `/__client-parakeet-models`. Built mode does
-not resolve or mount the host Parakeet set: the app downloads both sets through
-the backend model-asset service. The browser never downloads from Hugging Face. Keep the application
+path, and Vite serves the speech-to-text sets at `/__client-parakeet-models`,
+`/__client-sensevoice-models` and their `-webgpu-models` counterparts. Built
+mode does not resolve or mount host speech-to-text sets: the app downloads them
+through the backend model-asset service. The browser never downloads from Hugging Face. Keep the application
 loopback/private-service boundaries unchanged. Acquiring bytes does not repair
 unrelated missing starter animation assets.
 
 Direct host Vite resolves the same store offline at startup. Production frontend builds verify and copy the browser speech assets into `dist`;
-Parakeet is not a build input. Unit checks that do not build or start an
+speech-to-text sets are not build inputs. Unit checks that do not build or start an
 application need no model acquisition. Packaged desktop and built self-host
-download Parakeet in the app and do not depend on this cache.
+download speech-to-text sets in the app and do not depend on this cache.
 See [desktop runtime staging](../../frontend/desktop/runtime-staging.md).
 
 ## Recovery and deliberate cleanup
@@ -190,11 +197,14 @@ as `asset_download_failed`.
 
 Current catalog entries are the Parakeet sets `parakeet-stt` (base, seven
 files) and `parakeet-stt-webgpu` (three files; requires `parakeet-stt`, which
-cannot be removed while it is installed), and the 35 downloadable Pocket TTS
+cannot be removed while it is installed), the SenseVoice sets `sensevoice-stt`
+(base, five files) and `sensevoice-stt-webgpu` (three files; requires
+`sensevoice-stt`), and the 35 downloadable Pocket TTS
 voices (`pocket-voice-<id>`, set `models/pocket-tts-voices`). FastAPI serves
-installed Parakeet sets and reports them in runtime capabilities under the
-default `ANIMAMA_PARAKEET_SOURCE=asset-store`; development Compose sets
-`operator`, where Vite serves the host sets instead. The voices install on
+installed speech-to-text sets and reports them in runtime capabilities under the
+default `ANIMAMA_PARAKEET_SOURCE=asset-store`, which selects the source for
+both engines; development Compose sets `operator`, where Vite serves the host
+sets instead. The voices install on
 desktop and self-host when a user picks one, explicitly downloads it, or a saved
 voice is first needed. The separate `pocket-tts-voice-cloning-encoder` asset is
 downloaded on an explicit cloning/download action. Ordinary playback and saved
@@ -202,18 +212,18 @@ clones do not need that encoder. Setup and Voice settings also expose download,
 cancel, retry and removal without changing the selected provider or voice.
 
 Use the downloader for restart-free data files the running app can pick up,
-such as optional voices and the Parakeet sets. Bundles that need a service
+such as optional voices and the speech-to-text sets. Bundles that need a service
 switch, such as the document-processing pack, stay in Electron's pack manager.
 
 Use the app's Remove action before reinstalling. Never edit an installed file in
-place. A renderer using an installed Parakeet set holds a short use lease, and removal
+place. A renderer using an installed speech-to-text set holds a short use lease, and removal
 is refused while it is live.
 
 ## Optional Parakeet WebGPU encoder
 
-The **Parakeet (WebGPU · Experimental)** provider choice under App Settings →
-**Voice** → **Speech-to-Text** uses an optional FP16 encoder set (about 1.24 GB),
-stored under
+With English as the UI Locale, the **Offline (WebGPU · Experimental)** choice
+in App Settings → **Voice** → **Speech-to-Text** uses an optional FP16 encoder
+set (about 1.24 GB), stored under
 `parakeet-tdt-0.6b-v2-webgpu/<manifest-digest>/` in the same root.
 
 - It pairs with the base Parakeet decoder, preprocessor and vocabulary, which
@@ -263,6 +273,53 @@ with a stated reason, until CPU speech is installed and a WebGPU adapter exists.
 Retained files remain removable on unsupported devices. Downloading never selects
 a provider or automatically downloads CPU speech. The browser probes the encoder
 with `HEAD`; a 404 means not installed.
+
+## SenseVoice multilingual sets
+
+Offline speech recognition under the Japanese, Korean and Chinese UI Locales
+uses SenseVoice-Small
+([ADR 0029](../../adr/0029-sensevoice-offline-speech-recognition.md)). Its sets
+are pinned to the sherpa-onnx export
+`csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17` and licensed
+under the FunASR Model License 1.1, which requires attributing the source and
+author and keeping the model name:
+
+- [`models/sensevoice-small/manifest.json`](../../../models/sensevoice-small/manifest.json)
+  (model asset `sensevoice-stt`, about 240 MB): the INT8 graph for the CPU, its
+  token table, `metadata.json` (the graph's front-end parameters, which the
+  browser runtime cannot read from ONNX) and the two notices.
+- [`models/sensevoice-small-webgpu/manifest.json`](../../../models/sensevoice-small-webgpu/manifest.json)
+  (model asset `sensevoice-stt-webgpu`, about 938 MB): the upstream FP32 graph
+  for WebGPU, where the INT8 graph's quantized operators have no kernels. It
+  requires the base set, whose tokens and metadata it uses.
+
+Until Animama publishes the SenseVoice objects to `downloads.animama.ai`, the
+default `acquire` source cannot complete, and in-app installs fail as
+`asset_download_failed`. Acquire from the pinned upstream revision instead:
+
+```bash
+python3 scripts/models/sensevoice.py acquire --source upstream
+python3 scripts/models/sensevoice_webgpu.py acquire  # optional, for WebGPU
+python3 scripts/models/sensevoice.py path
+```
+
+`sensevoice_webgpu.py` always acquires from upstream, like
+`parakeet_webgpu.py`. `reset.sh` resolves both sets offline in development and
+records `ANIMAMA_SENSEVOICE_MODEL_DIR` and `ANIMAMA_SENSEVOICE_WEBGPU_MODEL_DIR`.
+A missing base set sets `ANIMAMA_SENSEVOICE_STT_ENABLED=false`, so non-English
+dictation reports its model as not installed; a base set that fails
+verification stops the reset. Vite serves the sets at
+`/__client-sensevoice-models/` and `/__client-sensevoice-webgpu-models/`; rerun
+`reset.sh` after acquiring them for a running stack.
+
+Packaged desktop and built self-host install both sets in the app through
+[Downloaded model assets](#downloaded-model-assets), and FastAPI serves them at
+`/onnx/models/sensevoice-small/` and `/onnx/models/sensevoice-small-webgpu/`.
+Runtime capabilities report them as `offline_multilingual_speech_enabled`,
+`offline_multilingual_speech_asset_version` and
+`offline_multilingual_speech_gpu_asset_version`.
+`ANIMAMA_SENSEVOICE_STT_ENABLED=false` turns SenseVoice off even with its sets
+installed, independently of `ANIMAMA_PARAKEET_STT_ENABLED`.
 
 ## Browser speech assets and dependency inputs
 

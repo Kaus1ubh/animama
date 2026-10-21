@@ -70,7 +70,9 @@ Boundaries:
       Implemented and smoke-checked 2026-10-21 (results below); the
       microphone-path short-reply findings go to G4. Review passed with
       non-blocking findings, all addressed (Code Review #1).
-- [ ] Phase 6 — Acceptance runs, packaging checks and documentation (#634).
+- [ ] Phase 6 — Acceptance runs, packaging checks and documentation (#634):
+      checks run 2026-10-21 (results below); outstanding owner items: G2–G4
+      and the first-interim target. Final integration review next.
 - [ ] Final integration review.
 
 ## Surprises & Discoveries
@@ -255,6 +257,8 @@ Boundaries:
   punctuation-free normalization. Words that also open a longer turn while the
   speaker thinks are left out: 嗯, 어, ええ, そうだね, そうですね and 아니
   (Code Review #1).
+- 2026-10-21, agent (Phase 6): Q6's ADR is numbered 0029, since 0025–0027
+  were taken on this branch and 0028 on `main` after G1.
 
 ## Owner gates
 
@@ -1460,7 +1464,7 @@ Changes and checks:
    `docs/frontend/architecture/{i18n,content-and-workers}.md`,
    `docs/frontend/desktop/redistribution-review.md`, `contracts/hosted-web.md`,
    `GLOSSARY.md` (Conversation language, Model asset) and, if Q6 is agreed,
-   ADR 0025 with a history note in ADR 0024 and the ADR index. Also the
+   ADR 0029 with a history note in ADR 0024 and the ADR index. Also the
    speech model source and switches in
    `docs/backend/operations/{development,desktop-runtime,local-http-components}.md`,
    `docs/frontend/architecture/auth-server.md` and the root `AGENTS.md` Local
@@ -1493,6 +1497,128 @@ Changes and checks:
 
 Completion: every spec acceptance item is checked or recorded as an outstanding
 owner gate.
+
+#### Phase 6 results (2026-10-21)
+
+Records: Phase 5 committed as `c56ebcc5`.
+
+Documentation (item 1): the voice runtime, model setup, HTTP API, i18n,
+workers, operations, redistribution review, hosted contract, glossary, root
+`AGENTS.md` and the desktop user guides describe both engines; ADR 0029
+records the decision and ADR 0024 carries its amendment note.
+
+Benchmark adapters: both engines now run through their production workers over
+`offline_stt/*` (`dev/speech-bench/engines/offline-stt-worker.ts`); the
+Parakeet adapter previously loaded `parakeet.js` directly, so English had not
+been measured through the worker Phase 4 refactored.
+
+Acceptance run (item 2) through the production workers from the development
+model routes (reference Mac, Electron 39.8.9; results under
+`<evaluation root>/results/phase6/`). Throughput runs repeated after the
+confidence gate below while the machine was quieter (load 1.5–3.5, against
+4–11 for the first pass), full test set:
+
+| Set | CER/WER WASM / WebGPU | Final p50 / p90 ms, WASM | Final p50 / p90 ms, WebGPU |
+| --- | ---: | ---: | ---: |
+| ja | 7.6% / 7.2% | 1,714 / 2,087 | 114 / 136 |
+| ko | 10.5% / 10.6% | 1,649 / 2,063 | 101 / 125 |
+| zh-Hans | 8.2% / 8.1% | 1,398 / 2,228 | 91 / 123 |
+| zh-Hant | 8.2% / 8.2% | 1,432 / 2,192 | 94 / 126 |
+| yue (under `zh-Hant`) | 7.6% / 7.7% | 1,435 / 2,064 | 98 / 127 |
+| en (SenseVoice, informative) | 7.9% / 7.8% | 1,253 / 2,042 | 100 / 140 |
+
+Every accuracy target is met, as is the WebGPU final p90 (0.25 s). WASM final
+p90 meets 2.2 s except `zh-Hans` at 2.23 s (load 2.4–3.5 during that run;
+2.28 s at load 4 in the first pass). English through the production Parakeet
+worker matches the Phase 1 baseline: WER 4.1% WASM and 3.8% WebGPU, final
+p50/p90 2,501/4,042 ms (baseline 2,486/4,010) and 200/314 ms (168/227) on a
+machine busier than Phase 1's. No output in any run contains a recognizer tag
+(tag leaks 0). Script check (`drafts/phase6_script_check.mjs`, OpenCC
+whole-text conversion): every `zh-Hans` output is Simplified and every
+`zh-Hant` and Cantonese output Traditional, except one 岩 that a second
+conversion would make 巖 (both standard in Taiwan); every `ja` output has kana
+or kanji and every `ko` output Hangul. With the confidence gate below, none
+of the 900 clips (both backends) came back empty. Memory: WASM median
+1,028 MB, WebGPU about 4.0 GB.
+
+Silence and noise (item 2): through the production workers, SenseVoice wrote
+one word for every non-speech window in every language (こ。, 그., 我。, "The."
+for silence, white noise, brown noise, a 120 Hz hum and clicks), on both
+backends; sherpa-onnx does the same, and the event tag still reads `Speech`.
+MicVAD rejects such windows in the app (Phase 5 smoke check), but a misfire
+would send the word. Rebuilding the front end in Python
+(`drafts/tools/confidence_probe.py`), the softmax probability of those words
+is 0.07–0.22, against 0.86 or more per clip (mean over its words) for 25
+FLEURS clips per language and 0.58 or more for the one-word replies. The
+decoder now yields no text for a final window whose word tokens average below
+0.4 (`MIN_WORD_CONFIDENCE`); afterwards all 30 probe windows (both engines,
+both backends) yield none, and the seven short replies still decode (네,
+감사합니다, 네 알겠어요, 系, 唔該, はい, 好的).
+
+First interim text on WebGPU: Phase 4's 0.67 s p50 for Japanese, Korean and
+Chinese counted a punctuation-only first preview (for example "。"), which
+Phase 5 stopped returning; the interim count per clip fell by one or two for
+those sets and not for English. Applied to previews, the confidence gate
+delayed them further (1.9–2.8 s), since a word still being spoken scores low,
+so it now applies to final windows only; previews are display-only and the
+final replaces them. Paced runs on WebGPU, 20 clips per set, first interim
+p50 (final p50 / p90 unchanged at 0.10–0.14 / 0.13–0.23 s):
+
+| Set | Previews every 600 ms (product) | Trial: every 300 ms |
+| --- | ---: | ---: |
+| ja | 995 ms | 377 ms |
+| ko | 1,274 ms | 1,025 ms |
+| zh-Hans | 1,299 ms | 1,348 ms |
+| zh-Hant | 1,278 ms | 383 ms |
+| yue (under `zh-Hant`) | 1,284 ms | 379 ms |
+| en (SenseVoice, informative) | 679 ms | – |
+
+Neither cadence meets the 0.8 s G1 target in every language, and 300 ms
+previews double the decodes per utterance (13 → 25). The product keeps the
+600 ms cadence it shares with Parakeet; the target, or a SenseVoice-specific
+cadence, is the owner's decision, recorded in the PR.
+
+Built self-host stack (item 4), disposable `animama-msre2e` (built,
+`ANIMAMA_LLM_SKIP=1`, no provider keys), driven through `/v1/model-assets`
+(`drafts/phase6_assets_check.py`, `phase6_lease_check.mjs`):
+
+- SenseVoice before G2: `sensevoice-stt:install` ends `failed` with
+  `asset_download_failed` (the shared origin returns 404), and the GPU add-on
+  is refused with `model_asset_requires` until the CPU set is installed.
+- Parakeet through the same service: a download stopped at 172 MB by a
+  backend restart reads `not_installed`; installing again resumed at 252 MB
+  with its four finished files kept, completed, and turned
+  `offline_speech_enabled` on without a restart.
+- English dictation and Voice Mode in the built app transcribe through the
+  production Parakeet worker (the Phase 5 harness with two FLEURS clips).
+- Removal while dictating is refused with `model_asset_in_use`; 25 s after the
+  session ends it succeeds.
+- SenseVoice download, resume, removal and leasing in built and packaged apps
+  stay outstanding until G2; they share this service and the client code
+  exercised above.
+
+Network inspection (item 3): the harness resolves only the stack's host
+(`--host-resolver-rules`) and records every page and worker request. In the
+built app, English dictation and Voice Mode made about 360 requests each, all
+to the stack; none went elsewhere.
+On the development stack (`animama-msr`, host
+SenseVoice sets), seven runs in ja, ko, zh-Hans, zh-Hant and Cantonese, Voice
+Mode and dictation, made 1,300–2,200 requests each (Vite modules included), all
+to the stack, and transcribed as in Phase 5 with the confidence gate in place.
+
+Packaged desktop (item 5): `pnpm desktop:check` passes; `pnpm --filter
+animama-desktop test` 539 passed, 14 skipped; `build:mac` staged the runtime,
+`runtime audit: OK` (the first runtime audit on this branch), and packed the
+unsigned development app (928 MB). It carries the catalog entries, both
+SenseVoice set manifests, the SenseVoice worker bundle and the FunASR and
+OpenCC notices in `THIRD_PARTY_NOTICES.txt`, and no model weights. In-app
+downloads in the packaged app use the backend service checked on the built
+stack; SenseVoice's wait for G2, and the live run of the packaged app belongs
+to G4.
+
+`pnpm e2e:test:fast` (item 6) against `animama-msre2e`: 38 passed in 8.5 min
+(run evidence `src/frontend/.animama-e2e/runs/run-1021120900`), on the image
+built from the working tree after the confidence gate.
 
 Records: issue #634; commits —; evidence —.
 
