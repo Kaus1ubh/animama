@@ -67,7 +67,7 @@ artifacts by reviewed repin and keeps its own caching policy.
 - [x] Phase 2: Idle first, eight workers, milestones (three reviews, 2 of 2 repair
   rounds).
 - [x] Phase 3: plural bundles: contract and backend (one high-risk review, passed).
-- [ ] Phase 4: binary bundles in the client.
+- [x] Phase 4: binary bundles in the client (one high-risk review, passed).
 - [ ] Phase 5: cacheable revision members and the after-measurement.
 - [ ] Final integration review and full pre-push suite.
 
@@ -457,6 +457,56 @@ Review tier: high risk (integrity boundary).
   frame admits nothing and does not fall back; fallback once on 404/503/network;
   403/409 fail; Idle bundles before `idleReady`; budget skip; abort admits nothing.
 - Validation: `vitest` for `runtime-content`, `pnpm verify`.
+
+Implementation notes (Phase 4): `RuntimeJsonBundleLoader` became `RuntimeBundleLoader`
+(`RuntimeBundleUnavailable`; the preparer option is `bundleLoader`), with per-format
+advertisement limits; a frame header is at most 64 KiB and the frame is read with a
+bound of its advertised bytes plus 8 and the header limit. `readBoundedResponseBytes`
+backs both the JSON and the frame reads.
+
+Check record (before review), on tree `371da78` over `3a6b5ea8`:
+
+- `npx vitest run src/lib/runtime-content` (155 passed), `npx tsc -b` and eslint
+  (`src/frontend/web`).
+- Full pre-push suite through `scripts/heavy-slot.py`: `make check-test` 4725 passed,
+  29 skipped; `pnpm verify` 541 files, 5343 passed, 1 skipped; `pnpm web:test:browser`
+  and `pnpm prettier:check` passed.
+
+#### Code Review #1 Findings
+
+High-risk review of tree `49879f4` (one analysis reviewer, one checks reviewer); both
+passed with advisories only. The reviewers reran vitest (155), `tsc -b`, eslint and a
+wider 643-test scratch run; fed frames built by the server's `binary_bundle_frame`
+(including 64 UUID refs, non-ASCII text and real PNGs, whole and in 7-byte chunks) to
+the TS loader; and ran the new tests on the baseline (15 of 16 binary tests fail
+there) and against mutations of the frame validator and the preparer.
+
+- R1 (advisory): a transport failure while reading the body (after the headers) did
+  not fall back, contrary to the doc.
+- R2 / R1-C2 / R1-C3 / R1-C4 (advisory): no test pinned the binary advertisement
+  limits, the 64 KiB header bound, the frame read bound, a duplicate binary header
+  entry or the preparer's binary media-type filter (those mutations survived).
+- R3 / R1-C1 (advisory): `licenses/source-review.json` still listed
+  `RuntimeJsonBundleLoader.ts`.
+- R4 (advisory): the binary media types were defined twice.
+- R1-C5 (advisory): `LIMITS[bundle.format]` also matched inherited properties.
+
+#### Code Review #1 Revisions
+
+- R1 accepted: a `TypeError` while reading the body becomes `RuntimeBundleUnavailable`
+  (the loader's own validation errors are plain errors and never fall back). Test: a
+  frame stream that errors mid-read falls back once; it fails with the mapping
+  removed.
+- R2, R1-C2, R1-C3, R1-C4 accepted: tests for each binary limit (member size, total,
+  65 members, a non-image type), a header over 64 KiB within the read bound, a body
+  over the read bound, a header naming one member twice, and a binary bundle with a
+  non-image member (loaded one by one; fails with the filter removed). The header
+  bound is defence in depth: the size and length checks also reject such a frame.
+- R3, R1-C1 accepted: the license record renamed, kept sorted.
+- R4 accepted: the preparer imports `BINARY_BUNDLE_MEDIA_TYPES` from the loader.
+- R1-C5 accepted: `Object.hasOwn(LIMITS, bundle.format)`.
+- Checks after the revisions: `npx vitest run src/lib/runtime-content` (164 passed),
+  `npx tsc -b`, eslint and prettier passed. No repair round was needed.
 
 ### Phase 5: Cacheable revision members and the after-measurement
 

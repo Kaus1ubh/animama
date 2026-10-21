@@ -185,24 +185,28 @@ runtime manifests or private content.
 `PyAnimaRuntime.bundles` advertises same-origin delivery bundles of optional
 members, Idle members' bundles first: `json` bundles of small JSON sequences and
 manifests and `binary` bundles of small images. This is a transport optimization,
-not a merged authoring format. The client reads JSON bundles only; a binary
-bundle's members load individually. Models and their essential dependencies, VRMA,
+not a merged authoring format. Models and their essential dependencies, VRMA,
 audio, metadata, and oversized files still use individual routes.
 
-`RuntimeMountPreparer` puts each usable JSON bundle's job first in an optional
-stage after the first posed frame: the Idle stage when the bundle carries an Idle
-member, otherwise the later stage. A bundle is usable when every member is optional,
-reserved and in no earlier bundle. Other workers continue loading binaries while it waits.
+`RuntimeMountPreparer` puts each usable bundle's job first in an optional stage
+after the first posed frame: the Idle stage when the bundle carries an Idle member,
+otherwise the later stage. A bundle is usable when every member is optional,
+reserved, of the bundle's kind (JSON sequences and manifests, or PNG, JPEG and WebP
+images) and in no earlier bundle. Other workers continue loading binaries while it waits.
 All advertised members must already fit the mount's single reserved byte budget;
 otherwise the existing individual path loads only members that fit. No bundle
 fetch is needed for old snapshots or preview callers without an advertisement.
 
-`RuntimeJsonBundleLoader` allows at most 256 members, 256 KiB each, 2 MiB original
-bytes and a 16 MiB decoded envelope. It requires the `json` format and a URL that
-ends in the revision and the bundle's own ID. It validates the exact revision/ref set,
-rejects duplicates and foreign origins, reconstructs original UTF-8 bytes, then
-uses the same size/SHA-256 verifier as individual files. A bad member fails only
-its dependent roots; a malformed envelope admits none. Successful members become
+`RuntimeBundleLoader` checks each advertisement against its format's limits (JSON:
+at most 256 members, 256 KiB each, 2 MiB original bytes and a 16 MiB decoded
+envelope; binary: at most 64 images, 512 KiB each, 4 MiB) and requires a same-origin
+URL that ends in the revision and the bundle's own ID. A JSON envelope's exact
+revision/ref set is validated and its original UTF-8 bytes reconstructed. A binary
+frame is validated whole before any member is used: the `AMB1` magic, a header of at
+most 64 KiB naming the exact member set, each delivered member's descriptor size,
+and a total length with no missing or trailing bytes. Each member then goes through
+the same size/SHA-256 verifier as individual files. A bad member fails only its
+dependent roots; a malformed envelope or frame admits none and does not fall back. Successful members become
 the same mount-owned Blobs and use the existing root publication/disposal path.
 Cancellation stops admission and cancels the request; no persistent or cross-Anima
 cache is added. Successfully bundled files are never fetched individually too.
@@ -212,8 +216,9 @@ revalidation. The backend still checks current access, lease and every physical
 file before 304; it does not renew a lease. Gzip/identity representation validators
 are distinct. Mixed errors are `no-store`. Transport failure, 404 (unavailable
 endpoint) or 5xx may fall back once to individual requests in the same bounded
-queue, which rechecks the same authorization. Auth/lease denial, malformed or
-oversized envelopes, and checksum failures do not trigger fallback. Reload/remount
+queue, which rechecks the same authorization. Auth/lease denial (401, 403, 409),
+other 4xx, malformed or oversized envelopes and frames, and checksum failures do not
+trigger fallback. Reload/remount
 to recover changed content; do not clear the installation or alter its owner.
 
 ## Fault isolation and no hot swap

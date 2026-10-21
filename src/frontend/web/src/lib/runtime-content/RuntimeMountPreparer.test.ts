@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { PyAnimaRuntime } from "@/lib/content/catalogTypes";
 import { RuntimeMountPreparer } from "./RuntimeMountPreparer";
 import { VerifiedByteLoader } from "./VerifiedByteLoader";
-import { RuntimeJsonBundleLoader } from "./RuntimeJsonBundleLoader";
+import { RuntimeBundleLoader } from "./RuntimeBundleLoader";
 import { adaptRuntimeSnapshot } from "./runtimeSnapshotAdapter";
 import { AnimaRuntimeCatalog } from "./AnimaRuntimeCatalog";
 import { preparedRuntimeResourceUrls } from "./runtimeContentDelivery";
@@ -284,7 +284,7 @@ describe("RuntimeMountPreparer", () => {
     const revoke = vi.fn();
     const options = {
       loader: new VerifiedByteLoader({ fetcher }),
-      jsonBundleLoader: new RuntimeJsonBundleLoader(bundleFetch),
+      bundleLoader: new RuntimeBundleLoader(bundleFetch),
       createObjectURL: () => `blob:${Math.random()}`,
       revokeObjectURL: revoke,
     };
@@ -1157,7 +1157,7 @@ describe("Idle-first preparation", () => {
     const f = heldFetcher(payloads, (index) => index > 0);
     const session = new RuntimeMountPreparer({
       loader: new VerifiedByteLoader({ fetcher: f.fetcher }),
-      jsonBundleLoader: new RuntimeJsonBundleLoader(
+      bundleLoader: new RuntimeBundleLoader(
         vi.fn<typeof fetch>(async () => new Response(null, { status: 503 })),
       ),
       createObjectURL: () => "blob:verified",
@@ -1198,7 +1198,7 @@ describe("Idle-first preparation", () => {
     const f = heldFetcher(payloads, (index) => index === 1);
     const session = new RuntimeMountPreparer({
       loader: new VerifiedByteLoader({ fetcher: f.fetcher }),
-      jsonBundleLoader: new RuntimeJsonBundleLoader(bundleFetch),
+      bundleLoader: new RuntimeBundleLoader(bundleFetch),
       // The big member does not fit, so the bundle is not fetched.
       maxTotalBytes: 6 + 7 + 7,
       createObjectURL: () => "blob:verified",
@@ -1253,7 +1253,7 @@ describe("Idle-first preparation", () => {
     let idleReadyAt = -1;
     const session = new RuntimeMountPreparer({
       loader: new VerifiedByteLoader({ fetcher: f.fetcher }),
-      jsonBundleLoader: new RuntimeJsonBundleLoader(
+      bundleLoader: new RuntimeBundleLoader(
         vi.fn<typeof fetch>(async (url) => {
           order.push(new URL(String(url)).pathname);
           return Response.json(envelope);
@@ -1273,8 +1273,383 @@ describe("Idle-first preparation", () => {
   });
 });
 
+function advert(
+  payloads: Uint8Array[],
+  letter: string,
+  format: "json" | "binary",
+  refs: number[],
+) {
+  const id = letter.repeat(64);
+  return {
+    id,
+    format,
+    url: `/v1/animas/anima/runtime/revisions/tr2-test/bundles/${id}`,
+    file_refs: refs.map((index) => `file-${index}`),
+    total_bytes: refs.reduce(
+      (total, index) => total + payloads[index]!.length,
+      0,
+    ),
+  };
+}
+
+/** A binary bundle frame: `AMB1`, the header's length, the header, the bytes. */
+function frame(
+  members: [string, Uint8Array | string][],
+  options: { revision?: string; magic?: string; extra?: number[] } = {},
+): Uint8Array<ArrayBuffer> {
+  const header = new TextEncoder().encode(
+    JSON.stringify({
+      version: 1,
+      revision: options.revision ?? "tr2-test",
+      members: members.map(([file_ref, value]) =>
+        typeof value === "string"
+          ? { file_ref, error: value }
+          : { file_ref, size: value.length },
+      ),
+    }),
+  );
+  const payloads = members
+    .map(([, value]) => value)
+    .filter((value): value is Uint8Array => typeof value !== "string");
+  const extra = options.extra ?? [];
+  const out = new Uint8Array(
+    8 +
+      header.length +
+      payloads.reduce((total, value) => total + value.length, 0) +
+      extra.length,
+  );
+  out.set(new TextEncoder().encode(options.magic ?? "AMB1"));
+  new DataView(out.buffer).setUint32(4, header.length);
+  out.set(header, 8);
+  let offset = 8 + header.length;
+  for (const value of payloads) {
+    out.set(value, offset);
+    offset += value.length;
+  }
+  out.set(extra, offset);
+  return out;
+}
+
+function binaryFixture() {
+  const payloads = ["avatar", "png-1", "png-2", "vrma"].map((text) =>
+    new TextEncoder().encode(text),
+  );
+  const typed = runtime(payloads);
+  for (const index of [1, 2]) {
+    const member = typed.content_descriptor.members![index]!;
+    member.role = "texture";
+    member.media_type = "image/png";
+  }
+  typed.bundles = [advert(payloads, "e", "binary", [1, 2])];
+  const individual = vi.fn(
+    async (url: string | URL | Request) =>
+      new Response(payloads[Number(String(url).split("/").at(-1))]),
+  );
+  const bundleFetch = vi.fn<typeof fetch>(
+    async () =>
+      new Response(
+        frame([
+          ["file-1", payloads[1]!],
+          ["file-2", payloads[2]!],
+        ]),
+      ),
+  );
+  const options = {
+    loader: new VerifiedByteLoader({ fetcher: individual }),
+    bundleLoader: new RuntimeBundleLoader(bundleFetch),
+    createObjectURL: () => "blob:verified",
+    revokeObjectURL: vi.fn(),
+  };
+  return { payloads, typed, individual, bundleFetch, options };
+}
+
+describe("binary delivery bundles", () => {
+  it("admits a binary bundle's members without individual requests", async () => {
+    const f = binaryFixture();
+    const mount = await new RuntimeMountPreparer(f.options).prepare(f.typed);
+    expect(f.bundleFetch).toHaveBeenCalledTimes(1);
+    expect(f.individual.mock.calls.map(([url]) => url)).toEqual([
+      "/files/0",
+      "/files/3",
+    ]);
+    expect(await mount.files.get("file-2")!.blob.text()).toBe("png-2");
+    expect(mount.playbackStatus).toBe("ready");
+    mount.dispose();
+  });
+
+  it.each(["digest", "member-error"])(
+    "isolates a bundled %s failure to its own root",
+    async (failure) => {
+      const f = binaryFixture();
+      f.bundleFetch.mockResolvedValue(
+        new Response(
+          frame([
+            [
+              "file-1",
+              failure === "digest"
+                ? new TextEncoder().encode("png-X")
+                : "runtime_file_changed_remount_required",
+            ],
+            ["file-2", f.payloads[2]!],
+          ]),
+        ),
+      );
+      const mount = await new RuntimeMountPreparer(f.options).prepare(f.typed);
+      expect(mount.files.has("file-1")).toBe(false);
+      expect(mount.files.has("file-2")).toBe(true);
+      expect(mount.playbackStatus).toBe("degraded");
+      expect(f.individual).toHaveBeenCalledTimes(2);
+      mount.dispose();
+    },
+  );
+
+  it.each(["magic", "revision", "size", "trailing", "short", "header"])(
+    "admits nothing from a frame with a bad %s, and does not fall back",
+    async (failure) => {
+      const f = binaryFixture();
+      const good: [string, Uint8Array][] = [
+        ["file-1", f.payloads[1]!],
+        ["file-2", f.payloads[2]!],
+      ];
+      let body: Uint8Array<ArrayBuffer>;
+      if (failure === "magic") body = frame(good, { magic: "AMB2" });
+      else if (failure === "revision")
+        body = frame(good, { revision: "other" });
+      else if (failure === "size")
+        body = frame([
+          ["file-1", new TextEncoder().encode("png-1+")],
+          ["file-2", f.payloads[2]!],
+        ]);
+      else if (failure === "trailing") body = frame(good, { extra: [0] });
+      else if (failure === "short") body = frame(good).slice(0, -1);
+      else {
+        body = frame(good);
+        new DataView(body.buffer).setUint32(4, body.length);
+      }
+      f.bundleFetch.mockResolvedValue(new Response(body));
+      const mount = await new RuntimeMountPreparer(f.options).prepare(f.typed);
+      expect([...mount.files.keys()].sort()).toEqual(["file-0", "file-3"]);
+      expect(f.individual).toHaveBeenCalledTimes(2);
+      mount.dispose();
+    },
+  );
+
+  it.each([404, 503, "network", 403, 409])(
+    "falls back once only for an unavailable endpoint, here %s",
+    async (failure) => {
+      const f = binaryFixture();
+      if (failure === "network")
+        f.bundleFetch.mockRejectedValue(new TypeError("Failed to fetch"));
+      else
+        f.bundleFetch.mockResolvedValue(
+          new Response(null, { status: failure as number }),
+        );
+      const mount = await new RuntimeMountPreparer(f.options).prepare(f.typed);
+      const fallback =
+        failure === 404 || failure === 503 || failure === "network";
+      expect(f.bundleFetch).toHaveBeenCalledTimes(1);
+      expect(f.individual).toHaveBeenCalledTimes(fallback ? 4 : 2);
+      expect(mount.files.has("file-1")).toBe(fallback);
+      mount.dispose();
+    },
+  );
+
+  it("falls back once when the connection fails while the frame is read", async () => {
+    const f = binaryFixture();
+    f.bundleFetch.mockResolvedValue(
+      new Response(
+        new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(new TextEncoder().encode("AMB1"));
+            controller.error(new TypeError("network error"));
+          },
+        }),
+      ),
+    );
+    const mount = await new RuntimeMountPreparer(f.options).prepare(f.typed);
+    expect(f.individual).toHaveBeenCalledTimes(4);
+    expect(mount.files.has("file-1")).toBe(true);
+    mount.dispose();
+  });
+
+  it.each(["member-size", "total", "members", "media-type"])(
+    "rejects a binary advertisement beyond its %s limit before fetching",
+    async (limit) => {
+      const loader = new RuntimeBundleLoader(vi.fn<typeof fetch>());
+      const count = limit === "members" ? 65 : 2;
+      const size =
+        limit === "member-size"
+          ? 512 * 1024 + 1
+          : limit === "total"
+            ? 2 * 1024 * 1024 + 1
+            : 4;
+      const members = Array.from({ length: count }, (_, index) => ({
+        file_ref: `file-${index}`,
+        role: "texture",
+        media_type:
+          limit === "media-type" && index === 0 ? "image/gif" : "image/png",
+        size_bytes: size,
+        sha256: "0".repeat(64),
+        url: `/files/${index}`,
+      }));
+      const bundle = {
+        id: "e".repeat(64),
+        format: "binary" as const,
+        url: `/v1/animas/anima/runtime/revisions/tr2-test/bundles/${"e".repeat(64)}`,
+        file_refs: members.map((member) => member.file_ref),
+        total_bytes: count * size,
+      };
+      await expect(
+        loader.load(bundle, members, "tr2-test", new AbortController().signal),
+      ).rejects.toThrow("Invalid runtime bundle advertisement.");
+    },
+  );
+
+  it.each(["header-bound", "read-bound", "duplicate"])(
+    "admits nothing from a frame past its %s",
+    async (failure) => {
+      const f = binaryFixture();
+      const good: [string, Uint8Array][] = [
+        ["file-1", f.payloads[1]!],
+        ["file-2", f.payloads[2]!],
+      ];
+      let body: Uint8Array<ArrayBuffer>;
+      if (failure === "header-bound") {
+        // A well-formed header just over 64 KiB, padded with JSON whitespace, in a
+        // frame that still fits the read bound (one payload byte short).
+        const header = new TextEncoder().encode(
+          JSON.stringify({
+            version: 1,
+            revision: "tr2-test",
+            members: good.map(([file_ref, value]) => ({
+              file_ref,
+              size: value.length,
+            })),
+          }).padEnd(64 * 1024 + 1, " "),
+        );
+        body = new Uint8Array(8 + header.length + 9);
+        body.set(new TextEncoder().encode("AMB1"));
+        new DataView(body.buffer).setUint32(4, header.length);
+        body.set(header, 8);
+        body.set(f.payloads[1]!, 8 + header.length);
+        body.set(f.payloads[2]!.slice(0, 4), 8 + header.length + 5);
+      } else if (failure === "read-bound") {
+        // More bytes than the advertisement allows, whatever the frame says.
+        body = frame(good, { extra: Array(64 * 1024 + 1).fill(0) });
+      } else {
+        // file-1 named twice, with its own bytes both times.
+        body = frame([
+          ["file-1", f.payloads[1]!],
+          ["file-1", f.payloads[1]!],
+        ]);
+      }
+      f.bundleFetch.mockResolvedValue(new Response(body));
+      const mount = await new RuntimeMountPreparer(f.options).prepare(f.typed);
+      expect([...mount.files.keys()].sort()).toEqual(["file-0", "file-3"]);
+      expect(f.individual).toHaveBeenCalledTimes(2);
+      mount.dispose();
+    },
+  );
+
+  it("loads a binary bundle with a non-image member one by one", async () => {
+    const f = binaryFixture();
+    f.typed.content_descriptor.members![2]!.media_type =
+      "application/octet-stream";
+    const mount = await new RuntimeMountPreparer(f.options).prepare(f.typed);
+    expect(f.bundleFetch).not.toHaveBeenCalled();
+    expect(f.individual).toHaveBeenCalledTimes(4);
+    expect(mount.files.size).toBe(4);
+    mount.dispose();
+  });
+
+  it("loads an Idle binary bundle before idleReady", async () => {
+    const payloads = ["avatar", "png-1", "png-2", "wave"].map((text) =>
+      new TextEncoder().encode(text),
+    );
+    const typed = idleRuntime(payloads, [1, 2]);
+    for (const index of [1, 2]) {
+      const member = typed.content_descriptor.members![index]!;
+      member.role = "texture";
+      member.media_type = "image/png";
+    }
+    typed.bundles = [advert(payloads, "f", "binary", [1, 2])];
+    const order: string[] = [];
+    const session = new RuntimeMountPreparer({
+      loader: new VerifiedByteLoader({
+        fetcher: vi.fn(async (url: string | URL | Request) => {
+          order.push(String(url));
+          return new Response(payloads[Number(String(url).split("/").at(-1))]);
+        }),
+      }),
+      bundleLoader: new RuntimeBundleLoader(
+        vi.fn<typeof fetch>(async (url) => {
+          order.push(new URL(String(url)).pathname);
+          return new Response(
+            frame([
+              ["file-1", payloads[1]!],
+              ["file-2", payloads[2]!],
+            ]),
+          );
+        }),
+      ),
+      createObjectURL: () => "blob:verified",
+      revokeObjectURL: vi.fn(),
+    }).start(typed);
+    let idleReadyAt = -1;
+    void session.idleReady.then(() => (idleReadyAt = order.length));
+    await session.essentialReady;
+    session.startOptional();
+    await session.settled;
+    expect(order).toEqual(["/files/0", typed.bundles[0]!.url, "/files/3"]);
+    expect(idleReadyAt).toBe(2);
+    await session.dispose();
+  });
+
+  it("skips a binary bundle with a member over the byte budget", async () => {
+    const f = binaryFixture();
+    const mount = await new RuntimeMountPreparer({
+      ...f.options,
+      // The second image does not fit.
+      maxTotalBytes: 6 + 5,
+    }).prepare(f.typed);
+    expect(f.bundleFetch).not.toHaveBeenCalled();
+    expect(mount.files.has("file-1")).toBe(true);
+    expect(mount.files.has("file-2")).toBe(false);
+    mount.dispose();
+  });
+
+  it("admits nothing from a bundle cancelled in flight", async () => {
+    const f = binaryFixture();
+    let release!: (response: Response) => void;
+    f.bundleFetch.mockImplementation(
+      (_url, init) =>
+        new Promise((resolve, reject) => {
+          release = resolve;
+          init?.signal?.addEventListener("abort", () =>
+            reject(new DOMException("Aborted", "AbortError")),
+          );
+        }),
+    );
+    const session = new RuntimeMountPreparer(f.options).start(f.typed);
+    const mount = await session.essentialReady;
+    session.startOptional();
+    await vi.waitFor(() => expect(f.bundleFetch).toHaveBeenCalled());
+    await session.dispose();
+    release(
+      new Response(
+        frame([
+          ["file-1", f.payloads[1]!],
+          ["file-2", f.payloads[2]!],
+        ]),
+      ),
+    );
+    expect(mount.files.has("file-1")).toBe(false);
+    expect(mount.files.has("file-2")).toBe(false);
+  });
+});
+
 describe("plural delivery bundles", () => {
-  it("fetches each JSON bundle once, the Idle one before idleReady, and loads a binary bundle's members one by one", async () => {
+  it("fetches each bundle once, the Idle one before idleReady, with no individual requests", async () => {
     const texts = [
       "avatar",
       '{"i":1}',
@@ -1296,25 +1671,10 @@ describe("plural delivery bundles", () => {
       member.role = "texture";
       member.media_type = "image/png";
     }
-    const id = (letter: string) => letter.repeat(64);
-    const advert = (
-      letter: string,
-      format: "json" | "binary",
-      refs: number[],
-    ) => ({
-      id: id(letter),
-      format,
-      url: `/v1/animas/anima/runtime/revisions/tr2-test/bundles/${id(letter)}`,
-      file_refs: refs.map((index) => `file-${index}`),
-      total_bytes: refs.reduce(
-        (total, index) => total + payloads[index]!.length,
-        0,
-      ),
-    });
     typed.bundles = [
-      advert("a", "json", [1, 2]),
-      advert("c", "json", [3, 4]),
-      advert("d", "binary", [5, 6]),
+      advert(payloads, "a", "json", [1, 2]),
+      advert(payloads, "c", "json", [3, 4]),
+      advert(payloads, "d", "binary", [5, 6]),
     ];
     const envelope = (refs: number[]) => ({
       version: 1,
@@ -1333,12 +1693,16 @@ describe("plural delivery bundles", () => {
           return new Response(payloads[Number(String(url).split("/").at(-1))]);
         }),
       }),
-      jsonBundleLoader: new RuntimeJsonBundleLoader(
+      bundleLoader: new RuntimeBundleLoader(
         vi.fn<typeof fetch>(async (url) => {
           const path = new URL(String(url)).pathname;
           order.push(path);
+          if (path.endsWith("d".repeat(64)))
+            return new Response(
+              frame([5, 6].map((index) => [`file-${index}`, payloads[index]!])),
+            );
           return Response.json(
-            envelope(path.endsWith(id("a")) ? [1, 2] : [3, 4]),
+            envelope(path.endsWith("a".repeat(64)) ? [1, 2] : [3, 4]),
           );
         }),
       ),
@@ -1352,9 +1716,10 @@ describe("plural delivery bundles", () => {
     expect(order.slice(0, 2)).toEqual(["/files/0", typed.bundles[0]!.url]);
     expect(idleReadyAt).toBe(2);
     expect(order.slice(2).sort()).toEqual(
-      [typed.bundles[1]!.url, "/files/5", "/files/6"].sort(),
+      [typed.bundles[1]!.url, typed.bundles[2]!.url].sort(),
     );
     expect(mount.files.size).toBe(7);
+    expect(await mount.files.get("file-6")!.blob.text()).toBe("png-6");
     expect(mount.playbackStatus).toBe("ready");
     await session.dispose();
   });
@@ -1362,7 +1727,7 @@ describe("plural delivery bundles", () => {
   it.each(["binary", "id", "path"])(
     "rejects a JSON bundle advertisement with a wrong %s",
     async (failure) => {
-      const loader = new RuntimeJsonBundleLoader(vi.fn<typeof fetch>());
+      const loader = new RuntimeBundleLoader(vi.fn<typeof fetch>());
       const member = (index: number) => ({
         file_ref: `file-${index}`,
         role: "sequence",
@@ -1392,7 +1757,7 @@ describe("plural delivery bundles", () => {
           "tr2-test",
           new AbortController().signal,
         ),
-      ).rejects.toThrow("Invalid runtime JSON bundle advertisement.");
+      ).rejects.toThrow("Invalid runtime bundle advertisement.");
     },
   );
 });
