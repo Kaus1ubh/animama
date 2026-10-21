@@ -1885,7 +1885,7 @@ export function useDictation(options: UseDictationOptions = {}) {
       lastAcceptedSpeechAtRef.current = null;
 
       if (canReuseTurnState) {
-        await suspendVadCapture("resume-parakeet");
+        await suspendVadCapture("resume-offline");
       } else {
         await teardownVad(`start-parakeet-${mode}`);
         await teardownSmartTurn(`start-parakeet-${mode}`);
@@ -1934,7 +1934,9 @@ export function useDictation(options: UseDictationOptions = {}) {
       syncGateDebugStats();
 
       try {
-        logger.info("OfflineSTT", "Loading local Parakeet runtime", {
+        logger.info("OfflineSTT", "Loading offline speech runtime", {
+          engine: route.engine,
+          language: route.language,
           runId,
           turnId,
           sessionId,
@@ -2087,7 +2089,9 @@ export function useDictation(options: UseDictationOptions = {}) {
           return;
         }
 
-        logger.info("OfflineSTT", "Local Parakeet runtime ready", {
+        logger.info("OfflineSTT", "Offline speech runtime ready", {
+          engine: route.engine,
+          language: route.language,
           runId,
           turnId,
           sessionId,
@@ -2279,7 +2283,7 @@ export function useDictation(options: UseDictationOptions = {}) {
             voiceMuted: true,
           });
           teardownBrowserVisualizerStream();
-          await suspendVadCapture("resume-parakeet-start-failure");
+          await suspendVadCapture("resume-offline-start-failure");
           getVoiceDebugSink()?.setError(errorObj.message);
           logger.error("State", "Offline voice resume failed", errorObj);
           throw errorObj;

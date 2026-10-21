@@ -14,7 +14,8 @@ type Unsent<T> = T extends unknown ? Omit<T, "requestId"> : never;
 /**
  * Drive one of the app's offline speech workers over its own message protocol
  * (`offline_stt/*`): load the given model files on `backend`, then transcribe
- * each clip as a final window in the set's language.
+ * each clip as a window of the runner's kind (final or preview) in the set's
+ * language.
  */
 export async function loadOfflineSttWorkerEngine<
   TModelUrls extends OfflineSttModelUrls,
@@ -69,7 +70,8 @@ export async function loadOfflineSttWorkerEngine<
     sampleRateHz: BENCH_SAMPLE_RATE,
     modelUrls,
   });
-  // The worker falls back to WASM when WebGPU fails; never report that as WebGPU.
+  // Both workers refuse a WebGPU load that fell back to WASM; check the
+  // reported backend anyway, so a run is never labelled with the wrong one.
   if (loaded.backend !== backend)
     throw new Error(`${label} loaded on ${loaded.backend}, not ${backend}.`);
   return {

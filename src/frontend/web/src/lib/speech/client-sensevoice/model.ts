@@ -47,7 +47,22 @@ const WORDED = /[\p{L}\p{N}]/u;
  * Previews skip it: a word still being spoken scores low too, and the final
  * replaces every preview.
  */
-export const MIN_WORD_CONFIDENCE = 0.4;
+const MIN_WORD_CONFIDENCE = 0.4;
+
+/** The word-confidence floor for a window: final windows only. */
+export function wordConfidenceFloor(kind: "final" | "preview"): number {
+  return kind === "final" ? MIN_WORD_CONFIDENCE : 0;
+}
+
+/** A decoded window: its text and how strongly the model believed its words. */
+export type SenseVoiceDecoded = {
+  text: string;
+  /**
+   * Mean softmax probability of the window's word tokens, logged to diagnose a
+   * dropped window; `null` without words or when no floor applies (previews).
+   */
+  wordConfidence: number | null;
+};
 
 /** Softmax probability of `id` in one frame of logits. */
 function probability(
@@ -96,7 +111,7 @@ export function decodeSenseVoiceLogits(
   vocab: number,
   tokens: readonly string[],
   minWordConfidence = MIN_WORD_CONFIDENCE,
-): string {
+): SenseVoiceDecoded {
   const pieces: string[] = [];
   let wordConfidence = 0;
   let words = 0;
@@ -118,10 +133,16 @@ export function decodeSenseVoiceLogits(
     }
     previous = best;
   }
-  if (words === 0 || wordConfidence / words < minWordConfidence) return "";
-  return closeUnspacedGaps(
-    pieces.join("").replace(/▁/g, " ").replace(/\s+/g, " ").trim(),
-  );
+  const confidence =
+    words > 0 && minWordConfidence > 0 ? wordConfidence / words : null;
+  if (words === 0 || (confidence ?? 1) < minWordConfidence)
+    return { text: "", wordConfidence: confidence };
+  return {
+    text: closeUnspacedGaps(
+      pieces.join("").replace(/▁/g, " ").replace(/\s+/g, " ").trim(),
+    ),
+    wordConfidence: confidence,
+  };
 }
 
 async function fetchOk(url: string): Promise<Response> {
@@ -141,7 +162,7 @@ export type SenseVoiceModel = {
     audio: Float32Array,
     language: SenseVoiceLanguage,
     kind?: "final" | "preview",
-  ) => Promise<string>;
+  ) => Promise<SenseVoiceDecoded>;
   release: () => Promise<void>;
 };
 
@@ -168,7 +189,7 @@ export async function loadSenseVoiceModel(
   return {
     transcribe: async (audio, language, kind = "final") => {
       const frames = kaldiFbank(audio);
-      if (frames.length === 0) return "";
+      if (frames.length === 0) return { text: "", wordConfidence: null };
       const features = applyCmvn(
         stackLowFrameRate(frames, window, shift),
         negMean,
@@ -187,16 +208,18 @@ export async function loadSenseVoiceModel(
         text_norm: new ort.Tensor("int32", Int32Array.of(withItn), [1]),
       });
       const [, outputFrames, vocab] = logits.dims;
-      const text = decodeSenseVoiceLogits(
+      const decoded = decodeSenseVoiceLogits(
         logits.data as Float32Array,
         outputFrames,
         vocab,
         tokens,
-        kind === "final" ? MIN_WORD_CONFIDENCE : 0,
+        wordConfidenceFloor(kind),
       );
       logits.dispose();
       // SenseVoice writes Chinese in Simplified script.
-      return language === "zh-Hant" ? await toTraditional(text) : text;
+      return language === "zh-Hant" && decoded.text
+        ? { ...decoded, text: await toTraditional(decoded.text) }
+        : decoded;
     },
     release: () => session.release(),
   };
