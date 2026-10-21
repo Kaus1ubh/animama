@@ -104,7 +104,7 @@ async function transcribe(
   if (!model) throw new Error("Client SenseVoice model has not been loaded.");
 
   const startedAtMs = performance.now();
-  const text = await model.transcribe(request.audio, language);
+  const text = await model.transcribe(request.audio, language, request.kind);
   const transcribeMs = Math.round(performance.now() - startedAtMs);
 
   // Previews repeat roughly every second while speaking; keep them out of info logs.

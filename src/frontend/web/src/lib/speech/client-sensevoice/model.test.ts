@@ -83,6 +83,28 @@ describe("decodeSenseVoiceLogits", () => {
     expect(decode([7, 12])).toBe("こん。");
   });
 
+  it("yields no text for a word the model barely believes, as for silence", () => {
+    // One frame where こん narrowly beats the other tokens (p ≈ 0.15).
+    const frames = 1;
+    const values = new Float32Array(tokens.length).fill(0);
+    values[7] = 1;
+    expect(decodeSenseVoiceLogits(values, frames, tokens.length, tokens)).toBe(
+      "",
+    );
+    values[7] = 4; // p ≈ 0.78
+    expect(decodeSenseVoiceLogits(values, frames, tokens.length, tokens)).toBe(
+      "こん",
+    );
+  });
+
+  it("lets a preview's word through without the confidence gate", () => {
+    const values = new Float32Array(tokens.length).fill(0);
+    values[7] = 1; // p ≈ 0.15, a word still being spoken
+    expect(decodeSenseVoiceLogits(values, 1, tokens.length, tokens, 0)).toBe(
+      "こん",
+    );
+  });
+
   it("removes tags wherever they appear, even mid-utterance", () => {
     const frames = [7, 3, 8];
     expect(

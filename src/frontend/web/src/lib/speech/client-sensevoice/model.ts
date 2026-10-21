@@ -39,6 +39,28 @@ const BLANK = 0;
 const TAG = /^<\|.*\|>$/;
 /** Text that says something: a letter or digit in any script. */
 const WORDED = /[\p{L}\p{N}]/u;
+/**
+ * The least mean probability of a final window's word tokens for it to count
+ * as speech. Prompted with a language, SenseVoice writes one word for silence
+ * or noise (こ, 그, 我, "The"), but at 0.07–0.22; speech scores 0.86 or more
+ * per clip on the test set, and one-word replies 0.58 or more (issue #509).
+ * Previews skip it: a word still being spoken scores low too, and the final
+ * replaces every preview.
+ */
+export const MIN_WORD_CONFIDENCE = 0.4;
+
+/** Softmax probability of `id` in one frame of logits. */
+function probability(
+  logits: Float32Array,
+  offset: number,
+  vocab: number,
+  id: number,
+) {
+  const top = logits[offset + id];
+  let sum = 0;
+  for (let k = 0; k < vocab; k += 1) sum += Math.exp(logits[offset + k] - top);
+  return 1 / sum;
+}
 
 export function isSenseVoiceLanguage(
   language: string,
@@ -65,16 +87,19 @@ export function parseTokenTable(text: string): string[] {
  * repeats, drop blanks, then drop SenseVoice's `<|…|>` language, emotion, event
  * and normalization tags wherever they appear. Word-start marks (`▁`) become
  * spaces, except beside Chinese or Japanese text, which is written unspaced.
- * A window that decodes to punctuation alone (noise the model punctuated)
- * yields no text.
+ * A window without words, or whose words average below `minWordConfidence`
+ * (silence or noise forced into a word), yields no text.
  */
 export function decodeSenseVoiceLogits(
   logits: Float32Array,
   frames: number,
   vocab: number,
   tokens: readonly string[],
+  minWordConfidence = MIN_WORD_CONFIDENCE,
 ): string {
   const pieces: string[] = [];
+  let wordConfidence = 0;
+  let words = 0;
   let previous = -1;
   for (let frame = 0; frame < frames; frame += 1) {
     const offset = frame * vocab;
@@ -82,15 +107,21 @@ export function decodeSenseVoiceLogits(
     for (let id = 1; id < vocab; id += 1) {
       if (logits[offset + id] > logits[offset + best]) best = id;
     }
-    if (best !== previous && best !== BLANK && !TAG.test(tokens[best] ?? "")) {
-      pieces.push(tokens[best] ?? "");
+    const piece = tokens[best] ?? "";
+    if (best !== previous && best !== BLANK && !TAG.test(piece)) {
+      pieces.push(piece);
+      if (WORDED.test(piece)) {
+        if (minWordConfidence > 0)
+          wordConfidence += probability(logits, offset, vocab, best);
+        words += 1;
+      }
     }
     previous = best;
   }
-  const text = closeUnspacedGaps(
+  if (words === 0 || wordConfidence / words < minWordConfidence) return "";
+  return closeUnspacedGaps(
     pieces.join("").replace(/▁/g, " ").replace(/\s+/g, " ").trim(),
   );
-  return WORDED.test(text) ? text : "";
 }
 
 async function fetchOk(url: string): Promise<Response> {
@@ -102,10 +133,14 @@ async function fetchOk(url: string): Promise<Response> {
 const floats = (value: string) => Float32Array.from(value.split(","), Number);
 
 export type SenseVoiceModel = {
-  /** Final text in the language's script; empty for a window without speech. */
+  /**
+   * Text in the language's script; empty for a window without speech. Only a
+   * final window must pass the word-confidence gate.
+   */
   transcribe: (
     audio: Float32Array,
     language: SenseVoiceLanguage,
+    kind?: "final" | "preview",
   ) => Promise<string>;
   release: () => Promise<void>;
 };
@@ -131,7 +166,7 @@ export async function loadSenseVoiceModel(
   });
 
   return {
-    transcribe: async (audio, language) => {
+    transcribe: async (audio, language, kind = "final") => {
       const frames = kaldiFbank(audio);
       if (frames.length === 0) return "";
       const features = applyCmvn(
@@ -157,6 +192,7 @@ export async function loadSenseVoiceModel(
         outputFrames,
         vocab,
         tokens,
+        kind === "final" ? MIN_WORD_CONFIDENCE : 0,
       );
       logits.dispose();
       // SenseVoice writes Chinese in Simplified script.
