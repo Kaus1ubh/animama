@@ -332,8 +332,9 @@ negotiation. Its full descriptor and current lease remain in each response;
 authorization and issuance run even on a conditional request. Wire-specific
 ETags and `Vary: Accept-Encoding` distinguish representations, but never turn
 an effective content revision into permission to reuse an expired lease.
-Registered bytes are not compressed by this policy: size/digest verification,
-private cache revalidation and streaming stay unchanged. See the
+Registered bytes are not compressed by this policy: size/digest verification and
+streaming stay unchanged, and their caching follows the registered-byte policy
+above. See the
 [HTTP API](http-api.md) for negotiation and metadata details.
 
 Runtime delivery bundles aggregate delivery only; creator files remain individually

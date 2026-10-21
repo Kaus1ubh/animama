@@ -102,8 +102,8 @@ chosen: its PNG is then copied into the effect as the effect's own image.
   optional work from the fallback boundary instead of waiting for a frame.
   Optional work runs in two stages: the Idle pool's roots first, then the rest.
   `idleReady` resolves between them (at once for an empty pool). The Idle stage
-  requests only Idle members, plus each JSON bundle that carries an Idle member
-  and fits whole (one request each; if one falls back, its other members wait for
+  requests only Idle members, plus each usable bundle (JSON or binary) that carries
+  an Idle member (one request each; if one falls back, its other members wait for
   the later stage). Each
   stage keeps up to eight requests in flight (configurable from one to eight),
   topping the pool up when a bundle falls back, with duplicate-member
@@ -164,9 +164,11 @@ catalog item changes before preparation finishes, the old URL requires a
 remount instead of serving replacement bytes.
 
 There is no application Cache Storage, IndexedDB, or OPFS copy of the content
-library. Normal Chromium HTTP caching may revalidate protected responses, but a
-cache hit is never required for correctness. Browser memory and HTTP caches are
-disposable and are not backed up.
+library. Chromium's HTTP cache may reuse runtime revision members and complete
+binary bundles without a request (ADR 0028) and revalidates other protected
+responses; a cache hit is never required for correctness, and every reused member
+is verified again. Browser memory and HTTP caches are disposable and are not
+backed up.
 
 The manifest GET negotiates gzip with an identity fallback. Its
 JSON is compressed; the complete descriptor, diagnostics, limits and
@@ -212,12 +214,14 @@ and a total length with no missing or trailing bytes. Each member then goes thro
 the same size/SHA-256 verifier as individual files. A bad member fails only its
 dependent roots; a malformed envelope or frame admits none and does not fall back. Successful members become
 the same mount-owned Blobs and use the existing root publication/disposal path.
-Cancellation stops admission and cancels the request; no persistent or cross-Anima
-cache is added. Successfully bundled files are never fetched individually too.
+Cancellation stops admission and cancels the request; the app adds no cache of its
+own beyond the browser's HTTP cache. Successfully bundled files are never fetched
+individually too.
 
-Browser HTTP caching can replace many file revalidations with one bundle
-revalidation. The backend still checks current access, lease and every physical
-file before 304; it does not renew a lease. Gzip/identity representation validators
+A complete binary bundle, like a runtime file, may be reused from the browser cache
+for a year with no request (ADR 0028), so the server checks nothing for that read. A
+JSON bundle is revalidated: the backend still checks current access, lease and every
+physical file before 304, and it does not renew a lease. Gzip/identity representation validators
 are distinct. Mixed errors are `no-store`. Transport failure, 404 (unavailable
 endpoint) or 5xx may fall back once to individual requests in the same bounded
 queue, which rechecks the same authorization. Auth/lease denial (401, 403, 409),

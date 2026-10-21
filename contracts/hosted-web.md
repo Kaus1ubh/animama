@@ -18,6 +18,9 @@ resolver as `app.state.request_principal_resolver`; without either, shared route
 answer 503. Its byte delivery (`file_response`) receives `immutable=True` for
 revision-named runtime members and complete binary bundles and chooses its own
 cache policy for them ([ADR 0028](../docs/adr/0028-cacheable-runtime-revision-members.md)).
+A composition whose shared catalog rows never change at runtime sets
+`SHARED_CATALOG_ROWS_IMMUTABLE` (from `content_catalog_repo`) in the `info` of owner
+sessions that run the shared loadout services, so their reads lock only owner rows.
 Its content port decides package admission: a
 composition that withholds Anima creation builds
 `ContentPackageService(allow_anima_import=False)`. A composition that serves only

@@ -70,7 +70,8 @@ artifacts by reviewed repin and keeps its own caching policy.
 - [x] Phase 4: binary bundles in the client (one high-risk review, passed).
 - [x] Phase 5: cacheable revision members and the after-measurement (one high-risk
   review, passed).
-- [ ] Final integration review and full pre-push suite.
+- [x] Final integration review and full pre-push suite (pass; one pre-existing
+  journey failure disclosed).
 
 ## Surprises & Discoveries
 
@@ -269,7 +270,10 @@ locked). It reran `make mypy`, ruff and the starter and batching suites (28 pass
 
 ### Phase 2: Idle first, eight workers, milestones
 
-Review tier: standard (high risk if P-1 renames the existing marks).
+Review tier: standard (high risk if P-1 renames the existing marks). Corrected at the
+final integration review: the worker-pool rewrite (concurrency and recovery) made it
+high risk; its evidence met that tier except a separate checks reviewer, which the
+single full pre-push run covers.
 
 - `RuntimeMountPreparer.start`: compute Idle refs from the Idle roots' members not
   already essential; split the optional members into an Idle stage and the rest;
@@ -630,6 +634,39 @@ Combined acceptance against #630, including cross-phase behaviour (an Idle bundl
 under the budget, fallback during the Idle stage, cached members after a remount).
 Then the full pre-push suite once on the final candidate; its results go in the PR.
 
+Final integration review (high risk, commit `00d6ead9`, tree `53df7be`): pass, with
+advisories only. It found #630's requirements 1–6 and acceptance met, the cross-phase
+paths correct (an Idle bundle only when every member is reserved; the Idle-stage
+fallback's top-up and postponement; a failed reload never falling back; abort
+propagation; cache reuse limited to one revision), contracts consistent (local-http
+10.0.0, runtime-contracts 0.10.0, generated client, inventory, license records) and
+no stale names outside plans. It rechecked the post-review revisions of Phases 3–5
+(the transport mapping, `Object.hasOwn`, the shared media types, the reload-failure
+semantics, no-store precedence), which had no reviewer recheck, and found them
+correct; its reruns on `53df7be` (from `src/frontend/web`, `npx vitest run src/lib/runtime-content src/lib/content/poseContent.test.ts`:
+178 passed; from the root, the bundle, ports, delivery, runtime, batching and starter
+tests: 73 passed) close those records.
+
+- R1 (advisory): `local-content-runtime.md` still said only JSON bundles join the
+  Idle stage and described caching as revalidation only;
+  `local-content-storage.md` still said revalidation stays unchanged. Fixed.
+- R2 (advisory): `contracts/hosted-web.md` named P-10 but not P-9. Fixed; the PR
+  carries both.
+- R3 (advisory): the post-review revision checks of Phases 3–5 named no tree;
+  closed by this review's recheck above.
+- R4 (advisory): Phase 2's tier should have been high risk; corrected above.
+- R5 (advisory): the pre-existing `@complete-anima` failure has no tracking issue;
+  the PR discloses it and leaves filing one to the owner.
+
+Final candidate checks (commit `00d6ead9`, tree `53df7be`, clean worktree), each
+through `scripts/heavy-slot.py`: `make check-test` 4725 passed, 29 skipped;
+`pnpm verify` 541 files, 5359 passed, 1 skipped; `pnpm web:test:browser` and
+`pnpm prettier:check` passed; `pnpm e2e:test` on a purged built stack (`m630after`):
+39 passed, 1 failed (the pre-existing `@complete-anima` pose-clip proof, which fails
+the same way on `e8c3233a`); `avatar-effect-direct-manipulation` passed in the full
+run. The review's documentation fixes followed as a documentation-only commit,
+checked with prettier.
+
 ## Validation and acceptance
 
 The issue's acceptance: the preparer tests (Idle first, concurrency, binary bundle
@@ -649,4 +686,15 @@ transaction as today.
 
 ## Outcomes & Retrospective
 
-Not started.
+A new installation's first starter mount makes 18 runtime requests instead of 540,
+with its Idle pool ready about 0.6 s after the manifest at 0 and 40 ms latency
+(before: about 2.6 and 7.4 s), and a warm remount of the same revision answers 14
+of 18 requests from the browser cache. A starter loadout costs 16 statements instead
+of 993.
+
+What helped: measuring per phase on built stacks, and a reviewer per phase that
+probed with scratch harnesses; Phase 1's review caught that hosted Cloud relied on
+an implicit `Session.get` lock exemption, which became P-9. What to keep in mind:
+Playwright's default context understates browser-cache reuse (use a persistent
+profile), and Chrome's DevTools protocol reports a 304 revalidation as a 200. Hosted
+adoption needs P-9 and P-10 (recorded in Cloud's hosted-first-run plan).
