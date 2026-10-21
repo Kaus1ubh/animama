@@ -316,4 +316,5 @@ https://github.com/raymond-van/animama/issues/509
 
 ## Delivery links
 
-Phase issues: #535 (Phase 1), #536 (Phase 2). Phases 3–6 get issues after G1.
+Phase issues: #535 (Phase 1), #536 (Phase 2), #631 (Phase 3), #632 (Phase 4),
+#633 (Phase 5), #634 (Phase 6).

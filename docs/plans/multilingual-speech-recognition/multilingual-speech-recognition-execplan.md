@@ -10,8 +10,9 @@ Gate G1 stops work after Phase 2 until the owner records the model decision.
 Branch: `feat/multilingual-speech-recognition` in its own worktree, created from
 `main` at `b943a908` and fast-forwarded to `0019e280` on 2026-10-14.
 Delivery: #509 holds the published spec (2026-10-14T15:53:03Z); phase
-sub-issues #535 (Phase 1) and #536 (Phase 2, blocked by #535). One PR for the
-plan; it lists `Closes #N` only for issues it delivers.
+sub-issues #535 (Phase 1), #536 (Phase 2), #631 (Phase 3), #632 (Phase 4),
+#633 (Phase 5) and #634 (Phase 6), each blocked by the one before. One PR for
+the plan; it lists `Closes #N` only for issues it delivers.
 
 ## Purpose and context
 
@@ -57,13 +58,12 @@ Boundaries:
       requesting this plan.
 - [x] Phase 1 — Benchmark harness, test set and Parakeet baseline (#535):
       review passed 2026-10-20 (three rounds); committed `02f44b3e`.
-- [ ] Phase 2 — Candidate engines and comparison report (#536). Gate G1.
-      2026-10-21: comparison report written; review passed (two rounds);
-      waiting for the owner's G1 decision.
-- [ ] Phase 3 — Multilingual model asset set (after G1).
-- [ ] Phase 4 — Engine integration and language routing (after G1).
-- [ ] Phase 5 — Settings, Setup, language notice and turn-taking (after G1).
-- [ ] Phase 6 — Acceptance runs, packaging checks and documentation.
+- [x] Phase 2 — Candidate engines and comparison report (#536): review passed
+      2026-10-21 (two rounds); committed `73913350`. G1 recorded 2026-10-21.
+- [ ] Phase 3 — Multilingual model asset set (#631).
+- [ ] Phase 4 — Engine integration and language routing (#632).
+- [ ] Phase 5 — Settings, Setup, language notice and turn-taking (#633).
+- [ ] Phase 6 — Acceptance runs, packaging checks and documentation (#634).
 - [ ] Final integration review.
 
 ## Surprises & Discoveries
@@ -147,6 +147,22 @@ Boundaries:
   Cantonese is converted to the Taiwan standard like `zh-Hant`, which matches
   the FLEURS Cantonese references and what the app would show under `zh-Hant`
   (D9). `opencc-js` stays a development dependency until Phase 4 uses it.
+- 2026-10-21, owner (G1): accepted the Phase 2 recommendation. SenseVoice-Small
+  serves `ja`, `ko`, `zh-Hans` and `zh-Hant`, with Cantonese under `zh-Hant`;
+  Parakeet stays the English engine (D8 not met: 7.9% against 4.1% WER).
+  Nemotron is not pursued. Interim text on WebGPU only. GPU add-on (Q5): a
+  WebGPU set, trying an FP16 graph in Phase 3 and falling back to the 938 MB
+  FP32 graph. Targets (D10, this test set on the reference Mac): CER at most
+  8% `ja`, 11% `ko`, 8.5% `zh-Hans` and `zh-Hant`, Cantonese 8% informative;
+  final text p90 at most 2.2 s on WASM and 0.25 s on WebGPU; WebGPU first
+  interim p50 at most 0.8 s; English unchanged. Q1 engine-neutral offline
+  labels; Q2 Setup offers the SenseVoice set under a non-English locale; Q3 a
+  locale change applies from the next start; Q4 no memory limit, medians
+  reported; Q6 ADR 0025; Q7 runtime downloads, not bundled.
+- 2026-10-21, agent (G1 follow-up): following Parakeet's naming, the sets are
+  `models/sensevoice-small/` (asset `sensevoice-stt`, CPU INT8) and
+  `models/sensevoice-small-webgpu/` (asset `sensevoice-stt-webgpu`), engine id
+  `sensevoice`. Phase 4 item 6 (English default) does not apply.
 
 ## Owner gates
 
@@ -531,8 +547,8 @@ The first suite run stopped at `make check-test`: mypy rejected two
 unparameterized annotations in `tests/test_speech_eval.py`, fixed before the
 `601980b4` run.
 
-Records: issue #536; commits —; evidence: Phase 2 results and the comparison
-report below.
+Records: issue #536; commit `73913350`; evidence: Phase 2 results and the
+comparison report below.
 
 #### Code Review #1 Findings
 
@@ -792,7 +808,7 @@ Completion: `acquire --source upstream`, `verify` and `path` work on the
 reference Mac; a fresh `reset.sh` reports the set; the catalog equals the
 tracked manifest; capabilities report the installed version.
 
-Records: issue —; commits —; evidence —.
+Records: issue #631; commits —; evidence —.
 
 #### Code Review #1 Findings
 
@@ -839,7 +855,7 @@ against the G1 targets.
 Completion: dictation and Voice Mode transcribe the test clips in every
 language through the app path; targets met or the gap reported to the owner.
 
-Records: issue —; commits —; evidence —.
+Records: issue #632; commits —; evidence —.
 
 #### Code Review #1 Findings
 
@@ -883,7 +899,7 @@ width.
 Completion: notice, downloads and Setup behave per R4 and R5 under every
 locale; smoke-check results recorded.
 
-Records: issue —; commits —; evidence —.
+Records: issue #633; commits —; evidence —.
 
 #### Code Review #1 Findings
 
@@ -923,7 +939,7 @@ Changes and checks:
 Completion: every spec acceptance item is checked or recorded as an outstanding
 owner gate.
 
-Records: issue —; commits —; evidence —.
+Records: issue #634; commits —; evidence —.
 
 #### Code Review #1 Findings
 
