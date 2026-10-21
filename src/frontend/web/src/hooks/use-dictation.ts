@@ -10,7 +10,7 @@ import { publicResourceUrl } from "@/lib/resource-urls";
 import { fetchRuntimeCapabilities } from "@/query/runtime-capabilities";
 import {
   getSpeechRecognitionConstructor,
-  resolvePreferredSttProvider,
+  resolveRoutedSttProvider,
   supportsLocalWebSpeechStrict,
   toSttProvider,
   type BrowserSpeechRecognition,
@@ -18,8 +18,6 @@ import {
 } from "@/lib/speech/stt-provider";
 import { offlineSttClients } from "@/lib/speech/offline-stt/clients";
 import {
-  offlineLanguageMissing,
-  offlineSpeechAvailable,
   routeOfflineSpeech,
   type OfflineSpeechRoute,
 } from "@/lib/speech/offline-stt/routing";
@@ -62,7 +60,10 @@ import {
   loadSmartTurnWorker,
   predictSmartTurn,
 } from "@/lib/voice/smart-turn-worker-client";
-import { SMART_TURN_FORCE_END_TURN_SHORT_UTTERANCE_SET } from "@/lib/voice/smart-turn-short-utterance-overrides";
+import {
+  SMART_TURN_FORCE_END_TURN_SHORT_UTTERANCE_SET,
+  normalizeSmartTurnOverrideText,
+} from "@/lib/voice/smart-turn-short-utterance-overrides";
 import { getVoiceDebugSink } from "@/lib/voice/voiceDebugSink";
 import { useAvatarRuntimeStore } from "@/stores/avatar-runtime-store";
 import type { SttSegmentSource } from "@/lib/types/voice-types";
@@ -286,14 +287,6 @@ function buildSmartTurnModelAudioWindow(
   const padded = new Float32Array(targetSamples);
   padded.set(audio, targetSamples - audio.length);
   return padded;
-}
-
-function normalizeSmartTurnOverrideText(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/[^\w\s']/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
 }
 
 export function useDictation(options: UseDictationOptions = {}) {
@@ -2906,14 +2899,15 @@ export function useDictation(options: UseDictationOptions = {}) {
         const capabilities = await fetchRuntimeCapabilities(apiClient);
         // The engine follows the conversation language read at this start.
         const route = routeOfflineSpeech();
-        if (offlineLanguageMissing(preferredProvider, route, capabilities)) {
-          throw new WordedError(dictationErrorText("languageSpeechMissing"));
-        }
-        const resolved = resolvePreferredSttProvider({
+        const resolved = resolveRoutedSttProvider({
           savedProvider: preferredProvider,
           platform,
-          parakeetAvailable: offlineSpeechAvailable(route, capabilities),
+          route,
+          capabilities,
         });
+        if (resolved.languageMissing) {
+          throw new WordedError(dictationErrorText("languageSpeechMissing"));
+        }
         if (resolved.provider === "parakeet" && !resolved.parakeetAvailable) {
           throw new WordedError(
             dictationErrorText(

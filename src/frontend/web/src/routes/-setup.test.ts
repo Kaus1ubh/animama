@@ -1,6 +1,7 @@
 import { createElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "@/test/runtime-markup";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { getI18n } from "react-i18next";
 import { describe, expect, it, vi } from "vitest";
 
 import type {
@@ -95,9 +96,10 @@ vi.mock("@/ui/settings/OfflineSpeechDownloads", () => {
   return {
     assetFailureText: () => "",
     OfflineSpeechDownloads: () => null,
-    useOfflineSpeechDownloads: () => ({
-      cpu: asset("parakeet-stt", 631_000_000),
-      gpu: asset("parakeet-stt-webgpu", 1_200_000_000),
+    useOfflineSpeechDownloads: (engine: "parakeet" | "sensevoice") => ({
+      engine,
+      cpu: asset(`${engine}-stt`, 631_000_000),
+      gpu: asset(`${engine}-stt-webgpu`, 1_200_000_000),
       freeBytes: null,
       gpuSupport: "available",
       pending: false,
@@ -398,6 +400,21 @@ describe("local first-run setup", () => {
     expect(html).toMatch(/<button[^>]*>Finish<\/button>/u);
     expect(html).toMatch(/<button[^>]*>Skip for now<\/button>/u);
     expect(html).not.toMatch(/reload/iu);
+  });
+
+  it("offers SenseVoice for speech recognition in Japanese, Korean and Chinese", async () => {
+    await getI18n().changeLanguage("zh-Hant");
+    try {
+      const html = renderSetup({ ...welcomeDone, step: "voice" });
+      expect(html).toContain("SenseVoice（CPU");
+      expect(html).toContain("SenseVoice（GPU");
+      expect(html).toContain(
+        'href="https://huggingface.co/FunAudioLLM/SenseVoiceSmall"',
+      );
+      expect(html).not.toContain("Parakeet");
+    } finally {
+      await getI18n().changeLanguage("en");
+    }
   });
 });
 

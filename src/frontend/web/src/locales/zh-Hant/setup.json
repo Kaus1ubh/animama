@@ -92,17 +92,16 @@
     "stt": {
       "checking": "正在檢查語音辨識…",
       "cpu": {
-        "description": "<link>NVIDIA 的 Parakeet TDT 0.6B v2</link> 會在此裝置上轉錄英語語音，你的聲音不會離開此裝置。",
-        "label": "Parakeet（CPU）",
-        "labelWithSize": "Parakeet（CPU，{{size}}）"
+        "label": "{{model}}（CPU）",
+        "labelWithSize": "{{model}}（CPU，{{size}}）"
       },
       "download": "下載",
       "downloaded": "已下載",
       "downloading": "正在下載 {{percent}}",
       "gpu": {
         "description": "速度更快，說話時可即時預覽。需要 CPU 版本和支援 WebGPU 的 GPU。",
-        "label": "Parakeet（GPU）",
-        "labelWithSize": "Parakeet（GPU，{{size}}）",
+        "label": "{{model}}（GPU）",
+        "labelWithSize": "{{model}}（GPU，{{size}}）",
         "needsCpu": "請先下載 CPU 版本。"
       },
       "heading": "語音轉文字",
@@ -119,6 +118,10 @@
         "available": "可使用 WebGPU",
         "checking": "正在檢查 WebGPU…",
         "unavailable": "此裝置無法使用 WebGPU"
+      },
+      "engines": {
+        "parakeet": "<link>NVIDIA 的 Parakeet TDT 0.6B v2</link> 會在此裝置上轉錄英語語音，你的聲音不會離開此裝置。",
+        "sensevoice": "<link>阿里巴巴的 SenseVoice-Small</link> 會在此裝置上轉錄日語、韓語和中文語音，你的聲音不會離開此裝置。"
       }
     },
     "tts": {

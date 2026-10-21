@@ -1,12 +1,15 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   getSttProviderOptions,
   isSttProviderSupported,
   resolvePreferredSttProvider,
+  resolveRoutedSttProvider,
 } from "./stt-provider";
+import { routeOfflineSpeech } from "./offline-stt/routing";
 import type { RuntimePlatform } from "@/platform/runtime-platform";
 
 const desktop = { kind: "desktop", isDesktop: true } as RuntimePlatform;
+const browser = { kind: "web", isDesktop: false } as RuntimePlatform;
 
 describe("optional offline speech capability", () => {
   it("does not treat absent or unknown Parakeet as supported", () => {
@@ -40,5 +43,68 @@ describe("optional offline speech capability", () => {
     expect(getSttProviderOptions(true, desktop)).toMatchObject([
       { id: "parakeet", disabled: false },
     ]);
+  });
+});
+
+describe("provider resolution under the conversation language", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+  /** A browser with cloud Web Speech recognition. */
+  const withWebSpeech = () =>
+    vi.stubGlobal("window", { webkitSpeechRecognition: class {} });
+  const capabilities = (senseVoice: boolean, parakeet = true) => ({
+    offline_speech_enabled: parakeet,
+    offline_multilingual_speech_enabled: senseVoice,
+  });
+
+  it("keeps a saved offline choice when the language's set is missing, even with Web Speech", () => {
+    withWebSpeech();
+    expect(
+      resolveRoutedSttProvider({
+        savedProvider: "parakeet",
+        platform: browser,
+        route: routeOfflineSpeech("ja"),
+        capabilities: capabilities(false),
+      }),
+    ).toEqual({
+      provider: "parakeet",
+      hasExplicitPreference: true,
+      parakeetAvailable: false,
+      languageMissing: true,
+    });
+  });
+
+  it("runs the saved offline choice once the language's set is installed", () => {
+    withWebSpeech();
+    expect(
+      resolveRoutedSttProvider({
+        savedProvider: "parakeet",
+        platform: browser,
+        route: routeOfflineSpeech("ja"),
+        capabilities: capabilities(true, false),
+      }),
+    ).toMatchObject({
+      provider: "parakeet",
+      parakeetAvailable: true,
+      languageMissing: false,
+    });
+  });
+
+  it("falls back as before under English when Parakeet is missing", () => {
+    withWebSpeech();
+    expect(
+      resolveRoutedSttProvider({
+        savedProvider: "parakeet",
+        platform: browser,
+        route: routeOfflineSpeech("en"),
+        capabilities: capabilities(true, false),
+      }),
+    ).toEqual({
+      provider: "browser_external",
+      hasExplicitPreference: false,
+      parakeetAvailable: false,
+      languageMissing: false,
+    });
   });
 });

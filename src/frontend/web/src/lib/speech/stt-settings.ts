@@ -1,6 +1,11 @@
 import { getI18n } from "react-i18next";
 
 import {
+  routeOfflineSpeech,
+  type OfflineSttEngine,
+} from "@/lib/speech/offline-stt/routing";
+import {
+  offlineSttModelName,
   toSttProvider,
   type SttProvider,
   type SttProviderOption,
@@ -20,9 +25,13 @@ export function getSttSettingsSelection(
   return provider ?? undefined;
 }
 
-/** Both Parakeet choices require the same base offline speech capability. */
+/**
+ * Both offline choices require the same base set of `engine`, the UI Locale's
+ * offline engine, and both name its model.
+ */
 export function getSttSettingsOptions(
   options: readonly SttProviderOption[],
+  engine: OfflineSttEngine = routeOfflineSpeech().engine,
 ): SttSettingsOption[] {
   const t = getI18n().getFixedT(null, "voice");
   return options.flatMap<SttSettingsOption>((option) =>
@@ -33,7 +42,9 @@ export function getSttSettingsOptions(
             ...option,
             id: "parakeet_webgpu",
             label: t("providers.stt.parakeet.webgpuLabel"),
-            description: t("providers.stt.parakeet.webgpuDescription"),
+            description: t("providers.stt.parakeet.webgpuDescription", {
+              model: offlineSttModelName(engine),
+            }),
           },
         ]
       : [option],

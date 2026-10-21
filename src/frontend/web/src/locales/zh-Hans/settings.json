@@ -406,7 +406,7 @@
       "downloads": "离线语音下载",
       "entryLabel": "语音转文本提供商",
       "label": "提供商",
-      "parakeetWebgpu": "Parakeet (WebGPU)",
+      "offlineWebgpu": "离线（WebGPU）",
       "placeholder": "选择提供商",
       "preparing": "正在准备提供商默认设置...",
       "updateFailed": "无法更新语音转文本提供商。"

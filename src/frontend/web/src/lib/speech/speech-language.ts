@@ -37,14 +37,19 @@ export function browserSpeechLanguage(): string | undefined {
 export type SpeechDirection = "speechToText" | "textToSpeech";
 
 /**
- * Engines that work only in English: Parakeet v2 (both CPU and WebGPU) and
- * Pocket TTS's English checkpoint. Every other engine follows the language.
+ * Text-to-Speech engines that speak only English: Pocket TTS's English
+ * checkpoint. Every other engine follows the language. Offline speech
+ * recognition routes by language instead (`offline-stt/routing`).
  */
-export function speechEngineIsEnglishOnly(
-  direction: SpeechDirection,
+export function ttsEngineIsEnglishOnly(
   provider: string | null | undefined,
 ): boolean {
-  return direction === "speechToText"
-    ? provider === "parakeet" || provider === "parakeet_webgpu"
-    : provider === "pocket_tts";
+  return provider === "pocket_tts";
+}
+
+/** The Settings and stored choices that mean offline speech recognition. */
+export function isOfflineSttChoice(
+  provider: string | null | undefined,
+): boolean {
+  return provider === "parakeet" || provider === "parakeet_webgpu";
 }

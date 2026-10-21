@@ -6155,7 +6155,7 @@ export default interface Resources {
         "downloads": "Offline speech downloads",
         "entryLabel": "Speech-to-Text provider",
         "label": "Provider",
-        "parakeetWebgpu": "Parakeet (WebGPU)",
+        "offlineWebgpu": "Offline (WebGPU)",
         "placeholder": "Select provider",
         "preparing": "Preparing provider defaults...",
         "updateFailed": "Failed to update STT provider."
@@ -6298,17 +6298,20 @@ export default interface Resources {
       "stt": {
         "checking": "Checking speech recognition…",
         "cpu": {
-          "description": "<link>NVIDIA's Parakeet TDT 0.6B v2</link> transcribes English speech on this device, so your voice never leaves it.",
-          "label": "Parakeet (CPU)",
-          "labelWithSize": "Parakeet (CPU, {{size}})"
+          "label": "{{model}} (CPU)",
+          "labelWithSize": "{{model}} (CPU, {{size}})"
         },
         "download": "Download",
         "downloaded": "Downloaded",
         "downloading": "Downloading {{percent}}",
+        "engines": {
+          "parakeet": "<link>NVIDIA's Parakeet TDT 0.6B v2</link> transcribes English speech on this device, so your voice never leaves it.",
+          "sensevoice": "<link>Alibaba's SenseVoice-Small</link> transcribes Japanese, Korean and Chinese speech on this device, so your voice never leaves it."
+        },
         "gpu": {
           "description": "Faster, with live previews as you speak. Needs the CPU version and a WebGPU-capable GPU.",
-          "label": "Parakeet (GPU)",
-          "labelWithSize": "Parakeet (GPU, {{size}})",
+          "label": "{{model}} (GPU)",
+          "labelWithSize": "{{model}} (GPU, {{size}})",
           "needsCpu": "Download the CPU version first."
         },
         "heading": "Speech-to-Text",
@@ -6522,7 +6525,8 @@ export default interface Resources {
       }
     },
     "languageNotice": {
-      "speechToText": "Parakeet understands English only. Speech recognition in {{language}} is coming soon.",
+      "speechToText": "To use offline speech recognition in {{language}}, download its model.",
+      "speechToTextUnavailable": "Offline speech recognition in {{language}} is not available on this server.",
       "textToSpeech": "Pocket TTS speaks English only. To hear your Animas in {{language}}, choose ElevenLabs or Gemini."
     },
     "microphone": {
@@ -6579,6 +6583,18 @@ export default interface Resources {
       },
       "description": "Dictation and Voice Mode transcribe on this device, so audio never leaves it.",
       "developmentAcquire": "This development stack serves speech models from the host: run {{cpuCommand}} (and {{gpuCommand}} for GPU acceleration), then rerun {{resetCommand}}.",
+      "engines": {
+        "parakeet": {
+          "attribution": "Model attribution (CC BY 4.0)",
+          "languages": "English",
+          "model": "Parakeet TDT 0.6B v2 by NVIDIA"
+        },
+        "sensevoice": {
+          "attribution": "Model attribution (FunASR Model License)",
+          "languages": "Japanese, Korean and Chinese",
+          "model": "SenseVoice-Small by Alibaba"
+        }
+      },
       "failures": {
         "downloadFailed": "The download did not finish. Check the internet connection, then retry.",
         "hashInvalid": "A downloaded file did not match its checksum and was discarded.",
@@ -6589,7 +6605,6 @@ export default interface Resources {
         "unknown": "The download did not finish. Retry when ready."
       },
       "gpu": {
-        "attribution": "Model attribution (CC BY 4.0)",
         "blocked": {
           "checking": "Checking WebGPU support…",
           "missing": "GPU acceleration is unavailable in this build.",
@@ -6610,7 +6625,7 @@ export default interface Resources {
         "changeFailed": "The change could not finish. Retry in a moment.",
         "inUse": "Speech recognition is in use. Close dictation and Voice Mode to remove it."
       },
-      "title": "Offline speech recognition (Parakeet)",
+      "title": "Offline speech recognition",
       "turnedOff": "Offline speech recognition is turned off on this server."
     },
     "pocket": {
@@ -6676,13 +6691,13 @@ export default interface Resources {
           "unsupported": "Local-only Web Speech recognition is not supported in this browser."
         },
         "parakeet": {
-          "cpuLabel": "Parakeet (CPU)",
-          "descriptionBrowser": "Local ONNX speech recognition in this browser.",
-          "descriptionDesktop": "Local ONNX speech recognition in the desktop app.",
+          "cpuLabel": "Offline (CPU)",
+          "descriptionBrowser": "Speech recognition in this browser in the app's language, with {{model}}.",
+          "descriptionDesktop": "Speech recognition on this device in the app's language, with {{model}}.",
           "notInstalled": "Install offline speech recognition to use dictation and Voice Mode.",
-          "unavailableBrowser": "Local Parakeet is currently unavailable in this browser.",
-          "webgpuDescription": "Experimental local speech recognition on the GPU with live previews. Falls back to the CPU when unavailable.",
-          "webgpuLabel": "Parakeet (WebGPU · Experimental)"
+          "unavailableBrowser": "Offline speech recognition is currently unavailable in this browser.",
+          "webgpuDescription": "Experimental local speech recognition on the GPU, with {{model}} and live previews. Falls back to the CPU when unavailable.",
+          "webgpuLabel": "Offline (WebGPU · Experimental)"
         }
       },
       "tts": {

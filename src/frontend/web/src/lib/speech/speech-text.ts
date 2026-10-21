@@ -8,6 +8,10 @@ const UNSPACED =
   "\\p{Script_Extensions=Han}\\p{Script_Extensions=Hiragana}\\p{Script_Extensions=Katakana}\\u3000-\\u303f\\uff00-\\uffef";
 const ENDS_UNSPACED = new RegExp(`[${UNSPACED}]$`, "u");
 const STARTS_UNSPACED = new RegExp(`^[${UNSPACED}]`, "u");
+const UNSPACED_GAP = new RegExp(
+  `(?<=[${UNSPACED}])\\s+|\\s+(?=[${UNSPACED}])`,
+  "gu",
+);
 
 /**
  * Join two pieces of recognized speech: with one space between words, but
@@ -22,4 +26,14 @@ export function joinSpeechText(base: string, next: string): string {
     ENDS_UNSPACED.test(base) ||
     STARTS_UNSPACED.test(next);
   return `${base}${spaced ? "" : " "}${next}`;
+}
+
+/**
+ * Remove whitespace beside Chinese or Japanese text inside one piece of
+ * recognized speech, as `joinSpeechText` does between pieces. Recognizers
+ * that mark word starts (SentencePiece `▁`) would otherwise space out
+ * Japanese and Chinese words; Korean and Latin spacing is kept.
+ */
+export function closeUnspacedGaps(text: string): string {
+  return text.replace(UNSPACED_GAP, "");
 }

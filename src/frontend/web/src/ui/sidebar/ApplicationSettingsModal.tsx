@@ -92,10 +92,14 @@ import { SpeechLanguageNotice } from "@/ui/settings/SpeechLanguageNotice";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
 import {
   getSttProviderOptions,
-  resolvePreferredSttProvider,
+  resolveRoutedSttProvider,
   toSttProvider,
   type SttProvider,
 } from "@/lib/speech/stt-provider";
+import {
+  offlineSpeechAvailable,
+  routeOfflineSpeech,
+} from "@/lib/speech/offline-stt/routing";
 import {
   getTtsProviderOptions,
   resolvePreferredTtsProvider,
@@ -545,7 +549,7 @@ export function ApplicationSettingsModal({
   onOpenChange,
 }: ApplicationSettingsModalProps) {
   const apiClient = useProductApiClient();
-  const { t } = useTranslation("settings");
+  const { t, i18n } = useTranslation("settings");
   const sectionLabels = Object.fromEntries(
     sections.map((section) => [section, t(SECTION_LABEL_KEYS[section])]),
   ) as Record<ApplicationSettingsSection, string>;
@@ -595,8 +599,13 @@ export function ApplicationSettingsModal({
   const [isInitializing, setIsInitializing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const runtimeCapabilities = useRuntimeCapabilities();
-  const parakeetAvailable =
-    runtimeCapabilities.data?.offline_speech_enabled ?? null;
+  // The offline choice is served by the UI Locale's engine (Parakeet for
+  // English, SenseVoice otherwise), read through `i18n` so it follows a
+  // language switch.
+  const offlineRoute = routeOfflineSpeech(i18n.resolvedLanguage);
+  const parakeetAvailable = runtimeCapabilities.data
+    ? offlineSpeechAvailable(offlineRoute, runtimeCapabilities.data)
+    : null;
   // Role choices do not grant provider or search-service administration.
   const {
     modelConfiguration: modelConfigurationEnabled,
@@ -742,10 +751,14 @@ export function ApplicationSettingsModal({
     void (async () => {
       try {
         const capabilities = await fetchRuntimeCapabilities(apiClient);
-        const resolved = resolvePreferredSttProvider({
+        // Resolved as dictation does: a saved offline choice stays selected
+        // when only the language's set is missing (the language notice asks
+        // for it).
+        const resolved = resolveRoutedSttProvider({
           savedProvider: initialSavedSttProvider,
           platform,
-          parakeetAvailable: capabilities.offline_speech_enabled,
+          route: routeOfflineSpeech(),
+          capabilities,
         });
         const resolvedTts = resolvePreferredTtsProvider({
           savedProvider: initialSavedTtsProvider,
@@ -836,7 +849,8 @@ export function ApplicationSettingsModal({
   // Provider options are worded in the active UI Locale, so they are rebuilt
   // on each render (they are a few small objects) rather than memoized.
   const sttProviderOptions = getSttSettingsOptions(
-    getSttProviderOptions(parakeetAvailable, platform),
+    getSttProviderOptions(parakeetAvailable, platform, offlineRoute.engine),
+    offlineRoute.engine,
   );
   const geminiTtsOffered = runtimeCapabilities.data?.gemini_tts != null;
   const ttsProviderOptions = getTtsProviderOptions(platform, {
@@ -1535,6 +1549,7 @@ export function ApplicationSettingsModal({
         "microphone",
         "transcription",
         "parakeet",
+        "sensevoice",
         "voice mode",
         "cpu",
         "gpu",
@@ -1558,7 +1573,7 @@ export function ApplicationSettingsModal({
               >
                 <SelectValue placeholder={t("voice.stt.placeholder")}>
                   {selectedSttOption === "parakeet_webgpu"
-                    ? t("voice.stt.parakeetWebgpu")
+                    ? t("voice.stt.offlineWebgpu")
                     : currentSttOption?.label}
                 </SelectValue>
               </SelectTrigger>
@@ -1596,7 +1611,7 @@ export function ApplicationSettingsModal({
       section: "Voice",
       ...inGroup("speechToText"),
       label: t("voice.stt.downloads"),
-      keywords: ["parakeet", "cpu", "gpu", "download", "offline"],
+      keywords: ["parakeet", "sensevoice", "cpu", "gpu", "download", "offline"],
       // Development stacks show how to acquire the operator's host sets.
       render: () => <VoiceDownloads section="speech-to-text" />,
     },

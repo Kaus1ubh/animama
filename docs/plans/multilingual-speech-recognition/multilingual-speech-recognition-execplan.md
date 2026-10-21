@@ -61,11 +61,15 @@ Boundaries:
 - [x] Phase 2 — Candidate engines and comparison report (#536): review passed
       2026-10-21 (two rounds); committed `73913350`. G1 recorded 2026-10-21.
 - [x] Phase 3 — Multilingual model asset set (#631): review passed 2026-10-21
-      (initial review and two repair rounds).
+      (initial review and two repair rounds); committed `abe7dba4`.
 - [x] Phase 4 — Engine integration and language routing (#632): review
       passed 2026-10-21 (re-tiered high risk; initial review and two repair
-      rounds). App-path transcription moves to the Phase 5 smoke check.
+      rounds); committed `5974b113`. App-path transcription moves to the
+      Phase 5 smoke check.
 - [ ] Phase 5 — Settings, Setup, language notice and turn-taking (#633).
+      Implemented and smoke-checked 2026-10-21 (results below); the
+      microphone-path short-reply findings go to G4. Review passed with
+      non-blocking findings, all addressed (Code Review #1).
 - [ ] Phase 6 — Acceptance runs, packaging checks and documentation (#634).
 - [ ] Final integration review.
 
@@ -121,6 +125,11 @@ Boundaries:
 - 2026-10-21: The browser runtime cannot read ONNX `metadata_props`, so the
   SenseVoice CPU set carries `metadata.json` (frame stacking, CMVN, prompt ids),
   identical for the INT8 and FP32 graphs apart from the quantizer's key.
+- 2026-10-21: SenseVoice marks word starts with SentencePiece `▁` in
+  Japanese and Chinese too, so the decoded text read "軍島や 湖で は…" in the
+  first app-path run. The benchmark's CER ignores whitespace, so Phases 2 and 4
+  never showed it; the decoder now removes spaces beside Chinese or Japanese
+  text (the rule transcript joining already used) and keeps Korean spacing.
 - 2026-10-14: The desktop app's Electron 39.8.9 runs Chromium 142, while
   Playwright's bundled Chromium is 145, so the benchmark runs in Electron.
 - 2026-10-14: Parakeet's WebGPU (FP16 encoder) English WER is 3.8% against 4.1%
@@ -224,6 +233,28 @@ Boundaries:
   (revised by Code Review #1) from the app's model routes, plays `yue` under
   `zh-Hant`, and converts only Simplified references, since the engine already
   writes Traditional script.
+- 2026-10-21, agent (Phase 5, Q1/Q2): the Settings choices read "Offline
+  (CPU)" and "Offline (WebGPU · Experimental)" and their description names the
+  UI Locale's model. Settings lists both engines' sets under the languages they
+  serve, the UI Locale's first; Setup and the composer's install hint offer
+  only the UI Locale's engine (`routedOnly`). Setup's tab labels and
+  description follow that engine, so it no longer shows a language notice.
+- 2026-10-21, agent (Phase 5, R5): `SpeechLanguageNotice` asks for the
+  language's download when the offline choice is selected under a non-English
+  locale and the runtime reports no SenseVoice set, or says the server does not
+  provide it where the operator manages models; Pocket TTS keeps its notice.
+  The option's own "not installed" reason stays for Parakeet only, so a missing
+  SenseVoice set shows one warning. Like dictation, Settings keeps a saved
+  offline choice selected rather than displaying a browser recognizer when
+  only the language's set is missing; both use `resolveRoutedSttProvider`
+  (Code Review #1). A set that is installed but turned off gets the "not
+  available on this server" wording instead of a download prompt.
+- 2026-10-21, agent (Phase 5, R6): Smart Turn's short replies gain Japanese,
+  Korean and Chinese (including Cantonese 唔該 and 係, plus 系, the character
+  SenseVoice writes for 係) entries, compared after one shared NFKC,
+  punctuation-free normalization. Words that also open a longer turn while the
+  speaker thinks are left out: 嗯, 어, ええ, そうだね, そうですね and 아니
+  (Code Review #1).
 
 ## Owner gates
 
@@ -248,7 +279,9 @@ Boundaries:
 - **G3 — Windows smoke check.** On the owner's Windows machine, a desktop build
   installs the set and transcribes Japanese on the CPU path.
 - **G4 — Live check on the reference Mac.** The owner tries dictation and Voice
-  Mode under each non-English locale, with live speech or played clips.
+  Mode under each non-English locale, with live speech or played clips,
+  including one-word replies such as 네 and Cantonese 係 (the Phase 5 smoke
+  check misread both from synthetic voices through browser capture).
 
 G2–G4 do not block phase progression; outstanding ones are recorded in the PR.
 
@@ -931,7 +964,7 @@ plan):
 | `pnpm web:test:browser` (via `heavy-slot.py`) | `src/frontend` | `ce6502ae` | 122 passed |
 | `pnpm prettier:check` | `src/frontend` | `ce6502ae` | pass |
 
-Records: issue #631; commits —; evidence: Phase 3 results.
+Records: issue #631; commit `abe7dba4`; evidence: Phase 3 results.
 
 #### Code Review #1 Findings
 
@@ -1135,7 +1168,7 @@ Check record (working tree; later edits touch only this plan):
 | `uv run pytest -q -p no:xdist tests/test_speech_eval.py`; ruff check and format check on `scripts/speech-eval` and the test | root | `ac28421d` | 25 passed; pass |
 | Harness runs above (`<evaluation root>/logs/phase4/`) | `src/frontend` | `ac28421d` code | all exit 0 |
 
-Records: issue #632; commits —; evidence: Phase 4 results.
+Records: issue #632; commit `5974b113`; evidence: Phase 4 results.
 
 #### Code Review #1 Findings
 
@@ -1286,15 +1319,134 @@ width.
 Completion: notice, downloads and Setup behave per R4 and R5 under every
 locale; smoke-check results recorded.
 
-Records: issue #633; commits —; evidence —.
+#### Phase 5 results (2026-10-21)
+
+Changes as listed, plus:
+
+- `lib/speech/offline-stt/clients.ts` maps each engine to its client and set
+  ids; `OfflineSpeechDownloads` renders one section per engine (languages,
+  model line, attribution), `useOfflineSpeechDownloads(engine)` serves Settings
+  and Setup, and SenseVoice's sets get the fallback notice and idle release
+  through the shared client. Vite development shows each engine's acquire
+  commands instead.
+- `SpeechLanguageNotice` reads runtime capabilities; `speechEngineIsEnglishOnly`
+  became `ttsEngineIsEnglishOnly` plus `isOfflineSttChoice`. Settings and the
+  composer resolve offline availability through `routeOfflineSpeech`; the
+  composer's install hint and Setup offer only the routed engine.
+- The Settings WebGPU trigger label is now `voice.stt.offlineWebgpu`; one new
+  catalog string, `languageNotice.speechToTextUnavailable`, covers
+  operator-managed runtimes.
+- The SenseVoice decoder removes spaces beside Chinese or Japanese text
+  (`closeUnspacedGaps`, shared with transcript joining) and returns no text for
+  a window of punctuation alone (see Surprises).
+
+Smoke check (D11), 2026-10-21, on task stack `animama-msr` (Vite development,
+host sets for both engines, CPU/WASM). A Playwright harness
+(`drafts/phase5_smoke.mjs` and `phase5_smoke_cases.py` in the speech-eval root)
+starts headless Chromium with the clip as its fake microphone
+(`--use-file-for-fake-audio-capture`; 1 s lead-in, 5 s trailing silence), sets
+the UI Locale and the offline choice through `/v1/users/me/settings`, and
+presses Voice Mode or Dictate in the composer, so the app's own
+`getUserMedia` processing, MicVAD, Smart Turn and dictation hook run. Voice
+Mode submissions are read from the `chat:sse` request and aborted in the
+browser, so no model provider was called.
+
+| Cases | Result |
+| --- | --- |
+| FLEURS clips: 3 each for ja, ko, zh-Hans, zh-Hant and 2 Cantonese under zh-Hant, Voice Mode | MicVAD found one voiced segment and SenseVoice produced one window each; every submitted text is the sentence in the locale's script, with recognition errors of the kind the CER measures (for example 群島→軍島). Smart Turn ended all 14 turns (model probability 0.98–0.99, one 0.45 that still crossed the threshold). Final text 0.8–1.6 s after each window. |
+| The first clip of each set, dictation | Composer text matched the Voice Mode text (ko differed only in one space). |
+| Short replies, macOS voices: はい, ありがとうございます, 네, 감사합니다, 好的, 谢谢, 好的/謝謝/沒問題 (zh-Hant), 唔該, 係 (Cantonese) | Smart Turn's model ended all 11 turns (0.81–0.99), so the new override list was not needed; final text 0.35–0.55 s after each window. Nine texts were right. 네 became "4." and 係 became "はい。" on every run (three each); 감사합니다 once read "감사 합니다." |
+| White, pink and 120 Hz noise under zh-Hant | MicVAD rejected all three: no window, no text. |
+| Reversed speech under zh-Hant (passes MicVAD) | Reversed Chinese decoded to "." and was submitted; after the punctuation fix nothing is submitted. Reversed English gave "As your what." (a recognizer cannot tell it from speech). |
+| An English sentence under zh-Hant | Transcribed in English by automatic language detection. |
+
+The two wrong short replies come from the microphone path, not the decoder:
+the same clips through the app's SenseVoice worker in a page (no capture)
+give "네." and "系。" (SenseVoice writes Cantonese 係 as 系, which the
+Traditional conversion keeps, so the override list includes 系), as does
+sherpa-onnx in Python. Browser capture applies
+echo cancellation, noise suppression and automatic gain to every engine; the
+clips are synthetic voices. G4, the owner's live check, now includes short
+replies; if a real 네 still reads as "4.", the follow-up is to examine the
+captured window (onset trimming or processing), not the decoder.
+
+Screenshots (speech-eval root, `smoke/screens/`): Setup's Voice step under ja
+(1440×900) and zh-Hant (390×844) offering SenseVoice; Settings → Voice under ja
+with the set missing (download notice) and installed (no notice), under ko at
+390×844 with the set missing, and under English (Parakeet named, no notice).
+Missing sets were shown by rewriting the capabilities response in that browser
+only. The Pocket TTS notice appears unchanged in the Setup shots.
+
+Check record (working tree; later edits touch only this plan; logs in
+`<evaluation root>/logs/p5-*.log`):
+
+| Check | Directory | Tree | Result |
+| --- | --- | --- | --- |
+| `pnpm verify` (via `heavy-slot.py`; `pnpm check` with `i18n:check`, lint, vitest, build) | `src/frontend` | `7abd637f` | pass; vitest 5366 passed, 1 skipped |
+| `node --test --test-concurrency=1 scripts/setup-downloads.browser.test.mjs` (via `heavy-slot.py`) | `src/frontend/web` | `7abd637f` | 23 passed |
+| `pnpm i18n:status` | `src/frontend` | catalogs as at `7abd637f` | every translated catalog complete |
+| `pnpm prettier:check` | `src/frontend` | `7abd637f` | pass |
+| Smoke check and screenshots above | task stack `animama-msr` | working tree before the punctuation fix; the reversed-speech cases reran after it | as recorded |
+
+Records: issue #633; commits —; evidence: Phase 5 results.
 
 #### Code Review #1 Findings
 
-Not run.
+Standard tier, initial review of working tree `b9f4b51a` against `5974b113`
+(reusing the check record; no rerun). Acceptance met; no high-risk trigger.
+Verdict: pass with non-blocking findings.
+
+- **P5-CR1-01.** The Cantonese 係 entry cannot match SenseVoice's output 系
+  (OpenCC `cn2t` keeps it); the plan treated "系。" as correct.
+- **P5-CR1-02.** The WebGPU choice's description did not name the model, though
+  the Decision Log said both choices do.
+- **P5-CR1-03.** The language-aware provider resolution was duplicated in
+  `ApplicationSettingsModal` and `use-dictation`, the Settings copy untested.
+- **P5-CR1-04.** An installed set turned off by the operator got a download
+  prompt.
+- **P5-CR1-05.** A loaded asset list without an engine's sets showed
+  "Checking…" forever (for example a hosted operator skipping SenseVoice).
+- **P5-CR1-06.** そうですね (and, weaker, ええ and 아니) break the plan's own
+  rule against hesitation openers.
+- **P5-CR1-07.** `docs/frontend/desktop/feature-packs.md` and `installation.md`
+  describe the old Parakeet-only UI but were not in Phase 6's list.
+- **P5-CR1-08.** Minor: a decoder test case without a space; a stale
+  `useModelAssets` comment; one mock client for both engines in
+  `VoiceDownloads.test.tsx`; the SenseVoice attribution shown is the CPU set's
+  file; a stale Progress entry; `OFFLINE_SPEECH_ASSET_IDS` duplicated the
+  per-engine ids.
 
 #### Code Review #1 Revisions
 
-Not run.
+- **P5-CR1-01 accepted.** 系 joins the list with a comment, tested with
+  "系。"; the results and Decision Log explain it.
+- **P5-CR1-02 accepted.** `webgpuDescription` takes `{{model}}` in all five
+  catalogs; `getSttSettingsOptions(options, engine)` passes it (tested).
+- **P5-CR1-03 accepted.** `resolveRoutedSttProvider` (`stt-provider.ts`) serves
+  dictation and Settings, with tests for ja with the set missing and Web Speech
+  present (stays offline, `languageMissing`), ja installed, and English with
+  Parakeet missing (falls back as before).
+- **P5-CR1-04 accepted.** An installed (version reported) but unavailable set
+  gets the "not available on this server" wording (tested).
+- **P5-CR1-05 accepted.** `listLoaded` makes an absent set read "Not
+  available" (GPU: "unavailable in this build") instead of "Checking…"
+  (tested); Phase 6 item 8 notes the hosted effect.
+- **P5-CR1-06 accepted.** ええ, そうだね, そうですね and 아니 are removed and
+  tested as not ending the turn; 아니요 stays.
+- **P5-CR1-07 accepted.** Both guides join Phase 6 item 1.
+- **P5-CR1-08 accepted** except the attribution placement: a "こんworld" case,
+  the comment, separate per-engine client mocks with a test that a SenseVoice
+  removal releases only SenseVoice's idle leases, the Progress entry, and one
+  `offline-stt/asset-ids.ts` used by the downloads and the coordination. The
+  attribution stays the CPU set's: every install has that set, and its notice
+  covers the same model and licence (the add-on's own file ships with it).
+
+Repair check record (working tree; later edits touch only this plan; logs
+`<evaluation root>/logs/p5-*-r1.log`): `pnpm verify` (via `heavy-slot.py`) in
+`src/frontend` at `ee1d20f7` — pass, vitest 5373 passed, 1 skipped;
+`setup-downloads.browser.test.mjs` in `src/frontend/web` at `ee1d20f7` — 23
+passed; `pnpm prettier:check` at `ee1d20f7` — pass. The standard tier needs
+no recheck; the phase passes its review.
 
 ### Phase 6 — Acceptance runs, packaging checks and documentation (R7, acceptance)
 
@@ -1312,7 +1464,10 @@ Changes and checks:
    speech model source and switches in
    `docs/backend/operations/{development,desktop-runtime,local-http-components}.md`,
    `docs/frontend/architecture/auth-server.md` and the root `AGENTS.md` Local
-   Stacks section (Phase 3 Code Review #1), and `voice.md`'s references to the
+   Stacks section (Phase 3 Code Review #1), the user guides
+   `docs/frontend/desktop/feature-packs.md` (the Parakeet-only title and table)
+   and `docs/frontend/desktop/installation.md` (Phase 5 Code Review #1), and
+   `voice.md`'s references to the
    former `client_parakeet/*` messages, `loadClientParakeetWorker`,
    `createParakeetPreviewController` and `client-parakeet/preview-controller.ts`
    (Phase 4 Code Review #1).
@@ -1332,6 +1487,9 @@ Changes and checks:
 8. Cloud follow-up recorded in the PR as outstanding: animama-cloud must
    support or skip `sensevoice-stt` and `sensevoice-stt-webgpu` before it
    repins to an Animama release with this catalog (Surprises, 2026-10-21).
+   If it skips them, hosted Settings shows the SenseVoice section as "Not
+   available" and non-English locales get the "not available on this server"
+   notice.
 
 Completion: every spec acceptance item is checked or recorded as an outstanding
 owner gate.

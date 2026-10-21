@@ -92,17 +92,20 @@
     "stt": {
       "checking": "Checking speech recognition…",
       "cpu": {
-        "description": "<link>NVIDIA's Parakeet TDT 0.6B v2</link> transcribes English speech on this device, so your voice never leaves it.",
-        "label": "Parakeet (CPU)",
-        "labelWithSize": "Parakeet (CPU, {{size}})"
+        "label": "{{model}} (CPU)",
+        "labelWithSize": "{{model}} (CPU, {{size}})"
       },
       "download": "Download",
       "downloaded": "Downloaded",
       "downloading": "Downloading {{percent}}",
+      "engines": {
+        "parakeet": "<link>NVIDIA's Parakeet TDT 0.6B v2</link> transcribes English speech on this device, so your voice never leaves it.",
+        "sensevoice": "<link>Alibaba's SenseVoice-Small</link> transcribes Japanese, Korean and Chinese speech on this device, so your voice never leaves it."
+      },
       "gpu": {
         "description": "Faster, with live previews as you speak. Needs the CPU version and a WebGPU-capable GPU.",
-        "label": "Parakeet (GPU)",
-        "labelWithSize": "Parakeet (GPU, {{size}})",
+        "label": "{{model}} (GPU)",
+        "labelWithSize": "{{model}} (GPU, {{size}})",
         "needsCpu": "Download the CPU version first."
       },
       "heading": "Speech-to-Text",

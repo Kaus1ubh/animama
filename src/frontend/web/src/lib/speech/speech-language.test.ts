@@ -4,7 +4,8 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   browserSpeechLanguage,
   conversationLocale,
-  speechEngineIsEnglishOnly,
+  isOfflineSttChoice,
+  ttsEngineIsEnglishOnly,
 } from "./speech-language";
 
 describe("conversation language for speech (ADR 0024)", () => {
@@ -29,17 +30,18 @@ describe("conversation language for speech (ADR 0024)", () => {
     expect(conversationLocale("toString")).toBeNull();
   });
 
-  it("treats only Parakeet and Pocket TTS as English-only", () => {
-    expect(speechEngineIsEnglishOnly("speechToText", "parakeet")).toBe(true);
-    expect(speechEngineIsEnglishOnly("speechToText", "parakeet_webgpu")).toBe(
-      true,
-    );
-    expect(speechEngineIsEnglishOnly("speechToText", "browser_external")).toBe(
-      false,
-    );
-    expect(speechEngineIsEnglishOnly("textToSpeech", "pocket_tts")).toBe(true);
+  it("treats only Pocket TTS as English-only", () => {
+    expect(ttsEngineIsEnglishOnly("pocket_tts")).toBe(true);
     for (const provider of ["elevenlabs", "gemini", "browser", null]) {
-      expect(speechEngineIsEnglishOnly("textToSpeech", provider)).toBe(false);
+      expect(ttsEngineIsEnglishOnly(provider)).toBe(false);
+    }
+  });
+
+  it("knows both Settings choices for offline speech recognition", () => {
+    expect(isOfflineSttChoice("parakeet")).toBe(true);
+    expect(isOfflineSttChoice("parakeet_webgpu")).toBe(true);
+    for (const provider of ["browser_external", "browser_local", null]) {
+      expect(isOfflineSttChoice(provider)).toBe(false);
     }
   });
 });

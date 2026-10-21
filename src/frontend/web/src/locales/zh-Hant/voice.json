@@ -99,7 +99,6 @@
       "unknown": "下載未完成。準備好後請重試。"
     },
     "gpu": {
-      "attribution": "模型署名（CC BY 4.0）",
       "blocked": {
         "checking": "正在檢查 WebGPU 支援…",
         "missing": "此版本無法使用 GPU 加速。",
@@ -120,8 +119,20 @@
       "changeFailed": "變更未能完成。請稍後再試。",
       "inUse": "語音辨識正在使用中。請關閉聽寫和語音模式後再移除。"
     },
-    "title": "離線語音辨識（Parakeet）",
-    "turnedOff": "此伺服器已關閉離線語音辨識。"
+    "title": "離線語音辨識",
+    "turnedOff": "此伺服器已關閉離線語音辨識。",
+    "engines": {
+      "parakeet": {
+        "languages": "英語",
+        "model": "NVIDIA 的 Parakeet TDT 0.6B v2",
+        "attribution": "模型署名（CC BY 4.0）"
+      },
+      "sensevoice": {
+        "languages": "日語、韓語和中文",
+        "model": "阿里巴巴的 SenseVoice-Small",
+        "attribution": "模型署名（FunASR Model License）"
+      }
+    }
   },
   "pocket": {
     "accents": {
@@ -186,13 +197,13 @@
         "unsupported": "此瀏覽器不支援僅限本機的 Web Speech 辨識。"
       },
       "parakeet": {
-        "cpuLabel": "Parakeet（CPU）",
-        "descriptionBrowser": "在此瀏覽器中執行的本機 ONNX 語音辨識。",
-        "descriptionDesktop": "在桌面應用程式中執行的本機 ONNX 語音辨識。",
+        "cpuLabel": "離線（CPU）",
+        "descriptionBrowser": "依應用程式語言，在此瀏覽器中以 {{model}} 辨識語音。",
+        "descriptionDesktop": "依應用程式語言，在此裝置上以 {{model}} 辨識語音。",
         "notInstalled": "請安裝離線語音辨識，以使用聽寫和語音模式。",
-        "unavailableBrowser": "此瀏覽器目前無法使用本機 Parakeet。",
-        "webgpuDescription": "在 GPU 上執行的實驗性本機語音辨識，提供即時預覽。無法使用時改用 CPU。",
-        "webgpuLabel": "Parakeet（WebGPU · 實驗性）"
+        "unavailableBrowser": "此瀏覽器目前無法使用離線語音辨識。",
+        "webgpuDescription": "在 GPU 上以 {{model}} 執行的實驗性本機語音辨識，提供即時預覽。無法使用時改用 CPU。",
+        "webgpuLabel": "離線（WebGPU · 實驗性）"
       }
     },
     "tts": {
@@ -246,7 +257,8 @@
     }
   },
   "languageNotice": {
-    "speechToText": "Parakeet 僅能辨識英語。{{language}}語音辨識即將推出。",
-    "textToSpeech": "Pocket TTS 僅支援英語。要讓 Anima 用{{language}}說話，請選擇 ElevenLabs 或 Gemini。"
+    "speechToText": "要以{{language}}使用離線語音辨識，請下載對應的模型。",
+    "textToSpeech": "Pocket TTS 僅支援英語。要讓 Anima 用{{language}}說話，請選擇 ElevenLabs 或 Gemini。",
+    "speechToTextUnavailable": "此伺服器不提供{{language}}的離線語音辨識。"
   }
 }

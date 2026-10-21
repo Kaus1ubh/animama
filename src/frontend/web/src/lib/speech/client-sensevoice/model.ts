@@ -8,6 +8,7 @@
  */
 import * as ort from "onnxruntime-web";
 
+import { closeUnspacedGaps } from "@/lib/speech/speech-text";
 import { applyCmvn, kaldiFbank, stackLowFrameRate } from "./kaldi-fbank";
 import { toTraditional } from "./script";
 
@@ -36,6 +37,8 @@ const LANGUAGE_PROMPTS: Record<SenseVoiceLanguage, string> = {
 /** CTC blank (`<unk>` in the sherpa token table). */
 const BLANK = 0;
 const TAG = /^<\|.*\|>$/;
+/** Text that says something: a letter or digit in any script. */
+const WORDED = /[\p{L}\p{N}]/u;
 
 export function isSenseVoiceLanguage(
   language: string,
@@ -60,7 +63,10 @@ export function parseTokenTable(text: string): string[] {
 /**
  * Greedy CTC over `[frames × vocab]` logits: best token per frame, collapse
  * repeats, drop blanks, then drop SenseVoice's `<|…|>` language, emotion, event
- * and normalization tags wherever they appear.
+ * and normalization tags wherever they appear. Word-start marks (`▁`) become
+ * spaces, except beside Chinese or Japanese text, which is written unspaced.
+ * A window that decodes to punctuation alone (noise the model punctuated)
+ * yields no text.
  */
 export function decodeSenseVoiceLogits(
   logits: Float32Array,
@@ -81,7 +87,10 @@ export function decodeSenseVoiceLogits(
     }
     previous = best;
   }
-  return pieces.join("").replace(/▁/g, " ").replace(/\s+/g, " ").trim();
+  const text = closeUnspacedGaps(
+    pieces.join("").replace(/▁/g, " ").replace(/\s+/g, " ").trim(),
+  );
+  return WORDED.test(text) ? text : "";
 }
 
 async function fetchOk(url: string): Promise<Response> {

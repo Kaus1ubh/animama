@@ -28,7 +28,7 @@ export function routeOfflineSpeech(locale?: string | null): OfflineSpeechRoute {
 }
 
 /** The capability fields that report each engine's installed sets. */
-type OfflineSpeechCapabilities = {
+export type OfflineSpeechCapabilities = {
   offline_speech_enabled: boolean;
   offline_multilingual_speech_enabled?: boolean;
 };

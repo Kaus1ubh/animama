@@ -4,7 +4,11 @@ import { Trans, useTranslation } from "react-i18next";
 
 import { useFormatters } from "@animama/product-ui/i18n";
 import type { PyModelAssetState } from "@animama/runtime-contracts/api-types";
-import { PARAKEET_DOWNLOADS_OFFERED } from "@/lib/speech/client-parakeet/assets";
+import { OFFLINE_SPEECH_DOWNLOADS_OFFERED } from "@/lib/speech/offline-stt/clients";
+import {
+  routeOfflineSpeech,
+  type OfflineSttEngine,
+} from "@/lib/speech/offline-stt/routing";
 import { Button } from "@/ui/components/button";
 import {
   Tabs,
@@ -24,26 +28,45 @@ import { ModelLink } from "./ModelLink";
 
 type SpeechSet = "cpu" | "gpu";
 
-/** NVIDIA's public Parakeet TDT 0.6B v2 model page, linked from the CPU tab. */
-const PARAKEET_SOURCE = "https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2";
+/** Each engine's model name in tab labels and its public model page. */
+const ENGINE_MODELS: Record<
+  OfflineSttEngine,
+  { name: string; source: string }
+> = {
+  parakeet: {
+    name: "Parakeet",
+    source: "https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2",
+  },
+  sensevoice: {
+    name: "SenseVoice",
+    source: "https://huggingface.co/FunAudioLLM/SenseVoiceSmall",
+  },
+};
 
 /**
- * Setup's Speech-to-Text choice: Parakeet's CPU set and its GPU add-on as two
- * tabs, each with one download action. Downloads are backend-owned and keep
- * running after setup; removal and attribution live in App Settings. Vite
- * development serves host sets instead, so it shows how to acquire them.
+ * Setup's Speech-to-Text choice: the CPU set and GPU add-on of the engine for
+ * the UI Locale (Parakeet for English, SenseVoice otherwise) as two tabs, each
+ * with one download action. Downloads are backend-owned and keep running
+ * after setup; removal, attribution and the other language's sets live in App
+ * Settings. Vite development serves host sets instead, so it shows how to
+ * acquire them.
  */
 export function SetupSpeechDownloads() {
-  if (!PARAKEET_DOWNLOADS_OFFERED) return <OfflineSpeechDownloads />;
-  return <SetupSpeechDownloadsManager />;
+  // Read through `i18n` so the offer follows a language switch.
+  const { i18n } = useTranslation("setup");
+  const engine = routeOfflineSpeech(i18n.resolvedLanguage).engine;
+  if (!OFFLINE_SPEECH_DOWNLOADS_OFFERED)
+    return <OfflineSpeechDownloads routedOnly />;
+  return <SetupSpeechDownloadsManager key={engine} engine={engine} />;
 }
 
-function SetupSpeechDownloadsManager() {
-  return <SetupSpeechDownloadsView {...useOfflineSpeechDownloads()} />;
+function SetupSpeechDownloadsManager({ engine }: { engine: OfflineSttEngine }) {
+  return <SetupSpeechDownloadsView {...useOfflineSpeechDownloads(engine)} />;
 }
 
 /** The tabbed view, separate from the download state it renders. */
 function SetupSpeechDownloadsView({
+  engine,
   cpu,
   gpu,
   freeBytes,
@@ -55,23 +78,24 @@ function SetupSpeechDownloadsView({
   listUnavailable = false,
   turnedOff = false,
   onChange,
-}: Omit<OfflineSpeechDownloadsViewProps, "heading">) {
+}: OfflineSpeechDownloadsViewProps) {
   const { t } = useTranslation("setup");
   const { fileSize } = useFormatters();
   const [tab, setTab] = useState<SpeechSet>("cpu");
   // Asking for the GPU add-on before its CPU prerequisite shows why it waits.
   const [needsCpu, setNeedsCpu] = useState(false);
   const cpuInstalled = cpu?.status === "installed";
+  const model = ENGINE_MODELS[engine];
   /** A set's tab label, with its download size once known. */
   const label = (set: SpeechSet, asset: PyModelAssetState | undefined) => {
     if (!asset)
       return set === "cpu"
-        ? t("voice.stt.cpu.label")
-        : t("voice.stt.gpu.label");
+        ? t("voice.stt.cpu.label", { model: model.name })
+        : t("voice.stt.gpu.label", { model: model.name });
     const size = fileSize(asset.size_bytes);
     return set === "cpu"
-      ? t("voice.stt.cpu.labelWithSize", { size })
-      : t("voice.stt.gpu.labelWithSize", { size });
+      ? t("voice.stt.cpu.labelWithSize", { model: model.name, size })
+      : t("voice.stt.gpu.labelWithSize", { model: model.name, size });
   };
   const errorFor = (asset: PyModelAssetState | undefined) =>
     asset && error?.assetId === asset.id ? error.message : null;
@@ -117,12 +141,16 @@ function SetupSpeechDownloadsView({
         <p className="text-muted-foreground text-sm">
           <Trans
             t={t}
-            i18nKey="voice.stt.cpu.description"
-            components={{ link: <ModelLink href={PARAKEET_SOURCE} /> }}
+            i18nKey={
+              engine === "parakeet"
+                ? "voice.stt.engines.parakeet"
+                : "voice.stt.engines.sensevoice"
+            }
+            components={{ link: <ModelLink href={model.source} /> }}
           />
         </p>
         <SetupModelSet
-          label={t("voice.stt.cpu.label")}
+          label={t("voice.stt.cpu.label", { model: model.name })}
           asset={cpu}
           freeBytes={freeBytes}
           retry={cpu ? (retryAssetIds?.has(cpu.id) ?? false) : false}
@@ -141,7 +169,7 @@ function SetupSpeechDownloadsView({
           {t("voice.stt.gpu.description")}
         </p>
         <SetupModelSet
-          label={t("voice.stt.gpu.label")}
+          label={t("voice.stt.gpu.label", { model: model.name })}
           asset={gpu}
           freeBytes={freeBytes}
           retry={gpu ? (retryAssetIds?.has(gpu.id) ?? false) : false}

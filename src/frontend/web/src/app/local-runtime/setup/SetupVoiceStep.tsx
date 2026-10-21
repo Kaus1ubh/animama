@@ -57,8 +57,7 @@ export function SetupVoiceStep({
         <h2 id={`${id}-stt`} className="text-base font-semibold">
           {t("voice.stt.heading")}
         </h2>
-        {/* Setup downloads only Parakeet. */}
-        <SpeechLanguageNotice direction="speechToText" provider="parakeet" />
+        {/* The offered model already serves the UI Locale. */}
         <SetupSpeechDownloads />
       </section>
       <section aria-labelledby={`${id}-tts`} className="space-y-3">

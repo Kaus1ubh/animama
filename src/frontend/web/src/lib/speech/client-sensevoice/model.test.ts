@@ -21,6 +21,11 @@ const tokens = [
   "▁world",
   "こん",
   "にちは",
+  "▁は",
+  "▁안녕",
+  "▁하세요",
+  "。",
+  ".",
 ];
 
 describe("decodeSenseVoiceLogits", () => {
@@ -46,6 +51,36 @@ describe("decodeSenseVoiceLogits", () => {
         tokens,
       ),
     ).toBe("Hello Hello world");
+  });
+
+  it("writes Japanese and Chinese without the word-start spaces, unlike Korean", () => {
+    for (const [frames, text] of [
+      [[7, 8, 9], "こんにちはは"],
+      [[10, 11], "안녕 하세요"],
+      [[5, 7], "Helloこん"],
+      [[7, 6], "こんworld"],
+    ] as const)
+      expect(
+        decodeSenseVoiceLogits(
+          logits([...frames], tokens.length),
+          frames.length,
+          tokens.length,
+          tokens,
+        ),
+      ).toBe(text);
+  });
+
+  it("yields no text for a window of punctuation alone", () => {
+    const decode = (frames: number[]) =>
+      decodeSenseVoiceLogits(
+        logits(frames, tokens.length),
+        frames.length,
+        tokens.length,
+        tokens,
+      );
+    expect(decode([1, 13])).toBe("");
+    expect(decode([12, 0, 13])).toBe("");
+    expect(decode([7, 12])).toBe("こん。");
   });
 
   it("removes tags wherever they appear, even mid-utterance", () => {
