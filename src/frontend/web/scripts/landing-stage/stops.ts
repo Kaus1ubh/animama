@@ -544,7 +544,7 @@ export const STAGE_STOPS: StageStop[] = withBetaCopy([
     label: "Intro",
     followCursor: true,
     title: "Meet your Anima",
-    body: "AI companions that **feel alive** with their own behaviors, emotions and memories.",
+    body: "AI companions that feel alive with their own behaviors, emotions and memories.",
     links: [
       { word: "behaviors", stop: "gestures" },
       { word: "emotions", stop: "emotion" },

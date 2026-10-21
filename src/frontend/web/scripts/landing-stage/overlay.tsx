@@ -1215,9 +1215,8 @@ function HeroTitle({
 }
 
 /**
- * The hero line as words: `**bold**` runs in a stronger weight and colour,
- * and its link words as coloured buttons to their stops (each keeping the
- * punctuation after it). Once `waving`, a light wave runs
+ * The hero line as words, its link words as coloured buttons to their stops
+ * (each keeping the punctuation after it). Once `waving`, a light wave runs
  * through the link words' letters in reading order, then rests.
  */
 function heroWords(
@@ -1227,7 +1226,7 @@ function heroWords(
 ): ReactNode[] {
   const text = stop.body ?? "";
   const links = stop.links ?? [];
-  const plain = (part: string) => bodyWords(part, "font-bold text-foreground");
+  const plain = (part: string) => part.split(/\s+/).filter(Boolean);
   if (links.length === 0) return plain(text);
   const pattern = new RegExp(
     `\\b(${links.map(({ word }) => word).join("|")})\\b([,.;:]?)`,
