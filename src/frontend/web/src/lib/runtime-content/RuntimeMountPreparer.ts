@@ -489,23 +489,33 @@ export class RuntimeMountPreparer {
         remainingBytes -= member.size_bytes;
       }
     }
-    // A usable JSON bundle is one request; it joins the Idle stage when it
-    // carries an Idle member. Without it, only Idle members load in that stage.
+    // A usable JSON bundle is one request: every member optional, reserved,
+    // bundleable and in no earlier bundle. One that carries an Idle member
+    // joins the Idle stage; otherwise only Idle members load in that stage.
+    const memberByRef = new Map(members.map((item) => [item.file_ref, item]));
+    const claimed = new Set<string>();
+    const jsonBundles = (typed.bundles ?? []).filter((bundle) => {
+      const refs = new Set(bundle.file_refs);
+      const usable =
+        bundle.format === "json" &&
+        refs.size >= 2 &&
+        [...refs].every((ref) => {
+          const member = memberByRef.get(ref);
+          return (
+            member !== undefined &&
+            !essentialRefs.has(ref) &&
+            !failures.has(ref) &&
+            !claimed.has(ref) &&
+            ["sequence", "manifest"].includes(member.role)
+          );
+        });
+      if (usable) for (const ref of refs) claimed.add(ref);
+      return usable;
+    });
     const idleStageRefs = new Set(idleRefs);
-    const bundleRefs = new Set(typed.json_bundle?.file_refs ?? []);
-    const bundleUsable =
-      bundleRefs.size >= 2 &&
-      [...bundleRefs].every((ref) => {
-        const member = members.find((item) => item.file_ref === ref);
-        return (
-          member !== undefined &&
-          !essentialRefs.has(ref) &&
-          !failures.has(ref) &&
-          ["sequence", "manifest"].includes(member.role)
-        );
-      });
-    if (bundleUsable && [...bundleRefs].some((ref) => idleRefs.has(ref))) {
-      for (const ref of bundleRefs) idleStageRefs.add(ref);
+    for (const bundle of jsonBundles) {
+      if (bundle.file_refs.some((ref) => idleRefs.has(ref)))
+        for (const ref of bundle.file_refs) idleStageRefs.add(ref);
     }
 
     let published = false;
@@ -596,63 +606,63 @@ export class RuntimeMountPreparer {
       later?: (member: RuntimeDescriptorMember) => boolean,
       postponed: RuntimeDescriptorMember[] = [],
     ) => {
-      const bundle = background ? typed.json_bundle : null;
-      const bundleRefs = new Set(bundle?.file_refs ?? []);
-      const bundled = stage.filter((member) => bundleRefs.has(member.file_ref));
-      // Fetch only if the whole advertised set belongs to this optional stage
-      // and has already reserved space in this mount's single byte budget.
-      const useBundle =
-        bundle &&
-        bundled.length >= 2 &&
-        bundled.length === bundleRefs.size &&
-        bundled.every(
-          (member) =>
-            !failures.has(member.file_ref) &&
-            ["sequence", "manifest"].includes(member.role),
-        );
+      // Bundles whose whole advertised set belongs to this optional stage;
+      // each already reserved space in this mount's single byte budget.
+      const stageRefs = new Set(stage.map((member) => member.file_ref));
+      const bundles = background
+        ? jsonBundles.filter((bundle) =>
+            bundle.file_refs.every((ref) => stageRefs.has(ref)),
+          )
+        : [];
+      const bundledRefs = new Set(
+        bundles.flatMap((bundle) => bundle.file_refs),
+      );
       const jobs: (() => Promise<void>)[] = stage
-        .filter((member) => !useBundle || !bundleRefs.has(member.file_ref))
+        .filter((member) => !bundledRefs.has(member.file_ref))
         .map((member) => () => loadMember(member));
-      if (useBundle)
-        jobs.unshift(async () => {
-          let results: Map<string, VerifiedByte | VerifiedByteError>;
-          try {
-            results = await this.jsonBundleLoader.load(
-              bundle,
-              bundled,
-              typed.effective_revision,
-              controller.signal,
-            );
-          } catch (error) {
-            checkAborted(controller.signal);
-            if (error instanceof RuntimeJsonBundleUnavailable) {
-              // One fallback only, in this same bounded worker pool. The file
-              // route rechecks the same lease/owner; nothing is trusted locally.
-              for (const member of bundled) {
-                if (later?.(member)) postponed.push(member);
-                else jobs.push(() => loadMember(member));
-              }
-              fill();
-            } else {
-              for (const member of bundled) {
-                fail(member, error);
-                completedMembers += 1;
-              }
+      const bundleJob = (bundle: (typeof jsonBundles)[number]) => async () => {
+        const bundled = [...new Set(bundle.file_refs)].map(
+          (ref) => memberByRef.get(ref)!,
+        );
+        let results: Map<string, VerifiedByte | VerifiedByteError>;
+        try {
+          results = await this.jsonBundleLoader.load(
+            bundle,
+            bundled,
+            typed.effective_revision,
+            controller.signal,
+          );
+        } catch (error) {
+          checkAborted(controller.signal);
+          if (error instanceof RuntimeJsonBundleUnavailable) {
+            // One fallback only, in this same bounded worker pool. The file
+            // route rechecks the same lease/owner; nothing is trusted locally.
+            for (const member of bundled) {
+              if (later?.(member)) postponed.push(member);
+              else jobs.push(() => loadMember(member));
             }
-            return;
-          }
-          for (const member of bundled) {
-            try {
-              const result = results.get(member.file_ref)!;
-              if (result instanceof VerifiedByteError) fail(member, result);
-              else admit(member, result.blob);
-            } catch (error) {
+            fill();
+          } else {
+            for (const member of bundled) {
               fail(member, error);
-            } finally {
               completedMembers += 1;
             }
           }
-        });
+          return;
+        }
+        for (const member of bundled) {
+          try {
+            const result = results.get(member.file_ref)!;
+            if (result instanceof VerifiedByteError) fail(member, result);
+            else admit(member, result.blob);
+          } catch (error) {
+            fail(member, error);
+          } finally {
+            completedMembers += 1;
+          }
+        }
+      };
+      jobs.unshift(...bundles.map(bundleJob));
       let cursor = 0;
       let active = 0;
       const running: Promise<void>[] = [];

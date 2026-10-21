@@ -102,9 +102,9 @@ chosen: its PNG is then copied into the effect as the effect's own image.
   optional work from the fallback boundary instead of waiting for a frame.
   Optional work runs in two stages: the Idle pool's roots first, then the rest.
   `idleReady` resolves between them (at once for an empty pool). The Idle stage
-  requests only Idle members, plus the JSON bundle when it carries an Idle member
-  and fits whole (one request; if it falls back, its other members wait for the
-  later stage). Each
+  requests only Idle members, plus each JSON bundle that carries an Idle member
+  and fits whole (one request each; if one falls back, its other members wait for
+  the later stage). Each
   stage keeps up to eight requests in flight (configurable from one to eight),
   topping the pool up when a bundle falls back, with duplicate-member
   elimination, cancellation, and a 512 MiB total byte budget reserved for
@@ -180,22 +180,26 @@ Registered file responses remain uncompressed with their exact size/digest and
 private revalidation. Do not apply the app JS/CSS immutable cache policy to
 runtime manifests or private content.
 
-### Optional JSON bundle delivery
+### Optional bundle delivery
 
-`PyAnimaRuntime.json_bundle`, when present, advertises one versioned same-origin
-bundle of optional JSON sequences and manifests. This is a transport optimization,
-not a merged authoring format. Models and their essential dependencies, VRMA,
-textures, audio, metadata, and oversized JSON still use individual routes.
+`PyAnimaRuntime.bundles` advertises same-origin delivery bundles of optional
+members, Idle members' bundles first: `json` bundles of small JSON sequences and
+manifests and `binary` bundles of small images. This is a transport optimization,
+not a merged authoring format. The client reads JSON bundles only; a binary
+bundle's members load individually. Models and their essential dependencies, VRMA,
+audio, metadata, and oversized files still use individual routes.
 
-`RuntimeMountPreparer` puts one bundle job first in an optional stage after the
-first posed frame: the Idle stage when the bundle carries an Idle member,
-otherwise the later stage. Other workers continue loading binaries while it waits.
+`RuntimeMountPreparer` puts each usable JSON bundle's job first in an optional
+stage after the first posed frame: the Idle stage when the bundle carries an Idle
+member, otherwise the later stage. A bundle is usable when every member is optional,
+reserved and in no earlier bundle. Other workers continue loading binaries while it waits.
 All advertised members must already fit the mount's single reserved byte budget;
 otherwise the existing individual path loads only members that fit. No bundle
 fetch is needed for old snapshots or preview callers without an advertisement.
 
 `RuntimeJsonBundleLoader` allows at most 256 members, 256 KiB each, 2 MiB original
-bytes and a 16 MiB decoded envelope. It validates the exact revision/ref set,
+bytes and a 16 MiB decoded envelope. It requires the `json` format and a URL that
+ends in the revision and the bundle's own ID. It validates the exact revision/ref set,
 rejects duplicates and foreign origins, reconstructs original UTF-8 bytes, then
 uses the same size/SHA-256 verifier as individual files. A bad member fails only
 its dependent roots; a malformed envelope admits none. Successful members become

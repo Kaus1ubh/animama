@@ -566,6 +566,8 @@ class ProductPorts(Protocol):
 
         ``revalidate`` marks bytes a client may keep and revalidate by ETag; other
         bytes must not be stored. The response owns ``file`` and closes its handle.
+        A binary runtime bundle arrives here too, as an in-memory frame whose digest
+        is its ETag; it is revalidatable only when every member was read.
         """
         ...
 

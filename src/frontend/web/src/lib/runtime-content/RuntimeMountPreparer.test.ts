@@ -109,6 +109,20 @@ function runtime(payloads: Uint8Array[]): PyAnimaRuntime {
   } as PyAnimaRuntime;
 }
 
+const BUNDLE_ID = "b".repeat(64);
+const BUNDLE_URL = `/v1/animas/anima/runtime/revisions/tr2-test/bundles/${BUNDLE_ID}`;
+
+/** One advertised JSON delivery bundle over ``file_refs``. */
+function jsonBundle(file_refs: string[], total_bytes: number) {
+  return {
+    id: BUNDLE_ID,
+    format: "json" as const,
+    url: BUNDLE_URL,
+    file_refs,
+    total_bytes,
+  };
+}
+
 function voiceFixture() {
   const payloads = ["avatar", "catalog", "original sample"].map((text) =>
     new TextEncoder().encode(text),
@@ -246,12 +260,12 @@ describe("RuntimeMountPreparer", () => {
       member.role = "sequence";
       member.media_type = "application/json";
     }
-    typed.json_bundle = {
-      version: 1,
-      url: "/v1/animas/anima/runtime/revisions/tr2-test/json-bundle",
-      file_refs: ["file-1", "file-2"],
-      total_bytes: payloads[1]!.length + payloads[2]!.length,
-    };
+    typed.bundles = [
+      jsonBundle(
+        ["file-1", "file-2"],
+        payloads[1]!.length + payloads[2]!.length,
+      ),
+    ];
     const envelope = {
       version: 1,
       revision: "tr2-test",
@@ -429,13 +443,12 @@ describe("RuntimeMountPreparer", () => {
     async (failure) => {
       const f = bundledFixture();
       if (failure === "origin")
-        f.typed.json_bundle!.url =
-          "https://example.invalid/runtime/revisions/tr2-test/json-bundle";
+        f.typed.bundles![0]!.url = `https://example.invalid/runtime/revisions/tr2-test/bundles/${BUNDLE_ID}`;
       if (failure === "oversize-member")
         f.typed.content_descriptor.members![1]!.size_bytes = 256 * 1024 + 1;
-      if (failure === "total") f.typed.json_bundle!.total_bytes += 1;
+      if (failure === "total") f.typed.bundles![0]!.total_bytes += 1;
       if (failure === "duplicate-ref")
-        f.typed.json_bundle!.file_refs.push("file-1");
+        f.typed.bundles![0]!.file_refs.push("file-1");
       const mount = await new RuntimeMountPreparer(f.options).prepare(f.typed);
       expect(f.bundleFetch).not.toHaveBeenCalled();
       expect(mount.files.has("file-1")).toBe(false);
@@ -1118,15 +1131,12 @@ describe("Idle-first preparation", () => {
       member.role = "sequence";
       member.media_type = "application/json";
     }
-    typed.json_bundle = {
-      version: 1,
-      url: "/v1/animas/anima/runtime/revisions/tr2-test/json-bundle",
-      file_refs: bundled.map((index) => `file-${index}`),
-      total_bytes: bundled.reduce(
-        (total, index) => total + payloads[index]!.length,
-        0,
+    typed.bundles = [
+      jsonBundle(
+        bundled.map((index) => `file-${index}`),
+        bundled.reduce((total, index) => total + payloads[index]!.length, 0),
       ),
-    };
+    ];
     return { payloads, typed };
   }
 
@@ -1220,12 +1230,12 @@ describe("Idle-first preparation", () => {
       member.role = "sequence";
       member.media_type = "application/json";
     }
-    typed.json_bundle = {
-      version: 1,
-      url: "/v1/animas/anima/runtime/revisions/tr2-test/json-bundle",
-      file_refs: ["file-1", "file-2"],
-      total_bytes: payloads[1]!.length + payloads[2]!.length,
-    };
+    typed.bundles = [
+      jsonBundle(
+        ["file-1", "file-2"],
+        payloads[1]!.length + payloads[2]!.length,
+      ),
+    ];
     const envelope = {
       version: 1,
       revision: "tr2-test",
@@ -1256,13 +1266,133 @@ describe("Idle-first preparation", () => {
     await session.essentialReady;
     session.startOptional();
     const mount = await session.settled;
-    expect(order).toEqual([
-      "/files/0",
-      "/v1/animas/anima/runtime/revisions/tr2-test/json-bundle",
-      "/files/3",
-    ]);
+    expect(order).toEqual(["/files/0", BUNDLE_URL, "/files/3"]);
     expect(idleReadyAt).toBe(2);
     expect(mount.files.size).toBe(4);
     await session.dispose();
   });
+});
+
+describe("plural delivery bundles", () => {
+  it("fetches each JSON bundle once, the Idle one before idleReady, and loads a binary bundle's members one by one", async () => {
+    const texts = [
+      "avatar",
+      '{"i":1}',
+      '{"i":2}',
+      '{"w":3}',
+      '{"w":4}',
+      "png-5",
+      "png-6",
+    ];
+    const payloads = texts.map((text) => new TextEncoder().encode(text));
+    const typed = idleRuntime(payloads, [1, 2]);
+    for (const index of [1, 2, 3, 4]) {
+      const member = typed.content_descriptor.members![index]!;
+      member.role = "sequence";
+      member.media_type = "application/json";
+    }
+    for (const index of [5, 6]) {
+      const member = typed.content_descriptor.members![index]!;
+      member.role = "texture";
+      member.media_type = "image/png";
+    }
+    const id = (letter: string) => letter.repeat(64);
+    const advert = (
+      letter: string,
+      format: "json" | "binary",
+      refs: number[],
+    ) => ({
+      id: id(letter),
+      format,
+      url: `/v1/animas/anima/runtime/revisions/tr2-test/bundles/${id(letter)}`,
+      file_refs: refs.map((index) => `file-${index}`),
+      total_bytes: refs.reduce(
+        (total, index) => total + payloads[index]!.length,
+        0,
+      ),
+    });
+    typed.bundles = [
+      advert("a", "json", [1, 2]),
+      advert("c", "json", [3, 4]),
+      advert("d", "binary", [5, 6]),
+    ];
+    const envelope = (refs: number[]) => ({
+      version: 1,
+      revision: "tr2-test",
+      members: refs.map((index) => ({
+        file_ref: `file-${index}`,
+        text: texts[index],
+      })),
+    });
+    const order: string[] = [];
+    let idleReadyAt = -1;
+    const session = new RuntimeMountPreparer({
+      loader: new VerifiedByteLoader({
+        fetcher: vi.fn(async (url: string | URL | Request) => {
+          order.push(String(url));
+          return new Response(payloads[Number(String(url).split("/").at(-1))]);
+        }),
+      }),
+      jsonBundleLoader: new RuntimeJsonBundleLoader(
+        vi.fn<typeof fetch>(async (url) => {
+          const path = new URL(String(url)).pathname;
+          order.push(path);
+          return Response.json(
+            envelope(path.endsWith(id("a")) ? [1, 2] : [3, 4]),
+          );
+        }),
+      ),
+      createObjectURL: () => "blob:verified",
+      revokeObjectURL: vi.fn(),
+    }).start(typed);
+    void session.idleReady.then(() => (idleReadyAt = order.length));
+    await session.essentialReady;
+    session.startOptional();
+    const mount = await session.settled;
+    expect(order.slice(0, 2)).toEqual(["/files/0", typed.bundles[0]!.url]);
+    expect(idleReadyAt).toBe(2);
+    expect(order.slice(2).sort()).toEqual(
+      [typed.bundles[1]!.url, "/files/5", "/files/6"].sort(),
+    );
+    expect(mount.files.size).toBe(7);
+    expect(mount.playbackStatus).toBe("ready");
+    await session.dispose();
+  });
+
+  it.each(["binary", "id", "path"])(
+    "rejects a JSON bundle advertisement with a wrong %s",
+    async (failure) => {
+      const loader = new RuntimeJsonBundleLoader(vi.fn<typeof fetch>());
+      const member = (index: number) => ({
+        file_ref: `file-${index}`,
+        role: "sequence",
+        media_type: "application/json",
+        size_bytes: 4,
+        sha256: "0".repeat(64),
+        url: `/files/${index}`,
+      });
+      const bundle = {
+        ...jsonBundle(["file-1", "file-2"], 8),
+        ...(failure === "binary" ? { format: "binary" as const } : {}),
+        // A malformed ID, with a URL that names it.
+        ...(failure === "id"
+          ? {
+              id: "B".repeat(64),
+              url: `/v1/animas/anima/runtime/revisions/tr2-test/bundles/${"B".repeat(64)}`,
+            }
+          : {}),
+        ...(failure === "path"
+          ? { url: "/v1/animas/anima/runtime/revisions/tr2-test/bundles/other" }
+          : {}),
+      };
+      await expect(
+        loader.load(
+          bundle,
+          [member(1), member(2)],
+          "tr2-test",
+          new AbortController().signal,
+        ),
+      ).rejects.toThrow("Invalid runtime JSON bundle advertisement.");
+    },
+  );
 });

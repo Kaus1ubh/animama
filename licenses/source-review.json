@@ -13004,14 +13004,14 @@
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "src/backend/animama/app/services/runtime_content_closure.py",
+      "path": "src/backend/animama/app/services/runtime_bundle_service.py",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "src/backend/animama/app/services/runtime_json_bundle_service.py",
+      "path": "src/backend/animama/app/services/runtime_content_closure.py",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
@@ -13312,6 +13312,13 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "src/backend/animama/domain/runtime_bundles.py",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "src/backend/animama/domain/runtime_content_descriptor.py",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -13320,13 +13327,6 @@
     },
     {
       "path": "src/backend/animama/domain/runtime_content_slot.py",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "src/backend/animama/domain/runtime_json_bundle.py",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
@@ -27412,6 +27412,13 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "tests/test_anima_runtime_bundles.py",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "tests/test_anima_runtime_closure.py",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -27427,13 +27434,6 @@
     },
     {
       "path": "tests/test_anima_runtime_item_admission.py",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "tests/test_anima_runtime_json_bundle.py",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",

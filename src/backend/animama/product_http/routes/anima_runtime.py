@@ -3,15 +3,21 @@
 from __future__ import annotations
 
 import asyncio
-import json
+import hashlib
+from io import BytesIO
 from typing import Annotated, NoReturn
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response
 
 from animama.app.contracts.runtime_content import PyAnimaRuntime, PyRuntimeLease
 from animama.app.services.anima_runtime_service import RuntimeSnapshotError
-from animama.app.services.runtime_json_bundle_service import RuntimeJsonBundleService
-from animama.domain.content_catalog import ContentIntegrityError, ContentPathError, ContentSource
+from animama.app.services.runtime_bundle_service import RuntimeBundleService
+from animama.domain.content_catalog import (
+    ContentIntegrityError,
+    ContentPathError,
+    ContentSource,
+    VerifiedContentFile,
+)
 from animama.domain.request_principal import RequestPrincipal
 from animama.product_http.ports import Ports, ReadContent, WriteContent
 from animama.product_http.principal import get_current_principal
@@ -96,36 +102,44 @@ async def renew_anima_runtime(
     return PyRuntimeLease(effective_revision=revision, expires_at=expires_at)
 
 
-@router.get("/v1/animas/{anima_id}/runtime/revisions/{revision}/json-bundle")
-async def get_runtime_json_bundle(
+@router.get("/v1/animas/{anima_id}/runtime/revisions/{revision}/bundles/{bundle_id}")
+async def get_runtime_bundle(
     request: Request,
     anima_id: str,
     revision: str,
+    bundle_id: str,
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
-    content: WriteContent,
+    content: ReadContent,
     ports: Ports,
     if_none_match: Annotated[str | None, Header(alias="If-None-Match")] = None,
 ) -> Response:
-    """Revalidate every selected file before returning a bundle or its conditional 304."""
+    """Revalidate every member of one issued bundle before returning it or its conditional 304."""
+
     encoding = _manifest_encoding(",".join(request.headers.getlist("accept-encoding")))
     try:
-        # Reading also records drifted members for rescan, so the bundle takes write content.
-        bundle = await RuntimeJsonBundleService(content.runtime, content.store).read(
-            user_id=user.id,
-            anima_id=anima_id,
-            revision=revision,
+        bundle = await RuntimeBundleService(content.runtime, content.store).read(
+            user_id=user.id, anima_id=anima_id, revision=revision, bundle_id=bundle_id
         )
     except RuntimeSnapshotError as exc:
         _raise_runtime(exc)
-    body = json.dumps(bundle, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
-    return await ports.json_response(
-        request,
-        body,
-        encoding=encoding,
-        headers={},
-        if_none_match=if_none_match,
-        cacheable=not any("error" in member for member in bundle["members"]),
+    if bundle.changed:
+        # Members changed on disk: record them for rescan in a write session of their own.
+        async with ports.write_session(user) as session:
+            catalog = ports.repositories(session).content_catalog
+            for source, paths in bundle.changed.items():
+                await catalog.mark_scan_required(source=source, relative_paths=tuple(paths))
+            await session.commit()
+    if bundle.format == "json":
+        return await ports.json_response(
+            request, bundle.body, encoding=encoding, headers={}, if_none_match=if_none_match, cacheable=bundle.complete
+        )
+    frame = VerifiedContentFile(
+        handle=BytesIO(bundle.body),
+        size_bytes=len(bundle.body),
+        sha256=hashlib.sha256(bundle.body).hexdigest(),
+        media_type="application/octet-stream",
     )
+    return ports.file_response(request, frame, if_none_match=if_none_match, revalidate=bundle.complete)
 
 
 @router.get("/v1/animas/{anima_id}/runtime/revisions/{revision}/files/{file_ref}")

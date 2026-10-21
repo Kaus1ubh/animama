@@ -1,5 +1,5 @@
 import { readBoundedJsonResponse } from "./runtimeContentDelivery";
-import type { PyRuntimeJsonBundle } from "@/lib/content/catalogTypes";
+import type { PyRuntimeBundle } from "@/lib/content/catalogTypes";
 import {
   VerifiedByteError,
   verifyRuntimeBytes,
@@ -7,7 +7,8 @@ import {
   type VerifiedByteMember,
 } from "./VerifiedByteLoader";
 
-export type RuntimeJsonBundle = PyRuntimeJsonBundle;
+/** A `json` delivery bundle; binary bundles are not read yet. */
+export type RuntimeJsonBundle = PyRuntimeBundle;
 
 /** Only transport unavailability may fall back; integrity/auth failures cannot. */
 export class RuntimeJsonBundleUnavailable extends Error {}
@@ -39,7 +40,8 @@ export class RuntimeJsonBundleLoader {
     );
     const url = new URL(bundle.url, this.origin);
     if (
-      bundle.version !== 1 ||
+      bundle.format !== "json" ||
+      !/^[0-9a-f]{64}$/.test(bundle.id) ||
       members.length < 2 ||
       members.length > 256 ||
       bundle.file_refs.length !== expected.size ||
@@ -60,7 +62,7 @@ export class RuntimeJsonBundleLoader {
       url.search ||
       url.hash ||
       !url.pathname.endsWith(
-        `/runtime/revisions/${encodeURIComponent(revision)}/json-bundle`,
+        `/runtime/revisions/${encodeURIComponent(revision)}/bundles/${bundle.id}`,
       )
     )
       throw new Error("Invalid runtime JSON bundle advertisement.");

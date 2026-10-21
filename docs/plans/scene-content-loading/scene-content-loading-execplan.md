@@ -66,7 +66,7 @@ artifacts by reviewed repin and keeps its own caching policy.
   three reviews, 2 of 2 repair rounds).
 - [x] Phase 2: Idle first, eight workers, milestones (three reviews, 2 of 2 repair
   rounds).
-- [ ] Phase 3: plural bundles: contract and backend.
+- [x] Phase 3: plural bundles: contract and backend (one high-risk review, passed).
 - [ ] Phase 4: binary bundles in the client.
 - [ ] Phase 5: cacheable revision members and the after-measurement.
 - [ ] Final integration review and full pre-push suite.
@@ -372,13 +372,74 @@ Review tier: high risk (shared API, contract and generated client).
 - Inventory, `server/schemas/runtime_content.py`, `pnpm openapi-ts`, local-http
   10.0.0, `@animama/runtime-contracts` 0.10.0. The client reads JSON bundles from
   `bundles` and ignores binary ones until Phase 4.
-- Docs: `docs/backend/api/http-api.md` and `docs/backend/architecture/local-content-storage.md`.
+- Docs: `docs/backend/architecture/http-api.md` and `docs/backend/architecture/local-content-storage.md`.
 - Tests: `tests/test_anima_runtime_bundles.py` (selection order, limits, determinism,
   bundle-id stability; route checks, per-member errors, 304 only after every check,
   the binary frame's layout and length), the owner-scope tests and the inventory
   tests.
 - Validation: targeted pytest, `make check-test`, `pnpm openapi-ts:check`,
   `pnpm packages:build && pnpm packages:check && pnpm packages:test`, `pnpm verify`.
+
+Implementation notes (Phase 3): a bundle ID is the full SHA-256 hex of
+`animama-runtime-bundle/1`, the format and the sorted refs; the binary frame is
+served as `application/octet-stream` through `ports.file_response` (revalidatable
+only when every member was read), so a composition's byte policy applies; selection
+also leaves out the voice's closure, as the client's essential stage loads it; the
+client ignores a binary bundle (its members load individually), takes each JSON
+bundle whose members are optional, reserved and in no earlier bundle, and still
+lets the loader reject a malformed advertisement (duplicate refs fail its members
+without fallback).
+
+Check record (before review), on tree `40ab07c` over `f5f75c8b`:
+
+- `uv run pytest -q tests/test_anima_runtime_bundles.py tests/test_product_http_anima_runtime.py tests/test_product_http_inventory.py tests/test_openapi*.py`:
+  35 passed; `uv run ruff check`, `ruff format --check` and `make mypy` passed.
+- `pnpm openapi-ts:check` (generated SDK current), `pnpm packages:build`,
+  `pnpm packages:check` and `pnpm packages:test` passed (`src/frontend`).
+- `npx vitest run src/lib/runtime-content` (138 passed) and `npx tsc -b`
+  (`src/frontend/web`).
+- Full pre-push suite through `scripts/heavy-slot.py`: `make check-test` 4725 passed,
+  29 skipped; `pnpm verify` 541 files, 5326 passed, 1 skipped; `pnpm web:test:browser`
+  and `pnpm prettier:check` passed.
+
+#### Code Review #1 Findings
+
+High-risk review of tree `d324942` (one analysis reviewer, one checks reviewer); both
+passed with advisories only. The checks reviewer reran the touched and wider issuance
+suites (35, 68 and 201 passed), ruff, `make mypy`, `openapi-ts:check`, the package
+checks and tests, vitest (138), `tsc -b` and eslint, rebuilt runtime-contracts
+byte-identically, and showed in scratch copies that the binary-frame and plural-bundle
+tests fail on the baseline and on three frame mutations. The analysis reviewer
+confirmed selection agrees with the client's essential and Idle derivations, the
+route's authority order, the frame layout, the version policy and old-tab fallback
+(an old tab's `/json-bundle` request gets 404 and loads members individually).
+
+- R1-1 / R1-C1 (advisory): `docs/backend/architecture/http-api.md` still named
+  local-http 9.0.0 for the capability schema and "JSON bundles" in the router list;
+  the plan named a nonexistent `docs/backend/api/http-api.md`.
+- R1-2 (advisory): `licenses/source-review.json` still listed the three old paths.
+- R1-3 (advisory): `ProductPorts.file_response`'s docstring did not mention the
+  in-memory bundle frame it now also delivers.
+- R1-4 (advisory): no test fetches an issued bundle URL through a real stored
+  snapshot.
+- R1-5 (advisory): Cloud follow-ups at its repin (tests reading `json_bundle`, tenant
+  inventory paths, `openapi.json`, admitting local-http 10).
+- R1-C2 (advisory): the loader test's `id` case was rejected by the URL check, not
+  the new ID check.
+
+#### Code Review #1 Revisions
+
+- R1-1, R1-C1, R1-2, R1-3, R1-C2 accepted and applied: the doc sentences and the plan
+  path corrected; the three license records renamed (and kept sorted); the docstring
+  notes the frame; the `id` case now has a matching URL, and fails with the ID check
+  removed.
+- R1-4 not adopted: the fake-runtime tests cover owner, revision, expiry and unknown
+  bundles, Cloud tests the issued URL against stored snapshots, and Phase 5's
+  measurement fetches real bundles on a built stack, where a silent fallback would
+  show as per-member requests.
+- R1-5: for Cloud's repin; noted in Cloud's hosted-first-run plan (Phase 3).
+- No repair round was needed (no blocking finding); the advisories were applied after
+  the review, with the affected checks rerun.
 
 ### Phase 4: Binary bundles in the client
 
