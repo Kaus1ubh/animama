@@ -139,32 +139,30 @@ const SCRATCH = {
   armDown: [0.95, 1.46],
 } as const;
 /**
- * The scratch walk's turn as two steps, in shares of its window: her right
- * foot opens toward the camera, then her left brings her round. `hips` is
- * the share of her hips' turn each step carries and `feet` how far each foot
- * (right, left) turns in it: the stepping foot most, while the planted one
- * pivots a little. Her upper body keeps to the smooth turn the clip's twist
- * is keyed to, so her hips trail it and her head stays on the camera.
+ * The scratch walk's turn is one smooth rotation with a few quiet cues: her
+ * hips trail her shoulders by up to `hipsLag` mid-turn (her spine takes up
+ * the difference, so her upper body keeps the turn the clip's twist is keyed
+ * to), and she takes two light steps, right foot then left, each lifting the
+ * foot `lift` of the way to a full step and dipping her by `dip` of a stride's
+ * bob. Step windows are shares of the turn.
  */
-const SCRATCH_STEPS = [
-  { from: 0.15, to: 0.6, hips: 0.55, feet: [0.75, 0.2], swing: 0 },
-  { from: 0.55, to: 1, hips: 0.45, feet: [0.25, 0.8], swing: 1 },
-] as const;
-/** How the upper body's lead over her hips is shared along the spine. */
-const TWIST_SHARES = { spine: 0.45, chest: 0.35, neck: 0.2 } as const;
+const SCRATCH_TURN = {
+  hipsLag: 8 * DEG,
+  lift: 0.35,
+  dip: 0.5,
+  steps: [
+    { from: 0.1, to: 0.55, foot: 0 },
+    { from: 0.45, to: 0.9, foot: 1 },
+  ],
+} as const;
+/** How the spine takes up her hips' lag behind her shoulders. */
+const TWIST_SHARES = { spine: 0.55, chest: 0.45 } as const;
 /**
- * Her weight moving onto the planted foot while the other steps: the
- * sideways shift (head heights) and the hips' roll down on the lifted side.
+ * Her arms as damped pendulums on her turning shoulders: they trail a little
+ * as she starts turning and swing on as she stops. Natural frequency
+ * (rad/s), damping ratio and the response to the hips' angular acceleration.
  */
-const STEP_SHIFT = 0.08;
-const STEP_ROLL = 2.5 * DEG;
-/**
- * Her arms as damped pendulums on her turning shoulders: they trail as each
- * step starts her hips turning and swing on as it stops them. Natural
- * frequency (rad/s), damping ratio and the response to the hips' angular
- * acceleration.
- */
-const ARM_SPRING = { frequency: 7, damping: 0.35, gain: 0.28 } as const;
+const ARM_SPRING = { frequency: 7, damping: 0.5, gain: 0.15 } as const;
 /**
  * From the double take her eyes are on the camera and her head stops at it
  * rather than turning past: any turn beyond it is eased back (allowing at
@@ -284,17 +282,11 @@ export class Intro {
   private turnGlanceFrom = GLANCE;
   /** Lift of the right and left turning steps (0–1). */
   private stepLift: [number, number] = [0, 0];
-  /** Each leg's turn against her hips (radians, about the vertical). */
-  private legTurn: [number, number] = [0, 0];
   /** Her upper body's turn ahead of her hips (radians). */
   private twist = 0;
-  /** Her hips' roll down on the stepping side (radians). */
-  private hipRoll = 0;
   /** Her arms' swing (radians, right arm forward) and its speed. */
   private armSwing = 0;
   private armSwingSpeed = 0;
-  /** Her weight shift off her path (metres), which the camera ignores. */
-  private readonly sway = new THREE.Vector3();
   /** The camera she looks at from the double take, or null. */
   private readonly viewer: THREE.Object3D | null;
   /** How firmly her eyes and head hold on the camera (0–1). */
@@ -412,13 +404,7 @@ export class Intro {
 
   /** Whether any turning-step offset is still visible. */
   private get stepping() {
-    const offsets = [
-      ...this.stepLift,
-      ...this.legTurn,
-      this.twist,
-      this.hipRoll,
-      this.armSwing,
-    ];
+    const offsets = [...this.stepLift, this.twist, this.armSwing];
     return offsets.some((offset) => Math.abs(offset) >= 1e-3);
   }
 
@@ -429,7 +415,7 @@ export class Intro {
 
   /** The camera's sideways follow (metres) while she walks in. */
   get cameraX() {
-    return (this.vrm.scene.position.x - this.sway.x) * CAMERA_PAN;
+    return this.vrm.scene.position.x * CAMERA_PAN;
   }
 
   /**
@@ -463,36 +449,25 @@ export class Intro {
     this.walked = this.distanceAt(Math.min(t, this.walkSec));
     const speed = (this.walked - before) / Math.max(delta, 1e-4);
     this.gait = Math.sqrt(Math.min(1, speed / this.cruise));
-    // Turning: side-on to facing the camera in two steps, starting with the
-    // double take.
+    // Turning: side-on to facing the camera, starting with the double take.
     const turnSec = SCRATCH.turnTo - SCRATCH.turnFrom;
-    const turned = this.stepTurn(
+    scene.rotation.y = this.turnStep(
       clamp01((c - SCRATCH.turnFrom) / turnSec),
       turnSec,
       delta,
     );
-    scene.rotation.y = WALK_HEADING * (1 - turned);
     if (c >= SCRATCH.turnFrom) this.aim = 1;
-    // Her weight shifts onto the planted foot (her left is +x facing +z).
-    const [right, left] = this.stepLift;
-    const shift = STEP_SHIFT * this.height * (right - left);
-    this.sway.set(
-      Math.cos(scene.rotation.y) * shift,
-      0,
-      -Math.sin(scene.rotation.y) * shift,
-    );
-    // She bobs with each stride and sinks a little into each turning step.
+    // She bobs with each stride and dips a little into each turning step.
     const phase = (this.walked / STRIDE) * Math.PI * 2;
-    scene.position
-      .set(
-        (this.startX + this.walked) * this.height,
-        -BOB *
-          this.height *
-          (this.gait * (0.5 - 0.5 * Math.cos(2 * phase)) +
-            0.35 * Math.max(right, left)),
-        0,
-      )
-      .add(this.sway);
+    const step = Math.max(...this.stepLift) / SCRATCH_TURN.lift;
+    scene.position.set(
+      (this.startX + this.walked) * this.height,
+      -BOB *
+        this.height *
+        (this.gait * (0.5 - 0.5 * Math.cos(2 * phase)) +
+          SCRATCH_TURN.dip * step),
+      0,
+    );
     // The scratching arm leaves the walk's swing, and rejoins it lowered.
     const [upFrom, upTo] = SCRATCH.armUp;
     const [downFrom, downTo] = SCRATCH.armDown;
@@ -512,43 +487,39 @@ export class Intro {
   }
 
   /**
-   * The scratch turn's steps at progress `u` (0–1 over `turnSec` seconds):
-   * sets the step lifts, each leg's turn against her hips, the upper body's
-   * lead, the hips' roll and her arms' swing, and returns how far her hips
-   * have turned (0–1).
+   * The scratch turn at progress `u` (0–1 over `turnSec` seconds): sets the
+   * step lifts, the spine's take-up of her hips' lag and her arms' swing, and
+   * returns her hips' heading (radians).
    */
-  private stepTurn(u: number, turnSec: number, delta: number) {
-    let hips = 0;
-    /** The hips' angular acceleration, in turns per second squared. */
-    let acceleration = 0;
-    const feet = [0, 0];
-    for (const step of SCRATCH_STEPS) {
-      const span = step.to - step.from;
-      const s = THREE.MathUtils.clamp((u - step.from) / span, 0, 1);
-      const eased = smootherstep(s);
-      hips += step.hips * eased;
-      step.feet.forEach((share, foot) => (feet[foot] += share * eased));
-      this.stepLift[step.swing] = Math.sin(Math.PI * s);
-      // smootherstep's second derivative, over the step's length in seconds.
-      acceleration +=
-        (step.hips * 60 * s * (1 - s) * (1 - 2 * s)) / (span * turnSec) ** 2;
+  private turnStep(u: number, turnSec: number, delta: number) {
+    const { hipsLag, lift, steps } = SCRATCH_TURN;
+    const lag = hipsLag * Math.sin(Math.PI * u) ** 2;
+    this.twist = -lag;
+    for (const step of steps) {
+      const s = THREE.MathUtils.clamp(
+        (u - step.from) / (step.to - step.from),
+        0,
+        1,
+      );
+      this.stepLift[step.foot] = lift * Math.sin(Math.PI * s);
     }
-    // A planted foot stays put while her hips turn over it.
-    this.legTurn = [
-      (hips - feet[0]) * WALK_HEADING,
-      (hips - feet[1]) * WALK_HEADING,
-    ];
-    this.twist = (hips - smootherstep(u)) * WALK_HEADING;
-    this.hipRoll = STEP_ROLL * (this.stepLift[0] - this.stepLift[1]);
+    // Her hips' angular acceleration toward the camera (rad/s²): the
+    // smootherstep turn's, less the lag's.
+    const acceleration =
+      u > 0 && u < 1
+        ? (WALK_HEADING * 60 * u * (1 - u) * (1 - 2 * u) -
+            hipsLag * 2 * Math.PI ** 2 * Math.cos(2 * Math.PI * u)) /
+          turnSec ** 2
+        : 0;
     const { frequency, damping, gain } = ARM_SPRING;
     const dt = Math.min(delta, 1 / 30);
     this.armSwingSpeed +=
-      (gain * acceleration * WALK_HEADING -
+      (gain * acceleration -
         frequency ** 2 * this.armSwing -
         2 * damping * frequency * this.armSwingSpeed) *
       dt;
     this.armSwing += this.armSwingSpeed * dt;
-    return hips;
+    return WALK_HEADING * (1 - smootherstep(u)) + lag;
   }
 
   /** Her arms swinging to rest after the turn, with nothing driving them. */
@@ -569,12 +540,9 @@ export class Intro {
     scene.rotation.y = 0;
     this.gait = 0;
     this.stepLift = [0, 0];
-    this.legTurn = [0, 0];
     this.twist = 0;
-    this.hipRoll = 0;
     this.armSwing = 0;
     this.armSwingSpeed = 0;
-    this.sway.set(0, 0, 0);
     this.glance = 0;
     if (this.plan && this.phase !== "waving") {
       for (const name of Object.values(CLIP_NAMES))
@@ -793,23 +761,22 @@ export class Intro {
           drive(name, axis, () => offset(this.stepLift[index])),
         ),
       ),
-      // The scratch turn: each leg turned against her hips (after its lift,
-      // so a stepping foot lands turned), the upper body leading them, the
-      // hips' roll with the spine levelling it, and her arms' swing.
-      ...(["right", "left"] as const).flatMap((side, index) =>
-        drive(`${side}UpperLeg`, "up", () => this.legTurn[index]),
-      ),
+      // The scratch turn: her upper body ahead of her hips, and her arms'
+      // swing.
       ...Object.entries(TWIST_SHARES).flatMap(([name, share]) =>
         drive(name as VRMHumanBoneName, "up", () => this.twist * share),
       ),
-      ...drive("hips", "forward", () => this.hipRoll),
-      ...drive("spine", "forward", () => -0.8 * this.hipRoll),
       ...drive("rightUpperArm", "lateral", () => -this.armSwing),
       ...drive("leftUpperArm", "lateral", () => this.armSwing),
       ...drive("rightLowerArm", "lateral", () => -0.4 * this.armSwing),
       ...drive("leftLowerArm", "lateral", () => 0.4 * this.armSwing),
     ];
-    const nodes = [...new Set(bones.map(({ node }) => node))];
+    const aimBones = Object.entries(AIM_SHARES).flatMap(([name, share]) => {
+      const node = vrm.humanoid.getNormalizedBoneNode(name as VRMHumanBoneName);
+      return node ? [{ node, share }] : [];
+    });
+    // Every bone offset here, restored after each update.
+    const nodes = [...new Set([...bones, ...aimBones].map(({ node }) => node))];
     const saved = nodes.map(() => new THREE.Quaternion());
     const axes: Record<Axis, THREE.Vector3> = {
       lateral: new THREE.Vector3(1, 0, 0),
@@ -834,10 +801,6 @@ export class Intro {
       node.quaternion.premultiply(localTurn);
     };
     const head = vrm.humanoid.getNormalizedBoneNode("head");
-    const aimBones = Object.entries(AIM_SHARES).flatMap(([name, share]) => {
-      const node = vrm.humanoid.getNormalizedBoneNode(name as VRMHumanBoneName);
-      return node ? [{ node, share }] : [];
-    });
     const headTurn = new THREE.Quaternion();
     const headAt = new THREE.Vector3();
     const facing = new THREE.Vector3();
