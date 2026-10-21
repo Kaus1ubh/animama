@@ -21,6 +21,7 @@ from animama.app.services.anima_starter_service import STARTER_ANIMA_SPECS, Anim
 from animama.app.services.content_catalog_service import ContentCatalogService
 from animama.app.services.memory_entry_service import MemoryEntryService
 from animama.app.services.starter_loadout_policy import (
+    resolve_starter_idle_pool,
     starter_idle_keys,
     starter_idle_pool,
     starter_loadout_policy,
@@ -30,11 +31,12 @@ from animama.domain.anima import Anima
 from animama.domain.anima_chat_profile import AnimaChatProfile
 from animama.domain.anima_creation_error import AnimaCreationError
 from animama.domain.anima_definition import ANIMA_MEMORIES_TEMPLATE
-from animama.domain.anima_loadout import AnimaLoadoutError
+from animama.domain.anima_loadout import AnimaLoadoutError, idle_slot_key, reaction_slot_key
 from animama.domain.avatar import Avatar
 from animama.domain.request_principal import RequestPrincipal
 from animama.domain.settings import AnimaSettings
 from animama.orm import ORMAnima, ORMAnimaCreationReceipt, ORMAnimaSettings, ORMAnimaStarterReceipt, ORMMemoryEntry
+from animama.orm.content_catalog import ORMAnimaContentBinding
 from animama.product_http.routes.animas import list_animas
 from animama.runtime.starter_content import CORE_LIBRARY_ROOTS
 from tests.anima_creation_service_support import (
@@ -44,6 +46,7 @@ from tests.anima_creation_service_support import (
     write_supplied_starter_fixture,
 )
 from tests.local_http_client import local_client
+from tests.statement_counting import STARTER_LOADOUT_STATEMENTS, counted_statements
 
 REQUEST = EnsureAnimaStartersRequest(schema_version=1, repairs=[])
 
@@ -607,7 +610,33 @@ async def test_tracked_checkout_materializes_both_starters_without_optional_loca
         async_session.add(bare)
         await async_session.flush()
         service = AnimaLoadoutService(async_session)
-        await service.create_starter_loadout(user_id=fixture.owner, anima_id=bare.id, store=fixture.store())
+        with counted_statements(async_session) as statements:
+            await service.create_starter_loadout(user_id=fixture.owner, anima_id=bare.id, store=fixture.store())
+        # The pools are locked and written in batches: the count does not grow with them.
+        assert len(statements) <= STARTER_LOADOUT_STATEMENTS
+        # One binding per policy member, in the policy's slots, with no config.
+        visible = await SQLAlchemyContentCatalog(async_session).list_visible(user_id=fixture.owner)
+        reactions = {item.logical_key: item.id for item in visible if item.source.value == "included"}
+        idle_members = await resolve_starter_idle_pool(
+            visible={item.id: item for item in visible}, store=fixture.store()
+        )
+        expected: list[tuple[str, str, str, dict[str, object]]] = [
+            (idle_slot_key(member.cell, member.source.id), member.source.id, "gesture", {}) for member in idle_members
+        ]
+        expected += [
+            (reaction_slot_key(cell, reactions[key]), reactions[key], "reaction", {})
+            for cell, keys in starter_reaction_pools(1).items()
+            for key in keys
+        ]
+        bindings = await async_session.execute(
+            select(
+                ORMAnimaContentBinding.slot_key,
+                ORMAnimaContentBinding.catalog_item_id,
+                ORMAnimaContentBinding.kind,
+                ORMAnimaContentBinding.config,
+            ).where(ORMAnimaContentBinding.anima_id == bare.id)
+        )
+        assert sorted(map(tuple, bindings)) == sorted({row[0]: row for row in expected}.values())
         applied = await service.read_model(user_id=fixture.owner, anima_id=bare.id)
 
         def idle_pool(value) -> dict[str, list[str]]:  # noqa: ANN001

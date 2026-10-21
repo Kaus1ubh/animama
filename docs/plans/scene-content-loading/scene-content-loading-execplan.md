@@ -62,7 +62,8 @@ artifacts by reviewed repin and keeps its own caching policy.
 
 - [x] Plan review (owner): approved 2026-10-21 with the decisions below.
 - [ ] Baseline measurement (no commit).
-- [ ] Phase 1: bounded starter loadout writes.
+- [x] Phase 1: bounded starter loadout writes (16 statements for a real starter, from 993;
+  three reviews, 2 of 2 repair rounds).
 - [ ] Phase 2: Idle first, eight workers, milestones.
 - [ ] Phase 3: plural bundles: contract and backend.
 - [ ] Phase 4: binary bundles in the client.
@@ -79,6 +80,9 @@ artifacts by reviewed repin and keeps its own caching policy.
 - Requirement 4 (cacheable revision members) reverses documented local guidance on
   private content and needs an owner decision; the file route's drift detection
   (`mark_scan_required`) would not run on cache hits.
+- Cloud keeps shared Included rows unlocked only through `Session.get` (its
+  `DeferredSession`), an implicit contract a batched `SELECT … FOR UPDATE` bypasses
+  (review R1-1, decision P-9).
 - The per-file route hashes a file and then streams it from the start; a write in
   between could stream bytes that differ from the hash. With a reusable cache, a
   client must retry once with `cache: "reload"` after a verification failure so a bad
@@ -118,6 +122,13 @@ plan's approval.
   hosted composition chooses its own policy and may stay stricter.
 - P-8 Creation path: leave `initialize()`'s Reaction loop as is (creation scope);
   `_create_root` batching already covers its Idle pool.
+- P-9 Shared-row locks (implementer, 2026-10-21, from review R1-1): a composition
+  whose shared catalog rows never change at runtime sets
+  `SHARED_CATALOG_ROWS_IMMUTABLE` in the session's `info`, and catalog reads then
+  lock only owner rows. Hosted Cloud must set it on its owner sessions (and extend
+  its Included-lock test to the batched reads) when it adopts this build; until then
+  its starter adoption would lock shared rows. Alternatives: let a composition
+  supply its own catalog repository, or have Cloud rewrite batched lock statements.
 
 ## Phased implementation
 
@@ -154,6 +165,101 @@ Review tier: high risk (persistence and row locks).
   Idle error precedence and the unavailable-Reaction warning; existing tests unchanged.
 - Validation: `uv run pytest -q tests/test_anima_starters.py tests/test_anima_reaction_pools.py tests/test_anima_loadouts.py tests/test_anima_creation.py`,
   `uv run ruff check`, then the full pre-push suite before review.
+
+Check record (before review), on tree `75cd14c` over baseline `99aede24`:
+
+- `uv run pytest -q tests/test_anima_starters.py tests/test_anima_reaction_pools.py tests/test_anima_loadouts.py tests/test_anima_creation.py`
+  (root): passed. A real tracked starter sends 16 statements, down from 993.
+- `uv run ruff check`, `uv run mypy` on the touched modules (root): passed.
+- `python3 scripts/heavy-slot.py -- make check-test` (root, full pre-push suite;
+  no frontend change): 4718 passed, 29 skipped.
+- Independent checks reviewer: the affected suites (123 tests) and the statement
+  counts (16 for the full starter, 12 for the small pool) reproduced.
+
+#### Code Review #1 Findings
+
+High-risk analysis review of tree `75cd14c`, which also read Cloud's hosted consumer.
+It reran the loadout suites (93 passed) and compared the baseline and new services
+side by side: identical binding rows (197: 29 Idle, 168 Reaction), roots and read
+models; the same 12 Idle and 168 Reaction rows locked (197 single-row locks before,
+2 batched locks now); the same Idle error in all 240 orderings tried.
+
+- R1-1 (blocking): in the hosted composition the batched lock bypasses Cloud's rule
+  against row-locking shared Included rows. Cloud's `DeferredSession` exempts them
+  only in `Session.get`; `get_visible_items` locks with a `SELECT … FOR UPDATE`, so
+  each account's starter adoption would hold about 180 shared rows until its commit
+  and queue other accounts' runtime issuance and binding inserts.
+- R1-2 (advisory): the planned binding-row, Idle error-precedence and equal-count
+  tests were missing; the small-pool bound's comment claimed more than it checked.
+- R1-3 (advisory): the lock test caught any `DBAPIError`, had no positive control
+  and locked one Reaction only.
+- R1-4 (advisory): `_starter_reactions`' docstring still said "one cell's".
+
+#### Code Review #1 Revisions
+
+- R1-1 accepted. A composition declares immutable shared rows with
+  `SHARED_CATALOG_ROWS_IMMUTABLE` in the session's `info` (decision P-9); both catalog
+  reads then lock only owner rows (`get_visible_items` with one extra owner-row lock
+  statement). Local behaviour is unchanged. Documented in
+  `docs/backend/features/custom-animas-and-content.md`.
+- R1-2 accepted. `tests/test_starter_loadout_batching.py` adds equal statement counts
+  for one- and four-member pools and the first-failing-Idle-member precedence (stale
+  before missing and the reverse); the tracked starter test asserts its bindings
+  equal the policy's `(slot_key, catalog_item_id, kind, config)`. The small-pool
+  bound was removed.
+- R1-3 accepted. The new lock test locks an owner Idle Gesture and an Included
+  Reaction, requires SQLSTATE `55P03` and checks both edits succeed after rollback;
+  a second test proves the declaration leaves shared rows unlocked and owner rows
+  locked, for the batch and the single-row read.
+- R1-4 accepted: docstring corrected.
+- Checks on tree `fe505f8`: the batching, Reaction pool, starter, loadout, creation,
+  Idle pool and content catalog suites (104 passed); `uv run ruff check`, `ruff format
+  --check` and `mypy` on the two touched source modules passed. `make mypy` was not
+  run, and it failed on the new test (Code Review #2, R2-1).
+
+#### Code Review #2 Findings
+
+Targeted recheck (repair round 1) of tree `2387f28`: R1-1 to R1-4 resolved. Its
+side-by-side comparison found 16 statements and identical binding rows without the
+declaration, 18 statements and identical rows with it, and no shared row locked with
+it (a `FOR NO KEY UPDATE NOWAIT` probe on shared rows succeeds). Hosted RLS limits the
+owner-row lock to the current owner's rows.
+
+- R2-1 (blocking): `tests/test_anima_starters.py` failed `make mypy`
+  (`var-annotated` on the expected binding rows), so the full pre-push suite would fail.
+- R2-2 (advisory): the comment and doc said catalog reads in general lock only owner
+  rows; only the two loadout reads honour the declaration, and `lock_items` still
+  locks shared rows.
+- R2-3 (advisory): the Cloud follow-up was recorded only here.
+
+#### Code Review #2 Revisions
+
+- R2-1 accepted: the expected rows are annotated; `make mypy` passes (854 files).
+- R2-2 accepted: the comment and doc name `get_visible_item` and `get_visible_items`
+  and state that `lock_items` and reconciliation lock as before.
+- R2-3 accepted: Cloud's hosted-first-run ExecPlan (Phase 3, the repin that adopts
+  this build) now requires setting the declaration on owner sessions and extending
+  `IncludedLockTests` to the batched reads.
+- Repair rounds used: 2 of 2.
+- Checks on tree `6e08bdb`: `make mypy` (854 files) passed; the affected suites above
+  (104 passed); `python3 scripts/heavy-slot.py -- make check-test` (root, full
+  pre-push suite): 4721 passed, 29 skipped.
+
+#### Code Review #3 Findings
+
+Final targeted recheck (repair round 2) of tree `6e08bdb`: pass. R2-1 to R2-3
+resolved; no executable source changed since round 2, so its behaviour checks hold
+(16 statements without the declaration, 18 with it, identical rows, no shared row
+locked). It reran `make mypy`, ruff and the starter and batching suites (28 passed).
+
+- R3-1 (advisory): the hosted requirement lives in Cloud's plan only for its Phase 3
+  repin; state it in this plan's PR too, so any Cloud adoption of the build sees it.
+- R3-2 (advisory): record the checks run on tree `6e08bdb`.
+
+#### Code Review #3 Revisions
+
+- R3-1 accepted: the PR's risks section will carry the hosted requirement (P-9).
+- R3-2 accepted: recorded above.
 
 ### Phase 2: Idle first, eight workers, milestones
 
