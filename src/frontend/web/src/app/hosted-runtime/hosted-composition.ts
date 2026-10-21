@@ -32,6 +32,8 @@ type HostedContext = {
   recovery_session_id?: string;
   capabilities: unknown;
   account_url?: string | null;
+  /** Admitted states only: the server is still preparing the starter data. */
+  setup_pending?: boolean;
 };
 type Options = {
   baseUrl: string;
@@ -63,6 +65,15 @@ const MAX_SETUP_POLLS = 24;
 /** An open view repeats failed setup on its own after this pause, doubling to a minute. */
 const SETUP_PAUSE_MS = 2_000;
 const MAX_SETUP_PAUSE_MS = 60_000;
+/** Admitted states; `age_confirmation_required` keeps the app inert behind the 18+ dialog. */
+const ADMITTED_STATES = new Set(["active", "age_confirmation_required"]);
+/**
+ * Context reads while the server prepares starter data: a short burst (about three
+ * minutes), then one read every 30 s until it finishes, so the starters still appear.
+ */
+const SETUP_PENDING_DELAYS_MS = [1_000, 1_500, 2_000, 3_000, 5_000];
+const SETUP_PENDING_BURST_READS = 40;
+const SETUP_PENDING_SLOW_MS = 30_000;
 
 /** A hosted runtime this application cannot use until it is updated (worded when reported). */
 function updateRequired(): RuntimeAdmission {
@@ -112,6 +123,12 @@ export function createHostedComposition(
   let events: AbortController | null = null;
   let bootstrapTimer: ReturnType<typeof setTimeout> | null = null;
   let retryTimer: ReturnType<typeof setTimeout> | null = null;
+  /** The last admitted context said the server is still preparing starter data. */
+  let setupPending = false;
+  /** The last context read's state, so a refusal for 18+ confirmation re-reads only once. */
+  let contextState: string | null = null;
+  let setupPendingReads = 0;
+  let setupPendingTimer: ReturnType<typeof setTimeout> | null = null;
   let eventsDelay = 1_000;
   let eventsDoubted = false;
   const listeners = new Set<(invalidate?: AdmissionRefresh) => void>();
@@ -143,7 +160,7 @@ export function createHostedComposition(
       if (!csrf) throw new Error("A current hosted CSRF token is required");
       headers.set("X-Animama-CSRF", csrf);
     }
-    return options.fetch(
+    const response = await options.fetch(
       traceProductRequest(
         new Request(request, {
           headers,
@@ -153,7 +170,55 @@ export function createHostedComposition(
         }),
       ),
     );
+    if (
+      response.status === 403 &&
+      url.pathname !== "/v1/hosted/runtime-context" &&
+      (await refusedForAgeConfirmation(response.clone()))
+    ) {
+      // The context read reopens the dialog. The request is cancelled, so callers
+      // handle it as an ended session rather than as a failure.
+      if (contextState !== "age_confirmation_required") notify();
+      throw new DOMException(
+        "Hosted 18+ confirmation is required",
+        "AbortError",
+      );
+    }
+    return response;
   };
+
+  async function refusedForAgeConfirmation(
+    refusal: Response,
+  ): Promise<boolean> {
+    try {
+      const body = (await refusal.json()) as { state?: unknown } | null;
+      return body?.state === "age_confirmation_required";
+    } catch {
+      return false;
+    }
+  }
+
+  /** Re-reads a pending setup's context on a bounded schedule while views listen. */
+  function followSetupPending(pending: boolean): void {
+    setupPending = pending;
+    if (!pending) {
+      if (setupPendingTimer) clearTimeout(setupPendingTimer);
+      setupPendingTimer = null;
+      setupPendingReads = 0;
+      return;
+    }
+    if (setupPendingTimer || !listeners.size) return;
+    const delay =
+      setupPendingReads >= SETUP_PENDING_BURST_READS
+        ? SETUP_PENDING_SLOW_MS
+        : SETUP_PENDING_DELAYS_MS[
+            Math.min(setupPendingReads, SETUP_PENDING_DELAYS_MS.length - 1)
+          ];
+    setupPendingTimer = setTimeout(() => {
+      setupPendingTimer = null;
+      setupPendingReads += 1;
+      notify();
+    }, delay);
+  }
 
   async function json<T>(path: string, init?: RequestInit): Promise<T> {
     const response = await authorizedFetch(path, init);
@@ -256,6 +321,8 @@ export function createHostedComposition(
   async function signOutOnce(): Promise<void> {
     loginRequest?.abort();
     const admitted = session;
+    followSetupPending(false);
+    contextState = null;
     // The session to end: the admitted one, or the one a failed sign-out
     // targeted (recorded for the browser, or remembered by this page).
     const target = admitted
@@ -395,7 +462,9 @@ export function createHostedComposition(
       deletion_pending: "restricted",
     };
     if (context.state !== "bootstrapping") setupPolls = 0;
-    if (context.state !== "active") {
+    contextState = context.state;
+    if (!ADMITTED_STATES.has(context.state)) {
+      followSetupPending(false);
       if (SETUP_STATES.has(context.state)) return setupAdmission(context.state);
       const authoritativeDenial = REVOKING_STATES.has(context.state);
       if (session && !authoritativeDenial)
@@ -472,12 +541,28 @@ export function createHostedComposition(
         recovery,
       };
     }
+    followSetupPending(context.setup_pending === true);
     return {
       status: "ready",
       session: { key: session.key, owner: { id: context.user_id } },
       capabilities,
-      onboardingRequired: false,
+      onboardingRequired: context.state === "age_confirmation_required",
     };
+  }
+
+  /** Relays the person's explicit answer; the reply is the runtime context that follows. */
+  async function confirmAge(): Promise<RuntimeAdmission> {
+    const response = await authorizedFetch("/v1/hosted/age-confirmation", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ adult_confirmed: true }),
+    });
+    if (!response.ok) {
+      // An ended session reads the context, which decides what follows.
+      if (response.status === 401) notify("recheck");
+      throw new Error(`Hosted age confirmation failed (${response.status})`);
+    }
+    return contextAdmission((await response.json()) as HostedContext);
   }
 
   async function readAdmission(
@@ -509,6 +594,7 @@ export function createHostedComposition(
     if (response.status === 401 || response.status === 403) {
       session = null;
       csrf = null;
+      followSetupPending(false);
       void scope?.end();
       await purgeHostedRecoverySessions();
       forgetHostedRecoveryIdentity();
@@ -632,10 +718,20 @@ export function createHostedComposition(
     browserFetch,
     readAdmission,
     repair,
+    confirmAge,
+    setupPending: () => setupPending,
     bindSession: (next) => {
       stopEvents();
       scope = next;
-      if (next) startEvents();
+      if (next) {
+        startEvents();
+        // A new session follows the pending setup its admission read reported.
+        if (setupPending) followSetupPending(true);
+      } else if (setupPendingTimer) {
+        // An ended session stops its setup re-reads.
+        clearTimeout(setupPendingTimer);
+        setupPendingTimer = null;
+      }
     },
     accountAffordances: () => ({
       // Without a validated URL the Account controls are hidden, not broken.
@@ -798,6 +894,8 @@ export function createHostedComposition(
         }
       }
       startEvents();
+      // A pending setup read before this view subscribed starts its re-reads now.
+      if (setupPending) followSetupPending(true);
       return () => {
         listeners.delete(refresh);
         if (typeof window !== "undefined")
@@ -808,6 +906,8 @@ export function createHostedComposition(
           stopEvents();
           if (bootstrapTimer) clearTimeout(bootstrapTimer);
           bootstrapTimer = null;
+          if (setupPendingTimer) clearTimeout(setupPendingTimer);
+          setupPendingTimer = null;
           channel?.close();
           channel = null;
         }

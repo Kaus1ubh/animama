@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 
 import { useRuntimeAdmission } from "@web/app/runtime/RuntimeAdmissionProvider";
 import { FirstRunAgeConfirmation } from "@web/app/local-runtime/setup/FirstRunAgeConfirmation";
+import { HostedAgeConfirmation } from "@web/app/hosted-runtime/HostedAgeConfirmation";
 import {
   unavailableReasonText,
   unavailableRouteReason,
@@ -24,14 +25,19 @@ export const Route = createFileRoute("/_app")({
 
 function ApplicationAreaLayout() {
   const { t } = useTranslation("app");
-  const { admission } = useRuntimeAdmission();
+  const { admission, composition } = useRuntimeAdmission();
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
   });
   if (admission.status !== "ready") return null;
   const reason = unavailableRouteReason(pathname, admission.capabilities);
+  // The composition never changes, so the confirmation boundary stays mounted.
+  const AgeConfirmation =
+    composition?.kind === "hosted"
+      ? HostedAgeConfirmation
+      : FirstRunAgeConfirmation;
   return (
-    <FirstRunAgeConfirmation>
+    <AgeConfirmation>
       <SettingsGate>
         <AppShell>
           <ContentPreviewDockProvider>
@@ -52,6 +58,6 @@ function ApplicationAreaLayout() {
           </ContentPreviewDockProvider>
         </AppShell>
       </SettingsGate>
-    </FirstRunAgeConfirmation>
+    </AgeConfirmation>
   );
 }

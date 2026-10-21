@@ -31,6 +31,18 @@ export interface AppComposition extends ProductRuntimeComposition {
   readonly completeOnboarding?: (
     input: LocalOnboardingInput,
   ) => Promise<RuntimeAdmission>;
+  /**
+   * Sends the person's explicit 18+ confirmation when admission still needs it
+   * (`onboardingRequired`) and returns the admission that follows; only a
+   * composition whose server records the confirmation supplies it.
+   */
+  readonly confirmAge?: () => Promise<RuntimeAdmission>;
+  /**
+   * Whether the server is still preparing this account's starter data (read
+   * whenever admission is published). Product reads answer as an empty account
+   * meanwhile; compositions without server-side setup omit it.
+   */
+  readonly setupPending?: () => boolean;
   /** Read whenever admission is published; compositions without accounts omit it. */
   readonly accountAffordances?: () => AccountAffordances;
 }

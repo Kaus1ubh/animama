@@ -14,6 +14,7 @@ const fixture = vi.hoisted(() => ({
     refetch: vi.fn(),
   },
   hosted: false,
+  setupPending: false,
   settings: {
     data: { last_active_anima_id: null as string | null },
     isSuccess: true,
@@ -44,6 +45,7 @@ vi.mock("@web/app/runtime/RuntimeAdmissionProvider", () => ({
       capabilities: { anima_creation: !fixture.hosted },
     },
   }),
+  useOptionalRuntimeSetupPending: () => fixture.setupPending,
 }));
 
 function renderLaunch() {
@@ -53,6 +55,7 @@ function renderLaunch() {
 beforeEach(() => {
   vi.clearAllMocks();
   fixture.hosted = false;
+  fixture.setupPending = false;
   fixture.animas.data = [{ id: "annie" }, { id: "caitlyn" }];
   fixture.settings.data = { last_active_anima_id: null };
   for (const query of [fixture.animas, fixture.settings]) {
@@ -128,5 +131,15 @@ it("keeps an empty hosted roster useful without navigating to excluded creation"
   const html = renderLaunch();
   expect(html).toContain("Your Animas will appear here");
   expect(html).toContain("Open Library");
+  expect(fixture.navigate).not.toHaveBeenCalled();
+});
+
+it("shows a hosted roster as loading while the server prepares its starters", () => {
+  fixture.hosted = true;
+  fixture.setupPending = true;
+  fixture.animas.data = [];
+  const html = renderLaunch();
+  expect(html).toContain("Your Animas are being prepared.");
+  expect(html).not.toContain("Your Animas will appear here");
   expect(fixture.navigate).not.toHaveBeenCalled();
 });
