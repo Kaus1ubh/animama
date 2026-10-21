@@ -6,7 +6,7 @@ import {
   type ReactNode,
 } from "react";
 import type { i18n as I18nInstance } from "i18next";
-import { flushSync } from "react-dom";
+import { createPortal, flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import {
   Apple,
@@ -683,12 +683,16 @@ const wordmarkMask = {
   maskRepeat: "no-repeat",
 } as const;
 
+/** The stage layer between the backdrop and the Avatar canvas. */
+const heroLayer = document.getElementById("hero-layer") as HTMLDivElement;
+
 /** A fixed caption that fades in while its stop is active. */
 function Stop(props: StopProps) {
   const { stop, active, controller } = props;
   const creator = useCreator(active && stop.panel === "creator", controller);
   const emotion = useEmotionalState(props);
-  if (stop.id === "hero") return <Hero {...props} />;
+  // The hero's text sits in the stage, behind her canvas (`#hero-layer`).
+  if (stop.id === "hero") return createPortal(<Hero {...props} />, heroLayer);
   const light = stop.ink === "light";
   const place = {
     memory:
