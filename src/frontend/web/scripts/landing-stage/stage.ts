@@ -233,6 +233,14 @@ let puzzled = false;
 let waveFrom: number | null = null;
 const REVEAL_DELAY_SEC = 0.2;
 /**
+ * Whether the camera has pushed in from the entrance's wider framing to the
+ * hero stop. It follows her wave, even when a click or key press has already
+ * revealed the text (`revealOnInteraction`).
+ */
+let pushedIn = !playIntro;
+/** The entrance framing's shift when the text shows before her wave. */
+const EARLY_REVEAL_FRAMING: Partial<StageCamera> = { lift: -0.24 };
+/**
  * When her smile began to fade (session seconds): once the wave ends, with
  * the camera already pushed in, happy eases back to 0 over `HAPPY_FADE_SEC`
  * and hands her face back to the Avatar.
@@ -661,7 +669,23 @@ function finishIntro() {
   if (!intro) return;
   intro.finish();
   intro = null;
+  pushedIn = true;
   store.set({ intro: "done", revealed: true });
+}
+
+/**
+ * A visitor who clicks or presses a key during the entrance sees the hero's
+ * text, the progress thread and the rest at once, while the entrance itself
+ * (walk, double take, wave and the camera's push-in) plays on.
+ */
+function revealOnInteraction() {
+  const reveal = () => {
+    window.removeEventListener("pointerdown", reveal);
+    window.removeEventListener("keydown", reveal);
+    if (!store.get().revealed) store.set({ revealed: true });
+  };
+  window.addEventListener("pointerdown", reveal);
+  window.addEventListener("keydown", reveal);
 }
 
 function scrollToStop(index: number) {
@@ -778,12 +802,17 @@ function frame() {
   const a = STAGE_STOPS[from];
   const b = STAGE_STOPS[from + 1];
   const target = blendCameras(stopCamera(a), stopCamera(b), blend);
-  // The entrance is framed wider; the camera pushes in to the stop a second
-  // into her wave, with the text.
+  // The entrance is framed wider; the camera pushes in to the stop just
+  // into her wave, with the text. Text a visitor revealed early sits over
+  // the wide framing, so she walks in lower, beneath it.
   follow(
-    store.get().revealed
+    pushedIn
       ? target
-      : { ...target, ...STAGE_STOPS[0].introCamera },
+      : {
+          ...target,
+          ...STAGE_STOPS[0].introCamera,
+          ...(store.get().revealed ? EARLY_REVEAL_FRAMING : {}),
+        },
     delta,
   );
   backdrops.forEach((layer, index) => {
@@ -820,12 +849,10 @@ function frame() {
   avatar?.update(delta);
   renderer.render(scene, camera);
 
-  if (
-    waveFrom !== null &&
-    !store.get().revealed &&
-    time - waveFrom >= REVEAL_DELAY_SEC
-  )
-    store.set({ revealed: true });
+  if (waveFrom !== null && !pushedIn && time - waveFrom >= REVEAL_DELAY_SEC) {
+    pushedIn = true;
+    if (!store.get().revealed) store.set({ revealed: true });
+  }
   if (happyFrom !== null) {
     const smooth = (t: number) => t * t * (3 - 2 * t);
     const rise = smooth(
@@ -1017,7 +1044,10 @@ async function start() {
   headHeight = first.headHeight;
   // Placed at the start of her entrance before she joins the scene, so she
   // never shows on her mark first.
-  if (playIntro) intro = await createIntro(first.avatar);
+  if (playIntro) {
+    intro = await createIntro(first.avatar);
+    revealOnInteraction();
+  }
   attachAvatar(first);
   // Enter the current stop again now that the Avatar can play it.
   store.set({ ready: true });
