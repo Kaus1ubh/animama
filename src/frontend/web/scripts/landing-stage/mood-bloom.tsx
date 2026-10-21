@@ -1,15 +1,4 @@
 import { useEffect, useId, useMemo, useRef } from "react";
-import {
-  CloudRain,
-  Crown,
-  Flame,
-  Frown,
-  Heart,
-  Sun,
-  ThumbsDown,
-  Zap,
-  type LucideIcon,
-} from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import {
@@ -23,13 +12,13 @@ import {
   EMOTION_PALETTE,
   buildEmotionPresentation,
   emotionLabel,
+  type FeelingIntensity,
 } from "@/lib/emotion/presentation";
 import { cn } from "@/lib/utils";
 
 /*
  * The Emotions stop's picture of her emotional state: a flower of her 24
- * emotions, fed the same eased 0–30 values as the bars beside it, so it
- * glides between reactions.
+ * emotions, fed eased 0–30 values so it glides between reactions.
  */
 
 const MAX = 30;
@@ -43,21 +32,17 @@ const GROUP_OF = Object.fromEntries(
   ),
 ) as Record<TrackedEmotion, EmotionGroup>;
 
-/** A little symbol for each emotion group. */
-const GROUP_ICONS: Record<EmotionGroup, LucideIcon> = {
-  affection: Heart,
-  esteem: Crown,
-  delight: Sun,
-  drive: Flame,
-  alarm: Zap,
-  rejection: ThumbsDown,
-  revulsion: Frown,
-  gloom: CloudRain,
-};
+/** How strongly she feels a value (the app's own thresholds). */
+function intensityOf(value: number): FeelingIntensity {
+  return value >= 26 ? "very" : value <= 15 ? "slightly" : "plain";
+}
 
 /** The emotion she feels most. */
-function strongest(values: Record<TrackedEmotion, number>) {
-  return TRACKED_EMOTIONS.reduce((best, emotion) =>
+function strongest(
+  values: Record<TrackedEmotion, number>,
+  among: readonly TrackedEmotion[] = TRACKED_EMOTIONS,
+) {
+  return among.reduce((best, emotion) =>
     values[emotion] > values[best] ? emotion : best,
   );
 }
@@ -82,14 +67,23 @@ const FAN_DEG = 13;
 /** Milliseconds a reaction's new values take to show before a petal pulses. */
 const PULSE_AFTER_MS = 450;
 
-/** Pollen drifting off the strongest petal: count and drift time. */
-const POLLEN = 6;
-const POLLEN_SEC = 2.4;
+/**
+ * The particles a strong group gives off, by how strongly she feels it:
+ * more, larger, quicker and farther-drifting the stronger the feeling.
+ */
+const EMISSION: Record<
+  FeelingIntensity,
+  { count: number; size: number; drift: number; sec: number }
+> = {
+  slightly: { count: 2, size: 1.1, drift: 12, sec: 2.8 },
+  plain: { count: 4, size: 1.4, drift: 18, sec: 2.4 },
+  very: { count: 7, size: 1.8, drift: 26, sec: 2 },
+};
 
 /**
- * The strongest value at which her strongest petal sheds pollen and pulses
- * for a reaction. Below it (a brand-new Anima, or one that feels next to
- * nothing) no petal is singled out.
+ * The least value at which a group gives off particles and her strongest
+ * petal pulses for a reaction. Below it (a brand-new Anima, or one that
+ * feels next to nothing) nothing is singled out.
  */
 const BLOOM_MIN_STRENGTH = 3;
 
@@ -98,39 +92,58 @@ const BLOOM_MIN_STRENGTH = 3;
  * petals in its colour, one per emotion, whose length is how strongly she
  * feels it. Petals deepen in colour toward the heart, the strongest lie on
  * top, and they sway. The flower opens from a bud when mounted (remount it
- * to open again). Once her strongest emotion reaches `BLOOM_MIN_STRENGTH`,
- * that petal pulses whenever `beat` changes (a new reaction) and sheds a
- * little pollen. The three strongest groups carry a small symbol at their
- * tips (named on hover). Her current mascot sits at the heart on a glow of
+ * to open again). Her three strongest groups give off particles from their
+ * longest petal, by how strongly she feels them, and her strongest petal
+ * pulses whenever `beat` changes (a new reaction); groups below
+ * `BLOOM_MIN_STRENGTH` do neither. Her mascot sits at the heart on a glow of
  * her strongest colour.
+ *
+ * Petals follow `values` as they ease; the mascot, glow, particles and pulse
+ * follow `settled`, the state they are easing toward, so they change once
+ * per reaction instead of flickering through the feelings in between.
  */
 export function MoodBloom({
   values,
+  settled = values,
   beat,
   className,
 }: {
   values: Record<TrackedEmotion, number>;
+  /** The state `values` is easing toward. */
+  settled?: Record<TrackedEmotion, number>;
   /** Changes when a new reaction starts. */
   beat?: string | number | null;
   className?: string;
 }) {
   const { t } = useTranslation("emotion");
   const presentation = useMemo(
-    () => buildEmotionPresentation(values, t),
-    [values, t],
+    () => buildEmotionPresentation(settled, t),
+    [settled, t],
   );
   const uid = useId();
   const still = reducedMotion();
-  const step = 360 / EMOTION_GROUPS.length;
-  const top = strongest(values);
+  const top = strongest(settled);
   // At rest (all zero, or next to nothing) no petal is singled out;
   // `strongest` would otherwise pick the first emotion.
-  const alive = values[top] >= BLOOM_MIN_STRENGTH;
+  const alive = settled[top] >= BLOOM_MIN_STRENGTH;
+  // Her three strongest groups, each from its strongest emotion's petal.
+  const emitters = presentation.topGroups.flatMap(({ group }) => {
+    const emotion = strongest(
+      Object.fromEntries(
+        EMOTION_GROUP_MEMBERS[group].map((member) => [member, settled[member]]),
+      ) as Record<TrackedEmotion, number>,
+      EMOTION_GROUP_MEMBERS[group],
+    );
+    const value = settled[emotion];
+    return value >= BLOOM_MIN_STRENGTH
+      ? [{ group, emotion, intensity: intensityOf(value) }]
+      : [];
+  });
 
   /** Each emotion's petal angle: its group's slot, fanned out. */
   const angleOf = (emotion: TrackedEmotion) => {
     const group = GROUP_OF[emotion];
-    const slot = EMOTION_GROUPS.indexOf(group) * step;
+    const slot = EMOTION_GROUPS.indexOf(group) * (360 / EMOTION_GROUPS.length);
     const member = (
       EMOTION_GROUP_MEMBERS[group] as readonly TrackedEmotion[]
     ).indexOf(emotion);
@@ -153,11 +166,10 @@ export function MoodBloom({
 
   // The strongest petals are drawn last, on top.
   const order = [...TRACKED_EMOTIONS].sort((a, b) => values[a] - values[b]);
-  const named = presentation.topGroups.map(({ group }) => group);
-  const pollenFrom = Math.round(petalLength(values[top]) * 0.85);
   return (
     <svg
-      viewBox="-100 -100 200 200"
+      // Just wider than the longest petal; particles drift past the edge.
+      viewBox="-90 -90 180 180"
       className={cn("h-48 w-full overflow-visible", className)}
       role="img"
       aria-label={presentation.feeling.label}
@@ -279,82 +291,57 @@ export function MoodBloom({
           );
         })}
       </g>
-      {/* Pollen drifting off the strongest petal. */}
-      {still || !alive ? null : (
-        <g transform={`rotate(${angleOf(top)})`} pointerEvents="none">
-          {Array.from({ length: POLLEN }, (_, index) => {
-            const side = ((index * 37) % 11) - 5;
-            const drift = 16 + ((index * 13) % 12);
-            const begin = `${(index * POLLEN_SEC) / POLLEN}s`;
+      {/* Particles from her three strongest groups' longest petals. */}
+      {still
+        ? null
+        : emitters.map(({ group, emotion, intensity }) => {
+            const { count, size, drift, sec } = EMISSION[intensity];
+            const from = Math.round(petalLength(values[emotion]) * 0.85);
             return (
-              <circle
-                key={index}
-                r={1.2 + (index % 3) * 0.5}
-                fill={EMOTION_PALETTE[GROUP_OF[top]]}
-                opacity={0}
+              <g
+                key={group}
+                transform={`rotate(${angleOf(emotion)})`}
+                pointerEvents="none"
               >
-                <animate
-                  attributeName="cx"
-                  values={`${side * 0.6}; ${side * 1.8}`}
-                  dur={`${POLLEN_SEC}s`}
-                  begin={begin}
-                  repeatCount="indefinite"
-                />
-                <animate
-                  attributeName="cy"
-                  values={`${-pollenFrom}; ${-pollenFrom - drift}`}
-                  dur={`${POLLEN_SEC}s`}
-                  begin={begin}
-                  repeatCount="indefinite"
-                />
-                <animate
-                  attributeName="opacity"
-                  values="0; 0.9; 0"
-                  keyTimes="0; 0.3; 1"
-                  dur={`${POLLEN_SEC}s`}
-                  begin={begin}
-                  repeatCount="indefinite"
-                />
-              </circle>
+                {Array.from({ length: count }, (_, index) => {
+                  const side = ((index * 37) % 11) - 5;
+                  const reach = drift * (0.7 + ((index * 13) % 7) / 20);
+                  const begin = `${(index * sec) / count}s`;
+                  return (
+                    <circle
+                      key={index}
+                      r={size * (0.8 + (index % 3) * 0.25)}
+                      fill={EMOTION_PALETTE[group]}
+                      opacity={0}
+                    >
+                      <animate
+                        attributeName="cx"
+                        values={`${side * 0.6}; ${side * 1.8}`}
+                        dur={`${sec}s`}
+                        begin={begin}
+                        repeatCount="indefinite"
+                      />
+                      <animate
+                        attributeName="cy"
+                        values={`${-from}; ${-from - reach}`}
+                        dur={`${sec}s`}
+                        begin={begin}
+                        repeatCount="indefinite"
+                      />
+                      <animate
+                        attributeName="opacity"
+                        values="0; 0.9; 0"
+                        keyTimes="0; 0.3; 1"
+                        dur={`${sec}s`}
+                        begin={begin}
+                        repeatCount="indefinite"
+                      />
+                    </circle>
+                  );
+                })}
+              </g>
             );
           })}
-        </g>
-      )}
-      {/* A symbol at the tip of each of the three strongest groups. */}
-      {named.map((group) => {
-        const longest = Math.max(
-          ...EMOTION_GROUP_MEMBERS[group].map((emotion) => values[emotion]),
-        );
-        const tip =
-          ((EMOTION_GROUPS.indexOf(group) * step - 90) * Math.PI) / 180;
-        const at = petalLength(longest) + 11;
-        const Icon = GROUP_ICONS[group];
-        const label = presentation.groups.find(
-          (entry) => entry.group === group,
-        )?.label;
-        return (
-          <g
-            key={group}
-            transform={`translate(${Math.cos(tip) * at} ${Math.sin(tip) * at})`}
-          >
-            <title>{label}</title>
-            <circle
-              r={8}
-              fill="var(--card)"
-              stroke={EMOTION_PALETTE[group]}
-              strokeWidth={1}
-            />
-            <Icon
-              x={-5}
-              y={-5}
-              width={10}
-              height={10}
-              color={EMOTION_PALETTE[group]}
-              strokeWidth={2.4}
-            />
-          </g>
-        );
-      })}
       {/* The flower's heart: a soft glow in her strongest group's colour
           where the petals meet, with her mascot on it. */}
       <circle r={34} fill={`url(#${uid}-heart)`} />

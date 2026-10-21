@@ -2,6 +2,7 @@ import {
   Fragment,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   useSyncExternalStore,
@@ -16,6 +17,8 @@ import {
   ArrowRight,
   ArrowUpRight,
   BookOpen,
+  ChevronsLeft,
+  ChevronsRight,
   Brain,
   Menu,
   Moon,
@@ -47,7 +50,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/ui/components/dropdown-menu";
-import { EmotionSummary } from "@/ui/components/emotional-state";
 import { TextEffect, type TextEffectProps } from "@/ui/components/text-effect";
 import {
   Tooltip,
@@ -396,8 +398,9 @@ function ProgressThread({
  * The site header: the logo on the left; on the right one liquid-glass pill
  * holding Home, About (both scroll the tour) and Docs, the theme toggle and
  * language picker, Log in and Sign up (placeholders until accounts exist),
- * and Download as its one solid button; during the closed beta, Request Beta
- * Access (the form) replaces Log in, Sign up and Download. A single soft
+ * and Download as its one solid button. During the closed beta the page is
+ * English only and Request Beta Access (the form) replaces the language
+ * picker, Log in, Sign up and Download. A single soft
  * highlight glides to whichever item the pointer is over. Below 1024px the
  * pill gives way to that button and a menu button that holds the same items
  * (`SiteMenu`). The Avatar switcher sits to the left of either.
@@ -520,7 +523,9 @@ function Header({
           </a>
           {divider}
           <ThemeToggle light={light} theme={theme} />
-          <LanguagePicker locale={locale} onLocaleChange={setLocale} />
+          {CLOSED_BETA ? null : (
+            <LanguagePicker locale={locale} onLocaleChange={setLocale} />
+          )}
           {CLOSED_BETA ? null : (
             <>
               {divider}
@@ -656,8 +661,8 @@ function LanguageOptions({ locale, onLocaleChange }: LocaleChoice) {
 /**
  * The header's items for screens narrower than the pill (below 1024px): a
  * glass menu button opening Home, About, Docs, the Avatar choice (phones
- * only), dark mode, the language list, and Log in and Sign up (not during
- * the closed beta). Toggling dark mode keeps the menu open so the change
+ * only), dark mode, and the language list, Log in and Sign up (none of
+ * these three during the closed beta). Toggling dark mode keeps the menu open so the change
  * shows behind it.
  */
 function SiteMenu({
@@ -717,11 +722,15 @@ function SiteMenu({
         >
           Dark mode
         </DropdownMenuCheckboxItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuLabel className="text-muted-foreground text-xs font-medium">
-          Language
-        </DropdownMenuLabel>
-        <LanguageOptions locale={locale} onLocaleChange={onLocaleChange} />
+        {CLOSED_BETA ? null : (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel className="text-muted-foreground text-xs font-medium">
+              Language
+            </DropdownMenuLabel>
+            <LanguageOptions locale={locale} onLocaleChange={onLocaleChange} />
+          </>
+        )}
         {CLOSED_BETA ? null : (
           <>
             <DropdownMenuSeparator />
@@ -814,46 +823,32 @@ function Stop(props: StopProps) {
           )}
           boldClassName={light ? "text-white" : "text-foreground"}
         />
+        {stop.panel === "chips" ? <ClipChips {...props} /> : null}
         {stop.panel === "mascots" ? (
-          <EmotionSummary
-            emotionalState={emotion}
-            className="bg-card/90 mt-3 rounded-2xl border p-3 text-sm md:hidden"
-          />
-        ) : null}
-        {stop.panel === "mascots" || stop.panel === "chips" ? (
-          <ClipChips {...props} />
+          // One reaction at a time, with her emotional state as a mood bloom
+          // of all 24 emotions under it.
+          <div className="mt-4 w-80 max-w-full md:mt-6">
+            <ReactionStepper {...props} />
+            <MoodBloom
+              // Opens from a bud on each arrival; pulses per reaction.
+              key={`bloom-${entries}`}
+              values={emotion.values}
+              settled={emotion.settled}
+              beat={
+                props.state.playing?.stop === props.index
+                  ? props.state.playing.clip
+                  : null
+              }
+              // Smaller on phones and short screens, so the caption fits.
+              className="mt-2 h-52 md:h-64 md:[@media(max-height:780px)]:h-52"
+            />
+          </div>
         ) : null}
         {stop.panel === "memory" ? (
           <MemoryStory avatar={props.avatar} cycle={memory} />
         ) : null}
         {stop.id === "download" ? <DownloadActions /> : null}
       </div>
-      {stop.panel === "mascots" ? (
-        // Her emotional state beside her: the feeling and strongest groups,
-        // then the mood bloom of all 24 emotions.
-        <div
-          className={cn(
-            "bg-card/95 text-card-foreground fixed top-[14vh] right-[var(--gutter)] z-30 hidden w-[21rem] rounded-2xl border p-4 shadow-xl transition-[opacity,translate,visibility] duration-500 md:block",
-            fade,
-          )}
-        >
-          <p className="text-muted-foreground mb-3 text-xs font-medium">
-            {props.avatar.name}&apos;s emotional state
-          </p>
-          <EmotionSummary emotionalState={emotion} className="text-sm" />
-          <MoodBloom
-            // Opens from a bud on each arrival; pulses per reaction.
-            key={`bloom-${entries}`}
-            values={emotion}
-            beat={
-              props.state.playing?.stop === props.index
-                ? props.state.playing.clip
-                : null
-            }
-            className="mt-2 [@media(max-height:780px)]:h-40"
-          />
-        </div>
-      ) : null}
     </>
   );
 }
@@ -1353,8 +1348,9 @@ const NEUTRAL_STATE = Object.fromEntries(
 const EMOTION_EASE_MS = 900;
 
 /**
- * The made-up emotional state of the clip playing at this stop, eased from
- * the previous one so the bars and radar glide between feelings.
+ * The made-up emotional state of the clip playing at this stop: `values`
+ * eased from the previous state so the bloom glides between feelings, and
+ * `settled`, the state they are easing toward.
  */
 function useEmotionalState({ stop, index, state, avatar }: StopProps) {
   const clip =
@@ -1362,12 +1358,13 @@ function useEmotionalState({ stop, index, state, avatar }: StopProps) {
       ? stopClips(stop, avatar.id)[state.playing.clip]
       : null;
   const target = clip?.emotion;
+  const settled = useMemo(() => ({ ...NEUTRAL_STATE, ...target }), [target]);
   const [values, setValues] = useState(NEUTRAL_STATE);
   const shown = useRef(values);
   useEffect(() => {
     if (stop.panel !== "mascots") return;
     const from = shown.current;
-    const to = { ...NEUTRAL_STATE, ...target };
+    const to = settled;
     const start = performance.now();
     let frame = 0;
     const step = (now: number) => {
@@ -1382,8 +1379,66 @@ function useEmotionalState({ stop, index, state, avatar }: StopProps) {
     };
     frame = requestAnimationFrame(step);
     return () => cancelAnimationFrame(frame);
-  }, [stop.panel, target]);
-  return values;
+  }, [stop.panel, settled]);
+  return { values, settled };
+}
+
+/**
+ * The Emotions stop's reactions one at a time, in one pill: the name of the
+ * one playing between borderless buttons that play the previous and next.
+ * The stop keeps cycling through them on its own, and the name follows
+ * whichever is playing.
+ */
+function ReactionStepper({
+  stop,
+  index,
+  state,
+  avatar,
+  controller,
+}: StopProps) {
+  const clips = stopClips(stop, avatar.id);
+  const playing = state.playing?.stop === index ? state.playing.clip : null;
+  // The last reaction played stays shown in the moment between two clips.
+  const [current, setCurrent] = useState(0);
+  if (playing !== null && playing !== current) setCurrent(playing);
+  const play = (offset: number) => {
+    const next = (current + offset + clips.length) % clips.length;
+    setCurrent(next);
+    controller.playClip(index, next);
+  };
+  const step = cn(
+    "text-muted-foreground hover:bg-muted/70 hover:text-foreground focus-visible:ring-ring flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full transition-colors outline-none focus-visible:ring-2",
+    // A slightly larger target on phones.
+    "max-md:size-9",
+  );
+  return (
+    <div className="bg-card/85 mx-auto flex w-fit items-center gap-1 rounded-full border p-1 shadow-xs">
+      <button
+        type="button"
+        aria-label="Previous reaction"
+        className={step}
+        onClick={() => play(-1)}
+      >
+        <ChevronsLeft aria-hidden="true" className="size-4" />
+      </button>
+      {/* Wide enough for the longest name, so the pill keeps its size. */}
+      <span
+        key={current}
+        aria-live="polite"
+        className="reaction-in min-w-28 text-center text-sm font-medium"
+      >
+        {clips[current].label}
+      </span>
+      <button
+        type="button"
+        aria-label="Next reaction"
+        className={step}
+        onClick={() => play(1)}
+      >
+        <ChevronsRight aria-hidden="true" className="size-4" />
+      </button>
+    </div>
+  );
 }
 
 /** Mascot or text chips for a stop's clips; the playing one is marked. */

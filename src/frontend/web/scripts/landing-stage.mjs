@@ -32,23 +32,6 @@ const avatarDir = path.join(repoRoot, "content/included/avatars");
 const includedDir = path.join(repoRoot, "content/included");
 const portraitDir = path.join(includedDir, "appearances/avatar-portraits");
 const PAGE = "/scripts/landing-stage/index.html";
-/**
- * Recharts (the emotion radar) imports `es-toolkit/compat/*`, which Vite's dep
- * optimizer mis-bundles; route each through the app's ESM wrapper, as
- * `vite.config.ts` does.
- */
-const rechartsCompatDir = path.join(
-  webRoot,
-  "src/lib/recharts/es-toolkit-compat",
-);
-const rechartsCompatAliases = Object.fromEntries(
-  readdirSync(rechartsCompatDir)
-    .filter((file) => file.endsWith(".js"))
-    .map((file) => [
-      `es-toolkit/compat/${path.basename(file, ".js")}`,
-      path.join(rechartsCompatDir, file),
-    ]),
-);
 const PREVIEW_MODULES = "/src/lib/avatar/motion-authoring/preview";
 const PORTRAIT_ROUTE = "/__stage/portrait/";
 
@@ -82,7 +65,6 @@ export async function startStageServer({ port = 0, walkClips = null } = {}) {
       alias: {
         "@": path.join(webRoot, "src"),
         "@web": path.join(webRoot, "src"),
-        ...rechartsCompatAliases,
       },
     },
     optimizeDeps: {
