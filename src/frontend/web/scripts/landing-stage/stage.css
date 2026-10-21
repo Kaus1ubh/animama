@@ -18,8 +18,13 @@
   --rail: max(var(--gutter), 11rem);
 }
 
+/*
+ * Every stop is a snap point and the page always settles on one, so the
+ * camera and progress never rest between stops. Stops keep the default
+ * `scroll-snap-stop: normal`, so a fast scroll carries on past several.
+ */
 html {
-  scroll-snap-type: y proximity;
+  scroll-snap-type: y mandatory;
 }
 
 body {
@@ -129,14 +134,17 @@ body {
   font-weight: 500;
 }
 
-/* The hero's feature words: coloured text that brightens on hover. */
+/* The hero's feature words: coloured text that lifts a little on hover. */
 .hero-link {
   display: inline-block;
-  transition: filter 200ms;
+  transition:
+    translate 200ms ease-out,
+    filter 200ms;
 }
 .hero-link:hover,
 .hero-link:focus-visible {
-  filter: brightness(1.1) saturate(1.15);
+  translate: 0 -0.1em;
+  filter: brightness(1.08) drop-shadow(0 0.12em 0.08em rgb(0 0 0 / 0.16));
 }
 
 /*
@@ -250,40 +258,76 @@ body {
   }
 }
 
+/* The memory notebook's handwriting (Patrick Hand, loaded in index.html). */
+.font-hand {
+  font-family: "Patrick Hand", var(--font-sans);
+}
+
 /*
- * The hero line's shimmer: a copy of the line laid over it, transparent but
- * for a band in the text colour (darker in light mode, lighter in dark) that
- * sweeps across every few seconds. The copy leaves the link words blank.
+ * Notebook paper: warm white with faint blue rules every 26px, matching the
+ * pages' line height so handwriting sits on the lines. Paper in both themes.
  */
-.text-shimmer {
-  position: absolute;
-  inset: 0;
+.notebook-paper {
+  background-color: #fffcf3;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0 25px,
+    rgb(110 140 210 / 0.22) 25px 26px
+  );
+  background-position: 0 12px;
+}
+
+/*
+ * A new memory writing itself in, left to right. Only showing animates: a
+ * page that opens again starts without the line at once, never erasing it.
+ */
+.write-in {
+  clip-path: inset(0 100% 0 0);
+}
+.write-in[data-shown="true"] {
+  clip-path: inset(0 0 0 0);
+  transition: clip-path 1.2s ease-in-out;
+}
+
+/* The page's voice line, marked with a highlighter as she speaks from it. */
+.notebook-highlight {
+  background-image: linear-gradient(
+    transparent 55%,
+    rgb(255 225 110 / 0.75) 55%,
+    rgb(255 225 110 / 0.75) 90%,
+    transparent 90%
+  );
+  background-repeat: no-repeat;
+  background-size: 0% 100%;
+}
+.notebook-highlight[data-shown="true"] {
+  background-size: 100% 100%;
+  transition: background-size 0.9s ease-in-out;
+}
+
+/* A page turning over from the right page to the left as a new one opens. */
+.page-turn {
+  transform-origin: left center;
+  backface-visibility: hidden;
+  box-shadow: -8px 0 18px rgb(0 0 0 / 0.12);
+  animation: page-turn 650ms ease-in forwards;
   pointer-events: none;
-  -webkit-text-fill-color: transparent;
-  background: linear-gradient(
-      100deg,
-      transparent 40%,
-      var(--foreground) 50%,
-      transparent 60%
-    )
-    no-repeat;
-  background-size: 250% 100%;
-  background-position: 100% 0;
-  -webkit-background-clip: text;
-  background-clip: text;
-  animation: text-shimmer 5s ease-in-out 1.5s infinite;
 }
-@keyframes text-shimmer {
+@keyframes page-turn {
   from {
-    background-position: 100% 0;
+    transform: rotateY(0deg);
   }
-  45%,
   to {
-    background-position: 0% 0;
+    transform: rotateY(-180deg);
   }
 }
+
 @media (prefers-reduced-motion: reduce) {
-  .text-shimmer {
+  .write-in[data-shown="true"],
+  .notebook-highlight[data-shown="true"] {
+    transition: none;
+  }
+  .page-turn {
     display: none;
   }
 }

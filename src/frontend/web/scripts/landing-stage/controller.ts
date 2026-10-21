@@ -1,22 +1,10 @@
 import type { IntroPhase } from "./intro";
-import type {
-  CreatorLayerId,
-  CreatorPaletteId,
-  CreatorParticleId,
-} from "./stops";
 
 /*
  * The contract between the 3D stage (`stage.ts`) and the page overlay
  * (`overlay.tsx`): the stage publishes what is showing, and the overlay asks
- * it to play clips and build the creator demo's effects.
+ * it to play clips and switch Avatars.
  */
-
-/** What the creator demo has switched on. */
-export type CreatorState = {
-  layers: Record<CreatorLayerId, boolean>;
-  palette: CreatorPaletteId;
-  particle: CreatorParticleId | null;
-};
 
 export type StageState = {
   /** Whether the Avatar has loaded. */
@@ -51,8 +39,11 @@ export type StageController = {
   selectAvatar(id: string): void;
   /** Play one of a stop's clips now; a cycling stop continues from it. */
   playClip(stop: number, clip: number): void;
-  /** Rebuild the creator demo's Scene and Particle Effects. */
-  setCreator(state: CreatorState): void;
+  /**
+   * Where the hero's text ends, in pixels from the top of the viewport; the
+   * hero framing keeps her head below it.
+   */
+  setHeroTextBottom(px: number): void;
 };
 
 /** A minimal observable store for `useSyncExternalStore`. */

@@ -1,31 +1,29 @@
 import {
+  Fragment,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   useSyncExternalStore,
   type ReactNode,
 } from "react";
 import type { i18n as I18nInstance } from "i18next";
+import { motion, type Variants } from "motion/react";
 import { createPortal, flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import {
   Apple,
   ArrowRight,
-  Bird,
+  ArrowUpRight,
   BookOpen,
   Brain,
-  FileText,
-  Flower2,
-  Heart,
   Menu,
   Moon,
   Monitor,
-  PartyPopper,
-  Sparkles,
-  Star,
   Sun,
 } from "lucide-react";
 
+import { Message, MessageContent } from "@animama/product-ui/components";
 import { AnimamaI18nProvider } from "@animama/product-ui/i18n";
 import {
   SUPPORTED_LOCALES,
@@ -37,6 +35,7 @@ import { TRACKED_EMOTIONS, type TrackedEmotion } from "@/lib/emotion";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/ui/components/avatar";
 import { Button } from "@/ui/components/button";
+import MessageLoaderV2 from "@/ui/components/message-loader-v2";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -48,49 +47,38 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/ui/components/dropdown-menu";
-import {
-  EmotionSummary,
-  EmotionalState,
-} from "@/ui/components/emotional-state";
-import { Switch } from "@/ui/components/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/components/tabs";
+import { EmotionSummary } from "@/ui/components/emotional-state";
+import { TextEffect, type TextEffectProps } from "@/ui/components/text-effect";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/ui/components/tooltip";
 
-import type { CreatorState, StageController, StageState } from "./controller";
+import type { StageController, StageState } from "./controller";
+import { MoodBloom } from "./mood-bloom";
 import { LocaleFlag } from "./flags";
+import { TextShimmer } from "./text-shimmer";
 import {
-  CREATOR_LAYERS,
-  CREATOR_PALETTES,
-  CREATOR_PARTICLES,
+  BETA_ACCESS_URL,
+  CLOSED_BETA,
   STAGE_AVATARS,
   STAGE_STOPS,
   voice,
   type StageAvatar,
-  type CreatorParticleId,
   type StageStop,
   stopClips,
+  type MemoryNote,
 } from "./stops";
 
 /*
  * The landing page's DOM layer over the 3D stage: header, progress, one
  * scroll section per stop with its caption, and each stop's demo (emotion
- * mascots, gesture chips, the memory story and the effect creator). Built
+ * mascots, gesture chips and the memory story). Built
  * from the app's own components and theme tokens.
  */
 
 const DOCS_URL = "https://docs.animama.ai/";
-const PARTICLE_ICONS: Record<CreatorParticleId, typeof Heart> = {
-  hearts: Heart,
-  sparkles: Sparkles,
-  flowers: Flower2,
-  confetti: PartyPopper,
-  stars: Star,
-  butterflies: Bird,
-};
 
 type StopProps = {
   stop: StageStop;
@@ -126,7 +114,7 @@ function Overlay({ controller }: { controller: StageController }) {
     STAGE_AVATARS.find(({ id }) => id === state.avatar) ?? STAGE_AVATARS[0];
   return (
     <>
-      <Header light={light} controller={controller} />
+      <Header light={light} state={state} controller={controller} />
       <ProgressThread
         active={active}
         light={light}
@@ -134,7 +122,6 @@ function Overlay({ controller }: { controller: StageController }) {
         avatar={avatar}
         controller={controller}
       />
-      <AvatarSwitcher state={state} controller={controller} />
       <main>
         {STAGE_STOPS.map((stop, index) => (
           <section
@@ -177,12 +164,83 @@ function useScrollProgress() {
 }
 
 /**
- * The Avatars the page can show, as the app's collapsed sidebar lists
- * Animas: round portraits at the right edge, the one on stage highlighted
- * and the others in greyscale. Choosing one loads it in place; it pulses
- * while it loads. Shown once the hero entrance reaches her wave.
+ * The Avatars the page can show, as round portraits in a glass pill beside
+ * the header's links: the one on stage ringed and the others in greyscale.
+ * Choosing one loads it in place; it pulses while it loads. Shown once the
+ * hero entrance reaches her wave. Phones choose from the menu instead
+ * (`AvatarOptions`), as the header has no room for it there.
  */
 function AvatarSwitcher({
+  state,
+  light,
+  controller,
+}: {
+  state: StageState;
+  light: boolean;
+  controller: StageController;
+}) {
+  return (
+    <nav
+      aria-label="Avatars"
+      className={cn(
+        // The reveal fades this wrapper: `.liquid-glass` sets its own transition.
+        "transition-opacity duration-700 max-sm:hidden",
+        state.revealed
+          ? "opacity-100 delay-700"
+          : "pointer-events-none opacity-0",
+      )}
+    >
+      <div
+        data-ink={light ? "light" : "dark"}
+        className="liquid-glass flex items-center gap-1 rounded-full p-1"
+      >
+        {STAGE_AVATARS.map((avatar) => {
+          const isActive = avatar.id === state.avatar;
+          const loading = avatar.id === state.avatarLoading;
+          return (
+            <Tooltip key={avatar.id}>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  aria-label={avatar.name}
+                  aria-pressed={isActive}
+                  aria-busy={loading}
+                  disabled={state.avatarLoading !== null && !loading}
+                  onClick={() => controller.selectAvatar(avatar.id)}
+                  className={cn(
+                    "focus-visible:ring-ring flex size-9 cursor-pointer items-center justify-center rounded-full p-0 transition-shadow outline-none focus-visible:ring-2",
+                    isActive && "ring-primary ring-2",
+                    loading && "animate-pulse",
+                  )}
+                >
+                  <Avatar className="size-9">
+                    <AvatarImage
+                      alt=""
+                      src={`/__stage/portrait/${avatar.id}`}
+                      className={cn(
+                        "transition-[filter,opacity] duration-200",
+                        !isActive && !loading && "opacity-70 grayscale",
+                      )}
+                    />
+                    <AvatarFallback className="text-xs font-medium">
+                      {avatar.name.slice(0, 2)}
+                    </AvatarFallback>
+                  </Avatar>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" sideOffset={8}>
+                {loading ? `Loading ${avatar.name}…` : avatar.name}
+              </TooltipContent>
+            </Tooltip>
+          );
+        })}
+      </div>
+    </nav>
+  );
+}
+
+/** The Avatar choice as menu items, for phones (see `AvatarSwitcher`). */
+function AvatarOptions({
   state,
   controller,
 }: {
@@ -190,57 +248,29 @@ function AvatarSwitcher({
   controller: StageController;
 }) {
   return (
-    <nav
-      aria-label="Avatars"
-      className={cn(
-        "fixed top-1/2 right-3 z-40 flex -translate-y-1/2 flex-col gap-2 transition-opacity duration-700 md:right-5",
-        state.revealed
-          ? "opacity-100 delay-700"
-          : "pointer-events-none opacity-0",
-      )}
+    <DropdownMenuRadioGroup
+      value={state.avatar}
+      onValueChange={(id) => controller.selectAvatar(id)}
     >
-      {STAGE_AVATARS.map((avatar) => {
-        const isActive = avatar.id === state.avatar;
-        const loading = avatar.id === state.avatarLoading;
-        return (
-          <Tooltip key={avatar.id}>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                aria-label={avatar.name}
-                aria-pressed={isActive}
-                aria-busy={loading}
-                disabled={state.avatarLoading !== null && !loading}
-                onClick={() => controller.selectAvatar(avatar.id)}
-                className={cn(
-                  "border-border/60 bg-background/60 text-foreground/80 hover:bg-muted/70 hover:text-foreground focus-visible:ring-ring flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border p-0 shadow-sm backdrop-blur-md transition-colors outline-none focus-visible:ring-2",
-                  isActive &&
-                    "bg-sidebar-accent/80 text-foreground ring-sidebar-border/80 ring-1",
-                  loading && "animate-pulse",
-                )}
-              >
-                <Avatar className="size-12">
-                  <AvatarImage
-                    alt=""
-                    src={`/__stage/portrait/${avatar.id}`}
-                    className={cn(
-                      "transition-[filter,opacity] duration-200",
-                      !isActive && !loading && "opacity-70 grayscale",
-                    )}
-                  />
-                  <AvatarFallback className="text-xs font-medium">
-                    {avatar.name.slice(0, 2)}
-                  </AvatarFallback>
-                </Avatar>
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="left" sideOffset={8}>
-              {loading ? `Loading ${avatar.name}…` : avatar.name}
-            </TooltipContent>
-          </Tooltip>
-        );
-      })}
-    </nav>
+      {STAGE_AVATARS.map((avatar) => (
+        <DropdownMenuRadioItem
+          key={avatar.id}
+          value={avatar.id}
+          disabled={state.avatarLoading !== null}
+          className="gap-2.5"
+        >
+          <Avatar className="size-5">
+            <AvatarImage alt="" src={`/__stage/portrait/${avatar.id}`} />
+            <AvatarFallback className="text-[0.5rem]">
+              {avatar.name.slice(0, 2)}
+            </AvatarFallback>
+          </Avatar>
+          {avatar.id === state.avatarLoading
+            ? `Loading ${avatar.name}…`
+            : avatar.name}
+        </DropdownMenuRadioItem>
+      ))}
+    </DropdownMenuRadioGroup>
   );
 }
 
@@ -366,15 +396,19 @@ function ProgressThread({
  * The site header: the logo on the left; on the right one liquid-glass pill
  * holding Home, About (both scroll the tour) and Docs, the theme toggle and
  * language picker, Log in and Sign up (placeholders until accounts exist),
- * and Download as its one solid button. A single soft highlight glides to
- * whichever item the pointer is over. Below 1024px the pill gives way to
- * Download and a menu button that holds the same items (`SiteMenu`).
+ * and Download as its one solid button; during the closed beta, Request Beta
+ * Access (the form) replaces Log in, Sign up and Download. A single soft
+ * highlight glides to whichever item the pointer is over. Below 1024px the
+ * pill gives way to that button and a menu button that holds the same items
+ * (`SiteMenu`). The Avatar switcher sits to the left of either.
  */
 function Header({
   light,
+  state,
   controller,
 }: {
   light: boolean;
+  state: StageState;
   controller: StageController;
 }) {
   const pill = useRef<HTMLElement>(null);
@@ -404,90 +438,115 @@ function Header({
       )}
     />
   );
-  const download = (className: string) => (
-    <Button
-      data-pill-item=""
-      className={cn("group relative z-10 rounded-full", className)}
-      onClick={() => controller.scrollToStop(STAGE_STOPS.length - 1)}
-    >
-      Download
-      <ArrowRight
-        aria-hidden="true"
-        className="transition-transform group-hover:translate-x-0.5"
-      />
-    </Button>
-  );
+  const primary = (className: string) =>
+    CLOSED_BETA ? (
+      <Button
+        asChild
+        data-pill-item=""
+        className={cn("group relative z-10 rounded-full", className)}
+      >
+        <a href={BETA_ACCESS_URL} target="_blank" rel="noreferrer">
+          {/* Shorter on phones, so the logo keeps its room. */}
+          <span className="max-sm:hidden">Request Beta Access</span>
+          <span className="sm:hidden">Request access</span>
+          <ArrowUpRight
+            aria-hidden="true"
+            className="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+          />
+        </a>
+      </Button>
+    ) : (
+      <Button
+        data-pill-item=""
+        className={cn("group relative z-10 rounded-full", className)}
+        onClick={() => controller.scrollToStop(STAGE_STOPS.length - 1)}
+      >
+        Download
+        <ArrowRight
+          aria-hidden="true"
+          className="transition-transform group-hover:translate-x-0.5"
+        />
+      </Button>
+    );
   return (
     <header className="fixed inset-x-0 top-0 z-40 flex items-center justify-between px-5 py-4 md:px-10 md:py-5">
       <Wordmark light={light} />
-      <nav
-        ref={pill}
-        aria-label="Site"
-        data-ink={light ? "light" : "dark"}
-        onPointerOver={track}
-        onFocus={track}
-        onPointerLeave={() => setGlow(null)}
-        onBlur={() => setGlow(null)}
-        className="liquid-glass relative hidden items-center gap-0.5 rounded-full p-1 lg:flex"
-      >
-        <span
-          aria-hidden="true"
-          className={cn(
-            "pill-glow pointer-events-none absolute inset-y-1 left-0 rounded-full",
-            glow ? "opacity-100" : "opacity-0",
+      <div className="flex items-center gap-3">
+        <AvatarSwitcher state={state} light={light} controller={controller} />
+        <nav
+          ref={pill}
+          aria-label="Site"
+          data-ink={light ? "light" : "dark"}
+          onPointerOver={track}
+          onFocus={track}
+          onPointerLeave={() => setGlow(null)}
+          onBlur={() => setGlow(null)}
+          className="liquid-glass relative hidden items-center gap-0.5 rounded-full p-1 lg:flex"
+        >
+          <span
+            aria-hidden="true"
+            className={cn(
+              "pill-glow pointer-events-none absolute inset-y-1 left-0 rounded-full",
+              glow ? "opacity-100" : "opacity-0",
+            )}
+            style={
+              glow ? { translate: `${glow.x}px 0`, width: glow.w } : undefined
+            }
+          />
+          <button
+            type="button"
+            data-pill-item=""
+            className={link}
+            onClick={() => controller.scrollToStop(0)}
+          >
+            Home
+          </button>
+          <button
+            type="button"
+            data-pill-item=""
+            className={link}
+            onClick={() => controller.scrollToStop(1)}
+          >
+            About
+          </button>
+          <a
+            href={DOCS_URL}
+            target="_blank"
+            rel="noreferrer"
+            data-pill-item=""
+            className={link}
+          >
+            Docs
+          </a>
+          {divider}
+          <ThemeToggle light={light} theme={theme} />
+          <LanguagePicker locale={locale} onLocaleChange={setLocale} />
+          {CLOSED_BETA ? null : (
+            <>
+              {divider}
+              <button type="button" data-pill-item="" className={link}>
+                Log in
+              </button>
+              <button type="button" data-pill-item="" className={link}>
+                Sign up
+              </button>
+            </>
           )}
-          style={
-            glow ? { translate: `${glow.x}px 0`, width: glow.w } : undefined
-          }
-        />
-        <button
-          type="button"
-          data-pill-item=""
-          className={link}
-          onClick={() => controller.scrollToStop(0)}
-        >
-          Home
-        </button>
-        <button
-          type="button"
-          data-pill-item=""
-          className={link}
-          onClick={() => controller.scrollToStop(1)}
-        >
-          About
-        </button>
-        <a
-          href={DOCS_URL}
-          target="_blank"
-          rel="noreferrer"
-          data-pill-item=""
-          className={link}
-        >
-          Docs
-        </a>
-        {divider}
-        <ThemeToggle light={light} theme={theme} />
-        <LanguagePicker locale={locale} onLocaleChange={setLocale} />
-        {divider}
-        <button type="button" data-pill-item="" className={link}>
-          Log in
-        </button>
-        <button type="button" data-pill-item="" className={link}>
-          Sign up
-        </button>
-        {download("ml-1 hover:brightness-105")}
-      </nav>
-      {/* Narrow-only, as `hidden max-lg:flex`: the Scene layers' later `.flex`
+          {primary("ml-1 hover:brightness-105")}
+        </nav>
+        {/* Narrow-only, as `hidden max-lg:flex`: the Scene layers' later `.flex`
           would override `lg:hidden`. */}
-      <div className="hidden items-center gap-2 max-lg:flex">
-        {download("max-sm:px-3 max-sm:[&>svg]:hidden")}
-        <SiteMenu
-          light={light}
-          controller={controller}
-          theme={theme}
-          locale={locale}
-          onLocaleChange={setLocale}
-        />
+        <div className="hidden items-center gap-2 max-lg:flex">
+          {primary("max-sm:px-3 max-sm:[&>svg]:hidden")}
+          <SiteMenu
+            light={light}
+            state={state}
+            controller={controller}
+            theme={theme}
+            locale={locale}
+            onLocaleChange={setLocale}
+          />
+        </div>
       </div>
     </header>
   );
@@ -596,18 +655,21 @@ function LanguageOptions({ locale, onLocaleChange }: LocaleChoice) {
 
 /**
  * The header's items for screens narrower than the pill (below 1024px): a
- * glass menu button opening Home, About, Docs, dark mode, the language list,
- * Log in and Sign up. Toggling dark mode keeps the menu open so the change
+ * glass menu button opening Home, About, Docs, the Avatar choice (phones
+ * only), dark mode, the language list, and Log in and Sign up (not during
+ * the closed beta). Toggling dark mode keeps the menu open so the change
  * shows behind it.
  */
 function SiteMenu({
   light,
+  state,
   controller,
   theme,
   locale,
   onLocaleChange,
 }: LocaleChoice & {
   light: boolean;
+  state: StageState;
   controller: StageController;
   theme: ThemeMode;
 }) {
@@ -640,6 +702,14 @@ function SiteMenu({
           </a>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
+        {/* Phone-only, as `hidden max-sm:block` (see the header's note). */}
+        <div className="hidden max-sm:block">
+          <DropdownMenuLabel className="text-muted-foreground text-xs font-medium">
+            Avatar
+          </DropdownMenuLabel>
+          <AvatarOptions state={state} controller={controller} />
+          <DropdownMenuSeparator />
+        </div>
         <DropdownMenuCheckboxItem
           checked={theme.dark}
           onCheckedChange={theme.toggle}
@@ -652,9 +722,13 @@ function SiteMenu({
           Language
         </DropdownMenuLabel>
         <LanguageOptions locale={locale} onLocaleChange={onLocaleChange} />
-        <DropdownMenuSeparator />
-        <DropdownMenuItem>Log in</DropdownMenuItem>
-        <DropdownMenuItem>Sign up</DropdownMenuItem>
+        {CLOSED_BETA ? null : (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem>Log in</DropdownMenuItem>
+            <DropdownMenuItem>Sign up</DropdownMenuItem>
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -663,7 +737,7 @@ function SiteMenu({
 /** The app's logo: speech-bubble mark and rounded wordmark. */
 function Wordmark({ light }: { light: boolean }) {
   return (
-    <span className="flex items-center gap-2" aria-label="Animama">
+    <span className="flex shrink-0 items-center gap-2" aria-label="Animama">
       <img src="/brand/animama-mark.png" alt="" className="size-9 md:size-12" />
       <span
         aria-hidden="true"
@@ -689,16 +763,19 @@ const heroLayer = document.getElementById("hero-layer") as HTMLDivElement;
 
 /** A fixed caption that fades in while its stop is active. */
 function Stop(props: StopProps) {
-  const { stop, active, controller } = props;
-  const creator = useCreator(active && stop.panel === "creator", controller);
+  const { stop, active } = props;
   const emotion = useEmotionalState(props);
+  const entries = useEntries(props.active);
+  const memory = useMemoryCycle(active && stop.panel === "memory");
   // The hero's text sits in the stage, behind her canvas (`#hero-layer`).
   if (stop.id === "hero") return createPortal(<Hero {...props} />, heroLayer);
   const light = stop.ink === "light";
   const place = {
-    memory:
-      "md:right-[var(--gutter)] md:left-auto md:top-[13vh] md:bottom-auto md:w-[min(27rem,34vw)]",
-    effects: "md:top-[13vh] md:bottom-auto md:w-[min(24rem,30vw)]",
+    memory: cn(
+      "md:right-[var(--gutter)] md:left-auto md:top-[13vh] md:bottom-auto",
+      // The notebook's two pages need a wide column.
+      "md:w-[min(34rem,40vw)]",
+    ),
     emotion: "md:w-[min(26rem,29vw)]",
   }[stop.id];
   // Hidden (not just transparent) once faded, so the browser stops keeping
@@ -720,26 +797,23 @@ function Stop(props: StopProps) {
         )}
         aria-hidden={!active}
       >
-        <h2
-          className={cn(
+        {/* Replayed each time the stop becomes active, or its text changes
+            (another Avatar's pronouns). */}
+        <StopCaptionText
+          key={`caption-${entries}-${props.avatar.id}`}
+          title={voice(stop.title, props.avatar)}
+          body={voice(stop.body ?? "", props.avatar)}
+          titleClassName={cn(
             "text-3xl font-bold tracking-tight text-balance md:text-5xl",
             light ? "text-white" : "text-foreground caption-halo",
           )}
-        >
-          {voice(stop.title, props.avatar)}
-        </h2>
-        <p
-          className={cn(
+          bodyClassName={cn(
             "mt-2 max-w-[34ch] text-base md:mt-3 md:text-lg",
             light ? "text-white/80" : "text-muted-foreground caption-halo",
             stop.panel === "mascots" && "max-md:hidden",
           )}
-        >
-          <Emphasis
-            text={voice(stop.body ?? "", props.avatar)}
-            className={light ? "text-white" : "text-foreground"}
-          />
-        </p>
+          boldClassName={light ? "text-white" : "text-foreground"}
+        />
         {stop.panel === "mascots" ? (
           <EmotionSummary
             emotionalState={emotion}
@@ -750,17 +824,13 @@ function Stop(props: StopProps) {
           <ClipChips {...props} />
         ) : null}
         {stop.panel === "memory" ? (
-          <MemoryStory active={active} avatar={props.avatar} />
-        ) : null}
-        {stop.panel === "creator" ? (
-          <>
-            <SceneCard {...creator} />
-            <ParticleCard {...creator} className="mt-3 md:hidden" />
-          </>
+          <MemoryStory avatar={props.avatar} cycle={memory} />
         ) : null}
         {stop.id === "download" ? <DownloadActions /> : null}
       </div>
       {stop.panel === "mascots" ? (
+        // Her emotional state beside her: the feeling and strongest groups,
+        // then the mood bloom of all 24 emotions.
         <div
           className={cn(
             "bg-card/95 text-card-foreground fixed top-[14vh] right-[var(--gutter)] z-30 hidden w-[21rem] rounded-2xl border p-4 shadow-xl transition-[opacity,translate,visibility] duration-500 md:block",
@@ -770,17 +840,19 @@ function Stop(props: StopProps) {
           <p className="text-muted-foreground mb-3 text-xs font-medium">
             {props.avatar.name}&apos;s emotional state
           </p>
-          <EmotionalState emotionalState={emotion} variant="compact" />
+          <EmotionSummary emotionalState={emotion} className="text-sm" />
+          <MoodBloom
+            // Opens from a bud on each arrival; pulses per reaction.
+            key={`bloom-${entries}`}
+            values={emotion}
+            beat={
+              props.state.playing?.stop === props.index
+                ? props.state.playing.clip
+                : null
+            }
+            className="mt-2 [@media(max-height:780px)]:h-40"
+          />
         </div>
-      ) : null}
-      {stop.panel === "creator" ? (
-        <ParticleCard
-          {...creator}
-          className={cn(
-            "fixed top-[30vh] right-[var(--gutter)] z-30 hidden w-[15rem] transition-[opacity,translate,visibility] duration-500 md:block",
-            fade,
-          )}
-        />
       ) : null}
     </>
   );
@@ -793,6 +865,7 @@ function Stop(props: StopProps) {
 function Hero({ stop, active, state, controller }: StopProps) {
   // The title and line wait for her wave, then rise in one after another.
   const revealed = state.revealed;
+  const entries = useEntries(active);
   const reveal = (delay: string) =>
     cn(
       "transition-[opacity,translate] duration-700 ease-out",
@@ -800,8 +873,28 @@ function Hero({ stop, active, state, controller }: StopProps) {
         ? cn("translate-y-0 opacity-100", delay)
         : "translate-y-4 opacity-0",
     );
+  // The stage keeps her head clear of this text, wherever it wraps.
+  const box = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const element = box.current;
+    if (!element) return;
+    const report = () =>
+      controller.setHeroTextBottom(
+        // Layout values, so the entrance's translate does not count.
+        parseFloat(getComputedStyle(element).top) + element.offsetHeight,
+      );
+    report();
+    const observer = new ResizeObserver(report);
+    observer.observe(element);
+    window.addEventListener("resize", report);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", report);
+    };
+  }, [controller]);
   return (
     <div
+      ref={box}
       className={cn(
         "fixed inset-x-0 top-[12vh] z-30 flex justify-center px-5 text-center transition-[opacity,translate,visibility] duration-500 md:top-[14vh]",
         active
@@ -811,155 +904,443 @@ function Hero({ stop, active, state, controller }: StopProps) {
       aria-hidden={!active}
     >
       <div className="flex flex-col items-center">
-        <h1
-          className={cn(
-            "font-hero text-foreground text-[2.75rem] leading-tight md:text-[4.375rem]",
-            reveal("delay-0"),
-          )}
-        >
-          {stop.title}
-        </h1>
-        <p
-          className={cn(
-            "font-hero-line text-muted-foreground mt-2 max-w-[30ch] text-[1.125rem] leading-snug text-balance md:mt-3 md:max-w-[32ch] md:text-[1.9375rem]",
-            "relative",
-            reveal("delay-300"),
-          )}
-        >
-          <LinkedText stop={stop} controller={controller} />
-          <span aria-hidden="true" className="text-shimmer">
-            <LinkedText stop={stop} controller={controller} ghost />
-          </span>
-        </p>
+        {/* Replayed whenever the text is revealed or the hero comes back
+            into view. */}
+        <HeroText
+          key={`hero-${revealed}-${entries}`}
+          stop={stop}
+          controller={controller}
+          revealed={revealed}
+          titleClassName={reveal("delay-0")}
+        />
       </div>
     </div>
   );
 }
 
-/** Caption text with its `**bold**` runs set in a stronger weight and colour. */
-function Emphasis({ text, className }: { text: string; className: string }) {
-  return text.split("**").map((part, index) =>
-    index % 2 ? (
-      <strong key={index} className={cn("font-semibold", className)}>
-        {part}
-      </strong>
-    ) : (
-      part
-    ),
+/** How many times `active` has turned on, to replay entrances by key. */
+function useEntries(active: boolean) {
+  const [entries, setEntries] = useState(0);
+  useEffect(() => {
+    if (active) setEntries((count) => count + 1);
+  }, [active]);
+  return entries;
+}
+
+/**
+ * Text Effect keeps the spaces between its word blocks as preserved
+ * whitespace, so a wrapped line would start with one; let them collapse.
+ */
+const COLLAPSE_SPACES = "[&_.whitespace-pre-wrap]:whitespace-normal";
+
+/**
+ * Titles bounce in letter by letter, each springing up from a slight tilt.
+ * The rise is in `em`, so it scales with the text.
+ */
+const BOUNCE_LETTERS = {
+  container: {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1, transition: { staggerChildren: 0.02 } },
+  },
+  item: {
+    hidden: { opacity: 0, y: "0.25em", rotate: -8 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      rotate: 0,
+      transition: { type: "spring", bounce: 0.4, duration: 0.45 },
+    },
+  },
+} satisfies TextEffectProps["variants"];
+
+/**
+ * Subtitles fade up line by line once their title has landed (Motion
+ * Primitives' per-line Text Effect, on lines as they wrap): each line rises a
+ * little as it fades in, the next following shortly after.
+ */
+const LINE_STAGGER_SEC = 0.12;
+const LINE_FADE = {
+  hidden: { opacity: 0, y: "0.6em" },
+  visible: (line: number) => ({
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.35,
+      ease: "easeOut",
+      delay: line * LINE_STAGGER_SEC,
+    },
+  }),
+} satisfies Variants;
+
+/**
+ * Words fading in by the line they wrap onto, once `start` is on; until then
+ * they hold their places, unseen. Words may be elements (bold runs, links).
+ * Lines are measured after layout, so they follow the screen's wrapping.
+ */
+function FadeLines({
+  words,
+  start,
+  onComplete,
+}: {
+  words: ReactNode[];
+  start: boolean;
+  onComplete?: () => void;
+}) {
+  const root = useRef<HTMLSpanElement>(null);
+  const [lines, setLines] = useState<number[]>([]);
+  useLayoutEffect(() => {
+    const spans = [
+      ...(root.current?.querySelectorAll<HTMLElement>(":scope > [data-word]") ??
+        []),
+    ];
+    let line = 0;
+    let top = spans[0]?.offsetTop ?? 0;
+    setLines(
+      spans.map((span) => {
+        // A word more than a few pixels lower starts a new line.
+        if (span.offsetTop > top + 4) {
+          line += 1;
+          top = span.offsetTop;
+        }
+        return line;
+      }),
+    );
+  }, [words.length]);
+  return (
+    <motion.span
+      ref={root}
+      initial="hidden"
+      animate={start ? "visible" : "hidden"}
+      variants={{ hidden: {}, visible: {} }}
+      onAnimationComplete={(definition) => {
+        if (definition === "visible") onComplete?.();
+      }}
+    >
+      {words.map((word, index) => (
+        <Fragment key={index}>
+          {index > 0 ? " " : null}
+          <motion.span
+            data-word=""
+            custom={lines[index] ?? 0}
+            variants={LINE_FADE}
+            className="inline-block"
+          >
+            {word}
+          </motion.span>
+        </Fragment>
+      ))}
+    </motion.span>
   );
 }
 
-/** A stop's body with its link words as coloured buttons to their stops. */
-function LinkedText({
+/**
+ * A caption's body as words: `**bold**` runs keep a stronger weight and
+ * colour, and punctuation straight after a run stays with its last word.
+ */
+function bodyWords(text: string, boldClassName: string): ReactNode[] {
+  const words: ReactNode[] = [];
+  const runs = text.split("**");
+  runs.forEach((run, index) => {
+    const bold = index % 2 === 1;
+    // Runs meet mid-word when neither side of the `**` has a space.
+    const joinsPrevious =
+      index > 0 && !/\s$/.test(runs[index - 1]) && !/^\s/.test(run);
+    run.split(/(\s+)/).forEach((token, position) => {
+      if (!token || /^\s+$/.test(token)) return;
+      const word = bold ? (
+        <strong
+          key={`${index}-${position}`}
+          className={cn("font-semibold", boldClassName)}
+        >
+          {token}
+        </strong>
+      ) : (
+        token
+      );
+      // A run joined to the previous one continues its last word.
+      if (position === 0 && joinsPrevious && words.length > 0)
+        words[words.length - 1] = (
+          <Fragment key={`${index}-glue`}>
+            {words[words.length - 1]}
+            {word}
+          </Fragment>
+        );
+      else words.push(word);
+    });
+  });
+  return words;
+}
+
+/**
+ * A stop's title and subtitle: the title's letters bounce in, then the
+ * subtitle fades up line by line. Keyed to replay on each arrival and Avatar
+ * switch.
+ */
+function StopCaptionText({
+  title,
+  body,
+  titleClassName,
+  bodyClassName,
+  boldClassName,
+}: {
+  title: string;
+  body: string;
+  titleClassName: string;
+  bodyClassName: string;
+  boldClassName: string;
+}) {
+  const [titleDone, setTitleDone] = useState(false);
+  return (
+    <>
+      <BouncingTitle
+        text={title}
+        className={titleClassName}
+        onComplete={() => setTitleDone(true)}
+      />
+      <p className={bodyClassName}>
+        <FadeLines words={bodyWords(body, boldClassName)} start={titleDone} />
+      </p>
+    </>
+  );
+}
+
+/**
+ * The hero's title and line: the title bounces in and shimmers once, and
+ * the line fades up after it.
+ */
+function HeroText({
   stop,
   controller,
-  ghost = false,
+  revealed,
+  titleClassName,
 }: {
   stop: StageStop;
   controller: StageController;
-  /**
-   * Lay the text out with its link words left blank, for the shimmer copy
-   * drawn over the line: the words keep their own colours and wave.
-   */
-  ghost?: boolean;
+  revealed: boolean;
+  titleClassName: string;
 }) {
+  const [titleDone, setTitleDone] = useState(false);
+  const [lineDone, setLineDone] = useState(false);
+  return (
+    <>
+      <HeroTitle
+        text={stop.title}
+        shine={revealed}
+        className={titleClassName}
+        onLanded={() => setTitleDone(true)}
+      />
+      <p className="font-hero-line text-muted-foreground mt-2 max-w-[30ch] text-[1.125rem] leading-snug text-balance md:mt-3 md:max-w-[32ch] md:text-[1.9375rem]">
+        <FadeLines
+          words={heroWords(stop, controller, lineDone)}
+          start={revealed && titleDone}
+          onComplete={() => setLineDone(true)}
+        />
+      </p>
+    </>
+  );
+}
+
+/**
+ * A title's entrance (Motion Primitives' Text Effect): its letters bounce up
+ * one at a time from a slight tilt. `onComplete` follows the last letter.
+ */
+function BouncingTitle({
+  text,
+  as = "h2",
+  className,
+  onComplete,
+}: {
+  text: string;
+  as?: TextEffectProps["as"];
+  className?: string;
+  onComplete?: () => void;
+}) {
+  return (
+    <TextEffect
+      as={as}
+      per="char"
+      variants={BOUNCE_LETTERS}
+      className={cn(className, COLLAPSE_SPACES)}
+      onAnimationComplete={onComplete}
+    >
+      {text}
+    </TextEffect>
+  );
+}
+
+/**
+ * The hero title: its letters bounce in, then, once every letter has
+ * landed, one neutral shimmer (Motion Primitives' Text Shimmer) sweeps across
+ * it and it returns to plain text. `shine` holds the shimmer back while the
+ * title is still hidden behind the entrance.
+ */
+function HeroTitle({
+  text,
+  shine,
+  className,
+  onLanded,
+}: {
+  text: string;
+  shine: boolean;
+  className: string;
+  /** Called once every letter has landed. */
+  onLanded: () => void;
+}) {
+  const [sweeping, setSweeping] = useState(false);
+  return (
+    <TextShimmer
+      as="h1"
+      text={text}
+      play={sweeping}
+      repeat={0}
+      duration={1.2}
+      spread={3}
+      onComplete={() => setSweeping(false)}
+      className={cn(
+        "font-hero text-[2.75rem] leading-tight md:text-[4.375rem]",
+        "[--base-color:var(--foreground)] [--base-gradient-color:color-mix(in_srgb,var(--foreground)_35%,var(--background))]",
+        className,
+      )}
+    >
+      <BouncingTitle
+        as="span"
+        text={text}
+        onComplete={() => {
+          if (shine) setSweeping(true);
+          onLanded();
+        }}
+      />
+    </TextShimmer>
+  );
+}
+
+/**
+ * The hero line as words: `**bold**` runs in a stronger weight and colour,
+ * and its link words as coloured buttons to their stops (each keeping the
+ * punctuation after it). Once `waving`, a light wave runs
+ * through the link words' letters in reading order, then rests.
+ */
+function heroWords(
+  stop: StageStop,
+  controller: StageController,
+  waving: boolean,
+): ReactNode[] {
   const text = stop.body ?? "";
   const links = stop.links ?? [];
-  if (links.length === 0) return text;
-  // A link keeps the punctuation after it on its line.
+  const plain = (part: string) => bodyWords(part, "font-bold text-foreground");
+  if (links.length === 0) return plain(text);
   const pattern = new RegExp(
     `\\b(${links.map(({ word }) => word).join("|")})\\b([,.;:]?)`,
   );
   const parts = text.split(pattern);
-  return parts.map((part, index) => {
-    // split() returns text, word, punctuation, text, ...
-    if (index % 3 === 0) return part;
-    if (index % 3 === 2) return null;
-    if (ghost)
-      return (
-        <span key={index} className="whitespace-nowrap">
-          <span className="invisible">{part}</span>
-          {parts[index + 1]}
-        </span>
-      );
+  // split() returns text, word, punctuation, text, ...
+  const letterCount = parts
+    .filter((_, index) => index % 3 === 1)
+    .reduce((sum, word) => sum + word.length, 0);
+  const cycle =
+    (letterCount - 1) * LETTER_STAGGER_MS + LETTER_WAVE_MS + WAVE_REST_MS;
+  let lettersBefore = 0;
+  return parts.flatMap((part, index): ReactNode[] => {
+    if (index % 3 === 0) return plain(part);
+    if (index % 3 === 2) return [];
     const link = links.find(({ word }) => word === part)!;
     const target = STAGE_STOPS.findIndex(({ id }) => id === link.stop);
-    return (
-      <span key={index} className="whitespace-nowrap">
+    const waveAt = FIRST_WAVE_MS + lettersBefore * LETTER_STAGGER_MS;
+    lettersBefore += part.length;
+    return [
+      <span key={index}>
         <WavingLink
           word={part}
           color={STAGE_STOPS[target].accent}
           onClick={() => controller.scrollToStop(target)}
+          waveAt={waving ? waveAt : null}
+          waveCycle={cycle}
         />
         {parts[index + 1]}
-      </span>
-    );
+      </span>,
+    ];
   });
 }
 
-/** One letter's bob in the wave, as Web Animations keyframes. */
-const LETTER_WAVE: Keyframe[] = [
-  { translate: "0 0", easing: "cubic-bezier(0.33, 0, 0.2, 1)" },
-  {
-    translate: "0 -0.32em",
-    offset: 0.42,
-    easing: "cubic-bezier(0.5, 0, 0.5, 1)",
-  },
-  {
-    translate: "0 0.05em",
-    offset: 0.78,
-    easing: "cubic-bezier(0.4, 0, 0.6, 1)",
-  },
-  { translate: "0 0" },
-];
 const LETTER_WAVE_MS = 680;
-const LETTER_STAGGER_MS = 55;
+const LETTER_STAGGER_MS = 45;
+/** The pause after the hero line lands before its first wave. */
+const FIRST_WAVE_MS = 600;
+/** The rest between one wave leaving the last letter and the next. */
+const WAVE_REST_MS = 2500;
 
 /**
- * A hero link word whose letters bob up one after another, like a wave, each
- * time the pointer arrives on it (or it gains keyboard focus). The letters
- * are animated in place: replacing them under a resting pointer would fire a
- * fresh pointer-enter and restart the wave every frame.
+ * One letter's light bob, then its rest until the next wave, as Web
+ * Animations keyframes over a whole cycle.
+ */
+function waveKeyframes(cycleMs: number): Keyframe[] {
+  const share = LETTER_WAVE_MS / cycleMs;
+  return [
+    { translate: "0 0", offset: 0, easing: "cubic-bezier(0.33, 0, 0.2, 1)" },
+    {
+      translate: "0 -0.14em",
+      offset: 0.42 * share,
+      easing: "cubic-bezier(0.5, 0, 0.5, 1)",
+    },
+    {
+      translate: "0 0.03em",
+      offset: 0.78 * share,
+      easing: "cubic-bezier(0.4, 0, 0.6, 1)",
+    },
+    { translate: "0 0", offset: share },
+    { translate: "0 0", offset: 1 },
+  ];
+}
+
+/**
+ * A hero link word that lifts on hover and, while `waveAt` is set, keeps a
+ * light wave running through its letters: each cycle its first letter rises
+ * `waveAt` ms in and the rest follow one after another.
  */
 function WavingLink({
   word,
   color,
   onClick,
+  waveAt,
+  waveCycle,
 }: {
   word: string;
   color: string;
   onClick: () => void;
+  waveAt: number | null;
+  waveCycle: number;
 }) {
   const button = useRef<HTMLButtonElement>(null);
-  const waving = useRef(false);
-  const wave = () => {
-    const letters = button.current?.querySelectorAll("span");
-    if (!letters || waving.current) return;
+  useEffect(() => {
+    const letters = button.current?.querySelectorAll("[data-letter]");
+    if (waveAt === null || !letters) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    waving.current = true;
+    const keyframes = waveKeyframes(waveCycle);
     const runs = [...letters].map((letter, index) =>
-      letter.animate(LETTER_WAVE, {
-        duration: LETTER_WAVE_MS,
-        delay: index * LETTER_STAGGER_MS,
+      letter.animate(keyframes, {
+        duration: waveCycle,
+        delay: waveAt + index * LETTER_STAGGER_MS,
+        iterations: Infinity,
       }),
     );
-    void Promise.allSettled(runs.map((run) => run.finished)).then(() => {
-      waving.current = false;
-    });
-  };
+    return () => runs.forEach((run) => run.cancel());
+  }, [waveAt, waveCycle]);
   return (
     <button
       ref={button}
       type="button"
       onClick={onClick}
-      onPointerEnter={wave}
-      onFocus={wave}
       aria-label={word}
       style={{ color }}
       className="hero-link focus-visible:ring-ring cursor-pointer rounded-md outline-none focus-visible:ring-2"
     >
       {[...word].map((letter, index) => (
-        <span key={index} aria-hidden="true" className="inline-block">
+        <span
+          key={index}
+          data-letter=""
+          aria-hidden="true"
+          className="inline-block"
+        >
           {letter}
         </span>
       ))}
@@ -1039,220 +1420,403 @@ function ClipChips({ stop, index, state, avatar, controller }: StopProps) {
   );
 }
 
-type MemoryFileId = "profile" | "identity" | "memories";
+/** Each page's ribbon colour in the notebook. */
+const NOTE_COLORS: Record<MemoryNote, string> = {
+  profile: "#8fd3f4",
+  identity: "#c9b6ff",
+  memories: "#ffadd0",
+};
 
 /** One of the Markdown notes memory is built from, as the demo shows it. */
 type MemoryFile = {
-  id: MemoryFileId;
+  id: MemoryNote;
   file: string;
-  about: string;
-  sections: { heading: string; lines: string[]; fresh?: string }[];
+  /** The page's name in the Anima's notebook. */
+  name: string;
+  /**
+   * `fresh` is the line the chat adds; `voice` marks the section the reply
+   * is written from.
+   */
+  sections: {
+    heading: string;
+    lines: string[];
+    fresh?: string;
+    voice?: boolean;
+  }[];
 };
 
 /**
- * The three built-in notes: the owner's profile (shared by every Anima), the
- * Anima's identity, and the relationship it writes itself while chatting.
- * Identity lines come from the Avatar's starter Anima (`StageAvatar`).
+ * The three built-in notes, each with the change its chat makes: the kitten
+ * is a fact about the owner, so it lands in PROFILE.md; the reply's voice
+ * comes from IDENTITY.md, which chat never edits; the promise to follow up
+ * is the relationship's, so the Anima files it in its own MEMORIES.md.
  */
 const memoryFiles = (avatar: StageAvatar): MemoryFile[] => [
   {
     id: "profile",
     file: "PROFILE.md",
-    about: "Who you are, shared with every Anima.",
+    name: "About you",
     sections: [
       { heading: "Basics", lines: ["Sam. Toronto, Eastern time."] },
       {
         heading: "People",
         lines: ["My sister Ana, who is getting married in June."],
-      },
-      {
-        heading: "How I like to be treated",
-        lines: ["Short replies. Gentle teasing is welcome."],
+        fresh: "Miso, our new kitten.",
       },
     ],
   },
   {
     id: "identity",
     file: "IDENTITY.md",
-    about: `Who ${avatar.name} is: personality, voice and boundaries.`,
-    sections: avatar.identity.map(({ heading, line }) => ({
-      heading,
-      lines: [line],
-    })),
+    name: "Who I am",
+    // The voice a reply speaks in leads its page.
+    sections: [...avatar.identity]
+      .sort(
+        (a, b) =>
+          Number(b.heading === "Speaking style") -
+          Number(a.heading === "Speaking style"),
+      )
+      .slice(0, 2)
+      .map(({ heading, line }) => ({
+        heading,
+        lines: [line],
+        voice: heading === "Speaking style",
+      })),
   },
   {
     id: "memories",
     file: "MEMORIES.md",
-    about: `Your story together, kept by ${avatar.name} as you chat.`,
+    name: "Our story",
     sections: [
       {
         heading: "Our story",
         lines: ["We met in exam season, both running on tea."],
-        fresh: "Miso the kitten joined the family.",
       },
       {
         heading: "Open threads",
-        lines: ["Piano recital on Friday. Ask how it went."],
+        lines: ["Ana's wedding in June: help with the toast."],
+        fresh: "Sam's recital is Friday. I promised to ask how it went.",
       },
     ],
   },
 ];
-const MEMORY_FILE_MS = 5500;
-/** The order the tabs cycle in: profile, identity, then memories. */
-const MEMORY_FILE_ORDER: MemoryFileId[] = ["profile", "identity", "memories"];
+/** The order the pages cycle in: profile, identity, then memories. */
+const MEMORY_FILE_ORDER: MemoryNote[] = ["profile", "identity", "memories"];
+/**
+ * When the visitor's line, the reply's three-dot wait, the reply, and then
+ * its "Memory updated" cue together with the page's change appear (ms).
+ */
+const MEMORY_CHAT_STEPS = [400, 1000, 2400, 3200];
+/**
+ * How long a page shows while cycling on their own: until its change has
+ * finished writing itself in (the last step plus the 1.2 s write-in), then
+ * a moment to read it.
+ */
+const MEMORY_FILE_MS = MEMORY_CHAT_STEPS[3] + 1200 + 2000;
+/** The app's chat bubbles, compacted for the demo card. */
+const CHAT_BUBBLE = "max-w-[85%] px-3.5 py-2 text-sm";
+/**
+ * Landing-only override: in dark mode the app's assistant bubble sets light
+ * text on its light sky-blue fill, so use the fill's own dark text colour.
+ */
+const ASSISTANT_TEXT_DARK = "dark:[&>.z-10]:text-secondary-foreground";
 
 /**
- * The memory feature as it works in the app: a chat line, the reply's
- * "Memory updated" cue, then the notes memory is built from, one tab each.
- * The tabs cycle until the visitor picks one.
+ * The memory stop's shared clock: the page on show (cycling every
+ * `MEMORY_FILE_MS` until the visitor picks one) and how far its chat has
+ * played. Each time a page opens it starts from before its chat's change.
  */
-function MemoryStory({
-  active,
-  avatar,
-}: {
-  active: boolean;
-  avatar: StageAvatar;
-}) {
-  const files = memoryFiles(avatar);
-  const step = useSteps(active, [300, 1300, 2500]);
-  const [tab, setTab] = useState<MemoryFileId>("profile");
+function useMemoryCycle(active: boolean) {
+  const [note, setNote] = useState<MemoryNote>("profile");
   const [touched, setTouched] = useState(false);
+  const step = useSteps(active, MEMORY_CHAT_STEPS, note);
+  const changed = step >= 4;
 
   useEffect(() => {
-    setTab("profile");
+    setNote("profile");
     setTouched(false);
   }, [active]);
-
-  // Her new memory lands a beat after MEMORIES.md opens.
-  const [fresh, setFresh] = useState(false);
-  useEffect(() => {
-    setFresh(false);
-    if (!active || tab !== "memories") return;
-    const timer = window.setTimeout(() => setFresh(true), 700);
-    return () => window.clearTimeout(timer);
-  }, [active, tab]);
 
   useEffect(() => {
     if (!active || touched) return;
     const timer = window.setTimeout(() => {
-      const index = MEMORY_FILE_ORDER.indexOf(tab);
-      setTab(MEMORY_FILE_ORDER[(index + 1) % MEMORY_FILE_ORDER.length]);
+      const index = MEMORY_FILE_ORDER.indexOf(note);
+      setNote(MEMORY_FILE_ORDER[(index + 1) % MEMORY_FILE_ORDER.length]);
     }, MEMORY_FILE_MS);
     return () => window.clearTimeout(timer);
-  }, [active, touched, tab]);
+  }, [active, touched, note]);
 
+  return {
+    active,
+    note,
+    step,
+    changed,
+    touched,
+    pick: (next: MemoryNote) => {
+      setTouched(true);
+      setNote(next);
+    },
+  };
+}
+type MemoryCycle = ReturnType<typeof useMemoryCycle>;
+
+/**
+ * The memory feature as it works in the app, one note at a time: a chat
+ * line, the reply (after the chat's three-dot wait) and its "Memory updated"
+ * cue as the note changes (IDENTITY.md only lights up the voice the reply
+ * speaks in), above the Anima's notebook open at that note's page.
+ */
+function MemoryStory({
+  avatar,
+  cycle,
+}: {
+  avatar: StageAvatar;
+  cycle: MemoryCycle;
+}) {
   return (
     <div className="mt-5 space-y-3 text-left">
-      <div className="bg-card/95 text-card-foreground hidden rounded-2xl border p-3.5 shadow-xl md:block">
-        <Reveal shown={step >= 1} className="flex justify-end">
-          <p className="bg-secondary/70 max-w-[85%] rounded-2xl rounded-br-md px-3.5 py-2 text-sm">
-            We adopted a kitten today! Her name is Miso.
-          </p>
-        </Reveal>
-        <Reveal shown={step >= 2} className="mt-2.5 flex items-end gap-2">
-          <img
-            src={`/__stage/portrait/${avatar.id}`}
-            alt={avatar.name}
-            className="bg-muted size-7 shrink-0 rounded-full object-cover"
-          />
-          <div className="max-w-[85%]">
-            <p className="bg-muted/70 rounded-2xl rounded-bl-md px-3.5 py-2 text-sm">
-              Miso! Welcome to the family, little one. Tell me everything about
-              her first week.
-            </p>
-            <Reveal
-              shown={step >= 3}
-              className="text-muted-foreground mt-1 ml-1 inline-flex items-center gap-1.5 text-xs"
-            >
-              <Brain aria-hidden="true" className="size-3.5" />
-              Memory updated
-            </Reveal>
-          </div>
-        </Reveal>
-      </div>
-      <Tabs
-        value={tab}
-        onValueChange={(value) => {
-          setTouched(true);
-          setTab(value as MemoryFileId);
-        }}
-        className="bg-card/95 text-card-foreground relative gap-0 overflow-hidden rounded-2xl border p-3 shadow-xl"
-      >
-        <TabsList className="grid w-full grid-cols-3">
-          {files.map((file) => (
-            <TabsTrigger key={file.id} value={file.id} className="text-xs">
-              {file.file}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-        {files.map((file) => (
-          <TabsContent
-            key={file.id}
-            value={file.id}
-            className="px-1 pt-2.5 md:min-h-[13.5rem]"
-          >
-            <p className="text-muted-foreground flex items-center gap-1.5 text-xs">
-              <FileText aria-hidden="true" className="size-3.5 shrink-0" />
-              {file.about}
-              {file.id === "memories" ? (
-                <span className="ml-auto shrink-0 rounded-md border px-1.5 py-0.5">
-                  Version {fresh ? 13 : 12}
-                </span>
-              ) : null}
-            </p>
-            <div className="mt-2 space-y-1.5 text-sm">
-              {file.sections.map((section, index) => (
-                <div
-                  key={section.heading}
-                  className={cn(index > 1 && "max-md:hidden")}
-                >
-                  <p className="font-semibold">{section.heading}</p>
-                  {section.lines.map((line) => (
-                    <p key={line} className="text-muted-foreground">
-                      {line}
-                    </p>
-                  ))}
-                  {section.fresh ? (
-                    <Reveal shown={fresh}>
-                      <p className="border-success bg-success/10 text-foreground -mx-1.5 mt-1 rounded-r-md border-l-2 px-1.5 py-0.5">
-                        {section.fresh}
-                      </p>
-                    </Reveal>
-                  ) : null}
-                </div>
-              ))}
-            </div>
-          </TabsContent>
-        ))}
-        {active && !touched ? (
-          <span
-            key={tab}
-            aria-hidden="true"
-            className="bg-primary absolute inset-x-0 bottom-0 h-0.5 origin-left"
-            style={{
-              animation: `landing-progress ${MEMORY_FILE_MS}ms linear forwards`,
-            }}
-          />
-        ) : null}
-      </Tabs>
+      <MemoryChat avatar={avatar} cycle={cycle} />
+      <MemoryNotebook avatar={avatar} cycle={cycle} />
     </div>
   );
 }
 
-/** Step through `delays` (ms from activation) while `active`; 0 when not. */
-function useSteps(active: boolean, delays: number[]) {
-  const [step, setStep] = useState(0);
+/**
+ * The app's own chat bubbles: the visitor's line, then the reply. A thin
+ * line along the bottom fills until the next page while they cycle.
+ */
+function MemoryChat({
+  avatar,
+  cycle,
+}: {
+  avatar: StageAvatar;
+  cycle: MemoryCycle;
+}) {
+  const { note, step, changed } = cycle;
+  return (
+    <div className="bg-card/95 text-card-foreground relative hidden overflow-hidden rounded-2xl border p-3.5 shadow-xl md:block">
+      {/* Every exchange, played out and invisible, in one grid cell under
+          the live one, so the card keeps the tallest one's height and the
+          notebook below never moves. */}
+      <div className="grid">
+        {MEMORY_FILE_ORDER.map((sizer) => (
+          <ChatExchange
+            key={sizer}
+            avatar={avatar}
+            note={sizer}
+            step={MEMORY_CHAT_STEPS.length}
+            sizer
+          />
+        ))}
+        <ChatExchange
+          avatar={avatar}
+          note={note}
+          step={step}
+          changed={changed}
+        />
+      </div>
+      {/* Time until the next page: a bar in the open page's ribbon colour
+          on a faint track. */}
+      {cycle.active && !cycle.touched ? (
+        <span
+          aria-hidden="true"
+          className="bg-foreground/10 absolute inset-x-0 bottom-0 h-1.5"
+        >
+          <span
+            key={note}
+            className="absolute inset-0 origin-left rounded-r-full"
+            style={{
+              background: NOTE_COLORS[note],
+              animation: `landing-progress ${MEMORY_FILE_MS}ms linear forwards`,
+            }}
+          />
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * One note's exchange, shown up to `step` of `MEMORY_CHAT_STEPS`; a `sizer`
+ * is the invisible, fully played copy that holds the card's height.
+ */
+function ChatExchange({
+  avatar,
+  note,
+  step,
+  changed = step >= MEMORY_CHAT_STEPS.length,
+  sizer = false,
+}: {
+  avatar: StageAvatar;
+  note: MemoryNote;
+  step: number;
+  changed?: boolean;
+  sizer?: boolean;
+}) {
+  const chat = avatar.memoryChats[note];
+  return (
+    <div
+      className={cn("col-start-1 row-start-1", sizer && "invisible")}
+      aria-hidden={sizer || undefined}
+    >
+      <Reveal shown={step >= 1}>
+        <Message from="user" className="py-0">
+          <MessageContent from="user" className={CHAT_BUBBLE}>
+            {chat.user}
+          </MessageContent>
+        </Message>
+      </Reveal>
+      <Reveal shown={step >= 2} className="mt-2.5">
+        <Message from="assistant" className="py-0">
+          <div className="flex max-w-[85%] flex-col items-start">
+            <MessageContent
+              key={`${note}-${step >= 3}`}
+              from="assistant"
+              animateOnEnter={!sizer && step >= 3}
+              className={cn(CHAT_BUBBLE, "max-w-full", ASSISTANT_TEXT_DARK)}
+            >
+              {step >= 3 ? chat.reply : <MessageLoaderV2 className="h-5" />}
+            </MessageContent>
+            {note === "identity" ? null : (
+              <Reveal
+                shown={changed}
+                className="text-muted-foreground mt-1 ml-1 inline-flex items-center gap-1.5 text-xs"
+              >
+                <Brain aria-hidden="true" className="size-3.5" />
+                Memory updated
+              </Reveal>
+            )}
+          </div>
+          <img
+            src={`/__stage/portrait/${avatar.id}`}
+            alt={sizer ? "" : avatar.name}
+            className="bg-muted ring-border size-7 shrink-0 self-start rounded-full object-cover ring-1"
+          />
+        </Message>
+      </Reveal>
+    </div>
+  );
+}
+
+/**
+ * The Anima's notebook, open at the note's page. The left page says, in the
+ * Anima's own words, what the page is for; the right page holds the note,
+ * where a new memory writes itself in by hand and the voice a reply speaks
+ * in gets a highlighter stroke. Ribbon bookmarks along the top turn to the
+ * other pages, and the cover takes the open page's ribbon colour.
+ */
+function MemoryNotebook({
+  avatar,
+  cycle,
+}: {
+  avatar: StageAvatar;
+  cycle: MemoryCycle;
+}) {
+  const files = memoryFiles(avatar);
+  const file = files.find(({ id }) => id === cycle.note)!;
+  return (
+    <div>
+      <div className="relative pt-8">
+        {/* Ribbons tucked under the cover, the open page's raised. */}
+        <div className="absolute top-0 right-5 flex items-start gap-1.5">
+          {files.map((page) => (
+            <button
+              key={page.id}
+              type="button"
+              aria-pressed={page.id === cycle.note}
+              aria-label={`Open ${page.file}`}
+              title={`Open ${page.file}`}
+              onClick={() => cycle.pick(page.id)}
+              className={cn(
+                "focus-visible:ring-ring font-hand h-9 cursor-pointer rounded-t-md px-2.5 pt-1.5 text-[1rem] leading-none whitespace-nowrap text-[#2e2b36] shadow-sm transition-[translate,filter,box-shadow] duration-200 outline-none focus-visible:ring-2",
+                page.id === cycle.note
+                  ? "-translate-y-1"
+                  : "translate-y-0.5 opacity-90 hover:-translate-y-0.5 hover:opacity-100 hover:shadow-md hover:brightness-105",
+              )}
+              style={{ background: NOTE_COLORS[page.id] }}
+            >
+              {page.name}
+            </button>
+          ))}
+        </div>
+        <div
+          className="relative z-10 rounded-[14px] p-1.5 shadow-xl transition-colors duration-500"
+          style={{ background: NOTE_COLORS[cycle.note] }}
+        >
+          <div className="notebook-paper relative grid min-h-[13rem] grid-cols-1 overflow-hidden rounded-[10px] text-[#2e2b36] [perspective:1400px] md:grid-cols-2">
+            <div className="border-black/10 px-4 pt-3 pb-3 max-md:border-b md:border-r md:pb-4">
+              <p className="font-hand text-[1.45rem] leading-[26px]">
+                {file.file}
+              </p>
+              <p className="font-hand mt-[26px] text-[1.05rem] leading-[26px] max-md:mt-0">
+                {avatar.notebook.purpose[file.id]}
+              </p>
+            </div>
+            <div className="px-4 pt-3 pb-4">
+              {file.sections.map((section) => (
+                <div key={section.heading}>
+                  <p className="text-[11px] leading-[26px] font-semibold tracking-wide text-[#2e2b36]/60 uppercase">
+                    {section.heading}
+                  </p>
+                  {section.lines.map((line) => (
+                    <p
+                      key={line}
+                      className={cn(
+                        "font-hand text-[1.05rem] leading-[26px]",
+                        section.voice && "notebook-highlight",
+                      )}
+                      data-shown={section.voice && cycle.changed}
+                    >
+                      {line}
+                    </p>
+                  ))}
+                  {section.fresh ? (
+                    <p
+                      className="write-in font-hand text-[1.05rem] leading-[26px] text-[#3a5bd9]"
+                      data-shown={cycle.changed}
+                    >
+                      {section.fresh}
+                    </p>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+            {/* The page turning over to the one now open. */}
+            <div
+              key={cycle.note}
+              aria-hidden="true"
+              className="page-turn notebook-paper absolute inset-y-0 right-0 hidden w-1/2 md:block"
+            />
+          </div>
+        </div>
+      </div>
+      <p className="mt-2.5 text-xs text-white/70">
+        Pick a ribbon to turn the page. Every page is a file you can read, edit
+        and roll back.
+      </p>
+    </div>
+  );
+}
+
+/**
+ * Step through `delays` (ms from activation, or from each new `replay`)
+ * while `active`; 0 when not.
+ */
+function useSteps(active: boolean, delays: number[], replay?: unknown) {
+  // Steps belong to the `replay` they were reached for, so the first render
+  // after a new one already reads 0 instead of the previous run's last step.
+  const [reached, setReached] = useState({ replay, step: 0 });
   useEffect(() => {
-    setStep(0);
+    setReached({ replay, step: 0 });
     if (!active) return;
     const timers = delays.map((delay, index) =>
-      window.setTimeout(() => setStep(index + 1), delay),
+      window.setTimeout(() => setReached({ replay, step: index + 1 }), delay),
     );
     return () => timers.forEach((timer) => window.clearTimeout(timer));
-    // The delays are fixed for each caller.
+    // The delays are fixed for each caller; a new `replay` starts over.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active]);
-  return step;
+  }, [active, replay]);
+  return active && reached.replay === replay ? reached.step : 0;
 }
 
 function Reveal({
@@ -1277,175 +1841,31 @@ function Reveal({
   );
 }
 
-const EMPTY_CREATOR: CreatorState = {
-  layers: {
-    gradient: false,
-    pattern: false,
-    rays: false,
-    stars: false,
-    confetti: false,
-  },
-  palette: "sunny",
-  particle: null,
-};
-
-/** The scripted build-up the creator plays until the visitor takes over. */
-const CREATOR_SCRIPT: ((state: CreatorState) => CreatorState)[] = [
-  () => EMPTY_CREATOR,
-  (s) => ({ ...s, layers: { ...s.layers, gradient: true } }),
-  (s) => ({ ...s, layers: { ...s.layers, pattern: true } }),
-  (s) => ({ ...s, layers: { ...s.layers, rays: true } }),
-  (s) => ({ ...s, layers: { ...s.layers, stars: true } }),
-  (s) => ({ ...s, particle: "hearts" }),
-  (s) => ({ ...s, palette: "blush", layers: { ...s.layers, confetti: true } }),
-  (s) => ({ ...s, palette: "sky", particle: "sparkles" }),
-  (s) => ({ ...s, palette: "lavender", particle: "butterflies" }),
-];
-const CREATOR_STEP_MS = 1700;
-
-type CreatorDemo = {
-  state: CreatorState;
-  edit: (next: (current: CreatorState) => CreatorState) => void;
-};
-
 /**
- * A pocket version of the Scene and Particle Effect creators: background
- * layer switches, gradient palettes and particle presets, applied live. It
- * builds itself up on a script until the visitor changes something.
+ * The last stop's actions: during the closed beta, Request Beta Access and
+ * the docs; after it, the docs and the platforms the app runs on.
  */
-function useCreator(active: boolean, controller: StageController): CreatorDemo {
-  const [state, setState] = useState<CreatorState>(EMPTY_CREATOR);
-  const [touched, setTouched] = useState(false);
-  const step = useRef(0);
-
-  useEffect(() => {
-    if (!active || touched) return;
-    step.current = 0;
-    setState(EMPTY_CREATOR);
-    const timer = window.setInterval(() => {
-      step.current = (step.current + 1) % CREATOR_SCRIPT.length;
-      setState((current) => CREATOR_SCRIPT[step.current](current));
-    }, CREATOR_STEP_MS);
-    return () => window.clearInterval(timer);
-  }, [active, touched]);
-
-  useEffect(() => {
-    if (active) controller.setCreator(state);
-  }, [active, controller, state]);
-
-  return {
-    state,
-    edit: (next) => {
-      setTouched(true);
-      setState(next);
-    },
-  };
-}
-
-function SceneCard({ state, edit }: CreatorDemo) {
-  return (
-    <div className="bg-card/95 text-card-foreground mt-5 hidden rounded-2xl border p-3.5 shadow-xl md:block">
-      <p className="text-sm font-semibold">Scene layers</p>
-      <ul className="mt-2.5 space-y-1.5">
-        {CREATOR_LAYERS.map((layer) => (
-          <li
-            key={layer.id}
-            className={cn(
-              "flex items-center justify-between rounded-xl border px-3 py-1.5 text-sm transition-colors",
-              state.layers[layer.id] && "border-primary/60 bg-primary/10",
-            )}
-          >
-            <label htmlFor={`layer-${layer.id}`}>{layer.label}</label>
-            <Switch
-              id={`layer-${layer.id}`}
-              checked={state.layers[layer.id]}
-              onCheckedChange={(checked) =>
-                edit((current) => ({
-                  ...current,
-                  layers: { ...current.layers, [layer.id]: checked },
-                }))
-              }
-            />
-          </li>
-        ))}
-      </ul>
-      <p className="text-muted-foreground mt-3 text-xs font-medium">
-        Gradient colours
-      </p>
-      <div className="mt-1.5 flex gap-2">
-        {CREATOR_PALETTES.map((palette) => (
-          <button
-            key={palette.id}
-            type="button"
-            aria-label={palette.label}
-            aria-pressed={state.palette === palette.id}
-            onClick={() =>
-              edit((current) => ({
-                ...current,
-                palette: palette.id,
-                layers: { ...current.layers, gradient: true },
-              }))
-            }
-            className={cn(
-              "focus-visible:ring-ring size-7 rounded-full border-2 border-white shadow-sm transition outline-none focus-visible:ring-2",
-              state.palette === palette.id && "ring-primary ring-2",
-            )}
-            style={{
-              background: `linear-gradient(135deg, ${palette.stops[0]}, ${palette.stops[1]})`,
-            }}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function ParticleCard({
-  state,
-  edit,
-  className,
-}: CreatorDemo & { className?: string }) {
-  return (
-    <div
-      className={cn(
-        "bg-card/95 text-card-foreground rounded-2xl border p-3 shadow-xl",
-        className,
-      )}
-    >
-      <p className="hidden text-sm font-semibold md:block">Particles</p>
-      {/* Phone-only classes use max-md: so the Scene layers' later `.flex`
-          cannot override the desktop grid. */}
-      <div className="max-md:flex max-md:gap-2 max-md:overflow-x-auto md:mt-2.5 md:grid md:grid-cols-2 md:gap-2">
-        {CREATOR_PARTICLES.map((particle) => {
-          const Icon = PARTICLE_ICONS[particle.id];
-          const selected = state.particle === particle.id;
-          return (
-            <button
-              key={particle.id}
-              type="button"
-              aria-pressed={selected}
-              onClick={() =>
-                edit((current) => ({
-                  ...current,
-                  particle: selected ? null : particle.id,
-                }))
-              }
-              className={cn(
-                "focus-visible:ring-ring flex shrink-0 flex-col items-center gap-1 rounded-xl border px-2 py-2 text-xs font-medium transition outline-none focus-visible:ring-2",
-                selected ? "border-primary bg-primary/20" : "hover:bg-muted/60",
-              )}
-            >
-              <Icon aria-hidden="true" className="size-5" />
-              {particle.label}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 function DownloadActions() {
+  if (CLOSED_BETA)
+    return (
+      <div className="mt-5 flex flex-wrap items-center gap-2.5">
+        <Button asChild className="group rounded-full">
+          <a href={BETA_ACCESS_URL} target="_blank" rel="noreferrer">
+            Request Beta Access
+            <ArrowUpRight
+              aria-hidden="true"
+              className="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+            />
+          </a>
+        </Button>
+        <Button asChild variant="outline" className="rounded-full">
+          <a href={DOCS_URL}>
+            <BookOpen aria-hidden="true" />
+            Read the docs
+          </a>
+        </Button>
+      </div>
+    );
   return (
     <div className="mt-5 flex flex-wrap items-center gap-2.5">
       <Button asChild className="rounded-full">

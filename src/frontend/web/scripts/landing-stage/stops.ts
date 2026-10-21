@@ -22,7 +22,22 @@ export type StageAvatar = {
   pronouns: { subject: string; object: string; possessive: string };
   /** IDENTITY.md excerpts for the memory demo, from the starter identity. */
   identity: { heading: string; line: string }[];
+  /**
+   * The memory demo's chat for each note: a visitor's line and this Anima's
+   * reply, in its own voice.
+   */
+  memoryChats: Record<MemoryNote, { user: string; reply: string }>;
+  /** What each memory notebook page is for, in this Anima's own voice. */
+  notebook: { purpose: Record<MemoryNote, string> };
 };
+
+/**
+ * The notes the memory demo shows: the owner's PROFILE.md (facts about the
+ * user, shared by every Anima, which chat can update), the Anima's
+ * IDENTITY.md (who it is and how it talks; chat never edits it) and its
+ * MEMORIES.md (the relationship, which it keeps itself while chatting).
+ */
+export type MemoryNote = "profile" | "identity" | "memories";
 
 /** The Avatars the stage offers; the first loads with the page. */
 export const STAGE_AVATARS: StageAvatar[] = [
@@ -38,13 +53,39 @@ export const STAGE_AVATARS: StageAvatar[] = [
       },
       {
         heading: "Speaking style",
-        line: "Relaxed and clear, with short sentences that sound natural.",
+        line: "Short, natural sentences. She reflects back what she heard before offering ideas, with gentle humor.",
       },
       {
         heading: "Interests",
         line: "Journaling, cozy cafés and whatever you're excited about.",
       },
     ],
+    memoryChats: {
+      profile: {
+        user: "We adopted a kitten today! Her name is Miso.",
+        reply:
+          "Miso! Welcome to the family, little one. Tell me everything about her first week.",
+      },
+      identity: {
+        user: "Everything is due this week and I don't know where to start.",
+        reply:
+          "So it all landed at once. Let's make it smaller. What's due first?",
+      },
+      memories: {
+        user: "I'll tell you how the recital goes on Friday!",
+        reply: "Deal. Friday, full report. I'll be the first to ask.",
+      },
+    },
+    notebook: {
+      purpose: {
+        profile:
+          "Things you've told me about you. Every Anima shares this page, and you can edit it too.",
+        identity:
+          "Who I am and how I talk. You can rewrite this page any time. I never change it myself.",
+        memories:
+          "Our moments: promises, in-jokes, little milestones. I write this page as we chat.",
+      },
+    },
   },
   {
     id: "Andrew",
@@ -58,13 +99,39 @@ export const STAGE_AVATARS: StageAvatar[] = [
       },
       {
         heading: "Speaking style",
-        line: "Courteous and unhurried, with the occasional gentle tease.",
+        line: "Courteous and unhurried, concise, with the occasional deadpan remark.",
       },
       {
         heading: "Interests",
         line: "Tea and its rituals, tidy plans, classic novels and how your day went.",
       },
     ],
+    memoryChats: {
+      profile: {
+        user: "We adopted a kitten today! Her name is Miso.",
+        reply:
+          "Welcome, Miso. I expect she has already claimed the best chair. How is she settling in?",
+      },
+      identity: {
+        user: "Everything is due this week and I don't know where to start.",
+        reply:
+          "A full week, then. We shall take it one item at a time. Which is due first?",
+      },
+      memories: {
+        user: "I'll tell you how the recital goes on Friday!",
+        reply: "I shall hold you to that. Friday, a full account.",
+      },
+    },
+    notebook: {
+      purpose: {
+        profile:
+          "What you have told me of yourself. Every Anima shares this page, and you may amend it.",
+        identity:
+          "My character and manner. You may rewrite this page as you see fit; I shan't.",
+        memories:
+          "Our history: promises, small jokes, occasions. I record it as we talk.",
+      },
+    },
   },
 ];
 
@@ -86,8 +153,10 @@ export function voice(text: string, avatar: StageAvatar): string {
 }
 
 /**
- * Where the camera stands for a stop. Lengths are in head heights (the rest
- * height of the head bone), so framing follows the Avatar's size.
+ * Where the camera stands for a stop, in head heights (the rest height of
+ * the head bone). `aim` uses the Avatar on stage, so the camera finds its
+ * face and body; `distance` and `rise` use the first Avatar, so a taller one
+ * is framed higher rather than from further away and shows at the same size.
  */
 export type StageCamera = {
   /**
@@ -131,7 +200,7 @@ export type StageClip = {
 };
 
 /** The interactive demo a stop shows beside its caption. */
-export type StagePanel = "mascots" | "chips" | "memory" | "creator";
+export type StagePanel = "mascots" | "chips" | "memory";
 
 /** A body word, in its stop's accent, that takes the visitor to that stop. */
 export type StageLink = {
@@ -187,6 +256,8 @@ export type StageStop = {
   avatarClips?: Record<string, StageClip[]>;
   clipMode: "once" | "cycle";
   panel?: StagePanel;
+  /** Copy shown in its place while `CLOSED_BETA` is on. */
+  beta?: Partial<Pick<StageStop, "label" | "title" | "body">>;
   /**
    * How far (0–1) her upper body and head turn toward the camera when it is
    * behind her, for an over-the-shoulder look back.
@@ -228,11 +299,6 @@ const TWILIGHT = [
   "radial-gradient(circle at 44% 28%, #fff 0 1px, transparent 2px)",
   "radial-gradient(60% 50% at 30% 100%, rgba(255, 190, 215, .55) 0%, transparent 70%)",
   "linear-gradient(180deg, #3d3f8f 0%, #6e5bb5 50%, #c79bd2 100%)",
-].join(", ");
-const CREAM = [
-  "radial-gradient(45% 50% at 80% 30%, #dff3fb 0%, transparent 70%)",
-  "radial-gradient(40% 45% at 15% 75%, #ffe6ee 0%, transparent 70%)",
-  "#faf9f4",
 ].join(", ");
 
 /**
@@ -453,14 +519,32 @@ const gesture = (stem: string, label: string): StageClip => ({
   spec: `library:included/${stem}`,
 });
 
-export const STAGE_STOPS: StageStop[] = [
+/**
+ * Whether Animama is in closed beta. The page then asks visitors to request
+ * access through `BETA_ACCESS_URL` instead of offering downloads and
+ * accounts: the header shows one Request Beta Access button in place of
+ * Download, Log in and Sign up, and stops use their `beta` copy. Turn off at
+ * launch.
+ */
+export const CLOSED_BETA = true;
+/** The closed beta's request form (a Google Form). */
+export const BETA_ACCESS_URL = "https://forms.gle/REPLACE-WITH-BETA-FORM";
+
+/** Stops with their `beta` copy applied while `CLOSED_BETA` is on. */
+function withBetaCopy(stops: StageStop[]): StageStop[] {
+  return CLOSED_BETA
+    ? stops.map((stop) => (stop.beta ? { ...stop, ...stop.beta } : stop))
+    : stops;
+}
+
+export const STAGE_STOPS: StageStop[] = withBetaCopy([
   {
     id: "hero",
     accent: "#8b7cf6",
-    label: "Meet",
+    label: "Intro",
     followCursor: true,
     title: "Meet your Anima",
-    body: "AI companions that feel alive with their own behaviors, emotions and memories.",
+    body: "AI companions that **feel alive** with their own behaviors, emotions and memories.",
     links: [
       { word: "behaviors", stop: "gestures" },
       { word: "emotions", stop: "emotion" },
@@ -586,28 +670,6 @@ export const STAGE_STOPS: StageStop[] = [
     lookBack: 1,
   },
   {
-    id: "effects",
-    accent: "#f0961e",
-    label: "Create",
-    title: "Make your own effects",
-    body: "Layer backgrounds and particles in the creators, then add them to any gesture or reaction.",
-    camera: {
-      yaw: 360,
-      distance: 1.9,
-      aim: 0.8,
-      rise: -0.12,
-      fov: 30,
-      shift: 0.04,
-      lift: 0,
-    },
-    tall: { distance: 3, shift: 0, lift: 0.17 },
-    backdrop: CREAM,
-    ink: "dark",
-    clips: [],
-    clipMode: "once",
-    panel: "creator",
-  },
-  {
     id: "download",
     accent: "#8b7cf6",
     label: "Download",
@@ -627,67 +689,12 @@ export const STAGE_STOPS: StageStop[] = [
     ink: "dark",
     clips: [gesture("goodbye-wave", "Goodbye wave")],
     clipMode: "once",
+    beta: {
+      label: "Beta",
+      body: "Now in closed beta for macOS and Windows.",
+    },
   },
-];
-
-/** The Scene Effect whose layers the creator demo switches on and off. */
-export const CREATOR_SCENE =
-  "library:scene-effect/included/scene-vfx-emotion-joy";
-
-/** Background layers the creator demo exposes. */
-export const CREATOR_LAYERS = [
-  { id: "gradient", label: "Gradient" },
-  { id: "pattern", label: "Polka dots" },
-  { id: "rays", label: "Rays" },
-  { id: "stars", label: "Pop stars" },
-  { id: "confetti", label: "Confetti" },
-] as const;
-export type CreatorLayerId = (typeof CREATOR_LAYERS)[number]["id"];
-
-/** Two-stop gradient palettes from the app's colours. */
-export const CREATOR_PALETTES = [
-  { id: "sunny", label: "Sunny", stops: ["#fff27a", "#ffb547"] },
-  { id: "blush", label: "Blush", stops: ["#ffe0ea", "#ff99cc"] },
-  { id: "sky", label: "Sky", stops: ["#e0f5ff", "#86cfea"] },
-  { id: "lavender", label: "Lavender", stops: ["#f1e8ff", "#b9a3ff"] },
-  { id: "lime", label: "Lime", stops: ["#f6ffe0", "#c6ef6e"] },
-] as const;
-export type CreatorPaletteId = (typeof CREATOR_PALETTES)[number]["id"];
-
-/** Particle Effects the creator demo can add, with their tile icons. */
-export const CREATOR_PARTICLES = [
-  {
-    id: "hearts",
-    label: "Hearts",
-    spec: "library:particle-effect/included/heart-burst",
-  },
-  {
-    id: "sparkles",
-    label: "Sparkles",
-    spec: "library:particle-effect/included/sparkle-hearts",
-  },
-  {
-    id: "flowers",
-    label: "Flowers",
-    spec: "library:particle-effect/included/flower-pop",
-  },
-  {
-    id: "confetti",
-    label: "Confetti",
-    spec: "library:particle-effect/included/confetti",
-  },
-  {
-    id: "stars",
-    label: "Star burst",
-    spec: "library:particle-effect/included/star-burst",
-  },
-  {
-    id: "butterflies",
-    label: "Butterflies",
-    spec: "library:particle-effect/included/butterfly-flutter",
-  },
-] as const;
-export type CreatorParticleId = (typeof CREATOR_PARTICLES)[number]["id"];
+]);
 
 /** The clips a stop plays for an Avatar: its own set, else the stop's. */
 export function stopClips(stop: StageStop, avatarId: string): StageClip[] {
@@ -715,8 +722,6 @@ export function stageSources(): string[] {
           (clips) => clips.map(({ spec }) => spec),
         ),
       ),
-      CREATOR_SCENE,
-      ...CREATOR_PARTICLES.map(({ spec }) => spec),
       ...PUZZLE_EFFECT_SOURCES,
     ]),
   ];

@@ -18,10 +18,8 @@ import { BUILT_IN_AVATAR_MOTION_CATALOG } from "@/lib/avatar/motion/AvatarMotion
 import {
   EMPTY_PREVIEW_MEDIA,
   PreviewMediaProvider,
-  previewSceneEntry,
   type PreviewEffect,
   type PreviewMedia,
-  type PreviewParticleEffect,
 } from "@/lib/avatar/motion-authoring/preview/previewMedia";
 import type { PreviewClip } from "@/lib/avatar/motion-authoring/preview/sources";
 
@@ -32,15 +30,11 @@ import { CursorTrail } from "./trail";
 import { addChatLights, applyChatColorPipeline } from "../effect-render/stage";
 import {
   createStore,
-  type CreatorState,
   type StageController,
   type StageState,
 } from "./controller";
 import { mountOverlay } from "./overlay";
 import {
-  CREATOR_PALETTES,
-  CREATOR_PARTICLES,
-  CREATOR_SCENE,
   PLAIN_BACKDROP,
   PUZZLE_CLIP_FILE,
   PUZZLE_EFFECT_SOURCES,
@@ -58,8 +52,8 @@ import {
  * between the stops in `stops.ts`: each stop holds still for part of its
  * scroll segment, then the camera eases along the orbit to the next one. The
  * active stop plays its Gestures and Reactions (with their Avatar, Particle
- * and Scene Effects) or the creator demo's effects; the React overlay
- * (`overlay.tsx`) draws the captions and demos through `StageController`.
+ * and Scene Effects); the React overlay (`overlay.tsx`) draws the captions
+ * and demos through `StageController`.
  *
  * `?hud` shows the live camera values; `?stop=<id>` opens at a stop;
  * the walk-on is procedural; `?walk=<id>` tries a clip cycle from
@@ -87,34 +81,21 @@ type Program = {
   walk: Record<string, string>;
 };
 
-type SceneEffect = Extract<PreviewEffect, { kind: "scene_effect" }>;
-type Toggle = { enabled: boolean };
-/** The parts of a background Scene definition the creator demo edits. */
-type BackgroundDefinition = Record<string, unknown> & {
-  gradient: Toggle & { stops: { color: string; position: number }[] };
-  pattern: Toggle;
-  screen: Toggle;
-  scatters: Toggle[];
-  flash?: Toggle;
-};
-
 /** Share of each scroll segment held at its stops before the camera moves. */
 const HOLD = 0.22;
 /** How quickly the camera catches up with the scroll position (per second). */
 const CAMERA_FOLLOW = 5;
 /** Viewports narrower than this aspect ratio use each stop's `tall` framing. */
 const TALL_ASPECT = 0.8;
-/** Pause before a stop's first clip and between its clips, in seconds. */
+/** Least space between the hero's text and the top of her head, in pixels. */
+const HERO_TEXT_GAP_PX = 14;
+/** Pause before a stop's first clip, in seconds; the next clip follows at once. */
 const CLIP_LEAD_SEC = 0.3;
-const CLIP_GAP_SEC = 0.15;
 /**
  * Reactions loop while she talks and looping Gestures never end, so both play
  * a whole number of times adding up to at least this long.
  */
 const MIN_CLIP_SEC = 3;
-/** The creator demo replays its Particle Effect this often, for this long. */
-const PARTICLE_REPEAT_MS = 3200;
-const PARTICLE_SEC = 3;
 /** Largest upper-body turn toward a camera behind her, in degrees. */
 const MAX_LOOK_BACK_DEG = 120;
 /** How the turn is shared along the spine, neck and head. */
@@ -203,8 +184,17 @@ let program: Program | null = null;
 let avatar: Avatar | null = null;
 /** The hero entrance while it plays; null once she is on her mark. */
 let intro: Intro | null = null;
-/** Rest height of the head bone; the unit of every camera length. */
+/** Rest height of the head bone on stage; the unit of camera aim heights. */
 let headHeight = 1;
+/**
+ * The first Avatar's rest head height: the unit of camera distances and
+ * rises for every Avatar, so each shows at the same size on screen.
+ */
+let frameUnit = 1;
+/** Rest height of the top of her head, hair included. */
+let crownHeight = 1;
+/** Where the hero's text ends (px from the top); 0 until the overlay reports. */
+let heroTextBottom = 0;
 /** Session seconds, the clock Scene animations are seeked to. */
 let time = 0;
 /** The camera as shown, easing toward the scroll position's framing. */
@@ -256,17 +246,11 @@ const ambientWeights: AmbientWeights = { sparkles: 0, stars: 0 };
 /** Increases whenever playback changes hands; stale callbacks stop. */
 let playToken = 0;
 let clipTimer: number | undefined;
-let particleTimer: number | undefined;
-let particleCount = 0;
 /** The next clip each cycling stop plays, so a return visit moves on. */
 const cursors = STAGE_STOPS.map(() => 0);
 /** The hero's wave: Wave hello, or the small shy wave with `?wave=small`. */
 const HERO_WAVE = params.get("wave") === "small" ? 1 : 0;
 cursors[0] = HERO_WAVE;
-/** The creator demo's selections, applied while its stop is active. */
-let creator: CreatorState | null = null;
-/** When the creator's Scene started, so its animations keep running. */
-let creatorSceneStart = 0;
 const backdrops: HTMLDivElement[] = [];
 
 // ── Camera rig ─────────────────────────────────────────────────────────────
@@ -274,7 +258,30 @@ const backdrops: HTMLDivElement[] = [];
 const isTall = () => window.innerWidth / window.innerHeight < TALL_ASPECT;
 
 function stopCamera(stop: StageStop): StageCamera {
-  return isTall() ? { ...stop.camera, ...stop.tall } : stop.camera;
+  const view = isTall() ? { ...stop.camera, ...stop.tall } : stop.camera;
+  return stop.id === "hero" ? clearHeroText(view) : view;
+}
+
+const fitCamera = new THREE.PerspectiveCamera();
+const crown = new THREE.Vector3();
+
+/**
+ * The hero framing, lowered just enough for the top of her head to clear the
+ * hero's text. The text keeps its size while the Avatar scales with the
+ * screen height, so on shorter screens (and for Avatars with taller hair)
+ * the stop's own framing would tuck her head under its last line.
+ */
+function clearHeroText(view: StageCamera): StageCamera {
+  if (heroTextBottom <= 0) return view;
+  const width = window.innerWidth;
+  const height = window.innerHeight;
+  placeCamera(view, width, height, fitCamera);
+  fitCamera.updateMatrixWorld();
+  crown.set(intro?.cameraX ?? 0, crownHeight, 0).project(fitCamera);
+  const top = ((1 - crown.y) / 2) * height;
+  const overlap = heroTextBottom + HERO_TEXT_GAP_PX - top;
+  // The lift is a pixel shift of the frame, so this lowers her exactly.
+  return overlap > 0 ? { ...view, lift: view.lift - overlap / height } : view;
 }
 
 /** Ease in and out with zero velocity and acceleration at both ends. */
@@ -322,21 +329,26 @@ const aimPoint = new THREE.Vector3();
  * Put the camera on its orbit around the Avatar's vertical axis (yaw 0 is in
  * front of her; she faces +Z and her left is +X), aim it and shift the lens.
  */
-function placeCamera(view: StageCamera, width: number, height: number) {
+function placeCamera(
+  view: StageCamera,
+  width: number,
+  height: number,
+  target: THREE.PerspectiveCamera = camera,
+) {
   // The camera follows her sideways while she walks on.
   const pan = intro?.cameraX ?? 0;
   aimPoint.set(pan, view.aim * headHeight, 0);
-  const distance = view.distance * headHeight;
-  camera.position.set(
+  const distance = view.distance * frameUnit;
+  target.position.set(
     pan + Math.sin(view.yaw * DEG) * distance,
-    aimPoint.y + view.rise * headHeight,
+    aimPoint.y + view.rise * frameUnit,
     Math.cos(view.yaw * DEG) * distance,
   );
-  camera.lookAt(aimPoint);
-  camera.fov = view.fov;
-  camera.aspect = width / height;
+  target.lookAt(aimPoint);
+  target.fov = view.fov;
+  target.aspect = width / height;
   // A negative x offset moves the subject right; a positive y offset, up.
-  camera.setViewOffset(
+  target.setViewOffset(
     width,
     height,
     -view.shift * width,
@@ -344,7 +356,7 @@ function placeCamera(view: StageCamera, width: number, height: number) {
     width,
     height,
   );
-  camera.updateProjectionMatrix();
+  target.updateProjectionMatrix();
 }
 
 // ── Look back ──────────────────────────────────────────────────────────────
@@ -425,7 +437,6 @@ function stopPlayback() {
   playToken += 1;
   clipBusy = false;
   window.clearTimeout(clipTimer);
-  window.clearInterval(particleTimer);
   store.set({ playing: null });
 }
 
@@ -459,77 +470,15 @@ function playClip(stopIndex: number, index: number) {
           if (happyFrom !== null) happyFadeFrom = time;
         }
         if (stop.clipMode === "cycle")
-          clipTimer = window.setTimeout(
-            () => playClip(stopIndex, cursors[stopIndex]),
-            CLIP_GAP_SEC * 1000,
+          // Just after the Avatar update that reported the end, not inside it.
+          clipTimer = window.setTimeout(() =>
+            playClip(stopIndex, cursors[stopIndex]),
           );
       },
     },
   );
   clipBusy = true;
   store.set({ playing: { stop: stopIndex, clip: index } });
-}
-
-// ── Creator demo ───────────────────────────────────────────────────────────
-
-const isCreatorStop = (index: number) =>
-  STAGE_STOPS[index]?.panel === "creator";
-
-/** The creator Scene with the demo's layers and palette applied. */
-function creatorSceneEntry(base: SceneEffect, state: CreatorState) {
-  const definition = structuredClone(base.definition) as BackgroundDefinition;
-  const palette =
-    CREATOR_PALETTES.find(({ id }) => id === state.palette) ??
-    CREATOR_PALETTES[0];
-  definition.gradient.enabled = state.layers.gradient;
-  definition.gradient.stops = palette.stops.map((color, position) => ({
-    color,
-    position,
-  }));
-  definition.pattern.enabled = state.layers.pattern;
-  definition.screen.enabled = state.layers.rays;
-  definition.scatters[0].enabled = state.layers.stars;
-  definition.scatters[1].enabled = state.layers.confetti;
-  if (definition.flash) definition.flash.enabled = false;
-  return previewSceneEntry({ ...base, definition });
-}
-
-/** Show the creator demo's Scene and replay its Particle Effect. */
-function applyCreator() {
-  window.clearInterval(particleTimer);
-  if (!creator || !avatar || !program) return;
-  const base = program.sources[CREATOR_SCENE]?.effect;
-  if (base?.kind === "scene_effect") {
-    if (Object.values(creator.layers).some(Boolean))
-      bands.showScene(
-        creatorSceneEntry(base, creator),
-        creatorSceneStart,
-        "creator",
-      );
-    else bands.clearScenes();
-  }
-  const particle = CREATOR_PARTICLES.find(({ id }) => id === creator?.particle);
-  const effect = particle ? program.sources[particle.spec]?.effect : null;
-  if (effect?.kind !== "particle_effect") return;
-  const fire = () =>
-    void avatar?.particleVFXController?.playEffect({
-      effectId: effect.alias,
-      appliedId: `creator-particle-${(particleCount += 1)}`,
-      lifetime: { kind: "duration", durationSec: PARTICLE_SEC },
-    });
-  fire();
-  particleTimer = window.setInterval(fire, PARTICLE_REPEAT_MS);
-}
-
-/** Every creator Particle Effect, so the demo can play any of them. */
-function creatorMedia(): PreviewMedia {
-  const particleEffects = CREATOR_PARTICLES.map(
-    ({ spec }) => program?.sources[spec]?.effect,
-  ).filter(
-    (effect): effect is PreviewParticleEffect & PreviewEffect =>
-      effect?.kind === "particle_effect",
-  );
-  return { ...EMPTY_PREVIEW_MEDIA, particleEffects };
 }
 
 // ── Stops ──────────────────────────────────────────────────────────────────
@@ -550,12 +499,6 @@ function enterStop(index: number) {
   if (!avatar) return;
   avatar.stopClip({ transition: { mode: "fadeOut", durationSec: 0.35 } });
   bands.clearScenes();
-  if (isCreatorStop(index)) {
-    media.setMedia(creatorMedia());
-    creatorSceneStart = time;
-    applyCreator();
-    return;
-  }
   // The entrance plays the hero's wave itself once she has turned.
   if (
     stopClips(stop, store.get().avatar).length === 0 ||
@@ -588,7 +531,7 @@ async function createIntro(target: Avatar) {
   const edgeX =
     Math.tan((view.fov * DEG) / 2) *
     view.distance *
-    headHeight *
+    frameUnit *
     (window.innerWidth / window.innerHeight);
   const clipUrls =
     program?.walk && params.has("walk")
@@ -934,7 +877,7 @@ function showHud() {
 
 // ── Avatars ────────────────────────────────────────────────────────────────
 
-type LoadedAvatar = { avatar: Avatar; headHeight: number };
+type LoadedAvatar = { avatar: Avatar; headHeight: number; crownHeight: number };
 
 /** Load one of the program's Avatars and wire it for the stage, off stage. */
 async function createAvatar(entry: Program["avatars"][number]) {
@@ -948,6 +891,7 @@ async function createAvatar(entry: Program["avatars"][number]) {
   const height = next.vrm.humanoid
     .getRawBoneNode("head")!
     .getWorldPosition(new THREE.Vector3()).y;
+  const crownHeight = new THREE.Box3().setFromObject(next.vrm.scene).max.y;
   installLookBack(next);
   // Track the cursor continuously while a stop allows it, rather than in the
   // chat's occasional glances; `followCursor` fades the strength in and out.
@@ -967,13 +911,18 @@ async function createAvatar(entry: Program["avatars"][number]) {
       },
     ),
   );
-  return { avatar: next, headHeight: height } satisfies LoadedAvatar;
+  return {
+    avatar: next,
+    headHeight: height,
+    crownHeight,
+  } satisfies LoadedAvatar;
 }
 
 /** Put a loaded Avatar on stage; camera lengths follow its head height. */
 function attachAvatar(loaded: LoadedAvatar) {
   avatar = loaded.avatar;
   headHeight = loaded.headHeight;
+  crownHeight = loaded.crownHeight;
   scene.add(loaded.avatar.scene!);
   bands.setAvatar(loaded.avatar);
   // Reapply the cursor look-at strength to the new Avatar.
@@ -1021,13 +970,8 @@ const controller: StageController = {
   scrollToStop,
   playClip,
   selectAvatar: (id) => void selectAvatar(id),
-  setCreator(state) {
-    creator = state;
-    // The overlay calls this from an effect, and `SceneBands` renders with
-    // `flushSync`, which React refuses inside its own commit.
-    queueMicrotask(() => {
-      if (isCreatorStop(store.get().active)) applyCreator();
-    });
+  setHeroTextBottom(px) {
+    heroTextBottom = px;
   },
 };
 
@@ -1085,6 +1029,8 @@ async function start() {
 
   const first = await createAvatar(program.avatars[0]);
   headHeight = first.headHeight;
+  frameUnit = first.headHeight;
+  crownHeight = first.crownHeight;
   // Placed at the start of her entrance before she joins the scene, so she
   // never shows on her mark first.
   if (playIntro) {
