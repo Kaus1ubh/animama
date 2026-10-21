@@ -6743,6 +6743,15 @@ export const zRuntimeCapabilities = z.object({
     model_role_selection: z.boolean(),
     model_selection: z.boolean(),
     native_features: z.boolean(),
+    offline_multilingual_speech_asset_version: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    offline_multilingual_speech_enabled: z.optional(z.boolean()).default(false),
+    offline_multilingual_speech_gpu_asset_version: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
     offline_speech_asset_version: z.union([
         z.string(),
         z.null()

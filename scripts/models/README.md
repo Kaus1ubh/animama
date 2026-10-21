@@ -112,6 +112,26 @@ three-file inventory (encoder, README and attribution) under
 `<store>/parakeet-tdt-0.6b-v2-webgpu/<manifest-digest>`. The base Parakeet set
 remains required.
 
+## SenseVoice multilingual sets
+
+`python3 scripts/models/sensevoice.py acquire|verify|path` manages the
+SenseVoice-Small set that transcribes Japanese, Korean, Mandarin (Simplified and
+Traditional) and Cantonese offline on the CPU: the INT8 graph, its token table,
+`metadata.json` (the graph's front-end parameters, which the browser runtime
+cannot read from ONNX) and the two notices, about 240 MB under
+`<store>/sensevoice-small/<manifest-digest>`. It uses the same store, acquire
+options (`--root`, `--offline`, `--import-from`, `--source`) and exit codes as
+`parakeet.py`. Until Animama publishes its objects, acquire with
+`--source upstream`, which downloads the pinned
+`csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17` revision.
+
+`python3 scripts/models/sensevoice_webgpu.py acquire|verify|path` manages the
+optional FP32 graph (about 940 MB) used on WebGPU, where the INT8 graph's
+quantized operators have no kernels. It acquires from the same pinned upstream
+revision and requires the base SenseVoice set. Both sets are licensed under the
+FunASR Model License 1.1, which requires attributing the source and author and
+keeping the model name.
+
 ## Browser core and optional cloning
 
 `python3 scripts/models/browser_speech.py acquire|verify|path` manages the 11
@@ -137,7 +157,7 @@ python3 scripts/models/release_inputs.py \
   --work-dir /absolute/voice-producer-work
 ```
 
-This acquires pinned base Parakeet, GPU, browser core and cloning inputs; fetches
+This acquires pinned base Parakeet, GPU, SenseVoice, browser core and cloning inputs; fetches
 the reviewed voice sources; and encodes only the 24 selected VCTK sources with
 the locked script environment. It requires the existing encoded hashes, never
 uses `--rehash`, rejects changes to generated tracked inventories, then imports

@@ -112,25 +112,35 @@ async def test_operator_parakeet_source_reports_its_flag_without_versions(async_
         body = (await client.get("/v1/runtime-capabilities")).json()
     assert (body["offline_speech_enabled"], body["offline_speech_asset_version"]) == (True, None)
     assert body["offline_speech_gpu_asset_version"] is None
+    # SenseVoice follows the same source with its own operator flag.
+    assert (body["offline_multilingual_speech_enabled"], body["offline_multilingual_speech_asset_version"]) == (
+        True,
+        None,
+    )
 
 
 @pytest.mark.parametrize("operator_enabled", [True, False])
-async def test_asset_store_offline_speech_follows_installs_without_a_restart(async_session, tmp_path, operator_enabled):
+@pytest.mark.parametrize(
+    ("engine", "capability"),
+    [("parakeet", "offline_speech"), ("sensevoice", "offline_multilingual_speech")],
+)
+async def test_asset_store_offline_speech_follows_installs_without_a_restart(
+    async_session, tmp_path, operator_enabled, engine, capability
+):
     app = _app(
         async_session,
         tmp_path,
         animama_parakeet_source="asset-store",
-        animama_parakeet_stt_enabled=operator_enabled,
+        **{f"animama_{engine}_stt_enabled": operator_enabled},
     )
+    base, gpu = f"{engine}-stt", f"{engine}-stt-webgpu"
     service = ModelAssetService(
         parse_asset_catalog(
             {
                 "schema": ASSET_CATALOG_SCHEMA,
                 "assets": [
-                    _set_entry("parakeet-stt", "speech-model", FILES, MANIFEST),
-                    _set_entry(
-                        "parakeet-stt-webgpu", "speech-gpu-model", GPU_FILES, GPU_MANIFEST, requires=["parakeet-stt"]
-                    ),
+                    _set_entry(base, "speech-model", FILES, MANIFEST),
+                    _set_entry(gpu, "speech-gpu-model", GPU_FILES, GPU_MANIFEST, requires=[base]),
                 ],
             }
         ),
@@ -142,19 +152,19 @@ async def test_asset_store_offline_speech_follows_installs_without_a_restart(asy
     async def capabilities():
         body = (await client.get("/v1/runtime-capabilities")).json()
         return (
-            body["offline_speech_enabled"],
-            body["offline_speech_asset_version"],
-            body["offline_speech_gpu_asset_version"],
+            body[f"{capability}_enabled"],
+            body[f"{capability}_asset_version"],
+            body[f"{capability}_gpu_asset_version"],
         )
 
     async with local_client(app) as client:
         assert await capabilities() == (False, None, None)
-        for asset_id in ("parakeet-stt", "parakeet-stt-webgpu"):
+        for asset_id in (base, gpu):
             service.install(asset_id)
             assert (await service.wait(asset_id)).status == "installed"
         assert await capabilities() == (operator_enabled, MANIFEST, GPU_MANIFEST)
-        await service.remove("parakeet-stt-webgpu")
-        await service.remove("parakeet-stt")
+        await service.remove(gpu)
+        await service.remove(base)
         assert await capabilities() == (False, None, None)
 
 

@@ -162,13 +162,16 @@ def test_state_commands_resolve_missing_model_record_offline(tmp_path: Path, sel
         "print(root + '/parakeet-tdt-0.6b-v2/verified-version')\n"
     )
     (scripts / "models/browser_speech.py").write_text((scripts / "models/parakeet.py").read_text())
+    (scripts / "models/sensevoice.py").write_text(
+        (scripts / "models/parakeet.py").read_text().replace("parakeet-tdt-0.6b-v2", "sensevoice-small")
+    )
     docker = tmp_path / "docker"
     docker.write_text(
         "#!/usr/bin/env bash\n"
         'if [[ "$*" == *"config --environment"* ]]; then\n'
         '  printf "ANIMAMA_MODEL_ROOT=%s\\n" "$TEST_DOTENV_ROOT"\n'
         "else\n"
-        '  printf "%s" "$ANIMAMA_PARAKEET_MODEL_DIR"\n'
+        '  printf "%s|%s" "$ANIMAMA_PARAKEET_MODEL_DIR" "$ANIMAMA_SENSEVOICE_MODEL_DIR"\n'
         "fi\n"
     )
     docker.chmod(0o755)
@@ -191,7 +194,12 @@ def test_state_commands_resolve_missing_model_record_offline(tmp_path: Path, sel
         text=True,
         check=True,
     )
-    assert result.stdout == ("" if selector == "production" else root + "/parakeet-tdt-0.6b-v2/verified-version")
+    expected = (
+        "|"
+        if selector == "production"
+        else f"{root}/parakeet-tdt-0.6b-v2/verified-version|{root}/sensevoice-small/verified-version"
+    )
+    assert result.stdout == expected
 
 
 @pytest.mark.parametrize("project", ["animama-state-fixture", "custom-project"])

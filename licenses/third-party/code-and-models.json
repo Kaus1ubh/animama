@@ -506,6 +506,80 @@
       "download_manifest": "models/parakeet-tdt-0.6b-v2-webgpu/manifest.json"
     },
     {
+      "id": "sensevoice-source",
+      "license": "FunASR Model License 1.1 (model derivatives)",
+      "source": "https://huggingface.co/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17",
+      "revision": "2365baeacb507f821a0c8120fcee3d484dba7a07",
+      "paths": [
+        {
+          "path": "models/sensevoice-small/ATTRIBUTION.md",
+          "sha256": "2ac532b11d31d5b2748e76e32239a211b0d0693938f632d1d2a45045e10bcf6c"
+        },
+        {
+          "path": "models/sensevoice-small/README.md",
+          "sha256": "d9500c8bdc82ecc0aa2f6fa10a945dd76f87fc007b465785083a5e17d9395cb3"
+        },
+        {
+          "path": "models/sensevoice-small/metadata.json",
+          "sha256": "f2415e006bf0f6ec99c5eb3a74db15570adfe37012907a7273df7f6c110437d4"
+        }
+      ],
+      "notice_files": [
+        "src/frontend/desktop/runtime/notices/sensevoice-attribution.txt",
+        "src/frontend/desktop/runtime/notices/sensevoice-funasr-model-license.txt"
+      ],
+      "modifications": "SenseVoice-Small converted to ONNX and INT8 quantized upstream by sherpa-onnx. Animama redistributes the pinned graph and token table unmodified and adds metadata.json, the INT8 graph's own metadata_props without the quantizer's onnx.infer key; acquisition and storage are external and bound by the download manifest.",
+      "status": "evidence-and-notices-prepared",
+      "remaining_conditions": [
+        "Preserve notices in every source and binary distribution; verify the exact final candidate."
+      ],
+      "copyright": "Alibaba Group (SenseVoice-Small); upstream ONNX conversion by k2-fsa sherpa-onnx (csukuangfj)",
+      "external_files": [
+        {
+          "path": "model.int8.onnx",
+          "sha256": "c71f0ce00bec95b07744e116345e33d8cbbe08cef896382cf907bf4b51a2cd51"
+        },
+        {
+          "path": "tokens.txt",
+          "sha256": "f449eb28dc567533d7fa59be34e2abca8784f771850c78a47fb731a31429a1dc"
+        }
+      ],
+      "download_manifest": "models/sensevoice-small/manifest.json"
+    },
+    {
+      "id": "sensevoice-webgpu-source",
+      "license": "FunASR Model License 1.1 (model derivatives)",
+      "source": "https://huggingface.co/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17",
+      "revision": "2365baeacb507f821a0c8120fcee3d484dba7a07",
+      "paths": [
+        {
+          "path": "models/sensevoice-small-webgpu/ATTRIBUTION.md",
+          "sha256": "825f20fc8b4bd305bbd7c24c0e23204407ee9be5d1b0f3bf51353434c6d2f449"
+        },
+        {
+          "path": "models/sensevoice-small-webgpu/README.md",
+          "sha256": "57b2d7c12b9b0a055dec04e4359d69328ff5ca1f6d1fd5e1f7693b346fb4c644"
+        }
+      ],
+      "notice_files": [
+        "src/frontend/desktop/runtime/notices/sensevoice-attribution.txt",
+        "src/frontend/desktop/runtime/notices/sensevoice-funasr-model-license.txt"
+      ],
+      "modifications": "SenseVoice-Small converted to ONNX (FP32) upstream by sherpa-onnx. Animama redistributes the pinned graph unmodified; acquisition and storage are external and bound by the download manifest.",
+      "status": "evidence-and-notices-prepared",
+      "remaining_conditions": [
+        "Preserve notices in every source and binary distribution; verify the exact final candidate."
+      ],
+      "copyright": "Alibaba Group (SenseVoice-Small); upstream ONNX conversion by k2-fsa sherpa-onnx (csukuangfj)",
+      "external_files": [
+        {
+          "path": "model.onnx",
+          "sha256": "977016bd9c79f9eb343430b5cc305e07ab64d5212dff41b0dcfa1694bee9a8cb"
+        }
+      ],
+      "download_manifest": "models/sensevoice-small-webgpu/manifest.json"
+    },
+    {
       "id": "whisper-feature-extractor",
       "license": "Apache-2.0 AND MIT (upstream portions); repository license for local additions",
       "source": "https://github.com/huggingface/transformers.js",

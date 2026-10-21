@@ -11,9 +11,10 @@ import {
   PARAKEET_WEBGPU_ASSET_ID,
 } from "../src/lib/speech/client-parakeet/assets";
 import {
-  localParakeetModelPlugin,
-  resolveLocalParakeetModelDir,
-  resolveLocalParakeetWebgpuModelDir,
+  HOST_MODEL_SETS,
+  localModelSetPlugin,
+  resolveLocalModelDir,
+  resolveOptionalLocalModelDir,
 } from "../vite-plugins/local-parakeet-models";
 vi.mock("node:child_process", () => ({ execFileSync: vi.fn() }));
 const roots: string[] = [];
@@ -26,7 +27,7 @@ function fixture(): string {
   return root;
 }
 async function listen(modelDir: string | null = fixture()): Promise<string> {
-  const plugin = localParakeetModelPlugin({
+  const plugin = localModelSetPlugin({
     modelDir,
     routeBaseUrl: "/__client-parakeet-models",
   });
@@ -76,35 +77,45 @@ afterEach(async () => {
   vi.clearAllMocks();
 });
 describe("shared Parakeet model delivery", () => {
-  it("resolves host models through the offline helper at server startup", () => {
-    vi.stubEnv("VITE_CLIENT_PARAKEET_MODEL_DIR", "");
-    vi.mocked(execFileSync).mockReturnValue("/shared/verified/model\n");
-    expect(resolveLocalParakeetModelDir()).toBe("/shared/verified/model");
-    expect(execFileSync).toHaveBeenCalledWith(
-      "python3",
-      [expect.stringMatching(/scripts\/models\/parakeet\.py$/), "path"],
-      expect.objectContaining({ encoding: "utf8" }),
-    );
-  });
+  it.each([
+    [HOST_MODEL_SETS.parakeet, /scripts\/models\/parakeet\.py$/],
+    [HOST_MODEL_SETS.sensevoice, /scripts\/models\/sensevoice\.py$/],
+  ])(
+    "resolves host models through the offline helper at server startup",
+    (set, script) => {
+      vi.stubEnv(set.mountVariable, "");
+      vi.mocked(execFileSync).mockReturnValue("/shared/verified/model\n");
+      expect(resolveLocalModelDir(set)).toBe("/shared/verified/model");
+      expect(execFileSync).toHaveBeenCalledWith(
+        "python3",
+        [expect.stringMatching(script), "path"],
+        expect.objectContaining({ encoding: "utf8" }),
+      );
+    },
+  );
   it("accepts the read-only Compose mount without requiring Python in Node", () => {
     const root = fixture();
     vi.stubEnv("VITE_CLIENT_PARAKEET_MODEL_DIR", root);
-    expect(resolveLocalParakeetModelDir()).toBe(root);
+    expect(resolveLocalModelDir(HOST_MODEL_SETS.parakeet)).toBe(root);
     expect(execFileSync).not.toHaveBeenCalled();
   });
   it("treats an unacquired set as optional", () => {
-    vi.stubEnv("VITE_CLIENT_PARAKEET_MODEL_DIR", "");
+    vi.stubEnv("VITE_CLIENT_SENSEVOICE_MODEL_DIR", "");
     vi.mocked(execFileSync).mockImplementation(() => {
-      throw Object.assign(new Error("Run parakeet.py acquire"), { status: 2 });
+      throw Object.assign(new Error("Run sensevoice.py acquire"), {
+        status: 2,
+      });
     });
-    expect(resolveLocalParakeetModelDir()).toBeNull();
+    expect(resolveLocalModelDir(HOST_MODEL_SETS.sensevoice)).toBeNull();
   });
   it("fails a set that does not verify", () => {
     vi.stubEnv("VITE_CLIENT_PARAKEET_MODEL_DIR", "");
     vi.mocked(execFileSync).mockImplementation(() => {
       throw Object.assign(new Error("SHA-256 mismatch"), { status: 1 });
     });
-    expect(resolveLocalParakeetModelDir).toThrow("SHA-256 mismatch");
+    expect(() => resolveLocalModelDir(HOST_MODEL_SETS.parakeet)).toThrow(
+      "SHA-256 mismatch",
+    );
   });
   it.each(["production", "embedded-desktop"])(
     "%s builds need no model setup and use the backend's installed sets",
@@ -124,6 +135,13 @@ describe("shared Parakeet model delivery", () => {
           webgpuBaseUrl: "/onnx/models/parakeet-tdt-0.6b-v2-webgpu",
         }),
       );
+      expect(config.define?.__CLIENT_SENSEVOICE_MODELS__).toBe(
+        JSON.stringify({
+          source: "asset-store",
+          baseUrl: "/onnx/models/sensevoice-small",
+          webgpuBaseUrl: "/onnx/models/sensevoice-small-webgpu",
+        }),
+      );
       // The client installs and leases sets the backend's catalog defines.
       const catalog = JSON.parse(
         readFileSync(
@@ -135,7 +153,12 @@ describe("shared Parakeet model delivery", () => {
         ),
       ) as { assets: { id: string }[] };
       expect(catalog.assets.map((asset) => asset.id)).toEqual(
-        expect.arrayContaining([PARAKEET_ASSET_ID, PARAKEET_WEBGPU_ASSET_ID]),
+        expect.arrayContaining([
+          PARAKEET_ASSET_ID,
+          PARAKEET_WEBGPU_ASSET_ID,
+          "sensevoice-stt",
+          "sensevoice-stt-webgpu",
+        ]),
       );
     },
   );
@@ -149,6 +172,13 @@ describe("shared Parakeet model delivery", () => {
         source: "operator",
         baseUrl: "/__client-parakeet-models",
         webgpuBaseUrl: "/__client-parakeet-webgpu-models",
+      }),
+    );
+    expect(config.define?.__CLIENT_SENSEVOICE_MODELS__).toBe(
+      JSON.stringify({
+        source: "operator",
+        baseUrl: "/__client-sensevoice-models",
+        webgpuBaseUrl: "/__client-sensevoice-webgpu-models",
       }),
     );
   });
@@ -200,14 +230,20 @@ describe("shared Parakeet model delivery", () => {
 
   it("resolves a missing optional WebGPU set to null instead of failing", () => {
     vi.stubEnv("VITE_CLIENT_PARAKEET_WEBGPU_MODEL_DIR", "relative/path");
-    expect(resolveLocalParakeetWebgpuModelDir()).toBeNull();
+    expect(
+      resolveOptionalLocalModelDir(HOST_MODEL_SETS.parakeetWebgpu),
+    ).toBeNull();
     vi.stubEnv("VITE_CLIENT_PARAKEET_WEBGPU_MODEL_DIR", "/missing/webgpu");
-    expect(resolveLocalParakeetWebgpuModelDir()).toBeNull();
+    expect(
+      resolveOptionalLocalModelDir(HOST_MODEL_SETS.parakeetWebgpu),
+    ).toBeNull();
     vi.stubEnv("VITE_CLIENT_PARAKEET_WEBGPU_MODEL_DIR", "");
     vi.mocked(execFileSync).mockImplementationOnce(() => {
       throw Object.assign(new Error("exit 2"), { status: 2 });
     });
-    expect(resolveLocalParakeetWebgpuModelDir()).toBeNull();
+    expect(
+      resolveOptionalLocalModelDir(HOST_MODEL_SETS.parakeetWebgpu),
+    ).toBeNull();
   });
 
   it("rejects traversal and leaves unrelated routes alone", async () => {

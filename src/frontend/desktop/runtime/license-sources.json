@@ -108,6 +108,28 @@
       "notice_files": ["parakeet-webgpu-attribution.txt"]
     },
     {
+      "id": "sensevoice-input",
+      "name": "Downloadable SenseVoice speech model (CPU)",
+      "license": "FunASR Model License 1.1 (declared)",
+      "source": "models/sensevoice-small/ATTRIBUTION.md pins csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17 revision 2365baeacb507f821a0c8120fcee3d484dba7a07; the INT8 graph and token table hashes match that public revision",
+      "review": "pending",
+      "notice_files": [
+        "sensevoice-attribution.txt",
+        "sensevoice-funasr-model-license.txt"
+      ]
+    },
+    {
+      "id": "sensevoice-webgpu-input",
+      "name": "Downloadable SenseVoice speech model (GPU acceleration)",
+      "license": "FunASR Model License 1.1 (declared)",
+      "source": "models/sensevoice-small-webgpu/ATTRIBUTION.md pins csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17 revision 2365baeacb507f821a0c8120fcee3d484dba7a07; the FP32 graph hash matches that public revision",
+      "review": "pending",
+      "notice_files": [
+        "sensevoice-attribution.txt",
+        "sensevoice-funasr-model-license.txt"
+      ]
+    },
+    {
       "id": "included-content-attribution",
       "name": "Included content source and attribution notice",
       "license": "Mixed: Adobe Mixamo product-use terms, WOW Sound Media license terms, CC-BY-4.0, CC0-1.0 and source-specific permissive terms",

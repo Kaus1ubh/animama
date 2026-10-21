@@ -33,6 +33,28 @@ const modelSets = [
     names: ["ATTRIBUTION.md", "README.md", "encoder-model.fp16.onnx"],
   },
   {
+    label: "SenseVoice",
+    modelId: "sensevoice-small",
+    script: "scripts/models/sensevoice.py",
+    // Animama has not published these objects yet (gate G2).
+    acquireArgs: "--source upstream",
+    license: "LicenseRef-FunASR-Model-License-1.1",
+    names: [
+      "ATTRIBUTION.md",
+      "README.md",
+      "metadata.json",
+      "model.int8.onnx",
+      "tokens.txt",
+    ],
+  },
+  {
+    label: "SenseVoice WebGPU",
+    modelId: "sensevoice-small-webgpu",
+    script: "scripts/models/sensevoice_webgpu.py",
+    license: "LicenseRef-FunASR-Model-License-1.1",
+    names: ["ATTRIBUTION.md", "README.md", "model.onnx"],
+  },
+  {
     label: "Pocket TTS voice cloning",
     modelId: "pocket-tts-voice-cloning",
     script: "scripts/models/pocket_cloning.py",
@@ -57,7 +79,8 @@ export function modelManifest(spec, file) {
   if (
     manifest.schema_version !== 1 ||
     manifest.model_id !== spec.modelId ||
-    manifest.license !== "CC-BY-4.0" ||
+    // Each set's reviewed licence: CC BY 4.0 unless its spec names another.
+    manifest.license !== (spec.license ?? "CC-BY-4.0") ||
     !Array.isArray(manifest.files) ||
     names.length > 63 ||
     !names.includes("ATTRIBUTION.md") ||

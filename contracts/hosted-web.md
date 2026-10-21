@@ -198,8 +198,9 @@ provisions search reports `configured: true` with its backend, and tool-capable
 models then offer and request `native_tools: ["web_search"]`, while owner search
 settings stay unavailable.
 
-`offline_speech_enabled` and its versions describe current Parakeet availability,
-not permission to use voice. An absent optional set does not remove browser voice,
+`offline_speech_enabled` and its versions describe current Parakeet (English)
+availability, and `offline_multilingual_speech_enabled` and its versions current
+SenseVoice (Japanese, Korean and Chinese) availability, not permission to use voice. An absent optional set does not remove browser voice,
 Pocket TTS, supported server speech, or the workflow to download a permitted set.
 Content, avatar/effect runtime, memory, creators and voice stay retained without
 adding blanket permissions for implementation gaps. Unknown/missing capability

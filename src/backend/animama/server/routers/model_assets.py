@@ -4,7 +4,7 @@ Requests name assets by catalog ID only; the release URL never comes from a
 request. Installation runs in the background and is polled through the state
 routes. Installed bytes are served same-origin, so the browser never contacts
 the release host: single files at ``/content``, sets by their consumer's mount
-(Parakeet sets at ``/onnx/models/...``). A renderer that loads an installed
+(speech-to-text sets at ``/onnx/models/...``). A renderer that loads an installed
 asset holds a renewable use lease, which blocks removal until it is released or
 expires.
 """

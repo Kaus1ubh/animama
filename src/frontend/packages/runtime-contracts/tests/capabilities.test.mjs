@@ -34,6 +34,7 @@ test("one generated capability contract retains model choices with all six hoste
   // from the owner's permission to administer connections and credentials.
   assert.equal(capabilities.web_search.configured, true);
   assert.equal(capabilities.offline_speech_enabled, false);
+  assert.equal(capabilities.offline_multilingual_speech_enabled, false);
 });
 
 test("adapters must report permissions explicitly instead of guessing from runtime kind", () => {

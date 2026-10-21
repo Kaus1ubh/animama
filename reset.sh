@@ -26,7 +26,7 @@ usage() {
     "                         Example: $0 --build animama-server" \
     "  -h, --help             Show this help." \
     "" \
-    "Models: optional; python3 scripts/models/parakeet.py and browser_speech.py acquire them." \
+    "Models: optional; python3 scripts/models/parakeet.py, sensevoice.py and browser_speech.py acquire them." \
     "        ANIMAMA_MODEL_ROOT selects an absolute shared store root; startup verifies offline."
 }
 
@@ -217,27 +217,41 @@ export ANIMAMA_STACK_REPO_ROOT
 # Every model set is optional: an unacquired set (exit 2) leaves its variable
 # empty, so development Compose mounts the checked-in notices directory and
 # only that feature reports its model as not installed. A present set that
-# fails verification is an error. Built installs download Parakeet sets in the
-# app, so only development resolves the host Parakeet sets.
+# fails verification is an error. Built installs download the speech-to-text
+# sets in the app, so only development resolves them from the host store.
 if ! ANIMAMA_MODEL_ROOT="$(python3 "${script_dir}/scripts/models/parakeet.py" root ${ANIMAMA_MODEL_ROOT:+--root "$ANIMAMA_MODEL_ROOT"})"; then
   exit 2
 fi
+# An optional third argument adds acquire options to the hint.
 resolve_optional_model() {
-  local script="$1" label="$2" resolved status=0
+  local script="$1" label="$2" acquire="${3:-}" resolved status=0
   resolved="$(python3 "${script_dir}/scripts/models/${script}" path --root "$ANIMAMA_MODEL_ROOT" 2>/dev/null)" || status=$?
   if [ "$status" -eq 0 ]; then
     printf '%s\n' "$resolved"
   elif [ "$status" -eq 2 ]; then
     echo "⚠️  ${label} models are not acquired; continuing without them." >&2
-    echo "   Run python3 scripts/models/${script} acquire to enable them." >&2
+    echo "   Run python3 scripts/models/${script} acquire${acquire:+ $acquire} to enable them." >&2
   else
     echo "❌ ${label} models failed verification." >&2
     echo "   Run python3 scripts/models/${script} verify --root \"$ANIMAMA_MODEL_ROOT\" for details." >&2
     return 1
   fi
 }
+# WebGPU add-on sets are always optional; a failed verification only warns.
+resolve_webgpu_model() {
+  local script="$1" label="$2" resolved status=0
+  resolved="$(python3 "${script_dir}/scripts/models/${script}" path --root "$ANIMAMA_MODEL_ROOT" 2>/dev/null)" || status=$?
+  if [ "$status" -eq 0 ]; then
+    printf '%s\n' "$resolved"
+  elif [ "$status" -ne 2 ]; then
+    echo "⚠️  Optional ${label} WebGPU model set failed verification; continuing without it." >&2
+    echo "   Run python3 scripts/models/${script} verify --root \"$ANIMAMA_MODEL_ROOT\" for details." >&2
+  fi
+}
 ANIMAMA_PARAKEET_MODEL_DIR=""
 ANIMAMA_PARAKEET_WEBGPU_MODEL_DIR=""
+ANIMAMA_SENSEVOICE_MODEL_DIR=""
+ANIMAMA_SENSEVOICE_WEBGPU_MODEL_DIR=""
 if [ "${ANIMAMA_WEB_BUILD_MODE-development}" = development ]; then
   ANIMAMA_PARAKEET_MODEL_DIR="$(resolve_optional_model parakeet.py "Parakeet speech-to-text")" || exit 2
   if [ -z "$ANIMAMA_PARAKEET_MODEL_DIR" ]; then
@@ -246,20 +260,18 @@ if [ "${ANIMAMA_WEB_BUILD_MODE-development}" = development ]; then
     ANIMAMA_PARAKEET_STT_ENABLED=false
     export ANIMAMA_PARAKEET_STT_ENABLED
   fi
-  # The experimental WebGPU set is always optional; verification failures
-  # only warn.
-  webgpu_status=0
-  ANIMAMA_PARAKEET_WEBGPU_MODEL_DIR="$(python3 "${script_dir}/scripts/models/parakeet_webgpu.py" path --root "$ANIMAMA_MODEL_ROOT" 2>/dev/null)" || webgpu_status=$?
-  if [ "$webgpu_status" -ne 0 ]; then
-    ANIMAMA_PARAKEET_WEBGPU_MODEL_DIR=""
-    if [ "$webgpu_status" -ne 2 ]; then
-      echo "⚠️  Optional Parakeet WebGPU model set failed verification; continuing without it." >&2
-      echo "   Run python3 scripts/models/parakeet_webgpu.py verify --root \"$ANIMAMA_MODEL_ROOT\" for details." >&2
-    fi
+  ANIMAMA_PARAKEET_WEBGPU_MODEL_DIR="$(resolve_webgpu_model parakeet_webgpu.py Parakeet)"
+  # Until Animama publishes the SenseVoice objects (gate G2), acquire upstream.
+  ANIMAMA_SENSEVOICE_MODEL_DIR="$(resolve_optional_model sensevoice.py "SenseVoice multilingual speech-to-text" "--source upstream")" || exit 2
+  if [ -z "$ANIMAMA_SENSEVOICE_MODEL_DIR" ]; then
+    ANIMAMA_SENSEVOICE_STT_ENABLED=false
+    export ANIMAMA_SENSEVOICE_STT_ENABLED
   fi
+  ANIMAMA_SENSEVOICE_WEBGPU_MODEL_DIR="$(resolve_webgpu_model sensevoice_webgpu.py SenseVoice)"
 fi
 ANIMAMA_BROWSER_MODEL_DIR="$(resolve_optional_model browser_speech.py "Browser speech (Pocket TTS and Smart Turn)")" || exit 2
-export ANIMAMA_MODEL_ROOT ANIMAMA_PARAKEET_MODEL_DIR ANIMAMA_BROWSER_MODEL_DIR ANIMAMA_PARAKEET_WEBGPU_MODEL_DIR
+export ANIMAMA_MODEL_ROOT ANIMAMA_PARAKEET_MODEL_DIR ANIMAMA_BROWSER_MODEL_DIR ANIMAMA_PARAKEET_WEBGPU_MODEL_DIR \
+  ANIMAMA_SENSEVOICE_MODEL_DIR ANIMAMA_SENSEVOICE_WEBGPU_MODEL_DIR
 
 # Optional keys for owner-added model connections, loaded into the backend
 # container. Compose would read any file it is given, so refuse one that other
@@ -443,6 +455,8 @@ write_stack_env_file() {
     write_env_var ANIMAMA_PARAKEET_MODEL_DIR
     write_env_var ANIMAMA_BROWSER_MODEL_DIR
     write_env_var ANIMAMA_PARAKEET_WEBGPU_MODEL_DIR
+    write_env_var ANIMAMA_SENSEVOICE_MODEL_DIR
+    write_env_var ANIMAMA_SENSEVOICE_WEBGPU_MODEL_DIR
     # The path only; the keys stay in the owner's file.
     write_env_var ANIMAMA_CONNECTION_KEYS_FILE
     write_env_var ANIMAMA_CONTAINER_NAME_PREFIX

@@ -20,6 +20,9 @@
   "offline_speech_enabled": false,
   "offline_speech_asset_version": null,
   "offline_speech_gpu_asset_version": null,
+  "offline_multilingual_speech_enabled": false,
+  "offline_multilingual_speech_asset_version": null,
+  "offline_multilingual_speech_gpu_asset_version": null,
   "companion_safety": {
     "enabled": true,
     "ai_notice_enabled": true,

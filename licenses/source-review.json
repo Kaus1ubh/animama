@@ -11435,6 +11435,115 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "models/sensevoice-small-webgpu/ATTRIBUTION.md",
+      "candidate_license": "FunASR Model License 1.1 (model derivative)",
+      "basis": "Retained third-party code/model review: sensevoice-webgpu-source",
+      "source": "https://huggingface.co/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17",
+      "revision": "2365baeacb507f821a0c8120fcee3d484dba7a07",
+      "copyright": "Alibaba Group; upstream conversion by k2-fsa sherpa-onnx",
+      "evidence": [
+        "licenses/third-party/code-and-models.json"
+      ],
+      "notices": [
+        "src/frontend/desktop/runtime/notices/sensevoice-attribution.txt",
+        "src/frontend/desktop/runtime/notices/sensevoice-funasr-model-license.txt"
+      ],
+      "conditions": [
+        "Preserve notices in every source and binary distribution; verify the exact final candidate."
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "models/sensevoice-small-webgpu/README.md",
+      "candidate_license": "FunASR Model License 1.1 (model derivative)",
+      "basis": "Retained third-party code/model review: sensevoice-webgpu-source",
+      "source": "https://huggingface.co/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17",
+      "revision": "2365baeacb507f821a0c8120fcee3d484dba7a07",
+      "copyright": "Alibaba Group; upstream conversion by k2-fsa sherpa-onnx",
+      "evidence": [
+        "licenses/third-party/code-and-models.json"
+      ],
+      "notices": [
+        "src/frontend/desktop/runtime/notices/sensevoice-attribution.txt",
+        "src/frontend/desktop/runtime/notices/sensevoice-funasr-model-license.txt"
+      ],
+      "conditions": [
+        "Preserve notices in every source and binary distribution; verify the exact final candidate."
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "models/sensevoice-small-webgpu/manifest.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Original model-store implementation, manifest, tests or documentation; third-party payloads remain separately mapped",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "models/sensevoice-small/ATTRIBUTION.md",
+      "candidate_license": "FunASR Model License 1.1 (model derivative)",
+      "basis": "Retained third-party code/model review: sensevoice-source",
+      "source": "https://huggingface.co/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17",
+      "revision": "2365baeacb507f821a0c8120fcee3d484dba7a07",
+      "copyright": "Alibaba Group; upstream conversion by k2-fsa sherpa-onnx",
+      "evidence": [
+        "licenses/third-party/code-and-models.json"
+      ],
+      "notices": [
+        "src/frontend/desktop/runtime/notices/sensevoice-attribution.txt",
+        "src/frontend/desktop/runtime/notices/sensevoice-funasr-model-license.txt"
+      ],
+      "conditions": [
+        "Preserve notices in every source and binary distribution; verify the exact final candidate."
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "models/sensevoice-small/README.md",
+      "candidate_license": "FunASR Model License 1.1 (model derivative)",
+      "basis": "Retained third-party code/model review: sensevoice-source",
+      "source": "https://huggingface.co/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17",
+      "revision": "2365baeacb507f821a0c8120fcee3d484dba7a07",
+      "copyright": "Alibaba Group; upstream conversion by k2-fsa sherpa-onnx",
+      "evidence": [
+        "licenses/third-party/code-and-models.json"
+      ],
+      "notices": [
+        "src/frontend/desktop/runtime/notices/sensevoice-attribution.txt",
+        "src/frontend/desktop/runtime/notices/sensevoice-funasr-model-license.txt"
+      ],
+      "conditions": [
+        "Preserve notices in every source and binary distribution; verify the exact final candidate."
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "models/sensevoice-small/manifest.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Original model-store implementation, manifest, tests or documentation; third-party payloads remain separately mapped",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "models/sensevoice-small/metadata.json",
+      "candidate_license": "FunASR Model License 1.1 (model derivative)",
+      "basis": "Retained third-party code/model review: sensevoice-source",
+      "source": "https://huggingface.co/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17",
+      "revision": "2365baeacb507f821a0c8120fcee3d484dba7a07",
+      "copyright": "Alibaba Group; upstream conversion by k2-fsa sherpa-onnx",
+      "evidence": [
+        "licenses/third-party/code-and-models.json"
+      ],
+      "notices": [
+        "src/frontend/desktop/runtime/notices/sensevoice-attribution.txt",
+        "src/frontend/desktop/runtime/notices/sensevoice-funasr-model-license.txt"
+      ],
+      "conditions": [
+        "Preserve notices in every source and binary distribution; verify the exact final candidate."
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "package.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -11571,6 +11680,20 @@
       "path": "scripts/models/parakeet.py",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Original Phase 2 model-store implementation, manifest, tests or documentation; third-party payloads remain separately mapped",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "scripts/models/sensevoice.py",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Original model-store implementation, manifest, tests or documentation; third-party payloads remain separately mapped",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "scripts/models/sensevoice_webgpu.py",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Original model-store implementation, manifest, tests or documentation; third-party payloads remain separately mapped",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -14948,6 +15071,36 @@
       ],
       "notices": [
         "src/frontend/desktop/runtime/notices/scowl-copyright.txt"
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/desktop/runtime/notices/sensevoice-attribution.txt",
+      "candidate_license": "Preserved upstream license/notice text; local attribution additions follow repository license",
+      "basis": "License or notice document; do not relabel its underlying third-party terms",
+      "copyright": "Respective upstream holders identified in the preserved document",
+      "source": "Document text and adjacent source mappings",
+      "revision": "Reviewed source document bytes",
+      "evidence": [
+        "src/frontend/desktop/runtime/notices/sensevoice-attribution.txt"
+      ],
+      "notices": [
+        "src/frontend/desktop/runtime/notices/sensevoice-attribution.txt"
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/desktop/runtime/notices/sensevoice-funasr-model-license.txt",
+      "candidate_license": "Preserved upstream license/notice text; local attribution additions follow repository license",
+      "basis": "License or notice document; do not relabel its underlying third-party terms",
+      "copyright": "Respective upstream holders identified in the preserved document",
+      "source": "Document text and adjacent source mappings",
+      "revision": "Reviewed source document bytes",
+      "evidence": [
+        "src/frontend/desktop/runtime/notices/sensevoice-funasr-model-license.txt"
+      ],
+      "notices": [
+        "src/frontend/desktop/runtime/notices/sensevoice-funasr-model-license.txt"
       ],
       "review": "prepared-not-release-approved"
     },
@@ -28073,6 +28226,13 @@
       "path": "tests/test_runtime_entry_policy.py",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "tests/test_sensevoice_model_store.py",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Original model-store implementation, manifest, tests or documentation; third-party payloads remain separately mapped",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },

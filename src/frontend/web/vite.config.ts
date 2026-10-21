@@ -10,9 +10,10 @@ import {
   type IncludedContentAlias,
 } from "./vite-plugins/included-content-compat";
 import {
-  localParakeetModelPlugin,
-  resolveLocalParakeetModelDir,
-  resolveLocalParakeetWebgpuModelDir,
+  HOST_MODEL_SETS,
+  localModelSetPlugin,
+  resolveLocalModelDir,
+  resolveOptionalLocalModelDir,
 } from "./vite-plugins/local-parakeet-models";
 import { resolveAppVersion } from "./vite-plugins/app-version";
 import { browserRuntimeAssetsPlugin } from "./vite-plugins/browser-runtime-assets";
@@ -44,24 +45,44 @@ export const includedContentAliases: readonly IncludedContentAlias[] = [
     source: "vfx/particle/particle-vfx",
   },
 ] as const;
-const localParakeetModelBaseUrl = "/__client-parakeet-models";
-const localParakeetWebgpuModelBaseUrl = "/__client-parakeet-webgpu-models";
-// Where each build serves the Parakeet sets. Built apps (packaged desktop and
+type SpeechModelSource = "asset-store" | "operator";
+// The speech-to-text engines and their base set. Each also has a "-webgpu"
+// add-on set, and Vite development serves both under `/__client-<engine>-…`.
+const speechEngines = {
+  parakeet: {
+    modelId: "parakeet-tdt-0.6b-v2",
+    host: HOST_MODEL_SETS.parakeet,
+    webgpuHost: HOST_MODEL_SETS.parakeetWebgpu,
+  },
+  sensevoice: {
+    modelId: "sensevoice-small",
+    host: HOST_MODEL_SETS.sensevoice,
+    webgpuHost: HOST_MODEL_SETS.sensevoiceWebgpu,
+  },
+} as const;
+const operatorModelUrl = (engine: string, set: "" | "webgpu-") =>
+  `/__client-${engine}-${set}models`;
+// Where each build serves an engine's sets. Built apps (packaged desktop and
 // self-host) download them in the app and FastAPI serves them; Vite
 // development serves the operator's verified host sets and offers no
 // downloads. An absent set is simply a 404.
-const parakeetModels = {
-  "asset-store": {
-    source: "asset-store",
-    baseUrl: "/onnx/models/parakeet-tdt-0.6b-v2",
-    webgpuBaseUrl: "/onnx/models/parakeet-tdt-0.6b-v2-webgpu",
-  },
-  operator: {
-    source: "operator",
-    baseUrl: localParakeetModelBaseUrl,
-    webgpuBaseUrl: localParakeetWebgpuModelBaseUrl,
-  },
-} as const;
+function speechModels(
+  engine: keyof typeof speechEngines,
+  source: SpeechModelSource,
+) {
+  const { modelId } = speechEngines[engine];
+  return source === "asset-store"
+    ? {
+        source,
+        baseUrl: `/onnx/models/${modelId}`,
+        webgpuBaseUrl: `/onnx/models/${modelId}-webgpu`,
+      }
+    : {
+        source,
+        baseUrl: operatorModelUrl(engine, ""),
+        webgpuBaseUrl: operatorModelUrl(engine, "webgpu-"),
+      };
+}
 // Reviewed model attributions bundled for the speech and voice-cloning
 // settings. Allow only these notice folders, never the whole models directory.
 const modelNoticeRoots = [
@@ -162,7 +183,10 @@ export const localViteAllowedHosts = [
 
 export default defineConfig(({ mode, command, isPreview }) => {
   const embeddedDesktop = mode === "embedded-desktop";
-  const useLocalParakeetModels = command === "serve";
+  const useHostSpeechModels = command === "serve";
+  const speechModelSource: SpeechModelSource = useHostSpeechModels
+    ? "operator"
+    : "asset-store";
 
   return {
     plugins: [
@@ -175,19 +199,21 @@ export default defineConfig(({ mode, command, isPreview }) => {
       }),
       tanstackRouter(routerConfig),
       react(),
-      ...(useLocalParakeetModels
-        ? [
-            // Keep the large Parakeet ONNX files out of Vite public/dist while
-            // still giving browser code a same-origin URL in local dev/preview.
-            localParakeetModelPlugin({
-              modelDir: resolveLocalParakeetModelDir,
-              routeBaseUrl: localParakeetModelBaseUrl,
-            }),
-            localParakeetModelPlugin({
-              modelDir: resolveLocalParakeetWebgpuModelDir,
-              routeBaseUrl: localParakeetWebgpuModelBaseUrl,
-            }),
-          ]
+      // Keep the large speech-to-text ONNX files out of Vite public/dist while
+      // still giving browser code a same-origin URL in local dev/preview.
+      ...(useHostSpeechModels
+        ? Object.entries(speechEngines).flatMap(
+            ([engine, { host, webgpuHost }]) => [
+              localModelSetPlugin({
+                modelDir: () => resolveLocalModelDir(host),
+                routeBaseUrl: operatorModelUrl(engine, ""),
+              }),
+              localModelSetPlugin({
+                modelDir: () => resolveOptionalLocalModelDir(webgpuHost),
+                routeBaseUrl: operatorModelUrl(engine, "webgpu-"),
+              }),
+            ],
+          )
         : []),
     ],
     build: {
@@ -219,7 +245,10 @@ export default defineConfig(({ mode, command, isPreview }) => {
         : {}),
       __ANIMAMA_APP_VERSION__: JSON.stringify(appVersion),
       __CLIENT_PARAKEET_MODELS__: JSON.stringify(
-        parakeetModels[useLocalParakeetModels ? "operator" : "asset-store"],
+        speechModels("parakeet", speechModelSource),
+      ),
+      __CLIENT_SENSEVOICE_MODELS__: JSON.stringify(
+        speechModels("sensevoice", speechModelSource),
       ),
     },
     optimizeDeps: {

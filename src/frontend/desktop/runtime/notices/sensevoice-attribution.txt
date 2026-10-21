@@ -1,0 +1,22 @@
+SenseVoice-Small speech recognition models (multilingual offline speech
+downloads: INT8 graph for the CPU, optional FP32 graph for GPU acceleration)
+
+Model: SenseVoice-Small (iic/SenseVoiceSmall), Copyright (C) 2023-2028 Alibaba
+Group, licensed under the FunASR Model Open Source License Agreement,
+version 1.1 (full text in sensevoice-funasr-model-license.txt).
+https://huggingface.co/FunAudioLLM/SenseVoiceSmall
+License: https://github.com/modelscope/FunASR/blob/58830eca4012644aac0c3218c3ccc7d98f003fda/MODEL_LICENSE
+
+ONNX conversion: k2-fsa sherpa-onnx,
+csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17, revision
+2365baeacb507f821a0c8120fcee3d484dba7a07, files model.int8.onnx, model.onnx
+and tokens.txt.
+https://huggingface.co/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17
+
+These files are an upstream adaptation of the original model: ONNX
+conversion, with INT8 quantization for model.int8.onnx. Animama redistributes
+them unmodified as the sensevoice-stt and optional sensevoice-stt-webgpu
+in-app downloads, which also carry their ATTRIBUTION.md, and adds
+metadata.json, the INT8 graph's own front-end metadata. Preserve this
+attribution, the model name SenseVoice-Small and the licence with every copy.
+No endorsement by Alibaba Group is implied.

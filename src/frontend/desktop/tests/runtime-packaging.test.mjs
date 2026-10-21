@@ -157,7 +157,7 @@ describe("desktop runtime packaging", () => {
     }
   });
 
-  it("ships the downloadable Parakeet notices with every app", () => {
+  it("ships the downloadable speech-to-text notices with every app", () => {
     // Speech models are downloaded later, but their notices are bundled.
     const policy = JSON.parse(
       readFileSync(
@@ -178,6 +178,15 @@ describe("desktop runtime packaging", () => {
     expect(readStaticLicenseNotice("parakeet-onnx-asr-mit.txt").text).toContain(
       "MIT",
     );
+    const sensevoice = [
+      "sensevoice-attribution.txt",
+      "sensevoice-funasr-model-license.txt",
+    ];
+    expect(notices["sensevoice-input"]).toEqual(sensevoice);
+    expect(notices["sensevoice-webgpu-input"]).toEqual(sensevoice);
+    expect(
+      readStaticLicenseNotice("sensevoice-funasr-model-license.txt").text,
+    ).toContain("FunASR Model Open Source License Agreement");
   });
 
   it.each([

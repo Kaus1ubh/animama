@@ -6,28 +6,59 @@ import path from "node:path";
 import type { Plugin } from "vite";
 
 /**
- * Resolve the verified Parakeet set at server startup; builds need no model
- * bytes. The set is optional: `null` makes its route answer 404, and reset.sh
- * reports dictation as not installed. A present set that fails verification
- * still blocks startup.
+ * A speech-to-text set on the operator's host: the variable that carries its
+ * read-only Compose mount and the offline resolver script reset.sh also uses.
  */
-export function resolveLocalParakeetModelDir(): string | null {
+type HostModelSet = { mountVariable: string; script: string };
+
+export const HOST_MODEL_SETS = {
+  parakeet: {
+    mountVariable: "VITE_CLIENT_PARAKEET_MODEL_DIR",
+    script: "parakeet.py",
+  },
+  parakeetWebgpu: {
+    mountVariable: "VITE_CLIENT_PARAKEET_WEBGPU_MODEL_DIR",
+    script: "parakeet_webgpu.py",
+  },
+  sensevoice: {
+    mountVariable: "VITE_CLIENT_SENSEVOICE_MODEL_DIR",
+    script: "sensevoice.py",
+  },
+  sensevoiceWebgpu: {
+    mountVariable: "VITE_CLIENT_SENSEVOICE_WEBGPU_MODEL_DIR",
+    script: "sensevoice_webgpu.py",
+  },
+} as const satisfies Record<string, HostModelSet>;
+
+function resolverScript(script: string): string {
+  return fileURLToPath(
+    new URL(`../../../../scripts/models/${script}`, import.meta.url),
+  );
+}
+
+/**
+ * Resolve a verified base set at server startup; builds need no model bytes.
+ * The set is optional: `null` makes its route answer 404, and reset.sh reports
+ * its dictation as not installed. A present set that fails verification still
+ * blocks startup.
+ */
+export function resolveLocalModelDir({
+  mountVariable,
+  script,
+}: HostModelSet): string | null {
   // Compose passes its already verified, read-only mount. Direct host Vite uses
   // the same offline resolver as reset.sh, with ANIMAMA_MODEL_ROOT if selected.
-  const mounted = process.env.VITE_CLIENT_PARAKEET_MODEL_DIR?.trim();
+  const mounted = process.env[mountVariable]?.trim();
   if (mounted) {
     if (!path.isAbsolute(mounted) || !statSync(mounted).isDirectory()) {
       throw new Error(
-        "VITE_CLIENT_PARAKEET_MODEL_DIR must be an existing absolute directory",
+        `${mountVariable} must be an existing absolute directory`,
       );
     }
     return mounted;
   }
-  const script = fileURLToPath(
-    new URL("../../../../scripts/models/parakeet.py", import.meta.url),
-  );
   try {
-    return execFileSync("python3", [script, "path"], {
+    return execFileSync("python3", [resolverScript(script), "path"], {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "inherit"],
     }).trim();
@@ -39,23 +70,23 @@ export function resolveLocalParakeetModelDir(): string | null {
 }
 
 /**
- * Resolve the optional WebGPU encoder set. Unlike the base set it never blocks
+ * Resolve an optional WebGPU add-on set. Unlike a base set it never blocks
  * startup: `null` makes its route answer 404, which the client reports as
  * "GPU model not installed".
  */
-export function resolveLocalParakeetWebgpuModelDir(): string | null {
-  const mounted = process.env.VITE_CLIENT_PARAKEET_WEBGPU_MODEL_DIR?.trim();
+export function resolveOptionalLocalModelDir({
+  mountVariable,
+  script,
+}: HostModelSet): string | null {
+  const mounted = process.env[mountVariable]?.trim();
   if (mounted) {
     return path.isAbsolute(mounted) &&
       statSync(mounted, { throwIfNoEntry: false })?.isDirectory()
       ? mounted
       : null;
   }
-  const script = fileURLToPath(
-    new URL("../../../../scripts/models/parakeet_webgpu.py", import.meta.url),
-  );
   try {
-    return execFileSync("python3", [script, "path"], {
+    return execFileSync("python3", [resolverScript(script), "path"], {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],
     }).trim();
@@ -245,7 +276,7 @@ export function installLocalAssetMiddleware(
   });
 }
 
-export function localParakeetModelPlugin({
+export function localModelSetPlugin({
   modelDir,
   routeBaseUrl,
 }: {
@@ -253,7 +284,7 @@ export function localParakeetModelPlugin({
   routeBaseUrl: string;
 }): Plugin {
   return {
-    name: `anima-local-parakeet-models:${routeBaseUrl}`,
+    name: `anima-local-model-set:${routeBaseUrl}`,
     configureServer(server) {
       const rootDir = typeof modelDir === "function" ? modelDir() : modelDir;
       installLocalAssetMiddleware(server, (requestUrl) =>

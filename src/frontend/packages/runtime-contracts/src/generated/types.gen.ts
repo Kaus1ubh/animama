@@ -9666,6 +9666,18 @@ export type RuntimeCapabilities = {
      */
     native_features: boolean;
     /**
+     * Offline Multilingual Speech Asset Version
+     */
+    offline_multilingual_speech_asset_version?: string | null;
+    /**
+     * Offline Multilingual Speech Enabled
+     */
+    offline_multilingual_speech_enabled?: boolean;
+    /**
+     * Offline Multilingual Speech Gpu Asset Version
+     */
+    offline_multilingual_speech_gpu_asset_version?: string | null;
+    /**
      * Offline Speech Asset Version
      */
     offline_speech_asset_version: string | null;

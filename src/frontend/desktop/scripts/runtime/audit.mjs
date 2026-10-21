@@ -187,9 +187,16 @@ try {
   console.log("Annie + Andrew: zero content diagnostics");
   const publicRoot = path.join(repoRoot, "src/frontend/web/public");
   assertNoIncludedAliasCopies(path.join(target.runtime, "web"), publicRoot);
-  for (const model of ["parakeet-tdt-0.6b-v2", "parakeet-tdt-0.6b-v2-webgpu"])
+  for (const model of [
+    "parakeet-tdt-0.6b-v2",
+    "parakeet-tdt-0.6b-v2-webgpu",
+    "sensevoice-small",
+    "sensevoice-small-webgpu",
+  ])
     if (existsSync(path.join(target.runtime, "web/onnx/models", model)))
-      throw new Error("Parakeet must remain outside core web assets");
+      throw new Error(
+        "Speech-to-text models must remain outside core web assets",
+      );
   // The standalone output must retain every reviewed model and ORT variant.
   resolveBrowserRuntimeAssets({ builtRoot: path.join(target.runtime, "web") });
   // Small vendored runtime code, provider marks and stage scenes stay source-bound.

@@ -60,7 +60,8 @@ Boundaries:
       review passed 2026-10-20 (three rounds); committed `02f44b3e`.
 - [x] Phase 2 — Candidate engines and comparison report (#536): review passed
       2026-10-21 (two rounds); committed `73913350`. G1 recorded 2026-10-21.
-- [ ] Phase 3 — Multilingual model asset set (#631).
+- [x] Phase 3 — Multilingual model asset set (#631): review passed 2026-10-21
+      (initial review and two repair rounds).
 - [ ] Phase 4 — Engine integration and language routing (#632).
 - [ ] Phase 5 — Settings, Setup, language notice and turn-taking (#633).
 - [ ] Phase 6 — Acceptance runs, packaging checks and documentation (#634).
@@ -102,6 +103,22 @@ Boundaries:
 - 2026-10-20: Nemotron's `zh-TW` language prompt produced only noise on
   Mandarin speech, so `zh-Hant` uses `zh-CN` plus OpenCC conversion, like
   SenseVoice.
+- 2026-10-21: SenseVoice's FP32 graph does not convert cleanly to FP16
+  compute: `onnxconverter-common` 1.16 and ONNX Runtime 1.23's converter leave
+  the graph's own Cast-to-float nodes (layer norms, masks) and a `Range` output
+  inconsistent, so sessions fail or WebGPU returns empty text. Storing only the
+  weights as FP16 with load-time casts works (470 MB; on WebGPU the same error
+  rates and latency as FP32), but it is a converted file with no upstream
+  source.
+- 2026-10-21: animama-cloud's hosted browser resources accept only the catalog
+  IDs they know (`services/hosted-api/src/animama_hosted/content/browser_resources.py`,
+  `MODEL_IDS` and the asset loop, plus `artifacts/application.py`). Once Cloud
+  repins to an Animama release whose catalog has `sensevoice-stt`, the hosted API
+  refuses to start until Cloud supports or skips the new sets; this needs a
+  Cloud change before that repin.
+- 2026-10-21: The browser runtime cannot read ONNX `metadata_props`, so the
+  SenseVoice CPU set carries `metadata.json` (frame stacking, CMVN, prompt ids),
+  identical for the INT8 and FP32 graphs apart from the quantizer's key.
 - 2026-10-14: The desktop app's Electron 39.8.9 runs Chromium 142, while
   Playwright's bundled Chromium is 145, so the benchmark runs in Electron.
 - 2026-10-14: Parakeet's WebGPU (FP16 encoder) English WER is 3.8% against 4.1%
@@ -163,6 +180,20 @@ Boundaries:
   `models/sensevoice-small/` (asset `sensevoice-stt`, CPU INT8) and
   `models/sensevoice-small-webgpu/` (asset `sensevoice-stt-webgpu`), engine id
   `sensevoice`. Phase 4 item 6 (English default) does not apply.
+- 2026-10-21, owner (Q5 follow-up): the WebGPU add-on uses the upstream FP32
+  graph (938 MB) as pinned, like Parakeet's upstream-only sets, rather than a
+  converted FP16-weight file or an unvetted third-party FP16 upload.
+- 2026-10-21, agent (Phase 3): the manifest licence is
+  `LicenseRef-FunASR-Model-License-1.1`; the store, desktop input and catalog
+  checks take a set's reviewed licence instead of assuming CC BY 4.0. The CPU
+  set's default `acquire` reads Animama's objects like Parakeet's
+  (`SHARED_MODEL_IDS`); until G2, development uses `--source upstream`.
+  `ANIMAMA_PARAKEET_SOURCE` keeps its name and now selects both engines' sets;
+  `ANIMAMA_SENSEVOICE_STT_ENABLED` gates SenseVoice like
+  `ANIMAMA_PARAKEET_STT_ENABLED`. Runtime capabilities add
+  `offline_multilingual_speech_enabled` and its two versions, defaulting to
+  off so existing adapters stay valid. Hosted builds do not list the SenseVoice
+  sets until Cloud supports them.
 
 ## Owner gates
 
@@ -180,8 +211,10 @@ Boundaries:
   set's objects to `downloads.animama.ai` with
   `pnpm --filter animama-desktop models:publish -- --model <id>`. Until then,
   development uses `scripts/models/<engine>.py acquire --source upstream`, and
-  packaged or built-mode downloads cannot complete. Recorded in the PR; does
-  not block phase progression.
+  packaged or built-mode downloads cannot complete. After publication, drop
+  the `--source upstream` hint in `reset.sh` and the SenseVoice spec's
+  `acquireArgs` in `optional-inputs.mjs`. Recorded in the PR; does not block
+  phase progression.
 - **G3 — Windows smoke check.** On the owner's Windows machine, a desktop build
   installs the set and transcribes Japanese on the CPU path.
 - **G4 — Live check on the reference Mac.** The owner tries dictation and Voice
@@ -808,15 +841,156 @@ Completion: `acquire --source upstream`, `verify` and `path` work on the
 reference Mac; a fresh `reset.sh` reports the set; the catalog equals the
 tracked manifest; capabilities report the installed version.
 
-Records: issue #631; commits —; evidence —.
+#### Phase 3 results (2026-10-21)
+
+Changes:
+
+- `models/sensevoice-small/` (INT8 graph, tokens, `metadata.json`, README,
+  ATTRIBUTION) and `models/sensevoice-small-webgpu/` (FP32 graph, README,
+  ATTRIBUTION), pinned to the sherpa-onnx revision `2365baea`; `.gitattributes`
+  keeps the manifests and metadata byte-stable.
+- `scripts/models/sensevoice.py` and `sensevoice_webgpu.py` on the shared store;
+  `parakeet.py` gains `load_pinned_manifest` and serves Animama objects for any
+  published base set. `release_inputs.py` acquires both sets.
+- `reset.sh` resolves both sets in development (a missing CPU set sets
+  `ANIMAMA_SENSEVOICE_STT_ENABLED=false`; WebGPU sets only warn, through one
+  shared helper) and records them; `local-stack-state-common.sh` re-resolves
+  both base sets without a record. Development Compose mounts the sets
+  read-only for Vite, with the notices folders as fallback.
+- Vite resolves every host set through one table (`HOST_MODEL_SETS`) and serves
+  SenseVoice at `/__client-sensevoice[-webgpu]-models`; the
+  `__CLIENT_SENSEVOICE_MODELS__` define gives the built paths
+  `/onnx/models/sensevoice-small[-webgpu]`.
+- Backend: catalog entries `sensevoice-stt` and `sensevoice-stt-webgpu` (which
+  requires the CPU set), mounts, `sensevoice_availability`, the setting, the
+  capability fields and the regenerated SDK; hosted fixtures report them off.
+- Desktop: input specs with their licence, the core-web audit, notices
+  (`sensevoice-attribution.txt`, the FunASR licence text at FunASR
+  `58830eca`), licence sources, the third-party review and source review
+  records, and the redistribution review.
+
+Completion evidence: `sensevoice.py acquire --source upstream` and
+`sensevoice_webgpu.py acquire` downloaded both sets into a fresh store (about
+240 MB and 938 MB) and `verify`/`path` passed; both sets also import offline from the
+evaluation copies. The catalog equals the tracked manifests
+(`test_packaged_speech_sets_equal_their_tracked_manifests`), and capabilities
+report installed versions (`test_asset_store_offline_speech_follows_installs_without_a_restart`).
+A fresh development stack (`./reset.sh --name msr --base-port 8900`, removed
+afterwards) recorded both SenseVoice directories, Vite answered `HEAD` for
+`model.int8.onnx`, `metadata.json`, `tokens.txt` and the WebGPU `model.onnx`
+with their manifest sizes, and `/v1/runtime-capabilities` reported
+`offline_multilingual_speech_enabled: true` (operator source, no versions).
+
+Check record (working tree; tree hashes from the `git-workflow` recipe; suite
+logs under `<evaluation root>/logs/prepush-p3/`; later edits touch only this
+plan):
+
+| Check | Directory | Tree | Result |
+| --- | --- | --- | --- |
+| Phase 3 pytest set: `tests/test_{model_assets,model_asset_sets,parakeet_model_sources,runtime_capabilities,product_http_runtime_capabilities,product_http_inventory,local_http_assets,local_http_admission,model_store,webgpu_model_store,pocket_cloning_model_store,browser_model_store,sensevoice_model_store,release_model_inputs,local_state_scripts,compose_network_boundaries,openapi_export}.py`, `scripts/ci/test_{local_validate,validation_policy}.py` | root | `ce6502ae` | 615 passed, 6 skipped (Windows-only) |
+| `uv run ruff check`; `make format-check`; `bash -n` on `reset.sh` and `local-stack-state-common.sh` | root | `ce6502ae` | pass |
+| both `docker compose ... config --quiet` commands | root | `ce6502ae` | pass |
+| `pnpm openapi-ts:check` | `src/frontend` | `ce6502ae` | SDK current |
+| `vitest run` on `localParakeetModels`, `model-notices-vite`, `resource-urls`, `browserRuntimeAssets` | `src/frontend/web` | `ce6502ae` | 38 passed |
+| `pnpm test` | `packages/runtime-contracts` | `ce6502ae` | 10 passed |
+| `pnpm desktop:test` (via `heavy-slot.py`) | `src/frontend` | `ce6502ae` | 537 passed, 14 skipped |
+| `make check-test` (via `heavy-slot.py`) | root | `ce6502ae` | 4769 passed, 29 skipped |
+| `pnpm verify` (via `heavy-slot.py`) | `src/frontend` | `ce6502ae` | pass; vitest 5340 passed, 1 skipped |
+| `pnpm web:test:browser` (via `heavy-slot.py`) | `src/frontend` | `ce6502ae` | 122 passed |
+| `pnpm prettier:check` | `src/frontend` | `ce6502ae` | pass |
+
+Records: issue #631; commits —; evidence: Phase 3 results.
 
 #### Code Review #1 Findings
 
-Not run.
+Reviewed working tree `5661afd9` (baseline `94a048a2`), high-risk tier: one
+analysis subagent and one checks subagent. No blocking findings.
+
+The checks subagent reran every affected check on `5661afd9`: the Phase 3
+pytest set plus `scripts/public-release/test_prepare_source.py` (627 passed, 6
+Windows-only skips), ruff, mypy, `bash -n`, both Compose configurations (also
+with the SenseVoice directories set), offline `verify` of both installed sets,
+manifests against the evaluation pins and the checked-in bytes, catalog digests
+and URLs, the FunASR licence notice byte-for-byte against upstream `58830eca`,
+`openapi-ts:check`, web vitest 38, `tsc -b`, ESLint, runtime-contracts 10,
+`pnpm desktop:test` 537, and the licence inventories: all passed. The analysis
+subagent confirmed the acceptance items, the metadata against both graphs'
+`metadata_props`, reset exit-status handling, read-only mounts, route and mount
+prefixes, and attribution under the FunASR licence.
+
+- **P3-CR1-01 (non-blocking).** The missing-set hint in `reset.sh` and the
+  publication hint told developers to run `sensevoice.py acquire`, whose
+  default source (Animama's objects) returns 404 until G2.
+- **P3-CR1-02 (non-blocking).** The Cloud catalog follow-up was recorded only
+  as a discovery, not as an outstanding item.
+- **P3-CR1-03 (non-blocking).** Operations docs, the root guide and three
+  backend comments describe the speech model source as Parakeet-only.
+- **P3-CR1-04 (non-blocking).** `parakeet.load_manifest`,
+  `parakeet_webgpu.load_manifest` and `pocket_cloning.load_manifest` kept
+  copies of the new validator.
+- **P3-CR1-05 (non-blocking).** The scripts README claimed `sensevoice.py` has
+  every `parakeet.py` option (it has no `root`), and the plan's set sizes
+  matched neither the byte totals nor `du`.
+- **P3-CR1-CK-01 (non-blocking).** The check record did not name the exact
+  pytest set behind its count.
+- Pre-existing, not changed: the state script does not keep a reset's
+  `*_STT_ENABLED=false` for later Compose commands; current callers do not
+  recreate the backend.
 
 #### Code Review #1 Revisions
 
-Not run.
+- **P3-CR1-01 accepted.** `resolve_optional_model` takes optional acquire
+  options for its hint, and `reset.sh` passes `--source upstream` for
+  SenseVoice; the SenseVoice input spec's `acquireArgs` does the same for the
+  publication hint. G2 now says to drop both after publication. Tests: the
+  reset test asserts the upstream hint, and a new publication test checks the
+  hint with an empty default store.
+- **P3-CR1-02 accepted.** Phase 6 item 8 records the Cloud change as an
+  outstanding PR item.
+- **P3-CR1-03 accepted.** The three backend comments now say speech-to-text
+  sets; the docs are added to Phase 6 item 1.
+- **P3-CR1-04 accepted.** All three scripts delegate to
+  `load_pinned_manifest`, which now precedes them in `parakeet.py`.
+- **P3-CR1-05 and P3-CR1-CK-01 accepted.** README and plan wording corrected;
+  the check record lists the exact pytest paths.
+
+Repair check record (working tree `aa5f7308` before these records):
+
+| Check | Directory | Tree | Result |
+| --- | --- | --- | --- |
+| store, release-input, Compose, state-script, model-source, local HTTP asset and catalog tests plus `scripts/voices` | root | `aa5f7308` | 458 passed, 6 skipped |
+| `uv run ruff check`; `make format-check`; mypy gate; `bash -n reset.sh` | root | `aa5f7308` | pass |
+| `pnpm desktop:test` (via `heavy-slot.py`) | `src/frontend` | `aa5f7308` | 538 passed, 14 skipped |
+| `prettier --check` on `desktop/scripts/runtime` and the publication test | `src/frontend/desktop` | `aa5f7308` | pass |
+
+#### Code Review #2 Findings
+
+Repair round 1 recheck of `63f280de` (high-risk tier): P3-CR1-01 to 05 and
+P3-CR1-CK-01 resolved; equivalent validator behaviour confirmed; no blocking
+regression.
+
+- **P3-CR1-R1-01 (non-blocking).** The new publication test emptied the
+  default store only on macOS and Linux; on Windows `resolve_root` reads
+  `LOCALAPPDATA`.
+- Wording: a short wrapped docstring line in `local/http/assets.py` and the
+  size note above.
+
+#### Code Review #2 Revisions
+
+- **P3-CR1-R1-01 accepted.** The test also points `LOCALAPPDATA` at the empty
+  home. `vitest run tests/publish-models-r2.test.mjs`: 24 passed; prettier
+  check pass.
+- Wording fixed; `tests/test_local_http_assets.py`: 107 passed; ruff format
+  check pass.
+
+#### Code Review #3 Findings
+
+Repair round 2 recheck of `876c6eb1`: P3-CR1-R1-01 and both wording notes
+resolved; no regression. No findings remain; the phase passes its review.
+
+#### Code Review #3 Revisions
+
+None needed.
 
 ### Phase 4 — Engine integration and language routing (R2, R3)
 
@@ -921,7 +1095,11 @@ Changes and checks:
    `docs/frontend/architecture/{i18n,content-and-workers}.md`,
    `docs/frontend/desktop/redistribution-review.md`, `contracts/hosted-web.md`,
    `GLOSSARY.md` (Conversation language, Model asset) and, if Q6 is agreed,
-   ADR 0025 with a history note in ADR 0024 and the ADR index.
+   ADR 0025 with a history note in ADR 0024 and the ADR index. Also the
+   speech model source and switches in
+   `docs/backend/operations/{development,desktop-runtime,local-http-components}.md`,
+   `docs/frontend/architecture/auth-server.md` and the root `AGENTS.md` Local
+   Stacks section (Phase 3 Code Review #1).
 2. Acceptance run of the full test set through the production path on the
    reference Mac, CPU and WebGPU: accuracy, latency, script check, English,
    silence and noise windows, absence of tags.
@@ -935,6 +1113,9 @@ Changes and checks:
    desktop:check`, desktop runtime audit and packaging tests.
 6. `pnpm e2e:test:fast` against a disposable built stack.
 7. Owner gates G3 and G4 recorded in the PR.
+8. Cloud follow-up recorded in the PR as outstanding: animama-cloud must
+   support or skip `sensevoice-stt` and `sensevoice-stt-webgpu` before it
+   repins to an Animama release with this catalog (Surprises, 2026-10-21).
 
 Completion: every spec acceptance item is checked or recorded as an outstanding
 owner gate.

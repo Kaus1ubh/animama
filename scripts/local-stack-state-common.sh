@@ -217,10 +217,11 @@ print(values.get("ANIMAMA_WEB_BUILD_MODE") or "development")
     esac
     export COMPOSE_FILE
   fi
-  # Prefer the exact verified version recorded by reset.sh. A caller without a
+  # Prefer the exact verified versions recorded by reset.sh. A caller without a
   # record must resolve its selected store offline before any Compose action.
-  # Only the development graph mounts the host Parakeet set.
-  if [ -z "${ANIMAMA_PARAKEET_MODEL_DIR:-}" ] && [[ "$COMPOSE_FILE" == *docker-compose.development.yml* ]]; then
+  # Only the development graph mounts the host speech-to-text sets.
+  if { [ -z "${ANIMAMA_PARAKEET_MODEL_DIR:-}" ] || [ -z "${ANIMAMA_SENSEVOICE_MODEL_DIR:-}" ]; } &&
+    [[ "$COMPOSE_FILE" == *docker-compose.development.yml* ]]; then
     local model_root="${ANIMAMA_MODEL_ROOT:-}"
     if [ -z "${ANIMAMA_MODEL_ROOT+x}" ]; then
       model_root="$(ANIMAMA_PARAKEET_MODEL_DIR=/__animama_model_selector_only__ ANIMAMA_BROWSER_MODEL_DIR=/__animama_model_selector_only__ docker compose -f "${ANIMAMA_STATE_REPO_ROOT}/docker-compose.yml" config --environment | python3 -c '
@@ -234,11 +235,18 @@ print(values.get("ANIMAMA_MODEL_ROOT", ""))
       model_path_args=(--root "$model_root")
     fi
     # An unacquired set (exit 2) is optional; Compose then mounts the notices.
-    local model_status=0
-    ANIMAMA_PARAKEET_MODEL_DIR="$(python3 "${ANIMAMA_STATE_REPO_ROOT}/scripts/models/parakeet.py" path "${model_path_args[@]}" 2>/dev/null)" || model_status=$?
-    [ "$model_status" -eq 0 ] || [ "$model_status" -eq 2 ] ||
-      animama_state_die "Parakeet models failed verification; run python3 scripts/models/parakeet.py verify"
-    export ANIMAMA_PARAKEET_MODEL_DIR
+    local entry variable script resolved model_status
+    for entry in ANIMAMA_PARAKEET_MODEL_DIR:parakeet.py ANIMAMA_SENSEVOICE_MODEL_DIR:sensevoice.py; do
+      variable="${entry%%:*}"
+      script="${entry#*:}"
+      [ -z "${!variable:-}" ] || continue
+      model_status=0
+      resolved="$(python3 "${ANIMAMA_STATE_REPO_ROOT}/scripts/models/${script}" path "${model_path_args[@]}" 2>/dev/null)" || model_status=$?
+      [ "$model_status" -eq 0 ] || [ "$model_status" -eq 2 ] ||
+        animama_state_die "${script} models failed verification; run python3 scripts/models/${script} verify"
+      printf -v "$variable" '%s' "$resolved"
+      export "${variable?}"
+    done
   fi
   docker compose -p "$ANIMAMA_STATE_PROJECT" "$@"
 }

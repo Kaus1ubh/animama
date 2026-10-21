@@ -9,7 +9,8 @@ human review; stored receipts apply only to their exact inputs.
 
 - [Code and model notices](../../../licenses/third-party/code-and-models.md)
   identify retained ONNX, Basis, SentencePiece, Pocket, VAD, Smart Turn, Parakeet,
-  Transformers.js and fft.js inputs, license texts and local modifications.
+  SenseVoice, Transformers.js and fft.js inputs, license texts and local
+  modifications.
 - [Artwork notices](../../../licenses/third-party/art-NOTICES.md) identify
   retained textures, particle derivatives, models and portraits.
 - `content/included/licenses/inventory.json` records Included-content provenance
@@ -50,10 +51,11 @@ complete and silent.
 
 `desktop/runtime/feature-pack-releases.json` has no active pack. Expanded
 Included content and Docling document processing are deferred: they produce no
-initial-release archive or catalog entry. Both Parakeet sets are published as
-shared model objects and downloaded at runtime, outside the packaged core; their
-attribution and the onnx-asr MIT notice stay in the packaged notice bundle, and
-each installed set carries its own README and attribution. Settings retains recovery/removal controls for
+initial-release archive or catalog entry. Both Parakeet sets and both
+SenseVoice sets are published as shared model objects and downloaded at runtime,
+outside the packaged core; their attributions, the onnx-asr MIT notice and the
+full FunASR Model License text stay in the packaged notice bundle, and each
+installed set carries its own README and attribution. Settings retains recovery/removal controls for
 installed files even when a pack has no compatible catalog entry.
 
 The first-party global input addon exposes only the configured binding's down/up

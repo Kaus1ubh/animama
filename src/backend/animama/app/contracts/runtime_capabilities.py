@@ -79,6 +79,12 @@ class RuntimeCapabilities(BaseModel):
     """The active base Parakeet version, pinned by the browser with ``?v=``."""
     offline_speech_gpu_asset_version: str | None = None
     """The active WebGPU Parakeet version, or null when that set is unavailable."""
+    offline_multilingual_speech_enabled: bool = False
+    """Whether offline multilingual speech recognition (SenseVoice) can be used now; read on every request."""
+    offline_multilingual_speech_asset_version: str | None = None
+    """The active base SenseVoice version, pinned by the browser with ``?v=``."""
+    offline_multilingual_speech_gpu_asset_version: str | None = None
+    """The active WebGPU SenseVoice version, or null when that set is unavailable."""
     companion_safety: CompanionSafetyCapability
     web_search: WebSearchCapability = Field(default_factory=WebSearchCapability)
     gemini_tts: GeminiTtsCapability | None = None
