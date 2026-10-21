@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createHostedComposition } from "./hosted-composition";
 import { hostedCapabilitiesFixture as capabilities } from "../runtime/runtime-fixture";
 import { RuntimeController } from "../runtime/runtime-controller";
+import { queryKeys } from "@/query/keys";
 
 const active = {
   schema_version: 1,
@@ -1499,6 +1500,439 @@ describe("hosted sign-in and sign-out", () => {
       });
     } finally {
       tab.close();
+    }
+  });
+});
+
+/** A hosted flow whose context, 18+ relay and product replies the test controls. */
+function confirmationFlow(context: Record<string, unknown>) {
+  const state: { context: Record<string, unknown> } = {
+    context: { ...active, ...context },
+  };
+  const relays: Request[] = [];
+  let relay: () => Response | Promise<Response> = () =>
+    Response.json({ ...state.context, state: "active" });
+  let product: (request: Request) => Response = () => Response.json([]);
+  let contextReply: (() => Promise<Response>) | null = null;
+  let contextReads = 0;
+  const fetch: typeof globalThis.fetch = async (input) => {
+    const request = input as Request;
+    const path = new URL(request.url).pathname;
+    if (path === "/v1/hosted/runtime-context") {
+      contextReads += 1;
+      const reply = contextReply;
+      contextReply = null;
+      return reply ? reply() : Response.json(state.context);
+    }
+    if (path === "/v1/hosted/age-confirmation") {
+      relays.push(request.clone());
+      return relay();
+    }
+    if (path === "/v1/hosted/bootstrap:ensure")
+      throw new Error("Confirmation never runs account setup");
+    if (path === "/v1/hosted/events")
+      return new Response(new ReadableStream<Uint8Array>());
+    return product(request);
+  };
+  const composition = createHostedComposition({
+    baseUrl: "https://app.example.test",
+    fetch,
+    navigate: vi.fn(),
+  });
+  const controller = new RuntimeController(composition);
+  const unsubscribe = composition.subscribe!((invalidate) => {
+    void controller.refresh(false, invalidate);
+  });
+  return {
+    state,
+    relays,
+    composition,
+    controller,
+    contextReads: () => contextReads,
+    setRelay: (next: typeof relay) => {
+      relay = next;
+    },
+    setProduct: (next: typeof product) => {
+      product = next;
+    },
+    /** The next context read answers with this reply instead of the current state. */
+    setContextReply: (next: () => Promise<Response>) => {
+      contextReply = next;
+    },
+    admission: () => controller.getSnapshot().admission,
+    close: () => {
+      unsubscribe();
+      controller.dispose();
+    },
+  };
+}
+
+describe("hosted 18+ confirmation", () => {
+  afterEach(() => vi.useRealTimers());
+
+  it("admits an unconfirmed account behind the confirmation, never as account setup", async () => {
+    const flow = confirmationFlow({ state: "age_confirmation_required" });
+    try {
+      await flow.controller.refresh();
+      const admission = flow.admission();
+      expect(admission.status).toBe("ready");
+      expect(admission.status === "ready" && admission.onboardingRequired).toBe(
+        true,
+      );
+    } finally {
+      flow.close();
+    }
+  });
+
+  it("relays only the explicit answer and opens the same session in place", async () => {
+    const flow = confirmationFlow({ state: "age_confirmation_required" });
+    try {
+      await flow.controller.refresh();
+      const original = flow.controller.getSnapshot();
+      original.queryClient.setQueryData(["scene"], "kept");
+      await flow.controller.confirmAge();
+      const [request] = flow.relays;
+      expect(request.method).toBe("POST");
+      expect(request.headers.get("X-Animama-CSRF")).toBe(active.csrf_token);
+      expect(await request.json()).toEqual({ adult_confirmed: true });
+      const after = flow.controller.getSnapshot();
+      expect(
+        after.admission.status === "ready" &&
+          after.admission.onboardingRequired,
+      ).toBe(false);
+      expect(after.scope).toBe(original.scope);
+      expect(after.queryClient.getQueryData(["scene"])).toBe("kept");
+    } finally {
+      flow.close();
+    }
+  });
+
+  it("keeps the confirmation open when the relay fails", async () => {
+    const flow = confirmationFlow({ state: "age_confirmation_required" });
+    flow.setRelay(() => new Response(null, { status: 503 }));
+    try {
+      await flow.controller.refresh();
+      await expect(flow.controller.confirmAge()).rejects.toThrow();
+      const admission = flow.admission();
+      expect(admission.status === "ready" && admission.onboardingRequired).toBe(
+        true,
+      );
+    } finally {
+      flow.close();
+    }
+  });
+
+  it("reopens the confirmation when any request is refused for it", async () => {
+    const flow = confirmationFlow({ state: "active" });
+    try {
+      await flow.controller.refresh();
+      expect(
+        flow.admission().status === "ready" &&
+          (flow.admission() as { onboardingRequired: boolean })
+            .onboardingRequired,
+      ).toBe(false);
+      flow.state.context = {
+        ...flow.state.context,
+        state: "age_confirmation_required",
+      };
+      flow.setProduct(() =>
+        Response.json({ state: "age_confirmation_required" }, { status: 403 }),
+      );
+      // The refused request is cancelled, not reported as a failure.
+      await expect(flow.composition.browserFetch("/v1/chats")).rejects.toThrow(
+        expect.objectContaining({ name: "AbortError" }),
+      );
+      await vi.waitFor(() => {
+        const admission = flow.admission();
+        expect(
+          admission.status === "ready" && admission.onboardingRequired,
+        ).toBe(true);
+      });
+    } finally {
+      flow.close();
+    }
+  });
+
+  it("does not let a context read begun before the confirmation reopen the dialog", async () => {
+    const flow = confirmationFlow({ state: "age_confirmation_required" });
+    try {
+      await flow.controller.refresh();
+      // A poll starts before the relay and answers only after it, with the stale state.
+      let answer!: (response: Response) => void;
+      flow.setContextReply(
+        () => new Promise<Response>((resolve) => (answer = resolve)),
+      );
+      const polled = flow.controller.refresh();
+      await flow.controller.confirmAge();
+      answer(Response.json({ ...active, state: "age_confirmation_required" }));
+      await polled;
+      const admission = flow.admission();
+      expect(admission.status === "ready" && admission.onboardingRequired).toBe(
+        false,
+      );
+    } finally {
+      flow.close();
+    }
+  });
+
+  it("reads the context once for refusals while the dialog is already open", async () => {
+    const flow = confirmationFlow({ state: "age_confirmation_required" });
+    try {
+      await flow.controller.refresh();
+      const reads = flow.contextReads();
+      flow.setProduct(() =>
+        Response.json({ state: "age_confirmation_required" }, { status: 403 }),
+      );
+      for (let index = 0; index < 3; index += 1)
+        await expect(
+          flow.composition.browserFetch("/v1/chats"),
+        ).rejects.toThrow();
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(flow.contextReads()).toBe(reads);
+      expect(flow.controller.getSnapshot().reconnecting).toBe(false);
+    } finally {
+      flow.close();
+    }
+  });
+
+  it("reads the context when a confirmation finds the session ended", async () => {
+    const flow = confirmationFlow({ state: "age_confirmation_required" });
+    flow.setRelay(() =>
+      Response.json({ state: "session_required" }, { status: 401 }),
+    );
+    try {
+      await flow.controller.refresh();
+      const reads = flow.contextReads();
+      flow.state.context = { ...flow.state.context, state: "session_required" };
+      await expect(flow.controller.confirmAge()).rejects.toThrow();
+      await vi.waitFor(() =>
+        expect(flow.admission().status).toBe("sign-in-required"),
+      );
+      expect(flow.contextReads()).toBeGreaterThan(reads);
+    } finally {
+      flow.close();
+    }
+  });
+
+  it("ignores other refusals", async () => {
+    const flow = confirmationFlow({ state: "active" });
+    try {
+      await flow.controller.refresh();
+      const reads = flow.contextReads();
+      flow.setProduct(() =>
+        Response.json({ code: "chat_quota_exhausted" }, { status: 403 }),
+      );
+      await flow.composition.browserFetch("/v1/chats");
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(flow.contextReads()).toBe(reads);
+    } finally {
+      flow.close();
+    }
+  });
+});
+
+describe("hosted setup pending", () => {
+  afterEach(() => vi.useRealTimers());
+
+  it("re-reads a pending setup on a bounded schedule and refreshes the Animas when it clears", async () => {
+    vi.useFakeTimers();
+    const flow = confirmationFlow({ state: "active", setup_pending: true });
+    try {
+      await flow.controller.refresh();
+      const snapshot = flow.controller.getSnapshot();
+      expect(snapshot.setupPending).toBe(true);
+      const invalidate = vi.spyOn(snapshot.queryClient, "invalidateQueries");
+      await vi.advanceTimersByTimeAsync(5_000);
+      expect(flow.contextReads()).toBeGreaterThan(1);
+      flow.state.context = { ...flow.state.context, setup_pending: false };
+      await vi.advanceTimersByTimeAsync(5_000);
+      const after = flow.controller.getSnapshot();
+      expect(after.setupPending).toBe(false);
+      expect(after.scope).toBe(snapshot.scope);
+      expect(invalidate).toHaveBeenCalledWith({
+        queryKey: queryKeys.animas.all("owner"),
+      });
+      const reads = flow.contextReads();
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(flow.contextReads()).toBe(reads);
+    } finally {
+      flow.close();
+    }
+  });
+
+  it("bounds the burst of re-reads for a setup that stays pending", async () => {
+    vi.useFakeTimers();
+    const flow = confirmationFlow({
+      state: "age_confirmation_required",
+      setup_pending: true,
+    });
+    try {
+      await flow.controller.refresh();
+      await vi.advanceTimersByTimeAsync(10 * 60_000);
+      // About 40 burst reads in the first ~3 minutes, then one every 30 s.
+      const reads = flow.contextReads();
+      expect(reads).toBeGreaterThan(40);
+      expect(reads).toBeLessThan(70);
+    } finally {
+      flow.close();
+    }
+  });
+
+  it("stops re-reading a pending setup once the person signs out", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("window", {
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      localStorage: { length: 0, key: () => null },
+    });
+    const flow = confirmationFlow({
+      state: "age_confirmation_required",
+      setup_pending: true,
+    });
+    try {
+      await flow.controller.refresh();
+      await flow.controller.signOut();
+      const reads = flow.contextReads();
+      const views: string[] = [];
+      flow.controller.subscribe(() =>
+        views.push(flow.controller.getSnapshot().admission.status),
+      );
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(flow.contextReads()).toBe(reads);
+      expect(views).toEqual([]);
+    } finally {
+      flow.close();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("keeps re-reading slowly after its burst so the starters still appear", async () => {
+    vi.useFakeTimers();
+    const flow = confirmationFlow({ state: "active", setup_pending: true });
+    try {
+      await flow.controller.refresh();
+      await vi.advanceTimersByTimeAsync(10 * 60_000);
+      const reads = flow.contextReads();
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(flow.contextReads() - reads).toBe(2);
+      flow.state.context = { ...flow.state.context, setup_pending: false };
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(flow.controller.getSnapshot().setupPending).toBe(false);
+    } finally {
+      flow.close();
+    }
+  });
+
+  it("reports no pending setup for a context without the field", async () => {
+    const flow = confirmationFlow({ state: "active" });
+    try {
+      await flow.controller.refresh();
+      expect(flow.controller.getSnapshot().setupPending).toBe(false);
+    } finally {
+      flow.close();
+    }
+  });
+});
+
+describe("hosted setup pending before a view subscribes", () => {
+  afterEach(() => vi.useRealTimers());
+
+  it("starts re-reading once the first view subscribes", async () => {
+    vi.useFakeTimers();
+    const context = { ...active, setup_pending: true };
+    let reads = 0;
+    const composition = createHostedComposition({
+      baseUrl: "https://app.example.test",
+      navigate: vi.fn(),
+      fetch: async (input) => {
+        const path = new URL((input as Request).url).pathname;
+        if (path === "/v1/hosted/events")
+          return new Response(new ReadableStream<Uint8Array>());
+        reads += 1;
+        return Response.json(context);
+      },
+    });
+    await composition.readAdmission();
+    expect(composition.setupPending!()).toBe(true);
+    const refresh = vi.fn();
+    const unsubscribe = composition.subscribe!(refresh);
+    try {
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(refresh).toHaveBeenCalled();
+    } finally {
+      unsubscribe();
+    }
+    expect(reads).toBe(1);
+  });
+});
+
+describe("hosted 18+ confirmation follow-ups", () => {
+  it("reads the context again when the confirmation cancelled a read in flight", async () => {
+    const flow = confirmationFlow({ state: "age_confirmation_required" });
+    // The relay commits the confirmation, so a read begun after it answers active.
+    flow.setRelay(() => {
+      flow.state.context = { ...flow.state.context, state: "active" };
+      return Response.json(flow.state.context);
+    });
+    let published = 0;
+    const stop = flow.controller.subscribe(() => (published += 1));
+    try {
+      await flow.controller.refresh();
+      let answer!: (response: Response) => void;
+      flow.setContextReply(
+        () => new Promise<Response>((resolve) => (answer = resolve)),
+      );
+      const polled = flow.controller.refresh();
+      const reads = flow.contextReads();
+      const before = published;
+      await flow.controller.confirmAge();
+      answer(Response.json({ ...active, state: "age_confirmation_required" }));
+      await polled;
+      // The relay's reply and then the fresh read are published; the cancelled read is not.
+      await vi.waitFor(() => expect(published).toBe(before + 2));
+      expect(flow.contextReads()).toBe(reads + 1);
+      const admission = flow.admission();
+      expect(admission.status === "ready" && admission.onboardingRequired).toBe(
+        false,
+      );
+    } finally {
+      stop();
+      flow.close();
+    }
+  });
+
+  it("reads the context again when the confirmation replaced a scheduled retry", async () => {
+    const flow = confirmationFlow({ state: "age_confirmation_required" });
+    flow.setRelay(() => {
+      flow.state.context = { ...flow.state.context, state: "active" };
+      return Response.json(flow.state.context);
+    });
+    try {
+      await flow.controller.refresh();
+      vi.useFakeTimers();
+      // A recheck's read fails, so the scope pauses and a retry waits a second.
+      flow.setContextReply(() => Promise.reject(new TypeError("offline")));
+      await flow.controller.refresh(false, "recheck");
+      const reads = flow.contextReads();
+      await flow.controller.confirmAge();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(flow.contextReads()).toBe(reads + 1);
+    } finally {
+      vi.useRealTimers();
+      flow.close();
+    }
+  });
+
+  it("refetches queries refused before the confirmation", async () => {
+    const flow = confirmationFlow({ state: "age_confirmation_required" });
+    try {
+      await flow.controller.refresh();
+      const { queryClient } = flow.controller.getSnapshot();
+      const invalidate = vi.spyOn(queryClient, "invalidateQueries");
+      await flow.controller.confirmAge();
+      expect(invalidate).toHaveBeenCalledWith();
+    } finally {
+      flow.close();
     }
   });
 });

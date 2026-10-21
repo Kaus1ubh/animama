@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
+import { useOptionalRuntimeSetupPending } from "@web/app/runtime/RuntimeAdmissionProvider";
 import { useOptionalAppShell } from "@/ui/app/AppShell";
 import { AppShellPage } from "@/ui/app/AppShellPage";
 import { Button } from "@/ui/components/button";
@@ -8,6 +9,8 @@ import { Button } from "@/ui/components/button";
 export function EmptyAnimaRoster() {
   const { t } = useTranslation("animas");
   const appShell = useOptionalAppShell();
+  // The server is still creating the starter Animas; they appear without a reload.
+  const preparing = useOptionalRuntimeSetupPending();
   return (
     <AppShellPage contentClassName="max-w-xl text-center">
       <Button
@@ -19,8 +22,16 @@ export function EmptyAnimaRoster() {
       >
         {t("roster.menu")}
       </Button>
-      <h1 className="text-lg font-semibold">{t("roster.title")}</h1>
-      <p className="text-muted-foreground">{t("roster.description")}</p>
+      {preparing ? (
+        <p role="status" className="text-muted-foreground">
+          {t("roster.preparing")}
+        </p>
+      ) : (
+        <>
+          <h1 className="text-lg font-semibold">{t("roster.title")}</h1>
+          <p className="text-muted-foreground">{t("roster.description")}</p>
+        </>
+      )}
       <Button asChild variant="outline">
         <Link to="/library">{t("roster.openLibrary")}</Link>
       </Button>

@@ -9,11 +9,13 @@
   },
   "ageConfirmation": {
     "backToSetup": "설정으로 돌아가기",
+    "betaNotice": "웹용 Animama는 베타 버전입니다. 데스크톱 앱에서 가장 좋은 경험을 할 수 있습니다.",
     "confirm": "만 18세 이상입니다",
     "decline": "만 18세 미만입니다",
     "declined": "Animama는 18세 이상 성인만 사용할 수 있습니다. 채팅을 계속할 수 없습니다.",
     "errors": {
       "capabilitiesFailed": "AI 설정을 확인하지 못했습니다. 다시 시도해 주세요.",
+      "confirmFailed": "확인을 저장하지 못했습니다. 다시 시도해 주세요.",
       "modelUnavailable": "선택한 모델을 더 이상 사용할 수 없습니다. 설정으로 돌아가 다른 모델을 선택하거나 AI를 건너뛰세요.",
       "saveFailed": "설정을 저장하지 못했습니다. 다시 시도해 주세요."
     },
@@ -22,7 +24,8 @@
     "notice": "Animama는 18세 이상 성인용입니다. Anima는 사람이 아니라 AI 컴패니언입니다.",
     "opening": "여는 중…",
     "retry": "다시 시도",
-    "safetyLink": "안전 및 위기 대응 프로토콜"
+    "safetyLink": "안전 및 위기 대응 프로토콜",
+    "signOut": "로그아웃"
   },
   "ai": {
     "addCustomServer": "사용자 지정 서버 추가",
