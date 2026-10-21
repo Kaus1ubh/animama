@@ -238,8 +238,6 @@ const REVEAL_DELAY_SEC = 0.2;
  * revealed the text (`revealOnInteraction`).
  */
 let pushedIn = !playIntro;
-/** The entrance framing's shift when the text shows before her wave. */
-const EARLY_REVEAL_FRAMING: Partial<StageCamera> = { lift: -0.24 };
 /**
  * When her smile began to fade (session seconds): once the wave ends, with
  * the camera already pushed in, happy eases back to 0 over `HAPPY_FADE_SEC`
@@ -673,19 +671,60 @@ function finishIntro() {
   store.set({ intro: "done", revealed: true });
 }
 
+/** Keys that skip the entrance: Escape, and the keys that scroll the page. */
+const SKIP_KEYS = new Set([
+  "Escape",
+  " ",
+  "PageDown",
+  "PageUp",
+  "ArrowDown",
+  "ArrowUp",
+  "Home",
+  "End",
+]);
+
 /**
- * A visitor who clicks or presses a key during the entrance sees the hero's
- * text, the progress thread and the rest at once, while the entrance itself
- * (walk, double take, wave and the camera's push-in) plays on.
+ * During the entrance, a click shows the hero's text, the progress thread
+ * and the rest at once while the entrance itself (walk, double take, wave
+ * and the camera's push-in) plays on. Escape or a scroll key skips it (the
+ * scroll keys still scroll); other keys do nothing.
  */
 function revealOnInteraction() {
+  const stop = () => {
+    window.removeEventListener("pointerdown", reveal);
+    window.removeEventListener("keydown", skip);
+  };
   const reveal = () => {
     window.removeEventListener("pointerdown", reveal);
-    window.removeEventListener("keydown", reveal);
     if (!store.get().revealed) store.set({ revealed: true });
   };
+  const skip = (event: KeyboardEvent) => {
+    if (intro && !SKIP_KEYS.has(event.key)) return;
+    stop();
+    skipIntro();
+  };
   window.addEventListener("pointerdown", reveal);
-  window.addEventListener("keydown", reveal);
+  window.addEventListener("keydown", skip);
+}
+
+/**
+ * Skip the entrance: she stands on her mark facing the camera, the text
+ * shows and the camera pushes in. She still waves, unless she already is.
+ */
+function skipIntro() {
+  if (!intro) return;
+  const waving = intro.phase === "waving";
+  finishIntro();
+  if (waving) {
+    // The wave plays on; her smile fades as it would have when it ended.
+    if (happyFrom !== null && happyFadeFrom === null) happyFadeFrom = time;
+    return;
+  }
+  // Her face returns to the wave's own expressions.
+  if (happyFrom !== null) avatar?.clearExpressionOverride("happy");
+  happyFrom = null;
+  happyFadeFrom = null;
+  if (store.get().active === 0) playClip(0, HERO_WAVE);
 }
 
 function scrollToStop(index: number) {
@@ -803,16 +842,9 @@ function frame() {
   const b = STAGE_STOPS[from + 1];
   const target = blendCameras(stopCamera(a), stopCamera(b), blend);
   // The entrance is framed wider; the camera pushes in to the stop just
-  // into her wave, with the text. Text a visitor revealed early sits over
-  // the wide framing, so she walks in lower, beneath it.
+  // into her wave (even when a visitor revealed the text earlier).
   follow(
-    pushedIn
-      ? target
-      : {
-          ...target,
-          ...STAGE_STOPS[0].introCamera,
-          ...(store.get().revealed ? EARLY_REVEAL_FRAMING : {}),
-        },
+    pushedIn ? target : { ...target, ...STAGE_STOPS[0].introCamera },
     delta,
   );
   backdrops.forEach((layer, index) => {
