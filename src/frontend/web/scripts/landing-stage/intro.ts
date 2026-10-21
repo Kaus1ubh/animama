@@ -96,7 +96,7 @@ const DEG = Math.PI / 180;
  */
 const WALK_HEADING = 90 * DEG;
 /** Her walking pace, in head heights per second, before she slows. */
-const CRUISE = 0.95;
+const CRUISE = 1.1;
 /** Share of the walk spent slowing to a stop. */
 const SLOW_SHARE = 0.4;
 /** One full stride (two steps), and the bob at each step. */
@@ -126,14 +126,17 @@ const TURN_LEAD = 0.7;
  * beats (`landing-walk-scratch-take.clip.json`).
  */
 const SCRATCH = {
-  /** The walk comes to rest here. */
-  stop: 2.35,
+  /** The walk comes to rest here (the walk lasts at least this long). */
+  stop: 2.1,
   /** Her body turns from side-on to the camera over this window. */
-  turnFrom: 2.1,
-  turnTo: 3.0,
-  /** Her right arm leaves the walk's swing for her head, and returns. */
-  armUp: [0.45, 0.93],
-  armDown: [2.2, 2.8],
+  turnFrom: 1.85,
+  turnTo: 2.75,
+  /**
+   * Her right arm leaves the walk's swing for her head, and rejoins it as
+   * she lowers it after the scratch, before the double take.
+   */
+  armUp: [0, 0.42],
+  armDown: [0.95, 1.46],
   /** Stepping in place while she turns: strength and pace (head heights/s). */
   turnGait: 0.5,
   turnStepPace: 0.5,

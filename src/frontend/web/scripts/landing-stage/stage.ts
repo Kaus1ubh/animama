@@ -223,15 +223,15 @@ let happyFrom: number | null = null;
 const HAPPY_RAMP_SEC = 1.2;
 /**
  * With the head scratch, her smile waits for the double take's surprise to
- * start fading: the clip holds `surprised` from its take (2.16 s) to just
- * after her hand comes down (2.85 s), and the turn begins at 2.1 s.
+ * start fading: the clip holds `surprised` from its take (1.91 s) until she
+ * settles (2.6 s), and the turn begins at 1.85 s.
  */
 const HAPPY_AFTER_TAKE_SEC = 0.7;
 /** Whether the entrance played the head scratch and double take. */
 let puzzled = false;
 /** When her wave began (session seconds), and how far into it the reveal starts. */
 let waveFrom: number | null = null;
-const REVEAL_DELAY_SEC = 0.5;
+const REVEAL_DELAY_SEC = 0.2;
 /**
  * When her smile began to fade (session seconds): once the wave ends, with
  * the camera already pushed in, happy eases back to 0 over `HAPPY_FADE_SEC`
@@ -596,18 +596,42 @@ async function createIntro(target: Avatar) {
 }
 
 /**
+ * Where the head scratch's question mark floats, in metres from the head
+ * bone: ahead of her forehead (+z) rather than over her crown, so it reads
+ * while she walks side-on. The Included effect's own placement suits an
+ * Avatar facing the camera.
+ */
+const PUZZLE_QUESTION_OFFSET = { x: 0.08, y: 0.2, z: 0.15 };
+
+type ClipAvatarEffect = PreviewMedia["avatarEffects"][number];
+
+/** The question mark moved ahead of her forehead; other effects as they are. */
+function placePuzzleEffect(entry: ClipAvatarEffect): ClipAvatarEffect {
+  const { definition } = entry.effect;
+  const attachment = definition.attachment as Record<string, unknown> | null;
+  if (entry.effect.stem !== "question_mark" || !attachment) return entry;
+  return {
+    ...entry,
+    effect: {
+      ...entry.effect,
+      definition: {
+        ...definition,
+        attachment: { ...attachment, offset: PUZZLE_QUESTION_OFFSET },
+      },
+    },
+  };
+}
+
+/**
  * Play the scratch walk's clip, with the Avatar Effects it borrows from the
  * Library items that ship them.
  */
 function playPuzzle() {
   if (!avatar || !puzzleClip) return;
-  const avatarEffects = new Map<
-    string,
-    PreviewMedia["avatarEffects"][number]
-  >();
+  const avatarEffects = new Map<string, ClipAvatarEffect>();
   for (const spec of PUZZLE_EFFECT_SOURCES)
     for (const entry of program?.sources[spec]?.media?.avatarEffects ?? [])
-      avatarEffects.set(entry.alias, entry);
+      avatarEffects.set(entry.alias, placePuzzleEffect(entry));
   media.setMedia({
     ...EMPTY_PREVIEW_MEDIA,
     avatarEffects: [...avatarEffects.values()],
