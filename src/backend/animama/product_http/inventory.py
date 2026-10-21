@@ -122,7 +122,11 @@ ROUTES: tuple[RouteSpec, ...] = (
     _shared(3, "GET", "/v1/animas/{anima_id}/runtime", "get_anima_runtime", "write"),
     _shared(3, "POST", "/v1/animas/{anima_id}/runtime/revisions/{revision}:renew", "renew_anima_runtime", "write"),
     _shared(
-        3, "GET", "/v1/animas/{anima_id}/runtime/revisions/{revision}/json-bundle", "get_runtime_json_bundle", "bytes"
+        3,
+        "GET",
+        "/v1/animas/{anima_id}/runtime/revisions/{revision}/bundles/{bundle_id}",
+        "get_runtime_bundle",
+        "bytes",
     ),
     _shared(
         3,

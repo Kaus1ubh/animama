@@ -9,11 +9,13 @@
   },
   "ageConfirmation": {
     "backToSetup": "返回设置",
+    "betaNotice": "Animama 网页版目前为测试版。桌面应用可提供最佳体验。",
     "confirm": "我已年满 18 岁",
     "decline": "我未满 18 岁",
     "declined": "Animama 仅供 18 岁及以上的成年人使用。你无法继续聊天。",
     "errors": {
       "capabilitiesFailed": "无法检查 AI 设置。请重试。",
+      "confirmFailed": "无法保存你的确认。请重试。",
       "modelUnavailable": "所选模型已无法使用。请返回设置选择其他模型，或跳过 AI。",
       "saveFailed": "无法保存设置。请重试。"
     },
@@ -22,7 +24,8 @@
     "notice": "Animama 仅供 18 岁及以上的成年人使用。Anima 是 AI 伙伴，不是真人。",
     "opening": "正在打开…",
     "retry": "重试",
-    "safetyLink": "安全与危机应对规程"
+    "safetyLink": "安全与危机应对规程",
+    "signOut": "退出登录"
   },
   "ai": {
     "addCustomServer": "添加自定义服务器",

@@ -798,6 +798,7 @@ export default interface Resources {
       "menu": "Menu",
       "openLibrary": "Open Library",
       "openSidebar": "Open sidebar",
+      "preparing": "Your Animas are being prepared. They will appear here in a moment.",
       "title": "Your Animas will appear here"
     },
     "stage": {
@@ -6214,11 +6215,13 @@ export default interface Resources {
     },
     "ageConfirmation": {
       "backToSetup": "Back to setup",
+      "betaNotice": "Animama on the web is in beta. The desktop app gives the best experience.",
       "confirm": "I am 18 or older",
       "decline": "I'm under 18",
       "declined": "Animama is only for adults 18 and older. You can't continue to chat.",
       "errors": {
         "capabilitiesFailed": "AI settings could not be checked. Please try again.",
+        "confirmFailed": "Your confirmation could not be saved. Please try again.",
         "modelUnavailable": "The chosen model can no longer be used. Go back to setup and choose another, or skip AI.",
         "saveFailed": "Setup could not be saved. Please try again."
       },
@@ -6227,7 +6230,8 @@ export default interface Resources {
       "notice": "Animama is for adults 18 and older. Animas are AI companions, not people.",
       "opening": "Opening…",
       "retry": "Retry",
-      "safetyLink": "Safety and crisis protocol"
+      "safetyLink": "Safety and crisis protocol",
+      "signOut": "Sign out"
     },
     "ai": {
       "addCustomServer": "Add a custom server",

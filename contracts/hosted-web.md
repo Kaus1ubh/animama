@@ -15,7 +15,13 @@ services and byte delivery, upload storage, speech, the model catalog policy, ro
 defaults and embedding refresh status, the Memory Manager service, and the chat
 policy, chat-turn guard and turn collaborators) and sets its request-principal
 resolver as `app.state.request_principal_resolver`; without either, shared routes
-answer 503. Its content port decides package admission: a
+answer 503. Its byte delivery (`file_response`) receives `immutable=True` for
+revision-named runtime members and complete binary bundles and chooses its own
+cache policy for them ([ADR 0028](../docs/adr/0028-cacheable-runtime-revision-members.md)).
+A composition whose shared catalog rows never change at runtime sets
+`SHARED_CATALOG_ROWS_IMMUTABLE` (from `content_catalog_repo`) in the `info` of owner
+sessions that run the shared loadout services, so their reads lock only owner rows.
+Its content port decides package admission: a
 composition that withholds Anima creation builds
 `ContentPackageService(allow_anima_import=False)`. A composition that serves only
 its own catalog sets `ModelCatalogPolicy(validate_role_preferences=True)`, so
@@ -83,6 +89,30 @@ recovery is offered. `recovery` and a failed first attempt show recovery, whose
 retry starts one new attempt. An admitted view whose context later requires
 setup (for example after a policy update) keeps its session and drafts suspended
 and repeats setup at a bounded pace until the context is active again.
+
+`age_confirmation_required` is an admitted state, never a setup state: the
+browser admits it like `active` (same capability, CSRF and session checks) with
+`onboardingRequired`, and renders the app inert behind the shared 18+ dialog with
+a short beta notice. Confirming posts `{"adult_confirmed": true}` to
+`POST /v1/hosted/age-confirmation` with the CSRF header; the reply is the runtime
+context, and an `active` reply closes the dialog in place without remounting the
+app. A failed reply keeps the dialog open for another try, and a 401 reads the
+context, which decides what follows. Declining sends nothing and offers sign-out.
+A request refused with status 403 and `{"state": "age_confirmation_required"}` is
+cancelled (an `AbortError`, handled like an ended session rather than shown as a
+failure) and, unless the dialog is already open, the context is read, which
+reopens it. The browser never infers or stores the answer; the server owns the
+attestation.
+
+An admitted context (`active` or `age_confirmation_required`) may carry
+`setup_pending: true` while the server prepares the account's starter data.
+Product reads then answer as for an empty account: the roster shows a loading
+state instead of its empty prompt, and the browser re-reads the context in a
+short burst (about three minutes) and then every 30 seconds, stopping when the
+session ends. When `setup_pending` clears for the same
+session, the browser refreshes its Anima and settings queries, so the starter
+Animas appear without a reload. A browser that predates these fields treats
+`age_confirmation_required` as an unknown state and ignores `setup_pending`.
 
 The hosted context may additionally return `account_url`, an optional central
 account navigation URL. The browser accepts HTTPS or its own application origin,
@@ -172,10 +202,10 @@ shows that a newer sign-in replaced the one it targeted.
 ## Capabilities and requests
 
 The sole wire schema is `app/contracts/runtime_capabilities.py`, exported offline
-in `local-http` version **9.0.0** with capability `schema_version: 2`. The generated
+in `local-http` version **10.0.0** with capability `schema_version: 2`. The generated
 TypeScript `RuntimeCapabilities` and validator are the same contract.
 `ProductRuntimeCapabilities` is a derived `Pick` for the existing extracted chat
-surface, not another wire schema. `runtime-contracts` is version 0.9.0 and
+surface, not another wire schema. `runtime-contracts` is version 0.10.0 and
 `product-ui` is version 0.14.0. Consumers explicitly admit
 the new contract major before adoption.
 

@@ -244,15 +244,21 @@ class PyRuntimeWarning(BaseModel):
     scope: str
 
 
-class PyRuntimeJsonBundle(BaseModel):
-    """Optional delivery hint; original descriptor members remain the integrity authority."""
+class PyRuntimeBundle(BaseModel):
+    """Optional delivery hint; original descriptor members remain the integrity authority.
+
+    A ``json`` bundle answers a JSON envelope of member texts; a ``binary`` bundle answers
+    ``AMB1``, a 4-byte big-endian header length, a JSON header naming each member's
+    ``size`` or ``error``, then the members' bytes in header order.
+    """
 
     model_config = ConfigDict(extra="forbid")
 
-    version: Literal[1] = 1
+    id: str = Field(pattern=r"^[0-9a-f]{64}$")
+    format: Literal["json", "binary"]
     url: str
     file_refs: list[str] = Field(min_length=2, max_length=256)
-    total_bytes: int = Field(gt=0, le=2 * 1024 * 1024)
+    total_bytes: int = Field(gt=0, le=4 * 1024 * 1024)
 
 
 class PyAnimaRuntime(BaseModel):
@@ -266,7 +272,11 @@ class PyAnimaRuntime(BaseModel):
     lease_expires_at: datetime
     can_chat: bool = True
     content_descriptor: PyRuntimeContentDescriptor
-    json_bundle: PyRuntimeJsonBundle | None = None
+    bundles: list[PyRuntimeBundle] = Field(
+        default_factory=list,
+        max_length=32,
+        description="Delivery bundles of optional members, Idle members' bundles first.",
+    )
     gestures: list[PyRuntimeAction] = Field(default_factory=list)
     poses: list[PyRuntimeAction] = Field(default_factory=list)
     reactions: list[PyRuntimeAction] = Field(default_factory=list)

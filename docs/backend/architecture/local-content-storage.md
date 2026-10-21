@@ -322,28 +322,34 @@ Registered-byte routes resolve the admitted installation principal first, verify
 resolve the safe relative locator inside its configured root, reject links and
 non-regular files, and recheck exact size and SHA-256 before streaming. They
 accept no path. Digest ETags are evaluated after authorization and integrity
-checks. Local delivery uses private revalidation; authorization never depends on
-browser cache state.
+checks. Local delivery uses private revalidation, except runtime revision members
+and complete binary bundles, which the browser may keep for a year
+(`private, max-age=31536000, immutable`, ADR 0028); authorization never depends on
+browser cache state for any request that reaches the server.
 
 Mounted runtime-manifest JSON has gzip/identity content
 negotiation. Its full descriptor and current lease remain in each response;
 authorization and issuance run even on a conditional request. Wire-specific
 ETags and `Vary: Accept-Encoding` distinguish representations, but never turn
 an effective content revision into permission to reuse an expired lease.
-Registered bytes are not compressed by this policy: size/digest verification,
-private cache revalidation and streaming stay unchanged. See the
+Registered bytes are not compressed by this policy: size/digest verification and
+streaming stay unchanged, and their caching follows the registered-byte policy
+above. See the
 [HTTP API](http-api.md) for negotiation and metadata details.
 
-Runtime JSON bundles aggregate delivery only; creator files remain individually
-editable and retain their catalog refs and revisions. The optional bundle selects
-small executable sequences/particle manifests outside the essential Avatar closure
-(256 files maximum, 256 KiB each, 2 MiB total). Every request checks the existing
-owner snapshot, bulk-authorizes current catalog pins, then reopens and verifies
-each source file before considering a 304. UTF-8 text retains original bytes;
-one changed file produces an isolated error and scan-required marking. Successful
-bundles use private revalidation and gzip; mixed errors use `no-store`. Bundles
-create no files, schema, lease extensions, shared cross-Anima caches, or backup
-requirements. VRM/VRMA, textures and audio retain their individual byte routes.
+Runtime delivery bundles aggregate delivery only; creator files remain individually
+editable and retain their catalog refs and revisions. Bundles select small
+executable JSON sequences and manifests and small PNG, JPEG and WebP images outside
+the Avatar's and voice's closures, Idle members first (limits in the
+[HTTP API](http-api.md)). Every request checks the existing owner snapshot,
+bulk-authorizes current catalog pins, then reopens and verifies each source file
+before considering a 304. JSON text retains original bytes; images keep their exact
+bytes in a framed body. One changed file produces an isolated error and
+scan-required marking. Complete JSON bundles use private revalidation and gzip,
+complete binary bundles the immutable policy;
+mixed errors use `no-store`. Bundles create no files, schema, lease extensions,
+shared cross-Anima caches, or backup requirements. VRM/VRMA, audio and larger files
+retain their individual byte routes.
 
 ## Preview, Equip, and runtime
 

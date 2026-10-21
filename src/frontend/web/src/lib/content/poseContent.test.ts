@@ -76,8 +76,10 @@ describe("Pose registered byte loading", () => {
     const revoke = vi.spyOn(URL, "revokeObjectURL");
     await loadPoseContent(testApiClient, item);
     expect(revoke).toHaveBeenCalledWith(create.mock.results[0]?.value);
-    mocks.fetchFile.mockResolvedValue(
-      new Response(JSON.stringify(descriptor).replace("Rest", "Best")),
+    // Altered on every read, so the one reload after a mismatch fails too.
+    mocks.fetchFile.mockImplementation(
+      async () =>
+        new Response(JSON.stringify(descriptor).replace("Rest", "Best")),
     );
     await expect(loadPoseContent(testApiClient, item)).rejects.toThrow(
       /digest/,

@@ -17,24 +17,21 @@ export function preparedRuntimeResourceUrls(
   };
 }
 
-/** Read one JSON response without allowing streaming bodies to exceed a cap. */
-export async function readBoundedJsonResponse(
+/** Read one response's bytes without allowing streaming bodies to exceed a cap. */
+export async function readBoundedResponseBytes(
   response: Response,
   maxBytes: number,
-): Promise<unknown> {
+  message: string,
+): Promise<Uint8Array<ArrayBuffer>> {
   const declaredLength = Number(response.headers.get("content-length"));
   if (Number.isFinite(declaredLength) && declaredLength > maxBytes) {
-    await response.body?.cancel(
-      "Runtime content manifest exceeds the byte limit",
-    );
-    throw new Error("Runtime content manifest exceeds the byte limit");
+    await response.body?.cancel(message);
+    throw new Error(message);
   }
   if (!response.body) {
     const buffer = await response.arrayBuffer();
-    if (buffer.byteLength > maxBytes) {
-      throw new Error("Runtime content manifest exceeds the byte limit");
-    }
-    return JSON.parse(new TextDecoder().decode(buffer));
+    if (buffer.byteLength > maxBytes) throw new Error(message);
+    return new Uint8Array(buffer);
   }
 
   const reader = response.body.getReader();
@@ -45,8 +42,8 @@ export async function readBoundedJsonResponse(
     if (done) break;
     length += value.byteLength;
     if (length > maxBytes) {
-      await reader.cancel("Runtime content manifest exceeds the byte limit");
-      throw new Error("Runtime content manifest exceeds the byte limit");
+      await reader.cancel(message);
+      throw new Error(message);
     }
     chunks.push(value);
   }
@@ -56,6 +53,19 @@ export async function readBoundedJsonResponse(
     bytes.set(chunk, offset);
     offset += chunk.byteLength;
   }
+  return bytes;
+}
+
+/** Read one JSON response without allowing streaming bodies to exceed a cap. */
+export async function readBoundedJsonResponse(
+  response: Response,
+  maxBytes: number,
+): Promise<unknown> {
+  const bytes = await readBoundedResponseBytes(
+    response,
+    maxBytes,
+    "Runtime content manifest exceeds the byte limit",
+  );
   return JSON.parse(new TextDecoder().decode(bytes));
 }
 

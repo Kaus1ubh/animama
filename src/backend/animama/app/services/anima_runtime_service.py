@@ -33,12 +33,12 @@ from animama.domain.content_catalog import (
     ContentSource,
     ContentStatus,
 )
+from animama.domain.runtime_bundles import JSON_BUNDLE_MAX_MEMBERS, select_runtime_bundles
 from animama.domain.runtime_content_descriptor import (
     RuntimeContentDescriptor,
     RuntimeContentRootSelection,
     validate_admitted_item_revisions,
 )
-from animama.domain.runtime_json_bundle import JSON_BUNDLE_MAX_MEMBERS, select_runtime_json_members
 from animama.orm.anima import ORMAnima
 from animama.orm.anima_loadout import (
     ORMAnimaLoadout,
@@ -120,17 +120,18 @@ def _runtime_response(
             }
         return result
 
-    bundle_members = select_runtime_json_members(catalog_body)
     return {
         **overlay(catalog_body),
-        "json_bundle": {
-            "version": 1,
-            "url": f"/v1/animas/{anima_id}/runtime/revisions/{effective_revision}/json-bundle",
-            "file_refs": [member["file_ref"] for member in bundle_members],
-            "total_bytes": sum(member["size_bytes"] for member in bundle_members),
-        }
-        if bundle_members
-        else None,
+        "bundles": [
+            {
+                "id": bundle.id,
+                "format": bundle.format,
+                "url": f"/v1/animas/{anima_id}/runtime/revisions/{effective_revision}/bundles/{bundle.id}",
+                "file_refs": bundle.file_refs,
+                "total_bytes": bundle.total_bytes,
+            }
+            for bundle in select_runtime_bundles(catalog_body)
+        ],
         "effective_revision": effective_revision,
         "lease_expires_at": lease_expires_at.isoformat(),
     }

@@ -79,7 +79,7 @@ async def test_an_owner_never_reaches_another_owners_runtime(
         async with composition.client(owner_b) as b:
             for response in (
                 await b.get(base),
-                await b.get(f"{base}/revisions/{revision}/json-bundle"),
+                await b.get(f"{base}/revisions/{revision}/bundles/{'0' * 64}"),
                 await b.get(f"{base}/revisions/{revision}/files/{member}"),
             ):
                 assert response.status_code == 404, response.text

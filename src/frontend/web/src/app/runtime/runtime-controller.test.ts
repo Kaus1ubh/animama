@@ -4,18 +4,18 @@ import { RuntimeController } from "./runtime-controller";
 import { hostedCapabilitiesFixture as capabilities } from "./runtime-fixture";
 import type { AppComposition } from "./composition";
 
-function ready(key: string): RuntimeAdmission {
+function ready(key: string, onboardingRequired = false): RuntimeAdmission {
   return {
     status: "ready",
     session: { key, owner: { id: "same-owner" } },
     capabilities,
-    onboardingRequired: false,
+    onboardingRequired,
   };
 }
-function fixture() {
+function fixture(kind: AppComposition["kind"] = "hosted") {
   let admission = ready("first-lifetime");
   const composition: AppComposition = {
-    kind: "hosted",
+    kind,
     transport: { baseUrl: "https://app.example.test", fetch: vi.fn() },
     readAdmission: vi.fn(async () => admission),
     repair: vi.fn(async () => admission),
@@ -36,6 +36,27 @@ function fixture() {
 }
 
 describe("composition lifetime boundary", () => {
+  it("refetches every query after an 18+ confirmation on hosted only", async () => {
+    for (const kind of ["hosted", "local"] as const) {
+      const { controller, set } = fixture(kind);
+      try {
+        set(ready("first-lifetime", true));
+        await controller.refresh();
+        const invalidate = vi.spyOn(
+          controller.getSnapshot().queryClient,
+          "invalidateQueries",
+        );
+        set(ready("first-lifetime"));
+        await controller.refresh();
+        // Local onboarding refreshes its own query families; hosted refused all of them.
+        expect(invalidate.mock.calls.some(([filters]) => !filters)).toBe(
+          kind === "hosted",
+        );
+      } finally {
+        controller.dispose();
+      }
+    }
+  });
   it("bounds automatic reconnect backoff and cancels it on sign-out", async () => {
     vi.useFakeTimers();
     const { controller, composition } = fixture();

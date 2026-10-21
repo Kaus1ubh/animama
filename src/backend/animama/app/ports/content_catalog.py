@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from contextlib import AbstractAsyncContextManager
 from datetime import datetime
 from typing import Any, Protocol
@@ -104,6 +105,17 @@ class ContentCatalog(Protocol):
         user_id: str,
         for_update: bool = False,
     ) -> CatalogContentEntry | None:
+        raise NotImplementedError
+
+    async def get_visible_items(
+        self,
+        *,
+        item_ids: Iterable[str],
+        user_id: str,
+        for_update: bool = False,
+    ) -> dict[str, CatalogContentEntry]:
+        """The visible items among ``item_ids`` by ID, read (and locked) together."""
+
         raise NotImplementedError
 
     async def get_by_locator(

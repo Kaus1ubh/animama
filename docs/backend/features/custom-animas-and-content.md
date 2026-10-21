@@ -244,7 +244,14 @@ composition that equips starters without one creates the loadout with
 loadout uses the version's starter Gestures and receives the same Idle pool as
 creation, and each Reaction cell holds its available starter Reactions, as
 `restore_starter` leaves it. It then sets the Avatar and other selections
-through ordinary plan/commit changes.
+through ordinary plan/commit changes. The starter step reads, locks and writes
+its pools in a bounded number of statements and locks every pool member until
+the owner's commit. A composition whose shared catalog rows (rows with no owner)
+never change at runtime sets `SHARED_CATALOG_ROWS_IMMUTABLE` from
+`content_catalog_repo` to `True` in the session's `info`. The loadout reads
+(`get_visible_item` and `get_visible_items`) then lock only owner rows, so
+concurrent owners' loadout writes never wait on a shared row; `lock_items` and
+reconciliation still lock the rows they name.
 
 Newly provisioned starters use Annie version 3 (`AvatarSample_A_1_New`, Eve Pocket
 voice, ElevenLabs `gJx1vCzNCD1EQHT212Ls`) and Andrew version 1 (`Andrew`, Michael

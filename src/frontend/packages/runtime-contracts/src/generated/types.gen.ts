@@ -2932,6 +2932,12 @@ export type PyAnimaRuntime = {
      */
     avatar_effects?: Array<PyRuntimeAvatarEffect>;
     /**
+     * Bundles
+     *
+     * Delivery bundles of optional members, Idle members' bundles first.
+     */
+    bundles?: Array<PyRuntimeBundle>;
+    /**
      * Can Chat
      */
     can_chat?: boolean;
@@ -2949,7 +2955,6 @@ export type PyAnimaRuntime = {
      */
     gestures?: Array<PyRuntimeAction>;
     idle?: PyRuntimeIdle;
-    json_bundle?: PyRuntimeJsonBundle | null;
     /**
      * Lease Expires At
      */
@@ -7876,6 +7881,38 @@ export type PyRuntimeAvatarEffect = {
 };
 
 /**
+ * PyRuntimeBundle
+ *
+ * Optional delivery hint; original descriptor members remain the integrity authority.
+ *
+ * A ``json`` bundle answers a JSON envelope of member texts; a ``binary`` bundle answers
+ * ``AMB1``, a 4-byte big-endian header length, a JSON header naming each member's
+ * ``size`` or ``error``, then the members' bytes in header order.
+ */
+export type PyRuntimeBundle = {
+    /**
+     * File Refs
+     */
+    file_refs: Array<string>;
+    /**
+     * Format
+     */
+    format: 'json' | 'binary';
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Total Bytes
+     */
+    total_bytes: number;
+    /**
+     * Url
+     */
+    url: string;
+};
+
+/**
  * PyRuntimeCatalogItemSource
  *
  * Catalog provenance for a mounted Included or Local entry.
@@ -8286,30 +8323,6 @@ export type PyRuntimeImageReference = {
      * Width
      */
     width: number;
-};
-
-/**
- * PyRuntimeJsonBundle
- *
- * Optional delivery hint; original descriptor members remain the integrity authority.
- */
-export type PyRuntimeJsonBundle = {
-    /**
-     * File Refs
-     */
-    file_refs: Array<string>;
-    /**
-     * Total Bytes
-     */
-    total_bytes: number;
-    /**
-     * Url
-     */
-    url: string;
-    /**
-     * Version
-     */
-    version?: 1;
 };
 
 /**
@@ -10887,6 +10900,48 @@ export type GetAnimaRuntimeV1AnimasAnimaIdRuntimeGetResponses = {
 
 export type GetAnimaRuntimeV1AnimasAnimaIdRuntimeGetResponse = GetAnimaRuntimeV1AnimasAnimaIdRuntimeGetResponses[keyof GetAnimaRuntimeV1AnimasAnimaIdRuntimeGetResponses];
 
+export type GetRuntimeBundleV1AnimasAnimaIdRuntimeRevisionsRevisionBundlesBundleIdGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * If-None-Match
+         */
+        'If-None-Match'?: string | null;
+    };
+    path: {
+        /**
+         * Anima Id
+         */
+        anima_id: string;
+        /**
+         * Revision
+         */
+        revision: string;
+        /**
+         * Bundle Id
+         */
+        bundle_id: string;
+    };
+    query?: never;
+    url: '/v1/animas/{anima_id}/runtime/revisions/{revision}/bundles/{bundle_id}';
+};
+
+export type GetRuntimeBundleV1AnimasAnimaIdRuntimeRevisionsRevisionBundlesBundleIdGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetRuntimeBundleV1AnimasAnimaIdRuntimeRevisionsRevisionBundlesBundleIdGetError = GetRuntimeBundleV1AnimasAnimaIdRuntimeRevisionsRevisionBundlesBundleIdGetErrors[keyof GetRuntimeBundleV1AnimasAnimaIdRuntimeRevisionsRevisionBundlesBundleIdGetErrors];
+
+export type GetRuntimeBundleV1AnimasAnimaIdRuntimeRevisionsRevisionBundlesBundleIdGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
 export type StreamAnimaRuntimeFileV1AnimasAnimaIdRuntimeRevisionsRevisionFilesFileRefGetData = {
     body?: never;
     headers?: {
@@ -10923,44 +10978,6 @@ export type StreamAnimaRuntimeFileV1AnimasAnimaIdRuntimeRevisionsRevisionFilesFi
 export type StreamAnimaRuntimeFileV1AnimasAnimaIdRuntimeRevisionsRevisionFilesFileRefGetError = StreamAnimaRuntimeFileV1AnimasAnimaIdRuntimeRevisionsRevisionFilesFileRefGetErrors[keyof StreamAnimaRuntimeFileV1AnimasAnimaIdRuntimeRevisionsRevisionFilesFileRefGetErrors];
 
 export type StreamAnimaRuntimeFileV1AnimasAnimaIdRuntimeRevisionsRevisionFilesFileRefGetResponses = {
-    /**
-     * Successful Response
-     */
-    200: unknown;
-};
-
-export type GetRuntimeJsonBundleV1AnimasAnimaIdRuntimeRevisionsRevisionJsonBundleGetData = {
-    body?: never;
-    headers?: {
-        /**
-         * If-None-Match
-         */
-        'If-None-Match'?: string | null;
-    };
-    path: {
-        /**
-         * Anima Id
-         */
-        anima_id: string;
-        /**
-         * Revision
-         */
-        revision: string;
-    };
-    query?: never;
-    url: '/v1/animas/{anima_id}/runtime/revisions/{revision}/json-bundle';
-};
-
-export type GetRuntimeJsonBundleV1AnimasAnimaIdRuntimeRevisionsRevisionJsonBundleGetErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type GetRuntimeJsonBundleV1AnimasAnimaIdRuntimeRevisionsRevisionJsonBundleGetError = GetRuntimeJsonBundleV1AnimasAnimaIdRuntimeRevisionsRevisionJsonBundleGetErrors[keyof GetRuntimeJsonBundleV1AnimasAnimaIdRuntimeRevisionsRevisionJsonBundleGetErrors];
-
-export type GetRuntimeJsonBundleV1AnimasAnimaIdRuntimeRevisionsRevisionJsonBundleGetResponses = {
     /**
      * Successful Response
      */
