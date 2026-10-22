@@ -125,12 +125,12 @@ body {
 
 /* The hero's display face (loaded in index.html): bold title, medium line. */
 .font-hero {
-  font-family: "Manrope", var(--font-sans);
+  font-family: "Manrope Variable", var(--font-sans);
   font-weight: 800;
   letter-spacing: -0.02em;
 }
 .font-hero-line {
-  font-family: "Manrope", var(--font-sans);
+  font-family: "Manrope Variable", var(--font-sans);
   font-weight: 500;
 }
 
@@ -258,7 +258,7 @@ body {
   }
 }
 
-/* The memory notebook's handwriting (Patrick Hand, loaded in index.html). */
+/* The memory notebook's handwriting (Patrick Hand, self-hosted). */
 .font-hand {
   font-family: "Patrick Hand", var(--font-sans);
 }

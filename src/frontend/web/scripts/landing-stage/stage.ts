@@ -1,4 +1,7 @@
+import "./zod-config";
 import "@fontsource-variable/dm-sans";
+import "@fontsource-variable/manrope";
+import "@fontsource/patrick-hand";
 // First, so Tailwind's cascade layers keep their order (theme, base,
 // components, utilities) before the Scene layers' own sheet adds to them.
 import "./stage.css";
@@ -12,13 +15,15 @@ import {
   chatCanvasFilter,
   type Rgb,
 } from "@/lib/avatar/enhanced-rendering/backdropGlow";
-import { isEnhancedRenderingEnabled } from "@/lib/avatar/enhanced-rendering/enhancedRendering";
+import {
+  isEnhancedRenderingEnabled,
+  useEnhancedRenderingStore,
+} from "@/lib/avatar/enhanced-rendering/enhancedRendering";
 import { cssColorToRgb } from "@/lib/avatar/enhanced-rendering/sampleBackdrop";
 import { BUILT_IN_AVATAR_MOTION_CATALOG } from "@/lib/avatar/motion/AvatarMotionCatalog";
 import {
   EMPTY_PREVIEW_MEDIA,
   PreviewMediaProvider,
-  type PreviewEffect,
   type PreviewMedia,
 } from "@/lib/avatar/motion-authoring/preview/previewMedia";
 import type { PreviewClip } from "@/lib/avatar/motion-authoring/preview/sources";
@@ -26,6 +31,7 @@ import type { PreviewClip } from "@/lib/avatar/motion-authoring/preview/sources"
 import { SceneBands, missingSceneMessage } from "../effect-render/sceneBands";
 import { AmbientLayer, type AmbientWeights } from "./ambient";
 import { Intro, WALK_VARIANTS, type WalkVariantId } from "./intro";
+import { PROGRAM, type StageProgram } from "./program";
 import { CursorTrail } from "./trail";
 import { addChatLights, applyChatColorPipeline } from "../effect-render/stage";
 import {
@@ -55,31 +61,15 @@ import {
  * and Scene Effects); the React overlay (`overlay.tsx`) draws the captions
  * and demos through `StageController`.
  *
- * `?hud` shows the live camera values; `?stop=<id>` opens at a stop;
- * the walk-on is procedural; `?walk=<id>` tries a clip cycle from
- * `WALK_VARIANTS` instead, when `--walk-clips` supplies them; `?nopuzzle` skips
- * the head scratch and double take; `?nointro` skips the entrance;
- * `?classic` renders the Avatar without the app's enhanced shaders and
- * lighting (set before any module loads, in `index.html`); `?washes` brings
- * back the pastel gradient washes behind the light stops; `?wave=small`
- * plays the small shy wave instead of Wave hello.
+ * `?stop=<id>` opens at a stop and `?nointro` skips the entrance. In
+ * development only (a production build drops them): `?hud` shows the live
+ * camera values; the walk-on is procedural, and `?walk=<id>` tries a clip
+ * cycle from `WALK_VARIANTS` instead, when `--walk-clips` supplies them;
+ * `?nopuzzle` skips the head scratch and double take; `?classic` renders the
+ * Avatar without the app's enhanced shaders and lighting; `?washes` brings
+ * back the pastel gradient washes behind the light stops; `?wave=small` plays
+ * the small shy wave instead of Wave hello.
  */
-
-type Program = {
-  /** Each of `STAGE_AVATARS` with its VRM's URL, in the same order. */
-  avatars: { id: string; url: string }[];
-  sources: Record<
-    string,
-    {
-      clip: PreviewClip | null;
-      effect: PreviewEffect | null;
-      media: PreviewMedia | null;
-    }
-  >;
-  problems: string[];
-  /** Entrance clip paths by file name (bundled, plus `--walk-clips`). */
-  walk: Record<string, string>;
-};
 
 /** Share of each scroll segment held at its stops before the camera moves. */
 const HOLD = 0.22;
@@ -122,6 +112,11 @@ const CAMERA_KEYS = [
 ] as const satisfies readonly (keyof StageCamera)[];
 
 const params = new URLSearchParams(location.search);
+/** A development-only switch's value (null in a production build). */
+const devParam = (name: string) =>
+  import.meta.env.DEV ? params.get(name) : null;
+if (devParam("classic") !== null)
+  useEnhancedRenderingStore.getState().setEnabled(false);
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const openingStop = STAGE_STOPS.findIndex(
   ({ id }) => id === params.get("stop"),
@@ -180,7 +175,7 @@ const store = createStore<StageState>({
   avatarLoading: null,
 });
 
-let program: Program | null = null;
+const program = PROGRAM;
 let avatar: Avatar | null = null;
 /** The hero entrance while it plays; null once she is on her mark. */
 let intro: Intro | null = null;
@@ -249,7 +244,7 @@ let clipTimer: number | undefined;
 /** The next clip each cycling stop plays, so a return visit moves on. */
 const cursors = STAGE_STOPS.map(() => 0);
 /** The hero's wave: Wave hello, or the small shy wave with `?wave=small`. */
-const HERO_WAVE = params.get("wave") === "small" ? 1 : 0;
+const HERO_WAVE = devParam("wave") === "small" ? 1 : 0;
 cursors[0] = HERO_WAVE;
 const backdrops: HTMLDivElement[] = [];
 
@@ -446,7 +441,7 @@ function playClip(stopIndex: number, index: number) {
   const stop = STAGE_STOPS[stopIndex];
   const clips = stopClips(stop, store.get().avatar);
   const item = clips[index];
-  const source = item ? program?.sources[item.spec] : undefined;
+  const source = item ? program.sources[item.spec] : undefined;
   if (!avatar || !source?.clip) return;
   const token = playToken;
   // A cycling stop moves on; a `once` stop replays the same clip next visit.
@@ -518,12 +513,12 @@ let puzzleClip: PreviewClip["clip"] | null = null;
 
 /** The hero entrance with the requested walk. */
 async function createIntro(target: Avatar) {
-  const puzzlePath = program?.walk?.[PUZZLE_CLIP_FILE];
-  if (puzzlePath && !params.has("nopuzzle")) {
+  const puzzlePath = program.walk[PUZZLE_CLIP_FILE];
+  if (puzzlePath && devParam("nopuzzle") === null) {
     const response = await fetch(puzzlePath);
     if (response.ok) puzzleClip = await response.json();
   }
-  const requested = params.get("walk") ?? "";
+  const requested = devParam("walk") ?? "";
   const variant: WalkVariantId =
     requested in WALK_VARIANTS ? (requested as WalkVariantId) : "overte";
   // The screen's left edge at her depth, for the intro framing.
@@ -534,7 +529,7 @@ async function createIntro(target: Avatar) {
     frameUnit *
     (window.innerWidth / window.innerHeight);
   const clipUrls =
-    program?.walk && params.has("walk")
+    devParam("walk") !== null
       ? Object.fromEntries(
           Object.entries(program.walk).map(([name, path]) => [
             name,
@@ -586,7 +581,7 @@ function playPuzzle() {
   if (!avatar || !puzzleClip) return;
   const avatarEffects = new Map<string, ClipAvatarEffect>();
   for (const spec of PUZZLE_EFFECT_SOURCES)
-    for (const entry of program?.sources[spec]?.media?.avatarEffects ?? [])
+    for (const entry of program.sources[spec]?.media?.avatarEffects ?? [])
       avatarEffects.set(entry.alias, placePuzzleEffect(entry));
   media.setMedia({
     ...EMPTY_PREVIEW_MEDIA,
@@ -714,7 +709,9 @@ function showFollow(stop: StageStop, ease: number) {
  * asks for their pastel gradients; the night sky always keeps its own.
  */
 function stopBackdrop(stop: StageStop) {
-  return stop.dusk || params.has("washes") ? stop.backdrop : PLAIN_BACKDROP;
+  return stop.dusk || devParam("washes") !== null
+    ? stop.backdrop
+    : PLAIN_BACKDROP;
 }
 
 /** A backdrop's top-level layers (commas inside functions do not split). */
@@ -880,7 +877,7 @@ function showHud() {
 type LoadedAvatar = { avatar: Avatar; headHeight: number; crownHeight: number };
 
 /** Load one of the program's Avatars and wire it for the stage, off stage. */
-async function createAvatar(entry: Program["avatars"][number]) {
+async function createAvatar(entry: StageProgram["avatars"][number]) {
   const next = new Avatar(camera, ui.canvas, {
     motionCatalog: BUILT_IN_AVATAR_MOTION_CATALOG,
     mediaCatalog: media,
@@ -936,7 +933,7 @@ function attachAvatar(loaded: LoadedAvatar) {
  */
 async function selectAvatar(id: string) {
   const { avatar: current, avatarLoading } = store.get();
-  const entry = program?.avatars.find((candidate) => candidate.id === id);
+  const entry = program.avatars.find((candidate) => candidate.id === id);
   if (!entry || id === current || avatarLoading) return;
   store.set({ avatarLoading: id });
   try {
@@ -982,8 +979,11 @@ declare global {
       error: string | null;
       stop: () => string | null;
       problems: string[];
-      /** The renderer's live geometries, textures and shader programs. */
-      renderInfo: () => {
+      /**
+       * The renderer's live geometries, textures and shader programs
+       * (development only).
+       */
+      renderInfo?: () => {
         geometries: number;
         textures: number;
         programs: number;
@@ -1000,8 +1000,8 @@ window.landingStage = {
   ready: false,
   error: null,
   stop: () => STAGE_STOPS[store.get().active]?.id ?? null,
-  problems: [],
-  renderInfo,
+  problems: program.problems,
+  ...(import.meta.env.DEV ? { renderInfo } : {}),
 };
 
 async function start() {
@@ -1012,7 +1012,7 @@ async function start() {
     ui.backdrop.append(layer);
     backdrops.push(layer);
   }
-  ui.hud.hidden = !params.has("hud");
+  ui.hud.hidden = devParam("hud") === null;
   // The app's components read their labels from its English catalogs.
   mountOverlay(ui.overlay, controller, await createWebI18n("en"));
   if (openingStop > 0)
@@ -1020,11 +1020,6 @@ async function start() {
   // Captions and camera follow the scroll while the Avatar loads.
   requestAnimationFrame(frame);
 
-  const response = await fetch("/__stage/program");
-  if (!response.ok)
-    throw new Error(`Program request failed (${response.status}).`);
-  program = (await response.json()) as Program;
-  window.landingStage.problems = program.problems;
   store.set({ problems: program.problems });
 
   const first = await createAvatar(program.avatars[0]);
@@ -1048,6 +1043,9 @@ async function start() {
 start().catch((error: unknown) => {
   const message = error instanceof Error ? error.message : String(error);
   window.landingStage.error = message;
-  ui.hud.hidden = false;
-  ui.hud.textContent = `Error: ${message}`;
+  console.error(`Landing stage: ${message}`);
+  if (import.meta.env.DEV) {
+    ui.hud.hidden = false;
+    ui.hud.textContent = `Error: ${message}`;
+  }
 });

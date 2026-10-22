@@ -59,11 +59,13 @@ import {
 
 import type { StageController, StageState } from "./controller";
 import { MoodBloom } from "./mood-bloom";
+import { PROGRAM } from "./program";
 import { LocaleFlag } from "./flags";
 import { TextShimmer } from "./text-shimmer";
 import {
   BETA_ACCESS_URL,
   CLOSED_BETA,
+  SITE,
   STAGE_AVATARS,
   STAGE_STOPS,
   voice,
@@ -80,7 +82,7 @@ import {
  * from the app's own components and theme tokens.
  */
 
-const DOCS_URL = "https://docs.animama.ai/";
+const DOCS_URL = SITE.docsUrl;
 
 type StopProps = {
   stop: StageStop;
@@ -116,6 +118,12 @@ function Overlay({ controller }: { controller: StageController }) {
     STAGE_AVATARS.find(({ id }) => id === state.avatar) ?? STAGE_AVATARS[0];
   return (
     <>
+      <a
+        href="#content"
+        className="bg-card text-foreground focus-visible:ring-ring sr-only z-50 rounded-full px-4 py-2 text-sm font-medium shadow-md outline-none focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus-visible:ring-2"
+      >
+        Skip to content
+      </a>
       <Header light={light} state={state} controller={controller} />
       <ProgressThread
         active={active}
@@ -124,7 +132,9 @@ function Overlay({ controller }: { controller: StageController }) {
         avatar={avatar}
         controller={controller}
       />
-      <main>
+      <main id="content" tabIndex={-1} className="outline-none">
+        {/* The 3D stage itself is hidden from screen readers. */}
+        <p className="sr-only">{voice(SITE.sceneDescription, avatar)}</p>
         {STAGE_STOPS.map((stop, index) => (
           <section
             key={stop.id}
@@ -218,7 +228,7 @@ function AvatarSwitcher({
                   <Avatar className="size-9">
                     <AvatarImage
                       alt=""
-                      src={`/__stage/portrait/${avatar.id}`}
+                      src={PROGRAM.portraits[avatar.id]}
                       className={cn(
                         "transition-[filter,opacity] duration-200",
                         !isActive && !loading && "opacity-70 grayscale",
@@ -262,7 +272,7 @@ function AvatarOptions({
           className="gap-2.5"
         >
           <Avatar className="size-5">
-            <AvatarImage alt="" src={`/__stage/portrait/${avatar.id}`} />
+            <AvatarImage alt="" src={PROGRAM.portraits[avatar.id]} />
             <AvatarFallback className="text-[0.5rem]">
               {avatar.name.slice(0, 2)}
             </AvatarFallback>
@@ -847,7 +857,25 @@ function Stop(props: StopProps) {
         {stop.panel === "memory" ? (
           <MemoryStory avatar={props.avatar} cycle={memory} />
         ) : null}
-        {stop.id === "download" ? <DownloadActions /> : null}
+        {stop.id === "download" ? (
+          <>
+            <DownloadActions />
+            <p
+              className={cn(
+                "mt-8 text-xs",
+                light ? "text-white/70" : "text-muted-foreground",
+              )}
+            >
+              {SITE.copyright}{" "}
+              <a
+                href={SITE.notices}
+                className="underline-offset-2 hover:underline"
+              >
+                Third-party notices
+              </a>
+            </p>
+          </>
+        ) : null}
       </div>
     </>
   );
@@ -1742,7 +1770,7 @@ function ChatExchange({
             )}
           </div>
           <img
-            src={`/__stage/portrait/${avatar.id}`}
+            src={PROGRAM.portraits[avatar.id]}
             alt={sizer ? "" : avatar.name}
             className="bg-muted ring-border size-7 shrink-0 self-start rounded-full object-cover ring-1"
           />

@@ -1,0 +1,18 @@
+/*
+ * Rules needed before the page's own stylesheet applies (in development it
+ * arrives after first paint): the Avatar canvas stays hidden until she is
+ * placed, and the page's text, there for search engines and link previews,
+ * stays out of sight until the overlay replaces it.
+ */
+#canvas {
+  opacity: 0;
+}
+
+.prerender {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

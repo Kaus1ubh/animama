@@ -60,6 +60,12 @@ Runtime guides:
 - `runtime/scene-vfx.md`
 - `runtime/vrm-inspector-editor.md`
 
+Website:
+
+- `landing-page.md`: the animama.ai home page: development server,
+  production build and preview, closed-beta setting, shipped content and
+  security headers.
+
 Testing guides:
 
 - `testing/browser-journeys.md`: isolated accountless Playwright setup,

@@ -3,43 +3,32 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Animama</title>
-    <link rel="icon" href="/brand/animama-mark.png" />
-    <!-- Manrope: the hero's display face; Patrick Hand: the memory notebook's hand. -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Manrope:wght@500;800&display=swap"
-    />
-    <script>
-      // `?classic` compares against the look before enhanced rendering.
-      if (new URLSearchParams(location.search).has("classic"))
-        window.__animamaRenderingOverride = "classic";
-      // The visitor's saved theme, applied before first paint.
-      try {
-        if (localStorage.getItem("landing-stage-theme") === "dark")
-          document.documentElement.classList.add("dark");
-      } catch {}
-    </script>
+    <!-- Title, description, sharing tags, icons and structured data, from
+         `stops.ts` (`landing-stage-content.mjs`). -->
+    <!--landing:head-->
+    <!-- Before first paint, with no inline code (the site's CSP allows none):
+         the visitor's saved theme, and the canvas and page text hidden until
+         the stage takes over. Without JavaScript the page text shows. -->
+    <script src="/theme.js"></script>
+    <link rel="stylesheet" href="/boot.css" />
+    <noscript><link rel="stylesheet" href="/noscript.css" /></noscript>
   </head>
   <body>
     <!--
       The fixed stage: backdrop, ambient particles and Scene underlay band
       (z 0), the hero's text (z 5), the Avatar canvas (z 10) and Scene overlay
       band (z 20). The overlay holds the header, captions, demos and the scroll
-      sections.
+      sections; until it mounts it holds the page's text for search engines,
+      link previews and readers without JavaScript.
     -->
     <div class="stage">
       <div class="backdrop" id="backdrop" aria-hidden="true"></div>
       <canvas class="ambient" id="ambient" aria-hidden="true"></canvas>
       <div class="bands" id="bands" aria-hidden="true"></div>
       <div class="hero-layer" id="hero-layer"></div>
-      <!-- Hidden inline too: in development the stylesheet loads after the
-           first paint, and the Avatar must not show before she is placed. -->
-      <canvas id="canvas" style="opacity: 0" aria-hidden="true"></canvas>
+      <canvas id="canvas" aria-hidden="true"></canvas>
     </div>
-    <div id="overlay"></div>
+    <div id="overlay"><!--landing:content--></div>
     <canvas class="cursor-trail" id="trail" aria-hidden="true"></canvas>
     <pre class="hud" id="hud" hidden></pre>
     <script type="module" src="./stage.ts"></script>

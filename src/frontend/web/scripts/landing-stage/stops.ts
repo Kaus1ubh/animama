@@ -136,15 +136,19 @@ export const STAGE_AVATARS: StageAvatar[] = [
 ];
 
 /**
- * Fill a caption's pronoun tokens for an Avatar: `{subject}`, `{object}`
- * and `{possessive}`, capitalised when the token is (`{Subject}`).
+ * Fill a caption's tokens for an Avatar: `{name}`, and the pronouns
+ * `{subject}`, `{object}` and `{possessive}`, capitalised when the token is
+ * (`{Subject}`).
  */
 export function voice(text: string, avatar: StageAvatar): string {
   return text.replace(
-    /\{(subject|object|possessive)\}/gi,
+    /\{(name|subject|object|possessive)\}/gi,
     (_match, token: string) => {
-      const key = token.toLowerCase() as keyof StageAvatar["pronouns"];
-      const word = avatar.pronouns[key];
+      const key = token.toLowerCase();
+      const word =
+        key === "name"
+          ? avatar.name
+          : avatar.pronouns[key as keyof StageAvatar["pronouns"]];
       return token[0] === token[0].toUpperCase()
         ? word[0].toUpperCase() + word.slice(1)
         : word;
@@ -529,6 +533,26 @@ const gesture = (stem: string, label: string): StageClip => ({
 export const CLOSED_BETA = true;
 /** The closed beta's request form (a Google Form). */
 export const BETA_ACCESS_URL = "https://forms.gle/REPLACE-WITH-BETA-FORM";
+
+/**
+ * The public site: its address, and what search results and link previews
+ * show (the description joins the hero's line and the last stop's).
+ */
+export const SITE = {
+  url: "https://animama.ai/",
+  docsUrl: "https://docs.animama.ai/",
+  title: "Animama — AI companions that feel alive",
+  /** A 1200×630 still of the hero, in the page's `static/` folder. */
+  shareImage: "og-image.jpg",
+  shareImageAlt:
+    "Annie, an Animama companion, under the words Meet your Anima.",
+  copyright: "© 2026 Animama. All rights reserved.",
+  /** What the 3D stage shows, for screen readers (it is hidden from them). */
+  sceneDescription:
+    "{name}, an animated 3D Anima, walks in and waves, then shows {possessive} gestures, emotions and memories as you scroll.",
+  /** Third-party notices, written by the production build. */
+  notices: "/notices.txt",
+};
 
 /** Stops with their `beta` copy applied while `CLOSED_BETA` is on. */
 function withBetaCopy(stops: StageStop[]): StageStop[] {
