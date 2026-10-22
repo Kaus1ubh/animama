@@ -33,7 +33,8 @@ excluded from the source candidate. Desktop and hosted builds may carry Mixamo
 clips and WOW Sound's comedy sound effects only as the private, non-portable
 packs described in [ADR 0018](../docs/adr/0018-non-portable-included-content.md)
 and [ADR 0022](../docs/adr/0022-optional-licensed-effect-sounds.md). Private ignored files and old Git/LFS history are not publication
-inputs. Retained replacement artwork uses PNG authoring assets; see
+inputs. Retained replacement artwork uses PNG authoring assets, which packaged
+desktop and hosted builds ship as WebP derivatives where smaller; see
 [Included artwork](../content/included/README.md#retained-avatar-and-effect-artwork).
 Runtime/native appearance acceptance remains separate. Regenerate the candidate
 after source changes using the [source preparation tools](../scripts/public-release/README.md).

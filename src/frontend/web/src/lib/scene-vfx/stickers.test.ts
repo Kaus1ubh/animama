@@ -93,6 +93,20 @@ describe("Animama sticker set", () => {
     expect(file.size).toBe(4);
   });
 
+  it("keeps a built sticker's WebP format in the effect's image", async () => {
+    const sticker = { ...SCENE_STICKERS[0]!, url: "/assets/leaf-a1b2c3.webp" };
+    const file = await fetchSceneStickerFile(
+      sticker,
+      async () =>
+        new Response(new Blob([new Uint8Array([82, 73, 70, 70])]), {
+          status: 200,
+          headers: { "Content-Type": "image/webp" },
+        }),
+    );
+    expect(file.name).toBe(`${sticker.id}.webp`);
+    expect(file.type).toBe("image/webp");
+  });
+
   it("names the sticker when it cannot be fetched", async () => {
     const [sticker] = SCENE_STICKERS;
     await expect(

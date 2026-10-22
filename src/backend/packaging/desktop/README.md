@@ -79,7 +79,12 @@ comments and quoted semicolons cannot corrupt the batch.
 
 `stage_content.py` uses the production filesystem scanner and typed resolver,
 plus the same starter specs, optional portrait keys, default idle, and loadout
-policy as private creation. The core is rescanned after copying. Missing
+policy as private creation. It first converts the tracked snapshot into a
+scratch tree where effect art is WebP derivatives of its PNG masters
+(`animama/runtime/included_derivatives.py`). Every inventory and copy reads that
+tree, and the staged `licenses/inventory.json` records each derivative's master.
+To keep a file as PNG after a failed visual check, add it to `PNG_EXCEPTIONS`
+there with the reason. The core is rescanned after copying. Missing
 dependencies, license records, identity collisions, and unsafe files fail the
 stage. A development checkout's ignored assets are not silently shipping inputs.
 The tracked Included library supplies both starters without Mixamo animations.

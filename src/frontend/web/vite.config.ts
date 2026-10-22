@@ -16,6 +16,7 @@ import {
 } from "./vite-plugins/local-parakeet-models";
 import { resolveAppVersion } from "./vite-plugins/app-version";
 import { browserRuntimeAssetsPlugin } from "./vite-plugins/browser-runtime-assets";
+import { webpStickerAssetsPlugin } from "./vite-plugins/webp-sticker-assets";
 import {
   localAPIProxy,
   localDevelopmentOrigins,
@@ -172,6 +173,12 @@ export default defineConfig(({ mode, command, isPreview }) => {
         includedRoot: includedContentRoot,
         aliases: includedContentAliases,
         copyBuildAliases: !embeddedDesktop && mode !== "hosted",
+      }),
+      webpStickerAssetsPlugin({
+        stickerRoot: path.join(
+          includedContentRoot,
+          "resources/scene-vfx/stickers",
+        ),
       }),
       tanstackRouter(routerConfig),
       react(),

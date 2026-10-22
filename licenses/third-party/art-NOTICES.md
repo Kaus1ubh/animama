@@ -21,7 +21,11 @@ Animama normalizes selected alpha textures to 256×256 PNG, converts TGA
 flipbooks to PNG, and resizes the CodeManu star atlas to 768×640. Exact source
 filenames, input hashes and derivative hashes are in
 [art-particles.json](art-particles.json). All 27 derivations were reproduced
-byte-for-byte with the recorded Sharp version.
+byte-for-byte with the recorded Sharp version. These PNG files are the tracked
+masters. Five of them also have byte-identical copies (six in all) inside
+Included Particle Effects. Packaged desktop and hosted builds ship those copies
+as WebP re-encodings (lossy quality 90 with lossless alpha), and the record's
+`packaged_derivatives` lists each shipped file and its hash.
 
 CodeManu's [primary page](https://codemanu.itch.io/vfx-free-pack) describes the
 work as public domain while its metadata lists CC BY 4.0. Although the Brackeys
