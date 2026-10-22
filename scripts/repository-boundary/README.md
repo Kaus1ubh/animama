@@ -64,7 +64,7 @@ directory outside the checkout. The checker prints the evidence directory and
 retains logs, the browser screenshot, installed dependency locks and a summary.
 It never reads the maintainer's application `.env` or calls an external provider.
 
-For format 2, the checker verifies and extracts the closed application inventory,
+For format 2 and later, the checker verifies and extracts the closed application inventory,
 then serves those emitted bytes through an independent ordinary HTTP cookie/CSRF
 authority. The browser exercises deep links, CSP, nested workers, real VRM and
 Pocket PCM/worklet playback, two-owner lifetime cleanup, and creator
@@ -73,7 +73,7 @@ starters without local-server imports. Included content is not exposed
 through the static allowlist.
 
 Use `--previous-app-set /tmp/previous-whole-app` for a verified compatible clean
-format-2 predecessor with distinct resource bytes; a byte-identical pair is
+format-2 or later predecessor with distinct resource bytes; a byte-identical pair is
 rejected. This exercises an already-open tab's late worker, the new selection,
 and rollback, while every route, static and measurement check runs on the
 candidate. Without a predecessor, the labelled controlled byte-change fixture

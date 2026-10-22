@@ -362,6 +362,9 @@ supported; a format-1 set cannot establish whole-app parity. The new record name
 identity is `sets/v2/<source-commit>/<canonical-manifest-sha256>/`; dirty rehearsals
 use the existing development identity and cannot be promoted. `SHA256SUMS` includes
 the app archive. All provenance and payloads bind the same exact tracked snapshot.
+Format **3** adds exactly one `sites` record to format 2, with identity
+`sets/v3/…` (see [Landing site archive](#landing-site-archive)); format-2 sets
+remain verifiable.
 
 The tar contains only regular files rooted at `animama-hosted-web/`: `index.html`,
 `app-manifest.json`, build output, notices and the non-static `catalog-seed/`.
@@ -477,3 +480,65 @@ Both selections must retain additive clip metadata (such as the
 share the runtime's 2 MiB clip read/save bound. The fixture checks that data,
 not its playback: retaining a layer-mute list does not show that a selection
 mutes those procedural layers.
+
+### Landing site archive
+
+The static animama.ai site (`pnpm -s landing:build`, see the
+[landing page guide](../docs/frontend/landing-page.md)) ships in package-set
+format 3, which also requires the `applications` record. The set's `sites`
+list has exactly one record with exactly `kind: "site"`,
+`name: "animama-landing"`, a semantic `version`, `file` equal to
+`animama-landing-<version>.tar.gz`, `sha256` and `size`. The producer takes the
+version from `src/frontend/desktop/package.json`, the same source as the
+application's; the verifier does not require the two to be equal. `SHA256SUMS`
+lists the archive, and `compare` rejects a site version rollback and any format
+downgrade that drops the site.
+
+The tar holds only regular files rooted at `animama-landing/`: every site file
+and `site-manifest.json`. It is read by the same bounded intake as the
+application archive (regular files and producer long-path PAX records only, the
+same per-file, total, text and member-count limits) and is packed the same way
+(gzip and PAX, `SOURCE_DATE_EPOCH` timestamps, mode `0644`, sorted paths).
+
+`site-manifest.json` version **1** is canonical JSON with exactly these keys:
+
+- `schema_version`: `1`; `site`: `"animama-landing"`; `site_version`: the set
+  record's `version`.
+- `source_commit` and `source_tree`: the set's source commit and tree.
+- `entry_document`: `"index.html"`.
+- `headers_sha256`: the digest of `_headers`, the host's response-header rules
+  (Cloudflare `_headers` format) including the CSP.
+- `files`: every other member once, each with exactly `path`, `sha256`, `size`,
+  `mime_type` and `cache`. The manifest does not list itself.
+
+`cache` is `immutable` for paths under `assets/` (content-hashed names) and
+`revalidate` for every other path. `mime_type` follows the application's
+explicit table plus `.xml` → `application/xml`, `.vrm` → `model/gltf-binary`
+and `_headers` → `text/plain; charset=utf-8`; any other file type is rejected.
+File suffixes are compared case-insensitively here, for MIME, text selection
+and source maps. Required files are `index.html`, `_headers`, `notices.txt` and
+`robots.txt`.
+
+A verifier rejects source maps (any path ending in `.map`), links and special
+members, unsafe paths, and any difference between the archive and `files`. It
+scans every text file (`_headers` and the suffixes `.html`, `.js`, `.mjs`,
+`.css`, `.json`, `.svg`, `.txt`, `.md`, `.xml`) and rejects one that contains a
+stage-server route (`/__preview/media/`, `/__stage/` or `/@fs/`) or a match of
+this local-path pattern (Python `re` over the raw bytes; the three lines join
+without line breaks):
+
+```text
+(?i:file):(?:\\?/){2}
+|(?:(?<![A-Za-z0-9_.~%\\-])|(?<=\\[nrt]))\\?/(?:Users|home|root|tmp|private|var\\?/folders|Volumes|mnt|opt)\\?/
+|(?<![A-Za-z0-9_])[A-Za-z]:(?:\\{1,2}|/)(?i:users)(?:\\{1,2}|/)
+```
+
+That is: `file:` in any case followed by `//` (or `\/\/`); a Unix root folder (`/Users/`, `/home/`, `/root/`,
+`/tmp/`, `/private/`, `/var/folders/`, `/Volumes/`, `/mnt/`, `/opt/`, also with
+JSON-escaped `\/` separators) that does not follow a letter, digit or one of
+`_.~%-\`, unless it follows an escaped `\n`, `\r` or `\t`; or a Windows user
+folder (`C:\Users\`, `C:\\Users\\` or `C:/Users/`, any drive letter, `Users`
+in any case) whose drive letter does not follow a letter, digit or `_`. A root-relative site route such as `/home/` therefore also fails
+verification. The package-set build does not run the site in a browser; its
+CSP and journeys are checked by `landing:preview` and by the consumer's
+static-site checks.

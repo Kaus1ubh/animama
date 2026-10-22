@@ -67,7 +67,10 @@ def write_manifest(root, m):
     (root / "SHA256SUMS").write_text(
         "".join(
             f"{r['sha256']}  {r['file']}\n"
-            for r in sorted(m["packages"] + m["contracts"] + m.get("applications", []), key=lambda x: x["file"])
+            for r in sorted(
+                m["packages"] + m["contracts"] + m.get("applications", []) + m.get("sites", []),
+                key=lambda x: x["file"],
+            )
         )
     )
 

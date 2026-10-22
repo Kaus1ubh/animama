@@ -150,7 +150,7 @@ def main() -> int:
         "--pnpm-store", type=Path, help="Optional content-addressed pnpm cache (copied, never source-linked)"
     )
     parser.add_argument(
-        "--previous-app-set", type=Path, help="Verified clean format-2 predecessor for actual app upgrade/rollback"
+        "--previous-app-set", type=Path, help="Verified clean format-2+ predecessor for actual app upgrade/rollback"
     )
     args = parser.parse_args()
     artifact_dir = args.artifacts.resolve()
@@ -255,8 +255,8 @@ def main() -> int:
             previous_directory = args.previous_app_set.resolve()
             with phase("previous-application"):
                 previous = verify(previous_directory)
-                if previous["schema_version"] != 2 or previous["source"]["dirty"] or manifest["source"]["dirty"]:
-                    raise ValueError("Actual app upgrade/rollback requires two clean format-2 sets")
+                if previous["schema_version"] < 2 or previous["source"]["dirty"] or manifest["source"]["dirty"]:
+                    raise ValueError("Actual app upgrade/rollback requires two clean application (format 2+) sets")
                 if (
                     previous["source"]["commit"] == manifest["source"]["commit"]
                     or previous["source"]["tree"] == manifest["source"]["tree"]

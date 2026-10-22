@@ -24,9 +24,19 @@ pnpm -s landing:preview --port 4320
   (`--out <dir>` for elsewhere). It fails if a clip or effect does not
   resolve, or if the output contains a source map or a local path.
 - `landing:preview` serves only a build, applying its `_headers`, as the host
-  will. Run the page there before handing a build to Cloud.
+  will. Run the page there before a package set ships it.
 - `landing:stills` recaptures the fallback's stills (below). It starts its
   own stage server and renders on the GPU.
+
+Cloud receives the site only through the package set: `build.py build` runs
+`landing:build` in the exact source snapshot and packs the output as the
+format-3 `animama-landing-<version>.tar.gz` (see the
+[hosted contract](../../contracts/hosted-web.md#landing-site-archive)). Its
+verifier is stricter than the build's own check. It rejects any file type
+missing from the archive's MIME table in `scripts/package-sets/landing_site.py`,
+and it looks for a fixed list of local-path forms rather than this checkout's
+paths, so a root-relative route such as `/home/` fails packaging. Pack a build
+with `build.pack_site` to check it before relying on the package set.
 
 ## What the page shows
 

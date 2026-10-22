@@ -110,19 +110,19 @@ def read_exact(read, size):
     return data
 
 
-def producer_pax_path(payload):
+def producer_pax_path(payload, root=APP):
     """The producer needs exactly one ASCII path record for a name over 100 bytes."""
     record = re.fullmatch(rb"([1-9][0-9]{0,3}) path=([A-Za-z0-9_./=-]+)\n", payload)
     if not record or int(record[1]) != len(payload):
         raise ValueError("Application PAX accepts only one canonical path record")
     name = record[2].decode("ascii")
-    if not name.startswith(APP + "/") or len(name) <= tarfile.LENGTH_NAME:
+    if not name.startswith(root + "/") or len(name) <= tarfile.LENGTH_NAME:
         raise ValueError("Application PAX is only for producer long paths")
-    safe_path(name[len(APP) + 1 :])
+    safe_path(name[len(root) + 1 :])
     return name
 
 
-def regular_tar_members(read):
+def regular_tar_members(read, root=APP):
     """Flat framing avoids tarfile's allocating and recursive extension parsers."""
     headers, pending_path = 0, None
     while True:
@@ -145,7 +145,7 @@ def regular_tar_members(read):
         if member.type == tarfile.XHDTYPE:
             if pending_path or member.name != "././@PaxHeader" or not 0 < member.size <= MAX_PAX_BYTES:
                 raise ValueError("Chained, non-producer or oversized application PAX extension")
-            pending_path = producer_pax_path(read_exact(read, member.size))
+            pending_path = producer_pax_path(read_exact(read, member.size), root)
         elif member.type in {tarfile.REGTYPE, tarfile.AREGTYPE}:
             if pending_path:
                 if member.name != pending_path[: tarfile.LENGTH_NAME]:
@@ -161,7 +161,7 @@ def regular_tar_members(read):
 
 
 @contextmanager
-def closed_tar(path):
+def closed_tar(path, root=APP):
     """Bound expanded transport before metadata intake; read through gzip CRC/EOF."""
     # A regular file has at most one PAX path header/body, two fixed headers,
     # and block padding. This ceiling counts those bytes, not just file content.
@@ -178,19 +178,27 @@ def closed_tar(path):
                     raise ValueError("Application archive exceeds bounded expanded transport")
                 return data
 
-            yield regular_tar_members(read)
+            yield regular_tar_members(read, root)
     except (gzip.BadGzipFile, EOFError, tarfile.TarError) as error:
         raise ValueError("Malformed or truncated application archive") from error
 
 
-def inspect_archive(path, *, destination=None):
-    """Stream bounded regular members; optionally copy only safe paths to staging."""
+def text_member(name):
+    return Path(name).suffix in TEXT_SUFFIXES
+
+
+def inspect_archive(path, *, destination=None, root=APP, manifest="app-manifest.json", is_text=text_member):
+    """Stream bounded regular members; optionally copy only safe paths to staging.
+
+    ``root`` is the archive's single top-level folder and ``manifest`` its
+    inventory member; ``is_text`` selects the members kept for content checks.
+    """
     if path.is_symlink() or not path.is_file() or path.stat().st_size > MAX_ARCHIVE:
         raise ValueError("Invalid or oversized application archive")
     files, texts, total, text_total = {}, {}, 0, 0
-    with closed_tar(path) as tar:
+    with closed_tar(path, root) as tar:
         for member, stream_read in tar:
-            prefix = APP + "/"
+            prefix = root + "/"
             if (
                 not member.name.startswith(prefix)
                 or member.type not in {tarfile.REGTYPE, tarfile.AREGTYPE}
@@ -201,10 +209,10 @@ def inspect_archive(path, *, destination=None):
             if name in files or len(files) >= MAX_FILES or not positive_int(member.size, MAX_FILE):
                 raise ValueError("Duplicate, excessive or oversized application member")
             total += member.size
-            if total > MAX_TOTAL or (name == "app-manifest.json" and member.size > MAX_MANIFEST):
+            if total > MAX_TOTAL or (name == manifest and member.size > MAX_MANIFEST):
                 raise ValueError("Application archive exceeds bounded inventory")
             digest, length = hashlib.sha256(), 0
-            content = bytearray() if Path(name).suffix in TEXT_SUFFIXES else None
+            content = bytearray() if is_text(name) else None
             if content is not None:
                 text_total += member.size
                 if member.size > MAX_TEXT or text_total > MAX_TEXT_TOTAL:
