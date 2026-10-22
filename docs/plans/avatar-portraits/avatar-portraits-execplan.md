@@ -57,10 +57,14 @@ under `src/frontend` and `docs/frontend`; SDK regenerated only through
 `pnpm openapi-ts`; no Alembic revision (none is expected: portraits are
 ordinary catalog items).
 
-Related work: `perf/starter-vrm-optimization` re-encodes the starter VRMs.
-Portraits link to models by file stem, so either order works. Phase 4 captures
-from whatever starter VRM bytes are on `main` when it runs and records their
-hashes.
+Related work: `perf/starter-vrm-optimization`
+(`docs/plans/starter-vrm-optimization/`) re-encodes the starter VRMs, replaces
+Andrew with a new VRoid export and changes only Annie's VRM metadata. Its Phase
+4 captures Andrew's portrait with whatever generator is on `main`. Both plans
+touch `app-avatar-model-andrew-v1.*` and the `portrait_sha256` entries in
+`licenses/third-party/art-vroid-review.json`; whichever merges second rebases
+and regenerates. Portraits link to models by file stem, so links survive either
+order.
 
 ## Progress
 
@@ -91,6 +95,10 @@ hashes.
 
 - 2026-10-22, owner: 512² stored portraits in the chat canvas's enhanced look;
   capture in Create Anima; this work regenerates the Included portraits.
+- 2026-10-22, owner (relayed by the starter VRM optimization session): Andrew
+  is replaced by a new model shipped through the starter VRM plan; do not
+  regenerate his portrait from the current `Andrew.vrm`. Annie's model is
+  unchanged, so her portrait is regenerated here.
 - 2026-10-22, agent proposal (pending): Q1 `method=5`; Q2 follow the setting;
   Q3 no embedded-thumbnail fallback; Q4 shader grade and 8-bit fallback; Q5
   hide generated portraits from Appearance lists; Q6 defer deletion; Q7 one
@@ -289,18 +297,23 @@ delivered one, so the prototype candidates are recaptured rather than reused).
 
 Steps:
 
-1. Capture both starter Avatars at 1024 with the delivered capture (enhanced
-   rendering on), canonicalize with `canonicalize_avatar_portrait`, and replace
-   the two `.webp` files under the same names. Record the commands and the
+1. Fetch `origin/main` and check whether the starter VRM plan has merged (the
+   replacement Andrew is on `main`). If it has, rebase this branch first and
+   regenerate both portraits. If not, regenerate Annie's only and leave
+   Andrew's 256² portrait and its records untouched; the starter plan then
+   captures the new Andrew with this generator.
+2. Capture each portrait being regenerated at 1024 with the delivered capture
+   (enhanced rendering on), canonicalize with `canonicalize_avatar_portrait`,
+   and replace the `.webp` under the same name. Record the commands and the
    starter VRM hashes used.
-2. Update both `.meta.json` files (512, renderer 2, preset 3).
-3. Update provenance and hashes in `content/included/licenses/inventory.json`,
+3. Update the matching `.meta.json` files (512, renderer 2, preset 3).
+4. Update provenance and hashes in `content/included/licenses/inventory.json`,
    `licenses/source-review.json` and
-   `licenses/third-party/art-vroid-review.json`.
-4. Run the content and licence checks (`tests/test_starter_content_closure.py`
+   `licenses/third-party/art-vroid-review.json` for the regenerated portraits.
+5. Run the content and licence checks (`tests/test_starter_content_closure.py`
    and the licence inventory tests) and the starter fixture tests.
 
-Gate: owner visual check of both portraits in the Library and Anima carousel,
+Gate: owner visual check of the regenerated portraits in the Library and Anima carousel,
 light and dark theme. Recorded in the PR; it does not block the PR opening.
 
 Commit `feat(content)[p4]: regenerate the Included Avatar portraits`.

@@ -41,8 +41,9 @@ In scope:
   Create Anima.
 - One current portrait per Local Avatar, visible wherever Included portraits
   appear today.
-- Regenerated Included portraits for Andrew and Annie
-  (`AvatarSample_A_1_New`), with updated metadata and licence records.
+- A regenerated Included portrait for Annie (`AvatarSample_A_1_New`), and for
+  Andrew once his replacement model is on `main` (R13), with updated metadata
+  and licence records.
 
 Non-goals:
 
@@ -126,11 +127,15 @@ Non-goals:
 
 ### Included portraits
 
-- **R13 Regenerated.** The two Included portraits are replaced by 512² captures
-  in the new look, from the starter VRM bytes on `main` at implementation time.
-  Their `.meta.json` records width and height 512, renderer version 2 and
-  capture preset version 3. Their file stems, content IDs and names do not
-  change, so Anima and Avatar links are unaffected.
+- **R13 Regenerated.** Annie's Included portrait is replaced by a 512² capture
+  in the new look. Andrew's is regenerated only from the replacement Andrew
+  model that the starter VRM plan (`perf/starter-vrm-optimization`) ships,
+  never from the current `Andrew.vrm`: if that plan is on `main` first, this
+  work captures the new Andrew; otherwise Andrew keeps his current 256²
+  portrait here, and that plan captures him with this generator. A regenerated
+  portrait's `.meta.json` records width and height 512, renderer version 2 and
+  capture preset version 3. File stems, content IDs and names do not change, so
+  Anima and Avatar links are unaffected.
 - **R14 Licence records.** `content/included/licenses/inventory.json`,
   `licenses/source-review.json` and `licenses/third-party/art-vroid-review.json`
   describe the new renderer output and record the new hashes.
@@ -183,7 +188,9 @@ Non-goals:
 
 Agreed (2026-10-22, owner): 512² stored portraits in the chat canvas's
 enhanced look; capture in Create Anima is acceptable because it is quick; this
-work regenerates the Included portraits.
+work regenerates the Included portraits. Later the same day the owner decided
+Andrew is replaced by a new VRoid export shipped through the starter VRM plan;
+Andrew's portrait is not regenerated from the current model (R13).
 
 Pending:
 
