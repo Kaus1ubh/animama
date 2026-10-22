@@ -103,23 +103,32 @@ class ContentSaveService:
     async def _current_portrait(
         self, *, user_id: str, avatar_id: str, relative_locator: str
     ) -> CatalogContentEntry | None:
-        """The caller's existing portrait of an Avatar: at its destination, else an older exact match."""
+        """The Avatar's portrait at its destination, which a save replaces in place.
 
+        Another exact portrait of the Avatar (imported, or saved before per-Avatar
+        destinations) is never overwritten: the save is refused so the Avatar
+        keeps one portrait. An unrelated item at the destination is refused too.
+        """
+
+        def portrays(item: CatalogContentEntry) -> bool:
+            presentation = item.metadata.get("presentation")
+            return isinstance(presentation, dict) and presentation.get("avatar_item_id") == avatar_id
+
+        if any(
+            item.kind is ContentKind.APPEARANCE
+            and item.source is ContentSource.LOCAL
+            and item.owner_user_id == user_id
+            and item.relative_locator != relative_locator
+            and portrays(item)
+            for item in await self._catalog.list_visible(user_id=user_id)
+        ):
+            raise ContentConflictError("avatar_portrait_exists")
         at_destination = await self._catalog.get_by_locator(
             source=ContentSource.LOCAL, relative_locator=relative_locator
         )
-        if at_destination is not None:
-            return at_destination
-        matches = [
-            item
-            for item in await self._catalog.list_visible(user_id=user_id)
-            if item.kind is ContentKind.APPEARANCE
-            and item.source is ContentSource.LOCAL
-            and item.owner_user_id == user_id
-            and isinstance(item.metadata.get("presentation"), dict)
-            and item.metadata["presentation"].get("avatar_item_id") == avatar_id
-        ]
-        return min(matches, key=lambda item: item.id) if matches else None
+        if at_destination is not None and not portrays(at_destination):
+            raise ContentConflictError("content_path_exists", field="name")
+        return at_destination
 
     async def _preflight(
         self,
@@ -352,14 +361,13 @@ class ContentSaveService:
                 relative_locator=relative_locator, owner_digest=f"{user_id}:{model_sha256}" if model_sha256 else None
             )
             if portrait_source is not None:
-                # Every save for this Avatar holds the lock on its destination,
-                # so the lookup sees any portrait a concurrent save committed.
+                # The Local source lock serializes this lookup and the write
+                # with every other Local save, including a concurrent portrait.
                 current = await self._current_portrait(
                     user_id=user_id, avatar_id=portrait_source.avatar_id, relative_locator=relative_locator
                 )
                 if current is not None:
                     catalog_item_id, expected_revision = current.id, current.revision_sha256
-                    relative_locator = current.relative_locator
             if model_sha256 is not None and catalog_item_id is None:
                 matches = [
                     item

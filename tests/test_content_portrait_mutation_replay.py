@@ -229,3 +229,65 @@ async def test_portrait_for_an_unknown_avatar_is_not_found(portrait_workflow: Po
 
     assert response.status_code == 404, response.text
     assert portrait_workflow.local_files() == {}
+
+
+async def test_a_stale_capture_leaves_the_current_portrait_unchanged(portrait_workflow: PortraitWorkflow) -> None:
+    workflow = portrait_workflow
+    avatar = await workflow.save_avatar()
+    assert avatar.revision_sha256 is not None
+    first = await workflow.portrait(avatar.id, avatar.revision_sha256, operation_id="first-capture")
+    assert first.status_code == 200, first.text
+    edited = await workflow.save_avatar(avatar)
+    before = workflow.local_files()
+
+    stale = await workflow.portrait(avatar.id, avatar.revision_sha256, operation_id="stale-capture")
+
+    assert stale.status_code == 409, stale.text
+    assert stale.json()["detail"]["code"] == "catalog_revision_conflict"
+    assert workflow.local_files() == before
+    (portrait,) = await workflow.portraits_for(avatar.id)
+    assert portrait.revision_sha256 == first.json()["revision_sha256"]
+    assert edited.revision_sha256 != avatar.revision_sha256
+
+
+async def test_another_exact_portrait_is_kept_and_the_capture_refused(portrait_workflow: PortraitWorkflow) -> None:
+    """An imported or older portrait of the Avatar, even a PNG, is never overwritten."""
+
+    workflow = portrait_workflow
+    avatar = await workflow.save_avatar()
+    assert avatar.revision_sha256 is not None
+    imported = await workflow.saves.save_standalone(
+        user_id=workflow.owner,
+        kind=ContentKind.APPEARANCE,
+        entry_name="Imported portrait",
+        filename="imported.png",
+        payload=image_bytes(portrait=True, portrait_size=512),
+        metadata_sidecar=json.dumps({"name": "Imported", "presentation": {"avatar_item_id": avatar.id}}).encode(),
+        operation_id="imported-portrait",
+        catalog_item_id=None,
+        expected_revision=None,
+    )
+    before = workflow.local_files()
+
+    refused = await workflow.portrait(avatar.id, avatar.revision_sha256, operation_id="second-portrait")
+
+    assert refused.status_code == 409, refused.text
+    assert refused.json()["detail"]["code"] == "avatar_portrait_exists"
+    assert workflow.local_files() == before
+    assert [item.id for item in await workflow.portraits_for(avatar.id)] == [imported.item.id]
+
+
+async def test_portrait_of_an_item_that_is_not_an_avatar_is_not_found(portrait_workflow: PortraitWorkflow) -> None:
+    workflow = portrait_workflow
+    avatar = await workflow.save_avatar()
+    assert avatar.revision_sha256 is not None
+    saved = await workflow.portrait(avatar.id, avatar.revision_sha256, operation_id="avatar-portrait")
+    assert saved.status_code == 200, saved.text
+    before = workflow.local_files()
+
+    response = await workflow.portrait(
+        saved.json()["item_id"], saved.json()["revision_sha256"], operation_id="portrait-of-portrait"
+    )
+
+    assert response.status_code == 404, response.text
+    assert workflow.local_files() == before

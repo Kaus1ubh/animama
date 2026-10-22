@@ -327,11 +327,11 @@ the owner's discretion.
 
 Starting source: `9b7e529f`. Implementation notes:
 
-- The save locks and writes `appearances/avatar-portrait-{avatar item id}.webp`
-  (`avatar_portrait_entry_name`). Under that lock it replaces the portrait at
-  that destination, else the caller's oldest older exact portrait in place,
-  else creates one. The client no longer sends `entry_name`; it sends
-  `renderer_version` and `capture_preset_version`.
+- The save writes `appearances/avatar-portrait-{avatar item id}.webp`
+  (`avatar_portrait_entry_name`), replacing the portrait there in place. (Review
+  revision: the first version also adopted any other exact portrait; see P2-1.)
+  The client no longer sends `entry_name`; it sends `renderer_version` and
+  `capture_preset_version`.
 - Only Local Avatars are captured: an Included Avatar returns
   `409 portrait_requires_local_avatar`. Included Avatars ship their portraits,
   and a per-Avatar destination for an Included Avatar would be shared by every
@@ -347,7 +347,8 @@ Starting source: `9b7e529f`. Implementation notes:
   still applies to any Avatar whose file stem names an Included portrait, as
   before.
 - `PyRuntimeImageReference` allows 512 (R3); the SDK was regenerated with
-  `pnpm openapi-ts`. No frontend caller sent `entry_name`.
+  `pnpm openapi-ts`. No frontend caller sent `entry_name`. The spec's R3
+  sentence that the browser rejects the response is stale (see Surprises).
 - Unverified risk: package import may give two exact portraits to one Avatar
   when it reuses an identical Avatar; export then reports
   `package_portrait_ambiguous`, as before. Not changed here.
@@ -366,13 +367,75 @@ Review #2 fixes, with the Phase 3 drafts set aside):
 | `pnpm openapi-ts`, `pnpm -s packages:build` | `src/frontend` | regenerated SDK, built |
 
 
+Phase commit: `122a1887` `feat(avatar)[p2]: keep one portrait per Local Avatar`.
+
 #### Code Review #1 Findings
 
-_Pending._
+Reviewed source `122a1887` (tree `26951bb8`), high-risk tier, initial review:
+one analysis subagent and one checks subagent.
+
+Checks subagent (clean tree `26951bb8`): the 17 listed pytest files, 146
+passed; 23 further files importing the changed modules, 468 passed; `ruff
+check` and `ruff format --check` clean; `vitest` on the portrait and contract
+tests, 39 passed; `pnpm -s check` passed; `pnpm -s openapi-ts:check`: SDK
+current. Result: pass. (This also covers the re-export fixed after the
+implementer's `make check-test`.)
+
+Analysis findings:
+
+- P2-1 (blocking): adopting "an older exact portrait" redirected the save to
+  any exact Appearance of the Avatar, including imported `.png` or
+  descriptor-backed ones; the canonical WebP then failed validation on every
+  attempt.
+- P2-2 (blocking): no test for the Included `portrait` field, a stale capture
+  with an existing portrait, a non-Avatar item or the adoption path.
+- P2-3: the new projection keys were always present, so every Appearance's
+  revision would change once.
+- P2-4: replacing in place changes an Anima that bound the portrait as Profile
+  or Background; adopting an imported item dropped its provenance.
+- P2-5: the writer preferred its destination while readers take the lowest id.
+- P2-6: comments and plan wording on locking and "oldest" were inaccurate (all
+  of `apply()` runs under the Local source lock; ids are random).
+- P2-7: the presentation test could not detect a missing owner filter.
+- P2-8: Preview and Save Avatar responses do not carry `portrait`; docs said
+  all responses do.
+- P2-9: `http-api.md` claimed the 512 bound holds for custom Profile images.
+- P2-10, P2-11: catalog duplicate selection now takes the lowest id (agrees
+  with SQL); overlay loads the visible catalog per request (acceptable).
+- P2-12: an exception between allocating the pass and the `try` could leak;
+  comment wording.
+- Verified: SDK diff, replay digest shape, Included rejection, another owner's
+  Avatar `404`, presentation SQL (no row multiplication, owner/scope filter,
+  custom Profile image still wins).
 
 #### Code Review #1 Revisions
 
-_Pending._
+- P2-1, P2-4, P2-5 fixed together: the save replaces only the portrait at
+  `appearances/avatar-portrait-{id}.webp`. Another exact portrait of the
+  Avatar is kept and the save returns `409 avatar_portrait_exists`; an
+  unrelated item at the destination returns `409 content_path_exists`. So
+  there is never more than one exact portrait from saves and readers agree.
+  Phase 3 never recaptures an Avatar whose portrait has no capture revision.
+  Replacing the Avatar's own portrait still updates an Anima that bound that
+  exact Appearance (now documented); Q5 keeps generated portraits out of the
+  Profile and Background pickers.
+- P2-2 fixed: tests for the Included Avatar's shipped portrait (and a Local
+  Avatar not borrowing it by name), a stale capture leaving the current
+  portrait unchanged, an imported PNG exact portrait being kept with `409`,
+  and a non-Avatar item `404`. Concurrency is not tested with two sessions: the
+  Local source lock serializes the lookup and write, as the comment now says.
+- P2-3 fixed: the version keys are projected only when set, so only portraits'
+  revisions change. Cloud's Included seed still needs its normal rebuild for
+  the new Included portrait.
+- P2-6 fixed: comment and plan wording.
+- P2-7 fixed: the other owner's portrait now sorts first.
+- P2-8 fixed by narrowing the docs and contract comment to List and Get.
+- P2-9 fixed in `http-api.md`; raising the schema bound to the canonical image
+  maximum is a follow-up for the owner.
+- P2-12: comment reworded; the remaining window holds no GPU allocation and is
+  left as is.
+- Checks after the revisions (working tree on `4514e905`): 23 backend files,
+  237 passed; `ruff check` clean. Repair round 1 recheck: pending.
 
 ### Phase 3: Background capture in Create Anima
 

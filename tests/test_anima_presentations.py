@@ -286,7 +286,8 @@ async def test_local_avatar_presentation_uses_its_exact_owner_portrait(async_ses
     avatar_item_id = f"avatar-item-{suffix}"
     avatar_id = f"avatar-{suffix}"
     anima_id = f"anima-{suffix}"
-    mine, theirs, by_stem = (f"{name}-{suffix}" for name in ("mine", "theirs", "stem"))
+    # The other owner's portrait sorts first, so only the owner filter excludes it.
+    theirs, mine, by_stem = (f"{name}-{suffix}" for name in ("a-theirs", "b-mine", "c-stem"))
 
     def catalog_item(item_id: str, **fields: object) -> ORMContentCatalogItem:
         return ORMContentCatalogItem(

@@ -241,7 +241,7 @@ class PyAvatarContent(PyTypedContentBase):
     compatibility: dict[str, object] = Field(default_factory=dict)
     # The effective face-part correction for this revision and VRM, if any.
     face_parts: AvatarFacePartCorrection | None = None
-    # Typed family routes overlay the caller's portrait, if any.
+    # List and Get overlay the caller's portrait; Preview and Save responses leave it null.
     portrait: PyAvatarPortrait | None = None
 
 

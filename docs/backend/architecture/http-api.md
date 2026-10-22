@@ -631,7 +631,9 @@ fields plus a required `presentation` object. Both list and detail responses
 include stable `display_name`, `aggregate_revision`, and `identity_status`
 (`ready` or `repair_required`). The presentation contains the same live
 display name, opaque revision, and optional
-`RuntimeImageReference` bounded to 512 by 512 pixels. The list loads chat
+`RuntimeImageReference`. Its schema bounds width and height to 512, the size
+of stored portraits; a custom Profile image can be larger, and the list
+response is not validated against that bound. The list loads chat
 profiles, custom profile candidates, and exact primary-model portrait
 candidates in set-based reads; it does not call the complete runtime resolver
 for each row. A valid custom Profile Image wins. Otherwise the reference uses
@@ -1366,9 +1368,13 @@ its one owner-scoped 512-square Appearance (up to 256 KiB) at
 `appearances/avatar-portrait-{item_id}.webp`, replaced in place by later
 saves. Its metadata records the Avatar revision and capture versions. An
 Included Avatar returns `409 portrait_requires_local_avatar`.
-It does not modify the Avatar or any Anima. Avatar content responses carry
-`portrait` (`url`, `avatar_revision_sha256` for a Local capture,
-`renderer_version`, `capture_preset_version`) or null. Confirmed content survives cancelled
+When the Avatar already has another exact portrait (imported, or saved
+elsewhere), the save returns `409 avatar_portrait_exists` and keeps it. Saving
+does not modify the Avatar or any Anima binding, but an Anima that bound the
+portrait itself as its Profile or Background shows the replaced image. Avatar
+content List and Get responses carry `portrait` (`url`,
+`avatar_revision_sha256` for a Local capture, `renderer_version`,
+`capture_preset_version`) or null. Confirmed content survives cancelled
 or rejected creation. Typed previews expose `expected_source_revisions` for
 the creation-compatible root/support closure, independent of preview pins.
 

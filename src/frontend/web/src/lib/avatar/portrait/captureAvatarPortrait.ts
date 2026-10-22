@@ -358,7 +358,7 @@ export async function captureAvatarPortrait({
   }
   throwIfAborted(signal);
 
-  // Before the targets: its guard may throw after a three upgrade.
+  // Created first: its guard throws if a three.js upgrade changes the output shader.
   const outputPass = createStraightAlphaOutputPass();
   const createRenderTarget =
     dependencies.createRenderTarget ?? createDefaultRenderTarget;

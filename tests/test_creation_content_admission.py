@@ -259,6 +259,45 @@ async def test_included_avatars_keep_their_shipped_portraits(async_session, tmp_
         assert not list((fixture.paths.local_root / "appearances").glob("avatar-portrait-*"))
 
 
+async def test_included_avatar_reports_its_shipped_portrait(async_session, tmp_path, monkeypatch):
+    async with anima_creation_fixture(async_session, tmp_path) as fixture:
+        portrait = fixture.paths.included_root / "appearances/avatar-portraits/app-avatar-model-avatarsample-a-1-new-v1"
+        portrait.parent.mkdir(parents=True, exist_ok=True)
+        portrait.with_suffix(".webp").write_bytes(image_bytes(portrait=True, format="WEBP", portrait_size=256))
+        portrait.with_suffix(".meta.json").write_text(
+            json.dumps(
+                {
+                    "content_id": "builtin:avatar-portrait:AvatarSample_A_1_New",
+                    "name": "Test portrait",
+                    "avatar_model": "AvatarSample_A_1_New",
+                    "width": 256,
+                    "height": 256,
+                    "renderer_version": 1,
+                    "capture_preset_version": 2,
+                }
+            )
+        )
+        content = ContentCatalogService(catalog=SQLAlchemyContentCatalog(async_session), store=fixture.store())
+        rescanned = await content.rescan(user_id=fixture.owner)
+        (shipped,) = [
+            item for item in rescanned.items if item.relative_locator.startswith("appearances/avatar-portraits/")
+        ]
+        fixture.extra_catalog_ids.add(shipped.id)
+        image = next(file for file in shipped.files if file.role == "image")
+        app = fixture.app(async_session, monkeypatch)
+        async with local_client(app) as client:
+            included = await client.get(f"/v1/avatar-content/{fixture.items['included-avatar'].id}")
+            local = await client.get(f"/v1/avatar-content/{fixture.items['local-avatar'].id}")
+        assert included.json()["portrait"] == {
+            "url": f"/v1/content/files/{image.file_ref}",
+            "avatar_revision_sha256": None,
+            "renderer_version": 1,
+            "capture_preset_version": 2,
+        }
+        # A Local Avatar never borrows an Included portrait by model name.
+        assert local.json()["portrait"] is None
+
+
 async def test_descriptor_appearance_uses_the_same_canonicalizer(async_session, tmp_path, monkeypatch):
     async with anima_creation_fixture(async_session, tmp_path) as fixture:
         app = fixture.app(async_session, monkeypatch)

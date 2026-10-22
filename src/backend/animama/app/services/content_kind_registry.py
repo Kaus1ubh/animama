@@ -1038,11 +1038,14 @@ class ContentTypeHandler:
                     "width": document.width,
                     "height": document.height,
                     "avatar_model": document.avatar_model,
-                    "renderer_version": document.renderer_version,
-                    "capture_preset_version": document.capture_preset_version,
                     "presentation": document.presentation,
                 }
             )
+            # Only portraits carry capture versions; leaving the keys out
+            # otherwise keeps every other Appearance's revision unchanged.
+            for key in ("renderer_version", "capture_preset_version"):
+                if getattr(document, key) is not None:
+                    result[key] = getattr(document, key)
         elif isinstance(document, VoiceDocumentV1):
             result.update(
                 {
