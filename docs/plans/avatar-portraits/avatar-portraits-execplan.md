@@ -663,6 +663,16 @@ Check record (working tree on `651e9e0f`):
 | `python -m pytest -q scripts/public-release/test_prepare_source.py` | root | 12 passed |
 | `/v1/animas` on the task stack after the file change | browser | Annie's thumbnail is the new 512² file (`586d9d61…`); Andrew unchanged (256²) |
 
+Update after merging `main` at `4c79440a` (2026-10-22): the starter VRM plan
+(#664) landed first with the revised Andrew (`Andrew.vrm` SHA-256 `926f7f86…`)
+at a 256² renderer-1 portrait and re-optimized both VRMs (Annie now
+`15081670…`). As the plan requires for the second merge, both portraits were
+recaptured with the same bench and settings from those files and replaced:
+Andrew 38,434 bytes (`03ffb4a6…`), Annie 40,760 bytes (`094a4da0…`); mean
+|Δ| against same-framing chat renders 1.34 and 1.26/255 (1024 → 512). Andrew's
+`.meta.json` is now 512, renderer 2, preset 3; both provenance entries and
+`portrait_sha256` values are updated.
+
 `licenses/source-review.json` needs no change: its portrait entries carry no
 hash, point to `art-vroid-review.json`, and their wording still holds.
 
