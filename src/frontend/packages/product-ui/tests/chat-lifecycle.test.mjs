@@ -570,7 +570,7 @@ test("a speaking turn's stream start reaches the playback adapter once, at its f
     [],
   );
 
-  // Response headers alone (a turn still waiting for admission) start nothing.
+  // Response headers alone, with no event yet, start nothing.
   await page.evaluate(() => window.fixture.respond(0));
   await drainPage(page);
   assert.deepEqual(
@@ -607,9 +607,22 @@ test("a turn stopped before its first event never starts its speech wait", async
     () => document.querySelector("#submit")?.disabled === false,
   );
   await submitSession(page, "Never mind");
+  const stoppedRunId = await page.evaluate(
+    () => window.fixture.requests()[0].body.run_id,
+  );
   await page.evaluate(() => window.fixture.respond(0));
-  await page.click("#stop");
+  await drainPage(page);
+  // Stop lands while the stream's first frame is already on its way.
+  await page.evaluate((run_id) => {
+    window.fixture.send(0, [{ text: "Too late.", run_id }]);
+    window.fixture.stop();
+  }, stoppedRunId);
   await sessionIdle(page);
+  await drainPage(page);
+  assert.deepEqual(
+    await page.evaluate(() => window.fixture.ttsStreamStarts()),
+    [],
+  );
 
   await submitSession(page, "Try again", 2);
   const runId = await page.evaluate(
