@@ -118,6 +118,7 @@ class ContentSaveService:
             item.kind is ContentKind.APPEARANCE
             and item.source is ContentSource.LOCAL
             and item.owner_user_id == user_id
+            and item.status is ContentStatus.VALID
             and item.relative_locator != relative_locator
             and portrays(item)
             for item in await self._catalog.list_visible(user_id=user_id)

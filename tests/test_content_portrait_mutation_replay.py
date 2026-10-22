@@ -251,7 +251,7 @@ async def test_a_stale_capture_leaves_the_current_portrait_unchanged(portrait_wo
 
 
 async def test_another_exact_portrait_is_kept_and_the_capture_refused(portrait_workflow: PortraitWorkflow) -> None:
-    """An imported or older portrait of the Avatar, even a PNG, is never overwritten."""
+    """An imported or older portrait of the Avatar is never overwritten."""
 
     workflow = portrait_workflow
     avatar = await workflow.save_avatar()

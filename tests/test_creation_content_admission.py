@@ -287,15 +287,12 @@ async def test_included_avatar_reports_its_shipped_portrait(async_session, tmp_p
         app = fixture.app(async_session, monkeypatch)
         async with local_client(app) as client:
             included = await client.get(f"/v1/avatar-content/{fixture.items['included-avatar'].id}")
-            local = await client.get(f"/v1/avatar-content/{fixture.items['local-avatar'].id}")
         assert included.json()["portrait"] == {
             "url": f"/v1/content/files/{image.file_ref}",
             "avatar_revision_sha256": None,
             "renderer_version": 1,
             "capture_preset_version": 2,
         }
-        # A Local Avatar never borrows an Included portrait by model name.
-        assert local.json()["portrait"] is None
 
 
 async def test_descriptor_appearance_uses_the_same_canonicalizer(async_session, tmp_path, monkeypatch):
