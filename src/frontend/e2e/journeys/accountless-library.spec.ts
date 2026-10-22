@@ -1,6 +1,13 @@
+import type { PyTypedContentPreview } from "@animama/runtime-contracts/api-types";
 import { expect, test } from "../fixtures/animama";
+import { authoredExpressionThresholds } from "../helpers/authored-expressions";
 import { attachPlaybackCheckpoint } from "../helpers/checkpoints";
-import { provePoseClipPlayback } from "../helpers/playback-assertions";
+import { readPreviewClip } from "../helpers/imported-playback";
+import {
+  expectBottomRightDock,
+  provePoseClipPlayback,
+  proveReactionPlayback,
+} from "../helpers/playback-assertions";
 import {
   PreviewNetworkRecorder,
   ReadOnlyJourneyGuard,
@@ -138,6 +145,75 @@ test("accountless built-in pose playback @surface-library @channel-pose-clip @re
       blockedMethods,
     });
     expect(blockedMethods).toEqual([]);
+  } finally {
+    await network.dispose();
+    await readOnly.dispose();
+  }
+});
+
+test("accountless built-in Reaction playback @surface-library @channel-reaction @read-only", async ({
+  page,
+  animamaEvidence,
+}) => {
+  const name = "accountless-admiration-4";
+  const network = new PreviewNetworkRecorder(page);
+  const readOnly = new ReadOnlyJourneyGuard(page);
+  try {
+    const prepared = page
+      .waitForResponse(
+        (response) =>
+          response.request().method() === "POST" &&
+          /^\/v1\/reactions\/[^/]+:preview$/.test(
+            new URL(response.url()).pathname,
+          ),
+      )
+      .then(async (response) => {
+        expect(response.ok(), await response.text()).toBe(true);
+        return (await response.json()) as PyTypedContentPreview;
+      });
+    await page.goto("/library", { waitUntil: "domcontentloaded" });
+    const surface = await openLibraryPreview({
+      page,
+      contentName: "Admiration Reaction 4",
+      section: "reaction",
+      selectAnnie: false,
+    });
+    await expectBottomRightDock(surface);
+    // Included Reactions key VRoid face parts rather than whole-face presets,
+    // so the proof follows the expressions the previewed clip authors.
+    const expressionThresholds = authoredExpressionThresholds(
+      await readPreviewClip(page, await prepared),
+    );
+    const samples = await proveReactionPlayback({
+      evidence: animamaEvidence,
+      evidenceName: name,
+      expectedTarget: { kind: "anima_pose_clip", runtimeId: "admiration-4" },
+      expectedAvatarEffects: ["star3"],
+      expectedEventIds: [
+        "scene-emotion-background",
+        "avatar-star3",
+        "particle-twinkle-shimmer",
+      ],
+      expectedParticleEffects: ["twinkle-shimmer"],
+      expectedSceneEffects: ["scene-vfx-emotion-admiration"],
+      expressionThresholds,
+      surface,
+    });
+    await network.waitForPreview("admiration-4");
+    await network.requireResources([
+      "shimmer-glint.png",
+      "star3-sheet.png",
+      "twinkle-star-gold.png",
+      "bokeh-tile.png",
+    ]);
+    await network.attach(animamaEvidence, `${name}-preview-network`);
+    await attachPlaybackCheckpoint({
+      evidence: animamaEvidence,
+      locator: surface,
+      name,
+      samples,
+    });
+    await readOnly.assertNoMutations(animamaEvidence);
   } finally {
     await network.dispose();
     await readOnly.dispose();
