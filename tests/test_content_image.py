@@ -3,7 +3,7 @@ from __future__ import annotations
 from io import BytesIO
 
 import pytest
-from PIL import Image, ImageSequence
+from PIL import Image, ImageDraw, ImageSequence
 
 from animama.app.services.content_file_validation import ContentFileInvalidError as ContentFileInvalidError
 from animama.app.services.content_image import (
@@ -164,38 +164,37 @@ def test_renamed_decoder_format_is_rejected() -> None:
 
 
 def test_avatar_portrait_preserves_transparency_and_is_metadata_free() -> None:
-    source = Image.new("RGBA", (512, 512), (0, 0, 0, 0))
-    for x in range(150, 362):
-        for y in range(90, 430):
-            source.putpixel((x, y), (80, 120, 210, 220))
+    source = Image.new("RGBA", (1024, 1024), (0, 0, 0, 0))
+    ImageDraw.Draw(source).rectangle((300, 180, 723, 859), fill=(80, 120, 210, 220))
     exif = source.getexif()
     exif[270] = "private"
     content = _encoded(source, "WEBP", lossless=True, exif=exif)
 
     result = canonicalize_avatar_portrait(content=BytesIO(content))
 
-    assert (result.source_width, result.source_height) == (512, 512)
-    assert (result.width, result.height) == (256, 256)
+    assert (result.source_width, result.source_height) == (1024, 1024)
+    assert (result.width, result.height) == (512, 512)
     assert len(result.content) <= 256 * 1024
     with Image.open(BytesIO(result.content)) as canonical:
         assert canonical.format == "WEBP"
         assert canonical.mode == "RGBA"
-        assert canonical.size == (256, 256)
+        assert canonical.size == (512, 512)
         assert not canonical.getexif()
         assert canonical.getpixel((0, 0))[3] <= 3
-        assert abs(canonical.getpixel((256 // 2, 256 // 2))[3] - 220) <= 8
+        assert abs(canonical.getpixel((512 // 2, 512 // 2))[3] - 220) <= 8
 
 
 @pytest.mark.parametrize(
     ("source", "reason"),
     [
-        (Image.new("RGBA", (512, 512), (0, 0, 0, 0)), "avatar_portrait_transparent"),
-        (Image.new("RGB", (512, 512), "white"), "avatar_portrait_blank"),
+        (Image.new("RGBA", (1024, 1024), (0, 0, 0, 0)), "avatar_portrait_transparent"),
+        (Image.new("RGB", (1024, 1024), "white"), "avatar_portrait_blank"),
         (
-            Image.effect_noise((512, 512), 100).convert("RGB"),
+            Image.effect_noise((1024, 1024), 100).convert("RGB"),
             "avatar_portrait_background_opaque",
         ),
-        (Image.new("RGB", (256, 256), "red"), "avatar_portrait_dimensions"),
+        # The renderer-version-1 capture size is no longer admitted.
+        (Image.new("RGB", (512, 512), "red"), "avatar_portrait_dimensions"),
     ],
 )
 def test_avatar_portrait_rejects_unusable_sources(source: Image.Image, reason: str) -> None:

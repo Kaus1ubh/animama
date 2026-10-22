@@ -69,6 +69,36 @@ class SQLAlchemyAnimaPresentationRepository(AnimaPresentationRepository):
             .where(ORMContentCatalogFile.role.notin_({"descriptor", "metadata"}))
             .subquery("profile_files")
         )
+        # Portraits naming their Avatar's exact catalog item (captured or
+        # imported), one per Avatar, visible to this owner.
+        exact_item = aliased(ORMContentCatalogItem, name="exact_portrait_item")
+        exact_file = aliased(ORMContentCatalogFile, name="exact_portrait_file")
+        exact_avatar_item_id = exact_item.content_metadata["presentation"]["avatar_item_id"].astext
+        exact_portraits = (
+            select(
+                exact_avatar_item_id.label("avatar_item_id"),
+                exact_item.id.label("catalog_item_id"),
+                exact_item.content_metadata.label("metadata"),
+                exact_file.file_ref.label("file_ref"),
+                exact_file.media_type.label("media_type"),
+                exact_file.size_bytes.label("size_bytes"),
+                exact_file.sha256.label("sha256"),
+                func.row_number()
+                .over(partition_by=exact_avatar_item_id, order_by=exact_item.id)
+                .label("portrait_rank"),
+            )
+            .join(exact_file, and_(exact_file.item_id == exact_item.id, exact_file.role == "image"))
+            .where(
+                exact_item.kind == "appearance",
+                exact_item.status == "valid",
+                exact_avatar_item_id.is_not(None),
+                or_(
+                    exact_item.scope.in_({"included", "installation_shared"}),
+                    exact_item.owner_user_id == user_id,
+                ),
+            )
+            .subquery("exact_portraits")
+        )
         return (
             select(
                 ORMAnima.id.label("anima_id"),
@@ -89,6 +119,12 @@ class SQLAlchemyAnimaPresentationRepository(AnimaPresentationRepository):
                 portrait_file.media_type.label("portrait_content_type"),
                 portrait_file.size_bytes.label("portrait_size_bytes"),
                 portrait_file.sha256.label("portrait_sha256"),
+                exact_portraits.c.catalog_item_id.label("exact_portrait_catalog_item_id"),
+                exact_portraits.c.metadata.label("exact_portrait_metadata"),
+                exact_portraits.c.file_ref.label("exact_portrait_file_ref"),
+                exact_portraits.c.media_type.label("exact_portrait_content_type"),
+                exact_portraits.c.size_bytes.label("exact_portrait_size_bytes"),
+                exact_portraits.c.sha256.label("exact_portrait_sha256"),
             )
             .select_from(ORMAnima)
             .outerjoin(ORMAvatar, ORMAvatar.id == ORMAnima.avatar_id)
@@ -147,6 +183,13 @@ class SQLAlchemyAnimaPresentationRepository(AnimaPresentationRepository):
                     portrait_file.role == "image",
                 ),
             )
+            .outerjoin(
+                exact_portraits,
+                and_(
+                    exact_portraits.c.avatar_item_id == ORMAvatar.catalog_item_id,
+                    exact_portraits.c.portrait_rank == 1,
+                ),
+            )
             .where(ORMAnima.user_id == user_id)
         )
 
@@ -181,19 +224,22 @@ class SQLAlchemyAnimaPresentationRepository(AnimaPresentationRepository):
                 builtin_version=1,
             )
 
+        # The exact portrait wins over the Included model-stem match.
+        prefix = "exact_portrait" if row.exact_portrait_file_ref else "portrait"
         avatar_portrait: AnimaPresentationImageCandidate | None = None
-        if row.portrait_file_ref:
-            metadata = dict(row.portrait_metadata) if isinstance(row.portrait_metadata, dict) else {}
+        if getattr(row, f"{prefix}_file_ref"):
+            raw_metadata = getattr(row, f"{prefix}_metadata")
+            metadata = dict(raw_metadata) if isinstance(raw_metadata, dict) else {}
             width = metadata.get("width")
             height = metadata.get("height")
             avatar_portrait = AnimaPresentationImageCandidate(
                 slot="profile_image",
                 source_type="catalog",
-                catalog_item_id=row.portrait_catalog_item_id,
-                file_ref=row.portrait_file_ref,
-                content_type=row.portrait_content_type,
-                size_bytes=row.portrait_size_bytes,
-                sha256=row.portrait_sha256,
+                catalog_item_id=getattr(row, f"{prefix}_catalog_item_id"),
+                file_ref=getattr(row, f"{prefix}_file_ref"),
+                content_type=getattr(row, f"{prefix}_content_type"),
+                size_bytes=getattr(row, f"{prefix}_size_bytes"),
+                sha256=getattr(row, f"{prefix}_sha256"),
                 width=width if type(width) is int else 1,
                 height=height if type(height) is int else 1,
             )

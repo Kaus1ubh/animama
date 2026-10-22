@@ -257,8 +257,9 @@ scan. Package provenance is published in that same transaction.
 
 Static Appearance inputs are PNG/JPEG/WebP, bounded to 16 MiB, 8192 per side,
 and 40 million pixels. Save canonicalizes them to WebP; framing stays on the
-live binding. The Avatar portrait Save endpoint admits a 512-square browser
-capture as an ordinary 256-square owned Appearance. Confirmed content persists
+live binding. The Avatar portrait Save endpoint admits a 1024-square browser
+capture as a Local Avatar's one ordinary 512-square owned Appearance, replaced
+in place on the next save. Confirmed content persists
 after cancelled/failed Anima creation. Creation itself writes only SQL state;
 its receipt and aggregate are atomic, and its exact source evidence never
 becomes a durable runtime mount or an additional copy of the files.

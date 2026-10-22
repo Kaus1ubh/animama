@@ -34,6 +34,8 @@ import { CreateAnimaIdentityStep } from "./CreateAnimaIdentityStep";
 import { CreateAnimaNamePlate } from "./CreateAnimaNamePlate";
 import { CreateAnimaReviewStep } from "./CreateAnimaReviewStep";
 import { CreateAnimaStage, type CreationStageHandle } from "./CreateAnimaStage";
+import { creationPortraitTarget } from "./createAnimaPortrait";
+import { useSaveAvatarPortrait } from "@/query/mutations/useSaveAvatarPortrait";
 import { CreateAnimaStepNav, creationStepText } from "./CreateAnimaStepNav";
 import { CreateAnimaWorkspace } from "./CreateAnimaWorkspace";
 import { creationIssueTarget } from "./createAnimaActions";
@@ -139,6 +141,12 @@ function OwnedCreateAnimaPage({
       controller.retrySave();
     }
   };
+  const savePortrait = useSaveAvatarPortrait();
+  const portraitTarget = creationPortraitTarget({
+    selected: draft.avatar,
+    file: controller.file,
+    avatars: sources.avatars.data ?? [],
+  });
   const resolve = operations.resolve;
   const loadAvatar = useCallback(
     (source: ItemRevisionRef, signal: AbortSignal) =>
@@ -582,6 +590,8 @@ function OwnedCreateAnimaPage({
                 onUpload={() => avatarFileInput.current?.click()}
                 suspended={controller.busy || controller.conflict}
                 onFinished={stop}
+                portraitTarget={portraitTarget}
+                savePortrait={savePortrait}
               />
             ) : (
               <p className="text-muted-foreground p-6 text-sm">

@@ -552,7 +552,7 @@
     {
       "glob": "appearances/avatar-portraits/app-avatar-model-avatarsample-a-1-new-v1.*",
       "creator": "Animama render of pixiv VRoid Project model",
-      "provenance": "The owner confirms the WebP portrait is a direct Animama renderer capture of Annie's unmodified VRoid Studio free preset, contains no external artwork, and its metadata is project-authored (2026-09-03). The underlying model uses https://vroid.pixiv.help/hc/en-us/articles/4402394424089-VRoidPreset-A-Z . Product-use and required-notice review remains part of release approval.",
+      "provenance": "Direct Animama portrait-capture renderer output (renderer 2, capture preset 3; 2026-10-22) of the optimized Annie model (sha256 15081670b379842b584062c541680472bbbe0a11a19d5aff4cb59a86f88e3fc9), captured at 1024 and downscaled to 512x512 WebP; it contains no external artwork and its metadata is project-authored. The owner confirmed the same for the earlier capture of this model (2026-09-03). The underlying model uses https://vroid.pixiv.help/hc/en-us/articles/4402394424089-VRoidPreset-A-Z . Product-use and required-notice review remains part of release approval.",
       "license_id": "LicenseRef-pixiv-VRoidPreset",
       "redistribution_review": "pending"
     },
@@ -582,7 +582,7 @@
     {
       "glob": "appearances/avatar-portraits/app-avatar-model-andrew-v1.*",
       "creator": "Animama render of Raymond Van's VRoid Studio model",
-      "provenance": "Direct Animama portrait-capture renderer output (renderer 1, capture preset 2) of the 2026-10-22 Andrew model, downscaled from 512 to 256x256 WebP by the backend portrait canonicalizer; contains no external artwork and its metadata is project-authored (2026-10-22). Follows the underlying model's terms.",
+      "provenance": "Direct Animama portrait-capture renderer output (renderer 2, capture preset 3) of the 2026-10-22 Andrew model, captured at 1024 and downscaled to 512x512 WebP by the backend portrait canonicalizer; contains no external artwork and its metadata is project-authored (2026-10-22). Follows the underlying model's terms.",
       "license_id": "LicenseRef-pixiv-VRoidPreset",
       "redistribution_review": "pending"
     },

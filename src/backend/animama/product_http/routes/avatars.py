@@ -19,6 +19,7 @@ from animama.app.contracts.avatar import (
     PyAvatarResponse,
     PyAvatarUpdate,
 )
+from animama.app.services.avatar_portraits import portrait_image_url, portrait_matches
 from animama.domain.avatar import Avatar, AvatarNameConflictError
 from animama.domain.content_catalog import CatalogContentEntry, ContentKind, ContentSource, ContentStatus
 from animama.domain.request_principal import RequestPrincipal
@@ -209,27 +210,11 @@ async def list_avatar_catalog(
         return "local" if item is not None and item.source is ContentSource.LOCAL else "included"
 
     # Portrait metadata belongs to the model, independently of Anima loadouts.
-    portraits = sorted(
-        (
-            (item.id, file.file_ref, item.source, item.metadata)
-            for item in valid
-            if item.kind is ContentKind.APPEARANCE
-            for file in item.files
-            if file.role == "image"
-        ),
-        key=lambda portrait: (portrait[0], portrait[1]),
-    )
-    included_portrait_urls = {
-        metadata["avatar_model"]: f"/v1/content/files/{file_ref}"
-        for _item_id, file_ref, source, metadata in portraits
-        if source is ContentSource.INCLUDED and isinstance(metadata.get("avatar_model"), str)
-    }
-    exact_portrait_urls = {
-        metadata["presentation"]["avatar_item_id"]: f"/v1/content/files/{file_ref}"
-        for _item_id, file_ref, _source, metadata in portraits
-        if isinstance(metadata.get("presentation"), dict)
-        and isinstance(metadata["presentation"].get("avatar_item_id"), str)
-    }
+    appearances = [item for item in valid if item.kind is ContentKind.APPEARANCE]
+
+    def preview_url(item: CatalogContentEntry | None) -> str | None:
+        matches = portrait_matches(item, appearances) if item is not None else []
+        return portrait_image_url(matches[0]) if matches else None
 
     needle = (q or "").strip().casefold()
     selected = [
@@ -260,12 +245,7 @@ async def list_avatar_catalog(
                 name=avatar.name,
                 origin=avatar_origin(avatar),
                 model_type=avatar.model_type,
-                preview_url=(exact_portrait_urls.get(item.id) if item is not None else None)
-                or (
-                    included_portrait_urls.get(PurePosixPath(avatar.file_path).stem)
-                    if item is not None and item.source is ContentSource.INCLUDED
-                    else None
-                ),
+                preview_url=preview_url(item),
                 source=source,
                 updated_at=avatar.updated_at,
             )

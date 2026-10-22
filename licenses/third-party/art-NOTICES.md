@@ -95,6 +95,8 @@ that folder's README.
 
 Current hashes and metadata of both models and their portraits are recorded
 in [art-vroid-review.json](art-vroid-review.json).
+Both portraits are renderer captures of those models in the chat canvas's look
+(renderer 2, 2026-10-22).
 
 The earlier metadata discrepancy is resolved for source preparation by the
 owner's explicit identification and authorization, together with the published

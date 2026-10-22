@@ -11,9 +11,48 @@ import { MathUtils } from "three";
 /** An sRGB colour, 0–255 per channel. */
 export type Rgb = readonly [number, number, number];
 
-/** Slightly brighter, softer and less saturated. */
-export const CHAT_CANVAS_GRADE =
-  "brightness(1.04) contrast(0.92) saturate(0.88)";
+/** Slightly brighter, softer and less saturated, in CSS filter order. */
+const GRADE = { brightness: 1.04, contrast: 0.92, saturate: 0.88 } as const;
+
+export const CHAT_CANVAS_GRADE = `brightness(${GRADE.brightness}) contrast(${GRADE.contrast}) saturate(${GRADE.saturate})`;
+
+const clampUnit = (value: number) => Math.min(1, Math.max(0, value));
+
+/**
+ * Apply {@link CHAT_CANVAS_GRADE} in place to unpremultiplied 8-bit sRGB RGBA
+ * pixels, as the browser's CSS filter would: each function in order, clamped,
+ * on sRGB values, alpha unchanged. Images that are not drawn through the chat
+ * canvas (portrait captures) use this instead of a canvas `filter`, which not
+ * every browser supports.
+ */
+export function applyChatCanvasGrade(pixels: Uint8Array): void {
+  // brightness and contrast act per channel, so they fold into one table.
+  const toneCurve = new Float32Array(256);
+  for (let value = 0; value < 256; value += 1) {
+    const bright = clampUnit((value / 255) * GRADE.brightness);
+    toneCurve[value] = clampUnit(
+      bright * GRADE.contrast + 0.5 - 0.5 * GRADE.contrast,
+    );
+  }
+  // The Filter Effects saturate matrix.
+  const s = GRADE.saturate;
+  const matrix = [
+    [0.213 + 0.787 * s, 0.715 - 0.715 * s, 0.072 - 0.072 * s],
+    [0.213 - 0.213 * s, 0.715 + 0.285 * s, 0.072 - 0.072 * s],
+    [0.213 - 0.213 * s, 0.715 - 0.715 * s, 0.072 + 0.928 * s],
+  ];
+  for (let offset = 0; offset < pixels.length; offset += 4) {
+    const r = toneCurve[pixels[offset]];
+    const g = toneCurve[pixels[offset + 1]];
+    const b = toneCurve[pixels[offset + 2]];
+    for (let channel = 0; channel < 3; channel += 1) {
+      const [mr, mg, mb] = matrix[channel];
+      pixels[offset + channel] = Math.round(
+        clampUnit(mr * r + mg * g + mb * b) * 255,
+      );
+    }
+  }
+}
 
 const GLOW_BLUR_PX = 6;
 /** Backdrops at or below this relative luminance get the faintest glow. */

@@ -31,7 +31,9 @@ with the effect applied at 0, as `effects:render --with-clip` does (for example
 `idea_bulb_fingertip` with `have-an-idea` at 3 s). Because `time` is also the
 effect's age, pick a moment where the pose shows the art and the effect is
 visible (a looping effect at the start of a cycle). Renders are deterministic, so unchanged inputs
-reproduce the same pixels. Review the images before committing them.
+reproduce the same pixels. Thumbnails rendered before portrait renderer
+version 2 (the chat canvas's look) are darker and harsher than new renders, so
+re-render all templates together. Review the images before committing them.
 
 ## Provenance and terms
 

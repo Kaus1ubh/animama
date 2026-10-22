@@ -14,7 +14,7 @@ import {
   type Ref,
 } from "react";
 import { getI18n, useTranslation } from "react-i18next";
-import type { Object3D } from "three";
+import { PerspectiveCamera, type Object3D } from "three";
 
 import type {
   ItemRevisionRef,
@@ -32,6 +32,7 @@ import {
   type CreationPreviewStatus,
 } from "./CreateAnimaPreviewSession";
 import { CreatorError, creatorErrorText } from "./createAnimaErrors";
+import { useCreationPortraitCapture } from "./createAnimaPortrait";
 
 export type CreationStageHandle = {
   stop: () => void;
@@ -48,6 +49,13 @@ type Props = {
   onUpload: () => void;
   suspended: boolean;
   onFinished: () => void;
+  /** The shown Avatar revision when it needs a portrait (`creationPortraitTarget`). */
+  portraitTarget?: ItemRevisionRef | null;
+  savePortrait?: (
+    target: ItemRevisionRef,
+    blob: Blob,
+    signal: AbortSignal,
+  ) => Promise<void>;
 };
 
 class StageBoundary extends Component<
@@ -80,6 +88,8 @@ export function CreateAnimaStage({
   onUpload,
   suspended,
   onFinished,
+  portraitTarget = null,
+  savePortrait,
 }: Props) {
   const { t } = useTranslation("create");
   const reducedMotion = useReducedMotion() === true;
@@ -199,6 +209,9 @@ export function CreateAnimaStage({
                   report={report}
                   onAvatar={setLoadedAvatar}
                   onContextError={contextError}
+                  portraitTarget={portraitTarget}
+                  savePortrait={savePortrait}
+                  previewing={["preparing", "playing"].includes(status)}
                 />
               </Suspense>
             </AvatarPreviewSurface>
@@ -240,6 +253,9 @@ function CreationStageActor({
   report,
   onAvatar,
   onContextError,
+  portraitTarget,
+  savePortrait,
+  previewing,
 }: {
   file: File | null;
   source: ItemRevisionRef | null;
@@ -250,8 +266,12 @@ function CreationStageActor({
   report: (status: CreationPreviewStatus, message?: string) => void;
   onAvatar: (avatar: Avatar | null) => void;
   onContextError: () => void;
+  portraitTarget: ItemRevisionRef | null;
+  savePortrait: Props["savePortrait"];
+  /** A Gesture or Reaction preview is posing the Avatar. */
+  previewing: boolean;
 }) {
-  const { camera, gl, invalidate } = useThree();
+  const { camera, gl, invalidate, scene } = useThree();
   const [object, setObject] = useState<Object3D | null>(null);
   const avatarRef = useRef<Avatar | null>(null);
   const reducedMotionRef = useRef(reducedMotion);
@@ -336,6 +356,30 @@ function CreationStageActor({
   useEffect(() => {
     avatarRef.current?.setSpringBonePhysicsEnabled(!reducedMotion);
   }, [reducedMotion]);
+  const capturePortrait = useCallback(
+    async (signal: AbortSignal) => {
+      const avatar = avatarRef.current;
+      if (!avatar) throw new Error("The Avatar left the stage.");
+      const { captureAvatarPortrait } = await import("@/lib/avatar/portrait");
+      // A front camera, so the user's orbit does not turn the portrait.
+      return captureAvatarPortrait({
+        avatar,
+        renderer: gl,
+        scene,
+        camera: new PerspectiveCamera(),
+        signal,
+      });
+    },
+    [gl, scene],
+  );
+  useCreationPortraitCapture({
+    // At rest only: never an unsaved file, never a preview's pose.
+    ready: object !== null && file === null && !previewing,
+    source,
+    target: portraitTarget,
+    capture: capturePortrait,
+    save: savePortrait,
+  });
   useFrame((_state, delta) => {
     if (active) session.tick(delta);
   });

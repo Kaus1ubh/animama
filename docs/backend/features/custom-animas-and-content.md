@@ -303,11 +303,12 @@ side, and 40 million decoded pixels. It rejects animation, SVG, corrupt bytes,
 and misleading MIME types, then uses the existing canonical WebP pipeline.
 Profile/background framing remains explicit `fit`, focal coordinates, and zoom;
 null background creates no binding. `PUT /v1/avatar-content/{item_id}/portrait`
-accepts a confirmed 512-square WebP capture and the expected Avatar revision,
-producing a normal owner-scoped 256-square Appearance of at most 256 KiB.
-The typed portrait endpoint and Appearance management remain available outside
-the Create Anima flow. That flow does not offer capture, crop, upload or
-background controls; existing content and live bindings remain available.
+accepts a confirmed 1024-square WebP capture of a Local Avatar and its
+expected revision, producing that Avatar's one owner-scoped 512-square
+Appearance of at most 256 KiB; saving again replaces it.
+Create Anima saves a Local Avatar's portrait through this endpoint in the
+background when it is missing or was captured from another revision; it offers no crop, upload or background controls, and
+Appearance management remains separate from creation.
 Confirmed Saves survive cancellation and failed creation, and neither Save nor
 creation calls a provider.
 
@@ -344,7 +345,10 @@ when its original ID and model path still match, it has no owner or catalog
 mapping, and neither an Anima nor an upload references it. Existing selections
 are never silently cleared or reassigned.
 
-Avatar catalog `preview_url` uses a valid visible portrait registered for the
-model's exact `presentation.avatar_item_id`; generated portraits record this association.
+Avatar catalog `preview_url`, typed Avatar `portrait` and the Anima portrait
+fallback use a valid visible portrait registered for the model's exact
+`presentation.avatar_item_id` (`app/services/avatar_portraits.py`); generated
+portraits record this association and the Avatar revision they were captured
+from.
 Packaged Included portraits retain the `avatar_model` metadata fallback,
 independently of an Anima's custom profile appearance. Missing or invalid portraits leave the URL empty for icon fallback.
