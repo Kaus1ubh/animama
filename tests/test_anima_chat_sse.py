@@ -1540,14 +1540,18 @@ async def test_chat_sse_sends_the_speech_descriptor_while_the_ai_notice_is_recor
         user=RequestPrincipal(id="user-1"),
     )
     body_iterator = _stream_body(response)
-    first = await asyncio.wait_for(anext(body_iterator), timeout=1.0)
-    first_text = first.decode() if isinstance(first, bytes) else first
-    assert "event: tts.session" in first_text
+    try:
+        first = await asyncio.wait_for(anext(body_iterator), timeout=1.0)
+        first_text = first.decode() if isinstance(first, bytes) else first
+        assert "event: tts.session" in first_text
 
-    release_notice.set()
-    chunks = [first_text]
-    async for chunk in body_iterator:
-        chunks.append(chunk.decode() if isinstance(chunk, bytes) else chunk)
+        release_notice.set()
+        chunks = [first_text]
+        async for chunk in body_iterator:
+            chunks.append(chunk.decode() if isinstance(chunk, bytes) else chunk)
+    finally:
+        release_notice.set()
+        await body_iterator.aclose()
 
     names = [
         line.removeprefix("event: ") for chunk in chunks for line in chunk.splitlines() if line.startswith("event: ")
