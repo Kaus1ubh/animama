@@ -29,6 +29,7 @@ import {
   type PlaybackItem,
   type PlaybackKind,
 } from "../helpers/imported-playback";
+import { authoredExpressionThresholds } from "../helpers/authored-expressions";
 import {
   proveAvatarVFXPlayback,
   proveEmotionJoySceneDom,
@@ -101,6 +102,22 @@ async function readyTarget(surface: Locator) {
     )
     .toBe(true);
   return (await readPlaybackObservation(surface)).target;
+}
+
+/** Read the selected clip document the preview prepared for playback. */
+async function readPreviewClip(page: Page, preview: PyTypedContentPreview) {
+  const role =
+    "implementation" in preview.item
+      ? preview.item.implementation.file_role
+      : null;
+  const file = preview.files.find((entry) => entry.role === role);
+  expect(
+    file,
+    `preview of ${preview.item.item_id} must carry its clip`,
+  ).toBeDefined();
+  const response = await page.request.get(file!.url);
+  expect(response.ok(), await response.text()).toBe(true);
+  return (await response.json()) as unknown;
 }
 
 /** Scene observations expose first-play occurrence ownership; other effects expose aliases. */
@@ -1198,7 +1215,13 @@ test("imported playback complete Anima retains imported Avatar, appearance and p
     await section
       .getByRole("button", { name: `Preview ${item.name}`, exact: true })
       .click();
-    await prepared;
+    const preview = await prepared;
+    // Starter Reactions key VRoid face parts rather than whole-face presets,
+    // so the proof follows whichever expressions the imported clip authors.
+    const reactionThresholds =
+      kind === "reaction"
+        ? authoredExpressionThresholds(await readPreviewClip(page, preview))
+        : {};
     const surface = page.locator(
       '[data-playback-surface="anima-loadout-stage"]',
     );
@@ -1242,7 +1265,10 @@ test("imported playback complete Anima retains imported Avatar, appearance and p
                   0.1 &&
                 values.some(
                   (value) =>
-                    (value.expressions.happy ?? 0) > 0.4 &&
+                    Object.entries(reactionThresholds).every(
+                      ([name, threshold]) =>
+                        (value.expressions[name] ?? 0) >= threshold,
+                    ) &&
                     value.effects.avatar.length > 0 &&
                     value.effects.particle.length > 0 &&
                     value.effects.scene.some((effect) => effect.active),
