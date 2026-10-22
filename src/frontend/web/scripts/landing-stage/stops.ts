@@ -3,7 +3,7 @@ import type { TrackedEmotion } from "@/lib/emotion";
 import type { AmbientMood } from "./ambient";
 
 /*
- * The landing page's camera stops (spike). Each stop frames the Avatar for
+ * The landing page's camera stops. Each stop frames the Avatar for
  * one feature; scrolling moves the camera between consecutive stops. Camera
  * values are relative to the Avatar's rest head height, so another VRM keeps
  * the same framing. The server (`../landing-stage.mjs`) reads this module to
@@ -725,7 +725,6 @@ export function stopClips(stop: StageStop, avatarId: string): StageClip[] {
   return stop.avatarClips?.[avatarId] ?? stop.clips;
 }
 
-/** Every Library source the page plays, for the server to resolve. */
 /**
  * The hero entrance's scratch walk: its upper-body clip (in `clips/`; head
  * scratch, double take and turn, played over the procedural walk) and
@@ -738,6 +737,7 @@ export const PUZZLE_EFFECT_SOURCES = [
   "library:included/embarrassment-3-b",
 ];
 
+/** Every Library source the page plays, for the server to resolve. */
 export function stageSources(): string[] {
   return [
     ...new Set([

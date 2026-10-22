@@ -1,5 +1,5 @@
 /*
- * Landing stage (spike) styles: the app's Tailwind setup and Anima theme, so
+ * Landing page styles: the app's Tailwind setup and Anima theme, so
  * the overlay uses the same tokens and components as the product.
  */
 @import "tailwindcss" source(none);

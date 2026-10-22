@@ -40,10 +40,16 @@ describe("landing page resolution", () => {
     expect(run(governor, clock, 6, 1 / 60)).toBe(2);
   });
 
+  it("steps down on a machine running well under 10 fps", () => {
+    const governor = new ResolutionGovernor(2);
+    const clock = { now: 0 };
+    expect(run(governor, clock, 2.2, 0.125)).toBe(1.5);
+  });
+
   it("ignores hitches and the quiet time after a load", () => {
     const governor = new ResolutionGovernor(2);
     const clock = { now: 0 };
-    expect(run(governor, clock, 3, 0.25)).toBeNull();
+    expect(run(governor, clock, 3, 0.6)).toBeNull();
     governor.settle(clock.now);
     expect(run(governor, clock, 2.5, 1 / 30)).toBeNull();
     expect(governor.ratio).toBe(2);

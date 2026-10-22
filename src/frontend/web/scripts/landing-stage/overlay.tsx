@@ -219,7 +219,9 @@ function AvatarSwitcher({
                   aria-label={avatar.name}
                   aria-pressed={isActive}
                   aria-busy={loading}
-                  disabled={state.avatarLoading !== null && !loading}
+                  disabled={
+                    !state.ready || (state.avatarLoading !== null && !loading)
+                  }
                   onClick={() => controller.selectAvatar(avatar.id)}
                   className={cn(
                     "focus-visible:ring-ring flex size-9 cursor-pointer items-center justify-center rounded-full p-0 transition-shadow outline-none focus-visible:ring-2",
@@ -270,7 +272,7 @@ function AvatarOptions({
         <DropdownMenuRadioItem
           key={avatar.id}
           value={avatar.id}
-          disabled={state.avatarLoading !== null}
+          disabled={!state.ready || state.avatarLoading !== null}
           className="gap-2.5"
         >
           <Avatar className="size-5">

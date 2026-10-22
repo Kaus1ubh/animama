@@ -47,6 +47,13 @@ const CONTENT = "assets/content";
 export async function buildLanding({
   outDir = path.join(webRoot, "dist-landing"),
 } = {}) {
+  // The build empties `outDir` first: refuse any folder that holds the
+  // source, the repository or the home folder.
+  for (const kept of [webRoot, repoRoot, homedir()]) {
+    const relative = path.relative(path.resolve(outDir), kept);
+    if (!relative.startsWith("..") && !path.isAbsolute(relative))
+      throw new Error(`Refusing to build into ${outDir}: it contains ${kept}.`);
+  }
   // What the stops play and the page's text, through a server that never
   // listens (it only loads the app's modules).
   const server = await createServer({
@@ -65,6 +72,10 @@ export async function buildLanding({
   } finally {
     await server.close();
   }
+  if (site.CLOSED_BETA && site.BETA_ACCESS_URL.includes("REPLACE"))
+    console.warn(
+      `Warning: BETA_ACCESS_URL in stops.ts is still a placeholder (${site.BETA_ACCESS_URL}).`,
+    );
   if (content.program.problems.length)
     throw new Error(
       `Unresolved landing content:\n  ${content.program.problems.join("\n  ")}`,
@@ -320,8 +331,9 @@ function noticesText({ site, moduleIds, published }) {
 }
 
 /**
- * Refuse output that would leak this machine's layout or the source: no
- * source maps and no absolute local path in any text file. Resolves to the
+ * Refuse output that would leak this machine's layout or the source, or need
+ * the stage server: no source maps, and no absolute local path or stage
+ * server route in any text file. Resolves to the
  * written files, relative to `outDir`.
  */
 function checkOutput(outDir) {
@@ -344,6 +356,8 @@ function checkOutput(outDir) {
     const text = readFileSync(path.join(outDir, name), "utf8");
     for (const root of [repoRoot, homedir()])
       if (text.includes(root)) problems.push(`local path in ${name}`);
+    for (const route of [MEDIA_ROUTE, "/__stage/", "/@fs/"])
+      if (text.includes(route)) problems.push(`stage server route in ${name}`);
   }
   if (problems.length)
     throw new Error(`Unsafe landing build:\n  ${problems.join("\n  ")}`);
@@ -353,8 +367,9 @@ function checkOutput(outDir) {
 async function main(argv) {
   let outDir;
   for (let index = 0; index < argv.length; index += 1) {
-    if (argv[index] === "--out") {
-      outDir = path.resolve(argv[index + 1] ?? "");
+    const value = argv[index + 1];
+    if (argv[index] === "--out" && value && !value.startsWith("--")) {
+      outDir = path.resolve(value);
       index += 1;
     } else {
       console.log("Usage: pnpm -s landing:build [--out <dir>]");

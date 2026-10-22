@@ -119,7 +119,10 @@ export class CursorTrail {
     const ratio = Math.min(window.devicePixelRatio, 2);
     const width = window.innerWidth;
     const height = window.innerHeight;
-    if (canvas.width !== Math.round(width * ratio)) {
+    if (
+      canvas.width !== Math.round(width * ratio) ||
+      canvas.height !== Math.round(height * ratio)
+    ) {
       canvas.width = Math.round(width * ratio);
       canvas.height = Math.round(height * ratio);
     }

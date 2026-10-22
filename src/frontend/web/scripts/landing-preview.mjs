@@ -109,8 +109,12 @@ async function main(argv) {
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
     if (argument === "--no-open") open = false;
-    else if (argument === "--port" || argument === "--dir") {
-      const value = argv[index + 1] ?? "";
+    else if (
+      (argument === "--port" || argument === "--dir") &&
+      argv[index + 1] &&
+      !argv[index + 1].startsWith("--")
+    ) {
+      const value = argv[index + 1];
       if (argument === "--port") port = Number(value);
       else dir = path.resolve(value);
       index += 1;

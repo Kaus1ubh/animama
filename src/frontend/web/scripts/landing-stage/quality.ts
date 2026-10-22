@@ -17,8 +17,11 @@ const QUICK_FRAME_SEC = 1 / 55;
 const RECOVER_SEC = 8;
 /** Seconds to wait after a change or a load before judging again. */
 const SETTLE_SEC = 3;
-/** A frame this long is a hitch (a load, a hidden tab), not a trend. */
-const HITCH_SEC = 0.1;
+/**
+ * A frame this long is a hitch (a load, a hidden tab), not a trend; a machine
+ * this slow throughout is beyond what resolution can help.
+ */
+const HITCH_SEC = 0.5;
 
 /**
  * Keeps the 3D canvas smooth on weaker machines and sharp on strong ones:

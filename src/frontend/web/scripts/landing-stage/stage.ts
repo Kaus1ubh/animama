@@ -496,8 +496,13 @@ let puzzleClip: PreviewClip["clip"] | null = null;
 async function createIntro(target: Avatar) {
   const puzzlePath = program.walk[PUZZLE_CLIP_FILE];
   if (puzzlePath && devParam("nopuzzle") === null) {
-    const response = await fetch(puzzlePath);
-    if (response.ok) puzzleClip = await response.json();
+    // Optional: without it she walks on without the head scratch.
+    try {
+      const response = await fetch(puzzlePath);
+      if (response.ok) puzzleClip = await response.json();
+    } catch (error) {
+      console.warn("Landing stage: no head scratch,", error);
+    }
   }
   const requested = devParam("walk") ?? "";
   const variant: WalkVariantId =
@@ -742,7 +747,9 @@ function showGlow(from: number, blend: number) {
 // ── Frame loop ─────────────────────────────────────────────────────────────
 
 function frame() {
-  const delta = Math.min(clock.getDelta(), 0.1);
+  const elapsed = clock.getDelta();
+  // Animation steps stay small after a stall; the resolution sees the truth.
+  const delta = Math.min(elapsed, 0.1);
   time += delta;
   const width = window.innerWidth;
   const height = window.innerHeight;
@@ -788,7 +795,7 @@ function frame() {
   }
   avatar?.update(delta);
   renderer.render(scene, camera);
-  const ratio = resolution.sample(time, delta);
+  const ratio = resolution.sample(time, elapsed);
   if (ratio !== null) renderer.setPixelRatio(ratio);
 
   if (waveFrom !== null && !pushedIn && time - waveFrom >= REVEAL_DELAY_SEC) {
@@ -845,8 +852,17 @@ async function createAvatar(entry: StageProgram["avatars"][number]) {
     motionCatalog: BUILT_IN_AVATAR_MOTION_CATALOG,
     mediaCatalog: media,
   });
-  await next.load({ filePath: entry.url });
-  if (!next.scene || !next.vrm) throw new Error(`Cannot load ${entry.id}.`);
+  // A failed load releases what it built.
+  try {
+    await next.load({ filePath: entry.url });
+  } catch (error) {
+    next.dispose();
+    throw error;
+  }
+  if (!next.scene || !next.vrm) {
+    next.dispose();
+    throw new Error(`Cannot load ${entry.id}.`);
+  }
   next.update(0);
   const height = next.vrm.humanoid
     .getRawBoneNode("head")!
@@ -895,9 +911,10 @@ function attachAvatar(loaded: LoadedAvatar) {
  * the new one (an entrance in progress ends first).
  */
 async function selectAvatar(id: string) {
-  const { avatar: current, avatarLoading } = store.get();
+  const { avatar: current, avatarLoading, ready } = store.get();
   const entry = program.avatars.find((candidate) => candidate.id === id);
-  if (!entry || id === current || avatarLoading) return;
+  // Until the first Avatar is on stage, `start` owns the stage.
+  if (!ready || !entry || id === current || avatarLoading) return;
   store.set({ avatarLoading: id });
   try {
     const loaded = await createAvatar(entry);

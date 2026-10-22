@@ -337,7 +337,7 @@ export async function renderPageHtml(server) {
       stop.id === last.id
         ? `<p class="actions">${link(action)} ${link({ label: "Read the docs", href: SITE.docsUrl })}</p>`
         : "";
-    return `<section><h2>${text(stop.title)}</h2><p>${text(stop.body)}</p>${actions}</section>`;
+    return `<section id="stop-${stop.id}"><h2>${text(stop.title)}</h2><p>${text(stop.body)}</p>${actions}</section>`;
   });
   const content = [
     `<div class="prerender">`,
@@ -349,7 +349,7 @@ export async function renderPageHtml(server) {
     ]
       .map(link)
       .join(" ")}</nav></header>`,
-    `<main><h1>${text(hero.title)}</h1><p>${heroLine}</p><p class="scene">${text(SITE.sceneDescription)}</p>`,
+    `<main><section id="stop-${hero.id}"><h1>${text(hero.title)}</h1><p>${heroLine}</p><p class="scene">${text(SITE.sceneDescription)}</p></section>`,
     ...sections,
     `</main>`,
     `<footer><p>${escapeHtml(SITE.copyright)} ${link({ label: "Third-party notices", href: SITE.notices })}</p></footer>`,
@@ -364,9 +364,10 @@ export function pagePlugin(getPage) {
     name: "animama-landing-page",
     transformIndexHtml(html) {
       const { head, content } = getPage();
+      // Functions, so a `$` in the copy is not read as a pattern.
       return html
-        .replace("<!--landing:head-->", head)
-        .replace("<!--landing:content-->", content);
+        .replace("<!--landing:head-->", () => head)
+        .replace("<!--landing:content-->", () => content);
     },
   };
 }
