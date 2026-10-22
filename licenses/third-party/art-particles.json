@@ -462,6 +462,64 @@
   ],
   "conditions": [
     "Preserve notices and source/change mappings. CodeManu retains conservative CC BY 4.0 treatment despite bundle CC0 declaration.",
-    "Regeneration validates derivatives; it is not application or release acceptance."
-  ]
+    "Regeneration validates derivatives; it is not application or release acceptance.",
+    "Byte-identical PNG copies of some of these derivatives sit inside Included Particle Effects; packaged builds ship those copies as WebP re-encodings, recorded in packaged_derivatives. The PNG masters remain the source of record."
+  ],
+  "packaged_derivatives": [
+    {
+      "master": "content/included/vfx/particle/quark/energy-wave-charge/textures/glow-sharp.png",
+      "copy_of": "content/included/vfx/particle/particle-vfx/textures/glow-sharp.png",
+      "webp": {
+        "path": "content/included/vfx/particle/quark/energy-wave-charge/textures/glow-sharp.webp",
+        "sha256": "0b558c64bad6d9c81c0c6959206d052607824271e5b99c3dd2af20d47e5e40fd",
+        "size_bytes": 16482
+      }
+    },
+    {
+      "master": "content/included/vfx/particle/quark/energy-wave-charge/textures/glow-soft.png",
+      "copy_of": "content/included/vfx/particle/particle-vfx/textures/glow-soft.png",
+      "webp": {
+        "path": "content/included/vfx/particle/quark/energy-wave-charge/textures/glow-soft.webp",
+        "sha256": "a011e67b0731c4f706c7828d8f19121631c577f4081c95bd63948ef0b26d4ea8",
+        "size_bytes": 16634
+      }
+    },
+    {
+      "master": "content/included/vfx/particle/quark/energy-wave-charge/textures/shock-ring.png",
+      "copy_of": "content/included/vfx/particle/particle-vfx/textures/shock-ring.png",
+      "webp": {
+        "path": "content/included/vfx/particle/quark/energy-wave-charge/textures/shock-ring.webp",
+        "sha256": "be435ca7b34b2479b7729cb864368378bbc7e63043ae68b6f758304a6cbea6d2",
+        "size_bytes": 11230
+      }
+    },
+    {
+      "master": "content/included/vfx/particle/quark/poof-smoke/textures/brackeys-smoke.png",
+      "copy_of": "content/included/vfx/particle/particle-vfx/textures/brackeys-smoke.png",
+      "webp": {
+        "path": "content/included/vfx/particle/quark/poof-smoke/textures/brackeys-smoke.webp",
+        "sha256": "c4f56d56eb4a7201a8a97db28012a58b648c94a4a323b853861cb63461f75237",
+        "size_bytes": 17272
+      }
+    },
+    {
+      "master": "content/included/vfx/particle/quark/poof-smoke/textures/glow-soft.png",
+      "copy_of": "content/included/vfx/particle/particle-vfx/textures/glow-soft.png",
+      "webp": {
+        "path": "content/included/vfx/particle/quark/poof-smoke/textures/glow-soft.webp",
+        "sha256": "a011e67b0731c4f706c7828d8f19121631c577f4081c95bd63948ef0b26d4ea8",
+        "size_bytes": 16634
+      }
+    },
+    {
+      "master": "content/included/vfx/particle/quark/poof-smoke/textures/smoke-puff.png",
+      "copy_of": "content/included/vfx/particle/particle-vfx/textures/smoke-puff.png",
+      "webp": {
+        "path": "content/included/vfx/particle/quark/poof-smoke/textures/smoke-puff.webp",
+        "sha256": "908e761687367546be6a62889a3684d18779fa711441a5b9435278a459a6a70c",
+        "size_bytes": 18262
+      }
+    }
+  ],
+  "packaged_encoder": "animama/runtime/included_derivatives.py: Pillow 12.0.0 (libwebp 1.6.0) WebP quality 90, alpha quality 100, method 4, exact"
 }

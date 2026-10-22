@@ -711,10 +711,12 @@ export const saveAvatarFaceParts = <ThrowOnError extends boolean = false>(option
 /**
  * Save Avatar Portrait
  *
- * Save a confirmed browser capture as ordinary owner-scoped Appearance.
+ * Save a confirmed browser capture as the Local Avatar's one portrait.
  *
- * The source must be a current admitted Avatar. No provider or browser render
- * runs on the backend, and no live Anima or Avatar metadata is changed.
+ * The portrait is an ordinary owner-scoped Appearance; saving again replaces
+ * it in place. The source must be a current admitted Local Avatar. No
+ * provider or browser render runs on the backend, and no live Anima or Avatar
+ * metadata is changed.
  */
 export const saveAvatarPortrait = <ThrowOnError extends boolean = false>(options: Options<SaveAvatarPortraitData, ThrowOnError>) => (options.client ?? client).put<SaveAvatarPortraitResponses, SaveAvatarPortraitErrors, ThrowOnError>({
     ...formDataBodySerializer,

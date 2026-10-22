@@ -98,7 +98,11 @@ async def test_avatar_face_parts_portraits_and_saves_stay_with_their_owner(
         avatar_id, avatar_revision = avatar.json()["item_id"], avatar.json()["revision_sha256"]
         faces = f"/v1/avatar-content/{avatar_id}/face-parts"
         portrait = f"/v1/avatar-content/{avatar_id}/portrait"
-        portrait_form = {"entry_name": "Portrait", "expected_avatar_revision": avatar_revision}
+        portrait_form = {
+            "expected_avatar_revision": avatar_revision,
+            "renderer_version": "2",
+            "capture_preset_version": "3",
+        }
         portrait_file = {"file": ("portrait.webp", image_bytes(portrait=True, format="WEBP"), "image/webp")}
         correction = {
             "expected_revision": avatar_revision,

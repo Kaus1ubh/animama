@@ -11,7 +11,7 @@ import pytest
 
 from animama.app.services.typed_content_service import TypedContentAdmissionError
 from animama.domain.content_catalog import ContentKind, ContentSource, ContentStatus, ScannedContentEntry
-from animama.runtime.starter_content import _regular_path, catalog_from_scan, starter_inventory
+from animama.runtime.starter_content import catalog_from_scan, regular_content_path, starter_inventory
 from tests.anima_creation_service_support import (
     EXPECTED_STARTER_GESTURE_IDS,
     INCLUDED_POSE_IDS,
@@ -351,7 +351,7 @@ def test_special_and_escaping_files_never_enter_a_content_inventory(tmp_path: Pa
     (tmp_path / "link").symlink_to(tmp_path / "file")
     for candidate in ("../file", "/file", "link", "x\\file"):
         with pytest.raises(ValueError):
-            _regular_path(tmp_path, candidate)
+            regular_content_path(tmp_path, candidate)
 
 
 def test_production_license_policy_keeps_private_examples_excluded() -> None:

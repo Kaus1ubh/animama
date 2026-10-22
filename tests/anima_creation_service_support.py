@@ -73,10 +73,15 @@ def vrma() -> bytes:
     return glb({"asset": {"version": "2.0"}, "extensions": {"VRMC_vrm_animation": {"specVersion": "1.0"}}})
 
 
-def image_bytes(*, portrait: bool = False, format: str = "PNG") -> bytes:
-    image = Image.new("RGBA", (512, 512) if portrait else (32, 24), (0, 0, 0, 0))
+def image_bytes(*, portrait: bool = False, format: str = "PNG", portrait_size: int = 1024) -> bytes:
+    """A small picture, or a portrait-shaped one (default: the 1024-square capture size)."""
+
+    image = Image.new("RGBA", (portrait_size, portrait_size) if portrait else (32, 24), (0, 0, 0, 0))
     draw = ImageDraw.Draw(image)
-    draw.ellipse((30, 20, 450, 470) if portrait else (2, 2, 28, 22), fill="red")
+    scale = portrait_size / 1024
+    draw.ellipse(
+        tuple(round(value * scale) for value in (60, 40, 900, 940)) if portrait else (2, 2, 28, 22), fill="red"
+    )
     output = BytesIO()
     image.save(output, format=format)
     image.close()
@@ -577,7 +582,7 @@ def write_supplied_starter_fixture(root: Path) -> Path:
     for name in ("AvatarSample_A_1_New", "Andrew"):
         write_file(root / f"avatars/{name}.vrm", vrm(name))
         portrait = root / f"appearances/avatar-portraits/{name}"
-        write_file(portrait.with_suffix(".webp"), image_bytes(portrait=True, format="WEBP"))
+        write_file(portrait.with_suffix(".webp"), image_bytes(portrait=True, format="WEBP", portrait_size=512))
         write_json(
             portrait.with_suffix(".meta.json"),
             {
@@ -586,8 +591,8 @@ def write_supplied_starter_fixture(root: Path) -> Path:
                 "avatar_model": name,
                 "width": 512,
                 "height": 512,
-                "renderer_version": 1,
-                "capture_preset_version": 2,
+                "renderer_version": 2,
+                "capture_preset_version": 3,
             },
         )
     policy = starter_loadout_policy()

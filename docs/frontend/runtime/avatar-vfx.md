@@ -281,7 +281,9 @@ marks a part absent), and the VRM file's `vrm_sha256`.
   saving one creates a new Avatar revision.
 - **Included Avatars** are never written. Each owner's correction is a row in
   the `avatar_face_part_overrides` table, bound to the Avatar revision it was
-  saved against and ignored once that revision changes.
+  saved against and ignored once that revision changes, for example when an
+  update re-encodes the file. The owner saves the correction again for the new
+  revision.
 - `GET` and `PUT /v1/avatar-content/{item_id}/face-parts` read and save the
   effective value with an expected revision. Typed Avatar responses and the
   runtime snapshot's `avatar` carry it, and packages carry it with the Avatar.

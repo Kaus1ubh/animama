@@ -83,6 +83,9 @@ Each staging pass clears only `desktop/.desktop-runtime/darwin-arm64`, then:
    empty; add each new Included item that no starter selects to these roots
    (a new non-idle Gesture joins the starter loadout instead). Only tracked distribution
    inputs may enter the stage; missing or excluded required roots fail staging.
+   Effect art is staged as WebP derivatives of its PNG masters
+   (`src/backend/packaging/desktop/README.md`), so staged files and revisions
+   differ from self-host's even though the items match.
    Optional portraits use the same presentation contract as installation
    bootstrap.
 2. Builds pinned PostgreSQL 16.15 and pgvector 0.8.6 sources with portable arm64

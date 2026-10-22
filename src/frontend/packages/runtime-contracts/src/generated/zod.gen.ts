@@ -599,10 +599,11 @@ export const zBodySaveAvatarEffect = z.object({
  * Body_save_avatar_portrait
  */
 export const zBodySaveAvatarPortrait = z.object({
-    entry_name: z.string().min(1).max(120),
+    capture_preset_version: z.int().gte(1).lte(1000),
     expected_avatar_revision: z.string().regex(/^[0-9a-f]{64}$/),
     file: z.string(),
-    operation_id: z.string().min(1).max(128)
+    operation_id: z.string().min(1).max(128),
+    renderer_version: z.int().gte(1).lte(1000)
 });
 
 /**
@@ -2072,6 +2073,27 @@ export const zPyAvatarCatalogPage = z.object({
         z.null()
     ])),
     query: zPyAvatarCatalogQuery
+});
+
+/**
+ * PyAvatarPortrait
+ *
+ * An Avatar's portrait image and the capture it came from.
+ */
+export const zPyAvatarPortrait = z.object({
+    avatar_revision_sha256: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    capture_preset_version: z.optional(z.union([
+        z.int(),
+        z.null()
+    ])),
+    renderer_version: z.optional(z.union([
+        z.int(),
+        z.null()
+    ])),
+    url: z.string()
 });
 
 /**
@@ -4942,11 +4964,11 @@ export const zPyRuntimeImagePresentation = z.object({
 export const zPyRuntimeImageReference = z.object({
     content_revision: z.string(),
     content_type: z.string(),
-    height: z.int().gte(1).lte(256),
+    height: z.int().gte(1).lte(512),
     presentation: zPyRuntimeImagePresentation,
     source_type: z.literal('catalog'),
     url: z.string(),
-    width: z.int().gte(1).lte(256)
+    width: z.int().gte(1).lte(512)
 });
 
 /**
@@ -5271,6 +5293,10 @@ export const zPyAvatarContent = z.object({
     model_role: z.optional(z.literal('model')).default('model'),
     name: z.string(),
     portability: z.optional(z.enum(['portable', 'non-portable'])),
+    portrait: z.optional(z.union([
+        zPyAvatarPortrait,
+        z.null()
+    ])),
     revision_sha256: z.string().regex(/^[0-9a-f]{64}$/),
     source: z.enum(['included', 'local'])
 });

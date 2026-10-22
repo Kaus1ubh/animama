@@ -20,12 +20,19 @@ Included
 portraits and Local images use protected catalog delivery, not public storage
 URLs.
 
-The browser has reusable VRM capture primitives and a development-only
-`/avatar-portrait-debug` harness. The Create Anima journey selects an Avatar
-and submits null Profile and
-Background bindings; it does not capture or save portraits. Browsing Avatar
-cards alone saves nothing. Appearance management and the typed portrait API
-remain separate from creation. Background Default means the normal app stage.
+The browser captures Avatar portraits with `captureAvatarPortrait` (also the
+development-only `/avatar-portrait-debug` harness). When the Create Anima stage
+shows a saved Local Avatar without a portrait, or with one captured from
+another revision, it captures one in the background and saves it through the
+typed portrait API (`ui/create-anima/createAnimaPortrait.ts`). It captures the
+Avatar at rest, waiting while a Gesture or Reaction preview plays or the page
+is hidden. The attempt never blocks the flow, is abandoned after 15 s or when
+the source changes, the stage unmounts or the page is hidden, and a failure is
+only logged and not retried until the app is reloaded. Included Avatars, unsaved uploads and imported portraits
+are never recaptured. Avatar portraits (Appearances naming an Avatar in
+`presentation.avatar_item_id`, generated or imported) are not offered as
+Profile or Background images. Creation itself submits null Profile and Background
+bindings. Background Default means the normal app stage.
 
 `/animas/new` accepts a logical Avatar handoff, with a saved draft taking
 precedence. Confirmed uploads survive cancellation; unsaved files require

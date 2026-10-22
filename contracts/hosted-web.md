@@ -202,10 +202,10 @@ shows that a newer sign-in replaced the one it targeted.
 ## Capabilities and requests
 
 The sole wire schema is `app/contracts/runtime_capabilities.py`, exported offline
-in `local-http` version **11.0.0** with capability `schema_version: 2`. The generated
+in `local-http` version **12.0.0** with capability `schema_version: 2`. The generated
 TypeScript `RuntimeCapabilities` and validator are the same contract.
 `ProductRuntimeCapabilities` is a derived `Pick` for the existing extracted chat
-surface, not another wire schema. `runtime-contracts` is version 0.11.0 and
+surface, not another wire schema. `runtime-contracts` is version 0.12.0 and
 `product-ui` is version 0.14.0. Consumers explicitly admit
 the new contract major before adoption.
 
@@ -429,6 +429,13 @@ variants; readiness cannot silently replace or omit them.
 `{path,sha256,size_bytes}` relative to `catalog-seed/` under `included/` or
 `notices/`. `inventory` is the existing `animama-starter-content/1` resolver output
 with its digest, per-file license/provenance and two diagnostic-free starters.
+Effect art ships as WebP derivatives of the tracked PNG masters wherever WebP is
+smaller and the art carries no distribution restriction. Descriptors that name
+converted art are rewritten to name the derivatives; other files keep their
+tracked bytes. Each
+derivative's inventory row carries `derived_from: {path,sha256,size_bytes}` naming
+its master and takes that master's licence. The seed's
+`included/licenses/inventory.json` records the same mapping under `derivatives`.
 The only extra Included file is `included/licenses/inventory.json`. Verify both
 source pins, every byte and the closed seed inventory before importing it into
 the owner catalog. Ordinary app HTTP serving excludes the entire `catalog-seed/`

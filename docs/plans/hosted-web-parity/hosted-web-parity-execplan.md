@@ -707,7 +707,7 @@ quota/error fallback and teardown. Runtime model/worker versions must match.
 Validation from `src/frontend`: `pnpm web:test`, `pnpm check`, `pnpm web:lint`,
 `pnpm verify:tts-assets`, `pnpm e2e:list`, `pnpm e2e:check`. Extend meaningful
 behavior helpers from `accountless-content-sharing`, `accountless-imported-playback`,
-`playback-library`, `playback-anima-loadout` and creator journeys. Add a hosted
+`accountless-library` and creator journeys. Add a hosted
 session fixture; do not use installation bootstrap for hosted tests. Run selected
 journeys through `pnpm e2e:test` using the runner's documented selection and
 mutation controls, recording exact commands and source. Browser evidence must

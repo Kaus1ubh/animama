@@ -225,12 +225,24 @@ class _LegacyMusicTrack(PyTypedContentBase):
     autoplay: bool
 
 
+class PyAvatarPortrait(BaseModel):
+    """An Avatar's portrait image and the capture it came from."""
+
+    url: str
+    # The Avatar revision a Local capture was made from; null for shipped and imported portraits.
+    avatar_revision_sha256: str | None = None
+    renderer_version: int | None = None
+    capture_preset_version: int | None = None
+
+
 class PyAvatarContent(PyTypedContentBase):
     kind: Literal["avatar"] = "avatar"
     model_role: Literal["model"] = "model"
     compatibility: dict[str, object] = Field(default_factory=dict)
     # The effective face-part correction for this revision and VRM, if any.
     face_parts: AvatarFacePartCorrection | None = None
+    # List and Get overlay the caller's portrait; Preview and Save responses leave it null.
+    portrait: PyAvatarPortrait | None = None
 
 
 class PyAppearance(PyTypedContentBase):

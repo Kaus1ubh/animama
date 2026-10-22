@@ -986,9 +986,9 @@ export type BodySaveAvatarEffect = {
  */
 export type BodySaveAvatarPortrait = {
     /**
-     * Entry Name
+     * Capture Preset Version
      */
-    entry_name: string;
+    capture_preset_version: number;
     /**
      * Expected Avatar Revision
      */
@@ -1001,6 +1001,10 @@ export type BodySaveAvatarPortrait = {
      * Operation Id
      */
     operation_id: string;
+    /**
+     * Renderer Version
+     */
+    renderer_version: number;
 };
 
 /**
@@ -3751,6 +3755,7 @@ export type PyAvatarContent = {
      * Portability
      */
     portability?: 'portable' | 'non-portable';
+    portrait?: PyAvatarPortrait | null;
     /**
      * Revision Sha256
      */
@@ -3848,6 +3853,30 @@ export type PyAvatarEffectPage = {
      * Items
      */
     items: Array<PyAvatarEffect>;
+};
+
+/**
+ * PyAvatarPortrait
+ *
+ * An Avatar's portrait image and the capture it came from.
+ */
+export type PyAvatarPortrait = {
+    /**
+     * Avatar Revision Sha256
+     */
+    avatar_revision_sha256?: string | null;
+    /**
+     * Capture Preset Version
+     */
+    capture_preset_version?: number | null;
+    /**
+     * Renderer Version
+     */
+    renderer_version?: number | null;
+    /**
+     * Url
+     */
+    url: string;
 };
 
 /**
