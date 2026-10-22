@@ -46,13 +46,13 @@ const EXPECTED: Record<
     hair: ["145:2:0", "145:2:1"],
   },
   Andrew: {
-    face_skin: ["149:0:3"],
-    eye_left: ["149:0:1"],
-    eye_right: ["149:0:1"],
-    eye_highlight: ["149:0:2"],
-    eyeline: ["149:0:7"],
-    eyelash: ["149:0:6"],
-    hair: ["151:2:0"],
+    face_skin: ["144:0:3"],
+    eye_left: ["144:0:1"],
+    eye_right: ["144:0:1"],
+    eye_highlight: ["144:0:2"],
+    eyeline: ["144:0:7"],
+    eyelash: ["144:0:6"],
+    hair: ["146:2:0"],
   },
 };
 

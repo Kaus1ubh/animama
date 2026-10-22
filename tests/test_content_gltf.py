@@ -6,6 +6,7 @@ import math
 import struct
 from copy import deepcopy
 from io import BytesIO
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -422,3 +423,21 @@ def test_vrma_validator_still_rejects_sparse_accessors() -> None:
         _canonical(_glb_source(document, binary))
 
     assert error.value.reason == "vrma_invalid_structure"
+
+
+INCLUDED_AVATARS = sorted((Path(__file__).resolve().parents[1] / "content/included/avatars").glob("*.vrm"))
+
+
+@pytest.mark.parametrize("path", INCLUDED_AVATARS, ids=lambda path: path.name)
+def test_included_avatars_pass_the_vrm_validator(path: Path) -> None:
+    """The optimized Included Avatars use sparse and all-zero morph targets and WebP textures."""
+    with path.open("rb") as content:
+        metadata = validate_vrm_stream(content=content, size_bytes=path.stat().st_size)[1]
+
+    assert metadata["vrm_spec"] == "1.0"
+    # Shipped through `pnpm -s vrm:optimize`; a larger file was not optimized.
+    assert path.stat().st_size <= 5_000_000
+
+
+def test_included_avatars_are_the_two_starters() -> None:
+    assert [path.name for path in INCLUDED_AVATARS] == ["Andrew.vrm", "AvatarSample_A_1_New.vrm"]

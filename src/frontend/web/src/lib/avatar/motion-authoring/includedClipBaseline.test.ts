@@ -20,7 +20,8 @@ import {
  * after the #314 and #409 Gesture revisions, additions and removals were
  * promoted, and after the #543 effect merge rewrote the effect events of 28
  * Gestures (their samples were unchanged). Andrew's samples replaced the
- * retired VRM 0 sample's when he became Included (Annie's were unchanged).
+ * retired VRM 0 sample's when he became Included, and were re-recorded for his
+ * 2026-10-22 model (Annie's were unchanged both times).
  *
  * A clip changed on purpose is listed in REBASELINED, which skips its samples;
  * one deleted on purpose is listed in REMOVED. Clips missing from the baseline
@@ -32,7 +33,9 @@ import {
  * which refuses while an unlisted clip differs from the baseline, then
  * rewrites the baseline from the current clips; empty both sets afterwards.
  * After a change to the Included Avatars it records the new Avatars' samples
- * and drops the retired ones', refusing only if an Avatar in both changed.
+ * and drops the retired ones', refusing only if an Avatar in both changed. To
+ * re-record an Avatar whose model changed under the same id, first delete its
+ * samples from the baseline; the update then checks the others are unchanged.
  */
 
 /** Included Gestures revised on purpose since the baseline. */

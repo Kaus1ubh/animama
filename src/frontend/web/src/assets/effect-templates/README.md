@@ -35,8 +35,8 @@ reproduce the same pixels. Review the images before committing them.
 
 ## Provenance and terms
 
-Each thumbnail is a direct Animama renderer capture of Annie, the unmodified
-pixiv VRoid Project preset, wearing an Included Avatar Effect with Animama's
+Each thumbnail is a direct Animama renderer capture of Annie, the pixiv VRoid
+Project preset (with a recoloured hair underside), wearing an Included Avatar Effect with Animama's
 own owner- or agent-authored art from `content/included/vfx/avatar/`, in some
 cases posed by an Included Gesture. No other artwork is used. Like Annie's
 Library portrait, the images follow Annie's model terms

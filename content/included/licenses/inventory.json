@@ -545,7 +545,7 @@
     {
       "glob": "avatars/AvatarSample_A_1_New.vrm",
       "creator": "pixiv VRoid Project",
-      "provenance": "Owner confirms this Annie model is a VRoid Studio free preset with no external assets (2026-09-02). On 2026-10-16 the owner had one texture recoloured: the grey hair-underside texture (material N00_000_Hair_00_HAIR_04) now follows the outer hair's brown-to-pink gradient. Geometry, every other texture and the embedded VRM metadata are unchanged; the new hash is in licenses/third-party/art-vroid-review.json. Official terms: https://vroid.pixiv.help/hc/en-us/articles/4402394424089-VRoidPreset-A-Z ; AvatarSample_A redistribution conditions: https://hub.vroid.com/en/characters/2843975675147313744/models/5644550979324015604 . Source identification is resolved; review product use and required notices before release. Do not replace embedded metadata or describe the preset terms as CC0.",
+      "provenance": "Owner confirms this Annie model is a VRoid Studio free preset with no external assets (2026-09-02). On 2026-10-16 the owner had one texture recoloured: the grey hair-underside texture (material N00_000_Hair_00_HAIR_04) now follows the outer hair's brown-to-pink gradient. On 2026-10-22 the owner replaced the embedded VRM metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed) and the file was re-encoded with `pnpm -s vrm:optimize` (WebP textures, sparse morph targets); geometry, morph data and expressions are unchanged. Hashes and metadata are in licenses/third-party/art-vroid-review.json. Official terms: https://vroid.pixiv.help/hc/en-us/articles/4402394424089-VRoidPreset-A-Z ; AvatarSample_A redistribution conditions: https://hub.vroid.com/en/characters/2843975675147313744/models/5644550979324015604 . The preset conditions still govern the underlying pixiv components; review product use and required notices before release. Do not describe the preset terms as CC0.",
       "license_id": "LicenseRef-pixiv-VRoidPreset",
       "redistribution_review": "pending"
     },
@@ -574,15 +574,15 @@
     },
     {
       "glob": "avatars/Andrew.vrm",
-      "creator": "Raymond Van (edit of a pixiv VRoid Project preset)",
-      "provenance": "On 2026-10-19 Raymond confirmed this Andrew model is a VRoid Studio A-Z preset whose hair he replaced; the base preset is not identified. He set its embedded VRM metadata (name Andrew, commercial use corporation, redistribution disallowed, modification prohibited, avatar use only by separately licensed persons); geometry, textures, expressions and spring bones are as he exported them. Hashes are recorded in licenses/third-party/art-vroid-review.json. Official terms: https://vroid.pixiv.help/hc/en-us/articles/4402394424089-VRoidPreset-A-Z . Do not describe the preset terms as CC0. Final binary publication approval remains separate.",
+      "creator": "Raymond Van (VRoid Studio model)",
+      "provenance": "On 2026-10-22 Raymond approved this revised Andrew, his own VRoid Studio 2.14.0 model (new outfit with a tie, new hair, different proportions), replacing his 2026-10-19 preset edit. He set its embedded VRM metadata (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The shipped file is his export re-encoded with `pnpm -s vrm:optimize` (WebP textures, sparse morph targets); geometry, morph data and expressions are as he exported them. Hashes are recorded in licenses/third-party/art-vroid-review.json. pixiv's VRoid terms govern any VRoid preset or built-in components: https://vroid.pixiv.help/hc/en-us/articles/4402394424089-VRoidPreset-A-Z . Do not describe those terms as CC0. Final binary publication approval remains separate.",
       "license_id": "LicenseRef-pixiv-VRoidPreset",
       "redistribution_review": "pending"
     },
     {
       "glob": "appearances/avatar-portraits/app-avatar-model-andrew-v1.*",
-      "creator": "Animama render of Raymond Van's VRoid preset edit",
-      "provenance": "Direct Animama portrait-capture renderer output (renderer 1, capture preset 2) of Andrew, downscaled from 512 to 256x256 WebP; contains no external artwork and its metadata is project-authored (2026-10-19). Follows the underlying model's terms.",
+      "creator": "Animama render of Raymond Van's VRoid Studio model",
+      "provenance": "Direct Animama portrait-capture renderer output (renderer 1, capture preset 2) of the 2026-10-22 Andrew model, downscaled from 512 to 256x256 WebP by the backend portrait canonicalizer; contains no external artwork and its metadata is project-authored (2026-10-22). Follows the underlying model's terms.",
       "license_id": "LicenseRef-pixiv-VRoidPreset",
       "redistribution_review": "pending"
     },
