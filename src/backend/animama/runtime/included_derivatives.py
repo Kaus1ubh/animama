@@ -24,6 +24,7 @@ from typing import Any
 from PIL import Image
 
 from animama.app.services.content_portability import INVENTORY_DERIVATIVES_KEY
+from animama.runtime.starter_content import regular_content_path
 
 LICENSE_INVENTORY = "licenses/inventory.json"
 # Lossy quality for effect art; alpha is always lossless.
@@ -48,6 +49,13 @@ def convert_included_tree(source: Path, destination: Path, paths: Iterable[str])
     """
 
     paths = sorted(set(paths) - {LICENSE_INVENTORY})
+    # Copying would turn a symlink or hard link into an ordinary shipping file,
+    # bypassing the scanner's link rejection, so every input must be regular.
+    for path in [LICENSE_INVENTORY, *paths]:
+        try:
+            regular_content_path(source, path)
+        except (OSError, ValueError) as exc:
+            raise IncludedDerivativeError(f"Cannot convert {path}: {exc}") from exc
     inventory = json.loads((source / LICENSE_INVENTORY).read_text(encoding="utf-8"))
     if INVENTORY_DERIVATIVES_KEY in inventory:
         raise IncludedDerivativeError(f"{LICENSE_INVENTORY} already records derivatives; convert masters only")

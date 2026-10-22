@@ -429,6 +429,13 @@ variants; readiness cannot silently replace or omit them.
 `{path,sha256,size_bytes}` relative to `catalog-seed/` under `included/` or
 `notices/`. `inventory` is the existing `animama-starter-content/1` resolver output
 with its digest, per-file license/provenance and two diagnostic-free starters.
+Effect art ships as WebP derivatives of the tracked PNG masters wherever WebP is
+smaller and the art carries no distribution restriction. Descriptors that name
+converted art are rewritten to name the derivatives; other files keep their
+tracked bytes. Each
+derivative's inventory row carries `derived_from: {path,sha256,size_bytes}` naming
+its master and takes that master's licence. The seed's
+`included/licenses/inventory.json` records the same mapping under `derivatives`.
 The only extra Included file is `included/licenses/inventory.json`. Verify both
 source pins, every byte and the closed seed inventory before importing it into
 the owner catalog. Ordinary app HTTP serving excludes the entire `catalog-seed/`

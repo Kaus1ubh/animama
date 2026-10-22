@@ -97,7 +97,8 @@ Paths are from the repository root.
 
 - [x] Phase 1: Converter and derivative-aware licence lookup. Reviews #1 and
   #2 passed (one repair round). Committed as `perf(content)[p1]`.
-- [ ] Phase 2: Desktop staging and hosted seed ship converted art. Not started.
+- [x] Phase 2: Desktop staging and hosted seed ship converted art. Reviews #1
+  and #2 passed (one repair round). Committed as `perf(content)[p2]`.
 - [ ] Phase 3: Third-party licence records describe the shipped derivatives. Not started.
 - [ ] Phase 4: Scene stickers built as WebP. Not started.
 - [ ] Final integration review. Not started.
@@ -443,17 +444,148 @@ Recovery: staging and seed preparation write only to their output directories.
 On failure they leave no partial tree; rerun after the fix. Reverting the phase
 commit returns staging to byte copies.
 
-Check record: _pending_.
+Results:
+
+- **Desktop staging.** It converts the tracked snapshot into a scratch tree
+  (removed on exit) and resolves and copies from it. On `darwin-arm64` the
+  staged core ships 338 derivatives. Its effect images total 13.21 MB, against
+  42.51 MB of masters; `included-core` is 57 MB in total. The audit's
+  re-resolution matches the manifest.
+- **Hosted seed.** `prepare_seed` converts the same way. The seed's
+  re-resolution from its own bytes equals the manifest inventory.
+- **Cloud.** Its hosted-API seed verification (`_seed` in
+  `animama_hosted/artifacts/application.py` at Cloud `9affbe1f`, loaded
+  read-only) accepts a converted seed with 340 WebP files. No Cloud code change
+  is needed.
+- **Legacy `/effects/...` URLs.** Neither the desktop (`embedded-desktop`) nor
+  the hosted (`--mode hosted`) web build copies them
+  (`copyBuildAliases: !embeddedDesktop && mode !== "hosted"`). The audit rejects
+  alias copies in the desktop runtime. Only self-host built mode copies them,
+  from the PNG masters. So no packaged build serves a `.png` URL that converted
+  content would miss, and no consumer change is needed.
+- **Licence records.** `licenses.mjs` groups content licence records by licence
+  id. Derivatives carry their masters' licence, so the desktop notices are
+  unchanged, and `derived_from` stays in `starter-content-inventory.json`.
+- **P1-F7: cross-platform bytes.** Encoding the 338 masters with Pillow 12.0.0 /
+  libwebp 1.6.0 gave identical sha256 for every file on macOS arm64 and in
+  `python:3.12-slim` containers on `linux/arm64` and `linux/amd64`.
+
+Check record:
+
+| Check | Result | Tree |
+| --- | --- | --- |
+| `uv run --no-sync pytest -q tests/test_included_derivative_packaging.py tests/test_included_derivatives.py tests/test_starter_content_closure.py` | 40 passed | `3e22cc59` |
+| `ruff check` and `ruff format --check` on `src/backend tests scripts/package-sets`; `mypy` on the new test and `stage_content.py` | clean | `3e22cc59` |
+| `python3 scripts/heavy-slot.py -- bash p2-desktop.sh`: `pnpm desktop:runtime:stage`, then `desktop:runtime:audit` (`--platform darwin --arch arm64`), then `pnpm desktop:test -- runtime-packaging` | stage exit 0 (263 s), "Annie + Andrew: zero content diagnostics"; audit exit 0; 71 tests passed | working tree before docs-only edits to `contracts/hosted-web.md` and the packaging README |
+| Cloud `_seed` probe on a converted seed (read-only) | accepted | `3e22cc59` |
+| Container encode comparison (macOS arm64, linux/arm64, linux/amd64) | 0 of 338 differ | masters at `4354978f` |
+| `python3 scripts/heavy-slot.py -- make check-test` | exit 0; 4741 passed, 29 skipped | `3e22cc59` |
+
+Package-set `build`/`validate` needs an exact commit, so it runs in the final
+pre-push suite on the committed candidate.
+
 
 Phase commits: _pending_ (`perf(content)[p2]: …`).
 
 #### Code Review #1 Findings
 
-_Pending._
+Reviewed source: working tree `bc6a969a` against `6580cfa8`; high-risk tier,
+one analysis agent and one checks agent; initial review.
+
+The checks agent reran the following on `bc6a969a`, all exit 0:
+
+- targeted pytest: 52 passed;
+- `ruff check` and `ruff format --check` (`src/backend tests scripts/package-sets`);
+- full `mypy`: 858 files;
+- the import boundary;
+- `starter_inventory` on the staged `included-core`: id matches, 338 derivatives.
+
+The analysis agent rebuilt the seed twice: byte-identical, `verify_catalog_seed`
+passes, and the repository-boundary consumer passes.
+
+- **P2-F1 (required, security).** The converter copied tracked symlinks and hard
+  links as ordinary files. Both consumers now read only the converted tree, so
+  the scanner's and `starter_inventory`'s link rejection no longer applied, and
+  a link's outside target could ship. Reproduced with a probe.
+- **P2-F2 (required, diagnostics).** The staging blocker report compared
+  source-tree names with the renamed `allowed` set and listed all 338 converted
+  masters as missing inputs. Reproduced (339 entries).
+- **P2-F3 (optional, test).** The temp-directory assertion could never fail,
+  and `check=True` hid the script's stderr.
+- **P2-F4 (optional).** The seed containment check accepted either root for
+  every file instead of each file's own root.
+- **P2-F5 (optional, docs).** The contract implied all effect art is WebP;
+  three effect PNGs and any restricted or exception art keep their bytes.
+- **P2-F6 (optional, docs).** `runtime-staging.md` did not mention the
+  conversion.
+- Verified without findings:
+  - consistency of the two staged inventories;
+  - temp-tree cleanup on every failure path;
+  - seed manifest size (1.9 MB of 4 MiB);
+  - Cloud compatibility;
+  - no remaining `.png` consumer in packaged builds apart from stickers
+    (Phase 4).
 
 #### Code Review #1 Revisions
 
-_Pending._
+- **P2-F1 accepted.** `convert_included_tree` refuses any input, including
+  `licenses/inventory.json`, that is not a contained, unlinked regular file.
+  It reuses `starter_content.regular_content_path` (renamed from the private
+  `_regular_path`) and raises `IncludedDerivativeError` before writing anything.
+  New tests cover a symlink and a hard link.
+- **P2-F2 accepted.** `stage()` receives the tracked source names for the
+  blocker inspection. New test
+  `test_a_staging_blocker_names_only_the_missing_input` (one missing VRM, one
+  blocker).
+- **P2-F3 accepted.** Removed the assertion; the stage test now reports stderr
+  on failure.
+- **P2-F4 accepted.** Each seed file is checked against its own root: Included
+  bytes against the converted tree, notices against the snapshot.
+- **P2-F5 and P2-F6 accepted.** The contract wording and one sentence in
+  `runtime-staging.md`.
+- Verification on the repaired tree, all clean:
+  - targeted pytest: 43 passed;
+  - `ruff check` and `ruff format`;
+  - full `mypy`;
+  - the import boundary.
+
+  A targeted recheck (Code Review #2) follows.
+
+#### Code Review #2 Findings
+
+Targeted recheck of tree `bcdba818` (repair round 1 of 2), high-risk tier.
+
+- **Revisions verified.** P2-F1 to P2-F6 are fixed. A link probe covered:
+  - a symlinked or hard-linked master;
+  - a symlinked descriptor directory;
+  - a symlinked, hard-linked or missing licence inventory;
+  - a `../` path.
+
+  All seven were refused with nothing written. The blocker test tells the old
+  and new behaviour apart.
+- **No blocking findings.**
+- **P2-R2-F1 (optional, docs).** "Other files keep their tracked bytes" missed
+  rewritten descriptors and the staged licence inventory.
+- **P2-R2-F2 (observation).** Staging now stops on any tracked link or
+  deleted tracked file under `content/included`, even outside the starter
+  closure, and names the file.
+- Checks rerun independently on `bcdba818`, all exit 0:
+  - pytest on the packaging, derivatives, starter closure, integrity and
+    local-store tests: 66 passed;
+  - `ruff check` and `ruff format --check`;
+  - full `mypy`;
+  - the import boundary.
+
+Result: pass.
+
+#### Code Review #2 Revisions
+
+- **P2-R2-F1 accepted (trivial).** The contract now says descriptors naming
+  converted art are rewritten. Verified by reading.
+- **P2-R2-F2 accepted with no change.** Refusing tracked links and missing
+  tracked inputs is the intended strictness, and the message names the file.
+- Repair budget used: 1 of 2.
+
 
 ### Phase 3: Third-party licence records describe the shipped derivatives
 

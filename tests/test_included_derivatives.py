@@ -295,6 +295,23 @@ def test_a_bare_name_beside_its_descriptor_is_never_rewritten_to_missing_art(tmp
     assert (tmp_path / "out/vfx/scene/pair/flat.png").exists()
 
 
+@pytest.mark.parametrize("link", ["symlink", "hardlink"])
+def test_linked_inputs_are_refused_rather_than_copied_as_files(tmp_path: Path, link: str) -> None:
+    source = tmp_path / "source"
+    paths = _source_tree(source)
+    outside = tmp_path / "outside.txt"
+    outside.write_text("not content")
+    linked = source / "vfx/scene/drift/notes.txt"
+    if link == "symlink":
+        linked.symlink_to(outside)
+    else:
+        linked.hardlink_to(outside)
+
+    with pytest.raises(IncludedDerivativeError, match=r"vfx/scene/drift/notes\.txt"):
+        convert_included_tree(source, tmp_path / "out", [*paths, "vfx/scene/drift/notes.txt"])
+    assert not (tmp_path / "out").exists()
+
+
 def test_an_unreadable_master_fails_with_the_file_named(tmp_path: Path) -> None:
     source = tmp_path / "source"
     paths = _source_tree(source)

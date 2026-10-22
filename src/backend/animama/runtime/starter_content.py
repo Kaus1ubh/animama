@@ -126,7 +126,9 @@ CORE_LIBRARY_ROOTS = (
 )
 
 
-def _regular_path(root: Path, relative: str) -> Path:
+def regular_content_path(root: Path, relative: str) -> Path:
+    """A contained, unlinked regular file; links and hard links never become shipping bytes."""
+
     parts = PurePosixPath(relative)
     if (
         not relative
@@ -193,7 +195,7 @@ def starter_inventory(included_root: Path, *, allowed_paths: set[str] | None = N
     """Audit core/expanded closures; never silently omit a required dependency."""
 
     root = included_root.resolve(strict=True)
-    license_path = _regular_path(root, "licenses/inventory.json")
+    license_path = regular_content_path(root, "licenses/inventory.json")
     license_inventory = json.loads(license_path.read_text(encoding="utf-8"))
     rules = license_inventory["rules"]
     if not isinstance(rules, list) or not rules:
@@ -305,7 +307,7 @@ def starter_inventory(included_root: Path, *, allowed_paths: set[str] | None = N
     for item_id in sorted(core | expanded):
         item = visible[item_id]
         for file in item.files:
-            path = _regular_path(root, file.relative_path)
+            path = regular_content_path(root, file.relative_path)
             hasher = hashlib.sha256()
             with path.open("rb") as handle:
                 for chunk in iter(lambda: handle.read(1024 * 1024), b""):
