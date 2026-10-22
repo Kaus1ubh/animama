@@ -552,7 +552,7 @@
     {
       "glob": "appearances/avatar-portraits/app-avatar-model-avatarsample-a-1-new-v1.*",
       "creator": "Animama render of pixiv VRoid Project model",
-      "provenance": "The owner confirms the WebP portrait is a direct Animama renderer capture of Annie's unmodified VRoid Studio free preset, contains no external artwork, and its metadata is project-authored (2026-09-03). The underlying model uses https://vroid.pixiv.help/hc/en-us/articles/4402394424089-VRoidPreset-A-Z . Product-use and required-notice review remains part of release approval.",
+      "provenance": "Direct Animama portrait-capture renderer output (renderer 2, capture preset 3; 2026-10-22) of Annie's unmodified VRoid Studio free preset, captured at 1024 and downscaled to 512x512 WebP; it contains no external artwork and its metadata is project-authored. The owner confirmed the same for the earlier capture of this model (2026-09-03). The underlying model uses https://vroid.pixiv.help/hc/en-us/articles/4402394424089-VRoidPreset-A-Z . Product-use and required-notice review remains part of release approval.",
       "license_id": "LicenseRef-pixiv-VRoidPreset",
       "redistribution_review": "pending"
     },

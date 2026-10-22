@@ -68,10 +68,10 @@ order.
 ## Progress
 
 - [x] Owner review of spec and plan (Q1–Q7): accepted 2026-10-22.
-- [ ] Phase 1: chat-look 1024 → 512 capture.
-- [ ] Phase 2: one portrait per Avatar in the API.
-- [ ] Phase 3: background capture in Create Anima.
-- [ ] Phase 4: regenerated Included portraits.
+- [x] Phase 1: chat-look 1024 → 512 capture (`9b7e529f`; review passed after one repair round).
+- [ ] Phase 2: one portrait per Avatar in the API (`122a1887`; independent checks passed, analysis review pending).
+- [ ] Phase 3: background capture in Create Anima (`651e9e0f`; review pending).
+- [ ] Phase 4: regenerated Included portraits (Annie only; Andrew waits for his replacement model; owner visual gate open).
 - [ ] Final integration review, full pre-push suite, PR.
 
 ## Surprises & Discoveries
@@ -498,7 +498,30 @@ light and dark theme. Recorded in the PR; it does not block the PR opening.
 
 Commit `feat(content)[p4]: regenerate the Included Avatar portraits`.
 
-Check record: _pending_.
+Result (2026-10-22): `origin/main` (`623897bd`) does not contain the starter VRM
+plan and its branch is not published, so only Annie's portrait was
+regenerated; Andrew keeps his 256² renderer-1 portrait and records. Annie was
+captured from `content/included/avatars/AvatarSample_A_1_New.vrm` (SHA-256
+`1119bfc6…`) by the committed `captureAvatarPortrait` at its defaults (1024²,
+happy expression, enhanced rendering) in headless Chromium with ANGLE Metal on
+an Apple M5, through a temporary local bench page that loads the production
+`Avatar` from the VRM bytes, settles one second of rest pose and captures from
+a front camera; the development `/avatar-portrait-debug` route runs the same
+capture. `canonicalize_avatar_portrait` reduced it to 512² (40,886 bytes,
+SHA-256 `586d9d61…`). Two captures from separate browser sessions were
+byte-identical. Against a chat-canvas render with the same framing: mean
+|Δ| 1.25/255 over all pixels.
+
+Check record (working tree on `651e9e0f`):
+
+| Command | Directory | Result |
+| --- | --- | --- |
+| `pytest -q -n 2 tests/test_starter_content_closure.py tests/test_anima_starters.py tests/test_included_content_integrity.py tests/test_included_content_catalog.py tests/test_action_effect_override_save.py tests/test_anima_presentations.py` | root | 77 passed |
+| `python -m pytest -q scripts/public-release/test_prepare_source.py` | root | 12 passed |
+| `/v1/animas` on the task stack after the file change | browser | Annie's thumbnail is the new 512² file (`586d9d61…`); Andrew unchanged (256²) |
+
+Owner gate (open): look at Annie's new portrait in the Library and the Anima
+carousel in light and dark themes.
 
 ## Final integration review
 
