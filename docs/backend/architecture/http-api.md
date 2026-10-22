@@ -1360,8 +1360,8 @@ The optional form `creation_context=true` prevents replacing an in-use Avatar.
 `PUT /v1/appearance-content/{entry_name}` canonicalizes bounded static
 PNG/JPEG/WebP inputs (16 MiB, 8192 per side, 40 million pixels). The portrait
 endpoint `PUT /v1/avatar-content/{item_id}/portrait` takes multipart `file`,
-`entry_name`, `operation_id`, and `expected_avatar_revision`; a 512-square WebP
-capture becomes a normal owner-scoped 256-square Appearance up to 256 KiB.
+`entry_name`, `operation_id`, and `expected_avatar_revision`; a 1024-square WebP
+capture becomes a normal owner-scoped 512-square Appearance up to 256 KiB.
 It does not modify the Avatar or any Anima. Confirmed content survives cancelled
 or rejected creation. Typed previews expose `expected_source_revisions` for
 the creation-compatible root/support closure, independent of preview pins.

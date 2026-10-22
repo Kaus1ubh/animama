@@ -303,8 +303,8 @@ side, and 40 million decoded pixels. It rejects animation, SVG, corrupt bytes,
 and misleading MIME types, then uses the existing canonical WebP pipeline.
 Profile/background framing remains explicit `fit`, focal coordinates, and zoom;
 null background creates no binding. `PUT /v1/avatar-content/{item_id}/portrait`
-accepts a confirmed 512-square WebP capture and the expected Avatar revision,
-producing a normal owner-scoped 256-square Appearance of at most 256 KiB.
+accepts a confirmed 1024-square WebP capture and the expected Avatar revision,
+producing a normal owner-scoped 512-square Appearance of at most 256 KiB.
 The typed portrait endpoint and Appearance management remain available outside
 the Create Anima flow. That flow does not offer capture, crop, upload or
 background controls; existing content and live bindings remain available.

@@ -98,6 +98,11 @@ order.
   is replaced by a new model shipped through the starter VRM plan; do not
   regenerate his portrait from the current `Andrew.vrm`. Annie's model is
   unchanged, so her portrait is regenerated here.
+- 2026-10-22, agent (implementation detail within Q4, to report to the owner
+  with the PR): the grade runs on the CPU over the read-back pixels instead of
+  in the output shader. Q4's aim, no dependence on the canvas `filter`
+  property, is met either way; the CPU version is a pure function with exact
+  unit tests, and costs about 12 ms per 1024² capture.
 - 2026-10-22, owner accepted the agent proposals: Q1 `method=5`; Q2 follow the setting;
   Q3 no embedded-thumbnail fallback; Q4 shader grade and 8-bit fallback; Q5
   hide generated portraits from Appearance lists; Q6 defer deletion; Q7 one
@@ -149,15 +154,94 @@ Recovery: capture is client-only and saves are unchanged in shape; reverting
 the phase restores the old look. 256² portraits saved before this phase stay
 valid.
 
-Check record: _pending_.
+Starting source: `cabe6d43`. Implementation notes:
+
+- The grade is applied on the CPU to the read-back 8-bit sRGB pixels
+  (`applyChatCanvasGrade` in `lib/avatar/enhanced-rendering/backdropGlow.ts`,
+  the CSS Filter Effects brightness, contrast and saturate formulas in order,
+  clamped, alpha unchanged) rather than in the output shader. It meets Q4's
+  aim (no canvas `filter`), is a pure tested function and costs about 12 ms at
+  1024². `CHAT_CANVAS_GRADE` is now built from the same factors.
+- The scene target is half-float when the renderer reports
+  `EXT_color_buffer_float` or `EXT_color_buffer_half_float`, else 8-bit.
+- The shared WebP encoder uses `method=5` (Q1).
+
+Check record (tree `bb4609b9`, working tree on `cabe6d43`):
+
+| Command | Directory | Result |
+| --- | --- | --- |
+| `uv run pytest -q -p no:cacheprovider tests/test_content_image.py tests/test_creation_content_admission.py tests/test_content_portrait_mutation_replay.py` | root | 34 passed |
+| `uv run ruff check src/backend tests` | root | passed |
+| `uv run ruff format --check` (4 touched Python files) | root | formatted |
+| `npx vitest run src/lib/avatar` | `src/frontend/web` | 1237 passed, 1 skipped |
+| `pnpm -s check` | `src/frontend` | passed |
+| `npx eslint src/lib/avatar/portrait src/lib/avatar/enhanced-rendering scripts/effect-render` | `src/frontend/web` | passed |
+| `npx prettier --check` (touched TypeScript) | `src/frontend/web` | formatted |
+
+Measurement (Apple M5, Playwright headless Chromium with ANGLE Metal, the
+prototype bench, n=1 per variant): mean |Δ| RGB against a chat-canvas render
+with the same framing is 1.03–1.20/255 for the 512 capture and 1.21–1.51/255
+for 1024 → 512 (Andrew, Annie), against 11.7–19.2/255 for the current
+capture: within the 3/255 bound. A warm 1024 capture takes about 22 ms to
+render and 70 ms to grade and encode. Backend canonicalization of a 1024²
+capture now takes 32–35 ms in total (the `method=6` encode took 2.5–2.8 s).
+Playwright WebKit is not installed on this machine, so no WebKit or Safari
+check was run.
 
 #### Code Review #1 Findings
 
-_Pending._
+Reviewed source: the uncommitted Phase 1 files on `cabe6d43` (Phase 2 edits
+started in other files during the review). Standard tier, initial review. The
+reviewer reran the starter, creation, catalog and package backend tests (130
+passed on the mixed tree) and `node --test
+scripts/effect-thumbnails.browser.test.mjs` (2 passed).
+
+- P1-1 (blocking): blending over the transparent clear and the MSAA resolve
+  leave premultiplied colour in the scene target; the output pass tone-mapped
+  and encoded it, and the result was stored as straight alpha, so antialiased
+  edges and translucent parts came out darker than on the chat canvas.
+- P1-2 (blocking): the CPU grade departs from the plan's shader grade without
+  a Decision Log entry.
+- P1-3 (blocking): the failure test did not check the renderer state this
+  phase changes (render target, tone mapping, exposure, colour space), and no
+  test cancelled after allocation.
+- Non-blocking: the Included starter fixture stored a 1024² image under
+  512×512 metadata; `createChatLights` repeats the effect renderer's
+  `addChatLights`; the effect template README claims re-renders reproduce old
+  pixels; the filter math, state handling, float fallback and callers were
+  confirmed correct.
 
 #### Code Review #1 Revisions
 
-_Pending._
+- P1-1 fixed: `createStraightAlphaOutputPass` divides colour by alpha before
+  tone mapping (guarded against an upstream shader change), with a unit test.
+  Bench rerun (same setup): edge pixels (alpha 5–250) of the 512 capture went
+  from 12.4 and 9.4/255 darker than the chat reference (Annie, Andrew) to 1.8
+  and 5.0/255 lighter; mean |Δ| over all pixels is 0.93–1.44/255.
+- P1-2 fixed: Decision Log entry added; the owner is told in the PR.
+- P1-3 fixed: `expectStageRestored` checks the scene's children and
+  visibility, render target, tone mapping, exposure, colour space, autoClear,
+  scissor test, clear colour and disposal after a render error and after a
+  cancellation inside the capture.
+- Fixture: the Included starter portrait is written at 512²
+  (`image_bytes(portrait_size=512)`). README: notes the new look and to
+  re-render all templates together. `addChatLights` reuse is left as is: it is
+  a review script with its own light setup.
+- Repair budget: two rounds remain; P1-1 gets a targeted recheck.
+
+Check record after the revisions (staged Phase 1 tree `cbe7b9b6`; backend run
+from an export of that tree with `PYTHONPATH` pointing at it, frontend run in
+the worktree, which held no other frontend changes):
+
+| Command | Directory | Result |
+| --- | --- | --- |
+| `pytest -q -n 2` on `test_content_image`, `test_creation_content_admission`, `test_content_portrait_mutation_replay`, `test_product_http_typed_content`, `test_typed_content_save_replay`, `test_starter_content_closure`, `test_anima_starters`, `test_anima_creation` | export of `cbe7b9b6` | 128 passed, 3 failed: the tracked-checkout tests, which need the LFS model files the export lacks |
+| the 3 tracked-checkout tests | worktree | 3 passed |
+| `pnpm -s check` | `src/frontend` | passed |
+| `npx eslint src/lib/avatar scripts/effect-render` | `src/frontend/web` | passed |
+| `npx prettier --check` (touched files) | `src/frontend/web` | formatted |
+| `npx vitest run src/lib/avatar` | `src/frontend/web` | 1239 passed, 1 skipped |
+| `python3 ../../../scripts/heavy-slot.py -- node --test scripts/effect-thumbnails.browser.test.mjs scripts/animation-preview.browser.test.mjs scripts/animation-reel.browser.test.mjs` | `src/frontend/web` | 12 passed (started before the P1-1 revision; the reviewer's own effect-thumbnail run also passed) |
 
 ### Phase 2: One portrait per Avatar in the API
 

@@ -232,7 +232,7 @@ async def test_avatar_portrait_capture_is_an_ordinary_owned_appearance(async_ses
             path = fixture.paths.local_root / "appearances/portrait.webp"
             assert path.stat().st_size <= 256 * 1024
             with Image.open(path) as image:
-                assert image.size == (256, 256) and image.format == "WEBP"
+                assert image.size == (512, 512) and image.format == "WEBP"
             still_avatar = await client.get(f"/v1/avatar-content/{avatar.id}")
             assert still_avatar.json()["revision_sha256"] == avatar.revision_sha256
             assert (await client.get(f"/v1/appearance-content/{saved['item_id']}")).status_code == 200
