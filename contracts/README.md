@@ -18,8 +18,8 @@ package sets. It is required by local builds and stays in this repository.
   the immutable whole application, resource inventory and non-static Included seed.
 
 The [package-set tools](../scripts/package-sets/README.md) copy these inputs and
-produce contract artifacts alongside the Python/frontend packages and hosted
-application archive. Their independent consumer and compatibility checks compare the resulting schemas and
+produce contract artifacts alongside the Python/frontend packages, the hosted
+application archive and the landing site archive. Their independent consumer and compatibility checks compare the resulting schemas and
 versions against the reviewed baseline.
 
 The frontend [`@animama/runtime-contracts`](../src/frontend/packages/runtime-contracts/README.md)

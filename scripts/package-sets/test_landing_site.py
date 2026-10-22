@@ -12,7 +12,7 @@ from unittest.mock import patch
 import build
 import test_hosted_application
 import test_package_sets as helpers
-from landing_site import SITE, SITE_MANIFEST, site_mime, verify_site
+from landing_site import LOCAL_PATH, SITE, SITE_MANIFEST, site_mime, verify_site
 from package_set import canonical, compare, file_record, identity, sha, verify
 
 SITE_FILES = {
@@ -98,8 +98,11 @@ class LandingSiteTests(unittest.TestCase):
             lambda m: m["sites"][0].update(name="other-site"),
             lambda m: m["sites"][0].update(kind="application"),
             lambda m: m["sites"][0].update(version="0.2.0"),
+            lambda m: m["sites"][0].update(file="landing.tar.gz"),
             lambda m: m["sites"][0].update(sha256="f" * 64),
             lambda m: m.update(schema_version=2),
+            lambda m: m.update(schema_version=4),
+            lambda m: m.pop("applications"),
         ):
             with self.subTest(mutate=mutate):
                 m = copy.deepcopy(self.m)
@@ -136,6 +139,10 @@ class LandingSiteTests(unittest.TestCase):
     def test_source_maps_local_paths_and_stage_routes_are_rejected(self):
         for name, data, error in (
             ("assets/index-Bx1.js.map", b"{}", "source map"),
+            ("assets/INDEX-Bx1.JS.MAP", b"{}", "source map"),
+            ("assets/index-Bx1.js", b'throw Error("at\\n/home/runner/work/x.js")', "Local path"),
+            ("assets/content/0123456789ab/particle.json", b'{"u":"\\/Users\\/builder\\/x.png"}', "Local path"),
+            ("sitemap.xml", b"<loc>c:\\users\\builder</loc>", "Local path"),
             ("assets/index-Bx1.js", b'import "/Users/builder/animama/src/x.js"', "Local path"),
             ("notices.txt", b"Built in /home/builder/animama", "Local path"),
             ("assets/content/0123456789ab/particle.json", b'{"u":"file:///tmp/x.png"}', "Local path"),
@@ -150,6 +157,42 @@ class LandingSiteTests(unittest.TestCase):
                 self.write_site()
                 with self.assertRaisesRegex(ValueError, error):
                     verify(self.old)
+
+    def test_local_path_pattern_separates_machine_paths_from_url_paths(self):
+        for text in (
+            rb'"/Users/builder/x"',
+            rb"file:///x",
+            rb"FILE:\/\/x",
+            rb"C:\Users\builder",
+            rb'"C:\\Users\\builder"',
+            rb"C:/Users/builder",
+            rb"(/var/folders/x/",
+            rb"at\n/home/runner/x",
+            rb'"\/private\/tmp\/x"',
+            rb" /Volumes/Disk/x",
+            rb"\t/opt/x/",
+        ):
+            with self.subTest(text=text):
+                self.assertIsNotNone(LOCAL_PATH.search(text))
+        for text in (
+            rb"https://animama.example/home/x",
+            rb"https:\/\/animama.example\/home\/x",
+            rb"docs/tmp/x",
+            rb"~/home/x",
+            rb"%2Fhome/x",
+            rb"abc:\Users\x",
+            rb"/Usersx/",
+            rb"/homes/",
+        ):
+            with self.subTest(text=text):
+                self.assertIsNone(LOCAL_PATH.search(text))
+
+    def test_the_hosted_contract_states_the_exact_local_path_pattern(self):
+        # Animama Cloud mirrors this verifier from the public contract.
+        contract = (Path(__file__).resolve().parents[2] / "contracts/hosted-web.md").read_text()
+        section = contract.split("### Landing site archive", 1)[1]
+        block = section.split("```text\n", 1)[1].split("\n```", 1)[0]
+        self.assertEqual("".join(block.splitlines()).encode(), LOCAL_PATH.pattern)
 
     def test_links_special_files_and_unsafe_paths_are_rejected(self):
         for name, kind in (

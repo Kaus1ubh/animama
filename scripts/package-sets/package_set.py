@@ -146,9 +146,13 @@ def verify(root: Path) -> dict:
         raise ValueError("Expected exactly one hosted application")
     sites = m.get("sites", [])
     if schema_version >= 3 and (
-        not isinstance(sites, list) or len(sites) != 1 or not isinstance(sites[0], dict) or sites[0].get("name") != SITE
+        not isinstance(sites, list)
+        or len(sites) != 1
+        or not isinstance(sites[0], dict)
+        or sites[0].get("name") != SITE
+        or sites[0].get("file") != f"{SITE}-{sites[0].get('version')}.tar.gz"
     ):
-        raise ValueError("Expected exactly one landing site")
+        raise ValueError("Expected exactly one landing site named by its version")
     records = m["packages"] + m["contracts"] + apps + sites
     if any(not isinstance(r.get("file"), str) for r in records) or len({r["file"] for r in records}) != len(records):
         raise ValueError("Duplicate artifact filename")

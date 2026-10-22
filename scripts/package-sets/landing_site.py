@@ -38,10 +38,17 @@ HEADERS_MIME = "text/plain; charset=utf-8"
 SITE_TEXT_SUFFIXES = TEXT_SUFFIXES | {".xml"}
 STAGE_ROUTES = (b"/__preview/media/", b"/__stage/", b"/@fs/")
 # The verifier cannot know the producer's checkout or home folder, so it
-# rejects the absolute path forms a build machine would leak. A marker that
-# follows a host or path character is part of a URL path, not a local path.
+# rejects the absolute path forms a build machine would leak: a `file:` URL, a
+# Unix root folder or a Windows user folder, with plain or JSON-escaped (`\/`,
+# `\\`) separators. A Unix marker that follows a letter, digit or one of
+# `_.~%-\` is part of a URL or relative path, except after an escaped newline,
+# carriage return or tab (`\n`, `\r`, `\t`). The contract documents this exact
+# pattern; keep the two in step.
 LOCAL_PATH = re.compile(
-    rb"file://|(?<![\w.~%-])(?:/Users|/home|/root|/tmp|/private|/var/folders)/|(?<!\w)[A-Za-z]:\\{1,2}Users\\"
+    rb"(?i:file):(?:\\?/){2}"
+    rb"|(?:(?<![A-Za-z0-9_.~%\\-])|(?<=\\[nrt]))\\?/"
+    rb"(?:Users|home|root|tmp|private|var\\?/folders|Volumes|mnt|opt)\\?/"
+    rb"|(?<![A-Za-z0-9_])[A-Za-z]:(?:\\{1,2}|/)(?i:users)(?:\\{1,2}|/)"
 )
 
 
@@ -65,7 +72,11 @@ def site_text(name):
 
 def verify_site(path, source, version, *, source_tree):
     """Verify a site archive against its set's source and version; return its manifest."""
-    files, texts = inspect_archive(path, root=SITE, manifest=SITE_MANIFEST, is_text=site_text)
+    try:
+        files, texts = inspect_archive(path, root=SITE, manifest=SITE_MANIFEST, is_text=site_text)
+    except ValueError as error:
+        # The shared intake words its errors for the application archive.
+        raise ValueError(f"Invalid landing site archive: {error}") from error
     if any(name.lower().endswith(".map") for name in files):
         raise ValueError("Site archive contains a source map")
     payload = texts.get(SITE_MANIFEST, b"")

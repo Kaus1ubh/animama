@@ -484,11 +484,14 @@ mutes those procedural layers.
 
 The static animama.ai site (`pnpm -s landing:build`, see the
 [landing page guide](../docs/frontend/landing-page.md)) ships in package-set
-format 3. The set's `sites` list has exactly one record: `kind: "site"`,
-`name: "animama-landing"`, `file: "animama-landing-<version>.tar.gz"`, its
-`version` (the desktop app version, as for the application), `sha256` and
-`size`. `SHA256SUMS` lists it, and `compare` rejects a site version rollback
-and any format downgrade that drops the site.
+format 3, which also requires the `applications` record. The set's `sites`
+list has exactly one record with exactly `kind: "site"`,
+`name: "animama-landing"`, a semantic `version`, `file` equal to
+`animama-landing-<version>.tar.gz`, `sha256` and `size`. The producer takes the
+version from `src/frontend/desktop/package.json`, the same source as the
+application's; the verifier does not require the two to be equal. `SHA256SUMS`
+lists the archive, and `compare` rejects a site version rollback and any format
+downgrade that drops the site.
 
 The tar holds only regular files rooted at `animama-landing/`: every site file
 and `site-manifest.json`. It is read by the same bounded intake as the
@@ -511,13 +514,30 @@ same per-file, total, text and member-count limits) and is packed the same way
 `revalidate` for every other path. `mime_type` follows the application's
 explicit table plus `.xml` → `application/xml`, `.vrm` → `model/gltf-binary`
 and `_headers` → `text/plain; charset=utf-8`; any other file type is rejected.
-Required files are `index.html`, `_headers`, `notices.txt` and `robots.txt`.
-A verifier rejects source maps (`*.map`), links and special members, unsafe
-paths, any difference between the archive and `files`, and any text file
-(`.html`, `.js`, `.mjs`, `.css`, `.json`, `.svg`, `.txt`, `.md`, `.xml`,
-`_headers`) containing a stage-server route (`/__preview/media/`, `/__stage/`,
-`/@fs/`) or a local absolute path (`file://`, or `/Users/`, `/home/`, `/root/`,
-`/tmp/`, `/private/`, `/var/folders/` or a Windows `X:\Users\` not preceded by
-a host or path character). The package-set build does not run the site in a
-browser; its CSP and journeys are checked by `landing:preview` and by the
-consumer's static-site checks.
+File suffixes are compared case-insensitively here, for MIME, text selection
+and source maps. Required files are `index.html`, `_headers`, `notices.txt` and
+`robots.txt`.
+
+A verifier rejects source maps (any path ending in `.map`), links and special
+members, unsafe paths, and any difference between the archive and `files`. It
+scans every text file (`_headers` and the suffixes `.html`, `.js`, `.mjs`,
+`.css`, `.json`, `.svg`, `.txt`, `.md`, `.xml`) and rejects one that contains a
+stage-server route (`/__preview/media/`, `/__stage/` or `/@fs/`) or a match of
+this local-path pattern (Python `re` over the raw bytes; the three lines join
+without line breaks):
+
+```text
+(?i:file):(?:\\?/){2}
+|(?:(?<![A-Za-z0-9_.~%\\-])|(?<=\\[nrt]))\\?/(?:Users|home|root|tmp|private|var\\?/folders|Volumes|mnt|opt)\\?/
+|(?<![A-Za-z0-9_])[A-Za-z]:(?:\\{1,2}|/)(?i:users)(?:\\{1,2}|/)
+```
+
+That is: a `file:` URL; a Unix root folder (`/Users/`, `/home/`, `/root/`,
+`/tmp/`, `/private/`, `/var/folders/`, `/Volumes/`, `/mnt/`, `/opt/`, also with
+JSON-escaped `\/` separators) that does not follow a letter, digit or one of
+`_.~%-\`, unless it follows an escaped `\n`, `\r` or `\t`; or a Windows user
+folder (`C:\Users\`, `C:\\Users\\` or `C:/Users/`, any drive letter, `Users`
+in any case). A root-relative site route such as `/home/` therefore also fails
+verification. The package-set build does not run the site in a browser; its
+CSP and journeys are checked by `landing:preview` and by the consumer's
+static-site checks.

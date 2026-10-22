@@ -32,9 +32,11 @@ Cloud receives the site only through the package set: `build.py build` runs
 `landing:build` in the exact source snapshot and packs the output as the
 format-3 `animama-landing-<version>.tar.gz` (see the
 [hosted contract](../../contracts/hosted-web.md#landing-site-archive)). Its
-verifier rejects the same source maps, local paths and stage-server routes as
-the build, so a file type the build newly emits must first be added to the
-archive's MIME table in `scripts/package-sets/landing_site.py`.
+verifier is stricter than the build's own check. It rejects any file type
+missing from the archive's MIME table in `scripts/package-sets/landing_site.py`,
+and it looks for a fixed list of local-path forms rather than this checkout's
+paths, so a root-relative route such as `/home/` fails packaging. Pack a build
+with `build.pack_site` to check it before relying on the package set.
 
 ## What the page shows
 
