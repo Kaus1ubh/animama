@@ -89,7 +89,8 @@ From a read-only survey of Animama Cloud `main` at `9affbe1f`:
 - [x] Phase 1: batched creation writes (review passed after one repair round).
 - [x] Phase 2: explicit Gesture rows end to end (review passed after one
   repair round; the voice-picker browser failure is pre-existing).
-- [ ] Final integration review, full pre-push suite, full `pnpm e2e:test`, PR.
+- [x] Final integration review passed (no repair round).
+- [ ] Full pre-push suite on the final candidate, full `pnpm e2e:test`, PR.
 
 ## Surprises & Discoveries
 
@@ -558,6 +559,38 @@ evidence. Then the full pre-push suite once on the final candidate, and the full
 `pnpm e2e:test` on a disposable built stack (`ANIMAMA_WEB_BUILD_MODE=production`),
 through the heavy slot. Their results go in the PR.
 
+### Final Integration Review #1 Findings
+
+Reviewed source: `0c84ea54` (tree `220f7721`), baseline `fc825a9b`, both
+phases at the high-risk tier; no checks run. The candidate tree differs from
+the last checked tree (`2aed0f1c`) only in this plan, and no frontend file
+changed after `e1efaa53`, so the phase evidence still applies. R1, R2 (local
+and hosted, size-independent statement bounds), R3, R5, R4 per D2, the
+unchanged model Gesture list (chat reads the projected `_selections` roots,
+whose order and keys are unchanged; the tracked test matches the hosted-path
+starter's 140 pairs to a created starter), the frontend, contract versions,
+docs, ADR 0030 and the Cloud adoption notes (rechecked against Cloud
+`9affbe1f`) were found consistent. No blocking finding.
+
+- FI-R1-F1 (optional): `create_starter_loadout` keeps the first of two starter
+  Gestures declaring one semantic key without a diagnostic, while `initialize`
+  refuses the conflict.
+- FI-R1-F2 (optional): the chat leg of acceptance rests on the runtime-mount
+  tests and the snapshot path; state that the full e2e run is the direct
+  evidence.
+- FI-R1-F3 (optional): close this plan's Outcomes, update #648's ExecPlan
+  section, and carry the Cloud adoption notes and the #639 collision in the PR.
+
+### Final Integration Review #1 Revisions
+
+- FI-R1-F1 accepted residual: the tracked test proves 140 distinct keys among
+  the Included starters, and the code comment states the assumption; only
+  malformed Included content could reach it.
+- FI-R1-F2 accepted: the PR states it, with the full e2e result.
+- FI-R1-F3 accepted: Outcomes below, #648 updated at PR time, the PR carries
+  both notes.
+- No repair round used; review passed.
+
 ## Validation and acceptance
 
 - R1, R2, R3 and R5 each covered by named backend tests; R4 by D2.
@@ -580,4 +613,17 @@ Task stacks are torn down after their last use.
 
 ## Outcomes & Retrospective
 
-(pending)
+- An Anima's Gestures are exactly its binding rows on every path: creation and
+  the hosted starter step copy the starter policy into rows, removal is final,
+  and no reader merges an implicit layer. The `starter_exclusions` column, the
+  Gesture starter operations and their API fields are gone (`local-http`
+  11.0.0).
+- Creating both supplied starters dropped from 18.6–19.6 s and 5,571 statements
+  to 2.7–3.0 s and 267 statements on the same harness, with bounds pinned by
+  tests.
+- Remaining: Cloud adoption (its own migration, tests and contract admission);
+  the optional removal of the unused `content_consumers`/`replace_content`
+  (P2-R1-F9); the pre-existing voice-picker browser failure.
+- Lessons: a test that filters readers to the expected items cannot prove
+  "nothing else is implied" (P2-R1-F2); a schema edit must also update the
+  pinned baseline fingerprint (P2-R1-F1).
