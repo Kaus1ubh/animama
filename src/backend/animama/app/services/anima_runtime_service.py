@@ -23,7 +23,11 @@ from animama.app.ports.content_store import ContentStore
 from animama.app.services.avatar_face_parts import override_face_parts
 from animama.app.services.content_access_policy import ContentAccessPolicy
 from animama.app.services.runtime_content_closure import RuntimeContentClosureCompiler
-from animama.app.services.starter_loadout_policy import starter_loadout_policy
+from animama.app.services.starter_loadout_policy import (
+    starter_gesture_id,
+    starter_gesture_semantic_key,
+    starter_loadout_policy,
+)
 from animama.app.services.typed_runtime_projection import project_typed_runtime_catalog
 from animama.domain.anima_loadout import parse_cell_key, parse_idle_slot_key, parse_reaction_slot_key
 from animama.domain.content_catalog import (
@@ -474,12 +478,12 @@ class AnimaRuntimeService:
         excluded = {(row.get("slot"), row.get("runtime_id")) for row in loadout.starter_exclusions}
         for starter in starter_loadout_policy(loadout.starter_catalog_version)["gestures"]:
             content_id = str(starter["content_id"])
-            semantic = content_id.rsplit(":", 1)[-1]
-            if ("gesture", semantic) in excluded:
+            if ("gesture", starter_gesture_id(content_id)) in excluded:
                 continue
+            starter_item = logical(content_id)
             add(
-                f"gesture:{semantic}",
-                logical(content_id),
+                f"gesture:{starter_gesture_semantic_key(content_id, starter_item)}",
+                starter_item,
                 ContentKind.GESTURE,
                 {
                     "binding_id": f"starter:{content_id}@{starter['version']}",
