@@ -532,12 +532,12 @@ without line breaks):
 |(?<![A-Za-z0-9_])[A-Za-z]:(?:\\{1,2}|/)(?i:users)(?:\\{1,2}|/)
 ```
 
-That is: a `file:` URL; a Unix root folder (`/Users/`, `/home/`, `/root/`,
+That is: `file:` in any case followed by `//` (or `\/\/`); a Unix root folder (`/Users/`, `/home/`, `/root/`,
 `/tmp/`, `/private/`, `/var/folders/`, `/Volumes/`, `/mnt/`, `/opt/`, also with
 JSON-escaped `\/` separators) that does not follow a letter, digit or one of
 `_.~%-\`, unless it follows an escaped `\n`, `\r` or `\t`; or a Windows user
 folder (`C:\Users\`, `C:\\Users\\` or `C:/Users/`, any drive letter, `Users`
-in any case). A root-relative site route such as `/home/` therefore also fails
+in any case) whose drive letter does not follow a letter, digit or `_`. A root-relative site route such as `/home/` therefore also fails
 verification. The package-set build does not run the site in a browser; its
 CSP and journeys are checked by `landing:preview` and by the consumer's
 static-site checks.

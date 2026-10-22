@@ -39,7 +39,8 @@ Relevant code:
 - [x] Phase 1: format-3 verifier, producer, `compare` and tests (`build(package-sets)[p1]`).
 - [x] Phase 2: documentation (`build(package-sets)[p2]`).
 - [x] Code Review #1 and repair (`build(package-sets)[p1]: address review #1`).
-- [ ] Review recheck, full pre-push suite, PR.
+- [x] Code Review #2 (repair recheck): pass.
+- [ ] Full pre-push suite, PR.
 
 ## Surprises & Discoveries
 
@@ -217,3 +218,19 @@ to the archive root.
 - R1-F9 recorded for the PR and owner: merge order with the Cloud adoption.
 
 Repair rounds used: 1 of 2. A recheck of the repair follows.
+
+## Code Review #2 Findings
+
+Reviewer: the same `sdlc-reviewer`, repair round 1, `dd73be7b..d3672230`
+(tree `e1024ea6`). It reran both unit suites (45 and 14 OK) and `ruff check`,
+and probed the pattern and error wrapping. Result: pass, no blocking findings.
+
+- R2-F1 (non-blocking): two summary phrases under the quoted pattern were looser
+  than it (`file:` needs two following slashes in any case; a Windows drive
+  letter must not follow a letter, digit or `_`).
+
+## Code Review #2 Revisions
+
+- R2-F1 accepted: the contract prose now states both conditions. Wording only;
+  the pattern block and its test are unchanged (trivial repair, verified by the
+  contract-pattern test and Prettier).
