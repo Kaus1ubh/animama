@@ -101,7 +101,8 @@ Paths are from the repository root.
   and #2 passed (one repair round). Committed as `perf(content)[p2]`.
 - [x] Phase 3: Third-party licence records describe the shipped derivatives.
   Review #1 passed after trivial repairs. Committed as `chore(licenses)[p3]`.
-- [ ] Phase 4: Scene stickers built as WebP. Not started.
+- [x] Phase 4: Scene stickers built as WebP. Reviews #1 and #2 passed (one
+  repair round). Committed as `perf(web)[p4]`.
 - [ ] Final integration review. Not started.
 - [ ] Owner gate: visual check on a packaged desktop build (both Included Avatars).
 - [ ] Owner gate: Cloud repin to the merged commit (Cloud record, separate approval).
@@ -156,6 +157,11 @@ Paths are from the repository root.
 - 2026-10-22, agent proposal: Scene stickers (Phase 4) are encoded by sharp
   0.34.5, already a frontend dependency, inside the Vite build. Sticker bytes
   are not in any inventory, so they need not match Pillow's output byte for byte.
+- 2026-10-22, agent (Phase 4, within the accepted outcome): stickers use sharp
+  effort 4, not 6 (6 took about 40 s per build against 0.2 s, for 2% smaller
+  files). sharp has no `exact` option, and stickers render as CSS
+  `background-image` in the Scene layers, not WebGL textures, so colour under
+  transparent pixels never shows.
 - 2026-10-22, owner (revises the CC0 decision after the Phase 1 discovery): the
   38 CC0 library textures stay PNG web assets. Phase 3 records WebP hashes for
   the nine converted Quarks copies and updates the notices and the
@@ -723,7 +729,7 @@ Intended changes:
    it sees `resources/scene-vfx/stickers/*.png?url`, it emits a WebP asset
    instead of the PNG:
    - sharp settings: lossy quality 90, `alphaQuality: 100`, `effort: 6`,
-     `exactAlpha`/`exact` preserved;
+     `exactAlpha`/`exact` preserved; (superseded: effort 4 and no `exact`; see the Decision Log)
    - it falls back to the PNG when the WebP is not smaller.
 2. `src/frontend/web/src/lib/scene-vfx/stickers.ts`:
    - derive each sticker's extension and media type from its resolved URL
@@ -752,17 +758,134 @@ Completion:
 Recovery: removing the plugin restores PNG stickers. Saved Scene effects keep
 whichever bytes they copied, under matching extensions.
 
-Check record: _pending_.
+Results:
+
+- **Plugin.** `web/vite-plugins/webp-sticker-assets.ts` (`apply: "build"`)
+  answers the sticker glob's `?url` imports with an emitted WebP asset (sharp,
+  quality 90, alpha quality 100, effort 4). It keeps the PNG when WebP is not
+  smaller and returns Vite's `__VITE_ASSET__` placeholder, so URLs follow each
+  build's base path.
+  - sharp has no `exact` option. That does not matter here: stickers render as
+    DOM images, where colour under fully transparent pixels never shows.
+- **`stickers.ts`.** The manifest still lists the PNG masters, so
+  `STICKER_FILE` is unchanged. `fetchSceneStickerFile` names and types a copied
+  sticker after its bundled file (`<id>.webp` / `image/webp` in builds).
+- **Builds.** `pnpm build` emits all 42 stickers as WebP: 5.89 MB of masters
+  become 0.62 MB. `pnpm web:build:hosted` emits them under
+  `_animama/static/<hash>/assets/`.
+  - The first hosted build failed in `finalizeHostedBuild` because this
+    worktree held Git LFS pointer files for the TTS worker and basis files.
+    After `git lfs pull` it passed. This was an environment issue, not the
+    change.
+- **Docs.** `docs/frontend/runtime/scene-vfx.md` and the `stickers.json`
+  description.
+
+Check record:
+
+| Check | Result | Tree |
+| --- | --- | --- |
+| `pnpm -s exec vitest run tests/webpStickerAssets.test.ts src/lib/scene-vfx/stickers.test.ts` (`src/frontend/web`) | 13 passed | working tree (pre-record `9ee5b3aa`) |
+| `pnpm -s build`; `pnpm -s web:build:hosted` (`src/frontend`) | exit 0; 42 WebP stickers in each | working tree (pre-record `9ee5b3aa`) |
+| `python3 scripts/heavy-slot.py -- bash p4-gate.sh`: `pnpm verify`, then `pnpm prettier:check`, then `pnpm web:test:browser` | all exit 0; vitest 5396 passed, 1 skipped; browser 122 passed | working tree (pre-record `9ee5b3aa`) |
+| `uv run --no-sync pytest -q tests/test_included_content_integrity.py tests/test_included_content_catalog.py tests/test_runtime_content_catalog_completeness.py tests/test_starter_content_closure.py` | 45 passed | working tree (pre-record `9ee5b3aa`) |
+
+`pnpm e2e:test:fast` runs in the final pre-push suite on the committed
+candidate, on a disposable built stack.
+
 
 Phase commits: _pending_ (`perf(web)[p4]: …`).
 
 #### Code Review #1 Findings
 
-_Pending._
+Reviewed source: working tree `345d0428` against `fad4ba36`; high-risk tier,
+one analysis agent and one checks agent; initial review.
+
+The checks agent reran the following on `345d0428`, all exit 0:
+
+- sticker and Scene creator vitest: 35 passed;
+- `pnpm check`;
+- `pnpm web:lint`;
+- `pnpm prettier:check`, plus explicit prettier on the plugin;
+- `pnpm build`: 42 WebP stickers, 0 PNG.
+
+- **P4-F1 (required).** The plugin compared Vite's real-path ids with an
+  unresolved `stickerRoot`. A symlinked checkout, or a Windows drive-letter
+  case mismatch, silently fell back to PNG with no error. Reproduced with a
+  scratch Vite build through a symlinked root. No automated test exercised a
+  real build.
+- **P4-F2 (required).** sharp effort 6 cost about 40 s per build (84% of the
+  web build) for 2% smaller files, against the Phase 1 effort decision.
+- **Optional.**
+  - Return `{code, moduleType: "js"}`.
+  - Pass `originalFileName`.
+  - Two stale "its PNG" phrases remained (`scene-vfx.md`, `stickers.ts`).
+  - Add a Decision Log entry for the sharp choice and effort.
+- Verified without findings:
+  - Vite 8.0.10 rewrites `__VITE_ASSET__` placeholders under every base (`/`,
+    `/sub/`, `./`, the hosted template base);
+  - `enforce: "pre"` precedes `vite:asset`;
+  - no sticker was ever inlined;
+  - dev and test are unaffected;
+  - Save and Portable sniff the bytes, and WebP limits and media types are
+    accepted;
+  - neither the desktop nor the hosted audit inspects stickers.
 
 #### Code Review #1 Revisions
 
-_Pending._
+- **P4-F1 accepted.** Both the configured root and each id's directory are
+  resolved with `realpathSync.native` (lowercased on Windows) before
+  comparison. The root resolves lazily on first use, so a missing directory
+  cannot crash config loading. New test: a real `vite build` whose configured
+  sticker root is a symlink must emit a `.webp` asset and a `/base/` URL, emit
+  no PNG and leave no `__VITE_ASSET__` text.
+- **P4-F2 accepted.** Effort 4, recorded in the Decision Log. `pnpm build` is
+  now 2.9 s with no plugin-timing warning; the 42 stickers total 0.64 MB.
+- **Optional items accepted.** `{code, moduleType}`, `originalFileName`, the
+  two wording fixes and the Decision Log entry.
+- Verification on the repaired tree, all clean or exit 0:
+  - sticker vitest: 14 passed;
+  - eslint on the touched files;
+  - prettier;
+  - `pnpm check`;
+  - `pnpm build`: 42 WebP stickers.
+
+  A targeted recheck (Code Review #2) follows.
+
+#### Code Review #2 Findings
+
+Targeted recheck of tree `ff9055fa` (repair round 1 of 2), high-risk tier.
+
+- **Revisions verified.** P4-F1, P4-F2 and the optional items are fixed. A
+  scratch probe built review #1's plugin and the current one against a
+  symlinked, a real and a missing root: only the old plugin emitted PNG
+  through the symlink. So the new real-build test separates the two.
+- **No blocking findings.**
+- **P4-R2-F1 (optional).** On Windows without privileges, the test's directory
+  symlink needs the `"junction"` type.
+- **P4-R2-F2 (optional).** A misconfigured root still falls back to PNG
+  silently; a build warning could surface it.
+- **P4-R2-F3 (optional).** The intended-changes text still said effort 6 and
+  `exact`.
+- Checks rerun on `ff9055fa`, all exit 0:
+  - vitest (stickers, Scene creator, production delivery): 44 passed;
+  - `pnpm check`;
+  - `pnpm web:lint`;
+  - prettier;
+  - `pnpm build`: 42 WebP, 0 PNG, 0.64 MB, no plugin-timing warning.
+
+Result: pass.
+
+#### Code Review #2 Revisions
+
+- **P4-R2-F1 accepted (trivial).** `symlinkSync(real, linked, "junction")`.
+  Sticker vitest rerun.
+- **P4-R2-F2 rejected.** The configured root is a fixed repository path, and
+  the real-build test covers the resolution logic. A warning would fire for
+  every build that legitimately has no stickers, such as test builds without
+  the app entry.
+- **P4-R2-F3 accepted (trivial).** Intended-changes text marked as superseded.
+- Repair budget used: 1 of 2.
+
 
 ## Final integration review
 
