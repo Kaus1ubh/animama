@@ -7,7 +7,7 @@ from contextlib import contextmanager
 
 from sqlalchemy import event
 
-# A starter loadout's statements, whatever its pool sizes (about 1,000 before batching).
+# A starter loadout's statements, whatever its Gesture and pool sizes (about 1,000 before batching).
 STARTER_LOADOUT_STATEMENTS = 20
 # Creating both supplied starters from the tracked Included content (about 5,600 before batching).
 SUPPLIED_STARTERS_STATEMENTS = 300

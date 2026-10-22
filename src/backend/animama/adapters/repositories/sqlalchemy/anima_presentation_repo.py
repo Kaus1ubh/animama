@@ -11,9 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
 from ....app.ports.anima_presentation_port import AnimaPresentationRepository
-from ....domain.anima_loadout import StarterEntryIdentity
 from ....domain.anima_presentation import AnimaPresentationImageCandidate, AnimaPresentationRecord
-from ....domain.runtime_content_slot import RuntimeContentSlot
 from ....orm.anima import ORMAnima
 from ....orm.anima_loadout import ORMAnimaLoadout
 from ....orm.avatar import ORMAvatar
@@ -78,7 +76,6 @@ class SQLAlchemyAnimaPresentationRepository(AnimaPresentationRepository):
                 ORMAvatar.file_path.label("avatar_file_path"),
                 ORMAvatar.catalog_item_id.label("avatar_catalog_item_id"),
                 ORMAnimaLoadout.starter_catalog_version,
-                ORMAnimaLoadout.starter_exclusions,
                 profile_binding.catalog_item_id.label("profile_catalog_item_id"),
                 profile_binding.config.label("profile_config"),
                 profile_item.content_metadata.label("profile_metadata"),
@@ -205,14 +202,6 @@ class SQLAlchemyAnimaPresentationRepository(AnimaPresentationRepository):
             anima_id=row.anima_id,
             display_name=row.display_name,
             starter_catalog_version=row.starter_catalog_version,
-            starter_exclusions=tuple(
-                StarterEntryIdentity(
-                    slot=RuntimeContentSlot(str(entry["slot"])),
-                    runtime_id=str(entry["runtime_id"]),
-                )
-                for entry in (row.starter_exclusions or [])
-                if isinstance(entry, dict) and "slot" in entry and "runtime_id" in entry
-            ),
             profile_image=profile,
             avatar_portrait=avatar_portrait,
             primary_model=primary_model,

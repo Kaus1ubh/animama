@@ -537,7 +537,6 @@ export async function createHostedWorkflowHttp({ workletSource } = {}) {
           aggregate_revision: state.revision,
           gestures: [],
           reactions: [],
-          disabled_starter_gestures: [],
           starter_version: 1,
           idle: { default_pool: [], cells: [] },
         });

@@ -61,17 +61,9 @@ class PyGestureIntent(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    operation: Literal[
-        "add",
-        "update",
-        "reconfigure",
-        "remove",
-        "disable_starter",
-        "restore_starter",
-    ]
+    operation: Literal["add", "update", "reconfigure", "remove"]
     source: PyCatalogLoadoutSource | None = None
     binding_id: str | None = None
-    starter_id: str | None = None
     config_overrides: dict[str, Any] = Field(default_factory=dict)
 
     @model_validator(mode="after")
@@ -80,8 +72,6 @@ class PyGestureIntent(BaseModel):
             raise ValueError("source is required")
         if self.operation in {"update", "reconfigure", "remove"} and not self.binding_id:
             raise ValueError("binding_id is required")
-        if self.operation in {"disable_starter", "restore_starter"} and not self.starter_id:
-            raise ValueError("starter_id is required")
         return self
 
 
@@ -275,7 +265,7 @@ class PyLoadoutPlan(BaseModel):
     model_config = ConfigDict(extra="forbid")
     aggregate_revision: int = Field(ge=1)
 
-    action: Literal["add", "update", "replace", "remove", "revert", "leave_empty", "unchanged"]
+    action: Literal["add", "update", "replace", "remove", "revert", "unchanged"]
     plan_digest: str = Field(pattern=r"^[0-9a-f]{64}$")
     current_name: str | None = None
     target_name: str | None = None
@@ -318,13 +308,14 @@ class PyLoadoutCommitResult(BaseModel):
 
 
 class PyGestureBinding(BaseModel):
+    """One equipped AI-callable Gesture, stored as a ``gesture:<semantic_key>`` binding row."""
+
     model_config = ConfigDict(extra="forbid")
 
     binding_id: str
     name: str
     description: str | None = None
     semantic_key: str
-    origin: Literal["starter", "custom"]
     implementation_kind: Literal["anima_clip", "vrma"]
     logical_item_id: str | None = None
     source: PyCatalogLoadoutSource
@@ -337,7 +328,6 @@ class PyGestureBinding(BaseModel):
             name=value.name,
             description=value.description,
             semantic_key=value.semantic_key,
-            origin=value.origin,
             implementation_kind=value.implementation_kind,
             logical_item_id=value.source.logical_key,
             source=PyCatalogLoadoutSource.from_domain(value.source),
@@ -490,9 +480,7 @@ class PyAnimaLoadout(BaseModel):
     revision: int = Field(ge=1)
     aggregate_revision: int = Field(ge=1)
     starter_version: int = Field(ge=1)
-    gestures: list[PyGestureBinding]
-    disabled_starter_gestures: list[str]
-    starter_gesture_implementation_kinds: dict[str, Literal["anima_clip", "vrma"]] = Field(default_factory=dict)
+    gestures: list[PyGestureBinding] = Field(description="The Anima's Gestures: exactly its Gesture binding rows.")
     reactions: list[PyReactionCell] = Field(description="All 96 Reaction cells: 24 emotions x intensities 1-4.")
     idle: PyAnimaIdle
     avatar_source: PyCatalogLoadoutSource | None = None
@@ -501,20 +489,13 @@ class PyAnimaLoadout(BaseModel):
     warnings: list[PyLoadoutDiagnostic] = Field(default_factory=list)
 
     @classmethod
-    def from_domain(
-        cls,
-        value: AnimaLoadout,
-        *,
-        starter_implementation_kinds: dict[str, Literal["anima_clip", "vrma"]] | None = None,
-    ) -> PyAnimaLoadout:
+    def from_domain(cls, value: AnimaLoadout) -> PyAnimaLoadout:
         return cls(
             anima_id=value.anima_id,
             revision=value.revision,
             aggregate_revision=value.aggregate_revision,
             starter_version=value.starter_version,
             gestures=[PyGestureBinding.from_domain(item) for item in value.gestures],
-            disabled_starter_gestures=list(value.disabled_starter_gestures),
-            starter_gesture_implementation_kinds=starter_implementation_kinds or {},
             reactions=[PyReactionCell.from_domain(item) for item in value.reactions],
             idle=PyAnimaIdle.from_domain(value.idle),
             avatar_source=(PyCatalogLoadoutSource.from_domain(value.avatar_source) if value.avatar_source else None),

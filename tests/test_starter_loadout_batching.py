@@ -1,4 +1,4 @@
-"""A starter loadout reads, locks and writes its pools in batches (#630 requirement 6)."""
+"""A starter loadout reads, locks and writes its Gestures and pools in batches (#630 requirement 6, #648 R2)."""
 
 from __future__ import annotations
 
@@ -24,6 +24,7 @@ from animama.orm.content_catalog import ORMContentCatalogItem
 from tests.statement_counting import counted_statements
 from tests.test_anima_idle_pool import _idle_gesture
 from tests.test_anima_reaction_pools import _included_reaction
+from tests.test_explicit_gesture_rows import _included_gesture
 from tests.typed_loadout_support import LoadoutFixture, cleanup_loadout_fixture, create_loadout_fixture
 
 # Distinct starter policy keys, so each test Reaction fills a policy slot.
@@ -39,12 +40,24 @@ def _idle(monkeypatch: pytest.MonkeyPatch, members: list[ResolvedIdleMember]) ->
     monkeypatch.setattr(anima_loadout_service, "resolve_starter_idle_pool", resolved)
 
 
-async def _pools(session, fixture: LoadoutFixture, size: int) -> tuple[list[str], list[ResolvedIdleMember]]:  # noqa: ANN001
-    """``size`` Included starter Reactions and ``size`` owner Idle Gestures, committed."""
+def _gestures(monkeypatch: pytest.MonkeyPatch, gestures: list[ORMContentCatalogItem]) -> None:
+    """Make ``gestures`` the starter loadout's Gestures."""
+
+    keys = tuple(str(gesture.logical_key) for gesture in gestures)
+    monkeypatch.setattr(anima_loadout_service, "starter_gestures", lambda version: keys)
+
+
+async def _pools(
+    session,  # noqa: ANN001
+    fixture: LoadoutFixture,
+    size: int,
+) -> tuple[list[str], list[ORMContentCatalogItem], list[ResolvedIdleMember]]:
+    """``size`` Included starter Reactions and Gestures and ``size`` owner Idle Gestures, committed."""
 
     reactions = [
         (await _included_reaction(session, key, f"Starter {index}")).id for index, key in enumerate(STARTER_KEYS[:size])
     ]
+    gestures = [await _included_gesture(session, fixture.user_id, f"starter-{index}") for index in range(size)]
     catalog = SQLAlchemyContentCatalog(session)
     idle = []
     for index in range(size):
@@ -52,7 +65,7 @@ async def _pools(session, fixture: LoadoutFixture, size: int) -> tuple[list[str]
         entry = await catalog.get_visible_item(item_id=gesture.id, user_id=fixture.user_id)
         assert entry is not None
         idle.append(ResolvedIdleMember(entry, "default"))
-    return reactions, idle
+    return reactions, gestures, idle
 
 
 async def _fixture(session) -> LoadoutFixture:  # noqa: ANN001
@@ -62,10 +75,16 @@ async def _fixture(session) -> LoadoutFixture:  # noqa: ANN001
     return fixture
 
 
-async def _cleanup(factory, fixture: LoadoutFixture, reactions: list[str]) -> None:  # noqa: ANN001
+async def _cleanup(
+    factory,  # noqa: ANN001
+    fixture: LoadoutFixture,
+    reactions: list[str],
+    gestures: list[ORMContentCatalogItem],
+) -> None:
     async with factory() as cleanup:
         await cleanup_loadout_fixture(cleanup, fixture)
-        await cleanup.execute(delete(ORMContentCatalogItem).where(ORMContentCatalogItem.id.in_(reactions)))
+        included = [*reactions, *(gesture.id for gesture in gestures)]
+        await cleanup.execute(delete(ORMContentCatalogItem).where(ORMContentCatalogItem.id.in_(included)))
         await cleanup.commit()
 
 
@@ -93,20 +112,21 @@ async def test_starting_a_loadout_locks_every_pool_member_until_commit(
 ) -> None:
     async with async_session_factory() as setup:
         fixture = await _fixture(setup)
-        reactions, idle = await _pools(setup, fixture, 1)
+        reactions, gestures, idle = await _pools(setup, fixture, 1)
     _idle(monkeypatch, idle)
-    members = [reactions[0], idle[0].source.id]
+    _gestures(monkeypatch, gestures)
+    members = [reactions[0], gestures[0].id, idle[0].source.id]
     try:
         async with async_session_factory() as starter:
             await AnimaLoadoutService(starter).create_starter_loadout(
                 user_id=fixture.user_id, anima_id=fixture.anima_id, store=Mock()
             )
-            assert [await _edit_blocked(async_session_factory, item) for item in members] == [True, True]
+            assert [await _edit_blocked(async_session_factory, item) for item in members] == [True, True, True]
             await starter.rollback()
         # The locks were the starter transaction's: they end with it.
-        assert [await _edit_blocked(async_session_factory, item) for item in members] == [False, False]
+        assert [await _edit_blocked(async_session_factory, item) for item in members] == [False, False, False]
     finally:
-        await _cleanup(async_session_factory, fixture, reactions)
+        await _cleanup(async_session_factory, fixture, reactions, gestures)
 
 
 @pytest.mark.asyncio
@@ -116,8 +136,9 @@ async def test_a_composition_with_immutable_shared_rows_locks_only_owner_rows(
 ) -> None:
     async with async_session_factory() as setup:
         fixture = await _fixture(setup)
-        reactions, idle = await _pools(setup, fixture, 1)
+        reactions, gestures, idle = await _pools(setup, fixture, 1)
     _idle(monkeypatch, idle)
+    _gestures(monkeypatch, gestures)
     shared, owned = reactions[0], idle[0].source.id
     try:
         async with async_session_factory() as starter:
@@ -126,6 +147,7 @@ async def test_a_composition_with_immutable_shared_rows_locks_only_owner_rows(
                 user_id=fixture.user_id, anima_id=fixture.anima_id, store=Mock()
             )
             assert await _edit_blocked(async_session_factory, shared) is False
+            assert await _edit_blocked(async_session_factory, gestures[0].id) is False
             assert await _edit_blocked(async_session_factory, owned) is True
             loadout = await AnimaLoadoutService(starter).read_model(user_id=fixture.user_id, anima_id=fixture.anima_id)
             assert [member.item_id for member in loadout.idle.default_pool] == [owned]
@@ -140,7 +162,7 @@ async def test_a_composition_with_immutable_shared_rows_locks_only_owner_rows(
                 assert await _edit_blocked(async_session_factory, item_id) is blocked
             await reader.rollback()
     finally:
-        await _cleanup(async_session_factory, fixture, reactions)
+        await _cleanup(async_session_factory, fixture, reactions, gestures)
 
 
 @pytest.mark.asyncio
@@ -150,7 +172,7 @@ async def test_the_first_failing_idle_member_decides_the_error(
 ) -> None:
     async with async_session_factory() as setup:
         fixture = await _fixture(setup)
-        reactions, (valid, other) = await _pools(setup, fixture, 2)
+        reactions, gestures, (valid, other) = await _pools(setup, fixture, 2)
         missing = ResolvedIdleMember(replace(other.source, id=f"gesture-{uuid4().hex}"), "default")
         stale = ResolvedIdleMember(replace(other.source, revision_sha256="0" * 64), "default")
     try:
@@ -159,6 +181,7 @@ async def test_the_first_failing_idle_member_decides_the_error(
             ([valid, missing, stale], "loadout_source_unavailable"),
         ):
             _idle(monkeypatch, members)
+            _gestures(monkeypatch, gestures)
             async with async_session_factory() as starter:
                 with pytest.raises(AnimaLoadoutError, match=code):
                     await AnimaLoadoutService(starter).create_starter_loadout(
@@ -166,7 +189,7 @@ async def test_the_first_failing_idle_member_decides_the_error(
                     )
                 await starter.rollback()
     finally:
-        await _cleanup(async_session_factory, fixture, reactions)
+        await _cleanup(async_session_factory, fixture, reactions, gestures)
 
 
 @pytest.mark.asyncio
@@ -178,8 +201,9 @@ async def test_the_statement_count_does_not_grow_with_the_pools(
     for size in (1, 4):
         async with async_session_factory() as setup:
             fixture = await _fixture(setup)
-            reactions, idle = await _pools(setup, fixture, size)
+            reactions, gestures, idle = await _pools(setup, fixture, size)
         _idle(monkeypatch, idle)
+        _gestures(monkeypatch, gestures)
         try:
             async with async_session_factory() as starter:
                 with counted_statements(starter) as statements:
@@ -189,10 +213,10 @@ async def test_the_statement_count_does_not_grow_with_the_pools(
                 loadout = await AnimaLoadoutService(starter).read_model(
                     user_id=fixture.user_id, anima_id=fixture.anima_id
                 )
-                assert len(loadout.idle.default_pool) == size
+                assert len(loadout.idle.default_pool) == len(loadout.gestures) == size
                 assert len({member.item_id for cell in loadout.reactions for member in cell.members}) == size
                 counts.append(len(statements))
                 await starter.rollback()
         finally:
-            await _cleanup(async_session_factory, fixture, reactions)
+            await _cleanup(async_session_factory, fixture, reactions, gestures)
     assert counts[0] == counts[1], counts

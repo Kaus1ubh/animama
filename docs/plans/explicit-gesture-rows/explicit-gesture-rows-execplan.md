@@ -62,7 +62,8 @@ From a read-only survey of Animama Cloud `main` at `9affbe1f`:
 
 - Starter step: `ensure_starter_loadouts` calls `create_starter_loadout`, which
   now writes the starter Gesture rows and returns its diagnostics; no call change
-  is required.
+  is required, but Cloud discards the returned tuple today, so an unavailable
+  starter (R5) is visible only if Cloud logs or records it.
 - Schema: the hosted forward-only history keeps `anima_loadouts.starter_exclusions`
   and its CHECK (`009_hosted_content_runtime.sql`); the shared-ORM schema-drift
   test fails until a new hosted migration drops them (precedent:
@@ -86,7 +87,8 @@ From a read-only survey of Animama Cloud `main` at `9affbe1f`:
 - [x] Owner decisions D1 and D2 (2026-10-21); #648 R4 amended.
 - [x] Owner approved the plan for all phases (2026-10-22).
 - [x] Phase 1: batched creation writes (review passed after one repair round).
-- [ ] Phase 2: explicit Gesture rows end to end.
+- [x] Phase 2: explicit Gesture rows end to end (review passed after one
+  repair round; the voice-picker browser failure is pre-existing).
 - [ ] Final integration review, full pre-push suite, full `pnpm e2e:test`, PR.
 
 ## Surprises & Discoveries
@@ -146,6 +148,19 @@ From a read-only survey of Animama Cloud `main` at `9affbe1f`:
 
 - 2026-10-22, owner: approved this plan for implementation of all phases,
   including the agent proposals above.
+- 2026-10-22, agent (Phase 2): the Gesture list's "Custom first" sort lists
+  Local Gestures before Included ones, as the Library's sort of that name does,
+  instead of ordering by the retired starter/custom kind.
+- 2026-10-22, agent (Phase 2): remove what only served the implicit layer:
+  `get_included_by_logical_keys` (#647), the `included_by_logical` argument of
+  `content_consumers`, the `loadout` argument of the runtime `_selections`, and
+  the frontend wording of `starter_gesture_unavailable` and
+  `starter_id_required` (the former is now a hosted-only creation diagnostic;
+  an unworded code falls back to its English message). Snapshot fences keep
+  `starter_catalog_version`.
+- 2026-10-22, agent (Phase 2): record the decision as ADR 0030 (open PR #639
+  claims 0029) and bump `local-http` to 11.0.0 and `@animama/runtime-contracts`
+  to 0.11.0; whichever of this PR and #639 merges second takes the next numbers.
 
 ## Phased implementation
 
@@ -384,17 +399,156 @@ Recovery: development databases are reset after the schema change
 (`./reset.sh --name <stack> --purge` for a task stack). Reverting the phase
 restores the column only for databases created afterwards.
 
-Check record: (pending)
+Starting source: `774ae198` (Phase 1).
 
-Results: (pending)
+Check record (working tree, root unless noted, Python 3.12.13):
+
+- New `tests/test_explicit_gesture_rows.py` before the change: 4 of 5 failed
+  (no `starter_gestures`, retired intents accepted); the created-path case
+  passed, as local creation already stored rows. After: 5 passed.
+- `uv run pytest -q -n 4` over 25 affected files (creation, loadouts, starters,
+  pools, packages, portable Anima, transitions, presentations, runtime
+  admission, previews, HTTP loadouts): 258 passed.
+- `uv run mypy src/backend/animama tests ...` (Makefile arguments): passed,
+  856 files. `ruff check`/`ruff format` on touched Python files: passed.
+- `uv run --no-sync python scripts/repository-boundary/check-python-imports.py`:
+  0 forbidden edges.
+- From `src/frontend`: `pnpm openapi-ts` regenerated the SDK;
+  `pnpm openapi-ts:check` current; `pnpm i18n:check` passed;
+  `pnpm exec tsc -b` (web) passed; `pnpm exec vitest run` on the loadout,
+  Gesture section, loadout page, Action Manage and error tests: 63 passed.
+- `pnpm web:lint`: passed.
+- Browser check (agent, in-app browser) on development task stack
+  `gesture-rows` (base port 8800, fresh database, first-run setup and the 18+
+  gate completed, no provider): Andrew's Gesture list read "140 equipped / 152
+  total" with no Starter badge and a menu on every row. Removing Air Guitar
+  showed a review with action `remove`; after a reload the list read 139 and Air
+  Guitar was an ordinary unequipped row with Equip and its menu. Equip planned
+  `add` and restored 140. The Library's Add / Manage dialog removed and
+  re-equipped Air Guitar on Annie (`gestures:plan`/`commit` 200). At 375 px the
+  list had no horizontal overflow. A Local Gesture was not exercised in the
+  browser (no Local content on a fresh stack; its add/remove path is the same
+  and unit-tested). The stack was then stopped with its volumes kept.
+- Full pre-push suite (gate script through the heavy slot, tree `e1efaa53`,
+  before the review #1 repairs): `make check-test` 4,732 passed and 1 failed
+  (P2-R1-F1's baseline fingerprint), 29 skipped; `pnpm verify` passed;
+  `pnpm web:test:browser` 121 of 122 passed; `pnpm prettier:check` passed.
+  The browser failure is `voice-clone-library.browser.test.mjs` "picker
+  filters expose keyboard gender tabs…" (`filter fits narrow picker` at 390 px),
+  which this change does not touch. It fails at the base too: in a temporary
+  worktree at `fc825a9b` it passed 1 of 6 runs (this branch 0 of 7). Not fixed
+  here; reported as pre-existing.
+- After the repairs (tree `2aed0f1c`): `make check-test` through the heavy
+  slot passed, 4,733 passed and 29 skipped; the independent checks rerun is
+  under Code Review #2. The frontend suite steps ran on frontend files the
+  repairs did not change.
+
+Results:
+
+- Backend: the read model, runtime mount (`_selections`), package export and
+  content transitions list only rows; `disable_starter`/`restore_starter`,
+  exclusions, `_starter_gesture_keys`, `_set_exclusion`,
+  `starter_gesture_id`/`starter_gesture_semantic_key` and
+  `get_included_by_logical_keys` are gone. `_starter_members` resolves Included
+  starter Gestures or Reactions in one locked read; `create_starter_loadout`
+  writes the available starter Gestures under their declared keys with one
+  insert and returns `starter_gesture_unavailable`/`starter_reaction_unavailable`
+  diagnostics. The ORM and baseline drop `starter_exclusions` and its CHECK.
+- Contract: `disabled_starter_gestures`, `starter_gesture_implementation_kinds`,
+  `PyGestureBinding.origin`, Gesture `starter_id` and
+  `disable_starter`/`restore_starter`, and plan action `leave_empty` removed;
+  `local-http` 11.0.0, `@animama/runtime-contracts` 0.11.0, SDK regenerated.
+- Frontend: one Gesture row kind; Equip adds, Equipped and Remove remove;
+  every row has the Library/Remove menu; no Gesture Starter badge; Action
+  Manage always removes by binding; "Custom first" lists Local Gestures first;
+  retired locale and error keys removed.
+- Tests: `tests/test_explicit_gesture_rows.py` (R2/R5 hosted rows and
+  diagnostic; R1/R3 read model, runtime and export for a created and a
+  hosted-path Anima, before and after a removal; retired intents rejected);
+  `test_starter_loadout_batching.py` now includes starter Gestures in the
+  lock, shared-row and statement tests; the tracked-content test asserts the
+  hosted-path starter has the same 140 Gestures and keys as a created starter.
+  `test_starter_gesture_semantic_keys.py` and the two implicit-starter export
+  tests were removed with the layer; the transition tests use explicit rows.
+- Docs: the starter-loadout, materializer, HTTP loadout, data-model and
+  anima-management sections, the export note in typed content, and ADR 0030.
+
 
 #### Code Review #1 Findings
 
-(pending)
+Analysis subagent (`sdlc-reviewer`, no reruns while the suite ran; source
+fingerprinted by `git diff 774ae198` and the new files' hashes). The suite's
+`make check-test` meanwhile reported 4,732 passed and 1 failed (F1).
+
+- P2-R1-F1 (required): `tests/test_alembic_fresh_install.py` pins the old
+  baseline SHA-256; its fingerprint test fails.
+- P2-R1-F2 (required): the R1 test filtered every reader to the two expected
+  items, so an implied (even unresolved) Gesture root could not fail it.
+- P2-R1-F3 (required): `contracts/hosted-web.md` and `http-api.md` still state
+  `local-http` 10.0.0 and `runtime-contracts` 0.10.0.
+- P2-R1-F4 (optional): the Reaction warning says "was not restored" when
+  creation returns it, and the codes were built with an f-string, so they were
+  no longer greppable.
+- P2-R1-F5 (optional): the Cloud note should say Cloud discards the returned
+  diagnostics.
+- P2-R1-F6 (optional): the retired-intent test also sent `starter_id`, which
+  `extra="forbid"` rejects on its own.
+- P2-R1-F7 (optional): the HTTP doc's warning `params` example still names
+  `semanticKey`.
+- P2-R1-F8 (optional): a packaged desktop profile does not keep the old column;
+  its schema check reports `database_schema_mismatch` until reset.
+- P2-R1-F9 (pre-existing): `content_consumers`/`replace_content` have no
+  production caller.
+- P2-R1-F10 (pre-existing pattern): an unconverted Avatar Effect behind one
+  starter Gesture makes `create_starter_loadout` fail instead of leaving that
+  Gesture out, as for starter Reactions.
 
 #### Code Review #1 Revisions
 
-(pending)
+- F1 accepted: the pinned hash is the new baseline's
+  (`67c1e040…703e`); the CREATE TABLE count is unchanged.
+- F2 accepted: `_readers` compares every read-model Gesture, every runtime
+  `gesture:` root and every exported Gesture, unfiltered. Mutation check: an
+  extra unresolved `gesture:` root in `_selections` failed both paths (2
+  failed); the source was then restored.
+- F3 accepted: both docs state 11.0.0 and 0.11.0.
+- F4 accepted: `_STARTER_UNAVAILABLE` maps each family to a literal code and a
+  neutral message ("…is unavailable and was left out.").
+- F5 accepted: the Cloud note says so.
+- F6 accepted: the test validates the operation alone.
+- F7 accepted: the example names `contentId`.
+- F8 accepted: the data-model note separates Compose databases from desktop
+  profiles.
+- F9 deferred: removing the unused transition methods is outside #648; noted
+  for a follow-up.
+- F10 accepted residual: Included content is always converted (the
+  tracked-checkout test passes), and starter Reactions already behave this way.
+- Verification: `ruff check`/`ruff format` passed; `tests/test_explicit_gesture_rows.py`,
+  `test_alembic_fresh_install.py`, `test_anima_reaction_pools.py` and
+  `test_starter_loadout_batching.py`: 30 passed.
+- Repair budget: one of two rounds used; targeted recheck and a `make
+  check-test` rerun follow.
+
+#### Code Review #2 Findings
+
+Targeted recheck of P2-R1-F1 to F8 (same reviewer, no reruns): all resolved,
+no regression; F9 deferred and F10 accepted residual are acceptable. Result:
+pass, pending the independent rerun.
+
+Checks subagent (independent high-risk rerun on tree `2aed0f1c`): `ruff check`
+and `ruff format --check` over `src/backend` and `tests` passed (868 files);
+mypy passed (856 files); import boundary 0 forbidden edges; 22 affected backend
+test files with `-n 4` through the heavy slot: 240 passed;
+`pnpm openapi-ts:check` current; `pnpm i18n:check` passed; web `tsc -b`
+passed; vitest on the loadout, `ui/animas`, Action Manage and error tests: 132
+passed; eslint on the touched frontend paths: clean. A grep (with
+`--untracked`) for the retired identifiers finds only ADR 0030, the data-model
+note and the retired-intent test.
+
+#### Code Review #2 Revisions
+
+None needed. Phase 2 passed with one of two repair rounds used.
+
 
 ## Final integration review
 

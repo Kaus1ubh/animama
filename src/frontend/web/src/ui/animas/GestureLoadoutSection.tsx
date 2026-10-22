@@ -17,7 +17,6 @@ import type { PyGesture } from "@/lib/content/catalogTypes";
 import {
   presentUnifiedGestureList,
   type GestureCatalogPresentation,
-  type GestureLoadoutPresentation,
   type UnifiedGestureListRow,
   type UnifiedGestureMotionFilter,
   type UnifiedGestureSort,
@@ -41,7 +40,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/ui/components/tooltip";
-import { StarterBadge } from "@/ui/animas/StarterBadge";
 import { LoadoutSectionDisclosure } from "@/ui/animas/LoadoutSectionDisclosure";
 import {
   ActionLoadoutRow,
@@ -55,25 +53,6 @@ const LIBRARY_GESTURES = {
   action: "gestures" as const,
 };
 
-/** Compact row identity whose full description is disclosed only when clipped. */
-function GestureIdentity({
-  name,
-  description,
-  starter,
-}: {
-  name: string;
-  description: string | null;
-  starter: boolean;
-}) {
-  return (
-    <ActionRowIdentity
-      name={name}
-      description={description}
-      badge={starter ? <StarterBadge /> : null}
-    />
-  );
-}
-
 function GestureListRow({
   row,
   disabled,
@@ -81,8 +60,6 @@ function GestureListRow({
   onPreviewAvailable,
   onEquip,
   onRemove,
-  onDisableStarter,
-  onRestoreStarter,
 }: {
   row: UnifiedGestureListRow;
   disabled: boolean;
@@ -90,33 +67,23 @@ function GestureListRow({
   onPreviewAvailable: (gesture: PyGesture) => void;
   onEquip: (gesture: PyGesture) => void;
   onRemove: (row: PyGestureBinding) => void;
-  onDisableStarter: (row: PyGestureBinding) => void;
-  onRestoreStarter: (starterId: string) => void;
 }) {
   const { t } = useTranslation("animas");
   const previewable = Boolean(row.binding ?? row.gesture);
-  const hasOverflow = row.kind === "custom";
   const preview = () => {
     if (row.binding) onPreview(row.binding);
     else if (row.gesture) onPreviewAvailable(row.gesture);
   };
   const equip = () => {
-    if (row.starterId) onRestoreStarter(row.starterId);
-    else if (row.gesture) onEquip(row.gesture);
+    if (row.gesture) onEquip(row.gesture);
   };
   const unequip = () => {
-    if (!row.binding) return;
-    if (row.kind === "custom") onRemove(row.binding);
-    else onDisableStarter(row.binding);
+    if (row.binding) onRemove(row.binding);
   };
 
   return (
     <ActionLoadoutRow role="listitem" selected={row.equipped}>
-      <GestureIdentity
-        name={row.name}
-        description={row.description}
-        starter={row.kind === "starter"}
-      />
+      <ActionRowIdentity name={row.name} description={row.description} />
 
       {row.updateAvailable ? (
         <span className="text-primary shrink-0 text-xs">
@@ -167,61 +134,49 @@ function GestureListRow({
         </TooltipContent>
       </Tooltip>
 
-      {hasOverflow ? (
-        <DropdownMenu>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  type="button"
-                  size="icon-sm"
-                  variant="ghost"
-                  aria-label={t("actions.moreActionsFor", { name: row.name })}
-                >
-                  <EllipsisVertical />
-                </Button>
-              </DropdownMenuTrigger>
-            </TooltipTrigger>
-            <TooltipContent side="top" sideOffset={6}>
-              {t("actions.moreActions")}
-            </TooltipContent>
-          </Tooltip>
-          <DropdownMenuContent align="end">
-            {row.kind === "custom" ? (
-              <DropdownMenuItem asChild>
-                <Link to="/library" search={LIBRARY_GESTURES}>
-                  {row.updateAvailable
-                    ? t("gestures.updateInLibrary")
-                    : t("gestures.viewInLibrary")}
-                </Link>
-              </DropdownMenuItem>
-            ) : null}
-            {row.kind === "custom" && row.binding ? (
-              <DropdownMenuItem
-                disabled={disabled}
-                className="text-destructive"
-                onSelect={() => onRemove(row.binding!)}
+      <DropdownMenu>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                size="icon-sm"
+                variant="ghost"
+                aria-label={t("actions.moreActionsFor", { name: row.name })}
               >
-                {t("actions.remove")}
-              </DropdownMenuItem>
-            ) : null}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      ) : (
-        <span
-          className="text-muted-foreground inline-flex size-8 shrink-0 items-center justify-center"
-          aria-hidden="true"
-        >
-          <EllipsisVertical className="size-4" />
-        </span>
-      )}
+                <EllipsisVertical />
+              </Button>
+            </DropdownMenuTrigger>
+          </TooltipTrigger>
+          <TooltipContent side="top" sideOffset={6}>
+            {t("actions.moreActions")}
+          </TooltipContent>
+        </Tooltip>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem asChild>
+            <Link to="/library" search={LIBRARY_GESTURES}>
+              {row.updateAvailable
+                ? t("gestures.updateInLibrary")
+                : t("gestures.viewInLibrary")}
+            </Link>
+          </DropdownMenuItem>
+          {row.binding ? (
+            <DropdownMenuItem
+              disabled={disabled}
+              className="text-destructive"
+              onSelect={() => onRemove(row.binding!)}
+            >
+              {t("actions.remove")}
+            </DropdownMenuItem>
+          ) : null}
+        </DropdownMenuContent>
+      </DropdownMenu>
     </ActionLoadoutRow>
   );
 }
 
 /** Full Gesture catalog with independent Included and Local visibility. */
 export function GestureLoadoutSection({
-  presentation,
   catalog,
   catalogLoading,
   catalogError,
@@ -230,11 +185,8 @@ export function GestureLoadoutSection({
   onPreviewAvailable,
   onEquip,
   onRemove,
-  onDisableStarter,
-  onRestoreStarter,
   onRetryCatalog,
 }: {
-  presentation: GestureLoadoutPresentation;
   catalog: GestureCatalogPresentation;
   catalogLoading: boolean;
   catalogError: boolean;
@@ -243,8 +195,6 @@ export function GestureLoadoutSection({
   onPreviewAvailable: (gesture: PyGesture) => void;
   onEquip: (gesture: PyGesture) => void;
   onRemove: (row: PyGestureBinding) => void;
-  onDisableStarter: (row: PyGestureBinding) => void;
-  onRestoreStarter: (starterId: string) => void;
   onRetryCatalog: () => void;
 }) {
   const { t } = useTranslation("animas");
@@ -263,7 +213,6 @@ export function GestureLoadoutSection({
   const list = useMemo(
     () =>
       presentUnifiedGestureList({
-        presentation,
         catalog,
         showIncluded,
         showLocal,
@@ -276,7 +225,6 @@ export function GestureLoadoutSection({
     [
       catalog,
       motionType,
-      presentation,
       query,
       showIncluded,
       showLocal,
@@ -504,8 +452,6 @@ export function GestureLoadoutSection({
                 onPreviewAvailable={onPreviewAvailable}
                 onEquip={onEquip}
                 onRemove={onRemove}
-                onDisableStarter={onDisableStarter}
-                onRestoreStarter={onRestoreStarter}
               />
             ))}
             {hasMoreRows ? (

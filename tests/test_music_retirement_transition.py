@@ -114,7 +114,6 @@ async def retired_music(async_session: AsyncSession, tmp_path: Path) -> AsyncIte
     root = await async_session.get(ORMAnimaLoadout, owner.anima_id)
     assert root is not None
     root.starter_catalog_version = 3
-    root.starter_exclusions = [{"kind": "gesture", "key": "wave"}]
     await async_session.commit()
     try:
         yield _RetirementFixture(owner, paths, content, audio, identity_id, gesture_binding_id, tuple(music_ids))
@@ -154,7 +153,7 @@ async def test_music_retirement_preserves_evidence_audio_identity_and_other_equi
     anima = await async_session.get(ORMAnima, fixture.owner.anima_id, populate_existing=True)
     assert root is not None and anima is not None
     assert (root.revision, anima.aggregate_revision) == (2, 2)
-    assert (root.starter_catalog_version, root.starter_exclusions) == (3, [{"kind": "gesture", "key": "wave"}])
+    assert root.starter_catalog_version == 3
     assert (anima.display_name, anima.avatar_id, anima.metadata_, anima.identity_status) == (
         "Keep My Name",
         fixture.owner.avatar_id,
@@ -173,7 +172,6 @@ async def test_music_retirement_preserves_evidence_audio_identity_and_other_equi
     assert preserved["files"] == []
     before = preserved["bindings"][0]
     assert before["starter_catalog_version"] == 3
-    assert before["starter_exclusions"] == [{"kind": "gesture", "key": "wave"}]
     assert [row["binding_id"] for row in before["bindings"]] == list(fixture.music_ids)
     assert before["bindings"][0]["config"]["legacy"] == {"retain": ["all", "fields"]}
     assert await service.retire(user_id=fixture.owner.user_id) == ()
@@ -264,7 +262,7 @@ async def test_retirement_receipt_replays_before_rechecking_deleted_bindings(
     assert replay == first
 
 
-@pytest.mark.parametrize("field", ["config", "starter_exclusions", "loadout_revision"])
+@pytest.mark.parametrize("field", ["config", "starter_catalog_version", "loadout_revision"])
 async def test_music_removal_rechecks_exact_binding_and_starter_facts(
     async_session: AsyncSession,
     retired_music: _RetirementFixture,
@@ -280,8 +278,8 @@ async def test_music_removal_rechecks_exact_binding_and_starter_facts(
     else:
         root = await async_session.get(ORMAnimaLoadout, fixture.owner.anima_id)
         assert root is not None
-        if field == "starter_exclusions":
-            root.starter_exclusions = []
+        if field == "starter_catalog_version":
+            root.starter_catalog_version = 1
         else:
             root.revision += 1
     await async_session.commit()

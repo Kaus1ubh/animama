@@ -1,10 +1,11 @@
 """Immutable backend starter policy, resolved by the stored version.
 
 ``starter-loadout.v<version>.json`` is the one definition of a starter Anima's
-assets: its pre-equipped ``gestures``, its ``reactions`` pool members and its
-``idle`` pool seed. Schema 2 added the ``idle`` section within version 1:
-stored loadouts read only the starter Gestures and Reactions by version, while
-the Idle seed is copied into the pool when a loadout starts.
+assets: its ``gestures``, its ``reactions`` pool members and its ``idle`` pool
+seed. Starting a loadout copies all three into binding rows; afterwards stored
+loadouts read only the starter Reactions by version, for Reaction ``origin``,
+cell ``state`` and the cell's ``restore_starter``. Schema 2 added the ``idle``
+section within version 1.
 """
 
 from __future__ import annotations
@@ -31,7 +32,6 @@ from animama.domain.content_catalog import (
     ContentKind,
     ContentPathError,
     ContentSource,
-    ContentStatus,
 )
 from animama.domain.content_documents import ContentDocumentError, GestureDocumentV1
 
@@ -52,32 +52,10 @@ def starter_loadout_policy(version: int = 1) -> dict[str, Any]:
     return policy
 
 
-def starter_gesture_id(content_id: str) -> str:
-    """Name a starter Gesture in exclusions and starter intents: its content id's last segment.
+def starter_gestures(version: int = 1) -> tuple[str, ...]:
+    """Return the starter Gestures' content IDs in policy order; starting a loadout copies each into a row."""
 
-    Stored loadouts keep this identity. It can differ from the semantic key the
-    Gesture document declares (``air-quotes`` declares ``air_quotes``), which is
-    what the model selects and what loadout slots, runtime roots and packages use.
-    """
-
-    return content_id.rsplit(":", 1)[-1]
-
-
-def starter_gesture_semantic_key(content_id: str, item: CatalogContentEntry | None) -> str:
-    """Return the semantic key a starter Gesture binds under: the one its Included document declares.
-
-    An unavailable or unreadable starter falls back to its id, so callers can still name it.
-    """
-
-    if item is not None and item.status is ContentStatus.VALID:
-        try:
-            document = TypedContentService.parse(item).document
-        except Exception:
-            # Content Health owns malformed-item diagnostics.
-            document = None
-        if isinstance(document, GestureDocumentV1):
-            return document.semantic_key
-    return starter_gesture_id(content_id)
+    return tuple(str(raw["content_id"]) for raw in starter_loadout_policy(version)["gestures"])
 
 
 def starter_reaction_pools(version: int = 1) -> dict[str, tuple[str, ...]]:

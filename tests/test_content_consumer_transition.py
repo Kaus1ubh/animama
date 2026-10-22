@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator, Mapping
 from dataclasses import dataclass
 from pathlib import Path
+from uuid import uuid4
 
 import pytest
 import pytest_asyncio
@@ -14,7 +15,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from animama.adapters.repositories.sqlalchemy.content_transition_repo import SQLAlchemyContentTransitionBindings
 from animama.app.ports.content_transition import ContentTransitionAnima
 from animama.app.services.content_catalog_service import ContentCatalogService
-from animama.app.services.starter_loadout_policy import starter_loadout_policy
 from animama.domain.anima_definition import AnimaDefinitionError
 from animama.domain.anima_loadout import reaction_slot_key
 from animama.domain.content_catalog import ContentConflictError
@@ -24,46 +24,55 @@ from animama.orm.content_catalog import ORMAnimaContentBinding, ORMContentCatalo
 from tests.content_package_helpers import package_services
 from tests.typed_loadout_support import LoadoutFixture, add_typed_item, cleanup_loadout_fixture, create_loadout_fixture
 
+CONFIGS = {"gesture": {"time_scale": 0.4, "custom": {"keep": [True, "value"]}}, "reaction": {}}
+
 
 @dataclass
 class _Consumers:
     owner: LoadoutFixture
     content: ContentCatalogService
     originals: dict[str, str]
-    included: dict[str, str]
     replacements: dict[str, str]
     slots: dict[str, str]
     unrelated_binding: str
 
 
+def _bind(session: AsyncSession, fixture: _Consumers, anima_id: str, kind: str, binding_id: str) -> None:
+    """Equip one affected Included original on ``anima_id`` as an explicit row."""
+
+    session.add(
+        ORMAnimaContentBinding(
+            id=binding_id,
+            anima_id=anima_id,
+            slot_key=fixture.slots[kind],
+            kind=kind,
+            catalog_item_id=fixture.originals[kind],
+            config=CONFIGS[kind],
+        )
+    )
+
+
 @pytest_asyncio.fixture
 async def consumers(async_session: AsyncSession, tmp_path: Path) -> AsyncIterator[_Consumers]:
+    """An Anima equipping an Included Gesture and Reaction, each with a Local replacement."""
+
     owner = await create_loadout_fixture(async_session)
     _, _, content, _, _ = package_services(async_session, tmp_path)
-    policy = starter_loadout_policy(1)
-    gesture, reaction = policy["gestures"][0], policy["reactions"][0]
-    logical = {
-        "gesture": gesture["content_id"],
-        "reaction": reaction["content_id"],
-    }
-    originals, included, replacements = {}, {}, {}
-    for kind, content_id in logical.items():
+    originals, replacements = {}, {}
+    for kind in ("gesture", "reaction"):
         original = await add_typed_item(
             async_session,
             owner,
             kind=kind,
             name=f"Included {kind}",
-            metadata={"content_id": content_id},
+            metadata={"content_id": f"builtin:{kind}:wave-{uuid4().hex[:8]}"},
         )
         original.source, original.scope, original.owner_user_id = "included", "included", None
         await async_session.commit()
         local = await add_typed_item(async_session, owner, kind=kind, name=f"Local {kind}", metadata={})
-        originals[kind], included[content_id], replacements[original.id] = original.id, original.id, local.id
+        originals[kind], replacements[original.id] = original.id, local.id
     # A Reaction is only ever an explicit pool member; its slot names the cell and the member.
-    slots = {
-        "gesture": f"gesture:{gesture['content_id'].rsplit(':', 1)[-1]}",
-        "reaction": reaction_slot_key(f"{reaction['emotion']}-{reaction['intensity']}", originals["reaction"]),
-    }
+    slots = {"gesture": "gesture:wave", "reaction": reaction_slot_key("joy-3", originals["reaction"])}
     unrelated = await add_typed_item(async_session, owner, kind="gesture", name="Unrelated", metadata={})
     unrelated_binding = f"keep-{owner.suffix}"
     async_session.add(
@@ -76,13 +85,16 @@ async def consumers(async_session: AsyncSession, tmp_path: Path) -> AsyncIterato
             config={"time_scale": 0.7, "nested": {"preserve": [1, 2]}},
         )
     )
+    fixture = _Consumers(owner, content, originals, replacements, slots, unrelated_binding)
+    for kind in ("gesture", "reaction"):
+        _bind(async_session, fixture, owner.anima_id, kind, f"explicit-{kind}-{owner.suffix}")
     anima = await async_session.get(ORMAnima, owner.anima_id)
     assert anima is not None
     anima.display_name = "Keep companion identity"
     anima.metadata_ = {"private": "preserve"}
     await async_session.commit()
     try:
-        yield _Consumers(owner, content, originals, included, replacements, slots, unrelated_binding)
+        yield fixture
     finally:
         await async_session.rollback()
         await cleanup_loadout_fixture(async_session, owner)
@@ -105,37 +117,37 @@ async def _bindings(session: AsyncSession, anima_id: str) -> list[ORMAnimaConten
     )
 
 
-async def test_implicit_starter_gesture_is_materialized_and_no_reaction_is_implied(
+async def _consumers(
+    repository: SQLAlchemyContentTransitionBindings, fixture: _Consumers, *, user_id: str | None = None
+):  # noqa: ANN202
+    return await repository.content_consumers(
+        user_id=user_id or fixture.owner.user_id, item_ids=tuple(fixture.originals.values())
+    )
+
+
+async def test_affected_rows_keep_their_ids_and_configs_and_are_replaced_in_place(
     async_session: AsyncSession,
     consumers: _Consumers,
 ) -> None:
     fixture = consumers
     repository = SQLAlchemyContentTransitionBindings(async_session)
-    snapshots = await repository.content_consumers(
-        user_id=fixture.owner.user_id,
-        item_ids=tuple(fixture.originals.values()),
-        included_by_logical=fixture.included,
-    )
-
+    snapshots = await _consumers(repository, fixture)
     assert len(snapshots) == 1
     before = snapshots[0]
-    # The policy's Reaction is not a pool member here, so only the Gesture is consumed.
-    assert [selection.slot_key for selection in before.selections] == [fixture.slots["gesture"]]
-    assert all(selection.binding_id is None and selection.config == {} for selection in before.selections)
-    assert {selection.starter_content_id for selection in before.selections} == {
-        content_id for content_id, item_id in fixture.included.items() if item_id == fixture.originals["gesture"]
-    }
-    assert [binding.binding_id for binding in before.bindings] == [fixture.unrelated_binding]
+    assert [(selection.slot_key, selection.binding_id, selection.config) for selection in before.selections] == [
+        (fixture.slots["gesture"], f"explicit-gesture-{fixture.owner.suffix}", CONFIGS["gesture"]),
+        (fixture.slots["reaction"], f"explicit-reaction-{fixture.owner.suffix}", CONFIGS["reaction"]),
+    ]
     async with fixture.content.mutations.catalog.mutation_transaction():
         await repository.replace_content(
             user_id=fixture.owner.user_id, before=before, replacements=fixture.replacements
         )
     rows = {row.slot_key: row for row in await _bindings(async_session, fixture.owner.anima_id)}
-    assert set(rows) == {fixture.slots["gesture"], "gesture:unrelated"}
-    slot = fixture.slots["gesture"]
-    assert rows[slot].kind == "gesture"
-    assert rows[slot].catalog_item_id == fixture.replacements[fixture.originals["gesture"]]
-    assert rows[slot].config == {}
+    assert set(rows) == {*fixture.slots.values(), "gesture:unrelated"}
+    for kind, slot in fixture.slots.items():
+        assert rows[slot].id == f"explicit-{kind}-{fixture.owner.suffix}"
+        assert rows[slot].config == CONFIGS[kind]
+        assert rows[slot].catalog_item_id == fixture.replacements[fixture.originals[kind]]
     assert rows["gesture:unrelated"].id == fixture.unrelated_binding
     assert rows["gesture:unrelated"].config == {"time_scale": 0.7, "nested": {"preserve": [1, 2]}}
     root = await async_session.get(ORMAnimaLoadout, fixture.owner.anima_id, populate_existing=True)
@@ -147,127 +159,41 @@ async def test_implicit_starter_gesture_is_materialized_and_no_reaction_is_impli
         fixture.owner.avatar_id,
         {"private": "preserve"},
     )
-    assert (
-        await repository.content_consumers(
-            user_id=fixture.owner.user_id,
-            item_ids=tuple(fixture.originals.values()),
-            included_by_logical=fixture.included,
-        )
-        == ()
-    )
+    assert await _consumers(repository, fixture) == ()
 
 
-async def test_explicit_selections_keep_binding_ids_configs_and_starter_exclusions(
+async def test_an_anima_without_an_affected_row_is_not_a_consumer(
     async_session: AsyncSession,
     consumers: _Consumers,
 ) -> None:
+    """No Included Gesture is implied: only a stored row makes an Anima a consumer."""
+
     fixture = consumers
-    configs = {
-        "gesture": {"time_scale": 0.4, "custom": {"keep": [True, "value"]}},
-        "reaction": {},
-    }
-    for kind, item_id in fixture.originals.items():
-        async_session.add(
-            ORMAnimaContentBinding(
-                id=f"explicit-{kind}-{fixture.owner.suffix}",
-                anima_id=fixture.owner.anima_id,
-                slot_key=fixture.slots[kind],
-                kind=kind,
-                catalog_item_id=item_id,
-                config=configs[kind],
-            )
-        )
-    root = await async_session.get(ORMAnimaLoadout, fixture.owner.anima_id)
-    assert root is not None
-    exclusions = [{"slot": "gesture", "runtime_id": fixture.slots["gesture"].split(":", 1)[1]}]
-    root.starter_exclusions = exclusions
+    for kind in ("gesture", "reaction"):
+        row = await async_session.get(ORMAnimaContentBinding, f"explicit-{kind}-{fixture.owner.suffix}")
+        assert row is not None
+        await async_session.delete(row)
     await async_session.commit()
-    repository = SQLAlchemyContentTransitionBindings(async_session)
-    before = (
-        await repository.content_consumers(
-            user_id=fixture.owner.user_id,
-            item_ids=tuple(fixture.originals.values()),
-            included_by_logical=fixture.included,
-        )
-    )[0]
-    assert len(before.selections) == 2
-    assert all(
-        selection.binding_id is not None and selection.starter_content_id is None for selection in before.selections
-    )
-    async with fixture.content.mutations.catalog.mutation_transaction():
-        await repository.replace_content(
-            user_id=fixture.owner.user_id, before=before, replacements=fixture.replacements
-        )
-    rows = {row.slot_key: row for row in await _bindings(async_session, fixture.owner.anima_id)}
-    for kind, slot in fixture.slots.items():
-        assert rows[slot].id == f"explicit-{kind}-{fixture.owner.suffix}"
-        assert rows[slot].config == configs[kind]
-        assert rows[slot].catalog_item_id == fixture.replacements[fixture.originals[kind]]
-    await async_session.refresh(root)
-    assert root.revision == 2 and root.starter_exclusions == exclusions
+    assert await _consumers(SQLAlchemyContentTransitionBindings(async_session), fixture) == ()
 
 
-@pytest.mark.parametrize("disabled,occupied", [("gesture", "reaction"), (None, "gesture")])
-async def test_disabled_or_occupied_starters_are_not_materialized(
-    async_session: AsyncSession,
-    consumers: _Consumers,
-    disabled: str | None,
-    occupied: str,
-) -> None:
-    fixture = consumers
-    root = await async_session.get(ORMAnimaLoadout, fixture.owner.anima_id)
-    assert root is not None
-    # A disabled or occupied starter Gesture is not implied, and a Reaction never is.
-    root.starter_exclusions = (
-        [{"slot": disabled, "runtime_id": fixture.slots[disabled].split(":", 1)[1]}] if disabled else []
-    )
-    async_session.add(
-        ORMAnimaContentBinding(
-            id=f"occupied-{fixture.owner.suffix}",
-            anima_id=fixture.owner.anima_id,
-            kind=occupied,
-            slot_key=fixture.slots[occupied],
-            catalog_item_id=fixture.replacements[fixture.originals[occupied]],
-            config={"keep": "occupied"},
-        )
-    )
-    await async_session.commit()
-    repository = SQLAlchemyContentTransitionBindings(async_session)
-    assert (
-        await repository.content_consumers(
-            user_id=fixture.owner.user_id,
-            item_ids=tuple(fixture.originals.values()),
-            included_by_logical=fixture.included,
-        )
-        == ()
-    )
-    assert len(await _bindings(async_session, fixture.owner.anima_id)) == 2
-    await async_session.refresh(root)
-    assert root.revision == 1
-
-
-async def test_only_affected_starter_items_are_selected(async_session: AsyncSession, consumers: _Consumers) -> None:
+async def test_only_affected_items_are_selected(async_session: AsyncSession, consumers: _Consumers) -> None:
     fixture = consumers
     repository = SQLAlchemyContentTransitionBindings(async_session)
     before = (
-        await repository.content_consumers(
-            user_id=fixture.owner.user_id,
-            item_ids=(fixture.originals["gesture"],),
-            included_by_logical=fixture.included,
-        )
+        await repository.content_consumers(user_id=fixture.owner.user_id, item_ids=(fixture.originals["gesture"],))
     )[0]
     assert [selection.slot_key for selection in before.selections] == [fixture.slots["gesture"]]
     async with fixture.content.mutations.catalog.mutation_transaction():
         await repository.replace_content(
             user_id=fixture.owner.user_id, before=before, replacements=fixture.replacements
         )
-    assert {row.slot_key for row in await _bindings(async_session, fixture.owner.anima_id)} == {
-        "gesture:unrelated",
-        fixture.slots["gesture"],
-    }
+    rows = {row.slot_key: row.catalog_item_id for row in await _bindings(async_session, fixture.owner.anima_id)}
+    assert rows[fixture.slots["gesture"]] == fixture.replacements[fixture.originals["gesture"]]
+    assert rows[fixture.slots["reaction"]] == fixture.originals["reaction"]
 
 
-@pytest.mark.parametrize("change", ["aggregate", "loadout", "exclusions", "config", "occupied"])
+@pytest.mark.parametrize("change", ["aggregate", "loadout", "config", "occupied"])
 async def test_stale_aggregate_root_or_binding_snapshot_prevents_every_replacement(
     async_session: AsyncSession,
     consumers: _Consumers,
@@ -275,13 +201,7 @@ async def test_stale_aggregate_root_or_binding_snapshot_prevents_every_replaceme
 ) -> None:
     fixture = consumers
     repository = SQLAlchemyContentTransitionBindings(async_session)
-    before = (
-        await repository.content_consumers(
-            user_id=fixture.owner.user_id,
-            item_ids=tuple(fixture.originals.values()),
-            included_by_logical=fixture.included,
-        )
-    )[0]
+    before = (await _consumers(repository, fixture))[0]
     root = await async_session.get(ORMAnimaLoadout, fixture.owner.anima_id)
     anima = await async_session.get(ORMAnima, fixture.owner.anima_id)
     assert root is not None and anima is not None
@@ -289,20 +209,19 @@ async def test_stale_aggregate_root_or_binding_snapshot_prevents_every_replaceme
         anima.aggregate_revision += 1
     elif change == "loadout":
         root.revision += 1
-    elif change == "exclusions":
-        root.starter_exclusions = [{"slot": "gesture", "runtime_id": "changed"}]
     elif change == "config":
         row = await async_session.get(ORMAnimaContentBinding, fixture.unrelated_binding)
         assert row is not None
         row.config = {"nested": {"new": [3, 4]}}
-        assert before.bindings[0].config == {"time_scale": 0.7, "nested": {"preserve": [1, 2]}}
+        unrelated = next(binding for binding in before.bindings if binding.binding_id == fixture.unrelated_binding)
+        assert unrelated.config == {"time_scale": 0.7, "nested": {"preserve": [1, 2]}}
     else:
         async_session.add(
             ORMAnimaContentBinding(
                 id=f"new-occupied-{fixture.owner.suffix}",
                 anima_id=fixture.owner.anima_id,
                 kind="gesture",
-                slot_key=fixture.slots["gesture"],
+                slot_key="gesture:new",
                 catalog_item_id=fixture.replacements[fixture.originals["gesture"]],
                 config={},
             )
@@ -341,25 +260,13 @@ async def test_grouped_replacement_rolls_back_every_row_after_late_failure(
             raise RuntimeError("interrupted after grouped replacement")
 
     repository = InterruptedBindings(async_session)
-    before = (
-        await repository.content_consumers(
-            user_id=fixture.owner.user_id,
-            item_ids=tuple(fixture.originals.values()),
-            included_by_logical=fixture.included,
-        )
-    )[0]
+    before = (await _consumers(repository, fixture))[0]
     with pytest.raises(RuntimeError, match="interrupted after grouped"):
         async with fixture.content.mutations.catalog.mutation_transaction():
             await repository.replace_content(
                 user_id=fixture.owner.user_id, before=before, replacements=fixture.replacements
             )
-    assert (
-        await repository.content_consumers(
-            user_id=fixture.owner.user_id,
-            item_ids=tuple(fixture.originals.values()),
-            included_by_logical=fixture.included,
-        )
-    )[0] == before
+    assert (await _consumers(repository, fixture))[0] == before
 
 
 async def test_other_owner_cannot_snapshot_or_replace_consumers(
@@ -367,31 +274,12 @@ async def test_other_owner_cannot_snapshot_or_replace_consumers(
 ) -> None:
     fixture = consumers
     repository = SQLAlchemyContentTransitionBindings(async_session)
-    assert (
-        await repository.content_consumers(
-            user_id="other-owner",
-            item_ids=tuple(fixture.originals.values()),
-            included_by_logical=fixture.included,
-        )
-        == ()
-    )
-    before = (
-        await repository.content_consumers(
-            user_id=fixture.owner.user_id,
-            item_ids=tuple(fixture.originals.values()),
-            included_by_logical=fixture.included,
-        )
-    )[0]
+    assert await _consumers(repository, fixture, user_id="other-owner") == ()
+    before = (await _consumers(repository, fixture))[0]
     with pytest.raises(AnimaDefinitionError):
         async with fixture.content.mutations.catalog.mutation_transaction():
             await repository.replace_content(user_id="other-owner", before=before, replacements=fixture.replacements)
-    assert (
-        await repository.content_consumers(
-            user_id=fixture.owner.user_id,
-            item_ids=tuple(fixture.originals.values()),
-            included_by_logical=fixture.included,
-        )
-    )[0] == before
+    assert (await _consumers(repository, fixture))[0] == before
 
 
 async def test_affected_animas_are_grouped_and_revised_independently(
@@ -406,13 +294,10 @@ async def test_affected_animas_are_grouped_and_revised_independently(
         assert anima is not None and root is not None
         anima.user_id = fixture.owner.user_id
         root.owner_user_id = fixture.owner.user_id
+        _bind(async_session, fixture, second.anima_id, "gesture", f"second-gesture-{second.suffix}")
         await async_session.commit()
         repository = SQLAlchemyContentTransitionBindings(async_session)
-        snapshots = await repository.content_consumers(
-            user_id=fixture.owner.user_id,
-            item_ids=tuple(fixture.originals.values()),
-            included_by_logical=fixture.included,
-        )
+        snapshots = await _consumers(repository, fixture)
         assert {before.anima_id for before in snapshots} == {fixture.owner.anima_id, second.anima_id}
         async with fixture.content.mutations.catalog.mutation_transaction():
             for before in snapshots:

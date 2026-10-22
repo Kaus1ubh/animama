@@ -12,7 +12,6 @@ from typing import Any, Literal
 
 from .content_catalog import ContentSource
 from .emotions import TRACKED_EMOTIONS
-from .runtime_content_slot import RuntimeContentSlot
 
 IDLE_DEFAULT_CELL = "default"
 """Cell key of the Idle pool used for neutral and for every empty emotion cell."""
@@ -27,14 +26,6 @@ REACTION_POOL_LIMIT = 4
 """Most Reactions one emotion/intensity cell may hold; chat plays one member at random."""
 
 ReactionIntensity = Literal[1, 2, 3, 4]
-
-
-@dataclass(frozen=True, slots=True, order=True)
-class StarterEntryIdentity:
-    """Semantic identity of one excluded Included default entry."""
-
-    slot: RuntimeContentSlot
-    runtime_id: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -58,10 +49,11 @@ class LoadoutDiagnostic:
 
 @dataclass(frozen=True, slots=True)
 class GestureBinding:
+    """One equipped AI-callable Gesture: a ``gesture:<semantic_key>`` row."""
+
     binding_id: str
     name: str
     semantic_key: str
-    origin: Literal["starter", "custom"]
     implementation_kind: Literal["anima_clip", "vrma"]
     source: CatalogLoadoutSource
     description: str | None = None
@@ -225,13 +217,12 @@ class AppearanceBinding:
 
 @dataclass(frozen=True, slots=True)
 class AnimaLoadout:
-    """Effective typed equipment, including source-controlled defaults."""
+    """Typed equipment; Gestures, Reactions and Idle members are exactly the stored rows."""
 
     anima_id: str
     revision: int
     starter_version: int
     gestures: tuple[GestureBinding, ...]
-    disabled_starter_gestures: tuple[str, ...]
     reactions: tuple[ReactionCell, ...]
     idle: IdlePool
     avatar_source: CatalogLoadoutSource | None = None
@@ -243,7 +234,7 @@ class AnimaLoadout:
 
 @dataclass(frozen=True, slots=True)
 class LoadoutPlan:
-    action: Literal["add", "update", "replace", "remove", "revert", "leave_empty", "unchanged"]
+    action: Literal["add", "update", "replace", "remove", "revert", "unchanged"]
     digest: str
     final_gesture_count: int
     current_name: str | None = None
@@ -290,7 +281,6 @@ __all__ = [
     "ReactionCell",
     "ReactionIntensity",
     "ReactionMember",
-    "StarterEntryIdentity",
     "cell_key",
     "idle_cell_key",
     "idle_slot_key",
