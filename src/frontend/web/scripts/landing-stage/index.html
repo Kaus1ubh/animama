@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- Title, description, sharing tags, icons and structured data, from
+         `stops.ts` (`landing-stage-content.mjs`). -->
+    <!--landing:head-->
+    <!-- Before first paint, with no inline code (the site's CSP allows none):
+         the visitor's saved theme, and the canvas and page text hidden until
+         the stage takes over. Without JavaScript the page text shows. -->
+    <script src="/theme.js"></script>
+    <link rel="stylesheet" href="/boot.css" />
+    <noscript><link rel="stylesheet" href="/noscript.css" /></noscript>
+  </head>
+  <body>
+    <!--
+      The fixed stage: backdrop, ambient particles and Scene underlay band
+      (z 0), the hero's text (z 5), the Avatar canvas (z 10) and Scene overlay
+      band (z 20). The overlay holds the header, captions, demos and the scroll
+      sections; until it mounts it holds the page's text for search engines,
+      link previews and readers without JavaScript.
+    -->
+    <div class="stage">
+      <div class="backdrop" id="backdrop" aria-hidden="true"></div>
+      <canvas class="ambient" id="ambient" aria-hidden="true"></canvas>
+      <div class="bands" id="bands" aria-hidden="true"></div>
+      <div class="hero-layer" id="hero-layer"></div>
+      <canvas id="canvas" aria-hidden="true"></canvas>
+    </div>
+    <div id="overlay"><!--landing:content--></div>
+    <canvas class="cursor-trail" id="trail" aria-hidden="true"></canvas>
+    <pre class="hud" id="hud" hidden></pre>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

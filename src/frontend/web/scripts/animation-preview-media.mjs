@@ -104,6 +104,12 @@ export class PreviewMediaFiles {
     return `${MEDIA_ROUTE}${token}/${encoded}${version ? `?v=${version}` : ""}`;
   }
 
+  /** Each registered folder, by URL token, with the files offered from it. */
+  *registered() {
+    for (const [token, { folder, files }] of this.#folders)
+      yield { token, folder, files: [...files.keys()] };
+  }
+
   /**
    * The registered file a request path names (after `MEDIA_ROUTE`, without
    * the query), or null.
