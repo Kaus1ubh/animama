@@ -1,9 +1,9 @@
 # Avatar portraits that match the chat canvas
 
-Status: Proposal
-Owner decision: 2026-10-22 task direction — 512 px portraits in the chat
-canvas's enhanced look, and capture wired into Create Anima. The remaining
-choices below are pending owner review.
+Status: Agreed
+Owner decision: 2026-10-22 — 512 px portraits in the chat canvas's enhanced
+look and capture wired into Create Anima; spec and plan accepted the same day
+with the proposed answers to Q1–Q7.
 
 ## Problem and intended users
 
@@ -120,7 +120,7 @@ Non-goals:
   over the Included stem match. Included Animas are unchanged.
 - **R10 Library.** The Library Avatar row shows the Local portrait (already the
   case once one exists, through `preview_url`).
-- **R11 Appearance lists (proposal, Q5).** Generated portraits do not appear
+- **R11 Appearance lists (Q5).** Generated portraits do not appear
   among the Local images offered for an Anima's Profile or Background.
 - **R12 Sharing.** Export and import keep carrying an Avatar's exact portrait,
   as today.
@@ -192,35 +192,35 @@ work regenerates the Included portraits. Later the same day the owner decided
 Andrew is replaced by a new VRoid export shipped through the starter VRM plan;
 Andrew's portrait is not regenerated from the current model (R13).
 
-Pending:
+Decided 2026-10-22 (owner accepted each proposal):
 
 - **Q1 WebP encoder effort.** The shared encoder uses `method=6` with lossless
   alpha: about 2.5 s for a 512² portrait inside the save. `method=5` takes about
-  0.02 s for files under 2% larger. Proposal: use `method=5` for all Appearance
+  0.02 s for files under 2% larger. Decision: use `method=5` for all Appearance
   image encodes.
 - **Q2 Enhanced regardless of setting.** The capture uses the live stage
   Avatar, whose materials were chosen by the enhanced-rendering setting when it
-  loaded. Proposal: follow the setting (on by default), so the portrait matches
+  loaded. Decision: follow the setting (on by default), so the portrait matches
   what the owner sees in chat. Always forcing the enhanced look would need a
   second, offscreen Avatar load for owners with the setting off.
-- **Q3 Embedded VRM thumbnail fallback.** Proposal: no. Capture finishes about
+- **Q3 Embedded VRM thumbnail fallback.** Decision: no. Capture finishes about
   a second after the stage is ready, many VRMs carry no or unrelated
   thumbnails, and their look would differ from every other portrait.
 - **Q4 Safari and hosted web.** Half-float render targets need a float colour
   buffer extension, and Safari's support for the 2D canvas `filter` property is
-  unverified. Proposal: apply the grade (brightness, contrast, saturation) in
+  unverified. Decision: apply the grade (brightness, contrast, saturation) in
   the output shader instead of a canvas filter, and fall back to an 8-bit scene
   target when float colour buffers are unavailable. Verify with Playwright
   WebKit where practical; real Safari remains an unperformed check.
-- **Q5 Appearance lists.** Proposal: hide generated portraits from the Local
+- **Q5 Appearance lists.** Decision: hide generated portraits from the Local
   images offered for Profile and Background, since the portrait is already the
   fallback and auto-generated items would otherwise accumulate there.
 - **Q6 Avatar deletion.** A deleted Local Avatar leaves its portrait behind.
-  Proposal: defer to a follow-up issue.
+  Decision: defer to a follow-up issue.
 - **Q7 Effect Library thumbnails.** The effect review renderer
   (`scripts/effect-render`) also calls `captureAvatarPortrait` for Library
   thumbnails, so new thumbnails would get the chat look while committed ones
-  keep the old one. Proposal: one capture pipeline for both; re-rendering the
+  keep the old one. Decision: one capture pipeline for both; re-rendering the
   committed effect thumbnails is a follow-up.
 
 ## Spec

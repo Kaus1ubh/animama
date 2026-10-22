@@ -1,10 +1,8 @@
 # Avatar portraits that match the chat canvas
 
-Source agreement: [avatar-portraits-spec.md](avatar-portraits-spec.md)
-(proposal, 2026-10-22), from the owner's 2026-10-22 task direction. Q1–Q7 in
-the spec are pending owner review.
-Authorized scope: none yet. Implementation starts after the owner accepts the
-spec and this plan.
+Source agreement: [avatar-portraits-spec.md](avatar-portraits-spec.md),
+accepted by the owner on 2026-10-22 with the proposed answers to Q1–Q7.
+Authorized scope: the whole plan (Phases 1–4), authorized 2026-10-22.
 
 ## Purpose and context
 
@@ -68,7 +66,7 @@ order.
 
 ## Progress
 
-- [ ] Owner review of spec and plan (Q1–Q7).
+- [x] Owner review of spec and plan (Q1–Q7): accepted 2026-10-22.
 - [ ] Phase 1: chat-look 1024 → 512 capture.
 - [ ] Phase 2: one portrait per Avatar in the API.
 - [ ] Phase 3: background capture in Create Anima.
@@ -99,7 +97,7 @@ order.
   is replaced by a new model shipped through the starter VRM plan; do not
   regenerate his portrait from the current `Andrew.vrm`. Annie's model is
   unchanged, so her portrait is regenerated here.
-- 2026-10-22, agent proposal (pending): Q1 `method=5`; Q2 follow the setting;
+- 2026-10-22, owner accepted the agent proposals: Q1 `method=5`; Q2 follow the setting;
   Q3 no embedded-thumbnail fallback; Q4 shader grade and 8-bit fallback; Q5
   hide generated portraits from Appearance lists; Q6 defer deletion; Q7 one
   pipeline for portraits and effect thumbnails.
