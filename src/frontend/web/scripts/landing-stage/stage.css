@@ -150,14 +150,14 @@ body {
     0 0 4px color-mix(in srgb, var(--background) 90%, transparent);
 }
 
-/* The hero's display face (loaded in index.html): bold title, medium line. */
+/* The hero's type, in the app's DM Sans: bold title, medium line. */
 .font-hero {
-  font-family: "Manrope Variable", var(--font-sans);
+  font-family: var(--font-sans);
   font-weight: 800;
   letter-spacing: -0.02em;
 }
 .font-hero-line {
-  font-family: "Manrope Variable", var(--font-sans);
+  font-family: var(--font-sans);
   font-weight: 500;
 }
 

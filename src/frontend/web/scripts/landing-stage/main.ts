@@ -1,6 +1,5 @@
 import "./zod-config";
 import "@fontsource-variable/dm-sans";
-import "@fontsource-variable/manrope";
 import "@fontsource/patrick-hand";
 // Before the Scene layers' own sheet (loaded with the stage), so Tailwind's
 // cascade layers keep their order (theme, base, components, utilities).
