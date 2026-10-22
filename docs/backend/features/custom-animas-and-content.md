@@ -266,7 +266,7 @@ concurrent owners' loadout writes never wait on a shared row; `lock_items` and
 reconciliation still lock the rows they name.
 
 Newly provisioned starters use Annie version 3 (`AvatarSample_A_1_New`, Eve Pocket
-voice, ElevenLabs `gJx1vCzNCD1EQHT212Ls`) and Andrew version 1 (`Andrew`, Michael
+voice, ElevenLabs `gJx1vCzNCD1EQHT212Ls`) and Andrew version 1 (`Andrew`, a university student; Michael
 Pocket voice, ElevenLabs `4e32WqNVWRquDa1OcRYZ`), with matching
 Included portraits when available.
 Their identities write out every section of the `IDENTITY.md` template.

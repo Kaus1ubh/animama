@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "review_date": "2026-09-15",
+  "review_date": "2026-10-22",
   "sources": [
     "https://vroid.pixiv.help/hc/en-us/articles/4402394424089-VRoidPreset-A-Z",
     "https://hub.vroid.com/en/characters/2843975675147313744/models/5644550979324015604",
@@ -12,27 +12,27 @@
   "files": [
     {
       "path": "content/included/avatars/AvatarSample_A_1_New.vrm",
-      "sha256": "1119bfc689979031151e54e519db45be0f31eb504ec38c71efb905944e2752ae",
+      "sha256": "15081670b379842b584062c541680472bbbe0a11a19d5aff4cb59a86f88e3fc9",
       "portrait_path": "content/included/appearances/avatar-portraits/app-avatar-model-avatarsample-a-1-new-v1.webp",
       "portrait_sha256": "586d9d61da956fd4aac3424d31cc4336f4ba2fb730d4431b6e1c5944d7360603",
       "embedded_vrm_meta": {
-        "name": "AvatarSample_A_1",
+        "name": "Annie",
+        "version": "1",
         "authors": [
-          "pixiv VRoid Project"
+          "Raymond Van"
         ],
-        "thumbnailImage": 24,
+        "copyrightInformation": "2026 Animama",
         "licenseUrl": "https://vrm.dev/licenses/1.0/",
         "avatarPermission": "everyone",
         "allowExcessivelyViolentUsage": false,
         "allowExcessivelySexualUsage": false,
-        "commercialUsage": "personalNonProfit",
+        "commercialUsage": "personalProfit",
         "allowPoliticalOrReligiousUsage": false,
         "allowAntisocialOrHateUsage": false,
-        "creditNotation": "required",
+        "creditNotation": "unnecessary",
         "allowRedistribution": true,
-        "modification": "prohibited",
-        "otherLicenseUrl": "https://vroid.pixiv.help/hc/en-us/articles/4402394424089-VRoidPreset-A-Z",
-        "thirdPartyLicenses": "pixiv VRoidPreset A-Z conditions apply. Not CC0. Do not redistribute the unmodified sample model or its data for a fee or use its data in a character-creation service. See otherLicenseUrl for the full conditions."
+        "modification": "allowModificationRedistribution",
+        "thumbnailImage": 24
       },
       "license": "LicenseRef-pixiv-VRoidPreset",
       "copyright": [
@@ -41,9 +41,9 @@
       "notice_paths": [
         "licenses/third-party/art-NOTICES.md"
       ],
-      "status": "owner-confirmed-metadata-corrected",
-      "condition": "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate.",
-      "owner_edit": "On 2026-10-16 Raymond had one texture recoloured: the grey hair-underside texture (material N00_000_Hair_00_HAIR_04) now follows the outer hair's brown-to-pink gradient. Geometry, every other texture and the embedded metadata above are unchanged; sha256 is of the recoloured file. The embedded \"modification\": \"prohibited\" is VRoid Studio's export default, left on at export; the VRoidPreset A-Z terms (otherLicenseUrl) permit edits, including selling edited samples."
+      "status": "owner-confirmed-owner-metadata",
+      "condition": "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate.",
+      "owner_edit": "On 2026-10-16 Raymond had one texture recoloured: the grey hair-underside texture (material N00_000_Hair_00_HAIR_04) now follows the outer hair's brown-to-pink gradient. On 2026-10-22 the file was re-encoded with `pnpm -s vrm:optimize` (docs/frontend/runtime/vrm-optimization.md): colour textures as WebP q90, normal and data textures as lossless WebP, morph targets as sparse accessors and the thumbnail as a 1024 px JPEG. Geometry, morph data, expressions, materials and spring bones are unchanged. The embedded metadata above is the owner's 2026-10-22 metadata; the earlier \"modification\": \"prohibited\" was VRoid Studio's export default."
     },
     {
       "path": "tests/fixtures/vrm/AvatarSample_Y_0.vrm",
@@ -70,25 +70,27 @@
     },
     {
       "path": "content/included/avatars/Andrew.vrm",
-      "sha256": "fdcb8f78967be017f8adaf4debe375790d37f66109c0b5e7a7b1e246c17b2bc9",
+      "sha256": "926f7f86eccd8dd60566ae6cbd208d5a151b555a9d6c0db34c8d653f66a64f63",
       "portrait_path": "content/included/appearances/avatar-portraits/app-avatar-model-andrew-v1.webp",
-      "portrait_sha256": "b07fc1871098c2dfb9aa149c20ac0d85c916990cce03092c634858263f396898",
+      "portrait_sha256": "be9eb95002c881bc1b3e85f1acb585e6925bf3a5356bd169e874ea2b90e1e11f",
       "embedded_vrm_meta": {
         "name": "Andrew",
+        "version": "1",
         "authors": [
           "Raymond Van"
         ],
-        "thumbnailImage": 23,
+        "copyrightInformation": "2026 Animama",
         "licenseUrl": "https://vrm.dev/licenses/1.0/",
-        "avatarPermission": "onlySeparatelyLicensedPerson",
+        "avatarPermission": "everyone",
         "allowExcessivelyViolentUsage": false,
         "allowExcessivelySexualUsage": false,
-        "commercialUsage": "corporation",
+        "commercialUsage": "personalProfit",
         "allowPoliticalOrReligiousUsage": false,
         "allowAntisocialOrHateUsage": false,
         "creditNotation": "unnecessary",
-        "allowRedistribution": false,
-        "modification": "prohibited"
+        "allowRedistribution": true,
+        "modification": "allowModificationRedistribution",
+        "thumbnailImage": 24
       },
       "license": "LicenseRef-pixiv-VRoidPreset",
       "copyright": [
@@ -98,9 +100,9 @@
       "notice_paths": [
         "licenses/third-party/art-NOTICES.md"
       ],
-      "status": "owner-authored-edit",
-      "condition": "Raymond authored this edit of a VRoid A-Z preset and approved its inclusion as the Andrew starter's model on 2026-10-19. The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate.",
-      "owner_edit": "On 2026-10-19 Raymond confirmed this Andrew model is a VRoid Studio A-Z preset whose hair he replaced; the base preset is not identified. He set its embedded VRM metadata (name Andrew, commercial use corporation, redistribution disallowed, modification prohibited, avatar use only by separately licensed persons); geometry, textures, expressions and spring bones are as he exported them."
+      "status": "owner-authored",
+      "condition": "Raymond authored this VRoid Studio model and approved it as the Andrew starter's model on 2026-10-22, replacing his 2026-10-19 edit. pixiv's VRoid terms govern any VRoid Studio preset or built-in components it uses, including the VRoidPreset A-Z conditions for preset data. Final candidate and binary publication approval remain separate.",
+      "owner_edit": "On 2026-10-22 Raymond exported this revised Andrew (new outfit with a tie, new hair, different proportions) from VRoid Studio 2.14.0 with the owner-authored embedded metadata above; the export's sha256 is c06314f155dcd51e144cb19d1a4474b6523893a41f47275b0a01e1d02d2a01e9. On 2026-10-22 the file was re-encoded with `pnpm -s vrm:optimize` (docs/frontend/runtime/vrm-optimization.md): colour textures as WebP q90, normal and data textures as lossless WebP, morph targets as sparse accessors and the thumbnail as a 1024 px JPEG. Geometry, morph data, expressions, materials and spring bones are unchanged. Its portrait was captured with the renderer-1, preset-2 portrait generator and downscaled to 256 px by the backend portrait canonicalizer."
     }
   ],
   "feature_review": {
@@ -117,7 +119,7 @@
   "conflict_analysis": {
     "primary_hub_model": "AvatarSample_A Hub page allows redistribution/alterations and says Format VRM 0.0. Checked-in Annie uses VRMC_vrm 1.0 metadata. No exact-byte identity to that Hub download established.",
     "license_relationship": "VRM Public License 1.0 incorporates file settings in section 1(8)/2(a)(1). Separate grants may exist under section 5(3)/6(2); general preset guidance is not evidence that these exact export settings are merely stale.",
-    "owner_evidence": "Existing owner identification/creation attestations preserved. Annie's embedded authors array contains only pixiv VRoid Project, and its meta object has no additionalLicenseUrl. This is an unresolved export-history discrepancy, not a rejection of the owner statement.",
+    "owner_evidence": "Existing owner identification/creation attestations preserved. Before 2026-10-22, Annie's embedded authors array contained only pixiv VRoid Project and its meta object had no additionalLicenseUrl; that export-history discrepancy did not reject the owner statement. On 2026-10-22 the owner replaced Annie's embedded metadata with owner-authored values (see owner_confirmation.starter_metadata_and_andrew_revision); the pixiv preset conditions still govern her components.",
     "next_step": "Use corrected current model hashes and preserve model-specific license conditions. Rebuild final release evidence after subsequent refinement; previous source candidate remains historical.",
     "historical_status": "Earlier export-metadata conflict resolved for preparation by explicit owner identification/authorization and primary preset terms on 2026-09-15."
   },
@@ -135,6 +137,11 @@
       "date": "2026-10-19",
       "models": "Raymond approved Andrew, his hair edit of a VRoid A-Z preset, as the new male starter model replacing Caitlyn, and set its embedded metadata.",
       "scope": "Inclusion of the exact recorded model and renderer portrait. Not approval to publish."
+    },
+    "starter_metadata_and_andrew_revision": {
+      "date": "2026-10-22",
+      "models": "Raymond replaced Annie's embedded VRM metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required) and adopted his revised Andrew VRoid Studio export (sha256 c06314f155dcd51e144cb19d1a4474b6523893a41f47275b0a01e1d02d2a01e9, the same metadata) as the starter model, replacing the 2026-10-19 Andrew. Both shipped files are those models re-encoded with pnpm -s vrm:optimize; Andrew has a new renderer portrait.",
+      "scope": "Inclusion of the exact recorded models and portraits, superseding the 2026-09-15 instruction to retain other license settings for Annie. Not a CC0/AGPL relicense of pixiv components or approval to publish."
     }
   }
 }

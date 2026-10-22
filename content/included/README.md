@@ -48,15 +48,21 @@ still needs the applicable terms and notices reviewed before public redistributi
 
 On 2026-09-02 the owner confirmed Annie's model is a VRoid free preset with no
 external assets. On 2026-10-16 its grey hair-underside texture was recoloured to
-match the outer hair; nothing else in the model changed. Its official pixiv preset terms are linked
-in the inventory. Those terms are not CC0; review the planned product use,
-including the restrictions on paid redistribution and character-creation
-services. Do not edit embedded permission flags to manufacture clearance.
-Andrew's starter uses `Andrew.vrm`, the owner's edit of a VRoid A–Z preset
-(new hair; base preset not identified). Its embedded VRM 1.0 metadata, which the owner
-set as author on 2026-10-19, names the owner as author, allows corporate commercial use and disallows redistribution
-and modification; the preset terms still apply to its pixiv components. It
-replaced Caitlyn's `AvatarSample_Y_0` on 2026-10-19, which now survives only as
+match the outer hair. Its official pixiv preset terms are linked in the
+inventory. Those terms are not CC0; review the planned product use, including
+the restrictions on paid redistribution and character-creation services.
+Andrew's starter uses `Andrew.vrm`, the owner's own VRoid Studio model, revised
+on 2026-10-22 (new outfit, hair and proportions). On 2026-10-22 the owner set
+both models' embedded VRM 1.0 metadata: the owner is author, everyone may use
+them, personal commercial use is allowed, and so are redistribution and
+modification. pixiv's VRoid terms still apply to their VRoid components.
+
+Both files are produced with `pnpm -s vrm:optimize` (see
+[VRM optimization](../../docs/frontend/runtime/vrm-optimization.md)), which
+re-encodes textures as WebP and stores morph targets sparsely without changing
+geometry, expressions or names. The owner metadata it applies is in
+`src/frontend/web/scripts/vrm-optimize/included-meta/`. Andrew replaced Caitlyn's
+`AvatarSample_Y_0` on 2026-10-19, which now survives only as
 the test-only VRM 0 fixture `tests/fixtures/vrm/AvatarSample_Y_0.vrm`. R2's
 earlier owner-created attribution remains withdrawn. Existing starter receipts
 preserve their previous content and edits.

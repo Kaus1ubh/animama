@@ -189,6 +189,7 @@ def validate_vrm_stream(
             maximum_nodes=MAX_VRM_NODES,
             maximum_views=MAX_VRM_BUFFER_VIEWS,
             maximum_accessors=MAX_VRM_ACCESSORS,
+            allow_sparse=True,
         )
         vrm_spec = _validate_vrm_humanoid(document, len(facts["nodes"]))
     except ContentFileInvalidError as exc:
@@ -514,8 +515,14 @@ def _validate_gltf_structure(
     maximum_nodes: int,
     maximum_views: int,
     maximum_accessors: int,
+    allow_sparse: bool = False,
 ) -> dict[str, Any]:
-    """Validate shared glTF graph and binary ranges used by VRM and VRMA."""
+    """Validate shared glTF graph and binary ranges used by VRM and VRMA.
+
+    ``allow_sparse`` admits bounded sparse and zero-filled accessors (VRM morph
+    targets); VRMA animation data stays dense because its samplers are read
+    directly.
+    """
 
     _require_finite_json(document)
     asset = document.get("asset")
@@ -526,7 +533,7 @@ def _validate_gltf_structure(
     accessors = _bounded_array(document, "accessors", maximum_accessors)
     _validate_nodes(nodes)
     view_ranges = _validate_buffer_views(views, len(binary))
-    accessor_layouts = _validate_accessors(accessors, views, view_ranges)
+    accessor_layouts = _validate_accessors(accessors, views, view_ranges, binary, allow_sparse=allow_sparse)
     _validate_images(document.get("images", []), len(views))
     _validate_gltf_references(document, nodes, accessors)
     return {
@@ -580,6 +587,13 @@ def _validate_gltf_references(
         if not isinstance(texture, dict):
             raise ContentFileInvalidError(field="file", reason="vrma_invalid_structure")
         if "source" in texture and _nonnegative_int(texture["source"]) >= len(images):
+            raise ContentFileInvalidError(field="file", reason="vrma_invalid_structure")
+        webp = (
+            texture.get("extensions", {}).get("EXT_texture_webp")
+            if isinstance(texture.get("extensions"), dict)
+            else None
+        )
+        if webp is not None and (not isinstance(webp, dict) or _nonnegative_int(webp.get("source")) >= len(images)):
             raise ContentFileInvalidError(field="file", reason="vrma_invalid_structure")
         if "sampler" in texture and _nonnegative_int(texture["sampler"]) >= len(samplers):
             raise ContentFileInvalidError(field="file", reason="vrma_invalid_structure")
@@ -723,14 +737,24 @@ def _validate_accessors(
     accessors: list[Any],
     views: list[Any],
     view_ranges: list[tuple[int, int]],
-) -> list[tuple[int, int, int, str, int]]:
-    layouts: list[tuple[int, int, int, str, int]] = []
+    binary: bytes,
+    *,
+    allow_sparse: bool,
+) -> list[tuple[int, int, int, str, int] | None]:
+    """Bound every accessor's data to its buffer view.
+
+    With ``allow_sparse``, an accessor may omit its buffer view: it reads as
+    zeros, overridden by its ``sparse`` values when present. Loaders allocate
+    every sparse or zero-filled accessor as a full array, and sparse views may
+    be shared, so their combined expanded size shares the binary chunk limit.
+    Checking it before scanning sparse indices also bounds that scan.
+    Returns each accessor's dense layout, or ``None`` for a zero-based one.
+    """
+    layouts: list[tuple[int, int, int, str, int] | None] = []
+    expanded_bytes = 0
     for accessor in accessors:
-        if not isinstance(accessor, dict) or "sparse" in accessor:
+        if not isinstance(accessor, dict) or ("sparse" in accessor and not allow_sparse):
             raise ContentFileInvalidError(field="file", reason="vrma_invalid_structure")
-        view_index = _nonnegative_int(accessor.get("bufferView"))
-        if view_index >= len(views):
-            raise ContentFileInvalidError(field="file", reason="vrma_binary_range")
         component_type = _nonnegative_int(accessor.get("componentType"))
         component = _COMPONENT_FORMAT.get(component_type)
         type_name = accessor.get("type")
@@ -740,14 +764,23 @@ def _validate_accessors(
             raise ContentFileInvalidError(field="file", reason="vrma_invalid_structure")
         component_format, component_size = component
         element_size = component_size * components
+        if allow_sparse and ("sparse" in accessor or "bufferView" not in accessor):
+            expanded_bytes += count * element_size
+            if expanded_bytes > MAX_VRM_BINARY_BYTES:
+                raise ContentFileInvalidError(field="file", reason="vrma_structure_limit")
+        if "sparse" in accessor:
+            _validate_sparse(accessor["sparse"], count, element_size, component_size, views, view_ranges, binary)
+        if allow_sparse and "bufferView" not in accessor:
+            layouts.append(None)
+            continue
+        view_index = _nonnegative_int(accessor.get("bufferView"))
+        if view_index >= len(views):
+            raise ContentFileInvalidError(field="file", reason="vrma_binary_range")
         view = views[view_index]
         stride = _positive_int(view.get("byteStride", element_size))
         if stride < element_size:
             raise ContentFileInvalidError(field="file", reason="vrma_binary_range")
-        accessor_offset = _nonnegative_int(accessor.get("byteOffset", 0))
-        start = view_ranges[view_index][0] + accessor_offset
-        if start % component_size:
-            raise ContentFileInvalidError(field="file", reason="vrma_binary_range")
+        start = _view_offset(view_ranges[view_index], accessor.get("byteOffset", 0), component_size)
         end = start + element_size + (count - 1) * stride
         if end > view_ranges[view_index][1]:
             raise ContentFileInvalidError(field="file", reason="vrma_binary_range")
@@ -755,11 +788,72 @@ def _validate_accessors(
     return layouts
 
 
+_SPARSE_INDEX_FORMAT = {5121: ("B", 1), 5123: ("H", 2), 5125: ("I", 4)}
+
+
+def _view_offset(view_range: tuple[int, int], byte_offset: object, alignment: int) -> int:
+    """Absolute start of data at ``byte_offset`` inside a view, aligned for its components."""
+    start = view_range[0] + _nonnegative_int(byte_offset)
+    if start % alignment:
+        raise ContentFileInvalidError(field="file", reason="vrma_binary_range")
+    return start
+
+
+def _sparse_view(
+    reference: object,
+    views: list[Any],
+    view_ranges: list[tuple[int, int]],
+    length: int,
+    alignment: int,
+) -> int:
+    """Start of a tightly packed sparse indices or values block of ``length`` bytes."""
+    if not isinstance(reference, dict):
+        raise ContentFileInvalidError(field="file", reason="vrma_invalid_structure")
+    view_index = _nonnegative_int(reference.get("bufferView"))
+    if view_index >= len(views):
+        raise ContentFileInvalidError(field="file", reason="vrma_binary_range")
+    if "byteStride" in views[view_index]:
+        raise ContentFileInvalidError(field="file", reason="vrma_invalid_structure")
+    start = _view_offset(view_ranges[view_index], reference.get("byteOffset", 0), alignment)
+    if start + length > view_ranges[view_index][1]:
+        raise ContentFileInvalidError(field="file", reason="vrma_binary_range")
+    return start
+
+
+def _validate_sparse(
+    sparse: object,
+    count: int,
+    element_size: int,
+    component_size: int,
+    views: list[Any],
+    view_ranges: list[tuple[int, int]],
+    binary: bytes,
+) -> None:
+    """Check a sparse substitution: bounded count, in-range ranges, strictly increasing indices."""
+    if not isinstance(sparse, dict):
+        raise ContentFileInvalidError(field="file", reason="vrma_invalid_structure")
+    sparse_count = _positive_int(sparse.get("count"))
+    indices = sparse.get("indices")
+    if sparse_count > count or not isinstance(indices, dict):
+        raise ContentFileInvalidError(field="file", reason="vrma_invalid_structure")
+    index_format = _SPARSE_INDEX_FORMAT.get(_nonnegative_int(indices.get("componentType")))
+    if index_format is None:
+        raise ContentFileInvalidError(field="file", reason="vrma_invalid_structure")
+    index_code, index_size = index_format
+    index_start = _sparse_view(indices, views, view_ranges, sparse_count * index_size, index_size)
+    _sparse_view(sparse.get("values"), views, view_ranges, sparse_count * element_size, component_size)
+    previous = -1
+    for (index,) in struct.iter_unpack(f"<{index_code}", binary[index_start : index_start + sparse_count * index_size]):
+        if index <= previous or index >= count:
+            raise ContentFileInvalidError(field="file", reason="vrma_invalid_structure")
+        previous = index
+
+
 def _validate_animation(
     animation: Any,
     nodes: list[Any],
     accessors: list[Any],
-    layouts: list[tuple[int, int, int, str, int]],
+    layouts: list[tuple[int, int, int, str, int] | None],
     binary: bytes,
 ) -> tuple[int, int, float]:
     if not isinstance(animation, dict):
@@ -800,14 +894,18 @@ def _validate_animation(
         base_output_count = input_count * (3 if interpolation == "CUBICSPLINE" else 1)
         if output_count < base_output_count or output_count % base_output_count:
             raise ContentFileInvalidError(field="file", reason="vrma_invalid_structure")
-        times = _read_accessor_values(layouts[input_index], binary)
+        input_layout = layouts[input_index]
+        output_layout = layouts[output_index]
+        if input_layout is None or output_layout is None:
+            raise ContentFileInvalidError(field="file", reason="vrma_invalid_structure")
+        times = _read_accessor_values(input_layout, binary)
         if (
             not times
             or any(value < 0 for value in times)
             or any(current <= previous for previous, current in zip(times, times[1:], strict=False))
         ):
             raise ContentFileInvalidError(field="file", reason="vrma_invalid_structure")
-        _require_finite_accessor(layouts[output_index], binary)
+        _require_finite_accessor(output_layout, binary)
         duration = float(times[-1])
         if duration > MAX_VRMA_DURATION_SECONDS:
             raise ContentFileInvalidError(field="file", reason="vrma_structure_limit")

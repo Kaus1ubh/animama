@@ -1,0 +1,16 @@
+{
+  "name": "Andrew",
+  "version": "1",
+  "authors": ["Raymond Van"],
+  "copyrightInformation": "2026 Animama",
+  "licenseUrl": "https://vrm.dev/licenses/1.0/",
+  "avatarPermission": "everyone",
+  "allowExcessivelyViolentUsage": false,
+  "allowExcessivelySexualUsage": false,
+  "commercialUsage": "personalProfit",
+  "allowPoliticalOrReligiousUsage": false,
+  "allowAntisocialOrHateUsage": false,
+  "creditNotation": "unnecessary",
+  "allowRedistribution": true,
+  "modification": "allowModificationRedistribution"
+}

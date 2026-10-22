@@ -464,7 +464,8 @@ describe("hand shapes on the Included Avatars and the VRM 0 fixture", () => {
    * range (−50°) and its tip bends back 25°. No Included Gesture uses it.
    * Other fitted thumbs change only where they were past the anatomical limit,
    * which these Relaxed Rest metacarpals never are. Andrew's digests were
-   * recorded from the current implementation when he became Included.
+   * recorded from the current implementation when he became Included, and
+   * re-recorded for his 2026-10-22 model, whose hands are smaller.
    */
   const ORIGINAL_PRESET_DIGESTS: Record<AvatarLabel, Record<string, string>> = {
     none: {
@@ -495,13 +496,13 @@ describe("hand shapes on the Included Avatars and the VRM 0 fixture", () => {
       "thumbs-up": "feb9dcb6aaebe6a2",
     },
     Andrew: {
-      fist: "388b34194ac402e2",
-      "open-spread": "63c05c81d9c40dea",
-      "open-together": "67e5d84a3daca245",
+      fist: "d43139ecd608f3e7",
+      "open-spread": "06b350735db69962",
+      "open-together": "0c793decc4b5eab1",
       relaxed: "6407426a36961be2",
-      point: "c88ae2c7096bc45e",
-      peace: "8d9a453209f45625",
-      "thumbs-up": "d8c5b5dbaa224501",
+      point: "4c80775bbac49380",
+      peace: "9cd8dfb86ab5f64a",
+      "thumbs-up": "06fdd8a453e5ea21",
     },
   };
   const ORIGINAL_PRESETS = Object.keys(ORIGINAL_PRESET_DIGESTS.none);
