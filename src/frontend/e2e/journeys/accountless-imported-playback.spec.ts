@@ -22,6 +22,7 @@ import {
   installAudioObservation,
   playbackFamilies,
   playbackInventory,
+  readPreviewClip,
   proveAudioPlayback,
   proveLibraryParticleReplay,
   proveParticleCreatorPlayback,
@@ -102,28 +103,6 @@ async function readyTarget(surface: Locator) {
     )
     .toBe(true);
   return (await readPlaybackObservation(surface)).target;
-}
-
-/**
- * Read the selected clip document the preview prepared for playback. Preview
- * files also list dependencies first, so match the item's own file reference.
- */
-async function readPreviewClip(page: Page, preview: PyTypedContentPreview) {
-  const role =
-    "implementation" in preview.item
-      ? preview.item.implementation.file_role
-      : null;
-  const fileRef = preview.item.files?.find(
-    (entry) => entry.role === role,
-  )?.file_ref;
-  const file = preview.files.find((entry) => entry.file_ref === fileRef);
-  expect(
-    file,
-    `preview of ${preview.item.item_id} must carry its clip`,
-  ).toBeDefined();
-  const response = await page.request.get(file!.url);
-  expect(response.ok(), await response.text()).toBe(true);
-  return (await response.json()) as unknown;
 }
 
 /** Scene observations expose first-play occurrence ownership; other effects expose aliases. */

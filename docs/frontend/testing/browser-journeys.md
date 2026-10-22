@@ -97,8 +97,7 @@ access to
 review and recovery controls, and `animaPoseClip/2.0` creator round trips (a
 generated Gesture retimed, posed, saved and reopened with its detail; 1.0
 Gestures and Reactions saved as 2.0).
-Older creator journeys remain unselected until individually reviewed; listing
-them is not passing evidence. The separate `pseudo` project runs only through
+The separate `pseudo` project runs only through
 `pnpm e2e:test:pseudo`; see [Pseudo-locale smoke](#pseudo-locale-smoke).
 The separate `local:verify:accountless` API journey covers bootstrap, settings,
 starter/custom Animas, private uploads, typed bytes, chat receipts and persistence.
@@ -208,13 +207,9 @@ pose time, resolved skeleton bones, the `idea-bulb` event and its
 `idea_bulb_fingertip` Avatar Effect image, plus protected resource responses.
 The bulb event starts 2.6 s into the clip, so the check waits past it.
 Screenshot and observation attachments retain the rendering evidence; the known
-single unresolved sample-avatar bone is allowed. `playback-library.spec.ts` is
-outside the active `chromium` project and is only type-checked: its
-`library-gesture-have-an-idea` repeats the Gesture Avatar Effect proof, and
-`library-reaction-curiosity-4` would check Scene Effect playback on Curiosity
-Reaction 4, because no Included Gesture plays a Scene Effect. Active Scene
-Effect coverage comes from the imported Gesture and Reaction in
-`accountless-imported-playback.spec.ts`. The focused pose test permits only
+single unresolved sample-avatar bone is allowed. No Included Gesture plays a
+Scene Effect; active Scene Effect coverage comes from the imported Gesture and
+Reaction in `accountless-imported-playback.spec.ts`. The focused pose test permits only
 reads and gesture-preview preparation requests; it does not select an Anima
 through saved settings, chat, upload or play audio. Optional Local Mixamo VRMA
 playback and imported animation acceptance remain separate. Run this focused check on an already initialized
@@ -226,6 +221,13 @@ pnpm e2e:test -- --project chromium --no-deps --grep "accountless built-in pose 
 
 This focused pose check is not part of the generated structural-avatar fixture's
 acceptance claim; it requires the real tracked avatar and built-in pose content.
+
+The Library Reaction journey previews Included Admiration Reaction 4 in the
+bottom-right dock. It checks the clip's events and its Avatar, Particle and Scene
+Effects, and that each expression track the clip authors at 0.4 or more reaches
+0.4. Included Reactions key VRoid face parts (`Fcl_*`) rather than whole-face
+presets, so the thresholds come from the previewed clip, not from a fixed list.
+It asserts that no catalog or loadout writes occur.
 
 The active `pose content` group covers standalone Included/Local Poses: Library
 discovery, real-Avatar static preview, customization, editing, failed-save retry,
