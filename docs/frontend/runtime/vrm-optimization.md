@@ -77,6 +77,26 @@ The default command checks its own output before writing it:
 Also run the backend validator (`validate_vrm_stream`) on the result before
 shipping it. It accepts sparse and all-zero morph targets only within its bounds.
 
+## Regenerating the Included Avatars
+
+Each shipped file is its source run through the default command with its
+owner metadata from `src/frontend/web/scripts/vrm-optimize/included-meta/`:
+
+- **`AvatarSample_A_1_New.vrm` (Annie):** the source is the file at commit
+  `0a9b3549`.
+- **`Andrew.vrm`:** the source is the owner's export, committed unoptimized in
+  `faa29944`.
+
+Check out the source with Git LFS, then run, for example:
+
+```bash
+pnpm -s vrm:optimize <source.vrm> --out ../../../content/included/avatars/Andrew.vrm \
+  --meta scripts/vrm-optimize/included-meta/Andrew.json
+```
+
+The tool is deterministic, so unchanged sources and dependencies reproduce
+the shipped bytes.
+
 Replacing an Included Avatar changes its SHA-256. Update the records keyed by it:
 - the verified eyelid profiles in `eyelidClosure.ts`;
 - `licenses/third-party/art-vroid-review.json`;

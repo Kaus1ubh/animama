@@ -15,7 +15,8 @@ merge stay with the owner.
 Workspace: Git worktree `worktrees/animama/vrm-avatar-optimization-957dce`,
 branch `perf/starter-vrm-optimization`, based on `origin/main` at `4354978f`.
 Parent issue #656. No phase issues are needed: one repository and one assignee.
-No Compose stack is running yet; G1 starts one.
+Task stack for the e2e run and G1: Compose project `animama-svo`, built mode,
+`http://animama-svo.localhost:8900` (`./reset.sh --name svo --base-port 8900`).
 
 ## Purpose and context
 
@@ -124,11 +125,12 @@ decoder. User uploads are out of scope.
 ## Progress
 
 - [x] Gate G0: owner accepted the spec and plan with O2–O4 (2026-10-22).
-- [ ] Phase 1: validator accepts bounded sparse accessors.
-- [ ] Phase 2: checked-in optimizer and verifier tool.
-- [ ] Phase 3: regenerated starter files with metadata and licence records.
-- [ ] Phase 4: the new Andrew verified (portrait, motion checks recorded,
-  re-measured tests).
+- [x] Phase 1: validator accepts bounded sparse accessors (`01b6ca19`).
+- [x] Phase 2: checked-in optimizer and verifier tool (`942310d6`).
+- [x] Phase 3: regenerated starter files with metadata and licence records
+  (`faa29944` source export, `e7b5c7fd`).
+- [x] Phase 4: the new Andrew verified (portrait, motion checks recorded,
+  re-measured tests) (`e7b5c7fd`).
 - [ ] Gate G1: owner visual check in the running app.
 - [ ] Final integration review, full pre-push suite, full `pnpm e2e:test`.
 
@@ -273,7 +275,7 @@ Check record (2026-10-22). Backend checks use `uv run --no-sync` from the root.
 - The full pre-push suite runs once on the combined Phase 1–4 tree; see Final
   integration review.
 
-Commits: _to be filled._
+Commits: `01b6ca19 perf(content)[p1]: validate bounded sparse accessors in VRM files`.
 
 #### Code Review #1 Findings
 
@@ -403,7 +405,7 @@ Check record (2026-10-22). Frontend commands run from `src/frontend/web`.
 - **Determinism:** rerunning on Andrew's source gives the identical SHA-256
   (`926f7f86…`).
 
-Commits: _to be filled._
+Commits: `942310d6 perf(avatars)[p2]: add a VRM optimizer that keeps every expression`.
 
 #### Code Review #1 Findings
 
@@ -524,7 +526,8 @@ Steps:
      hash.
    - `content/included/README.md` describes the files and the tool.
 5. **O2:** document in the face-part documentation that corrections saved
-   against an earlier Included revision must be saved again.
+   against an earlier Included revision must be saved again. Done in
+   `docs/frontend/runtime/avatar-vfx.md` during the final integration repairs.
 6. **Tests:** run the licence, Included-content and starter tests:
 
    ```bash
@@ -573,7 +576,15 @@ Check record (2026-10-22):
   - `pytest -q tests/test_content_package_*.py scripts/package-sets/test_hosted_application.py`:
     343 passed.
 
-Commits: _to be filled._
+Commits:
+- `faa29944 chore(avatars)[p3]: record the owner's revised Andrew export`, the R5
+  source commit; it leaves the records describing the old model until the next
+  commit.
+- `e7b5c7fd perf(avatars)[p3-p4]: ship optimized starter Avatars and the revised
+  Andrew`.
+
+The `tests/test_content_gltf.py` Included-Avatar tests were held back from the
+Phase 1 commit because they need the optimized files.
 
 #### Code Review #1 Findings
 
@@ -748,7 +759,8 @@ Check record (2026-10-22):
   (hair 43, cloth 42), no unmapped joints or warnings. Annie 34 (hair 24,
   cloth 6, chest 4).
 
-Commits: _to be filled._
+Commits: `e7b5c7fd`, combined with Phase 3, because the new Andrew file and his
+re-measured expectations must change together to keep the tests green.
 
 #### Code Review #1 Findings
 
@@ -802,6 +814,42 @@ cd src/frontend && python3 ../../scripts/heavy-slot.py -- pnpm e2e:test
 
 The full `e2e:test` is required because starter Anima content changes. Results go
 in the PR.
+
+
+### Final integration review findings
+
+Reviewed: committed HEAD `e7b5c7fd` on baseline `4354978f`. Result: **pass**,
+no blocking findings. The review ran no checks, per policy. It confirmed:
+- the validator accepts exactly the optimizer's sparse and zero-filled layout;
+- the shipped bytes, embedded meta and records agree;
+- digests appear only where expected;
+- loaders handle WebP;
+- no boundary changes and no leftovers.
+
+Non-blocking:
+- **N1:** plan records were stale (progress, commits, stack).
+- **N2:** the O2 documentation step had no outcome.
+- **N3:** regeneration steps lived only in the plan.
+- **N4:** `COLOUR_WEBP`, `DATA_WEBP` and `assertSupported` were exported but
+  unused.
+- **N5:** the O4, R5 and R7-wording deviations need disclosing to the owner in
+  the PR.
+- **N6:** `faa29944` is inconsistent by design.
+
+### Final integration revisions
+
+- **N1:** records updated.
+- **N2:** `avatar-vfx.md` now says the owner saves a correction again after an
+  Included revision changes, for example a re-encode.
+- **N3:** `vrm-optimization.md` gains "Regenerating the Included Avatars" with
+  the source commits and the command.
+- **N4:** the three are module-private.
+- **N5:** to be disclosed in the PR.
+- **N6:** no action.
+
+These are trivial repairs (wording and export removal). Verification:
+`node --test scripts/vrm-optimize.test.mjs` 8 passed; prettier and eslint clean
+on `optimize.mjs`.
 
 ## Validation and acceptance
 

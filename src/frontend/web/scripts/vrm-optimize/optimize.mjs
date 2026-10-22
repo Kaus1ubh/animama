@@ -18,8 +18,8 @@ import {
  * node, mesh and primitive positions.
  */
 
-export const COLOUR_WEBP = { quality: 90, alphaQuality: 100, effort: 6 };
-export const DATA_WEBP = { lossless: true, effort: 6 };
+const COLOUR_WEBP = { quality: 90, alphaQuality: 100, effort: 6 };
+const DATA_WEBP = { lossless: true, effort: 6 };
 export const THUMBNAIL_MAX = 1024;
 const THUMBNAIL_JPEG = { quality: 85, mozjpeg: true };
 
@@ -75,7 +75,7 @@ export function imageRoles(json) {
 }
 
 /** Throw unless the file is a VRM 1.0 GLB whose extensions this tool preserves. */
-export function assertSupported(json) {
+function assertSupported(json) {
   if (!json.extensions?.VRMC_vrm) {
     throw new Error(
       "Only VRM 1.0 files are supported (no VRMC_vrm extension).",
