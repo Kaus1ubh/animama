@@ -226,8 +226,8 @@ The Library Reaction journey previews Included Admiration Reaction 4 in the
 bottom-right dock. It checks the clip's events and its Avatar, Particle and Scene
 Effects, and that each expression track the clip authors at 0.4 or more reaches
 0.4. Included Reactions key VRoid face parts (`Fcl_*`) rather than whole-face
-presets, so the thresholds come from the previewed clip, not from a fixed list. Like the pose
-journey, it is read-only.
+presets, so the thresholds come from the previewed clip, not from a fixed list.
+It asserts that no catalog or loadout writes occur.
 
 The active `pose content` group covers standalone Included/Local Poses: Library
 discovery, real-Avatar static preview, customization, editing, failed-save retry,

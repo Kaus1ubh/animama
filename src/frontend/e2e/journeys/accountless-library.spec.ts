@@ -159,6 +159,7 @@ test("accountless built-in Reaction playback @surface-library @channel-reaction 
   const network = new PreviewNetworkRecorder(page);
   const readOnly = new ReadOnlyJourneyGuard(page);
   try {
+    await page.goto("/library", { waitUntil: "domcontentloaded" });
     const prepared = page
       .waitForResponse(
         (response) =>
@@ -171,7 +172,6 @@ test("accountless built-in Reaction playback @surface-library @channel-reaction 
         expect(response.ok(), await response.text()).toBe(true);
         return (await response.json()) as PyTypedContentPreview;
       });
-    await page.goto("/library", { waitUntil: "domcontentloaded" });
     const surface = await openLibraryPreview({
       page,
       contentName: "Admiration Reaction 4",
@@ -179,10 +179,12 @@ test("accountless built-in Reaction playback @surface-library @channel-reaction 
       selectAnnie: false,
     });
     await expectBottomRightDock(surface);
+    const preview = await prepared;
+    expect(preview.item.name).toBe("Admiration Reaction 4");
     // Included Reactions key VRoid face parts rather than whole-face presets,
     // so the proof follows the expressions the previewed clip authors.
     const expressionThresholds = authoredExpressionThresholds(
-      await readPreviewClip(page, await prepared),
+      await readPreviewClip(page, preview),
     );
     const samples = await proveReactionPlayback({
       evidence: animamaEvidence,
