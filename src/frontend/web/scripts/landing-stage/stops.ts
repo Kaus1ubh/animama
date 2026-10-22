@@ -624,9 +624,9 @@ export const STAGE_STOPS: StageStop[] = withBetaCopy([
     ],
     avatarClips: {
       Andrew: [
+        gesture("offer-a-rose", "Rose"),
         gesture("air-guitar", "Air guitar"),
         gesture("beckon", "Beckon"),
-        gesture("offer-a-rose", "Rose"),
         gesture("brush-off-shoulders", "Brush shoulders"),
         gesture("lean-in-coy", "Coy"),
         gesture("ohohoho-noble-laugh", "Noble laugh"),
