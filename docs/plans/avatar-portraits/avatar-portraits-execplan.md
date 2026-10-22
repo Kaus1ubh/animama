@@ -663,6 +663,9 @@ Check record (working tree on `651e9e0f`):
 | `python -m pytest -q scripts/public-release/test_prepare_source.py` | root | 12 passed |
 | `/v1/animas` on the task stack after the file change | browser | Annie's thumbnail is the new 512² file (`586d9d61…`); Andrew unchanged (256²) |
 
+`licenses/source-review.json` needs no change: its portrait entries carry no
+hash, point to `art-vroid-review.json`, and their wording still holds.
+
 Owner gate (open): look at Annie's new portrait in the Library and the Anima
 carousel in light and dark themes.
 
@@ -672,6 +675,21 @@ Covers combined acceptance R1–R14, Phase 4 (light) and Phase 1–3 evidence.
 Then the full pre-push suite once on the final candidate through the heavy
 slot. Because the change touches Anima presentation and export, run the full
 `pnpm e2e:test` before merge. Results go in the PR.
+
+Reviewed `abc2e62e` against `4354978f`: no blocking findings; every
+requirement met (R13 for Annie, Andrew deferred as R13 allows); hashes in the
+licence records match the files. Non-blocking: F-1 `art-NOTICES.md` still said
+the portrait bytes were unchanged; F-2 no lasting recipe for regenerating an
+Included portrait; F-3 agreed follow-ups had no issues; F-4 R14's
+`source-review.json` was not addressed in the record; F-5 no test of a
+rejected save (handled by the same branch as a failed capture); F-6 the
+Appearance-list doc said "generated" though imported portraits are hidden too.
+
+Revisions: F-1 sentence rewritten; F-2 recipe added to
+`content/included/README.md` (a committed capture command is a proposed
+follow-up); F-3 follow-up issues opened for Q6 and Q7 and listed in the PR;
+F-4 recorded under Phase 4; F-6 wording fixed; F-5 left as is. `main`
+(`623897bd`, e2e spec cleanup only) was merged in as `4d228dce`.
 
 ## Validation and acceptance
 

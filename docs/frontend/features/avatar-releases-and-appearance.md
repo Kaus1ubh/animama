@@ -29,8 +29,9 @@ Avatar at rest, waiting while a Gesture or Reaction preview plays or the page
 is hidden. The attempt never blocks the flow, is abandoned after 15 s or when
 the source changes, the stage unmounts or the page is hidden, and a failure is
 only logged and not retried until the app is reloaded. Included Avatars, unsaved uploads and imported portraits
-are never recaptured. Generated portraits are not offered as Profile or
-Background images. Creation itself submits null Profile and Background
+are never recaptured. Avatar portraits (Appearances naming an Avatar in
+`presentation.avatar_item_id`, generated or imported) are not offered as
+Profile or Background images. Creation itself submits null Profile and Background
 bindings. Background Default means the normal app stage.
 
 `/animas/new` accepts a logical Avatar handoff, with a saved draft taking

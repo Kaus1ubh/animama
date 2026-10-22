@@ -98,6 +98,28 @@ fonts, and UI images remain frontend application assets.
 
 The source library contains only the Annie (`AvatarSample_A_1_New.vrm`) and
 Andrew (`Andrew.vrm`) models and their generated portrait pairs.
+
+A portrait pair is `appearances/avatar-portraits/app-avatar-model-<stem>-v1.webp`
+and `.meta.json`, linked to its model by `avatar_model` (the model's file stem).
+To regenerate one after a model or renderer change:
+
+1. In Chromium with a real GPU, load the production `Avatar` from the model's
+   bytes with enhanced rendering on, hold the rest pose for one second, and
+   call `captureAvatarPortrait` from `src/frontend/web/src/lib/avatar/portrait`
+   at its defaults (1024 px, happy expression) with a front-facing camera
+   (`new PerspectiveCamera()`). No committed command does this yet.
+2. Reduce the capture with the backend's own canonicalizer, from the repository
+   root:
+
+   ```bash
+   uv run python -c "import sys; from animama.app.services.content_image import canonicalize_avatar_portrait as c; sys.stdout.buffer.write(c(content=open(sys.argv[1], 'rb')).content)" capture.webp > portrait.webp
+   ```
+
+3. Replace the `.webp`, keep the file name, `content_id` and `name`, and set the
+   `.meta.json` `width`/`height` (512) and `renderer_version` and
+   `capture_preset_version` (the `AVATAR_PORTRAIT_*_VERSION` constants).
+4. Update the portrait's provenance in `licenses/inventory.json` and its
+   `portrait_sha256` in `../../licenses/third-party/art-vroid-review.json`.
 Other sample models, portraits and the combined contact sheet have been retired.
 Existing installations are not rewritten by this source cleanup; a saved
 reference to retired Included content needs an explicit replacement.

@@ -87,9 +87,10 @@ Included Gesture. Like Annie's portrait, they follow Annie's model terms and ret
 pixiv VRoid Project credit. Their provenance and regeneration command are in
 that folder's README.
 
-Geometry, textures, non-metadata JSON and portrait bytes of both models are
-unchanged; current hashes and metadata are recorded in
-[art-vroid-review.json](art-vroid-review.json).
+The current model and portrait hashes and metadata are recorded in
+[art-vroid-review.json](art-vroid-review.json). The portraits are renderer
+captures of those models; Annie's was recaptured with the chat canvas's look on
+2026-10-22.
 
 The earlier metadata discrepancy is resolved for source preparation by the
 owner's explicit identification and authorization, together with the published
