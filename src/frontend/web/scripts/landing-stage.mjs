@@ -55,7 +55,7 @@ export async function startStageServer({ port = 0, walkClips = null } = {}) {
     // Brand marks and emotion mascots come from the app's public folder.
     publicDir: path.join(webRoot, "public"),
     optimizeDeps: {
-      entries: [path.join(stageDir, "stage.ts")],
+      entries: [path.join(stageDir, "main.ts")],
     },
     server: {
       host: "127.0.0.1",

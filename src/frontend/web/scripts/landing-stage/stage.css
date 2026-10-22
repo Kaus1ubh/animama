@@ -83,6 +83,33 @@ body {
   opacity: 0;
 }
 
+/*
+ * Stills of her where the live stage cannot run (`stills.ts`), in the
+ * canvas's place and cross-faded as the page scrolls.
+ */
+.stills,
+.stills picture,
+.stills img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.stills {
+  z-index: 10;
+  pointer-events: none;
+}
+.stills picture {
+  opacity: 0;
+}
+.stills img {
+  object-fit: cover;
+}
+.is-fallback #canvas,
+.is-fallback .ambient {
+  display: none;
+}
+
 #canvas {
   position: absolute;
   inset: 0;

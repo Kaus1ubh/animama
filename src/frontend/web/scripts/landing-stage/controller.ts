@@ -28,6 +28,11 @@ export type StageState = {
   avatar: string;
   /** The Avatar being loaded to replace it, or null. */
   avatarLoading: string | null;
+  /**
+   * Whether stills of her stand in for the live stage (`fallback.ts`, or
+   * after she failed to load), so demos that need her live are hidden.
+   */
+  fallback: boolean;
 };
 
 export type StageController = {

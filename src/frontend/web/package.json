@@ -20,6 +20,7 @@
     "landing:stage": "node scripts/landing-stage.mjs",
     "landing:build": "node scripts/landing-build.mjs",
     "landing:preview": "node scripts/landing-preview.mjs",
+    "landing:stills": "node scripts/landing-stills.mjs",
     "content:tune": "node scripts/content-tune.mjs",
     "animation:save": "node scripts/animation-save.mjs",
     "dev": "pnpm --dir .. poses:check && pnpm --dir .. packages:build && pnpm routes:generate && vite",

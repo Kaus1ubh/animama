@@ -1,11 +1,3 @@
-import "./zod-config";
-import "@fontsource-variable/dm-sans";
-import "@fontsource-variable/manrope";
-import "@fontsource/patrick-hand";
-// First, so Tailwind's cascade layers keep their order (theme, base,
-// components, utilities) before the Scene layers' own sheet adds to them.
-import "./stage.css";
-
 import * as THREE from "three";
 import type { VRMHumanBoneName } from "@pixiv/three-vrm";
 
@@ -31,7 +23,19 @@ import type { PreviewClip } from "@/lib/avatar/motion-authoring/preview/sources"
 import { SceneBands, missingSceneMessage } from "../effect-render/sceneBands";
 import { AmbientLayer, type AmbientWeights } from "./ambient";
 import { Intro, WALK_VARIANTS, type WalkVariantId } from "./intro";
+import {
+  createBackdrops,
+  devParam,
+  openingStop,
+  params,
+  reducedMotion,
+  scrollPosition,
+  scrollToStop,
+  stopBackdrop,
+} from "./page";
 import { PROGRAM, type StageProgram } from "./program";
+import { ResolutionGovernor } from "./quality";
+import { mountStills } from "./stills";
 import { CursorTrail } from "./trail";
 import { addChatLights, applyChatColorPipeline } from "../effect-render/stage";
 import {
@@ -71,8 +75,6 @@ import {
  * the small shy wave instead of Wave hello.
  */
 
-/** Share of each scroll segment held at its stops before the camera moves. */
-const HOLD = 0.22;
 /** How quickly the camera catches up with the scroll position (per second). */
 const CAMERA_FOLLOW = 5;
 /** Viewports narrower than this aspect ratio use each stop's `tall` framing. */
@@ -111,16 +113,8 @@ const CAMERA_KEYS = [
   "lift",
 ] as const satisfies readonly (keyof StageCamera)[];
 
-const params = new URLSearchParams(location.search);
-/** A development-only switch's value (null in a production build). */
-const devParam = (name: string) =>
-  import.meta.env.DEV ? params.get(name) : null;
 if (devParam("classic") !== null)
   useEnhancedRenderingStore.getState().setEnabled(false);
-const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
-const openingStop = STAGE_STOPS.findIndex(
-  ({ id }) => id === params.get("stop"),
-);
 /**
  * Whether she walks on stage first: only when the page opens at the hero,
  * motion is allowed and `?nointro` is absent.
@@ -145,7 +139,8 @@ const renderer = new THREE.WebGLRenderer({
 });
 applyChatColorPipeline(renderer);
 renderer.setClearColor(0x000000, 0);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+const resolution = new ResolutionGovernor(window.devicePixelRatio);
+renderer.setPixelRatio(resolution.ratio);
 const scene = new THREE.Scene();
 addChatLights(scene);
 /** The chat lights with their daylight colour and intensity, for dusk blending. */
@@ -173,6 +168,7 @@ const store = createStore<StageState>({
   revealed: !playIntro,
   avatar: STAGE_AVATARS[0].id,
   avatarLoading: null,
+  fallback: false,
 });
 
 const program = PROGRAM;
@@ -246,7 +242,9 @@ const cursors = STAGE_STOPS.map(() => 0);
 /** The hero's wave: Wave hello, or the small shy wave with `?wave=small`. */
 const HERO_WAVE = devParam("wave") === "small" ? 1 : 0;
 cursors[0] = HERO_WAVE;
-const backdrops: HTMLDivElement[] = [];
+const showBackdrops = createBackdrops(ui.backdrop);
+/** Stills of her in place of the canvas, once she has failed to load. */
+let showStills: ((from: number, blend: number) => void) | null = null;
 
 // ── Camera rig ─────────────────────────────────────────────────────────────
 
@@ -277,28 +275,6 @@ function clearHeroText(view: StageCamera): StageCamera {
   const overlap = heroTextBottom + HERO_TEXT_GAP_PX - top;
   // The lift is a pixel shift of the frame, so this lowers her exactly.
   return overlap > 0 ? { ...view, lift: view.lift - overlap / height } : view;
-}
-
-/** Ease in and out with zero velocity and acceleration at both ends. */
-const smootherstep = (t: number) => t * t * t * (t * (t * 6 - 15) + 10);
-
-/**
- * Where scrolling has reached: the segment's first stop, the eased blend
- * toward the next one, and the stop the page treats as active.
- */
-function scrollPosition() {
-  const last = STAGE_STOPS.length - 1;
-  const raw = THREE.MathUtils.clamp(
-    window.scrollY / Math.max(1, window.innerHeight),
-    0,
-    last,
-  );
-  const from = Math.min(Math.floor(raw), last - 1);
-  const local = raw - from;
-  const blend = smootherstep(
-    THREE.MathUtils.clamp((local - HOLD) / (1 - 2 * HOLD), 0, 1),
-  );
-  return { from, blend, active: local < 0.5 ? from : from + 1 };
 }
 
 function blendCameras(a: StageCamera, b: StageCamera, t: number): StageCamera {
@@ -442,7 +418,12 @@ function playClip(stopIndex: number, index: number) {
   const clips = stopClips(stop, store.get().avatar);
   const item = clips[index];
   const source = item ? program.sources[item.spec] : undefined;
-  if (!avatar || !source?.clip) return;
+  if (!avatar || !source?.clip) {
+    // Without her (she failed to load), a chosen reaction still shows.
+    if (item && store.get().fallback)
+      store.set({ playing: { stop: stopIndex, clip: index } });
+    return;
+  }
   const token = playToken;
   // A cycling stop moves on; a `once` stop replays the same clip next visit.
   if (stop.clipMode === "cycle")
@@ -672,13 +653,6 @@ function skipIntro() {
   if (store.get().active === 0) playClip(0, HERO_WAVE);
 }
 
-function scrollToStop(index: number) {
-  window.scrollTo({
-    top: index * window.innerHeight,
-    behavior: reducedMotion ? "auto" : "smooth",
-  });
-}
-
 // ── Cursor look-at ─────────────────────────────────────────────────────────
 
 /** A tracking window long enough never to pause during a visit. */
@@ -703,16 +677,6 @@ function showFollow(stop: StageStop, ease: number) {
 }
 
 // ── Backdrop glow ──────────────────────────────────────────────────────────
-
-/**
- * A stop's backdrop: plain cream behind the light stops unless `?washes`
- * asks for their pastel gradients; the night sky always keeps its own.
- */
-function stopBackdrop(stop: StageStop) {
-  return stop.dusk || devParam("washes") !== null
-    ? stop.backdrop
-    : PLAIN_BACKDROP;
-}
 
 /** A backdrop's top-level layers (commas inside functions do not split). */
 function backdropLayers(css: string): string[] {
@@ -794,11 +758,8 @@ function frame() {
     pushedIn ? target : { ...target, ...STAGE_STOPS[0].introCamera },
     delta,
   );
-  backdrops.forEach((layer, index) => {
-    layer.style.opacity = String(
-      index === from ? 1 - blend : index === from + 1 ? blend : 0,
-    );
-  });
+  showBackdrops(from, blend);
+  showStills?.(from, blend);
   if (active !== store.get().active) enterStop(active);
 
   placeCamera(shown!, width, height);
@@ -827,6 +788,8 @@ function frame() {
   }
   avatar?.update(delta);
   renderer.render(scene, camera);
+  const ratio = resolution.sample(time, delta);
+  if (ratio !== null) renderer.setPixelRatio(ratio);
 
   if (waveFrom !== null && !pushedIn && time - waveFrom >= REVEAL_DELAY_SEC) {
     pushedIn = true;
@@ -938,6 +901,8 @@ async function selectAvatar(id: string) {
   store.set({ avatarLoading: id });
   try {
     const loaded = await createAvatar(entry);
+    // Loading stalls frames; that says nothing about the machine.
+    resolution.settle(time);
     finishIntro();
     stopPlayback();
     if (happyFrom !== null) avatar?.clearExpressionOverride("happy");
@@ -972,25 +937,6 @@ const controller: StageController = {
   },
 };
 
-declare global {
-  interface Window {
-    landingStage: {
-      ready: boolean;
-      error: string | null;
-      stop: () => string | null;
-      problems: string[];
-      /**
-       * The renderer's live geometries, textures and shader programs
-       * (development only).
-       */
-      renderInfo?: () => {
-        geometries: number;
-        textures: number;
-        programs: number;
-      };
-    };
-  }
-}
 // The renderer's live GPU resources, for memory checks.
 const renderInfo = () => ({
   ...renderer.info.memory,
@@ -1004,14 +950,18 @@ window.landingStage = {
   ...(import.meta.env.DEV ? { renderInfo } : {}),
 };
 
+/**
+ * How long she may take to arrive before the hero's text shows anyway (from
+ * page load, in milliseconds), so a slow connection still has a page to read
+ * while she loads; she then walks on under it.
+ */
+const SLOW_ARRIVAL_MS = 4000;
+
 async function start() {
-  for (const stop of STAGE_STOPS) {
-    const layer = document.createElement("div");
-    layer.className = "backdrop-layer";
-    layer.style.background = stopBackdrop(stop);
-    ui.backdrop.append(layer);
-    backdrops.push(layer);
-  }
+  const slowArrival = window.setTimeout(
+    () => store.get().revealed || store.set({ revealed: true }),
+    Math.max(0, SLOW_ARRIVAL_MS - performance.now()),
+  );
   ui.hud.hidden = devParam("hud") === null;
   // The app's components read their labels from its English catalogs.
   mountOverlay(ui.overlay, controller, await createWebI18n("en"));
@@ -1023,6 +973,8 @@ async function start() {
   store.set({ problems: program.problems });
 
   const first = await createAvatar(program.avatars[0]);
+  window.clearTimeout(slowArrival);
+  resolution.settle(time);
   headHeight = first.headHeight;
   frameUnit = first.headHeight;
   crownHeight = first.crownHeight;
@@ -1048,4 +1000,9 @@ start().catch((error: unknown) => {
     ui.hud.hidden = false;
     ui.hud.textContent = `Error: ${message}`;
   }
+  // She could not load: show her stills, as the fallback page does.
+  window.landingStage.fallback = "avatar-failed";
+  document.body.classList.add("is-fallback");
+  showStills = mountStills(document.querySelector(".stage") as HTMLDivElement);
+  store.set({ fallback: true, intro: "done", revealed: true });
 });

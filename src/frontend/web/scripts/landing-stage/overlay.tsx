@@ -191,6 +191,8 @@ function AvatarSwitcher({
   light: boolean;
   controller: StageController;
 }) {
+  // The stills show her only.
+  if (state.fallback) return null;
   return (
     <nav
       aria-label="Avatars"
@@ -717,14 +719,17 @@ function SiteMenu({
           </a>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        {/* Phone-only, as `hidden max-sm:block` (see the header's note). */}
-        <div className="hidden max-sm:block">
-          <DropdownMenuLabel className="text-muted-foreground text-xs font-medium">
-            Avatar
-          </DropdownMenuLabel>
-          <AvatarOptions state={state} controller={controller} />
-          <DropdownMenuSeparator />
-        </div>
+        {/* Phone-only, as `hidden max-sm:block` (see the header's note);
+            none with the stills, which show her only. */}
+        {state.fallback ? null : (
+          <div className="hidden max-sm:block">
+            <DropdownMenuLabel className="text-muted-foreground text-xs font-medium">
+              Avatar
+            </DropdownMenuLabel>
+            <AvatarOptions state={state} controller={controller} />
+            <DropdownMenuSeparator />
+          </div>
+        )}
         <DropdownMenuCheckboxItem
           checked={theme.dark}
           onCheckedChange={theme.toggle}
@@ -833,7 +838,10 @@ function Stop(props: StopProps) {
           )}
           boldClassName={light ? "text-white" : "text-foreground"}
         />
-        {stop.panel === "chips" ? <ClipChips {...props} /> : null}
+        {/* Gesture chips play her live; the stills cannot. */}
+        {stop.panel === "chips" && !props.state.fallback ? (
+          <ClipChips {...props} />
+        ) : null}
         {stop.panel === "mascots" ? (
           // One reaction at a time, with her emotional state as a mood bloom
           // of all 24 emotions under it.

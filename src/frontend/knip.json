@@ -21,7 +21,7 @@
     "web": {
       "entry": [
         "index.html",
-        "scripts/landing-stage/stage.ts",
+        "scripts/landing-stage/main.ts",
         "src/main.local.tsx",
         "src/routes/**/*.{ts,tsx}",
         "src/workers/{content-hash,lipsync,client-parakeet,smart-turn}-worker.ts",
