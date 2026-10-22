@@ -27,6 +27,7 @@ let pocketFallback = true;
 const speechSessions = [];
 const speechFailures = [];
 const speechFallbacks = [];
+const ttsStreamStarts = [];
 const ttsTokens = [];
 const ttsCompletions = [];
 const finalizedAudio = [];
@@ -169,6 +170,7 @@ function SessionConsumer() {
             : { runId, token },
         ),
       completeTtsRun: (runId) => ttsCompletions.push(runId),
+      markTtsStreamStarted: (runId) => ttsStreamStarts.push(runId),
     },
     openDraftChatRoute: () => {},
     replaceChatRoute: () => {},
@@ -258,6 +260,7 @@ window.fixture = {
   speechSessions: () => speechSessions,
   speechFailures: () => speechFailures,
   speechFallbacks: () => speechFallbacks,
+  ttsStreamStarts: () => ttsStreamStarts,
   ttsTokens: () => ttsTokens,
   ttsCompletions: () => ttsCompletions,
   finalizedAudio: () => finalizedAudio,

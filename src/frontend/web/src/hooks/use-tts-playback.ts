@@ -103,6 +103,8 @@ function finalizedServerSpeechText(text: string): string {
 
 type UseTtsPlaybackResult = {
   startRun: (runId: string) => void;
+  /** The run's response delivered its first event; its ElevenLabs session wait starts. */
+  markStreamStarted: (runId: string) => void;
   /**
    * Adds speech text to the run. `speechToneTag`, from the reply's first speech
    * frame, leads the run's first ElevenLabs chunk.
@@ -284,6 +286,7 @@ export function useTtsPlayback(
   } = usePocketTtsRuntime();
   const {
     startRun: startElevenLabsRuntime,
+    startSessionWait: startElevenLabsSessionWait,
     acceptSession: acceptElevenLabsRuntimeSession,
     markSessionFailed: markElevenLabsRuntimeSessionFailed,
     appendText: appendElevenLabsText,
@@ -1588,6 +1591,15 @@ export function useTtsPlayback(
     ],
   );
 
+  const markStreamStarted = useCallback(
+    (runId: string) => {
+      if (!runId) return;
+      if (resolveActiveProvider(runId) !== "elevenlabs") return;
+      startElevenLabsSessionWait(runId);
+    },
+    [resolveActiveProvider, startElevenLabsSessionWait],
+  );
+
   const markElevenLabsSessionFailed = useCallback(
     (runId: string, error: ElevenLabsSessionError | string) => {
       if (!runId) return;
@@ -1765,6 +1777,7 @@ export function useTtsPlayback(
 
   return {
     startRun,
+    markStreamStarted,
     appendToken,
     completeRun,
     acceptElevenLabsSession,

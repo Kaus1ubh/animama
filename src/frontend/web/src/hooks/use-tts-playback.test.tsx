@@ -52,6 +52,7 @@ const fixture = vi.hoisted(() => {
     },
     realtime: {
       startRun: vi.fn(async () => undefined),
+      startSessionWait: vi.fn(),
       acceptSession: vi.fn(),
       markSessionFailed: vi.fn(),
       appendText: vi.fn(),
@@ -606,6 +607,25 @@ describe("ElevenLabs character timing", () => {
     act(() => fixture.realtimeOptions?.onSpeechTiming?.(event));
 
     expect(onSpeechTiming).toHaveBeenCalledWith(event);
+  });
+});
+
+describe("ElevenLabs session wait", () => {
+  beforeEach(() => {
+    fixture.speech = {};
+  });
+  afterEach(() => {
+    act(() => root?.unmount());
+    root = null;
+  });
+
+  it("starts when the run's response starts, not when the run starts", () => {
+    const { playback } = renderPlayback();
+    act(() => playback().startRun("run-1"));
+    expect(fixture.realtime.startSessionWait).not.toHaveBeenCalled();
+
+    act(() => playback().markStreamStarted("run-1"));
+    expect(fixture.realtime.startSessionWait).toHaveBeenCalledWith("run-1");
   });
 });
 
