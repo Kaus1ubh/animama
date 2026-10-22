@@ -132,7 +132,8 @@ decoder. User uploads are out of scope.
 - [x] Phase 4: the new Andrew verified (portrait, motion checks recorded,
   re-measured tests) (`e7b5c7fd`).
 - [ ] Gate G1: owner visual check in the running app.
-- [ ] Final integration review, full pre-push suite, full `pnpm e2e:test`.
+- [x] Final integration review, full pre-push suite, full `pnpm e2e:test` (one
+  flaky journey; see Validation and acceptance).
 
 ## Surprises & Discoveries
 
@@ -869,6 +870,39 @@ The spec's acceptance criteria apply. Evidence:
 
 The Cloud repin is a separate deployment outcome.
 
+
+### Final candidate results (2026-10-22)
+
+Validated revision `bc1ea82f` (tree `0f6e9c12`, clean), on baseline
+`4354978f`, on macOS (Apple M5), through `scripts/heavy-slot.py`:
+
+- `make check-test`: passed. 4745 passed, 29 skipped; format, lint and mypy
+  clean.
+- `pnpm verify`: passed.
+- `pnpm prettier:check`: passed.
+- `pnpm web:test:browser`: passed.
+- `pnpm e2e:test`, full suite: 39 passed and 1 failed, on built stack
+  `animama-svo` (`http://animama-svo.localhost:8900`) under a host load
+  average of about 6.
+  - The failure was `accountless-imported-playback` at its `particle_effect`
+    Library preview step: Replay stayed disabled after the imported particle
+    effect reported "could not play".
+  - An isolated rerun failed at a different step: the `scene_effect` handoff
+    lost its execution context to a navigation.
+  - A second isolated rerun passed (2 passed).
+  - The failing steps differ between runs, and the particle failure path
+    (catalog resolution and budget in `ParticleVFXController.playEffect`) does
+    not read the VRM file. So this is recorded as a flaky journey, not a
+    regression.
+
+Hosted CI: see the PR. `origin/main` has since gained only e2e test changes
+(#659), and it merges cleanly with the candidate.
+
+Remaining gate: G1, the owner's visual check on `animama-svo`. Points to look
+at during G1:
+- the new Andrew portrait's hair tip touches the top edge;
+- lossy WebP may lighten hair cutout edges slightly.
+
 ## Idempotence and recovery
 
 - **The tool is deterministic for fixed inputs and dependency versions.**
@@ -882,4 +916,17 @@ The Cloud repin is a separate deployment outcome.
 
 ## Outcomes & Retrospective
 
-_Pending._
+Delivered, pending G1 and merge approval:
+- **Sizes:** Annie 18.48 → 4.27 MB and Andrew 16.95 → 4.99 MB (revised
+  model).
+- **Records:** both carry owner metadata and updated records.
+- **Validator:** accepts bounded sparse and zero-filled morph data.
+- **Tool:** a reproducible optimizer and verifier, with documentation.
+
+Lessons:
+- Stock glTF optimizers and lossless WebP both silently change VRM data:
+  extensions, morphs, and colour under transparent pixels. Verify decoded
+  pixels and values, not just sizes.
+- Shared sparse views need a cumulative expanded-size cap, or a small file can
+  cost large CPU and memory.
+
