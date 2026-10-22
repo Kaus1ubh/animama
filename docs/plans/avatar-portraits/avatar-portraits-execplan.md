@@ -69,8 +69,8 @@ order.
 
 - [x] Owner review of spec and plan (Q1–Q7): accepted 2026-10-22.
 - [x] Phase 1: chat-look 1024 → 512 capture (`9b7e529f`; review passed after one repair round).
-- [ ] Phase 2: one portrait per Avatar in the API (`122a1887`; independent checks passed, analysis review pending).
-- [ ] Phase 3: background capture in Create Anima (`651e9e0f`; review pending).
+- [x] Phase 2: one portrait per Avatar in the API (`122a1887`, repairs `4c66d120`, `318e0c59`; review passed after one repair round).
+- [x] Phase 3: background capture in Create Anima (`651e9e0f`, repair `2c714763`; review passed after one repair round).
 - [ ] Phase 4: regenerated Included portraits (Annie only; Andrew waits for his replacement model; owner visual gate open).
 - [ ] Final integration review, full pre-push suite, PR.
 
@@ -590,7 +590,25 @@ captured, the front camera faces VRM 0 and 1 models, timer cleanup,
   Anima's fallback picture.
 - P3-9 fixed in both docs. P3-10 fixed: `ready` also requires no file preview.
 - Checks after the revisions: `npx vitest run src/ui/create-anima src/query`,
-  264 passed; eslint clean; `pnpm -s check` passed. Targeted recheck: pending.
+  264 passed; eslint clean; `pnpm -s check` passed. Commit `2c714763`.
+
+#### Code Review #2 Findings
+
+Targeted recheck of `2c714763` (repair round 1); the reviewer reran the
+portrait, cache and Appearance-list tests (28 passed). P3-1 to P3-10 verified;
+`previewing` cannot starve the capture (every path out of preparing/playing
+was traced) and the visibility logic starts at most once. No blocking
+findings. Non-blocking: a capture that waited for a preview runs right after
+it stops, when raw and spring bones may still hold the preview's last frame
+(unverified at run time; only when the target arrives late or a preview
+starts during an attempt); a preview started during the encode or upload
+restarts the attempt afterwards.
+
+#### Code Review #2 Revisions
+
+Accepted as a known limitation, recorded in the PR: the common path captures
+right after the Avatar loads, before any preview. Result: Phase 3 passes; one
+repair round used.
 
 ### Phase 4: Regenerated Included portraits
 
