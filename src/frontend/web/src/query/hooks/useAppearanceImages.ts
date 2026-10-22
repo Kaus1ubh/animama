@@ -6,6 +6,8 @@ import { useQuery } from "@tanstack/react-query";
 
 import { catalogViewItem } from "@/lib/content/catalogTypes";
 import { listCatalogItems } from "@/lib/content/catalogApi";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
+import { queryKeys } from "@/query/keys";
 
 /** An Appearance saved as some Avatar's portrait (`presentation.avatar_item_id`). */
 export function isGeneratedAvatarPortrait(item: {
@@ -18,8 +20,6 @@ export function isGeneratedAvatarPortrait(item: {
     "avatar_item_id" in presentation
   );
 }
-import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
-import { queryKeys } from "@/query/keys";
 
 export function useAppearanceImages() {
   const apiClient = useProductApiClient();

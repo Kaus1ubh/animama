@@ -24,10 +24,11 @@ The browser captures Avatar portraits with `captureAvatarPortrait` (also the
 development-only `/avatar-portrait-debug` harness). When the Create Anima stage
 shows a saved Local Avatar without a portrait, or with one captured from
 another revision, it captures one in the background and saves it through the
-typed portrait API (`ui/create-anima/createAnimaPortrait.ts`). The attempt
-never blocks the flow, is abandoned after 15 s or when the source changes, the
-stage unmounts or the page is hidden, and a failure is only logged and not
-retried that session. Included Avatars, unsaved uploads and imported portraits
+typed portrait API (`ui/create-anima/createAnimaPortrait.ts`). It captures the
+Avatar at rest, waiting while a Gesture or Reaction preview plays or the page
+is hidden. The attempt never blocks the flow, is abandoned after 15 s or when
+the source changes, the stage unmounts or the page is hidden, and a failure is
+only logged and not retried until the app is reloaded. Included Avatars, unsaved uploads and imported portraits
 are never recaptured. Generated portraits are not offered as Profile or
 Background images. Creation itself submits null Profile and Background
 bindings. Background Default means the normal app stage.

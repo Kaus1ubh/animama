@@ -2,6 +2,12 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { PyAvatarContent } from "@animama/runtime-contracts/api-types";
 
+import {
+  CreationPortraits,
+  CREATION_PORTRAIT_TIMEOUT_MS,
+  creationPortraitTarget,
+} from "./createAnimaPortrait";
+
 /** A capture that only ends when its signal aborts, like a stalled GPU read. */
 function stalledCapture(signal: AbortSignal): Promise<Blob> {
   return new Promise((_resolve, reject) => {
@@ -9,12 +15,6 @@ function stalledCapture(signal: AbortSignal): Promise<Blob> {
     signal.addEventListener("abort", () => reject(signal.reason));
   });
 }
-
-import {
-  CreationPortraits,
-  CREATION_PORTRAIT_TIMEOUT_MS,
-  creationPortraitTarget,
-} from "./createAnimaPortrait";
 
 const REVISION = "a".repeat(64);
 
@@ -173,6 +173,29 @@ describe("CreationPortraits", () => {
       }),
     ).resolves.toBe("saved");
     expect(save).toHaveBeenCalledOnce();
+  });
+
+  it("does not count an abort inherited from an abandoned attempt as a failure", async () => {
+    const portraits = new CreationPortraits();
+    const save = vi.fn(async () => undefined);
+    await expect(
+      portraits.generate({
+        target,
+        capture: async () => {
+          throw new DOMException("Portrait cancelled.", "AbortError");
+        },
+        save,
+        signal: new AbortController().signal,
+      }),
+    ).resolves.toBe("aborted");
+    await expect(
+      portraits.generate({
+        target,
+        capture: async () => blob,
+        save,
+        signal: new AbortController().signal,
+      }),
+    ).resolves.toBe("saved");
   });
 
   it("gives up after the timeout and counts it as a failure", async () => {

@@ -435,7 +435,31 @@ Analysis findings:
 - P2-12: comment reworded; the remaining window holds no GPU allocation and is
   left as is.
 - Checks after the revisions (working tree on `4514e905`): 23 backend files,
-  237 passed; `ruff check` clean. Repair round 1 recheck: pending.
+  237 passed; `ruff check` clean. Commit `4c66d120`.
+
+#### Code Review #2 Findings
+
+Targeted recheck of `4c66d120` (repair round 1, high risk); the reviewer
+reran 16 backend files (147 passed), `ruff check` and `pnpm -s
+openapi-ts:check` (current). P2-1 to P2-12 verified fixed or resolved; no
+blocking findings. Non-blocking: R2-1 the refusal counted missing or invalid
+rows as an existing portrait; R2-2 an Avatar with only an imported portrait
+would be recaptured every session; R2-3 a test docstring mentioned a PNG the
+test does not create; R2-4 a Local-versus-Included assertion proved nothing
+with the fixture's Avatar name.
+
+#### Code Review #2 Revisions
+
+- R2-1 fixed: only valid rows block a save.
+- R2-2 rejected: `creationPortraitTarget` keeps a portrait without a capture
+  revision, so an imported portrait is never recaptured (covered by
+  `createAnimaPortrait.test.ts`).
+- R2-3, R2-4 fixed: docstring reworded; the assertion removed (the rule is
+  covered by `tests/test_avatar_portraits.py`).
+- Trivial repairs (no further recheck): `pytest -q
+  tests/test_content_portrait_mutation_replay.py
+  tests/test_creation_content_admission.py`, 27 passed; `ruff check` clean.
+  Result: Phase 2 passes; one repair round used.
 
 ### Phase 3: Background capture in Create Anima
 
@@ -522,13 +546,51 @@ observed: a stage flash (none seen; a single frame cannot be ruled out by
 eye). `pnpm e2e:test:fast` is folded into the full `pnpm e2e:test` run before
 merge (see Final integration review).
 
+Phase commit: `651e9e0f` `feat(create)[p3]: capture a portrait for Local Avatars in Create Anima`.
+
 #### Code Review #1 Findings
 
-_Pending._
+Reviewed `651e9e0f` (standard tier, initial); the check record was reused.
+Confirmed sound: effect dependencies (no restart on draft edits), StrictMode,
+the Avatar is attached before capture, no stage flash (render targets only,
+demand frame loop), the idle stage does not tick so the rest pose is what is
+captured, the front camera faces VRM 0 and 1 models, timer cleanup,
+`requestValidator: undefined`, imported portraits kept and hidden.
+
+- P3-1 (blocking): no test evidence that capture never blocks navigation or
+  submission.
+- P3-2: a capture could start while the page was already hidden.
+- P3-3: a subscriber joining an aborted in-flight attempt would inherit its
+  abort and mark the revision failed.
+- P3-4: a capture could record a Gesture preview's pose.
+- P3-5: the plan's "short settle" was not implemented or recorded.
+- P3-6: the awaited cache refresh counted against the timeout; the content
+  catalog was not refreshed.
+- P3-7: helpers between imports.
+- P3-8: an existing binding to a generated or imported portrait is no longer
+  listed in the Appearance dialog.
+- P3-9: docs said "missing" only and "that session".
+- P3-10: the file-preview guard relied only on the page wiring.
 
 #### Code Review #1 Revisions
 
-_Pending._
+- P3-1 fixed: hook tests show a pending attempt never holds up rendering or
+  unmounting (moving on only abandons it) and that re-renders with equal
+  source or target objects do not restart it. Structurally the page never
+  awaits the capture: it runs as `void portraits.generate(...)` in an effect.
+- P3-2 fixed: a hidden page waits for `visibilitychange` to start (tested).
+- P3-3 fixed: an abort that is not the timeout returns `aborted`, not a
+  failure (tested).
+- P3-4 fixed: the stage passes `previewing` while a preview prepares or plays;
+  the capture waits and starts when it stops.
+- P3-5: no settle is needed because the idle stage does not advance the
+  Avatar; the capture records the rest pose on screen.
+- P3-6 fixed: the refresh is not awaited and also covers the content catalog.
+- P3-7 fixed. P3-8 accepted: such bindings are rare; the portrait remains the
+  Anima's fallback picture.
+- P3-9 fixed in both docs. P3-10 fixed: `ready` also requires no file preview.
+- Checks after the revisions: `npx vitest run src/ui/create-anima src/query`,
+  264 passed; eslint clean; `pnpm -s check` passed. Targeted recheck: pending.
 
 ### Phase 4: Regenerated Included portraits
 

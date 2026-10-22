@@ -4,6 +4,7 @@ import type {
   ItemRevisionRef,
   PyAvatarContent,
 } from "@animama/runtime-contracts/api-types";
+import { AvatarPortraitCaptureError } from "@/lib/avatar/portrait/captureAvatarPortrait";
 import { AvatarPortraitGenerationCoordinator } from "@/lib/avatar/portrait/generationCoordinator";
 import { createLogger } from "@/lib/logger";
 
@@ -41,6 +42,13 @@ export function creationPortraitTarget({
       captured === selected.revision_sha256
     : false;
   return current ? null : selected;
+}
+
+function isAbort(error: unknown): boolean {
+  return (
+    (error instanceof DOMException && error.name === "AbortError") ||
+    (error instanceof AvatarPortraitCaptureError && error.code === "aborted")
+  );
 }
 
 export type CreationPortraitOutcome =
@@ -93,7 +101,10 @@ export class CreationPortraits {
       });
       return result.status === "completed" ? "saved" : "skipped";
     } catch (error) {
-      if (signal.aborted) return "aborted";
+      // An abort that is not the timeout, including one inherited from an
+      // attempt that was abandoned just before, is not a failure.
+      if (signal.aborted || (!timeout.signal.aborted && isAbort(error)))
+        return "aborted";
       this.failed.add(key);
       log.warn("portrait", "Avatar portrait was not saved", {
         itemId: target.item_id,
@@ -143,18 +154,25 @@ export function useCreationPortraitCapture({
   useEffect(() => {
     if (!shown || !save || !targetItem || !targetRevision) return;
     const controller = new AbortController();
-    const hidden = () => {
-      if (document.hidden) controller.abort();
+    let started = false;
+    const start = () => {
+      started = true;
+      void portraits.generate({
+        target: { item_id: targetItem, revision_sha256: targetRevision },
+        capture,
+        save,
+        signal: controller.signal,
+      });
     };
-    document.addEventListener("visibilitychange", hidden);
-    void portraits.generate({
-      target: { item_id: targetItem, revision_sha256: targetRevision },
-      capture,
-      save,
-      signal: controller.signal,
-    });
+    // A hidden page waits to start; hiding it later abandons the attempt.
+    const visibility = () => {
+      if (!started && !document.hidden) start();
+      else if (started && document.hidden) controller.abort();
+    };
+    document.addEventListener("visibilitychange", visibility);
+    if (!document.hidden) start();
     return () => {
-      document.removeEventListener("visibilitychange", hidden);
+      document.removeEventListener("visibilitychange", visibility);
       controller.abort();
     };
   }, [capture, portraits, save, shown, targetItem, targetRevision]);

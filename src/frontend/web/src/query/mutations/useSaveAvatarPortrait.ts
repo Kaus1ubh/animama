@@ -40,8 +40,9 @@ export function useSaveAvatarPortrait() {
         requestValidator: undefined,
         responseValidator: undefined,
       });
+      // Not awaited: a slow refetch must not count against the capture's timeout.
       if (userId)
-        await invalidateAvatarPortraitPresentation(queryClient, userId);
+        void invalidateAvatarPortraitPresentation(queryClient, userId);
     },
     [client, queryClient, userId],
   );

@@ -211,6 +211,7 @@ export function CreateAnimaStage({
                   onContextError={contextError}
                   portraitTarget={portraitTarget}
                   savePortrait={savePortrait}
+                  previewing={["preparing", "playing"].includes(status)}
                 />
               </Suspense>
             </AvatarPreviewSurface>
@@ -254,6 +255,7 @@ function CreationStageActor({
   onContextError,
   portraitTarget,
   savePortrait,
+  previewing,
 }: {
   file: File | null;
   source: ItemRevisionRef | null;
@@ -266,6 +268,8 @@ function CreationStageActor({
   onContextError: () => void;
   portraitTarget: ItemRevisionRef | null;
   savePortrait: Props["savePortrait"];
+  /** A Gesture or Reaction preview is posing the Avatar. */
+  previewing: boolean;
 }) {
   const { camera, gl, invalidate, scene } = useThree();
   const [object, setObject] = useState<Object3D | null>(null);
@@ -369,7 +373,8 @@ function CreationStageActor({
     [gl, scene],
   );
   useCreationPortraitCapture({
-    ready: object !== null,
+    // At rest only: never an unsaved file, never a preview's pose.
+    ready: object !== null && file === null && !previewing,
     source,
     target: portraitTarget,
     capture: capturePortrait,

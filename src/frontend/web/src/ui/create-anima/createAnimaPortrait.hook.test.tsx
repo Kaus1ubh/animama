@@ -75,6 +75,60 @@ describe("useCreationPortraitCapture", () => {
     expect(setup(overrides).generate).not.toHaveBeenCalled();
   });
 
+  it("re-renders with an equal target object do not restart the attempt", () => {
+    const { generate, props } = setup();
+    act(() => root.render(<Probe {...props} target={{ ...target }} />));
+
+    expect(generate).toHaveBeenCalledOnce();
+    expect(generate.mock.calls[0][0].signal.aborted).toBe(false);
+  });
+
+  it("never holds up the stage while the attempt is pending", () => {
+    const { generate, props } = setup();
+    generate.mockReturnValue(new Promise(() => undefined));
+    const next = vi.fn();
+    function Next() {
+      next();
+      return null;
+    }
+
+    // Moving on (another step, a submission, leaving) renders and unmounts
+    // straight away; the pending attempt is only abandoned.
+    act(() =>
+      root.render(
+        <>
+          <Probe {...props} ready={false} />
+          <Next />
+        </>,
+      ),
+    );
+    expect(next).toHaveBeenCalled();
+    expect(generate.mock.calls[0][0].signal.aborted).toBe(true);
+  });
+
+  it("waits for a hidden page to be shown before starting", () => {
+    Object.defineProperty(document, "hidden", {
+      configurable: true,
+      value: true,
+    });
+    try {
+      const { generate } = setup();
+      expect(generate).not.toHaveBeenCalled();
+
+      Object.defineProperty(document, "hidden", {
+        configurable: true,
+        value: false,
+      });
+      act(() => document.dispatchEvent(new Event("visibilitychange")));
+      expect(generate).toHaveBeenCalledOnce();
+    } finally {
+      Object.defineProperty(document, "hidden", {
+        configurable: true,
+        value: false,
+      });
+    }
+  });
+
   it("abandons the attempt when the stage unmounts or the page is hidden", () => {
     const { generate } = setup();
     const signal = generate.mock.calls[0][0].signal;
