@@ -14,5 +14,11 @@ export async function invalidateAvatarPortraitPresentation(
     queryClient.invalidateQueries({
       queryKey: queryKeys.animas.all(userId),
     }),
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.avatarCatalog.all(userId),
+    }),
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.animaCreation.list(userId, "avatar"),
+    }),
   ]);
 }

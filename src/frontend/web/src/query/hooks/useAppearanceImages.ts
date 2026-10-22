@@ -6,6 +6,18 @@ import { useQuery } from "@tanstack/react-query";
 
 import { catalogViewItem } from "@/lib/content/catalogTypes";
 import { listCatalogItems } from "@/lib/content/catalogApi";
+
+/** An Appearance saved as some Avatar's portrait (`presentation.avatar_item_id`). */
+export function isGeneratedAvatarPortrait(item: {
+  metadata?: Record<string, unknown> | null;
+}): boolean {
+  const presentation = item.metadata?.presentation;
+  return (
+    typeof presentation === "object" &&
+    presentation !== null &&
+    "avatar_item_id" in presentation
+  );
+}
 import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { queryKeys } from "@/query/keys";
 
@@ -18,7 +30,10 @@ export function useAppearanceImages() {
     enabled: Boolean(userId),
     queryFn: async () =>
       (await listCatalogItems(apiClient, "appearance"))
-        .filter((item) => item.source === "local")
+        // Generated Avatar portraits already serve as the portrait fallback.
+        .filter(
+          (item) => item.source === "local" && !isGeneratedAvatarPortrait(item),
+        )
         .map(catalogViewItem),
   });
 }

@@ -419,7 +419,45 @@ Completion: checks and browser evidence recorded, review passes. Commit
 Recovery: the capture is fire-and-forget; disabling the hook leaves creation
 unchanged.
 
-Check record: _pending_.
+Starting source: `122a1887`. Implementation notes:
+
+- `ui/create-anima/createAnimaPortrait.ts`: `creationPortraitTarget` (a saved
+  Local Avatar without a portrait, or with one captured from another revision;
+  shipped and imported portraits, which carry no capture revision, are kept),
+  `CreationPortraits` (the coordinator plus a per-session failure set and the
+  15 s timeout) and the `useCreationPortraitCapture` hook used by
+  `CreationStageActor`. The capture uses a fresh front `PerspectiveCamera`, so
+  the user's orbit does not turn the portrait.
+- `query/mutations/useSaveAvatarPortrait.ts` sends the blob as
+  `portrait.webp` with a fresh operation id and the capture versions;
+  `invalidateAvatarPortraitPresentation` (previously unused) now also refreshes
+  the Avatar catalog and the Create Anima Avatar list.
+- `useAppearanceImages` drops Appearances with `presentation.avatar_item_id`
+  (Q5).
+- The Create Anima Avatar cards still show an icon rather than the portrait;
+  they never showed portraits and the spec does not ask for it.
+
+Check record (tree `54b4a07f`, working tree on `122a1887`):
+
+| Command | Directory | Result |
+| --- | --- | --- |
+| `npx vitest run src/ui/create-anima src/query` | `src/frontend/web` | 44 files, 260 passed |
+| `pnpm -s check` | `src/frontend` | passed |
+| `npx eslint src/ui/create-anima src/query` and `npx prettier --check` (same) | `src/frontend/web` | passed |
+
+Browser check (task stack `animama-portraits`, development build, base port
+9100, Chromium in the app's browser pane at 1440×900): after first-run setup,
+a 15.6 MB VRM was given to the Create Anima upload input and saved as Local
+Avatar "Portrait Test". Without further action the Avatar's `portrait`
+appeared with its current revision, renderer 2 and preset 3; the stored image
+is a 512² WebP (35 KB), front-facing with the happy expression in the chat
+look, at `appearances/avatar-portrait-{item id}.webp`. After finishing
+creation the new Anima's `/v1/animas` thumbnail is that portrait at 512, the
+sidebar shows it without a reload, and the Library Avatar row shows it. The
+Included Avatars report their shipped portraits (renderer 1, preset 2). Not
+observed: a stage flash (none seen; a single frame cannot be ruled out by
+eye). `pnpm e2e:test:fast` is folded into the full `pnpm e2e:test` run before
+merge (see Final integration review).
 
 #### Code Review #1 Findings
 
