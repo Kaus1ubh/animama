@@ -131,7 +131,11 @@ is non-portable when a rule in its own source's inventory sets
 `"distribution": "non-portable"` (any unrecognised value also counts), or when
 any of its files matches a hash in a private pack manifest or the vendor preview
 deny list under `animama/resources/` (`RESTRICTED_RESOURCES` in
-`content_portability.py`), wherever it is stored. The Included scan drops a
+`content_portability.py`), wherever it is stored. A packaged source's inventory
+may also record `derivatives`: effect art that packaging re-encoded as WebP
+(`runtime/included_derivatives.py`). Each derivative is matched against the
+rules by its PNG master's path, so it keeps its master's licence and
+distribution. The Included scan drops a
 built-in effect's optional sound edge when that sound isn't mounted
 ([ADR 0022](../../adr/0022-optional-licensed-effect-sounds.md)). When a pack is
 unmounted, Included dependency edges are rebuilt rather than blocking the

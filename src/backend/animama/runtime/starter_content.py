@@ -21,7 +21,10 @@ from animama.app.services.content_kind_registry import resolve_optional_dependen
 from animama.app.services.content_portability import (
     DISTRIBUTION_EXCLUDED,
     DISTRIBUTION_NON_PORTABLE,
+    INVENTORY_DERIVATIVES_KEY,
     INVENTORY_DISTRIBUTIONS,
+    licensing_path,
+    parse_inventory_derivatives,
 )
 from animama.app.services.starter_loadout_policy import starter_loadout_policy, starter_pack_identity
 from animama.app.services.typed_content_service import TypedContentAdmissionError, TypedContentResolutionContext
@@ -191,14 +194,19 @@ def starter_inventory(included_root: Path, *, allowed_paths: set[str] | None = N
 
     root = included_root.resolve(strict=True)
     license_path = _regular_path(root, "licenses/inventory.json")
-    rules = json.loads(license_path.read_text(encoding="utf-8"))["rules"]
+    license_inventory = json.loads(license_path.read_text(encoding="utf-8"))
+    rules = license_inventory["rules"]
     if not isinstance(rules, list) or not rules:
         raise ValueError("Missing license record: Included inventory has no rules")
+    # Packaged derivatives (#655) carry their master's licence and identity.
+    derivatives = parse_inventory_derivatives(license_inventory)
+    derived_from = license_inventory.get(INVENTORY_DERIVATIVES_KEY, {})
 
     def file_license(relative_path: str) -> dict[str, Any]:
         """Keep distribution exclusions independent of editable entry metadata."""
 
-        record = next((rule for rule in rules if fnmatch.fnmatchcase(relative_path, rule["glob"])), None)
+        licensed = licensing_path(relative_path, derivatives)
+        record = next((rule for rule in rules if fnmatch.fnmatchcase(licensed, rule["glob"])), None)
         if not record or not record.get("license_id") or not record.get("provenance"):
             raise ValueError(f"Missing license record: {relative_path}")
         if record.get("distribution") not in (None, *INVENTORY_DISTRIBUTIONS):
@@ -319,6 +327,11 @@ def starter_inventory(included_root: Path, *, allowed_paths: set[str] | None = N
                 "partition": partition,
                 "license": {key: value for key, value in license_record.items() if key != "glob"},
             }
+            if file.relative_path in derived_from:
+                master = derived_from[file.relative_path]
+                files[file.relative_path]["derived_from"] = {
+                    key: master[key] for key in ("path", "sha256", "size_bytes")
+                }
         items.append(
             {
                 "locator": item_id,
