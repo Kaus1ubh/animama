@@ -43,6 +43,31 @@ export async function playbackInventory(page: Page, kind: PlaybackKind) {
   return body.items;
 }
 
+/**
+ * Read the selected clip document the preview prepared for playback. Preview
+ * files also list dependencies first, so match the item's own file reference.
+ */
+export async function readPreviewClip(
+  page: Page,
+  preview: PyTypedContentPreview,
+) {
+  const role =
+    "implementation" in preview.item
+      ? preview.item.implementation.file_role
+      : null;
+  const fileRef = preview.item.files?.find(
+    (entry) => entry.role === role,
+  )?.file_ref;
+  const file = preview.files.find((entry) => entry.file_ref === fileRef);
+  expect(
+    file,
+    `preview of ${preview.item.item_id} must carry its clip`,
+  ).toBeDefined();
+  const response = await page.request.get(file!.url);
+  expect(response.ok(), await response.text()).toBe(true);
+  return (await response.json()) as unknown;
+}
+
 /** Original, quiet PCM tone: no external asset or license is needed by this journey. */
 function originalTone(): Buffer {
   const rate = 24_000;

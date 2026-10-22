@@ -24,7 +24,7 @@ function advances(values: readonly number[], minimumDelta = 0.04): boolean {
 
 function eventIds(
   samples: readonly PlaybackObservation[],
-  channel: "poseClip" | "reactionClip",
+  channel: ClipObservationChannel,
 ): Set<string> {
   return new Set(
     samples.flatMap((sample) => sample.motion[channel]?.firedEventIds ?? []),
@@ -155,100 +155,6 @@ export function proveReactionPlayback(
       );
     },
   });
-}
-
-/**
- * Prove one sparse expression landmark transitions to another over a real clip
- * clock. Optional stopped samples let creator journeys retain the exact
- * time-zero authoring state before they pre-arm playback.
- */
-export async function proveExpressionTransition(
-  args: BaseProof & {
-    channel: ClipObservationChannel;
-    fromExpression: string;
-    toExpression: string;
-    transitionTimeSec: number;
-    initialSamples?: readonly PlaybackObservation[];
-    startMinimum?: number;
-    endMinimum?: number;
-    clearedMaximum?: number;
-    startWindowSec?: number;
-  },
-): Promise<PlaybackObservation[]> {
-  const startMinimum = args.startMinimum ?? 0.8;
-  const endMinimum = args.endMinimum ?? 0.9;
-  const clearedMaximum = args.clearedMaximum ?? 0.1;
-  const startWindowSec = args.startWindowSec ?? 0.22;
-  const startSample = (samples: readonly PlaybackObservation[]) =>
-    samples.find((sample) => {
-      const clip = sample.motion[args.channel];
-      return (
-        (sample.expressions[args.fromExpression] ?? 0) >= startMinimum &&
-        (sample.target.status === "stopped" ||
-          (clip?.runtimeId === args.expectedTarget.runtimeId &&
-            clip.playheadSec <= startWindowSec))
-      );
-    });
-  const endSample = (samples: readonly PlaybackObservation[]) =>
-    samples.find((sample) => {
-      const clip = sample.motion[args.channel];
-      return (
-        clip?.runtimeId === args.expectedTarget.runtimeId &&
-        clip.playheadSec >= args.transitionTimeSec &&
-        (sample.expressions[args.toExpression] ?? 0) >= endMinimum &&
-        typeof sample.expressions[args.fromExpression] === "number" &&
-        sample.expressions[args.fromExpression] <= clearedMaximum
-      );
-    });
-
-  const samples = await observePlaybackWindow({
-    ...args,
-    initialSamples: args.initialSamples,
-    until: (window) => {
-      const clips = window.flatMap((sample) => {
-        const clip = sample.motion[args.channel];
-        return clip?.runtimeId === args.expectedTarget.runtimeId ? [clip] : [];
-      });
-      return (
-        clips.some((clip) => clip.active) &&
-        advances(clips.map((clip) => clip.playheadSec)) &&
-        Boolean(startSample(window)) &&
-        Boolean(endSample(window))
-      );
-    },
-  });
-  const start = startSample(samples)!;
-  const end = endSample(samples)!;
-  const startClip = start.motion[args.channel];
-  const endClip = end.motion[args.channel];
-  await args.evidence.attachJson(`${args.evidenceName}-expression-transition`, {
-    channel: args.channel,
-    fromExpression: args.fromExpression,
-    toExpression: args.toExpression,
-    transitionTimeSec: args.transitionTimeSec,
-    start: {
-      playheadSec: startClip?.playheadSec ?? 0,
-      fromWeight: start.expressions[args.fromExpression] ?? 0,
-      toWeight: start.expressions[args.toExpression] ?? 0,
-      status: start.target.status,
-    },
-    end: {
-      playheadSec: endClip?.playheadSec ?? 0,
-      fromWeight: end.expressions[args.fromExpression] ?? 0,
-      toWeight: end.expressions[args.toExpression] ?? 0,
-      status: end.target.status,
-    },
-    delta: {
-      playheadSec: (endClip?.playheadSec ?? 0) - (startClip?.playheadSec ?? 0),
-      fromWeight:
-        (end.expressions[args.fromExpression] ?? 0) -
-        (start.expressions[args.fromExpression] ?? 0),
-      toWeight:
-        (end.expressions[args.toExpression] ?? 0) -
-        (start.expressions[args.toExpression] ?? 0),
-    },
-  });
-  return samples;
 }
 
 /** Prove Particle VFX identity, ownership, anchor resolution, and its clock. */
