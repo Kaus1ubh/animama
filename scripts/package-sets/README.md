@@ -20,10 +20,12 @@ From the Animama root, using the Python environment installed by `uv sync`:
       /tmp/previous-package-set /tmp/package-set
 
 `--output` and consumer directories must be new paths outside the checkout.
-Format 2 emits one Python wheel, three npm tarballs, an offline local OpenAPI
-schema, the neutral RuntimeOwner JSON Schema and a complete hosted application
-archive with its non-static Included seed. Contract versions come from
-`contracts/versions.json` in the exact source snapshot.
+Format 3 emits one Python wheel, three npm tarballs, an offline local OpenAPI
+schema, the neutral RuntimeOwner JSON Schema, a complete hosted application
+archive with its non-static Included seed, and the static landing site archive
+(`animama-landing-<version>.tar.gz`, built by `pnpm -s landing:build` in the
+snapshot). Contract versions come from `contracts/versions.json` in the exact
+source snapshot.
 
 The canonical `manifest.json` records the full source commit/tree, copied source
 hash, source timestamp, frozen dependency-lock hashes, tool versions, producer
@@ -34,10 +36,11 @@ separately when current reviewed tooling packages an older commit. Content
 identity deliberately distinguishes different build bytes from the same commit;
 no universal cross-platform byte-reproducibility claim is made.
 
-The identity is `sets/v2/<commit>/<manifest-sha256>/`. Strict format 1 remains
-supported for older sources and contains only its original six payloads; current
-tooling never patches those sources into a whole application. `SHA256SUMS`
-inventories every payload. The validation command installs packages in empty independent
+The identity is `sets/v3/<commit>/<manifest-sha256>/`. Each source keeps the
+format it can build: format 1 (the original six payloads) without the hosted
+application, format 2 (adds the application) without the landing build.
+Current tooling verifies all three and never patches an older source into a
+newer format. `SHA256SUMS` inventories every payload. The validation command installs packages in empty independent
 Python/npm environments, runs real shared services with fake ports, mounts the
 Anima/chat UI, then opens the actual emitted app in Chromium with an independent
 cookie/CSRF HTTP authority. It resolves both real Included starters through the
@@ -50,7 +53,11 @@ It emits `validation.json` bound to this manifest and the detailed consumer summ
 not a signature or an automatic publication grant.
 
 The closed app archive, versioned URLs, MIME/cache/range policy, worker CSP and
-non-static seed layout are specified in [the hosted contract](../../contracts/hosted-web.md#static-application-format-a5-producer--consumer-contract).
+non-static seed layout are specified in [the hosted contract](../../contracts/hosted-web.md#static-application-format-a5-producer--consumer-contract),
+and the closed site archive and its `site-manifest.json` in its
+[landing site archive](../../contracts/hosted-web.md#landing-site-archive)
+section (`landing_site.py` verifies them). `validate` runs no browser checks on
+the site, so its receipt is the same for formats 2 and 3.
 The verified baseline speech runtime is a required offline build input. Each
 source snapshot resolves the content-addressed set its own
 `models/browser-speech/manifest.json` names in the shared model store
@@ -68,7 +75,8 @@ manifests/notices are shipped; optional weights stay in separately provisioned
 exact catalogs and remain lazy.
 
 Pass `validate --previous-app-set /tmp/previous-whole-app` to run actual
-upgrade/rollback against a verified compatible clean format-2 predecessor.
+upgrade/rollback against a verified compatible clean format-2 or later
+predecessor.
 Both sets must emit distinct resources (different static prefixes): a
 byte-identical pair is rejected before any browser work, so source revisions
 that emit identical bytes use the controlled fixture instead. Without that
@@ -164,7 +172,7 @@ Every set's receipt has exactly these keys:
   `scripts/repository-boundary/check-packed-artifacts.py` in the validating
   checkout, keyed by those paths.
 
-A format-2 set appends `"closed-whole-application-archive",
+A format-2 or later set appends `"closed-whole-application-archive",
 "isolated-included-seed-consumer", "emitted-browser-worker-audio-avatar",
 "immutable-selection-browser-fixture"` to `checks` and adds three keys:
 
@@ -184,7 +192,7 @@ A format-2 set appends `"closed-whole-application-archive",
 - `catalog_seed`: the application manifest's `catalog_seed`,
   `{manifest: "catalog-seed/manifest.json", sha256, size}`.
 - `selection_kind`: `"verified-clean-package-set-pair"` when
-  `--previous-app-set` named a clean format-2 predecessor with a different
+  `--previous-app-set` named a clean format-2 or later predecessor with a different
   commit and tree, a passing `compare` and distinct application resources;
   otherwise `"controlled-resource-variant"`, the labelled byte-change variant
   derived from this set's own application.

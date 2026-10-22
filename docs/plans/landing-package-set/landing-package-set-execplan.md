@@ -37,7 +37,7 @@ Relevant code:
 ## Progress
 
 - [x] Phase 1: format-3 verifier, producer, `compare` and tests (`build(package-sets)[p1]`).
-- [ ] Phase 2: documentation and records.
+- [x] Phase 2: documentation (`build(package-sets)[p2]`).
 - [ ] Review, full pre-push suite, PR.
 
 ## Surprises & Discoveries
@@ -123,7 +123,24 @@ producer. Format-2 sets keep verifying throughout.
 
 ## Validation
 
-Recorded as work proceeds (command, directory, result, tree).
+Phase 1 commit `dbf76b48` (tree `5b0f7532`), repository root unless noted:
+
+- `uv run --no-sync python -m unittest discover -s scripts/package-sets -p 'test_*.py'`:
+  43 tests OK.
+- `uv run --no-sync python -m unittest discover -s scripts/repository-boundary -p 'test_*.py'`:
+  14 tests OK.
+- `uv run --no-sync ruff check` and `ruff format --check scripts/package-sets scripts/repository-boundary`: pass.
+- Real output, `src/frontend`: `pnpm -s packages:build`, then from `web`
+  `pnpm -s landing:build --out <scratch>/landing` (289 files). `build.pack_site`
+  on that output (version 0.1.1) wrote an 18.1 MB archive in 0.5 s that
+  `verify_site` accepted: 201 `immutable` and 88 `revalidate` files, 13 MIME types.
+  `landing:build` needs the workspace packages built first; the producer's
+  `packages:pack` step does that before it runs.
+
+Phase 2 (documentation only): `pnpm exec prettier --check` from `src/frontend/web`
+on the changed Markdown under `docs/` and `contracts/` passes.
+`scripts/package-sets/README.md` was not Prettier-clean before this change and is
+outside the Prettier gate, so it was left unformatted.
 
 ## Code Review #1 Findings
 
