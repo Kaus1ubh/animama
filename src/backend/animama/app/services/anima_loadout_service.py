@@ -21,6 +21,8 @@ from animama.app.services.content_kind_registry import RETIRED_CONTENT_KINDS
 from animama.app.services.idle_playback import read_gesture_idle_playback
 from animama.app.services.starter_loadout_policy import (
     resolve_starter_idle_pool,
+    starter_gesture_id,
+    starter_gesture_semantic_key,
     starter_loadout_policy,
     starter_reaction_pools,
 )
@@ -134,7 +136,9 @@ class _PlannedChange:
 
     Most intents touch one ``slot`` (``target`` written there, ``current`` the
     existing row). A Reaction ``restore_starter`` touches several member rows,
-    listed in ``additions`` (slot and Reaction) and ``removals``.
+    listed in ``additions`` (slot and Reaction) and ``removals``. A Gesture
+    change names the starter Gestures whose exclusion it sets or lifts in
+    ``starter_ids``.
     """
 
     plan: LoadoutPlan
@@ -143,6 +147,7 @@ class _PlannedChange:
     current: ORMAnimaContentBinding | None = None
     additions: tuple[tuple[str, TypedCatalogItem], ...] = ()
     removals: tuple[ORMAnimaContentBinding, ...] = ()
+    starter_ids: tuple[str, ...] = ()
 
 
 class AnimaLoadoutService:
@@ -291,16 +296,19 @@ class AnimaLoadoutService:
             if not isinstance(raw, dict):
                 continue
             content_id = str(raw.get("content_id") or "")
-            semantic_key = content_id.rsplit(":", 1)[-1]
+            starter_id = starter_gesture_id(content_id)
             value = by_logical.get(content_id)
-            if value is not None and isinstance(value.document, GestureDocumentV1):
-                starter_implementation_kinds[semantic_key] = _implementation_kind(value.document)
-            if ("gesture", semantic_key) in exclusions:
-                disabled_starters.append(semantic_key)
+            document = value.document if value is not None and isinstance(value.document, GestureDocumentV1) else None
+            # Exclusions name the starter by id; its binding uses the key its document declares.
+            semantic_key = document.semantic_key if document is not None else starter_id
+            if document is not None:
+                starter_implementation_kinds[starter_id] = _implementation_kind(document)
+            if ("gesture", starter_id) in exclusions:
+                disabled_starters.append(starter_id)
                 continue
             if semantic_key in occupied_gesture_keys:
                 continue
-            if value is None or not isinstance(value.document, GestureDocumentV1):
+            if value is None or document is None:
                 warnings.append(
                     LoadoutDiagnostic(
                         code="starter_gesture_unavailable",
@@ -310,14 +318,15 @@ class AnimaLoadoutService:
                     )
                 )
                 continue
+            occupied_gesture_keys.add(semantic_key)
             gestures.append(
                 GestureBinding(
                     binding_id=f"starter:{content_id}@{raw.get('version', 1)}",
-                    name=value.document.name,
-                    description=value.document.description,
+                    name=document.name,
+                    description=document.description,
                     semantic_key=semantic_key,
                     origin="starter",
-                    implementation_kind=_implementation_kind(value.document),
+                    implementation_kind=_implementation_kind(document),
                     source=_source(value),
                 )
             )
@@ -577,8 +586,13 @@ class AnimaLoadoutService:
         intent: dict[str, Any],
         lock_sources: bool = False,
         store: ContentStore | None = None,
+        keep_starter_exclusions: bool = False,
     ) -> _PlannedChange:
-        """Validate one intent against current rows; ``store`` is required only to add an Idle member."""
+        """Validate one intent against current rows; ``store`` is required only to add an Idle member.
+
+        Adding a Gesture under a starter's semantic key lifts that starter's
+        exclusion unless ``keep_starter_exclusions`` is set.
+        """
 
         operation = str(intent.get("operation") or "")
         rows = await self._bindings(root.anima_id)
@@ -587,6 +601,7 @@ class AnimaLoadoutService:
         current: ORMAnimaContentBinding | None = None
         additions: tuple[tuple[str, TypedCatalogItem], ...] = ()
         removals: tuple[ORMAnimaContentBinding, ...] = ()
+        gesture_starters: tuple[str, ...] = ()
         warnings: list[LoadoutDiagnostic] = []
         # Idle pool members are Gestures in a non-AI role.
         expected_kind = ContentKind.GESTURE if family == "idle" else ContentKind(family)
@@ -603,6 +618,9 @@ class AnimaLoadoutService:
                 target = await self._target(user_id=user_id, source=intent.get("source"), expected_kind=expected_kind)
                 document = cast(GestureDocumentV1, target.document)
                 slot = f"gesture:{document.semantic_key}"
+                if root.starter_exclusions and not keep_starter_exclusions:
+                    keys = await self._starter_gesture_keys(root.starter_catalog_version)
+                    gesture_starters = tuple(starter for starter, key in keys.items() if key == document.semantic_key)
                 binding_id = intent.get("binding_id")
                 if binding_id:
                     current = next(
@@ -628,10 +646,18 @@ class AnimaLoadoutService:
                 slot = current.slot_key if current else None
                 action = "remove" if current else "unchanged"
             elif operation in {"disable_starter", "restore_starter"}:
-                starter_id = intent.get("starter_id")
-                if not isinstance(starter_id, str) or not starter_id:
+                requested = intent.get("starter_id")
+                if not isinstance(requested, str) or not requested:
                     raise AnimaLoadoutError("starter_id_required")
-                slot = f"gesture:{starter_id}"
+                keys = await self._starter_gesture_keys(root.starter_catalog_version)
+                # Clients name a starter by its id or by the semantic key its binding shows.
+                starter_id = (
+                    requested
+                    if requested in keys
+                    else next((starter for starter, key in keys.items() if key == requested), requested)
+                )
+                gesture_starters = (starter_id,)
+                slot = f"gesture:{keys.get(starter_id, starter_id)}"
                 action = "leave_empty" if operation == "disable_starter" else "revert"
             else:
                 raise AnimaLoadoutError("gesture_operation_invalid")
@@ -780,7 +806,7 @@ class AnimaLoadoutService:
             warnings=tuple(warnings),
             aggregate_revision=aggregate_revision,
         )
-        return _PlannedChange(plan, target, slot, current, additions, removals)
+        return _PlannedChange(plan, target, slot, current, additions, removals, gesture_starters)
 
     async def _dependency_counts(self, *, user_id: str, targets: list[TypedCatalogItem]) -> dict[str, int]:
         """Count the targets' distinct transitive support content and refuse an unconverted Avatar Effect."""
@@ -865,6 +891,16 @@ class AnimaLoadoutService:
             raise AnimaLoadoutError("loadout_revision_conflict", current_revision=root.revision)
         change = await self._plan(root=root, user_id=user_id, family=family, intent=intent, store=store)
         return change.plan
+
+    async def _starter_gesture_keys(self, version: int) -> dict[str, str]:
+        """Map each starter Gesture's id to the semantic key it binds under."""
+
+        content_ids = [str(raw["content_id"]) for raw in starter_loadout_policy(version)["gestures"]]
+        items = await self._catalog.get_included_by_logical_keys(logical_keys=content_ids)
+        return {
+            starter_gesture_id(content_id): starter_gesture_semantic_key(content_id, items.get(content_id))
+            for content_id in content_ids
+        }
 
     @staticmethod
     def _set_exclusion(root: ORMAnimaLoadout, *, slot: str, runtime_id: str, excluded: bool) -> None:
@@ -1042,18 +1078,18 @@ class AnimaLoadoutService:
                         config=dict(intent.get("config_overrides") or {}),
                         current=current,
                     )
-                    document = cast(GestureDocumentV1, target.document)
-                    self._set_exclusion(root, slot="gesture", runtime_id=document.semantic_key, excluded=False)
+                    for starter_id in change.starter_ids:
+                        self._set_exclusion(root, slot="gesture", runtime_id=starter_id, excluded=False)
                 elif operation == "remove" and current is not None:
                     await self._session.delete(current)
                 else:
-                    starter_id = str(intent.get("starter_id"))
-                    self._set_exclusion(
-                        root,
-                        slot="gesture",
-                        runtime_id=starter_id,
-                        excluded=operation == "disable_starter",
-                    )
+                    for starter_id in change.starter_ids:
+                        self._set_exclusion(
+                            root,
+                            slot="gesture",
+                            runtime_id=starter_id,
+                            excluded=operation == "disable_starter",
+                        )
             elif family == "reaction":
                 # Members carry no binding configuration; one runtime root serves every cell.
                 if operation == "add" and target is not None and slot is not None:
@@ -1204,8 +1240,9 @@ class AnimaLoadoutService:
     async def initialize(self, *, user_id: str, anima_id: str, spec: ResolvedAnimaSpec) -> None:
         """Compose exact Revision 1 selections using the normal typed validators.
 
-        Explicit exclusions prevent unselected Recommended Starter Gestures from
-        being implicitly restored; Reaction and Idle pools hold exactly the
+        Explicit exclusions prevent Recommended Starter Gestures from being
+        implicitly restored, including a selected one after the owner removes
+        it; Reaction and Idle pools hold exactly the
         spec's members. No intermediate equipment revisions escape.
         """
 
@@ -1221,7 +1258,7 @@ class AnimaLoadoutService:
             user_id=user_id,
             anima_id=anima_id,
             starter_exclusions=[
-                {"slot": "gesture", "runtime_id": raw["content_id"].rsplit(":", 1)[-1]}
+                {"slot": "gesture", "runtime_id": starter_gesture_id(raw["content_id"])}
                 for raw in starter_loadout_policy(1)["gestures"]
             ],
             idle=spec.idle,
@@ -1238,6 +1275,7 @@ class AnimaLoadoutService:
                 family=family,
                 intent=intent,
                 lock_sources=True,
+                keep_starter_exclusions=True,
             )
             target = change.target
             if source is not None and (target is None or target.item.revision_sha256 != source.revision_sha256):

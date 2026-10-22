@@ -34,7 +34,7 @@ from animama.domain.emotions import TRACKED_EMOTIONS
 from .content_portability import is_non_portable
 from .content_voice import POCKET_CLONE_CODEC
 from .portable_anima_service import resolve_portable_anima
-from .starter_loadout_policy import starter_loadout_policy
+from .starter_loadout_policy import starter_gesture_id, starter_gesture_semantic_key, starter_loadout_policy
 from .typed_content_service import TypedContentService
 
 
@@ -105,15 +105,19 @@ class AnimaPackageSourceService:
             selected[item.id] = item
             return item
 
-        def included(logical_key: str, kind: ContentKind) -> CatalogContentEntry:
+        def included_candidate(logical_key: str) -> CatalogContentEntry | None:
             candidates = [
                 item
                 for item in visible.values()
                 if item.source is ContentSource.INCLUDED and item.logical_key == logical_key
             ]
-            if len(candidates) != 1:
+            return candidates[0] if len(candidates) == 1 else None
+
+        def included(logical_key: str, kind: ContentKind) -> CatalogContentEntry:
+            candidate = included_candidate(logical_key)
+            if candidate is None:
                 raise ContentConflictError("package_anima_starter_unavailable")
-            return select_item(candidates[0].id, kind)
+            return select_item(candidate.id, kind)
 
         policy = starter_loadout_policy(source.starter_catalog_version)
         exclusions: set[tuple[str, str]] = set()
@@ -217,9 +221,10 @@ class AnimaPackageSourceService:
             else:
                 raise ContentConflictError("package_anima_binding_unsupported")
         for starter in policy["gestures"]:
-            key = starter["content_id"].rsplit(":", 1)[-1]
-            if f"gesture:{key}" not in rows and ("gesture", key) not in exclusions:
-                item = included(starter["content_id"], ContentKind.GESTURE)
+            content_id = starter["content_id"]
+            key = starter_gesture_semantic_key(content_id, included_candidate(content_id))
+            if f"gesture:{key}" not in rows and ("gesture", starter_gesture_id(content_id)) not in exclusions:
+                item = included(content_id, ContentKind.GESTURE)
                 if portable(item):
                     gestures.append({"semantic_key": key, "entry_id": item.id, "config": {}})
                 else:
