@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal, cast
@@ -531,10 +532,41 @@ class AnimaLoadoutService:
                 targets[item_id] = error
         return targets
 
+    async def _exact_targets(
+        self, *, user_id: str, sources: list[CatalogContentEntry], expected_kind: ContentKind
+    ) -> list[TypedCatalogItem]:
+        """Lock and type a new loadout's exact sources in one read, in order.
+
+        The first failing source decides the error: unavailable or invalid as
+        ``_target`` reports it, or ``loadout_source_stale`` when its revision
+        changed since the caller resolved it.
+        """
+
+        targets = await self._targets(
+            user_id=user_id, item_ids=[source.id for source in sources], expected_kind=expected_kind, lock=True
+        )
+        typed: list[TypedCatalogItem] = []
+        for source in sources:
+            target = targets[source.id]
+            if isinstance(target, AnimaLoadoutError):
+                raise target
+            if target.item.revision_sha256 != source.revision_sha256:
+                raise AnimaLoadoutError("loadout_source_stale")
+            typed.append(target)
+        return typed
+
     async def _insert_bindings(
-        self, *, root: ORMAnimaLoadout, kind: ContentKind, members: list[tuple[str, TypedCatalogItem]]
+        self,
+        *,
+        root: ORMAnimaLoadout,
+        kind: ContentKind,
+        members: list[tuple[str, TypedCatalogItem]],
+        configs: Mapping[str, dict[str, Any]] | None = None,
     ) -> None:
-        """Write a new loadout's pool members in one statement; a repeated slot keeps its last member."""
+        """Write a new loadout's rows of one kind in one statement; a repeated slot keeps its last member.
+
+        ``configs`` holds each slot's binding configuration; a slot without one is empty.
+        """
 
         rows: dict[str, dict[str, Any]] = {
             slot: {
@@ -543,7 +575,7 @@ class AnimaLoadoutService:
                 "slot_key": slot,
                 "catalog_item_id": target.item.id,
                 "kind": kind.value,
-                "config": {},
+                "config": dict((configs or {}).get(slot, {})),
             }
             for slot, target in members
         }
@@ -586,12 +618,10 @@ class AnimaLoadoutService:
         intent: dict[str, Any],
         lock_sources: bool = False,
         store: ContentStore | None = None,
-        keep_starter_exclusions: bool = False,
     ) -> _PlannedChange:
         """Validate one intent against current rows; ``store`` is required only to add an Idle member.
 
-        Adding a Gesture under a starter's semantic key lifts that starter's
-        exclusion unless ``keep_starter_exclusions`` is set.
+        Adding a Gesture under a starter's semantic key lifts that starter's exclusion.
         """
 
         operation = str(intent.get("operation") or "")
@@ -618,7 +648,7 @@ class AnimaLoadoutService:
                 target = await self._target(user_id=user_id, source=intent.get("source"), expected_kind=expected_kind)
                 document = cast(GestureDocumentV1, target.document)
                 slot = f"gesture:{document.semantic_key}"
-                if root.starter_exclusions and not keep_starter_exclusions:
+                if root.starter_exclusions:
                     keys = await self._starter_gesture_keys(root.starter_catalog_version)
                     gesture_starters = tuple(starter for starter, key in keys.items() if key == document.semantic_key)
                 binding_id = intent.get("binding_id")
@@ -1182,20 +1212,12 @@ class AnimaLoadoutService:
         # at runtime, which drops an ineligible Gesture alone. Here every member
         # passes the typed source checks, all locked and read in one batch, and the
         # first failing member (in pool order) decides the error.
-        targets = await self._targets(
-            user_id=user_id,
-            item_ids=[member.source.id for member in idle],
-            expected_kind=ContentKind.GESTURE,
-            lock=True,
+        targets = await self._exact_targets(
+            user_id=user_id, sources=[member.source for member in idle], expected_kind=ContentKind.GESTURE
         )
-        members: list[tuple[str, TypedCatalogItem]] = []
-        for member in idle:
-            target = targets[member.source.id]
-            if isinstance(target, AnimaLoadoutError):
-                raise target
-            if target.item.revision_sha256 != member.source.revision_sha256:
-                raise AnimaLoadoutError("loadout_source_stale")
-            members.append((idle_slot_key(member.cell, member.source.id), target))
+        members = [
+            (idle_slot_key(member.cell, member.source.id), target) for member, target in zip(idle, targets, strict=True)
+        ]
         await self._insert_bindings(root=root, kind=ContentKind.GESTURE, members=members)
         return root
 
@@ -1244,6 +1266,13 @@ class AnimaLoadoutService:
         implicitly restored, including a selected one after the owner removes
         it; Reaction and Idle pools hold exactly the
         spec's members. No intermediate equipment revisions escape.
+
+        Gestures and Reactions are each locked, read and written in one batch,
+        so the statement count does not grow with them. Errors follow the
+        checks' order: every Gesture's availability and revision (the first
+        failing Gesture decides), then a repeated semantic key, then every
+        Reaction's availability and revision, then the dependency refusal
+        over both families.
         """
 
         reaction_pools: dict[str, list[str]] = {}
@@ -1269,48 +1298,45 @@ class AnimaLoadoutService:
         ) -> None:
             if source is not None:
                 intent["source"] = {"type": "catalog", "catalog_item_id": source.id}
-            change = await self._plan(
-                root=root,
-                user_id=user_id,
-                family=family,
-                intent=intent,
-                lock_sources=True,
-                keep_starter_exclusions=True,
-            )
+            change = await self._plan(root=root, user_id=user_id, family=family, intent=intent, lock_sources=True)
             target = change.target
             if source is not None and (target is None or target.item.revision_sha256 != source.revision_sha256):
                 raise AnimaLoadoutError("loadout_source_stale")
-            if family == "gesture" and change.current is not None:
-                raise AnimaLoadoutError("gesture_semantic_key_conflict")
             await self._apply_planned(root=root, family=family, intent=intent, change=change)
 
         await apply("avatar", {"operation": "set"}, spec.avatar)
         if spec.voice_source is not None:
             await apply("voice", {"operation": "set"}, spec.voice_source)
-        for selection in spec.gestures:
-            await apply("gesture", {"operation": "add", "config_overrides": selection.config}, selection.source)
-        # Pool members are written directly from the validated pools above; one
-        # dependency check covers them all instead of a catalog scan per member.
-        reaction_targets: list[TypedCatalogItem] = []
-        for reaction in spec.reactions:
-            target = await self._target(
-                user_id=user_id,
-                source={"type": "catalog", "catalog_item_id": reaction.source.id},
-                expected_kind=ContentKind.REACTION,
-                lock=True,
-            )
-            if target.item.revision_sha256 != reaction.source.revision_sha256:
-                raise AnimaLoadoutError("loadout_source_stale")
-            reaction_targets.append(target)
-            await self._upsert(
-                root=root,
-                slot=reaction_slot_key(reaction_cell_key(reaction.emotion, reaction.intensity), reaction.source.id),
-                kind=ContentKind.REACTION,
-                target=target,
-                config={},
-                current=None,
-            )
-        await self._dependency_counts(user_id=user_id, targets=reaction_targets)
+        gesture_targets = await self._exact_targets(
+            user_id=user_id,
+            sources=[selection.source for selection in spec.gestures],
+            expected_kind=ContentKind.GESTURE,
+        )
+        gestures: list[tuple[str, TypedCatalogItem]] = []
+        configs: dict[str, dict[str, Any]] = {}
+        for selection, target in zip(spec.gestures, gesture_targets, strict=True):
+            slot = f"gesture:{cast(GestureDocumentV1, target.document).semantic_key}"
+            if slot in configs:
+                raise AnimaLoadoutError("gesture_semantic_key_conflict")
+            configs[slot] = dict(selection.config)
+            gestures.append((slot, target))
+        reaction_targets = await self._exact_targets(
+            user_id=user_id,
+            sources=[reaction.source for reaction in spec.reactions],
+            expected_kind=ContentKind.REACTION,
+        )
+        # One dependency walk over one catalog read refuses an unconverted
+        # Avatar Effect behind any member; creation needs no counts.
+        await self._dependency_counts(user_id=user_id, targets=[*gesture_targets, *reaction_targets])
+        await self._insert_bindings(root=root, kind=ContentKind.GESTURE, members=gestures, configs=configs)
+        await self._insert_bindings(
+            root=root,
+            kind=ContentKind.REACTION,
+            members=[
+                (reaction_slot_key(reaction_cell_key(reaction.emotion, reaction.intensity), reaction.source.id), target)
+                for reaction, target in zip(spec.reactions, reaction_targets, strict=True)
+            ],
+        )
         for use, appearance in (("profile", spec.profile), ("background", spec.background)):
             if appearance is not None:
                 await apply(

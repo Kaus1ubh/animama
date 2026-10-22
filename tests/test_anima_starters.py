@@ -46,7 +46,7 @@ from tests.anima_creation_service_support import (
     write_supplied_starter_fixture,
 )
 from tests.local_http_client import local_client
-from tests.statement_counting import STARTER_LOADOUT_STATEMENTS, counted_statements
+from tests.statement_counting import STARTER_LOADOUT_STATEMENTS, SUPPLIED_STARTERS_STATEMENTS, counted_statements
 
 REQUEST = EnsureAnimaStartersRequest(schema_version=1, repairs=[])
 
@@ -611,10 +611,13 @@ async def test_tracked_checkout_materializes_both_starters_without_optional_loca
             catalog=SQLAlchemyContentCatalog(async_session), store=fixture.store()
         ).rescan(user_id=fixture.owner)
         fixture.extra_catalog_ids.update(item.id for item in scanned.items)
-        result = await AnimaStarterService(fixture.service(async_session)).ensure(
-            user_id=fixture.owner, request=REQUEST
-        )
+        with counted_statements(async_session) as statements:
+            result = await AnimaStarterService(fixture.service(async_session)).ensure(
+                user_id=fixture.owner, request=REQUEST
+            )
         assert result["complete"]
+        # Each starter's Gestures and Reaction pools are written in batches.
+        assert len(statements) <= SUPPLIED_STARTERS_STATEMENTS
         for starter in result["starters"]:
             loadout = await AnimaLoadoutService(async_session).read_model(
                 user_id=fixture.owner, anima_id=starter["anima_id"]

@@ -125,7 +125,9 @@ presentation use the live name and identity, never continuing Avatar fallbacks.
 and authenticated owner through one caller-owned `AnimaAggregateUnitOfWork`.
 It associates the logical Avatar, writes identity/history and the template
 `MEMORIES.md`, defaults/settings, chat profile, and exact typed selections
-through `AnimaLoadoutService.initialize`.
+through `AnimaLoadoutService.initialize`, which locks, reads and writes the
+Gestures and Reactions in one batch per family, so its statement count does not
+grow with them.
 Aggregate, identity, and loadout revisions start at 1. It never commits,
 contacts a provider, writes files, or issues runtime. The configured active
 model row is checked locally; default ElevenLabs voice is `gJx1vCzNCD1EQHT212Ls`.

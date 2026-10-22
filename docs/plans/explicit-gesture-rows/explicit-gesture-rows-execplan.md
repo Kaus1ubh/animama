@@ -35,7 +35,7 @@ Merge points removed (file and current role):
 | Area | File | Current implicit-starter handling |
 | --- | --- | --- |
 | Read model | `src/backend/animama/app/services/anima_loadout_service.py` `read_model` | Adds non-excluded starters as `origin="starter"` bindings; returns `disabled_starter_gestures`; stashes `starter_gesture_implementation_kinds` on the service |
-| Plan/commit | same file, `_plan`, `_apply_planned`, `_set_exclusion`, `_starter_gesture_keys` | `disable_starter`/`restore_starter`; an add lifts a matching exclusion unless `keep_starter_exclusions` |
+| Plan/commit | same file, `_plan`, `_apply_planned`, `_set_exclusion`, `_starter_gesture_keys` | `disable_starter`/`restore_starter`; an add lifts a matching exclusion (creation kept them through a `keep_starter_exclusions` flag, removed in Phase 1) |
 | Creation | same file, `initialize`, `_create_root`, `create_starter_loadout` | Excludes all 140 starters, then adds rows; the hosted path writes no Gesture rows |
 | Runtime mount | `anima_runtime_service.py` `_selections` | Adds non-excluded starters as `origin: "starter"` roots |
 | Export | `anima_package_source_service.py` `capture`/projection | Validates exclusions; exports non-excluded starters not shadowed by a row |
@@ -85,7 +85,7 @@ From a read-only survey of Animama Cloud `main` at `9affbe1f`:
   `fc825a9b`.
 - [x] Owner decisions D1 and D2 (2026-10-21); #648 R4 amended.
 - [x] Owner approved the plan for all phases (2026-10-22).
-- [ ] Phase 1: batched creation writes.
+- [x] Phase 1: batched creation writes (review passed after one repair round).
 - [ ] Phase 2: explicit Gesture rows end to end.
 - [ ] Final integration review, full pre-push suite, full `pnpm e2e:test`, PR.
 
@@ -185,17 +185,110 @@ review passes. Commit `perf(loadout)[p1]: write creation Gestures and Reactions 
 
 Recovery: the change is confined to creation; revert the phase commit.
 
-Check record: (pending)
+Starting source: `487cf745` (plan commit on `fc825a9b`).
 
-Results: (pending)
+Check record (working tree `fa608eaf`, root, Python 3.12.13):
+
+- `uv run pytest -q tests/test_anima_creation_batching.py` before the change:
+  the statement test failed (`[121, 175]`), the error-order and
+  repeated-key tests passed (they pin existing behavior). After: 4 passed.
+- `uv run ruff check` and `uv run ruff format --check` on the touched files:
+  passed.
+- `uv run pytest -q -n 4` over the creation, loadout, starter, Reaction/Idle
+  pool, package import/export and portable Anima tests (18 files): 221 passed.
+- `uv run pytest -q tests/test_anima_starters.py -k tracked_checkout` with the
+  new supplied-starter bound: passed.
+- `python3 scripts/heavy-slot.py -- make check-test` (typed-content audit,
+  format check, lint, mypy, pytest with 2 workers): passed, 4,733 passed and
+  29 skipped.
+
+Results:
+
+- `_exact_targets` locks and types a new loadout's exact sources in one read
+  (shared by the Idle seed, Gestures and Reactions); `_insert_bindings` takes
+  per-slot configs. `initialize` writes Gestures and Reactions with one insert
+  each and one dependency walk; `keep_starter_exclusions` went with the
+  per-Gesture path. Avatar, voice and appearances keep `_plan`.
+- Error order (accepted deviation, P1-R1-F1): codes and rows are unchanged,
+  but the checks now run in this order: every Gesture's availability and
+  revision (the first failing Gesture decides), a repeated semantic key, every
+  Reaction's availability and revision, then the dependency refusal over both
+  families. The per-intent path checked each Gesture fully before the next, so
+  a request with two simultaneous faults can report the later check's code.
+- Tests: `tests/test_anima_creation_batching.py` (statement count independent
+  of 1 vs 4 Gestures and Reactions, with each row's slot, item and distinct
+  config; first failing member per family; repeated semantic key; refusal of a
+  Gesture behind an unconverted Avatar Effect) and `SUPPLIED_STARTERS_STATEMENTS = 300` on the tracked-content
+  creation of both starters.
+- Timing, same harness and session (scratch probe around
+  `AnimaStarterService.ensure`, not committed), two runs each:
+
+  | | Both starters | Statements | `initialize` per starter | Statements per `initialize` |
+  | --- | --- | --- | --- | --- |
+  | Before (`fc825a9b`) | 18.6 s, 19.6 s | 5,571 | 8.3–8.9 s | 2,705 |
+  | After | 2.7 s, 3.0 s | 267 | 0.23–0.29 s | 53 |
+
+- Docs: the materializer paragraph of `custom-animas-and-content.md` states the
+  batch invariant.
 
 #### Code Review #1 Findings
 
-(pending)
+Reviewed source: `487cf745` plus the working tree (tree `6d64985f`, which
+differs from the check-record tree only in this plan).
+
+Checks subagent (independent rerun, high-risk tier): `ruff check` and
+`ruff format --check` on the four changed Python files passed; `mypy` (the
+Makefile target's arguments) passed, 856 files; the 18 affected test files
+with `-n 4` through the heavy slot: 221 passed. Regression proof in a
+temporary detached worktree at `487cf745` with only the new and changed tests
+copied in: the creation statement test failed with `[121, 175]` and the
+supplied-starter bound with `5571 <= 300`; the worktree was then removed.
+
+Analysis subagent (`sdlc-reviewer`, no reruns; confirmed the code and doc
+blobs match tree `fa608eaf`): rows, configs, locks, the conflict check and the
+dependency refusal are equivalent; `keep_starter_exclusions` had no other user
+(Cloud included).
+
+- P1-R1-F1 (required): the `initialize` docstring and these Results claimed
+  the first failing member still decides; with two simultaneous faults the
+  order differs (a repeated key before a later unavailable Gesture; an
+  unconverted Avatar Effect before a repeated key).
+- P1-R1-F2 (required): plan step 3 asks that created rows match by slot, item
+  and config; the test checked only catalog ids, and no test created several
+  configured Gestures.
+- P1-R1-F3 (optional): no test covers creation's refusal of an unconverted
+  Avatar Effect, and the comment did not say the walk exists to refuse.
+- P1-R1-F4 (optional): Phase 2 step 2 still lists `keep_starter_exclusions`.
 
 #### Code Review #1 Revisions
 
-(pending)
+- F1 accepted: the docstring and Results state the actual check order, recorded
+  as an accepted deviation (restoring per-member order would add code for
+  double-fault requests only).
+- F2 accepted: the statement test gives each Gesture a distinct
+  `time_scale` and asserts every `gesture:`/`reaction:` row's slot, item and
+  config.
+- F3 accepted: the comment names the refusal, and
+  `test_creation_refuses_a_gesture_behind_an_unconverted_avatar_effect` covers
+  it through `materialize`.
+- F4 accepted: Phase 2 step 2 no longer lists the flag.
+- Verification: `ruff check`/`ruff format` on the two files passed;
+  `tests/test_anima_creation_batching.py` 5 passed. Mutation check: dropping
+  the dependency walk and the per-slot config made the refusal and statement
+  tests fail (2 failed, 3 passed); the source was then restored.
+- Repair budget: one of two rounds used; targeted recheck below.
+
+#### Code Review #2 Findings
+
+Targeted recheck of P1-R1-F1 to F4 (same reviewer; high-risk reruns): all four
+resolved, no regression (the production change since review #1 is a docstring
+and a comment). Rerun: `pytest -q tests/test_anima_creation_batching.py
+tests/test_anima_materializer.py tests/test_anima_starters.py` 63 passed;
+`ruff check` on the service and the batching test passed. Result: pass.
+
+#### Code Review #2 Revisions
+
+None needed. Phase 1 passed with one of two repair rounds used.
 
 ### Phase 2: explicit Gesture rows end to end
 
@@ -211,7 +304,7 @@ Backend steps:
    `starter_gesture_unavailable` read warning, `disabled_starter_gestures` and
    the stashed implementation kinds; sort by name.
 2. `_plan`/`_apply_planned`: drop `disable_starter`/`restore_starter`,
-   `keep_starter_exclusions`, `_PlannedChange.starter_ids`, `_set_exclusion`
+   `_PlannedChange.starter_ids`, `_set_exclusion`
    and `_starter_gesture_keys`. Add, update, reconfigure and remove are
    unchanged.
 3. `_create_root` and `initialize`: no exclusions.
