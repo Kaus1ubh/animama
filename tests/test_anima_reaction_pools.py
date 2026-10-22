@@ -242,10 +242,6 @@ async def test_reaction_pool_members_are_added_removed_and_restored_per_cell(asy
                 reaction_slot_key("joy-1", grin.id),
             ]
         )
-        # Reactions are no longer recorded as Starter exclusions.
-        root = await async_session.get(ORMAnimaLoadout, fixture.anima_id)
-        assert root is not None and root.starter_exclusions == []
-
         starter_member = next(member for member in cells[("joy", 2)].members if member.item_id == starter.id)
         remove = {"operation": "remove", "binding_id": starter_member.binding_id}
         assert await _change(service, fixture, revision=5, intent=remove, key="r-5") == "remove"
@@ -488,12 +484,10 @@ async def test_runtime_selects_one_root_per_reaction_with_all_its_cells(async_se
         additions = [_add(sigh, "sadness", 3), _add(cheer, "joy", 4), _add(cheer, "anger", 1), _add(sigh, "joy", 4)]
         for revision, intent in enumerate(additions, start=1):
             await _change(service, fixture, revision=revision, intent=intent, key=f"r-{revision}")
-        root = await async_session.scalar(select(ORMAnimaLoadout).where(ORMAnimaLoadout.anima_id == fixture.anima_id))
-        assert root is not None
         visible = await SQLAlchemyContentCatalog(async_session).list_visible(user_id=fixture.user_id)
 
         selected = await AnimaRuntimeService(async_session)._selections(  # noqa: SLF001
-            anima_id=fixture.anima_id, loadout=root, visible=visible
+            anima_id=fixture.anima_id, visible=visible
         )
 
         reaction_roots = [value for value in selected.roots if value.kind is ContentKind.REACTION]

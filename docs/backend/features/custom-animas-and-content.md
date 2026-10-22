@@ -125,7 +125,9 @@ presentation use the live name and identity, never continuing Avatar fallbacks.
 and authenticated owner through one caller-owned `AnimaAggregateUnitOfWork`.
 It associates the logical Avatar, writes identity/history and the template
 `MEMORIES.md`, defaults/settings, chat profile, and exact typed selections
-through `AnimaLoadoutService.initialize`.
+through `AnimaLoadoutService.initialize`, which locks, reads and writes the
+Gestures and Reactions in one batch per family, so its statement count does not
+grow with them.
 Aggregate, identity, and loadout revisions start at 1. It never commits,
 contacts a provider, writes files, or issues runtime. The configured active
 model row is checked locally; default ElevenLabs voice is `gJx1vCzNCD1EQHT212Ls`.
@@ -230,33 +232,34 @@ rewritten by a later spec version.
 ### Starter loadout
 
 `resources/starter-loadout.v1.json` is the one definition of a starter Anima's
-assets: its pre-equipped `gestures`, its `reactions` pool members and its
-`idle` pool seed. Each loadout stores the policy `version` it started from and
-reads its starter Gestures and starter Reaction cells from that version; the
-Idle seed is copied into the pool when the loadout starts. `schema_version` 2
-added the `idle` section. The Starter Pack identity in creation options and
-drafts is the policy's SHA-256 revision, so any policy edit makes earlier drafts
-stale.
+assets: its `gestures`, its `reactions` pool members and its `idle` pool seed.
+Starting a loadout copies all three into binding rows from the content
+installed then, so later installs and policy edits never change an existing
+Anima. Each loadout also stores the policy `version` it started from, which
+Reaction `origin`, cell `state` and the cell's `restore_starter` read.
+`schema_version` 2 added the `idle` section. The Starter Pack identity in
+creation options and drafts is the policy's SHA-256 revision, so any policy
+edit makes earlier drafts stale.
 
-A starter Gesture binds under the semantic key its Included document declares,
-which the model selects and packages carry (`air_quotes`). Starter exclusions,
-`disabled_starter_gestures` and the `starter_id` of a Gesture `disable_starter`
-or `restore_starter` name it by its id, the last segment of its content id
-(`air-quotes`); those intents also accept the starter's semantic key. Adding a
-Gesture under a starter's semantic key lifts that starter's exclusion, so
-removing the Gesture later restores the starter. Creation keeps every starter
-excluded instead, so removing a created Anima's Gesture leaves it out.
+A starter Gesture's row uses the semantic key its Included document declares,
+which the model selects and packages carry (`air_quotes`, while its content id
+ends in `air-quotes`). An Anima's Gestures are exactly its rows: removing one
+removes it, and re-adding one is an ordinary add. There are no starter
+exclusions or starter-specific Gesture operations
+([ADR 0030](../../adr/0030-anima-gestures-are-binding-rows.md)).
 
-Creation and starter provisioning apply it through the creation request. A
-composition that equips starters without one creates the loadout with
-`AnimaLoadoutService.create_starter_loadout`, in the owner's transaction: the
-loadout uses the version's starter Gestures and receives the same Idle pool as
-creation, and each Reaction cell holds its available starter Reactions, as
-`restore_starter` leaves it. It then sets the Avatar and other selections
-through ordinary plan/commit changes. The starter step reads, locks and writes
-its pools in a bounded number of statements and locks every pool member until
-the owner's commit. A composition whose shared catalog rows (rows with no owner)
-never change at runtime sets `SHARED_CATALOG_ROWS_IMMUTABLE` from
+Creation and starter provisioning apply the policy through the creation
+request. A composition that equips starters without one creates the loadout
+with `AnimaLoadoutService.create_starter_loadout`, in the owner's transaction:
+it writes a row for each available starter Gesture, the same Idle pool as
+creation, and each Reaction cell's available starter Reactions, as
+`restore_starter` leaves it. It leaves out an unavailable starter Gesture or
+Reaction and returns it as a `starter_gesture_unavailable` or
+`starter_reaction_unavailable` diagnostic. It then sets the Avatar and other
+selections through ordinary plan/commit changes. The starter step reads, locks
+and writes its Gestures and pools in a bounded number of statements and locks
+every member until the owner's commit. A composition whose shared catalog rows
+(rows with no owner) never change at runtime sets `SHARED_CATALOG_ROWS_IMMUTABLE` from
 `content_catalog_repo` to `True` in the session's `info`. The loadout reads
 (`get_visible_item` and `get_visible_items`) then lock only owner rows, so
 concurrent owners' loadout writes never wait on a shared row; `lock_items` and

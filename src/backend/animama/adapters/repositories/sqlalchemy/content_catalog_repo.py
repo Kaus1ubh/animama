@@ -5,8 +5,8 @@ from __future__ import annotations
 import hashlib
 import json
 import uuid
-from collections import Counter, defaultdict
-from collections.abc import AsyncIterator, Iterable, Sequence
+from collections import defaultdict
+from collections.abc import AsyncIterator, Iterable
 from contextlib import asynccontextmanager
 from copy import deepcopy
 from dataclasses import dataclass
@@ -1045,23 +1045,6 @@ class SQLAlchemyContentCatalog(ContentCatalog):
             return None
         loaded = await self._load_entries(rows)
         return loaded[0] if loaded else None
-
-    async def get_included_by_logical_keys(self, *, logical_keys: Sequence[str]) -> dict[str, CatalogContentEntry]:
-        """Resolve Included items by logical key in one read, leaving out a key with duplicates."""
-
-        rows = list(
-            (
-                await self._session.execute(
-                    select(ORMContentCatalogItem).where(
-                        ORMContentCatalogItem.source == ContentSource.INCLUDED.value,
-                        ORMContentCatalogItem.logical_key.in_(logical_keys),
-                    )
-                )
-            ).scalars()
-        )
-        counts = Counter(row.logical_key for row in rows)
-        entries = await self._load_entries([row for row in rows if counts[row.logical_key] == 1])
-        return {entry.logical_key: entry for entry in entries if entry.logical_key is not None}
 
     async def assign_creator_owner(self, *, item_id: str, user_id: str) -> CatalogContentEntry:
         """Attach creator ownership to the exact new Local item in network mode."""

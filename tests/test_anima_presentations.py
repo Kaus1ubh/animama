@@ -66,7 +66,6 @@ async def test_builtin_avatar_presentation_resolves_on_the_clean_typed_schema(
                 owner_user_id=user_id,
                 revision=1,
                 starter_catalog_version=1,
-                starter_exclusions=[],
             )
         )
         async_session.add(

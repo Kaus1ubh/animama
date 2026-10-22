@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable
 from contextlib import AbstractAsyncContextManager
 from datetime import datetime
 from typing import Any, Protocol
@@ -133,11 +133,6 @@ class ContentCatalog(Protocol):
         logical_key: str,
     ) -> CatalogContentEntry | None:
         """Resolve one unambiguous logical identity, including a missing prior entry."""
-
-        raise NotImplementedError
-
-    async def get_included_by_logical_keys(self, *, logical_keys: Sequence[str]) -> dict[str, CatalogContentEntry]:
-        """Resolve Included items by logical key in one read, leaving out a key with duplicates."""
 
         raise NotImplementedError
 

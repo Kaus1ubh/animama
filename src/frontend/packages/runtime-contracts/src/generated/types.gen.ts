@@ -2797,11 +2797,9 @@ export type PyAnimaLoadout = {
     appearances?: Array<PyAnimaAppearance>;
     avatar_source?: PyCatalogLoadoutSource | null;
     /**
-     * Disabled Starter Gestures
-     */
-    disabled_starter_gestures: Array<string>;
-    /**
      * Gestures
+     *
+     * The Anima's Gestures: exactly its Gesture binding rows.
      */
     gestures: Array<PyGestureBinding>;
     idle: PyAnimaIdle;
@@ -2815,12 +2813,6 @@ export type PyAnimaLoadout = {
      * Revision
      */
     revision: number;
-    /**
-     * Starter Gesture Implementation Kinds
-     */
-    starter_gesture_implementation_kinds?: {
-        [key: string]: 'anima_clip' | 'vrma';
-    };
     /**
      * Starter Version
      */
@@ -5144,6 +5136,8 @@ export type PyGesture = {
 
 /**
  * PyGestureBinding
+ *
+ * One equipped AI-callable Gesture, stored as a ``gesture:<semantic_key>`` binding row.
  */
 export type PyGestureBinding = {
     /**
@@ -5172,10 +5166,6 @@ export type PyGestureBinding = {
      * Name
      */
     name: string;
-    /**
-     * Origin
-     */
-    origin: 'starter' | 'custom';
     /**
      * Semantic Key
      */
@@ -5221,12 +5211,8 @@ export type PyGestureIntent = {
     /**
      * Operation
      */
-    operation: 'add' | 'update' | 'reconfigure' | 'remove' | 'disable_starter' | 'restore_starter';
+    operation: 'add' | 'update' | 'reconfigure' | 'remove';
     source?: PyCatalogLoadoutSource | null;
-    /**
-     * Starter Id
-     */
-    starter_id?: string | null;
 };
 
 /**
@@ -5458,7 +5444,7 @@ export type PyLoadoutPlan = {
     /**
      * Action
      */
-    action: 'add' | 'update' | 'replace' | 'remove' | 'revert' | 'leave_empty' | 'unchanged';
+    action: 'add' | 'update' | 'replace' | 'remove' | 'revert' | 'unchanged';
     /**
      * Aggregate Revision
      */

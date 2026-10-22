@@ -30,7 +30,6 @@ function gestureBinding(itemId: string, semanticKey: string) {
     binding_id: `binding-${itemId}`,
     name: semanticKey,
     semantic_key: semanticKey,
-    origin: "custom",
     implementation_kind: "anima_clip",
     source: { type: "catalog", catalog_item_id: itemId, source: "local" },
   } as PyAnimaLoadout["gestures"][number];

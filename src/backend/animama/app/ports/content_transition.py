@@ -28,7 +28,6 @@ class MusicTransitionAnima:
     loadout_revision: int
     aggregate_revision: int
     starter_catalog_version: int
-    starter_exclusions: tuple[dict[str, str], ...]
     bindings: tuple[MusicTransitionBinding, ...]
 
 
@@ -47,15 +46,13 @@ class ContentTransitionBinding:
 
 @dataclass(frozen=True, slots=True)
 class ContentTransitionSelection:
-    """An affected explicit selection or currently consumed implicit starter."""
+    """An affected Gesture or Reaction binding row."""
 
     slot_key: str
     kind: str
     catalog_item_id: str
-    binding_id: str | None
+    binding_id: str
     config: dict[str, Any]
-    starter_content_id: str | None = None
-    starter_version: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -66,7 +63,6 @@ class ContentTransitionAnima:
     loadout_revision: int
     aggregate_revision: int
     starter_catalog_version: int
-    starter_exclusions: tuple[dict[str, str], ...]
     bindings: tuple[ContentTransitionBinding, ...]
     selections: tuple[ContentTransitionSelection, ...]
 
@@ -82,10 +78,8 @@ class ContentTransitionBindings(Protocol):
         """Recheck the aggregate and exact Music set before removing its retired bindings."""
         ...
 
-    async def content_consumers(
-        self, *, user_id: str, item_ids: tuple[str, ...], included_by_logical: Mapping[str, str]
-    ) -> tuple[ContentTransitionAnima, ...]:
-        """Snapshot affected explicit and implicit Action consumers by Anima."""
+    async def content_consumers(self, *, user_id: str, item_ids: tuple[str, ...]) -> tuple[ContentTransitionAnima, ...]:
+        """Snapshot the Animas whose Gesture or Reaction rows use an affected item."""
         ...
 
     async def replace_content(

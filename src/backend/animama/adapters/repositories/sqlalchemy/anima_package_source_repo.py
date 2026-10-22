@@ -94,7 +94,6 @@ class SQLAlchemyAnimaPackageSourceRepository:
             avatar_presentation_revision=avatar.presentation_revision if avatar else None,
             loadout_revision=root.revision,
             starter_catalog_version=root.starter_catalog_version,
-            starter_exclusions=tuple(deepcopy(root.starter_exclusions)),
             bindings=tuple(
                 SavedAnimaBinding(row.slot_key, row.kind, row.catalog_item_id, deepcopy(row.config)) for row in bindings
             ),

@@ -51,7 +51,6 @@ async def create_loadout_fixture(session) -> LoadoutFixture:  # noqa: ANN001
             owner_user_id=fixture.user_id,
             revision=1,
             starter_catalog_version=1,
-            starter_exclusions=[],
         )
     )
     await session.commit()

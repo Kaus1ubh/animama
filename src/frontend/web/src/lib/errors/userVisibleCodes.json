@@ -108,8 +108,6 @@
     "reaction_member_duplicate",
     "reaction_operation_invalid",
     "reaction_pool_full",
-    "starter_gesture_unavailable",
-    "starter_id_required",
     "starter_reaction_unavailable",
     "voice_operation_invalid"
   ],

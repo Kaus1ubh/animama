@@ -354,17 +354,11 @@ export function ActionManageDialog({
         (candidate) => candidate.source.catalog_item_id === target.itemId,
       );
       const intent: PyGestureIntent = equipped
-        ? binding?.origin === "starter"
-          ? {
-              operation: "disable_starter",
-              starter_id: binding.semantic_key,
-              config_overrides: {},
-            }
-          : {
-              operation: "remove",
-              binding_id: binding?.binding_id,
-              config_overrides: {},
-            }
+        ? {
+            operation: "remove",
+            binding_id: binding?.binding_id,
+            config_overrides: {},
+          }
         : { operation: "add", source, config_overrides: {} };
       const plan = (
         await planGestureV1AnimasAnimaIdGesturesPlanPost({

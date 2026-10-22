@@ -151,8 +151,6 @@
     "reaction_operation_invalid": "此反應變更無效。",
     "reaction_pool_full": "該儲存格已有 4 個反應。請先移除一個再新增。",
     "reviewFailed": "檢查失敗。",
-    "starter_gesture_unavailable": "內建動作 {{semanticKey}} 無法使用。",
-    "starter_id_required": "此變更需要一個內建動作。",
     "starter_reaction_unavailable": "有一個內建起始反應無法使用，未能還原。",
     "updateFailed": "更新失敗。",
     "voice_operation_invalid": "此語音變更無效。"

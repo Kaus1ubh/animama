@@ -23,11 +23,6 @@ from animama.app.ports.content_store import ContentStore
 from animama.app.services.avatar_face_parts import override_face_parts
 from animama.app.services.content_access_policy import ContentAccessPolicy
 from animama.app.services.runtime_content_closure import RuntimeContentClosureCompiler
-from animama.app.services.starter_loadout_policy import (
-    starter_gesture_id,
-    starter_gesture_semantic_key,
-    starter_loadout_policy,
-)
 from animama.app.services.typed_runtime_projection import project_typed_runtime_catalog
 from animama.domain.anima_loadout import parse_cell_key, parse_idle_slot_key, parse_reaction_slot_key
 from animama.domain.content_catalog import (
@@ -177,11 +172,7 @@ class AnimaRuntimeService:
             raise RuntimeSnapshotError("anima_not_found")
 
         visible = await self.catalog.list_visible(user_id=user_id)
-        selection_plan = await self._selections(
-            anima_id=anima_id,
-            loadout=loadout,
-            visible=visible,
-        )
+        selection_plan = await self._selections(anima_id=anima_id, visible=visible)
         descriptor = await RuntimeContentClosureCompiler(
             catalog=self.catalog,
             store=self.store,
@@ -381,25 +372,12 @@ class AnimaRuntimeService:
         self,
         *,
         anima_id: str,
-        loadout: ORMAnimaLoadout,
         visible: list[CatalogContentEntry],
     ) -> _RuntimeSelectionPlan:
-        """Resolve neutral catalog bindings plus the Included starter set."""
+        """Resolve the loadout's catalog bindings; its Gesture rows are its only Gestures."""
 
-        by_logical: dict[str, list[CatalogContentEntry]] = defaultdict(list)
         by_locator = {item.relative_locator: item for item in visible}
         by_id = {item.id: item for item in visible}
-        for item in visible:
-            if item.logical_key:
-                by_logical[item.logical_key].append(item)
-
-        def logical(key: str | None) -> CatalogContentEntry | None:
-            candidates = by_logical.get(key or "", [])
-            if len(candidates) == 1:
-                return candidates[0]
-            suffix = key.rsplit(":", 1)[-1] if key else ""
-            matches = [item for item in visible if item.logical_key and item.logical_key.rsplit(":", 1)[-1] == suffix]
-            return matches[0] if len(matches) == 1 else None
 
         selections: list[RuntimeContentRootSelection] = []
         occupied: set[str] = set()
@@ -473,23 +451,6 @@ class AnimaRuntimeService:
                     "origin": "catalog",
                 },
                 missing_identity=binding.catalog_item_id,
-            )
-
-        excluded = {(row.get("slot"), row.get("runtime_id")) for row in loadout.starter_exclusions}
-        for starter in starter_loadout_policy(loadout.starter_catalog_version)["gestures"]:
-            content_id = str(starter["content_id"])
-            if ("gesture", starter_gesture_id(content_id)) in excluded:
-                continue
-            starter_item = logical(content_id)
-            add(
-                f"gesture:{starter_gesture_semantic_key(content_id, starter_item)}",
-                starter_item,
-                ContentKind.GESTURE,
-                {
-                    "binding_id": f"starter:{content_id}@{starter['version']}",
-                    "origin": "starter",
-                },
-                missing_identity=content_id,
             )
 
         for item_id, cells in sorted(idle_cells.items()):

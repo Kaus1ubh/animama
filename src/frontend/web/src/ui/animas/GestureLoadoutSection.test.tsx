@@ -8,10 +8,7 @@ import type {
   PyGestureBinding,
 } from "@animama/runtime-contracts/api-types";
 import type { PyGesture } from "@/lib/content/catalogTypes";
-import {
-  presentGestureCatalog,
-  presentGestureLoadout,
-} from "@/lib/loadout/animaLoadoutPresentation";
+import { presentGestureCatalog } from "@/lib/loadout/animaLoadoutPresentation";
 import { TooltipProvider } from "@/ui/components/tooltip";
 import { GestureLoadoutSection } from "./GestureLoadoutSection";
 
@@ -49,15 +46,11 @@ const gestures = [
   gesture("Beckon"),
   gesture("Local", "local"),
 ];
-const binding = (
-  id: string,
-  origin: "starter" | "custom",
-): PyGestureBinding => ({
+const binding = (id: string): PyGestureBinding => ({
   binding_id: `binding-${id}`,
   name: id,
   semantic_key: id,
   implementation_kind: "vrma",
-  origin,
   source: {
     type: "catalog",
     catalog_item_id: id,
@@ -70,8 +63,7 @@ const loadout: PyAnimaLoadout = {
   aggregate_revision: 1,
   revision: 1,
   starter_version: 1,
-  gestures: [binding("Wave", "starter"), binding("Idle", "custom")],
-  disabled_starter_gestures: ["Bow"],
+  gestures: [binding("Wave"), binding("Idle")],
   reactions: [],
   idle: { default_pool: [], cells: [] },
 };
@@ -91,8 +83,6 @@ function mount(items = gestures, currentLoadout = loadout) {
     onRemove: vi.fn(),
     onPreview: vi.fn(),
     onPreviewAvailable: vi.fn(),
-    onDisableStarter: vi.fn(),
-    onRestoreStarter: vi.fn(),
     onRetryCatalog: vi.fn(),
   };
   container = document.createElement("div");
@@ -102,7 +92,6 @@ function mount(items = gestures, currentLoadout = loadout) {
     root!.render(
       <TooltipProvider>
         <GestureLoadoutSection
-          presentation={presentGestureLoadout(currentLoadout, items)}
           catalog={presentGestureCatalog(items, currentLoadout.gestures)}
           catalogLoading={false}
           catalogError={false}
@@ -188,21 +177,28 @@ describe("Gesture Loadout catalog", () => {
     expect(view.textContent).toContain("2 equipped / 5 total");
   });
 
-  it("restores disabled starters and preserves explicit Included equip/remove behavior", () => {
+  it("equips with add and unequips with remove, with no starter-specific state", () => {
     const { view, callbacks } = mount();
     for (const name of ["Bow", "Wave", "Idle", "Beckon"])
       act(() =>
         rowFor(view, name).querySelector<HTMLButtonElement>("button")!.click(),
       );
-    expect(callbacks.onRestoreStarter).toHaveBeenCalledWith("Bow");
-    expect(callbacks.onDisableStarter).toHaveBeenCalledWith(
-      loadout.gestures[0],
-    );
-    expect(callbacks.onRemove).toHaveBeenCalledWith(loadout.gestures[1]);
-    expect(callbacks.onEquip).toHaveBeenCalledExactlyOnceWith(gestures[3]);
+    expect(callbacks.onEquip.mock.calls).toEqual([
+      [gestures[0]],
+      [gestures[3]],
+    ]);
+    expect(callbacks.onRemove.mock.calls).toEqual([
+      [loadout.gestures[0]],
+      [loadout.gestures[1]],
+    ]);
+    // Every row has the Library and Remove menu; none carries a Starter badge.
+    expect(
+      view.querySelectorAll('[aria-label^="More actions for"]'),
+    ).toHaveLength(5);
+    expect(view.querySelector('[aria-label="Starter"]')).toBeNull();
   });
 
-  it("restores a disabled Included Gesture with its starter slug when its selector differs", () => {
+  it("equips a removed Included Gesture again with an ordinary add", () => {
     const airQuotes: PyGesture = {
       ...gesture("Air Quotes"),
       semantic_key: "air_quotes",
@@ -216,7 +212,6 @@ describe("Gesture Loadout catalog", () => {
     const { view, callbacks } = mount([airQuotes], {
       ...loadout,
       gestures: [],
-      disabled_starter_gestures: ["air-quotes"],
     });
     expect(rowNames(view)).toEqual(["Air Quotes"]);
     act(() =>
@@ -224,8 +219,7 @@ describe("Gesture Loadout catalog", () => {
         .querySelector<HTMLButtonElement>("button")!
         .click(),
     );
-    expect(callbacks.onRestoreStarter).toHaveBeenCalledWith("air-quotes");
-    expect(callbacks.onEquip).not.toHaveBeenCalled();
+    expect(callbacks.onEquip).toHaveBeenCalledExactlyOnceWith(airQuotes);
   });
 
   it("counts the full catalog before Show more and search", () => {
