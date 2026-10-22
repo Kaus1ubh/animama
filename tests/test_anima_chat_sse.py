@@ -64,6 +64,7 @@ from animama.orm.user_file_chunk import ORMUserFileChunk
 from animama.product_http.chat import (
     compaction as chat_compaction,
     sse_events as chat_sse_events,
+    sse_runtime as chat_sse_runtime,
     title as chat_title,
     tts as chat_tts,
     turn_setup as chat_turn_setup,
@@ -1458,6 +1459,102 @@ async def test_chat_sse_streams_user_response_while_tts_session_pending(monkeypa
     tts_index = next(index for index, chunk in enumerate(chunks) if "event: tts.session" in chunk)
     completed_index = next(index for index, chunk in enumerate(chunks) if "event: run.completed" in chunk)
     assert user_index < tts_index < completed_index
+
+
+@pytest.mark.asyncio
+async def test_a_ready_speech_descriptor_wakes_the_drain_instead_of_waiting_for_the_next_poll(monkeypatch) -> None:
+    # A poll interval far longer than the test's wait: only a wake-up can send the frame in time.
+    monkeypatch.setattr(chat_sse_runtime, "_BRIDGE_POLL_SECONDS", 60.0)
+    bridge = chat_sse_runtime.DirectChatEventBridge(anima_id="anima-1")
+    model_done = asyncio.Event()
+    model_task = asyncio.create_task(model_done.wait())
+    setup: asyncio.Future[str] = asyncio.get_running_loop().create_future()
+
+    sent = False
+
+    def pop_ready_frame() -> str | None:
+        nonlocal sent
+        if sent or not setup.done():
+            return None
+        sent = True
+        return setup.result()
+
+    frames = cast(
+        AsyncGenerator[str, None],
+        chat_sse_runtime.drain_events_while_task_runs(
+            model_task,
+            bridge,
+            run_id="run-1",
+            anima_id="anima-1",
+            sessions=cast(Any, None),
+            state=SseTextState(),
+            stream_user_response=True,
+            stream_emotion_update=True,
+            poll_extra_frame=pop_ready_frame,
+            extra_frame_wake=lambda: None if sent else setup,
+        ),
+    )
+    pending = asyncio.ensure_future(anext(frames))
+    await asyncio.sleep(0)
+    assert not pending.done()
+
+    setup.set_result("event: tts.session\n\n")
+    try:
+        assert await asyncio.wait_for(pending, timeout=1.0) == "event: tts.session\n\n"
+    finally:
+        model_done.set()
+        await frames.aclose()
+        await model_task
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_sends_the_speech_descriptor_while_the_ai_notice_is_recorded(monkeypatch) -> None:
+    _install_route_mocks(
+        monkeypatch,
+        chat_options={"tts": {"enabled": True, "provider": "elevenlabs", "transport": "auto"}},
+    )
+    release_notice = asyncio.Event()
+    original_lock = _FakeCompanionSafety.lock_ai_notice_state
+
+    async def _slow_lock_ai_notice_state(self: _FakeCompanionSafety, user_id: str) -> AiNoticeState:
+        await release_notice.wait()
+        return await original_lock(self, user_id)
+
+    async def _fake_resolve_realtime_tts_session(**_kwargs):
+        return PyElevenLabsRealtimeTtsSessionResponse(
+            voice_id="voice-primary",
+            model_id="eleven_v4_turbo",
+            output_format="pcm_24000",
+            sync_alignment=True,
+            token="sutkn-chat",
+            websocket_base_url="wss://api.elevenlabs.io",
+        )
+
+    monkeypatch.setattr(_FakeCompanionSafety, "lock_ai_notice_state", _slow_lock_ai_notice_state)
+    monkeypatch.setattr(elevenlabs_service, "resolve_realtime_tts_session", _fake_resolve_realtime_tts_session)
+
+    response = await chat_anima_direct_sse(
+        "anima-1",
+        _chat_request(message="hello", run_id="run-1", chat_id="chat-1"),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    body_iterator = _stream_body(response)
+    first = await asyncio.wait_for(anext(body_iterator), timeout=1.0)
+    first_text = first.decode() if isinstance(first, bytes) else first
+    assert "event: tts.session" in first_text
+
+    release_notice.set()
+    chunks = [first_text]
+    async for chunk in body_iterator:
+        chunks.append(chunk.decode() if isinstance(chunk, bytes) else chunk)
+
+    names = [
+        line.removeprefix("event: ") for chunk in chunks for line in chunk.splitlines() if line.startswith("event: ")
+    ]
+    # The AI notice still precedes the first provider output (spec R2).
+    assert names.index("safety.ai_notice") < names.index("user.response")
+    assert names.count("tts.session") == 1
 
 
 @pytest.mark.asyncio
