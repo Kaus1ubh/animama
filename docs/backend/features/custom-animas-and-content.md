@@ -242,7 +242,10 @@ A starter Gesture binds under the semantic key its Included document declares,
 which the model selects and packages carry (`air_quotes`). Starter exclusions,
 `disabled_starter_gestures` and the `starter_id` of a Gesture `disable_starter`
 or `restore_starter` name it by its id, the last segment of its content id
-(`air-quotes`); those intents also accept the starter's semantic key.
+(`air-quotes`); those intents also accept the starter's semantic key. Adding a
+Gesture under a starter's semantic key lifts that starter's exclusion, so
+removing the Gesture later restores the starter. Creation keeps every starter
+excluded instead, so removing a created Anima's Gesture leaves it out.
 
 Creation and starter provisioning apply it through the creation request. A
 composition that equips starters without one creates the loadout with

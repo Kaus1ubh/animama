@@ -586,8 +586,13 @@ class AnimaLoadoutService:
         intent: dict[str, Any],
         lock_sources: bool = False,
         store: ContentStore | None = None,
+        keep_starter_exclusions: bool = False,
     ) -> _PlannedChange:
-        """Validate one intent against current rows; ``store`` is required only to add an Idle member."""
+        """Validate one intent against current rows; ``store`` is required only to add an Idle member.
+
+        Adding a Gesture under a starter's semantic key lifts that starter's
+        exclusion unless ``keep_starter_exclusions`` is set.
+        """
 
         operation = str(intent.get("operation") or "")
         rows = await self._bindings(root.anima_id)
@@ -613,8 +618,7 @@ class AnimaLoadoutService:
                 target = await self._target(user_id=user_id, source=intent.get("source"), expected_kind=expected_kind)
                 document = cast(GestureDocumentV1, target.document)
                 slot = f"gesture:{document.semantic_key}"
-                if root.starter_exclusions:
-                    # Equipping a Gesture under a starter's key lifts that starter's exclusion.
+                if root.starter_exclusions and not keep_starter_exclusions:
                     keys = await self._starter_gesture_keys(root.starter_catalog_version)
                     gesture_starters = tuple(starter for starter, key in keys.items() if key == document.semantic_key)
                 binding_id = intent.get("binding_id")
@@ -1236,8 +1240,9 @@ class AnimaLoadoutService:
     async def initialize(self, *, user_id: str, anima_id: str, spec: ResolvedAnimaSpec) -> None:
         """Compose exact Revision 1 selections using the normal typed validators.
 
-        Explicit exclusions prevent unselected Recommended Starter Gestures from
-        being implicitly restored; Reaction and Idle pools hold exactly the
+        Explicit exclusions prevent Recommended Starter Gestures from being
+        implicitly restored, including a selected one after the owner removes
+        it; Reaction and Idle pools hold exactly the
         spec's members. No intermediate equipment revisions escape.
         """
 
@@ -1270,6 +1275,7 @@ class AnimaLoadoutService:
                 family=family,
                 intent=intent,
                 lock_sources=True,
+                keep_starter_exclusions=True,
             )
             target = change.target
             if source is not None and (target is None or target.item.revision_sha256 != source.revision_sha256):

@@ -487,7 +487,7 @@ async def test_effective_starter_gestures_are_frozen_and_reactions_have_no_impli
 
 
 async def test_starter_gestures_export_under_their_declared_semantic_keys(async_session, saved_anima, monkeypatch):
-    """An unmodified starter Anima exports; id-form exclusions still leave their starters out (#555)."""
+    """An unmodified starter Anima exports; id-form exclusions and occupied slots leave starters out (#555)."""
 
     from animama.orm.anima_loadout import ORMAnimaLoadout
 
@@ -495,7 +495,7 @@ async def test_starter_gestures_export_under_their_declared_semantic_keys(async_
     policy: dict[str, list[dict[str, Any]]] = {"gestures": [], "reactions": []}
     included = []
     try:
-        for name in ("air-quotes", "goodbye-wave"):
+        for name in ("air-quotes", "goodbye-wave", "head-nod"):
             starter_id = f"{name}-{uuid4().hex[:8]}"
             row = await add_typed_item(
                 async_session,
@@ -515,23 +515,42 @@ async def test_starter_gestures_export_under_their_declared_semantic_keys(async_
             )
             included.append((row.id, starter_id))
             policy["gestures"].append({"content_id": f"builtin:gesture:{starter_id}", "version": 1})
-        (kept_id, kept_starter), (_, excluded_starter) = included
+        (kept_id, kept_starter), (_, excluded_starter), (_, replaced_starter) = included
         await async_session.execute(
             update(ORMAnimaLoadout)
             .where(ORMAnimaLoadout.anima_id == anima.id)
             .values(starter_exclusions=[{"slot": "gesture", "runtime_id": excluded_starter}])
+        )
+        # A Local Gesture bound under a starter's declared key replaces that starter.
+        replaced_key = replaced_starter.replace("-", "_")
+        local = await add_typed_item(
+            async_session,
+            LoadoutFixture(fixture.user_id, "", "", ""),
+            kind="gesture",
+            name="My Nod",
+            metadata={"semantic_key": replaced_key, "implementation": {"kind": "anima_clip", "file_role": "sequence"}},
+        )
+        async_session.add(
+            ORMAnimaContentBinding(
+                id=str(uuid4()),
+                anima_id=anima.id,
+                slot_key=f"gesture:{replaced_key}",
+                kind="gesture",
+                catalog_item_id=local.id,
+                config={},
+            )
         )
         await async_session.commit()
         monkeypatch.setattr(
             "animama.app.services.anima_package_source_service.starter_loadout_policy", lambda version: policy
         )
         projection = await source_service(async_session).capture(user_id=fixture.user_id, anima_id=anima.id)
-        starters = [
+        selections = [
             (selection.entry_id, selection.semantic_key)
             for selection in projection.definition.gestures
-            if selection.entry_id in {item_id for item_id, _ in included}
+            if selection.entry_id in {local.id, *(item_id for item_id, _ in included)}
         ]
-        assert starters == [(kept_id, kept_starter.replace("-", "_"))]
+        assert sorted(selections) == sorted([(kept_id, kept_starter.replace("-", "_")), (local.id, replaced_key)])
     finally:
         await async_session.execute(
             delete(ORMContentCatalogItem).where(ORMContentCatalogItem.id.in_([item_id for item_id, _ in included]))

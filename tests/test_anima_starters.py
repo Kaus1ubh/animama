@@ -535,6 +535,33 @@ async def test_supplied_fixture_content_can_materialize_both_starters(async_sess
             assert len(loadout.idle.cells) == 72 and all(not cell.gestures for cell in loadout.idle.cells)
             assert_starter_reaction_pools(loadout)
 
+        # Creation keeps every starter excluded, so a removed Gesture stays removed.
+        service = AnimaLoadoutService(async_session)
+        anima_id = result["starters"][0]["anima_id"]
+        loadout = await service.read_model(user_id=fixture.owner, anima_id=anima_id)
+        assert {gesture.origin for gesture in loadout.gestures} == {"custom"}
+        removed = loadout.gestures[0]
+        intent = {"operation": "remove", "binding_id": removed.binding_id}
+        plan = await service.plan(
+            user_id=fixture.owner,
+            anima_id=anima_id,
+            family="gesture",
+            expected_revision=loadout.revision,
+            intent=intent,
+        )
+        await service.commit(
+            user_id=fixture.owner,
+            anima_id=anima_id,
+            family="gesture",
+            expected_revision=loadout.revision,
+            intent=intent,
+            plan_digest=plan.digest,
+            idempotency_key=uuid4().hex,
+        )
+        loadout = await service.read_model(user_id=fixture.owner, anima_id=anima_id)
+        assert len(loadout.gestures) == 139
+        assert removed.semantic_key not in {gesture.semantic_key for gesture in loadout.gestures}
+
 
 def assert_starter_reaction_pools(loadout) -> None:  # noqa: ANN001
     """All 96 cells hold exactly their Included starter Reactions: one at intensity 1, two at 2-4 (D16)."""
