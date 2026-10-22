@@ -426,6 +426,50 @@ describe("ElevenLabs v4 Turbo dialogue socket", () => {
   });
 });
 
+describe("session wait", () => {
+  const timedOut = {
+    runId: RUN_ID,
+    reason: "elevenlabs_start_failed",
+    message: "Timed out waiting for ElevenLabs realtime TTS session.",
+  };
+
+  it("waits for the session from the response's first event, not from the run's start", async () => {
+    act(() => void runtime().startRun(RUN_ID, CONTEXT));
+    // The turn waits for admission before its stream starts.
+    act(() => vi.advanceTimersByTime(5_000));
+    act(() => runtime().startSessionWait(RUN_ID));
+    act(() => vi.advanceTimersByTime(1_000));
+    act(() => runtime().acceptSession(RUN_ID, directSession));
+    await settle();
+
+    expect(FakeWebSocket.instances).toHaveLength(1);
+    expect(events.warnings).toEqual([]);
+  });
+
+  it("still gives up 1.5 s after the response's first event", async () => {
+    act(() => void runtime().startRun(RUN_ID, CONTEXT));
+    act(() => vi.advanceTimersByTime(5_000));
+    act(() => runtime().startSessionWait(RUN_ID));
+    act(() => vi.advanceTimersByTime(1_501));
+    await settle();
+    act(() => runtime().acceptSession(RUN_ID, directSession));
+    await settle();
+
+    expect(events.warnings).toEqual([timedOut]);
+    expect(FakeWebSocket.instances).toEqual([]);
+  });
+
+  it("starts the wait at once for a run whose response began before its speech", async () => {
+    act(() => runtime().startSessionWait(RUN_ID));
+    act(() => vi.advanceTimersByTime(5_000));
+    act(() => runtime().appendText(RUN_ID, "Hello there.", CONTEXT));
+    act(() => vi.advanceTimersByTime(1_501));
+    await settle();
+
+    expect(events.warnings).toEqual([timedOut]);
+  });
+});
+
 describe("hosted server speech socket", () => {
   it("keeps the frames the hosted socket validates and ends on either final marker", async () => {
     fixture.providerCredentials = false;

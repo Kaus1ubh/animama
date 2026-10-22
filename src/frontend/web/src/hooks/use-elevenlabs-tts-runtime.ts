@@ -377,12 +377,36 @@ export function useElevenLabsTtsRuntime(
   optionsRef.current = options;
   const loggerRef = useRef(createLogger("ElevenLabsTTSRuntime"));
   const activeRuntimeRef = useRef<ActiveRuntime | null>(null);
+  // The run whose response stream has started (startSessionWait).
+  const streamStartedRunIdRef = useRef<string | null>(null);
   const volumeRef = useRef(mapNormalizedVolumeToPocketGain(1));
 
   const clearSessionFallbackTimer = useCallback((runtime: ActiveRuntime) => {
     if (runtime.sessionFallbackTimer === null) return;
     window.clearTimeout(runtime.sessionFallbackTimer);
     runtime.sessionFallbackTimer = null;
+  }, []);
+
+  /** Time out a run's still-pending session, once. */
+  const armSessionWait = useCallback((runtime: ActiveRuntime) => {
+    if (runtime.sessionFallbackTimer !== null) return;
+    if (runtime.closed || runtime.sessionStatus !== "pending") return;
+    runtime.sessionFallbackTimer = window.setTimeout(() => {
+      if (activeRuntimeRef.current !== runtime) return;
+      if (runtime.closed || runtime.sessionStatus !== "pending") return;
+      runtime.sessionStatus = "timeout";
+      loggerRef.current.warn(
+        "Bootstrap",
+        "Timed out waiting for ElevenLabs chat SSE session",
+        {
+          runId: runtime.runId,
+          waitMs: ELEVENLABS_SESSION_WAIT_TIMEOUT_MS,
+        },
+      );
+      runtime.rejectSession?.(
+        new Error("Timed out waiting for ElevenLabs realtime TTS session."),
+      );
+    }, ELEVENLABS_SESSION_WAIT_TIMEOUT_MS);
   }, []);
 
   const clearKeepAlive = useCallback((runtime: ActiveRuntime) => {
@@ -642,26 +666,27 @@ export function useElevenLabsTtsRuntime(
         },
       );
 
-      runtime.sessionFallbackTimer = window.setTimeout(() => {
-        if (activeRuntimeRef.current !== runtime) return;
-        if (runtime.closed || runtime.sessionStatus !== "pending") return;
-        runtime.sessionStatus = "timeout";
-        loggerRef.current.warn(
-          "Bootstrap",
-          "Timed out waiting for ElevenLabs chat SSE session",
-          {
-            runId: runtime.runId,
-            waitMs: ELEVENLABS_SESSION_WAIT_TIMEOUT_MS,
-          },
-        );
-        runtime.rejectSession?.(
-          new Error("Timed out waiting for ElevenLabs realtime TTS session."),
-        );
-      }, ELEVENLABS_SESSION_WAIT_TIMEOUT_MS);
+      // A runtime created after its response began waits from now.
+      if (streamStartedRunIdRef.current === runtime.runId)
+        armSessionWait(runtime);
 
       return runtime.sessionPromise;
     },
-    [clearSessionFallbackTimer],
+    [armSessionWait, clearSessionFallbackTimer],
+  );
+
+  /**
+   * The run's response stream delivered its first event: give its pending
+   * session 1.5 s from now. The wait does not start at send, because a server
+   * may hold a turn before its stream starts.
+   */
+  const startSessionWait = useCallback(
+    (runId: string) => {
+      streamStartedRunIdRef.current = runId;
+      const runtime = activeRuntimeRef.current;
+      if (runtime?.runId === runId) armSessionWait(runtime);
+    },
+    [armSessionWait],
   );
 
   const startRun = useCallback(
@@ -1076,6 +1101,7 @@ export function useElevenLabsTtsRuntime(
 
   return {
     startRun: ensureStarted,
+    startSessionWait,
     acceptSession,
     markSessionFailed,
     appendText: enqueueText,

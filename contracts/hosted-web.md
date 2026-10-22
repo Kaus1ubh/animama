@@ -346,7 +346,8 @@ browser speaks that reply with it, choosing the voice as for any Pocket reply,
 without a notice; preferences are unchanged and the next turn asks the server
 again. It switches only before the run plays audio or ends its speech and before
 any speech socket failure. A decline sent instead of `tts.session` must also
-arrive within the browser's 1.5 s session wait (from the turn's start); after an
+arrive within the browser's 1.5 s session wait, which starts at the turn's first
+event, so a turn may wait for admission before its stream starts; after an
 accepted session, a decline may come at any time before `run.completed`.
 Otherwise, and for every other code, the reply's speech ends with the existing
 notice, which shows `error` (or the session timeout message). Because `error` is

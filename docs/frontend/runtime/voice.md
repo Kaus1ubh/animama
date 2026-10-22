@@ -906,8 +906,9 @@ Mechanics:
 
 Realtime Eleven v4 Turbo receives an SSE-provided single-use token and opens a
 direct Text to Dialogue WebSocket ([protocol](elevenlabs-tts.md#realtime-model)).
-Setup waits at most 1500 ms for the session event; failures stop audio for that
-run while chat continues.
+Setup waits at most 1500 ms for the session event, counted from the response's
+first event rather than from send, so a turn the server holds before its stream
+starts keeps its voice. Failures stop audio for that run while chat continues.
 
 A hosted server can decline a run's ElevenLabs speech with
 `speech_allowance_exhausted` (an exhausted voice allowance). Where Pocket TTS is

@@ -549,6 +549,86 @@ test("server speech session reaches the playback adapter without provider creden
   assert.equal(received.sessions[0].value.token, null);
 });
 
+/** Let the page run its pending tasks, so a missing effect is not just late. */
+async function drainPage(page) {
+  await page.evaluate(() => new Promise((resolve) => setTimeout(resolve, 50)));
+}
+
+test("a speaking turn's stream start reaches the playback adapter once, at its first event", async (t) => {
+  const page = await consumer(t);
+  await page.evaluate(() => window.fixture.enableSpeech());
+  await page.waitForFunction(
+    () => document.querySelector("#submit")?.disabled === false,
+  );
+  await submitSession(page, "Wait your turn");
+  const runId = await page.evaluate(
+    () => window.fixture.requests()[0].body.run_id,
+  );
+  await drainPage(page);
+  assert.deepEqual(
+    await page.evaluate(() => window.fixture.ttsStreamStarts()),
+    [],
+  );
+
+  // Response headers alone (a turn still waiting for admission) start nothing.
+  await page.evaluate(() => window.fixture.respond(0));
+  await drainPage(page);
+  assert.deepEqual(
+    await page.evaluate(() => window.fixture.ttsStreamStarts()),
+    [],
+  );
+
+  await page.evaluate(
+    (run_id) => window.fixture.send(0, [{ text: "Hello", run_id }]),
+    runId,
+  );
+  await page.waitForFunction(
+    () => window.fixture.ttsStreamStarts().length === 1,
+  );
+  await page.evaluate(
+    (run_id) =>
+      window.fixture.send(0, [
+        { text: " again.", run_id },
+        { run_id, chat_id: "chat-fixture" },
+      ]),
+    runId,
+  );
+  await sessionIdle(page);
+  assert.deepEqual(
+    await page.evaluate(() => window.fixture.ttsStreamStarts()),
+    [runId],
+  );
+});
+
+test("a turn stopped before its first event never starts its speech wait", async (t) => {
+  const page = await consumer(t);
+  await page.evaluate(() => window.fixture.enableSpeech());
+  await page.waitForFunction(
+    () => document.querySelector("#submit")?.disabled === false,
+  );
+  await submitSession(page, "Never mind");
+  await page.evaluate(() => window.fixture.respond(0));
+  await page.click("#stop");
+  await sessionIdle(page);
+
+  await submitSession(page, "Try again", 2);
+  const runId = await page.evaluate(
+    () => window.fixture.requests()[1].body.run_id,
+  );
+  await page.evaluate((run_id) => {
+    window.fixture.respond(1);
+    window.fixture.send(1, [
+      { text: "Hi.", run_id },
+      { run_id, chat_id: "chat-fixture" },
+    ]);
+  }, runId);
+  await sessionIdle(page);
+  assert.deepEqual(
+    await page.evaluate(() => window.fixture.ttsStreamStarts()),
+    [runId],
+  );
+});
+
 const allowanceExhausted = {
   provider: "elevenlabs",
   code: "speech_allowance_exhausted",
