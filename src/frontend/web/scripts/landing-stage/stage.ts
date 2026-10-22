@@ -469,6 +469,9 @@ function enterStop(index: number) {
     happyFadeFrom = null;
   }
   stopPlayback();
+  // A stop's effects load and compile as it starts; that says nothing about
+  // the machine.
+  resolution.settle(time);
   const stop = STAGE_STOPS[index];
   document.body.dataset.ink = stop.ink;
   store.set({ active: index });

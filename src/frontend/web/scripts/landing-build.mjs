@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import {
   copyFileSync,
+  existsSync,
   mkdirSync,
   readFileSync,
   readdirSync,
@@ -48,12 +49,20 @@ export async function buildLanding({
   outDir = path.join(webRoot, "dist-landing"),
 } = {}) {
   // The build empties `outDir` first: refuse any folder that holds the
-  // source, the repository or the home folder.
+  // source, the repository or the home folder, and any other folder with
+  // files in it unless it is a previous build.
   for (const kept of [webRoot, repoRoot, homedir()]) {
     const relative = path.relative(path.resolve(outDir), kept);
     if (!relative.startsWith("..") && !path.isAbsolute(relative))
       throw new Error(`Refusing to build into ${outDir}: it contains ${kept}.`);
   }
+  const previousBuild = ["index.html", "_headers"].every((name) =>
+    existsSync(path.join(outDir, name)),
+  );
+  if (existsSync(outDir) && readdirSync(outDir).length > 0 && !previousBuild)
+    throw new Error(
+      `Refusing to build into ${outDir}: it has files and is not a landing build.`,
+    );
   // What the stops play and the page's text, through a server that never
   // listens (it only loads the app's modules).
   const server = await createServer({
