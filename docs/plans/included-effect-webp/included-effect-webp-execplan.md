@@ -3,7 +3,7 @@
 Source agreement: raymond-van/animama#655 (filed 2026-10-22). The issue is the
 spec; this plan does not restate it. Owner decisions on its open questions are
 recorded in the Decision Log (2026-10-22).
-Authorized scope: none yet. The owner reviews this plan before Phase 1 starts.
+Authorized scope: Phases 1–4 (owner, `/implement 1 through 4`, 2026-10-22).
 Merge, release, publication and the Cloud repin keep their separate approvals.
 
 ## Purpose and context
@@ -103,7 +103,8 @@ Paths are from the repository root.
   Review #1 passed after trivial repairs. Committed as `chore(licenses)[p3]`.
 - [x] Phase 4: Scene stickers built as WebP. Reviews #1 and #2 passed (one
   repair round). Committed as `perf(web)[p4]`.
-- [ ] Final integration review. Not started.
+- [x] Final integration review. Passed after trivial repairs; the final
+  pre-push suite follows.
 - [ ] Owner gate: visual check on a packaged desktop build (both Included Avatars).
 - [ ] Owner gate: Cloud repin to the merged commit (Cloud record, separate approval).
 
@@ -277,7 +278,7 @@ Check record (repository root, Python 3.12.13, Pillow 12.0.0, libwebp 1.6.0):
 | `python3 scripts/heavy-slot.py -- make check-test` | exit 0; 4736 passed, 29 skipped | `637e695e` |
 | Review #1 checks agent: the same pytest set, `ruff check`, `ruff format --check`, full `mypy`, import boundary; converter run twice on the real tree | all pass; 338 derivatives, byte-identical runs | `6d74943c` |
 
-Phase commits: _pending_ (`perf(content)[p1]: …`).
+Phase commits: `6580cfa8` perf(content)[p1]: convert Included effect art to WebP derivatives with master-path licences.
 
 #### Code Review #1 Findings
 
@@ -492,7 +493,7 @@ Package-set `build`/`validate` needs an exact commit, so it runs in the final
 pre-push suite on the committed candidate.
 
 
-Phase commits: _pending_ (`perf(content)[p2]: …`).
+Phase commits: `107386b4` perf(content)[p2]: stage and seed Included effect art as WebP derivatives.
 
 #### Code Review #1 Findings
 
@@ -660,7 +661,7 @@ Check record:
 | `node --test scripts/effects.test.mjs scripts/included-dependencies.test.mjs` (`src/frontend/web`) | 39 passed | `5f0f8b61` |
 
 
-Phase commits: _pending_ (`docs(licenses)[p3]: …` and `test(effects)[p3]: …`, or one `chore(licenses)[p3]: …`).
+Phase commits: `fad4ba36` chore(licenses)[p3]: record the WebP bytes shipped for third-party particle copies.
 
 #### Code Review #1 Findings
 
@@ -793,7 +794,7 @@ Check record:
 candidate, on a disposable built stack.
 
 
-Phase commits: _pending_ (`perf(web)[p4]: …`).
+Phase commits: `125a296c` perf(web)[p4]: build the Scene stickers as WebP.
 
 #### Code Review #1 Findings
 
@@ -900,6 +901,65 @@ runs once on the final candidate:
 - package-set build and validate.
 
 Its results go in the PR.
+
+### Code Review #1 Findings
+
+Reviewed source: committed `125a296c` against `4354978f`, whole plan. It
+covered Phase 3's implementer-verified repairs explicitly: all confirmed, and
+the six `copy_of` hashes were re-hashed. As policy requires, it ran no checks
+of its own.
+
+- **Combined acceptance.** R1–R5, the sticker decision and the recorded sizes
+  are met. No defects in correctness, security, ownership or the Cloud
+  boundary.
+- **FI-F1 (required, trivial).**
+  `docs/frontend/architecture/local-content-runtime.md` still said a chosen
+  sticker's PNG is copied.
+- **FI-F2 (required, trivial).** The plan still showed no authorized scope and
+  pending phase commits.
+- **FI-F3 (optional).** The issue's status, and its CC0 decision, predate the
+  revised owner decision.
+- **FI-F4 (optional).** The contract and README do not mention
+  `PNG_EXCEPTIONS` or lossless UV art; both are accurate today.
+- **FI-F5 (optional).** The exception list supports PNG only, not a forced
+  lossless WebP.
+- **FI-F6 (optional).** A non-object `attachment` or `art` in a descriptor
+  would raise an unnamed `AttributeError`.
+- **FI-F7 (optional).** One pytest run converts the real tree four times
+  (about 3 s each).
+- **FI-F8 (observation).** Phases 2 and 4 did not record the whole pre-push
+  suite. The single final-candidate run closes that gap.
+- **FI-F9 (observation).** The only edit to the starter closure test is the
+  `regular_content_path` rename.
+- **Remaining gates.**
+  - The final pre-push suite.
+  - Desktop stage and audit on the candidate.
+  - Package-set build and validate.
+  - `e2e:test:fast`.
+  - Cloud verification at the repin. The probe ran before the P2 repairs and
+    P3.
+  - The owner's visual check, which also covers
+    `AnimaRuntimeMediaCatalog`.
+  - The packaged smoke journey.
+  - The Cloud repin.
+
+### Code Review #1 Revisions
+
+- **FI-F1 accepted.** "its bundled image (WebP in production builds)".
+- **FI-F2 accepted.** Scope and phase commits recorded.
+- **FI-F3 accepted.** Issue #655 status and decision 5 updated to the revised
+  owner decision.
+- **FI-F4 rejected.** `PNG_EXCEPTIONS` is an internal packaging control,
+  documented in the packaging README. The contract describes what consumers
+  receive.
+- **FI-F5 deferred.** Add a lossless exception only if the visual gate needs
+  one.
+- **FI-F6 accepted.** `_descriptor_art` skips non-object `attachment`/`art`
+  instead of raising; the scanner reports such descriptors.
+- **FI-F7 rejected.** About 12 s in total; a shared fixture across modules
+  would couple unrelated tests.
+- **Verification.** `pytest tests/test_included_derivatives.py`: 19 passed;
+  ruff clean. These are trivial repairs; the final pre-push suite follows.
 
 ## Validation and acceptance
 

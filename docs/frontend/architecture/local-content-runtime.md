@@ -86,7 +86,8 @@ as ONNX models, PocketTTS workers, Basis decoders, fonts, UI imagery and
 authoring-only engine templates remain version-coupled application resources;
 they are not content dependencies or portable package members. The Scene
 Effect creator's sticker set is such a resource only until a sticker is
-chosen: its PNG is then copied into the effect as the effect's own image.
+chosen: its bundled image (WebP in production builds) is then copied into the
+effect as the effect's own image.
 
 ## Mounted runtime preparation
 

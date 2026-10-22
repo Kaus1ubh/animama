@@ -147,8 +147,10 @@ def _descriptor_art(source: Path, paths: list[str]) -> tuple[set[str], set[str]]
         definition = document.get("definition")
         if not isinstance(definition, dict):
             continue
-        attachment = definition.get("attachment") or {}
-        art = definition.get("art") or {}
+        attachment = definition.get("attachment")
+        art = definition.get("art")
+        if not isinstance(attachment, dict) or not isinstance(art, dict):
+            continue
         if attachment.get("kind") == "face_surface" and attachment.get("area") == "full":
             for key in ("image", "otherEyeImage"):
                 if isinstance(art.get(key), str):
