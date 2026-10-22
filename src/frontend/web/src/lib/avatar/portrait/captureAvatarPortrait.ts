@@ -358,12 +358,13 @@ export async function captureAvatarPortrait({
   }
   throwIfAborted(signal);
 
+  // Before the targets: its guard may throw after a three upgrade.
+  const outputPass = createStraightAlphaOutputPass();
   const createRenderTarget =
     dependencies.createRenderTarget ?? createDefaultRenderTarget;
   const floatColor = canRenderFloatColor(renderer);
   const sceneTarget = createRenderTarget(size, "scene", floatColor);
   const outputTarget = createRenderTarget(size, "output", floatColor);
-  const outputPass = createStraightAlphaOutputPass();
   const enhanced = isEnhancedRenderingEnabled();
   const priorRenderTarget = renderer.getRenderTarget();
   const priorViewport = renderer.getViewport(new THREE.Vector4());

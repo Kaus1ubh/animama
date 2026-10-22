@@ -207,9 +207,10 @@ async def test_avatar_portrait_capture_is_an_ordinary_owned_appearance(async_ses
         app = fixture.app(async_session, monkeypatch)
         avatar = fixture.items["local-avatar"]
         data = {
-            "entry_name": "Portrait",
             "operation_id": "capture-portrait",
             "expected_avatar_revision": avatar.revision_sha256,
+            "renderer_version": "2",
+            "capture_preset_version": "3",
         }
         capture = image_bytes(portrait=True, format="WEBP")
         async with local_client(app) as client:
@@ -229,13 +230,33 @@ async def test_avatar_portrait_capture_is_an_ordinary_owned_appearance(async_ses
             assert saved["kind"] == "appearance"
             row = await async_session.get(ORMContentCatalogItem, saved["item_id"])
             assert row.owner_user_id == fixture.owner
-            path = fixture.paths.local_root / "appearances/portrait.webp"
+            path = fixture.paths.local_root / f"appearances/avatar-portrait-{avatar.id}.webp"
             assert path.stat().st_size <= 256 * 1024
             with Image.open(path) as image:
                 assert image.size == (512, 512) and image.format == "WEBP"
             still_avatar = await client.get(f"/v1/avatar-content/{avatar.id}")
             assert still_avatar.json()["revision_sha256"] == avatar.revision_sha256
             assert (await client.get(f"/v1/appearance-content/{saved['item_id']}")).status_code == 200
+
+
+async def test_included_avatars_keep_their_shipped_portraits(async_session, tmp_path, monkeypatch):
+    async with anima_creation_fixture(async_session, tmp_path) as fixture:
+        app = fixture.app(async_session, monkeypatch)
+        avatar = fixture.items["included-avatar"]
+        async with local_client(app) as client:
+            response = await client.put(
+                f"/v1/avatar-content/{avatar.id}/portrait",
+                data={
+                    "operation_id": "capture-included-portrait",
+                    "expected_avatar_revision": avatar.revision_sha256,
+                    "renderer_version": "2",
+                    "capture_preset_version": "3",
+                },
+                files={"file": ("portrait.webp", image_bytes(portrait=True, format="WEBP"), "image/webp")},
+            )
+        assert response.status_code == 409, response.text
+        assert response.json()["detail"]["code"] == "portrait_requires_local_avatar"
+        assert not list((fixture.paths.local_root / "appearances").glob("avatar-portrait-*"))
 
 
 async def test_descriptor_appearance_uses_the_same_canonicalizer(async_session, tmp_path, monkeypatch):

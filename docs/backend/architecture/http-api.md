@@ -631,12 +631,12 @@ fields plus a required `presentation` object. Both list and detail responses
 include stable `display_name`, `aggregate_revision`, and `identity_status`
 (`ready` or `repair_required`). The presentation contains the same live
 display name, opaque revision, and optional
-`RuntimeImageReference` bounded to 256 by 256 pixels. The list loads chat
+`RuntimeImageReference` bounded to 512 by 512 pixels. The list loads chat
 profiles, custom profile candidates, and exact primary-model portrait
 candidates in set-based reads; it does not call the complete runtime resolver
 for each row. A valid custom Profile Image wins. Otherwise the reference uses
-the registered Appearance portrait whose metadata matches the selected Avatar
-model. It remains null when neither is available.
+the Avatar's exact portrait (`presentation.avatar_item_id`), else the
+Included portrait whose metadata matches the selected Avatar model. It remains null when neither is available.
 
 The reference includes a normalized `presentation` object with Fill/Fit,
 focal point, and zoom. These fields are revisioned presentation semantics;
@@ -1360,9 +1360,15 @@ The optional form `creation_context=true` prevents replacing an in-use Avatar.
 `PUT /v1/appearance-content/{entry_name}` canonicalizes bounded static
 PNG/JPEG/WebP inputs (16 MiB, 8192 per side, 40 million pixels). The portrait
 endpoint `PUT /v1/avatar-content/{item_id}/portrait` takes multipart `file`,
-`entry_name`, `operation_id`, and `expected_avatar_revision`; a 1024-square WebP
-capture becomes a normal owner-scoped 512-square Appearance up to 256 KiB.
-It does not modify the Avatar or any Anima. Confirmed content survives cancelled
+`operation_id`, `expected_avatar_revision`, `renderer_version` and
+`capture_preset_version`; a 1024-square WebP capture of a Local Avatar becomes
+its one owner-scoped 512-square Appearance (up to 256 KiB) at
+`appearances/avatar-portrait-{item_id}.webp`, replaced in place by later
+saves. Its metadata records the Avatar revision and capture versions. An
+Included Avatar returns `409 portrait_requires_local_avatar`.
+It does not modify the Avatar or any Anima. Avatar content responses carry
+`portrait` (`url`, `avatar_revision_sha256` for a Local capture,
+`renderer_version`, `capture_preset_version`) or null. Confirmed content survives cancelled
 or rejected creation. Typed previews expose `expected_source_revisions` for
 the creation-compatible root/support closure, independent of preview pins.
 

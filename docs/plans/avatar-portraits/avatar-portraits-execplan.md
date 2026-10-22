@@ -77,10 +77,11 @@ order.
 ## Surprises & Discoveries
 
 - 2026-10-22: `PyRuntimeImageReference` and its zod schema cap presentation
-  images at 256², and the browser validates `/v1/animas` responses. Shipping
-  512² Included portraits without R3 would break the Anima list. A custom
-  Profile image larger than 256² may already trip the same check; Phase 2
-  verifies this and records the result.
+  images at 256². Correction found in Phase 2: the list route returns a plain
+  `JSONResponse` and `useAnimas` calls the SDK with `responseValidator:
+  undefined`, so neither side enforced the cap at run time; 512² portraits
+  (and larger custom Profile images) were never rejected. R3 still aligns the
+  published contract with the stored portraits.
 - 2026-10-22: Local Appearance lists (`useAppearanceImages`) include every
   Local Appearance, so auto-saved portraits would appear among Profile and
   Background choices (spec Q5).
@@ -243,6 +244,25 @@ the worktree, which held no other frontend changes):
 | `npx vitest run src/lib/avatar` | `src/frontend/web` | 1239 passed, 1 skipped |
 | `python3 ../../../scripts/heavy-slot.py -- node --test scripts/effect-thumbnails.browser.test.mjs scripts/animation-preview.browser.test.mjs scripts/animation-reel.browser.test.mjs` | `src/frontend/web` | 12 passed (started before the P1-1 revision; the reviewer's own effect-thumbnail run also passed) |
 
+Phase commit: `9b7e529f` `feat(avatar)[p1]: capture portraits in the chat canvas look`.
+
+#### Code Review #2 Findings
+
+Targeted recheck of `9b7e529f` (repair round 1). P1-1, P1-2 and P1-3 verified
+fixed; no blocking findings. The reviewer reran `node --test
+scripts/effect-thumbnails.browser.test.mjs` on the repaired pipeline: 2
+passed. Non-blocking: the output pass was created after the render targets, so
+its guard could leak them; the README sentence described the change rather
+than current behaviour; the 8-bit fallback magnifies quantisation at the
+faintest edges (accepted under Q4).
+
+#### Code Review #2 Revisions
+
+Both trivial fixes are carried in the Phase 2 commit: the pass is created
+before the targets, and the README describes current behaviour. Verified by
+rerunning `npx vitest run src/lib/avatar/portrait` (see the Phase 2 check
+record). Result: Phase 1 passes; one repair round used.
+
 ### Phase 2: One portrait per Avatar in the API
 
 Review tier: high risk. Changes the public HTTP contract and generated
@@ -305,7 +325,46 @@ Recovery: no schema change. Duplicate portraits saved before this phase are
 reported ambiguous by export as today; a development database may be reset at
 the owner's discretion.
 
-Check record: _pending_.
+Starting source: `9b7e529f`. Implementation notes:
+
+- The save locks and writes `appearances/avatar-portrait-{avatar item id}.webp`
+  (`avatar_portrait_entry_name`). Under that lock it replaces the portrait at
+  that destination, else the caller's oldest older exact portrait in place,
+  else creates one. The client no longer sends `entry_name`; it sends
+  `renderer_version` and `capture_preset_version`.
+- Only Local Avatars are captured: an Included Avatar returns
+  `409 portrait_requires_local_avatar`. Included Avatars ship their portraits,
+  and a per-Avatar destination for an Included Avatar would be shared by every
+  owner of an installation.
+- Portrait metadata: `presentation` holds `avatar_item_id` and
+  `avatar_revision_sha256`; `renderer_version` and `capture_preset_version`
+  are new optional `AppearanceDocumentV1` fields in the catalog projection.
+- `app/services/avatar_portraits.py` (`portrait_matches`,
+  `portrait_image_url`) replaces the two copies in the Avatar catalog route and
+  the export; the typed Avatar routes use it for `portrait`.
+- The Anima presentation join ranks exact owner-visible portraits per Avatar
+  catalog item and prefers them over the Included stem match. The stem match
+  still applies to any Avatar whose file stem names an Included portrait, as
+  before.
+- `PyRuntimeImageReference` allows 512 (R3); the SDK was regenerated with
+  `pnpm openapi-ts`. No frontend caller sent `entry_name`.
+- Unverified risk: package import may give two exact portraits to one Avatar
+  when it reuses an identical Avatar; export then reports
+  `package_portrait_ambiguous`, as before. Not changed here.
+
+Check record (full pre-push suite through `scripts/heavy-slot.py`, tree
+`c4420e82`, i.e. `9b7e529f` plus the Phase 2 working tree and the two Phase 1
+Review #2 fixes, with the Phase 3 drafts set aside):
+
+| Command | Directory | Result |
+| --- | --- | --- |
+| targeted pytest while implementing (`test_content_portrait_mutation_replay`, `test_avatar_portraits`, `test_creation_content_admission`, `test_anima_presentations`, `test_product_http_typed_content`, `test_typed_content_save_replay`, `test_avatar_content`, `test_typed_content_apis`, `test_content_retirement_admission`, `test_product_http_avatars`, package export/import, starters, closure, preview batch) | root | all passed (50 + 91 + 8 + 3) |
+| `make check-test` | root | 4730 passed, 29 skipped, 1 failed: `test_shared_product_contracts::test_every_server_schema_module_supports_star_import` (the compatibility module `server/schemas/typed_content.py` lacked `PyAvatarPortrait`) |
+| fix, then `uv run pytest -q tests/test_shared_product_contracts.py` and `uv run ruff check` | root | 2 passed; clean |
+| `pnpm verify` | `src/frontend` | passed (5401 web tests passed, 1 skipped) |
+| `pnpm prettier:check` | `src/frontend` | passed |
+| `pnpm openapi-ts`, `pnpm -s packages:build` | `src/frontend` | regenerated SDK, built |
+
 
 #### Code Review #1 Findings
 

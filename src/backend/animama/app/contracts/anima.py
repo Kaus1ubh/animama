@@ -165,8 +165,9 @@ class PyRuntimeImageReference(BaseModel):
     source_type: Literal["catalog"]
     url: str
     content_type: str
-    width: int = Field(..., ge=1, le=256)
-    height: int = Field(..., ge=1, le=256)
+    # 512 covers the stored Avatar portraits.
+    width: int = Field(..., ge=1, le=512)
+    height: int = Field(..., ge=1, le=512)
     content_revision: str
     presentation: PyRuntimeImagePresentation
 

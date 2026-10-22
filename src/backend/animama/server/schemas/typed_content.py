@@ -9,6 +9,7 @@ from animama.app.contracts.typed_content import (
     PyAvatarContentPage as PyAvatarContentPage,
     PyAvatarEffect as PyAvatarEffect,
     PyAvatarEffectPage as PyAvatarEffectPage,
+    PyAvatarPortrait as PyAvatarPortrait,
     PyBuiltinPreviewSource as PyBuiltinPreviewSource,
     PyCatalogPreviewSource as PyCatalogPreviewSource,
     PyContentEvidenceRequest as PyContentEvidenceRequest,

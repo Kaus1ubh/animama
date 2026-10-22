@@ -56,18 +56,30 @@ class PortraitWorkflow:
         )
         return saved.item
 
-    async def portrait(self, source_id: str, source_revision: str) -> Response:
+    async def portrait(
+        self, source_id: str, source_revision: str, *, operation_id: str = "capture-portrait"
+    ) -> Response:
         """Submit fresh upload streams containing the exact same captured bytes."""
 
         return await self.client.put(
             f"/v1/avatar-content/{source_id}/portrait",
             data={
-                "entry_name": "Portrait",
-                "operation_id": "capture-portrait",
+                "operation_id": operation_id,
                 "expected_avatar_revision": source_revision,
+                "renderer_version": "2",
+                "capture_preset_version": "3",
             },
             files={"file": ("portrait.webp", self.capture, "image/webp")},
         )
+
+    async def portraits_for(self, avatar_id: str) -> list[CatalogContentEntry]:
+        return [
+            item
+            for item in await self.content.list_visible(user_id=self.owner)
+            if item.kind is ContentKind.APPEARANCE
+            and isinstance(item.metadata.get("presentation"), dict)
+            and item.metadata["presentation"].get("avatar_item_id") == avatar_id
+        ]
 
     def local_files(self) -> dict[str, bytes]:
         return {
@@ -157,3 +169,63 @@ async def test_portrait_operation_id_rejects_changed_source_with_identical_captu
     current = await workflow.client.get(f"/v1/appearance-content/{original.json()['item_id']}")
     assert current.status_code == 200, current.text
     assert current.json() == original.json()
+
+
+async def test_saving_again_replaces_the_avatars_one_portrait(portrait_workflow: PortraitWorkflow) -> None:
+    workflow = portrait_workflow
+    avatar = await workflow.save_avatar()
+    assert avatar.revision_sha256 is not None
+    first = await workflow.portrait(avatar.id, avatar.revision_sha256, operation_id="first-capture")
+    assert first.status_code == 200, first.text
+
+    edited = await workflow.save_avatar(avatar)
+    assert edited.revision_sha256 is not None
+    second = await workflow.portrait(edited.id, edited.revision_sha256, operation_id="second-capture")
+
+    assert second.status_code == 200, second.text
+    assert second.json()["item_id"] == first.json()["item_id"]
+    assert second.json()["revision_sha256"] != first.json()["revision_sha256"]
+    assert second.json()["name"] == "Edited Avatar portrait"
+    (portrait,) = await workflow.portraits_for(avatar.id)
+    assert portrait.metadata["presentation"] == {
+        "avatar_item_id": avatar.id,
+        "avatar_revision_sha256": edited.revision_sha256,
+    }
+    assert portrait.relative_locator == f"appearances/avatar-portrait-{avatar.id}.webp"
+    images = [path for path in workflow.local_files() if path.endswith(".webp")]
+    assert images == [portrait.relative_locator]
+
+
+async def test_avatar_content_reports_its_portrait(portrait_workflow: PortraitWorkflow) -> None:
+    workflow = portrait_workflow
+    avatar = await workflow.save_avatar()
+    assert avatar.revision_sha256 is not None
+    before = await workflow.client.get(f"/v1/avatar-content/{avatar.id}")
+    assert before.status_code == 200, before.text
+    assert before.json()["portrait"] is None
+
+    saved = await workflow.portrait(avatar.id, avatar.revision_sha256)
+    assert saved.status_code == 200, saved.text
+    image = next(file for file in saved.json()["files"] if file["role"] == "image")
+
+    detail = (await workflow.client.get(f"/v1/avatar-content/{avatar.id}")).json()
+    listed = next(
+        item
+        for item in (await workflow.client.get("/v1/avatar-content")).json()["items"]
+        if item["item_id"] == avatar.id
+    )
+    expected = {
+        "url": f"/v1/content/files/{image['file_ref']}",
+        "avatar_revision_sha256": avatar.revision_sha256,
+        "renderer_version": 2,
+        "capture_preset_version": 3,
+    }
+    assert detail["portrait"] == expected
+    assert listed["portrait"] == expected
+
+
+async def test_portrait_for_an_unknown_avatar_is_not_found(portrait_workflow: PortraitWorkflow) -> None:
+    response = await portrait_workflow.portrait(uuid4().hex, "a" * 64, operation_id="unknown-avatar")
+
+    assert response.status_code == 404, response.text
+    assert portrait_workflow.local_files() == {}

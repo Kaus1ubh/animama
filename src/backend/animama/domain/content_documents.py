@@ -168,6 +168,9 @@ class AppearanceDocumentV1(ContentDocumentV1):
     width: int | None = None
     height: int | None = None
     avatar_model: str | None = None
+    # Portraits only: the capture that produced the image.
+    renderer_version: int | None = None
+    capture_preset_version: int | None = None
     presentation: dict[str, Any] = field(default_factory=dict)
 
 
