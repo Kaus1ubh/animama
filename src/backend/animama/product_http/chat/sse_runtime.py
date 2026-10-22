@@ -31,6 +31,10 @@ from .sse_events import (
 _log = get_logger("product_http.chat.sse_runtime")
 LeaseCheck = Callable[[], Awaitable[None]]
 """Awaited between frames; raises ``TurnStopped`` when the composition ends the turn."""
+ExtraFrameWake = Callable[[], asyncio.Future[Any] | None]
+"""The pending work whose completion readies an extra frame, so a stream waiting for events wakes for it."""
+# Longest wait for a bridge event before the drain loop checks the lease and polls extra frames again.
+_BRIDGE_POLL_SECONDS = 0.05
 
 
 class TurnStopped(Exception):
@@ -105,9 +109,14 @@ async def drain_events_while_task_runs(
     stream_user_response: bool,
     stream_emotion_update: bool,
     poll_extra_frame: Callable[[], str | None] | None = None,
+    extra_frame_wake: ExtraFrameWake | None = None,
     check_lease: LeaseCheck | None = None,
 ) -> AsyncIterator[str]:
-    """Drain the event bridge while the model-client task is still running."""
+    """Drain the event bridge while the model-client task is still running.
+
+    ``extra_frame_wake`` ends a wait for the next event as soon as its work
+    completes, so a frame it readies is sent then rather than at the next poll.
+    """
 
     while not task.done():
         if check_lease is not None:
@@ -119,9 +128,11 @@ async def drain_events_while_task_runs(
             if frame is not None:
                 yield frame
                 continue
-        try:
-            event = await asyncio.wait_for(bridge.get(), timeout=0.05)
-        except TimeoutError:
+        event = await _next_event(
+            bridge,
+            wake=extra_frame_wake() if extra_frame_wake is not None else None,
+        )
+        if event is None:
             continue
         async for frame in _handle_direct_event(
             event,
@@ -150,6 +161,43 @@ async def drain_events_while_task_runs(
         stream_emotion_update=stream_emotion_update,
     ):
         yield frame
+
+
+async def extra_frames_while_task_runs(
+    task: asyncio.Task[Any],
+    *,
+    poll_extra_frame: Callable[[], str | None],
+    extra_frame_wake: ExtraFrameWake,
+) -> AsyncIterator[str]:
+    """Yield extra frames as their work completes until ``task`` finishes; bridge events stay queued."""
+
+    while True:
+        frame = poll_extra_frame()
+        if frame is not None:
+            yield frame
+            continue
+        if task.done():
+            return
+        waiters: set[asyncio.Future[Any]] = {task}
+        if (wake := extra_frame_wake()) is not None:
+            waiters.add(wake)
+        await asyncio.wait(waiters, return_when=asyncio.FIRST_COMPLETED)
+
+
+async def _next_event(bridge: DirectChatEventBridge, *, wake: asyncio.Future[Any] | None) -> Event | None:
+    """Wait for the bridge's next event; ``None`` after the poll interval or once ``wake`` completes."""
+
+    next_event = asyncio.ensure_future(bridge.get())
+    waiters: set[asyncio.Future[Any]] = {next_event}
+    if wake is not None:
+        waiters.add(wake)
+    try:
+        await asyncio.wait(waiters, timeout=_BRIDGE_POLL_SECONDS, return_when=asyncio.FIRST_COMPLETED)
+    finally:
+        if not next_event.done():
+            # An unfinished get has taken nothing, so cancelling it leaves the event queued.
+            next_event.cancel()
+    return next_event.result() if next_event.done() else None
 
 
 async def run_prepared_direct_turn(

@@ -49,6 +49,7 @@ from .sse_runtime import (
     direct_run_completed_frame,
     drain_events_while_task_runs,
     drain_pending_events,
+    extra_frames_while_task_runs,
     fallback_run_completed_frame,
     run_prepared_direct_turn,
     unexpected_error_event,
@@ -255,6 +256,7 @@ async def stream_direct_chat_sse(
         )
         active_task: asyncio.Task[Any] | None = None
         title_task: asyncio.Task[ChatTitleGenerationResult] | None = None
+        notice_task: asyncio.Task[str | None] | None = None
         tts_bootstrap = _TtsSessionBootstrap(run_id=run_id, anima_id=anima_id)
         finalized_tts = _FinalizedTtsStreamBootstrap.start_if_requested(
             chat_options=turn.chat_options,
@@ -278,7 +280,7 @@ async def stream_direct_chat_sse(
             return frame
 
         async def stop_turn_tasks() -> None:
-            """Cancel the turn's title, model and speech tasks and wait until each has stopped.
+            """Cancel the turn's title, notice, model and speech tasks and wait until each has stopped.
 
             Shielded and bounded: a client that leaves meanwhile cannot cut the wait
             short or cancel a reply save a second time.
@@ -286,6 +288,7 @@ async def stream_direct_chat_sse(
 
             with anyio.move_on_after(_SETTLE_TIMEOUT_SECONDS, shield=True):
                 await _stop_task(title_task)
+                await _stop_task(notice_task)
                 await _stop_task(active_task)
                 await tts_bootstrap.cancel()
                 await finalized_tts.cancel()
@@ -368,14 +371,26 @@ async def stream_direct_chat_sse(
             )
             # The AI notice (spec R2) precedes any provider output. The provider
             # task is already running, so recording notice state adds no time to
-            # first text; its events wait in the bridge until drained.
-            notice = await ai_notice_frame(
-                turn.safety,
-                sessions=sessions,
-                user_id=user.id,
-                run_id=run_id,
-                anima_name=turn.prepared_turn.memory_context.anima_name,
+            # first text; its events wait in the bridge until drained. The speech
+            # descriptor is not provider output: it is sent as soon as it is ready.
+            notice_task = asyncio.create_task(
+                ai_notice_frame(
+                    turn.safety,
+                    sessions=sessions,
+                    user_id=user.id,
+                    run_id=run_id,
+                    anima_name=turn.prepared_turn.memory_context.anima_name,
+                ),
+                name=f"direct-chat-ai-notice-{run_id}",
             )
+            async for frame in extra_frames_while_task_runs(
+                notice_task,
+                poll_extra_frame=tts_bootstrap.pop_ready_frame,
+                extra_frame_wake=tts_bootstrap.pending_setup,
+            ):
+                yield frame
+            notice = notice_task.result()
+            notice_task = None
             if notice is not None:
                 yield notice
             async for frame in drain_events_while_task_runs(
@@ -388,6 +403,7 @@ async def stream_direct_chat_sse(
                 stream_user_response=True,
                 stream_emotion_update=True,
                 poll_extra_frame=_poll_tts_frame,
+                extra_frame_wake=tts_bootstrap.pending_setup,
                 check_lease=check_lease,
             ):
                 yield frame
