@@ -169,7 +169,7 @@ local server package, so any composition can return the same contract; the local
 router is a thin adapter. `runtime_kind` is presentation metadata (`desktop`,
 `self_hosted_web` or `hosted`), not an authentication mode or a feature gate;
 the local composition never reports `hosted`. Capability schema version 2 is
-exported in `local-http` contract version 10.0.0. `chat`, `model_selection` and
+exported in `local-http` contract version 11.0.0. `chat`, `model_selection` and
 `model_role_selection` admit chat and choices from the composition's catalog,
 independently of provider administration. The local adapter reports them true.
 `provider_credentials` and `local_filesystem_administration` describe owner key
@@ -521,7 +521,10 @@ Anima.
 The owner-scoped loadout endpoints are:
 
 - `GET /v1/animas/{anima_id}/loadout`;
-- `POST /v1/animas/{anima_id}/gestures:plan|commit`;
+- `POST /v1/animas/{anima_id}/gestures:plan|commit` (`add` takes a Gesture
+  `source`; `update` and `reconfigure` take the row's `binding_id` and a
+  `source`; `remove` takes the `binding_id`; the loadout's `gestures` are exactly
+  these rows);
 - `POST /v1/animas/{anima_id}/reactions:plan|commit` (`add` takes a Reaction
   `source` plus `emotion` and `intensity` 1–4; `remove` takes the member's
   `binding_id`; `restore_starter` takes only the cell; see
@@ -536,7 +539,7 @@ The owner-scoped loadout endpoints are:
 Plan requests carry the expected loadout revision and a typed family intent.
 Commit repeats that intent with the reviewed plan digest and an idempotency
 key. Loadout `warnings` carry `code`, `scope`, an English `message` for logs
-and API clients, and `params` (for example `slot`, `name` or `semanticKey`)
+and API clients, and `params` (for example `slot`, `name` or `contentId`)
 that clients use to word the code in the owner's UI Locale. Selections store logical catalog items; Particle, Avatar, and Scene
 Effects plus Sounds remain compiler-managed support dependencies of
 Gesture/Reaction roots and cannot be equipped directly.

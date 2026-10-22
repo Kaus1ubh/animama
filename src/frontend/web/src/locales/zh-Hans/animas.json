@@ -181,7 +181,6 @@
       "action": "操作：",
       "actions": {
         "add": "添加",
-        "leave_empty": "留空",
         "remove": "移除",
         "replace": "替换",
         "revert": "还原",

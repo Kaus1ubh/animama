@@ -230,6 +230,11 @@ class TtsSessionBootstrap:
         self.task = None
         return self._frame_from_completed_task(task)
 
+    def pending_setup(self) -> asyncio.Task[Any] | None:
+        """The setup whose frame is still unsent; a stream waits on it to send the frame once ready."""
+
+        return self.task
+
     async def finish_frame(self) -> str | None:
         if self.task is None:
             return None

@@ -120,7 +120,7 @@ async def test_idle_pool_members_are_added_and_removed_per_cell(async_session) -
         joy = next(cell for cell in loadout.idle.cells if (cell.emotion, cell.intensity) == ("joy", 2))
         assert [(member.item_id, member.available) for member in joy.gestures] == [(sway.id, True)]
         # Idle membership never equips a Gesture for AI invocation.
-        assert [binding for binding in loadout.gestures if binding.origin == "custom"] == []
+        assert loadout.gestures == ()
 
         [member] = loadout.idle.default_pool
         removed = await _change(
@@ -271,15 +271,13 @@ async def test_runtime_selects_one_idle_root_per_gesture_ahead_of_ai_gestures(as
             plan_digest=plan.digest,
             idempotency_key="gesture-1",
         )
-        root = await async_session.scalar(select(ORMAnimaLoadout).where(ORMAnimaLoadout.anima_id == fixture.anima_id))
-        assert root is not None
         visible = await SQLAlchemyContentCatalog(async_session).list_visible(user_id=fixture.user_id)
 
         selected = await AnimaRuntimeService(async_session)._selections(  # noqa: SLF001
-            anima_id=fixture.anima_id, loadout=root, visible=visible
+            anima_id=fixture.anima_id, visible=visible
         )
 
-        # The fixture's implicit starter Gestures are unresolved here; keep only ours.
+        # Keep only this test's Gesture roots (the Avatar has its own).
         slots = [
             (root.slot_key, root.catalog_item_id)
             for root in selected.roots

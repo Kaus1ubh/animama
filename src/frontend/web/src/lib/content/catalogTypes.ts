@@ -160,7 +160,6 @@ export type PyGestureBinding = {
   name: string;
   description?: string | null;
   semantic_key: string;
-  origin: "starter" | "custom";
   implementation_kind: "anima_clip" | "vrma";
   logical_item_id?: string | null;
   source?: PyExactContentSource | null;
@@ -190,8 +189,6 @@ export type PyAnimaLoadout = {
   revision: number;
   starter_version: number;
   gestures: PyGestureBinding[];
-  disabled_starter_gestures: string[];
-  starter_gesture_implementation_kinds?: Record<string, "anima_clip" | "vrma">;
   /** Every emotion/intensity cell's Reaction pool, from the generated contract. */
   reactions: PyReactionCell[];
   idle: PyAnimaIdle;
@@ -213,7 +210,6 @@ export type PyLoadoutPlan = {
     | "replace"
     | "remove"
     | "revert"
-    | "leave_empty"
     | "unchanged"
     | "blocked";
   plan_digest: string;

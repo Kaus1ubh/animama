@@ -70,7 +70,7 @@ async def test_gesture_plan_commit_is_typed_revisioned_and_idempotent(async_sess
             user_id=fixture.user_id,
             anima_id=fixture.anima_id,
         )
-        custom = [binding for binding in loadout.gestures if binding.origin == "custom"]
+        custom = list(loadout.gestures)
         assert [(binding.name, binding.semantic_key) for binding in custom] == [("Test Wave", "test-wave")]
     finally:
         await cleanup_loadout_fixture(async_session, fixture)

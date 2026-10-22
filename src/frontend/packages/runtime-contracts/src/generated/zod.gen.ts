@@ -2870,6 +2870,8 @@ export const zPyAnimaUpdateRequest = z.object({
 
 /**
  * PyGestureBinding
+ *
+ * One equipped AI-callable Gesture, stored as a ``gesture:<semantic_key>`` binding row.
  */
 export const zPyGestureBinding = z.object({
     binding_id: z.string(),
@@ -2884,7 +2886,6 @@ export const zPyGestureBinding = z.object({
         z.null()
     ])),
     name: z.string(),
-    origin: z.enum(['starter', 'custom']),
     semantic_key: z.string(),
     source: zPyCatalogLoadoutSource
 });
@@ -2904,16 +2905,10 @@ export const zPyGestureIntent = z.object({
         'add',
         'update',
         'reconfigure',
-        'remove',
-        'disable_starter',
-        'restore_starter'
+        'remove'
     ]),
     source: z.optional(z.union([
         zPyCatalogLoadoutSource,
-        z.null()
-    ])),
-    starter_id: z.optional(z.union([
-        z.string(),
         z.null()
     ]))
 });
@@ -3106,7 +3101,6 @@ export const zPyLoadoutPlan = z.object({
         'replace',
         'remove',
         'revert',
-        'leave_empty',
         'unchanged'
     ]),
     aggregate_revision: z.int().gte(1),
@@ -4637,12 +4631,10 @@ export const zPyAnimaLoadout = z.object({
         zPyCatalogLoadoutSource,
         z.null()
     ])),
-    disabled_starter_gestures: z.array(z.string()),
     gestures: z.array(zPyGestureBinding),
     idle: zPyAnimaIdle,
     reactions: z.array(zPyReactionCell),
     revision: z.int().gte(1),
-    starter_gesture_implementation_kinds: z.optional(z.record(z.string(), z.enum(['anima_clip', 'vrma']))),
     starter_version: z.int().gte(1),
     voice_source: z.optional(z.union([
         zPyCatalogLoadoutSource,

@@ -1,6 +1,31 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { applicationRoute, createApplicationServer } from "./server.mjs";
+import {
+    applicationRoute,
+    applyFixtureOwnerDefaults,
+    createApplicationServer,
+} from "./server.mjs";
+
+test("a new fixture owner starts with Text-to-Speech and enhanced rendering off", () => {
+    assert.deepEqual(applyFixtureOwnerDefaults({}), {
+        speech: { tts_enabled: false },
+        presentation: { enhanced_rendering: false },
+    });
+    assert.deepEqual(
+        applyFixtureOwnerDefaults({ presentation: { render_markdown: false } })
+            .presentation,
+        { render_markdown: false, enhanced_rendering: false },
+        "The rendering default keeps the owner's other presentation choices",
+    );
+});
+
+test("a returning fixture owner keeps the settings it saved", () => {
+    const saved = {
+        speech: { tts_enabled: true, tts_provider: "pocket" },
+        presentation: { enhanced_rendering: true, render_markdown: false },
+    };
+    assert.deepEqual(applyFixtureOwnerDefaults(structuredClone(saved)), saved);
+});
 
 test("the shared router and its legacy redirects have closed deep-link fallback", () => {
     for (const route of [

@@ -230,7 +230,6 @@ async def test_equip_selects_a_logical_catalog_item_for_the_next_loadout_revisio
             owner_user_id="owner-equip",
             revision=1,
             starter_catalog_version=1,
-            starter_exclusions=[],
         )
     )
     await async_session.commit()
@@ -279,7 +278,7 @@ async def test_equip_selects_a_logical_catalog_item_for_the_next_loadout_revisio
         assert equipped.json()["revision"] == 2
 
         loadout = await client.get(f"/v1/animas/{anima_id}/loadout")
-        custom = [value for value in loadout.json()["gestures"] if value["origin"] == "custom"]
+        custom = loadout.json()["gestures"]
         assert len(custom) == 1
         remove_intent = {
             "operation": "remove",

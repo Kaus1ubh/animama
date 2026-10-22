@@ -182,7 +182,6 @@
       "action": "Action:",
       "actions": {
         "add": "add",
-        "leave_empty": "leave empty",
         "remove": "remove",
         "replace": "replace",
         "revert": "revert",

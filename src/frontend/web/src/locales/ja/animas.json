@@ -181,7 +181,6 @@
       "action": "操作:",
       "actions": {
         "add": "追加",
-        "leave_empty": "空のままにする",
         "remove": "外す",
         "replace": "置き換え",
         "revert": "元に戻す",
