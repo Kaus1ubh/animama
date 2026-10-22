@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import io
 import json
 import math
@@ -9,13 +10,19 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+import PIL
 import pytest
-from PIL import Image
+from PIL import Image, features
 
 from animama.adapters.content_store import FilesystemContentStore
 from animama.app.services.content_portability import licensing_path, parse_inventory_derivatives
 from animama.domain.content_catalog import ContentSource
-from animama.runtime.included_derivatives import IncludedDerivativeError, convert_included_tree
+from animama.runtime.included_derivatives import (
+    WEBP_METHOD,
+    WEBP_QUALITY,
+    IncludedDerivativeError,
+    convert_included_tree,
+)
 from animama.runtime.starter_content import starter_inventory
 
 REPO = Path(__file__).resolve().parents[1]
@@ -321,18 +328,27 @@ def test_an_unreadable_master_fails_with_the_file_named(tmp_path: Path) -> None:
         convert_included_tree(source, tmp_path / "out", paths)
 
 
-def test_the_included_tree_converts_with_every_licence_and_closure_unchanged(tmp_path: Path) -> None:
-    included = REPO / "content/included"
+@pytest.fixture(scope="module")
+def converted_included(tmp_path_factory: pytest.TempPathFactory) -> tuple[list[str], dict[str, dict[str, Any]], Path]:
+    """The tracked Included tree converted once for the real-tree tests."""
+
+    out = tmp_path_factory.mktemp("included") / "out"
     tracked = subprocess.check_output(["git", "ls-files", "-z", "--", "content/included"], cwd=REPO).decode()
     paths = sorted(name.removeprefix("content/included/") for name in tracked.split("\0") if name)
-    derivatives = convert_included_tree(included, tmp_path / "out", paths)
+    return paths, convert_included_tree(REPO / "content/included", out, paths), out
+
+
+def test_the_included_tree_converts_with_every_licence_and_closure_unchanged(
+    converted_included: tuple[list[str], dict[str, dict[str, Any]], Path],
+) -> None:
+    included = REPO / "content/included"
+    paths, derivatives, out = converted_included
     renamed = {record["path"]: derived for derived, record in derivatives.items()}
 
     source = starter_inventory(included, allowed_paths=set(paths))
     converted = starter_inventory(
-        tmp_path / "out", allowed_paths={renamed.get(path, path) for path in paths if path != "licenses/inventory.json"}
+        out, allowed_paths={renamed.get(path, path) for path in paths if path != "licenses/inventory.json"}
     )
-
     assert derivatives, "Included effect art should convert"
     assert all(path.startswith("vfx/") for path in derivatives)
     masters = {row["path"]: row for row in source["files"]}
@@ -355,7 +371,46 @@ def test_the_included_tree_converts_with_every_licence_and_closure_unchanged(tmp
         )
         return {entry.relative_locator: dict(entry.provenance) for entry in store.scan(ContentSource.INCLUDED)}
 
-    assert scanned(tmp_path / "out") == scanned(included)
+    assert scanned(out) == scanned(included)
     shipped = sum(row["size_bytes"] for path, row in rows.items() if path in derivatives)
     masters_size = sum(masters[record["path"]]["size_bytes"] for record in derivatives.values())
     assert shipped < masters_size * 0.5
+
+
+def test_shipped_copies_of_third_party_textures_record_their_webp_bytes(
+    converted_included: tuple[list[str], dict[str, dict[str, Any]], Path],
+) -> None:
+    """art-particles.json names the WebP bytes that ship for each third-party copy.
+
+    After adding or changing a copy of a recorded texture, regenerate
+    ``packaged_derivatives`` from this test's expected entries.
+    """
+
+    record = json.loads((REPO / "licenses/third-party/art-particles.json").read_text())
+    third_party = {entry["path"]: entry["sha256"] for entry in record["files"]}
+    _, derivatives, out = converted_included
+    expected = sorted(
+        (
+            {
+                "master": "content/included/" + master["path"],
+                "webp": {
+                    "path": "content/included/" + path,
+                    "sha256": hashlib.sha256((out / path).read_bytes()).hexdigest(),
+                    "size_bytes": (out / path).stat().st_size,
+                },
+            }
+            for path, master in derivatives.items()
+            if master["sha256"] in third_party.values()
+        ),
+        key=lambda entry: entry["master"],
+    )
+    assert expected, "some third-party textures should ship converted"
+    recorded = record["packaged_derivatives"]
+    assert [{key: value for key, value in entry.items() if key != "copy_of"} for entry in recorded] == expected
+    masters = {entry["master"].removeprefix("content/included/"): entry for entry in recorded}
+    for derived, master in derivatives.items():
+        if master["path"] in masters:
+            assert third_party[masters[master["path"]]["copy_of"]] == master["sha256"], derived
+    encoder = record["packaged_encoder"]
+    assert f"Pillow {PIL.__version__}" in encoder and f"libwebp {features.version('webp')}" in encoder
+    assert f"quality {WEBP_QUALITY}" in encoder and f"method {WEBP_METHOD}" in encoder

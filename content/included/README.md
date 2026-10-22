@@ -109,3 +109,8 @@ placement are retained, while the artwork is new. The earlier SVG masters and
 one-off rendering command have been retired; edit the retained PNG assets and
 keep each registered effect consistent with its matching authoring copy.
 Rendered acceptance on both avatars is still required before release.
+
+Effect art stays PNG here; edit the PNG. Packaged desktop and hosted builds ship
+each descriptor-owned effect PNG as a WebP derivative where that is smaller (see
+`src/backend/packaging/desktop/README.md`). Run rendered checks against a
+packaged build when the WebP copy matters.
