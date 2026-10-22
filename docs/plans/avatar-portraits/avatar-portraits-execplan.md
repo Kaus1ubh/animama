@@ -2,6 +2,7 @@
 
 Source agreement: [avatar-portraits-spec.md](avatar-portraits-spec.md),
 accepted by the owner on 2026-10-22 with the proposed answers to Q1–Q7.
+Parent issue: https://github.com/raymond-van/animama/issues/658
 Authorized scope: the whole plan (Phases 1–4), authorized 2026-10-22.
 
 ## Purpose and context

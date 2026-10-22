@@ -4,6 +4,8 @@ Status: Agreed
 Owner decision: 2026-10-22 — 512 px portraits in the chat canvas's enhanced
 look and capture wired into Create Anima; spec and plan accepted the same day
 with the proposed answers to Q1–Q7.
+Snapshot of https://github.com/raymond-van/animama/issues/658 as published
+2026-10-22; the issue is authoritative.
 
 ## Problem and intended users
 
@@ -225,11 +227,11 @@ Decided 2026-10-22 (owner accepted each proposal):
 
 ## Spec
 
-This document before publication; the owning issue after publication.
+https://github.com/raymond-van/animama/issues/658
 
 ## ExecPlan
 
-[avatar-portraits-execplan.md](avatar-portraits-execplan.md), once reviewed.
+[avatar-portraits-execplan.md](avatar-portraits-execplan.md), reviewed at `795134e5`.
 
 ## Delivery links
 
