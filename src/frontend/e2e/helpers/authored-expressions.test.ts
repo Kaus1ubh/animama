@@ -35,6 +35,15 @@ test("authored thresholds keep whole-face presets", () => {
   );
 });
 
+test("resting-face keys do not hide a track's numeric peak", () => {
+  assert.deepEqual(
+    authoredExpressionThresholds({
+      expressions: { Fcl_EYE_Joy: [{ v: "base" }, { v: 0.9 }] },
+    }),
+    { Fcl_EYE_Joy: 0.4 },
+  );
+});
+
 test("a clip without a visible expression fails clearly", () => {
   assert.throws(
     () =>

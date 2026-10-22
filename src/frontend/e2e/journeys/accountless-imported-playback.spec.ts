@@ -104,13 +104,19 @@ async function readyTarget(surface: Locator) {
   return (await readPlaybackObservation(surface)).target;
 }
 
-/** Read the selected clip document the preview prepared for playback. */
+/**
+ * Read the selected clip document the preview prepared for playback. Preview
+ * files also list dependencies first, so match the item's own file reference.
+ */
 async function readPreviewClip(page: Page, preview: PyTypedContentPreview) {
   const role =
     "implementation" in preview.item
       ? preview.item.implementation.file_role
       : null;
-  const file = preview.files.find((entry) => entry.role === role);
+  const fileRef = preview.item.files?.find(
+    (entry) => entry.role === role,
+  )?.file_ref;
+  const file = preview.files.find((entry) => entry.file_ref === fileRef);
   expect(
     file,
     `preview of ${preview.item.item_id} must carry its clip`,
@@ -1218,6 +1224,7 @@ test("imported playback complete Anima retains imported Avatar, appearance and p
     const preview = await prepared;
     // Starter Reactions key VRoid face parts rather than whole-face presets,
     // so the proof follows whichever expressions the imported clip authors.
+    // One sample must show them all with the effects, as at the clip's settle.
     const reactionThresholds =
       kind === "reaction"
         ? authoredExpressionThresholds(await readPreviewClip(page, preview))

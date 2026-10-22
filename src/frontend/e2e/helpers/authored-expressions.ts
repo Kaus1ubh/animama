@@ -15,10 +15,11 @@ export function authoredExpressionThresholds(
   const thresholds: Record<string, number> = {};
   if (expressions && typeof expressions === "object") {
     for (const [name, keys] of Object.entries(expressions)) {
+      // Non-numeric keys such as `"base"` follow the resting face; skip them.
       const peak = Math.max(
-        ...(Array.isArray(keys) ? keys : []).map((key) =>
-          Number((key as { v?: unknown } | null)?.v ?? 0),
-        ),
+        ...(Array.isArray(keys) ? keys : [])
+          .map((key) => (key as { v?: unknown } | null)?.v)
+          .filter((value): value is number => Number.isFinite(value)),
       );
       if (peak >= minimum) thresholds[name] = minimum;
     }
