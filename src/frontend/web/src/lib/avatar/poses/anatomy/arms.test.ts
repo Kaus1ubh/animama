@@ -41,7 +41,7 @@ const vrms = new Map<AvatarId, VRM>();
 const HEAD_HEIGHT: Record<AvatarId, number> = {
   AvatarSample_Y_0: 1.242,
   AvatarSample_A_1_New: 1.265,
-  Andrew: 1.46,
+  Andrew: 1.367,
 };
 
 beforeAll(async () => {
@@ -77,7 +77,8 @@ type Tuple4 = [number, number, number, number];
 
 /**
  * Declared contacts near natural authored arms: 2–5 cm away on Annie and the
- * VRM 0 fixture, 6–9 cm on Andrew, who is taller with longer arms.
+ * VRM 0 fixture, 5–9 cm on Andrew, whose proportions differ most from the
+ * clips' reference.
  */
 const SCENARIOS: {
   name: string;
@@ -487,8 +488,8 @@ describe.each(AVATARS)("ArmReachSolver on %s", (id) => {
     const canonical = posed(joints);
     pose.setPose(canonical);
     const before = miss(avatar, contact);
-    // The authored arm is close but off its contact; Andrew's wider shoulders
-    // leave it 6–9 cm off where the other rigs stay within 6 cm.
+    // The authored arm is close but off its contact; Andrew's proportions
+    // leave it 5–9 cm off where the other rigs stay within 6 cm.
     expect(before).toBeGreaterThan(0.01);
     expect(before).toBeLessThan(id === "Andrew" ? 0.1 : 0.06);
 

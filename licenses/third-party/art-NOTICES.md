@@ -46,24 +46,21 @@ require shipping the OFL text with it.
 ## VRoid models and portraits: owner-confirmed permissions
 
 On 2026-09-15 Raymond confirmed that Annie (`AvatarSample_A_1_New.vrm`) is the
-freely distributable pixiv VRoid preset and authorized correcting its embedded
-license metadata, which now permits redistribution and use by everyone. Its
-portrait is a direct Animama renderer capture.
+freely distributable pixiv VRoid preset. Its portrait is a direct Animama
+renderer capture.
 
 On 2026-10-16 Raymond had one of Annie's textures recoloured: the grey
-hair-underside texture now matches the outer hair. The model is otherwise the
-preset as exported, including its embedded metadata.
+hair-underside texture now matches the outer hair. On 2026-10-22 he replaced
+Annie's embedded metadata with owner-authored values: he is named author,
+everyone may use the model, personal commercial use is allowed, and so are
+redistribution and modification without credit.
 
-Annie retains pixiv VRoid Project credit and now links the applicable
-[VRoidPreset A–Z conditions](https://vroid.pixiv.help/hc/en-us/articles/4402394424089-VRoidPreset-A-Z)
-through `otherLicenseUrl`. The model is not CC0 or AGPL; preserve the prohibitions
-on fee-based redistribution of the unmodified sample data and using its data in
-a character-creation service. The official [AvatarSample A page](https://hub.vroid.com/en/characters/2843975675147313744/models/5644550979324015604)
+The [VRoidPreset A–Z conditions](https://vroid.pixiv.help/hc/en-us/articles/4402394424089-VRoidPreset-A-Z)
+still govern Annie's underlying pixiv components. The model is not CC0 or AGPL;
+preserve the prohibitions on fee-based redistribution of the unmodified sample
+data and using its data in a character-creation service. The official
+[AvatarSample A page](https://hub.vroid.com/en/characters/2843975675147313744/models/5644550979324015604)
 links those same terms.
-
-The metadata correction does not grant CC0/AGPL rights over Annie's
-underlying components or expand its other use/modification settings; it retains
-its noncommercial setting.
 
 `tests/fixtures/vrm/AvatarSample_Y_0.vrm`, Caitlyn's former model, is a
 test-only VRM 0 fixture that is never packaged with Animama. It is © pixiv
@@ -71,13 +68,18 @@ VRoid Project and unmodified. Its embedded VRM 0 metadata declares
 [CC BY 4.0](art-CC-BY-4.0.txt) with commercial use allowed and violent or
 sexual use disallowed. Do not edit its embedded permission flags.
 
-Andrew (`Andrew.vrm`) is Raymond Van's edit of a VRoid Studio A–Z preset (he
-replaced the hair; the base preset is not identified), approved on 2026-10-19.
-Its embedded VRM 1.0 metadata names Raymond Van as author, allows corporate
-commercial use, and disallows redistribution and modification. The
+Andrew (`Andrew.vrm`) is Raymond Van's own VRoid Studio model, revised and
+approved on 2026-10-22 (new outfit, hair and proportions). Its embedded VRM 1.0
+metadata names Raymond Van as author, lets everyone use it, allows personal
+commercial use, and allows redistribution and modification without credit.
+pixiv's VRoid terms, including the
 [VRoidPreset A–Z conditions](https://vroid.pixiv.help/hc/en-us/articles/4402394424089-VRoidPreset-A-Z)
-still apply to the underlying pixiv components. Its portrait is a direct
-Animama renderer capture under the same terms.
+for any preset data, still apply to its VRoid components. Its portrait is a
+direct Animama renderer capture under the same terms.
+
+Both models are re-encoded for size with `pnpm -s vrm:optimize` (WebP
+textures, sparse morph targets, a smaller thumbnail); geometry, morph data and
+expressions are as exported.
 
 The Avatar FX template thumbnails in
 `src/frontend/web/src/assets/effect-templates/` are also direct Animama renderer
@@ -87,9 +89,8 @@ Included Gesture. Like Annie's portrait, they follow Annie's model terms and ret
 pixiv VRoid Project credit. Their provenance and regeneration command are in
 that folder's README.
 
-Geometry, textures, non-metadata JSON and portrait bytes of both models are
-unchanged; current hashes and metadata are recorded in
-[art-vroid-review.json](art-vroid-review.json).
+Current hashes and metadata of both models and their portraits are recorded
+in [art-vroid-review.json](art-vroid-review.json).
 
 The earlier metadata discrepancy is resolved for source preparation by the
 owner's explicit identification and authorization, together with the published

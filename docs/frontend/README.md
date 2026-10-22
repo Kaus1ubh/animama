@@ -50,6 +50,7 @@ Runtime guides:
   errors and Google's terms)
 - `runtime/sound.md`
 - `runtime/avatar-animation.md`
+- `runtime/vrm-optimization.md`: shrinking the VRMs Animama ships without changing them.
 - `runtime/mixamo-acquisition.md`: private manual-download checklist and deferred conversion.
 - `runtime/content-previews.md`
 - `runtime/avatar-planner.md`

@@ -4,6 +4,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import type {
   GLTF,
   GLTFLoaderPlugin,
+  GLTFParser,
 } from "three/examples/jsm/loaders/GLTFLoader.js";
 
 import { canonicalizeCustomPresetExpressions } from "../vrmExpressionPresets";
@@ -22,6 +23,33 @@ export type IncludedAvatarId = keyof typeof INCLUDED_AVATAR_FILES;
  */
 class PlaceholderTexturePlugin implements GLTFLoaderPlugin {
   readonly name = "ANIMAMA_placeholder_textures";
+
+  private readonly parser: GLTFParser;
+
+  constructor(parser: GLTFParser) {
+    this.parser = parser;
+  }
+
+  /**
+   * GLTFLoader's own WebP and AVIF plugins run before this one and decode
+   * through browser APIs, so point those textures at their image directly.
+   */
+  beforeRoot(): null {
+    const textures = (this.parser.json.textures ?? []) as {
+      source?: number;
+      extensions?: Record<string, { source?: number }>;
+    }[];
+    for (const texture of textures) {
+      for (const name of ["EXT_texture_webp", "EXT_texture_avif"]) {
+        const source = texture.extensions?.[name]?.source;
+        if (source === undefined) continue;
+        texture.source ??= source;
+        delete texture.extensions?.[name];
+      }
+    }
+    return null;
+  }
+
   loadTexture(): Promise<Texture> {
     return Promise.resolve(new Texture());
   }
@@ -45,7 +73,7 @@ export async function loadHeadlessVrmWithGltf(
   options: { removeUnnecessaryVertices?: boolean } = {},
 ): Promise<{ vrm: VRM; gltf: GLTF }> {
   const loader = new GLTFLoader();
-  loader.register(() => new PlaceholderTexturePlugin());
+  loader.register((parser) => new PlaceholderTexturePlugin(parser));
   loader.register((parser) => new VRMLoaderPlugin(parser));
   const gltf = await loader.parseAsync(bytes, "");
   if (options.removeUnnecessaryVertices) {

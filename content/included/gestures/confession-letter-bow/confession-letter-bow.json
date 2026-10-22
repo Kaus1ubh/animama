@@ -2174,6 +2174,35 @@
       }
     ]
   },
+  "contacts": [
+    {
+      "bone": "rightHand",
+      "target": "upperChest",
+      "beat": "bow",
+      "from": 0,
+      "to": 2,
+      "offset": [-0.115, 0.325, 0.35],
+      "point": "palm",
+      "solve": {
+        "blendIn": 0.35,
+        "blendOut": 0.5
+      }
+    },
+    {
+      "bone": "leftHand",
+      "target": "rightHand",
+      "beat": "bow",
+      "from": 0,
+      "to": 2,
+      "offset": [-0.027, -0.207, 0.092],
+      "point": "palm",
+      "targetPoint": "palm",
+      "solve": {
+        "blendIn": 0.35,
+        "blendOut": 0.5
+      }
+    }
+  ],
   "events": [
     {
       "id": "letter",
