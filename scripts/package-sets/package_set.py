@@ -86,15 +86,18 @@ def verify(root: Path) -> dict:
     """Verify every file before validation/transfer. Reject incomplete manifests."""
     payload = regular(root, "manifest.json").read_bytes()
     from application import closed, positive_int, read_json, safe_path, verify_application
+    from landing_site import SITE, verify_site
 
     m = read_json(payload)
     schema_version = m.get("schema_version") if isinstance(m, dict) else None
-    if payload != canonical(m) or type(schema_version) is not int or schema_version not in {1, 2}:
+    if payload != canonical(m) or type(schema_version) is not int or schema_version not in {1, 2, 3}:
         raise ValueError("Noncanonical or unsupported package manifest")
+    # Format 2 adds the hosted application; format 3 adds the landing site to it.
     closed(
         m,
         {"schema_version", "source", "build", "packages", "contracts"}
-        | ({"applications"} if schema_version == 2 else set()),
+        | ({"applications"} if schema_version >= 2 else set())
+        | ({"sites"} if schema_version >= 3 else set()),
         "package manifest",
     )
     source = m["source"]
@@ -134,14 +137,19 @@ def verify(root: Path) -> dict:
     ):
         raise ValueError("Missing public contract")
     apps = m.get("applications", [])
-    if schema_version == 2 and (
+    if schema_version >= 2 and (
         not isinstance(apps, list)
         or len(apps) != 1
         or not isinstance(apps[0], dict)
         or apps[0].get("name") != "animama-hosted-web"
     ):
         raise ValueError("Expected exactly one hosted application")
-    records = m["packages"] + m["contracts"] + apps
+    sites = m.get("sites", [])
+    if schema_version >= 3 and (
+        not isinstance(sites, list) or len(sites) != 1 or not isinstance(sites[0], dict) or sites[0].get("name") != SITE
+    ):
+        raise ValueError("Expected exactly one landing site")
+    records = m["packages"] + m["contracts"] + apps + sites
     if any(not isinstance(r.get("file"), str) for r in records) or len({r["file"] for r in records}) != len(records):
         raise ValueError("Duplicate artifact filename")
     for r in records:
@@ -167,6 +175,10 @@ def verify(root: Path) -> dict:
             verify_application(
                 root / r["file"], source["commit"], r["version"], m["contracts"], source_tree=source["tree"]
             )
+        elif r in sites:
+            if r["kind"] != "site":
+                raise ValueError("Invalid site kind")
+            verify_site(root / r["file"], source["commit"], r["version"], source_tree=source["tree"])
         elif r["kind"] != "contract":
             raise ValueError("Invalid contract kind")
     expected = "".join(f"{r['sha256']}  {r['file']}\n" for r in sorted(records, key=lambda r: r["file"]))
@@ -200,7 +212,7 @@ def compare(old_root: Path, new_root: Path) -> None:
     """
     old, new = verify(old_root), verify(new_root)
     if old["schema_version"] > new["schema_version"]:
-        raise ValueError("Package format downgrade cannot remove the whole application")
+        raise ValueError("Package format downgrade cannot remove the whole application or landing site")
     for kind in ("packages", "contracts"):
         after = {r["name"]: r for r in new[kind]}
         for a in old[kind]:
@@ -220,3 +232,7 @@ def compare(old_root: Path, new_root: Path) -> None:
         before, after = old["applications"][0], new["applications"][0]
         if tuple(map(int, after["version"].split("."))) < tuple(map(int, before["version"].split("."))):
             raise ValueError("Application version rollback")
+    if old.get("sites"):
+        before, after = old["sites"][0], new["sites"][0]
+        if tuple(map(int, after["version"].split("."))) < tuple(map(int, before["version"].split("."))):
+            raise ValueError("Site version rollback")
