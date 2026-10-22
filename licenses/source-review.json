@@ -783,14 +783,14 @@
     {
       "path": "content/included/gestures/confession-letter-bow/confession-letter-bow.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #585); owner-reviewed and approved 2026-10-15; no third-party animation data",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #585); owner-reviewed and approved 2026-10-15, revision approved 2026-10-22; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
       "path": "content/included/gestures/confession-letter-bow/confession-letter-bow.meta.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #585); owner-reviewed and approved 2026-10-15; no third-party animation data",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #585); owner-reviewed and approved 2026-10-15, revision approved 2026-10-22; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },

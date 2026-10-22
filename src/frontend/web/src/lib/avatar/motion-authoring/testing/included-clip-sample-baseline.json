@@ -175,10 +175,10 @@
     }
   },
   "confession-letter-bow": {
-    "fileSha256": "d785983677796a121a7e811b1da5e3e390762d1c0e23ea8e56dde0474413d48a",
+    "fileSha256": "001733c60fcde5c280b6b7858254deb0364938c64a6aaf7e8c8cdce879c1006a",
     "samples": {
-      "Andrew": "4fc079a7f89a5d73f4cf915b76ef7b01b06cbecee0848ac57417bf22232c8477",
-      "AvatarSample_A_1_New": "8e6ca0037f9b1af7eefe649bc6ea87ab440611c1e722794d31894f052af01745"
+      "Andrew": "683009f332af16f11050eec4a124c2b253251f9b1c51a4c5d3f49753af3b3f79",
+      "AvatarSample_A_1_New": "6831cd043edb6d9484af894565984de2f4e0e4da62dbea6c4e4cd25219d73275"
     }
   },
   "count-on-fingers": {

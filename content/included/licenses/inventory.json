@@ -1620,13 +1620,6 @@
       "redistribution_review": "pending"
     },
     {
-      "glob": "gestures/confession-letter-bow/*.json",
-      "creator": "Animama project; authored by an AI coding agent under the owner's direction",
-      "provenance": "Agent-authored animaPoseClip/2.0 Gesture definition and metadata, written from text prompts with the animama-animation skill (#585) under the owner's direction. The effects its events play are the separately recorded Included content vfx/avatar/blush, vfx/avatar/love_letter, vfx/particle/quark/love-letter-flutter. Contains no third-party animation, motion-capture or VRMA data. The owner reviewed the motion and its effects in animation:preview on both Included Avatars (2026-10-15) and approved inclusion on 2026-10-15. The owner-authorship attestation for gestures/**/*.json does not cover these files; copyright status of AI-generated material must be reviewed before public release.",
-      "license_id": "LicenseRef-Animama-agent-authored",
-      "redistribution_review": "pending"
-    },
-    {
       "glob": "gestures/offer-a-rose/*.json",
       "creator": "Animama project; authored by an AI coding agent under the owner's direction",
       "provenance": "Agent-authored animaPoseClip/2.0 Gesture definition and metadata, written from text prompts with the animama-animation skill (#585) under the owner's direction. The effects its events play are the separately recorded Included content vfx/avatar/blush, vfx/avatar/rose. Contains no third-party animation, motion-capture or VRMA data. The owner reviewed the motion and its effects in animation:preview on both Included Avatars (2026-10-15) and approved inclusion on 2026-10-15. The owner-authorship attestation for gestures/**/*.json does not cover these files; copyright status of AI-generated material must be reviewed before public release.",
@@ -1644,6 +1637,13 @@
       "glob": "gestures/hand-hold-offer/*.json",
       "creator": "Animama project; authored by an AI coding agent under the owner's direction",
       "provenance": "Agent-authored animaPoseClip/2.0 Gesture definition and metadata, written from text prompts with the animama-animation skill (#585) under the owner's direction. The effects its events play are the separately recorded Included content vfx/avatar/blush, vfx/particle/quark/shoujo-sparkle-frame. Contains no third-party animation, motion-capture or VRMA data. The owner reviewed the motion and its effects in animation:preview on both Included Avatars (2026-10-15) and approved inclusion on 2026-10-15. The owner-authorship attestation for gestures/**/*.json does not cover these files; copyright status of AI-generated material must be reviewed before public release.",
+      "license_id": "LicenseRef-Animama-agent-authored",
+      "redistribution_review": "pending"
+    },
+    {
+      "glob": "gestures/confession-letter-bow/*.json",
+      "creator": "Animama project; authored by an AI coding agent under the owner's direction",
+      "provenance": "Agent-authored animaPoseClip/2.0 Gesture definition and metadata, written from text prompts with the animama-animation skill (#585) under the owner's direction. The effects its events play are the separately recorded Included content vfx/avatar/blush, vfx/avatar/love_letter, vfx/particle/quark/love-letter-flutter. Contains no third-party animation, motion-capture or VRMA data. The owner reviewed the motion and its effects in animation:preview on both Included Avatars (2026-10-15) and approved inclusion on 2026-10-15. On 2026-10-22 the clip gained solved hand contacts so both Included Avatars hold the letter by its edges; the owner reviewed before/after renders on both Avatars and approved the replacement. The owner-authorship attestation for gestures/**/*.json does not cover these files; copyright status of AI-generated material must be reviewed before public release.",
       "license_id": "LicenseRef-Animama-agent-authored",
       "redistribution_review": "pending"
     },
