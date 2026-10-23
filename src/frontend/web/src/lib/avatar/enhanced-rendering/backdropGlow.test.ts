@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  applyChatCanvasGrade,
   CHAT_CANVAS_GRADE,
   averageOpaqueColor,
   backdropGlow,
@@ -70,5 +71,23 @@ describe("averageOpaqueColor", () => {
 
   it("has no colour for fully transparent pixels", () => {
     expect(averageOpaqueColor(new Uint8ClampedArray(8))).toBeNull();
+  });
+});
+
+describe("applyChatCanvasGrade", () => {
+  it("keeps the CSS grade string", () => {
+    expect(CHAT_CANVAS_GRADE).toBe(
+      "brightness(1.04) contrast(0.92) saturate(0.88)",
+    );
+  });
+
+  it("applies brightness, contrast and saturate in order and keeps alpha", () => {
+    const pixels = new Uint8Array([
+      0, 0, 0, 255, 128, 128, 128, 200, 255, 255, 255, 10, 255, 0, 0, 255,
+    ]);
+    applyChatCanvasGrade(pixels);
+    expect(Array.from(pixels)).toEqual([
+      10, 10, 10, 255, 133, 133, 133, 200, 245, 245, 245, 10, 223, 16, 16, 255,
+    ]);
   });
 });

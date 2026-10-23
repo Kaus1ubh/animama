@@ -599,10 +599,11 @@ export const zBodySaveAvatarEffect = z.object({
  * Body_save_avatar_portrait
  */
 export const zBodySaveAvatarPortrait = z.object({
-    entry_name: z.string().min(1).max(120),
+    capture_preset_version: z.int().gte(1).lte(1000),
     expected_avatar_revision: z.string().regex(/^[0-9a-f]{64}$/),
     file: z.string(),
-    operation_id: z.string().min(1).max(128)
+    operation_id: z.string().min(1).max(128),
+    renderer_version: z.int().gte(1).lte(1000)
 });
 
 /**
@@ -806,6 +807,19 @@ export const zBodySaveVoiceContent = z.object({
         z.null()
     ])),
     operation_id: z.string().min(1).max(128)
+});
+
+/**
+ * BrowserTelemetryCapability
+ *
+ * Browser telemetry export that the serving origin accepts.
+ *
+ * The web app posts bounded OTLP/HTTP JSON metrics and error logs to
+ * ``{path}/metrics`` and ``{path}/logs`` on its own origin; the embedded
+ * desktop app never exports. The path is relative to that origin, never a URL.
+ */
+export const zBrowserTelemetryCapability = z.object({
+    path: z.optional(z.string().max(128).regex(/^(\/[A-Za-z0-9_-]+)+$/)).default('/api/telemetry')
 });
 
 /**
@@ -2075,6 +2089,27 @@ export const zPyAvatarCatalogPage = z.object({
 });
 
 /**
+ * PyAvatarPortrait
+ *
+ * An Avatar's portrait image and the capture it came from.
+ */
+export const zPyAvatarPortrait = z.object({
+    avatar_revision_sha256: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    capture_preset_version: z.optional(z.union([
+        z.int(),
+        z.null()
+    ])),
+    renderer_version: z.optional(z.union([
+        z.int(),
+        z.null()
+    ])),
+    url: z.string()
+});
+
+/**
  * PyAvatarRegisterRequest
  *
  * Register one valid catalog VRM as a logical Avatar identity.
@@ -2870,6 +2905,8 @@ export const zPyAnimaUpdateRequest = z.object({
 
 /**
  * PyGestureBinding
+ *
+ * One equipped AI-callable Gesture, stored as a ``gesture:<semantic_key>`` binding row.
  */
 export const zPyGestureBinding = z.object({
     binding_id: z.string(),
@@ -2884,7 +2921,6 @@ export const zPyGestureBinding = z.object({
         z.null()
     ])),
     name: z.string(),
-    origin: z.enum(['starter', 'custom']),
     semantic_key: z.string(),
     source: zPyCatalogLoadoutSource
 });
@@ -2904,16 +2940,10 @@ export const zPyGestureIntent = z.object({
         'add',
         'update',
         'reconfigure',
-        'remove',
-        'disable_starter',
-        'restore_starter'
+        'remove'
     ]),
     source: z.optional(z.union([
         zPyCatalogLoadoutSource,
-        z.null()
-    ])),
-    starter_id: z.optional(z.union([
-        z.string(),
         z.null()
     ]))
 });
@@ -3106,7 +3136,6 @@ export const zPyLoadoutPlan = z.object({
         'replace',
         'remove',
         'revert',
-        'leave_empty',
         'unchanged'
     ]),
     aggregate_revision: z.int().gte(1),
@@ -4637,12 +4666,10 @@ export const zPyAnimaLoadout = z.object({
         zPyCatalogLoadoutSource,
         z.null()
     ])),
-    disabled_starter_gestures: z.array(z.string()),
     gestures: z.array(zPyGestureBinding),
     idle: zPyAnimaIdle,
     reactions: z.array(zPyReactionCell),
     revision: z.int().gte(1),
-    starter_gesture_implementation_kinds: z.optional(z.record(z.string(), z.enum(['anima_clip', 'vrma']))),
     starter_version: z.int().gte(1),
     voice_source: z.optional(z.union([
         zPyCatalogLoadoutSource,
@@ -4950,11 +4977,11 @@ export const zPyRuntimeImagePresentation = z.object({
 export const zPyRuntimeImageReference = z.object({
     content_revision: z.string(),
     content_type: z.string(),
-    height: z.int().gte(1).lte(256),
+    height: z.int().gte(1).lte(512),
     presentation: zPyRuntimeImagePresentation,
     source_type: z.literal('catalog'),
     url: z.string(),
-    width: z.int().gte(1).lte(256)
+    width: z.int().gte(1).lte(512)
 });
 
 /**
@@ -5279,6 +5306,10 @@ export const zPyAvatarContent = z.object({
     model_role: z.optional(z.literal('model')).default('model'),
     name: z.string(),
     portability: z.optional(z.enum(['portable', 'non-portable'])),
+    portrait: z.optional(z.union([
+        zPyAvatarPortrait,
+        z.null()
+    ])),
     revision_sha256: z.string().regex(/^[0-9a-f]{64}$/),
     source: z.enum(['included', 'local'])
 });
@@ -6733,6 +6764,10 @@ export const zWebSearchCapability = z.object({
  */
 export const zRuntimeCapabilities = z.object({
     anima_creation: z.boolean(),
+    browser_telemetry: z.optional(z.union([
+        zBrowserTelemetryCapability,
+        z.null()
+    ])),
     chat: z.boolean(),
     chat_file_uploads: z.boolean(),
     companion_safety: zCompanionSafetyCapability,

@@ -1,5 +1,4 @@
 import type {
-  PyAnimaLoadout,
   PyCatalogLoadoutSource,
   PyGestureBinding,
 } from "@animama/runtime-contracts/api-types";
@@ -8,16 +7,6 @@ import type {
   PyGesture,
 } from "@/lib/content/catalogTypes";
 import { compareDisplayText } from "@animama/product-ui/i18n";
-
-export type GestureLoadoutPresentation = {
-  starter: PyGestureBinding[];
-  custom: PyGestureBinding[];
-  disabledStarter: Array<{
-    starterId: string;
-    motionType: PyGesture["implementation_kind"] | null;
-    gesture: PyGesture | null;
-  }>;
-};
 
 export type GestureCatalogRow = {
   gesture: PyGesture;
@@ -31,7 +20,6 @@ export type GestureCatalogPresentation = {
 
 export type UnifiedGestureListRow = {
   id: string;
-  kind: "custom" | "starter";
   source: "included" | "local";
   name: string;
   description: string | null;
@@ -40,7 +28,6 @@ export type UnifiedGestureListRow = {
   motionType: PyGesture["implementation_kind"] | null;
   gesture: PyGesture | null;
   binding: PyGestureBinding | null;
-  starterId: string | null;
 };
 
 export type UnifiedGestureListPresentation = {
@@ -103,7 +90,7 @@ export function presentGestureCatalog(
   };
 }
 
-/** Keep catalog origin separate from starter/custom loadout behavior. */
+/** Where the Gesture comes from: Included content or the owner's Local content. */
 function gestureSource(gesture: PyGesture): "included" | "local" {
   return gesture.source?.type === "catalog" && gesture.source.source
     ? gesture.source.source
@@ -112,21 +99,8 @@ function gestureSource(gesture: PyGesture): "included" | "local" {
       : "local";
 }
 
-/** Starter policy IDs are Included logical-key slugs, not AI selector names. */
-function includedGestureId(
-  source: PyExactContentSource | PyCatalogLoadoutSource | null,
-): string | null {
-  const prefix = "builtin:gesture:";
-  return source?.type === "catalog" &&
-    source.source === "included" &&
-    source.logical_key?.startsWith(prefix)
-    ? source.logical_key.slice(prefix.length)
-    : null;
-}
-
 /** Build a searchable catalog without hiding unequipped Included Gestures. */
 export function presentUnifiedGestureList({
-  presentation,
   catalog,
   showIncluded,
   showLocal,
@@ -136,7 +110,6 @@ export function presentUnifiedGestureList({
   sort,
   query,
 }: {
-  presentation: GestureLoadoutPresentation;
   catalog: GestureCatalogPresentation;
   showIncluded: boolean;
   showLocal: boolean;
@@ -146,47 +119,24 @@ export function presentUnifiedGestureList({
   sort: UnifiedGestureSort;
   query: string;
 }): UnifiedGestureListPresentation {
-  const disabledStarterIds = new Set(
-    presentation.disabledStarter.map((row) => row.starterId),
-  );
   const catalogRows: UnifiedGestureListRow[] = catalog.rows.map(
-    ({ gesture, binding }) => {
-      const source = gestureSource(gesture);
-      const includedId = includedGestureId(gesture.source);
-      const disabledStarter =
-        includedId !== null && disabledStarterIds.has(includedId);
-      // Explicit bindings keep Remove semantics even when their source is a starter.
-      const kind = binding?.origin ?? (disabledStarter ? "starter" : "custom");
-      return {
-        id: `catalog:${gesture.item_id}`,
-        kind,
-        source,
-        name: gesture.name,
-        description: gesture.description ?? null,
-        equipped: Boolean(binding),
-        updateAvailable: false,
-        motionType: binding?.implementation_kind ?? gesture.implementation_kind,
-        gesture,
-        binding,
-        starterId:
-          kind === "starter" ? (binding?.semantic_key ?? includedId) : null,
-      };
-    },
+    ({ gesture, binding }) => ({
+      id: `catalog:${gesture.item_id}`,
+      source: gestureSource(gesture),
+      name: gesture.name,
+      description: gesture.description ?? null,
+      equipped: Boolean(binding),
+      updateAvailable: false,
+      motionType: binding?.implementation_kind ?? gesture.implementation_kind,
+      gesture,
+      binding,
+    }),
   );
-  const representedIncludedIds = new Set([
-    ...catalog.rows
-      .filter(({ gesture }) => gestureSource(gesture) === "included")
-      .map(({ gesture }) => includedGestureId(gesture.source)),
-    ...catalog.unlistedEquipped
-      .filter((binding) => binding.source.source === "included")
-      .map((binding) => includedGestureId(binding.source)),
-  ]);
   // Retain loadout-only entries while the catalog loads or a source is unavailable.
   const allRows: UnifiedGestureListRow[] = [
     ...catalogRows,
     ...catalog.unlistedEquipped.map((binding) => ({
       id: `binding:${binding.binding_id}`,
-      kind: binding.origin,
       source: binding.source.source,
       name: binding.name,
       description: binding.description ?? null,
@@ -195,23 +145,7 @@ export function presentUnifiedGestureList({
       motionType: binding.implementation_kind,
       gesture: null,
       binding,
-      starterId: binding.origin === "starter" ? binding.semantic_key : null,
     })),
-    ...presentation.disabledStarter
-      .filter(({ starterId }) => !representedIncludedIds.has(starterId))
-      .map(({ starterId, motionType, gesture }) => ({
-        id: `starter-disabled:${starterId}`,
-        kind: "starter" as const,
-        source: "included" as const,
-        name: gesture?.name ?? starterId,
-        description: gesture?.description ?? null,
-        equipped: false,
-        updateAvailable: false,
-        motionType: gesture?.implementation_kind ?? motionType,
-        gesture,
-        binding: null,
-        starterId,
-      })),
   ];
   const normalizedQuery = query.trim().toLocaleLowerCase();
   const rows = allRows.filter((row) => {
@@ -234,8 +168,9 @@ export function presentUnifiedGestureList({
     );
   });
   rows.sort((left, right) => {
-    if (sort === "custom-first" && left.kind !== right.kind)
-      return left.kind === "custom" ? -1 : 1;
+    // Custom first lists Local Gestures before Included ones, as the Library does.
+    if (sort === "custom-first" && left.source !== right.source)
+      return left.source === "local" ? -1 : 1;
     const direction = sort === "name-desc" ? -1 : 1;
     return (
       direction *
@@ -256,34 +191,5 @@ export function presentUnifiedGestureList({
         .length,
       vrma: allRows.filter((row) => row.motionType === "vrma").length,
     },
-  };
-}
-
-/** Keep Starter inventory compact while preserving custom typed roots. */
-export function presentGestureLoadout(
-  loadout: PyAnimaLoadout,
-  builtinGestures: readonly PyGesture[] = [],
-): GestureLoadoutPresentation {
-  const starter = loadout.gestures.filter((row) => row.origin === "starter");
-  const custom = loadout.gestures.filter((row) => row.origin === "custom");
-  const builtinByStarterId = new Map(
-    builtinGestures
-      .filter(
-        (gesture) =>
-          gesture.origin === "builtin" &&
-          gesture.state === "ready" &&
-          Boolean(gesture.source),
-      )
-      .map((gesture) => [includedGestureId(gesture.source), gesture]),
-  );
-  return {
-    starter,
-    custom,
-    disabledStarter: loadout.disabled_starter_gestures.map((starterId) => ({
-      starterId,
-      motionType:
-        loadout.starter_gesture_implementation_kinds?.[starterId] ?? null,
-      gesture: builtinByStarterId.get(starterId) ?? null,
-    })),
   };
 }

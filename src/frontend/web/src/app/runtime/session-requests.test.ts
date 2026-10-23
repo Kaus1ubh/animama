@@ -64,6 +64,100 @@ it.each([204, 205, 304])(
   },
 );
 
+/** Like native fetch, error the body when the request signal aborts. */
+function abortableReply(request: Request, status = 200): Response {
+  return new Response(
+    new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode("first"));
+        const abort = () =>
+          controller.error(
+            new DOMException("BodyStreamBuffer was aborted", "AbortError"),
+          );
+        if (request.signal.aborted) abort();
+        else request.signal.addEventListener("abort", abort);
+      },
+    }),
+    { status },
+  );
+}
+
+/** Collect rejections nobody handled while `run` and its follow-up tasks settle. */
+async function unhandledRejections(run: () => Promise<void>) {
+  const reasons: unknown[] = [];
+  const record = (reason: unknown) => reasons.push(reason);
+  process.on("unhandledRejection", record);
+  try {
+    await run();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  } finally {
+    process.off("unhandledRejection", record);
+  }
+  return reasons;
+}
+
+describe("ending a scope with natively aborted bodies", () => {
+  it.each(["unread", "partly read", "already aborted"])(
+    "leaves no unhandled rejection for a body that is %s",
+    async (state) => {
+      const caller = new AbortController();
+      const reasons = await unhandledRejections(async () => {
+        const scope = new SessionRequestScope("native-abort", {
+          baseUrl: origin,
+          fetch: async (request) => abortableReply(request as Request),
+        });
+        const reply = await scope.fetch("/v1/chat", { signal: caller.signal });
+        const reader = reply.body!.getReader();
+        if (state === "partly read") await reader.read();
+        if (state === "already aborted") caller.abort();
+        await scope.end();
+        await expect(reader.read()).rejects.toMatchObject({
+          name: "AbortError",
+        });
+      });
+      expect(reasons).toEqual([]);
+    },
+  );
+
+  it("leaves no unhandled rejection for a reply that arrives after the scope ended", async () => {
+    const reasons = await unhandledRejections(async () => {
+      const scope: SessionRequestScope = new SessionRequestScope("late-reply", {
+        baseUrl: origin,
+        fetch: async (request) => {
+          void scope.end();
+          return abortableReply(request as Request);
+        },
+      });
+      await expect(scope.fetch("/v1/chat")).rejects.toMatchObject({
+        name: "AbortError",
+      });
+    });
+    expect(reasons).toEqual([]);
+  });
+
+  it("leaves no unhandled rejection for a bodyless reply with an aborted stream", async () => {
+    const reasons = await unhandledRejections(async () => {
+      const errored = new ReadableStream({
+        start: (controller) => controller.error(new Error("stream aborted")),
+      });
+      const scope = new SessionRequestScope("bodyless-aborted", {
+        baseUrl: origin,
+        fetch: async () =>
+          new Proxy(new Response(null, { status: 204 }), {
+            get(target, key) {
+              if (key === "body") return errored;
+              const value = Reflect.get(target, key, target);
+              return typeof value === "function" ? value.bind(target) : value;
+            },
+          }),
+      });
+      expect((await scope.fetch("/v1/chats")).status).toBe(204);
+      await scope.end();
+    });
+    expect(reasons).toEqual([]);
+  });
+});
+
 describe("admitted request lifetime", () => {
   it("rejects foreign product origins before dispatch", async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response());

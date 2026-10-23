@@ -44,12 +44,13 @@ aliases or a sibling checkout.
 | Artifact                     | Responsibility                                                                                                             |
 | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
 | Hosted application archive   | Complete immutable browser application, closed static/resource inventory and separately admitted non-static Included seed. |
+| Landing site archive         | The static animama.ai site with its closed file, MIME and cache inventory and `_headers` digest (package-set format 3).    |
 | Python wheel                 | Reusable backend domain/application contracts and supported provider adapters.                                             |
 | `@animama/runtime-contracts` | Runtime owner, transport and capabilities; generated API types, SDK and validators; supported UI Locales and resolution.   |
 | `@animama/product-ui`        | Injected product providers, Anima selection, chat session/stream behavior, transcript, composer and the UI Locale runtime. |
 | `@animama/discover-client`   | Inert compatibility package retained in the artifact set. Discover and local account connection are discontinued.          |
 
-Consumers pin immutable commits and complete application/wheel/npm/contract identities.
+Consumers pin immutable commits and complete application/site/wheel/npm/contract identities.
 Public builds do not read the private lock or require its checkout. The current
 package set and wire contracts remain stable through local cleanup; see
 [contracts](../../contracts/README.md) and

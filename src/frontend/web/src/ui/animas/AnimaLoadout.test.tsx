@@ -8,8 +8,6 @@ const fixtures = vi.hoisted(() => ({
     anima_id: "anima-1",
     revision: 1,
     starter_version: 1,
-    disabled_starter_gestures: [],
-    starter_gesture_implementation_kinds: {},
     warnings: [],
     gestures: [],
     reactions: [],

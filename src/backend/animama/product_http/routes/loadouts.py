@@ -58,10 +58,7 @@ async def get_anima_loadout(
         value = await service.read_model(user_id=user.id, anima_id=anima_id)
     except AnimaLoadoutError as exc:
         _raise_loadout(exc)
-    return PyAnimaLoadout.from_domain(
-        value,
-        starter_implementation_kinds=getattr(service, "starter_gesture_implementation_kinds", {}),
-    )
+    return PyAnimaLoadout.from_domain(value)
 
 
 async def _plan(

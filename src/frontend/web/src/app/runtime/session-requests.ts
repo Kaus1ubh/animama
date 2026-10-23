@@ -2,6 +2,17 @@ import type { ProductApiTransport } from "@animama/runtime-contracts";
 import { getI18n } from "react-i18next";
 import { WordedError } from "@/lib/errors/apiError";
 
+/**
+ * Release a native body the scope is discarding. Once the scope abort has
+ * errored the stream, cancelling it rejects with that error; nothing awaits
+ * the cancel, and consumers see the scope's own AbortError instead.
+ */
+function discardStream(
+  stream: ReadableStream | ReadableStreamDefaultReader | null | undefined,
+): void {
+  void stream?.cancel().catch(() => {});
+}
+
 /** One admitted browser lifetime; it owns requests and registered private resources. */
 export class SessionRequestScope {
   readonly controller = new AbortController();
@@ -39,7 +50,7 @@ export class SessionRequestScope {
       new Request(request, { signal }),
     );
     if (this.controller.signal.aborted) {
-      void response.body?.cancel();
+      discardStream(response.body);
       this.assertActive();
     }
     return this.guardResponse(response);
@@ -104,7 +115,7 @@ export class SessionRequestScope {
     // Browser network replies may expose an empty stream for these statuses.
     // A Response constructor forbids bodies here, including wrapped empty ones.
     if ([204, 205, 304].includes(response.status)) {
-      void response.body?.cancel();
+      discardStream(response.body);
       guarded = new Response(null, {
         status: response.status,
         statusText: response.statusText,
@@ -119,7 +130,7 @@ export class SessionRequestScope {
             controller.error(
               new DOMException("This browser session has ended", "AbortError"),
             );
-            void reader.cancel();
+            discardStream(reader);
           });
         },
         pull: async (controller) => {

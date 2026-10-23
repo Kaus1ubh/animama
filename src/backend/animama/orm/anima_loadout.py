@@ -27,10 +27,6 @@ class ORMAnimaLoadout(SqlalchemyBase):
     __table_args__ = (
         CheckConstraint("revision > 0", name="revision_positive"),
         CheckConstraint("starter_catalog_version > 0", name="starter_catalog_version_positive"),
-        CheckConstraint(
-            "jsonb_typeof(starter_exclusions) = 'array'",
-            name="starter_exclusions_array",
-        ),
         Index("ix_anima_loadouts_owner_anima", "owner_user_id", "anima_id"),
     )
 
@@ -41,12 +37,8 @@ class ORMAnimaLoadout(SqlalchemyBase):
     )
     owner_user_id: Mapped[str] = mapped_column(String, nullable=False)
     revision: Mapped[int] = mapped_column(Integer, nullable=False, server_default=sa_text("1"))
+    # The starter loadout version the loadout started from; Reaction pools read it.
     starter_catalog_version: Mapped[int] = mapped_column(Integer, nullable=False, server_default=sa_text("1"))
-    starter_exclusions: Mapped[list[dict[str, str]]] = mapped_column(
-        JSONB,
-        nullable=False,
-        server_default=sa_text("'[]'::jsonb"),
-    )
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), nullable=False, server_default=sa_text("CURRENT_TIMESTAMP")
     )

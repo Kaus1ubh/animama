@@ -15,7 +15,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from functools import cache
 from importlib.resources import files
 from typing import Any, BinaryIO, Literal
@@ -31,6 +31,7 @@ DISTRIBUTION_KEY = "distribution"
 DISTRIBUTION_EXCLUDED = "excluded"
 DISTRIBUTION_NON_PORTABLE = "non-portable"
 INVENTORY_DISTRIBUTIONS = frozenset({DISTRIBUTION_EXCLUDED, DISTRIBUTION_NON_PORTABLE})
+INVENTORY_DERIVATIVES_KEY = "derivatives"
 
 MIXAMO_MOTION_PACK_ID = "mixamo-motion"
 WOW_COMEDY_SFX_PACK_ID = "wow-comedy-sfx"
@@ -81,6 +82,51 @@ def restricted_sha256() -> frozenset[str]:
         raw = resources.joinpath(name).read_text(encoding="utf-8")
         hashes |= parse_restricted_manifest(json.loads(raw), pack_id=pack_id)
     return frozenset(hashes)
+
+
+def parse_inventory_derivatives(inventory: Mapping[str, Any]) -> dict[str, str]:
+    """Map each recorded derivative path to its master path in a licence inventory.
+
+    Packaged builds ship some Included files as re-encoded derivatives (#655).
+    Staging records each under ``"derivatives"`` in its copy of
+    ``licenses/inventory.json`` with its master's path, sha256 and size; the
+    source inventory has none. A derivative takes its master's licence and
+    distribution, so the rules never have to name derived files.
+    """
+
+    value = inventory.get(INVENTORY_DERIVATIVES_KEY, {})
+    if not isinstance(value, dict):
+        raise ValueError("Invalid derivative record: expected an object")
+    derivatives: dict[str, str] = {}
+    for derived, record in value.items():
+        master = record.get("path") if isinstance(record, dict) else None
+        if (
+            not _relative_inventory_path(derived)
+            or not isinstance(master, str)
+            or not _relative_inventory_path(master)
+            or not isinstance(record.get("sha256"), str)
+            or not _SHA256.fullmatch(record["sha256"])
+            or type(record.get("size_bytes")) is not int
+            or record["size_bytes"] < 0
+        ):
+            raise ValueError(f"Invalid derivative record: {derived}")
+        derivatives[derived] = master
+    return derivatives
+
+
+def licensing_path(relative_path: str, derivatives: Mapping[str, str]) -> str:
+    """The path whose licence rule applies: a derivative's master, else itself."""
+
+    return derivatives.get(relative_path, relative_path)
+
+
+def _relative_inventory_path(value: object) -> bool:
+    return (
+        isinstance(value, str)
+        and bool(value)
+        and not value.startswith("/")
+        and all(part not in ("", ".", "..") for part in value.split("/"))
+    )
 
 
 def resolve_rule_distribution(values: Iterable[Any]) -> str | None:

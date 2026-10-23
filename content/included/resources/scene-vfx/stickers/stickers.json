@@ -1,6 +1,6 @@
 {
   "schema": "animama/scene-stickers/1",
-  "description": "Animama's built-in Scene stickers, offered by the Scene Effect creator's sticker picker in this order, grouped by family. Choosing one copies its PNG into the effect as its own image. Each item's file is a PNG in this folder.",
+  "description": "Animama's built-in Scene stickers, offered by the Scene Effect creator's sticker picker in this order, grouped by family. Choosing one copies its image into the effect as its own image (production builds bundle it as WebP where that is smaller). Each item's file is a PNG in this folder.",
   "items": [
     {
       "id": "apricot-blossom",

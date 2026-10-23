@@ -132,7 +132,13 @@ type ChatSseError = {
 };
 
 type ChatSseCallbacks = {
+  /** Fires before the request is sent: the generated client's stream is lazy. */
   onOpen?: () => void;
+  /**
+   * Fires once, when the response delivers its first event. A server may hold
+   * a turn before its stream starts, so this can follow the send by seconds.
+   */
+  onFirstEvent?: () => void;
   onToken?: (token: string, data: ChatSseUserResponse) => void;
   onEmotionUpdate?: (data: ChatSseEmotionUpdate) => void;
   onAvatarGestureRequested?: (data: ChatSseAvatarGestureRequested) => void;
@@ -320,6 +326,7 @@ export function useChatSse() {
       let sseStatus: "ok" | "error" | "cancelled" = "ok";
       let tokenCount = 0;
       let sawRunCompleted = false;
+      let sawFirstEvent = false;
       let reportedError = false;
 
       recordSseStart(metricAttrs);
@@ -380,6 +387,10 @@ export function useChatSse() {
         for await (const raw of stream) {
           // A parser may already hold frames when Stop/replacement occurs.
           if (!isActive()) break;
+          if (!sawFirstEvent) {
+            sawFirstEvent = true;
+            args.onFirstEvent?.();
+          }
           const data = raw as unknown;
 
           if (isTtsSession(data)) {

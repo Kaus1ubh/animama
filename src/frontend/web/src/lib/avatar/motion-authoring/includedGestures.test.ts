@@ -27,17 +27,18 @@ import { loadTestAvatar } from "./testing/includedAvatars";
 const MOTION_CHECK_EXEMPT = new Set(["meme-dab", "shy-finger-poke-loop"]);
 
 /**
- * Gestures whose original clips fail the checks only on Andrew, whose wider
- * shoulders and torso leave 1–3 cm forearm/torso overlaps and touches a few
- * centimetres off; the owner judged them fine at chat framing (2026-10-20).
- * They must still pass on Annie, and each stays listed only while it fails on
- * Andrew: remove it here once its clip is retuned.
+ * Gestures whose clips fail the checks only on Andrew, whose proportions
+ * differ from Annie's, leaving 1–3 cm forearm/torso overlaps and touches a
+ * few centimetres off. The owner judged them fine at chat framing
+ * (2026-10-20) and kept the shared clips unretuned for the 2026-10-22 Andrew
+ * model. They must still pass on Annie, and each stays listed only while it
+ * fails on Andrew: remove it here once its clip is retuned.
  */
 const KNOWN_ANDREW_FAILURES = new Set([
   "arms-crossed",
+  "big-x-batsu",
   "blow-a-kiss-2",
   "cover-face-and-peek",
-  "detective-squint",
   "energy-wave",
   "flex",
   "flustered-fan",

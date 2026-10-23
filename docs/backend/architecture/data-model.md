@@ -230,8 +230,14 @@ signed URL, external media URL, or absolute path. Gesture and Reaction
 dependency rows point at the exact catalog targets selected by their
 descriptors.
 
-`ORMAnimaLoadout` maps `anima_loadouts` and owns the optimistic revision plus
-Starter Gesture exclusions.
+`ORMAnimaLoadout` maps `anima_loadouts` and owns the optimistic revision and the
+starter loadout version the loadout started from. An Anima's Gestures are
+exactly its `gesture:<semantic_key>` rows
+([ADR 0030](../../adr/0030-anima-gestures-are-binding-rows.md)). A Compose
+development database created before then keeps an unused `starter_exclusions`
+column, and any starter it showed without a row must be re-equipped; a packaged
+desktop profile reports `database_schema_mismatch` until it is reset, as after
+any baseline edit.
 `ORMAnimaContentBinding` stores typed logical catalog selections and their
 family-specific configuration. Gesture semantic-key uniqueness and the
 four-member Reaction pool limit are enforced by the service. Idle pool members

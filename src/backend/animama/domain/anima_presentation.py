@@ -5,8 +5,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from .anima_loadout import StarterEntryIdentity
-
 
 @dataclass(frozen=True, slots=True)
 class RuntimeImagePresentation:
@@ -66,7 +64,6 @@ class AnimaPresentationRecord:
     anima_id: str
     display_name: str
     starter_catalog_version: int | None = None
-    starter_exclusions: tuple[StarterEntryIdentity, ...] = ()
     profile_image: AnimaPresentationImageCandidate | None = None
     avatar_portrait: AnimaPresentationImageCandidate | None = None
     primary_model: AnimaPresentationImageCandidate | None = None

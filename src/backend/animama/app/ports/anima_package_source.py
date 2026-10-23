@@ -31,7 +31,6 @@ class SavedAnimaPackageSource:
     avatar_presentation_revision: int | None
     loadout_revision: int
     starter_catalog_version: int
-    starter_exclusions: tuple[dict[str, Any], ...]
     bindings: tuple[SavedAnimaBinding, ...]
     effective_tts_provider: str | None = "elevenlabs"
 

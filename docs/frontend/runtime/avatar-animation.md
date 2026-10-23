@@ -1487,6 +1487,13 @@ preference into `useEnhancedRenderingStore`
   transparent window or while an image is being sampled. It samples the stage
   image, or the theme background (including Appearance colour overrides) when
   no image is drawn, not Scene Effect backgrounds drawn over them.
+- **Portraits and effect thumbnails:** `captureAvatarPortrait` repeats the
+  chat look offscreen: the chat lights, a 4x MSAA half-float target (8-bit
+  where the GPU cannot render float colour), an output pass with the chat
+  tone mapping and sRGB encoding, and the chat grade applied to the read-back
+  pixels by `applyChatCanvasGrade` rather than a canvas `filter`. The
+  background stays transparent with no glow. It follows the setting at
+  capture time, as the Avatar's materials did at load.
 
 On an Apple M5 the enhanced look adds about 0.1–0.15 ms per frame over classic.
 Review renders and benchmarks use enhanced rendering unless given

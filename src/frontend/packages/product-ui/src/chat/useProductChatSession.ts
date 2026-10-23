@@ -355,6 +355,7 @@ export function useProductChatSession({
     clearAvatarVisemeBridgeRun,
     clearAvatarVisemeBridgeAll,
     startTtsRun,
+    markTtsStreamStarted,
     appendTtsToken,
     completeTtsRun,
     acceptElevenLabsSession,
@@ -1118,6 +1119,9 @@ export function useProductChatSession({
               : undefined,
             clientContext: currentChatClientContext(),
           }),
+          onFirstEvent: () => {
+            if (ttsEnabled) markTtsStreamStarted?.(runId);
+          },
           onAiNotice: (notice) => safetyRef.current?.onAiNotice?.(notice),
           onCrisisSupport: (card) => safetyRef.current?.onCrisisSupport?.(card),
           onRunStatus: (status) => {
@@ -1512,6 +1516,7 @@ export function useProductChatSession({
       completeTtsRun,
       fallBackToPocketTts,
       markNonTtsResponseStarted,
+      markTtsStreamStarted,
       anima,
       activeChat,
       activeChatId,

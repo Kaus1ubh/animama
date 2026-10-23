@@ -121,12 +121,10 @@ CREATE TABLE anima_loadouts (
     owner_user_id character varying NOT NULL,
     revision integer DEFAULT 1 NOT NULL,
     starter_catalog_version integer DEFAULT 1 NOT NULL,
-    starter_exclusions jsonb DEFAULT '[]'::jsonb NOT NULL,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT ck_anima_loadouts_revision_positive CHECK ((revision > 0)),
-    CONSTRAINT ck_anima_loadouts_starter_catalog_version_positive CHECK ((starter_catalog_version > 0)),
-    CONSTRAINT ck_anima_loadouts_starter_exclusions_array CHECK ((jsonb_typeof(starter_exclusions) = 'array'::text))
+    CONSTRAINT ck_anima_loadouts_starter_catalog_version_positive CHECK ((starter_catalog_version > 0))
 );
 
 -- animama-statement --

@@ -25,8 +25,8 @@ separately records a noncommercial distribution basis, which release validation
 requires; changing it is a separate owner decision. Per-file terms are documented
 in the code/model notices; source-code licensing does not replace model terms.
 
-Annie's model uses VRoid preset terms. Andrew is Raymond Van's edit of a VRoid
-preset, so the preset terms still apply to its pixiv components. Their embedded metadata and
+Annie's model uses VRoid preset terms. Andrew is Raymond Van's own VRoid Studio
+model, so pixiv's VRoid terms still apply to its VRoid components. Their embedded metadata and
 renderer-captured portraits do not make all underlying material AGPL or CC0.
 Keep notices and exact file mappings with each candidate.
 

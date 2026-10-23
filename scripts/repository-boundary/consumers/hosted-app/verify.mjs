@@ -484,6 +484,14 @@ try {
         ),
         "An owner with Text-to-Speech off loads no Pocket TTS before turning voice on",
     );
+    const ownerSettings = await page.evaluate(() =>
+        fetch("/v1/users/me/settings").then((response) => response.json()),
+    );
+    assert.equal(
+        ownerSettings.preferences?.presentation?.enhanced_rendering,
+        false,
+        "A new fixture owner draws the Avatar in the classic look (#637)",
+    );
     endPhase("first-avatar");
     const voiceStart = Date.now(),
         callStart = server.calls.length;
@@ -661,6 +669,8 @@ try {
         provider_calls: 0,
         clip_compatibility: clipCompatibility,
         physical_capture_or_heard_audio: false,
+        // Fixture owners start with enhanced rendering off (#637).
+        avatar_rendering: "classic",
         browser: {
             version: observation.browserVersion,
             headless: true,

@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import gzip
 import hashlib
+import io
 import json
 import os
 import shutil
@@ -16,6 +17,7 @@ import tempfile
 from pathlib import Path
 
 from application import APP, mime, safe_path, verify_application
+from landing_site import SITE, SITE_MANIFEST, site_cache, site_mime, verify_site
 from package_set import HEX40, canonical, compare, file_record, identity, metadata, sha, verify
 
 TOOL_ROOT = Path(__file__).resolve().parents[2]
@@ -135,6 +137,11 @@ def builds_application(root):
     return (root / "src/frontend/scripts/hosted-build-resources.mjs").is_file()
 
 
+def builds_site(root):
+    """Format-3 sources also emit the static landing site."""
+    return builds_application(root) and (root / "src/frontend/web/scripts/landing-build.mjs").is_file()
+
+
 def models(source):
     """Acquire and verify a checkout's own browser speech set in the shared model store.
 
@@ -211,35 +218,82 @@ def pack_application(built, stage, source, app_version, contracts, catalog_seed)
         },
     }
     filename = f"{APP}-{app_version}.tar.gz"
+    seed_paths = [
+        ("catalog-seed/" + path.relative_to(catalog_seed).as_posix(), path)
+        for path in sorted(catalog_seed.rglob("*"))
+        if path.is_file()
+    ]
+    write_archive(
+        stage / filename,
+        APP,
+        paths + seed_paths + [("app-manifest.json", canonical(app_manifest))],
+        source["source_date_epoch"],
+    )
+    verify_application(stage / filename, source["commit"], app_version, contracts, source_tree=source["tree"])
+    return file_record(stage, filename, kind="application", name=APP, version=app_version)
+
+
+def write_archive(target, root, members, epoch):
+    """Write a deterministic gzip/PAX tar of regular files under ``root/``.
+
+    ``members`` are ``(name, path)`` or ``(name, bytes)`` pairs in archive order.
+    """
     # Most bytes are model weights and media that barely compress. Level 1
     # packs the archive in seconds; level 9 took about 90 s for a file 8%
     # smaller, and a full run that rebuilds its baseline packs twice.
     with (
-        (stage / filename).open("wb") as stream,
-        gzip.GzipFile(
-            filename="", mode="wb", fileobj=stream, mtime=source["source_date_epoch"], compresslevel=1
-        ) as compressed,
+        target.open("wb") as stream,
+        gzip.GzipFile(filename="", mode="wb", fileobj=stream, mtime=epoch, compresslevel=1) as compressed,
+        tarfile.open(fileobj=compressed, mode="w", format=tarfile.PAX_FORMAT) as tar,
     ):
-        with tarfile.open(fileobj=compressed, mode="w", format=tarfile.PAX_FORMAT) as tar:
-            import io
+        for name, content in members:
+            info = tarfile.TarInfo(root + "/" + name)
+            info.size = len(content) if isinstance(content, bytes) else content.stat().st_size
+            info.mode, info.mtime = 0o644, epoch
+            if isinstance(content, bytes):
+                tar.addfile(info, io.BytesIO(content))
+            else:
+                with content.open("rb") as payload:
+                    tar.addfile(info, payload)
 
-            seed_paths = [
-                ("catalog-seed/" + path.relative_to(catalog_seed).as_posix(), path)
-                for path in sorted(catalog_seed.rglob("*"))
-                if path.is_file()
-            ]
-            for name, path in paths + seed_paths + [("app-manifest.json", None)]:
-                info = tarfile.TarInfo(APP + "/" + name)
-                data = canonical(app_manifest) if path is None else None
-                info.size = len(data) if path is None else path.stat().st_size
-                info.mode, info.mtime = 0o644, source["source_date_epoch"]
-                if path:
-                    with path.open("rb") as payload:
-                        tar.addfile(info, payload)
-                else:
-                    tar.addfile(info, io.BytesIO(data))
-    verify_application(stage / filename, source["commit"], app_version, contracts, source_tree=source["tree"])
-    return file_record(stage, filename, kind="application", name=APP, version=app_version)
+
+def pack_site(built, stage, source, version):
+    """Close the landing build's complete output into a deterministic site archive."""
+    paths = []
+    for path in sorted(built.rglob("*")):
+        if path.is_symlink() or not (path.is_dir() or path.is_file()):
+            raise ValueError("Linked or special landing site output")
+        if path.is_file():
+            paths.append((safe_path(path.relative_to(built).as_posix()), path))
+    files = [
+        {
+            "path": name,
+            "sha256": sha(path.read_bytes()),
+            "size": path.stat().st_size,
+            "mime_type": site_mime(name),
+            "cache": site_cache(name),
+        }
+        for name, path in paths
+    ]
+    headers = next((entry for entry in files if entry["path"] == "_headers"), None)
+    if headers is None:
+        raise ValueError("Landing site output has no _headers")
+    site_manifest = {
+        "schema_version": 1,
+        "site": SITE,
+        "site_version": version,
+        "source_commit": source["commit"],
+        "source_tree": source["tree"],
+        "entry_document": "index.html",
+        "headers_sha256": headers["sha256"],
+        "files": files,
+    }
+    filename = f"{SITE}-{version}.tar.gz"
+    write_archive(
+        stage / filename, SITE, paths + [(SITE_MANIFEST, canonical(site_manifest))], source["source_date_epoch"]
+    )
+    verify_site(stage / filename, source["commit"], version, source_tree=source["tree"])
+    return file_record(stage, filename, kind="site", name=SITE, version=version)
 
 
 def build(source, commit, output, allow_dirty=False):
@@ -318,6 +372,12 @@ def build(source, commit, output, allow_dirty=False):
                     root / "src/frontend/web/dist-hosted", stage, source_record, app_version, contracts, seed_output
                 )
             ]
+        sites = []
+        # Format-3 sources also ship the landing site, built outside the snapshot.
+        if builds_site(root):
+            site_output = Path(temp) / "landing"
+            run(["pnpm", "-s", "landing:build", "--out", str(site_output)], root / "src/frontend/web", env)
+            sites = [pack_site(site_output, stage, source_record, app_version)]
         inputs = {n: sha((root / n).read_bytes()) for n in ["uv.lock", "src/frontend/pnpm-lock.yaml", "pyproject.toml"]}
         # The producer may package an older exact commit; its own reviewed recipe
         # and contract-policy bytes are separately fingerprinted, never implicit.
@@ -328,13 +388,14 @@ def build(source, commit, output, allow_dirty=False):
                 Path(__file__).with_name("package_set.py"),
                 Path(__file__).with_name("application.py"),
                 Path(__file__).with_name("catalog_seed.py"),
+                Path(__file__).with_name("landing_site.py"),
                 Path(__file__).with_name("build-constraints.txt"),
                 TOOL_ROOT / "contracts/versions.json",
                 TOOL_ROOT / "contracts/runtime-owner/schema.json",
             ]
         }
         manifest = {
-            "schema_version": 2 if applications else 1,
+            "schema_version": 3 if sites else 2 if applications else 1,
             "source": source_record,
             "build": {
                 "inputs": inputs,
@@ -349,11 +410,13 @@ def build(source, commit, output, allow_dirty=False):
         }
         if applications:
             manifest["applications"] = applications
+        if sites:
+            manifest["sites"] = sites
         (stage / "manifest.json").write_bytes(canonical(manifest))
         (stage / "SHA256SUMS").write_text(
             "".join(
                 f"{r['sha256']}  {r['file']}\n"
-                for r in sorted(packages + contracts + applications, key=lambda r: r["file"])
+                for r in sorted(packages + contracts + applications + sites, key=lambda r: r["file"])
             )
         )
         # uv creates a distribution-directory ignore marker; it is not an artifact.

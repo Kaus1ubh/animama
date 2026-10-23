@@ -131,7 +131,11 @@ is non-portable when a rule in its own source's inventory sets
 `"distribution": "non-portable"` (any unrecognised value also counts), or when
 any of its files matches a hash in a private pack manifest or the vendor preview
 deny list under `animama/resources/` (`RESTRICTED_RESOURCES` in
-`content_portability.py`), wherever it is stored. The Included scan drops a
+`content_portability.py`), wherever it is stored. A packaged source's inventory
+may also record `derivatives`: effect art that packaging re-encoded as WebP
+(`runtime/included_derivatives.py`). Each derivative is matched against the
+rules by its PNG master's path, so it keeps its master's licence and
+distribution. The Included scan drops a
 built-in effect's optional sound edge when that sound isn't mounted
 ([ADR 0022](../../adr/0022-optional-licensed-effect-sounds.md)). When a pack is
 unmounted, Included dependency edges are rebuilt rather than blocking the
@@ -253,8 +257,9 @@ scan. Package provenance is published in that same transaction.
 
 Static Appearance inputs are PNG/JPEG/WebP, bounded to 16 MiB, 8192 per side,
 and 40 million pixels. Save canonicalizes them to WebP; framing stays on the
-live binding. The Avatar portrait Save endpoint admits a 512-square browser
-capture as an ordinary 256-square owned Appearance. Confirmed content persists
+live binding. The Avatar portrait Save endpoint admits a 1024-square browser
+capture as a Local Avatar's one ordinary 512-square owned Appearance, replaced
+in place on the next save. Confirmed content persists
 after cancelled/failed Anima creation. Creation itself writes only SQL state;
 its receipt and aggregate are atomic, and its exact source evidence never
 becomes a durable runtime mount or an additional copy of the files.

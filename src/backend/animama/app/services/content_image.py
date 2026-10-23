@@ -22,8 +22,8 @@ CANONICAL_IMAGE_MAX_DIMENSION = 4096
 CANONICAL_IMAGE_MAX_BYTES = 32 * 1024 * 1024
 THUMBNAIL_MAX_DIMENSION = 256
 THUMBNAIL_MAX_BYTES = 256 * 1024
-AVATAR_PORTRAIT_SOURCE_DIMENSION = 512
-AVATAR_PORTRAIT_DIMENSION = 256
+AVATAR_PORTRAIT_SOURCE_DIMENSION = 1024
+AVATAR_PORTRAIT_DIMENSION = 512
 AVATAR_PORTRAIT_MAX_BYTES = 256 * 1024
 _FORMATS_BY_EXTENSION = {
     "png": frozenset({"PNG"}),
@@ -279,7 +279,7 @@ def derive_image_thumbnail(
 
 
 def canonicalize_avatar_portrait(*, content: BinaryIO) -> CanonicalAvatarPortrait:
-    """Validate one 512-square static WebP and normalize it for navigation UI."""
+    """Validate one 1024-square static WebP and downscale it to the 512-square portrait."""
 
     image, source_format, source_width, source_height, frame_count = _open_bounded_image(
         extension="webp",
@@ -399,7 +399,11 @@ def _encode_bounded_webp(
     *,
     maximum_bytes: int,
 ) -> bytes:
-    """Use one explicit encoder ladder so the pinned Pillow build is repeatable."""
+    """Use one explicit encoder ladder so the pinned Pillow build is repeatable.
+
+    ``method=5`` rather than the maximum 6: with lossless alpha, 6 takes
+    seconds for a 512-square image for files under 2% smaller.
+    """
 
     for quality in (90, 82, 74, 66, 58, 50, 42, 34):
         output = BytesIO()
@@ -408,7 +412,7 @@ def _encode_bounded_webp(
             format="WEBP",
             quality=quality,
             alpha_quality=100,
-            method=6,
+            method=5,
             exact=True,
             lossless=False,
             exif=b"",

@@ -927,6 +927,10 @@ class ContentTypeHandler:
                 width=_optional_positive_int(raw.get("width"), field_name="width"),
                 height=_optional_positive_int(raw.get("height"), field_name="height"),
                 avatar_model=_optional_string(raw.get("avatar_model"), field_name="avatar_model", maximum=256),
+                renderer_version=_optional_positive_int(raw.get("renderer_version"), field_name="renderer_version"),
+                capture_preset_version=_optional_positive_int(
+                    raw.get("capture_preset_version"), field_name="capture_preset_version"
+                ),
                 presentation=_object(raw.get("presentation", raw.get("config")), field_name="presentation"),
             )
         if kind is ContentKind.VOICE:
@@ -1037,6 +1041,11 @@ class ContentTypeHandler:
                     "presentation": document.presentation,
                 }
             )
+            # Only portraits carry capture versions; leaving the keys out
+            # otherwise keeps every other Appearance's revision unchanged.
+            for key in ("renderer_version", "capture_preset_version"):
+                if getattr(document, key) is not None:
+                    result[key] = getattr(document, key)
         elif isinstance(document, VoiceDocumentV1):
             result.update(
                 {

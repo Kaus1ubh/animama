@@ -42,6 +42,7 @@ from animama.app.ports.content_package_staging import PackageInspector, PackageS
 from animama.app.ports.user_profile_port import UserProfileRepository
 from animama.app.services.anima_package_source_service import AnimaPackageSnapshot, AnimaPackageSourceService
 from animama.app.services.avatar_face_parts import effective_face_parts
+from animama.app.services.avatar_portraits import portrait_matches
 from animama.app.services.content_catalog_service import ContentCatalogService
 from animama.app.services.content_kind_registry import MAX_JSON_BYTES, handler_for_kind
 from animama.app.services.content_package_staging import PackageStageService
@@ -311,19 +312,7 @@ def _portraits(
     result: dict[str, str | None] = {}
     appearances = [item for item in visible.values() if item.kind is ContentKind.APPEARANCE]
     for avatar in avatars:
-        matches = [
-            item
-            for item in appearances
-            if isinstance(item.metadata.get("presentation"), dict)
-            and item.metadata["presentation"].get("avatar_item_id") == avatar.id
-        ]
-        if not matches and avatar.source is ContentSource.INCLUDED:
-            matches = [
-                item
-                for item in appearances
-                if item.source is ContentSource.INCLUDED
-                and item.metadata.get("avatar_model") == PurePosixPath(avatar.relative_locator).stem
-            ]
+        matches = portrait_matches(avatar, appearances)
         if len(matches) > 1:
             raise ContentConflictError("package_portrait_ambiguous")
         result[avatar.id] = matches[0].id if matches else None

@@ -52,6 +52,12 @@ export type ChatSessionEffects = {
   ) => void;
   clearAvatarVisemeBridgeAll: (options?: ClearOptions) => void;
   startTtsRun: (runId: string) => void;
+  /**
+   * The run's response delivered its first event. A realtime voice times its
+   * session wait from here rather than from `startTtsRun`, because a server
+   * may hold the turn before its stream starts.
+   */
+  markTtsStreamStarted?: (runId: string) => void;
   /** `speechToneTag` comes from the reply's first speech frame (ElevenLabs only). */
   appendTtsToken: (
     runId: string,
@@ -117,6 +123,7 @@ export const textOnlyChatEffects: ChatSessionEffects = {
   clearAvatarVisemeBridgeRun: ignore,
   clearAvatarVisemeBridgeAll: ignore,
   startTtsRun: ignore,
+  markTtsStreamStarted: ignore,
   appendTtsToken: ignore,
   completeTtsRun: ignore,
   acceptElevenLabsSession: ignore,

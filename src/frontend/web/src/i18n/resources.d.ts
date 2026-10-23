@@ -663,7 +663,6 @@ export default interface Resources {
         "action": "Action:",
         "actions": {
           "add": "add",
-          "leave_empty": "leave empty",
           "remove": "remove",
           "replace": "replace",
           "revert": "revert",
@@ -3298,8 +3297,6 @@ export default interface Resources {
       "reaction_operation_invalid": "This Reaction change is not valid.",
       "reaction_pool_full": "That cell already holds four Reactions. Remove one to add another.",
       "reviewFailed": "Review failed.",
-      "starter_gesture_unavailable": "Included Gesture {{semanticKey}} is unavailable.",
-      "starter_id_required": "This change needs an Included Gesture.",
       "starter_reaction_unavailable": "A starter Reaction is unavailable and was not restored.",
       "updateFailed": "Update failed.",
       "voice_operation_invalid": "This voice change is not valid."

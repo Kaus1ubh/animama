@@ -89,6 +89,10 @@ async function mount(
     accountUrl = true,
     // Tabs opened in one browser context share storage and tab broadcasts.
     context = null,
+    // Advertise browser telemetry, answering its posts with this status ("hang" never answers).
+    telemetry = null,
+    // Expose an embedded desktop bridge, as Electron's preload does.
+    desktop = false,
   } = {},
 ) {
   const page = context
@@ -97,7 +101,11 @@ async function mount(
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
   const calls = [];
+  const telemetryPosts = [];
   const setupKeys = [];
+  const runtimeCapabilities = telemetry
+    ? { ...capabilities, browser_telemetry: { path: "/api/telemetry" } }
+    : capabilities;
   let csrf = "fixture-session-one";
   let generation = "fixture-session-generation-one";
   let offline = false;
@@ -119,6 +127,22 @@ async function mount(
         }),
       },
     });
+  });
+  if (desktop)
+    await page.addInitScript(() => {
+      window.animamaDesktop = { isDesktop: true, version: 2 };
+    });
+  // Every telemetry post is recorded, advertised or not, so silence is observable.
+  await page.route("**/api/telemetry/**", async (requestRoute) => {
+    const request = requestRoute.request();
+    telemetryPosts.push({
+      path: new URL(request.url()).pathname,
+      method: request.method(),
+      headers: request.headers(),
+      body: request.postData(),
+    });
+    if (telemetry?.status === "hang") return;
+    await requestRoute.fulfill({ status: telemetry?.status ?? 204 });
   });
   if (utilities)
     await page.addInitScript(() => {
@@ -155,10 +179,11 @@ async function mount(
           user_id: state === "active" ? "fixture-owner" : null,
           csrf_token: csrf,
           recovery_session_id: generation,
-          capabilities,
+          capabilities: runtimeCapabilities,
           ...(accountUrl ? { account_url: `${origin}/central-account` } : {}),
         };
-    else if (url.pathname === "/v1/runtime-capabilities") data = capabilities;
+    else if (url.pathname === "/v1/runtime-capabilities")
+      data = runtimeCapabilities;
     else if (url.pathname === "/v1/hosted/bootstrap:ensure") {
       setupKeys.push(JSON.parse(request.postData() ?? "{}").idempotency_key);
       if (loseFirstSetupReply && setupKeys.length === 1)
@@ -241,6 +266,8 @@ async function mount(
   return {
     page,
     calls,
+    telemetryPosts,
+    errors,
     setupKeys,
     reauthenticate: () => {
       state = "active";
@@ -1005,3 +1032,128 @@ test("speech workers answer again after a same-page sign-out and reauthenticatio
     await page.close();
   }
 });
+
+const telemetryUuid = "123e4567-e89b-42d3-a456-426614174000";
+
+/** Records metrics, raises an uncaught error and a rejection, then hides the page. */
+async function produceTelemetry(page) {
+  await page.evaluate((id) => {
+    window.hostedFixture.recordMetrics(id);
+    setTimeout(() => {
+      throw new TypeError(
+        `Send failed for person@example.com at ${location.origin}/v1/animas/${id}?draft=hello`,
+      );
+    });
+    void Promise.reject(new Error(`chat ${id} was not saved`));
+  }, telemetryUuid);
+  // Let the error events dispatch before the page-hide flush reads the queue.
+  await page.waitForTimeout(100);
+  await page.evaluate(() =>
+    window.dispatchEvent(new PageTransitionEvent("pagehide")),
+  );
+}
+
+test("without the runtime capability the page registers no exporter and sends no telemetry", async () => {
+  const { page, telemetryPosts } = await mount();
+  try {
+    await page.getByText("Your Animas will appear here").waitFor();
+    await produceTelemetry(page);
+    await page.waitForTimeout(500);
+    assert.deepEqual(telemetryPosts, []);
+  } finally {
+    await page.close();
+  }
+});
+
+test("an advertised capability exports sanitized metrics and an injected error as OTLP JSON", async () => {
+  const { page, telemetryPosts } = await mount("/", "active", undefined, {
+    telemetry: { status: 204 },
+  });
+  try {
+    await page.getByText("Your Animas will appear here").waitFor();
+    await produceTelemetry(page);
+    const deadline = Date.now() + BROWSER_STEP_TIMEOUT_MS;
+    while (telemetryPosts.length < 2 && Date.now() < deadline)
+      await page.waitForTimeout(50);
+    const byPath = Object.fromEntries(
+      telemetryPosts.map((post) => [post.path, post]),
+    );
+    assert.deepEqual(Object.keys(byPath).sort(), [
+      "/api/telemetry/logs",
+      "/api/telemetry/metrics",
+    ]);
+    for (const post of telemetryPosts) {
+      assert.equal(post.method, "POST");
+      assert.equal(post.headers["content-type"], "application/json");
+      // The post belongs to the admitted Cloud session.
+      assert.equal(post.headers["x-animama-csrf"], "fixture-session-one");
+      for (const forbidden of [
+        telemetryUuid,
+        "person@example.com",
+        "?draft",
+        "draft=",
+        new URL(origin).host,
+      ])
+        assert.ok(
+          !post.body.includes(forbidden),
+          `${post.path} contains ${forbidden}`,
+        );
+    }
+    const metrics = JSON.parse(byPath["/api/telemetry/metrics"].body)
+      .resourceMetrics[0].scopeMetrics[0].metrics;
+    assert.deepEqual(metrics.map((metric) => metric.name).sort(), [
+      "anima.webui.sse.duration",
+      "anima.webui.ui.interactions",
+    ]);
+    const logs = JSON.parse(byPath["/api/telemetry/logs"].body).resourceLogs[0]
+      .scopeLogs[0].logRecords;
+    assert.deepEqual(logs.map((record) => record.body.stringValue).sort(), [
+      "Send failed for <email> at /v1/animas/<id>",
+      "chat <id> was not saved",
+    ]);
+  } finally {
+    await page.close();
+  }
+});
+
+test("the embedded desktop app never exports, even when the capability is advertised", async () => {
+  const { page, telemetryPosts } = await mount("/", "active", undefined, {
+    telemetry: { status: 204 },
+    desktop: true,
+  });
+  try {
+    await page.getByText("Your Animas will appear here").waitFor();
+    await produceTelemetry(page);
+    await page.waitForTimeout(500);
+    assert.deepEqual(telemetryPosts, []);
+  } finally {
+    await page.close();
+  }
+});
+
+for (const status of [503, "hang"])
+  test(`a failing telemetry endpoint (${status}) leaves the UI responsive without queueing requests`, async () => {
+    const { page, telemetryPosts } = await mount("/", "active", undefined, {
+      telemetry: { status },
+    });
+    try {
+      await page.getByText("Your Animas will appear here").waitFor();
+      for (let round = 0; round < 5; round++) await produceTelemetry(page);
+      // Each signal sends once; a failure or an unanswered post holds the rest back.
+      await page.waitForTimeout(300);
+      assert.ok(
+        telemetryPosts.length <= 2,
+        `sent ${telemetryPosts.length} requests`,
+      );
+      const started = Date.now();
+      await page.evaluate(() => window.hostedFixture.recordMetrics("x"));
+      await page.getByText("Your Animas will appear here").waitFor();
+      assert.ok(Date.now() - started < 1_000);
+      assert.equal(
+        await page.evaluate(() => window.hostedFixture.current().status),
+        "ready",
+      );
+    } finally {
+      await page.close();
+    }
+  });

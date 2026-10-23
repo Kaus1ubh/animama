@@ -181,7 +181,6 @@
       "action": "작업:",
       "actions": {
         "add": "추가",
-        "leave_empty": "비워 두기",
         "remove": "제거",
         "replace": "교체",
         "revert": "되돌리기",

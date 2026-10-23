@@ -134,7 +134,7 @@ async def test_save_replay_returns_original_typed_snapshot_after_catalog_change(
     current_route = f"/v1/appearance-content/{original.id}" if portrait else f"/v1/gestures/{original.id}"
     form = {"operation_id": "completed-save"}
     if portrait:
-        form.update(entry_name="Original", expected_avatar_revision="a" * 64)
+        form.update(expected_avatar_revision="a" * 64, renderer_version="2", capture_preset_version="3")
     upload_field = "file" if portrait else "files"
 
     async with local_client(app) as client:

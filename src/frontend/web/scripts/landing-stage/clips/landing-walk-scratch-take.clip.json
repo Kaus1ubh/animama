@@ -1,0 +1,960 @@
+{
+  "schema": "animaPoseClip/2.0",
+  "id": "landing-walk-scratch-take",
+  "name": "Landing Walk Scratch Take",
+  "duration": 2.8,
+  "basePose": "relaxedRest",
+  "fadeIn": {
+    "duration": 0.2
+  },
+  "fadeOut": {
+    "duration": 0.3
+  },
+  "mutedProceduralLayers": [
+    "sway",
+    "bounce",
+    "headNod",
+    "headSideTilt",
+    "cursorLookAt",
+    "emotionPosture"
+  ],
+  "beats": [
+    {
+      "id": "walk",
+      "label": "Walking",
+      "time": 0
+    },
+    {
+      "id": "reach",
+      "label": "Hand on head",
+      "time": 0.42
+    },
+    {
+      "id": "scratch",
+      "label": "Scratch",
+      "time": 0.5
+    },
+    {
+      "id": "release",
+      "label": "Hand down",
+      "time": 0.9
+    },
+    {
+      "id": "glance",
+      "label": "Glance",
+      "time": 1.2
+    },
+    {
+      "id": "back",
+      "label": "Look ahead",
+      "time": 1.6
+    },
+    {
+      "id": "take",
+      "label": "Double take",
+      "time": 1.85
+    },
+    {
+      "id": "turn",
+      "label": "Turn",
+      "time": 2.15
+    },
+    {
+      "id": "lower",
+      "label": "Settle",
+      "time": 2.45
+    },
+    {
+      "id": "end",
+      "label": "Facing",
+      "time": 2.8
+    }
+  ],
+  "joints": {
+    "rightShoulder": {
+      "elevation": [
+        {
+          "beat": "walk",
+          "v": "base"
+        },
+        {
+          "beat": "reach",
+          "dt": -0.08,
+          "v": 16
+        },
+        {
+          "beat": "release",
+          "v": 16
+        },
+        {
+          "beat": "release",
+          "dt": 0.18,
+          "v": 8
+        },
+        {
+          "beat": "glance",
+          "dt": 0.2,
+          "v": "base"
+        }
+      ],
+      "protraction": [
+        {
+          "beat": "walk",
+          "v": 0
+        },
+        {
+          "beat": "reach",
+          "v": 4
+        },
+        {
+          "beat": "release",
+          "v": 4
+        },
+        {
+          "beat": "glance",
+          "dt": 0.2,
+          "v": 0
+        }
+      ]
+    },
+    "rightUpperArm": {
+      "elevation": [
+        {
+          "beat": "walk",
+          "v": "base"
+        },
+        {
+          "beat": "walk",
+          "dt": 0.14,
+          "v": 35
+        },
+        {
+          "beat": "walk",
+          "dt": 0.28,
+          "v": 78
+        },
+        {
+          "beat": "reach",
+          "v": 100
+        },
+        {
+          "beat": "release",
+          "v": 100
+        },
+        {
+          "beat": "release",
+          "dt": 0.18,
+          "v": 70
+        },
+        {
+          "beat": "glance",
+          "dt": 0.06,
+          "v": 25
+        },
+        {
+          "beat": "glance",
+          "dt": 0.26,
+          "v": "base"
+        }
+      ],
+      "planeOfElevation": [
+        {
+          "beat": "walk",
+          "v": "base"
+        },
+        {
+          "beat": "walk",
+          "dt": 0.14,
+          "v": 25
+        },
+        {
+          "beat": "walk",
+          "dt": 0.28,
+          "v": 18
+        },
+        {
+          "beat": "reach",
+          "v": -5
+        },
+        {
+          "beat": "release",
+          "v": -5
+        },
+        {
+          "beat": "release",
+          "dt": 0.18,
+          "v": -3
+        },
+        {
+          "beat": "glance",
+          "dt": 0.06,
+          "v": 5
+        },
+        {
+          "beat": "glance",
+          "dt": 0.26,
+          "v": "base"
+        }
+      ],
+      "rotation": [
+        {
+          "beat": "walk",
+          "v": "base"
+        },
+        {
+          "beat": "walk",
+          "dt": 0.14,
+          "v": 30
+        },
+        {
+          "beat": "walk",
+          "dt": 0.28,
+          "v": 58
+        },
+        {
+          "beat": "reach",
+          "v": 89
+        },
+        {
+          "beat": "release",
+          "v": 89
+        },
+        {
+          "beat": "release",
+          "dt": 0.18,
+          "v": 65
+        },
+        {
+          "beat": "glance",
+          "dt": 0.06,
+          "v": 15
+        },
+        {
+          "beat": "glance",
+          "dt": 0.26,
+          "v": "base"
+        }
+      ]
+    },
+    "rightLowerArm": {
+      "flexion": [
+        {
+          "beat": "walk",
+          "v": "base"
+        },
+        {
+          "beat": "walk",
+          "dt": 0.14,
+          "v": 70
+        },
+        {
+          "beat": "walk",
+          "dt": 0.28,
+          "v": 115
+        },
+        {
+          "beat": "reach",
+          "v": 118
+        },
+        {
+          "beat": "scratch",
+          "dt": -0.03,
+          "v": 113
+        },
+        {
+          "beat": "scratch",
+          "v": 120
+        },
+        {
+          "beat": "scratch",
+          "dt": 0.13,
+          "v": 114
+        },
+        {
+          "beat": "scratch",
+          "dt": 0.26,
+          "v": 120
+        },
+        {
+          "beat": "scratch",
+          "dt": 0.39,
+          "v": 114
+        },
+        {
+          "beat": "release",
+          "v": 110
+        },
+        {
+          "beat": "release",
+          "dt": 0.18,
+          "v": 118
+        },
+        {
+          "beat": "glance",
+          "dt": 0.06,
+          "v": 50
+        },
+        {
+          "beat": "glance",
+          "dt": 0.26,
+          "v": "base"
+        }
+      ],
+      "supination": [
+        {
+          "beat": "walk",
+          "v": "base"
+        },
+        {
+          "beat": "walk",
+          "dt": 0.14,
+          "v": 15
+        },
+        {
+          "beat": "walk",
+          "dt": 0.28,
+          "v": 35
+        },
+        {
+          "beat": "reach",
+          "v": 60
+        },
+        {
+          "beat": "release",
+          "v": 60
+        },
+        {
+          "beat": "release",
+          "dt": 0.18,
+          "v": 45
+        },
+        {
+          "beat": "glance",
+          "dt": 0.06,
+          "v": 5
+        },
+        {
+          "beat": "glance",
+          "dt": 0.26,
+          "v": "base"
+        }
+      ]
+    },
+    "rightHand": {
+      "flexion": [
+        {
+          "beat": "walk",
+          "v": "base"
+        },
+        {
+          "beat": "reach",
+          "v": -6
+        },
+        {
+          "beat": "scratch",
+          "v": -14
+        },
+        {
+          "beat": "scratch",
+          "dt": 0.13,
+          "v": -5
+        },
+        {
+          "beat": "scratch",
+          "dt": 0.26,
+          "v": -14
+        },
+        {
+          "beat": "scratch",
+          "dt": 0.39,
+          "v": -5
+        },
+        {
+          "beat": "release",
+          "dt": 0.12,
+          "v": -9
+        },
+        {
+          "beat": "glance",
+          "dt": 0.06,
+          "v": 0
+        },
+        {
+          "beat": "glance",
+          "dt": 0.26,
+          "v": "base"
+        }
+      ]
+    },
+    "neck": {
+      "rotation": [
+        {
+          "beat": "walk",
+          "v": 0
+        },
+        {
+          "beat": "glance",
+          "dt": -0.25,
+          "v": 0
+        },
+        {
+          "beat": "glance",
+          "v": -20
+        },
+        {
+          "beat": "glance",
+          "dt": 0.18,
+          "v": -19
+        },
+        {
+          "beat": "back",
+          "v": 5
+        },
+        {
+          "beat": "take",
+          "dt": -0.12,
+          "v": 4
+        },
+        {
+          "beat": "take",
+          "dt": 0.14,
+          "v": -24
+        },
+        {
+          "beat": "turn",
+          "v": -22
+        },
+        {
+          "beat": "turn",
+          "dt": 0.15,
+          "v": -12.5
+        },
+        {
+          "beat": "lower",
+          "v": -4.5
+        },
+        {
+          "beat": "lower",
+          "dt": 0.15,
+          "v": -0.7
+        },
+        {
+          "beat": "end",
+          "v": 0
+        }
+      ]
+    },
+    "head": {
+      "rotation": [
+        {
+          "beat": "walk",
+          "v": 0
+        },
+        {
+          "beat": "walk",
+          "dt": 0.02,
+          "v": 0
+        },
+        {
+          "beat": "reach",
+          "v": 5
+        },
+        {
+          "beat": "release",
+          "v": 4
+        },
+        {
+          "beat": "glance",
+          "dt": -0.25,
+          "v": 4
+        },
+        {
+          "beat": "glance",
+          "v": -30
+        },
+        {
+          "beat": "glance",
+          "dt": 0.18,
+          "v": -28
+        },
+        {
+          "beat": "back",
+          "v": 10
+        },
+        {
+          "beat": "take",
+          "dt": -0.12,
+          "v": 9
+        },
+        {
+          "beat": "take",
+          "dt": 0.14,
+          "v": -32
+        },
+        {
+          "beat": "turn",
+          "v": -30
+        },
+        {
+          "beat": "turn",
+          "dt": 0.15,
+          "v": -17
+        },
+        {
+          "beat": "lower",
+          "v": -6
+        },
+        {
+          "beat": "lower",
+          "dt": 0.15,
+          "v": -1
+        },
+        {
+          "beat": "end",
+          "v": 0
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "beat": "walk",
+          "v": 0
+        },
+        {
+          "beat": "walk",
+          "dt": 0.02,
+          "v": 0
+        },
+        {
+          "beat": "reach",
+          "v": -7
+        },
+        {
+          "beat": "scratch",
+          "dt": 0.25,
+          "v": -8
+        },
+        {
+          "beat": "release",
+          "v": -6
+        },
+        {
+          "beat": "glance",
+          "v": -4
+        },
+        {
+          "beat": "back",
+          "v": -5
+        },
+        {
+          "beat": "take",
+          "dt": 0.12,
+          "v": -2
+        },
+        {
+          "beat": "lower",
+          "v": 3
+        },
+        {
+          "beat": "end",
+          "v": 2
+        }
+      ],
+      "flexion": [
+        {
+          "beat": "walk",
+          "v": 0
+        },
+        {
+          "beat": "walk",
+          "dt": 0.02,
+          "v": 0
+        },
+        {
+          "beat": "reach",
+          "v": -4
+        },
+        {
+          "beat": "release",
+          "v": -3
+        },
+        {
+          "beat": "glance",
+          "v": -2
+        },
+        {
+          "beat": "back",
+          "v": -4
+        },
+        {
+          "beat": "take",
+          "dt": 0.1,
+          "v": -3
+        },
+        {
+          "beat": "lower",
+          "v": 1
+        },
+        {
+          "beat": "end",
+          "v": 0
+        }
+      ]
+    },
+    "upperChest": {
+      "rotation": [
+        {
+          "beat": "walk",
+          "v": 0
+        },
+        {
+          "beat": "glance",
+          "dt": -0.25,
+          "v": 0
+        },
+        {
+          "beat": "glance",
+          "v": -8
+        },
+        {
+          "beat": "glance",
+          "dt": 0.18,
+          "v": -7
+        },
+        {
+          "beat": "back",
+          "v": 3
+        },
+        {
+          "beat": "take",
+          "dt": -0.12,
+          "v": 1
+        },
+        {
+          "beat": "take",
+          "dt": 0.18,
+          "v": -11
+        },
+        {
+          "beat": "turn",
+          "v": -10
+        },
+        {
+          "beat": "turn",
+          "dt": 0.15,
+          "v": -5.5
+        },
+        {
+          "beat": "lower",
+          "v": -2.5
+        },
+        {
+          "beat": "lower",
+          "dt": 0.15,
+          "v": -0.3
+        },
+        {
+          "beat": "end",
+          "v": 0
+        }
+      ]
+    },
+    "chest": {
+      "lateralFlexion": [
+        {
+          "beat": "walk",
+          "v": 0
+        },
+        {
+          "beat": "reach",
+          "v": 2
+        },
+        {
+          "beat": "release",
+          "v": 2
+        },
+        {
+          "beat": "glance",
+          "dt": 0.06,
+          "v": 0
+        }
+      ],
+      "rotation": [
+        {
+          "beat": "walk",
+          "v": 0
+        },
+        {
+          "beat": "glance",
+          "dt": -0.25,
+          "v": 0
+        },
+        {
+          "beat": "glance",
+          "v": -4
+        },
+        {
+          "beat": "glance",
+          "dt": 0.18,
+          "v": -4
+        },
+        {
+          "beat": "back",
+          "v": 2
+        },
+        {
+          "beat": "take",
+          "dt": -0.12,
+          "v": 2
+        },
+        {
+          "beat": "take",
+          "dt": 0.18,
+          "v": -5
+        },
+        {
+          "beat": "turn",
+          "v": -5
+        },
+        {
+          "beat": "turn",
+          "dt": 0.15,
+          "v": -3
+        },
+        {
+          "beat": "lower",
+          "v": -1
+        },
+        {
+          "beat": "lower",
+          "dt": 0.15,
+          "v": 0
+        },
+        {
+          "beat": "end",
+          "v": 0
+        }
+      ]
+    },
+    "eyes": {
+      "yaw": [
+        {
+          "beat": "walk",
+          "v": 0
+        },
+        {
+          "beat": "walk",
+          "dt": 0.02,
+          "v": 0
+        },
+        {
+          "beat": "reach",
+          "v": 4
+        },
+        {
+          "beat": "glance",
+          "dt": -0.28,
+          "v": 2
+        },
+        {
+          "beat": "glance",
+          "dt": -0.12,
+          "v": -15
+        },
+        {
+          "beat": "glance",
+          "dt": 0.18,
+          "v": -14
+        },
+        {
+          "beat": "back",
+          "dt": -0.1,
+          "v": 6
+        },
+        {
+          "beat": "take",
+          "dt": -0.16,
+          "v": 5
+        },
+        {
+          "beat": "take",
+          "dt": 0.06,
+          "v": -15
+        },
+        {
+          "beat": "turn",
+          "v": -6
+        },
+        {
+          "beat": "turn",
+          "dt": 0.15,
+          "v": -3
+        },
+        {
+          "beat": "lower",
+          "v": -1
+        },
+        {
+          "beat": "lower",
+          "dt": 0.15,
+          "v": 0
+        },
+        {
+          "beat": "end",
+          "v": 0
+        }
+      ],
+      "pitch": [
+        {
+          "beat": "walk",
+          "v": 0
+        },
+        {
+          "beat": "walk",
+          "dt": 0.02,
+          "v": 0
+        },
+        {
+          "beat": "reach",
+          "v": 6
+        },
+        {
+          "beat": "glance",
+          "dt": -0.12,
+          "v": 0
+        },
+        {
+          "beat": "back",
+          "dt": -0.1,
+          "v": 6
+        },
+        {
+          "beat": "take",
+          "dt": 0.06,
+          "v": 0
+        }
+      ]
+    }
+  },
+  "hands": {
+    "right": [
+      {
+        "beat": "walk",
+        "preset": "relaxed"
+      },
+      {
+        "beat": "reach",
+        "dt": -0.1,
+        "preset": "relaxed",
+        "curl": 15
+      },
+      {
+        "beat": "release",
+        "preset": "relaxed",
+        "curl": 15
+      },
+      {
+        "beat": "glance",
+        "dt": 0.06,
+        "preset": "relaxed"
+      }
+    ]
+  },
+  "expressions": {
+    "ou": [
+      {
+        "beat": "walk",
+        "v": 0
+      },
+      {
+        "beat": "walk",
+        "dt": 0.05,
+        "v": 0
+      },
+      {
+        "beat": "reach",
+        "v": 0.3
+      },
+      {
+        "beat": "glance",
+        "v": 0.1
+      },
+      {
+        "beat": "back",
+        "v": 0.3
+      },
+      {
+        "beat": "take",
+        "dt": 0.05,
+        "v": 0
+      }
+    ],
+    "surprised": [
+      {
+        "beat": "walk",
+        "v": 0
+      },
+      {
+        "beat": "take",
+        "dt": -0.037,
+        "v": 0
+      },
+      {
+        "beat": "take",
+        "dt": 0.06,
+        "v": 0.7
+      },
+      {
+        "beat": "lower",
+        "dt": 0.15,
+        "v": 0.7
+      },
+      {
+        "beat": "end",
+        "v": 0
+      }
+    ]
+  },
+  "contacts": [
+    {
+      "bone": "rightMiddleDistal",
+      "point": "tip",
+      "target": "head",
+      "offset": [-0.035, 0.18, -0.015],
+      "beat": "reach",
+      "from": -0.04,
+      "to": 0.48,
+      "tolerance": 0.06,
+      "facing": true,
+      "solve": {
+        "blendIn": 0.25,
+        "blendOut": 0.25
+      }
+    }
+  ],
+  "events": [
+    {
+      "id": "question-mark",
+      "time": 0.44,
+      "kind": "avatar_vfx",
+      "effectId": "question_mark",
+      "duration": 0.5,
+      "envelope": {
+        "intensity": {
+          "fadeOut": 0.2
+        }
+      }
+    },
+    {
+      "id": "startle",
+      "time": 1.85,
+      "kind": "avatar_vfx",
+      "effectId": "startle_ticks",
+      "duration": 0.6,
+      "envelope": {
+        "intensity": {
+          "fadeOut": 0.2
+        }
+      }
+    }
+  ]
+}

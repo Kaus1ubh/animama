@@ -6,6 +6,7 @@ import asyncio
 import hashlib
 import json
 import re
+from dataclasses import asdict, dataclass
 from io import BytesIO
 from pathlib import Path, PurePosixPath
 from typing import Any, BinaryIO
@@ -46,6 +47,23 @@ from animama.domain.content_documents import (
     SceneEffectDocumentV1,
 )
 
+
+@dataclass(frozen=True, slots=True)
+class AvatarPortraitSource:
+    """The admitted Avatar revision and capture versions a portrait was made from."""
+
+    avatar_id: str
+    avatar_revision_sha256: str
+    renderer_version: int
+    capture_preset_version: int
+
+
+def avatar_portrait_entry_name(avatar_id: str) -> str:
+    """The one Local destination of an Avatar's portrait, so saving again replaces it."""
+
+    return f"avatar-portrait-{avatar_id}"
+
+
 _ENTRY_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._ -]{0,119}$")
 # The frontend's MAX_ANIMA_POSE_CLIP_BYTES: no player reads a larger clip.
 _MAX_CLIP_BYTES = 2 * 1024 * 1024
@@ -81,6 +99,37 @@ class ContentSaveService:
         self._content = content
         self._store = content.mutations.store
         self._catalog = content.mutations.catalog
+
+    async def _current_portrait(
+        self, *, user_id: str, avatar_id: str, relative_locator: str
+    ) -> CatalogContentEntry | None:
+        """The Avatar's portrait at its destination, which a save replaces in place.
+
+        Another exact portrait of the Avatar (imported, or saved before per-Avatar
+        destinations) is never overwritten: the save is refused so the Avatar
+        keeps one portrait. An unrelated item at the destination is refused too.
+        """
+
+        def portrays(item: CatalogContentEntry) -> bool:
+            presentation = item.metadata.get("presentation")
+            return isinstance(presentation, dict) and presentation.get("avatar_item_id") == avatar_id
+
+        if any(
+            item.kind is ContentKind.APPEARANCE
+            and item.source is ContentSource.LOCAL
+            and item.owner_user_id == user_id
+            and item.status is ContentStatus.VALID
+            and item.relative_locator != relative_locator
+            and portrays(item)
+            for item in await self._catalog.list_visible(user_id=user_id)
+        ):
+            raise ContentConflictError("avatar_portrait_exists")
+        at_destination = await self._catalog.get_by_locator(
+            source=ContentSource.LOCAL, relative_locator=relative_locator
+        )
+        if at_destination is not None and not portrays(at_destination):
+            raise ContentConflictError("content_path_exists", field="name")
+        return at_destination
 
     async def _preflight(
         self,
@@ -202,7 +251,7 @@ class ContentSaveService:
         expected_revision: str | None,
         declared_content_type: str | None = None,
         creation_context: bool = False,
-        portrait_source: tuple[str, str] | None = None,
+        portrait_source: AvatarPortraitSource | None = None,
     ) -> SavedContent:
         request_digest = await asyncio.to_thread(
             mutation_digest,
@@ -217,13 +266,13 @@ class ContentSaveService:
                 "expected_revision": expected_revision,
                 "declared_content_type": declared_content_type,
                 "creation_context": creation_context,
-                "portrait_source": portrait_source,
+                "portrait_source": asdict(portrait_source) if portrait_source is not None else None,
             },
             (payload_stream,),
         )
 
         async def apply() -> SavedContent:
-            nonlocal payload_stream, payload_size_bytes, metadata_sidecar
+            nonlocal payload_stream, payload_size_bytes, metadata_sidecar, catalog_item_id, expected_revision
 
             if kind in RETIRED_CONTENT_KINDS:
                 raise ContentConflictError("content_kind_retired")
@@ -243,18 +292,25 @@ class ContentSaveService:
             if portrait_source is not None:
                 if kind is not ContentKind.APPEARANCE:
                     raise ContentConflictError("portrait_requires_appearance")
-                avatar_id, avatar_revision = portrait_source
-                avatar = await self._catalog.get_visible_item(item_id=avatar_id, user_id=user_id)
+                avatar = await self._catalog.get_visible_item(item_id=portrait_source.avatar_id, user_id=user_id)
                 if avatar is None or avatar.kind is not ContentKind.AVATAR or avatar.status is not ContentStatus.VALID:
                     raise ContentNotFoundError("typed catalog item was not found")
-                if avatar.revision_sha256 != avatar_revision:
+                # Included Avatars ship their portraits; only Local ones are captured.
+                if avatar.source is not ContentSource.LOCAL:
+                    raise ContentConflictError("portrait_requires_local_avatar")
+                if avatar.revision_sha256 != portrait_source.avatar_revision_sha256:
                     raise ContentConflictError("catalog_revision_conflict", current_revision=avatar.revision_sha256)
                 document = TypedContentService.parse(avatar).document
                 metadata_sidecar = json.dumps(
                     {
                         "name": f"{document.name} portrait",
                         "avatar_model": PurePosixPath(avatar.relative_locator).stem,
-                        "presentation": {"avatar_item_id": avatar.id},
+                        "renderer_version": portrait_source.renderer_version,
+                        "capture_preset_version": portrait_source.capture_preset_version,
+                        "presentation": {
+                            "avatar_item_id": avatar.id,
+                            "avatar_revision_sha256": avatar.revision_sha256,
+                        },
                     }
                 ).encode()
             definition = definition_for_kind(kind)
@@ -305,6 +361,14 @@ class ContentSaveService:
             await self._catalog.lock_save(
                 relative_locator=relative_locator, owner_digest=f"{user_id}:{model_sha256}" if model_sha256 else None
             )
+            if portrait_source is not None:
+                # The Local source lock serializes this lookup and the write
+                # with every other Local save, including a concurrent portrait.
+                current = await self._current_portrait(
+                    user_id=user_id, avatar_id=portrait_source.avatar_id, relative_locator=relative_locator
+                )
+                if current is not None:
+                    catalog_item_id, expected_revision = current.id, current.revision_sha256
             if model_sha256 is not None and catalog_item_id is None:
                 matches = [
                     item

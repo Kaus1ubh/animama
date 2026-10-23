@@ -21,6 +21,7 @@
     "web": {
       "entry": [
         "index.html",
+        "scripts/landing-stage/main.ts",
         "src/main.local.tsx",
         "src/routes/**/*.{ts,tsx}",
         "src/workers/{content-hash,lipsync,client-parakeet,smart-turn}-worker.ts",
@@ -33,7 +34,7 @@
       "project": [
         "*.{js,mjs,ts}",
         "src/**/*.{ts,tsx,js,jsx}",
-        "scripts/**/*.{ts,mjs}",
+        "scripts/**/*.{ts,tsx,mjs}",
         "vite-plugins/**/*.ts",
         "tests/**/*.{ts,tsx}",
         "public/**/*.js"

@@ -16,6 +16,7 @@ import {
 } from "./vite-plugins/local-parakeet-models";
 import { resolveAppVersion } from "./vite-plugins/app-version";
 import { browserRuntimeAssetsPlugin } from "./vite-plugins/browser-runtime-assets";
+import { webpStickerAssetsPlugin } from "./vite-plugins/webp-sticker-assets";
 import {
   localAPIProxy,
   localDevelopmentOrigins,
@@ -152,6 +153,17 @@ export const devOptimizedDependencies = [
   "pinyin-pro",
 ] as const;
 
+// Pages the dev server serves, relative to the web root. Vite otherwise scans
+// every `*.html` here, including tool pages that run on their own servers; the
+// landing stage imports a virtual module only its server provides, and that
+// unresolved import aborts the whole scan, so dependencies are found at
+// runtime and each discovery reloads the open page.
+export const devDependencyScanEntries = [
+  "index.html",
+  "index.hosted.html",
+  "parakeet-bench.html",
+] as const;
+
 // Vite is a development-only application origin; keep its host policy enabled.
 export const localViteAllowedHosts = [
   new URL(localDevelopmentOrigins().publicOrigin).hostname,
@@ -169,6 +181,12 @@ export default defineConfig(({ mode, command, isPreview }) => {
         includedRoot: includedContentRoot,
         aliases: includedContentAliases,
         copyBuildAliases: !embeddedDesktop && mode !== "hosted",
+      }),
+      webpStickerAssetsPlugin({
+        stickerRoot: path.join(
+          includedContentRoot,
+          "resources/scene-vfx/stickers",
+        ),
       }),
       tanstackRouter(routerConfig),
       react(),
@@ -220,6 +238,7 @@ export default defineConfig(({ mode, command, isPreview }) => {
       ),
     },
     optimizeDeps: {
+      entries: [...devDependencyScanEntries],
       include: [...devOptimizedDependencies],
     },
     // Every bundled worker is a module worker. ES output lets a worker split
