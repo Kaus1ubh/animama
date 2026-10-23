@@ -33,6 +33,18 @@ ANIMA_DISPLAY_NAME_MAX_CHARACTERS = 40
 DEFAULT_ANIMA_VOICE_ID = "gJx1vCzNCD1EQHT212Ls"
 
 
+def anima_identity_description(display_name: str) -> str:
+    """Describe a new IDENTITY.md by its Anima's name at creation."""
+
+    return f"{display_name}'s identity"
+
+
+def anima_memories_description(display_name: str) -> str:
+    """Describe a new or repaired MEMORIES.md by its Anima's name."""
+
+    return f"{display_name}'s memories"
+
+
 class AnimaDefinitionError(ValueError):
     """An owned definition or protected Anima file is missing, invalid, or changed since it was read."""
 

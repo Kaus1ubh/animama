@@ -9,6 +9,7 @@ from dataclasses import replace
 from datetime import datetime
 from typing import Any, NoReturn
 
+from animama.domain.anima import Anima
 from animama.domain.anima_definition import (
     ANIMA_IDENTITY_KIND,
     ANIMA_IDENTITY_PATH,
@@ -16,6 +17,7 @@ from animama.domain.anima_definition import (
     ANIMA_MEMORIES_PATH,
     ANIMA_MEMORIES_TEMPLATE,
     AnimaDefinitionError,
+    anima_memories_description,
     normalize_anima_memories,
     normalize_identity,
 )
@@ -53,7 +55,6 @@ MEMORY_ENTRY_MAX_NAME_CHARS = 128
 MEMORY_ENTRY_EPISODES_ROOT_PATH = "episodes"
 # Presented by the Memory workspace as the virtual per-Anima identity directory.
 MEMORY_ENTRY_ANIMAS_ROOT_PATH = "animas"
-ANIMA_MEMORIES_DESCRIPTION = "Shared history with the user"
 MEMORY_ENTRY_VERSION_DEFAULT_LIMIT = 50
 MEMORY_ENTRY_VERSION_MAX_LIMIT = 100
 _MEMORY_ENTRY_VERSION_CONSTRAINT = "uq_memory_entry_versions_entry_version"
@@ -1362,7 +1363,7 @@ class MemoryEntryService:
             metadata=metadata,
         )
 
-    async def initialize_anima_memories(self, *, user_id: str, anima_id: str) -> MemoryEntry:
+    async def initialize_anima_memories(self, *, user_id: str, anima_id: str, display_name: str) -> MemoryEntry:
         """Seed MEMORIES.md from its template inside a materializer's transaction.
 
         Unlike identity it takes no aggregate lock: relationship memory is not
@@ -1372,7 +1373,7 @@ class MemoryEntryService:
         if self._commit_on_write:
             raise MemoryEntryConfigurationError("Memories initialization requires a caller-owned transaction")
         await self._require_anima_scope_owned(user_id=user_id, anima_id=anima_id)
-        return await self._create_anima_memories(user_id=user_id, anima_id=anima_id)
+        return await self._create_anima_memories(user_id=user_id, anima_id=anima_id, display_name=display_name)
 
     async def repair_anima_memories(self, *, user_id: str, anima_id: str) -> MemoryEntry:
         """Recreate a missing MEMORIES.md from the template; otherwise change nothing.
@@ -1383,7 +1384,7 @@ class MemoryEntryService:
         """
 
         try:
-            await self._lock_anima(user_id=user_id, anima_id=anima_id)
+            anima = await self._lock_anima(user_id=user_id, anima_id=anima_id)
             current = await self._memory_entries.get_entry_by_path(
                 user_id=user_id,
                 anima_id=anima_id,
@@ -1397,6 +1398,7 @@ class MemoryEntryService:
             stored = await self._create_anima_memories(
                 user_id=user_id,
                 anima_id=anima_id,
+                display_name=anima.display_name,
                 change_metadata={"source_type": "anima_memories_repair"},
             )
             await self._commit_if_enabled()
@@ -1413,6 +1415,7 @@ class MemoryEntryService:
         *,
         user_id: str,
         anima_id: str,
+        display_name: str,
         change_metadata: dict[str, Any] | None = None,
     ) -> MemoryEntry:
         return await self._create_entry(
@@ -1423,7 +1426,7 @@ class MemoryEntryService:
             name=ANIMA_MEMORIES_PATH,
             content=ANIMA_MEMORIES_TEMPLATE,
             kind=ANIMA_MEMORIES_KIND,
-            description=ANIMA_MEMORIES_DESCRIPTION,
+            description=anima_memories_description(display_name),
             metadata=None,
             change_metadata=change_metadata,
         )
@@ -1563,13 +1566,13 @@ class MemoryEntryService:
         await self._require_anima_scope_owned(user_id=user_id, anima_id=entry.anima_id)
         return entry
 
-    async def _lock_anima(self, *, user_id: str, anima_id: str) -> None:
+    async def _lock_anima(self, *, user_id: str, anima_id: str) -> Anima:
         """Lock the owned Anima row at its current revision; a missing Anima is not found."""
 
         await self._require_anima_scope_owned(user_id=user_id, anima_id=anima_id)
         assert self._animas is not None
         try:
-            await self._animas.lock_definition(user_id=user_id, anima_id=anima_id, expected_revision=None)
+            return await self._animas.lock_definition(user_id=user_id, anima_id=anima_id, expected_revision=None)
         except AnimaDefinitionError as exc:
             raise MemoryEntryNotFoundError("Anima not found") from exc
 

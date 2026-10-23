@@ -533,6 +533,7 @@ async def test_anima_memories_repair_creates_the_template_once_for_owned_animas(
 
     assert (created.path, created.kind, created.scope) == ("MEMORIES.md", ANIMA_MEMORIES_KIND, "anima")
     assert created.version == 1
+    assert created.description == "Annie's memories"
     assert "content" not in created.model_dump()
     stored = await memory_entries_router.get_memory_entry(
         created.id, repositories=SQLAlchemyProductRepositories(async_session), policy=TEST_POLICY, user=user

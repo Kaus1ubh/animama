@@ -99,7 +99,7 @@ async def legacy_anima(session, fixture, spec, *, profile: bool = True, pocket_v
         user_id=fixture.owner,
         anima_id=anima.id,
         content=avatar.identity,
-        description=f"Initial identity of {avatar.name}",
+        description=f"{avatar.name}'s identity",
         metadata={
             "anima_id": anima.id,
             "source": {"type": "avatar_identity_seed", "avatar_id": avatar.id, "avatar_name": avatar.name},
