@@ -467,7 +467,7 @@ async def test_memory_file_list_omits_anima_entries_and_uses_cached_user_paths()
                 "Identity",
                 anima_id="anima-1",
                 kind="anima_identity",
-                description="Initial identity of Astra",
+                description="Astra's identity",
             ),
         ]
     )

@@ -1244,7 +1244,7 @@ Normal direct chat assembles the current anima identity entry content into
 system instruction context. Anima identity is always required, and
 `disable_memory_influence` does not remove it. Anima creation seeds
 anima-scoped identity entries with
-`description = "Initial identity of {anima.display_name}"`. The local
+`description = "{anima.display_name}'s identity"`. The local
 installation bootstrap creates a private user-scope `PROFILE.md` from template
 version 2; first-run personalization sets its `Preferred name:` line only while
 nothing else has edited the file since the last managed write. AI

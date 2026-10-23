@@ -78,6 +78,7 @@ async def test_owner_bootstrap_is_idempotent_preserves_edits_and_isolates_two_ow
     )
     assert profile_memory is not None
     assert profile_memory.name == profile_memory.path == "PROFILE.md"
+    assert profile_memory.description == "User profile"
     await memory.put_file_by_path(
         user_id=first_owner,
         path=PROFILE_MEMORY_PATH,

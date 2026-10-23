@@ -131,7 +131,7 @@ class OwnerBootstrapService:
             path=PROFILE_MEMORY_PATH,
             content=_profile_template(policy.profile_template_version),
             kind=PROFILE_MEMORY_KIND,
-            description="Private installation-owner profile",
+            description="User profile",
             metadata={
                 "installation_bootstrap": {
                     "template_version": policy.profile_template_version,

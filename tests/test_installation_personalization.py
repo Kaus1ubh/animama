@@ -53,7 +53,7 @@ async def _seed_personalization(session, owner_id: str) -> None:  # noqa: ANN001
         path=PROFILE_MEMORY_PATH,
         content=with_preferred_name(PROFILE_TEMPLATE_V2, None),
         kind=PROFILE_MEMORY_KIND,
-        description="Private installation-owner profile",
+        description="User profile",
         metadata={
             "installation_bootstrap": {
                 "template_version": "2",

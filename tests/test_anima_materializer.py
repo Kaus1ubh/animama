@@ -184,6 +184,7 @@ async def test_materializer_owns_no_commit_provider_or_runtime_and_seeds_exact_d
     )
     assert identity.content == "# My identity\n\nKeep two spaces.  \n"
     assert identity.version == identity.aggregate_revision == 1
+    assert identity.description == f"{anima.display_name}'s identity"
     history = await async_session.scalar(
         select(ORMMemoryEntryVersion).where(ORMMemoryEntryVersion.entry_id == identity.id)
     )
@@ -194,7 +195,7 @@ async def test_materializer_owns_no_commit_provider_or_runtime_and_seeds_exact_d
         user_id=fixture.user_id, anima_id=anima.id, path="MEMORIES.md"
     )
     assert (memories.content, memories.kind, memories.version) == (ANIMA_MEMORIES_TEMPLATE, "anima_memories", 1)
-    assert memories.description == "Shared history with the user"
+    assert memories.description == f"{anima.display_name}'s memories"
     assert memories.aggregate_revision is None
     settings = await async_session.get(ORMAnimaSettings, (fixture.user_id, anima.id))
     assert settings.preferences["speech"]["elevenlabs"]["primary_voice"]["voice_id"] == (
