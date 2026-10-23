@@ -91,6 +91,7 @@ import {
 } from "./actionProject";
 import { useActionEditorWorkspace } from "./ActionEditorWorkspaceContext";
 import type { ActionEditorMode } from "./actionEditorCapabilities";
+import { SidebarMenuButton } from "@/ui/sidebar/SidebarMenuButton";
 
 /** A sample of the clip format; JSON syntax, so it is the same in every locale. */
 const CLIP_JSON_PLACEHOLDER = '{"schema":"animaPoseClip/2.0",…}';
@@ -191,14 +192,17 @@ export function ActionEditorHeader({
   };
 
   return (
-    <header className="bg-background relative z-40 shrink-0 px-2 py-2 backdrop-blur-xl sm:px-3 lg:absolute lg:inset-x-0 lg:top-0 lg:bg-transparent lg:py-3 lg:pr-4 lg:pl-[calc(var(--app-shell-sidebar-inset)+1rem)] lg:backdrop-blur-none lg:transition-[padding-left] lg:duration-150 lg:ease-in-out xl:pr-8 xl:pl-[calc(var(--app-shell-sidebar-inset)+2rem)]">
+    <header className="bg-background relative z-40 shrink-0 py-2 pr-2 pl-[calc(var(--app-shell-sidebar-inset)+0.5rem)] backdrop-blur-xl sm:pr-3 sm:pl-[calc(var(--app-shell-sidebar-inset)+0.75rem)] lg:absolute lg:inset-x-0 lg:top-0 lg:bg-transparent lg:py-3 lg:pr-4 lg:pl-[calc(var(--app-shell-sidebar-inset)+1rem)] lg:backdrop-blur-none lg:transition-[padding-left] lg:duration-150 lg:ease-in-out xl:pr-8 xl:pl-[calc(var(--app-shell-sidebar-inset)+2rem)]">
       <div
         className={cn(
           "grid min-w-0 grid-cols-[minmax(0,1fr)_auto_auto] grid-rows-[auto_auto] items-center gap-2 lg:grid-rows-1 lg:items-start lg:gap-1.5 2xl:gap-3",
           "lg:grid-cols-[auto_auto_auto_auto_minmax(120px,1fr)_auto]",
         )}
       >
-        <ActionModeControl onModeChange={onModeChange} />
+        <div className="col-start-1 row-start-1 flex min-w-0 items-center gap-1">
+          <SidebarMenuButton />
+          <ActionModeControl onModeChange={onModeChange} />
+        </div>
 
         {pose ? (
           <>
@@ -235,7 +239,7 @@ function ActionModeControl({
   const timeline = workspace.document.implementation === "anima_clip";
   if (!gesture || !timeline) {
     return (
-      <div className="border-border/70 bg-background col-start-1 row-start-1 flex h-11 min-w-[112px] items-center justify-center gap-2 rounded-xl border px-3 text-sm font-medium shadow-sm lg:h-12">
+      <div className="border-border/70 bg-background flex h-11 min-w-[112px] flex-1 items-center justify-center gap-2 rounded-xl border px-3 text-sm font-medium shadow-sm lg:h-12">
         {gesture ? (
           <ClapperboardIcon className="size-4" />
         ) : (
@@ -247,7 +251,7 @@ function ActionModeControl({
   }
   return (
     <Tabs
-      className="col-start-1 row-start-1 min-w-0 shrink-0 lg:min-w-max"
+      className="min-w-0 flex-1 lg:min-w-max"
       value={workspace.mode === "pose" ? "pose" : "clip"}
       onValueChange={(value) =>
         onModeChange(value === "pose" ? "pose" : "clip")

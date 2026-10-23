@@ -117,7 +117,7 @@ function ProductGroup({
           <div
             className={
               layout === "grid"
-                ? "grid grid-cols-[repeat(auto-fill,minmax(min(100%,13rem),1fr))] gap-3"
+                ? "grid grid-cols-2 gap-2 sm:grid-cols-[repeat(auto-fill,minmax(min(100%,13rem),1fr))] sm:gap-3"
                 : "overflow-hidden rounded-xl border"
             }
           >
@@ -656,7 +656,7 @@ export function LibraryContentInventory({
   ];
   return (
     <div className="space-y-3">
-      <div className="bg-background/95 sticky top-11 z-30 flex items-center gap-3 py-3 backdrop-blur-sm">
+      <div className="bg-background/95 sticky top-11 z-30 flex items-center gap-2 py-3 backdrop-blur-sm sm:gap-3">
         <label className="relative min-w-0 flex-1">
           <Search className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
           <Input

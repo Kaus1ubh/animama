@@ -71,12 +71,13 @@ export function LibraryFilterMenu({
       <DropdownMenuTrigger asChild>
         <Button
           type="button"
-          className="h-11"
+          className="h-11 px-3 sm:px-4"
           variant={filtersActive ? "secondary" : "outline"}
           aria-label={t("filters.label")}
         >
           <ListFilter />
-          {t("filters.button")}
+          {/* Phones keep the room for the search field; the icon is labelled. */}
+          <span className="hidden sm:inline">{t("filters.button")}</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent

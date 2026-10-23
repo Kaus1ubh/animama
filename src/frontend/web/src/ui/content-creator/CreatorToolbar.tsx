@@ -36,6 +36,7 @@ import {
 import { CreatorHeaderDocument } from "./CreatorHeaderDocument";
 import { CreatorValidationIndicator } from "./CreatorValidationIndicator";
 import { CreatorLoadPicker, type CreatorEffectType } from "./CreatorLoadPicker";
+import { SidebarMenuButton } from "@/ui/sidebar/SidebarMenuButton";
 
 export type CreatorDocumentStatus = {
   label: string;
@@ -126,9 +127,12 @@ export function CreatorToolbar({
         />
       ) : null}
       <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_auto] grid-rows-[auto_auto] items-center gap-2 lg:grid-cols-[auto_auto_auto_auto_minmax(120px,1fr)_auto] lg:grid-rows-1 lg:items-start lg:gap-1.5 2xl:gap-3">
-        <div className="border-border/70 bg-background col-start-1 row-start-1 flex h-11 min-w-0 items-center justify-center gap-2 rounded-xl border px-3 text-sm font-medium shadow-sm lg:h-12 [&_svg]:size-4 [&_svg]:shrink-0">
-          {typeIcon}
-          <span className="truncate">{typeLabel}</span>
+        <div className="col-start-1 row-start-1 flex min-w-0 items-center gap-1">
+          <SidebarMenuButton />
+          <div className="border-border/70 bg-background flex h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-xl border px-3 text-sm font-medium shadow-sm lg:h-12 [&_svg]:size-4 [&_svg]:shrink-0">
+            {typeIcon}
+            <span className="truncate">{typeLabel}</span>
+          </div>
         </div>
         <Button
           type="button"

@@ -28,9 +28,24 @@ type AppShellProps = {
   className?: string;
 };
 
+const DESKTOP_MEDIA_QUERY = "(min-width: 768px)";
+const XL_MEDIA_QUERY = "(min-width: 1280px)";
+
+/** Read a media query on first render, so the shell starts in its real mode. */
+function matchesMedia(query: string): boolean {
+  if (typeof window === "undefined") return true;
+  return window.matchMedia(query).matches;
+}
+
 export function AppShell({ children, className }: AppShellProps) {
-  const [isDesktop, setIsDesktop] = useState(true);
-  const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(true);
+  // Starting from the viewport avoids a first frame laid out for a wide
+  // window, which would slide every narrow page in from the sidebar inset.
+  const [isDesktop, setIsDesktop] = useState(() =>
+    matchesMedia(DESKTOP_MEDIA_QUERY),
+  );
+  const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(() =>
+    matchesMedia(XL_MEDIA_QUERY),
+  );
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [suppressAnimations, setSuppressAnimations] = useState(false);
   const [sidebarAnimating, setSidebarAnimating] = useState(false);
@@ -104,8 +119,8 @@ export function AppShell({ children, className }: AppShellProps) {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const desktopMedia = window.matchMedia("(min-width: 768px)");
-    const xlMedia = window.matchMedia("(min-width: 1280px)");
+    const desktopMedia = window.matchMedia(DESKTOP_MEDIA_QUERY);
+    const xlMedia = window.matchMedia(XL_MEDIA_QUERY);
     let previousDesktopMatches = desktopMedia.matches;
     let previousWidth = window.innerWidth;
 

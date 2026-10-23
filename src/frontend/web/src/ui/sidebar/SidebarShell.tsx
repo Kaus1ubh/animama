@@ -54,6 +54,11 @@ export function SidebarShell({
     ? appShell.sidebarAnimating && !appShell.suppressAnimations
     : true;
   const [searchOpen, setSearchOpen] = useState(false);
+  // The mobile drawer is drawn above dialogs, so close it before searching.
+  const openSearch = () => {
+    if (appShell && !appShell.isDesktop) setOpen(false);
+    setSearchOpen(true);
+  };
   const sidebarLinks = useMemo(() => {
     const animasTarget = resolveAnimasNavigationTarget(animaId);
     return [
@@ -100,7 +105,7 @@ export function SidebarShell({
   const searchLink = {
     label: t("links.search"),
     href: "#" as const,
-    onClick: () => setSearchOpen(true),
+    onClick: openSearch,
     icon: (
       <Search className="text-sidebar-foreground dark:text-sidebar-foreground h-6 w-6 flex-shrink-0" />
     ),
@@ -110,7 +115,7 @@ export function SidebarShell({
     <Sidebar open={open} setOpen={setOpen} animate={animate}>
       <SidebarBody className="justify-between gap-2">
         <div className="sidebar-scrollbar-hover flex flex-1 flex-col overflow-x-hidden overflow-y-auto">
-          <SidebarHeader onSearch={() => setSearchOpen(true)} />
+          <SidebarHeader onSearch={openSearch} />
           <div className="mt-5 flex flex-col gap-1">
             {sidebarLinks.slice(0, 1).map((link) => (
               <SidebarLink key={link.label} link={link} />

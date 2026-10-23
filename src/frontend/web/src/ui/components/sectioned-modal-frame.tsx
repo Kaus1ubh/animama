@@ -72,7 +72,8 @@ export function SectionedModalFrame<T extends string>({
     <Dialog.Content
       onEscapeKeyDown={onEscapeKeyDown}
       style={
-        avoidSidebar
+        // Phones have no sidebar beside the modal; it fills the screen there.
+        avoidSidebar && appShell?.isDesktop
           ? {
               left: `calc(50% + ${sidebarInset} / 2)`,
               maxWidth: `calc(100vw - ${sidebarInset} - 2rem)`,
@@ -83,6 +84,7 @@ export function SectionedModalFrame<T extends string>({
         "fixed top-0 left-1/2 z-50 w-[min(920px,92vw)] -translate-x-1/2",
         "border-border bg-background h-[85vh] overflow-hidden rounded-b-2xl border shadow-2xl",
         "md:top-1/2 md:h-[80vh] md:-translate-y-1/2 md:rounded-2xl",
+        "max-md:inset-0 max-md:h-[100dvh] max-md:w-full max-md:translate-x-0 max-md:rounded-none max-md:border-0",
         "data-[state=closed]:opacity-0",
         dialogClassName,
       )}
@@ -95,12 +97,13 @@ export function SectionedModalFrame<T extends string>({
           gridClassName,
         )}
       >
-        <aside className="border-border bg-muted/30 flex min-h-0 flex-col border-b p-4 md:border-r md:border-b-0">
+        <aside className="border-border bg-muted/30 flex min-h-0 flex-col border-b p-4 max-md:p-3 md:border-r md:border-b-0">
           {/* Outside the scrolling nav so dropdowns anchored here aren't clipped. */}
           {sidebarHeader ? (
             <div className="relative z-20 mb-3">{sidebarHeader}</div>
           ) : null}
-          <nav className="flex min-h-0 flex-wrap gap-2 overflow-y-auto md:flex-col md:gap-1">
+          {/* Phones show the sections as one sideways-scrolling row. */}
+          <nav className="flex min-h-0 gap-2 overflow-y-auto max-md:-mx-3 max-md:overflow-x-auto max-md:px-3 max-md:[scrollbar-width:none] md:flex-col md:gap-1">
             {sections.map((section) => {
               const active = section === activeSection;
               const Icon: SectionIcon | undefined = sectionIcons?.[section];
@@ -114,7 +117,7 @@ export function SectionedModalFrame<T extends string>({
                     onSectionChange(section);
                   }}
                   className={cn(
-                    "flex items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm transition",
+                    "flex items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm transition max-md:shrink-0 max-md:whitespace-nowrap",
                     "hover:bg-muted/70",
                     active
                       ? "bg-muted text-foreground font-semibold"
@@ -130,7 +133,7 @@ export function SectionedModalFrame<T extends string>({
         </aside>
         <section
           className={cn(
-            "flex min-h-0 flex-col gap-4 overflow-y-auto p-6",
+            "flex min-h-0 flex-col gap-4 overflow-y-auto p-6 max-md:p-4",
             contentClassName,
           )}
         >
