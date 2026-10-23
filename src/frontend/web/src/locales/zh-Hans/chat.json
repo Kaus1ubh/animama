@@ -236,10 +236,11 @@
     "unavailableHere": "此处无法使用听写和语音模式所需的离线语音识别"
   },
   "suggestions": {
-    "greeting": "简单问候",
+    "rockPaperScissors": "玩石头剪刀布",
     "joke": "讲个笑话",
-    "greetingMessage": "嗨！最近怎么样？",
-    "greetingMessageNamed": "嗨，{{name}}！最近怎么样？",
+    "rockPaperScissorsPaper": "我们来玩石头剪刀布吧！我出……布！",
+    "rockPaperScissorsRock": "我们来玩石头剪刀布吧！我出……石头！",
+    "rockPaperScissorsScissors": "我们来玩石头剪刀布吧！我出……剪刀！",
     "jokeMessage": "嘿，给我讲个笑话吧！",
     "jokeMessageNamed": "嘿，{{name}}，给我讲个笑话吧！"
   }

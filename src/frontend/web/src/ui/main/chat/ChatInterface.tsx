@@ -886,15 +886,21 @@ export const ChatInterface = ({
     [activeMode, clearDictationBuffers, markManualTypingActivity, setInput],
   );
 
+  // Rock, paper or scissors, each equally likely, chosen once per mount.
+  const [rockPaperScissorsChoice] = useState(() =>
+    Math.floor(Math.random() * 3),
+  );
   // The label and the message it sends are both in the UI Locale, the
   // language the Anima speaks (ADR 0024).
   const promptSuggestions = useMemo(
     () => [
       {
-        label: t("suggestions.greeting"),
-        text: animaName
-          ? t("suggestions.greetingMessageNamed", { name: animaName })
-          : t("suggestions.greetingMessage"),
+        label: t("suggestions.rockPaperScissors"),
+        text: [
+          t("suggestions.rockPaperScissorsRock"),
+          t("suggestions.rockPaperScissorsPaper"),
+          t("suggestions.rockPaperScissorsScissors"),
+        ][rockPaperScissorsChoice],
       },
       {
         label: t("suggestions.joke"),
@@ -903,7 +909,7 @@ export const ChatInterface = ({
           : t("suggestions.jokeMessage"),
       },
     ],
-    [animaName, t],
+    [animaName, rockPaperScissorsChoice, t],
   );
 
   const isFirstChat = useFirstChatSuggestions(displayMessages);

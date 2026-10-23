@@ -236,10 +236,11 @@
     "unavailableHere": "ここでは音声入力と音声モード用のオフライン音声認識を利用できません"
   },
   "suggestions": {
-    "greeting": "簡単なあいさつ",
+    "rockPaperScissors": "じゃんけんしよう",
     "joke": "ジョークを言って",
-    "greetingMessage": "こんにちは！調子はどう？",
-    "greetingMessageNamed": "こんにちは、{{name}}！調子はどう？",
+    "rockPaperScissorsPaper": "じゃんけんしよう！わたしは…パー！",
+    "rockPaperScissorsRock": "じゃんけんしよう！わたしは…グー！",
+    "rockPaperScissorsScissors": "じゃんけんしよう！わたしは…チョキ！",
     "jokeMessage": "ねえ、何かジョークを言って！",
     "jokeMessageNamed": "ねえ{{name}}、何かジョークを言って！"
   }

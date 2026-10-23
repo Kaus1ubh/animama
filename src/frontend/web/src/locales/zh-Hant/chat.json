@@ -236,10 +236,11 @@
     "unavailableHere": "此處無法使用聽寫和語音模式所需的離線語音辨識"
   },
   "suggestions": {
-    "greeting": "簡單問候",
+    "rockPaperScissors": "玩剪刀石頭布",
     "joke": "講個笑話",
-    "greetingMessage": "嗨！最近怎麼樣？",
-    "greetingMessageNamed": "嗨，{{name}}！最近怎麼樣？",
+    "rockPaperScissorsPaper": "我們來玩剪刀石頭布吧！我出……布！",
+    "rockPaperScissorsRock": "我們來玩剪刀石頭布吧！我出……石頭！",
+    "rockPaperScissorsScissors": "我們來玩剪刀石頭布吧！我出……剪刀！",
     "jokeMessage": "嘿，給我講個笑話吧！",
     "jokeMessageNamed": "嘿，{{name}}，給我講個笑話吧！"
   }

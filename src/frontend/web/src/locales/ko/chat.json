@@ -236,10 +236,11 @@
     "unavailableHere": "이곳에서는 받아쓰기와 음성 모드용 오프라인 음성 인식을 사용할 수 없습니다"
   },
   "suggestions": {
-    "greeting": "간단한 인사",
+    "rockPaperScissors": "가위바위보 하기",
     "joke": "농담해 줘",
-    "greetingMessage": "안녕! 요즘 어때?",
-    "greetingMessageNamed": "안녕, {{name}}! 요즘 어때?",
+    "rockPaperScissorsPaper": "가위바위보 하자! 나는… 보!",
+    "rockPaperScissorsRock": "가위바위보 하자! 나는… 바위!",
+    "rockPaperScissorsScissors": "가위바위보 하자! 나는… 가위!",
     "jokeMessage": "있잖아, 농담 하나 해 줘!",
     "jokeMessageNamed": "{{name}}, 농담 하나 해 줘!"
   }

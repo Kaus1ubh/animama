@@ -38,8 +38,8 @@ export function ChatConversation({
   layout?: MessageLayout;
   messageComponent?: ComponentType<MessageProps>;
   /**
-   * Host content shown at the foot of a settled assistant bubble, such as a
-   * memory cue. The package owns no routes, so links and commands stay with
+   * Host content shown just below a settled assistant bubble, outside it, such
+   * as a memory cue. The package owns no routes, so links and commands stay with
    * the host; return `null` for messages without an accessory.
    */
   renderAssistantAccessory?: (message: ChatMessage) => ReactNode;
@@ -64,7 +64,11 @@ export function ChatConversation({
             : null;
         return (
           <Fragment key={message.id}>
-            <Message from={message.role} messageLayout={layout}>
+            <Message
+              from={message.role}
+              messageLayout={layout}
+              className={accessory ? "pb-1" : undefined}
+            >
               <MessageContent
                 animateOnEnter={message.animateOnEnter}
                 from={message.role}
@@ -98,11 +102,17 @@ export function ChatConversation({
                 ) : (
                   <PlainTextResponse>{message.text}</PlainTextResponse>
                 )}
-                {accessory ? (
-                  <div className="mt-1 flex items-center">{accessory}</div>
-                ) : null}
               </MessageContent>
             </Message>
+            {accessory ? (
+              <Message
+                from="assistant"
+                messageLayout={layout}
+                className="pt-0"
+              >
+                <div className="flex items-center">{accessory}</div>
+              </Message>
+            ) : null}
             {message.failure && (
               <Message from="assistant" messageLayout={layout}>
                 <ChatFailureNotice
