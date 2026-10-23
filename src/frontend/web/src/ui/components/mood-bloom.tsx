@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   CloudRain,
   Crown,
@@ -12,7 +12,7 @@ import {
   Zap,
   type LucideIcon,
 } from "lucide-react";
-import { useReducedMotion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 import { useTranslation } from "react-i18next";
 import { useFormatters } from "@animama/product-ui/i18n";
 import {
@@ -77,17 +77,20 @@ const GROUP_ICONS: Record<EmotionGroup, LucideIcon> = {
 const SLOT_DEG = 360 / EMOTION_GROUPS.length;
 const FAN_DEG = 13;
 
-/** Milliseconds a reaction's new values take to show before a petal pulses. */
-const PULSE_AFTER_MS = 450;
+/** At most this many grown petals flash for one reaction, largest gain first. */
+const MAX_BURSTS = 3;
+
+/** A burst's sparks: how many per petal, and how long the burst lasts. */
+const SPARKS = 7;
+const BURST_SEC = 0.8;
 
 /** Pollen drifting off the strongest petal: count and drift time. */
 const POLLEN = 6;
 const POLLEN_SEC = 2.4;
 
 /**
- * The strongest value at which her strongest petal sheds pollen and pulses
- * for a reaction. Below it (a brand-new Anima, or one that feels next to
- * nothing) no petal is singled out.
+ * The strongest value at which her strongest petal sheds pollen. Below it (a
+ * brand-new Anima, or one that feels next to nothing) no petal is singled out.
  */
 const BLOOM_MIN_STRENGTH = 3;
 
@@ -140,6 +143,16 @@ function wedgePath(inner: number, outer: number, spread: number) {
 /** A petal's length for a value. */
 const petalLength = (value: number) =>
   22 + 62 * Math.min(1, value / EMOTION_MAX_VALUE);
+
+/**
+ * The mini bloom draws only the flower around a mascot half its width: petals
+ * start hidden behind the mascot and reach the edge at full strength, so a
+ * calm Anima shows just her mascot.
+ */
+const MINI_EXTENT = 100;
+const MINI_MASCOT = 100;
+const miniPetalLength = (value: number) =>
+  44 + 56 * Math.min(1, value / EMOTION_MAX_VALUE);
 
 /** Each emotion's petal angle: its group's slot, fanned out. */
 function angleOf(emotion: TrackedEmotion) {
@@ -199,24 +212,32 @@ function emotionAtPointer(
  * she feels it. Petals deepen in colour toward the heart, the strongest lie
  * on top, and they sway. The flower opens from a bud when mounted (remount it
  * to open again). Once her strongest emotion reaches `BLOOM_MIN_STRENGTH`,
- * that petal pulses whenever `beat` changes (a new reaction) and sheds a
- * little pollen. Faint rings mark 10, 20 and 30; every group's symbol and
- * name sit around the rim, the three strongest emphasised, and her current
- * mascot sits at the heart on a glow of her strongest colour. With
- * `selection`, each group is a button chosen by hover, keyboard or tap: the
- * chosen group's slot is tinted and its petals grow while the others fade,
- * and the petal under the pointer shows its name and score at the rim.
+ * that petal sheds a little pollen. Faint rings mark 10, 20 and 30; every
+ * group's symbol and name sit around the rim, the three strongest emphasised,
+ * and her current mascot sits at the heart on a glow of her strongest colour.
+ * With `selection`, each group is a button chosen by hover, keyboard or tap:
+ * the chosen group's slot is tinted and its petals grow while the others
+ * fade, and the petal under the pointer shows its name and score at the rim.
+ *
+ * Whenever `beat` changes (a new reaction), the petals that grew since the
+ * last render flash and pulse, throwing sparks from their tips.
+ *
+ * The `mini` variant is a still, unlabelled flower around a larger mascot,
+ * small enough for a header: no rings, rim, sway, pollen, shadow or
+ * selection, so it costs nothing to show until a `beat` bursts.
  */
 export function MoodBloom({
   emotionalState,
   beat,
   selection,
+  variant = "full",
   className,
 }: {
   emotionalState?: unknown;
   /** Changes when a new reaction starts. */
   beat?: string | number | null;
   selection?: MoodBloomSelection;
+  variant?: "full" | "mini";
   className?: string;
 }) {
   const { t } = useTranslation("emotion");
@@ -228,57 +249,88 @@ export function MoodBloom({
   );
   const values = presentation.runtime.values;
   const uid = useId();
-  const still = useReducedMotion() ?? false;
+  const reducedMotion = useReducedMotion() ?? false;
+  const mini = variant === "mini";
+  // The mini bloom never sways, opens or sheds pollen.
+  const still = reducedMotion || mini;
+  const lengthOf = mini ? miniPetalLength : petalLength;
+  const extent = mini ? MINI_EXTENT : EXTENT;
   // Her strongest emotion, when strong enough to single out; at rest (all
-  // zero, or next to nothing) no petal sheds pollen or pulses.
+  // zero, or next to nothing) no petal sheds pollen.
   const dominant = presentation.runtime.dominantEmotion;
   const top =
     dominant && dominant.value >= BLOOM_MIN_STRENGTH ? dominant.emotion : null;
 
-  // Pulse the strongest petal once the new reaction's values land.
-  const latest = useRef(top);
-  latest.current = top;
+  // When a new reaction lands, the petals that grew flash and throw sparks.
   const pulses = useRef(new Map<TrackedEmotion, SVGAnimateTransformElement>());
+  const [burst, setBurst] = useState<{
+    id: number;
+    emotions: TrackedEmotion[];
+  } | null>(null);
+  const seenValues = useRef(values);
+  const seenBeat = useRef(beat);
   useEffect(() => {
-    if (still || beat === undefined || beat === null) return;
-    const timer = window.setTimeout(() => {
-      if (latest.current) pulses.current.get(latest.current)?.beginElement();
-    }, PULSE_AFTER_MS);
+    const before = seenValues.current;
+    seenValues.current = values;
+    if (beat === seenBeat.current) return;
+    seenBeat.current = beat;
+    if (reducedMotion || beat === undefined || beat === null) return;
+    const grown = TRACKED_EMOTIONS.filter(
+      (emotion) => values[emotion] > before[emotion],
+    )
+      .sort((a, b) => values[b] - before[b] - (values[a] - before[a]))
+      .slice(0, MAX_BURSTS);
+    if (grown.length === 0) return;
+    // SMIL `beginElement` is missing where SVG animation is unsupported.
+    for (const emotion of grown) pulses.current.get(emotion)?.beginElement?.();
+    setBurst((current) => ({ id: (current?.id ?? 0) + 1, emotions: grown }));
+  }, [beat, values, reducedMotion]);
+  // Remove a finished burst so nothing is left animating.
+  useEffect(() => {
+    if (!burst) return;
+    const timer = window.setTimeout(
+      () => setBurst((current) => (current === burst ? null : current)),
+      BURST_SEC * 1000 + 200,
+    );
     return () => window.clearTimeout(timer);
-  }, [beat, still]);
+  }, [burst]);
 
   // The strongest petals are drawn last, on top.
   const order = [...TRACKED_EMOTIONS].sort((a, b) => values[a] - values[b]);
   const named = presentation.topGroups.map(({ group }) => group);
   const pollenFrom = top ? Math.round(petalLength(values[top]) * 0.85) : 0;
-  const selected = selection?.group ?? null;
+  // The mini bloom is a picture only, never a control.
+  const selectable = mini ? undefined : selection;
+  const selected = selectable?.group ?? null;
   // The petal under the pointer, only within the chosen group.
   const pointed =
-    selected && selection?.emotion && GROUP_OF[selection.emotion] === selected
-      ? selection.emotion
+    selected && selectable?.emotion && GROUP_OF[selectable.emotion] === selected
+      ? selectable.emotion
       : null;
   return (
     <svg
-      viewBox={`${-EXTENT} ${-EXTENT} ${EXTENT * 2} ${EXTENT * 2}`}
+      viewBox={`${-extent} ${-extent} ${extent * 2} ${extent * 2}`}
       className={cn("h-48 w-full overflow-visible", className)}
-      role={selection ? "group" : "img"}
-      aria-label={selection ? t("bloom.label") : presentation.feeling.label}
+      role={selectable ? "group" : "img"}
+      aria-label={selectable ? t("bloom.label") : presentation.feeling.label}
     >
       <defs>
-        <filter
-          id={`${uid}-shadow`}
-          x="-20%"
-          y="-20%"
-          width="140%"
-          height="140%"
-        >
-          <feDropShadow
-            dx="0"
-            dy="1.2"
-            stdDeviation="1.4"
-            floodOpacity="0.16"
-          />
-        </filter>
+        {mini ? null : (
+          <filter
+            id={`${uid}-shadow`}
+            x="-20%"
+            y="-20%"
+            width="140%"
+            height="140%"
+          >
+            <feDropShadow
+              dx="0"
+              dy="1.2"
+              stdDeviation="1.4"
+              floodOpacity="0.16"
+            />
+          </filter>
+        )}
         {EMOTION_GROUPS.map((group) => (
           // From a petal's base (deep) to its tip (light).
           <linearGradient
@@ -312,19 +364,21 @@ export function MoodBloom({
         </radialGradient>
       </defs>
       {/* Reference rings on the fixed 0–30 scale, behind the petals. */}
-      <g aria-hidden="true" pointerEvents="none">
-        {SCALE_RINGS.map((value) => (
-          <circle
-            key={value}
-            data-bloom-ring={value}
-            r={petalLength(value)}
-            fill="none"
-            stroke="var(--border)"
-            strokeWidth={0.75}
-            strokeDasharray={value === EMOTION_MAX_VALUE ? undefined : "2 3"}
-          />
-        ))}
-      </g>
+      {mini ? null : (
+        <g aria-hidden="true" pointerEvents="none">
+          {SCALE_RINGS.map((value) => (
+            <circle
+              key={value}
+              data-bloom-ring={value}
+              r={petalLength(value)}
+              fill="none"
+              stroke="var(--border)"
+              strokeWidth={0.75}
+              strokeDasharray={value === EMOTION_MAX_VALUE ? undefined : "2 3"}
+            />
+          ))}
+        </g>
+      )}
       {/* The chosen group's slot, tinted in its colour. */}
       {selected ? (
         <path
@@ -342,7 +396,7 @@ export function MoodBloom({
         />
       ) : null}
       {/* The drawing is decorative; selectable groups carry the labels. */}
-      <g filter={`url(#${uid}-shadow)`} aria-hidden="true">
+      <g filter={mini ? undefined : `url(#${uid}-shadow)`} aria-hidden="true">
         {order.map((emotion) => {
           const group = GROUP_OF[emotion];
           const groupIndex = EMOTION_GROUPS.indexOf(group);
@@ -398,9 +452,9 @@ export function MoodBloom({
                         repeatCount="indefinite"
                       />
                     )}
-                    {/* The pulse when a reaction lands. */}
+                    {/* The pulse when a reaction grows this petal. */}
                     <g>
-                      {still ? null : (
+                      {reducedMotion ? null : (
                         <animateTransform
                           ref={(element) => {
                             if (element)
@@ -420,7 +474,7 @@ export function MoodBloom({
                       )}
                       <path
                         data-bloom-petal={emotion}
-                        d={petalPath(petalLength(values[emotion]), 0.2)}
+                        d={petalPath(lengthOf(values[emotion]), 0.2)}
                         fill={`url(#${uid}-${group})`}
                         stroke={EMOTION_PALETTE[group]}
                         strokeWidth={1}
@@ -482,10 +536,21 @@ export function MoodBloom({
           })}
         </g>
       )}
+      {/* The petals a new reaction grew: a quick flash and sparks. */}
+      {burst
+        ? burst.emotions.map((emotion) => (
+            <PetalBurst
+              key={`${burst.id}-${emotion}`}
+              emotion={emotion}
+              length={lengthOf(values[emotion])}
+              sparkScale={mini ? 2.6 : 1}
+            />
+          ))
+        : null}
       {/* Every group's symbol and name around the rim, so the bloom reads
           without hovering: the strongest three stand out, groups she does
           not feel at all are faint. Names sit on the outer side. */}
-      {presentation.groups.map(({ group, label, maximum }) => {
+      {(mini ? [] : presentation.groups).map(({ group, label, maximum }) => {
         const at = polar(EMOTION_GROUPS.indexOf(group) * SLOT_DEG, RIM);
         const strong = named.includes(group);
         const chosen = selected === group;
@@ -564,21 +629,21 @@ export function MoodBloom({
       {/* The flower's heart: a soft glow in her strongest group's colour
           where the petals meet, with her mascot on it. */}
       <circle
-        r={34}
+        r={mini ? MINI_MASCOT * 0.7 : 34}
         fill={`url(#${uid}-heart)`}
         pointerEvents="none"
         aria-hidden="true"
       />
       <image
         href={presentation.feeling.mascot}
-        x={-23}
-        y={-23}
-        width={46}
-        height={46}
+        x={mini ? -MINI_MASCOT / 2 : -23}
+        y={mini ? -MINI_MASCOT / 2 : -23}
+        width={mini ? MINI_MASCOT : 46}
+        height={mini ? MINI_MASCOT : 46}
         pointerEvents="none"
         aria-hidden="true"
       />
-      {selection
+      {selectable
         ? presentation.groups.map((group) => (
             <BloomGroupTarget
               key={group.group}
@@ -595,11 +660,71 @@ export function MoodBloom({
                   ),
                 ),
               })}
-              selection={selection}
+              selection={selectable}
             />
           ))
         : null}
     </svg>
+  );
+}
+
+/**
+ * One grown petal's moment: the petal flashes bright once and sparks in its
+ * group's colour fly out from its tip and fade. `sparkScale` sizes the sparks
+ * and their flight for the drawing's scale (larger in the mini bloom, which
+ * is drawn much smaller). It plays once on mount; the bloom removes it after.
+ */
+function PetalBurst({
+  emotion,
+  length,
+  sparkScale,
+}: {
+  emotion: TrackedEmotion;
+  length: number;
+  sparkScale: number;
+}) {
+  const color = EMOTION_PALETTE[GROUP_OF[emotion]];
+  return (
+    <g
+      data-bloom-burst={emotion}
+      transform={`rotate(${angleOf(emotion)})`}
+      pointerEvents="none"
+      aria-hidden="true"
+    >
+      <motion.path
+        d={petalPath(length, 0.2)}
+        fill="#fff"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: [0, 0.85, 0] }}
+        transition={{ duration: 0.5, times: [0, 0.25, 1], ease: "easeOut" }}
+      />
+      {Array.from({ length: SPARKS }, (_, index) => {
+        // Fanned across the petal's outward direction, a little uneven.
+        const spread = ((index / (SPARKS - 1) - 0.5) * 110 * Math.PI) / 180;
+        const reach = (14 + ((index * 7) % 10)) * sparkScale;
+        return (
+          <motion.circle
+            key={index}
+            cx={0}
+            cy={-length}
+            r={(1.4 + (index % 3) * 0.5) * sparkScale}
+            fill={color}
+            initial={{ x: 0, y: 0, opacity: 1, scale: 1 }}
+            animate={{
+              x: Math.sin(spread) * reach,
+              y: -Math.cos(spread) * reach,
+              opacity: 0,
+              scale: 0.4,
+            }}
+            transition={{
+              duration: BURST_SEC,
+              delay: index * 0.02,
+              ease: "easeOut",
+            }}
+          />
+        );
+      })}
+    </g>
   );
 }
 

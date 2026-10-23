@@ -1,4 +1,7 @@
+// @vitest-environment happy-dom
 import { useReducedMotion } from "motion/react";
+import { act } from "react";
+import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
@@ -154,5 +157,79 @@ describe("MoodBloom", () => {
     expect(html).not.toMatch(/<animate/);
     expect(html).not.toContain("scale(0.12)");
     expect(html.match(/data-bloom-petal=/g)).toHaveLength(24);
+  });
+
+  it("draws the mini bloom as a still, unlabelled picture around a large mascot", () => {
+    const html = renderToStaticMarkup(
+      <MoodBloom
+        variant="mini"
+        emotionalState={{ joy: 24 }}
+        selection={selection}
+      />,
+    );
+    expect(html).toContain('viewBox="-100 -100 200 200"');
+    expect(html).toContain('role="img"');
+    expect(html).toContain('aria-label="Feeling joyful"');
+    expect(html.match(/data-bloom-petal=/g)).toHaveLength(24);
+    expect(html).toContain('width="100"');
+    expect(html).not.toMatch(
+      /data-bloom-rim=|data-bloom-ring=|role="button"|<filter|repeatCount|scale\(0\.12\)/,
+    );
+    // Only the idle pulses, which wait for a reaction.
+    expect(
+      html.match(/<animateTransform[^>]*begin="indefinite"/g),
+    ).toHaveLength(24);
+    expect(html.match(/<animate/g)).toHaveLength(24);
+  });
+});
+
+describe("MoodBloom bursts", () => {
+  async function mount() {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    const render = (values: object, beat: string | null) =>
+      act(async () => {
+        root.render(
+          <MoodBloom variant="mini" emotionalState={values} beat={beat} />,
+        );
+      });
+    const bursts = () =>
+      [...container.querySelectorAll("[data-bloom-burst]")].map((element) =>
+        element.getAttribute("data-bloom-burst"),
+      );
+    const unmount = async () => {
+      await act(async () => root.unmount());
+      container.remove();
+    };
+    return { render, bursts, unmount };
+  }
+
+  it("flashes the petals a new reaction grew, largest gain first", async () => {
+    const bloom = await mount();
+    await bloom.render({ joy: 10, fear: 6 }, "first");
+    expect(bloom.bursts()).toEqual([]);
+    await bloom.render({ joy: 14, love: 7, fear: 2 }, "second");
+    expect(bloom.bursts()).toEqual(["love", "joy"]);
+    await bloom.unmount();
+  });
+
+  it("stays quiet when values change without a reaction or nothing grew", async () => {
+    const bloom = await mount();
+    await bloom.render({ joy: 10 }, "first");
+    await bloom.render({ joy: 20 }, "first");
+    expect(bloom.bursts()).toEqual([]);
+    await bloom.render({ joy: 5 }, "second");
+    expect(bloom.bursts()).toEqual([]);
+    await bloom.unmount();
+  });
+
+  it("does not burst for reduced motion", async () => {
+    vi.mocked(useReducedMotion).mockReturnValue(true);
+    const bloom = await mount();
+    await bloom.render({ joy: 10 }, "first");
+    await bloom.render({ joy: 20 }, "second");
+    expect(bloom.bursts()).toEqual([]);
+    await bloom.unmount();
   });
 });

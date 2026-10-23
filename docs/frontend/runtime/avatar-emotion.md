@@ -440,8 +440,15 @@ Current behavior:
   strongest are emphasized and groups at zero are faint. The current mascot sits
   at the center on a glow of the dominant group's color. Petals open from a bud
   on mount and sway; once the strongest emotion reaches 3, its petal sheds
-  pollen, and it pulses when a consumer passes a reaction `beat` (the details
-  surfaces pass none). Reduced motion shows a still bloom.
+  pollen. When a consumer's reaction `beat` changes, up to three petals that
+  grew since the previous render (largest gain first) flash, pulse and throw
+  sparks from their tips; the burst is removed after under a second. The
+  details surfaces pass no `beat`. Reduced motion shows a still bloom without
+  bursts.
+- The sway and pollen animate continuously, so the full bloom repaints every
+  frame while it is shown; keep it to surfaces opened on demand. The `mini`
+  variant has no sway, pollen, bud, shadow, rings, rim or selection and costs
+  nothing at rest.
 - Each group's slot, out past its name, is a button: hovering, focusing or
   tapping it tints the slot, grows its petals, fades the other groups and
   reveals the group with its three constituents in a reserved caption below the
@@ -460,9 +467,13 @@ Current behavior:
   same presentation data, with compact chart sizing where appropriate.
 
 The chat header opens the profile through one button containing the active
-Anima name followed by the active feeling emoji. Neutral omits the header emoji; there
-is no separate emotion-status trigger. The name uses a plain button with a subtle hover background and visible keyboard
-focus.
+Anima name followed by a `mini` mood bloom: the current feeling's mascot with
+her petals around it, overhanging the button so the header keeps its height.
+On a chat route whose runtime belongs to the Anima, the runtime's
+`lastEmotionEventId` is the bloom's `beat`, so petals a chat emotion update
+grows burst; persisted state and snapshots never burst, and the bloom
+remounts per Anima. There is no separate emotion-status trigger. The name uses
+a plain button with a subtle hover background and visible keyboard focus.
 The chat-header profile is one continuous banner, portrait and identity surface.
 Details navigates to management; Settings opens existing controls with Back and
 restores the profile scroll position. The identity uses sanitized `IDENTITY.md`
