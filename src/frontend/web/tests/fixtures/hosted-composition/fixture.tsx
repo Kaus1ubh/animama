@@ -7,6 +7,10 @@ import { RuntimeController } from "@/app/runtime/runtime-controller";
 import { installBrowserSessionResources } from "@/app/runtime/browser-session-resources";
 import { actionRecoveryKey } from "@/lib/content/actionRecovery";
 import { recoverySessionIsActive } from "@/lib/content/recovery-session";
+import {
+  recordSseDuration,
+  recordUiInteraction,
+} from "@/lib/telemetry/metrics";
 import { transcribeClientParakeetWindow } from "@/lib/speech/client-parakeet/client";
 import { predictSmartTurn } from "@/lib/voice/smart-turn-worker-client";
 import {
@@ -78,6 +82,11 @@ Object.assign(window, {
     draft: () => loadFixtureDraft(controller.getSnapshot().scope!.key),
     mutate: () =>
       controller.getSnapshot().scope!.fetch("/v1/chats", { method: "POST" }),
+    /** Records the app's metrics with an identifier the exporter must drop. */
+    recordMetrics: (animaId: string) => {
+      recordUiInteraction({ action: "chat.submit", anima_id: animaId });
+      recordSseDuration(1_234, { status: "ok", anima_id: animaId });
+    },
     reauthenticate: async () => {
       composition.accountActions!.signIn();
       await controller.refresh();

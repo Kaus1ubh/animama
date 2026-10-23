@@ -162,9 +162,33 @@ Vite owns development serving and a closed proxy to the private backend;
 production has no frontend Node service. Browser modules import neither backend
 configuration nor Electron internals.
 
-The browser retains metric calls and API trace propagation but registers no
-telemetry exporter. The FastAPI forwarder is disabled by default in Compose
-and always disabled in embedded desktop. See [Local HTTP boundary](auth-server.md).
+The FastAPI forwarder is disabled by default in Compose and always disabled in
+embedded desktop. See [Local HTTP boundary](auth-server.md).
+
+### Browser telemetry
+
+The browser records UI-interaction and chat-SSE metrics and propagates
+`traceparent` on API requests. It exports them only when the admitted runtime's
+capabilities include `browser_telemetry`, which the local composition never
+reports, so local Compose, self-hosted and desktop installations send nothing.
+`RuntimeController` then starts `lib/telemetry/browser-exporter.ts` inside the
+admitted session and stops it, dropping unsent data, when that session ends.
+`VITE_DISABLE_WEBUI_TELEMETRY=true` still wins, and the `embedded-desktop` build,
+a `desktop` runtime or a desktop bridge never exports.
+
+The exporter posts OTLP/HTTP JSON through the session's fetch to
+`{path}/metrics` (delta sums and histograms, each minute) and `{path}/logs`
+(uncaught errors and unhandled rejections, every 10 seconds), where `path` is the
+capability's relative same-origin path (default `/api/telemetry`). It also
+flushes, with `keepalive`, when the page is hidden. It sends no traces.
+`lib/telemetry/sanitize.ts` reduces URLs to their path and replaces UUIDs,
+emails, tokens and user agents before export. It drops identifier, URL, agent,
+credential and content attribute keys (including `anima_id`) and never
+serializes non-`Error` rejection values. Each request is at most 64 KiB, with at
+most 16 series per metric and 32 queued error records; stacks keep 32 lines and
+4,096 characters. A failed or unanswered request drops its batch, and export
+pauses with exponential backoff, so the UI never waits on telemetry. The CSP
+needs nothing beyond same-origin `connect-src`.
 
 ## Commands
 

@@ -3,6 +3,8 @@ import type { RuntimeAdmission } from "@animama/runtime-contracts";
 import { RuntimeController } from "./runtime-controller";
 import { hostedCapabilitiesFixture as capabilities } from "./runtime-fixture";
 import type { AppComposition } from "./composition";
+import { METRICS_INTERVAL_MS } from "@/lib/telemetry/browser-exporter";
+import { recordUiInteraction } from "@/lib/telemetry/metrics";
 
 function ready(key: string, onboardingRequired = false): RuntimeAdmission {
   return {
@@ -368,5 +370,58 @@ describe("composition lifetime boundary", () => {
     await oldRead;
     expect(controller.getSnapshot().scope).toBe(newest);
     expect(newest!.controller.signal.aborted).toBe(false);
+  });
+});
+
+describe("browser telemetry lifetime", () => {
+  const telemetryCalls = (fetch: AppComposition["transport"]["fetch"]) =>
+    vi
+      .mocked(fetch)
+      .mock.calls.map(([input]) => new URL((input as Request).url).pathname)
+      .filter((path) => path.startsWith("/api/telemetry"));
+
+  it("registers no exporter when the runtime does not advertise one", async () => {
+    vi.useFakeTimers();
+    const { controller, composition } = fixture();
+    try {
+      await controller.refresh();
+      recordUiInteraction({ action: "chat.submit" });
+      await vi.advanceTimersByTimeAsync(METRICS_INTERVAL_MS * 2);
+      expect(telemetryCalls(composition.transport.fetch)).toEqual([]);
+    } finally {
+      controller.dispose();
+      vi.useRealTimers();
+    }
+  });
+
+  it("exports through the admitted session and stops when it ends", async () => {
+    vi.useFakeTimers();
+    const { controller, composition, set } = fixture();
+    vi.mocked(composition.transport.fetch).mockImplementation(
+      async () => new Response(null, { status: 200 }),
+    );
+    try {
+      set({
+        ...ready("first-lifetime"),
+        capabilities: {
+          ...capabilities,
+          browser_telemetry: { path: "/api/telemetry" },
+        },
+      } as RuntimeAdmission);
+      await controller.refresh();
+      recordUiInteraction({ action: "chat.submit" });
+      await vi.advanceTimersByTimeAsync(METRICS_INTERVAL_MS);
+      expect(telemetryCalls(composition.transport.fetch)).toEqual([
+        "/api/telemetry/metrics",
+      ]);
+
+      await controller.signOut();
+      recordUiInteraction({ action: "chat.submit" });
+      await vi.advanceTimersByTimeAsync(METRICS_INTERVAL_MS * 2);
+      expect(telemetryCalls(composition.transport.fetch)).toHaveLength(1);
+    } finally {
+      controller.dispose();
+      vi.useRealTimers();
+    }
   });
 });
