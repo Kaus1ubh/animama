@@ -2,6 +2,7 @@
 
 import type { Dispatch, ReactNode, SetStateAction } from "react";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { useRouterState } from "@tanstack/react-router";
 
 import { cn } from "@/lib/utils";
 
@@ -85,6 +86,14 @@ export function AppShell({ children, className }: AppShellProps) {
     sidebarAnimating,
   };
 
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
+  });
+  // The mobile drawer covers the page, so following one of its links closes it.
+  useEffect(() => {
+    setMobileSidebarOpen(false);
+  }, [pathname]);
+
   useEffect(() => {
     isDesktopRef.current = isDesktop;
   }, [isDesktop]);
@@ -98,11 +107,18 @@ export function AppShell({ children, className }: AppShellProps) {
     const desktopMedia = window.matchMedia("(min-width: 768px)");
     const xlMedia = window.matchMedia("(min-width: 1280px)");
     let previousDesktopMatches = desktopMedia.matches;
-    let previousXlMatches = xlMedia.matches;
+    let previousWidth = window.innerWidth;
 
+    /**
+     * Below `xl` an expanded sidebar overlaps the centred chat composer, so it
+     * starts collapsed there and collapses whenever the window narrows. A
+     * sidebar the user expands below `xl` stays open until the window shrinks;
+     * below `md` it becomes the mobile drawer.
+     */
     const syncForViewport = (isInitialSync = false) => {
       const nextIsDesktop = desktopMedia.matches;
       const nextIsXl = xlMedia.matches;
+      const nextWidth = window.innerWidth;
       const currentIsDesktop = isDesktopRef.current;
       const currentDesktopSidebarOpen = desktopSidebarOpenRef.current;
       const viewportModeChanged = currentIsDesktop !== nextIsDesktop;
@@ -112,10 +128,10 @@ export function AppShell({ children, className }: AppShellProps) {
         !nextIsXl &&
         (isInitialSync ||
           previousDesktopMatches !== nextIsDesktop ||
-          previousXlMatches !== nextIsXl);
+          nextWidth < previousWidth);
 
       previousDesktopMatches = nextIsDesktop;
-      previousXlMatches = nextIsXl;
+      previousWidth = nextWidth;
 
       if (!viewportModeChanged && !shouldCollapseDesktopSidebar) return;
 
@@ -136,10 +152,13 @@ export function AppShell({ children, className }: AppShellProps) {
       syncForViewport(false);
     };
     syncForViewport(true);
+    // Resize reports every narrowing step, not only breakpoint crossings.
+    window.addEventListener("resize", handleViewportChange);
     desktopMedia.addEventListener("change", handleViewportChange);
     xlMedia.addEventListener("change", handleViewportChange);
 
     return () => {
+      window.removeEventListener("resize", handleViewportChange);
       desktopMedia.removeEventListener("change", handleViewportChange);
       xlMedia.removeEventListener("change", handleViewportChange);
       if (suppressTimerRef.current) {
