@@ -24,6 +24,7 @@ import {
   STAGE_SCENES,
   appStageBackgroundUrl,
   stageSceneChoice,
+  stageSceneToSave,
   type StageSceneChoice,
   type StageSceneId,
 } from "@/lib/stage-background/stageBackground";
@@ -232,16 +233,15 @@ export function AnimaAppearanceDialog({
     };
     setDrafts({
       profile_image: initial("profile"),
-      background_image: {
-        ...initial("background"),
-        scene: stageSceneChoice(storedPreferences, stageTheme),
-      },
+      // The scene stays unset until picked; the select shows the stored or
+      // theme-default scene meanwhile.
+      background_image: initial("background"),
     });
     setPendingUpload(null);
     setStatus(null);
     clearSaveFailure();
     setProgress(null);
-  }, [clearSaveFailure, loadout.data, open, stageTheme, storedPreferences]);
+  }, [clearSaveFailure, loadout.data, open, storedPreferences]);
 
   useEffect(() => () => abortRef.current?.abort(), []);
 
@@ -334,16 +334,13 @@ export function AnimaAppearanceDialog({
         });
       }
       // A Local image keeps the stored scene for when it is removed.
-      if (
-        use === "background" &&
-        !draft.itemId &&
-        draftScene !== stageSceneChoice(storedPreferences, stageTheme)
-      ) {
+      const sceneToSave = stageSceneToSave(draft.scene, storedPreferences);
+      if (use === "background" && !draft.itemId && sceneToSave !== null) {
         await updateAnimaSettings.mutateAsync({
           animaId,
           body: {
             preferences: mergePreferences(storedPreferences ?? {}, {
-              presentation: { stage_background: draftScene },
+              presentation: { stage_background: sceneToSave },
             }),
           },
         });

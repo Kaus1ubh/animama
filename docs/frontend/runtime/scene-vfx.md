@@ -45,7 +45,8 @@ through the parent Action's prepared reference map and played once when the
 effect is applied. The ordinary scene background image is loadout-owned: live
 `Scene` rendering uses the typed Appearance binding. Without one it draws the
 Anima's app stage scene (`preferences.presentation.stage_background`; Dreamy
-in light mode and Sakura in dark mode by default) in the current theme; settings name a scene, never a media URL.
+in light mode and Sakura in dark mode by default) in the current theme;
+settings name a scene, never a media URL.
 
 ### Rendering
 

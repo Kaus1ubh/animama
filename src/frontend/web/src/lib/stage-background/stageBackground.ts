@@ -73,6 +73,19 @@ export function stageSceneChoice(
   return isStageSceneId(value) ? value : DEFAULT_STAGE_SCENES[theme];
 }
 
+/**
+ * The scene a dialog edit should store, or null when nothing changes. Compared
+ * with the raw stored value rather than the theme default, so explicitly
+ * picking the current theme's default still stores it for both themes.
+ */
+export function stageSceneToSave(
+  draft: StageSceneChoice | undefined,
+  preferences: SettingsPreferences | null | undefined,
+): StageSceneChoice | null {
+  if (draft === undefined) return null;
+  return draft === preferences?.presentation?.stage_background ? null : draft;
+}
+
 export function resolveStageBackground({
   hasBoundImage,
   scene,

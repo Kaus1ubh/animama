@@ -6,6 +6,7 @@ import {
   appStageBackgroundUrl,
   resolveStageBackground,
   stageSceneChoice,
+  stageSceneToSave,
 } from "./stageBackground";
 
 describe("stage background", () => {
@@ -81,6 +82,20 @@ describe("stage background", () => {
     ).toBe("seaside");
     expect(
       stageSceneChoice({ presentation: { stage_background: "none" } }, "light"),
+    ).toBe("none");
+  });
+
+  it("stores a picked scene, even the current theme's default", () => {
+    expect(stageSceneToSave(undefined, null)).toBeNull();
+    expect(stageSceneToSave("dreamy", null)).toBe("dreamy");
+    expect(stageSceneToSave("sakura", {})).toBe("sakura");
+    expect(
+      stageSceneToSave("seaside", {
+        presentation: { stage_background: "seaside" },
+      }),
+    ).toBeNull();
+    expect(
+      stageSceneToSave("none", { presentation: { stage_background: "cafe" } }),
     ).toBe("none");
   });
 
