@@ -6,6 +6,7 @@ import {
   appStageBackgroundUrl,
   resolveStageBackground,
   stageSceneChoice,
+  stageSceneToSave,
 } from "./stageBackground";
 
 describe("stage background", () => {
@@ -61,16 +62,40 @@ describe("stage background", () => {
     ).toEqual({ kind: "bound" });
   });
 
-  it("reads the stored choice and defaults unknown values to Dreamy", () => {
-    expect(stageSceneChoice(null)).toBe("dreamy");
-    expect(stageSceneChoice({ presentation: { stage_background: "x" } })).toBe(
-      "dreamy",
-    );
+  it("reads the stored choice and defaults by theme", () => {
+    expect(stageSceneChoice(null, "light")).toBe("dreamy");
+    expect(stageSceneChoice(null, "dark")).toBe("sakura");
     expect(
-      stageSceneChoice({ presentation: { stage_background: "seaside" } }),
+      stageSceneChoice({ presentation: { stage_background: "x" } }, "dark"),
+    ).toBe("sakura");
+    expect(
+      stageSceneChoice(
+        { presentation: { stage_background: "dreamy" } },
+        "dark",
+      ),
+    ).toBe("dreamy");
+    expect(
+      stageSceneChoice(
+        { presentation: { stage_background: "seaside" } },
+        "light",
+      ),
     ).toBe("seaside");
     expect(
-      stageSceneChoice({ presentation: { stage_background: "none" } }),
+      stageSceneChoice({ presentation: { stage_background: "none" } }, "light"),
+    ).toBe("none");
+  });
+
+  it("stores a picked scene, even the current theme's default", () => {
+    expect(stageSceneToSave(undefined, null)).toBeNull();
+    expect(stageSceneToSave("dreamy", null)).toBe("dreamy");
+    expect(stageSceneToSave("sakura", {})).toBe("sakura");
+    expect(
+      stageSceneToSave("seaside", {
+        presentation: { stage_background: "seaside" },
+      }),
+    ).toBeNull();
+    expect(
+      stageSceneToSave("none", { presentation: { stage_background: "cafe" } }),
     ).toBe("none");
   });
 

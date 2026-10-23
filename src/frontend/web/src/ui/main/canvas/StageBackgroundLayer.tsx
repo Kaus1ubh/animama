@@ -36,11 +36,12 @@ export function StageBackgroundLayer({
   const { effectivePreferences } = useSettings();
   const { resolvedTheme } = useTheme();
   const boundMedia = useRuntimeContentMediaUrl(boundImage);
+  const theme = resolvedTheme === "dark" ? "dark" : "light";
   const background = resolveStageBackground({
     hasBoundImage: Boolean(boundImage),
-    scene: stageSceneChoice(effectivePreferences),
+    scene: stageSceneChoice(effectivePreferences, theme),
     variant,
-    theme: resolvedTheme === "dark" ? "dark" : "light",
+    theme,
   });
   const drawnSrc =
     background.kind === "bound"

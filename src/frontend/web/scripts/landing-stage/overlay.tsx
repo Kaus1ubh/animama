@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import type { i18n as I18nInstance } from "i18next";
-import { motion, type Variants } from "motion/react";
+import { MotionConfig, motion, type Variants } from "motion/react";
 import { createPortal, flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import {
@@ -104,7 +104,11 @@ export function mountOverlay(
   flushSync(() =>
     reactRoot.render(
       <AnimamaI18nProvider i18n={i18n}>
-        <Overlay controller={controller} />
+        {/* Motion entrances keep their fades but drop movement when the
+            visitor asks for reduced motion. */}
+        <MotionConfig reducedMotion="user">
+          <Overlay controller={controller} />
+        </MotionConfig>
       </AnimamaI18nProvider>,
     ),
   );
@@ -224,9 +228,9 @@ function AvatarSwitcher({
                   }
                   onClick={() => controller.selectAvatar(avatar.id)}
                   className={cn(
-                    "focus-visible:ring-ring flex size-9 cursor-pointer items-center justify-center rounded-full p-0 transition-shadow outline-none focus-visible:ring-2",
+                    "focus-visible:ring-ring focus-visible:ring-offset-background flex size-9 cursor-pointer items-center justify-center rounded-full p-0 transition-shadow outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
                     isActive && "ring-primary ring-2",
-                    loading && "animate-pulse",
+                    loading && "motion-safe:animate-pulse",
                   )}
                 >
                   <Avatar className="size-9">
@@ -409,6 +413,13 @@ function ProgressThread({
 }
 
 /**
+ * Keyboard focus ring for chrome over the stop's backdrop: white over the
+ * twilight stop's light ink, where the theme ring falls below 3:1.
+ */
+const focusRing = (light: boolean) =>
+  light ? "focus-visible:ring-white" : "focus-visible:ring-ring";
+
+/**
  * The site header: the logo on the left; on the right one liquid-glass pill
  * holding Home, About (both scroll the tour) and Docs, the theme toggle and
  * language picker, Log in and Sign up (placeholders until accounts exist),
@@ -441,10 +452,11 @@ function Header({
     setGlow({ x: rect.left - box.left, w: rect.width });
   };
   const link = cn(
-    "relative z-10 cursor-pointer rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
+    "relative z-10 cursor-pointer rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors outline-none focus-visible:ring-2",
+    focusRing(light),
     light
-      ? "text-white/80 hover:text-white"
-      : "text-foreground/65 hover:text-foreground",
+      ? "text-white"
+      : "text-foreground/75 hover:text-foreground dark:text-foreground/80 dark:hover:text-foreground",
   );
   const divider = (
     <span
@@ -538,7 +550,11 @@ function Header({
           {divider}
           <ThemeToggle light={light} theme={theme} />
           {CLOSED_BETA ? null : (
-            <LanguagePicker locale={locale} onLocaleChange={setLocale} />
+            <LanguagePicker
+              locale={locale}
+              onLocaleChange={setLocale}
+              light={light}
+            />
           )}
           {CLOSED_BETA ? null : (
             <>
@@ -612,10 +628,11 @@ function ThemeToggle({
       aria-pressed={dark}
       data-pill-item=""
       className={cn(
-        "focus-visible:ring-ring relative z-10 flex size-8 cursor-pointer items-center justify-center rounded-full transition-colors outline-none focus-visible:ring-2",
+        "relative z-10 flex size-8 cursor-pointer items-center justify-center rounded-full transition-colors outline-none focus-visible:ring-2",
+        focusRing(light),
         light
-          ? "text-white/80 hover:text-white"
-          : "text-foreground/65 hover:text-foreground",
+          ? "text-white"
+          : "text-foreground/75 hover:text-foreground dark:text-foreground/80 dark:hover:text-foreground",
       )}
     >
       <Icon className="size-4" aria-hidden="true" />
@@ -633,12 +650,19 @@ type LocaleChoice = {
   onLocaleChange: (locale: UiLocale) => void;
 };
 
-function LanguagePicker({ locale, onLocaleChange }: LocaleChoice) {
+function LanguagePicker({
+  locale,
+  onLocaleChange,
+  light,
+}: LocaleChoice & { light: boolean }) {
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger
         data-pill-item=""
-        className="focus-visible:ring-ring relative z-10 flex size-8 cursor-pointer items-center justify-center rounded-full outline-none focus-visible:ring-2"
+        className={cn(
+          "relative z-10 flex size-8 cursor-pointer items-center justify-center rounded-full outline-none focus-visible:ring-2",
+          focusRing(light),
+        )}
         aria-label={`Language: ${localeNativeName(locale)}`}
       >
         <LocaleFlag locale={locale} className="size-5" />
@@ -698,7 +722,8 @@ function SiteMenu({
         aria-label="Menu"
         data-ink={light ? "light" : "dark"}
         className={cn(
-          "liquid-glass focus-visible:ring-ring flex size-9 cursor-pointer items-center justify-center rounded-full outline-none focus-visible:ring-2",
+          "liquid-glass flex size-9 cursor-pointer items-center justify-center rounded-full outline-none focus-visible:ring-2",
+          focusRing(light),
           light ? "text-white" : "text-foreground",
         )}
       >
@@ -816,7 +841,7 @@ function Stop(props: StopProps) {
   // composited layers for every inactive stop.
   const fade = active
     ? "visible translate-y-0 opacity-100"
-    : "pointer-events-none invisible translate-y-3 opacity-0";
+    : "pointer-events-none invisible translate-y-3 opacity-0 motion-reduce:translate-y-0";
   return (
     <>
       <div
@@ -912,7 +937,7 @@ function Hero({ stop, active, state, controller }: StopProps) {
       "transition-[opacity,translate] duration-700 ease-out",
       revealed
         ? cn("translate-y-0 opacity-100", delay)
-        : "translate-y-4 opacity-0",
+        : "translate-y-4 opacity-0 motion-reduce:translate-y-0",
     );
   // The stage keeps her head clear of this text, wherever it wraps.
   const box = useRef<HTMLDivElement>(null);
@@ -940,7 +965,7 @@ function Hero({ stop, active, state, controller }: StopProps) {
         "fixed inset-x-0 top-[12vh] z-30 flex justify-center px-5 text-center transition-[opacity,translate,visibility] duration-500 md:top-[14vh]",
         active
           ? "visible translate-y-0 opacity-100"
-          : "pointer-events-none invisible -translate-y-3 opacity-0",
+          : "pointer-events-none invisible -translate-y-3 opacity-0 motion-reduce:translate-y-0",
       )}
       aria-hidden={!active}
     >
@@ -1499,10 +1524,10 @@ function ClipChips({ stop, index, state, avatar, controller }: StopProps) {
           aria-pressed={playing === clipIndex}
           onClick={() => controller.playClip(index, clipIndex)}
           className={cn(
-            "bg-card/85 focus-visible:ring-ring inline-flex shrink-0 items-center gap-2 rounded-full border text-sm font-medium shadow-xs transition outline-none focus-visible:ring-2",
+            "bg-card/85 focus-visible:ring-ring focus-visible:ring-offset-background inline-flex shrink-0 items-center gap-2 rounded-full border text-sm font-medium shadow-xs transition outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
             clip.mascot ? "py-1 pr-3.5 pl-1" : "px-3.5 py-1.5",
             playing === clipIndex
-              ? "border-primary bg-primary/25 ring-primary/40 ring-2"
+              ? "border-ring bg-primary/25 ring-ring/50 ring-2"
               : "hover:bg-card border-border",
           )}
         >
@@ -1615,11 +1640,6 @@ const MEMORY_CHAT_STEPS = [400, 1000, 2400, 3200];
 const MEMORY_FILE_MS = MEMORY_CHAT_STEPS[3] + 1200 + 2000;
 /** The app's chat bubbles, compacted for the demo card. */
 const CHAT_BUBBLE = "max-w-[85%] px-3.5 py-2 text-sm";
-/**
- * Landing-only override: in dark mode the app's assistant bubble sets light
- * text on its light sky-blue fill, so use the fill's own dark text colour.
- */
-const ASSISTANT_TEXT_DARK = "dark:[&>.z-10]:text-secondary-foreground";
 
 /**
  * The memory stop's shared clock: the page on show (cycling every
@@ -1773,7 +1793,7 @@ function ChatExchange({
               key={`${note}-${step >= 3}`}
               from="assistant"
               animateOnEnter={!sizer && step >= 3}
-              className={cn(CHAT_BUBBLE, "max-w-full", ASSISTANT_TEXT_DARK)}
+              className={cn(CHAT_BUBBLE, "max-w-full")}
             >
               {step >= 3 ? chat.reply : <MessageLoaderV2 className="h-5" />}
             </MessageContent>
@@ -1824,11 +1844,11 @@ function MemoryNotebook({
               key={page.id}
               type="button"
               aria-pressed={page.id === cycle.note}
-              aria-label={`Open ${page.file}`}
+              aria-label={`${page.name}, ${page.file}`}
               title={`Open ${page.file}`}
               onClick={() => cycle.pick(page.id)}
               className={cn(
-                "focus-visible:ring-ring font-hand h-9 cursor-pointer rounded-t-md px-2.5 pt-1.5 text-[1rem] leading-none whitespace-nowrap text-[#2e2b36] shadow-sm transition-[translate,filter,box-shadow] duration-200 outline-none focus-visible:ring-2",
+                "font-hand h-9 cursor-pointer rounded-t-md px-2.5 pt-1.5 text-[1rem] leading-none whitespace-nowrap text-[#2e2b36] shadow-sm transition-[translate,filter,box-shadow] duration-200 outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#2e2b36]",
                 page.id === cycle.note
                   ? "-translate-y-1"
                   : "translate-y-0.5 opacity-90 hover:-translate-y-0.5 hover:opacity-100 hover:shadow-md hover:brightness-105",
@@ -1855,7 +1875,7 @@ function MemoryNotebook({
             <div className="px-4 pt-3 pb-4">
               {file.sections.map((section) => (
                 <div key={section.heading}>
-                  <p className="text-[11px] leading-[26px] font-semibold tracking-wide text-[#2e2b36]/60 uppercase">
+                  <p className="text-[11px] leading-[26px] font-semibold tracking-wide text-[#2e2b36]/80 uppercase">
                     {section.heading}
                   </p>
                   {section.lines.map((line) => (
@@ -1890,7 +1910,7 @@ function MemoryNotebook({
           </div>
         </div>
       </div>
-      <p className="mt-2.5 text-xs text-white/70">
+      <p className="mt-2.5 text-xs text-white [text-shadow:0_1px_3px_rgb(0_0_0/0.5)]">
         Pick a ribbon to turn the page. Every page is a file you can read, edit
         and roll back.
       </p>
@@ -1932,7 +1952,9 @@ function Reveal({
     <div
       className={cn(
         "transition-[opacity,translate,visibility] duration-500",
-        shown ? "translate-y-0 opacity-100" : "translate-y-1.5 opacity-0",
+        shown
+          ? "translate-y-0 opacity-100"
+          : "translate-y-1.5 opacity-0 motion-reduce:translate-y-0",
         className,
       )}
     >
