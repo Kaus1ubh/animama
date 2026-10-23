@@ -3,8 +3,8 @@
    Brand hues (primary, secondary, accent and their sidebar and ring
    counterparts) are provisional, especially in dark mode. The ring follows
    primary; in light mode it and destructive are deeper than the pastel
-   hues so focus indicators reach 3:1 and red text and button labels reach
-   4.5:1 on theme surfaces.
+   hues so a solid focus ring reaches 3:1 and red text and button labels
+   reach 4.5:1 on the page, card and sidebar surfaces.
    Status colours (success, warning, info) are text and icon hues; use /10
    for tinted backgrounds and /30 for borders. */
 :root {
