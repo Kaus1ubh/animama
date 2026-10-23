@@ -141,7 +141,12 @@ are unaffected.
 
 Vite emits `.vite/manifest.json` as a server-side build inventory. FastAPI
 uses it to grant one-year immutable caching only to successful fingerprinted
-JS/CSS. HTML revalidates and missing chunks remain 404. A failed route offers
+JS/CSS. HTML revalidates and missing chunks remain 404. The build also writes
+`.vite/browser-runtime.json`, the verified size and SHA-256 of each `/onnx/*`
+speech runtime file; FastAPI sends that digest as a strong `ETag` with
+`no-cache`, so a reload of the unchanged Pocket TTS, ONNX Runtime, VAD and
+Smart Turn files costs a `304` instead of about 250 MB. Vite development and
+preview send the same validator from the runtime manifest. A failed route offers
 an explicit **Reload page** action, with an unsaved-changes warning and no
 automatic reload. The app handles Vite preload errors before the router's
 built-in refresh attempt. See [Local HTTP boundary](auth-server.md).

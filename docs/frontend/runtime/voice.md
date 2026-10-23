@@ -1012,6 +1012,11 @@ are application URLs, not tracked model files under `web/public`:
 - Pocket's ORT modules and all sidecars: `/onnx/ort/1.24.2/*`
 - Smart Turn: `/onnx/models/smart-turn/smart-turn-v3.2-cpu.onnx`
 
+These files ship with the app; nothing downloads them from the internet. Their
+URLs are unversioned, so every load revalidates them by their manifest SHA-256
+`ETag` and an unchanged file returns `304` (see
+[Frontend overview](../architecture/overview.md)).
+
 VAD and Smart Turn workers also retain their Vite-bundled ORT imports. Resolving
 the public ORT 1.24.2 inventory does not replace those dependency versions.
 
