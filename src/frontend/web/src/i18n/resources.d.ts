@@ -1415,12 +1415,13 @@ export default interface Resources {
       "unavailableHere": "Offline speech recognition for dictation and Voice Mode is not available here"
     },
     "suggestions": {
-      "greeting": "Simple greeting",
-      "greetingMessage": "Hi! How's it going?",
-      "greetingMessageNamed": "Hi {{name}}! How's it going?",
       "joke": "Tell me a joke",
       "jokeMessage": "Hey, tell me a joke!",
-      "jokeMessageNamed": "Hey {{name}}, tell me a joke!"
+      "jokeMessageNamed": "Hey {{name}}, tell me a joke!",
+      "rockPaperScissors": "Play Rock Paper Scissors",
+      "rockPaperScissorsPaper": "Let's play rock paper scissors! I choose... paper!",
+      "rockPaperScissorsRock": "Let's play rock paper scissors! I choose... rock!",
+      "rockPaperScissorsScissors": "Let's play rock paper scissors! I choose... scissors!"
     }
   },
   "common": {

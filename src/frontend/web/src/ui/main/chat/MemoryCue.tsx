@@ -23,7 +23,7 @@ type MemoryCueProps = {
 };
 
 /**
- * Small icon on a reply whose turn remembered something (spec R6). Click or
+ * Small icon below a reply whose turn remembered something (spec R6). Click or
  * keyboard opens a popover naming what was remembered, by kind.
  */
 export function MemoryCue({
@@ -40,9 +40,9 @@ export function MemoryCue({
           variant="ghost"
           size="icon-sm"
           aria-label={t("memoryCue.updated")}
-          className="text-muted-foreground hover:text-foreground -ml-1.5 size-6"
+          className="text-muted-foreground hover:text-foreground size-7"
         >
-          <Brain aria-hidden="true" className="size-3.5" />
+          <Brain aria-hidden="true" className="size-4" />
         </Button>
       </PopoverTrigger>
       <PopoverContent

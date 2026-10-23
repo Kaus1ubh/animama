@@ -25,12 +25,14 @@ vi.mock("@/ui/settings/SettingsProvider", () => ({
 }));
 
 function Suggestions({ messages }: { messages: { role: string }[] }) {
-  return useFirstChatSuggestions(messages) ? <p>Simple greeting</p> : null;
+  return useFirstChatSuggestions(messages) ? (
+    <p>Play Rock Paper Scissors</p>
+  ) : null;
 }
 
 function showsSuggestions(messages: { role: string }[] = []) {
   return renderToStaticMarkup(<Suggestions messages={messages} />).includes(
-    "Simple greeting",
+    "Play Rock Paper Scissors",
   );
 }
 
