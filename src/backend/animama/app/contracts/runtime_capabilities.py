@@ -42,6 +42,17 @@ class WebSearchCapability(BaseModel):
     """Whether the backend's key is set; searches fail with a tool error while it is ``missing``."""
 
 
+class BrowserTelemetryCapability(BaseModel):
+    """Browser telemetry export that the serving origin accepts.
+
+    The web app posts bounded OTLP/HTTP JSON metrics and error logs to
+    ``{path}/metrics`` and ``{path}/logs`` on its own origin; the embedded
+    desktop app never exports. The path is relative to that origin, never a URL.
+    """
+
+    path: str = Field(default="/api/telemetry", max_length=128, pattern=r"^(/[A-Za-z0-9_-]+)+$")
+
+
 class RuntimeCapabilities(BaseModel):
     schema_version: Literal[2] = 2
     runtime_kind: Literal["desktop", "self_hosted_web", "hosted"]
@@ -83,9 +94,15 @@ class RuntimeCapabilities(BaseModel):
     web_search: WebSearchCapability = Field(default_factory=WebSearchCapability)
     gemini_tts: GeminiTtsCapability | None = None
     """Gemini voice models and prebuilt voices, present only where the composition offers Gemini voice."""
+    browser_telemetry: BrowserTelemetryCapability | None = None
+    """Present only where the composition forwards browser telemetry; absent, the web app exports nothing.
+
+    The local composition never reports it.
+    """
 
 
 __all__ = [
+    "BrowserTelemetryCapability",
     "CompanionSafetyCapability",
     "RuntimeCapabilities",
     "UserFileProcessingCapability",

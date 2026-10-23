@@ -1274,6 +1274,22 @@ export type BodySaveVoiceContent = {
 };
 
 /**
+ * BrowserTelemetryCapability
+ *
+ * Browser telemetry export that the serving origin accepts.
+ *
+ * The web app posts bounded OTLP/HTTP JSON metrics and error logs to
+ * ``{path}/metrics`` and ``{path}/logs`` on its own origin; the embedded
+ * desktop app never exports. The path is relative to that origin, never a URL.
+ */
+export type BrowserTelemetryCapability = {
+    /**
+     * Path
+     */
+    path?: string;
+};
+
+/**
  * CompanionSafetyCapability
  *
  * Operator safety configuration; owner preferences are in user settings.
@@ -9663,6 +9679,7 @@ export type RuntimeCapabilities = {
      * Anima Creation
      */
     anima_creation: boolean;
+    browser_telemetry?: BrowserTelemetryCapability | null;
     /**
      * Chat
      */
