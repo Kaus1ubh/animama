@@ -45,7 +45,7 @@ const PARTIAL_WORD = /(?<!\S)\S*$/;
 const ATTRIBUTE_KEY = /^[A-Za-z][A-Za-z0-9_.-]{0,63}$/;
 /** Keys that name identifiers, addresses, agents, credentials or content. */
 const FORBIDDEN_KEY =
-  /(?:^|[._-])ids?$|uuid|guid|^url(?:[._]|$)|^http[._](?:url|target|user_agent)$|user[._-]?agent|user[._-]?name|e-?mail|host|address|query|session|token|password|secret|cookie|authorization|prompt|content|message|text/i;
+  /(?:^|[._-])ids?$|uuid|guid|^url(?:[._]|$)|^http[._](?:url|target|user_agent)$|user[._-]?agent|user[._-]?name|e-?mail|host|address|query|session|token|password|secret|cookie|auth|prompt|content|message|text/i;
 /** camelCase identifiers such as `chatId`; case-sensitive so `valid` is kept. */
 const CAMEL_ID_KEY = /[a-z0-9]I[dD]s?$/;
 

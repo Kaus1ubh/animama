@@ -153,6 +153,7 @@ describe("browser telemetry sanitization", () => {
         "http.host": "app.example.test",
         "user.name": "person",
         query: "q=hello",
+        auth_header: "Bearer x",
         note: `see ${uuid}`,
         nan: Number.NaN,
         long: "z".repeat(MAX_ATTRIBUTE_LENGTH * 2),
