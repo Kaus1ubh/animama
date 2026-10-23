@@ -116,8 +116,9 @@ function describeFailure(reason: unknown): {
     let stack = typeof reason.stack === "string" ? reason.stack : null;
     // V8 starts a stack with `${name}: ${message}`; the capped message goes once.
     const header = message ? `${type}: ${message}` : type;
-    if (stack?.startsWith(header))
-      stack = stack.slice(header.length).replace(/^\n/, "") || null;
+    // The header is a whole first line, so a frame such as `ErrorBoundary@…` stays.
+    if (stack === header || stack?.startsWith(`${header}\n`))
+      stack = stack.slice(header.length + 1) || null;
     return { type, message, stack };
   }
   return {

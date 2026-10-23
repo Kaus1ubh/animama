@@ -189,7 +189,8 @@ read; other rejection values are never serialized. Each request is at most
 64 KiB (32 KiB for a page-hide flush, which shares the browser's keepalive
 quota). Each metric keeps 16 series plus one overflow series, and at most 32
 error records queue, each repeat once per batch. Messages keep 512 characters.
-Stacks drop their message header and keep 32 lines of at most 1,024 characters.
+Stacks drop their message header and keep 32 lines of at most 1,024 characters,
+4,096 in all.
 A failed or unanswered request drops its batch, and export pauses with
 exponential backoff, so the UI never waits on telemetry. The CSP needs nothing
 beyond same-origin `connect-src`.

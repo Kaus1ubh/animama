@@ -185,13 +185,17 @@ describe("browser telemetry exporter", () => {
     errors.dispatchEvent(reject(`chat ${uuid} was not saved`));
     errors.dispatchEvent(reject({ prompt: "a private prompt" }));
     errors.dispatchEvent(reject({ name: "Leak", message: "a private prompt" }));
+    // A Firefox frame that starts with the type is not a message header.
+    const unnamed = new Error("");
+    unnamed.stack = "ErrorBoundary@https://app.example.test/assets/a.js:1:2";
+    errors.dispatchEvent(fail(unnamed));
     await vi.advanceTimersByTimeAsync(LOGS_INTERVAL_MS);
 
     expect(sent.map((request) => request.path)).toEqual([
       "/api/telemetry/logs",
     ]);
     const records = logsOf(sent[0]);
-    expect(records).toHaveLength(3);
+    expect(records).toHaveLength(4);
     for (const record of records) {
       expect(record.severityNumber).toBe(17);
       expect(record.severityText).toBe("ERROR");
@@ -211,6 +215,11 @@ describe("browser telemetry exporter", () => {
     expect(records[2].body.stringValue).toBe("Unhandled rejection");
     expect(attributes(records[2].attributes)).toEqual({
       "exception.type": "object",
+    });
+    expect(records[3].body.stringValue).toBe("Uncaught error");
+    expect(attributes(records[3].attributes)).toEqual({
+      "exception.type": "Error",
+      "exception.stacktrace": "ErrorBoundary@/assets/a.js:1:2",
     });
     const body = String(sent[0].init.body);
     for (const forbidden of [

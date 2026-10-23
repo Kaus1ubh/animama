@@ -42,6 +42,12 @@ describe("browser telemetry sanitization", () => {
     expect(sanitizeText("Error #42 in /v1/chats#frag", 512)).toBe(
       "Error #42 in /v1/chats",
     );
+    expect(
+      sanitizeText(
+        "path=/cb#access_token=abc123 redirect:/cb#token=abc chats/abc#section",
+        512,
+      ),
+    ).toBe("path=/cb redirect:/cb chats/abc");
     // Hashed chunk names stay, so stacks can still be symbolicated.
     expect(
       sanitizeText(

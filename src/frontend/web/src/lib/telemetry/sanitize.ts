@@ -27,9 +27,9 @@ const POSITION = /(?::\d+){1,2}$/;
 /** A query on any token, such as `chats?token=…`, keeping a stack position. */
 const QUERY =
   /(?<![^\s"'<>(])([^\s?"'<>()]*)\?[^\s"'<>()]*?((?::\d+){1,2})?(?=[\s"'<>()]|$)/g;
-/** A fragment on a path; `Error #42` is not one. */
+/** A fragment on a token; it is removed only from a path, so `Error #42` stays. */
 const FRAGMENT =
-  /(?<![^\s"'<>(])(\/[^\s#"'<>()]*)#[^\s"'<>()]*?((?::\d+){1,2})?(?=[\s"'<>()]|$)/g;
+  /(?<![^\s"'<>(])([^\s#"'<>()]*)#[^\s"'<>()]*?((?::\d+){1,2})?(?=[\s"'<>()]|$)/g;
 const EMAIL =
   /(?<![\p{L}\p{N}.!#$%&'*+=?^_`{|}~-])[\p{L}\p{N}.!#$%&'*+=?^_`{|}~-]+@[\p{L}\p{N}-]+(?:\.[\p{L}\p{N}-]+)+/gu;
 const UUID =
@@ -61,7 +61,9 @@ function scrub(text: string): string {
     .replace(USER_AGENT, "<user-agent>")
     .replace(ABSOLUTE_URL, urlPath)
     .replace(QUERY, "$1$2")
-    .replace(FRAGMENT, "$1$2")
+    .replace(FRAGMENT, (fragment, path: string, position?: string) =>
+      path.includes("/") ? `${path}${position ?? ""}` : fragment,
+    )
     .replace(EMAIL, "<email>")
     .replace(UUID, "<id>")
     .replace(LONG_HEX, "<id>")
