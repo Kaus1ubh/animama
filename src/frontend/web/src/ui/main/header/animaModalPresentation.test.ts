@@ -28,6 +28,7 @@ describe("header emotion source precedence", () => {
     expect(selectHeaderEmotionState(input)).toEqual({
       state: runtime,
       sourceLabel: "Live runtime state",
+      live: true,
     });
     expect(
       selectHeaderEmotionState({ ...input, runtimeState: {} }).state,
@@ -40,6 +41,7 @@ describe("header emotion source precedence", () => {
     expect(selectHeaderEmotionState({ ...input, isChatRoute: false })).toEqual({
       state: persisted,
       sourceLabel: "Persisted anima state",
+      live: false,
     });
     expect(
       selectHeaderEmotionState({ ...input, runtimeAnimaId: "caitlyn" }).state,

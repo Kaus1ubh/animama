@@ -7,14 +7,13 @@ import { Menu } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { cn } from "@/lib/utils";
-import { EmotionMascot } from "@/ui/components/emotion-mascot";
+import { MoodBloom } from "@/ui/components/mood-bloom";
 import { useOptionalAppShell } from "@/ui/app/AppShell";
 import { DEBUG_ENABLED } from "@/platform/env";
 import { useAnimas } from "@/query/hooks/useAnimas";
 import { useAvatarRuntimeStore } from "@/stores/avatar-runtime-store";
 import { AnimaInfoModal } from "@/ui/main/header/AnimaInfoModal";
 import { selectHeaderEmotionState } from "./animaModalPresentation";
-import { buildEmotionPresentation } from "@/lib/emotion/presentation";
 import { getAnimaDisplayName } from "@/lib/anima-profile";
 
 type HeaderProps = {
@@ -40,7 +39,6 @@ export function Header({
   className,
 }: HeaderProps) {
   const { t } = useTranslation("chat");
-  const { t: emotionT } = useTranslation("emotion");
   const [modalOpen, setModalOpen] = useState(false);
   const {
     data: animas = [],
@@ -60,6 +58,9 @@ export function Header({
   const runtimeAnimaId = useAvatarRuntimeStore((state) => state.animaId);
   const runtimeEmotionalState = useAvatarRuntimeStore(
     (state) => state.emotionalState,
+  );
+  const lastEmotionEventId = useAvatarRuntimeStore(
+    (state) => state.lastEmotionEventId,
   );
   const isChatRoute =
     typeof pathname === "string" &&
@@ -92,18 +93,17 @@ export function Header({
   const openAnimaProfile = () => {
     setModalOpen(true);
   };
-  const { state: emotionalState, sourceLabel: emotionSourceLabel } =
-    selectHeaderEmotionState({
-      isChatRoute,
-      currentAnimaId,
-      runtimeAnimaId,
-      runtimeState: runtimeEmotionalState,
-      persistedState: activeAnima?.emotional_state,
-    });
-  const emotionPresentation = buildEmotionPresentation(
-    emotionalState,
-    emotionT,
-  );
+  const {
+    state: emotionalState,
+    sourceLabel: emotionSourceLabel,
+    live: emotionLive,
+  } = selectHeaderEmotionState({
+    isChatRoute,
+    currentAnimaId,
+    runtimeAnimaId,
+    runtimeState: runtimeEmotionalState,
+    persistedState: activeAnima?.emotional_state,
+  });
   const defaultAnimaTrigger = animaLabel ? (
     <button
       type="button"
@@ -116,18 +116,18 @@ export function Header({
       <h1 className="text-foreground truncate text-lg font-semibold">
         {animaLabel}
       </h1>
-      {/* Every feeling has a mascot, neutral included; none without an Anima. */}
+      {/* Her feeling's mascot in a small bloom of her emotions; petals that
+          a chat reaction grows flash and spark. Remounted per Anima so one
+          Anima's values never read as another's growth. The bloom overhangs
+          the button so the header keeps its height. */}
       {activeAnima ? (
-        <span
-          role="img"
-          aria-label={emotionPresentation.feeling.label}
-          className="shrink-0"
-        >
-          <EmotionMascot
-            src={emotionPresentation.feeling.mascot}
-            className="size-7"
-          />
-        </span>
+        <MoodBloom
+          key={activeAnima.id}
+          variant="mini"
+          emotionalState={emotionalState}
+          beat={emotionLive ? lastEmotionEventId : null}
+          className="pointer-events-none -my-3.5 size-14 shrink-0"
+        />
       ) : null}
     </button>
   ) : null;

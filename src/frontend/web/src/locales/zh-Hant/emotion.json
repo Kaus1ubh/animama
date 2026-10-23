@@ -1,4 +1,9 @@
 {
+  "bloom": {
+    "group": "{{group}}：{{maximum}}。{{emotions}}",
+    "groupEmotion": "{{emotion}} {{value}}",
+    "label": "情緒之花：分為八組的 24 種情緒"
+  },
   "details": {
     "label": "情緒狀態"
   },
@@ -160,11 +165,5 @@
     "gloom": "憂鬱",
     "rejection": "抗拒",
     "revulsion": "厭惡"
-  },
-  "radar": {
-    "axis": "{{group}}：{{maximum}}。{{emotions}}",
-    "axisEmotion": "{{emotion}} {{value}}",
-    "label": "情緒光譜：八個分組，每組顯示其最強烈的情緒",
-    "series": "最強烈的情緒"
   }
 }

@@ -2976,6 +2976,11 @@ export default interface Resources {
     }
   },
   "emotion": {
+    "bloom": {
+      "group": "{{group}}: {{maximum}}. {{emotions}}",
+      "groupEmotion": "{{emotion}} {{value}}",
+      "label": "Emotion bloom: 24 emotions in eight groups"
+    },
     "details": {
       "label": "Emotional state"
     },
@@ -3137,12 +3142,6 @@ export default interface Resources {
       "gloom": "Gloom",
       "rejection": "Rejection",
       "revulsion": "Revulsion"
-    },
-    "radar": {
-      "axis": "{{group}}: {{maximum}}. {{emotions}}",
-      "axisEmotion": "{{emotion}} {{value}}",
-      "label": "Emotion spectrum: eight groups, each showing its strongest emotion",
-      "series": "Strongest emotion"
     }
   },
   "errors": {
