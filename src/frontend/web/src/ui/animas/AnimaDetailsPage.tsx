@@ -800,7 +800,8 @@ export function AnimaDetailsPage({
       sidebarBehavior="adaptive-canvas"
     >
       {isPhoneLayout ? (
-        <div className="relative z-10 flex min-h-full min-w-0 flex-col">
+        // Landscape phones show the icon rail; keep the panel clear of it.
+        <div className="relative z-10 flex min-h-full min-w-0 flex-col pl-[var(--app-shell-sidebar-inset)]">
           <div className="flex items-center gap-1 px-3 pt-3">
             <SidebarMenuButton />
             <div className="min-w-0 flex-1">{carousel}</div>
@@ -817,7 +818,8 @@ export function AnimaDetailsPage({
               aria-describedby={undefined}
               // Keep the stage open while the preview error toast is used.
               onInteractOutside={(event) => event.preventDefault()}
-              className="bg-background inset-0 top-0 left-0 block h-[100dvh] w-full max-w-none translate-x-0 translate-y-0 rounded-none p-0 ring-0 sm:max-w-none"
+              // Above the icon rail (z-120), below sidebar menus (z-130).
+              className="bg-background inset-0 top-0 left-0 z-[125] block h-[100dvh] w-full max-w-none translate-x-0 translate-y-0 rounded-none p-0 ring-0 sm:max-w-none"
             >
               <DialogTitle className="sr-only">
                 {t("management.stage.title", { name: displayName })}

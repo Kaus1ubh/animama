@@ -9,7 +9,7 @@ import {
 
 function readViewportLayout(): AnimaRosterLayout {
   if (typeof window === "undefined") return "desktop";
-  return resolveAnimaRosterLayout(window.innerWidth);
+  return resolveAnimaRosterLayout(window.innerWidth, window.innerHeight);
 }
 
 /**

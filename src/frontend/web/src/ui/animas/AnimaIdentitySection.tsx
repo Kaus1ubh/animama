@@ -54,7 +54,7 @@ export function AnimaIdentitySection({
     </Button>
   );
   const identityActions = showEditAction ? (
-    <div className="not-prose float-right mb-3 ml-4 flex flex-wrap justify-end gap-2">
+    <div className="not-prose mb-3 flex flex-wrap justify-end gap-2 sm:float-right sm:ml-4">
       {editIdentityButton}
     </div>
   ) : null;

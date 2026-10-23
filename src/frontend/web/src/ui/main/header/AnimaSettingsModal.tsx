@@ -57,11 +57,11 @@ function InheritableSettingRow({
       <TooltipTrigger asChild>
         <div
           className={cn(
-            "border-border/60 bg-background flex items-center justify-between gap-4 rounded-lg border px-4 py-3",
+            "border-border/60 bg-background flex flex-col gap-3 rounded-lg border px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4",
             disabled && "opacity-70",
           )}
         >
-          <div>
+          <div className="min-w-0">
             <p className="text-foreground text-sm font-medium">{label}</p>
             <p className="text-muted-foreground text-xs">{description}</p>
           </div>
@@ -70,7 +70,10 @@ function InheritableSettingRow({
             disabled={disabled}
             onValueChange={(next) => onChange(next as BehaviorOverride)}
           >
-            <SelectTrigger className="w-48 shrink-0" aria-label={label}>
+            <SelectTrigger
+              className="w-full shrink-0 sm:w-48"
+              aria-label={label}
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -125,7 +128,7 @@ export function AnimaSettingsModal() {
   );
 
   return (
-    <div className="border-border/60 bg-muted/10 flex flex-1 flex-col gap-6 rounded-xl border p-6">
+    <div className="border-border/60 bg-muted/10 flex flex-1 flex-col gap-6 rounded-xl border p-4 sm:p-6">
       <div>
         <p className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
           {t("animaSettings.headings.emotion")}

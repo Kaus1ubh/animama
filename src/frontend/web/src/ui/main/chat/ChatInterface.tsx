@@ -81,6 +81,13 @@ import type {
   PyUserFileResponse,
 } from "@/lib/content/catalogTypes";
 
+/**
+ * The 800px chat column is centred over the full-width scene, beneath the
+ * floating sidebar rail (72px with its gap) from the md breakpoint. Pad its
+ * left edge only by the part of the rail it would otherwise sit under.
+ */
+const CLEAR_ICON_RAIL = "md:pl-[max(1rem,calc(72px_-_(100vw_-_800px)_/_2))]";
+
 type ChatInterfaceProps = {
   className?: string;
   layout?: MessageLayout;
@@ -297,7 +304,7 @@ export function ChatInterfaceView({
               className={cn(
                 isChatOnlyLayout &&
                   !quickChatSurface &&
-                  "mx-auto w-full max-w-[800px] px-4 py-4",
+                  cn("mx-auto w-full max-w-[800px] px-4 py-4", CLEAR_ICON_RAIL),
                 isChatOnlyLayout &&
                   quickChatSurface &&
                   "flex min-h-full w-full flex-col px-4 py-4",
@@ -331,7 +338,7 @@ export function ChatInterfaceView({
             ref={inputRegionRef}
             className={cn(
               "mx-auto w-full max-w-[800px] shrink-0 px-4 pt-3 pb-[calc(1.5rem+env(safe-area-inset-bottom))]",
-              quickChatSurface && "row-start-2 pt-3 pb-3",
+              quickChatSurface ? "row-start-2 pt-3 pb-3" : CLEAR_ICON_RAIL,
             )}
             data-quick-chat-input-region={quickChatSurface ? "" : undefined}
             data-quick-chat-interactive={quickChatSurface ? "" : undefined}
