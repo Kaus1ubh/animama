@@ -810,6 +810,19 @@ export const zBodySaveVoiceContent = z.object({
 });
 
 /**
+ * BrowserTelemetryCapability
+ *
+ * Browser telemetry export that the serving origin accepts.
+ *
+ * The web app posts bounded OTLP/HTTP JSON metrics and error logs to
+ * ``{path}/metrics`` and ``{path}/logs`` on its own origin; the embedded
+ * desktop app never exports. The path is relative to that origin, never a URL.
+ */
+export const zBrowserTelemetryCapability = z.object({
+    path: z.optional(z.string().max(128).regex(/^(\/[A-Za-z0-9_-]+)+$/)).default('/api/telemetry')
+});
+
+/**
  * CompanionSafetyCapability
  *
  * Operator safety configuration; owner preferences are in user settings.
@@ -6751,6 +6764,10 @@ export const zWebSearchCapability = z.object({
  */
 export const zRuntimeCapabilities = z.object({
     anima_creation: z.boolean(),
+    browser_telemetry: z.optional(z.union([
+        zBrowserTelemetryCapability,
+        z.null()
+    ])),
     chat: z.boolean(),
     chat_file_uploads: z.boolean(),
     companion_safety: zCompanionSafetyCapability,

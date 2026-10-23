@@ -2,6 +2,8 @@ import { QueryClient } from "@tanstack/react-query";
 import type { RuntimeAdmission } from "@animama/runtime-contracts";
 import { getI18n } from "react-i18next";
 import { createLogger } from "@/lib/logger";
+import { startBrowserTelemetry } from "@/lib/telemetry/browser-exporter";
+import { browserTelemetryPath } from "@/lib/telemetry/enabled";
 import { queryKeys } from "@/query/keys";
 import { queryClientOptions } from "@/query/queryClientOptions";
 import type {
@@ -135,6 +137,15 @@ export class RuntimeController {
       scope.register(() =>
         clearPrivateSessionState(scope.key, this.composition.kind === "hosted"),
       );
+      // Optional browser telemetry lives and posts within the admitted session only.
+      const telemetryPath =
+        admission.status === "ready"
+          ? browserTelemetryPath(admission.capabilities)
+          : null;
+      if (telemetryPath)
+        scope.register(
+          startBrowserTelemetry({ path: telemetryPath, fetch: scope.fetch }),
+        );
     }
     this.snapshot = {
       admission,

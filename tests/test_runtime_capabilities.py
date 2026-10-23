@@ -280,6 +280,49 @@ async def test_local_composition_reports_uploads_and_anima_creation(async_sessio
     assert body["native_features"] is bool(desktop_token)
 
 
+@pytest.mark.parametrize("desktop_token", ["c" * 64, None])
+async def test_local_composition_never_advertises_browser_telemetry(
+    async_session, tmp_path, monkeypatch, desktop_token
+):
+    """Even an enabled local forwarder leaves the browser without an exporter."""
+
+    monkeypatch.setenv("ANIMAMA_DISABLE_WEBUI_TELEMETRY", "false")
+    app = _app(async_session, tmp_path)
+    app.state.runtime_settings = app.state.runtime_settings.model_copy(
+        update={"animama_desktop_control_token": desktop_token}
+    )
+    async with local_client(app) as client:
+        body = (await client.get("/v1/runtime-capabilities")).json()
+    assert body.get("browser_telemetry") is None
+
+
+def test_browser_telemetry_capability_is_optional_and_same_origin():
+    """Absent means off; a present capability names only a relative same-origin path."""
+
+    from pydantic import ValidationError
+
+    from animama.app.contracts.runtime_capabilities import BrowserTelemetryCapability, RuntimeCapabilities
+
+    assert RuntimeCapabilities.model_fields["browser_telemetry"].default is None
+    assert BrowserTelemetryCapability().path == "/api/telemetry"
+    assert BrowserTelemetryCapability(path="/v1/hosted/browser-telemetry").path == "/v1/hosted/browser-telemetry"
+    for path in (
+        "",
+        "/",
+        "api/telemetry",
+        "//collector.example/v1",
+        "https://collector.example/v1",
+        "/api/../telemetry",
+        "/api/telemetry/",
+        "/api/telemetry?signal=logs",
+        "/api/telemetry#logs",
+        "/api\\telemetry",
+        "/" + "a" * 128,
+    ):
+        with pytest.raises(ValidationError):
+            BrowserTelemetryCapability(path=path)
+
+
 def test_capability_contract_is_neutral_and_admits_hosted_presentation():
     """Another composition can return the contract without importing local handlers."""
 
