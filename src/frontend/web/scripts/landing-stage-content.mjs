@@ -188,7 +188,7 @@ const ESCAPES = {
 const escapeHtml = (text) => text.replace(/[&<>"']/g, (char) => ESCAPES[char]);
 
 /** Theme colours for the browser's chrome (the app's `--background`). */
-const THEME_COLORS = { light: "#faf9f5", dark: "#1a1d23" };
+const THEME_COLORS = { light: "#faf9f5", dark: "#21252e" };
 
 /**
  * The site's icons, made from the brand mark: a 32px favicon (as both
