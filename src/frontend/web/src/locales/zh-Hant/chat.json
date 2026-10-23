@@ -173,6 +173,17 @@
       "whenSelected": "選擇後即會下載"
     }
   },
+  "loadingStatus": {
+    "avatar": "虛擬形象",
+    "canChat": "現在可以聊天了。",
+    "content": "動畫和特效",
+    "contentProgress": "動畫和特效（{{completed}}/{{total}}）",
+    "loading": "正在載入{{items}}…",
+    "speechToText": "語音轉文字（Parakeet）",
+    "textToSpeech": "文字轉語音（PocketTTS）",
+    "voiceDownload": "正在下載語音 {{name}}（{{size}}）…",
+    "voiceDownloadProgress": "正在下載語音 {{name}}（{{size}}）… {{percent}}"
+  },
   "memoryCue": {
     "added": "已新增到 {{name}} 的記憶",
     "addedUnnamed": "已新增到此 Anima 的記憶",
@@ -197,9 +208,7 @@
     "title": "開始新聊天？"
   },
   "playback": {
-    "degraded": "部分虛擬形象內容無法使用。文字聊天仍可使用。",
-    "preparing": "正在準備動畫和特效…",
-    "preparingCanChat": "正在準備動畫和特效… 現在可以聊天了。"
+    "degraded": "部分虛擬形象內容無法使用。文字聊天仍可使用。"
   },
   "profile": {
     "back": "返回",

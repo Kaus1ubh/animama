@@ -1352,6 +1352,17 @@ export default interface Resources {
         "whenSelected": "Downloads when selected"
       }
     },
+    "loadingStatus": {
+      "avatar": "avatar",
+      "canChat": "You can chat now.",
+      "content": "animations and effects",
+      "contentProgress": "animations and effects ({{completed}}/{{total}})",
+      "loading": "Loading {{items}}…",
+      "speechToText": "Speech-to-Text (Parakeet)",
+      "textToSpeech": "Text-to-Speech (PocketTTS)",
+      "voiceDownload": "Downloading voice {{name}} ({{size}})…",
+      "voiceDownloadProgress": "Downloading voice {{name}} ({{size}})… {{percent}}"
+    },
     "memoryCue": {
       "added": "Added to {{name}}'s memories",
       "addedUnnamed": "Added to this Anima's memories",
@@ -1376,9 +1387,7 @@ export default interface Resources {
       "title": "Start a new chat?"
     },
     "playback": {
-      "degraded": "Some avatar content is unavailable. Text chat still works.",
-      "preparing": "Preparing animations and effects…",
-      "preparingCanChat": "Preparing animations and effects… You can chat now."
+      "degraded": "Some avatar content is unavailable. Text chat still works."
     },
     "profile": {
       "back": "Back",

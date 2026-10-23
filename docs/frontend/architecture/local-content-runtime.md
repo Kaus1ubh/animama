@@ -235,8 +235,13 @@ to recover changed content; do not clear the installation or alter its owner.
 `canChat` is independent from optional playback preparation.
 `playbackStatus` reports `preparing`, `ready`, or `degraded`, and safe
 reason-coded diagnostics back one discreet warning surface. While optional
-work continues, a usable avatar is not covered by a loading overlay; the chat
-area reports that animations/effects are preparing. A missing or invalid optional
+work continues, a usable avatar is not covered by a loading overlay. The status
+line above the chat input (`ChatLoadingStatus.tsx`) names each item still in
+progress: the Avatar until its first posed frame, then animations and effects
+with completed/total members, the PocketTTS model during its first load,
+Parakeet while dictation or Voice Mode starts, and a Pocket voice installing
+through model assets. Local reads say "Loading"; only that voice install says
+"Downloading", with its size and progress. A missing or invalid optional
 root is excluded from playback with its dependents; unrelated content and text
 chat continue. A missing, invalid, or unposable Avatar uses the non-avatar
 fallback and a recovery diagnostic, never an unposed model.

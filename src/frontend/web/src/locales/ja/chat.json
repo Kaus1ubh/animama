@@ -173,6 +173,17 @@
       "whenSelected": "選択するとダウンロードされます"
     }
   },
+  "loadingStatus": {
+    "avatar": "アバター",
+    "canChat": "もうチャットできます。",
+    "content": "アニメーションとエフェクト",
+    "contentProgress": "アニメーションとエフェクト（{{completed}}/{{total}}）",
+    "loading": "{{items}}を読み込み中…",
+    "speechToText": "音声認識（Parakeet）",
+    "textToSpeech": "読み上げ（PocketTTS）",
+    "voiceDownload": "音声 {{name}}（{{size}}）をダウンロード中…",
+    "voiceDownloadProgress": "音声 {{name}}（{{size}}）をダウンロード中… {{percent}}"
+  },
   "memoryCue": {
     "added": "{{name}} の記憶に追加されました",
     "addedUnnamed": "この Anima の記憶に追加されました",
@@ -197,9 +208,7 @@
     "title": "新しいチャットを開始しますか？"
   },
   "playback": {
-    "degraded": "一部のアバターコンテンツを利用できません。テキストチャットは引き続き使えます。",
-    "preparing": "アニメーションとエフェクトを準備中…",
-    "preparingCanChat": "アニメーションとエフェクトを準備中… もうチャットできます。"
+    "degraded": "一部のアバターコンテンツを利用できません。テキストチャットは引き続き使えます。"
   },
   "profile": {
     "back": "戻る",

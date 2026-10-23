@@ -41,6 +41,11 @@ import { PromptSuggestion } from "./PromptSuggestion";
 import { MemoryCue } from "./MemoryCue";
 import { useFirstChatSuggestions } from "./useFirstChatSuggestions";
 import { useDictation } from "@/hooks/use-dictation";
+import {
+  ChatLoadingStatusLine,
+  useChatLoadingStatus,
+  type ChatLoadingStatus,
+} from "./ChatLoadingStatus";
 import { useQueryClient } from "@tanstack/react-query";
 import { useDesktopVoiceShortcuts } from "@/hooks/use-desktop-voice-shortcuts";
 import {
@@ -103,7 +108,8 @@ type ChatInterfaceViewProps = {
   animaName?: string | null;
   autoFocusInput?: boolean;
   canChat: boolean;
-  preparingPlayback?: boolean;
+  /** What the Anima route is still loading or downloading; null outside one. */
+  loadingStatus?: ChatLoadingStatus | null;
   contentWarning?: {
     message: string;
     details?: string;
@@ -172,7 +178,7 @@ export function ChatInterfaceView({
   animaName = null,
   autoFocusInput = false,
   canChat,
-  preparingPlayback = false,
+  loadingStatus = null,
   contentWarning = null,
   chatMarkdownEnabled = true,
   className,
@@ -351,15 +357,8 @@ export function ChatInterfaceView({
                 />
                 {contentWarning.message}
               </p>
-            ) : preparingPlayback ? (
-              <p
-                className="text-muted-foreground mb-2 px-1 text-xs"
-                role="status"
-              >
-                {canChat
-                  ? t("playback.preparingCanChat")
-                  : t("playback.preparing")}
-              </p>
+            ) : loadingStatus ? (
+              <ChatLoadingStatusLine status={loadingStatus} canChat={canChat} />
             ) : null}
             {showPromptSuggestions ? (
               <div className="mb-2 flex flex-wrap gap-2">
@@ -738,6 +737,7 @@ export const ChatInterface = ({
       setInput("");
     },
   });
+  const loadingStatus = useChatLoadingStatus({ isDictationPreparing });
 
   const markManualTypingActivity = useCallback(
     (nextInput: string) => {
@@ -1054,10 +1054,7 @@ export const ChatInterface = ({
         activeMode={activeMode}
         animaName={animaName}
         canChat={canChat}
-        preparingPlayback={
-          mountedRuntimeContent.avatarVisualStatus === "visible" &&
-          mountedRuntimeContent.playbackStatus === "preparing"
-        }
+        loadingStatus={loadingStatus}
         contentWarning={contentWarning}
         chatMarkdownEnabled={chatMarkdownEnabled}
         className={className}
