@@ -90,27 +90,27 @@ export const STARTUP_THEME = {
     "muted-foreground": "hsl(0 0% 43.1373%)",
     primary: "hsl(197.4 71.4286% 72.549%)",
     "primary-foreground": "hsl(0 0% 0%)",
-    accent: "hsl(78 91.6667% 76.4706%)",
-    "accent-foreground": "hsl(0 0% 0%)",
+    accent: "#e3f2fb",
+    "accent-foreground": "#333333",
     border: "hsl(0 0% 83.1373%)",
-    ring: "hsl(349.5238 100% 87.6471%)",
+    ring: "hsl(199 80% 42%)",
   },
   dark: {
-    background: "hsl(220 14.7541% 11.9608%)",
+    background: "#21252e",
     foreground: "hsl(0 0% 89.8039%)",
     muted: "hsl(0 0% 26.6667%)",
     "muted-foreground": "hsl(0 0% 63.9216%)",
     primary: "hsl(330 100% 80%)",
     "primary-foreground": "hsl(0 0% 0%)",
-    accent: "hsl(78 91.6667% 76.4706%)",
-    "accent-foreground": "hsl(0 0% 0%)",
+    accent: "#6d5a96",
+    "accent-foreground": "#e5e5e5",
     border: "hsl(0 0% 26.6667%)",
     ring: "hsl(330 100% 80%)",
   },
 } as const;
 
 /** The page background as hex, so the window paints it before the page loads. */
-export const STARTUP_BACKGROUND = { light: "#faf9f5", dark: "#1a1d23" };
+export const STARTUP_BACKGROUND = { light: "#faf9f5", dark: "#21252e" };
 
 const tokens = (theme: Record<string, string>) =>
   Object.entries(theme)
