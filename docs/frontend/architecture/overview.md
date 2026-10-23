@@ -180,15 +180,19 @@ The exporter posts OTLP/HTTP JSON through the session's fetch to
 `{path}/metrics` (delta sums and histograms, each minute) and `{path}/logs`
 (uncaught errors and unhandled rejections, every 10 seconds), where `path` is the
 capability's relative same-origin path (default `/api/telemetry`). It also
-flushes, with `keepalive`, when the page is hidden. It sends no traces.
-`lib/telemetry/sanitize.ts` reduces URLs to their path and replaces UUIDs,
-emails, tokens and user agents before export. It drops identifier, URL, agent,
-credential and content attribute keys (including `anima_id`) and never
-serializes non-`Error` rejection values. Each request is at most 64 KiB, with at
-most 16 series per metric and 32 queued error records; stacks keep 32 lines and
-4,096 characters. A failed or unanswered request drops its batch, and export
-pauses with exponential backoff, so the UI never waits on telemetry. The CSP
-needs nothing beyond same-origin `connect-src`.
+flushes, errors first and with `keepalive`, when the page is hidden. It sends no
+traces. `lib/telemetry/sanitize.ts` reduces URLs to their path and replaces
+UUIDs, emails, tokens and user agents in linear time before export. It drops
+identifier, URL, host, agent, credential and content attribute keys (including
+`anima_id`). Only an `Error`'s type, message and stack, or a thrown string, are
+read; other rejection values are never serialized. Each request is at most
+64 KiB (32 KiB for a page-hide flush, which shares the browser's keepalive
+quota). Each metric keeps 16 series plus one overflow series, and at most 32
+error records queue, each repeat once per batch. Messages keep 512 characters.
+Stacks drop their message header and keep 32 lines of at most 1,024 characters.
+A failed or unanswered request drops its batch, and export pauses with
+exponential backoff, so the UI never waits on telemetry. The CSP needs nothing
+beyond same-origin `connect-src`.
 
 ## Commands
 

@@ -8,49 +8,60 @@ export const MAX_ATTRIBUTES = 16;
 export const MAX_ATTRIBUTE_LENGTH = 128;
 export const MAX_MESSAGE_LENGTH = 512;
 export const MAX_STACK_LINES = 32;
+export const MAX_STACK_LINE_LENGTH = 1024;
 export const MAX_STACK_LENGTH = 4096;
 
 export type TelemetryAttributes = Record<string, string | number | boolean>;
 
+// Every pattern starts only at a token boundary (a lookbehind, or a literal
+// prefix with bounded groups), and a token's body never contains another
+// boundary, so each costs linear time even on long unbroken input.
 const USER_AGENT =
-  /Mozilla\/\d[\w.]*\s*\([^)]*\)(?:\s*[\w.-]+\/[\w.-]+|\s*\([^)]*\))*/g;
-const ABSOLUTE_URL = /[a-z][a-z0-9+.-]*:\/\/[^\s"'<>()]+/gi;
-/** A stack frame's `:line:column` after a URL path, kept when its query is removed. */
-const URL_POSITION = /^(.+:\/\/[^/]+\/.*?)((?::\d+){1,2})$/;
-const RELATIVE_QUERY =
-  /(\/[^\s?#"'<>()]*)[?#][^\s"'<>()]*?((?::\d+){1,2})?(?=[\s"'<>()]|$)/g;
+  /Mozilla\/\d[\w.]*\s*\([^()]{0,256}\)(?:\s*[\w.-]+\/[\w.-]+|\s*\([^()]{0,256}\))*/g;
+/** Absolute and protocol-relative URLs, including nested schemes such as `blob:`. */
+const ABSOLUTE_URL =
+  /(?<![a-z0-9+.:/-])(?:[a-z][a-z0-9+.-]*:)*\/\/[^\s"'<>()]+/gi;
+const URL_PARTS = /^(?:[a-z][a-z0-9+.-]*:)*\/\/[^/?#]*([^?#]*)(.*)$/is;
+/** A stack frame's `:line:column`, kept when the query before it is removed. */
+const POSITION = /(?::\d+){1,2}$/;
+/** A query on any token, such as `chats?token=…`, keeping a stack position. */
+const QUERY =
+  /(?<![^\s"'<>(])([^\s?"'<>()]*)\?[^\s"'<>()]*?((?::\d+){1,2})?(?=[\s"'<>()]|$)/g;
+/** A fragment on a path; `Error #42` is not one. */
+const FRAGMENT =
+  /(?<![^\s"'<>(])(\/[^\s#"'<>()]*)#[^\s"'<>()]*?((?::\d+){1,2})?(?=[\s"'<>()]|$)/g;
 const EMAIL =
-  /[A-Za-z0-9.!#$%&'*+=?^_`{|}~-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+/g;
+  /(?<![\p{L}\p{N}.!#$%&'*+=?^_`{|}~-])[\p{L}\p{N}.!#$%&'*+=?^_`{|}~-]+@[\p{L}\p{N}-]+(?:\.[\p{L}\p{N}-]+)+/gu;
 const UUID =
   /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi;
-const LONG_HEX = /\b[0-9a-f]{16,}\b/gi;
-/** Token-shaped runs mix letters and digits; long plain function names do not. */
+/** Long hex runs (digests, keys), except a hashed script chunk's name. */
+const LONG_HEX = /\b[0-9a-f]{16,}\b(?!\.m?js\b)/gi;
+/** Token-shaped runs mix letters and digits; long function and chunk names do not leak. */
 const TOKEN =
-  /\b(?=[A-Za-z0-9_-]*\d)(?=[A-Za-z0-9_-]*[A-Za-z])[A-Za-z0-9_-]{32,}\b/g;
+  /(?<![A-Za-z0-9_-])(?=[A-Za-z0-9_-]*\d)(?=[A-Za-z0-9_-]*[A-Za-z])[A-Za-z0-9_-]{32,}(?![A-Za-z0-9_-])(?!\.m?js\b)/g;
+/** The partial word an input cut leaves at its end. */
+const PARTIAL_WORD = /(?<!\S)\S*$/;
 
 const ATTRIBUTE_KEY = /^[A-Za-z][A-Za-z0-9_.-]{0,63}$/;
 /** Keys that name identifiers, addresses, agents, credentials or content. */
 const FORBIDDEN_KEY =
-  /(?:^|[._-])ids?$|uuid|guid|^url(?:[._]|$)|^http[._](?:url|target|user_agent)$|user[._-]?agent|e-?mail|session|token|password|secret|cookie|authorization|prompt|content|message|text/i;
+  /(?:^|[._-])ids?$|uuid|guid|^url(?:[._]|$)|^http[._](?:url|target|user_agent)$|user[._-]?agent|user[._-]?name|e-?mail|host|address|query|session|token|password|secret|cookie|authorization|prompt|content|message|text/i;
 /** camelCase identifiers such as `chatId`; case-sensitive so `valid` is kept. */
 const CAMEL_ID_KEY = /[a-z0-9]I[dD]s?$/;
 
 /** Reduce an absolute URL to its path (and any stack position). */
 function urlPath(token: string): string {
-  const position = URL_POSITION.exec(token);
-  const [address, suffix] = position ? [position[1], position[2]] : [token, ""];
-  try {
-    return `${new URL(address).pathname}${suffix}`;
-  } catch {
-    return "<url>";
-  }
+  const [, path = "", rest = ""] = URL_PARTS.exec(token) ?? [];
+  const position = rest ? (POSITION.exec(rest)?.[0] ?? "") : "";
+  return `${path || "/"}${position}`;
 }
 
 function scrub(text: string): string {
   return text
     .replace(USER_AGENT, "<user-agent>")
     .replace(ABSOLUTE_URL, urlPath)
-    .replace(RELATIVE_QUERY, "$1$2")
+    .replace(QUERY, "$1$2")
+    .replace(FRAGMENT, "$1$2")
     .replace(EMAIL, "<email>")
     .replace(UUID, "<id>")
     .replace(LONG_HEX, "<id>")
@@ -65,17 +76,19 @@ function scrub(text: string): string {
 export function sanitizeText(value: string, limit: number): string {
   const bound = Math.max(limit * 4, 1_024);
   const input =
-    value.length > bound ? value.slice(0, bound).replace(/\S*$/, "") : value;
+    value.length > bound
+      ? value.slice(0, bound).replace(PARTIAL_WORD, "")
+      : value;
   const text = scrub(input).trimEnd();
   return text.length > limit ? `${text.slice(0, limit - 1)}…` : text;
 }
 
-/** Keep the leading frames of a stack, each sanitized like a message. */
+/** Keep the leading frames of a stack, each line bounded and sanitized like a message. */
 export function sanitizeStack(stack: string): string {
   const text = stack
     .slice(0, MAX_STACK_LENGTH * 4)
     .split("\n", MAX_STACK_LINES)
-    .map((line) => sanitizeText(line, MAX_STACK_LENGTH))
+    .map((line) => sanitizeText(line, MAX_STACK_LINE_LENGTH))
     .join("\n");
   return text.length > MAX_STACK_LENGTH
     ? `${text.slice(0, MAX_STACK_LENGTH - 1)}…`

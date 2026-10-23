@@ -184,6 +184,7 @@ describe("browser telemetry exporter", () => {
     errors.dispatchEvent(fail(error));
     errors.dispatchEvent(reject(`chat ${uuid} was not saved`));
     errors.dispatchEvent(reject({ prompt: "a private prompt" }));
+    errors.dispatchEvent(reject({ name: "Leak", message: "a private prompt" }));
     await vi.advanceTimersByTimeAsync(LOGS_INTERVAL_MS);
 
     expect(sent.map((request) => request.path)).toEqual([
@@ -201,11 +202,12 @@ describe("browser telemetry exporter", () => {
     expect(attributes(records[0].attributes)).toEqual({
       "exception.type": "TypeError",
       "exception.message": "Failed for <email> at /v1/animas/<id>",
-      "exception.stacktrace":
-        "TypeError: Failed for <email> at /v1/animas/<id>\n    at send (/assets/index-abc.js:2:3)",
+      // The stack drops its message header, which is capped separately.
+      "exception.stacktrace": "    at send (/assets/index-abc.js:2:3)",
     });
     expect(records[1].body.stringValue).toBe("chat <id> was not saved");
-    // Object reasons are never serialized: they may hold content.
+    // Only Errors and strings are read: other values, even Error-shaped
+    // objects, may hold content. The two object reasons share one record.
     expect(records[2].body.stringValue).toBe("Unhandled rejection");
     expect(attributes(records[2].attributes)).toEqual({
       "exception.type": "object",
@@ -232,8 +234,8 @@ describe("browser telemetry exporter", () => {
       errors.dispatchEvent(fail(new Error("same failure")));
     for (let index = 0; index < MAX_QUEUED_LOGS * 3; index++) {
       const error = new Error(`failure ${index}`);
-      // Wide characters make each capped stack about 12 KB, so batches split.
-      error.stack = `Error: failure ${index}\n${"あ".repeat(5_000)}`;
+      // Wide characters make each capped stack line about 3 KB, so batches split.
+      error.stack = `Error: failure ${index}\n${"あい ".repeat(2_000)}`;
       errors.dispatchEvent(fail(error));
     }
     await vi.advanceTimersByTimeAsync(METRICS_INTERVAL_MS);
@@ -261,6 +263,20 @@ describe("browser telemetry exporter", () => {
       expect(bytes(request)).toBeLessThanOrEqual(MAX_REQUEST_BYTES);
     // A full batch leaves later records for the next interval instead of growing.
     expect(logs.length).toBeGreaterThan(1);
+  });
+
+  it("sanitizes a repeated failure once, however often it is thrown", async () => {
+    const { sent, errors, stop } = harness();
+    active = stop;
+    const error = new Error(`${"x ".repeat(2_500)}${uuid}`);
+    // Fake timers also freeze performance.now(), so measure with hrtime.
+    const started = process.hrtime.bigint();
+    for (let index = 0; index < 5_000; index++)
+      errors.dispatchEvent(fail(error));
+    const elapsedMs = Number(process.hrtime.bigint() - started) / 1e6;
+    expect(elapsedMs).toBeLessThan(250);
+    await vi.advanceTimersByTimeAsync(LOGS_INTERVAL_MS);
+    expect(logsOf(sent[0])).toHaveLength(1);
   });
 
   it("drops a failed batch, backs off and keeps recording without waiting", async () => {
@@ -307,16 +323,25 @@ describe("browser telemetry exporter", () => {
     const { sent, errors, visibility, stop } = harness();
     active = stop;
     recordUiInteraction({ action: "chat.submit" });
-    errors.dispatchEvent(fail(new Error("before leaving")));
+    for (let index = 0; index < MAX_QUEUED_LOGS; index++) {
+      const error = new Error(`before leaving ${index}`);
+      error.stack = `Error: before leaving ${index}\n${"あい ".repeat(2_000)}`;
+      errors.dispatchEvent(fail(error));
+    }
     visibility.visibilityState = "hidden";
     visibility.dispatchEvent(new Event("visibilitychange"));
     await vi.advanceTimersByTimeAsync(0);
 
-    expect(sent.map((request) => request.path).sort()).toEqual([
+    // Errors go first; both bodies together fit the browser's 64 KiB keepalive quota.
+    expect(sent.map((request) => request.path)).toEqual([
       "/api/telemetry/logs",
       "/api/telemetry/metrics",
     ]);
     expect(sent.every((request) => request.init.keepalive === true)).toBe(true);
+    expect(bytes(sent[0]) + bytes(sent[1])).toBeLessThanOrEqual(
+      MAX_REQUEST_BYTES,
+    );
+    expect(logsOf(sent[0]).length).toBeLessThan(MAX_QUEUED_LOGS);
   });
 
   it("stops listening and drops unsent data when stopped", async () => {

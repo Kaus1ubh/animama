@@ -20,6 +20,8 @@ export const MAX_SERIES_PER_INSTRUMENT = 16;
 export const MAX_QUEUED_LOGS = 32;
 /** Every request fits a same-origin forwarder's 64 KiB body limit. */
 export const MAX_REQUEST_BYTES = 64 * 1024;
+/** Page-hide flushes share the browser's 64 KiB in-flight keepalive quota. */
+const KEEPALIVE_REQUEST_BYTES = MAX_REQUEST_BYTES / 2;
 export const REQUEST_TIMEOUT_MS = 10_000;
 const MAX_BACKOFF_MS = 5 * 60_000;
 /** Room for the resource, scope and metric envelopes around measured items. */
@@ -33,6 +35,8 @@ const DELTA_TEMPORALITY = 1;
 const ERROR_SEVERITY = 17;
 const OVERFLOW_KEY = "overflow";
 const OVERFLOW: TelemetryAttributes = { "otel.metric.overflow": true };
+/** Characters of a failure's type, message and stack that identify a repeat. */
+const DEDUPE_PREFIX = 2_048;
 
 // OTLP/HTTP JSON follows the protobuf JSON mapping: 64-bit integers are strings.
 type AnyValue =
@@ -94,7 +98,10 @@ function bucketIndex(value: number): number {
   return index < 0 ? HISTOGRAM_BOUNDS.length : index;
 }
 
-/** Only an error's type, message and stack are read: other values may hold content. */
+/**
+ * Reads only an `Error`'s type, message and stack, or a thrown string; other
+ * values, even Error-shaped objects, may hold content and are never read.
+ */
 function describeFailure(reason: unknown): {
   type: string;
   message: string;
@@ -102,21 +109,16 @@ function describeFailure(reason: unknown): {
 } {
   if (typeof reason === "string")
     return { type: "string", message: reason, stack: null };
-  if (
-    reason &&
-    typeof reason === "object" &&
-    typeof (reason as { message?: unknown }).message === "string"
-  ) {
-    const { name, message, stack } = reason as {
-      name?: unknown;
-      message: string;
-      stack?: unknown;
-    };
-    return {
-      type: typeof name === "string" && name ? name : "Error",
-      message,
-      stack: typeof stack === "string" ? stack : null,
-    };
+  if (reason instanceof Error) {
+    const type =
+      typeof reason.name === "string" && reason.name ? reason.name : "Error";
+    const message = typeof reason.message === "string" ? reason.message : "";
+    let stack = typeof reason.stack === "string" ? reason.stack : null;
+    // V8 starts a stack with `${name}: ${message}`; the capped message goes once.
+    const header = message ? `${type}: ${message}` : type;
+    if (stack?.startsWith(header))
+      stack = stack.slice(header.length).replace(/^\n/, "") || null;
+    return { type, message, stack };
   }
   return {
     type: reason === null ? "null" : typeof reason,
@@ -202,15 +204,21 @@ export function startBrowserTelemetry(
     if (stopped || logs.length >= MAX_QUEUED_LOGS) return;
     try {
       const { type, message, stack } = describeFailure(reason);
+      // A repeated failure, such as a failing render loop, is queued (and
+      // sanitized) once per batch; the key is never exported.
+      const key = JSON.stringify([
+        type.slice(0, DEDUPE_PREFIX),
+        message.slice(0, DEDUPE_PREFIX),
+        (stack ?? "").slice(0, DEDUPE_PREFIX),
+      ]);
+      if (queuedLogKeys.has(key)) return;
       const text = message ? sanitizeText(message, MAX_MESSAGE_LENGTH) : "";
       const attributes: TelemetryAttributes = {
         "exception.type": sanitizeText(type, MAX_ATTRIBUTE_LENGTH),
       };
       if (text) attributes["exception.message"] = text;
-      if (stack) attributes["exception.stacktrace"] = sanitizeStack(stack);
-      // A repeated failure is queued once per batch.
-      const key = JSON.stringify(attributes);
-      if (queuedLogKeys.has(key)) return;
+      const frames = stack ? sanitizeStack(stack) : "";
+      if (frames) attributes["exception.stacktrace"] = frames;
       queuedLogKeys.add(key);
       logs.push({ key, time: Date.now(), body: text || fallback, attributes });
     } catch {
@@ -219,7 +227,7 @@ export function startBrowserTelemetry(
   }
   const onError = (event: Event) => {
     const { error, message } = event as ErrorEvent;
-    capture(error ?? { name: "Error", message }, "Uncaught error");
+    capture(error ?? message, "Uncaught error");
   };
   const onRejection = (event: Event) =>
     capture((event as PromiseRejectionEvent).reason, "Unhandled rejection");
@@ -269,7 +277,8 @@ export function startBrowserTelemetry(
     const taken = [...series];
     series.clear();
     windowStart = end;
-    let budget = MAX_REQUEST_BYTES - ENVELOPE_BYTES;
+    const limit = keepalive ? KEEPALIVE_REQUEST_BYTES : MAX_REQUEST_BYTES;
+    let budget = limit - ENVELOPE_BYTES;
     const metrics: object[] = [];
     for (const [instrument, points] of taken) {
       const dataPoints: object[] = [];
@@ -321,13 +330,13 @@ export function startBrowserTelemetry(
     const body = JSON.stringify({
       resourceMetrics: [{ resource, scopeMetrics: [{ scope, metrics }] }],
     });
-    if (byteLength(body) <= MAX_REQUEST_BYTES)
-      void send("metrics", body, keepalive);
+    if (byteLength(body) <= limit) void send("metrics", body, keepalive);
   }
 
   function exportLogs(keepalive = false): void {
     if (!ready("logs") || logs.length === 0) return;
-    let budget = MAX_REQUEST_BYTES - ENVELOPE_BYTES;
+    const limit = keepalive ? KEEPALIVE_REQUEST_BYTES : MAX_REQUEST_BYTES;
+    let budget = limit - ENVELOPE_BYTES;
     const logRecords: object[] = [];
     for (const record of logs) {
       const encoded = {
@@ -348,14 +357,14 @@ export function startBrowserTelemetry(
     const body = JSON.stringify({
       resourceLogs: [{ resource, scopeLogs: [{ scope, logRecords }] }],
     });
-    if (byteLength(body) <= MAX_REQUEST_BYTES)
-      void send("logs", body, keepalive);
+    if (byteLength(body) <= limit) void send("logs", body, keepalive);
   }
 
-  // `keepalive` lets the request outlive a page that is being hidden or unloaded.
+  // `keepalive` lets the request outlive a page that is being hidden or
+  // unloaded. Errors go first: they are the likelier reason the page is leaving.
   const flush = () => {
-    exportMetrics(true);
     exportLogs(true);
+    exportMetrics(true);
   };
   const onVisibilityChange = () => {
     if (visibility?.visibilityState === "hidden") flush();
