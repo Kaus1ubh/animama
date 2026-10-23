@@ -760,11 +760,19 @@ function SiteMenu({
   );
 }
 
-/** The app's logo: speech-bubble mark and rounded wordmark. */
+/**
+ * The app's logo: speech-bubble mark and rounded wordmark. The mark's `alt`
+ * names the lockup; a bare `span` cannot take `aria-label`, and the wordmark
+ * beside it is a decorative mask.
+ */
 function Wordmark({ light }: { light: boolean }) {
   return (
-    <span className="flex shrink-0 items-center gap-2" aria-label="Animama">
-      <img src="/brand/animama-mark.png" alt="" className="size-9 md:size-12" />
+    <span className="flex shrink-0 items-center gap-2">
+      <img
+        src="/brand/animama-mark.png"
+        alt="Animama"
+        className="size-9 md:size-12"
+      />
       <span
         aria-hidden="true"
         className={cn(
