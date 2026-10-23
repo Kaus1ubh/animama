@@ -11,7 +11,7 @@ import {
 } from "react";
 import { useTranslation } from "react-i18next";
 import { useFormatters } from "@animama/product-ui/i18n";
-import { type EmotionGroup } from "@/lib/emotion";
+import { type EmotionGroup, type TrackedEmotion } from "@/lib/emotion";
 import {
   buildEmotionPresentation,
   formatEmotionAverage,
@@ -33,6 +33,7 @@ type EmotionalStateProps = {
 type EmotionSelection = {
   group: EmotionGroup;
   input: MoodBloomSelectionInput;
+  emotion: TrackedEmotion | null;
 } | null;
 
 /** Plain-language mood summary shared by the Anima header and detail surfaces. */
@@ -107,8 +108,20 @@ export function EmotionDetails({
   );
   const [selection, setSelection] = useState<EmotionSelection>(null);
   const select = useCallback(
-    (group: EmotionGroup, input: MoodBloomSelectionInput) =>
-      setSelection({ group, input }),
+    (
+      group: EmotionGroup,
+      input: MoodBloomSelectionInput,
+      emotion: TrackedEmotion | null,
+    ) =>
+      // The bloom reports every pointer move; keep the same state unless
+      // the group, input or petal actually changed.
+      setSelection((current) =>
+        current?.group === group &&
+        current.input === input &&
+        current.emotion === emotion
+          ? current
+          : { group, input, emotion },
+      ),
     [],
   );
   const clearFocus = useCallback(() => setSelection(null), []);
@@ -155,6 +168,7 @@ export function EmotionDetails({
           emotionalState={emotionalState}
           selection={{
             group: selection?.group ?? null,
+            emotion: selection?.emotion ?? null,
             onSelect: select,
             onBlur: clearFocus,
             onClearPointer: clearPointer,
@@ -183,7 +197,15 @@ export function EmotionDetails({
               </p>
               <dl className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-1 text-xs">
                 {selected.emotions.map((emotion) => (
-                  <div key={emotion.emotion} className="flex gap-1.5">
+                  <div
+                    key={emotion.emotion}
+                    data-pointed={
+                      emotion.emotion === selection?.emotion
+                        ? "true"
+                        : undefined
+                    }
+                    className="data-[pointed=true]:text-foreground flex gap-1.5 data-[pointed=true]:font-medium"
+                  >
                     <dt>{emotion.label}</dt>
                     <dd className="tabular-nums">
                       {formatters.number(emotion.value)}

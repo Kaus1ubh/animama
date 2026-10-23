@@ -111,6 +111,51 @@ describe("EmotionDetails", () => {
     container.remove();
   });
 
+  it("singles out the petal under the pointer in the caption", async () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    await act(async () => {
+      root.render(
+        <EmotionDetails
+          emotionalState={{ joy: 24, amusement: 6 }}
+          showSummary={false}
+        />,
+      );
+    });
+    const delight = container.querySelector<SVGElement>(
+      '[data-emotion-group="delight"]',
+    )!;
+    const caption = document.getElementById(
+      delight.getAttribute("aria-describedby")!,
+    )!;
+    // happy-dom lays the bloom out at the origin, so this points just
+    // clockwise of Delight's centre (90°), at Joy's petal.
+    await act(async () => {
+      delight.dispatchEvent(
+        new MouseEvent("mousemove", { clientX: 10, clientY: 2, bubbles: true }),
+      );
+    });
+    expect(caption.textContent).toContain("Delight");
+    expect(caption.querySelector('[data-pointed="true"]')?.textContent).toBe(
+      "Joy24",
+    );
+    await act(async () => {
+      delight.dispatchEvent(
+        new MouseEvent("mousemove", {
+          clientX: 10,
+          clientY: -2,
+          bubbles: true,
+        }),
+      );
+    });
+    expect(caption.querySelector('[data-pointed="true"]')?.textContent).toBe(
+      "Amusement6",
+    );
+    await act(async () => root.unmount());
+    container.remove();
+  });
+
   it("keeps a tapped group until a tap elsewhere", async () => {
     const container = document.createElement("div");
     document.body.append(container);

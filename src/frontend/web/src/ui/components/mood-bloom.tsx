@@ -39,7 +39,14 @@ export type MoodBloomSelectionInput = "pointer" | "keyboard" | "touch";
  */
 export type MoodBloomSelection = {
   group: EmotionGroup | null;
-  onSelect: (group: EmotionGroup, input: MoodBloomSelectionInput) => void;
+  /** The petal under the pointer within the chosen group, if any. */
+  emotion?: TrackedEmotion | null;
+  /** `emotion` is the petal the pointer or tap is on; keyboard passes none. */
+  onSelect: (
+    group: EmotionGroup,
+    input: MoodBloomSelectionInput,
+    emotion: TrackedEmotion | null,
+  ) => void;
   /** Keyboard focus left a group. */
   onBlur: () => void;
   /** The pointer left a group. */
@@ -84,9 +91,25 @@ const POLLEN_SEC = 2.4;
  */
 const BLOOM_MIN_STRENGTH = 3;
 
-/** Each group's selectable wedge runs from the mascot's edge to the rim. */
+/** Half the drawing's width: room for the petals and the labelled rim. */
+const EXTENT = 128;
+
+/** Where each group's symbol and name sit, beyond its longest petal. */
+const RIM = 104;
+
+/** Faint reference rings at these values, so petal lengths can be compared. */
+const SCALE_RINGS = [10, 20, 30] as const;
+
+/** Opacity of groups other than the chosen one, and of a chosen petal's siblings. */
+const FADED = 0.15;
+const SIBLING = 0.55;
+
+/** The chosen group's petals grow by this much. */
+const CHOSEN_SCALE = 1.08;
+
+/** Each group's selectable wedge runs from the mascot's edge past its name. */
 const TARGET_INNER = 24;
-const TARGET_OUTER = 98;
+const TARGET_OUTER = EXTENT;
 
 /** One slim petal pointing up from the centre, `length` long. */
 function petalPath(length: number, width: number) {
@@ -127,6 +150,49 @@ function angleOf(emotion: TrackedEmotion) {
   return EMOTION_GROUPS.indexOf(group) * SLOT_DEG + (member - 1) * FAN_DEG;
 }
 
+/** A point `radius` out from the centre at `degrees` clockwise from the top. */
+function polar(degrees: number, radius: number) {
+  const radians = (degrees * Math.PI) / 180;
+  return { x: Math.sin(radians) * radius, y: -Math.cos(radians) * radius };
+}
+
+/**
+ * The emotion of `group` whose petal lies nearest `degrees` (clockwise from
+ * the top): each petal owns the part of its group's slot closest to it.
+ */
+export function emotionAtAngle(
+  group: EmotionGroup,
+  degrees: number,
+): TrackedEmotion {
+  const members = EMOTION_GROUP_MEMBERS[group] as readonly TrackedEmotion[];
+  // The offset from the slot's centre, folded into -180..180.
+  const offset =
+    ((((degrees - EMOTION_GROUPS.indexOf(group) * SLOT_DEG) % 360) + 540) %
+      360) -
+    180;
+  const member = Math.round(offset / FAN_DEG) + 1;
+  return members[Math.min(members.length - 1, Math.max(0, member))];
+}
+
+/**
+ * The petal of `group` under a pointer at (`clientX`, `clientY`), or null at
+ * the very centre. The drawing is centred in its square-fitted SVG, so the
+ * angle from the SVG box's centre is the angle in the drawing.
+ */
+function emotionAtPointer(
+  svg: SVGSVGElement | null,
+  group: EmotionGroup,
+  clientX: number,
+  clientY: number,
+): TrackedEmotion | null {
+  if (!svg) return null;
+  const box = svg.getBoundingClientRect();
+  const dx = clientX - (box.left + box.width / 2);
+  const dy = clientY - (box.top + box.height / 2);
+  if (dx === 0 && dy === 0) return null;
+  return emotionAtAngle(group, (Math.atan2(dx, -dy) * 180) / Math.PI);
+}
+
 /**
  * A flower of an Anima's 24 emotions: each emotion group is a fan of three
  * slim petals in its colour, one per emotion, whose length is how strongly
@@ -134,10 +200,12 @@ function angleOf(emotion: TrackedEmotion) {
  * on top, and they sway. The flower opens from a bud when mounted (remount it
  * to open again). Once her strongest emotion reaches `BLOOM_MIN_STRENGTH`,
  * that petal pulses whenever `beat` changes (a new reaction) and sheds a
- * little pollen. The three strongest groups carry a small symbol at their
- * tips, and her current mascot sits at the heart on a glow of her strongest
- * colour. With `selection`, each group is a button chosen by hover, keyboard
- * or tap; the chosen group stays bright while the others fade.
+ * little pollen. Faint rings mark 10, 20 and 30; every group's symbol and
+ * name sit around the rim, the three strongest emphasised, and her current
+ * mascot sits at the heart on a glow of her strongest colour. With
+ * `selection`, each group is a button chosen by hover, keyboard or tap: the
+ * chosen group's slot is tinted and its petals grow while the others fade,
+ * and the petal under the pointer shows its name and score at the rim.
  */
 export function MoodBloom({
   emotionalState,
@@ -184,9 +252,14 @@ export function MoodBloom({
   const named = presentation.topGroups.map(({ group }) => group);
   const pollenFrom = top ? Math.round(petalLength(values[top]) * 0.85) : 0;
   const selected = selection?.group ?? null;
+  // The petal under the pointer, only within the chosen group.
+  const pointed =
+    selected && selection?.emotion && GROUP_OF[selection.emotion] === selected
+      ? selection.emotion
+      : null;
   return (
     <svg
-      viewBox="-100 -100 200 200"
+      viewBox={`${-EXTENT} ${-EXTENT} ${EXTENT * 2} ${EXTENT * 2}`}
       className={cn("h-48 w-full overflow-visible", className)}
       role={selection ? "group" : "img"}
       aria-label={selection ? t("bloom.label") : presentation.feeling.label}
@@ -238,77 +311,125 @@ export function MoodBloom({
           <stop offset="100%" stopColor={presentation.color} stopOpacity={0} />
         </radialGradient>
       </defs>
+      {/* Reference rings on the fixed 0–30 scale, behind the petals. */}
+      <g aria-hidden="true" pointerEvents="none">
+        {SCALE_RINGS.map((value) => (
+          <circle
+            key={value}
+            data-bloom-ring={value}
+            r={petalLength(value)}
+            fill="none"
+            stroke="var(--border)"
+            strokeWidth={0.75}
+            strokeDasharray={value === EMOTION_MAX_VALUE ? undefined : "2 3"}
+          />
+        ))}
+      </g>
+      {/* The chosen group's slot, tinted in its colour. */}
+      {selected ? (
+        <path
+          data-bloom-highlight={selected}
+          d={wedgePath(TARGET_INNER, RIM - 10, SLOT_DEG)}
+          transform={`rotate(${EMOTION_GROUPS.indexOf(selected) * SLOT_DEG})`}
+          fill={EMOTION_PALETTE[selected]}
+          fillOpacity={0.08}
+          stroke={EMOTION_PALETTE[selected]}
+          strokeOpacity={0.35}
+          strokeWidth={1}
+          strokeLinejoin="round"
+          pointerEvents="none"
+          aria-hidden="true"
+        />
+      ) : null}
       {/* The drawing is decorative; selectable groups carry the labels. */}
       <g filter={`url(#${uid}-shadow)`} aria-hidden="true">
         {order.map((emotion) => {
           const group = GROUP_OF[emotion];
           const groupIndex = EMOTION_GROUPS.indexOf(group);
+          const opacity =
+            selected === null
+              ? 1
+              : selected !== group
+                ? FADED
+                : pointed && pointed !== emotion
+                  ? SIBLING
+                  : 1;
           return (
             <g
               key={emotion}
               transform={`rotate(${angleOf(emotion)})`}
-              opacity={selected && selected !== group ? 0.3 : 1}
+              opacity={opacity}
               className="transition-opacity duration-150 motion-reduce:transition-none"
             >
-              {/* Opening from a bud, group by group; each waits as a bud
+              {/* The chosen group grows a little (a CSS transform, so it
+                  eases; it scales about the flower's heart). */}
+              <g
+                style={{
+                  transform:
+                    selected === group ? `scale(${CHOSEN_SCALE})` : undefined,
+                }}
+                className="transition-transform duration-150 motion-reduce:transition-none"
+              >
+                {/* Opening from a bud, group by group; each waits as a bud
                   until its staggered start. */}
-              <g transform={still ? undefined : "scale(0.12)"}>
-                {still ? null : (
-                  <animateTransform
-                    attributeName="transform"
-                    type="scale"
-                    values="0.12; 1.06; 1"
-                    keyTimes="0; 0.7; 1"
-                    calcMode="spline"
-                    keySplines="0.2 0.8 0.3 1; 0.4 0 0.6 1"
-                    dur="0.8s"
-                    begin={`${groupIndex * 0.06}s`}
-                    fill="freeze"
-                  />
-                )}
-                {/* Swaying, each group at its own pace. */}
-                <g>
+                <g transform={still ? undefined : "scale(0.12)"}>
                   {still ? null : (
                     <animateTransform
                       attributeName="transform"
-                      type="rotate"
-                      values="-3 0 0; 3 0 0; -3 0 0"
-                      dur={`${3.6 + (groupIndex % 3) * 0.5}s`}
-                      begin={`${-groupIndex * 0.45}s`}
-                      repeatCount="indefinite"
+                      type="scale"
+                      values="0.12; 1.06; 1"
+                      keyTimes="0; 0.7; 1"
+                      calcMode="spline"
+                      keySplines="0.2 0.8 0.3 1; 0.4 0 0.6 1"
+                      dur="0.8s"
+                      begin={`${groupIndex * 0.06}s`}
+                      fill="freeze"
                     />
                   )}
-                  {/* The pulse when a reaction lands. */}
+                  {/* Swaying, each group at its own pace. */}
                   <g>
                     {still ? null : (
                       <animateTransform
-                        ref={(element) => {
-                          if (element)
-                            pulses.current.set(
-                              emotion,
-                              element as SVGAnimateTransformElement,
-                            );
-                          else pulses.current.delete(emotion);
-                        }}
                         attributeName="transform"
-                        type="scale"
-                        values="1; 1.16; 1"
-                        keyTimes="0; 0.4; 1"
-                        dur="0.6s"
-                        begin="indefinite"
+                        type="rotate"
+                        values="-3 0 0; 3 0 0; -3 0 0"
+                        dur={`${3.6 + (groupIndex % 3) * 0.5}s`}
+                        begin={`${-groupIndex * 0.45}s`}
+                        repeatCount="indefinite"
                       />
                     )}
-                    <path
-                      data-bloom-petal={emotion}
-                      d={petalPath(petalLength(values[emotion]), 0.2)}
-                      fill={`url(#${uid}-${group})`}
-                      stroke={EMOTION_PALETTE[group]}
-                      strokeWidth={1}
-                      strokeOpacity={0.75}
-                      strokeLinejoin="round"
-                    >
-                      <title>{emotionLabel(emotion, t)}</title>
-                    </path>
+                    {/* The pulse when a reaction lands. */}
+                    <g>
+                      {still ? null : (
+                        <animateTransform
+                          ref={(element) => {
+                            if (element)
+                              pulses.current.set(
+                                emotion,
+                                element as SVGAnimateTransformElement,
+                              );
+                            else pulses.current.delete(emotion);
+                          }}
+                          attributeName="transform"
+                          type="scale"
+                          values="1; 1.16; 1"
+                          keyTimes="0; 0.4; 1"
+                          dur="0.6s"
+                          begin="indefinite"
+                        />
+                      )}
+                      <path
+                        data-bloom-petal={emotion}
+                        d={petalPath(petalLength(values[emotion]), 0.2)}
+                        fill={`url(#${uid}-${group})`}
+                        stroke={EMOTION_PALETTE[group]}
+                        strokeWidth={1}
+                        strokeOpacity={0.75}
+                        strokeLinejoin="round"
+                      >
+                        <title>{emotionLabel(emotion, t)}</title>
+                      </path>
+                    </g>
                   </g>
                 </g>
               </g>
@@ -361,31 +482,44 @@ export function MoodBloom({
           })}
         </g>
       )}
-      {/* A symbol at the tip of each of the three strongest groups. */}
-      {named.map((group) => {
-        const longest = Math.max(
-          ...EMOTION_GROUP_MEMBERS[group].map((emotion) => values[emotion]),
-        );
-        const tip =
-          ((EMOTION_GROUPS.indexOf(group) * SLOT_DEG - 90) * Math.PI) / 180;
-        const at = petalLength(longest) + 11;
+      {/* Every group's symbol and name around the rim, so the bloom reads
+          without hovering: the strongest three stand out, groups she does
+          not feel at all are faint. Names sit on the outer side. */}
+      {presentation.groups.map(({ group, label, maximum }) => {
+        const at = polar(EMOTION_GROUPS.indexOf(group) * SLOT_DEG, RIM);
+        const strong = named.includes(group);
+        const chosen = selected === group;
+        const opacity = selected
+          ? chosen
+            ? 1
+            : 0.35
+          : strong
+            ? 1
+            : maximum > 0
+              ? 0.75
+              : 0.5;
         const Icon = GROUP_ICONS[group];
-        const label = presentation.groups.find(
-          (entry) => entry.group === group,
-        )?.label;
+        // While a petal is pointed at, its group's name gives way to that
+        // emotion and its score. Beside the flower, that longer name runs
+        // inward from the symbol so it stays inside the drawing.
+        const pointedHere = chosen ? pointed : null;
+        const inward = pointedHere !== null && Math.abs(at.x) > RIM - 1;
         return (
           <g
             key={group}
-            data-bloom-tip={group}
+            data-bloom-rim={group}
+            data-strong={strong ? "true" : undefined}
             aria-hidden="true"
-            transform={`translate(${Math.cos(tip) * at} ${Math.sin(tip) * at})`}
+            pointerEvents="none"
+            transform={`translate(${at.x.toFixed(2)} ${at.y.toFixed(2)})`}
+            opacity={opacity}
+            className="transition-opacity duration-150 motion-reduce:transition-none"
           >
-            <title>{label}</title>
             <circle
               r={8}
               fill="var(--card)"
               stroke={EMOTION_PALETTE[group]}
-              strokeWidth={1}
+              strokeWidth={chosen ? 2 : 1}
             />
             <Icon
               x={-5}
@@ -395,6 +529,35 @@ export function MoodBloom({
               color={EMOTION_PALETTE[group]}
               strokeWidth={2.4}
             />
+            <text
+              data-bloom-name={group}
+              x={inward ? Math.sign(at.x) * 8 : 0}
+              y={at.y < -1 ? -12 : 19}
+              textAnchor={inward ? (at.x > 0 ? "end" : "start") : "middle"}
+              fontSize={10}
+              fontWeight={strong || chosen ? 600 : 400}
+              fill={
+                chosen
+                  ? EMOTION_PALETTE[group]
+                  : strong
+                    ? "var(--foreground)"
+                    : "var(--muted-foreground)"
+              }
+              stroke="var(--card)"
+              strokeWidth={pointedHere ? 3 : 0}
+              paintOrder="stroke"
+            >
+              {pointedHere ? (
+                <>
+                  {emotionLabel(pointedHere, t)}{" "}
+                  <tspan className="tabular-nums">
+                    {formatters.number(values[pointedHere])}
+                  </tspan>
+                </>
+              ) : (
+                label
+              )}
+            </text>
           </g>
         );
       })}
@@ -441,8 +604,9 @@ export function MoodBloom({
 }
 
 /**
- * A transparent wedge over a group's slot that selects it on hover, focus,
- * Enter, Space or tap, and shows a focus ring for keyboard users.
+ * A transparent wedge over a group's slot, out past its name, that selects it
+ * on hover, focus, Enter, Space or tap, and shows a focus ring for keyboard
+ * users. Pointer and tap selections also report the petal under the pointer.
  */
 function BloomGroupTarget({
   group,
@@ -454,8 +618,22 @@ function BloomGroupTarget({
   selection: MoodBloomSelection;
 }) {
   const pointerType = useRef<string | null>(null);
-  const select = (input: MoodBloomSelectionInput) =>
-    selection.onSelect(group, input);
+  const select = (
+    input: MoodBloomSelectionInput,
+    event?: { clientX: number; clientY: number; currentTarget: Element },
+  ) =>
+    selection.onSelect(
+      group,
+      input,
+      event
+        ? emotionAtPointer(
+            event.currentTarget.closest("svg"),
+            group,
+            event.clientX,
+            event.clientY,
+          )
+        : null,
+    );
   return (
     <g
       role="button"
@@ -465,7 +643,9 @@ function BloomGroupTarget({
       data-emotion-group={group}
       data-selected={selection.group === group ? "true" : undefined}
       transform={`rotate(${EMOTION_GROUPS.indexOf(group) * SLOT_DEG})`}
-      onMouseEnter={() => select("pointer")}
+      onMouseEnter={(event) => select("pointer", event)}
+      // Follows the pointer from petal to petal within the group.
+      onMouseMove={(event) => select("pointer", event)}
       onMouseLeave={selection.onClearPointer}
       onPointerDown={(event) => {
         pointerType.current = event.pointerType;
@@ -486,8 +666,8 @@ function BloomGroupTarget({
           return;
         selection.onBlur();
       }}
-      onClick={() =>
-        select(pointerType.current === "touch" ? "touch" : "pointer")
+      onClick={(event) =>
+        select(pointerType.current === "touch" ? "touch" : "pointer", event)
       }
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") {

@@ -435,19 +435,23 @@ Current behavior:
   mappings. Domain normalization, averages and canonical tie-breaking are unchanged.
 - Expanded details use the mood bloom: each group, in canonical order clockwise
   from the top, is a fan of three petals in its color, one per emotion, whose
-  length grows linearly with the score on a fixed 0–30 scale. The current mascot
-  sits at the center on a glow of the dominant group's color, and the three
-  strongest groups carry a symbol at their petal tips. Petals open from a bud on
-  mount and sway; once the strongest emotion reaches 3, its petal sheds pollen,
-  and it pulses when a consumer passes a reaction `beat` (the details surfaces
-  pass none). Reduced motion shows a still bloom.
-- Each group's slot is a button: hovering, focusing or tapping it brightens that
-  group, dims the others and reveals the group with its three constituents in a
-  reserved caption below the bloom, so details never obscure it. Its accessible
-  name lists the group maximum and constituent scores. There is no separate
-  legend, permanent detail card or diagnostic source/scale copy. Leaving the bloom
-  clears pointer selection, a tap elsewhere clears touch selection, and keyboard
-  focus remains independently inspectable. Color supplements labels rather than
+  length grows linearly with the score on a fixed 0–30 scale; faint rings mark
+  10, 20 and 30. Every group's symbol and name sit around the rim: the three
+  strongest are emphasized and groups at zero are faint. The current mascot sits
+  at the center on a glow of the dominant group's color. Petals open from a bud
+  on mount and sway; once the strongest emotion reaches 3, its petal sheds
+  pollen, and it pulses when a consumer passes a reaction `beat` (the details
+  surfaces pass none). Reduced motion shows a still bloom.
+- Each group's slot, out past its name, is a button: hovering, focusing or
+  tapping it tints the slot, grows its petals, fades the other groups and
+  reveals the group with its three constituents in a reserved caption below the
+  bloom, so details never obscure it. A pointer or tap also picks the petal
+  nearest its angle: that petal stays bright while its siblings dim, the rim
+  shows its emotion and score in place of the group name, and the caption
+  emphasizes it. The keyboard selects whole groups. Each button's accessible
+  name lists the group maximum and constituent scores. Leaving the bloom clears
+  pointer selection, a tap elsewhere clears touch selection, and keyboard focus
+  remains independently inspectable. Color supplements labels rather than
   replacing them.
 - Neutral shows “Feeling neutral” without empty-state copy or fabricated bars.
   The profile hides its emotion disclosure while neutral; management retains the
