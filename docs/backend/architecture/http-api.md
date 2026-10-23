@@ -169,7 +169,7 @@ local server package, so any composition can return the same contract; the local
 router is a thin adapter. `runtime_kind` is presentation metadata (`desktop`,
 `self_hosted_web` or `hosted`), not an authentication mode or a feature gate;
 the local composition never reports `hosted`. Capability schema version 2 is
-exported in `local-http` contract version 12.0.0. `chat`, `model_selection` and
+exported in `local-http` contract version 13.0.0. `chat`, `model_selection` and
 `model_role_selection` admit chat and choices from the composition's catalog,
 independently of provider administration. The local adapter reports them true.
 `provider_credentials` and `local_filesystem_administration` describe owner key
@@ -213,6 +213,13 @@ only the local composition does. Its
 ids, Google's prebuilt voices and the defaults (`gemini-3.8-flash-lite-tts`,
 `Kore`). React offers Gemini only while it is present; see
 [voice and speech](../integrations/voice-and-speech.md#gemini-tts).
+`browser_telemetry` is absent or null unless the composition forwards browser
+telemetry. The local composition never reports it, even with its
+`/api/telemetry/{signal}` forwarder enabled. When present, its `path` (default
+`/api/telemetry`) is a relative same-origin path matching
+`^(/[A-Za-z0-9_-]+)+$`, and the web app posts bounded OTLP/HTTP JSON metrics and
+error logs to `{path}/metrics` and `{path}/logs`; see
+[browser telemetry](../../frontend/architecture/overview.md#browser-telemetry).
 
 ## Web Search
 

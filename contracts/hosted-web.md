@@ -202,10 +202,10 @@ shows that a newer sign-in replaced the one it targeted.
 ## Capabilities and requests
 
 The sole wire schema is `app/contracts/runtime_capabilities.py`, exported offline
-in `local-http` version **12.0.0** with capability `schema_version: 2`. The generated
+in `local-http` version **13.0.0** with capability `schema_version: 2`. The generated
 TypeScript `RuntimeCapabilities` and validator are the same contract.
 `ProductRuntimeCapabilities` is a derived `Pick` for the existing extracted chat
-surface, not another wire schema. `runtime-contracts` is version 0.12.0 and
+surface, not another wire schema. `runtime-contracts` is version 0.13.0 and
 `product-ui` is version 0.14.0. Consumers explicitly admit
 the new contract major before adoption.
 
@@ -227,6 +227,16 @@ Web search use follows the runtime fields `web_search.configured`, `backend` and
 provisions search reports `configured: true` with its backend, and tool-capable
 models then offer and request `native_tools: ["web_search"]`, while owner search
 settings stay unavailable.
+
+Browser telemetry is off unless the context's capabilities include
+`browser_telemetry: {"path": "<relative path>"}`. The common app then posts
+OTLP/HTTP JSON metrics and error logs to `{path}/metrics` and `{path}/logs`
+through the admitted session's fetch, so each post carries the session's CSRF
+header and stops when the session ends. Each body is at most 64 KiB. URLs are
+reduced to their path, and user agents and identifier-shaped values are replaced.
+Error messages are capped but are free text, so the receiving forwarder still
+validates and sanitizes every body. See
+[browser telemetry](../docs/frontend/architecture/overview.md#browser-telemetry).
 
 `offline_speech_enabled` and its versions describe current Parakeet availability,
 not permission to use voice. An absent optional set does not remove browser voice,
