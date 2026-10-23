@@ -182,6 +182,7 @@ export function AnimaAppearanceDialog({
   const animaSettings = useAnimaSettings(animaId, { enabled: open });
   const updateAnimaSettings = useUpdateAnimaSettings();
   const { resolvedTheme } = useTheme();
+  const stageTheme = resolvedTheme === "dark" ? "dark" : "light";
   const storedPreferences =
     (animaSettings.data?.preferences as SettingsPreferences | undefined) ??
     null;
@@ -233,14 +234,14 @@ export function AnimaAppearanceDialog({
       profile_image: initial("profile"),
       background_image: {
         ...initial("background"),
-        scene: stageSceneChoice(storedPreferences),
+        scene: stageSceneChoice(storedPreferences, stageTheme),
       },
     });
     setPendingUpload(null);
     setStatus(null);
     clearSaveFailure();
     setProgress(null);
-  }, [clearSaveFailure, loadout.data, open, storedPreferences]);
+  }, [clearSaveFailure, loadout.data, open, stageTheme, storedPreferences]);
 
   useEffect(() => () => abortRef.current?.abort(), []);
 
@@ -251,16 +252,14 @@ export function AnimaAppearanceDialog({
   const defaultProfile = useAnimaPresentationImage(
     showsDefaultProfile ? profileThumbnail : null,
   );
-  const draftScene = draft.scene ?? stageSceneChoice(storedPreferences);
+  const draftScene =
+    draft.scene ?? stageSceneChoice(storedPreferences, stageTheme);
   const previewUrl = draft.itemId
     ? selectedPreview.url
     : showsDefaultProfile
       ? defaultProfile.url
       : use === "background" && draftScene !== "none"
-        ? appStageBackgroundUrl(
-            draftScene,
-            resolvedTheme === "dark" ? "dark" : "light",
-          )
+        ? appStageBackgroundUrl(draftScene, stageTheme)
         : null;
   const previewPending = draft.itemId
     ? selectedPreview.isPending
@@ -338,7 +337,7 @@ export function AnimaAppearanceDialog({
       if (
         use === "background" &&
         !draft.itemId &&
-        draftScene !== stageSceneChoice(storedPreferences)
+        draftScene !== stageSceneChoice(storedPreferences, stageTheme)
       ) {
         await updateAnimaSettings.mutateAsync({
           animaId,

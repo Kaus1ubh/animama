@@ -29,7 +29,11 @@ export type StageSceneId = (typeof STAGE_SCENES)[number];
 /** A scene, or `"none"` for the plain theme background. */
 export type StageSceneChoice = StageSceneId | "none";
 
-export const DEFAULT_STAGE_SCENE: StageSceneId = "dreamy";
+/** The scene an Anima without a stored choice uses in each theme. */
+export const DEFAULT_STAGE_SCENES: Record<StageTheme, StageSceneId> = {
+  light: "dreamy",
+  dark: "sakura",
+};
 
 /**
  * What to draw behind the Avatar. In chat an Anima's bound background image
@@ -58,14 +62,15 @@ export function showcaseBackgroundUrl(theme: StageTheme): string {
 
 /**
  * The Anima's stored `presentation.stage_background`; missing or unknown
- * values fall back to the default scene.
+ * values fall back to the theme's default scene.
  */
 export function stageSceneChoice(
   preferences: SettingsPreferences | null | undefined,
+  theme: StageTheme,
 ): StageSceneChoice {
   const value = preferences?.presentation?.stage_background;
   if (value === "none") return "none";
-  return isStageSceneId(value) ? value : DEFAULT_STAGE_SCENE;
+  return isStageSceneId(value) ? value : DEFAULT_STAGE_SCENES[theme];
 }
 
 export function resolveStageBackground({
