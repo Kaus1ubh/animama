@@ -456,7 +456,7 @@ function Header({
     focusRing(light),
     light
       ? "text-white"
-      : "text-foreground/75 hover:text-foreground dark:text-foreground/80",
+      : "text-foreground/75 hover:text-foreground dark:text-foreground/80 dark:hover:text-foreground",
   );
   const divider = (
     <span
@@ -632,7 +632,7 @@ function ThemeToggle({
         focusRing(light),
         light
           ? "text-white"
-          : "text-foreground/75 hover:text-foreground dark:text-foreground/80",
+          : "text-foreground/75 hover:text-foreground dark:text-foreground/80 dark:hover:text-foreground",
       )}
     >
       <Icon className="size-4" aria-hidden="true" />
