@@ -1,9 +1,12 @@
 @custom-variant dark (&:is(.dark *));
 /* ANIMA THEME
    Brand hues (primary, secondary, accent and their sidebar and ring
-   counterparts) are provisional, especially in dark mode. Status colours
-   (success, warning, info) are text and icon hues; use /10 for tinted
-   backgrounds and /30 for borders. */
+   counterparts) are provisional, especially in dark mode. The ring follows
+   primary; in light mode it and destructive are deeper than the pastel
+   hues so focus indicators reach 3:1 and red text and button labels reach
+   4.5:1 on theme surfaces.
+   Status colours (success, warning, info) are text and icon hues; use /10
+   for tinted backgrounds and /30 for borders. */
 :root {
   --background: hsl(48 33.3333% 97.0588%);
   --foreground: hsl(0 0% 20%);
@@ -17,16 +20,16 @@
   --secondary-foreground: hsl(0 0% 0%);
   --muted: hsl(50.2 27.4% 87.1%);
   --muted-foreground: hsl(0 0% 43.1373%);
-  --accent: hsl(78 91.6667% 76.4706%);
-  --accent-foreground: hsl(0 0% 0%);
-  --destructive: hsl(0 84.2365% 60.1961%);
+  --accent: #e3f2fb;
+  --accent-foreground: #333333;
+  --destructive: hsl(0 74% 47%);
   --destructive-foreground: hsl(0 0% 100%);
   --success: oklch(50.8% 0.118 165.612);
   --warning: oklch(55.5% 0.163 48.998);
   --info: oklch(50% 0.134 242.749);
   --border: hsl(0 0% 83.1373%);
   --input: hsl(0 0% 83.1373%);
-  --ring: hsl(349.5238 100% 87.6471%);
+  --ring: hsl(199 80% 42%);
   --chart-1: hsl(349.5238 100% 87.6471%);
   --chart-2: hsl(197.4 71.4286% 72.549%);
   --chart-3: hsl(78 91.6667% 76.4706%);
@@ -36,10 +39,10 @@
   --sidebar-foreground: hsl(60 2.521% 23.3333%);
   --sidebar-primary: hsl(349.5238 100% 87.6471%);
   --sidebar-primary-foreground: hsl(0 0% 0%);
-  --sidebar-accent: hsl(78 91.6667% 76.4706%);
-  --sidebar-accent-foreground: hsl(0 0% 0%);
+  --sidebar-accent: #d6eaf6;
+  --sidebar-accent-foreground: #3c3c3a;
   --sidebar-border: hsl(0 0% 92.1569%);
-  --sidebar-ring: hsl(349.5238 100% 87.6471%);
+  --sidebar-ring: hsl(199 80% 42%);
   --radius: 0.5rem;
   --shadow-x: 0;
   --shadow-y: 1px;
@@ -64,11 +67,11 @@
 }
 
 .dark {
-  --background: hsl(220 14.7541% 11.9608%);
+  --background: #21252e;
   --foreground: hsl(0 0% 89.8039%);
-  --card: hsl(197.1429 6.9307% 19.8039%);
+  --card: #2b303a;
   --card-foreground: hsl(0 0% 89.8039%);
-  --popover: hsl(197.1429 6.9307% 19.8039%);
+  --popover: #2b303a;
   --popover-foreground: hsl(0 0% 89.8039%);
   --primary: hsl(330 100% 80%);
   --primary-foreground: hsl(0 0% 0%);
@@ -76,9 +79,9 @@
   --secondary-foreground: hsl(0 0% 0%);
   --muted: hsl(0 0% 26.6667%);
   --muted-foreground: hsl(0 0% 63.9216%);
-  --accent: hsl(78 91.6667% 76.4706%);
-  --accent-foreground: hsl(0 0% 0%);
-  --destructive: hsl(0 84.2365% 60.1961%);
+  --accent: #6e3a5a;
+  --accent-foreground: #e5e5e5;
+  --destructive: hsl(0 91% 71%);
   --destructive-foreground: hsl(0 0% 100%);
   --success: oklch(76.5% 0.177 163.223);
   --warning: oklch(82.8% 0.189 84.429);
@@ -91,12 +94,12 @@
   --chart-3: hsl(197.4 71.4286% 72.549%);
   --chart-4: hsl(60 100% 50%);
   --chart-5: hsl(48 100% 50%);
-  --sidebar: hsl(220 14.7541% 11.9608%);
+  --sidebar: #21252e;
   --sidebar-foreground: hsl(0 0% 89.8039%);
   --sidebar-primary: hsl(330 100% 80%);
   --sidebar-primary-foreground: hsl(0 0% 0%);
-  --sidebar-accent: hsl(197.4 71.4286% 72.549%);
-  --sidebar-accent-foreground: hsl(0 0% 0%);
+  --sidebar-accent: #6e3a5a;
+  --sidebar-accent-foreground: #e5e5e5;
   --sidebar-border: hsl(0 0% 26.6667%);
   --sidebar-ring: hsl(330 100% 80%);
   --radius: 0.5rem;
