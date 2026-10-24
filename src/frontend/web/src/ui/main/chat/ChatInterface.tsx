@@ -42,7 +42,7 @@ import { MemoryCue } from "./MemoryCue";
 import { useFirstChatSuggestions } from "./useFirstChatSuggestions";
 import { useDictation } from "@/hooks/use-dictation";
 import {
-  ChatLoadingStatusLine,
+  ChatLoadingStatusLines,
   useChatLoadingStatus,
   type ChatLoadingStatus,
 } from "./ChatLoadingStatus";
@@ -358,7 +358,10 @@ export function ChatInterfaceView({
                 {contentWarning.message}
               </p>
             ) : loadingStatus ? (
-              <ChatLoadingStatusLine status={loadingStatus} canChat={canChat} />
+              <ChatLoadingStatusLines
+                status={loadingStatus}
+                canChat={canChat}
+              />
             ) : null}
             {showPromptSuggestions ? (
               <div className="mb-2 flex flex-wrap gap-2">

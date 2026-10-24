@@ -236,8 +236,8 @@ to recover changed content; do not clear the installation or alter its owner.
 `playbackStatus` reports `preparing`, `ready`, or `degraded`, and safe
 reason-coded diagnostics back one discreet warning surface. While optional
 work continues, a usable avatar is not covered by a loading overlay. The status
-line above the chat input (`ChatLoadingStatus.tsx`) names each item still in
-progress: the Avatar until its first posed frame, then animations and effects
+lines above the chat input (`ChatLoadingStatus.tsx`) show one line for each item
+still in progress: the Avatar until its first posed frame, then animations and effects
 with completed/total members, the PocketTTS model during its first load,
 Parakeet while dictation or Voice Mode starts, and a Pocket voice installing
 through model assets. Local reads say "Loading"; only that voice install says

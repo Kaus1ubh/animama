@@ -64,8 +64,8 @@ export function useChatLoadingStatus({
   };
 }
 
-/** One line naming each pending item, with its model and whether it loads or downloads. */
-export function ChatLoadingStatusLine({
+/** One line per pending item, naming its model and whether it loads or downloads. */
+export function ChatLoadingStatusLines({
   status,
   canChat,
 }: {
@@ -74,42 +74,51 @@ export function ChatLoadingStatusLine({
 }) {
   const { t } = useTranslation("chat");
   const formatters = useFormatters();
-  const items: string[] = [];
-  if (status.avatar) items.push(t("loadingStatus.avatar"));
+  const lines: { key: string; text: string }[] = [];
+  if (status.avatar)
+    lines.push({ key: "avatar", text: t("loadingStatus.avatar") });
   if (status.content)
-    items.push(
-      status.content.total > 0
-        ? t("loadingStatus.contentProgress", status.content)
-        : t("loadingStatus.content"),
-    );
-  if (status.textToSpeech) items.push(t("loadingStatus.textToSpeech"));
-  if (status.speechToText) items.push(t("loadingStatus.speechToText"));
-  const sentences: string[] = [];
-  if (items.length)
-    sentences.push(t("loadingStatus.loading", { items: items.join(" · ") }));
+    lines.push({
+      key: "content",
+      text:
+        status.content.total > 0
+          ? t("loadingStatus.contentProgress", status.content)
+          : t("loadingStatus.content"),
+    });
+  if (status.textToSpeech)
+    lines.push({ key: "tts", text: t("loadingStatus.textToSpeech") });
+  if (status.speechToText)
+    lines.push({ key: "stt", text: t("loadingStatus.speechToText") });
   const download = status.voiceDownload;
   if (download) {
     const values = {
       name: download.name,
       size: formatters.fileSize(download.sizeBytes),
     };
-    sentences.push(
-      download.progress === null
-        ? t("loadingStatus.voiceDownload", values)
-        : t("loadingStatus.voiceDownloadProgress", {
-            ...values,
-            percent: formatters.number(download.progress, {
-              style: "percent",
-              maximumFractionDigits: 0,
+    lines.push({
+      key: "voiceDownload",
+      text:
+        download.progress === null
+          ? t("loadingStatus.voiceDownload", values)
+          : t("loadingStatus.voiceDownloadProgress", {
+              ...values,
+              percent: formatters.number(download.progress, {
+                style: "percent",
+                maximumFractionDigits: 0,
+              }),
             }),
-          }),
-    );
+    });
   }
-  if (!sentences.length) return null;
-  if (canChat) sentences.push(t("loadingStatus.canChat"));
+  if (!lines.length) return null;
+  if (canChat) lines.push({ key: "canChat", text: t("loadingStatus.canChat") });
   return (
-    <p className="text-muted-foreground mb-2 px-1 text-xs" role="status">
-      {sentences.join(" ")}
-    </p>
+    <div
+      className="text-muted-foreground mb-2 space-y-0.5 px-1 text-xs"
+      role="status"
+    >
+      {lines.map((line) => (
+        <p key={line.key}>{line.text}</p>
+      ))}
+    </div>
   );
 }

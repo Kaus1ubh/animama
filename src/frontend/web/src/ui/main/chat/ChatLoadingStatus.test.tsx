@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from "@/test/runtime-markup";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
-  ChatLoadingStatusLine,
+  ChatLoadingStatusLines,
   useChatLoadingStatus,
   type ChatLoadingStatus,
 } from "@/ui/main/chat/ChatLoadingStatus";
@@ -42,63 +42,83 @@ const idle: ChatLoadingStatus = {
   voiceDownload: null,
 };
 
-function line(status: Partial<ChatLoadingStatus>, canChat = false) {
-  return renderToStaticMarkup(
-    <ChatLoadingStatusLine status={{ ...idle, ...status }} canChat={canChat} />,
-  ).replace(/<[^>]+>/g, "");
+/** The rendered status lines, in order. */
+function linesOf(markup: string): string[] {
+  return [...markup.matchAll(/<p>(.*?)<\/p>/g)].map((match) => match[1]);
+}
+
+function lines(status: Partial<ChatLoadingStatus>, canChat = false) {
+  return linesOf(
+    renderToStaticMarkup(
+      <ChatLoadingStatusLines
+        status={{ ...idle, ...status }}
+        canChat={canChat}
+      />,
+    ),
+  );
 }
 
 function Harness({ isDictationPreparing = false }) {
   const status = useChatLoadingStatus({ isDictationPreparing });
-  return <ChatLoadingStatusLine status={status} canChat />;
+  return <ChatLoadingStatusLines status={status} canChat />;
 }
 
-function routeLine(isDictationPreparing = false) {
-  return renderToStaticMarkup(
-    <Harness isDictationPreparing={isDictationPreparing} />,
-  ).replace(/<[^>]+>/g, "");
+function routeLines(isDictationPreparing = false) {
+  return linesOf(
+    renderToStaticMarkup(
+      <Harness isDictationPreparing={isDictationPreparing} />,
+    ),
+  );
 }
 
-describe("ChatLoadingStatusLine", () => {
+describe("ChatLoadingStatusLines", () => {
   it("renders nothing when nothing is pending", () => {
-    expect(line({}, true)).toBe("");
+    expect(
+      renderToStaticMarkup(<ChatLoadingStatusLines status={idle} canChat />),
+    ).toBe("");
   });
 
-  it("names every local item after one Loading verb", () => {
+  it("stacks one Loading line per local item", () => {
     expect(
-      line({
+      lines({
         avatar: true,
         content: { completed: 31, total: 40 },
         textToSpeech: true,
         speechToText: true,
       }),
-    ).toBe(
-      "Loading avatar · animations and effects (31/40) · Text-to-Speech (PocketTTS) · Speech-to-Text (Parakeet)…",
-    );
+    ).toEqual([
+      "Loading avatar…",
+      "Loading animations and effects (31/40)…",
+      "Loading Text-to-Speech (PocketTTS)…",
+      "Loading Speech-to-Text (Parakeet)…",
+    ]);
   });
 
   it("omits an unknown content count and says when chat is available", () => {
-    expect(line({ content: { completed: 0, total: 0 } }, true)).toBe(
-      "Loading animations and effects… You can chat now.",
-    );
+    expect(lines({ content: { completed: 0, total: 0 } }, true)).toEqual([
+      "Loading animations and effects…",
+      "You can chat now.",
+    ]);
   });
 
   it("says Downloading only for a voice install, with size and progress", () => {
     const voiceDownload = { name: "Azelma", sizeBytes: 8 * 1024 ** 2 };
-    expect(line({ voiceDownload: { ...voiceDownload, progress: 0.42 } })).toBe(
-      "Downloading voice Azelma (8 MB)… 42%",
-    );
     expect(
-      line(
+      lines({ voiceDownload: { ...voiceDownload, progress: 0.42 } }),
+    ).toEqual(["Downloading voice Azelma (8 MB)… 42%"]);
+    expect(
+      lines(
         {
           textToSpeech: true,
           voiceDownload: { ...voiceDownload, progress: null },
         },
         true,
       ),
-    ).toBe(
-      "Loading Text-to-Speech (PocketTTS)… Downloading voice Azelma (8 MB)… You can chat now.",
-    );
+    ).toEqual([
+      "Loading Text-to-Speech (PocketTTS)…",
+      "Downloading voice Azelma (8 MB)…",
+      "You can chat now.",
+    ]);
   });
 });
 
@@ -115,34 +135,37 @@ describe("useChatLoadingStatus", () => {
   });
 
   it("shows the Avatar first, then content progress once it is visible", () => {
-    expect(routeLine()).toBe("Loading avatar… You can chat now.");
+    expect(routeLines()).toEqual(["Loading avatar…", "You can chat now."]);
     fixture.mounted = {
       playbackStatus: "preparing",
       avatarVisualStatus: "visible",
       preparationProgress: { completedMembers: 3, totalMembers: 9 },
     };
-    expect(routeLine()).toBe(
-      "Loading animations and effects (3/9)… You can chat now.",
-    );
+    expect(routeLines()).toEqual([
+      "Loading animations and effects (3/9)…",
+      "You can chat now.",
+    ]);
     fixture.mounted.playbackStatus = "ready";
-    expect(routeLine()).toBe("");
+    expect(routeLines()).toEqual([]);
   });
 
   it("reports PocketTTS only during its first load and Parakeet while dictation prepares", () => {
     fixture.mounted.playbackStatus = "ready";
     fixture.mounted.avatarVisualStatus = "visible";
     fixture.pocket = { ready: false, phase: "loading" };
-    expect(routeLine(true)).toBe(
-      "Loading Text-to-Speech (PocketTTS) · Speech-to-Text (Parakeet)… You can chat now.",
-    );
+    expect(routeLines(true)).toEqual([
+      "Loading Text-to-Speech (PocketTTS)…",
+      "Loading Speech-to-Text (Parakeet)…",
+      "You can chat now.",
+    ]);
     fixture.pocket = { ready: true, phase: "loading" };
-    expect(routeLine()).toBe("");
+    expect(routeLines()).toEqual([]);
   });
 
   it("reads a downloading voice from the shared cache without fetching", () => {
     fixture.mounted.playbackStatus = "ready";
     fixture.downloads.azelma = { status: "downloading", progress: 0.5 };
-    expect(routeLine()).toMatch(/^Downloading voice Azelma \(.+\)… 50%/);
+    expect(routeLines()[0]).toMatch(/^Downloading voice Azelma \(.+\)… 50%$/);
     expect(fixture.downloadsEnabled.every((enabled) => !enabled)).toBe(true);
   });
 });

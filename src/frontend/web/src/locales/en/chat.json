@@ -176,13 +176,12 @@
     }
   },
   "loadingStatus": {
-    "avatar": "avatar",
+    "avatar": "Loading avatar…",
     "canChat": "You can chat now.",
-    "content": "animations and effects",
-    "contentProgress": "animations and effects ({{completed}}/{{total}})",
-    "loading": "Loading {{items}}…",
-    "speechToText": "Speech-to-Text (Parakeet)",
-    "textToSpeech": "Text-to-Speech (PocketTTS)",
+    "content": "Loading animations and effects…",
+    "contentProgress": "Loading animations and effects ({{completed}}/{{total}})…",
+    "speechToText": "Loading Speech-to-Text (Parakeet)…",
+    "textToSpeech": "Loading Text-to-Speech (PocketTTS)…",
     "voiceDownload": "Downloading voice {{name}} ({{size}})…",
     "voiceDownloadProgress": "Downloading voice {{name}} ({{size}})… {{percent}}"
   },

@@ -174,13 +174,12 @@
     }
   },
   "loadingStatus": {
-    "avatar": "虛擬形象",
+    "avatar": "正在載入虛擬形象…",
     "canChat": "現在可以聊天了。",
-    "content": "動畫和特效",
-    "contentProgress": "動畫和特效（{{completed}}/{{total}}）",
-    "loading": "正在載入{{items}}…",
-    "speechToText": "語音轉文字（Parakeet）",
-    "textToSpeech": "文字轉語音（PocketTTS）",
+    "content": "正在載入動畫和特效…",
+    "contentProgress": "正在載入動畫和特效（{{completed}}/{{total}}）…",
+    "speechToText": "正在載入語音轉文字（Parakeet）…",
+    "textToSpeech": "正在載入文字轉語音（PocketTTS）…",
     "voiceDownload": "正在下載語音 {{name}}（{{size}}）…",
     "voiceDownloadProgress": "正在下載語音 {{name}}（{{size}}）… {{percent}}"
   },
