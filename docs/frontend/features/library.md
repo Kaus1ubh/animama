@@ -42,6 +42,17 @@ Product hooks consume concrete typed API groups over the neutral Content
 Catalog. Each group owns its own loading, retry, empty, cursor, and collapse
 state. Included items are read-only Starters; Local items are editable copies
 created by the user, imported from a package, or added by the host operator.
+Search matches any part of an item's name, ignoring case; descriptions, which
+tiles show only in a tooltip, are not searched. The box keeps what you type,
+spaces included, and updates the URL after a short pause. Except Avatars,
+which search on the server, each family's full list is fetched once and cached;
+search, origin and Gesture motion filters apply to that cached list, so typing
+never re-downloads it.
+
+Tiles show the `variant=thumbnail` copy of an item's first image (a WebP of at
+most 128 pixels) and load it only near the viewport, keeping the family icon
+until it draws. A Particle tile reads its manifest's tint only once its texture
+has loaded.
 
 An attention indicator exposes affected items, validation details and Retry scan
 when content is invalid, missing, awaiting a scan or unavailable. Valid content can Preview;
@@ -168,7 +179,8 @@ See the [live creation workflow](custom-anima-creation.md) for validation and re
 
 The local watcher scans normal host edits automatically. Catalog polling refreshes
 Library and Appearance queries when content changes; scan timestamps alone do not
-trigger repeated list fetches. Valid manual files become selectable but never
+trigger repeated list fetches. Each poll revalidates by ETag, so an unchanged
+catalog costs a 304, and the first catalog read does not refetch the lists. Valid manual files become selectable but never
 auto-equip. Invalid or missing entries remain inert with discreet diagnostics and
 a Retry scan action.
 
