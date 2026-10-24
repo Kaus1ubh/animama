@@ -237,8 +237,7 @@
       "workersUnsupported": "このブラウザーは Web Workers に対応していません。",
       "gemini": {
         "description": "サーバーからストリーミングされる Gemini の音声です。"
-      },
-      "providersLabel": "読み上げのプロバイダー"
+      }
     }
   },
   "gemini": {

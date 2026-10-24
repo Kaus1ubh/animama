@@ -259,7 +259,6 @@
     "profile": "個人資料",
     "speechToText": "語音轉文字",
     "textToSpeech": "文字轉語音",
-    "voiceClone": "語音複製",
     "webSearch": "網頁搜尋"
   },
   "language": {
@@ -403,26 +402,20 @@
       "test": "測試麥克風"
     },
     "stt": {
-      "downloads": "離線語音下載",
       "entryLabel": "語音轉文字供應商",
-      "label": "供應商",
-      "offlineWebgpu": "{{model}}（WebGPU）",
-      "placeholder": "選擇供應商",
       "preparing": "正在準備供應商預設值...",
       "updateFailed": "無法更新語音轉文字供應商。"
     },
     "tts": {
       "elevenLabs": {
         "key": {
-          "description": "使用 ElevenLabs 語音時需要。在這台電腦上加密儲存，也可在「API 金鑰」中設定。",
-          "label": "ElevenLabs API 金鑰"
+          "description": "使用 ElevenLabs 語音時需要。在這台電腦上加密儲存，也可在「API 金鑰」中設定。"
         }
       },
       "enable": "啟用文字轉語音",
       "gemini": {
         "key": {
-          "description": "使用 Gemini 語音時需要。在這台電腦上加密儲存，也可在「API 金鑰」中設定。",
-          "label": "Gemini API 金鑰"
+          "description": "使用 Gemini 語音時需要。在這台電腦上加密儲存，也可在「API 金鑰」中設定。"
         },
         "model": {
           "descriptions": {
@@ -440,7 +433,6 @@
         "ariaLabel": "文字轉語音供應商",
         "enableFirst": "啟用文字轉語音後才能選擇供應商。",
         "entryLabel": "預設文字轉語音供應商",
-        "label": "預設供應商",
         "note": "用於沒有自己供應商的 Anima。可在「行為 → 語音」中為每個 Anima 選擇供應商和聲音。",
         "updateFailed": "無法更新文字轉語音供應商。"
       },
@@ -451,7 +443,6 @@
         "updateFailed": "無法更新文字轉語音串流模式。"
       },
       "updateFailed": "無法更新文字轉語音設定。"
-    },
-    "voiceClone": "語音複製"
+    }
   }
 }

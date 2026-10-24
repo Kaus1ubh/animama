@@ -237,8 +237,7 @@
       "workersUnsupported": "此浏览器不支持 Web Workers。",
       "gemini": {
         "description": "从服务器流式传输的 Gemini 语音。"
-      },
-      "providersLabel": "文字转语音提供方"
+      }
     }
   },
   "gemini": {

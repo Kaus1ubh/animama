@@ -261,7 +261,6 @@
     "profile": "プロフィール",
     "speechToText": "音声認識",
     "textToSpeech": "読み上げ",
-    "voiceClone": "音声クローン",
     "webSearch": "Web 検索"
   },
   "language": {
@@ -405,26 +404,20 @@
       "test": "マイクをテスト"
     },
     "stt": {
-      "downloads": "オフライン音声のダウンロード",
       "entryLabel": "音声認識のプロバイダー",
-      "label": "プロバイダー",
-      "offlineWebgpu": "{{model}} (WebGPU)",
-      "placeholder": "プロバイダーを選択",
       "preparing": "プロバイダーのデフォルトを準備中...",
       "updateFailed": "音声認識のプロバイダーを更新できませんでした。"
     },
     "tts": {
       "elevenLabs": {
         "key": {
-          "description": "ElevenLabs の音声に必要です。このコンピューター上で暗号化され、API キーでも設定できます。",
-          "label": "ElevenLabs API キー"
+          "description": "ElevenLabs の音声に必要です。このコンピューター上で暗号化され、API キーでも設定できます。"
         }
       },
       "enable": "読み上げを有効にする",
       "gemini": {
         "key": {
-          "description": "Gemini の音声に必要です。このコンピューター上で暗号化され、API キーでも設定できます。",
-          "label": "Gemini API キー"
+          "description": "Gemini の音声に必要です。このコンピューター上で暗号化され、API キーでも設定できます。"
         },
         "model": {
           "descriptions": {
@@ -442,7 +435,6 @@
         "ariaLabel": "読み上げのプロバイダー",
         "enableFirst": "プロバイダーを選ぶには、読み上げを有効にしてください。",
         "entryLabel": "デフォルトの読み上げプロバイダー",
-        "label": "デフォルトのプロバイダー",
         "note": "独自のプロバイダーがない Anima に使われます。Anima ごとのプロバイダーと声は、ふるまい → 音声 で選べます。",
         "updateFailed": "読み上げのプロバイダーを更新できませんでした。"
       },
@@ -453,7 +445,6 @@
         "updateFailed": "読み上げのストリーミングモードを更新できませんでした。"
       },
       "updateFailed": "読み上げの設定を更新できませんでした。"
-    },
-    "voiceClone": "音声クローン"
+    }
   }
 }

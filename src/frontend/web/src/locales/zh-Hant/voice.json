@@ -237,8 +237,7 @@
       "workersUnsupported": "此瀏覽器不支援 Web Workers。",
       "gemini": {
         "description": "從伺服器串流傳輸的 Gemini 語音。"
-      },
-      "providersLabel": "文字轉語音供應商"
+      }
     }
   },
   "gemini": {
