@@ -511,10 +511,10 @@ uv run python scripts/generate_synthetic_docs.py \
   --size large
 ```
 
-The `xxsmall`, `xsmall`, `small`, `large`, and `full` presets currently select
-approximately 0.04 MB, 0.08 MB, 0.17 MB, 0.33 MB, and 0.67 MB of UTF-8 source
-text. `xxsmall` and `xsmall` are curated to remain about one quarter and one
-half the size of `small`. `full` includes every Markdown file below
+The presets are nested: `xxsmall`, `xsmall`, `small`, and `large` are curated
+lists, with `xxsmall` and `xsmall` kept at about one quarter and one half of
+`small`'s UTF-8 source bytes and `large` at least 1.8 times `small`
+(`tests/test_generate_synthetic_docs.py` enforces these ratios). `full` includes every Markdown file below
 `docs/backend` and `docs/frontend` except files below a `plans`
 directory. Artifact sizes vary by format. Output defaults to the ignored
 `artifacts/synthetic-user-files` directory; use `--output-dir PATH` to override
