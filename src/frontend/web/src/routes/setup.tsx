@@ -42,15 +42,17 @@ import { SetupAiStep } from "@/app/local-runtime/setup/SetupAiStep";
 import { SetupVoiceStep } from "@/app/local-runtime/setup/SetupVoiceStep";
 import {
   adjacentSetupStep,
-  recommendedSttChoice,
   resolveSetupSttChoice,
   resolveSetupTtsProvider,
   setupStepLabel,
   setupStepPosition,
-  setupSttChoices,
-  setupSttPatch,
   setupTtsPatch,
 } from "@/app/local-runtime/setup/setup-state";
+import {
+  recommendedSttChoice,
+  sttChoicePatch,
+  availableSttChoices,
+} from "@/lib/speech/stt-choices";
 import { routeOfflineSpeech } from "@/lib/speech/offline-stt/routing";
 import { getSttProviderOptions } from "@/lib/speech/stt-provider";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
@@ -128,7 +130,7 @@ function LocalSetupForm({ ownerId }: { ownerId: string }) {
     platform,
     sttEngine,
   ).filter((option) => option.id !== "parakeet");
-  const sttChoices = setupSttChoices(sttEngine, sttBrowserOptions);
+  const sttChoices = availableSttChoices(sttEngine, sttBrowserOptions);
   const sttChoice = resolveSetupSttChoice(
     draft,
     savedSpeech,
@@ -174,7 +176,7 @@ function LocalSetupForm({ ownerId }: { ownerId: string }) {
       // The Speech-to-Text tab is always saved, so the recommended model
       // applies even when untouched; an untouched Text-to-Speech default is not.
       const patch = withVoice
-        ? { ...setupTtsPatch(draft), ...setupSttPatch(sttChoice) }
+        ? { ...setupTtsPatch(draft), ...sttChoicePatch(sttChoice) }
         : null;
       // Read-merge-write: other preferences are kept.
       if (patch) await mergePreferences.mutateAsync({ speech: patch });

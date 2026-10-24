@@ -1,7 +1,7 @@
 import { useRef, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
-import type { SetupSttChoice } from "@/app/local-runtime/setup-draft";
+import type { SttChoice } from "@/lib/speech/stt-choices";
 import type { OfflineSttEngine } from "@/lib/speech/offline-stt/routing";
 import { offlineSttShortName } from "@/lib/speech/stt-provider";
 import { Tabs, TabsContent } from "@/ui/components/tabs";
@@ -15,7 +15,7 @@ import { OfflineEngineDownloads } from "@/ui/settings/OfflineSpeechDownloads";
 export type SttEngineTab = "browser" | OfflineSttEngine;
 
 /** The top-level tab a choice belongs to. */
-export function sttChoiceEngine(choice: SetupSttChoice): SttEngineTab {
+export function sttChoiceEngine(choice: SttChoice): SttEngineTab {
   return choice === "browser_external"
     ? "browser"
     : (choice.split("_")[0] as OfflineSttEngine);
@@ -35,19 +35,19 @@ export function SttChoiceTabs({
   onChoiceChange,
   panel,
 }: {
-  choice: SetupSttChoice;
-  choices: readonly SetupSttChoice[];
-  recommended: SetupSttChoice;
+  choice: SttChoice;
+  choices: readonly SttChoice[];
+  recommended: SttChoice;
   /** An offline variant's label, such as "CPU (228.5 MB)"; plain CPU | GPU by default. */
-  variantLabel?: (choice: SetupSttChoice) => string;
-  onChoiceChange: (choice: SetupSttChoice) => void;
-  panel: (choice: SetupSttChoice) => ReactNode;
+  variantLabel?: (choice: SttChoice) => string;
+  onChoiceChange: (choice: SttChoice) => void;
+  panel: (choice: SttChoice) => ReactNode;
 }) {
   const { t } = useTranslation("voice");
   const engines = [...new Set(choices.map(sttChoiceEngine))];
   const active = sttChoiceEngine(choice);
   // Returning to an engine reselects the variant last chosen there.
-  const lastVariant = useRef(new Map<SttEngineTab, SetupSttChoice>());
+  const lastVariant = useRef(new Map<SttEngineTab, SttChoice>());
   lastVariant.current.set(active, choice);
   const engineLabel = (engine: SttEngineTab) =>
     engine === "browser"
@@ -55,7 +55,7 @@ export function SttChoiceTabs({
       : offlineSttShortName(engine);
   const labelOf =
     variantLabel ??
-    ((option: SetupSttChoice) =>
+    ((option: SttChoice) =>
       option.endsWith("_gpu")
         ? t("providers.stt.variants.gpu")
         : t("providers.stt.variants.cpu"));
@@ -90,7 +90,7 @@ export function SttChoiceTabs({
           {variants.length > 1 ? (
             <Tabs
               value={choice}
-              onValueChange={(value) => onChoiceChange(value as SetupSttChoice)}
+              onValueChange={(value) => onChoiceChange(value as SttChoice)}
             >
               <VariantTabsList
                 tabs={variants.map((option) => ({

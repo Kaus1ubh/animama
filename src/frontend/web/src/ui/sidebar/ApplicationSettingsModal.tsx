@@ -101,11 +101,11 @@ import {
   routeOfflineSpeech,
   type OfflineSttEngine,
 } from "@/lib/speech/offline-stt/routing";
-import type { SetupSttChoice } from "@/app/local-runtime/setup-draft";
 import {
   recommendedSttChoice,
-  setupSttChoices,
-} from "@/app/local-runtime/setup/setup-state";
+  availableSttChoices,
+  type SttChoice,
+} from "@/lib/speech/stt-choices";
 import {
   OfflineEngineSettingsPanel,
   SttChoiceTabs,
@@ -878,12 +878,12 @@ export function ApplicationSettingsModal({
   // The Speech-to-Text tabs: the browser (web only), then each offline model.
   // A saved offline choice shows under the engine last viewed, else the UI
   // Locale's; either browser recognizer shows as the browser.
-  const sttChoices = setupSttChoices(
+  const sttChoices = availableSttChoices(
     offlineRoute.engine,
     getSttProviderOptions(parakeetAvailable, platform, offlineRoute.engine),
   );
   const sttRecommended = recommendedSttChoice(offlineRoute.engine, sttChoices);
-  const savedSttChoice: SetupSttChoice | null =
+  const savedSttChoice: SttChoice | null =
     selectedSttProvider === "browser_external" ||
     selectedSttProvider === "browser_local"
       ? "browser_external"
@@ -946,7 +946,7 @@ export function ApplicationSettingsModal({
     ],
   );
 
-  const handleSttChoiceChange = (choice: SetupSttChoice) => {
+  const handleSttChoiceChange = (choice: SttChoice) => {
     const engine = sttChoiceEngine(choice);
     if (engine !== "browser") setSttViewEngine(engine);
     const value =

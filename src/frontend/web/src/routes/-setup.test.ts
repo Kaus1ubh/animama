@@ -25,12 +25,14 @@ import {
   setupBuiltins,
   setupStepPosition,
   setupTtsOptions,
-  recommendedSttChoice,
   resolveSetupSttChoice,
-  setupSttChoices,
-  setupSttPatch,
   setupTtsPatch,
 } from "@/app/local-runtime/setup/setup-state";
+import {
+  recommendedSttChoice,
+  sttChoicePatch as setupSttPatch,
+  availableSttChoices,
+} from "@/lib/speech/stt-choices";
 
 // Rendering is static here; scripts/setup-downloads.browser.test.mjs drives
 // navigation, focus, the unsaved-key prompt and the Finish payload in a browser.
@@ -442,7 +444,7 @@ describe("setup speech-to-text choice", () => {
   const browser = { id: "browser_external", label: "", disabled: false };
 
   it("puts the browser first on the web, then the UI Locale's model and the other", () => {
-    const web = setupSttChoices("sensevoice", [browser] as never);
+    const web = availableSttChoices("sensevoice", [browser] as never);
     expect(web).toEqual([
       "browser_external",
       "sensevoice_cpu",
@@ -452,7 +454,7 @@ describe("setup speech-to-text choice", () => {
     ]);
     expect(recommendedSttChoice("sensevoice", web)).toBe("browser_external");
     // Desktop (or a browser without speech recognition) has no browser tab.
-    const desktop = setupSttChoices("parakeet", []);
+    const desktop = availableSttChoices("parakeet", []);
     expect(desktop).toEqual([
       "parakeet_cpu",
       "parakeet_gpu",
@@ -461,12 +463,14 @@ describe("setup speech-to-text choice", () => {
     ]);
     expect(recommendedSttChoice("parakeet", desktop)).toBe("parakeet_cpu");
     expect(
-      setupSttChoices("parakeet", [{ ...browser, disabled: true }] as never),
+      availableSttChoices("parakeet", [
+        { ...browser, disabled: true },
+      ] as never),
     ).not.toContain("browser_external");
   });
 
   it("selects the pick, else the saved choice, else the recommended one", () => {
-    const choices = setupSttChoices("sensevoice", [browser] as never);
+    const choices = availableSttChoices("sensevoice", [browser] as never);
     expect(
       resolveSetupSttChoice(
         { sttChoice: "parakeet_gpu" },

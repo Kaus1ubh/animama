@@ -4,13 +4,8 @@ import { Trans, useTranslation } from "react-i18next";
 import type { SetupTtsProvider } from "@/app/local-runtime/setup-draft";
 import { getTtsProviderOptions } from "@/lib/speech/tts-provider";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-  underlineTabClassName,
-} from "@/ui/components/tabs";
+import { Tabs, TabsContent } from "@/ui/components/tabs";
+import { ChoiceTabsList } from "@/ui/settings/choice-tabs/ChoiceTabsList";
 import {
   DesktopCredentialsPanel,
   type DesktopCredentialsController,
@@ -70,25 +65,17 @@ export function SetupVoiceStep({
           value={provider}
           onValueChange={(value) => onProviderChange(value as SetupTtsProvider)}
         >
-          <TabsList
-            variant="underline"
-            aria-label={t("voice.tts.providers")}
-            className="w-fit max-w-full"
-          >
-            {options.map((option) => (
-              <TabsTrigger
-                key={option.id}
-                value={option.id}
-                variant="underline"
-                // A provider this device cannot run is not offered.
-                disabled={option.disabled}
-                title={option.disabled ? option.reason : undefined}
-                className={underlineTabClassName(provider === option.id)}
-              >
-                {option.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
+          <ChoiceTabsList
+            tabs={options.map((option) => ({
+              id: option.id,
+              label: option.label,
+              // A provider this device cannot run is not offered.
+              disabled: option.disabled,
+              reason: option.reason,
+            }))}
+            active={provider}
+            label={t("voice.tts.providers")}
+          />
           {/* A disabled tab cannot take focus, so its reason is shown here. */}
           {options
             .filter((option) => option.disabled && option.reason)

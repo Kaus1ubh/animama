@@ -1,3 +1,4 @@
+import { STT_CHOICES, type SttChoice } from "@/lib/speech/stt-choices";
 import { DISPLAY_NAME_MAX_LENGTH } from "@/lib/user-profile/display-name";
 
 /** The three setup steps, in order. */
@@ -10,20 +11,8 @@ export type SetupModelLocation = "cloud" | "local";
 /** Default Text-to-Speech providers setup offers: built-in voices or ElevenLabs. */
 export type SetupTtsProvider = "pocket_tts" | "elevenlabs";
 
-/**
- * A Speech-to-Text choice in setup and App Settings: an offline model on the
- * CPU or GPU, or (on the web only) the browser's recognizer. Offline choices
- * save the offline provider and the GPU preference; the UI Locale still
- * decides which offline model runs.
- */
-export const SETUP_STT_CHOICES = [
-  "sensevoice_cpu",
-  "sensevoice_gpu",
-  "parakeet_cpu",
-  "parakeet_gpu",
-  "browser_external",
-] as const;
-export type SetupSttChoice = (typeof SETUP_STT_CHOICES)[number];
+/** The Voice step's Speech-to-Text choice (see `lib/speech/stt-choices`). */
+export type SetupSttChoice = SttChoice;
 
 /**
  * Nonsecret first-run choices. They survive a renderer replaced by a rare
@@ -101,8 +90,7 @@ function parseDraft(value: unknown): SetupDraft {
       raw.ttsProvider === "pocket_tts" || raw.ttsProvider === "elevenlabs"
         ? raw.ttsProvider
         : null,
-    sttChoice:
-      SETUP_STT_CHOICES.find((choice) => choice === raw.sttChoice) ?? null,
+    sttChoice: STT_CHOICES.find((choice) => choice === raw.sttChoice) ?? null,
   };
 }
 

@@ -52,11 +52,11 @@ The Phase 2 comparison ran 75 FLEURS clips per language on the reference Mac
 2. **Routing happens when a session starts.** A locale change applies from the
    next dictation or Voice Mode start. The stored `stt_provider: "parakeet"`
    means offline recognition with either engine and `stt_parakeet_webgpu` is
-   the GPU preference for both; neither is renamed. Settings labels the
-   choices with the UI Locale's model ("SenseVoice (CPU)", "Parakeet (WebGPU ·
-   Experimental)"), and Setup offers every model as a choice, the UI Locale's
-   on the CPU recommended (owner, 2026-10-24, replacing G1's engine-neutral
-   labels).
+   the GPU preference for both; neither is renamed. Setup and App Settings
+   choose by engine (Browser on the web, SenseVoice, Parakeet), then CPU or
+   GPU, with the recommended engine tagged: the browser on the web, the UI
+   Locale's offline engine on desktop (owner, 2026-10-24, replacing G1's
+   engine-neutral "Offline" labels).
 3. **No cloud fallback.** A saved offline choice under a non-English locale
    whose SenseVoice set is missing stops with a "not installed for this
    language" error instead of switching to a browser recognizer, which may
@@ -93,10 +93,8 @@ The Phase 2 comparison ran 75 FLEURS clips per language on the reference Mac
 
 ## Consequences
 
-- Settings → Voice lists both engines' sets under the languages they serve,
-  the UI Locale's first. Setup's Speech-to-Text tabs list both models' CPU and
-  GPU sets (and on the web the browser recognizers), saving the selected one
-  at Finish; the composer's install hint offers only the UI Locale's engine. `SpeechLanguageNotice` asks for the language's download
+- Each offline engine's tab in Setup and App Settings offers its sets'
+  downloads; the composer's install hint offers only the UI Locale's engine. `SpeechLanguageNotice` asks for the language's download
   instead of warning that recognition is English-only; Pocket TTS keeps its
   English-only notice.
 - Runtime capabilities gain `offline_multilingual_speech_enabled` and its CPU

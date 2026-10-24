@@ -21,7 +21,7 @@ semantic VAD. Output uses browser speech, PocketTTS, ElevenLabs or Gemini. See
 | Provider           | Source                                       | Where used        | Notes                                                            |
 | ------------------ | -------------------------------------------- | ----------------- | ---------------------------------------------------------------- |
 | `browser_external` | Web Speech API                               | dictation + voice | default browser path                                             |
-| `browser_local`    | Web Speech API with `processLocally`         | dictation + voice | strict capability check; en-US fallback on unsupported locale    |
+| `browser_local`    | Web Speech API with `processLocally`         | dictation + voice | no longer offered; a saved choice still works and shows as Browser |
 | `parakeet`         | offline ONNX worker of the language's engine | dictation + voice | MicVAD windows transcribed locally; live previews on WebGPU only |
 
 In the Animama Electron desktop shell, browser Web Speech providers are treated
@@ -63,9 +63,9 @@ language, which is the UI Locale
 ### Optional offline speech models
 
 The embedded core does not contain offline speech weights. On packaged desktop
-and built self-host, App Settings → Voice shows one `OfflineSpeechDownloads`
-block with a section per engine, under the languages it serves and with its
-model name and attribution; the UI Locale's engine comes first:
+and built self-host, each offline engine's tab in App Settings → Voice →
+Speech-to-Text shows its sets (`OfflineEngineDownloads`), under the languages
+the engine serves and with its model name and attribution:
 
 | Engine           | Languages                 | CPU model        | GPU acceleration add-on |
 | ---------------- | ------------------------- | ---------------- | ----------------------- |
@@ -78,16 +78,24 @@ progress, cancel, retry and removal. The add-on is always shown; when it cannot
 be installed (CPU model missing, no WebGPU adapter, or not in this build) its
 action is disabled with the reason. A loaded asset list without an engine's
 sets shows them as not available, for example on a runtime whose operator does
-not provide SenseVoice. Setup's Voice step makes the Speech-to-Text choice as
-tabs (`SetupSpeechChoice`, sharing `useOfflineSpeechDownloads(engine)`): the UI
-Locale's model as "<model> (CPU, size)" (marked recommended and selected by
-default) and "<model> (GPU, size)", then the other model's two tabs, which say
-which app language uses them, and on the web the browser recognizers (desktop
-has none). Offline tabs carry their set's download, and the GPU tab a WebGPU
-✓/✗ check; asking for the GPU set first says to download the CPU version.
-Finish saves the selected tab, even untouched (`setupSttPatch`: either model's
-tab stores the offline provider and the GPU preference, so the UI Locale still
-picks the model). The composer's install hint (`OfflineSpeechDownloads
+not provide SenseVoice.
+
+Setup and App Settings choose Speech-to-Text with the same two tab levels as
+the AI step's models (`SttChoiceTabs`, choices from `lib/speech/stt-choices`):
+a top row of engines (Browser on the web, then the UI Locale's offline engine
+and the other one) with the recommended one tagged, and under an offline
+engine its **CPU | GPU** versions. The web recommends and defaults to the
+browser's recognizer (one Browser choice, saved as `browser_external`; a saved
+`browser_local` shows as Browser); desktop, which has no browser recognizer,
+recommends the UI Locale's offline engine on the CPU. Either offline engine's
+choice stores the offline provider and the GPU preference, so the UI Locale
+still picks the model, and the other engine's tab says which app language uses
+it. Selecting a tab selects the choice: App Settings saves it at once (an
+offline choice even before its set is installed), and Setup saves it at Finish,
+even untouched (`sttChoicePatch`). In Setup an offline version carries its
+set's download as "CPU (size)" or "GPU (size)" (`SetupSpeechChoice`), the GPU
+version a WebGPU ✓/✗ check; asking for the GPU set first says to download the
+CPU version. In App Settings an engine's tab holds all its sets. The composer's install hint (`OfflineSpeechDownloads
 routedOnly`) offers only the UI Locale's engine. Removal and attribution stay
 in App Settings. Every download can be skipped. Downloads
 continue in the backend after leaving Setup or Settings: the chat status lines
@@ -386,9 +394,9 @@ its worker with:
 
 #### Experimental WebGPU backend
 
-App Settings → **Voice** → **Speech-to-Text** → **Provider** offers
-**<model> (CPU)** and **<model> (WebGPU · Experimental)**, named after the
-model serving the UI Locale (for example **SenseVoice (CPU)** under Japanese). Both store the `parakeet` provider; the
+An offline engine's **CPU** and **GPU** tabs in App Settings → **Voice** →
+**Speech-to-Text** (labelled "<model> (CPU)" and "<model> (WebGPU ·
+Experimental)" in provider lists) both store the `parakeet` provider; the
 WebGPU choice enables `speech.stt_parakeet_webgpu`, while the CPU choice
 disables it. The flag is off by default and applies to either engine.
 
@@ -1215,9 +1223,12 @@ the public ORT 1.24.2 inventory does not replace those dependency versions.
   metadata. Checkmarks in the download slot identify included or downloaded
   presets, separately from the selected voice. Downloading alone changes neither
   selection nor provider. Setup and App Settings do not contain a preset browser.
-  App Settings → Voice → Voice Clone reuses the Anima cloning form and exposes
-  the encoder download independently of TTS. Setup offers only Speech-to-Text and
-  Voice Clone downloads. Offline speech set downloads resume from verified
+  App Settings → Voice → Text-to-Speech uses provider tabs (PocketTTS,
+  ElevenLabs, Gemini and the browser where offered); selecting one switches the
+  provider, and its tab holds that provider's settings: the PocketTTS tab
+  reuses the Anima cloning form with the encoder download (Voice Clone), the
+  ElevenLabs tab its key, the Gemini tab its key and model. Setup offers
+  Speech-to-Text and Text-to-Speech choices but no voice cloning. Offline speech set downloads resume from verified
   bytes after interruption.
 - Anima voice catalogs are separate user/catalog inputs; their persisted URLs
   and legacy `/onnx/models/pocket-tts/animas/{animaId}_voices.bin` reference format

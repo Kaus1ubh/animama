@@ -273,6 +273,14 @@ Boundaries:
   the browser recognizers on the web, none on desktop): the UI Locale's model
   on the CPU is recommended and preselected, and Finish saves the selected tab
   even when untouched.
+- 2026-10-24, owner: Speech-to-Text is chosen with the AI step's two tab
+  levels (engines Browser · SenseVoice · Parakeet, then CPU | GPU) in Setup
+  and App Settings, and selecting a tab switches the provider. The web
+  recommends and defaults to one Browser choice (`browser_external`; the
+  External/Local split is dropped and a saved local choice still works);
+  desktop recommends the UI Locale's engine. Text-to-Speech uses provider tabs
+  too, with Voice Clone, the keys and the Gemini model inside their
+  provider's tab.
 
 ## Owner gates
 

@@ -23,7 +23,7 @@ import {
 import type { SpeechPreferences } from "@/lib/settings/preferences";
 import type { TtsProviderOption } from "@/lib/speech/tts-provider";
 import type { OfflineSttEngine } from "@/lib/speech/offline-stt/routing";
-import type { SttProviderOption } from "@/lib/speech/stt-provider";
+import { recommendedSttChoice } from "@/lib/speech/stt-choices";
 import {
   connectionLocation,
   roleCandidates,
@@ -296,42 +296,6 @@ export function setupTtsOptions(
 }
 
 /**
- * The Speech-to-Text choices, in order: on the web the browser's recognizer
- * (when this browser has one), then the UI Locale's offline model (CPU, then
- * GPU) and the other offline model. Desktop has no browser recognizer.
- */
-export function setupSttChoices(
-  engine: OfflineSttEngine,
-  browserOptions: readonly SttProviderOption[],
-): SetupSttChoice[] {
-  const other: OfflineSttEngine =
-    engine === "sensevoice" ? "parakeet" : "sensevoice";
-  const browser = browserOptions.some(
-    (option) => option.id === "browser_external" && !option.disabled,
-  );
-  return [
-    ...(browser ? (["browser_external"] as const) : []),
-    `${engine}_cpu`,
-    `${engine}_gpu`,
-    `${other}_cpu`,
-    `${other}_gpu`,
-  ];
-}
-
-/**
- * The recommended choice: the browser's recognizer on the web, else the UI
- * Locale's offline model on the CPU.
- */
-export function recommendedSttChoice(
-  engine: OfflineSttEngine,
-  choices: readonly SetupSttChoice[],
-): SetupSttChoice {
-  return choices.includes("browser_external")
-    ? "browser_external"
-    : `${engine}_cpu`;
-}
-
-/**
  * The selected Speech-to-Text choice: the owner's pick in this setup, else the
  * saved preference (an offline one shown as the UI Locale's model, either
  * browser recognizer as the browser), else the recommended one.
@@ -355,19 +319,4 @@ export function resolveSetupSttChoice(
   )
     return "browser_external";
   return recommendedSttChoice(engine, choices);
-}
-
-/**
- * The speech preferences a Speech-to-Text choice saves. Either offline model's
- * choice saves the offline provider and the GPU preference; the UI Locale picks
- * the model. The browser keeps the saved GPU preference.
- */
-export function setupSttPatch(
-  choice: SetupSttChoice,
-): Pick<SpeechPreferences, "stt_provider" | "stt_parakeet_webgpu"> {
-  if (choice === "browser_external") return { stt_provider: choice };
-  return {
-    stt_provider: "parakeet",
-    stt_parakeet_webgpu: choice.endsWith("_gpu"),
-  };
 }
