@@ -107,6 +107,13 @@ Unity -batchmode -nographics -quit -projectPath <project> -logFile export.log \
   -animamaCopyright "<credit>"
 ```
 
+VRM 1.0 requires a T-pose rest pose, and VRChat Avatars are often modelled in
+an A-pose. The script therefore poses the instance from its Unity humanoid
+T-pose first, like UniVRM's "T-Pose (unity internal)" button, and logs
+`Applied the humanoid T-pose`. Pass `-animamaKeepPose` to export the modelled
+pose instead. An A-pose export plays every Gesture with the arms as far too
+low as the A-pose angle (about 48° for Lapwing).
+
 The metadata arguments fill `VRMC_vrm.meta`. Its permissions stay at UniVRM's
 restrictive defaults: only the author may use the Avatar, and redistribution and
 modification are prohibited.
@@ -121,10 +128,12 @@ pnpm -s vrm:inspect <private-dir>/<Avatar>.vrm
 
 Check that:
 
-- the file is VRM 1.0 and under the 100 MiB upload limit (otherwise run
-  `pnpm -s vrm:optimize`, then inspect again to confirm
-  `MOCHIYA_materials_liltoon` survived);
+- the file is VRM 1.0 and under the 100 MiB upload limit. `vrm:optimize` does
+  not support Mochiya's extensions, so reduce an oversized Avatar's textures in
+  Unity and export again;
 - every face mesh stores its names at mesh level, not "primitives only";
+- the rest pose is a T-pose: arms straight out to the sides (the Gesture
+  renders below show it quickly);
 - the ARKit count is complete, with any renamed matches as expected.
 
 Then upload it as a Local Avatar on a local stack, for example by choosing it
@@ -137,9 +146,22 @@ Known limits of a Mochiya 0.1.4 export:
 - Materials render with Animama's glTF fallback. The exporter leaves glTF's
   default `metallicFactor` of 1 on every fallback material, so the Avatar looks
   much darker than in Unity. The authored lilToon look needs lilToon rendering.
-- PhysBone gravity converts to very small VRM gravity values. Hair and cloth
-  then hold their modelled rest pose, and Animama's subtle spring updraft can
-  lift them; a ponytail may stand up and a jacket hem flare out.
+- PhysBone gravity converts to very small VRM gravity values, and the springs
+  rely on the shape they were modelled in. Animama therefore adds no wind or
+  updraft to Avatars converted by Mochiya (see
+  [`SpringBonePhysicsController`](avatar-animation.md#springbonephysicscontroller)).
+  It recognises them by the `MOCHIYA_avatar_composition` extension, so keep
+  it: a tool that drops unknown extensions on re-export brings the updraft
+  back.
+
+Review renders work on the private file directly:
+`pnpm -s effects:render --with-clip library:<gesture> --avatar-file <private-dir>/<Avatar>.vrm --out <private-dir>/renders/<gesture>.png`.
+Keep those renders private as well.
+
+Effects painted onto the face texture (blush, iris overlays such as star eyes)
+can land in the wrong place on Avatars whose face shares a texture atlas with
+the body, or whose irises, eye whites and highlights share one mesh, as
+Lapwing's do. Plane and sticker effects are unaffected.
 
 To make the file emote in other VRM apps as well, bake its mood presets into a
 copy with `pnpm -s vrm:bake-expressions` (see

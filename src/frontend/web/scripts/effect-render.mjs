@@ -437,19 +437,29 @@ export async function renderEffectSheets({
   clipStem = "clip",
   localContent = null,
   rendering = "enhanced",
+  avatarFile = null,
   onResult,
 }) {
   const results = await withRendererPage(
     {
       localContent,
-      extraRoots: await sourceRoots(effects, clipMedia),
+      extraRoots: [
+        ...(await sourceRoots(effects, clipMedia)),
+        // Vite allows single files, so only the Avatar itself is served.
+        ...(avatarFile ? [avatarFile] : []),
+      ],
       rendering,
     },
     async ({ page, fsUrl, imageUrl }) => {
-      const avatars = AVATARS.map((id) => ({
-        id,
-        url: avatarFileUrl(fsUrl, id),
-      }));
+      // A local Avatar file replaces both Included Avatars.
+      const avatars = avatarFile
+        ? [
+            {
+              id: path.basename(avatarFile).replace(/\.vrm$/i, ""),
+              url: fsUrl(avatarFile),
+            },
+          ]
+        : AVATARS.map((id) => ({ id, url: avatarFileUrl(fsUrl, id) }));
       const results = [];
       const groups = effects.length
         ? together
@@ -722,6 +732,8 @@ const USAGE = [
   "  --local-content <dir>   content root for library:local/... (e.g. content/local)",
   "  --size 512              thumbnail edge in pixels (256-2048), Annie only",
   "  --rendering enhanced    Avatar rendering: enhanced (the app default) or classic",
+  "  --avatar-file <a.vrm>   render on this VRM instead of the Included Avatars,",
+  "                          such as a converted Avatar kept outside the repository",
   "",
   "The run exits 1 when an effect leaves a controller warning or no active effect.",
   `Diff: a pixel differs when a channel differs by more than --threshold (default`,
@@ -740,6 +752,7 @@ const VALUE_OPTIONS = new Set([
   "--size",
   "--threshold",
   "--rendering",
+  "--avatar-file",
 ]);
 const FLAG_OPTIONS = new Set([
   "--all-included",
@@ -807,6 +820,17 @@ function parseTile(value) {
   return { width: Number(match[1]), height: Number(match[2]) };
 }
 
+/** Resolve `--avatar-file` to a real `.vrm` path, failing clearly. */
+async function resolveAvatarFile(file) {
+  if (!file.toLowerCase().endsWith(".vrm"))
+    throw new EffectSourceError(`--avatar-file must be a .vrm file: ${file}`);
+  try {
+    return await realpath(file);
+  } catch {
+    throw new EffectSourceError(`--avatar-file not found: ${file}`);
+  }
+}
+
 async function main(argv) {
   let parsed;
   try {
@@ -862,6 +886,13 @@ async function main(argv) {
     if (!AVATAR_RENDERINGS.includes(rendering))
       throw new EffectSourceError(
         `Invalid --rendering ${rendering}; use ${AVATAR_RENDERINGS.join(" or ")}.`,
+      );
+    const avatarFile = values["--avatar-file"]
+      ? await resolveAvatarFile(path.resolve(cwd, values["--avatar-file"]))
+      : null;
+    if (avatarFile && values["--thumbnail"])
+      throw new EffectSourceError(
+        "--avatar-file is for review sheets; thumbnails always use Annie.",
       );
 
     if (values["--thumbnail"]) {
@@ -947,6 +978,7 @@ async function main(argv) {
       clip,
       localContent,
       rendering,
+      avatarFile,
       onResult: (result) => {
         console.log(
           result.failures.length

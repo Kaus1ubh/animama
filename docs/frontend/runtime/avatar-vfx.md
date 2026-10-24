@@ -693,6 +693,9 @@ and sounds on Included Gestures and Reactions, use `pnpm -s content:tune`
 - `--diff` counts a pixel when a channel changes by more than `--threshold`
   (default 8 of 255) and writes a diff image. The same source and revision diff
   to 0 pixels.
+- `--avatar-file <a.vrm>` renders on that VRM instead of the Included
+  Avatars, for example a converted Avatar kept outside the repository; keep its
+  sheets outside the repository too.
 - `--rendering classic` renders the classic Avatar look instead of the app's
   default enhanced rendering (the chat canvas's CSS filter is not part of the
   rendered pixels). `CHROMIUM_PATH` points Playwright at a preinstalled

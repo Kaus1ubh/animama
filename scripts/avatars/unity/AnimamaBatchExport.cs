@@ -8,6 +8,10 @@
 //     -executeMethod AnimamaBatchExport.Validate|Export \
 //     -animamaPrefab Assets/.../Avatar.prefab -animamaOut /abs/path/Avatar.vrm
 //
+// VRM 1.0 requires the rest pose to be a T-pose, and VRChat Avatars are often
+// modelled in an A-pose, so the instance is first posed from its Unity humanoid
+// T-pose (UniVRM's "T-Pose (unity internal)"); -animamaKeepPose skips that.
+//
 // Never uploads anything: it calls only Detect, Validate and Export.
 using System;
 using System.Collections.Generic;
@@ -35,6 +39,19 @@ public static class AnimamaBatchExport
 
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             var root = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
+            if (HasArg("-animamaKeepPose"))
+            {
+                Debug.Log("[Animama] Kept the modelled pose (-animamaKeepPose); VRM 1.0 expects a T-pose.");
+            }
+            else
+            {
+                var animator = root.GetComponent<Animator>();
+                if (animator == null || animator.avatar == null || !animator.avatar.isHuman)
+                    throw new InvalidOperationException("The prefab root has no humanoid Animator avatar to take the T-pose from; pass -animamaKeepPose to export the modelled pose.");
+                if (!UniGLTF.InternalTPose.TryMakePoseValid(root))
+                    throw new InvalidOperationException("Could not apply the humanoid T-pose; pass -animamaKeepPose to export the modelled pose.");
+                Debug.Log("[Animama] Applied the humanoid T-pose.");
+            }
 
             var target = MochiyaAvatarWorkflow.Detect(root);
             Debug.Log($"[Animama] Detect: kind={target.Kind} prepared={target.IsPrepared} reason={target.Reason} error={target.Error}");
@@ -65,6 +82,8 @@ public static class AnimamaBatchExport
             EditorApplication.Exit(1);
         }
     }
+
+    private static bool HasArg(string name) => Array.IndexOf(Environment.GetCommandLineArgs(), name) >= 0;
 
     private static string Arg(string name)
     {

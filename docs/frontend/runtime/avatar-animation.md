@@ -1302,6 +1302,19 @@ Responsibilities:
 Current defaults keep spring physics enabled, use a stronger drag multiplier,
 apply a subtle updraft, enable gust shaping, and keep helpers hidden.
 
+Avatars converted by Mochiya Avatar Tools, the supported VRChat conversion
+route, get no ambient forces: no wind, no updraft and, at the default gravity
+multiplier, no zero-gravity baseline. `Avatar.load` detects them by the
+`MOCHIYA_avatar_composition` glTF extension Mochiya adds to every Avatar it
+converts (`springsTunedWithoutAmbientForces`), so detection holds only while a
+re-export keeps that extension. The snapshot and the debug panel's Spring Bones
+section report it ("Ambient forces: off (converted Avatar)"). Their springs come from
+PhysBones tuned with low pull and little gravity for a world without ambient
+forces. VRM-authored hair is stiff enough to resist the updraft; such springs
+are not, and a hanging ponytail would point straight up. The drag multiplier
+still applies. Effective drag never exceeds 1 on any Avatar, because three-vrm's
+inertia is 1 − drag; converted PhysBones can author drag up to about 0.86.
+
 Semantic profile behavior:
 
 - `hair` receives the global spring-bone controls at full intensity.

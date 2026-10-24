@@ -6066,6 +6066,15 @@ function SpringBoneSnapshotPanel({
             value: snapshot?.overridingSettings ? "true" : "false",
           },
           {
+            // Off for Mochiya conversions: wind, updraft and gust do nothing.
+            label: "Ambient forces",
+            value: snapshot
+              ? snapshot.ambientForces
+                ? "on"
+                : "off (converted Avatar)"
+              : "-",
+          },
+          {
             label: "Helpers",
             value: snapshot
               ? `${snapshot.helperCount} / ${

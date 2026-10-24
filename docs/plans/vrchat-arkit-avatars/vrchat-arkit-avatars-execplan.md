@@ -96,9 +96,10 @@ review stay in `<private-avatars>` or the session scratchpad.
 ## Progress
 
 - [x] Phase 1: ARKit face capability and Avatar inspection. Done; reviewed (pass after one repair round).
-- [ ] Phase 2: Convert Lapwing. Steps 1–5 and 7 done; step 6 loaded on the
-  `vrcarkit` stack. Owner R1 checks remain; dark fallback materials and
-  upward-held springs found.
+- [ ] Phase 2: Convert Lapwing. Steps 1–7 done; the step 6 follow-up fixed the
+  A-pose arms (T-pose export) and the floating springs (no ambient forces for
+  Mochiya conversions). Owner R1 re-check remains; dark materials (Phase 3) and
+  misplaced painted face effects are open.
 - [ ] Phase 3: Authored lilToon rendering. Needs Phase 2 output; owner look gate.
 - [x] Phase 4: ARKit emotions and face-track translation. Done; reviewed (pass
   after one repair round). Owner visual gate on Lapwing still open (needs
@@ -141,6 +142,18 @@ owner gates then wait for the converted Avatar.
 - 2026-10-24, owner (confirming an agent proposal): keep Gesture and Reaction content
   keyed to `Fcl_*` parts and VRM presets, and translate missing parts to ARKit
   per Avatar. Migrating content to an ARKit vocabulary is later work.
+- 2026-10-24, agent (Phase 2 step 6, owner asked to fix arms and springs):
+  the batch export poses the Avatar from its Unity humanoid T-pose before
+  exporting (`-animamaKeepPose` opts out), because VRM 1.0 requires a T-pose
+  rest and an A-pose export plays every Gesture with the arms about 48° low.
+- 2026-10-24, agent (Phase 2 step 6): Avatars converted by Mochiya Avatar
+  Tools (`MOCHIYA_avatar_composition`) get no ambient spring forces (wind,
+  updraft, zero-gravity baseline). A headless simulation showed no per-joint
+  stiffness cap could both keep Included Avatars unchanged and hold Lapwing's
+  ponytail down. Effective spring drag is capped at 1 for every Avatar,
+  including existing user Avatars that author drag above 0.5 on hair (or about
+  0.67 on other springs), which previously got a negative inertia; Included
+  Avatars are unchanged at the defaults. Owner to confirm at the R1 re-check.
 - 2026-10-24, agent (within the approved outcome): ARKit mixes are registered
   as expressions rather than translated at each call site; see Phase 4.
 - 2026-10-24, agent (applying R5's "no `Fcl_*` parts", P4-F1): an Avatar with
@@ -302,7 +315,8 @@ file-authored expressions. No blocking findings.
 
 ### Phase 2: Convert Lapwing
 
-Review tier: light. Documentation plus local, untracked conversion work.
+Review tier: light for the conversion and guide; standard for the step 6
+follow-up, which changes runtime spring physics and review tooling.
 
 Requirements: R1, R2, R9. Depends on Phase 1 (`vrm:inspect`).
 
@@ -327,9 +341,9 @@ Steps (Unity project inside `<private-avatars>`, never in a repository):
    implement Phase 1 step 4 (apply per-primitive names in `_loadVrm`) with a
    test, as its own standard-tier change, before continuing; R2 is not accepted
    until then. Then check ARKit and MMD names present, where names
-   are stored, size against the 100 MB limit, extensions. If oversized, run
-   `pnpm -s vrm:optimize` and re-inspect that `MOCHIYA_materials_liltoon` and its
-   textures survived.
+   are stored, size against the 100 MB limit, extensions. If oversized, reduce
+   textures in Unity and export again (`vrm:optimize` refuses Mochiya's
+   extensions).
 6. Register it as a Local Avatar on a task stack (`./reset.sh --name vrcarkit
    --base-port 8800` from the worktree after `git lfs pull`) and check rig,
    springs, blink, visemes, look-at and Face parts detection (correct in the Face
@@ -399,18 +413,96 @@ Progress (2026-10-24, owner steps 1–3; agent steps 4, 5 and 7):
     materials. Until then the fallback could treat metallic as 0 for materials
     that carry `MOCHIYA_materials_liltoon`. It is also worth reporting
     upstream.
-  - Finding: the converted springs hold their rest pose. The ponytail has
-    stiffness 0.165 and gravity 0.0064; the jacket has stiffness 0.934 and
-    gravity 0.11. Animama's spring controller adds a subtle updraft, so in the
-    chat canvas the ponytail stands up and the jacket hem flares out sideways
-    instead of hanging. Decide whether to retune converted springs (scale
-    gravity, or a per-Avatar spring profile) before the trailer.
-- Remaining: the owner's live R1 checks on the stack, then the guide is updated
-  with the agreed spring and material handling.
+  - Finding: the springs float. Animama's controller adds an updraft (0.95,
+    scaled by semantic intensity) and only substitutes a 0.5 zero-gravity
+    baseline when authored gravity is exactly 0. Lapwing's ponytail
+    (stiffness 0.165, gravity 0.0064) reaches a net upward force of 5.3 times
+    its stiffness; Included Avatars peak at 0.94. A headless simulation put
+    the ponytail at 180° from hanging with the controller and 2° without it.
+  - Finding (owner screenshot): the arms are wrong in every Gesture. The
+    export kept Lapwing's A-pose (upper arms 48° below horizontal), but
+    three-vrm treats the VRM 1.0 rest as a T-pose.
+- Step 6 follow-up (2026-10-24, owner: "Fix the springs, arms"):
+  - `AnimamaBatchExport.cs` applies `UniGLTF.InternalTPose.TryMakePoseValid`
+    before Detect; the re-export (`Lapwing-tpose.vrm`, 20.48 MB) measures upper
+    arms 2.6° below horizontal. It replaced the uploaded revision
+    (`19c9dec6`) on the stack.
+  - `SpringBonePhysicsController` gains `ambientForces`, which `Avatar.load`
+    turns off for Mochiya conversions (`springsTunedWithoutAmbientForces`); the
+    debug panel shows it. The simulation then matches plain three-vrm for
+    Lapwing (ponytail 2°, bag 4°, sleeves follow the arms) and leaves Included
+    Avatars unchanged. Effective drag is capped at 1, because converted drag up
+    to 0.863 × 2 made three-vrm's inertia negative.
+  - `effects:render --avatar-file <a.vrm>` (delivering Phase 3 step 5 early)
+    renders review sheets on a private file. Private renders on Lapwing show
+    Big Arm Heart, Apology Bow and Blow a Kiss playing correctly. Plane effects
+    (heart eyes, `> <` eyes, gloom lines, despair shade, stickers) also land
+    correctly.
+  - Open finding: effects painted onto the face texture misplace. Blush becomes
+    a large smear over the mouth and star3's iris overlay an orange blob. The
+    live anchor snapshot shows sensible local positions but texture-space sizes
+    up to 0.46 of the texture width: `_projectReferenceSizeUv` projects each
+    sample to its nearest triangle, and on Lapwing's combined face/body mesh
+    those land on other UV islands. Proposed next: measure size from the anchor
+    triangle's own UV mapping when samples disagree, keeping Included anchors
+    unchanged.
+- Remaining: the owner's live re-check of R1 (motion, springs, blink, visemes,
+  look-at) and the Phase 4 face review; the painted-effect fix above.
 
 #### Code Review #1 Findings
 
-Light phase; covered by the final integration review.
+The conversion and guide are light and covered by the final integration
+review. The step 6 follow-up had its own standard review:
+
+- Code Review #1 (reviewed tree `4f534dde` on `da791c5e`): no code defects.
+  Included Avatars are unchanged and the controller has a single construction
+  site. The option plumbing and the `InternalTPose` call were verified against
+  the pinned package. Findings:
+  - S6-F1 (required): plan records out of date.
+  - S6-F2: the extension marks "converted by Mochiya", not "from VRChat".
+  - S6-F3: the debug panel did not show `ambientForces`.
+  - S6-F4: the test's gravity-direction assertion was dead, and drag was not
+    asserted.
+  - S6-F5: converted drag × multiplier exceeded 1, making three-vrm's inertia
+    negative (measured jitter +35%).
+  - S6-F6: the zero-gravity baseline returns with a debug gravity multiplier.
+  - S6-F7: the fs allow list could name the file only; the label kept `.VRM`;
+    the option had no test.
+  - S6-F8: `-animamaKeepPose` was not logged, and the error was unclear
+    without an Animator.
+  - Also: the guide told users to run `vrm:optimize`, which refuses Mochiya
+    extensions.
+- Code Review #1 Revisions:
+  - S6-F1: these records.
+  - S6-F2: constant renamed to `MOCHIYA_CONVERSION_EXTENSION`; docs say
+    "converted by Mochiya" and that re-export must keep the extension.
+  - S6-F3: an "Ambient forces" row in the Spring Bones section.
+  - S6-F4: the test now uses Annie's authored gravity and asserts drag.
+  - S6-F5: effective drag capped at 1 for every Avatar (Included reach exactly
+    1 at the default multiplier), with a test.
+  - S6-F6: doc qualified.
+  - S6-F7: only the file is allowed, the label strips `.vrm` in any case, and a
+    browser test renders a copied `.VRM`.
+  - S6-F8: opt-out logged, humanoid Animator checked first.
+  - The `vrm:optimize` advice was replaced.
+  - Revision checks on tree `c12e013d` (working tree on `da791c5e`):
+    `npx vitest run src/lib/avatar src/ui` (`src/frontend/web`) 2831 passed,
+    1 skipped; `pnpm -s web:lint`, `pnpm -s check` and
+    `pnpm -s prettier:check` (`src/frontend`) pass;
+    `node --test scripts/effect-render.browser.test.mjs` (`src/frontend/web`)
+    5 passed. The updated C# compiled and ran a Validate in the private Unity
+    project, logging "Applied the humanoid T-pose" and a clean Detect.
+- Code Review #2 (targeted recheck, same reviewer, tree `c12e013d`): every fix
+  verified, no regressions. It confirmed that Andrew and Annie author drag of at
+  most exactly 0.5 and the VRM 0 fixture 0.4, so the drag cap leaves Included
+  Avatars unchanged at the defaults. Findings: S6-R2-F1 (required) asked for
+  this check record; S6-R2-F2 noted that only `effects:render` gained
+  `--avatar-file`; S6-R2-F3 noted that the drag cap reaches existing user
+  Avatars; and nits.
+- Code Review #2 Revisions: the check record above; Phase 3 step 5 now says
+  `animation:render` is still pending; the Decision Log notes the drag cap's
+  reach; the nits are fixed. All are record or wording changes, verified by the
+  implementer. One repair round remains unused.
 
 ### Phase 3: Authored lilToon rendering
 
@@ -435,8 +527,9 @@ Changes:
    uniform handling, enhanced three-point lighting versus the single directional
    light lilToon supports, face-painted Avatar Effects and face texture anchors,
    portrait capture, disposal (`releaseModelScene`), and review-render stages.
-5. Review tooling (commit it separately and first, so a no-go revert of the
-   lilToon work keeps it; the Phase 4 and R5/R6 Lapwing reviews need it):
+5. Review tooling (delivered early in the Phase 2 step 6 follow-up, so a no-go
+   revert of the lilToon work keeps it; `effects:render` has it, while
+   `animation:render` and `effects:bench` still need it if wanted):
    `effects:render` and `animation:render` gain an explicit
    `--avatar-file <path>` for a local Avatar outside the repository; outputs go
    to the given `--out` directory. Do not add third-party files to any allowlist

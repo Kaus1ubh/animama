@@ -105,6 +105,7 @@ import {
   SpringBonePhysicsController,
   type SpringBonePhysicsParams,
   type SpringBonePhysicsSnapshot,
+  springsTunedWithoutAmbientForces,
 } from "./spring-bone/SpringBonePhysicsController";
 import type {
   SpringBoneSemantic,
@@ -513,6 +514,7 @@ export class Avatar {
     );
     this.springBonePhysicsController = new SpringBonePhysicsController(vrm, {
       sourceGltf: gltf,
+      ambientForces: !springsTunedWithoutAmbientForces(gltf.parser.json),
     });
     this.expressionController = new ExpressionController(vrm);
     this.reactionClipPlayer = new ReactionClipPlayer(
