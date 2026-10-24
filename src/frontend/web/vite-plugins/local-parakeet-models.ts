@@ -68,6 +68,8 @@ export type LocalFileAsset = {
   filePath: string;
   size: number;
   contentType: string;
+  /** Strong validator for verified bytes; without it every request transfers them. */
+  etag?: string;
 };
 
 export type MiddlewareServer = {
@@ -164,6 +166,15 @@ function serveLocalFileFromRoute({
   };
 }
 
+function matchesEtag(condition: string | undefined, etag: string): boolean {
+  return (
+    condition
+      ?.split(",")
+      .some((value) => [etag, `W/${etag}`, "*"].includes(value.trim())) ??
+    false
+  );
+}
+
 /** Serve a caller-owned allowlist with consistent byte-range behavior. */
 export function installLocalAssetMiddleware(
   server: MiddlewareServer,
@@ -195,14 +206,23 @@ export function installLocalAssetMiddleware(
     }
 
     res.setHeader("Cache-Control", "no-cache");
+    if (asset.etag) {
+      res.setHeader("ETag", asset.etag);
+      if (matchesEtag(req.headers["if-none-match"], asset.etag)) {
+        res.statusCode = 304;
+        res.end();
+        return;
+      }
+    }
     res.setHeader("Accept-Ranges", "bytes");
     res.setHeader("Content-Type", asset.contentType);
     let start = 0;
     let end = asset.size - 1;
     // One bounded byte range is enough for model loading. Ignore If-Range
     // without a matching validator and send the complete representation.
+    const ifRange = req.headers["if-range"];
     const range =
-      req.method === "GET" && !req.headers["if-range"]
+      req.method === "GET" && (!ifRange || ifRange === asset.etag)
         ? req.headers.range
         : undefined;
     if (range) {

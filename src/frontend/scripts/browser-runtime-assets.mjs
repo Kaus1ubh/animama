@@ -12,6 +12,7 @@ import {
   readdirSync,
   readSync,
   realpathSync,
+  writeFileSync,
 } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -313,6 +314,29 @@ function safeFile(root, relative) {
       throw new Error(`Linked browser runtime asset path: ${current}`);
   }
   return current;
+}
+
+/**
+ * Built FastAPI (web and desktop) revalidates these unversioned runtime URLs by
+ * their verified digests. Hosted packaging removes `.vite/` with the rest of
+ * the build metadata.
+ */
+export const BROWSER_RUNTIME_RECORD = ".vite/browser-runtime.json";
+
+/** Record the built runtime's served paths, sizes and digests beside Vite's manifest. */
+export function writeBrowserRuntimeRecord(assets, outputDirectory) {
+  mkdirSync(path.join(outputDirectory, ".vite"), { recursive: true });
+  safeFile(outputDirectory, ".vite");
+  const destination = path.join(outputDirectory, BROWSER_RUNTIME_RECORD);
+  const existing = lstatSync(destination, { throwIfNoEntry: false });
+  if (existing && (!existing.isFile() || existing.nlink !== 1))
+    throw new Error(`Unsafe browser runtime record: ${destination}`);
+  const files = assets.map((asset) => ({
+    path: `onnx/${asset.path}`,
+    size: asset.size,
+    sha256: asset.sha256,
+  }));
+  writeFileSync(destination, JSON.stringify({ schema_version: 1, files }));
 }
 
 /** Distribution artifacts need independent regular copies, never a developer cache symlink. */

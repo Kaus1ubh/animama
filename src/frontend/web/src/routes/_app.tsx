@@ -17,6 +17,7 @@ import { AppShell } from "@/ui/app/AppShell";
 import { ContentPreviewDockProvider } from "@/ui/content-preview/ContentPreviewDockProvider";
 import { SettingsGate } from "@/ui/settings/SettingsGate";
 import { DesktopUpdatesPanel } from "@/ui/settings/DesktopUpdatesPanel";
+import { ModelDownloadToasts } from "@/ui/app/ModelDownloads";
 import { SidebarShell } from "@/ui/sidebar";
 
 export const Route = createFileRoute("/_app")({
@@ -55,6 +56,7 @@ function ApplicationAreaLayout() {
               <Outlet />
             )}
             {!admission.onboardingRequired && <DesktopUpdatesPanel notice />}
+            <ModelDownloadToasts />
           </ContentPreviewDockProvider>
         </AppShell>
       </SettingsGate>

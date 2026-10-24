@@ -106,9 +106,11 @@ Each staging pass clears only `desktop/.desktop-runtime/darwin-arm64`, then:
    distribution copies and their existing notices remain required. Ordinary
    `pnpm web:build` also retains the Included compatibility copies.
    This is a production build: application debug imports stay excluded even
-   with `VITE_ENABLE_DEBUG_PANEL=true`. Retain `.vite/manifest.json` alongside
-   the coherent SPA output; packaged FastAPI uses it to identify fingerprinted
-   JS/CSS eligible for immutable caching and does not serve the inventory.
+   with `VITE_ENABLE_DEBUG_PANEL=true`. Retain `.vite/manifest.json` and
+   `.vite/browser-runtime.json` alongside the coherent SPA output; packaged
+   FastAPI uses them to identify fingerprinted JS/CSS eligible for immutable
+   caching and to revalidate speech runtime files by digest, and serves
+   neither record.
    HTML validators hash the actual contents, so normalized file dates and an
    unchanged HTML length cannot keep a previous build's script fingerprints.
 5. Bundles Electron main/preload with esbuild and copies only the native input

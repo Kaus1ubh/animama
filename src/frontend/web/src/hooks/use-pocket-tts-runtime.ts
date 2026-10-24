@@ -139,9 +139,26 @@ type GeneratePocketTtsArgs = {
   runId?: string;
 };
 
+/**
+ * The vendored worker's model setup stages, in order. Their status texts are
+ * its only stage signal; other texts (such as the cloning encoder) are not steps.
+ */
+const POCKET_LOADING_STAGES = [
+  "Loading ONNX Runtime...",
+  "Loading models...",
+  "Loading ONNX sessions...",
+  "Loading tokenizer...",
+  "Loading voices...",
+] as const;
+
+/** How many setup steps `loadingStep` counts up to. */
+export const POCKET_LOADING_STEP_COUNT = POCKET_LOADING_STAGES.length;
+
 type PocketTtsRuntimeState = {
   ready: boolean;
   phase: PocketTtsPhase;
+  /** 1-based model setup step while the model loads; null otherwise. */
+  loadingStep: number | null;
   voices: string[];
   currentVoice: string;
   hasCustomVoice: boolean;
@@ -171,6 +188,7 @@ function getCrossOriginIsolated(): boolean {
 let runtimeState: PocketTtsRuntimeState = {
   ready: false,
   phase: "idle",
+  loadingStep: null,
   voices: [],
   currentVoice: "",
   hasCustomVoice: false,
@@ -186,6 +204,7 @@ let runtimeState: PocketTtsRuntimeState = {
 const DISABLED_RUNTIME_STATE: PocketTtsRuntimeState = {
   ready: false,
   phase: "idle",
+  loadingStep: null,
   voices: [],
   currentVoice: "",
   hasCustomVoice: false,
@@ -288,6 +307,19 @@ function attachCoreListeners(core: PocketTtsCoreLike) {
           ? status.currentVoice
           : prev.currentVoice,
       metrics: core.getMetrics(),
+    }));
+  });
+
+  core.addEventListener("model_status", (event) => {
+    if (core !== pocketCore) return;
+    const detail = isRecord(event.detail) ? event.detail : {};
+    const stage = POCKET_LOADING_STAGES.indexOf(
+      detail.text as (typeof POCKET_LOADING_STAGES)[number],
+    );
+    if (detail.status === "loading" && stage < 0) return;
+    updateState((prev) => ({
+      ...prev,
+      loadingStep: detail.status === "loading" ? stage + 1 : null,
     }));
   });
 
@@ -488,6 +520,7 @@ export async function warmupPocketTtsRuntime(apiClient: Client): Promise<void> {
   updateState((prev) => ({
     ...prev,
     phase: prev.phase === "generating" ? prev.phase : "loading",
+    loadingStep: null,
     error: null,
   }));
 
@@ -500,6 +533,7 @@ export async function warmupPocketTtsRuntime(apiClient: Client): Promise<void> {
         ...prev,
         ready: true,
         phase: normalizePhase(status.phase),
+        loadingStep: null,
         voices: core.getVoices(),
         currentVoice:
           typeof status.currentVoice === "string"
@@ -517,6 +551,7 @@ export async function warmupPocketTtsRuntime(apiClient: Client): Promise<void> {
         ...prev,
         ready: false,
         phase: "error",
+        loadingStep: null,
         error: message,
       }));
       throw error;

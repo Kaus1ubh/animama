@@ -173,6 +173,16 @@
       "whenSelected": "선택하면 다운로드됩니다"
     }
   },
+  "loadingStatus": {
+    "avatar": "아바타 불러오는 중",
+    "content": "애니메이션과 효과 불러오는 중",
+    "contentProgress": "애니메이션과 효과 불러오는 중({{completed}}/{{total}})",
+    "download": "{{item}} 다운로드 중({{size}})",
+    "downloadProgress": "{{item}} 다운로드 중({{size}} 중 {{percent}})",
+    "speechToText": "음성 텍스트 변환(Parakeet) 불러오는 중",
+    "textToSpeech": "텍스트 음성 변환(PocketTTS) 불러오는 중",
+    "textToSpeechStep": "텍스트 음성 변환(PocketTTS) 불러오는 중, {{total}}단계 중 {{step}}단계"
+  },
   "memoryCue": {
     "added": "{{name}}의 기억에 추가됨",
     "addedUnnamed": "이 Anima의 기억에 추가됨",
@@ -197,9 +207,7 @@
     "title": "새 채팅을 시작할까요?"
   },
   "playback": {
-    "degraded": "일부 아바타 콘텐츠를 사용할 수 없습니다. 텍스트 채팅은 계속 사용할 수 있습니다.",
-    "preparing": "애니메이션과 효과를 준비하는 중…",
-    "preparingCanChat": "애니메이션과 효과를 준비하는 중… 지금 채팅할 수 있습니다."
+    "degraded": "일부 아바타 콘텐츠를 사용할 수 없습니다. 텍스트 채팅은 계속 사용할 수 있습니다."
   },
   "profile": {
     "back": "뒤로",

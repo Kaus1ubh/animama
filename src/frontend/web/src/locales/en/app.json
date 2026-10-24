@@ -118,6 +118,15 @@
   "meta": {
     "description": "Animama, your AI avatar companion."
   },
+  "modelDownloads": {
+    "failed": "{{item}} download failed",
+    "items": {
+      "speechToText": "Speech-to-Text (Parakeet CPU)",
+      "speechToTextGpu": "Speech-to-Text (Parakeet GPU)",
+      "voiceClone": "Voice Clone encoder"
+    },
+    "ready": "{{item}} ready"
+  },
   "notFound": {
     "description": "This address does not lead to an Animama page.",
     "eyebrow": "Not found",

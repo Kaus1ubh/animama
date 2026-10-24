@@ -43,8 +43,12 @@ shows the same two sets as "Parakeet (CPU, size)" and "Parakeet (GPU, size)"
 tabs (`SetupSpeechDownloads`, sharing `useOfflineSpeechDownloads`) with a
 WebGPU ✓/✗ check; asking for the GPU set first says to download the CPU
 version. Removal and attribution stay in App Settings. Every download can be
-skipped; downloads do not change provider or voice selection. Vite
-development serves the operator's host sets and shows no downloads.
+skipped; downloads do not change provider or voice selection. Downloads
+continue in the backend after leaving Setup or Settings: the chat status lines
+show their size and progress, and `ModelDownloadToasts` (mounted in the app
+layout) shows one short toast when a Parakeet or Voice Clone encoder download
+finishes or fails. Vite development serves the operator's host sets and shows
+no downloads.
 `GET /v1/runtime-capabilities` supplies `offline_speech_enabled` and nullable
 `offline_speech_asset_version` and `offline_speech_gpu_asset_version`, derived
 from the installed sets on each request; the renderer refetches them when an
@@ -1011,6 +1015,11 @@ are application URLs, not tracked model files under `web/public`:
 - VAD worklet: `/onnx/models/vad/vad.worklet.bundle.min.js`
 - Pocket's ORT modules and all sidecars: `/onnx/ort/1.24.2/*`
 - Smart Turn: `/onnx/models/smart-turn/smart-turn-v3.2-cpu.onnx`
+
+These files ship with the app; nothing downloads them from the internet. Their
+URLs are unversioned, so every load revalidates them by their manifest SHA-256
+`ETag` and an unchanged file returns `304` (see
+[Frontend overview](../architecture/overview.md)).
 
 VAD and Smart Turn workers also retain their Vite-bundled ORT imports. Resolving
 the public ORT 1.24.2 inventory does not replace those dependency versions.

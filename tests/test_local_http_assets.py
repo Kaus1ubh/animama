@@ -206,6 +206,86 @@ async def test_missing_invalid_or_oversized_manifest_degrades_safely(web_root: P
         assert "etag" not in response.headers
 
 
+_RUNTIME = b"pocket-model-fixture"
+_RUNTIME_PATH = "onnx/models/pocket-tts/flow_lm_flow.onnx"
+
+
+def _write_runtime(web_root: Path, files: object | None = None, *, record: bytes | None = None) -> str:
+    """Add one built speech runtime file and the build's digest record for it."""
+
+    digest = hashlib.sha256(_RUNTIME).hexdigest()
+    (web_root / _RUNTIME_PATH).parent.mkdir(parents=True)
+    (web_root / _RUNTIME_PATH).write_bytes(_RUNTIME)
+    os.utime(web_root / _RUNTIME_PATH, (1704067200, 1704067200))
+    if files is None:
+        files = [{"path": _RUNTIME_PATH, "size": len(_RUNTIME), "sha256": digest}]
+    if record is None:
+        record = json.dumps({"schema_version": 1, "files": files}).encode()
+    (web_root / ".vite/browser-runtime.json").write_bytes(record)
+    return digest
+
+
+async def test_browser_runtime_files_revalidate_by_build_digest(web_root: Path) -> None:
+    etag = '"' + _write_runtime(web_root) + '"'
+    async with _client(LocalAssets(web_root)) as client:
+        path = "/" + _RUNTIME_PATH
+        first = await client.get(path)
+        assert first.status_code == 200 and first.content == _RUNTIME
+        assert first.headers["etag"] == etag
+        assert first.headers["cache-control"] == "no-cache"
+        assert "last-modified" not in first.headers
+        for method in ("GET", "HEAD"):
+            unchanged = await client.request(method, path, headers={"if-none-match": etag})
+            assert unchanged.status_code == 304 and not unchanged.content
+            assert "content-length" not in unchanged.headers
+            assert unchanged.headers["cache-control"] == "no-cache"
+        stale = await client.get(path, headers={"if-none-match": '"' + "0" * 64 + '"'})
+        assert stale.status_code == 200 and stale.content == _RUNTIME
+        # The record never becomes a served file.
+        assert (await client.get("/.vite/browser-runtime.json")).status_code == 404
+
+
+_DIGEST = "a" * 64
+
+
+@pytest.mark.parametrize(
+    "files,record",
+    [
+        (None, b"not json"),
+        (None, b'{"schema_version": 2, "files": []}'),
+        ([{"path": _RUNTIME_PATH, "size": 1, "sha256": _DIGEST}], None),
+        ([{"path": "assets/app-abcdefgh.js", "size": 24, "sha256": _DIGEST}], None),
+        (
+            [
+                {"path": _RUNTIME_PATH, "size": len(_RUNTIME), "sha256": _DIGEST},
+                {"path": "onnx/../index.html", "size": 1, "sha256": _DIGEST},
+            ],
+            None,
+        ),
+        ([{"path": _RUNTIME_PATH, "size": len(_RUNTIME), "sha256": "A" * 64}], None),
+    ],
+    ids=["invalid", "schema", "size-mismatch", "outside-onnx", "unsafe-entry", "digest-case"],
+)
+async def test_invalid_or_mismatched_runtime_record_sends_no_validator(
+    web_root: Path, files: object | None, record: bytes | None
+) -> None:
+    _write_runtime(web_root, files, record=record)
+    async with _client(LocalAssets(web_root)) as client:
+        for path in ("/" + _RUNTIME_PATH, "/config.json"):
+            response = await client.get(path, headers={"if-none-match": "*"})
+            assert response.status_code == 200
+            assert response.headers["cache-control"] == "no-cache"
+            assert "etag" not in response.headers
+
+
+async def test_missing_runtime_record_sends_no_validator(web_root: Path) -> None:
+    _write_runtime(web_root)
+    (web_root / ".vite/browser-runtime.json").unlink()
+    async with _client(LocalAssets(web_root)) as client:
+        response = await client.get("/" + _RUNTIME_PATH, headers={"if-none-match": "*"})
+        assert response.status_code == 200 and "etag" not in response.headers
+
+
 @pytest.mark.parametrize(
     "name,content_type",
     [

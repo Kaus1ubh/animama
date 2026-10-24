@@ -19,9 +19,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  BROWSER_RUNTIME_RECORD,
   copyBrowserRuntimeAssets,
   resolveBrowserRuntimeAssets,
   verifyOptionalBrowserCatalogs,
+  writeBrowserRuntimeRecord,
 } from "../../scripts/browser-runtime-assets.mjs";
 import { installBrowserRuntimeAssets } from "../vite-plugins/browser-runtime-assets";
 
@@ -375,5 +377,73 @@ describe("verified browser runtime inputs", () => {
       (await fetch(base + "/onnx/models/parakeet-tdt-0.6b-v2/config.json"))
         .status,
     ).toBe(418);
+  });
+
+  it("revalidates reviewed runtime files by their manifest digest", async () => {
+    const value = fixture();
+    const base = await listen(resolveBrowserRuntimeAssets(value));
+    const url = base + "/onnx/" + value.manifest.files[0].path;
+    const etag = `"${value.manifest.files[0].sha256}"`;
+    const first = await fetch(url);
+    expect(first.status).toBe(200);
+    expect(first.headers.get("etag")).toBe(etag);
+    expect(first.headers.get("cache-control")).toBe("no-cache");
+    for (const method of ["GET", "HEAD"]) {
+      const unchanged = await fetch(url, {
+        method,
+        headers: { "If-None-Match": `W/"stale", ${etag}` },
+      });
+      expect(unchanged.status).toBe(304);
+      expect(await unchanged.text()).toBe("");
+      expect(unchanged.headers.get("etag")).toBe(etag);
+    }
+    const stale = await fetch(url, { headers: { "If-None-Match": '"stale"' } });
+    expect(stale.status).toBe(200);
+    expect(await stale.text()).toBe("0123456789");
+    const ranged = await fetch(url, {
+      headers: { Range: "bytes=2-4", "If-Range": etag },
+    });
+    expect(ranged.status).toBe(206);
+    expect(await ranged.text()).toBe("234");
+  });
+
+  it("records built runtime digests beside Vite's manifest", () => {
+    const value = fixture();
+    const builtRoot = path.join(value.root, "dist");
+    const assets = resolveBrowserRuntimeAssets(value);
+    copyBrowserRuntimeAssets(assets, builtRoot);
+    writeBrowserRuntimeRecord(
+      resolveBrowserRuntimeAssets({
+        manifestPath: value.manifestPath,
+        builtRoot,
+      }),
+      builtRoot,
+    );
+    const record = JSON.parse(
+      readFileSync(path.join(builtRoot, BROWSER_RUNTIME_RECORD), "utf8"),
+    );
+    expect(record).toEqual({
+      schema_version: 1,
+      files: value.manifest.files.map(
+        (entry: { path: string; size: number; sha256: string }) => ({
+          path: `onnx/${entry.path}`,
+          size: entry.size,
+          sha256: entry.sha256,
+        }),
+      ),
+    });
+    // The record stays outside the verified onnx inventory.
+    expect(
+      resolveBrowserRuntimeAssets({
+        manifestPath: value.manifestPath,
+        builtRoot,
+      }),
+    ).toHaveLength(22);
+    const destination = path.join(builtRoot, BROWSER_RUNTIME_RECORD);
+    rmSync(destination);
+    symlinkSync(path.join(value.root, "elsewhere.json"), destination);
+    expect(() => writeBrowserRuntimeRecord(assets, builtRoot)).toThrow(
+      /Unsafe browser runtime record/,
+    );
   });
 });

@@ -1086,6 +1086,15 @@ export default interface Resources {
     "meta": {
       "description": "Animama, your AI avatar companion."
     },
+    "modelDownloads": {
+      "failed": "{{item}} download failed",
+      "items": {
+        "speechToText": "Speech-to-Text (Parakeet CPU)",
+        "speechToTextGpu": "Speech-to-Text (Parakeet GPU)",
+        "voiceClone": "Voice Clone encoder"
+      },
+      "ready": "{{item}} ready"
+    },
     "notFound": {
       "description": "This address does not lead to an Animama page.",
       "eyebrow": "Not found",
@@ -1357,6 +1366,16 @@ export default interface Resources {
         "whenSelected": "Downloads when selected"
       }
     },
+    "loadingStatus": {
+      "avatar": "Loading avatar",
+      "content": "Loading animations and effects",
+      "contentProgress": "Loading animations and effects ({{completed}}/{{total}})",
+      "download": "Downloading {{item}} ({{size}})",
+      "downloadProgress": "Downloading {{item}}: {{percent}} of {{size}}",
+      "speechToText": "Loading Speech-to-Text (Parakeet)",
+      "textToSpeech": "Loading Text-to-Speech (PocketTTS)",
+      "textToSpeechStep": "Loading Text-to-Speech (PocketTTS), step {{step}} of {{total}}"
+    },
     "memoryCue": {
       "added": "Added to {{name}}'s memories",
       "addedUnnamed": "Added to this Anima's memories",
@@ -1381,9 +1400,7 @@ export default interface Resources {
       "title": "Start a new chat?"
     },
     "playback": {
-      "degraded": "Some avatar content is unavailable. Text chat still works.",
-      "preparing": "Preparing animations and effects…",
-      "preparingCanChat": "Preparing animations and effects… You can chat now."
+      "degraded": "Some avatar content is unavailable. Text chat still works."
     },
     "profile": {
       "back": "Back",

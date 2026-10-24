@@ -30,6 +30,11 @@ export function copyBrowserRuntimeAssets(
   assets: ResolvedBrowserRuntimeAsset[],
   outputDirectory: string,
 ): void;
+export const BROWSER_RUNTIME_RECORD: ".vite/browser-runtime.json";
+export function writeBrowserRuntimeRecord(
+  assets: BrowserRuntimeAsset[],
+  outputDirectory: string,
+): void;
 
 export function isOptionalBrowserCatalog(relative: string): boolean;
 export function resolveOptionalBrowserCatalog(

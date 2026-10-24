@@ -118,6 +118,15 @@
   "meta": {
     "description": "Animama — あなたの AI アバターコンパニオン。"
   },
+  "modelDownloads": {
+    "items": {
+      "speechToText": "音声認識（Parakeet CPU）",
+      "speechToTextGpu": "音声認識（Parakeet GPU）",
+      "voiceClone": "音声クローン用エンコーダー"
+    },
+    "ready": "{{item}}の準備完了",
+    "failed": "{{item}}のダウンロードに失敗"
+  },
   "notFound": {
     "description": "このアドレスに Animama のページはありません。",
     "eyebrow": "見つかりません",
