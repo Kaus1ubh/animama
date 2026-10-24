@@ -676,6 +676,7 @@ export function LibraryContentInventory({
           <Input
             className="h-11 pl-9"
             value={queryDraft}
+            maxLength={80}
             placeholder={t("inventory.search")}
             onChange={(event) => setQueryDraft(event.target.value)}
           />

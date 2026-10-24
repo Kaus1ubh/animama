@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const SEARCH_DEBOUNCE_MS = 300;
 
@@ -15,9 +15,14 @@ export function useSearchDraft(
   commit: (query: string | undefined) => void,
 ) {
   const [draft, setDraft] = useState(committed ?? "");
+  // The query this box last committed; null until it commits one.
+  const ownCommit = useRef<string | null>(null);
 
   useEffect(() => {
-    // The box's own commit leaves its draft (and any trailing space) alone.
+    // The box's own commit arriving in the URL leaves the draft alone, keeping
+    // a trailing space or anything typed while the navigation was applied.
+    if ((committed ?? "") === ownCommit.current) return;
+    ownCommit.current = null;
     setDraft((current) =>
       current.trim() === (committed ?? "") ? current : (committed ?? ""),
     );
@@ -26,10 +31,10 @@ export function useSearchDraft(
   useEffect(() => {
     const normalized = draft.trim();
     if (normalized === (committed ?? "")) return;
-    const timeout = window.setTimeout(
-      () => commit(normalized || undefined),
-      SEARCH_DEBOUNCE_MS,
-    );
+    const timeout = window.setTimeout(() => {
+      ownCommit.current = normalized;
+      commit(normalized || undefined);
+    }, SEARCH_DEBOUNCE_MS);
     return () => window.clearTimeout(timeout);
   }, [commit, committed, draft]);
 

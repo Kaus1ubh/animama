@@ -10,6 +10,7 @@ import { useSearchDraft } from "./useSearchDraft";
 ).IS_REACT_ACT_ENVIRONMENT = true;
 
 let root: Root;
+let applyCommit = true;
 let container: HTMLElement;
 const commits: Array<string | undefined> = [];
 const view: {
@@ -23,7 +24,7 @@ function Harness() {
   const [committed, setCommitted] = useState<string | undefined>("air");
   const [draft, setDraft] = useSearchDraft(committed, (query) => {
     commits.push(query);
-    setCommitted(query);
+    if (applyCommit) setCommitted(query);
   });
   view.draft = draft;
   view.type = setDraft;
@@ -34,6 +35,7 @@ function Harness() {
 beforeEach(() => {
   vi.useFakeTimers();
   commits.length = 0;
+  applyCommit = true;
   container = document.createElement("div");
   root = createRoot(container);
   act(() => root.render(<Harness />));
@@ -65,5 +67,16 @@ describe("Library search draft", () => {
     expect(view.draft).toBe("");
     act(() => vi.advanceTimersByTime(300));
     expect(commits).toEqual([]);
+  });
+
+  it("keeps a keystroke typed while its previous commit reaches the URL", () => {
+    applyCommit = false;
+    act(() => view.type("air g"));
+    act(() => vi.advanceTimersByTime(300));
+    expect(commits).toEqual(["air g"]);
+    act(() => view.type("air gu"));
+    // The router applies the earlier commit only now.
+    act(() => view.navigate("air g"));
+    expect(view.draft).toBe("air gu");
   });
 });
