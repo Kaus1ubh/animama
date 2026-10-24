@@ -12067,10 +12067,25 @@ export type ListChatMessagesV1ChatsChatIdMessagesGetResponse = ListChatMessagesV
 
 export type ListContentCatalogV1ContentCatalogGetData = {
     body?: never;
+    headers?: {
+        /**
+         * If-None-Match
+         */
+        'If-None-Match'?: string | null;
+    };
     path?: never;
     query?: never;
     url: '/v1/content/catalog';
 };
+
+export type ListContentCatalogV1ContentCatalogGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListContentCatalogV1ContentCatalogGetError = ListContentCatalogV1ContentCatalogGetErrors[keyof ListContentCatalogV1ContentCatalogGetErrors];
 
 export type ListContentCatalogV1ContentCatalogGetResponses = {
     /**
@@ -12120,7 +12135,12 @@ export type StreamContentFileV1ContentFilesFileRefGetData = {
          */
         file_ref: string;
     };
-    query?: never;
+    query?: {
+        /**
+         * Variant
+         */
+        variant?: 'thumbnail' | null;
+    };
     url: '/v1/content/files/{file_ref}';
 };
 

@@ -7717,7 +7717,13 @@ export const zListChatMessagesV1ChatsChatIdMessagesGetResponse = zPyChatMessages
 export const zListContentCatalogV1ContentCatalogGetData = z.object({
     body: z.optional(z.never()),
     path: z.optional(z.never()),
-    query: z.optional(z.never())
+    query: z.optional(z.never()),
+    headers: z.optional(z.object({
+        'If-None-Match': z.optional(z.union([
+            z.string(),
+            z.null()
+        ]))
+    }))
 });
 
 /**
@@ -7741,7 +7747,12 @@ export const zStreamContentFileV1ContentFilesFileRefGetData = z.object({
     path: z.object({
         file_ref: z.string()
     }),
-    query: z.optional(z.never()),
+    query: z.optional(z.object({
+        variant: z.optional(z.union([
+            z.literal('thumbnail'),
+            z.null()
+        ]))
+    })),
     headers: z.optional(z.object({
         'If-None-Match': z.optional(z.union([
             z.string(),

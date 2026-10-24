@@ -137,10 +137,11 @@ describe("content-backed pose queries", () => {
   it.each([
     { origin: "builtin" as const, query: " PEACE ", expected: [included] },
     { origin: "owned" as const, query: "arms", expected: [local] },
-    { origin: "all" as const, query: "fRiEnDlY", expected: [secondLocal] },
+    { origin: "all" as const, query: "wAvE", expected: [secondLocal] },
+    { origin: "all" as const, query: "friendly", expected: [] },
     { origin: "owned" as const, query: "Peace", expected: [] },
   ])(
-    "filters $origin poses using normalized name or description search",
+    "filters $origin poses by a normalized name search, never the description",
     async ({ origin, query, expected }) => {
       const observer = observe<PyPosePage>(
         createClient(),
@@ -153,6 +154,26 @@ describe("content-backed pose queries", () => {
       expect(observer.getCurrentResult().data?.items).toEqual(expected);
     },
   );
+  it("filters a new search from the cached list without another request", async () => {
+    const client = createClient();
+    const first = observe<PyPosePage>(
+      client,
+      "owner",
+      <ListProbe input={{ query: "peace" }} />,
+    );
+    await vi.waitFor(() =>
+      expect(first.getCurrentResult().data?.items).toEqual([included]),
+    );
+    const next = observe<PyPosePage>(
+      client,
+      "owner",
+      <ListProbe input={{ origin: "owned", query: "wave" }} />,
+    );
+    await vi.waitFor(() =>
+      expect(next.getCurrentResult().data?.items).toEqual([secondLocal]),
+    );
+    expect(mocks.list).toHaveBeenCalledTimes(1);
+  });
   it("sorts list metadata without acquiring previews, details or registered payload bytes", async () => {
     const fetch = vi.fn(() => {
       throw new Error("Unexpected byte request while listing");

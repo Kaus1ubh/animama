@@ -3,7 +3,12 @@
 import { useProductApiClient } from "@animama/product-ui";
 import type { Client } from "@animama/runtime-contracts/sdk";
 
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { useCallback } from "react";
+import {
+  type InfiniteData,
+  useInfiniteQuery,
+  useQuery,
+} from "@tanstack/react-query";
 
 import {
   getAvatarEffect,
@@ -21,9 +26,11 @@ import type {
 } from "@/lib/content/catalogTypes";
 import { typedComponentCatalogViewItem } from "@/lib/content/catalogTypes";
 import { isNonPortable } from "@/lib/content/portability";
+import { matchesContentName } from "@/lib/content/librarySearch";
 import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { queryKeys } from "@/query/keys";
 import { compareDisplayText } from "@animama/product-ui/i18n";
+import { selectPageItems } from "./selectPageItems";
 
 export type ContentOrigin = "all" | "builtin" | "owned";
 export type ActionComponentType =
@@ -35,8 +42,10 @@ export type ActionComponentType =
 type EffectCatalogInput = {
   query?: string;
   origin?: ContentOrigin;
+  /** Ignored: every family lists by name. */
   sort?: "relevance" | "updated" | "name";
   enabled?: boolean;
+  /** Ignored: every family is one unpaginated page. */
   limit?: number;
 };
 
@@ -101,16 +110,36 @@ async function effectItem(
   }
 }
 
+/** Every listable row of one family, sorted by name. */
 async function effectPage(
   apiClient: Client,
   kind: ActionComponentType,
-  input: EffectCatalogInput,
 ): Promise<PyContentPage> {
   return {
-    items: listedEffectRows(kind, await effectRows(apiClient, kind), input),
+    items: listedEffectRows(kind, await effectRows(apiClient, kind), {}),
     next_cursor: null,
     query: {},
   };
+}
+
+/** Whether one row is listed for this origin and search. */
+function effectRowListed(
+  kind: ActionComponentType,
+  item: PyCatalogViewItem,
+  origin: ContentOrigin,
+  query: string,
+): boolean {
+  return (
+    // Licensed sounds play only through their built-in effects: Library
+    // and the creator pickers never list or preview them alone. A Local
+    // file with the same bytes is non-portable too, and equally hidden.
+    !(kind === "sound_effect" && isNonPortable(item)) &&
+    (origin === "all" ||
+      (origin === "builtin"
+        ? item.catalog_source === "included"
+        : item.catalog_source === "local")) &&
+    matchesContentName(item.name, query)
+  );
 }
 
 /** Filter and sort one family's rows for the Library and creator pickers. */
@@ -120,25 +149,16 @@ export function listedEffectRows(
   input: EffectCatalogInput,
 ): PyCatalogViewItem[] {
   const origin = input.origin ?? "all";
-  const needle = (input.query ?? "").trim().toLocaleLowerCase();
   return rows
-    .filter(
-      (item) =>
-        // Licensed sounds play only through their built-in effects: Library
-        // and the creator pickers never list or preview them alone. A Local
-        // file with the same bytes is non-portable too, and equally hidden.
-        !(kind === "sound_effect" && isNonPortable(item)) &&
-        (origin === "all" ||
-          (origin === "builtin"
-            ? item.catalog_source === "included"
-            : item.catalog_source === "local")) &&
-        (!needle ||
-          item.name.toLocaleLowerCase().includes(needle) ||
-          (item.description ?? "").toLocaleLowerCase().includes(needle)),
-    )
+    .filter((item) => effectRowListed(kind, item, origin, input.query ?? ""))
     .sort((left, right) => compareDisplayText(left.name, right.name));
 }
 
+/**
+ * One family's rows for a caller. The whole family is cached under ``key`` and
+ * the caller's origin and search filter it locally, so typing a search never
+ * re-downloads the list. Every family is one unpaginated page.
+ */
 function useEffectPage(
   kind: ActionComponentType,
   key: readonly unknown[],
@@ -147,35 +167,45 @@ function useEffectPage(
   const apiClient = useProductApiClient();
 
   const userId = useRuntimeCacheKey();
-  return useInfiniteQuery<PyContentPage>({
-    queryKey: [...key, input.limit ?? 50],
+  const origin = input.origin ?? "all";
+  const query = input.query ?? "";
+  const select = useCallback(
+    (data: InfiniteData<PyContentPage>) =>
+      selectPageItems<PyCatalogViewItem, PyContentPage>(data, (item) =>
+        effectRowListed(kind, item, origin, query),
+      ),
+    [kind, origin, query],
+  );
+  return useInfiniteQuery<
+    PyContentPage,
+    Error,
+    InfiniteData<PyContentPage>,
+    readonly unknown[],
+    string | null
+  >({
+    queryKey: key,
     enabled: Boolean(userId && input.enabled !== false),
-    initialPageParam: null as string | null,
-    queryFn: async () => effectPage(apiClient, kind, input),
+    initialPageParam: null,
+    queryFn: async () => effectPage(apiClient, kind),
     getNextPageParam: () => undefined,
+    select,
   });
 }
 
 export function useParticleEffects(input: EffectCatalogInput = {}) {
   const userId = useRuntimeCacheKey();
-  const query = input.query ?? "";
-  const origin = input.origin ?? "all";
-  const sort = input.sort ?? (query ? "relevance" : "updated");
   return useEffectPage(
     "particle_effect",
-    queryKeys.particleEffects.list(userId ?? "__anon__", query, origin, sort),
+    queryKeys.particleEffects.list(userId ?? "__anon__", "", "all"),
     input,
   );
 }
 
 export function useSoundEffects(input: EffectCatalogInput = {}) {
   const userId = useRuntimeCacheKey();
-  const query = input.query ?? "";
-  const origin = input.origin ?? "all";
-  const sort = input.sort ?? (query ? "relevance" : "updated");
   return useEffectPage(
     "sound_effect",
-    queryKeys.soundEffects.list(userId ?? "__anon__", query, origin, sort),
+    queryKeys.soundEffects.list(userId ?? "__anon__", "", "all"),
     input,
   );
 }
@@ -261,14 +291,7 @@ export function useAvatarEffectsPage(input: EffectListInput = {}) {
   const userId = useRuntimeCacheKey();
   return useEffectPage(
     "avatar_effect",
-    [
-      "avatar-effects",
-      userId ?? "__anon__",
-      "page",
-      input.query ?? "",
-      input.origin ?? "all",
-      input.sort ?? "name",
-    ],
+    ["avatar-effects", userId ?? "__anon__", "page"],
     input,
   );
 }
@@ -277,14 +300,7 @@ export function useSceneEffectsPage(input: EffectListInput = {}) {
   const userId = useRuntimeCacheKey();
   return useEffectPage(
     "scene_effect",
-    [
-      "scene-effects",
-      userId ?? "__anon__",
-      "page",
-      input.query ?? "",
-      input.origin ?? "all",
-      input.sort ?? "name",
-    ],
+    ["scene-effects", userId ?? "__anon__", "page"],
     input,
   );
 }

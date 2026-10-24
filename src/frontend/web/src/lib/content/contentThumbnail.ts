@@ -24,7 +24,11 @@ export function particleThumbnailSource(
     : undefined;
 }
 
-/** Use the first registered image, never an arbitrary URL from effect JSON. */
+/**
+ * Use the first registered image, never an arbitrary URL from effect JSON. The
+ * thumbnail variant is a small WebP of that image, so a Library tile never
+ * downloads full-size art or a whole flipbook sheet.
+ */
 export function contentThumbnailUrl(
   files: readonly PyTypedContentFile[],
 ): string | null {
@@ -32,6 +36,6 @@ export function contentThumbnailUrl(
     .filter((file) => IMAGE_TYPES.has(file.media_type))
     .sort((left, right) => left.ordinal - right.ordinal)[0];
   return image
-    ? `/v1/content/files/${encodeURIComponent(image.file_ref)}`
+    ? `/v1/content/files/${encodeURIComponent(image.file_ref)}?variant=thumbnail`
     : null;
 }

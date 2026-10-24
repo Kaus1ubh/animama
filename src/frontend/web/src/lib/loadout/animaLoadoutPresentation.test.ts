@@ -237,9 +237,13 @@ describe("typed Anima loadout presentation", () => {
       status: "unequipped",
       motionType: "vrma",
       sort: "name-desc",
-      query: " FRIENDLY ",
+      query: " wAvE ",
     });
     expect(result.rows.map((row) => row.name)).toEqual(["Wave"]);
+    // Descriptions show only in a tooltip, so search never matches them.
+    expect(
+      list(loadout(), [builtinBow, builtinWave], { query: "friendly" }).rows,
+    ).toEqual([]);
     expect(result).toMatchObject({
       equippedCount: 2,
       totalCount: 3,
