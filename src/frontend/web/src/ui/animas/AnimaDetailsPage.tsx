@@ -71,8 +71,12 @@ import { AnimaCarousel } from "@/ui/animas/AnimaCarousel";
 import {
   ANIMA_SHOWCASE_CAMERAS,
   ANIMA_SHOWCASE_ORBIT_TARGET,
+  ANIMA_SHOWCASE_SHORT_CAMERA,
 } from "@/ui/animas/AnimaManagementStagePresentation";
-import { useAnimaRosterLayout } from "@/ui/animas/useAnimaRosterLayout";
+import {
+  useAnimaRosterLayout,
+  useShortAnimaViewport,
+} from "@/ui/animas/useAnimaRosterLayout";
 import { AppShellPage } from "@/ui/app/AppShellPage";
 import { StageBackgroundLayer } from "@/ui/main/canvas/StageBackgroundLayer";
 import { usePreparedContentPreview } from "@/ui/content-preview/usePreparedContentPreview";
@@ -425,6 +429,7 @@ export function AnimaDetailsPage({
   const rosterLayout = useAnimaRosterLayout();
   const isDesktopLayout = rosterLayout === "desktop";
   const isPhoneLayout = rosterLayout === "phone";
+  const shortViewport = useShortAnimaViewport();
   // Phones show the management panel as the page and open the stage
   // full-screen on request or for a preview, so no canvas runs behind it.
   const [phoneStageOpen, setPhoneStageOpen] = useState(false);
@@ -626,7 +631,11 @@ export function AnimaDetailsPage({
       contentPreviewLoop={stagePreview.loop}
       contentPreviewPlayRequest={stagePreview.playRequest}
       onContentPreviewStatusChange={handleStagePreviewStatus}
-      camera={ANIMA_SHOWCASE_CAMERAS[rosterLayout]}
+      camera={
+        presentation === "phone" && shortViewport
+          ? ANIMA_SHOWCASE_SHORT_CAMERA
+          : ANIMA_SHOWCASE_CAMERAS[rosterLayout]
+      }
       orbitTarget={ANIMA_SHOWCASE_ORBIT_TARGET}
       showMetadata={false}
       emptyTitle={

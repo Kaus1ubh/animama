@@ -119,7 +119,7 @@ export function SidebarCreateMenu() {
     label: t("create.label"),
     to: "/create",
     icon: (
-      <Sparkles className="text-sidebar-foreground dark:text-sidebar-foreground h-6 w-6 flex-shrink-0" />
+      <Sparkles className="text-sidebar-foreground dark:text-sidebar-foreground short:size-5 h-6 w-6 flex-shrink-0" />
     ),
   };
 

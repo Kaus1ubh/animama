@@ -1,4 +1,6 @@
 @custom-variant dark (&:is(.dark *));
+/* Short viewports such as landscape phones, where tall chrome cannot fit. */
+@custom-variant short (@media (max-height: 500px));
 
 @theme {
   --font-sans: "DM Sans Variable", ui-sans-serif, system-ui, sans-serif;

@@ -60,14 +60,14 @@ export function SidebarUserMenu() {
         "group/sidebar text-sidebar-foreground dark:text-sidebar-foreground flex items-center text-left",
         open
           ? "hover:bg-sidebar-accent/60 h-[44px] w-full gap-2 rounded-md px-2"
-          : "border-border/60 bg-background/60 text-foreground/80 hover:bg-muted/70 hover:text-foreground h-11 w-11 justify-center rounded-full border p-0 shadow-sm backdrop-blur-md",
+          : "border-border/60 bg-background/60 text-foreground/80 hover:bg-muted/70 hover:text-foreground short:h-9 short:w-9 h-11 w-11 justify-center rounded-full border p-0 shadow-sm backdrop-blur-md",
       )}
       aria-label={open ? undefined : displayName}
     >
       <Avatar
         className={cn(
           "ring-border shrink-0 ring-1",
-          open ? "size-8" : "size-10",
+          open ? "size-8" : "short:size-8 size-10",
         )}
       >
         <AvatarFallback className="text-xs font-medium">
