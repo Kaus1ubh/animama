@@ -1,9 +1,10 @@
 # Converted VRChat Avatars with native ARKit faces
 
-Source agreement: [vrchat-arkit-avatars-spec.md](vrchat-arkit-avatars-spec.md)
-draft of 2026-10-24, with the owner decisions recorded below. The spec moves to a
-parent issue at workspace setup; that issue then becomes authoritative.
-Authorized scope: none yet. The owner reviews the spec and this plan first.
+Source agreement: raymond-van/animama#687 (published 2026-10-24 from the agreed
+draft; snapshot in [vrchat-arkit-avatars-spec.md](vrchat-arkit-avatars-spec.md)).
+The issue is the spec; owner decisions are in the Decision Log.
+Authorized scope: Phases 1, 4 and 6 (owner, 2026-10-24). Phases 2, 3 and 5 wait
+for the owner's Unity setup and a separate go-ahead.
 Merge, release and any use of third-party Avatar data beyond local testing keep
 their separate approvals.
 
@@ -119,10 +120,10 @@ owner gates then wait for the converted Avatar.
 - 2026-10-24, owner: retry `@mochiya/three-liltoon` on authored lilToon materials,
   because the earlier trial used approximated settings on VRoid Avatars.
 - 2026-10-24, owner: provide both baked presets and runtime ARKit compositions.
-- 2026-10-24, agent proposal (owner to confirm): keep Gesture and Reaction content
+- 2026-10-24, owner (confirming an agent proposal): keep Gesture and Reaction content
   keyed to `Fcl_*` parts and VRM presets, and translate missing parts to ARKit
   per Avatar. Migrating content to an ARKit vocabulary is later work.
-- 2026-10-24, agent proposal (owner to confirm): on an Avatar with sufficient
+- 2026-10-24, owner (confirming an agent proposal): on an Avatar with sufficient
   ARKit coverage, runtime ARKit emotion compositions take precedence over its
   VRM presets; baked presets serve other VRM apps. "Sufficient" means every shape
   the composition table uses resolves.

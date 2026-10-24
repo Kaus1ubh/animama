@@ -1,9 +1,9 @@
 # Converted VRChat Avatars with native ARKit faces
 
-Status: Proposal
-Owner decision: Container, conversion route, material route and preset approach
-chosen 2026-10-24 (see Open questions and decisions). The draft as a whole awaits
-owner review.
+Status: Agreed
+Snapshot of https://github.com/raymond-van/animama/issues/687 (captured 2026-10-24T18:55:06Z); the issue is authoritative.
+Owner decision: Spec and ExecPlan approved 2026-10-24, with the choices listed
+under Open questions and decisions.
 
 ## Problem and intended users
 
@@ -150,18 +150,21 @@ Decided by the owner, 2026-10-24:
   settings (an earlier trial in #581/#587 converted MToon settings to lilToon by
   approximation and did not look good on VRoid Avatars).
 - Provide both baked presets and runtime ARKit compositions.
+- Keep Gesture and Reaction content keyed to `Fcl_*` parts and VRM presets, and
+  translate missing parts to ARKit per Avatar.
+- On an Avatar whose ARKit coverage resolves every shape the composition table
+  uses, runtime ARKit emotion compositions take precedence over its own VRM
+  presets; baked presets serve other VRM apps.
 
-Open (agent proposals in the ExecPlan Decision Log):
+Open:
 
-- Whether runtime ARKit compositions take precedence over an Avatar's own
-  authored presets.
 - The default lip-sync shaping on ARKit Avatars (decided at the R7 review).
 - Where the owner keeps third-party Avatar files and converted `.vrm` outside
   the repository.
 
 ## Spec
 
-This document (draft; the owning issue becomes authoritative on publication).
+https://github.com/raymond-van/animama/issues/687
 
 ## ExecPlan
 
