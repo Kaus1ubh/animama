@@ -96,9 +96,9 @@ review stay in `<private-avatars>` or the session scratchpad.
 ## Progress
 
 - [x] Phase 1: ARKit face capability and Avatar inspection. Done; reviewed (pass after one repair round).
-- [ ] Phase 2: Convert Lapwing. Steps 1–5 and 7 done (export validated and
-  inspected; guide written). Step 6 (Local Avatar on a stack, owner R1 checks)
-  remains.
+- [ ] Phase 2: Convert Lapwing. Steps 1–5 and 7 done; step 6 loaded on the
+  `vrcarkit` stack. Owner R1 checks remain; dark fallback materials and
+  upward-held springs found.
 - [ ] Phase 3: Authored lilToon rendering. Needs Phase 2 output; owner look gate.
 - [x] Phase 4: ARKit emotions and face-track translation. Done; reviewed (pass
   after one repair round). Owner visual gate on Lapwing still open (needs
@@ -381,8 +381,32 @@ Progress (2026-10-24, owner steps 1–3; agent steps 4, 5 and 7):
 - Step 7 (agent): `docs/frontend/runtime/vrchat-avatar-conversion.md`, linked
   from `docs/frontend/README.md`, records the macOS route, versions, commands,
   expected warnings, checks and licence rules.
-- Remaining: step 6 (task stack, Local Avatar upload, owner R1 checks), then
-  the guide is updated with anything it finds.
+- Step 6 (agent part, 2026-10-24): task stack `animama-vrcarkit` at
+  `http://animama-vrcarkit.localhost:8800` (development mode, from this
+  worktree at `d2ddaab1`; only `web` published on loopback). First-run setup
+  was finished with a test name, AI and voice skipped, and the 18+ gate
+  confirmed. The export was uploaded with
+  `PUT /v1/avatar-content/Lapwing` (200, Local Avatar content, revision
+  `4567d394`). A test Anima, "Lapwing Test" (Pocket TTS Eve, starter actions),
+  was created through Create Anima. Lapwing loads in the creator preview and the
+  chat canvas. The runtime log reports `playsFacesWithArkit: true` with every
+  listed ARKit shape resolved, all five vowel presets, and face parts and
+  landmarks resolved automatically.
+  - Finding: every fallback glTF material keeps the default `metallicFactor` 1
+    (roughness 1, no metallic texture), so with no environment map Lapwing
+    renders much darker than in Unity (light lavender hair and a white shirt
+    look dark grey and black). Phase 3's lilToon rendering replaces these
+    materials. Until then the fallback could treat metallic as 0 for materials
+    that carry `MOCHIYA_materials_liltoon`. It is also worth reporting
+    upstream.
+  - Finding: the converted springs hold their rest pose. The ponytail has
+    stiffness 0.165 and gravity 0.0064; the jacket has stiffness 0.934 and
+    gravity 0.11. Animama's spring controller adds a subtle updraft, so in the
+    chat canvas the ponytail stands up and the jacket hem flares out sideways
+    instead of hanging. Decide whether to retune converted springs (scale
+    gravity, or a per-Avatar spring profile) before the trailer.
+- Remaining: the owner's live R1 checks on the stack, then the guide is updated
+  with the agreed spring and material handling.
 
 #### Code Review #1 Findings
 

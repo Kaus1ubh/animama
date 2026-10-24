@@ -127,10 +127,19 @@ Check that:
 - every face mesh stores its names at mesh level, not "primitives only";
 - the ARKit count is complete, with any renamed matches as expected.
 
-Then upload it as a Local Avatar on a local stack and check motion, springs,
-blink, visemes and look-at in the chat canvas. Correct its face parts in the
-Avatar Effect creator's Face parts panel if needed. Materials render with
-Animama's glTF fallback; the authored lilToon look needs lilToon rendering.
+Then upload it as a Local Avatar on a local stack, for example by choosing it
+in Create Anima (Upload VRM), and check motion, springs, blink, visemes and
+look-at in the chat canvas. Correct its face parts in the Avatar Effect
+creator's Face parts panel if needed.
+
+Known limits of a Mochiya 0.1.4 export:
+
+- Materials render with Animama's glTF fallback. The exporter leaves glTF's
+  default `metallicFactor` of 1 on every fallback material, so the Avatar looks
+  much darker than in Unity. The authored lilToon look needs lilToon rendering.
+- PhysBone gravity converts to very small VRM gravity values. Hair and cloth
+  then hold their modelled rest pose, and Animama's subtle spring updraft can
+  lift them; a ponytail may stand up and a jacket hem flare out.
 
 To make the file emote in other VRM apps as well, bake its mood presets into a
 copy with `pnpm -s vrm:bake-expressions` (see
