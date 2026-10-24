@@ -32,7 +32,7 @@ export function useAnimaRosterLayout(): AnimaRosterLayout {
   return layout;
 }
 
-const SHORT_VIEWPORT_QUERY = `(max-height: ${ANIMA_ROSTER_SHORT_MAX_HEIGHT - 1}px)`;
+const SHORT_VIEWPORT_QUERY = `(height < ${ANIMA_ROSTER_SHORT_MAX_HEIGHT}px)`;
 
 function subscribeToShortViewport(onChange: () => void): () => void {
   const media = window.matchMedia(SHORT_VIEWPORT_QUERY);

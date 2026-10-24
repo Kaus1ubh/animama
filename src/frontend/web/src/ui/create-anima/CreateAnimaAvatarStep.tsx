@@ -220,7 +220,7 @@ export function CreateAnimaAvatarStep({
             <Button
               type="button"
               variant="outline"
-              className="shrink-0 px-3 sm:px-4"
+              className="shrink-0"
               disabled={busy}
               aria-label={t("avatarStep.upload")}
               title={t("avatarStep.upload")}

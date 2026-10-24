@@ -43,8 +43,10 @@ export function AppShell({ children, className }: AppShellProps) {
   const [isDesktop, setIsDesktop] = useState(() =>
     matchesMedia(DESKTOP_MEDIA_QUERY),
   );
-  const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(() =>
-    matchesMedia(XL_MEDIA_QUERY),
+  // Only the md–xl rail starts collapsed; a phone session that widens to xl
+  // still finds the sidebar expanded.
+  const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(
+    () => matchesMedia(XL_MEDIA_QUERY) || !matchesMedia(DESKTOP_MEDIA_QUERY),
   );
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [suppressAnimations, setSuppressAnimations] = useState(false);

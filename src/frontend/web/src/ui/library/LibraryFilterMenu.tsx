@@ -71,7 +71,7 @@ export function LibraryFilterMenu({
       <DropdownMenuTrigger asChild>
         <Button
           type="button"
-          className="h-11 px-3 sm:px-4"
+          className="h-11"
           variant={filtersActive ? "secondary" : "outline"}
           aria-label={t("filters.label")}
         >

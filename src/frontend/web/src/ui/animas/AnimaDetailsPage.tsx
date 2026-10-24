@@ -458,40 +458,52 @@ export function AnimaDetailsPage({
     (candidate) => candidate.id === animaId,
   );
 
-  const openStagePreview = useCallback((target: ContentPreviewTarget): void => {
-    if (!isAnimaStagePreviewTarget(target)) return;
-    setPhoneStageOpen(true);
-    toast.dismiss(STAGE_PREVIEW_TOAST_ID);
-    if (document.activeElement instanceof HTMLElement) {
-      stagePreviewInvokerRef.current = document.activeElement;
-    }
-    logContentPreviewLifecycle(
-      previousStageTargetKeyRef.current &&
-        previousStageTargetKeyRef.current !== target.key
-        ? "target_replacement"
-        : "preview_open",
-      "management",
-      {
-        kind: target.kind,
-        slot: target.slot,
-        sourceType: target.sourceType,
-      },
-    );
-    previousStageTargetKeyRef.current = target.key;
-    dispatchStagePreview({ type: "select", target });
-  }, []);
+  const openStagePreview = useCallback(
+    (target: ContentPreviewTarget): void => {
+      if (!isAnimaStagePreviewTarget(target)) return;
+      // Only phones show the stage on demand; wider layouts keep it docked.
+      if (isPhoneLayout) setPhoneStageOpen(true);
+      toast.dismiss(STAGE_PREVIEW_TOAST_ID);
+      if (document.activeElement instanceof HTMLElement) {
+        stagePreviewInvokerRef.current = document.activeElement;
+      }
+      logContentPreviewLifecycle(
+        previousStageTargetKeyRef.current &&
+          previousStageTargetKeyRef.current !== target.key
+          ? "target_replacement"
+          : "preview_open",
+        "management",
+        {
+          kind: target.kind,
+          slot: target.slot,
+          sourceType: target.sourceType,
+        },
+      );
+      previousStageTargetKeyRef.current = target.key;
+      dispatchStagePreview({ type: "select", target });
+    },
+    [isPhoneLayout],
+  );
   const stopStagePreview = useCallback(() => {
     toast.dismiss(STAGE_PREVIEW_TOAST_ID);
     dispatchStagePreview({ type: "stop" });
     previousStageTargetKeyRef.current = null;
     const invoker = stagePreviewInvokerRef.current;
+    stagePreviewInvokerRef.current = null;
     if (!invoker?.isConnected) return;
     window.requestAnimationFrame(() => invoker.focus());
   }, []);
   const closePhoneStage = useCallback(() => {
     setPhoneStageOpen(false);
-    stopStagePreview();
-  }, [stopStagePreview]);
+    // A stage opened with View Avatar has no preview to stop; the dialog
+    // returns focus to its trigger.
+    if (stagePreview.target) stopStagePreview();
+  }, [stagePreview.target, stopStagePreview]);
+
+  // Leaving the phone layout closes its stage, so it cannot reopen unasked.
+  useEffect(() => {
+    if (!isPhoneLayout) setPhoneStageOpen(false);
+  }, [isPhoneLayout]);
 
   useEffect(() => {
     if (!stagePreparation.prepared) return;

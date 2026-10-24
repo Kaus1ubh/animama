@@ -29,14 +29,14 @@ export function CreatorTimelineToolbar({
   trailing?: ReactNode;
 }) {
   return (
-    <div className="flex min-w-0 shrink-0 flex-wrap items-center gap-1.5 pb-0.5 min-[1200px]:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:grid sm:grid-cols-[auto_auto_auto] sm:overflow-x-auto">
+    <div className="grid min-w-0 shrink-0 grid-cols-[auto_auto_auto] items-center gap-1.5 overflow-x-auto pb-0.5 max-sm:flex max-sm:flex-wrap max-sm:overflow-visible min-[1200px]:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
       <div className="flex flex-wrap items-center gap-3 justify-self-start">
         {leading}
       </div>
-      <div className="col-start-2 row-start-1 flex min-w-0 flex-wrap items-center gap-1.5 sm:flex-nowrap sm:justify-center">
+      <div className="col-start-2 row-start-1 flex items-center justify-center gap-1.5 max-sm:min-w-0 max-sm:flex-wrap max-sm:justify-start">
         {transport}
       </div>
-      <div className="col-start-3 row-start-1 ml-auto flex shrink-0 items-center gap-1.5 justify-self-end sm:ml-0">
+      <div className="col-start-3 row-start-1 flex shrink-0 items-center gap-1.5 justify-self-end max-sm:ml-auto">
         {trailing}
       </div>
     </div>

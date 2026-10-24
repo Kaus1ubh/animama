@@ -83,10 +83,12 @@ import type {
 
 /**
  * The 800px chat column is centred over the full-width scene, beneath the
- * floating sidebar rail (72px with its gap) from the md breakpoint. Pad its
- * left edge only by the part of the rail it would otherwise sit under.
+ * floating sidebar rail from the md breakpoint: its controls end at
+ * COLLAPSED_SIDEBAR_CONTROL_INSET (56px), plus a 16px gap. Pad the column's
+ * left edge only by the part of that 72px it would otherwise sit under.
  */
-const CLEAR_ICON_RAIL = "md:pl-[max(1rem,calc(72px_-_(100vw_-_800px)_/_2))]";
+const CLEAR_ICON_RAIL =
+  "md:pl-[max(1rem,calc(72px_-_max(0px,(100vw_-_800px)_/_2)))]";
 
 type ChatInterfaceProps = {
   className?: string;
