@@ -118,6 +118,15 @@
   "meta": {
     "description": "Animama，你的 AI 虚拟形象伙伴。"
   },
+  "modelDownloads": {
+    "items": {
+      "speechToText": "语音转文本（Parakeet CPU）",
+      "speechToTextGpu": "语音转文本（Parakeet GPU）",
+      "voiceClone": "语音克隆编码器"
+    },
+    "ready": "{{item}}已就绪",
+    "failed": "{{item}}下载失败"
+  },
   "notFound": {
     "description": "此地址没有对应的 Animama 页面。",
     "eyebrow": "未找到",

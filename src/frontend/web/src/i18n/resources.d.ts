@@ -1081,6 +1081,15 @@ export default interface Resources {
     "meta": {
       "description": "Animama, your AI avatar companion."
     },
+    "modelDownloads": {
+      "failed": "{{item}} download failed",
+      "items": {
+        "speechToText": "Speech-to-Text (Parakeet CPU)",
+        "speechToTextGpu": "Speech-to-Text (Parakeet GPU)",
+        "voiceClone": "Voice Clone encoder"
+      },
+      "ready": "{{item}} ready"
+    },
     "notFound": {
       "description": "This address does not lead to an Animama page.",
       "eyebrow": "Not found",
@@ -1356,11 +1365,11 @@ export default interface Resources {
       "avatar": "Loading avatar",
       "content": "Loading animations and effects",
       "contentProgress": "Loading animations and effects ({{completed}}/{{total}})",
+      "download": "Downloading {{item}} ({{size}})",
+      "downloadProgress": "Downloading {{item}}: {{percent}} of {{size}}",
       "speechToText": "Loading Speech-to-Text (Parakeet)",
       "textToSpeech": "Loading Text-to-Speech (PocketTTS)",
-      "textToSpeechStep": "Loading Text-to-Speech (PocketTTS), step {{step}} of {{total}}",
-      "voiceDownload": "Downloading voice {{name}} ({{size}})",
-      "voiceDownloadProgress": "Downloading voice {{name}} ({{size}}), {{percent}}"
+      "textToSpeechStep": "Loading Text-to-Speech (PocketTTS), step {{step}} of {{total}}"
     },
     "memoryCue": {
       "added": "Added to {{name}}'s memories",

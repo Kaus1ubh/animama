@@ -47,6 +47,9 @@ vi.mock("@/ui/settings/SettingsGate", () => ({
 vi.mock("@/ui/settings/DesktopUpdatesPanel", () => ({
   DesktopUpdatesPanel: () => null,
 }));
+vi.mock("@/ui/app/ModelDownloads", () => ({
+  ModelDownloadToasts: () => null,
+}));
 vi.mock("@/ui/sidebar", () => ({ SidebarShell: () => null }));
 
 (

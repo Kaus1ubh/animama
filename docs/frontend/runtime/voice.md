@@ -43,8 +43,12 @@ shows the same two sets as "Parakeet (CPU, size)" and "Parakeet (GPU, size)"
 tabs (`SetupSpeechDownloads`, sharing `useOfflineSpeechDownloads`) with a
 WebGPU ✓/✗ check; asking for the GPU set first says to download the CPU
 version. Removal and attribution stay in App Settings. Every download can be
-skipped; downloads do not change provider or voice selection. Vite
-development serves the operator's host sets and shows no downloads.
+skipped; downloads do not change provider or voice selection. Downloads
+continue in the backend after leaving Setup or Settings: the chat status lines
+show their size and progress, and `ModelDownloadToasts` (mounted in the app
+layout) shows one short toast when a Parakeet or Voice Clone encoder download
+finishes or fails. Vite development serves the operator's host sets and shows
+no downloads.
 `GET /v1/runtime-capabilities` supplies `offline_speech_enabled` and nullable
 `offline_speech_asset_version` and `offline_speech_gpu_asset_version`, derived
 from the installed sets on each request; the renderer refetches them when an

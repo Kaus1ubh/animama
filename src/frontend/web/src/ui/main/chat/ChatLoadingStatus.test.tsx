@@ -17,8 +17,13 @@ const fixture = vi.hoisted(() => ({
     } | null,
   },
   pocket: { ready: false, phase: "idle", loadingStep: null as number | null },
-  downloads: {} as Record<string, { status: string; progress: number | null }>,
-  downloadsEnabled: [] as boolean[],
+  assets: [] as {
+    id: string;
+    status: string;
+    size_bytes: number;
+    total_bytes?: number;
+    bytes_downloaded?: number;
+  }[],
 }));
 
 vi.mock("@/ui/app/AnimaRouteProviders", () => ({
@@ -28,11 +33,9 @@ vi.mock("@/hooks/use-pocket-tts-runtime", () => ({
   POCKET_LOADING_STEP_COUNT: 5,
   usePocketTtsRuntime: () => fixture.pocket,
 }));
-vi.mock("@/hooks/use-pocket-voice-downloads", () => ({
-  usePocketVoiceDownloads: ({ enabled }: { enabled: boolean }) => {
-    fixture.downloadsEnabled.push(enabled);
-    return { availability: (id: string) => fixture.downloads[id] ?? null };
-  },
+vi.mock("@/query/hooks/useModelAssets", () => ({
+  useOperatorManagedModelAssets: () => false,
+  useModelAssets: () => ({ data: { assets: fixture.assets } }),
 }));
 
 const idle: ChatLoadingStatus = {
@@ -40,7 +43,7 @@ const idle: ChatLoadingStatus = {
   content: null,
   textToSpeech: null,
   speechToText: false,
-  voiceDownload: null,
+  downloads: [],
 };
 
 /** The rendered status lines, in order. */
@@ -104,14 +107,28 @@ describe("ChatLoadingStatusLines", () => {
     ]);
   });
 
-  it("says Downloading only for a voice install, with size and progress", () => {
-    const voiceDownload = { name: "Azelma", sizeBytes: 8 * 1024 ** 2 };
+  it("says Downloading for speech model downloads, with size and progress", () => {
     expect(
-      lines({ voiceDownload: { ...voiceDownload, progress: 0.42 } }),
-    ).toEqual(["Downloading voice Azelma (8 MB), 42%"]);
-    expect(
-      lines({ voiceDownload: { ...voiceDownload, progress: null } }),
-    ).toEqual(["Downloading voice Azelma (8 MB)"]);
+      lines({
+        downloads: [
+          {
+            assetId: "parakeet-stt-webgpu",
+            item: "speechToTextGpu",
+            sizeBytes: 1.2 * 1024 ** 3,
+            progress: 0.42,
+          },
+          {
+            assetId: "pocket-tts-voice-cloning-encoder",
+            item: "voiceClone",
+            sizeBytes: 38 * 1024 ** 2,
+            progress: null,
+          },
+        ],
+      }),
+    ).toEqual([
+      "Downloading Speech-to-Text (Parakeet GPU): 42% of 1.2 GB",
+      "Downloading Voice Clone encoder (38 MB)",
+    ]);
   });
 });
 
@@ -123,8 +140,7 @@ describe("useChatLoadingStatus", () => {
       preparationProgress: null,
     };
     fixture.pocket = { ready: false, phase: "idle", loadingStep: null };
-    fixture.downloads = {};
-    fixture.downloadsEnabled = [];
+    fixture.assets = [];
   });
 
   it("shows the Avatar first, then content progress once it is visible", () => {
@@ -151,12 +167,20 @@ describe("useChatLoadingStatus", () => {
     expect(routeLines()).toEqual([]);
   });
 
-  it("reads a downloading voice from the shared cache without fetching", () => {
+  it("lists a Parakeet download started elsewhere but not a Pocket voice", () => {
     fixture.mounted.playbackStatus = "ready";
-    fixture.downloads.azelma = { status: "downloading", progress: 0.5 };
+    fixture.assets = [
+      {
+        id: "parakeet-stt",
+        status: "downloading",
+        size_bytes: 661332409,
+        total_bytes: 1000,
+        bytes_downloaded: 500,
+      },
+      { id: "pocket-voice-azelma", status: "downloading", size_bytes: 7963896 },
+    ];
     expect(routeLines()).toEqual([
-      expect.stringMatching(/^Downloading voice Azelma \(.+\), 50%$/),
+      "Downloading Speech-to-Text (Parakeet CPU): 50% of 630.7 MB",
     ]);
-    expect(fixture.downloadsEnabled.every((enabled) => !enabled)).toBe(true);
   });
 });

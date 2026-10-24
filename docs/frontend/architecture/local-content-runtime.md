@@ -241,10 +241,11 @@ still in progress: the Avatar until its first posed frame, then animations and e
 with completed/total members, the PocketTTS model during its first load with
 its setup step (the worker's five status stages, matched by text in
 `use-pocket-tts-runtime.ts`), Parakeet while dictation or Voice Mode starts,
-and a Pocket voice installing through model assets. Local reads say "Loading";
-only that voice install says "Downloading", with its size and progress. Chat
-readiness is not repeated there: the composer disables Send until chat is
-ready. A missing or invalid optional
+and any Parakeet CPU/GPU or Voice Clone encoder download, wherever it was
+started (`ui/app/ModelDownloads.tsx`). Local reads say "Loading"; downloads say
+"Downloading", with size and progress. Pocket voices are small and are not
+listed. Chat readiness is not repeated there: the composer disables Send until
+chat is ready. A missing or invalid optional
 root is excluded from playback with its dependents; unrelated content and text
 chat continue. A missing, invalid, or unposable Avatar uses the non-avatar
 fallback and a recovery diagnostic, never an unposed model.

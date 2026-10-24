@@ -177,11 +177,11 @@
     "avatar": "正在加载虚拟形象",
     "content": "正在加载动画和特效",
     "contentProgress": "正在加载动画和特效（{{completed}}/{{total}}）",
+    "download": "正在下载{{item}}（{{size}}）",
+    "downloadProgress": "正在下载{{item}}（{{size}}，已完成 {{percent}}）",
     "speechToText": "正在加载语音转文本（Parakeet）",
     "textToSpeech": "正在加载文字转语音（PocketTTS）",
-    "textToSpeechStep": "正在加载文字转语音（PocketTTS），第 {{step}} 步，共 {{total}} 步",
-    "voiceDownload": "正在下载语音 {{name}}（{{size}}）",
-    "voiceDownloadProgress": "正在下载语音 {{name}}（{{size}}），{{percent}}"
+    "textToSpeechStep": "正在加载文字转语音（PocketTTS），第 {{step}} 步，共 {{total}} 步"
   },
   "memoryCue": {
     "added": "已添加到 {{name}} 的记忆",

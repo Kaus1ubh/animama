@@ -5,13 +5,16 @@ import {
   POCKET_LOADING_STEP_COUNT,
   usePocketTtsRuntime,
 } from "@/hooks/use-pocket-tts-runtime";
-import { usePocketVoiceDownloads } from "@/hooks/use-pocket-voice-downloads";
-import { POCKET_VOICES } from "@/lib/speech/pocket/voice-catalog";
 import { useMountedAnimaRuntimeContent } from "@/ui/app/AnimaRouteProviders";
+import {
+  modelDownloadLabel,
+  useModelDownloads,
+  type ModelDownload,
+} from "@/ui/app/ModelDownloads";
 
 /**
  * What an Anima chat is still getting ready. Loading reads files this
- * installation already has; only `voiceDownload` fetches from the internet.
+ * installation already has; only `downloads` fetch from the internet.
  */
 export type ChatLoadingStatus = {
   /** The Avatar model has not shown its first posed frame. */
@@ -22,12 +25,8 @@ export type ChatLoadingStatus = {
   textToSpeech: { step: number | null; total: number } | null;
   /** Parakeet is loading after a microphone or Voice Mode start. */
   speechToText: boolean;
-  /** A Pocket voice installing through the backend downloader. */
-  voiceDownload: {
-    name: string;
-    sizeBytes: number;
-    progress: number | null;
-  } | null;
+  /** Speech models downloading from the internet, wherever they were started. */
+  downloads: ModelDownload[];
 };
 
 /** Collect the chat route's loading items from the stores that already track them. */
@@ -38,14 +37,9 @@ export function useChatLoadingStatus({
 }): ChatLoadingStatus {
   const mounted = useMountedAnimaRuntimeContent();
   const pocket = usePocketTtsRuntime();
-  // Chat playback owns the model-asset query and its polling; this observer
-  // only reads that cache, so it adds no requests.
-  const { availability } = usePocketVoiceDownloads({ enabled: false });
+  const downloads = useModelDownloads();
   const preparing = mounted.playbackStatus === "preparing";
   const progress = mounted.preparationProgress;
-  const downloading = POCKET_VOICES.find(
-    (voice) => availability(voice.id)?.status === "downloading",
-  );
   return {
     avatar: preparing && mounted.avatarVisualStatus === "loading",
     content:
@@ -60,13 +54,7 @@ export function useChatLoadingStatus({
         ? { step: pocket.loadingStep, total: POCKET_LOADING_STEP_COUNT }
         : null,
     speechToText: isDictationPreparing,
-    voiceDownload: downloading
-      ? {
-          name: downloading.name,
-          sizeBytes: downloading.sizeBytes,
-          progress: availability(downloading.id)?.progress ?? null,
-        }
-      : null,
+    downloads,
   };
 }
 
@@ -77,6 +65,7 @@ export function ChatLoadingStatusLines({
   status: ChatLoadingStatus;
 }) {
   const { t } = useTranslation("chat");
+  const { t: tApp } = useTranslation("app");
   const formatters = useFormatters();
   const lines: { key: string; text: string }[] = [];
   if (status.avatar)
@@ -101,18 +90,17 @@ export function ChatLoadingStatusLines({
   }
   if (status.speechToText)
     lines.push({ key: "stt", text: t("loadingStatus.speechToText") });
-  const download = status.voiceDownload;
-  if (download) {
+  for (const download of status.downloads) {
     const values = {
-      name: download.name,
+      item: modelDownloadLabel(tApp, download.item),
       size: formatters.fileSize(download.sizeBytes),
     };
     lines.push({
-      key: "voiceDownload",
+      key: download.assetId,
       text:
         download.progress === null
-          ? t("loadingStatus.voiceDownload", values)
-          : t("loadingStatus.voiceDownloadProgress", {
+          ? t("loadingStatus.download", values)
+          : t("loadingStatus.downloadProgress", {
               ...values,
               percent: formatters.number(download.progress, {
                 style: "percent",
