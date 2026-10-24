@@ -267,6 +267,12 @@ Boundaries:
   and `runtime-contracts` 0.14.0, so the branch's bump becomes 15.0.0 and
   0.15.0. `main`'s download toasts and chat status lines now also report the
   SenseVoice sets.
+- 2026-10-24, owner: Settings names the model ("SenseVoice (CPU)", "Parakeet
+  (WebGPU · Experimental)") instead of G1's engine-neutral "Offline" labels,
+  and Setup's Speech-to-Text section becomes a choice listing every model (and
+  the browser recognizers on the web, none on desktop): the UI Locale's model
+  on the CPU is recommended and preselected, and Finish saves the selected tab
+  even when untouched.
 
 ## Owner gates
 

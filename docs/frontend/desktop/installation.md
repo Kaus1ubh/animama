@@ -49,10 +49,12 @@ require Docker, Python, Node.js, PostgreSQL, Homebrew or a source checkout.
    you set up last (saving the OpenAI key, saving the Anthropic key for Claude
    Haiku 5.5, or adding a model) becomes the default Chat model, and the
    starter Animas switch to it. **Skip for now** keeps the default.
-6. **Voice** offers the speech recognition downloads for the app's language
-   (CPU, and GPU acceleration): Parakeet for English, SenseVoice for Japanese,
-   Korean and Chinese. It also offers the Text-to-Speech provider: built-in
-   PocketTTS, on by default, or ElevenLabs with its key. Nothing downloads
+6. **Voice** chooses speech recognition from every offline model (CPU, and GPU
+   acceleration): the one for the app's language comes first and is
+   recommended (SenseVoice for Japanese, Korean and Chinese, Parakeet for
+   English), and each tab offers its download. It also offers the
+   Text-to-Speech provider: built-in PocketTTS, on by default, or ElevenLabs
+   with its key. Both choices are saved at **Finish**. Nothing downloads
    unless you choose it,
    and downloads keep going after you finish. Choose **Finish**, then confirm
    that you are 18 or older in the short modal before Annie's chat opens. Later launches open the last Anima you visited, or the

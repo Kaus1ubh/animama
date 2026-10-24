@@ -78,13 +78,18 @@ progress, cancel, retry and removal. The add-on is always shown; when it cannot
 be installed (CPU model missing, no WebGPU adapter, or not in this build) its
 action is disabled with the reason. A loaded asset list without an engine's
 sets shows them as not available, for example on a runtime whose operator does
-not provide SenseVoice. Setup's Voice step offers only the UI Locale's engine,
-as "<model> (CPU, size)" and "<model> (GPU, size)" tabs (`SetupSpeechDownloads`,
-sharing `useOfflineSpeechDownloads(engine)`) with a WebGPU ✓/✗ check; asking for
-the GPU set first says to download the CPU version. The composer's install hint
-(`OfflineSpeechDownloads routedOnly`) also offers only that engine. Removal,
-attribution and the other engine's sets stay in App Settings. Every download
-can be skipped; downloads do not change provider or voice selection. Downloads
+not provide SenseVoice. Setup's Voice step makes the Speech-to-Text choice as
+tabs (`SetupSpeechChoice`, sharing `useOfflineSpeechDownloads(engine)`): the UI
+Locale's model as "<model> (CPU, size)" (marked recommended and selected by
+default) and "<model> (GPU, size)", then the other model's two tabs, which say
+which app language uses them, and on the web the browser recognizers (desktop
+has none). Offline tabs carry their set's download, and the GPU tab a WebGPU
+✓/✗ check; asking for the GPU set first says to download the CPU version.
+Finish saves the selected tab, even untouched (`setupSttPatch`: either model's
+tab stores the offline provider and the GPU preference, so the UI Locale still
+picks the model). The composer's install hint (`OfflineSpeechDownloads
+routedOnly`) offers only the UI Locale's engine. Removal and attribution stay
+in App Settings. Every download can be skipped. Downloads
 continue in the backend after leaving Setup or Settings: the chat status lines
 show their size and progress, and `ModelDownloadToasts` (mounted in the app
 layout) shows one short toast when a speech-to-text set (Parakeet or
@@ -382,8 +387,8 @@ its worker with:
 #### Experimental WebGPU backend
 
 App Settings → **Voice** → **Speech-to-Text** → **Provider** offers
-**Offline (CPU)** and **Offline (WebGPU · Experimental)**; their descriptions
-name the model serving the UI Locale. Both store the `parakeet` provider; the
+**<model> (CPU)** and **<model> (WebGPU · Experimental)**, named after the
+model serving the UI Locale (for example **SenseVoice (CPU)** under Japanese). Both store the `parakeet` provider; the
 WebGPU choice enables `speech.stt_parakeet_webgpu`, while the CPU choice
 disables it. The flag is off by default and applies to either engine.
 
