@@ -79,6 +79,40 @@ describe("mounted Pocket voice generation", () => {
     },
   );
 
+  it("counts model setup steps from the worker's status texts", async () => {
+    let finish!: () => void;
+    core.init.mockImplementationOnce(
+      () =>
+        new Promise<undefined>((resolve) => {
+          finish = () => resolve(undefined);
+        }),
+    );
+    const runtime = await import("./use-pocket-tts-runtime");
+    const { renderToStaticMarkup } = await import("@/test/runtime-markup");
+    const warmup = runtime.warmupPocketTtsRuntime(testApiClient);
+    const status = core.addEventListener.mock.calls.findLast(
+      ([event]) => event === "model_status",
+    )![1];
+    function Probe() {
+      return createElement(
+        "span",
+        null,
+        String(runtime.usePocketTtsRuntime().loadingStep),
+      );
+    }
+    const step = () => renderToStaticMarkup(createElement(Probe));
+    expect(step()).toBe("<span>null</span>");
+    status({ detail: { status: "loading", text: "Loading ONNX sessions..." } });
+    expect(step()).toBe("<span>3</span>");
+    // The cloning encoder is not a model setup step.
+    status({ detail: { status: "loading", text: "Loading voice encoder..." } });
+    expect(step()).toBe("<span>3</span>");
+    finish();
+    await warmup;
+    expect(step()).toBe("<span>null</span>");
+    expect(runtime.POCKET_LOADING_STEP_COUNT).toBe(5);
+  });
+
   it("rejects a mount disposed while its catalog preloads", async () => {
     let active = true;
     core.preloadAnimaVoices.mockImplementationOnce(async () => {

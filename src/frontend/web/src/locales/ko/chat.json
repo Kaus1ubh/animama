@@ -174,14 +174,14 @@
     }
   },
   "loadingStatus": {
-    "avatar": "아바타 불러오는 중…",
-    "canChat": "지금 채팅할 수 있습니다.",
-    "content": "애니메이션과 효과 불러오는 중…",
-    "contentProgress": "애니메이션과 효과 불러오는 중({{completed}}/{{total}})…",
-    "speechToText": "음성 텍스트 변환(Parakeet) 불러오는 중…",
-    "textToSpeech": "텍스트 음성 변환(PocketTTS) 불러오는 중…",
-    "voiceDownload": "음성 {{name}}({{size}}) 다운로드 중…",
-    "voiceDownloadProgress": "음성 {{name}}({{size}}) 다운로드 중… {{percent}}"
+    "avatar": "아바타 불러오는 중",
+    "content": "애니메이션과 효과 불러오는 중",
+    "contentProgress": "애니메이션과 효과 불러오는 중({{completed}}/{{total}})",
+    "speechToText": "음성 텍스트 변환(Parakeet) 불러오는 중",
+    "textToSpeech": "텍스트 음성 변환(PocketTTS) 불러오는 중",
+    "textToSpeechStep": "텍스트 음성 변환(PocketTTS) 불러오는 중, {{total}}단계 중 {{step}}단계",
+    "voiceDownload": "음성 {{name}}({{size}}) 다운로드 중",
+    "voiceDownloadProgress": "음성 {{name}}({{size}}) 다운로드 중, {{percent}}"
   },
   "memoryCue": {
     "added": "{{name}}의 기억에 추가됨",

@@ -238,10 +238,13 @@ reason-coded diagnostics back one discreet warning surface. While optional
 work continues, a usable avatar is not covered by a loading overlay. The status
 lines above the chat input (`ChatLoadingStatus.tsx`) show one line for each item
 still in progress: the Avatar until its first posed frame, then animations and effects
-with completed/total members, the PocketTTS model during its first load,
-Parakeet while dictation or Voice Mode starts, and a Pocket voice installing
-through model assets. Local reads say "Loading"; only that voice install says
-"Downloading", with its size and progress. A missing or invalid optional
+with completed/total members, the PocketTTS model during its first load with
+its setup step (the worker's five status stages, matched by text in
+`use-pocket-tts-runtime.ts`), Parakeet while dictation or Voice Mode starts,
+and a Pocket voice installing through model assets. Local reads say "Loading";
+only that voice install says "Downloading", with its size and progress. Chat
+readiness is not repeated there: the composer disables Send until chat is
+ready. A missing or invalid optional
 root is excluded from playback with its dependents; unrelated content and text
 chat continue. A missing, invalid, or unposable Avatar uses the non-avatar
 fallback and a recovery diagnostic, never an unposed model.

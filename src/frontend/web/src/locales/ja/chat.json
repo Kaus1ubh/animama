@@ -174,14 +174,14 @@
     }
   },
   "loadingStatus": {
-    "avatar": "アバターを読み込み中…",
-    "canChat": "もうチャットできます。",
-    "content": "アニメーションとエフェクトを読み込み中…",
-    "contentProgress": "アニメーションとエフェクトを読み込み中（{{completed}}/{{total}}）…",
-    "speechToText": "音声認識（Parakeet）を読み込み中…",
-    "textToSpeech": "読み上げ（PocketTTS）を読み込み中…",
-    "voiceDownload": "音声 {{name}}（{{size}}）をダウンロード中…",
-    "voiceDownloadProgress": "音声 {{name}}（{{size}}）をダウンロード中… {{percent}}"
+    "avatar": "アバターを読み込み中",
+    "content": "アニメーションとエフェクトを読み込み中",
+    "contentProgress": "アニメーションとエフェクトを読み込み中（{{completed}}/{{total}}）",
+    "speechToText": "音声認識（Parakeet）を読み込み中",
+    "textToSpeech": "読み上げ（PocketTTS）を読み込み中",
+    "textToSpeechStep": "読み上げ（PocketTTS）を読み込み中（ステップ {{step}}/{{total}}）",
+    "voiceDownload": "音声 {{name}}（{{size}}）をダウンロード中",
+    "voiceDownloadProgress": "音声 {{name}}（{{size}}）をダウンロード中、{{percent}}"
   },
   "memoryCue": {
     "added": "{{name}} の記憶に追加されました",

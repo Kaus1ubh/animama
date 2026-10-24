@@ -358,10 +358,7 @@ export function ChatInterfaceView({
                 {contentWarning.message}
               </p>
             ) : loadingStatus ? (
-              <ChatLoadingStatusLines
-                status={loadingStatus}
-                canChat={canChat}
-              />
+              <ChatLoadingStatusLines status={loadingStatus} />
             ) : null}
             {showPromptSuggestions ? (
               <div className="mb-2 flex flex-wrap gap-2">
