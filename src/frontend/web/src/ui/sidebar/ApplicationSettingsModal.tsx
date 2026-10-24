@@ -92,6 +92,7 @@ import { SpeechLanguageNotice } from "@/ui/settings/SpeechLanguageNotice";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
 import {
   getSttProviderOptions,
+  offlineSttShortName,
   resolveRoutedSttProvider,
   toSttProvider,
   type SttProvider,
@@ -1573,7 +1574,9 @@ export function ApplicationSettingsModal({
               >
                 <SelectValue placeholder={t("voice.stt.placeholder")}>
                   {selectedSttOption === "parakeet_webgpu"
-                    ? t("voice.stt.offlineWebgpu")
+                    ? t("voice.stt.offlineWebgpu", {
+                        model: offlineSttShortName(offlineRoute.engine),
+                      })
                     : currentSttOption?.label}
                 </SelectValue>
               </SelectTrigger>

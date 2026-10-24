@@ -197,13 +197,13 @@
         "unsupported": "此瀏覽器不支援僅限本機的 Web Speech 辨識。"
       },
       "parakeet": {
-        "cpuLabel": "離線（CPU）",
+        "cpuLabel": "{{model}}（CPU）",
         "descriptionBrowser": "依應用程式語言，在此瀏覽器中以 {{model}} 辨識語音。",
         "descriptionDesktop": "依應用程式語言，在此裝置上以 {{model}} 辨識語音。",
         "notInstalled": "請安裝離線語音辨識，以使用聽寫和語音模式。",
         "unavailableBrowser": "此瀏覽器目前無法使用離線語音辨識。",
         "webgpuDescription": "在 GPU 上以 {{model}} 執行的實驗性本機語音辨識，提供即時預覽。無法使用時改用 CPU。",
-        "webgpuLabel": "離線（WebGPU · 實驗性）"
+        "webgpuLabel": "{{model}}（WebGPU · 實驗性）"
       }
     },
     "tts": {

@@ -530,7 +530,7 @@ export function OfflineSpeechDownloads({
 }
 
 /** How a Vite development stack acquires an engine's host sets. */
-function HostSpeechModelsNote({ engine }: { engine: OfflineSttEngine }) {
+export function HostSpeechModelsNote({ engine }: { engine: OfflineSttEngine }) {
   const { t } = useTranslation("voice");
   return (
     <section className="space-y-0.5" aria-label={engineText(engine).languages}>

@@ -10,6 +10,7 @@ import {
   type SetupDraft,
   type SetupModelLocation,
   type SetupStep,
+  type SetupSttChoice,
   type SetupTtsProvider,
 } from "@/app/local-runtime/setup-draft";
 import {
@@ -21,6 +22,8 @@ import {
 } from "@/lib/chat/model-catalog";
 import type { SpeechPreferences } from "@/lib/settings/preferences";
 import type { TtsProviderOption } from "@/lib/speech/tts-provider";
+import type { OfflineSttEngine } from "@/lib/speech/offline-stt/routing";
+import type { SttProviderOption } from "@/lib/speech/stt-provider";
 import {
   connectionLocation,
   roleCandidates,
@@ -290,4 +293,70 @@ export function setupTtsOptions(
       reason: elevenlabs?.reason,
     },
   ];
+}
+
+/**
+ * The Voice step's Speech-to-Text tabs, in order: the UI Locale's offline model
+ * (CPU, then GPU), the other offline model, then the browser recognizers this
+ * platform offers (none on desktop).
+ */
+export function setupSttChoices(
+  engine: OfflineSttEngine,
+  browserOptions: readonly SttProviderOption[],
+): SetupSttChoice[] {
+  const other: OfflineSttEngine =
+    engine === "sensevoice" ? "parakeet" : "sensevoice";
+  return [
+    `${engine}_cpu`,
+    `${engine}_gpu`,
+    `${other}_cpu`,
+    `${other}_gpu`,
+    ...browserOptions.flatMap((option) =>
+      option.id === "browser_external" || option.id === "browser_local"
+        ? [option.id]
+        : [],
+    ),
+  ];
+}
+
+/**
+ * The selected Speech-to-Text tab: the owner's pick in this setup, else the
+ * saved preference (an offline one shown as the UI Locale's model), else the
+ * UI Locale's model on the CPU, which Setup recommends.
+ */
+export function resolveSetupSttChoice(
+  draft: Pick<SetupDraft, "sttChoice">,
+  saved: SpeechPreferences | null | undefined,
+  engine: OfflineSttEngine,
+  choices: readonly SetupSttChoice[],
+): SetupSttChoice {
+  if (draft.sttChoice && choices.includes(draft.sttChoice))
+    return draft.sttChoice;
+  const provider = saved?.stt_provider;
+  if (provider === "parakeet")
+    return saved?.stt_parakeet_webgpu === true
+      ? `${engine}_gpu`
+      : `${engine}_cpu`;
+  if (
+    (provider === "browser_external" || provider === "browser_local") &&
+    choices.includes(provider)
+  )
+    return provider;
+  return `${engine}_cpu`;
+}
+
+/**
+ * The speech preferences a Speech-to-Text tab saves. Either offline model's
+ * tab saves the offline provider and the GPU preference; the UI Locale picks
+ * the model. A browser tab keeps the saved GPU preference.
+ */
+export function setupSttPatch(
+  choice: SetupSttChoice,
+): Pick<SpeechPreferences, "stt_provider" | "stt_parakeet_webgpu"> {
+  if (choice === "browser_external" || choice === "browser_local")
+    return { stt_provider: choice };
+  return {
+    stt_provider: "parakeet",
+    stt_parakeet_webgpu: choice.endsWith("_gpu"),
+  };
 }

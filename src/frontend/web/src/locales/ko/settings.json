@@ -406,7 +406,7 @@
       "downloads": "오프라인 음성 다운로드",
       "entryLabel": "음성 텍스트 변환 제공자",
       "label": "제공자",
-      "offlineWebgpu": "오프라인 (WebGPU)",
+      "offlineWebgpu": "{{model}} (WebGPU)",
       "placeholder": "제공자 선택",
       "preparing": "제공자 기본값 준비 중...",
       "updateFailed": "음성 텍스트 변환 제공자를 업데이트하지 못했습니다."

@@ -125,6 +125,11 @@
       "engines": {
         "parakeet": "<link>NVIDIA 的 Parakeet TDT 0.6B v2</link> 會在此裝置上轉錄英語語音，你的聲音不會離開此裝置。",
         "sensevoice": "<link>阿里巴巴的 SenseVoice-Small</link> 會在此裝置上轉錄日語、韓語和中文語音，你的聲音不會離開此裝置。"
+      },
+      "recommended": "推薦",
+      "otherLanguage": {
+        "parakeet": "應用程式語言為英語時使用此模型。",
+        "sensevoice": "應用程式語言為日語、韓語或中文時使用此模型。"
       }
     },
     "tts": {

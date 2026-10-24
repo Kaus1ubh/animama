@@ -197,13 +197,13 @@
         "unsupported": "このブラウザーはローカル専用の Web Speech 認識に対応していません。"
       },
       "parakeet": {
-        "cpuLabel": "オフライン (CPU)",
+        "cpuLabel": "{{model}} (CPU)",
         "descriptionBrowser": "アプリの言語に合わせ、{{model}} がこのブラウザー内で音声を認識します。",
         "descriptionDesktop": "アプリの言語に合わせ、{{model}} がこのデバイス上で音声を認識します。",
         "notInstalled": "音声入力と音声モードを使うには、オフライン音声認識をインストールしてください。",
         "unavailableBrowser": "このブラウザーでは現在オフライン音声認識を利用できません。",
         "webgpuDescription": "{{model}} による GPU 上の試験的なローカル音声認識で、ライブプレビューを表示します。利用できない場合は CPU を使用します。",
-        "webgpuLabel": "オフライン (WebGPU · 試験的)"
+        "webgpuLabel": "{{model}} (WebGPU · 試験的)"
       }
     },
     "tts": {

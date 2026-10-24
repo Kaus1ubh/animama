@@ -406,7 +406,7 @@
       "downloads": "離線語音下載",
       "entryLabel": "語音轉文字供應商",
       "label": "供應商",
-      "offlineWebgpu": "離線（WebGPU）",
+      "offlineWebgpu": "{{model}}（WebGPU）",
       "placeholder": "選擇供應商",
       "preparing": "正在準備供應商預設值...",
       "updateFailed": "無法更新語音轉文字供應商。"

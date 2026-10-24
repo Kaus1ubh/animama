@@ -228,13 +228,13 @@
         "unsupported": "Local-only Web Speech recognition is not supported in this browser."
       },
       "parakeet": {
-        "cpuLabel": "Offline (CPU)",
+        "cpuLabel": "{{model}} (CPU)",
         "descriptionBrowser": "Speech recognition in this browser in the app's language, with {{model}}.",
         "descriptionDesktop": "Speech recognition on this device in the app's language, with {{model}}.",
         "notInstalled": "Install offline speech recognition to use dictation and Voice Mode.",
         "unavailableBrowser": "Offline speech recognition is currently unavailable in this browser.",
         "webgpuDescription": "Experimental local speech recognition on the GPU, with {{model}} and live previews. Falls back to the CPU when unavailable.",
-        "webgpuLabel": "Offline (WebGPU · Experimental)"
+        "webgpuLabel": "{{model}} (WebGPU · Experimental)"
       }
     },
     "tts": {

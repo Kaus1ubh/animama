@@ -1,4 +1,4 @@
-import { useId, useMemo, type Ref } from "react";
+import { useId, useMemo, type ComponentProps, type Ref } from "react";
 import { Trans, useTranslation } from "react-i18next";
 
 import type { SetupTtsProvider } from "@/app/local-runtime/setup-draft";
@@ -18,25 +18,28 @@ import {
 import { SpeechLanguageNotice } from "@/ui/settings/SpeechLanguageNotice";
 
 import { ModelLink } from "./ModelLink";
-import { SetupSpeechDownloads } from "./SetupSpeechDownloads";
+import { SetupSpeechChoice } from "./SetupSpeechChoice";
 import { setupTtsOptions } from "./setup-state";
 
 /** Kyutai's public Pocket TTS repository, linked from the built-in voices tab. */
 const POCKET_TTS_SOURCE = "https://github.com/kyutai-labs/pocket-tts";
 
 /**
- * Setup's Voice step: Speech-to-Text downloads (they install in place and
- * keep running after setup) and the default Text-to-Speech provider, each as
- * tabs. Text-to-Speech is on by default; the ElevenLabs tab takes its key on
- * desktop. The provider is saved at Finish.
+ * Setup's Voice step: the Speech-to-Text choice (offline models, whose
+ * downloads install in place and keep running after setup, and on the web the
+ * browser recognizers) and the default Text-to-Speech provider, each as tabs.
+ * Text-to-Speech is on by default; the ElevenLabs tab takes its key on
+ * desktop. Both choices are saved at Finish.
  */
 export function SetupVoiceStep({
+  stt,
   provider,
   onProviderChange,
   credentialsController,
   onKeyPendingChange,
   onKeyBusyChange,
 }: {
+  stt: ComponentProps<typeof SetupSpeechChoice>;
   provider: SetupTtsProvider;
   onProviderChange: (provider: SetupTtsProvider) => void;
   credentialsController: Ref<DesktopCredentialsController>;
@@ -57,8 +60,7 @@ export function SetupVoiceStep({
         <h2 id={`${id}-stt`} className="text-base font-semibold">
           {t("voice.stt.heading")}
         </h2>
-        {/* The offered model already serves the UI Locale. */}
-        <SetupSpeechDownloads />
+        <SetupSpeechChoice {...stt} />
       </section>
       <section aria-labelledby={`${id}-tts`} className="space-y-3">
         <h2 id={`${id}-tts`} className="text-base font-semibold">

@@ -408,7 +408,7 @@
       "downloads": "オフライン音声のダウンロード",
       "entryLabel": "音声認識のプロバイダー",
       "label": "プロバイダー",
-      "offlineWebgpu": "オフライン (WebGPU)",
+      "offlineWebgpu": "{{model}} (WebGPU)",
       "placeholder": "プロバイダーを選択",
       "preparing": "プロバイダーのデフォルトを準備中...",
       "updateFailed": "音声認識のプロバイダーを更新できませんでした。"

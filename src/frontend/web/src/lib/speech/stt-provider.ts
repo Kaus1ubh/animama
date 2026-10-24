@@ -149,6 +149,11 @@ export function isSttProviderSupported(
   return supportsLocalWebSpeechStrict(platform);
 }
 
+/** An offline engine's short name for choice labels ("SenseVoice (CPU)"). */
+export function offlineSttShortName(engine: OfflineSttEngine): string {
+  return engine === "parakeet" ? "Parakeet" : "SenseVoice";
+}
+
 /** The model an offline engine runs, as Settings names it. */
 export function offlineSttModelName(engine: OfflineSttEngine): string {
   const t = getI18n().getFixedT(null, "voice");
@@ -178,7 +183,9 @@ export function getSttProviderOptions(
   const options: SttProviderOption[] = [
     {
       id: "parakeet",
-      label: t("providers.stt.parakeet.cpuLabel"),
+      label: t("providers.stt.parakeet.cpuLabel", {
+        model: offlineSttShortName(engine),
+      }),
       description: isDesktop
         ? t("providers.stt.parakeet.descriptionDesktop", { model })
         : t("providers.stt.parakeet.descriptionBrowser", { model }),

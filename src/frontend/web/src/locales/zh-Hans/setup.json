@@ -125,6 +125,11 @@
       "engines": {
         "parakeet": "<link>NVIDIA 的 Parakeet TDT 0.6B v2</link> 在此设备上转写英语语音，你的声音不会离开此设备。",
         "sensevoice": "<link>阿里巴巴的 SenseVoice-Small</link> 在此设备上转写日语、韩语和中文语音，你的声音不会离开此设备。"
+      },
+      "recommended": "推荐",
+      "otherLanguage": {
+        "parakeet": "应用语言为英语时使用此模型。",
+        "sensevoice": "应用语言为日语、韩语或中文时使用此模型。"
       }
     },
     "tts": {

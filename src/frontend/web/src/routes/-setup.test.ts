@@ -25,6 +25,9 @@ import {
   setupBuiltins,
   setupStepPosition,
   setupTtsOptions,
+  resolveSetupSttChoice,
+  setupSttChoices,
+  setupSttPatch,
   setupTtsPatch,
 } from "@/app/local-runtime/setup/setup-state";
 
@@ -402,19 +405,103 @@ describe("local first-run setup", () => {
     expect(html).not.toMatch(/reload/iu);
   });
 
-  it("offers SenseVoice for speech recognition in Japanese, Korean and Chinese", async () => {
+  it("recommends SenseVoice in Japanese, Korean and Chinese and still lists Parakeet", async () => {
     await getI18n().changeLanguage("zh-Hant");
     try {
       const html = renderSetup({ ...welcomeDone, step: "voice" });
-      expect(html).toContain("SenseVoice（CPU");
-      expect(html).toContain("SenseVoice（GPU");
+      const tabs = [...html.matchAll(/role="tab"[^>]*>([^<]+)/gu)].map(
+        (match) => match[1],
+      );
+      expect(tabs.slice(0, 4)).toEqual([
+        expect.stringContaining("SenseVoice（CPU"),
+        expect.stringContaining("SenseVoice（GPU"),
+        expect.stringContaining("Parakeet（CPU"),
+        expect.stringContaining("Parakeet（GPU"),
+      ]);
+      // The recommended tab is selected and labelled.
+      expect(html).toMatch(
+        /aria-selected="true"[^>]*>SenseVoice（CPU[^<]*<span[^>]*>推薦<\/span>/u,
+      );
       expect(html).toContain(
         'href="https://huggingface.co/FunAudioLLM/SenseVoiceSmall"',
       );
-      expect(html).not.toContain("Parakeet");
     } finally {
       await getI18n().changeLanguage("en");
     }
+  });
+});
+
+describe("setup speech-to-text choice", () => {
+  const external = { id: "browser_external", label: "", disabled: false };
+  const local = { id: "browser_local", label: "", disabled: true };
+
+  it("orders the UI Locale's model first, then the other, then browsers", () => {
+    expect(setupSttChoices("sensevoice", [external, local] as never)).toEqual([
+      "sensevoice_cpu",
+      "sensevoice_gpu",
+      "parakeet_cpu",
+      "parakeet_gpu",
+      "browser_external",
+      "browser_local",
+    ]);
+    // Desktop offers no browser recognizer.
+    expect(setupSttChoices("parakeet", [])).toEqual([
+      "parakeet_cpu",
+      "parakeet_gpu",
+      "sensevoice_cpu",
+      "sensevoice_gpu",
+    ]);
+  });
+
+  it("selects the pick, else the saved choice, else the recommended model", () => {
+    const choices = setupSttChoices("sensevoice", [external] as never);
+    expect(
+      resolveSetupSttChoice(
+        { sttChoice: "parakeet_gpu" },
+        null,
+        "sensevoice",
+        choices,
+      ),
+    ).toBe("parakeet_gpu");
+    expect(
+      resolveSetupSttChoice(
+        { sttChoice: null },
+        { stt_provider: "parakeet", stt_parakeet_webgpu: true },
+        "sensevoice",
+        choices,
+      ),
+    ).toBe("sensevoice_gpu");
+    expect(
+      resolveSetupSttChoice(
+        { sttChoice: null },
+        { stt_provider: "browser_external" },
+        "sensevoice",
+        choices,
+      ),
+    ).toBe("browser_external");
+    // A browser recognizer this platform lacks falls back to the recommendation.
+    expect(
+      resolveSetupSttChoice(
+        { sttChoice: "browser_local" },
+        { stt_provider: "browser_local" },
+        "sensevoice",
+        choices,
+      ),
+    ).toBe("sensevoice_cpu");
+  });
+
+  it("saves either model's tab as the offline choice with its GPU preference", () => {
+    expect(setupSttPatch("sensevoice_cpu")).toEqual({
+      stt_provider: "parakeet",
+      stt_parakeet_webgpu: false,
+    });
+    expect(setupSttPatch("parakeet_gpu")).toEqual({
+      stt_provider: "parakeet",
+      stt_parakeet_webgpu: true,
+    });
+    expect(setupSttPatch("browser_external")).toEqual({
+      stt_provider: "browser_external",
+    });
   });
 });
 

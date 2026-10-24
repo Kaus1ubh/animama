@@ -197,13 +197,13 @@
         "unsupported": "此浏览器不支持仅限本地的 Web Speech 识别。"
       },
       "parakeet": {
-        "cpuLabel": "离线（CPU）",
+        "cpuLabel": "{{model}}（CPU）",
         "descriptionBrowser": "按应用语言，在此浏览器中用 {{model}} 识别语音。",
         "descriptionDesktop": "按应用语言，在此设备上用 {{model}} 识别语音。",
         "notInstalled": "请安装离线语音识别，以使用听写和语音模式。",
         "unavailableBrowser": "此浏览器当前无法使用离线语音识别。",
         "webgpuDescription": "在 GPU 上用 {{model}} 运行的实验性本地语音识别，提供实时预览。不可用时回退到 CPU。",
-        "webgpuLabel": "离线（WebGPU · 实验性）"
+        "webgpuLabel": "{{model}}（WebGPU · 实验性）"
       }
     },
     "tts": {

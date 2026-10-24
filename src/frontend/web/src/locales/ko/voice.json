@@ -197,13 +197,13 @@
         "unsupported": "이 브라우저는 로컬 전용 Web Speech 인식을 지원하지 않습니다."
       },
       "parakeet": {
-        "cpuLabel": "오프라인 (CPU)",
+        "cpuLabel": "{{model}} (CPU)",
         "descriptionBrowser": "앱 언어에 맞춰 {{model}}이(가) 이 브라우저에서 음성을 인식합니다.",
         "descriptionDesktop": "앱 언어에 맞춰 {{model}}이(가) 이 기기에서 음성을 인식합니다.",
         "notInstalled": "받아쓰기와 음성 모드를 사용하려면 오프라인 음성 인식을 설치하세요.",
         "unavailableBrowser": "현재 이 브라우저에서는 오프라인 음성 인식을 사용할 수 없습니다.",
         "webgpuDescription": "{{model}}을(를) 사용하는 실험적인 GPU 로컬 음성 인식으로, 실시간 미리보기를 제공합니다. 사용할 수 없으면 CPU를 사용합니다.",
-        "webgpuLabel": "오프라인 (WebGPU · 실험적)"
+        "webgpuLabel": "{{model}} (WebGPU · 실험적)"
       }
     },
     "tts": {

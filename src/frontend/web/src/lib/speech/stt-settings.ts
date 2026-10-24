@@ -6,6 +6,7 @@ import {
 } from "@/lib/speech/offline-stt/routing";
 import {
   offlineSttModelName,
+  offlineSttShortName,
   toSttProvider,
   type SttProvider,
   type SttProviderOption,
@@ -27,7 +28,7 @@ export function getSttSettingsSelection(
 
 /**
  * Both offline choices require the same base set of `engine`, the UI Locale's
- * offline engine, and both name its model.
+ * offline engine, and both are labelled and described with its model.
  */
 export function getSttSettingsOptions(
   options: readonly SttProviderOption[],
@@ -37,11 +38,18 @@ export function getSttSettingsOptions(
   return options.flatMap<SttSettingsOption>((option) =>
     option.id === "parakeet"
       ? [
-          { ...option, label: t("providers.stt.parakeet.cpuLabel") },
+          {
+            ...option,
+            label: t("providers.stt.parakeet.cpuLabel", {
+              model: offlineSttShortName(engine),
+            }),
+          },
           {
             ...option,
             id: "parakeet_webgpu",
-            label: t("providers.stt.parakeet.webgpuLabel"),
+            label: t("providers.stt.parakeet.webgpuLabel", {
+              model: offlineSttShortName(engine),
+            }),
             description: t("providers.stt.parakeet.webgpuDescription", {
               model: offlineSttModelName(engine),
             }),

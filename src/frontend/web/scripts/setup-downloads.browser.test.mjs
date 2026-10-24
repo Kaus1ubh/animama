@@ -642,7 +642,7 @@ test("Back keeps values, and the step and choices survive renderer recreation", 
   }
 });
 
-test("saving the OpenAI key chooses OpenAI; Finish keeps the default voice settings", async () => {
+test("saving the OpenAI key chooses OpenAI; Finish saves the recommended speech recognition", async () => {
   const { page, operations, requests, bodies } = await mount();
   try {
     await welcome(page);
@@ -667,6 +667,11 @@ test("saving the OpenAI key chooses OpenAI; Finish keeps the default voice setti
       "true",
     );
     assert.equal(await page.getByRole("switch").count(), 0);
+    // Speech-to-Text recommends the UI Locale's offline model on the CPU.
+    assert.match(
+      await page.getByRole("tab", { selected: true }).first().innerText(),
+      /^Parakeet \(CPU.*Recommended$/su,
+    );
     await button(page, "Finish").click();
     await button(page, "I am 18 or older").click();
     await page.getByText("Setup complete", { exact: true }).waitFor();
@@ -677,8 +682,14 @@ test("saving the OpenAI key chooses OpenAI; Finish keeps the default voice setti
       adult_confirmed: true,
       chat_model_provider_id: OPENAI_MODEL,
     });
-    // An untouched default writes no voice settings.
+    // The speech-to-text tab is saved even untouched; an untouched
+    // Text-to-Speech default is not.
+    assert.deepEqual(bodies.settings.preferences.speech, {
+      stt_provider: "parakeet",
+      stt_parakeet_webgpu: false,
+    });
     assert.deepEqual(writes(requests), [
+      "PATCH /v1/users/me/settings",
       "POST /v1/runtime/onboarding:complete",
     ]);
   } finally {

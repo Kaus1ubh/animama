@@ -67,13 +67,13 @@ describe("speech settings options", () => {
       expect(options).toMatchObject([
         {
           id: "parakeet",
-          label: "Offline (CPU)",
+          label: "Parakeet (CPU)",
           disabled: baseOptions[0].disabled,
           reason: baseOptions[0].reason,
         },
         {
           id: "parakeet_webgpu",
-          label: "Offline (WebGPU · Experimental)",
+          label: "Parakeet (WebGPU · Experimental)",
           disabled: baseOptions[0].disabled,
           reason: baseOptions[0].reason,
         },
@@ -89,7 +89,7 @@ describe("speech settings options", () => {
     expect(options[1].description).toMatch(/local.*GPU/i);
     expect(options[1].description).toMatch(/live previews/i);
     expect(options[1].description).toMatch(/falls back to.*CPU/i);
-    expect(baseOptions[0].label).toBe("Offline (CPU)");
+    expect(baseOptions[0].label).toBe("Parakeet (CPU)");
   });
 
   it("names the UI Locale's engine and leaves its missing set to the language notice", () => {
@@ -107,5 +107,6 @@ describe("speech settings options", () => {
       "sensevoice",
     );
     expect(webgpu.description).toContain("SenseVoice-Small by Alibaba");
+    expect(webgpu.label).toBe("SenseVoice (WebGPU · Experimental)");
   });
 });

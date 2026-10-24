@@ -6177,7 +6177,7 @@ export default interface Resources {
         "downloads": "Offline speech downloads",
         "entryLabel": "Speech-to-Text provider",
         "label": "Provider",
-        "offlineWebgpu": "Offline (WebGPU)",
+        "offlineWebgpu": "{{model}} (WebGPU)",
         "placeholder": "Select provider",
         "preparing": "Preparing provider defaults...",
         "updateFailed": "Failed to update STT provider."
@@ -6344,7 +6344,12 @@ export default interface Resources {
         "lowSpace": "Not enough free space: downloads need {{size}} free.",
         "models": "Speech recognition models",
         "notDownloaded": "Not downloaded",
+        "otherLanguage": {
+          "parakeet": "Animama uses this model while the app language is English.",
+          "sensevoice": "Animama uses this model while the app language is Japanese, Korean or Chinese."
+        },
         "progressLabel": "{{label}} download progress",
+        "recommended": "Recommended",
         "retryDownload": "Retry download",
         "turnedOff": "Speech recognition is turned off on this server.",
         "unavailableInBuild": "Unavailable in this build.",
@@ -6716,13 +6721,13 @@ export default interface Resources {
           "unsupported": "Local-only Web Speech recognition is not supported in this browser."
         },
         "parakeet": {
-          "cpuLabel": "Offline (CPU)",
+          "cpuLabel": "{{model}} (CPU)",
           "descriptionBrowser": "Speech recognition in this browser in the app's language, with {{model}}.",
           "descriptionDesktop": "Speech recognition on this device in the app's language, with {{model}}.",
           "notInstalled": "Install offline speech recognition to use dictation and Voice Mode.",
           "unavailableBrowser": "Offline speech recognition is currently unavailable in this browser.",
           "webgpuDescription": "Experimental local speech recognition on the GPU, with {{model}} and live previews. Falls back to the CPU when unavailable.",
-          "webgpuLabel": "Offline (WebGPU · Experimental)"
+          "webgpuLabel": "{{model}} (WebGPU · Experimental)"
         }
       },
       "tts": {

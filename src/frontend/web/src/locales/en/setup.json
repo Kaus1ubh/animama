@@ -116,7 +116,12 @@
       "lowSpace": "Not enough free space: downloads need {{size}} free.",
       "models": "Speech recognition models",
       "notDownloaded": "Not downloaded",
+      "otherLanguage": {
+        "parakeet": "Animama uses this model while the app language is English.",
+        "sensevoice": "Animama uses this model while the app language is Japanese, Korean or Chinese."
+      },
       "progressLabel": "{{label}} download progress",
+      "recommended": "Recommended",
       "retryDownload": "Retry download",
       "turnedOff": "Speech recognition is turned off on this server.",
       "unavailableInBuild": "Unavailable in this build.",

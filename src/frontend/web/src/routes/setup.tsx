@@ -42,11 +42,17 @@ import { SetupAiStep } from "@/app/local-runtime/setup/SetupAiStep";
 import { SetupVoiceStep } from "@/app/local-runtime/setup/SetupVoiceStep";
 import {
   adjacentSetupStep,
+  resolveSetupSttChoice,
   resolveSetupTtsProvider,
   setupStepLabel,
   setupStepPosition,
+  setupSttChoices,
+  setupSttPatch,
   setupTtsPatch,
 } from "@/app/local-runtime/setup/setup-state";
+import { routeOfflineSpeech } from "@/lib/speech/offline-stt/routing";
+import { getSttProviderOptions } from "@/lib/speech/stt-provider";
+import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
 
 export const Route = createFileRoute("/setup")({
   component: LocalSetupRoute,
@@ -88,7 +94,8 @@ type LeaveAction = "back" | "continue" | "skip" | "finish";
  * the wizard, before opening the first Anima.
  */
 function LocalSetupForm({ ownerId }: { ownerId: string }) {
-  const { t } = useTranslation("setup");
+  const { t, i18n } = useTranslation("setup");
+  const platform = useRuntimePlatform();
   const [draft, setDraft] = useState(() => readSetupDraft(ownerId));
   const updateDraft = useCallback(
     (change: Partial<SetupDraft>) =>
@@ -111,6 +118,22 @@ function LocalSetupForm({ ownerId }: { ownerId: string }) {
     | Parameters<typeof resolveSetupTtsProvider>[1]
     | undefined;
   const ttsProvider = resolveSetupTtsProvider(draft, savedSpeech);
+  // Speech-to-Text: the UI Locale's offline model is recommended; the web also
+  // offers the browser recognizers (desktop has none). Read through `i18n` so
+  // the tabs follow a language switch.
+  const sttEngine = routeOfflineSpeech(i18n.resolvedLanguage).engine;
+  const sttBrowserOptions = getSttProviderOptions(
+    null,
+    platform,
+    sttEngine,
+  ).filter((option) => option.id !== "parakeet");
+  const sttChoices = setupSttChoices(sttEngine, sttBrowserOptions);
+  const sttChoice = resolveSetupSttChoice(
+    draft,
+    savedSpeech,
+    sttEngine,
+    sttChoices,
+  );
   const mergePreferences = useMergeUserPreferences();
 
   // The mounted step's key panel: unsaved edits and an in-flight save.
@@ -147,7 +170,11 @@ function LocalSetupForm({ ownerId }: { ownerId: string }) {
     setSubmitting(true);
     setError(null);
     try {
-      const patch = withVoice ? setupTtsPatch(draft) : null;
+      // The Speech-to-Text tab is always saved, so the recommended model
+      // applies even when untouched; an untouched Text-to-Speech default is not.
+      const patch = withVoice
+        ? { ...setupTtsPatch(draft), ...setupSttPatch(sttChoice) }
+        : null;
       // Read-merge-write: other preferences are kept.
       if (patch) await mergePreferences.mutateAsync({ speech: patch });
     } catch {
@@ -267,6 +294,14 @@ function LocalSetupForm({ ownerId }: { ownerId: string }) {
               />
             ) : (
               <SetupVoiceStep
+                stt={{
+                  choice: sttChoice,
+                  choices: sttChoices,
+                  engine: sttEngine,
+                  browserOptions: sttBrowserOptions,
+                  onChoiceChange: (choice) =>
+                    updateDraft({ sttChoice: choice }),
+                }}
                 provider={ttsProvider}
                 onProviderChange={(provider) =>
                   updateDraft({ ttsProvider: provider })
