@@ -26,7 +26,7 @@ export function ActionLoadoutRow({
     <div
       {...props}
       className={cn(
-        "flex min-w-0 items-center gap-2.5 border-l-2 px-4 py-3.5",
+        "flex min-w-0 items-center gap-2.5 border-l-2 px-4 py-2",
         selected ? "border-l-primary bg-primary/5" : "border-l-transparent",
         className,
       )}
