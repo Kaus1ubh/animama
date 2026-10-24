@@ -133,6 +133,11 @@ owner gates then wait for the converted Avatar.
   per Avatar. Migrating content to an ARKit vocabulary is later work.
 - 2026-10-24, agent (within the approved outcome): ARKit mixes are registered
   as expressions rather than translated at each call site; see Phase 4.
+- 2026-10-24, agent (applying R5's "no `Fcl_*` parts", P4-F1): an Avatar with
+  VRoid mood parts of its own (`Fcl_ALL|BRW|EYE|MTH_<Mood>`, as morph targets or
+  expressions) keeps its authored face and does not play ARKit mixes. Other
+  raw VRoid parts (`Fcl_EYE_Close`, `Fcl_MTH_A` …) do not disqualify; they keep
+  their own expression while the rest plays as mixes (P4-R2-F1).
 - 2026-10-24, owner (confirming an agent proposal): on an Avatar with sufficient
   ARKit coverage, runtime ARKit emotion compositions take precedence over its
   VRM presets; baked presets serve other VRM apps. "Sufficient" means every shape
@@ -257,7 +262,8 @@ It verified that Included Avatars behave unchanged.
 Revision checks (working tree on `8b263532`, Phase 1 files): `pnpm -s check`
 pass; `pnpm -s web:lint` pass; `npx vitest run src/lib/avatar` 69 files, 1258
 passed, 1 skipped; `node --test scripts/vrm-inspect.test.mjs
-scripts/vrm-bake-expressions.test.mjs` 7 passed; `vrm:inspect` on
+scripts/vrm-bake-expressions.test.mjs` 7 passed (the working tree also held
+the Phase 6 draft, which is why the second file appears); `vrm:inspect` on
 AvatarSample_A_1_New lists its 57 `Fcl_*` names. Repair budget: one round used.
 
 #### Code Review #2 Findings
@@ -307,7 +313,10 @@ Steps (Unity project inside `<private-avatars>`, never in a repository):
    `Unity -batchmode -projectPath … -executeMethod …` so it is repeatable. Never
    use "Upload to Mochiya". Record every warning (unsupported lilToon variants
    fail the export and must be switched to supported variants).
-5. `pnpm -s vrm:inspect` the result: ARKit and MMD names present, where names
+5. `pnpm -s vrm:inspect` the result. If any face mesh reports "primitives only",
+   implement Phase 1 step 4 (apply per-primitive names in `_loadVrm`) with a
+   test, as its own standard-tier change, before continuing; R2 is not accepted
+   until then. Then check ARKit and MMD names present, where names
    are stored, size against the 100 MB limit, extensions. If oversized, run
    `pnpm -s vrm:optimize` and re-inspect that `MOCHIYA_materials_liltoon` and its
    textures survived.
@@ -353,7 +362,9 @@ Changes:
    uniform handling, enhanced three-point lighting versus the single directional
    light lilToon supports, face-painted Avatar Effects and face texture anchors,
    portrait capture, disposal (`releaseModelScene`), and review-render stages.
-5. Review tooling: `effects:render` and `animation:render` gain an explicit
+5. Review tooling (commit it separately and first, so a no-go revert of the
+   lilToon work keeps it; the Phase 4 and R5/R6 Lapwing reviews need it):
+   `effects:render` and `animation:render` gain an explicit
    `--avatar-file <path>` for a local Avatar outside the repository; outputs go
    to the given `--out` directory. Do not add third-party files to any allowlist
    in the repository.
@@ -513,8 +524,10 @@ findings.
 - P4-R2-F1 accepted: a table part the file has as a raw morph is not registered
   as a mix, so it becomes its own expression. Test added. Trivial fix verified
   by the implementer: `npx vitest run src/lib/avatar src/ui/pose-creator` 1441
-  passed, 1 skipped; `pnpm -s web:lint` and `pnpm -s check` pass, on the Phase
-  4 commit's tree recorded below. One repair round remains unused.
+  passed, 1 skipped; `pnpm -s web:lint` and `pnpm -s check` pass, on the Phase 4 commit's tree. One repair round remains unused.
+
+Commits: `eac8f4f9` `feat(avatars)[p4]: play emotions and VRoid face parts as
+ARKit mixes` (tree `2b1dbfbd`).
 
 ### Phase 5: ARKit lip-sync shaping
 
@@ -668,6 +681,9 @@ scripts/vrm-inspect.test.mjs` 9 passed; `npx vitest run src/lib/avatar/arkit`
 25 passed; `pnpm -s web:lint` and `pnpm -s check` pass, on the Phase 6
 commit's tree.
 
+Commits: `51082213` `feat(avatars)[p6]: add vrm:bake-expressions for ARKit
+mood presets` (tree `ad27498a`).
+
 ## Final integration review
 
 Covers combined acceptance R1–R9, Phase 2 (light), the licence boundary across
@@ -675,7 +691,69 @@ the whole diff and Git history (no third-party Avatar data, renders or names of
 private paths), and documentation accuracy. Then the full pre-push suite once on
 the final candidate; results go in the PR.
 
+### Code Review #1 Findings (Phases 1, 4 and 6)
+
+Reviewed `f9b0d8f1..51082213` (tree `ad27498a`) by an independent sdlc-reviewer
+agent, reusing phase evidence and running no checks. Result: pass on code,
+cross-phase integration (per-mesh resolution → mixes and eyelid correction →
+bake decision), the licence boundary (no binary or third-party data; synthetic
+fixtures) and conventions. Included Avatars are unaffected: every new branch is
+gated on resolved ARKit shapes, and both resolve none.
+
+- INT-F1 (required): Phase 4 and 6 commits and trees were not recorded.
+- INT-F2 (optional): Phase 1's revision check listed a Phase 6 test file.
+- INT-F3 (optional): R2 is only partly met (per-primitive names deferred), and
+  Phase 2 did not carry the decision forward.
+- INT-F4 (optional): Phase 3's no-go revert would also remove `--avatar-file`,
+  which the Phase 4 gate needs.
+- INT-F5 (optional): the VRoid-mood-part qualification lived only in review
+  revisions.
+- INT-F6 (optional): `PRESET_BY_MOOD` and the mood-part pattern are defined in
+  both `partExpressionFallback.ts` and `arkitFaceCompositions.ts`.
+- INT-F7 (optional): `vrm:inspect` does not say whether Animama plays ARKit
+  faces for the file.
+- INT-F8 (optional): for a file authoring an expression under a canonical ARKit
+  name, the bake binds the raw morph while the runtime scales the authored
+  expression's binds; the decision still matches.
+- INT-F9 (optional): Outcomes & Retrospective was empty.
+- INT-F10 (optional): ADR index row width.
+
+### Code Review #1 Revisions
+
+- INT-F1, INT-F2, INT-F5, INT-F9 accepted: plan records updated (Phase 4 and 6
+  `Commits:` lines, Phase 1 note, Decision Log entry, Outcomes).
+- INT-F3 accepted: Phase 2 step 5 now requires Phase 1 step 4 when names are
+  primitive-only; R2 is not claimed accepted.
+- INT-F4 accepted: Phase 3 step 5 is committed separately and first.
+- INT-F10 accepted: row padded.
+- INT-F6, INT-F7, INT-F8 deferred to the next code change in this plan (Phase
+  2 or 3), so the pre-push suite already running on `ad27498a` stays valid for
+  the PR: share one VRoid mood vocabulary module; add the "Animama plays ARKit
+  faces" line to `vrm:inspect` (Phase 2 step 5 uses it); note or align the bake
+  edge case.
+
 ## Validation and acceptance
+
+Full pre-push suite for Phases 1, 4 and 6, through `scripts/heavy-slot.py` on
+`51082213` (tree `ad27498a`), 2026-10-24:
+
+| Step | Command | Result |
+| --- | --- | --- |
+| Backend | `make check-test` (root) | 4798 passed, 29 skipped, 1 failed: `tests/test_generate_synthetic_docs.py::test_presets_are_nested_balanced_and_exclude_plans` (xxsmall 46854 bytes vs small/4 ≈ 53306 ± 12%). Pre-existing on `main`: none of its inputs (curated `docs/backend` and `docs/frontend` paths, the generator, the test) differ in `f9b0d8f1..51082213`. |
+| Frontend | `pnpm verify` (`src/frontend`) | pass |
+| Browser | `pnpm web:test:browser` (`src/frontend`) | pass |
+| Format | `pnpm prettier:check` (`src/frontend`) | failed on 5 new script/TS files |
+
+Repair: Prettier applied with the web package's ignore path in `5785de27`
+`chore(avatars): format the ARKit inspection and bake scripts`. It only rewraps lines, so the
+affected checks were rerun instead of the whole suite: `pnpm prettier:check`
+(`src/frontend` and `src/frontend/web`) pass; `node --test
+scripts/vrm-bake-expressions.test.mjs scripts/vrm-inspect.test.mjs` 9 passed;
+`npx vitest run src/lib/avatar` 1265 passed, 1 skipped; `pnpm -s web:lint` pass.
+
+Not run: Included Avatar render diffs against `main` and `pnpm e2e:test:fast`
+(new branches are gated on resolved ARKit shapes, which Included Avatars lack;
+see the final integration review).
 
 Spec acceptance criteria, with these commands (from `src/frontend` unless noted):
 
@@ -700,7 +778,23 @@ sync choice.
 
 ## Outcomes & Retrospective
 
-Not started.
+Delivered on `feat/vrchat-avatar-arkit` (2026-10-24), Phases 1, 4 and 6:
+
+- ARKit-52 shapes are detected per mesh under common spellings and registered
+  under canonical names; `pnpm -s vrm:inspect` reports a file's names, storage,
+  sizes and ARKit coverage.
+- Avatars with every table shape and no VRoid mood parts play emotions,
+  Reactions, Gestures, creator previews and portraits through ARKit mixes; the
+  eyelid correction measures each mix.
+- `pnpm -s vrm:bake-expressions` writes the mood presets into a copy of a file.
+
+Open: Phases 2, 3 and 5 (owner Unity setup and Lapwing files first); owner
+visual gates for Phase 4 on Lapwing; R1, R2 (per-primitive names), R3, R7, R9;
+INT-F6 to F8 follow-ups.
+
+Lesson: content reaches expressions through several paths (controller, creator
+preview, portraits, render harness), so face vocabulary belongs in registered
+expressions rather than in one consumer.
 
 Follow-up candidates (separate issues when chosen): a face-tracking add-on for
 Lapwing once licensed (inventory its shapes, extend the alias table, apply the
