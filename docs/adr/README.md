@@ -44,6 +44,7 @@ production readiness or publication rights.
 | 0027 | [Risk-tiered review and a single suite run per candidate](0027-risk-tiered-review-and-single-suite-run.md)                                         | accepted; amends 0006                                         |
 | 0028 | [Browser-cacheable runtime revision members](0028-cacheable-runtime-revision-members.md)                                                           | accepted                                                      |
 | 0029 | [SenseVoice-Small for Japanese, Korean and Chinese offline speech recognition](0029-sensevoice-offline-speech-recognition.md)                      | accepted                                                      |
+| 0030 | [An Anima's Gestures are its binding rows](0030-anima-gestures-are-binding-rows.md)                                                                | accepted                                                      |
 
 ## When and how to record a decision
 

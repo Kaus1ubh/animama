@@ -173,6 +173,16 @@
       "whenSelected": "選択するとダウンロードされます"
     }
   },
+  "loadingStatus": {
+    "avatar": "アバターを読み込み中",
+    "content": "アニメーションとエフェクトを読み込み中",
+    "contentProgress": "アニメーションとエフェクトを読み込み中（{{completed}}/{{total}}）",
+    "download": "{{item}}をダウンロード中（{{size}}）",
+    "downloadProgress": "{{item}}をダウンロード中（{{size}} 中 {{percent}}）",
+    "speechToText": "音声認識（Parakeet）を読み込み中",
+    "textToSpeech": "読み上げ（PocketTTS）を読み込み中",
+    "textToSpeechStep": "読み上げ（PocketTTS）を読み込み中（ステップ {{step}}/{{total}}）"
+  },
   "memoryCue": {
     "added": "{{name}} の記憶に追加されました",
     "addedUnnamed": "この Anima の記憶に追加されました",
@@ -197,9 +207,7 @@
     "title": "新しいチャットを開始しますか？"
   },
   "playback": {
-    "degraded": "一部のアバターコンテンツを利用できません。テキストチャットは引き続き使えます。",
-    "preparing": "アニメーションとエフェクトを準備中…",
-    "preparingCanChat": "アニメーションとエフェクトを準備中… もうチャットできます。"
+    "degraded": "一部のアバターコンテンツを利用できません。テキストチャットは引き続き使えます。"
   },
   "profile": {
     "back": "戻る",
@@ -236,10 +244,11 @@
     "unavailableHere": "ここでは音声入力と音声モード用のオフライン音声認識を利用できません"
   },
   "suggestions": {
-    "greeting": "簡単なあいさつ",
+    "rockPaperScissors": "じゃんけんしよう",
     "joke": "ジョークを言って",
-    "greetingMessage": "こんにちは！調子はどう？",
-    "greetingMessageNamed": "こんにちは、{{name}}！調子はどう？",
+    "rockPaperScissorsPaper": "じゃんけんしよう！わたしは…パー！",
+    "rockPaperScissorsRock": "じゃんけんしよう！わたしは…グー！",
+    "rockPaperScissorsScissors": "じゃんけんしよう！わたしは…チョキ！",
     "jokeMessage": "ねえ、何かジョークを言って！",
     "jokeMessageNamed": "ねえ{{name}}、何かジョークを言って！"
   }

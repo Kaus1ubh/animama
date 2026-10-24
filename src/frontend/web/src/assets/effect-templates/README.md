@@ -31,12 +31,14 @@ with the effect applied at 0, as `effects:render --with-clip` does (for example
 `idea_bulb_fingertip` with `have-an-idea` at 3 s). Because `time` is also the
 effect's age, pick a moment where the pose shows the art and the effect is
 visible (a looping effect at the start of a cycle). Renders are deterministic, so unchanged inputs
-reproduce the same pixels. Review the images before committing them.
+reproduce the same pixels. Thumbnails rendered before portrait renderer
+version 2 (the chat canvas's look) are darker and harsher than new renders, so
+re-render all templates together. Review the images before committing them.
 
 ## Provenance and terms
 
-Each thumbnail is a direct Animama renderer capture of Annie, the unmodified
-pixiv VRoid Project preset, wearing an Included Avatar Effect with Animama's
+Each thumbnail is a direct Animama renderer capture of Annie, the pixiv VRoid
+Project preset (with a recoloured hair underside), wearing an Included Avatar Effect with Animama's
 own owner- or agent-authored art from `content/included/vfx/avatar/`, in some
 cases posed by an Included Gesture. No other artwork is used. Like Annie's
 Library portrait, the images follow Annie's model terms

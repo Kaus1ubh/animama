@@ -126,7 +126,7 @@ function AnimaMemoriesDocument({
       className="text-foreground/90 [overflow-wrap:anywhere]"
     >
       {showEditAction ? (
-        <div className="not-prose float-right mb-3 ml-4 flex justify-end">
+        <div className="not-prose mb-3 flex justify-end sm:float-right sm:ml-4">
           <Button
             ref={editTriggerRef}
             type="button"

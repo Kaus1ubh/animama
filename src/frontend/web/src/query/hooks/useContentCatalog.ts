@@ -14,7 +14,13 @@ import { refreshContentCatalogViews } from "@/query/contentCatalogInvalidation";
 import { queryKeys } from "@/query/keys";
 import { useRuntimeCapabilities } from "./useRuntimeCapabilities";
 
-/** Read the operator-inspectable Included/Local catalog for the signed-in user. */
+/**
+ * Read the operator-inspectable Included/Local catalog for the signed-in user.
+ *
+ * Content Health polls it, so each poll revalidates by ETag and an unchanged
+ * catalog costs a 304. The first read only establishes the baseline: the views
+ * mounted beside it have just loaded the same catalog state themselves.
+ */
 export function useContentCatalog() {
   const apiClient = useProductApiClient();
 
@@ -31,15 +37,21 @@ export function useContentCatalog() {
         await listContentCatalogV1ContentCatalogGet({
           client: apiClient,
           signal,
+          cache: "no-cache",
           responseValidator: undefined,
           throwOnError: true,
         })
       ).data;
-      if (userId) {
+      const previous = userId
+        ? queryClient.getQueryData<PyContentCatalog>(
+            queryKeys.content.catalog(userId),
+          )
+        : undefined;
+      if (userId && previous) {
         await refreshContentCatalogViews(
           queryClient,
           userId,
-          queryClient.getQueryData(queryKeys.content.catalog(userId)),
+          previous,
           catalog,
         );
       }

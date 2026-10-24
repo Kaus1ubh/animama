@@ -302,7 +302,7 @@
     {
       "path": "content/included/appearances/avatar-portraits/app-avatar-model-andrew-v1.webp",
       "candidate_license": "LicenseRef-pixiv-VRoidPreset",
-      "basis": "Owner-authored edit of a pixiv VRoid preset with owner-set embedded metadata; derived renderer portrait retained under corresponding model terms",
+      "basis": "Owner-authored VRoid Studio model with owner-set embedded metadata; derived renderer portrait retained under corresponding model terms",
       "source": "https://vroid.pixiv.help/hc/en-us/articles/4402394424089-VRoidPreset-A-Z",
       "revision": "Exact VRM hashes and embedded metadata in evidence",
       "copyright": [
@@ -316,7 +316,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond authored this edit of a VRoid A-Z preset and approved its inclusion as the Andrew starter's model on 2026-10-19. The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
+        "Raymond authored this VRoid Studio model and approved it as the Andrew starter's model on 2026-10-22, replacing his 2026-10-19 edit. pixiv's VRoid terms govern any VRoid Studio preset or built-in components it uses, including the VRoidPreset A-Z conditions for preset data. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -330,7 +330,7 @@
     {
       "path": "content/included/appearances/avatar-portraits/app-avatar-model-avatarsample-a-1-new-v1.webp",
       "candidate_license": "LicenseRef-pixiv-VRoidPreset",
-      "basis": "Explicit owner confirmation of preset/original model identity and authorized redistribution metadata correction; derived renderer portrait retained under corresponding model terms",
+      "basis": "Explicit owner confirmation of preset model identity and owner-authored embedded metadata; derived renderer portrait retained under corresponding model terms",
       "source": "https://vrm.dev/licenses/1.0/",
       "revision": "Exact VRM hashes and embedded metadata in evidence",
       "copyright": [
@@ -343,14 +343,14 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
     {
       "path": "content/included/avatars/Andrew.vrm",
       "candidate_license": "LicenseRef-pixiv-VRoidPreset",
-      "basis": "Owner-authored edit of a pixiv VRoid preset with owner-set embedded metadata; derived renderer portrait retained under corresponding model terms",
+      "basis": "Owner-authored VRoid Studio model with owner-set embedded metadata; derived renderer portrait retained under corresponding model terms",
       "source": "https://vroid.pixiv.help/hc/en-us/articles/4402394424089-VRoidPreset-A-Z",
       "revision": "Exact VRM hashes and embedded metadata in evidence",
       "copyright": [
@@ -364,14 +364,14 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond authored this edit of a VRoid A-Z preset and approved its inclusion as the Andrew starter's model on 2026-10-19. The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
+        "Raymond authored this VRoid Studio model and approved it as the Andrew starter's model on 2026-10-22, replacing his 2026-10-19 edit. pixiv's VRoid terms govern any VRoid Studio preset or built-in components it uses, including the VRoidPreset A-Z conditions for preset data. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
     {
       "path": "content/included/avatars/AvatarSample_A_1_New.vrm",
       "candidate_license": "LicenseRef-pixiv-VRoidPreset",
-      "basis": "Explicit owner confirmation of preset/original model identity and authorized redistribution metadata correction; derived renderer portrait retained under corresponding model terms",
+      "basis": "Explicit owner confirmation of preset model identity and owner-authored embedded metadata; derived renderer portrait retained under corresponding model terms",
       "source": "https://vrm.dev/licenses/1.0/",
       "revision": "Exact VRM hashes and embedded metadata in evidence",
       "copyright": [
@@ -384,7 +384,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -783,14 +783,14 @@
     {
       "path": "content/included/gestures/confession-letter-bow/confession-letter-bow.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #585); owner-reviewed and approved 2026-10-15; no third-party animation data",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #585); owner-reviewed and approved 2026-10-15, revision approved 2026-10-22; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
       "path": "content/included/gestures/confession-letter-bow/confession-letter-bow.meta.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #585); owner-reviewed and approved 2026-10-15; no third-party animation data",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #585); owner-reviewed and approved 2026-10-15, revision approved 2026-10-22; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -17433,7 +17433,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17455,7 +17455,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17477,7 +17477,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17499,7 +17499,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17521,7 +17521,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17543,7 +17543,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17565,7 +17565,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17587,7 +17587,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17609,7 +17609,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17631,7 +17631,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17653,7 +17653,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17675,7 +17675,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17697,7 +17697,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17719,7 +17719,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17741,7 +17741,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17763,7 +17763,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17785,7 +17785,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17807,7 +17807,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17829,7 +17829,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17851,7 +17851,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17873,7 +17873,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17895,7 +17895,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17917,7 +17917,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17939,7 +17939,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17961,7 +17961,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -17983,7 +17983,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18005,7 +18005,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18027,7 +18027,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18049,7 +18049,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18071,7 +18071,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18093,7 +18093,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18115,7 +18115,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18137,7 +18137,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18159,7 +18159,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18181,7 +18181,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18203,7 +18203,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18225,7 +18225,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18247,7 +18247,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18269,7 +18269,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18291,7 +18291,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18313,7 +18313,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18335,7 +18335,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18357,7 +18357,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18379,7 +18379,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18401,7 +18401,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18423,7 +18423,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18445,7 +18445,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18467,7 +18467,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18489,7 +18489,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18511,7 +18511,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18533,7 +18533,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18555,7 +18555,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18577,7 +18577,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18599,7 +18599,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18621,7 +18621,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18643,7 +18643,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18665,7 +18665,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18687,7 +18687,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18709,7 +18709,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18731,7 +18731,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18753,7 +18753,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18775,7 +18775,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18797,7 +18797,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18819,7 +18819,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18841,7 +18841,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18863,7 +18863,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18885,7 +18885,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18907,7 +18907,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18929,7 +18929,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18951,7 +18951,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18973,7 +18973,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -18995,7 +18995,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19017,7 +19017,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19039,7 +19039,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19061,7 +19061,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19083,7 +19083,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19105,7 +19105,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19127,7 +19127,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19149,7 +19149,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19171,7 +19171,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19193,7 +19193,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19215,7 +19215,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19237,7 +19237,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19259,7 +19259,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19281,7 +19281,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19303,7 +19303,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19325,7 +19325,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19347,7 +19347,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19369,7 +19369,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19391,7 +19391,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19413,7 +19413,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19435,7 +19435,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19457,7 +19457,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19479,7 +19479,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19501,7 +19501,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19523,7 +19523,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19545,7 +19545,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19567,7 +19567,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19589,7 +19589,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19611,7 +19611,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19633,7 +19633,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19655,7 +19655,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19677,7 +19677,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19699,7 +19699,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19721,7 +19721,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19743,7 +19743,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -19765,7 +19765,7 @@
         "licenses/third-party/art-NOTICES.md"
       ],
       "conditions": [
-        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+        "Raymond confirms this exact retained model is the pixiv preset (Annie). On 2026-10-22 he replaced its embedded metadata with owner-authored values (author Raymond Van, everyone may use it, personal commercial use, redistribution and modification allowed, no credit required). The VRoidPreset A-Z conditions still govern the underlying pixiv components: do not redistribute the unmodified sample data for a fee or use its data in a character-creation service. Final candidate and binary publication approval remain separate."
       ],
       "review": "prepared-not-release-approved"
     },
@@ -22330,83 +22330,6 @@
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "src/frontend/web/src/lib/recharts/es-toolkit-compat/get.js",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "src/frontend/web/src/lib/recharts/es-toolkit-compat/isPlainObject.js",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "src/frontend/web/src/lib/recharts/es-toolkit-compat/last.js",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "src/frontend/web/src/lib/recharts/es-toolkit-compat/maxBy.js",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "src/frontend/web/src/lib/recharts/es-toolkit-compat/minBy.js",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "src/frontend/web/src/lib/recharts/es-toolkit-compat/omit.js",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "src/frontend/web/src/lib/recharts/es-toolkit-compat/range.js",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "src/frontend/web/src/lib/recharts/es-toolkit-compat/sortBy.js",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "src/frontend/web/src/lib/recharts/es-toolkit-compat/sumBy.js",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "src/frontend/web/src/lib/recharts/es-toolkit-compat/throttle.js",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "src/frontend/web/src/lib/recharts/es-toolkit-compat/uniqBy.js",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
       "path": "src/frontend/web/src/lib/runtime-content/AnimaRuntimeCatalog.test.ts",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -24855,6 +24778,20 @@
     },
     {
       "path": "src/frontend/web/src/ui/components/model-selector.tsx",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/ui/components/mood-bloom.test.tsx",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/ui/components/mood-bloom.tsx",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",

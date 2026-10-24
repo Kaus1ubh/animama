@@ -108,8 +108,10 @@ The runtime manifest is `animama-desktop-runtime/2` with
 
 The bounded `/api/telemetry/{signal}` forwarder accepts only configured OTLP
 destinations. It limits request/response bytes and receive/upstream time and
-never forwards credentials. Desktop disables forwarding with 204. Browser metric
-calls do not imply an enabled exporter; startup currently registers none.
+never forwards credentials. Desktop disables forwarding with 204. The local
+composition never advertises the `browser_telemetry` runtime capability, even when
+this forwarder is enabled, so the browser registers no exporter and posts nothing
+to it. See [browser telemetry](overview.md#browser-telemetry).
 
 Remote self-hosting requires an operator-owned TLS and authentication boundary
 in front of the loopback application. Configure its exact public origin. Every

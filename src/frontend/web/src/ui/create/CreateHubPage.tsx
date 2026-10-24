@@ -12,6 +12,7 @@ import {
 import { publicResourceUrl } from "@/lib/resource-urls";
 import { cn } from "@/lib/utils";
 import { AppShellPage } from "@/ui/app/AppShellPage";
+import { SidebarMenuButton } from "@/ui/sidebar/SidebarMenuButton";
 import { RuntimeFeatureGate } from "@/ui/app/RuntimeFeatureGate";
 import { Button } from "@/ui/components/button";
 import {
@@ -270,9 +271,12 @@ export function CreateHubPage({
   return (
     <AppShellPage contentClassName="max-w-6xl gap-9 py-8 md:py-10">
       <header className="space-y-2">
-        <h1 className="text-4xl font-semibold tracking-tight md:text-5xl">
-          {t("hub.title")}
-        </h1>
+        <div className="flex items-center gap-2">
+          <SidebarMenuButton className="-ml-2" />
+          <h1 className="text-4xl font-semibold tracking-tight md:text-5xl">
+            {t("hub.title")}
+          </h1>
+        </div>
         <p className="text-muted-foreground max-w-3xl text-base leading-7 md:text-lg">
           {t("hub.description")}
         </p>

@@ -173,6 +173,16 @@
       "whenSelected": "选择后即会下载"
     }
   },
+  "loadingStatus": {
+    "avatar": "正在加载虚拟形象",
+    "content": "正在加载动画和特效",
+    "contentProgress": "正在加载动画和特效（{{completed}}/{{total}}）",
+    "download": "正在下载{{item}}（{{size}}）",
+    "downloadProgress": "正在下载{{item}}（{{size}}，已完成 {{percent}}）",
+    "speechToText": "正在加载语音转文本（Parakeet）",
+    "textToSpeech": "正在加载文字转语音（PocketTTS）",
+    "textToSpeechStep": "正在加载文字转语音（PocketTTS），第 {{step}} 步，共 {{total}} 步"
+  },
   "memoryCue": {
     "added": "已添加到 {{name}} 的记忆",
     "addedUnnamed": "已添加到此 Anima 的记忆",
@@ -197,9 +207,7 @@
     "title": "开始新聊天？"
   },
   "playback": {
-    "degraded": "部分虚拟形象内容不可用。文字聊天仍可使用。",
-    "preparing": "正在准备动画和特效…",
-    "preparingCanChat": "正在准备动画和特效… 现在可以聊天了。"
+    "degraded": "部分虚拟形象内容不可用。文字聊天仍可使用。"
   },
   "profile": {
     "back": "返回",
@@ -236,10 +244,11 @@
     "unavailableHere": "此处无法使用听写和语音模式所需的离线语音识别"
   },
   "suggestions": {
-    "greeting": "简单问候",
+    "rockPaperScissors": "玩石头剪刀布",
     "joke": "讲个笑话",
-    "greetingMessage": "嗨！最近怎么样？",
-    "greetingMessageNamed": "嗨，{{name}}！最近怎么样？",
+    "rockPaperScissorsPaper": "我们来玩石头剪刀布吧！我出……布！",
+    "rockPaperScissorsRock": "我们来玩石头剪刀布吧！我出……石头！",
+    "rockPaperScissorsScissors": "我们来玩石头剪刀布吧！我出……剪刀！",
     "jokeMessage": "嘿，给我讲个笑话吧！",
     "jokeMessageNamed": "嘿，{{name}}，给我讲个笑话吧！"
   }

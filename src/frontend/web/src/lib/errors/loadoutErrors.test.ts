@@ -57,11 +57,11 @@ describe("Loadout warnings", () => {
     await getI18n().changeLanguage("ja");
     expect(
       loadoutWarningText({
-        code: "starter_gesture_unavailable",
-        message: "Included Gesture wave is unavailable.",
-        params: { semanticKey: "wave" },
+        code: "gesture_semantic_key_conflict",
+        message: "Gesture Wave has a conflicting semantic key.",
+        params: { name: "Wave" },
       }),
-    ).toBe("同梱ジェスチャー wave は利用できません。");
+    ).toBe("ジェスチャー Wave のセマンティックキーが競合しています。");
   });
 
   it("fall back to the backend message for an unworded code", () => {

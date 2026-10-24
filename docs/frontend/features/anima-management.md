@@ -74,17 +74,21 @@ active application provider. Avatar and Appearance use their own focused control
 Imported encoded-only voice clones remain selectable for speech; their original
 recording preview is unavailable because the recording is not shared.
 
-The unified Gesture list includes every ready Local and Included Gesture,
-including unequipped Gestures outside the starter set. The header shows the
+The unified Gesture list includes every ready Local and Included Gesture; the
+Anima's Gestures are exactly its equipped rows, so a removed Gesture stays
+listed, unequipped, until it is equipped again. The header shows the
 number equipped out of the full inventory, independent of search or filters.
 The filter menu offers independent Show included and Show local controls;
 Included content remains Included when explicitly equipped. Local search matches
-full names and descriptions. The menu filters equipped or unequipped rows
-and sorts by custom-first, name A–Z, or name Z–A. Motion type can be narrowed
+any part of a name; rows show the name, and the description appears in a
+tooltip on hover or focus. The menu filters equipped or unequipped rows
+and sorts Custom first (Local before Included, as in the Library), by name A–Z,
+or by name Z–A. Motion type can be narrowed
 to VRMA or Clips; Clips maps to the normalized
 `anima_clip` implementation. A compact checked status identifies
-equipped rows. Equip, Remove, Disable, and Restore continue through the
-server-backed loadout review before commit. Creating a Gesture makes it
+equipped rows. Equip and Remove continue through the server-backed loadout
+review before commit; every row's menu opens the Library, and an equipped
+row's menu also removes it. Creating a Gesture makes it
 available here but does not equip it automatically.
 
 Reactions show one expandable row per emotion, summarising how many Reactions

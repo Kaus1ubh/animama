@@ -589,7 +589,8 @@ class ProductPorts(Protocol):
         if_none_match: str | None,
         cacheable: bool,
     ) -> Response:
-        """Deliver private runtime JSON under this composition's caching policy.
+        """Deliver private JSON (runtime manifests and bundles, the content catalog)
+        under this composition's caching policy.
 
         ``encoding`` is the negotiated ``gzip`` or ``identity``; ``cacheable`` marks a
         body a client may keep and revalidate by ETag.

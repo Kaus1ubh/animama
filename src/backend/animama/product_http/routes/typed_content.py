@@ -23,6 +23,7 @@ from animama.app.contracts.typed_content import (
     PyAvatarContentPage,
     PyAvatarEffect,
     PyAvatarEffectPage,
+    PyAvatarPortrait,
     PyBuiltinPreviewSource,
     PyCatalogPreviewSource,
     PyContentEvidenceRequest,
@@ -47,16 +48,21 @@ from animama.app.contracts.typed_content import (
     legacy_saved_content_response,
     typed_content_response,
 )
+from animama.app.services.avatar_portraits import portrait_image_url, portrait_matches
 from animama.app.services.content_image import MAX_APPEARANCE_SOURCE_BYTES
 from animama.app.services.content_kind_registry import MAX_JSON_BYTES, definition_for_kind
-from animama.app.services.content_save_service import ContentSaveService
+from animama.app.services.content_save_service import (
+    AvatarPortraitSource,
+    ContentSaveService,
+    avatar_portrait_entry_name,
+)
 from animama.app.services.typed_content_batch_service import (
     BuiltinTypedRoot,
     CatalogTypedRoot,
     TypedContentBatchResolver,
 )
 from animama.app.services.typed_content_service import TypedCatalogItem, TypedContentService
-from animama.domain.content_catalog import ContentConflictError, ContentKind, SavedContent
+from animama.domain.content_catalog import ContentConflictError, ContentKind, ContentStatus, SavedContent
 from animama.domain.request_principal import RequestPrincipal
 from animama.product_http.ports import ProductContent, ReadContent, WriteContent
 from animama.product_http.principal import get_current_principal
@@ -70,7 +76,46 @@ async def _typed_responses(content: ProductContent, *, user_id: str, values: tup
 
     responses = [typed_content_response(value) for value in values]
     await _overlay_face_parts(content, user_id=user_id, values=values, responses=responses)
+    await _overlay_portraits(content, user_id=user_id, values=values, responses=responses)
     return responses
+
+
+async def _overlay_portraits(
+    content: ProductContent,
+    *,
+    user_id: str,
+    values: tuple[TypedCatalogItem, ...],
+    responses: Sequence[Any],
+) -> None:
+    """Set each Avatar response's portrait from the caller's visible valid Appearances."""
+
+    if not any(value.item.kind is ContentKind.AVATAR for value in values):
+        return
+    appearances = [
+        item
+        for item in await content.catalog.list_visible(user_id=user_id)
+        if item.kind is ContentKind.APPEARANCE and item.status is ContentStatus.VALID
+    ]
+    for value, response in zip(values, responses, strict=True):
+        if not isinstance(response, PyAvatarContent):
+            continue
+        matches = portrait_matches(value.item, appearances)
+        url = portrait_image_url(matches[0]) if matches else None
+        if url is None:
+            continue
+        portrait = matches[0]
+        presentation = portrait.metadata.get("presentation")
+        revision = presentation.get("avatar_revision_sha256") if isinstance(presentation, dict) else None
+        response.portrait = PyAvatarPortrait(
+            url=url,
+            avatar_revision_sha256=revision if isinstance(revision, str) else None,
+            renderer_version=_positive_int(portrait.metadata.get("renderer_version")),
+            capture_preset_version=_positive_int(portrait.metadata.get("capture_preset_version")),
+        )
+
+
+def _positive_int(value: object) -> int | None:
+    return value if isinstance(value, int) and not isinstance(value, bool) and value > 0 else None
 
 
 async def _overlay_face_parts(
@@ -508,14 +553,17 @@ async def save_avatar_portrait(
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
     content: WriteContent,
     file: Annotated[UploadFile, File()],
-    entry_name: Annotated[str, Form(min_length=1, max_length=120)],
     operation_id: Annotated[str, Form(min_length=1, max_length=128)],
     expected_avatar_revision: Annotated[str, Form(pattern=r"^[0-9a-f]{64}$")],
+    renderer_version: Annotated[int, Form(ge=1, le=1000)],
+    capture_preset_version: Annotated[int, Form(ge=1, le=1000)],
 ) -> Any:
-    """Save a confirmed browser capture as ordinary owner-scoped Appearance.
+    """Save a confirmed browser capture as the Local Avatar's one portrait.
 
-    The source must be a current admitted Avatar. No provider or browser render
-    runs on the backend, and no live Anima or Avatar metadata is changed.
+    The portrait is an ordinary owner-scoped Appearance; saving again replaces
+    it in place. The source must be a current admitted Local Avatar. No
+    provider or browser render runs on the backend, and no live Anima or Avatar
+    metadata is changed.
     """
 
     try:
@@ -523,7 +571,7 @@ async def save_avatar_portrait(
         saved = await content.saves.save_standalone_stream(
             user_id=user.id,
             kind=ContentKind.APPEARANCE,
-            entry_name=entry_name,
+            entry_name=avatar_portrait_entry_name(item_id),
             filename=file.filename or "portrait.webp",
             payload_stream=stream,
             payload_size_bytes=size,
@@ -532,7 +580,12 @@ async def save_avatar_portrait(
             catalog_item_id=None,
             expected_revision=None,
             declared_content_type=file.content_type,
-            portrait_source=(item_id, expected_avatar_revision),
+            portrait_source=AvatarPortraitSource(
+                avatar_id=item_id,
+                avatar_revision_sha256=expected_avatar_revision,
+                renderer_version=renderer_version,
+                capture_preset_version=capture_preset_version,
+            ),
         )
         value = TypedContentService.parse(saved.item)
         return typed_content_response(value)

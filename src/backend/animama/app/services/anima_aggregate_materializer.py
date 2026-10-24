@@ -15,6 +15,7 @@ from animama.domain.anima_definition import (
     ANIMA_IDENTITY_MAX_BYTES,
     DEFAULT_ANIMA_VOICE_ID,
     AnimaDefinitionError,
+    anima_identity_description,
     normalize_display_name,
     normalize_identity,
 )
@@ -122,10 +123,12 @@ class AnimaAggregateMaterializer:
             user_id=anima.user_id,
             anima_id=anima.id,
             content=identity,
-            description=f"Initial identity of {anima.display_name}",
+            description=anima_identity_description(anima.display_name),
             metadata=identity_metadata,
         )
-        await memory.initialize_anima_memories(user_id=anima.user_id, anima_id=anima.id)
+        await memory.initialize_anima_memories(
+            user_id=anima.user_id, anima_id=anima.id, display_name=anima.display_name
+        )
         preferences = default_anima_preferences()
         preferences["speech"] = (
             deepcopy(speech_preferences) if speech_preferences is not None else {"elevenlabs": voice_profile}

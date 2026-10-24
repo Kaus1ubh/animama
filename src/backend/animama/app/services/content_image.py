@@ -22,8 +22,8 @@ CANONICAL_IMAGE_MAX_DIMENSION = 4096
 CANONICAL_IMAGE_MAX_BYTES = 32 * 1024 * 1024
 THUMBNAIL_MAX_DIMENSION = 256
 THUMBNAIL_MAX_BYTES = 256 * 1024
-AVATAR_PORTRAIT_SOURCE_DIMENSION = 512
-AVATAR_PORTRAIT_DIMENSION = 256
+AVATAR_PORTRAIT_SOURCE_DIMENSION = 1024
+AVATAR_PORTRAIT_DIMENSION = 512
 AVATAR_PORTRAIT_MAX_BYTES = 256 * 1024
 _FORMATS_BY_EXTENSION = {
     "png": frozenset({"PNG"}),
@@ -233,8 +233,14 @@ def derive_image_thumbnail(
     *,
     extension: str,
     content: BinaryIO,
+    max_dimension: int = THUMBNAIL_MAX_DIMENSION,
+    first_frame: bool = False,
 ) -> DerivedImageThumbnail:
-    """Resize a canonical static image without upscaling and encode it as WebP."""
+    """Resize a bounded image without upscaling and encode it as WebP.
+
+    By default the source must be a canonical static image; ``first_frame``
+    instead accepts an animated source and keeps its first frame.
+    """
 
     image, source_format, source_width, source_height, frame_count = _open_bounded_image(
         extension=extension,
@@ -242,14 +248,12 @@ def derive_image_thumbnail(
     )
     stripped: Image.Image | None = None
     try:
-        _require_supported_frame_policy(source_format, frame_count)
+        if not first_frame:
+            _require_supported_frame_policy(source_format, frame_count)
         image.seek(0)
         image.load()
         oriented = ImageOps.exif_transpose(image)
-        oriented.thumbnail(
-            (THUMBNAIL_MAX_DIMENSION, THUMBNAIL_MAX_DIMENSION),
-            Image.Resampling.LANCZOS,
-        )
+        oriented.thumbnail((max_dimension, max_dimension), Image.Resampling.LANCZOS)
         has_alpha = "A" in oriented.getbands() or "transparency" in oriented.info
         mode = "RGBA" if has_alpha else "RGB"
         stripped = Image.new(mode, oriented.size)
@@ -279,7 +283,7 @@ def derive_image_thumbnail(
 
 
 def canonicalize_avatar_portrait(*, content: BinaryIO) -> CanonicalAvatarPortrait:
-    """Validate one 512-square static WebP and normalize it for navigation UI."""
+    """Validate one 1024-square static WebP and downscale it to the 512-square portrait."""
 
     image, source_format, source_width, source_height, frame_count = _open_bounded_image(
         extension="webp",
@@ -399,7 +403,11 @@ def _encode_bounded_webp(
     *,
     maximum_bytes: int,
 ) -> bytes:
-    """Use one explicit encoder ladder so the pinned Pillow build is repeatable."""
+    """Use one explicit encoder ladder so the pinned Pillow build is repeatable.
+
+    ``method=5`` rather than the maximum 6: with lossless alpha, 6 takes
+    seconds for a 512-square image for files under 2% smaller.
+    """
 
     for quality in (90, 82, 74, 66, 58, 50, 42, 34):
         output = BytesIO()
@@ -408,7 +416,7 @@ def _encode_bounded_webp(
             format="WEBP",
             quality=quality,
             alpha_quality=100,
-            method=6,
+            method=5,
             exact=True,
             lossless=False,
             exif=b"",

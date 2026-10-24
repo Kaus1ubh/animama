@@ -125,7 +125,9 @@ presentation use the live name and identity, never continuing Avatar fallbacks.
 and authenticated owner through one caller-owned `AnimaAggregateUnitOfWork`.
 It associates the logical Avatar, writes identity/history and the template
 `MEMORIES.md`, defaults/settings, chat profile, and exact typed selections
-through `AnimaLoadoutService.initialize`.
+through `AnimaLoadoutService.initialize`, which locks, reads and writes the
+Gestures and Reactions in one batch per family, so its statement count does not
+grow with them.
 Aggregate, identity, and loadout revisions start at 1. It never commits,
 contacts a provider, writes files, or issues runtime. The configured active
 model row is checked locally; default ElevenLabs voice is `gJx1vCzNCD1EQHT212Ls`.
@@ -230,31 +232,41 @@ rewritten by a later spec version.
 ### Starter loadout
 
 `resources/starter-loadout.v1.json` is the one definition of a starter Anima's
-assets: its pre-equipped `gestures`, its `reactions` pool members and its
-`idle` pool seed. Each loadout stores the policy `version` it started from and
-reads its starter Gestures and starter Reaction cells from that version; the
-Idle seed is copied into the pool when the loadout starts. `schema_version` 2
-added the `idle` section. The Starter Pack identity in creation options and
-drafts is the policy's SHA-256 revision, so any policy edit makes earlier drafts
-stale.
+assets: its `gestures`, its `reactions` pool members and its `idle` pool seed.
+Starting a loadout copies all three into binding rows from the content
+installed then, so later installs and policy edits never change an existing
+Anima. Each loadout also stores the policy `version` it started from, which
+Reaction `origin`, cell `state` and the cell's `restore_starter` read.
+`schema_version` 2 added the `idle` section. The Starter Pack identity in
+creation options and drafts is the policy's SHA-256 revision, so any policy
+edit makes earlier drafts stale.
 
-Creation and starter provisioning apply it through the creation request. A
-composition that equips starters without one creates the loadout with
-`AnimaLoadoutService.create_starter_loadout`, in the owner's transaction: the
-loadout uses the version's starter Gestures and receives the same Idle pool as
-creation, and each Reaction cell holds its available starter Reactions, as
-`restore_starter` leaves it. It then sets the Avatar and other selections
-through ordinary plan/commit changes. The starter step reads, locks and writes
-its pools in a bounded number of statements and locks every pool member until
-the owner's commit. A composition whose shared catalog rows (rows with no owner)
-never change at runtime sets `SHARED_CATALOG_ROWS_IMMUTABLE` from
+A starter Gesture's row uses the semantic key its Included document declares,
+which the model selects and packages carry (`air_quotes`, while its content id
+ends in `air-quotes`). An Anima's Gestures are exactly its rows: removing one
+removes it, and re-adding one is an ordinary add. There are no starter
+exclusions or starter-specific Gesture operations
+([ADR 0030](../../adr/0030-anima-gestures-are-binding-rows.md)).
+
+Creation and starter provisioning apply the policy through the creation
+request. A composition that equips starters without one creates the loadout
+with `AnimaLoadoutService.create_starter_loadout`, in the owner's transaction:
+it writes a row for each available starter Gesture, the same Idle pool as
+creation, and each Reaction cell's available starter Reactions, as
+`restore_starter` leaves it. It leaves out an unavailable starter Gesture or
+Reaction and returns it as a `starter_gesture_unavailable` or
+`starter_reaction_unavailable` diagnostic. It then sets the Avatar and other
+selections through ordinary plan/commit changes. The starter step reads, locks
+and writes its Gestures and pools in a bounded number of statements and locks
+every member until the owner's commit. A composition whose shared catalog rows
+(rows with no owner) never change at runtime sets `SHARED_CATALOG_ROWS_IMMUTABLE` from
 `content_catalog_repo` to `True` in the session's `info`. The loadout reads
 (`get_visible_item` and `get_visible_items`) then lock only owner rows, so
 concurrent owners' loadout writes never wait on a shared row; `lock_items` and
 reconciliation still lock the rows they name.
 
 Newly provisioned starters use Annie version 3 (`AvatarSample_A_1_New`, Eve Pocket
-voice, ElevenLabs `gJx1vCzNCD1EQHT212Ls`) and Andrew version 1 (`Andrew`, Michael
+voice, ElevenLabs `gJx1vCzNCD1EQHT212Ls`) and Andrew version 1 (`Andrew`, a university student; Michael
 Pocket voice, ElevenLabs `4e32WqNVWRquDa1OcRYZ`), with matching
 Included portraits when available.
 Their identities write out every section of the `IDENTITY.md` template.
@@ -291,11 +303,12 @@ side, and 40 million decoded pixels. It rejects animation, SVG, corrupt bytes,
 and misleading MIME types, then uses the existing canonical WebP pipeline.
 Profile/background framing remains explicit `fit`, focal coordinates, and zoom;
 null background creates no binding. `PUT /v1/avatar-content/{item_id}/portrait`
-accepts a confirmed 512-square WebP capture and the expected Avatar revision,
-producing a normal owner-scoped 256-square Appearance of at most 256 KiB.
-The typed portrait endpoint and Appearance management remain available outside
-the Create Anima flow. That flow does not offer capture, crop, upload or
-background controls; existing content and live bindings remain available.
+accepts a confirmed 1024-square WebP capture of a Local Avatar and its
+expected revision, producing that Avatar's one owner-scoped 512-square
+Appearance of at most 256 KiB; saving again replaces it.
+Create Anima saves a Local Avatar's portrait through this endpoint in the
+background when it is missing or was captured from another revision; it offers no crop, upload or background controls, and
+Appearance management remains separate from creation.
 Confirmed Saves survive cancellation and failed creation, and neither Save nor
 creation calls a provider.
 
@@ -332,7 +345,10 @@ when its original ID and model path still match, it has no owner or catalog
 mapping, and neither an Anima nor an upload references it. Existing selections
 are never silently cleared or reassigned.
 
-Avatar catalog `preview_url` uses a valid visible portrait registered for the
-model's exact `presentation.avatar_item_id`; generated portraits record this association.
+Avatar catalog `preview_url`, typed Avatar `portrait` and the Anima portrait
+fallback use a valid visible portrait registered for the model's exact
+`presentation.avatar_item_id` (`app/services/avatar_portraits.py`); generated
+portraits record this association and the Avatar revision they were captured
+from.
 Packaged Included portraits retain the `avatar_model` metadata fallback,
 independently of an Anima's custom profile appearance. Missing or invalid portraits leave the URL empty for icon fallback.

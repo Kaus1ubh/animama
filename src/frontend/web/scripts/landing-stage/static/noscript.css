@@ -1,0 +1,44 @@
+/* Without JavaScript the stage never starts, so the page's text shows. */
+.prerender {
+  position: relative;
+  z-index: 50;
+  width: auto;
+  height: auto;
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 4rem;
+  overflow: visible;
+  clip-path: none;
+  white-space: normal;
+  font-family: "DM Sans Variable", system-ui, sans-serif;
+  line-height: 1.5;
+}
+
+.prerender a {
+  text-decoration: underline;
+}
+
+.prerender nav a,
+.prerender .actions a {
+  margin-right: 0.75rem;
+}
+
+/* It describes the 3D stage, which does not run without JavaScript. */
+.prerender .scene {
+  display: none;
+}
+
+.prerender footer {
+  margin-top: 2.5rem;
+  font-size: 0.875rem;
+}
+
+.prerender h1 {
+  margin: 2rem 0 0.5rem;
+  font-size: 2.5rem;
+}
+
+.prerender h2 {
+  margin: 2.5rem 0 0.5rem;
+  font-size: 1.75rem;
+}

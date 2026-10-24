@@ -318,6 +318,7 @@ export function useChatSession(args: UseChatSessionArgs) {
       : null;
   const {
     startRun: startTtsRun,
+    markStreamStarted: markTtsStreamStarted,
     appendToken: appendTtsToken,
     completeRun: completeTtsRun,
     acceptElevenLabsSession,
@@ -371,6 +372,7 @@ export function useChatSession(args: UseChatSessionArgs) {
     clearAvatarVisemeBridgeRun,
     clearAvatarVisemeBridgeAll,
     startTtsRun,
+    markTtsStreamStarted,
     appendTtsToken,
     completeTtsRun,
     acceptElevenLabsSession,

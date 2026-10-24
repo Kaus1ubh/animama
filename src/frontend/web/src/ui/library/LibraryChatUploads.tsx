@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { FileText, Loader2, RefreshCw, Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useFormatters } from "@animama/product-ui/i18n";
@@ -21,8 +21,7 @@ import { Card, CardContent } from "@/ui/components/card";
 import { Input } from "@/ui/components/input";
 import { LibraryChatUploadsDebugPanel } from "@/ui/library/LibraryChatUploadsDebugPanel";
 import { LibraryFilterMenu } from "@/ui/library/LibraryFilterMenu";
-
-const UPLOAD_SEARCH_DEBOUNCE_MS = 300;
+import { useSearchDraft } from "@/ui/library/useSearchDraft";
 
 const STATUS_STYLES: Record<LibraryUploadStatusTone, string> = {
   active: "border-warning/30 bg-warning/10 text-warning",
@@ -166,7 +165,13 @@ export function LibraryChatUploads({
   const { t } = useTranslation("library");
   const formatters = useFormatters();
   const files = useUserFiles({ pollActive: true });
-  const [queryDraft, setQueryDraft] = useState(search.uploadQuery ?? "");
+  const [queryDraft, setQueryDraft] = useSearchDraft(
+    search.uploadQuery,
+    useCallback(
+      (uploadQuery: string | undefined) => onSearchChange({ uploadQuery }),
+      [onSearchChange],
+    ),
+  );
   const [visibleCount, setVisibleCount] = useState(LIBRARY_UPLOAD_PAGE_SIZE);
   const filtered = useMemo(
     () =>
@@ -186,19 +191,6 @@ export function LibraryChatUploads({
     totalCount: files.data?.length ?? 0,
     filteredCount: filtered.length,
   });
-
-  useEffect(() => {
-    setQueryDraft(search.uploadQuery ?? "");
-  }, [search.uploadQuery]);
-
-  useEffect(() => {
-    const normalized = queryDraft.trim();
-    if (normalized === (search.uploadQuery ?? "")) return;
-    const timeout = window.setTimeout(() => {
-      onSearchChange({ uploadQuery: normalized || undefined });
-    }, UPLOAD_SEARCH_DEBOUNCE_MS);
-    return () => window.clearTimeout(timeout);
-  }, [onSearchChange, queryDraft, search.uploadQuery]);
 
   useEffect(() => {
     setVisibleCount(LIBRARY_UPLOAD_PAGE_SIZE);

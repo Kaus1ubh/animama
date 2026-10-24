@@ -3,12 +3,13 @@ import rawManifest from "../../../../../../content/included/resources/scene-vfx/
 /**
  * Animama's built-in Scene stickers: Included PNGs under
  * `content/included/resources/scene-vfx/stickers/`, listed in `stickers.json`.
- * The Scene creator's sticker picker offers them; choosing one copies its PNG
- * into the effect as its own image, so a saved effect and its Portable
+ * The Scene creator's sticker picker offers them; choosing one copies its
+ * bundled image into the effect as its own image, so a saved effect and its Portable
  * package carry the bytes and need no app resource.
  *
  * The PNGs are bundled as build assets, so the picker works the same in
- * development, a built app and the packaged desktop app.
+ * development, a built app and the packaged desktop app. Production builds
+ * bundle each as WebP where that is smaller (`vite-plugins/webp-sticker-assets.ts`).
  */
 
 export const SCENE_STICKER_MANIFEST_SCHEMA = "animama/scene-stickers/1";
@@ -115,8 +116,10 @@ export function sceneStickerFamilies(
 }
 
 /**
- * Fetch a sticker's PNG as a file named after it (`<id>.png`), ready to be
- * added as the effect's own image.
+ * Fetch a sticker's image as a file named after it (`<id>.png`, or
+ * `<id>.webp` for a build's WebP copy), ready to be added as the effect's own
+ * image. The extension and type follow the bundled file, so the saved name
+ * always matches its bytes.
  */
 export async function fetchSceneStickerFile(
   sticker: SceneSticker,
@@ -126,5 +129,8 @@ export async function fetchSceneStickerFile(
   if (!response.ok)
     throw new Error(`The ${sticker.label} sticker could not be loaded.`);
   const blob = await response.blob();
-  return new File([blob], `${sticker.id}.png`, { type: "image/png" });
+  const webp = /\.webp(?:[?#]|$)/.test(sticker.url);
+  return new File([blob], `${sticker.id}.${webp ? "webp" : "png"}`, {
+    type: webp ? "image/webp" : "image/png",
+  });
 }

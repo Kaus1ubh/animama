@@ -1,19 +1,26 @@
-import { useId } from "react";
+import { type ReactNode, useId, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { PyCatalogViewItem } from "@/lib/content/catalogTypes";
 import { particleThumbnailColor } from "@/lib/content/particleThumbnailColor";
-import { AvatarImage } from "@/ui/components/avatar";
+import { LibraryThumbnailImage } from "./LibraryThumbnailImage";
 
-/** Multiply texture RGB by the emitter tint while preserving texture alpha. */
+/**
+ * Multiply texture RGB by the emitter tint while preserving texture alpha. The
+ * manifest that holds the tint is read only once the lazily loaded texture has
+ * drawn, so off-screen tiles fetch neither.
+ */
 export function ParticleThumbnail({
   src,
   source,
+  fallback,
 }: {
   src: string;
   source: NonNullable<PyCatalogViewItem["particle_thumbnail"]>;
+  fallback: ReactNode;
 }) {
   const id = `particle-tint-${useId().replace(/:/g, "")}`;
-  const { data: color } = useQuery({
+  const [loaded, setLoaded] = useState(false);
+  const { data: color, isError } = useQuery({
     queryKey: [
       "particle-thumbnail-color",
       source.manifestUrl,
@@ -25,6 +32,7 @@ export function ParticleThumbnail({
       if (!response.ok) throw new Error("Particle thumbnail color unavailable");
       return particleThumbnailColor(await response.json(), source.texturePath);
     },
+    enabled: loaded,
     staleTime: Infinity,
     retry: false,
   });
@@ -42,11 +50,14 @@ export function ParticleThumbnail({
           </defs>
         </svg>
       ) : null}
-      <AvatarImage
+      {/* An untinted texture never flashes before its tint is known. */}
+      <LibraryThumbnailImage
         src={src}
-        alt=""
+        fallback={fallback}
         className="object-contain p-1"
         style={color ? { filter: `url(#${id})` } : undefined}
+        ready={color !== undefined || isError}
+        onLoad={() => setLoaded(true)}
       />
     </>
   );

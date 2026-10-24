@@ -1,24 +1,44 @@
 import * as THREE from "three";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { Avatar } from "@/lib/avatar";
+
+import { useEnhancedRenderingStore } from "@/lib/avatar/enhanced-rendering/enhancedRendering";
+import { ENHANCED_SCENE_LIGHTS } from "@/ui/main/canvas/sceneCameraPresets";
 
 import {
   AvatarPortraitCaptureError,
   captureAvatarPortrait,
+  createStraightAlphaOutputPass,
+  type PortraitRenderTargetRole,
 } from "./captureAvatarPortrait";
 
 function createFixture(options?: {
   renderThrows?: boolean;
   head?: THREE.Vector3 | null;
+  floatColor?: boolean;
 }) {
   const scene = new THREE.Scene();
   const avatarScene = new THREE.Group();
   const unrelated = new THREE.Group();
   scene.add(avatarScene, unrelated);
-  const renderTarget = { texture: {}, dispose: vi.fn() };
+  const renderTargets = {
+    scene: { texture: {}, dispose: vi.fn() },
+    output: { texture: {}, dispose: vi.fn() },
+  };
+  const createRenderTarget = (_size: number, role: PortraitRenderTargetRole) =>
+    renderTargets[role] as never;
   const renderer = {
+    extensions: {
+      has: vi.fn(
+        (name: string) =>
+          (options?.floatColor ?? true) && name === "EXT_color_buffer_float",
+      ),
+    },
     autoClear: false,
+    toneMapping: THREE.NoToneMapping as THREE.ToneMapping,
+    toneMappingExposure: 1,
+    outputColorSpace: THREE.LinearSRGBColorSpace as THREE.ColorSpace,
     getRenderTarget: vi.fn(() => null),
     getViewport: vi.fn((target: THREE.Vector4) => target.set(1, 2, 3, 4)),
     getScissor: vi.fn((target: THREE.Vector4) => target.set(5, 6, 7, 8)),
@@ -64,12 +84,52 @@ function createFixture(options?: {
     unrelated,
     scene,
     renderer,
-    renderTarget,
+    renderTargets,
+    createRenderTarget,
     runWithPortraitCaptureState,
   };
 }
 
+/** Every renderer and scene change a capture makes is undone. */
+function expectStageRestored(fixture: ReturnType<typeof createFixture>) {
+  const { renderer } = fixture;
+  expect(fixture.scene.children).toEqual([
+    fixture.avatarScene,
+    fixture.unrelated,
+  ]);
+  expect(fixture.unrelated.visible).toBe(true);
+  expect(renderer.setRenderTarget).toHaveBeenLastCalledWith(null);
+  expect(renderer.toneMapping).toBe(THREE.NoToneMapping);
+  expect(renderer.toneMappingExposure).toBe(1);
+  expect(renderer.outputColorSpace).toBe(THREE.LinearSRGBColorSpace);
+  expect(renderer.autoClear).toBe(false);
+  expect(renderer.setScissorTest).toHaveBeenLastCalledWith(true);
+  const [color, alpha] = renderer.setClearColor.mock.lastCall as [
+    THREE.Color,
+    number,
+  ];
+  expect(color.getHex()).toBe(0x123456);
+  expect(alpha).toBe(0.25);
+  expect(fixture.renderTargets.scene.dispose).toHaveBeenCalledOnce();
+  expect(fixture.renderTargets.output.dispose).toHaveBeenCalledOnce();
+}
+
+describe("createStraightAlphaOutputPass", () => {
+  it("divides colour by alpha before tone mapping", () => {
+    const pass = createStraightAlphaOutputPass();
+    const shader = pass.material.fragmentShader;
+    const unpremultiply = shader.indexOf("gl_FragColor.rgb /= gl_FragColor.a");
+    expect(unpremultiply).toBeGreaterThan(
+      shader.indexOf("texture2D( tDiffuse"),
+    );
+    expect(unpremultiply).toBeLessThan(shader.indexOf("TONE_MAPPING"));
+    pass.dispose();
+  });
+});
+
 describe("captureAvatarPortrait", () => {
+  afterEach(() => useEnhancedRenderingStore.setState({ enabled: true }));
+
   it("renders and restores all temporary renderer and scene state", async () => {
     const fixture = createFixture();
     const blob = await captureAvatarPortrait({
@@ -79,10 +139,13 @@ describe("captureAvatarPortrait", () => {
       scene: fixture.scene,
       size: 64,
       dependencies: {
-        createRenderTarget: () => fixture.renderTarget as never,
+        createRenderTarget: fixture.createRenderTarget,
         encodePixels: async (pixels, size) => {
           expect(size).toBe(64);
-          expect(pixels.every((value) => value === 255)).toBe(true);
+          // White read back, then the chat canvas grade (alpha unchanged).
+          expect(Array.from(pixels.subarray(0, 4))).toEqual([
+            245, 245, 245, 255,
+          ]);
           return new Blob([pixels.slice().buffer as ArrayBuffer], {
             type: "image/webp",
           });
@@ -102,8 +165,21 @@ describe("captureAvatarPortrait", () => {
       fixture.avatarScene,
       fixture.unrelated,
     ]);
-    expect(fixture.renderTarget.dispose).toHaveBeenCalledOnce();
+    expect(fixture.renderTargets.scene.dispose).toHaveBeenCalledOnce();
+    expect(fixture.renderTargets.output.dispose).toHaveBeenCalledOnce();
+    // The Avatar renders into the MSAA target, the output pass into the
+    // read-back target.
+    expect(fixture.renderer.setRenderTarget.mock.calls.slice(0, 2)).toEqual([
+      [fixture.renderTargets.scene],
+      [fixture.renderTargets.output],
+    ]);
+    expect(fixture.renderer.readRenderTargetPixels.mock.calls[0][0]).toBe(
+      fixture.renderTargets.output,
+    );
     expect(fixture.renderer.setRenderTarget).toHaveBeenLastCalledWith(null);
+    expect(fixture.renderer.toneMapping).toBe(THREE.NoToneMapping);
+    expect(fixture.renderer.outputColorSpace).toBe(THREE.LinearSRGBColorSpace);
+    expect(fixture.renderer.toneMappingExposure).toBe(1);
     expect(fixture.renderer.setViewport).toHaveBeenCalledWith(0, 0, 32, 32);
     expect(fixture.renderer.setClearColor).toHaveBeenCalledWith(0x000000, 0);
     expect(fixture.renderer.setScissorTest).toHaveBeenLastCalledWith(true);
@@ -120,7 +196,7 @@ describe("captureAvatarPortrait", () => {
       size: 64,
       expression: "live",
       dependencies: {
-        createRenderTarget: () => fixture.renderTarget as never,
+        createRenderTarget: fixture.createRenderTarget,
         encodePixels: async () => new Blob([], { type: "image/webp" }),
       },
     });
@@ -130,8 +206,95 @@ describe("captureAvatarPortrait", () => {
       expect.any(Function),
       { keepLiveExpressions: true },
     );
-    expect(fixture.renderer.render).toHaveBeenCalledOnce();
+    // The Avatar render and the output pass.
+    expect(fixture.renderer.render).toHaveBeenCalledTimes(2);
   });
+
+  it("renders with the chat canvas's lights and tone mapping", async () => {
+    const fixture = createFixture();
+    const seen: { lights: THREE.Light[]; toneMapping: THREE.ToneMapping }[] =
+      [];
+    fixture.renderer.render.mockImplementationOnce((scene: THREE.Scene) => {
+      const lights: THREE.Light[] = [];
+      scene.traverse((object) => {
+        if ((object as THREE.Light).isLight) lights.push(object as THREE.Light);
+      });
+      seen.push({ lights, toneMapping: fixture.renderer.toneMapping });
+    });
+    await captureAvatarPortrait({
+      avatar: fixture.avatar,
+      renderer: fixture.renderer as unknown as THREE.WebGLRenderer,
+      camera: new THREE.PerspectiveCamera(50, 2, 0.1, 100),
+      scene: fixture.scene,
+      size: 64,
+      dependencies: {
+        createRenderTarget: fixture.createRenderTarget,
+        encodePixels: async () => new Blob([], { type: "image/webp" }),
+      },
+    });
+
+    expect(seen[0].toneMapping).toBe(THREE.NeutralToneMapping);
+    expect(seen[0].lights).toHaveLength(
+      1 + ENHANCED_SCENE_LIGHTS.directional.length,
+    );
+    expect(seen[0].lights[0].intensity).toBe(
+      ENHANCED_SCENE_LIGHTS.ambientIntensity,
+    );
+  });
+
+  it("uses the classic lights, ACES tone mapping and no grade when enhanced rendering is off", async () => {
+    useEnhancedRenderingStore.setState({ enabled: false });
+    const fixture = createFixture();
+    let toneMapping: THREE.ToneMapping | null = null;
+    fixture.renderer.render.mockImplementationOnce(() => {
+      toneMapping = fixture.renderer.toneMapping;
+    });
+    let encoded: number[] = [];
+    await captureAvatarPortrait({
+      avatar: fixture.avatar,
+      renderer: fixture.renderer as unknown as THREE.WebGLRenderer,
+      camera: new THREE.PerspectiveCamera(50, 2, 0.1, 100),
+      scene: fixture.scene,
+      size: 64,
+      dependencies: {
+        createRenderTarget: fixture.createRenderTarget,
+        encodePixels: async (pixels) => {
+          encoded = Array.from(pixels.subarray(0, 4));
+          return new Blob([], { type: "image/webp" });
+        },
+      },
+    });
+
+    expect(toneMapping).toBe(THREE.ACESFilmicToneMapping);
+    expect(encoded).toEqual([255, 255, 255, 255]);
+    expect(fixture.renderer.toneMapping).toBe(THREE.NoToneMapping);
+  });
+
+  it.each([
+    [true, THREE.HalfFloatType],
+    [false, THREE.UnsignedByteType],
+  ])(
+    "renders the scene into a half-float target only when the GPU supports it (%s)",
+    async (floatColor, type) => {
+      const fixture = createFixture({ floatColor });
+      await captureAvatarPortrait({
+        avatar: fixture.avatar,
+        renderer: fixture.renderer as unknown as THREE.WebGLRenderer,
+        camera: new THREE.PerspectiveCamera(50, 2, 0.1, 100),
+        scene: fixture.scene,
+        size: 64,
+        dependencies: {
+          encodePixels: async () => new Blob([], { type: "image/webp" }),
+        },
+      });
+
+      const [sceneTarget] = fixture.renderer.setRenderTarget.mock.calls[0] as [
+        THREE.WebGLRenderTarget,
+      ];
+      expect(sceneTarget.texture.type).toBe(type);
+      expect(sceneTarget.samples).toBe(4);
+    },
+  );
 
   const captureCamera = async (framing?: {
     framingScale?: number;
@@ -146,7 +309,7 @@ describe("captureAvatarPortrait", () => {
       size: 64,
       ...framing,
       dependencies: {
-        createRenderTarget: () => fixture.renderTarget as never,
+        createRenderTarget: fixture.createRenderTarget,
         encodePixels: async () => new Blob([], { type: "image/webp" }),
       },
     });
@@ -192,14 +355,43 @@ describe("captureAvatarPortrait", () => {
         scene: fixture.scene,
         size: 64,
         dependencies: {
-          createRenderTarget: () => fixture.renderTarget as never,
+          createRenderTarget: fixture.createRenderTarget,
           encodePixels: async () => new Blob(),
         },
       }),
     ).rejects.toThrow("render failed");
 
-    expect(fixture.unrelated.visible).toBe(true);
-    expect(fixture.renderTarget.dispose).toHaveBeenCalledOnce();
+    expectStageRestored(fixture);
+  });
+
+  it("restores the stage when cancelled after allocating GPU resources", async () => {
+    const fixture = createFixture();
+    const controller = new AbortController();
+    fixture.runWithPortraitCaptureState.mockImplementationOnce(
+      (_expression, callback) => {
+        controller.abort();
+        return callback();
+      },
+    );
+
+    await expect(
+      captureAvatarPortrait({
+        avatar: fixture.avatar,
+        renderer: fixture.renderer as unknown as THREE.WebGLRenderer,
+        camera: new THREE.PerspectiveCamera(),
+        scene: fixture.scene,
+        size: 64,
+        signal: controller.signal,
+        dependencies: {
+          createRenderTarget: fixture.createRenderTarget,
+          encodePixels: async () => new Blob(),
+        },
+      }),
+    ).rejects.toMatchObject({
+      code: "aborted",
+    } satisfies Partial<AvatarPortraitCaptureError>);
+    expect(fixture.renderer.render).not.toHaveBeenCalled();
+    expectStageRestored(fixture);
   });
 
   it("returns a typed failure when the normalized head is unavailable", async () => {
@@ -213,14 +405,15 @@ describe("captureAvatarPortrait", () => {
         scene: fixture.scene,
         size: 64,
         dependencies: {
-          createRenderTarget: () => fixture.renderTarget as never,
+          createRenderTarget: fixture.createRenderTarget,
           encodePixels: async () => new Blob(),
         },
       }),
     ).rejects.toMatchObject({
       code: "head_bone_missing",
     } satisfies Partial<AvatarPortraitCaptureError>);
-    expect(fixture.renderTarget.dispose).toHaveBeenCalledOnce();
+    expect(fixture.renderTargets.scene.dispose).toHaveBeenCalledOnce();
+    expect(fixture.renderTargets.output.dispose).toHaveBeenCalledOnce();
   });
 
   it("aborts before allocating GPU resources", async () => {
@@ -236,12 +429,12 @@ describe("captureAvatarPortrait", () => {
         scene: fixture.scene,
         signal: controller.signal,
         dependencies: {
-          createRenderTarget: () => fixture.renderTarget as never,
+          createRenderTarget: fixture.createRenderTarget,
         },
       }),
     ).rejects.toMatchObject({
       code: "aborted",
     } satisfies Partial<AvatarPortraitCaptureError>);
-    expect(fixture.renderTarget.dispose).not.toHaveBeenCalled();
+    expect(fixture.renderTargets.scene.dispose).not.toHaveBeenCalled();
   });
 });

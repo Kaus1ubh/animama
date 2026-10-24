@@ -175,6 +175,16 @@
       "whenSelected": "Downloads when selected"
     }
   },
+  "loadingStatus": {
+    "avatar": "Loading avatar",
+    "content": "Loading animations and effects",
+    "contentProgress": "Loading animations and effects ({{completed}}/{{total}})",
+    "download": "Downloading {{item}} ({{size}})",
+    "downloadProgress": "Downloading {{item}}: {{percent}} of {{size}}",
+    "speechToText": "Loading Speech-to-Text (Parakeet)",
+    "textToSpeech": "Loading Text-to-Speech (PocketTTS)",
+    "textToSpeechStep": "Loading Text-to-Speech (PocketTTS), step {{step}} of {{total}}"
+  },
   "memoryCue": {
     "added": "Added to {{name}}'s memories",
     "addedUnnamed": "Added to this Anima's memories",
@@ -199,9 +209,7 @@
     "title": "Start a new chat?"
   },
   "playback": {
-    "degraded": "Some avatar content is unavailable. Text chat still works.",
-    "preparing": "Preparing animations and effects…",
-    "preparingCanChat": "Preparing animations and effects… You can chat now."
+    "degraded": "Some avatar content is unavailable. Text chat still works."
   },
   "profile": {
     "back": "Back",
@@ -238,11 +246,12 @@
     "unavailableHere": "Offline speech recognition for dictation and Voice Mode is not available here"
   },
   "suggestions": {
-    "greeting": "Simple greeting",
-    "greetingMessage": "Hi! How's it going?",
-    "greetingMessageNamed": "Hi {{name}}! How's it going?",
     "joke": "Tell me a joke",
     "jokeMessage": "Hey, tell me a joke!",
-    "jokeMessageNamed": "Hey {{name}}, tell me a joke!"
+    "jokeMessageNamed": "Hey {{name}}, tell me a joke!",
+    "rockPaperScissors": "Play Rock Paper Scissors",
+    "rockPaperScissorsPaper": "Let's play rock paper scissors! I choose... paper!",
+    "rockPaperScissorsRock": "Let's play rock paper scissors! I choose... rock!",
+    "rockPaperScissorsScissors": "Let's play rock paper scissors! I choose... scissors!"
   }
 }

@@ -2,7 +2,13 @@
 
 import { useProductApiClient } from "@animama/product-ui";
 
-import { type ReactElement, useEffect, useMemo, useState } from "react";
+import {
+  type ReactElement,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "@tanstack/react-router";
 import {
@@ -72,6 +78,7 @@ import { LibrarySoundDialog } from "./LibrarySoundDialog";
 import { LibraryFilterMenu } from "./LibraryFilterMenu";
 import { LibraryProductRow, type LibraryLayout } from "./LibraryProductRow";
 import { useLibraryLayout } from "./useLibraryLayout";
+import { useSearchDraft } from "./useSearchDraft";
 
 type SearchUpdate = (update: Partial<ContentLibrarySearch>) => void;
 
@@ -117,7 +124,7 @@ function ProductGroup({
           <div
             className={
               layout === "grid"
-                ? "grid grid-cols-[repeat(auto-fill,minmax(min(100%,13rem),1fr))] gap-3"
+                ? "grid grid-cols-2 gap-2 sm:grid-cols-[repeat(auto-fill,minmax(min(100%,13rem),1fr))] sm:gap-3"
                 : "overflow-hidden rounded-xl border"
             }
           >
@@ -392,6 +399,13 @@ export function LibraryContentInventory({
   const { t } = useTranslation("library");
 
   const [layout, setLayout] = useLibraryLayout();
+  const [queryDraft, setQueryDraft] = useSearchDraft(
+    search.query,
+    useCallback(
+      (query: string | undefined) => onSearchChange({ query }),
+      [onSearchChange],
+    ),
+  );
   const groups = contentInventoryGroups(search);
   const includes = (group: LibraryInventoryGroup) => groups.includes(group);
   const origin = search.showStarters ? "all" : "owned";
@@ -656,16 +670,15 @@ export function LibraryContentInventory({
   ];
   return (
     <div className="space-y-3">
-      <div className="bg-background/95 sticky top-11 z-30 flex items-center gap-3 py-3 backdrop-blur-sm">
+      <div className="bg-background/95 sticky top-11 z-30 flex items-center gap-2 py-3 backdrop-blur-sm sm:gap-3">
         <label className="relative min-w-0 flex-1">
           <Search className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
           <Input
             className="h-11 pl-9"
-            value={search.query ?? ""}
+            value={queryDraft}
+            maxLength={80}
             placeholder={t("inventory.search")}
-            onChange={(event) =>
-              onSearchChange({ query: event.target.value || undefined })
-            }
+            onChange={(event) => setQueryDraft(event.target.value)}
           />
         </label>
         <div

@@ -710,11 +710,12 @@ copied into the entry's user-facing metadata.
 
 `AnimaAggregateMaterializer` stores the resolved identity in an Anima-scoped
 `IDENTITY.md` entry with `kind = "anima_identity"` and
-`description = "Initial identity of {anima.display_name}"`, then creates
+`description = "{anima.display_name}'s identity"`, then creates
 `MEMORIES.md` from its template (sections Our story, How we are together, What
 works between us and Open threads, each with a hint line) with
-`kind = "anima_memories"` and `description = "Shared history with the user"`.
-It uses the caller's SQL transaction with no physical-file projection or
+`kind = "anima_memories"` and `description = "{anima.display_name}'s memories"`
+(also used when a missing `MEMORIES.md` is repaired). Later renames leave both
+descriptions unchanged. It uses the caller's SQL transaction with no physical-file projection or
 independent commit, so a failure leaves neither file.
 Strict live creation supplies the authored Markdown, and backend starters
 supply their configured identity through the same materializer. Later Avatar edits and chat turns

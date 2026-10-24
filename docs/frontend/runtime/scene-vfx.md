@@ -44,8 +44,9 @@ than independent loadout rows. Their optional local Sound alias is rewritten
 through the parent Action's prepared reference map and played once when the
 effect is applied. The ordinary scene background image is loadout-owned: live
 `Scene` rendering uses the typed Appearance binding. Without one it draws the
-Anima's app stage scene (`preferences.presentation.stage_background`, Dreamy
-by default) in the current theme; settings name a scene, never a media URL.
+Anima's app stage scene (`preferences.presentation.stage_background`; Dreamy
+in light mode and Sakura in dark mode by default) in the current theme;
+settings name a scene, never a media URL.
 
 ### Rendering
 
@@ -160,7 +161,7 @@ items can be reordered; each is one of the effect's own images, either an
 Animama sticker or a private PNG/JPEG/WebP/SVG. A tile uses one private image.
 
 The sticker picker lists Animama's built-in stickers by family, with
-thumbnails. Choosing one fetches its PNG and adds it through the same path as
+thumbnails. Choosing one fetches its image and adds it through the same path as
 **Add private image**, labelled with the sticker's name, so Save, browser
 recovery and Portable packages carry its bytes like any other image; the same
 bytes added twice are carried once. The set is
@@ -168,7 +169,9 @@ bytes added twice are carried once. The set is
 in `stickers.json` (`animama/scene-stickers/1`; each item has an `id`, a
 `label`, a `family` and its `file`). `lib/scene-vfx/stickers.ts` bundles the
 manifest and the PNGs as build assets, so the picker works in development, a
-built app and the packaged desktop app; an unlisted PNG or a listed file that
+built app and the packaged desktop app. Production builds emit each sticker as
+WebP where that is smaller (`web/vite-plugins/webp-sticker-assets.ts`), and a
+chosen sticker keeps that format and extension in the effect. An unlisted PNG or a listed file that
 is missing fails the web tests (`lib/scene-vfx/stickers.test.ts`). To add a sticker, copy its PNG into the
 folder, add its item to `stickers.json` in the order the picker shows it,
 and add an owner-form `licenses/source-review.json` record for the file

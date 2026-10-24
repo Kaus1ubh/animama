@@ -24,6 +24,7 @@ import {
   STAGE_SCENES,
   appStageBackgroundUrl,
   stageSceneChoice,
+  stageSceneToSave,
   type StageSceneChoice,
   type StageSceneId,
 } from "@/lib/stage-background/stageBackground";
@@ -182,6 +183,7 @@ export function AnimaAppearanceDialog({
   const animaSettings = useAnimaSettings(animaId, { enabled: open });
   const updateAnimaSettings = useUpdateAnimaSettings();
   const { resolvedTheme } = useTheme();
+  const stageTheme = resolvedTheme === "dark" ? "dark" : "light";
   const storedPreferences =
     (animaSettings.data?.preferences as SettingsPreferences | undefined) ??
     null;
@@ -231,10 +233,9 @@ export function AnimaAppearanceDialog({
     };
     setDrafts({
       profile_image: initial("profile"),
-      background_image: {
-        ...initial("background"),
-        scene: stageSceneChoice(storedPreferences),
-      },
+      // The scene stays unset until picked; the select shows the stored or
+      // theme-default scene meanwhile.
+      background_image: initial("background"),
     });
     setPendingUpload(null);
     setStatus(null);
@@ -251,16 +252,14 @@ export function AnimaAppearanceDialog({
   const defaultProfile = useAnimaPresentationImage(
     showsDefaultProfile ? profileThumbnail : null,
   );
-  const draftScene = draft.scene ?? stageSceneChoice(storedPreferences);
+  const draftScene =
+    draft.scene ?? stageSceneChoice(storedPreferences, stageTheme);
   const previewUrl = draft.itemId
     ? selectedPreview.url
     : showsDefaultProfile
       ? defaultProfile.url
       : use === "background" && draftScene !== "none"
-        ? appStageBackgroundUrl(
-            draftScene,
-            resolvedTheme === "dark" ? "dark" : "light",
-          )
+        ? appStageBackgroundUrl(draftScene, stageTheme)
         : null;
   const previewPending = draft.itemId
     ? selectedPreview.isPending
@@ -335,16 +334,13 @@ export function AnimaAppearanceDialog({
         });
       }
       // A Local image keeps the stored scene for when it is removed.
-      if (
-        use === "background" &&
-        !draft.itemId &&
-        draftScene !== stageSceneChoice(storedPreferences)
-      ) {
+      const sceneToSave = stageSceneToSave(draft.scene, storedPreferences);
+      if (use === "background" && !draft.itemId && sceneToSave !== null) {
         await updateAnimaSettings.mutateAsync({
           animaId,
           body: {
             preferences: mergePreferences(storedPreferences ?? {}, {
-              presentation: { stage_background: draftScene },
+              presentation: { stage_background: sceneToSave },
             }),
           },
         });

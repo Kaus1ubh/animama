@@ -13,10 +13,10 @@ import {
 } from "lucide-react";
 
 import type { LibraryRowPresentation } from "@/lib/content/libraryPresentation";
+import { LibraryThumbnailImage } from "./LibraryThumbnailImage";
 import { ParticleThumbnail } from "./ParticleThumbnail";
 import type { PyCatalogViewItem } from "@/lib/content/catalogTypes";
 import { cn } from "@/lib/utils";
-import { Avatar, AvatarFallback, AvatarImage } from "@/ui/components/avatar";
 import {
   Tooltip,
   TooltipContent,
@@ -58,6 +58,8 @@ export function LibraryProductRow({
 }) {
   const { t } = useTranslation("library");
   const Icon = icons[row.family];
+  const fallback = <Icon className="size-5" aria-hidden="true" />;
+  const imageUrl = portraitUrl || thumbnailUrl;
   return (
     <article
       aria-label={row.name}
@@ -75,25 +77,27 @@ export function LibraryProductRow({
             tabIndex={0}
             className="focus-visible:ring-ring flex min-h-20 min-w-0 flex-1 items-center gap-2.5 rounded-lg px-3 py-3 outline-none focus-visible:ring-2"
           >
-            <Avatar className="bg-muted size-10 rounded-lg">
+            <span className="bg-muted text-muted-foreground relative flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg">
               {!portraitUrl && thumbnailUrl && particleThumbnail ? (
                 <ParticleThumbnail
+                  key={thumbnailUrl}
                   src={thumbnailUrl}
                   source={particleThumbnail}
+                  fallback={fallback}
                 />
-              ) : portraitUrl || thumbnailUrl ? (
-                <AvatarImage
-                  src={portraitUrl || thumbnailUrl || undefined}
-                  alt=""
+              ) : imageUrl ? (
+                <LibraryThumbnailImage
+                  key={imageUrl}
+                  src={imageUrl}
+                  fallback={fallback}
                   className={
                     portraitUrl ? "object-cover" : "object-contain p-1"
                   }
                 />
-              ) : null}
-              <AvatarFallback className="text-muted-foreground rounded-lg">
-                <Icon className="size-5" aria-hidden="true" />
-              </AvatarFallback>
-            </Avatar>
+              ) : (
+                fallback
+              )}
+            </span>
             <span className="min-w-0 flex-1">
               <span className="flex min-w-0 flex-wrap items-center gap-2">
                 <span className="line-clamp-2 w-full text-sm leading-snug font-medium break-words">

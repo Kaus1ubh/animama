@@ -49,8 +49,9 @@ invocation does not wait for direct-mode token minting. Runtime voice
 accessibility validation uses the process-local cache populated at save time or
 by recent chat runs; if the cache misses, the setup task validates once and
 caches the result instead of checking repeatedly.
-When session setup succeeds, `chat:sse` emits `tts.session`; the event may
-arrive before or after the final `user.response`. The event includes a
+When session setup succeeds, `chat:sse` emits `tts.session` as soon as it is
+ready, which may be before the turn's AI notice or after the final
+`user.response`. The event includes a
 single-use `ttd_websocket` token, which admits one browser connection to
 ElevenLabs' Text to Dialogue socket. That socket refuses `tts_websocket`
 tokens. The event also sets `sync_alignment: true`, so ElevenLabs returns

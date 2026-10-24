@@ -172,7 +172,7 @@ local server package, so any composition can return the same contract; the local
 router is a thin adapter. `runtime_kind` is presentation metadata (`desktop`,
 `self_hosted_web` or `hosted`), not an authentication mode or a feature gate;
 the local composition never reports `hosted`. Capability schema version 2 is
-exported in `local-http` contract version 11.0.0. `chat`, `model_selection` and
+exported in `local-http` contract version 15.0.0. `chat`, `model_selection` and
 `model_role_selection` admit chat and choices from the composition's catalog,
 independently of provider administration. The local adapter reports them true.
 `provider_credentials` and `local_filesystem_administration` describe owner key
@@ -221,6 +221,13 @@ only the local composition does. Its
 ids, Google's prebuilt voices and the defaults (`gemini-3.8-flash-lite-tts`,
 `Kore`). React offers Gemini only while it is present; see
 [voice and speech](../integrations/voice-and-speech.md#gemini-tts).
+`browser_telemetry` is absent or null unless the composition forwards browser
+telemetry. The local composition never reports it, even with its
+`/api/telemetry/{signal}` forwarder enabled. When present, its `path` (default
+`/api/telemetry`) is a relative same-origin path matching
+`^(/[A-Za-z0-9_-]+)+$`, and the web app posts bounded OTLP/HTTP JSON metrics and
+error logs to `{path}/metrics` and `{path}/logs`; see
+[browser telemetry](../../frontend/architecture/overview.md#browser-telemetry).
 
 ## Web Search
 
@@ -329,7 +336,11 @@ location and recovery are in [model assets](../operations/model-assets.md#downlo
 
 - `GET /v1/content/catalog` lists caller-visible Included,
   installation-shared, and owned entries with scan status, safe diagnostics,
-  current revision, dependencies, and opaque file registrations.
+  current revision, dependencies, and opaque file registrations. Content Health
+  polls it, so it negotiates gzip or identity and is delivered through the
+  composition's JSON policy; locally that is a wire ETag (`private, no-cache`)
+  and an unchanged catalog answers `If-None-Match` with 304.
+  Unsupported encodings fail with 406 `content_encoding_not_acceptable`.
 - `GET /v1/content/items/{item_id}` reads one visible item.
 - `POST /v1/content:rescan` performs an authoritative scan of registered
   Included and Local type roots and returns per-source counts plus the updated
@@ -344,6 +355,14 @@ location and recovery are in [model assets](../operations/model-assets.md#downlo
   revalidates filesystem containment, regular-file/link state, exact size, and
   SHA-256, then streams the bytes. It accepts no path or storage key. Digest
   ETags are evaluated only after authorization and integrity checks.
+  `?variant=thumbnail` returns a Library-sized copy instead: a PNG, JPEG or
+  WebP larger than 128 pixels on a side becomes a WebP within 128 × 128
+  (first frame, aspect and alpha kept) whose ETag is its own digest; smaller
+  rasters and SVG return unchanged. Decoding uses the bounded image reader
+  (40 million pixels, 16,384 per side), so an oversized canvas is refused from
+  its header. Thumbnails are cached in process by source digest. Other media
+  types, or an image that is over budget or cannot be decoded, fail with 422
+  `content_thumbnail_unsupported`.
 
 In embedded desktop, byte delivery uses the exact immutable Included mount
 recorded with the item or preview. Unmounted/mismatched sources fail closed;
@@ -530,7 +549,10 @@ Anima.
 The owner-scoped loadout endpoints are:
 
 - `GET /v1/animas/{anima_id}/loadout`;
-- `POST /v1/animas/{anima_id}/gestures:plan|commit`;
+- `POST /v1/animas/{anima_id}/gestures:plan|commit` (`add` takes a Gesture
+  `source`; `update` and `reconfigure` take the row's `binding_id` and a
+  `source`; `remove` takes the `binding_id`; the loadout's `gestures` are exactly
+  these rows);
 - `POST /v1/animas/{anima_id}/reactions:plan|commit` (`add` takes a Reaction
   `source` plus `emotion` and `intensity` 1–4; `remove` takes the member's
   `binding_id`; `restore_starter` takes only the cell; see
@@ -545,7 +567,7 @@ The owner-scoped loadout endpoints are:
 Plan requests carry the expected loadout revision and a typed family intent.
 Commit repeats that intent with the reviewed plan digest and an idempotency
 key. Loadout `warnings` carry `code`, `scope`, an English `message` for logs
-and API clients, and `params` (for example `slot`, `name` or `semanticKey`)
+and API clients, and `params` (for example `slot`, `name` or `contentId`)
 that clients use to word the code in the owner's UI Locale. Selections store logical catalog items; Particle, Avatar, and Scene
 Effects plus Sounds remain compiler-managed support dependencies of
 Gesture/Reaction roots and cannot be equipped directly.
@@ -637,12 +659,14 @@ fields plus a required `presentation` object. Both list and detail responses
 include stable `display_name`, `aggregate_revision`, and `identity_status`
 (`ready` or `repair_required`). The presentation contains the same live
 display name, opaque revision, and optional
-`RuntimeImageReference` bounded to 256 by 256 pixels. The list loads chat
+`RuntimeImageReference`. Its schema bounds width and height to 512, the size
+of stored portraits; a custom Profile image can be larger, and the list
+response is not validated against that bound. The list loads chat
 profiles, custom profile candidates, and exact primary-model portrait
 candidates in set-based reads; it does not call the complete runtime resolver
 for each row. A valid custom Profile Image wins. Otherwise the reference uses
-the registered Appearance portrait whose metadata matches the selected Avatar
-model. It remains null when neither is available.
+the Avatar's exact portrait (`presentation.avatar_item_id`), else the
+Included portrait whose metadata matches the selected Avatar model. It remains null when neither is available.
 
 The reference includes a normalized `presentation` object with Fill/Fit,
 focal point, and zoom. These fields are revisioned presentation semantics;
@@ -1241,7 +1265,7 @@ Normal direct chat assembles the current anima identity entry content into
 system instruction context. Anima identity is always required, and
 `disable_memory_influence` does not remove it. Anima creation seeds
 anima-scoped identity entries with
-`description = "Initial identity of {anima.display_name}"`. The local
+`description = "{anima.display_name}'s identity"`. The local
 installation bootstrap creates a private user-scope `PROFILE.md` from template
 version 2; first-run personalization sets its `Preferred name:` line only while
 nothing else has edited the file since the last managed write. AI
@@ -1366,9 +1390,19 @@ The optional form `creation_context=true` prevents replacing an in-use Avatar.
 `PUT /v1/appearance-content/{entry_name}` canonicalizes bounded static
 PNG/JPEG/WebP inputs (16 MiB, 8192 per side, 40 million pixels). The portrait
 endpoint `PUT /v1/avatar-content/{item_id}/portrait` takes multipart `file`,
-`entry_name`, `operation_id`, and `expected_avatar_revision`; a 512-square WebP
-capture becomes a normal owner-scoped 256-square Appearance up to 256 KiB.
-It does not modify the Avatar or any Anima. Confirmed content survives cancelled
+`operation_id`, `expected_avatar_revision`, `renderer_version` and
+`capture_preset_version`; a 1024-square WebP capture of a Local Avatar becomes
+its one owner-scoped 512-square Appearance (up to 256 KiB) at
+`appearances/avatar-portrait-{item_id}.webp`, replaced in place by later
+saves. Its metadata records the Avatar revision and capture versions. An
+Included Avatar returns `409 portrait_requires_local_avatar`.
+When the Avatar already has another exact portrait (imported, or saved
+elsewhere), the save returns `409 avatar_portrait_exists` and keeps it. Saving
+does not modify the Avatar or any Anima binding, but an Anima that bound the
+portrait itself as its Profile or Background shows the replaced image. Avatar
+content List and Get responses carry `portrait` (`url`,
+`avatar_revision_sha256` for a Local capture, `renderer_version`,
+`capture_preset_version`) or null. Confirmed content survives cancelled
 or rejected creation. Typed previews expose `expected_source_revisions` for
 the creation-compatible root/support closure, independent of preview pins.
 

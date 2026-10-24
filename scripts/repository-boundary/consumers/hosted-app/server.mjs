@@ -16,6 +16,25 @@ const json = (res, value, status = 200) => {
     res.end(JSON.stringify(value));
 };
 
+/**
+ * Starts a new fixture owner with two product defaults off that saturate a
+ * two-core CI runner; a returning owner keeps the settings it saved.
+ *
+ * - Text-to-Speech: only the journeys that turn on voice warm Pocket TTS. Its
+ *   warm-up on every Anima page otherwise saturates the runner.
+ * - Enhanced Avatar rendering: its MToon outlines and extra lights cost about
+ *   1.7 times the software-WebGL work per Avatar frame. The GPU process then
+ *   falls behind, and leaving an Anima page waits for it: a navigation after
+ *   sign-out exceeded the 45-second step bound (#637). The classic look still
+ *   renders and poses the Avatar from the emitted bytes.
+ */
+export function applyFixtureOwnerDefaults(preferences) {
+    preferences.speech ??= { tts_enabled: false };
+    preferences.presentation ??= {};
+    preferences.presentation.enhanced_rendering ??= false;
+    return preferences;
+}
+
 /** Routes in the shared file router, including its bounded legacy /a redirect. */
 export function applicationRoute(raw) {
     const route = raw.replace(/^\/a(?=\/|$)/, "").replace(/^\/+/, "/") || "/";
@@ -350,13 +369,7 @@ export async function createApplicationServer(applications, { vrmFile } = {}) {
                 },
             );
             const context = await response.json();
-            // New owners start with Text-to-Speech off, so only the journeys
-            // that turn on voice warm Pocket TTS; its warm-up on every Anima
-            // page otherwise saturates a two-core CI runner. A returning owner
-            // keeps the settings it saved.
-            admission.state.settings.preferences.speech ??= {
-                tts_enabled: false,
-            };
+            applyFixtureOwnerDefaults(admission.state.settings.preferences);
             sessions.set(admission.cookie, {
                 ...admission,
                 roster,

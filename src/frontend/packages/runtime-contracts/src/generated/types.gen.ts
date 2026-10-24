@@ -986,9 +986,9 @@ export type BodySaveAvatarEffect = {
  */
 export type BodySaveAvatarPortrait = {
     /**
-     * Entry Name
+     * Capture Preset Version
      */
-    entry_name: string;
+    capture_preset_version: number;
     /**
      * Expected Avatar Revision
      */
@@ -1001,6 +1001,10 @@ export type BodySaveAvatarPortrait = {
      * Operation Id
      */
     operation_id: string;
+    /**
+     * Renderer Version
+     */
+    renderer_version: number;
 };
 
 /**
@@ -1267,6 +1271,22 @@ export type BodySaveVoiceContent = {
      * Operation Id
      */
     operation_id: string;
+};
+
+/**
+ * BrowserTelemetryCapability
+ *
+ * Browser telemetry export that the serving origin accepts.
+ *
+ * The web app posts bounded OTLP/HTTP JSON metrics and error logs to
+ * ``{path}/metrics`` and ``{path}/logs`` on its own origin; the embedded
+ * desktop app never exports. The path is relative to that origin, never a URL.
+ */
+export type BrowserTelemetryCapability = {
+    /**
+     * Path
+     */
+    path?: string;
 };
 
 /**
@@ -2797,11 +2817,9 @@ export type PyAnimaLoadout = {
     appearances?: Array<PyAnimaAppearance>;
     avatar_source?: PyCatalogLoadoutSource | null;
     /**
-     * Disabled Starter Gestures
-     */
-    disabled_starter_gestures: Array<string>;
-    /**
      * Gestures
+     *
+     * The Anima's Gestures: exactly its Gesture binding rows.
      */
     gestures: Array<PyGestureBinding>;
     idle: PyAnimaIdle;
@@ -2815,12 +2833,6 @@ export type PyAnimaLoadout = {
      * Revision
      */
     revision: number;
-    /**
-     * Starter Gesture Implementation Kinds
-     */
-    starter_gesture_implementation_kinds?: {
-        [key: string]: 'anima_clip' | 'vrma';
-    };
     /**
      * Starter Version
      */
@@ -3759,6 +3771,7 @@ export type PyAvatarContent = {
      * Portability
      */
     portability?: 'portable' | 'non-portable';
+    portrait?: PyAvatarPortrait | null;
     /**
      * Revision Sha256
      */
@@ -3856,6 +3869,30 @@ export type PyAvatarEffectPage = {
      * Items
      */
     items: Array<PyAvatarEffect>;
+};
+
+/**
+ * PyAvatarPortrait
+ *
+ * An Avatar's portrait image and the capture it came from.
+ */
+export type PyAvatarPortrait = {
+    /**
+     * Avatar Revision Sha256
+     */
+    avatar_revision_sha256?: string | null;
+    /**
+     * Capture Preset Version
+     */
+    capture_preset_version?: number | null;
+    /**
+     * Renderer Version
+     */
+    renderer_version?: number | null;
+    /**
+     * Url
+     */
+    url: string;
 };
 
 /**
@@ -5144,6 +5181,8 @@ export type PyGesture = {
 
 /**
  * PyGestureBinding
+ *
+ * One equipped AI-callable Gesture, stored as a ``gesture:<semantic_key>`` binding row.
  */
 export type PyGestureBinding = {
     /**
@@ -5172,10 +5211,6 @@ export type PyGestureBinding = {
      * Name
      */
     name: string;
-    /**
-     * Origin
-     */
-    origin: 'starter' | 'custom';
     /**
      * Semantic Key
      */
@@ -5221,12 +5256,8 @@ export type PyGestureIntent = {
     /**
      * Operation
      */
-    operation: 'add' | 'update' | 'reconfigure' | 'remove' | 'disable_starter' | 'restore_starter';
+    operation: 'add' | 'update' | 'reconfigure' | 'remove';
     source?: PyCatalogLoadoutSource | null;
-    /**
-     * Starter Id
-     */
-    starter_id?: string | null;
 };
 
 /**
@@ -5458,7 +5489,7 @@ export type PyLoadoutPlan = {
     /**
      * Action
      */
-    action: 'add' | 'update' | 'replace' | 'remove' | 'revert' | 'leave_empty' | 'unchanged';
+    action: 'add' | 'update' | 'replace' | 'remove' | 'revert' | 'unchanged';
     /**
      * Aggregate Revision
      */
@@ -9648,6 +9679,7 @@ export type RuntimeCapabilities = {
      * Anima Creation
      */
     anima_creation: boolean;
+    browser_telemetry?: BrowserTelemetryCapability | null;
     /**
      * Chat
      */
@@ -12047,10 +12079,25 @@ export type ListChatMessagesV1ChatsChatIdMessagesGetResponse = ListChatMessagesV
 
 export type ListContentCatalogV1ContentCatalogGetData = {
     body?: never;
+    headers?: {
+        /**
+         * If-None-Match
+         */
+        'If-None-Match'?: string | null;
+    };
     path?: never;
     query?: never;
     url: '/v1/content/catalog';
 };
+
+export type ListContentCatalogV1ContentCatalogGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListContentCatalogV1ContentCatalogGetError = ListContentCatalogV1ContentCatalogGetErrors[keyof ListContentCatalogV1ContentCatalogGetErrors];
 
 export type ListContentCatalogV1ContentCatalogGetResponses = {
     /**
@@ -12100,7 +12147,12 @@ export type StreamContentFileV1ContentFilesFileRefGetData = {
          */
         file_ref: string;
     };
-    query?: never;
+    query?: {
+        /**
+         * Variant
+         */
+        variant?: 'thumbnail' | null;
+    };
     url: '/v1/content/files/{file_ref}';
 };
 

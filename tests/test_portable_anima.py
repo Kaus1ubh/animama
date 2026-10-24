@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from typing import Any
 from uuid import uuid4
 
 import pytest
@@ -436,51 +435,3 @@ async def test_configuration_and_image_roles_round_trip_through_portable_definit
     assert bindings["gesture:configured"].config == config
     assert bindings[f"idle:joy-2:{gesture.id}"].config == {}
     assert created.id != anima.id and created.aggregate_revision == 1
-
-
-async def test_effective_starter_gestures_are_frozen_and_reactions_have_no_implicit_starter(
-    async_session, saved_anima, monkeypatch
-):
-    from animama.orm.anima_loadout import ORMAnimaLoadout
-
-    fixture, anima = saved_anima
-    policy: dict[str, list[dict[str, Any]]] = {"gestures": [], "reactions": []}
-    included_ids = []
-    try:
-        for kind in ("gesture", "reaction"):
-            semantic = f"portable-{kind}-{uuid4().hex}"
-            key = f"builtin:{kind}:{semantic}"
-            row = await add_typed_item(
-                async_session,
-                LoadoutFixture(fixture.user_id, "", "", ""),
-                kind=kind,
-                name="Starter",
-                metadata={
-                    "content_id": key,
-                    **({"semantic_key": semantic} if kind == "gesture" else {}),
-                    "implementation": {"kind": "anima_clip", "file_role": "sequence"},
-                },
-            )
-            await async_session.execute(
-                update(ORMContentCatalogItem)
-                .where(ORMContentCatalogItem.id == row.id)
-                .values(source="included", scope="included", owner_user_id=None)
-            )
-            included_ids.append(row.id)
-            policy[kind + "s"].append(
-                {"content_id": key, "version": 1, **({"emotion": "joy", "intensity": 3} if kind == "reaction" else {})}
-            )
-        await async_session.execute(
-            update(ORMAnimaLoadout).where(ORMAnimaLoadout.anima_id == anima.id).values(starter_exclusions=[])
-        )
-        await async_session.commit()
-        monkeypatch.setattr(
-            "animama.app.services.anima_package_source_service.starter_loadout_policy", lambda version: policy
-        )
-        projection = await source_service(async_session).capture(user_id=fixture.user_id, anima_id=anima.id)
-        assert projection.definition.gestures[0].entry_id == included_ids[0]
-        # Reaction pools hold only stored members; a starter policy Reaction is never implied.
-        assert all(pool == [] for cells in projection.definition.reactions.values() for pool in cells.values())
-    finally:
-        await async_session.execute(delete(ORMContentCatalogItem).where(ORMContentCatalogItem.id.in_(included_ids)))
-        await async_session.commit()

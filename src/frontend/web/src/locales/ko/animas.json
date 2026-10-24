@@ -181,7 +181,6 @@
       "action": "작업:",
       "actions": {
         "add": "추가",
-        "leave_empty": "비워 두기",
         "remove": "제거",
         "replace": "교체",
         "revert": "되돌리기",
@@ -261,6 +260,11 @@
       },
       "status": "{{name}} 미리 보기: {{status}}",
       "stop": "{{name}} 미리 보기 정지"
+    },
+    "stage": {
+      "close": "아바타 보기 닫기",
+      "open": "아바타 보기",
+      "title": "{{name}}의 아바타"
     },
     "tabs": {
       "emotions": "감정",

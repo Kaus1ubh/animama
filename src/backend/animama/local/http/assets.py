@@ -38,6 +38,8 @@ SENSEVOICE_MOUNT = "/onnx/models/sensevoice-small/"
 SENSEVOICE_WEBGPU_MOUNT = "/onnx/models/sensevoice-small-webgpu/"
 MODEL_MOUNT_PATHS = (PARAKEET_MOUNT, PARAKEET_WEBGPU_MOUNT, SENSEVOICE_MOUNT, SENSEVOICE_WEBGPU_MOUNT)
 IMMUTABLE_APP_ASSET_CACHE = "public, max-age=31536000, immutable"
+# Written by the web build beside Vite's manifest; hidden names are never served.
+BROWSER_RUNTIME_RECORD = ".vite/browser-runtime.json"
 _MAX_MANIFEST_BYTES = 4 * 1024 * 1024
 _FINGERPRINTED_CODE = re.compile(r"assets/[^/]+-[\w-]{8,}\.(?:js|css)", re.ASCII)
 _CONTENT_TYPES = {
@@ -223,17 +225,60 @@ def _inspect_file(root: Path, name: str, model: ModelFile | None = None) -> tupl
         return metadata, html
 
 
+def _read_build_record(root: Path, name: str) -> object:
+    """Parse one bounded JSON record from the build; raise when absent, oversized or invalid."""
+
+    with _open_regular(root, name) as handle:
+        if os.fstat(handle.fileno()).st_size > _MAX_MANIFEST_BYTES:
+            raise ValueError("Build record is too large")
+        payload = handle.read(_MAX_MANIFEST_BYTES + 1)
+    if len(payload) > _MAX_MANIFEST_BYTES:
+        raise ValueError("Build record is too large")
+    return json.loads(payload)
+
+
+def _read_runtime_digests(root: Path) -> Mapping[str, tuple[int, str]]:
+    """Map each verified browser runtime file's served name to its size and SHA-256.
+
+    The web build writes the record after copying and rehashing the speech
+    runtime under ``onnx/``. Any invalid entry discards the whole record, so
+    those files degrade to revalidation without a validator.
+    """
+
+    try:
+        record = _read_build_record(root, BROWSER_RUNTIME_RECORD)
+        if (
+            not isinstance(record, dict)
+            or record.get("schema_version") != 1
+            or not isinstance(record.get("files"), list)
+        ):
+            return {}
+        digests: dict[str, tuple[int, str]] = {}
+        for entry in record["files"]:
+            if not isinstance(entry, dict):
+                return {}
+            path, size, digest = entry.get("path"), entry.get("size"), entry.get("sha256")
+            if (
+                not isinstance(path, str)
+                or not path.startswith("onnx/")
+                or not _safe_name(path)
+                or type(size) is not int
+                or size < 0
+                or not isinstance(digest, str)
+                or not re.fullmatch(r"[0-9a-f]{64}", digest)
+            ):
+                return {}
+            digests[path] = (size, digest)
+        return digests
+    except (OSError, ValueError, RecursionError):
+        return {}
+
+
 def _read_inventory(root: Path) -> frozenset[str]:
     """Invalid or old build inventories degrade to revalidation, never guessing."""
 
     try:
-        with _open_regular(root, ".vite/manifest.json") as handle:
-            if os.fstat(handle.fileno()).st_size > _MAX_MANIFEST_BYTES:
-                return frozenset()
-            payload = handle.read(_MAX_MANIFEST_BYTES + 1)
-        if len(payload) > _MAX_MANIFEST_BYTES:
-            return frozenset()
-        manifest = json.loads(payload)
+        manifest = _read_build_record(root, ".vite/manifest.json")
         if not isinstance(manifest, dict):
             return frozenset()
         paths: set[str] = set()
@@ -370,6 +415,7 @@ class LocalAssets:
         self._root = web_root.resolve()
         self._mount_source = mount_source or StaticModelMounts({})
         self._inventory: frozenset[str] | None = None
+        self._runtime_digests: Mapping[str, tuple[int, str]] | None = None
 
     async def response(self, request: Request) -> Response:
         """Respond after product routing; reject unsafe paths before any lookup."""
@@ -419,13 +465,20 @@ class LocalAssets:
         # response here; only the optional model mount advertises byte ranges.
         if self._inventory is None:
             self._inventory = await anyio.to_thread.run_sync(_read_inventory, self._root)
+        if self._runtime_digests is None:
+            self._runtime_digests = await anyio.to_thread.run_sync(_read_runtime_digests, self._root)
         content_type = _CONTENT_TYPES.get(Path(name).suffix.lower(), "application/octet-stream")
         fingerprinted = name in self._inventory and content_type.split(";", 1)[0] in ("text/css", "text/javascript")
+        runtime = self._runtime_digests.get(name)
         etag = None
         if html is not None:
             etag = f'"{hashlib.sha256(html).hexdigest()}"'
         elif fingerprinted:
             etag = f'W/"{metadata.st_size:x}-{metadata.st_mtime_ns:x}"'
+        elif runtime is not None and runtime[0] == metadata.st_size:
+            # Unversioned speech runtime URLs still revalidate, but by the build's
+            # verified digest, which normalized file dates cannot make stale.
+            etag = f'"{runtime[1]}"'
         headers = {
             "content-type": content_type,
             "content-length": str(len(html) if html is not None else metadata.st_size),

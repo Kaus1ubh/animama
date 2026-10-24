@@ -182,7 +182,6 @@
       "action": "Action:",
       "actions": {
         "add": "add",
-        "leave_empty": "leave empty",
         "remove": "remove",
         "replace": "replace",
         "revert": "revert",
@@ -262,6 +261,11 @@
       },
       "status": "{{name}} preview: {{status}}",
       "stop": "Stop {{name}} preview"
+    },
+    "stage": {
+      "close": "Close Avatar view",
+      "open": "View Avatar",
+      "title": "{{name}}'s Avatar"
     },
     "tabs": {
       "emotions": "Emotions",

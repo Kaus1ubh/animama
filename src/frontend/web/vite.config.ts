@@ -17,6 +17,7 @@ import {
 } from "./vite-plugins/local-parakeet-models";
 import { resolveAppVersion } from "./vite-plugins/app-version";
 import { browserRuntimeAssetsPlugin } from "./vite-plugins/browser-runtime-assets";
+import { webpStickerAssetsPlugin } from "./vite-plugins/webp-sticker-assets";
 import {
   localAPIProxy,
   localDevelopmentOrigins,
@@ -98,9 +99,6 @@ const requireFromWeb = createRequire(import.meta.url);
 const fontPackageRoot = path.dirname(
   requireFromWeb.resolve("@fontsource-variable/dm-sans/package.json"),
 );
-const rechartsEsToolkitCompat = fileURLToPath(
-  new URL("./src/lib/recharts/es-toolkit-compat", import.meta.url),
-);
 
 const routerConfig = {
   target: "react",
@@ -180,6 +178,17 @@ export const devOptimizedDependencies = [
   "opencc-js/cn2t",
 ] as const;
 
+// Pages the dev server serves, relative to the web root. Vite otherwise scans
+// every `*.html` here, including tool pages that run on their own servers; the
+// landing stage imports a virtual module only its server provides, and that
+// unresolved import aborts the whole scan, so dependencies are found at
+// runtime and each discovery reloads the open page.
+export const devDependencyScanEntries = [
+  "index.html",
+  "index.hosted.html",
+  "parakeet-bench.html",
+] as const;
+
 // Vite is a development-only application origin; keep its host policy enabled.
 export const localViteAllowedHosts = [
   new URL(localDevelopmentOrigins().publicOrigin).hostname,
@@ -200,6 +209,12 @@ export default defineConfig(({ mode, command, isPreview }) => {
         includedRoot: includedContentRoot,
         aliases: includedContentAliases,
         copyBuildAliases: !embeddedDesktop && mode !== "hosted",
+      }),
+      webpStickerAssetsPlugin({
+        stickerRoot: path.join(
+          includedContentRoot,
+          "resources/scene-vfx/stickers",
+        ),
       }),
       tanstackRouter(routerConfig),
       react(),
@@ -256,6 +271,7 @@ export default defineConfig(({ mode, command, isPreview }) => {
       ),
     },
     optimizeDeps: {
+      entries: [...devDependencyScanEntries],
       include: [...devOptimizedDependencies],
     },
     // Every bundled worker is a module worker. ES output lets a worker split
@@ -267,45 +283,6 @@ export default defineConfig(({ mode, command, isPreview }) => {
       alias: {
         "@": webSrc,
         "@web": webSrc,
-        // Recharts imports `es-toolkit/compat/*`, but Vite's dep optimizer can
-        // mis-bundle those CJS wrappers into broken self-calling requires
-        // (`require_isUnsafeProperty is not a function`). Keep `es-toolkit`
-        // direct and route Recharts through our ESM wrapper files.
-        "es-toolkit/compat/get": path.join(rechartsEsToolkitCompat, "get.js"),
-        "es-toolkit/compat/isPlainObject": path.join(
-          rechartsEsToolkitCompat,
-          "isPlainObject.js",
-        ),
-        "es-toolkit/compat/last": path.join(rechartsEsToolkitCompat, "last.js"),
-        "es-toolkit/compat/maxBy": path.join(
-          rechartsEsToolkitCompat,
-          "maxBy.js",
-        ),
-        "es-toolkit/compat/minBy": path.join(
-          rechartsEsToolkitCompat,
-          "minBy.js",
-        ),
-        "es-toolkit/compat/omit": path.join(rechartsEsToolkitCompat, "omit.js"),
-        "es-toolkit/compat/range": path.join(
-          rechartsEsToolkitCompat,
-          "range.js",
-        ),
-        "es-toolkit/compat/sortBy": path.join(
-          rechartsEsToolkitCompat,
-          "sortBy.js",
-        ),
-        "es-toolkit/compat/sumBy": path.join(
-          rechartsEsToolkitCompat,
-          "sumBy.js",
-        ),
-        "es-toolkit/compat/throttle": path.join(
-          rechartsEsToolkitCompat,
-          "throttle.js",
-        ),
-        "es-toolkit/compat/uniqBy": path.join(
-          rechartsEsToolkitCompat,
-          "uniqBy.js",
-        ),
       },
       dedupe: [...appDependencies],
       tsconfigPaths: true,

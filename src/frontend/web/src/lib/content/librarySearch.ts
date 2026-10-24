@@ -103,6 +103,20 @@ function oneOf<T extends string>(
   return typeof value === "string" && values.includes(value as T);
 }
 
+/**
+ * Library search matches any part of an item's visible name, ignoring case and
+ * outer spaces. Descriptions are not searched: tiles do not show them, so a
+ * match there would look arbitrary. The Avatar catalog applies the same rule
+ * on the server.
+ */
+export function matchesContentName(
+  name: string,
+  query: string | undefined,
+): boolean {
+  const needle = (query ?? "").trim().toLocaleLowerCase();
+  return !needle || name.toLocaleLowerCase().includes(needle);
+}
+
 function cleanQuery(value: unknown): string | undefined {
   if (typeof value !== "string") return undefined;
   const result = value.trim().slice(0, 80);

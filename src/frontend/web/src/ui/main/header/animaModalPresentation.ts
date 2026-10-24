@@ -25,5 +25,7 @@ export function selectHeaderEmotionState({
   return {
     state: live ? runtimeState : (persistedState ?? null),
     sourceLabel: live ? "Live runtime state" : "Persisted anima state",
+    /** The state follows the chat runtime, so its reactions can be shown. */
+    live,
   };
 }

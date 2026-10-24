@@ -54,6 +54,11 @@ export function SidebarShell({
     ? appShell.sidebarAnimating && !appShell.suppressAnimations
     : true;
   const [searchOpen, setSearchOpen] = useState(false);
+  // The mobile drawer is drawn above dialogs, so close it before searching.
+  const openSearch = () => {
+    if (appShell && !appShell.isDesktop) setOpen(false);
+    setSearchOpen(true);
+  };
   const sidebarLinks = useMemo(() => {
     const animasTarget = resolveAnimasNavigationTarget(animaId);
     return [
@@ -66,7 +71,7 @@ export function SidebarShell({
             }
           : { href: "#" as const }),
         icon: (
-          <MessagesSquare className="text-sidebar-foreground dark:text-sidebar-foreground h-6 w-6 flex-shrink-0" />
+          <MessagesSquare className="text-sidebar-foreground dark:text-sidebar-foreground short:size-5 h-6 w-6 flex-shrink-0" />
         ),
       },
       {
@@ -78,21 +83,21 @@ export function SidebarShell({
             }
           : { to: "/animas" as const }),
         icon: (
-          <UsersRound className="text-sidebar-foreground dark:text-sidebar-foreground h-6 w-6 flex-shrink-0" />
+          <UsersRound className="text-sidebar-foreground dark:text-sidebar-foreground short:size-5 h-6 w-6 flex-shrink-0" />
         ),
       },
       {
         label: t("links.memory"),
         to: "/memories" as const,
         icon: (
-          <Brain className="text-sidebar-foreground dark:text-sidebar-foreground h-6 w-6 flex-shrink-0" />
+          <Brain className="text-sidebar-foreground dark:text-sidebar-foreground short:size-5 h-6 w-6 flex-shrink-0" />
         ),
       },
       {
         label: t("links.library"),
         to: "/library" as const,
         icon: (
-          <LibraryBig className="text-sidebar-foreground dark:text-sidebar-foreground h-6 w-6 flex-shrink-0" />
+          <LibraryBig className="text-sidebar-foreground dark:text-sidebar-foreground short:size-5 h-6 w-6 flex-shrink-0" />
         ),
       },
     ];
@@ -100,9 +105,9 @@ export function SidebarShell({
   const searchLink = {
     label: t("links.search"),
     href: "#" as const,
-    onClick: () => setSearchOpen(true),
+    onClick: openSearch,
     icon: (
-      <Search className="text-sidebar-foreground dark:text-sidebar-foreground h-6 w-6 flex-shrink-0" />
+      <Search className="text-sidebar-foreground dark:text-sidebar-foreground short:size-5 h-6 w-6 flex-shrink-0" />
     ),
   };
 
@@ -110,8 +115,8 @@ export function SidebarShell({
     <Sidebar open={open} setOpen={setOpen} animate={animate}>
       <SidebarBody className="justify-between gap-2">
         <div className="sidebar-scrollbar-hover flex flex-1 flex-col overflow-x-hidden overflow-y-auto">
-          <SidebarHeader onSearch={() => setSearchOpen(true)} />
-          <div className="mt-5 flex flex-col gap-1">
+          <SidebarHeader onSearch={openSearch} />
+          <div className="short:mt-2 mt-5 flex flex-col gap-1">
             {sidebarLinks.slice(0, 1).map((link) => (
               <SidebarLink key={link.label} link={link} />
             ))}

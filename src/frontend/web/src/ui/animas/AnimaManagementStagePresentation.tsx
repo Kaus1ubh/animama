@@ -18,6 +18,15 @@ export const ANIMA_SHOWCASE_CAMERAS: Record<
   desktop: { position: [0, 0.85, 4.5], fov: 28 },
 };
 
+/**
+ * Short landscape screens (phones turned sideways) show the full-screen stage
+ * with little height, so the camera moves closer to keep the Avatar large.
+ */
+export const ANIMA_SHOWCASE_SHORT_CAMERA: AnimaShowcaseCamera = {
+  position: [0, 0.85, 4.8],
+  fov: 28,
+};
+
 export const ANIMA_SHOWCASE_ORBIT_TARGET: [number, number, number] = [
   0, 0.65, 0,
 ];

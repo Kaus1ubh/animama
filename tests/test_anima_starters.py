@@ -46,7 +46,7 @@ from tests.anima_creation_service_support import (
     write_supplied_starter_fixture,
 )
 from tests.local_http_client import local_client
-from tests.statement_counting import STARTER_LOADOUT_STATEMENTS, counted_statements
+from tests.statement_counting import STARTER_LOADOUT_STATEMENTS, SUPPLIED_STARTERS_STATEMENTS, counted_statements
 
 REQUEST = EnsureAnimaStartersRequest(schema_version=1, repairs=[])
 
@@ -99,7 +99,7 @@ async def legacy_anima(session, fixture, spec, *, profile: bool = True, pocket_v
         user_id=fixture.owner,
         anima_id=anima.id,
         content=avatar.identity,
-        description=f"Initial identity of {avatar.name}",
+        description=f"{avatar.name}'s identity",
         metadata={
             "anima_id": anima.id,
             "source": {"type": "avatar_identity_seed", "avatar_id": avatar.id, "avatar_name": avatar.name},
@@ -535,6 +535,32 @@ async def test_supplied_fixture_content_can_materialize_both_starters(async_sess
             assert len(loadout.idle.cells) == 72 and all(not cell.gestures for cell in loadout.idle.cells)
             assert_starter_reaction_pools(loadout)
 
+        # An Anima's Gestures are exactly its rows, so a removed Gesture stays removed.
+        service = AnimaLoadoutService(async_session)
+        anima_id = result["starters"][0]["anima_id"]
+        loadout = await service.read_model(user_id=fixture.owner, anima_id=anima_id)
+        removed = loadout.gestures[0]
+        intent = {"operation": "remove", "binding_id": removed.binding_id}
+        plan = await service.plan(
+            user_id=fixture.owner,
+            anima_id=anima_id,
+            family="gesture",
+            expected_revision=loadout.revision,
+            intent=intent,
+        )
+        await service.commit(
+            user_id=fixture.owner,
+            anima_id=anima_id,
+            family="gesture",
+            expected_revision=loadout.revision,
+            intent=intent,
+            plan_digest=plan.digest,
+            idempotency_key=uuid4().hex,
+        )
+        loadout = await service.read_model(user_id=fixture.owner, anima_id=anima_id)
+        assert len(loadout.gestures) == 139
+        assert removed.semantic_key not in {gesture.semantic_key for gesture in loadout.gestures}
+
 
 def assert_starter_reaction_pools(loadout) -> None:  # noqa: ANN001
     """All 96 cells hold exactly their Included starter Reactions: one at intensity 1, two at 2-4 (D16)."""
@@ -584,10 +610,13 @@ async def test_tracked_checkout_materializes_both_starters_without_optional_loca
             catalog=SQLAlchemyContentCatalog(async_session), store=fixture.store()
         ).rescan(user_id=fixture.owner)
         fixture.extra_catalog_ids.update(item.id for item in scanned.items)
-        result = await AnimaStarterService(fixture.service(async_session)).ensure(
-            user_id=fixture.owner, request=REQUEST
-        )
+        with counted_statements(async_session) as statements:
+            result = await AnimaStarterService(fixture.service(async_session)).ensure(
+                user_id=fixture.owner, request=REQUEST
+            )
         assert result["complete"]
+        # Each starter's Gestures and Reaction pools are written in batches.
+        assert len(statements) <= SUPPLIED_STARTERS_STATEMENTS
         for starter in result["starters"]:
             loadout = await AnimaLoadoutService(async_session).read_model(
                 user_id=fixture.owner, anima_id=starter["anima_id"]
@@ -612,7 +641,7 @@ async def test_tracked_checkout_materializes_both_starters_without_optional_loca
         service = AnimaLoadoutService(async_session)
         with counted_statements(async_session) as statements:
             await service.create_starter_loadout(user_id=fixture.owner, anima_id=bare.id, store=fixture.store())
-        # The pools are locked and written in batches: the count does not grow with them.
+        # The Gestures and pools are locked and written in batches: the count does not grow with them.
         assert len(statements) <= STARTER_LOADOUT_STATEMENTS
         # One binding per policy member, in the policy's slots, with no config.
         visible = await SQLAlchemyContentCatalog(async_session).list_visible(user_id=fixture.owner)
@@ -627,6 +656,11 @@ async def test_tracked_checkout_materializes_both_starters_without_optional_loca
             (reaction_slot_key(cell, reactions[key]), reactions[key], "reaction", {})
             for cell, keys in starter_reaction_pools(1).items()
             for key in keys
+        ]
+        # The starter Gestures are rows under their declared keys, as a created starter has them.
+        expected += [
+            (f"gesture:{gesture.semantic_key}", gesture.source.catalog_item_id, "gesture", {})
+            for gesture in loadout.gestures
         ]
         bindings = await async_session.execute(
             select(
@@ -651,8 +685,10 @@ async def test_tracked_checkout_materializes_both_starters_without_optional_loca
         assert [sorted(member.item_id for member in cell.members) for cell in applied.reactions] == [
             sorted(member.item_id for member in cell.members) for cell in loadout.reactions
         ]
-        # Its starter Gestures follow the stored starter loadout version.
-        assert {gesture.origin for gesture in applied.gestures} == {"starter"}
+        # The same 140 Gestures under the same keys as a created starter, so the model's list is unchanged.
+        assert {(gesture.semantic_key, gesture.source.catalog_item_id) for gesture in applied.gestures} == {
+            (gesture.semantic_key, gesture.source.catalog_item_id) for gesture in loadout.gestures
+        }
         assert len(applied.gestures) == 140
         with pytest.raises(AnimaLoadoutError, match="anima_not_found"):
             await service.create_starter_loadout(

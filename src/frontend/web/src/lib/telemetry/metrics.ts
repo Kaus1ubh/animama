@@ -1,107 +1,75 @@
-import { metrics, type Counter, type Histogram } from "@opentelemetry/api";
+import {
+  recordMetric,
+  type MetricAttributes,
+  type MetricInstrument,
+} from "./metric-sink";
 
-type MetricAttributes = Record<string, string | number | boolean>;
-
-let meterInstance: ReturnType<typeof metrics.getMeter> | null = null;
-
-function getMeter() {
-  if (!meterInstance) {
-    meterInstance = metrics.getMeter("animama-webui");
-  }
-  return meterInstance;
-}
-
-let uiInteractionCounter: Counter | null = null;
-let uiInteractionDuration: Histogram | null = null;
-
-let sseStartCounter: Counter | null = null;
-let sseTokenCounter: Counter | null = null;
-let sseErrorCounter: Counter | null = null;
-let sseDurationHistogram: Histogram | null = null;
-
-function ensureUiMetrics() {
-  if (!uiInteractionCounter) {
-    uiInteractionCounter = getMeter().createCounter(
-      "anima.webui.ui.interactions",
-      {
-        description: "User interaction count (frontend)",
-        unit: "1",
-      },
-    );
-  }
-  if (!uiInteractionDuration) {
-    uiInteractionDuration = getMeter().createHistogram(
-      "anima.webui.ui.interaction.duration",
-      {
-        description: "User interaction duration",
-        unit: "ms",
-      },
-    );
-  }
-}
-
-function ensureSseMetrics() {
-  if (!sseStartCounter) {
-    sseStartCounter = getMeter().createCounter("anima.webui.sse.starts", {
-      description: "Chat SSE starts",
-      unit: "1",
-    });
-  }
-  if (!sseTokenCounter) {
-    sseTokenCounter = getMeter().createCounter("anima.webui.sse.tokens", {
-      description: "SSE tokens received",
-      unit: "1",
-    });
-  }
-  if (!sseErrorCounter) {
-    sseErrorCounter = getMeter().createCounter("anima.webui.sse.errors", {
-      description: "SSE stream errors",
-      unit: "1",
-    });
-  }
-  if (!sseDurationHistogram) {
-    sseDurationHistogram = getMeter().createHistogram(
-      "anima.webui.sse.duration",
-      {
-        description: "SSE stream duration",
-        unit: "ms",
-      },
-    );
-  }
-}
+/** The web app's metrics; nothing records them until an exporter starts. */
+const instruments = {
+  uiInteractions: {
+    name: "anima.webui.ui.interactions",
+    description: "User interaction count (frontend)",
+    unit: "1",
+    kind: "counter",
+  },
+  uiInteractionDuration: {
+    name: "anima.webui.ui.interaction.duration",
+    description: "User interaction duration",
+    unit: "ms",
+    kind: "histogram",
+  },
+  sseStarts: {
+    name: "anima.webui.sse.starts",
+    description: "Chat SSE starts",
+    unit: "1",
+    kind: "counter",
+  },
+  sseTokens: {
+    name: "anima.webui.sse.tokens",
+    description: "SSE tokens received",
+    unit: "1",
+    kind: "counter",
+  },
+  sseErrors: {
+    name: "anima.webui.sse.errors",
+    description: "SSE stream errors",
+    unit: "1",
+    kind: "counter",
+  },
+  sseDuration: {
+    name: "anima.webui.sse.duration",
+    description: "SSE stream duration",
+    unit: "ms",
+    kind: "histogram",
+  },
+} as const satisfies Record<string, MetricInstrument>;
 
 export function recordUiInteraction(attributes?: MetricAttributes) {
-  ensureUiMetrics();
-  uiInteractionCounter?.add(1, attributes);
+  recordMetric(instruments.uiInteractions, 1, attributes);
 }
 
 export function recordUiInteractionDuration(
   durationMs: number,
   attributes?: MetricAttributes,
 ) {
-  ensureUiMetrics();
-  uiInteractionDuration?.record(durationMs, attributes);
+  recordMetric(instruments.uiInteractionDuration, durationMs, attributes);
 }
 
 export function recordSseStart(attributes?: MetricAttributes) {
-  ensureSseMetrics();
-  sseStartCounter?.add(1, attributes);
+  recordMetric(instruments.sseStarts, 1, attributes);
 }
 
 export function recordSseToken(attributes?: MetricAttributes) {
-  ensureSseMetrics();
-  sseTokenCounter?.add(1, attributes);
+  recordMetric(instruments.sseTokens, 1, attributes);
 }
 
 export function recordSseError(attributes?: MetricAttributes) {
-  ensureSseMetrics();
-  sseErrorCounter?.add(1, attributes);
+  recordMetric(instruments.sseErrors, 1, attributes);
 }
 
 export function recordSseDuration(
   durationMs: number,
   attributes?: MetricAttributes,
 ) {
-  ensureSseMetrics();
-  sseDurationHistogram?.record(durationMs, attributes);
+  recordMetric(instruments.sseDuration, durationMs, attributes);
 }

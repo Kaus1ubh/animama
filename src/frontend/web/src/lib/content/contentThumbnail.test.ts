@@ -20,14 +20,14 @@ function file(
 }
 
 describe("content thumbnails", () => {
-  it("selects the first image in registered order without changing the input", () => {
+  it("requests the Library-sized variant of the first image in registered order without changing the input", () => {
     const files = [
       file(3, "image/png", "later"),
       file(1, "application/json", "manifest"),
       file(2, "image/svg+xml", "first / image"),
     ];
     expect(contentThumbnailUrl(files)).toBe(
-      "/v1/content/files/first%20%2F%20image",
+      "/v1/content/files/first%20%2F%20image?variant=thumbnail",
     );
     expect(files.map((item) => item.ordinal)).toEqual([3, 1, 2]);
   });

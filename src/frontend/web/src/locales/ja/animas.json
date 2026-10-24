@@ -181,7 +181,6 @@
       "action": "操作:",
       "actions": {
         "add": "追加",
-        "leave_empty": "空のままにする",
         "remove": "外す",
         "replace": "置き換え",
         "revert": "元に戻す",
@@ -261,6 +260,11 @@
       },
       "status": "{{name}} のプレビュー: {{status}}",
       "stop": "{{name}} のプレビューを停止"
+    },
+    "stage": {
+      "close": "アバター表示を閉じる",
+      "open": "アバターを表示",
+      "title": "{{name}}のアバター"
     },
     "tabs": {
       "emotions": "感情",

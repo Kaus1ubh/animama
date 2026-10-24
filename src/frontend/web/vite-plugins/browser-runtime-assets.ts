@@ -6,6 +6,7 @@ import {
   isOptionalBrowserCatalog,
   resolveOptionalBrowserCatalog,
   verifyOptionalBrowserCatalogs,
+  writeBrowserRuntimeRecord,
   type ResolvedBrowserRuntimeAsset,
 } from "../../scripts/browser-runtime-assets.mjs";
 import {
@@ -36,8 +37,10 @@ export function installBrowserRuntimeAssets(
         statusCode: 400,
       });
     }
-    let asset: Pick<RuntimeAsset, "path" | "filePath" | "size"> | undefined =
-      inventory.get(pathname);
+    let asset:
+      | (Pick<RuntimeAsset, "path" | "filePath" | "size"> &
+          Partial<Pick<RuntimeAsset, "sha256">>)
+      | undefined = inventory.get(pathname);
     if (
       !asset &&
       publicRoot &&
@@ -58,6 +61,8 @@ export function installBrowserRuntimeAssets(
     return {
       filePath: asset.filePath,
       size: asset.size,
+      // Optional catalogs are user inputs without a reviewed digest.
+      ...(asset.sha256 ? { etag: `"${asset.sha256}"` } : {}),
       contentType:
         extension === ".wasm"
           ? "application/wasm"
@@ -122,11 +127,9 @@ export function browserRuntimeAssetsPlugin(): Plugin {
     },
     closeBundle() {
       if (config.command === "build" && assets.length) {
-        copyBrowserRuntimeAssets(
-          assets,
-          path.resolve(config.root, config.build.outDir),
-        );
-        resolve(path.resolve(config.root, config.build.outDir));
+        const outDir = path.resolve(config.root, config.build.outDir);
+        copyBrowserRuntimeAssets(assets, outDir);
+        writeBrowserRuntimeRecord(resolve(outDir), outDir);
       }
     },
   };

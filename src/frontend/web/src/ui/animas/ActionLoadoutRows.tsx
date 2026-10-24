@@ -1,10 +1,4 @@
-import {
-  useEffect,
-  useRef,
-  useState,
-  type ComponentProps,
-  type ReactNode,
-} from "react";
+import { type ComponentProps, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import { contentRowDescription } from "@/lib/content/libraryPresentation";
@@ -32,7 +26,7 @@ export function ActionLoadoutRow({
     <div
       {...props}
       className={cn(
-        "flex min-w-0 items-center gap-2.5 border-l-2 px-4 py-3.5",
+        "flex min-w-0 items-center gap-2.5 border-l-2 px-4 py-2",
         selected ? "border-l-primary bg-primary/5" : "border-l-transparent",
         className,
       )}
@@ -42,7 +36,10 @@ export function ActionLoadoutRow({
   );
 }
 
-/** Shared compact identity with a tooltip only when its description is clipped. */
+/**
+ * Shared compact identity: the row shows only the name, and the description
+ * appears in a tooltip on hover or keyboard focus.
+ */
 export function ActionRowIdentity({
   name,
   description: rawDescription,
@@ -53,52 +50,30 @@ export function ActionRowIdentity({
   badge?: ReactNode;
 }) {
   const description = contentRowDescription(rawDescription, name);
-  const descriptionRef = useRef<HTMLParagraphElement>(null);
-  const [truncated, setTruncated] = useState(false);
-  useEffect(() => {
-    const element = descriptionRef.current;
-    if (!element) {
-      setTruncated(false);
-      return;
-    }
-    const measure = () =>
-      setTruncated(element.scrollWidth > element.clientWidth);
-    measure();
-    if (typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(measure);
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, [description]);
+  const identity = (
+    <div className="flex min-w-0 flex-1 items-center gap-2">
+      <p className="truncate text-sm font-medium">{name}</p>
+      {badge}
+    </div>
+  );
+  if (!description) return identity;
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <div
-          tabIndex={truncated ? 0 : undefined}
+          tabIndex={0}
           className="focus-visible:ring-ring min-w-0 flex-1 rounded-sm outline-none focus-visible:ring-2"
         >
-          <div className="flex min-w-0 items-center gap-2">
-            <p className="truncate text-sm font-medium">{name}</p>
-            {badge}
-          </div>
-          {description ? (
-            <p
-              ref={descriptionRef}
-              className="text-muted-foreground truncate text-xs"
-            >
-              {description}
-            </p>
-          ) : null}
+          {identity}
         </div>
       </TooltipTrigger>
-      {truncated ? (
-        <TooltipContent
-          side="top"
-          sideOffset={6}
-          className="max-w-sm text-left whitespace-normal"
-        >
-          {description}
-        </TooltipContent>
-      ) : null}
+      <TooltipContent
+        side="top"
+        sideOffset={6}
+        className="max-w-sm text-left whitespace-normal"
+      >
+        {description}
+      </TooltipContent>
     </Tooltip>
   );
 }

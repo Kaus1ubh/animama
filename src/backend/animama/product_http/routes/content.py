@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
-from typing import Annotated, BinaryIO, NoReturn
+import asyncio
+from typing import Annotated, BinaryIO, Literal, NoReturn
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response, UploadFile
 
 from animama.app.contracts.content import PyContentCatalog, PyContentItem
 from animama.app.services.content_file_validation import ContentFileInvalidError
 from animama.app.services.content_kind_registry import RETIRED_CONTENT_KINDS
+from animama.app.services.content_thumbnails import ContentThumbnailError, thumbnail_file
 from animama.domain.content_catalog import (
     CatalogContentEntry,
     ContentConflictError,
@@ -20,6 +22,7 @@ from animama.domain.content_catalog import (
 )
 from animama.domain.content_documents import ContentDocumentError
 from animama.domain.request_principal import RequestPrincipal
+from animama.product_http.delivery import negotiate_json_encoding
 from animama.product_http.ports import Ports, ReadContent, ReadRepositories, WriteContent
 from animama.product_http.principal import get_current_principal
 
@@ -87,13 +90,24 @@ def raise_content_mutation(exc: Exception) -> NoReturn:
 
 @router.get("/catalog", response_model=PyContentCatalog)
 async def list_content_catalog(
+    request: Request,
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
     content: ReadContent,
-) -> PyContentCatalog:
-    """List Included, shared, and caller-owned entries without host paths."""
+    ports: Ports,
+    if_none_match: Annotated[str | None, Header(alias="If-None-Match")] = None,
+) -> Response:
+    """List Included, shared, and caller-owned entries without host paths.
 
+    Clients poll this catalog for health, so it is compressed and revalidated by
+    ETag: an unchanged catalog costs a 304 rather than the whole body.
+    """
+
+    encoding = negotiate_json_encoding(request, refusal_code="content_encoding_not_acceptable")
     items = await content.catalog.list_visible(user_id=user.id)
-    return catalog_response(items)
+    body = catalog_response(items).model_dump_json(by_alias=True).encode("utf-8")
+    return await ports.json_response(
+        request, body, encoding=encoding, headers={}, if_none_match=if_none_match, cacheable=True
+    )
 
 
 @router.get("/items/{item_id}", response_model=PyContentItem)
@@ -138,8 +152,13 @@ async def stream_content_file(
     content: ReadContent,
     ports: Ports,
     if_none_match: Annotated[str | None, Header(alias="If-None-Match")] = None,
+    variant: Annotated[Literal["thumbnail"] | None, Query()] = None,
 ) -> Response:
-    """Authorize, contain, and digest-check an opaque registration in one response."""
+    """Authorize, contain, and digest-check an opaque registration in one response.
+
+    ``variant=thumbnail`` answers an image with a Library-sized copy instead
+    (``content_thumbnails``); other files are refused with 422.
+    """
 
     try:
         file = await content.catalog.open_registered_file(file_ref=file_ref, user_id=user.id)
@@ -147,6 +166,11 @@ async def stream_content_file(
         raise HTTPException(status_code=404, detail={"code": "content_file_not_found"}) from exc
     except (ContentIntegrityError, ContentPathError) as exc:
         raise HTTPException(status_code=409, detail={"code": "content_file_changed_rescan_required"}) from exc
+    if variant == "thumbnail":
+        try:
+            file = await asyncio.to_thread(thumbnail_file, file)
+        except ContentThumbnailError as exc:
+            raise HTTPException(status_code=422, detail={"code": "content_thumbnail_unsupported"}) from exc
     return ports.file_response(request, file, if_none_match=if_none_match, revalidate=True)
 
 

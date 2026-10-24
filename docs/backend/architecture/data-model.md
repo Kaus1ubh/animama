@@ -230,8 +230,14 @@ signed URL, external media URL, or absolute path. Gesture and Reaction
 dependency rows point at the exact catalog targets selected by their
 descriptors.
 
-`ORMAnimaLoadout` maps `anima_loadouts` and owns the optimistic revision plus
-Starter Gesture exclusions.
+`ORMAnimaLoadout` maps `anima_loadouts` and owns the optimistic revision and the
+starter loadout version the loadout started from. An Anima's Gestures are
+exactly its `gesture:<semantic_key>` rows
+([ADR 0030](../../adr/0030-anima-gestures-are-binding-rows.md)). A Compose
+development database created before then keeps an unused `starter_exclusions`
+column, and any starter it showed without a row must be re-equipped; a packaged
+desktop profile reports `database_schema_mismatch` until it is reset, as after
+any baseline edit.
 `ORMAnimaContentBinding` stores typed logical catalog selections and their
 family-specific configuration. Gesture semantic-key uniqueness and the
 four-member Reaction pool limit are enforced by the service. Idle pool members
@@ -532,8 +538,9 @@ generated episode-log snapshots are readable through the same interface.
 Source/provenance details for seeded files belong in memory-entry `metadata`
 instead of dedicated columns. Materialization seeds an anima-scoped `IDENTITY.md`
 entry with `kind = "anima_identity"` and
-`description = "Initial identity of {anima.display_name}"`, plus a template
-`MEMORIES.md` with `kind = "anima_memories"`. An anima scope admits only these
+`description = "{anima.display_name}'s identity"`, plus a template
+`MEMORIES.md` with `kind = "anima_memories"` and
+`description = "{anima.display_name}'s memories"`. An anima scope admits only these
 two root files. Starter adoption
 can inspect persisted `avatar_identity_seed` metadata and Version 1 history;
 ordinary creation does not invent that adoption evidence.
@@ -543,7 +550,7 @@ at turn setup as required anima configuration and inserts its markdown content
 into the system instruction, followed by the content of `MEMORIES.md` when
 memory influence is enabled and the file is nonblank. Installation bootstrap creates a
 user-scope `PROFILE.md` entry for the installation owner with `kind = "user_profile"`
-and `description = "Private installation-owner profile"`. Its guarded bootstrap
+and `description = "User profile"`. Its guarded bootstrap
 metadata allows first-run preferred-name synchronization until the owner edits it.
 
 Direct chat also renders a request-local `# List of memory files` developer

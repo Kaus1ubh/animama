@@ -156,7 +156,7 @@ export const ResponsiveSidebar = ({
         aria-hidden={!isDesktop && !open}
         inert={!isDesktop && !open}
         className={cn(
-          "group/sidebar-shell fixed top-0 left-0 z-[120] flex h-full w-[242px] flex-shrink-0 flex-col overflow-hidden px-[6px] py-3 md:translate-x-0",
+          "group/sidebar-shell short:py-2 fixed top-0 left-0 z-[120] flex h-full w-[242px] flex-shrink-0 flex-col overflow-hidden px-[6px] py-3 md:translate-x-0",
           open
             ? "bg-sidebar/70 ring-sidebar-border/70 supports-[backdrop-filter]:bg-sidebar/60 rounded-tr-3xl rounded-br-3xl shadow-lg ring-1 backdrop-blur-xs ring-inset"
             : "border-transparent bg-transparent shadow-none",
@@ -192,7 +192,7 @@ export const SidebarLink = ({
     "group/sidebar flex items-center transition-colors",
     open
       ? "h-[44px] w-full justify-start gap-2 rounded-md px-2.5 pr-3 hover:bg-sidebar-accent/60"
-      : "h-11 w-11 justify-center rounded-full border border-border/60 bg-background/60 p-0 text-foreground/80 shadow-sm backdrop-blur-md hover:bg-muted/70 hover:text-foreground",
+      : "h-11 w-11 justify-center rounded-full border border-border/60 bg-background/60 p-0 text-foreground/80 shadow-sm backdrop-blur-md hover:bg-muted/70 hover:text-foreground short:h-9 short:w-9",
     className,
   );
   const labelClassName = cn(

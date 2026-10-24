@@ -22,11 +22,11 @@
     "web": {
       "entry": [
         "index.html",
+        "scripts/landing-stage/main.ts",
         "src/main.local.tsx",
         "src/routes/**/*.{ts,tsx}",
         "src/workers/{content-hash,lipsync,client-parakeet,client-sensevoice,smart-turn}-worker.ts",
         "src/dev/speech-bench/{bench,bench-worker}.ts",
-        "src/lib/recharts/es-toolkit-compat/*.js",
         "public/tts/workers/inference-worker.js",
         "public/tts/audio/pcm-processor.worklet.js",
         "public/tts/vendor/sentencepiece.js",
@@ -36,7 +36,7 @@
       "project": [
         "*.{js,mjs,ts}",
         "src/**/*.{ts,tsx,js,jsx}",
-        "scripts/**/*.{ts,mjs}",
+        "scripts/**/*.{ts,tsx,mjs}",
         "vite-plugins/**/*.ts",
         "tests/**/*.{ts,tsx}",
         "public/**/*.js"

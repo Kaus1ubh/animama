@@ -71,7 +71,7 @@ async def test_typed_gesture_plan_commit_and_loadout_http_contract(async_session
         assert committed.json()["revision"] == 2
 
         loadout = await client.get(f"/v1/animas/{fixture.anima_id}/loadout")
-        custom = [row for row in loadout.json()["gestures"] if row["origin"] == "custom"]
+        custom = loadout.json()["gestures"]
         assert [(row["name"], row["semantic_key"]) for row in custom] == [("API Wave", "api-wave")]
     finally:
         await client.aclose()

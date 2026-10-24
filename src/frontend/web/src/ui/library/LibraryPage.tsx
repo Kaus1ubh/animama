@@ -2,7 +2,7 @@
 
 import { useLibrarySharingFlow } from "@/query/hooks/useLibrarySharingFlow";
 import { LibrarySharingDialog } from "./LibrarySharingDialog";
-import { LibraryBig, Menu } from "lucide-react";
+import { LibraryBig } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { hostedExclusionReasons } from "@/app/runtime/route-admission";
@@ -13,7 +13,6 @@ import {
 } from "@/lib/content/librarySearch";
 import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
 import { AppShellPage } from "@/ui/app/AppShellPage";
-import { useOptionalAppShell } from "@/ui/app/AppShell";
 import { cn } from "@/lib/utils";
 import { Button } from "@/ui/components/button";
 import {
@@ -28,6 +27,7 @@ import {
   useRuntimeFeatureUnavailableReason,
 } from "@/ui/app/RuntimeFeatureGate";
 import { ContentHealth } from "@/ui/content-health/ContentHealth";
+import { SidebarMenuButton } from "@/ui/sidebar/SidebarMenuButton";
 
 const SECTIONS = ["all", "avatars", "actions", "fx", "chat-uploads"] as const;
 const ACTION_FILTERS = ["all", "gestures", "reactions", "poses"] as const;
@@ -41,8 +41,7 @@ export function LibraryPage({
   search: ContentLibrarySearch;
   onSearchChange: (update: Partial<ContentLibrarySearch>) => void;
 }) {
-  const { t } = useTranslation(["library", "sidebar"]);
-  const appShell = useOptionalAppShell();
+  const { t } = useTranslation("library");
   const contentTypeLabel = (type: LibraryContentType) => {
     switch (type) {
       case "all":
@@ -121,16 +120,7 @@ export function LibraryPage({
       <header className="pb-4">
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-3">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="md:hidden"
-              aria-label={t("sidebar:open")}
-              onClick={appShell?.openSidebar}
-            >
-              <Menu aria-hidden="true" />
-            </Button>
+            <SidebarMenuButton />
             <div className="bg-primary/10 text-primary flex size-10 items-center justify-center rounded-xl">
               <LibraryBig className="size-5" />
             </div>

@@ -68,7 +68,7 @@ export const SidebarAnimas = () => {
     if (isLoading || isError || animas.length === 0) return null;
 
     return (
-      <div className="mt-14 flex flex-col items-start gap-2">
+      <div className="short:mt-4 mt-14 flex flex-col items-start gap-2">
         {displayedAnimas.map((anima) => {
           const displayName = getAnimaDisplayName(anima);
           const isActive = anima.id === currentAnimaId;
@@ -79,7 +79,7 @@ export const SidebarAnimas = () => {
               params={{ animaId: anima.id }}
               aria-label={displayName}
               className={cn(
-                "border-border/60 bg-background/60 text-foreground/80 hover:bg-muted/70 hover:text-foreground flex h-11 w-11 items-center justify-center rounded-full border p-0 shadow-sm backdrop-blur-md transition-colors",
+                "border-border/60 bg-background/60 text-foreground/80 hover:bg-muted/70 hover:text-foreground short:h-9 short:w-9 flex h-11 w-11 items-center justify-center rounded-full border p-0 shadow-sm backdrop-blur-md transition-colors",
                 isActive &&
                   "bg-sidebar-accent/80 text-foreground ring-sidebar-border/80 ring-1",
               )}

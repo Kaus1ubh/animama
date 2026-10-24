@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import replace
+from dataclasses import asdict, replace
 from typing import TypeVar
 from uuid import uuid4
 
@@ -10,6 +10,7 @@ from sqlalchemy import delete
 from animama.adapters.repositories.sqlalchemy.anima_presentation_repo import (
     SQLAlchemyAnimaPresentationRepository,
 )
+from animama.app.contracts.anima import PyRuntimeImageReference
 from animama.app.services.anima_presentation_service import AnimaPresentationService
 from animama.domain.anima_presentation import (
     AnimaPresentationImageCandidate,
@@ -66,7 +67,6 @@ async def test_builtin_avatar_presentation_resolves_on_the_clean_typed_schema(
                 owner_user_id=user_id,
                 revision=1,
                 starter_catalog_version=1,
-                starter_exclusions=[],
             )
         )
         async_session.add(
@@ -275,3 +275,121 @@ async def test_catalog_profile_revision_tracks_exact_file_digest() -> None:
     repository.records[record.anima_id] = replace(record, profile_image=replace(first, sha256="invalid"))
     invalid = (await service.list_owned_presentations(user_id="owner", anima_ids=(record.anima_id,)))[record.anima_id]
     assert invalid.profile_thumbnail is None
+
+
+@pytest.mark.asyncio
+async def test_local_avatar_presentation_uses_its_exact_owner_portrait(async_session) -> None:
+    """The exact Local portrait wins over an Included stem match; other owners' portraits never apply."""
+
+    suffix = uuid4().hex
+    user_id = f"user-{suffix}"
+    avatar_item_id = f"avatar-item-{suffix}"
+    avatar_id = f"avatar-{suffix}"
+    anima_id = f"anima-{suffix}"
+    # The other owner's portrait sorts first, so only the owner filter excludes it.
+    theirs, mine, by_stem = (f"{name}-{suffix}" for name in ("a-theirs", "b-mine", "c-stem"))
+
+    def catalog_item(item_id: str, **fields: object) -> ORMContentCatalogItem:
+        return ORMContentCatalogItem(
+            id=item_id,
+            kind="appearance",
+            display_name=item_id,
+            status="valid",
+            revision_sha256="a" * 64,
+            logical_key=f"local:appearance:{item_id}",
+            **fields,
+        )
+
+    def image_file(item_id: str) -> ORMContentCatalogFile:
+        return ORMContentCatalogFile(
+            file_ref=f"{item_id}-file",
+            item_id=item_id,
+            relative_path=f"appearances/{item_id}.webp",
+            role="image",
+            media_type="image/webp",
+            size_bytes=4096,
+            sha256="b" * 64,
+            ordinal=1,
+        )
+
+    exact = {"avatar_item_id": avatar_item_id, "avatar_revision_sha256": "c" * 64}
+    items = [
+        catalog_item(
+            avatar_item_id,
+            source="local",
+            scope="owner",
+            owner_user_id=user_id,
+            relative_locator=f"avatars/{suffix}.vrm",
+        ),
+        catalog_item(
+            mine,
+            source="local",
+            scope="owner",
+            owner_user_id=user_id,
+            relative_locator=f"appearances/{mine}.webp",
+            content_metadata={"avatar_model": suffix, "width": 512, "height": 512, "presentation": exact},
+        ),
+        catalog_item(
+            theirs,
+            source="local",
+            scope="owner",
+            owner_user_id=f"other-{suffix}",
+            relative_locator=f"appearances/{theirs}.webp",
+            content_metadata={"avatar_model": suffix, "width": 512, "height": 512, "presentation": exact},
+        ),
+        catalog_item(
+            by_stem,
+            source="included",
+            scope="included",
+            relative_locator=f"appearances/avatar-portraits/{by_stem}.webp",
+            content_metadata={"avatar_model": suffix, "width": 256, "height": 256},
+        ),
+    ]
+    items[0].kind = "avatar"
+    try:
+        async_session.add_all(items)
+        await async_session.flush()
+        async_session.add_all([image_file(item_id) for item_id in (mine, theirs, by_stem)])
+        async_session.add(
+            ORMAvatar(
+                id=avatar_id,
+                name=f"Avatar {suffix}",
+                file_path=f"/local/avatars/{suffix}.vrm",
+                identity="A Local Avatar.",
+                private=True,
+                user_id=user_id,
+                catalog_item_id=avatar_item_id,
+            )
+        )
+        await async_session.flush()
+        async_session.add(ORMAnima(id=anima_id, display_name=f"Live {suffix}", user_id=user_id, avatar_id=avatar_id))
+        await async_session.flush()
+        async_session.add(
+            ORMAnimaLoadout(anima_id=anima_id, owner_user_id=user_id, revision=1, starter_catalog_version=1)
+        )
+        await async_session.commit()
+
+        records = await SQLAlchemyAnimaPresentationRepository(async_session).list_owned_presentation_records(
+            user_id=user_id, anima_ids=(anima_id,)
+        )
+
+        portrait = _required(records[anima_id].avatar_portrait)
+        assert portrait.catalog_item_id == mine
+        assert (portrait.width, portrait.height) == (512, 512)
+        service = AnimaPresentationService(presentations=_PresentationRepository(records[anima_id]))
+        thumbnail = _required(service._project(records[anima_id]).profile_thumbnail)
+        assert thumbnail.url == f"/v1/content/files/{mine}-file"
+        assert (
+            PyRuntimeImageReference.model_validate(
+                {**asdict(thumbnail), "presentation": asdict(thumbnail.presentation)}
+            ).width
+            == 512
+        )
+    finally:
+        await async_session.rollback()
+        await async_session.execute(delete(ORMAnima).where(ORMAnima.id == anima_id))
+        await async_session.execute(delete(ORMAvatar).where(ORMAvatar.id == avatar_id))
+        await async_session.execute(
+            delete(ORMContentCatalogItem).where(ORMContentCatalogItem.id.in_([avatar_item_id, mine, theirs, by_stem]))
+        )
+        await async_session.commit()

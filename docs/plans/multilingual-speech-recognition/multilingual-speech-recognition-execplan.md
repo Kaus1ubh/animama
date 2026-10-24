@@ -263,6 +263,10 @@ Boundaries:
 - 2026-10-21, agent (final review FIR-01): `local-http` becomes 11.0.0 and
   `@animama/runtime-contracts` 0.11.0 for the added capability fields, as the
   package-set compatibility rules require.
+- 2026-10-24, agent (merge with `main`): `main` reached `local-http` 14.0.0
+  and `runtime-contracts` 0.14.0, so the branch's bump becomes 15.0.0 and
+  0.15.0. `main`'s download toasts and chat status lines now also report the
+  SenseVoice sets.
 
 ## Owner gates
 
@@ -1506,7 +1510,7 @@ Changes and checks:
 7. Owner gates G3 and G4 recorded in the PR.
 8. Cloud follow-up recorded in the PR as outstanding: animama-cloud must
    support or skip `sensevoice-stt` and `sensevoice-stt-webgpu`, and admit
-   `local-http` major 11, before it repins to an Animama release with this
+   `local-http` major 15, before it repins to an Animama release with this
    catalog (Surprises, 2026-10-21).
    If it skips them, hosted Settings shows the SenseVoice section as "Not
    available" and non-English locales get the "not available on this server"

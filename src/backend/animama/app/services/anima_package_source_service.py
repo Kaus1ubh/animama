@@ -34,7 +34,6 @@ from animama.domain.emotions import TRACKED_EMOTIONS
 from .content_portability import is_non_portable
 from .content_voice import POCKET_CLONE_CODEC
 from .portable_anima_service import resolve_portable_anima
-from .starter_loadout_policy import starter_loadout_policy
 from .typed_content_service import TypedContentService
 
 
@@ -105,26 +104,6 @@ class AnimaPackageSourceService:
             selected[item.id] = item
             return item
 
-        def included(logical_key: str, kind: ContentKind) -> CatalogContentEntry:
-            candidates = [
-                item
-                for item in visible.values()
-                if item.source is ContentSource.INCLUDED and item.logical_key == logical_key
-            ]
-            if len(candidates) != 1:
-                raise ContentConflictError("package_anima_starter_unavailable")
-            return select_item(candidates[0].id, kind)
-
-        policy = starter_loadout_policy(source.starter_catalog_version)
-        exclusions: set[tuple[str, str]] = set()
-        for exclusion in source.starter_exclusions:
-            if (
-                not isinstance(exclusion, dict)
-                or set(exclusion) != {"slot", "runtime_id"}
-                or not all(isinstance(value, str) for value in exclusion.values())
-            ):
-                raise ContentConflictError("package_anima_exclusions_invalid")
-            exclusions.add((exclusion["slot"], exclusion["runtime_id"]))
         rows = {row.slot_key: row for row in source.bindings}
         if len(rows) != len(source.bindings):
             raise ContentConflictError("package_anima_bindings_invalid")
@@ -216,14 +195,6 @@ class AnimaPackageSourceService:
                 appearance[row.slot_key.split(":")[1]] = {"entry_id": item.id, "presentation": presentation}
             else:
                 raise ContentConflictError("package_anima_binding_unsupported")
-        for starter in policy["gestures"]:
-            key = starter["content_id"].rsplit(":", 1)[-1]
-            if f"gesture:{key}" not in rows and ("gesture", key) not in exclusions:
-                item = included(starter["content_id"], ContentKind.GESTURE)
-                if portable(item):
-                    gestures.append({"semantic_key": key, "entry_id": item.id, "config": {}})
-                else:
-                    omitted.append(OmittedAnimaBinding(item, "gesture", key, {}))
         for cells in reactions.values():
             for reaction_level, pool in cells.items():
                 # Pools are sets; a stable order keeps the export snapshot deterministic.

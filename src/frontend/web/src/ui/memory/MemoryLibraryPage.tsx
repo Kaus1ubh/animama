@@ -85,6 +85,7 @@ import { useMoveMemoryEntry } from "@/query/mutations/useMoveMemoryEntry";
 import { usePatchMemoryEntry } from "@/query/mutations/usePatchMemoryEntry";
 import { useRepairAnimaMemories } from "@/query/mutations/useRepairAnimaMemories";
 import { AppShellPage } from "@/ui/app/AppShellPage";
+import { SidebarMenuButton } from "@/ui/sidebar/SidebarMenuButton";
 import { Button } from "@/ui/components/button";
 import {
   Dialog,
@@ -892,25 +893,28 @@ export function MemoryLibraryPage({
     >
       {search.tab === "memory" ? (
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <Tabs
-            value={mobilePane}
-            onValueChange={(value) =>
-              setMobilePane(value as MobileWorkspacePane)
-            }
-            className="border-border/40 shrink-0 border-b p-2 lg:hidden"
-          >
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="files">
-                <Files className="size-4" /> {t("library.panes.files")}
-              </TabsTrigger>
-              <TabsTrigger value="work">
-                <Pencil className="size-4" /> {t("library.panes.work")}
-              </TabsTrigger>
-              <TabsTrigger value="preview">
-                <Eye className="size-4" /> {t("shared.preview")}
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
+          <div className="border-border/40 flex shrink-0 items-center gap-1 border-b p-2 lg:hidden">
+            <SidebarMenuButton />
+            <Tabs
+              value={mobilePane}
+              onValueChange={(value) =>
+                setMobilePane(value as MobileWorkspacePane)
+              }
+              className="min-w-0 flex-1"
+            >
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="files">
+                  <Files className="size-4" /> {t("library.panes.files")}
+                </TabsTrigger>
+                <TabsTrigger value="work">
+                  <Pencil className="size-4" /> {t("library.panes.work")}
+                </TabsTrigger>
+                <TabsTrigger value="preview">
+                  <Eye className="size-4" /> {t("shared.preview")}
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
           <MemoryWorkspaceSplitLayout
             explorerCollapsed={explorerCollapsed}
             explorer={

@@ -663,7 +663,6 @@ export default interface Resources {
         "action": "Action:",
         "actions": {
           "add": "add",
-          "leave_empty": "leave empty",
           "remove": "remove",
           "replace": "replace",
           "revert": "revert",
@@ -743,6 +742,11 @@ export default interface Resources {
         },
         "status": "{{name}} preview: {{status}}",
         "stop": "Stop {{name}} preview"
+      },
+      "stage": {
+        "close": "Close Avatar view",
+        "open": "View Avatar",
+        "title": "{{name}}'s Avatar"
       },
       "tabs": {
         "emotions": "Emotions",
@@ -1083,6 +1087,17 @@ export default interface Resources {
     "meta": {
       "description": "Animama, your AI avatar companion."
     },
+    "modelDownloads": {
+      "failed": "{{item}} download failed",
+      "items": {
+        "speechToText": "Speech-to-Text (Parakeet CPU)",
+        "speechToTextGpu": "Speech-to-Text (Parakeet GPU)",
+        "speechToTextSenseVoice": "Speech-to-Text (SenseVoice CPU)",
+        "speechToTextSenseVoiceGpu": "Speech-to-Text (SenseVoice GPU)",
+        "voiceClone": "Voice Clone encoder"
+      },
+      "ready": "{{item}} ready"
+    },
     "notFound": {
       "description": "This address does not lead to an Animama page.",
       "eyebrow": "Not found",
@@ -1354,6 +1369,16 @@ export default interface Resources {
         "whenSelected": "Downloads when selected"
       }
     },
+    "loadingStatus": {
+      "avatar": "Loading avatar",
+      "content": "Loading animations and effects",
+      "contentProgress": "Loading animations and effects ({{completed}}/{{total}})",
+      "download": "Downloading {{item}} ({{size}})",
+      "downloadProgress": "Downloading {{item}}: {{percent}} of {{size}}",
+      "speechToText": "Loading Speech-to-Text (Parakeet)",
+      "textToSpeech": "Loading Text-to-Speech (PocketTTS)",
+      "textToSpeechStep": "Loading Text-to-Speech (PocketTTS), step {{step}} of {{total}}"
+    },
     "memoryCue": {
       "added": "Added to {{name}}'s memories",
       "addedUnnamed": "Added to this Anima's memories",
@@ -1378,9 +1403,7 @@ export default interface Resources {
       "title": "Start a new chat?"
     },
     "playback": {
-      "degraded": "Some avatar content is unavailable. Text chat still works.",
-      "preparing": "Preparing animations and effects…",
-      "preparingCanChat": "Preparing animations and effects… You can chat now."
+      "degraded": "Some avatar content is unavailable. Text chat still works."
     },
     "profile": {
       "back": "Back",
@@ -1417,12 +1440,13 @@ export default interface Resources {
       "unavailableHere": "Offline speech recognition for dictation and Voice Mode is not available here"
     },
     "suggestions": {
-      "greeting": "Simple greeting",
-      "greetingMessage": "Hi! How's it going?",
-      "greetingMessageNamed": "Hi {{name}}! How's it going?",
       "joke": "Tell me a joke",
       "jokeMessage": "Hey, tell me a joke!",
-      "jokeMessageNamed": "Hey {{name}}, tell me a joke!"
+      "jokeMessageNamed": "Hey {{name}}, tell me a joke!",
+      "rockPaperScissors": "Play Rock Paper Scissors",
+      "rockPaperScissorsPaper": "Let's play rock paper scissors! I choose... paper!",
+      "rockPaperScissorsRock": "Let's play rock paper scissors! I choose... rock!",
+      "rockPaperScissorsScissors": "Let's play rock paper scissors! I choose... scissors!"
     }
   },
   "common": {
@@ -2978,6 +3002,11 @@ export default interface Resources {
     }
   },
   "emotion": {
+    "bloom": {
+      "group": "{{group}}: {{maximum}}. {{emotions}}",
+      "groupEmotion": "{{emotion}} {{value}}",
+      "label": "Emotion bloom: 24 emotions in eight groups"
+    },
     "details": {
       "label": "Emotional state"
     },
@@ -3139,12 +3168,6 @@ export default interface Resources {
       "gloom": "Gloom",
       "rejection": "Rejection",
       "revulsion": "Revulsion"
-    },
-    "radar": {
-      "axis": "{{group}}: {{maximum}}. {{emotions}}",
-      "axisEmotion": "{{emotion}} {{value}}",
-      "label": "Emotion spectrum: eight groups, each showing its strongest emotion",
-      "series": "Strongest emotion"
     }
   },
   "errors": {
@@ -3300,8 +3323,6 @@ export default interface Resources {
       "reaction_operation_invalid": "This Reaction change is not valid.",
       "reaction_pool_full": "That cell already holds four Reactions. Remove one to add another.",
       "reviewFailed": "Review failed.",
-      "starter_gesture_unavailable": "Included Gesture {{semanticKey}} is unavailable.",
-      "starter_id_required": "This change needs an Included Gesture.",
       "starter_reaction_unavailable": "A starter Reaction is unavailable and was not restored.",
       "updateFailed": "Update failed.",
       "voice_operation_invalid": "This voice change is not valid."

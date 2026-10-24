@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import shutil
+import tempfile
 from pathlib import Path
 
 from application import closed, positive_int, read_json, safe_path
@@ -114,14 +115,29 @@ def verify_catalog_seed(record, files, texts, source, tree=None):
 
 
 def prepare_seed(source: Path, output: Path, source_record: dict):
-    """Reuse the public resolver on the exact tracked snapshot, never a private fixture."""
+    """Reuse the public resolver on the exact tracked snapshot, never a private fixture.
+
+    Effect art ships as WebP derivatives of the snapshot's PNG masters (#655),
+    converted into a scratch tree before the resolver runs.
+    """
+    from animama.runtime.included_derivatives import convert_included_tree
+
+    original = source / "content/included"
+    tracked = {path.relative_to(original).as_posix() for path in original.rglob("*") if path.is_file()}
+    with tempfile.TemporaryDirectory(prefix="animama-seed-") as scratch:
+        included = Path(scratch) / "included"
+        convert_included_tree(original, included, tracked)
+        return _write_seed(source, included, output, source_record)
+
+
+def _write_seed(source: Path, included: Path, output: Path, source_record: dict):
     from animama.runtime.starter_content import starter_inventory
 
-    included = source / "content/included"
     allowed = {path.relative_to(included).as_posix() for path in included.rglob("*") if path.is_file()}
     inventory = starter_inventory(included, allowed_paths=allowed)
     paths = [("included/" + item["path"], included / item["path"]) for item in inventory["files"]]
     paths.append(("included/licenses/inventory.json", included / "licenses/inventory.json"))
+    # Included bytes come from the converted tree; notices from the snapshot.
     paths.extend(
         ("notices/" + path.relative_to(source / "licenses").as_posix(), path)
         for path in sorted((source / "licenses").rglob("*"))
@@ -132,8 +148,12 @@ def prepare_seed(source: Path, output: Path, source_record: dict):
     files = []
     for name, path in paths:
         safe_path(name)
-        if path.is_symlink() or not path.is_file() or not path.resolve().is_relative_to(source.resolve()):
-            raise ValueError("Catalog seed source must be regular snapshot bytes")
+        if (
+            path.is_symlink()
+            or not path.is_file()
+            or not path.resolve().is_relative_to((included if name.startswith("included/") else source).resolve())
+        ):
+            raise ValueError("Catalog seed source must be regular snapshot or converted bytes")
         destination = output / name
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(path, destination)

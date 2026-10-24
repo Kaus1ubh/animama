@@ -445,13 +445,13 @@ function AnimaProfile({
                       event.key === "Tab" &&
                       !event.shiftKey
                     ) {
-                      const firstAxis =
+                      const firstGroup =
                         detailPanelRef.current?.querySelector<SVGGElement>(
-                          "[data-emotion-axis-label]",
+                          "[data-emotion-group]",
                         );
-                      if (firstAxis) {
+                      if (firstGroup) {
                         event.preventDefault();
-                        firstAxis.focus();
+                        firstGroup.focus();
                         return;
                       }
                     }

@@ -22,6 +22,7 @@ import {
   installAudioObservation,
   playbackFamilies,
   playbackInventory,
+  readPreviewClip,
   proveAudioPlayback,
   proveLibraryParticleReplay,
   proveParticleCreatorPlayback,
@@ -29,6 +30,7 @@ import {
   type PlaybackItem,
   type PlaybackKind,
 } from "../helpers/imported-playback";
+import { authoredExpressionThresholds } from "../helpers/authored-expressions";
 import {
   proveAvatarVFXPlayback,
   proveEmotionJoySceneDom,
@@ -1198,7 +1200,14 @@ test("imported playback complete Anima retains imported Avatar, appearance and p
     await section
       .getByRole("button", { name: `Preview ${item.name}`, exact: true })
       .click();
-    await prepared;
+    const preview = await prepared;
+    // Starter Reactions key VRoid face parts rather than whole-face presets,
+    // so the proof follows whichever expressions the imported clip authors.
+    // One sample must show them all with the effects, as at the clip's settle.
+    const reactionThresholds =
+      kind === "reaction"
+        ? authoredExpressionThresholds(await readPreviewClip(page, preview))
+        : {};
     const surface = page.locator(
       '[data-playback-surface="anima-loadout-stage"]',
     );
@@ -1242,7 +1251,10 @@ test("imported playback complete Anima retains imported Avatar, appearance and p
                   0.1 &&
                 values.some(
                   (value) =>
-                    (value.expressions.happy ?? 0) > 0.4 &&
+                    Object.entries(reactionThresholds).every(
+                      ([name, threshold]) =>
+                        (value.expressions[name] ?? 0) >= threshold,
+                    ) &&
                     value.effects.avatar.length > 0 &&
                     value.effects.particle.length > 0 &&
                     value.effects.scene.some((effect) => effect.active),

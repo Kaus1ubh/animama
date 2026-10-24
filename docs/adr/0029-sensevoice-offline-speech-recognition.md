@@ -97,7 +97,7 @@ The Phase 2 comparison ran 75 FLEURS clips per language on the reference Mac
   instead of warning that recognition is English-only; Pocket TTS keeps its
   English-only notice.
 - Runtime capabilities gain `offline_multilingual_speech_enabled` and its CPU
-  and GPU set versions, defaulting to off (`local-http` contract major 11); `ANIMAMA_SENSEVOICE_STT_ENABLED`
+  and GPU set versions, defaulting to off (`local-http` contract major 15); `ANIMAMA_SENSEVOICE_STT_ENABLED`
   switches SenseVoice like `ANIMAMA_PARAKEET_STT_ENABLED`, and
   `ANIMAMA_PARAKEET_SOURCE` keeps its name and selects both engines' sets.
 - Smart Turn's forced end-of-turn short replies gain Japanese, Korean and
@@ -111,7 +111,7 @@ The Phase 2 comparison ran 75 FLEURS clips per language on the reference Mac
 - The hosted Animama Cloud API accepts only model-asset catalog IDs it knows.
   Before Cloud adopts an Animama release whose catalog contains
   `sensevoice-stt` and `sensevoice-stt-webgpu`, it must support or skip them
-  and admit `local-http` major 11; if it skips them, hosted Settings shows
+  and admit `local-http` major 15; if it skips them, hosted Settings shows
   SenseVoice as not available.
 
 ## Evidence

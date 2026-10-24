@@ -64,6 +64,9 @@ vi.mock("./CreateAnimaReviewStep", () => ({
   CreateAnimaReviewStep: () => <div>Review form</div>,
 }));
 vi.mock("./CreateAnimaStage", () => ({ CreateAnimaStage: () => <canvas /> }));
+vi.mock("@/query/mutations/useSaveAvatarPortrait", () => ({
+  useSaveAvatarPortrait: () => vi.fn(),
+}));
 vi.mock("./CreateAnimaCompletion", () => ({
   CreateAnimaCompletion: ({ animaId }: { animaId: string }) => (
     <p>Open existing {animaId}</p>

@@ -76,7 +76,8 @@ export function LibraryFilterMenu({
           aria-label={t("filters.label")}
         >
           <ListFilter />
-          {t("filters.button")}
+          {/* Phones keep the room for the search field; the icon is labelled. */}
+          <span className="hidden sm:inline">{t("filters.button")}</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent

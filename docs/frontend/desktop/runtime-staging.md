@@ -83,6 +83,9 @@ Each staging pass clears only `desktop/.desktop-runtime/darwin-arm64`, then:
    empty; add each new Included item that no starter selects to these roots
    (a new non-idle Gesture joins the starter loadout instead). Only tracked distribution
    inputs may enter the stage; missing or excluded required roots fail staging.
+   Effect art is staged as WebP derivatives of its PNG masters
+   (`src/backend/packaging/desktop/README.md`), so staged files and revisions
+   differ from self-host's even though the items match.
    Optional portraits use the same presentation contract as installation
    bootstrap.
 2. Builds pinned PostgreSQL 16.15 and pgvector 0.8.6 sources with portable arm64
@@ -103,9 +106,11 @@ Each staging pass clears only `desktop/.desktop-runtime/darwin-arm64`, then:
    distribution copies and their existing notices remain required. Ordinary
    `pnpm web:build` also retains the Included compatibility copies.
    This is a production build: application debug imports stay excluded even
-   with `VITE_ENABLE_DEBUG_PANEL=true`. Retain `.vite/manifest.json` alongside
-   the coherent SPA output; packaged FastAPI uses it to identify fingerprinted
-   JS/CSS eligible for immutable caching and does not serve the inventory.
+   with `VITE_ENABLE_DEBUG_PANEL=true`. Retain `.vite/manifest.json` and
+   `.vite/browser-runtime.json` alongside the coherent SPA output; packaged
+   FastAPI uses them to identify fingerprinted JS/CSS eligible for immutable
+   caching and to revalidate speech runtime files by digest, and serves
+   neither record.
    HTML validators hash the actual contents, so normalized file dates and an
    unchanged HTML length cannot keep a previous build's script fingerprints.
 5. Bundles Electron main/preload with esbuild and copies only the native input

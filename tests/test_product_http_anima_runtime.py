@@ -36,7 +36,6 @@ async def mounted_anima(ports: DeferredCommitPorts, root: Path, owner: str) -> s
                 owner_user_id=owner,
                 revision=1,
                 starter_catalog_version=1,
-                starter_exclusions=[],
             )
         )
         await session.flush()

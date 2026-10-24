@@ -181,7 +181,6 @@
       "action": "操作：",
       "actions": {
         "add": "添加",
-        "leave_empty": "留空",
         "remove": "移除",
         "replace": "替换",
         "revert": "还原",
@@ -261,6 +260,11 @@
       },
       "status": "{{name}} 预览：{{status}}",
       "stop": "停止 {{name}} 预览"
+    },
+    "stage": {
+      "close": "关闭虚拟形象视图",
+      "open": "查看虚拟形象",
+      "title": "{{name}}的虚拟形象"
     },
     "tabs": {
       "emotions": "情绪",

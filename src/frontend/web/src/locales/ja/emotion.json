@@ -1,4 +1,9 @@
 {
+  "bloom": {
+    "group": "{{group}}：{{maximum}}。{{emotions}}",
+    "groupEmotion": "{{emotion}} {{value}}",
+    "label": "感情の花：8つのグループに分かれた24の感情"
+  },
   "details": {
     "label": "感情の状態"
   },
@@ -160,11 +165,5 @@
     "gloom": "憂うつ",
     "rejection": "反発",
     "revulsion": "嫌悪"
-  },
-  "radar": {
-    "axis": "{{group}}：{{maximum}}。{{emotions}}",
-    "axisEmotion": "{{emotion}} {{value}}",
-    "label": "感情スペクトル：8つのグループと、それぞれの最も強い感情",
-    "series": "最も強い感情"
   }
 }

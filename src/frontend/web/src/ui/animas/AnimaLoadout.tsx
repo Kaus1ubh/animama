@@ -38,10 +38,7 @@ import {
   typedActionPreview,
   typedIdleGesturePreview,
 } from "@/lib/content/typedPreviewAdapters";
-import {
-  presentGestureCatalog,
-  presentGestureLoadout,
-} from "@/lib/loadout/animaLoadoutPresentation";
+import { presentGestureCatalog } from "@/lib/loadout/animaLoadoutPresentation";
 import { idleAddIntent } from "@/lib/loadout/idleLoadoutGrid";
 import {
   buildReactionLoadoutGrid,
@@ -110,8 +107,6 @@ function planActionLabel(
       return t("loadout.review.actions.remove");
     case "revert":
       return t("loadout.review.actions.revert");
-    case "leave_empty":
-      return t("loadout.review.actions.leave_empty");
     case "unchanged":
       return t("loadout.review.actions.unchanged");
   }
@@ -202,16 +197,6 @@ export function AnimaLoadout({
     reactionsNextPageError,
   ]);
 
-  const gesturePresentation = useMemo(
-    () =>
-      loadout
-        ? presentGestureLoadout(
-            loadout,
-            gesturesQuery.data?.pages.flatMap((page) => page.items) ?? [],
-          )
-        : null,
-    [gesturesQuery.data, loadout],
-  );
   const gestureCatalog = useMemo(
     () =>
       presentGestureCatalog(
@@ -381,7 +366,7 @@ export function AnimaLoadout({
       </p>
     );
   }
-  if (query.isError || !loadout || !gesturePresentation) {
+  if (query.isError || !loadout) {
     return (
       <div className="space-y-3 rounded-xl border p-5 text-sm">
         <p className="text-destructive">{t("loadout.unavailable")}</p>
@@ -408,7 +393,6 @@ export function AnimaLoadout({
       ) : null}
       <VoiceLoadoutSection key={animaId} />
       <GestureLoadoutSection
-        presentation={gesturePresentation}
         catalog={gestureCatalog}
         catalogLoading={
           gesturesQuery.isPending ||
@@ -435,20 +419,6 @@ export function AnimaLoadout({
           void planGesture({
             operation: "remove",
             binding_id: row.binding_id,
-            config_overrides: {},
-          })
-        }
-        onDisableStarter={(row) =>
-          void planGesture({
-            operation: "disable_starter",
-            starter_id: row.semantic_key,
-            config_overrides: {},
-          })
-        }
-        onRestoreStarter={(starterId) =>
-          void planGesture({
-            operation: "restore_starter",
-            starter_id: starterId,
             config_overrides: {},
           })
         }

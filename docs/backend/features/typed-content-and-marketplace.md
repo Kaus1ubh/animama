@@ -245,8 +245,8 @@ reached other than through an effect's optional sound, with
 `package_non_portable` and the item names in `detail.items`. A built-in effect exports
 without its optional non-portable sound: the edge and the `soundAlias` naming it
 are removed, kept optional edges are written as ordinary edges, and no reference
-is recorded. An Anima export omits non-portable Gestures, whether equipped
-(explicitly or as implicit starter choices) or in the Idle pool. Any other
+is recorded. An Anima export omits non-portable Gestures, whether equipped or in
+the Idle pool. Any other
 non-portable binding (for example an Avatar) blocks the export. The summary lists
 omitted items (`omitted`), and the manifest's `non_portable_references` record
 each omitted Gesture's logical key, name and uses (a `gesture` slot with its

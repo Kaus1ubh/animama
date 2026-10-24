@@ -86,7 +86,8 @@ function DialogContent({
         data-slot="dialog-content"
         style={{
           ...style,
-          ...(avoidSidebar
+          // Phones have no sidebar beside the dialog to avoid.
+          ...(avoidSidebar && appShell?.isDesktop
             ? {
                 left: `calc(50% + ${sidebarInset} / 2)`,
                 maxWidth: `calc(100vw - ${sidebarInset} - 2rem)`,

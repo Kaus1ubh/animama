@@ -45,6 +45,8 @@ from animama.app.services.content_kind_registry import (
 from animama.app.services.content_portability import (
     DISTRIBUTION_KEY,
     effective_provenance,
+    licensing_path,
+    parse_inventory_derivatives,
     resolve_rule_distribution,
     restricted_sha256 as manifest_sha256,
 )
@@ -339,12 +341,19 @@ class FilesystemContentStore(ContentStore):
                     regular_files.append(path)
         return regular_files, unsafe
 
-    def _license_inventory(self) -> list[dict[str, Any]]:
+    def _license_inventory(self) -> tuple[list[dict[str, Any]], dict[str, str]]:
+        """Licence rules and recorded derivatives; a malformed inventory has neither."""
+
         inventory_path = self._roots[ContentSource.INCLUDED] / "licenses" / "inventory.json"
         value, error = parse_json_object(inventory_path) if inventory_path.exists() else (None, None)
         if error or not value or not isinstance(value.get("rules"), list):
-            return []
-        return [rule for rule in value["rules"] if isinstance(rule, dict) and isinstance(rule.get("glob"), str)]
+            return [], {}
+        try:
+            derivatives = parse_inventory_derivatives(value)
+        except ValueError:
+            return [], {}
+        rules = [rule for rule in value["rules"] if isinstance(rule, dict) and isinstance(rule.get("glob"), str)]
+        return rules, derivatives
 
     @staticmethod
     def _matched_provenance(relative_locator: str, rules: list[dict[str, Any]]) -> dict[str, Any]:
@@ -634,7 +643,7 @@ class FilesystemContentStore(ContentStore):
             return result
 
         source_root = self._source_root(source)
-        license_rules = self._license_inventory() if source is ContentSource.INCLUDED else []
+        license_rules, derivatives = self._license_inventory() if source is ContentSource.INCLUDED else ([], {})
         entries: list[ScannedContentEntry] = []
         for definition in CONTENT_KIND_REGISTRY:
             type_root = source_root.joinpath(*PurePosixPath(definition.directory).parts)
@@ -684,17 +693,18 @@ class FilesystemContentStore(ContentStore):
                         license_rules=license_rules,
                     )
                 )
-        return [self._with_distribution(entry, license_rules) for entry in entries]
+        return [self._with_distribution(entry, license_rules, derivatives) for entry in entries]
 
     def _with_distribution(
-        self, entry: ScannedContentEntry, license_rules: list[dict[str, Any]]
+        self, entry: ScannedContentEntry, license_rules: list[dict[str, Any]], derivatives: dict[str, str]
     ) -> ScannedContentEntry:
         """Apply the trusted distribution after descriptor provenance was merged."""
 
         rule_distribution = None
         if entry.source is ContentSource.INCLUDED:
-            # Match the locator and every file, case-sensitively like staging.
-            paths = (entry.relative_locator, *(file.relative_path for file in entry.files))
+            # Match the locator and every file, case-sensitively like staging;
+            # a packaged derivative is matched as its master.
+            paths = (entry.relative_locator, *(licensing_path(file.relative_path, derivatives) for file in entry.files))
             rule_distribution = resolve_rule_distribution(
                 next(
                     (rule.get(DISTRIBUTION_KEY) for rule in license_rules if fnmatch.fnmatchcase(path, rule["glob"])),

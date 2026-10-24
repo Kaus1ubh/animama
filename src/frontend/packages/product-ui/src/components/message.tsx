@@ -88,11 +88,15 @@ const messageContentBackgroundVariants = cva(
 const messageContentForegroundVariants = cva("relative z-10", {
   variants: {
     variant: {
+      // Text matches whichever brand fill the bubble uses in each variant.
       contained: [
         "group-[.is-user]:text-primary-foreground",
+        "group-[.is-assistant]:text-secondary-foreground",
+      ],
+      flat: [
+        "group-[.is-user]:text-secondary-foreground",
         "group-[.is-assistant]:text-foreground",
       ],
-      flat: "text-foreground",
     },
   },
   defaultVariants: {

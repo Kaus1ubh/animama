@@ -84,9 +84,13 @@ sharing `useOfflineSpeechDownloads(engine)`) with a WebGPU ✓/✗ check; asking
 the GPU set first says to download the CPU version. The composer's install hint
 (`OfflineSpeechDownloads routedOnly`) also offers only that engine. Removal,
 attribution and the other engine's sets stay in App Settings. Every download
-can be skipped; downloads do not change provider or voice selection. Vite
-development serves the operator's host sets and shows each engine's acquire
-commands instead of downloads.
+can be skipped; downloads do not change provider or voice selection. Downloads
+continue in the backend after leaving Setup or Settings: the chat status lines
+show their size and progress, and `ModelDownloadToasts` (mounted in the app
+layout) shows one short toast when a speech-to-text set (Parakeet or
+SenseVoice) or the Voice Clone encoder finishes or fails. Vite development
+serves the operator's host sets and shows each engine's acquire commands
+instead of downloads.
 
 `GET /v1/runtime-capabilities` reports each engine's availability and nullable
 CPU and GPU set versions: `offline_speech_enabled`,
@@ -1010,8 +1014,9 @@ Mechanics:
 
 Realtime Eleven v4 Turbo receives an SSE-provided single-use token and opens a
 direct Text to Dialogue WebSocket ([protocol](elevenlabs-tts.md#realtime-model)).
-Setup waits at most 1500 ms for the session event; failures stop audio for that
-run while chat continues.
+Setup waits at most 1500 ms for the session event, counted from the response's
+first event rather than from send, so a turn the server holds before its stream
+starts keeps its voice. Failures stop audio for that run while chat continues.
 
 A hosted server can decline a run's ElevenLabs speech with
 `speech_allowance_exhausted` (an exhausted voice allowance). Where Pocket TTS is
@@ -1114,6 +1119,11 @@ are application URLs, not tracked model files under `web/public`:
 - VAD worklet: `/onnx/models/vad/vad.worklet.bundle.min.js`
 - Pocket's ORT modules and all sidecars: `/onnx/ort/1.24.2/*`
 - Smart Turn: `/onnx/models/smart-turn/smart-turn-v3.2-cpu.onnx`
+
+These files ship with the app; nothing downloads them from the internet. Their
+URLs are unversioned, so every load revalidates them by their manifest SHA-256
+`ETag` and an unchanged file returns `304` (see
+[Frontend overview](../architecture/overview.md)).
 
 VAD and Smart Turn workers also retain their Vite-bundled ORT imports. Resolving
 the public ORT 1.24.2 inventory does not replace those dependency versions.

@@ -418,9 +418,10 @@ Relevant files:
 
 The primary emotion UI is group-first.
 
-Relevant file:
+Relevant files:
 
 - `src/frontend/web/src/ui/components/emotional-state.tsx`
+- `src/frontend/web/src/ui/components/mood-bloom.tsx`
 
 Current behavior:
 
@@ -432,25 +433,47 @@ Current behavior:
   neutral remains 😐. Both the profile and management header use this mapping.
 - `web/src/lib/emotion/presentation.ts` owns the shared group palette and headline
   mappings. Domain normalization, averages and canonical tie-breaking are unchanged.
-- Expanded details use a Recharts radar with circular rings and a fixed 0–30 scale.
-  All eight groups remain in canonical axis order; each spoke plots the maximum
-  constituent score in its group. Three faint rings mark 10, 20 and 30. Hovering
-  the plot or focusing/tapping an axis label reveals that group and its three
-  constituents in a reserved caption below the plot, so details never obscure it.
-  There is no separate legend, permanent detail card or diagnostic source/scale copy.
-  Hover emphasizes the matching label and point using its group color, without
-  a label background. Leaving the plot clears pointer selection; keyboard focus
-  remains independently inspectable. Color supplements labels rather than replacing them.
+- Expanded details use the mood bloom: each group, in canonical order clockwise
+  from the top, is a fan of three petals in its color, one per emotion, whose
+  length grows linearly with the score on a fixed 0–30 scale; faint rings mark
+  10, 20 and 30. Every group's symbol and name sit around the rim: the three
+  strongest are emphasized and groups at zero are faint. The current mascot sits
+  at the center on a glow of the dominant group's color. Petals open from a bud
+  on mount and sway; once the strongest emotion reaches 3, its petal sheds
+  pollen. When a consumer's reaction `beat` changes, up to three petals that
+  grew since the previous render (largest gain first) flash, pulse and throw
+  sparks from their tips; the burst is removed after under a second. The
+  details surfaces pass no `beat`. Reduced motion shows a still bloom without
+  bursts.
+- The sway and pollen animate continuously, so the full bloom repaints every
+  frame while it is shown; keep it to surfaces opened on demand. The `mini`
+  variant has no sway, pollen, bud, shadow, rings, rim or selection and costs
+  nothing at rest.
+- Each group's slot, out past its name, is a button: hovering, focusing or
+  tapping it tints the slot, grows its petals, fades the other groups and
+  reveals the group with its three constituents in a reserved caption below the
+  bloom, so details never obscure it. A pointer or tap also picks the petal
+  nearest its angle: that petal stays bright while its siblings dim, the rim
+  shows its emotion and score in place of the group name, and the caption
+  emphasizes it. The keyboard selects whole groups. Each button's accessible
+  name lists the group maximum and constituent scores. Leaving the bloom clears
+  pointer selection, a tap elsewhere clears touch selection, and keyboard focus
+  remains independently inspectable. Color supplements labels rather than
+  replacing them.
 - Neutral shows “Feeling neutral” without empty-state copy or fabricated bars.
   The profile hides its emotion disclosure while neutral; management retains the
-  zero-valued eight-axis radar.
+  zero-valued bloom, whose petals rest behind the neutral mascot.
 - Existing `default`, `compact`, `showcase` and `inline` chart consumers use the
   same presentation data, with compact chart sizing where appropriate.
 
 The chat header opens the profile through one button containing the active
-Anima name followed by the active feeling emoji. Neutral omits the header emoji; there
-is no separate emotion-status trigger. The name uses a plain button with a subtle hover background and visible keyboard
-focus.
+Anima name followed by a `mini` mood bloom: the current feeling's mascot with
+her petals around it, overhanging the button so the header keeps its height.
+On a chat route whose runtime belongs to the Anima, the runtime's
+`lastEmotionEventId` is the bloom's `beat`, so petals a chat emotion update
+grows burst; persisted state and snapshots never burst, and the bloom
+remounts per Anima. There is no separate emotion-status trigger. The name uses
+a plain button with a subtle hover background and visible keyboard focus.
 The chat-header profile is one continuous banner, portrait and identity surface.
 Details navigates to management; Settings opens existing controls with Back and
 restores the profile scroll position. The identity uses sanitized `IDENTITY.md`
@@ -463,7 +486,7 @@ group color, with a full-feeling tooltip; clicking it still selects Emotions.
 Emotions opens a 360px panel 16px to the right of the stationary centered profile
 only when the measured desktop position leaves another 16px at the viewport edge.
 With a fine hover pointer, the summary opens the compact panel on hover or focus;
-a short close delay lets the pointer cross the gap. Keyboard Tab enters the axes.
+a short close delay lets the pointer cross the gap. Keyboard Tab enters the bloom.
 The panel uses an inset heading without a close icon or hover instructions.
 Without hover support, an explicit toggle controls the disclosure. When the
 viewport has insufficient side space, details expand inline above identity.

@@ -119,6 +119,17 @@
   "meta": {
     "description": "Animama, 나의 AI 아바타 컴패니언."
   },
+  "modelDownloads": {
+    "items": {
+      "speechToText": "음성 텍스트 변환(Parakeet CPU)",
+      "speechToTextGpu": "음성 텍스트 변환(Parakeet GPU)",
+      "speechToTextSenseVoice": "음성 텍스트 변환(SenseVoice CPU)",
+      "speechToTextSenseVoiceGpu": "음성 텍스트 변환(SenseVoice GPU)",
+      "voiceClone": "음성 복제 인코더"
+    },
+    "ready": "{{item}} 준비 완료",
+    "failed": "{{item}} 다운로드 실패"
+  },
   "notFound": {
     "description": "이 주소에는 Animama 페이지가 없습니다.",
     "eyebrow": "찾을 수 없음",

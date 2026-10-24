@@ -6,12 +6,15 @@ import math
 import struct
 from copy import deepcopy
 from io import BytesIO
+from pathlib import Path
 from typing import Any
 
 import pytest
 
+from animama.app.services import content_gltf
 from animama.app.services.content_file_validation import ContentFileInvalidError as ContentFileInvalidError
 from animama.app.services.content_gltf import (
+    MAX_VRM_BINARY_BYTES,
     canonicalize_vrma_stream,
     validate_vrm_stream,
 )
@@ -261,3 +264,180 @@ def test_vrm_validator_rejects_missing_or_out_of_range_humanoid_bones() -> None:
         source = _json_only_glb(invalid)
         validate_vrm_stream(content=BytesIO(source), size_bytes=len(source))
     assert range_error.value.reason == "vrm_invalid_humanoid"
+
+
+def _sparse_vrm(*, with_base_view: bool = False) -> tuple[dict[str, Any], bytearray]:
+    """A VRM 1.0 GLB whose one morph-style accessor stores two of four vectors sparsely."""
+    indices = struct.pack("<2H", 1, 3)
+    values = struct.pack("<6f", 0.1, 0.2, 0.3, 0.4, 0.5, 0.6)
+    binary = bytearray(indices + values)
+    document = _vrm_document("1.0")
+    document["buffers"] = [{"byteLength": len(binary)}]
+    document["bufferViews"] = [
+        {"buffer": 0, "byteOffset": 0, "byteLength": len(indices)},
+        {"buffer": 0, "byteOffset": len(indices), "byteLength": len(values)},
+    ]
+    accessor: dict[str, Any] = {
+        "componentType": 5126,
+        "count": 4,
+        "type": "VEC3",
+        "sparse": {
+            "count": 2,
+            "indices": {"bufferView": 0, "componentType": 5123},
+            "values": {"bufferView": 1},
+        },
+    }
+    if with_base_view:
+        base = struct.pack("<12f", *([0.0] * 12))
+        document["bufferViews"].append({"buffer": 0, "byteOffset": len(binary), "byteLength": len(base)})
+        binary.extend(base)
+        document["buffers"][0]["byteLength"] = len(binary)
+        accessor["bufferView"] = 2
+    document["accessors"] = [accessor]
+    return document, binary
+
+
+def _validate_vrm(document: dict[str, Any], binary: bytes | bytearray) -> dict[str, Any]:
+    source = _glb_source(document, bytes(binary))
+    return validate_vrm_stream(content=BytesIO(source), size_bytes=len(source))[1]
+
+
+@pytest.mark.parametrize("with_base_view", [False, True])
+def test_vrm_validator_accepts_bounded_sparse_accessors(with_base_view: bool) -> None:
+    document, binary = _sparse_vrm(with_base_view=with_base_view)
+
+    metadata = _validate_vrm(document, binary)
+
+    assert metadata["accessor_count"] == 1
+    assert metadata["buffer_view_count"] == (3 if with_base_view else 2)
+
+
+def _rewrite_indices(binary: bytearray, *values: int) -> None:
+    binary[0:4] = struct.pack("<2H", *values)
+
+
+@pytest.mark.parametrize(
+    ("mutate", "reason"),
+    [
+        pytest.param(
+            lambda d, b: d["accessors"][0]["sparse"].update(count=0), "vrm_invalid_structure", id="count-zero"
+        ),
+        pytest.param(
+            lambda d, b: d["accessors"][0]["sparse"].update(count=5), "vrm_invalid_structure", id="count-above-accessor"
+        ),
+        pytest.param(
+            lambda d, b: d["accessors"][0]["sparse"]["indices"].update(componentType=5126),
+            "vrm_invalid_structure",
+            id="float-indices",
+        ),
+        pytest.param(
+            lambda d, b: d["accessors"][0]["sparse"]["indices"].update(componentType=5122),
+            "vrm_invalid_structure",
+            id="signed-indices",
+        ),
+        pytest.param(lambda d, b: _rewrite_indices(b, 3, 1), "vrm_invalid_structure", id="decreasing-indices"),
+        pytest.param(lambda d, b: _rewrite_indices(b, 1, 1), "vrm_invalid_structure", id="duplicate-indices"),
+        pytest.param(lambda d, b: _rewrite_indices(b, 1, 4), "vrm_invalid_structure", id="index-out-of-range"),
+        pytest.param(
+            lambda d, b: d["accessors"][0]["sparse"]["indices"].update(bufferView=9),
+            "vrm_binary_range",
+            id="missing-indices-view",
+        ),
+        pytest.param(
+            lambda d, b: d["accessors"][0]["sparse"]["values"].update(byteOffset=4),
+            "vrm_binary_range",
+            id="values-past-view",
+        ),
+        pytest.param(
+            lambda d, b: d["accessors"][0]["sparse"]["indices"].update(byteOffset=1),
+            "vrm_binary_range",
+            id="misaligned-indices",
+        ),
+        pytest.param(
+            lambda d, b: d["bufferViews"][0].update(byteStride=4),
+            "vrm_invalid_structure",
+            id="strided-indices-view",
+        ),
+        pytest.param(
+            lambda d, b: d["accessors"][0]["sparse"].pop("values"), "vrm_invalid_structure", id="missing-values"
+        ),
+        pytest.param(
+            lambda d, b: d["accessors"][0]["sparse"].pop("indices"), "vrm_invalid_structure", id="missing-indices"
+        ),
+    ],
+)
+def test_vrm_validator_rejects_malformed_sparse_accessors(mutate: Any, reason: str) -> None:
+    document, binary = _sparse_vrm()
+    mutate(document, binary)
+
+    with pytest.raises(ContentFileInvalidError) as error:
+        _validate_vrm(document, binary)
+
+    assert error.value.reason == reason
+
+
+def test_vrm_validator_accepts_zero_filled_accessors_within_the_binary_limit() -> None:
+    document, binary = _sparse_vrm()
+    del document["accessors"][0]["sparse"]
+    assert _validate_vrm(document, binary)["accessor_count"] == 1
+
+    document["accessors"][0]["count"] = MAX_VRM_BINARY_BYTES // 12 + 1
+    with pytest.raises(ContentFileInvalidError) as error:
+        _validate_vrm(document, binary)
+    assert error.value.reason == "vrm_structure_limit"
+
+
+def test_vrm_validator_caps_the_combined_size_of_sparse_accessors(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Sparse accessors sharing one base, index and value view still count separately."""
+    monkeypatch.setattr(content_gltf, "MAX_VRM_BINARY_BYTES", 100)
+    document, binary = _sparse_vrm(with_base_view=True)
+    assert _validate_vrm(document, binary)["accessor_count"] == 1
+
+    document["accessors"] = [deepcopy(document["accessors"][0]) for _ in range(3)]
+    with pytest.raises(ContentFileInvalidError) as error:
+        _validate_vrm(document, binary)
+    assert error.value.reason == "vrm_structure_limit"
+
+
+def test_vrm_validator_checks_webp_texture_sources() -> None:
+    document = _vrm_document("1.0")
+    document["images"] = []
+    document["textures"] = [{"extensions": {"EXT_texture_webp": {"source": 0}}}]
+
+    with pytest.raises(ContentFileInvalidError) as error:
+        source = _json_only_glb(document)
+        validate_vrm_stream(content=BytesIO(source), size_bytes=len(source))
+
+    assert error.value.reason == "vrm_invalid_structure"
+
+
+def test_vrma_validator_still_rejects_sparse_accessors() -> None:
+    document, binary = _fixture_document(buffer_uri=None)
+    document["accessors"][1]["sparse"] = {
+        "count": 1,
+        "indices": {"bufferView": 0, "componentType": 5125},
+        "values": {"bufferView": 1},
+    }
+
+    with pytest.raises(ContentFileInvalidError) as error:
+        _canonical(_glb_source(document, binary))
+
+    assert error.value.reason == "vrma_invalid_structure"
+
+
+INCLUDED_AVATARS = sorted((Path(__file__).resolve().parents[1] / "content/included/avatars").glob("*.vrm"))
+
+
+@pytest.mark.parametrize("path", INCLUDED_AVATARS, ids=lambda path: path.name)
+def test_included_avatars_pass_the_vrm_validator(path: Path) -> None:
+    """The optimized Included Avatars use sparse and all-zero morph targets and WebP textures."""
+    with path.open("rb") as content:
+        metadata = validate_vrm_stream(content=content, size_bytes=path.stat().st_size)[1]
+
+    assert metadata["vrm_spec"] == "1.0"
+    # Shipped through `pnpm -s vrm:optimize`; a larger file was not optimized.
+    assert path.stat().st_size <= 5_000_000
+
+
+def test_included_avatars_are_the_two_starters() -> None:
+    assert [path.name for path in INCLUDED_AVATARS] == ["Andrew.vrm", "AvatarSample_A_1_New.vrm"]

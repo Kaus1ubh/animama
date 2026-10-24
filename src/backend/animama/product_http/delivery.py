@@ -8,7 +8,7 @@ import hashlib
 from collections.abc import Iterator
 from urllib.parse import quote
 
-from fastapi import Response
+from fastapi import HTTPException, Request, Response
 from fastapi.responses import StreamingResponse
 from starlette.types import Receive, Scope, Send
 
@@ -17,6 +17,36 @@ from animama.domain.content_catalog import VerifiedContentFile
 from animama.logging import get_logger
 
 _log = get_logger("product_http.delivery")
+
+
+def negotiate_json_encoding(request: Request, *, refusal_code: str) -> str:
+    """Choose ``gzip`` or ``identity`` for one JSON response; explicit exclusions override wildcards.
+
+    Raises a 406 carrying ``refusal_code`` when the client accepts neither.
+    """
+
+    qualities: dict[str, float] = {}
+    for member in ",".join(request.headers.getlist("accept-encoding")).lower().split(","):
+        coding, *parameters = member.strip().split(";")
+        if not coding:
+            continue
+        quality = 1.0
+        for parameter in parameters:
+            name, _, value = parameter.strip().partition("=")
+            if name == "q":
+                try:
+                    quality = float(value)
+                except ValueError:
+                    quality = 0.0
+                if not 0 <= quality <= 1:
+                    quality = 0.0
+        qualities[coding.strip()] = min(qualities.get(coding.strip(), 1.0), quality)
+    gzip_quality = qualities.get("gzip", qualities.get("*", 0.0))
+    if gzip_quality > 0 and gzip_quality >= qualities.get("identity", 0.0):
+        return "gzip"
+    if qualities.get("identity", 0.0 if qualities.get("*") == 0 else 1.0) > 0:
+        return "identity"
+    raise HTTPException(status_code=406, detail={"code": refusal_code})
 
 
 def stream_verified_file(file: VerifiedContentFile) -> Iterator[bytes]:

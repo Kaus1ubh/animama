@@ -41,6 +41,11 @@ import { PromptSuggestion } from "./PromptSuggestion";
 import { MemoryCue } from "./MemoryCue";
 import { useFirstChatSuggestions } from "./useFirstChatSuggestions";
 import { useDictation } from "@/hooks/use-dictation";
+import {
+  ChatLoadingStatusLines,
+  useChatLoadingStatus,
+  type ChatLoadingStatus,
+} from "./ChatLoadingStatus";
 import { useQueryClient } from "@tanstack/react-query";
 import { useDesktopVoiceShortcuts } from "@/hooks/use-desktop-voice-shortcuts";
 import {
@@ -86,6 +91,15 @@ import type {
   PyUserFileResponse,
 } from "@/lib/content/catalogTypes";
 
+/**
+ * The 800px chat column is centred over the full-width scene, beneath the
+ * floating sidebar rail from the md breakpoint: its controls end at
+ * COLLAPSED_SIDEBAR_CONTROL_INSET (56px), plus a 16px gap. Pad the column's
+ * left edge only by the part of that 72px it would otherwise sit under.
+ */
+const CLEAR_ICON_RAIL =
+  "md:pl-[max(1rem,calc(72px_-_max(0px,(100vw_-_800px)_/_2)))]";
+
 type ChatInterfaceProps = {
   className?: string;
   layout?: MessageLayout;
@@ -108,7 +122,8 @@ type ChatInterfaceViewProps = {
   animaName?: string | null;
   autoFocusInput?: boolean;
   canChat: boolean;
-  preparingPlayback?: boolean;
+  /** What the Anima route is still loading or downloading; null outside one. */
+  loadingStatus?: ChatLoadingStatus | null;
   contentWarning?: {
     message: string;
     details?: string;
@@ -172,7 +187,7 @@ export function ChatInterfaceView({
   animaName = null,
   autoFocusInput = false,
   canChat,
-  preparingPlayback = false,
+  loadingStatus = null,
   contentWarning = null,
   chatMarkdownEnabled = true,
   className,
@@ -302,7 +317,7 @@ export function ChatInterfaceView({
               className={cn(
                 isChatOnlyLayout &&
                   !quickChatSurface &&
-                  "mx-auto w-full max-w-[800px] px-4 py-4",
+                  cn("mx-auto w-full max-w-[800px] px-4 py-4", CLEAR_ICON_RAIL),
                 isChatOnlyLayout &&
                   quickChatSurface &&
                   "flex min-h-full w-full flex-col px-4 py-4",
@@ -336,7 +351,7 @@ export function ChatInterfaceView({
             ref={inputRegionRef}
             className={cn(
               "mx-auto w-full max-w-[800px] shrink-0 px-4 pt-3 pb-[calc(1.5rem+env(safe-area-inset-bottom))]",
-              quickChatSurface && "row-start-2 pt-3 pb-3",
+              quickChatSurface ? "row-start-2 pt-3 pb-3" : CLEAR_ICON_RAIL,
             )}
             data-quick-chat-input-region={quickChatSurface ? "" : undefined}
             data-quick-chat-interactive={quickChatSurface ? "" : undefined}
@@ -356,15 +371,8 @@ export function ChatInterfaceView({
                 />
                 {contentWarning.message}
               </p>
-            ) : preparingPlayback ? (
-              <p
-                className="text-muted-foreground mb-2 px-1 text-xs"
-                role="status"
-              >
-                {canChat
-                  ? t("playback.preparingCanChat")
-                  : t("playback.preparing")}
-              </p>
+            ) : loadingStatus ? (
+              <ChatLoadingStatusLines status={loadingStatus} />
             ) : null}
             {showPromptSuggestions ? (
               <div className="mb-2 flex flex-wrap gap-2">
@@ -741,6 +749,7 @@ export const ChatInterface = ({
       setInput("");
     },
   });
+  const loadingStatus = useChatLoadingStatus({ isDictationPreparing });
 
   const markManualTypingActivity = useCallback(
     (nextInput: string) => {
@@ -889,15 +898,21 @@ export const ChatInterface = ({
     [activeMode, clearDictationBuffers, markManualTypingActivity, setInput],
   );
 
+  // Rock, paper or scissors, each equally likely, chosen once per mount.
+  const [rockPaperScissorsChoice] = useState(() =>
+    Math.floor(Math.random() * 3),
+  );
   // The label and the message it sends are both in the UI Locale, the
   // language the Anima speaks (ADR 0024).
   const promptSuggestions = useMemo(
     () => [
       {
-        label: t("suggestions.greeting"),
-        text: animaName
-          ? t("suggestions.greetingMessageNamed", { name: animaName })
-          : t("suggestions.greetingMessage"),
+        label: t("suggestions.rockPaperScissors"),
+        text: [
+          t("suggestions.rockPaperScissorsRock"),
+          t("suggestions.rockPaperScissorsPaper"),
+          t("suggestions.rockPaperScissorsScissors"),
+        ][rockPaperScissorsChoice],
       },
       {
         label: t("suggestions.joke"),
@@ -906,7 +921,7 @@ export const ChatInterface = ({
           : t("suggestions.jokeMessage"),
       },
     ],
-    [animaName, t],
+    [animaName, rockPaperScissorsChoice, t],
   );
 
   const isFirstChat = useFirstChatSuggestions(displayMessages);
@@ -1057,10 +1072,7 @@ export const ChatInterface = ({
         activeMode={activeMode}
         animaName={animaName}
         canChat={canChat}
-        preparingPlayback={
-          mountedRuntimeContent.avatarVisualStatus === "visible" &&
-          mountedRuntimeContent.playbackStatus === "preparing"
-        }
+        loadingStatus={loadingStatus}
         contentWarning={contentWarning}
         chatMarkdownEnabled={chatMarkdownEnabled}
         className={className}
