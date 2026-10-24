@@ -85,6 +85,7 @@ import {
 } from "./poses/poseRetargeting";
 import { canonicalizeCustomPresetExpressions } from "./vrmExpressionPresets";
 import { withEnhancedMToonPatch } from "./enhanced-rendering/mtoonPatch";
+import { registerArkitFace } from "./arkitFaceExpressions";
 import { applyEyelidClosureCorrection } from "./eyelidClosure";
 import {
   countAnimaPoseClipEventsByKind,
@@ -474,6 +475,8 @@ export class Avatar {
     this.vrm = vrm;
     this._isVrm0 = isVrm0(vrm);
     this._vrmSha256 = spec.vrmSha256?.trim().toLowerCase() || null;
+    // ARKit mixes must exist before the eyelid correction measures them.
+    registerArkitFace(vrm);
     const eyelidClosure = applyEyelidClosureCorrection(vrm, this._vrmSha256);
     if (eyelidClosure) {
       logger.info("Load", "Eyelid closure correction", eyelidClosure);

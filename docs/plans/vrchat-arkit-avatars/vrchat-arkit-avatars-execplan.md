@@ -97,8 +97,9 @@ review stay in `<private-avatars>` or the session scratchpad.
 - [x] Phase 1: ARKit face capability and Avatar inspection. Done; reviewed (pass after one repair round).
 - [ ] Phase 2: Convert Lapwing. Blocked on owner: Unity install and files.
 - [ ] Phase 3: Authored lilToon rendering. Needs Phase 2 output; owner look gate.
-- [ ] Phase 4: ARKit emotions and face-track translation. Code can start after
-  Phase 1; owner visual gate needs Phase 2.
+- [x] Phase 4: ARKit emotions and face-track translation. Done; reviewed (pass
+  after one repair round). Owner visual gate on Lapwing still open (needs
+  Phase 2).
 - [ ] Phase 5: ARKit lip-sync shaping. Owner review gate.
 - [ ] Phase 6: Bake VRM presets. Code can start after Phase 4's table exists.
 
@@ -111,6 +112,12 @@ owner gates then wait for the converted Avatar.
   UniVRM 0.131.2 writes names at mesh level is unconfirmed until Phase 2.
 - 2026-10-24: Mochiya's lilToon exporter requires lilToon 2.3.4+; Lapwing ships
   1.4.0, so the upgrade may change the authored look before export.
+- 2026-10-24 (Phase 4): content reaches expressions through several paths
+  besides `ExpressionController`: the creator clip preview filters by
+  `getAvailableExpressions()`, portraits pass `happy` to
+  `runWithTemporaryValues`, and `animation:render` drives the manager directly.
+  Rewriting names inside the controller would miss them, so the ARKit mixes are
+  registered as real expressions instead.
 
 ## Decision Log
 
@@ -123,6 +130,8 @@ owner gates then wait for the converted Avatar.
 - 2026-10-24, owner (confirming an agent proposal): keep Gesture and Reaction content
   keyed to `Fcl_*` parts and VRM presets, and translate missing parts to ARKit
   per Avatar. Migrating content to an ARKit vocabulary is later work.
+- 2026-10-24, agent (within the approved outcome): ARKit mixes are registered
+  as expressions rather than translated at each call site; see Phase 4.
 - 2026-10-24, owner (confirming an agent proposal): on an Avatar with sufficient
   ARKit coverage, runtime ARKit emotion compositions take precedence over its
   VRM presets; baked presets serve other VRM apps. "Sufficient" means every shape
@@ -190,7 +199,8 @@ Check record (working tree `e47039b5`, uncommitted on `8b263532`):
 | `node --test scripts/vrm-inspect.test.mjs` | `src/frontend/web` | 3 passed |
 | `pnpm -s vrm:inspect ../../../content/included/avatars/Andrew.vrm` | `src/frontend/web` | VRM 1.0, 57 mesh-level morph names, 0 of 52 ARKit shapes |
 
-Commits: none yet.
+Commits: `0b845881` `feat(avatars)[p1]: detect ARKit face shapes and add
+vrm:inspect` (tree `d7f2c7d4`).
 
 #### Code Review #1 Findings
 
@@ -406,9 +416,104 @@ Reactions).
 Owner gate: visual review of the six emotions at three intensities and the
 sampled Reactions/Gestures on Lapwing; table values are tuned from that review.
 
+Implemented approach (starting source `0b845881`), revising change 2 above
+after the discovery recorded in Surprises & Discoveries:
+
+- `arkitFaceCompositions.json` and `arkitFaceCompositions.ts`: the table,
+  `ARKIT_MOOD_MIXES`, `ARKIT_PART_MIXES` (the 20 mood parts plus
+  `Fcl_MTH_Large`, `Fcl_MTH_A`, `Fcl_EYE_Spread`, `Fcl_EYE_Close[_L|_R]`) and
+  `playsFacesWithArkit` (every table shape resolves).
+- `arkitFaceExpressions.ts` `registerArkitFace(vrm)`: registers canonical ARKit
+  shapes and, on qualifying Avatars, each mood preset (replacing authored ones)
+  and each table part the file lacks, as expressions whose binds are the ARKit
+  shapes' morph binds scaled by the mix. Idempotent. Called by `Avatar.load`
+  before the eyelid correction, by `ExpressionController` and by
+  `animation:render`.
+- `eyelidClosure.ts`: each ARKit mix that closes the lids reduces blink by its
+  measured share of blink's motion; profile corrections skip mixes.
+- `ExpressionController.getAvailableExpressions()` lists ARKit shapes under the
+  canonical name only (P1-F7).
+- The emotion map, overlay cap and clip precedence are unchanged: on an ARKit
+  Avatar they find real `happy` and `Fcl_*` expressions. `_arkitToVrmMap` is left
+  as it was (its `_applyExpression` fallback never runs; outside this scope).
+- Docs: `avatar-emotion.md` "ARKit Avatars"; `avatar-animation.md` points to it.
+
+Check record (working tree on `0b845881`, tree `4b6e6be3`):
+
+| Command | Directory | Result |
+| --- | --- | --- |
+| `npx vitest run src/lib/avatar src/ui/pose-creator` | `src/frontend/web` | 1438 passed, 1 skipped |
+| `pnpm -s web:lint` | `src/frontend` | pass |
+| `pnpm -s check` | `src/frontend` | pass |
+
+Owner gate still open: visual review of the six emotions at three intensities
+and sampled Reactions/Gestures on Lapwing (needs Phase 2 and `--avatar-file`
+from Phase 3).
+
 #### Code Review #1 Findings
 
-Not run.
+Reviewed tree `4b6e6be3` against `0b845881`, standard tier, by an independent
+sdlc-reviewer agent; it reused the check record and ran an esbuild probe of the
+real modules on synthetic faces. It judged the change of approach sound.
+
+- P4-F1 (required): a VRoid Avatar that also has every ARKit shape (VRoid
+  "Perfect Sync") had its raw `Fcl_*` morph parts and presets replaced by mixes,
+  because raw parts become expressions only after `registerArkitFace` runs.
+  Breaks R6 and the docs; no hybrid test.
+- P4-F2 (optional): one-sided mixes (`Fcl_EYE_Close_L/R`) got a 0.5 global blink
+  reduction: the winking eye closed to 1.5 under blink and the open eye only
+  half-blinked.
+- P4-F3 (optional): the default eyelid profile still evaluated the ARKit mixes,
+  so the load log reported a profile that was not applied; JSDoc out of date.
+- P4-F4 (optional): measuring every mix over all vertices is costly on a large
+  converted body mesh; per-shape shares weighted by the mix give the same result.
+- P4-F5 (observation): replaced presets keep their scene objects, so a VRMA
+  expression track would bind a stale expression; no Animama content uses them.
+- P4-F6 (observation): raw ARKit spellings stay registered though hidden from
+  `getAvailableExpressions()`; harmless while nothing sets them.
+- Not in the record: Included Avatar render diffs against `main` (low risk: both
+  resolve 0 of 52 shapes, so nothing registers); the tree hash was missing.
+
+#### Code Review #1 Revisions
+
+- P4-F1 accepted (option b, which matches R5's "no `Fcl_*` parts"): an Avatar
+  with VRoid mood parts of its own, as morph targets or expressions, does not
+  play faces with ARKit and keeps its authored face. Test: a hybrid Avatar keeps
+  its `sad` and plays its raw `Fcl_MTH_Fun`. Docs updated.
+- P4-F2 accepted: one-sided mixes are not corrected, so the open eye blinks
+  fully during a wink (as on VRoid today, the winking eye is uncorrected).
+  Test added; documented.
+- P4-F3 accepted: the default profile ignores mixes; JSDoc names
+  `registerArkitFace`.
+- P4-F4 accepted: each ARKit shape's share is measured once and mixes sum the
+  weighted shares.
+- P4-F5, P4-F6: no change; recorded here.
+- Render diffs: not run, for the reason above; the final pre-push suite and the
+  owner's Lapwing review remain.
+
+Revision checks on tree `01a06906` (working tree on `0b845881`, excluding the
+Phase 6 files and `package.json`): `npx vitest run src/lib/avatar
+src/ui/pose-creator` 1440 passed, 1 skipped; `pnpm -s web:lint` pass;
+`pnpm -s check` pass. Repair budget: one round used.
+
+#### Code Review #2 Findings
+
+Targeted recheck by the same reviewer, with its probe: P4-F1 to P4-F4 verified
+(hybrid Avatars keep their face; open eye blinks during a wink; logged profile
+accurate; per-shape shares give the same override amounts). No blocking
+findings.
+
+- P4-R2-F1 (optional): an ARKit Avatar with a raw non-mood part
+  (`Fcl_EYE_Close`, `Fcl_MTH_A` …) but no mood parts still had that part
+  replaced by a mix.
+
+#### Code Review #2 Revisions
+
+- P4-R2-F1 accepted: a table part the file has as a raw morph is not registered
+  as a mix, so it becomes its own expression. Test added. Trivial fix verified
+  by the implementer: `npx vitest run src/lib/avatar src/ui/pose-creator` 1441
+  passed, 1 skipped; `pnpm -s web:lint` and `pnpm -s check` pass, on the Phase
+  4 commit's tree recorded below. One repair round remains unused.
 
 ### Phase 5: ARKit lip-sync shaping
 

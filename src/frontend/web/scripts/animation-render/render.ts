@@ -6,6 +6,7 @@ import { parseAnimaPoseClip } from "@/lib/avatar/poses/animaPoseClip";
 import { createAnimaPoseClipProgram } from "@/lib/avatar/poses/animaPoseClip/program";
 import { getResolvedAvatarPose } from "@/lib/avatar/poses/catalog";
 import { canonicalizeCustomPresetExpressions } from "@/lib/avatar/vrmExpressionPresets";
+import { registerArkitFace } from "@/lib/avatar/arkitFaceExpressions";
 import { applyEyelidClosureCorrection } from "@/lib/avatar/eyelidClosure";
 import { applyCanonicalPose } from "@/lib/avatar/motion-authoring/kinematics";
 
@@ -71,6 +72,7 @@ async function loadVrm(url: string): Promise<VRM> {
   VRMUtils.removeUnnecessaryVertices(gltf.scene);
   VRMUtils.rotateVRM0(vrm);
   canonicalizeCustomPresetExpressions(vrm);
+  registerArkitFace(vrm);
   applyEyelidClosureCorrection(vrm, await avatarFileSha256(url));
   return vrm;
 }

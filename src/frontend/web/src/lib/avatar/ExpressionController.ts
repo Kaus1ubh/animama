@@ -5,10 +5,8 @@ import {
 } from "@pixiv/three-vrm";
 import { ARKIT_BLENDSHAPES, EYE_MOVEMENT_BLENDSHAPES } from "./arkit";
 import type { ArkitFaceCapability } from "./arkitFaceCapability";
-import {
-  registerArkitExpressions,
-  registerMorphTargetExpressions,
-} from "./morphTargetExpressions";
+import { registerArkitFace } from "./arkitFaceExpressions";
+import { registerMorphTargetExpressions } from "./morphTargetExpressions";
 import {
   fallbackPresetForPart,
   resolvePartExpressionFallbacks,
@@ -1006,6 +1004,12 @@ export class ExpressionController {
    */
   getAvailableExpressions(): string[] {
     const names = new Set<string>(this._listExpressionNames());
+    // An ARKit shape is listed once, under its canonical name, not also under
+    // the Avatar's own spelling of it.
+    for (const [canonical, morphs] of this._arkitFaceCapability?.resolved ??
+      []) {
+      for (const morph of morphs) if (morph !== canonical) names.delete(morph);
+    }
 
     // Ensure common presets appear first
     const presetOrder = [
@@ -1403,10 +1407,12 @@ export class ExpressionController {
   private _registerArkitExpressions(): ArkitFaceCapability {
     // ARKit shapes first: a mesh whose morph is already spelled canonically
     // must join the canonical expression rather than own a same-named one.
-    const capability = registerArkitExpressions(this._vrm);
+    // `Avatar.load` has usually registered them already; this is idempotent.
+    const { capability, playsFacesWithArkit } = registerArkitFace(this._vrm);
     registerMorphTargetExpressions(this._vrm);
     if (capability.resolved.size > 0 || capability.ambiguous.size > 0) {
       logger.info("Init", "Detected ARKit face shapes on VRM avatar", {
+        playsFacesWithArkit,
         resolved: capability.resolved.size,
         missing: capability.missing,
         ambiguous: Object.fromEntries(capability.ambiguous),

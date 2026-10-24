@@ -11,8 +11,10 @@ import * as THREE from "three";
  * Morph target `i` moves only vertex `i`, so a test can read each shape's
  * applied influence from `mesh.morphTargetInfluences`. `presets` become VRM
  * expressions bound to the morph target of the same name, as a VRM file's
- * authored expressions would be; other morph targets have no expression until
- * the runtime registers them.
+ * authored expressions would be, and `presetBinds` expressions bound to the
+ * listed morph targets (such as a `blink` on `eyeBlinkLeft` and
+ * `eyeBlinkRight`); other morph targets have no expression until the runtime
+ * registers them.
  *
  * The VRM has only a scene and an expression manager: enough for
  * `ExpressionController` and expression registration, not for motion.
@@ -20,8 +22,9 @@ import * as THREE from "three";
 export function syntheticFaceVrm(options: {
   morphs: readonly string[];
   presets?: readonly string[];
+  presetBinds?: Readonly<Record<string, readonly string[]>>;
 }): { vrm: VRM; mesh: THREE.Mesh } {
-  const { morphs, presets = [] } = options;
+  const { morphs, presets = [], presetBinds = {} } = options;
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute(
     "position",
@@ -43,19 +46,25 @@ export function syntheticFaceVrm(options: {
   const scene = new THREE.Group();
   scene.add(mesh);
   const manager = new VRMExpressionManager();
-  for (const name of presets) {
-    const index = mesh.morphTargetDictionary[name];
-    if (index === undefined) {
-      throw new Error(`Preset ${name} has no morph target of that name`);
-    }
+  const binds: [string, readonly string[]][] = [
+    ...presets.map((name): [string, readonly string[]] => [name, [name]]),
+    ...Object.entries(presetBinds),
+  ];
+  for (const [name, morphNames] of binds) {
     const expression = new VRMExpression(name);
-    expression.addBind(
-      new VRMExpressionMorphTargetBind({
-        primitives: [mesh],
-        index,
-        weight: 1,
-      }),
-    );
+    for (const morphName of morphNames) {
+      const index = mesh.morphTargetDictionary[morphName];
+      if (index === undefined) {
+        throw new Error(`Preset ${name} names no morph target ${morphName}`);
+      }
+      expression.addBind(
+        new VRMExpressionMorphTargetBind({
+          primitives: [mesh],
+          index,
+          weight: 1,
+        }),
+      );
+    }
     manager.registerExpression(expression);
   }
   return { vrm: { scene, expressionManager: manager } as unknown as VRM, mesh };

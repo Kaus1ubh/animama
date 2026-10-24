@@ -924,9 +924,13 @@ order of preference:
 
 An unsided ARKit shape such as `browInnerUp` or `cheekPuff` that an Avatar
 splits into halves binds both. Several equally good candidates leave the shape
-unresolved on that mesh, and the controller logs them as ambiguous. A name the file already uses for an expression keeps that expression.
+unresolved on that mesh, and the controller logs them as ambiguous. A name the
+file already uses for an expression keeps that expression.
 `getArkitFaceCapability()` returns the resolved shapes, the missing ones and the
-ambiguous candidates.
+ambiguous candidates. `getAvailableExpressions()` lists each resolved shape
+once, under its canonical name. When an Avatar has every shape the emotion table
+uses, its mood presets and VRoid parts also become ARKit mixes; see
+[ARKit Avatars](avatar-emotion.md#arkit-avatars).
 
 `pnpm -s vrm:inspect <file.vrm>` (from `src/frontend/web`) reports the same
 resolution for a file before import, including shapes found under another
