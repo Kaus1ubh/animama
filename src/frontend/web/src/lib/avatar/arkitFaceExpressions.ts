@@ -68,8 +68,7 @@ function hasVroidMoodParts(vrm: VRM, morphNames: ReadonlySet<string>): boolean {
     [...morphNames].some((name) => isVroidMoodPart(name)) ||
     (vrm.expressionManager?.expressions.some(
       (expression) =>
-        !arkitMixOf(expression) &&
-        isVroidMoodPart(expression.expressionName),
+        !arkitMixOf(expression) && isVroidMoodPart(expression.expressionName),
     ) ??
       false)
   );

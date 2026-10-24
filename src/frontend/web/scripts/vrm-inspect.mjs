@@ -49,7 +49,8 @@ function morphNames(mesh) {
 function accessorBytes(accessor) {
   const elementSize =
     COMPONENT_SIZE[accessor.componentType] * TYPE_COMPONENTS[accessor.type];
-  const dense = accessor.bufferView === undefined ? 0 : accessor.count * elementSize;
+  const dense =
+    accessor.bufferView === undefined ? 0 : accessor.count * elementSize;
   const sparse = accessor.sparse
     ? accessor.sparse.count *
       (elementSize + COMPONENT_SIZE[accessor.sparse.indices.componentType])

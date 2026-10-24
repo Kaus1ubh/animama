@@ -144,7 +144,10 @@ test("--replace overwrites authored presets but keeps an authored neutral", () =
   const report = bakeExpressions(json, { ...tools, replace: true });
   assert.deepEqual(report.kept, ["neutral"]);
   assert.ok(report.written.includes("angry"));
-  assert.deepEqual(json.extensions.VRMC_vrm.expressions.preset.neutral, neutral);
+  assert.deepEqual(
+    json.extensions.VRMC_vrm.expressions.preset.neutral,
+    neutral,
+  );
 });
 
 test("reports ambiguous shapes and meshes named only per primitive", () => {

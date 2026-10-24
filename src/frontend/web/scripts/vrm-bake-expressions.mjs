@@ -67,7 +67,6 @@ function nodeMorphNames(json) {
   return { nodes, primitiveOnlyMeshes: primitiveOnlyMeshes.size };
 }
 
-
 /**
  * Add the presets to a parsed VRM 1.0 document in place.
  *

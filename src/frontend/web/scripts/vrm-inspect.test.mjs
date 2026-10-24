@@ -13,7 +13,10 @@ import { formatReport, inspectVrm } from "./vrm-inspect.mjs";
 const fixture = () =>
   faceFixtureVrm({
     meshes: [
-      { name: "Face", names: ["MouthSmile_L", "Jaw_Open", "vrc.v_aa", "eyeBlinkLeft"] },
+      {
+        name: "Face",
+        names: ["MouthSmile_L", "Jaw_Open", "vrc.v_aa", "eyeBlinkLeft"],
+      },
       { name: "Body", names: ["browInnerUp"], perPrimitive: true },
     ],
     json: {
@@ -29,7 +32,9 @@ const fixture = () =>
       expressions: {
         preset: { aa: { morphTargetBinds: [] } },
         custom: {
-          eyeBlinkLeft: { morphTargetBinds: [{ node: 15, index: 3, weight: 1 }] },
+          eyeBlinkLeft: {
+            morphTargetBinds: [{ node: 15, index: 3, weight: 1 }],
+          },
         },
       },
     },
