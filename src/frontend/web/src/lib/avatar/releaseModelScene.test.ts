@@ -8,6 +8,8 @@ import {
 } from "three";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { LilToonMaterial } from "@mochiya/three-liltoon";
+
 import { releaseModelScene } from "./releaseModelScene";
 
 /** Stand-in for the browser ImageBitmap that GLTFLoader decodes into. */
@@ -91,5 +93,20 @@ describe("releaseModelScene", () => {
     releaseModelScene(model);
 
     expect(image.close).not.toHaveBeenCalled();
+  });
+
+  it("disposes a lilToon material's own textures and closes their bitmaps", () => {
+    const model = new Group();
+    const material = new LilToonMaterial({ properties: { _UseShadow: 1 } });
+    const { texture, bitmap } = bitmapTexture();
+    material.setTexture("_MainTex", texture);
+    model.add(new Mesh(new BoxGeometry(), material));
+    const disposed = vi.fn();
+    texture.addEventListener("dispose", disposed);
+
+    releaseModelScene(model);
+
+    expect(disposed).toHaveBeenCalledTimes(1);
+    expect(bitmap.close).toHaveBeenCalledTimes(1);
   });
 });

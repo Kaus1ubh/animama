@@ -306,6 +306,7 @@ let stage: {
   renderer: THREE.WebGLRenderer;
   scene: THREE.Scene;
   camera: THREE.PerspectiveCamera;
+  disposeRenderer: () => void;
   label: LabelPanel;
   width: number;
   height: number;
@@ -331,16 +332,20 @@ let item: {
 function ensureStage({ width, height }: ReelItemRequest["size"]) {
   if (stage && stage.width === width && stage.height === height) return stage;
   if (stage) {
-    stage.renderer.dispose();
+    stage.disposeRenderer();
     stage.review.dispose();
   }
   const review = new ReviewStage(width, height);
-  const { renderer, scene, camera } = createStage(width, height);
+  const { renderer, scene, camera, disposeRenderer } = createStage(
+    width,
+    height,
+  );
   stage = {
     review,
     renderer,
     scene,
     camera,
+    disposeRenderer,
     label: new LabelPanel(review.element, height),
     width,
     height,

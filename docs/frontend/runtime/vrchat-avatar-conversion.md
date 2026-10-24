@@ -51,6 +51,7 @@ change.
    ```
 
    Open it once in Unity and let Unity upgrade it.
+
 2. Import the Avatar's own lilToon package, then the Avatar package, as the
    author's setup guide says. Batch mode works:
    `Unity -batchmode -quit -projectPath <project> -importPackage <file>.unitypackage`.
@@ -144,6 +145,9 @@ Check that:
   renders below show it quickly);
 - the ARKit count is complete, with any renamed matches as expected.
 
+`pnpm -s effects:bench --avatar-file <private-dir>/<Avatar>.vrm` measures its
+frame cost on the GPU.
+
 Then upload it as a Local Avatar on a local stack, for example by choosing it
 in Create Anima (Upload VRM), and check motion, springs, blink, visemes and
 look-at in the chat canvas. Correct its face parts in the Avatar Effect
@@ -151,9 +155,12 @@ creator's Face parts panel if needed.
 
 Known limits of a Mochiya 0.1.4 export:
 
-- Materials render with Animama's glTF fallback. The exporter leaves glTF's
-  default `metallicFactor` of 1 on every fallback material, so the Avatar looks
-  much darker than in Unity. The authored lilToon look needs lilToon rendering.
+- Materials render with the authored lilToon settings through three-liltoon
+  ([Authored lilToon materials](avatar-animation.md#authored-liltoon-materials)).
+  That costs far more GPU time per frame than MToon. The exporter's glTF
+  fallback materials keep glTF's default `metallicFactor` of 1 and look much
+  darker than in Unity; they show where lilToon does not load, including
+  `animation:render` and the `vrm:optimize` compare page.
 - PhysBone gravity converts to very small VRM gravity values, and the springs
   rely on the shape they were modelled in. Animama therefore adds no wind or
   updraft to Avatars converted by Mochiya (see

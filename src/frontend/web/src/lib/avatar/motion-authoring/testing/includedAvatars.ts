@@ -71,7 +71,8 @@ function testAvatarPath(id: TestAvatarId): string {
     : avatarDirectory + INCLUDED_AVATAR_FILES[id];
 }
 
-function readTestAvatarBytes(id: TestAvatarId): Promise<ArrayBuffer> {
+/** The raw VRM file of an Included Avatar or the VRM 0 fixture (cached). */
+export function readTestAvatarBytes(id: TestAvatarId): Promise<ArrayBuffer> {
   let bytes = cache.get(id);
   if (!bytes) {
     bytes = readFile(testAvatarPath(id)).then(

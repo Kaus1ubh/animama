@@ -167,7 +167,7 @@ function builtInAttachments(): EffectSource[] {
 }
 
 async function runBench(request: BenchRequest): Promise<BenchResult> {
-  const { renderer, scene, camera } = createStage(
+  const { renderer, scene, camera, disposeRenderer } = createStage(
     request.width,
     request.height,
     {
@@ -315,7 +315,7 @@ async function runBench(request: BenchRequest): Promise<BenchResult> {
   } finally {
     if (avatar.scene) scene.remove(avatar.scene);
     avatar.dispose();
-    renderer.dispose();
+    disposeRenderer();
     renderer.domElement.remove();
   }
 }
@@ -367,7 +367,7 @@ async function runReactionBench(
   request: ReactionBenchRequest,
 ): Promise<ReactionBenchResult> {
   const stage = new ReviewStage(request.width, request.height);
-  const { renderer, scene, camera } = createStage(
+  const { renderer, scene, camera, disposeRenderer } = createStage(
     request.width,
     request.height,
     {
@@ -548,7 +548,7 @@ async function runReactionBench(
     avatar.setPoseClipExternalEventSink(null);
     if (avatar.scene) scene.remove(avatar.scene);
     avatar.dispose();
-    renderer.dispose();
+    disposeRenderer();
     stage.dispose();
   }
 }

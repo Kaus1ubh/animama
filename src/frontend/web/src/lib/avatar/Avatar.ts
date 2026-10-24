@@ -86,6 +86,7 @@ import {
 import { canonicalizeCustomPresetExpressions } from "./vrmExpressionPresets";
 import { withEnhancedMToonPatch } from "./enhanced-rendering/mtoonPatch";
 import { registerArkitFace } from "./arkitFaceExpressions";
+import { withOnDemandLilToon } from "./liltoon/lilToon";
 import { applyEyelidClosureCorrection } from "./eyelidClosure";
 import {
   countAnimaPoseClipEventsByKind,
@@ -3099,8 +3100,9 @@ export class Avatar {
 
   private static _createGLTFLoader(manager?: THREE.LoadingManager): GLTFLoader {
     const loader = new GLTFLoader(manager);
+    // lilToon is imported only for files that declare authored lilToon materials.
     loader.register((parser) =>
-      withEnhancedMToonPatch(new VRMLoaderPlugin(parser)),
+      withEnhancedMToonPatch(withOnDemandLilToon(new VRMLoaderPlugin(parser))),
     );
     loader.register((parser) => new VRMAnimationLoaderPlugin(parser));
     return loader;

@@ -4,8 +4,8 @@ Source agreement: raymond-van/animama#687 (published 2026-10-24 from the agreed
 draft; snapshot in [vrchat-arkit-avatars-spec.md](vrchat-arkit-avatars-spec.md)).
 The issue is the spec; owner decisions are in the Decision Log.
 Authorized scope: Phases 1, 4 and 6 (owner, 2026-10-24); Phase 2 from step 4
-(owner, 2026-10-24, after setting up the Unity project). Phases 3 and 5 wait for
-a separate go-ahead.
+(owner, 2026-10-24, after setting up the Unity project); Phase 3 (owner,
+2026-10-24). Phase 5 waits for a separate go-ahead.
 Merge, release and any use of third-party Avatar data beyond local testing keep
 their separate approvals.
 
@@ -100,7 +100,9 @@ review stay in `<private-avatars>` or the session scratchpad.
   A-pose arms (T-pose export) and the floating springs (no ambient forces for
   Mochiya conversions). Owner R1 re-check remains; dark materials (Phase 3) and
   misplaced painted face effects are open.
-- [ ] Phase 3: Authored lilToon rendering. Needs Phase 2 output; owner look gate.
+- [ ] Phase 3: Authored lilToon rendering. Implemented with on-demand loading
+  and reviewed; the owner's go/no-go on look and frame cost (~19 ms GPU added
+  on an M5) remains.
 - [x] Phase 4: ARKit emotions and face-track translation. Done; reviewed (pass
   after one repair round). Owner visual gate on Lapwing still open (needs
   Phase 2).
@@ -569,9 +571,165 @@ plus the measured frame cost. On no-go, revert this phase's commits, record the
 reason here, and keep the PBR fallback (or plan a Unity MToon re-export as a
 separate decision).
 
+Implemented (2026-10-24, owner: "turn the three-liltoon spike into Phase 3";
+starting source `fd8be333`), revising change 2 above:
+
+- `@mochiya/three-liltoon` 0.1.9 (MIT) is a runtime dependency.
+- `src/lib/avatar/liltoon/lilToon.ts` `withOnDemandLilToon` wraps the shared
+  VRM plugin instead of selecting a second loader. In `beforeRoot` it imports the
+  package only when `extensionsUsed` lists `MOCHIYA_materials_liltoon`, then
+  applies the package's own `enableLilToonVRM` to the plugin (GLTFLoader reads
+  `loadMaterial` and `afterRoot` when it calls them). Without the extension it
+  changes nothing. In development and the review tools a failed import logs,
+  keeps the fallback materials and lets a later load retry; in a built app a
+  failed chunk download shows the app's reload screen (`PageLoadError`), the
+  policy for every lazily loaded chunk. `withEnhancedMToonPatch` only touches
+  MToon extensions, so it needs no change.
+- Rendering: `installLilToonRenderingWhenLoaded(renderer)` installs
+  `enableLilToon` once the package has loaded, from `AvatarSceneLighting` (chat,
+  preview and Create Anima canvases) and the review stage (`createStage`'s
+  `disposeRenderer` releases it). The landing stage and `animation:preview`
+  load only the Included Avatars, so they never load the package.
+- Licence notices: the package's MIT notices for the lilToon code it bundles
+  are in `dist/THIRD_PARTY_NOTICES.md`; the desktop licence inventory and the
+  landing site's `notices.txt` now pick up `NOTICES` files.
+- Integrations found and fixed: silhouette overlays bias lilToon materials −8
+  depth units (they flickered across the whole body; the earlier trial's fix);
+  `releaseModelScene` disposes `lilToonTextures`, which leaked otherwise.
+  Verified on Lapwing in private renders: plane effects, stickers, the
+  silhouette, tone mapping in both looks. Painted face effects still misplace
+  (the Phase 2 finding, independent of lilToon). Portrait capture uses the chat
+  renderer, so it gets the passes, but it was not rendered.
+- `effects:bench --avatar-file` added (step 5 is now done for `effects:render`
+  and `effects:bench`).
+
+Evidence (Apple M5):
+
+- Private renders of the GPU export closely match the owner's Unity reference
+  in enhanced and classic rendering; the on-demand path renders pixel-identically
+  to the spike.
+- Included Avatar review renders (`library:blush`, front and face) are
+  identical before and after in both looks (0 differing pixels).
+- `pnpm build`: three-liltoon is in its own chunks (1.88 MB shader code plus a
+  181 KB entry and a 2 KB VRM entry; 341 KB gzip in all), reached only through
+  a dynamic `import()` from the avatar chunk and not preloaded by `index.html`.
+  The landing site build also emits them, unused, because its stage shares
+  `Avatar`; its `notices.txt` lists the package.
+- `effects:bench --avatar-file`, 1600×1200, DPR 2, idle Gesture, no effects,
+  4 rounds of 1200 frames. GPU time per frame:
+
+  | Avatar | GPU ms/frame |
+  | --- | --- |
+  | Lapwing, lilToon (twice) | 20.61 and 20.73 |
+  | Lapwing, fallback materials | 1.53 |
+  | Lapwing, lilToon without outline variants | 29.86 |
+  | Andrew | 6.67 |
+  | Annie | 4.73 |
+
+  lilToon roughly adds 19 ms of GPU time per frame on this GPU, so weaker GPUs
+  will drop below 60 fps. That is an owner decision; possible mitigations are a
+  lower pixel ratio for lilToon Avatars, or finding the costly lilToon features.
+
+Check record (source of tree `cac27032`; later trees changed only docs and
+these records):
+
+- Coordinator: `pnpm -s check` pass; `npx vitest run src/lib/avatar/liltoon
+  src/lib/avatar/releaseModelScene.test.ts src/lib/avatar/vfx/silhouetteOverlay.test.ts`
+  14 passed; `pnpm -s landing:build` pass (three-liltoon in `notices.txt`);
+  chunk check on `pnpm build` output (three-liltoon only in its own chunks,
+  none named by `index.html`).
+- Independent checks agent: `npx vitest run src/lib/avatar src/ui` 2842
+  passed, 1 skipped; `pnpm -s web:lint` and uncached `npx eslint .` pass;
+  desktop `tests/runtime-packaging.test.mjs` 71 passed; `tsc --noEmit` for
+  `tsconfig.app.json` and `tsconfig.scripts.json` pass; through heavy-slot,
+  `node --test` of the effect-render, effect-check, animation-reel and
+  content-tune browser tests 18 passed. `effects:bench` itself has no test.
+- The full pre-push suite runs once on the final candidate before the push.
+
+Owner gate still open: the go/no-go on look and frame cost.
+
 #### Code Review #1 Findings
 
-Not run.
+High-risk tier; analysis on working tree `6c8067f2` over `fd8be333`.
+
+- P3-F1 (blocking): in a built app a failed chunk download is cancelled by
+  `PageLoadError` (`vite:preloadError`), so `import()` resolves to undefined.
+  The app shows its reload screen instead of the fallback the docs describe,
+  and the first renderer listener's TypeError left the shared import rejected
+  for good.
+- P3-F2 (blocking): the desktop licence inventory only reads files named like
+  `LICENSE`, so it would drop the lilToon notices that the package keeps in
+  `dist/THIRD_PARTY_NOTICES.md`.
+- P3-F3: `createStage` discarded the release, so every review stage of a run
+  that never loads lilToon kept its disposed renderer in the listener set.
+- P3-F4: once loaded, the passes stay on every Avatar canvas until it unmounts
+  (one visible and three full traversals per render); output for other
+  materials is unchanged; the cost is not measured.
+- P3-F5: doc imprecision. lilToon reads only the first directional light;
+  `animation:render` and the `vrm:optimize` compare page always draw the
+  fallback; the landing stage and `animation:preview` never install the passes;
+  the bench options list lacks `--avatar-file`.
+- P3-F6 (optional): reuse the package's `enableLilToonVRM` inside `beforeRoot`;
+  `afterRoot` read the module-level runtime; the `Map` branch in
+  `releaseModelScene` is speculative; a re-declared extension type.
+- P3-F7: no test of the real loader chain or of a VRM through the real
+  runtime; the failure test cannot represent the built app.
+- P3-F8 (record): the renderer is alpha, 0.1.x, single vendor, pinned exactly.
+  Peer ranges are met (three 0.182.0, three-vrm 3.5.2), but upstream tested
+  three 0.180 and 0.185.1 with three-vrm 3.5.5. The web app's `^3.4.4` range
+  for `@pixiv/three-vrm` would break the peer range at 4.x. The VRM entry and
+  the avatar chunk share one three-vrm module, so `instanceof` checks hold.
+
+#### Code Review #1 Revisions
+
+- P3-F1 accepted (documented policy plus hardening): the built app keeps the
+  app-wide stale-file policy (reload screen); the module comment, docs and this
+  plan say so. `importLilToonRuntime` throws when either module lacks its entry
+  point, the failure resets the shared import so a later load retries, and each
+  renderer listener runs isolated. Tests: failure then retry; one failing
+  renderer does not stop another.
+- P3-F2 accepted: `NOTICE_NAME` also matches `NOTICES` in file names (it
+  matched `NOTICE`); the packaging test fixture adds
+  `dist/THIRD_PARTY_NOTICES.md`. Only
+  three-liltoon's notice joined the inventory.
+- P3-F3 accepted: `createStage` returns `disposeRenderer`, which releases the
+  passes and disposes the renderer; all six callers use it.
+- P3-F4 accepted as documented: the docs say the passes stay until the canvas
+  unmounts and what each render then does. Not measured; Included Avatars on a
+  canvas that never loaded lilToon are unaffected.
+- P3-F5 accepted for the docs (lights, fallback-only tools, bench option).
+  Installing passes in the landing stage and `animation:preview` is rejected:
+  both load only the Included Avatars, which never load the package.
+- P3-F6 accepted: `beforeRoot` applies `enableLilToonVRM` to the plugin, which
+  removes the hand-written delegation, the module-level `afterRoot` read and
+  the extension type; the `Map` branch was removed.
+- P3-F7 accepted for the loader: a test runs Andrew through
+  `withEnhancedMToonPatch(withOnDemandLilToon(...))` with one material given
+  the extension and gets both a lilToon and an MToon material. A VRM through
+  the real runtime's expression bindings stays covered by the private Lapwing
+  renders only (no licensed lilToon VRM can be a fixture). The built-app
+  failure path is the documented reload screen, not a unit-tested fallback.
+- P3-F8 recorded above; no change.
+
+Repair budget: one round used.
+
+#### Code Review #2 Findings
+
+Targeted recheck of the repairs on tree `cac27032`: every code repair and the
+rejection pass. One blocking finding:
+
+- P3-R2-1: the repair round ran Prettier over four Markdown files, which the
+  repository does not format (root `.prettierignore` is `*`), reflowing
+  unrelated sections of `avatar-animation.md`, `avatar-vfx.md`, the conversion
+  guide and this plan.
+
+#### Code Review #2 Revisions
+
+- P3-R2-1 accepted: the whitespace-only changes were reverted from `HEAD` (the
+  patch of `git diff -w` reapplied), along with padded table rules, a stray
+  blockquote and mangled `_`/`*` in earlier phase records. Each file's diff
+  now equals its `git diff -w`. Verified by the coordinator (a formatting-only
+  repair). Repair budget: two rounds used.
 
 ### Phase 4: ARKit emotions and face-track translation
 

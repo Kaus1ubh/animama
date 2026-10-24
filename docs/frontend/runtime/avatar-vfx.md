@@ -772,8 +772,9 @@ animated eye plane, a body effect and a silhouette). The scenarios alternate
 over `--rounds` passes, and GPU samples voided by a disjoint event are dropped
 and counted. The budget is a mean added frame time of at most 2 ms. A software
 WebGL renderer is refused. Options: `--frames`, `--warmup`, `--rounds`,
-`--clip`, `--effects`, `--headed`, `--json <file>` and `--rendering
-<enhanced|classic>`.
+`--clip`, `--effects`, `--headed`, `--json <file>`, `--rendering
+<enhanced|classic>` and `--avatar-file <a.vrm>`, which measures that VRM
+instead of the Included Avatars (not with `--reaction`).
 
 `--reaction <path|library:reaction/...>` measures one Reaction's Avatar,
 Particle and Scene Effects instead: the Reaction replays every `--replay`

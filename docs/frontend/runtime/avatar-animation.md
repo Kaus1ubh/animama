@@ -1548,6 +1548,40 @@ preference into `useEnhancedRenderingStore`
   background stays transparent with no glow. It follows the setting at
   capture time, as the Avatar's materials did at load.
 
+#### Authored lilToon materials
+
+Avatars converted from VRChat by Mochiya Avatar Tools carry their lilToon
+settings in the `MOCHIYA_materials_liltoon` glTF extension, beside plain glTF
+fallback materials. `withOnDemandLilToon` (`src/lib/avatar/liltoon/lilToon.ts`)
+wraps the VRM loader plugin. For a file whose `extensionsUsed` lists the
+extension, it imports [three-liltoon](https://github.com/mochiya-labs/three-liltoon)
+and builds a `LilToonMaterial` for each material that carries it. It also
+adapts colour and UV expression binds to those materials.
+
+- **Loaded on demand:** other files never import the package, about 1.9 MB of
+  shader code in its own chunk. Their materials load exactly as before, so the
+  enhanced and classic looks above are unchanged for them.
+- **Render passes:** once the package has loaded, `AvatarSceneLighting` and the
+  review stage install lilToon's outline and extra passes on their renderers
+  (`installLilToonRenderingWhenLoaded`). The passes stay until the canvas
+  unmounts, so after a lilToon Avatar each render of that canvas also walks
+  the scene for lilToon materials; other materials draw as before.
+- **Lighting:** lilToon reads only the first visible directional light plus the
+  ambient and hemisphere lights, so the enhanced look's fill and rim lights do
+  not reach it. Tone mapping applies to both looks; the MToon retune does not.
+- **Fallback:** in development and the review tools, a failed import loads the
+  glTF fallback materials instead, and a later Avatar retries. In a built app a
+  failed chunk download shows the app's reload screen (`PageLoadError`), as for
+  any other lazily loaded code. `animation:render` and the `vrm:optimize`
+  compare page use their own loaders and always draw the fallback materials.
+- **Silhouettes and release:** silhouette overlays bias lilToon materials eight
+  depth units, because lilToon skins and projects in its own order.
+  `releaseModelScene` disposes their `lilToonTextures`, which neither
+  `VRMUtils.deepDispose` nor the material's `dispose` releases.
+- **Frame cost:** lilToon shading is much heavier than MToon. On an Apple M5 at
+  the chat canvas's 1600×1200, Lapwing's GPU time per frame was about 20.7 ms
+  with lilToon and 1.5 ms with the fallback (`effects:bench --avatar-file`).
+
 On an Apple M5 the enhanced look adds about 0.1–0.15 ms per frame over classic.
 Review renders and benchmarks use enhanced rendering unless given
 `--rendering classic`.

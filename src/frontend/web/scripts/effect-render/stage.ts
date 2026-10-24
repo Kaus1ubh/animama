@@ -1,6 +1,7 @@
 import * as THREE from "three";
 
 import type { Avatar } from "@/lib/avatar";
+import { installLilToonRenderingWhenLoaded } from "@/lib/avatar/liltoon/lilToon";
 import {
   applyAvatarToneMapping,
   isEnhancedRenderingEnabled,
@@ -79,7 +80,8 @@ export function addChatLights(scene: THREE.Scene): void {
  * A renderer, scene and camera configured like the chat canvas (`Scene.tsx`):
  * antialiasing, its tone mapping, sRGB output and scene lights, a
  * transparent clear and no stencil buffer. `pixelRatio` 1 keeps review sheets
- * at their tile size; the benchmark uses the chat's DPR.
+ * at their tile size; the benchmark uses the chat's DPR. Close it with
+ * `disposeRenderer`, which also releases its lilToon passes.
  */
 export function createStage(
   width: number,
@@ -102,9 +104,15 @@ export function createStage(
   renderer.setPixelRatio(options.pixelRatio ?? 1);
   renderer.setSize(width, height);
   applyChatColorPipeline(renderer);
+  // lilToon passes, as `AvatarSceneLighting` installs them in the app.
+  const releaseLilToon = installLilToonRenderingWhenLoaded(renderer);
   renderer.setClearColor(0x000000, 0);
   const scene = new THREE.Scene();
   addChatLights(scene);
   const camera = new THREE.PerspectiveCamera(35, width / height, 0.01, 20);
-  return { renderer, scene, camera };
+  const disposeRenderer = () => {
+    releaseLilToon();
+    renderer.dispose();
+  };
+  return { renderer, scene, camera, disposeRenderer };
 }
