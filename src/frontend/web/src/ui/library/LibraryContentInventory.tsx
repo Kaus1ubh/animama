@@ -2,7 +2,13 @@
 
 import { useProductApiClient } from "@animama/product-ui";
 
-import { type ReactElement, useEffect, useMemo, useState } from "react";
+import {
+  type ReactElement,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "@tanstack/react-router";
 import {
@@ -72,6 +78,7 @@ import { LibrarySoundDialog } from "./LibrarySoundDialog";
 import { LibraryFilterMenu } from "./LibraryFilterMenu";
 import { LibraryProductRow, type LibraryLayout } from "./LibraryProductRow";
 import { useLibraryLayout } from "./useLibraryLayout";
+import { useSearchDraft } from "./useSearchDraft";
 
 type SearchUpdate = (update: Partial<ContentLibrarySearch>) => void;
 
@@ -392,6 +399,13 @@ export function LibraryContentInventory({
   const { t } = useTranslation("library");
 
   const [layout, setLayout] = useLibraryLayout();
+  const [queryDraft, setQueryDraft] = useSearchDraft(
+    search.query,
+    useCallback(
+      (query: string | undefined) => onSearchChange({ query }),
+      [onSearchChange],
+    ),
+  );
   const groups = contentInventoryGroups(search);
   const includes = (group: LibraryInventoryGroup) => groups.includes(group);
   const origin = search.showStarters ? "all" : "owned";
@@ -661,11 +675,9 @@ export function LibraryContentInventory({
           <Search className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
           <Input
             className="h-11 pl-9"
-            value={search.query ?? ""}
+            value={queryDraft}
             placeholder={t("inventory.search")}
-            onChange={(event) =>
-              onSearchChange({ query: event.target.value || undefined })
-            }
+            onChange={(event) => setQueryDraft(event.target.value)}
           />
         </label>
         <div

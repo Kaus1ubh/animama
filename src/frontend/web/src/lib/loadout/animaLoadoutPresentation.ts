@@ -7,6 +7,7 @@ import type {
   PyGesture,
 } from "@/lib/content/catalogTypes";
 import { compareDisplayText } from "@animama/product-ui/i18n";
+import { matchesContentName } from "@/lib/content/librarySearch";
 
 export type GestureCatalogRow = {
   gesture: PyGesture;
@@ -147,13 +148,9 @@ export function presentUnifiedGestureList({
       binding,
     })),
   ];
-  const normalizedQuery = query.trim().toLocaleLowerCase();
   const rows = allRows.filter((row) => {
     const matchesSource = row.source === "included" ? showIncluded : showLocal;
-    const matchesQuery =
-      !normalizedQuery ||
-      row.name.toLocaleLowerCase().includes(normalizedQuery) ||
-      row.description?.toLocaleLowerCase().includes(normalizedQuery);
+    const matchesQuery = matchesContentName(row.name, query);
     const matchesStatus =
       status === "all" ||
       (status === "equipped" ? row.equipped : !row.equipped);

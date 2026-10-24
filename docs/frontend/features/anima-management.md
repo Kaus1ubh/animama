@@ -80,7 +80,8 @@ listed, unequipped, until it is equipped again. The header shows the
 number equipped out of the full inventory, independent of search or filters.
 The filter menu offers independent Show included and Show local controls;
 Included content remains Included when explicitly equipped. Local search matches
-full names and descriptions. The menu filters equipped or unequipped rows
+any part of a name; rows show the name, and the description appears in a
+tooltip on hover or focus. The menu filters equipped or unequipped rows
 and sorts Custom first (Local before Included, as in the Library), by name A–Z,
 or by name Z–A. Motion type can be narrowed
 to VRMA or Clips; Clips maps to the normalized

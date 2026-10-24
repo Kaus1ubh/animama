@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   compactContentLibrarySearch,
   contentLibrarySearchFromUrl,
+  matchesContentName,
   normalizeContentLibrarySearch,
   shouldReplaceContentLibrarySearch,
 } from "./librarySearch";
@@ -205,5 +206,21 @@ describe("typed Library search", () => {
     expect(shouldReplaceContentLibrarySearch({ section: "avatars" })).toBe(
       false,
     );
+  });
+});
+
+describe("Library search matching", () => {
+  it("matches any part of the visible name, ignoring case and outer spaces", () => {
+    expect(matchesContentName("Air Guitar", "air")).toBe(true);
+    expect(matchesContentName("Hair Tuck & Settle", " AIR ")).toBe(true);
+    expect(matchesContentName("Air Guitar", "air guitar")).toBe(true);
+    expect(matchesContentName("Air Quotes", "air guitar")).toBe(false);
+    expect(matchesContentName("Anything", "   ")).toBe(true);
+    expect(matchesContentName("Anything", undefined)).toBe(true);
+  });
+
+  it("never matches on a description the tile does not show", () => {
+    // Drumroll's description mentions "a fast air drumroll".
+    expect(matchesContentName("Drumroll", "air")).toBe(false);
   });
 });
