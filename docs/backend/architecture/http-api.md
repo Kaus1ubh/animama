@@ -327,7 +327,10 @@ location and recovery are in [model assets](../operations/model-assets.md#downlo
 
 - `GET /v1/content/catalog` lists caller-visible Included,
   installation-shared, and owned entries with scan status, safe diagnostics,
-  current revision, dependencies, and opaque file registrations.
+  current revision, dependencies, and opaque file registrations. Content Health
+  polls it, so it negotiates gzip or identity and carries a wire ETag
+  (`private, no-cache`); an unchanged catalog answers `If-None-Match` with 304.
+  Unsupported encodings fail with 406 `content_encoding_not_acceptable`.
 - `GET /v1/content/items/{item_id}` reads one visible item.
 - `POST /v1/content:rescan` performs an authoritative scan of registered
   Included and Local type roots and returns per-source counts plus the updated
@@ -342,6 +345,12 @@ location and recovery are in [model assets](../operations/model-assets.md#downlo
   revalidates filesystem containment, regular-file/link state, exact size, and
   SHA-256, then streams the bytes. It accepts no path or storage key. Digest
   ETags are evaluated only after authorization and integrity checks.
+  `?variant=thumbnail` returns a Library-sized copy instead: a PNG, JPEG or
+  WebP larger than 128 pixels on a side becomes a WebP within 128 × 128
+  (first frame, aspect and alpha kept) whose ETag is its own digest; smaller
+  rasters and SVG return unchanged. Thumbnails are cached in process by source
+  digest. Other media types, or an image that cannot be decoded, fail with 422
+  `content_thumbnail_unsupported`.
 
 In embedded desktop, byte delivery uses the exact immutable Included mount
 recorded with the item or preview. Unmounted/mismatched sources fail closed;

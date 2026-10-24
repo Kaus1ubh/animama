@@ -19,36 +19,11 @@ from animama.domain.content_catalog import (
     VerifiedContentFile,
 )
 from animama.domain.request_principal import RequestPrincipal
+from animama.product_http.delivery import negotiate_json_encoding
 from animama.product_http.ports import Ports, ReadContent, WriteContent
 from animama.product_http.principal import get_current_principal
 
 router = APIRouter(tags=["anima-runtime"])
-
-
-def _manifest_encoding(accept_encoding: str) -> str:
-    """Negotiate this JSON response only; explicit exclusions override wildcards."""
-    qualities: dict[str, float] = {}
-    for member in accept_encoding.lower().split(","):
-        coding, *parameters = member.strip().split(";")
-        if not coding:
-            continue
-        quality = 1.0
-        for parameter in parameters:
-            name, _, value = parameter.strip().partition("=")
-            if name == "q":
-                try:
-                    quality = float(value)
-                except ValueError:
-                    quality = 0.0
-                if not 0 <= quality <= 1:
-                    quality = 0.0
-        qualities[coding.strip()] = min(qualities.get(coding.strip(), 1.0), quality)
-    gzip_quality = qualities.get("gzip", qualities.get("*", 0.0))
-    if gzip_quality > 0 and gzip_quality >= qualities.get("identity", 0.0):
-        return "gzip"
-    if qualities.get("identity", 0.0 if qualities.get("*") == 0 else 1.0) > 0:
-        return "identity"
-    raise HTTPException(status_code=406, detail={"code": "runtime_encoding_not_acceptable"})
 
 
 def _raise_runtime(exc: RuntimeSnapshotError) -> NoReturn:
@@ -67,7 +42,7 @@ async def get_anima_runtime(
 ) -> Response:
     """Compile and issue the exact current Content Catalog mount."""
 
-    encoding = _manifest_encoding(",".join(request.headers.getlist("accept-encoding")))
+    encoding = negotiate_json_encoding(request, refusal_code="runtime_encoding_not_acceptable")
     try:
         runtime = await content.runtime.issue(user_id=user.id, anima_id=anima_id)
     except RuntimeSnapshotError as exc:
@@ -115,7 +90,7 @@ async def get_runtime_bundle(
 ) -> Response:
     """Revalidate every member of one issued bundle before returning it or its conditional 304."""
 
-    encoding = _manifest_encoding(",".join(request.headers.getlist("accept-encoding")))
+    encoding = negotiate_json_encoding(request, refusal_code="runtime_encoding_not_acceptable")
     try:
         bundle = await RuntimeBundleService(content.runtime, content.store).read(
             user_id=user.id, anima_id=anima_id, revision=revision, bundle_id=bundle_id
