@@ -3,8 +3,9 @@
 Source agreement: raymond-van/animama#687 (published 2026-10-24 from the agreed
 draft; snapshot in [vrchat-arkit-avatars-spec.md](vrchat-arkit-avatars-spec.md)).
 The issue is the spec; owner decisions are in the Decision Log.
-Authorized scope: Phases 1, 4 and 6 (owner, 2026-10-24). Phases 2, 3 and 5 wait
-for the owner's Unity setup and a separate go-ahead.
+Authorized scope: Phases 1, 4 and 6 (owner, 2026-10-24); Phase 2 from step 4
+(owner, 2026-10-24, after setting up the Unity project). Phases 3 and 5 wait for
+a separate go-ahead.
 Merge, release and any use of third-party Avatar data beyond local testing keep
 their separate approvals.
 
@@ -95,7 +96,9 @@ review stay in `<private-avatars>` or the session scratchpad.
 ## Progress
 
 - [x] Phase 1: ARKit face capability and Avatar inspection. Done; reviewed (pass after one repair round).
-- [ ] Phase 2: Convert Lapwing. Blocked on owner: Unity install and files.
+- [ ] Phase 2: Convert Lapwing. Steps 1–5 and 7 done (export validated and
+  inspected; guide written). Step 6 (Local Avatar on a stack, owner R1 checks)
+  remains.
 - [ ] Phase 3: Authored lilToon rendering. Needs Phase 2 output; owner look gate.
 - [x] Phase 4: ARKit emotions and face-track translation. Done; reviewed (pass
   after one repair round). Owner visual gate on Lapwing still open (needs
@@ -113,6 +116,13 @@ owner gates then wait for the converted Avatar.
   UniVRM 0.131.2 writes names at mesh level is unconfirmed until Phase 2.
 - 2026-10-24: Mochiya's lilToon exporter requires lilToon 2.3.4+; Lapwing ships
   1.4.0, so the upgrade may change the authored look before export.
+- 2026-10-24 (Phase 2): `ARKIT_BLENDSHAPES` in `arkit.ts` has 51 names; it omits
+  `tongueOut`, which Lapwing has. `vrm:inspect` therefore printed "51 of 52".
+  Fix with the deferred INT-F6 to F8 follow-ups (append `tongueOut`, report the
+  list's own length).
+- 2026-10-24 (Phase 2): on macOS, `vpm new` refuses to run without Unity
+  2022.3.22f1; copying the Creator Companion Avatar template and running
+  `vpm resolve project` works with 2022.3.62f3.
 - 2026-10-24 (Phase 4): content reaches expressions through several paths
   besides `ExpressionController`: the creator clip preview filters by
   `getAvailableExpressions()`, portraits pass `happy` to
@@ -334,6 +344,45 @@ from step 4. Delete only converted outputs the agent created.
 Completion: a converted `.vrm` in `<private-avatars>` loads on the stack, owner
 confirms the R1 checks, and the guide is reviewed. Evidence in this plan: tool
 versions, warnings, counts and sizes only.
+
+Progress (2026-10-24, owner steps 1–3; agent steps 4, 5 and 7):
+
+- Steps 1–3 (owner): Unity 2022.3.62f3 on Apple Silicon. The project was made
+  from a copy of the Creator Companion Avatar template plus
+  `vpm resolve project` (macOS `vpm new` requires 2022.3.22f1). lilToon 1.4.0
+  and Lapwing 1.0.10 were imported in batch mode with `-importPackage`, and
+  reference screenshots (front, face) taken privately. Then `Assets/lilToon` was
+  deleted and `jp.lilxyzw.liltoon@2.3.4` installed from the lilToon VPM
+  repository. UniGLTF and VRM10 `v0.131.2` and Mochiya Avatar Tools `d98e9091`
+  (0.1.4) were added to `Packages/manifest.json`. kuji's guide needs no Modular
+  Avatar or other community packages. A before/after comparison of the
+  lilToon upgrade is still owed by the owner.
+- Step 4 (agent): `scripts/avatars/unity/AnimamaBatchExport.cs` with its
+  assembly definition (copied into the project's `Assets/AnimamaExport/Editor/`)
+  runs Detect, Validate and Export in batch mode for `Lapwing.prefab`, with
+  metadata name Lapwing, version 1.0.10, author kuji, copyright "©kuji" and
+  UniVRM's restrictive default permissions. Detect: Avatar with its own
+  humanoid. Validate: no errors; 1 unsupported item (VRChat animator state
+  machines) and 16 warnings (visemes/eyelids/eye ranges translated; 15
+  PhysBones approximated as springs). Export: no errors and 28 warnings (the
+  same ones, plus 2 plane colliders omitted, 2 inside-bounds colliders
+  approximated and 5 gravity falloffs baked). Output: 20.48 MB, outside the
+  repository. "Upload to Mochiya" was not used.
+- Step 5 (agent): `vrm:inspect` shows VRM 1.0 with `VRMC_vrm`,
+  `VRMC_springBone`, `MOCHIYA_materials_liltoon`, `MOCHIYA_avatar_composition`
+  and `KHR_texture_transform`. 7 materials, all lilToon. 26 images (3.48 MB).
+  8 meshes, all storing names at mesh level, so R2 needs no loader change
+  (Phase 1 step 4 stays unneeded). The face mesh has 155 targets: VRChat
+  visemes, all 52 ARKit shapes including `tongueOut`, 34 expression shapes, the
+  MMD set and adjustment shapes. All ARKit shapes resolve under their exact
+  names. Authored presets: `aa`, `ih`, `ou`, `ee`, `oh`, `blink`. No VRoid mood
+  parts, so Animama plays its ARKit mixes. Under the size limit; no
+  optimization needed.
+- Step 7 (agent): `docs/frontend/runtime/vrchat-avatar-conversion.md`, linked
+  from `docs/frontend/README.md`, records the macOS route, versions, commands,
+  expected warnings, checks and licence rules.
+- Remaining: step 6 (task stack, Local Avatar upload, owner R1 checks), then
+  the guide is updated with anything it finds.
 
 #### Code Review #1 Findings
 
