@@ -222,11 +222,13 @@
         "label": "Browser (external)",
         "unsupported": "Web Speech API is not supported in this browser."
       },
+      "browserLabel": "Browser",
       "browserLocal": {
         "description": "Strict on-device browser recognition when explicitly supported.",
         "label": "Browser (local)",
         "unsupported": "Local-only Web Speech recognition is not supported in this browser."
       },
+      "enginesLabel": "Speech recognition engines",
       "parakeet": {
         "cpuLabel": "{{model}} (CPU)",
         "descriptionBrowser": "Speech recognition in this browser in the app's language, with {{model}}.",
@@ -235,7 +237,15 @@
         "unavailableBrowser": "Offline speech recognition is currently unavailable in this browser.",
         "webgpuDescription": "Experimental local speech recognition on the GPU, with {{model}} and live previews. Falls back to the CPU when unavailable.",
         "webgpuLabel": "{{model}} (WebGPU · Experimental)"
-      }
+      },
+      "recommended": "Recommended",
+      "variants": {
+        "cpu": "CPU",
+        "cpuWithSize": "CPU ({{size}})",
+        "gpu": "GPU",
+        "gpuWithSize": "GPU ({{size}})"
+      },
+      "variantsLabel": "{{engine}} versions"
     },
     "tts": {
       "audioWorkletUnsupported": "AudioWorklet is not supported in this browser.",

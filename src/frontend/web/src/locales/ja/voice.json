@@ -204,6 +204,16 @@
         "unavailableBrowser": "このブラウザーでは現在オフライン音声認識を利用できません。",
         "webgpuDescription": "{{model}} による GPU 上の試験的なローカル音声認識で、ライブプレビューを表示します。利用できない場合は CPU を使用します。",
         "webgpuLabel": "{{model}} (WebGPU · 試験的)"
+      },
+      "browserLabel": "ブラウザー",
+      "enginesLabel": "音声認識エンジン",
+      "variantsLabel": "{{engine}} のバージョン",
+      "recommended": "おすすめ",
+      "variants": {
+        "cpu": "CPU",
+        "gpu": "GPU",
+        "cpuWithSize": "CPU ({{size}})",
+        "gpuWithSize": "GPU ({{size}})"
       }
     },
     "tts": {
@@ -227,7 +237,8 @@
       "workersUnsupported": "このブラウザーは Web Workers に対応していません。",
       "gemini": {
         "description": "サーバーからストリーミングされる Gemini の音声です。"
-      }
+      },
+      "providersLabel": "読み上げのプロバイダー"
     }
   },
   "gemini": {

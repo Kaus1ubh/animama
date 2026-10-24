@@ -204,6 +204,16 @@
         "unavailableBrowser": "此瀏覽器目前無法使用離線語音辨識。",
         "webgpuDescription": "在 GPU 上以 {{model}} 執行的實驗性本機語音辨識，提供即時預覽。無法使用時改用 CPU。",
         "webgpuLabel": "{{model}}（WebGPU · 實驗性）"
+      },
+      "browserLabel": "瀏覽器",
+      "enginesLabel": "語音辨識引擎",
+      "variantsLabel": "{{engine}} 版本",
+      "recommended": "推薦",
+      "variants": {
+        "cpu": "CPU",
+        "gpu": "GPU",
+        "cpuWithSize": "CPU（{{size}}）",
+        "gpuWithSize": "GPU（{{size}}）"
       }
     },
     "tts": {
@@ -227,7 +237,8 @@
       "workersUnsupported": "此瀏覽器不支援 Web Workers。",
       "gemini": {
         "description": "從伺服器串流傳輸的 Gemini 語音。"
-      }
+      },
+      "providersLabel": "文字轉語音供應商"
     }
   },
   "gemini": {

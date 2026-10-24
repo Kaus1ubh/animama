@@ -11,9 +11,10 @@ export type SetupModelLocation = "cloud" | "local";
 export type SetupTtsProvider = "pocket_tts" | "elevenlabs";
 
 /**
- * Setup's Speech-to-Text choice: an offline model on the CPU or GPU, or (on the
- * web only) a browser recognizer. Offline choices save the offline provider and
- * the GPU preference; the UI Locale still decides which offline model runs.
+ * A Speech-to-Text choice in setup and App Settings: an offline model on the
+ * CPU or GPU, or (on the web only) the browser's recognizer. Offline choices
+ * save the offline provider and the GPU preference; the UI Locale still
+ * decides which offline model runs.
  */
 export const SETUP_STT_CHOICES = [
   "sensevoice_cpu",
@@ -21,7 +22,6 @@ export const SETUP_STT_CHOICES = [
   "parakeet_cpu",
   "parakeet_gpu",
   "browser_external",
-  "browser_local",
 ] as const;
 export type SetupSttChoice = (typeof SETUP_STT_CHOICES)[number];
 

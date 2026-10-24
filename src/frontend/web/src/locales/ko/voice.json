@@ -204,6 +204,16 @@
         "unavailableBrowser": "현재 이 브라우저에서는 오프라인 음성 인식을 사용할 수 없습니다.",
         "webgpuDescription": "{{model}}을(를) 사용하는 실험적인 GPU 로컬 음성 인식으로, 실시간 미리보기를 제공합니다. 사용할 수 없으면 CPU를 사용합니다.",
         "webgpuLabel": "{{model}} (WebGPU · 실험적)"
+      },
+      "browserLabel": "브라우저",
+      "enginesLabel": "음성 인식 엔진",
+      "variantsLabel": "{{engine}} 버전",
+      "recommended": "추천",
+      "variants": {
+        "cpu": "CPU",
+        "gpu": "GPU",
+        "cpuWithSize": "CPU ({{size}})",
+        "gpuWithSize": "GPU ({{size}})"
       }
     },
     "tts": {
@@ -227,7 +237,8 @@
       "workersUnsupported": "이 브라우저는 Web Workers를 지원하지 않습니다.",
       "gemini": {
         "description": "서버에서 스트리밍되는 Gemini 음성입니다."
-      }
+      },
+      "providersLabel": "텍스트 음성 변환 제공자"
     }
   },
   "gemini": {

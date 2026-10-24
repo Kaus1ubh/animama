@@ -10,18 +10,13 @@ import type { OfflineSttEngine } from "@/lib/speech/offline-stt/routing";
 import type { SttProviderOption } from "@/lib/speech/stt-provider";
 import { Button } from "@/ui/components/button";
 import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-  underlineTabClassName,
-} from "@/ui/components/tabs";
-import {
   assetFailureText,
   HostSpeechModelsNote,
   useOfflineSpeechDownloads,
   type OfflineSpeechDownloadsViewProps,
 } from "@/ui/settings/OfflineSpeechDownloads";
+
+import { SttChoiceTabs } from "@/ui/settings/speech/SttChoiceTabs";
 
 import { ModelLink } from "./ModelLink";
 
@@ -42,128 +37,82 @@ const ENGINE_MODELS: Record<
   },
 };
 
-type BrowserChoice = Extract<
-  SetupSttChoice,
-  "browser_external" | "browser_local"
->;
-const isBrowserChoice = (choice: SetupSttChoice): choice is BrowserChoice =>
-  choice === "browser_external" || choice === "browser_local";
-/** An offline tab's engine and set, from its id (`sensevoice_gpu`). */
-const offlineChoice = (choice: Exclude<SetupSttChoice, BrowserChoice>) => {
+/** An offline choice's engine and set, from its id (`sensevoice_gpu`). */
+const offlineChoice = (choice: SetupSttChoice) => {
   const [engine, set] = choice.split("_") as [OfflineSttEngine, SpeechSet];
   return { engine, set };
 };
 
 /**
- * Setup's Speech-to-Text choice, one tab per option: the UI Locale's offline
- * model on the CPU (recommended) and GPU, the other offline model, and on the
- * web the browser recognizers. The selected tab is saved at Finish. Offline
- * tabs offer their set's download, which is backend-owned and keeps running
- * after setup; removal and attribution live in App Settings. Vite development
+ * Setup's Speech-to-Text choice as two tab levels (`SttChoiceTabs`): on the
+ * web the browser's recognizer (recommended there), then the UI Locale's
+ * offline model (recommended on desktop) and the other one, each with CPU |
+ * GPU variants. The selected choice is saved at Finish. Offline variants
+ * offer their set's download, which is backend-owned and keeps running after
+ * setup; removal and attribution live in App Settings. Vite development
  * serves host sets instead, so it shows how to acquire them.
  */
 export function SetupSpeechChoice({
   choice,
   choices,
   engine,
+  recommended,
   browserOptions,
   onChoiceChange,
 }: {
   choice: SetupSttChoice;
   choices: readonly SetupSttChoice[];
-  /** The UI Locale's offline engine, whose CPU tab is recommended. */
+  /** The UI Locale's offline engine. */
   engine: OfflineSttEngine;
-  /** The browser recognizers' labels, descriptions and availability. */
+  recommended: SetupSttChoice;
+  /** The browser recognizer's description. */
   browserOptions: readonly SttProviderOption[];
   onChoiceChange: (choice: SetupSttChoice) => void;
 }) {
-  const { t } = useTranslation("setup");
+  const { t } = useTranslation("voice");
   const { fileSize } = useFormatters();
   const downloads = {
     parakeet: useOfflineSpeechDownloads("parakeet"),
     sensevoice: useOfflineSpeechDownloads("sensevoice"),
   };
-  const browserOption = (id: BrowserChoice) =>
-    browserOptions.find((option) => option.id === id);
-  /** A tab's label: the model and set, with its download size once known. */
-  const label = (option: SetupSttChoice) => {
-    if (isBrowserChoice(option)) return browserOption(option)?.label ?? option;
+  /** A variant's label, with its download size once known. */
+  const variantLabel = (option: SetupSttChoice) => {
     const { engine: tabEngine, set } = offlineChoice(option);
-    const model = ENGINE_MODELS[tabEngine].name;
     const asset = downloads[tabEngine][set];
     if (!asset || !OFFLINE_SPEECH_DOWNLOADS_OFFERED)
       return set === "cpu"
-        ? t("voice.stt.cpu.label", { model })
-        : t("voice.stt.gpu.label", { model });
+        ? t("providers.stt.variants.cpu")
+        : t("providers.stt.variants.gpu");
     const size = fileSize(asset.size_bytes);
     return set === "cpu"
-      ? t("voice.stt.cpu.labelWithSize", { model, size })
-      : t("voice.stt.gpu.labelWithSize", { model, size });
+      ? t("providers.stt.variants.cpuWithSize", { size })
+      : t("providers.stt.variants.gpuWithSize", { size });
   };
-  const unavailable = choices.flatMap((option) => {
-    const browser = isBrowserChoice(option) ? browserOption(option) : null;
-    return browser?.disabled && browser.reason ? [browser] : [];
-  });
 
   return (
-    <Tabs
-      value={choice}
-      onValueChange={(value) => onChoiceChange(value as SetupSttChoice)}
-    >
-      <TabsList
-        variant="underline"
-        aria-label={t("voice.stt.models")}
-        className="h-auto w-fit max-w-full flex-wrap"
-      >
-        {choices.map((option) => {
-          const browser = isBrowserChoice(option)
-            ? browserOption(option)
-            : null;
-          return (
-            <TabsTrigger
-              key={option}
-              value={option}
-              variant="underline"
-              // A recognizer this browser cannot run is not offered.
-              disabled={browser?.disabled}
-              title={browser?.disabled ? browser.reason : undefined}
-              className={underlineTabClassName(choice === option)}
-            >
-              {label(option)}
-              {option === `${engine}_cpu` ? (
-                <span className="text-muted-foreground ms-1.5 text-xs font-normal">
-                  {t("voice.stt.recommended")}
-                </span>
-              ) : null}
-            </TabsTrigger>
-          );
-        })}
-      </TabsList>
-      {/* A disabled tab cannot take focus, so its reason is shown here. */}
-      {unavailable.map((option) => (
-        <p key={option.id} className="text-muted-foreground mt-2 text-xs">
-          {t("voice.tts.unavailableReason", {
-            provider: option.label,
-            reason: option.reason ?? "",
-          })}
-        </p>
-      ))}
-      {choices.map((option) => (
-        <TabsContent key={option} value={option} className="mt-4 space-y-3">
-          {isBrowserChoice(option) ? (
-            <p className="text-muted-foreground text-sm">
-              {browserOption(option)?.description}
-            </p>
-          ) : (
-            <OfflineChoicePanel
-              {...offlineChoice(option)}
-              routed={offlineChoice(option).engine === engine}
-              downloads={downloads[offlineChoice(option).engine]}
-            />
-          )}
-        </TabsContent>
-      ))}
-    </Tabs>
+    <SttChoiceTabs
+      choice={choice}
+      choices={choices}
+      recommended={recommended}
+      variantLabel={variantLabel}
+      onChoiceChange={onChoiceChange}
+      panel={(selected) =>
+        selected === "browser_external" ? (
+          <p className="text-muted-foreground text-sm">
+            {
+              browserOptions.find((option) => option.id === "browser_external")
+                ?.description
+            }
+          </p>
+        ) : (
+          <OfflineChoicePanel
+            {...offlineChoice(selected)}
+            routed={offlineChoice(selected).engine === engine}
+            downloads={downloads[offlineChoice(selected).engine]}
+          />
+        )
+      }
+    />
   );
 }
 

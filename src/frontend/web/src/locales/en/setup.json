@@ -95,8 +95,7 @@
     "stt": {
       "checking": "Checking speech recognition…",
       "cpu": {
-        "label": "{{model}} (CPU)",
-        "labelWithSize": "{{model}} (CPU, {{size}})"
+        "label": "{{model}} (CPU)"
       },
       "download": "Download",
       "downloaded": "Downloaded",
@@ -108,20 +107,17 @@
       "gpu": {
         "description": "Faster, with live previews as you speak. Needs the CPU version and a WebGPU-capable GPU.",
         "label": "{{model}} (GPU)",
-        "labelWithSize": "{{model}} (GPU, {{size}})",
         "needsCpu": "Download the CPU version first."
       },
       "heading": "Speech-to-Text",
       "listUnavailable": "Speech downloads are unavailable right now. You can add them later in App Settings.",
       "lowSpace": "Not enough free space: downloads need {{size}} free.",
-      "models": "Speech recognition models",
       "notDownloaded": "Not downloaded",
       "otherLanguage": {
         "parakeet": "Animama uses this model while the app language is English.",
         "sensevoice": "Animama uses this model while the app language is Japanese, Korean or Chinese."
       },
       "progressLabel": "{{label}} download progress",
-      "recommended": "Recommended",
       "retryDownload": "Retry download",
       "turnedOff": "Speech recognition is turned off on this server.",
       "unavailableInBuild": "Unavailable in this build.",

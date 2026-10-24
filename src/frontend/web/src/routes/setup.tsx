@@ -42,6 +42,7 @@ import { SetupAiStep } from "@/app/local-runtime/setup/SetupAiStep";
 import { SetupVoiceStep } from "@/app/local-runtime/setup/SetupVoiceStep";
 import {
   adjacentSetupStep,
+  recommendedSttChoice,
   resolveSetupSttChoice,
   resolveSetupTtsProvider,
   setupStepLabel,
@@ -118,9 +119,9 @@ function LocalSetupForm({ ownerId }: { ownerId: string }) {
     | Parameters<typeof resolveSetupTtsProvider>[1]
     | undefined;
   const ttsProvider = resolveSetupTtsProvider(draft, savedSpeech);
-  // Speech-to-Text: the UI Locale's offline model is recommended; the web also
-  // offers the browser recognizers (desktop has none). Read through `i18n` so
-  // the tabs follow a language switch.
+  // Speech-to-Text: the web recommends the browser's recognizer, desktop the
+  // UI Locale's offline model (desktop has no browser recognizer). Read
+  // through `i18n` so the tabs follow a language switch.
   const sttEngine = routeOfflineSpeech(i18n.resolvedLanguage).engine;
   const sttBrowserOptions = getSttProviderOptions(
     null,
@@ -298,6 +299,7 @@ function LocalSetupForm({ ownerId }: { ownerId: string }) {
                   choice: sttChoice,
                   choices: sttChoices,
                   engine: sttEngine,
+                  recommended: recommendedSttChoice(sttEngine, sttChoices),
                   browserOptions: sttBrowserOptions,
                   onChoiceChange: (choice) =>
                     updateDraft({ sttChoice: choice }),

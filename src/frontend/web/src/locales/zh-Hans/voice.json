@@ -204,6 +204,16 @@
         "unavailableBrowser": "此浏览器当前无法使用离线语音识别。",
         "webgpuDescription": "在 GPU 上用 {{model}} 运行的实验性本地语音识别，提供实时预览。不可用时回退到 CPU。",
         "webgpuLabel": "{{model}}（WebGPU · 实验性）"
+      },
+      "browserLabel": "浏览器",
+      "enginesLabel": "语音识别引擎",
+      "variantsLabel": "{{engine}} 版本",
+      "recommended": "推荐",
+      "variants": {
+        "cpu": "CPU",
+        "gpu": "GPU",
+        "cpuWithSize": "CPU（{{size}}）",
+        "gpuWithSize": "GPU（{{size}}）"
       }
     },
     "tts": {
@@ -227,7 +237,8 @@
       "workersUnsupported": "此浏览器不支持 Web Workers。",
       "gemini": {
         "description": "从服务器流式传输的 Gemini 语音。"
-      }
+      },
+      "providersLabel": "文字转语音提供方"
     }
   },
   "gemini": {

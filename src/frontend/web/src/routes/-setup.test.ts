@@ -25,6 +25,7 @@ import {
   setupBuiltins,
   setupStepPosition,
   setupTtsOptions,
+  recommendedSttChoice,
   resolveSetupSttChoice,
   setupSttChoices,
   setupSttPatch,
@@ -382,8 +383,13 @@ describe("local first-run setup", () => {
     expect(html).toMatch(
       /<li aria-current="step"[^>]*>Voice<span[^>]*>\(optional\)<\/span><\/li>/u,
     );
-    expect(html).toContain("Parakeet (CPU");
-    expect(html).toContain("Parakeet (GPU");
+    // Engines first (the UI Locale's recommended), then its CPU | GPU sets.
+    expect(html).toMatch(
+      /aria-selected="true"[^>]*><span[^>]*>Parakeet<span[^>]*>Recommended<\/span>/u,
+    );
+    expect(html).toMatch(/role="tab"[^>]*>SenseVoice</u);
+    expect(html).toMatch(/aria-selected="true"[^>]*>CPU \(/u);
+    expect(html).toMatch(/role="tab"[^>]*>GPU \(/u);
     // Text-to-Speech is on by default: provider tabs, no toggle.
     expect(html).not.toContain("Enable Text-to-Speech");
     expect(html).not.toContain("Everything here is optional");
@@ -409,18 +415,19 @@ describe("local first-run setup", () => {
     await getI18n().changeLanguage("zh-Hant");
     try {
       const html = renderSetup({ ...welcomeDone, step: "voice" });
-      const tabs = [...html.matchAll(/role="tab"[^>]*>([^<]+)/gu)].map(
-        (match) => match[1],
-      );
+      const tabs = [
+        ...html.matchAll(/role="tab"[^>]*>(?:<span[^>]*>)?([^<]+)/gu),
+      ].map((match) => match[1]);
+      // SenseVoice is recommended and selected, Parakeet still listed, then
+      // SenseVoice's CPU | GPU sets.
       expect(tabs.slice(0, 4)).toEqual([
-        expect.stringContaining("SenseVoice（CPU"),
-        expect.stringContaining("SenseVoice（GPU"),
-        expect.stringContaining("Parakeet（CPU"),
-        expect.stringContaining("Parakeet（GPU"),
+        "SenseVoice",
+        "Parakeet",
+        expect.stringContaining("CPU（"),
+        expect.stringContaining("GPU（"),
       ]);
-      // The recommended tab is selected and labelled.
       expect(html).toMatch(
-        /aria-selected="true"[^>]*>SenseVoice（CPU[^<]*<span[^>]*>推薦<\/span>/u,
+        /aria-selected="true"[^>]*><span[^>]*>SenseVoice<span[^>]*>推薦<\/span>/u,
       );
       expect(html).toContain(
         'href="https://huggingface.co/FunAudioLLM/SenseVoiceSmall"',
@@ -432,29 +439,34 @@ describe("local first-run setup", () => {
 });
 
 describe("setup speech-to-text choice", () => {
-  const external = { id: "browser_external", label: "", disabled: false };
-  const local = { id: "browser_local", label: "", disabled: true };
+  const browser = { id: "browser_external", label: "", disabled: false };
 
-  it("orders the UI Locale's model first, then the other, then browsers", () => {
-    expect(setupSttChoices("sensevoice", [external, local] as never)).toEqual([
-      "sensevoice_cpu",
-      "sensevoice_gpu",
-      "parakeet_cpu",
-      "parakeet_gpu",
+  it("puts the browser first on the web, then the UI Locale's model and the other", () => {
+    const web = setupSttChoices("sensevoice", [browser] as never);
+    expect(web).toEqual([
       "browser_external",
-      "browser_local",
+      "sensevoice_cpu",
+      "sensevoice_gpu",
+      "parakeet_cpu",
+      "parakeet_gpu",
     ]);
-    // Desktop offers no browser recognizer.
-    expect(setupSttChoices("parakeet", [])).toEqual([
+    expect(recommendedSttChoice("sensevoice", web)).toBe("browser_external");
+    // Desktop (or a browser without speech recognition) has no browser tab.
+    const desktop = setupSttChoices("parakeet", []);
+    expect(desktop).toEqual([
       "parakeet_cpu",
       "parakeet_gpu",
       "sensevoice_cpu",
       "sensevoice_gpu",
     ]);
+    expect(recommendedSttChoice("parakeet", desktop)).toBe("parakeet_cpu");
+    expect(
+      setupSttChoices("parakeet", [{ ...browser, disabled: true }] as never),
+    ).not.toContain("browser_external");
   });
 
-  it("selects the pick, else the saved choice, else the recommended model", () => {
-    const choices = setupSttChoices("sensevoice", [external] as never);
+  it("selects the pick, else the saved choice, else the recommended one", () => {
+    const choices = setupSttChoices("sensevoice", [browser] as never);
     expect(
       resolveSetupSttChoice(
         { sttChoice: "parakeet_gpu" },
@@ -471,26 +483,21 @@ describe("setup speech-to-text choice", () => {
         choices,
       ),
     ).toBe("sensevoice_gpu");
+    // Either browser recognizer shows as the single browser choice.
     expect(
       resolveSetupSttChoice(
         { sttChoice: null },
-        { stt_provider: "browser_external" },
-        "sensevoice",
-        choices,
-      ),
-    ).toBe("browser_external");
-    // A browser recognizer this platform lacks falls back to the recommendation.
-    expect(
-      resolveSetupSttChoice(
-        { sttChoice: "browser_local" },
         { stt_provider: "browser_local" },
         "sensevoice",
         choices,
       ),
-    ).toBe("sensevoice_cpu");
+    ).toBe("browser_external");
+    expect(
+      resolveSetupSttChoice({ sttChoice: null }, null, "sensevoice", choices),
+    ).toBe("browser_external");
   });
 
-  it("saves either model's tab as the offline choice with its GPU preference", () => {
+  it("saves either model's choice as the offline provider with its GPU preference", () => {
     expect(setupSttPatch("sensevoice_cpu")).toEqual({
       stt_provider: "parakeet",
       stt_parakeet_webgpu: false,

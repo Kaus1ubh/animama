@@ -667,10 +667,15 @@ test("saving the OpenAI key chooses OpenAI; Finish saves the recommended speech 
       "true",
     );
     assert.equal(await page.getByRole("switch").count(), 0);
-    // Speech-to-Text recommends the UI Locale's offline model on the CPU.
+    // Without a browser recognizer, Speech-to-Text recommends the UI
+    // Locale's offline model on the CPU.
     assert.match(
       await page.getByRole("tab", { selected: true }).first().innerText(),
-      /^Parakeet \(CPU.*Recommended$/su,
+      /^Parakeet\s*Recommended$/su,
+    );
+    assert.match(
+      await page.getByRole("tab", { selected: true }).nth(1).innerText(),
+      /^CPU \(/u,
     );
     await button(page, "Finish").click();
     await button(page, "I am 18 or older").click();

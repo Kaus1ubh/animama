@@ -296,9 +296,9 @@ export function setupTtsOptions(
 }
 
 /**
- * The Voice step's Speech-to-Text tabs, in order: the UI Locale's offline model
- * (CPU, then GPU), the other offline model, then the browser recognizers this
- * platform offers (none on desktop).
+ * The Speech-to-Text choices, in order: on the web the browser's recognizer
+ * (when this browser has one), then the UI Locale's offline model (CPU, then
+ * GPU) and the other offline model. Desktop has no browser recognizer.
  */
 export function setupSttChoices(
   engine: OfflineSttEngine,
@@ -306,23 +306,35 @@ export function setupSttChoices(
 ): SetupSttChoice[] {
   const other: OfflineSttEngine =
     engine === "sensevoice" ? "parakeet" : "sensevoice";
+  const browser = browserOptions.some(
+    (option) => option.id === "browser_external" && !option.disabled,
+  );
   return [
+    ...(browser ? (["browser_external"] as const) : []),
     `${engine}_cpu`,
     `${engine}_gpu`,
     `${other}_cpu`,
     `${other}_gpu`,
-    ...browserOptions.flatMap((option) =>
-      option.id === "browser_external" || option.id === "browser_local"
-        ? [option.id]
-        : [],
-    ),
   ];
 }
 
 /**
- * The selected Speech-to-Text tab: the owner's pick in this setup, else the
- * saved preference (an offline one shown as the UI Locale's model), else the
- * UI Locale's model on the CPU, which Setup recommends.
+ * The recommended choice: the browser's recognizer on the web, else the UI
+ * Locale's offline model on the CPU.
+ */
+export function recommendedSttChoice(
+  engine: OfflineSttEngine,
+  choices: readonly SetupSttChoice[],
+): SetupSttChoice {
+  return choices.includes("browser_external")
+    ? "browser_external"
+    : `${engine}_cpu`;
+}
+
+/**
+ * The selected Speech-to-Text choice: the owner's pick in this setup, else the
+ * saved preference (an offline one shown as the UI Locale's model, either
+ * browser recognizer as the browser), else the recommended one.
  */
 export function resolveSetupSttChoice(
   draft: Pick<SetupDraft, "sttChoice">,
@@ -339,22 +351,21 @@ export function resolveSetupSttChoice(
       : `${engine}_cpu`;
   if (
     (provider === "browser_external" || provider === "browser_local") &&
-    choices.includes(provider)
+    choices.includes("browser_external")
   )
-    return provider;
-  return `${engine}_cpu`;
+    return "browser_external";
+  return recommendedSttChoice(engine, choices);
 }
 
 /**
- * The speech preferences a Speech-to-Text tab saves. Either offline model's
- * tab saves the offline provider and the GPU preference; the UI Locale picks
- * the model. A browser tab keeps the saved GPU preference.
+ * The speech preferences a Speech-to-Text choice saves. Either offline model's
+ * choice saves the offline provider and the GPU preference; the UI Locale picks
+ * the model. The browser keeps the saved GPU preference.
  */
 export function setupSttPatch(
   choice: SetupSttChoice,
 ): Pick<SpeechPreferences, "stt_provider" | "stt_parakeet_webgpu"> {
-  if (choice === "browser_external" || choice === "browser_local")
-    return { stt_provider: choice };
+  if (choice === "browser_external") return { stt_provider: choice };
   return {
     stt_provider: "parakeet",
     stt_parakeet_webgpu: choice.endsWith("_gpu"),

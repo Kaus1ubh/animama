@@ -261,7 +261,6 @@
     "profile": "Profile",
     "speechToText": "Speech-to-Text",
     "textToSpeech": "Text-to-Speech",
-    "voiceClone": "Voice Clone",
     "webSearch": "Web search"
   },
   "language": {
@@ -407,26 +406,20 @@
       "test": "Test microphone"
     },
     "stt": {
-      "downloads": "Offline speech downloads",
       "entryLabel": "Speech-to-Text provider",
-      "label": "Provider",
-      "offlineWebgpu": "{{model}} (WebGPU)",
-      "placeholder": "Select provider",
       "preparing": "Preparing provider defaults...",
       "updateFailed": "Failed to update STT provider."
     },
     "tts": {
       "elevenLabs": {
         "key": {
-          "description": "Needed for ElevenLabs voices. Encrypted on this computer and also in API Keys.",
-          "label": "ElevenLabs API key"
+          "description": "Needed for ElevenLabs voices. Encrypted on this computer and also in API Keys."
         }
       },
       "enable": "Enable Text-to-Speech",
       "gemini": {
         "key": {
-          "description": "Needed for Gemini voices. Encrypted on this computer and also in API Keys.",
-          "label": "Gemini API key"
+          "description": "Needed for Gemini voices. Encrypted on this computer and also in API Keys."
         },
         "model": {
           "descriptions": {
@@ -444,7 +437,6 @@
         "ariaLabel": "Text-to-Speech provider",
         "enableFirst": "Enable Text-to-Speech to select a provider.",
         "entryLabel": "Default Text-to-Speech provider",
-        "label": "Default provider",
         "note": "Used by Animas without their own provider. Choose providers and voices for each Anima in Behavior → Voices.",
         "updateFailed": "Failed to update TTS provider."
       },
@@ -455,7 +447,6 @@
         "updateFailed": "Failed to update TTS streaming mode."
       },
       "updateFailed": "Failed to update TTS settings."
-    },
-    "voiceClone": "Voice Clone"
+    }
   }
 }
