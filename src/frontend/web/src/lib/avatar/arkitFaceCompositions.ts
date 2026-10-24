@@ -71,6 +71,15 @@ export const ARKIT_PART_MIXES: Readonly<Record<string, ArkitMix>> = {
   ...(compositions.parts as Readonly<Record<string, ArkitMix>>),
 };
 
+/** VRoid's mood parts, which an Avatar with its own VRoid face carries. */
+const VROID_MOOD_PART =
+  /^Fcl_(ALL|BRW|EYE|MTH)_(Joy|Fun|Sorrow|Surprised|Angry)$/;
+
+/** Whether a name is one of VRoid's mood parts (`Fcl_BRW_Joy` …). */
+export function isVroidMoodPart(name: string): boolean {
+  return VROID_MOOD_PART.test(name);
+}
+
 /** Every ARKit shape the table uses. */
 export const ARKIT_COMPOSITION_SHAPES: ReadonlySet<string> = new Set(
   [

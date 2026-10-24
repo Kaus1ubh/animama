@@ -10,6 +10,7 @@ import {
   ARKIT_MOOD_MIXES,
   ARKIT_PART_MIXES,
   type ArkitMix,
+  isVroidMoodPart,
   playsFacesWithArkit,
 } from "./arkitFaceCompositions";
 import { registerArkitExpressions } from "./morphTargetExpressions";
@@ -45,9 +46,6 @@ export function arkitMixOf(expression: VRMExpression): ArkitMix | null {
   return arkitMixExpressions.get(expression) ?? null;
 }
 
-/** VRoid's mood parts, which an Avatar with its own VRoid face carries. */
-const VROID_MOOD_PART = /^Fcl_(ALL|BRW|EYE|MTH)_(Joy|Fun|Sorrow|Surprised|Angry)$/;
-
 /** Every morph-target name on the Avatar's meshes. */
 function morphTargetNames(vrm: VRM): Set<string> {
   const names = new Set<string>();
@@ -67,11 +65,11 @@ function morphTargetNames(vrm: VRM): Set<string> {
  */
 function hasVroidMoodParts(vrm: VRM, morphNames: ReadonlySet<string>): boolean {
   return (
-    [...morphNames].some((name) => VROID_MOOD_PART.test(name)) ||
+    [...morphNames].some((name) => isVroidMoodPart(name)) ||
     (vrm.expressionManager?.expressions.some(
       (expression) =>
         !arkitMixOf(expression) &&
-        VROID_MOOD_PART.test(expression.expressionName),
+        isVroidMoodPart(expression.expressionName),
     ) ??
       false)
   );

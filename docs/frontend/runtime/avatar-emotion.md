@@ -363,6 +363,23 @@ VRoid names, and mouth parts play too rather than being dropped.
   blink's motion, so relaxed's partly closed lids never close past shut. Winks
   (`Fcl_EYE_Close_L`/`_R`) are not corrected, so the open eye keeps blinking.
 
+To make a converted Avatar emote in other VRM apps too, bake the mood presets
+into a copy of its file (from `src/frontend/web`):
+
+```bash
+pnpm -s vrm:bake-expressions <source.vrm> --out <baked.vrm> [--replace]
+```
+
+It writes `happy`, `angry`, `sad`, `relaxed` and `surprised` from the same
+table, binding each mesh's own spelling of each ARKit shape, plus an empty
+`neutral` when the file has none. It keeps presets that already bind something
+unless `--replace` (an authored `neutral` is always kept), and lists table
+shapes the file lacks or matches ambiguously. On an
+Avatar missing table shapes or with VRoid mood parts, Animama plays the baked
+presets too; the command says which applies. Only VRM 1.0 files are supported.
+It changes nothing but those preset entries, never modifies the source and never
+overwrites an existing output.
+
 Tune faces by editing the JSON table; its values are starting points reviewed
 on a converted Avatar. Affection, esteem and delight key `Fcl_MTH_Fun`, so
 tuning relaxed's mouth retunes all three.

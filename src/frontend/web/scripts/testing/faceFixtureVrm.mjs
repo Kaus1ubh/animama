@@ -20,7 +20,8 @@ const REQUIRED_BONES = [
  * are stored at mesh level (as three.js reads them) unless `perPrimitive`.
  *
  * @param options.meshes Mesh name, morph-target names and name storage.
- * @param options.json Extra top-level JSON merged over the defaults.
+ * @param options.json Extra top-level JSON merged over the defaults; its
+ *   `extensions` are added beside `VRMC_vrm`.
  * @param options.vrm Fields merged into the `VRMC_vrm` extension.
  * @returns The GLB bytes and the node index of the first mesh.
  */
@@ -39,25 +40,23 @@ export function faceFixtureVrm({ meshes, json: extra = {}, vrm = {} }) {
     ...fields,
   });
   const meshNode = REQUIRED_BONES.length;
+  const vrmExtension = {
+    specVersion: "1.0",
+    meta: {
+      name: "Fixture",
+      authors: ["Animama"],
+      licenseUrl: "https://vrm.dev/licenses/1.0/",
+    },
+    humanoid: {
+      humanBones: Object.fromEntries(
+        REQUIRED_BONES.map((bone, node) => [bone, { node }]),
+      ),
+    },
+    ...vrm,
+  };
   const json = {
     asset: { version: "2.0" },
     extensionsUsed: ["VRMC_vrm"],
-    extensions: {
-      VRMC_vrm: {
-        specVersion: "1.0",
-        meta: {
-          name: "Fixture",
-          authors: ["Animama"],
-          licenseUrl: "https://vrm.dev/licenses/1.0/",
-        },
-        humanoid: {
-          humanBones: Object.fromEntries(
-            REQUIRED_BONES.map((bone, node) => [bone, { node }]),
-          ),
-        },
-        ...vrm,
-      },
-    },
     nodes: [
       ...REQUIRED_BONES.map((name, index) =>
         index === 0
@@ -91,6 +90,7 @@ export function faceFixtureVrm({ meshes, json: extra = {}, vrm = {} }) {
     ],
     ...extra,
   };
+  json.extensions = { ...extra.extensions, VRMC_vrm: vrmExtension };
   json.bufferViews = builder.views;
   const bin = builder.toBuffer();
   json.buffers = [{ byteLength: bin.length + (-bin.length & 3) }];

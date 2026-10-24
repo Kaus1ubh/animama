@@ -101,7 +101,8 @@ review stay in `<private-avatars>` or the session scratchpad.
   after one repair round). Owner visual gate on Lapwing still open (needs
   Phase 2).
 - [ ] Phase 5: ARKit lip-sync shaping. Owner review gate.
-- [ ] Phase 6: Bake VRM presets. Code can start after Phase 4's table exists.
+- [x] Phase 6: Bake VRM presets. Done; reviewed (pass after two repair rounds
+  and a final recheck). Baking Lapwing waits for Phase 2.
 
 Phases 4–6 may run before Phases 2–3 if the owner's Unity setup is pending; their
 owner gates then wait for the converted Avatar.
@@ -550,17 +551,122 @@ Changes: `pnpm -s vrm:bake-expressions <source.vrm> --out <baked.vrm>
 writes `VRMC_vrm.expressions.preset` entries for happy, angry, sad, relaxed,
 surprised and neutral as morph-target binds from the shared table. It refuses to
 overwrite the source or an existing output, keeps existing presets unless
-`--replace`, preserves all other JSON and extensions byte-for-byte where
-untouched, and reports shapes it could not resolve. Document it beside
+`--replace`, preserves the binary chunk byte for byte and all other JSON and
+extensions unchanged in value, and reports shapes it could not resolve. Document it beside
 `vrm:optimize`.
 
 Checks: unit tests on a synthetic VRM (presets written, extensions preserved,
 source unchanged, refusal cases); `vrm:inspect` on baked Lapwing; the baked
 file loads with presets on the stack.
 
+Implemented (starting source `eac8f4f9`): `scripts/vrm-bake-expressions.mjs`
+loads `resolveArkitFacesPerMesh` and `ARKIT_MOOD_MIXES` through the Vite SSR
+loader (as `vrm:inspect` does), so it resolves shapes per mesh exactly as the
+app does and uses the Phase 4 table. Binds reference the nodes whose meshes
+carry mesh-level `extras.targetNames`. Shared fixture
+`scripts/testing/faceFixtureVrm.mjs` (from Phase 1). Usage documented in
+`avatar-emotion.md` "ARKit Avatars", beside the table it bakes, rather than in
+the shipping-focused `vrm-optimization.md`.
+
+Check record (working tree on `eac8f4f9`, tree `c26246a3`):
+`node --test scripts/vrm-bake-expressions.test.mjs scripts/vrm-inspect.test.mjs`
+(`src/frontend/web`) 7 passed; `pnpm -s web:lint` (`src/frontend`) pass.
+`pnpm check` does not type-check `.mjs` scripts.
+
 #### Code Review #1 Findings
 
-Not run.
+Reviewed tree `c26246a3` against `eac8f4f9`, standard tier, by an independent
+sdlc-reviewer agent with a read-only probe (shared-mesh nodes, per-primitive
+names, JSON re-serialisation). VRM 1.0 bind fields, neutral, overrides,
+per-mesh spelling, source protection and argument parsing verified.
+
+- P6-F1 (required): the header said Animama's runtime mixes take precedence
+  "either way"; on an Avatar missing table shapes Animama plays the baked
+  presets, and the doc did not say so.
+- P6-F2 (required): the test fixture carried no extension payloads, so it could
+  not show other extensions (Mochiya's included) preserved.
+- P6-F3 (optional): ambiguous shapes were reported as not found, and shapes of
+  kept presets were listed.
+- P6-F4 (optional): meshes naming targets only per primitive gave no hint.
+- P6-F5 (optional): a failed write could leave a partial output that blocks
+  the next run.
+- P6-F6 (optional): the plan said "byte-for-byte" for JSON, which is
+  re-serialised (values unchanged; the binary chunk is byte-identical).
+- P6-F7 (optional): `--replace` emptied an authored neutral.
+
+#### Code Review #1 Revisions
+
+- P6-F1 accepted: header and `avatar-emotion.md` say Animama plays baked
+  presets on Avatars missing table shapes; the CLI prints that note when shapes
+  are missing or ambiguous.
+- P6-F2 accepted: the fixture gains a material with a synthetic
+  `MOCHIYA_materials_liltoon` payload and `extras`, and a top-level
+  `VRMC_springBone`; `faceFixtureVrm` now merges extra `extensions` beside
+  `VRMC_vrm` (the whole-JSON comparison covers them).
+- P6-F3 accepted: `ambiguousShapes` reported separately; only shapes of written
+  presets are listed. Test asserts both.
+- P6-F4 accepted: `primitiveOnlyMeshes` counted and printed with a pointer to
+  `vrm:inspect`. Duplicate names in `targetNames` left as an edge case.
+- P6-F5 accepted: written to `<out>.partial-<pid>`, then hard-linked to the
+  output (fails if it exists) and the partial removed in all cases.
+- P6-F6 accepted: wording fixed in this plan and the header.
+- P6-F7 accepted: an authored neutral is always kept; test added.
+
+Revision checks (working tree on `eac8f4f9`): `node --test
+scripts/vrm-bake-expressions.test.mjs scripts/vrm-inspect.test.mjs` 7 passed;
+`pnpm -s web:lint` pass. Repair budget: one round used.
+
+#### Code Review #2 Findings
+
+Targeted recheck by the same reviewer: P6-F1 to P6-F7 verified; fixture change
+has no regression for `vrm-inspect.test.mjs`.
+
+- P6-R2-F1 (required, regression from the P6-F5 fix): `link` needs hard links,
+  which exFAT/FAT drives and some network shares lack, so the command would
+  fail there; a race also surfaced a raw `EEXIST`.
+- P6-R2-F2 (optional): the "Animama plays these baked presets" note ignored kept
+  presets' shapes and VRoid mood parts, which the runtime also considers.
+- P6-R2-F3 (optional): `primitiveOnlyMeshes` counted nodes, not meshes.
+- P6-R2-F4 (optional): no tests for the ambiguous and per-primitive paths, the
+  CLI lines, or a leftover partial file.
+
+#### Code Review #2 Revisions
+
+- P6-R2-F1 accepted: back to a direct `wx` write; on failure the output this
+  process created is removed, and `EEXIST` gives the friendly message.
+- P6-R2-F2 accepted: `animamaPlaysBakedPresets` mirrors the runtime (every mood
+  shape resolves and no VRoid mood parts); the CLI always says which faces
+  Animama plays. Doc and header updated.
+- P6-R2-F3 accepted: counted by mesh index.
+- P6-R2-F4 accepted: tests for ambiguous shapes, a per-primitive mesh shared by
+  two nodes, the CLI lines and no leftover files.
+
+Revision checks (working tree on `eac8f4f9`): `node --test
+scripts/vrm-bake-expressions.test.mjs scripts/vrm-inspect.test.mjs` 8 passed;
+`pnpm -s web:lint` pass. Repair budget: both rounds used; Code Review #3 is the
+final targeted recheck.
+
+#### Code Review #3 Findings
+
+Final targeted recheck: P6-R2-F1 to F4 verified, no regressions. Result: pass.
+
+- P6-R3-F1 (optional): the CLI derived the table shapes from the mood mixes and
+  copied the VRoid mood-part pattern instead of using the app's definitions.
+- P6-R3-F2 (optional): authored custom expressions named like VRoid mood parts,
+  which the runtime counts, were not counted.
+- P6-R3-F3 (optional): no test for the "plays its own mixes" branch or the
+  VRoid-part branch.
+
+#### Code Review #3 Revisions
+
+All three accepted as trivial follow-ups, verified by the implementer (no
+review rounds remain): `isVroidMoodPart` moves to `arkitFaceCompositions.ts`
+and is shared by `registerArkitFace` and the CLI, which also takes
+`ARKIT_COMPOSITION_SHAPES` and counts custom expression names; a test covers
+all three outcomes. Checks: `node --test scripts/vrm-bake-expressions.test.mjs
+scripts/vrm-inspect.test.mjs` 9 passed; `npx vitest run src/lib/avatar/arkit`
+25 passed; `pnpm -s web:lint` and `pnpm -s check` pass, on the Phase 6
+commit's tree.
 
 ## Final integration review
 
