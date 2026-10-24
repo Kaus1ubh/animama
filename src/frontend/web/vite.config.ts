@@ -186,7 +186,7 @@ export const devOptimizedDependencies = [
 export const devDependencyScanEntries = [
   "index.html",
   "index.hosted.html",
-  "parakeet-bench.html",
+  "speech-bench.html",
 ] as const;
 
 // Vite is a development-only application origin; keep its host policy enabled.
