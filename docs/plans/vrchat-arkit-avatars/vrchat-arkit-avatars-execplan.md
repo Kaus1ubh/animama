@@ -446,6 +446,26 @@ Progress (2026-10-24, owner steps 1–3; agent steps 4, 5 and 7):
     those land on other UV islands. Proposed next: measure size from the anchor
     triangle's own UV mapping when samples disagree, keeping Included anchors
     unchanged.
+- Materials investigation (2026-10-24, owner asked why Lapwing looks unlike
+  Unity):
+  - Every fallback material is a `MeshStandardMaterial` with metalness 1,
+    roughness 1 and no environment map, so diffuse colour is lost under any
+    rendering. Classic versus enhanced changes only lights and tone mapping for
+    such materials; the MToon retune does not apply.
+  - The earlier exports used `-nographics`, which left 19 of 26 textures as
+    flat grey placeholders. The hair colour texture, for one, was a uniform 205
+    grey instead of lavender. A GPU export (`Lapwing-tpose-gpu.vrm`, 22.93 MB,
+    0 flat textures) replaced the stack's revision (`431a99b8`). Guide and
+    script now say not to use `-nographics`.
+  - The jacket comes from exporting `Lapwing.prefab`; the owner's Unity
+    reference matches the `LapwingWithoutBorello Variant`.
+  - A Phase 3 spike (uncommitted) adds `@mochiya/three-liltoon` 0.1.9 and wraps
+    the VRM plugin with `enableLilToonVRM`, plus `enableLilToon` in
+    `AvatarSceneLighting` and the review stage. Private renders closely match
+    the Unity reference in both classic and enhanced rendering. Included
+    Avatar review renders are pixel-identical to before in both modes (0
+    differing pixels). Pending: owner go/no-go, frame cost, lazy loading,
+    review.
 - Remaining: the owner's live re-check of R1 (motion, springs, blink, visemes,
   look-at) and the Phase 4 face review; the painted-effect fix above.
 

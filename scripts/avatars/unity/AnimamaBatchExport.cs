@@ -4,7 +4,8 @@
 // Assets/AnimamaExport/Editor/; see
 // docs/frontend/runtime/vrchat-avatar-conversion.md.
 //
-//   Unity -batchmode -quit -projectPath <project> \
+//   Unity -batchmode -quit -projectPath <project> \   (no -nographics: texture
+//                                                        readback needs the GPU)
 //     -executeMethod AnimamaBatchExport.Validate|Export \
 //     -animamaPrefab Assets/.../Avatar.prefab -animamaOut /abs/path/Avatar.vrm
 //

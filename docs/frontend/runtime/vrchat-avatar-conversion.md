@@ -73,11 +73,15 @@ change.
 
 ## Validate and export
 
+Pick the prefab the Avatar should look like. Many Avatars ship variants, such
+as Lapwing's `LapwingWithoutBorello Variant` without the jacket; each export
+captures one prefab.
+
 Close the project in the Unity editor first; batch mode cannot open a project
 that is already open. Then validate:
 
 ```bash
-Unity -batchmode -nographics -quit -projectPath <project> -logFile validate.log \
+Unity -batchmode -quit -projectPath <project> -logFile validate.log \
   -executeMethod AnimamaBatchExport.Validate \
   -animamaPrefab Assets/<Avatar>/Prefabs/<Avatar>.prefab \
   -animamaName <Avatar> -animamaVersion <version> -animamaAuthor <author> \
@@ -96,10 +100,13 @@ Expect these warnings:
 - **Colliders:** plane colliders are omitted, and inside-bounds colliders become
   outside colliders.
 
-Export writes a new file and refuses to overwrite one:
+Export writes a new file and refuses to overwrite one. Do not pass
+`-nographics`: the exporter reads compressed textures back through the GPU,
+and without one it writes flat grey placeholders (19 of Lapwing's 26 textures,
+including the hair colour).
 
 ```bash
-Unity -batchmode -nographics -quit -projectPath <project> -logFile export.log \
+Unity -batchmode -quit -projectPath <project> -logFile export.log \
   -executeMethod AnimamaBatchExport.Export \
   -animamaPrefab Assets/<Avatar>/Prefabs/<Avatar>.prefab \
   -animamaOut <private-dir>/<Avatar>.vrm \
@@ -128,6 +135,7 @@ pnpm -s vrm:inspect <private-dir>/<Avatar>.vrm
 
 Check that:
 
+- no texture is a flat colour (a sign of a `-nographics` export);
 - the file is VRM 1.0 and under the 100 MiB upload limit. `vrm:optimize` does
   not support Mochiya's extensions, so reduce an oversized Avatar's textures in
   Unity and export again;
