@@ -94,7 +94,7 @@ review stay in `<private-avatars>` or the session scratchpad.
 
 ## Progress
 
-- [ ] Phase 1: ARKit face capability and Avatar inspection. Not started.
+- [x] Phase 1: ARKit face capability and Avatar inspection. Done; reviewed (pass after one repair round).
 - [ ] Phase 2: Convert Lapwing. Blocked on owner: Unity install and files.
 - [ ] Phase 3: Authored lilToon rendering. Needs Phase 2 output; owner look gate.
 - [ ] Phase 4: ARKit emotions and face-track translation. Code can start after
@@ -174,15 +174,104 @@ registration, and for `vrm:inspect` on a synthetic GLB built in the test;
 Completion: tests pass; Included Avatars report no ARKit coverage and behave
 unchanged (existing expression tests pass).
 
-Commits: none yet. Check record: none yet.
+Starting source: `8b263532`. Step 4 (per-primitive name fallback) is not
+implemented: no export has shown the case yet, and `vrm:inspect` reports it
+("primitives only — three.js ignores these names") so Phase 2 can decide.
+No glossary entry: "ARKit face shapes" is described in the runtime guide and
+ADR 0031.
+
+Check record (working tree `e47039b5`, uncommitted on `8b263532`):
+
+| Command | Directory | Result |
+| --- | --- | --- |
+| `pnpm -s check` | `src/frontend` | pass |
+| `pnpm -s web:lint` | `src/frontend` | pass |
+| `npx vitest run src/lib/avatar` | `src/frontend/web` | 68 files, 1250 passed, 1 skipped |
+| `node --test scripts/vrm-inspect.test.mjs` | `src/frontend/web` | 3 passed |
+| `pnpm -s vrm:inspect ../../../content/included/avatars/Andrew.vrm` | `src/frontend/web` | VRM 1.0, 57 mesh-level morph names, 0 of 52 ARKit shapes |
+
+Commits: none yet.
 
 #### Code Review #1 Findings
 
-Not run.
+Reviewed working tree `e47039b5` against `8b263532`, standard tier, by an
+independent sdlc-reviewer agent. It reused the check record and also ran
+`vrm:inspect` on AvatarSample_A_1_New (0 of 52) and a resolver probe on edge
+names (no false positives on `Fcl_*`, `vrc.*`, MMD Japanese names or `Blink_L`).
+It verified that Included Avatars behave unchanged.
+
+- P1-F1 (required): `vrm:inspect` printed no morph-target names and no mesh
+  byte sizes, so Phase 2 could not confirm which shapes survived conversion.
+- P1-F2 (optional): the alias comment claimed full SRanipal coverage; SRanipal
+  eye-look, `Mouth_*_Inside` and Unified Expressions `LipSuck*` were unresolved.
+- P1-F3 (optional): the side-token comment did not match the code
+  (`L_EyeBlink` resolves).
+- P1-F4 (optional): an Avatar with only ambiguous candidates logged nothing,
+  though the docs say ambiguous shapes are logged.
+- P1-F5 (observation): short keys `mouth|side`, `jaw|side` match generic names
+  such as `Mouth_L`.
+- P1-F6 (optional): `vrm-inspect.mjs` and `registerMorphTargetExpressions`
+  repeated the morph-name listing.
+- P1-F7 (observation): `getAvailableExpressions()` lists both a shape's own
+  name and its canonical name on ARKit Avatars.
+- P1-F8 (observation): `vrm:inspect` ignored ARKit-named expressions the file
+  authors, which the runtime keeps.
+- P1-F9 (implementer): shapes were resolved once across all meshes, so a mesh
+  spelling a shape differently from the chosen spelling lost it.
 
 #### Code Review #1 Revisions
 
-Not run.
+- P1-F1 accepted: the report lists each mesh's `targetNames` (from primitives
+  when only they hold names) and its geometry, index and morph bytes; the text
+  output prints the names under each mesh. Test and doc updated.
+- P1-F2 accepted: added `LipSuckUpper/Lower` and SRanipal `Mouth_*_Inside`
+  aliases (to `mouthRoll*`); the comment now says eye-look names with two side
+  words are not matched. Tests extended.
+- P1-F3 accepted: comment corrected.
+- P1-F4 accepted: the controller also logs when only ambiguous shapes exist.
+- P1-F5 accepted as is: correct for SRanipal `Jaw_Left`; `vrm:inspect` lists
+  renamed matches for review.
+- P1-F6 accepted in substance: `listMorphTargetNames` was removed; inspection
+  and registration share `resolveArkitFacesPerMesh`, and the listing in
+  `morphTargetExpressions.ts` is one helper.
+- P1-F7 deferred to Phase 4, where expression lists for ARKit Avatars are
+  reconsidered with the face translation.
+- P1-F8 accepted: the report lists `authored` canonical expressions and leaves
+  them out of `renamed`.
+- P1-F9 accepted: `resolveArkitFacesPerMesh` resolves each mesh and merges the
+  summary; `registerArkitExpressions(vrm)` binds each mesh's own spelling and
+  now runs before raw morph registration, so an exactly spelled morph joins the
+  canonical expression. Tests: per-mesh resolver and a two-mesh controller test.
+
+Revision checks (working tree on `8b263532`, Phase 1 files): `pnpm -s check`
+pass; `pnpm -s web:lint` pass; `npx vitest run src/lib/avatar` 69 files, 1258
+passed, 1 skipped; `node --test scripts/vrm-inspect.test.mjs
+scripts/vrm-bake-expressions.test.mjs` 7 passed; `vrm:inspect` on
+AvatarSample_A_1_New lists its 57 `Fcl_*` names. Repair budget: one round used.
+
+#### Code Review #2 Findings
+
+Targeted recheck by the same reviewer: every accepted fix verified; the
+ARKit-before-raw registration order changes nothing for Included Avatars or
+file-authored expressions. No blocking findings.
+
+- P1-R2-F1 (optional): a mesh's ambiguity was dropped when another mesh
+  resolved the shape, so nothing reported its unbound morphs.
+- P1-R2-F2 (optional): the fixture's JSDoc described the `vrm` option under
+  `json`.
+- Noted: the record lacked a tree hash; a few lines exceeded Prettier width.
+
+#### Code Review #2 Revisions
+
+- P1-R2-F1 accepted: the summary's `ambiguous` now includes shapes any mesh
+  found ambiguous, even when another mesh resolves them; doc and a test added.
+- P1-R2-F2 accepted: JSDoc fixed.
+- Formatting applied with Prettier.
+- Both fixes are trivial and verified by the implementer (allowed below the
+  high-risk tier): `npx vitest run src/lib/avatar/arkit` 19 passed,
+  `node --test scripts/vrm-inspect.test.mjs` 3 passed, `pnpm -s web:lint` and
+  `pnpm -s check` pass. The tree is the Phase 1 commit's tree, recorded below.
+  One repair round remains unused.
 
 ### Phase 2: Convert Lapwing
 

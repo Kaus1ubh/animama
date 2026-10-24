@@ -892,6 +892,10 @@ Important behavior:
   targets when a VRM 0 file has no expressions for them. An expression with a
   native `overrideBlink` keeps it uncorrected. Load paths that know the model digest must pass it;
   the review harness pages hash their Avatar files for parity.
+- Morph targets become expressions: every morph-target name is registered as
+  an expression of the same name (case-sensitive) unless the file already has
+  one. ARKit face shapes are also registered under their canonical ARKit names
+  (see below).
 - Lip-sync has:
   - segment scheduling by audio start,
   - interpolation between frames,
@@ -899,6 +903,38 @@ Important behavior:
   - post-segment decay back to neutral.
 
 See [Avatar lip-sync](avatar-lipsync.md) for how each reply's mouth is planned.
+
+#### ARKit face shapes
+
+Avatars made for VRChat or face tracking often carry Apple's 52 ARKit face
+shapes under their own spelling. At construction, `ExpressionController`
+resolves them from each mesh's morph-target names (`arkitFaceCapability.ts`)
+and registers each found shape under its canonical name from `arkit.ts`, bound
+to every mesh's own spelling: `mouthSmileLeft` drives the face's
+`MouthSmile_L` and the teeth's `mouthSmileLeft`. Matching on each mesh, in
+order of preference:
+
+1. the exact canonical name, then a case-insensitive match;
+2. the same words with separators, camel case and the side token ignored:
+   `_L`/`_R`, `.L`/`.R`, `Left`/`Right`, also mid-name as in SRanipal's
+   `Eye_Left_Blink`;
+3. a face-tracking alias for shapes whose words differ, such as Unified
+   Expressions' `EyeClosedLeft` (`eyeBlinkLeft`) or `MouthCornerPullLeft`
+   (`mouthSmileLeft`). The table is `FACE_TRACKING_ALIASES`.
+
+An unsided ARKit shape such as `browInnerUp` or `cheekPuff` that an Avatar
+splits into halves binds both. Several equally good candidates leave the shape
+unresolved on that mesh, and the controller logs them as ambiguous. A name the file already uses for an expression keeps that expression.
+`getArkitFaceCapability()` returns the resolved shapes, the missing ones and the
+ambiguous candidates.
+
+`pnpm -s vrm:inspect <file.vrm>` (from `src/frontend/web`) reports the same
+resolution for a file before import, including shapes found under another
+spelling and ARKit-named expressions the file authors itself. It also reports
+the VRM version, extensions, materials, images, and each mesh's size and
+morph-target names with where they are stored: three.js reads only mesh-level
+`extras.targetNames`, so names stored only per primitive never reach the app.
+Add `--json` for the full report.
 
 ### `ProceduralAnimationController`
 

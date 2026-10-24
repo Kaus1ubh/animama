@@ -4,7 +4,11 @@ import {
   VRMExpressionPresetName,
 } from "@pixiv/three-vrm";
 import { ARKIT_BLENDSHAPES, EYE_MOVEMENT_BLENDSHAPES } from "./arkit";
-import { registerMorphTargetExpressions } from "./morphTargetExpressions";
+import type { ArkitFaceCapability } from "./arkitFaceCapability";
+import {
+  registerArkitExpressions,
+  registerMorphTargetExpressions,
+} from "./morphTargetExpressions";
 import {
   fallbackPresetForPart,
   resolvePartExpressionFallbacks,
@@ -703,6 +707,7 @@ export class ExpressionController {
 
   private _manualTargets: Record<string, number> = {};
   private _resolvedVowelExpressions: ResolvedVowelExpressionMap = {};
+  private _arkitFaceCapability: ArkitFaceCapability;
 
   // ARKit name to VRM preset mapping (for compatibility)
   private _arkitToVrmMap: Record<string, string> = {
@@ -739,8 +744,8 @@ export class ExpressionController {
       this._resolvedVowelExpressions = this._detectAndLogVowelExpressions();
     }
 
-    // Register ARKit expressions from mesh morph targets
-    this._registerArkitExpressions();
+    // Register mesh morph targets, and ARKit shapes under canonical names
+    this._arkitFaceCapability = this._registerArkitExpressions();
   }
 
   dispose(): void {
@@ -985,6 +990,15 @@ export class ExpressionController {
     }
     this._expressionOverlays.delete(normalizedOwnerId);
     return true;
+  }
+
+  /**
+   * The ARKit face shapes this Avatar has, resolved from its morph-target names
+   * at construction. Resolved shapes are registered under their canonical ARKit
+   * names.
+   */
+  getArkitFaceCapability(): ArkitFaceCapability {
+    return this._arkitFaceCapability;
   }
 
   /**
@@ -1386,8 +1400,19 @@ export class ExpressionController {
     return "mixed";
   }
 
-  private _registerArkitExpressions(): void {
+  private _registerArkitExpressions(): ArkitFaceCapability {
+    // ARKit shapes first: a mesh whose morph is already spelled canonically
+    // must join the canonical expression rather than own a same-named one.
+    const capability = registerArkitExpressions(this._vrm);
     registerMorphTargetExpressions(this._vrm);
+    if (capability.resolved.size > 0 || capability.ambiguous.size > 0) {
+      logger.info("Init", "Detected ARKit face shapes on VRM avatar", {
+        resolved: capability.resolved.size,
+        missing: capability.missing,
+        ambiguous: Object.fromEntries(capability.ambiguous),
+      });
+    }
+    return capability;
   }
 
   private _applyLipSyncFrame(frame: InternalFrame): void {
