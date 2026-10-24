@@ -66,6 +66,41 @@ def test_small_rasters_and_vector_art_are_returned_unchanged() -> None:
     assert thumbnail_file(_verified(svg, "image/svg+xml")).handle.read() == svg
 
 
+def _png_header_only(width: int, height: int) -> bytes:
+    """A tiny PNG that declares a huge canvas, as a decompression bomb does."""
+    import struct
+    import zlib
+
+    def chunk(kind: bytes, payload: bytes) -> bytes:
+        body = kind + payload
+        return struct.pack(">I", len(payload)) + body + struct.pack(">I", zlib.crc32(body))
+
+    header = struct.pack(">IIBBBBB", width, height, 8, 6, 0, 0, 0)
+    return b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", header) + chunk(b"IDAT", zlib.compress(b"")) + chunk(b"IEND", b"")
+
+
+@pytest.mark.parametrize(
+    ("side", "reason"),
+    # 64 million pixels: under Pillow's bomb warning, over Animama's budget.
+    [(8_000, "image_pixel_budget"), (12_000, "unsupported_image_format")],
+)
+def test_an_oversized_canvas_is_refused_from_its_header(side: int, reason: str) -> None:
+    file = _verified(_png_header_only(side, side))
+    with pytest.raises(ContentThumbnailError) as refused:
+        thumbnail_file(file)
+    # Refused from the declared size, before Pillow allocates the canvas.
+    assert getattr(refused.value.__cause__, "reason", None) == reason
+    assert file.handle.closed
+
+
+def test_small_sources_are_not_held_in_the_thumbnail_cache() -> None:
+    from animama.app.services import content_thumbnails
+
+    small = _png(32, 32, (9, 9, 9, 255))
+    thumbnail_file(_verified(small))
+    assert content_thumbnails._cache.get(hashlib.sha256(small).hexdigest()) is None
+
+
 @pytest.mark.parametrize(
     ("data", "media_type"),
     [(b"RIFF....WAVEfmt ", "audio/wav"), (b"\x89PNG\r\n\x1a\nnot really", "image/png")],

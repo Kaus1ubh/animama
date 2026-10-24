@@ -233,8 +233,14 @@ def derive_image_thumbnail(
     *,
     extension: str,
     content: BinaryIO,
+    max_dimension: int = THUMBNAIL_MAX_DIMENSION,
+    first_frame: bool = False,
 ) -> DerivedImageThumbnail:
-    """Resize a canonical static image without upscaling and encode it as WebP."""
+    """Resize a bounded image without upscaling and encode it as WebP.
+
+    By default the source must be a canonical static image; ``first_frame``
+    instead accepts an animated source and keeps its first frame.
+    """
 
     image, source_format, source_width, source_height, frame_count = _open_bounded_image(
         extension=extension,
@@ -242,14 +248,12 @@ def derive_image_thumbnail(
     )
     stripped: Image.Image | None = None
     try:
-        _require_supported_frame_policy(source_format, frame_count)
+        if not first_frame:
+            _require_supported_frame_policy(source_format, frame_count)
         image.seek(0)
         image.load()
         oriented = ImageOps.exif_transpose(image)
-        oriented.thumbnail(
-            (THUMBNAIL_MAX_DIMENSION, THUMBNAIL_MAX_DIMENSION),
-            Image.Resampling.LANCZOS,
-        )
+        oriented.thumbnail((max_dimension, max_dimension), Image.Resampling.LANCZOS)
         has_alpha = "A" in oriented.getbands() or "transparency" in oriented.info
         mode = "RGBA" if has_alpha else "RGB"
         stripped = Image.new(mode, oriented.size)
