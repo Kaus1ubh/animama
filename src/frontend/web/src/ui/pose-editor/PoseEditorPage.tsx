@@ -205,7 +205,12 @@ export function PoseEditorWorkspace({ poseId }: { poseId: string }) {
     setRetry((value) => value + 1);
   };
   return (
-    <div className="flex h-full min-h-0 flex-col" data-testid="pose-editor">
+    // The editor stacks its panels instead of floating them over the stage, so
+    // it keeps clear of the collapsed sidebar rail as a whole.
+    <div
+      className="flex h-full min-h-0 flex-col pl-[var(--app-shell-sidebar-inset)]"
+      data-testid="pose-editor"
+    >
       <header className="border-border shrink-0 border-b px-3 py-3 lg:px-4">
         <h1 className="sr-only">{t("editor.title")}</h1>
         <fieldset

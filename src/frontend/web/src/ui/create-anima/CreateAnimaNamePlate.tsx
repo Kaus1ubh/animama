@@ -27,12 +27,12 @@ export function CreateAnimaNamePlate({
   return (
     <div
       className={cn(
-        "bg-background/90 relative flex w-[min(92%,520px)] flex-col rounded-2xl border px-5 py-3 shadow-lg backdrop-blur-md",
+        "bg-background/90 relative flex w-full max-w-[520px] flex-col rounded-2xl border px-4 py-3 shadow-lg backdrop-blur-md sm:w-[min(92%,520px)] sm:px-5",
         invalid &&
           "border-destructive ring-destructive/20 text-destructive ring-2",
       )}
     >
-      <div className="flex w-full items-center gap-4">
+      <div className="flex w-full items-center gap-2 sm:gap-4">
         <label
           htmlFor="creation-display-name"
           className="text-muted-foreground shrink-0 text-sm font-semibold"
@@ -55,7 +55,7 @@ export function CreateAnimaNamePlate({
           className="h-10 min-w-0 flex-1 border-0 bg-transparent px-1 text-lg font-semibold shadow-none focus-visible:ring-0"
         />
         <Pencil
-          className="text-muted-foreground size-5 shrink-0"
+          className="text-muted-foreground hidden size-5 shrink-0 sm:block"
           aria-hidden="true"
         />
         <span

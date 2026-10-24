@@ -261,6 +261,11 @@
       "status": "{{name}} のプレビュー: {{status}}",
       "stop": "{{name}} のプレビューを停止"
     },
+    "stage": {
+      "close": "アバター表示を閉じる",
+      "open": "アバターを表示",
+      "title": "{{name}}のアバター"
+    },
     "tabs": {
       "emotions": "感情",
       "loadout": "ふるまい",

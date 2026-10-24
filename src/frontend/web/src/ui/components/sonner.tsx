@@ -23,7 +23,9 @@ const Toaster = ({ ...props }: ToasterProps) => {
   return (
     <Sonner
       theme={resolveSonnerTheme(forcedTheme ?? theme)}
-      className="toaster group"
+      // Modal dialogs disable pointer events on the page; toasts, such as a
+      // preview error with Retry over the full-screen phone stage, stay usable.
+      className="toaster group pointer-events-auto"
       icons={{
         success: <CircleCheckIcon className="size-4" />,
         info: <InfoIcon className="size-4" />,

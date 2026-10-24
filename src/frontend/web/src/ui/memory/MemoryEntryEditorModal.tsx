@@ -198,7 +198,7 @@ export function MemoryEntryEditorModal({
       <DialogContent
         onCloseAutoFocus={onCloseAutoFocus}
         avoidSidebar
-        className="flex h-[min(86vh,58rem)] w-[min(96vw,90rem)] max-w-none flex-col gap-0 overflow-hidden p-0 sm:max-w-none"
+        className="flex h-[min(86vh,58rem)] w-[min(96vw,90rem)] max-w-none flex-col gap-0 overflow-hidden p-0 max-sm:h-[100dvh] max-sm:w-full max-sm:rounded-none max-sm:ring-0 sm:max-w-none"
       >
         <div className="border-border/70 flex shrink-0 flex-col border-b p-4">
           <DialogHeader className="pr-10">

@@ -1018,7 +1018,8 @@ function MobileWorkspace({
     ? tool
     : tools[0]!.id;
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+    // Tablet widths keep the stacked layout clear of the sidebar's icon rail.
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden pl-[var(--app-shell-sidebar-inset)]">
       <div className="h-[38dvh] min-h-[230px] shrink-0">
         <ActionEditorScene capabilities={capabilities} />
       </div>

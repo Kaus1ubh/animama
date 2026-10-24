@@ -222,10 +222,13 @@ export function CreateAnimaAvatarStep({
               variant="outline"
               className="shrink-0"
               disabled={busy}
+              aria-label={t("avatarStep.upload")}
+              title={t("avatarStep.upload")}
               onClick={() => fileInputRef.current?.click()}
             >
               <Upload className="size-4" />
-              {t("avatarStep.upload")}
+              {/* Phones give the source switch the room; the stage also offers upload. */}
+              <span className="hidden sm:inline">{t("avatarStep.upload")}</span>
             </Button>
           </div>
           {(["included", "local"] as const).map((source) => (

@@ -743,6 +743,11 @@ export default interface Resources {
         "status": "{{name}} preview: {{status}}",
         "stop": "Stop {{name}} preview"
       },
+      "stage": {
+        "close": "Close Avatar view",
+        "open": "View Avatar",
+        "title": "{{name}}'s Avatar"
+      },
       "tabs": {
         "emotions": "Emotions",
         "loadout": "Behavior",

@@ -15,7 +15,10 @@ import {
   getTimelinePercent,
 } from "./creatorTimelineGeometry";
 
-/** Shared control layout; each creator owns its playback state and capabilities. */
+/**
+ * Shared control layout; each creator owns its playback state and
+ * capabilities. Phone widths wrap the groups instead of clipping them.
+ */
 export function CreatorTimelineToolbar({
   leading,
   transport,
@@ -26,14 +29,14 @@ export function CreatorTimelineToolbar({
   trailing?: ReactNode;
 }) {
   return (
-    <div className="grid min-w-0 shrink-0 grid-cols-[auto_auto_auto] items-center gap-1.5 overflow-x-auto pb-0.5 min-[1200px]:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+    <div className="grid min-w-0 shrink-0 grid-cols-[auto_auto_auto] items-center gap-1.5 overflow-x-auto pb-0.5 max-sm:flex max-sm:flex-wrap max-sm:overflow-visible min-[1200px]:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
       <div className="flex flex-wrap items-center gap-3 justify-self-start">
         {leading}
       </div>
-      <div className="col-start-2 row-start-1 flex items-center justify-center gap-1.5">
+      <div className="col-start-2 row-start-1 flex items-center justify-center gap-1.5 max-sm:min-w-0 max-sm:flex-wrap max-sm:justify-start">
         {transport}
       </div>
-      <div className="col-start-3 row-start-1 flex shrink-0 items-center gap-1.5 justify-self-end">
+      <div className="col-start-3 row-start-1 flex shrink-0 items-center gap-1.5 justify-self-end max-sm:ml-auto">
         {trailing}
       </div>
     </div>

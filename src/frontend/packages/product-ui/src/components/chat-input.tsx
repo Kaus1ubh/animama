@@ -22,6 +22,11 @@ import {
 } from "./chat-input-submit-state";
 const CHAT_INPUT_COMPACT_GAP_PX = 8;
 const CHAT_INPUT_MEASUREMENT_TOLERANCE_PX = 2;
+/**
+ * Below this width the text area cannot show a short placeholder on one line
+ * (phones), so the composer stacks the text above its actions even when empty.
+ */
+const CHAT_INPUT_MIN_COMPACT_TEXTAREA_WIDTH_PX = 220;
 
 type ChatInputLayoutMode = "compact" | "stacked";
 type ChatInputMicMode = "dictation" | "voice";
@@ -195,10 +200,12 @@ function ChatInput({
     leadingActionsMeasureSize.width,
     variant,
   ]);
+  const compactTextAreaTooNarrow =
+    compactTextAreaWidth < CHAT_INPUT_MIN_COMPACT_TEXTAREA_WIDTH_PX;
   const layoutMode: ChatInputLayoutMode =
     variant === "default" &&
     compactTextAreaWidth > 0 &&
-    compactTextAreaMultiline
+    (compactTextAreaMultiline || compactTextAreaTooNarrow)
       ? "stacked"
       : "compact";
   const hasLeadingActions = Boolean(leadingActions);

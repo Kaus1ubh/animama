@@ -25,7 +25,7 @@ export const SidebarHeader = ({ onSearch }: SidebarHeaderProps) => {
   // Retain both layouts so opacity tracks the sidebar width without a delayed swap.
   // Inactive controls are inert as well as invisible during the crossfade.
   return (
-    <div className="relative h-11 shrink-0">
+    <div className="short:h-9 relative h-11 shrink-0">
       <div
         aria-hidden={!open}
         inert={!open}
@@ -78,7 +78,7 @@ export const SidebarHeader = ({ onSearch }: SidebarHeaderProps) => {
               type="button"
               onClick={() => setOpen(true)}
               className={cn(
-                "border-border/60 bg-background/60 text-foreground/80 hover:text-foreground flex h-11 w-11 items-center justify-center rounded-full border shadow-sm backdrop-blur-md transition-colors",
+                "border-border/60 bg-background/60 text-foreground/80 hover:text-foreground short:h-9 short:w-9 flex h-11 w-11 items-center justify-center rounded-full border shadow-sm backdrop-blur-md transition-colors",
               )}
               aria-label={t("open")}
             >

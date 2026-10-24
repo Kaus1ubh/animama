@@ -13,4 +13,16 @@ describe("resolveAnimaRosterLayout", () => {
   ] as const)("maps %ipx to the %s layout", (width, expected) => {
     expect(resolveAnimaRosterLayout(width)).toBe(expected);
   });
+
+  it.each([
+    [812, 375, "phone"],
+    [1024, 499, "phone"],
+    [1024, 500, "tablet"],
+    [1440, 400, "desktop"],
+  ] as const)(
+    "maps a %ix%ipx viewport to the %s layout",
+    (width, height, expected) => {
+      expect(resolveAnimaRosterLayout(width, height)).toBe(expected);
+    },
+  );
 });

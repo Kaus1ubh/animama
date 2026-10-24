@@ -10,9 +10,11 @@ import {
 import {
   ChevronLeft,
   ChevronRight,
+  Eye,
   ImageUp,
   MousePointer2,
   Square,
+  X,
 } from "lucide-react";
 import {
   useCallback,
@@ -69,13 +71,18 @@ import { AnimaCarousel } from "@/ui/animas/AnimaCarousel";
 import {
   ANIMA_SHOWCASE_CAMERAS,
   ANIMA_SHOWCASE_ORBIT_TARGET,
+  ANIMA_SHOWCASE_SHORT_CAMERA,
 } from "@/ui/animas/AnimaManagementStagePresentation";
-import { useAnimaRosterLayout } from "@/ui/animas/useAnimaRosterLayout";
+import {
+  useAnimaRosterLayout,
+  useShortAnimaViewport,
+} from "@/ui/animas/useAnimaRosterLayout";
 import { AppShellPage } from "@/ui/app/AppShellPage";
 import { StageBackgroundLayer } from "@/ui/main/canvas/StageBackgroundLayer";
 import { usePreparedContentPreview } from "@/ui/content-preview/usePreparedContentPreview";
 import { Button } from "@/ui/components/button";
 import { Card, CardContent } from "@/ui/components/card";
+import { Dialog, DialogContent, DialogTitle } from "@/ui/components/dialog";
 import { EmotionalState } from "@/ui/components/emotional-state";
 import { EmotionMascot } from "@/ui/components/emotion-mascot";
 import { RuntimeImageFrame } from "@/ui/components/runtime-image-frame";
@@ -83,6 +90,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/ui/components/tabs";
 import { AnimaMemoriesSection } from "@/ui/animas/AnimaMemoriesSection";
 import { AnimaIdentitySection } from "@/ui/animas/AnimaIdentitySection";
 import { AnimaSettingsModal } from "@/ui/main/header/AnimaSettingsModal";
+import { SidebarMenuButton } from "@/ui/sidebar/SidebarMenuButton";
 
 export type AnimaDetailsPageProps = {
   animaId: string;
@@ -204,6 +212,7 @@ function ManagementPanel({
   backgroundImage,
   onTabChange,
   onStagePreview,
+  onOpenStage,
 }: {
   anima: PyAnimaResponse;
   activeTab: AnimaManagementTab;
@@ -216,6 +225,8 @@ function ManagementPanel({
   backgroundImage: RuntimeCatalogEntry | null;
   onTabChange: (tab: AnimaManagementTab) => void;
   onStagePreview: (target: ContentPreviewTarget) => void;
+  /** Phone layouts show the stage on demand instead of beside the panel. */
+  onOpenStage?: () => void;
 }) {
   const { t } = useTranslation("animas");
   const { t: emotionT } = useTranslation("emotion");
@@ -224,12 +235,26 @@ function ManagementPanel({
     useState<AnimaAppearanceSection | null>(null);
   const profileThumbnailMedia = useAnimaPresentationImage(profileThumbnail);
   const backgroundMedia = useRuntimeContentMediaUrl(backgroundImage);
+  const tabListRef = useRef<HTMLDivElement>(null);
+  // Phone tabs scroll sideways; centre a selected tab that is out of view.
+  // Only the strip scrolls, never the page.
+  useEffect(() => {
+    const list = tabListRef.current;
+    const active = list?.querySelector<HTMLElement>('[data-state="active"]');
+    if (!list || !active) return;
+    const listRect = list.getBoundingClientRect();
+    const activeRect = active.getBoundingClientRect();
+    if (activeRect.left >= listRect.left && activeRect.right <= listRect.right)
+      return;
+    list.scrollLeft +=
+      activeRect.left - listRect.left - (listRect.width - activeRect.width) / 2;
+  }, [activeTab]);
 
   return (
     <>
       <aside className="border-border/70 bg-card/80 m-3 flex min-w-0 flex-col rounded-[1.75rem] border shadow-xl shadow-black/10 backdrop-blur-md xl:my-5 xl:mr-5 xl:ml-0 xl:min-h-0 xl:flex-1 xl:overflow-hidden">
         <div className="px-5 pt-4 md:px-7 md:pt-5">
-          <div className="flex min-w-0 flex-wrap items-center gap-3">
+          <div className="flex min-w-0 items-center gap-3 sm:flex-wrap">
             <button
               type="button"
               onClick={() => setAppearanceSection("profile_image")}
@@ -252,10 +277,10 @@ function ManagementPanel({
                   />
                 </>
               ) : null}
-              <h1 className="text-foreground relative z-10 min-w-0 truncate text-4xl leading-none font-semibold tracking-tight">
+              <h1 className="text-foreground relative z-10 min-w-0 truncate text-3xl leading-none font-semibold tracking-tight sm:text-4xl">
                 {displayName}
               </h1>
-              <span className="relative z-10 flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-full">
+              <span className="relative z-10 flex size-11 shrink-0 items-center justify-center overflow-hidden rounded-full sm:size-14">
                 {profileThumbnailMedia.url ? (
                   <RuntimeImageFrame
                     src={profileThumbnailMedia.url}
@@ -276,24 +301,43 @@ function ManagementPanel({
                 <ImageUp className="size-3.5" />
               </span>
             </button>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  onClick={() => onTabChange("emotions")}
-                  aria-label={t("management.openEmotions", {
-                    feeling: emotion.feeling.label,
-                  })}
-                  className="focus-visible:ring-ring/50 ml-auto flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full transition-opacity outline-none hover:opacity-80 focus-visible:ring-[3px]"
-                >
-                  <EmotionMascot
-                    src={emotion.feeling.mascot}
-                    className="size-10"
-                  />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>{emotion.feeling.label}</TooltipContent>
-            </Tooltip>
+            <div className="ml-auto flex shrink-0 items-center gap-2">
+              {onOpenStage ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="rounded-full"
+                      aria-label={t("management.stage.open")}
+                      onClick={onOpenStage}
+                    >
+                      <Eye className="size-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{t("management.stage.open")}</TooltipContent>
+                </Tooltip>
+              ) : null}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={() => onTabChange("emotions")}
+                    aria-label={t("management.openEmotions", {
+                      feeling: emotion.feeling.label,
+                    })}
+                    className="focus-visible:ring-ring/50 flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full transition-opacity outline-none hover:opacity-80 focus-visible:ring-[3px]"
+                  >
+                    <EmotionMascot
+                      src={emotion.feeling.mascot}
+                      className="size-10"
+                    />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>{emotion.feeling.label}</TooltipContent>
+              </Tooltip>
+            </div>
           </div>
 
           <Tabs
@@ -305,12 +349,15 @@ function ManagementPanel({
             }}
             className="mt-3"
           >
-            <TabsList className="border-border/70 grid h-auto w-full grid-cols-5 rounded-none border-b bg-transparent p-0">
+            <TabsList
+              ref={tabListRef}
+              className="border-border/70 flex h-auto w-full justify-start overflow-x-auto rounded-none border-b bg-transparent p-0 [scrollbar-width:none] sm:grid sm:grid-cols-5"
+            >
               {ANIMA_MANAGEMENT_TABS.map((tab) => (
                 <TabsTrigger
                   key={tab}
                   value={tab}
-                  className="text-muted-foreground data-[state=active]:text-foreground data-[state=active]:after:bg-primary relative rounded-none bg-transparent px-1 py-3 text-xs shadow-none after:absolute after:inset-x-2 after:bottom-[-1px] after:h-0.5 after:rounded-full after:bg-transparent data-[state=active]:bg-transparent data-[state=active]:shadow-none sm:text-sm"
+                  className="text-muted-foreground data-[state=active]:text-foreground data-[state=active]:after:bg-primary relative shrink-0 rounded-none bg-transparent px-3 py-3 text-sm shadow-none after:absolute after:inset-x-2 after:bottom-[-1px] after:h-0.5 after:rounded-full after:bg-transparent data-[state=active]:bg-transparent data-[state=active]:shadow-none sm:px-1"
                 >
                   {tabLabel(t, tab)}
                 </TabsTrigger>
@@ -381,6 +428,11 @@ export function AnimaDetailsPage({
   });
   const rosterLayout = useAnimaRosterLayout();
   const isDesktopLayout = rosterLayout === "desktop";
+  const isPhoneLayout = rosterLayout === "phone";
+  const shortViewport = useShortAnimaViewport();
+  // Phones show the management panel as the page and open the stage
+  // full-screen on request or for a preview, so no canvas runs behind it.
+  const [phoneStageOpen, setPhoneStageOpen] = useState(false);
   const animasQuery = useAnimas();
   const animaQuery = useAnima(animaId, { enabled: Boolean(animaId) });
   const runtimeSnapshotQuery = useAnimaRuntimeCatalog(animaId);
@@ -406,35 +458,52 @@ export function AnimaDetailsPage({
     (candidate) => candidate.id === animaId,
   );
 
-  const openStagePreview = useCallback((target: ContentPreviewTarget): void => {
-    if (!isAnimaStagePreviewTarget(target)) return;
-    toast.dismiss(STAGE_PREVIEW_TOAST_ID);
-    if (document.activeElement instanceof HTMLElement) {
-      stagePreviewInvokerRef.current = document.activeElement;
-    }
-    logContentPreviewLifecycle(
-      previousStageTargetKeyRef.current &&
-        previousStageTargetKeyRef.current !== target.key
-        ? "target_replacement"
-        : "preview_open",
-      "management",
-      {
-        kind: target.kind,
-        slot: target.slot,
-        sourceType: target.sourceType,
-      },
-    );
-    previousStageTargetKeyRef.current = target.key;
-    dispatchStagePreview({ type: "select", target });
-  }, []);
+  const openStagePreview = useCallback(
+    (target: ContentPreviewTarget): void => {
+      if (!isAnimaStagePreviewTarget(target)) return;
+      // Only phones show the stage on demand; wider layouts keep it docked.
+      if (isPhoneLayout) setPhoneStageOpen(true);
+      toast.dismiss(STAGE_PREVIEW_TOAST_ID);
+      if (document.activeElement instanceof HTMLElement) {
+        stagePreviewInvokerRef.current = document.activeElement;
+      }
+      logContentPreviewLifecycle(
+        previousStageTargetKeyRef.current &&
+          previousStageTargetKeyRef.current !== target.key
+          ? "target_replacement"
+          : "preview_open",
+        "management",
+        {
+          kind: target.kind,
+          slot: target.slot,
+          sourceType: target.sourceType,
+        },
+      );
+      previousStageTargetKeyRef.current = target.key;
+      dispatchStagePreview({ type: "select", target });
+    },
+    [isPhoneLayout],
+  );
   const stopStagePreview = useCallback(() => {
     toast.dismiss(STAGE_PREVIEW_TOAST_ID);
     dispatchStagePreview({ type: "stop" });
     previousStageTargetKeyRef.current = null;
     const invoker = stagePreviewInvokerRef.current;
+    stagePreviewInvokerRef.current = null;
     if (!invoker?.isConnected) return;
     window.requestAnimationFrame(() => invoker.focus());
   }, []);
+  const closePhoneStage = useCallback(() => {
+    setPhoneStageOpen(false);
+    // A stage opened with View Avatar has no preview to stop; the dialog
+    // returns focus to its trigger.
+    if (stagePreview.target) stopStagePreview();
+  }, [stagePreview.target, stopStagePreview]);
+
+  // Leaving the phone layout closes its stage, so it cannot reopen unasked.
+  useEffect(() => {
+    if (!isPhoneLayout) setPhoneStageOpen(false);
+  }, [isPhoneLayout]);
 
   useEffect(() => {
     if (!stagePreparation.prepared) return;
@@ -543,6 +612,200 @@ export function AnimaDetailsPage({
   const avatarUrl = runtimeContentDeliveryUrl(avatarRuntimeContent);
   const canMove = sortedAnimas.length > 1 && selectedIndex >= 0;
 
+  const gestureHint = (
+    <>
+      <MousePointer2 className="size-3.5" />
+      <span className="min-[360px]:hidden">
+        {t("management.gestureHint.short")}
+      </span>
+      <span className="hidden min-[360px]:inline md:hidden">
+        {t("management.gestureHint.pinch")}
+      </span>
+      <span className="hidden md:inline xl:hidden">
+        {t("management.gestureHint.touch")}
+      </span>
+      <span className="hidden xl:inline">
+        {t("management.gestureHint.pointer")}
+      </span>
+    </>
+  );
+
+  const renderStage = (presentation: "docked" | "phone") => (
+    <AnimaAvatarStage
+      animaId={animaId}
+      animaName={displayName}
+      avatarUrl={avatarUrl}
+      avatarRuntimeContentEntry={avatarRuntimeContent}
+      runtimeContent={runtimeContentQuery.data}
+      contentPreview={stagePreview.prepared}
+      contentPreviewTarget={stagePreview.target}
+      contentPreviewStatus={stagePreview.status}
+      contentPreviewLoop={stagePreview.loop}
+      contentPreviewPlayRequest={stagePreview.playRequest}
+      onContentPreviewStatusChange={handleStagePreviewStatus}
+      camera={
+        presentation === "phone" && shortViewport
+          ? ANIMA_SHOWCASE_SHORT_CAMERA
+          : ANIMA_SHOWCASE_CAMERAS[rosterLayout]
+      }
+      orbitTarget={ANIMA_SHOWCASE_ORBIT_TARGET}
+      showMetadata={false}
+      emptyTitle={
+        runtimeContentQuery.isLoading
+          ? t("management.avatar.preparingTitle")
+          : runtimeContentQuery.isError
+            ? t("management.avatar.unavailableTitle")
+            : undefined
+      }
+      emptyDescription={
+        runtimeContentQuery.isLoading
+          ? t("management.avatar.preparingDescription")
+          : runtimeContentQuery.isError
+            ? t("management.avatar.unavailableDescription")
+            : undefined
+      }
+      className="h-full min-h-0"
+      backdrop={
+        presentation === "phone" ? (
+          <StageBackgroundLayer variant="showcase" />
+        ) : (
+          <StageBackgroundLayer
+            variant="showcase"
+            className="[mask-image:linear-gradient(to_right,transparent,black_18%,black_82%,transparent)]"
+          />
+        )
+      }
+      transparent
+      overlay={
+        <>
+          {presentation === "docked" ? (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon-lg"
+                disabled={!canMove}
+                aria-label={t("carousel.previous")}
+                onClick={() => selectAdjacent(-1)}
+                className="bg-background/88 pointer-events-auto absolute top-[43%] left-[calc(var(--app-shell-sidebar-inset)+1.25rem)] -translate-y-1/2 rounded-full shadow-lg backdrop-blur-md md:left-[calc(var(--app-shell-sidebar-inset)+2rem)]"
+              >
+                <ChevronLeft className="size-5" />
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon-lg"
+                disabled={!canMove}
+                aria-label={t("carousel.next")}
+                onClick={() => selectAdjacent(1)}
+                className="bg-background/88 pointer-events-auto absolute top-[43%] right-5 -translate-y-1/2 rounded-full shadow-lg backdrop-blur-md md:right-8"
+              >
+                <ChevronRight className="size-5" />
+              </Button>
+            </>
+          ) : null}
+
+          <div
+            className={cn(
+              "bg-background/84 text-muted-foreground absolute left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-xl border px-3 py-2 text-xs shadow-md backdrop-blur-md",
+              presentation === "phone"
+                ? "bottom-[max(1.5rem,env(safe-area-inset-bottom))]"
+                : "bottom-[7.75rem] md:bottom-[10rem] xl:bottom-[10.25rem]",
+            )}
+          >
+            {gestureHint}
+          </div>
+
+          {stagePreview.target ? (
+            <div
+              role="region"
+              aria-label={t("management.preview.region", {
+                name: stagePreview.target.displayName,
+              })}
+              aria-busy={stagePreview.status === "loading"}
+              className={cn(
+                "pointer-events-auto absolute",
+                presentation === "phone"
+                  ? "top-[max(1rem,env(safe-area-inset-top))] right-4"
+                  : "top-5 right-5",
+              )}
+            >
+              <p
+                className="sr-only"
+                role="status"
+                aria-live="polite"
+                aria-atomic="true"
+              >
+                {t("management.preview.status", {
+                  name: stagePreview.target.displayName,
+                  status:
+                    stagePreview.error ??
+                    stagePreviewStatusLabel(t, stagePreview.status),
+                })}
+              </p>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="bg-background/85 min-h-10 shadow-sm backdrop-blur-sm"
+                aria-label={t("management.preview.stop", {
+                  name: stagePreview.target.displayName,
+                })}
+                onClick={stopStagePreview}
+              >
+                <Square className="size-3.5" /> {t("actions.stop")}
+              </Button>
+            </div>
+          ) : null}
+
+          {runtimeContentQuery.isError ? (
+            <div className="pointer-events-auto absolute inset-x-0 top-[43%] flex -translate-y-1/2 justify-center px-16">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => void runtimeContentQuery.refetch()}
+              >
+                {t("management.avatar.retry")}
+              </Button>
+            </div>
+          ) : null}
+        </>
+      }
+    />
+  );
+
+  const carousel = (
+    <AnimaCarousel
+      animas={sortedAnimas}
+      selectedAnimaId={animaId}
+      onSelect={(nextAnimaId) => onSelectAnima(nextAnimaId, activeTab)}
+      onPrevious={() => selectAdjacent(-1)}
+      onNext={() => selectAdjacent(1)}
+      onCreate={onCreateAnima}
+      createUnavailableReason={createAnimaUnavailableReason}
+      compact={isPhoneLayout}
+      showNavigationButtons={false}
+    />
+  );
+
+  const managementPanel = (
+    <ManagementPanel
+      anima={anima}
+      activeTab={activeTab}
+      displayName={displayName}
+      identity={identity}
+      identityLoading={identityQuery.isLoading}
+      identityError={identityQuery.isError}
+      fallbackIdentity={fallbackIdentity}
+      profileThumbnail={selectedAnima?.presentation.profile_thumbnail ?? null}
+      backgroundImage={runtimeContentQuery.data?.background_image ?? null}
+      onTabChange={onTabChange}
+      onStagePreview={openStagePreview}
+      onOpenStage={isPhoneLayout ? () => setPhoneStageOpen(true) : undefined}
+    />
+  );
+
   return (
     <AppShellPage
       className="min-h-[100dvh] xl:h-[100dvh] xl:overflow-hidden"
@@ -557,186 +820,74 @@ export function AnimaDetailsPage({
       }
       sidebarBehavior="adaptive-canvas"
     >
-      <div
-        className={cn(
-          "relative min-h-full min-w-0",
-          isDesktopLayout
-            ? "grid h-full min-h-0 grid-cols-[minmax(0,1fr)_minmax(30rem,34rem)] overflow-hidden 2xl:grid-cols-[minmax(0,1fr)_minmax(34rem,40rem)]"
-            : "flex flex-col",
-        )}
-      >
-        <section
+      {isPhoneLayout ? (
+        // Landscape phones show the icon rail; keep the panel clear of it.
+        <div className="relative z-10 flex min-h-full min-w-0 flex-col pl-[var(--app-shell-sidebar-inset)]">
+          <div className="flex items-center gap-1 px-3 pt-3">
+            <SidebarMenuButton />
+            <div className="min-w-0 flex-1">{carousel}</div>
+          </div>
+          {managementPanel}
+          <Dialog
+            open={phoneStageOpen}
+            onOpenChange={(open) => {
+              if (!open) closePhoneStage();
+            }}
+          >
+            <DialogContent
+              showCloseButton={false}
+              aria-describedby={undefined}
+              // Keep the stage open while the preview error toast is used.
+              onInteractOutside={(event) => event.preventDefault()}
+              // Above the icon rail (z-120), below sidebar menus (z-130).
+              className="bg-background inset-0 top-0 left-0 z-[125] block h-[100dvh] w-full max-w-none translate-x-0 translate-y-0 rounded-none p-0 ring-0 sm:max-w-none"
+            >
+              <DialogTitle className="sr-only">
+                {t("management.stage.title", { name: displayName })}
+              </DialogTitle>
+              {renderStage("phone")}
+              <Button
+                type="button"
+                variant="outline"
+                size="icon-lg"
+                aria-label={t("management.stage.close")}
+                onClick={closePhoneStage}
+                className="bg-background/88 absolute top-[max(1rem,env(safe-area-inset-top))] left-4 z-40 rounded-full shadow-lg backdrop-blur-md"
+              >
+                <X className="size-5" />
+              </Button>
+            </DialogContent>
+          </Dialog>
+        </div>
+      ) : (
+        <div
           className={cn(
-            "relative z-10 min-w-0 overflow-hidden",
+            "relative min-h-full min-w-0",
             isDesktopLayout
-              ? "h-full min-h-0"
-              : "h-[min(46rem,72dvh)] min-h-[34rem]",
+              ? "grid h-full min-h-0 grid-cols-[minmax(0,1fr)_minmax(30rem,34rem)] overflow-hidden 2xl:grid-cols-[minmax(0,1fr)_minmax(34rem,40rem)]"
+              : "flex flex-col",
           )}
         >
-          <AnimaAvatarStage
-            animaId={animaId}
-            animaName={displayName}
-            avatarUrl={avatarUrl}
-            avatarRuntimeContentEntry={avatarRuntimeContent}
-            runtimeContent={runtimeContentQuery.data}
-            contentPreview={stagePreview.prepared}
-            contentPreviewTarget={stagePreview.target}
-            contentPreviewStatus={stagePreview.status}
-            contentPreviewLoop={stagePreview.loop}
-            contentPreviewPlayRequest={stagePreview.playRequest}
-            onContentPreviewStatusChange={handleStagePreviewStatus}
-            camera={ANIMA_SHOWCASE_CAMERAS[rosterLayout]}
-            orbitTarget={ANIMA_SHOWCASE_ORBIT_TARGET}
-            showMetadata={false}
-            emptyTitle={
-              runtimeContentQuery.isLoading
-                ? t("management.avatar.preparingTitle")
-                : runtimeContentQuery.isError
-                  ? t("management.avatar.unavailableTitle")
-                  : undefined
-            }
-            emptyDescription={
-              runtimeContentQuery.isLoading
-                ? t("management.avatar.preparingDescription")
-                : runtimeContentQuery.isError
-                  ? t("management.avatar.unavailableDescription")
-                  : undefined
-            }
-            className="h-full min-h-0"
-            backdrop={
-              <StageBackgroundLayer
-                variant="showcase"
-                className="[mask-image:linear-gradient(to_right,transparent,black_18%,black_82%,transparent)]"
-              />
-            }
-            transparent
-            overlay={
-              <>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon-lg"
-                  disabled={!canMove}
-                  aria-label={t("carousel.previous")}
-                  onClick={() => selectAdjacent(-1)}
-                  className="bg-background/88 pointer-events-auto absolute top-[43%] left-[calc(var(--app-shell-sidebar-inset)+1.25rem)] -translate-y-1/2 rounded-full shadow-lg backdrop-blur-md md:left-[calc(var(--app-shell-sidebar-inset)+2rem)]"
-                >
-                  <ChevronLeft className="size-5" />
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon-lg"
-                  disabled={!canMove}
-                  aria-label={t("carousel.next")}
-                  onClick={() => selectAdjacent(1)}
-                  className="bg-background/88 pointer-events-auto absolute top-[43%] right-5 -translate-y-1/2 rounded-full shadow-lg backdrop-blur-md md:right-8"
-                >
-                  <ChevronRight className="size-5" />
-                </Button>
+          <section
+            className={cn(
+              "relative z-10 min-w-0 overflow-hidden",
+              isDesktopLayout
+                ? "h-full min-h-0"
+                : "h-[min(46rem,72dvh)] min-h-[34rem]",
+            )}
+          >
+            {renderStage("docked")}
 
-                <div className="bg-background/84 text-muted-foreground absolute bottom-[7.75rem] left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-xl border px-3 py-2 text-xs shadow-md backdrop-blur-md md:bottom-[10rem] xl:bottom-[10.25rem]">
-                  <MousePointer2 className="size-3.5" />
-                  <span className="min-[360px]:hidden">
-                    {t("management.gestureHint.short")}
-                  </span>
-                  <span className="hidden min-[360px]:inline md:hidden">
-                    {t("management.gestureHint.pinch")}
-                  </span>
-                  <span className="hidden md:inline xl:hidden">
-                    {t("management.gestureHint.touch")}
-                  </span>
-                  <span className="hidden xl:inline">
-                    {t("management.gestureHint.pointer")}
-                  </span>
-                </div>
+            <div className="absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-1/2 z-40 w-[calc(100%-1.5rem)] max-w-[52rem] -translate-x-1/2 md:bottom-4 md:w-[calc(100%-2rem)] xl:bottom-5 xl:max-w-[43rem]">
+              {carousel}
+            </div>
+          </section>
 
-                {stagePreview.target ? (
-                  <div
-                    role="region"
-                    aria-label={t("management.preview.region", {
-                      name: stagePreview.target.displayName,
-                    })}
-                    aria-busy={stagePreview.status === "loading"}
-                    className="pointer-events-auto absolute top-5 right-5"
-                  >
-                    <p
-                      className="sr-only"
-                      role="status"
-                      aria-live="polite"
-                      aria-atomic="true"
-                    >
-                      {t("management.preview.status", {
-                        name: stagePreview.target.displayName,
-                        status:
-                          stagePreview.error ??
-                          stagePreviewStatusLabel(t, stagePreview.status),
-                      })}
-                    </p>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      className="bg-background/85 min-h-10 shadow-sm backdrop-blur-sm"
-                      aria-label={t("management.preview.stop", {
-                        name: stagePreview.target.displayName,
-                      })}
-                      onClick={stopStagePreview}
-                    >
-                      <Square className="size-3.5" /> {t("actions.stop")}
-                    </Button>
-                  </div>
-                ) : null}
-
-                {runtimeContentQuery.isError ? (
-                  <div className="pointer-events-auto absolute inset-x-0 top-[43%] flex -translate-y-1/2 justify-center px-16">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => void runtimeContentQuery.refetch()}
-                    >
-                      {t("management.avatar.retry")}
-                    </Button>
-                  </div>
-                ) : null}
-              </>
-            }
-          />
-
-          <div className="absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-1/2 z-40 w-[calc(100%-1.5rem)] max-w-[52rem] -translate-x-1/2 md:bottom-4 md:w-[calc(100%-2rem)] xl:bottom-5 xl:max-w-[43rem]">
-            <AnimaCarousel
-              animas={sortedAnimas}
-              selectedAnimaId={animaId}
-              onSelect={(nextAnimaId) => onSelectAnima(nextAnimaId, activeTab)}
-              onPrevious={() => selectAdjacent(-1)}
-              onNext={() => selectAdjacent(1)}
-              onCreate={onCreateAnima}
-              createUnavailableReason={createAnimaUnavailableReason}
-              compact={rosterLayout === "phone"}
-              showNavigationButtons={false}
-            />
+          <div className="relative z-10 min-w-0 xl:flex xl:min-h-0">
+            {managementPanel}
           </div>
-        </section>
-
-        <div className="relative z-10 min-w-0 xl:flex xl:min-h-0">
-          <ManagementPanel
-            anima={anima}
-            activeTab={activeTab}
-            displayName={displayName}
-            identity={identity}
-            identityLoading={identityQuery.isLoading}
-            identityError={identityQuery.isError}
-            fallbackIdentity={fallbackIdentity}
-            profileThumbnail={
-              selectedAnima?.presentation.profile_thumbnail ?? null
-            }
-            backgroundImage={runtimeContentQuery.data?.background_image ?? null}
-            onTabChange={onTabChange}
-            onStagePreview={openStagePreview}
-          />
         </div>
-      </div>
+      )}
     </AppShellPage>
   );
 }

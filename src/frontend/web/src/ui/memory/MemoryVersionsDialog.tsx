@@ -198,7 +198,7 @@ export function MemoryVersionsDialog({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent
           avoidSidebar
-          className="flex h-[min(88vh,52rem)] w-[min(96vw,72rem)] max-w-none flex-col gap-0 overflow-hidden p-0 sm:max-w-none"
+          className="flex h-[min(88vh,52rem)] w-[min(96vw,72rem)] max-w-none flex-col gap-0 overflow-hidden p-0 max-sm:h-[100dvh] max-sm:w-full max-sm:rounded-none max-sm:ring-0 sm:max-w-none"
         >
           <DialogHeader className="border-border/70 shrink-0 border-b px-5 py-4 pr-12">
             <DialogTitle className="flex items-center gap-2">
