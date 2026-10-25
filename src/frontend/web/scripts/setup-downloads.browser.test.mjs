@@ -15,7 +15,7 @@ const fixture = path.join(webRoot, "tests/fixtures/setup-downloads");
 
 /**
  * Setup offers the Local model location only in builds with
- * `VITE_ENABLE_LOCAL_MODELS` (#694). Most tests here drive local servers, so
+ * `VITE_ENABLE_LOCAL_MODELS` (#694). Several tests drive local model servers, so
  * their server sets it; a second server builds the default, without Local.
  */
 async function startServer(localModels) {
