@@ -185,6 +185,27 @@ test("says whether Animama plays its own mixes, as the runtime decides", () => {
   );
 });
 
+test("scales a file's own expression under an ARKit name, as the app does", () => {
+  const { json } = readGlb(
+    faceFixtureVrm({ meshes: [{ name: "Face", names: arkitShapes }] }).bytes,
+  );
+  const smile = arkitShapes.indexOf("mouthSmileLeft");
+  // The authored expression binds a different target at half weight.
+  json.extensions.VRMC_vrm.expressions = {
+    custom: {
+      mouthSmileLeft: {
+        morphTargetBinds: [{ node: 15, index: 0, weight: 0.5 }],
+      },
+    },
+  };
+  bakeExpressions(json, tools);
+  const happy = json.extensions.VRMC_vrm.expressions.preset.happy;
+  const smileBinds = happy.morphTargetBinds.filter(
+    ({ index, weight }) => index === smile || weight === 0.5,
+  );
+  assert.deepEqual(smileBinds, [{ node: 15, index: 0, weight: 0.5 }]);
+});
+
 test("refuses VRM 0.x files", () => {
   assert.throws(
     () => bakeExpressions({ extensions: { VRM: {} } }, tools),

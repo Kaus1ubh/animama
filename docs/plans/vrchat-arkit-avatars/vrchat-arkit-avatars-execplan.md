@@ -124,8 +124,8 @@ owner gates then wait for the converted Avatar.
   1.4.0, so the upgrade may change the authored look before export.
 - 2026-10-24 (Phase 2): `ARKIT_BLENDSHAPES` in `arkit.ts` has 51 names; it omits
   `tongueOut`, which Lapwing has. `vrm:inspect` therefore printed "51 of 52".
-  Fix with the deferred INT-F6 to F8 follow-ups (append `tongueOut`, report the
-  list's own length).
+  Fixed on 2026-10-25 with the deferred INT-F6 to F8 follow-ups: `tongueOut`
+  is appended and `vrm:inspect` reports the list's own length.
 - 2026-10-24 (Phase 2): on macOS, `vpm new` refuses to run without Unity
   2022.3.22f1; copying the Creator Companion Avatar template and running
   `vpm resolve project` works with 2022.3.62f3.
@@ -1320,6 +1320,29 @@ gated on resolved ARKit shapes, and both resolve none.
   the PR: share one VRoid mood vocabulary module; add the "Animama plays ARKit
   faces" line to `vrm:inspect` (Phase 2 step 5 uses it); note or align the bake
   edge case.
+
+### Deferred items (2026-10-25)
+
+Starting source `ea9f8a29`:
+
+- INT-F6: `vroidMoodParts.ts` holds VRoid's mood names, their presets and the
+  part pattern; `partExpressionFallback.ts` and `arkitFaceCompositions.ts` use
+  it (the latter re-exports `isVroidMoodPart` for `vrm:bake-expressions`).
+- INT-F7: `vrm:inspect` runs `registerArkitFace` on the loaded file and says
+  whether Animama plays its faces as ARKit mixes; JSON gains
+  `arkit.playsFacesWithArkit` and `arkit.total`.
+- INT-F8 aligned rather than noted: the bake scales an expression the file
+  authors under an ARKit name, as the runtime does, instead of binding the raw
+  morph.
+- `tongueOut` is appended to `ARKIT_BLENDSHAPES` (52 names). `arkit_52` frames
+  index the list, so a 51-value frame leaves `tongueOut` untouched. Included
+  Avatars resolve no ARKit shapes, so nothing changes for them.
+
+Check record (working tree on `ea9f8a29`, before the Phase 3 step 5 files):
+`timeout 300 node --test scripts/vrm-bake-expressions.test.mjs
+scripts/vrm-inspect.test.mjs` 10 passed; `npx vitest run src/lib/avatar
+src/ui` 2852 passed, 1 skipped; `pnpm -s web:lint` and `pnpm -s check` pass.
+Reviewed with Phase 3 step 5 below.
 
 ## Validation and acceptance
 

@@ -371,7 +371,8 @@ pnpm -s vrm:bake-expressions <source.vrm> --out <baked.vrm> [--replace]
 ```
 
 It writes `happy`, `angry`, `sad`, `relaxed` and `surprised` from the same
-table, binding each mesh's own spelling of each ARKit shape, plus an empty
+table, binding each mesh's own spelling of each ARKit shape (or, as the app
+does, scaling an expression the file authors under that ARKit name), plus an empty
 `neutral` when the file has none. It keeps presets that already bind something
 unless `--replace` (an authored `neutral` is always kept), and lists table
 shapes the file lacks or matches ambiguously. On an

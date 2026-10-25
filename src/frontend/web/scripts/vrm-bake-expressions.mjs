@@ -102,16 +102,22 @@ export function bakeExpressions(
   // Each mesh binds its own spelling of a shape, as the app does.
   const faces = resolveArkitFacesPerMesh(nodes.map(({ names }) => names));
   const { capability } = faces;
+  const custom = vrm.expressions?.custom ?? {};
   const binds = (mix) =>
-    Object.entries(mix).flatMap(([shape, weight]) =>
-      nodes.flatMap(({ node, names }, meshIndex) =>
+    Object.entries(mix).flatMap(([shape, weight]) => {
+      // As in the app, an expression the file authors under the ARKit name
+      // stands for the shape: its binds are scaled by the mix.
+      const own = custom[shape]?.morphTargetBinds;
+      if (Array.isArray(own) && own.length > 0)
+        return own.map((bind) => ({ ...bind, weight: bind.weight * weight }));
+      return nodes.flatMap(({ node, names }, meshIndex) =>
         (faces.meshes[meshIndex].get(shape) ?? []).map((morph) => ({
           node,
           index: names.indexOf(morph),
           weight,
         })),
-      ),
-    );
+      );
+    });
 
   vrm.expressions ??= {};
   vrm.expressions.preset ??= {};

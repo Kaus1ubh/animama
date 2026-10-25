@@ -934,7 +934,8 @@ uses, its mood presets and VRoid parts also become ARKit mixes; see
 
 `pnpm -s vrm:inspect <file.vrm>` (from `src/frontend/web`) reports the same
 resolution for a file before import, including shapes found under another
-spelling and ARKit-named expressions the file authors itself. It also reports
+spelling, ARKit-named expressions the file authors itself, and whether
+Animama will play the Avatar's faces as ARKit mixes. It also reports
 the VRM version, extensions, materials, images, and each mesh's size and
 morph-target names with where they are stored: three.js reads only mesh-level
 `extras.targetNames`, so names stored only per primitive never reach the app.

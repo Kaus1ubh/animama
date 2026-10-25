@@ -101,4 +101,10 @@ test("resolves ARKit shapes from the names three.js loads", () => {
   });
   // The primitive-only name never reaches the app.
   assert.ok(arkit.missing.includes("browInnerUp"));
+  assert.equal(arkit.total, 52);
+  // Three shapes are far short of the table, so the app keeps its presets.
+  assert.equal(arkit.playsFacesWithArkit, false);
+  const text = formatReport(report);
+  assert.match(text, /ARKit shapes: 3 of 52/);
+  assert.match(text, /Animama plays its own presets/);
 });

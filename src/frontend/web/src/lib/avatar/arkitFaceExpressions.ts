@@ -10,10 +10,10 @@ import {
   ARKIT_MOOD_MIXES,
   ARKIT_PART_MIXES,
   type ArkitMix,
-  isVroidMoodPart,
   playsFacesWithArkit,
 } from "./arkitFaceCompositions";
 import { registerArkitExpressions } from "./morphTargetExpressions";
+import { isVroidMoodPart } from "./vroidMoodParts";
 
 /**
  * Give an ARKit Avatar the face names content keys.

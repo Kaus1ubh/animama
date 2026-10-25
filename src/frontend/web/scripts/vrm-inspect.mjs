@@ -153,6 +153,9 @@ async function inspectLoadedFace(bytes) {
     const { resolveArkitFacesPerMesh } = await web.load(
       path.join(webRoot, "src/lib/avatar/arkitFaceCapability.ts"),
     );
+    const { registerArkitFace } = await web.load(
+      path.join(webRoot, "src/lib/avatar/arkitFaceExpressions.ts"),
+    );
     const vrm = await web.module.loadHeadlessVrm(
       bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
     );
@@ -167,10 +170,15 @@ async function inspectLoadedFace(bytes) {
     const authored = [...capability.resolved.keys()].filter((canonical) =>
       vrm.expressionManager?.getExpression(canonical),
     );
+    // The same decision `Avatar.load` makes (after `authored` is read, since
+    // registering adds the canonical names).
+    const { playsFacesWithArkit } = registerArkitFace(vrm);
     return {
       morphNames: new Set(meshNames.flat()).size,
       arkit: {
         resolved: capability.resolved.size,
+        total: capability.resolved.size + capability.missing.length,
+        playsFacesWithArkit,
         authored,
         // Shapes found under another name, to check the matching by eye.
         renamed: Object.fromEntries(
@@ -234,8 +242,14 @@ export function formatReport(report) {
   const { arkit } = loaded;
   lines.push(
     `loaded morph names: ${loaded.morphNames}`,
-    `ARKit shapes: ${arkit.resolved} of 52`,
+    `ARKit shapes: ${arkit.resolved} of ${arkit.total}`,
   );
+  if (arkit.resolved > 0)
+    lines.push(
+      arkit.playsFacesWithArkit
+        ? "  Animama plays this Avatar's faces as ARKit mixes"
+        : "  Animama plays its own presets (it lacks a table shape or has VRoid mood parts)",
+    );
   if (arkit.authored.length)
     lines.push(`  authored by the file: ${arkit.authored.join(", ")}`);
   for (const [canonical, morphs] of Object.entries(arkit.renamed))

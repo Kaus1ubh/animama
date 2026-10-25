@@ -143,7 +143,8 @@ Check that:
 - every face mesh stores its names at mesh level, not "primitives only";
 - the rest pose is a T-pose: arms straight out to the sides (the Gesture
   renders below show it quickly);
-- the ARKit count is complete, with any renamed matches as expected.
+- the ARKit count is complete, with any renamed matches as expected, and
+  inspect says Animama plays the Avatar's faces as ARKit mixes.
 
 `pnpm -s effects:bench --avatar-file <private-dir>/<Avatar>.vrm` measures its
 frame cost on the GPU.
