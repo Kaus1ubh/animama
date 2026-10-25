@@ -12,17 +12,29 @@ import { BROWSER_STEP_TIMEOUT_MS } from "./fixtures/browser-timeouts.mjs";
 // the Finish payload. Only native IPC and HTTP are simulated.
 const webRoot = fileURLToPath(new URL("..", import.meta.url));
 const fixture = path.join(webRoot, "tests/fixtures/setup-downloads");
-let server, browser, origin;
-before(async () => {
-  server = await createServer({
+
+/**
+ * Setup offers the Local model location only in builds with
+ * `VITE_ENABLE_LOCAL_MODELS` (#694). Most tests here drive local servers, so
+ * their server sets it; a second server builds the default, without Local.
+ */
+async function startServer(localModels) {
+  const started = await createServer({
     configFile: false,
     root: webRoot,
     publicDir: false,
-    cacheDir: path.join(webRoot, "node_modules/.vite-setup-downloads"),
+    cacheDir: path.join(
+      webRoot,
+      `node_modules/.vite-setup-downloads${localModels ? "" : "-default"}`,
+    ),
     logLevel: "error",
     define: {
       __ANIMAMA_DEV_BUILD__: "false",
       __ANIMAMA_APP_VERSION__: '"test"',
+      // Explicit either way, so a developer's own .env cannot change the build.
+      "import.meta.env.VITE_ENABLE_LOCAL_MODELS": JSON.stringify(
+        String(localModels),
+      ),
     },
     optimizeDeps: { entries: [path.join(fixture, "main.tsx")] },
     resolve: {
@@ -33,13 +45,21 @@ before(async () => {
     },
     server: { host: "127.0.0.1", port: 0 },
   });
-  await server.listen();
-  origin = `http://127.0.0.1:${server.httpServer.address().port}`;
+  await started.listen();
+  return started;
+}
+const originOf = (started) =>
+  `http://127.0.0.1:${started.httpServer.address().port}`;
+let server, defaultServer, browser;
+before(async () => {
+  server = await startServer(true);
+  defaultServer = await startServer(false);
   browser = await chromium.launch({ headless: true });
 });
 after(async () => {
   await browser?.close();
   await server?.close();
+  await defaultServer?.close();
 });
 
 const OPENAI_MODEL = "OpenAIResponsesHTTPAgent:gpt-6-luna";
@@ -75,7 +95,8 @@ const PRESETS = [
 
 /**
  * Mount setup with intercepted HTTP. `options.modelConfiguration` false is
- * the hosted composition; `options.detect` maps a local preset to its models.
+ * the hosted composition; `options.detect` maps a local preset to its models;
+ * `options.localModels` false mounts the default build, which hides Local.
  */
 async function mount(options = {}) {
   const page = await browser.newPage({
@@ -424,6 +445,9 @@ async function mount(options = {}) {
       json: { detail: "Unexpected fixture route" },
     });
   });
+  const origin = originOf(
+    options.localModels === false ? defaultServer : server,
+  );
   await page.goto(`${origin}/tests/fixtures/setup-downloads/index.html`);
   try {
     await page.getByLabel("Display name", { exact: true }).waitFor();
@@ -1197,6 +1221,22 @@ test("the hosted composition's AI step offers no model choice", async () => {
     await button(page, "I am 18 or older").click();
     await page.getByText("Setup complete", { exact: true }).waitFor();
     assert.equal(bodies.onboarding.chat_model_provider_id, undefined);
+  } finally {
+    await page.close();
+  }
+});
+
+test("the default build's AI step offers only Cloud providers", async () => {
+  const { page, requests, errors } = await mount({ localModels: false });
+  try {
+    await welcome(page);
+    await providerTab(page, "OpenAI").waitFor();
+    // One location needs no Cloud | Local strip, and no local server is searched for.
+    assert.equal(await page.getByRole("tab", { name: "Cloud" }).count(), 0);
+    assert.equal(await page.getByRole("tab", { name: "Local" }).count(), 0);
+    assert.equal(await providerTab(page, "Ollama").count(), 0);
+    assert.deepEqual(detects(requests), []);
+    assert.deepEqual(errors, []);
   } finally {
     await page.close();
   }
