@@ -1,4 +1,4 @@
-export const DISPLAY_NAME_MAX_LENGTH = 80;
+export const DISPLAY_NAME_MAX_LENGTH = 30;
 
 /** Normalize private personalization; null means the input cannot be saved. */
 export function normalizeLocalDisplayName(value: string): string | null {

@@ -264,7 +264,6 @@
     "webSearch": "Web 検索"
   },
   "language": {
-    "description": "Animama と Anima の言語です。メニューやメッセージに加え、Anima が話す言葉と聞き取る言葉にも使われます。ベータ版の言語は機械翻訳です。",
     "keywords": [
       "言語",
       "ロケール",
@@ -329,7 +328,6 @@
     "advanced": "詳細",
     "apiKeys": "API キー",
     "appearance": "外観",
-    "data": "データ",
     "general": "一般",
     "memoryEmotion": "記憶と感情",
     "models": "モデル",

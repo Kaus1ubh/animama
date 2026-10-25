@@ -3,7 +3,6 @@ import { toast } from "sonner";
 import { systemPreferredLanguages } from "@animama/product-ui/i18n";
 import {
   SUPPORTED_LOCALES,
-  isBetaLocale,
   isUiLocale,
   localeNativeName,
   resolveLocale,
@@ -38,16 +37,12 @@ export function LanguageSelect({
   id?: string;
   className?: string;
 }) {
-  const { t } = useTranslation(["settings", "common"]);
+  const { t } = useTranslation("settings");
   const { data: settings } = useUserSettings();
   const { mutateAsync: updateUserSettings, isPending } =
     useUpdateUserSettings();
   const saved = isUiLocale(settings?.locale) ? settings.locale : null;
   const systemLocale = resolveLocale({ preferred: systemPreferredLanguages() });
-  const nameWithBeta = (locale: (typeof SUPPORTED_LOCALES)[number]) =>
-    isBetaLocale(locale)
-      ? `${localeNativeName(locale)} · ${t("common:beta")}`
-      : localeNativeName(locale);
 
   return (
     <Select
@@ -75,7 +70,7 @@ export function LanguageSelect({
         </SelectItem>
         {SUPPORTED_LOCALES.map((locale) => (
           <SelectItem key={locale} value={locale} lang={locale}>
-            {nameWithBeta(locale)}
+            {localeNativeName(locale)}
           </SelectItem>
         ))}
       </SelectContent>
@@ -87,10 +82,6 @@ export function LanguageSelect({
 export function LanguageSetting() {
   const { t } = useTranslation("settings");
   return (
-    <SettingsRow
-      label={t("language.label")}
-      description={t("language.description")}
-      control={<LanguageSelect />}
-    />
+    <SettingsRow label={t("language.label")} control={<LanguageSelect />} />
   );
 }

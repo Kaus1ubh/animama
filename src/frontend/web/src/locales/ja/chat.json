@@ -157,6 +157,12 @@
       "unavailable": "モデルを利用できません。別のモデルを選択してください。",
       "unavailableShort": "モデルを利用できません",
       "webSearch": "ウェブ検索"
+    },
+    "speechEngines": {
+      "offline": "{{engine}} {{variant}}",
+      "stt": "STT: {{stt}}",
+      "tts": "TTS: {{tts}}",
+      "ttsOff": "オフ"
     }
   },
   "header": {

@@ -259,10 +259,10 @@ describe("local first-run setup", () => {
     expect(normalizeLocalDisplayName("  Ada   Lovelace  ")).toBe(
       "Ada Lovelace",
     );
-    expect(normalizeLocalDisplayName("x".repeat(80))).toBe("x".repeat(80));
+    expect(normalizeLocalDisplayName("x".repeat(30))).toBe("x".repeat(30));
   });
 
-  it.each(["", "   ", "\t\n", " ", "x".repeat(81)])(
+  it.each(["", "   ", "\t\n", " ", "x".repeat(31)])(
     "rejects an unsavable name: %j",
     (value) => {
       expect(normalizeLocalDisplayName(value)).toBeNull();

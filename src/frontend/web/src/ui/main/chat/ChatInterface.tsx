@@ -74,6 +74,7 @@ import {
   routeOfflineSpeech,
 } from "@/lib/speech/offline-stt/routing";
 import { isWebSpeechSupported } from "@/lib/speech/stt-provider";
+import { composerSpeechEngines } from "@/lib/speech/composer-speech-engines";
 import { joinSpeechText } from "@/lib/speech/speech-text";
 import { useSettings } from "@/ui/settings/SettingsProvider";
 import { toast } from "sonner";
@@ -261,6 +262,13 @@ export function ChatInterfaceView({
         capabilities.data,
       )) ||
     isWebSpeechSupported(platform);
+  const { effectivePreferences } = useSettings();
+  const speechEngines = composerSpeechEngines({
+    preferences: effectivePreferences,
+    platform,
+    locale: i18n.resolvedLanguage,
+    capabilities: capabilities.data,
+  });
   // Operator-provided speech models cannot be installed from the composer.
   const operatorManagedModels = useOperatorManagedModelAssets();
   const { data: anima } = useAnima(animaId);
@@ -395,6 +403,7 @@ export function ChatInterfaceView({
               onSubmit={onSubmit}
               onVoice={onVoiceModeStart}
               voiceAvailable={speechAvailable}
+              voiceModeDetails={speechEngines.voiceMode}
               loading={isStreaming}
               onStop={onStop}
               activeMicMode={activeMode}
@@ -446,6 +455,7 @@ export function ChatInterfaceView({
                   />
                   <ChatInputDictation
                     disabled={!activeMode && (!canChat || !speechAvailable)}
+                    engineDetails={speechEngines.dictation}
                   />
                   <ChatInputSubmit />
                 </>
