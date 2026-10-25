@@ -118,15 +118,16 @@ test("writes presets from the ARKit mixes on every mesh with the shape", () => {
     ]),
   );
   assert.deepEqual(sad, {
-    [`${meshNode}:0`]: 0.7,
-    [`${meshNode}:1`]: 0.5,
-    [`${meshNode}:2`]: 0.5,
-    [`${meshNode + 1}:1`]: 0.2,
+    [`${meshNode}:0`]: 0.9,
+    [`${meshNode}:1`]: 1,
+    [`${meshNode}:2`]: 1,
+    [`${meshNode + 1}:1`]: 0.4,
   });
-  // Each mesh binds its own spelling of mouthSmileLeft.
+  // Each mesh binds its own spelling of mouthSmileLeft (after browInnerUp).
   assert.deepEqual(preset.happy.morphTargetBinds, [
-    { node: meshNode, index: 3, weight: 0.8 },
-    { node: meshNode + 1, index: 0, weight: 0.8 },
+    { node: meshNode, index: 0, weight: 0.2 },
+    { node: meshNode, index: 3, weight: 1 },
+    { node: meshNode + 1, index: 0, weight: 1 },
   ]);
   assert.deepEqual(preset.neutral.morphTargetBinds, []);
   assert.deepEqual(preset.aa.morphTargetBinds, [

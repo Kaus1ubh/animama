@@ -5,7 +5,8 @@ draft; snapshot in [vrchat-arkit-avatars-spec.md](vrchat-arkit-avatars-spec.md))
 The issue is the spec; owner decisions are in the Decision Log.
 Authorized scope: Phases 1, 4 and 6 (owner, 2026-10-24); Phase 2 from step 4
 (owner, 2026-10-24, after setting up the Unity project); Phase 3 (owner,
-2026-10-24). Phase 5 waits for a separate go-ahead.
+2026-10-24). Phase 5 and the rest of the plan (owner, 2026-10-25, asking to
+continue the rest of the plan).
 Merge, release and any use of third-party Avatar data beyond local testing keep
 their separate approvals.
 
@@ -105,11 +106,12 @@ review stay in `<private-avatars>` or the session scratchpad.
   (about 30 ms of GPU time per frame on an M5 at the chat canvas) remains.
   Reducing the cost is #691 R11.
 - [x] Phase 4: ARKit emotions and face-track translation. Done; reviewed (pass
-  after one repair round). Owner visual gate on Lapwing still open (needs
-  Phase 2).
+  after one repair round). Mixes retuned on 2026-10-25 after the owner found
+  Lapwing's moods weak (see the Phase 4 revision). Owner visual gate on Lapwing
+  still open.
 - [ ] Phase 5: ARKit lip-sync shaping. Owner review gate.
 - [x] Phase 6: Bake VRM presets. Done; reviewed (pass after two repair rounds
-  and a final recheck). Baking Lapwing waits for Phase 2.
+  and a final recheck). Lapwing baked and loaded on the stack (2026-10-25).
 
 Phases 4–6 may run before Phases 2–3 if the owner's Unity setup is pending; their
 owner gates then wait for the converted Avatar.
@@ -174,6 +176,11 @@ owner gates then wait for the converted Avatar.
   with lilToon, 0.8 ms with the fallback materials, 1.2 ms for Andrew, and
   6.2 ms with lilToon at DPR 1, so the cost is mostly per pixel. The Phase 3 gate
   stays: keep lilToon in this PR as is, or not.
+- 2026-10-25, owner (approving an agent proposal after private review renders):
+  retune the ARKit mood mixes so each region moves about as far as its VRoid
+  part at weight 1 (values in the Phase 4 revision). Using an Avatar's standard
+  MMD morphs per face region before ARKit mixes is #691 R12, not this plan;
+  what a model with no face shapes at all shows is #691 open question 8.
 
 ## Phased implementation
 
@@ -1002,6 +1009,105 @@ findings.
 Commits: `eac8f4f9` `feat(avatars)[p4]: play emotions and VRoid face parts as
 ARKit mixes` (tree `2b1dbfbd`).
 
+#### Revision: mood strength on converted Avatars (2026-10-25)
+
+The owner found the moods on the converted test Avatar weak and asked for an
+investigation before changing behaviour. Findings, from per-shape vertex
+displacement at weight 1 and private review renders of the six emotion groups
+at three intensities plus each full preset:
+
+- The Avatar's ARKit shapes move about as far as VRoid's parts at weight 1
+  (full blink within 1% of `Fcl_EYE_Close`), so the weakness was in the table.
+- Affection, esteem and delight key `Fcl_MTH_Fun`, which played relaxed's mouth
+  at `mouthSmile` 0.3: about a third of VRoid's corner motion. Happy's eyes
+  moved about a seventh as far as `Fcl_EYE_Joy`; ARKit has no closed-arc eye.
+- The test Avatar's bangs cover its brows (the hair draws over the face by
+  design), so brow motion, which carries most of sad, angry and surprised,
+  does not show at any strength. Only eyes and mouth carry moods there.
+- Intensities 1 to 3 are subtle on VRoid too; parity means matching each part
+  at weight 1, not raising the emotion map.
+
+Change (owner-approved values, all L/R shapes on both sides): happy brow
+`browInnerUp` .2, `browOuterUp` .4; eye `eyeBlink` .4, `eyeSquint` .8,
+`cheekSquint` .8; mouth `mouthSmile` 1, `jawOpen` .15. Relaxed brow
+`browInnerUp` .2, `browOuterUp` .2; eye `eyeBlink` .15, `eyeSquint` .5,
+`cheekSquint` .5; mouth `mouthSmile` 1. Sad brow `browInnerUp` .9, `browDown`
+.15; eye `eyeBlink` .2, `eyeSquint` .2; mouth `mouthFrown` 1, `mouthStretch` .3,
+`mouthShrugLower` .4. Angry brow `browDown` .9; eye `eyeSquint` .6; mouth
+`noseSneer` .4, `mouthPress` .6, `mouthFrown` .6. Surprised brow `browInnerUp`
+.7, `browOuterUp` 1; eye `eyeWide` .8; mouth `jawOpen` .35, `mouthFunnel` .2. The table now also uses `browDown*`, `mouthStretch*` and
+`mouthFunnel`. Structure, resolution order and the eyelid correction are
+unchanged. The standard-MMD-morph tier the investigation also rendered is
+proposed as #691 R12, and the behaviour of models with no face shapes at all
+as its open question 8.
+
+Check record (working tree on `f5f8f6db`, tree `9fa02fd7`):
+
+| Command | Directory | Result |
+| --- | --- | --- |
+| `npx vitest run src/lib/avatar src/ui/pose-creator` | `src/frontend/web` | 1466 passed, 1 skipped |
+| `pnpm -s web:lint` | `src/frontend` | pass |
+| `pnpm -s check` | `src/frontend` | pass |
+| `effects:render --diff`, six emotion-group clips on the Included Avatars, before vs after | `src/frontend/web` | 0 differing pixels, all six |
+| The same clips on the converted Avatar vs the approved probe renders | `src/frontend/web` | 0 px for five; delight 132 px (0.013%), smile parts summing above 1 |
+
+Owner gate unchanged: the six emotions at three intensities and sampled
+Reactions/Gestures on the converted Avatar, now on the retuned table.
+
+#### Code Review #3 Findings
+
+Reviewed tree `9fa02fd7` against `f5f8f6db`, standard tier, by an independent
+sdlc-reviewer agent; it confirmed the values against the approval and that the
+coverage bar rises by `mouthStretchLeft`, `mouthStretchRight` and `mouthFunnel`
+only, all ARKit 52 shapes.
+
+- P4-R3-F1 (required): `vrm-bake-expressions.test.mjs` still pinned the old
+  values and failed. The record's vitest command had not run it: vitest only
+  includes `src/**` and `tests/**`, and the `scripts/*.test.mjs` files run under
+  `node --test`.
+- P4-R3-F2 (optional): an eyelid test comment still said relaxed closes the
+  lids 0.2.
+- P4-R3-F3 (optional): baked presets keep `overrideBlink: none`, and baked happy
+  now carries `eyeBlink`, so another app's automatic blink can close the lids
+  past shut. Animama corrects them.
+- P4-R3-F4 (observation): parts of one shape add without a clamp (delight 3
+  gives `mouthSmile` 1.2; a Reaction mouth over an emotion can reach 2), as
+  VRoid parts already do; larger values make it more visible.
+- P4-R3-F5 (optional): the doc stated the calibration as a measured property of
+  every region; only some regions were measured.
+- P4-R3-F6 (observation): the Decision Log and this record were missing.
+- P4-R3-F7 (observation): the JSON's `parts` block was re-wrapped only.
+
+#### Code Review #3 Revisions
+
+- P4-R3-F1 accepted: the bake test pins the new sad and happy binds, including
+  happy's `browInnerUp`. `node --test` is recorded separately below.
+- P4-R3-F2 accepted: comment corrected.
+- P4-R3-F3 accepted as a note beside the bake command in `avatar-emotion.md`;
+  writing `overrideBlink` into baked presets is left for the owner.
+- P4-R3-F4: no change; for the owner's Reaction review on Lapwing.
+- P4-R3-F5 accepted: the doc words calibration as the tuning aim.
+- P4-R3-F6: this record and the Decision Log entry. P4-R3-F7: no change.
+
+Revision checks on tree `5d4873ca` (before these records): `timeout 300 node
+--test scripts/vrm-bake-expressions.test.mjs scripts/vrm-inspect.test.mjs` 9
+passed; `npx vitest run src/lib/avatar/arkitFace` 21 passed; Prettier check of
+the touched files clean. Repair budget: one round used.
+
+#### Code Review #4 Findings
+
+Targeted recheck of tree `5d4873ca` by the same reviewer, which reran the
+`node --test` files (9 passed): P4-R3-F1, F2, F3 and F5 verified. No blocking
+findings.
+
+- P4-R4-F1 (optional): the bake note named only happy and relaxed; baked sad
+  also closes the lids partly.
+
+#### Code Review #4 Revisions
+
+- P4-R4-F1 accepted: the note names happy, relaxed and sad (docs only). One
+  repair round remains unused.
+
 ### Phase 5: ARKit lip-sync shaping
 
 Review tier: standard.
@@ -1058,6 +1164,16 @@ Check record (working tree on `eac8f4f9`, tree `c26246a3`):
 `node --test scripts/vrm-bake-expressions.test.mjs scripts/vrm-inspect.test.mjs`
 (`src/frontend/web`) 7 passed; `pnpm -s web:lint` (`src/frontend`) pass.
 `pnpm check` does not type-check `.mjs` scripts.
+
+Lapwing check (2026-10-25, retuned table, private copy outside the
+repository): `vrm:bake-expressions` wrote happy, angry, sad, relaxed, surprised
+and neutral and reported that Animama plays its own ARKit mixes on this Avatar.
+`vrm:inspect` on the copy lists 12 presets (the six above plus the five visemes
+and blink), 0 custom, and ARKit shapes 51 of 52 (the deferred `tongueOut`
+item). Uploaded as a Local Avatar on the task stack, it loads in the Library
+preview with no load errors, `playsFacesWithArkit: true` and 51 shapes
+resolved, so the runtime mixes take precedence over the baked presets as
+decided.
 
 #### Code Review #1 Findings
 

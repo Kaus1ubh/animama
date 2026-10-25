@@ -43,9 +43,10 @@ describe("ARKit face expressions", () => {
     manager.setValue("happy", 1);
     manager.setValue("sad", 0.5);
     manager.update();
-    expect(morphInfluence(mesh, "mouthSmile_L")).toBeCloseTo(0.8, 5);
-    expect(morphInfluence(mesh, "cheekSquint_R")).toBeCloseTo(0.5, 5);
-    expect(morphInfluence(mesh, "browInnerUp")).toBeCloseTo(0.35, 5);
+    expect(morphInfluence(mesh, "mouthSmile_L")).toBeCloseTo(1, 5);
+    expect(morphInfluence(mesh, "cheekSquint_R")).toBeCloseTo(0.8, 5);
+    // happy's 0.2 plus half of sad's 0.9.
+    expect(morphInfluence(mesh, "browInnerUp")).toBeCloseTo(0.65, 5);
     expect(morphInfluence(mesh, "Sad_Authored")).toBe(0);
 
     const happy = manager.getExpression("happy");
@@ -96,7 +97,7 @@ describe("ARKit face expressions", () => {
 
     controller.playEmotion("gloom", 2);
     settle(controller);
-    expect(morphInfluence(mesh, "mouthFrown_L")).toBeCloseTo(0.25, 2);
+    expect(morphInfluence(mesh, "mouthFrown_L")).toBeCloseTo(0.5, 2);
 
     controller.playEmotion("delight", 1);
     controller.setExpressionOverlay("reaction", {
@@ -106,10 +107,11 @@ describe("ARKit face expressions", () => {
     settle(controller);
     // Delight 1 keys Fcl_MTH_Fun 0.6: the mouth part plays instead of the
     // relaxed fallback a part-less Avatar gets.
-    expect(morphInfluence(mesh, "mouthSmile_L")).toBeCloseTo(0.18, 2);
-    expect(morphInfluence(mesh, "browDown_R")).toBeCloseTo(0.4, 2);
-    expect(morphInfluence(mesh, "mouthPress_L")).toBeCloseTo(0.2, 2);
-    expect(morphInfluence(mesh, "mouthFrown_L")).toBeCloseTo(0, 2);
+    expect(morphInfluence(mesh, "mouthSmile_L")).toBeCloseTo(0.6, 2);
+    expect(morphInfluence(mesh, "browDown_R")).toBeCloseTo(0.45, 2);
+    expect(morphInfluence(mesh, "mouthPress_L")).toBeCloseTo(0.3, 2);
+    // Only the angry mouth's frown remains; gloom's has faded out.
+    expect(morphInfluence(mesh, "mouthFrown_L")).toBeCloseTo(0.3, 2);
     controller.dispose();
   });
 
@@ -132,7 +134,7 @@ describe("ARKit face expressions", () => {
     manager.setValue("relaxed", 1);
     manager.setValue("blink", 1);
     manager.update();
-    // relaxed holds the lids 0.2 closed, so blink adds only the remaining 0.8.
+    // relaxed holds the lids 0.15 closed, so blink adds only the remaining 0.85.
     expect(morphInfluence(mesh, "eyeBlink_L")).toBeCloseTo(1, 5);
     expect(morphInfluence(mesh, "eyeBlink_R")).toBeCloseTo(1, 5);
 

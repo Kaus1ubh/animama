@@ -34,23 +34,29 @@ describe("ARKit face compositions", () => {
       "surprised",
     ]);
     expect(ARKIT_MOOD_MIXES.sad).toEqual({
-      browInnerUp: 0.7,
+      browInnerUp: 0.9,
+      browDownLeft: 0.15,
+      browDownRight: 0.15,
       eyeBlinkLeft: 0.2,
       eyeBlinkRight: 0.2,
-      mouthFrownLeft: 0.5,
-      mouthFrownRight: 0.5,
-      mouthShrugLower: 0.2,
+      eyeSquintLeft: 0.2,
+      eyeSquintRight: 0.2,
+      mouthFrownLeft: 1,
+      mouthFrownRight: 1,
+      mouthStretchLeft: 0.3,
+      mouthStretchRight: 0.3,
+      mouthShrugLower: 0.4,
     });
   });
 
   it("gives each VRoid mood part its region and keeps the extra parts", () => {
     expect(ARKIT_PART_MIXES.Fcl_BRW_Angry).toEqual({
-      browDownLeft: 0.8,
-      browDownRight: 0.8,
+      browDownLeft: 0.9,
+      browDownRight: 0.9,
     });
     expect(ARKIT_PART_MIXES.Fcl_MTH_Fun).toEqual({
-      mouthSmileLeft: 0.3,
-      mouthSmileRight: 0.3,
+      mouthSmileLeft: 1,
+      mouthSmileRight: 1,
     });
     expect(ARKIT_PART_MIXES.Fcl_ALL_Surprised).toEqual(
       ARKIT_MOOD_MIXES.surprised,

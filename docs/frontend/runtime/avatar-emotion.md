@@ -378,11 +378,17 @@ shapes the file lacks or matches ambiguously. On an
 Avatar missing table shapes or with VRoid mood parts, Animama plays the baked
 presets too; the command says which applies. Only VRM 1.0 files are supported.
 It changes nothing but those preset entries, never modifies the source and never
-overwrites an existing output.
+overwrites an existing output. The baked presets keep `overrideBlink: none`, so
+another app's automatic blink can close the lids past shut while a preset that
+partly closes them (`happy`, `relaxed`, `sad`) is shown; Animama's own correction does not travel with the file.
 
-Tune faces by editing the JSON table; its values are starting points reviewed
-on a converted Avatar. Affection, esteem and delight key `Fcl_MTH_Fun`, so
-tuning relaxed's mouth retunes all three.
+Tune faces by editing the JSON table. Aim for each region, at weight 1, to move
+about as far as the VRoid part it stands for on an Included Avatar (relaxed's
+mouth, `mouthSmile` 1, matches `Fcl_MTH_Fun`), because the emotion map's
+weights were chosen for VRoid parts. ARKit has no closed-arc eye
+shape, so happy's eyes are a partial blink with a squint. On faces whose bangs
+cover the brows, only the eye and mouth regions show. Affection, esteem and
+delight key `Fcl_MTH_Fun`, so tuning relaxed's mouth retunes all three.
 
 ### Reaction clip mapping
 
