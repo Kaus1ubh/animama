@@ -11,7 +11,9 @@
 - Amended: 2026-10-21, offline speech recognition follows the conversation
   language: SenseVoice-Small serves Japanese, Korean and Chinese, and Parakeet
   English ([ADR 0029](0029-sensevoice-offline-speech-recognition.md));
-  2026-10-25, the language picker no longer labels non-English locales Beta
+  2026-10-25, the language picker no longer labels non-English locales Beta;
+  2026-10-25, the owner may choose the offline engine, and the language sets
+  only its default ([ADR 0031](0031-offline-speech-engine-is-the-owners-choice.md))
 
 ## Context
 

@@ -271,6 +271,9 @@
   },
   "languageNotice": {
     "speechToText": "{{language}}でオフライン音声認識を使うには、そのモデルをダウンロードしてください。",
+    "speechToTextEnglishOnly": "Parakeet は英語のみ認識します。{{language}}で Anima に話しかけるには、SenseVoice を選んでください。",
+    "speechToTextModel": "SenseVoice を使うには、そのモデルをダウンロードしてください。",
+    "speechToTextModelUnavailable": "このサーバーでは SenseVoice を利用できません。",
     "textToSpeech": "Pocket TTS は英語のみ話せます。Anima に{{language}}で話してもらうには、ElevenLabs または Gemini を選んでください。",
     "speechToTextUnavailable": "このサーバーでは{{language}}のオフライン音声認識を利用できません。"
   }

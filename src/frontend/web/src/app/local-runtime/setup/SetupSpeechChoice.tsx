@@ -17,7 +17,7 @@ const offlineChoice = (choice: SetupSttChoice) => {
  * Setup's Speech-to-Text choice as two tab levels (`SttChoiceTabs`): on the
  * web the browser's recognizer (recommended there), then the UI Locale's
  * offline model (recommended on desktop) and the other one, each with CPU |
- * GPU variants. The selected choice is saved at Finish. Offline variants
+ * GPU variants. The selected choice, engine included, is saved at Finish. Offline variants
  * offer their set's download, which is backend-owned and keeps running after
  * setup; removal and attribution live in App Settings. Vite development
  * serves host sets instead, so it shows how to acquire them.
@@ -25,14 +25,11 @@ const offlineChoice = (choice: SetupSttChoice) => {
 export function SetupSpeechChoice({
   choice,
   choices,
-  engine,
   recommended,
   onChoiceChange,
 }: {
   choice: SetupSttChoice;
   choices: readonly SetupSttChoice[];
-  /** The UI Locale's offline engine. */
-  engine: OfflineSttEngine;
   recommended: SetupSttChoice;
   onChoiceChange: (choice: SetupSttChoice) => void;
 }) {
@@ -50,7 +47,6 @@ export function SetupSpeechChoice({
       panel={(selected) => (
         <OfflineSetPanel
           {...offlineChoice(selected)}
-          routed={offlineChoice(selected).engine === engine}
           downloads={downloads[offlineChoice(selected).engine]}
         />
       )}

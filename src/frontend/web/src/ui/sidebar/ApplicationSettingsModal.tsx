@@ -42,6 +42,7 @@ import {
   DEFAULT_ANIMAMA_PREFERENCES,
   isParakeetWebgpuPreferred,
   mergePreferences,
+  offlineSttEnginePreference,
   toGeminiTtsModelId,
   type ElevenLabsTtsModelId,
   type GeminiTtsModelId,
@@ -103,6 +104,7 @@ import {
 import {
   recommendedSttChoice,
   availableSttChoices,
+  sttChoicePatch,
   type SttChoice,
 } from "@/lib/speech/stt-choices";
 import {
@@ -139,7 +141,6 @@ import { ChoiceTabsList } from "@/ui/settings/choice-tabs/ChoiceTabsList";
 import { Tabs, TabsContent } from "@/ui/components/tabs";
 import {
   getSttSettingsOptions,
-  getSttSettingsPreference,
   getSttSettingsSelection,
 } from "@/lib/speech/stt-settings";
 import {
@@ -573,13 +574,14 @@ export function ApplicationSettingsModal({
   );
   const [selectedSttProvider, setSelectedSttProvider] =
     useState<SttProvider | null>(null);
-  // The offline engine whose tab the owner last opened in Speech-to-Text.
-  const [sttViewEngine, setSttViewEngine] = useState<OfflineSttEngine | null>(
-    null,
-  );
   const [parakeetWebgpuPreferred, setParakeetWebgpuPreferred] = useState(
     isParakeetWebgpuPreferred(resolvedUserPreferences),
   );
+  // The offline engine the owner chose; null follows the UI Locale.
+  const [offlineSttEngine, setOfflineSttEngine] =
+    useState<OfflineSttEngine | null>(
+      offlineSttEnginePreference(resolvedUserPreferences),
+    );
   const [ttsEnabled, setTtsEnabled] = useState(false);
   const [selectedTtsProvider, setSelectedTtsProvider] =
     useState<TtsProvider | null>(null);
@@ -606,10 +608,14 @@ export function ApplicationSettingsModal({
   const [isInitializing, setIsInitializing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const runtimeCapabilities = useRuntimeCapabilities();
-  // The offline choice is served by the UI Locale's engine (Parakeet for
-  // English, SenseVoice otherwise), read through `i18n` so it follows a
-  // language switch.
-  const offlineRoute = routeOfflineSpeech(i18n.resolvedLanguage);
+  // The offline choice runs the owner's engine, else the UI Locale's
+  // (Parakeet for English, SenseVoice otherwise), which is also the
+  // recommended one; read through `i18n` so both follow a language switch.
+  const offlineRoute = routeOfflineSpeech(
+    i18n.resolvedLanguage,
+    offlineSttEngine,
+  );
+  const localeSttEngine = routeOfflineSpeech(i18n.resolvedLanguage).engine;
   const parakeetAvailable = runtimeCapabilities.data
     ? offlineSpeechAvailable(offlineRoute, runtimeCapabilities.data)
     : null;
@@ -621,6 +627,7 @@ export function ApplicationSettingsModal({
   } = modelSettingsAvailability(runtimeCapabilities.data);
   const initializedForOpenRef = useRef(false);
   const savedSttProviderRef = useRef<SttProvider | null>(null);
+  const savedOfflineSttEngineRef = useRef<OfflineSttEngine | null>(null);
   const savedTtsProviderRef = useRef<TtsProvider | null>(null);
   const savedGeminiModelIdRef = useRef<GeminiTtsModelId>(
     DEFAULT_GEMINI_TTS_MODEL_ID,
@@ -641,6 +648,13 @@ export function ApplicationSettingsModal({
   useEffect(() => {
     setParakeetWebgpuPreferred(savedParakeetWebgpuPreferred);
   }, [savedParakeetWebgpuPreferred]);
+  const savedOfflineSttEngine = offlineSttEnginePreference(
+    resolvedUserPreferences,
+  );
+  useEffect(() => {
+    setOfflineSttEngine(savedOfflineSttEngine);
+    savedOfflineSttEngineRef.current = savedOfflineSttEngine;
+  }, [savedOfflineSttEngine]);
   const savedTtsProvider = toTtsProvider(
     resolvedUserPreferences?.speech?.tts_provider,
   );
@@ -737,6 +751,7 @@ export function ApplicationSettingsModal({
 
     let cancelled = false;
     const initialSavedSttProvider = savedSttProviderRef.current;
+    const initialSavedOfflineSttEngine = savedOfflineSttEngineRef.current;
     const initialSavedTtsProvider = savedTtsProviderRef.current;
     const initialSavedGeminiModelId = savedGeminiModelIdRef.current;
     const initialSavedTtsEnabled = savedTtsEnabledRef.current;
@@ -754,7 +769,7 @@ export function ApplicationSettingsModal({
         const resolved = resolveRoutedSttProvider({
           savedProvider: initialSavedSttProvider,
           platform,
-          route: routeOfflineSpeech(),
+          route: routeOfflineSpeech(undefined, initialSavedOfflineSttEngine),
           capabilities,
         });
         const resolvedTts = resolvePreferredTtsProvider({
@@ -860,20 +875,20 @@ export function ApplicationSettingsModal({
   const currentSttOption = sttProviderOptions.find(
     (option) => option.id === selectedSttOption,
   );
-  // The Speech-to-Text tabs: the browser (web only), then each offline model.
-  // A saved offline choice shows under the engine last viewed, else the UI
-  // Locale's; either browser recognizer shows as the browser.
+  // The Speech-to-Text tabs: the browser (web only), then each offline model,
+  // the UI Locale's first. A saved offline choice shows under the engine that
+  // runs; either browser recognizer shows as the browser.
   const sttChoices = availableSttChoices(
-    offlineRoute.engine,
+    localeSttEngine,
     getSttProviderOptions(parakeetAvailable, platform, offlineRoute.engine),
   );
-  const sttRecommended = recommendedSttChoice(offlineRoute.engine, sttChoices);
+  const sttRecommended = recommendedSttChoice(localeSttEngine, sttChoices);
   const savedSttChoice: SttChoice | null =
     selectedSttProvider === "browser_external" ||
     selectedSttProvider === "browser_local"
       ? "browser_external"
       : selectedSttProvider === "parakeet"
-        ? `${sttViewEngine ?? offlineRoute.engine}_${parakeetWebgpuPreferred ? "gpu" : "cpu"}`
+        ? `${offlineRoute.engine}_${parakeetWebgpuPreferred ? "gpu" : "cpu"}`
         : null;
   const sttChoice =
     savedSttChoice && sttChoices.includes(savedSttChoice)
@@ -886,59 +901,48 @@ export function ApplicationSettingsModal({
   const firstAvailableTtsProvider =
     ttsProviderOptions.find((option) => !option.disabled)?.id ?? null;
 
-  const handleSttProviderChange = useCallback(
-    (value: string) => {
-      const nextSpeech = getSttSettingsPreference(value);
-      if (!nextSpeech || isSaving || isInitializing) return;
-      const nextProvider = nextSpeech.stt_provider;
-      const nextOption = sttProviderOptions.find(
-        (option) => option.id === value,
-      );
-      // An offline choice is saved before its set is installed: its tab
-      // offers the download, and dictation says the model is missing.
-      if (!nextOption || (nextOption.disabled && nextProvider !== "parakeet")) {
-        if (nextOption?.reason) {
-          toast.error(nextOption.reason);
-        }
-        return;
-      }
-      const previousProvider = selectedSttProvider;
-      const previousWebgpu = parakeetWebgpuPreferred;
-      setSelectedSttProvider(nextProvider);
-      setParakeetWebgpuPreferred(
-        nextSpeech.stt_parakeet_webgpu ?? previousWebgpu,
-      );
-      setIsSaving(true);
-
-      void updateUserPreferences({ speech: nextSpeech })
-        .catch(() => {
-          setSelectedSttProvider(previousProvider);
-          setParakeetWebgpuPreferred(previousWebgpu);
-          toast.error(t("voice.stt.updateFailed"));
-        })
-        .finally(() => setIsSaving(false));
-    },
-    [
-      isInitializing,
-      isSaving,
-      selectedSttProvider,
-      parakeetWebgpuPreferred,
-      sttProviderOptions,
-      t,
-      updateUserPreferences,
-    ],
-  );
-
+  /**
+   * Save a Speech-to-Text choice: its provider, GPU preference and, for an
+   * offline choice, its engine (`sttChoicePatch`). An offline choice is saved
+   * before its set is installed: its tab offers the download, and dictation
+   * says the model is missing.
+   */
   const handleSttChoiceChange = (choice: SttChoice) => {
-    const engine = sttChoiceEngine(choice);
-    if (engine !== "browser") setSttViewEngine(engine);
-    const value =
-      choice === "browser_external"
-        ? "browser_external"
-        : choice.endsWith("_gpu")
-          ? "parakeet_webgpu"
-          : "parakeet";
-    if (value !== selectedSttOption) handleSttProviderChange(value);
+    if (choice === savedSttChoice || isSaving || isInitializing) return;
+    const nextSpeech = sttChoicePatch(choice);
+    const nextProvider = nextSpeech.stt_provider;
+    const nextOption = sttProviderOptions.find(
+      (option) =>
+        option.id ===
+        getSttSettingsSelection(
+          nextProvider,
+          nextSpeech.stt_parakeet_webgpu === true,
+        ),
+    );
+    if (!nextOption || (nextOption.disabled && nextProvider !== "parakeet")) {
+      if (nextOption?.reason) {
+        toast.error(nextOption.reason);
+      }
+      return;
+    }
+    const previousProvider = selectedSttProvider;
+    const previousWebgpu = parakeetWebgpuPreferred;
+    const previousEngine = offlineSttEngine;
+    setSelectedSttProvider(nextProvider);
+    setParakeetWebgpuPreferred(
+      nextSpeech.stt_parakeet_webgpu ?? previousWebgpu,
+    );
+    setOfflineSttEngine(nextSpeech.stt_offline_engine ?? previousEngine);
+    setIsSaving(true);
+
+    void updateUserPreferences({ speech: nextSpeech })
+      .catch(() => {
+        setSelectedSttProvider(previousProvider);
+        setParakeetWebgpuPreferred(previousWebgpu);
+        setOfflineSttEngine(previousEngine);
+        toast.error(t("voice.stt.updateFailed"));
+      })
+      .finally(() => setIsSaving(false));
   };
 
   const handleTtsEnabledChange = useCallback(
@@ -1551,20 +1555,20 @@ export function ApplicationSettingsModal({
           <SttChoiceTabs
             choice={sttChoice}
             choices={sttChoices}
-            recommended={recommendedSttChoice(offlineRoute.engine, sttChoices)}
+            recommended={sttRecommended}
             onChoiceChange={handleSttChoiceChange}
             selected={savedSttChoice ? sttChoiceEngine(savedSttChoice) : null}
             panel={(choice) => (
               <OfflineEngineSettingsPanel
                 engine={sttChoiceEngine(choice) as OfflineSttEngine}
                 set={choice.endsWith("_gpu") ? "gpu" : "cpu"}
-                routed={sttChoiceEngine(choice) === offlineRoute.engine}
               />
             )}
           />
           <SpeechLanguageNotice
             direction="speechToText"
             provider={selectedSttOption}
+            engine={offlineSttEngine}
           />
           {isInitializing ? (
             <p className="text-muted-foreground text-xs">

@@ -42,12 +42,12 @@ const downloads = (
 const panel = (
   set: "cpu" | "gpu",
   extra: Partial<OfflineSpeechDownloadsViewProps> = {},
+  engine: "parakeet" | "sensevoice" = "sensevoice",
 ) =>
   renderToStaticMarkup(
     <OfflineSetPanel
-      engine="sensevoice"
+      engine={engine}
       set={set}
-      routed
       downloads={downloads(extra)}
       manage
     />,
@@ -62,6 +62,18 @@ describe("App Settings offline speech versions", () => {
     expect(gpu).toContain("WebGPU available");
     expect(gpu).toContain("Not downloaded");
     expect(cpu + gpu).not.toContain("attribution");
+  });
+
+  it("says which languages each engine recognizes on both versions, never restricting it to an app language", () => {
+    for (const set of ["cpu", "gpu"] as const) {
+      expect(panel(set)).toContain(
+        "Recognizes Japanese, Korean, Chinese and English.",
+      );
+      expect(panel(set, {}, "parakeet")).toContain("Recognizes English only.");
+      expect(panel(set) + panel(set, {}, "parakeet")).not.toContain(
+        "while the app language is",
+      );
+    }
   });
 
   it("offers removal of an installed set, blocked while the add-on is installed", () => {

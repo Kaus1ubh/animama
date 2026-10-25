@@ -123,9 +123,9 @@
         "parakeet": "<link>NVIDIA의 Parakeet TDT 0.6B v2</link>가 이 기기에서 영어 음성을 받아 적으므로 음성이 기기 밖으로 나가지 않습니다.",
         "sensevoice": "<link>Alibaba의 SenseVoice-Small</link>이 이 기기에서 일본어, 한국어, 중국어 음성을 받아 적으므로 음성이 기기 밖으로 나가지 않습니다."
       },
-      "otherLanguage": {
-        "parakeet": "앱 언어가 영어일 때 사용하는 모델입니다.",
-        "sensevoice": "앱 언어가 일본어, 한국어 또는 중국어일 때 사용하는 모델입니다."
+      "recognizes": {
+        "parakeet": "영어만 인식합니다.",
+        "sensevoice": "일본어, 한국어, 중국어, 영어를 인식합니다. 앱 언어로 알아듣고, 앱 언어가 영어일 때는 말하는 언어를 자동으로 감지합니다."
       }
     },
     "tts": {

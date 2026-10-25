@@ -50,7 +50,10 @@ import {
   type VadThresholds,
 } from "@/lib/voice/microphone-preferences";
 import { useSettings } from "@/ui/settings/SettingsProvider";
-import { isParakeetWebgpuPreferred } from "@/lib/settings/preferences";
+import {
+  isParakeetWebgpuPreferred,
+  offlineSttEnginePreference,
+} from "@/lib/settings/preferences";
 import {
   startAcousticTurn,
   type AcousticTurnGateState,
@@ -305,6 +308,9 @@ export function useDictation(options: UseDictationOptions = {}) {
   const offlineWebgpuPreferredRef = useRef(false);
   offlineWebgpuPreferredRef.current =
     isParakeetWebgpuPreferred(effectivePreferences);
+  /** The offline engine the owner chose; null follows the conversation language. */
+  const savedOfflineSttEngine =
+    offlineSttEnginePreference(effectivePreferences);
   const platform = useRuntimePlatform();
   // Read at VAD start so a sensitivity change applies to the next session.
   const micVadThresholdsRef = useRef<VadThresholds>(
@@ -2889,18 +2895,19 @@ export function useDictation(options: UseDictationOptions = {}) {
         );
 
         const capabilities = await fetchRuntimeCapabilities(apiClient);
-        // The engine follows the conversation language read at this start.
-        const route = routeOfflineSpeech();
+        // The owner's engine, else the conversation language's, read at
+        // this start.
+        const route = routeOfflineSpeech(undefined, savedOfflineSttEngine);
         const resolved = resolveRoutedSttProvider({
           savedProvider: preferredProvider,
           platform,
           route,
           capabilities,
         });
-        if (resolved.languageMissing) {
-          throw new WordedError(dictationErrorText("languageSpeechMissing"));
-        }
-        if (resolved.provider === "parakeet" && !resolved.parakeetAvailable) {
+        if (
+          resolved.languageMissing ||
+          (resolved.provider === "parakeet" && !resolved.parakeetAvailable)
+        ) {
           throw new WordedError(
             dictationErrorText(
               route.engine === "parakeet"
@@ -2971,6 +2978,7 @@ export function useDictation(options: UseDictationOptions = {}) {
     [
       apiClient,
       effectivePreferences.speech?.stt_provider,
+      savedOfflineSttEngine,
       clearBrowserStopReason,
       clearTranscriptPreview,
       logger,

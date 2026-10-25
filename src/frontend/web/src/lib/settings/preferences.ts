@@ -1,4 +1,5 @@
 import type { GeminiTtsCapability } from "@animama/runtime-contracts/api-types";
+import type { OfflineSttEngine } from "@/lib/speech/offline-stt/routing";
 import type { MicSensitivity } from "@/lib/voice/microphone-preferences";
 import type { AppearanceOverrides } from "@/lib/theme/appearance-overrides";
 import {
@@ -81,8 +82,16 @@ export const GEMINI_TTS_MODEL_OPTIONS: Array<{
 
 export type SpeechPreferences = {
   stt_provider?: SttProviderPreference;
-  /** Experimental: run local Parakeet on WebGPU when available (default off). */
+  /**
+   * Run offline recognition on WebGPU when available (default off); the GPU
+   * preference for both offline engines, despite its name.
+   */
   stt_parakeet_webgpu?: boolean;
+  /**
+   * The offline engine the owner chose; absent follows the UI Locale
+   * (`routeOfflineSpeech`). Read with `offlineSttEnginePreference`.
+   */
+  stt_offline_engine?: OfflineSttEngine;
   tts_enabled?: boolean;
   tts_provider?: TtsProviderPreference;
   tts_elevenlabs_model_id?: ElevenLabsTtsModelId;
@@ -353,4 +362,15 @@ export function isParakeetWebgpuPreferred(
   preferences: SettingsPreferences | null | undefined,
 ): boolean {
   return preferences?.speech?.stt_parakeet_webgpu === true;
+}
+
+/**
+ * The offline speech engine the owner chose, or `null` to follow the UI
+ * Locale. Saved preferences are untyped JSON, so any other value is ignored.
+ */
+export function offlineSttEnginePreference(
+  preferences: SettingsPreferences | null | undefined,
+): OfflineSttEngine | null {
+  const engine: unknown = preferences?.speech?.stt_offline_engine;
+  return engine === "parakeet" || engine === "sensevoice" ? engine : null;
 }

@@ -91,6 +91,39 @@ describe("provider resolution under the conversation language", () => {
     });
   });
 
+  it("keeps a chosen SenseVoice under English offline when its set is missing", () => {
+    withWebSpeech();
+    expect(
+      resolveRoutedSttProvider({
+        savedProvider: "parakeet",
+        platform: browser,
+        route: routeOfflineSpeech("en", "sensevoice"),
+        capabilities: capabilities(false),
+      }),
+    ).toEqual({
+      provider: "parakeet",
+      hasExplicitPreference: true,
+      parakeetAvailable: false,
+      languageMissing: true,
+    });
+  });
+
+  it("runs a chosen Parakeet under Japanese without the language's set", () => {
+    withWebSpeech();
+    expect(
+      resolveRoutedSttProvider({
+        savedProvider: "parakeet",
+        platform: browser,
+        route: routeOfflineSpeech("ja", "parakeet"),
+        capabilities: capabilities(false),
+      }),
+    ).toMatchObject({
+      provider: "parakeet",
+      parakeetAvailable: true,
+      languageMissing: false,
+    });
+  });
+
   it("falls back as before under English when Parakeet is missing", () => {
     withWebSpeech();
     expect(

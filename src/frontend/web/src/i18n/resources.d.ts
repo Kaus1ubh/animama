@@ -6328,11 +6328,11 @@ export default interface Resources {
         "listUnavailable": "Speech downloads are unavailable right now. You can add them later in App Settings.",
         "lowSpace": "Not enough free space: downloads need {{size}} free.",
         "notDownloaded": "Not downloaded",
-        "otherLanguage": {
-          "parakeet": "Animama uses this model while the app language is English.",
-          "sensevoice": "Animama uses this model while the app language is Japanese, Korean or Chinese."
-        },
         "progressLabel": "{{label}} download progress",
+        "recognizes": {
+          "parakeet": "Recognizes English only.",
+          "sensevoice": "Recognizes Japanese, Korean, Chinese and English. It listens for the app language; with the app in English, it detects which language you speak."
+        },
         "retryDownload": "Retry download",
         "turnedOff": "Speech recognition is turned off on this server.",
         "unavailableInBuild": "Unavailable in this build.",
@@ -6539,6 +6539,9 @@ export default interface Resources {
     },
     "languageNotice": {
       "speechToText": "To use offline speech recognition in {{language}}, download its model.",
+      "speechToTextEnglishOnly": "Parakeet recognizes English only. To speak to your Animas in {{language}}, choose SenseVoice.",
+      "speechToTextModel": "To use SenseVoice, download its model.",
+      "speechToTextModelUnavailable": "SenseVoice is not available on this server.",
       "speechToTextUnavailable": "Offline speech recognition in {{language}} is not available on this server.",
       "textToSpeech": "Pocket TTS speaks English only. To hear your Animas in {{language}}, choose ElevenLabs or Gemini."
     },

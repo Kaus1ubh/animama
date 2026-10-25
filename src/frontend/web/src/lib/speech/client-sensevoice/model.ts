@@ -19,14 +19,26 @@ export type SenseVoiceModelUrls = {
   metadataUrl: string;
 };
 
-/** The conversation languages SenseVoice serves (English only in the benchmark). */
-export type SenseVoiceLanguage = "en" | "ja" | "ko" | "zh-Hans" | "zh-Hant";
+/**
+ * The languages SenseVoice is prompted with: the routed conversation
+ * languages, `auto` for SenseVoice chosen under English, and `en` for the
+ * benchmark only.
+ */
+export type SenseVoiceLanguage =
+  | "auto"
+  | "en"
+  | "ja"
+  | "ko"
+  | "zh-Hans"
+  | "zh-Hant";
 
 /**
- * Language prompts from `metadata.json`. `zh-Hant` lets the model detect
- * Mandarin or Cantonese, which both use Traditional script there.
+ * Language prompts from `metadata.json`. `auto` lets the model detect the
+ * spoken language and keeps its output script; `zh-Hant` detects too, so
+ * Mandarin and Cantonese both work, and its text is converted to Traditional.
  */
 const LANGUAGE_PROMPTS: Record<SenseVoiceLanguage, string> = {
+  auto: "lang_auto",
   en: "lang_en",
   ja: "lang_ja",
   ko: "lang_ko",
