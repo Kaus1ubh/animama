@@ -15,7 +15,9 @@ export { isVroidMoodPart } from "./vroidMoodParts";
  * `Fcl_EYE_<Mood>` and `Fcl_MTH_<Mood>` are one region each, and the preset
  * and `Fcl_ALL_<Mood>` all three. Its `parts` list the other VRoid parts
  * content keys. `arkitFaceExpressions.ts` registers these mixes as expressions;
- * `vrm:bake-expressions` writes the mood presets into a file.
+ * `vrm:bake-expressions` writes the mood presets into a file. Its `vowels` give
+ * each `vowel5` lip-sync channel an ARKit mouth mix, which `ExpressionController`
+ * plays instead of the viseme presets when ARKit lip-sync shaping is selected.
  */
 
 export type ArkitMix = Readonly<Record<string, number>>;
@@ -82,4 +84,52 @@ export function playsFacesWithArkit(capability: ArkitFaceCapability): boolean {
   return [...ARKIT_COMPOSITION_SHAPES].every((shape) =>
     capability.resolved.has(shape),
   );
+}
+
+/** The `vowel5` lip-sync channels, in frame order. */
+export const VOWEL5_CHANNELS = ["A", "E", "I", "O", "U"] as const;
+export type Vowel5Channel = (typeof VOWEL5_CHANNELS)[number];
+
+/** The ARKit mouth mix for each `vowel5` channel at weight 1. */
+export const ARKIT_VOWEL_MIXES = compositions.vowels as Readonly<
+  Record<Vowel5Channel, ArkitMix>
+>;
+
+/** Every ARKit shape the vowel mixes use. */
+export const ARKIT_VOWEL_SHAPES: ReadonlySet<string> = new Set(
+  Object.values(ARKIT_VOWEL_MIXES).flatMap((mix) => Object.keys(mix)),
+);
+
+/**
+ * Whether an Avatar can shape `vowel5` lip sync from ARKit shapes: it must
+ * have every shape the vowel mixes use. The mood table's bar is separate, so
+ * an Avatar may have one and not the other.
+ */
+export function shapesVowelsWithArkit(
+  capability: ArkitFaceCapability,
+): boolean {
+  return [...ARKIT_VOWEL_SHAPES].every((shape) =>
+    capability.resolved.has(shape),
+  );
+}
+
+/**
+ * The ARKit shape weights for one `vowel5` frame: each channel's mix scaled by
+ * its value and summed, each shape clamped to 1. Every vowel shape is listed,
+ * at 0 when no channel moves it, so a frame also releases the previous one.
+ */
+export function arkitVowelWeights(
+  values: readonly number[],
+): Record<string, number> {
+  const weights: Record<string, number> = Object.fromEntries(
+    [...ARKIT_VOWEL_SHAPES].map((shape) => [shape, 0]),
+  );
+  VOWEL5_CHANNELS.forEach((channel, index) => {
+    const value = Math.max(0, Math.min(1, values[index] ?? 0));
+    if (!value) return;
+    for (const [shape, weight] of Object.entries(ARKIT_VOWEL_MIXES[channel])) {
+      weights[shape] = Math.min(1, weights[shape]! + weight * value);
+    }
+  });
+  return weights;
 }

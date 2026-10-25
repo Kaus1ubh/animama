@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { ARKIT_BLENDSHAPES } from "./arkit";
+import { ARKIT_VOWEL_MIXES } from "./arkitFaceCompositions";
 import { registerArkitFace } from "./arkitFaceExpressions";
 import { applyEyelidClosureCorrection } from "./eyelidClosure";
 import { ExpressionController } from "./ExpressionController";
@@ -11,17 +12,21 @@ import { morphInfluence, syntheticFaceVrm } from "./testing/syntheticFaceVrm";
  * spelling, the converter's blink on the ARKit eyelids, and an authored `sad`
  * preset on a morph of its own.
  */
-function arkitAvatar(options: { omit?: string; extraMorphs?: string[] } = {}) {
+function arkitAvatar(
+  options: { omit?: string; extraMorphs?: string[]; visemes?: boolean } = {},
+) {
   const spell = (shape: string) =>
     shape.replace(/Left$/, "_L").replace(/Right$/, "_R");
+  const visemes = options.visemes ? ["Viseme_A"] : [];
   const morphs = ARKIT_BLENDSHAPES.filter((shape) => shape !== options.omit)
     .map(spell)
-    .concat("Sad_Authored", ...(options.extraMorphs ?? []));
+    .concat("Sad_Authored", ...visemes, ...(options.extraMorphs ?? []));
   return syntheticFaceVrm({
     morphs,
     presetBinds: {
       blink: ["eyeBlink_L", "eyeBlink_R"],
       sad: ["Sad_Authored"],
+      ...(options.visemes ? { aa: ["Viseme_A"] } : {}),
     },
   });
 }
@@ -153,5 +158,104 @@ describe("ARKit face expressions", () => {
     manager.setValue("blink", 1);
     manager.update();
     expect(morphInfluence(mesh, "eyeBlink_R")).toBeCloseTo(1, 5);
+  });
+
+  describe("vowel5 lip-sync shaping", () => {
+    /** Play one vowel5 frame through the controller. */
+    const playFrame = (controller: ExpressionController, values: number[]) => {
+      const lipSync = (
+        controller as unknown as {
+          _lipSync: { getCurrentFrame: () => unknown };
+        }
+      )._lipSync;
+      vi.spyOn(lipSync, "getCurrentFrame").mockReturnValue({
+        format: "vowel5",
+        values,
+      });
+      controller.update(1 / 60);
+    };
+
+    it("plays the viseme presets by default", () => {
+      const { vrm, mesh } = arkitAvatar({ visemes: true });
+      const controller = new ExpressionController(vrm);
+      expect(controller.getLipSyncShaping()).toBe("visemes");
+      playFrame(controller, [0.5, 0, 0, 0, 0]);
+      expect(morphInfluence(mesh, "Viseme_A")).toBeCloseTo(0.5, 5);
+      expect(morphInfluence(mesh, "jawOpen")).toBe(0);
+      controller.dispose();
+    });
+
+    it("plays vowels as ARKit mouth mixes when selected", () => {
+      const { vrm, mesh } = arkitAvatar({ visemes: true });
+      const controller = new ExpressionController(vrm);
+      expect(controller.canShapeLipSyncWithArkit()).toBe(true);
+      expect(controller.setLipSyncShaping("arkit")).toBe("arkit");
+      playFrame(controller, [0.5, 0, 0, 0, 0]);
+      expect(morphInfluence(mesh, "jawOpen")).toBeCloseTo(
+        ARKIT_VOWEL_MIXES.A.jawOpen! * 0.5,
+        5,
+      );
+      expect(morphInfluence(mesh, "Viseme_A")).toBe(0);
+
+      // A later frame releases shapes the earlier one used.
+      playFrame(controller, [0, 0, 0, 0, 1]);
+      expect(morphInfluence(mesh, "mouthLowerDown_L")).toBe(0);
+      expect(morphInfluence(mesh, "mouthPucker")).toBeCloseTo(
+        ARKIT_VOWEL_MIXES.U.mouthPucker!,
+        5,
+      );
+
+      // Switching back releases the ARKit mouth.
+      controller.setLipSyncShaping("visemes");
+      expect(morphInfluence(mesh, "mouthPucker")).toBe(0);
+      controller.dispose();
+    });
+
+    it("releases the tongue when lip sync is cleared", () => {
+      const { vrm, mesh } = arkitAvatar();
+      const controller = new ExpressionController(vrm);
+      const lipSync = (
+        controller as unknown as {
+          _lipSync: { getCurrentFrame: () => unknown };
+        }
+      )._lipSync;
+      // A full 52-value arkit_52 frame, tongueOut last.
+      const values = new Array<number>(ARKIT_BLENDSHAPES.length).fill(0);
+      values[ARKIT_BLENDSHAPES.indexOf("tongueOut")] = 1;
+      vi.spyOn(lipSync, "getCurrentFrame").mockReturnValue({
+        format: "arkit_52",
+        values,
+      });
+      controller.update(1 / 60);
+      expect(morphInfluence(mesh, "tongueOut")).toBeCloseTo(1, 5);
+      vi.mocked(lipSync.getCurrentFrame).mockReturnValue(null);
+      controller.clearLipSync();
+      expect(morphInfluence(mesh, "tongueOut")).toBe(0);
+      controller.dispose();
+    });
+
+    it("keeps visemes on an Avatar missing a vowel shape", () => {
+      const { vrm } = arkitAvatar({ omit: "mouthPucker", visemes: true });
+      const controller = new ExpressionController(vrm);
+      expect(controller.canShapeLipSyncWithArkit()).toBe(false);
+      expect(controller.setLipSyncShaping("arkit")).toBe("visemes");
+      controller.dispose();
+    });
+
+    it("adds the vowel mouth to an emotion's mouth", () => {
+      const { vrm, mesh } = arkitAvatar();
+      const controller = new ExpressionController(vrm);
+      controller.setLipSyncShaping("arkit");
+      controller.playEmotion("delight", 1);
+      settle(controller);
+      const smile = morphInfluence(mesh, "mouthSmile_L");
+      playFrame(controller, [0, 0, 1, 0, 0]);
+      // I's smile adds to delight's, as visemes add to VRoid mouths.
+      expect(morphInfluence(mesh, "mouthSmile_L")).toBeCloseTo(
+        smile + ARKIT_VOWEL_MIXES.I.mouthSmileLeft!,
+        2,
+      );
+      controller.dispose();
+    });
   });
 });

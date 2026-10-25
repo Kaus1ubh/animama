@@ -109,7 +109,9 @@ review stay in `<private-avatars>` or the session scratchpad.
   after one repair round). Mixes retuned on 2026-10-25 after the owner found
   Lapwing's moods weak (see the Phase 4 revision). Owner visual gate on Lapwing
   still open.
-- [ ] Phase 5: ARKit lip-sync shaping. Owner review gate.
+- [ ] Phase 5: ARKit lip-sync shaping. Implemented and reviewed (2026-10-25,
+  pass after one docs repair). The live chat check and the owner's
+  listen-and-watch gate remain; visemes stay the default until then.
 - [x] Phase 6: Bake VRM presets. Done; reviewed (pass after two repair rounds
   and a final recheck). Lapwing baked and loaded on the stack (2026-10-25).
 
@@ -1147,9 +1149,78 @@ Owner gate: listen-and-watch comparison on Lapwing; record the chosen default.
 If visemes win, keep the translation only if the owner wants the option,
 otherwise revert the phase.
 
+Implemented approach (starting source `2a5a3b2e`), simplifying the change
+above: `vowel5` frames do not go through the `arkit_52` path. A dedicated
+`_applyVowel5ArkitFrame` writes only the vowel shapes, and `mouthClose` is not
+used.
+
+- `arkitFaceCompositions.json` `vowels`: an ARKit mouth mix per channel
+  (A `jawOpen` .3, `mouthLowerDown` .2, `mouthUpperUp` .1; I `jawOpen` .06,
+  `mouthStretch` .4, `mouthSmile` .2; U `jawOpen` .08, `mouthFunnel` .6,
+  `mouthPucker` .8; E `jawOpen` .15, `mouthStretch` .4; O `jawOpen` .35,
+  `mouthFunnel` .7, `mouthPucker` .3; L/R shapes on both sides). Each aims to
+  open the mouth about as far as VRoid's `Fcl_MTH_<vowel>` at weight 1, from
+  per-shape displacement on the converted Avatar; the mixes themselves were
+  not measured. The vowel bar (`shapesVowelsWithArkit`) is separate from the
+  mood table's.
+- `ExpressionController`: `LipSyncShaping` (`visemes` default, `arkit`);
+  ARKit shaping falls back to visemes without every vowel shape, and
+  switching releases the previous mode's shapes. The lip-sync reset now also
+  zeroes `tongueOut` (DEF-F4).
+- `Avatar` keeps the request while the instance lives; the Animation debug
+  modal's "ARKit lip-sync shaping" switch selects it.
+- Docs: `avatar-lipsync.md` "ARKit lip-sync shaping"; a link from
+  `avatar-emotion.md`.
+
+Check record (working tree on `2a5a3b2e`, tree `82894f2a`):
+
+| Command | Directory | Result |
+| --- | --- | --- |
+| `npx vitest run src/lib/avatar src/ui src/stores` | `src/frontend/web` | 2961 passed, 1 skipped |
+| `pnpm -s web:lint` | `src/frontend` | pass |
+| `pnpm -s check` | `src/frontend` | pass |
+
+Not run: the local chat with a TTS voice (the task stack's server and database
+were stopped); it stays pending with the owner gate.
+
 #### Code Review #1 Findings
 
-Not run.
+Reviewed tree `82894f2a` against `2a5a3b2e`, standard tier, by an independent
+sdlc-reviewer agent; it reused the check record. The code met the acceptance
+criteria; it found no stale weights, reset gaps or silent failures, and
+Included Avatars are unaffected.
+
+- P5-F1 (required, docs): the lip-sync doc said the choice applies to models
+  loaded later in the session; the canvas creates a new `Avatar` (Anima
+  switch, rendering mode, content refresh), which starts with visemes, and
+  picture-in-picture and creators always use visemes.
+- P5-F2 (optional): under a smiling mood, `I`'s smile (and `O`'s jaw over
+  happy's) adds on the same morph past 1, unlike visemes on a separate morph.
+- P5-F3 (optional): Phase 4's `parts.Fcl_MTH_A` (`jawOpen` .6, about 19 mm)
+  and `vowels.A` (`jawOpen` .3 plus lip shapes) render the same VRoid shape
+  differently; by the per-shape figures the part overshoots `Fcl_MTH_A`
+  (7.6 mm) about 2.5 times.
+- P5-F4 (observation): the plan's change text named the `arkit_52` path and
+  `mouthClose`.
+- P5-F5 (observation): the emotion doc implied the vowel bar is the mood bar.
+- P5-F6 (observation): a test asserted `mouthPucker` absence instead of the
+  bar's independence.
+- P5-F7 (observation): the live chat check must show as pending.
+
+#### Code Review #1 Revisions
+
+- P5-F1 accepted: the doc states how long the choice lasts and where visemes
+  always play. Docs only; verified by the implementer.
+- P5-F2: documented, left for the listen-and-watch gate (clamp the vowel
+  shapes to the room the mood leaves, or drop `I`'s smile, if it shows).
+- P5-F3: recorded for the owner. Retuning `Fcl_MTH_A` changes Gestures on
+  ARKit Avatars, outside the approved Phase 4 values.
+- P5-F4: the implemented approach above. P5-F5: emotion doc reworded. P5-F6:
+  the test compares the bar with the mood and part shapes. P5-F7: recorded
+  above and in Progress.
+
+Revision checks on tree `bb4fd0eb`: `npx vitest run src/lib/avatar/arkitFace`
+29 passed; `pnpm -s check` pass. One repair round used.
 
 ### Phase 6: Bake VRM presets
 

@@ -20,7 +20,10 @@ import {
 import type { AvatarVFXParsedEntry } from "./vfx/types";
 import { AvatarVFXController } from "./vfx/AvatarVFXController";
 import { ParticleVFXController } from "./particle-vfx/ParticleVFXController";
-import { ExpressionController } from "./ExpressionController";
+import {
+  ExpressionController,
+  type LipSyncShaping,
+} from "./ExpressionController";
 import {
   ReactionClipPlayer,
   type ReactionClipPlayerSnapshot,
@@ -393,6 +396,8 @@ export class Avatar {
   private _pendingAutomaticPlaybackResumeFadeSec: number | null = null;
   private _automaticAnimationPlaybackEnabled: boolean = true;
   private _vrmaRootedPlaybackEnabled: boolean = false;
+  /** Requested `vowel5` shaping; kept when this instance loads another model. */
+  private _lipSyncShaping: LipSyncShaping = "visemes";
   private readonly _mediaCatalog: AnimaRuntimeMediaProvider;
   private _lastAnimationPromise: Promise<THREE.AnimationAction> | null = null;
   private _focusLinesProjectionScratch = new THREE.Vector3();
@@ -518,6 +523,7 @@ export class Avatar {
       ambientForces: !springsTunedWithoutAmbientForces(gltf.parser.json),
     });
     this.expressionController = new ExpressionController(vrm);
+    this.expressionController.setLipSyncShaping(this._lipSyncShaping);
     this.reactionClipPlayer = new ReactionClipPlayer(
       this.expressionController,
       {
@@ -1014,6 +1020,28 @@ export class Avatar {
       this.poseController?.forgetDefaultPoseOffsets();
       this.poseController?.applyDefaultPoses();
     }
+  }
+
+  /** Whether the loaded model can shape `vowel5` lip sync with ARKit mixes. */
+  canShapeLipSyncWithArkit(): boolean {
+    return this.expressionController?.canShapeLipSyncWithArkit() ?? false;
+  }
+
+  /** The `vowel5` lip-sync shaping in effect on the loaded model. */
+  getLipSyncShaping(): LipSyncShaping {
+    return (
+      this.expressionController?.getLipSyncShaping() ?? this._lipSyncShaping
+    );
+  }
+
+  /**
+   * Choose `vowel5` lip-sync shaping (a comparison setting in the debug
+   * panel). The request also applies to models loaded later; a model without
+   * every vowel shape keeps its visemes.
+   */
+  setLipSyncShaping(shaping: LipSyncShaping): LipSyncShaping {
+    this._lipSyncShaping = shaping;
+    return this.expressionController?.setLipSyncShaping(shaping) ?? shaping;
   }
 
   isVrmaRootedPlaybackEnabled(): boolean {

@@ -349,6 +349,9 @@ each VRoid part in that table as a mix of those shapes
 portraits then play them as ordinary expressions. Content keeps its VRM and
 VRoid names, and mouth parts play too rather than being dropped.
 
+- The same table's `vowels` can shape lip sync on Avatars with every vowel
+  shape, a separate bar from the mood table's
+  ([ARKit lip-sync shaping](avatar-lipsync.md#arkit-lip-sync-shaping)).
 - Each mood is split into brow, eye and mouth regions. `Fcl_BRW_<Mood>`,
   `Fcl_EYE_<Mood>` and `Fcl_MTH_<Mood>` play one region each; the preset and
   `Fcl_ALL_<Mood>` play all three. The table's `parts` add `Fcl_MTH_Large`,

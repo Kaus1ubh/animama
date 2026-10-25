@@ -6,7 +6,12 @@ import {
   ARKIT_COMPOSITION_SHAPES,
   ARKIT_MOOD_MIXES,
   ARKIT_PART_MIXES,
+  ARKIT_VOWEL_MIXES,
+  ARKIT_VOWEL_SHAPES,
+  arkitVowelWeights,
   playsFacesWithArkit,
+  shapesVowelsWithArkit,
+  VOWEL5_CHANNELS,
 } from "./arkitFaceCompositions";
 
 describe("ARKit face compositions", () => {
@@ -78,6 +83,51 @@ describe("ARKit face compositions", () => {
       playsFacesWithArkit(
         resolveArkitFaceCapability(
           ARKIT_BLENDSHAPES.filter((shape) => shape !== "noseSneerLeft"),
+        ),
+      ),
+    ).toBe(false);
+  });
+
+  it("gives each vowel5 channel a mouth-only mix of canonical shapes", () => {
+    expect(Object.keys(ARKIT_VOWEL_MIXES).sort()).toEqual(
+      [...VOWEL5_CHANNELS].sort(),
+    );
+    for (const shape of ARKIT_VOWEL_SHAPES) {
+      expect(ARKIT_BLENDSHAPES).toContain(shape);
+      expect(shape).toMatch(/^(jaw|mouth)/);
+    }
+    // The vowel table does not feed the mood table's bar.
+    const moodAndPartShapes = new Set(
+      [
+        ...Object.values(ARKIT_MOOD_MIXES),
+        ...Object.values(ARKIT_PART_MIXES),
+      ].flatMap((mix) => Object.keys(mix)),
+    );
+    expect([...ARKIT_COMPOSITION_SHAPES].sort()).toEqual(
+      [...moodAndPartShapes].sort(),
+    );
+  });
+
+  it("sums vowel channels into clamped shape weights, listing every shape", () => {
+    const weights = arkitVowelWeights([1, 0, 0, 1, 0]);
+    expect(Object.keys(weights).sort()).toEqual([...ARKIT_VOWEL_SHAPES].sort());
+    // A and O both open the jaw.
+    expect(weights.jawOpen).toBeCloseTo(
+      ARKIT_VOWEL_MIXES.A.jawOpen! + ARKIT_VOWEL_MIXES.O.jawOpen!,
+      5,
+    );
+    expect(arkitVowelWeights([0, 0, 0, 0, 0]).jawOpen).toBe(0);
+    expect(arkitVowelWeights([9, 9, 9, 9, 9]).jawOpen).toBeLessThanOrEqual(1);
+  });
+
+  it("shapes vowels only with every vowel shape", () => {
+    expect(
+      shapesVowelsWithArkit(resolveArkitFaceCapability(ARKIT_BLENDSHAPES)),
+    ).toBe(true);
+    expect(
+      shapesVowelsWithArkit(
+        resolveArkitFaceCapability(
+          ARKIT_BLENDSHAPES.filter((shape) => shape !== "mouthPucker"),
         ),
       ),
     ).toBe(false);

@@ -114,5 +114,36 @@
     "Fcl_EYE_Close_R": {
       "eyeBlinkRight": 1
     }
+  },
+  "vowels": {
+    "A": {
+      "jawOpen": 0.3,
+      "mouthLowerDownLeft": 0.2,
+      "mouthLowerDownRight": 0.2,
+      "mouthUpperUpLeft": 0.1,
+      "mouthUpperUpRight": 0.1
+    },
+    "I": {
+      "jawOpen": 0.06,
+      "mouthStretchLeft": 0.4,
+      "mouthStretchRight": 0.4,
+      "mouthSmileLeft": 0.2,
+      "mouthSmileRight": 0.2
+    },
+    "U": {
+      "jawOpen": 0.08,
+      "mouthFunnel": 0.6,
+      "mouthPucker": 0.8
+    },
+    "E": {
+      "jawOpen": 0.15,
+      "mouthStretchLeft": 0.4,
+      "mouthStretchRight": 0.4
+    },
+    "O": {
+      "jawOpen": 0.35,
+      "mouthFunnel": 0.7,
+      "mouthPucker": 0.3
+    }
   }
 }

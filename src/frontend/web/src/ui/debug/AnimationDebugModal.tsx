@@ -1726,6 +1726,15 @@ export function AnimationDebugModal({ animaLabel }: { animaLabel?: string }) {
   const setVrmaRootedPlaybackEnabled = useAnimationDebugStore(
     (state) => state.setVrmaRootedPlaybackEnabled,
   );
+  const arkitLipSyncEnabled = useAnimationDebugStore(
+    (state) => state.arkitLipSyncEnabled,
+  );
+  const arkitLipSyncAvailable = useAnimationDebugStore(
+    (state) => state.arkitLipSyncAvailable,
+  );
+  const setArkitLipSyncEnabled = useAnimationDebugStore(
+    (state) => state.setArkitLipSyncEnabled,
+  );
   const setIdleStintQuietIntervalSec = useAnimationDebugStore(
     (state) => state.setIdleStintQuietIntervalSec,
   );
@@ -4160,6 +4169,28 @@ export function AnimationDebugModal({ animaLabel }: { animaLabel?: string }) {
                 checked={vrmaRootedPlaybackEnabled}
                 onCheckedChange={setVrmaRootedPlaybackEnabled}
                 aria-label="Toggle rooted VRMA animation playback"
+              />
+            </div>
+          </div>
+          <div className="border-border/60 bg-background/70 mb-4 rounded-lg border p-3">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-foreground text-sm font-medium">
+                  ARKit lip-sync shaping
+                </p>
+                <p className="text-muted-foreground text-xs">
+                  {arkitLipSyncAvailable
+                    ? arkitLipSyncEnabled
+                      ? "ON: vowels play as ARKit mouth mixes"
+                      : "OFF: vowels play the viseme presets"
+                    : "Unavailable: the Avatar lacks ARKit vowel shapes"}
+                </p>
+              </div>
+              <Switch
+                checked={arkitLipSyncEnabled}
+                disabled={!arkitLipSyncAvailable}
+                onCheckedChange={setArkitLipSyncEnabled}
+                aria-label="Toggle ARKit lip-sync shaping"
               />
             </div>
           </div>
