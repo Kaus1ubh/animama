@@ -145,7 +145,7 @@ export function SttChoiceTabs({
 function BrowserSttPanel() {
   const { t } = useTranslation("voice");
   return (
-    <div className="text-muted-foreground space-y-1 text-xs">
+    <div className="text-muted-foreground space-y-1 text-sm">
       <p>{t("providers.stt.browserExternal.description")}</p>
       <p>
         <Trans
