@@ -13,8 +13,9 @@ through them ([ARKit Avatars](avatar-emotion.md#arkit-avatars)).
 ## Licence first
 
 Read the Avatar's licence before converting it. Many BOOTH Avatars use the VN3
-licence, which allows format conversion for your own use but forbids
-redistributing the data or edited versions.
+licence, whose terms each author sets: check that yours allows format
+conversion for your own use. VN3 terms commonly forbid redistributing the data
+or edited versions.
 
 - Keep the Unity project, the downloaded packages and every exported `.vrm`
   outside any repository. Never add them to tests, content packages, Animama
@@ -75,11 +76,13 @@ change.
 ## Validate and export
 
 Pick the prefab the Avatar should look like. Many Avatars ship variants, such
-as Lapwing's `LapwingWithoutBorello Variant` without the jacket; each export
-captures one prefab.
+as a prefab variant without the jacket; each export captures one prefab.
 
 Close the project in the Unity editor first; batch mode cannot open a project
-that is already open. Then validate:
+that is already open. `Unity` below is the editor binary; on macOS it lives in
+the Hub's install folder, for example
+`/Applications/Unity/Hub/Editor/<version>/Unity.app/Contents/MacOS/Unity`.
+Then validate:
 
 ```bash
 Unity -batchmode -quit -projectPath <project> -logFile validate.log \

@@ -115,6 +115,11 @@ review stay in `<private-avatars>` or the session scratchpad.
 - [x] Phase 6: Bake VRM presets. Done; reviewed (pass after two repair rounds
   and a final recheck). Lapwing baked and loaded on the stack (2026-10-25).
 
+Open owner items recorded elsewhere: a before/after comparison of Lapwing's
+lilToon upgrade (Phase 2 step 4); the creator-handle check on Lapwing
+(PF-R2-F5); portrait capture on a lilToon Avatar was not rendered (Phase 3);
+`Fcl_MTH_A`'s ARKit jaw and smile stacking under lip sync (P5-F2, P5-F3).
+
 Phases 4–6 may run before Phases 2–3 if the owner's Unity setup is pending; their
 owner gates then wait for the converted Avatar.
 
@@ -513,7 +518,7 @@ Progress (2026-10-24, owner steps 1–3; agent steps 4, 5 and 7):
     0 flat textures) replaced the stack's revision (`431a99b8`). Guide and
     script now say not to use `-nographics`.
   - The jacket comes from exporting `Lapwing.prefab`; the owner's Unity
-    reference matches the `LapwingWithoutBorello Variant`.
+    reference matches the prefab variant without the jacket.
   - A Phase 3 spike (uncommitted) adds `@mochiya/three-liltoon` 0.1.9 and wraps
     the VRM plugin with `enableLilToonVRM`, plus `enableLilToon` in
     `AvatarSceneLighting` and the review stage. Private renders closely match
@@ -664,6 +669,10 @@ The painted-effect fix had its own standard review:
     pre-push suite runs on the commit before the push. Review complete: one
     repair round used and a coordinator-verified wording/record repair.
 
+Commits: `d2ddaab1` (tree `85074040`), `da791c5e` (`22ba6604`), `109cecdb`
+(`817d8749`), `fd8be333` (`08c67ff8`), `02336aa2` (`439cbdc7`); subjects in
+`git log`.
+
 ### Phase 3: Authored lilToon rendering
 
 Review tier: high risk. Adds a dependency and changes the shared rendering and
@@ -764,6 +773,9 @@ Evidence (Apple M5):
   | Andrew | 6.67 |
   | Annie | 4.73 |
 
+  Superseded: other jobs inflated these runs. The 2026-10-25 re-measurement
+  under equal load (Decision Log) gives 30.8 ms with lilToon, 0.8 ms with the
+  fallback, 1.2 ms for Andrew and 6.2 ms with lilToon at DPR 1. At the time:
   lilToon roughly adds 19 ms of GPU time per frame on this GPU, so weaker GPUs
   will drop below 60 fps. That is an owner decision; possible mitigations are a
   lower pixel ratio for lilToon Avatars, or finding the costly lilToon features.
@@ -887,6 +899,9 @@ Check record (working tree on `d20e8f72`):
 | `animation:render` of Double Thumbs Up, body and hands views, before vs after, `effects:render --diff` | `src/frontend/web` | 0 differing pixels, both sheets |
 | The same clip with `--avatar-file` on the converted Avatar | `src/frontend/web` | renders with lilToon (private sheet) |
 | `npx vitest run src/lib/avatar src/ui`; `pnpm -s web:lint`; `pnpm -s check` | `src/frontend/web`, `src/frontend` | 2852 passed, 1 skipped; pass; pass |
+
+Commits: `76393eee` (tree `7d2f88ee`), `f5f8f6db` (`3a5b88f7`), and step 5
+`66e12acd` (`d29889a7`) with its review fixes in `2a5a3b2e` (`7932915e`).
 
 ### Phase 4: ARKit emotions and face-track translation
 
@@ -1028,7 +1043,7 @@ findings.
   passed, 1 skipped; `pnpm -s web:lint` and `pnpm -s check` pass, on the Phase 4 commit's tree. One repair round remains unused.
 
 Commits: `eac8f4f9` `feat(avatars)[p4]: play emotions and VRoid face parts as
-ARKit mixes` (tree `2b1dbfbd`).
+ARKit mixes` (tree `2b1dbfbd`); the retune `ea9f8a29` (`5ba52841`).
 
 #### Revision: mood strength on converted Avatars (2026-10-25)
 
@@ -1222,6 +1237,8 @@ Included Avatars are unaffected.
 Revision checks on tree `bb4fd0eb`: `npx vitest run src/lib/avatar/arkitFace`
 29 passed; `pnpm -s check` pass. One repair round used.
 
+Commits: `993739b6` (tree `7e80717d`).
+
 ### Phase 6: Bake VRM presets
 
 Review tier: standard. A new local file-writing command.
@@ -1411,6 +1428,49 @@ gated on resolved ARKit shapes, and both resolve none.
   faces" line to `vrm:inspect` (Phase 2 step 5 uses it); note or align the bake
   edge case.
 
+### Code Review #3 Findings (whole branch)
+
+Reviewed `f9b0d8f1..993739b6` (tree `7e80717d`), high-risk tier for the
+branch as a whole, by an independent sdlc-reviewer agent, reusing each phase's
+recorded review; it reran the bake and inspect `node --test` files (10
+passed). Result: pass on code. Cross-phase paths agree (detection → mixes →
+eyelid correction → bake and inspect parity → lip-sync shaping; lilToon in
+every renderer that needs it; painted effects on lilToon materials; Mochiya
+spring detection kept by the bake). The licence boundary holds across the diff
+and history, and conventions are met.
+
+- FIN-F1 (required): the runtime doc and Phase 3 evidence gave the inflated
+  frame cost (20.7 ms) instead of the 2026-10-25 re-measurement.
+- FIN-F2 (required): Validation and acceptance recorded only the `51082213`
+  suite, and its "Not run" reason no longer held: lilToon wrapping and passes,
+  the face-island, eye-width and iris rules, the drag cap and the silhouette
+  bias run on every Avatar. No branch-wide Included diff against the base
+  existed.
+- FIN-F3 (required): Outcomes & Retrospective predated Phases 2, 3 and 5.
+- FIN-F4 (optional): "every shape the table uses" now read as if vowels count.
+- FIN-F5 (optional): `effects:render` and `effects:bench` resolved
+  `--avatar-file` more loosely than `animation:render`.
+- FIN-F6 (optional): no `Commits:` lines for Phases 2, 3 and 5 and the
+  follow-ups; Progress missed some open owner items.
+- FIN-O1 to FIN-O5 (observations): a third-party prefab variant named in docs;
+  VN3 terms are per author; two commits without a phase marker (accepted);
+  `Unity` assumed on PATH; the spec snapshot's delivery links.
+
+### Code Review #3 Revisions
+
+- FIN-F1: the runtime doc gives the current figures and conditions; the Phase
+  3 table is marked superseded.
+- FIN-F2: the branch-wide gates below (Validation and acceptance).
+- FIN-F3: Outcomes rewritten from the review's R1–R9 table.
+- FIN-F4: the doc and JSDoc say "moods and parts".
+- FIN-F5: `scripts/avatar-file.mjs` resolves `--avatar-file` for all three
+  tools (real path, regular `.vrm` file, no `#`, `?` or `%`), with its own
+  `node --test` file in `test:source:unit`.
+- FIN-F6: `Commits:` lines and the open owner items added.
+- FIN-O1, O2, O4: the guide names no prefab variant, says VN3 terms vary, and
+  shows where the Unity binary lives on macOS. FIN-O3: no change. FIN-O5: the
+  snapshot's delivery links are left until the PR is updated.
+
 ### Deferred items (2026-10-25)
 
 Starting source `ea9f8a29`:
@@ -1525,19 +1585,31 @@ sync choice.
 
 ## Outcomes & Retrospective
 
-Delivered on `feat/vrchat-avatar-arkit` (2026-10-24), Phases 1, 4 and 6:
+Delivered on `feat/vrchat-avatar-arkit` (2026-10-24 to 2026-10-25), all six
+phases implemented and reviewed; owner gates remain:
 
 - ARKit-52 shapes are detected per mesh under common spellings and registered
-  under canonical names; `pnpm -s vrm:inspect` reports a file's names, storage,
-  sizes and ARKit coverage.
-- Avatars with every table shape and no VRoid mood parts play emotions,
-  Reactions, Gestures, creator previews and portraits through ARKit mixes; the
-  eyelid correction measures each mix.
-- `pnpm -s vrm:bake-expressions` writes the mood presets into a copy of a file.
+  under canonical names; `pnpm -s vrm:inspect` reports a file's names,
+  storage, sizes, ARKit coverage and whether Animama plays its faces as ARKit
+  mixes.
+- Avatars with every mood and part shape and no VRoid mood parts play
+  emotions, Reactions, Gestures, creator previews and portraits through ARKit
+  mixes, retuned to VRoid part strength; the eyelid correction measures each
+  mix. `pnpm -s vrm:bake-expressions` writes the mood presets into a copy.
+- A Unity batch script converts VRChat Avatars with Mochiya in T-pose; such
+  Avatars get no ambient spring forces, and painted face effects find the face
+  and eyes on shared atlases.
+- Authored lilToon materials render through three-liltoon, loaded only for
+  files that use them; the review tools render and bench a private VRM.
+- Vowel lip sync can shape the mouth from ARKit mixes, switched in the debug
+  modal; visemes stay the default.
 
-Open: Phases 2, 3 and 5 (owner Unity setup and Lapwing files first); owner
-visual gates for Phase 4 on Lapwing; R1, R2 (per-primitive names), R3, R7, R9;
-INT-F6 to F8 follow-ups.
+Acceptance (final integration review): R4 and R8 met; R9 met by the guide.
+R2 met for mesh-level names; names stored only per primitive are reported by
+`vrm:inspect` but not loaded (Phase 1 step 4 stays conditional, so the owner
+accepts that narrower reading or asks for it). R1 (live re-check), R3
+(lilToon go/no-go), R5/R6 (faces on Lapwing) and R7 (listen-and-watch,
+default) wait on owner gates.
 
 Lesson: content reaches expressions through several paths (controller, creator
 preview, portraits, render harness), so face vocabulary belongs in registered

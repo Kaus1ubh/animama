@@ -2,6 +2,7 @@ import { realpath, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { resolveAvatarFile } from "./avatar-file.mjs";
 import {
   AVATARS,
   AVATAR_RENDERINGS,
@@ -375,7 +376,7 @@ async function main(argv) {
       warmupFrames,
       rounds,
       avatarFile: values["--avatar-file"]
-        ? await realpath(path.resolve(cwd, values["--avatar-file"]))
+        ? await resolveAvatarFile(path.resolve(cwd, values["--avatar-file"]))
         : null,
       clipSpec: values["--clip"] ?? DEFAULT_CLIP,
       effectSpecs: values["--effects"]?.split(",") ?? DEFAULT_FACE_EFFECTS,

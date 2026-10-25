@@ -343,7 +343,7 @@ Relevant files:
 
 Avatars converted from VRChat usually have ARKit face shapes but neither VRM
 mood presets nor VRoid `Fcl_*` parts. When an Avatar has every ARKit shape that
-`arkitFaceCompositions.json` uses, `Avatar.load` registers each mood preset and
+the moods and parts of `arkitFaceCompositions.json` use, `Avatar.load` registers each mood preset and
 each VRoid part in that table as a mix of those shapes
 (`arkitFaceExpressions.ts`). Emotions, Reactions, Gestures, creator previews and
 portraits then play them as ordinary expressions. Content keeps its VRM and

@@ -6,6 +6,7 @@ import { createServer } from "vite";
 
 import sharp from "sharp";
 
+import { resolveAvatarFile } from "./avatar-file.mjs";
 import {
   EffectSourceError,
   INCLUDED_CONTENT_ROOT,
@@ -820,14 +821,12 @@ function parseTile(value) {
   return { width: Number(match[1]), height: Number(match[2]) };
 }
 
-/** Resolve `--avatar-file` to a real `.vrm` path, failing clearly. */
-async function resolveAvatarFile(file) {
-  if (!file.toLowerCase().endsWith(".vrm"))
-    throw new EffectSourceError(`--avatar-file must be a .vrm file: ${file}`);
+/** Resolve `--avatar-file` (see `avatar-file.mjs`) as a usage error. */
+async function resolveReviewAvatarFile(file) {
   try {
-    return await realpath(file);
-  } catch {
-    throw new EffectSourceError(`--avatar-file not found: ${file}`);
+    return await resolveAvatarFile(file);
+  } catch (error) {
+    throw new EffectSourceError(error.message);
   }
 }
 
@@ -888,7 +887,9 @@ async function main(argv) {
         `Invalid --rendering ${rendering}; use ${AVATAR_RENDERINGS.join(" or ")}.`,
       );
     const avatarFile = values["--avatar-file"]
-      ? await resolveAvatarFile(path.resolve(cwd, values["--avatar-file"]))
+      ? await resolveReviewAvatarFile(
+          path.resolve(cwd, values["--avatar-file"]),
+        )
       : null;
     if (avatarFile && values["--thumbnail"])
       throw new EffectSourceError(

@@ -1584,8 +1584,11 @@ adapts colour and UV expression binds to those materials.
   `releaseModelScene` disposes their `lilToonTextures`, which neither
   `VRMUtils.deepDispose` nor the material's `dispose` releases.
 - **Frame cost:** lilToon shading is much heavier than MToon. On an Apple M5 at
-  the chat canvas's 1600×1200, Lapwing's GPU time per frame was about 20.7 ms
-  with lilToon and 1.5 ms with the fallback (`effects:bench --avatar-file`).
+  the chat canvas's 1600×1200 and DPR 2, measured back to back under equal load
+  with `effects:bench --avatar-file` (2026-10-25), a converted Avatar's GPU time
+  per frame was 30.8 ms with lilToon, 0.8 ms with the fallback materials and
+  1.2 ms for Andrew; at DPR 1 it was 6.2 ms with lilToon, so the cost is mostly
+  per pixel. Reducing it is tracked in #691 (R11).
 
 On an Apple M5 the enhanced look adds about 0.1–0.15 ms per frame over classic.
 Review renders and benchmarks use enhanced rendering unless given

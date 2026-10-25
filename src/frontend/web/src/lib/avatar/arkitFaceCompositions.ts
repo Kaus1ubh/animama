@@ -67,7 +67,7 @@ export const ARKIT_PART_MIXES: Readonly<Record<string, ArkitMix>> = {
   ...(compositions.parts as Readonly<Record<string, ArkitMix>>),
 };
 
-/** Every ARKit shape the table uses. */
+/** Every ARKit shape the table's moods and parts use (not its vowels). */
 export const ARKIT_COMPOSITION_SHAPES: ReadonlySet<string> = new Set(
   [
     ...Object.values(ARKIT_MOOD_MIXES),
@@ -77,7 +77,7 @@ export const ARKIT_COMPOSITION_SHAPES: ReadonlySet<string> = new Set(
 
 /**
  * Whether an Avatar plays faces through ARKit mixes: it must have every shape
- * the table uses, so no mood loses a region to a missing shape. Avatars with
+ * the moods and parts use, so no mood loses a region to a missing shape. Avatars with
  * only some ARKit shapes keep their own presets and the preset fallback.
  */
 export function playsFacesWithArkit(capability: ArkitFaceCapability): boolean {
