@@ -293,12 +293,12 @@ author and keeping the model name:
   for WebGPU, where the INT8 graph's quantized operators have no kernels. It
   requires the base set, whose tokens and metadata it uses.
 
-Until Animama publishes the SenseVoice objects to `downloads.animama.ai`, the
-default `acquire` source cannot complete, and in-app installs fail as
-`asset_download_failed`. Acquire from the pinned upstream revision instead:
+Both sets are published on `downloads.animama.ai`, where in-app installs and
+the default `acquire` source fetch them. `--source upstream` instead downloads
+the pinned upstream revision, as for Parakeet:
 
 ```bash
-python3 scripts/models/sensevoice.py acquire --source upstream
+python3 scripts/models/sensevoice.py acquire
 python3 scripts/models/sensevoice_webgpu.py acquire  # optional, for WebGPU
 python3 scripts/models/sensevoice.py path
 ```

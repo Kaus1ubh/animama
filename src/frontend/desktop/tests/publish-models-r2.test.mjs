@@ -370,7 +370,7 @@ describe("model publication", () => {
     },
   );
 
-  it("asks for an upstream SenseVoice acquisition until Animama publishes it", () => {
+  it("asks for a SenseVoice acquisition from the published objects", () => {
     // An empty home (LOCALAPPDATA on Windows) gives an empty default store.
     const home = mkdtempSync(path.join(tmpdir(), "animama-empty-home-"));
     vi.stubEnv("HOME", home);
@@ -381,7 +381,7 @@ describe("model publication", () => {
       expect(() =>
         verifiedModelSource({ modelId: "sensevoice-small" }),
       ).toThrow(
-        "Acquire the set first: python3 scripts/models/sensevoice.py acquire --source upstream",
+        "Acquire the set first: python3 scripts/models/sensevoice.py acquire",
       );
     } finally {
       vi.unstubAllEnvs();

@@ -75,6 +75,18 @@ Boundaries:
       items: G2–G4 and the first-interim and `zh-Hans` WASM latency targets.
 - [x] Final integration review (2026-10-21): one blocking finding (contract
       versions) and nine non-blocking, repaired in one round.
+- [x] G2 publication (2026-10-24): both SenseVoice sets scanned with the
+      pinned Gitleaks and published to `downloads.animama.ai`; anonymous
+      read-back returned 200 at the expected sizes.
+- [x] G2 post-publication checks (2026-10-24, #692): `--source upstream`
+      hints removed; the default `sensevoice.py acquire` fetches the published
+      set. On a built stack and in the unsigned development app (fresh
+      profile) both sets installed from `downloads.animama.ai`; the GPU set
+      resumed after a backend restart (or app relaunch) from about 270 MB of
+      staged bytes; the GPU install before the CPU set returned
+      `model_asset_requires`, CPU removal under the add-on
+      `model_asset_required_by`, removal under a live lease
+      `model_asset_in_use`, and both sets then removed.
 
 ## Surprises & Discoveries
 

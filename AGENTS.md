@@ -200,8 +200,7 @@ no mandatory helper or policy engine is required.
 Speech models are optional for local stacks. Acquire Parakeet (English)
 speech-to-text with `python3 scripts/models/parakeet.py acquire`, SenseVoice
 (Japanese, Korean and Chinese) with
-`python3 scripts/models/sensevoice.py acquire --source upstream` until its
-Animama objects are published, and Pocket TTS/Smart Turn with
+`python3 scripts/models/sensevoice.py acquire`, and Pocket TTS/Smart Turn with
 `python3 scripts/models/browser_speech.py acquire` (or import verified existing copies).
 `reset.sh` verifies each acquired set in `ANIMAMA_MODEL_ROOT` offline and records its
 resolved immutable directory. A missing set only disables its own feature; a set

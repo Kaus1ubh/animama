@@ -125,7 +125,7 @@ export function verifiedModelSource({
   }
   if (!source)
     throw new PublicationError(
-      `Acquire the set first: python3 ${spec.script} acquire${spec.acquireArgs ? ` ${spec.acquireArgs}` : ""}`,
+      `Acquire the set first: python3 ${spec.script} acquire`,
     );
   return { manifest, files, source };
 }

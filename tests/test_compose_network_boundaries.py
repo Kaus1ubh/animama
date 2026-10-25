@@ -738,8 +738,8 @@ def test_missing_sensevoice_models_start_development_without_multilingual_dictat
         tmp_path, [], {"ANIMAMA_TEST_SENSEVOICE_MODEL_MISSING": "1"}, build_mode="development"
     )
     assert result.returncode == 0, result.stderr
-    # Until Animama publishes the SenseVoice objects, the hint names the upstream source.
-    assert "sensevoice.py acquire --source upstream" in result.stderr
+    # The published objects are the default source, so the hint needs no option.
+    assert "Run python3 scripts/models/sensevoice.py acquire to enable them." in result.stderr
     started = [command for command in commands if "up" in command["args"]]
     assert started
     assert all(command["sensevoice_stt_enabled"] == "false" for command in started)

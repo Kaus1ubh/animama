@@ -116,9 +116,8 @@ const ACQUIRE_COMMANDS: Record<OfflineSttEngine, { cpu: string; gpu: string }> =
       cpu: "python3 scripts/models/parakeet.py acquire",
       gpu: "parakeet_webgpu.py acquire",
     },
-    // Until Animama publishes the SenseVoice objects (gate G2).
     sensevoice: {
-      cpu: "python3 scripts/models/sensevoice.py acquire --source upstream",
+      cpu: "python3 scripts/models/sensevoice.py acquire",
       gpu: "sensevoice_webgpu.py acquire",
     },
   };
