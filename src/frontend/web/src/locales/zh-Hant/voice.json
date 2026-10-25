@@ -33,7 +33,8 @@
     "errors": {
       "notReady": "安裝尚未就緒。請重新開啟後再試一次。",
       "statusUnavailable": "無法取得下載狀態。請重新開啟後再試一次。"
-    }
+    },
+    "remove": "移除"
   },
   "microphone": {
     "device": {
@@ -187,7 +188,7 @@
     "stt": {
       "browserDesktopUnavailable": "桌面應用程式中無法使用瀏覽器 STT。",
       "browserExternal": {
-        "description": "由供應商管理處理過程的瀏覽器語音辨識。",
+        "description": "透過 Web Speech API 進行的瀏覽器語音辨識。",
         "label": "瀏覽器（外部）",
         "unsupported": "此瀏覽器不支援 Web Speech API。"
       },
@@ -205,7 +206,7 @@
         "webgpuDescription": "在 GPU 上以 {{model}} 執行的實驗性本機語音辨識，提供即時預覽。無法使用時改用 CPU。",
         "webgpuLabel": "{{model}}（WebGPU · 實驗性）"
       },
-      "browserLabel": "瀏覽器",
+      "browserLabel": "瀏覽器（內建）",
       "enginesLabel": "語音辨識引擎",
       "variantsLabel": "{{engine}} 版本",
       "recommended": "推薦",
@@ -214,7 +215,8 @@
         "gpu": "GPU",
         "cpuWithSize": "CPU（{{size}}）",
         "gpuWithSize": "GPU（{{size}}）"
-      }
+      },
+      "browserLanguages": "<link>支援大多數語言。</link>"
     },
     "tts": {
       "audioWorkletUnsupported": "此瀏覽器不支援 AudioWorklet。",
@@ -237,8 +239,10 @@
       "workersUnsupported": "此瀏覽器不支援 Web Workers。",
       "gemini": {
         "description": "從伺服器串流傳輸的 Gemini 語音。"
-      }
-    }
+      },
+      "pocketBuiltIn": "PocketTTS（內建）"
+    },
+    "selected": "已選擇"
   },
   "gemini": {
     "descriptors": {

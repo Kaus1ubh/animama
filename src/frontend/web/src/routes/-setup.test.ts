@@ -113,6 +113,18 @@ vi.mock("@/ui/settings/OfflineSpeechDownloads", () => {
     }),
   };
 });
+// Variant tabs label each set with its size.
+vi.mock("@/query/hooks/useModelAssets", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/query/hooks/useModelAssets")>()),
+  useModelAssets: () => ({
+    data: {
+      assets: ["parakeet", "sensevoice"].flatMap((engine) => [
+        { id: `${engine}-stt`, size_bytes: 631_000_000 },
+        { id: `${engine}-stt-webgpu`, size_bytes: 1_200_000_000 },
+      ]),
+    },
+  }),
+}));
 vi.mock("@/ui/settings/DesktopCredentialsPanel", () => ({
   DesktopCredentialsPanel: ({ providers }: { providers: string[] }) =>
     createElement("div", { "data-key-panel": providers.join(",") }),
@@ -283,7 +295,7 @@ describe("local first-run setup", () => {
     expect(html).toMatch(
       /role="tab"[^>]*><span[^>]*>Cloud<span[^>]*>Recommended<\/span>/u,
     );
-    expect(html).toMatch(/role="tab"[^>]*>Local</u);
+    expect(html).toMatch(/role="tab"[^>]*><span[^>]*>Local</u);
     expect(html).not.toContain("Model for new Animas");
     expect(html).not.toContain("App Settings → Models");
     expect(html).toContain('data-key-panel="openai"');
@@ -389,7 +401,7 @@ describe("local first-run setup", () => {
     expect(html).toMatch(
       /aria-selected="true"[^>]*><span[^>]*>Parakeet<span[^>]*>Recommended<\/span>/u,
     );
-    expect(html).toMatch(/role="tab"[^>]*>SenseVoice</u);
+    expect(html).toMatch(/role="tab"[^>]*><span[^>]*>SenseVoice</u);
     expect(html).toMatch(/aria-selected="true"[^>]*>CPU \(/u);
     expect(html).toMatch(/role="tab"[^>]*>GPU \(/u);
     // Text-to-Speech is on by default: provider tabs, no toggle.
@@ -405,7 +417,7 @@ describe("local first-run setup", () => {
     // Downloads show a ✓/✗ state, not a bare status.
     expect(html).toContain("Not downloaded");
     expect(html).toMatch(
-      /<button[^>]*aria-selected="true"[^>]*>ElevenLabs<\/button>/u,
+      /<button[^>]*aria-selected="true"[^>]*><span[^>]*>ElevenLabs<\/span><\/button>/u,
     );
     expect(html).toContain('data-key-panel="elevenlabs"');
     expect(html).toMatch(/<button[^>]*>Finish<\/button>/u);

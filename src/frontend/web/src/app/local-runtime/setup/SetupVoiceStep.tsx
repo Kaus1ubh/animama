@@ -12,7 +12,7 @@ import {
 } from "@/ui/settings/DesktopCredentialsPanel";
 import { SpeechLanguageNotice } from "@/ui/settings/SpeechLanguageNotice";
 
-import { ModelLink } from "./ModelLink";
+import { ModelLink } from "@/ui/components/model-link";
 import { SetupSpeechChoice } from "./SetupSpeechChoice";
 import { setupTtsOptions } from "./setup-state";
 

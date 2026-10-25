@@ -557,6 +557,7 @@ export function ApplicationSettingsModal({
 }: ApplicationSettingsModalProps) {
   const apiClient = useProductApiClient();
   const { t, i18n } = useTranslation("settings");
+  const { t: tVoice } = useTranslation("voice");
   const sectionLabels = Object.fromEntries(
     sections.map((section) => [section, t(SECTION_LABEL_KEYS[section])]),
   ) as Record<ApplicationSettingsSection, string>;
@@ -584,7 +585,6 @@ export function ApplicationSettingsModal({
     isParakeetWebgpuPreferred(resolvedUserPreferences),
   );
   const [ttsEnabled, setTtsEnabled] = useState(false);
-  const [ttsStreamChunks, setTtsStreamChunks] = useState(true);
   const [selectedTtsProvider, setSelectedTtsProvider] =
     useState<TtsProvider | null>(null);
   const [selectedGeminiModelId, setSelectedGeminiModelId] =
@@ -630,7 +630,6 @@ export function ApplicationSettingsModal({
     DEFAULT_GEMINI_TTS_MODEL_ID,
   );
   const savedTtsEnabledRef = useRef(false);
-  const savedTtsStreamChunksRef = useRef(true);
   const savedDesktopShortcutsRef = useRef<DesktopShortcutMap>(
     DEFAULT_DESKTOP_SHORTCUTS,
   );
@@ -653,8 +652,6 @@ export function ApplicationSettingsModal({
     toGeminiTtsModelId(resolvedUserPreferences?.speech?.tts_gemini_model_id) ??
     DEFAULT_GEMINI_TTS_MODEL_ID;
   const savedTtsEnabled = resolvedUserPreferences?.speech?.tts_enabled === true;
-  const savedTtsStreamChunks =
-    resolvedUserPreferences?.speech?.tts_stream_chunks !== false;
   const savedDesktopShortcuts = useMemo(
     () =>
       resolveDesktopShortcuts(
@@ -680,10 +677,6 @@ export function ApplicationSettingsModal({
   useEffect(() => {
     savedTtsEnabledRef.current = savedTtsEnabled;
   }, [savedTtsEnabled]);
-
-  useEffect(() => {
-    savedTtsStreamChunksRef.current = savedTtsStreamChunks;
-  }, [savedTtsStreamChunks]);
 
   useEffect(() => {
     savedDesktopShortcutsRef.current = savedDesktopShortcuts;
@@ -723,7 +716,6 @@ export function ApplicationSettingsModal({
     setSelectedTtsProvider(savedTtsProvider);
     setSelectedGeminiModelId(savedGeminiModelId);
     setTtsEnabled(savedTtsEnabled);
-    setTtsStreamChunks(savedTtsStreamChunks);
     setDesktopShortcuts(savedDesktopShortcuts);
     setRecordingShortcutAction(null);
     setAvatarTransformControlsEnabled(savedAvatarTransformControlsEnabled);
@@ -739,7 +731,6 @@ export function ApplicationSettingsModal({
     savedGeminiModelId,
     savedTtsEnabled,
     savedTtsProvider,
-    savedTtsStreamChunks,
     savedDesktopShortcuts,
   ]);
 
@@ -753,7 +744,6 @@ export function ApplicationSettingsModal({
     const initialSavedTtsProvider = savedTtsProviderRef.current;
     const initialSavedGeminiModelId = savedGeminiModelIdRef.current;
     const initialSavedTtsEnabled = savedTtsEnabledRef.current;
-    const initialSavedTtsStreamChunks = savedTtsStreamChunksRef.current;
     const initialSavedDesktopShortcuts = savedDesktopShortcutsRef.current;
     const initialSavedAvatarTransformControlsEnabled =
       savedAvatarTransformControlsEnabledRef.current;
@@ -782,7 +772,6 @@ export function ApplicationSettingsModal({
         setSelectedTtsProvider(resolvedTts.provider);
         setSelectedGeminiModelId(initialSavedGeminiModelId);
         setTtsEnabled(initialSavedTtsEnabled);
-        setTtsStreamChunks(initialSavedTtsStreamChunks);
         setDesktopShortcuts(initialSavedDesktopShortcuts);
         setRecordingShortcutAction(null);
         setAvatarTransformControlsEnabled(
@@ -897,8 +886,6 @@ export function ApplicationSettingsModal({
   const currentGeminiModelOption = GEMINI_TTS_MODEL_OPTIONS.find(
     (option) => option.id === selectedGeminiModelId,
   );
-  // The server pushes Gemini audio whole, so streaming text chunks does not apply.
-  const streamChunksUnavailable = selectedTtsProvider === "gemini";
 
   const firstAvailableTtsProvider =
     ttsProviderOptions.find((option) => !option.disabled)?.id ?? null;
@@ -1072,40 +1059,6 @@ export function ApplicationSettingsModal({
       selectedGeminiModelId,
       ttsEnabled,
       ttsProviderOptions,
-      t,
-      updateUserPreferences,
-    ],
-  );
-
-  const handleTtsStreamChunksChange = useCallback(
-    (nextEnabled: boolean) => {
-      if (
-        isSaving ||
-        isInitializing ||
-        !ttsEnabled ||
-        streamChunksUnavailable
-      ) {
-        return;
-      }
-      const previous = ttsStreamChunks;
-      setTtsStreamChunks(nextEnabled);
-      setIsSaving(true);
-
-      void updateUserPreferences({
-        speech: { tts_stream_chunks: nextEnabled },
-      })
-        .catch(() => {
-          setTtsStreamChunks(previous);
-          toast.error(t("voice.tts.stream.updateFailed"));
-        })
-        .finally(() => setIsSaving(false));
-    },
-    [
-      isInitializing,
-      isSaving,
-      ttsEnabled,
-      ttsStreamChunks,
-      streamChunksUnavailable,
       t,
       updateUserPreferences,
     ],
@@ -1286,7 +1239,6 @@ export function ApplicationSettingsModal({
     groupId,
     group: settingGroupLabel(t, groupId),
   });
-  const streamDescription = t("voice.tts.stream.description");
 
   const settingEntries: SettingEntry[] = [
     {
@@ -1605,22 +1557,14 @@ export function ApplicationSettingsModal({
             choices={sttChoices}
             recommended={recommendedSttChoice(offlineRoute.engine, sttChoices)}
             onChoiceChange={handleSttChoiceChange}
-            panel={(choice) =>
-              choice === "browser_external" ? (
-                <p className="text-muted-foreground text-xs">
-                  {
-                    sttProviderOptions.find(
-                      (option) => option.id === "browser_external",
-                    )?.description
-                  }
-                </p>
-              ) : (
-                <OfflineEngineSettingsPanel
-                  engine={sttChoiceEngine(choice) as OfflineSttEngine}
-                  routed={sttChoiceEngine(choice) === offlineRoute.engine}
-                />
-              )
-            }
+            selected={savedSttChoice ? sttChoiceEngine(savedSttChoice) : null}
+            panel={(choice) => (
+              <OfflineEngineSettingsPanel
+                engine={sttChoiceEngine(choice) as OfflineSttEngine}
+                set={choice.endsWith("_gpu") ? "gpu" : "cpu"}
+                routed={sttChoiceEngine(choice) === offlineRoute.engine}
+              />
+            )}
           />
           <SpeechLanguageNotice
             direction="speechToText"
@@ -1655,32 +1599,6 @@ export function ApplicationSettingsModal({
       ),
     },
     {
-      id: "tts-stream",
-      section: "Voice",
-      ...inGroup("textToSpeech"),
-      label: t("voice.tts.stream.label"),
-      description: streamDescription,
-      keywords: ["tts", "streaming", "latency"],
-      render: () => (
-        <SettingsRow
-          label={t("voice.tts.stream.label")}
-          description={
-            streamChunksUnavailable
-              ? t("voice.tts.stream.unavailable")
-              : streamDescription
-          }
-          control={
-            <Switch
-              checked={streamChunksUnavailable ? false : ttsStreamChunks}
-              onCheckedChange={handleTtsStreamChunksChange}
-              disabled={isBusy || !ttsEnabled || streamChunksUnavailable}
-              aria-label={t("voice.tts.stream.label")}
-            />
-          }
-        />
-      ),
-    },
-    {
       id: "tts-provider",
       section: "Voice",
       ...inGroup("textToSpeech"),
@@ -1702,12 +1620,19 @@ export function ApplicationSettingsModal({
             <ChoiceTabsList
               tabs={ttsProviderOptions.map((option) => ({
                 id: option.id,
-                label: option.label,
+                label:
+                  option.id === "pocket_tts"
+                    ? tVoice("providers.tts.pocketBuiltIn")
+                    : option.label,
                 disabled: option.disabled || !ttsEnabled || isBusy,
                 reason: option.reason,
               }))}
               active={selectedTtsProvider ?? ""}
+              selected={
+                ttsEnabled ? (selectedTtsProvider ?? undefined) : undefined
+              }
               label={t("voice.tts.provider.ariaLabel")}
+              selectedLabel={tVoice("providers.selected")}
             />
             {ttsProviderOptions.map((option) => (
               <TabsContent
@@ -1732,7 +1657,12 @@ export function ApplicationSettingsModal({
                 {option.id === "pocket_tts" ? (
                   // Voice cloning belongs to Pocket TTS, the only provider
                   // that speaks with a cloned voice.
-                  <VoiceCloneSettings />
+                  <section className="space-y-2 pt-2">
+                    <h4 className="text-sm font-medium">
+                      {tVoice("downloads.sections.voiceClone")}
+                    </h4>
+                    <VoiceCloneSettings />
+                  </section>
                 ) : null}
                 {option.id === "elevenlabs" && credentialsAvailable ? (
                   <DesktopCredentialsPanel

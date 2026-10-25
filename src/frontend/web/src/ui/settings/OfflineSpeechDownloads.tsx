@@ -555,22 +555,6 @@ function OfflineSpeechDownloadsManager({
 }
 
 /**
- * One engine's sets (or, in Vite development, how to acquire them), for the
- * engine's tab in App Settings → Voice.
- */
-export function OfflineEngineDownloads({
-  engine,
-}: {
-  engine: OfflineSttEngine;
-}) {
-  return OFFLINE_SPEECH_DOWNLOADS_OFFERED ? (
-    <OfflineSpeechDownloadsManager engine={engine} />
-  ) : (
-    <HostSpeechModelsNote engine={engine} />
-  );
-}
-
-/**
  * One engine's sets' state and change actions, shared by Settings and the
  * setup Voice step: the model-asset list, a WebGPU probe that reruns when the
  * GPU set settles, and the last failed change.

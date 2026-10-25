@@ -109,8 +109,8 @@ FastAPI keeps running, no window reloads and dictation works offline.
 
 Eve, Azelma and Michael are included voices. The other 35 voices download individually
 from the compact picker in Anima voice selection. **Voice Clone** contains the
-cloning encoder download; App Settings also reuses the Anima voice-cloning form
-there, after Text-to-Speech. Downloading or previewing changes neither the
+cloning encoder download; App Settings reuses the Anima voice-cloning form
+under the PocketTTS tab of Text-to-Speech. Downloading or previewing changes neither the
 provider nor the selected voice.
 
 These downloads use the backend model-asset service: every file is checked for

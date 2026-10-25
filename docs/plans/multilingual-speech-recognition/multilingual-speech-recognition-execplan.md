@@ -281,6 +281,15 @@ Boundaries:
   desktop recommends the UI Locale's engine. Text-to-Speech uses provider tabs
   too, with Voice Clone, the keys and the Gemini model inside their
   provider's tab.
+- 2026-10-24, owner: App Settings' CPU | GPU tabs show Setup's per-version
+  panels (✓/✗ state, WebGPU check) plus removal, without model attribution
+  (the packaged notices and each set's `ATTRIBUTION.md` keep it). Browser is
+  "Browser (built-in)", never Recommended, described as the Web Speech API
+  with a "supports most languages" link; PocketTTS is "PocketTTS (built-in)"
+  with a "Voice Clone" sub-heading; the provider in use is tagged "Selected".
+  The "Stream chunked text-to-speech" switch and the Behavior → Voices pointer
+  are removed; ElevenLabs always streams and a saved `tts_stream_chunks` is
+  ignored.
 
 ## Owner gates
 

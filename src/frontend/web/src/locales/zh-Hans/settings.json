@@ -423,7 +423,7 @@
             "flashLite": "延迟更低、费用更低的 Gemini 语音。"
           },
           "label": "Gemini 模型",
-          "note": "Google 会按你的 API 密钥对 Gemini 语音计费。可在“行为 → 语音”中为每个 Anima 选择声音。",
+          "note": "Google 会按你的 API 密钥对 Gemini 语音计费。",
           "placeholder": "选择模型",
           "updateFailed": "无法更新 Gemini 模型。"
         }
@@ -433,14 +433,8 @@
         "ariaLabel": "文字转语音提供商",
         "enableFirst": "启用文字转语音后才能选择提供商。",
         "entryLabel": "默认文字转语音提供商",
-        "note": "用于没有自己提供商的 Anima。可在“行为 → 语音”中为每个 Anima 选择提供商和声音。",
+        "note": "用于没有自己提供商的 Anima。",
         "updateFailed": "无法更新文字转语音提供商。"
-      },
-      "stream": {
-        "description": "在完整回复准备好之前开始说话。",
-        "label": "分块流式文字转语音",
-        "unavailable": "使用 Gemini 时不可用。",
-        "updateFailed": "无法更新文字转语音流式模式。"
       },
       "updateFailed": "无法更新文字转语音设置。"
     }

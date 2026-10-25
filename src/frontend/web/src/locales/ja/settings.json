@@ -425,7 +425,7 @@
             "flashLite": "低遅延・低コストの Gemini 音声です。"
           },
           "label": "Gemini モデル",
-          "note": "Gemini の音声は Google から API キーに対して課金されます。Anima ごとの声は ふるまい → 音声 で選べます。",
+          "note": "Gemini の音声は Google から API キーに対して課金されます。",
           "placeholder": "モデルを選択",
           "updateFailed": "Gemini モデルを更新できませんでした。"
         }
@@ -435,14 +435,8 @@
         "ariaLabel": "読み上げのプロバイダー",
         "enableFirst": "プロバイダーを選ぶには、読み上げを有効にしてください。",
         "entryLabel": "デフォルトの読み上げプロバイダー",
-        "note": "独自のプロバイダーがない Anima に使われます。Anima ごとのプロバイダーと声は、ふるまい → 音声 で選べます。",
+        "note": "独自のプロバイダーがない Anima に使われます。",
         "updateFailed": "読み上げのプロバイダーを更新できませんでした。"
-      },
-      "stream": {
-        "description": "応答全体の準備ができる前に話し始めます。",
-        "label": "読み上げを分割してストリーミング",
-        "unavailable": "Gemini では利用できません。",
-        "updateFailed": "読み上げのストリーミングモードを更新できませんでした。"
       },
       "updateFailed": "読み上げの設定を更新できませんでした。"
     }

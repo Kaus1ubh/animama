@@ -302,7 +302,6 @@ function LocalSetupForm({ ownerId }: { ownerId: string }) {
                   choices: sttChoices,
                   engine: sttEngine,
                   recommended: recommendedSttChoice(sttEngine, sttChoices),
-                  browserOptions: sttBrowserOptions,
                   onChoiceChange: (choice) =>
                     updateDraft({ sttChoice: choice }),
                 }}

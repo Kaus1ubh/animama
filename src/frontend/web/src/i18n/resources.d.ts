@@ -6194,7 +6194,7 @@ export default interface Resources {
               "flashLite": "Lower-latency, lower-cost Gemini speech."
             },
             "label": "Gemini model",
-            "note": "Google bills Gemini speech to your API key. Choose each Anima's voice in Behavior → Voices.",
+            "note": "Google bills Gemini speech to your API key.",
             "placeholder": "Select model",
             "updateFailed": "Failed to update Gemini model."
           }
@@ -6204,14 +6204,8 @@ export default interface Resources {
           "ariaLabel": "Text-to-Speech provider",
           "enableFirst": "Enable Text-to-Speech to select a provider.",
           "entryLabel": "Default Text-to-Speech provider",
-          "note": "Used by Animas without their own provider. Choose providers and voices for each Anima in Behavior → Voices.",
+          "note": "Used by Animas without their own provider.",
           "updateFailed": "Failed to update TTS provider."
-        },
-        "stream": {
-          "description": "Start speaking before the full response is ready.",
-          "label": "Stream chunked Text-to-Speech",
-          "unavailable": "Unavailable with Gemini.",
-          "updateFailed": "Failed to update TTS streaming mode."
         },
         "updateFailed": "Failed to update TTS settings."
       }
@@ -6506,6 +6500,7 @@ export default interface Resources {
       "lowSpace": "Not enough free space: downloads need {{size}} free.",
       "notAvailable": "Not available",
       "progressLabel": "{{label}} download progress",
+      "remove": "Remove",
       "retry": "Retry download",
       "sections": {
         "speechToText": "Speech-to-Text",
@@ -6695,14 +6690,16 @@ export default interface Resources {
       }
     },
     "providers": {
+      "selected": "Selected",
       "stt": {
         "browserDesktopUnavailable": "Browser STT is unavailable in the desktop app.",
         "browserExternal": {
-          "description": "Browser speech recognition with vendor-managed processing.",
+          "description": "Browser speech recognition via the Web Speech API.",
           "label": "Browser (external)",
           "unsupported": "Web Speech API is not supported in this browser."
         },
-        "browserLabel": "Browser",
+        "browserLabel": "Browser (built-in)",
+        "browserLanguages": "<link>Supports most languages.</link>",
         "browserLocal": {
           "description": "Strict on-device browser recognition when explicitly supported.",
           "label": "Browser (local)",
@@ -6745,6 +6742,7 @@ export default interface Resources {
         "pocket": {
           "description": "Client-side PocketTTS synthesis."
         },
+        "pocketBuiltIn": "PocketTTS (built-in)",
         "secureContext": "{{provider}} requires HTTPS or localhost (secure context).",
         "webAudioUnsupported": "Web Audio API is not supported in this browser.",
         "webSocketUnsupported": "WebSocket is not supported in this browser.",

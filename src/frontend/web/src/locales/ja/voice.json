@@ -33,7 +33,8 @@
     "errors": {
       "notReady": "インストールの準備ができていません。開き直してから再試行してください。",
       "statusUnavailable": "ダウンロードの状態を取得できません。開き直してから再試行してください。"
-    }
+    },
+    "remove": "削除"
   },
   "microphone": {
     "device": {
@@ -187,7 +188,7 @@
     "stt": {
       "browserDesktopUnavailable": "デスクトップアプリではブラウザーの音声認識を利用できません。",
       "browserExternal": {
-        "description": "処理をベンダーが管理するブラウザーの音声認識です。",
+        "description": "Web Speech API によるブラウザーの音声認識です。",
         "label": "ブラウザー (外部)",
         "unsupported": "このブラウザーは Web Speech API に対応していません。"
       },
@@ -205,7 +206,7 @@
         "webgpuDescription": "{{model}} による GPU 上の試験的なローカル音声認識で、ライブプレビューを表示します。利用できない場合は CPU を使用します。",
         "webgpuLabel": "{{model}} (WebGPU · 試験的)"
       },
-      "browserLabel": "ブラウザー",
+      "browserLabel": "ブラウザー (内蔵)",
       "enginesLabel": "音声認識エンジン",
       "variantsLabel": "{{engine}} のバージョン",
       "recommended": "おすすめ",
@@ -214,7 +215,8 @@
         "gpu": "GPU",
         "cpuWithSize": "CPU ({{size}})",
         "gpuWithSize": "GPU ({{size}})"
-      }
+      },
+      "browserLanguages": "<link>ほとんどの言語に対応しています。</link>"
     },
     "tts": {
       "audioWorkletUnsupported": "このブラウザーは AudioWorklet に対応していません。",
@@ -237,8 +239,10 @@
       "workersUnsupported": "このブラウザーは Web Workers に対応していません。",
       "gemini": {
         "description": "サーバーからストリーミングされる Gemini の音声です。"
-      }
-    }
+      },
+      "pocketBuiltIn": "PocketTTS (内蔵)"
+    },
+    "selected": "選択中"
   },
   "gemini": {
     "descriptors": {

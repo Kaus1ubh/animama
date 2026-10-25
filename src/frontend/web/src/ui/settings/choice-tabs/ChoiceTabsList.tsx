@@ -26,15 +26,21 @@ export type ChoiceTab = {
 export function ChoiceTabsList({
   tabs,
   active,
+  selected,
   label,
   recommendedLabel,
+  selectedLabel,
 }: {
   tabs: readonly ChoiceTab[];
   active: string;
+  /** The tab in use, tagged with `selectedLabel`. */
+  selected?: string;
   /** Accessible name of the strip. */
   label: string;
   /** Text of the recommended tag. */
   recommendedLabel?: string;
+  /** Text of the selected tag. */
+  selectedLabel?: string;
 }) {
   return (
     <TabsList variant="underline" aria-label={label} className="gap-0">
@@ -47,16 +53,19 @@ export function ChoiceTabsList({
           title={tab.disabled ? tab.reason : undefined}
           className={cn(underlineTabClassName(active === tab.id), "flex-1")}
         >
-          {tab.recommended && recommendedLabel ? (
-            <span className="inline-flex items-center gap-2">
-              {tab.label}
+          <span className="inline-flex items-center gap-2">
+            {tab.label}
+            {tab.recommended && recommendedLabel ? (
               <span className="bg-primary/10 text-primary text-2xs rounded-sm px-1.5 py-0.5 font-medium">
                 {recommendedLabel}
               </span>
-            </span>
-          ) : (
-            tab.label
-          )}
+            ) : null}
+            {tab.id === selected && selectedLabel ? (
+              <span className="bg-muted text-muted-foreground text-2xs rounded-sm px-1.5 py-0.5 font-medium">
+                {selectedLabel}
+              </span>
+            ) : null}
+          </span>
         </TabsTrigger>
       ))}
     </TabsList>

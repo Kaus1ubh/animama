@@ -26,6 +26,7 @@
     "lowSpace": "Not enough free space: downloads need {{size}} free.",
     "notAvailable": "Not available",
     "progressLabel": "{{label}} download progress",
+    "remove": "Remove",
     "retry": "Retry download",
     "sections": {
       "speechToText": "Speech-to-Text",
@@ -215,14 +216,16 @@
     }
   },
   "providers": {
+    "selected": "Selected",
     "stt": {
       "browserDesktopUnavailable": "Browser STT is unavailable in the desktop app.",
       "browserExternal": {
-        "description": "Browser speech recognition with vendor-managed processing.",
+        "description": "Browser speech recognition via the Web Speech API.",
         "label": "Browser (external)",
         "unsupported": "Web Speech API is not supported in this browser."
       },
-      "browserLabel": "Browser",
+      "browserLabel": "Browser (built-in)",
+      "browserLanguages": "<link>Supports most languages.</link>",
       "browserLocal": {
         "description": "Strict on-device browser recognition when explicitly supported.",
         "label": "Browser (local)",
@@ -265,6 +268,7 @@
       "pocket": {
         "description": "Client-side PocketTTS synthesis."
       },
+      "pocketBuiltIn": "PocketTTS (built-in)",
       "secureContext": "{{provider}} requires HTTPS or localhost (secure context).",
       "webAudioUnsupported": "Web Audio API is not supported in this browser.",
       "webSocketUnsupported": "WebSocket is not supported in this browser.",

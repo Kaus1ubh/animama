@@ -63,9 +63,7 @@ language, which is the UI Locale
 ### Optional offline speech models
 
 The embedded core does not contain offline speech weights. On packaged desktop
-and built self-host, each offline engine's tab in App Settings → Voice →
-Speech-to-Text shows its sets (`OfflineEngineDownloads`), under the languages
-the engine serves and with its model name and attribution:
+and built self-host, each offline engine has two downloadable sets:
 
 | Engine           | Languages                 | CPU model        | GPU acceleration add-on |
 | ---------------- | ------------------------- | ---------------- | ----------------------- |
@@ -95,9 +93,15 @@ offline choice even before its set is installed), and Setup saves it at Finish,
 even untouched (`sttChoicePatch`). In Setup an offline version carries its
 set's download as "CPU (size)" or "GPU (size)" (`SetupSpeechChoice`), the GPU
 version a WebGPU ✓/✗ check; asking for the GPU set first says to download the
-CPU version. In App Settings an engine's tab holds all its sets. The composer's install hint (`OfflineSpeechDownloads
-routedOnly`) offers only the UI Locale's engine. Removal and attribution stay
-in App Settings. Every download can be skipped. Downloads
+CPU version. App Settings shows the same per-version panels
+(`OfflineSetPanel`, shared with Setup) and adds removal (the CPU set only once
+the GPU add-on is gone), the WebGPU fallback note and operator-provided sets
+without actions. The engine in use carries a "Selected" tag, and Browser is
+labelled "Browser (built-in)", described as the Web Speech API with a link to
+its documentation. Model attribution is in the packaged notices and each
+installed set's `ATTRIBUTION.md`, not in the UI. The composer's install hint
+(`OfflineSpeechDownloads routedOnly`) offers only the UI Locale's engine.
+Every download can be skipped. Downloads
 continue in the backend after leaving Setup or Settings: the chat status lines
 show their size and progress, and `ModelDownloadToasts` (mounted in the app
 layout) shows one short toast when a speech-to-text set (Parakeet or
@@ -1004,8 +1008,8 @@ Behavior:
   140 characters, and 700 ms without new text flushes at least 36 characters.
   No split lands inside an audio tag: a split backs off to before the tag, and
   an idle flush waits for a tag that is still being written.
-- Only ElevenLabs respects `tts_stream_chunks`.
-- Browser and Pocket TTS are forced non-streaming at token phase
+- Only ElevenLabs streams chunks while tokens arrive.
+- Browser and Pocket TTS are non-streaming at token phase
   (`shouldStreamChunksForProvider` returns `false` for them), then emit final
   chunks on completion.
 - Gemini is forced non-streaming in the frontend token pipeline because
@@ -1223,11 +1227,13 @@ the public ORT 1.24.2 inventory does not replace those dependency versions.
   metadata. Checkmarks in the download slot identify included or downloaded
   presets, separately from the selected voice. Downloading alone changes neither
   selection nor provider. Setup and App Settings do not contain a preset browser.
-  App Settings → Voice → Text-to-Speech uses provider tabs (PocketTTS,
-  ElevenLabs, Gemini and the browser where offered); selecting one switches the
-  provider, and its tab holds that provider's settings: the PocketTTS tab
-  reuses the Anima cloning form with the encoder download (Voice Clone), the
-  ElevenLabs tab its key, the Gemini tab its key and model. Setup offers
+  App Settings → Voice → Text-to-Speech uses provider tabs ("PocketTTS
+  (built-in)", ElevenLabs, Gemini and the browser where offered); selecting one
+  switches the provider, the provider in use is tagged "Selected", and its tab
+  holds that provider's settings: the PocketTTS tab reuses the Anima cloning
+  form with the encoder download under a "Voice Clone" heading, the ElevenLabs
+  tab its key, the Gemini tab its key and model. There is no chunk-streaming
+  switch: ElevenLabs always streams. Setup offers
   Speech-to-Text and Text-to-Speech choices but no voice cloning. Offline speech set downloads resume from verified
   bytes after interruption.
 - Anima voice catalogs are separate user/catalog inputs; their persisted URLs
