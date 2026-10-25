@@ -1,6 +1,5 @@
 {
   "cloning": {
-    "attribution": "Model attribution",
     "changeFailed": "The cloning model change did not finish. Retry in a moment.",
     "checking": "Checking voice cloning…",
     "description": "Create named voices from your own samples.",

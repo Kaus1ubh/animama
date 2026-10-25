@@ -835,7 +835,6 @@ export default interface Resources {
         },
         "deleted": "Voice clone deleted.",
         "download": {
-          "attribution": "Model attribution",
           "cancel": "Cancel download",
           "cancelling": "Cancelling…",
           "close": "Close",
@@ -6474,7 +6473,6 @@ export default interface Resources {
   },
   "voice": {
     "cloning": {
-      "attribution": "Model attribution",
       "changeFailed": "The cloning model change did not finish. Retry in a moment.",
       "checking": "Checking voice cloning…",
       "description": "Create named voices from your own samples.",

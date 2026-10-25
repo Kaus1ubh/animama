@@ -352,7 +352,6 @@
       },
       "deleted": "音声クローンを削除しました。",
       "download": {
-        "attribution": "モデルの帰属表示",
         "cancel": "ダウンロードをキャンセル",
         "cancelling": "キャンセルしています…",
         "close": "閉じる",

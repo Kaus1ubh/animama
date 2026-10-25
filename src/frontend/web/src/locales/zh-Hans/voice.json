@@ -1,6 +1,5 @@
 {
   "cloning": {
-    "attribution": "模型署名",
     "changeFailed": "语音克隆模型的更改未完成。请稍后重试。",
     "checking": "正在检查语音克隆…",
     "description": "用你自己的样本创建具名语音。",

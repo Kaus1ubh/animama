@@ -11,7 +11,6 @@ import { VoiceCloneLibrary } from "@/ui/animas/VoiceCloneLibrary";
 import { Button } from "@/ui/components/button";
 import { OfflineSpeechDownloads } from "./OfflineSpeechDownloads";
 import { operatorManagedModelsNote } from "./operator-managed-models";
-import cloningAttribution from "../../../../../../models/pocket-tts-voice-cloning/ATTRIBUTION.md?raw";
 
 /** Optional downloads shared by setup and Voice settings; all install in place. */
 export function VoiceDownloads({
@@ -197,12 +196,6 @@ function VoiceCloningStatus({ busy = false }: { busy?: boolean }) {
           {t("cloning.downloadFailed")}
         </p>
       ) : null}
-      <details className="text-muted-foreground text-xs">
-        <summary className="cursor-pointer">{t("cloning.attribution")}</summary>
-        <pre className="mt-2 font-sans whitespace-pre-wrap">
-          {cloningAttribution.trim()}
-        </pre>
-      </details>
     </div>
   );
 }

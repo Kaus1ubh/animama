@@ -424,7 +424,7 @@ The GPU add-on in `OfflineSpeechDownloads` installs `parakeet-stt-webgpu` or
 CPU download or changes the selected provider. No reload is needed: the probe
 refreshes when the set settles, and the next dictation or Voice Mode start loads
 the GPU graph. Each engine's attribution is bundled and shown below its
-section.
+section in the composer's install hint.
 
 Loading behavior:
 
@@ -1197,7 +1197,8 @@ the public ORT 1.24.2 inventory does not replace those dependency versions.
   Existing session-only `custom` selections cannot be recovered automatically:
   upload the original again and save a named clone to make it durable.
 - The 39,768,446-byte Mimi cloning encoder is optional. The first cloning action
-  offers an explicit download with bundled attribution, progress and retry. The
+  offers an explicit download with progress and retry (its attribution ships
+  in the installed set's `ATTRIBUTION.md`, not in the UI). The
   selected File stays in memory while waiting, then the same sample is encoded
   once verified. Closing the dialog detaches its waiter and prevents a later save;
   it does not cancel a download another caller may need. Explicit Cancel stops

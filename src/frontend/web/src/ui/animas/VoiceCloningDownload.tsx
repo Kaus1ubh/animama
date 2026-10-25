@@ -1,7 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { useFormatters } from "@animama/product-ui/i18n";
 import type { PyModelAssetState } from "@animama/runtime-contracts/api-types";
-import attribution from "../../../../../../models/pocket-tts-voice-cloning/ATTRIBUTION.md?raw";
 import { Button } from "@/ui/components/button";
 
 /** First-use download controls; closing the containing view only detaches its waiter. */
@@ -74,12 +73,6 @@ export function VoiceCloningDownload({
           {error}
         </p>
       ) : null}
-      <details className="text-muted-foreground text-xs">
-        <summary>{t("voices.cloning.download.attribution")}</summary>
-        <pre className="mt-2 font-sans text-xs whitespace-pre-wrap">
-          {attribution.trim()}
-        </pre>
-      </details>
       <div className="flex flex-wrap justify-end gap-2">
         <Button type="button" variant="ghost" onClick={onClose}>
           {downloading

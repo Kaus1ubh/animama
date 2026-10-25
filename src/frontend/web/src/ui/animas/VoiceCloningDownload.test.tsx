@@ -24,7 +24,7 @@ const props = {
 };
 
 describe("first-use cloning download", () => {
-  it("offers a separate sized download, the retained sample and bundled attribution", () => {
+  it("offers a separate sized download, the retained sample, without attribution", () => {
     const html = renderToStaticMarkup(
       <VoiceCloningDownload {...props} asset={asset} />,
     );
@@ -33,7 +33,7 @@ describe("first-use cloning download", () => {
     expect(html).toContain("Narrator.wav");
     expect(html).toContain("Download and clone");
     expect(html).toContain("Not now");
-    expect(html).toContain("Model attribution");
+    expect(html).not.toContain("attribution");
     expect(props.onDownload).not.toHaveBeenCalled();
   });
 

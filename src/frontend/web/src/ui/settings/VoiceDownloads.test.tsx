@@ -436,6 +436,7 @@ describe("optional speech synthesis downloads", () => {
     expect(result).not.toContain("Browse voices");
     expect(result).toContain("Download voice cloning");
     expect(result).toContain("37.9 MB download");
+    expect(result).not.toContain("Model attribution</summary>");
     expect(result).not.toContain("Select Eve");
     expect(manager.mutate).not.toHaveBeenCalled();
   });

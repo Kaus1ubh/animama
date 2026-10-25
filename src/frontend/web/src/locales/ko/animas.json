@@ -352,7 +352,6 @@
       },
       "deleted": "음성 복제를 삭제했습니다.",
       "download": {
-        "attribution": "모델 저작자 표시",
         "cancel": "다운로드 취소",
         "cancelling": "취소하는 중…",
         "close": "닫기",

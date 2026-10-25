@@ -88,7 +88,6 @@ function speechModels(
 // settings. Allow only these notice folders, never the whole models directory.
 const modelNoticeRoots = [
   "parakeet-tdt-0.6b-v2-webgpu",
-  "pocket-tts-voice-cloning",
   "sensevoice-small",
 ].map((folder) =>
   fileURLToPath(new URL(`../../../models/${folder}`, import.meta.url)),

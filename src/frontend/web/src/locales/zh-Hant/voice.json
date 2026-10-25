@@ -1,6 +1,5 @@
 {
   "cloning": {
-    "attribution": "模型署名",
     "changeFailed": "語音複製模型的變更未完成。請稍後再試。",
     "checking": "正在檢查語音複製…",
     "description": "用你自己的樣本建立具名語音。",

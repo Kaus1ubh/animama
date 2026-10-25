@@ -38,8 +38,7 @@ vi.mock("@/query/mutations/useVoiceCloneActions", () => ({
     deleteVoiceClone: { mutateAsync: fixture.remove },
   }),
 }));
-// The download prompt's own copy is covered by its tests; its bundled
-// attribution import is outside the browser test file system.
+// The download prompt's own copy is covered by its tests.
 vi.mock("./VoiceCloningDownload", () => ({
   VoiceCloningDownload: () => <button type="button">Download and clone</button>,
 }));
