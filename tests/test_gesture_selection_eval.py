@@ -31,7 +31,7 @@ from animama.app.chat.direct_turn.response_format import (
     turn_response_schema_name,
 )
 from animama.app.chat.options import DirectChatOptions
-from animama.app.chat.speech_tags import speech_tags_instruction
+from animama.app.chat.speech_tags import speech_instruction
 from animama.app.main_structured_response import build_main_structured_response_model
 from animama.app.model_catalog import STRUCTURED_OUTPUT_TRANSPORT_JSON_SCHEMA
 from animama.app.model_clients import (
@@ -209,10 +209,10 @@ async def test_prompt_and_schema_match_the_chat_assembly_for_the_loadout() -> No
             main_structured_response_guidance(provider, output_type), LOADOUT.gestures
         ),
         # The eval speaks no reply, so its turns get the no-tags rule, as chat does.
-        speech_tags_guidance=speech_tags_instruction(None),
+        speech_guidance=speech_instruction(None),
     )
     assert request.prompt.messages == expected.messages
-    assert "- wave: Wave — Greet or say goodbye.\n- think: Think — Consider a hard question." in str(
+    assert "- wave: Greet or say goodbye.\n- think: Consider a hard question." in str(
         request.prompt.messages[0]["content"]
     )
     assert request.prompt.response_format == main_structured_response_format_for_model(

@@ -226,6 +226,19 @@ class _ConflictOnWriteMemoryService:
         raise MemoryEntryConflictError("Memory entry already exists")
 
 
+@pytest.mark.parametrize("name", [MEMORY_TOOL_APPLY_PATCH, MEMORY_TOOL_WRITE_FILE])
+def test_write_tools_carry_the_description_maintenance_rule(name: str) -> None:
+    tool = next(
+        tool for tool in memory_tool_specs(allow_reads=False, allow_writes=True) if tool["function"]["name"] == name
+    )
+    description = tool["function"]["parameters"]["properties"]["description"]
+
+    assert description["type"] == ["string", "null"]
+    assert "Give a new file a useful one" in description["description"]
+    assert "keep the description verbatim while it is still accurate" in description["description"]
+    assert "scope or durable contents change materially" in description["description"]
+
+
 def test_memory_tool_schemas_are_strict_and_do_not_expose_expected_version() -> None:
     tools = memory_tool_specs(allow_reads=True, allow_writes=True)
 

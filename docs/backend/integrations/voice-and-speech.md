@@ -147,8 +147,11 @@ The chat model may write short bracketed directions in `speech`, such as
 - **Grammar.** A tag starts with a letter and holds only letters, spaces and
   `,.!?'’-`, at most 64 characters, in `[…]` or `<…>`. A `[…]` followed by `(`
   is a Markdown link label, not a tag.
-- **Prompt.** `app/chat/speech_tags.py` adds an "Audio Tags in Speech" section
-  to the stable instructions, chosen by the turn's speech options:
+- **Prompt.** `app/chat/speech_tags.py` adds a "Speech" section to the stable
+  instructions, chosen by the turn's speech options. With a voice on it first
+  asks for `speech` that reads naturally aloud, with links, URLs, file paths,
+  code, markdown, lists, tables and emoji moved to `display`. Its audio-tag
+  rules:
   - **Gemini:** the neutral set: `[laughs]`, `[chuckles]`, `[giggles]`,
     `[sighs]`, `[gasps]`, `[breathes]`, `[short pause]`, `[long pause]` and
     `[whispers]`.

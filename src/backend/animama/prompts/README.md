@@ -12,7 +12,8 @@ Normal companion chat uses the request-local direct chat runtime. Start with
 - [`app/chat/direct_turn/response_format.py`](../app/chat/direct_turn/response_format.py)
   owns direct-chat response-format guidance and configuration.
 - [`app/chat/speech_tags.py`](../app/chat/speech_tags.py) chooses the stable
-  "Audio Tags in Speech" rule from the turn's speech options.
+  "Speech" section (spoken-text and audio-tag rules) from the turn's speech
+  options.
 - [`app/main_structured_response.py`](../app/main_structured_response.py) owns
   the typed speech, emotion, and Gesture response contract and parsing.
 - [`avatar_animation_manifest.py`](avatar_animation_manifest.py) contains the

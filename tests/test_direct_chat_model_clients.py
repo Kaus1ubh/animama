@@ -354,14 +354,13 @@ def test_direct_chat_prompt_assembler_lists_attached_upload_overviews_in_request
     assert "outline_truncated:" not in request_context
     system_content = prompt.messages[0]["content"]
     assert isinstance(system_content, str)
-    assert "do not read memory files merely because the tools are available" in system_content
-    assert "Attached files are user-provided source documents for the current turn" in system_content
-    assert "retrieve relevant source content with the uploaded-file tools before answering" in system_content
-    assert "A file appearing in the attached-file list is accessible through those tools" in system_content
-    assert "do not substitute personal memory files for an attachment" in system_content
-    assert "Use `search_uploaded_files` for relevance lookup" in system_content
-    assert "Use `read_uploaded_file_chunks` for whole-document synthesis" in system_content
-    assert "returned search snippets and read chunks—not overview metadata alone—as evidence" in system_content
+    assert "not merely because the tools exist" in system_content
+    # Attachment guidance travels with the attached-file list, not in the cached system message.
+    assert "user's source documents for this turn" not in system_content
+    assert "read its content with the uploaded-file tools before answering" in request_context
+    assert "Never claim a listed file is unavailable" in request_context
+    assert "do not answer from memory files instead" in request_context
+    assert "a mixed request may need both the uploaded-file and memory tools" in request_context
 
     folded_prompt = DirectChatPromptAssembler().assemble(
         user_message="Compare the attached files",
@@ -372,7 +371,7 @@ def test_direct_chat_prompt_assembler_lists_attached_upload_overviews_in_request
     assert [message["role"] for message in folded_prompt.messages] == ["system", "user"]
     folded_system = folded_prompt.messages[0]["content"]
     assert isinstance(folded_system, str)
-    assert "Do not default to reading `PROFILE.md`" in folded_system
+    assert "not for an unrelated technical or attachment question" in folded_system
     assert folded_system.endswith(COMPANION_GUARDRAILS.strip())
     assert 'filename: "first-notes.md"' not in folded_system
     # Without a developer role the attachment list travels in the user message's turn-context block.

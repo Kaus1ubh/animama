@@ -106,8 +106,8 @@ Direct chat's main structured response includes a required `remember` key whose
 value can be a short string, `null`, or an empty string. The model should use it
 only for notable durable context from the completed turn, such as new user
 facts, preferences, decisions, active projects, or relationship/context changes.
-The `remember` guidance and the chat memory-tool guidance share one
-sensitive-memory rule: no secrets, credentials or raw sensitive data, and no
+The memory guidance states one sensitive-memory rule, once, for every memory
+the model writes (memory files, `MEMORIES.md` and `remember`): no secrets, credentials or raw sensitive data, and no
 suicide or self-harm crisis specifics (methods, plans, means) unless the user
 explicitly asked; at most a general note. Ordinary health context may be
 remembered.
@@ -248,10 +248,10 @@ small relationship-only edits in the first person (user facts go to shared
 memory such as `PROFILE.md`), to keep the file's existing headings (including
 owner-written ones) and file each memory under the best fit, never to rewrite it
 every turn, to stay well under
-about 6,000 characters, how `remember` (the shared episode log) differs from
-`MEMORIES.md` (what the relationship means), the sensitive-memory rule, and never
-to frame the relationship as missing the user, loneliness, jealousy or
-discouraging other relationships.
+about 6,000 characters, and never to frame the relationship as missing the
+user, loneliness, jealousy or discouraging other relationships. The always-present
+memory guidance says how `remember` (the shared episode log) differs from
+`MEMORIES.md` (what the relationship means).
 
 When memory influence is enabled, direct chat attaches:
 
@@ -370,7 +370,10 @@ uploads in searchable processed statuses such as `ready` and
 `ready_keyword_only` with at least one chunk.
 
 When the upload tools are equipped, the prompt includes a request-local list of
-the validated attached filenames and their persisted chunk counts. A count is
+the validated attached filenames and their persisted chunk counts. The list
+opens with the attachment guidance (when to read files before answering, and
+not to answer from memory files instead), so turns without attachments carry
+none of it. A count is
 backend-derived navigation metadata that helps the model plan bounded reads; it
 is not document-content evidence. The list follows the memory map in the
 `developer` message before the user's message; providers without developer-role
@@ -441,7 +444,8 @@ body and description atomically through one optimistic check and one Version.
 The model never receives an entry ID; successful output returns the resulting
 Version so it can reason about the completed write.
 
-Prompt guidance treats descriptions as the birds-eye file index. Every content
+The write tools' `description` parameters (and the native patch guidance)
+treat descriptions as the file index shown in the memory map. Every content
 edit must reconsider whether the description still accurately summarizes the
 file: preserve it verbatim when it does, update it when scope or durable
 contents materially change, and give new files a concise useful description.

@@ -130,7 +130,6 @@ def test_memories_write_guidance_sets_scope_size_and_guardrail_consistent_framin
     assert "small edit" in guidance and "Never rewrite the file every turn" in guidance
     assert "`PROFILE.md`" in guidance and "first person" in guidance
     assert "6,000 characters" in guidance
-    assert "`remember` field" in guidance and "shared episode log" in guidance
     for framing in ("missing the user", "lonely", "jealousy", "discourages their other relationships"):
         assert framing in guidance
 
@@ -161,10 +160,21 @@ def test_core_instruction_defers_to_guardrail() -> None:
     assert "Companion Guardrails" in core
 
 
-def test_sensitive_memory_rule_reaches_every_memory_writer() -> None:
-    assert SENSITIVE_MEMORY_RULE in MAIN_STRUCTURED_OUTPUT_GUIDANCE
+@pytest.mark.parametrize("anima_memories_writable", [True, False])
+def test_sensitive_memory_rule_is_stated_once_for_every_memory_writer(anima_memories_writable: bool) -> None:
+    system = prompt_instruction_text(
+        _assemble(
+            anima_memories="# Memories\n\n## Our story\nWe met today.",
+            anima_memories_writable=anima_memories_writable,
+            response_format_guidance=MAIN_STRUCTURED_OUTPUT_GUIDANCE,
+        )
+    )
+    assert system is not None
+    # Stated once, in the always-present memory guidance, for files, MEMORIES.md and `remember` alike.
+    assert system.count(SENSITIVE_MEMORY_RULE) == 1
     assert SENSITIVE_MEMORY_RULE in MEMORY_SYSTEM_GUIDANCE
-    assert SENSITIVE_MEMORY_RULE in ANIMA_MEMORIES_WRITE_GUIDANCE
+    assert "every memory you write: files, `MEMORIES.md` and the `remember` field" in MEMORY_SYSTEM_GUIDANCE
+    assert "`remember` field" in MEMORY_SYSTEM_GUIDANCE and "shared episode log" in MEMORY_SYSTEM_GUIDANCE
     # Owner-written headings are kept; memories go under the section that fits.
     assert "including ones the owner wrote" in ANIMA_MEMORIES_WRITE_GUIDANCE
     assert "section that fits best" in ANIMA_MEMORIES_WRITE_GUIDANCE

@@ -336,13 +336,15 @@ they are not forwarded directly to browser clients over `chat:sse`.
 
 Main structured turns use one JSON shape: `emotional_tone`,
 `emotional_intensity`, nullable `gesture`, `speech`, and nullable `display`.
-All fields are required in the provider JSON schema; `gesture: null` or
-`gesture: ""` means no avatar gesture, and `display: null` means no separate
+All fields are required in the provider JSON schema; the guidance asks for
+`null` for an absent value, and the parser also accepts `gesture: ""` as no
+avatar gesture, and `display: null` means no separate
 visual response. Gesture choices come from the Gestures equipped in the mounted
 runtime snapshot. The provider schema's `gesture` enum is `null` plus those
 selectors, and the response guidance appends an
 `Available Gestures for this Anima:` block with one
-`- {selector}: {name} — {description}` line per Gesture. An Anima with no
+`- {selector}: {description}` line per Gesture (selectors are readable
+semantic keys, so the display name is left out). An Anima with no
 equipped Gestures gets a `null`-only enum and no block. Motion types, catalog
 item or file IDs, storage locators, package manifests and resource URLs are not
 sent to the model. The final parsed `gesture` is normalized and dropped unless

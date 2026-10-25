@@ -99,12 +99,13 @@ def render_available_gestures(descriptors: Sequence[RuntimeGestureDescriptor]) -
     """Render the equipped Gesture list the model chooses from, or ``""`` when none are equipped.
 
     Each row pairs the exact selector allowed by the reply schema's ``gesture``
-    enum with the Gesture's name and AI description.
+    enum with the Gesture's AI description. Selectors are readable semantic
+    keys, so the display name would only repeat them.
     """
 
     if not descriptors:
         return ""
-    rows = "\n".join(f"- {row.selector}: {row.name} — {row.description}" for row in descriptors)
+    rows = "\n".join(f"- {row.selector}: {row.description}" for row in descriptors)
     return f"Available Gestures for this Anima:\n{rows}"
 
 

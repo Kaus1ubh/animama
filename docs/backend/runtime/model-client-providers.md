@@ -414,8 +414,9 @@ enabled), the attached-file list and finally the guardrails again, so they are
 the last instruction text before the user's words. An app compaction summary is
 a `developer` message directly after the system message. The Anthropic adapter
 sends that turn-context message as a mid-conversation `system` message after
-the user's message instead, and Anthropic rows receive Anthropic-phrased
-variants of the non-guardrail sections with the same directives
+the user's message instead, and Anthropic rows delimit the identity and
+`MEMORIES.md` with XML tags, add a tools-first line to the shared response
+guidance and describe that turn-context message
 (`app/chat/anthropic_instructions.py`). The
 [turn layout](prompt-caching.md#turn-layout) describes each provider path and
 its cache breakpoints.
