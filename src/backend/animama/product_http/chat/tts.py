@@ -68,6 +68,8 @@ FINALIZED_TTS_PCM_SAMPLE_RATE = 24000
 # Gemini is the only finalized provider; its errors name at most an HTTP status,
 # never request text, so the browser sees these messages instead.
 _FINALIZED_PROVIDER = "gemini"
+# Voices the server itself speaks: ElevenLabs realtime and Gemini finalized audio.
+_SERVER_SPOKEN_PROVIDERS = frozenset({"elevenlabs", _FINALIZED_PROVIDER})
 _FINALIZED_LABEL = "Gemini TTS"
 _FINALIZED_SETUP_FAILED_CODE = "gemini_tts_stream_setup_failed"
 _FINALIZED_STREAM_FAILED_CODE = "gemini_tts_stream_failed"
@@ -164,7 +166,14 @@ def elevenlabs_tts_options(chat_options: DirectChatOptions) -> DirectChatTtsOpti
 
 
 def tts_speech_payload_enabled(chat_options: DirectChatOptions) -> bool:
-    return chat_options.tts is not None and chat_options.tts.enabled is True
+    """Whether the server speaks this reply and so queues its speech segments.
+
+    Client-spoken voices (Pocket TTS, browser speech) also send their provider,
+    only so the prompt's Speech section knows a voice reads the reply.
+    """
+
+    tts = chat_options.tts
+    return tts is not None and tts.enabled is True and tts.provider in _SERVER_SPOKEN_PROVIDERS
 
 
 async def resolve_realtime_tts_session_for_stream(

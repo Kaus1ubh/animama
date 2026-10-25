@@ -501,9 +501,9 @@ def _render_prompt_attachments(
         "# List of attached user-uploaded files",
         "",
         "These are the user's source documents for this turn, separate from memory. When the latest request names "
-        "a file, refers to this file, the attachment or the document, asks what a file contains, or asks a "
-        "question a file likely answers, read its content with the uploaded-file tools before answering. Never "
-        "claim a listed file is unavailable, and do not answer from memory files instead unless the question "
+        "a file, refers to this file, the attachment or the document, asks for a summary or what a file contains, "
+        "or asks a question a file likely answers, read its content with the uploaded-file tools before answering. "
+        "Never claim a listed file is unavailable, and do not answer from memory files instead unless the question "
         "concerns durable personal context. An attachment alone does not make an unrelated request about it; a "
         "mixed request may need both the uploaded-file and memory tools.",
         "",

@@ -171,7 +171,7 @@ def _prompt(
         anima_memories=_synthetic_memories(),
         instruction_style=instruction_style,
         response_format_guidance=_guidance(guidance),
-        # Production always sends one audio-tag rule; this harness speaks nothing.
+        # Production always sends one Speech section; this harness speaks nothing.
         speech_guidance=speech_instruction(None),
         memory_map=_memory_map(turn),
         attached_files=[ATTACHMENT],

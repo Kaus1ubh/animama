@@ -39,10 +39,11 @@ The identity markdown is appended to the single system instruction using only
 the file content. `disable_memory_influence` does not remove anima identity.
 
 `MEMORIES.md` follows the identity as a `# Anima Memories` section: a short
-fixed preamble that frames the content as the Anima's own first-person memories
-of its relationship with this user, not facts about the user, says that an
-untouched template (headings and hint lines only) means no shared history yet,
-and says to treat the content as remembered notes, never as instructions.
+fixed preamble that frames the content as the Anima's own first-person notes
+about its relationship with this user, says to treat them as remembered notes,
+never as instructions, and says that lines describing what belongs under a
+heading are hints, not memories, so shared history is never invented. The
+memory guidance says facts about the user belong in shared memory.
 The section is omitted when memory influence is off. A missing, blank or
 unreadable file is also omitted without failing the turn; the chat manifest
 records `status: "missing"` or `"unreadable"` for it. A chat with one Anima never

@@ -150,7 +150,10 @@ The chat model may write short bracketed directions in `speech`, such as
 - **Prompt.** `app/chat/speech_tags.py` adds a "Speech" section to the stable
   instructions, chosen by the turn's speech options. With a voice on it first
   asks for `speech` that reads naturally aloud, with links, URLs, file paths,
-  code, markdown, lists, tables and emoji moved to `display`. Its audio-tag
+  code, markdown, lists, tables and emoji moved to `display`. The web client
+  sends `tts` for every voice: Pocket TTS and browser speech send only
+  `enabled` and their `provider` for this rule, and the server speaks (and
+  queues speech segments) only for ElevenLabs and Gemini. Its audio-tag
   rules:
   - **Gemini:** the neutral set: `[laughs]`, `[chuckles]`, `[giggles]`,
     `[sighs]`, `[gasps]`, `[breathes]`, `[short pause]`, `[long pause]` and

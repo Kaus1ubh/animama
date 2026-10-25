@@ -15,7 +15,7 @@ and reports the share of input tokens each provider path served from cache on
 every turn.
 
 Each run tags its synthetic identity with a fresh nonce. Runs stay isolated
-while the shared text before the identity (the core instructions, about 265
+while the shared text before the identity (the core instructions, about 120
 tokens) is shorter than the provider's minimum cacheable length. The harness
 sends no tools.
 
@@ -102,11 +102,12 @@ first turn, incognito turns (`store: false`) and the stale-cursor replay.
 
 On Anthropic Messages the turn context follows the user's words, because
 Anthropic accepts a mid-conversation `system` message only after a user turn. No
-tagged block is used. Anthropic rows get their own phrasing of the
-non-guardrail sections (`app/chat/anthropic_instructions.py`): the identity and
-`MEMORIES.md` are delimited with XML tags, the response guidance matches strict
-structured output, and a short `# Turn Context` section describes the trailing
-system message. The directives and the guardrails are the same on every path.
+tagged block is used. Anthropic rows differ only where the transport needs it
+(`app/chat/anthropic_instructions.py`): the identity and `MEMORIES.md` are
+delimited with XML tags, the shared response guidance gains a line that keeps
+tool calls ahead of the JSON answer, and a short `# Turn Context` section
+describes the trailing system message. The directives and the guardrails are
+the same on every path.
 
 Anthropic chats compact on Anthropic's server, never through app compaction.
 Every request sends threshold compaction (`compact_20260112`) with a trigger

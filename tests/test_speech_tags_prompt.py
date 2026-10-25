@@ -7,9 +7,10 @@ import pytest
 from animama.app.chat.anthropic_instructions import INSTRUCTION_STYLE_ANTHROPIC
 from animama.app.chat.conversation_language import conversation_language
 from animama.app.chat.openai_prompt import DirectChatPromptAssembler
-from animama.app.chat.options import DirectChatTtsOptions
+from animama.app.chat.options import DirectChatOptions, DirectChatTtsOptions
 from animama.app.chat.speech_tags import speech_instruction, speech_tag_provider
 from animama.app.safety.prompts import COMPANION_GUARDRAILS
+from animama.product_http.chat.tts import tts_speech_payload_enabled
 
 GEMINI = DirectChatTtsOptions(enabled=True, provider="gemini", model_id="gemini-3.8-flash-lite-tts")
 ELEVENLABS = DirectChatTtsOptions(enabled=True, provider="elevenlabs", model_id="eleven_v4_turbo")
@@ -130,3 +131,19 @@ def test_the_same_voice_keeps_the_system_text_and_a_new_voice_changes_only_the_r
 
 def test_without_a_rule_the_prompt_has_no_tag_section() -> None:
     assert "# Speech" not in _system_text()
+
+
+@pytest.mark.parametrize(
+    ("tts", "expected"),
+    [
+        (ELEVENLABS, True),
+        (GEMINI, True),
+        # Client-spoken voices name themselves only for the Speech section; the server queues no speech for them.
+        (DirectChatTtsOptions(enabled=True, provider="pocket_tts"), False),
+        (DirectChatTtsOptions(enabled=True, provider="browser"), False),
+        (DirectChatTtsOptions(enabled=False, provider="elevenlabs"), False),
+        (None, False),
+    ],
+)
+def test_only_server_voices_queue_speech_segments(tts: DirectChatTtsOptions | None, expected: bool) -> None:
+    assert tts_speech_payload_enabled(DirectChatOptions(tts=tts)) is expected

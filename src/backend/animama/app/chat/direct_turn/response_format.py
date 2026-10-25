@@ -76,8 +76,8 @@ def main_structured_response_guidance(
 
     A JSON schema constrains the reply shape; JSON mode and prompt-only rows
     also get the schema and an example in the prompt. Anthropic rows with
-    strict structured output get the same directives phrased for that
-    transport.
+    strict structured output get the shared guidance plus a line that keeps
+    tool calls ahead of the JSON answer.
     """
 
     if (
@@ -99,8 +99,8 @@ def render_available_gestures(descriptors: Sequence[RuntimeGestureDescriptor]) -
     """Render the equipped Gesture list the model chooses from, or ``""`` when none are equipped.
 
     Each row pairs the exact selector allowed by the reply schema's ``gesture``
-    enum with the Gesture's AI description. Selectors are readable semantic
-    keys, so the display name would only repeat them.
+    enum with the Gesture's AI description, which falls back to its name when
+    empty. Selectors are usually readable semantic keys, so the name is left out.
     """
 
     if not descriptors:
