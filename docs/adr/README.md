@@ -45,7 +45,7 @@ production readiness or publication rights.
 | 0028 | [Browser-cacheable runtime revision members](0028-cacheable-runtime-revision-members.md)                                                           | accepted                                                      |
 | 0029 | [SenseVoice-Small for Japanese, Korean and Chinese offline speech recognition](0029-sensevoice-offline-speech-recognition.md)                      | accepted; amended by 0031                                     |
 | 0030 | [An Anima's Gestures are its binding rows](0030-anima-gestures-are-binding-rows.md)                                                                | accepted                                                      |
-| 0031 | [The offline speech engine is the owner's choice](0031-offline-speech-engine-is-the-owners-choice.md)                                              | accepted; amends 0029                                         |
+| 0031 | [The offline speech engine is the owner's choice](0031-offline-speech-engine-is-the-owners-choice.md)                                              | accepted; amends 0024 and 0029                                |
 
 ## When and how to record a decision
 

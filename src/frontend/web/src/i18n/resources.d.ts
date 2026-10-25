@@ -6317,7 +6317,7 @@ export default interface Resources {
         "downloading": "Downloading {{percent}}",
         "engines": {
           "parakeet": "<link>NVIDIA's Parakeet TDT 0.6B v2</link> transcribes English speech on this device, so your voice never leaves it.",
-          "sensevoice": "<link>Alibaba's SenseVoice-Small</link> transcribes Japanese, Korean and Chinese speech on this device, so your voice never leaves it."
+          "sensevoice": "<link>Alibaba's SenseVoice-Small</link> transcribes Japanese, Korean, Chinese and English speech on this device, so your voice never leaves it."
         },
         "gpu": {
           "description": "Faster, with live previews as you speak. Needs the CPU version and a WebGPU-capable GPU.",

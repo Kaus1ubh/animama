@@ -7,7 +7,8 @@
   must not restrict which Speech-to-Text engine can be used)
 - Decision basis: Explicit owner decision
 - Amends: [ADR 0029](0029-sensevoice-offline-speech-recognition.md) decisions
-  1 and 2
+  1 and 2, and [ADR 0024](0024-ui-locale-is-the-conversation-language.md)'s
+  rule that the UI Locale picks the speech-to-text engine
 
 ## Context
 

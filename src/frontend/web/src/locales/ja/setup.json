@@ -121,7 +121,7 @@
       },
       "engines": {
         "parakeet": "<link>NVIDIA の Parakeet TDT 0.6B v2</link> が英語の音声をこのデバイス上で文字起こしするため、音声が外部に送られることはありません。",
-        "sensevoice": "<link>Alibaba の SenseVoice-Small</link> が日本語・韓国語・中国語の音声をこのデバイス上で文字起こしするため、音声が外部に送られることはありません。"
+        "sensevoice": "<link>Alibaba の SenseVoice-Small</link> が日本語・韓国語・中国語・英語の音声をこのデバイス上で文字起こしするため、音声が外部に送られることはありません。"
       },
       "recognizes": {
         "parakeet": "英語のみ認識します。",

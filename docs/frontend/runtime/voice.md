@@ -60,8 +60,9 @@ When dictation or Voice Mode starts, `routeOfflineSpeech(locale, engine)`
   engine's set is missing stops (`languageMissing`) instead of falling back
   to a browser recognizer, which may send audio to a cloud service: with
   "Install offline speech recognition for this language"
-  (`languageSpeechMissing`) for SenseVoice, or `offlineSpeechMissing` for a
-  chosen Parakeet under another locale. Only Parakeet under English falls back
+  (`languageSpeechMissing`) for SenseVoice under a non-English locale, or
+  `offlineSpeechMissing` for a chosen Parakeet under another locale and for
+  SenseVoice chosen under English. Only Parakeet under English falls back
   to an available browser recognizer (`route.browserFallback`,
   `resolvePreferredSttProvider`).
 - Segments name their engine (`SttSegmentSource` is `"parakeet"` or
@@ -138,8 +139,8 @@ cannot start. Text chat, avatar animation, microphone permission, and PocketTTS
 are independent. The main chat/settings surface offers installation; companion
 windows direct the user to main-window Settings. Browser Web Speech fallback
 remains available only where the ordinary web platform supports it; a saved
-offline choice never falls back to it for a language whose SenseVoice set is
-missing.
+offline choice whose set is missing falls back to it only for Parakeet under
+English.
 
 `SpeechLanguageNotice` sits beside the speech provider choices and takes the
 saved engine. With an offline choice that runs SenseVoice and no available
@@ -260,8 +261,8 @@ Rules:
   - browser STT remains the normal web default when available
   - when offline recognition is resolved but the routed set is unavailable
     (for example on desktop, which has no browser fallback), the start stops
-    with `offlineSpeechMissing` (Parakeet) or `languageSpeechMissing`
-    (SenseVoice); a saved offline choice whose set is missing always stops,
+    with `offlineSpeechMissing` (Parakeet, or SenseVoice under English) or
+    `languageSpeechMissing` (SenseVoice under another locale); a saved offline choice whose set is missing always stops,
     except Parakeet under English
   - offline startup/transcription errors surface instead of silently switching
     providers

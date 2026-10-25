@@ -2910,7 +2910,9 @@ export function useDictation(options: UseDictationOptions = {}) {
         ) {
           throw new WordedError(
             dictationErrorText(
-              route.engine === "parakeet"
+              // SenseVoice chosen under English is missing a model, not a
+              // language.
+              route.engine === "parakeet" || route.language === "auto"
                 ? "offlineSpeechMissing"
                 : "languageSpeechMissing",
             ),
