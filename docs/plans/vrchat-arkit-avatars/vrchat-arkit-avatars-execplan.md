@@ -101,8 +101,9 @@ review stay in `<private-avatars>` or the session scratchpad.
   Mochiya conversions); the painted-effect follow-up places face decals and
   iris art on Lapwing. Owner R1 re-check remains.
 - [ ] Phase 3: Authored lilToon rendering. Implemented with on-demand loading
-  and reviewed; the owner's go/no-go on look and frame cost (~19 ms GPU added
-  on an M5) remains.
+  and reviewed; the owner's go/no-go on the look at its current frame cost
+  (about 30 ms of GPU time per frame on an M5 at the chat canvas) remains.
+  Reducing the cost is #691 R11.
 - [x] Phase 4: ARKit emotions and face-track translation. Done; reviewed (pass
   after one repair round). Owner visual gate on Lapwing still open (needs
   Phase 2).
@@ -167,6 +168,12 @@ owner gates then wait for the converted Avatar.
   ARKit coverage, runtime ARKit emotion compositions take precedence over its
   VRM presets; baked presets serve other VRM apps. "Sufficient" means every shape
   the composition table uses resolves.
+- 2026-10-25, owner: the investigation and reduction of lilToon's GPU time per
+  frame belongs to issue #691 (R11, arbitrary user-uploaded VRMs), not this
+  plan. Re-measured the same day under equal load (Apple M5, 1600×1200): 30.8 ms
+  with lilToon, 0.8 ms with the fallback materials, 1.2 ms for Andrew, and
+  6.2 ms with lilToon at DPR 1, so the cost is mostly per pixel. The Phase 3 gate
+  stays: keep lilToon in this PR as is, or not.
 
 ## Phased implementation
 
