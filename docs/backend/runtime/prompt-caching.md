@@ -77,19 +77,17 @@ from three parts:
   for the selected voice, the conversation language section under a
   non-English UI Locale, and then the Companion Guardrails.
 - **History**, replayed exactly as stored.
-- **Turn context:** the memory map, then the attachment list, then the
-  guardrails again, immediately before the user's new message (after it on
-  Anthropic Messages).
+- **Turn context:** the memory map, then the attachment list, immediately
+  before the user's new message (after it on Anthropic Messages). A turn with
+  neither sends no turn context.
 
-The last instruction text the model reads before the user's words is therefore
-always the guardrails, word for word
-([ADR 0008](../../adr/0008-non-overridable-companion-guardrail.md)); on
-Anthropic Messages the turn context after the user's words also ends with them.
+The guardrails appear once per turn, at the end of the stable instructions
+([ADR 0008](../../adr/0008-non-overridable-companion-guardrail.md)).
 
 | Path | Request order |
 | --- | --- |
 | Chat Completions with a developer role | system (stable instructions); developer (app compaction summary, when there is one); history; developer (turn context); user |
-| Chat Completions without a developer role (the row lacks the role, or its connection sets `fold_developer_role`) | system (stable instructions, a `# Turn Context` description of the block, the compaction summary, then the guardrails); history; user (a `<turn_context>` block holding the turn context, then the user's words) |
+| Chat Completions without a developer role (the row lacks the role, or its connection sets `fold_developer_role`) | system (stable instructions, a `# Turn Context` description of the block, the compaction summary, then the guardrails); history; user (a `<turn_context>` block holding the turn context, when there is any, then the user's words) |
 | OpenAI Responses | `instructions` (stable instructions); input: developer item (turn context), user item |
 | Anthropic Messages | `system` (stable instructions); history, starting at the latest compaction block when the server has compacted; user; mid-conversation `system` message (turn context) |
 
@@ -186,7 +184,7 @@ Anima, per chat, or per turn.
 | Gesture list and response schema | per Anima | stable instructions (response guidance) and `response_format` | the Anima's loadout changes; the schema's `gesture` enum changes with it |
 | Speech section (`app/chat/speech_tags.py`) | per Anima | stable instructions, after response guidance | the turn's voice changes: speech off, Gemini, Eleven v4 Turbo and the other voices (Pocket TTS, browser speech) each have their own section |
 | Conversation language | per installation | stable instructions, after the Speech section | the owner switches the UI Locale to or from a non-English language |
-| Companion Guardrails | per installation | end of the stable instructions, and end of the turn context | never ([ADR 0008](../../adr/0008-non-overridable-companion-guardrail.md)) |
+| Companion Guardrails | per installation | end of the stable instructions | never ([ADR 0008](../../adr/0008-non-overridable-companion-guardrail.md)) |
 | Compaction summary | per chat | developer message after the system message, or the end of the system message before the guardrails (rows without a developer role); on Anthropic, a compaction block at the head of the history | app compaction runs (Chat Completions). The trigger is the smallest of `ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS` (default 90,000), 70% of the context window, and 75% of the window left after the reply reserve. On Anthropic the server compacts when a request's input reaches the row's trigger. Each compaction misses the history cache once. |
 | History | per turn | after the stable instructions | every turn (append) |
 | Memory map (file paths and descriptions) | per installation | turn context | a memory file is added, removed, moved or re-described |

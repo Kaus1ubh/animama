@@ -299,7 +299,7 @@ def test_direct_chat_prompt_assembler_emits_system_history_then_current_message(
         ("assistant", "second"),
         ("developer", "compacted context"),
         ("assistant", "third"),
-        ("developer", f"# List of memory files\n\nfiles: []\n\n{COMPANION_GUARDRAILS.strip()}"),
+        ("developer", "# List of memory files\n\nfiles: []"),
         ("user", "current"),
     ]
     system_message = prompt.messages[0]["content"]
@@ -379,7 +379,7 @@ def test_direct_chat_prompt_assembler_lists_attached_upload_overviews_in_request
     assert isinstance(folded_user, str)
     assert folded_user.startswith("<turn_context>\n# List of attached user-uploaded files")
     assert folded_user.endswith("</turn_context>\n\nCompare the attached files")
-    assert folded_user.index('title: "Milestones"') < folded_user.index("# Companion Guardrails")
+    assert "# Companion Guardrails" not in folded_user
     assert 'filename: "first-notes.md"' in folded_user
     assert "chunk_count: 12" in folded_user
     assert 'description: "Project notes and milestones."' in folded_user
@@ -402,13 +402,11 @@ def test_direct_chat_prompt_assembler_bounds_attachment_context_deterministicall
 
     first = assembler.assemble(user_message="Summarize", anima_identity="Identity", attached_files=attachments)
     second = assembler.assemble(user_message="Summarize", anima_identity="Identity", attached_files=attachments)
-    first_trailing = first.messages[-2]["content"]
+    first_context = first.messages[-2]["content"]
     second_context = second.messages[-2]["content"]
 
-    assert isinstance(first_trailing, str)
-    assert first_trailing.endswith(COMPANION_GUARDRAILS.strip())
-    first_context = first_trailing.removesuffix(f"\n\n{COMPANION_GUARDRAILS.strip()}")
-    assert first_trailing == second_context
+    assert isinstance(first_context, str)
+    assert first_context == second_context
     assert len(first_context) <= MAX_ATTACHED_FILE_CONTEXT_CHARS
     assert "attachment_context_truncated: true" in first_context
     assert "outline_truncated: true" in first_context

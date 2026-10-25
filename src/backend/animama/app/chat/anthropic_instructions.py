@@ -35,9 +35,8 @@ ANTHROPIC_ANIMA_MEMORIES_GUIDANCE = (
 
 ANTHROPIC_TURN_CONTEXT_DESCRIPTION = (
     "# Turn Context\n\n"
-    "After the user's latest message, the application adds a system message with this turn's context: the memory "
-    "file map and the attached-file list, when there are any, then the Companion Guardrails again. The "
-    "application writes it, not the user; follow it."
+    "When this turn has context (the memory file map or attached files), the application adds a system message "
+    "holding it after the user's latest message. The application writes it, not the user."
 )
 
 ANTHROPIC_MAIN_STRUCTURED_OUTPUT_GUIDANCE = f"""\

@@ -621,9 +621,9 @@ def _phase5_prefix(response_format_guidance: str | None = None) -> list[tuple[st
 
 
 def _trailing_instructions() -> str:
-    """Trailing developer text: request context followed by the Companion Guardrails."""
+    """Trailing developer text: the request context; the guardrails end only the system message (ADR 0008)."""
 
-    return f"{_fake_memory_map()}\n\n{COMPANION_GUARDRAILS.strip()}"
+    return _fake_memory_map()
 
 
 def _fake_memory_map(anima_id: str = "anima-1") -> str:
@@ -2811,15 +2811,18 @@ async def test_direct_turn_rejects_user_requested_apply_patch_as_generic_native_
         {"disable_emotion_updates": True, "disable_emotion_influence": True},
     ],
 )
-async def test_direct_turn_ends_instructions_with_companion_guardrails(request_options: dict[str, Any]) -> None:
+async def test_direct_turn_ends_the_system_message_with_the_companion_guardrails_once(
+    request_options: dict[str, Any],
+) -> None:
     model_client = _FinalModelClient(_structured_response())
     executor, _chats = _executor(client=model_client)
 
     await _collect(executor.stream_turn(_request(request_options=request_options)))
 
-    instructions = prompt_instruction_text(model_client.seen_specs[0].prompt)
-    assert instructions is not None
-    assert instructions.endswith(COMPANION_GUARDRAILS.strip())
+    prompt = model_client.seen_specs[0].prompt
+    assert _text(prompt.messages[0]["content"]).endswith(COMPANION_GUARDRAILS.strip())
+    instructions = prompt_instruction_text(prompt)
+    assert instructions is not None and instructions.count(COMPANION_GUARDRAILS.strip()) == 1
 
 
 _FLAGGED = ModelClientModeration(status="result", flagged_categories=("self-harm/intent",))
@@ -3126,8 +3129,7 @@ async def test_memories_write_guidance_appears_only_when_the_turn_can_edit_memor
     system = _text(prompt.messages[0]["content"])
     assert (ANIMA_MEMORIES_WRITE_GUIDANCE.strip() in system) is expected
     assert ("[self]/MEMORIES.md" in system) is expected
-    instructions = prompt_instruction_text(prompt)
-    assert instructions is not None and instructions.endswith(COMPANION_GUARDRAILS.strip())
+    assert system.endswith(COMPANION_GUARDRAILS.strip())
 
 
 @pytest.mark.asyncio

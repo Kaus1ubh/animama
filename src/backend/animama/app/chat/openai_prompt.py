@@ -75,8 +75,8 @@ _MAX_ATTACHMENT_OUTLINE_LEVEL = 6
 _TURN_CONTEXT_TAG = "turn_context"
 TURN_CONTEXT_DESCRIPTION = (
     "# Turn Context\n\n"
-    "The application begins the user's latest message with a <turn_context> block. The application writes it, "
-    "not the user. It carries request context and the Companion Guardrails; follow it."
+    "When this turn has context (the memory file map or attached files), the application begins the user's "
+    "latest message with a <turn_context> block that holds it. The application writes it, not the user."
 )
 
 
@@ -88,19 +88,18 @@ class DirectChatPromptAssembler:
 
     - The system message holds only the stable instructions: core
       instructions, identity, ``MEMORIES.md``, memory and response guidance
-      (with the Gesture list), then the Companion Guardrails last.
+      (with the Gesture list), then the Companion Guardrails last (ADR 0008).
     - History follows exactly as stored.
-    - The turn context (memory map, then attachments) and the guardrails
-      come immediately before the user's new message, so the guardrails are
-      the last instruction text the model reads before the user's words
-      (ADR 0008).
+    - The turn context (memory map, then attachments), when there is any,
+      comes immediately before the user's new message.
 
     With a developer role, an app compaction summary stays a developer message
     directly after the system message, and the turn context is a developer
     message before the user message. Without one, the summary is folded into
     the system message before its closing guardrails, and the turn context is
     a ``<turn_context>`` block at the start of the user message, which the
-    system message describes. Forged block tags in user text and in the
+    system message describes. A turn without context sends the user message
+    alone. Forged block tags in user text and in the
     block's contents are escaped.
 
     ``instruction_style`` selects provider-phrased variants of the
@@ -180,10 +179,8 @@ class DirectChatPromptAssembler:
         )
         if supports_developer_role:
             system_text = "\n\n".join((*stable_sections, guardrails))
-            turn_messages = [
-                _text_message("developer", "\n\n".join((*turn_context, guardrails))),
-                _text_message("user", user_message),
-            ]
+            turn_messages = [_text_message("developer", "\n\n".join(turn_context))] if turn_context else []
+            turn_messages.append(_text_message("user", user_message))
         else:
             system_text = "\n\n".join((*stable_sections, TURN_CONTEXT_DESCRIPTION, *folded_developer_text, guardrails))
             turn_messages = [_text_message("user", _user_message_with_turn_context(turn_context, user_message))]
@@ -220,11 +217,16 @@ def _escape_turn_context_tags(text: str) -> str:
 
 
 def _user_message_with_turn_context(turn_context: tuple[str, ...], user_message: str) -> str:
-    """Prefix the user's words with the turn context and the guardrails in a tagged block."""
+    """Prefix the user's words with the turn context in a tagged block, or return them alone without context.
 
-    guardrails = COMPANION_GUARDRAILS.strip()
-    block = "\n\n".join((*(_escape_turn_context_tags(section) for section in turn_context), guardrails))
-    return f"<{_TURN_CONTEXT_TAG}>\n{block}\n</{_TURN_CONTEXT_TAG}>\n\n{_escape_turn_context_tags(user_message)}"
+    Forged block tags in the user's words are escaped either way.
+    """
+
+    user_text = _escape_turn_context_tags(user_message)
+    if not turn_context:
+        return user_text
+    block = "\n\n".join(_escape_turn_context_tags(section) for section in turn_context)
+    return f"<{_TURN_CONTEXT_TAG}>\n{block}\n</{_TURN_CONTEXT_TAG}>\n\n{user_text}"
 
 
 def _with_escaped_turn_context_tags(message: ChatCompletionMessageParam) -> ChatCompletionMessageParam:

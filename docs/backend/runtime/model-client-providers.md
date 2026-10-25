@@ -409,10 +409,9 @@ fingerprint details. Anima profile columns, `metadata.direct_chat`, and pinned
 user profile content are not prompt sources. The system message ends with the
 server-owned
 [Companion Guardrails](../../adr/0008-non-overridable-companion-guardrail.md).
-One request-local `developer` message always sits immediately before the latest
-user message: the user-scope memory file map (when memory influence is
-enabled), the attached-file list and finally the guardrails again, so they are
-the last instruction text before the user's words. An app compaction summary is
+One request-local `developer` message sits immediately before the latest user
+message when the turn has context: the user-scope memory file map (when memory
+influence is enabled) and the attached-file list. An app compaction summary is
 a `developer` message directly after the system message. The Anthropic adapter
 sends that turn-context message as a mid-conversation `system` message after
 the user's message instead, and Anthropic rows delimit the identity and
@@ -430,8 +429,7 @@ the defaults: no folding, every field sent and `openai_effort`.
 
 - `fold_developer_role`: send no `developer` messages. The row's
   `supports_developer_role` is then false, so the prompt assembler puts the
-  turn context and the guardrails in a `<turn_context>` block at the start of
-  the user message, which the system message describes, and folds a compaction
+  turn context in a `<turn_context>` block at the start of the user message, which the system message describes, and folds a compaction
   summary into the system message before its closing guardrails. The adapter
   folds within-turn `developer` instructions (forced final, repair) into the
   end of the system message before dispatch. On by default for every
@@ -486,9 +484,9 @@ tool calls stay in every case.
 
 `OpenAIResponsesHTTPAgent` sends only the stable system message as the
 Responses `instructions` parameter, which ends with the guardrails. The turn
-context travels as a `developer` input item before the user item. If the chat
-row has an `openai_previous_response_id`, its `input` contains only that
-developer item and the current user message, or the current turn's
+context, when there is any, travels as a `developer` input item before the user
+item. If the chat row has an `openai_previous_response_id`, its `input` contains
+only that developer item and the current user message, or the current turn's
 function-call outputs, followed by any forced-final or repair instruction as a
 `developer` item. The executor skips fetching local chat history for that
 normal cursor-backed request. Each turn's context item stays in the stored

@@ -104,15 +104,14 @@ influence enabled it also opens the Anima's `MEMORIES.md` and places it as
 unreadable file is omitted without failing the turn. When
 `disable_memory_influence` is true, direct chat still keeps anima identity
 active; `MEMORIES.md` and the memory file list are omitted.
-The turn context, placed just before the user message, holds the memory file list,
-the attached-file list and, always last, the
-[Companion Guardrails](../../adr/0008-non-overridable-companion-guardrail.md),
-which also end the stable system instructions.
+The turn context, placed just before the user message, holds the memory file list
+and the attached-file list; a turn with neither sends none. The
+[Companion Guardrails](../../adr/0008-non-overridable-companion-guardrail.md)
+end the stable system instructions, once per turn.
 Provider rows that expose `supports_developer_role: false`, such as rows on
 connections with the `fold_developer_role` option (the default for non-OpenAI
 presets), receive the same text in a `<turn_context>` block at the start of
-the user message instead, so the guardrail remains the final instruction text
-before the user's words. Anthropic rows receive it as a mid-conversation
+the user message instead. Anthropic rows receive it as a mid-conversation
 `system` message after the user message, because Anthropic accepts one only
 after a user turn. See the [turn layout](prompt-caching.md#turn-layout).
 Memory tools also depend on the selected row. A row without tool calling runs
@@ -259,9 +258,10 @@ edit Anima identity, move/delete files, or change arbitrary metadata. Workflow o
 `product_http/chat/safety.py` and `app/safety/` own per-turn safety. The
 user-facing contract is the [safety and crisis protocol](../../safety/crisis-protocol.md).
 
-- **Companion Guardrails.** `COMPANION_GUARDRAILS` is always the final
-  instruction text of every provider request, including in the forced-final
-  tool-limit request. No setting disables it
+- **Companion Guardrails.** `COMPANION_GUARDRAILS` always ends the system
+  instructions of every provider request, and the forced-final tool-limit and
+  structured-reply repair requests restate it after their instruction. No
+  setting disables it
   ([ADR 0008](../../adr/0008-non-overridable-companion-guardrail.md)).
 - **Effective configuration.** Setup combines operator settings
   (`ANIMAMA_COMPANION_SAFETY_ENABLED`, `ANIMAMA_AI_NOTICE_ENABLED`,

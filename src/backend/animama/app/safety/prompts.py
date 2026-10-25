@@ -1,9 +1,9 @@
 # ruff: noqa: E501
 """Server-owned safety text injected into model instructions.
 
-Nothing here is owner-editable. The guardrail is always the final text of a
-chat turn's provider instructions so that no Anima identity, memory or earlier
-instruction can override it (see ADR 0008).
+Nothing here is owner-editable. The guardrail always ends a chat turn's system
+instructions, after the Anima identity, memories and guidance, and takes
+precedence over them (see ADR 0008).
 """
 
 from __future__ import annotations

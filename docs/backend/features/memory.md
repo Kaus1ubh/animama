@@ -64,13 +64,14 @@ only for user-scope memory operations (`anima_id = NULL`), such as episode
 capture.
 
 The runtime boundary uses one `DirectChatPrompt`. The prompt
-is ordered for prompt-cache locality: one system message containing stable core
-companion instruction rendered with the active Anima's stable `display_name`, anima
-identity, anima memories when included, stable memory guidance, and
-structured-output guidance; then
-compaction summary, visible chat history, one request-local trailing
-`developer` message, and the current user message. The trailing message holds
-the `# List of memory files` map, any attached-file list, and ends with the [Companion Guardrails](../../adr/0008-non-overridable-companion-guardrail.md). The structured-output JSON schema travels in the prompt's
+is ordered for prompt-cache locality: one system message containing the stable
+core companion instruction (which names no Anima), the anima identity opened by
+its display name, anima memories when included, stable memory guidance,
+structured-output guidance and, last, the [Companion Guardrails](../../adr/0008-non-overridable-companion-guardrail.md);
+then compaction summary, visible chat history, a request-local trailing
+`developer` message when the turn has context, and the current user message.
+The trailing message holds the `# List of memory files` map and any
+attached-file list. The structured-output JSON schema travels in the prompt's
 `response_format` field rather than being duplicated in prompt text for
 schema-backed rows. JSON-object rows include the expected schema and example in
 the response-format prompt guidance because their provider transport guarantees
@@ -382,7 +383,7 @@ backend-derived navigation metadata that helps the model plan bounded reads; it
 is not document-content evidence. The list follows the memory map in the
 `developer` message before the user's message; providers without developer-role
 support receive it in the `<turn_context>` block that starts the user message.
-Both still end with the Companion Guardrails. Distinct attachments with the same filename stay
+Distinct attachments with the same filename stay
 as separate map entries because filename-based upload tools operate on every
 matching attachment.
 

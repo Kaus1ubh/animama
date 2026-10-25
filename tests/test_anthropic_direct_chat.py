@@ -205,7 +205,7 @@ async def test_a_turn_streams_structured_speech_and_stores_only_the_reply_text()
 
 
 @pytest.mark.asyncio
-async def test_anthropic_requests_use_the_tuned_instructions_with_identical_guardrails_last() -> None:
+async def test_anthropic_requests_use_the_tuned_instructions_with_identical_guardrails_ending_the_system() -> None:
     adapter, fake = _anthropic([message_events(text_block(structured_reply()))])
     executor, _ = _executor(adapter)
     openai_client = executor_helpers._FinalModelClient(executor_helpers._structured_response())
@@ -221,10 +221,10 @@ async def test_anthropic_requests_use_the_tuned_instructions_with_identical_guar
     for marker in DIRECTIVE_MARKERS:
         assert marker in anthropic_system, marker
         assert marker in openai_system, marker
-    # The guardrails are byte-identical and last on both providers.
+    # The guardrails are byte-identical and end the system text on both providers, once (ADR 0008).
     assert anthropic_system.endswith(f"\n\n{GUARDRAILS}") and openai_system.endswith(f"\n\n{GUARDRAILS}")
-    assert anthropic_context["role"] == "system" and anthropic_context["content"].endswith(f"\n\n{GUARDRAILS}")
-    assert str(openai_messages[-2]["content"]).endswith(f"\n\n{GUARDRAILS}")
+    assert anthropic_context["role"] == "system" and anthropic_context["content"] == MEMORY_MAP
+    assert openai_messages[-2]["content"] == MEMORY_MAP
     # Anthropic phrasing: delimited owner content and the tools-first structured-output line.
     assert "<anima_identity>\nAnnie keeps a lighthouse" in anthropic_system
     assert f"<anima_memories>\n{MEMORIES}\n</anima_memories>" in anthropic_system

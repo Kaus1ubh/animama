@@ -446,14 +446,14 @@ async def test_scripted_chat_carries_its_visible_history_turn_by_turn() -> None:
     # Incognito turns: the provider stores nothing and no Responses cursor replaces the replayed history.
     assert all(request.provider_options.store is False for request in client.requests)
     assert all(request.continuation is None for request in client.requests)
-    assert [message["role"] for message in solo_request.prompt.messages] == ["system", "developer", "user"]
-    assert [message["role"] for message in first.prompt.messages] == ["system", "developer", "user"]
+    # Incognito turns have no memory map, so no turn context precedes the user message.
+    assert [message["role"] for message in solo_request.prompt.messages] == ["system", "user"]
+    assert [message["role"] for message in first.prompt.messages] == ["system", "user"]
     first_reply = _reply(gesture="wave", speech="Reply to Hi!")
     second_reply = _reply(gesture="think", speech="Reply to Tell me a riddle.")
     assert [(message["role"], message["content"]) for message in second.prompt.messages[1:]] == [
         ("user", "Hi!"),
         ("assistant", first_reply),
-        ("developer", first.prompt.messages[1]["content"]),
         ("user", "Tell me a riddle."),
     ]
     assert [(message["role"], message["content"]) for message in third.prompt.messages[1:5]] == [
