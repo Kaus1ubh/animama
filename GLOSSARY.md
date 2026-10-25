@@ -183,7 +183,8 @@ installation alone does not equip an Anima.
 
 A pinned model file or multi-file set (a model asset set) that the backend
 downloads, verifies and activates in place, without a restart, on desktop and
-self-host: the Parakeet speech models, downloadable Pocket voices and the
+self-host: the offline speech recognition sets (Parakeet and SenseVoice-Small,
+each a CPU set with an optional GPU add-on), downloadable Pocket voices and the
 voice-cloning encoder. It is not a **Feature pack**, and installing one changes
 no provider or voice selection.
 
@@ -209,8 +210,11 @@ context's `locale`) is not the UI Locale; the context's `ui_locale` is.
 
 The language an Anima replies, speaks and listens in. It is always the active
 **Locale**: a non-English locale instructs the model and sets the speech
-language code; English leaves both to their defaults. English-only speech
-engines (Parakeet, Pocket TTS) show a warning under other locales.
+language code; English leaves both to their defaults. It also chooses the
+offline speech recognizer when dictation or Voice Mode starts: Parakeet for
+English, SenseVoice-Small for Japanese, Korean and Chinese
+([ADR 0029](docs/adr/0029-sensevoice-offline-speech-recognition.md)). Pocket
+TTS speaks only English and shows a warning under other locales.
 
 ## Audio tag
 

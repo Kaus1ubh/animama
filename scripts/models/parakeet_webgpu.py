@@ -10,9 +10,6 @@ contact upstream services.
 from __future__ import annotations
 
 import argparse
-import hashlib
-import json
-import re
 import sys
 from http.client import HTTPException
 from pathlib import Path
@@ -34,32 +31,7 @@ ENCODER_SOURCE = {
 
 def load_manifest(path: Path = DEFAULT_MANIFEST) -> dict:
     """Bind the exact three-file inventory: the pinned FP16 encoder plus local notices."""
-    path = Path(path).absolute()
-    with store.regular_file(path) as stream:
-        raw = stream.read(65537)
-    if len(raw) > 65536:
-        raise store.ModelStoreError("Manifest exceeds 64 KiB")
-    try:
-        value = json.loads(raw, object_pairs_hook=store.unique_keys)
-        if value["schema_version"] != 1 or value["model_id"] != MODEL_ID or value["license"] != "CC-BY-4.0":
-            raise ValueError("unsupported schema, model or license")
-        entries = value["files"]
-        if len(entries) != 3 or {entry["path"] for entry in entries} != store.NOTICES | {ENCODER}:
-            raise ValueError("expected the exact three-file WebGPU inventory")
-        for entry in entries:
-            name = entry["path"]
-            if type(entry["size"]) is not int or not 0 < entry["size"] < 2**31:
-                raise ValueError(f"invalid byte size for {name}")
-            if not isinstance(entry["sha256"], str) or not re.fullmatch(r"[0-9a-f]{64}", entry["sha256"]):
-                raise ValueError(f"invalid SHA-256 for {name}")
-            expected = {"local": name} if name in store.NOTICES else ENCODER_SOURCE
-            if entry["source"] != expected:
-                raise ValueError(f"unreviewed source for {name}")
-    except (KeyError, TypeError, ValueError) as exc:
-        raise store.ModelStoreError(f"Invalid WebGPU model manifest: {exc}") from exc
-    value["digest"] = hashlib.sha256(raw).hexdigest()
-    value["directory"] = path.parent
-    return value
+    return store.load_pinned_manifest(path, MODEL_ID, "CC-BY-4.0", {ENCODER: ENCODER_SOURCE}, "WebGPU model")
 
 
 def main(argv: list[str] | None = None) -> int:

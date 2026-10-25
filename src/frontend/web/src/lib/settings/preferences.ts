@@ -85,7 +85,6 @@ export type SpeechPreferences = {
   stt_parakeet_webgpu?: boolean;
   tts_enabled?: boolean;
   tts_provider?: TtsProviderPreference;
-  tts_stream_chunks?: boolean;
   tts_elevenlabs_model_id?: ElevenLabsTtsModelId;
   tts_gemini_model_id?: GeminiTtsModelId;
   desktop_shortcuts?: Partial<Record<DesktopShortcutAction, DesktopShortcut>>;
@@ -160,7 +159,6 @@ export const DEFAULT_ANIMAMA_PREFERENCES: SettingsPreferences = {
     tts_enabled: true,
     tts_provider: "pocket_tts",
     tts_elevenlabs_model_id: DEFAULT_ELEVENLABS_TTS_MODEL_ID,
-    tts_stream_chunks: true,
     desktop_shortcuts: DEFAULT_DESKTOP_SHORTCUTS,
   },
   presentation: {

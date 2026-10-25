@@ -10,26 +10,25 @@ import { publicResourceUrl } from "@/lib/resource-urls";
 import { fetchRuntimeCapabilities } from "@/query/runtime-capabilities";
 import {
   getSpeechRecognitionConstructor,
-  resolvePreferredSttProvider,
+  resolveRoutedSttProvider,
   supportsLocalWebSpeechStrict,
   toSttProvider,
   type BrowserSpeechRecognition,
   type SttProvider,
 } from "@/lib/speech/stt-provider";
+import { offlineSttClients } from "@/lib/speech/offline-stt/clients";
 import {
-  armClientParakeetIdleDispose,
-  cancelClientParakeetIdleDispose,
-  loadClientParakeetWorker,
-  transcribeClientParakeetWindow,
-} from "@/lib/speech/client-parakeet/client";
+  routeOfflineSpeech,
+  type OfflineSpeechRoute,
+} from "@/lib/speech/offline-stt/routing";
 import {
-  DEFAULT_PARAKEET_PREVIEW_CONFIG,
-  createParakeetPreviewController,
-  shouldEnableParakeetPreviews,
-  type ParakeetPreview,
-  type ParakeetPreviewController,
-} from "@/lib/speech/client-parakeet/preview-controller";
-import type { ClientParakeetBackend } from "@/lib/speech/client-parakeet/worker-protocol";
+  DEFAULT_SPEECH_PREVIEW_CONFIG,
+  createSpeechPreviewController,
+  shouldEnableSpeechPreviews,
+  type SpeechPreview,
+  type SpeechPreviewController,
+} from "@/lib/speech/offline-stt/preview-controller";
+import type { OfflineSttBackend } from "@/lib/speech/offline-stt/worker-protocol";
 import { browserSpeechLanguage } from "@/lib/speech/speech-language";
 import {
   type BrowserRecognitionStopReason,
@@ -61,7 +60,10 @@ import {
   loadSmartTurnWorker,
   predictSmartTurn,
 } from "@/lib/voice/smart-turn-worker-client";
-import { SMART_TURN_FORCE_END_TURN_SHORT_UTTERANCE_SET } from "@/lib/voice/smart-turn-short-utterance-overrides";
+import {
+  SMART_TURN_FORCE_END_TURN_SHORT_UTTERANCE_SET,
+  normalizeSmartTurnOverrideText,
+} from "@/lib/voice/smart-turn-short-utterance-overrides";
 import { getVoiceDebugSink } from "@/lib/voice/voiceDebugSink";
 import { useAvatarRuntimeStore } from "@/stores/avatar-runtime-store";
 import type { SttSegmentSource } from "@/lib/types/voice-types";
@@ -205,14 +207,15 @@ function toAbsoluteBrowserUrl(path: string): string {
 
 /** Dictation failures reported to the owner (and the dictation error toast). */
 type DictationFailure =
-  | "audioWorkletParakeet"
+  | "audioWorkletOffline"
   | "audioWorkletVad"
   | "browserStartFailed"
   | "failed"
   | "localWebSpeechNotEnabled"
   | "localWebSpeechUnsupported"
   | "offlineSpeechMissing"
-  | "parakeetFailed"
+  | "languageSpeechMissing"
+  | "offlineSpeechFailed"
   | "transcriptionFailed"
   | "unmuteFailed"
   | "webSpeechUnsupported";
@@ -221,8 +224,8 @@ type DictationFailure =
 function dictationErrorText(failure: DictationFailure): string {
   const t = getI18n().getFixedT(null, "app");
   switch (failure) {
-    case "audioWorkletParakeet":
-      return t("dictation.errors.audioWorkletParakeet");
+    case "audioWorkletOffline":
+      return t("dictation.errors.audioWorkletOffline");
     case "audioWorkletVad":
       return t("dictation.errors.audioWorkletVad");
     case "browserStartFailed":
@@ -235,8 +238,10 @@ function dictationErrorText(failure: DictationFailure): string {
       return t("dictation.errors.localWebSpeechUnsupported");
     case "offlineSpeechMissing":
       return t("dictation.errors.offlineSpeechMissing");
-    case "parakeetFailed":
-      return t("dictation.errors.parakeetFailed");
+    case "languageSpeechMissing":
+      return t("dictation.errors.languageSpeechMissing");
+    case "offlineSpeechFailed":
+      return t("dictation.errors.offlineSpeechFailed");
     case "transcriptionFailed":
       return t("dictation.errors.transcriptionFailed");
     case "unmuteFailed":
@@ -284,14 +289,6 @@ function buildSmartTurnModelAudioWindow(
   return padded;
 }
 
-function normalizeSmartTurnOverrideText(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/[^\w\s']/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
 export function useDictation(options: UseDictationOptions = {}) {
   const apiClient = useProductApiClient();
 
@@ -304,9 +301,9 @@ export function useDictation(options: UseDictationOptions = {}) {
   const [error, setError] = useState<Error | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const { effectivePreferences } = useSettings();
-  // Read at each Parakeet start so a settings change applies to the next session.
-  const parakeetWebgpuPreferredRef = useRef(false);
-  parakeetWebgpuPreferredRef.current =
+  // Read at each offline start so a settings change applies to the next session.
+  const offlineWebgpuPreferredRef = useRef(false);
+  offlineWebgpuPreferredRef.current =
     isParakeetWebgpuPreferred(effectivePreferences);
   const platform = useRuntimePlatform();
   // Read at VAD start so a sensitivity change applies to the next session.
@@ -354,14 +351,20 @@ export function useDictation(options: UseDictationOptions = {}) {
   } | null>(null);
   const smartTurnJobCounterRef = useRef(0);
   const smartTurnWorkerReadyRef = useRef(false);
-  const parakeetSessionCounterRef = useRef(0);
-  const activeParakeetSessionIdRef = useRef<number | null>(null);
-  const parakeetJobCounterRef = useRef(0);
-  const parakeetPreviewControllerRef = useRef<ParakeetPreviewController | null>(
+  const offlineSessionCounterRef = useRef(0);
+  const activeOfflineSessionIdRef = useRef<number | null>(null);
+  const offlineJobCounterRef = useRef(0);
+  const offlinePreviewControllerRef = useRef<SpeechPreviewController | null>(
     null,
   );
   /** Display-only interim text; never written to gate state or speech buffers. */
-  const parakeetPreviewRef = useRef<ParakeetPreview | null>(null);
+  const offlinePreviewRef = useRef<SpeechPreview | null>(null);
+  /**
+   * The engine and language of the current or last offline session. The
+   * provider stays `"parakeet"` (the stored offline choice) for either engine;
+   * a resumed Voice Mode session keeps its route.
+   */
+  const offlineRouteRef = useRef<OfflineSpeechRoute | null>(null);
   const pendingFlushSmartTurnOverrideRef =
     useRef<PendingFlushSmartTurnOverride | null>(null);
 
@@ -558,7 +561,7 @@ export function useDictation(options: UseDictationOptions = {}) {
     [publishTranscriptPreview],
   );
 
-  const publishParakeetPreview = useCallback(
+  const publishOfflinePreview = useCallback(
     (args: { turnId: string; mode: DictationMode; interimText: string }) => {
       const buffers = browserSpeechTextBuffersRef.current;
       publishTranscriptPreview({
@@ -573,19 +576,19 @@ export function useDictation(options: UseDictationOptions = {}) {
   );
 
   /** Remove the interim preview for a window once its final result or rejection arrives. */
-  const clearParakeetPreview = useCallback(
+  const clearOfflinePreview = useCallback(
     (args: { windowId: string | null; mode: DictationMode }) => {
-      const preview = parakeetPreviewRef.current;
+      const preview = offlinePreviewRef.current;
       if (!preview) return;
       if (args.windowId !== null && preview.windowId !== args.windowId) return;
-      parakeetPreviewRef.current = null;
-      publishParakeetPreview({
+      offlinePreviewRef.current = null;
+      publishOfflinePreview({
         turnId: preview.turnId,
         mode: args.mode,
         interimText: "",
       });
     },
-    [publishParakeetPreview],
+    [publishOfflinePreview],
   );
 
   const clearBrowserInterimPreview = useCallback(
@@ -1360,10 +1363,10 @@ export function useDictation(options: UseDictationOptions = {}) {
 
     if (provider === "parakeet") {
       const runId = runIdRef.current;
-      activeParakeetSessionIdRef.current = null;
-      parakeetPreviewControllerRef.current?.reset();
-      parakeetPreviewControllerRef.current = null;
-      parakeetPreviewRef.current = null;
+      activeOfflineSessionIdRef.current = null;
+      offlinePreviewControllerRef.current?.reset();
+      offlinePreviewControllerRef.current = null;
+      offlinePreviewRef.current = null;
       setIsDictationPreparing(false);
       setRunId(null);
       teardownBrowserVisualizerStream();
@@ -1389,8 +1392,10 @@ export function useDictation(options: UseDictationOptions = {}) {
       captureActive: false,
       voiceMuted: false,
     });
-    if (provider === "parakeet") {
-      armClientParakeetIdleDispose("stop-parakeet");
+    if (provider === "parakeet" && offlineRouteRef.current) {
+      offlineSttClients[offlineRouteRef.current.engine].armIdleDispose(
+        "stop-offline",
+      );
     }
   }, [
     clearBrowserStopReason,
@@ -1434,9 +1439,9 @@ export function useDictation(options: UseDictationOptions = {}) {
         // Pausing MicVAD without a flush discards the open window without any
         // VAD callback, so previews must end here. A flushed window keeps its
         // preview until the final that `onSpeechEnd` queues replaces it.
-        parakeetPreviewControllerRef.current?.reset();
+        offlinePreviewControllerRef.current?.reset();
         if (options?.flushPendingSpeech !== true) {
-          clearParakeetPreview({ windowId: null, mode: "voice" });
+          clearOfflinePreview({ windowId: null, mode: "voice" });
         }
       }
       clearVoiceSilenceResetTimer();
@@ -1461,7 +1466,7 @@ export function useDictation(options: UseDictationOptions = {}) {
     },
     [
       clearBrowserInterimPreview,
-      clearParakeetPreview,
+      clearOfflinePreview,
       clearVoiceSilenceResetTimer,
       isVoiceMicMuted,
       logger,
@@ -1502,7 +1507,7 @@ export function useDictation(options: UseDictationOptions = {}) {
     [logger],
   );
 
-  const commitParakeetVoiceTranscript = useCallback(
+  const commitOfflineVoiceTranscript = useCallback(
     (args: { turnId: string; text: string }) => {
       const text = args.text.trim();
       if (!text) return;
@@ -1528,7 +1533,7 @@ export function useDictation(options: UseDictationOptions = {}) {
       });
       browserSpeechTextBuffersRef.current = nextBuffers;
       // A later window may already be previewing while this final lands.
-      const preview = parakeetPreviewRef.current;
+      const preview = offlinePreviewRef.current;
       publishTranscriptPreview({
         provider: "parakeet",
         mode: "voice",
@@ -1540,9 +1545,10 @@ export function useDictation(options: UseDictationOptions = {}) {
     [publishTranscriptPreview, syncGateDebugStats],
   );
 
-  const transcribeParakeetSpeechWindow = useCallback(
+  const transcribeOfflineSpeechWindow = useCallback(
     async (args: {
       sessionId: number;
+      route: OfflineSpeechRoute;
       runId: string;
       turnId: string;
       windowId: string;
@@ -1551,10 +1557,10 @@ export function useDictation(options: UseDictationOptions = {}) {
       thresholdOverride?: SmartTurnThresholdOverride | null;
     }) => {
       const jobId = createJobId();
-      parakeetJobCounterRef.current += 1;
-      const sequence = parakeetJobCounterRef.current;
+      offlineJobCounterRef.current += 1;
+      const sequence = offlineJobCounterRef.current;
 
-      logger.info("ClientParakeet", "Queued speech window transcription", {
+      logger.info("OfflineSTT", "Queued speech window transcription", {
         jobId,
         sequence,
         runId: args.runId,
@@ -1567,17 +1573,18 @@ export function useDictation(options: UseDictationOptions = {}) {
       });
 
       try {
-        const result = await transcribeClientParakeetWindow({
+        const result = await offlineSttClients[args.route.engine].transcribe({
           jobId,
           runId: args.runId,
           turnId: args.turnId,
           windowId: args.windowId,
           audio: args.audio,
           sampleRateHz: DEFAULT_SAMPLE_RATE,
+          language: args.route.language,
         });
 
         if (
-          activeParakeetSessionIdRef.current !== args.sessionId ||
+          activeOfflineSessionIdRef.current !== args.sessionId ||
           activeProviderRef.current !== "parakeet" ||
           modeRef.current !== args.mode ||
           runIdRef.current !== args.runId ||
@@ -1585,7 +1592,7 @@ export function useDictation(options: UseDictationOptions = {}) {
           !isDictatingRef.current
         ) {
           logger.info(
-            "ClientParakeet",
+            "OfflineSTT",
             "Ignored stale speech window transcription",
             {
               jobId,
@@ -1597,9 +1604,9 @@ export function useDictation(options: UseDictationOptions = {}) {
           return;
         }
 
-        clearParakeetPreview({ windowId: args.windowId, mode: args.mode });
+        clearOfflinePreview({ windowId: args.windowId, mode: args.mode });
 
-        logger.info("ClientParakeet", "Speech window transcription ready", {
+        logger.info("OfflineSTT", "Speech window transcription ready", {
           jobId,
           runId: result.runId,
           turnId: result.turnId,
@@ -1614,7 +1621,7 @@ export function useDictation(options: UseDictationOptions = {}) {
           const runtimeState = useAvatarRuntimeStore.getState();
           if (runtimeState.activeRunId || runtimeState.activeSpeechRunId) {
             logger.info(
-              "ClientParakeet",
+              "OfflineSTT",
               "Ignored speech window transcription while assistant run is active",
               {
                 jobId,
@@ -1629,7 +1636,7 @@ export function useDictation(options: UseDictationOptions = {}) {
           }
 
           if (result.text) {
-            commitParakeetVoiceTranscript({
+            commitOfflineVoiceTranscript({
               turnId: result.turnId,
               text: result.text,
             });
@@ -1638,7 +1645,7 @@ export function useDictation(options: UseDictationOptions = {}) {
               isFinal: true,
               runId: null,
               turnId: result.turnId,
-              source: "parakeet",
+              source: args.route.engine,
             });
             void submitPendingVoiceEndTurn("transcript_update");
           }
@@ -1675,18 +1682,18 @@ export function useDictation(options: UseDictationOptions = {}) {
           isFinal: true,
           runId: result.runId,
           turnId: result.turnId,
-          source: "parakeet",
+          source: args.route.engine,
         });
       } catch (err) {
         if (
-          activeParakeetSessionIdRef.current !== args.sessionId ||
+          activeOfflineSessionIdRef.current !== args.sessionId ||
           activeProviderRef.current !== "parakeet" ||
           modeRef.current !== args.mode ||
           !isDictatingRef.current
         ) {
           return;
         }
-        clearParakeetPreview({ windowId: args.windowId, mode: args.mode });
+        clearOfflinePreview({ windowId: args.windowId, mode: args.mode });
         const errorObj =
           err instanceof Error
             ? err
@@ -1695,7 +1702,7 @@ export function useDictation(options: UseDictationOptions = {}) {
         onErrorRef.current?.(errorObj);
         getVoiceDebugSink()?.setError(errorObj.message);
         logger.error(
-          "ClientParakeet",
+          "OfflineSTT",
           "Speech window transcription failed",
           errorObj,
         );
@@ -1704,8 +1711,8 @@ export function useDictation(options: UseDictationOptions = {}) {
     [
       appendSmartTurnAudioSegment,
       armVoiceSilenceResetTimer,
-      clearParakeetPreview,
-      commitParakeetVoiceTranscript,
+      clearOfflinePreview,
+      commitOfflineVoiceTranscript,
       logger,
       runSmartTurnSemanticCheck,
       submitPendingVoiceEndTurn,
@@ -1713,24 +1720,25 @@ export function useDictation(options: UseDictationOptions = {}) {
   );
 
   /**
-   * Create the live-preview controller for one Parakeet capture session. Preview
+   * Create the live-preview controller for one offline capture session. Preview
    * text is display-only and is dropped whenever the session, mode, run or turn
    * has moved on, or an assistant run owns the Voice Mode floor.
    */
-  const createParakeetPreviewSession = useCallback(
+  const createOfflinePreviewSession = useCallback(
     (args: {
       sessionId: number;
+      route: OfflineSpeechRoute;
       runId: string;
       mode: DictationMode;
-      backend: ClientParakeetBackend;
-    }): ParakeetPreviewController | null => {
-      parakeetPreviewControllerRef.current?.reset();
-      parakeetPreviewControllerRef.current = null;
-      clearParakeetPreview({ windowId: null, mode: args.mode });
-      if (!shouldEnableParakeetPreviews(args.backend)) return null;
+      backend: OfflineSttBackend;
+    }): SpeechPreviewController | null => {
+      offlinePreviewControllerRef.current?.reset();
+      offlinePreviewControllerRef.current = null;
+      clearOfflinePreview({ windowId: null, mode: args.mode });
+      if (!shouldEnableSpeechPreviews(args.backend)) return null;
 
       const isCurrentSession = (turnId: string) =>
-        activeParakeetSessionIdRef.current === args.sessionId &&
+        activeOfflineSessionIdRef.current === args.sessionId &&
         activeProviderRef.current === "parakeet" &&
         modeRef.current === args.mode &&
         runIdRef.current === args.runId &&
@@ -1744,15 +1752,15 @@ export function useDictation(options: UseDictationOptions = {}) {
         return !runtimeState.activeRunId && !runtimeState.activeSpeechRunId;
       };
 
-      const controller = createParakeetPreviewController({
+      const controller = createSpeechPreviewController({
         config: {
-          ...DEFAULT_PARAKEET_PREVIEW_CONFIG,
+          ...DEFAULT_SPEECH_PREVIEW_CONFIG,
           sampleRateHz: DEFAULT_SAMPLE_RATE,
           preSpeechPadMs: MICVAD_PRESPEECH_PAD_MS,
         },
         now: () => performance.now(),
         transcribe: async ({ turnId, windowId, audio }) => {
-          const result = await transcribeClientParakeetWindow({
+          const result = await offlineSttClients[args.route.engine].transcribe({
             kind: "preview",
             jobId: createJobId(),
             runId: args.runId,
@@ -1760,14 +1768,15 @@ export function useDictation(options: UseDictationOptions = {}) {
             windowId,
             audio,
             sampleRateHz: DEFAULT_SAMPLE_RATE,
+            language: args.route.language,
           });
           return { text: result.text, decodeMs: result.transcribeMs };
         },
         shouldPreview: canShowPreview,
         onPreview: (preview) => {
           if (!canShowPreview(preview.turnId)) return;
-          parakeetPreviewRef.current = preview;
-          publishParakeetPreview({
+          offlinePreviewRef.current = preview;
+          publishOfflinePreview({
             turnId: preview.turnId,
             mode: args.mode,
             interimText: preview.text,
@@ -1775,13 +1784,13 @@ export function useDictation(options: UseDictationOptions = {}) {
         },
         onEvent: (event) => {
           if (event.type === "preview_ready") {
-            logger.debug("ClientParakeet", "Preview transcription ready", {
+            logger.debug("OfflineSTT", "Preview transcription ready", {
               ...event,
             });
             return;
           }
           logger.info(
-            "ClientParakeet",
+            "OfflineSTT",
             event.type === "budget_exceeded"
               ? "Stopped previews for a speech window over the decode budget"
               : "Preview transcription failed; stopped previews for the window",
@@ -1789,13 +1798,13 @@ export function useDictation(options: UseDictationOptions = {}) {
           );
         },
       });
-      parakeetPreviewControllerRef.current = controller;
+      offlinePreviewControllerRef.current = controller;
       return controller;
     },
-    [clearParakeetPreview, logger, publishParakeetPreview],
+    [clearOfflinePreview, logger, publishOfflinePreview],
   );
 
-  const startParakeetVisualizerStream = useCallback(
+  const startOfflineVisualizerStream = useCallback(
     async (sessionId: number) => {
       if (
         typeof navigator === "undefined" ||
@@ -1807,7 +1816,7 @@ export function useDictation(options: UseDictationOptions = {}) {
         const visualizerStream = await openSelectedMicrophone();
 
         if (
-          activeParakeetSessionIdRef.current !== sessionId ||
+          activeOfflineSessionIdRef.current !== sessionId ||
           activeProviderRef.current !== "parakeet"
         ) {
           for (const track of visualizerStream.getTracks()) {
@@ -1820,7 +1829,7 @@ export function useDictation(options: UseDictationOptions = {}) {
         browserVisualizerStreamRef.current = visualizerStream;
         setStream(visualizerStream);
       } catch (err) {
-        logger.warn("ClientParakeet", "Visualizer stream unavailable", {
+        logger.warn("OfflineSTT", "Visualizer stream unavailable", {
           error: err instanceof Error ? err.message : String(err),
         });
       }
@@ -1828,7 +1837,7 @@ export function useDictation(options: UseDictationOptions = {}) {
     [logger, setStream, teardownBrowserVisualizerStream],
   );
 
-  const startParakeetDictation = useCallback(
+  const startOfflineDictation = useCallback(
     async (
       mode: DictationMode = "dictation",
       options?: {
@@ -1836,7 +1845,10 @@ export function useDictation(options: UseDictationOptions = {}) {
         reuseSmartTurnWorker?: boolean;
       },
     ) => {
-      await cancelClientParakeetIdleDispose(`start-parakeet-${mode}`);
+      const route = offlineRouteRef.current;
+      if (!route) throw new Error("Offline speech started without a route.");
+      const client = offlineSttClients[route.engine];
+      await client.cancelIdleDispose(`start-offline-${mode}`);
 
       const canReuseTurnState =
         options?.reuseTurnState === true &&
@@ -1847,15 +1859,15 @@ export function useDictation(options: UseDictationOptions = {}) {
         options?.reuseSmartTurnWorker === true &&
         smartTurnWorkerReadyRef.current;
       const sessionId =
-        canReuseTurnState && activeParakeetSessionIdRef.current !== null
-          ? activeParakeetSessionIdRef.current
-          : parakeetSessionCounterRef.current + 1;
-      parakeetSessionCounterRef.current = Math.max(
-        parakeetSessionCounterRef.current,
+        canReuseTurnState && activeOfflineSessionIdRef.current !== null
+          ? activeOfflineSessionIdRef.current
+          : offlineSessionCounterRef.current + 1;
+      offlineSessionCounterRef.current = Math.max(
+        offlineSessionCounterRef.current,
         sessionId,
       );
-      activeParakeetSessionIdRef.current = sessionId;
-      parakeetJobCounterRef.current = 0;
+      activeOfflineSessionIdRef.current = sessionId;
+      offlineJobCounterRef.current = 0;
       activeProviderRef.current = "parakeet";
       modeRef.current = mode;
       setIsDictationPreparing(true);
@@ -1873,7 +1885,7 @@ export function useDictation(options: UseDictationOptions = {}) {
       lastAcceptedSpeechAtRef.current = null;
 
       if (canReuseTurnState) {
-        await suspendVadCapture("resume-parakeet");
+        await suspendVadCapture("resume-offline");
       } else {
         await teardownVad(`start-parakeet-${mode}`);
         await teardownSmartTurn(`start-parakeet-${mode}`);
@@ -1922,7 +1934,9 @@ export function useDictation(options: UseDictationOptions = {}) {
       syncGateDebugStats();
 
       try {
-        logger.info("ClientParakeet", "Loading local Parakeet runtime", {
+        logger.info("OfflineSTT", "Loading offline speech runtime", {
+          engine: route.engine,
+          language: route.language,
           runId,
           turnId,
           sessionId,
@@ -1933,18 +1947,18 @@ export function useDictation(options: UseDictationOptions = {}) {
           typeof window === "undefined" ||
           typeof AudioWorkletNode !== "function"
         ) {
-          throw new WordedError(dictationErrorText("audioWorkletParakeet"));
+          throw new WordedError(dictationErrorText("audioWorkletOffline"));
         }
 
-        const isCurrentParakeetStart = () =>
-          activeParakeetSessionIdRef.current === sessionId &&
+        const isCurrentOfflineStart = () =>
+          activeOfflineSessionIdRef.current === sessionId &&
           activeProviderRef.current === "parakeet" &&
           modeRef.current === mode &&
           runIdRef.current === runId &&
           turnIdRef.current === turnId;
 
-        const parakeetLoadPromise = loadClientParakeetWorker(apiClient, {
-          preferWebgpu: parakeetWebgpuPreferredRef.current,
+        const offlineLoadPromise = client.load(apiClient, {
+          preferWebgpu: offlineWebgpuPreferredRef.current,
           sampleRateHz: DEFAULT_SAMPLE_RATE,
         });
 
@@ -1976,7 +1990,7 @@ export function useDictation(options: UseDictationOptions = {}) {
             ortWasmBaseUrl: smartTurnOrtWasmBaseUrl,
           })
             .then(() => {
-              if (!isCurrentParakeetStart()) {
+              if (!isCurrentOfflineStart()) {
                 logger.info(
                   "SmartTurnWorker",
                   "Ignored stale smart-turn worker load result",
@@ -2011,7 +2025,7 @@ export function useDictation(options: UseDictationOptions = {}) {
               );
             })
             .catch((err) => {
-              if (!isCurrentParakeetStart()) {
+              if (!isCurrentOfflineStart()) {
                 logger.info(
                   "SmartTurnWorker",
                   "Ignored stale smart-turn worker load failure",
@@ -2051,11 +2065,11 @@ export function useDictation(options: UseDictationOptions = {}) {
         }
 
         const [loadResult] = await Promise.all([
-          parakeetLoadPromise,
+          offlineLoadPromise,
           smartTurnLoadPromise,
         ]);
 
-        if (!isCurrentParakeetStart()) {
+        if (!isCurrentOfflineStart()) {
           if (!canReuseTurnState && runIdRef.current === runId) {
             setRunId(null);
           }
@@ -2063,23 +2077,21 @@ export function useDictation(options: UseDictationOptions = {}) {
             turnIdRef.current = null;
             gateStateRef.current = null;
           }
-          if (activeParakeetSessionIdRef.current === null) {
+          if (activeOfflineSessionIdRef.current === null) {
             setIsDictationPreparing(false);
           }
-          logger.info(
-            "ClientParakeet",
-            "Parakeet start superseded after load",
-            {
-              runId,
-              turnId,
-              sessionId,
-              mode,
-            },
-          );
+          logger.info("OfflineSTT", "Offline start superseded after load", {
+            runId,
+            turnId,
+            sessionId,
+            mode,
+          });
           return;
         }
 
-        logger.info("ClientParakeet", "Local Parakeet runtime ready", {
+        logger.info("OfflineSTT", "Offline speech runtime ready", {
+          engine: route.engine,
+          language: route.language,
           runId,
           turnId,
           sessionId,
@@ -2103,7 +2115,7 @@ export function useDictation(options: UseDictationOptions = {}) {
           debugStore?.setSmartTurnStatus("idle");
         }
 
-        if (activeParakeetSessionIdRef.current !== sessionId) {
+        if (activeOfflineSessionIdRef.current !== sessionId) {
           if (!canReuseTurnState && runIdRef.current === runId) {
             setRunId(null);
           }
@@ -2111,12 +2123,12 @@ export function useDictation(options: UseDictationOptions = {}) {
             turnIdRef.current = null;
             gateStateRef.current = null;
           }
-          if (activeParakeetSessionIdRef.current === null) {
+          if (activeOfflineSessionIdRef.current === null) {
             setIsDictationPreparing(false);
           }
           logger.info(
-            "ClientParakeet",
-            "Parakeet start superseded after smart-turn load",
+            "OfflineSTT",
+            "Offline start superseded after smart-turn load",
             {
               runId,
               turnId,
@@ -2129,8 +2141,9 @@ export function useDictation(options: UseDictationOptions = {}) {
 
         const { createAndStartMicVad, createMicVadCallbacks } =
           await import("@/hooks/voice/mic-vad-runtime");
-        const previewController = createParakeetPreviewSession({
+        const previewController = createOfflinePreviewSession({
           sessionId,
+          route,
           runId,
           mode,
           backend: loadResult.backend,
@@ -2156,14 +2169,14 @@ export function useDictation(options: UseDictationOptions = {}) {
             previewController?.startWindow({ turnId: speechTurnId, windowId }),
           onSpeechWindowInvalidated: ({ windowId }) => {
             previewController?.endWindow(windowId);
-            clearParakeetPreview({ windowId, mode });
+            clearOfflinePreview({ windowId, mode });
           },
           onAcceptedSpeechEnd: ({ audio, turnId: speechTurnId, windowId }) => {
             // The final decode below replaces this window's preview when it lands.
             previewController?.endWindow(windowId);
             const currentTurnId = turnIdRef.current;
             if (
-              activeParakeetSessionIdRef.current !== sessionId ||
+              activeOfflineSessionIdRef.current !== sessionId ||
               modeRef.current !== mode ||
               runIdRef.current !== runId ||
               !currentTurnId ||
@@ -2175,8 +2188,9 @@ export function useDictation(options: UseDictationOptions = {}) {
               "parakeet",
               speechTurnId,
             );
-            void transcribeParakeetSpeechWindow({
+            void transcribeOfflineSpeechWindow({
               sessionId,
+              route,
               runId,
               turnId: speechTurnId,
               windowId,
@@ -2197,14 +2211,14 @@ export function useDictation(options: UseDictationOptions = {}) {
           redemptionMs: MICVAD_REDEMPTION_MS,
           preSpeechPadMs: MICVAD_PRESPEECH_PAD_MS,
           // Only override vad-web's own stream when a device was chosen
-          // (Parakeet; browser recognition cannot target a device).
+          // (offline engines; browser recognition cannot target a device).
           ...(readSelectedMicrophoneId()
             ? { getStream: openSelectedMicrophone }
             : {}),
           ...micVadCallbacks,
         });
 
-        if (activeParakeetSessionIdRef.current !== sessionId) {
+        if (activeOfflineSessionIdRef.current !== sessionId) {
           await vad.pause().catch(() => undefined);
           await vad.destroy().catch(() => undefined);
           if (!canReuseTurnState && runIdRef.current === runId) {
@@ -2214,7 +2228,7 @@ export function useDictation(options: UseDictationOptions = {}) {
             turnIdRef.current = null;
             gateStateRef.current = null;
           }
-          if (activeParakeetSessionIdRef.current === null) {
+          if (activeOfflineSessionIdRef.current === null) {
             setIsDictationPreparing(false);
           }
           return;
@@ -2228,8 +2242,8 @@ export function useDictation(options: UseDictationOptions = {}) {
           captureActive: true,
           voiceMuted: false,
         });
-        void startParakeetVisualizerStream(sessionId);
-        logger.info("State", "Client Parakeet speech recognition started", {
+        void startOfflineVisualizerStream(sessionId);
+        logger.info("State", "Offline speech recognition started", {
           runId,
           turnId,
           sessionId,
@@ -2239,8 +2253,8 @@ export function useDictation(options: UseDictationOptions = {}) {
         const errorObj =
           err instanceof Error
             ? err
-            : new WordedError(dictationErrorText("parakeetFailed"));
-        if (activeParakeetSessionIdRef.current !== sessionId) {
+            : new WordedError(dictationErrorText("offlineSpeechFailed"));
+        if (activeOfflineSessionIdRef.current !== sessionId) {
           if (!canReuseTurnState && runIdRef.current === runId) {
             setRunId(null);
           }
@@ -2248,24 +2262,20 @@ export function useDictation(options: UseDictationOptions = {}) {
             turnIdRef.current = null;
             gateStateRef.current = null;
           }
-          if (activeParakeetSessionIdRef.current === null) {
+          if (activeOfflineSessionIdRef.current === null) {
             setIsDictationPreparing(false);
           }
-          logger.info(
-            "ClientParakeet",
-            "Ignored stale Parakeet start failure",
-            {
-              runId,
-              turnId,
-              sessionId,
-              mode,
-              error: errorObj.message,
-            },
-          );
+          logger.info("OfflineSTT", "Ignored stale offline start failure", {
+            runId,
+            turnId,
+            sessionId,
+            mode,
+            error: errorObj.message,
+          });
           return;
         }
         if (canReuseTurnState) {
-          activeParakeetSessionIdRef.current = null;
+          activeOfflineSessionIdRef.current = null;
           setIsDictationPreparing(false);
           setSessionState({
             mode: "voice",
@@ -2273,16 +2283,12 @@ export function useDictation(options: UseDictationOptions = {}) {
             voiceMuted: true,
           });
           teardownBrowserVisualizerStream();
-          await suspendVadCapture("resume-parakeet-start-failure");
+          await suspendVadCapture("resume-offline-start-failure");
           getVoiceDebugSink()?.setError(errorObj.message);
-          logger.error(
-            "State",
-            "Client Parakeet voice resume failed",
-            errorObj,
-          );
+          logger.error("State", "Offline voice resume failed", errorObj);
           throw errorObj;
         }
-        activeParakeetSessionIdRef.current = null;
+        activeOfflineSessionIdRef.current = null;
         setIsDictationPreparing(false);
         setSessionState({
           mode: null,
@@ -2297,7 +2303,7 @@ export function useDictation(options: UseDictationOptions = {}) {
         getVoiceDebugSink()?.setError(errorObj.message);
         logger.error(
           "State",
-          "Client Parakeet speech recognition start failed",
+          "Offline speech recognition start failed",
           errorObj,
         );
         throw errorObj;
@@ -2306,23 +2312,23 @@ export function useDictation(options: UseDictationOptions = {}) {
     [
       apiClient,
       armVoiceSilenceResetTimer,
-      clearParakeetPreview,
+      clearOfflinePreview,
       clearTranscriptPreview,
       clearVoiceSilenceResetTimer,
-      createParakeetPreviewSession,
+      createOfflinePreviewSession,
       logger,
       runSmartTurnSemanticCheck,
       setAvatarPhaseFromVad,
       setSessionState,
       setRunId,
-      startParakeetVisualizerStream,
+      startOfflineVisualizerStream,
       suspendVadCapture,
       syncGateDebugStats,
       takePendingFlushSmartTurnOverride,
       teardownBrowserVisualizerStream,
       teardownSmartTurn,
       teardownVad,
-      transcribeParakeetSpeechWindow,
+      transcribeOfflineSpeechWindow,
     ],
   );
 
@@ -2851,7 +2857,7 @@ export function useDictation(options: UseDictationOptions = {}) {
     setError(null);
     try {
       if (provider === "parakeet") {
-        await startParakeetDictation("voice", {
+        await startOfflineDictation("voice", {
           reuseTurnState: true,
           reuseSmartTurnWorker: true,
         });
@@ -2869,7 +2875,7 @@ export function useDictation(options: UseDictationOptions = {}) {
       setError(errorObj);
       onErrorRef.current?.(errorObj);
     }
-  }, [isVoiceMicMuted, startBrowserDictation, startParakeetDictation]);
+  }, [isVoiceMicMuted, startBrowserDictation, startOfflineDictation]);
 
   const startDictation = useCallback(
     async (mode: DictationMode = "dictation") => {
@@ -2883,22 +2889,37 @@ export function useDictation(options: UseDictationOptions = {}) {
         );
 
         const capabilities = await fetchRuntimeCapabilities(apiClient);
-        const resolved = resolvePreferredSttProvider({
+        // The engine follows the conversation language read at this start.
+        const route = routeOfflineSpeech();
+        const resolved = resolveRoutedSttProvider({
           savedProvider: preferredProvider,
           platform,
-          parakeetAvailable: capabilities.offline_speech_enabled,
+          route,
+          capabilities,
         });
-        if (resolved.provider === "parakeet" && !resolved.parakeetAvailable) {
-          throw new WordedError(dictationErrorText("offlineSpeechMissing"));
+        if (resolved.languageMissing) {
+          throw new WordedError(dictationErrorText("languageSpeechMissing"));
         }
+        if (resolved.provider === "parakeet" && !resolved.parakeetAvailable) {
+          throw new WordedError(
+            dictationErrorText(
+              route.engine === "parakeet"
+                ? "offlineSpeechMissing"
+                : "languageSpeechMissing",
+            ),
+          );
+        }
+        if (resolved.provider === "parakeet") offlineRouteRef.current = route;
         if (mode === "voice") {
           if (resolved.provider === "parakeet") {
-            logger.info("SmartTurnMode", "Starting Parakeet voice mode", {
+            logger.info("SmartTurnMode", "Starting offline voice mode", {
               provider: "parakeet",
+              engine: route.engine,
+              language: route.language,
               preferredProvider,
               hasExplicitPreference: resolved.hasExplicitPreference,
             });
-            await startParakeetDictation("voice");
+            await startOfflineDictation("voice");
             return;
           }
 
@@ -2913,7 +2934,7 @@ export function useDictation(options: UseDictationOptions = {}) {
         }
 
         if (resolved.provider === "parakeet") {
-          await startParakeetDictation();
+          await startOfflineDictation();
           return;
         }
 
@@ -2933,7 +2954,7 @@ export function useDictation(options: UseDictationOptions = {}) {
         setIsDictationPreparing(false);
         setRunId(null);
         activeProviderRef.current = null;
-        activeParakeetSessionIdRef.current = null;
+        activeOfflineSessionIdRef.current = null;
         modeRef.current = "dictation";
         clearBrowserStopReason();
         clearTranscriptPreview({
@@ -2957,7 +2978,7 @@ export function useDictation(options: UseDictationOptions = {}) {
       setSessionState,
       setRunId,
       startBrowserDictation,
-      startParakeetDictation,
+      startOfflineDictation,
       teardownBrowserVisualizerStream,
       teardownSmartTurn,
       teardownVad,

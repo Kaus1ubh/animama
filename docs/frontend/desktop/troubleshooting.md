@@ -87,9 +87,10 @@ An automation launch or generated-audio test does not verify physical microphone
 permission or capture. If there is no prompt or entry, record the app build,
 launch method and displayed state; do not reset the privacy database blindly.
 
-Offline dictation and Voice Mode require the offline speech CPU model; PocketTTS
-and microphone permission do not. Check App Settings → Voice → Speech-to-Text,
-selected input/output devices and mute/volume settings. Remote TTS also requires
+Offline dictation and Voice Mode require the offline speech CPU model for the
+app's language (Parakeet for English, SenseVoice for Japanese, Korean and
+Chinese); PocketTTS and microphone permission do not. Check App Settings →
+Voice → Speech-to-Text, selected input/output devices and mute/volume settings. Remote TTS also requires
 its configured provider and connectivity, and chat a reachable model connection.
 PiP is visual-only; the main renderer owns audio. See [Keyboard shortcuts](keyboard-shortcuts.md)
 for native hook permissions.

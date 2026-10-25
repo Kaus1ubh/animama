@@ -259,7 +259,6 @@
     "profile": "프로필",
     "speechToText": "음성 텍스트 변환",
     "textToSpeech": "텍스트 음성 변환",
-    "voiceClone": "음성 복제",
     "webSearch": "웹 검색"
   },
   "language": {
@@ -403,26 +402,20 @@
       "test": "마이크 테스트"
     },
     "stt": {
-      "downloads": "오프라인 음성 다운로드",
       "entryLabel": "음성 텍스트 변환 제공자",
-      "label": "제공자",
-      "parakeetWebgpu": "Parakeet (WebGPU)",
-      "placeholder": "제공자 선택",
       "preparing": "제공자 기본값 준비 중...",
       "updateFailed": "음성 텍스트 변환 제공자를 업데이트하지 못했습니다."
     },
     "tts": {
       "elevenLabs": {
         "key": {
-          "description": "ElevenLabs 음성에 필요합니다. 이 컴퓨터에 암호화되어 저장되며 API 키에서도 설정할 수 있습니다.",
-          "label": "ElevenLabs API 키"
+          "description": "ElevenLabs 음성에 필요합니다. 이 컴퓨터에 암호화되어 저장되며 API 키에서도 설정할 수 있습니다."
         }
       },
       "enable": "텍스트 음성 변환 사용",
       "gemini": {
         "key": {
-          "description": "Gemini 음성에 필요합니다. 이 컴퓨터에 암호화되어 저장되며 API 키에서도 설정할 수 있습니다.",
-          "label": "Gemini API 키"
+          "description": "Gemini 음성에 필요합니다. 이 컴퓨터에 암호화되어 저장되며 API 키에서도 설정할 수 있습니다."
         },
         "model": {
           "descriptions": {
@@ -430,7 +423,7 @@
             "flashLite": "지연 시간과 비용이 더 낮은 Gemini 음성입니다."
           },
           "label": "Gemini 모델",
-          "note": "Gemini 음성 요금은 Google이 API 키로 청구합니다. Anima별 음성은 행동 → 음성에서 선택하세요.",
+          "note": "Gemini 음성 요금은 Google이 API 키로 청구합니다.",
           "placeholder": "모델 선택",
           "updateFailed": "Gemini 모델을 업데이트하지 못했습니다."
         }
@@ -440,18 +433,10 @@
         "ariaLabel": "텍스트 음성 변환 제공자",
         "enableFirst": "제공자를 선택하려면 텍스트 음성 변환을 사용하세요.",
         "entryLabel": "기본 텍스트 음성 변환 제공자",
-        "label": "기본 제공자",
-        "note": "자체 제공자가 없는 Anima에 사용됩니다. Anima별 제공자와 음성은 행동 → 음성에서 선택하세요.",
+        "note": "자체 제공자가 없는 Anima에 사용됩니다.",
         "updateFailed": "TTS 제공자를 업데이트하지 못했습니다."
       },
-      "stream": {
-        "description": "전체 응답이 준비되기 전에 말하기 시작합니다.",
-        "label": "텍스트 음성 변환 분할 스트리밍",
-        "unavailable": "Gemini에서는 사용할 수 없습니다.",
-        "updateFailed": "TTS 스트리밍 모드를 업데이트하지 못했습니다."
-      },
       "updateFailed": "TTS 설정을 업데이트하지 못했습니다."
-    },
-    "voiceClone": "음성 복제"
+    }
   }
 }

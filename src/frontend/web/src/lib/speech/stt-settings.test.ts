@@ -89,6 +89,24 @@ describe("speech settings options", () => {
     expect(options[1].description).toMatch(/local.*GPU/i);
     expect(options[1].description).toMatch(/live previews/i);
     expect(options[1].description).toMatch(/falls back to.*CPU/i);
-    expect(baseOptions[0].label).toBe("Parakeet");
+    expect(baseOptions[0].label).toBe("Parakeet (CPU)");
+  });
+
+  it("names the UI Locale's engine and leaves its missing set to the language notice", () => {
+    const [english] = getSttProviderOptions(false, desktop, "parakeet");
+    expect(english.description).toContain("Parakeet TDT 0.6B v2 by NVIDIA");
+    expect(english.reason).toMatch(/Install offline speech recognition/);
+    const [multilingual] = getSttProviderOptions(false, desktop, "sensevoice");
+    expect(multilingual.description).toContain("SenseVoice-Small by Alibaba");
+    expect(multilingual).toMatchObject({ disabled: true, reason: undefined });
+  });
+
+  it("names the engine's model on the WebGPU choice too", () => {
+    const [, webgpu] = getSttSettingsOptions(
+      getSttProviderOptions(true, desktop, "sensevoice"),
+      "sensevoice",
+    );
+    expect(webgpu.description).toContain("SenseVoice-Small by Alibaba");
+    expect(webgpu.label).toBe("SenseVoice (WebGPU · Experimental)");
   });
 });

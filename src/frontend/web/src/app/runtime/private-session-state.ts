@@ -1,7 +1,7 @@
 import { disposePocketTtsRuntime } from "@/hooks/use-pocket-tts-runtime";
 import { clearVrmaCache } from "@/lib/avatar";
 import { terminateLipSyncWorker } from "@/lib/lipsync/lipsync-worker-client";
-import { terminateClientParakeetWorker } from "@/lib/speech/client-parakeet/client";
+import { terminateOfflineSttWorkers } from "@/lib/speech/offline-stt/clients";
 import { terminateSmartTurnWorker } from "@/lib/voice/smart-turn-worker-client";
 import { useAvatarRuntimeStore } from "@/stores/avatar-runtime-store";
 import { useAvatarLipSyncBridgeStore } from "@/stores/avatar-lipsync-bridge-store";
@@ -30,7 +30,7 @@ export async function clearPrivateSessionState(
     terminateLipSyncWorker,
     // Synchronous: the session also terminates these workers, so an awaited
     // dispose reply could never arrive and would leave a dead worker behind.
-    terminateClientParakeetWorker,
+    terminateOfflineSttWorkers,
     terminateSmartTurnWorker,
     clearVrmaCache,
     () => useAvatarRuntimeStore.getState().resetForAnima(null),

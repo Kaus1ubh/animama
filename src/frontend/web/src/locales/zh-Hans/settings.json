@@ -259,7 +259,6 @@
     "profile": "个人资料",
     "speechToText": "语音转文本",
     "textToSpeech": "文字转语音",
-    "voiceClone": "语音克隆",
     "webSearch": "网页搜索"
   },
   "language": {
@@ -403,26 +402,20 @@
       "test": "测试麦克风"
     },
     "stt": {
-      "downloads": "离线语音下载",
       "entryLabel": "语音转文本提供商",
-      "label": "提供商",
-      "parakeetWebgpu": "Parakeet (WebGPU)",
-      "placeholder": "选择提供商",
       "preparing": "正在准备提供商默认设置...",
       "updateFailed": "无法更新语音转文本提供商。"
     },
     "tts": {
       "elevenLabs": {
         "key": {
-          "description": "使用 ElevenLabs 语音时需要。在此电脑上加密保存，也可在“API 密钥”中设置。",
-          "label": "ElevenLabs API 密钥"
+          "description": "使用 ElevenLabs 语音时需要。在此电脑上加密保存，也可在“API 密钥”中设置。"
         }
       },
       "enable": "启用文字转语音",
       "gemini": {
         "key": {
-          "description": "使用 Gemini 语音时需要。在此电脑上加密保存，也可在“API 密钥”中设置。",
-          "label": "Gemini API 密钥"
+          "description": "使用 Gemini 语音时需要。在此电脑上加密保存，也可在“API 密钥”中设置。"
         },
         "model": {
           "descriptions": {
@@ -430,7 +423,7 @@
             "flashLite": "延迟更低、费用更低的 Gemini 语音。"
           },
           "label": "Gemini 模型",
-          "note": "Google 会按你的 API 密钥对 Gemini 语音计费。可在“行为 → 语音”中为每个 Anima 选择声音。",
+          "note": "Google 会按你的 API 密钥对 Gemini 语音计费。",
           "placeholder": "选择模型",
           "updateFailed": "无法更新 Gemini 模型。"
         }
@@ -440,18 +433,10 @@
         "ariaLabel": "文字转语音提供商",
         "enableFirst": "启用文字转语音后才能选择提供商。",
         "entryLabel": "默认文字转语音提供商",
-        "label": "默认提供商",
-        "note": "用于没有自己提供商的 Anima。可在“行为 → 语音”中为每个 Anima 选择提供商和声音。",
+        "note": "用于没有自己提供商的 Anima。",
         "updateFailed": "无法更新文字转语音提供商。"
       },
-      "stream": {
-        "description": "在完整回复准备好之前开始说话。",
-        "label": "分块流式文字转语音",
-        "unavailable": "使用 Gemini 时不可用。",
-        "updateFailed": "无法更新文字转语音流式模式。"
-      },
       "updateFailed": "无法更新文字转语音设置。"
-    },
-    "voiceClone": "语音克隆"
+    }
   }
 }

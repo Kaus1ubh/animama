@@ -85,6 +85,8 @@ services:
       - VITE_DISABLE_WEBUI_TELEMETRY=true
       - VITE_CLIENT_PARAKEET_MODEL_DIR=/app/parakeet-tdt-0.6b-v2
       - VITE_CLIENT_PARAKEET_WEBGPU_MODEL_DIR=/app/parakeet-tdt-0.6b-v2-webgpu
+      - VITE_CLIENT_SENSEVOICE_MODEL_DIR=/app/sensevoice-small
+      - VITE_CLIENT_SENSEVOICE_WEBGPU_MODEL_DIR=/app/sensevoice-small-webgpu
       - ANIMAMA_BROWSER_MODEL_DIR=/opt/animama/browser-models
     networks:
       - animama-network
@@ -140,6 +142,20 @@ services:
       - type: bind
         source: ${ANIMAMA_PARAKEET_WEBGPU_MODEL_DIR:-./models/parakeet-tdt-0.6b-v2-webgpu}
         target: /app/parakeet-tdt-0.6b-v2-webgpu
+        read_only: true
+        bind:
+          create_host_path: false
+      # Optional SenseVoice sets (multilingual speech-to-text), mounted like
+      # Parakeet's: without an acquired set, the checked-in notices directory.
+      - type: bind
+        source: ${ANIMAMA_SENSEVOICE_MODEL_DIR:-./models/sensevoice-small}
+        target: /app/sensevoice-small
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${ANIMAMA_SENSEVOICE_WEBGPU_MODEL_DIR:-./models/sensevoice-small-webgpu}
+        target: /app/sensevoice-small-webgpu
         read_only: true
         bind:
           create_host_path: false

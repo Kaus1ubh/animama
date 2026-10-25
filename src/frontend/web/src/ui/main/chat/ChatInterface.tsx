@@ -69,7 +69,12 @@ import {
 } from "@/ui/app/RuntimeFeatureGate";
 import { OfflineSpeechDownloads } from "@/ui/settings/OfflineSpeechDownloads";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
+import {
+  offlineSpeechAvailable,
+  routeOfflineSpeech,
+} from "@/lib/speech/offline-stt/routing";
 import { isWebSpeechSupported } from "@/lib/speech/stt-provider";
+import { joinSpeechText } from "@/lib/speech/speech-text";
 import { useSettings } from "@/ui/settings/SettingsProvider";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
@@ -173,12 +178,7 @@ type ChatInterfaceViewProps = {
 const USER_TYPING_INACTIVITY_TIMEOUT_MS = 3000;
 
 function combineDictationText(committed: string, interim: string): string {
-  const committedText = committed.trim();
-  const interimText = interim.trim();
-  if (committedText && interimText) {
-    return `${committedText} ${interimText}`;
-  }
-  return committedText || interimText;
+  return joinSpeechText(committed.trim(), interim.trim());
 }
 
 export function ChatInterfaceView({
@@ -233,7 +233,7 @@ export function ChatInterfaceView({
   safetySlot = null,
   crisisSlot = null,
 }: ChatInterfaceViewProps) {
-  const { t } = useTranslation("chat");
+  const { t, i18n } = useTranslation("chat");
   const panelRef = useRef<HTMLDivElement>(null);
   const inputRegionRef = useRef<HTMLDivElement>(null);
   const crisisCardRef = useRef<HTMLDivElement>(null);
@@ -253,8 +253,13 @@ export function ChatInterfaceView({
   const attachUnavailableReason =
     useRuntimeFeatureUnavailableReason("chat_file_uploads");
   const platform = useRuntimePlatform();
+  // Offline recognition counts only with the UI Locale's engine installed.
   const speechAvailable =
-    capabilities.data?.offline_speech_enabled === true ||
+    (capabilities.data !== undefined &&
+      offlineSpeechAvailable(
+        routeOfflineSpeech(i18n.resolvedLanguage),
+        capabilities.data,
+      )) ||
     isWebSpeechSupported(platform);
   // Operator-provided speech models cannot be installed from the composer.
   const operatorManagedModels = useOperatorManagedModelAssets();
@@ -479,7 +484,7 @@ export function ChatInterfaceView({
                   <p>{t("speech.installFromMainWindow")}</p>
                 ) : (
                   <div className="mt-2">
-                    <OfflineSpeechDownloads heading={false} />
+                    <OfflineSpeechDownloads heading={false} routedOnly />
                   </div>
                 )}
               </details>
@@ -687,8 +692,7 @@ export const ChatInterface = ({
         setInput(base);
         return;
       }
-      const spacer = base && !base.endsWith(" ") ? " " : "";
-      setInput(`${base}${spacer}${dictated}`);
+      setInput(joinSpeechText(base, dictated));
     },
     [setInput],
   );
@@ -708,11 +712,10 @@ export const ChatInterface = ({
     onSegment: (segment) => {
       const text = segment.text.trim();
       if (!text) return;
-      const next =
-        dictationCommittedRef.current.length > 0
-          ? `${dictationCommittedRef.current} ${text}`
-          : text;
-      applyDictationText(next, dictationInterimRef.current);
+      applyDictationText(
+        joinSpeechText(dictationCommittedRef.current, text),
+        dictationInterimRef.current,
+      );
     },
     onTranscriptPreview: (preview) => {
       const nextInterim = preview.interimText.trim();

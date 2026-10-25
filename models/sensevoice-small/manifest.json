@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "model_id": "sensevoice-small",
+  "license": "LicenseRef-FunASR-Model-License-1.1",
+  "files": [
+    {
+      "path": "ATTRIBUTION.md",
+      "size": 1215,
+      "sha256": "2ac532b11d31d5b2748e76e32239a211b0d0693938f632d1d2a45045e10bcf6c",
+      "source": {
+        "local": "ATTRIBUTION.md"
+      }
+    },
+    {
+      "path": "README.md",
+      "size": 992,
+      "sha256": "d9500c8bdc82ecc0aa2f6fa10a945dd76f87fc007b465785083a5e17d9395cb3",
+      "source": {
+        "local": "README.md"
+      }
+    },
+    {
+      "path": "metadata.json",
+      "size": 11610,
+      "sha256": "f2415e006bf0f6ec99c5eb3a74db15570adfe37012907a7273df7f6c110437d4",
+      "source": {
+        "local": "metadata.json"
+      }
+    },
+    {
+      "path": "model.int8.onnx",
+      "size": 239233841,
+      "sha256": "c71f0ce00bec95b07744e116345e33d8cbbe08cef896382cf907bf4b51a2cd51",
+      "source": {
+        "repository": "csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17",
+        "revision": "2365baeacb507f821a0c8120fcee3d484dba7a07",
+        "path": "model.int8.onnx"
+      }
+    },
+    {
+      "path": "tokens.txt",
+      "size": 315894,
+      "sha256": "f449eb28dc567533d7fa59be34e2abca8784f771850c78a47fb731a31429a1dc",
+      "source": {
+        "repository": "csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17",
+        "revision": "2365baeacb507f821a0c8120fcee3d484dba7a07",
+        "path": "tokens.txt"
+      }
+    }
+  ]
+}

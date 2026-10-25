@@ -35,9 +35,11 @@ Development serves those verified sources without a duplicate public payload
 tree. Production and embedded-desktop builds copy the exact inventory into
 `dist/onnx`; preview and the desktop audit verify the built inventory independently
 of the developer store. These required distribution copies remain local to the
-artifact and retain their notices. Parakeet is kept outside the web build:
-packaged desktop and built self-host download it as backend model assets. See [shared model setup](../../backend/operations/model-assets.md)
-for acquisition, platform-specific storage, offline reuse and cleanup.
+artifact and retain their notices. The offline speech-to-text sets (Parakeet
+and SenseVoice-Small) are kept outside the web build: packaged desktop and built
+self-host download them as backend model assets. See
+[shared model setup](../../backend/operations/model-assets.md) for acquisition,
+platform-specific storage, offline reuse and cleanup.
 
 Legacy operator-supplied catalogs at
 `/onnx/models/pocket-tts/animas/<safe-id>_voices.bin` remain separate optional
@@ -85,8 +87,11 @@ owning runtime module under `web/src/lib` or `web/src/hooks`.
 
 Dependencies imported only by a lazily requested worker must appear in Vite's
 `optimizeDeps.include` when first-use optimization would otherwise reload the
-page. Worker input remains bounded and is disposed with its preview or runtime
-session.
+page, as `opencc-js/cn2t` does for the SenseVoice worker's first `zh-Hant`
+transcription. The offline speech-to-text workers (`client-parakeet-worker.ts`,
+`client-sensevoice-worker.ts`) share `offline-stt-worker-runtime.ts`, which
+loads the app's bundled `onnxruntime-web` through Vite `?url` imports. Worker
+input remains bounded and is disposed with its preview or runtime session.
 
 Creator Save sends bounded files and an optional descriptor through the admitted
 API transport. Shared services perform authoritative hashing, type validation,

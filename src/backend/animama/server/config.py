@@ -77,7 +77,9 @@ class Settings(BaseModel):
     animama_document_pack_version: str | None = _env_text("ANIMAMA_DOCUMENT_PACK_VERSION")
     animama_docling_artifacts_path: Path | None = _env_path("ANIMAMA_DOCLING_ARTIFACTS_PATH")
     animama_parakeet_stt_enabled: bool = _env_bool("ANIMAMA_PARAKEET_STT_ENABLED", True)
-    # Where Parakeet sets come from: the backend model-asset store
+    animama_sensevoice_stt_enabled: bool = _env_bool("ANIMAMA_SENSEVOICE_STT_ENABLED", True)
+    # Where the speech-to-text sets (Parakeet and SenseVoice) come from: the
+    # backend model-asset store
     # ("asset-store", the default for packaged desktop, built self-host and
     # native launches), whose installs apply without a restart, or an
     # operator's host sets served by development Vite ("operator", set by the

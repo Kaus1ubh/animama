@@ -141,6 +141,9 @@ Local setup and host/key administration schemas remain in the server composition
   "offline_speech_enabled": false,
   "offline_speech_asset_version": null,
   "offline_speech_gpu_asset_version": null,
+  "offline_multilingual_speech_enabled": false,
+  "offline_multilingual_speech_asset_version": null,
+  "offline_multilingual_speech_gpu_asset_version": null,
   "companion_safety": {
     "enabled": true,
     "ai_notice_enabled": true,
@@ -169,7 +172,7 @@ local server package, so any composition can return the same contract; the local
 router is a thin adapter. `runtime_kind` is presentation metadata (`desktop`,
 `self_hosted_web` or `hosted`), not an authentication mode or a feature gate;
 the local composition never reports `hosted`. Capability schema version 2 is
-exported in `local-http` contract version 14.0.0. `chat`, `model_selection` and
+exported in `local-http` contract version 15.0.0. `chat`, `model_selection` and
 `model_role_selection` admit chat and choices from the composition's catalog,
 independently of provider administration. The local adapter reports them true.
 `provider_credentials` and `local_filesystem_administration` describe owner key
@@ -194,13 +197,18 @@ starting/stale. A disabled capability returns `409` with
 requests before repository lookup or enqueue. Original-file upload/finalization
 and existing indexed-file search still work. React checks fresh capability
 metadata before enqueue and before creating an offline speech worker. The
-asset versions (base and WebGPU Parakeet) are opaque cache keys, never paths or
-credentials. Offline speech values are computed on every request from the
-composition's `ANIMAMA_PARAKEET_SOURCE`: `asset-store` (the default)
-requires `ANIMAMA_PARAKEET_STT_ENABLED` and an installed `parakeet-stt` set,
-and reports installed manifest digests, so installs and removals apply without
-a restart; `operator` (development Compose, where Vite serves host sets)
-reports the flag and no versions.
+`offline_speech_*` fields describe Parakeet (English) and the
+`offline_multilingual_speech_*` fields SenseVoice-Small (Japanese, Korean and
+Chinese); the multilingual fields default to off, so adapters that omit them
+remain valid. The asset versions (base and WebGPU set of each engine) are
+opaque cache keys, never paths or credentials. Offline speech values are
+computed on every request from the composition's `ANIMAMA_PARAKEET_SOURCE`,
+which governs both engines: `asset-store` (the default) requires the engine's
+operator switch (`ANIMAMA_PARAKEET_STT_ENABLED` or
+`ANIMAMA_SENSEVOICE_STT_ENABLED`) and its installed base set (`parakeet-stt` or
+`sensevoice-stt`), and reports installed manifest digests, so installs and
+removals apply without a restart; `operator` (development Compose, where Vite
+serves host sets) reports the switch and no versions.
 `companion_safety` reports the operator's effective safety configuration
 (the global switch already applied); owner preferences live in user settings.
 `web_search.configuration` is true only in the local composition, which mounts
@@ -317,8 +325,9 @@ or returned to the browser. All routes use the admitted installation principal.
   file with the SHA-256 as `ETag`, `If-None-Match` and single byte ranges. It
   returns `404 {"detail": {"code": "model_asset_not_installed"}}` until
   installed. Sets have no content route; with `ANIMAMA_PARAKEET_SOURCE=asset-store`
-  the Parakeet sets are served at `/onnx/models/parakeet-tdt-0.6b-v2[-webgpu]/`
-  with `?v=<manifest digest>` pinning.
+  the speech-to-text sets are served at `/onnx/models/parakeet-tdt-0.6b-v2[-webgpu]/`
+  and `/onnx/models/sensevoice-small[-webgpu]/` with `?v=<manifest digest>`
+  pinning.
 
 Unknown IDs return `404 {"detail": {"code": "model_asset_not_found"}}`. Store
 location and recovery are in [model assets](../operations/model-assets.md#downloaded-model-assets).
@@ -1507,6 +1516,7 @@ covers the cache.
 
 ## Client-side speech
 
-Frontend and desktop speech flows use client-side Parakeet STT, MicVAD,
-smart-turn, Pocket TTS, ElevenLabs TTS and Gemini TTS. The local API does not
+Frontend and desktop speech flows use client-side offline STT (Parakeet and
+SenseVoice-Small), MicVAD, smart-turn, Pocket TTS, ElevenLabs TTS and Gemini
+TTS. The local API does not
 mount STT or LiveKit session routes.

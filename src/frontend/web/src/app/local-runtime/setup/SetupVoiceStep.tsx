@@ -1,42 +1,40 @@
-import { useId, useMemo, type Ref } from "react";
+import { useId, useMemo, type ComponentProps, type Ref } from "react";
 import { Trans, useTranslation } from "react-i18next";
 
 import type { SetupTtsProvider } from "@/app/local-runtime/setup-draft";
 import { getTtsProviderOptions } from "@/lib/speech/tts-provider";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-  underlineTabClassName,
-} from "@/ui/components/tabs";
+import { Tabs, TabsContent } from "@/ui/components/tabs";
+import { ChoiceTabsList } from "@/ui/settings/choice-tabs/ChoiceTabsList";
 import {
   DesktopCredentialsPanel,
   type DesktopCredentialsController,
 } from "@/ui/settings/DesktopCredentialsPanel";
 import { SpeechLanguageNotice } from "@/ui/settings/SpeechLanguageNotice";
 
-import { ModelLink } from "./ModelLink";
-import { SetupSpeechDownloads } from "./SetupSpeechDownloads";
+import { ModelLink } from "@/ui/components/model-link";
+import { SetupSpeechChoice } from "./SetupSpeechChoice";
 import { setupTtsOptions } from "./setup-state";
 
 /** Kyutai's public Pocket TTS repository, linked from the built-in voices tab. */
 const POCKET_TTS_SOURCE = "https://github.com/kyutai-labs/pocket-tts";
 
 /**
- * Setup's Voice step: Speech-to-Text downloads (they install in place and
- * keep running after setup) and the default Text-to-Speech provider, each as
- * tabs. Text-to-Speech is on by default; the ElevenLabs tab takes its key on
- * desktop. The provider is saved at Finish.
+ * Setup's Voice step: the Speech-to-Text choice (offline models, whose
+ * downloads install in place and keep running after setup, and on the web the
+ * browser recognizers) and the default Text-to-Speech provider, each as tabs.
+ * Text-to-Speech is on by default; the ElevenLabs tab takes its key on
+ * desktop. Both choices are saved at Finish.
  */
 export function SetupVoiceStep({
+  stt,
   provider,
   onProviderChange,
   credentialsController,
   onKeyPendingChange,
   onKeyBusyChange,
 }: {
+  stt: ComponentProps<typeof SetupSpeechChoice>;
   provider: SetupTtsProvider;
   onProviderChange: (provider: SetupTtsProvider) => void;
   credentialsController: Ref<DesktopCredentialsController>;
@@ -57,9 +55,7 @@ export function SetupVoiceStep({
         <h2 id={`${id}-stt`} className="text-base font-semibold">
           {t("voice.stt.heading")}
         </h2>
-        {/* Setup downloads only Parakeet. */}
-        <SpeechLanguageNotice direction="speechToText" provider="parakeet" />
-        <SetupSpeechDownloads />
+        <SetupSpeechChoice {...stt} />
       </section>
       <section aria-labelledby={`${id}-tts`} className="space-y-3">
         <h2 id={`${id}-tts`} className="text-base font-semibold">
@@ -69,25 +65,17 @@ export function SetupVoiceStep({
           value={provider}
           onValueChange={(value) => onProviderChange(value as SetupTtsProvider)}
         >
-          <TabsList
-            variant="underline"
-            aria-label={t("voice.tts.providers")}
-            className="w-fit max-w-full"
-          >
-            {options.map((option) => (
-              <TabsTrigger
-                key={option.id}
-                value={option.id}
-                variant="underline"
-                // A provider this device cannot run is not offered.
-                disabled={option.disabled}
-                title={option.disabled ? option.reason : undefined}
-                className={underlineTabClassName(provider === option.id)}
-              >
-                {option.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
+          <ChoiceTabsList
+            tabs={options.map((option) => ({
+              id: option.id,
+              label: option.label,
+              // A provider this device cannot run is not offered.
+              disabled: option.disabled,
+              reason: option.reason,
+            }))}
+            active={provider}
+            label={t("voice.tts.providers")}
+          />
           {/* A disabled tab cannot take focus, so its reason is shown here. */}
           {options
             .filter((option) => option.disabled && option.reason)

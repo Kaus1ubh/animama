@@ -116,12 +116,17 @@ def release() -> Release:
 
 
 REPOSITORY = Path(__file__).resolve().parents[1]
-# Each Parakeet set is exactly its tracked manifest, published content-addressed.
-PARAKEET_SETS = {"parakeet-stt": "parakeet-tdt-0.6b-v2", "parakeet-stt-webgpu": "parakeet-tdt-0.6b-v2-webgpu"}
+# Each speech-to-text set is exactly its tracked manifest, published content-addressed.
+SPEECH_SETS = {
+    "parakeet-stt": "parakeet-tdt-0.6b-v2",
+    "parakeet-stt-webgpu": "parakeet-tdt-0.6b-v2-webgpu",
+    "sensevoice-stt": "sensevoice-small",
+    "sensevoice-stt-webgpu": "sensevoice-small-webgpu",
+}
 
 
-@pytest.mark.parametrize(("asset_id", "model_id"), sorted(PARAKEET_SETS.items()))
-def test_packaged_parakeet_sets_equal_their_tracked_manifests(asset_id: str, model_id: str) -> None:
+@pytest.mark.parametrize(("asset_id", "model_id"), sorted(SPEECH_SETS.items()))
+def test_packaged_speech_sets_equal_their_tracked_manifests(asset_id: str, model_id: str) -> None:
     manifest_path = REPOSITORY / "models" / model_id / "manifest.json"
     manifest = json.loads(manifest_path.read_bytes())
 
@@ -154,6 +159,9 @@ def test_packaged_catalog_orders_parakeet_sets_and_drops_the_old_encoder() -> No
     assert gpu is not None and gpu.requires == ("parakeet-stt",)
     assert base is not None and base.requires == ()
     assert [asset.id for asset in catalog.required_by("parakeet-stt")] == ["parakeet-stt-webgpu"]
+    sensevoice_gpu = catalog.get("sensevoice-stt-webgpu")
+    assert sensevoice_gpu is not None and sensevoice_gpu.requires == ("sensevoice-stt",)
+    assert [asset.id for asset in catalog.required_by("sensevoice-stt")] == ["sensevoice-stt-webgpu"]
 
 
 def _set_entry(asset_id: str = "speech-set", **overrides: object) -> dict[str, object]:

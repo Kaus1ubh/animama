@@ -63,6 +63,8 @@ def acquire_release_inputs(*, root: Path, work: Path, import_voices: Path | None
         ("parakeet_webgpu", ()),
         ("browser_speech", ()),
         ("pocket_cloning", ("--source", "upstream")),
+        ("sensevoice", ("--source", "upstream")),
+        ("sensevoice_webgpu", ()),
     ):
         run(sys.executable, f"scripts/models/{script}.py", "acquire", *arguments)
     if import_voices is None:

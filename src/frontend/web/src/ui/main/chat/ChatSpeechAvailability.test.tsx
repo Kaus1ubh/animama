@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
+import { getI18n } from "react-i18next";
 import { renderToStaticMarkup } from "@/test/runtime-markup";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ChatInterfaceView } from "@/ui/main/chat/ChatInterface";
 
@@ -44,7 +45,9 @@ vi.mock("@/ui/components/chat-input", () => ({
   ChatInputTextArea: () => null,
 }));
 vi.mock("@/ui/settings/OfflineSpeechDownloads", () => ({
-  OfflineSpeechDownloads: () => <div>Speech model state</div>,
+  OfflineSpeechDownloads: ({ routedOnly }: { routedOnly?: boolean }) => (
+    <div>Speech model state{routedOnly ? " (routed)" : ""}</div>
+  ),
 }));
 
 function render() {
@@ -77,6 +80,9 @@ describe("unavailable speech recognition in the composer", () => {
   beforeEach(() => {
     fixture.capabilities = {};
   });
+  afterEach(async () => {
+    await getI18n().changeLanguage("en");
+  });
 
   it("offers the offline speech download where the owner administers models", () => {
     fixture.capabilities = {
@@ -87,7 +93,20 @@ describe("unavailable speech recognition in the composer", () => {
     expect(html).toContain(
       "Install offline speech recognition to use dictation and Voice Mode",
     );
-    expect(html).toContain("Speech model state");
+    expect(html).toContain("Speech model state (routed)");
+  });
+
+  it("follows the UI Locale's offline engine", async () => {
+    fixture.capabilities = {
+      offline_speech_enabled: true,
+      offline_multilingual_speech_enabled: false,
+      local_filesystem_administration: true,
+    };
+    expect(render()).not.toContain("Speech model state");
+    await getI18n().changeLanguage("ja");
+    expect(render()).toContain("Speech model state (routed)");
+    fixture.capabilities.offline_multilingual_speech_enabled = true;
+    expect(render()).not.toContain("Speech model state");
   });
 
   it("says offline speech is not available where the operator provides models", () => {

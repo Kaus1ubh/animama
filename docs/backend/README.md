@@ -52,7 +52,7 @@ rendering, and client-side speech recognition.
   fencing.
 - [Voice and speech](integrations/voice-and-speech.md): ElevenLabs and Gemini
   TTS, voice storage, and the client-side speech-processing boundary.
-- [Shared model setup](operations/model-assets.md): verified Parakeet acquisition,
+- [Shared model setup](operations/model-assets.md): verified speech model acquisition,
   worktree reuse, persistent self-host storage and explicit recovery.
 - [Local model servers](operations/local-models.md): Ollama, LM Studio,
   llama.cpp and vLLM setup, context windows, Compose host access and connection

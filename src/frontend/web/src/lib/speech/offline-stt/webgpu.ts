@@ -1,15 +1,15 @@
 /**
- * Experimental WebGPU backend selection for client Parakeet.
+ * Experimental WebGPU backend selection for the offline speech engines.
  *
- * WebGPU runs the optional FP16 encoder on the GPU (the INT8 encoder cannot run
- * there) and keeps the INT8 decoder on WASM. It is used only when the owner's
- * experimental setting is on, the device exposes a WebGPU adapter, and the
- * current build serves the optional encoder; otherwise the WASM backend is used.
+ * WebGPU runs a file from the engine's optional GPU set (the CPU set's INT8
+ * graphs cannot run there). It is used only when the owner's experimental
+ * setting is on, the device exposes a WebGPU adapter, and the current build
+ * serves the GPU set; otherwise the WASM backend is used.
  */
-import type { ClientParakeetBackend } from "./worker-protocol";
+import type { OfflineSttBackend } from "./worker-protocol";
 
-export type ParakeetWebgpuStatus =
-  /** An adapter exists and the FP16 encoder is served. */
+export type WebgpuModelStatus =
+  /** An adapter exists and the GPU set's model file is served. */
   | "available"
   /** No `navigator.gpu` or no adapter on this device/browser. */
   | "unsupported"
@@ -19,8 +19,8 @@ export type ParakeetWebgpuStatus =
    */
   | "model_missing";
 
-export type ParakeetBackendReason =
-  | ParakeetWebgpuStatus
+export type SpeechBackendReason =
+  | WebgpuModelStatus
   | "setting_off"
   /** WebGPU passed the probe but failed to load in the worker this page. */
   | "load_failed";
@@ -29,15 +29,15 @@ type GpuLike = {
   requestAdapter: () => Promise<unknown>;
 };
 
-export async function probeParakeetWebgpu({
-  encoderUrl,
+export async function probeWebgpuModel({
+  modelUrl,
   gpu,
   fetch,
 }: {
-  encoderUrl: string;
+  modelUrl: string;
   gpu: GpuLike | undefined;
   fetch: (url: string, init: RequestInit) => Promise<Response>;
-}): Promise<ParakeetWebgpuStatus> {
+}): Promise<WebgpuModelStatus> {
   if (!gpu) return "unsupported";
   try {
     if (!(await gpu.requestAdapter())) return "unsupported";
@@ -45,7 +45,7 @@ export async function probeParakeetWebgpu({
     return "unsupported";
   }
   try {
-    const response = await fetch(encoderUrl, { method: "HEAD" });
+    const response = await fetch(modelUrl, { method: "HEAD" });
     return response.ok ? "available" : "model_missing";
   } catch {
     return "model_missing";
@@ -53,17 +53,18 @@ export async function probeParakeetWebgpu({
 }
 
 /**
- * Swap in the GPU encoder for a WebGPU load. It belongs to the separate GPU
- * set, so the caller pins it with that set's own `?v=` version, never the base
- * set's.
+ * Swap in the GPU set's file for the `key` role on a WebGPU load. It belongs to
+ * the separate GPU set, so the caller pins it with that set's own `?v=`
+ * version, never the base set's.
  */
-export function withBackendEncoder<T extends { encoderUrl: string }>(
+export function withWebgpuModel<T extends Record<string, string>>(
   urls: T,
-  backend: ClientParakeetBackend,
-  webgpuEncoderUrl: string | null,
+  key: keyof T,
+  backend: OfflineSttBackend,
+  webgpuModelUrl: string | null,
 ): T {
-  return backend === "webgpu" && webgpuEncoderUrl
-    ? { ...urls, encoderUrl: webgpuEncoderUrl }
+  return backend === "webgpu" && webgpuModelUrl
+    ? { ...urls, [key]: webgpuModelUrl }
     : urls;
 }
 
@@ -72,11 +73,11 @@ export function withBackendEncoder<T extends { encoderUrl: string }>(
  * install the GPU set without a reload, so the next caller probes again (one
  * same-origin `HEAD`). `refresh` always probes again.
  */
-export function cacheParakeetWebgpuProbe(
-  probe: () => Promise<ParakeetWebgpuStatus>,
-): (refresh?: boolean) => Promise<ParakeetWebgpuStatus> {
-  let cached: Promise<ParakeetWebgpuStatus> | null = null;
-  let settled: ParakeetWebgpuStatus | null = null;
+export function cacheWebgpuProbe(
+  probe: () => Promise<WebgpuModelStatus>,
+): (refresh?: boolean) => Promise<WebgpuModelStatus> {
+  let cached: Promise<WebgpuModelStatus> | null = null;
+  let settled: WebgpuModelStatus | null = null;
   return (refresh = false) => {
     if (!cached || refresh || settled === "model_missing") {
       const current = probe();
@@ -91,13 +92,13 @@ export function cacheParakeetWebgpuProbe(
   };
 }
 
-export function resolveParakeetBackend({
+export function resolveSpeechBackend({
   preferWebgpu,
   status,
 }: {
   preferWebgpu: boolean;
-  status: ParakeetWebgpuStatus;
-}): { backend: ClientParakeetBackend; reason: ParakeetBackendReason } {
+  status: WebgpuModelStatus;
+}): { backend: OfflineSttBackend; reason: SpeechBackendReason } {
   if (!preferWebgpu) return { backend: "wasm", reason: "setting_off" };
   return status === "available"
     ? { backend: "webgpu", reason: status }

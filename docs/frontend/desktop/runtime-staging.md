@@ -22,7 +22,7 @@ repository root:
 python3 scripts/models/browser_speech.py acquire
 ```
 
-Parakeet is not a staging input (see
+Speech-to-text sets are not staging inputs (see
 [release model inputs](#release-model-inputs)). Then run from `src/frontend`:
 
 ```sh
@@ -234,12 +234,15 @@ defaults.
 
 ## Release model inputs
 
-The packaged app downloads Parakeet, the optional Pocket voices and the cloning
-encoder at runtime as backend model assets; none is a staging input or pack.
+The packaged app downloads the speech-to-text sets (Parakeet and SenseVoice),
+the optional Pocket voices and the cloning encoder at runtime as backend model
+assets; none is a staging input or pack.
 `desktop:dist:mac` copies each set named by the frozen backend catalog from the
 verified model store into publication candidates, so a signed release needs those
-sets acquired first (for example `python3 scripts/models/parakeet.py acquire`
-and `python3 scripts/models/parakeet_webgpu.py acquire`, or an import through the
+sets acquired first (for example `python3 scripts/models/parakeet.py acquire`,
+`python3 scripts/models/parakeet_webgpu.py acquire`,
+`python3 scripts/models/sensevoice.py acquire --source upstream` and
+`python3 scripts/models/sensevoice_webgpu.py acquire`, or an import through the
 [model-store workflow](../../backend/operations/model-assets.md)). Set the
 absolute `ANIMAMA_MODEL_ROOT` only when selecting a different store. Each set is
 checked against its tracked manifest; nothing queries Hugging Face or infers

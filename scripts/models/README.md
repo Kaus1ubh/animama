@@ -39,8 +39,9 @@ repositories, moving revisions or inventory paths.
 
 Each ordinary base download uses
 `https://downloads.animama.ai/models/parakeet-tdt-0.6b-v2/<sha256>/<filename>`,
-including both notices. These are the same verified raw objects desktop packs
-use. A missing object fails without falling back to another source.
+including both notices. The app's in-app speech downloads use the same
+verified raw objects. A missing object fails without falling back to another
+source.
 
 Build/release maintainers can explicitly acquire the original pinned upstream
 weights and checked-in notices before the first model publication:
@@ -91,9 +92,9 @@ automatic retries hide repeated failures. Interrupted/failed transfers restart
 rather than attempting unvalidated byte-range resume. Serving and ordinary
 startup never download or choose a different model version.
 
-The installed desktop application continues using its own verified feature-pack
-storage and distribution workflow. The developer store is a build/setup input,
-not an installed application's persistent pack directory.
+Packaged desktop and built self-host download speech-to-text sets through their
+own backend model-asset service into the application's data root. The developer
+store is a build/setup input, not the installed application's model store.
 
 Native Windows model-store tests can be run with
 `uv run --no-project --with pytest==8.4.2 python -m pytest --noconftest -o addopts= tests/test_model_store.py -q`.
@@ -111,6 +112,26 @@ from the pinned `ysdede/parakeet-tdt-0.6b-v2-onnx` revision and verifies a
 three-file inventory (encoder, README and attribution) under
 `<store>/parakeet-tdt-0.6b-v2-webgpu/<manifest-digest>`. The base Parakeet set
 remains required.
+
+## SenseVoice multilingual sets
+
+`python3 scripts/models/sensevoice.py acquire|verify|path` manages the
+SenseVoice-Small set that transcribes Japanese, Korean, Mandarin (Simplified and
+Traditional) and Cantonese offline on the CPU: the INT8 graph, its token table,
+`metadata.json` (the graph's front-end parameters, which the browser runtime
+cannot read from ONNX) and the two notices, about 240 MB under
+`<store>/sensevoice-small/<manifest-digest>`. It uses the same store, acquire
+options (`--root`, `--offline`, `--import-from`, `--source`) and exit codes as
+`parakeet.py`. Until Animama publishes its objects, acquire with
+`--source upstream`, which downloads the pinned
+`csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17` revision.
+
+`python3 scripts/models/sensevoice_webgpu.py acquire|verify|path` manages the
+optional FP32 graph (about 940 MB) used on WebGPU, where the INT8 graph's
+quantized operators have no kernels. It acquires from the same pinned upstream
+revision and requires the base SenseVoice set. Both sets are licensed under the
+FunASR Model License 1.1, which requires attributing the source and author and
+keeping the model name.
 
 ## Browser core and optional cloning
 
@@ -137,7 +158,7 @@ python3 scripts/models/release_inputs.py \
   --work-dir /absolute/voice-producer-work
 ```
 
-This acquires pinned base Parakeet, GPU, browser core and cloning inputs; fetches
+This acquires pinned base Parakeet, GPU, SenseVoice, browser core and cloning inputs; fetches
 the reviewed voice sources; and encodes only the 24 selected VCTK sources with
 the locked script environment. It requires the existing encoded hashes, never
 uses `--rehash`, rejects changes to generated tracked inventories, then imports

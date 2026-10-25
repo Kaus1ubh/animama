@@ -10,6 +10,7 @@ import {
   type SetupDraft,
   type SetupModelLocation,
   type SetupStep,
+  type SetupSttChoice,
   type SetupTtsProvider,
 } from "@/app/local-runtime/setup-draft";
 import {
@@ -21,6 +22,8 @@ import {
 } from "@/lib/chat/model-catalog";
 import type { SpeechPreferences } from "@/lib/settings/preferences";
 import type { TtsProviderOption } from "@/lib/speech/tts-provider";
+import type { OfflineSttEngine } from "@/lib/speech/offline-stt/routing";
+import { recommendedSttChoice } from "@/lib/speech/stt-choices";
 import {
   connectionLocation,
   roleCandidates,
@@ -290,4 +293,30 @@ export function setupTtsOptions(
       reason: elevenlabs?.reason,
     },
   ];
+}
+
+/**
+ * The selected Speech-to-Text choice: the owner's pick in this setup, else the
+ * saved preference (an offline one shown as the UI Locale's model, either
+ * browser recognizer as the browser), else the recommended one.
+ */
+export function resolveSetupSttChoice(
+  draft: Pick<SetupDraft, "sttChoice">,
+  saved: SpeechPreferences | null | undefined,
+  engine: OfflineSttEngine,
+  choices: readonly SetupSttChoice[],
+): SetupSttChoice {
+  if (draft.sttChoice && choices.includes(draft.sttChoice))
+    return draft.sttChoice;
+  const provider = saved?.stt_provider;
+  if (provider === "parakeet")
+    return saved?.stt_parakeet_webgpu === true
+      ? `${engine}_gpu`
+      : `${engine}_cpu`;
+  if (
+    (provider === "browser_external" || provider === "browser_local") &&
+    choices.includes("browser_external")
+  )
+    return "browser_external";
+  return recommendedSttChoice(engine, choices);
 }

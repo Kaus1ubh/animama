@@ -39,6 +39,7 @@ PERMISSIONS = (
 )
 RUNTIME_STATE = (
     "offline_speech_enabled",
+    "offline_multilingual_speech_enabled",
     "companion_safety.enabled",
     "companion_safety.ai_notice_enabled",
     "companion_safety.crisis_detection_enabled",

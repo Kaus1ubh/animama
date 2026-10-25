@@ -1,4 +1,4 @@
-"""Parakeet mounts resolved per request from the model-asset store or operator launch input (ADR 0012)."""
+"""Speech-to-text mounts resolved per request from the model-asset store or operator launch input (ADR 0012)."""
 
 from __future__ import annotations
 
@@ -13,11 +13,20 @@ from starlette.requests import Request
 from animama.adapters.model_assets import FilesystemModelAssetStore
 from animama.app.services.model_asset_service import ModelAssetService
 from animama.domain.model_assets import ASSET_CATALOG_SCHEMA, parse_asset_catalog
-from animama.local.http.assets import PARAKEET_MOUNT, PARAKEET_WEBGPU_MOUNT, LocalAssets
+from animama.local.http.assets import (
+    PARAKEET_MOUNT,
+    PARAKEET_WEBGPU_MOUNT,
+    SENSEVOICE_MOUNT,
+    SENSEVOICE_WEBGPU_MOUNT,
+    LocalAssets,
+)
 from animama.server.config import Settings
 from animama.server.local_http import local_assets
-from animama.server.model_assets import AssetStoreModelMounts, parakeet_availability
+from animama.server.model_assets import AssetStoreModelMounts, parakeet_availability, sensevoice_availability
 from tests.test_model_asset_sets import FILES, GPU_FILES, GPU_MANIFEST, MANIFEST, SetRelease, _set_entry
+
+SENSEVOICE_MANIFEST = "3" * 64
+SENSEVOICE_GPU_MANIFEST = "4" * 64
 
 
 @pytest.fixture(autouse=True)
@@ -44,6 +53,14 @@ def service(tmp_path: Path) -> ModelAssetService:
                 _set_entry("parakeet-stt", "speech-model", FILES, MANIFEST),
                 _set_entry(
                     "parakeet-stt-webgpu", "speech-gpu-model", GPU_FILES, GPU_MANIFEST, requires=["parakeet-stt"]
+                ),
+                _set_entry("sensevoice-stt", "speech-model", FILES, SENSEVOICE_MANIFEST),
+                _set_entry(
+                    "sensevoice-stt-webgpu",
+                    "speech-gpu-model",
+                    GPU_FILES,
+                    SENSEVOICE_GPU_MANIFEST,
+                    requires=["sensevoice-stt"],
                 ),
             ],
         }
@@ -156,6 +173,34 @@ async def test_asset_store_source_serves_installed_sets(
         assert (await client.get(PARAKEET_MOUNT + "model.onnx")).status_code == 404
         await _install(service, "parakeet-stt")
         assert (await client.get(f"{PARAKEET_MOUNT}model.onnx?v={MANIFEST}")).content == FILES["model.onnx"]
+
+
+async def test_asset_store_serves_sensevoice_sets_at_their_own_mounts(
+    tmp_path: Path, web_root: Path, service: ModelAssetService
+) -> None:
+    settings = _settings(tmp_path, animama_parakeet_source="asset-store")
+    application = _application(service)
+    assets = local_assets(settings, application)
+    assert assets is not None
+    model = SENSEVOICE_MOUNT + "model.onnx"
+    graph = SENSEVOICE_WEBGPU_MOUNT + "encoder.onnx"
+    async with _client(assets) as client:
+        assert sensevoice_availability(application, settings).enabled is False
+        await _install(service, "sensevoice-stt")
+        assert (await client.get(f"{model}?v={SENSEVOICE_MANIFEST}")).content == FILES["model.onnx"]
+        # Each engine's sets stay separate: Parakeet is still not installed.
+        assert (await client.get(PARAKEET_MOUNT + "model.onnx")).status_code == 404
+        assert parakeet_availability(application, settings).enabled is False
+        await _install(service, "sensevoice-stt-webgpu")
+        assert (await client.head(f"{graph}?v={SENSEVOICE_GPU_MANIFEST}")).status_code == 200
+        availability = sensevoice_availability(application, settings)
+        assert (availability.enabled, availability.asset_version, availability.gpu_asset_version) == (
+            True,
+            SENSEVOICE_MANIFEST,
+            SENSEVOICE_GPU_MANIFEST,
+        )
+        disabled = _settings(tmp_path, animama_parakeet_source="asset-store", animama_sensevoice_stt_enabled=False)
+        assert sensevoice_availability(application, disabled).enabled is False
 
 
 def test_parakeet_source_accepts_only_known_values(tmp_path: Path) -> None:

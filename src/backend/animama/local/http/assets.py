@@ -1,7 +1,8 @@
-"""Built React assets and the installation's verified optional Parakeet mounts.
+"""Built React assets and the installation's verified optional speech-to-text mounts.
 
-Parakeet mounts come from a ``ModelMountSource`` consulted on every request, so
-a composition can activate or remove a model set without a new responder.
+Speech-to-text mounts (Parakeet and SenseVoice) come from a
+``ModelMountSource`` consulted on every request, so a composition can activate
+or remove a model set without a new responder.
 
 This responder registers no routes and supplies no browser admission policy.
 The local composition calls it only after admission and product routes. Its
@@ -32,7 +33,10 @@ from animama.utils.files import WINDOWS, final_path, is_directory, open_no_follo
 PARAKEET_MOUNT = "/onnx/models/parakeet-tdt-0.6b-v2/"
 # The optional FP16 encoder set; it is served only while its source supplies it.
 PARAKEET_WEBGPU_MOUNT = "/onnx/models/parakeet-tdt-0.6b-v2-webgpu/"
-MODEL_MOUNT_PATHS = (PARAKEET_MOUNT, PARAKEET_WEBGPU_MOUNT)
+# SenseVoice-Small (multilingual speech-to-text) and its optional WebGPU graph.
+SENSEVOICE_MOUNT = "/onnx/models/sensevoice-small/"
+SENSEVOICE_WEBGPU_MOUNT = "/onnx/models/sensevoice-small-webgpu/"
+MODEL_MOUNT_PATHS = (PARAKEET_MOUNT, PARAKEET_WEBGPU_MOUNT, SENSEVOICE_MOUNT, SENSEVOICE_WEBGPU_MOUNT)
 IMMUTABLE_APP_ASSET_CACHE = "public, max-age=31536000, immutable"
 # Written by the web build beside Vite's manifest; hidden names are never served.
 BROWSER_RUNTIME_RECORD = ".vite/browser-runtime.json"
@@ -105,7 +109,7 @@ class ModelFile:
 
 @dataclass(frozen=True)
 class ModelMount:
-    """An immutable installed Parakeet set: its version and exact inventory.
+    """An immutable installed speech-to-text set: its version and exact inventory.
 
     The backend model-asset store verifies digests before activation; the
     version is the set's manifest digest. Requests recheck file identity,

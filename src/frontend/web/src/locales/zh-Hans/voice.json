@@ -1,6 +1,5 @@
 {
   "cloning": {
-    "attribution": "模型署名",
     "changeFailed": "语音克隆模型的更改未完成。请稍后重试。",
     "checking": "正在检查语音克隆…",
     "description": "用你自己的样本创建具名语音。",
@@ -33,7 +32,8 @@
     "errors": {
       "notReady": "安装尚未就绪。请重新打开后重试。",
       "statusUnavailable": "无法获取下载状态。请重新打开后重试。"
-    }
+    },
+    "remove": "移除"
   },
   "microphone": {
     "device": {
@@ -99,7 +99,6 @@
       "unknown": "下载未完成。准备好后请重试。"
     },
     "gpu": {
-      "attribution": "模型署名（CC BY 4.0）",
       "blocked": {
         "checking": "正在检查 WebGPU 支持…",
         "missing": "此版本中不提供 GPU 加速。",
@@ -120,8 +119,20 @@
       "changeFailed": "更改未能完成。请稍后重试。",
       "inUse": "语音识别正在使用中。请关闭听写和语音模式后再移除。"
     },
-    "title": "离线语音识别（Parakeet）",
-    "turnedOff": "此服务器已关闭离线语音识别。"
+    "title": "离线语音识别",
+    "turnedOff": "此服务器已关闭离线语音识别。",
+    "engines": {
+      "parakeet": {
+        "languages": "英语",
+        "model": "NVIDIA 的 Parakeet TDT 0.6B v2",
+        "attribution": "模型署名（CC BY 4.0）"
+      },
+      "sensevoice": {
+        "languages": "日语、韩语和中文",
+        "model": "阿里巴巴的 SenseVoice-Small",
+        "attribution": "模型署名（FunASR Model License）"
+      }
+    }
   },
   "pocket": {
     "accents": {
@@ -176,7 +187,7 @@
     "stt": {
       "browserDesktopUnavailable": "桌面应用中无法使用浏览器 STT。",
       "browserExternal": {
-        "description": "由供应商管理处理过程的浏览器语音识别。",
+        "description": "通过 Web Speech API 进行的浏览器语音识别。",
         "label": "浏览器（外部）",
         "unsupported": "此浏览器不支持 Web Speech API。"
       },
@@ -186,14 +197,25 @@
         "unsupported": "此浏览器不支持仅限本地的 Web Speech 识别。"
       },
       "parakeet": {
-        "cpuLabel": "Parakeet（CPU）",
-        "descriptionBrowser": "在此浏览器中运行的本地 ONNX 语音识别。",
-        "descriptionDesktop": "在桌面应用中运行的本地 ONNX 语音识别。",
+        "cpuLabel": "{{model}}（CPU）",
+        "descriptionBrowser": "按应用语言，在此浏览器中用 {{model}} 识别语音。",
+        "descriptionDesktop": "按应用语言，在此设备上用 {{model}} 识别语音。",
         "notInstalled": "请安装离线语音识别，以使用听写和语音模式。",
-        "unavailableBrowser": "本地 Parakeet 目前在此浏览器中不可用。",
-        "webgpuDescription": "在 GPU 上运行的实验性本地语音识别，提供实时预览。不可用时回退到 CPU。",
-        "webgpuLabel": "Parakeet（WebGPU · 实验性）"
-      }
+        "unavailableBrowser": "此浏览器当前无法使用离线语音识别。",
+        "webgpuDescription": "在 GPU 上用 {{model}} 运行的实验性本地语音识别，提供实时预览。不可用时回退到 CPU。",
+        "webgpuLabel": "{{model}}（WebGPU · 实验性）"
+      },
+      "browserLabel": "浏览器（内置）",
+      "enginesLabel": "语音识别引擎",
+      "variantsLabel": "{{engine}} 版本",
+      "recommended": "推荐",
+      "variants": {
+        "cpu": "CPU",
+        "gpu": "GPU",
+        "cpuWithSize": "CPU（{{size}}）",
+        "gpuWithSize": "GPU（{{size}}）"
+      },
+      "browserLanguages": "<link>支持大多数语言。</link>"
     },
     "tts": {
       "audioWorkletUnsupported": "此浏览器不支持 AudioWorklet。",
@@ -216,8 +238,10 @@
       "workersUnsupported": "此浏览器不支持 Web Workers。",
       "gemini": {
         "description": "从服务器流式传输的 Gemini 语音。"
-      }
-    }
+      },
+      "pocketBuiltIn": "PocketTTS（内置）"
+    },
+    "selected": "已选择"
   },
   "gemini": {
     "descriptors": {
@@ -246,7 +270,8 @@
     }
   },
   "languageNotice": {
-    "speechToText": "Parakeet 仅能识别英语。{{language}}语音识别即将推出。",
-    "textToSpeech": "Pocket TTS 仅支持英语。要让 Anima 用{{language}}说话，请选择 ElevenLabs 或 Gemini。"
+    "speechToText": "要以{{language}}使用离线语音识别，请下载对应的模型。",
+    "textToSpeech": "Pocket TTS 仅支持英语。要让 Anima 用{{language}}说话，请选择 ElevenLabs 或 Gemini。",
+    "speechToTextUnavailable": "此服务器不提供{{language}}的离线语音识别。"
   }
 }

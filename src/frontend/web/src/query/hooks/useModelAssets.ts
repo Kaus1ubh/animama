@@ -70,8 +70,8 @@ export function useModelAssets({ enabled = true }: { enabled?: boolean } = {}) {
         ? DOWNLOAD_POLL_MS
         : false,
   });
-  // Offline speech capabilities follow installed Parakeet sets without a
-  // restart; refresh them when an install or removal settles.
+  // Offline speech capabilities follow the installed Parakeet and SenseVoice
+  // sets without a restart; refresh them when an install or removal settles.
   const speechSets = installedSpeechSets(query.data?.assets);
   const observedSpeechSets = useRef(speechSets);
   useEffect(() => {

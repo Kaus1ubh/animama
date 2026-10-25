@@ -4,6 +4,14 @@ import { getI18n } from "react-i18next";
 
 import type { SttProviderPreference } from "@/lib/settings/preferences";
 import {
+  offlineLanguageMissing,
+  offlineSpeechAvailable,
+  routeOfflineSpeech,
+  type OfflineSpeechCapabilities,
+  type OfflineSpeechRoute,
+  type OfflineSttEngine,
+} from "@/lib/speech/offline-stt/routing";
+import {
   getRuntimePlatformSnapshot,
   type RuntimePlatform,
 } from "@/platform/runtime-platform";
@@ -141,26 +149,49 @@ export function isSttProviderSupported(
   return supportsLocalWebSpeechStrict(platform);
 }
 
+/** An offline engine's short name for choice labels ("SenseVoice (CPU)"). */
+export function offlineSttShortName(engine: OfflineSttEngine): string {
+  return engine === "parakeet" ? "Parakeet" : "SenseVoice";
+}
+
+/** The model an offline engine runs, as Settings names it. */
+export function offlineSttModelName(engine: OfflineSttEngine): string {
+  const t = getI18n().getFixedT(null, "voice");
+  return engine === "parakeet"
+    ? t("offlineSpeech.engines.parakeet.model")
+    : t("offlineSpeech.engines.sensevoice.model");
+}
+
+/**
+ * The provider choices on this platform. The offline choice (`parakeet`) is
+ * served by `engine`, the UI Locale's offline engine, and `parakeetAvailable`
+ * reports that engine's sets. A missing SenseVoice set has no reason here:
+ * `SpeechLanguageNotice` asks for its download.
+ */
 export function getSttProviderOptions(
   parakeetAvailable: boolean | null = null,
   platform: RuntimePlatform = getRuntimePlatformSnapshot(),
+  engine: OfflineSttEngine = routeOfflineSpeech().engine,
 ): SttProviderOption[] {
   const t = getI18n().getFixedT(null, "voice");
   const isDesktop = platform.isDesktop;
   const webSpeechSupported = isWebSpeechSupported(platform);
   const localSupported = supportsLocalWebSpeechStrict(platform);
   const desktopBrowserReason = t("providers.stt.browserDesktopUnavailable");
+  const model = offlineSttModelName(engine);
 
   const options: SttProviderOption[] = [
     {
       id: "parakeet",
-      label: "Parakeet",
+      label: t("providers.stt.parakeet.cpuLabel", {
+        model: offlineSttShortName(engine),
+      }),
       description: isDesktop
-        ? t("providers.stt.parakeet.descriptionDesktop")
-        : t("providers.stt.parakeet.descriptionBrowser"),
+        ? t("providers.stt.parakeet.descriptionDesktop", { model })
+        : t("providers.stt.parakeet.descriptionBrowser", { model }),
       disabled: parakeetAvailable !== true,
       reason:
-        parakeetAvailable === false
+        parakeetAvailable === false && engine === "parakeet"
           ? isDesktop
             ? t("providers.stt.parakeet.notInstalled")
             : t("providers.stt.parakeet.unavailableBrowser")
@@ -223,5 +254,44 @@ export function resolvePreferredSttProvider({
     provider: "parakeet",
     hasExplicitPreference: false,
     parakeetAvailable,
+  };
+}
+
+export type ResolveRoutedSttProviderResult = ResolveSttProviderResult & {
+  /** The saved offline choice cannot run: the language's set is missing. */
+  languageMissing: boolean;
+};
+
+/**
+ * The provider for a session, or shown in Settings, with the offline choice
+ * served by `route`'s engine. A saved offline choice whose non-English set is
+ * missing stays offline and reports `languageMissing` rather than falling
+ * back to a browser recognizer, which may send audio to a cloud service.
+ */
+export function resolveRoutedSttProvider({
+  savedProvider = null,
+  platform = getRuntimePlatformSnapshot(),
+  route,
+  capabilities,
+}: {
+  savedProvider?: SttProvider | null;
+  platform?: RuntimePlatform;
+  route: OfflineSpeechRoute;
+  capabilities: OfflineSpeechCapabilities;
+}): ResolveRoutedSttProviderResult {
+  if (offlineLanguageMissing(savedProvider, route, capabilities))
+    return {
+      provider: "parakeet",
+      hasExplicitPreference: true,
+      parakeetAvailable: false,
+      languageMissing: true,
+    };
+  return {
+    ...resolvePreferredSttProvider({
+      savedProvider,
+      platform,
+      parakeetAvailable: offlineSpeechAvailable(route, capabilities),
+    }),
+    languageMissing: false,
   };
 }

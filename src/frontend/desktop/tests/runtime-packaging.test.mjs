@@ -157,7 +157,7 @@ describe("desktop runtime packaging", () => {
     }
   });
 
-  it("ships the downloadable Parakeet notices with every app", () => {
+  it("ships the downloadable speech-to-text notices with every app", () => {
     // Speech models are downloaded later, but their notices are bundled.
     const policy = JSON.parse(
       readFileSync(
@@ -178,6 +178,33 @@ describe("desktop runtime packaging", () => {
     expect(readStaticLicenseNotice("parakeet-onnx-asr-mit.txt").text).toContain(
       "MIT",
     );
+    const sensevoice = [
+      "sensevoice-attribution.txt",
+      "sensevoice-funasr-model-license.txt",
+    ];
+    expect(notices["sensevoice-input"]).toEqual(sensevoice);
+    expect(notices["sensevoice-webgpu-input"]).toEqual(sensevoice);
+    expect(
+      readStaticLicenseNotice("sensevoice-funasr-model-license.txt").text,
+    ).toContain("FunASR Model Open Source License Agreement");
+  });
+
+  it("ships the Apache-2.0 terms of the bundled Chinese conversion tables", () => {
+    // opencc-js's own scan finds only its MIT LICENSE; the tables it bundles
+    // come from opencc-data under Apache-2.0.
+    const policy = JSON.parse(
+      readFileSync(
+        new URL("../runtime/license-sources.json", import.meta.url),
+        "utf8",
+      ),
+    );
+    const group = policy.groups.find(
+      (entry) => entry.id === "opencc-dictionary-data",
+    );
+    expect(group.notice_files).toEqual(["opencc-data-apache-2.0.txt"]);
+    const notice = readStaticLicenseNotice("opencc-data-apache-2.0.txt").text;
+    expect(notice).toContain("opencc-data");
+    expect(notice).toContain("Apache License");
   });
 
   it.each([

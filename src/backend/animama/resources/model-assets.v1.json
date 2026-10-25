@@ -79,6 +79,71 @@
       ]
     },
     {
+      "id": "sensevoice-stt",
+      "manifest_sha256": "fcb89749b0932b4d6c9fa0d56e769347877d0caefc89603a9285d9d1b778352c",
+      "license_ref": "LicenseRef-FunASR-Model-License-1.1",
+      "files": [
+        {
+          "path": "ATTRIBUTION.md",
+          "url": "https://downloads.animama.ai/models/sensevoice-small/2ac532b11d31d5b2748e76e32239a211b0d0693938f632d1d2a45045e10bcf6c/ATTRIBUTION.md",
+          "size": 1215,
+          "sha256": "2ac532b11d31d5b2748e76e32239a211b0d0693938f632d1d2a45045e10bcf6c"
+        },
+        {
+          "path": "README.md",
+          "url": "https://downloads.animama.ai/models/sensevoice-small/d9500c8bdc82ecc0aa2f6fa10a945dd76f87fc007b465785083a5e17d9395cb3/README.md",
+          "size": 992,
+          "sha256": "d9500c8bdc82ecc0aa2f6fa10a945dd76f87fc007b465785083a5e17d9395cb3"
+        },
+        {
+          "path": "metadata.json",
+          "url": "https://downloads.animama.ai/models/sensevoice-small/f2415e006bf0f6ec99c5eb3a74db15570adfe37012907a7273df7f6c110437d4/metadata.json",
+          "size": 11610,
+          "sha256": "f2415e006bf0f6ec99c5eb3a74db15570adfe37012907a7273df7f6c110437d4"
+        },
+        {
+          "path": "model.int8.onnx",
+          "url": "https://downloads.animama.ai/models/sensevoice-small/c71f0ce00bec95b07744e116345e33d8cbbe08cef896382cf907bf4b51a2cd51/model.int8.onnx",
+          "size": 239233841,
+          "sha256": "c71f0ce00bec95b07744e116345e33d8cbbe08cef896382cf907bf4b51a2cd51"
+        },
+        {
+          "path": "tokens.txt",
+          "url": "https://downloads.animama.ai/models/sensevoice-small/f449eb28dc567533d7fa59be34e2abca8784f771850c78a47fb731a31429a1dc/tokens.txt",
+          "size": 315894,
+          "sha256": "f449eb28dc567533d7fa59be34e2abca8784f771850c78a47fb731a31429a1dc"
+        }
+      ]
+    },
+    {
+      "id": "sensevoice-stt-webgpu",
+      "manifest_sha256": "860493ebea2c0b628de157701b5dab023e5f15398da83e838573c42cfb6519cc",
+      "license_ref": "LicenseRef-FunASR-Model-License-1.1",
+      "requires": [
+        "sensevoice-stt"
+      ],
+      "files": [
+        {
+          "path": "ATTRIBUTION.md",
+          "url": "https://downloads.animama.ai/models/sensevoice-small-webgpu/825f20fc8b4bd305bbd7c24c0e23204407ee9be5d1b0f3bf51353434c6d2f449/ATTRIBUTION.md",
+          "size": 1109,
+          "sha256": "825f20fc8b4bd305bbd7c24c0e23204407ee9be5d1b0f3bf51353434c6d2f449"
+        },
+        {
+          "path": "README.md",
+          "url": "https://downloads.animama.ai/models/sensevoice-small-webgpu/57b2d7c12b9b0a055dec04e4359d69328ff5ca1f6d1fd5e1f7693b346fb4c644/README.md",
+          "size": 822,
+          "sha256": "57b2d7c12b9b0a055dec04e4359d69328ff5ca1f6d1fd5e1f7693b346fb4c644"
+        },
+        {
+          "path": "model.onnx",
+          "url": "https://downloads.animama.ai/models/sensevoice-small-webgpu/977016bd9c79f9eb343430b5cc305e07ab64d5212dff41b0dcfa1694bee9a8cb/model.onnx",
+          "size": 937617178,
+          "sha256": "977016bd9c79f9eb343430b5cc305e07ab64d5212dff41b0dcfa1694bee9a8cb"
+        }
+      ]
+    },
+    {
       "id": "pocket-voice-clara",
       "url": "https://downloads.animama.ai/models/pocket-tts-voices/a36e524390d6a21e7407ab18029a03afd9289b3b406868da01c8c76294cd6173/clara.safetensors",
       "size": 6440248,

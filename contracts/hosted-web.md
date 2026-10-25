@@ -202,10 +202,10 @@ shows that a newer sign-in replaced the one it targeted.
 ## Capabilities and requests
 
 The sole wire schema is `app/contracts/runtime_capabilities.py`, exported offline
-in `local-http` version **14.0.0** with capability `schema_version: 2`. The generated
+in `local-http` version **15.0.0** with capability `schema_version: 2`. The generated
 TypeScript `RuntimeCapabilities` and validator are the same contract.
 `ProductRuntimeCapabilities` is a derived `Pick` for the existing extracted chat
-surface, not another wire schema. `runtime-contracts` is version 0.14.0 and
+surface, not another wire schema. `runtime-contracts` is version 0.15.0 and
 `product-ui` is version 0.14.0. Consumers explicitly admit
 the new contract major before adoption.
 
@@ -238,9 +238,18 @@ Error messages are capped but are free text, so the receiving forwarder still
 validates and sanitizes every body. See
 [browser telemetry](../docs/frontend/architecture/overview.md#browser-telemetry).
 
-`offline_speech_enabled` and its versions describe current Parakeet availability,
-not permission to use voice. An absent optional set does not remove browser voice,
-Pocket TTS, supported server speech, or the workflow to download a permitted set.
+`offline_speech_enabled` and its versions describe current Parakeet (English)
+availability, and `offline_multilingual_speech_enabled` and its versions current
+SenseVoice-Small (Japanese, Korean and Chinese) availability, not permission to
+use voice. An absent optional set does not remove browser voice, Pocket TTS,
+supported server speech, or the workflow to download a permitted set. The
+hosted capability fixture reports SenseVoice off, and the hosted build lists no
+SenseVoice lazy resource. The packaged model-asset catalog nevertheless
+contains `sensevoice-stt` and `sensevoice-stt-webgpu`, so a hosted consumer that
+accepts only catalog IDs it knows must support or skip both before adopting a
+release with that catalog. Skipped, hosted Settings shows the SenseVoice section
+as not available, and the offline choice under a non-English locale shows the
+"not available on this server" notice.
 Content, avatar/effect runtime, memory, creators and voice stay retained without
 adding blanket permissions for implementation gaps. Unknown/missing capability
 responses keep hosted operations pending rather than granting permission. No
