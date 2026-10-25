@@ -208,12 +208,19 @@ const voice = (owner) =>
         await dialog
             .getByRole("switch", { name: "Enable Text-to-Speech", exact: true })
             .check();
-        await dialog
-            .getByRole("combobox", {
-                name: "Text-to-Speech provider",
-                exact: true,
-            })
-            .click();
+        // Settings chooses the provider from tabs; a previous app's open page
+        // may still offer the earlier list box, so accept either.
+        const name = { name: "Text-to-Speech provider", exact: true };
+        const tabs = dialog.getByRole("tablist", name);
+        const list = dialog.getByRole("combobox", name);
+        await tabs.or(list).first().waitFor();
+        if ((await tabs.count()) > 0) {
+            const pocket = tabs.getByRole("tab", { name: /^PocketTTS\b/u });
+            await pocket.click();
+            await pocket.and(page.locator('[aria-selected="true"]')).waitFor();
+            return;
+        }
+        await list.click();
         await page
             .getByRole("option", { name: "PocketTTS", exact: true })
             .click();
