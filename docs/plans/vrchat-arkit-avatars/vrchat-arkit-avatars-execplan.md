@@ -686,8 +686,8 @@ Changes:
    light lilToon supports, face-painted Avatar Effects and face texture anchors,
    portrait capture, disposal (`releaseModelScene`), and review-render stages.
 5. Review tooling (delivered early in the Phase 2 step 6 follow-up, so a no-go
-   revert of the lilToon work keeps it; `effects:render` has it, while
-   `animation:render` and `effects:bench` still need it if wanted):
+   revert of the lilToon work keeps it; `effects:render` and `effects:bench`
+   have it, and `animation:render` gained it on 2026-10-25):
    `effects:render` and `animation:render` gain an explicit
    `--avatar-file <path>` for a local Avatar outside the repository; outputs go
    to the given `--out` directory. Do not add third-party files to any allowlist
@@ -866,6 +866,25 @@ rejection pass. One blocking finding:
   blockquote and mangled `_`/`*` in earlier phase records. Each file's diff
   now equals its `git diff -w`. Verified by the coordinator (a formatting-only
   repair). Repair budget: two rounds used.
+
+#### Step 5: `animation:render --avatar-file` (2026-10-25)
+
+Starting source `d20e8f72`. `animation:render --avatar-file <a.vrm>` renders a
+Gesture's sheets on that VRM instead of both Included Avatars, serving only
+that file. Its page now loads through `withOnDemandLilToon` and installs
+lilToon's passes, as `effects:render`'s stage does, so a converted Avatar shows
+its authored look; other files gain no material hook. A Phase 3 no-go revert
+must therefore also remove those two calls from
+`scripts/animation-render/render.ts`.
+
+Check record (working tree on `d20e8f72`):
+
+| Command | Directory | Result |
+| --- | --- | --- |
+| `timeout 600 node --test scripts/animation-render.browser.test.mjs` | `src/frontend/web` | 2 passed (new: one local VRM gives one Avatar's columns) |
+| `animation:render` of Double Thumbs Up, body and hands views, before vs after, `effects:render --diff` | `src/frontend/web` | 0 differing pixels, both sheets |
+| The same clip with `--avatar-file` on the converted Avatar | `src/frontend/web` | renders with lilToon (private sheet) |
+| `npx vitest run src/lib/avatar src/ui`; `pnpm -s web:lint`; `pnpm -s check` | `src/frontend/web`, `src/frontend` | 2852 passed, 1 skipped; pass; pass |
 
 ### Phase 4: ARKit emotions and face-track translation
 

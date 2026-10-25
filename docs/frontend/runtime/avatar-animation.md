@@ -689,6 +689,9 @@ from `src/frontend/web`:
   Avatars, each with its own prepared clip; a 2.0 clip supplies its contacts
   and `plantFeet`.
 - `pnpm -s animation:render <clip.json> --out <dir>` draws review sheets.
+  `--avatar-file <a.vrm>` draws them on that VRM instead of the Included
+  Avatars, for example a converted Avatar kept outside the repository; keep
+  its sheets outside the repository too.
 - `pnpm -s animation:reel --gestures|--reactions|--effects [<source>...] --out <file.mp4>`
   records a 1920×1080, 30 fps video of every Included Gesture, Reaction (by
   emotion, then intensity) or Avatar, Particle and Scene Effect
@@ -1573,8 +1576,9 @@ adapts colour and UV expression binds to those materials.
 - **Fallback:** in development and the review tools, a failed import loads the
   glTF fallback materials instead, and a later Avatar retries. In a built app a
   failed chunk download shows the app's reload screen (`PageLoadError`), as for
-  any other lazily loaded code. `animation:render` and the `vrm:optimize`
-  compare page use their own loaders and always draw the fallback materials.
+  any other lazily loaded code. The `vrm:optimize` compare page uses its own
+  loader and always draws the fallback materials; `animation:render` loads
+  lilToon as the app does.
 - **Silhouettes and release:** silhouette overlays bias lilToon materials eight
   depth units, because lilToon skins and projects in its own order.
   `releaseModelScene` disposes their `lilToonTextures`, which neither

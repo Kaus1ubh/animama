@@ -146,6 +146,8 @@ Check that:
 - the ARKit count is complete, with any renamed matches as expected, and
   inspect says Animama plays the Avatar's faces as ARKit mixes.
 
+`pnpm -s animation:render <gesture.json> --out <private-dir> --avatar-file
+<private-dir>/<Avatar>.vrm` draws Gesture review sheets on it, and
 `pnpm -s effects:bench --avatar-file <private-dir>/<Avatar>.vrm` measures its
 frame cost on the GPU.
 
@@ -161,7 +163,7 @@ Known limits of a Mochiya 0.1.4 export:
   That costs far more GPU time per frame than MToon. The exporter's glTF
   fallback materials keep glTF's default `metallicFactor` of 1 and look much
   darker than in Unity; they show where lilToon does not load, including
-  `animation:render` and the `vrm:optimize` compare page.
+  the `vrm:optimize` compare page.
 - PhysBone gravity converts to very small VRM gravity values, and the springs
   rely on the shape they were modelled in. Animama therefore adds no wind or
   updraft to Avatars converted by Mochiya (see

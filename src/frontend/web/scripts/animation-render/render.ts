@@ -8,6 +8,10 @@ import { getResolvedAvatarPose } from "@/lib/avatar/poses/catalog";
 import { canonicalizeCustomPresetExpressions } from "@/lib/avatar/vrmExpressionPresets";
 import { registerArkitFace } from "@/lib/avatar/arkitFaceExpressions";
 import { applyEyelidClosureCorrection } from "@/lib/avatar/eyelidClosure";
+import {
+  installLilToonRenderingWhenLoaded,
+  withOnDemandLilToon,
+} from "@/lib/avatar/liltoon/lilToon";
 import { applyCanonicalPose } from "@/lib/avatar/motion-authoring/kinematics";
 
 import { avatarFileSha256 } from "../effect-render/avatarFile";
@@ -66,7 +70,8 @@ const viewsFor = (
 
 async function loadVrm(url: string): Promise<VRM> {
   const loader = new GLTFLoader();
-  loader.register((parser) => new VRMLoaderPlugin(parser));
+  // Authored lilToon materials render as in the app; other files are untouched.
+  loader.register((parser) => withOnDemandLilToon(new VRMLoaderPlugin(parser)));
   const gltf = await loader.loadAsync(url);
   const vrm = gltf.userData.vrm as VRM;
   VRMUtils.removeUnnecessaryVertices(gltf.scene);
@@ -98,6 +103,8 @@ async function render(
   });
   renderer.setSize(width, height);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
+  // lilToon's outline and extra passes, as the app canvases install them.
+  const releaseLilToon = installLilToonRenderingWhenLoaded(renderer);
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0xf4f3ef);
   scene.add(new THREE.AmbientLight(0xffffff, 1.6));
@@ -223,6 +230,7 @@ async function render(
     VRMUtils.deepDispose(vrm.scene);
     column += VIEWS.length;
   }
+  releaseLilToon();
   renderer.dispose();
   return {
     dataUrl: sheet.toDataURL("image/png"),
