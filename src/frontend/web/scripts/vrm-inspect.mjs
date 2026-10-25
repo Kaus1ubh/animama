@@ -248,7 +248,7 @@ export function formatReport(report) {
     lines.push(
       arkit.playsFacesWithArkit
         ? "  Animama plays this Avatar's faces as ARKit mixes"
-        : "  Animama plays its own presets (it lacks a table shape or has VRoid mood parts)",
+        : "  Animama plays the file's presets (it lacks a table shape or has VRoid mood parts)",
     );
   if (arkit.authored.length)
     lines.push(`  authored by the file: ${arkit.authored.join(", ")}`);

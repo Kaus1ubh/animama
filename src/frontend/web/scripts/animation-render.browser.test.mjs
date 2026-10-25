@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { copyFile, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -56,6 +56,9 @@ test("renders on one local VRM with avatarFile", async () => {
   const dir = await mkdtemp(path.join(tmpdir(), "animama-render-"));
   try {
     const outFile = path.join(dir, "local.png");
+    // Outside the served roots, like a private Avatar kept outside the repository.
+    const avatarFile = path.join(dir, "Local Avatar 1.vrm");
+    await copyFile(path.join(avatarDir, "Andrew.vrm"), avatarFile);
     await renderGestureSheet({
       clip: {
         schema: "animaPoseClip/2.0",
@@ -69,7 +72,7 @@ test("renders on one local VRM with avatarFile", async () => {
       times: [0],
       outFile,
       tile: { width: 96, height: 144 },
-      avatarFile: path.join(avatarDir, "Andrew.vrm"),
+      avatarFile,
     });
     const png = await readFile(outFile);
     assert.equal(png.readUInt32BE(16), 64 + 4 * 96);

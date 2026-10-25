@@ -106,10 +106,13 @@ export function bakeExpressions(
   const binds = (mix) =>
     Object.entries(mix).flatMap(([shape, weight]) => {
       // As in the app, an expression the file authors under the ARKit name
-      // stands for the shape: its binds are scaled by the mix.
-      const own = custom[shape]?.morphTargetBinds;
-      if (Array.isArray(own) && own.length > 0)
-        return own.map((bind) => ({ ...bind, weight: bind.weight * weight }));
+      // stands for the shape, even with no morph binds: its binds are scaled
+      // by the mix (a missing weight is 1, as three-vrm reads it).
+      if (custom[shape] !== undefined)
+        return (custom[shape].morphTargetBinds ?? []).map((bind) => ({
+          ...bind,
+          weight: (bind.weight ?? 1) * weight,
+        }));
       return nodes.flatMap(({ node, names }, meshIndex) =>
         (faces.meshes[meshIndex].get(shape) ?? []).map((morph) => ({
           node,

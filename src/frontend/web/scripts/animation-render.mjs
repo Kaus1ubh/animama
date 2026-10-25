@@ -1,4 +1,4 @@
-import { mkdir, readFile, realpath, writeFile } from "node:fs/promises";
+import { mkdir, readFile, realpath, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
@@ -184,14 +184,25 @@ async function main(argv) {
   let avatarFile = null;
   if (values["--avatar-file"]) {
     const requested = path.resolve(cwd, values["--avatar-file"]);
-    if (!requested.toLowerCase().endsWith(".vrm")) {
-      console.log(`--avatar-file must be a .vrm file: ${requested}`);
-      return 2;
-    }
     try {
       avatarFile = await realpath(requested);
     } catch {
       console.log(`--avatar-file not found: ${requested}`);
+      return 2;
+    }
+    // The server allows exactly this path, so it must be one .vrm file.
+    if (
+      !avatarFile.toLowerCase().endsWith(".vrm") ||
+      !(await stat(avatarFile)).isFile()
+    ) {
+      console.log(`--avatar-file must be a .vrm file: ${requested}`);
+      return 2;
+    }
+    // Vite's /@fs route cannot serve these, even percent-encoded.
+    if (/[#?%]/.test(avatarFile)) {
+      console.log(
+        `--avatar-file path must not contain #, ? or %; rename or move it: ${avatarFile}`,
+      );
       return 2;
     }
   }

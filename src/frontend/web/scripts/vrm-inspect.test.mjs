@@ -106,5 +106,5 @@ test("resolves ARKit shapes from the names three.js loads", () => {
   assert.equal(arkit.playsFacesWithArkit, false);
   const text = formatReport(report);
   assert.match(text, /ARKit shapes: 3 of 52/);
-  assert.match(text, /Animama plays its own presets/);
+  assert.match(text, /Animama plays the file's presets/);
 });

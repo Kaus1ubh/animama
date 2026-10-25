@@ -189,21 +189,24 @@ test("scales a file's own expression under an ARKit name, as the app does", () =
   const { json } = readGlb(
     faceFixtureVrm({ meshes: [{ name: "Face", names: arkitShapes }] }).bytes,
   );
-  const smile = arkitShapes.indexOf("mouthSmileLeft");
-  // The authored expression binds a different target at half weight.
+  const squint = arkitShapes.indexOf("eyeSquintLeft");
+  // The authored expression binds a different target at 0.3; happy mixes
+  // eyeSquintLeft at 0.8, so the bake writes 0.24 there.
   json.extensions.VRMC_vrm.expressions = {
     custom: {
-      mouthSmileLeft: {
-        morphTargetBinds: [{ node: 15, index: 0, weight: 0.5 }],
+      eyeSquintLeft: {
+        morphTargetBinds: [{ node: 15, index: 0, weight: 0.3 }],
       },
     },
   };
   bakeExpressions(json, tools);
   const happy = json.extensions.VRMC_vrm.expressions.preset.happy;
-  const smileBinds = happy.morphTargetBinds.filter(
-    ({ index, weight }) => index === smile || weight === 0.5,
+  const squintBinds = happy.morphTargetBinds.filter(
+    ({ index, weight }) => index === squint || Math.abs(weight - 0.24) < 1e-9,
   );
-  assert.deepEqual(smileBinds, [{ node: 15, index: 0, weight: 0.5 }]);
+  assert.equal(squintBinds.length, 1);
+  assert.equal(squintBinds[0].index, 0);
+  assert.ok(Math.abs(squintBinds[0].weight - 0.24) < 1e-9);
 });
 
 test("refuses VRM 0.x files", () => {

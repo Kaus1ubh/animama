@@ -1361,7 +1361,52 @@ Check record (working tree on `ea9f8a29`, before the Phase 3 step 5 files):
 `timeout 300 node --test scripts/vrm-bake-expressions.test.mjs
 scripts/vrm-inspect.test.mjs` 10 passed; `npx vitest run src/lib/avatar
 src/ui` 2852 passed, 1 skipped; `pnpm -s web:lint` and `pnpm -s check` pass.
-Reviewed with Phase 3 step 5 below.
+Reviewed with Phase 3 step 5 (recorded above, in Phase 3).
+
+#### Code Review #2 Findings (deferred items and Phase 3 step 5)
+
+Reviewed `ea9f8a29..66e12acd` (tree `d29889a7`), standard tier, by an
+independent sdlc-reviewer agent, from the committed diff and the installed
+Vite and three-vrm sources. Result: pass, no blocking findings; INT-F6 keeps
+behaviour, INT-F7 makes the same decision as `Avatar.load`, and the lilToon
+wiring matches the `effects:render` stage.
+
+- DEF-F1 (optional): the bake test's authored shape had mix weight 1, so it did
+  not prove the scaling.
+- DEF-F2 (optional): the bake fell back to the raw morph for an authored
+  ARKit-named expression with no morph binds (the app plays nothing for it),
+  and a bind without `weight` became NaN.
+- DEF-F3 (optional): "Animama plays its own presets" read as Animama's presets.
+- DEF-F4 (optional): a full 52-value `arkit_52` frame now drives `tongueOut`,
+  which clearing lip sync never zeroed.
+- DEF-F5, DEF-F6 (observations): a small re-export indirection; a misplaced
+  "below" and no Git trees in the two check records.
+- P3S5-F1 (optional): the test's VRM was inside an already-served root.
+- P3S5-F2 (optional): the `.vrm` check ran on the requested path, and a
+  directory named `*.vrm` would have been allowed whole.
+- P3S5-F3 (optional): file paths were not URL-encoded.
+- P3S5-F4 (observation): `releaseLilToon()` is not in a `finally`.
+
+#### Code Review #2 Revisions
+
+- DEF-F1: the test authors `eyeSquintLeft` (mix 0.8) at 0.3 and expects 0.24.
+- DEF-F2: an authored ARKit-named expression always stands for the shape, so
+  one without morph binds bakes nothing, as the app plays; a missing weight is 1.
+- DEF-F3: the line reads "Animama plays the file's presets".
+- DEF-F4: fixed with Phase 5, whose lip-sync reset also zeroes `tongueOut`.
+- P3S5-F1: the test copies the VRM into its temporary directory under a name
+  with spaces.
+- P3S5-F2: the checks run on the resolved path and require a regular file.
+- P3S5-F3: encoding did not help, because Vite's `/@fs` route does not serve a
+  path with `#` even percent-encoded; such paths (`#`, `?`, `%`) are refused
+  with a clear message instead. Spaces work.
+- DEF-F5, DEF-F6 (trees from here on), P3S5-F4: no change.
+
+Revision checks (working tree on `66e12acd`, Phase 5 files excluded): `timeout
+300 node --test scripts/vrm-bake-expressions.test.mjs scripts/vrm-inspect.test.mjs`
+10 passed; `node --test scripts/animation-render.browser.test.mjs` 2 passed;
+a CLI run on a `#` file name fails with the new message (before the fix it
+failed loading the page). One repair round used; trivial, no recheck.
 
 ## Validation and acceptance
 
