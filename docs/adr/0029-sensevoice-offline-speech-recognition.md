@@ -1,6 +1,7 @@
 # 0029: SenseVoice-Small for Japanese, Korean and Chinese offline speech recognition
 
-- Status: accepted (owner, 2026-10-21, gate G1)
+- Status: accepted (owner, 2026-10-21, gate G1); decisions 1–2 amended by
+  [0031](0031-offline-speech-engine-is-the-owners-choice.md)
 - Recorded: 2026-10-21
 - Retrospective: no
 - Original decision date: 2026-10-14 (owner scope decisions D1–D12 during
@@ -125,6 +126,6 @@ The Phase 2 comparison ran 75 FLEURS clips per language on the reference Mac
 - [`models/sensevoice-small/manifest.json`](../../models/sensevoice-small/manifest.json)
   and [`models/sensevoice-small-webgpu/manifest.json`](../../models/sensevoice-small-webgpu/manifest.json):
   the pinned sets.
-- [Voice runtime](../frontend/runtime/voice.md#offline-engine-by-conversation-language)
+- [Voice runtime](../frontend/runtime/voice.md#offline-engine-choice)
   and [model setup](../backend/operations/model-assets.md#sensevoice-multilingual-sets):
   current behavior and operation.

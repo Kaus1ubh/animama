@@ -210,11 +210,13 @@ context's `locale`) is not the UI Locale; the context's `ui_locale` is.
 
 The language an Anima replies, speaks and listens in. It is always the active
 **Locale**: a non-English locale instructs the model and sets the speech
-language code; English leaves both to their defaults. It also chooses the
-offline speech recognizer when dictation or Voice Mode starts: Parakeet for
-English, SenseVoice-Small for Japanese, Korean and Chinese
-([ADR 0029](docs/adr/0029-sensevoice-offline-speech-recognition.md)). Pocket
-TTS speaks only English and shows a warning under other locales.
+language code; English leaves both to their defaults. Unless the owner chose
+an offline speech recognizer, it also chooses one when dictation or Voice Mode
+starts: Parakeet for English, SenseVoice-Small for Japanese, Korean and Chinese
+([ADR 0029](docs/adr/0029-sensevoice-offline-speech-recognition.md),
+[ADR 0031](docs/adr/0031-offline-speech-engine-is-the-owners-choice.md)).
+Parakeet and Pocket TTS work only in English and show a warning under other
+locales.
 
 ## Audio tag
 

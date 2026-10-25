@@ -12,6 +12,7 @@ describe("routeOfflineSpeech", () => {
       expect(routeOfflineSpeech(locale)).toEqual({
         engine: "parakeet",
         language: "en",
+        browserFallback: true,
       });
     }
   });
@@ -22,6 +23,41 @@ describe("routeOfflineSpeech", () => {
       expect(routeOfflineSpeech(locale)).toEqual({
         engine: "sensevoice",
         language: locale,
+        browserFallback: false,
+      });
+      expect(routeOfflineSpeech(locale, null)).toEqual(
+        routeOfflineSpeech(locale),
+      );
+    },
+  );
+
+  it("runs a chosen SenseVoice under English with language detection", () => {
+    for (const locale of ["en", "en-XA", null]) {
+      expect(routeOfflineSpeech(locale, "sensevoice")).toEqual({
+        engine: "sensevoice",
+        language: "auto",
+        browserFallback: false,
+      });
+    }
+    // Under a supported language a SenseVoice choice keeps its prompt.
+    expect(routeOfflineSpeech("ko", "sensevoice")).toEqual({
+      engine: "sensevoice",
+      language: "ko",
+      browserFallback: false,
+    });
+  });
+
+  it.each([
+    ["en", true],
+    ["ja", false],
+    ["zh-Hant", false],
+  ])(
+    "runs a chosen Parakeet in English under %s",
+    (locale, browserFallback) => {
+      expect(routeOfflineSpeech(locale, "parakeet")).toEqual({
+        engine: "parakeet",
+        language: "en",
+        browserFallback,
       });
     },
   );
@@ -70,6 +106,25 @@ describe("offlineLanguageMissing", () => {
         routeOfflineSpeech("ja"),
         parakeetOnly,
       ),
+    ).toBe(true);
+  });
+
+  it("stops a chosen SenseVoice under English when its set is missing", () => {
+    expect(
+      offlineLanguageMissing(
+        "parakeet",
+        routeOfflineSpeech("en", "sensevoice"),
+        parakeetOnly,
+      ),
+    ).toBe(true);
+  });
+
+  it("stops a chosen Parakeet under another language instead of falling back", () => {
+    expect(
+      offlineLanguageMissing("parakeet", routeOfflineSpeech("ja", "parakeet"), {
+        offline_speech_enabled: false,
+        offline_multilingual_speech_enabled: true,
+      }),
     ).toBe(true);
   });
 

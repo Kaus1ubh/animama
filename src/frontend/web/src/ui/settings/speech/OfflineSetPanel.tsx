@@ -35,7 +35,7 @@ export const ENGINE_MODELS: Record<
 
 /**
  * One offline engine's CPU or GPU version, shared by setup and App Settings:
- * what the model does, when the app uses it, its set's ✓/✗ state with
+ * what the model does, which languages it recognizes, its set's ✓/✗ state with
  * download, cancel and retry, and for the GPU set a WebGPU ✓/✗ check (or, in
  * Vite development, how to acquire the set). `manage` adds what App Settings
  * offers: confirmed removal, the WebGPU fallback note and operator-managed
@@ -44,14 +44,11 @@ export const ENGINE_MODELS: Record<
 export function OfflineSetPanel({
   engine,
   set,
-  routed,
   downloads,
   manage = false,
 }: {
   engine: OfflineSttEngine;
   set: SpeechSet;
-  /** The model serves the UI Locale. */
-  routed: boolean;
   downloads: OfflineSpeechDownloadsViewProps;
   manage?: boolean;
 }) {
@@ -159,13 +156,12 @@ export function OfflineSetPanel({
   return (
     <>
       <p className="text-muted-foreground text-sm">{description}</p>
-      {routed ? null : (
-        <p className="text-muted-foreground text-sm">
-          {engine === "parakeet"
-            ? t("voice.stt.otherLanguage.parakeet")
-            : t("voice.stt.otherLanguage.sensevoice")}
-        </p>
-      )}
+      {/* Either engine runs in any app language (ADR 0031). */}
+      <p className="text-muted-foreground text-sm">
+        {engine === "parakeet"
+          ? t("voice.stt.recognizes.parakeet")
+          : t("voice.stt.recognizes.sensevoice")}
+      </p>
       {managed ? (
         <p className="text-muted-foreground text-sm">
           {operatorManagedModelsNote()}

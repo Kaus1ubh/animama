@@ -77,6 +77,7 @@ import { isWebSpeechSupported } from "@/lib/speech/stt-provider";
 import { composerSpeechEngines } from "@/lib/speech/composer-speech-engines";
 import { joinSpeechText } from "@/lib/speech/speech-text";
 import { useSettings } from "@/ui/settings/SettingsProvider";
+import { offlineSttEnginePreference } from "@/lib/settings/preferences";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -254,15 +255,17 @@ export function ChatInterfaceView({
   const attachUnavailableReason =
     useRuntimeFeatureUnavailableReason("chat_file_uploads");
   const platform = useRuntimePlatform();
-  // Offline recognition counts only with the UI Locale's engine installed.
+  const { effectivePreferences } = useSettings();
+  // Offline recognition counts only with the engine that runs installed: the
+  // owner's choice, else the UI Locale's.
+  const offlineRoute = routeOfflineSpeech(
+    i18n.resolvedLanguage,
+    offlineSttEnginePreference(effectivePreferences),
+  );
   const speechAvailable =
     (capabilities.data !== undefined &&
-      offlineSpeechAvailable(
-        routeOfflineSpeech(i18n.resolvedLanguage),
-        capabilities.data,
-      )) ||
+      offlineSpeechAvailable(offlineRoute, capabilities.data)) ||
     isWebSpeechSupported(platform);
-  const { effectivePreferences } = useSettings();
   const speechEngines = composerSpeechEngines({
     preferences: effectivePreferences,
     platform,
@@ -494,7 +497,11 @@ export function ChatInterfaceView({
                   <p>{t("speech.installFromMainWindow")}</p>
                 ) : (
                   <div className="mt-2">
-                    <OfflineSpeechDownloads heading={false} routedOnly />
+                    <OfflineSpeechDownloads
+                      heading={false}
+                      engine={offlineRoute.engine}
+                      routedOnly
+                    />
                   </div>
                 )}
               </details>

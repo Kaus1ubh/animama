@@ -63,6 +63,9 @@
   },
   "languageNotice": {
     "speechToText": "To use offline speech recognition in {{language}}, download its model.",
+    "speechToTextEnglishOnly": "Parakeet recognizes English only. To speak to your Animas in {{language}}, choose SenseVoice.",
+    "speechToTextModel": "To use SenseVoice, download its model.",
+    "speechToTextModelUnavailable": "SenseVoice is not available on this server.",
     "speechToTextUnavailable": "Offline speech recognition in {{language}} is not available on this server.",
     "textToSpeech": "Pocket TTS speaks English only. To hear your Animas in {{language}}, choose ElevenLabs or Gemini."
   },

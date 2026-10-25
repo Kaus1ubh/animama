@@ -55,6 +55,32 @@ describe("composer speech engine details", () => {
     });
   });
 
+  it("names the chosen offline engine whatever the UI Locale", () => {
+    expect(
+      composerSpeechEngines({
+        preferences: {
+          speech: {
+            stt_provider: "parakeet",
+            stt_offline_engine: "sensevoice",
+          },
+        },
+        platform: desktop,
+        locale: "en",
+        capabilities: installed,
+      }).dictation,
+    ).toEqual(["STT: SenseVoice CPU"]);
+    expect(
+      composerSpeechEngines({
+        preferences: {
+          speech: { stt_provider: "parakeet", stt_offline_engine: "parakeet" },
+        },
+        platform: desktop,
+        locale: "ja",
+        capabilities: installed,
+      }).dictation,
+    ).toEqual(["STT: Parakeet CPU"]);
+  });
+
   it("names nothing until runtime capabilities load", () => {
     expect(
       composerSpeechEngines({

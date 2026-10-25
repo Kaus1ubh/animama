@@ -533,6 +533,26 @@ describe("setup speech-to-text choice", () => {
         choices,
       ),
     ).toBe("sensevoice_gpu");
+    // A saved engine runs whatever the UI Locale, so it is the one shown.
+    expect(
+      resolveSetupSttChoice(
+        { sttChoice: null },
+        { stt_provider: "parakeet", stt_offline_engine: "parakeet" },
+        "sensevoice",
+        choices,
+      ),
+    ).toBe("parakeet_cpu");
+    expect(
+      resolveSetupSttChoice(
+        { sttChoice: null },
+        {
+          stt_provider: "parakeet",
+          stt_offline_engine: "whisper" as never,
+        },
+        "sensevoice",
+        choices,
+      ),
+    ).toBe("sensevoice_cpu");
     // Either browser recognizer shows as the single browser choice.
     expect(
       resolveSetupSttChoice(
@@ -547,18 +567,24 @@ describe("setup speech-to-text choice", () => {
     ).toBe("browser_external");
   });
 
-  it("saves either model's choice as the offline provider with its GPU preference", () => {
+  it("saves either model's choice as the offline provider with its GPU preference and engine", () => {
     expect(setupSttPatch("sensevoice_cpu")).toEqual({
       stt_provider: "parakeet",
       stt_parakeet_webgpu: false,
+      stt_offline_engine: "sensevoice",
     });
     expect(setupSttPatch("parakeet_gpu")).toEqual({
       stt_provider: "parakeet",
       stt_parakeet_webgpu: true,
+      stt_offline_engine: "parakeet",
     });
     expect(setupSttPatch("browser_external")).toEqual({
       stt_provider: "browser_external",
     });
+    // An untouched offline default keeps following the UI Locale.
+    expect(
+      setupSttPatch("sensevoice_gpu", { saveEngine: false }),
+    ).toStrictEqual({ stt_provider: "parakeet", stt_parakeet_webgpu: true });
   });
 });
 

@@ -164,9 +164,10 @@ export function offlineSttModelName(engine: OfflineSttEngine): string {
 
 /**
  * The provider choices on this platform. The offline choice (`parakeet`) is
- * served by `engine`, the UI Locale's offline engine, and `parakeetAvailable`
- * reports that engine's sets. A missing SenseVoice set has no reason here:
- * `SpeechLanguageNotice` asks for its download.
+ * served by `engine`, the offline engine that runs (by default the UI
+ * Locale's), and `parakeetAvailable` reports that engine's sets. A missing
+ * SenseVoice set has no reason here: `SpeechLanguageNotice` asks for its
+ * download.
  */
 export function getSttProviderOptions(
   parakeetAvailable: boolean | null = null,
@@ -264,9 +265,10 @@ export type ResolveRoutedSttProviderResult = ResolveSttProviderResult & {
 
 /**
  * The provider for a session, or shown in Settings, with the offline choice
- * served by `route`'s engine. A saved offline choice whose non-English set is
- * missing stays offline and reports `languageMissing` rather than falling
- * back to a browser recognizer, which may send audio to a cloud service.
+ * served by `route`'s engine. A saved offline choice whose set is missing
+ * stays offline and reports `languageMissing` rather than falling back to a
+ * browser recognizer, which may send audio to a cloud service; only Parakeet
+ * under English falls back (`OfflineSpeechRoute.browserFallback`).
  */
 export function resolveRoutedSttProvider({
   savedProvider = null,

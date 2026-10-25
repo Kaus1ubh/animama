@@ -2,6 +2,7 @@ import { getI18n } from "react-i18next";
 
 import {
   isParakeetWebgpuPreferred,
+  offlineSttEnginePreference,
   type SettingsPreferences,
 } from "@/lib/settings/preferences";
 import {
@@ -42,7 +43,7 @@ export function composerSpeechEngines({
 }: {
   preferences: SettingsPreferences | null | undefined;
   platform: RuntimePlatform;
-  /** The UI Locale, which picks the offline engine. */
+  /** The UI Locale, which picks the offline engine unless one is saved. */
   locale: string | undefined;
   capabilities:
     | (OfflineSpeechCapabilities & { gemini_tts?: unknown })
@@ -51,7 +52,10 @@ export function composerSpeechEngines({
   if (!capabilities) return { dictation: null, voiceMode: null };
   const t = getI18n().getFixedT(null, "chat");
   const tVoice = getI18n().getFixedT(null, "voice");
-  const route = routeOfflineSpeech(locale);
+  const route = routeOfflineSpeech(
+    locale,
+    offlineSttEnginePreference(preferences),
+  );
   const { provider: sttProvider } = resolveRoutedSttProvider({
     savedProvider: toSttProvider(preferences?.speech?.stt_provider),
     platform,
