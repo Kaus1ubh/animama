@@ -48,7 +48,20 @@ const fixture = vi.hoisted(() => ({
   connections: [] as unknown[],
   providers: [] as unknown[],
   desktopKeys: true,
+  localModels: true,
 }));
+vi.mock("@/platform/env", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/platform/env")>();
+  return {
+    ...actual,
+    env: {
+      ...actual.env,
+      get enableLocalModels() {
+        return fixture.localModels;
+      },
+    },
+  };
+});
 vi.mock("@web/app/local-runtime/LocalRuntimeProvider", () => ({
   useLocalRuntime: () => ({
     state: {
@@ -339,6 +352,27 @@ describe("local first-run setup", () => {
     expect(html).toMatch(/<h3[^>]*>Anthropic<\/h3>/u);
     // Only the Cloud location is recommended; no provider panel is.
     expect(html.match(/Recommended/gu)).toHaveLength(1);
+  });
+
+  it("offers only Cloud providers while local models are behind their flag", () => {
+    fixture.localModels = false;
+    fixture.connections = [anthropicConnection, builtinConnection];
+    fixture.providers = catalog;
+    try {
+      // A draft saved on Local falls back to Cloud.
+      const html = renderSetup({
+        ...welcomeDone,
+        step: "ai",
+        modelLocation: "local",
+      });
+      expect(html).not.toContain('aria-label="Local providers"');
+      expect(html).not.toMatch(/role="tab"[^>]*><span[^>]*>Local</u);
+      expect(html).not.toContain("Ollama");
+      expect(html).toContain('aria-label="Cloud providers"');
+      expect(html).toContain('data-key-panel="openai"');
+    } finally {
+      fixture.localModels = true;
+    }
   });
 
   it("names each built-in key variable on self-hosted web", () => {

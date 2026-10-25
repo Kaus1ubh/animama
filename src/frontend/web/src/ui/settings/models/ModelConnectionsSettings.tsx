@@ -47,7 +47,6 @@ import {
   connectionStatusText,
   defaultLocationProvider,
   locationProviderGroups,
-  MODEL_LOCATION_TABS,
   modelCapabilityChips,
   modelConfigurationErrorCode,
   modelConfigurationErrorMessage,
@@ -57,6 +56,7 @@ import {
   modelSettingsAvailability,
   removalConsequences,
   removalUsageSummary,
+  visibleModelLocations,
   type BuiltinConnectionKey,
   type ConnectionReachability,
   type ModelLocation,
@@ -139,6 +139,9 @@ export function ModelConnectionsSettings({
   const [removing, setRemoving] = useState(false);
 
   const all = connections.data ?? [];
+  const locations = visibleModelLocations(all);
+  // A hidden location (Local behind its flag) falls back to Cloud.
+  const shownTab = locations.includes(tab) ? tab : "cloud";
   const templates = all
     .filter((connection) => connection.source === "builtin")
     .flatMap((connection) => connection.models ?? [])
@@ -301,7 +304,7 @@ export function ModelConnectionsSettings({
             connection={connection}
             entry={entry}
             location={location}
-            active={tab === location}
+            active={shownTab === location}
             logo={
               connection.logo_provider ??
               presetById(connection.preset)?.logo_provider ??
@@ -379,11 +382,11 @@ export function ModelConnectionsSettings({
   return (
     <div className="min-w-0 py-3">
       <Tabs
-        value={tab}
+        value={shownTab}
         onValueChange={(value) => setTab(value as ModelLocation)}
       >
-        <ModelLocationTabsList active={tab} />
-        {MODEL_LOCATION_TABS.map((id) => (
+        <ModelLocationTabsList locations={locations} active={shownTab} />
+        {locations.map((id) => (
           <TabsContent
             key={id}
             value={id}

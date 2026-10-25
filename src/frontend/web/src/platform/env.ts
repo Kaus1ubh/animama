@@ -34,4 +34,6 @@ export const env = {
   disableWebuiTelemetry: readBooleanFlag("VITE_DISABLE_WEBUI_TELEMETRY"),
   disableWebuiTraces: readBooleanFlag("VITE_DISABLE_WEBUI_TRACES"),
   enableDebugPanel: DEBUG_ENABLED,
+  /** Offers the Local model servers (Ollama, LM Studio, llama.cpp, vLLM). */
+  enableLocalModels: readBooleanFlag("VITE_ENABLE_LOCAL_MODELS"),
 } as const;

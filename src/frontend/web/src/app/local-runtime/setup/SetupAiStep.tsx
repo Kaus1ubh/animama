@@ -50,12 +50,12 @@ import {
   defaultLocationProvider,
   detectionMessage,
   locationProviderGroups,
-  MODEL_LOCATION_TABS,
   modelConfigurationErrorMessage,
   modelLocationLabel,
   modelProviderLabel,
   modelProviderPurpose,
   modelSettingsAvailability,
+  visibleModelLocations,
   type ModelProviderEntry,
 } from "@/ui/settings/models/model-configuration-state";
 
@@ -329,6 +329,9 @@ function ModelChooser({
   >({});
 
   const allConnections = connections.data ?? [];
+  const locations = visibleModelLocations(allConnections);
+  // A hidden location (Local behind its flag, or saved in the draft) shows Cloud.
+  const shownLocation = locations.includes(location) ? location : "cloud";
   const items = providers.data ?? [];
   const systemDefaultId = roles.data?.roles.find(
     (role) => role.role === "chat",
@@ -392,7 +395,7 @@ function ModelChooser({
   const connected = (saved: PyModelConnection) => {
     // A custom server lands on the location its address implies.
     const where = connectionLocation(saved);
-    if (where !== location) onLocationChange(where);
+    if (where !== shownLocation) onLocationChange(where);
     setProviderTab((current) => ({
       ...current,
       [where]: connectionProviderEntry(saved).id,
@@ -454,7 +457,9 @@ function ModelChooser({
       return (
         <LocalServer
           entry={entry}
-          active={location === "local" && activeProvider("local") === entry.id}
+          active={
+            shownLocation === "local" && activeProvider("local") === entry.id
+          }
           connections={allConnections}
           serverConnections={items}
           presetById={presetById}
@@ -480,13 +485,17 @@ function ModelChooser({
   return (
     <div className="space-y-5">
       <Tabs
-        value={location}
+        value={shownLocation}
         onValueChange={(value) => onLocationChange(value as SetupModelLocation)}
       >
-        <ModelLocationTabsList active={location} recommended="cloud" />
+        <ModelLocationTabsList
+          locations={locations}
+          active={shownLocation}
+          recommended="cloud"
+        />
         {/* Every location and provider panel stays mounted, so a typed key
             or open form survives a tab switch. */}
-        {MODEL_LOCATION_TABS.map((where) => (
+        {locations.map((where) => (
           <TabsContent
             key={where}
             value={where}

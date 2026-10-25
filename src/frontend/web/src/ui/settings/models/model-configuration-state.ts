@@ -38,6 +38,7 @@ import {
   webSearchAvailability,
 } from "@/lib/chat/model-provider-native-tools";
 import { chatModelSendGate } from "@/lib/chat/model-provider-compatibility";
+import { env } from "@/platform/env";
 
 /**
  * Models that can do a role, mirroring the server's rules: embeddings need an
@@ -70,6 +71,24 @@ export type ModelLocation = "cloud" | "local";
 
 /** The two tabs of the Models section, in order. */
 export const MODEL_LOCATION_TABS: readonly ModelLocation[] = ["cloud", "local"];
+
+/**
+ * The location tabs to offer. Local is hidden unless `VITE_ENABLE_LOCAL_MODELS`
+ * is set at build time, but stays offered while the owner has a connection
+ * there, so an existing local server remains editable and removable.
+ */
+export function visibleModelLocations(
+  connections: readonly Pick<
+    PyModelConnection,
+    "source" | "preset" | "base_url"
+  >[],
+  localModelsEnabled: boolean = env.enableLocalModels,
+): readonly ModelLocation[] {
+  return localModelsEnabled ||
+    connections.some((connection) => connectionLocation(connection) === "local")
+    ? MODEL_LOCATION_TABS
+    : ["cloud"];
+}
 
 /** A location tab's name in the active UI Locale. */
 export function modelLocationLabel(location: ModelLocation): string {
