@@ -17,13 +17,13 @@ class ORMUserProfile(SqlalchemyBase):
     __tablename__ = "user_profiles"
     __table_args__ = (
         CheckConstraint(
-            "display_name IS NULL OR char_length(display_name) BETWEEN 1 AND 80",
+            "display_name IS NULL OR char_length(display_name) BETWEEN 1 AND 30",
             name="display_name_length",
         ),
     )
 
     user_id: Mapped[str] = mapped_column(String, primary_key=True)
-    display_name: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    display_name: Mapped[str | None] = mapped_column(String(30), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), nullable=False, server_default=sa_text("CURRENT_TIMESTAMP")
     )

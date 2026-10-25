@@ -457,7 +457,7 @@ dependency; none accepts an owner ID or internal credential from the body.
 - `POST /v1/runtime/onboarding:complete`: accept only
   `{ "display_name": string, "adult_confirmed": boolean,
   "chat_model_provider_id"?: string }`. The name is
-  required and nonblank (1–80 characters); `adult_confirmed` must be `true`,
+  required and nonblank (1–30 characters); `adult_confirmed` must be `true`,
   otherwise the route returns 422 `adult_confirmation_required`. It atomically
   saves private personalization, guarded `PROFILE.md` synchronization, the
   owner's 18+ self-attestation, and write-once first-run completion. The

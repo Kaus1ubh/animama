@@ -4407,7 +4407,7 @@ export const zPyOnboardingCompleteRequest = z.object({
         z.string().min(1).max(512),
         z.null()
     ])),
-    display_name: z.string().min(1).max(80)
+    display_name: z.string().min(1).max(30)
 });
 
 /**
@@ -5963,7 +5963,7 @@ export const zPyUserProfile = z.object({
  * PyUserProfileUpdate
  */
 export const zPyUserProfileUpdate = z.object({
-    display_name: z.string().min(1).max(80)
+    display_name: z.string().min(1).max(30)
 });
 
 /**

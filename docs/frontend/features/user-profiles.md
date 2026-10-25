@@ -1,7 +1,7 @@
 # Local Profile
 
 The accountless backend profile is private personalization for one installation.
-It stores a display name normalized to at most 80 Unicode characters.
+It stores a display name normalized to at most 30 Unicode characters.
 
 The backend exposes `GET /v1/users/me/profile` and
 `PATCH /v1/users/me/profile`, plus the local runtime/bootstrap endpoints used by
@@ -10,7 +10,7 @@ secret or public identity.
 
 On first run, `/setup` has three steps: **Welcome** → **AI** → **Voice**.
 Welcome asks “What should Animama call you?” and accepts a required nonblank
-display name up to 80 characters. Welcome has no Skip action. AI
+display name up to 30 characters. Welcome has no Skip action. AI
 (model and the OpenAI or Anthropic key) and Voice (speech downloads,
 Text-to-Speech and the ElevenLabs key) offer "Skip for now". Finish writes changed
 Text-to-Speech preferences and opens a blocking 18+ modal on the first Anima.

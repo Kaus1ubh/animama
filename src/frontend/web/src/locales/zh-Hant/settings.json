@@ -262,7 +262,6 @@
     "webSearch": "網頁搜尋"
   },
   "language": {
-    "description": "Animama 和 Anima 使用的語言：包括選單、訊息，以及 Anima 說話和聽懂的語言。測試版語言為機器翻譯。",
     "keywords": [
       "語言",
       "地區設定",
@@ -327,7 +326,6 @@
     "advanced": "進階",
     "apiKeys": "API 金鑰",
     "appearance": "外觀",
-    "data": "資料",
     "general": "一般",
     "memoryEmotion": "記憶與情緒",
     "models": "模型",

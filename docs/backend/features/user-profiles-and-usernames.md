@@ -9,7 +9,7 @@ creator profile, or Discover identity.
 `user_profiles` contains only:
 
 - `user_id`, the retained owner column keyed by the installation principal;
-- nullable `display_name`, limited to 80 Unicode characters after whitespace
+- nullable `display_name`, limited to 30 Unicode characters after whitespace
   normalization (null is a pre-setup bootstrap placeholder only);
 - `created_at` and `updated_at` timestamps.
 

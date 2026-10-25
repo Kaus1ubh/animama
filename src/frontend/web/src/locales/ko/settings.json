@@ -262,7 +262,6 @@
     "webSearch": "웹 검색"
   },
   "language": {
-    "description": "Animama와 Anima의 언어입니다. 메뉴와 메시지뿐 아니라 Anima가 말하고 알아듣는 언어에도 적용됩니다. 베타 언어는 기계 번역입니다.",
     "keywords": [
       "언어",
       "로케일",
@@ -327,7 +326,6 @@
     "advanced": "고급",
     "apiKeys": "API 키",
     "appearance": "모양",
-    "data": "데이터",
     "general": "일반",
     "memoryEmotion": "기억 및 감정",
     "models": "모델",

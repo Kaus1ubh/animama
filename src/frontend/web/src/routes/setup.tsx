@@ -471,9 +471,6 @@ function WelcomeStep({
       <div className="space-y-2">
         <Label htmlFor="local-language">{t("settings:language.label")}</Label>
         <LanguageSelect id="local-language" className="w-full" />
-        <p className="text-muted-foreground text-xs">
-          {t("settings:language.description")}
-        </p>
       </div>
     </>
   );

@@ -10,7 +10,8 @@
   and its [specification snapshot](../plans/internationalization/internationalization-spec.md)
 - Amended: 2026-10-21, offline speech recognition follows the conversation
   language: SenseVoice-Small serves Japanese, Korean and Chinese, and Parakeet
-  English ([ADR 0029](0029-sensevoice-offline-speech-recognition.md))
+  English ([ADR 0029](0029-sensevoice-offline-speech-recognition.md));
+  2026-10-25, the language picker no longer labels non-English locales Beta
 
 ## Context
 
@@ -46,8 +47,8 @@ showed backend English verbatim.
 3. **Codes from the backend, words in the frontend.** The backend sends stable
    codes and parameters; frontend catalogs word them. Backend English stays
    for logs and API clients and is shown only as secondary technical detail.
-4. **Beta locales.** Non-English locales ship machine-translated and are marked
-   Beta. A missing translation shows English. CI fails on catalog errors
+4. **Beta locales.** Non-English locales ship machine-translated; the picker
+   does not label them. A missing translation shows English. CI fails on catalog errors
    (stale keys, placeholder changes, keys missing from English, raw strings in
    converted UI) but only reports untranslated keys.
 5. **Shared runtime.** The locale contract lives in

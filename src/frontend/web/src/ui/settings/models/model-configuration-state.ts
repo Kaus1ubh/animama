@@ -121,7 +121,7 @@ export type ModelProviderEntry = {
   presetId: string;
   /** The provider's product name; `null` for the translated "Custom". */
   name: string | null;
-  /** Shown with a Recommended tag (the built-in OpenAI connection). */
+  /** Shown with a Recommended tag (the built-in OpenAI and Anthropic connections). */
   recommended?: boolean;
 };
 
@@ -141,7 +141,12 @@ export const MODEL_LOCATION_PROVIDERS: Record<
       name: "OpenAI",
       recommended: true,
     },
-    { id: "anthropic", presetId: ANTHROPIC_PRESET, name: "Anthropic" },
+    {
+      id: "anthropic",
+      presetId: ANTHROPIC_PRESET,
+      name: "Anthropic",
+      recommended: true,
+    },
     { id: "deepseek", presetId: "deepseek", name: "DeepSeek" },
     { id: "huggingface", presetId: "huggingface", name: "Hugging Face" },
     { id: "openrouter", presetId: "openrouter", name: "OpenRouter" },

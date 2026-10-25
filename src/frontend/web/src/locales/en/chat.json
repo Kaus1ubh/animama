@@ -159,6 +159,12 @@
       "unavailable": "Model unavailable. Select another model.",
       "unavailableShort": "Model unavailable",
       "webSearch": "Web search"
+    },
+    "speechEngines": {
+      "offline": "{{engine}} {{variant}}",
+      "stt": "STT: {{stt}}",
+      "tts": "TTS: {{tts}}",
+      "ttsOff": "Off"
     }
   },
   "header": {

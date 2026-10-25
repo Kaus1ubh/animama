@@ -892,10 +892,10 @@ CREATE TABLE user_file_processing_job (
 
 CREATE TABLE user_profiles (
     user_id character varying NOT NULL,
-    display_name character varying(80),
+    display_name character varying(30),
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    CONSTRAINT ck_user_profiles_display_name_length CHECK (((display_name IS NULL) OR ((char_length((display_name)::text) >= 1) AND (char_length((display_name)::text) <= 80))))
+    CONSTRAINT ck_user_profiles_display_name_length CHECK (((display_name IS NULL) OR ((char_length((display_name)::text) >= 1) AND (char_length((display_name)::text) <= 30))))
 );
 
 -- animama-statement --

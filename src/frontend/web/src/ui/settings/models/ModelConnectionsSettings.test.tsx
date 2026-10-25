@@ -441,8 +441,12 @@ describe("Models connections by where models run", () => {
   it("shows the built-in Anthropic connection with its logo, key state and Haiku 5.5", () => {
     const html = render(<ModelConnectionsSettings disabled={false} />);
     const claude = panel(html, "anthropic");
-    expectInOrder(claude, ["Anthropic", "Key missing", "Claude Haiku 5.5"]);
-    expect(claude).not.toContain("Recommended");
+    expectInOrder(claude, [
+      "Anthropic",
+      "Recommended",
+      "Key missing",
+      "Claude Haiku 5.5",
+    ]);
     expect(claude).toContain('aria-label="Add model to Anthropic"');
     // Built-in: neither editable nor removable.
     expect(claude).not.toContain('aria-label="Remove Anthropic"');

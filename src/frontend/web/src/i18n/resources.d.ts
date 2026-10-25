@@ -1352,6 +1352,12 @@ export default interface Resources {
         "unavailable": "Model unavailable. Select another model.",
         "unavailableShort": "Model unavailable",
         "webSearch": "Web search"
+      },
+      "speechEngines": {
+        "offline": "{{engine}} {{variant}}",
+        "stt": "STT: {{stt}}",
+        "tts": "TTS: {{tts}}",
+        "ttsOff": "Off"
       }
     },
     "header": {
@@ -1455,7 +1461,6 @@ export default interface Resources {
       "resetAll": "Reset all",
       "show": "Show"
     },
-    "beta": "Beta",
     "connection": {
       "reconnecting": "Reconnecting to Animama. Requests are paused; saved creator drafts are kept if you reload, unsent chat text is not."
     }
@@ -6034,7 +6039,6 @@ export default interface Resources {
       "webSearch": "Web search"
     },
     "language": {
-      "description": "The language of Animama and of your Animas: menus, messages, and what your Animas say and hear. Beta languages are machine-translated.",
       "keywords": ["language", "locale", "translation"],
       "label": "Language",
       "saveFailed": "Failed to change the language.",
@@ -6097,7 +6101,6 @@ export default interface Resources {
       "advanced": "Advanced",
       "apiKeys": "API Keys",
       "appearance": "Appearance",
-      "data": "Data",
       "general": "General",
       "memoryEmotion": "Memory & Emotion",
       "models": "Models",

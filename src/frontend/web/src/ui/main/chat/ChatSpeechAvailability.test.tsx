@@ -23,6 +23,12 @@ vi.mock("@/platform/RuntimePlatformProvider", () => ({
 vi.mock("@/lib/speech/stt-provider", () => ({
   isWebSpeechSupported: () => false,
 }));
+vi.mock("@/lib/speech/composer-speech-engines", () => ({
+  composerSpeechEngines: () => ({ dictation: null, voiceMode: null }),
+}));
+vi.mock("@/ui/settings/SettingsProvider", () => ({
+  useSettings: () => ({ effectivePreferences: {} }),
+}));
 vi.mock("@animama/product-ui/components", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@animama/product-ui/components")>()),
   ChatConversation: () => null,

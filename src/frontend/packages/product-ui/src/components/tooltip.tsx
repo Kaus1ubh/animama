@@ -56,4 +56,34 @@ function TooltipContent({
   );
 }
 
-export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider };
+/**
+ * Tooltip text with secondary lines under it in smaller type, e.g. the speech
+ * engines a voice control uses. Without lines it renders the title alone.
+ */
+function TooltipDetails({
+  title,
+  lines,
+}: {
+  title: React.ReactNode;
+  lines?: readonly string[] | null;
+}) {
+  if (!lines?.length) return <>{title}</>;
+  return (
+    <span className="flex flex-col gap-0.5">
+      <span>{title}</span>
+      {lines.map((line) => (
+        <span key={line} className="text-2xs opacity-80">
+          {line}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+export {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+  TooltipDetails,
+  TooltipProvider,
+};

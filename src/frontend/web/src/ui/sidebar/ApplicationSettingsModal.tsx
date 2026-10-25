@@ -15,7 +15,6 @@ import * as Dialog from "@radix-ui/react-dialog";
 import {
   AudioLines,
   Brain,
-  Database,
   Info,
   Keyboard,
   KeyRound,
@@ -304,13 +303,12 @@ function initializationFailureText(
 const sections = [
   "General",
   "Models",
-  "Appearance",
   "Voice",
   "Shortcuts",
   "Memory & Emotion",
+  "Appearance",
   "Safety",
   "API Keys",
-  "Data",
   "Advanced",
   "About",
 ] as const;
@@ -326,7 +324,6 @@ const SECTION_LABEL_KEYS = {
   "Memory & Emotion": "sections.memoryEmotion",
   Safety: "sections.safety",
   "API Keys": "sections.apiKeys",
-  Data: "sections.data",
   Advanced: "sections.advanced",
   About: "sections.about",
 } as const satisfies Record<ApplicationSettingsSection, string>;
@@ -438,7 +435,6 @@ const SECTION_ICONS: Record<ApplicationSettingsSection, LucideIcon> = {
   "Memory & Emotion": Brain,
   Safety: LifeBuoy,
   "API Keys": KeyRound,
-  Data: Database,
   Advanced: SlidersHorizontal,
   About: Info,
 };
@@ -1796,17 +1792,6 @@ export function ApplicationSettingsModal({
       ),
     },
     {
-      id: "reset-app-settings",
-      section: "Data",
-      ...inGroup("appData"),
-      label: t("data.reset.label"),
-      keywords: ["reset", "defaults", "restore", "clear"],
-      // Close so controls holding local copies reload the restored values.
-      render: () => (
-        <ResetAppSettingsSetting onReset={() => onOpenChange(false)} />
-      ),
-    },
-    {
       id: "chat-markdown",
       section: "Advanced",
       ...inGroup("messages"),
@@ -1886,6 +1871,17 @@ export function ApplicationSettingsModal({
             />
           }
         />
+      ),
+    },
+    {
+      id: "reset-app-settings",
+      section: "Advanced",
+      ...inGroup("appData"),
+      label: t("data.reset.label"),
+      keywords: ["reset", "defaults", "restore", "clear"],
+      // Close so controls holding local copies reload the restored values.
+      render: () => (
+        <ResetAppSettingsSetting onReset={() => onOpenChange(false)} />
       ),
     },
   ];

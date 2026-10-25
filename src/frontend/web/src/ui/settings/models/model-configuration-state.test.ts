@@ -367,7 +367,7 @@ describe("Cloud and Local tabs", () => {
     ]);
   });
 
-  it("offers the planned providers on each tab, OpenAI recommended", () => {
+  it("offers the planned providers on each tab, OpenAI and Anthropic recommended", () => {
     expect(MODEL_LOCATION_TABS.map(modelLocationLabel)).toEqual([
       "Cloud",
       "Local",
@@ -389,7 +389,10 @@ describe("Cloud and Local tabs", () => {
     ]);
     expect(
       MODEL_LOCATION_PROVIDERS.cloud.filter((entry) => entry.recommended),
-    ).toEqual([expect.objectContaining({ id: "openai" })]);
+    ).toEqual([
+      expect.objectContaining({ id: "openai" }),
+      expect.objectContaining({ id: "anthropic" }),
+    ]);
   });
 
   it("puts the built-in connection and cloud presets on Cloud, local servers on Local", () => {
