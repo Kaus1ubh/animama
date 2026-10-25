@@ -16,6 +16,7 @@ import { ModelConnectionsSettings } from "./ModelConnectionsSettings";
 
 const state = vi.hoisted(() => ({
   desktop: true,
+  localModels: true,
   capabilities: {} as Record<string, unknown> | undefined,
   connections: [] as unknown[],
   presets: [] as unknown[],
@@ -32,6 +33,18 @@ const idle = vi.hoisted(() => () => ({
   data: undefined,
 }));
 
+vi.mock("@/platform/env", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/platform/env")>();
+  return {
+    ...actual,
+    env: {
+      ...actual.env,
+      get enableLocalModels() {
+        return state.localModels;
+      },
+    },
+  };
+});
 vi.mock("@/platform/RuntimePlatformProvider", () => ({
   useRuntimePlatform: () =>
     state.desktop
@@ -223,6 +236,7 @@ function expectInOrder(html: string, parts: string[]) {
 
 beforeEach(() => {
   state.desktop = true;
+  state.localModels = true;
   state.capabilities = {
     model_configuration: true,
     web_search: { configuration: true, configured: true, backend: "searxng" },
@@ -295,6 +309,21 @@ describe("Models connections by where models run", () => {
       "vLLM",
       "Custom",
     ]);
+  });
+
+  it("hides Local behind its flag unless a local connection exists", () => {
+    state.localModels = false;
+    state.connections = [openrouter, anthropic, builtin];
+    const html = render(<ModelConnectionsSettings disabled={false} />);
+    expect(html).not.toContain('aria-label="Where models run"');
+    expect(html).not.toContain('aria-label="Local providers"');
+    expect(html).not.toContain("Ollama");
+    expect(selectedTab(html, "OpenRouter")).toBe(true);
+    // A saved local connection keeps Local so it can still be edited or removed.
+    state.connections = [vllm, openrouter, anthropic, builtin];
+    const kept = render(<ModelConnectionsSettings disabled={false} />);
+    expect(kept).toContain('aria-label="Where models run"');
+    expect(panel(kept, "local")).toContain("Workstation vLLM");
   });
 
   it("opens on the first connected provider and marks connected tabs", () => {
