@@ -241,7 +241,7 @@ assets; none is a staging input or pack.
 verified model store into publication candidates, so a signed release needs those
 sets acquired first (for example `python3 scripts/models/parakeet.py acquire`,
 `python3 scripts/models/parakeet_webgpu.py acquire`,
-`python3 scripts/models/sensevoice.py acquire --source upstream` and
+`python3 scripts/models/sensevoice.py acquire` and
 `python3 scripts/models/sensevoice_webgpu.py acquire`, or an import through the
 [model-store workflow](../../backend/operations/model-assets.md)). Set the
 absolute `ANIMAMA_MODEL_ROOT` only when selecting a different store. Each set is

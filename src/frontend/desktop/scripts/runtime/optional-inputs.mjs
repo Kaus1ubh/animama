@@ -36,8 +36,6 @@ const modelSets = [
     label: "SenseVoice",
     modelId: "sensevoice-small",
     script: "scripts/models/sensevoice.py",
-    // Animama has not published these objects yet (gate G2).
-    acquireArgs: "--source upstream",
     license: "LicenseRef-FunASR-Model-License-1.1",
     names: [
       "ATTRIBUTION.md",

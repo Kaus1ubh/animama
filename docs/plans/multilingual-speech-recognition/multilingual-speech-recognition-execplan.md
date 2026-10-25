@@ -75,6 +75,12 @@ Boundaries:
       items: G2–G4 and the first-interim and `zh-Hans` WASM latency targets.
 - [x] Final integration review (2026-10-21): one blocking finding (contract
       versions) and nine non-blocking, repaired in one round.
+- [x] G2 publication (2026-10-24): both SenseVoice sets scanned with the
+      pinned Gitleaks and published to `downloads.animama.ai`; anonymous
+      read-back returned 200 at the expected sizes.
+- [ ] G2 post-publication checks: `--source upstream` hints removed;
+      download, resume, removal and in-use refusal on a built stack and in the
+      packaged app.
 
 ## Surprises & Discoveries
 

@@ -224,13 +224,13 @@ if ! ANIMAMA_MODEL_ROOT="$(python3 "${script_dir}/scripts/models/parakeet.py" ro
 fi
 # An optional third argument adds acquire options to the hint.
 resolve_optional_model() {
-  local script="$1" label="$2" acquire="${3:-}" resolved status=0
+  local script="$1" label="$2" resolved status=0
   resolved="$(python3 "${script_dir}/scripts/models/${script}" path --root "$ANIMAMA_MODEL_ROOT" 2>/dev/null)" || status=$?
   if [ "$status" -eq 0 ]; then
     printf '%s\n' "$resolved"
   elif [ "$status" -eq 2 ]; then
     echo "⚠️  ${label} models are not acquired; continuing without them." >&2
-    echo "   Run python3 scripts/models/${script} acquire${acquire:+ $acquire} to enable them." >&2
+    echo "   Run python3 scripts/models/${script} acquire to enable them." >&2
   else
     echo "❌ ${label} models failed verification." >&2
     echo "   Run python3 scripts/models/${script} verify --root \"$ANIMAMA_MODEL_ROOT\" for details." >&2
@@ -261,8 +261,7 @@ if [ "${ANIMAMA_WEB_BUILD_MODE-development}" = development ]; then
     export ANIMAMA_PARAKEET_STT_ENABLED
   fi
   ANIMAMA_PARAKEET_WEBGPU_MODEL_DIR="$(resolve_webgpu_model parakeet_webgpu.py Parakeet)"
-  # Until Animama publishes the SenseVoice objects (gate G2), acquire upstream.
-  ANIMAMA_SENSEVOICE_MODEL_DIR="$(resolve_optional_model sensevoice.py "SenseVoice multilingual speech-to-text" "--source upstream")" || exit 2
+  ANIMAMA_SENSEVOICE_MODEL_DIR="$(resolve_optional_model sensevoice.py "SenseVoice multilingual speech-to-text")" || exit 2
   if [ -z "$ANIMAMA_SENSEVOICE_MODEL_DIR" ]; then
     ANIMAMA_SENSEVOICE_STT_ENABLED=false
     export ANIMAMA_SENSEVOICE_STT_ENABLED

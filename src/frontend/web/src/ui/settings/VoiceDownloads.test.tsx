@@ -391,6 +391,7 @@ describe("where speech downloads are offered", () => {
     expect(html).toContain("scripts/models/parakeet.py acquire");
     expect(html).toContain("parakeet_webgpu.py acquire");
     expect(html).toContain("scripts/models/sensevoice.py acquire");
+    expect(html).not.toContain("--source upstream");
     expect(html).toContain("sensevoice_webgpu.py acquire");
     expect(html).not.toContain("<button");
   });

@@ -122,8 +122,8 @@ Traditional) and Cantonese offline on the CPU: the INT8 graph, its token table,
 cannot read from ONNX) and the two notices, about 240 MB under
 `<store>/sensevoice-small/<manifest-digest>`. It uses the same store, acquire
 options (`--root`, `--offline`, `--import-from`, `--source`) and exit codes as
-`parakeet.py`. Until Animama publishes its objects, acquire with
-`--source upstream`, which downloads the pinned
+`parakeet.py`: the default source is Animama's published objects, and
+`--source upstream` downloads the pinned
 `csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17` revision.
 
 `python3 scripts/models/sensevoice_webgpu.py acquire|verify|path` manages the
