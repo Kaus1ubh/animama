@@ -45,6 +45,7 @@ from .memory_context import (
     MAIN_STRUCTURED_OUTPUT_GUIDANCE,
     MEMORY_SYSTEM_GUIDANCE,
     NATIVE_MEMORY_PATCH_GUIDANCE,
+    anima_name_line,
     render_core_companion_instruction,
 )
 
@@ -264,11 +265,14 @@ def _stable_instruction_sections(
         memory_guidance = f"{memory_guidance}\n\n{NATIVE_MEMORY_PATCH_GUIDANCE.strip()}"
     if anthropic:
         # Owner-written content is delimited with XML tags on Anthropic rows.
-        core = render_core_companion_instruction(anima_name, identity_reference=ANTHROPIC_IDENTITY_REFERENCE)
+        core = render_core_companion_instruction(identity_reference=ANTHROPIC_IDENTITY_REFERENCE)
         identity = f"<anima_identity>\n{_escape_tags(anima_identity.strip(), _ANIMA_IDENTITY_TAG)}\n</anima_identity>"
     else:
-        core = render_core_companion_instruction(anima_name)
+        core = render_core_companion_instruction()
         identity = anima_identity.strip()
+    name_line = anima_name_line(anima_name)
+    if name_line is not None:
+        identity = f"{name_line}\n\n{identity}"
     sections = [
         "# Core Instructions\n\n" + core.strip(),
         "# Anima Identity\n\n" + identity,

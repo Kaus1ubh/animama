@@ -179,8 +179,8 @@ Anima, per chat, or per turn.
 | Part | Class | Where it is | Changes when |
 | --- | --- | --- | --- |
 | Tool definitions | per turn | before all instructions (OpenAI and Anthropic render tools first) | uploaded-file tools are added only on turns with attachments; write tools follow incognito and memory options; native web search follows the shared control. Any change misses the whole cache, so a turn with attachments and the turn after it miss. |
-| Core instructions | per Anima | stable instructions, first | the Anima's name changes |
-| Anima identity (`IDENTITY.md`) | per Anima | stable instructions | the owner edits the identity |
+| Core instructions | per provider style | stable instructions, first | never; they name no Anima |
+| Anima identity (a "Your name is …" line, then `IDENTITY.md`) | per Anima | stable instructions | the owner renames the Anima or edits the identity |
 | Anima memories (`MEMORIES.md`) | per Anima | stable instructions | a chat memory tool or a Memory Manager Reflection edits it. On Responses this also misses the stored chain's prefix; edits are rare. |
 | Memory and response guidance | per Anima | stable instructions | memory-write flags or the response format change |
 | Gesture list and response schema | per Anima | stable instructions (response guidance) and `response_format` | the Anima's loadout changes; the schema's `gesture` enum changes with it |

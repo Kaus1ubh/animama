@@ -63,7 +63,8 @@ MEMORY_MAP = "# List of memory files\n\nfiles:\n  - path: PROFILE.md"
 # default and the Anthropic phrasing must contain every one (R12).
 DIRECTIVE_MARKERS = (
     "an Anima hosted by Animama AI",
-    "Fully assume the identity of Annie",
+    "Fully assume the identity described",
+    "Your name is Annie.",
     "3D avatar that expresses emotion and moves with gestures",
     "Let your words, emotional tone and gesture fit together and fit the situation",
     "as in a live conversation",

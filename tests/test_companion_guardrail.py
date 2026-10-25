@@ -155,9 +155,19 @@ def test_guardrail_is_last_developer_message_with_developer_role() -> None:
 
 
 def test_core_instruction_defers_to_guardrail() -> None:
-    core = render_core_companion_instruction("Annie")
+    core = render_core_companion_instruction()
     assert "under any circumstances" not in core
     assert "Companion Guardrails" in core
+
+
+def test_core_instruction_names_no_anima_and_the_identity_opens_with_the_live_name() -> None:
+    system = _assemble(anima_name="Sam").messages[0]["content"]
+    assert isinstance(system, str)
+
+    core = system[: system.index("# Anima Identity")]
+    assert core.startswith("# Core Instructions\n\nYou are an Anima hosted by Animama AI:")
+    assert "Sam" not in core
+    assert f"# Anima Identity\n\nYour name is Sam.\n\n{ADVERSARIAL_IDENTITY}" in system
 
 
 @pytest.mark.parametrize("anima_memories_writable", [True, False])

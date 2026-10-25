@@ -607,8 +607,8 @@ def _phase5_prefix(response_format_guidance: str | None = None) -> list[tuple[st
             "system",
             "\n\n".join(
                 (
-                    "# Core Instructions\n\n" + render_core_companion_instruction("Annie").strip(),
-                    "# Anima Identity\n\nTest anima identity.",
+                    "# Core Instructions\n\n" + render_core_companion_instruction().strip(),
+                    "# Anima Identity\n\nYour name is Annie.\n\nTest anima identity.",
                     "# Memory Guidance\n\n" + MEMORY_SYSTEM_GUIDANCE.strip(),
                     "# Response Guidance\n\n" + guidance,
                     # A request without speech options gets the no-tags rule.

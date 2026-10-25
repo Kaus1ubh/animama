@@ -36,7 +36,10 @@ receive identity through creation; the current baseline does not adopt legacy
 Avatar identity from databases stamped with removed revisions.
 
 The identity markdown is appended to the single system instruction using only
-the file content. `disable_memory_influence` does not remove anima identity.
+the file content, after one "Your name is …" line with the Anima's display name:
+the core instructions name no Anima, and `IDENTITY.md` may lack a name heading
+or keep an old one after a rename. `disable_memory_influence` does not remove
+anima identity.
 
 `MEMORIES.md` follows the identity as a `# Anima Memories` section: a short
 fixed preamble that frames the content as the Anima's own first-person notes

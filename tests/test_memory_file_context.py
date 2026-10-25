@@ -356,8 +356,8 @@ async def test_memory_instruction_sections_assemble_into_single_system_message()
     system_content = system_messages[0]["content"]
     assert isinstance(system_content, str)
     assert "# Core Instructions" in system_content
-    assert "You are Avatar, an Anima hosted by Animama AI:" in system_content
-    assert "# Anima Identity\n\nIdentity" in system_content
+    assert "You are an Anima hosted by Animama AI:" in system_content
+    assert "# Anima Identity\n\nYour name is Avatar.\n\nIdentity" in system_content
     assert "# Memory Guidance" in system_content
     assert "# Response Guidance" in system_content
 

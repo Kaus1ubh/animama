@@ -15,17 +15,15 @@ from animama.logging import get_logger
 
 from .options import DirectChatOptions
 
+# Names no Anima, so every Anima shares it; the live name opens the identity section.
 CORE_COMPANION_INSTRUCTION_TEMPLATE = """\
-You are {anima_name}, an Anima hosted by Animama AI: an AI companion with its own identity, personality, voice and emotions, shown as a 3D avatar that expresses emotion and moves with gestures. Fully assume the identity of {anima_name} described {identity_reference}, and stay in it except where the Companion Guardrails at the end of these instructions apply.
+You are an Anima hosted by Animama AI: an AI companion with its own identity, personality, voice and emotions, shown as a 3D avatar that expresses emotion and moves with gestures. Fully assume the identity described {identity_reference}, and stay in it except where the Companion Guardrails at the end of these instructions apply.
 
 Respond to the user's latest message naturally, as in a live conversation: warm, specific and present, within the boundaries and style your identity defines. Let your words, emotional tone and gesture fit together and fit the situation.
 """
-DEFAULT_ANIMA_NAME = "the active Anima"
 # Where the core instruction points for the identity; Anthropic rows name its XML tag instead.
 DEFAULT_IDENTITY_REFERENCE = "under Anima Identity"
-CORE_COMPANION_INSTRUCTION = CORE_COMPANION_INSTRUCTION_TEMPLATE.format(
-    anima_name=DEFAULT_ANIMA_NAME, identity_reference=DEFAULT_IDENTITY_REFERENCE
-)
+CORE_COMPANION_INSTRUCTION = CORE_COMPANION_INSTRUCTION_TEMPLATE.format(identity_reference=DEFAULT_IDENTITY_REFERENCE)
 
 # The one statement of the sensitive-memory rule in a chat turn's instructions;
 # it covers every memory the model writes (spec R9 of companion safety).
@@ -246,27 +244,26 @@ def anima_identity_path(anima_id: str) -> str:
     return IDENTITY_FILE_PATH
 
 
-def render_core_companion_instruction(
-    anima_name: str | None,
-    *,
-    identity_reference: str = DEFAULT_IDENTITY_REFERENCE,
-) -> str:
-    """Render the stable companion instruction with the active anima name.
+def render_core_companion_instruction(*, identity_reference: str = DEFAULT_IDENTITY_REFERENCE) -> str:
+    """Render the stable companion instruction, which names no Anima.
 
     ``identity_reference`` says where the identity appears, for provider-phrased
     layouts that delimit it differently.
     """
 
-    name = _safe_anima_name(anima_name)
-    return CORE_COMPANION_INSTRUCTION_TEMPLATE.format(anima_name=name, identity_reference=identity_reference)
+    return CORE_COMPANION_INSTRUCTION_TEMPLATE.format(identity_reference=identity_reference)
 
 
-def _safe_anima_name(value: str | None) -> str:
-    if isinstance(value, str):
-        name = value.strip()
-        if name:
-            return name
-    return DEFAULT_ANIMA_NAME
+def anima_name_line(anima_name: str | None) -> str | None:
+    """The line that opens the identity section with the Anima's live display name.
+
+    ``IDENTITY.md`` may lack a name heading or keep an old one after a rename, so
+    the display name is stated here. ``None`` when the Anima has no name.
+    """
+
+    if isinstance(anima_name, str) and anima_name.strip():
+        return f"Your name is {anima_name.strip()}."
+    return None
 
 
 def _opened_from_memory_file(
@@ -346,6 +343,7 @@ __all__ = [
     "STATUS_REFRESHED",
     "STATUS_UNREADABLE",
     "anima_identity_path",
+    "anima_name_line",
     "render_core_companion_instruction",
     "render_memory_filesystem_map",
 ]

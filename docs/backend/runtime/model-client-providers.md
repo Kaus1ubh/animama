@@ -395,7 +395,8 @@ Chat Completions-compatible `messages` list plus request fields such as
 `tools`, `tool_choice`, and `parallel_tool_calls`.
 `DirectChatPromptAssembler` builds exactly one system
 message at `messages[0]` with Markdown sections for stable core companion
-guidance, the raw current anima identity markdown, stable memory guidance, and
+guidance (which names no Anima), a "Your name is …" line with the Anima's display
+name followed by the raw current anima identity markdown, stable memory guidance, and
 structured-output guidance selected from the persisted `model_providers`
 capability row. Schema-backed `json_schema` rows receive the shared response
 guidelines because the actual schema travels in
