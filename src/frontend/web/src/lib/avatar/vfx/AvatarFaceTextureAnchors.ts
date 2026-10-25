@@ -17,6 +17,8 @@ import type {
 import type { AvatarVFXSide } from "./types";
 import {
   collectPrimitiveData,
+  UnionFind,
+  type CollectedPrimitiveData,
   type RuntimePrimitiveBindingEntry,
 } from "./avatarPrimitiveUtils";
 import { resolveAvatarFacePartEntries } from "./faceParts";
@@ -284,6 +286,102 @@ function isPointWithinMouthSearchWindow(
   );
 }
 
+/**
+ * The triangles of the face skin's own UV island. Triangles join when they
+ * share a vertex, or vertices with equal position and UV (a split that is no
+ * texture seam). The face's island is the one nearest `seed` (the point
+ * between the eyes, on the face front) among the islands whose extent spans
+ * both eye centres, and it must come within half the eyes' spacing of the
+ * seed. Without such an island (a face unwrapped in two halves, beside a
+ * scalp island that spans the eyes from behind) every triangle is kept.
+ *
+ * A VRoid face skin is one primitive for the face alone, so this is (nearly)
+ * all of it. An Avatar converted from VRChat often keeps its face, neck, inner
+ * mouth and more in one primitive over one texture. Projecting a point onto
+ * the nearest triangle there can land on another part of the texture (the
+ * inside of the mouth, an eye socket), so anchors and their sizes in texture
+ * space stay on the face's island.
+ */
+function selectFaceIslandTriangles(args: {
+  primitiveData: CollectedPrimitiveData;
+  position: THREE.BufferAttribute;
+  uv: THREE.BufferAttribute;
+  seed: THREE.Vector3;
+  eyes: readonly [THREE.Vector3, THREE.Vector3];
+}): number[] {
+  const { primitiveData, position, uv, seed, eyes } = args;
+  const ordered = primitiveData.orderedVertexIndices;
+  const islands = new UnionFind();
+  const vertexByKey = new Map<string, number>();
+  for (const vertexIndex of primitiveData.uniqueVertexIndices) {
+    islands.add(vertexIndex);
+    const key = [
+      position.getX(vertexIndex),
+      position.getY(vertexIndex),
+      position.getZ(vertexIndex),
+      uv.getX(vertexIndex),
+      uv.getY(vertexIndex),
+    ].join(",");
+    const twin = vertexByKey.get(key);
+    if (twin === undefined) vertexByKey.set(key, vertexIndex);
+    else islands.union(twin, vertexIndex);
+  }
+  for (let offset = 0; offset + 2 < ordered.length; offset += 3) {
+    islands.union(ordered[offset], ordered[offset + 1]);
+    islands.union(ordered[offset], ordered[offset + 2]);
+  }
+
+  const extents = new Map<number, THREE.Box2>();
+  for (const vertexIndex of primitiveData.uniqueVertexIndices) {
+    const point = primitiveData.pointsByIndex.get(vertexIndex);
+    if (!point) continue;
+    const root = islands.find(vertexIndex);
+    let extent = extents.get(root);
+    if (!extent) {
+      extent = new THREE.Box2().makeEmpty();
+      extents.set(root, extent);
+    }
+    extent.expandByPoint(new THREE.Vector2(point.x, point.y));
+  }
+  const eyePoints = eyes.map((eye) => new THREE.Vector2(eye.x, eye.y));
+  const spanning = new Set(
+    Array.from(extents)
+      .filter(([, extent]) =>
+        eyePoints.every((eye) => extent.containsPoint(eye)),
+      )
+      .map(([root]) => root),
+  );
+
+  const triangle = new THREE.Triangle();
+  const closest = new THREE.Vector3();
+  let faceIsland: number | null = null;
+  let bestDistanceSq = Infinity;
+  for (let offset = 0; offset + 2 < ordered.length; offset += 3) {
+    const a = primitiveData.pointsByIndex.get(ordered[offset]);
+    const b = primitiveData.pointsByIndex.get(ordered[offset + 1]);
+    const c = primitiveData.pointsByIndex.get(ordered[offset + 2]);
+    if (!a || !b || !c) continue;
+    const root = islands.find(ordered[offset]);
+    if (!spanning.has(root)) continue;
+    triangle.set(a, b, c).closestPointToPoint(seed, closest);
+    const distanceSq = closest.distanceToSquared(seed);
+    if (distanceSq < bestDistanceSq) {
+      bestDistanceSq = distanceSq;
+      faceIsland = root;
+    }
+  }
+  const reach = eyes[0].distanceTo(eyes[1]) / 2;
+  if (faceIsland === null || bestDistanceSq > reach * reach) return ordered;
+
+  const triangles: number[] = [];
+  for (let offset = 0; offset + 2 < ordered.length; offset += 3) {
+    if (islands.find(ordered[offset]) === faceIsland) {
+      triangles.push(ordered[offset], ordered[offset + 1], ordered[offset + 2]);
+    }
+  }
+  return triangles;
+}
+
 export class AvatarFaceTextureAnchors {
   private readonly _avatar: Avatar;
   private _snapshot: AvatarFaceTextureAnchorsSnapshot = createEmptySnapshot();
@@ -476,13 +574,27 @@ export class AvatarFaceTextureAnchors {
     }
 
     const index = geometry.getIndex();
-    const count = primitiveData.orderedVertexIndices.length;
     const faceBounds = args.faceLandmarks.faceBoundsLocal
       ? toBox3(args.faceLandmarks.faceBoundsLocal)
       : computeBoundsFromPoints(primitiveData.orderedPoints);
     if (!faceBounds) {
       return null;
     }
+    const eyeMid = resolveEyeMidpoint(args.faceLandmarks);
+    const { left: leftEye, right: rightEye } = args.faceLandmarks.eyes;
+    const orderedVertexIndices =
+      eyeMid && leftEye && rightEye
+        ? selectFaceIslandTriangles({
+            primitiveData,
+            position,
+            uv,
+            seed: eyeMid,
+            eyes: [
+              toVector3(leftEye.centerLocal),
+              toVector3(rightEye.centerLocal),
+            ],
+          })
+        : primitiveData.orderedVertexIndices;
 
     return {
       bindingKey: args.binding.bindingKey,
@@ -493,10 +605,10 @@ export class AvatarFaceTextureAnchors {
       uv,
       index,
       start: 0,
-      count,
-      orderedVertexIndices: primitiveData.orderedVertexIndices,
+      count: orderedVertexIndices.length,
+      orderedVertexIndices,
       pointsByIndex: primitiveData.pointsByIndex,
-      uniqueVertexIndices: primitiveData.uniqueVertexIndices,
+      uniqueVertexIndices: Array.from(new Set(orderedVertexIndices)),
       faceBounds,
     };
   }

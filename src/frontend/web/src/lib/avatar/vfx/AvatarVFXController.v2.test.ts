@@ -211,6 +211,7 @@ describe("Avatar Effect v2 runtime features", () => {
         projectedFrontWorld: null,
         normalizedBoxCoord: { u: 0.5, v: 0.5, w: 0.5 },
         projectedBoxCoord: { u: 0.5, v: 0.5, w: 1 },
+        textureRect: null,
       };
     }
     anchors = {

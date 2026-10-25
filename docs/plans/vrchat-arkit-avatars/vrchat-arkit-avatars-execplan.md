@@ -98,8 +98,8 @@ review stay in `<private-avatars>` or the session scratchpad.
 - [x] Phase 1: ARKit face capability and Avatar inspection. Done; reviewed (pass after one repair round).
 - [ ] Phase 2: Convert Lapwing. Steps 1–7 done; the step 6 follow-up fixed the
   A-pose arms (T-pose export) and the floating springs (no ambient forces for
-  Mochiya conversions). Owner R1 re-check remains; dark materials (Phase 3) and
-  misplaced painted face effects are open.
+  Mochiya conversions); the painted-effect follow-up places face decals and
+  iris art on Lapwing. Owner R1 re-check remains.
 - [ ] Phase 3: Authored lilToon rendering. Implemented with on-demand loading
   and reviewed; the owner's go/no-go on look and frame cost (~19 ms GPU added
   on an M5) remains.
@@ -448,6 +448,43 @@ Progress (2026-10-24, owner steps 1–3; agent steps 4, 5 and 7):
     those land on other UV islands. Proposed next: measure size from the anchor
     triangle's own UV mapping when samples disagree, keeping Included anchors
     unchanged.
+  - Painted-effect fix (2026-10-24, owner: "try out the proposed fix …
+    ideally automatically detectable and applied"; starting source
+    `76393eee`; review tier standard: behaviour change in the shared effect
+    runtime, covered by Included renders). Probes found three causes, none of
+    them the size measurement alone, so each fix detects its case from
+    geometry and UVs, not names:
+    - Lapwing's face skin primitive holds face, neck, inner mouth and more in
+      78 UV islands over one atlas. `AvatarFaceTextureAnchors` now projects
+      only onto the face's island: the one nearest the point between the eyes
+      among islands whose extent spans both eye centres, within half the eye
+      spacing of that point (shared vertices and vertices with equal position
+      and UV join); with none, every triangle is kept, as before.
+    - Its eye primitive has a dome around each eyeball, centred on the eye
+      bone and wider than the eye spacing, so it was picked as the eye; the
+      too-large eye bounds put the under-eye and blush anchors at mouth
+      height. With both eye bones, eye landmarks skip islands wider than
+      their spacing (all islands are kept if that leaves none).
+    - Iris art assumed VRoid's one-iris-per-half texture; Lapwing's irises sit
+      elsewhere in its atlas, and each eye has stacked layers. Eye landmarks
+      carry a `textureRect` (a layer over the whole eye with the largest
+      texture area), and `resolveIrisEyeLayout`, when an iris does not sit in
+      its half as VRoid's do, draws each eye's art in a cell 1.9 times its
+      iris rectangle, clipped to it.
+    - Result on Lapwing (private renders): blush on the cheeks, tears under
+      the eyes, kiss mark on the cheek, face-red over the face, star3
+      filling the irises as on Annie. mouth_w sits slightly below the mouth
+      line (its anchor is expression-based and the jaw moves with the mouth
+      shapes); recorded as a limitation. Included Avatars and the VRM 0
+      fixture: identical landmark and anchor snapshots (compared before and
+      after on the same machine), and review renders of blush, star3,
+      single_tear, mouth_w, kiss_mark, face_red, streaming_tears and
+      petrified_cracks (front and face, 0.5 and 1 s) differ by 0 pixels from
+      `76393eee`.
+    - The owner also asked for solutions that generalize to arbitrary
+      non-VRoid VRMs (material names, texture layouts, a per-Avatar
+      wind/spring option). An inventory of the remaining VRoid assumptions
+      was taken for a separate spec; it is outside this plan.
 - Materials investigation (2026-10-24, owner asked why Lapwing looks unlike
   Unity):
   - Every fallback material is a `MeshStandardMaterial` with metalness 1,
@@ -469,7 +506,7 @@ Progress (2026-10-24, owner steps 1–3; agent steps 4, 5 and 7):
     differing pixels). Pending: owner go/no-go, frame cost, lazy loading,
     review.
 - Remaining: the owner's live re-check of R1 (motion, springs, blink, visemes,
-  look-at) and the Phase 4 face review; the painted-effect fix above.
+  look-at) and the Phase 4 face review, now with painted effects.
 
 #### Code Review #1 Findings
 
@@ -525,6 +562,91 @@ review. The step 6 follow-up had its own standard review:
   `animation:render` is still pending; the Decision Log notes the drag cap's
   reach; the nits are fixed. All are record or wording changes, verified by the
   implementer. One repair round remains unused.
+
+The painted-effect fix had its own standard review:
+
+- Code Review #1 (tree `ac148283` on `76393eee`): the three rules are no-ops on
+  Annie, Andrew and the VRM 0 fixture (measured from their glTF data). Findings:
+  - PF-F1 (required): the face island had no plausibility check; a small
+    island at the seed, or a face unwrapped in two halves, would pull every
+    anchor onto it.
+  - PF-F9 (required): two statements were wrong (the mouth anchor uses all
+    five mouth shapes; `textureRect` may be a layer's), plus nuances.
+  - PF-F2: the VRoid check accepted irises inside their halves but
+    off-centre.
+  - PF-F3: art drawn into the iris rectangle is about half VRoid's size
+    relative to the iris.
+  - PF-F4: shared iris rectangles drew a mirrored copy over a normal one;
+    per-eye mirrored UVs are not detected.
+  - PF-F5: the width rule had no fallback if it removed every island.
+  - PF-F6: "largest texture area" let a small stretched patch win.
+  - PF-F7: recursive union-find `find` could overflow on large primitives.
+  - PF-F8: check whether the mouth anchor is the fallback on Lapwing.
+  - PF-F10: tests (VRM 0 evidence, a shared loader, quantized attributes in
+    the helper, no controller wiring test).
+  - PF-F11: record the tier; keep test values synthetic.
+- Code Review #1 Revisions:
+  - PF-F1 accepted: the face island must span both eye centres, else every
+    triangle is kept. Test: a small island at the seed leaves the snapshot
+    unchanged.
+  - PF-F9 accepted: wording fixed, with the nuances (eye bones required,
+    shared rectangles, `full` art on atlases) in the docs and conversion
+    guide.
+  - PF-F2 accepted: VRoid's layout needs the iris inside, roughly centred in
+    and covering at least 40% of its half. Test added.
+  - PF-F3 accepted: cells are 1.9 times the iris rectangle (VRoid's half is
+    1.8–2.0 times its iris on both Included Avatars), clipped to the iris
+    rectangle so art cannot reach the other eye. Lapwing's star3 now fills the
+    iris as on Annie (private render).
+  - PF-F4 partly accepted: shared rectangles draw unmirrored; per-eye
+    mirrored UVs are recorded as a limitation.
+  - PF-F5 accepted: all islands are kept if the rule leaves none.
+  - PF-F6 accepted: a layer must be at least half the eye's width and
+    height. Test: a small stretched patch is not taken.
+  - PF-F7 accepted: iterative `find` with path compression.
+  - PF-F8 checked: Lapwing's mouth anchor is expression-based, so the jaw
+    explanation stands.
+  - PF-F10 accepted: VRM 0 and Included snapshots compared before and after
+    (identical); `loadedTestAvatar` shared by three tests; the helper refuses
+    non-float positions and UVs. The controller wiring test is deferred: the
+    0-pixel Included renders and the Lapwing renders cover the three call
+    sites.
+  - PF-F11 accepted: tier recorded; test rectangles are synthetic values.
+  - Revision checks (tree `d6dc5e7b`): `pnpm -s check` and `pnpm -s web:lint`
+    (`src/frontend`) pass; `npx vitest run src/lib/avatar src/ui`
+    (`src/frontend/web`) 284 files, 2852 passed, 1 skipped; `prettier
+    --check` on the changed TypeScript passes. Each new rule's test fails
+    with the rule disabled (span, width, layer and footprint rules). Landmark
+    and anchor snapshots of Annie, Andrew and the VRM 0 fixture are identical
+    between `76393eee`'s source and this tree, and Included renders of the
+    eight painted effects differ by 0 pixels.
+- Code Review #2 (targeted recheck, same reviewer, tree `d6dc5e7b`): every
+  repair verified; Included Avatars unchanged (`fitsVroidHalf` passes with
+  margin on both and on the VRM 0 fixture; the iterative `find` handles
+  200k-vertex chains). Findings:
+  - PF-R2-F1 (required): the avatar-vfx.md sentence still gave the old
+    island rule.
+  - PF-R2-F2 (required): the revision check record was missing.
+  - PF-R2-F3: with no face island spanning the eyes, a scalp island that does
+    could be chosen far from the seed.
+  - PF-R2-F4: art spanning both eyes (`double_eye`, `full_face`) drew without
+    a clip.
+  - PF-R2-F5: creator handles use the 1.9× cell's corners, which can snap to
+    another island on an atlas (unverified).
+- Code Review #2 Revisions:
+  - PF-R2-F1 and F2 accepted: sentence and record above, verified by the
+    coordinator.
+  - PF-R2-F3 accepted: the face island must also come within half the eye
+    spacing of the seed, else every triangle is kept.
+  - PF-R2-F4 accepted: spanning art is clipped to both iris rectangles'
+    bounds.
+  - PF-R2-F5 deferred to the owner's creator check on Lapwing.
+  - Checks after these repairs: `tsc --noEmit -p tsconfig.app.json` pass;
+    `npx vitest run src/lib/avatar/vfx src/lib/avatar/AvatarFaceParts.test.ts`
+    193 passed; Included and VRM 0 snapshots still identical to
+    `76393eee`'s, and Lapwing's anchors unchanged by the reach guard. The full
+    pre-push suite runs on the commit before the push. Review complete: one
+    repair round used and a coordinator-verified wording/record repair.
 
 ### Phase 3: Authored lilToon rendering
 
