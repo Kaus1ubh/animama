@@ -1830,11 +1830,16 @@ describe("hosted setup pending", () => {
       const after = flow.controller.getSnapshot();
       expect(after.setupPending).toBe(false);
       expect(after.scope).toBe(snapshot.scope);
+      if (after.admission.status !== "ready")
+        throw new Error("Admission missing");
+      const { session } = after.admission;
       // Product queries are keyed by the session's cache key, never the owner.
-      expect(snapshot.scope!.key).not.toBe("owner");
-      expect(invalidate).toHaveBeenCalledWith({
-        queryKey: queryKeys.animas.all(snapshot.scope!.key),
-      });
+      expect(session.key).not.toBe(session.owner.id);
+      for (const queryKey of [
+        queryKeys.animas.all(session.key),
+        queryKeys.settings.all(session.key),
+      ])
+        expect(invalidate).toHaveBeenCalledWith({ queryKey });
       const reads = flow.contextReads();
       await vi.advanceTimersByTimeAsync(60_000);
       expect(flow.contextReads()).toBe(reads);
