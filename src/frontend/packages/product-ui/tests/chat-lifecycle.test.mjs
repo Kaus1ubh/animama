@@ -1105,6 +1105,67 @@ test("failed session retains partial text and restores a message without sending
   );
 });
 
+test("switching chats during a reply stops it, so it cannot speak or fail in the next chat", async (t) => {
+  const page = await consumer(t);
+  await page.evaluate(() => window.fixture.enableSpeech());
+  await page.waitForFunction(
+    () => document.querySelector("#submit")?.disabled === false,
+  );
+  await submitSession(page, "Tell me a long story");
+  await page.evaluate(() => {
+    window.fixture.respond(0);
+    const run_id = window.fixture.requests()[0].body.run_id;
+    window.fixture.send(0, [{ text: "Once upon a time.", run_id }]);
+  });
+  await page.waitForFunction(() => window.fixture.ttsTokens().length > 0);
+  const spokenBefore = await page.evaluate(
+    () => window.fixture.ttsTokens().length,
+  );
+
+  await page.evaluate(() => window.fixture.switchChat());
+  await sessionIdle(page);
+  assert.equal(
+    (await page.evaluate(() => window.fixture.requests()))[0].aborted,
+    true,
+  );
+  // An aborted response stream refuses further bytes; the late frames never arrive.
+  await page.evaluate(() => {
+    const run_id = window.fixture.requests()[0].body.run_id;
+    try {
+      window.fixture.send(0, [
+        { text: "The end.", run_id },
+        { error: "late failure", code: "missing_api_key", run_id },
+      ]);
+      window.fixture.close(0);
+    } catch {
+      // Cancelled.
+    }
+  });
+  await submitSession(page, "A question for the other chat", 2);
+  const [, next] = await page.evaluate(() => window.fixture.requests());
+  assert.equal(next.body.chat_id, "chat-other");
+  assert.equal(
+    await page.evaluate(() => window.fixture.ttsTokens().length),
+    spokenBefore,
+  );
+  assert.equal(await page.getByRole("alert").count(), 0);
+  assert(!(await page.textContent("body")).includes("The end."));
+});
+
+test("a message sent while a reply streams is reported as not accepted", async (t) => {
+  const page = await sessionConsumer(t);
+  await submitSession(page, "First question");
+  await page.evaluate(() => window.fixture.respond(0));
+  const accepted = await page.evaluate(() =>
+    window.fixture.submitText("Spoken while the reply streams"),
+  );
+  assert.equal(accepted, false);
+  assert.equal(
+    (await page.evaluate(() => window.fixture.requests())).length,
+    1,
+  );
+});
+
 test("provider failure stays visible after terminal frame and a later successful turn", async (t) => {
   const page = await sessionConsumer(t);
   await submitSession(page, "failed message");
