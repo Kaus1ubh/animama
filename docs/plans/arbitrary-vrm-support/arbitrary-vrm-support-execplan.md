@@ -20,8 +20,9 @@ off for a model that suffers from them. The Included Avatars, both VRoid
 exports, behave exactly as before.
 
 Starting source: `main` at `a94f8369` (PR #688 merged). Plan branch:
-`docs/arbitrary-vrm-support-plan`. Implementation uses one task branch and PR
-for the whole plan unless the owner agrees a split (D1).
+`docs/arbitrary-vrm-support-plan`. Implementation uses two task branches and
+PRs (owner, 2026-10-26): PR A for Phases 1 to 3, then PR B for Phases 4 to 9 on
+a branch cut from `main` after PR A merges.
 
 ### What #688 already provides (do not re-specify)
 
@@ -188,7 +189,7 @@ tenant-inventory row for `avatar_face_part_overrides`. So:
   runtime service does not read the new table (D7). The hosted follow-up, if
   Cloud adopts the setting, is a Cloud migration, lifecycle entry, wiring and
   tenant-inventory row, recorded as a Cloud issue when Phase 3 merges.
-- Phase 8's allowlist and capability changes alter package validation that
+- Phase 8's allowlist change alters package validation that
   Cloud consumes; record the repin note with Phase 8.
 - The Diagnostics modal is local-only unless it needs no hosted-specific work
   (owner decision 3).
@@ -197,12 +198,12 @@ tenant-inventory row for `avatar_face_part_overrides`. So:
 
 - [ ] Phase 1: Diagnostics and visible failures (R7, R8). Not started.
 - [ ] Phase 2: Face parts and eye effects on shared meshes (R1, R3). Not started.
-- [ ] Phase 3: Wind and spring setting (R5). Not started; needs D2, D3 and D7.
+- [ ] Phase 3: Wind and spring setting (R5). Not started; needs D3 and D7.
 - [ ] Phase 4: Expression content and MMD face shapes (R4, R12). Not started.
 - [ ] Phase 5: Hands (R6). Not started.
 - [ ] Phase 6: Texture layouts (R2). Not started.
 - [ ] Phase 7: Rest pose, proportions and enhanced rendering (R9, R10). Not started.
-- [ ] Phase 8: Package sharing (R13). Not started; needs D4 and D8.
+- [ ] Phase 8: Package sharing (R13). Not started; needs D4.
 - [ ] Phase 9 (alongside): lilToon frame cost (R11). Not started.
 - [ ] Final integration review and full pre-push suite.
 
@@ -244,6 +245,10 @@ tenant-inventory row for `avatar_face_part_overrides`. So:
   without lowered lids or mouth visemes.
 - 2026-10-26, owner: write this plan in the current session; no push or PR
   until the owner says so.
+- 2026-10-26, owner (answering D1, D2 and D8): two PRs, A for Phases 1 to 3
+  and B for Phases 4 to 9. No backward compatibility is needed for older app
+  versions or older packages, so packages carry the wind setting and the new
+  glTF extensions without package capabilities or compatibility handling.
 - 2026-10-26, agent (planning survey, within R1's "detect the same parts on
   every surface" intent): load the saved face-part correction on the four
   saved-Avatar surfaces that skip it (Phase 2). Recorded as an agent finding
@@ -253,14 +258,6 @@ tenant-inventory row for `avatar_face_part_overrides`. So:
 
 Agent proposals awaiting the owner. Phases name the decisions they need.
 
-- D1 PR split. Proposed: four PRs in order, each with its own reviews and
-  suite: A Phases 1 and 2; B Phase 3; C Phases 4 to 7; D Phases 8 and 9.
-  Without a decision: one branch and PR for the whole plan.
-- D2 package compatibility for the R5 setting. Proposed: an Avatar at
-  Automatic carries no key in a package, so most packages stay readable by
-  older installs; another value is carried with a new package capability
-  (`avatar_spring_mode/1`), so older installs refuse it with
-  `package_capability_unsupported`.
 - D3 Included-Avatar binding for R5. Proposed: the stored value is keyed by
   owner and Avatar item only, not by revision or file digest, so an Avatar
   update keeps the user's choice.
@@ -281,19 +278,15 @@ Agent proposals awaiting the owner. Phases name the decisions they need.
   runtime snapshot. Saving then neither mints an Avatar revision nor changes
   the effective revision, so it applies live (R5) and is repin-safe for Cloud.
   Packages still carry it: export writes the exporter's value into the Avatar's
-  package sidecar (D2), and import moves it into the importer's table. This
+  package sidecar, and import moves it into the importer's table. This
   also changes owner decision 1 ("follows the model file"): a Local Avatar
   file that is moved, renamed or re-added in the Local folder becomes a new
   item (fresh id) and loses its setting, where a sidecar value would travel
   with the file. The alternative that keeps the sidecar keeps decision 1 and
   accepts one remount after each Local save.
-- D8 older installs and new glTF extensions (R13). Proposed: derive a package
-  capability when an Avatar uses one of the four new extensions, so older
-  installs refuse with `package_capability_unsupported` instead of the generic
-  invalid-definition error; or accept the generic error.
-
-D6 is retired (it re-asked the spec's settled R12 order); the numbers of the
-others are kept for traceability.
+Settled: D1, D2 and D8 (owner, 2026-10-26, see the Decision Log). D6 is retired
+(it re-asked the spec's settled R12 order). The remaining numbers are kept for
+traceability.
 
 Notice (not a decision): the spec's R12 order puts a model's standard MMD
 morphs, then ARKit mixes, before its own VRM mood presets, so a model with both
@@ -500,7 +493,7 @@ Review tier: high risk. A new table, API route and generated-client change,
 package export and import, and the per-frame spring update path.
 
 Requirements: R5. Depends on Phase 1 (Diagnostics shows the effective mode),
-D2, D3 and D7. The steps below assume D7's proposal; if the owner keeps the
+D3 and D7. The steps below assume D7's proposal; if the owner keeps the
 sidecar, steps 1 and 4 move the Local value into the sidecar and accept one
 remount after a Local save.
 
@@ -524,9 +517,9 @@ Backend:
 3. Packages, with three rules because `_KIND_FIELDS` is one whitelist for Local
    sidecars, Local saves and package entries: export pops any document
    `spring_mode` and writes the exporter's stored non-Automatic value (the
-   face-parts pattern in `content_package_export.py`), includes it in the
-   export review digest, and derives the capability `avatar_spring_mode/1`
-   (D2, added to `SUPPORTED_CAPABILITIES`); a Local save strips the key; import
+   face-parts pattern in `content_package_export.py`) and includes it in the
+   export review digest, with no package capability (no backward
+   compatibility needed, owner 2026-10-26); a Local save strips the key; import
    writes the value into the importer's table inside the import mutation
    (beside `resolve_catalog_avatar`) and its regenerated sidecar omits it. A
    composition without the store (Cloud after a repin) drops the value on
@@ -565,8 +558,8 @@ Frontend:
    and its source.
 
 Checks: backend tests (save and read per owner, Local and Included, 404s and
-ownership, package export with and without a value, the capability refused by
-an install without it, import moving the value into the table,
+ownership, package export with and without a value, import moving the value
+into the table,
 `tests/test_alembic_fresh_install.py`, `tests/test_product_http_inventory.py`,
 a composition without the store drops an imported value with its notice);
 `pnpm openapi-ts:check`; the hosted web build (`pnpm web:build:hosted`) and a
@@ -586,8 +579,8 @@ for the hosted migration, lifecycle, wiring and inventory, plus a backend
 composition check at repin.
 
 Recovery: the table and route are additive. A revert leaves stored values
-unused; packages exported with `spring_mode` need an install that understands
-the capability (older ones refuse them clearly, D2).
+unused, and packages exported with `spring_mode` would no longer import on the
+reverted code (no compatibility handling, by owner decision).
 
 Check record: (to fill) · Commits: (to fill)
 
@@ -828,14 +821,14 @@ Not run.
 
 Review tier: high risk. Package format contract and the model loaders.
 
-Requirements: R13. Depends on Phase 1 (pre-load diagnostics), D4 and D8.
+Requirements: R13. Depends on Phase 1 (pre-load diagnostics) and D4.
 
 Changes:
 
 1. Backend: add `MOCHIYA_avatar_composition`, `MOCHIYA_materials_liltoon`,
    `EXT_meshopt_compression` and `KHR_draco_mesh_compression` to
-   `_GLTF_EXTENSIONS`; per D8, derive a package capability for Avatars that use
-   them; update the test that asserts Draco refusal.
+   `_GLTF_EXTENSIONS`, with no package capability (owner, 2026-10-26); update
+   the test that asserts Draco refusal.
 2. Loaders: register three's meshopt decoder in `Avatar._createGLTFLoader`,
    `motion-authoring/headlessVrm.ts`, `scripts/animation-render/render.ts` and
    `scripts/vrm-optimize/compare/page.ts`; Draco per D4.
@@ -847,7 +840,7 @@ Changes:
    repin note.
 
 Checks: backend tests export and import a synthetic Avatar with each listed
-extension, and an install without the capability refuses it; a meshopt-
+extension; a meshopt-
 compressed synthetic GLB loads in a vitest loader test; the Draco path test; the
 full pre-push suite; the full `pnpm e2e:test`.
 
@@ -855,8 +848,8 @@ Owner gate: none beyond merge.
 
 Completion: R13 acceptance.
 
-Recovery: the allowlist change is additive; packages with these Avatars need an
-install that understands them (older ones refuse them per D8).
+Recovery: the allowlist change is additive; reverting it makes packages with
+these Avatars fail to import again.
 
 Check record: (to fill) · Commits: (to fill)
 
@@ -921,10 +914,12 @@ Not run.
 
 ## Final integration review
 
-Covers combined acceptance R1–R13, every failure kind from later phases
-appearing in Diagnostics (R8), the licence boundary across the whole diff and
+Run once per PR. PR A's covers Phases 1 to 3 (R5, R7, R8 and R1/R3) and PR B's
+covers combined acceptance R1–R13, every failure kind from later phases
+appearing in Diagnostics (R8), the licence boundary across each PR's diff and
 history, documentation accuracy and any phase without its own review. Then the
-full pre-push suite once on the final candidate; its results go in the PR.
+full pre-push suite once on each PR's final candidate; its results go in that
+PR.
 
 ## Validation and acceptance
 
@@ -933,8 +928,8 @@ Spec acceptance criteria, with these checks (from `src/frontend` unless noted):
 - `pnpm verify`; `pnpm web:test:browser` where review-render or stage code
   changes; `make check-test` from the repository root for Phases 3 and 8;
   `pnpm openapi-ts:check` after Phase 3.
-- Included render diffs against each phase's start and, before the PR, against
-  the plan's starting commit (`a94f8369`), in both looks; the Included snapshot
+- Included render diffs against each phase's start and, before each PR, against
+  that PR's starting commit on `main` (`a94f8369` for PR A), in both looks; the Included snapshot
   test and the load-timing measurement.
 - `pnpm e2e:test:fast` on a disposable built stack for user-facing phases; the
   full `pnpm e2e:test` for Phases 3 and 8 (package import and export). Known
