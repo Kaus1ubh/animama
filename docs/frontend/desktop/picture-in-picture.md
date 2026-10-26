@@ -149,12 +149,15 @@ The main renderer publishes:
 - PiP background mode
 - avatar transform
 - PiP camera preset
-- avatar runtime store snapshot
-- scene VFX state
-- avatar VFX runtime state
+- avatar runtime store snapshot, including planner events
 - lip-sync bridge state, including audio timing offsets
 
-The PiP renderer applies snapshots to its own stores and scene props.
+The PiP renderer applies snapshots to its own stores and scene props. Its own
+Avatar consumes the mirrored planner events, so Gestures and Reactions play in
+PiP, and their Avatar, particle and scene effects apply to the PiP renderer's
+own Avatar and scene VFX store. Scene effect state is therefore not mirrored:
+the main scene is suspended during PiP, and replacing PiP's store with its
+empty one cleared a Reaction's scene background about 100 ms after it began.
 
 PiP has its own camera preset, Portrait (close) by default and kept while the
 app runs. The main canvas settings show it as PiP camera while PiP is open, and

@@ -15,7 +15,6 @@ import {
   useAvatarLipSyncBridgeStore,
 } from "@/stores/avatar-lipsync-bridge-store";
 import { useAvatarRuntimeStore } from "@/stores/avatar-runtime-store";
-import { useSceneVFXStore } from "@/stores/scene-vfx-store";
 import {
   isSceneCameraPreset,
   type SceneCameraPreset,
@@ -185,14 +184,10 @@ export function useDesktopPipRuntimeProducer({
         scheduleSnapshot();
       },
     );
-    const unsubscribeSceneVfx = useSceneVFXStore.subscribe(() => {
-      scheduleSnapshot();
-    });
 
     return () => {
       unsubscribeAvatarRuntime();
       unsubscribeLipSync();
-      unsubscribeSceneVfx();
       if (snapshotTimerRef.current !== null) {
         window.clearTimeout(snapshotTimerRef.current);
         snapshotTimerRef.current = null;
