@@ -113,8 +113,8 @@ Ownership and boundaries:
       review #2 (high risk) on 2026-10-25.
 - [x] Phase 4: Multi-turn, memory-arm and Memory Manager runners. Passed
       review #3 (high risk) on 2026-10-26, with both repair rounds used.
-- [ ] Phase 5: Prompt set v1, Japanese subset, fixtures and rubrics (gate
-      G2). Inputs tracked on 2026-10-26; waiting for G2.
+- [x] Phase 5: Prompt set v1, Japanese subset, fixtures and rubrics (gate
+      G2). G2 passed on 2026-10-26: approved as drafted.
 - [ ] Phase 6: Blind judging through `claude -p`.
 - [ ] Phase 7: Scores, statistics and report.
 - [ ] Phase 8: Skill, documentation and glossary.
@@ -304,6 +304,9 @@ were rechecked on `18d2bebd`.
   - the Phase 6 subscription smoke (D8).
   The spec was published to #470 with those proposals marked accepted.
   "Proposed (G1)" below now means agreed at G1.
+- **2026-10-26, owner (G2):** the v1 inputs at `8b9f725c` are approved as
+  drafted (Phase 5), which settles D14 and the loadout: the current Included
+  set of 140 Gestures.
 - **D1 (proposed, G1). Code layout.**
   - `scripts/evals/core/` holds the extracted generic pieces.
   - `scripts/evals/benchmark/` holds the benchmark, with one module per area,
@@ -2037,9 +2040,14 @@ Check record (2026-10-26), on the tracked inputs above:
   not a sensitive one.
 - **Held out:** the choices above, and whether to hold out a long chat.
 
-Commits: the tracked inputs are committed before G2 as
-`feat(evals)[p5]: add the v1 benchmark prompt set and rubrics`; changes from
-G2 follow as further `[p5]` commits.
+**G2 (2026-10-26, owner): approved as drafted.** The owner approved the
+140-Gesture loadout, the acceptable lists, the translations, the candidate
+guidance with its `## What's been happening` section, the checklists and the
+held-out choices, with no long chat held out. D14's personas stand as
+drafted. No notes were raised.
+
+Commits: `8b9f725c` (`feat(evals)[p5]: add the v1 benchmark prompt set and
+rubrics`), then this G2 record.
 
 #### Code Review #1 Findings
 
