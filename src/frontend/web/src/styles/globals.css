@@ -24,6 +24,14 @@
   backdrop-filter: none !important;
 }
 
+/*
+ * The shine border repaints its window every display frame. Pause it while the
+ * window is not in use: unfocused, or behind an open PiP window.
+ */
+[data-animama-shine-paused] [data-slot="shine-border"] {
+  animation-play-state: paused;
+}
+
 /* The closed, prewarmed Quick Chat window still paints every animation frame. */
 [data-animama-quick-chat-closed] *,
 [data-animama-quick-chat-closed] *::before,

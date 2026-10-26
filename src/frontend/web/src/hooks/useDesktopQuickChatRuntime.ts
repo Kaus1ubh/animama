@@ -463,6 +463,42 @@ export function useDesktopQuickChatConsumer(
 }
 
 /**
+ * Whether this Quick Chat window is open, following the main process's
+ * state. Null outside the Quick Chat window and until the first state arrives.
+ */
+export function useDesktopQuickChatWindowOpen(): boolean | null {
+  const platform = useRuntimePlatform();
+  const bridge = resolveQuickChatBridge(platform);
+  const isQuickChatWindow =
+    platform.kind === "desktop" &&
+    platform.desktopBridge.windowRole === "quick-chat";
+  const [isOpen, setIsOpen] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!bridge || !isQuickChatWindow) return;
+    let disposed = false;
+    let changed = false;
+    const unsubscribe = bridge.onStateChange((state) => {
+      changed = true;
+      setIsOpen(state.isOpen);
+    });
+    void bridge
+      .getState()
+      .then((state) => {
+        // A pushed change is newer than this initial read.
+        if (!disposed && !changed) setIsOpen(state.isOpen);
+      })
+      .catch(() => {});
+    return () => {
+      disposed = true;
+      unsubscribe();
+    };
+  }, [bridge, isQuickChatWindow]);
+
+  return isQuickChatWindow ? isOpen : null;
+}
+
+/**
  * Marks the Quick Chat document with `data-animama-quick-chat-closed` while
  * its native window is closed, so global CSS pauses animations there.
  *
@@ -472,38 +508,16 @@ export function useDesktopQuickChatConsumer(
  * display rate.
  */
 export function usePauseClosedQuickChatAnimations(): void {
-  const platform = useRuntimePlatform();
-  const bridge = resolveQuickChatBridge(platform);
-  const isQuickChatWindow =
-    platform.kind === "desktop" &&
-    platform.desktopBridge.windowRole === "quick-chat";
+  const isOpen = useDesktopQuickChatWindowOpen();
 
   useEffect(() => {
-    if (!bridge || !isQuickChatWindow) return;
+    if (isOpen === null) return;
     const root = document.documentElement;
-    let disposed = false;
-    let changed = false;
-    const apply = (isOpen: boolean) => {
-      root.toggleAttribute("data-animama-quick-chat-closed", !isOpen);
-    };
-    const unsubscribe = bridge.onStateChange((state) => {
-      changed = true;
-      apply(state.isOpen);
-    });
-    void bridge
-      .getState()
-      .then((state) => {
-        // A pushed change is newer than this initial read.
-        if (!disposed && !changed) apply(state.isOpen);
-      })
-      .catch(() => {});
-
+    root.toggleAttribute("data-animama-quick-chat-closed", !isOpen);
     return () => {
-      disposed = true;
-      unsubscribe();
       root.removeAttribute("data-animama-quick-chat-closed");
     };
-  }, [bridge, isQuickChatWindow]);
+  }, [isOpen]);
 }
 
 export function useDesktopQuickChatInteractiveRegions(active: boolean): void {
@@ -512,9 +526,12 @@ export function useDesktopQuickChatInteractiveRegions(active: boolean): void {
   const isQuickChatWindow =
     platform.kind === "desktop" &&
     platform.desktopBridge.windowRole === "quick-chat";
+  // A closed window needs no regions or size; opening measures at once.
+  const isOpen = useDesktopQuickChatWindowOpen();
+  const measuring = active && isOpen !== false;
 
   useEffect(() => {
-    if (!active || !bridge || !isQuickChatWindow) return;
+    if (!measuring || !bridge || !isQuickChatWindow) return;
 
     const publishRegions = () => {
       const regions = Array.from(
@@ -597,5 +614,5 @@ export function useDesktopQuickChatInteractiveRegions(active: boolean): void {
       );
       void bridge.setInteractiveRegions([]).catch(() => {});
     };
-  }, [active, bridge, isQuickChatWindow]);
+  }, [bridge, isQuickChatWindow, measuring]);
 }

@@ -13,21 +13,23 @@ const bridge = vi.hoisted(() => ({
   initialState: null as Promise<{ isOpen: boolean }> | null,
 }));
 
-vi.mock("@/platform/RuntimePlatformProvider", () => ({
-  useRuntimePlatform: () => ({
-    kind: "desktop",
-    capabilities: { nativeQuickChat: true },
-    desktopBridge: {
-      windowRole: "quick-chat",
-      quickChat: {
-        getState: () => bridge.initialState,
-        onStateChange: (listener: StateListener) => {
-          bridge.listeners.add(listener as never);
-          return () => bridge.listeners.delete(listener as never);
-        },
+// The provider hands out one stable platform object, as the app's does.
+const platform = vi.hoisted(() => ({
+  kind: "desktop",
+  capabilities: { nativeQuickChat: true },
+  desktopBridge: {
+    windowRole: "quick-chat",
+    quickChat: {
+      getState: () => bridge.initialState,
+      onStateChange: (listener: StateListener) => {
+        bridge.listeners.add(listener as never);
+        return () => bridge.listeners.delete(listener as never);
       },
     },
-  }),
+  },
+}));
+vi.mock("@/platform/RuntimePlatformProvider", () => ({
+  useRuntimePlatform: () => platform,
 }));
 
 function Probe() {
