@@ -745,25 +745,37 @@ export const ChatInterface = ({
       });
     },
     onVoiceAutoSubmit: async (payload) => {
-      const text = payload.text.trim();
-      if (!text) return;
+      const spoken = payload.text.trim();
+      if (!spoken) return;
+      // The turn sends the whole composer: text typed before Voice Mode, or
+      // held from a turn that could not be sent, precedes the spoken words.
+      const text = joinSpeechText(dictationBaseRef.current, spoken);
       dictationBaseRef.current = "";
       applyDictationText("", "");
-      await handleSubmitText({
+      const accepted = await handleSubmitText({
         text,
         inputMode: "voice",
-        submitReason: "semantic_end_turn",
+        submitReason:
+          payload.source === "acoustic_fallback"
+            ? "silence_timeout"
+            : "semantic_end_turn",
         turnId: payload.turnId,
         smartTurnJobId: payload.jobId,
         smartTurnScore: payload.probability,
         smartTurnLatencyMs: payload.latencyMs,
         clearInput: true,
       });
+      if (!accepted) {
+        // A reply is still streaming or the chat cannot send yet: keep the
+        // words in the composer for the next turn or a manual send.
+        dictationBaseRef.current = text;
+        applyDictationText("", "");
+      }
     },
     onVoiceSilenceReset: () => {
-      dictationBaseRef.current = "";
+      // Drop only the abandoned spoken turn; held or typed text stays.
       clearDictationBuffers();
-      setInput("");
+      setInput(dictationBaseRef.current);
     },
   });
   const loadingStatus = useChatLoadingStatus({ isDictationPreparing });
