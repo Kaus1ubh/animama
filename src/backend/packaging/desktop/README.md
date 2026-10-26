@@ -47,8 +47,9 @@ controls are excluded from OpenAPI and absent in self-host composition.
 inputs.
 
 `animama-document-worker.spec` independently freezes the parser worker.
-`document_worker_resources.py` prepares pinned Docling layout/table weights,
-tiktoken cache and dependency notices at build time. The entrypoint uses only
+`document_worker_resources.py` prepares Docling's layout weights (default
+Transformers engine only) and TableFormer weights, a tiktoken cache and dependency
+notices at build time. The entrypoint uses only
 `sys._MEIPASS/document-resources`, enables offline Hugging Face/transformers
 loading, and disables unbundled OCR. The separate builder at
 `src/frontend/desktop/scripts/runtime/document-worker.mjs` requires reviewed
