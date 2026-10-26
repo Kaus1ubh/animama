@@ -49,8 +49,9 @@ The window is managed by:
 desktop/src/main-process/quick-chat/quick-chat-window-manager.ts
 ```
 
-It is a hidden, frameless, transparent, always-on-top toolbar window with a
-420 × 420 minimum size and the sandboxed `quick-chat` preload role. Hidden
+It is a hidden, frameless, transparent, always-on-top window (a non-activating
+panel on macOS, like PiP, and a `toolbar` window elsewhere) with a 420 × 420
+minimum size and the sandboxed `quick-chat` preload role. Hidden
 painting stays enabled and background throttling stays disabled so prewarming
 can complete before the first show.
 
