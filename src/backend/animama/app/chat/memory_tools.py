@@ -201,6 +201,8 @@ class DirectChatMemoryToolService:
                 "Apply Patch operation requires type and path",
                 retryable=False,
             )
+        if _names_self_memories(path) and (read_only := _self_memories_read_only_error(context)):
+            return read_only
         try:
             candidate = await self._patch_planner.plan_v4a_operation(
                 user_id=context.user_id,
@@ -466,6 +468,8 @@ class DirectChatMemoryToolService:
         description = _nullable_string_arg(arguments.get("description"), field="description")
 
         if is_self_memories:
+            if read_only := _self_memories_read_only_error(context):
+                return read_only
             self_memories = await self._self_memories(context)
             if self_memories is None:
                 return _self_memories_unavailable_error(context)
@@ -546,6 +550,8 @@ class DirectChatMemoryToolService:
         tool_call_id: str,
     ) -> str:
         if _is_self_memories_path(arguments.get("path")):
+            if read_only := _self_memories_read_only_error(context):
+                return read_only
             return await self._replace_self_memories(arguments, context=context, tool_call_id=tool_call_id)
         relative_path = _normalize_tool_file_path(arguments.get("path"))
         if is_protected_memory_path(relative_path):
@@ -721,6 +727,31 @@ def _record_self_memories_write(
         previous_content=previous_content,
         version=stored.version,
         content=stored.content or "",
+    )
+
+
+def _names_self_memories(path: str) -> bool:
+    """Whether a native patch path is the ``[self]/MEMORIES.md`` alias; the planner rejects other bracketed paths."""
+
+    try:
+        return _is_self_memories_path(path)
+    except MemoryToolPathError:
+        return False
+
+
+def _self_memories_read_only_error(context: MemoryToolExecutionContext) -> str | None:
+    """A tool error when this turn may read its MEMORIES.md but not edit it, else ``None``.
+
+    Only the model benchmark's ``remember``-only arm (app/chat/memory_arm.py) makes the file read-only.
+    """
+
+    if context.anima_memories is None or context.anima_memories.writable:
+        return None
+    return _tool_error(
+        "read_only",
+        f"{ANIMA_SELF_MEMORIES_ALIAS} is read-only in this turn; you can read it but not edit it",
+        path=ANIMA_SELF_MEMORIES_ALIAS,
+        retryable=False,
     )
 
 

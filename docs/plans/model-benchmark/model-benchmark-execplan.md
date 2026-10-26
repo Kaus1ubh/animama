@@ -103,13 +103,14 @@ Ownership and boundaries:
       marked "proposed" in the Decision Log and the spec's unconfirmed
       proposals. Passed on 2026-10-25: the owner invoked `/implement` (see
       the Decision Log).
-- [x] Workspace setup (2026-10-26, recorded under Setup and execution
+- [x] Workspace setup (2026-10-25, recorded under Setup and execution
       rules).
 - [x] Phase 1: Shared evaluation core extracted; Gesture harness unchanged.
-      Passed review #2 on 2026-10-26.
+      Passed review #2 on 2026-10-25.
 - [x] Phase 2: Core-turn runner, turn options and dry run. Passed review #2 on
-      2026-10-26.
-- [ ] Phase 3: Memory-arm seams in chat, with defaults unchanged.
+      2026-10-25.
+- [x] Phase 3: Memory-arm seams in chat, with defaults unchanged. Passed
+      review #2 (high risk) on 2026-10-25.
 - [ ] Phase 4: Multi-turn, memory-arm and Memory Manager runners.
 - [ ] Phase 5: Prompt set v1, Japanese subset, fixtures and rubrics (gate
       G2).
@@ -469,7 +470,7 @@ When implementation is authorized:
    - No phase issues are created. One session implements the plan in one
      repository with no separately assigned phase, so the parent and the
      phase sections track it (SDLC artifact ownership).
-   - **Workspace record (2026-10-26):**
+   - **Workspace record (2026-10-25):**
      - **Repository:** `raymond-van/animama`.
      - **Checkout:** `worktrees/animama/model-benchmark-discovery-d321cc`
        (Git root verified).
@@ -585,7 +586,7 @@ Completion: the checks pass and the review passes. Commit
 Recovery: a pure refactor. Revert the commit if the parity diff cannot be
 made clean.
 
-Check record (2026-10-26). Every command ran from the repository root on
+Check record (2026-10-25). Every command ran from the repository root on
 working tree `baac7590` (index-copy hash; starting commit `23cf9faf`):
 
 | Check | Command | Result |
@@ -880,7 +881,7 @@ Starting source: `02328d2a` (Phase 1's commit).
 - **`--config` syntax.** It takes `<row id>@<effort>` rather than the
   planned `[:<effort>]`, because row ids contain `:`.
 
-Check record (2026-10-26). Every command ran from the repository root on
+Check record (2026-10-25). Every command ran from the repository root on
 working tree `bf865276`, starting from `02328d2a`:
 
 | Check | Command | Result |
@@ -1121,13 +1122,237 @@ Recovery:
   pass.
 - The phase is revertible as one commit.
 
-Check record: none yet.
+Starting source: `c191ded9` (Phase 2's commit). Its chat code is unchanged
+from `18d2bebd`.
 
-Commits: none yet.
+**Delivered:**
+- `app/chat/memory_arm.py`: `EpisodicMemoryArm` and
+  `DEFAULT_EPISODIC_MEMORY_ARM`.
+- `DirectChatTurnExecutor(episodic_memory_arm=…)` passes the arm to the
+  places it controls:
+  - the reply model (`build_main_structured_response_model(remember=…)`);
+  - prompt assembly (`remember_field`, `anima_memories_write_guidance`, and
+    `anima_memories_writable` combined with `anima_memories_writes`);
+  - the turn's `AnimaMemoriesTurn(writable=…)`.
+- **The reply model.** `PyMainAgentResponse` is split into
+  `PyMainAgentResponseBase` (every field but `remember`) plus chat's
+  `PyMainAgentResponse`, which adds `remember`. Field order and schema are
+  unchanged.
+- **Guidance follows the reply model.** The response guidance and the
+  JSON-mode prompt read `output_type.model_fields`:
+  - `main_structured_response_guidance` uses `main_structured_output_guidance(remember=…)`
+    and `anthropic_main_structured_output_guidance(remember=…)`;
+  - the memory guidance comes from `memory_system_guidance(remember=…)`.
+
+  The existing constants keep their exact text.
+- **Read-only `MEMORIES.md`.** `memory_write_file`, `memory_apply_patch` and
+  native Apply Patch on `[self]/MEMORIES.md` return a `read_only` tool error
+  when `AnimaMemoriesTurn.writable` is false. Reads of the alias and
+  shared-file writes keep working.
+
+**Discoveries:**
+- **Recovery bug, fixed.** Chat's lenient recovery
+  (`recover_main_structured_response`) added `remember: None` to the data
+  even when the reply model lacks the field, so a recovered arm-(b) reply
+  failed validation. It now sets the nullable fields only when the model has
+  them. Chat's own model always has them, so its behavior is unchanged.
+- **Tool descriptions still name the alias.** In arm (a), the
+  function-tool descriptions of `memory_write_file` and `memory_apply_patch`
+  still say `[self]/MEMORIES.md` can be edited "when it is available". The
+  prompt no longer invites edits, and any attempt is refused as `read_only`.
+  The memory-tool measures count those refused calls. Tool specs are left
+  unchanged, to keep the runtime change narrow; Responses Luna uses native
+  Apply Patch and has no such descriptions.
+
+**Check record (2026-10-25).** Every command ran from the repository root.
+
+Goldens and tests, on working tree `0c777611`:
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Goldens | `PYTHONPATH=. uv run --no-sync python <scratch>/p3_golden.py <file> [a\|b\|c]` on `c191ded9` and on the tree, then `cmp` | See below |
+| Arm and tool tests | `uv run --no-sync pytest -q tests/test_episodic_memory_arm.py` and `tests/test_memory_file_tools.py -k "read_only_turn or self_memories"` | 11 passed; 23 passed |
+
+`p3_golden.py` is a scratch script. It prepares one turn through
+`DirectChatTurnExecutor.prepare_turn` for three rows (Luna on Responses, Luna
+on Chat Completions, Haiku on Anthropic) and three memory setups (memory on
+with `MEMORIES.md`, memory on without it, incognito with memory off). It dumps
+the prompt messages and tools, the provider options, the response format, the
+strict schema, the response guidance and the JSON-mode prompt. Results:
+- **No arm, and arm (c):** byte-identical to the baseline in all 9 captures.
+- **Arm (a):** only the prompt of the three "memory on with `MEMORIES.md`"
+  captures changes, and only by losing the write guidance. Tools, schema and
+  guidance are unchanged.
+- **Arm (b):** the schema, output fields, guidance, JSON-mode prompt and
+  memory guidance change in every capture. None mentions `remember`, and the
+  candidate text replaces the write guidance.
+
+The full pre-push suite ran twice through the heavy-job slot:
+- **First run** (tree `0c777611`):
+  `python3 scripts/heavy-slot.py -- make check-test` failed at mypy, on the
+  return type of `build_main_response_model_from_schema`.
+- **Fix:** that builder now casts its result to chat's model, which always
+  has `remember`. `make mypy` then passed, and ruff and the format check
+  passed.
+- **Second run** (tree `33992033`): 36 failures and 2 errors, all content
+  tests reading Git LFS files, such as `Andrew.vrm` failing media
+  validation. This worktree held LFS pointers (533 files unfetched), the
+  known worktree LFS pitfall. No failure touched the chat code.
+- **Third run:** after `git lfs pull` (533 files fetched), on the same code,
+  `python3 scripts/heavy-slot.py -- make check-test` passed:
+  - the typed-content audit;
+  - ruff format and ruff check;
+  - mypy (868 files);
+  - pytest: 4944 passed, 29 skipped.
+- **Later edits:** after `33992033`, only this plan's records changed.
+
+Repair round 1 is recorded under the revisions below.
+
+Commits: Phase 2 is `c191ded9`. This phase's commit is
+`feat(chat)[p3]: add benchmark-only episodic memory arms with unchanged
+defaults`.
 
 #### Code Review #1 Findings
 
+The review ran in two parts, both independent `sdlc-reviewer` subagents at
+the high-risk tier, on working tree `67010553` (src `544d2dd5`, tests
+`9c6607fc`) against `c191ded9`.
+
+**Checks reviewer.** Every check passed, with no P3-C findings. It reran:
+- `tests/test_episodic_memory_arm.py` and all of
+  `tests/test_memory_file_tools.py`: 75 passed;
+- 33 test files that exercise the executor, prompts, structured replies,
+  memory, Anthropic and the benchmark: 985 passed. The live-provider tests
+  were left out;
+- `ruff check` and `make mypy`: passed;
+- its own default-path byte comparison against a `git archive` copy of
+  `c191ded9`. It dumped guidance constants, schemas, JSON-mode prompts,
+  response formats, lenient recovery and 16 assembled prompts per row,
+  138 sections in all. Both trees gave the same sha256.
+
+It noted that the implementer's goldens ran on an earlier source tree. They
+were rerun on the final tree with the same results: no arm and arm (c)
+identical to the baseline, arms (a) and (b) as recorded.
+
+**Analysis reviewer.** Its result: changes required.
+
+It verified:
+- the default path is byte-identical (its own probe);
+- arm (b) can never record an episode, through any of strict parsing,
+  recovery, salvage or plain text;
+- arm (a) refuses every write path, including native create and update,
+  for every spelling of the alias;
+- no request or production route reaches the arm;
+- the `PyMainAgentResponse` split has no importers outside its module, in
+  this repository or in Cloud.
+
+Required:
+- **P3-F1.** Nothing tests the executor line that gives
+  `AnimaMemoriesTurn` the arm's `writable`. A mutation that deletes it
+  leaves every test green, and arm (a) would then silently accept
+  `MEMORIES.md` writes.
+
+Optional:
+- **P3-F2.** Arm (b)'s salvaged or plain-text replay text still holds
+  `"remember":null`.
+- **P3-F3.** The prompt's fallback response guidance ignores
+  `remember_field`.
+- **P3-F4.** An arm that does nothing is accepted silently: empty guidance,
+  guidance without writes, or neither channel.
+- **P3-F5.** The candidate guidance replaces the only prompt text that
+  names `[self]/MEMORIES.md` and its editing rules. A note for Phase 5.
+- **P3-F6.** The sensitive-memory comment drifted onto a helper string.
+- **P3-F7.** Test notes: alias spelling variants are not covered, and
+  default identity rests on the goldens.
+- **Mock client.** Chat's mock client always sends `"remember": None`, so
+  arm (b)'s mock replies parse only through lenient recovery. A note for
+  Phase 4.
+
 #### Code Review #1 Revisions
+
+- **P3-F1: accepted.**
+  - `_executor` in `tests/test_direct_chat_turn_executor.py` takes
+    `episodic_memory_arm`.
+  - The new test
+    `test_the_episodic_memory_arm_decides_whether_the_turns_memories_are_writable`
+    streams a turn and asserts the tool context's `writable` for the default
+    arm (true) and for arm (a) (false).
+- **P3-F2: accepted.** `render_main_structured_json(parsed, remember=…)`
+  omits the note when false, and the executor passes the arm's `remember`.
+  The default output is unchanged. Covered by
+  `test_replayed_replies_follow_the_arms_fields`.
+- **P3-F3: accepted.** The fallback is now
+  `main_structured_output_guidance(remember=remember_field)`.
+- **P3-F4: accepted.** `EpisodicMemoryArm.__post_init__` rejects an arm
+  with neither channel, empty guidance, or guidance without writes. Covered
+  by `test_an_arm_that_would_do_nothing_is_rejected`.
+- **P3-F5: accepted as a Phase 5 requirement.** The candidate guidance must
+  restate the `[self]/MEMORIES.md` path and the editing rules. Phase 5 adds
+  a check that arm (b)'s prompt names the alias.
+- **P3-F6: accepted.** The comment is back above `MEMORY_SYSTEM_GUIDANCE`.
+- **P3-F7: accepted in part.**
+  - The read-only tool test now runs for three alias spellings.
+  - Byte identity with the baseline stays phase evidence (the goldens and
+    the checks reviewer's comparison) rather than a tracked golden file.
+    A permanent copy of the prompt text would break on every legitimate
+    prompt change.
+- **Mock-client note: carried to Phase 4.** Phase 4's mock smoke reads
+  arm (b) recovery counts knowing the mock sends `remember`.
+- **Arm (a) tool descriptions:** the recorded limitation stands. The Phase 7
+  report states it.
+
+**Repair check record (2026-10-25):**
+- the three touched test files (`test_episodic_memory_arm.py`,
+  `test_memory_file_tools.py`, `test_direct_chat_turn_executor.py`): 179
+  passed;
+- `ruff check`, `ruff format --check src/backend/animama tests` and
+  `make mypy`: passed;
+- the goldens rerun: no arm and arm (c) still identical to the baseline,
+  arm (b) unchanged.
+
+The full pre-push suite on the repaired tree (`8675dfba`: src `1acfeab1`,
+tests `cbb5695d`), run as `python3 scripts/heavy-slot.py -- make check-test`,
+passed:
+- the typed-content audit;
+- ruff format and ruff check;
+- mypy;
+- pytest: 4952 passed, 29 skipped.
+
+The repairs went to a targeted recheck by both reviewers (Code Review #2).
+Phase 3 passed with one repair round used.
+
+#### Code Review #2 Findings
+
+- **Analysis reviewer** (targeted recheck on `8675dfba`): pass.
+  - All accepted repairs are resolved.
+  - Its repeated mutation probe now fails the arm-(a) case and passes on
+    the real tree.
+  - Default bytes, including the replay rendering, are identical to the
+    baseline.
+  - Optional:
+    - **P3-F8.** The mock-client note was missing from the Phase 4
+      section.
+    - **P3-F9.** `core.chat.replayed_reply` still renders `remember` for a
+      model without it.
+    - No test covers the executor's `remember=` argument to the replay
+      renderer.
+- **Checks reviewer** (targeted recheck; src `1acfeab1`, tests
+  `cbb5695d`): checks pass, with no findings. It reran:
+  - the three touched test files: 179 passed;
+  - the 33-file affected set: 993 passed;
+  - `ruff check` and `make mypy`: passed;
+  - its default-path byte comparison against a fresh `git archive` copy of
+    `c191ded9`, now covering replay rendering, strict parses and the
+    fallback guidance: 261 sections, identical (sha256 `17e3d815…`).
+
+#### Code Review #2 Revisions
+
+- **P3-F8: accepted.** The note is added to Phase 4's mock smoke.
+- **P3-F9: accepted, moved to Phase 4.** It changes `scripts/evals/core`,
+  which Phase 4 uses. It is a planned Phase 4 change, recorded there.
+- **The untested executor argument: rejected.** It is an optional repair
+  with small impact. The renderer's own test and the analysis reviewer's
+  byte probe cover it.
 
 ### Phase 4: Multi-turn, memory-arm and Memory Manager runners
 
@@ -1142,6 +1367,9 @@ Changes:
 - **Long chats.** The scripted-chat runner supports 30+ turns per persona,
   with the app's own history replay and pre-send compaction behavior. The
   utility role resolves the way chat resolves it.
+- **Replay helper.** `core.chat.replayed_reply` renders its replay with
+  `remember` only when `output_type` has the field, as the executor does
+  since Phase 3 (P3-F9).
 - **Benchmark database** (D4).
   - The harness creates `animama_benchmark_<run id>` in the stack's
     PostgreSQL from the baseline SQL, with the same connection settings the
@@ -1201,6 +1429,9 @@ Checks:
     SDK clients.
 - A mock smoke in the task stack covers one memory chat in all three arms
   with its recall chat, and one run of each Memory Manager kind.
+  Chat's mock client always sends `"remember": None`, so arm (b)'s mock
+  replies parse only through lenient recovery. Read the smoke's recovery
+  counts knowing this (Phase 3, P3-F8).
   `DeterministicMemoryManagerRuntime` is used when LLM calls are skipped.
   Afterwards, `\l` shows no leftover benchmark database and the application
   database's row counts are unchanged.
@@ -1251,7 +1482,10 @@ Changes:
 - **Candidate episodic guidance (arm b).** A drafted replacement for the
   `MEMORIES.md` write guidance. It lets the file hold notable facts, events,
   decisions and plans, alongside the relationship sections, within the
-  existing size and sensitivity rules.
+  existing size and sensitivity rules. It restates the `[self]/MEMORIES.md` path and the editing rules
+  (small edits; no create, delete, move or rename), because it replaces the
+  only prompt text that names them (P3-F5). A check asserts that arm (b)'s
+  assembled prompt names the alias.
 - **Japanese subset (R9).** About 24 single-turn items, plus the memory chat
   above, agent-translated from their English originals and linked by
   `pair_id`, with no further translation check.

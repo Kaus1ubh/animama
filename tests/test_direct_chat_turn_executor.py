@@ -25,6 +25,7 @@ from animama.app.chat.api_standard import (
     MODEL_CLIENT_OPENAI_RESPONSES,
 )
 from animama.app.chat.direct_turn.response_format import gesture_response_guidance, render_available_gestures
+from animama.app.chat.memory_arm import DEFAULT_EPISODIC_MEMORY_ARM, EpisodicMemoryArm
 from animama.app.chat.memory_context import (
     ANIMA_MEMORIES_WRITE_GUIDANCE,
     MAIN_STRUCTURED_OUTPUT_GUIDANCE,
@@ -562,6 +563,7 @@ def _executor(
     memory_episode_recorder: Any | None = None,
     anima_memories_version: int | None = None,
     pre_send_compactor: Any | None = None,
+    episodic_memory_arm: EpisodicMemoryArm = DEFAULT_EPISODIC_MEMORY_ARM,
 ) -> tuple[DirectChatTurnExecutor, _FakeChatManager]:
     resolved_provider = _provider() if provider is _DEFAULT else provider
     resolved_profile: AnimaChatProfile | None
@@ -595,6 +597,7 @@ def _executor(
             memory_tool_service=memory_tool_service,
             memory_episode_recorder=memory_episode_recorder,
             pre_send_compactor=pre_send_compactor,
+            episodic_memory_arm=episodic_memory_arm,
         ),
         chats,
     )
@@ -3055,6 +3058,29 @@ async def test_direct_turn_stores_memories_change_on_the_reply_and_emits_memory_
         "memories": memories,
     }
     assert episode_recorder.calls[0]["source_message_id"] == "1004"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("arm", "writable"),
+    [(DEFAULT_EPISODIC_MEMORY_ARM, True), (EpisodicMemoryArm(anima_memories_writes=False), False)],
+)
+async def test_the_episodic_memory_arm_decides_whether_the_turns_memories_are_writable(
+    arm: EpisodicMemoryArm, writable: bool
+) -> None:
+    """The model benchmark's `remember`-only arm (app/chat/memory_arm.py) reaches the tools as a read-only turn."""
+
+    memory_tools = _SelfMemoriesWritingToolService()
+    executor, _ = _executor(
+        client=_self_memories_patch_turn(remember=None),
+        memory_tool_service=memory_tools,
+        anima_memories_version=4,
+        episodic_memory_arm=arm,
+    )
+
+    await _collect(executor.stream_turn(_request()))
+
+    assert memory_tools.contexts[0].anima_memories.writable is writable
 
 
 @pytest.mark.asyncio

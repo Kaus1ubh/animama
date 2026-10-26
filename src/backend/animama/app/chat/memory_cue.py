@@ -34,6 +34,8 @@ class AnimaMemoriesTurn:
     """
 
     seen_version: int | None = None
+    writable: bool = True
+    """Whether the turn may edit the file; the model benchmark's ``remember``-only arm reads it only."""
     entry_id: str | None = None
     version: int | None = None
     content_before: str | None = None

@@ -1775,8 +1775,9 @@ def _anima_context(
     *,
     seen_version: int | None = 1,
     native: bool = False,
+    writable: bool = True,
 ) -> tuple[MemoryToolExecutionContext, AnimaMemoriesTurn]:
-    turn = AnimaMemoriesTurn(seen_version=seen_version)
+    turn = AnimaMemoriesTurn(seen_version=seen_version, writable=writable)
     return replace(_native_context() if native else _context(), anima_memories=turn), turn
 
 
@@ -2147,6 +2148,62 @@ async def test_self_memories_alias_is_unavailable_without_turn_access(async_sess
     assert "memory is turned off" in patch["message"]
     assert native["code"] == "patch_rejected"
     assert (await _anima_memories(async_session)).version == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("alias", [_SELF_MEMORIES, " [SELF]/memories.md ", "[Self]/MEMORIES.md"])
+async def test_a_read_only_turn_reads_self_memories_but_every_edit_is_refused(async_session, alias: str) -> None:
+    """The model benchmark's `remember`-only arm: MEMORIES.md stays readable, and shared files stay writable."""
+
+    await _put_anima_memories(async_session, _MEMORIES_BODY)
+    tools = _anima_tool_service(async_session)
+    context, turn = _anima_context(writable=False)
+    native_context, _ = _anima_context(native=True, writable=False)
+
+    read = _loads(
+        await tools.execute(
+            tool_name=MEMORY_TOOL_READ_FILES, arguments={"paths": _SELF_MEMORIES}, context=context, tool_call_id="r"
+        )
+    )
+    patch = _loads(
+        await tools.execute(
+            tool_name=MEMORY_TOOL_APPLY_PATCH,
+            arguments=_patch_arguments(alias, "We met at the lake.", "We met at the sea."),
+            context=context,
+            tool_call_id="p",
+        )
+    )
+    write = _loads(
+        await tools.execute(
+            tool_name=MEMORY_TOOL_WRITE_FILE,
+            arguments=_replace_arguments(alias, "Rewritten.\n"),
+            context=context,
+            tool_call_id="w",
+        )
+    )
+    native = _loads(
+        await tools.execute_native_patch(
+            operation={"type": "update_file", "path": alias, "diff": "@@\n-We met at the lake.\n+Sea\n"},
+            context=native_context,
+            tool_call_id="n",
+        )
+    )
+    shared = _loads(
+        await tools.execute(
+            tool_name=MEMORY_TOOL_WRITE_FILE,
+            arguments=_replace_arguments("PROFILE.md", "Likes kayaking.\n", mode="create"),
+            context=context,
+            tool_call_id="s",
+        )
+    )
+
+    assert read["files"][0]["content"] == _MEMORIES_BODY
+    for refused in (patch, write, native):
+        assert refused["ok"] is False and refused["code"] == "read_only", refused
+        assert "read-only" in refused["message"]
+    assert shared["ok"] is True
+    assert (await _anima_memories(async_session)).version == 1
+    assert turn.cue() is None
 
 
 @pytest.mark.asyncio

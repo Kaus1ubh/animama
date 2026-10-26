@@ -25,16 +25,43 @@ Respond to the user's latest message naturally, as in a live conversation: warm,
 DEFAULT_IDENTITY_REFERENCE = "under Anima Identity"
 CORE_COMPANION_INSTRUCTION = CORE_COMPANION_INSTRUCTION_TEMPLATE.format(identity_reference=DEFAULT_IDENTITY_REFERENCE)
 
+_SHARED_FILES_MEMORY = (
+    "- Shared memory files such as `PROFILE.md`: durable facts about the user, such as their goals, motivations, "
+    "preferences, relationships, work and projects. You can list, read, search, write and patch these markdown files "
+    "with the memory tools. Read or search them when the request concerns that durable context, not merely because "
+    "the tools exist and not for an unrelated technical or attachment question. Write notable durable facts when you "
+    "learn them."
+)
+_ANIMA_MEMORIES_MEMORY = (
+    "- Your own `MEMORIES.md`: what your relationship with this user means over time. Its content, when it has any, "
+    "appears under Anima Memories."
+)
+
 # The one statement of the sensitive-memory rule in a chat turn's instructions;
 # it covers every memory the model writes (spec R9 of companion safety).
 MEMORY_SYSTEM_GUIDANCE = f"""\
 You keep three kinds of memory:
-- Shared memory files such as `PROFILE.md`: durable facts about the user, such as their goals, motivations, preferences, relationships, work and projects. You can list, read, search, write and patch these markdown files with the memory tools. Read or search them when the request concerns that durable context, not merely because the tools exist and not for an unrelated technical or attachment question. Write notable durable facts when you learn them.
-- Your own `MEMORIES.md`: what your relationship with this user means over time. Its content, when it has any, appears under Anima Memories.
+{_SHARED_FILES_MEMORY}
+{_ANIMA_MEMORIES_MEMORY}
 - The `remember` field: what happened in this turn, logged to the shared episode log.
 
 {SENSITIVE_MEMORY_RULE} This applies to every memory you write: files, `MEMORIES.md` and the `remember` field.
 """
+# The model benchmark's `MEMORIES.md`-only arm (app/chat/memory_arm.py) replies without `remember`.
+_MEMORY_SYSTEM_GUIDANCE_WITHOUT_REMEMBER = f"""\
+You keep two kinds of memory:
+{_SHARED_FILES_MEMORY}
+{_ANIMA_MEMORIES_MEMORY}
+
+{SENSITIVE_MEMORY_RULE} This applies to every memory you write: files and `MEMORIES.md`.
+"""
+
+
+def memory_system_guidance(*, remember: bool = True) -> str:
+    """The memory guidance, naming the `remember` field only when the reply has one."""
+
+    return MEMORY_SYSTEM_GUIDANCE if remember else _MEMORY_SYSTEM_GUIDANCE_WITHOUT_REMEMBER
+
 
 ANIMA_MEMORIES_GUIDANCE = (
     "These are your own first-person notes about your relationship and shared history with this user. Treat them "
@@ -60,15 +87,26 @@ The rest is the stored Markdown body. Diff against the whole returned `content`.
 """
 
 # One response guidance for every provider; Anthropic rows append their tools-first line.
-MAIN_STRUCTURED_OUTPUT_GUIDANCE = """\
+_MAIN_STRUCTURED_OUTPUT_FIELDS = """\
 Your reply is one JSON object that matches the response schema, which lists each field's allowed values. Make your emotional tone, intensity, gesture and words one coherent response to the user.
 
 - `emotional_tone` and `emotional_intensity`: how you, the Anima, feel about the user's message. Default to `neutral` and `3`.
 - `gesture`: a gesture that suits your reply, or `null` when none fits. Use a variety of gestures.
 - `speech`: your main reply, spoken aloud when a voice is on. Keep it brief so you do not ramble.
 - `display`: optional secondary text that is shown but not spoken, for extra details, links and citations. Leave it `null` when `speech` answers the user.
-- `remember`: 1-3 concise sentences on notable new facts, preferences, events, decisions, ongoing projects or relationship changes from the user's message and your reply, or `null` when nothing durable is worth remembering.
 """
+MAIN_STRUCTURED_OUTPUT_GUIDANCE = (
+    _MAIN_STRUCTURED_OUTPUT_FIELDS
+    + "- `remember`: 1-3 concise sentences on notable new facts, preferences, events, decisions, ongoing projects or "
+    "relationship changes from the user's message and your reply, or `null` when nothing durable is worth remembering.\n"
+)
+
+
+def main_structured_output_guidance(*, remember: bool = True) -> str:
+    """The response guidance, describing `remember` only when the reply schema has it."""
+
+    return MAIN_STRUCTURED_OUTPUT_GUIDANCE if remember else _MAIN_STRUCTURED_OUTPUT_FIELDS
+
 
 MEMORY_CONTEXT_METADATA_VERSION = 1
 IDENTITY_FILE_KIND = "anima_identity"
@@ -334,6 +372,8 @@ __all__ = [
     "DirectChatMemoryContextService",
     "IDENTITY_FILE_KIND",
     "MAIN_STRUCTURED_OUTPUT_GUIDANCE",
+    "main_structured_output_guidance",
+    "memory_system_guidance",
     "MEMORY_CONTEXT_METADATA_VERSION",
     "NATIVE_MEMORY_PATCH_GUIDANCE",
     "MEMORY_SYSTEM_GUIDANCE",
