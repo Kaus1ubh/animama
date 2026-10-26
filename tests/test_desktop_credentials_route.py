@@ -23,6 +23,7 @@ from fastapi import FastAPI
 from animama.server.app import create_local_app
 from animama.server.config import Settings
 from animama.server.runtime_credentials import runtime_credentials
+from tests.route_support import served_routes
 
 PORT = 41234
 ORIGIN = f"http://127.0.0.1:{PORT}"
@@ -250,7 +251,7 @@ async def test_existing_control_routes_still_answer_electron_main(desktop_app: F
 
 
 def test_the_route_parses_no_body_model(desktop_app: FastAPI) -> None:
-    route = next(route for route in desktop_app.routes if getattr(route, "path", None) == ROUTE)
+    route = next(route for route in served_routes(desktop_app) if getattr(route, "path", None) == ROUTE)
 
     assert route.body_field is None  # type: ignore[attr-defined]
 
@@ -496,7 +497,7 @@ async def test_the_route_is_private_to_the_desktop_composition(tmp_path: Path) -
     self_host = create_local_app(runtime_settings=_settings(tmp_path, desktop=False))
     before = runtime_credentials.snapshot()
 
-    assert ROUTE not in {getattr(route, "path", None) for route in self_host.routes}
+    assert ROUTE not in {getattr(route, "path", None) for route in served_routes(self_host)}
     async with httpx.AsyncClient(transport=httpx.ASGITransport(self_host), base_url="http://localhost:8000") as http:
         response = await http.put(ROUTE, content=_body({"OPENAI_API_KEY": SENTINEL}), headers=NODE_FETCH)
 

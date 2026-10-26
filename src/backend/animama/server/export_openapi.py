@@ -8,8 +8,33 @@ import os
 import tempfile
 from collections.abc import Sequence
 from pathlib import Path
+from typing import Any
 
 from animama.server.app import app
+
+
+def _binary_uploads_as_format(value: Any) -> Any:
+    """Return a copy that describes binary fields as ``format: binary``.
+
+    FastAPI 0.134+ describes ``UploadFile`` and ``bytes`` with the OpenAPI 3.1 form
+    ``contentMediaType: application/octet-stream``. The pinned SDK generator types
+    that as ``string`` rather than ``Blob | File``, so the exported contract keeps the
+    equivalent earlier form until the generator is upgraded.
+    """
+
+    if isinstance(value, list):
+        return [_binary_uploads_as_format(item) for item in value]
+    if not isinstance(value, dict):
+        return value
+    node = {key: _binary_uploads_as_format(item) for key, item in value.items()}
+    if (
+        node.get("type") == "string"
+        and node.get("contentMediaType") == "application/octet-stream"
+        and "format" not in node
+    ):
+        del node["contentMediaType"]
+        node["format"] = "binary"
+    return node
 
 
 def export_openapi(output_path: Path) -> None:
@@ -17,14 +42,15 @@ def export_openapi(output_path: Path) -> None:
 
     Importing the FastAPI application registers its startup hooks but does not
     execute them. This keeps client generation independent from a running local
-    stack, installation bootstrap and private desktop credentials.
+    stack, installation bootstrap and private desktop credentials. Binary fields are
+    written as ``format: binary`` strings (see ``_binary_uploads_as_format``).
     """
 
     output_path = output_path.resolve()
     output_path.parent.mkdir(parents=True, exist_ok=True)
     payload = (
         json.dumps(
-            app.openapi(),
+            _binary_uploads_as_format(app.openapi()),
             ensure_ascii=False,
             separators=(",", ":"),
             sort_keys=True,

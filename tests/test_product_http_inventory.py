@@ -19,6 +19,7 @@ from animama.product_http.ports import get_read_session, get_write_session
 from animama.product_http.routes import ROUTERS
 from animama.server.app import create_local_app
 from animama.server.config import Settings
+from tests.route_support import served_routes
 
 ROOT = Path(__file__).resolve().parents[1]
 HOSTED = json.loads((ROOT / "contracts/runtime-capabilities/hosted.json").read_text())
@@ -89,9 +90,9 @@ def route_table(app: FastAPI) -> list[tuple[str, str, str]]:
     """The app's ordered (method, path, handler) table, one entry per method."""
 
     table = []
-    for route in app.router.routes:
+    for route in served_routes(app):
         assert isinstance(route, APIRoute | APIWebSocketRoute), route
-        methods = ["WEBSOCKET"] if isinstance(route, APIWebSocketRoute) else sorted(route.methods)
+        methods = ["WEBSOCKET"] if isinstance(route, APIWebSocketRoute) else sorted(route.methods or ())
         table += [(method, route.path, route.endpoint.__name__) for method in methods]
     return table
 
@@ -155,10 +156,10 @@ def depends_on(dependant: Dependant, call: object) -> bool:
 def test_moved_handlers_use_the_session_their_access_names(tmp_path: Path) -> None:
     # access is provisional until a family moves; then it must match the handler.
     specs = {(spec.method, spec.path): spec for spec in ROUTES}
-    for route in local_app(tmp_path, desktop=False, web_root=False).router.routes:
+    for route in served_routes(local_app(tmp_path, desktop=False, web_root=False)):
         if not (isinstance(route, APIRoute) and route.endpoint.__module__.startswith("animama.product_http.")):
             continue
-        for method in route.methods:
+        for method in route.methods or ():
             spec = specs[(method, route.path)]
             assert spec.disposition == "shared", route.path
             if spec.access in ("read", "write"):
@@ -178,9 +179,9 @@ def test_moved_handlers_use_the_session_their_access_names(tmp_path: Path) -> No
 
 def test_the_package_serves_exactly_the_served_stages(tmp_path: Path) -> None:
     modules: dict[tuple[str, str], str] = {}
-    for route in local_app(tmp_path, desktop=True, web_root=True).router.routes:
+    for route in served_routes(local_app(tmp_path, desktop=True, web_root=True)):
         assert isinstance(route, APIRoute | APIWebSocketRoute), route
-        methods = ["WEBSOCKET"] if isinstance(route, APIWebSocketRoute) else sorted(route.methods)
+        methods = ["WEBSOCKET"] if isinstance(route, APIWebSocketRoute) else sorted(route.methods or ())
         for method in methods:
             modules[(method, route.path)] = route.endpoint.__module__
     for spec in ROUTES:
@@ -204,7 +205,7 @@ def test_routers_mount_the_served_routes_in_inventory_order() -> None:
         for router in ROUTERS
         for route in router.routes
         if isinstance(route, APIRoute)
-        for method in sorted(route.methods)
+        for method in sorted(route.methods or ())
     ]
     served = [
         (spec.method, spec.path, spec.handler)

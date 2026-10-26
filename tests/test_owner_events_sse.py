@@ -4,10 +4,11 @@ import pytest
 
 from animama.server import mm_events
 from animama.server.routers import router
+from tests.route_support import served_routes
 
 
 def test_owner_events_sse_route_is_mounted() -> None:
-    paths = {getattr(route, "path", None) for route in router.routes}
+    paths = {getattr(route, "path", None) for route in served_routes(router)}
     assert "/v1/events:sse" in paths
 
 

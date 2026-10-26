@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import cast
 
 import pytest
-from fastapi import Request
+from fastapi import FastAPI, Request
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -81,6 +81,12 @@ async def test_app_session_factories_are_injected_and_isolated():
         assert sessions == [expected]
 
 
+async def _run_shutdown_handlers(app: FastAPI) -> None:
+    """Run only the shutdown handlers; Starlette 1.x removed ``Router.shutdown()``."""
+    for handler in app.router.on_shutdown:
+        await handler()
+
+
 async def test_default_apps_keep_their_databases_and_shutdown_separate():
     """Building real SQLAlchemy pools needs no connection to either fixture database."""
     from animama.server.app import create_local_app
@@ -96,11 +102,11 @@ async def test_default_apps_keep_their_databases_and_shutdown_separate():
         assert first_factory.kw["bind"] is not second_factory.kw["bind"]
         assert first_factory.kw["bind"].url.database == "first"
         assert second_factory.kw["bind"].url.database == "second"
-        await first.router.shutdown()
+        await _run_shutdown_handlers(first)
         assert get_async_session_factory(second) is second_factory
     finally:
-        await first.router.shutdown()
-        await second.router.shutdown()
+        await _run_shutdown_handlers(first)
+        await _run_shutdown_handlers(second)
 
 
 def test_local_engine_respects_explicit_app_settings(monkeypatch):
