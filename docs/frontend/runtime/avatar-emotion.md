@@ -339,6 +339,61 @@ Relevant files:
 - `src/frontend/web/src/lib/avatar/ExpressionController.ts`
 - `src/frontend/web/src/lib/avatar/Avatar.ts`
 
+### ARKit Avatars
+
+Avatars converted from VRChat usually have ARKit face shapes but neither VRM
+mood presets nor VRoid `Fcl_*` parts. When an Avatar has every ARKit shape that
+the moods and parts of `arkitFaceCompositions.json` use, `Avatar.load` registers each mood preset and
+each VRoid part in that table as a mix of those shapes
+(`arkitFaceExpressions.ts`). Emotions, Reactions, Gestures, creator previews and
+portraits then play them as ordinary expressions. Content keeps its VRM and
+VRoid names, and mouth parts play too rather than being dropped.
+
+- The same table's `vowels` can shape lip sync on Avatars with every vowel
+  shape, a separate bar from the mood table's
+  ([ARKit lip-sync shaping](avatar-lipsync.md#arkit-lip-sync-shaping)).
+- Each mood is split into brow, eye and mouth regions. `Fcl_BRW_<Mood>`,
+  `Fcl_EYE_<Mood>` and `Fcl_MTH_<Mood>` play one region each; the preset and
+  `Fcl_ALL_<Mood>` play all three. The table's `parts` add `Fcl_MTH_Large`,
+  `Fcl_MTH_A`, `Fcl_EYE_Spread` and the `Fcl_EYE_Close` variants.
+- The mixes replace mood presets the file authors, so every ARKit Avatar shows
+  the same faces in Animama. Presets baked by `vrm:bake-expressions` serve other
+  VRM apps.
+- An Avatar missing any table shape keeps its own presets and the preset
+  fallback below. So does an Avatar with VRoid mood parts of its own, such as a
+  VRoid model with added ARKit ("Perfect Sync") shapes.
+- The eyelid closure correction reduces blink by each mix's measured share of
+  blink's motion, so relaxed's partly closed lids never close past shut. Winks
+  (`Fcl_EYE_Close_L`/`_R`) are not corrected, so the open eye keeps blinking.
+
+To make a converted Avatar emote in other VRM apps too, bake the mood presets
+into a copy of its file (from `src/frontend/web`):
+
+```bash
+pnpm -s vrm:bake-expressions <source.vrm> --out <baked.vrm> [--replace]
+```
+
+It writes `happy`, `angry`, `sad`, `relaxed` and `surprised` from the same
+table, binding each mesh's own spelling of each ARKit shape (or, as the app
+does, scaling an expression the file authors under that ARKit name), plus an empty
+`neutral` when the file has none. It keeps presets that already bind something
+unless `--replace` (an authored `neutral` is always kept), and lists table
+shapes the file lacks or matches ambiguously. On an
+Avatar missing table shapes or with VRoid mood parts, Animama plays the baked
+presets too; the command says which applies. Only VRM 1.0 files are supported.
+It changes nothing but those preset entries, never modifies the source and never
+overwrites an existing output. The baked presets keep `overrideBlink: none`, so
+another app's automatic blink can close the lids past shut while a preset that
+partly closes them (`happy`, `relaxed`, `sad`) is shown; Animama's own correction does not travel with the file.
+
+Tune faces by editing the JSON table. Aim for each region, at weight 1, to move
+about as far as the VRoid part it stands for on an Included Avatar (relaxed's
+mouth, `mouthSmile` 1, matches `Fcl_MTH_Fun`), because the emotion map's
+weights were chosen for VRoid parts. ARKit has no closed-arc eye
+shape, so happy's eyes are a partial blink with a squint. On faces whose bangs
+cover the brows, only the eye and mouth regions show. Affection, esteem and
+delight key `Fcl_MTH_Fun`, so tuning relaxed's mouth retunes all three.
+
 ### Reaction clip mapping
 
 Turn-scoped reactions use the `emotion.update` metadata, not the persisted

@@ -339,3 +339,39 @@ test("renders particle art without tone mapping when its material opts out", asy
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+// A local Avatar file outside the repository replaces both Included Avatars,
+// and an upper-case extension does not leak into the sheet's label.
+test("renders on a local Avatar file instead of the Included Avatars", async () => {
+  const dir = await mkdtemp(
+    path.join(tmpdir(), "animama-effect-render-avatar-file-"),
+  );
+  try {
+    const avatarFile = path.join(dir, "Local-Avatar.VRM");
+    await cp(
+      path.resolve(
+        import.meta.dirname,
+        "../../../../content/included/avatars/Andrew.vrm",
+      ),
+      avatarFile,
+    );
+    const tile = { width: 96, height: 120 };
+    const [result] = await renderEffectSheets({
+      effects: [await resolveEffectSource("library:blush")],
+      outFileFor: (effect) => path.join(dir, `${effect.stem}.png`),
+      times: [0.1],
+      tile,
+      avatarFile,
+    });
+
+    assert.deepEqual(result.failures, []);
+    assert.deepEqual(
+      result.avatars.map((avatar) => avatar.id),
+      ["Local-Avatar"],
+    );
+    const png = await readFile(result.outFile);
+    assert.equal(png.readUInt32BE(16), 64 + 3 * tile.width);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});

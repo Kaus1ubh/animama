@@ -74,7 +74,7 @@ import {
   type AvatarFacePartRole,
 } from "./faceParts";
 import { createLogger } from "@/lib/logger";
-import { resolveAvatarVFXModelProfile } from "./profiles";
+import { resolveAvatarVFXModelProfile, resolveIrisEyeLayout } from "./profiles";
 import { buildRuntimePrimitiveBindings } from "../vrmEditorInspection";
 import type {
   AvatarVFXAnimationPreset,
@@ -244,17 +244,21 @@ type TexturePlacementInstance = {
   };
 };
 
+type PixelRect = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
 type TexturePixelPlacementInstance = {
   label: string;
   mirrorX: boolean;
   /** The effect's own mirrored copy; see `TexturePlacement.effectMirror`. */
   effectMirror?: boolean;
-  rect: {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  };
+  rect: PixelRect;
+  /** Where the art may draw; see the eye layout's `clip`. */
+  clip?: PixelRect;
 };
 
 type StaticCompositeSegmentState = {
@@ -1217,26 +1221,30 @@ function resolveTextureEffectPlacements(args: {
   if (isTextureVFXEntry(effect) && effect.targetRole === "eye_iris") {
     const eyeLayout = profile.eyeLayout;
     if (!eyeLayout) return { placements: [] };
-    const leftRect = toPixelRect(size, eyeLayout.left);
-    const rightRect = toPixelRect(size, eyeLayout.right);
+    // One eye's cell, and its clip when the layout has one.
+    const eye = (side: "left" | "right") => ({
+      rect: toPixelRect(size, eyeLayout[side]),
+      ...(eyeLayout.clip
+        ? { clip: toPixelRect(size, eyeLayout.clip[side]) }
+        : {}),
+    });
 
     if (effect.assetShape === "single_eye") {
       if (effect.side) {
-        const primaryRect = effect.side === "left" ? leftRect : rightRect;
-        const oppositeRect = effect.side === "left" ? rightRect : leftRect;
+        const opposite = effect.side === "left" ? "right" : "left";
         const placements: TexturePixelPlacementInstance[] = [
           {
             label: effect.side,
             mirrorX: false,
-            rect: primaryRect,
+            ...eye(effect.side),
           },
         ];
         if (effect.requiresMirror) {
           placements.push({
-            label: effect.side === "left" ? "right" : "left",
+            label: opposite,
             mirrorX: true,
             effectMirror: true,
-            rect: oppositeRect,
+            ...eye(opposite),
           });
         }
         return { placements };
@@ -1247,12 +1255,12 @@ function resolveTextureEffectPlacements(args: {
           {
             label: "left",
             mirrorX: false,
-            rect: leftRect,
+            ...eye("left"),
           },
           {
             label: "right",
             mirrorX: eyeLayout.mirrorRight,
-            rect: rightRect,
+            ...eye("right"),
           },
         ],
       };
@@ -1268,6 +1276,14 @@ function resolveTextureEffectPlacements(args: {
           label: "both",
           mirrorX: false,
           rect: combinedRect,
+          ...(eyeLayout.clip
+            ? {
+                clip: toPixelRect(
+                  size,
+                  getCombinedRect(eyeLayout.clip.left, eyeLayout.clip.right),
+                ),
+              }
+            : {}),
         },
       ],
     };
@@ -1482,6 +1498,16 @@ function drawCompositedLayerCanvas(args: {
     );
 
     context.save();
+    if (placement.clip) {
+      context.beginPath();
+      context.rect(
+        placement.clip.x,
+        placement.clip.y,
+        placement.clip.width,
+        placement.clip.height,
+      );
+      context.clip();
+    }
     context.translate(transform.x, transform.y);
     // Texture decals rotate in their 2D surface; spin adds to the authored angle.
     context.rotate(transform.rotation);
@@ -2188,7 +2214,7 @@ export class AvatarVFXController {
             image: surface,
             effect,
             size: slot,
-            profile: this._profile,
+            profile: this._placementProfile(),
             faceTextureAnchors: anchors,
           });
           for (const placement of references.placements) {
@@ -2584,6 +2610,20 @@ export class AvatarVFXController {
   }
 
   /**
+   * The profile texture placements use: its iris rectangles follow this
+   * Avatar's eye landmarks when the iris texture is not laid out like VRoid's.
+   */
+  private _placementProfile(): AvatarVFXModelProfile {
+    const eyeLayout = this._profile.eyeLayout;
+    const eyes = this._avatar.getFaceLandmarksSnapshot()?.eyes;
+    if (!eyeLayout || !eyes) return this._profile;
+    const resolved = resolveIrisEyeLayout(eyeLayout, eyes);
+    return resolved === eyeLayout
+      ? this._profile
+      : { ...this._profile, eyeLayout: resolved };
+  }
+
+  /**
    * Rebuild bindings after the Avatar's face parts change (a correction), then
    * re-apply active effects in their original order with their intensities.
    * An effect whose part is now unavailable is skipped and reported.
@@ -2731,7 +2771,7 @@ export class AvatarVFXController {
           image: layer.image,
           effect,
           size: layer,
-          profile: this._profile,
+          profile: this._placementProfile(),
           faceTextureAnchors: anchors,
         });
         if (resolved.placements.length) layer.placements = resolved.placements;
@@ -3398,7 +3438,7 @@ export class AvatarVFXController {
         image: args.effectImage,
         effect: args.effect,
         size: { width: slotState.width, height: slotState.height },
-        profile: this._profile,
+        profile: this._placementProfile(),
         faceTextureAnchors: args.faceTextureAnchors,
       });
       if (drawResult.placements.length === 0) {

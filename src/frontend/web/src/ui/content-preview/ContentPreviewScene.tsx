@@ -115,6 +115,10 @@ function PreviewActor({
   const avatarLoadRef = useRef<"loading" | "ready" | "failed">("loading");
   const [avatarLoadAttempt, setAvatarLoadAttempt] = useState(0);
   const avatarRef = useRef<Avatar | null>(null);
+  // The current instance as state, so loading follows a re-created Avatar
+  // (any change to the creation effect's inputs) instead of leaving it
+  // unloaded.
+  const [avatarInstance, setAvatarInstance] = useState<Avatar | null>(null);
   const loadGenerationRef = useRef(0);
   const handledPlayRequestRef = useRef(0);
   const firstMotionFrameRef = useRef(false);
@@ -145,9 +149,11 @@ function PreviewActor({
     });
     avatar.setAutomaticAnimationPlaybackEnabled(false);
     avatarRef.current = avatar;
+    setAvatarInstance(avatar);
     onAvatarChange(avatar);
     return () => {
       avatarRef.current = null;
+      setAvatarInstance(null);
       onAvatarChange(null);
       avatar.dispose();
       releaseAvatar();
@@ -155,10 +161,9 @@ function PreviewActor({
   }, [camera, catalog, gl.domElement, onAvatarChange]);
 
   useEffect(() => {
-    const avatar = avatarRef.current;
-    if (!avatar) return;
-    return attachContentPreviewClipEventBridge(avatar, clipEventBridge);
-  }, [clipEventBridge]);
+    if (!avatarInstance) return;
+    return attachContentPreviewClipEventBridge(avatarInstance, clipEventBridge);
+  }, [avatarInstance, clipEventBridge]);
 
   useEffect(() => {
     avatarEntryRef.current = avatarEntry;
@@ -166,7 +171,7 @@ function PreviewActor({
 
   useEffect(() => {
     const t = getI18n().getFixedT(null, "actionEditor");
-    const avatar = avatarRef.current;
+    const avatar = avatarInstance;
     if (!avatar) return;
     const entry = avatarEntryRef.current;
     const logicalUrl = runtimeContentEntryUrl(entry);
@@ -223,7 +228,7 @@ function PreviewActor({
       }
     })();
     return () => controller.abort();
-  }, [avatarLoadAttempt, avatarSourceKey, onStatusChange]);
+  }, [avatarInstance, avatarLoadAttempt, avatarSourceKey, onStatusChange]);
 
   useEffect(() => {
     // Each new preparation, including Retry, either reuses the loaded model or

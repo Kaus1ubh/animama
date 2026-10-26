@@ -1,7 +1,7 @@
-// Canonical Apple ARKit blendshape names used by the motion pipeline.
-// The EMAGE → FLAME → blendshape model emits a fixed-length vector of
-// weights ordered according to this list.
-// gesture .npy ordering
+// Canonical Apple ARKit blendshape names: all 52, in Apple's alphabetical
+// order with `tongueOut` last. `arkit_52` lip-sync frames index into this
+// list (the EMAGE → FLAME → blendshape model emitted the first 51, the gesture
+// .npy ordering); a shorter frame leaves the remaining shapes untouched.
 export const ARKIT_BLENDSHAPES = [
   "browDownLeft",
   "browDownRight",
@@ -54,6 +54,7 @@ export const ARKIT_BLENDSHAPES = [
   "mouthUpperUpRight",
   "noseSneerLeft",
   "noseSneerRight",
+  "tongueOut",
 ];
 
 export const EYE_MOVEMENT_BLENDSHAPES = [

@@ -115,6 +115,7 @@ describe("desktop runtime packaging", () => {
         "LICENSE",
         "lib-vendor/d3/LICENSE",
         "dist/bundle.js.LICENSE.txt",
+        "dist/THIRD_PARTY_NOTICES.md",
         "dist/icons/copyright.js",
         "dist/icons/copyright.js.map",
         "node_modules/undeclared/LICENSE",
@@ -132,6 +133,10 @@ describe("desktop runtime packaging", () => {
       );
       expect(record.notices).toEqual([
         { path: "LICENSE", text: "LICENSE" },
+        {
+          path: "dist/THIRD_PARTY_NOTICES.md",
+          text: "dist/THIRD_PARTY_NOTICES.md",
+        },
         {
           path: "dist/bundle.js.LICENSE.txt",
           text: "dist/bundle.js.LICENSE.txt",

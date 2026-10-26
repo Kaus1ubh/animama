@@ -5,6 +5,8 @@ import {
 } from "@pixiv/three-vrm";
 import type { BufferGeometry } from "three";
 
+import { arkitMixOf } from "./arkitFaceExpressions";
+import type { ArkitMix } from "./arkitFaceCompositions";
 import { registerMorphTargetExpressions } from "./morphTargetExpressions";
 
 /**
@@ -32,6 +34,14 @@ import { registerMorphTargetExpressions } from "./morphTargetExpressions";
  * instead of the whole face gets the same correction from the same profile. Because the rule lives in the manager, every
  * surface that applies expressions — the chat runtime, creator writes, review
  * renders — inherits it, and expression weights keep their authored values.
+ *
+ * On an ARKit Avatar the mood presets and VRoid parts are ARKit mixes
+ * (`arkitFaceExpressions.ts`, registered before this runs). Each mix that
+ * moves the eyelids closed, such as relaxed's partial `eyeBlink*` or happy's
+ * squint, reduces blink by its measured share of blink's motion instead of a
+ * profile value: the weighted sum of its ARKit shapes' shares, each measured
+ * once. One-sided mixes (a wink) are left uncorrected, because three-vrm's
+ * blink override would also stop the open eye blinking.
  */
 
 /** The share of a full eye closure each mood expression adds at weight 1. */
@@ -98,7 +108,7 @@ export type EyelidClosureCorrection = {
 
 /**
  * Install the eyelid closure correction on a loaded VRM. Call once after
- * loading (after expression canonicalization).
+ * loading, after expression canonicalization and `registerArkitFace`.
  *
  * A verified profile is chosen by `vrmSha256`. Other Avatars use the default
  * profile for each mood expression whose morphs measurably close the eyelids,
@@ -132,20 +142,61 @@ export function applyEyelidClosureCorrection(
     ? { source: "verified", profile: verified.profile }
     : { source: "default", profile: defaultProfileFor(vrm, closes) };
 
-  for (const { name, profile } of CORRECTED_EXPRESSIONS) {
-    const expression = manager.getExpression(name);
-    if (!expression || expression.overrideBlink !== "none") continue;
-    // Unverified models correct each expression only if it closes the lids.
-    const share =
-      verified || closes(expression) ? correction.profile[profile] : 0;
-    if (share <= 0) continue;
+  const correct = (expression: VRMExpression, share: number) => {
+    if (share <= 0) return;
     // Replaces the library's `none` amount (always 0) for this instance only.
     Object.defineProperty(expression, "overrideBlinkAmount", {
       configurable: true,
       get: () => share * expression.outputWeight,
     });
+  };
+  for (const { name, profile } of CORRECTED_EXPRESSIONS) {
+    const expression = manager.getExpression(name);
+    if (!expression || expression.overrideBlink !== "none") continue;
+    if (arkitMixOf(expression)) continue;
+    // Unverified models correct each expression only if it closes the lids.
+    correct(
+      expression,
+      verified || closes(expression) ? correction.profile[profile] : 0,
+    );
+  }
+
+  const shapeShares = new Map<string, number>();
+  const shapeShare = (shape: string) => {
+    let share = shapeShares.get(shape);
+    if (share === undefined) {
+      const expression = manager.getExpression(shape);
+      share = expression
+        ? eyelidClosingShare(morphDisplacements(expression), blinkMotion)
+        : 0;
+      shapeShares.set(shape, share);
+    }
+    return share;
+  };
+  for (const expression of manager.expressions) {
+    const mix = arkitMixOf(expression);
+    if (!mix || isOneSided(mix)) continue;
+    const share = Object.entries(mix).reduce(
+      (total, [shape, value]) => total + value * shapeShare(shape),
+      0,
+    );
+    if (share >= EYELID_CLOSING_MIN_SHARE) {
+      correct(expression, Math.min(1, share));
+    }
   }
   return correction;
+}
+
+/** Whether a mix moves one side's shape without the other side's. */
+function isOneSided(mix: ArkitMix): boolean {
+  return Object.keys(mix).some((shape) => {
+    const other = shape.endsWith("Left")
+      ? shape.replace(/Left$/, "Right")
+      : shape.endsWith("Right")
+        ? shape.replace(/Right$/, "Left")
+        : null;
+    return other !== null && !(other in mix);
+  });
 }
 
 /**
@@ -161,7 +212,8 @@ function defaultProfileFor(
       ({ profile }) => profile === entry,
     )
       .map(({ name }) => vrm.expressionManager?.getExpression(name))
-      .find((candidate) => candidate);
+      // ARKit mixes are corrected by their measured share instead.
+      .find((candidate) => candidate && !arkitMixOf(candidate));
     return expression ? closes(expression) : false;
   };
   return {

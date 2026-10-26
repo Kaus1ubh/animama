@@ -189,6 +189,26 @@ vowel channels. Names are matched case-insensitively, in these styles:
 - `aa/ee/ih/oh/ou`, the common VRM style;
 - fallbacks such as `ii`, `oo` and `uu`.
 
+### ARKit lip-sync shaping
+
+An Avatar with every ARKit shape in the `vowels` table of
+`src/frontend/web/src/lib/avatar/arkitFaceCompositions.json` (`jawOpen`,
+`mouthFunnel`, `mouthPucker`, `mouthStretch*`, `mouthSmile*`,
+`mouthLowerDown*`, `mouthUpperUp*`) can shape `vowel5` frames from ARKit
+mouth mixes instead of its viseme presets. Each channel's mix is scaled by the
+channel's value and summed, each shape clamped to 1, and every vowel shape is
+written each frame; the viseme presets stay at 0. As with visemes, the shapes
+add to the current emotion's mouth. Each vowel aims, at weight 1, to open the
+mouth about as far as VRoid's `Fcl_MTH_A`/`I`/`U`/`E`/`O`.
+
+Visemes are the default. To compare, switch **ARKit lip-sync shaping** in the
+Animation debug modal (`Avatar.setLipSyncShaping`); it is unavailable on
+Avatars without every vowel shape. The choice lasts until the canvas creates a
+new `Avatar` (switching Anima, changing the rendering mode, a content refresh),
+which starts with visemes again; picture-in-picture and the creators always use
+visemes. Under a smiling mood, `I`'s smile adds to the mood's on the same
+morph, which can pass its authored shape.
+
 ## 7) Start and end semantics
 
 - **Start.** `TTSPlayback / Playback / Audio started`, then the avatar's state

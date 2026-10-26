@@ -82,6 +82,7 @@ let open: {
   renderer: THREE.WebGLRenderer;
   scene: THREE.Scene;
   camera: THREE.PerspectiveCamera;
+  disposeRenderer: () => void;
   session: EffectSession;
   framing: Framing;
 } | null = null;
@@ -89,11 +90,11 @@ let open: {
 /** Close the open stage, if any. */
 function closeReviewStage(): void {
   if (!open) return;
-  const { stage, renderer, scene, session } = open;
+  const { stage, disposeRenderer, scene, session } = open;
   open = null;
   if (session.avatar.scene) scene.remove(session.avatar.scene);
   session.dispose();
-  renderer.dispose();
+  disposeRenderer();
   stage.dispose();
 }
 
@@ -120,7 +121,10 @@ async function openReviewStage(
   seedRandom(0x5eed);
   const { width, height } = request.tile;
   const stage = new ReviewStage(width, height);
-  const { renderer, scene, camera } = createStage(width, height);
+  const { renderer, scene, camera, disposeRenderer } = createStage(
+    width,
+    height,
+  );
   let session: EffectSession | null = null;
   try {
     session = await EffectSession.open(
@@ -134,14 +138,22 @@ async function openReviewStage(
     scene.add(session.avatar.scene!);
     const framing = chatPortraitFraming(session.avatar);
     await session.apply(request);
-    open = { stage, renderer, scene, camera, session, framing };
+    open = {
+      stage,
+      renderer,
+      scene,
+      camera,
+      disposeRenderer,
+      session,
+      framing,
+    };
     return {
       parseError: null,
       avatar: session.diagnostics(request.avatar.id),
     };
   } catch (error) {
     session?.dispose();
-    renderer.dispose();
+    disposeRenderer();
     stage.dispose();
     throw error;
   }
@@ -175,7 +187,10 @@ function blobToDataUrl(blob: Blob): Promise<string> {
 async function renderThumbnail(
   request: ThumbnailRequest,
 ): Promise<{ dataUrl: string; avatars: AvatarDiagnostics[] }> {
-  const { renderer, scene, camera } = createStage(request.size, request.size);
+  const { renderer, scene, camera, disposeRenderer } = createStage(
+    request.size,
+    request.size,
+  );
   let session: EffectSession | null = null;
   try {
     session = await EffectSession.open(
@@ -209,7 +224,7 @@ async function renderThumbnail(
     const avatar = session?.avatar;
     if (avatar?.scene) scene.remove(avatar.scene);
     session?.dispose();
-    renderer.dispose();
+    disposeRenderer();
   }
 }
 

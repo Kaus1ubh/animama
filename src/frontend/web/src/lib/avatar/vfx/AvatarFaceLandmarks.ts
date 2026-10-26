@@ -7,12 +7,14 @@ import type {
   AvatarFaceLandmarkBounds,
   AvatarFaceLandmarksSnapshot,
   AvatarFaceLandmarkVector,
+  AvatarFaceTextureRect,
 } from "./landmark-types";
 import { resolveAvatarFacePartEntries } from "./faceParts";
 import {
   collectPrimitiveData,
   readVertexPosition,
   resolvePrimitiveVertexRange,
+  UnionFind,
   type RuntimePrimitiveBindingEntry,
 } from "./avatarPrimitiveUtils";
 import { buildRuntimePrimitiveBindings } from "../vrmEditorInspection";
@@ -38,6 +40,7 @@ type InternalEyeLandmark = {
   projectedFront: THREE.Vector3;
   normalizedBoxCoord: AvatarFaceBoxCoordinate;
   projectedBoxCoord: AvatarFaceBoxCoordinate;
+  textureRect: AvatarFaceTextureRect | null;
 };
 
 type PrimitiveIsland = {
@@ -46,6 +49,7 @@ type PrimitiveIsland = {
   vertexCount: number;
   bounds: THREE.Box3;
   center: THREE.Vector3;
+  textureRect: AvatarFaceTextureRect | null;
 };
 
 type HairFrontSearchWindow = {
@@ -59,38 +63,6 @@ type HairFrontSample = {
   maxSignedFront: number;
   pointCount: number;
 };
-
-class UnionFind {
-  private readonly _parent = new Map<number, number>();
-
-  add(value: number): void {
-    if (!this._parent.has(value)) {
-      this._parent.set(value, value);
-    }
-  }
-
-  find(value: number): number {
-    const parent = this._parent.get(value);
-    if (parent === undefined) {
-      this._parent.set(value, value);
-      return value;
-    }
-    if (parent === value) {
-      return value;
-    }
-    const root = this.find(parent);
-    this._parent.set(value, root);
-    return root;
-  }
-
-  union(a: number, b: number): void {
-    const rootA = this.find(a);
-    const rootB = this.find(b);
-    if (rootA !== rootB) {
-      this._parent.set(rootB, rootA);
-    }
-  }
-}
 
 function toVectorSnapshot(value: THREE.Vector3): AvatarFaceLandmarkVector {
   return {
@@ -288,6 +260,7 @@ export class AvatarFaceLandmarks {
       ),
       normalizedBoxCoord: eye.normalizedBoxCoord,
       projectedBoxCoord: eye.projectedBoxCoord,
+      textureRect: eye.textureRect,
     };
   }
 
@@ -403,6 +376,13 @@ export class AvatarFaceLandmarks {
    * Pick one iris island per side. `isLeft`/`isRight` restrict each side to
    * islands of that side's part; when one primitive holds both eyes, both
    * sides share the candidates and the eye bones decide.
+   *
+   * With both eye bones, an island wider than the distance between them
+   * cannot be one eye (some VRChat eye meshes carry such a dome around each
+   * eyeball) and is skipped, unless that leaves no island. Such meshes also
+   * draw an eye in stacked layers (the iris art, a gloss, an alternative eye);
+   * the landmark's `textureRect` is that of the iris art (see
+   * `irisTextureRect`).
    */
   private _assignEyes(args: {
     anchorObject: THREE.Object3D;
@@ -415,12 +395,6 @@ export class AvatarFaceLandmarks {
     left: InternalEyeLandmark | null;
     right: InternalEyeLandmark | null;
   } {
-    const candidates = [...args.islands]
-      .sort((a, b) => b.vertexCount - a.vertexCount)
-      .slice(0, Math.max(2, Math.min(6, args.islands.length)));
-    const leftCandidates = candidates.filter(args.isLeft);
-    const rightCandidates = candidates.filter(args.isRight);
-
     const leftEyeNode =
       this._avatar.vrm?.humanoid?.getNormalizedBoneNode("leftEye") ?? null;
     const rightEyeNode =
@@ -431,6 +405,20 @@ export class AvatarFaceLandmarks {
     const rightEyePoint = rightEyeNode
       ? getObjectPositionInAnchorSpace(rightEyeNode, args.anchorObject)
       : null;
+    const eyeSpacing =
+      leftEyePoint && rightEyePoint
+        ? Math.abs(leftEyePoint.x - rightEyePoint.x)
+        : Infinity;
+
+    const narrow = args.islands.filter(
+      (island) => island.bounds.max.x - island.bounds.min.x < eyeSpacing,
+    );
+    const plausible = narrow.length > 0 ? narrow : args.islands;
+    const candidates = [...plausible]
+      .sort((a, b) => b.vertexCount - a.vertexCount)
+      .slice(0, Math.max(2, Math.min(6, plausible.length)));
+    const leftCandidates = candidates.filter(args.isLeft);
+    const rightCandidates = candidates.filter(args.isRight);
 
     let leftIsland: PrimitiveIsland | null = null;
     let rightIsland: PrimitiveIsland | null = null;
@@ -488,22 +476,15 @@ export class AvatarFaceLandmarks {
           .find((island) => island !== leftIsland) ?? null;
     }
 
-    return {
-      left: leftIsland
+    const landmarkOf = (island: PrimitiveIsland | null) =>
+      island
         ? createEyeLandmarkFromIsland(
-            leftIsland,
+            { ...island, textureRect: irisTextureRect(island, plausible) },
             args.faceBounds,
             args.frontZLocal,
           )
-        : null,
-      right: rightIsland
-        ? createEyeLandmarkFromIsland(
-            rightIsland,
-            args.faceBounds,
-            args.frontZLocal,
-          )
-        : null,
-    };
+        : null;
+    return { left: landmarkOf(leftIsland), right: landmarkOf(rightIsland) };
   }
 
   private _resolveAnchorObject(
@@ -534,6 +515,7 @@ function createEyeLandmarkFromIsland(
     projectedFront,
     normalizedBoxCoord: normalizePointWithinBounds(island.center, faceBounds),
     projectedBoxCoord: normalizePointWithinBounds(projectedFront, faceBounds),
+    textureRect: island.textureRect,
   };
 }
 
@@ -926,6 +908,12 @@ function extractPrimitiveIslandsInAnchorSpace(args: {
   });
   if (!primitiveData) return [];
 
+  const uv = args.binding.object.geometry.getAttribute("uv");
+  const textureRectOf = (vertexIndices: readonly number[]) =>
+    uv instanceof THREE.BufferAttribute
+      ? computeTextureRect(uv, vertexIndices)
+      : null;
+
   if (!primitiveData.indexed) {
     const points = primitiveData.orderedPoints;
     const bounds = createBoxFromPoints(points);
@@ -937,6 +925,7 @@ function extractPrimitiveIslandsInAnchorSpace(args: {
         vertexCount: points.length,
         bounds,
         center: computeCentroid(points),
+        textureRect: textureRectOf(primitiveData.uniqueVertexIndices),
       },
     ];
   }
@@ -982,11 +971,67 @@ function extractPrimitiveIslandsInAnchorSpace(args: {
         vertexCount: points.length,
         bounds,
         center: computeCentroid(points),
+        textureRect: textureRectOf(componentVertexIndices),
       } satisfies PrimitiveIsland;
     })
     .filter((value): value is PrimitiveIsland => value !== null);
 
   return islands.sort((a, b) => b.vertexCount - a.vertexCount);
+}
+
+/**
+ * The texture rectangle of an eye's iris art: of the islands layered over
+ * `eye` (same primitive, centre inside its outline, at least half its width
+ * and height), the one with the largest texture area. A small patch mapped to
+ * a large texture area (a gloss gradient) is thus not taken for the iris.
+ */
+function irisTextureRect(
+  eye: PrimitiveIsland,
+  islands: readonly PrimitiveIsland[],
+): AvatarFaceTextureRect | null {
+  let best = eye.textureRect;
+  for (const island of islands) {
+    const rect = island.textureRect;
+    const size = island.bounds.getSize(new THREE.Vector3());
+    const eyeSize = eye.bounds.getSize(new THREE.Vector3());
+    if (
+      !rect ||
+      island.bindingKey !== eye.bindingKey ||
+      island.center.x < eye.bounds.min.x ||
+      island.center.x > eye.bounds.max.x ||
+      island.center.y < eye.bounds.min.y ||
+      island.center.y > eye.bounds.max.y ||
+      size.x < eyeSize.x * 0.5 ||
+      size.y < eyeSize.y * 0.5
+    ) {
+      continue;
+    }
+    if (!best || rect.width * rect.height > best.width * best.height) {
+      best = rect;
+    }
+  }
+  return best;
+}
+
+/** The UV bounds of some vertices, as a texture-space rectangle. */
+function computeTextureRect(
+  uv: THREE.BufferAttribute,
+  vertexIndices: readonly number[],
+): AvatarFaceTextureRect | null {
+  if (vertexIndices.length === 0) return null;
+  let minU = Infinity;
+  let minV = Infinity;
+  let maxU = -Infinity;
+  let maxV = -Infinity;
+  for (const vertexIndex of vertexIndices) {
+    const u = uv.getX(vertexIndex);
+    const v = uv.getY(vertexIndex);
+    minU = Math.min(minU, u);
+    minV = Math.min(minV, v);
+    maxU = Math.max(maxU, u);
+    maxV = Math.max(maxV, v);
+  }
+  return { x: minU, y: minV, width: maxU - minU, height: maxV - minV };
 }
 
 function computePrimitiveBoundsInAnchorSpace(args: {

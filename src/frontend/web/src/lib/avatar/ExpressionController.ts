@@ -4,6 +4,14 @@ import {
   VRMExpressionPresetName,
 } from "@pixiv/three-vrm";
 import { ARKIT_BLENDSHAPES, EYE_MOVEMENT_BLENDSHAPES } from "./arkit";
+import type { ArkitFaceCapability } from "./arkitFaceCapability";
+import {
+  arkitVowelWeights,
+  shapesVowelsWithArkit,
+  VOWEL5_CHANNELS,
+  type Vowel5Channel,
+} from "./arkitFaceCompositions";
+import { registerArkitFace } from "./arkitFaceExpressions";
 import { registerMorphTargetExpressions } from "./morphTargetExpressions";
 import {
   fallbackPresetForPart,
@@ -46,12 +54,23 @@ const CLIP_EMOTION_PRESETS = new Set([
   "neutral",
 ]);
 const IGNORE_LIPSYNC_SHAPES = new Set(EYE_MOVEMENT_BLENDSHAPES);
-const VOWEL5_CHANNEL_ORDER = ["A", "E", "I", "O", "U"] as const;
-type Vowel5Channel = (typeof VOWEL5_CHANNEL_ORDER)[number];
+const VOWEL5_CHANNEL_ORDER = VOWEL5_CHANNELS;
 type ResolvedVowelExpressionMap = Partial<Record<Vowel5Channel, string>>;
 type ExpressionOverlayMap = Map<string, number>;
+
+/**
+ * How `vowel5` lip-sync frames shape the mouth: through the Avatar's viseme
+ * presets (`aa`, `ee` …), or through ARKit mouth mixes
+ * (`arkitFaceCompositions.json` `vowels`) on an Avatar that has every shape
+ * they use.
+ */
+export type LipSyncShaping = "visemes" | "arkit";
+/** Mouth shapes lip sync drives, zeroed when it is cleared or switched. */
 const ARKIT_MOUTH_LIPSYNC_SHAPES = ARKIT_BLENDSHAPES.filter(
-  (name) => name.startsWith("jaw") || name.startsWith("mouth"),
+  (name) =>
+    name.startsWith("jaw") ||
+    name.startsWith("mouth") ||
+    name.startsWith("tongue"),
 );
 
 const VOWEL_EXPRESSION_CANDIDATES: Record<Vowel5Channel, string[]> = {
@@ -703,6 +722,8 @@ export class ExpressionController {
 
   private _manualTargets: Record<string, number> = {};
   private _resolvedVowelExpressions: ResolvedVowelExpressionMap = {};
+  private _arkitFaceCapability: ArkitFaceCapability;
+  private _lipSyncShaping: LipSyncShaping = "visemes";
 
   // ARKit name to VRM preset mapping (for compatibility)
   private _arkitToVrmMap: Record<string, string> = {
@@ -739,8 +760,8 @@ export class ExpressionController {
       this._resolvedVowelExpressions = this._detectAndLogVowelExpressions();
     }
 
-    // Register ARKit expressions from mesh morph targets
-    this._registerArkitExpressions();
+    // Register mesh morph targets, and ARKit shapes under canonical names
+    this._arkitFaceCapability = this._registerArkitExpressions();
   }
 
   dispose(): void {
@@ -988,10 +1009,25 @@ export class ExpressionController {
   }
 
   /**
+   * The ARKit face shapes this Avatar has, resolved from its morph-target names
+   * at construction. Resolved shapes are registered under their canonical ARKit
+   * names.
+   */
+  getArkitFaceCapability(): ArkitFaceCapability {
+    return this._arkitFaceCapability;
+  }
+
+  /**
    * Get list of available expressions on this VRM.
    */
   getAvailableExpressions(): string[] {
     const names = new Set<string>(this._listExpressionNames());
+    // An ARKit shape is listed once, under its canonical name, not also under
+    // the Avatar's own spelling of it.
+    for (const [canonical, morphs] of this._arkitFaceCapability?.resolved ??
+      []) {
+      for (const morph of morphs) if (morph !== canonical) names.delete(morph);
+    }
 
     // Ensure common presets appear first
     const presetOrder = [
@@ -1113,6 +1149,35 @@ export class ExpressionController {
     this._resetLipSyncExpressions();
   }
 
+  /** Whether this Avatar has every ARKit shape the vowel mixes use. */
+  canShapeLipSyncWithArkit(): boolean {
+    return shapesVowelsWithArkit(this._arkitFaceCapability);
+  }
+
+  /** How `vowel5` frames shape the mouth (see `LipSyncShaping`). */
+  getLipSyncShaping(): LipSyncShaping {
+    return this._lipSyncShaping;
+  }
+
+  /**
+   * Choose how `vowel5` frames shape the mouth. ARKit shaping falls back to
+   * visemes on an Avatar without every vowel shape. Switching releases the
+   * shapes the previous mode drove.
+   *
+   * @returns The shaping in effect.
+   */
+  setLipSyncShaping(shaping: LipSyncShaping): LipSyncShaping {
+    const next =
+      shaping === "arkit" && this.canShapeLipSyncWithArkit()
+        ? "arkit"
+        : "visemes";
+    if (next !== this._lipSyncShaping) {
+      this._lipSyncShaping = next;
+      this._resetLipSyncExpressions();
+    }
+    return next;
+  }
+
   // ─────────────────────────────────────────────────────────────────────────
   // Update Loop
   // ─────────────────────────────────────────────────────────────────────────
@@ -1220,7 +1285,11 @@ export class ExpressionController {
     const lipFrame = this._lipSync.getCurrentFrame();
     if (lipFrame) {
       if (lipFrame.format === "vowel5") {
-        this._applyVowel5LipSyncFrame(lipFrame);
+        if (this._lipSyncShaping === "arkit") {
+          this._applyVowel5ArkitFrame(lipFrame);
+        } else {
+          this._applyVowel5LipSyncFrame(lipFrame);
+        }
       } else {
         this._applyLipSyncFrame(lipFrame);
       }
@@ -1386,8 +1455,21 @@ export class ExpressionController {
     return "mixed";
   }
 
-  private _registerArkitExpressions(): void {
+  private _registerArkitExpressions(): ArkitFaceCapability {
+    // ARKit shapes first: a mesh whose morph is already spelled canonically
+    // must join the canonical expression rather than own a same-named one.
+    // `Avatar.load` has usually registered them already; this is idempotent.
+    const { capability, playsFacesWithArkit } = registerArkitFace(this._vrm);
     registerMorphTargetExpressions(this._vrm);
+    if (capability.resolved.size > 0 || capability.ambiguous.size > 0) {
+      logger.info("Init", "Detected ARKit face shapes on VRM avatar", {
+        playsFacesWithArkit,
+        resolved: capability.resolved.size,
+        missing: capability.missing,
+        ambiguous: Object.fromEntries(capability.ambiguous),
+      });
+    }
+    return capability;
   }
 
   private _applyLipSyncFrame(frame: InternalFrame): void {
@@ -1418,6 +1500,26 @@ export class ExpressionController {
       if (!expressionName) continue;
       const value = frame.values[index] ?? 0;
       this._applyExpression(expressionName, value);
+    }
+  }
+
+  /**
+   * Shape the mouth from ARKit mixes for a `vowel5` frame. Every vowel shape
+   * is written each frame, so the previous frame's mouth is released; the
+   * viseme presets stay at 0. Like the visemes, the shapes add to an emotion's
+   * mouth rather than replacing it.
+   */
+  private _applyVowel5ArkitFrame(frame: InternalFrame): void {
+    if (!this._expressionManager) return;
+    for (const expressionName of Object.values(
+      this._resolvedVowelExpressions,
+    )) {
+      this._applyExpression(expressionName, 0);
+    }
+    for (const [shape, value] of Object.entries(
+      arkitVowelWeights(frame.values),
+    )) {
+      this._applyExpression(shape, value);
     }
   }
 
