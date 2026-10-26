@@ -41,19 +41,29 @@ import {
   writeArtifactIndex,
 } from "./release-artifacts.mjs";
 import { stageReleaseModels } from "./release-models.mjs";
+import { signMacApp } from "./sign-macos.mjs";
 
-/** Parse only the exact recovery operation supported by the signed-app boundary. */
+/**
+ * Parse only the operations the signed-app boundary supports: a candidate, the
+ * exact notarization recovery, or `--signing-rehearsal`, which signs and
+ * measures a candidate that can never be released.
+ */
 export function parseMacReleaseArgs(args = []) {
-  if (!args.length) return { submissionId: null };
+  if (!args.length) return { submissionId: null, rehearsal: false };
+  if (args.length === 1 && args[0] === "--signing-rehearsal")
+    return { submissionId: null, rehearsal: true };
   if (args.length === 2 && args[0] === "--resume-app-notarization")
-    return { submissionId: assertNotarizationSubmissionId(args[1]) };
+    return {
+      submissionId: assertNotarizationSubmissionId(args[1]),
+      rehearsal: false,
+    };
   throw new Error(
-    "Expected no arguments or --resume-app-notarization <submission-id>",
+    "Expected no arguments, --signing-rehearsal or --resume-app-notarization <submission-id>",
   );
 }
 
 /** Keep Electron Builder's prepackaged resume path separate from its signing hook. */
-export function macBuilderOptions({ app, icon, release }) {
+export function macBuilderOptions({ app, icon, release, rehearsal = false }) {
   const builderIdentity = release.publisher.signing_identity.replace(
     /^Developer ID Application:\s*/u,
     "",
@@ -74,7 +84,7 @@ export function macBuilderOptions({ app, icon, release }) {
         hardenedRuntime: true,
         notarize: false,
         ...(!app
-          ? { sign: path.join(desktopRoot, "scripts/runtime/sign-macos.mjs") }
+          ? { sign: (options) => signMacApp(options.app, { rehearsal }) }
           : {}),
       },
       dmg: {
@@ -124,6 +134,7 @@ function finishResumedApp(app, target, release, submissionId) {
   writeJson(path.join(desktopRoot, "release/signing-report.json"), {
     schema: "animama-macos-signing/1",
     app_version: release.version,
+    release_ready: true,
     team_id: release.publisher.team_id,
     distribution: sealedDistribution(runtime),
     stage_build_id: readJson(path.join(target.runtime, "manifest.json"))
@@ -144,10 +155,10 @@ function finishResumedApp(app, target, release, submissionId) {
 
 /** Signed candidates stay local; only the separate publisher requires a public repository. */
 export async function releaseMac(args = []) {
-  const { submissionId } = parseMacReleaseArgs(args);
+  const { submissionId, rehearsal } = parseMacReleaseArgs(args);
   const target = parseTarget(["--platform", "darwin", "--arch", "arm64"]);
-  const release = loadReleasePolicy();
-  if (!process.env.ANIMAMA_MACOS_NOTARY_PROFILE)
+  const release = loadReleasePolicy({ requireReview: !rehearsal });
+  if (!rehearsal && !process.env.ANIMAMA_MACOS_NOTARY_PROFILE)
     throw new Error("A configured notarization Keychain profile is required");
   if (
     existsSync(path.join(target.output, "stage-failure.json")) ||
@@ -161,7 +172,7 @@ export async function releaseMac(args = []) {
     throw new Error(
       "Release packaging requires at least 8 GiB of free build disk space",
     );
-  verifyRedistributionReview(target.runtime, release);
+  if (!rehearsal) verifyRedistributionReview(target.runtime, release);
   const catalog = readJson(path.join(target.runtime, "pack-catalog.json"));
   if (
     catalog.entries
@@ -214,7 +225,12 @@ export async function releaseMac(args = []) {
   ])
     rmSync(path.join(directory, name), { recursive: true, force: true });
   await build(
-    macBuilderOptions({ app: submissionId ? app : null, icon, release }),
+    macBuilderOptions({
+      app: submissionId ? app : null,
+      icon,
+      release,
+      rehearsal,
+    }),
   );
   const runtime = path.join(app, "Contents/Resources/runtime");
   const manifest = readJson(path.join(runtime, "manifest.json"));
@@ -224,7 +240,8 @@ export async function releaseMac(args = []) {
   )
     throw new Error("Signed runtime identity mismatch");
   assertInventory(runtime, manifest.files);
-  verifySignedApp(app, release.publisher.team_id);
+  if (rehearsal) verifyAppCodeSignature(app, release.publisher.team_id);
+  else verifySignedApp(app, release.publisher.team_id);
   const dmg = path.join(directory, `Animama-${release.version}-arm64.dmg`);
   run(
     "/usr/bin/codesign",
@@ -237,6 +254,17 @@ export async function releaseMac(args = []) {
     ],
     { capture: true },
   );
+  if (rehearsal) {
+    run("/usr/bin/codesign", ["--verify", "--strict", dmg], { capture: true });
+    writeJson(
+      path.join(directory, "size-report.json"),
+      releaseSizes(app, directory, manifest, catalog),
+    );
+    console.log(
+      `Signing rehearsal complete: ${readJson(path.join(directory, "signing-report.json")).native_files.length} native files signed and verified. Not a release candidate: no redistribution receipt is embedded, nothing was submitted to Apple and no publish folder was written.`,
+    );
+    return;
+  }
   notarize(dmg);
   notarize(path.join(directory, `Animama-${release.version}-arm64.zip`));
   run("/usr/bin/xcrun", ["stapler", "staple", dmg], { capture: true });

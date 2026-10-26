@@ -221,6 +221,20 @@ DMG/update ZIP, notarizes both, signs/staples the DMG, and verifies Gatekeeper.
 Updating runtime hashes after the outer signature would invalidate the seal.
 The helper and core must use the same pinned Apple Team ID.
 
+To exercise signing without a review receipt or Apple submission, for example
+after an Electron or electron-builder upgrade:
+
+```sh
+pnpm desktop:dist:mac -- --signing-rehearsal
+```
+
+A rehearsal signs the same nested code and seals the app with the release
+identity and entitlements, verifies every native leaf and the seal with
+`codesign --strict`, and signs the DMG. It needs no notarization profile,
+embeds no review receipt, submits nothing to Apple and writes no publish
+folder. Its `release/signing-report.json` says `release_ready: false`, so no
+publisher accepts it, and Gatekeeper rejects its unnotarized app.
+
 If `notarytool submit --wait` times out, preserve its submission ID and the
 already signed app. Query or wait on that exact ID before rebuilding or
 submitting another copy. A timeout, `In Progress` response, or missing stapler

@@ -1097,7 +1097,14 @@ Load command 4
       const submissionId = "a6210454-8054-477c-9b26-b752441828c8";
       expect(
         parseMacReleaseArgs(["--resume-app-notarization", submissionId]),
-      ).toEqual({ submissionId });
+      ).toEqual({ submissionId, rehearsal: false });
+      expect(parseMacReleaseArgs(["--signing-rehearsal"])).toEqual({
+        submissionId: null,
+        rehearsal: true,
+      });
+      expect(() =>
+        parseMacReleaseArgs(["--signing-rehearsal", "--skip-review"]),
+      ).toThrow("Expected no arguments");
       expect(() => parseMacReleaseArgs(["--resume"])).toThrow(
         "Expected no arguments",
       );
@@ -1125,6 +1132,14 @@ Load command 4
         },
       ]);
       expect(resumed.config.mac).not.toHaveProperty("sign");
+      // A rehearsal needs no notarization profile and still signs through the hook.
+      vi.stubEnv("ANIMAMA_MACOS_NOTARY_PROFILE", "");
+      await expect(releaseMac(["--signing-rehearsal"])).rejects.toBe(stop);
+      expect(build.mock.lastCall[0].config.mac.sign).toBeTypeOf("function");
+      await expect(releaseMac()).rejects.toThrow(
+        "notarization Keychain profile",
+      );
+      vi.stubEnv("ANIMAMA_MACOS_NOTARY_PROFILE", "fixture-notary");
       json(path.join(runtime, "pack-catalog.json"), {
         entries: ["document-processing", "expanded-included-content"].map(
           (id) => ({ id, signing: { publisher: "TESTTEAM01" } }),
@@ -1146,7 +1161,7 @@ Load command 4
       await expect(releaseMac()).rejects.toThrow(
         "ANIMAMA_RELEASE_DISTRIBUTION",
       );
-      expect(build).toHaveBeenCalledTimes(1);
+      expect(build).toHaveBeenCalledTimes(2);
     } finally {
       for (const module of [
         "node:fs",
@@ -1393,12 +1408,18 @@ Load command 4
     expect(sealedDistribution(root)).toEqual(r2);
     writeFileSync(
       path.join(root, "signing-report.json"),
-      JSON.stringify({ distribution: r2 }),
+      JSON.stringify({ release_ready: true, distribution: r2 }),
     );
     expect(candidateDistribution(root)).toEqual(r2);
+    // A signing rehearsal's report never names a publishable distribution.
     writeFileSync(
       path.join(root, "signing-report.json"),
-      JSON.stringify({ distribution: { kind: "s3" } }),
+      JSON.stringify({ release_ready: false, distribution: r2 }),
+    );
+    expect(candidateDistribution(root)).toBeNull();
+    writeFileSync(
+      path.join(root, "signing-report.json"),
+      JSON.stringify({ release_ready: true, distribution: { kind: "s3" } }),
     );
     expect(candidateDistribution(root)).toBeNull();
   });

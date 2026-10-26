@@ -13,16 +13,25 @@ import {
   sealedDistribution,
   verifyRedistributionReview,
 } from "./release-policy.mjs";
-import { nestedCode, notarize, verifySignedApp } from "./macos-signing.mjs";
+import {
+  nestedCode,
+  notarize,
+  verifyAppCodeSignature,
+  verifySignedApp,
+} from "./macos-signing.mjs";
 
-/** electron-builder's custom signing hook: update runtime hashes AFTER nested signing, BEFORE sealing the app. */
-export default async function sign(options) {
-  const release = loadReleasePolicy();
-  const app = options.app;
+/**
+ * Sign `Animama.app` from electron-builder's custom signing hook: update
+ * runtime hashes AFTER nested signing, BEFORE sealing the app. A signing
+ * rehearsal signs the same code but embeds no review receipt and submits
+ * nothing to Apple, so its report is never `release_ready`.
+ */
+export function signMacApp(app, { rehearsal = false } = {}) {
+  const release = loadReleasePolicy({ requireReview: !rehearsal });
   const runtime = path.join(app, "Contents/Resources/runtime");
   const manifest = readJson(path.join(runtime, "manifest.json"));
   assertInventory(runtime, manifest.files);
-  verifyRedistributionReview(runtime, release);
+  if (!rehearsal) verifyRedistributionReview(runtime, release);
   const stageBuildId = manifest.build_id;
   const code = nestedCode(app, componentInventory(app));
   if (!code.native.length)
@@ -50,23 +59,29 @@ export default async function sign(options) {
     );
   for (const name of [...code.native, ...code.bundles])
     signOne(path.join(app, name), inherited);
-  embedRedistributionReview(runtime, release);
+  if (!rehearsal) embedRedistributionReview(runtime, release);
   manifest.files = inventoryTree(runtime);
   manifest.build_id = inventoryId(manifest.files);
   writeJson(path.join(runtime, "manifest.json"), manifest);
   assertInventory(runtime, manifest.files);
   signOne(app, parent);
-  const temporaryZip = path.join(path.dirname(app), "animama-notarization.zip");
-  try {
-    run("/usr/bin/ditto", ["-c", "-k", "--keepParent", app, temporaryZip], {
-      capture: true,
-    });
-    notarize(temporaryZip);
-  } finally {
-    rmSync(temporaryZip, { force: true });
+  if (rehearsal) verifyAppCodeSignature(app, release.publisher.team_id);
+  else {
+    const temporaryZip = path.join(
+      path.dirname(app),
+      "animama-notarization.zip",
+    );
+    try {
+      run("/usr/bin/ditto", ["-c", "-k", "--keepParent", app, temporaryZip], {
+        capture: true,
+      });
+      notarize(temporaryZip);
+    } finally {
+      rmSync(temporaryZip, { force: true });
+    }
+    run("/usr/bin/xcrun", ["stapler", "staple", app], { capture: true });
+    verifySignedApp(app, release.publisher.team_id);
   }
-  run("/usr/bin/xcrun", ["stapler", "staple", app], { capture: true });
-  verifySignedApp(app, release.publisher.team_id);
   // Verifying the outer seal is not a substitute for checking every native leaf.
   for (const name of code.native)
     run(
@@ -84,15 +99,16 @@ export default async function sign(options) {
   writeJson(path.join(desktopRoot, "release/signing-report.json"), {
     schema: "animama-macos-signing/1",
     app_version: release.version,
+    release_ready: !rehearsal,
     team_id: release.publisher.team_id,
     distribution: sealedDistribution(runtime),
     stage_build_id: stageBuildId,
     runtime_build_id: manifest.build_id,
     native_files: code.native,
     nested_bundles: code.bundles,
-    notarization: "Accepted",
-    staple: "valid",
-    gatekeeper: "accepted",
+    notarization: rehearsal ? "not-submitted" : "Accepted",
+    staple: rehearsal ? "none" : "valid",
+    gatekeeper: rehearsal ? "not-assessed" : "accepted",
     entitlements: {
       parent: "entitlements.mac.plist",
       inherited: "entitlements.mac.inherit.plist",
