@@ -1,9 +1,12 @@
 # Response headers for the landing site (Cloudflare `_headers` format;
 # `pnpm -s landing:preview` applies them too). The CSP admits only the
 # site's own files; `pnpm -s landing:build` and a headless run of every stop
-# under it are the check that the page still needs nothing else.
+# under it are the check that the page still needs nothing else. The one
+# exception is Cloudflare Web Analytics: the host injects its beacon script
+# (a versioned path under `beacon.min.js/`) into served HTML, and it reports
+# to the site's own `/cdn-cgi/rum`, which `connect-src 'self'` admits.
 /*
-  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' data: blob:; worker-src 'self' blob:; media-src 'self' data: blob:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://static.cloudflareinsights.com/beacon.min.js/; style-src 'self'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' data: blob:; worker-src 'self' blob:; media-src 'self' data: blob:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
   Referrer-Policy: strict-origin-when-cross-origin

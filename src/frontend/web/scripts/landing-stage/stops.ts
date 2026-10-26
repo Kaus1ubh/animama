@@ -552,6 +552,15 @@ export const SITE = {
     "{name}, an animated 3D Anima, walks in and waves, then shows {possessive} gestures, emotions and memories as you scroll.",
   /** Third-party notices, written by the production build. */
   notices: "/notices.txt",
+  /**
+   * Pages Animama Cloud publishes beside this page on the same host (its
+   * `apps/landing-web`); the development server does not serve them.
+   */
+  about: "/about/",
+  privacy: "/privacy/",
+  terms: "/terms/",
+  /** The public contact address, forwarded by the domain's email routing. */
+  contactEmail: "ray@animama.ai",
 };
 
 /** Stops with their `beta` copy applied while `CLOSED_BETA` is on. */

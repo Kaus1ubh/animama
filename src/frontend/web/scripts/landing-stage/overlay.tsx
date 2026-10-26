@@ -421,7 +421,7 @@ const focusRing = (light: boolean) =>
 
 /**
  * The site header: the logo on the left; on the right one liquid-glass pill
- * holding Home, About (both scroll the tour) and Docs, the theme toggle and
+ * holding Home (back to the start of the tour), About and Docs, the theme toggle and
  * language picker, Log in and Sign up (placeholders until accounts exist),
  * and Download as its one solid button. During the closed beta the page is
  * English only and Request Beta Access (the form) replaces the language
@@ -530,14 +530,9 @@ function Header({
           >
             Home
           </button>
-          <button
-            type="button"
-            data-pill-item=""
-            className={link}
-            onClick={() => controller.scrollToStop(1)}
-          >
+          <a href={SITE.about} data-pill-item="" className={link}>
             About
-          </button>
+          </a>
           <a
             href={DOCS_URL}
             target="_blank"
@@ -737,8 +732,8 @@ function SiteMenu({
         <DropdownMenuItem onSelect={() => controller.scrollToStop(0)}>
           Home
         </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => controller.scrollToStop(1)}>
-          About
+        <DropdownMenuItem asChild>
+          <a href={SITE.about}>About</a>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
           <a href={DOCS_URL} target="_blank" rel="noreferrer">
@@ -903,20 +898,7 @@ function Stop(props: StopProps) {
         {stop.id === "download" ? (
           <>
             <DownloadActions />
-            <p
-              className={cn(
-                "mt-8 text-xs",
-                light ? "text-white/70" : "text-muted-foreground",
-              )}
-            >
-              {SITE.copyright}{" "}
-              <a
-                href={SITE.notices}
-                className="underline-offset-2 hover:underline"
-              >
-                Third-party notices
-              </a>
-            </p>
+            <SiteFooter light={light} />
           </>
         ) : null}
       </div>
@@ -1960,6 +1942,50 @@ function Reveal({
     >
       {children}
     </div>
+  );
+}
+
+/**
+ * The page footer under the last stop's actions: the pages Cloud publishes
+ * beside this one, the contact address, the docs and the third-party
+ * notices, then the copyright line.
+ */
+function SiteFooter({ light }: { light: boolean }) {
+  const links = [
+    { label: "About", href: SITE.about },
+    { label: "Privacy", href: SITE.privacy },
+    { label: "Terms", href: SITE.terms },
+    { label: "Contact", href: `mailto:${SITE.contactEmail}` },
+    { label: "Docs", href: DOCS_URL },
+    { label: "Third-party notices", href: SITE.notices },
+  ];
+  return (
+    <footer
+      className={cn(
+        "mt-8 text-xs",
+        light ? "text-white/70" : "text-muted-foreground",
+      )}
+    >
+      <nav aria-label="Footer">
+        <ul className="flex flex-wrap gap-x-4 gap-y-1">
+          {links.map(({ label, href }) => (
+            <li key={label}>
+              <a
+                href={href}
+                className={cn(
+                  "rounded-sm underline-offset-2 outline-none hover:underline focus-visible:ring-2",
+                  focusRing(light),
+                  light ? "hover:text-white" : "hover:text-foreground",
+                )}
+              >
+                {label}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </nav>
+      <p className="mt-2">{SITE.copyright}</p>
+    </footer>
   );
 }
 

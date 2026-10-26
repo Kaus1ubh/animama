@@ -245,7 +245,7 @@ function icoFrom(png, size) {
  * The page's `<head>` additions and its text for `#overlay`, from `stops.ts`:
  * title, description, canonical URL, sharing tags, icons, theme colours and
  * schema.org data; then the header links, each stop's heading, line and
- * links, the scene's description and the copyright line. The overlay
+ * links, the scene's description and the footer's links and copyright line. The overlay
  * replaces the text when it mounts; until then (and without JavaScript)
  * search engines, link previews and readers have it.
  */
@@ -281,6 +281,7 @@ export async function renderPageHtml(server) {
         name: "Animama",
         url: SITE.url,
         logo,
+        email: SITE.contactEmail,
       },
       {
         "@type": "SoftwareApplication",
@@ -343,7 +344,7 @@ export async function renderPageHtml(server) {
     `<div class="prerender">`,
     `<header><p><a href="/">Animama</a></p><nav aria-label="Site">${[
       { label: "Home", href: `#stop-${hero.id}` },
-      { label: "About", href: `#stop-${stops[0].id}` },
+      { label: "About", href: SITE.about },
       { label: "Docs", href: SITE.docsUrl },
       action,
     ]
@@ -352,7 +353,16 @@ export async function renderPageHtml(server) {
     `<main><section id="stop-${hero.id}"><h1>${text(hero.title)}</h1><p>${heroLine}</p><p class="scene">${text(SITE.sceneDescription)}</p></section>`,
     ...sections,
     `</main>`,
-    `<footer><p>${escapeHtml(SITE.copyright)} ${link({ label: "Third-party notices", href: SITE.notices })}</p></footer>`,
+    `<footer><nav aria-label="Footer">${[
+      { label: "About", href: SITE.about },
+      { label: "Privacy", href: SITE.privacy },
+      { label: "Terms", href: SITE.terms },
+      { label: "Contact", href: `mailto:${SITE.contactEmail}` },
+      { label: "Docs", href: SITE.docsUrl },
+      { label: "Third-party notices", href: SITE.notices },
+    ]
+      .map(link)
+      .join(" ")}</nav><p>${escapeHtml(SITE.copyright)}</p></footer>`,
     `</div>`,
   ].join("");
   return { head, content };

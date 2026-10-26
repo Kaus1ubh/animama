@@ -48,7 +48,10 @@ with `build.pack_site` to check it before relying on the package set.
   and the language picker, and stops show their `beta` copy. Turn it off at
   launch to restore the rest.
 - `SITE`: the canonical address, docs link, title, share image, copyright
-  line and the 3D scene's description for screen readers.
+  line, the 3D scene's description for screen readers, the contact address,
+  and the About, Privacy and Terms pages that Animama Cloud publishes on the
+  same host. The header's About and the footer under the last stop link
+  them; the development server does not serve them.
 
 The page's text, title, description, sharing tags, icons and schema.org data
 are generated from these settings into `index.html`
@@ -104,7 +107,10 @@ with code or fonts in the bundle.
 
 `static/_headers` sets the CSP, `frame-ancestors 'none'`, nosniff, referrer
 and permissions policies, HSTS and caching. The CSP admits only the site's
-own scripts, styles, fonts and images, so:
+own scripts, styles, fonts and images, plus Cloudflare Web Analytics: the
+host injects its beacon from `static.cloudflareinsights.com/beacon.min.js/`
+into served HTML, and the beacon reports to the site's own `/cdn-cgi/rum`.
+Neither the build nor the preview contains the beacon. Otherwise:
 
 - `index.html` has no inline code; its pre-paint theme script is
   `static/theme.js` and its pre-paint styles are `static/boot.css`.
