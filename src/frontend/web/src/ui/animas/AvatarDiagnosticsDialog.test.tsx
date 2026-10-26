@@ -174,8 +174,40 @@ describe("AvatarDiagnosticsDialog", () => {
     expect(dialog()?.textContent).toContain("effect_face_part_missing");
 
     click("Raw JSON");
-    const textarea = dialog()?.querySelector("textarea");
-    expect(textarea?.value).toBe(avatarDiagnosticsJson(report));
+    const tree = dialog()?.querySelector(
+      '[role="group"][aria-label="Raw JSON"]',
+    );
+    expect(tree?.textContent).toContain(
+      '"schema": "animama/avatar-diagnostics/1"',
+    );
+  });
+
+  it("expands and collapses the Raw JSON tree", () => {
+    render();
+    click("Open diagnostics");
+    click("Raw JSON");
+    const toggle = (name: string) =>
+      [...dialog()!.querySelectorAll("button[aria-expanded]")].find((button) =>
+        button.textContent?.startsWith(`"${name}"`),
+      );
+    // The top two levels start open; deeper containers start collapsed.
+    expect(toggle("file")?.getAttribute("aria-expanded")).toBe("true");
+    expect(toggle("extensionsUsed")?.getAttribute("aria-expanded")).toBe(
+      "false",
+    );
+    expect(dialog()?.textContent).not.toContain('"KHR_texture_transform"');
+
+    act(() => (toggle("extensionsUsed") as HTMLButtonElement).click());
+    expect(dialog()?.textContent).toContain('"KHR_texture_transform"');
+
+    click("Collapse all");
+    expect(toggle("file")?.getAttribute("aria-expanded")).toBe("false");
+    click("Expand all");
+    const states = [...dialog()!.querySelectorAll("button[aria-expanded]")].map(
+      (button) => button.getAttribute("aria-expanded"),
+    );
+    expect(states.length).toBeGreaterThan(5);
+    expect(new Set(states)).toEqual(new Set(["true"]));
   });
 
   it("copies the text report and the JSON", async () => {

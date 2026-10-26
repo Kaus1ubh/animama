@@ -7,6 +7,8 @@ import {
   Box,
   Braces,
   CheckCircle2,
+  ChevronsDownUp,
+  ChevronsUpDown,
   ClipboardCopy,
   FileBox,
   LoaderCircle,
@@ -35,8 +37,8 @@ import {
   SectionedModalFrame,
   type SectionIcon,
 } from "@/ui/components/sectioned-modal-frame";
-import { Textarea } from "@/ui/components/textarea";
 import { avatarIssueText } from "./avatarIssueText";
+import { JsonTree } from "./JsonTree";
 import { useAvatarDiagnostics } from "./useAvatarDiagnostics";
 
 type DiagnosticsSection =
@@ -496,14 +498,27 @@ function WarningsSection({
   );
 }
 
-function JsonSection({ json }: { json: string }) {
+/** Sections nested deeper than this start collapsed in the JSON view. */
+const JSON_OPEN_DEPTH = 2;
+
+function JsonSection({
+  report,
+  json,
+}: {
+  report: AvatarDiagnosticsReport;
+  json: string;
+}) {
   const { t } = useTranslation("animas");
+  // Remounting the tree applies a new depth to every node.
+  const [view, setView] = useState({ openDepth: JSON_OPEN_DEPTH, key: 0 });
+  const expandTo = (openDepth: number) =>
+    setView((current) => ({ openDepth, key: current.key + 1 }));
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3">
-      <div className="flex items-center justify-between gap-4">
-        <p className="text-muted-foreground text-sm">
-          {t("avatarDiagnostics.json.description")}
-        </p>
+      <p className="text-muted-foreground text-sm">
+        {t("avatarDiagnostics.json.description")}
+      </p>
+      <div className="flex flex-wrap items-center gap-2">
         <Button
           variant="outline"
           size="sm"
@@ -513,12 +528,23 @@ function JsonSection({ json }: { json: string }) {
         >
           <Braces /> {t("avatarDiagnostics.json.copy")}
         </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => expandTo(Number.POSITIVE_INFINITY)}
+        >
+          <ChevronsUpDown /> {t("avatarDiagnostics.json.expandAll")}
+        </Button>
+        <Button variant="ghost" size="sm" onClick={() => expandTo(1)}>
+          <ChevronsDownUp /> {t("avatarDiagnostics.json.collapseAll")}
+        </Button>
       </div>
-      <Textarea
-        readOnly
-        aria-label={t("avatarDiagnostics.sections.json")}
-        className="min-h-80 flex-1 font-mono text-xs"
-        value={json}
+      <JsonTree
+        key={view.key}
+        value={report}
+        openDepth={view.openDepth}
+        label={t("avatarDiagnostics.sections.json")}
+        className="border-border/60 bg-background min-h-0 flex-1 overflow-auto rounded-lg border p-3"
       />
     </div>
   );
@@ -605,7 +631,7 @@ export function AvatarDiagnosticsDialog({
   } else if (section === "warnings") {
     body = <WarningsSection issues={state.issues} effectNames={effectNames} />;
   } else {
-    body = <JsonSection json={json} />;
+    body = <JsonSection report={report} json={json} />;
   }
 
   return (

@@ -77,7 +77,8 @@ It reads the Avatar on the chat stage when that Anima is there; otherwise it
 loads the Avatar separately, with its saved face part correction, and releases
 it on close. An Avatar that does not load still shows its file facts and the
 load error. **Copy report** copies a plain-text report and **Raw JSON** shows
-the same `animama/avatar-diagnostics/1` report as data. Reports identify the
+the same `animama/avatar-diagnostics/1` report as a collapsible tree, with
+Copy JSON for the whole document. Reports identify the
 Avatar, and any effect a warning names, by source and item id
 (`local:<item id>`), and hold counts, standard names (VRM expressions and
 bones, ARKit shapes, VRoid `Fcl_` parts) and codes only: no file paths, URLs,

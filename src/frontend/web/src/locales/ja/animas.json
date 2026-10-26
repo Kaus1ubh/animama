@@ -176,9 +176,11 @@
       "springs_unmapped_joints_other": "揺れもののジョイント {{count}} 個をファイルのデータと対応付けられませんでした。"
     },
     "json": {
+      "collapseAll": "すべて折りたたむ",
       "copied": "JSON をコピーしました。",
       "copy": "JSON をコピー",
-      "description": "同じレポートをデータ形式で表示します。サポートへの共有用です。"
+      "description": "同じレポートをデータ形式で表示します。サポートへの共有用です。",
+      "expandAll": "すべて展開"
     },
     "loading": "アバターを読み取っています…",
     "materialKinds": {

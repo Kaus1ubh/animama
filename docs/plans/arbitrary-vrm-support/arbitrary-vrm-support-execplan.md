@@ -555,6 +555,13 @@ required findings. Optional:
   and tsc pass; the doc change is wording. Review passed; Phase 1 ready for the
   owner's UI review.
 
+Owner UI review, 2026-10-26 (in progress): the Raw JSON view should expand and
+collapse. Revised: the view is a tree (`ui/animas/JsonTree.tsx`) whose objects
+and arrays are `aria-expanded` buttons, two levels open at first, with Expand
+all and Collapse all beside Copy JSON (copy is unchanged). Dialog test covers
+the toggles; `pnpm -s web:lint`, `i18n:check` and the `src/ui/animas` tests
+pass.
+
 ### Phase 2: Face parts and eye effects on shared meshes
 
 Review tier: standard. Behaviour inside face detection and the VFX runtime with

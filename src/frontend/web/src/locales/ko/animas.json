@@ -176,9 +176,11 @@
       "springs_unmapped_joints_other": "스프링 조인트 {{count}}개를 파일의 스프링 데이터와 연결할 수 없습니다."
     },
     "json": {
+      "collapseAll": "모두 접기",
       "copied": "JSON을 복사했습니다.",
       "copy": "JSON 복사",
-      "description": "같은 보고서를 데이터로 보여 줍니다. 지원팀과 공유할 때 사용하세요."
+      "description": "같은 보고서를 데이터로 보여 줍니다. 지원팀과 공유할 때 사용하세요.",
+      "expandAll": "모두 펼치기"
     },
     "loading": "아바타를 읽는 중…",
     "materialKinds": {

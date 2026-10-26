@@ -661,9 +661,11 @@ export default interface Resources {
         "springs_unmapped_joints_other": "{{count}} spring joints could not be matched to the file's spring data."
       },
       "json": {
+        "collapseAll": "Collapse all",
         "copied": "JSON copied.",
         "copy": "Copy JSON",
-        "description": "The same report as data, for sharing with support."
+        "description": "The same report as data, for sharing with support.",
+        "expandAll": "Expand all"
       },
       "loading": "Reading the Avatar…",
       "materialKinds": {

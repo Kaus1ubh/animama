@@ -176,9 +176,11 @@
       "springs_unmapped_joints_other": "有 {{count}} 個彈簧關節無法與檔案的彈簧資料對應。"
     },
     "json": {
+      "collapseAll": "全部摺疊",
       "copied": "已複製 JSON。",
       "copy": "複製 JSON",
-      "description": "以資料形式顯示同一份報告，方便與支援人員分享。"
+      "description": "以資料形式顯示同一份報告，方便與支援人員分享。",
+      "expandAll": "全部展開"
     },
     "loading": "正在讀取虛擬形象…",
     "materialKinds": {
