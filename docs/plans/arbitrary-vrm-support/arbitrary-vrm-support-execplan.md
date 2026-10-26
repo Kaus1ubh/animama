@@ -198,7 +198,8 @@ tenant-inventory row for `avatar_face_part_overrides`. So:
 
 - [ ] Phase 1: Diagnostics and visible failures (R7, R8). Not started.
 - [ ] Phase 2: Face parts and eye effects on shared meshes (R1, R3). Not started.
-- [ ] Phase 3: Wind and spring setting (R5). Not started; needs D3 and D7.
+- [ ] Phase 3: Avatar settings: wind and materials (R5, R11's Materials
+  setting). Not started; needs D3 and D7.
 - [ ] Phase 4: Expression content and MMD face shapes (R4, R12). Not started.
 - [ ] Phase 5: Hands (R6). Not started.
 - [ ] Phase 6: Texture layouts (R2). Not started.
@@ -249,6 +250,11 @@ tenant-inventory row for `avatar_face_part_overrides`. So:
   and B for Phases 4 to 9. No backward compatibility is needed for older app
   versions or older packages, so packages carry the wind setting and the new
   glTF extensions without package capabilities or compatibility handling.
+- 2026-10-26, owner (agreeing an agent proposal; #691 updated the same day):
+  each Avatar with authored lilToon materials gets a per-Avatar Materials
+  setting (Automatic, lilToon, Simple) beside the wind setting. Automatic is
+  lilToon unless the measured GPU time says the machine is too slow; it applies
+  on reload; an app-wide quality setting is added only if still needed.
 - 2026-10-26, agent (planning survey, within R1's "detect the same parts on
   every surface" intent): load the saved face-part correction on the four
   saved-Avatar surfaces that skip it (Phase 2). Recorded as an agent finding
@@ -271,8 +277,9 @@ Agent proposals awaiting the owner. Phases name the decisions they need.
   Diagnostics view and the wind setting in
   `docs/frontend/features/anima-management.md` and the Avatar-facing notes in
   `docs/frontend/runtime/vrchat-avatar-conversion.md`; no new guide.
-- D7 where the R5 value lives (a deviation from the spec's "in a Local
-  Avatar's sidecar"). Proposed: store it per owner and Avatar item in one table
+- D7 where the Avatar settings live (wind for R5 and Materials for R11; a
+  deviation from the spec's "in a Local Avatar's sidecar"). Proposed: store them
+  per owner and Avatar item in one table
   for Local and Included Avatars alike (not in the sidecar), read it through a
   settings query and apply it to the loaded Avatar, and keep it out of the
   runtime snapshot. Saving then neither mints an Avatar revision nor changes
@@ -487,12 +494,15 @@ Not run.
 
 Not run.
 
-### Phase 3: Wind and spring setting
+### Phase 3: Avatar settings: wind and materials
 
 Review tier: high risk. A new table, API route and generated-client change,
-package export and import, and the per-frame spring update path.
+package export and import, the per-frame spring update path, and the model
+loader's material choice.
 
-Requirements: R5. Depends on Phase 1 (Diagnostics shows the effective mode),
+Requirements: R5, and R11's Materials setting (its Automatic GPU check comes in
+Phase 9; until then Automatic means lilToon, today's behaviour). Depends on
+Phase 1 (Diagnostics shows the effective modes),
 D3 and D7. The steps below assume D7's proposal; if the owner keeps the
 sidecar, steps 1 and 4 move the Local value into the sidecar and accept one
 remount after a Local save.
@@ -500,15 +510,17 @@ remount after a Local save.
 Backend:
 
 1. Contract and table: a spring mode enum `automatic | on | off | springs_off`
+   and a material mode enum `automatic | liltoon | simple`
    (`app/contracts/avatar_settings.py`, new); table `avatar_setting_overrides`
-   (owner, Avatar item, `spring_mode`, `updated_at`; PK owner and item; FK to
-   `content_catalog_items` with cascade; CHECK on the enum) for Local and
+   (owner, Avatar item, `spring_mode`, `material_mode`, `updated_at`; PK owner
+   and item; FK to `content_catalog_items` with cascade; CHECKs on the enums;
+   a missing value means Automatic) for Local and
    Included Avatars, ORM, `alembic/versions/0001_baseline.sql` and
    `_BASELINE_TABLES` (no Alembic revision; development databases are reset per
    `docs/backend/operations/development.md`), port, repository and a service
    modelled on `AvatarFacePartsService` without digest or revision binding (D3).
 2. API: `GET/PUT /v1/avatar-content/{item_id}/settings` returning the
-   effective value and its source (stored, default), registered for the local
+   effective values and their sources (stored, default), registered for the local
    composition only (`_local(...)` in `product_http/inventory.py`); the store is
    an optional, defaulted `ProductContent` member so the hosted composition
    still builds at repin; not projected into `PyRuntimeAvatar`. Regenerate the
@@ -516,7 +528,8 @@ Backend:
    `generated/`); `pnpm openapi-ts:check`.
 3. Packages, with three rules because `_KIND_FIELDS` is one whitelist for Local
    sidecars, Local saves and package entries: export pops any document
-   `spring_mode` and writes the exporter's stored non-Automatic value (the
+   `spring_mode` and `material_mode` and writes the exporter's stored
+   non-Automatic values (the
    face-parts pattern in `content_package_export.py`) and includes it in the
    export review digest, with no package capability (no backward
    compatibility needed, owner 2026-10-26); a Local save strips the key; import
@@ -547,15 +560,25 @@ Frontend:
    Avatar (chat canvas, `AnimaAvatarStage`, `ContentPreviewScene`, the content
    creators, the Pose creator, `CreateAnimaStage` when it loads a saved
    Avatar); `Avatar.setSpringMode(mode)` at load and on change, so a save
-   applies live without a remount. The query and the settings row are gated to
+   applies live without a remount. The material mode is part of the load
+   instead, because materials are built at load: `AvatarLoadSpec` gains it;
+   lilToon and Automatic keep `withOnDemandLilToon` as today, Simple skips it
+   and builds the fallback materials; changing it reloads the Avatar on the
+   surfaces that show it (the only setting change that does). The query and the settings row are gated to
    the local runtime (`useRuntimeCapabilities`, `runtime_kind`), so the hosted
    web app never calls the local-only route; a missing or failed query means
    Automatic and never blocks a load. Unsaved files (the Create Anima file
    preview) use Automatic.
-8. UI: in the Anima settings panel, an Avatar section with "Wind and ambient
-   forces" (Automatic, On, Off, Springs off), noting that it applies to this
-   Avatar wherever it is used; 5 locales. Diagnostics shows the effective mode
-   and its source.
+8. Fallback base colours (moved here from Phase 9 so Simple is usable when it
+   ships): materials that carry `MOCHIYA_materials_liltoon` data but render as
+   fallback get `metallicFactor` 0 instead of glTF's default 1, which renders
+   them dark.
+9. UI: in the Anima settings panel, an Avatar section with "Wind and ambient
+   forces" (Automatic, On, Off, Springs off) and, only for an Avatar whose file
+   has lilToon materials (`usesLilToonMaterials` on the file facts), "Materials"
+   (Automatic, lilToon, Simple; switching reloads the Avatar), noting that both
+   apply to this Avatar wherever it is used; 5 locales. Diagnostics shows each
+   effective mode, its source and, for Materials, why.
 
 Checks: backend tests (save and read per owner, Local and Included, 404s and
 ownership, package export with and without a value, import moving the value
@@ -567,20 +590,25 @@ unit test that the settings query and row stay off under a hosted runtime
 capability; frontend tests
 (mode resolution, live switch without remount on the chat canvas, Springs off
 holds rest and resumes, each listed surface applies the mode, the three-vrm pin
-test); spring snapshot tests show Automatic identical to today on Included
+test; Materials row shown only for lilToon Avatars, Simple builds fallback
+materials with base colours and no lilToon import, switching reloads); spring
+snapshot tests show Automatic identical to today on Included
 Avatars and a Mochiya-extension fixture; the full pre-push suite; the full
 `pnpm e2e:test` on a built stack (package import and export).
 
-Owner gate: live check of the four modes on the converted test Avatar and an
-Included Avatar, on the chat canvas and the Anima page.
+Owner gate: live check of the four wind modes on the converted test Avatar and
+an Included Avatar, on the chat canvas and the Anima page; the converted test
+Avatar's Simple look (private renders) and switching between lilToon and
+Simple.
 
-Completion: R5 acceptance; owner gate passed; a Cloud follow-up issue recorded
+Completion: R5 acceptance and R11's Materials-setting acceptance except the
+Automatic GPU check; owner gate passed; a Cloud follow-up issue recorded
 for the hosted migration, lifecycle, wiring and inventory, plus a backend
 composition check at repin.
 
 Recovery: the table and route are additive. A revert leaves stored values
-unused, and packages exported with `spring_mode` would no longer import on the
-reverted code (no compatibility handling, by owner decision).
+unused, and packages exported with either setting would no longer import on
+the reverted code (no compatibility handling, by owner decision).
 
 Check record: (to fill) · Commits: (to fill)
 
@@ -866,7 +894,8 @@ Not run.
 Review tier: standard for measurement and rendering changes; high risk for a
 step that adds a user preference (settings contract).
 
-Requirements: R11. Depends on nothing; may run in parallel with any phase.
+Requirements: R11. Steps 1, 2 and 4 depend on nothing and may run in parallel
+with any phase; step 3 depends on Phase 3's Materials setting.
 
 Changes:
 
@@ -881,26 +910,28 @@ Changes:
    evaluate a lower or adaptive pixel ratio for lilToon Avatars, an idle
    frame-rate cap, cutting costly features or layers, lilToon on chosen
    materials only, and a low-cost mode on the fallback materials.
-3. If the target is not reached, a quality setting visible in Settings defaults
-   to the cheap path on slow GPUs, chosen from measured GPU time (a new
-   `presentation.*` preference beside `enhanced_rendering`; high-risk step).
-4. Fallback materials render with their base colours wherever lilToon is not
-   used (converted exports keep glTF's default metallic 1; set it to 0 for
-   materials that carry `MOCHIYA_materials_liltoon` data but render as
-   fallback).
+3. Automatic for the Materials setting (Phase 3): if the target is not reached,
+   Automatic picks Simple on machines whose measured GPU time is too slow for
+   lilToon, from a short measurement (for example the first frames of a
+   lilToon Avatar, cached per machine), and Diagnostics says why. An app-wide
+   quality setting (a new `presentation.*` preference beside
+   `enhanced_rendering`; high-risk step) is added only if the per-Avatar
+   setting does not cover the need, with the owner.
+4. (Fallback base colours moved to Phase 3.)
 5. Docs: `avatar-animation.md` authored lilToon materials (frame cost).
 
 Checks: bench before and after on the reference machine; Included renders and
-bench unchanged; vitest, lint and check; settings tests and the full pre-push
-suite if step 3 lands.
+bench unchanged; Automatic picks Simple under a simulated slow GPU and lilToon
+otherwise; vitest, lint and check; settings tests and the full pre-push suite if
+an app-wide setting lands.
 
 Owner gate: the look in private renders and the measured result against the
 target.
 
 Completion: R11 acceptance; owner gate passed.
 
-Recovery: rendering changes are runtime only; a preference added in step 3 is
-optional with a default.
+Recovery: rendering changes are runtime only; an app-wide preference, if added,
+is optional with a default.
 
 Check record: (to fill) · Commits: (to fill)
 
@@ -934,8 +965,8 @@ Spec acceptance criteria, with these checks (from `src/frontend` unless noted):
 - `pnpm e2e:test:fast` on a disposable built stack for user-facing phases; the
   full `pnpm e2e:test` for Phases 3 and 8 (package import and export). Known
   flake: #709 (Library particle preview race).
-- Owner-only checks: Diagnostics (Phase 1); eye effects (Phase 2); spring modes
-  (Phase 3); moods (Phase 4); hands (Phase 5); scaling band (Phase 7); the
+- Owner-only checks: Diagnostics (Phase 1); eye effects (Phase 2); wind modes
+  and the Simple look (Phase 3); moods (Phase 4); hands (Phase 5); scaling band (Phase 7); the
   lilToon look and cost (Phase 9).
 
 ## Idempotence and recovery

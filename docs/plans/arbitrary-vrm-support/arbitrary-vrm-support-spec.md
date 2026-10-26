@@ -2,8 +2,8 @@
 
 Status: Agreed
 Snapshot of https://github.com/raymond-van/animama/issues/691 (published
-2026-10-25T02:59:47Z, captured 2026-10-26T01:59:37Z after the owner's answers
-and the ADR renumbering); the issue is authoritative.
+2026-10-25T02:59:47Z, captured 2026-10-26T15:36:58Z after the owner's answers, the ADR
+renumbering and the per-Avatar Materials setting); the issue is authoritative.
 Owner decision: The owner asked for this spec and its parent issue on
 2026-10-24, answered its open questions on 2026-10-25 and accepted the
 proposed defaults for the rest.
@@ -82,7 +82,8 @@ In scope, by requirement:
 - **R10 Enhanced rendering.** The enhanced look applies to non-VRoid MToon
   models, or it is switched off for them consistently.
 - **R11 lilToon frame cost.** Find where authored lilToon materials spend
-  their GPU time and reduce it.
+  their GPU time and reduce it, and let users choose lilToon or simple
+  materials per Avatar.
 - **R12 MMD face shapes.** On models with standard MMD morphs, common on
   Japanese VRChat models, moods use those morphs per face region before ARKit
   mixes.
@@ -205,6 +206,8 @@ R7 Avatar diagnostics:
     lacks.
   - **Motion:** rest-pose check, humanoid bones present, spring count and the
     effective wind mode.
+  - **Materials:** for an Avatar with lilToon materials, the effective
+    Materials mode (R11) and why.
   - **Warnings:** everything R8 collects.
 - A **Copy report** action copies a text summary for support.
 - A **Raw JSON** view shows the same report as JSON, with its own copy action.
@@ -250,11 +253,23 @@ R11 lilToon frame cost:
   - disabling costly features or layers;
   - lilToon on chosen materials only;
   - a low-cost mode using the fallback materials;
-  - choosing automatically from measured GPU time, or through a user-visible
-    quality setting.
+  - choosing automatically from measured GPU time (the Materials setting's
+    Automatic value below).
+- Each Avatar whose file has authored lilToon materials has a **Materials**
+  setting:
+  - **Automatic** (the default): lilToon, unless the machine's measured GPU
+    time says it is too slow for it, then Simple;
+  - **lilToon:** always the authored look;
+  - **Simple:** the fallback materials.
+- The Materials setting is edited in the Anima settings beside "Wind and
+  ambient forces" and persists per Avatar the same way as that setting (R5).
+  It applies when the Avatar reloads, not live, because materials are built at
+  load. Avatars without lilToon materials do not show it.
+- An app-wide quality setting is added only if the per-Avatar setting does not
+  cover the need.
 - Fallback materials from converted exports keep glTF's default metallic 1,
-  which renders them dark. Wherever lilToon is not used, the fallback
-  materials render with their base colours.
+  which renders them dark. Wherever lilToon is not used, including Simple, the
+  fallback materials render with their base colours.
 - Included Avatars are unaffected.
 
 R10 Enhanced rendering:
@@ -323,7 +338,10 @@ R13 Package sharing:
 - [ ] R11: a measurement report breaks down lilToon's GPU time (bench JSON
   plus the method). The chosen reductions meet the agreed target on the
   reference machine. The owner reviews the look in private renders. Fallback
-  materials render with their base colours. Included renders are unchanged.
+  materials render with their base colours. The Materials setting round-trips
+  for a Local and an Included Avatar, appears only for lilToon Avatars,
+  Automatic follows the GPU check, and switching reloads the Avatar with the
+  chosen materials. Included renders are unchanged.
 - [ ] R12: on a synthetic model with MMD morphs, each mapped region plays its
   MMD morph and the others play the ARKit mix or preset; blink stays within
   shut under 笑い; Included renders are unchanged; the owner reviews private
@@ -348,8 +366,10 @@ Answered by the owner on 2026-10-25 (6 to 8 take the proposed defaults):
    then R13. R11 runs alongside once PR #688 has merged.
 7. lilToon target: a lilToon Avatar adds at most about as much GPU time as an
    Included Avatar at the chat canvas on the reference machine. If that is not
-   reached, a quality setting, visible in Settings, defaults to the cheap path
-   on slow GPUs.
+   reached, the cheap path is the default on slow GPUs. Updated 2026-10-26
+   (owner): users choose per Avatar with a Materials setting (Automatic,
+   lilToon, Simple; R11), whose Automatic value is that default; an app-wide
+   quality setting is added only if still needed.
 8. A model with no VRoid parts, MMD morphs, ARKit shapes or mood presets keeps
    a neutral face; moods show through motion and effects, and diagnostics say
    so. Lids are not lowered and mouth visemes are not used for moods.
