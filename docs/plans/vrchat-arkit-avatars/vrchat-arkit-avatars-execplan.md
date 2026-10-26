@@ -183,6 +183,8 @@ owner gates then wait for the converted Avatar.
   with lilToon, 0.8 ms with the fallback materials, 1.2 ms for Andrew, and
   6.2 ms with lilToon at DPR 1, so the cost is mostly per pixel. The Phase 3 gate
   stays: keep lilToon in this PR as is, or not.
+- 2026-10-25, owner: keep the dock change (`46fd871d`) in this PR as recorded;
+  the content-preview effect-clearing race it works around is follow-up #709.
 - 2026-10-25, owner (approving an agent proposal after private review renders):
   retune the ARKit mood mixes so each region moves about as far as its VRoid
   part at weight 1 (values in the Phase 4 revision). Using an Avatar's standard
@@ -1482,7 +1484,7 @@ and history, and conventions are met.
   because the instrumentation shifted the timing and the step then passed. So
   the change most likely fixes the journey by starting the first load one
   render later, and an older race in the preview's effect clearing (which the
-  branch's load-time work exposed) remains a candidate follow-up.
+  branch's load-time work exposed) remains: #709.
 - FIN-O1, O2, O4: the guide names no prefab variant, says VN3 terms vary, and
   shows where the Unity binary lives on macOS. FIN-O3: no change. FIN-O5: the
   snapshot's delivery links are left until the PR is updated.
