@@ -435,7 +435,7 @@ When WebGPU is selected, the client probes (`getWebgpuStatus`,
 | `unsupported`   | `wasm`                                                                          | WebGPU not available           |
 | `model_missing` | `wasm`                                                                          | GPU speech model not installed |
 
-The GPU add-on in `OfflineSpeechDownloads` installs `parakeet-stt-webgpu` or
+The GPU add-on in `OfflineSetPanel` installs `parakeet-stt-webgpu` or
 `sensevoice-stt-webgpu` independently of provider selection; it never chains a
 CPU download or changes the selected provider. No reload is needed: the probe
 refreshes when the set settles, and the next dictation or Voice Mode start loads

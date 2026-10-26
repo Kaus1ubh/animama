@@ -1,20 +1,11 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState } from "react";
 import { getI18n, useTranslation } from "react-i18next";
 
-import { useFormatters } from "@animama/product-ui/i18n";
 import type { PyModelAssetState } from "@animama/runtime-contracts/api-types";
 
-import parakeetWebgpuAttribution from "../../../../../../models/parakeet-tdt-0.6b-v2-webgpu/ATTRIBUTION.md?raw";
-import senseVoiceAttribution from "../../../../../../models/sensevoice-small/ATTRIBUTION.md?raw";
 import { offlineSpeechAssetIds } from "@/lib/speech/offline-stt/asset-ids";
-import {
-  OFFLINE_SPEECH_DOWNLOADS_OFFERED,
-  offlineSttClients,
-} from "@/lib/speech/offline-stt/clients";
-import {
-  routeOfflineSpeech,
-  type OfflineSttEngine,
-} from "@/lib/speech/offline-stt/routing";
+import { offlineSttClients } from "@/lib/speech/offline-stt/clients";
+import type { OfflineSttEngine } from "@/lib/speech/offline-stt/routing";
 import type { WebgpuModelStatus } from "@/lib/speech/offline-stt/webgpu";
 import {
   useModelAssets,
@@ -26,8 +17,6 @@ import {
   DownloadGuardError,
   downloadGuardText,
 } from "@/query/model-download-coordination";
-import { Button } from "@/ui/components/button";
-import { operatorManagedModelsNote } from "./operator-managed-models";
 
 /**
  * Why a failed download stopped, from its stable failure code (the model-asset
@@ -79,35 +68,7 @@ export function modelChangeErrorText(error: unknown): string {
   }
 }
 
-/**
- * Why the GPU add-on cannot be installed now, or `null` when it can. A device
- * without WebGPU is reported before the missing CPU model, so nobody installs
- * a prerequisite for an add-on their device cannot use.
- */
-export function gpuInstallBlockedReason({
-  gpu,
-  cpuInstalled,
-  support,
-}: {
-  gpu: PyModelAssetState | undefined;
-  cpuInstalled: boolean;
-  support: WebgpuModelStatus | null;
-}): string | null {
-  const t = getI18n().getFixedT(null, "voice");
-  if (!gpu) return t("offlineSpeech.gpu.blocked.missing");
-  if (support === "unsupported") return t("offlineSpeech.gpu.blocked.noWebgpu");
-  if (!cpuInstalled) return t("offlineSpeech.gpu.blocked.needsCpu");
-  if (support === null) return t("offlineSpeech.gpu.blocked.checking");
-  return null;
-}
-
 type Change = "install" | "cancel" | "remove";
-
-/** The reviewed attribution each engine's downloads show. */
-const ATTRIBUTIONS: Record<OfflineSttEngine, string> = {
-  parakeet: parakeetWebgpuAttribution,
-  sensevoice: senseVoiceAttribution,
-};
 
 /** How a Vite development stack acquires each engine's host sets. */
 const ACQUIRE_COMMANDS: Record<OfflineSttEngine, { cpu: string; gpu: string }> =
@@ -122,27 +83,12 @@ const ACQUIRE_COMMANDS: Record<OfflineSttEngine, { cpu: string; gpu: string }> =
     },
   };
 
-/** The engines in display order: `first` first. */
-function offlineSpeechEngineOrder(first: OfflineSttEngine): OfflineSttEngine[] {
-  return first === "parakeet"
-    ? ["parakeet", "sensevoice"]
-    : ["sensevoice", "parakeet"];
-}
-
-/** The languages an engine serves, its model and its attribution label. */
-function engineText(engine: OfflineSttEngine) {
+/** The languages an engine serves, which head its section. */
+function engineLanguages(engine: OfflineSttEngine): string {
   const t = getI18n().getFixedT(null, "voice");
   return engine === "parakeet"
-    ? {
-        languages: t("offlineSpeech.engines.parakeet.languages"),
-        model: t("offlineSpeech.engines.parakeet.model"),
-        attribution: t("offlineSpeech.engines.parakeet.attribution"),
-      }
-    : {
-        languages: t("offlineSpeech.engines.sensevoice.languages"),
-        model: t("offlineSpeech.engines.sensevoice.model"),
-        attribution: t("offlineSpeech.engines.sensevoice.attribution"),
-      };
+    ? t("offlineSpeech.engines.parakeet.languages")
+    : t("offlineSpeech.engines.sensevoice.languages");
 }
 
 export type OfflineSpeechDownloadsViewProps = {
@@ -176,298 +122,6 @@ export type OfflineSpeechDownloadsViewProps = {
 };
 
 /**
- * One offline engine's sets: the base (CPU) set with its GPU acceleration
- * add-on, installed in place by the backend model-asset service, under the
- * languages the engine serves. The add-on is always shown; when it cannot be
- * installed, its action is disabled with the reason. Operator-managed sets
- * show only their state.
- */
-export function OfflineSpeechDownloadsView({
-  engine,
-  cpu,
-  gpu,
-  freeBytes,
-  gpuSupport,
-  retryAssetIds,
-  pending,
-  blockedReason,
-  error,
-  gpuFellBack = false,
-  listUnavailable = false,
-  listLoaded = false,
-  turnedOff = false,
-  operatorManaged = false,
-  onChange,
-}: OfflineSpeechDownloadsViewProps) {
-  const { t } = useTranslation("voice");
-  const text = engineText(engine);
-  // Without a list, the add-on's availability is still unknown.
-  const listReady = listLoaded || cpu !== undefined || gpu !== undefined;
-  const cpuInstalled = cpu?.status === "installed";
-  // The backend refuses CPU removal while the add-on is installed or downloading.
-  const gpuActive =
-    gpu?.status === "installed" || gpu?.status === "downloading";
-  const errorFor = (assetId: string) =>
-    error?.assetId === assetId ? error.message : null;
-  return (
-    <section className="space-y-3" aria-label={text.languages}>
-      <div className="space-y-0.5">
-        <h4 className="text-sm font-medium">{text.languages}</h4>
-        <p className="text-muted-foreground text-xs">{text.model}</p>
-      </div>
-      {turnedOff && cpuInstalled ? (
-        <p role="status" className="text-muted-foreground text-xs">
-          {t("offlineSpeech.turnedOff")}
-        </p>
-      ) : null}
-      {operatorManaged ? (
-        <p className="text-muted-foreground text-xs">
-          {operatorManagedModelsNote()}
-        </p>
-      ) : null}
-      {cpu ? (
-        <ModelSetRow
-          label={t("offlineSpeech.cpu.label")}
-          asset={cpu}
-          managed={operatorManaged}
-          names={{
-            install: t("offlineSpeech.cpu.download"),
-            remove: t("offlineSpeech.cpu.remove"),
-          }}
-          freeBytes={freeBytes}
-          retry={retryAssetIds?.has(cpu.id) ?? false}
-          pending={pending}
-          installBlockedReason={blockedReason ?? null}
-          removeBlockedReason={
-            gpuActive ? t("offlineSpeech.gpu.removeFirst") : null
-          }
-          error={errorFor(cpu.id)}
-          onChange={(change) => onChange(change, cpu.id)}
-        />
-      ) : (
-        <p role="status" className="text-muted-foreground text-xs">
-          {listUnavailable
-            ? t("offlineSpeech.listUnavailable")
-            : listReady
-              ? t("downloads.notAvailable")
-              : t("offlineSpeech.checking")}
-        </p>
-      )}
-      <div className="border-border/60 space-y-2 border-l-2 pl-3">
-        <ModelSetRow
-          label={t("offlineSpeech.gpu.label")}
-          description={t("offlineSpeech.gpu.description")}
-          asset={gpu}
-          managed={operatorManaged}
-          names={{
-            install: t("offlineSpeech.gpu.download"),
-            remove: t("offlineSpeech.gpu.remove"),
-          }}
-          freeBytes={freeBytes}
-          retry={gpu ? (retryAssetIds?.has(gpu.id) ?? false) : false}
-          pending={pending}
-          installBlockedReason={
-            listReady
-              ? (gpuInstallBlockedReason({
-                  gpu,
-                  cpuInstalled,
-                  support: gpuSupport,
-                }) ??
-                blockedReason ??
-                null)
-              : listUnavailable
-                ? t("offlineSpeech.gpu.unavailableNow")
-                : t("offlineSpeech.checking")
-          }
-          removeBlockedReason={null}
-          error={gpu ? errorFor(gpu.id) : null}
-          installedNote={
-            gpuFellBack ? t("offlineSpeech.gpu.fellBack") : undefined
-          }
-          onChange={(change) => gpu && onChange(change, gpu.id)}
-        >
-          <details className="text-xs">
-            <summary className="text-muted-foreground cursor-pointer">
-              {text.attribution}
-            </summary>
-            {/* Plain text keeps the reviewed notice compact inside a settings row. */}
-            <pre className="text-muted-foreground mt-2 font-sans text-xs whitespace-pre-wrap">
-              {ATTRIBUTIONS[engine].trim()}
-            </pre>
-          </details>
-        </ModelSetRow>
-      </div>
-    </section>
-  );
-}
-
-/**
- * One installable set: size, progress, cancel, retry and confirmed removal.
- * A `managed` set is provided by the operator and shows only its state.
- */
-function ModelSetRow({
-  label,
-  description,
-  asset,
-  managed = false,
-  names,
-  freeBytes,
-  retry,
-  pending,
-  installBlockedReason,
-  removeBlockedReason,
-  error,
-  installedNote,
-  onChange,
-  children,
-}: {
-  label: string;
-  description?: string;
-  asset: PyModelAssetState | undefined;
-  managed?: boolean;
-  names: { install: string; remove: string };
-  freeBytes?: number | null;
-  retry: boolean;
-  pending: boolean;
-  installBlockedReason: string | null;
-  removeBlockedReason: string | null;
-  error: string | null;
-  installedNote?: string;
-  onChange(change: Change): void;
-  children?: ReactNode;
-}) {
-  const { t } = useTranslation("voice");
-  const { fileSize, number } = useFormatters();
-  const [confirmRemove, setConfirmRemove] = useState(false);
-  const installed = asset?.status === "installed";
-  const downloading = asset?.status === "downloading";
-  const failed = asset?.status === "failed" || retry;
-  const lowSpace =
-    asset !== undefined &&
-    !installed &&
-    !downloading &&
-    typeof freeBytes === "number" &&
-    freeBytes < asset.required_free_bytes;
-  // Without a known total, an indeterminate bar (no value) shows activity.
-  const progress =
-    downloading && asset.total_bytes
-      ? Math.min(1, (asset.bytes_downloaded ?? 0) / asset.total_bytes)
-      : undefined;
-  const installBlocked =
-    installBlockedReason ??
-    (lowSpace
-      ? t("downloads.lowSpace", { size: fileSize(asset.required_free_bytes) })
-      : null);
-  const status = !asset
-    ? null
-    : installed
-      ? installedNote
-        ? t("downloads.installedWithNote", { note: installedNote })
-        : t("downloads.installed")
-      : downloading
-        ? progress === 1
-          ? t("downloads.verifying")
-          : t("downloads.downloading", {
-              percent: number(progress ?? 0, {
-                style: "percent",
-                maximumFractionDigits: 0,
-              }),
-            })
-        : managed
-          ? t("downloads.notAvailable")
-          : t("downloads.size", { size: fileSize(asset.size_bytes) });
-  return (
-    <div className="space-y-2">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="min-w-40 flex-1">
-          <p className="text-sm font-medium">{label}</p>
-          {description ? (
-            <p className="text-muted-foreground text-xs">{description}</p>
-          ) : null}
-        </div>
-        {managed ? null : (
-          <div className="flex flex-wrap gap-2">
-            {!installed && !downloading ? (
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={pending || Boolean(installBlocked)}
-                onClick={() => onChange("install")}
-              >
-                {failed ? t("downloads.retry") : names.install}
-              </Button>
-            ) : null}
-            {downloading ? (
-              // Cancelling stays reachable while other changes are blocked.
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                onClick={() => onChange("cancel")}
-              >
-                {t("downloads.cancel")}
-              </Button>
-            ) : null}
-            {installed ? (
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                disabled={pending || Boolean(removeBlockedReason)}
-                onClick={() => {
-                  if (!confirmRemove) setConfirmRemove(true);
-                  else {
-                    setConfirmRemove(false);
-                    onChange("remove");
-                  }
-                }}
-              >
-                {confirmRemove ? t("downloads.confirmRemoval") : names.remove}
-              </Button>
-            ) : null}
-          </div>
-        )}
-      </div>
-      {status ? (
-        <p role="status" className="text-muted-foreground text-xs">
-          {status}
-        </p>
-      ) : null}
-      {downloading ? (
-        <progress
-          className="w-full"
-          max={1}
-          value={progress}
-          aria-label={t("downloads.progressLabel", { label })}
-        />
-      ) : null}
-      {asset?.status === "failed" ? (
-        <p role="status" className="text-muted-foreground text-xs">
-          {assetFailureText(asset)}
-        </p>
-      ) : null}
-      {!managed && !installed && !downloading && installBlocked ? (
-        <p role="status" className="text-muted-foreground text-xs">
-          {installBlocked}
-        </p>
-      ) : null}
-      {!managed && installed && removeBlockedReason ? (
-        <p role="status" className="text-muted-foreground text-xs">
-          {removeBlockedReason}
-        </p>
-      ) : null}
-      {error ? (
-        <p role="alert" className="text-destructive text-xs">
-          {error}
-        </p>
-      ) : null}
-      {children}
-    </div>
-  );
-}
-
-/**
  * Send one model change. Before a removal, this page's idle worker is
  * disposed and its use leases released (bounded wait), so the backend does not
  * refuse the removal for a lease this page no longer needs. A running
@@ -489,42 +143,12 @@ export async function requestModelChange(
   send({ action: operation === "install" ? "install" : "remove", assetId });
 }
 
-/**
- * Offline speech downloads for packaged desktop and built self-host: each
- * engine's sets, the UI Locale's engine first. Vite development serves the
- * operator's host sets instead, so it shows how to acquire them.
- */
-export function OfflineSpeechDownloads() {
-  // Read through `i18n` so the order follows a language switch.
-  const { t, i18n } = useTranslation("voice");
-  const engines = offlineSpeechEngineOrder(
-    routeOfflineSpeech(i18n.resolvedLanguage).engine,
-  );
-  return (
-    <section className="space-y-4" aria-label={t("offlineSpeech.title")}>
-      <div className="space-y-1">
-        <h3 className="text-sm font-medium">{t("offlineSpeech.title")}</h3>
-        <p className="text-muted-foreground text-xs">
-          {t("offlineSpeech.description")}
-        </p>
-      </div>
-      {engines.map((engine) =>
-        OFFLINE_SPEECH_DOWNLOADS_OFFERED ? (
-          <OfflineSpeechDownloadsManager key={engine} engine={engine} />
-        ) : (
-          <HostSpeechModelsNote key={engine} engine={engine} />
-        ),
-      )}
-    </section>
-  );
-}
-
 /** How a Vite development stack acquires an engine's host sets. */
 export function HostSpeechModelsNote({ engine }: { engine: OfflineSttEngine }) {
   const { t } = useTranslation("voice");
   return (
-    <section className="space-y-0.5" aria-label={engineText(engine).languages}>
-      <h4 className="text-sm font-medium">{engineText(engine).languages}</h4>
+    <section className="space-y-0.5" aria-label={engineLanguages(engine)}>
+      <h4 className="text-sm font-medium">{engineLanguages(engine)}</h4>
       <p className="text-muted-foreground text-xs">
         {t("offlineSpeech.developmentAcquire", {
           cpuCommand: ACQUIRE_COMMANDS[engine].cpu,
@@ -534,14 +158,6 @@ export function HostSpeechModelsNote({ engine }: { engine: OfflineSttEngine }) {
       </p>
     </section>
   );
-}
-
-function OfflineSpeechDownloadsManager({
-  engine,
-}: {
-  engine: OfflineSttEngine;
-}) {
-  return <OfflineSpeechDownloadsView {...useOfflineSpeechDownloads(engine)} />;
 }
 
 /**

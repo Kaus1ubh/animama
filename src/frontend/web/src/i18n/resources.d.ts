@@ -6496,20 +6496,13 @@ export default interface Resources {
         "notReady": "The installation is not ready. Reopen and retry.",
         "statusUnavailable": "Download status is unavailable. Reopen and retry."
       },
-      "installed": "Installed",
-      "installedWithNote": "Installed · {{note}}",
-      "lowSpace": "Not enough free space: downloads need {{size}} free.",
       "notAvailable": "Not available",
-      "progressLabel": "{{label}} download progress",
       "remove": "Remove",
-      "retry": "Retry download",
       "sections": {
-        "speechToText": "Speech-to-Text",
         "voiceClone": "Voice Clone"
       },
       "size": "{{size}} download",
-      "sizeRetry": "{{size}} download · Retry available",
-      "verifying": "Verifying download…"
+      "sizeRetry": "{{size}} download · Retry available"
     },
     "gemini": {
       "descriptors": {
@@ -6591,22 +6584,13 @@ export default interface Resources {
       }
     },
     "offlineSpeech": {
-      "checking": "Checking offline speech recognition…",
-      "cpu": {
-        "download": "Download CPU model",
-        "label": "CPU model",
-        "remove": "Remove CPU model"
-      },
-      "description": "Dictation and Voice Mode transcribe on this device, so audio never leaves it.",
       "developmentAcquire": "This development stack serves speech models from the host: run {{cpuCommand}} (and {{gpuCommand}} for GPU acceleration), then rerun {{resetCommand}}.",
       "engines": {
         "parakeet": {
-          "attribution": "Model attribution (CC BY 4.0)",
           "languages": "English",
           "model": "Parakeet TDT 0.6B v2 by NVIDIA"
         },
         "sensevoice": {
-          "attribution": "Model attribution (FunASR Model License)",
           "languages": "Japanese, Korean and Chinese",
           "model": "SenseVoice-Small by Alibaba"
         }
@@ -6622,27 +6606,16 @@ export default interface Resources {
       },
       "gpu": {
         "blocked": {
-          "checking": "Checking WebGPU support…",
-          "missing": "GPU acceleration is unavailable in this build.",
-          "needsCpu": "Download the CPU model first.",
-          "noWebgpu": "WebGPU is not available in this browser or on this device."
+          "needsCpu": "Download the CPU model first."
         },
-        "description": "Faster recognition with live previews. Requires the CPU model and a WebGPU-capable device.",
-        "download": "Download GPU acceleration",
         "fellBack": "WebGPU failed to load last time, so speech recognition used the CPU.",
-        "label": "GPU acceleration",
-        "remove": "Remove GPU acceleration",
-        "removeFirst": "Remove GPU acceleration first.",
-        "unavailableNow": "GPU acceleration is unavailable right now."
+        "removeFirst": "Remove GPU acceleration first."
       },
-      "listUnavailable": "Speech downloads are unavailable. Reopen Settings to retry.",
       "refusals": {
         "busy": "This model is still changing. Retry in a moment.",
         "changeFailed": "The change could not finish. Retry in a moment.",
         "inUse": "Speech recognition is in use. Close dictation and Voice Mode to remove it."
-      },
-      "title": "Offline speech recognition",
-      "turnedOff": "Offline speech recognition is turned off on this server."
+      }
     },
     "pocket": {
       "accents": {
