@@ -27,6 +27,7 @@ import {
   signingOrder,
   signtoolArguments,
   validateSigningReport,
+  WINDOWS_EXECUTABLE,
 } from "../scripts/runtime/windows-signing.mjs";
 import {
   builderSigningHook,
@@ -159,7 +160,7 @@ describe("Windows release policy", () => {
 });
 
 describe("Windows signing", () => {
-  it("finds every PE file and orders nested code deepest first, then the outer app with Animama.exe last", () => {
+  it("finds every PE file and orders nested code deepest first, then the outer files", () => {
     const root = fixture();
     const pe = Buffer.alloc(256);
     pe.write("MZ", 0, "latin1");
@@ -181,7 +182,10 @@ describe("Windows signing", () => {
     writeFileSync(path.join(root, "LICENSE.electron.txt"), "MZ text");
     const files = portableExecutables(root);
     expect(files).toHaveLength(7);
-    const order = signingOrder(files);
+    // electron-builder signs Animama.exe itself, after these.
+    const order = signingOrder(
+      files.filter((file) => file !== WINDOWS_EXECUTABLE),
+    );
     expect(order.nested).toEqual([
       "resources/app.asar.unpacked/dist/native/global_input_hook.node",
       "resources/runtime/backend/_internal/python312.dll",
@@ -189,7 +193,7 @@ describe("Windows signing", () => {
       "resources/runtime/postgresql/lib/vector.dll",
       "resources/runtime/bin/animama-process-guard.exe",
     ]);
-    expect(order.outer).toEqual(["ffmpeg.dll", "Animama.exe"]);
+    expect(order.outer).toEqual(["ffmpeg.dll"]);
   });
 
   it("reads an embedded signature from the PE certificate table, not from catalog trust", () => {

@@ -149,6 +149,9 @@ export async function releaseWindows(args = []) {
     "RELEASE-NEXT-STEPS.txt",
     installerName,
     `${installerName}.blockmap`,
+    // electron-builder's executable cache could restore an Animama.exe that
+    // an earlier build signed, bypassing the signing hook.
+    ".cache",
   ])
     rmSync(path.join(directory, name), { recursive: true, force: true });
   // Model candidates are copied only after signing; prove now, from the

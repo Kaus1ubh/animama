@@ -39,6 +39,11 @@ const normalizedTime = new Date("2000-01-01T00:00:00Z");
  * use and verifies it against the package's pinned checksums.
  */
 export function electronDist() {
+  // The override makes `electron` skip the download and the checksum check.
+  if (process.env.ELECTRON_OVERRIDE_DIST_PATH)
+    throw new Error(
+      "Unset ELECTRON_OVERRIDE_DIST_PATH: builds use the electron package's own verified binary",
+    );
   const require = createRequire(path.join(desktopRoot, "package.json"));
   require("electron");
   return path.join(
