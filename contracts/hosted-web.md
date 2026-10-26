@@ -270,7 +270,10 @@ Private bytes, runtime snapshots, jobs, creator/import stages, exports and event
 cursors resolve the current server owner on every read/mutation. Cross-owner
 references fail closed. Runtime revisions retain lease/integrity checks and
 same-origin range semantics; private data is `Cache-Control: no-store` and never
-enters a shared CDN/service-worker cache. Content-only package import/export,
+enters a shared CDN/service-worker cache. The hosted transport keeps each request's
+own cache mode, so the server's `Cache-Control` alone decides what the signed-in
+browser may keep or revalidate (ADR 0028); its own session and admission reads always
+use `no-store`. Content-only package import/export,
 Anima export, stale revisions, drafts and ambiguous-commit recovery retain their
 existing receipts and error semantics. Anima import is denied regardless of UI.
 

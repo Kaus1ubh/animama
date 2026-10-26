@@ -515,6 +515,28 @@ describe("hosted admission and transport", () => {
     ).toBe(true);
   });
 
+  it("keeps a product request's own cache mode, so the server's policy decides what is kept", async () => {
+    const { composition, calls } = fixture();
+    await composition.readAdmission();
+    const product = composition.transport.fetch;
+    await product("/v1/content/catalog", { cache: "no-cache" });
+    await product(
+      new Request("https://app.example.test/v1/content/files/f1", {
+        cache: "no-cache",
+      }),
+    );
+    await product("/v1/animas/a1/runtime/revisions/r1/bundles/b1");
+    const modes = Object.fromEntries(
+      calls.map((call) => [new URL(call.url).pathname, call.cache]),
+    );
+    expect(modes).toEqual({
+      "/v1/hosted/runtime-context": "no-store",
+      "/v1/content/catalog": "no-cache",
+      "/v1/content/files/f1": "no-cache",
+      "/v1/animas/a1/runtime/revisions/r1/bundles/b1": "default",
+    });
+  });
+
   it("uses a fresh lifetime when the same owner reauthenticates", async () => {
     const context = { ...active };
     const { composition } = fixture(context);
