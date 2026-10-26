@@ -49,6 +49,7 @@ export const AVATAR_ISSUE_CODES = [
   "effect_overlay_required",
   "effect_face_skin_required",
   "effect_skin_color_unavailable",
+  "eye_detail_not_hidden",
 ] as const;
 
 export type AvatarIssueCode = (typeof AVATAR_ISSUE_CODES)[number];

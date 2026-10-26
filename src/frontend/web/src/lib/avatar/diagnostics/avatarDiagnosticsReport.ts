@@ -136,7 +136,9 @@ function liveLines(live: AvatarDiagnosticsReport["live"]): string[] {
     ...(face.detected
       ? face.parts.map(
           (part) =>
-            `  ${part.role}: ${part.source}, ${part.bindingCount} primitive(s), confidence ${part.confidence.toFixed(2)}`,
+            `  ${part.role}: ${part.source}, ${part.bindingCount} primitive(s)` +
+            (part.regionCount > 0 ? ` + regions in ${part.regionCount}` : "") +
+            `, confidence ${part.confidence.toFixed(2)}`,
         )
       : ["  Part detection failed; effects use material names"]),
     `  Landmarks ${face.landmarks}, texture anchors ${face.textureAnchors}`,

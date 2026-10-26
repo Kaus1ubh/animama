@@ -202,7 +202,9 @@ tenant-inventory row for `avatar_face_part_overrides`. So:
 - [ ] Phase 1: Diagnostics and visible failures (R7, R8). Implemented,
   checked and review passed 2026-10-26; the owner's UI review of the
   Diagnostics view is pending.
-- [ ] Phase 2: Face parts and eye effects on shared meshes (R1, R3). Not started.
+- [ ] Phase 2: Face parts and eye effects on shared meshes (R1, R3). Implemented,
+  checked and review passed 2026-10-26; the owner gate (private renders of the
+  eye-hiding effects) is pending.
 - [ ] Phase 3: Avatar settings: wind and materials (R5, R11's Materials
   setting). Not started.
 - [ ] Phase 4: Expression content and MMD face shapes (R4, R12). Not started.
@@ -233,6 +235,11 @@ tenant-inventory row for `avatar_face_part_overrides`. So:
 - 2026-10-26 (Phase 1): `motion-authoring/headlessVrm.ts` cannot run the shared
   load step: `vrm:inspect` and the motion checks load through it and must see
   the file's own expressions before Animama registers any.
+- 2026-10-26 (Phase 2): the converted test Avatar keeps its upper lash strips
+  and strands as separate islands inside the face primitive (about ten per
+  eye, all fully moved by blink) and a few blink-moved islands inside its
+  eye-layer primitive; the Included Avatars have none, so region detection
+  runs everywhere without changing them.
 - 2026-10-26 (Phase 1): i18next-cli files the keys of a helper typed through a
   local alias (`type T = TFunction<"animas">`) under the default namespace and
   deletes them from the real one; the i18n guide now says so.
@@ -285,6 +292,29 @@ tenant-inventory row for `avatar_face_part_overrides`. So:
   no layout alternatives were put to the owner before the owner's UI review.
   The Avatar Effect creator's toolbar now words the preview Avatar's findings
   from their codes instead of showing the controllers' English text.
+- 2026-10-26, agent (Phase 2, within the plan):
+  - Detection still picks one face skin; several `face_skin` bindings come
+    from corrections. Landmarks union every listed face binding, and texture
+    anchors project onto the one nearest the eyes (a synthetic split face could
+    not be built from the Included files to test detection of one).
+  - Detail regions are also searched in the eye primitives. With an eye-line
+    primitive every region is a lash; otherwise each eye's largest region is
+    its line. Only blink-moved islands qualify, by the primitive rules.
+  - Regions are hidden by rewriting their triangles in place as degenerate
+    triangles, not by swapping a filtered index: no index buffer is replaced
+    each toggle and MToon outline groups need no remapping.
+  - Eye cleanup covers the eyelids only on a face with no line or lash
+    geometry (taken as painted lashes), so the Included Avatars are unchanged.
+  - The iris tie-break prefers the middle layer (a highlight in front and a
+    white behind) in every eye group, eye bones and look-at included; it only
+    decides groups with a white, which the Included eye-bone groups lack.
+    Without eye bones, eye layers must also lie within the eyelids' region.
+  - The partly-head face rule needs a primitive blink moves and none on
+    spring joints, so hair merged into a face mesh never wins.
+  - Create Anima, which loads a content preview rather than a runtime entry,
+    passes the model's digest and applies the saved correction from the
+    face-parts query. The digest also selects a verified eyelid-closure
+    profile there, as in chat.
 
 ## Decisions
 
@@ -622,15 +652,124 @@ Completion: R1 and R3 acceptance; owner gate passed.
 Recovery: load-time detection only; reverting restores today's detection with
 no data change.
 
-Check record: (to fill) · Commits: (to fill)
+Check record (2026-10-26, macOS arm64, worktree on `feat/arbitrary-vrm-support`
+from `b3c94de6`):
+
+- New tests: `faceParts.sharedMeshes.test.ts` (lash and line regions inside
+  Annie's face mesh, each eye's largest region as its line without a line
+  mesh, Andrew's face skinned 20% to the neck with a neck triangle, Annie
+  without eye bones, painted-lash eye cleanup), `primitiveRegionHiding.test.ts`
+  and a controller test hiding a lash region while an eye effect plays;
+  Included baselines unchanged.
+- Review renders against `b3c94de6`, enhanced and classic: `eye_confused_swirl`,
+  `eye`, `eye_0`, `eye_o`, `eye_vv`, `star3`, `heart_eyes`, `knockout-x-eyes`,
+  `blank-dot-eyes`, `blush`, `face_red`, `mouth_w`, `single_tear`,
+  `texture_black_1`, `petrified_cracks`, `shiver_undereye`: 32 sheets at 0
+  differing pixels (max channel delta 0).
+- Load-time corrections, A/B/A against `b3c94de6` on a machine at load
+  average 20–30 (another session's gate), medians: Andrew 99 ms before,
+  101–104 ms after (17 primitives); Annie 73 ms before, 89–98 ms after (15).
+  Under 2 ms per primitive; absolute times are inflated by the load.
+- Private renders of the eye-hiding effects on the converted test Avatar
+  (`effects:render --avatar-file`, kept in the private renders folder): the
+  closed-lash strips that showed under Eye Confused Swirl and Heart Eyes are
+  gone on all eight eye planes; faint thin lines remain at the lid edge (the
+  face texture's painted crease or the lid's outline, not lash geometry), for
+  the owner to judge.
+- `npx vitest run src/lib/avatar src/ui tests/avatar` (`src/frontend/web`):
+  315 files, 3,261 passed, 2 skipped; `pnpm -s check`, `pnpm -s web:lint`,
+  `pnpm -s prettier:check` (`src/frontend`): pass.
+
+Commits: `feat(avatars)[p2]: find eye details inside shared meshes and hide them`.
 
 #### Code Review #1 Findings
 
-Not run.
+Independent reviewer, standard tier, initial review of tree `a7a481ec` against
+`b3c94de6`; findings confirmed by the reviewer's probes on the Included files.
+
+- P2-R1-F1 (blocking): `setFacePartCorrections` re-detected parts while an
+  effect still had regions hidden as degenerate triangles, so the regions
+  vanished from the new map and stayed visible.
+- P2-R1-F2 (blocking): the partly-head face rule let hair merged into the face
+  mesh (head share 0.54–0.73) replace the head-skinned face, departing from
+  "keep the 0.9 rule's result".
+- P2-R1-F3 (blocking): eye layers found without eye bones needed only to overlap
+  an eyelid, so a primitive reaching across both eyes became the irises.
+- P2-R1-F4 (blocking): `eye_detail_not_hidden` could never fire, because
+  unindexed primitives yielded no regions; the docs said it would.
+- Optional: the Face parts panel called region-only parts Missing and
+  correcting one drops its regions; Diagnostics showed regions only without
+  bindings, worded unclearly; the middle-layer tie-break also applies with eye
+  bones; Create Anima's digest also selects the eyelid-closure profile; hook
+  order in `CreateAnimaStage`; lid boxes take every moved vertex (brows); a
+  sliding eyelid cover could count as a lash; a corrected face with no
+  head-majority vertices loses its bounds; `MeshUvLocator` caches the index;
+  `DETAIL_REGION_ROLES` named highlights; "neck or jaw" in the guide.
 
 #### Code Review #1 Revisions
 
-Not run.
+- F1 accepted: `Avatar.setFacePartCorrections` calls the controller's new
+  `restoreHiddenRegions()` first; the refresh re-applies the hiding. Test: a
+  hidden region is found again on rebuild.
+- F2 accepted: the partly-head rule needs a primitive blink moves and none on
+  spring joints. Test: hair bound into Andrew's and Annie's blink and aa never
+  becomes the face (fails without the rule).
+- F3 accepted: such eye layers must lie within the eyelids' region plus a 25%
+  margin. Test: with Annie's eye layers removed, a mouth triangle across both
+  eyes is not taken as an eye (fails without the rule).
+- F4 accepted: islands are found in unindexed primitives (triangles in vertex
+  order), so their regions exist and the hider reports them. Tests: regions in
+  an unindexed face; the controller reports `eye_detail_not_hidden` and still
+  plays. Docs now say lines painted beside lash geometry are not cleaned up.
+- Optional, accepted: the panel shows "Found inside another mesh part" and the
+  guide notes that correcting replaces regions; Diagnostics shows regions with
+  or without bindings ("2 inside shared parts"); the decisions record the
+  tie-break and the eyelid-closure profile; hook order; bounds fall back to
+  every vertex; highlights left out of `DETAIL_REGION_ROLES`; guide wording.
+- Optional, not taken: lid-box outlier rejection and sliding-cover handling
+  (speculative without a model that shows them); the locator cache (created
+  outside hidden windows in practice).
+- Rechecks: vitest `src/lib/avatar src/ui tests/avatar` 3,266 passed, 2
+  skipped; `pnpm -s check`, `web:lint`, `prettier:check` pass; spot re-renders
+  against `b3c94de6` (`eye_confused_swirl`, `heart_eyes`, `blush`, enhanced):
+  0 differing pixels.
+
+#### Code Review #2 Findings
+
+Targeted recheck of tree `9c378c5c`: P2-R1-F1, F2 and F4 resolved; F3 resolved
+for its scenario but:
+
+- P2-R2-F1 (blocking): the eye region came from blink-moved vertices at rest,
+  so on a face whose blink moves only the upper lids it covered the lid skin
+  above the opening; iris and white fell outside it and the highlight became
+  both eyes (reviewer's probe on Annie with the lower half of blink zeroed).
+
+#### Code Review #2 Revisions
+
+- P2-R2-F1 accepted: `measureLidBoxes` (shared by the eye fallback and the
+  painted-lash cleanup) spans each moved vertex open and closed (rest plus its
+  blink delta in anchor space), so the box covers the opening the lid closes
+  over. Test: "finds the eyes when blink moves only the upper lids" (fails
+  without the change: highlight taken as the eyes). `npx vitest run
+  src/lib/avatar` 1,342 passed, 2 skipped; tsc and `pnpm -s web:lint` pass.
+  Targeted recheck: Code Review #3.
+
+#### Code Review #3 Findings
+
+Final targeted recheck of tree `19af0753`: P2-R2-F1 resolved (the reviewer's
+upper-lid probe now finds iris, highlight and white); no regression (Andrew
+without eye bones now also finds the right layers, where the reviewed tree took
+the white as the iris; Included Avatars never reach the changed code). Optional:
+"moved" sums deltas and ignores bind weights; the `measureEyelidBounds`
+docstring.
+
+#### Code Review #3 Revisions
+
+- Docstring updated (coordinator-verified wording fix). Bind weights left as
+  they are: both Included Avatars bind one blink target per mesh, and a heavier
+  closed position only enlarges the region slightly.
+- Review passed. Phase 2 is agent-ready; the owner gate (private renders of
+  the eye-hiding effects) is pending.
 
 ### Phase 3: Avatar settings: wind and materials
 

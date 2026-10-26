@@ -7,6 +7,7 @@ import {
   MAX_ACTIVE_ATTACHMENT_EFFECTS,
 } from "./AvatarAttachmentEffects";
 import { addAvatarIssue, type AvatarIssue } from "../diagnostics/issues";
+import { PrimitiveRegionHider } from "./primitiveRegionHiding";
 import { loadEffectImage } from "./effect-image";
 import {
   applyFlipbookFrameToTexture,
@@ -346,6 +347,8 @@ const EYE_HOVER_AUTO_DISABLED_ROLES: AvatarVFXTargetRole[] = [
   "eyeline",
   "eyelash",
 ];
+/** Hidden roles whose parts can also be regions of a shared primitive. */
+const DETAIL_REGION_ROLES = ["eyeline", "eyelash"] as const;
 const HOVER_BACKDROP_STRIPPED_TEXTURE_PROPS = [
   "alphaMap",
   "normalMap",
@@ -1906,6 +1909,7 @@ export class AvatarVFXController {
   private _listeners = new Set<VFXListener>();
   private _warnings: string[] = [];
   private _issues: AvatarIssue[] = [];
+  private readonly _regionHider = new PrimitiveRegionHider();
   private _snapshot: AvatarVFXSnapshot;
   private _observationSnapshot: AvatarVFXObservationSnapshot;
   private _isDisposed = false;
@@ -2992,6 +2996,7 @@ export class AvatarVFXController {
     if (this._isDisposed) return;
     this._pendingTransformRedraws.clear();
     this.clearAllEffects();
+    this._regionHider.restoreAll();
     this._listeners.clear();
     this._bindings.clear();
     this._applyTokens.clear();
@@ -3826,6 +3831,8 @@ export class AvatarVFXController {
   }
 
   private _rebuildBindings() {
+    // Part regions may change with the rebuild; nothing stays hidden across it.
+    this._regionHider.restoreAll();
     const runtimeResult = buildRuntimePrimitiveBindings(this._avatar);
     this._warnings = [...runtimeResult.warnings];
     this._issues = runtimeResult.warnings.length
@@ -4452,6 +4459,7 @@ export class AvatarVFXController {
     disableTargetRoles: AvatarVFXTargetRole[],
   ): string[] {
     if (disableTargetRoles.length === 0) return [];
+    this._hideDetailRegions(sourceEffectId, disableTargetRoles);
 
     const disabledBindingKeys: string[] = [];
     this._bindings.forEach((binding) => {
@@ -4469,9 +4477,51 @@ export class AvatarVFXController {
     return disabledBindingKeys;
   }
 
+  /**
+   * Draw every hidden eye-detail region again, before the face parts are
+   * measured anew; `refreshFaceParts` then hides what active effects need.
+   */
+  restoreHiddenRegions(): void {
+    this._regionHider.restoreAll();
+  }
+
+  /**
+   * Hide the eye lines and lashes kept inside the face or eye primitives
+   * (part `regions`), which hiding whole primitives cannot reach.
+   */
+  private _hideDetailRegions(
+    sourceEffectId: string,
+    roles: readonly AvatarVFXTargetRole[],
+  ): void {
+    const map = this._avatar.facePartMap;
+    if (!map) return;
+    for (const role of DETAIL_REGION_ROLES) {
+      if (!roles.includes(role)) continue;
+      for (const region of map.parts[role].regions ?? []) {
+        const binding = this._bindings.get(region.bindingKey);
+        if (!binding) continue;
+        const hidden = this._regionHider.hide(
+          sourceEffectId,
+          binding.object.geometry,
+          region.triangles,
+        );
+        if (!hidden) {
+          this._pushWarning(
+            {
+              code: "eye_detail_not_hidden",
+              params: { effectId: sourceEffectId, part: role },
+            },
+            `Could not hide the ${AVATAR_FACE_PART_LABELS[role]} inside ${region.bindingKey}: the primitive is not indexed.`,
+          );
+        }
+      }
+    }
+  }
+
   private _releaseAutoDisabledBindings(
     activeEffect: ActiveBindingEffect,
   ): void {
+    this._regionHider.release(activeEffect.appliedEffectId);
     const disabledBindingKeys = activeEffect.disabledBindingKeys;
     disabledBindingKeys.forEach((bindingKey) => {
       const binding = this._bindings.get(bindingKey);

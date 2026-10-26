@@ -18,6 +18,8 @@ export type AvatarDiagnosticsFacePart = {
   role: AvatarFacePartRole;
   source: AvatarFacePartSource;
   bindingCount: number;
+  /** Mesh parts that hold this part as a region (lashes in the face mesh). */
+  regionCount: number;
   confidence: number;
 };
 
@@ -83,6 +85,7 @@ function collectFace(avatar: Avatar): AvatarLiveDiagnostics["face"] {
           role: part.role,
           source: part.source,
           bindingCount: part.bindings.length,
+          regionCount: part.regions?.length ?? 0,
           confidence: part.confidence,
         }))
       : [],

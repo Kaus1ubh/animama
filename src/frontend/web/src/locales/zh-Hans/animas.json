@@ -103,6 +103,7 @@
       "meshParts": "网格部件",
       "part": "部位",
       "ready": "就绪",
+      "sharedRegions_other": "共享部件内 {{count}} 处",
       "sources": {
         "corrected": "你的修正",
         "missing": "未找到",
@@ -156,6 +157,7 @@
       "effect_target_unresolved": "{{effect}} 在此虚拟形象上找不到适合的部件。",
       "effect_unknown": "有一个特效在此安装中不可用。",
       "effect_wrong_kind": "{{effect}} 无法以这种方式显示。",
+      "eye_detail_not_hidden": "{{effect}} 会播放，但无法隐藏共享网格部件中的{{part}}。",
       "face_parts_correction_digest_unknown": "此文件的摘要未知，因此忽略了已保存的面部部位修正。",
       "face_parts_correction_invalid": "无法读取已保存的面部部位修正，已忽略。",
       "face_parts_correction_other_file": "已保存的面部部位修正是为其他文件制作的，已忽略。",

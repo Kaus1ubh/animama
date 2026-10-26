@@ -42,9 +42,23 @@ const live: AvatarLiveDiagnostics = {
         role: "face_skin",
         source: "signals",
         bindingCount: 1,
+        regionCount: 0,
         confidence: 0.9,
       },
-      { role: "eyeline", source: "missing", bindingCount: 0, confidence: 0 },
+      {
+        role: "eyeline",
+        source: "missing",
+        bindingCount: 0,
+        regionCount: 0,
+        confidence: 0,
+      },
+      {
+        role: "eyelash",
+        source: "signals",
+        bindingCount: 0,
+        regionCount: 2,
+        confidence: 0.5,
+      },
     ],
     landmarks: "ready",
     textureAnchors: "ready",
@@ -157,6 +171,7 @@ describe("AvatarDiagnosticsDialog", () => {
     expect(dialog()?.textContent).toContain("Face skin");
     expect(dialog()?.textContent).toContain("Model data");
     expect(dialog()?.textContent).toContain("Not found");
+    expect(dialog()?.textContent).toContain("2 inside shared parts");
 
     click("Expressions");
     expect(dialog()?.textContent).toContain("relaxed (ARKit)");

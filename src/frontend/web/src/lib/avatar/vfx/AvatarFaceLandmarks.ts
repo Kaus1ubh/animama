@@ -10,7 +10,10 @@ import type {
   AvatarFaceLandmarkVector,
   AvatarFaceTextureRect,
 } from "./landmark-types";
-import { resolveAvatarFacePartEntries } from "./faceParts";
+import {
+  createFaceVertexFilter,
+  resolveAvatarFacePartEntries,
+} from "./faceParts";
 import {
   collectPrimitiveData,
   readVertexPosition,
@@ -314,11 +317,16 @@ export class AvatarFaceLandmarks {
       return;
     }
 
-    const faceBounds = computePrimitiveBoundsInAnchorSpace({
-      avatar: this._avatar,
-      binding: faceBinding,
-      anchorObject,
-    });
+    // Bounds span every face skin primitive, from its head-weighted vertices.
+    const faceBounds = parts.faces.reduce<THREE.Box3 | null>((union, face) => {
+      const bounds = computePrimitiveBoundsInAnchorSpace({
+        avatar: this._avatar,
+        binding: face,
+        anchorObject,
+      });
+      if (!bounds) return union;
+      return union ? union.union(bounds) : bounds;
+    }, null);
     if (!faceBounds) {
       this._warn(
         {
@@ -1061,6 +1069,11 @@ function computeTextureRect(
   return { x: minU, y: minV, width: maxU - minU, height: maxV - minV };
 }
 
+/**
+ * A primitive's bounds in anchor space. A face primitive that also holds the
+ * neck or body counts only its head-weighted vertices
+ * (`createFaceVertexFilter`).
+ */
 function computePrimitiveBoundsInAnchorSpace(args: {
   avatar: Avatar;
   binding: RuntimePrimitiveBindingEntry;
@@ -1068,5 +1081,16 @@ function computePrimitiveBoundsInAnchorSpace(args: {
 }): THREE.Box3 | null {
   const primitiveData = collectPrimitiveData(args);
   if (!primitiveData) return null;
-  return createBoxFromPoints(primitiveData.orderedPoints);
+  const keep = args.avatar.vrm
+    ? createFaceVertexFilter(args.avatar.vrm, args.binding.object)
+    : null;
+  if (!keep) return createBoxFromPoints(primitiveData.orderedPoints);
+  const points = primitiveData.uniqueVertexIndices
+    .filter(keep)
+    .map((vertex) => primitiveData.pointsByIndex.get(vertex))
+    .filter((point): point is THREE.Vector3 => point !== undefined);
+  // A corrected face with no head-weighted vertices still has bounds.
+  return createBoxFromPoints(
+    points.length > 0 ? points : primitiveData.orderedPoints,
+  );
 }

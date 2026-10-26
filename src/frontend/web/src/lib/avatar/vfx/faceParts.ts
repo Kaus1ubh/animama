@@ -15,7 +15,11 @@ import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import type { Avatar } from "../Avatar";
 import { addAvatarIssue, type AvatarIssue } from "../diagnostics/issues";
 import { buildRuntimePrimitiveBindings } from "../vrmEditorInspection";
-import { readVertexPosition } from "./avatarPrimitiveUtils";
+import {
+  readVertexPosition,
+  resolvePrimitiveVertexRange,
+  UnionFind,
+} from "./avatarPrimitiveUtils";
 import type { RuntimePrimitiveBindingEntry } from "./avatarPrimitiveUtils";
 import {
   matchAvatarTargetRole,
@@ -66,10 +70,23 @@ export type AvatarFacePartSource =
   | "names"
   | "missing";
 
+/**
+ * Triangles of one primitive that hold a part drawn inside another part's
+ * primitive (lash strands in the face mesh, say), as triangle numbers in that
+ * primitive's index buffer. Runtime only: corrections and packages name whole
+ * primitives.
+ */
+export type AvatarFacePartRegion = {
+  bindingKey: string;
+  triangles: readonly number[];
+};
+
 export type AvatarFacePart = {
   role: AvatarFacePartRole;
   /** glTF `node:mesh:primitive` keys, as `buildRuntimePrimitiveBindings` emits. */
   bindings: string[];
+  /** Eye lines and lashes inside the face or eye primitives; see the type. */
+  regions?: AvatarFacePartRegion[];
   source: AvatarFacePartSource;
   /** 0 (missing) to 1 (corrected); signals report how clearly they separated. */
   confidence: number;
@@ -131,6 +148,8 @@ const EYE_DETAIL_MAX_AREA_RATIO = 0.25;
 const EYE_WINDOW_HALF_WIDTH = 3;
 const EYE_WINDOW_HALF_HEIGHT = 2.5;
 const MOVED_EPSILON = 1e-4;
+/** How far past the eyelids an eye layer found without eye bones may reach. */
+const EYE_REGION_MARGIN = 0.25;
 
 const LOOK_AT_EXPRESSIONS = ["lookLeft", "lookRight", "lookUp", "lookDown"];
 const HAIR_NAME_PATTERN = /hair|bang|fringe/i;
@@ -151,6 +170,9 @@ type Geometry2D = {
   area: number;
   /** Area of triangles whose centroid lies inside the eye window. */
   eyeWindowArea: number;
+  /** Both, with each triangle scaled by its corners' mean vertex weight. */
+  weightedArea: number;
+  weightedEyeWindowArea: number;
   /** Mean vertex coordinate along the face's front axis. */
   front: number;
   center: THREE.Vector3;
@@ -168,6 +190,8 @@ type Context = {
   frontSign: 1 | -1;
   diagnostics: string[];
   issues: AvatarIssue[];
+  /** Vertex positions in anchor space, per mesh, read once. */
+  points: Map<THREE.Mesh, THREE.Vector3[]>;
 };
 
 /** Record a finding as dev-panel text and as a stable code. */
@@ -200,6 +224,7 @@ export function detectAvatarFaceParts(
     frontSign: vrm.meta?.metaVersion === "0" ? -1 : 1,
     diagnostics: [],
     issues: [],
+    points: new Map(),
   };
 
   const signals = detectFromSignals(context);
@@ -208,7 +233,11 @@ export function detectAvatarFaceParts(
   const parts = {} as Record<AvatarFacePartRole, AvatarFacePart>;
   for (const role of AVATAR_FACE_PART_ROLES) {
     const fromSignals = signals.parts[role];
-    if (fromSignals && fromSignals.bindings.length > 0) {
+    if (
+      fromSignals &&
+      (fromSignals.bindings.length > 0 ||
+        (fromSignals.regions?.length ?? 0) > 0)
+    ) {
       parts[role] = { role, source: "signals", ...fromSignals };
       continue;
     }
@@ -322,7 +351,10 @@ export function findMissingFacePart(
 
 /** The live entries landmarks, anchors and hover clearance read. */
 export type AvatarFacePartEntries = {
+  /** The first face skin entry. */
   face: RuntimePrimitiveBindingEntry | null;
+  /** Every face skin entry (a correction can list several). */
+  faces: RuntimePrimitiveBindingEntry[];
   leftEyes: RuntimePrimitiveBindingEntry[];
   rightEyes: RuntimePrimitiveBindingEntry[];
   hair: RuntimePrimitiveBindingEntry[];
@@ -341,8 +373,10 @@ export function resolveAvatarFacePartEntries(
 ): AvatarFacePartEntries {
   const map = avatar.facePartMap;
   if (map) {
+    const faces = selectFacePartEntries(map, ["face_skin"], entries);
     return {
-      face: selectFacePartEntries(map, ["face_skin"], entries)[0] ?? null,
+      face: faces[0] ?? null,
+      faces,
       leftEyes: selectFacePartEntries(map, ["eye_left"], entries),
       rightEyes: selectFacePartEntries(map, ["eye_right"], entries),
       hair: selectFacePartEntries(map, ["hair"], entries),
@@ -350,8 +384,10 @@ export function resolveAvatarFacePartEntries(
   }
   const source = { sourceKey: avatar.sourceKey, sourceUrl: avatar.sourceUrl };
   const irises = resolveEyeIrisTargetBindings({ ...source, entries });
+  const face = resolveFaceTargetBinding({ ...source, entries });
   return {
-    face: resolveFaceTargetBinding({ ...source, entries }),
+    face,
+    faces: face ? [face] : [],
     leftEyes: irises,
     rightEyes: irises,
     hair: avatar.sourceGltf
@@ -360,10 +396,111 @@ export function resolveAvatarFacePartEntries(
   };
 }
 
+/**
+ * For a face primitive that also holds neck or body vertices (under 90% of its
+ * skin weight on the head), a test keeping its head-weighted vertices, so face
+ * bounds come from the face. Null for a head-skinned primitive, whose bounds
+ * use every vertex.
+ */
+export function createFaceVertexFilter(
+  vrm: VRM,
+  mesh: THREE.Mesh,
+): ((vertex: number) => boolean) | null {
+  const classify = createBoneClassifier(vrm);
+  if (measureSkinShares(mesh, classify).head >= HEAD_SKINNED_MIN_SHARE) {
+    return null;
+  }
+  const head = measureVertexClassShares(mesh, classify, "head");
+  return (vertex) => (head[vertex] ?? 0) >= MAJORITY_SHARE;
+}
+
+/** Whether eye lines or lashes were found as geometry (primitives or regions). */
+export function hasEyeDetailGeometry(map: AvatarFacePartMap): boolean {
+  return (["eyeline", "eyelash"] as const).some(
+    (role) =>
+      map.parts[role].bindings.length > 0 ||
+      (map.parts[role].regions?.length ?? 0) > 0,
+  );
+}
+
+/**
+ * Each eyelid on a face primitive: the bounds, in `anchor` space, of the
+ * vertices blink moves, open and closed, split by the head's left-right axis.
+ * A face whose lashes are painted into its texture draws them there.
+ */
+export function measureEyelidBounds(
+  vrm: VRM,
+  mesh: THREE.Mesh,
+  anchor: THREE.Object3D,
+): { left: THREE.Box3 | null; right: THREE.Box3 | null } {
+  const lids = measureLidBoxes(
+    {
+      anchor,
+      points: new Map(),
+      frontSign: vrm.meta?.metaVersion === "0" ? -1 : 1,
+    },
+    mesh,
+    collectMorphBinds(vrm, "blink"),
+  );
+  return {
+    left: lids.left.isEmpty() ? null : lids.left,
+    right: lids.right.isEmpty() ? null : lids.right,
+  };
+}
+
+/**
+ * Each side's eyelid box on a face primitive: the vertices blink moves, open
+ * and closed, so the box spans the opening a lid closes over even when only
+ * the upper lid moves. Sides follow the head's left-right axis.
+ */
+function measureLidBoxes(
+  context: Pick<Context, "anchor" | "points" | "frontSign">,
+  mesh: THREE.Mesh,
+  blink: Map<THREE.Object3D, number[]>,
+): { left: THREE.Box3; right: THREE.Box3 } {
+  const lids = { left: new THREE.Box3(), right: new THREE.Box3() };
+  const targets = mesh.geometry.morphAttributes.position ?? [];
+  const indices = blink.get(mesh) ?? [];
+  if (indices.length === 0) return lids;
+  const points = anchorSpacePoints(context, mesh);
+  // Morph deltas are mesh-local directions; turn them into anchor space.
+  context.anchor.updateWorldMatrix(true, false);
+  const toAnchor = new THREE.Matrix3().setFromMatrix4(
+    context.anchor.matrixWorld
+      .clone()
+      .invert()
+      .multiply(composeWorldMatrix(mesh)),
+  );
+  const delta = new THREE.Vector3();
+  const step = new THREE.Vector3();
+  points.forEach((point, vertex) => {
+    delta.set(0, 0, 0);
+    for (const index of indices) {
+      const target = targets[index];
+      if (!target || vertex >= target.count) continue;
+      delta.add(
+        step.set(target.getX(vertex), target.getY(vertex), target.getZ(vertex)),
+      );
+    }
+    if (delta.length() <= MOVED_EPSILON) return;
+    const lid = lids[point.x * context.frontSign >= 0 ? "left" : "right"];
+    lid.expandByPoint(point);
+    lid.expandByPoint(delta.applyMatrix3(toAnchor).add(point));
+  });
+  return lids;
+}
+
 // ─── Signals ────────────────────────────────────────────────────────────────
 
 type SignalParts = Partial<
-  Record<AvatarFacePartRole, { bindings: string[]; confidence: number }>
+  Record<
+    AvatarFacePartRole,
+    {
+      bindings: string[];
+      confidence: number;
+      regions?: AvatarFacePartRegion[];
+    }
+  >
 >;
 
 function detectFromSignals(context: Context): {
@@ -430,30 +567,33 @@ function detectFromSignals(context: Context): {
         measure,
       ),
     );
-  const eyeParts = {
-    iris: classified.flatMap((group) => group.iris),
-    white: classified.flatMap((group) => group.white),
-    highlight: classified.flatMap((group) => group.highlight),
-    confidence: Math.min(1, ...classified.map((group) => group.confidence)),
+  let eyeParts = mergeEyeGroups(classified);
+  const assignEyes = (
+    found: EyeParts,
+    sideOfIris: (entry: RuntimePrimitiveBindingEntry) => EyeSide,
+    confidence: number,
+  ) => {
+    const left: string[] = [];
+    const right: string[] = [];
+    for (const iris of found.iris) {
+      const side = sideOfIris(iris);
+      if (side !== "right") left.push(iris.bindingKey);
+      if (side !== "left") right.push(iris.bindingKey);
+    }
+    if (left.length) parts.eye_left = { bindings: unique(left), confidence };
+    if (right.length) parts.eye_right = { bindings: unique(right), confidence };
+    if (found.highlight.length) {
+      parts.eye_highlight = {
+        bindings: found.highlight.map((entry) => entry.bindingKey),
+        confidence: 0.8,
+      };
+    }
   };
-  const left: string[] = [];
-  const right: string[] = [];
-  for (const iris of eyeParts.iris) {
-    const side = sideOf(iris);
-    if (side !== "right") left.push(iris.bindingKey);
-    if (side !== "left") right.push(iris.bindingKey);
-  }
-  const eyeConfidence = lookAtIrises.length > 0 ? 0.95 : eyeParts.confidence;
-  if (left.length)
-    parts.eye_left = { bindings: unique(left), confidence: eyeConfidence };
-  if (right.length)
-    parts.eye_right = { bindings: unique(right), confidence: eyeConfidence };
-  if (eyeParts.highlight.length) {
-    parts.eye_highlight = {
-      bindings: eyeParts.highlight.map((entry) => entry.bindingKey),
-      confidence: 0.8,
-    };
-  }
+  assignEyes(
+    eyeParts,
+    sideOf,
+    lookAtIrises.length > 0 ? 0.95 : eyeParts.confidence,
+  );
   const eyeKeys = new Set(
     [...eyeBone.map((candidate) => candidate.entry), ...lookAtIrises].map(
       (entry) => entry.bindingKey,
@@ -477,7 +617,7 @@ function detectFromSignals(context: Context): {
       !eyeKeys.has(candidate.entry.bindingKey),
   );
   const window = resolveEyeWindow(context, eyeParts.iris, measure);
-  const faceCandidates = faceMeshCandidates
+  const headSkinned = faceMeshCandidates
     .filter((candidate) => candidate.shares.head >= HEAD_SKINNED_MIN_SHARE)
     .map((candidate) => {
       const metrics = measure(candidate.entry, window ?? undefined);
@@ -488,6 +628,38 @@ function detectFromSignals(context: Context): {
     })
     .filter((candidate) => candidate.score > 0)
     .sort((a, b) => b.score - a.score);
+  // A face skinned partly to the neck or jaw falls below the head-skinned
+  // share. Ranked by the area its head-weighted vertices cover, it wins over
+  // the head-skinned pick when it covers more, so a mouth or eye primitive
+  // left head-skinned cannot take its place.
+  // Only a primitive blink actually moves (its lids) qualifies, and none on
+  // spring joints, so hair merged into the face mesh cannot.
+  const partlyHead = faceMeshCandidates
+    .filter(
+      (candidate) =>
+        candidate.shares.head >= MAJORITY_SHARE &&
+        candidate.shares.head < HEAD_SKINNED_MIN_SHARE &&
+        candidate.shares.spring_head < HAIR_MIN_SPRING_SHARE &&
+        measureMorphDisplacement(candidate.entry.object, blink).max > 0,
+    )
+    .map((candidate) => {
+      const metrics = measurePrimitive(
+        context,
+        candidate.entry.object,
+        window,
+        measureVertexClassShares(candidate.entry.object, classify, "head"),
+      );
+      return {
+        entry: candidate.entry,
+        score: window ? metrics.weightedEyeWindowArea : metrics.weightedArea,
+      };
+    })
+    .filter((candidate) => candidate.score > 0)
+    .sort((a, b) => b.score - a.score);
+  const faceCandidates =
+    partlyHead[0] && partlyHead[0].score > (headSkinned[0]?.score ?? 0)
+      ? [...partlyHead, ...headSkinned].sort((a, b) => b.score - a.score)
+      : headSkinned;
   const faceSkin = faceCandidates[0]?.entry ?? null;
   if (faceSkin) {
     const runnerUp = faceCandidates[1]?.score ?? 0;
@@ -496,6 +668,30 @@ function detectFromSignals(context: Context): {
       bindings: [faceSkin.bindingKey],
       confidence: (window ? 0.9 : 0.7) * (clear ? 1 : 0.7),
     };
+  }
+
+  // No eye bones or look-at textures: find the eyes where blink moves the
+  // face, then their layers among the primitives over each one.
+  let detailWindow = window;
+  if (eyeEntries.length === 0 && faceSkin) {
+    const found = detectEyesFromBlink(context, {
+      faceSkin,
+      candidates,
+      blink,
+      measure,
+    });
+    if (found) {
+      eyeParts = found.eyeParts;
+      assignEyes(found.eyeParts, found.sideOf, 0.6);
+      for (const entry of [
+        ...found.eyeParts.iris,
+        ...found.eyeParts.white,
+        ...found.eyeParts.highlight,
+      ]) {
+        eyeKeys.add(entry.bindingKey);
+      }
+      detailWindow = resolveEyeWindow(context, found.eyeParts.iris, measure);
+    }
   }
 
   // Eye lines and lashes: small face-mesh primitives the blink moves strongly.
@@ -515,7 +711,7 @@ function detectFromSignals(context: Context): {
           displacement.movedShare >= BLINK_MOVED_MIN_SHARE &&
           displacement.max >= reference.max * BLINK_DISPLACEMENT_MIN_RATIO &&
           metrics.area <= faceArea * EYE_DETAIL_MAX_AREA_RATIO &&
-          (!window || isInsideWindow(metrics.center, window))
+          (!detailWindow || isInsideWindow(metrics.center, detailWindow))
         );
       })
       .map((candidate) => ({
@@ -535,6 +731,42 @@ function detectFromSignals(context: Context): {
         bindings: details.slice(1).map((detail) => detail.entry.bindingKey),
         confidence: 0.6,
       };
+    }
+
+    // Lines and lashes kept inside the face or eye primitives as their own
+    // islands. An eye line found as a primitive leaves every region a lash;
+    // otherwise each eye's largest region is its line.
+    const regions = findEyeDetailRegions(context, {
+      entries: unique([faceSkin, ...eyeParts.iris, ...eyeParts.white]),
+      blink,
+      referenceMax: reference.max,
+      faceArea,
+      window: detailWindow,
+    });
+    if (regions.length > 0) {
+      const lines = parts.eyeline
+        ? []
+        : (["left", "right"] as const).flatMap((side) => {
+            const largest = regions
+              .filter((region) => region.side === side)
+              .sort((a, b) => b.area - a.area)[0];
+            return largest ? [largest] : [];
+          });
+      const lashes = regions.filter((region) => !lines.includes(region));
+      if (lines.length > 0) {
+        parts.eyeline = {
+          bindings: [],
+          regions: groupRegionsByBinding(lines),
+          confidence: 0.5,
+        };
+      }
+      if (lashes.length > 0) {
+        parts.eyelash = {
+          bindings: parts.eyelash?.bindings ?? [],
+          regions: groupRegionsByBinding(lashes),
+          confidence: parts.eyelash?.confidence ?? 0.5,
+        };
+      }
     }
   }
 
@@ -561,6 +793,273 @@ function detectFromSignals(context: Context): {
     parts,
     eyeWhite: eyeParts.white.map((entry) => entry.bindingKey),
   };
+}
+
+type EyeParts = {
+  iris: RuntimePrimitiveBindingEntry[];
+  white: RuntimePrimitiveBindingEntry[];
+  highlight: RuntimePrimitiveBindingEntry[];
+  confidence: number;
+};
+
+function mergeEyeGroups(groups: readonly EyeParts[]): EyeParts {
+  return {
+    iris: groups.flatMap((group) => group.iris),
+    white: groups.flatMap((group) => group.white),
+    highlight: groups.flatMap((group) => group.highlight),
+    confidence: Math.min(1, ...groups.map((group) => group.confidence)),
+  };
+}
+
+/**
+ * Eyes on a model without eye bones or look-at textures: blink moves each
+ * eyelid on the face skin, which marks each eye's region (sides by the head's
+ * left-right axis). Head-skinned primitives over one region hold that eye,
+ * over both hold both; lines and lashes (which blink moves) and spring hair
+ * are left out. Their iris, white and highlight follow the eye-bone rules.
+ */
+function detectEyesFromBlink(
+  context: Context,
+  args: {
+    faceSkin: RuntimePrimitiveBindingEntry;
+    candidates: readonly Candidate[];
+    blink: Map<THREE.Object3D, number[]>;
+    measure: (entry: RuntimePrimitiveBindingEntry) => Geometry2D;
+  },
+): {
+  eyeParts: EyeParts;
+  sideOf: (entry: RuntimePrimitiveBindingEntry) => EyeSide;
+} | null {
+  const lids = measureLidBoxes(context, args.faceSkin.object, args.blink);
+  if (lids.left.isEmpty() || lids.right.isEmpty()) return null;
+
+  const overlaps = (box: THREE.Box3, lid: THREE.Box3) =>
+    box.min.x <= lid.max.x &&
+    box.max.x >= lid.min.x &&
+    box.min.y <= lid.max.y &&
+    box.max.y >= lid.min.y;
+  // An eye layer lies within the eyes' region; glasses, a fringe or a mouth
+  // primitive reaching over an eye extend well past it.
+  const region = lids.left.clone().union(lids.right);
+  const margin = region
+    .getSize(new THREE.Vector3())
+    .multiplyScalar(EYE_REGION_MARGIN);
+  region.expandByVector(margin);
+  const within = (box: THREE.Box3) =>
+    box.min.x >= region.min.x &&
+    box.max.x <= region.max.x &&
+    box.min.y >= region.min.y &&
+    box.max.y <= region.max.y;
+  const sides = new Map<RuntimePrimitiveBindingEntry, EyeSide>();
+  for (const { entry, shares } of args.candidates) {
+    if (entry === args.faceSkin) continue;
+    if (shares.head < HEAD_SKINNED_MIN_SHARE) continue;
+    if (shares.spring_head >= HAIR_MIN_SPRING_SHARE) continue;
+    if (
+      measureMorphDisplacement(entry.object, args.blink).movedShare >=
+      BLINK_MOVED_MIN_SHARE
+    ) {
+      continue;
+    }
+    const box = new THREE.Box3().setFromPoints(
+      anchorSpacePoints(context, entry.object),
+    );
+    if (box.isEmpty() || !within(box)) continue;
+    const left = overlaps(box, lids.left);
+    const right = overlaps(box, lids.right);
+    if (left || right) {
+      sides.set(entry, left && right ? "both" : left ? "left" : "right");
+    }
+  }
+  if (sides.size === 0) return null;
+  const groups = (["left", "right", "both"] as const)
+    .map((side) => [...sides].filter(([, of]) => of === side).map(([e]) => e))
+    .filter((group) => group.length > 0)
+    .map((group) => classifyEyePrimitives(group, [], args.measure));
+  const eyeParts = mergeEyeGroups(groups);
+  if (eyeParts.iris.length === 0) return null;
+  return { eyeParts, sideOf: (entry) => sides.get(entry) ?? "both" };
+}
+
+type DetailRegion = {
+  entry: RuntimePrimitiveBindingEntry;
+  triangles: number[];
+  area: number;
+  side: "left" | "right";
+};
+
+/**
+ * Islands of the given primitives that blink moves almost entirely and about
+ * as far as the eyelid, small next to the face and inside the eye window: eye
+ * lines and lashes modelled inside the face or eye mesh. The primitive's own
+ * main island never qualifies, because blink moves only its lids.
+ */
+function findEyeDetailRegions(
+  context: Context,
+  args: {
+    entries: readonly RuntimePrimitiveBindingEntry[];
+    blink: Map<THREE.Object3D, number[]>;
+    referenceMax: number;
+    faceArea: number;
+    window: EyeWindow | null;
+  },
+): DetailRegion[] {
+  if (args.referenceMax <= 0) return [];
+  const regions: DetailRegion[] = [];
+  for (const entry of args.entries) {
+    const mesh = entry.object;
+    if (!args.blink.has(mesh)) continue;
+    const displacement = morphDisplacements(mesh, args.blink);
+    // Nothing here moves as far as a lid: no island can qualify.
+    const threshold = args.referenceMax * BLINK_DISPLACEMENT_MIN_RATIO;
+    if (!displacement.some((value) => value >= threshold)) continue;
+    const points = anchorSpacePoints(context, mesh);
+    const islands = splitTriangleIslands(context, entry);
+    for (const island of islands) {
+      let moved = 0;
+      let max = 0;
+      for (const vertex of island.vertices) {
+        const value = displacement[vertex] ?? 0;
+        if (value > MOVED_EPSILON) moved += 1;
+        max = Math.max(max, value);
+      }
+      const shape = measureTriangles(points, island.corners);
+      if (
+        moved / island.vertices.length >= BLINK_MOVED_MIN_SHARE &&
+        max >= args.referenceMax * BLINK_DISPLACEMENT_MIN_RATIO &&
+        shape.area > 0 &&
+        shape.area <= args.faceArea * EYE_DETAIL_MAX_AREA_RATIO &&
+        (!args.window || isInsideWindow(shape.center, args.window))
+      ) {
+        regions.push({
+          entry,
+          triangles: island.triangles,
+          area: shape.area,
+          // The avatar's left is +x in VRM 1 head space and -x in VRM 0's.
+          side: shape.center.x * context.frontSign >= 0 ? "left" : "right",
+        });
+      }
+    }
+  }
+  return regions;
+}
+
+/** Regions per primitive, triangles in index order. */
+function groupRegionsByBinding(
+  regions: readonly DetailRegion[],
+): AvatarFacePartRegion[] {
+  const byKey = new Map<string, number[]>();
+  for (const region of regions) {
+    const triangles = byKey.get(region.entry.bindingKey) ?? [];
+    triangles.push(...region.triangles);
+    byKey.set(region.entry.bindingKey, triangles);
+  }
+  return Array.from(byKey, ([bindingKey, triangles]) => ({
+    bindingKey,
+    triangles: triangles.sort((a, b) => a - b),
+  }));
+}
+
+type TriangleIsland = {
+  /** Triangle numbers in the geometry's index buffer. */
+  triangles: number[];
+  vertices: number[];
+  /** Three vertex indices per triangle, for measuring. */
+  corners: number[];
+};
+
+/**
+ * A primitive's triangles grouped into islands that share a vertex position,
+ * so UV and normal seams do not split one piece of geometry. An unindexed
+ * primitive numbers its triangles in vertex order (its regions are found but
+ * cannot be hidden, which effects report).
+ */
+function splitTriangleIslands(
+  context: Context,
+  entry: RuntimePrimitiveBindingEntry,
+): TriangleIsland[] {
+  const geometry = entry.object.geometry;
+  const index = geometry.getIndex();
+  const position = geometry.getAttribute("position");
+  if (!position) return [];
+  const corner = (at: number) => (index ? index.getX(at) : at);
+  const count = index ? index.count : position.count;
+  const range = resolvePrimitiveVertexRange(
+    { sourceGltf: context.gltf },
+    entry,
+  );
+  const start = Math.max(0, range?.start ?? 0);
+  const end = Math.min(
+    count,
+    range?.count === null || range?.count === undefined
+      ? count
+      : start + range.count,
+  );
+  // One weld id per vertex: the first vertex at each position.
+  const welded = new Map<string, number>();
+  const weldIds = new Int32Array(position.count).fill(-1);
+  const weld = (vertex: number) => {
+    let id = weldIds[vertex];
+    if (id < 0) {
+      const key = `${position.getX(vertex).toFixed(5)},${position
+        .getY(vertex)
+        .toFixed(5)},${position.getZ(vertex).toFixed(5)}`;
+      id = welded.get(key) ?? vertex;
+      welded.set(key, id);
+      weldIds[vertex] = id;
+    }
+    return id;
+  };
+  const sets = new UnionFind();
+  for (let at = start; at + 2 < end; at += 3) {
+    const a = weld(corner(at));
+    sets.union(a, weld(corner(at + 1)));
+    sets.union(a, weld(corner(at + 2)));
+  }
+  const islands = new Map<number, TriangleIsland & { seen: Set<number> }>();
+  for (let at = start; at + 2 < end; at += 3) {
+    const root = sets.find(weld(corner(at)));
+    let island = islands.get(root);
+    if (!island) {
+      island = { triangles: [], vertices: [], corners: [], seen: new Set() };
+      islands.set(root, island);
+    }
+    island.triangles.push(at / 3);
+    for (let offset = 0; offset < 3; offset += 1) {
+      const vertex = corner(at + offset);
+      island.corners.push(vertex);
+      if (!island.seen.has(vertex)) {
+        island.seen.add(vertex);
+        island.vertices.push(vertex);
+      }
+    }
+  }
+  return Array.from(islands.values(), ({ triangles, vertices, corners }) => ({
+    triangles,
+    vertices,
+    corners,
+  }));
+}
+
+/** Projected area and centroid of triangles given as vertex triples. */
+function measureTriangles(
+  points: readonly THREE.Vector3[],
+  corners: readonly number[],
+): { area: number; center: THREE.Vector3 } {
+  let area = 0;
+  const center = new THREE.Vector3();
+  let counted = 0;
+  for (let at = 0; at + 2 < corners.length; at += 3) {
+    const a = points[corners[at]];
+    const b = points[corners[at + 1]];
+    const c = points[corners[at + 2]];
+    if (!a || !b || !c) continue;
+    area += Math.abs((b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y)) / 2;
+    center.add(a).add(b).add(c);
+    counted += 3;
+  }
+  if (counted > 0) center.multiplyScalar(1 / counted);
+  return { area, center };
 }
 
 /**
@@ -605,17 +1104,27 @@ function classifyEyePrimitives(
     irisEntries = lookAtIrises;
     confidence = 0.95;
   } else {
+    // Ties go to the middle layer (a highlight in front and a white behind),
+    // then to the larger primitive.
     const scored = all
       .map((entry) => {
         const iris = measure(entry);
-        const consistent = all.filter(
-          (other) =>
-            other !== entry &&
-            (isHighlightOf(other, iris) || isWhiteOf(other, iris)),
-        ).length;
-        return { entry, consistent, area: iris.area };
+        const others = all.filter((other) => other !== entry);
+        const highlights = others.filter((other) => isHighlightOf(other, iris));
+        const whites = others.filter((other) => isWhiteOf(other, iris));
+        return {
+          entry,
+          consistent: highlights.length + whites.length,
+          middle: highlights.length > 0 && whites.length > 0,
+          area: iris.area,
+        };
       })
-      .sort((a, b) => b.consistent - a.consistent || b.area - a.area);
+      .sort(
+        (a, b) =>
+          b.consistent - a.consistent ||
+          Number(b.middle) - Number(a.middle) ||
+          b.area - a.area,
+      );
     irisEntries = [scored[0].entry];
     const unexplained = all.length - 1 - scored[0].consistent;
     confidence = unexplained === 0 ? 0.9 : 0.6;
@@ -693,16 +1202,15 @@ function collectMorphBinds(
   return result;
 }
 
-/** The share of vertices a morph moves and its largest displacement (m). */
-function measureMorphDisplacement(
+/** How far an expression's morph targets move each vertex (m). */
+function morphDisplacements(
   mesh: THREE.Mesh,
   binds: Map<THREE.Object3D, number[]>,
-): { movedShare: number; max: number } {
+): Float32Array {
   const geometry = mesh.geometry;
   const targets = geometry.morphAttributes.position ?? [];
   const position = geometry.getAttribute("position");
-  if (!position || position.count === 0) return { movedShare: 0, max: 0 };
-  const displacement = new Float32Array(position.count);
+  const displacement = new Float32Array(position?.count ?? 0);
   for (const index of binds.get(mesh) ?? []) {
     const target = targets[index];
     if (!target) continue;
@@ -715,13 +1223,23 @@ function measureMorphDisplacement(
       displacement[vertex] = Math.max(displacement[vertex], length);
     }
   }
+  return displacement;
+}
+
+/** The share of vertices a morph moves and its largest displacement (m). */
+function measureMorphDisplacement(
+  mesh: THREE.Mesh,
+  binds: Map<THREE.Object3D, number[]>,
+): { movedShare: number; max: number } {
+  const displacement = morphDisplacements(mesh, binds);
+  if (displacement.length === 0) return { movedShare: 0, max: 0 };
   let moved = 0;
   let max = 0;
   for (const value of displacement) {
     if (value > MOVED_EPSILON) moved += 1;
     max = Math.max(max, value);
   }
-  return { movedShare: moved / position.count, max };
+  return { movedShare: moved / displacement.length, max };
 }
 
 function createBoneClassifier(
@@ -792,11 +1310,46 @@ function measureSkinShares(
   return shares;
 }
 
+/**
+ * Each vertex's skin weight on bones of one class (1 or 0 for an unskinned
+ * mesh, from its parent's class).
+ */
+function measureVertexClassShares(
+  mesh: THREE.Mesh,
+  classify: (bone: THREE.Object3D | null) => BoneClass,
+  boneClass: BoneClass,
+): Float32Array {
+  const geometry = mesh.geometry;
+  const count = geometry.getAttribute("position")?.count ?? 0;
+  const shares = new Float32Array(count);
+  const skinIndex = geometry.getAttribute("skinIndex");
+  const skinWeight = geometry.getAttribute("skinWeight");
+  if (!(mesh instanceof THREE.SkinnedMesh) || !skinIndex || !skinWeight) {
+    shares.fill(classify(mesh.parent) === boneClass ? 1 : 0);
+    return shares;
+  }
+  const bones = mesh.skeleton.bones;
+  for (let vertex = 0; vertex < skinIndex.count; vertex += 1) {
+    let total = 0;
+    let matching = 0;
+    for (let slot = 0; slot < skinIndex.itemSize; slot += 1) {
+      const weight = skinWeight.getComponent(vertex, slot);
+      if (weight <= 0) continue;
+      total += weight;
+      const bone = bones[skinIndex.getComponent(vertex, slot)] ?? null;
+      if (classify(bone) === boneClass) matching += weight;
+    }
+    shares[vertex] = total > 0 ? matching / total : 0;
+  }
+  return shares;
+}
+
 /** Projected triangle area, front depth and centre in head-anchor space. */
 function measurePrimitive(
   context: Context,
   mesh: THREE.Mesh,
   window: EyeWindow | null,
+  vertexWeights: Float32Array | null = null,
 ): Geometry2D {
   const geometry = mesh.geometry;
   const position = geometry.getAttribute("position");
@@ -804,34 +1357,20 @@ function measurePrimitive(
     return {
       area: 0,
       eyeWindowArea: 0,
+      weightedArea: 0,
+      weightedEyeWindowArea: 0,
       front: 0,
       center: new THREE.Vector3(),
       minX: 0,
       maxX: 0,
     };
   }
-  // Compose the mesh's world matrix without writing `matrixWorld`: before the
-  // first frame a VRM 0 scene's raw bones still hold pre-rotation matrices that
-  // the bind matrices agree with, so updating an ancestor bone here would skew
-  // every later skinned read (landmarks included).
-  const meshWorld = composeWorldMatrix(mesh);
-  context.anchor.updateWorldMatrix(true, false);
-  const inverseAnchor = context.anchor.matrixWorld.clone().invert();
-  const points: THREE.Vector3[] = [];
+  const points = anchorSpacePoints(context, mesh);
   const center = new THREE.Vector3();
   let front = 0;
   let minX = Infinity;
   let maxX = -Infinity;
-  for (let vertex = 0; vertex < position.count; vertex += 1) {
-    const point = readVertexPosition(
-      mesh,
-      position,
-      vertex,
-      new THREE.Vector3(),
-    )
-      .applyMatrix4(meshWorld)
-      .applyMatrix4(inverseAnchor);
-    points.push(point);
+  for (const point of points) {
     center.add(point);
     minX = Math.min(minX, point.x);
     maxX = Math.max(maxX, point.x);
@@ -842,32 +1381,78 @@ function measurePrimitive(
   const triangleCount = index ? index.count / 3 : position.count / 3;
   let area = 0;
   let eyeWindowArea = 0;
+  let weightedArea = 0;
+  let weightedEyeWindowArea = 0;
   const centroid = new THREE.Vector3();
   for (let triangle = 0; triangle < triangleCount; triangle += 1) {
-    const a = points[index ? index.getX(triangle * 3) : triangle * 3];
-    const b = points[index ? index.getX(triangle * 3 + 1) : triangle * 3 + 1];
-    const c = points[index ? index.getX(triangle * 3 + 2) : triangle * 3 + 2];
+    const ia = index ? index.getX(triangle * 3) : triangle * 3;
+    const ib = index ? index.getX(triangle * 3 + 1) : triangle * 3 + 1;
+    const ic = index ? index.getX(triangle * 3 + 2) : triangle * 3 + 2;
+    const a = points[ia];
+    const b = points[ib];
+    const c = points[ic];
     if (!a || !b || !c) continue;
     const projected =
       Math.abs((b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y)) / 2;
+    const weight = vertexWeights
+      ? ((vertexWeights[ia] ?? 0) +
+          (vertexWeights[ib] ?? 0) +
+          (vertexWeights[ic] ?? 0)) /
+        3
+      : 1;
     area += projected;
+    weightedArea += projected * weight;
     if (window) {
       centroid
         .copy(a)
         .add(b)
         .add(c)
         .multiplyScalar(1 / 3);
-      if (isInsideWindow(centroid, window)) eyeWindowArea += projected;
+      if (isInsideWindow(centroid, window)) {
+        eyeWindowArea += projected;
+        weightedEyeWindowArea += projected * weight;
+      }
     }
   }
   return {
     area,
     eyeWindowArea,
+    weightedArea,
+    weightedEyeWindowArea,
     front: front / points.length,
     center,
     minX,
     maxX,
   };
+}
+
+/** A mesh's vertices (skinned at rest) in anchor space, read once per detection. */
+function anchorSpacePoints(
+  context: Pick<Context, "anchor" | "points">,
+  mesh: THREE.Mesh,
+): THREE.Vector3[] {
+  const cached = context.points.get(mesh);
+  if (cached) return cached;
+  const position = mesh.geometry.getAttribute("position");
+  const points: THREE.Vector3[] = [];
+  if (position instanceof THREE.BufferAttribute) {
+    // Compose the mesh's world matrix without writing `matrixWorld`: before
+    // the first frame a VRM 0 scene's raw bones still hold pre-rotation
+    // matrices that the bind matrices agree with, so updating an ancestor bone
+    // here would skew every later skinned read (landmarks included).
+    const meshWorld = composeWorldMatrix(mesh);
+    context.anchor.updateWorldMatrix(true, false);
+    const inverseAnchor = context.anchor.matrixWorld.clone().invert();
+    for (let vertex = 0; vertex < position.count; vertex += 1) {
+      points.push(
+        readVertexPosition(mesh, position, vertex, new THREE.Vector3())
+          .applyMatrix4(meshWorld)
+          .applyMatrix4(inverseAnchor),
+      );
+    }
+  }
+  context.points.set(mesh, points);
+  return points;
 }
 
 /** An object's world matrix from current local transforms, without mutation. */
@@ -958,6 +1543,7 @@ export function detectAvatarFacePartsByName(
       frontSign: 1,
       diagnostics: [],
       issues: [],
+      points: new Map(),
     },
     source,
   );

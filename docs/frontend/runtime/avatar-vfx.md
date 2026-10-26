@@ -271,14 +271,17 @@ VRM specification does not define. `detectAvatarFaceParts`
 
 | Part                             | Signal                                                                                                                                                                                                                                                                         |
 | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `eye_left`, `eye_right` (irises) | Primitives with at least half their skin weight on the humanoid `leftEye`/`rightEye` bones (or whose material a look-at expression moves through a texture transform). Iris, white and highlight are told apart by projected area and depth. One primitive may hold both eyes. |
-| `face_skin`                      | The head-skinned primitive of the mesh that both `blink` and `aa` morph, with the most area around the eyes.                                                                                                                                                                   |
+| `eye_left`, `eye_right` (irises) | Primitives with at least half their skin weight on the humanoid `leftEye`/`rightEye` bones (or whose material a look-at expression moves through a texture transform). Without either, the head-skinned primitives over the eyelids `blink` moves on the face skin and within that eye region, each side by the head's left-right axis. Iris, white and highlight are told apart by projected area and depth. One primitive may hold both eyes. |
+| `face_skin`                      | The head-skinned primitive of the mesh that both `blink` and `aa` morph, with the most area around the eyes. A face skinned partly to the neck or body (under 90% head weight) wins instead when its head-weighted vertices cover more and blink moves it; primitives on spring joints (merged-in hair) never do.                                       |
 | `eye_highlight`                  | Separated from the iris by size and depth.                                                                                                                                                                                                                                     |
-| `eyeline`, `eyelash`             | Small primitives of the face mesh that `blink` moves almost entirely; the larger is the eye line.                                                                                                                                                                              |
+| `eyeline`, `eyelash`             | Small primitives of the face mesh that `blink` moves almost entirely; the larger is the eye line. Islands of the face or eye primitives that `blink` moves the same way are part `regions` (triangle lists, runtime only): lashes, or each eye's largest island as its line when no line primitive exists. |
 | `hair`                           | Primitives in the head subtree with a real share of spring-joint weight (used to keep forehead and top planes clear).                                                                                                                                                          |
 
 Each part reports its `node:mesh:primitive` bindings, a source (`signals`,
-`names`, `corrected` or `missing`) and a confidence. Material and node names
+`names`, `corrected` or `missing`) and a confidence. Face landmarks span every
+`face_skin` binding (a correction may list several), counting only the
+head-weighted vertices of one that also holds the neck or body; texture
+anchors project onto the face binding nearest the eyes. Material and node names
 (`profiles.ts`) are a fallback per part; if detection itself fails, the Avatar
 still loads with name matching and logs `avatar_face_parts_detection_failed`.
 Detection takes a few milliseconds per Avatar and never writes world matrices.
@@ -317,6 +320,18 @@ it, and an effect on any of those roles uses it. A part the user changed comes
 first, so it is the binding's primary role, and correcting Eyelashes to the
 eye-line mesh paints eyelash effects there while eye-line effects still work.
 Hiding eye details never hides a mesh that is also face skin or an iris.
+Regions of those meshes are hidden instead: while the effect is on, their
+triangles are rewritten in place as degenerate triangles
+(`PrimitiveRegionHider`, reference-counted per effect, outlines included) and
+restored when the last effect using them ends, and before face parts are
+detected again. A region in an unindexed primitive cannot be hidden; the
+effect still plays and reports `eye_detail_not_hidden`. When a face has no
+line or lash geometry at all, its lashes are taken to be painted into the face
+texture, and eye cleanup covers each eyelid `blink` moves rather than an
+eye-sized region; lines painted beside lash geometry are not cleaned up. The
+Face parts panel shows a part found only as regions as "Found inside another
+mesh part"; correcting that part replaces its regions with the chosen
+primitives.
 
 ### Missing parts
 
@@ -848,8 +863,10 @@ per render; a silhouette adds one skinned draw per overlaid primitive (about
 
 ## 12) Limitations
 
-- Detection is tuned and tested on the two Included (VRoid) Avatars; other
-  models may need a correction. Without eye bones, side assignment may be wrong.
+- Detection is tuned on the two Included (VRoid) Avatars and tested on them
+  with synthetic additions (lashes inside the face mesh, a face skinned partly
+  to the neck, no eye bones); other models may need a correction. A model with
+  neither eye bones nor `blink` has no eyes to find.
   With both eye bones, eye landmarks skip islands wider than the distance
   between them, such as a dome some VRChat eye meshes put around each
   eyeball.

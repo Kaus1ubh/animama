@@ -443,6 +443,7 @@
       "corrected": "Corrected",
       "detected": "Detected · {{confidence, number(style: percent)}}",
       "foundByName": "Found by name · {{confidence, number(style: percent)}}, check it",
+      "insideShared": "Found inside another mesh part",
       "missing": "Missing",
       "uncertain": "Detected · {{confidence, number(style: percent)}}, check it"
     },

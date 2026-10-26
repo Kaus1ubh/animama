@@ -443,6 +443,7 @@
       "corrected": "已修正",
       "detected": "已偵測 · {{confidence, number(style: percent)}}",
       "foundByName": "依名稱找到 · {{confidence, number(style: percent)}}，請檢查",
+      "insideShared": "在其他網格部件中找到",
       "missing": "缺少",
       "uncertain": "已偵測 · {{confidence, number(style: percent)}}，請檢查"
     },

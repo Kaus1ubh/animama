@@ -24,6 +24,7 @@ import { Avatar } from "@/lib/avatar";
 import { acquireContentPreviewResource } from "@/lib/content-preview/lifecycle";
 import { apiErrorLine } from "@/lib/errors/apiError";
 import { VerifiedByteLoader } from "@/lib/runtime-content/VerifiedByteLoader";
+import { useAvatarFaceParts } from "@/query/hooks/useAvatarFaceParts";
 import type { SceneVFXRuntimeEntry } from "@/lib/scene-vfx/types";
 import { AvatarPreviewSurface } from "@/ui/avatar-preview/AvatarPreviewSurface";
 import { Button } from "@/ui/components/button";
@@ -276,6 +277,16 @@ function CreationStageActor({
   const avatarRef = useRef<Avatar | null>(null);
   const reducedMotionRef = useRef(reducedMotion);
   reducedMotionRef.current = reducedMotion;
+  // Parts match the chat's: apply the saved Avatar's face part correction.
+  const faceParts = useAvatarFaceParts(file ? null : (source?.item_id ?? null));
+  const savedCorrection = faceParts.data?.face_parts ?? null;
+  useEffect(() => {
+    const avatar = avatarRef.current;
+    if (!object || !avatar || !savedCorrection) return;
+    void avatar
+      .setFacePartCorrections(savedCorrection)
+      .then(() => invalidate());
+  }, [invalidate, object, savedCorrection]);
   useEffect(() => {
     const controller = new AbortController();
     const avatar = new Avatar(camera, gl.domElement, {
@@ -293,6 +304,8 @@ function CreationStageActor({
     void (async () => {
       try {
         let blob: Blob;
+        // A saved Avatar's digest matches its saved face part correction.
+        let vrmSha256: string | null = null;
         if (file) blob = file;
         else {
           const preview = await loadAvatar(source!, controller.signal);
@@ -300,12 +313,13 @@ function CreationStageActor({
             (item) => item.role === "model" || item.role === "vrm",
           );
           if (!model) throw new CreatorError(t("stage.noModel"));
+          vrmSha256 = model.sha256 ?? null;
           blob = (await new VerifiedByteLoader().load(model, controller.signal))
             .blob;
         }
         if (controller.signal.aborted) return;
         objectUrl = URL.createObjectURL(blob);
-        await avatar.load({ filePath: objectUrl });
+        await avatar.load({ filePath: objectUrl, vrmSha256 });
         if (controller.signal.aborted) {
           avatar.dispose();
           return;

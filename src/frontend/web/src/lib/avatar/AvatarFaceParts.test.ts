@@ -32,6 +32,7 @@ describe("Avatar.setFacePartCorrections", () => {
     const refresh = vi.fn().mockResolvedValue(undefined);
     avatar.vfxController = {
       refreshFaceParts: refresh,
+      restoreHiddenRegions: () => {},
     } as unknown as Avatar["vfxController"];
     const before = avatar.getFaceLandmarksSnapshot();
     expect(before?.faceBindingKey).toBe("91:0:3");

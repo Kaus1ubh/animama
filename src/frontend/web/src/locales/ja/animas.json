@@ -103,6 +103,7 @@
       "meshParts": "メッシュパーツ",
       "part": "パーツ",
       "ready": "準備完了",
+      "sharedRegions_other": "共有パーツ内に {{count}}",
       "sources": {
         "corrected": "あなたの修正",
         "missing": "見つかりません",
@@ -156,6 +157,7 @@
       "effect_target_unresolved": "{{effect}} に合うパーツがこのアバターに見つかりませんでした。",
       "effect_unknown": "このインストールでは利用できないエフェクトがあります。",
       "effect_wrong_kind": "{{effect}} はこの方法では表示できません。",
+      "eye_detail_not_hidden": "{{effect}} は再生されますが、共有のメッシュパーツ内の{{part}}を隠せませんでした。",
       "face_parts_correction_digest_unknown": "このファイルのダイジェストが不明なため、保存された顔パーツの修正を無視しました。",
       "face_parts_correction_invalid": "保存された顔パーツの修正を読み取れなかったため、無視しました。",
       "face_parts_correction_other_file": "保存された顔パーツの修正は別のファイル用に作られたため、無視しました。",

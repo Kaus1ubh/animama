@@ -753,6 +753,10 @@ export class Avatar {
     corrections: AvatarFacePartCorrections | null,
   ): Promise<void> {
     if (!this.isReady) return;
+    // Hidden eye-detail regions read as empty triangles: show them before
+    // detection, landmarks and anchors measure the meshes. The refresh below
+    // re-applies the effects that hide them.
+    this.vfxController?.restoreHiddenRegions();
     this._detectFaceParts(corrections);
     this.faceDebugBox?.dispose();
     this.faceDebugBox = null;

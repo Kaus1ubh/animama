@@ -585,6 +585,8 @@ export default interface Resources {
         "meshParts": "Mesh parts",
         "part": "Part",
         "ready": "Ready",
+        "sharedRegions_one": "{{count}} inside a shared part",
+        "sharedRegions_other": "{{count}} inside shared parts",
         "sources": {
           "corrected": "Your correction",
           "missing": "Not found",
@@ -639,6 +641,7 @@ export default interface Resources {
         "effect_target_unresolved": "{{effect}} found no compatible part on this Avatar.",
         "effect_unknown": "An effect is not available in this installation.",
         "effect_wrong_kind": "{{effect}} cannot be shown this way.",
+        "eye_detail_not_hidden": "{{effect}} plays, but the {{part, lowercase}} inside a shared mesh part could not be hidden.",
         "face_parts_correction_digest_unknown": "The saved face part correction was ignored because this file's digest is unknown.",
         "face_parts_correction_invalid": "The saved face part correction could not be read and was ignored.",
         "face_parts_correction_other_file": "The saved face part correction was made for a different file and was ignored.",
@@ -2732,6 +2735,7 @@ export default interface Resources {
         "corrected": "Corrected",
         "detected": "Detected · {{confidence, number(style: percent)}}",
         "foundByName": "Found by name · {{confidence, number(style: percent)}}, check it",
+        "insideShared": "Found inside another mesh part",
         "missing": "Missing",
         "uncertain": "Detected · {{confidence, number(style: percent)}}, check it"
       },

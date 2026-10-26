@@ -22,7 +22,11 @@ import {
   type CollectedPrimitiveData,
   type RuntimePrimitiveBindingEntry,
 } from "./avatarPrimitiveUtils";
-import { resolveAvatarFacePartEntries } from "./faceParts";
+import {
+  hasEyeDetailGeometry,
+  measureEyelidBounds,
+  resolveAvatarFacePartEntries,
+} from "./faceParts";
 import { buildRuntimePrimitiveBindings } from "../vrmEditorInspection";
 import { createLogger } from "@/lib/logger";
 
@@ -42,6 +46,8 @@ const MOUTH_REFERENCE_INFLATE_RATIO = 1;
 const FLATTEN_EYE_WIDTH_RATIO = 2.65;
 const FLATTEN_EYE_HEIGHT_RATIO = 1.35;
 const FLATTEN_EYE_Y_OFFSET_RATIO = 0.28;
+/** Room around the eyelid a lid-sized cleanup region keeps. */
+const FLATTEN_LID_MARGIN = 1.15;
 const FLATTEN_MOUTH_WIDTH_RATIO = 1.35;
 const FLATTEN_MOUTH_HEIGHT_RATIO = 1.7;
 const FLATTEN_SAMPLE_WIDTH_RATIO = 0.2;
@@ -436,11 +442,11 @@ export class AvatarFaceTextureAnchors {
     for (const warning of runtimeResult.warnings) {
       this._warn({ code: "scene_bindings_unavailable" }, warning);
     }
-    const faceBinding = resolveAvatarFacePartEntries(
+    const faces = resolveAvatarFacePartEntries(
       this._avatar,
       runtimeResult.entries,
-    ).face;
-    if (!faceBinding) {
+    ).faces;
+    if (faces.length === 0) {
       this._warn(
         { code: "anchors_face_skin_missing" },
         "No face skin part was detected on this avatar.",
@@ -449,12 +455,12 @@ export class AvatarFaceTextureAnchors {
       return;
     }
 
-    const projection = this._prepareFaceProjectionData({
-      binding: faceBinding,
+    const { binding: faceBinding, projection } = this._selectFaceProjection(
+      faces,
       anchorObject,
       faceLandmarks,
-    });
-    if (!projection) {
+    );
+    if (!faceBinding || !projection) {
       this._warn(
         { code: "anchors_projection_failed" },
         "Unable to prepare face texture anchor projection data.",
@@ -462,6 +468,18 @@ export class AvatarFaceTextureAnchors {
       this._unavailable();
       return;
     }
+
+    // No line or lash geometry: they are likely painted into the face
+    // texture, so eye cleanup covers each eyelid blink moves.
+    const map = this._avatar.facePartMap;
+    const lids =
+      map && this._avatar.vrm && !hasEyeDetailGeometry(map)
+        ? measureEyelidBounds(
+            this._avatar.vrm,
+            faceBinding.object,
+            anchorObject,
+          )
+        : null;
 
     const mouth = this._resolveMouthAnchor({
       projection,
@@ -547,11 +565,13 @@ export class AvatarFaceTextureAnchors {
           left: this._resolveFlattenEyeRegion({
             side: "left",
             eye: faceLandmarks.eyes.left,
+            lid: lids?.left ?? null,
             projection,
           }),
           right: this._resolveFlattenEyeRegion({
             side: "right",
             eye: faceLandmarks.eyes.right,
+            lid: lids?.right ?? null,
             projection,
           }),
         },
@@ -575,6 +595,43 @@ export class AvatarFaceTextureAnchors {
       hasBlushRight: Boolean(snapshot.anchors.blush.right),
       warnings: snapshot.warnings,
     });
+  }
+
+  /**
+   * The face primitive anchors project onto. Several share the face texture;
+   * the anchors belong on the one nearest the eyes.
+   */
+  private _selectFaceProjection(
+    faces: readonly RuntimePrimitiveBindingEntry[],
+    anchorObject: THREE.Object3D,
+    faceLandmarks: AvatarFaceLandmarksSnapshot,
+  ): {
+    binding: RuntimePrimitiveBindingEntry | null;
+    projection: FaceProjectionData | null;
+  } {
+    const eyeMid = resolveEyeMidpoint(faceLandmarks);
+    let best: {
+      binding: RuntimePrimitiveBindingEntry;
+      projection: FaceProjectionData;
+      distance: number;
+    } | null = null;
+    for (const binding of faces) {
+      const projection = this._prepareFaceProjectionData({
+        binding,
+        anchorObject,
+        faceLandmarks,
+      });
+      if (!projection) continue;
+      if (faces.length === 1 || !eyeMid) return { binding, projection };
+      const projected = this._projectPointToFaceSurface(projection, eyeMid);
+      const distance = projected
+        ? projected.localPoint.distanceTo(eyeMid)
+        : Infinity;
+      if (!best || distance < best.distance) {
+        best = { binding, projection, distance };
+      }
+    }
+    return best ?? { binding: null, projection: null };
   }
 
   private _prepareFaceProjectionData(args: {
@@ -697,18 +754,45 @@ export class AvatarFaceTextureAnchors {
     });
   }
 
+  /**
+   * The face-cleanup region around an eye. With `lid` (lashes painted into
+   * the face texture) it grows to cover the eyelid blink moves, without the
+   * upward nudge the eye-sized region takes.
+   */
   private _resolveFlattenEyeRegion(args: {
     side: AvatarVFXSide;
     eye: AvatarFaceEyeLandmarkSnapshot | null;
+    lid: THREE.Box3 | null;
     projection: FaceProjectionData;
   }): AvatarFaceTextureFlattenRegionSnapshot | null {
     const { eye, projection, side } = args;
     if (!eye) return null;
-    const referenceSizeLocal = {
+    let referenceSizeLocal = {
       width: clampMin(eye.boundsLocal.size.x * FLATTEN_EYE_WIDTH_RATIO, 0.03),
       height: clampMin(eye.boundsLocal.size.y * FLATTEN_EYE_HEIGHT_RATIO, 0.03),
     };
     const baseSeedPoint = toVector3(eye.centerLocal);
+    let yOffsetRatio = FLATTEN_EYE_Y_OFFSET_RATIO;
+    if (args.lid) {
+      const covered = new THREE.Box3()
+        .setFromCenterAndSize(
+          baseSeedPoint,
+          new THREE.Vector3(
+            referenceSizeLocal.width,
+            referenceSizeLocal.height,
+            0,
+          ),
+        )
+        .union(args.lid);
+      const size = covered.getSize(new THREE.Vector3());
+      const center = covered.getCenter(new THREE.Vector3());
+      referenceSizeLocal = {
+        width: size.x * FLATTEN_LID_MARGIN,
+        height: size.y * FLATTEN_LID_MARGIN,
+      };
+      baseSeedPoint.set(center.x, center.y, baseSeedPoint.z);
+      yOffsetRatio = 0;
+    }
     const baseProjected = this._projectPointToFaceSurface(
       projection,
       baseSeedPoint,
@@ -720,7 +804,7 @@ export class AvatarFaceTextureAnchors {
       referenceSizeLocal,
     });
     const offsetUvV = THREE.MathUtils.clamp(
-      baseProjected.uv.y + referenceSizeUv.height * FLATTEN_EYE_Y_OFFSET_RATIO,
+      baseProjected.uv.y + referenceSizeUv.height * yOffsetRatio,
       0,
       1,
     );

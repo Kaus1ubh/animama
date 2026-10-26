@@ -352,7 +352,16 @@ function FaceSection({ report }: { report: AvatarDiagnosticsReport }) {
                   {partSourceLabel(t, part.source)}
                 </td>
                 <td className="px-4 py-1.5 text-right tabular-nums">
-                  {format.number(part.bindingCount)}
+                  {part.regionCount > 0
+                    ? [
+                        ...(part.bindingCount > 0
+                          ? [format.number(part.bindingCount)]
+                          : []),
+                        t("avatarDiagnostics.face.sharedRegions", {
+                          count: part.regionCount,
+                        }),
+                      ].join(" · ")
+                    : format.number(part.bindingCount)}
                 </td>
                 <td className="px-4 py-1.5 text-right tabular-nums">
                   {format.number(part.confidence, { style: "percent" })}

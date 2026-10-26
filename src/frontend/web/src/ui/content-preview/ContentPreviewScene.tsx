@@ -37,7 +37,7 @@ import {
   runtimeContentDownloadUrl,
   type RuntimeContentUrlLease,
 } from "@/lib/runtime-content/runtimeContentDelivery";
-import { runtimeAvatarModelSha256 } from "@/lib/runtime-content/runtimeAvatarFaceParts";
+import { resolveRuntimeAvatarFaceParts } from "@/lib/runtime-content/runtimeAvatarFaceParts";
 import type { SceneVFXRuntimeEntry } from "@/lib/scene-vfx/types";
 import {
   applyAvatarTransformToObject,
@@ -199,7 +199,8 @@ function PreviewActor({
           filePath: download.url,
           sourceUrl: logicalUrl,
           sourceKey: avatarSourceKey,
-          vrmSha256: runtimeAvatarModelSha256(entry),
+          // The saved face part correction, so parts match the chat's.
+          ...resolveRuntimeAvatarFaceParts(entry),
         });
         if (
           controller.signal.aborted ||

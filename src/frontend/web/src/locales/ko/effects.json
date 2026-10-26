@@ -443,6 +443,7 @@
       "corrected": "수정됨",
       "detected": "감지됨 · {{confidence, number(style: percent)}}",
       "foundByName": "이름으로 찾음 · {{confidence, number(style: percent)}}, 확인 필요",
+      "insideShared": "다른 메시 부분 안에서 찾음",
       "missing": "없음",
       "uncertain": "감지됨 · {{confidence, number(style: percent)}}, 확인 필요"
     },

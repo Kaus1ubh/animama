@@ -42,6 +42,7 @@ function withControllerIssues(
   avatar.vfxController = {
     getSnapshot: () => ({ issues: effects }),
     refreshFaceParts: async () => {},
+    restoreHiddenRegions: () => {},
   } as unknown as Avatar["vfxController"];
 }
 

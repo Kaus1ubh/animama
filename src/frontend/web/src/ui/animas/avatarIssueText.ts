@@ -97,6 +97,8 @@ export function avatarIssueText(
       t("avatarDiagnostics.issues.effect_face_skin_required", { effect }),
     effect_skin_color_unavailable: () =>
       t("avatarDiagnostics.issues.effect_skin_color_unavailable", { effect }),
+    eye_detail_not_hidden: () =>
+      t("avatarDiagnostics.issues.eye_detail_not_hidden", { effect, part }),
   };
   return texts[issue.code]();
 }
