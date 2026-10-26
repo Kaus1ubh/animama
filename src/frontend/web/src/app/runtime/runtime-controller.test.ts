@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
+import { QueryObserver } from "@tanstack/react-query";
 import type { RuntimeAdmission } from "@animama/runtime-contracts";
+import { queryKeys } from "@/query/keys";
 import { RuntimeController } from "./runtime-controller";
 import { hostedCapabilitiesFixture as capabilities } from "./runtime-fixture";
 import type { AppComposition } from "./composition";
@@ -57,6 +59,39 @@ describe("composition lifetime boundary", () => {
       } finally {
         controller.dispose();
       }
+    }
+  });
+  it("reads the roster and settings again when the server finishes the starter data", async () => {
+    const { controller, composition } = fixture();
+    let setupPending = true;
+    Object.assign(composition, { setupPending: () => setupPending });
+    const reads = { animas: 0, settings: 0 };
+    const stops: (() => void)[] = [];
+    try {
+      await controller.refresh();
+      const { queryClient } = controller.getSnapshot();
+      // Product queries are keyed by the session's cache key, which differs
+      // from the owner on hosted.
+      for (const [queryKey, family] of [
+        [queryKeys.animas.list("first-lifetime"), "animas"],
+        [queryKeys.settings.user("first-lifetime"), "settings"],
+      ] as const)
+        stops.push(
+          new QueryObserver(queryClient, {
+            queryKey,
+            queryFn: async () => {
+              reads[family] += 1;
+              return [];
+            },
+          }).subscribe(() => {}),
+        );
+      await vi.waitFor(() => expect(reads).toEqual({ animas: 1, settings: 1 }));
+      setupPending = false;
+      await controller.refresh();
+      await vi.waitFor(() => expect(reads).toEqual({ animas: 2, settings: 2 }));
+    } finally {
+      stops.forEach((stop) => stop());
+      controller.dispose();
     }
   });
   it("bounds automatic reconnect backoff and cancels it on sign-out", async () => {

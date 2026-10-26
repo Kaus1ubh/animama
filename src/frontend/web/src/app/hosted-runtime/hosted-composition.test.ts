@@ -1830,8 +1830,10 @@ describe("hosted setup pending", () => {
       const after = flow.controller.getSnapshot();
       expect(after.setupPending).toBe(false);
       expect(after.scope).toBe(snapshot.scope);
+      // Product queries are keyed by the session's cache key, never the owner.
+      expect(snapshot.scope!.key).not.toBe("owner");
       expect(invalidate).toHaveBeenCalledWith({
-        queryKey: queryKeys.animas.all("owner"),
+        queryKey: queryKeys.animas.all(snapshot.scope!.key),
       });
       const reads = flow.contextReads();
       await vi.advanceTimersByTimeAsync(60_000);
