@@ -180,7 +180,8 @@ def test_a_judged_run_reports_publicly_and_rerenders_byte_for_byte(
 
     assert cli.main(_report_args(run_dir, "--effort", "medium", "--output", str(output))) == 0
     text = output.read_text(encoding="utf-8")
-    assert "## Scorecard" in text and "3.00 [3.00, 3.00]" in text and report.FAMILY_CAVEAT in text
+    assert "## Scorecard" in text and "3.00 [3.00, 3.00]" in text and report.family_caveat(None) in text
+    assert "The judge, Claude Fable 5.1, shares a model family with Claude Haiku" in text
     assert "_to be written by the owner._" in text and "Not calibrated in this run." in text
     assert cli.main(_report_args(run_dir, "--effort", "medium", "--output", str(output), "--rerender")) == 0
 
@@ -351,6 +352,24 @@ def test_tag_kinds_show_short_labels_as_code_and_only_count_long_ones(tracked: p
     # A reply that is only that tag is a forbidden line, which the tag kinds must not repeat.
     report.check_public_safe(line, report.forbidden_texts([{"speech": long_tag}], tracked))
     assert report._tag_kinds({}) == "none"
+
+
+def test_a_waived_calibration_is_recorded_and_reported_as_waived(
+    run_dir: Path, stub: Stub, capsys: pytest.CaptureFixture[str]
+) -> None:
+    judge_args = ["judge", "--run-dir", str(run_dir), "--prompts", str(PROMPTS), "--effort", "medium"]
+    assert cli.main([*judge_args, "--claude", str(stub.path)]) == 0
+    waive = ["calibrate", "waive", "--run-dir", str(run_dir), "--prompts", str(PROMPTS), "--effort", "medium"]
+
+    assert cli.main(waive) == 0
+    assert cli.main(waive) == 2 and "already records a calibration or a waiver" in capsys.readouterr().err
+    assert cli.main(_report_args(run_dir)) == 0
+
+    result = report.load_calibration(run_dir)
+    assert result is not None and result["waived"]["by"] == "owner" and result["pinned"] == "medium"
+    text = (run_dir / "report.md").read_text(encoding="utf-8")
+    assert "Waived by the owner on " in text and "Pinned effort" not in text
+    assert "the owner waived calibration for this run, so nothing checks it here" in text
 
 
 def test_report_finds_the_one_judged_effort_and_keeps_owner_text(

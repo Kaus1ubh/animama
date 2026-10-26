@@ -24,7 +24,7 @@ repository root.
 | `plan` | anywhere; the backend container for rows that are not built in | The dry run: planned calls, tokens, cost and wall time, judging included, against the 4-hour bound. No model calls. |
 | `run` | the backend container of a task stack | Runs the configurations and writes `turns.jsonl` and `manifest.json` to `--output-dir`. Needs `--max-calls` and `--max-usd`, the owner's caps. |
 | `judge` | the host, signed in to Claude | Judges the run blind at one `--effort`; rerun it to resume. |
-| `calibrate export` / `import` / `pilot` | the host | The one-time calibration against the owner's ratings. |
+| `calibrate export` / `import` / `pilot` / `waive` | the host | The one-time calibration against the owner's ratings, or the owner's waiver of it. |
 | `report` | anywhere | Renders the public-safe report from the recorded results. |
 | `models` | the backend container | Lists the catalog's active chat rows. |
 | `cleanup` | the backend container | Drops benchmark databases a killed run left behind. |
@@ -98,7 +98,7 @@ a run slows its turns.
 
 ## Judge
 
-The judge is Claude Opus 5.5 (`claude-opus-5-5`) through the Claude CLI on the
+The judge is Claude Fable 5.1 (`claude-fable-5-1`) through the Claude CLI on the
 owner's subscription, never an API key. Sign in once with `claude` on the host, and keep no user `~/.claude/CLAUDE.md`
 while judging: the CLI would load it into every call, so judging refuses to
 start.
@@ -120,7 +120,10 @@ samples up to 36 English `reply` and `expression` items, the owner rates them
 in `calibration/sheet.md` and `ratings.json`, `calibrate import` checks the
 ratings, and `calibrate pilot` judges the sample at medium and high and pins
 the effort that agrees better with the owner (medium on a tie). Later runs
-reuse the pinned effort.
+reuse the pinned effort. When the owner waives calibration,
+`calibrate waive --effort <effort>` records that and the effort they chose,
+and the report says the judge's scores are unchecked. A waiver covers its own
+run only: the next run of that prompt-set version still needs a calibration.
 
 ## Conditions and time
 
@@ -157,4 +160,4 @@ file, and `--rerender` checks the report rebuilds byte for byte.
 - The Memory Manager runs once per catalog row at its own effort, since its
   runtimes take no chat effort.
 - Calibration covers the `reply` and `expression` rubrics; the others are
-  judged by Opus alone.
+  judged by the judge alone. A run whose calibration was waived checks none.

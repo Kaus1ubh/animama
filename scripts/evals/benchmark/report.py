@@ -21,6 +21,7 @@ from ..core.inputs import EvalInputError
 from ..core.stats import TOKEN_STAT_KEYS
 from .calibrate import CALIBRATION_DIR
 from .intervals import MIN_GROUPS, Interval, bootstrap_mean, bootstrap_paired, comparable, distinguishable
+from .judge import JUDGE_NAME
 from .measures import STYLE_VIOLATIONS, summarize_configuration
 from .memory_runner import ARM_BOTH, ARM_MEMORIES_MD_ONLY, ARM_REMEMBER_ONLY
 from .prompt_set import PromptSet
@@ -28,10 +29,10 @@ from .rubrics import RubricSet
 from .scores import JudgedItem, JudgeResults, by_line, item_score
 
 __all__ = [
-    "FAMILY_CAVEAT",
     "build_report",
     "check_public_safe",
     "criteria_keys",
+    "family_caveat",
     "forbidden_texts",
     "load_calibration",
     "render_report",
@@ -44,10 +45,6 @@ ARM_NAMES = {
     ARM_BOTH: "(c) both",
 }
 CORE_KINDS = frozenset({"single", "chat"})
-FAMILY_CAVEAT = (
-    "The judge, Claude Opus 5.5, shares a model family with Claude Haiku, a contestant. The owner accepted this "
-    "on 2026-10-25 instead of a cross-family panel; calibration against the owner's own ratings is the check on it."
-)
 LIMITATIONS = (
     "Memory turns and OpenAI Memory Manager runs keep the app's real provider storage (D5); the `run` command "
     "turns Agents SDK tracing off.",
@@ -805,7 +802,9 @@ def _render_judge(
     batches = judge["batches"]
     # The caveat is about a contestant from the judge's own family; a run without one says so.
     family = any(str(c.get("model") or "").startswith("claude-") for c in configurations)
-    caveat = FAMILY_CAVEAT if family else "No configuration in this run shares a model family with the judge."
+    caveat = (
+        family_caveat(calibration) if family else "No configuration in this run shares a model family with the judge."
+    )
     out = ["## Judge", "", f"- {caveat}",
            f"- Effort: {judge['effort'] or 'not judged'}; served models: {', '.join(judge['models']) or '—'}; "
            f"CLI: {', '.join(judge['cli_versions']) or '—'}.",
@@ -819,9 +818,14 @@ def _render_judge(
         out += ["Not calibrated in this run. Calibration runs once per prompt-set version and rubric version; a "
                 "later run uses the effort pinned then, recorded in that run's report.", ""]  # fmt: skip
         return out
+    if calibration.get("waived"):
+        out += [f"Waived by the owner on {calibration['waived']['date']}: no calibration sample was rated, so the "
+                f"judge's scores are not checked against the owner's ratings in this run. The owner chose effort "
+                f"{calibration.get('pinned')}.", ""]  # fmt: skip
+        return out
     out += [f"Pinned effort: **{calibration.get('pinned')}** (higher mean weighted kappa over the criteria both "
             f"efforts could score; medium on a tie). The owner rated the `reply` and `expression` rubrics; the "
-            f"others are judged by Opus alone.", ""]  # fmt: skip
+            f"others are judged by {JUDGE_NAME} alone.", ""]  # fmt: skip
     rows = []
     for effort, measures in sorted((calibration.get("agreement") or {}).items()):
         for measure, value in sorted(measures.items()):
@@ -944,7 +948,23 @@ def check_public_safe(report: str, forbidden: Mapping[str, str]) -> None:
         raise EvalInputError(f"The report contains lines of raw run text ({found}); it was not written")
 
 
+def family_caveat(calibration: Mapping[str, Any] | None) -> str:
+    """The note on a judge from a contestant's own model family, with what checks it in this run."""
+
+    check = (
+        "the owner waived calibration for this run, so nothing checks it here"
+        if calibration and calibration.get("waived")
+        else "calibration against the owner's own ratings is the check on it"
+    )
+    return (
+        f"The judge, {JUDGE_NAME}, shares a model family with Claude Haiku, a contestant. The owner accepted a judge "
+        f"from that family instead of a cross-family panel; {check}."
+    )
+
+
 def load_calibration(run_dir: Path) -> dict[str, Any] | None:
+    """The calibration result: the pinned effort with its agreement, or the owner's waiver with the chosen effort."""
+
     path = run_dir / CALIBRATION_DIR / "result.json"
     return json.loads(path.read_text(encoding="utf-8")) if path.exists() else None
 

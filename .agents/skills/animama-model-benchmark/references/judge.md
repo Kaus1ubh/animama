@@ -1,6 +1,6 @@
 # Judge
 
-`judge` scores a run blind with Claude Opus 5.5 through `claude -p` on the
+`judge` scores a run blind with Claude Fable 5.1 through `claude -p` on the
 owner's subscription. It runs on the host.
 
 ## Before judging
@@ -57,3 +57,11 @@ On the first run of a prompt-set version and rubric (gate G4):
 Then run `judge --effort <pinned>` on the whole run. Later runs reuse the
 pinned effort without calibrating again, unless a rubric or the judge
 changed.
+
+If the owner waives calibration instead, record it with
+`calibrate waive --run-dir <run> --prompts … --effort <their choice>`, then
+judge at that effort. The report says the scores are not checked against the
+owner's ratings. A waiver covers that run only, so the next run of the same
+prompt-set version calibrates. Never rate the sample yourself: the judge is a
+Claude model, so an agent's ratings would only measure its agreement with
+itself.

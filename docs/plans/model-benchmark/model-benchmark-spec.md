@@ -6,6 +6,10 @@ reviewing this spec and its ExecPlan (G1). The decisions come from the
 owner's intent-discovery answers on 2026-10-12 and 2026-10-25 and the
 owner's spec answers on 2026-10-25. They are recorded in the discovery
 briefs on the issue.
+Revision (owner, 2026-10-26): the judge is Claude Fable 5.1
+(`claude-fable-5-1`) instead of Opus 5.5 (R12), and the owner waived the
+calibration (R13) for the first decision run, judged at medium. See the plan's
+D17.
 Authoritative source: https://github.com/raymond-van/animama/issues/470.
 This file is a snapshot of it (see Spec below). Discovery briefs:
 https://github.com/raymond-van/animama/issues/470#issuecomment-6134798047
@@ -346,8 +350,9 @@ Locale), Conversation language, Anima memories and Reflection.
 
 ### Judging
 
-- **R12 — Judge.** One judge, Claude Opus 5.5 (`claude-opus-5-5`), at one
-  pinned reasoning effort, medium or high.
+- **R12 — Judge.** One judge, Claude Fable 5.1 (`claude-fable-5-1`; Opus 5.5
+  until the 2026-10-26 revision), at one pinned reasoning effort, medium or
+  high.
   - **Blind.** The judge scores every judged reply. Replies are shuffled
     across configurations and memory arms, and the model identity,
     configuration and arm are hidden.
@@ -380,7 +385,9 @@ Locale), Conversation language, Anima memories and Reflection.
   judge-to-owner agreement for each measure is recorded with the prompt-set
   version.
   - Later runs do not need owner rating.
-  - Japanese replies are judged by Opus alone.
+  - Japanese replies are judged by the judge alone.
+  - The owner may waive calibration for a run; its report then says the
+    judge's scores are unchecked (2026-10-26 revision).
   - The sample also settles the judge effort. Both medium and high score it;
     the one that agrees better with the owner is pinned, and medium is chosen
     on a tie.
@@ -536,8 +543,8 @@ Locale), Conversation language, Anima memories and Reflection.
       Evidence: the owner's approval recorded in the plan.
 - [ ] **Calibration (R13).** The owner's blind ratings of the calibration
       sample, judge-to-owner agreement per measure and the pinned judge effort
-      are recorded. Evidence: the summary recorded in the plan; raw ratings in
-      drafts.
+      are recorded, or the owner's waiver and chosen effort. Evidence: the
+      summary recorded in the plan; raw ratings in drafts.
 - [ ] **First decision run.** After a dry run and the owner's approval with a
       cap, one benchmark run of the standard set completes. It produces a
       tracked report under `docs/` with everything R17 lists, linked from

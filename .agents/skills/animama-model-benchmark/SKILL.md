@@ -51,7 +51,9 @@ the references hold the exact commands.
 5. **Calibrate (first run only, gate G4).** `calibrate export`, then ask the
    owner to rate `calibration/sheet.md` into `ratings.json`;
    `calibrate import`; `calibrate pilot` pins the judge effort
-   ([judge](references/judge.md#calibration)).
+   ([judge](references/judge.md#calibration)). If the owner waives it, run
+   `calibrate waive --effort <their choice>` instead; never rate the sample
+   for them.
 6. **Judge.** `judge --effort <pinned>` on the host. On a usage limit, tell the
    owner and rerun the same command after the limit resets; on missing
    batches, rerun to retry them ([judge](references/judge.md)).

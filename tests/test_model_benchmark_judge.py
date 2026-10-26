@@ -81,6 +81,8 @@ init = {{"type": "system", "subtype": "init", "tools": ["StructuredOutput"], "mc
         "skills": [], "plugins": [], "model": args[args.index("--model") + 1], "apiKeySource": "none"}}
 if mode == "leak":
     init["mcp_servers"] = [{{"name": "notes"}}]
+if mode == "other-model":
+    init["model"] = "claude-opus-5-5"
 if mode == "api-key":
     init["apiKeySource"] = "ANTHROPIC_API_KEY"
 if mode == "rejected":
@@ -96,8 +98,9 @@ if mode == "limit" or (mode == "limit-after-1" and calls >= 1):
     sys.exit(1)
 if mode == "malformed" or (mode == "malformed-once" and calls == 0):
     output = {{"items": [{{"id": "not-in-the-batch"}}]}}
+served = {{args[args.index("--model") + 1]: {{}}}}
 print(json.dumps({{"type": "result", "subtype": "success", "is_error": False, "result": json.dumps(output),
-                  "structured_output": output, "modelUsage": {{"claude-opus-5-5": {{}}}}, "total_cost_usd": 0.01,
+                  "structured_output": output, "modelUsage": served, "total_cost_usd": 0.01,
                   "usage": {{"input_tokens": 1, "output_tokens": 1}}}}))
 """
 
@@ -423,7 +426,7 @@ def test_judging_scores_every_batch_then_resumes_without_rescoring(
     assert (first.completed, first.missing, first.stopped) == (len(plan.batches), 0, None)
     assert (again.completed, again.skipped) == (0, len(plan.batches)) and len(stub.calls()) == calls
     record = json.loads(plan.result_path(plan.batches[0], "medium").read_text(encoding="utf-8"))
-    assert record["status"] == "ok" and record["served_models"] == ["claude-opus-5-5"]
+    assert record["status"] == "ok" and record["served_models"] == ["claude-fable-5-1"] == [judge.JUDGE_MODEL]
     assert record["cli_version"] == "9.9.9 (stub)" and record["rubrics_version"] == rubric_set.version
     assert [result["id"] for result in record["results"]] == list(plan.batches[0].items)
 
@@ -485,7 +488,7 @@ def test_each_call_runs_isolated_on_the_subscription(
     assert inherited <= set(judge._KEPT_ENV) and "ANTHROPIC_API_KEY" not in call["env"]
     assert "sk-ant-test-not-sent" not in call["prompt"]
 
-    for mode in ("leak", "api-key"):
+    for mode in ("leak", "api-key", "other-model"):
         stub.mode(mode)
         broken = _judge(plan, tracked, rubric_set, stub, only=plan.batches[1].id)
         assert broken.stopped is not None and "isolation" in broken.stopped and broken.resumable is False, mode

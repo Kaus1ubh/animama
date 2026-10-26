@@ -2,8 +2,8 @@
 
 Status: In progress. G1 passed on 2026-10-25 and G2 on 2026-10-26.
 Phases 1–8 are done and the final integration review passed; the full
-pre-push suite runs on the final candidate. The remaining gates are G3 and
-G4.
+pre-push suite runs on the final candidate. G3 passed on 2026-10-26; the
+owner waived G4 and moved the judge to Claude Fable 5.1 the same day (D17).
 
 Source agreement: the spec, published as the body of
 [#470](https://github.com/raymond-van/animama/issues/470) at
@@ -43,8 +43,8 @@ episodic-memory design. The flow:
    development task stack. Every turn carries ElevenLabs voice options.
    Japanese turns carry UI Locale `ja`. Memory chats run in three memory
    arms.
-4. Claude Opus 5.5 scores the replies blind through the owner's Claude
-   subscription (`claude -p`).
+4. A Claude judge scores the replies blind through the owner's Claude
+   subscription (`claude -p`): Opus 5.5 as planned, Fable 5.1 since D17.
 5. A tracked, public-safe report gives a scorecard per benchmark area,
    beside latency, tokens and cost.
 
@@ -484,6 +484,41 @@ were rechecked on `18d2bebd`.
     configuration and under that configuration's price. The record names the
     row and the effort the runtime applied.
   - The dry run counts these calls once per row.
+- **D17 (owner, 2026-10-26). Fable 5.1 judges; G4 waived.** After the paid
+  run, the owner asked for the judge to be Claude Fable 5.1
+  (`claude-fable-5-1`) at medium effort, and waived the calibration (G4)
+  rather than rate the sample. The judge model changes for this and every
+  later run (D6, spec R12); the waiver covers this run only (D15, spec R13),
+  so a later run of the same prompt-set version still needs a calibration.
+  The spec snapshot records the revision; #470 is updated with the owner's
+  agreement.
+  - `JUDGE_MODEL` is `claude-fable-5-1`; the isolation check confirms it on
+    every call, as before.
+  - `calibrate waive --effort medium` records the waiver in
+    `calibration/result.json`. The report says the scores are not checked
+    against the owner's ratings, and its family caveat says so too: Fable 5.1
+    shares a family with the Haiku contestant.
+  - The calibration sample exported earlier was planned for the Opus judge,
+    so the pilot refuses it. A later calibration with Fable 5.1 starts with a
+    fresh `calibrate export` in a copy of the run (its `manifest.json` and
+    `turns.jsonl`).
+  - A live check on 2026-10-26 judged the two `recall` batches of the run of
+    record: both `ok`, model and served model `claude-fable-5-1`, CLI
+    `2.1.310 (Claude Code)`, about 25 s each.
+  - Review (standard, independent `sdlc-reviewer`, on tree `31c3d9a6`):
+    no code defect; the model is pinned in the CLI arguments, the plan
+    fingerprint and the result check, and the waived report is accurate and
+    public-safe. Required wording and record fixes, all accepted: FJ-F1 (the
+    README still said Opus), FJ-F2 (this entry claimed the Opus-planned
+    sample could be reused, and read as if the model change were per run),
+    FJ-F3 (the spec snapshot; #470 waits for the owner) and FJ-F4 (the
+    Status line, Purpose, Phase 9 steps 5–6 and Completion now point here).
+    Optional, accepted: `waive` refuses once owner ratings are imported; the
+    docs say a waiver covers its run only; a stub mode now tests a CLI that
+    serves another model (non-resumable stop); `waive` is in the README
+    table and the docstrings; `__all__` is sorted. Verified by the
+    coordinator: 189 benchmark tests, `ruff check`, `ruff format --check`,
+    `make mypy` and `mypy scripts/evals` pass.
 
 ## Implementation orientation
 
@@ -2855,7 +2890,8 @@ Steps:
    `--max-usd`. Record the approval and the caps.
 4. Run `run`. Run `cleanup`, which must find no benchmark database, then take
    the stack down. Raw results stay in the drafts folder.
-5. **G4 (owner):**
+5. **G4 (owner), waived for this run on 2026-10-26 (D17):** `calibrate
+   waive --effort medium` records it instead of the steps below.
    - `calibrate export` draws a stratified blind sample of up to 36 English
      `reply` and `expression` items, spread evenly over configurations, then
      areas (Phase 7 deviation: no score ranges before judging).
@@ -2863,7 +2899,7 @@ Steps:
      ratings.
    - `calibrate pilot` judges the sample at medium and at high effort.
      Record the agreement at each effort and pin the effort (D15).
-6. Run `judge` at the pinned effort, resuming across usage windows. Record
+6. Run `judge` at the pinned effort (medium under D17), resuming across usage windows. Record
    the batches, missing scores and elapsed time.
 7. Run `report`. Then:
    - Have the owner write the recommendations in a Markdown file kept with
@@ -2975,7 +3011,7 @@ selected; a mock-model retry is refused) and confirmed the paid run is
 retryable. Its one note, that a retry's fresh budget can pass what is left of
 `--max-usd` by one call's whole cost, is now stated in the README.
 
-Completion: G3 and G4 are recorded, the report is tracked and the re-render
+Completion: G3 and the G4 waiver are recorded, the report is tracked and the re-render
 is verified. Commit `docs(evals)[p9]: record the first model benchmark`.
 
 **G3 (2026-10-26):** the owner approved the full tier with `--standard`,

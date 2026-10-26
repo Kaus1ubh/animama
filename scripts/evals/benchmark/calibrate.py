@@ -8,7 +8,9 @@ exactly as the judge receives it, and a ratings file for the owner to fill.
 ``import_ratings`` checks the owner's scores. ``pilot`` judges the sample at
 medium and at high, measures each effort's agreement with the owner, and
 pins the one that agrees better, medium on a tie. The sample is drawn before
-any judging, so it cannot be stratified by score.
+any judging, so it cannot be stratified by score. ``waive`` records instead
+that the owner skipped the calibration for a run, with the effort they chose
+(plan D17).
 """
 
 from __future__ import annotations
@@ -18,6 +20,7 @@ import random
 import statistics
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -48,6 +51,7 @@ __all__ = [
     "pilot",
     "pin_effort",
     "sample",
+    "waive",
 ]
 
 CALIBRATION_DIR = "calibration"
@@ -189,6 +193,24 @@ def pilot(
     }
     write_json(directory / "result.json", result)
     return result, None
+
+
+def waive(run_dir: Path, prompt_set: PromptSet, rubrics: RubricSet, *, effort: str, day: date) -> dict[str, Any]:
+    """Record the owner's decision to judge without calibrating (gate G4 waived), at the effort they chose."""
+
+    path = run_dir / CALIBRATION_DIR / "result.json"
+    if path.exists():
+        raise EvalInputError(f"{path} already records a calibration or a waiver")
+    if (run_dir / CALIBRATION_DIR / "owner.json").exists():
+        raise EvalInputError(f"{run_dir} has imported owner ratings; run `calibrate pilot` instead of waiving")
+    result = {
+        "prompt_set_version": prompt_set.version,
+        "rubrics_sha256": rubrics.sha256,
+        "waived": {"by": "owner", "date": day.isoformat()},
+        "pinned": effort,
+    }
+    write_json(path, result)
+    return result
 
 
 def pin_effort(agreement: Mapping[str, Mapping[str, Mapping[str, Any]]]) -> tuple[dict[str, float | None], str]:

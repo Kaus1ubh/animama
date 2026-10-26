@@ -27,7 +27,8 @@ folder, and can be rerun to resume::
     uv run --no-sync python -m scripts.evals.benchmark judge --run-dir .animama-drafts/model-benchmark/<run> \
         --prompts docs/benchmarks/inputs/prompts.json --effort medium
 
-``calibrate export|import|pilot`` runs the one-time calibration the same way,
+``calibrate export|import|pilot`` runs the one-time calibration the same way
+(``calibrate waive`` records that the owner skipped it),
 and ``report`` renders the public-safe report from the recorded results.
 """
 
@@ -208,6 +209,9 @@ def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
     pilot = steps.add_parser("pilot", help="judge the sample at medium and high and pin the effort")
     _run_arguments(pilot)
     _cli_arguments(pilot)
+    waived = steps.add_parser("waive", help="record that the owner waived calibration, and the effort they chose")
+    _run_arguments(waived)
+    waived.add_argument("--effort", choices=EFFORTS, required=True, help="the judge effort the owner chose")
     report = commands.add_parser("report", help="render the run's report from its recorded results")
     _run_arguments(report)
     report.add_argument("--effort", choices=EFFORTS, help="the judge results to use (default: the pinned effort)")
@@ -738,7 +742,8 @@ def _judging_exit(outcome: JudgeRun) -> int:
 
 
 def _calibrate(args: argparse.Namespace) -> int:
-    """The calibration steps (D15): draw the sample, import the owner's ratings, then pilot both efforts."""
+    """The calibration steps (D15): draw the sample, import the owner's ratings, then pilot both efforts; or
+    record the owner's waiver (D17)."""
 
     run = _open_run(args)
     if args.step == "export":
@@ -751,6 +756,10 @@ def _calibrate(args: argparse.Namespace) -> int:
     if args.step == "import":
         rated = calibrate.import_ratings(args.run_dir, args.ratings, run.rubrics)
         print(f"Imported ratings for {rated} items", file=sys.stderr)
+        return 0
+    if args.step == "waive":
+        calibrate.waive(args.run_dir, run.prompt_set, run.rubrics, effort=args.effort, day=datetime.now(UTC).date())
+        print(f"Calibration waived by the owner; judge at {args.effort}", file=sys.stderr)
         return 0
     result, stopped = calibrate.pilot(
         args.run_dir, run.turns_sha256, run.prompt_set, run.rubrics, seed=JUDGE_SEED,

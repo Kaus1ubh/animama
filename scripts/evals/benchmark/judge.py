@@ -52,6 +52,7 @@ __all__ = [
     "DEFAULT_CONCURRENCY",
     "EFFORTS",
     "JUDGE_MODEL",
+    "JUDGE_NAME",
     "MAX_ATTEMPTS",
     "ClaudeCli",
     "JudgeCallError",
@@ -67,8 +68,9 @@ __all__ = [
     "run_judging",
 ]
 
-JUDGE_MODEL = "claude-opus-5-5"
-"""Pinned by full id (D6); the CLI's start-up event confirms the model it served."""
+JUDGE_MODEL = "claude-fable-5-1"
+"""Pinned by full id (D6; Fable 5.1 since D17); the CLI's start-up event confirms the model it served."""
+JUDGE_NAME = "Claude Fable 5.1"
 EFFORTS = ("medium", "high")
 MAX_ATTEMPTS = 3
 """One call and two retries per batch before its scores are recorded as missing (spec R12)."""
