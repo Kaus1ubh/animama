@@ -531,8 +531,12 @@ const gesture = (stem: string, label: string): StageClip => ({
  * launch.
  */
 export const CLOSED_BETA = true;
-/** The closed beta's request form (a Google Form). */
-export const BETA_ACCESS_URL = "https://forms.gle/REPLACE-WITH-BETA-FORM";
+/**
+ * The closed beta's request form: the Google Form's plain responder link,
+ * never a pre-filled one (its `entry.…` values would be published).
+ */
+export const BETA_ACCESS_URL =
+  "https://docs.google.com/forms/d/e/1FAIpQLSeM2X7m2QsKbthbqLziO7B8r9vL0C6_zfMk4a_r_ws3hQWCYg/viewform";
 
 /**
  * The public site: its address, and what search results and link previews
