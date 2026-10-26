@@ -1,4 +1,4 @@
-import { BrowserWindow } from "electron";
+import { BrowserWindow, nativeTheme } from "electron";
 
 import type { DesktopConfig } from "../config.js";
 import { installFullscreenWindowEvents } from "../fullscreen/fullscreen-ipc.js";
@@ -6,6 +6,10 @@ import { installWindowGuards } from "../security/guards.js";
 import { createLoadErrorHtml } from "../ui/load-error-page.js";
 import { writeLog } from "../logging.js";
 import { RuntimeError } from "../runtime/errors.js";
+import {
+  hiddenTitleBarOptions,
+  registerTitleBarOverlayWindow,
+} from "./title-bar.js";
 
 type CreateWindowOptions = {
   config: DesktopConfig;
@@ -62,6 +66,7 @@ export async function createWindow({
     title: "Animama",
     show: true,
     fullscreenable: true,
+    ...hiddenTitleBarOptions(process.platform, nativeTheme.shouldUseDarkColors),
     webPreferences: {
       preload: preloadPath,
       additionalArguments: ["--animama-window-role=main"],
@@ -73,6 +78,7 @@ export async function createWindow({
     },
   });
 
+  registerTitleBarOverlayWindow(window);
   onCreated?.(window);
   installFullscreenWindowEvents(window);
   installWindowGuards(window, config.allowedWebOrigin);

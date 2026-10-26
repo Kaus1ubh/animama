@@ -65,4 +65,35 @@ describe("createMicVadCallbacks", () => {
       }),
     );
   });
+
+  it("reports a window confirmed as speech after the gate records it", () => {
+    const gateStateRef = { current: startAcousticTurn("turn-1") };
+    const seen: (boolean | undefined)[] = [];
+    const callbacks = createCallbacks({
+      gateStateRef,
+      onSpeechWindowResolved: () =>
+        seen.push(gateStateRef.current?.activeWindow?.isRealSpeech),
+    });
+
+    callbacks.onSpeechStart();
+    expect(seen).toEqual([]);
+    callbacks.onSpeechRealStart();
+
+    expect(seen).toEqual([true]);
+  });
+
+  it("reports a window discarded as noise after the gate closes it", () => {
+    const gateStateRef = { current: startAcousticTurn("turn-1") };
+    const seen: unknown[] = [];
+    const callbacks = createCallbacks({
+      gateStateRef,
+      onSpeechWindowResolved: () =>
+        seen.push(gateStateRef.current?.activeWindow),
+    });
+
+    callbacks.onSpeechStart();
+    callbacks.onVADMisfire();
+
+    expect(seen).toEqual([null]);
+  });
 });

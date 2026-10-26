@@ -16,7 +16,7 @@ function SafetyRoute() {
   const { t } = useTranslation("safety");
   const crisisProtocol = useCrisisProtocol();
   return (
-    <main className="bg-background text-foreground min-h-screen px-6 py-10">
+    <main className="bg-background text-foreground min-h-app px-6 py-10">
       <div className="mx-auto w-full max-w-2xl space-y-6">
         <Link
           to="/"

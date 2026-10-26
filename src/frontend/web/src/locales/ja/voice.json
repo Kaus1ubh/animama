@@ -16,19 +16,12 @@
     "cancel": "ダウンロードをキャンセル",
     "confirmRemoval": "削除を確定",
     "downloading": "ダウンロード中 {{percent}}",
-    "installed": "インストール済み",
-    "installedWithNote": "インストール済み · {{note}}",
-    "lowSpace": "空き容量が不足しています。ダウンロードには {{size}} の空き容量が必要です。",
     "notAvailable": "利用不可",
-    "progressLabel": "{{label}} のダウンロード進行状況",
-    "retry": "ダウンロードを再試行",
     "sections": {
-      "speechToText": "音声認識",
       "voiceClone": "音声クローン"
     },
     "size": "{{size}} のダウンロード",
     "sizeRetry": "{{size}} のダウンロード · 再試行できます",
-    "verifying": "ダウンロードを確認しています…",
     "errors": {
       "notReady": "インストールの準備ができていません。開き直してから再試行してください。",
       "statusUnavailable": "ダウンロードの状態を取得できません。開き直してから再試行してください。"
@@ -81,13 +74,6 @@
     }
   },
   "offlineSpeech": {
-    "checking": "オフライン音声認識を確認しています…",
-    "cpu": {
-      "download": "CPU モデルをダウンロード",
-      "label": "CPU モデル",
-      "remove": "CPU モデルを削除"
-    },
-    "description": "音声入力と音声モードはこのデバイス上で文字起こしするため、音声が外部に送られることはありません。",
     "developmentAcquire": "この開発スタックはホストから音声モデルを提供します。{{cpuCommand}} を実行し (GPU アクセラレーションには {{gpuCommand}} も実行)、{{resetCommand}} を再実行してください。",
     "failures": {
       "downloadFailed": "ダウンロードが完了しませんでした。インターネット接続を確認してから再試行してください。",
@@ -100,37 +86,24 @@
     },
     "gpu": {
       "blocked": {
-        "checking": "WebGPU のサポートを確認しています…",
-        "missing": "このビルドでは GPU アクセラレーションを利用できません。",
-        "needsCpu": "先に CPU モデルをダウンロードしてください。",
-        "noWebgpu": "このブラウザーまたはデバイスでは WebGPU を利用できません。"
+        "needsCpu": "先に CPU モデルをダウンロードしてください。"
       },
-      "description": "ライブプレビュー付きでより高速に認識します。CPU モデルと WebGPU 対応のデバイスが必要です。",
-      "download": "GPU アクセラレーションをダウンロード",
       "fellBack": "前回は WebGPU を読み込めなかったため、音声認識に CPU を使用しました。",
-      "label": "GPU アクセラレーション",
-      "remove": "GPU アクセラレーションを削除",
-      "removeFirst": "先に GPU アクセラレーションを削除してください。",
-      "unavailableNow": "現在、GPU アクセラレーションを利用できません。"
+      "removeFirst": "先に GPU アクセラレーションを削除してください。"
     },
-    "listUnavailable": "音声のダウンロードを利用できません。設定を開き直して再試行してください。",
     "refusals": {
       "busy": "このモデルはまだ変更中です。しばらくしてから再試行してください。",
       "changeFailed": "変更を完了できませんでした。しばらくしてから再試行してください。",
       "inUse": "音声認識が使用中です。削除するには音声入力と音声モードを終了してください。"
     },
-    "title": "オフライン音声認識",
-    "turnedOff": "このサーバーではオフライン音声認識がオフになっています。",
     "engines": {
       "parakeet": {
         "languages": "英語",
-        "model": "NVIDIA の Parakeet TDT 0.6B v2",
-        "attribution": "モデルの帰属表示 (CC BY 4.0)"
+        "model": "NVIDIA の Parakeet TDT 0.6B v2"
       },
       "sensevoice": {
         "languages": "日本語・韓国語・中国語",
-        "model": "Alibaba の SenseVoice-Small",
-        "attribution": "モデルの帰属表示 (FunASR Model License)"
+        "model": "Alibaba の SenseVoice-Small"
       }
     }
   },

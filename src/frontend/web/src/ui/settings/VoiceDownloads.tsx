@@ -9,41 +9,7 @@ import {
 import { useModelAssetAction } from "@/query/mutations/useModelAssetActions";
 import { VoiceCloneLibrary } from "@/ui/animas/VoiceCloneLibrary";
 import { Button } from "@/ui/components/button";
-import { OfflineSpeechDownloads } from "./OfflineSpeechDownloads";
 import { operatorManagedModelsNote } from "./operator-managed-models";
-
-/** Optional downloads shared by setup and Voice settings; all install in place. */
-export function VoiceDownloads({
-  section = "all",
-}: {
-  section?: "all" | "speech-to-text" | "voice-clone";
-}) {
-  const { t } = useTranslation("voice");
-  if (section === "speech-to-text") return <OfflineSpeechDownloads />;
-  if (section === "voice-clone") return <VoiceCloningStatus />;
-  return (
-    <div className="space-y-6">
-      <section
-        className="space-y-3"
-        aria-label={t("downloads.sections.speechToText")}
-      >
-        <h2 className="text-sm font-semibold">
-          {t("downloads.sections.speechToText")}
-        </h2>
-        <OfflineSpeechDownloads />
-      </section>
-      <section
-        className="space-y-3"
-        aria-label={t("downloads.sections.voiceClone")}
-      >
-        <h2 className="text-sm font-semibold">
-          {t("downloads.sections.voiceClone")}
-        </h2>
-        <VoiceCloningStatus />
-      </section>
-    </div>
-  );
-}
 
 /** Reuse the Anima voice-cloning form without tying creation to a selected Anima. */
 export function VoiceCloneSettings() {

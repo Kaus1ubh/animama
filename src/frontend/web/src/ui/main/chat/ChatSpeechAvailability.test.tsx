@@ -42,18 +42,26 @@ vi.mock("@/ui/components/chat-transcript", () => {
   };
 });
 vi.mock("@/ui/components/chat-input", () => ({
-  ChatInput: ({ children }: { children?: ReactNode }) => <>{children}</>,
-  ChatInputDictation: () => null,
+  ChatInput: ({
+    actions,
+    children,
+  }: {
+    actions?: ReactNode;
+    children?: ReactNode;
+  }) => (
+    <>
+      {actions}
+      {children}
+    </>
+  ),
+  ChatInputDictation: ({ disabled }: { disabled?: boolean }) => (
+    <div>{disabled ? "Dictation disabled" : "Dictation enabled"}</div>
+  ),
   ChatInputFileUploadButton: () => null,
   ChatInputFileUploadUnavailable: () => null,
   ChatInputModelSelector: () => null,
   ChatInputSubmit: () => null,
   ChatInputTextArea: () => null,
-}));
-vi.mock("@/ui/settings/OfflineSpeechDownloads", () => ({
-  OfflineSpeechDownloads: ({ routedOnly }: { routedOnly?: boolean }) => (
-    <div>Speech model state{routedOnly ? " (routed)" : ""}</div>
-  ),
 }));
 
 function render() {
@@ -82,7 +90,7 @@ function render() {
   );
 }
 
-describe("unavailable speech recognition in the composer", () => {
+describe("speech recognition availability in the composer", () => {
   beforeEach(() => {
     fixture.capabilities = {};
   });
@@ -90,16 +98,14 @@ describe("unavailable speech recognition in the composer", () => {
     await getI18n().changeLanguage("en");
   });
 
-  it("offers the offline speech download where the owner administers models", () => {
+  it("disables dictation without an install prompt when speech is unavailable", () => {
     fixture.capabilities = {
       offline_speech_enabled: false,
       local_filesystem_administration: true,
     };
     const html = render();
-    expect(html).toContain(
-      "Install offline speech recognition to use dictation and Voice Mode",
-    );
-    expect(html).toContain("Speech model state (routed)");
+    expect(html).toContain("Dictation disabled");
+    expect(html).not.toMatch(/offline speech recognition/i);
   });
 
   it("follows the UI Locale's offline engine", async () => {
@@ -108,23 +114,10 @@ describe("unavailable speech recognition in the composer", () => {
       offline_multilingual_speech_enabled: false,
       local_filesystem_administration: true,
     };
-    expect(render()).not.toContain("Speech model state");
+    expect(render()).toContain("Dictation enabled");
     await getI18n().changeLanguage("ja");
-    expect(render()).toContain("Speech model state (routed)");
+    expect(render()).toContain("Dictation disabled");
     fixture.capabilities.offline_multilingual_speech_enabled = true;
-    expect(render()).not.toContain("Speech model state");
-  });
-
-  it("says offline speech is not available where the operator provides models", () => {
-    fixture.capabilities = {
-      offline_speech_enabled: false,
-      local_filesystem_administration: false,
-    };
-    const html = render();
-    expect(html).not.toMatch(/Install offline speech/i);
-    expect(html).toContain(
-      "Offline speech recognition for dictation and Voice Mode is not available here",
-    );
-    expect(html).toContain("Speech model state");
+    expect(render()).toContain("Dictation enabled");
   });
 });

@@ -10,7 +10,10 @@ import {
 } from "./sceneCameraPresets";
 
 /** Display name of a camera preset. */
-function presetLabel(t: TFunction<"chat">, preset: SceneCameraPreset) {
+export function cameraPresetLabel(
+  t: TFunction<"chat">,
+  preset: SceneCameraPreset,
+) {
   switch (preset) {
     case "full-body":
       return t("canvas.camera.presets.fullBody");
@@ -27,17 +30,21 @@ function presetLabel(t: TFunction<"chat">, preset: SceneCameraPreset) {
 export function SceneCameraPresetControl({
   preset,
   onApplyPreset,
+  title,
 }: {
   preset: SceneCameraPreset | null;
   onApplyPreset: (preset: SceneCameraPreset) => void;
+  /** Heading; the main camera's by default. */
+  title?: string;
 }) {
   const { t } = useTranslation("chat");
+  const heading = title ?? t("canvas.camera.title");
   return (
     <section
-      aria-label={t("canvas.camera.title")}
+      aria-label={heading}
       className="border-border/60 space-y-2 border-t pt-3"
     >
-      <h3 className="text-sm font-medium">{t("canvas.camera.title")}</h3>
+      <h3 className="text-sm font-medium">{heading}</h3>
       <div className="relative">
         <select
           aria-label={t("canvas.camera.preset")}
@@ -57,7 +64,7 @@ export function SceneCameraPresetControl({
           ) : null}
           {SCENE_CAMERA_PRESETS.map((value) => (
             <option key={value} value={value}>
-              {presetLabel(t, value)}
+              {cameraPresetLabel(t, value)}
             </option>
           ))}
         </select>

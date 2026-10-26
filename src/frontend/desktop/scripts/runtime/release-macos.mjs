@@ -33,7 +33,7 @@ import {
   verifySignedApp,
   waitForNotarization,
 } from "./macos-signing.mjs";
-import { buildIcon } from "./icon.mjs";
+import { macIcon } from "./icon.mjs";
 import {
   releaseSbom,
   releaseSizes,
@@ -208,7 +208,6 @@ export async function releaseMac(args = []) {
     "--arch",
     "arm64",
   ]);
-  const icon = await buildIcon();
   const directory = path.join(desktopRoot, "release");
   const app = path.join(directory, "mac/Animama.app");
   if (submissionId) {
@@ -229,7 +228,7 @@ export async function releaseMac(args = []) {
   await build(
     macBuilderOptions({
       app: submissionId ? app : null,
-      icon,
+      icon: macIcon,
       release,
       rehearsal,
     }),

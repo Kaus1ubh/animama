@@ -76,6 +76,11 @@ export type CreateMicVadCallbacksArgs = {
     provider: VadSttProvider;
     startedAtMs: number;
   }) => void;
+  /**
+   * The open window was confirmed as speech or discarded as noise; the gate
+   * state already reflects it. A waiting end of turn depends on which.
+   */
+  onSpeechWindowResolved?: () => void;
   /** Receives every 16 kHz MicVAD frame, including pre-speech audio. */
   onVadFrame?: (frame: Float32Array) => void;
   onAcceptedSpeechEnd?: (args: {
@@ -159,6 +164,7 @@ export function createMicVadCallbacks({
   armVoiceSilenceResetTimer,
   onSpeechWindowInvalidated,
   onSpeechWindowStarted,
+  onSpeechWindowResolved,
   onVadFrame,
   onAcceptedSpeechEnd,
   runSmartTurnSemanticCheck,
@@ -221,6 +227,7 @@ export function createMicVadCallbacks({
         windowId,
       });
       setAvatarPhaseFromVad("user_speaking");
+      onSpeechWindowResolved?.();
     },
     onVADMisfire: () => {
       const gateState = gateStateRef.current;
@@ -253,6 +260,7 @@ export function createMicVadCallbacks({
         armVoiceSilenceResetTimer("vad_misfire");
       }
       setAvatarPhaseFromVad("listening");
+      onSpeechWindowResolved?.();
     },
     onSpeechEnd: (audio) => {
       const gateState = gateStateRef.current;

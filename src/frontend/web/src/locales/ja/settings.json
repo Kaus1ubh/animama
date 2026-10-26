@@ -340,6 +340,7 @@
       "press_to_talk": "プッシュトゥトーク",
       "quick_chat": "クイックチャット",
       "skip_tts": "読み上げをスキップ",
+      "toggle_dictation": "音声入力のオン/オフ",
       "toggle_voice_mode": "音声モードのオン/オフ",
       "toggle_voice_mute": "ミュートの切り替え"
     },

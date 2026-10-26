@@ -40,7 +40,10 @@ import {
   type BrowserSpeechTextBuffers,
   updateBrowserSpeechTextBuffers,
 } from "@/hooks/voice/browser-recognition-runtime";
-import { useVoiceEndTurnCoordinator } from "@/hooks/voice/use-voice-end-turn-coordinator";
+import {
+  useVoiceEndTurnCoordinator,
+  type VoiceAutoSubmitPayload,
+} from "@/hooks/voice/use-voice-end-turn-coordinator";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
 import {
   microphoneAudioConstraints,
@@ -67,6 +70,7 @@ import {
   SMART_TURN_FORCE_END_TURN_SHORT_UTTERANCE_SET,
   normalizeSmartTurnOverrideText,
 } from "@/lib/voice/smart-turn-short-utterance-overrides";
+import { createInFlightWork } from "@/lib/voice/in-flight-work";
 import { getVoiceDebugSink } from "@/lib/voice/voiceDebugSink";
 import { useAvatarRuntimeStore } from "@/stores/avatar-runtime-store";
 import type { SttSegmentSource } from "@/lib/types/voice-types";
@@ -82,17 +86,6 @@ type DictationSegment = {
 };
 
 type DictationMode = "dictation" | "voice";
-
-type VoiceAutoSubmitPayload = {
-  text: string;
-  turnId: string;
-  jobId: string;
-  probability: number;
-  threshold: number;
-  latencyMs: number;
-  decision: "end_turn";
-  source: "smart_turn_v3";
-};
 
 type VoiceSilenceResetPayload = {
   turnId: string;
@@ -121,6 +114,15 @@ type UseDictationOptions = {
 
 type MuteVoiceMicOptions = {
   flushPendingSpeech?: boolean;
+};
+
+type StopDictationOptions = {
+  /**
+   * Whether stopping dictation first delivers the phrase being spoken
+   * (default). A mode switch or unmount passes false: the composer already
+   * holds the visible words, so delivering them again would duplicate them.
+   */
+  finishSpokenText?: boolean;
 };
 
 type SuspendVadCaptureOptions = {
@@ -155,6 +157,11 @@ const VAD_ONNX_WASM_BASE_PATH = publicResourceUrl("onnx/ort/1.24.2/");
 const VAD_FRAME_DEBUG_INTERVAL_MS = 120;
 const LATE_FINAL_TRANSCRIPT_GRACE_MS = 1000;
 const SMART_TURN_END_TURN_WAIT_MS = 1000;
+// How long a stop waits for the recognizer to end, and in dictation for the
+// final result of the phrase just spoken.
+const BROWSER_RECOGNITION_END_WAIT_MS = 1500;
+// How long stopping offline dictation waits for windows still being transcribed.
+const OFFLINE_STOP_TRANSCRIPTION_WAIT_MS = 5000;
 const VOICE_SILENCE_RESET_MS = 6000;
 const VOICE_SILENCE_RESET_DEFER_MS = 250;
 const SMART_TURN_MODEL_URL = publicResourceUrl(
@@ -360,6 +367,8 @@ export function useDictation(options: UseDictationOptions = {}) {
   const offlineSessionCounterRef = useRef(0);
   const activeOfflineSessionIdRef = useRef<number | null>(null);
   const offlineJobCounterRef = useRef(0);
+  const offlineTranscriptionsRef = useRef(createInFlightWork());
+  const stopInFlightRef = useRef<Promise<void> | null>(null);
   const offlinePreviewControllerRef = useRef<SpeechPreviewController | null>(
     null,
   );
@@ -757,11 +766,14 @@ export function useDictation(options: UseDictationOptions = {}) {
       if (shouldFlushPendingSpeech) {
         clearPendingFlushSmartTurnOverride(flushProvider, flushTurnId);
       }
+      // A waiting end of turn held for the window just closed can go now.
+      void submitPendingVoiceEndTurn("speech_window_update");
     },
     [
       clearPendingFlushSmartTurnOverride,
       clearVoiceSilenceResetTimer,
       logger,
+      submitPendingVoiceEndTurn,
       syncGateDebugStats,
     ],
   );
@@ -1030,48 +1042,77 @@ export function useDictation(options: UseDictationOptions = {}) {
     [],
   );
 
-  const stopBrowserRecognition = useCallback(async () => {
-    const recognition = recognitionRef.current;
-    if (!recognition) return;
+  /**
+   * End browser recognition and wait for its `end` event. With `finalize`,
+   * the recognizer first returns results for audio it already heard;
+   * otherwise it is aborted and returns nothing more.
+   */
+  const stopBrowserRecognition = useCallback(
+    async (options?: { finalize?: boolean }) => {
+      const recognition = recognitionRef.current;
+      if (!recognition) return;
 
-    await new Promise<void>((resolve) => {
-      let settled = false;
-      const finish = () => {
-        if (settled) return;
-        settled = true;
-        window.clearTimeout(timeoutId);
-        recognition.removeEventListener("end", onEnd);
-        resolve();
-      };
+      await new Promise<void>((resolve) => {
+        let settled = false;
+        const finish = () => {
+          if (settled) return;
+          settled = true;
+          window.clearTimeout(timeoutId);
+          recognition.removeEventListener("end", onEnd);
+          resolve();
+        };
 
-      const onEnd = () => {
-        finish();
-      };
+        const onEnd = () => {
+          finish();
+        };
 
-      const timeoutId = window.setTimeout(() => {
-        logger.warn(
-          "BrowserSTT",
-          "Timed out waiting for browser recognition end",
-        );
-        finish();
-      }, 1500);
+        const timeoutId = window.setTimeout(() => {
+          logger.warn(
+            "BrowserSTT",
+            "Timed out waiting for browser recognition end",
+          );
+          finish();
+        }, BROWSER_RECOGNITION_END_WAIT_MS);
 
-      recognition.addEventListener("end", onEnd, { once: true });
+        recognition.addEventListener("end", onEnd, { once: true });
 
-      try {
-        if (typeof recognition.abort === "function") {
-          recognition.abort();
-        } else {
-          recognition.stop();
+        try {
+          if (!options?.finalize && typeof recognition.abort === "function") {
+            recognition.abort();
+          } else {
+            recognition.stop();
+          }
+        } catch (err) {
+          logger.warn("BrowserSTT", "Failed to stop browser recognition", {
+            error: err instanceof Error ? err.message : String(err),
+          });
+          finish();
         }
+      });
+    },
+    [logger],
+  );
+
+  /**
+   * Close any open speech window as a finished utterance: pausing MicVAD with
+   * submit-on-pause emits its speech end, which queues its transcription.
+   */
+  const flushOpenSpeechWindow = useCallback(
+    async (reason: string) => {
+      const currentVad = vadRef.current;
+      if (!currentVad) return;
+      currentVad.setOptions({ submitUserSpeechOnPause: true });
+      try {
+        await currentVad.pause();
       } catch (err) {
-        logger.warn("BrowserSTT", "Failed to stop browser recognition", {
+        logger.warn("VADLifecycle", "Failed to flush acoustic VAD", {
+          reason,
           error: err instanceof Error ? err.message : String(err),
         });
-        finish();
       }
-    });
-  }, [logger]);
+    },
+    [logger],
+  );
 
   const runSmartTurnSemanticCheck = useCallback(
     async (args: {
@@ -1155,6 +1196,7 @@ export function useDictation(options: UseDictationOptions = {}) {
       });
 
       setAvatarPhaseFromVad("semantic_check");
+      const jobStartedAtMs = performance.now();
 
       try {
         debugStore?.pushSmartTurnEvent({
@@ -1315,6 +1357,15 @@ export function useDictation(options: UseDictationOptions = {}) {
         });
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err);
+        if (smartTurnActiveJobRef.current?.jobId !== jobId) {
+          // A newer job, a turn rotation or a stop already replaced this job.
+          logger.info(
+            "SmartTurnJob",
+            "Ignored smart-turn failure after supersession",
+            { provider: args.provider, turnId: args.turnId, jobId },
+          );
+          return;
+        }
         smartTurnActiveJobRef.current = null;
         debugStore?.setSmartTurnActiveJob(null);
         debugStore?.setSmartTurnStatus("error");
@@ -1334,7 +1385,18 @@ export function useDictation(options: UseDictationOptions = {}) {
           jobId,
           error: errorMessage,
         });
-        setAvatarPhaseFromVad("listening");
+        // Without a semantic decision, the acoustic end of speech ends the
+        // turn, so the words are sent instead of waiting for the silence reset
+        // to drop them.
+        await queuePendingVoiceEndTurn({
+          provider: args.provider,
+          turnId: args.turnId,
+          jobId,
+          probability: null,
+          threshold: smartTurnThreshold,
+          latencyMs: Math.round(performance.now() - jobStartedAtMs),
+          source: "acoustic_fallback",
+        });
       }
     },
     [
@@ -1345,78 +1407,148 @@ export function useDictation(options: UseDictationOptions = {}) {
     ],
   );
 
-  const stopDictation = useCallback(async () => {
-    if (
-      !isDictatingRef.current &&
-      !recognitionRef.current &&
-      !browserVisualizerStreamRef.current
-    ) {
-      return;
-    }
+  const stopDictationNow = useCallback(
+    async (options?: StopDictationOptions) => {
+      const provider = activeProviderRef.current;
+      // Stopping dictation keeps the sentence being spoken: the open window and
+      // any window still being transcribed reach the composer first. Leaving
+      // Voice Mode discards an unfinished turn instead.
+      const finishSpokenText =
+        options?.finishSpokenText !== false && modeRef.current === "dictation";
+      logger.info("State", "Stopping dictation", {
+        runId: runIdRef.current,
+        provider,
+        finishSpokenText,
+      });
+      clearVoiceSilenceResetTimer();
+      lastAcceptedSpeechAtRef.current = null;
 
-    const provider = activeProviderRef.current;
-    logger.info("State", "Stopping dictation", {
-      runId: runIdRef.current,
-      provider,
-    });
-    clearTranscriptPreview({
-      provider,
-      mode: modeRef.current,
-      turnId: turnIdRef.current,
-    });
-    clearVoiceSilenceResetTimer();
-    lastAcceptedSpeechAtRef.current = null;
+      if (provider === "parakeet") {
+        if (finishSpokenText) {
+          await flushOpenSpeechWindow("stop-parakeet");
+          const settled = await offlineTranscriptionsRef.current.settle(
+            OFFLINE_STOP_TRANSCRIPTION_WAIT_MS,
+          );
+          if (!settled) {
+            logger.warn(
+              "OfflineSTT",
+              "Stopped before every speech window was transcribed",
+              { waitMs: OFFLINE_STOP_TRANSCRIPTION_WAIT_MS },
+            );
+          }
+        }
+        clearTranscriptPreview({
+          provider,
+          mode: modeRef.current,
+          turnId: turnIdRef.current,
+        });
+        const runId = runIdRef.current;
+        activeOfflineSessionIdRef.current = null;
+        offlinePreviewControllerRef.current?.reset();
+        offlinePreviewControllerRef.current = null;
+        offlinePreviewRef.current = null;
+        setIsDictationPreparing(false);
+        setRunId(null);
+        teardownBrowserVisualizerStream();
+        await teardownVad("stop-parakeet");
+        await teardownSmartTurn("stop-parakeet");
+        logger.info("State", "Dictation stopped", { runId, provider });
+      } else {
+        markBrowserStopReason("stop");
+        if (finishSpokenText) {
+          await flushOpenSpeechWindow("stop-browser");
+          // Accept the just-spoken phrase's final result for as long as the
+          // recognizer may take to deliver it.
+          const closedWindow = lastClosedRealSpeechWindowRef.current;
+          if (closedWindow && closedWindow.turnId === turnIdRef.current) {
+            lastClosedRealSpeechWindowRef.current = {
+              ...closedWindow,
+              expiresAtMs: Date.now() + BROWSER_RECOGNITION_END_WAIT_MS,
+            };
+          }
+        }
+        await stopBrowserRecognition({ finalize: finishSpokenText });
+        const buffers = browserSpeechTextBuffersRef.current;
+        const unfinalizedText =
+          finishSpokenText && buffers?.turnId === turnIdRef.current
+            ? buffers.interimText.trim()
+            : "";
+        if (unfinalizedText) {
+          // The recognizer ended without finalizing these words; keep them as
+          // they were shown rather than dropping them from the composer.
+          onSegmentRef.current?.({
+            text: unfinalizedText,
+            isFinal: true,
+            runId: null,
+            turnId: buffers?.turnId ?? null,
+            source: "browser_web_speech",
+          });
+        }
+        clearTranscriptPreview({
+          provider,
+          mode: modeRef.current,
+          turnId: turnIdRef.current,
+        });
+        clearBrowserRecognitionHandlers();
+        teardownBrowserVisualizerStream();
+        await teardownVad("stop-browser");
+        await teardownSmartTurn("stop-browser");
+        setRunId(null);
+        logger.info("State", "Browser dictation stopped", { provider });
+      }
 
-    if (provider === "parakeet") {
-      const runId = runIdRef.current;
-      activeOfflineSessionIdRef.current = null;
-      offlinePreviewControllerRef.current?.reset();
-      offlinePreviewControllerRef.current = null;
-      offlinePreviewRef.current = null;
-      setIsDictationPreparing(false);
-      setRunId(null);
-      teardownBrowserVisualizerStream();
-      await teardownVad("stop-parakeet");
-      await teardownSmartTurn("stop-parakeet");
-      logger.info("State", "Dictation stopped", { runId, provider });
-    } else {
-      markBrowserStopReason("stop");
-      await stopBrowserRecognition();
-      clearBrowserRecognitionHandlers();
-      teardownBrowserVisualizerStream();
-      await teardownVad("stop-browser");
-      await teardownSmartTurn("stop-browser");
-      setRunId(null);
-      logger.info("State", "Browser dictation stopped", { provider });
-    }
+      activeProviderRef.current = null;
+      modeRef.current = "dictation";
+      clearBrowserStopReason();
+      setSessionState({
+        mode: null,
+        captureActive: false,
+        voiceMuted: false,
+      });
+      if (provider === "parakeet" && offlineRouteRef.current) {
+        offlineSttClients[offlineRouteRef.current.engine].armIdleDispose(
+          "stop-offline",
+        );
+      }
+    },
+    [
+      clearBrowserStopReason,
+      clearVoiceSilenceResetTimer,
+      clearBrowserRecognitionHandlers,
+      clearTranscriptPreview,
+      flushOpenSpeechWindow,
+      logger,
+      markBrowserStopReason,
+      setSessionState,
+      setRunId,
+      stopBrowserRecognition,
+      teardownBrowserVisualizerStream,
+      teardownSmartTurn,
+      teardownVad,
+    ],
+  );
 
-    activeProviderRef.current = null;
-    modeRef.current = "dictation";
-    clearBrowserStopReason();
-    setSessionState({
-      mode: null,
-      captureActive: false,
-      voiceMuted: false,
-    });
-    if (provider === "parakeet" && offlineRouteRef.current) {
-      offlineSttClients[offlineRouteRef.current.engine].armIdleDispose(
-        "stop-offline",
-      );
-    }
-  }, [
-    clearBrowserStopReason,
-    clearVoiceSilenceResetTimer,
-    clearBrowserRecognitionHandlers,
-    clearTranscriptPreview,
-    logger,
-    markBrowserStopReason,
-    setSessionState,
-    setRunId,
-    stopBrowserRecognition,
-    teardownBrowserVisualizerStream,
-    teardownSmartTurn,
-    teardownVad,
-  ]);
+  const stopDictation = useCallback(
+    async (options?: StopDictationOptions) => {
+      // A stop that is still finishing the spoken text owns the session.
+      if (stopInFlightRef.current) return stopInFlightRef.current;
+      if (
+        !isDictatingRef.current &&
+        !recognitionRef.current &&
+        !browserVisualizerStreamRef.current
+      ) {
+        return;
+      }
+      const stopping = stopDictationNow(options);
+      stopInFlightRef.current = stopping;
+      try {
+        await stopping;
+      } finally {
+        stopInFlightRef.current = null;
+      }
+    },
+    [stopDictationNow],
+  );
 
   const muteVoiceMic = useCallback(
     async (options?: MuteVoiceMicOptions) => {
@@ -2173,6 +2305,9 @@ export function useDictation(options: UseDictationOptions = {}) {
           onVadFrame: (frame) => previewController?.pushFrame(frame),
           onSpeechWindowStarted: ({ turnId: speechTurnId, windowId }) =>
             previewController?.startWindow({ turnId: speechTurnId, windowId }),
+          onSpeechWindowResolved: () => {
+            void submitPendingVoiceEndTurn("speech_window_update");
+          },
           onSpeechWindowInvalidated: ({ windowId }) => {
             previewController?.endWindow(windowId);
             clearOfflinePreview({ windowId, mode });
@@ -2194,16 +2329,18 @@ export function useDictation(options: UseDictationOptions = {}) {
               "parakeet",
               speechTurnId,
             );
-            void transcribeOfflineSpeechWindow({
-              sessionId,
-              route,
-              runId,
-              turnId: speechTurnId,
-              windowId,
-              mode,
-              audio,
-              thresholdOverride,
-            });
+            void offlineTranscriptionsRef.current.track(
+              transcribeOfflineSpeechWindow({
+                sessionId,
+                route,
+                runId,
+                turnId: speechTurnId,
+                windowId,
+                mode,
+                audio,
+                thresholdOverride,
+              }),
+            );
           },
           runSmartTurnSemanticCheck,
           lateFinalTranscriptGraceMs: LATE_FINAL_TRANSCRIPT_GRACE_MS,
@@ -2328,6 +2465,7 @@ export function useDictation(options: UseDictationOptions = {}) {
       setSessionState,
       setRunId,
       startOfflineVisualizerStream,
+      submitPendingVoiceEndTurn,
       suspendVadCapture,
       syncGateDebugStats,
       takePendingFlushSmartTurnOverride,
@@ -2526,6 +2664,9 @@ export function useDictation(options: UseDictationOptions = {}) {
               mode: modeRef.current,
             });
           },
+          onSpeechWindowResolved: () => {
+            void submitPendingVoiceEndTurn("speech_window_update");
+          },
           runSmartTurnSemanticCheck,
           lateFinalTranscriptGraceMs: LATE_FINAL_TRANSCRIPT_GRACE_MS,
           smartTurnSampleRate: SMART_TURN_SAMPLE_RATE,
@@ -2707,12 +2848,14 @@ export function useDictation(options: UseDictationOptions = {}) {
               });
             },
             syncGateDebugStats,
-            onVoiceTranscriptUpdate: () => {
-              void submitPendingVoiceEndTurn("transcript_update");
-            },
           });
           gateStateRef.current = result.nextGateState;
           browserSpeechTextBuffersRef.current = result.nextBuffers;
+          // A waiting end of turn reads the stored transcript, so check it
+          // only after this result is stored.
+          if (modeRef.current === "voice") {
+            void submitPendingVoiceEndTurn("transcript_update");
+          }
 
           const currentTurnId = turnIdRef.current;
           const nextBuffers = result.nextBuffers;
@@ -3005,7 +3148,7 @@ export function useDictation(options: UseDictationOptions = {}) {
       if (currentMode === nextMode) {
         return;
       }
-      await stopDictation();
+      await stopDictation({ finishSpokenText: false });
       await startDictation(nextMode);
     },
     [startDictation, stopDictation],
@@ -3013,7 +3156,7 @@ export function useDictation(options: UseDictationOptions = {}) {
 
   useEffect(() => {
     return () => {
-      void stopDictation();
+      void stopDictation({ finishSpokenText: false });
     };
   }, [stopDictation]);
 
