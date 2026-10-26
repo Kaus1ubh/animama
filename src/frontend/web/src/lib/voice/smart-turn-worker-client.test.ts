@@ -7,6 +7,7 @@ const fixture = vi.hoisted(() => ({
     terminated: boolean;
     requests: string[];
     terminate(): void;
+    emit(type: string, event: unknown): void;
   }[],
   /** Requests stay unanswered, as when the worker is about to be terminated. */
   holdReplies: false,
@@ -46,7 +47,19 @@ class FakeWorker {
   terminate() {
     this.terminated = true;
   }
+  emit(type: string, event: unknown) {
+    this.listeners.get(type)?.forEach((listener) => listener(event));
+  }
 }
+
+const predict = (smartTurn: typeof import("./smart-turn-worker-client")) =>
+  smartTurn.predictSmartTurn({
+    jobId: "job",
+    turnId: "turn",
+    audio: new Float32Array(16),
+    sampleRateHz: 16_000,
+    threshold: 0.5,
+  });
 
 const load = (smartTurn: typeof import("./smart-turn-worker-client")) =>
   smartTurn.loadSmartTurnWorker({
@@ -61,7 +74,57 @@ beforeEach(() => {
   fixture.holdReplies = false;
 });
 afterEach(() => {
+  vi.useRealTimers();
   vi.unstubAllGlobals();
+});
+
+describe("a worker that stops answering", () => {
+  it("fails its requests when the worker errors and starts a new worker next time", async () => {
+    const smartTurn = await import("./smart-turn-worker-client");
+    await load(smartTurn);
+    fixture.holdReplies = true;
+    const predicting = predict(smartTurn);
+    fixture.workers[0].emit("error", { message: "worker script failed" });
+    await expect(predicting).rejects.toThrow("failed");
+    expect(fixture.workers[0].terminated).toBe(true);
+    fixture.holdReplies = false;
+    await expect(load(smartTurn)).resolves.toBeDefined();
+    expect(fixture.workers).toHaveLength(2);
+  });
+
+  it("fails a prediction that never answers", async () => {
+    vi.useFakeTimers();
+    const smartTurn = await import("./smart-turn-worker-client");
+    await load(smartTurn);
+    fixture.holdReplies = true;
+    const settled = expect(predict(smartTurn)).rejects.toThrow("timed out");
+    await vi.advanceTimersByTimeAsync(smartTurn.SMART_TURN_PREDICT_TIMEOUT_MS);
+    await settled;
+  });
+
+  it("fails a load that never answers and replaces the worker", async () => {
+    vi.useFakeTimers();
+    const smartTurn = await import("./smart-turn-worker-client");
+    fixture.holdReplies = true;
+    const settled = expect(load(smartTurn)).rejects.toThrow("timed out");
+    await vi.advanceTimersByTimeAsync(smartTurn.SMART_TURN_LOAD_TIMEOUT_MS);
+    await settled;
+    expect(fixture.workers[0].terminated).toBe(true);
+    fixture.holdReplies = false;
+    await expect(load(smartTurn)).resolves.toBeDefined();
+    expect(fixture.workers).toHaveLength(2);
+  });
+
+  it("still stops a worker that never answers its dispose request", async () => {
+    vi.useFakeTimers();
+    const smartTurn = await import("./smart-turn-worker-client");
+    await load(smartTurn);
+    fixture.holdReplies = true;
+    const disposing = smartTurn.disposeSmartTurnWorker();
+    await vi.advanceTimersByTimeAsync(smartTurn.SMART_TURN_DISPOSE_TIMEOUT_MS);
+    await expect(disposing).resolves.toEqual({ disposed: true });
+    expect(fixture.workers[0].terminated).toBe(true);
+  });
 });
 
 describe("ending a session", () => {
