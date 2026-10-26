@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { build, Platform, Arch } from "electron-builder";
 import { desktopRoot, parseTarget, readJson, writeJson } from "./common.mjs";
-import { buildWindowsIcon } from "./icon.mjs";
+import { windowsIcon } from "./icon.mjs";
 import { assertInventory, componentInventory } from "./inventory.mjs";
 import { brandPackagedApp } from "./windows-resources.mjs";
 
@@ -26,7 +26,6 @@ const windows = target.platform === "win32";
 if (installer && !windows)
   throw new Error("--installer builds the Windows NSIS installer only");
 const extends_ = path.join(desktopRoot, "electron-builder.yml");
-const icon = windows ? await buildWindowsIcon() : undefined;
 await build({
   projectDir: desktopRoot,
   targets: windows
@@ -41,12 +40,12 @@ await build({
         // a certificate is configured; release signing is a separate contract.
         // electron-builder's own executable editing needs a tool download
         // that requires Developer Mode, so the hook below brands it instead.
-        win: { icon, signExts: ["!.exe"], signAndEditExecutable: false },
+        win: { signExts: ["!.exe"], signAndEditExecutable: false },
         // A one-click per-user install folder takes the package name:
         // %LOCALAPPDATA%\Programs\Animama, not ...\animama-desktop.
         extraMetadata: { name: "Animama" },
         afterPack: (context) => {
-          brandPackagedApp(context, icon);
+          brandPackagedApp(context, windowsIcon);
         },
       }
     : {

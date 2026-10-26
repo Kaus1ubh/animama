@@ -34,6 +34,7 @@
     "test": "pnpm contracts:build && vitest run",
     "runtime:stage": "node scripts/runtime/stage.mjs",
     "runtime:audit": "node scripts/runtime/audit.mjs",
+    "icons": "node scripts/runtime/icon.mjs",
     "runtime:packs": "node scripts/runtime/feature-packs.mjs",
     "runtime:private-pack": "node scripts/runtime/private-pack-cli.mjs",
     "runtime:mixamo-motion": "node scripts/runtime/private-pack-cli.mjs --pack mixamo-motion",

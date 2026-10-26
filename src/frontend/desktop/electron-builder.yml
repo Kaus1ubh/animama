@@ -17,12 +17,15 @@ asarUnpack:
   - dist/native/*.node
 extraMetadata:
   main: dist/main.js
+# App icons come from the brand mark; regenerate them with `pnpm desktop:icons`.
 linux:
+  icon: build/icon.png
   target:
     - AppImage
   category: Utility
   artifactName: ${productName}-${version}-${arch}.${ext}
 mac:
+  icon: build/icon.icns
   category: public.app-category.utilities
   minimumSystemVersion: "15.0"
   defaultArch: arm64
@@ -45,6 +48,7 @@ mac:
       filter:
         - "**/*"
 win:
+  icon: build/icon.ico
   defaultArch: x64
   artifactName: ${productName}-${version}-${arch}.${ext}
   requestedExecutionLevel: asInvoker
@@ -62,5 +66,7 @@ nsis:
   createStartMenuShortcut: true
   shortcutName: Animama
   deleteAppDataOnUninstall: false
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
   include: build/installer.nsh
   artifactName: ${productName}-${version}-${arch}-setup.${ext}
