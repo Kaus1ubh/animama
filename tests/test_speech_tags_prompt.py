@@ -1,4 +1,4 @@
-"""The prompt's audio-tag rule follows the voice that will speak the reply (#479)."""
+"""The prompt's Speech section follows the voice that will speak the reply (#479, #704)."""
 
 from __future__ import annotations
 
@@ -7,9 +7,10 @@ import pytest
 from animama.app.chat.anthropic_instructions import INSTRUCTION_STYLE_ANTHROPIC
 from animama.app.chat.conversation_language import conversation_language
 from animama.app.chat.openai_prompt import DirectChatPromptAssembler
-from animama.app.chat.options import DirectChatTtsOptions
-from animama.app.chat.speech_tags import speech_tag_provider, speech_tags_instruction
+from animama.app.chat.options import DirectChatOptions, DirectChatTtsOptions
+from animama.app.chat.speech_tags import speech_instruction, speech_tag_provider
 from animama.app.safety.prompts import COMPANION_GUARDRAILS
+from animama.product_http.chat.tts import tts_speech_payload_enabled
 
 GEMINI = DirectChatTtsOptions(enabled=True, provider="gemini", model_id="gemini-3.8-flash-lite-tts")
 ELEVENLABS = DirectChatTtsOptions(enabled=True, provider="elevenlabs", model_id="eleven_v4_turbo")
@@ -34,9 +35,9 @@ def test_only_gemini_and_elevenlabs_speak_tags(tts: DirectChatTtsOptions | None,
 
 
 def test_gemini_gets_the_neutral_tags_only() -> None:
-    rule = speech_tags_instruction(GEMINI)
+    rule = speech_instruction(GEMINI)
 
-    assert rule.startswith("# Audio Tags in Speech\n\n")
+    assert rule.startswith("# Speech\n\n")
     for tag in ("[laughs]", "[chuckles]", "[giggles]", "[sighs]", "[gasps]", "[breathes]", "[whispers]"):
         assert tag in rule
     assert "[short pause]" in rule and "[long pause]" in rule
@@ -48,7 +49,7 @@ def test_gemini_gets_the_neutral_tags_only() -> None:
 
 
 def test_elevenlabs_also_gets_the_extras_without_accents() -> None:
-    rule = speech_tags_instruction(ELEVENLABS)
+    rule = speech_instruction(ELEVENLABS)
 
     assert "[laughs]" in rule and "[long pause]" in rule
     assert "[excited]" in rule and "[coughs]" in rule and "[applause]" in rule
@@ -68,11 +69,36 @@ def test_elevenlabs_also_gets_the_extras_without_accents() -> None:
     ],
 )
 def test_every_other_turn_is_told_not_to_write_tags(tts: DirectChatTtsOptions | None) -> None:
-    rule = speech_tags_instruction(tts)
+    rule = speech_instruction(tts)
 
-    assert rule.startswith("# Audio Tags in Speech\n\n")
-    assert "cannot perform audio tags" in rule
+    assert rule.startswith("# Speech\n\n")
+    assert "Never write bracketed directions" in rule
     assert "even if earlier replies in this chat contain them" in rule
+
+
+@pytest.mark.parametrize(
+    "tts",
+    [
+        GEMINI,
+        ELEVENLABS,
+        DirectChatTtsOptions(enabled=True, provider="pocket_tts"),
+        DirectChatTtsOptions(enabled=True, provider="browser"),
+    ],
+)
+def test_a_spoken_reply_keeps_links_and_markup_out_of_speech(tts: DirectChatTtsOptions) -> None:
+    rule = speech_instruction(tts)
+
+    assert "A voice reads `speech` aloud" in rule
+    for item in ("links, URLs", "file paths, code, markdown, lists, tables or emoji"):
+        assert item in rule
+    assert "in `display`" in rule
+    # The spoken rule comes before the voice's tag rule.
+    assert rule.index("A voice reads") < rule.index("bracket")
+
+
+@pytest.mark.parametrize("tts", [None, DirectChatTtsOptions(enabled=False, provider="elevenlabs")])
+def test_a_reply_without_a_voice_gets_no_spoken_rule(tts: DirectChatTtsOptions | None) -> None:
+    assert "A voice reads" not in speech_instruction(tts)
 
 
 def _system_text(**kwargs: object) -> str:
@@ -85,23 +111,39 @@ def _system_text(**kwargs: object) -> str:
 @pytest.mark.parametrize("instruction_style", ["default", INSTRUCTION_STYLE_ANTHROPIC])
 def test_the_rule_follows_response_guidance_and_precedes_the_language_and_guardrails(instruction_style: str) -> None:
     system = _system_text(
-        speech_tags_guidance=speech_tags_instruction(GEMINI),
+        speech_guidance=speech_instruction(GEMINI),
         conversation_language=conversation_language("ko"),
         instruction_style=instruction_style,
     )
 
-    section = system.index("# Audio Tags in Speech")
+    section = system.index("# Speech")
     assert system.index("# Response Guidance") < section < system.index("# Conversation Language")
     assert section < system.index(COMPANION_GUARDRAILS.strip())
 
 
 def test_the_same_voice_keeps_the_system_text_and_a_new_voice_changes_only_the_rule() -> None:
-    gemini = _system_text(speech_tags_guidance=speech_tags_instruction(GEMINI))
-    elevenlabs = _system_text(speech_tags_guidance=speech_tags_instruction(ELEVENLABS))
+    gemini = _system_text(speech_guidance=speech_instruction(GEMINI))
+    elevenlabs = _system_text(speech_guidance=speech_instruction(ELEVENLABS))
 
-    assert _system_text(speech_tags_guidance=speech_tags_instruction(GEMINI)) == gemini
-    assert gemini.replace(speech_tags_instruction(GEMINI), speech_tags_instruction(ELEVENLABS)) == elevenlabs
+    assert _system_text(speech_guidance=speech_instruction(GEMINI)) == gemini
+    assert gemini.replace(speech_instruction(GEMINI), speech_instruction(ELEVENLABS)) == elevenlabs
 
 
 def test_without_a_rule_the_prompt_has_no_tag_section() -> None:
-    assert "# Audio Tags in Speech" not in _system_text()
+    assert "# Speech" not in _system_text()
+
+
+@pytest.mark.parametrize(
+    ("tts", "expected"),
+    [
+        (ELEVENLABS, True),
+        (GEMINI, True),
+        # Client-spoken voices name themselves only for the Speech section; the server queues no speech for them.
+        (DirectChatTtsOptions(enabled=True, provider="pocket_tts"), False),
+        (DirectChatTtsOptions(enabled=True, provider="browser"), False),
+        (DirectChatTtsOptions(enabled=False, provider="elevenlabs"), False),
+        (None, False),
+    ],
+)
+def test_only_server_voices_queue_speech_segments(tts: DirectChatTtsOptions | None, expected: bool) -> None:
+    assert tts_speech_payload_enabled(DirectChatOptions(tts=tts)) is expected

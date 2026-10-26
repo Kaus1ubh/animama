@@ -1,10 +1,11 @@
-"""The prompt's rule for audio tags in ``speech``, chosen by the voice that will speak it.
+"""The prompt's Speech section, chosen by the voice that will speak ``speech``.
 
-Gemini and ElevenLabs perform audio tags; every other turn (speech off, Pocket TTS,
-browser speech) must not get them. The rule is a stable instruction section, so each
-voice keeps a byte-identical prompt prefix, and changing the voice changes it once.
-Whatever the prompt says, the speech paths prepare the text each voice receives
-(``animama.domain.audio_tags``).
+With a voice on, ``speech`` must read naturally aloud, so links, markdown and the
+like go to ``display``. Gemini and ElevenLabs perform audio tags; every other turn
+(speech off, Pocket TTS, browser speech) must not get them. The section is a
+stable instruction section, so each voice setting keeps a byte-identical prompt
+prefix, and changing the voice changes it once. Whatever the prompt says, the
+speech paths prepare the text each voice receives (``animama.domain.audio_tags``).
 """
 
 from __future__ import annotations
@@ -12,7 +13,14 @@ from __future__ import annotations
 from animama.app.chat.options import DirectChatTtsOptions
 from animama.domain.audio_tags import SpeechTagProvider
 
-_HEADING = "# Audio Tags in Speech\n\n"
+_HEADING = "# Speech\n\n"
+
+_SPOKEN = """\
+A voice reads `speech` aloud, so write it the way you would say it:
+- Keep it to a few natural sentences; put longer detail in `display`.
+- Never put links, URLs, email addresses, file paths, code, markdown, lists, tables or emoji in `speech`. Put them \
+in `display` and refer to them in words, such as "I've put the link below".
+- Write numbers, symbols and abbreviations the way you would say them when they could be misread aloud."""
 
 _NEUTRAL_RULES = """\
 - Write tags in square brackets and in English, in every language: [laughs], [chuckles], [giggles], [sighs], \
@@ -22,16 +30,16 @@ of a sentence.
 - [whispers] goes at the start of a sentence, only when your mood really shifts, and whispers that sentence.
 - `speech` always needs words; a tag never replaces them. Never put tags in `display`."""
 
-_GEMINI = f"""\
-{_HEADING}The selected voice performs audio tags in `speech`. Use them sparingly, only where a real sound belongs:
+_GEMINI_TAGS = f"""\
+The selected voice performs audio tags in `speech`. Use them sparingly, only where a real sound belongs:
 
 {_NEUTRAL_RULES}
 - This voice performs no other tags.
 - Use at most two sounds (laughs, chuckles, giggles, sighs, gasps, breaths and pauses) in a reply; most replies \
 need none."""
 
-_ELEVENLABS = f"""\
-{_HEADING}The selected voice performs audio tags in `speech`. Use them sparingly, only where a real sound belongs:
+_ELEVENLABS_TAGS = f"""\
+The selected voice performs audio tags in `speech`. Use them sparingly, only where a real sound belongs:
 
 {_NEUTRAL_RULES}
 - This voice also follows other short directions in square brackets, in English:
@@ -45,15 +53,15 @@ most replies need none.
 - A direction lasts until the next one, so after a whispered sentence, return to your reply's tone with a direction \
 for it."""
 
-_NO_TAGS = f"""\
-{_HEADING}The selected voice cannot perform audio tags. Never write bracketed directions such as [laughs] or \
-<sigh> in `speech`, even if earlier replies in this chat contain them; put the feeling into your words instead."""
+_NO_TAGS = """\
+Never write bracketed directions such as [laughs] or <sigh> in `speech`, even if earlier replies in this chat \
+contain them; put the feeling into your words instead."""
 
 
 def speech_tag_provider(tts: DirectChatTtsOptions | None) -> SpeechTagProvider | None:
     """The tag-capable voice this turn speaks with, or ``None`` when tags must not be written."""
 
-    if tts is None or tts.enabled is not True:
+    if tts is None or not _voice_on(tts):
         return None
     if tts.provider == "gemini":
         return "gemini"
@@ -64,15 +72,18 @@ def speech_tag_provider(tts: DirectChatTtsOptions | None) -> SpeechTagProvider |
     return None
 
 
-def speech_tags_instruction(tts: DirectChatTtsOptions | None) -> str:
-    """The stable instruction section for audio tags, for the turn's speech options."""
+def speech_instruction(tts: DirectChatTtsOptions | None) -> str:
+    """The stable Speech section for the turn's speech options."""
 
     provider = speech_tag_provider(tts)
-    if provider == "gemini":
-        return _GEMINI
-    if provider == "elevenlabs":
-        return _ELEVENLABS
-    return _NO_TAGS
+    tags = _GEMINI_TAGS if provider == "gemini" else _ELEVENLABS_TAGS if provider == "elevenlabs" else _NO_TAGS
+    # Without a voice, `speech` is read as text, so only the tag rule applies.
+    parts = (_SPOKEN, tags) if _voice_on(tts) else (tags,)
+    return _HEADING + "\n\n".join(parts)
 
 
-__all__ = ["speech_tag_provider", "speech_tags_instruction"]
+def _voice_on(tts: DirectChatTtsOptions | None) -> bool:
+    return tts is not None and tts.enabled is True
+
+
+__all__ = ["speech_instruction", "speech_tag_provider"]

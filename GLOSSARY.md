@@ -290,7 +290,7 @@ own search. The per-model Web search control turns either on.
 ## Companion guardrail
 
 The fixed, server-owned **Companion Guardrails** instruction section that ends
-every chat turn's provider instructions: honesty about being an AI, no
+every chat turn's system instructions: honesty about being an AI, no
 therapist claims, no manipulative retention and a caring crisis response. No
 identity, memory, setting or safety switch removes it; see
 [ADR 0008](docs/adr/0008-non-overridable-companion-guardrail.md).

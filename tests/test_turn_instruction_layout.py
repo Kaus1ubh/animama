@@ -1,8 +1,8 @@
 """Cache-friendly turn instruction layout per provider path (anthropic-model-provider plan, Phase 4).
 
 The stable instructions end with the Companion Guardrails, history is replayed
-unchanged, and the turn context plus the guardrails sit immediately before the
-user's new message. These tests pin that layout at the assembler and at the
+unchanged, and the turn context sits immediately before the user's new message
+(ADR 0008: the guardrails are not repeated there). These tests pin that layout at the assembler and at the
 OpenAI request builders, including explicit cache breakpoints and the
 ``<turn_context>`` block used by rows without a developer role.
 """
@@ -182,7 +182,7 @@ def test_developer_rows_keep_the_summary_after_system_and_the_turn_context_befor
         "user",
     ]
     assert prompt.messages[1]["content"] == SUMMARY
-    assert prompt.messages[-2]["content"] == f"{_memory_map(1)}\n\n{GUARDRAILS}"
+    assert prompt.messages[-2]["content"] == _memory_map(1)
     assert prompt.messages[-1] == {"role": "user", "content": "What next?"}
 
 
@@ -192,9 +192,7 @@ def test_rows_without_developer_role_fold_the_summary_before_the_closing_guardra
     assert [message["role"] for message in prompt.messages] == ["system", "user", "assistant", "user"]
     system = str(prompt.messages[0]["content"])
     assert system.endswith(f"\n\n{TURN_CONTEXT_DESCRIPTION}\n\n{SUMMARY}\n\n{GUARDRAILS}")
-    assert prompt.messages[-1]["content"] == (
-        f"<turn_context>\n{_memory_map(1)}\n\n{GUARDRAILS}\n</turn_context>\n\nWhat next?"
-    )
+    assert prompt.messages[-1]["content"] == (f"<turn_context>\n{_memory_map(1)}\n</turn_context>\n\nWhat next?")
 
 
 def test_tagged_block_escapes_forged_tags_in_user_text_and_block_contents() -> None:
@@ -279,7 +277,7 @@ def test_chat_completions_sends_breakpoints_only_on_builtin_rows_with_a_develope
     assert all(isinstance(message["content"], str) for message in messages)
 
 
-def test_chat_completions_without_developer_role_ends_both_system_and_block_with_the_guardrails() -> None:
+def test_chat_completions_without_developer_role_ends_only_the_system_message_with_the_guardrails() -> None:
     provider = _provider(connection=_owner_connection(fold_developer_role=True))
     prompt = _prompt(supports_developer_role=False, history=_history(1))
 
@@ -287,7 +285,8 @@ def test_chat_completions_without_developer_role_ends_both_system_and_block_with
 
     assert [message["role"] for message in messages] == ["system", "user", "assistant", "user"]
     assert messages[0]["content"].endswith(GUARDRAILS)
-    assert messages[-1]["content"].endswith(f"{GUARDRAILS}\n</turn_context>\n\nWhat next?")
+    assert messages[-1]["content"].endswith(f"{_memory_map(1)}\n</turn_context>\n\nWhat next?")
+    assert GUARDRAILS not in messages[-1]["content"]
 
 
 def test_chat_completions_without_developer_role_folds_the_forced_final_after_the_guardrails() -> None:
@@ -320,7 +319,7 @@ def test_responses_sends_the_turn_context_before_the_user_item_on_every_turn() -
 
         assert payload["previous_response_id"] == cursor
         assert payload["input"] == [
-            {"role": "developer", "content": f"{_memory_map(turn)}\n\n{GUARDRAILS}"},
+            {"role": "developer", "content": _memory_map(turn)},
             {"role": "user", "content": "What next?"},
         ]
 
@@ -369,7 +368,7 @@ def test_responses_full_history_marks_the_last_two_history_user_items() -> None:
         {"type": "input_text", "text": "question 1", "prompt_cache_breakpoint": {"mode": "explicit"}}
     ]
     assert items[-1] == {"role": "user", "content": "What next?"}
-    assert items[-2]["content"].endswith(GUARDRAILS)
+    assert items[-2]["content"] == _memory_map(1)
 
 
 def test_responses_with_a_cursor_sends_no_breakpoints() -> None:

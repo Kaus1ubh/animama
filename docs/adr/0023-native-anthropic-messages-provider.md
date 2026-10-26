@@ -11,6 +11,8 @@
   [Anthropic models and cache-friendly instruction assembly](https://github.com/raymond-van/animama/issues/364)
   and its [execution plan](../plans/anthropic-model-provider/anthropic-model-provider-execplan.md)
   (Decision Log D2, D4, D7, D10, D19, D20 and D21)
+- Amended: 2026-10-25, the turn context no longer ends with the guardrails
+  (see [ADR 0008](0008-non-overridable-companion-guardrail.md)).
 
 ## Context
 

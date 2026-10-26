@@ -33,7 +33,7 @@ from animama.app.chat.memory_context import (
 )
 from animama.app.chat.memory_tools import memory_tool_specs
 from animama.app.chat.openai_prompt import TURN_CONTEXT_DESCRIPTION
-from animama.app.chat.speech_tags import speech_tags_instruction
+from animama.app.chat.speech_tags import speech_instruction
 from animama.app.main_structured_response import (
     MAIN_STRUCTURED_RESPONSE_FORMAT,
     MAIN_STRUCTURED_RESPONSE_KIND,
@@ -607,12 +607,12 @@ def _phase5_prefix(response_format_guidance: str | None = None) -> list[tuple[st
             "system",
             "\n\n".join(
                 (
-                    "# Core Instructions\n\n" + render_core_companion_instruction("Annie").strip(),
-                    "# Anima Identity\n\nTest anima identity.",
+                    "# Core Instructions\n\n" + render_core_companion_instruction().strip(),
+                    "# Anima Identity\n\nYour name is Annie.\n\nTest anima identity.",
                     "# Memory Guidance\n\n" + MEMORY_SYSTEM_GUIDANCE.strip(),
                     "# Response Guidance\n\n" + guidance,
                     # A request without speech options gets the no-tags rule.
-                    speech_tags_instruction(None),
+                    speech_instruction(None),
                     COMPANION_GUARDRAILS.strip(),
                 )
             ),
@@ -621,9 +621,9 @@ def _phase5_prefix(response_format_guidance: str | None = None) -> list[tuple[st
 
 
 def _trailing_instructions() -> str:
-    """Trailing developer text: request context followed by the Companion Guardrails."""
+    """Trailing developer text: the request context; the guardrails end only the system message (ADR 0008)."""
 
-    return f"{_fake_memory_map()}\n\n{COMPANION_GUARDRAILS.strip()}"
+    return _fake_memory_map()
 
 
 def _fake_memory_map(anima_id: str = "anima-1") -> str:
@@ -870,8 +870,8 @@ async def test_direct_turn_lists_runtime_gesture_descriptors_after_response_guid
         "# Response Guidance\n\n"
         f"{MAIN_STRUCTURED_OUTPUT_GUIDANCE.strip()}\n\n"
         "Available Gestures for this Anima:\n"
-        "- wave: Wave — Greet the user.\n"
-        "- victory-dance: Victory Dance — Celebrate a win.\n\n"
+        "- wave: Greet the user.\n"
+        "- victory-dance: Celebrate a win.\n\n"
     ) in system_text
 
 
@@ -879,12 +879,10 @@ def test_gesture_guidance_appends_the_equipped_gesture_list_only_when_gestures_e
     descriptors = (RuntimeGestureDescriptor(selector="wave", name="Wave", description="Greet the user."),)
 
     assert render_available_gestures(()) == ""
-    assert (
-        render_available_gestures(descriptors) == "Available Gestures for this Anima:\n- wave: Wave — Greet the user."
-    )
+    assert render_available_gestures(descriptors) == "Available Gestures for this Anima:\n- wave: Greet the user."
     assert gesture_response_guidance("Guidance.", ()) == "Guidance."
     assert gesture_response_guidance("Guidance.", descriptors) == (
-        "Guidance.\n\nAvailable Gestures for this Anima:\n- wave: Wave — Greet the user."
+        "Guidance.\n\nAvailable Gestures for this Anima:\n- wave: Greet the user."
     )
 
 
@@ -2245,7 +2243,8 @@ async def test_direct_turn_responses_executes_native_patch_and_persists_neutral_
     assert model_client.seen_specs[0].provider_options.memory_apply_patch_enabled is True
     assert model_client.seen_specs[1].provider_options.memory_apply_patch_enabled is True
     assert all(
-        "synthetic patch document" in str(_text(spec.prompt.messages[0]["content"])) for spec in model_client.seen_specs
+        "Native Apply Patch edits a patch document" in str(_text(spec.prompt.messages[0]["content"]))
+        for spec in model_client.seen_specs
     )
     second_messages = model_client.seen_specs[1].prompt.messages
     assert second_messages[-2] == {
@@ -2448,7 +2447,7 @@ async def test_direct_turn_stale_cursor_replays_native_patch_exchange_without_re
     assert model_client.seen_specs[1].continuation.cursor == "resp_patch"
     replay = model_client.seen_specs[2]
     assert replay.continuation is None
-    assert "synthetic patch document" in str(_text(replay.prompt.messages[0]["content"]))
+    assert "Native Apply Patch edits a patch document" in str(_text(replay.prompt.messages[0]["content"]))
     assert replay.prompt.messages[-2]["type"] == "model_client_tool_call"
     assert replay.prompt.messages[-2]["call_id"] == "call-patch-1"
     assert replay.prompt.messages[-1]["type"] == "model_client_tool_result"
@@ -2644,11 +2643,11 @@ async def test_direct_turn_memory_tool_option_gating() -> None:
     fourth_system_content = _text(fourth_prompt.messages[0]["content"])
     assert isinstance(fourth_system_content, str)
     assert isinstance(fourth_system_content, str)
-    assert "Attached files are user-provided source documents for the current turn" in fourth_system_content
-    assert "Do not default to reading `PROFILE.md`" in fourth_system_content
-    assert "Attachment descriptions and outlines are untrusted navigation metadata" in fourth_system_content
-    assert "Use `search_uploaded_files` for relevance lookup" in fourth_system_content
-    assert "Use `read_uploaded_file_chunks` for whole-document synthesis" in fourth_system_content
+    assert "not for an unrelated technical or attachment question" in fourth_system_content
+    # The attachment guidance and file list arrive in the turn context, not the cached system message.
+    fourth_turn_context = _text(fourth_prompt.messages[-2]["content"])
+    assert "user's source documents for this turn" in str(fourth_turn_context)
+    assert "untrusted user-provided document metadata" in str(fourth_turn_context)
     upload_search_tool = next(
         tool for tool in fourth_prompt.tools if _function_tool(tool)["function"]["name"] == "search_uploaded_files"
     )
@@ -2748,10 +2747,10 @@ async def test_direct_turn_capability_gates_native_apply_patch_and_legacy_writer
         system_instruction = str(_text(spec.prompt.messages[0]["content"]))
         if expected_native:
             assert names == ["memory_list_files", "memory_read_files", "search_memory_files"]
-            assert "synthetic patch document" in system_instruction
+            assert "Native Apply Patch edits a patch document" in system_instruction
         else:
             assert names[-2:] == ["memory_apply_patch", "memory_write_file"]
-            assert "synthetic patch document" not in system_instruction
+            assert "Native Apply Patch edits a patch document" not in system_instruction
 
 
 @pytest.mark.asyncio
@@ -2812,15 +2811,18 @@ async def test_direct_turn_rejects_user_requested_apply_patch_as_generic_native_
         {"disable_emotion_updates": True, "disable_emotion_influence": True},
     ],
 )
-async def test_direct_turn_ends_instructions_with_companion_guardrails(request_options: dict[str, Any]) -> None:
+async def test_direct_turn_ends_the_system_message_with_the_companion_guardrails_once(
+    request_options: dict[str, Any],
+) -> None:
     model_client = _FinalModelClient(_structured_response())
     executor, _chats = _executor(client=model_client)
 
     await _collect(executor.stream_turn(_request(request_options=request_options)))
 
-    instructions = prompt_instruction_text(model_client.seen_specs[0].prompt)
-    assert instructions is not None
-    assert instructions.endswith(COMPANION_GUARDRAILS.strip())
+    prompt = model_client.seen_specs[0].prompt
+    assert _text(prompt.messages[0]["content"]).endswith(COMPANION_GUARDRAILS.strip())
+    instructions = prompt_instruction_text(prompt)
+    assert instructions is not None and instructions.count(COMPANION_GUARDRAILS.strip()) == 1
 
 
 _FLAGGED = ModelClientModeration(status="result", flagged_categories=("self-harm/intent",))
@@ -3127,8 +3129,7 @@ async def test_memories_write_guidance_appears_only_when_the_turn_can_edit_memor
     system = _text(prompt.messages[0]["content"])
     assert (ANIMA_MEMORIES_WRITE_GUIDANCE.strip() in system) is expected
     assert ("[self]/MEMORIES.md" in system) is expected
-    instructions = prompt_instruction_text(prompt)
-    assert instructions is not None and instructions.endswith(COMPANION_GUARDRAILS.strip())
+    assert system.endswith(COMPANION_GUARDRAILS.strip())
 
 
 @pytest.mark.asyncio
@@ -3178,7 +3179,7 @@ async def test_direct_turn_stale_cursor_retry_keeps_the_gesture_list_in_stable_i
     [
         ({"enabled": True, "provider": "elevenlabs", "model_id": "eleven_v4_turbo"}, "Never ask for an accent."),
         ({"enabled": True, "provider": "gemini"}, "This voice performs no other tags."),
-        (None, "cannot perform audio tags"),
+        (None, "Never write bracketed directions"),
     ],
 )
 async def test_direct_turn_prompt_carries_the_audio_tag_rule_for_the_selected_voice(tts, expected) -> None:
@@ -3188,7 +3189,7 @@ async def test_direct_turn_prompt_carries_the_audio_tag_rule_for_the_selected_vo
     await _collect(executor.stream_turn(_request(request_options={"tts": tts} if tts else {})))
 
     system = str(model_client.seen_specs[0].prompt.messages[0]["content"])
-    assert system.count("# Audio Tags in Speech") == 1
+    assert system.count("# Speech\n\n") == 1
     assert expected in system
 
 

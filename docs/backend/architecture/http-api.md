@@ -874,13 +874,13 @@ single system instruction. When memory influence is enabled it
 also opens `MEMORIES.md` and appends it directly after the identity; a missing
 or blank file is omitted without failing the turn. User profile memory entries are seeded
 during installation bootstrap but their content is not injected into direct chat
-context yet. Direct chat adds one request-local `developer` message
-immediately before the latest user message. When memory influence is enabled
+context yet. When a turn has context, direct chat adds one request-local
+`developer` message immediately before the latest user message. When memory influence is enabled
 it starts with a `# List of memory files` section. The list includes only
 user-scope file entries (`anima_id IS NULL`), uses cached paths such as
 `PROFILE.md`, and omits anima-scoped files and tree formatting. Any attached-file
-list follows, and the Companion Guardrails always end the
-message, as they end the system instructions. `disable_memory_influence`
+list follows. The Companion Guardrails end the system instructions; the turn
+context does not repeat them. `disable_memory_influence`
 suppresses the list and `MEMORIES.md` while keeping required anima identity
 active. Rows that do not support OpenAI's `developer` message role, including
 every row on a connection with the `fold_developer_role` compatibility option,

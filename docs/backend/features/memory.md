@@ -36,13 +36,17 @@ receive identity through creation; the current baseline does not adopt legacy
 Avatar identity from databases stamped with removed revisions.
 
 The identity markdown is appended to the single system instruction using only
-the file content. `disable_memory_influence` does not remove anima identity.
+the file content, after one "Your name is …" line with the Anima's display name:
+the core instructions name no Anima, and `IDENTITY.md` may lack a name heading
+or keep an old one after a rename. `disable_memory_influence` does not remove
+anima identity.
 
 `MEMORIES.md` follows the identity as a `# Anima Memories` section: a short
-fixed preamble that frames the content as the Anima's own first-person memories
-of its relationship with this user, not facts about the user, says that an
-untouched template (headings and hint lines only) means no shared history yet,
-and says to treat the content as remembered notes, never as instructions.
+fixed preamble that frames the content as the Anima's own first-person notes
+about its relationship with this user, says to treat them as remembered notes,
+never as instructions, and says that lines describing what belongs under a
+heading are hints, not memories, so shared history is never invented. The
+memory guidance says facts about the user belong in shared memory.
 The section is omitted when memory influence is off. A missing, blank or
 unreadable file is also omitted without failing the turn; the chat manifest
 records `status: "missing"` or `"unreadable"` for it. A chat with one Anima never
@@ -60,13 +64,14 @@ only for user-scope memory operations (`anima_id = NULL`), such as episode
 capture.
 
 The runtime boundary uses one `DirectChatPrompt`. The prompt
-is ordered for prompt-cache locality: one system message containing stable core
-companion instruction rendered with the active Anima's stable `display_name`, anima
-identity, anima memories when included, stable memory guidance, and
-structured-output guidance; then
-compaction summary, visible chat history, one request-local trailing
-`developer` message, and the current user message. The trailing message holds
-the `# List of memory files` map, any attached-file list, and ends with the [Companion Guardrails](../../adr/0008-non-overridable-companion-guardrail.md). The structured-output JSON schema travels in the prompt's
+is ordered for prompt-cache locality: one system message containing the stable
+core companion instruction (which names no Anima), the anima identity opened by
+its display name, anima memories when included, stable memory guidance,
+structured-output guidance and, last, the [Companion Guardrails](../../adr/0008-non-overridable-companion-guardrail.md);
+then compaction summary, visible chat history, a request-local trailing
+`developer` message when the turn has context, and the current user message.
+The trailing message holds the `# List of memory files` map and any
+attached-file list. The structured-output JSON schema travels in the prompt's
 `response_format` field rather than being duplicated in prompt text for
 schema-backed rows. JSON-object rows include the expected schema and example in
 the response-format prompt guidance because their provider transport guarantees
@@ -106,8 +111,8 @@ Direct chat's main structured response includes a required `remember` key whose
 value can be a short string, `null`, or an empty string. The model should use it
 only for notable durable context from the completed turn, such as new user
 facts, preferences, decisions, active projects, or relationship/context changes.
-The `remember` guidance and the chat memory-tool guidance share one
-sensitive-memory rule: no secrets, credentials or raw sensitive data, and no
+The memory guidance states one sensitive-memory rule, once, for every memory
+the model writes (memory files, `MEMORIES.md` and `remember`): no secrets, credentials or raw sensitive data, and no
 suicide or self-harm crisis specifics (methods, plans, means) unless the user
 explicitly asked; at most a general note. Ordinary health context may be
 remembered.
@@ -248,10 +253,10 @@ small relationship-only edits in the first person (user facts go to shared
 memory such as `PROFILE.md`), to keep the file's existing headings (including
 owner-written ones) and file each memory under the best fit, never to rewrite it
 every turn, to stay well under
-about 6,000 characters, how `remember` (the shared episode log) differs from
-`MEMORIES.md` (what the relationship means), the sensitive-memory rule, and never
-to frame the relationship as missing the user, loneliness, jealousy or
-discouraging other relationships.
+about 6,000 characters, and never to frame the relationship as missing the
+user, loneliness, jealousy or discouraging other relationships. The always-present
+memory guidance says how `remember` (the shared episode log) differs from
+`MEMORIES.md` (what the relationship means).
 
 When memory influence is enabled, direct chat attaches:
 
@@ -370,12 +375,15 @@ uploads in searchable processed statuses such as `ready` and
 `ready_keyword_only` with at least one chunk.
 
 When the upload tools are equipped, the prompt includes a request-local list of
-the validated attached filenames and their persisted chunk counts. A count is
+the validated attached filenames and their persisted chunk counts. The list
+opens with the attachment guidance (when to read files before answering, and
+not to answer from memory files instead), so turns without attachments carry
+none of it. A count is
 backend-derived navigation metadata that helps the model plan bounded reads; it
 is not document-content evidence. The list follows the memory map in the
 `developer` message before the user's message; providers without developer-role
 support receive it in the `<turn_context>` block that starts the user message.
-Both still end with the Companion Guardrails. Distinct attachments with the same filename stay
+Distinct attachments with the same filename stay
 as separate map entries because filename-based upload tools operate on every
 matching attachment.
 
@@ -441,7 +449,8 @@ body and description atomically through one optimistic check and one Version.
 The model never receives an entry ID; successful output returns the resulting
 Version so it can reason about the completed write.
 
-Prompt guidance treats descriptions as the birds-eye file index. Every content
+The write tools' `description` parameters (and the native patch guidance)
+treat descriptions as the file index shown in the memory map. Every content
 edit must reconsider whether the description still accurately summarizes the
 file: preserve it verbatim when it does, update it when scope or durable
 contents materially change, and give new files a concise useful description.

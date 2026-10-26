@@ -800,6 +800,14 @@ def _object_schema(properties: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+# Memory-file descriptions are the index the memory map shows beside each path.
+_FILE_DESCRIPTION_GUIDANCE = (
+    "A concise overview of what the file contains, shown beside its path in the memory file list. Give a new "
+    "file a useful one. When changing content, keep the description verbatim while it is still accurate and "
+    "update it when the file's scope or durable contents change materially."
+)
+
+
 def _list_files_tool() -> dict[str, Any]:
     return _function_tool(
         MEMORY_TOOL_LIST_FILES,
@@ -950,8 +958,14 @@ def _apply_patch_tool() -> dict[str, Any]:
                         }
                     ),
                 },
-                "update_description": {"type": "boolean"},
-                "description": {"type": ["string", "null"]},
+                "update_description": {
+                    "type": "boolean",
+                    "description": "Whether to set the file's description; review it whenever the content changes.",
+                },
+                "description": {
+                    "type": ["string", "null"],
+                    "description": _FILE_DESCRIPTION_GUIDANCE,
+                },
             }
         ),
     )
@@ -967,7 +981,10 @@ def _write_file_tool() -> dict[str, Any]:
                 "path": {"type": "string"},
                 "mode": {"type": "string", "enum": ["create", "replace"]},
                 "content": {"type": "string"},
-                "description": {"type": ["string", "null"]},
+                "description": {
+                    "type": ["string", "null"],
+                    "description": _FILE_DESCRIPTION_GUIDANCE,
+                },
             }
         ),
     )

@@ -356,8 +356,8 @@ async def test_memory_instruction_sections_assemble_into_single_system_message()
     system_content = system_messages[0]["content"]
     assert isinstance(system_content, str)
     assert "# Core Instructions" in system_content
-    assert "You are Avatar, an Anima hosted by Animama AI." in system_content
-    assert "# Anima Identity\n\nIdentity" in system_content
+    assert "You are an Anima hosted by Animama AI:" in system_content
+    assert "# Anima Identity\n\nYour name is Avatar.\n\nIdentity" in system_content
     assert "# Memory Guidance" in system_content
     assert "# Response Guidance" in system_content
 
@@ -381,12 +381,11 @@ async def test_native_patch_prompt_explains_description_aware_synthetic_document
 
     native_instruction = str(native_prompt.messages[0]["content"])
     legacy_instruction = str(legacy_prompt.messages[0]["content"])
-    assert "birds-eye index" in native_instruction
-    assert "review its description too" in native_instruction
-    assert "synthetic patch document" in native_instruction
+    assert "Native Apply Patch edits a patch document" in native_instruction
+    assert "update it when the file's scope or durable contents change materially" in native_instruction
     assert 'description: "Concise overview of the file."' in native_instruction
-    assert "must never be copied into the Markdown body" in native_instruction
-    assert "synthetic patch document" not in legacy_instruction
+    assert "never copy it into the Markdown body" in native_instruction
+    assert "Native Apply Patch" not in legacy_instruction
 
 
 @pytest.mark.asyncio

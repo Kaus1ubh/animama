@@ -2,7 +2,7 @@
 """Measure how well the chat model picks Gestures from a loadout.
 
 Every prompt runs through chat's own turn executor (``DirectChatTurnExecutor``):
-the same system and developer prompt, equipped Gesture list, structured reply
+the same system prompt (and turn context, when there is any), equipped Gesture list, structured reply
 schema, structured repair and salvage, and Gesture validation as ``chat:sse``.
 In-memory stand-ins replace its repositories, so no Anima, chat or memory row
 is read or written. The Anima has a neutral, generic identity.
@@ -1461,7 +1461,7 @@ def render_summary(results: Mapping[str, Any]) -> str:
         "A turn fits when its Gesture is acceptable for the item; no Gesture fits only where null is acceptable. "
         "Rates exclude failed turns. Coverable items have an acceptable Gesture equipped or accept null. "
         "Gesture-list bytes measure the equipped list in the system prompt; instruction bytes measure the "
-        "system and developer messages of a first turn.",
+        "system and developer messages of a first turn (the system message alone when the turn has no context).",
     ]
     scripted_rows = [(loadout["name"], row) for loadout in results["loadouts"] for row in loadout["scripted"]]
     if scripted_rows:

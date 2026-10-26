@@ -753,7 +753,7 @@ def build_main_structured_prompt(
     example_json = json.dumps(
         {
             "emotional_tone": "neutral",
-            "emotional_intensity": 1,
+            "emotional_intensity": 3,
             "gesture": None,
             "speech": "Short spoken reply.",
             "display": None,

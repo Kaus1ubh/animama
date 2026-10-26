@@ -1376,6 +1376,7 @@ verify the complete engine inventory and required small TTS runtime files.
 - TTS orchestrator: `src/frontend/web/src/hooks/use-tts-playback.ts`
 - ElevenLabs runtime hook: `src/frontend/web/src/hooks/use-elevenlabs-tts-runtime.ts`
 - Finalized server-audio runtime (Gemini): `src/frontend/web/src/hooks/use-finalized-tts-runtime.ts`
+- Chat TTS options for every voice: `src/frontend/web/src/lib/chat/chat-tts-dispatch.ts`
 - Gemini dispatch options: `src/frontend/web/src/lib/chat/gemini-chat-tts-dispatch.ts`
 - Pocket runtime hook: `src/frontend/web/src/hooks/use-pocket-tts-runtime.ts`
 - TTS provider helpers: `src/frontend/web/src/lib/speech/tts-provider.ts`
