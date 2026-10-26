@@ -21,7 +21,7 @@ repository root.
 
 | Command | Where | What it does |
 | --- | --- | --- |
-| `plan` | anywhere | The dry run: planned calls, tokens, cost and wall time, judging included, against the 4-hour bound. No database or model. |
+| `plan` | anywhere; the backend container for rows that are not built in | The dry run: planned calls, tokens, cost and wall time, judging included, against the 4-hour bound. No model calls. |
 | `run` | the backend container of a task stack | Runs the configurations and writes `turns.jsonl` and `manifest.json` to `--output-dir`. Needs `--max-calls` and `--max-usd`, the owner's caps. |
 | `judge` | the host, signed in to Claude | Judges the run blind at one `--effort`; rerun it to resume. |
 | `calibrate export` / `import` / `pilot` | the host | The one-time calibration against the owner's ratings. |
@@ -30,8 +30,11 @@ repository root.
 | `cleanup` | the backend container | Drops benchmark databases a killed run left behind. |
 
 A free rehearsal runs everything against chat's mock model: add
-`-e ANIMAMA_LLM_SKIP=1` after `docker compose exec`. A paid run starts only
-after the owner approves its `plan` output and caps. Raw results hold replies
+`-e ANIMAMA_LLM_SKIP=1` after `docker compose exec`, and judge with the
+stand-in `--claude scripts/evals/benchmark/stub_claude.py`. A paid run starts
+only after the owner approves its `plan` output and caps; `--max-usd` refuses a
+call once the spend so far plus the largest call so far would pass it, so the
+spend can pass the cap by at most one call's growth. Raw results hold replies
 and saved memory; keep them under the git-ignored
 `.animama-drafts/model-benchmark/`.
 
@@ -42,7 +45,8 @@ docker compose -p "$COMPOSE_PROJECT_NAME" exec animama-server \
 ```
 
 `--standard` takes every visible built-in chat row at efforts none and low;
-`--config <row id>@<effort>` names others. `--tier smoke` takes the tracked
+`--config <row id>@<effort>` names others, and `plan` then reads the stack's
+catalog for any row that is not built in. `--tier smoke` takes the tracked
 smoke subset.
 
 ## Inputs
@@ -91,7 +95,9 @@ a run slows its turns.
 ## Judge
 
 The judge is Claude Opus 5.5 (`claude-opus-5-5`) through the Claude CLI on the
-owner's subscription, never an API key. Sign in once with `claude` on the host.
+owner's subscription, never an API key. Sign in once with `claude` on the host, and keep no user `~/.claude/CLAUDE.md`
+while judging: the CLI would load it into every call, so judging refuses to
+start.
 Each call runs from an empty directory in restricted mode with no tools except
 structured output, no MCP servers, skills or settings, and only a short list of
 environment variables; a call that loads anything else, or is not signed in

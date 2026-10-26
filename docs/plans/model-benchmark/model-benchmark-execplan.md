@@ -1,7 +1,9 @@
 # Standardized model benchmark execution plan
 
-Status: In progress. G1 passed on 2026-10-25. The remaining gates are G2,
-G3 and G4.
+Status: In progress. G1 passed on 2026-10-25 and G2 on 2026-10-26.
+Phases 1–8 are done and the final integration review passed; the full
+pre-push suite runs on the final candidate. The remaining gates are G3 and
+G4.
 
 Source agreement: the spec, published as the body of
 [#470](https://github.com/raymond-van/animama/issues/470) at
@@ -82,8 +84,9 @@ Ownership and boundaries:
     built image has no `scripts/`.
   - **The judge** runs on the host, where the owner's `claude` CLI is signed
     in.
-  - The judge and report modules use only the standard library and never
-    import `animama`, so plain `uv run python -m …` on the host works.
+  - On the host, `uv run --no-sync python -m scripts.evals.benchmark …`
+    runs the judge, calibration and report from the checkout's environment;
+    they import the app's packages but need no database or keys.
   - Raw results move between the two through the bind-mounted, git-ignored
     `.animama-drafts/` folder.
 - **Memory storage** (D4). Memory runs use the real SQLAlchemy memory
@@ -122,7 +125,9 @@ Ownership and boundaries:
 - [x] Phase 8: Skill, documentation and glossary. Rehearsed on a mock
       stack on 2026-10-26; covered by the final integration review.
 - [ ] Phase 9: First decision run and calibration (gates G3, G4).
-- [ ] Final integration review.
+- [x] Final integration review. Passed review #2 on 2026-10-26, with both
+      repair rounds used; the full pre-push suite runs on the final
+      candidate after Phase 9.
 
 ## Surprises & Discoveries
 
@@ -546,9 +551,12 @@ When implementation is authorized:
        byte-equal to the published file. The issue was retitled
        "feat: standardized model benchmark skill for chat models".
      - **Environment:** `.venv` on Python 3.12.13 (`uv sync --python 3.12.13`).
-     - **Stack:** none started yet. Phase 2's smoke starts a named stack and
-       records its URL here.
-     - **Gates outstanding:** G2, G3, G4.
+     - **Stack:** `animama-bench` (`./reset.sh --name bench --base-port
+       8900`, `http://animama-bench.localhost:8900`; base port 9100 for the
+       final integration rehearsal, when another stack held 8900), started
+       for each smoke and rehearsal with `ANIMAMA_LLM_SKIP=1` and taken down
+       after it; the phase records give each start.
+     - **Gates outstanding:** G3, G4 (G2 passed on 2026-10-26).
 2. Work test-first. Offline tests use the existing fake model clients and
    scripted streams, and never use keys, the network or the judge CLI. Judge
    tests use a stub CLI script. Database tests use the suite's PostgreSQL
@@ -2030,6 +2038,12 @@ assembled under seed 470 for the held-out choice):
   five anchors; and arm (b)'s assembled prompt names `[self]/MEMORIES.md`
   only through the tracked guidance, on all three built-in rows.
 
+**Smoke tier against D10** (approved with the set at G2): 16 single-turn
+items (4 Japanese) under both personas rather than about 20 under one, the
+6-turn `smoke-short-chat`, the `new-job` memory chat in all three arms, and
+one Memory Manager run of each kind rather than one in all. It stays a cheap
+wiring and regression tier: 576 planned calls.
+
 **Held-out shares** (seed 470):
 
 | Area | Held out |
@@ -2839,8 +2853,8 @@ Steps:
    - The dry run replaces this estimate. It must show 4 hours or less.
 3. **G3 (owner):** the owner approves this run with `--max-calls` and
    `--max-usd`. Record the approval and the caps.
-4. Run `run`, then take the stack down. Raw results stay in the drafts
-   folder, and `cleanup` confirms no benchmark database remains.
+4. Run `run`. Run `cleanup`, which must find no benchmark database, then take
+   the stack down. Raw results stay in the drafts folder.
 5. **G4 (owner):**
    - `calibrate export` draws a stratified blind sample of up to 36 English
      `reply` and `expression` items, spread evenly over configurations, then
@@ -2893,6 +2907,176 @@ requested.
   final candidate, as a heavy job:
   `python3 scripts/heavy-slot.py -- make check-test`. Its results go in the
   PR.
+
+### Final Integration Review Findings
+
+Reviewer: an independent `sdlc-reviewer` subagent, on HEAD `5f026caf`
+(clean) against `a94f8369`, covering Phases 1–8 and reviewing the light
+Phases 5 and 8 in full. It reused the Phase 8 full suite and the 178
+benchmark tests, whose trees matched HEAD, and ran two read-only `plan`
+probes. Its result: blocked, with Phase 9 still to run.
+
+It confirmed that the Phase 3 seams stay production-safe (constructor-only,
+not passed by chat's turn setup, default bytes unchanged), and that keys,
+database names, the read-only catalog session, the judge's environment and
+the report guard hold.
+
+The findings:
+- **FI-F1 (required).** The report leaves out R4 measures the code already
+  computes: time to first token, first-speech p90 and mean, latency mean,
+  cached-input, cache-write and reasoning tokens, scripted-chat latency and
+  tokens, error codes, tag kinds, non-English tags, tags in `display`,
+  tags-only speech, accent requests and style violations by kind.
+- **FI-F2 (required).** Nothing runs a Japanese memory or recall turn: the
+  rehearsal used the smoke tier, `memory_turn_options` has no test, and the
+  memory fixture is English only. The paid run would be its first run.
+- **FI-F3 (required).** `plan` resolves `--config` only against the built-in
+  rows, so an owner-added or OpenRouter row has no dry run (R3, R14), while
+  the docs say it does.
+- **FI-N1.** SKILL.md and Phase 9 step 4 run `cleanup` after taking the
+  stack down; it runs in the container, so the order is reversed.
+- **FI-N2.** The documented `run` has no `--machine-label`, so R15's machine
+  would be the container id.
+- **FI-N3.** A real `judge` on a stand-in-judged directory would skip every
+  batch silently.
+- **FI-N4.** The `reply` and `audio_tags` scores of memory and recall turns
+  are judged but never reported.
+- **FI-N5.** Stale plan text: the Status line, the workspace stack record,
+  and the claim that the judge and report never import `animama`.
+- **FI-N6.** The smoke tier differs from D10 with no recorded deviation.
+- **FI-N7.** The dry run's "up to 2N" is not a bound for memory tool rounds
+  or Memory Manager runs.
+- **FI-N8.** The `--max-usd` overshoot is documented only in a docstring,
+  and the rehearsal note omits that `run` still needs `--price`.
+- **FI-N9.** Later runs' reports say "Not calibrated in this run" with no
+  pointer, and the family caveat names Haiku even when no run includes it.
+- **FI-N10.** Phase 8 recorded no `mypy scripts/evals`, which is the only
+  check that reaches `stub_claude.py`.
+- **FI-N11.** R19's dry-run parity was last recorded in Phase 2.
+- **FI-N12.** "Four benchmark areas" in the README and glossary differ in
+  wording from the spec's areas.
+- **FI-N13.** The judge does not detect a user `~/.claude/CLAUDE.md`.
+
+### Final Integration Review Revisions
+
+- **FI-F1: accepted.** The report gains a Structured output table (errors by
+  code), an Audio tags and spoken style table (every tag measure and each
+  style violation by kind, plus the tag kinds), and an Operations table per
+  configuration and part (single, chat) with median, p90 and mean latency,
+  first token and first speech, and the token means. Rendering only.
+- **FI-F2: accepted.** The new test
+  `test_a_japanese_memory_chat_runs_in_japanese_and_pairs_with_its_original`
+  runs a Japanese memory chat and asserts its turns' system prompt carries
+  the Japanese reply instruction (and English turns' does not); the runner
+  tests assert `memory_turn_options` sets `conversation_language` and
+  `tts.language_code` to `ja`. A free full-tier mock run (below) covers
+  the Japanese memory chat, its pair row, the held-out memory chat and the
+  30-turn chats end to end.
+- **FI-F3: accepted.** `plan` reads the catalog read-only when a `--config`
+  is not a built-in row; the new test
+  `test_plan_reads_the_catalog_for_a_row_that_is_not_built_in` covers it,
+  and the README says it then needs the stack.
+- **FI-N1: accepted.** SKILL.md and Phase 9 step 4 run `cleanup` first.
+- **FI-N2: accepted.** commands.md passes `--machine-label "$(hostname)"`.
+- **FI-N3: accepted.** `judge` refuses results made by the other kind of CLI
+  (stand-in or real) and says to judge a copy; the docs say never to
+  stand-in-judge a paid run's directory. Tested.
+- **FI-N4: accepted.** The memory table shows each arm's judged `reply` and
+  `audio_tags` scores.
+- **FI-N5: accepted.** The three passages are corrected.
+- **FI-N6: accepted.** Recorded as "Smoke tier against D10" under Phase 5.
+- **FI-N7: accepted.** The dry run says memory tool rounds can add more and
+  that `--max-calls` bounds them all.
+- **FI-N8: accepted.** The README and commands.md state the overshoot, and
+  the rehearsal note says `run` still needs `--price`.
+- **FI-N9: accepted.** The uncalibrated note says where the pinned effort is
+  recorded, and the family caveat shows only when a configuration's model is
+  a Claude model.
+- **FI-N10: accepted.** `mypy scripts/evals` is in the check record below.
+- **FI-N11: accepted.** The Phase 1 dry-run diff against `23cf9faf` was
+  rerun; see the check record.
+- **FI-N12: rejected.** The README and glossary name the prompt set's four
+  areas (`prompt_set.AREAS`); the spec's areas map onto them (core turns,
+  long chats, memory with its arms, and the Memory Manager), and the
+  Japanese subset spans them. No reader acts differently on the wording.
+- **FI-N13: accepted.** `judge` stops, not resumable, when a user
+  `CLAUDE.md` exists, and the skill and README say to move it aside. Tested.
+
+Check record for repair round 1, on working tree `d1fc13c4` (scripts
+`7ae0eacb`, src `1acfeab1`, tests `679e5145`), from the worktree root:
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Benchmark tests | `uv run --no-sync pytest -q tests/test_model_benchmark_*.py tests/test_gesture_selection_eval.py tests/test_episodic_memory_arm.py` | 181 passed |
+| Lint and format | `uv run --no-sync ruff check`; `ruff format --check scripts/evals tests`; `make format-check` | pass |
+| Types | `make mypy` (872 files); `uv run --no-sync mypy scripts/evals` (33 files) | pass |
+| R19 parity | Phase 1's Gesture harness `--dry-run` from `git archive 23cf9faf scripts/evals` against the working tree | identical, both exit 0 |
+| Full-tier mock run | `ANIMAMA_LLM_SKIP=1 ./reset.sh --name bench --base-port 9100`, then `run --tier full --standard` with `-e ANIMAMA_LLM_SKIP=1`, `--max-calls 5000 --max-usd 20` and `--price` | exit 0 in 75 s; 1,620 turns, not aborted: 776 single (192 Japanese), 264 chat, 432 memory (144 Japanese), 144 recall (48 Japanese), 36 capture (12 Japanese), 12 Memory Manager |
+| Stand-in judge | `judge --effort medium --claude scripts/evals/benchmark/stub_claude.py --concurrency 4` on the host | 198 batches judged, 0 missing |
+| Report | `report`, then `report --rerender` | written; re-render byte-identical. It shows the new Structured output, Audio tags and Operations tables, each arm's `reply` scores, the `new-job-ja` pair rows in all three arms, the held-out slice and the 30-turn chats' scores |
+| Cleanup and database | `cleanup` before `down`; application database counts | "no benchmark databases to drop"; 0 chats, 0 chat messages, no `animama_benchmark_*` database. Stack taken down and `.animama-stack.env` removed |
+
+### Final Integration Review #2 Findings
+
+The same reviewer's targeted recheck, on tree `e144d0ae` (equal to
+`d1fc13c4` apart from this record), reusing repair round 1's checks. It
+verified FI-F1–FI-F3, FI-N1, FI-N3–FI-N11 and FI-N13, accepted the FI-N12
+rejection, and found no regression in the Phase 3 seams or re-render
+determinism. Its result: blocked on one new finding.
+
+- **FI-R1 (required).** The FI-N2 repair documents
+  `--machine-label "$(hostname)"`. On the owner's host that is a
+  hardware-style network id, which the mock report already showed in its
+  Conditions; Phase 9 would publish it, and the safety check cannot catch
+  it.
+- **FI-R2.** The README's command table still says `plan` needs no
+  database.
+- **FI-R3.** A mistyped built-in id makes `plan` on the host fail with a
+  database connection traceback.
+- **FI-R4.** The Tag kinds line prints raw tag labels: a reply that is one
+  long lowercase tag would make the safety check refuse the report, and
+  angle-bracket tags vanish in rendered Markdown.
+- **FI-R5.** The Operations table's "Turns" column holds the part and "n"
+  the count.
+- **FI-R6.** `judge` now needs the CLI and the `CLAUDE.md` check even when
+  every batch is done.
+- **FI-R7.** The plan test's owner row copies a built-in row, so it keeps
+  `source=builtin`.
+- **FI-R8.** The FI-F2 revision overstated what the new memory test asserts.
+
+### Final Integration Review #2 Revisions
+
+- **FI-R1: accepted.** commands.md asks the owner for a model and memory
+  description and says never to use a host name or hardware id. Verified by
+  the coordinator (documentation only).
+- **FI-R2: accepted.** The table says `plan` runs anywhere, or in the
+  backend container for rows that are not built in.
+- **FI-R3: accepted.** `plan` turns a failed catalog read into an input
+  error naming the unknown ids (exit 2). New test
+  `test_plan_for_an_unknown_row_without_a_database_names_the_row`.
+- **FI-R4: accepted.** Tag labels render as code, and a label of 20
+  characters or more (or with a backtick) is counted as "longer, not shown".
+  New test `test_tag_kinds_show_short_labels_as_code_and_only_count_long_ones`.
+- **FI-R5: accepted.** The columns are "Part" and "Turns".
+- **FI-R6: rejected.** A complete rerun is rare, and failing on a missing
+  CLI or a `CLAUDE.md` before anything is sent is harmless.
+- **FI-R7: rejected.** Cosmetic: the test needs only an id that is not
+  built in.
+- **FI-R8: accepted.** The FI-F2 revision now says what each test asserts.
+
+Check record for repair round 2, on working tree `243fe515` (scripts
+`d17f553a`, tests `fac6738e`; src unchanged):
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Benchmark tests | as in round 1 | 183 passed |
+| Lint, format and types | `ruff check scripts/evals tests`; `ruff format --check scripts/evals tests`; `make mypy`; `mypy scripts/evals` | pass |
+| Mock report | `report --overwrite`, then `--rerender`, on the full-tier mock run | written; byte-identical; "Part" column and code-formatted tag kinds |
+
+The repairs are small and each has its test or is documentation, so the
+coordinator verified them without a third reviewer round (bounded-review
+policy, final targeted review). Result: pass, with Phase 9 (G3, G4) still to
+run.
 
 ## Validation and acceptance
 

@@ -326,7 +326,7 @@ def render_plan(
         )
     lines.append(
         f"Estimated model calls: {plan.estimated_calls}; up to {2 * plan.estimated_calls} if every reply needs "
-        "chat's structured repair request"
+        "chat's structured repair request, and extra memory tool rounds can add more; --max-calls bounds them all"
     )
     total = total_usd(estimates)
     lines.append(

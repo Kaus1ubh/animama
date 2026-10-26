@@ -8,6 +8,9 @@ owner's subscription. It runs on the host.
 - `claude --version` works, and the owner is signed in (`claude` once,
   interactively). The judge removes API-key variables from its environment, so
   it can only use the subscription sign-in.
+- There is no user `~/.claude/CLAUDE.md` (or `$CLAUDE_CONFIG_DIR/CLAUDE.md`):
+  the CLI loads it into every session, so judging refuses to start. Ask the
+  owner to move it aside while judging.
 - The run is finished. A run whose manifest still says `running` (killed)
   needs `--allow-unfinished`, and its judge plan then covers only the turns it
   has.

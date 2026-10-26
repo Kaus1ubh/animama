@@ -1,13 +1,14 @@
 """The benchmark's commands: ``plan`` (the dry run), ``run``, ``judge``, ``calibrate``, ``report``, ``models``
 and ``cleanup``.
 
-``plan`` needs no database or model: the standard set comes from the catalog
-the code defines. ``run`` runs inside the backend container of a development
-task stack, where the configured connections and keys are; it reads the model
-catalog in a read-only transaction and never reads, prints or logs keys. A
-prompt set with memory work also gets a disposable benchmark database
-(``memory_db``), dropped when the run ends; ``cleanup`` drops one a killed run
-left behind::
+``plan`` needs no database or model for the built-in rows: the standard set
+comes from the catalog the code defines. A ``--config`` naming another row
+(owner-added, local or OpenRouter) reads the stack's catalog, read-only.
+``run`` runs inside the backend container of a development task stack, where
+the configured connections and keys are; it reads the model catalog in a
+read-only transaction and never reads, prints or logs keys. A prompt set
+with memory work also gets a disposable benchmark database (``memory_db``),
+dropped when the run ends; ``cleanup`` drops one a killed run left behind::
 
     source .animama-stack.env
     docker compose -p "$COMPOSE_PROJECT_NAME" exec animama-server python -m scripts.evals.benchmark run \\
@@ -47,6 +48,7 @@ from pathlib import Path
 from typing import Any
 
 from agents import set_tracing_disabled
+from sqlalchemy.exc import SQLAlchemyError
 
 from animama.app.chat import DirectChatTurnSetupError, ModelClientNotFoundError
 from animama.app.model_clients import StaticModelClientRegistry
@@ -163,7 +165,9 @@ def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
         description="Benchmark chat models through chat's real turn executor; see docs/benchmarks/README.md.",
     )
     commands = parser.add_subparsers(dest="command", required=True)
-    _plan_arguments(commands.add_parser("plan", help="print the plan and estimates without a database or model"))
+    _plan_arguments(
+        commands.add_parser("plan", help="print the plan and estimates (no model; no database for built-in rows)")
+    )
     run = commands.add_parser("run", help="run the benchmark (inside a development stack's backend container)")
     _plan_arguments(run)
     run.add_argument("--max-usd", type=_usd, help="hard limit on estimated spend in USD (needs --price or --row-price)")
@@ -321,6 +325,25 @@ async def _print_plan(args: argparse.Namespace, plan: BenchmarkPlan) -> dict[str
         )
     )
     return estimate_usd(plan, first_turn_tokens=tokens, prices=prices)
+
+
+async def _plan_command(args: argparse.Namespace) -> None:
+    """The dry run. Built-in rows need no database; a ``--config`` naming any other row reads the catalog,
+    read-only, so the plan of an owner-added row runs where ``run`` does, in the stack."""
+
+    rows: Sequence[ModelProvider] = builtin_chat_rows()
+    known = {row.id for row in rows}
+    unknown = sorted({text.partition("@")[0] for text in args.config} - known)
+    if unknown:
+        try:
+            async with catalog.read_only_model_providers() as model_providers:
+                rows = await catalog.chat_model_rows(model_providers)
+        except (OSError, SQLAlchemyError) as exc:
+            raise EvalInputError(
+                f"{', '.join(unknown)} is not a built-in chat row, and the catalog could not be read "
+                f"({type(exc).__name__}); check the id, or run plan in the stack (see the models command)"
+            ) from exc
+    await _print_plan(args, _plan(args, rows))
 
 
 async def _models() -> int:
@@ -654,7 +677,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.command == "cleanup":
             return asyncio.run(_cleanup())
         if args.command == "plan":
-            asyncio.run(_print_plan(args, _plan(args, builtin_chat_rows())))
+            asyncio.run(_plan_command(args))
             return 0
         if args.command == "judge":
             return _judge(args)

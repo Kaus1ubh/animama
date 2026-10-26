@@ -41,12 +41,17 @@ docker compose -p "$COMPOSE_PROJECT_NAME" exec -T animama-server python -m scrip
 docker compose -p "$COMPOSE_PROJECT_NAME" exec -T animama-server python -m scripts.evals.benchmark run \
   --prompts docs/benchmarks/inputs/prompts.json --standard --tier full \
   --max-calls <approved> --max-usd <approved> --price input=…,cached_input=…,cache_write=…,output=… \
-  --source-revision "$(git rev-parse HEAD)" --network-label <network> \
+  --source-revision "$(git rev-parse HEAD)" --network-label <network> --machine-label "<machine, e.g. MacBook Pro M3 Max, 64 GB>" \
   --output-dir /app/.animama-drafts/model-benchmark/<date>-<slug>
 ```
 
 `--price` (USD per million tokens) prices every configuration whose catalog
-rates agree; `--row-price <row id> <rates>` prices one row. `run` refuses to
+rates agree; `--row-price <row id> <rates>` prices one row. The run refuses a
+call once the spend so far plus its largest call so far would pass
+`--max-usd`, so the spend can pass the cap by at most one call's growth.
+`--machine-label` describes the host for the report, which is public: ask the
+owner for a model and memory description, never a host name or hardware id
+(in the container the default would be the container id). `run` refuses to
 start when the plan exceeds `--max-calls`, its estimate exceeds `--max-usd`,
 or its wall time exceeds 4 hours without `--over-time-approved`. It exits 0
 for a complete run, 1 when a cap or an error stopped it, 2 for an input error
@@ -76,8 +81,8 @@ codes.
 
 A free run of the whole flow: start the stack with `ANIMAMA_LLM_SKIP=1`, run
 `plan` and `run` with `-e ANIMAMA_LLM_SKIP=1` after `exec` on `--tier smoke`
-(any caps; no calls are billed), then judge with the stand-in CLI and render
-the report:
+(any caps and `--price` rates, which `run` still needs; no calls are billed),
+then judge with the stand-in CLI and render the report:
 
 ```bash
 uv run --no-sync python -m scripts.evals.benchmark judge --run-dir <run> \
@@ -85,4 +90,6 @@ uv run --no-sync python -m scripts.evals.benchmark judge --run-dir <run> \
 ```
 
 The stand-in scores every criterion 3 and reads every capture entry as not
-saved; its report checks the wiring, not any model.
+saved; its report checks the wiring, not any model. Never stand-in-judge a
+paid run's directory: the real judge refuses its results, so that run would
+need judging from a copy.

@@ -488,20 +488,27 @@ async def _run(
     clock: Callable[[], float],
 ) -> JudgeRun:
     outcome = JudgeRun()
-    pending = []
-    for batch in plan.batches:
-        if not select(batch):
-            continue
-        if _completed(plan.result_path(batch, effort), rubrics):
-            outcome.skipped += 1
-        else:
-            pending.append(batch)
-    if not pending:
-        return outcome
     try:
         version = await cli.version()
     except JudgeStopped as exc:
         outcome.stopped, outcome.resumable = str(exc), exc.resumable
+        return outcome
+    real = _is_claude_code(version)
+    instructions = _user_instructions() if real else None
+    if instructions is not None:
+        # Restricted mode ignores settings files, not the user's own CLAUDE.md, which every session loads.
+        outcome.stopped = f"{instructions} would reach the judge; move it aside while judging"
+        outcome.resumable = False
+        return outcome
+    pending = []
+    for batch in plan.batches:
+        if not select(batch):
+            continue
+        if _completed(plan.result_path(batch, effort), rubrics, real=real):
+            outcome.skipped += 1
+        else:
+            pending.append(batch)
+    if not pending:
         return outcome
     gate = asyncio.Semaphore(concurrency)
 
@@ -548,8 +555,23 @@ async def _run(
     return outcome
 
 
-def _completed(path: Path, rubrics: RubricSet) -> bool:
-    """Whether a batch already has a completed result in this series; another series' result is an error."""
+def _is_claude_code(version: str) -> bool:
+    """Whether ``claude --version`` came from the real CLI (``2.1.310 (Claude Code)``) rather than a stand-in."""
+
+    return version.endswith("(Claude Code)")
+
+
+def _user_instructions() -> Path | None:
+    """The user's own ``CLAUDE.md``, which the real CLI loads into every session, when there is one."""
+
+    directory = Path(os.environ.get("CLAUDE_CONFIG_DIR") or Path.home() / ".claude")
+    path = directory / "CLAUDE.md"
+    return path if path.exists() else None
+
+
+def _completed(path: Path, rubrics: RubricSet, *, real: bool) -> bool:
+    """Whether a batch already has a completed result in this series; another series' result is an error, and so
+    is mixing the real CLI's results with a stand-in's."""
 
     if not path.exists():
         return False
@@ -561,6 +583,9 @@ def _completed(path: Path, rubrics: RubricSet) -> bool:
         return False
     if record.get("model") != JUDGE_MODEL or record.get("rubrics_sha256") != rubrics.sha256:
         raise EvalInputError(f"{path} was judged by another model or rubric version; judge a copy of the run instead")
+    if _is_claude_code(str(record.get("cli_version"))) != real:
+        judged = "the real Claude CLI" if real is False else "a stand-in CLI"
+        raise EvalInputError(f"{path} was judged by {judged}; judge a copy of the run instead")
     return True
 
 

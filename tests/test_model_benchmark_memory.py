@@ -732,3 +732,78 @@ def test_the_plan_counts_memory_work_per_configuration_and_the_memory_manager_on
     assert plan.estimated_calls == (
         len(plan.runnable) * plan.calls_per_configuration + rows * planner.MANAGER_RUN_CALLS * len(prompts.manager_runs)
     )
+
+
+class _ReplyClient:
+    """Replies to every request and keeps them, for checks of what each turn sent."""
+
+    def __init__(self) -> None:
+        self.requests: list[ModelClientRequest] = []
+
+    async def stream(self, request: ModelClientRequest) -> AsyncIterator[ModelClientDelta]:
+        self.requests.append(request)
+        final = _final(_reply("Sounds good!"))
+        yield ModelClientDelta(kind="text_delta", text=final.text)
+        yield ModelClientDelta(kind="final", final=final)
+        yield ModelClientDelta(kind="done")
+
+    async def aclose(self) -> None:
+        return None
+
+
+async def test_a_japanese_memory_chat_runs_in_japanese_and_pairs_with_its_original(
+    db_ready: str, db_url: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("ANIMAMA_LLM_SKIP", "1")
+    loaded = prompt_set.load_prompt_set(MEMORY_PROMPTS)
+    english = loaded.memory_chats[0]
+    japanese = replace(english, id=f"{english.id}-ja", language="ja", pair_id=english.id,
+                       turns=tuple(f"{turn} (ja)" for turn in english.turns))  # fmt: skip
+    prompts = replace(loaded, memory_chats=(english, japanese), manager_runs=())
+    haiku = next(c for c in configs.standard_configurations(configs.builtin_chat_rows()) if "haiku" in c.label)
+    client = _ReplyClient()
+    turns: list[dict[str, Any]] = []
+
+    async with memory_db.benchmark_database(db_url, memory_db.benchmark_database_name("ja")) as factory:
+        await runner.run_benchmark(
+            prompts,
+            [haiku],
+            registry=StaticModelClientRegistry({haiku.model_provider.provider_type: client}),
+            caps=runner.RunCaps(max_calls=200),
+            prices={},
+            sink=turns.append,
+            memory_sessions=BenchmarkSessions(factory),
+        )
+
+    def system(request: ModelClientRequest) -> str:
+        return "\n".join(str(m["content"]) for m in request.prompt.messages if m["role"] in {"system", "developer"})
+
+    sent = [(r, _latest_user_text(r)) for r in client.requests]
+    japanese_turns = [request for request, text in sent if text.endswith("(ja)")]
+    english_turns = [request for request, text in sent if text in english.turns]
+    # Each Japanese memory turn carries UI Locale ja, as chat:sse applies it; the English ones carry nothing extra.
+    assert len(japanese_turns) == 3 * len(english.turns) and len(english_turns) == 3 * len(english.turns)
+    assert all("Japanese" in system(request) for request in japanese_turns)
+    assert not any("Japanese" in system(request) for request in english_turns)
+    records = [turn for turn in turns if turn.get("unit_id") == japanese.id and turn["kind"] in {"memory", "recall"}]
+    assert records and all((turn["language"], turn["pair_id"]) == ("ja", english.id) for turn in records)
+
+
+async def test_plan_reads_the_catalog_for_a_row_that_is_not_built_in(
+    async_session: AsyncSession, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # An owner-added copy of a built-in row: another model id, so it does not collide with the original.
+    builtin = configs.builtin_chat_rows()[0]
+    owner_row = replace(builtin, id=f"{builtin.provider_type}:owner-haiku", model="owner-haiku")
+    await SQLAlchemyModelProviderRepository(async_session).upsert_many([*configs.builtin_chat_rows(), owner_row])
+    await async_session.commit()
+    args = cli._parse_args(["plan", "--prompts", str(MEMORY_PROMPTS), "--config", f"{owner_row.id}@low"])
+
+    try:
+        await cli._plan_command(args)
+    finally:
+        # The catalog is shared with later tests in this worker, which would read the row as another chat row.
+        await async_session.execute(text("DELETE FROM model_providers WHERE id = :id"), {"id": owner_row.id})
+        await async_session.commit()
+
+    assert f"{owner_row.id}@low:" in capsys.readouterr().out

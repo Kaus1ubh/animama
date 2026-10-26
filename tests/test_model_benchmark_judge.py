@@ -49,10 +49,10 @@ HIDDEN_KEYS = {"configuration", "model_provider_id", "effort", "arm", "language"
 STUB = """#!{python}
 import json, os, pathlib, sys, time
 args = sys.argv[1:]
-if args == ["--version"]:
-    print("9.9.9 (stub)")
-    sys.exit(0)
 config = json.loads((pathlib.Path(__file__).parent / "stub.json").read_text())
+if args == ["--version"]:
+    print(config.get("version", "9.9.9 (stub)"))
+    sys.exit(0)
 state = pathlib.Path(config["state"])
 calls = int(state.read_text()) if state.exists() else 0
 state.write_text(str(calls + 1))
@@ -121,8 +121,9 @@ class Stub:
         self.log = directory / "calls.jsonl"
         self.mode("ok")
 
-    def mode(self, mode: str, *, sleep: float = 0) -> None:
+    def mode(self, mode: str, *, sleep: float = 0, version: str = "9.9.9 (stub)") -> None:
         config = {
+            "version": version,
             "log": str(self.log),
             "state": str(self.directory / "state"),
             "active": str(self.directory / "active"),
@@ -646,3 +647,24 @@ def test_the_tracked_stub_cli_judges_a_whole_run_for_rehearsals(
     outcome = judge.run_judging(plan, tracked, rubric_set, effort="medium", cli=stub_cli)
 
     assert (outcome.completed, outcome.missing, outcome.stopped) == (len(plan.batches), 0, None)
+
+
+def test_a_user_claude_md_or_mixed_cli_results_stop_judging(
+    run_dir: Path, stub: Stub, tracked: prompt_set.PromptSet, rubric_set: rubrics.RubricSet,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:  # fmt: skip
+    plan = _plan(run_dir, tracked, rubric_set)
+    assert _judge(plan, tracked, rubric_set, stub, only=plan.batches[0].id).completed == 1  # A stand-in's result.
+    home = tmp_path / "home"
+    (home / ".claude").mkdir(parents=True)
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.delenv("CLAUDE_CONFIG_DIR", raising=False)
+    stub.mode("ok", version="2.1.310 (Claude Code)")
+
+    # The real CLI never reuses a stand-in's result.
+    with pytest.raises(EvalInputError, match="was judged by a stand-in CLI"):
+        _judge(plan, tracked, rubric_set, stub)
+    # A user CLAUDE.md would reach every real judge call, so judging does not start.
+    (home / ".claude" / "CLAUDE.md").write_text("Always answer in pirate speak.", encoding="utf-8")
+    stopped = _judge(plan, tracked, rubric_set, stub, only=plan.batches[1].id)
+    assert stopped.stopped is not None and "CLAUDE.md" in stopped.stopped and stopped.resumable is False

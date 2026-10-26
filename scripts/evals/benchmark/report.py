@@ -18,9 +18,10 @@ from pathlib import Path
 from typing import Any
 
 from ..core.inputs import EvalInputError
+from ..core.stats import TOKEN_STAT_KEYS
 from .calibrate import CALIBRATION_DIR
 from .intervals import MIN_GROUPS, Interval, bootstrap_mean, bootstrap_paired, comparable, distinguishable
-from .measures import summarize_configuration
+from .measures import STYLE_VIOLATIONS, summarize_configuration
 from .memory_runner import ARM_BOTH, ARM_MEMORIES_MD_ONLY, ARM_REMEMBER_ONLY
 from .prompt_set import PromptSet
 from .rubrics import RubricSet
@@ -324,6 +325,8 @@ def _memory(
     capture_items = by_line(judge.items, "capture")
     memory_items = by_line(judge.items, "memory_turn")
     recall_items = by_line(judge.items, "recall")
+    reply_items = by_line(judge.items, "reply")
+    tag_items = by_line(judge.items, "audio_tags")
     result: dict[str, Any] = {}
     for label in labels:
         arms: dict[str, Any] = {}
@@ -362,6 +365,8 @@ def _memory(
                 "kept_rate": counts["kept"] / counts["keep"] if counts["keep"] else None,
                 "recall": _recall(turns, recall_lines),
                 "recall_judged": _judged(turns, recall_lines, recall_items),
+                "reply": _judged(turns, memory_lines + recall_lines, reply_items),
+                "audio_tags": _judged(turns, memory_lines + recall_lines, tag_items),
                 "memory_turn": _criteria(turns, memory_lines, memory_items, criteria.get("memory_turn", ())),
                 "tools": _tools(turns, memory_lines + recall_lines),
                 "latency_median": _median(
@@ -510,10 +515,31 @@ def _percent(value: float | None) -> str:
     return "—" if value is None else f"{value:.0%}"
 
 
+def _spread(values: Mapping[str, Any]) -> str:
+    return " / ".join(_number(values.get(key)) for key in ("median", "p90", "mean"))
+
+
 def _share(count: int, total: int) -> str:
     """A rate with its sample size, as R16 asks for every score."""
 
     return f"{_percent(count / total) if total else '—'} ({count} of {total})"
+
+
+def _tag_kinds(kinds: Mapping[str, int]) -> str:
+    """One configuration's tag labels and counts, as code so angle-bracket tags survive Markdown.
+
+    A label as long as the lines the safety check looks for (or holding a backtick) is model text rather than a
+    tag name: it is counted, not shown, so a reply that is one long tag cannot stop the report being written.
+    """
+
+    def hidden(tag: str) -> bool:
+        return len(tag) >= _MIN_FORBIDDEN or "`" in tag
+
+    shown = [f"`{tag}` {count}" for tag, count in kinds.items() if not hidden(tag)]
+    not_shown = sum(count for tag, count in kinds.items() if hidden(tag))
+    if not_shown:
+        shown.append(f"{not_shown} longer, not shown")
+    return ", ".join(shown) or "none"
 
 
 def _table(header: Sequence[str], rows: Iterable[Sequence[str]]) -> list[str]:
@@ -580,37 +606,63 @@ def render_report(data: Mapping[str, Any], *, title: str, recommendations: str |
                       ([label, *(_interval(c[f"{rubric}_criteria"][key]) for key in keys),
                         *([_number(c["speech_length"], 0)] if extra else [])]
                        for label, c in core.items()))  # fmt: skip
-    out += ["### Structured output and speech", ""]
+    out += ["### Structured output", ""]
     out += _table(
         ["Configuration", "Strict", "Lenient", "Repaired", "Salvaged", "Plain text", "Dropped Gestures",
-         "Tagged replies", "Over sound cap", "Style violations"],
+         "Errors by code"],
         (
             [
                 label,
                 *(str(c["summary"]["recovery"][path]) for path in ("strict", "lenient", "repaired", "salvaged",
                                                                      "plain_text")),
                 str(c["summary"]["dropped_gestures"]),
-                _share(c["summary"]["speech"]["with_tags"], c["summary"]["speech"]["replies"]),
-                str(c["summary"]["speech"]["over_sound_cap"]),
-                str(sum(c["summary"]["speech"]["style_violations"].values())),
+                ", ".join(f"{code} {count}" for code, count in c["summary"]["error_codes"].items()) or "none",
             ]
             for label, c in core.items()
         ),
     )  # fmt: skip
-    out += ["### Operations", ""]
+    out += ["### Audio tags and spoken style", "",
+            "Checked against chat's ElevenLabs and Speech rules, over replies that parsed.", ""]  # fmt: skip
     out += _table(
-        ["Configuration", "First speech median (s)", "Input tokens mean", "Output tokens mean", "Calls"],
+        ["Configuration", "Tagged replies", "Tags", "Sounds", "Over sound cap", "Not English brackets",
+         "Tags in display", "Tags only", "Accent requests", *(f"Style: {name}" for name in STYLE_VIOLATIONS)],
         (
             [
                 label,
-                _number(c["summary"]["latency"]["single_turn"]["first_output_seconds"]["median"]),
-                _number(c["summary"]["tokens"]["single_turn"]["input_tokens"]["mean"], 0),
-                _number(c["summary"]["tokens"]["single_turn"]["output_tokens"]["mean"], 0),
-                str(c["summary"]["calls"]),
+                _share(c["summary"]["speech"]["with_tags"], c["summary"]["speech"]["replies"]),
+                str(c["summary"]["speech"]["tags"]),
+                str(c["summary"]["speech"]["sounds"]),
+                str(c["summary"]["speech"]["over_sound_cap"]),
+                str(c["summary"]["speech"]["angle_or_non_english_tags"]),
+                str(c["summary"]["speech"]["display_tags"]),
+                str(c["summary"]["speech"]["tags_only_speech"]),
+                str(c["summary"]["speech"]["accent_requests"]),
+                *(str(c["summary"]["speech"]["style_violations"][name]) for name in STYLE_VIOLATIONS),
             ]
             for label, c in core.items()
         ),
-    )
+    )  # fmt: skip
+    out += ["Tag kinds: " + "; ".join(
+        f"{label} {_tag_kinds(c['summary']['speech']['tag_kinds'])}" for label, c in core.items()
+    ) + ".", ""]  # fmt: skip
+    out += ["### Operations", "",
+            "Seconds are median / p90 / mean over successful turns; tokens are per-turn means over turns whose "
+            "calls all reported usage.", ""]  # fmt: skip
+    rows = []
+    for label, c in core.items():
+        for part, name in (("single_turn", "single"), ("chat", "chat")):
+            latency, tokens = c["summary"]["latency"][part], c["summary"]["tokens"][part]
+            rows.append([
+                label, name, str(latency["turns"]), _spread(latency["latency_seconds"]),
+                _spread(latency["first_token_seconds"]), _spread(latency["first_output_seconds"]),
+                *(_number(tokens[key]["mean"], 0) for key in TOKEN_STAT_KEYS),
+            ])  # fmt: skip
+    out += _table(
+        ["Configuration", "Part", "Turns", "Latency", "First token", "First speech", "Input", "Cached input",
+         "Cache write", "Output", "Reasoning"],
+        rows,
+    )  # fmt: skip
+    out += ["Calls: " + "; ".join(f"{label} {c['summary']['calls']}" for label, c in core.items()) + ".", ""]
 
     out += ["## Distributions", "",
             "Side by side, with no target distribution: the share of turns without a value, the number of "
@@ -665,7 +717,7 @@ def render_report(data: Mapping[str, Any], *, title: str, recommendations: str |
                   ([label, _interval(c["split"]["tuned"]), _interval(c["split"]["held_out"])]
                    for label, c in core.items()))  # fmt: skip
     out += _render_manager(data["manager"])
-    out += _render_judge(data["judge"], data["calibration"])
+    out += _render_judge(data["judge"], data["calibration"], data["configurations"])
     out += _render_conditions(data)
     out += ["## Limitations", "", *(f"- {text}" for text in LIMITATIONS)]
     probe = data.get("japanese_search_probe")
@@ -691,7 +743,8 @@ def _render_memory(memory: Mapping[str, Any], memory_criteria: Sequence[str]) ->
         out += [f"### {label}", ""]
         out += _table(
             ["Arm", "Kept", "Noise kept", "Sensitive breaks", "Saved notes / changed files", "Unjudged captures",
-             "Recall matched", "Open recall", *memory_criteria, "Tool calls per turn", "Tool success",
+             "Recall matched", "Open recall", *memory_criteria, "Reply", "Audio tags", "Tool calls per turn",
+             "Tool success",
              "Failed turns", "Latency median (s)", "Input tokens mean"],
             (
                 [
@@ -705,6 +758,8 @@ def _render_memory(memory: Mapping[str, Any], memory_criteria: Sequence[str]) ->
                     + (f" ({a['recall']['failed_turns']} failed)" if a["recall"]["failed_turns"] else ""),
                     _interval(a["recall_judged"]),
                     *(_interval(a["memory_turn"].get(key)) for key in memory_criteria),
+                    _interval(a["reply"]),
+                    _interval(a["audio_tags"]),
                     f"{_number(a['tools']['calls_per_turn'])} over {a['tools']['turns']} turns",
                     _share(a["tools"]["succeeded"], a["tools"]["calls"]),
                     f"{a['failed_turns']} memory, {a['tools']['unknown_turns']} unknown tools",
@@ -743,9 +798,14 @@ def _render_manager(manager: Mapping[str, Any]) -> list[str]:
     return out
 
 
-def _render_judge(judge: Mapping[str, Any], calibration: Mapping[str, Any] | None) -> list[str]:
+def _render_judge(
+    judge: Mapping[str, Any], calibration: Mapping[str, Any] | None, configurations: Sequence[Mapping[str, Any]]
+) -> list[str]:
     batches = judge["batches"]
-    out = ["## Judge", "", f"- {FAMILY_CAVEAT}",
+    # The caveat is about a contestant from the judge's own family; a run without one says so.
+    family = any(str(c.get("model") or "").startswith("claude-") for c in configurations)
+    caveat = FAMILY_CAVEAT if family else "No configuration in this run shares a model family with the judge."
+    out = ["## Judge", "", f"- {caveat}",
            f"- Effort: {judge['effort'] or 'not judged'}; served models: {', '.join(judge['models']) or '—'}; "
            f"CLI: {', '.join(judge['cli_versions']) or '—'}.",
            f"- Batches: {batches.get('ok', 0)} scored, {batches.get('missing', 0)} missing after retries, "
@@ -755,7 +815,8 @@ def _render_judge(judge: Mapping[str, Any], calibration: Mapping[str, Any] | Non
                                                  or "none") + ".", ""]  # fmt: skip
     out += ["## Calibration", ""]
     if not calibration:
-        out += ["Not calibrated in this run.", ""]
+        out += ["Not calibrated in this run. Calibration runs once per prompt-set version and rubric version; a "
+                "later run uses the effort pinned then, recorded in that run's report.", ""]  # fmt: skip
         return out
     out += [f"Pinned effort: **{calibration.get('pinned')}** (higher mean weighted kappa over the criteria both "
             f"efforts could score; medium on a tie). The owner rated the `reply` and `expression` rubrics; the "

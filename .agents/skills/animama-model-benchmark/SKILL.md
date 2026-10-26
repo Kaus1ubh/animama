@@ -32,8 +32,9 @@ the references hold the exact commands.
 
 1. **Check the setup.** Use `animama-local-stacks` to start or reuse a task
    stack from this checkout ([commands](references/commands.md#stack)); confirm
-   `models` lists the rows to run. On the host, check `claude --version` and
-   that the owner is signed in.
+   `models` lists the rows to run. On the host, check `claude --version`, that
+   the owner is signed in, and that there is no user `~/.claude/CLAUDE.md`
+   (judging refuses to start while one exists).
 2. **Plan.** Run `plan` with the prompt set, tier and configurations. Check
    that it fits the 4-hour bound and that every configuration runs.
 3. **Ask for approval.** Present the configurations, calls, estimated cost,
@@ -42,8 +43,8 @@ the references hold the exact commands.
 4. **Run.** Run `run` in the backend container with the approved caps and a
    new `--output-dir` under `/app/.animama-drafts/model-benchmark/`. A run
    stopped by a cap or an interruption keeps its results; the owner decides
-   whether to approve another. Take the stack down when the run is done, then
-   check that `cleanup` has nothing to drop.
+   whether to approve another. When the run is done, check that `cleanup` has
+   nothing to drop, then take the stack down.
 5. **Calibrate (first run only, gate G4).** `calibrate export`, then ask the
    owner to rate `calibration/sheet.md` into `ratings.json`;
    `calibrate import`; `calibrate pilot` pins the judge effort

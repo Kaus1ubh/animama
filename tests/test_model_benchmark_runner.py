@@ -252,6 +252,10 @@ def test_the_japanese_turns_carry_the_speech_language_code() -> None:
     assert japanese.options.tts is not None and japanese.options.tts.language_code == "ja"
     assert japanese.conversation_language is not None and japanese.conversation_language.locale == "ja"
     assert english.options.native_tools == () and english.options.incognito is True
+    memory = options.memory_turn_options("ja", "low")
+    assert memory.options.incognito is False and memory.options.reasoning_effort == "low"
+    assert memory.options.tts is not None and memory.options.tts.language_code == "ja"
+    assert memory.conversation_language is not None and memory.conversation_language.locale == "ja"
 
 
 async def test_annies_identity_reaches_her_turns() -> None:
@@ -435,7 +439,7 @@ async def test_the_dry_run_estimates_calls_cost_and_wall_time() -> None:
 
     assert plan.turns_per_configuration == 10 and plan.estimated_calls == 40
     assert set(tokens) == {configuration.label for configuration in _standard()}
-    assert "Estimated model calls: 40; up to 80" in text
+    assert "Estimated model calls: 40; up to 80 if every reply needs" in text
     assert "the estimate exceeds --max-calls 30" in text
     assert "Estimated wall time: 0.03 h" in text and "over the bound" not in text
 
@@ -448,6 +452,21 @@ def test_the_dry_run_flags_a_plan_over_the_time_bound() -> None:
 
     assert planner.estimated_seconds(plan, seconds_per_call=seconds_per_call) > planner.TIME_BOUND_SECONDS
     assert "over the bound" in text and "--over-time-approved" in text
+
+
+def test_plan_for_an_unknown_row_without_a_database_names_the_row(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    @asynccontextmanager
+    async def no_database() -> AsyncIterator[Any]:
+        raise OSError("connect call failed")
+        yield
+
+    monkeypatch.setattr(catalog, "read_only_model_providers", no_database)
+
+    assert cli.main(["plan", "--prompts", str(PROMPTS), "--config", "Mistyped:row@low"]) == 2
+    error = capsys.readouterr().err
+    assert "Mistyped:row is not a built-in chat row" in error and "(OSError)" in error and "Traceback" not in error
 
 
 @dataclass(slots=True)

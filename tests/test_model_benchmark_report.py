@@ -343,6 +343,16 @@ def test_the_guard_ignores_dividers_and_names_the_source(tracked: prompt_set.Pro
         report.check_public_safe("A reply long enough to recognise anywhere.", forbidden)
 
 
+def test_tag_kinds_show_short_labels_as_code_and_only_count_long_ones(tracked: prompt_set.PromptSet) -> None:
+    long_tag = "[whispering very softly now]"
+    line = report._tag_kinds({"<sigh>": 2, "[laughs]": 1, long_tag: 1})
+
+    assert line == "`<sigh>` 2, `[laughs]` 1, 1 longer, not shown"
+    # A reply that is only that tag is a forbidden line, which the tag kinds must not repeat.
+    report.check_public_safe(line, report.forbidden_texts([{"speech": long_tag}], tracked))
+    assert report._tag_kinds({}) == "none"
+
+
 def test_report_finds_the_one_judged_effort_and_keeps_owner_text(
     run_dir: Path, stub: Stub, capsys: pytest.CaptureFixture[str]
 ) -> None:
