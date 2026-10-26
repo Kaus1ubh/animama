@@ -654,8 +654,10 @@ Flagged against existing decisions:
 
 ## Spec
 
-This document, before publication. After publication:
-https://github.com/raymond-van/animama/issues/470.
+Snapshot of https://github.com/raymond-van/animama/issues/470, captured from
+its body as published at `2026-10-26T02:24:13Z` (issue `updatedAt`). The
+issue is authoritative: refresh this file from it before resuming, and do
+not edit this file as a competing source of requirements.
 
 ## ExecPlan
 

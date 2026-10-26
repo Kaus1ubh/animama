@@ -1,26 +1,30 @@
 # Standardized model benchmark execution plan
 
-Status: Draft for owner review (gate G1). Nothing is authorized for
-implementation yet.
+Status: In progress. G1 passed on 2026-10-25. The remaining gates are G2,
+G3 and G4.
 
-Source agreement: [spec](model-benchmark-spec.md), status Proposal, as
-revised on 2026-10-25 (commit `cb9c50a4`). It follows the owner's discovery
-answers of 2026-10-12 and 2026-10-25 and the owner's spec answers of
-2026-10-25, recorded on #470 in the
+Source agreement: the spec, published as the body of
+[#470](https://github.com/raymond-van/animama/issues/470) at
+`2026-10-26T02:24:13Z`, which is authoritative. The tracked
+[snapshot](model-benchmark-spec.md) records that capture. The spec follows
+the owner's discovery answers of 2026-10-12 and 2026-10-25 and the owner's
+spec answers of 2026-10-25, recorded on #470 in the
 [2026-10-12 brief](https://github.com/raymond-van/animama/issues/470#issuecomment-6134798047)
 and the
 [2026-10-25 brief](https://github.com/raymond-van/animama/issues/470#issuecomment-6406329265).
-The spec is authoritative until `workspace-setup` publishes it to #470.
+The owner reviewed it at `cb9c50a4` and this plan at `53adb22f`.
 
-Authorized scope: none until G1. Exact-candidate merge approval stays
-separate.
+Authorized scope: the whole plan. The owner invoked `/implement` on
+2026-10-25 after reviewing the spec and this plan. Gates G2, G3 and G4 still
+require the owner's action. Exact-candidate merge approval stays separate.
 
 Starting source: `18d2bebd` (`origin/main`, 2026-10-25, which includes the
-#704 prompt cleanup from PR #710). Checkout
-`worktrees/animama/model-benchmark-discovery-d321cc`, branch
-`docs/model-benchmark-spec`, holds the spec and this plan. Proposal: before
-the first implementation commit, rename the branch to `feat/model-benchmark`,
-so the spec, the plan and the implementation share one branch and one PR.
+#704 prompt cleanup from PR #710). `origin/main` `a94f8369` was merged into
+the branch at `165b2a09` before implementation; it touched no chat or
+evaluation code. Checkout `worktrees/animama/model-benchmark-discovery-d321cc`,
+branch `feat/model-benchmark` (renamed from `docs/model-benchmark-spec`),
+pushed to `origin`. One branch and one PR carry the spec, the plan and the
+implementation.
 
 ## Purpose and context
 
@@ -95,9 +99,12 @@ Ownership and boundaries:
 
 ## Progress
 
-- [ ] G1: the owner agrees the spec and this plan, including every decision
+- [x] G1: the owner agrees the spec and this plan, including every decision
       marked "proposed" in the Decision Log and the spec's unconfirmed
-      proposals.
+      proposals. Passed on 2026-10-25: the owner invoked `/implement` (see
+      the Decision Log).
+- [x] Workspace setup (2026-10-26, recorded under Setup and execution
+      rules).
 - [ ] Phase 1: Shared evaluation core extracted; Gesture harness unchanged.
 - [ ] Phase 2: Core-turn runner, turn options and dry run.
 - [ ] Phase 3: Memory-arm seams in chat, with defaults unchanged.
@@ -255,8 +262,16 @@ were rechecked on `18d2bebd`.
   `worktrees/animama/model-benchmark-spec` into this checkout. That worktree
   and its empty branch were removed.
 - **2026-10-25, owner (task instruction):** the owner invoked `/to-execplan`
-  after the revised spec. That instruction does not accept the spec's
-  proposals or the proposed decisions below. They stay open until G1.
+  after the revised spec. That instruction did not accept the spec's
+  proposals or the proposed decisions below; they stayed open until G1.
+- **2026-10-25, owner (G1, task instruction):** the owner invoked
+  `/implement` after reviewing the spec at `cb9c50a4` and this plan at
+  `53adb22f`. That accepts:
+  - the spec's proposals;
+  - the decisions D1–D13 and D15 below, with D14 settled at G2;
+  - the Phase 6 subscription smoke (D8).
+  The spec was published to #470 with those proposals marked accepted.
+  "Proposed (G1)" below now means agreed at G1.
 - **D1 (proposed, G1). Code layout.**
   - `scripts/evals/core/` holds the extracted generic pieces.
   - `scripts/evals/benchmark/` holds the benchmark, with one module per area,
@@ -447,8 +462,24 @@ A model row with `allow_memory_writes=false` removes write tools.
 When implementation is authorized:
 
 1. Run `workspace-setup`. It publishes the agreed spec to #470 and reads it
-   back, marks the spec file as a snapshot, and creates one sub-issue per
-   phase with blocked-by links. Rename the branch (see Starting source).
+   back, marks the spec file as a snapshot, and renames the branch (see
+   Starting source).
+   - No phase issues are created. One session implements the plan in one
+     repository with no separately assigned phase, so the parent and the
+     phase sections track it (SDLC artifact ownership).
+   - **Workspace record (2026-10-26):**
+     - **Repository:** `raymond-van/animama`.
+     - **Checkout:** `worktrees/animama/model-benchmark-discovery-d321cc`
+       (Git root verified).
+     - **Branch:** `feat/model-benchmark`, tracking `origin/feat/model-benchmark`.
+     - **Base:** `main`, with `a94f8369` merged at `165b2a09`.
+     - **Spec authority:** the #470 body at `2026-10-26T02:24:13Z`, read back
+       byte-equal to the published file. The issue was retitled
+       "feat: standardized model benchmark skill for chat models".
+     - **Environment:** `.venv` on Python 3.12.13 (`uv sync --python 3.12.13`).
+     - **Stack:** none started yet. Phase 2's smoke starts a named stack and
+       records its URL here.
+     - **Gates outstanding:** G2, G3, G4.
 2. Work test-first. Offline tests use the existing fake model clients and
    scripted streams, and never use keys, the network or the judge CLI. Judge
    tests use a stub CLI script. Database tests use the suite's PostgreSQL
