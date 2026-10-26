@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass, field
+from decimal import Decimal
 
 from animama.app.model_clients import (
     ModelClient,
@@ -17,6 +18,8 @@ from animama.domain.usage import Usage
 __all__ = [
     "BUDGET_ERROR_CODE",
     "BudgetedModelClient",
+    "CallBudget",
+    "CallPrice",
     "CallRecord",
     "Clock",
     "UnusedModelClient",
@@ -28,6 +31,40 @@ BUDGET_ERROR_CODE = "eval_call_budget_spent"
 
 Clock = Callable[[], float]
 """A monotonic clock in seconds; runs use ``time.monotonic`` and tests inject a fake."""
+
+CallPrice = Callable[[Usage], Decimal | None]
+"""A call's estimated USD cost from its reported usage, or ``None`` when it cannot be priced."""
+
+
+@dataclass(slots=True)
+class CallBudget:
+    """The call and spend cap one run's budgeted clients share.
+
+    A call is refused before it is sent once ``max_calls`` calls were made, or
+    when the spend so far plus the most expensive call seen so far would pass
+    ``max_usd``. The new call's cost is unknown until it returns, so a call
+    larger than every earlier one (a long chat's growing prompt) can still pass
+    the cap by the difference; a call that reports no usage is not charged.
+    """
+
+    max_calls: int
+    max_usd: Decimal | None = None
+    calls: int = 0
+    spent_usd: Decimal = Decimal(0)
+    largest_call_usd: Decimal = Decimal(0)
+    refused: str | None = None
+    """Why a call was refused, ``max_calls`` or ``max_usd``; ``None`` while every call was sent."""
+
+    def refusal(self) -> str | None:
+        if self.calls >= self.max_calls:
+            return "max_calls"
+        if self.max_usd is not None and self.spent_usd + self.largest_call_usd > self.max_usd:
+            return "max_usd"
+        return None
+
+    def charge(self, cost_usd: Decimal) -> None:
+        self.spent_usd += cost_usd
+        self.largest_call_usd = max(self.largest_call_usd, cost_usd)
 
 
 @dataclass(slots=True)
@@ -46,18 +83,33 @@ class CallRecord:
     """The reply text the call streamed before its final."""
     served_model: str | None = None
     """The model the provider reported serving (``raw_provider_metadata["model"]``), when it reported one."""
+    cost_usd: Decimal | None = None
+    """The call's estimated cost, when the client prices calls and the call reported usage."""
 
 
 class BudgetedModelClient:
-    """Dispatch at most ``max_calls`` requests to the wrapped client and record each call.
+    """Dispatch requests to the wrapped client within a call budget and record each call.
 
-    A request beyond the budget is refused with a model-client error before it
-    reaches the provider; the runner then discards that turn and stops.
+    The budget is ``max_calls`` calls of this client, or a ``budget`` shared
+    with other clients, which can also cap spend when ``price`` prices each
+    call. A request beyond the budget is refused with a model-client error
+    before it reaches the provider; the runner then discards that turn and stops.
     """
 
-    def __init__(self, client: ModelClient, *, max_calls: int, clock: Clock) -> None:
+    def __init__(
+        self,
+        client: ModelClient,
+        *,
+        clock: Clock,
+        max_calls: int | None = None,
+        budget: CallBudget | None = None,
+        price: CallPrice | None = None,
+    ) -> None:
+        if (max_calls is None) == (budget is None):
+            raise ValueError("Give exactly one of max_calls and budget")
         self._client = client
-        self._max_calls = max_calls
+        self._budget = budget if budget is not None else CallBudget(max_calls=max_calls or 0)
+        self._price = price
         self._clock = clock
         self.calls: list[CallRecord] = []
         self.refused = False
@@ -69,9 +121,12 @@ class BudgetedModelClient:
         return uses_native_context_compaction(self._client)
 
     async def stream(self, request: ModelClientRequest) -> AsyncIterator[ModelClientDelta]:
-        if len(self.calls) >= self._max_calls:
+        refusal = self._budget.refusal()
+        if refusal is not None:
             self.refused = True
+            self._budget.refused = refusal
             raise ModelClientError("The evaluation call budget is spent", code=BUDGET_ERROR_CODE)
+        self._budget.calls += 1
         record = CallRecord(started=self._clock())
         self.calls.append(record)
         try:
@@ -84,6 +139,10 @@ class BudgetedModelClient:
                     record.final_text = delta.final.text
                     if delta.final.usage_reported:
                         record.usage = delta.final.usage
+                        if self._price is not None:
+                            record.cost_usd = self._price(delta.final.usage)
+                            if record.cost_usd is not None:
+                                self._budget.charge(record.cost_usd)
                     served = delta.final.raw_provider_metadata.get("model")
                     record.served_model = served if isinstance(served, str) and served else None
                     # The final reply has arrived; a trailing ``done`` delta adds nothing to wait for.

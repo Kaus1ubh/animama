@@ -136,7 +136,6 @@ from animama.app.chat import (
     DirectChatTurnRequest,
     DirectChatTurnSetupError,
     ModelClientNotFoundError,
-    RuntimeGestureDescriptor,
 )
 from animama.app.chat.direct_turn.response_format import render_available_gestures
 from animama.app.chat.direct_turn.types import PreparedDirectChatTurn
@@ -162,6 +161,7 @@ from .core.chat import (
     turn_request,
 )
 from .core.inputs import EvalInputError, read_json, require_unique, required_text
+from .core.loadouts import Loadout, load_loadout
 from .core.model_calls import BudgetedModelClient, Clock, UnusedModelClient, call_latency, seconds
 from .core.pricing import TokenPrices, cost_json, parse_token_prices, sum_usage_json, usage_json
 from .core.stats import distinct_gestures, latency_summary, longest_run, rate, token_summary
@@ -211,20 +211,6 @@ ResultsSink = Callable[[dict[str, Any]], None]
 
 class CallBudgetExceeded(RuntimeError):
     """The plan needs more model calls than ``--max-calls`` allows; nothing was sent."""
-
-
-@dataclass(frozen=True, slots=True)
-class Loadout:
-    """An equipped Gesture list, in the order the harness lists it to the model."""
-
-    name: str
-    gestures: tuple[RuntimeGestureDescriptor, ...]
-    sha256: str = field(default="", compare=False)
-    """SHA-256 of the loaded file's bytes, when it came from a file."""
-
-    @property
-    def selectors(self) -> tuple[str, ...]:
-        return tuple(gesture.selector for gesture in self.gestures)
 
 
 @dataclass(frozen=True, slots=True)
@@ -278,32 +264,6 @@ class EvalPlan:
 
 
 # --- Inputs -----------------------------------------------------------------
-
-
-def load_loadout(path: Path) -> Loadout:
-    """Read a loadout file: a non-empty JSON list of ``{selector, name, description}``."""
-
-    data, sha256 = read_json(path)
-    if not isinstance(data, list) or not data:
-        raise EvalInputError(f"{path}: expected a non-empty JSON list of Gestures")
-    gestures: list[RuntimeGestureDescriptor] = []
-    selectors: set[str] = set()
-    for index, entry in enumerate(data):
-        where = f"{path}[{index}]"
-        if not isinstance(entry, Mapping):
-            raise EvalInputError(f"{where}: expected an object")
-        selector = required_text(entry, "selector", where)
-        if selector in selectors:
-            raise EvalInputError(f"{where}: duplicate selector {selector!r}")
-        selectors.add(selector)
-        gestures.append(
-            RuntimeGestureDescriptor(
-                selector=selector,
-                name=required_text(entry, "name", where),
-                description=required_text(entry, "description", where),
-            )
-        )
-    return Loadout(name=path.stem, gestures=tuple(gestures), sha256=sha256)
 
 
 def _prompt_item(entry: Any, where: str) -> PromptItem:

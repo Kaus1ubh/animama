@@ -107,7 +107,8 @@ Ownership and boundaries:
       rules).
 - [x] Phase 1: Shared evaluation core extracted; Gesture harness unchanged.
       Passed review #2 on 2026-10-26.
-- [ ] Phase 2: Core-turn runner, turn options and dry run.
+- [x] Phase 2: Core-turn runner, turn options and dry run. Passed review #2 on
+      2026-10-26.
 - [ ] Phase 3: Memory-arm seams in chat, with defaults unchanged.
 - [ ] Phase 4: Multi-turn, memory-arm and Memory Manager runners.
 - [ ] Phase 5: Prompt set v1, Japanese subset, fixtures and rubrics (gate
@@ -826,13 +827,237 @@ Checks:
 Completion: the tests and the smoke pass, and the review passes. Commit
 `feat(evals)[p2]: add the core-turn model benchmark runner`.
 
-Check record: none yet.
+Starting source: `02328d2a` (Phase 1's commit).
 
-Commits: none yet.
+**Delivered** (`scripts/evals/benchmark/`):
+- `prompt_set.py`: format v1 and its validation. The format is documented
+  in the module docstring.
+- `configs.py`: the standard set, `--config` and the capability check.
+- `options.py`: ElevenLabs voice options, Japanese, no native tools and
+  moderation.
+- `speech_checks.py`: Audio-tag and spoken-style checks over chat's own tag
+  grammar (`animama.domain.audio_tags`).
+- `measures.py`: recovery path, distributions, chat runs and
+  per-configuration summaries.
+- `results.py`: `turns.jsonl` and the manifest.
+- `runner.py`: the loop.
+- `planner.py`: the dry run.
+- `cli.py` and `__main__.py`: `plan`, `run` and `models`.
+- Two additions to the core:
+  - `CallBudget`, a call-and-USD cap shared by every configuration's
+    budgeted client. It refuses a call when the spend plus the largest call
+    seen so far would pass the cap.
+  - `core/loadouts.py`, moved out of the Gesture harness, which re-exports
+    it.
+- `tests/fixtures/model_benchmark/`: a small fixture prompt set.
+
+**Decisions within scope:**
+- **Companion-safety parity.** Benchmark turns set `provider_moderation`
+  true, which is production's value with crisis detection at its default.
+  Chat requests it only on OpenAI Responses.
+- **Recovery path.** No runtime refactor was needed. Chat's `repaired`,
+  `salvaged` and `plain_text` are reconstructed as the Gesture harness does.
+  `strict` versus `lenient` comes from `parse_main_structured_response` on
+  the final text.
+- **The run requires `--price`.** The catalog records no cache-write rate,
+  so it cannot price every Anthropic call. A USD cap therefore needs
+  explicit published rates, which also gives the report one price source.
+  The dry run falls back to catalog rates.
+
+**Deviations from the planned Changes and Checks:**
+- **Format docs.** The format and the Audio-tag rules are documented in the
+  module docstrings. The inputs README comes with Phase 5's prompt set.
+- **Stack smoke.** The planned mock smoke in a task stack is replaced by an
+  automated composition test:
+  `test_the_run_composition_reads_the_catalog_and_runs_chats_mock_client`.
+  It reads the test database's real catalog, read-only, and runs chat's real
+  registry under `ANIMAMA_LLM_SKIP=1` for both providers. This mirrors the
+  Gesture harness's composition test. The container paths are first
+  exercised by Phase 4's stack smoke.
+- **Turn options.** "No text-to-speech request" holds by construction: the
+  executor has no speech port, and the fake registry serves only chat
+  calls.
+- **`--config` syntax.** It takes `<row id>@<effort>` rather than the
+  planned `[:<effort>]`, because row ids contain `:`.
+
+Check record (2026-10-26). Every command ran from the repository root on
+working tree `bf865276`, starting from `02328d2a`:
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Tests | `uv run --no-sync pytest -q tests/test_model_benchmark_runner.py tests/test_model_benchmark_core.py tests/test_gesture_selection_eval.py` | 79 passed (33 new runner tests) |
+| Gesture parity | The Phase 1 dry-run and run-parity commands, compared with the `23cf9faf` baseline | Identical |
+| Dry run | `uv run --no-sync python -m scripts.evals.benchmark plan --prompts tests/fixtures/model_benchmark/prompts.json --standard --max-calls 100` | 4 configurations, 40 calls (80 with repairs), about 2.5k first-turn tokens, ~0.0143 USD, 0.03 h |
+| Lint | `uv run --no-sync ruff check` | Passed |
+| Format | `uv run --no-sync ruff format --check scripts/evals tests`; `make format-check` | Passed |
+| Types | `make mypy` | Passed (866 files) |
+
+Commits: Phase 1 is `02328d2a`. This phase's commit is
+`feat(evals)[p2]: add the core-turn model benchmark runner`.
+
+Repair round 1 re-ran every check above on working tree `f4a5c19d`:
+- the tests: 93 passed, 14 of them new for the findings;
+- Gesture dry-run and run parity: identical;
+- the benchmark dry run, which now shows the items and chats by area,
+  language and held-out count;
+- ruff, both format checks and `make mypy`: all passed.
 
 #### Code Review #1 Findings
 
+Reviewer: an independent `sdlc-reviewer` subagent at the standard tier, on
+code identical to `bf865276`, against `02328d2a`. It reused the record and
+added read-only probes, which it kept in the scratchpad. Its result: changes
+required.
+
+It confirmed:
+- the interleaving and warm-up exclusion;
+- the call cap refusing before a call is sent;
+- English and Japanese options matching `turn_setup.py`;
+- moderation parity;
+- the order of the recovery paths;
+- Gesture harness behavior;
+- no key output;
+- interrupted and failed runs keeping their turns (by probe).
+
+Required:
+- **P2-F1.** A plan over `--max-usd` still started; only calls and time
+  were checked.
+- **P2-F2.** Labels were `<model>@<effort>`, so two rows of one model (Luna
+  on Chat Completions and on Responses) collided and could not run
+  together.
+- **P2-F3.** One `--price` priced every configuration, so a row with other
+  rates would be priced, and capped, at the wrong rates.
+- **P2-F4.** Turns recorded `cost_usd`, but the shared token summary reads
+  `estimated_cost_usd`, so per-turn cost statistics were always null. The
+  test fixture carried both keys.
+- **P2-F5.** `tags_only_speech` missed tags followed only by punctuation,
+  such as `[sighs]...`.
+- **P2-F6.** Single-asterisk and single-underscore emphasis, such as
+  `*smiles*`, was not detected as markdown.
+- **P2-F7.** No test covered an interrupted or failed run, or a cap stop as
+  written to the manifest.
+
+Optional:
+- the `CallBudget` overshoot wording;
+- `--seconds-per-call` accepting 0, negative values or `nan`;
+- an error before the run loop leaving `aborted: "interrupted"` or
+  `"running"`;
+- `platform.node()` recording a container id instead of the machine;
+- the link to the README that does not exist yet;
+- the dry run not showing items by area, language and tier, and the
+  "upper estimate" wording;
+- the undeclared `--config <row>@<effort>` syntax;
+- memory off in core turns not recorded as a run condition;
+- unknown prompt-set keys ignored silently, and loadout sorting unchecked;
+- the web-search test not checking `provider_options.native_tools`;
+- the speech checks re-implementing private Audio-tag helpers, and the emoji
+  pattern missing flag letters;
+- the turn record duplicating the Gesture harness's.
+
 #### Code Review #1 Revisions
+
+Required findings, all accepted:
+- **P2-F1.**
+  - `planner.estimate_usd` and `total_usd` now feed both the dry run, which
+    prints a budget line, and `run`, which refuses when the estimate
+    exceeds `--max-usd`.
+  - A test case covers the refusal.
+- **P2-F2.**
+  - Labels are `<row id>@<effort>`.
+  - `test_two_rows_of_one_model_are_separate_configurations` plans the
+    standard set plus Luna on Chat Completions.
+- **P2-F3.**
+  - `--row-price ROW_ID RATES` (repeatable) prices one row's
+    configurations.
+  - `--price` prices the rest, and only when their catalog rates agree;
+    otherwise the run refuses with a pointer to `--row-price`.
+  - The manifest records the price source per configuration.
+  - Covered by `test_one_price_cannot_cover_rows_with_different_catalog_rates`.
+- **P2-F4.** Turns record `estimated_cost_usd`, and the fixture's duplicate
+  key is removed.
+- **P2-F5.** The check now requires a letter or a number outside the tags.
+  Test added.
+- **P2-F6.**
+  - Single `*…*` and `_…_` emphasis counts as markdown.
+  - A lone `*`, arithmetic and `snake_case` do not. Test added.
+- **P2-F7.**
+  - `test_an_interrupted_or_failed_run_keeps_its_turns_and_says_why` covers
+    an interrupted run (exit 130) and a failed one.
+  - `test_a_cap_stop_is_recorded_in_the_manifest` covers a cap reached by
+    repairs.
+  - `test_a_registry_that_cannot_be_built_is_recorded_as_an_error` covers a
+    failed setup.
+  - `test_an_unregistered_provider_is_recorded_as_an_error` covers a
+    missing client.
+
+Optional findings:
+- **Accepted:**
+  - the `CallBudget` docstring states the overshoot and that unreported
+    usage goes uncharged;
+  - `--seconds-per-call` must be a positive, finite number (test added);
+  - contestant setup and building the registry now sit inside the run's
+    error handling, so their failures are recorded as `error: <type>`;
+  - `--machine-label` (default: the host name) is recorded as
+    `conditions.machine`;
+  - the dry run lists items and chats by area and language with held-out
+    counts, and the docstring explains how the USD estimate differs from
+    the cap;
+  - the manifest's `options.memory` records `"off"` for core and long-chat
+    turns, and memory runs come in Phase 4;
+  - unknown keys are rejected at every level, and the loadout must be
+    sorted by selector (test added);
+  - the web-search test asserts `provider_options.native_tools == ()`;
+  - the emoji pattern adds `Regional_Indicator`, as the app's speech text
+    does.
+- **Deferred to Phase 8:** the README link. Phase 8 writes
+  `docs/benchmarks/README.md`.
+- **Recorded as a deviation:** `--config` takes `<row id>@<effort>` rather
+  than the planned `[:<effort>]`, because row ids contain `:`.
+- **Rejected, with reasons:**
+  - The private Audio-tag helpers (neutral lookup, accent test, tag class)
+    stay mirrored. Exporting them would change `animama.domain.audio_tags`,
+    a runtime module this phase does not change. The mirror is small and
+    uses the public `classify_audio_tag`.
+  - The turn-record duplication with the Gesture harness stays. The two
+    record schemas differ, and the Gesture output must stay byte-identical.
+    A shared builder would add an abstraction with two diverging users.
+
+Verification: the repair-round check record above. P2-F1, P2-F2, P2-F3 and
+P2-F7 go to a targeted recheck (Code Review #2). Repair rounds left after
+this one: 1.
+
+#### Code Review #2 Findings
+
+Reviewer: the same independent `sdlc-reviewer`, in a targeted recheck (repair
+round 1) on code identical to `f4a5c19d`. It reused the record and ran
+read-only probes. Its result: pass.
+
+- **Required findings:** all seven fixed, with no regression.
+- **Accepted optional items:** all verified.
+- **Rejections and the deferral:** sound.
+- **Optional findings:**
+  - **P2-F8.** The P2-F6 underscore pattern flags two kaomoji in one reply,
+    such as `(^_^) … (^_^)`, as markdown.
+  - **P2-F9.** The `--max-usd` help names only `--price`.
+  - **P2-F10.** Rows without catalog rates all compare alike under one
+    `--price`; worth a help note.
+  - **Record placement.** The `--config` deviation is recorded only under
+    the revisions.
+
+#### Code Review #2 Revisions
+
+All four accepted, as trivial repairs:
+- **P2-F8.** The underscore branch now needs a word character just inside
+  both underscores. The kaomoji case was added to the test's negatives.
+- **P2-F9.** The `--max-usd` help now reads "(needs --price or
+  --row-price)".
+- **P2-F10.** The `--price` help notes that rows the catalog does not price
+  count as alike.
+- **Record placement.** The `--config` syntax was added to the deviations
+  list above.
+
+Verified by rerunning `tests/test_model_benchmark_runner.py` (47 passed) and
+`ruff check` (passed). Phase 2 passed with one repair round used.
 
 ### Phase 3: Memory-arm seams in chat, with defaults unchanged
 
