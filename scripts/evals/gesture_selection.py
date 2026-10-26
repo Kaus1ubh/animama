@@ -1461,9 +1461,7 @@ def render_summary(results: Mapping[str, Any]) -> str:
         "A turn fits when its Gesture is acceptable for the item; no Gesture fits only where null is acceptable. "
         "Rates exclude failed turns. Coverable items have an acceptable Gesture equipped or accept null. "
         "Gesture-list bytes measure the equipped list in the system prompt; instruction bytes measure the "
-        "system and developer messages of a first turn (since 2026-10-25 the system message alone: incognito "
-        "turns have no turn context and the guardrails are no longer repeated there, so earlier runs are about "
-        "300 tokens larger).",
+        "system and developer messages of a first turn (the system message alone when the turn has no context).",
     ]
     scripted_rows = [(loadout["name"], row) for loadout in results["loadouts"] for row in loadout["scripted"]]
     if scripted_rows:

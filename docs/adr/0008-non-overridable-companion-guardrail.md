@@ -75,9 +75,9 @@ Guardrails apply".
 
 - Instruction text grows by a small fixed section, sent once per turn inside
   the cached system instructions.
-- Text can now follow the guardrail that its precedence statement ("the Anima
-  Identity, memory and every earlier instruction") does not name as later
-  text. The history follows it, as before; so do the turn context's memory map
+- Some text now follows the guardrail, outside its precedence statement ("the
+  Anima Identity, memory and every earlier instruction"). The history follows
+  it, as before; so do the turn context's memory map
   (file paths and descriptions, which fall under "memory"), the attached-file
   list (labelled untrusted metadata whose instructions are never followed)
   and, on rows with a developer role, the app compaction summary (a developer
