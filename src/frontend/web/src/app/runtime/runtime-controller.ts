@@ -95,10 +95,11 @@ export class RuntimeController {
         void previous.queryClient.invalidateQueries();
       if (previous.setupPending && !setupPending) {
         // The server finished the starter data: its Animas and settings exist now.
-        const owner = admission.session.owner.id;
+        // Product queries are keyed by the session's cache key, not its owner.
+        const cacheKey = admission.session.key;
         for (const queryKey of [
-          queryKeys.animas.all(owner),
-          queryKeys.settings.all(owner),
+          queryKeys.animas.all(cacheKey),
+          queryKeys.settings.all(cacheKey),
         ])
           void previous.queryClient.invalidateQueries({ queryKey });
       }
