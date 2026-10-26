@@ -62,7 +62,7 @@ from animama.app.services.memory_episode_service import MemoryEpisodeService
 from animama.app.services.memory_manager_service import MemoryManagerService
 from animama.domain import ModelProvider
 from animama.domain.chat import ChatMessage, MessageRole
-from animama.domain.memory_manager import MemoryManagerRun, MemoryManagerRunSnapshot
+from animama.domain.memory_manager import MEMORY_MANAGER_RUN_STATUS_FAILED, MemoryManagerRun, MemoryManagerRunSnapshot
 from animama.domain.usage import Usage, UsageInputDetails, UsageOutputDetails
 from animama.product_http.chat.setup_helpers import chat_manager
 from animama.server.config import Settings
@@ -75,6 +75,7 @@ from ..core.pricing import usage_json
 from .configs import Configuration, first_per_row
 from .memory_runner import BenchmarkSessions, Store, seed_store, snapshot_store, store_for
 from .prompt_set import ManagerRun, PromptSet
+from .retry import Selection, manager_key
 
 __all__ = ["ManagerBudgetSpent", "ManagerCalls", "applied_effort", "run_memory_manager"]
 
@@ -94,6 +95,9 @@ class ManagerCalls:
     clock: Clock
     calls: list[CallRecord] = field(default_factory=list)
     refused: bool = False
+    failure: str | None = None
+    """The last call's exception class when it failed. The runtimes record a failed run rather than raise, so
+    this is what tells a dropped connection apart from the model's own failure."""
 
     def admit(self) -> CallRecord:
         if not self.budget.admit():
@@ -103,7 +107,11 @@ class ManagerCalls:
         self.calls.append(record)
         return record
 
-    def finish(self, record: CallRecord, usage: Usage | None, served_model: object = None) -> None:
+    def finish(
+        self, record: CallRecord, usage: Usage | None, served_model: object = None, error: BaseException | None = None
+    ) -> None:
+        # Only an exception counts: a consumer that stops a stream early closes it with GeneratorExit.
+        self.failure = error.__class__.__name__ if isinstance(error, Exception) else None
         record.finished = self.clock()
         record.final_text = ""
         record.served_model = served_model if isinstance(served_model, str) and served_model else None
@@ -143,8 +151,8 @@ class _BudgetedAgentsModel(Model):
         record = self._calls.admit()
         try:
             response = await self._model.get_response(*args, **kwargs)
-        except BaseException:
-            self._calls.finish(record, None)
+        except BaseException as exc:
+            self._calls.finish(record, None, error=exc)
             raise
         self._calls.finish(record, _agents_usage(getattr(response, "usage", None)))
         return response
@@ -156,6 +164,7 @@ class _BudgetedAgentsModel(Model):
         record = self._calls.admit()
         usage: Usage | None = None
         served: object = None
+        error: BaseException | None = None
         try:
             async for event in self._model.stream_response(*args, **kwargs):
                 response = getattr(event, "response", None)
@@ -163,8 +172,11 @@ class _BudgetedAgentsModel(Model):
                     usage = _agents_usage(getattr(response, "usage", None))
                     served = getattr(response, "model", None)
                 yield event
+        except BaseException as exc:
+            error = exc
+            raise
         finally:
-            self._calls.finish(record, usage, served)
+            self._calls.finish(record, usage, served, error=error)
 
     def get_retry_advice(self, request: Any) -> Any:
         return self._model.get_retry_advice(request)
@@ -191,11 +203,23 @@ class _BudgetedAnthropicStream:
     async def __aenter__(self) -> Any:
         self._record = self._calls.admit()
         self._manager = self._client.messages.stream(**self._params)
-        self._stream = await self._manager.__aenter__()
+        try:
+            self._stream = await self._manager.__aenter__()
+        except BaseException as exc:
+            # ``async with`` never exits a manager whose entry failed, so the call ends here.
+            self._calls.finish(self._record, None, error=exc)
+            self._record = self._manager = None
+            raise
         return self
 
     async def get_final_message(self) -> Any:
-        message = await self._stream.get_final_message()
+        try:
+            message = await self._stream.get_final_message()
+        except BaseException as exc:
+            assert self._record is not None
+            self._calls.finish(self._record, None, error=exc)
+            self._record = None
+            raise
         assert self._record is not None
         self._calls.finish(
             self._record, usage_from_anthropic(getattr(message, "usage", None)), getattr(message, "model", None)
@@ -205,7 +229,7 @@ class _BudgetedAnthropicStream:
 
     async def __aexit__(self, *exc: Any) -> Any:
         if self._record is not None:
-            self._calls.finish(self._record, None)
+            self._calls.finish(self._record, None, error=exc[1])
         return await self._manager.__aexit__(*exc) if self._manager is not None else None
 
 
@@ -400,10 +424,12 @@ async def run_memory_manager(
     sink: ManagerSink,
     clock: Clock = time.monotonic,
     settings: Settings | None = None,
+    select: Selection | None = None,
 ) -> bool:
     """Run each Memory Manager fixture once per catalog row; return ``False`` once the budget refused a call.
 
     ``contestants`` are the run's configurations with their prices; each row runs as its first configuration.
+    With ``select``, a retry runs only the chosen rows' runs.
     """
 
     runtime_settings = settings or Settings()
@@ -411,6 +437,8 @@ async def run_memory_manager(
     rows = first_per_row(configuration for configuration, _price in contestants)
     for run in prompt_set.manager_runs:
         for configuration in rows:
+            if select is not None and not select(configuration.model_provider.id, manager_key(run.id)):
+                continue
             price = prices[configuration.label]
             store = store_for(configuration, "memory_manager", run.id)
             await seed_store(sessions, store, prompt_set.persona(run.persona), prompt_set.fixture(run.fixture))
@@ -425,6 +453,10 @@ async def run_memory_manager(
                     result = _snapshot_json(await _start(service, store, run))
                 except Exception as exc:  # noqa: BLE001 - a failed run is recorded and measured, not fatal
                     error = exc.__class__.__name__
+            if error is None and result is not None and result["status"] == MEMORY_MANAGER_RUN_STATUS_FAILED:
+                # The runtime recorded its failure instead of raising it: name the last call's error, if any,
+                # so a dropped connection can be retried and a failed run is neither judged nor counted as run.
+                error = calls.failure or "run_failed"
             finished = clock()
             if calls.refused:
                 return False

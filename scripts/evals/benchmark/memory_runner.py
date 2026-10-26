@@ -59,6 +59,7 @@ from ..core.turns import TurnOutcome, execute_turn
 from .configs import Configuration
 from .options import PROVIDER_MODERATION, memory_turn_options
 from .prompt_set import MemoryChat, MemoryFixture, Persona, PromptSet
+from .retry import Selection, memory_key
 
 __all__ = [
     "ARM_BOTH",
@@ -403,11 +404,13 @@ async def run_memory_chats(
     on_turn: MemoryTurnSink,
     on_capture: CaptureSink,
     settings: Settings | None = None,
+    select: Selection | None = None,
 ) -> bool:
     """Run every memory chat in every arm for every configuration; return ``False`` once the budget refused a call.
 
     Within a chat and arm, the configurations take each turn in turn, as in the
-    scripted chats; each one's store is seeded before its first turn.
+    scripted chats; each one's store is seeded before its first turn. With
+    ``select``, a retry runs only the chosen configurations' chats and arms.
     """
 
     assert prompt_set.episodic_guidance is not None, "the prompt set loader requires guidance with memory chats"
@@ -417,8 +420,10 @@ async def run_memory_chats(
         persona = prompt_set.persona(chat.persona)
         fixture = prompt_set.fixture(chat.fixture)
         for arm_label, arm in arms.items():
-            stores = {c.configuration.label: store_for(c.configuration, arm_label, chat.id) for c in contestants}
-            for contestant in contestants:
+            key = memory_key(arm_label, chat.id)
+            running = [c for c in contestants if select is None or select(c.configuration.label, key)]
+            stores = {c.configuration.label: store_for(c.configuration, arm_label, chat.id) for c in running}
+            for contestant in running:
                 await seed_store(sessions, stores[contestant.configuration.label], persona, fixture)
             phases: list[list[MemoryTurn]] = [
                 [
@@ -453,7 +458,7 @@ async def run_memory_chats(
             ]
             for phase_index, phase in enumerate(phases):
                 for unit in phase:
-                    for contestant in contestants:
+                    for contestant in running:
                         label = contestant.configuration.label
                         turn = await _memory_turn(
                             contestant,
@@ -471,7 +476,7 @@ async def run_memory_chats(
                         on_turn(contestant, arm_label, unit, turn)
                 if phase_index == 0:
                     # What the arm saved, before the recall chat can add anything.
-                    for contestant in contestants:
+                    for contestant in running:
                         snapshot = await snapshot_store(sessions, stores[contestant.configuration.label])
                         on_capture(contestant, arm_label, chat, snapshot)
     return True

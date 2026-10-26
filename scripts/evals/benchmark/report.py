@@ -189,6 +189,7 @@ def build_report(
                 "calls_made",
                 "estimated_spend_usd",
                 "turns_recorded",
+                "retries",
             )
         },  # fmt: skip
         "conditions": manifest.get("conditions") or {},
@@ -842,6 +843,13 @@ def _render_conditions(data: Mapping[str, Any]) -> list[str]:
         f"{conditions.get('llm_skip')}.",
         f"- Calls made {manifest.get('calls_made')}, estimated spend {manifest.get('estimated_spend_usd')} USD, caps "
         f"{json.dumps(manifest.get('caps'), sort_keys=True)}; turns recorded {manifest.get('turns_recorded')}.",
+        *(
+            f"- Retried after connection errors: {len(retry['units'])} units ({retry['replaced_turns']} records; "
+            + ", ".join(f"{code} {count}" for code, count in retry["error_codes"].items())
+            + f") from run {retry['of']}, run again {retry['started_at']} to {retry['finished_at']} at source "
+            f"{(retry.get('conditions') or {}).get('source_revision')} with {retry['calls']} calls."
+            for retry in manifest.get("retries") or ()
+        ),
         "- Prompt set: " + ", ".join(f"{k} {v}" for k, v in sorted(inputs["prompt_set"].items())) + ".",
         f"- Rubrics: version {inputs['rubrics']['version']}, sha256 {inputs['rubrics']['sha256']}.",
         "",

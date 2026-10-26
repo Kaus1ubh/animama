@@ -57,6 +57,27 @@ or its wall time exceeds 4 hours without `--over-time-approved`. It exits 0
 for a complete run, 1 when a cap or an error stopped it, 2 for an input error
 and 130 when interrupted; `manifest.json` records why it stopped.
 
+## Retrying connection errors
+
+A dropped connection fails turns on every configuration at once; it says
+nothing about the models. With the owner's agreement, rerun those units into a
+new run directory, from the same stack, before `cleanup`:
+
+```bash
+docker compose -p "$COMPOSE_PROJECT_NAME" exec -T animama-server python -m scripts.evals.benchmark run \
+  <the earlier run's own options, caps and prices> \
+  --retry-from /app/.animama-drafts/model-benchmark/<run> --output-dir /app/.animama-drafts/model-benchmark/<run>-retry
+```
+
+It refuses a run with other options, caps, prices or mock-model setting, one
+with no connection errors, one that stopped at a cap, and a retry that stopped
+early (retry the run it retried instead). Each failed unit runs again whole (a
+single-turn item for one persona, a whole scripted chat, a memory chat in one
+arm with its capture and recall, or a Memory Manager run) under what is left of
+the same caps; the other records are copied, and the earlier run is not
+changed. Other errors stay counted. Judge and report the new directory; its
+report lists the retry under Conditions.
+
 ## Cleanup
 
 `cleanup` (in the container) drops `animama_benchmark_*` databases that no

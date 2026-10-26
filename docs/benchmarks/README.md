@@ -34,7 +34,11 @@ A free rehearsal runs everything against chat's mock model: add
 stand-in `--claude scripts/evals/benchmark/stub_claude.py`. A paid run starts
 only after the owner approves its `plan` output and caps; `--max-usd` refuses a
 call once the spend so far plus the largest call so far would pass it, so the
-spend can pass the cap by at most one call's growth. Raw results hold replies
+spend can pass the cap by at most one call's growth. Turns that failed on a
+connection error can run again with `run --retry-from <run>` and the run's own
+options and caps: a new run copies the other records and reruns each failed
+unit whole, and its report says so. Its fresh budget can pass what is left of
+`--max-usd` by up to one call's whole cost. Raw results hold replies
 and saved memory; keep them under the git-ignored
 `.animama-drafts/model-benchmark/`.
 

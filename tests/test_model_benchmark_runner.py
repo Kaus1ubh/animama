@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from collections.abc import AsyncIterator, Callable, Iterator
+from collections.abc import AsyncIterator, Callable, Iterator, Mapping
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, replace
 from decimal import Decimal
@@ -20,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from animama.adapters.repositories.sqlalchemy.model_provider_repo import SQLAlchemyModelProviderRepository
 from animama.app.model_clients import (
     ModelClientDelta,
+    ModelClientError,
     ModelClientFinal,
     ModelClientRequest,
     StaticModelClientRegistry,
@@ -27,7 +28,7 @@ from animama.app.model_clients import (
 from animama.app.services.anima_starter_service import STARTER_ANIMA_SPECS
 from animama.domain import ModelProvider
 from animama.domain.usage import Usage
-from scripts.evals.benchmark import cli, configs, measures, options, planner, prompt_set, runner
+from scripts.evals.benchmark import cli, configs, measures, options, planner, prompt_set, retry, runner
 from scripts.evals.benchmark.speech_checks import check_speech
 from scripts.evals.core import catalog
 from scripts.evals.core.inputs import EvalInputError
@@ -791,3 +792,130 @@ async def test_an_unregistered_provider_is_recorded_as_an_error() -> None:
             outcome=outcome,
         )
     assert outcome.aborted == "error: ModelClientNotFoundError" and outcome.calls == 0
+
+
+# --- Retrying connection errors ---------------------------------------------------------------
+
+
+def _record(kind: str, unit_id: str, *, configuration: str = "A@none", error: str | None = None,
+            **fields: Any) -> dict[str, Any]:  # fmt: skip
+    return {"configuration": configuration, "kind": kind, "unit_id": unit_id, "persona": "annie", "repeat": 1,
+            "turn": 1, "arm": None, "error": error, **fields}  # fmt: skip
+
+
+def test_a_retry_takes_every_unit_with_a_connection_error_whole() -> None:
+    records = [
+        # A warm-up is discarded, so its failure is never retried.
+        _record("warmup", "warmup", error="openai_connection_error"),
+        _record("single", "a", error="anthropic_connection_error"),
+        _record("single", "a", configuration="B@none"),
+        # Any other error is the model's own failure and stays counted.
+        _record("single", "b", error="invalid_structured_response"),
+        _record("chat", "c", turn=1),
+        _record("chat", "c", turn=2, error="openai_connection_error"),
+        _record("chat", "c", turn=3),
+        _record("memory", "m", arm="both", error="openai_connection_error"),
+        _record("capture", "m", arm="both", repeat=None, turn=None),
+        _record("recall", "m", arm="both"),
+        _record("memory", "m", arm="remember_only"),
+        _record("memory_manager", "tidy", configuration="A", repeat=None, turn=None, error="APIConnectionError"),
+    ]
+
+    plan = retry.plan_retry(records)
+
+    assert plan.units == {
+        ("A@none", "single/a/annie/r1"),
+        ("A@none", "chat/c/annie/r1"),
+        ("A@none", "memory/both/m"),
+        ("A", "memory_manager/tidy"),
+    }
+    assert plan.replaced == 8
+    assert [(r["kind"], r["configuration"], r["arm"]) for r in plan.kept] == [
+        ("warmup", "A@none", None),
+        ("single", "B@none", None),
+        ("single", "A@none", None),
+        ("memory", "A@none", "remember_only"),
+    ]
+    assert plan.error_codes == {"APIConnectionError": 1, "anthropic_connection_error": 1, "openai_connection_error": 2}
+    assert plan.selects("A@none", "chat/c/annie/r1") and not plan.selects("B@none", "single/a/annie/r1")
+
+
+def _turn_key(turn: Mapping[str, Any]) -> tuple[Any, ...]:
+    return turn["configuration"], turn["kind"], turn["unit_id"], turn["persona"], turn["repeat"], turn["turn"]
+
+
+def test_a_retry_reruns_the_failed_units_into_a_new_run_under_the_same_caps(
+    fake_catalog: _FakeCatalog, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    calls = iter(range(1000))
+
+    def flaky(request: ModelClientRequest) -> str:
+        if next(calls) in {6, 30}:
+            raise ModelClientError("Connection error.", code="openai_connection_error")
+        return _reply()
+
+    fake_catalog.client.reply = flaky
+    first = tmp_path / "first"
+    assert cli.main(_run_args(first, "--price", _PRICE)) == 0
+    first_manifest, first_turns = _manifest_and_turns(first)
+    recorded = {name: (first / name).read_bytes() for name in ("manifest.json", "turns.jsonl")}
+    assert sum(1 for turn in first_turns if turn["error"] == "openai_connection_error") == 2
+    fake_catalog.client.reply = lambda request: _reply()
+    capsys.readouterr()
+
+    code = cli.main(_run_args(tmp_path / "retry", "--price", _PRICE, "--retry-from", str(first)))
+
+    manifest, turns = _manifest_and_turns(tmp_path / "retry")
+    retried = manifest["retries"][-1]
+    assert code == 0 and manifest["aborted"] is None
+    assert "Retry of first: 2 units" in capsys.readouterr().out
+    assert {name: (first / name).read_bytes() for name in recorded} == recorded
+    assert sorted(map(_turn_key, turns)) == sorted(map(_turn_key, first_turns))
+    assert not any(turn["error"] for turn in turns)
+    # The later failure is in the scripted chat, which runs again whole.
+    assert retried["of"] == "first" and len(retried["units"]) == 2 and any(" chat/" in u for u in retried["units"])
+    assert retried["replaced_turns"] > 2
+    assert retried["error_codes"] == {"openai_connection_error": 2}
+    assert manifest["calls_made"] == first_manifest["calls_made"] + retried["calls"]
+    assert manifest["turns_recorded"] == len(turns) and manifest["caps"] == first_manifest["caps"]
+
+    assert cli.main(["report", "--run-dir", str(tmp_path / "retry"), "--prompts", str(PROMPTS)]) == 0
+    assert "Retried after connection errors: 2 units" in (tmp_path / "retry" / "report.md").read_text(encoding="utf-8")
+
+
+def test_a_retry_needs_a_matching_run_with_connection_errors_and_the_caps_left(
+    fake_catalog: _FakeCatalog, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # A cap of exactly the planned calls: the first run uses all of it.
+    planned = 4 * 8
+    first = tmp_path / "first"
+    assert cli.main(_run_args(first, "--price", _PRICE, max_calls=planned)) == 0
+    manifest, turns = _manifest_and_turns(first)
+    assert manifest["calls_made"] == planned
+    capsys.readouterr()
+
+    clean = cli.main(_run_args(tmp_path / "a", "--price", _PRICE, "--retry-from", str(first), max_calls=planned))
+    assert clean == 2 and "no unit of" in capsys.readouterr().err
+
+    turns[5]["error"] = "anthropic_connection_error"
+    (first / "turns.jsonl").write_text("".join(json.dumps(turn) + "\n" for turn in turns), encoding="utf-8")
+    changed = cli.main(_run_args(tmp_path / "b", "--price", _PRICE, "--retry-from", str(first)))
+    assert changed == 2 and "caps differ" in capsys.readouterr().err
+
+    spent = cli.main(_run_args(tmp_path / "c", "--price", _PRICE, "--retry-from", str(first), max_calls=planned))
+    assert spent == 2 and "nothing is left" in capsys.readouterr().err
+
+    def refused(manifest_changes: dict[str, Any], message: str, *, mock: bool = False) -> None:
+        (first / "manifest.json").write_text(json.dumps({**manifest, **manifest_changes}), encoding="utf-8")
+        with pytest.MonkeyPatch.context() as patch:
+            if mock:
+                patch.setenv("ANIMAMA_LLM_SKIP", "1")
+            code = cli.main(_run_args(tmp_path / "d", "--price", _PRICE, "--retry-from", str(first)))
+        assert code == 2 and message in capsys.readouterr().err
+
+    unlimited = {"caps": {"max_calls": 100, "max_usd": "1"}}
+    # Mock replies must never be merged into a paid run's results.
+    refused(unlimited, "mock model differ", mock=True)
+    refused({**unlimited, "aborted": "max_usd"}, "stopped at its max_usd cap")
+    refused({**unlimited, "retries": [{"of": "origin", "aborted": "interrupted"}]}, "retry origin instead")
+    assert not any((tmp_path / name).exists() for name in ("a", "b", "c", "d"))

@@ -16,7 +16,9 @@ dropped when the run ends; ``cleanup`` drops one a killed run left behind::
         --output-dir /app/.animama-drafts/model-benchmark/<run>
 
 Add ``-e ANIMAMA_LLM_SKIP=1`` after ``exec`` for a free run against chat's
-mock model client, which needs no approval.
+mock model client, which needs no approval. ``run --retry-from <run>``, with
+the earlier run's own options and caps, makes a new run that runs again every
+unit that failed on a connection error (``retry``).
 
 ``judge`` runs on the host, where the Claude CLI is signed in to the owner's
 subscription; it reads the run directory and writes under its ``judge/``
@@ -88,8 +90,9 @@ from .planner import (
 from .prompt_set import TIERS, PromptSet, load_prompt_set
 from .report import build_report, check_public_safe, criteria_keys, forbidden_texts, load_calibration, render_report
 from .results import MANIFEST, RUN_SCHEMA, TURNS, RunDirectory, read_turns
+from .retry import COUNTED_TURNS, RetryPlan, plan_retry
 from .rubrics import TRACKED_RUBRICS, RubricSet, load_rubrics
-from .runner import RunCaps, RunOutcome, run_benchmark
+from .runner import RunCaps, RunOutcome, TurnSink, run_benchmark
 from .scores import load_judge_results
 
 __all__ = ["main"]
@@ -184,6 +187,12 @@ def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
         help="the machine the run used, for the report (default: this host's name, a container id in a stack)",
     )
     run.add_argument("--source-revision", default="unrecorded", help="the checkout's commit, for the report")
+    run.add_argument(
+        "--retry-from",
+        type=Path,
+        help="an earlier run, with the same options and caps: run again its units with connection errors and "
+        "copy its other records",
+    )
     judge = commands.add_parser("judge", help="judge a run's replies blind through the Claude CLI (on the host)")
     _run_arguments(judge)
     _cli_arguments(judge)
@@ -445,6 +454,7 @@ async def _run(args: argparse.Namespace) -> int:
     if unpriced:
         # The catalog records no prompt-cache-write rate, so it cannot price every call (Anthropic reports them).
         raise EvalInputError(f"A USD cap needs --price or --row-price rates; unpriced: {', '.join(unpriced)}")
+    retry = _retry_source(args, plan, prices) if args.retry_from is not None else None
     if plan.estimated_calls > args.max_calls:
         raise EvalInputError(f"The plan needs {plan.estimated_calls} model calls, more than --max-calls")
     estimated = total_usd(estimates)
@@ -463,9 +473,20 @@ async def _run(args: argparse.Namespace) -> int:
     if plan.needs_benchmark_database:
         # Named before the first manifest, so a killed run's manifest says which database `cleanup` should drop.
         outcome.benchmark_database = benchmark_database_name(directory.path.name)
-    directory.write_manifest(
-        _manifest(args, plan, started_at=started_at, outcome=None, prices=prices, database=outcome.benchmark_database)
-    )
+
+    def manifest(finished: RunOutcome | None) -> dict[str, Any]:
+        data = _manifest(
+            args, plan, started_at=started_at, outcome=finished, prices=prices, database=outcome.benchmark_database
+        )
+        return retry.manifest(data, finished) if retry is not None else data
+
+    directory.write_manifest(manifest(None))
+    sink: TurnSink = directory.append_turn
+    caps = RunCaps(max_calls=args.max_calls, max_usd=args.max_usd)
+    if retry is not None:
+        for record in retry.plan.kept:
+            directory.append_turn(record)
+        sink, caps = retry.sink(directory), retry.caps
     registry: StaticModelClientRegistry | None = None
     try:
         registry = catalog.build_model_client_registry()
@@ -474,15 +495,16 @@ async def _run(args: argparse.Namespace) -> int:
                 plan.prompt_set,
                 plan.runnable,
                 registry=registry,
-                caps=RunCaps(max_calls=args.max_calls, max_usd=args.max_usd),
+                caps=caps,
                 prices={label: call_price(rates) for label, rates in prices.items()},
-                sink=directory.append_turn,
+                sink=sink,
                 repeats=args.repeats,
                 scripted_repeats=args.scripted_repeats,
                 clock=time.monotonic,
                 progress=_print_progress,
                 outcome=outcome,
                 memory_sessions=memory_sessions,
+                select=retry.plan.selects if retry is not None else None,
             )
     except Exception as exc:
         if outcome.aborted == "interrupted":
@@ -490,11 +512,133 @@ async def _run(args: argparse.Namespace) -> int:
             outcome.aborted = f"error: {exc.__class__.__name__}"
         raise
     finally:
-        directory.write_manifest(_manifest(args, plan, started_at=started_at, outcome=outcome, prices=prices))
+        directory.write_manifest(manifest(outcome))
         if registry is not None:
             await registry.aclose()
         print(f"\nRun: {directory.path}", file=sys.stderr)
     return 0 if outcome.aborted is None else 1
+
+
+def _comparable(manifest: Mapping[str, Any]) -> dict[str, Any]:
+    """What a retry must share with the run it retries: the inputs, configurations, options, prices, caps and
+    whether chat's mock model served it."""
+
+    identity = ("label", "model_provider_id", "provider_type", "model", "connection_id", "effort", "not_run")
+    return {
+        "tier": manifest.get("tier"),
+        "prompt set": {k: v for k, v in (manifest.get("prompt_set") or {}).items() if k != "path"},
+        "repeats": manifest.get("repeats"),
+        "scripted repeats": manifest.get("scripted_repeats"),
+        "configurations": [{key: c.get(key) for key in identity} for c in manifest.get("configurations") or ()],
+        "options": manifest.get("options"),
+        "prices": manifest.get("price_source"),
+        "caps": manifest.get("caps"),
+        "mock model": (manifest.get("conditions") or {}).get("llm_skip"),
+    }
+
+
+@dataclass(slots=True)
+class _Retry:
+    """A run that retries an earlier one: what it copies and reruns, the caps left, and its manifest additions."""
+
+    path: Path
+    earlier: dict[str, Any]
+    plan: RetryPlan
+    caps: RunCaps
+    recorded: int = 0
+
+    def sink(self, directory: RunDirectory) -> TurnSink:
+        """Record the rerun turns; the warm-ups ran again but the copied run already holds its own."""
+
+        def record(turn: dict[str, Any]) -> None:
+            if turn["kind"] != "warmup":
+                directory.append_turn(turn)
+                self.recorded += turn["kind"] in COUNTED_TURNS
+
+        return record
+
+    def manifest(self, data: dict[str, Any], outcome: RunOutcome | None) -> dict[str, Any]:
+        """The run as a whole keeps the earlier run's window and conditions; this retry is added to its list."""
+
+        earlier = self.earlier
+        calls = outcome.calls if outcome is not None else 0
+        spent = outcome.spent_usd if outcome is not None else Decimal(0)
+        attempt = {
+            "of": self.path.name,
+            "started_at": data["started_at"],
+            "finished_at": data["finished_at"],
+            "aborted": data["aborted"],
+            "conditions": data["conditions"],
+            "error_codes": self.plan.error_codes,
+            "units": sorted(f"{configuration} {key}" for configuration, key in self.plan.units),
+            "replaced_turns": self.plan.replaced,
+            "calls": calls,
+            "spent_usd": str(spent),
+        }
+        served = {c["label"]: c.get("served_models") or [] for c in earlier.get("configurations") or ()}
+        for configuration in data["configurations"]:
+            known = served.get(configuration["label"], [])
+            configuration["served_models"] = [*known, *(m for m in configuration["served_models"] if m not in known)]
+        # A retry runs only the failed units, so a run that stopped early stays partial.
+        aborted = data["aborted"] if data["aborted"] is not None else earlier.get("aborted")
+        return {
+            **data,
+            "started_at": earlier["started_at"],
+            "finished_at": earlier["finished_at"],
+            "aborted": aborted,
+            "conditions": earlier["conditions"],
+            "calls_made": int(earlier["calls_made"]) + calls,
+            "estimated_spend_usd": str(Decimal(earlier["estimated_spend_usd"]) + spent),
+            "turns_recorded": sum(record["kind"] in COUNTED_TURNS for record in self.plan.kept) + self.recorded,
+            "prompts": {**data["prompts"], **(earlier.get("prompts") or {})},
+            "retries": [*(earlier.get("retries") or ()), attempt],
+        }
+
+
+def _retry_source(args: argparse.Namespace, plan: BenchmarkPlan, prices: Mapping[str, TokenPrices | None]) -> _Retry:
+    """Check the earlier run against this one, select its units with connection errors and print the retry."""
+
+    path: Path = args.retry_from
+    try:
+        earlier = json.loads((path / MANIFEST).read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise EvalInputError(f"{path} is not a benchmark run ({exc})") from exc
+    if earlier.get("schema") != RUN_SCHEMA:
+        raise EvalInputError(f"{path}: unknown run schema {earlier.get('schema')!r}")
+    if earlier.get("aborted") == "running":
+        raise EvalInputError(f"{path} is still running or was killed; retry it once it ends")
+    if earlier.get("aborted") in {"max_calls", "max_usd"}:
+        # Its budget refused a call; a fresh budget for what is left would send one past the cap.
+        raise EvalInputError(f"{path} stopped at its {earlier['aborted']} cap; nothing is left for a retry")
+    last = (earlier.get("retries") or [{}])[-1]
+    if last.get("aborted") is not None:
+        # Units it never reached are no longer in its records; their failed turns are still in the run it retried.
+        raise EvalInputError(f"{path} is a retry that stopped early; retry {last['of']} instead")
+    ours = _comparable(_manifest(args, plan, started_at=datetime.now(UTC), outcome=None, prices=prices))
+    theirs = _comparable(earlier)
+    differ = [name for name, value in ours.items() if theirs[name] != value]
+    if differ:
+        raise EvalInputError(
+            f"{path} ran with other settings ({', '.join(differ)} differ); a retry repeats its options and caps"
+        )
+    try:
+        retry = plan_retry(read_turns(path))
+    except OSError as exc:
+        raise EvalInputError(f"{path} is not a benchmark run ({exc})") from exc
+    if not retry.units:
+        raise EvalInputError(f"no unit of {path} failed on a connection error; nothing to retry")
+    calls_left = args.max_calls - int(earlier["calls_made"])
+    usd_left = args.max_usd - Decimal(earlier["estimated_spend_usd"])
+    if calls_left <= 0 or usd_left <= 0:
+        raise EvalInputError(f"{path} used the caps ({earlier['calls_made']} calls, ~{earlier['estimated_spend_usd']} "
+                             "USD); nothing is left for a retry")  # fmt: skip
+    codes = ", ".join(f"{code} {count}" for code, count in retry.error_codes.items())
+    print(
+        f"Retry of {path.name}: {len(retry.units)} units with connection errors ({codes}) run again, replacing "
+        f"{retry.replaced} records; {len(retry.kept)} records copied. Caps left: {calls_left} calls, "
+        f"{usd_left} USD."
+    )
+    return _Retry(path=path, earlier=earlier, plan=retry, caps=RunCaps(max_calls=calls_left, max_usd=usd_left))
 
 
 @asynccontextmanager

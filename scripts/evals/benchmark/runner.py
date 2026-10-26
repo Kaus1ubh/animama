@@ -43,6 +43,7 @@ from .memory_runner import (
 )
 from .options import PROVIDER_MODERATION, core_turn_options
 from .prompt_set import MemoryChat, Persona, PromptSet
+from .retry import Selection, core_key
 from .speech_checks import check_speech
 
 __all__ = ["WARMUP_MESSAGE", "RunCaps", "RunOutcome", "TurnSink", "run_benchmark", "turn_record"]
@@ -171,6 +172,7 @@ async def run_benchmark(
     progress: TurnSink | None = None,
     outcome: RunOutcome | None = None,
     memory_sessions: BenchmarkSessions | None = None,
+    select: Selection | None = None,
 ) -> RunOutcome:
     """Run every configuration over the prompt set and send each finished turn to ``sink``.
 
@@ -180,7 +182,8 @@ async def run_benchmark(
     its call price; a cap on USD needs every configuration priced. The run
     fills ``outcome`` as it goes, so a caller that passes one still has the
     calls, spend and abort reason when the run stops at a cap, fails or is
-    cancelled.
+    cancelled. A retry passes ``select`` (see ``retry``) to run only the
+    chosen units; the warm-ups still run first.
     """
 
     if caps.max_usd is not None:
@@ -205,6 +208,9 @@ async def run_benchmark(
         stopped = False
         for unit in units:
             for contestant in contestants:
+                key = core_key(unit.kind, unit.unit_id, unit.persona.id, unit.repeat)
+                if unit.kind != "warmup" and select is not None and not select(contestant.configuration.label, key):
+                    continue
                 if not await _turn(contestant, unit, prompt_set, chats, outcome, sink, progress, clock):
                     stopped = True
                     break
@@ -220,6 +226,7 @@ async def run_benchmark(
                 clock=clock,
                 on_turn=_memory_turn_sink(outcome, sink, progress),
                 on_capture=_capture_sink(sink),
+                select=select,
             )
         if not stopped and prompt_set.manager_runs:
             if memory_sessions is None:
@@ -231,6 +238,7 @@ async def run_benchmark(
                 sessions=memory_sessions,
                 sink=sink,
                 clock=clock,
+                select=select,
             )
         outcome.aborted = budget.refused if stopped else None
     except Exception as exc:

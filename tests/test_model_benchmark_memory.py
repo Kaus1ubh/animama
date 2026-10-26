@@ -37,7 +37,7 @@ from animama.app.model_clients import (
 from animama.app.model_clients.credentials import static_credential_resolver
 from animama.domain.usage import Usage
 from animama.server.config import Settings
-from scripts.evals.benchmark import cli, configs, manager_runner, memory_db, planner, prompt_set, runner
+from scripts.evals.benchmark import cli, configs, manager_runner, memory_db, planner, prompt_set, retry, runner
 from scripts.evals.benchmark.memory_runner import (
     ARM_BOTH,
     ARM_MEMORIES_MD_ONLY,
@@ -48,7 +48,14 @@ from scripts.evals.benchmark.memory_runner import (
 )
 from scripts.evals.core.inputs import EvalInputError
 from scripts.evals.core.model_calls import CallBudget
-from tests.anthropic_fakes import SENTINEL_KEY, FakeAnthropicClient, message_events, text_block, tool_use_block
+from tests.anthropic_fakes import (
+    SENTINEL_KEY,
+    FakeAnthropicClient,
+    connection_error,
+    message_events,
+    text_block,
+    tool_use_block,
+)
 
 MEMORY_PROMPTS = Path(__file__).parent / "fixtures" / "model_benchmark" / "memory_prompts.json"
 FIRST_TURN = "Big news: I'm moving to Kyoto next month!"
@@ -641,6 +648,41 @@ async def test_the_anthropic_runtime_calls_through_the_run_budget(
         assert budget.refused == "max_calls"
 
 
+async def test_a_memory_manager_run_that_lost_its_connection_is_recorded_for_a_retry(
+    db_ready: str, db_url: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("ANIMAMA_LLM_SKIP", raising=False)
+    # The runtime retries a dropped connection once, then records the run as failed rather than raising.
+    fake = FakeAnthropicClient([connection_error(), connection_error()])
+    monkeypatch.setattr(manager_runner, "anthropic_sdk_client", lambda **kwargs: fake)
+    monkeypatch.setattr(
+        manager_runner,
+        "build_model_credential_resolver",
+        lambda: static_credential_resolver({"ANTHROPIC_API_KEY": SENTINEL_KEY}),
+    )
+
+    async def no_wait(*args: Any, **kwargs: Any) -> None:
+        return None
+
+    monkeypatch.setattr("animama.adapters.memory_manager.anthropic_runtime.sleep_before_anthropic_retry", no_wait)
+    haiku = next(c for c in configs.standard_configurations(configs.builtin_chat_rows()) if "haiku" in c.label)
+    records: list[dict[str, Any]] = []
+
+    async with memory_db.benchmark_database(db_url, memory_db.benchmark_database_name("dropped")) as factory:
+        await manager_runner.run_memory_manager(
+            _manager_only("tidy"),
+            [(haiku, None)],
+            budget=CallBudget(max_calls=5),
+            sessions=BenchmarkSessions(factory),
+            sink=records.append,
+        )
+
+    [record] = records
+    assert record["result"]["status"] == "failed" and record["calls"] == 2
+    assert record["error"] == "APIConnectionError"
+    assert retry.plan_retry(records).units == {(haiku.model_provider.id, retry.manager_key("tidy"))}
+
+
 async def test_the_openai_runtime_gets_the_budgeted_model_wrapper(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("ANIMAMA_LLM_SKIP", raising=False)
     built: dict[str, Any] = {}
@@ -807,3 +849,33 @@ async def test_plan_reads_the_catalog_for_a_row_that_is_not_built_in(
         await async_session.commit()
 
     assert f"{owner_row.id}@low:" in capsys.readouterr().out
+
+
+async def test_a_retry_selection_runs_only_the_chosen_memory_chat_arm_and_manager_run(
+    db_ready: str, db_url: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("ANIMAMA_LLM_SKIP", "1")
+    prompts = prompt_set.load_prompt_set(MEMORY_PROMPTS)
+    haikus = [c for c in configs.standard_configurations(configs.builtin_chat_rows()) if "haiku" in c.label]
+    chat, run = prompts.memory_chats[0], prompts.manager_runs[0]
+    chosen = {(haikus[1].label, retry.memory_key(ARM_BOTH, chat.id)), (haikus[0].model_provider.id,
+              retry.manager_key(run.id))}  # fmt: skip
+    turns: list[dict[str, Any]] = []
+
+    async with memory_db.benchmark_database(db_url, memory_db.benchmark_database_name("retry")) as factory:
+        outcome = await runner.run_benchmark(
+            prompts,
+            haikus,
+            registry=StaticModelClientRegistry({haikus[0].model_provider.provider_type: _ReplyClient()}),
+            caps=runner.RunCaps(max_calls=200),
+            prices={},
+            sink=turns.append,
+            memory_sessions=BenchmarkSessions(factory),
+            select=lambda configuration, key: (configuration, key) in chosen,
+        )
+
+    assert outcome.aborted is None
+    # Warm-ups still run first; then only the chosen memory chat arm, with its capture and recall, and one run.
+    kept = [turn for turn in turns if turn["kind"] != "warmup"]
+    assert {retry.record_unit(turn) for turn in kept} == chosen
+    assert {turn["kind"] for turn in kept} == {"memory", "capture", "recall", "memory_manager"}

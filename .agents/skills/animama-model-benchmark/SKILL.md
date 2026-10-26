@@ -43,8 +43,11 @@ the references hold the exact commands.
 4. **Run.** Run `run` in the backend container with the approved caps and a
    new `--output-dir` under `/app/.animama-drafts/model-benchmark/`. A run
    stopped by a cap or an interruption keeps its results; the owner decides
-   whether to approve another. When the run is done, check that `cleanup` has
-   nothing to drop, then take the stack down.
+   whether to approve another. If turns failed on connection errors, ask the
+   owner whether to retry them with `--retry-from`
+   ([commands](references/commands.md#retrying-connection-errors)). When the
+   run is done, check that `cleanup` has nothing to drop, then take the stack
+   down.
 5. **Calibrate (first run only, gate G4).** `calibrate export`, then ask the
    owner to rate `calibration/sheet.md` into `ratings.json`;
    `calibrate import`; `calibrate pilot` pins the judge effort

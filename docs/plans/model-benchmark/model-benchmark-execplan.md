@@ -2879,10 +2879,111 @@ Recovery:
 - A run stopped by a cap or an interruption keeps its partial results. The
   owner decides whether to approve a continuation. No continuation tooling
   is planned: rerun with a new cap.
+- Turns that failed on connection errors can run again with
+  `run --retry-from` (deviation below).
 - A judge stopped by a usage limit resumes later.
+
+**Deviation: retrying connection errors (owner request, 2026-10-26).** During
+the paid run, two short network drops failed turns on all four
+configurations at once with `anthropic_connection_error` and
+`openai_connection_error`. The owner asked for those turns to run again
+rather than count as failures. `run --retry-from <run>` (`retry.py`):
+- needs the earlier run's own tier, prompt set, repeats, configurations
+  (their full identity), options, prices, caps and mock-model setting, and
+  refuses a run still marked running, one stopped at a cap, and a retry that
+  stopped early;
+- selects every unit with a connection error and reruns it whole, since its
+  turns depend on each other: a single-turn item for one persona and repeat,
+  a whole scripted chat, a memory chat in one arm with its capture and recall
+  chat, or a Memory Manager run. Warm-ups are never retried, and other errors
+  stay counted;
+- writes a new run directory: the earlier run's other records copied, the
+  rerun records appended, and the retry's warm-ups run but not recorded. The
+  earlier run is not changed;
+- spends only what is left of the same caps, and its manifest keeps the
+  earlier run's window and conditions, adds the calls and spend, and lists
+  the retry under `retries`, which the report's Conditions show.
+
+A Memory Manager runtime records a dropped connection as a failed run rather
+than raising it, so the benchmark's call wrappers now keep the last call's
+exception class, and a run that ended failed gets that as its `error` (or
+`run_failed`). Such runs are counted as errors and no longer judged; before,
+the judge read their failure message, which named the provider.
+
+Tests: `test_a_retry_takes_every_unit_with_a_connection_error_whole`,
+`test_a_retry_reruns_the_failed_units_into_a_new_run_under_the_same_caps`,
+`test_a_retry_needs_a_matching_run_with_connection_errors_and_the_caps_left`
+and `test_a_retry_selection_runs_only_the_chosen_memory_chat_arm_and_manager_run`,
+plus `test_a_memory_manager_run_that_lost_its_connection_is_recorded_for_a_retry`.
+
+##### Retry review #1 Findings
+
+Reviewer: an independent `sdlc-reviewer` subagent at the standard tier, on
+working tree `f7372ce3` against `874f760c`. It reused the check record, reran
+the runner and memory tests (76 passed) and ran two scratch probes. It
+confirmed the unit boundaries match how the judge items, measures and report
+group records, that no record is duplicated, and that the earlier run stays
+unchanged. Its result: changes required.
+
+- **RT-F1 (required).** A Memory Manager run that loses its connection is never
+  retried: the runtimes record a failed run instead of raising, so the
+  record's `error` stays empty (probe: status failed, no units selected).
+- **RT-F2 (required).** A retry on the mock model was accepted against a paid
+  run, and configurations were compared by label only.
+- **RT-F3 (low).** A retry counted `turns_recorded` over every record, while a
+  run counts chat turns only (not captures or Memory Manager runs).
+- **RT-F4 (low).** A run stopped at a cap was not refused, and the retry's
+  fresh budget would admit one call the earlier budget had refused.
+- **RT-N1.** An interrupted retry drops the units it never reached from a
+  retry of it.
+- **RT-N2.** The report's retry line omits the retry's machine and network.
+- **RT-N3.** `_Retry` and its checks live in `cli.py`, not `retry.py`.
+- **RT-N4.** A run directory without `turns.jsonl` raised a bare error.
+- **RT-N5.** Retry warm-ups run for every configuration (one call each).
+- **RT-N6.** A failed Memory Manager run is judged with its failure message,
+  which names the provider.
+
+##### Retry review #1 Revisions
+
+- **RT-F1: accepted.** The call wrappers keep the last call's exception class,
+  and a run that ended failed records it as `error` (else `run_failed`). New
+  test `test_a_memory_manager_run_that_lost_its_connection_is_recorded_for_a_retry`
+  runs the real Anthropic runtime against a client that drops the connection.
+- **RT-F2: accepted.** The settings check compares each configuration's full
+  identity and the mock-model setting. Tested.
+- **RT-F3: accepted.** Both count the kinds in `retry.COUNTED_TURNS`.
+- **RT-F4: accepted.** A run stopped at a cap is refused. Tested.
+- **RT-N1: accepted.** A retry that stopped early is refused, naming the run
+  to retry instead. Tested.
+- **RT-N2: rejected.** The retry runs from the same stack; its own conditions
+  stay in the manifest's `retries` entry.
+- **RT-N3: rejected.** `retry.py` would have to import the runner, which
+  imports it for the selection: a cycle for no behaviour.
+- **RT-N4: accepted.** It is an input error now.
+- **RT-N5: rejected.** Four calls, within the caps; every configuration keeps
+  the same warm-up rule.
+- **RT-N6: accepted** through RT-F1: failed runs are no longer judged.
+
+Check record on working tree `29dc218e` (scripts `e35e400c`, tests
+`4a90fe2d`): the benchmark tests as in the final integration record, 188
+passed; `ruff check`, `ruff format --check`, `make mypy` (872 files) and
+`mypy scripts/evals` (34 files) pass.
+
+Retry review #2 (targeted recheck, same reviewer, on `57991500`): pass. It
+reran its two probes against the repairs (the Memory Manager run is now
+selected; a mock-model retry is refused) and confirmed the paid run is
+retryable. Its one note, that a retry's fresh budget can pass what is left of
+`--max-usd` by one call's whole cost, is now stated in the README.
 
 Completion: G3 and G4 are recorded, the report is tracked and the re-render
 is verified. Commit `docs(evals)[p9]: record the first model benchmark`.
+
+**G3 (2026-10-26):** the owner approved the full tier with `--standard`,
+`--max-calls 4600 --max-usd 6` and
+`--price input=0.10,cached_input=0.01,cache_write=0.125,output=0.50`, on the
+dry run of `874f760c`: 4 configurations, 2,268 estimated calls (up to 4,536
+with repairs), about $2.43, 223 judge batches and 2.28 h against the 4-hour
+bound.
 
 Check record: none yet.
 
