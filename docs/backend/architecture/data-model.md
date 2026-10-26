@@ -183,7 +183,7 @@ is not the application semantic model.
 `ORMUserProfile` stores private installation personalization in
 `user_profiles`. Its primary key is the installation principal in the retained
 `user_id` ownership column. The only mutable field is nullable
-`display_name VARCHAR(80)`; null is allowed only for the pending-setup
+`display_name VARCHAR(30)`; null is allowed only for the pending-setup
 placeholder. Saving personalization requires a nonblank name. Creation and update
 timestamps complete the row.
 

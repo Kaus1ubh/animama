@@ -6,10 +6,7 @@ import { listModelAssetsV1ModelAssetsGet } from "@animama/runtime-contracts/sdk"
 import type { FeaturePackStatus } from "../../../shared/desktop-runtime";
 import type { AnimamaDesktopBridge } from "@/platform/runtime-platform";
 import { POCKET_VOICES } from "@/lib/speech/pocket/voice-catalog";
-import {
-  PARAKEET_ASSET_ID,
-  PARAKEET_WEBGPU_ASSET_ID,
-} from "@/lib/speech/client-parakeet/assets";
+import { offlineSpeechAssetIds } from "@/lib/speech/offline-stt/asset-ids";
 import { WordedError } from "@/lib/errors/apiError";
 import { queryKeys } from "@/query/keys";
 
@@ -138,11 +135,15 @@ export async function assertPackTransitionAllowed(
     throw new DownloadGuardError(ASSET_WORK_BLOCKS_PACK);
 }
 
+/** Every offline speech set: each engine's base set and its GPU add-on. */
+const OFFLINE_SPEECH_ASSET_IDS = Object.values(offlineSpeechAssetIds).flatMap(
+  ({ base, gpu }) => [base, gpu],
+);
+
 const knownAssetIds = new Set([
   ...POCKET_VOICES.flatMap((voice) => (voice.assetId ? [voice.assetId] : [])),
   "pocket-tts-voice-cloning-encoder",
-  PARAKEET_ASSET_ID,
-  PARAKEET_WEBGPU_ASSET_ID,
+  ...OFFLINE_SPEECH_ASSET_IDS,
 ]);
 /** A bounded hint for Retry, never installed state, progress, samples or credentials. */
 function storedAssetAttempts(owner: string): string[] | undefined {
@@ -242,18 +243,17 @@ export function reconcileAssetAttempts(
     );
 }
 /**
- * The installed Parakeet sets, as a stable key. Runtime capabilities derive
- * offline speech from them, so a change means capabilities are stale.
+ * The installed offline speech sets (Parakeet and SenseVoice), as a stable
+ * key. Runtime capabilities derive offline speech from them, so a change means
+ * capabilities are stale.
  */
 export function installedSpeechSets(
   assets: PyModelAssetState[] | undefined,
 ): string | undefined {
   if (!assets) return undefined;
-  return [PARAKEET_ASSET_ID, PARAKEET_WEBGPU_ASSET_ID]
-    .filter((id) =>
-      assets.some((asset) => asset.id === id && asset.status === "installed"),
-    )
-    .join(",");
+  return OFFLINE_SPEECH_ASSET_IDS.filter((id) =>
+    assets.some((asset) => asset.id === id && asset.status === "installed"),
+  ).join(",");
 }
 export function retryAssetIds(
   attempts: readonly string[],

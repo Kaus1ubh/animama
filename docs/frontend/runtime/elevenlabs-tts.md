@@ -163,8 +163,8 @@ tags and the space restored after each chunk.
 ElevenLabs has no model selector: it always speaks with Eleven v4 Turbo, which
 the provider description names. Selecting ElevenLabs writes
 `tts_elevenlabs_model_id: "eleven_v4_turbo"`, which also replaces a saved
-retired id. The "Stream chunked TTS" switch applies only to ElevenLabs; the
-other providers never stream text chunks.
+retired id. ElevenLabs always streams text chunks; the other providers never
+do.
 
 Anima voice selection is resolved from
 `speech.elevenlabs.primary_voice`. Legacy saved

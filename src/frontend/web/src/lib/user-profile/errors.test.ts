@@ -15,7 +15,7 @@ describe("UserProfileApiError", () => {
     expect(error.status).toBe(422);
     expect(error.field).toBe("display_name");
     expect(error.reason).toBe("length");
-    expect(error.message).toContain("80");
+    expect(error.message).toContain("30");
   });
 
   it("explains that ordinary edits wait for first-run setup", () => {

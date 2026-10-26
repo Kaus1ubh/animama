@@ -8,6 +8,12 @@
   2026-10-13 the owner replaced the two separate settings with one language
 - Decision basis: [issue #385](https://github.com/raymond-van/animama/issues/385)
   and its [specification snapshot](../plans/internationalization/internationalization-spec.md)
+- Amended: 2026-10-21, offline speech recognition follows the conversation
+  language: SenseVoice-Small serves Japanese, Korean and Chinese, and Parakeet
+  English ([ADR 0029](0029-sensevoice-offline-speech-recognition.md));
+  2026-10-25, the language picker no longer labels non-English locales Beta;
+  2026-10-25, the owner may choose the offline engine, and the language sets
+  only its default ([ADR 0031](0031-offline-speech-engine-is-the-owners-choice.md))
 
 ## Context
 
@@ -31,7 +37,10 @@ showed backend English verbatim.
    the browser's own speech engines use it. English, unset and unknown locales
    add nothing, so English behavior is unchanged. Engines that work only in
    English (Parakeet, Pocket TTS) stay available with a warning that names the
-   alternatives. The crisis region and companion safety never read it.
+   alternatives (amended by [ADR 0029](0029-sensevoice-offline-speech-recognition.md):
+   offline speech recognition routes non-English locales to SenseVoice-Small,
+   so only Pocket TTS keeps the warning). The crisis region and companion
+   safety never read it.
 2. **Resolution order.** A saved preference (canonical tags `en`, `ja`, `ko`,
    `zh-Hans`, `zh-Hant`; unset means "System default"), then the first
    supported OS or browser language, then English. Chinese matches by script,
@@ -40,8 +49,8 @@ showed backend English verbatim.
 3. **Codes from the backend, words in the frontend.** The backend sends stable
    codes and parameters; frontend catalogs word them. Backend English stays
    for logs and API clients and is shown only as secondary technical detail.
-4. **Beta locales.** Non-English locales ship machine-translated and are marked
-   Beta. A missing translation shows English. CI fails on catalog errors
+4. **Beta locales.** Non-English locales ship machine-translated; the picker
+   does not label them. A missing translation shows English. CI fails on catalog errors
    (stale keys, placeholder changes, keys missing from English, raw strings in
    converted UI) but only reports untranslated keys.
 5. **Shared runtime.** The locale contract lives in
@@ -71,7 +80,10 @@ showed backend English verbatim.
   identifiers) are never translated; only their display is.
 - Under a non-English locale with Parakeet, the owner speaks English while the
   Anima replies in the locale until multilingual speech recognition lands
-  ([#509](https://github.com/raymond-van/animama/issues/509)). Lip-sync was
+  ([#509](https://github.com/raymond-van/animama/issues/509); amended by
+  [ADR 0029](0029-sensevoice-offline-speech-recognition.md): offline
+  recognition listens in Japanese, Korean and Chinese through
+  SenseVoice-Small). Lip-sync was
   estimated from English phonemes, so the mouth did not move for Japanese,
   Korean or Chinese replies until audio-driven lip-sync landed
   ([#468](https://github.com/raymond-van/animama/issues/468)); it now plans

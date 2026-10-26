@@ -43,15 +43,20 @@ require Docker, Python, Node.js, PostgreSQL, Homebrew or a source checkout.
    a nonblank name is private personalization, not a
    username or credential.
 5. **AI** chooses the model your Animas chat with: **Cloud** (OpenAI or
-   Anthropic with your key, or another provider) or **Local** (a running
-   Ollama, LM Studio, llama.cpp or vLLM server, or a custom one), each with a
-   tab per provider. A local server's tab looks for it when opened. The model
+   Anthropic with your key, or another provider), with a tab per provider.
+   Builds with [local models](../features/model-settings.md#connections)
+   enabled also offer **Local** (a running Ollama, LM Studio, llama.cpp or vLLM
+   server, or a custom one); a local server's tab looks for it when opened. The model
    you set up last (saving the OpenAI key, saving the Anthropic key for Claude
    Haiku 5.5, or adding a model) becomes the default Chat model, and the
    starter Animas switch to it. **Skip for now** keeps the default.
-6. **Voice** offers Parakeet speech recognition downloads (CPU, and GPU
-   acceleration) and the Text-to-Speech provider: built-in PocketTTS, on by
-   default, or ElevenLabs with its key. Nothing downloads unless you choose it,
+6. **Voice** chooses speech recognition by engine, then CPU or GPU: the
+   engine for the app's language comes first and is recommended (SenseVoice
+   for Japanese, Korean and Chinese, Parakeet for English), and each version
+   offers its download. It also offers the Text-to-Speech provider: built-in
+   PocketTTS, on by default, or ElevenLabs with its key. Both choices are
+   saved at **Finish**. Nothing downloads
+   unless you choose it,
    and downloads keep going after you finish. Choose **Finish**, then confirm
    that you are 18 or older in the short modal before Annie's chat opens. Later launches open the last Anima you visited, or the
    first available Anima if that Anima has been deleted.
@@ -66,9 +71,9 @@ key in its Voice step. After setup, the OpenAI and Anthropic keys are on their
 cards in App Settings → Models, and the ElevenLabs key is in App Settings →
 Voice. The Gemini key for [Gemini voices](../runtime/gemini-tts.md), which setup
 does not ask for, is in App Settings → Voice when Gemini is chosen. All four are
-also in App Settings → API Keys; each place edits the same saved key. Other model servers, such as DeepSeek, OpenRouter or a local Ollama,
-LM Studio or llama.cpp server, are added in App Settings → Models (Cloud or
-Local), with their key (if any) on the connection. Text chat through an
+also in App Settings → API Keys; each place edits the same saved key. Other model servers, such as DeepSeek or OpenRouter (or, where local models
+are enabled, a local Ollama, LM Studio or llama.cpp server), are added in App
+Settings → Models, with their key (if any) on the connection. Text chat through an
 external model requires that provider to be configured and reachable and can
 incur its charges. There is no bundled offline chat model; a local server on
 this computer keeps chat fully local. The app reaches local servers at
@@ -89,9 +94,10 @@ services from the saved keys, which reloads the window. If that restart fails,
 runtime recovery's Retry uses the saved keys; do not remove the vault or
 re-enter a key merely to repair it.
 
-PocketTTS and microphone permission do not require Parakeet. Offline dictation
-and Voice Mode require the offline speech recognition CPU model, downloaded in
-setup's Voice step or App Settings → Voice without restarting the app. Open the app
+PocketTTS and microphone permission do not require a speech recognition model.
+Offline dictation and Voice Mode require the offline speech recognition CPU
+model for the app's language, downloaded in setup's Voice step or App Settings
+→ Voice without restarting the app. Open the app
 normally through Finder for microphone permission tests and allow Animama in
 macOS Privacy & Security when prompted. On Windows, microphone access follows
 Settings → Privacy & security → Microphone, including **Let desktop apps access

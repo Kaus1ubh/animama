@@ -261,11 +261,9 @@
     "profile": "Profile",
     "speechToText": "Speech-to-Text",
     "textToSpeech": "Text-to-Speech",
-    "voiceClone": "Voice Clone",
     "webSearch": "Web search"
   },
   "language": {
-    "description": "The language of Animama and of your Animas: menus, messages, and what your Animas say and hear. Beta languages are machine-translated.",
     "keywords": [
       "language",
       "locale",
@@ -332,7 +330,6 @@
     "advanced": "Advanced",
     "apiKeys": "API Keys",
     "appearance": "Appearance",
-    "data": "Data",
     "general": "General",
     "memoryEmotion": "Memory & Emotion",
     "models": "Models",
@@ -407,26 +404,20 @@
       "test": "Test microphone"
     },
     "stt": {
-      "downloads": "Offline speech downloads",
       "entryLabel": "Speech-to-Text provider",
-      "label": "Provider",
-      "parakeetWebgpu": "Parakeet (WebGPU)",
-      "placeholder": "Select provider",
       "preparing": "Preparing provider defaults...",
       "updateFailed": "Failed to update STT provider."
     },
     "tts": {
       "elevenLabs": {
         "key": {
-          "description": "Needed for ElevenLabs voices. Encrypted on this computer and also in API Keys.",
-          "label": "ElevenLabs API key"
+          "description": "Needed for ElevenLabs voices. Encrypted on this computer and also in API Keys."
         }
       },
       "enable": "Enable Text-to-Speech",
       "gemini": {
         "key": {
-          "description": "Needed for Gemini voices. Encrypted on this computer and also in API Keys.",
-          "label": "Gemini API key"
+          "description": "Needed for Gemini voices. Encrypted on this computer and also in API Keys."
         },
         "model": {
           "descriptions": {
@@ -434,7 +425,7 @@
             "flashLite": "Lower-latency, lower-cost Gemini speech."
           },
           "label": "Gemini model",
-          "note": "Google bills Gemini speech to your API key. Choose each Anima's voice in Behavior → Voices.",
+          "note": "Google bills Gemini speech to your API key.",
           "placeholder": "Select model",
           "updateFailed": "Failed to update Gemini model."
         }
@@ -444,18 +435,10 @@
         "ariaLabel": "Text-to-Speech provider",
         "enableFirst": "Enable Text-to-Speech to select a provider.",
         "entryLabel": "Default Text-to-Speech provider",
-        "label": "Default provider",
-        "note": "Used by Animas without their own provider. Choose providers and voices for each Anima in Behavior → Voices.",
+        "note": "Used by Animas without their own provider.",
         "updateFailed": "Failed to update TTS provider."
       },
-      "stream": {
-        "description": "Start speaking before the full response is ready.",
-        "label": "Stream chunked Text-to-Speech",
-        "unavailable": "Unavailable with Gemini.",
-        "updateFailed": "Failed to update TTS streaming mode."
-      },
       "updateFailed": "Failed to update TTS settings."
-    },
-    "voiceClone": "Voice Clone"
+    }
   }
 }

@@ -49,8 +49,10 @@ DOWNLOAD_HOSTS = {
     "us.aws.cdn.hf.co",
 }
 # Animama's own release distribution: explicit release sources and the base
-# CLI's normal shared-object projection. Upstream provenance stays in manifests.
+# CLIs' normal shared-object projection. Upstream provenance stays in manifests.
 RELEASE_HOSTS = {"downloads.animama.ai"}
+# Base sets whose CLIs acquire Animama's published objects by default.
+SHARED_MODEL_IDS = {MODEL_ID, "sensevoice-small"}
 CHUNK_SIZE = 1024 * 1024
 
 
@@ -171,8 +173,12 @@ def unique_keys(pairs: list[tuple[str, object]]) -> dict:
     return result
 
 
-def load_manifest(path: Path = DEFAULT_MANIFEST) -> dict:
-    """Validate a local manifest; its exact bytes define the version directory."""
+def load_pinned_manifest(path: Path, model_id: str, license_id: str, sources: dict[str, dict], label: str) -> dict:
+    """Validate a manifest whose exact inventory is the local notices plus `sources`.
+
+    `sources` maps every other file to its reviewed source; any difference in the
+    inventory, a source, the model or the licence rejects the manifest.
+    """
     path = Path(path).absolute()
     with regular_file(path) as stream:
         raw = stream.read(65537)
@@ -180,29 +186,35 @@ def load_manifest(path: Path = DEFAULT_MANIFEST) -> dict:
         raise ModelStoreError("Manifest exceeds 64 KiB")
     try:
         value = json.loads(raw, object_pairs_hook=unique_keys)
-        if value["schema_version"] != 1 or value["model_id"] != MODEL_ID or value["license"] != "CC-BY-4.0":
+        if value["schema_version"] != 1 or value["model_id"] != model_id or value["license"] != license_id:
             raise ValueError("unsupported schema, model or license")
         entries = value["files"]
-        if len(entries) != 7 or {entry["path"] for entry in entries} != NOTICES | set(UPSTREAM):
-            raise ValueError("expected the exact seven-file Parakeet inventory")
+        paths = NOTICES | set(sources)
+        if len(entries) != len(paths) or {entry["path"] for entry in entries} != paths:
+            raise ValueError(f"expected the exact {label} inventory")
         for entry in entries:
             name = entry["path"]
             if type(entry["size"]) is not int or not 0 < entry["size"] < 2**31:
                 raise ValueError(f"invalid byte size for {name}")
-            if not re.fullmatch(r"[0-9a-f]{64}", entry["sha256"]):
+            if not isinstance(entry["sha256"], str) or not re.fullmatch(r"[0-9a-f]{64}", entry["sha256"]):
                 raise ValueError(f"invalid SHA-256 for {name}")
-            if name in NOTICES:
-                expected = {"local": name}
-            else:
-                owner, revision = UPSTREAM[name]
-                expected = {"repository": f"{owner}/{MODEL_ID}-onnx", "revision": revision, "path": name}
+            expected = {"local": name} if name in NOTICES else sources[name]
             if entry["source"] != expected:
                 raise ValueError(f"unreviewed source for {name}")
     except (KeyError, TypeError, ValueError) as exc:
-        raise ModelStoreError(f"Invalid model manifest: {exc}") from exc
+        raise ModelStoreError(f"Invalid {label} manifest: {exc}") from exc
     value["digest"] = hashlib.sha256(raw).hexdigest()
     value["directory"] = path.parent
     return value
+
+
+def load_manifest(path: Path = DEFAULT_MANIFEST) -> dict:
+    """Validate a local manifest; its exact bytes define the version directory."""
+    sources = {
+        name: {"repository": f"{owner}/{MODEL_ID}-onnx", "revision": revision, "path": name}
+        for name, (owner, revision) in UPSTREAM.items()
+    }
+    return load_pinned_manifest(path, MODEL_ID, "CC-BY-4.0", sources, "model")
 
 
 def resolve_root(value: str | Path | None = None) -> Path:
@@ -413,11 +425,11 @@ def acquire(
 ) -> Path:
     """Reuse or atomically assemble a version; never replace an existing version.
 
-    Generic callers retain their manifest sources. Only the base CLI requests
+    Generic callers retain their manifest sources. Only the base CLIs request
     the derived Animama objects, with the same inventory and cache identity.
     """
-    if shared_base_objects and manifest["model_id"] != MODEL_ID:
-        raise ModelStoreError("Shared base acquisition requires the Parakeet base inventory")
+    if shared_base_objects and manifest["model_id"] not in SHARED_MODEL_IDS:
+        raise ModelStoreError("Shared acquisition requires a published base inventory")
     checked_directory(root, create=True)
     parent = root / manifest["model_id"]
     checked_directory(parent, create=True)
@@ -456,7 +468,9 @@ def acquire(
                         checked_directory(source_path)
                     stream = regular_file(source_path / relative.name)
                 elif shared_base_objects:
-                    url = f"https://downloads.animama.ai/models/{MODEL_ID}/{entry['sha256']}/{entry['path']}"
+                    url = (
+                        f"https://downloads.animama.ai/models/{manifest['model_id']}/{entry['sha256']}/{entry['path']}"
+                    )
                     validate_url(url, RELEASE_HOSTS)
                     stream = transport(url) if transport else open_download(url, RELEASE_HOSTS)
                 elif "local" in entry["source"]:

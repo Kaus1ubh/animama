@@ -270,9 +270,11 @@ asks the local route `GET /v1/gemini/voices/{voice}/sample`
 
 ## Client-side speech recognition
 
-The frontend and desktop use client-side Parakeet STT, MicVAD, and smart-turn
-turn detection. Check frontend speech ownership before adding backend audio
-processing; the local API has no STT or LiveKit session routes.
+The frontend and desktop use client-side offline STT (Parakeet for English,
+SenseVoice-Small for Japanese, Korean and Chinese), MicVAD, and smart-turn
+turn detection; see [voice](../../frontend/runtime/voice.md). Check frontend
+speech ownership before adding backend audio processing; the local API has no
+STT or LiveKit session routes.
 
 ## Voice Session State
 

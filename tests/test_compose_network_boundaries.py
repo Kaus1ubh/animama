@@ -286,6 +286,18 @@ def _run_reset(
         .replace("ANIMAMA_TEST_MODEL_MISSING", "ANIMAMA_TEST_BROWSER_MODEL_MISSING")
         .replace("ANIMAMA_TEST_MODEL_CORRUPT", "ANIMAMA_TEST_BROWSER_MODEL_CORRUPT")
     )
+    for name, model_id, variable in (
+        ("sensevoice", "sensevoice-small", "SENSEVOICE"),
+        ("sensevoice_webgpu", "sensevoice-small-webgpu", "SENSEVOICE_WEBGPU"),
+    ):
+        (model_scripts / f"{name}.py").write_text(
+            (model_scripts / "parakeet.py")
+            .read_text()
+            .replace("parakeet-tdt-0.6b-v2", model_id)
+            .replace("parakeet.py", f"{name}.py")
+            .replace("ANIMAMA_TEST_MODEL_MISSING", f"ANIMAMA_TEST_{variable}_MODEL_MISSING")
+            .replace("ANIMAMA_TEST_MODEL_CORRUPT", f"ANIMAMA_TEST_{variable}_MODEL_CORRUPT")
+        )
     commands = tmp_path / "commands.jsonl"
     commands.write_text("")
     docker = tmp_path / "docker"
@@ -307,6 +319,7 @@ with open(os.environ["ANIMAMA_TEST_COMMANDS"], "a") as output:
         "build_mode": os.environ.get("ANIMAMA_WEB_BUILD_MODE"), "compose_file": os.environ.get("COMPOSE_FILE"),
         "selected_files": os.environ.get("COMPOSE_ENV_FILES"),
         "parakeet_stt_enabled": os.environ.get("ANIMAMA_PARAKEET_STT_ENABLED"),
+        "sensevoice_stt_enabled": os.environ.get("ANIMAMA_SENSEVOICE_STT_ENABLED"),
         "fixture_credentials_preserved": all(values.get(key) == expected for key, expected in (
             ("POSTGRES_PASSWORD", "fixture-postgres-secret"), ("OPENAI_API_KEY", "fixture-provider-secret"))),
         "host_credentials_absent": all(key not in os.environ for key in ("POSTGRES_PASSWORD", "OPENAI_API_KEY"))
@@ -635,6 +648,27 @@ def test_development_mounts_the_verified_parakeet_set_read_only_without_host_cre
 def test_the_backend_never_mounts_parakeet_sets(development: bool) -> None:
     server = _rendered_compose(development=development)["services"]["animama-server"]
     assert not any("parakeet" in volume["target"] for volume in server["volumes"])
+    assert not any("sensevoice" in volume["target"] for volume in server["volumes"])
+    assert server["environment"]["ANIMAMA_SENSEVOICE_STT_ENABLED"] == "true"
+
+
+@pytest.mark.parametrize("model_id", ["sensevoice-small", "sensevoice-small-webgpu"])
+def test_development_mounts_sensevoice_sets_read_only_with_a_notices_fallback(model_id: str) -> None:
+    assert not any(
+        volume["target"] == f"/app/{model_id}"
+        for service in _rendered_compose(())["services"].values()
+        for volume in service.get("volumes", [])
+    )
+    web = _rendered_compose(development=True)["services"]["web"]
+    mount = next(volume for volume in web["volumes"] if volume["target"] == f"/app/{model_id}")
+    # Without an acquired set, the checked-in notices directory keeps Compose valid.
+    assert mount["source"] == str(REPO_ROOT / "models" / model_id)
+    assert mount["read_only"] is True
+    assert mount["bind"].get("create_host_path", False) is False
+    variable = (
+        "VITE_CLIENT_SENSEVOICE_WEBGPU_MODEL_DIR" if model_id.endswith("webgpu") else "VITE_CLIENT_SENSEVOICE_MODEL_DIR"
+    )
+    assert web["environment"][variable] == f"/app/{model_id}"
 
 
 @pytest.mark.parametrize(("development", "source"), [(False, "asset-store"), (True, "operator")])
@@ -687,6 +721,44 @@ def test_missing_parakeet_models_start_development_without_dictation(tmp_path: P
     assert "export ANIMAMA_BROWSER_MODEL_DIR=/default-model-store/browser-speech/verified-version" in record
 
 
+def test_reset_records_both_sensevoice_sets_in_development(tmp_path: Path) -> None:
+    result, commands, workspace = _run_reset(tmp_path, [], build_mode="development")
+    assert result.returncode == 0, result.stderr
+    assert all(command["sensevoice_stt_enabled"] is None for command in commands)
+    record = (workspace / ".animama-stack.env").read_text()
+    assert "export ANIMAMA_SENSEVOICE_MODEL_DIR=/default-model-store/sensevoice-small/verified-version" in record
+    assert (
+        "export ANIMAMA_SENSEVOICE_WEBGPU_MODEL_DIR=/default-model-store/sensevoice-small-webgpu/verified-version"
+        in record
+    )
+
+
+def test_missing_sensevoice_models_start_development_without_multilingual_dictation(tmp_path: Path) -> None:
+    result, commands, workspace = _run_reset(
+        tmp_path, [], {"ANIMAMA_TEST_SENSEVOICE_MODEL_MISSING": "1"}, build_mode="development"
+    )
+    assert result.returncode == 0, result.stderr
+    # The published objects are the default source, so the hint needs no option.
+    assert "Run python3 scripts/models/sensevoice.py acquire to enable them." in result.stderr
+    started = [command for command in commands if "up" in command["args"]]
+    assert started
+    assert all(command["sensevoice_stt_enabled"] == "false" for command in started)
+    assert all(command["parakeet_stt_enabled"] is None for command in started)
+    record = (workspace / ".animama-stack.env").read_text()
+    assert "export ANIMAMA_SENSEVOICE_MODEL_DIR=''" in record
+    assert "export ANIMAMA_PARAKEET_MODEL_DIR=/default-model-store/parakeet-tdt-0.6b-v2/verified-version" in record
+
+
+def test_an_unverifiable_sensevoice_webgpu_set_only_warns(tmp_path: Path) -> None:
+    result, _, workspace = _run_reset(
+        tmp_path, [], {"ANIMAMA_TEST_SENSEVOICE_WEBGPU_MODEL_CORRUPT": "1"}, build_mode="development"
+    )
+    assert result.returncode == 0, result.stderr
+    assert "Optional SenseVoice WebGPU model set failed verification" in result.stderr
+    assert "sensevoice_webgpu.py verify" in result.stderr
+    assert "export ANIMAMA_SENSEVOICE_WEBGPU_MODEL_DIR=''" in (workspace / ".animama-stack.env").read_text()
+
+
 @pytest.mark.parametrize("variable", ["ANIMAMA_TEST_MODEL_MISSING", "ANIMAMA_TEST_MODEL_CORRUPT"])
 def test_built_reset_never_resolves_host_parakeet_sets(tmp_path: Path, variable: str) -> None:
     # Built installs download and verify Parakeet sets in the app; a missing or
@@ -697,9 +769,12 @@ def test_built_reset_never_resolves_host_parakeet_sets(tmp_path: Path, variable:
     started = [command for command in commands if "up" in command["args"]]
     assert started
     assert all(command["parakeet_stt_enabled"] is None for command in started)
+    assert all(command["sensevoice_stt_enabled"] is None for command in started)
     record = (workspace / ".animama-stack.env").read_text()
     assert "export ANIMAMA_PARAKEET_MODEL_DIR=''" in record
     assert "export ANIMAMA_PARAKEET_WEBGPU_MODEL_DIR=''" in record
+    assert "export ANIMAMA_SENSEVOICE_MODEL_DIR=''" in record
+    assert "export ANIMAMA_SENSEVOICE_WEBGPU_MODEL_DIR=''" in record
 
 
 def test_missing_browser_models_start_without_browser_speech(tmp_path: Path) -> None:
@@ -716,7 +791,11 @@ def test_missing_browser_models_start_without_browser_speech(tmp_path: Path) -> 
 
 @pytest.mark.parametrize(
     ("variable", "script"),
-    [("ANIMAMA_TEST_MODEL_CORRUPT", "parakeet.py"), ("ANIMAMA_TEST_BROWSER_MODEL_CORRUPT", "browser_speech.py")],
+    [
+        ("ANIMAMA_TEST_MODEL_CORRUPT", "parakeet.py"),
+        ("ANIMAMA_TEST_SENSEVOICE_MODEL_CORRUPT", "sensevoice.py"),
+        ("ANIMAMA_TEST_BROWSER_MODEL_CORRUPT", "browser_speech.py"),
+    ],
 )
 def test_unverifiable_models_prevent_all_reset_mutations_even_with_purge(
     tmp_path: Path, variable: str, script: str

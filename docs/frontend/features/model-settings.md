@@ -30,6 +30,14 @@ where models run (`MODEL_LOCATION_TABS`, `MODEL_LOCATION_PROVIDERS` and
   DeepSeek, Hugging Face, OpenRouter and Custom.
 - **Local:** Ollama, LM Studio, llama.cpp, vLLM and Custom.
 
+Local is off by default: it appears only when the web build sets
+`VITE_ENABLE_LOCAL_MODELS=true` (read at build time, or by the Vite dev server;
+Compose development passes it through) or the owner already has a connection
+there, so an existing local server stays editable and removable
+(`visibleModelLocations`). With one location the Cloud | Local strip is hidden
+and Cloud's provider tabs show directly, in settings and setup's AI step alike.
+The backend still offers the local presets and Detect.
+
 The built-in connections and the cloud presets are on Cloud and the local server
 presets on Local. A custom connection is on Local when its base URL points at
 this computer or a private network (loopback, `localhost`,

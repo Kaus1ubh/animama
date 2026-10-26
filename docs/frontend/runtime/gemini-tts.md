@@ -82,9 +82,8 @@ to that part's own audio; see [Avatar lip-sync](avatar-lipsync.md).
   (`gemini-3.8-flash-lite-tts`, the default, for lower latency and cost) or
   Flash TTS (`gemini-3.8-flash-tts`), saved as the speech preference
   `tts_gemini_model_id`.
-- "Stream chunked Text-to-Speech" is off and disabled with Gemini, because the
-  server pushes finalized audio. The saved preference is kept for other
-  providers.
+- Gemini never streams text chunks, because the server pushes finalized
+  audio.
 - Behavior → Voices offers Gemini as the Anima's TTS provider where it is
   offered. With Gemini chosen, `GeminiVoicePicker` lists the prebuilt voices in
   the PocketTTS picker's layout:

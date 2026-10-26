@@ -37,6 +37,10 @@ def test_bootstraps_unpublished_models_and_only_reviewed_vctk_sources(commands, 
         for command in argv
     )
     assert any(command[1:4] == ["scripts/models/pocket_cloning.py", "acquire", "--source"] for command in argv)
+    assert [command[1:] for command in argv if "sensevoice" in command[1]] == [
+        ["scripts/models/sensevoice.py", "acquire", "--source", "upstream"],
+        ["scripts/models/sensevoice_webgpu.py", "acquire"],
+    ]
     encode = next(command for command in argv if "encode" in command)
     selected = json.loads((ROOT / "scripts/voices/selection.json").read_text())["voices"]
     assert encode[:4] == ["uv", "run", "--locked", "--script"]

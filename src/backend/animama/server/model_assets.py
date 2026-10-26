@@ -7,8 +7,9 @@ that must veto removal register guards in ``_build_service``. Tests inject a
 fixture service with a dependency override on ``get_model_asset_service`` (or
 ``application.state.model_asset_service``).
 
-This module also adapts installed Parakeet sets to the local HTTP responder and
-reports their availability, both resolved per request.
+This module also adapts installed speech-to-text sets (Parakeet and SenseVoice)
+to the local HTTP responder and reports their availability, both resolved per
+request.
 """
 
 from __future__ import annotations
@@ -25,13 +26,27 @@ from animama.app.services.model_asset_service import (
     UnknownAssetError,
     load_packaged_asset_catalog,
 )
-from animama.local.http.assets import PARAKEET_MOUNT, PARAKEET_WEBGPU_MOUNT, ModelFile, ModelMount
+from animama.local.http.assets import (
+    PARAKEET_MOUNT,
+    PARAKEET_WEBGPU_MOUNT,
+    SENSEVOICE_MOUNT,
+    SENSEVOICE_WEBGPU_MOUNT,
+    ModelFile,
+    ModelMount,
+)
 from animama.server.config import Settings, settings
 
-# Catalog IDs of the Parakeet sets served at the browser's existing model paths.
+# Catalog IDs of the speech-to-text sets served at the browser's model paths.
 PARAKEET_ASSET_ID: Final = "parakeet-stt"
 PARAKEET_WEBGPU_ASSET_ID: Final = "parakeet-stt-webgpu"
-_PARAKEET_MOUNT_ASSETS: Final = {PARAKEET_MOUNT: PARAKEET_ASSET_ID, PARAKEET_WEBGPU_MOUNT: PARAKEET_WEBGPU_ASSET_ID}
+SENSEVOICE_ASSET_ID: Final = "sensevoice-stt"
+SENSEVOICE_WEBGPU_ASSET_ID: Final = "sensevoice-stt-webgpu"
+_SPEECH_MOUNT_ASSETS: Final = {
+    PARAKEET_MOUNT: PARAKEET_ASSET_ID,
+    PARAKEET_WEBGPU_MOUNT: PARAKEET_WEBGPU_ASSET_ID,
+    SENSEVOICE_MOUNT: SENSEVOICE_ASSET_ID,
+    SENSEVOICE_WEBGPU_MOUNT: SENSEVOICE_WEBGPU_ASSET_ID,
+}
 
 
 def _data_root(application: FastAPI) -> Path:
@@ -81,7 +96,7 @@ def _installed_version(application: FastAPI, asset_id: str) -> str | None:
 
 
 class AssetStoreModelMounts:
-    """A ``ModelMountSource`` serving installed Parakeet sets from the asset store.
+    """A ``ModelMountSource`` serving installed speech-to-text sets from the asset store.
 
     Each request reads the current install state, so an install or removal
     applies without restarting FastAPI. The mount version is the set's
@@ -92,7 +107,7 @@ class AssetStoreModelMounts:
         self._application = application
 
     def mount(self, path: str) -> ModelMount | None:
-        asset_id = _PARAKEET_MOUNT_ASSETS.get(path)
+        asset_id = _SPEECH_MOUNT_ASSETS.get(path)
         if asset_id is None:
             return None
         try:
@@ -106,16 +121,18 @@ class AssetStoreModelMounts:
 
 
 @dataclass(frozen=True, slots=True)
-class ParakeetAvailability:
-    """Offline speech availability for runtime capabilities."""
+class SpeechAvailability:
+    """One speech-to-text engine's offline availability for runtime capabilities."""
 
     enabled: bool
     asset_version: str | None
     gpu_asset_version: str | None
 
 
-def parakeet_availability(application: FastAPI, runtime_settings: Settings) -> ParakeetAvailability:
-    """Resolve offline speech from the composition's Parakeet source.
+def _speech_availability(
+    application: FastAPI, runtime_settings: Settings, *, enabled: bool, asset_id: str, gpu_asset_id: str
+) -> SpeechAvailability:
+    """Resolve an engine's sets from the composition's speech model source.
 
     The operator flag always gates availability. The ``operator`` source has no
     versions (development Vite serves the host sets); ``asset-store`` requires
@@ -124,12 +141,34 @@ def parakeet_availability(application: FastAPI, runtime_settings: Settings) -> P
     """
 
     if runtime_settings.animama_parakeet_source == "operator":
-        return ParakeetAvailability(
-            enabled=runtime_settings.animama_parakeet_stt_enabled, asset_version=None, gpu_asset_version=None
-        )
-    version = _installed_version(application, PARAKEET_ASSET_ID)
-    return ParakeetAvailability(
-        enabled=runtime_settings.animama_parakeet_stt_enabled and version is not None,
+        return SpeechAvailability(enabled=enabled, asset_version=None, gpu_asset_version=None)
+    version = _installed_version(application, asset_id)
+    return SpeechAvailability(
+        enabled=enabled and version is not None,
         asset_version=version,
-        gpu_asset_version=_installed_version(application, PARAKEET_WEBGPU_ASSET_ID),
+        gpu_asset_version=_installed_version(application, gpu_asset_id),
+    )
+
+
+def parakeet_availability(application: FastAPI, runtime_settings: Settings) -> SpeechAvailability:
+    """Offline English speech recognition (Parakeet)."""
+
+    return _speech_availability(
+        application,
+        runtime_settings,
+        enabled=runtime_settings.animama_parakeet_stt_enabled,
+        asset_id=PARAKEET_ASSET_ID,
+        gpu_asset_id=PARAKEET_WEBGPU_ASSET_ID,
+    )
+
+
+def sensevoice_availability(application: FastAPI, runtime_settings: Settings) -> SpeechAvailability:
+    """Offline multilingual speech recognition (SenseVoice-Small)."""
+
+    return _speech_availability(
+        application,
+        runtime_settings,
+        enabled=runtime_settings.animama_sensevoice_stt_enabled,
+        asset_id=SENSEVOICE_ASSET_ID,
+        gpu_asset_id=SENSEVOICE_WEBGPU_ASSET_ID,
     )

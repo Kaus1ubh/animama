@@ -241,7 +241,7 @@ Starting source: `8b263532`. Step 4 (per-primitive name fallback) is not
 implemented: no export has shown the case yet, and `vrm:inspect` reports it
 ("primitives only — three.js ignores these names") so Phase 2 can decide.
 No glossary entry: "ARKit face shapes" is described in the runtime guide and
-ADR 0031.
+ADR 0032 (numbered 0031 until main took that number).
 
 Check record (working tree `e47039b5`, uncommitted on `8b263532`):
 

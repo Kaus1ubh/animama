@@ -206,7 +206,7 @@ async def test_runtime_context_requires_a_name_even_after_an_earlier_skip(async_
         {"display_name": None, "adult_confirmed": True},
         {"display_name": "", "adult_confirmed": True},
         {"display_name": " \t ", "adult_confirmed": True},
-        {"display_name": "x" * 81, "adult_confirmed": True},
+        {"display_name": "x" * 31, "adult_confirmed": True},
         {"display_name": "Ada"},
         {"display_name": "Ada", "adult_confirmed": False},
     ],

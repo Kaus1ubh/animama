@@ -95,25 +95,29 @@
     "stt": {
       "checking": "Checking speech recognition…",
       "cpu": {
-        "description": "<link>NVIDIA's Parakeet TDT 0.6B v2</link> transcribes English speech on this device, so your voice never leaves it.",
-        "label": "Parakeet (CPU)",
-        "labelWithSize": "Parakeet (CPU, {{size}})"
+        "label": "{{model}} (CPU)"
       },
       "download": "Download",
       "downloaded": "Downloaded",
       "downloading": "Downloading {{percent}}",
+      "engines": {
+        "parakeet": "<link>NVIDIA's Parakeet TDT 0.6B v2</link> transcribes English speech on this device, so your voice never leaves it.",
+        "sensevoice": "<link>Alibaba's SenseVoice-Small</link> transcribes Japanese, Korean, Chinese and English speech on this device, so your voice never leaves it."
+      },
       "gpu": {
         "description": "Faster, with live previews as you speak. Needs the CPU version and a WebGPU-capable GPU.",
-        "label": "Parakeet (GPU)",
-        "labelWithSize": "Parakeet (GPU, {{size}})",
+        "label": "{{model}} (GPU)",
         "needsCpu": "Download the CPU version first."
       },
       "heading": "Speech-to-Text",
       "listUnavailable": "Speech downloads are unavailable right now. You can add them later in App Settings.",
       "lowSpace": "Not enough free space: downloads need {{size}} free.",
-      "models": "Speech recognition models",
       "notDownloaded": "Not downloaded",
       "progressLabel": "{{label}} download progress",
+      "recognizes": {
+        "parakeet": "Recognizes English only.",
+        "sensevoice": "Recognizes Japanese, Korean, Chinese and English. It listens for the app language; with the app in English, it detects which language you speak."
+      },
       "retryDownload": "Retry download",
       "turnedOff": "Speech recognition is turned off on this server.",
       "unavailableInBuild": "Unavailable in this build.",

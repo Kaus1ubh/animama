@@ -15,7 +15,12 @@ import { useProductTranslation } from "../i18n/product-translation";
 import { Button } from "./button";
 import { Textarea } from "./textarea";
 import { ShineBorder } from "./shine-border";
-import { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipDetails,
+  TooltipTrigger,
+} from "./tooltip";
 import {
   resolveChatInputSubmitState,
   type ChatInputSubmitMode,
@@ -83,6 +88,8 @@ interface ChatInputContextValue {
   onSubmit?: () => void;
   onVoice?: () => void;
   voiceAvailable?: boolean;
+  /** Lines under the Voice Mode tooltip, e.g. its speech engines. */
+  voiceModeDetails?: readonly string[] | null;
   loading?: boolean;
   onStop?: () => void;
   activeMicMode?: ChatInputMicMode | null;
@@ -127,6 +134,7 @@ function ChatInput({
   onSubmit,
   onVoice,
   voiceAvailable = true,
+  voiceModeDetails,
   loading,
   onStop,
   activeMicMode,
@@ -216,6 +224,7 @@ function ChatInput({
     onSubmit,
     onVoice,
     voiceAvailable,
+    voiceModeDetails,
     loading,
     onStop,
     activeMicMode,
@@ -592,7 +601,16 @@ function ChatInputSubmit({
   return (
     <Tooltip>
       <TooltipTrigger asChild>{button}</TooltipTrigger>
-      <TooltipContent side="bottom">{submitState.tooltip}</TooltipContent>
+      <TooltipContent side="bottom">
+        <TooltipDetails
+          title={submitState.tooltip}
+          lines={
+            submitState.action === "start-voice" && !submitState.disabled
+              ? context.voiceModeDetails
+              : null
+          }
+        />
+      </TooltipContent>
     </Tooltip>
   );
 }

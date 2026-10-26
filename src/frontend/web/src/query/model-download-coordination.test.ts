@@ -144,16 +144,20 @@ describe("attempt recovery hints", () => {
     expect(readAssetAttempts(owner)).toEqual([]);
     replacement.clear();
   });
-  it("knows both Parakeet sets but not the retired encoder asset", () => {
+  it("knows every offline speech set but not the retired encoder asset", () => {
     for (const asset of [
       "parakeet-stt",
       "parakeet-stt-webgpu",
       "parakeet-tdt-0.6b-v2-webgpu-encoder",
+      "sensevoice-stt",
+      "sensevoice-stt-webgpu",
     ])
       recordAssetAttempt(client, owner, asset, true);
     expect(readAssetAttempts(owner)).toEqual([
       "parakeet-stt",
       "parakeet-stt-webgpu",
+      "sensevoice-stt",
+      "sensevoice-stt-webgpu",
     ]);
   });
   it("clears explicit cancellation/removal without touching another owner", () => {
@@ -223,4 +227,11 @@ it("summarizes installed speech sets so capability changes are noticed", () => {
       set("parakeet-stt-webgpu", "installed"),
     ]),
   ).toBe("parakeet-stt,parakeet-stt-webgpu");
+  expect(
+    installedSpeechSets([
+      set("sensevoice-stt-webgpu", "installed"),
+      set("parakeet-stt", "installed"),
+      set("sensevoice-stt", "installed"),
+    ]),
+  ).toBe("parakeet-stt,sensevoice-stt,sensevoice-stt-webgpu");
 });

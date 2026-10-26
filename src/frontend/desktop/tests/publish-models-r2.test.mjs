@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
@@ -16,6 +16,7 @@ import {
   planModelPublication,
   publishModelObjects,
   stageModelCandidate,
+  verifiedModelSource,
 } from "../scripts/runtime/model-publication.mjs";
 import { sha256 as sha256File, writeJson } from "../scripts/runtime/common.mjs";
 import { writeArtifactIndex } from "../scripts/runtime/release-artifacts.mjs";
@@ -368,6 +369,25 @@ describe("model publication", () => {
       ).toThrow("catalog does not match");
     },
   );
+
+  it("asks for a SenseVoice acquisition from the published objects", () => {
+    // An empty home (LOCALAPPDATA on Windows) gives an empty default store.
+    const home = mkdtempSync(path.join(tmpdir(), "animama-empty-home-"));
+    vi.stubEnv("HOME", home);
+    vi.stubEnv("LOCALAPPDATA", home);
+    vi.stubEnv("XDG_CACHE_HOME", undefined);
+    vi.stubEnv("ANIMAMA_MODEL_ROOT", undefined);
+    try {
+      expect(() =>
+        verifiedModelSource({ modelId: "sensevoice-small" }),
+      ).toThrow(
+        "Acquire the set first: python3 scripts/models/sensevoice.py acquire",
+      );
+    } finally {
+      vi.unstubAllEnvs();
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
 
   it("addresses every file by its own SHA-256 under models/", () => {
     const candidate = staged();

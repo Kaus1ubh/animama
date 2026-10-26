@@ -1,10 +1,28 @@
 import { getI18n } from "react-i18next";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { renderToStaticMarkup } from "@/test/runtime-markup";
 import { SpeechLanguageNotice } from "@/ui/settings/SpeechLanguageNotice";
 
+const runtime = vi.hoisted(() => ({
+  capabilities: undefined as Record<string, unknown> | undefined,
+}));
+
+vi.mock("@/query/hooks/useRuntimeCapabilities", () => ({
+  useRuntimeCapabilities: () => ({ data: runtime.capabilities }),
+}));
+
+/** A local runtime with Parakeet and, optionally, SenseVoice installed. */
+const local = (senseVoice: boolean) => ({
+  local_filesystem_administration: true,
+  offline_speech_enabled: true,
+  offline_multilingual_speech_enabled: senseVoice,
+});
+
 describe("speech language notice", () => {
+  beforeEach(() => {
+    runtime.capabilities = local(false);
+  });
   afterEach(async () => {
     await getI18n().changeLanguage("en");
   });
@@ -21,28 +39,150 @@ describe("speech language notice", () => {
     expect(markup).toContain("Gemini");
   });
 
-  it("says Parakeet listens in English only", async () => {
-    await getI18n().changeLanguage("ko");
+  it.each(["parakeet", "parakeet_webgpu"])(
+    "asks for the language's offline model when %s has none",
+    async (provider) => {
+      await getI18n().changeLanguage("ko");
 
+      const markup = renderToStaticMarkup(
+        <SpeechLanguageNotice direction="speechToText" provider={provider} />,
+      );
+
+      expect(markup).toContain("한국어");
+      expect(markup).toContain(
+        getI18n().t("voice:languageNotice.speechToText", {
+          language: "한국어",
+        }),
+      );
+      expect(markup).not.toContain("Parakeet");
+    },
+  );
+
+  it.each([
+    ["ja", "日本語"],
+    ["zh-Hant", "繁體中文"],
+  ])(
+    "warns that a chosen Parakeet recognizes English only under %s",
+    async (locale, language) => {
+      runtime.capabilities = local(true);
+      await getI18n().changeLanguage(locale);
+
+      expect(
+        renderToStaticMarkup(
+          <SpeechLanguageNotice
+            direction="speechToText"
+            provider="parakeet"
+            engine="parakeet"
+          />,
+        ),
+      ).toContain(
+        getI18n().t("voice:languageNotice.speechToTextEnglishOnly", {
+          language,
+        }),
+      );
+    },
+  );
+
+  it("asks for SenseVoice's model when it is chosen under English without its set", () => {
     const markup = renderToStaticMarkup(
-      <SpeechLanguageNotice direction="speechToText" provider="parakeet" />,
+      <SpeechLanguageNotice
+        direction="speechToText"
+        provider="parakeet"
+        engine="sensevoice"
+      />,
     );
 
-    expect(markup).toContain("Parakeet");
-    expect(markup).toContain("한국어");
+    expect(markup).toContain(
+      getI18n().t("voice:languageNotice.speechToTextModel"),
+    );
+    runtime.capabilities = local(true);
+    expect(
+      renderToStaticMarkup(
+        <SpeechLanguageNotice
+          direction="speechToText"
+          provider="parakeet"
+          engine="sensevoice"
+        />,
+      ),
+    ).toBe("");
   });
 
-  it("shows nothing in English or for an engine that follows the language", async () => {
+  it("says when the operator does not provide the language's model", async () => {
+    runtime.capabilities = {
+      ...local(false),
+      local_filesystem_administration: false,
+    };
+    await getI18n().changeLanguage("zh-Hant");
+
+    expect(
+      renderToStaticMarkup(
+        <SpeechLanguageNotice direction="speechToText" provider="parakeet" />,
+      ),
+    ).toContain(
+      getI18n().t("voice:languageNotice.speechToTextUnavailable", {
+        language: "繁體中文",
+      }),
+    );
+  });
+
+  it("does not ask for a download when the operator turned the installed set off", async () => {
+    runtime.capabilities = {
+      ...local(false),
+      offline_multilingual_speech_asset_version: "fixture",
+    };
+    await getI18n().changeLanguage("ja");
+
+    expect(
+      renderToStaticMarkup(
+        <SpeechLanguageNotice direction="speechToText" provider="parakeet" />,
+      ),
+    ).toContain(
+      getI18n().t("voice:languageNotice.speechToTextUnavailable", {
+        language: "日本語",
+      }),
+    );
+  });
+
+  it("shows nothing once the language's offline model is installed", async () => {
+    runtime.capabilities = local(true);
+    await getI18n().changeLanguage("zh-Hans");
+
+    expect(
+      renderToStaticMarkup(
+        <SpeechLanguageNotice direction="speechToText" provider="parakeet" />,
+      ),
+    ).toBe("");
+  });
+
+  it("shows nothing in English, for the browser recognizers or while the runtime is unknown", async () => {
     expect(
       renderToStaticMarkup(
         <SpeechLanguageNotice direction="textToSpeech" provider="pocket_tts" />,
       ),
     ).toBe("");
-
-    await getI18n().changeLanguage("zh-Hans");
     expect(
       renderToStaticMarkup(
+        <SpeechLanguageNotice direction="speechToText" provider="parakeet" />,
+      ),
+    ).toBe("");
+
+    await getI18n().changeLanguage("zh-Hans");
+    for (const markup of [
+      renderToStaticMarkup(
         <SpeechLanguageNotice direction="textToSpeech" provider="gemini" />,
+      ),
+      renderToStaticMarkup(
+        <SpeechLanguageNotice
+          direction="speechToText"
+          provider="browser_external"
+        />,
+      ),
+    ])
+      expect(markup).toBe("");
+    runtime.capabilities = undefined;
+    expect(
+      renderToStaticMarkup(
+        <SpeechLanguageNotice direction="speechToText" provider="parakeet" />,
       ),
     ).toBe("");
   });

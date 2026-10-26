@@ -1,3 +1,4 @@
+import { STT_CHOICES, type SttChoice } from "@/lib/speech/stt-choices";
 import { DISPLAY_NAME_MAX_LENGTH } from "@/lib/user-profile/display-name";
 
 /** The three setup steps, in order. */
@@ -10,6 +11,9 @@ export type SetupModelLocation = "cloud" | "local";
 /** Default Text-to-Speech providers setup offers: built-in voices or ElevenLabs. */
 export type SetupTtsProvider = "pocket_tts" | "elevenlabs";
 
+/** The Voice step's Speech-to-Text choice (see `lib/speech/stt-choices`). */
+export type SetupSttChoice = SttChoice;
+
 /**
  * Nonsecret first-run choices. They survive a renderer replaced by a rare
  * fallback restart after a failed key delivery; losing them only means
@@ -18,6 +22,9 @@ export type SetupTtsProvider = "pocket_tts" | "elevenlabs";
  * `chatModelId` is the catalog row chosen in the AI step (null: none, so the
  * system default applies). `ttsProvider` stays null until the owner picks a
  * provider in the Voice step, so an untouched default is not written.
+ * `sttChoice` stays null until the owner picks a speech-to-text tab; Finish
+ * saves the recommended one when it is untouched, without an offline engine,
+ * so it keeps following the UI Locale.
  */
 export type SetupDraft = {
   step: SetupStep;
@@ -27,6 +34,7 @@ export type SetupDraft = {
   modelLocation: SetupModelLocation;
   chatModelId: string | null;
   ttsProvider: SetupTtsProvider | null;
+  sttChoice: SetupSttChoice | null;
 };
 
 type DraftStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
@@ -43,6 +51,7 @@ export const emptySetupDraft = (): SetupDraft => ({
   modelLocation: "cloud",
   chatModelId: null,
   ttsProvider: null,
+  sttChoice: null,
 });
 const draftKey = (ownerId: string) => `animama:setup-draft:${ownerId}`;
 
@@ -82,6 +91,7 @@ function parseDraft(value: unknown): SetupDraft {
       raw.ttsProvider === "pocket_tts" || raw.ttsProvider === "elevenlabs"
         ? raw.ttsProvider
         : null,
+    sttChoice: STT_CHOICES.find((choice) => choice === raw.sttChoice) ?? null,
   };
 }
 
@@ -114,6 +124,7 @@ export function writeSetupDraft(
       modelLocation: draft.modelLocation === "local" ? "local" : "cloud",
       chatModelId: draft.chatModelId?.slice(0, MAX_MODEL_ID_LENGTH) || null,
       ttsProvider: draft.ttsProvider,
+      sttChoice: draft.sttChoice,
     };
     volatileDraft = { ownerId, draft: parseDraft(projected) };
     if (!storage) return false;

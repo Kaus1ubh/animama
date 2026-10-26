@@ -9,9 +9,9 @@ exact inputs, and both current packs are deferred. Archive packs download from
 the [selected distribution](releases.md#distribution-selection), which must
 serve its pinned objects publicly before a download can succeed.
 
-Offline speech recognition (Parakeet), the downloadable Pocket voices and the
-voice-cloning encoder are not packs. The backend installs them in place, without
-restarting services or reloading windows; see
+Offline speech recognition (Parakeet and SenseVoice-Small), the downloadable
+Pocket voices and the voice-cloning encoder are not packs. The backend installs
+them in place, without restarting services or reloading windows; see
 [Speech model downloads](#speech-model-downloads).
 
 ## What each pack adds
@@ -79,14 +79,26 @@ files and retry Remove.
 
 ## Speech model downloads
 
-Setup and App Settings → **Voice** → **Speech-to-Text** show **Offline speech
-recognition (Parakeet)**. The main chat offers the same block when offline speech
-is missing; companion windows point to main-window Settings.
+App Settings → **Voice** → **Speech-to-Text** shows **Offline speech
+recognition** with one section per model, under the languages it understands;
+the model for the app's language comes first. Dictation and Voice Mode use the
+model for the app's language, chosen when they start. Setup's Voice step and
+the main chat's install hint offer only that model; companion windows point to
+main-window Settings.
 
-| Download         | Model asset           | Size     | Without it                                                                                                            |
-| ---------------- | --------------------- | -------- | --------------------------------------------------------------------------------------------------------------------- |
-| CPU model        | `parakeet-stt`        | ~661 MB  | Offline dictation and Voice Mode are unavailable. Text chat, avatars, PocketTTS and microphone permission still work. |
-| GPU acceleration | `parakeet-stt-webgpu` | ~1.24 GB | Recognition runs on the CPU without live previews.                                                                    |
+| Languages                 | Download         | Model asset             | Size     |
+| ------------------------- | ---------------- | ----------------------- | -------- |
+| English                   | CPU model        | `parakeet-stt`          | ~661 MB  |
+| English                   | GPU acceleration | `parakeet-stt-webgpu`   | ~1.24 GB |
+| Japanese, Korean, Chinese | CPU model        | `sensevoice-stt`        | ~240 MB  |
+| Japanese, Korean, Chinese | GPU acceleration | `sensevoice-stt-webgpu` | ~938 MB  |
+
+Without the CPU model for the app's language, offline dictation and Voice Mode
+are unavailable in that language; text chat, avatars, PocketTTS and microphone
+permission still work. Without GPU acceleration, recognition runs on the CPU
+without live previews. With Traditional Chinese as the app's language,
+recognition also understands Cantonese, and both are written in Traditional
+characters.
 
 The GPU add-on is always listed beneath the CPU model. Its action is disabled,
 with the reason, until the CPU model is installed and the device has a WebGPU
@@ -97,8 +109,8 @@ FastAPI keeps running, no window reloads and dictation works offline.
 
 Eve, Azelma and Michael are included voices. The other 35 voices download individually
 from the compact picker in Anima voice selection. **Voice Clone** contains the
-cloning encoder download; App Settings also reuses the Anima voice-cloning form
-there, after Text-to-Speech. Downloading or previewing changes neither the
+cloning encoder download; App Settings reuses the Anima voice-cloning form
+under the PocketTTS tab of Text-to-Speech. Downloading or previewing changes neither the
 provider nor the selected voice.
 
 These downloads use the backend model-asset service: every file is checked for
@@ -108,9 +120,9 @@ quit or service restart) keeps its verified bytes, and **Retry download** asks
 only for the rest. Closing the cloning dialog detaches that operation without
 cancelling a shared download.
 
-To remove offline speech, select **Remove GPU acceleration** (if installed),
-then **Remove CPU model**, confirming each. The CPU model cannot be removed
-while GPU acceleration is installed. Removal is refused with "Speech
+To remove a model, select its **Remove GPU acceleration** (if installed),
+then **Remove CPU model**, confirming each. A CPU model cannot be removed
+while its GPU acceleration is installed. Removal is refused with "Speech
 recognition is in use" while dictation or Voice Mode in another window still has
 the model loaded. Stop them or close that window, then retry; an idle model
 unloads after five minutes. To reinstall, remove the set and download it again;

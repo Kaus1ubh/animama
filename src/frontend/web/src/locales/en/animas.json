@@ -354,7 +354,6 @@
       },
       "deleted": "Voice clone deleted.",
       "download": {
-        "attribution": "Model attribution",
         "cancel": "Cancel download",
         "cancelling": "Cancelling…",
         "close": "Close",

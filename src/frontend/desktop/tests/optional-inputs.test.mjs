@@ -72,10 +72,12 @@ function fixture(modelId = base) {
 }
 
 describe("verified local model-set inputs for publication", () => {
-  it("pins each tracked Parakeet set to the exact payload the backend installs", () => {
+  it("pins each tracked speech-to-text set to the exact payload the backend installs", () => {
     for (const [modelId, count] of [
       [base, 7],
       [webgpu, 3],
+      ["sensevoice-small", 5],
+      ["sensevoice-small-webgpu", 3],
     ]) {
       const value = fixture(modelId);
       const manifest = modelManifest(value.spec, value.manifestFile);
@@ -90,6 +92,19 @@ describe("verified local model-set inputs for publication", () => {
         "model manifest",
       );
     }
+  });
+  it.each([
+    [base, "LicenseRef-FunASR-Model-License-1.1"],
+    ["sensevoice-small", "CC-BY-4.0"],
+  ])("rejects %s under another licence (%s)", (modelId, license) => {
+    const value = fixture(modelId);
+    writeJson(value.manifestFile, {
+      ...readJson(value.manifestFile),
+      license,
+    });
+    expect(() => modelManifest(value.spec, value.manifestFile)).toThrow(
+      "model manifest",
+    );
   });
   it.each([
     "missing",

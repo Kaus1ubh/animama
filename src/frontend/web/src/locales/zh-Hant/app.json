@@ -77,7 +77,7 @@
   },
   "dictation": {
     "errors": {
-      "audioWorkletParakeet": "本機 Parakeet 語音辨識需要 AudioWorklet 支援。",
+      "audioWorkletOffline": "離線語音辨識需要 AudioWorklet 支援。",
       "audioWorkletVad": "聲學 VAD 需要 AudioWorklet 支援。",
       "browser": {
         "aborted": "語音辨識已停止。",
@@ -91,11 +91,12 @@
       },
       "browserStartFailed": "無法啟動瀏覽器聽寫",
       "failed": "聽寫失敗",
+      "languageSpeechMissing": "請在設定中安裝此語言的離線語音辨識，以使用聽寫和語音模式。",
       "localWebSpeechNotEnabled": "無法啟用瀏覽器本機語音辨識",
       "localWebSpeechUnsupported": "不支援僅限本機的瀏覽器語音辨識",
+      "offlineSpeechFailed": "離線語音辨識失敗",
       "offlineSpeechMissing": "請在設定中安裝離線語音辨識，以使用聽寫和語音模式。",
-      "parakeetFailed": "本機 Parakeet 語音辨識失敗",
-      "transcriptionFailed": "本機 Parakeet 轉錄失敗",
+      "transcriptionFailed": "離線轉錄失敗",
       "unmuteFailed": "無法取消語音模式靜音",
       "webSpeechUnsupported": "此瀏覽器不支援 Web Speech API"
     }
@@ -122,6 +123,8 @@
     "items": {
       "speechToText": "語音轉文字（Parakeet CPU）",
       "speechToTextGpu": "語音轉文字（Parakeet GPU）",
+      "speechToTextSenseVoice": "語音轉文字（SenseVoice CPU）",
+      "speechToTextSenseVoiceGpu": "語音轉文字（SenseVoice GPU）",
       "voiceClone": "語音複製編碼器"
     },
     "ready": "{{item}}已就緒",

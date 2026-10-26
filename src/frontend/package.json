@@ -26,6 +26,7 @@
     "e2e:report": "node scripts/show-playwright-report.mjs",
     "e2e:install": "playwright install chromium",
     "web:dev": "pnpm --filter animama-web dev",
+    "speech:bench": "node scripts/speech-bench.mjs",
     "web:build": "pnpm --filter animama-web build",
     "web:build:hosted": "pnpm --filter animama-web build:hosted",
     "web:check": "pnpm --filter animama-web check",

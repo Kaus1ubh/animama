@@ -11,6 +11,7 @@ import {
   OfflineSpeechDownloadsView,
   modelChangeErrorText,
   requestModelChange,
+  useOfflineSpeechDownloads,
   type OfflineSpeechDownloadsViewProps,
 } from "./OfflineSpeechDownloads";
 import { VoiceDownloads } from "./VoiceDownloads";
@@ -28,18 +29,19 @@ const manager = vi.hoisted(() => ({
   } as Record<string, unknown>,
 }));
 
-vi.mock("@/lib/speech/client-parakeet/assets", async (importOriginal) => ({
-  ...(await importOriginal<
-    typeof import("@/lib/speech/client-parakeet/assets")
-  >()),
-  get PARAKEET_DOWNLOADS_OFFERED() {
+const clients = vi.hoisted(() => {
+  const client = () => ({
+    disposeIdle: vi.fn(async () => true),
+    getLastBackendState: () => null,
+    getWebgpuStatus: vi.fn(() => new Promise(() => undefined)),
+  });
+  return { parakeet: client(), sensevoice: client() };
+});
+vi.mock("@/lib/speech/offline-stt/clients", () => ({
+  offlineSttClients: clients,
+  get OFFLINE_SPEECH_DOWNLOADS_OFFERED() {
     return manager.offered;
   },
-}));
-vi.mock("@/lib/speech/client-parakeet/client", () => ({
-  disposeIdleClientParakeetWorker: vi.fn(async () => true),
-  getLastClientParakeetBackendState: () => null,
-  getParakeetWebgpuStatus: vi.fn(() => new Promise(() => undefined)),
 }));
 vi.mock("@/hooks/use-pocket-voice-downloads", () => ({
   usePocketVoiceDownloads: () => ({
@@ -87,9 +89,17 @@ const cpu = set("parakeet-stt", 661_332_409);
 const gpu = set("parakeet-stt-webgpu", 1_238_962_007, {
   requires: ["parakeet-stt"],
 });
+const senseVoiceCpu = set("sensevoice-stt", 241_000_000, {
+  license_ref: "FunASR-Model-License",
+});
+const senseVoiceGpu = set("sensevoice-stt-webgpu", 938_000_000, {
+  license_ref: "FunASR-Model-License",
+  requires: ["sensevoice-stt"],
+});
 const view = (extra: Partial<OfflineSpeechDownloadsViewProps> = {}) =>
   renderToStaticMarkup(
     <OfflineSpeechDownloadsView
+      engine="parakeet"
       cpu={cpu}
       gpu={gpu}
       freeBytes={40 * 1024 ** 3}
@@ -107,7 +117,9 @@ const disabled = (label: string) =>
 describe("offline speech recognition downloads", () => {
   it("offers a labelled, sized CPU download before install and always shows the GPU add-on", () => {
     const html = view();
-    expect(html).toContain("Offline speech recognition (Parakeet)");
+    expect(html).toContain("English");
+    expect(html).toContain("Parakeet TDT 0.6B v2 by NVIDIA");
+    expect(html).toContain("Model attribution (CC BY 4.0)");
     expect(html).toContain("CPU model");
     expect(html).toContain("630.7 MB download");
     expect(html).toMatch(enabled("Download CPU model"));
@@ -228,6 +240,29 @@ describe("offline speech recognition downloads", () => {
     }
   });
 
+  it("names SenseVoice's languages, model and licence for its sets", () => {
+    const html = view({
+      engine: "sensevoice",
+      cpu: senseVoiceCpu,
+      gpu: senseVoiceGpu,
+    });
+    expect(html).toContain("Japanese, Korean and Chinese");
+    expect(html).toContain("SenseVoice-Small by Alibaba");
+    expect(html).toContain("Model attribution (FunASR Model License)");
+    expect(html).toContain("FunASR");
+    expect(html).not.toContain("Parakeet");
+  });
+
+  it("says a set this runtime does not list is not available, once the list loads", () => {
+    const loaded = view({ cpu: undefined, gpu: undefined, listLoaded: true });
+    expect(loaded).toContain("Not available");
+    expect(loaded).not.toContain("Checking");
+    expect(loaded).toContain("GPU acceleration is unavailable in this build.");
+    expect(view({ cpu: undefined, gpu: undefined })).toContain(
+      "Checking offline speech recognition",
+    );
+  });
+
   it("never mentions reloading the app", () => {
     for (const html of [
       view(),
@@ -239,6 +274,25 @@ describe("offline speech recognition downloads", () => {
 });
 
 describe("sending a model change", () => {
+  it("releases the idle leases of the engine whose set is removed", async () => {
+    let props!: OfflineSpeechDownloadsViewProps;
+    function Probe() {
+      props = useOfflineSpeechDownloads("sensevoice");
+      return null;
+    }
+    renderToStaticMarkup(<Probe />);
+    expect(props.engine).toBe("sensevoice");
+    props.onChange("remove", "sensevoice-stt");
+    await vi.waitFor(() =>
+      expect(manager.mutate).toHaveBeenCalledWith(
+        { action: "remove", assetId: "sensevoice-stt" },
+        expect.anything(),
+      ),
+    );
+    expect(clients.sensevoice.disposeIdle).toHaveBeenCalledOnce();
+    expect(clients.parakeet.disposeIdle).not.toHaveBeenCalled();
+  });
+
   it("releases this page's idle leases before sending a removal", async () => {
     const order: string[] = [];
     let finishRelease!: () => void;
@@ -287,27 +341,66 @@ describe("sending a model change", () => {
 
 describe("where speech downloads are offered", () => {
   beforeEach(() => {
-    manager.assets = [cpu, gpu];
+    manager.assets = [cpu, gpu, senseVoiceCpu, senseVoiceGpu];
     manager.offered = true;
   });
-  it("shows the downloads in built apps", () => {
+  /** Engine section headings in document order. */
+  const engineOrder = (html: string) =>
+    [...html.matchAll(/<h4[^>]*>([^<]+)<\/h4>/gu)].map((match) => match[1]);
+  it("shows each engine's downloads in built apps, the UI Locale's first", async () => {
     const html = renderToStaticMarkup(
       <VoiceDownloads section="speech-to-text" />,
     );
-    expect(html).toContain("Download CPU model");
+    expect(html).toContain("Offline speech recognition</h3>");
+    expect(engineOrder(html)).toEqual([
+      "English",
+      "Japanese, Korean and Chinese",
+    ]);
+    expect(html.match(/>Download CPU model</gu)).toHaveLength(2);
     expect(html).toContain("Download GPU acceleration");
+    await getI18n().changeLanguage("ja");
+    try {
+      const t = getI18n().getFixedT(null, "voice");
+      expect(
+        engineOrder(renderToStaticMarkup(<OfflineSpeechDownloads />)),
+      ).toEqual([
+        t("offlineSpeech.engines.sensevoice.languages"),
+        t("offlineSpeech.engines.parakeet.languages"),
+      ]);
+    } finally {
+      await getI18n().changeLanguage("en");
+    }
+  });
+  it("shows only the UI Locale's engine where routed", async () => {
+    await getI18n().changeLanguage("ko");
+    try {
+      const html = renderToStaticMarkup(
+        <OfflineSpeechDownloads heading={false} routedOnly />,
+      );
+      expect(html).not.toContain("<h3");
+      expect(engineOrder(html)).toEqual([
+        getI18n().t("voice:offlineSpeech.engines.sensevoice.languages"),
+      ]);
+    } finally {
+      await getI18n().changeLanguage("en");
+    }
   });
   it("shows the acquire commands instead where Vite serves the operator's host sets", () => {
     manager.offered = false;
     const html = renderToStaticMarkup(<OfflineSpeechDownloads />);
     expect(html).toContain("scripts/models/parakeet.py acquire");
     expect(html).toContain("parakeet_webgpu.py acquire");
+    expect(html).toContain("scripts/models/sensevoice.py acquire");
+    expect(html).not.toContain("--source upstream");
+    expect(html).toContain("sensevoice_webgpu.py acquire");
     expect(html).not.toContain("<button");
   });
   it("keeps setup optional with only speech recognition and cloning sections", () => {
     manager.assets = [
       cpu,
       gpu,
+      senseVoiceCpu,
+      senseVoiceGpu,
       set("pocket-tts-voice-cloning-encoder", 39_768_446),
     ];
     const html = renderToStaticMarkup(<VoiceDownloads />);
@@ -344,6 +437,7 @@ describe("optional speech synthesis downloads", () => {
     expect(result).not.toContain("Browse voices");
     expect(result).toContain("Download voice cloning");
     expect(result).toContain("37.9 MB download");
+    expect(result).not.toContain("Model attribution</summary>");
     expect(result).not.toContain("Select Eve");
     expect(manager.mutate).not.toHaveBeenCalled();
   });

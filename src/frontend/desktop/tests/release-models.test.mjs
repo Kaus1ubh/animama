@@ -173,12 +173,14 @@ function currentRuntime(editCatalog = (catalog) => catalog) {
   return runtime;
 }
 
-it("derives all four current published model sets from the backend catalog alone", () => {
+it("derives all six current published model sets from the backend catalog alone", () => {
   expect(sealReleaseModelManifests({ runtime: currentRuntime() })).toEqual([
     "parakeet-tdt-0.6b-v2",
     "parakeet-tdt-0.6b-v2-webgpu",
     "pocket-tts-voice-cloning",
     "pocket-tts-voices",
+    "sensevoice-small",
+    "sensevoice-small-webgpu",
   ]);
 });
 

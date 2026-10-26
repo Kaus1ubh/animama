@@ -157,6 +157,12 @@
       "unavailable": "模型不可用。请选择其他模型。",
       "unavailableShort": "模型不可用",
       "webSearch": "网络搜索"
+    },
+    "speechEngines": {
+      "offline": "{{engine}} {{variant}}",
+      "stt": "STT：{{stt}}",
+      "tts": "TTS：{{tts}}",
+      "ttsOff": "关闭"
     }
   },
   "header": {

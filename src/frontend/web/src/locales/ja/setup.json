@@ -95,23 +95,19 @@
     "stt": {
       "checking": "音声認識を確認しています…",
       "cpu": {
-        "description": "<link>NVIDIA の Parakeet TDT 0.6B v2</link> が英語の音声をこのデバイス上で文字起こしするため、音声が外部に送られることはありません。",
-        "label": "Parakeet (CPU)",
-        "labelWithSize": "Parakeet (CPU、{{size}})"
+        "label": "{{model}} (CPU)"
       },
       "download": "ダウンロード",
       "downloaded": "ダウンロード済み",
       "downloading": "ダウンロード中 {{percent}}",
       "gpu": {
         "description": "高速で、話しながらライブプレビューを表示します。CPU 版と WebGPU 対応の GPU が必要です。",
-        "label": "Parakeet (GPU)",
-        "labelWithSize": "Parakeet (GPU、{{size}})",
+        "label": "{{model}} (GPU)",
         "needsCpu": "先に CPU 版をダウンロードしてください。"
       },
       "heading": "音声認識",
       "listUnavailable": "現在、音声のダウンロードを利用できません。後でアプリ設定から追加できます。",
       "lowSpace": "空き容量が不足しています。ダウンロードには {{size}} の空き容量が必要です。",
-      "models": "音声認識モデル",
       "notDownloaded": "未ダウンロード",
       "progressLabel": "{{label}} のダウンロード進行状況",
       "retryDownload": "ダウンロードを再試行",
@@ -122,6 +118,14 @@
         "available": "WebGPU を利用できます",
         "checking": "WebGPU を確認しています…",
         "unavailable": "このデバイスでは WebGPU を利用できません"
+      },
+      "engines": {
+        "parakeet": "<link>NVIDIA の Parakeet TDT 0.6B v2</link> が英語の音声をこのデバイス上で文字起こしするため、音声が外部に送られることはありません。",
+        "sensevoice": "<link>Alibaba の SenseVoice-Small</link> が日本語・韓国語・中国語・英語の音声をこのデバイス上で文字起こしするため、音声が外部に送られることはありません。"
+      },
+      "recognizes": {
+        "parakeet": "英語のみ認識します。",
+        "sensevoice": "日本語・韓国語・中国語・英語を認識します。アプリの言語で聞き取り、アプリが英語のときは話している言語を自動で判別します。"
       }
     },
     "tts": {

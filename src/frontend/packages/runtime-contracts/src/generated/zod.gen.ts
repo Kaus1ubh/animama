@@ -4407,7 +4407,7 @@ export const zPyOnboardingCompleteRequest = z.object({
         z.string().min(1).max(512),
         z.null()
     ])),
-    display_name: z.string().min(1).max(80)
+    display_name: z.string().min(1).max(30)
 });
 
 /**
@@ -5963,7 +5963,7 @@ export const zPyUserProfile = z.object({
  * PyUserProfileUpdate
  */
 export const zPyUserProfileUpdate = z.object({
-    display_name: z.string().min(1).max(80)
+    display_name: z.string().min(1).max(30)
 });
 
 /**
@@ -6780,6 +6780,15 @@ export const zRuntimeCapabilities = z.object({
     model_role_selection: z.boolean(),
     model_selection: z.boolean(),
     native_features: z.boolean(),
+    offline_multilingual_speech_asset_version: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    offline_multilingual_speech_enabled: z.optional(z.boolean()).default(false),
+    offline_multilingual_speech_gpu_asset_version: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
     offline_speech_asset_version: z.union([
         z.string(),
         z.null()

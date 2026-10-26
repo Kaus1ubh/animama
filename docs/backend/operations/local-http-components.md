@@ -26,7 +26,7 @@ Existing shared router dependencies and owner filters remain unchanged.
 | `config.py` | Immutable public origin, optional distinct desktop credentials, finite input limits. |
 | `admission.py` | Host/Origin/Fetch Metadata checks, capability and CSRF validation, HTTP receive limits, request accounting, receive-idle WebSocket cleanup. |
 | `lifecycle.py` | One completed bootstrap identity, admitted principal resolution, active-work drain without in-process resume. |
-| `assets.py` | Audited build files and Parakeet mounts resolved per request from installed model-asset sets; no private catalog lookup. |
+| `assets.py` | Audited build files and speech-to-text mounts (Parakeet and SenseVoice) resolved per request from installed model-asset sets; no private catalog lookup. |
 | `telemetry.py` | Optional fixed-destination OTLP forwarding with bounded input, output and deadlines. |
 | `protocol.py` | A narrow Uvicorn h11 hook adding the incomplete-header deadline. |
 | `composition.py` | Wiring, hidden infrastructure routes, preserved application lifespan and telemetry cleanup. |
@@ -62,10 +62,10 @@ means Vite owns frontend assets. Desktop requires both
 `ANIMAMA_DESKTOP_RENDERER_CAPABILITY` and `ANIMAMA_DESKTOP_CONTROL_TOKEN`.
 The frozen launcher also requires the web root and owned process start token,
 and checks that the public origin matches its actual loopback listener.
-`ANIMAMA_PARAKEET_SOURCE` selects where Parakeet sets come from: `asset-store`
-(the default) serves sets installed in the application's model-asset store,
-resolved on each request; `operator` (development Compose) serves none, because
-Vite serves the host sets.
+`ANIMAMA_PARAKEET_SOURCE` selects where both speech-to-text engines' sets come
+from: `asset-store` (the default) serves sets installed in the application's
+model-asset store, resolved on each request; `operator` (development Compose)
+serves none, because Vite serves the host sets.
 
 ## Request admission
 
@@ -194,8 +194,9 @@ receive immutable application caching. HTML uses a byte-derived ETag;
 unversioned assets require revalidation. MIME, HEAD and conditional responses
 are preserved. Ordinary static files retain the full-200 response to Range.
 
-Installed Parakeet files are served only beneath
-`/onnx/models/parakeet-tdt-0.6b-v2/` and `/onnx/models/parakeet-tdt-0.6b-v2-webgpu/`,
+Installed speech-to-text files are served only beneath
+`/onnx/models/parakeet-tdt-0.6b-v2/`, `/onnx/models/parakeet-tdt-0.6b-v2-webgpu/`,
+`/onnx/models/sensevoice-small/` and `/onnx/models/sensevoice-small-webgpu/`,
 from the exact installed inventory. An optional `v` parameter must occur once
 and match the installed set's manifest digest. Model
 delivery preserves digest ETags, HEAD, single byte ranges, If-Range and 416;

@@ -245,9 +245,9 @@ ANIMAMA_WEB_BUILD_MODE=production
 The built Docker target compiles optimized React assets and copies them to
 `/opt/animama/web`. FastAPI serves those files and the API from the same
 loopback application origin; no Node or Vite server runs in this graph.
-This graph does not mount the host Parakeet set: the app downloads both Parakeet
-sets into its data root through the backend model-asset service. The browser
-speech set is an optional build input; run
+This graph does not mount host speech-to-text sets: the app downloads the
+Parakeet and SenseVoice sets into its data root through the backend model-asset
+service. The browser speech set is an optional build input; run
 `python3 scripts/models/browser_speech.py acquire` to enable Pocket TTS and Smart
 Turn, and set `ANIMAMA_MODEL_ROOT` to an absolute persistent root when needed.
 `reset.sh` records that root and the exact immutable version directory of each
@@ -511,10 +511,10 @@ uv run python scripts/generate_synthetic_docs.py \
   --size large
 ```
 
-The `xxsmall`, `xsmall`, `small`, `large`, and `full` presets currently select
-approximately 0.04 MB, 0.08 MB, 0.17 MB, 0.33 MB, and 0.67 MB of UTF-8 source
-text. `xxsmall` and `xsmall` are curated to remain about one quarter and one
-half the size of `small`. `full` includes every Markdown file below
+The presets are nested: `xxsmall`, `xsmall`, `small`, and `large` are curated
+lists, with `xxsmall` and `xsmall` kept at about one quarter and one half of
+`small`'s UTF-8 source bytes and `large` at least 1.8 times `small`
+(`tests/test_generate_synthetic_docs.py` enforces these ratios). `full` includes every Markdown file below
 `docs/backend` and `docs/frontend` except files below a `plans`
 directory. Artifact sizes vary by format. Output defaults to the ignored
 `artifacts/synthetic-user-files` directory; use `--output-dir PATH` to override
@@ -1305,8 +1305,9 @@ python3 scripts/models/parakeet.py verify
 python3 scripts/models/browser_speech.py verify
 ```
 
-For missing sets, explicitly acquire or import them using
-[model setup](model-assets.md). Configure an absolute `ANIMAMA_MODEL_ROOT` when
+Add `python3 scripts/models/sensevoice.py verify` when the task needs offline
+Japanese, Korean or Chinese recognition. For missing sets, explicitly acquire
+or import them using [model setup](model-assets.md). Configure an absolute `ANIMAMA_MODEL_ROOT` when
 using a nondefault store, consistently for verification and reset. The model
 CLI does not read Compose environment files: export the same nonsecret root in
 the shell or pass `--root /absolute/model-store` to these verification commands. Models are
@@ -1652,12 +1653,14 @@ Core:
 - `ANIMAMA_WEB_ROOT` (absolute built React root; unset/blank for Vite development)
 - `ANIMAMA_DESKTOP_RENDERER_CAPABILITY`, `ANIMAMA_DESKTOP_CONTROL_TOKEN`
   (paired private desktop inputs; absent in normal self-host)
-- `ANIMAMA_PARAKEET_SOURCE` (`asset-store`, the default: FastAPI installs and
-  serves Parakeet sets from its model-asset store; `operator`: set by the
+- `ANIMAMA_PARAKEET_SOURCE` (where both speech-to-text engines' sets come
+  from. `asset-store`, the default: FastAPI installs and serves Parakeet and
+  SenseVoice sets from its model-asset store; `operator`: set by the
   development Compose override, where Vite serves the host sets that `reset.sh`
   mounts. `desktop:dev` against an external stack follows that stack.)
-- `ANIMAMA_PARAKEET_STT_ENABLED` (operator switch; `false` turns offline speech
-  off even with sets installed)
+- `ANIMAMA_PARAKEET_STT_ENABLED` and `ANIMAMA_SENSEVOICE_STT_ENABLED` (operator
+  switches; `false` turns offline English, or Japanese, Korean and Chinese,
+  speech recognition off even with sets installed)
 - `ANIMAMA_DATABASE_URL`
 - `ANIMAMA_DATABASE_POOL_SIZE`
 - `ANIMAMA_DATABASE_MAX_OVERFLOW`

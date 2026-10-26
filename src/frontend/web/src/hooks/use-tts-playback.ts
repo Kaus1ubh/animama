@@ -270,8 +270,6 @@ export function useTtsPlayback(
   const { effectivePreferences, settingsLoaded } = useSettings();
   const platform = useRuntimePlatform();
   const [isAudioActive, setIsAudioActive] = useState(false);
-  const shouldStreamTtsChunks =
-    effectivePreferences.speech?.tts_stream_chunks !== false;
   const {
     warmup: warmupPocketRuntime,
     preloadAnimaVoices: preloadPocketAnimaVoices,
@@ -623,12 +621,9 @@ export function useTtsPlayback(
         // starts mid-sentence, so keep browser TTS serialized after dispatch.
         return false;
       }
-      if (isFinalizedServerProvider(provider)) {
-        return false;
-      }
-      return shouldStreamTtsChunks;
+      return !isFinalizedServerProvider(provider);
     },
-    [shouldStreamTtsChunks],
+    [],
   );
 
   const resolveActiveProvider = useCallback(

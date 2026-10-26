@@ -25,7 +25,7 @@ def local_http_config(settings: Settings) -> LocalHTTPConfig:
 def local_assets(settings: Settings, application: FastAPI) -> LocalAssets | None:
     """Development leaves build serving to Vite; built installations supply it.
 
-    The ``asset-store`` Parakeet source serves sets installed in the
+    The ``asset-store`` speech model source serves sets installed in the
     application's model-asset store, resolved per request. The ``operator``
     source serves no models here: development's Vite serves the host sets.
     """

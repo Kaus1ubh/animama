@@ -1,6 +1,5 @@
 {
   "cloning": {
-    "attribution": "モデルの帰属表示",
     "changeFailed": "音声クローンモデルの変更が完了しませんでした。しばらくしてから再試行してください。",
     "checking": "音声クローンを確認しています…",
     "description": "自分のサンプルから名前付きの音声を作成します。",
@@ -33,7 +32,8 @@
     "errors": {
       "notReady": "インストールの準備ができていません。開き直してから再試行してください。",
       "statusUnavailable": "ダウンロードの状態を取得できません。開き直してから再試行してください。"
-    }
+    },
+    "remove": "削除"
   },
   "microphone": {
     "device": {
@@ -99,7 +99,6 @@
       "unknown": "ダウンロードが完了しませんでした。準備ができたら再試行してください。"
     },
     "gpu": {
-      "attribution": "モデルの帰属表示 (CC BY 4.0)",
       "blocked": {
         "checking": "WebGPU のサポートを確認しています…",
         "missing": "このビルドでは GPU アクセラレーションを利用できません。",
@@ -120,8 +119,20 @@
       "changeFailed": "変更を完了できませんでした。しばらくしてから再試行してください。",
       "inUse": "音声認識が使用中です。削除するには音声入力と音声モードを終了してください。"
     },
-    "title": "オフライン音声認識 (Parakeet)",
-    "turnedOff": "このサーバーではオフライン音声認識がオフになっています。"
+    "title": "オフライン音声認識",
+    "turnedOff": "このサーバーではオフライン音声認識がオフになっています。",
+    "engines": {
+      "parakeet": {
+        "languages": "英語",
+        "model": "NVIDIA の Parakeet TDT 0.6B v2",
+        "attribution": "モデルの帰属表示 (CC BY 4.0)"
+      },
+      "sensevoice": {
+        "languages": "日本語・韓国語・中国語",
+        "model": "Alibaba の SenseVoice-Small",
+        "attribution": "モデルの帰属表示 (FunASR Model License)"
+      }
+    }
   },
   "pocket": {
     "accents": {
@@ -176,7 +187,7 @@
     "stt": {
       "browserDesktopUnavailable": "デスクトップアプリではブラウザーの音声認識を利用できません。",
       "browserExternal": {
-        "description": "処理をベンダーが管理するブラウザーの音声認識です。",
+        "description": "Web Speech API によるブラウザーの音声認識です。",
         "label": "ブラウザー (外部)",
         "unsupported": "このブラウザーは Web Speech API に対応していません。"
       },
@@ -186,14 +197,25 @@
         "unsupported": "このブラウザーはローカル専用の Web Speech 認識に対応していません。"
       },
       "parakeet": {
-        "cpuLabel": "Parakeet (CPU)",
-        "descriptionBrowser": "このブラウザー内で動作するローカルの ONNX 音声認識です。",
-        "descriptionDesktop": "デスクトップアプリ内で動作するローカルの ONNX 音声認識です。",
+        "cpuLabel": "{{model}} (CPU)",
+        "descriptionBrowser": "アプリの言語に合わせ、{{model}} がこのブラウザー内で音声を認識します。",
+        "descriptionDesktop": "アプリの言語に合わせ、{{model}} がこのデバイス上で音声を認識します。",
         "notInstalled": "音声入力と音声モードを使うには、オフライン音声認識をインストールしてください。",
-        "unavailableBrowser": "現在、このブラウザーではローカルの Parakeet を利用できません。",
-        "webgpuDescription": "GPU 上で動作する試験的なローカル音声認識で、ライブプレビューを表示します。利用できない場合は CPU を使用します。",
-        "webgpuLabel": "Parakeet (WebGPU · 試験的)"
-      }
+        "unavailableBrowser": "このブラウザーでは現在オフライン音声認識を利用できません。",
+        "webgpuDescription": "{{model}} による GPU 上の試験的なローカル音声認識で、ライブプレビューを表示します。利用できない場合は CPU を使用します。",
+        "webgpuLabel": "{{model}} (WebGPU · 試験的)"
+      },
+      "browserLabel": "ブラウザー (内蔵)",
+      "enginesLabel": "音声認識エンジン",
+      "variantsLabel": "{{engine}} のバージョン",
+      "recommended": "おすすめ",
+      "variants": {
+        "cpu": "CPU",
+        "gpu": "GPU",
+        "cpuWithSize": "CPU ({{size}})",
+        "gpuWithSize": "GPU ({{size}})"
+      },
+      "browserLanguages": "<link>ほとんどの言語に対応しています。</link>"
     },
     "tts": {
       "audioWorkletUnsupported": "このブラウザーは AudioWorklet に対応していません。",
@@ -216,8 +238,10 @@
       "workersUnsupported": "このブラウザーは Web Workers に対応していません。",
       "gemini": {
         "description": "サーバーからストリーミングされる Gemini の音声です。"
-      }
-    }
+      },
+      "pocketBuiltIn": "PocketTTS (内蔵)"
+    },
+    "selected": "選択中"
   },
   "gemini": {
     "descriptors": {
@@ -246,7 +270,11 @@
     }
   },
   "languageNotice": {
-    "speechToText": "Parakeet は英語のみ聞き取れます。{{language}}の音声認識は近日対応予定です。",
-    "textToSpeech": "Pocket TTS は英語のみ話せます。Anima に{{language}}で話してもらうには、ElevenLabs または Gemini を選んでください。"
+    "speechToText": "{{language}}でオフライン音声認識を使うには、そのモデルをダウンロードしてください。",
+    "speechToTextEnglishOnly": "Parakeet は英語のみ認識します。{{language}}で Anima に話しかけるには、SenseVoice を選んでください。",
+    "speechToTextModel": "SenseVoice を使うには、そのモデルをダウンロードしてください。",
+    "speechToTextModelUnavailable": "このサーバーでは SenseVoice を利用できません。",
+    "textToSpeech": "Pocket TTS は英語のみ話せます。Anima に{{language}}で話してもらうには、ElevenLabs または Gemini を選んでください。",
+    "speechToTextUnavailable": "このサーバーでは{{language}}のオフライン音声認識を利用できません。"
   }
 }

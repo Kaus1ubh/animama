@@ -3,10 +3,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
-import {
-  PARAKEET_ASSET_ID,
-  PARAKEET_WEBGPU_ASSET_ID,
-} from "@/lib/speech/client-parakeet/assets";
+import { offlineSpeechAssetIds } from "@/lib/speech/offline-stt/asset-ids";
 import { POCKET_VOICE_ENCODER_ASSET_ID } from "@/lib/speech/pocket/voice-cloning-encoder";
 import {
   useModelAssets,
@@ -14,12 +11,19 @@ import {
 } from "@/query/hooks/useModelAssets";
 
 /** Large optional models whose downloads are reported outside Settings. */
-type ModelDownloadItem = "speechToText" | "speechToTextGpu" | "voiceClone";
+type ModelDownloadItem =
+  | "speechToText"
+  | "speechToTextGpu"
+  | "speechToTextSenseVoice"
+  | "speechToTextSenseVoiceGpu"
+  | "voiceClone";
 
 // Pocket voices are small and install on demand, so they are not reported.
 const REPORTED_ASSETS: Readonly<Record<string, ModelDownloadItem>> = {
-  [PARAKEET_ASSET_ID]: "speechToText",
-  [PARAKEET_WEBGPU_ASSET_ID]: "speechToTextGpu",
+  [offlineSpeechAssetIds.parakeet.base]: "speechToText",
+  [offlineSpeechAssetIds.parakeet.gpu]: "speechToTextGpu",
+  [offlineSpeechAssetIds.sensevoice.base]: "speechToTextSenseVoice",
+  [offlineSpeechAssetIds.sensevoice.gpu]: "speechToTextSenseVoiceGpu",
   [POCKET_VOICE_ENCODER_ASSET_ID]: "voiceClone",
 };
 
@@ -73,6 +77,10 @@ export function modelDownloadLabel(
       return t("modelDownloads.items.speechToText");
     case "speechToTextGpu":
       return t("modelDownloads.items.speechToTextGpu");
+    case "speechToTextSenseVoice":
+      return t("modelDownloads.items.speechToTextSenseVoice");
+    case "speechToTextSenseVoiceGpu":
+      return t("modelDownloads.items.speechToTextSenseVoiceGpu");
     case "voiceClone":
       return t("modelDownloads.items.voiceClone");
   }

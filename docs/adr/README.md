@@ -38,13 +38,15 @@ production readiness or publication rights.
 | 0021 | [Shared product HTTP routes for every composition](0021-shared-product-http-routes.md)                                                             | accepted                                                      |
 | 0022 | [Optional licensed sounds for built-in effects](0022-optional-licensed-effect-sounds.md)                                                           | proposed; amended by 0025 and on 2026-10-16                   |
 | 0023 | [Native Anthropic Messages provider](0023-native-anthropic-messages-provider.md)                                                                   | accepted                                                      |
-| 0024 | [The UI Locale is the conversation language](0024-ui-locale-is-the-conversation-language.md)                                                       | accepted                                                      |
+| 0024 | [The UI Locale is the conversation language](0024-ui-locale-is-the-conversation-language.md)                                                       | accepted; amended by 0029 and 0031                            |
 | 0025 | [Per-use Avatar Effect overrides](0025-per-use-avatar-effect-overrides.md)                                                                         | accepted                                                      |
 | 0026 | [One built-in Idle pool per Anima replaces Idle Style content](0026-built-in-idle-pool-per-anima.md)                                               | accepted                                                      |
 | 0027 | [Risk-tiered review and a single suite run per candidate](0027-risk-tiered-review-and-single-suite-run.md)                                         | accepted; amends 0006                                         |
 | 0028 | [Browser-cacheable runtime revision members](0028-cacheable-runtime-revision-members.md)                                                           | accepted                                                      |
+| 0029 | [SenseVoice-Small for Japanese, Korean and Chinese offline speech recognition](0029-sensevoice-offline-speech-recognition.md)                      | accepted; amended by 0031                                     |
 | 0030 | [An Anima's Gestures are its binding rows](0030-anima-gestures-are-binding-rows.md)                                                                | accepted                                                      |
-| 0031 | [VRM stays the Avatar container; ARKit shapes are a face capability](0031-vrm-container-with-arkit-face-shapes.md)                                 | accepted                                                      |
+| 0031 | [The offline speech engine is the owner's choice](0031-offline-speech-engine-is-the-owners-choice.md)                                              | accepted; amends 0024 and 0029                                |
+| 0032 | [VRM stays the Avatar container; ARKit shapes are a face capability](0032-vrm-container-with-arkit-face-shapes.md)                                 | accepted                                                      |
 
 ## When and how to record a decision
 

@@ -40,6 +40,11 @@ const parakeet = (status: string, downloaded?: number): Asset => ({
   total_bytes: downloaded === undefined ? null : 1000,
   bytes_downloaded: downloaded ?? null,
 });
+const senseVoiceGpu = (status: string): Asset => ({
+  id: "sensevoice-stt-webgpu",
+  status,
+  size_bytes: 937619109,
+});
 const encoder = (status: string): Asset => ({
   id: "pocket-tts-voice-cloning-encoder",
   status,
@@ -88,6 +93,7 @@ describe("useModelDownloads", () => {
   it("reports speech model downloads with progress and ignores Pocket voices", () => {
     fixture.assets = [
       parakeet("downloading", 420),
+      senseVoiceGpu("downloading"),
       encoder("downloading"),
       voice("downloading"),
     ];
@@ -98,6 +104,12 @@ describe("useModelDownloads", () => {
         item: "speechToText",
         sizeBytes: 661332409,
         progress: 0.42,
+      },
+      {
+        assetId: "sensevoice-stt-webgpu",
+        item: "speechToTextSenseVoiceGpu",
+        sizeBytes: 937619109,
+        progress: null,
       },
       {
         assetId: "pocket-tts-voice-cloning-encoder",

@@ -5,17 +5,17 @@ import { useFormatters } from "@animama/product-ui/i18n";
 import type { PyModelAssetState } from "@animama/runtime-contracts/api-types";
 
 import parakeetWebgpuAttribution from "../../../../../../models/parakeet-tdt-0.6b-v2-webgpu/ATTRIBUTION.md?raw";
+import senseVoiceAttribution from "../../../../../../models/sensevoice-small/ATTRIBUTION.md?raw";
+import { offlineSpeechAssetIds } from "@/lib/speech/offline-stt/asset-ids";
 import {
-  PARAKEET_ASSET_ID,
-  PARAKEET_DOWNLOADS_OFFERED,
-  PARAKEET_WEBGPU_ASSET_ID,
-} from "@/lib/speech/client-parakeet/assets";
+  OFFLINE_SPEECH_DOWNLOADS_OFFERED,
+  offlineSttClients,
+} from "@/lib/speech/offline-stt/clients";
 import {
-  disposeIdleClientParakeetWorker,
-  getLastClientParakeetBackendState,
-  getParakeetWebgpuStatus,
-} from "@/lib/speech/client-parakeet/client";
-import type { ParakeetWebgpuStatus } from "@/lib/speech/client-parakeet/webgpu";
+  routeOfflineSpeech,
+  type OfflineSttEngine,
+} from "@/lib/speech/offline-stt/routing";
+import type { WebgpuModelStatus } from "@/lib/speech/offline-stt/webgpu";
 import {
   useModelAssets,
   useOperatorManagedModelAssets,
@@ -91,7 +91,7 @@ export function gpuInstallBlockedReason({
 }: {
   gpu: PyModelAssetState | undefined;
   cpuInstalled: boolean;
-  support: ParakeetWebgpuStatus | null;
+  support: WebgpuModelStatus | null;
 }): string | null {
   const t = getI18n().getFixedT(null, "voice");
   if (!gpu) return t("offlineSpeech.gpu.blocked.missing");
@@ -103,12 +103,56 @@ export function gpuInstallBlockedReason({
 
 type Change = "install" | "cancel" | "remove";
 
+/** The reviewed attribution each engine's downloads show. */
+const ATTRIBUTIONS: Record<OfflineSttEngine, string> = {
+  parakeet: parakeetWebgpuAttribution,
+  sensevoice: senseVoiceAttribution,
+};
+
+/** How a Vite development stack acquires each engine's host sets. */
+const ACQUIRE_COMMANDS: Record<OfflineSttEngine, { cpu: string; gpu: string }> =
+  {
+    parakeet: {
+      cpu: "python3 scripts/models/parakeet.py acquire",
+      gpu: "parakeet_webgpu.py acquire",
+    },
+    sensevoice: {
+      cpu: "python3 scripts/models/sensevoice.py acquire",
+      gpu: "sensevoice_webgpu.py acquire",
+    },
+  };
+
+/** The engines in display order: `first` first. */
+function offlineSpeechEngineOrder(first: OfflineSttEngine): OfflineSttEngine[] {
+  return first === "parakeet"
+    ? ["parakeet", "sensevoice"]
+    : ["sensevoice", "parakeet"];
+}
+
+/** The languages an engine serves, its model and its attribution label. */
+function engineText(engine: OfflineSttEngine) {
+  const t = getI18n().getFixedT(null, "voice");
+  return engine === "parakeet"
+    ? {
+        languages: t("offlineSpeech.engines.parakeet.languages"),
+        model: t("offlineSpeech.engines.parakeet.model"),
+        attribution: t("offlineSpeech.engines.parakeet.attribution"),
+      }
+    : {
+        languages: t("offlineSpeech.engines.sensevoice.languages"),
+        model: t("offlineSpeech.engines.sensevoice.model"),
+        attribution: t("offlineSpeech.engines.sensevoice.attribution"),
+      };
+}
+
 export type OfflineSpeechDownloadsViewProps = {
+  /** The engine whose sets these are. */
+  engine: OfflineSttEngine;
   cpu: PyModelAssetState | undefined;
   gpu: PyModelAssetState | undefined;
   freeBytes?: number | null;
   /** WebGPU probe result; `null` while probing. */
-  gpuSupport: ParakeetWebgpuStatus | null;
+  gpuSupport: WebgpuModelStatus | null;
   retryAssetIds?: ReadonlySet<string>;
   /** A change request is in flight, or a feature pack change blocks downloads. */
   pending: boolean;
@@ -119,21 +163,27 @@ export type OfflineSpeechDownloadsViewProps = {
   gpuFellBack?: boolean;
   /** Unavailable list (`true`) differs from a list still loading. */
   listUnavailable?: boolean;
+  /**
+   * The list has loaded; a set it does not contain is not offered by this
+   * runtime (for example a hosted operator that provides only some engines).
+   */
+  listLoaded?: boolean;
   /** The server operator turned offline speech off, even with sets installed. */
   turnedOff?: boolean;
   /** The operator provides the sets; show their state without actions. */
   operatorManaged?: boolean;
-  heading?: boolean;
   onChange(change: Change, assetId: string): void;
 };
 
 /**
- * Offline speech recognition: the base (CPU) Parakeet set with its GPU
- * acceleration add-on, installed in place by the backend model-asset service.
- * The add-on is always shown; when it cannot be installed, its action is
- * disabled with the reason. Operator-managed sets show only their state.
+ * One offline engine's sets: the base (CPU) set with its GPU acceleration
+ * add-on, installed in place by the backend model-asset service, under the
+ * languages the engine serves. The add-on is always shown; when it cannot be
+ * installed, its action is disabled with the reason. Operator-managed sets
+ * show only their state.
  */
 export function OfflineSpeechDownloadsView({
+  engine,
   cpu,
   gpu,
   freeBytes,
@@ -144,14 +194,15 @@ export function OfflineSpeechDownloadsView({
   error,
   gpuFellBack = false,
   listUnavailable = false,
+  listLoaded = false,
   turnedOff = false,
   operatorManaged = false,
-  heading = true,
   onChange,
 }: OfflineSpeechDownloadsViewProps) {
   const { t } = useTranslation("voice");
+  const text = engineText(engine);
   // Without a list, the add-on's availability is still unknown.
-  const listReady = cpu !== undefined || gpu !== undefined;
+  const listReady = listLoaded || cpu !== undefined || gpu !== undefined;
   const cpuInstalled = cpu?.status === "installed";
   // The backend refuses CPU removal while the add-on is installed or downloading.
   const gpuActive =
@@ -159,15 +210,11 @@ export function OfflineSpeechDownloadsView({
   const errorFor = (assetId: string) =>
     error?.assetId === assetId ? error.message : null;
   return (
-    <section className="space-y-3" aria-label={t("offlineSpeech.title")}>
-      {heading ? (
-        <div className="space-y-1">
-          <h3 className="text-sm font-medium">{t("offlineSpeech.title")}</h3>
-          <p className="text-muted-foreground text-xs">
-            {t("offlineSpeech.description")}
-          </p>
-        </div>
-      ) : null}
+    <section className="space-y-3" aria-label={text.languages}>
+      <div className="space-y-0.5">
+        <h4 className="text-sm font-medium">{text.languages}</h4>
+        <p className="text-muted-foreground text-xs">{text.model}</p>
+      </div>
       {turnedOff && cpuInstalled ? (
         <p role="status" className="text-muted-foreground text-xs">
           {t("offlineSpeech.turnedOff")}
@@ -201,7 +248,9 @@ export function OfflineSpeechDownloadsView({
         <p role="status" className="text-muted-foreground text-xs">
           {listUnavailable
             ? t("offlineSpeech.listUnavailable")
-            : t("offlineSpeech.checking")}
+            : listReady
+              ? t("downloads.notAvailable")
+              : t("offlineSpeech.checking")}
         </p>
       )}
       <div className="border-border/60 space-y-2 border-l-2 pl-3">
@@ -239,11 +288,11 @@ export function OfflineSpeechDownloadsView({
         >
           <details className="text-xs">
             <summary className="text-muted-foreground cursor-pointer">
-              {t("offlineSpeech.gpu.attribution")}
+              {text.attribution}
             </summary>
             {/* Plain text keeps the reviewed notice compact inside a settings row. */}
             <pre className="text-muted-foreground mt-2 font-sans text-xs whitespace-pre-wrap">
-              {parakeetWebgpuAttribution.trim()}
+              {ATTRIBUTIONS[engine].trim()}
             </pre>
           </details>
         </ModelSetRow>
@@ -441,86 +490,113 @@ export async function requestModelChange(
 }
 
 /**
- * Offline speech downloads for packaged desktop and built self-host. Vite
- * development serves the operator's host sets instead, so it shows how to
- * acquire them.
+ * Offline speech downloads for packaged desktop and built self-host: each
+ * engine's sets, the one that runs first (`routedOnly` shows only that one).
+ * Vite development serves the operator's host sets instead, so it shows how
+ * to acquire them.
  */
 export function OfflineSpeechDownloads({
   heading = true,
+  engine,
+  routedOnly = false,
 }: {
   heading?: boolean;
+  /** The offline engine that runs; by default the UI Locale's. */
+  engine?: OfflineSttEngine;
+  routedOnly?: boolean;
 }) {
-  if (!PARAKEET_DOWNLOADS_OFFERED) return <HostSpeechModelsNote />;
-  return <OfflineSpeechDownloadsManager heading={heading} />;
+  // Read through `i18n` so the default order follows a language switch.
+  const { t, i18n } = useTranslation("voice");
+  const engines = offlineSpeechEngineOrder(
+    engine ?? routeOfflineSpeech(i18n.resolvedLanguage).engine,
+  );
+  return (
+    <section className="space-y-4" aria-label={t("offlineSpeech.title")}>
+      {heading ? (
+        <div className="space-y-1">
+          <h3 className="text-sm font-medium">{t("offlineSpeech.title")}</h3>
+          <p className="text-muted-foreground text-xs">
+            {t("offlineSpeech.description")}
+          </p>
+        </div>
+      ) : null}
+      {(routedOnly ? engines.slice(0, 1) : engines).map((engine) =>
+        OFFLINE_SPEECH_DOWNLOADS_OFFERED ? (
+          <OfflineSpeechDownloadsManager key={engine} engine={engine} />
+        ) : (
+          <HostSpeechModelsNote key={engine} engine={engine} />
+        ),
+      )}
+    </section>
+  );
 }
 
-/** How a Vite development stack acquires the host's speech model sets. */
-function HostSpeechModelsNote() {
+/** How a Vite development stack acquires an engine's host sets. */
+export function HostSpeechModelsNote({ engine }: { engine: OfflineSttEngine }) {
   const { t } = useTranslation("voice");
   return (
-    <p className="text-muted-foreground text-xs">
-      {t("offlineSpeech.developmentAcquire", {
-        cpuCommand: "python3 scripts/models/parakeet.py acquire",
-        gpuCommand: "parakeet_webgpu.py acquire",
-        resetCommand: "reset.sh",
-      })}
-    </p>
+    <section className="space-y-0.5" aria-label={engineText(engine).languages}>
+      <h4 className="text-sm font-medium">{engineText(engine).languages}</h4>
+      <p className="text-muted-foreground text-xs">
+        {t("offlineSpeech.developmentAcquire", {
+          cpuCommand: ACQUIRE_COMMANDS[engine].cpu,
+          gpuCommand: ACQUIRE_COMMANDS[engine].gpu,
+          resetCommand: "reset.sh",
+        })}
+      </p>
+    </section>
   );
 }
 
-function OfflineSpeechDownloadsManager({ heading }: { heading: boolean }) {
-  return (
-    <OfflineSpeechDownloadsView
-      {...useOfflineSpeechDownloads()}
-      heading={heading}
-    />
-  );
+function OfflineSpeechDownloadsManager({
+  engine,
+}: {
+  engine: OfflineSttEngine;
+}) {
+  return <OfflineSpeechDownloadsView {...useOfflineSpeechDownloads(engine)} />;
 }
 
 /**
- * The Parakeet sets' state and change actions, shared by Settings and the
+ * One engine's sets' state and change actions, shared by Settings and the
  * setup Voice step: the model-asset list, a WebGPU probe that reruns when the
  * GPU set settles, and the last failed change.
  */
-export function useOfflineSpeechDownloads(): Omit<
-  OfflineSpeechDownloadsViewProps,
-  "heading"
-> {
+export function useOfflineSpeechDownloads(
+  engine: OfflineSttEngine,
+): OfflineSpeechDownloadsViewProps {
   // Rerender on a UI Locale change, which rewords the blocked reason and error.
   useTranslation("voice");
   const assets = useModelAssets({ enabled: true });
   const capabilities = useRuntimeCapabilities();
   const operatorManaged = useOperatorManagedModelAssets();
   const action = useModelAssetAction();
-  const [gpuSupport, setGpuSupport] = useState<ParakeetWebgpuStatus | null>(
-    null,
-  );
+  const client = offlineSttClients[engine];
+  const ids = offlineSpeechAssetIds[engine];
+  const [gpuSupport, setGpuSupport] = useState<WebgpuModelStatus | null>(null);
   // The cause is kept so its wording follows the UI Locale.
   const [error, setError] = useState<{
     assetId: string;
     cause: unknown;
   } | null>(null);
-  const cpu = assets.data?.assets.find((item) => item.id === PARAKEET_ASSET_ID);
-  const gpu = assets.data?.assets.find(
-    (item) => item.id === PARAKEET_WEBGPU_ASSET_ID,
-  );
+  const cpu = assets.data?.assets.find((item) => item.id === ids.base);
+  const gpu = assets.data?.assets.find((item) => item.id === ids.gpu);
 
   // Probe again whenever the GPU set settles; it installs without a reload.
   const gpuStatus = gpu?.status;
   useEffect(() => {
     let cancelled = false;
-    void getParakeetWebgpuStatus({ refresh: true }).then((next) => {
+    void client.getWebgpuStatus({ refresh: true }).then((next) => {
       if (!cancelled) setGpuSupport(next);
     });
     return () => {
       cancelled = true;
     };
-  }, [gpuStatus]);
+  }, [client, gpuStatus]);
 
   const change = (operation: Change, assetId: string) => {
     setError(null);
     return requestModelChange(operation, assetId, {
-      releaseIdleLeases: disposeIdleClientParakeetWorker,
+      releaseIdleLeases: client.disposeIdle,
       send: (request) =>
         action.mutate(request, {
           onError: (cause) => setError({ assetId, cause }),
@@ -528,7 +604,16 @@ export function useOfflineSpeechDownloads(): Omit<
     });
   };
 
+  const data = capabilities.data;
+  const [enabled, version] =
+    engine === "parakeet"
+      ? [data?.offline_speech_enabled, data?.offline_speech_asset_version]
+      : [
+          data?.offline_multilingual_speech_enabled,
+          data?.offline_multilingual_speech_asset_version,
+        ];
   return {
+    engine,
     cpu,
     gpu,
     freeBytes: assets.data?.free_bytes,
@@ -540,14 +625,12 @@ export function useOfflineSpeechDownloads(): Omit<
       assetId: error.assetId,
       message: modelChangeErrorText(error.cause),
     },
-    gpuFellBack:
-      getLastClientParakeetBackendState()?.fellBackFromWebgpu ?? false,
+    gpuFellBack: client.getLastBackendState()?.fellBackFromWebgpu ?? false,
     listUnavailable: assets.isError,
+    listLoaded: assets.data !== undefined,
     // Installed (a version is reported) yet disabled: the operator's flag.
     // Stale data from before an install reports no version.
-    turnedOff:
-      capabilities.data?.offline_speech_enabled === false &&
-      Boolean(capabilities.data.offline_speech_asset_version),
+    turnedOff: enabled === false && Boolean(version),
     operatorManaged,
     onChange: (operation, assetId) => void change(operation, assetId),
   };

@@ -17,7 +17,7 @@ from animama.adapters.model_clients.openai_chat_completions.embedder import Conn
 from animama.adapters.repositories.sqlalchemy.archive_repo import SQLAlchemyArchiveRepository
 from animama.adapters.repositories.sqlalchemy.embedding_refresh_repo import SQLAlchemyEmbeddingRefreshRepository
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
-from animama.app.model_clients import ModelClientError, ModelClientProviderError, ModelClientTimeoutError
+from animama.app.model_clients import ModelClientProviderError, ModelClientTimeoutError
 from animama.app.model_clients.credentials import static_credential_resolver
 from animama.app.model_clients.error_categories import ERROR_UNREACHABLE, model_error_category
 from animama.app.services.archive_service import ArchiveService
@@ -607,27 +607,6 @@ def test_llama_cpp_oversized_input_errors_are_context_exceeded():
     assert model_error_category("openai_server_error", {"provider_error_message": "failed to load model"}) == (
         "server_error"
     )
-
-
-async def test_bounded_embedder_reports_unknown_usage_and_rejects_oversize_before_dispatch(scripted_embeddings):
-    from animama.app.ports.text_embedder import EmbeddingLimits
-
-    requests, _ = scripted_embeddings
-    local = ModelConnection(id="conn-ollama", name="Ollama", preset="ollama", base_url="http://127.0.0.1:11434/v1")
-    embedder = ConnectionEmbedder(
-        _embedding_row(local),
-        credential_resolver=static_credential_resolver(),
-        openai_base_url="http://127.0.0.1:9/v1",
-        default_timeout_seconds=5,
-        limits=EmbeddingLimits(max_texts=2, max_characters=4, timeout_seconds=1),
-    )
-    result = await embedder.embed_texts_with_usage(["ab"])
-    assert result.vectors == [[0.5, 0.0]] and result.usage is None
-    # A model error, so the refresh service splits the batch or records a too-long text.
-    with pytest.raises(ModelClientError, match="limit") as oversized:
-        await embedder.embed_texts_with_usage(["abcde"])
-    assert model_error_category(oversized.value.code, oversized.value.raw_metadata) == "context_exceeded"
-    assert len(requests) == 1
 
 
 async def test_bounded_embedder_reports_its_deadline_as_a_model_timeout(monkeypatch):

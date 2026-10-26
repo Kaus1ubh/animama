@@ -5,6 +5,7 @@ import {
   DEFAULT_ELEVENLABS_TTS_MODEL_ID,
   isParakeetWebgpuPreferred,
   mergePreferences,
+  offlineSttEnginePreference,
   modelRolePatch,
   modelRolePreferencePath,
   readModelRoleId,
@@ -131,6 +132,30 @@ describe("isParakeetWebgpuPreferred", () => {
     expect(
       isParakeetWebgpuPreferred({ speech: { stt_parakeet_webgpu: true } }),
     ).toBe(true);
+  });
+});
+
+describe("offlineSttEnginePreference", () => {
+  it("reads a saved engine and treats anything else as following the app language", () => {
+    expect(offlineSttEnginePreference(null)).toBeNull();
+    expect(offlineSttEnginePreference(DEFAULT_ANIMAMA_PREFERENCES)).toBeNull();
+    expect(
+      offlineSttEnginePreference({
+        speech: { stt_offline_engine: "sensevoice" },
+      }),
+    ).toBe("sensevoice");
+    expect(
+      offlineSttEnginePreference({
+        speech: { stt_offline_engine: "parakeet" },
+      }),
+    ).toBe("parakeet");
+    // Saved preferences are untyped JSON.
+    for (const value of ["whisper", "", 1, null])
+      expect(
+        offlineSttEnginePreference({
+          speech: { stt_offline_engine: value as never },
+        }),
+      ).toBeNull();
   });
 });
 

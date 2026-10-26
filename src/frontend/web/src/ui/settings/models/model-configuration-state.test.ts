@@ -34,6 +34,7 @@ import {
   removalUsageSummary,
   roleCandidates,
   draftAfterProbe,
+  visibleModelLocations,
 } from "./model-configuration-state";
 import {
   alternateModelIds,
@@ -347,7 +348,26 @@ describe("Cloud and Local tabs", () => {
     credential_state?: PyModelConnection["credential_state"];
   };
 
-  it("offers the planned providers on each tab, OpenAI recommended", () => {
+  it("offers Local only behind its flag or for an existing local connection", () => {
+    const cloud: Conn = {
+      source: "owner",
+      preset: "openrouter",
+      base_url: "https://openrouter.ai/api/v1",
+    };
+    const lan: Conn = {
+      source: "owner",
+      preset: "custom",
+      base_url: "http://192.168.1.20:11434/v1",
+    };
+    expect(visibleModelLocations([cloud], false)).toEqual(["cloud"]);
+    expect(visibleModelLocations([cloud], true)).toEqual(["cloud", "local"]);
+    expect(visibleModelLocations([cloud, lan], false)).toEqual([
+      "cloud",
+      "local",
+    ]);
+  });
+
+  it("offers the planned providers on each tab, OpenAI and Anthropic recommended", () => {
     expect(MODEL_LOCATION_TABS.map(modelLocationLabel)).toEqual([
       "Cloud",
       "Local",
@@ -369,7 +389,10 @@ describe("Cloud and Local tabs", () => {
     ]);
     expect(
       MODEL_LOCATION_PROVIDERS.cloud.filter((entry) => entry.recommended),
-    ).toEqual([expect.objectContaining({ id: "openai" })]);
+    ).toEqual([
+      expect.objectContaining({ id: "openai" }),
+      expect.objectContaining({ id: "anthropic" }),
+    ]);
   });
 
   it("puts the built-in connection and cloud presets on Cloud, local servers on Local", () => {

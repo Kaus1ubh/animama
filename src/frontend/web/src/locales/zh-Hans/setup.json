@@ -95,23 +95,19 @@
     "stt": {
       "checking": "正在检查语音识别…",
       "cpu": {
-        "description": "<link>NVIDIA 的 Parakeet TDT 0.6B v2</link> 在此设备上转写英语语音，你的声音不会离开此设备。",
-        "label": "Parakeet（CPU）",
-        "labelWithSize": "Parakeet（CPU，{{size}}）"
+        "label": "{{model}}（CPU）"
       },
       "download": "下载",
       "downloaded": "已下载",
       "downloading": "正在下载 {{percent}}",
       "gpu": {
         "description": "速度更快，说话时可实时预览。需要 CPU 版本和支持 WebGPU 的 GPU。",
-        "label": "Parakeet（GPU）",
-        "labelWithSize": "Parakeet（GPU，{{size}}）",
+        "label": "{{model}}（GPU）",
         "needsCpu": "请先下载 CPU 版本。"
       },
       "heading": "语音转文本",
       "listUnavailable": "语音下载暂时不可用。你可以稍后在应用设置中添加。",
       "lowSpace": "可用空间不足：下载需要 {{size}} 可用空间。",
-      "models": "语音识别模型",
       "notDownloaded": "未下载",
       "progressLabel": "{{label}} 下载进度",
       "retryDownload": "重试下载",
@@ -122,6 +118,14 @@
         "available": "WebGPU 可用",
         "checking": "正在检查 WebGPU…",
         "unavailable": "此设备上 WebGPU 不可用"
+      },
+      "engines": {
+        "parakeet": "<link>NVIDIA 的 Parakeet TDT 0.6B v2</link> 在此设备上转写英语语音，你的声音不会离开此设备。",
+        "sensevoice": "<link>阿里巴巴的 SenseVoice-Small</link> 在此设备上转写日语、韩语、中文和英语语音，你的声音不会离开此设备。"
+      },
+      "recognizes": {
+        "parakeet": "仅识别英语。",
+        "sensevoice": "可识别日语、韩语、中文和英语。它按应用语言识别；应用语言为英语时，会自动检测你说的语言。"
       }
     },
     "tts": {

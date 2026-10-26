@@ -38,6 +38,7 @@ import {
   webSearchAvailability,
 } from "@/lib/chat/model-provider-native-tools";
 import { chatModelSendGate } from "@/lib/chat/model-provider-compatibility";
+import { env } from "@/platform/env";
 
 /**
  * Models that can do a role, mirroring the server's rules: embeddings need an
@@ -71,6 +72,24 @@ export type ModelLocation = "cloud" | "local";
 /** The two tabs of the Models section, in order. */
 export const MODEL_LOCATION_TABS: readonly ModelLocation[] = ["cloud", "local"];
 
+/**
+ * The location tabs to offer. Local is hidden unless `VITE_ENABLE_LOCAL_MODELS`
+ * is set at build time, but stays offered while the owner has a connection
+ * there, so an existing local server remains editable and removable.
+ */
+export function visibleModelLocations(
+  connections: readonly Pick<
+    PyModelConnection,
+    "source" | "preset" | "base_url"
+  >[],
+  localModelsEnabled: boolean = env.enableLocalModels,
+): readonly ModelLocation[] {
+  return localModelsEnabled ||
+    connections.some((connection) => connectionLocation(connection) === "local")
+    ? MODEL_LOCATION_TABS
+    : ["cloud"];
+}
+
 /** A location tab's name in the active UI Locale. */
 export function modelLocationLabel(location: ModelLocation): string {
   const t = getI18n().getFixedT(null, "models");
@@ -102,7 +121,7 @@ export type ModelProviderEntry = {
   presetId: string;
   /** The provider's product name; `null` for the translated "Custom". */
   name: string | null;
-  /** Shown with a Recommended tag (the built-in OpenAI connection). */
+  /** Shown with a Recommended tag (the built-in OpenAI and Anthropic connections). */
   recommended?: boolean;
 };
 
@@ -122,7 +141,12 @@ export const MODEL_LOCATION_PROVIDERS: Record<
       name: "OpenAI",
       recommended: true,
     },
-    { id: "anthropic", presetId: ANTHROPIC_PRESET, name: "Anthropic" },
+    {
+      id: "anthropic",
+      presetId: ANTHROPIC_PRESET,
+      name: "Anthropic",
+      recommended: true,
+    },
     { id: "deepseek", presetId: "deepseek", name: "DeepSeek" },
     { id: "huggingface", presetId: "huggingface", name: "Hugging Face" },
     { id: "openrouter", presetId: "openrouter", name: "OpenRouter" },

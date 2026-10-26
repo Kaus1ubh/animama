@@ -1,17 +1,17 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  type ParakeetPreviewConfig,
-  type ParakeetPreviewEvent,
-  createParakeetPreviewController,
-  shouldEnableParakeetPreviews,
+  type SpeechPreviewConfig,
+  type SpeechPreviewEvent,
+  createSpeechPreviewController,
+  shouldEnableSpeechPreviews,
 } from "./preview-controller";
 
 const SAMPLE_RATE = 16000;
 const FRAME_SAMPLES = 512; // 32 ms MicVAD v5 frame
 const FRAME_MS = (FRAME_SAMPLES / SAMPLE_RATE) * 1000;
 
-const CONFIG: ParakeetPreviewConfig = {
+const CONFIG: SpeechPreviewConfig = {
   sampleRateHz: SAMPLE_RATE,
   preSpeechPadMs: 64,
   firstPreviewMs: 320,
@@ -30,15 +30,15 @@ type Deferred = {
 };
 
 function setup(
-  config: Partial<ParakeetPreviewConfig> = {},
+  config: Partial<SpeechPreviewConfig> = {},
   shouldPreview?: (turnId: string) => boolean,
 ) {
   let nowMs = 0;
   const requests: Deferred[] = [];
   const previews: Array<{ turnId: string; windowId: string; text: string }> =
     [];
-  const events: ParakeetPreviewEvent[] = [];
-  const controller = createParakeetPreviewController({
+  const events: SpeechPreviewEvent[] = [];
+  const controller = createSpeechPreviewController({
     config: { ...CONFIG, ...config },
     now: () => nowMs,
     transcribe: ({ audio, turnId, windowId }) =>
@@ -76,7 +76,7 @@ function setup(
   return { controller, requests, previews, events, pushFrames };
 }
 
-describe("createParakeetPreviewController", () => {
+describe("createSpeechPreviewController", () => {
   it("waits for the first-preview threshold before decoding", () => {
     const { controller, requests, pushFrames } = setup();
     controller.startWindow({ turnId: "t1", windowId: "w1" });
@@ -324,9 +324,9 @@ describe("createParakeetPreviewController", () => {
   });
 });
 
-describe("shouldEnableParakeetPreviews", () => {
+describe("shouldEnableSpeechPreviews", () => {
   it("enables previews only on the WebGPU backend", () => {
-    expect(shouldEnableParakeetPreviews("webgpu")).toBe(true);
-    expect(shouldEnableParakeetPreviews("wasm")).toBe(false);
+    expect(shouldEnableSpeechPreviews("webgpu")).toBe(true);
+    expect(shouldEnableSpeechPreviews("wasm")).toBe(false);
   });
 });

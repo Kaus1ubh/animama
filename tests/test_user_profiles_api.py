@@ -66,7 +66,7 @@ async def test_profile_can_start_unnamed_but_updates_require_a_private_name(asyn
 
 
 @pytest.mark.parametrize(
-    "payload", [{}, {"display_name": None}, {"display_name": ""}, {"display_name": " \t "}, {"display_name": "x" * 81}]
+    "payload", [{}, {"display_name": None}, {"display_name": ""}, {"display_name": " \t "}, {"display_name": "x" * 31}]
 )
 async def test_profile_patch_cannot_clear_the_required_name(async_session, payload) -> None:
     owner_id = await _seed_owner(async_session)

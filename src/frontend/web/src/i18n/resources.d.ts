@@ -835,7 +835,6 @@ export default interface Resources {
         },
         "deleted": "Voice clone deleted.",
         "download": {
-          "attribution": "Model attribution",
           "cancel": "Cancel download",
           "cancelling": "Cancelling…",
           "close": "Close",
@@ -1045,7 +1044,7 @@ export default interface Resources {
     },
     "dictation": {
       "errors": {
-        "audioWorkletParakeet": "AudioWorklet support is required for local Parakeet speech recognition.",
+        "audioWorkletOffline": "AudioWorklet support is required for offline speech recognition.",
         "audioWorkletVad": "AudioWorklet support is required for acoustic VAD.",
         "browser": {
           "aborted": "Speech recognition was stopped.",
@@ -1059,11 +1058,12 @@ export default interface Resources {
         },
         "browserStartFailed": "Failed to start browser dictation",
         "failed": "Dictation failed",
+        "languageSpeechMissing": "Install offline speech recognition for this language in Settings to use dictation and Voice Mode.",
         "localWebSpeechNotEnabled": "Local browser speech recognition could not be enabled",
         "localWebSpeechUnsupported": "Local-only browser speech recognition is not supported",
+        "offlineSpeechFailed": "Offline speech recognition failed",
         "offlineSpeechMissing": "Install offline speech recognition in Settings to use dictation and Voice Mode.",
-        "parakeetFailed": "Local Parakeet speech recognition failed",
-        "transcriptionFailed": "Local Parakeet transcription failed",
+        "transcriptionFailed": "Offline transcription failed",
         "unmuteFailed": "Failed to unmute voice mode",
         "webSpeechUnsupported": "Web Speech API is not supported in this browser"
       }
@@ -1091,6 +1091,8 @@ export default interface Resources {
       "items": {
         "speechToText": "Speech-to-Text (Parakeet CPU)",
         "speechToTextGpu": "Speech-to-Text (Parakeet GPU)",
+        "speechToTextSenseVoice": "Speech-to-Text (SenseVoice CPU)",
+        "speechToTextSenseVoiceGpu": "Speech-to-Text (SenseVoice GPU)",
         "voiceClone": "Voice Clone encoder"
       },
       "ready": "{{item}} ready"
@@ -1350,6 +1352,12 @@ export default interface Resources {
         "unavailable": "Model unavailable. Select another model.",
         "unavailableShort": "Model unavailable",
         "webSearch": "Web search"
+      },
+      "speechEngines": {
+        "offline": "{{engine}} {{variant}}",
+        "stt": "STT: {{stt}}",
+        "tts": "TTS: {{tts}}",
+        "ttsOff": "Off"
       }
     },
     "header": {
@@ -1453,7 +1461,6 @@ export default interface Resources {
       "resetAll": "Reset all",
       "show": "Show"
     },
-    "beta": "Beta",
     "connection": {
       "reconnecting": "Reconnecting to Animama. Requests are paused; saved creator drafts are kept if you reload, unsent chat text is not."
     }
@@ -6029,11 +6036,9 @@ export default interface Resources {
       "profile": "Profile",
       "speechToText": "Speech-to-Text",
       "textToSpeech": "Text-to-Speech",
-      "voiceClone": "Voice Clone",
       "webSearch": "Web search"
     },
     "language": {
-      "description": "The language of Animama and of your Animas: menus, messages, and what your Animas say and hear. Beta languages are machine-translated.",
       "keywords": ["language", "locale", "translation"],
       "label": "Language",
       "saveFailed": "Failed to change the language.",
@@ -6096,7 +6101,6 @@ export default interface Resources {
       "advanced": "Advanced",
       "apiKeys": "API Keys",
       "appearance": "Appearance",
-      "data": "Data",
       "general": "General",
       "memoryEmotion": "Memory & Emotion",
       "models": "Models",
@@ -6171,26 +6175,20 @@ export default interface Resources {
         "test": "Test microphone"
       },
       "stt": {
-        "downloads": "Offline speech downloads",
         "entryLabel": "Speech-to-Text provider",
-        "label": "Provider",
-        "parakeetWebgpu": "Parakeet (WebGPU)",
-        "placeholder": "Select provider",
         "preparing": "Preparing provider defaults...",
         "updateFailed": "Failed to update STT provider."
       },
       "tts": {
         "elevenLabs": {
           "key": {
-            "description": "Needed for ElevenLabs voices. Encrypted on this computer and also in API Keys.",
-            "label": "ElevenLabs API key"
+            "description": "Needed for ElevenLabs voices. Encrypted on this computer and also in API Keys."
           }
         },
         "enable": "Enable Text-to-Speech",
         "gemini": {
           "key": {
-            "description": "Needed for Gemini voices. Encrypted on this computer and also in API Keys.",
-            "label": "Gemini API key"
+            "description": "Needed for Gemini voices. Encrypted on this computer and also in API Keys."
           },
           "model": {
             "descriptions": {
@@ -6198,7 +6196,7 @@ export default interface Resources {
               "flashLite": "Lower-latency, lower-cost Gemini speech."
             },
             "label": "Gemini model",
-            "note": "Google bills Gemini speech to your API key. Choose each Anima's voice in Behavior → Voices.",
+            "note": "Google bills Gemini speech to your API key.",
             "placeholder": "Select model",
             "updateFailed": "Failed to update Gemini model."
           }
@@ -6208,19 +6206,11 @@ export default interface Resources {
           "ariaLabel": "Text-to-Speech provider",
           "enableFirst": "Enable Text-to-Speech to select a provider.",
           "entryLabel": "Default Text-to-Speech provider",
-          "label": "Default provider",
-          "note": "Used by Animas without their own provider. Choose providers and voices for each Anima in Behavior → Voices.",
+          "note": "Used by Animas without their own provider.",
           "updateFailed": "Failed to update TTS provider."
         },
-        "stream": {
-          "description": "Start speaking before the full response is ready.",
-          "label": "Stream chunked Text-to-Speech",
-          "unavailable": "Unavailable with Gemini.",
-          "updateFailed": "Failed to update TTS streaming mode."
-        },
         "updateFailed": "Failed to update TTS settings."
-      },
-      "voiceClone": "Voice Clone"
+      }
     }
   },
   "setup": {
@@ -6320,25 +6310,29 @@ export default interface Resources {
       "stt": {
         "checking": "Checking speech recognition…",
         "cpu": {
-          "description": "<link>NVIDIA's Parakeet TDT 0.6B v2</link> transcribes English speech on this device, so your voice never leaves it.",
-          "label": "Parakeet (CPU)",
-          "labelWithSize": "Parakeet (CPU, {{size}})"
+          "label": "{{model}} (CPU)"
         },
         "download": "Download",
         "downloaded": "Downloaded",
         "downloading": "Downloading {{percent}}",
+        "engines": {
+          "parakeet": "<link>NVIDIA's Parakeet TDT 0.6B v2</link> transcribes English speech on this device, so your voice never leaves it.",
+          "sensevoice": "<link>Alibaba's SenseVoice-Small</link> transcribes Japanese, Korean, Chinese and English speech on this device, so your voice never leaves it."
+        },
         "gpu": {
           "description": "Faster, with live previews as you speak. Needs the CPU version and a WebGPU-capable GPU.",
-          "label": "Parakeet (GPU)",
-          "labelWithSize": "Parakeet (GPU, {{size}})",
+          "label": "{{model}} (GPU)",
           "needsCpu": "Download the CPU version first."
         },
         "heading": "Speech-to-Text",
         "listUnavailable": "Speech downloads are unavailable right now. You can add them later in App Settings.",
         "lowSpace": "Not enough free space: downloads need {{size}} free.",
-        "models": "Speech recognition models",
         "notDownloaded": "Not downloaded",
         "progressLabel": "{{label}} download progress",
+        "recognizes": {
+          "parakeet": "Recognizes English only.",
+          "sensevoice": "Recognizes Japanese, Korean, Chinese and English. It listens for the app language; with the app in English, it detects which language you speak."
+        },
         "retryDownload": "Retry download",
         "turnedOff": "Speech recognition is turned off on this server.",
         "unavailableInBuild": "Unavailable in this build.",
@@ -6482,7 +6476,6 @@ export default interface Resources {
   },
   "voice": {
     "cloning": {
-      "attribution": "Model attribution",
       "changeFailed": "The cloning model change did not finish. Retry in a moment.",
       "checking": "Checking voice cloning…",
       "description": "Create named voices from your own samples.",
@@ -6508,6 +6501,7 @@ export default interface Resources {
       "lowSpace": "Not enough free space: downloads need {{size}} free.",
       "notAvailable": "Not available",
       "progressLabel": "{{label}} download progress",
+      "remove": "Remove",
       "retry": "Retry download",
       "sections": {
         "speechToText": "Speech-to-Text",
@@ -6544,7 +6538,11 @@ export default interface Resources {
       }
     },
     "languageNotice": {
-      "speechToText": "Parakeet understands English only. Speech recognition in {{language}} is coming soon.",
+      "speechToText": "To use offline speech recognition in {{language}}, download its model.",
+      "speechToTextEnglishOnly": "Parakeet recognizes English only. To speak to your Animas in {{language}}, choose SenseVoice.",
+      "speechToTextModel": "To use SenseVoice, download its model.",
+      "speechToTextModelUnavailable": "SenseVoice is not available on this server.",
+      "speechToTextUnavailable": "Offline speech recognition in {{language}} is not available on this server.",
       "textToSpeech": "Pocket TTS speaks English only. To hear your Animas in {{language}}, choose ElevenLabs or Gemini."
     },
     "microphone": {
@@ -6601,6 +6599,18 @@ export default interface Resources {
       },
       "description": "Dictation and Voice Mode transcribe on this device, so audio never leaves it.",
       "developmentAcquire": "This development stack serves speech models from the host: run {{cpuCommand}} (and {{gpuCommand}} for GPU acceleration), then rerun {{resetCommand}}.",
+      "engines": {
+        "parakeet": {
+          "attribution": "Model attribution (CC BY 4.0)",
+          "languages": "English",
+          "model": "Parakeet TDT 0.6B v2 by NVIDIA"
+        },
+        "sensevoice": {
+          "attribution": "Model attribution (FunASR Model License)",
+          "languages": "Japanese, Korean and Chinese",
+          "model": "SenseVoice-Small by Alibaba"
+        }
+      },
       "failures": {
         "downloadFailed": "The download did not finish. Check the internet connection, then retry.",
         "hashInvalid": "A downloaded file did not match its checksum and was discarded.",
@@ -6611,7 +6621,6 @@ export default interface Resources {
         "unknown": "The download did not finish. Retry when ready."
       },
       "gpu": {
-        "attribution": "Model attribution (CC BY 4.0)",
         "blocked": {
           "checking": "Checking WebGPU support…",
           "missing": "GPU acceleration is unavailable in this build.",
@@ -6632,7 +6641,7 @@ export default interface Resources {
         "changeFailed": "The change could not finish. Retry in a moment.",
         "inUse": "Speech recognition is in use. Close dictation and Voice Mode to remove it."
       },
-      "title": "Offline speech recognition (Parakeet)",
+      "title": "Offline speech recognition",
       "turnedOff": "Offline speech recognition is turned off on this server."
     },
     "pocket": {
@@ -6685,27 +6694,39 @@ export default interface Resources {
       }
     },
     "providers": {
+      "selected": "Selected",
       "stt": {
         "browserDesktopUnavailable": "Browser STT is unavailable in the desktop app.",
         "browserExternal": {
-          "description": "Browser speech recognition with vendor-managed processing.",
+          "description": "Browser speech recognition via the Web Speech API.",
           "label": "Browser (external)",
           "unsupported": "Web Speech API is not supported in this browser."
         },
+        "browserLabel": "Browser (built-in)",
+        "browserLanguages": "<link>Supports most languages.</link>",
         "browserLocal": {
           "description": "Strict on-device browser recognition when explicitly supported.",
           "label": "Browser (local)",
           "unsupported": "Local-only Web Speech recognition is not supported in this browser."
         },
+        "enginesLabel": "Speech recognition engines",
         "parakeet": {
-          "cpuLabel": "Parakeet (CPU)",
-          "descriptionBrowser": "Local ONNX speech recognition in this browser.",
-          "descriptionDesktop": "Local ONNX speech recognition in the desktop app.",
+          "cpuLabel": "{{model}} (CPU)",
+          "descriptionBrowser": "Speech recognition in this browser in the app's language, with {{model}}.",
+          "descriptionDesktop": "Speech recognition on this device in the app's language, with {{model}}.",
           "notInstalled": "Install offline speech recognition to use dictation and Voice Mode.",
-          "unavailableBrowser": "Local Parakeet is currently unavailable in this browser.",
-          "webgpuDescription": "Experimental local speech recognition on the GPU with live previews. Falls back to the CPU when unavailable.",
-          "webgpuLabel": "Parakeet (WebGPU · Experimental)"
-        }
+          "unavailableBrowser": "Offline speech recognition is currently unavailable in this browser.",
+          "webgpuDescription": "Experimental local speech recognition on the GPU, with {{model}} and live previews. Falls back to the CPU when unavailable.",
+          "webgpuLabel": "{{model}} (WebGPU · Experimental)"
+        },
+        "recommended": "Recommended",
+        "variants": {
+          "cpu": "CPU",
+          "cpuWithSize": "CPU ({{size}})",
+          "gpu": "GPU",
+          "gpuWithSize": "GPU ({{size}})"
+        },
+        "variantsLabel": "{{engine}} versions"
       },
       "tts": {
         "audioWorkletUnsupported": "AudioWorklet is not supported in this browser.",
@@ -6725,6 +6746,7 @@ export default interface Resources {
         "pocket": {
           "description": "Client-side PocketTTS synthesis."
         },
+        "pocketBuiltIn": "PocketTTS (built-in)",
         "secureContext": "{{provider}} requires HTTPS or localhost (secure context).",
         "webAudioUnsupported": "Web Audio API is not supported in this browser.",
         "webSocketUnsupported": "WebSocket is not supported in this browser.",

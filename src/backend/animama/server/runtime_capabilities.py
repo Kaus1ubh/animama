@@ -24,7 +24,7 @@ from animama.app.contracts.runtime_capabilities import (
 from animama.app.services.user_file_service import ALLOWED_USER_FILE_EXTENSIONS
 from animama.orm.runtime_worker import ORMRuntimeWorkerHeartbeat
 from animama.server.config import Settings, settings
-from animama.server.model_assets import parakeet_availability
+from animama.server.model_assets import parakeet_availability, sensevoice_availability
 from animama.server.model_roles import composition_model_policy
 from animama.server.web_search import composition_web_search_enabled, web_search_credential_state
 
@@ -58,6 +58,7 @@ async def local_runtime_capabilities(app: FastAPI, session: AsyncSession) -> Run
             state = "ready" if heartbeat.heartbeat_at >= datetime.now(UTC) - timedelta(seconds=20) else "stale"
     desktop = bool(runtime_settings.animama_desktop_control_token)
     speech = parakeet_availability(app, runtime_settings)
+    multilingual_speech = sensevoice_availability(app, runtime_settings)
     safety = runtime_settings.companion_safety
     web_search = WebSearchCapability()
     if composition_web_search_enabled(app):
@@ -91,6 +92,9 @@ async def local_runtime_capabilities(app: FastAPI, session: AsyncSession) -> Run
         offline_speech_enabled=speech.enabled,
         offline_speech_asset_version=speech.asset_version,
         offline_speech_gpu_asset_version=speech.gpu_asset_version,
+        offline_multilingual_speech_enabled=multilingual_speech.enabled,
+        offline_multilingual_speech_asset_version=multilingual_speech.asset_version,
+        offline_multilingual_speech_gpu_asset_version=multilingual_speech.gpu_asset_version,
         user_file_processing=UserFileProcessingCapability(
             enabled=enabled,
             worker_state=state,

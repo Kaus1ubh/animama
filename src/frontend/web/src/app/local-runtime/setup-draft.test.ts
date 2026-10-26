@@ -79,7 +79,7 @@ describe("unfinished installation setup draft", () => {
       store,
     );
     expect([...store.entries.values()].map((text) => JSON.parse(text))).toEqual(
-      [draft({ displayName: "x".repeat(80) })],
+      [draft({ displayName: "x".repeat(30) })],
     );
   });
 

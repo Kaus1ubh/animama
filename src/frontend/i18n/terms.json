@@ -3,6 +3,7 @@
   "terms": [
     { "en": "Animama", "keep": true, "note": "Product name." },
     { "en": "Animama Cloud", "keep": true, "note": "Product name." },
+    { "en": "SenseVoice", "keep": true, "note": "Speech recognition model name, as in SenseVoice-Small." },
     { "en": "Anima", "keep": true, "note": "A companion character; plural \"Animas\" in English, unchanged elsewhere." },
     { "en": "Avatar", "ja": "アバター", "ko": "아바타", "zh-Hans": "虚拟形象", "zh-Hant": "虛擬形象", "note": "The 3D model an Anima wears." },
     { "en": "Gesture", "ja": "ジェスチャー", "ko": "제스처", "zh-Hans": "动作", "zh-Hant": "動作", "note": "A body-and-face motion clip, not only a hand gesture." },

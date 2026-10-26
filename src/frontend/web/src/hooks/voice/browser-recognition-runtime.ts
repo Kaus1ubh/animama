@@ -10,6 +10,7 @@ import {
   routeTranscriptSegment,
   type AcousticTurnGateState,
 } from "@/lib/voice/acoustic-vad-gate";
+import { joinSpeechText } from "@/lib/speech/speech-text";
 import { useAvatarRuntimeStore } from "@/stores/avatar-runtime-store";
 import type { VadGateDecisionDebug } from "@/stores/voice-vad-debug-store";
 
@@ -101,10 +102,7 @@ type ProcessBrowserRecognitionResultOutput = {
 };
 
 export function appendTranscript(base: string, next: string): string {
-  const trimmed = next.trim();
-  if (!trimmed) return base;
-  if (!base) return trimmed;
-  return `${base} ${trimmed}`;
+  return joinSpeechText(base, next.trim());
 }
 
 export function truncateTranscriptForLog(
@@ -187,7 +185,7 @@ export function updateBrowserSpeechTextBuffers({
       : createBrowserSpeechTextBuffers(turnId, nowMs);
 
   if (finalSegments.length > 0) {
-    const joinedFinal = finalSegments.join(" ").trim();
+    const joinedFinal = finalSegments.reduce(appendTranscript, "");
     if (joinedFinal) {
       nextBuffers.finalText = appendTranscript(
         nextBuffers.finalText,
@@ -198,7 +196,7 @@ export function updateBrowserSpeechTextBuffers({
   }
 
   if (interimSegments.length > 0) {
-    nextBuffers.interimText = interimSegments.join(" ").trim();
+    nextBuffers.interimText = interimSegments.reduce(appendTranscript, "");
     nextBuffers.lastInterimAtMs = nowMs;
   } else if (finalSegments.length > 0) {
     nextBuffers.interimText = "";
