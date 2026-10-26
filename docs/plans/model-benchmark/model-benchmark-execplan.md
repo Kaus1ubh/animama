@@ -2985,14 +2985,30 @@ dry run of `874f760c`: 4 configurations, 2,268 estimated calls (up to 4,536
 with repairs), about $2.43, 223 judge batches and 2.28 h against the 4-hour
 bound.
 
+Run record (stack `animama-bench`, `./reset.sh --name bench --base-port 9100`
+with only the secrets file in `COMPOSE_ENV_FILES`; `models` listed both
+visible built-in rows):
+
+| Step | Result |
+| --- | --- |
+| Dry run | `plan --tier full --standard --max-calls 4600 --price …` on `874f760c`: as approved at G3 |
+| Paid run | `2026-10-26-first-decision-run`, source `874f760c`: 17:19:36 to 18:29:58 UTC (70 minutes of contestant calls), exit 0, not aborted; 1,726 calls, ~0.452 USD at the approved rates; 1,668 records (1,620 turns). Two short network drops failed 20 turns on all four configurations: 9 single-turn and 11 memory turns, all `anthropic_connection_error` or `openai_connection_error` |
+| Retry (owner request) | `2026-10-26-first-decision-run-retry`, source `2cd7cf7d`: 18:36:07 to 18:39:38 UTC, exit 0; 13 units (9 single-turn items, and `new-job` in arm (b) for each configuration), 77 records replaced; 88 calls, ~0.046 USD; no failed turns remain. Run totals: 1,814 calls, ~0.498 USD, within the G3 caps |
+| Cleanup | "no benchmark databases to drop"; application database 0 chats, 0 messages, no `animama_benchmark_*`; stack taken down and `.animama-stack.env` removed |
+| Calibration export | `calibrate export` on the retry run: 36 items, waiting for the owner's ratings (G4) |
+
+The retry run is the run of record: calibration, judging and the report use
+it.
+
 Check record: none yet.
 
-Commits: none yet.
+Commits: `2cd7cf7d` (`feat(evals)[p9]: retry units that failed on connection
+errors`).
 
 #### Code Review #1 Findings
 
 Light phase: covered by the final integration review unless a review is
-requested.
+requested. The retry tooling had its own review (above).
 
 #### Code Review #1 Revisions
 
