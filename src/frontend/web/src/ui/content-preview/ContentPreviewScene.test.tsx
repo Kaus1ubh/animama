@@ -195,6 +195,7 @@ async function failLoads(index: number) {
 
 beforeEach(() => {
   harness.avatars = [];
+  harness.three = { camera: {}, gl: { domElement: {} } };
   preparationRequest = 0;
   container = document.createElement("div");
   document.body.append(container);
@@ -256,6 +257,22 @@ describe("ContentPreviewScene", () => {
 
     expect(harness.avatars).toHaveLength(1);
     expect(harness.avatars[0].loads).toEqual(["avatar-r1"]);
+  });
+
+  it("loads the Avatar re-created for a new camera", async () => {
+    await show(gesture("wave"), "avatar-r1");
+    await finishLoads(0);
+
+    // A particle target switches the dock's camera; the actor re-creates its
+    // Avatar for the new camera, which must load rather than stay empty.
+    harness.three = { ...harness.three, camera: {} };
+    await show(gesture("bow"), "avatar-r1");
+
+    expect(harness.avatars).toHaveLength(2);
+    expect(harness.avatars[0].disposed).toBe(true);
+    expect(harness.avatars[1].loads).toEqual(["avatar-r1"]);
+    await finishLoads(1);
+    expect(onStatusChange).toHaveBeenLastCalledWith("ready");
   });
 
   it("loads a different model revision into a new Avatar", async () => {

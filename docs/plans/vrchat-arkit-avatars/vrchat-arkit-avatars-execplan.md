@@ -1467,6 +1467,17 @@ and history, and conventions are met.
   tools (real path, regular `.vrm` file, no `#`, `?` or `%`), with its own
   `node --test` file in `test:source:unit`.
 - FIN-F6: `Commits:` lines and the open owner items added.
+- FIN-F2 also found a regression: `pnpm e2e:test:fast` failed the imported
+  Particle Effect's Library preview (`accountless-imported-playback`) on 5 of
+  6 runs of branch builds from Phase 4 on, against 4 of 4 passes on
+  `f9b0d8f1`. Cause, in `ContentPreviewScene.tsx` and older than this branch:
+  the dock re-creates its Avatar when its camera or canvas changes (a
+  particle target switches the dock camera), but the load and clip-bridge
+  effects ran only for a new model revision, so the re-created Avatar was
+  never loaded and the preview's play found its controller disposed. The
+  branch's extra load-time work made the race likely. Both effects now follow
+  the Avatar instance; a unit test re-creates the Avatar for a new camera and
+  fails without the fix. The bisect steps are recorded under Validation.
 - FIN-O1, O2, O4: the guide names no prefab variant, says VN3 terms vary, and
   shows where the Unity binary lives on macOS. FIN-O3: no change. FIN-O5: the
   snapshot's delivery links are left until the PR is updated.
@@ -1541,8 +1552,29 @@ failed loading the page). One repair round used; trivial, no recheck.
 
 ## Validation and acceptance
 
-Full pre-push suite for Phases 1, 4 and 6, through `scripts/heavy-slot.py` on
-`51082213` (tree `ad27498a`), 2026-10-24:
+Final candidate gates (2026-10-25), on `62761276` plus the dock fix, from
+`src/frontend` unless noted:
+
+- Branch-wide Included render diff against the merge base: a detached
+  `f9b0d8f1` worktree and this branch each rendered, with `effects:render`
+  in both looks, the eight painted effects plus Eye Confused Swirl (front and
+  face, 0.5 and 1 s), the six emotion groups at three intensities plus each
+  full preset (face), and the Sadness 2 and Admiration 2 Reactions, plus
+  `animation:render` of Double Thumbs Up (body and hands): 36 sheets, 0
+  differing pixels each.
+- `pnpm e2e:test:fast` on a disposable built stack (`animama-browser-a`):
+  first 36 passed, 3 failed. Two creator-discard failures passed on rerun
+  (flaky); the imported Particle Effect preview failed consistently (FIN-F2
+  revision). Bisect, one built stack per commit, the imported-playback journey
+  alone: `f9b0d8f1` 4 of 4 passed; `0b845881` 1 of 1; `eac8f4f9` 1 of 2;
+  `51082213` 0 of 1; `993739b6`/`62761276` 0 of 3. After the fix: the journey
+  3 of 3 passed and `pnpm e2e:test:fast` 39 passed. The full `pnpm e2e:test`
+  was not run; the imported-playback `@complete-anima` journey passed on the
+  branch while bisecting (17.6 min).
+- Full pre-push suite: see below.
+
+Earlier: full pre-push suite for Phases 1, 4 and 6, through
+`scripts/heavy-slot.py` on `51082213` (tree `ad27498a`), 2026-10-24:
 
 | Step | Command | Result |
 | --- | --- | --- |
@@ -1557,10 +1589,6 @@ affected checks were rerun instead of the whole suite: `pnpm prettier:check`
 (`src/frontend` and `src/frontend/web`) pass; `node --test
 scripts/vrm-bake-expressions.test.mjs scripts/vrm-inspect.test.mjs` 9 passed;
 `npx vitest run src/lib/avatar` 1265 passed, 1 skipped; `pnpm -s web:lint` pass.
-
-Not run: Included Avatar render diffs against `main` and `pnpm e2e:test:fast`
-(new branches are gated on resolved ARKit shapes, which Included Avatars lack;
-see the final integration review).
 
 Spec acceptance criteria, with these commands (from `src/frontend` unless noted):
 
