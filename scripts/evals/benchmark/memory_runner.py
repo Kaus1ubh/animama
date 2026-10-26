@@ -14,6 +14,7 @@ on the same store then asks the chat's recall probes.
 
 from __future__ import annotations
 
+import difflib
 import hashlib
 import json
 from collections.abc import Callable, Mapping, Sequence
@@ -66,6 +67,8 @@ __all__ = [
     "BenchmarkSessions",
     "MemoryContestant",
     "MemoryTurn",
+    "MemoryTurnResult",
+    "memory_changes",
     "Store",
     "memory_arms",
     "memory_cue",
@@ -236,13 +239,63 @@ async def _persisted_turn(
 
 
 def _tool_call(outcome: Mapping[str, Any], arguments: Any, output: str) -> dict[str, Any]:
+    """One tool call's record; ``arguments`` keeps the rest of what the model sent, such as an edit's text."""
+
     try:
         payload = json.loads(output)
     except ValueError:
         payload = {}
     code = payload.get("code") if isinstance(payload, Mapping) else None
-    path = arguments.get("path", arguments.get("paths")) if isinstance(arguments, Mapping) else None
-    return {"tool": outcome.get("tool_name"), "path": path, "ok": outcome.get("status") == "completed", "code": code}
+    call = dict(arguments) if isinstance(arguments, Mapping) else {}
+    path = call.pop("path", call.pop("paths", None))
+    return {
+        "tool": outcome.get("tool_name"),
+        "path": path,
+        "ok": outcome.get("status") == "completed",
+        "code": code,
+        "arguments": call,
+    }
+
+
+def memory_changes(before: Mapping[str, Any], after: Mapping[str, Any]) -> list[dict[str, Any]]:
+    """Each memory file that changed between two snapshots, as a diff of its lines with no context.
+
+    The diff comes from the stored files themselves, so an edit reads the same whichever tool or provider made
+    it. The Anima's own files are named under ``[self]/``, as chat's memory tools name them.
+    """
+
+    def files(snapshot: Mapping[str, Any]) -> dict[str, str]:
+        return {
+            (f"[self]/{f['path']}" if f.get("anima") else str(f["path"])): str(f.get("content") or "")
+            for f in snapshot.get("files") or ()
+        }
+
+    old, new = files(before), files(after)
+    changes: list[dict[str, Any]] = []
+    for path in sorted(set(old) | set(new)):
+        diff = difflib.unified_diff(old.get(path, "").splitlines(), new.get(path, "").splitlines(), lineterm="", n=0)
+        # The first two lines are the file headers; a removed "---" line of the file itself is kept.
+        lines = list(diff)[2:]
+        if not lines and (path in old) == (path in new):
+            continue  # Unchanged, or changed only in a trailing newline.
+        change: dict[str, Any] = {"path": path, "diff": "\n".join(lines)}
+        if path not in old:
+            change["created"] = True
+        elif path not in new:
+            change["deleted"] = True
+        changes.append(change)
+    return changes
+
+
+@dataclass(frozen=True, slots=True)
+class MemoryTurnResult:
+    """One memory or recall turn: chat's outcome, its tool calls and what it changed in memory."""
+
+    outcome: TurnOutcome
+    tool_calls: list[dict[str, Any]] | None
+    """Every tool call chat persisted, or ``None`` for a failed turn, whose tool exchange chat did not keep."""
+    changes: list[dict[str, Any]]
+    """The memory files the turn changed (``memory_changes``), from snapshots taken before and after it."""
 
 
 @dataclass(slots=True)
@@ -281,10 +334,11 @@ async def _memory_turn(
     sessions: BenchmarkSessions,
     clock: Clock,
     settings: Settings,
-) -> tuple[TurnOutcome, list[dict[str, Any]] | None]:
+) -> MemoryTurnResult:
     configuration = contestant.configuration
     row = configuration.model_provider
     language = memory_turn_options(unit.language, configuration.effort)
+    before = await snapshot_store(sessions, store)
     async with sessions.read() as session:
         repositories = sessions.repositories(session)
         executor = DirectChatTurnExecutor(
@@ -330,10 +384,12 @@ async def _memory_turn(
             clock=clock,
             on_prepared=lambda _prepared: session.close(),
         )
-    return await _persisted_turn(sessions, result)
+    outcome, tool_calls = await _persisted_turn(sessions, result)
+    changes = memory_changes(before, await snapshot_store(sessions, store))
+    return MemoryTurnResult(outcome=outcome, tool_calls=tool_calls, changes=changes)
 
 
-MemoryTurnSink = Callable[[MemoryContestant, str, MemoryTurn, TurnOutcome, list[dict[str, Any]] | None], None]
+MemoryTurnSink = Callable[[MemoryContestant, str, MemoryTurn, MemoryTurnResult], None]
 """Records one finished memory or recall turn; the run loop builds the JSON line."""
 CaptureSink = Callable[[MemoryContestant, str, MemoryChat, dict[str, Any]], None]
 
@@ -399,7 +455,7 @@ async def run_memory_chats(
                 for unit in phase:
                     for contestant in contestants:
                         label = contestant.configuration.label
-                        result, calls = await _memory_turn(
+                        turn = await _memory_turn(
                             contestant,
                             arm,
                             stores[label],
@@ -410,9 +466,9 @@ async def run_memory_chats(
                             clock=clock,
                             settings=runtime_settings,
                         )
-                        if result.refused:
+                        if turn.outcome.refused:
                             return False
-                        on_turn(contestant, arm_label, unit, result, calls)
+                        on_turn(contestant, arm_label, unit, turn)
                 if phase_index == 0:
                     # What the arm saved, before the recall chat can add anything.
                     for contestant in contestants:

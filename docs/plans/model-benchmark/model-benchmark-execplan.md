@@ -115,7 +115,8 @@ Ownership and boundaries:
       review #3 (high risk) on 2026-10-26, with both repair rounds used.
 - [x] Phase 5: Prompt set v1, Japanese subset, fixtures and rubrics (gate
       G2). G2 passed on 2026-10-26: approved as drafted.
-- [ ] Phase 6: Blind judging through `claude -p`.
+- [x] Phase 6: Blind judging through `claude -p`. Passed review #3 on
+      2026-10-26, with both repair rounds used.
 - [ ] Phase 7: Scores, statistics and report.
 - [ ] Phase 8: Skill, documentation and glossary.
 - [ ] Phase 9: First decision run and calibration (gates G3, G4).
@@ -253,6 +254,19 @@ were rechecked on `18d2bebd`.
   - Without web search (spec R2), a first turn is roughly 10k tokens on Luna
     and 12.5k on Haiku.
   - The dry run replaces these figures.
+
+### 2026-10-26, Phase 6 judge
+
+- **Structured output.** With `--json-schema`, the CLI offers one
+  `StructuredOutput` tool, even with `--tools ""`, and its result event
+  carries the validated object as `structured_output` (and as text in
+  `result`). A call takes two turns. Its stream-json start-up event lists
+  the model, tools, MCP servers, skills, plugins and `apiKeySource`, which
+  the judge checks on every call.
+- **Prompt caching.** The CLI writes the prompt to the cache: the same
+  batch sent again, at the other effort, read almost all its input from it.
+  Whether different batches of a rubric share more than the system prompt
+  is not measured.
 
 ### 2026-10-26, Phase 4 review
 
@@ -2115,13 +2129,300 @@ Checks:
 Completion: the tests and the smoke pass, and the review passes. Commit
 `feat(evals)[p6]: add blind judging through the Claude CLI`.
 
-Check record: none yet.
+Starting source: `50ec9681` (the G2 record).
 
-Commits: none yet.
+**Delivered** (`scripts/evals/benchmark/`):
+- `rubrics.py`: loads and checks the tracked rubrics (unique ids, known
+  kinds, five anchors per criterion, or capture's item judgement); renders
+  the system prompt (instructions, then every criterion's anchors, then the
+  output rule) and the batch output schema; validates an output against the
+  schema and the batch's ids (and, for capture, exactly the checklist).
+- `judge_items.py`: one blind item per rubric and record. Items carry the
+  persona by id, up to six earlier exchanges of the same chat, the reply,
+  and per rubric: lengths (reply), each Gesture's name and description
+  (expression), only tagged replies (Audio tags), the remember note, each
+  memory tool call in provider-neutral terms (action list, read, search or
+  write; path; outcome succeeded, refused or failed) and the turn's memory
+  changes as diffs of the stored files (memory turn), the checklist texts as the reference for open
+  recall probes, a capture snapshot in the same three sections for every
+  arm, and a Memory Manager run's input, store before, edits and final
+  message. Whole scripted chats are judged only when complete. Failed turns
+  and the warm-up are not judged.
+- `judge.py`:
+  - `plan_judging`/`load_or_plan`: opaque ids and a seeded shuffle per
+    rubric, fixed batch sizes (`BATCH_SIZES`), and `judge/plan.json`,
+    `judge/batches/<id>.json` (each batch's items, naming personas by id)
+    and `judge/mapping.json` (never sent). The prompt sent adds each
+    persona's identity text once, and for expression the equipped Gestures;
+    each result records its sha256. A plan is reused only for the same
+    turns, prompt set, rubrics, judge model, seed and batch sizes.
+  - `ClaudeCli`: `claude -p` with the D7 flags plus `--strict-mcp-config`,
+    `--disable-slash-commands` and stream-json output, from a new empty
+    directory in its own process group. It inherits only `PATH`, `HOME`,
+    `USER`, `LOGNAME`, `SHELL`, `LANG`, `LC_*`, `TMPDIR`, `TERM`,
+    `CLAUDE_CONFIG_DIR` and the proxy and certificate variables, so no API
+    key, endpoint, provider switch or calling Claude session's settings
+    reach it. Each call's start-up event must show
+    the subscription (`apiKeySource: none`), only the structured-output
+    tool, no MCP servers, skills, slash commands or non-built-in plugins,
+    and the pinned model; otherwise judging stops, and a CLI that cannot
+    start stops it too.
+  - `run_judging`: up to `--concurrency` calls at once; three attempts per
+    batch, then `missing`; one result file per batch and effort under
+    `judge/<effort>/` with the served model, effort, CLI version, rubric
+    version and hash, the sent prompt's sha256, attempts, timestamps and
+    usage. A usage limit or a sign-in problem stops cleanly and can resume;
+    broken isolation needs fixing first. A rerun skips completed batches,
+    retries missing ones, and refuses a result from another judge model or
+    rubric version. A timeout, an interruption, SIGTERM or SIGHUP kills the
+    calls' process groups; a signal ends the run as a resumable stop.
+- `cli.py`: `judge --run-dir --prompts --effort [--concurrency] [--rubric]
+  [--batch] [--claude] [--timeout]`, which checks the prompt set against the
+  run's manifest, refuses a run still marked running unless
+  `--allow-unfinished`, and refuses unknown `--rubric` or `--batch` values.
+  Exit 0 when every batch is scored, 1 with missing scores, 2 for an input
+  error, 3 when stopped. `plan` and `run` add the judging estimate
+  (`--judge-effort`, `--judge-concurrency`) to the wall time and the
+  4-hour check.
+- `planner.py`: `judged_items` and `judge_estimate`: items per rubric from
+  each rubric's kinds in the rubric file, with Audio-tag items at an
+  assumed 30% of replies; batches; and seconds and input tokens per batch,
+  measured for reply and expression (`JUDGE_SECONDS_PER_BATCH`,
+  `JUDGE_INPUT_TOKENS_PER_BATCH`). The other rubrics assume the slowest
+  measured seconds and show no token figure.
+- `memory_runner.py`: each memory and recall turn snapshots the store before
+  and after it and records `memory_changes`, one diff with no context per
+  changed file (`[self]/` for the Anima's own files), so an edit reads the
+  same whichever provider's tool made it. Tool-call records keep the call's
+  other arguments for audits; the judge never sees them.
+- `results.py`: `write_json`, the atomic write the manifest and the judge
+  files share; a malformed `turns.jsonl` line is an input error.
+- Tests: `tests/test_model_benchmark_judge.py` (23) with a stub CLI;
+  `tests/fixtures/model_benchmark/judge_run/`, 20 hand-written single-turn
+  replies on the v1 set, for the tests and the live smoke.
+
+**Deviations:**
+- `calibrate export|import|pilot` move to Phase 7 with the agreement
+  statistics; Phase 6 supplies the pilot mechanics (`judge --batch` at each
+  effort).
+- Memory-turn items take their diffs from store snapshots around each turn,
+  which the plan did not list; they cost two database reads per turn and no
+  model call.
+- The expression rubric's batch lists the 140 equipped Gestures once, so the
+  judge can tell whether a better choice was available.
+
+**Live smoke (D6, D8; 2026-10-26).** All on the owner's subscription, with
+no API spend.
+- **D6 confirmation:** one tiny isolated call (a two-field schema) reported
+  model `claude-opus-5-5`, CLI `2.1.303 (Claude Code)`, `apiKeySource:
+  none`, tools `["StructuredOutput"]`, and no MCP servers, slash commands or
+  skills; only the built-in plugins were present. About 1.4k input tokens
+  were cached in total, so no `CLAUDE.md`, memory or user output style
+  reached the judge (there is no user `CLAUDE.md` or user hook on this
+  machine, and restricted mode ignores the settings files).
+- **Four batches:** `judge --rubric reply --rubric expression
+  --concurrency 2` on a copy of `tests/fixtures/model_benchmark/judge_run`
+  in `.animama-drafts/model-benchmark/judge-smoke`, at medium and then high.
+  Every call passed the isolation check and was scored on its first attempt.
+
+  | Batch (20 items) | Medium | High |
+  | --- | --- | --- |
+  | `reply` | 8.7 s, 1,065 output tokens | 17.9 s, 2,039 output tokens |
+  | `expression` (with the 140 equipped Gestures) | 26.9 s, 2,760 output tokens | 31.8 s, 3,532 output tokens |
+
+  - Two calls at a time ran with no usage-limit stop, so the default
+    concurrency stays 2. `JUDGE_SECONDS_PER_BATCH` rounds these up per
+    rubric (reply 10 s and 20 s, expression 30 s and 35 s), and other
+    rubrics assume the slowest (30 s and 35 s).
+  - The three deliberately weak replies averaged about 2 on both rubrics at
+    both efforts; the others averaged 4.3–4.7.
+- **Estimate with judging:** the full tier is 2,268 contestant calls and
+  223 judge batches: about 2.28 h with the judge at medium (0.70 h of it
+  judging), or 2.49 h at high, within the 4-hour bound.
+- **After review #1:** one more tiny call through the repaired adapter, with
+  the environment allowlist, confirmed `claude-opus-5-5`, `apiKeySource:
+  none` and the same isolation on CLI `2.1.310`; the calling session's
+  entrypoint no longer reached the CLI.
+
+Check record before review (2026-10-26), on code subtrees `scripts`
+`83884a4a`, `src` `1acfeab1` and `tests` `f036703e`: 154 targeted tests;
+`ruff check`, `ruff format --check scripts/evals tests`, `make
+format-check`, `make mypy` and `mypy scripts/evals` passed; the full-tier
+dry run planned 2,268 calls and 223 judge batches; the live smoke above.
+
+Commits: `feat(evals)[p6]: add blind judging through the Claude CLI`.
 
 #### Code Review #1 Findings
 
+Analysis reviewer (standard tier, initial; `scripts` `83884a4a`, `src`
+`1acfeab1`, `tests` `f036703e`): changes required. It reused the check
+record and probed with stubs only.
+- **P6-F1 (blocking).** Memory-turn items passed provider tool names and
+  argument shapes through (`apply_patch` with `update_file` diffs on
+  OpenAI Responses rows, `memory_apply_patch` with `replacements`
+  elsewhere), so the judge could tell the models apart (R12 blind). The
+  blindness test covered only one provider.
+- **P6-F2 (blocking).** The planned tokens per judge batch were neither
+  printed nor recorded as a deviation.
+- Non-blocking:
+  - **P6-F3.** The memory-turn rubric promises edits as diffs; items held
+    raw arguments.
+  - **P6-F4.** A three-variable deny-list let a calling Claude session's
+    variables and provider switches reach the CLI.
+  - **P6-F5.** A missing `apiKeySource` passed the isolation check.
+  - **P6-F6.** A missing CLI, a malformed `turns.jsonl` or a missing batch
+    file exited 1, the "missing scores" code, with a traceback.
+  - **P6-F7.** Unknown `--rubric` or `--batch` values selected nothing and
+    exited 0.
+  - **P6-F8.** The ledger did not check a result's model or rubric version.
+  - **P6-F9.** Three recovery messages misled: the plan-mismatch advice,
+    "resume" after broken isolation, and Ctrl+C's "turns" wording.
+  - **P6-F10.** Judging a run still marked running would lock the plan to
+    partial turns.
+  - **P6-F11.** A timeout or cancellation killed only the CLI, not its
+    children.
+  - **P6-F12.** The plan called the batch files "exactly what is sent".
+  - **P6-F13.** DRY and robustness: the planner repeated each rubric's
+    kinds; `BATCH_SIZES` had a silent default; the atomic write was
+    duplicated; a misleading variable name; a `KeyError` on a malformed
+    rubric file.
+  - **P6-F14.** No tests for the sign-in stop, a rejected rate limit, or
+    the timeout kill.
+  - **P6-F15.** One seconds-per-batch figure for every rubric.
+
 #### Code Review #1 Revisions
+
+- **P6-F1, P6-F3: accepted.** Each tool call becomes provider-neutral: an
+  action, the path, the outcome and the change as `-`/`+` lines (search
+  adds its query). The blindness test now includes an OpenAI `apply_patch`
+  call and fails on `apply_patch`, `memory_write_file`, `update_file` or
+  `replacements` anywhere in a prompt; it asserts both providers' calls
+  have the same fields.
+- **P6-F2, P6-F15: accepted.** The dry run prints, per rubric, the items,
+  batches, seconds and input tokens per batch, marking the reply and
+  expression figures as measured and the rest as assumed (the slowest
+  measured figure).
+- **P6-F4, P6-F5: accepted.** An allowlist replaces the deny-list, and
+  `apiKeySource` must be `none`. A tiny call confirmed the allowlist still
+  signs in (Live smoke).
+- **P6-F6, P6-F7, P6-F9, P6-F10: accepted.** A CLI that cannot start stops
+  judging (exit 3, "fix this, then rerun"); a malformed `turns.jsonl` line
+  or batch file is an input error (exit 2); unknown selections are input
+  errors; stop messages say whether a rerun resumes; Ctrl+C names
+  batches; a run marked running needs `--allow-unfinished`.
+- **P6-F8: accepted.** The plan fingerprint includes the judge model, and a
+  completed result from another model or rubric version is an input error.
+- **P6-F11: accepted.** Each call runs in its own process group, killed on
+  a timeout or an interruption. A test checks that timed-out calls are
+  gone and recorded as missing after three attempts.
+- **P6-F12: accepted.** The plan wording is corrected, and each result
+  records the sent prompt's sha256.
+- **P6-F13: accepted.** Rubric kinds come from the rubric file, with the
+  two filters (`TAGGED_REPLIES_ONLY`, `OPEN_PROBES_ONLY`) shared by the
+  items and the planner; an unknown rubric has no batch size and is an
+  error; `results.write_json` serves both; the rest are fixed.
+- **P6-F14: accepted.** Tests cover a rejected rate limit, a signed-out
+  CLI, the timeout kill, an API-key credential source, a missing CLI, a
+  mismatched result and an unfinished run.
+
+**Repair check record (2026-10-26)**, on code subtrees `scripts`
+`abad1c7a`, `src` `1acfeab1` (unchanged) and `tests` `475e34b1`:
+- the seven affected test files: 158 passed;
+- `ruff check`, `ruff format --check scripts/evals tests`, `make
+  format-check`, `make mypy` and `mypy scripts/evals`: passed;
+- the full-tier dry run: 2,268 calls, 223 judge batches, 2.49 h with the
+  judge at high;
+- one tiny live call through the repaired adapter (Live smoke).
+
+#### Code Review #2 Findings
+
+Analysis reviewer (targeted recheck on `scripts` `abad1c7a`, `src`
+`1acfeab1`, `tests` `475e34b1`): changes required. It confirmed P6-F2 to
+P6-F15 resolved, with the notes below.
+- **P6-F1 (blocking, partly repaired).** Tool names were hidden, but the
+  same edit still rendered differently by provider: a replacement repeats
+  its unchanged anchor line as removed and added, while a V4A patch shows
+  only the added line; `replace` and `delete` each came from one provider
+  only; a whole-file write showed every line as added. The test compared
+  different edits.
+- Non-blocking:
+  - **P6-R1.** With its own process group, a call no longer received
+    SIGTERM or SIGHUP sent to the judge's group, and Python's default
+    SIGTERM handling skipped the cleanup, leaving the CLI running.
+  - **P6-R2.** Two docstrings still said the batch files are what the judge
+    receives.
+  - **P6-R3.** A Delivered sentence suggested token figures were assumed
+    for unmeasured rubrics.
+  - **P6-R4.** The allowlist dropped proxy and certificate variables.
+  - **P6-R5.** A timeout of `claude --version` ended in a traceback.
+
+#### Code Review #2 Revisions
+
+- **P6-F1: accepted, with the reviewer's more faithful option.** Each memory
+  and recall turn snapshots the store before and after it, and records
+  `memory_changes`: a no-context diff per changed file. Memory-turn items
+  show tool calls only as action (list, read, search or write), path and
+  outcome, plus those diffs. The judge test gives a Haiku and a Luna turn
+  the same edit through `memory_apply_patch` and native `apply_patch` and
+  asserts their items are identical; the database tests check the diffs,
+  and the Responses-row test shows that a patch rewriting an unchanged
+  line yields only the added line.
+- **P6-R1: accepted.** The run installs SIGTERM and SIGHUP handlers that
+  cancel it, so every call's process group is killed; the stop is
+  resumable. `_stop` kills the group even after the CLI exited.
+  `test_sigterm_stops_judging_and_kills_the_running_calls` covers it.
+- **P6-R2, P6-R3: accepted.** The wording is fixed.
+- **P6-R4: accepted.** Proxy and certificate variables are kept.
+- **P6-R5: accepted.** A version timeout stops judging (not resumable).
+
+**Repair round 2 check record (2026-10-26)**, on code subtrees `scripts`
+`86e25d54`, `src` `1acfeab1` (unchanged) and `tests` `718c91be`:
+- the seven affected test files: 159 passed; the judge tests also pass
+  under two xdist workers (23);
+- `ruff check`, `ruff format --check scripts/evals tests`, `make
+  format-check`, `make mypy` and `mypy scripts/evals`: passed.
+
+The repairs went to the final targeted recheck (Code Review #3).
+
+#### Code Review #3 Findings
+
+Analysis reviewer (`scripts` `86e25d54`, `src` `1acfeab1`, `tests`
+`718c91be`): pass, with no blocking findings. It confirmed the rest of P6-F1
+(an insertion renders once, with no anchor line; a whole-file replace shows
+only the changed line; Haiku and Luna items for the same edit are equal) and
+P6-R1 to P6-R5, including a SIGTERM probe through the `judge` command that
+left no stub running and no result written. The dry run was unchanged.
+Non-blocking:
+- **P6-N1.** Dropping lines that start with `---` or `+++` to remove the
+  diff headers also dropped a removed `--`/`---` line of the file itself; a
+  trailing-newline-only change gave an empty diff.
+- **P6-N2.** The SIGTERM test signalled on a fixed timer, which a slow
+  runner could beat.
+- **P6-N3.** `run_judging` must run on the main thread and resets SIGTERM
+  and SIGHUP to their defaults afterwards; worth a note for Phase 7.
+
+#### Code Review #3 Revisions
+
+The review budget is spent; these are small standard-tier repairs the
+coordinator verified itself.
+- **P6-N1: accepted.** `memory_changes` drops exactly the two header lines
+  and skips files whose lines are equal.
+  `test_memory_changes_diff_the_stored_files_line_by_line` covers a created
+  file, a deleted file, a removed `---` divider and a trailing newline.
+- **P6-N2: accepted.** The test signals once both calls are running, and
+  allows killed stubs up to 5 s to exit and be reaped: in ten runs before
+  this change, a few left a killed stub briefly unreaped at the moment the
+  run returned (each was gone moments later, since every stub sleeps 30 s).
+  Ten further runs passed.
+- **P6-N3: accepted.** `run_judging`'s docstring says so.
+
+**Final check record (2026-10-26)**, on code subtrees `scripts` `8c494fef`,
+`src` `1acfeab1` (unchanged) and `tests` `5c772079`: the seven affected test
+files, 160 passed; the judge and memory tests under two xdist workers, 45
+passed; `ruff check`, `ruff format --check scripts/evals tests`, `make
+format-check`, `make mypy` and `mypy scripts/evals` passed.
+
+Phase 6 passed review #3 with both repair rounds used.
 
 ### Phase 7: Scores, statistics and report
 
@@ -2142,6 +2443,12 @@ Changes:
 - **Statistics** (D9). Bootstrap intervals, paired English–Japanese and
   arm differences, judge-to-owner agreement, and the "not distinguishable"
   ranking language.
+- **Calibration commands (D2, D15).** `calibrate export` draws the
+  stratified blind sample from a run's judge plan and writes a rating sheet
+  that shows each item as the judge sees it; `calibrate import` reads the
+  owner's ratings; `calibrate pilot` runs `judge --batch` on the sample's
+  batches at medium and high, computes the agreement and pins the effort.
+  Phase 6 supplies the blind items, batches and per-effort results.
 - **Report (R17).**
   - The scorecard has configurations as rows and areas and measures as
     column groups, with quality, latency, tokens and cost side by side.

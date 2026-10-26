@@ -36,6 +36,7 @@ from .memory_runner import (
     CaptureSink,
     MemoryContestant,
     MemoryTurn,
+    MemoryTurnResult,
     MemoryTurnSink,
     memory_cue,
     run_memory_chats,
@@ -424,9 +425,9 @@ def _memory_turn_sink(outcome: RunOutcome, sink: TurnSink, progress: TurnSink | 
         contestant: MemoryContestant,
         arm: str,
         unit: MemoryTurn,
-        result: TurnOutcome,
-        calls: list[dict[str, Any]] | None,
+        turn: MemoryTurnResult,
     ) -> None:
+        result = turn.outcome
         line = turn_record(
             contestant.configuration,
             result,
@@ -447,7 +448,8 @@ def _memory_turn_sink(outcome: RunOutcome, sink: TurnSink, progress: TurnSink | 
             arm=arm,
             probe_id=unit.probe_id,
             # ``None`` for a failed turn: chat persisted none of its tool exchange.
-            tool_calls=calls,
+            tool_calls=turn.tool_calls,
+            memory_changes=turn.changes,
             memory_cue=memory_cue(result),
             expect=list(unit.expect),
             # A recall probe with expected phrases passes when the spoken reply holds any one of them.

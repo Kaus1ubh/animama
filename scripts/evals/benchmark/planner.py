@@ -12,6 +12,7 @@ calls times a seconds-per-call allowance, plus judging.
 
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from decimal import Decimal
@@ -23,8 +24,11 @@ from ..core.chat import EvalChats, StaticMemoryContext, build_executor, turn_req
 from ..core.model_calls import CallPrice, CallRecord, UnusedModelClient
 from ..core.pricing import TokenPrices, usage_json
 from .configs import Configuration, capability_problem, first_per_row
+from .judge import BATCH_SIZES, DEFAULT_CONCURRENCY
+from .judge_items import OPEN_PROBES_ONLY, TAGGED_REPLIES_ONLY
 from .options import PROVIDER_MODERATION, core_turn_options
 from .prompt_set import PromptSet
+from .rubrics import RubricSet
 from .runner import WARMUP_MESSAGE, planned_turns
 
 __all__ = [
@@ -36,6 +40,8 @@ __all__ = [
     "estimate_first_turn_tokens",
     "estimate_usd",
     "estimated_seconds",
+    "judge_estimate",
+    "judged_items",
     "render_plan",
     "total_usd",
 ]
@@ -54,6 +60,18 @@ MEMORY_TURN_CALLS = 2
 MANAGER_RUN_CALLS = 6
 """Calls planned per Memory Manager run: reads, a proposal or two, and its final reply. Each row runs once."""
 MEMORY_ARM_COUNT = 3
+JUDGE_SECONDS_PER_BATCH: Mapping[str, Mapping[str, float]] = {
+    "medium": {"reply": 10.0, "expression": 30.0},
+    "high": {"reply": 20.0, "expression": 35.0},
+}
+"""Wall time of one judge batch, rounded up from the Phase 6 smoke (20-item batches, two at a time): reply took
+8.7 s at medium and 17.9 s at high, expression 26.9 s and 31.8 s."""
+UNMEASURED_SECONDS_PER_BATCH: Mapping[str, float] = {"medium": 30.0, "high": 35.0}
+"""The allowance for a rubric the smoke did not time: the slowest measured batch, rounded up."""
+JUDGE_INPUT_TOKENS_PER_BATCH: Mapping[str, int] = {"reply": 9_200, "expression": 21_700}
+"""Input tokens of one batch in the Phase 6 smoke; expression batches list the 140 equipped Gestures."""
+AUDIO_TAG_SHARE = 0.3
+"""The share of replies expected to carry an Audio tag; only those go to the Audio-tag rubric."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -103,6 +121,60 @@ class BenchmarkPlan:
         """Planned calls; a structured repair or context retry can add one more to a turn."""
 
         return sum(self.calls_for(configuration) for configuration in self.runnable)
+
+
+def judged_items(plan: BenchmarkPlan, rubrics: RubricSet) -> dict[str, int]:
+    """Planned judged items per rubric, from each rubric's kinds (an estimate for Audio tags)."""
+
+    prompt_set = plan.prompt_set
+    configurations = len(plan.runnable)
+    kinds = {
+        "single": configurations * len(prompt_set.items) * len(prompt_set.personas) * plan.repeats,
+        "chat": configurations * sum(len(chat.turns) for chat in prompt_set.scripted_chats) * plan.scripted_repeats,
+        "memory": configurations * MEMORY_ARM_COUNT * sum(len(chat.turns) for chat in prompt_set.memory_chats),
+        "recall": configurations * MEMORY_ARM_COUNT * sum(len(chat.recall) for chat in prompt_set.memory_chats),
+        "chat_transcript": configurations * len(prompt_set.scripted_chats) * plan.scripted_repeats,
+        "capture": configurations * MEMORY_ARM_COUNT * len(prompt_set.memory_chats),
+        "memory_manager": len(first_per_row(plan.runnable)) * len(prompt_set.manager_runs),
+    }
+    open_recall = (
+        configurations
+        * MEMORY_ARM_COUNT
+        * sum(1 for chat in prompt_set.memory_chats for probe in chat.recall if not probe.expect)
+    )
+    counts: dict[str, int] = {}
+    for rubric in rubrics.rubrics:
+        count = sum(
+            open_recall if kind == "recall" and rubric.id in OPEN_PROBES_ONLY else kinds[kind]
+            for kind in rubric.applies_to
+        )
+        counts[rubric.id] = round(count * AUDIO_TAG_SHARE) if rubric.id in TAGGED_REPLIES_ONLY else count
+    return counts
+
+
+def judge_estimate(
+    plan: BenchmarkPlan, rubrics: RubricSet, *, effort: str = "medium", concurrency: int = DEFAULT_CONCURRENCY
+) -> tuple[list[str], float]:
+    """The plan's judging: lines describing its batches, and its wall time in seconds."""
+
+    items = {rubric: count for rubric, count in judged_items(plan, rubrics).items() if count}
+    batches = {rubric: math.ceil(count / BATCH_SIZES[rubric]) for rubric, count in items.items()}
+    per_batch = {
+        rubric: JUDGE_SECONDS_PER_BATCH[effort].get(rubric, UNMEASURED_SECONDS_PER_BATCH[effort]) for rubric in items
+    }
+    seconds = sum(batches[rubric] * per_batch[rubric] for rubric in items) / concurrency
+    lines = [
+        f"Judging: {sum(items.values())} items in {sum(batches.values())} batches at effort {effort}, "
+        f"{concurrency} at a time; Audio-tag items assume {AUDIO_TAG_SHARE:.0%} of replies carry a tag",
+    ]
+    for rubric in items:
+        tokens = JUDGE_INPUT_TOKENS_PER_BATCH.get(rubric)
+        measured = rubric in JUDGE_SECONDS_PER_BATCH[effort]
+        lines.append(
+            f"  - {rubric}: {items[rubric]} items, {batches[rubric]} batches, about {per_batch[rubric]:g} s each"
+            + (f" and {tokens:,} input tokens (measured)" if tokens is not None and measured else " (not measured)")
+        )
+    return lines, seconds
 
 
 def call_price(token_prices: TokenPrices | None) -> CallPrice | None:

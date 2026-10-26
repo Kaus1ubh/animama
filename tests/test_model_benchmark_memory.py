@@ -44,6 +44,7 @@ from scripts.evals.benchmark.memory_runner import (
     ARM_REMEMBER_ONLY,
     BenchmarkSessions,
     Store,
+    memory_changes,
 )
 from scripts.evals.core.inputs import EvalInputError
 from scripts.evals.core.model_calls import CallBudget
@@ -158,6 +159,22 @@ async def _database_exists(application_url: str, name: str) -> bool:
         await engine.dispose()
 
 
+def test_memory_changes_diff_the_stored_files_line_by_line() -> None:
+    def snapshot(**files: str) -> dict[str, Any]:
+        return {"files": [{"path": path.replace("_", "."), "anima": path == "MEMORIES_md", "content": text}
+                          for path, text in files.items()]}  # fmt: skip
+
+    before = snapshot(MEMORIES_md="# Memories\n---\n- We met.\n", PROFILE_md="# Profile")
+    after = snapshot(MEMORIES_md="# Memories\n- We met.", NOTES_md="- Kyoto")
+
+    assert memory_changes(before, after) == [
+        {"path": "NOTES.md", "diff": "@@ -0,0 +1 @@\n+- Kyoto", "created": True},
+        {"path": "PROFILE.md", "diff": "@@ -1 +0,0 @@\n-# Profile", "deleted": True},
+        # A removed Markdown divider stays in the diff; the trailing newline alone is no change.
+        {"path": "[self]/MEMORIES.md", "diff": "@@ -2 +1,0 @@\n----"},
+    ]
+
+
 def test_benchmark_database_names_are_fresh_and_guarded() -> None:
     now = datetime(2026, 10, 25, 21, 0, tzinfo=UTC)
     first = memory_db.benchmark_database_name("2026-10-25 standard run, the long label", now=now)
@@ -265,6 +282,13 @@ async def test_memory_chats_run_every_arm_on_a_database_that_is_dropped_afterwar
         # Three calls, two of them tool rounds: the reply validated as sent, so nothing was repaired. Arm (b)'s
         # schema has no `remember`, so the fake's extra field passes only chat's lenient recovery.
         assert first["calls"] == 3, first
+        # The store diff around the turn: PROFILE.md gains the move in every arm; MEMORIES.md only where writable.
+        changes = {change["path"]: change["diff"] for change in first["memory_changes"]}
+        assert "+- Moving to Kyoto next month." in changes["PROFILE.md"], changes
+        if arm == ARM_REMEMBER_ONLY:
+            assert "[self]/MEMORIES.md" not in changes
+        else:
+            assert changes["[self]/MEMORIES.md"].splitlines()[1:] == ["+- They told me about Kyoto."], changes
         assert first["recovery"] == ("lenient" if arm == ARM_MEMORIES_MD_ONLY else "strict"), first
         # Every arm offers the same memory tools (no web search); arm (a) refuses MEMORIES.md writes when called.
         assert {"memory_write_file", "memory_apply_patch"} <= set(first["offered_tools"])
@@ -347,7 +371,17 @@ async def test_an_openai_responses_row_writes_memory_through_native_apply_patch(
     for arm, turn in firsts.items():
         # Responses rows write memory through native apply_patch instead of the function write tools.
         assert turn["offered_tools"] == ["apply_patch", "memory_list_files", "memory_read_files", "search_memory_files"]
-        assert turn["tool_calls"] == [{"tool": "apply_patch", "path": "PROFILE.md", "ok": True, "code": None}]
+        [call] = turn["tool_calls"]
+        assert {key: call[key] for key in ("tool", "path", "ok", "code")} == {
+            "tool": "apply_patch",
+            "path": "PROFILE.md",
+            "ok": True,
+            "code": None,
+        }
+        # The model rewrote "- Likes tea." in its patch, but the store's own diff shows only the line it added.
+        assert call["arguments"]["type"] == "update_file"
+        [change] = turn["memory_changes"]
+        assert change["path"] == "PROFILE.md" and change["diff"].splitlines()[1:] == ["+- Moving to Kyoto."]
         assert turn["calls"] == 2 and turn["recovery"] == ("lenient" if arm == ARM_MEMORIES_MD_ONLY else "strict")
 
 

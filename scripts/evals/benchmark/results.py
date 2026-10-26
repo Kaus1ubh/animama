@@ -17,7 +17,7 @@ from typing import Any
 
 from ..core.inputs import EvalInputError
 
-__all__ = ["MANIFEST", "RUN_SCHEMA", "TURNS", "RunDirectory", "read_turns"]
+__all__ = ["MANIFEST", "RUN_SCHEMA", "TURNS", "RunDirectory", "read_turns", "write_json"]
 
 RUN_SCHEMA = "animama/model-benchmark-run/1"
 MANIFEST = "manifest.json"
@@ -40,15 +40,26 @@ class RunDirectory:
             os.fsync(handle.fileno())
 
     def write_manifest(self, manifest: Mapping[str, Any]) -> None:
-        temporary = self.path / f".{MANIFEST}.tmp"
-        temporary.write_text(json.dumps(manifest, indent=2, ensure_ascii=False, default=str) + "\n", encoding="utf-8")
-        temporary.replace(self.path / MANIFEST)
+        write_json(self.path / MANIFEST, manifest)
+
+
+def write_json(path: Path, data: Any, *, indent: int = 2) -> None:
+    """Write ``data`` whole through a temporary file, so a reader never sees half a file."""
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(f".{path.name}.tmp")
+    temporary.write_text(json.dumps(data, indent=indent, ensure_ascii=False, default=str) + "\n", encoding="utf-8")
+    temporary.replace(path)
 
 
 def read_turns(path: Path) -> Iterator[dict[str, Any]]:
-    """Read a run's recorded turns in the order they finished."""
+    """Read a run's recorded turns in the order they finished; a malformed line is an input error."""
 
     with (path / TURNS).open(encoding="utf-8") as handle:
-        for line in handle:
-            if line.strip():
+        for number, line in enumerate(handle, start=1):
+            if not line.strip():
+                continue
+            try:
                 yield json.loads(line)
+            except ValueError as exc:
+                raise EvalInputError(f"{path / TURNS}: line {number} is not JSON ({exc})") from exc

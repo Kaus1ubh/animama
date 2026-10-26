@@ -1,4 +1,4 @@
-"""The benchmark's commands: ``plan`` (the dry run), ``run``, ``models`` and ``cleanup``.
+"""The benchmark's commands: ``plan`` (the dry run), ``run``, ``judge``, ``models`` and ``cleanup``.
 
 ``plan`` needs no database or model: the standard set comes from the catalog
 the code defines. ``run`` runs inside the backend container of a development
@@ -15,12 +15,21 @@ left behind::
 
 Add ``-e ANIMAMA_LLM_SKIP=1`` after ``exec`` for a free run against chat's
 mock model client, which needs no approval.
+
+``judge`` runs on the host, where the Claude CLI is signed in to the owner's
+subscription; it reads the run directory and writes under its ``judge/``
+folder, and can be rerun to resume::
+
+    uv run --no-sync python -m scripts.evals.benchmark judge --run-dir .animama-drafts/model-benchmark/<run> \
+        --prompts docs/benchmarks/inputs/prompts.json --effort medium
 """
 
 from __future__ import annotations
 
 import argparse
 import asyncio
+import hashlib
+import json
 import math
 import platform
 import sys
@@ -42,6 +51,7 @@ from ..core import catalog
 from ..core.inputs import EvalInputError
 from ..core.pricing import TokenPrices, parse_token_prices
 from .configs import Configuration, builtin_chat_rows, capability_problem, parse_config, standard_configurations
+from .judge import DEFAULT_CONCURRENCY, EFFORTS, ClaudeCli, load_or_plan, run_judging
 from .memory_db import benchmark_database, benchmark_database_name, drop_leftover_databases, japanese_search_probe
 from .memory_runner import ARM_BOTH, ARM_MEMORIES_MD_ONLY, ARM_REMEMBER_ONLY, BenchmarkSessions
 from .options import ELEVENLABS_VOICE, PROVIDER_MODERATION
@@ -53,14 +63,19 @@ from .planner import (
     estimate_first_turn_tokens,
     estimate_usd,
     estimated_seconds,
+    judge_estimate,
     render_plan,
     total_usd,
 )
 from .prompt_set import TIERS, load_prompt_set
-from .results import RUN_SCHEMA, RunDirectory
+from .results import MANIFEST, RUN_SCHEMA, TURNS, RunDirectory, read_turns
+from .rubrics import TRACKED_RUBRICS, load_rubrics
 from .runner import RunCaps, RunOutcome, run_benchmark
 
 __all__ = ["main"]
+
+JUDGE_SEED = 470
+"""The seed of the judge's shuffle and opaque ids; the prompt set's held-out choice used the same number."""
 
 
 def _positive_int(value: str) -> int:
@@ -115,6 +130,13 @@ def _plan_arguments(parser: argparse.ArgumentParser) -> None:
         default=DEFAULT_SECONDS_PER_CALL,
         help=f"wall-time allowance per model call (default {DEFAULT_SECONDS_PER_CALL})",
     )
+    parser.add_argument("--judge-effort", choices=EFFORTS, default="medium", help="judge effort for the estimate")
+    parser.add_argument(
+        "--judge-concurrency",
+        type=_positive_int,
+        default=DEFAULT_CONCURRENCY,
+        help=f"parallel judge processes for the estimate (default {DEFAULT_CONCURRENCY})",
+    )
 
 
 def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
@@ -140,6 +162,26 @@ def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
         help="the machine the run used, for the report (default: this host's name, a container id in a stack)",
     )
     run.add_argument("--source-revision", default="unrecorded", help="the checkout's commit, for the report")
+    judge = commands.add_parser("judge", help="judge a run's replies blind through the Claude CLI (on the host)")
+    judge.add_argument("--run-dir", type=Path, required=True, help="a run's output directory")
+    judge.add_argument("--prompts", type=Path, required=True, help="the run's prompt-set manifest on this machine")
+    judge.add_argument("--rubrics", type=Path, default=TRACKED_RUBRICS, help="rubric file (default: the tracked one)")
+    judge.add_argument("--effort", choices=EFFORTS, required=True, help="the judge's reasoning effort")
+    judge.add_argument(
+        "--concurrency",
+        type=_positive_int,
+        default=DEFAULT_CONCURRENCY,
+        help=f"parallel judge processes (default {DEFAULT_CONCURRENCY})",
+    )
+    judge.add_argument("--rubric", action="append", default=[], help="judge only this rubric's batches (repeatable)")
+    judge.add_argument("--batch", action="append", default=[], help="judge only this batch (repeatable)")
+    judge.add_argument("--claude", default="claude", help="the Claude CLI executable")
+    judge.add_argument("--timeout", type=_seconds, default=900.0, help="seconds allowed for one judge call")
+    judge.add_argument(
+        "--allow-unfinished",
+        action="store_true",
+        help="judge a run whose manifest still says it is running (a run that was killed)",
+    )
     commands.add_parser("models", help="print the active chat rows of the model catalog")
     commands.add_parser(
         "cleanup",
@@ -208,6 +250,9 @@ async def _print_plan(args: argparse.Namespace, plan: BenchmarkPlan) -> dict[str
 
     tokens = await estimate_first_turn_tokens(plan)
     prices = _price_table(args, plan)
+    judge_lines, judge_seconds = judge_estimate(
+        plan, load_rubrics(TRACKED_RUBRICS), effort=args.judge_effort, concurrency=args.judge_concurrency
+    )
     print(
         render_plan(
             plan,
@@ -216,6 +261,8 @@ async def _print_plan(args: argparse.Namespace, plan: BenchmarkPlan) -> dict[str
             max_calls=args.max_calls,
             prices=prices,
             max_usd=getattr(args, "max_usd", None),
+            judge_lines=judge_lines,
+            judge_seconds=judge_seconds,
         )
     )
     return estimate_usd(plan, first_turn_tokens=tokens, prices=prices)
@@ -325,7 +372,10 @@ async def _run(args: argparse.Namespace) -> int:
     estimated = total_usd(estimates)
     if estimated is not None and estimated > args.max_usd:
         raise EvalInputError(f"The plan's cost estimate ~{estimated:.4f} USD exceeds --max-usd {args.max_usd}")
-    seconds = estimated_seconds(plan, seconds_per_call=args.seconds_per_call)
+    _judge_lines, judge_seconds = judge_estimate(
+        plan, load_rubrics(TRACKED_RUBRICS), effort=args.judge_effort, concurrency=args.judge_concurrency
+    )
+    seconds = estimated_seconds(plan, seconds_per_call=args.seconds_per_call, judge_seconds=judge_seconds)
     if seconds > TIME_BOUND_SECONDS and not args.over_time_approved:
         raise EvalInputError("The estimate exceeds the 4-hour bound; trim the plan or pass --over-time-approved")
     directory = RunDirectory(args.output_dir)
@@ -384,6 +434,62 @@ async def _memory_sessions(outcome: RunOutcome) -> AsyncIterator[BenchmarkSessio
         yield BenchmarkSessions(factory)
 
 
+def _judge(args: argparse.Namespace) -> int:
+    """Judge a run at one effort; 0 when every batch is scored, 1 with missing scores, 3 when stopped early."""
+
+    run_dir: Path = args.run_dir
+    try:
+        manifest = json.loads((run_dir / MANIFEST).read_text(encoding="utf-8"))
+        turns_bytes = (run_dir / TURNS).read_bytes()
+    except (OSError, ValueError) as exc:
+        raise EvalInputError(f"{run_dir} is not a benchmark run ({exc})") from exc
+    if manifest.get("schema") != RUN_SCHEMA:
+        raise EvalInputError(f"{run_dir}: unknown run schema {manifest.get('schema')!r}")
+    if manifest.get("aborted") == "running" and not args.allow_unfinished:
+        # The judge plan is fixed to the turns judged first, so judging a run still in progress would lock it.
+        raise EvalInputError(
+            f"{run_dir} is still running or was killed; judge it once it ends, or pass --allow-unfinished"
+        )
+    prompt_set = load_prompt_set(args.prompts)
+    recorded = manifest.get("prompt_set") or {}
+    changed = [key for key, value in prompt_set.hashes.items() if recorded.get(key) != value]
+    if changed:
+        raise EvalInputError(f"{args.prompts} is not the run's prompt set: {', '.join(changed)} differ")
+    rubrics = load_rubrics(args.rubrics)
+    turns = list(read_turns(run_dir))
+    plan = load_or_plan(run_dir, turns, hashlib.sha256(turns_bytes).hexdigest(), prompt_set, rubrics, seed=JUDGE_SEED)
+    rubric_ids, batch_ids = set(args.rubric), set(args.batch)
+    unknown = sorted(rubric_ids - {batch.rubric for batch in plan.batches}) + sorted(
+        batch_ids - {batch.id for batch in plan.batches}
+    )
+    if unknown:
+        raise EvalInputError(f"no planned batches for {', '.join(unknown)}; see {plan.directory / 'plan.json'}")
+    selected = [
+        batch
+        for batch in plan.batches
+        if (not rubric_ids or batch.rubric in rubric_ids) and (not batch_ids or batch.id in batch_ids)
+    ]
+    print(f"Judge plan: {len(plan.batches)} batches, {len(selected)} selected, effort {args.effort}", file=sys.stderr)
+    outcome = run_judging(
+        plan,
+        prompt_set,
+        rubrics,
+        effort=args.effort,
+        cli=ClaudeCli(binary=args.claude, timeout=args.timeout),
+        concurrency=args.concurrency,
+        select=lambda batch: batch in selected,
+    )
+    print(
+        f"Judged {outcome.completed} batches, skipped {outcome.skipped} already done, {outcome.missing} missing",
+        file=sys.stderr,
+    )
+    if outcome.stopped is not None:
+        follow_up = "rerun the same command to resume" if outcome.resumable else "fix this, then rerun the command"
+        print(f"Judging stopped: {outcome.stopped}. Finished batches are kept; {follow_up}.", file=sys.stderr)
+        return 3
+    return 1 if outcome.missing else 0
+
+
 async def _cleanup() -> int:
     dropped, in_use = await drop_leftover_databases(catalog.application_database_url())
     lines = [f"dropped {name}" for name in dropped] + [f"kept {name}: in use" for name in in_use]
@@ -401,6 +507,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.command == "plan":
             asyncio.run(_print_plan(args, _plan(args, builtin_chat_rows())))
             return 0
+        if args.command == "judge":
+            return _judge(args)
         # The OpenAI Memory Manager runtime would otherwise export a trace of each benchmark run.
         set_tracing_disabled(True)
         return asyncio.run(_run(args))
@@ -408,5 +516,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"error: {exc}", file=sys.stderr)
         return 2
     except KeyboardInterrupt:
-        print("Interrupted; the turns finished so far were written.", file=sys.stderr)
+        finished = "batches" if args.command == "judge" else "turns"
+        print(f"Interrupted; the {finished} finished so far were written.", file=sys.stderr)
         return 130
