@@ -404,6 +404,12 @@ export function AvatarSceneHost({
     },
     [],
   );
+  // The Avatar loader reloads its Avatar whenever this callback changes, so
+  // it reads the bindings through a ref: framing an Avatar replaces them.
+  const sceneCameraBindingsRef = useRef(sceneCameraBindings);
+  useEffect(() => {
+    sceneCameraBindingsRef.current = sceneCameraBindings;
+  }, [sceneCameraBindings]);
   const handleAvatarInstanceChange = useCallback(
     (avatar: Avatar | null) => {
       avatarRuntimeRef.current = avatar;
@@ -412,10 +418,14 @@ export function AvatarSceneHost({
       if (!avatar || mode === "pip") return;
 
       setSceneCameraSettings((current) =>
-        sampleSceneCameraBindings(current, sceneCameraBindings, avatar),
+        sampleSceneCameraBindings(
+          current,
+          sceneCameraBindingsRef.current,
+          avatar,
+        ),
       );
     },
-    [mode, sceneCameraBindings],
+    [mode],
   );
   const handleSceneCameraPresetApply = useCallback(
     (preset: SceneCameraPreset) => {
