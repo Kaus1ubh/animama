@@ -156,7 +156,7 @@ export const ResponsiveSidebar = ({
         aria-hidden={!isDesktop && !open}
         inert={!isDesktop && !open}
         className={cn(
-          "group/sidebar-shell short:py-2 fixed top-0 left-0 z-[120] flex h-full w-[242px] flex-shrink-0 flex-col overflow-hidden px-[6px] py-3 md:translate-x-0",
+          "group/sidebar-shell short:py-2 fixed top-(--app-titlebar-height) bottom-0 left-0 z-[120] flex w-[242px] flex-shrink-0 flex-col overflow-hidden px-[6px] py-3 md:translate-x-0",
           open
             ? "bg-sidebar/70 ring-sidebar-border/70 supports-[backdrop-filter]:bg-sidebar/60 rounded-tr-3xl rounded-br-3xl shadow-lg ring-1 backdrop-blur-xs ring-inset"
             : "border-transparent bg-transparent shadow-none",

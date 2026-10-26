@@ -18,6 +18,8 @@ export type ChatInputSubmitState = {
   icon: ChatInputSubmitIcon;
   label: string;
   tooltip: string | null;
+  /** The tooltip's keyboard shortcut, shown in a keycap after it. */
+  tooltipShortcut?: string | null;
 };
 
 /**
@@ -33,6 +35,7 @@ export function resolveChatInputSubmitState(
     isVoiceModeActive,
     disabled,
     voiceAvailable = true,
+    voiceModeShortcut = null,
   }: {
     submitMode: ChatInputSubmitMode;
     hasText: boolean;
@@ -41,6 +44,8 @@ export function resolveChatInputSubmitState(
     isVoiceModeActive: boolean;
     disabled: boolean;
     voiceAvailable?: boolean;
+    /** Display text of the Voice Mode on/off shortcut, if the host has one. */
+    voiceModeShortcut?: string | null;
   },
   t: TFunction<"product"> = productEnglishT(),
 ): ChatInputSubmitState {
@@ -91,6 +96,7 @@ export function resolveChatInputSubmitState(
       icon: "stop",
       label: t("composer.stopVoice"),
       tooltip: t("composer.stopVoice"),
+      tooltipShortcut: voiceModeShortcut,
     };
   }
 
@@ -102,5 +108,7 @@ export function resolveChatInputSubmitState(
     tooltip: voiceAvailable
       ? t("composer.voiceMode")
       : t("composer.speechUnavailable"),
+    // An unavailable control explains why instead of offering the shortcut.
+    tooltipShortcut: voiceAvailable ? voiceModeShortcut : null,
   };
 }

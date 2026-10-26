@@ -39,6 +39,7 @@ import { useChatSession, type ChatMessage } from "./useChatSession";
 import { useCrisisCardCornerBottom } from "./crisisCardCorner";
 import { PromptSuggestion } from "./PromptSuggestion";
 import { MemoryCue } from "./MemoryCue";
+import { SkipSpeechButton } from "./SkipSpeechButton";
 import { useFirstChatSuggestions } from "./useFirstChatSuggestions";
 import { useDictation } from "@/hooks/use-dictation";
 import {
@@ -53,7 +54,10 @@ import {
   type DesktopQuickChatPromptSuggestion,
   type DesktopQuickChatSnapshot,
 } from "@/hooks/useDesktopQuickChatRuntime";
-import { resolveDesktopShortcuts } from "@/lib/settings/desktop-shortcuts";
+import {
+  desktopChatShortcutLabels,
+  resolveDesktopShortcuts,
+} from "@/lib/settings/desktop-shortcuts";
 import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import {
   mergeChatAttachedFileIds,
@@ -61,13 +65,11 @@ import {
 } from "@/lib/user-files/chat-attachments";
 import { queryKeys } from "@/query/keys";
 import { useUserFiles } from "@/query/hooks/useUserFiles";
-import { useOperatorManagedModelAssets } from "@/query/hooks/useModelAssets";
 import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
 import {
   useRuntimeFeatureEnabled,
   useRuntimeFeatureUnavailableReason,
 } from "@/ui/app/RuntimeFeatureGate";
-import { OfflineSpeechDownloads } from "@/ui/settings/OfflineSpeechDownloads";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
 import {
   offlineSpeechAvailable,
@@ -168,6 +170,9 @@ type ChatInterfaceViewProps = {
   onSubmit: () => void;
   onVoiceMicToggle?: () => void;
   onVoiceModeStart?: () => void;
+  /** A reply is being spoken; its bubble offers `onSkipTts`. */
+  ttsAudioActive?: boolean;
+  onSkipTts?: () => void;
   animaId: string;
   promptSuggestions: DesktopQuickChatPromptSuggestion[];
   quickChatSurface?: boolean;
@@ -225,6 +230,8 @@ export function ChatInterfaceView({
   onSubmit,
   onVoiceMicToggle,
   onVoiceModeStart,
+  ttsAudioActive = false,
+  onSkipTts,
   animaId,
   promptSuggestions,
   quickChatSurface = false,
@@ -256,6 +263,16 @@ export function ChatInterfaceView({
     useRuntimeFeatureUnavailableReason("chat_file_uploads");
   const platform = useRuntimePlatform();
   const { effectivePreferences } = useSettings();
+  // Global shortcuts exist only in the desktop app, Quick Chat included.
+  const desktopShortcutPreferences =
+    effectivePreferences.speech?.desktop_shortcuts;
+  const chatShortcuts = useMemo(
+    () =>
+      platform.isDesktop
+        ? desktopChatShortcutLabels(desktopShortcutPreferences, platform.os)
+        : null,
+    [desktopShortcutPreferences, platform.isDesktop, platform.os],
+  );
   // Offline recognition counts only with the engine that runs installed: the
   // owner's choice, else the UI Locale's.
   const offlineRoute = routeOfflineSpeech(
@@ -272,8 +289,6 @@ export function ChatInterfaceView({
     locale: i18n.resolvedLanguage,
     capabilities: capabilities.data,
   });
-  // Operator-provided speech models cannot be installed from the composer.
-  const operatorManagedModels = useOperatorManagedModelAssets();
   const { data: anima } = useAnima(animaId);
   const { data: modelCatalog } = useModelProviders();
   const activeModel = modelCatalog?.find(
@@ -284,16 +299,32 @@ export function ChatInterfaceView({
   const isChatOnlyLayout = layout === "chat-only";
   const fileDropEnabled = Boolean(fileUploadUppy) && !quickChatSurface;
   const fileDropAccepting = fileDropEnabled && canChat && !isStreaming;
+  // Speech plays for the latest reply, so only its bubble offers the skip.
+  const spokenMessageId = ttsAudioActive
+    ? displayMessages.findLast((message) => message.role === "assistant")?.id
+    : undefined;
+  const skipTtsShortcut = chatShortcuts?.skipTts;
   const renderAssistantAccessory = useCallback(
-    (message: ChatMessage) =>
-      message.memoryCue ? (
+    (message: ChatMessage) => {
+      const memoryCue = message.memoryCue ? (
         <MemoryCue
           cue={message.memoryCue}
           animaName={animaName}
           onOpenMemoryEntry={onOpenMemoryEntry}
         />
-      ) : null,
-    [animaName, onOpenMemoryEntry],
+      ) : null;
+      const skipSpeech =
+        onSkipTts && message.id === spokenMessageId ? (
+          <SkipSpeechButton shortcut={skipTtsShortcut} onSkip={onSkipTts} />
+        ) : null;
+      return memoryCue || skipSpeech ? (
+        <>
+          {memoryCue}
+          {skipSpeech}
+        </>
+      ) : null;
+    },
+    [animaName, onOpenMemoryEntry, onSkipTts, skipTtsShortcut, spokenMessageId],
   );
 
   return (
@@ -407,6 +438,7 @@ export function ChatInterfaceView({
               onVoice={onVoiceModeStart}
               voiceAvailable={speechAvailable}
               voiceModeDetails={speechEngines.voiceMode}
+              micShortcuts={chatShortcuts}
               loading={isStreaming}
               onStop={onStop}
               activeMicMode={activeMode}
@@ -486,26 +518,6 @@ export function ChatInterfaceView({
                 />
               </div>
             </ChatInput>
-            {!speechAvailable ? (
-              <details className="text-muted-foreground mt-2 text-xs">
-                <summary>
-                  {operatorManagedModels
-                    ? t("speech.unavailableHere")
-                    : t("speech.install")}
-                </summary>
-                {quickChatSurface ? (
-                  <p>{t("speech.installFromMainWindow")}</p>
-                ) : (
-                  <div className="mt-2">
-                    <OfflineSpeechDownloads
-                      heading={false}
-                      engine={offlineRoute.engine}
-                      routedOnly
-                    />
-                  </div>
-                )}
-              </details>
-            ) : null}
             {quickChatSurface && crisisSlot ? (
               <div className="mt-2">{crisisSlot}</div>
             ) : null}
@@ -804,9 +816,14 @@ export const ChatInterface = ({
     ],
   );
 
+  const desktopOs = useRuntimePlatform().os;
   const desktopShortcuts = useMemo(
-    () => resolveDesktopShortcuts(userPreferences?.speech?.desktop_shortcuts),
-    [userPreferences?.speech?.desktop_shortcuts],
+    () =>
+      resolveDesktopShortcuts(
+        userPreferences?.speech?.desktop_shortcuts,
+        desktopOs,
+      ),
+    [desktopOs, userPreferences?.speech?.desktop_shortcuts],
   );
 
   useEffect(() => {
@@ -875,6 +892,16 @@ export const ChatInterface = ({
   const handleMicSessionStop = useCallback(() => {
     void stopDictation();
   }, [stopDictation]);
+
+  // The Dictate shortcut starts or stops dictation; it leaves Voice Mode alone.
+  const handleDictationToggle = useCallback(() => {
+    if (activeMode === "dictation") {
+      void stopDictation();
+      return;
+    }
+    if (activeMode || !canChat) return;
+    void handleDictationStart();
+  }, [activeMode, canChat, handleDictationStart, stopDictation]);
 
   const handleVoiceMicToggle = useCallback(() => {
     if (activeMode !== "voice") {
@@ -1003,6 +1030,7 @@ export const ChatInterface = ({
         isDictationPreparing,
         isUserSpeaking,
         isVoiceMicMuted,
+        ttsAudioActive: isTtsAudioActive,
       },
       safety: companionSafety ? quickChatSafetySnapshot(companionSafety) : null,
     }),
@@ -1021,6 +1049,7 @@ export const ChatInterface = ({
       isDictationPreparing,
       isMicCaptureActive,
       isStreaming,
+      isTtsAudioActive,
       isUserSpeaking,
       isVoiceMicMuted,
       animaId,
@@ -1045,6 +1074,7 @@ export const ChatInterface = ({
       },
       stopMicSession: handleMicSessionStop,
       toggleVoiceMute: handleVoiceMicToggle,
+      skipTts: handleSkipTts,
       refreshModelState: handleModelStateRefresh,
       dismissCrisisCard: () => companionSafety?.dismissCrisis(),
       openMemoryEntry: (entryId: string) => {
@@ -1057,6 +1087,7 @@ export const ChatInterface = ({
       handleModelStateRefresh,
       handleMicSessionStop,
       handlePromptSuggestionSelect,
+      handleSkipTts,
       handleStop,
       handleSubmitWithDictation,
       handleVoiceMicToggle,
@@ -1082,6 +1113,7 @@ export const ChatInterface = ({
     isVoiceMicMuted,
     ttsAudioActive: isTtsAudioActive,
     onQuickChat: toggleQuickChat,
+    onToggleDictation: handleDictationToggle,
     onToggleVoiceMode: handleVoiceModeToggle,
     onToggleVoiceMute: handleVoiceMicToggle,
     onMuteVoiceMic: muteVoiceMic,
@@ -1128,6 +1160,8 @@ export const ChatInterface = ({
           void handleDictationStart();
         }}
         onRemoveExistingFile={removeExistingFile}
+        ttsAudioActive={isTtsAudioActive}
+        onSkipTts={handleSkipTts}
         onToggleExistingFile={toggleExistingFile}
         onInputChange={handleInputChange}
         onIncompatibleModelSelect={requestModelSwitchToNewChat}

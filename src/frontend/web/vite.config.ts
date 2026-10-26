@@ -84,14 +84,6 @@ function speechModels(
         webgpuBaseUrl: operatorModelUrl(engine, "webgpu-"),
       };
 }
-// Reviewed model attributions bundled for the speech and voice-cloning
-// settings. Allow only these notice folders, never the whole models directory.
-const modelNoticeRoots = [
-  "parakeet-tdt-0.6b-v2-webgpu",
-  "sensevoice-small",
-].map((folder) =>
-  fileURLToPath(new URL(`../../../models/${folder}`, import.meta.url)),
-);
 // The self-hosted typeface resolves into the workspace package store, outside
 // the web root; allow only its package directory so dev can serve the files.
 const requireFromWeb = createRequire(import.meta.url);
@@ -302,7 +294,6 @@ export default defineConfig(({ mode, command, isPreview }) => {
           webRoot,
           publicPackagesRoot,
           safetyDocsRoot,
-          ...modelNoticeRoots,
           // The built-in pose catalog bundles Included Gesture/Reaction clips.
           includedContentRoot,
           fontPackageRoot,

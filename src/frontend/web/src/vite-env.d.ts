@@ -62,6 +62,10 @@ interface Window {
     readonly featurePacks?: import("../../shared/desktop-runtime").FeaturePacksBridge;
     readonly updates?: import("../../shared/desktop-runtime").UpdatesBridge;
     readonly locale?: import("../../shared/desktop-runtime").LocaleBridge;
+    /** Main window on Windows: colors of the window buttons over the title strip. */
+    readonly titleBar?: {
+      setColors(colors: { color: string; symbolColor: string }): Promise<void>;
+    };
     readonly fullscreen?: {
       enter(): Promise<boolean>;
       exit(): Promise<boolean>;
@@ -79,6 +83,8 @@ interface Window {
         mode: DesktopPipBackgroundMode,
       ): Promise<DesktopPipState>;
       setSizeScale(sizeScale: number): Promise<DesktopPipState>;
+      /** PiP renderer only: the resize grip is held (true) or released. */
+      setGripResizing?(active: boolean): Promise<void>;
       onStateChange(callback: (state: DesktopPipState) => void): () => void;
       publishRuntimeMessage(message: DesktopPipRuntimeMessage): Promise<void>;
       onRuntimeMessage(
@@ -159,7 +165,7 @@ type DesktopPipCursorSnapshot = {
 };
 
 type DesktopPipRuntimeMessage = {
-  type: "ready" | "snapshot" | "incremental";
+  type: "ready" | "snapshot" | "incremental" | "camera-preset";
   sequence: number;
   sentAtMs: number;
   animaId: string;
@@ -169,6 +175,7 @@ type DesktopPipRuntimeMessage = {
 type DesktopShortcutAction =
   | "press_to_talk"
   | "quick_chat"
+  | "toggle_dictation"
   | "toggle_voice_mode"
   | "toggle_voice_mute"
   | "skip_tts";

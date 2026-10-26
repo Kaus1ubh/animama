@@ -29,6 +29,7 @@
       "orbitTarget": "环绕中心",
       "orbitTargetYSource": "环绕中心 Y 来源",
       "orbitTargetYSourceLabel": "环绕中心 Y 来源",
+      "pipTitle": "画中画相机",
       "position": "相机位置",
       "positionYSource": "相机 Y 来源",
       "positionYSourceLabel": "相机 Y 来源",
@@ -245,9 +246,7 @@
     }
   },
   "speech": {
-    "install": "安装离线语音识别以使用听写和语音模式",
-    "installFromMainWindow": "请在 Animama 主窗口中打开“应用设置 → 语音”进行下载。",
-    "unavailableHere": "此处无法使用听写和语音模式所需的离线语音识别"
+    "skip": "跳过朗读"
   },
   "suggestions": {
     "rockPaperScissors": "玩石头剪刀布",

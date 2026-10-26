@@ -19,6 +19,7 @@ import {
   writeLog,
 } from "./main-process/logging.js";
 import { installFullscreenIpc } from "./main-process/fullscreen/fullscreen-ipc.js";
+import { installTitleBarIpc } from "./main-process/window/title-bar.js";
 import { installPipIpc } from "./main-process/pip/pip-ipc.js";
 import { installQuickChatIpc } from "./main-process/quick-chat/quick-chat-ipc.js";
 import { installShortcutsIpc } from "./main-process/shortcuts/shortcuts-ipc.js";
@@ -299,6 +300,7 @@ else {
           );
         installSessionGuards(desktopConfig.allowedWebOrigin, desktopSession);
         installFullscreenIpc();
+        installTitleBarIpc();
         installPipIpc({
           config: desktopConfig,
           locale: shellLocale,

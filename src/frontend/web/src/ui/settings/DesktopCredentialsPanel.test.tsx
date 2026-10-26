@@ -334,7 +334,9 @@ describe("feature-local key fields", () => {
       "ElevenLabs",
       "Gemini",
     ]);
-    expect(full).toContain("Add an OpenAI or Anthropic key for cloud chat");
+    expect(full).toContain(
+      "Keys are encrypted with this computer’s secure storage",
+    );
   });
 
   it("reports only its own keys' failures", () => {

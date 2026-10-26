@@ -133,6 +133,7 @@ body[data-state=error] #message{color:var(--foreground)}
 @keyframes slide{from{transform:translateX(-100%)}to{transform:translateX(250%)}}
 @media (prefers-reduced-motion:reduce){.bar span{animation:none;width:100%;opacity:.6}}
 .detail{margin-top:.75rem;font:.75rem/1rem ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--muted-foreground);overflow-wrap:anywhere;-webkit-user-select:text;user-select:text}
+#title,#message{-webkit-user-select:text;user-select:text}
 .actions{display:flex;flex-wrap:wrap;justify-content:center;gap:.5rem;margin-top:1.5rem}
 button{font:inherit;font-size:.875rem;font-weight:500;height:2.25rem;padding:0 1rem;border-radius:calc(var(--radius) - 2px);border:1px solid transparent;background:transparent;color:var(--foreground);cursor:pointer;transition:background-color .15s,color .15s}
 button.primary{background:var(--primary);color:var(--primary-foreground)}

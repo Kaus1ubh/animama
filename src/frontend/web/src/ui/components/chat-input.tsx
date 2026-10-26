@@ -31,6 +31,7 @@ import {
   Tooltip,
   TooltipContent,
   TooltipDetails,
+  TooltipLabel,
   TooltipTrigger,
 } from "@/ui/components/tooltip";
 import { UnavailableAction } from "@/ui/components/unavailable-action";
@@ -918,6 +919,7 @@ function ChatInputDictation({
   const onVoiceMicToggle = context.onVoiceMicToggle;
   const dictationStream = context.dictationStream;
   const hasDictationStream = Boolean(dictationStream);
+  const shortcuts = context.micShortcuts;
   const micWaveformMode =
     context.micWaveformMode ??
     (context.showMicWaveform === false ? "none" : "live");
@@ -1000,7 +1002,12 @@ function ChatInputDictation({
             </Button>
           </TooltipTrigger>
           <TooltipContent avoidCollisions={false} side="bottom">
-            {actionLabel}
+            <TooltipLabel
+              label={actionLabel}
+              shortcut={
+                isVoiceMode ? shortcuts?.voiceMute : shortcuts?.dictation
+              }
+            />
           </TooltipContent>
         </Tooltip>
       </div>
@@ -1028,7 +1035,12 @@ function ChatInputDictation({
           Mode, so the engine line stays visible. */}
       <TooltipContent side="bottom">
         <TooltipDetails
-          title={t("composer.dictation.start")}
+          title={
+            <TooltipLabel
+              label={t("composer.dictation.start")}
+              shortcut={shortcuts?.dictation}
+            />
+          }
           lines={engineDetails}
         />
       </TooltipContent>

@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import type { i18n as I18nInstance } from "i18next";
 import { AnimamaI18nProvider } from "@animama/product-ui/i18n";
 
+import { useDesktopTitleBarColors } from "@/hooks/useDesktopTitleBarColors";
 import { RuntimePlatformProvider } from "@/platform/RuntimePlatformProvider";
 import { LocaleSync } from "@/i18n/LocaleSync";
 import { Toaster } from "@/ui/components/sonner";
@@ -29,6 +30,7 @@ export function AppProviders({
   return (
     <AnimamaI18nProvider i18n={i18n}>
       <ThemeProvider>
+        <DesktopTitleBarColorSync />
         <RuntimePlatformProvider>
           <RuntimeAdmissionProvider controller={controller}>
             <ApplicationSession>{children}</ApplicationSession>
@@ -76,4 +78,10 @@ function ApplicationSession({ children }: { children: ReactNode }) {
       )}
     </QueryClientProvider>
   );
+}
+
+/** Follows the theme with the Windows window buttons; renders nothing. */
+function DesktopTitleBarColorSync() {
+  useDesktopTitleBarColors();
+  return null;
 }

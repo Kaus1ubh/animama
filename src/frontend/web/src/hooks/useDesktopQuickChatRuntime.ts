@@ -30,6 +30,8 @@ export type DesktopQuickChatVoiceState = {
   isDictationPreparing: boolean;
   isUserSpeaking: boolean;
   isVoiceMicMuted: boolean;
+  /** A reply is being spoken, so Quick Chat offers to skip it. */
+  ttsAudioActive: boolean;
 };
 
 export type DesktopQuickChatSnapshot = {
@@ -67,6 +69,7 @@ export type DesktopQuickChatCommand =
   | { type: "start-voice-mode" }
   | { type: "stop-mic-session" }
   | { type: "toggle-voice-mute" }
+  | { type: "skip-tts" }
   | { type: "refresh-model-state" }
   | { type: "dismiss-crisis-card" }
   /** Opens a memory cue's `MEMORIES.md` entry in the main window's Memory workspace. */
@@ -81,6 +84,7 @@ export type DesktopQuickChatCommandHandlers = {
   startVoiceMode: () => void;
   stopMicSession: () => void;
   toggleVoiceMute: () => void;
+  skipTts: () => void;
   refreshModelState: () => void;
   dismissCrisisCard: () => void;
   openMemoryEntry: (entryId: string) => void;
@@ -154,6 +158,7 @@ export function isQuickChatCommand(
     case "start-voice-mode":
     case "stop-mic-session":
     case "toggle-voice-mute":
+    case "skip-tts":
     case "refresh-model-state":
     case "dismiss-crisis-card":
       return true;
@@ -300,6 +305,9 @@ export function useDesktopQuickChatOwner({
           return;
         case "toggle-voice-mute":
           currentHandlers.toggleVoiceMute();
+          return;
+        case "skip-tts":
+          currentHandlers.skipTts();
           return;
         case "refresh-model-state":
           currentHandlers.refreshModelState();
@@ -454,15 +462,76 @@ export function useDesktopQuickChatConsumer(
   };
 }
 
+/**
+ * Whether this Quick Chat window is open, following the main process's
+ * state. Null outside the Quick Chat window and until the first state arrives.
+ */
+export function useDesktopQuickChatWindowOpen(): boolean | null {
+  const platform = useRuntimePlatform();
+  const bridge = resolveQuickChatBridge(platform);
+  const isQuickChatWindow =
+    platform.kind === "desktop" &&
+    platform.desktopBridge.windowRole === "quick-chat";
+  const [isOpen, setIsOpen] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!bridge || !isQuickChatWindow) return;
+    let disposed = false;
+    let changed = false;
+    const unsubscribe = bridge.onStateChange((state) => {
+      changed = true;
+      setIsOpen(state.isOpen);
+    });
+    void bridge
+      .getState()
+      .then((state) => {
+        // A pushed change is newer than this initial read.
+        if (!disposed && !changed) setIsOpen(state.isOpen);
+      })
+      .catch(() => {});
+    return () => {
+      disposed = true;
+      unsubscribe();
+    };
+  }, [bridge, isQuickChatWindow]);
+
+  return isQuickChatWindow ? isOpen : null;
+}
+
+/**
+ * Marks the Quick Chat document with `data-animama-quick-chat-closed` while
+ * its native window is closed, so global CSS pauses animations there.
+ *
+ * Prewarming keeps the hidden window painting with background throttling off,
+ * so the page still reports itself visible. Without the pause, an infinite
+ * animation such as the composer's shine border repaints the hidden window at
+ * display rate.
+ */
+export function usePauseClosedQuickChatAnimations(): void {
+  const isOpen = useDesktopQuickChatWindowOpen();
+
+  useEffect(() => {
+    if (isOpen === null) return;
+    const root = document.documentElement;
+    root.toggleAttribute("data-animama-quick-chat-closed", !isOpen);
+    return () => {
+      root.removeAttribute("data-animama-quick-chat-closed");
+    };
+  }, [isOpen]);
+}
+
 export function useDesktopQuickChatInteractiveRegions(active: boolean): void {
   const platform = useRuntimePlatform();
   const bridge = resolveQuickChatBridge(platform);
   const isQuickChatWindow =
     platform.kind === "desktop" &&
     platform.desktopBridge.windowRole === "quick-chat";
+  // A closed window needs no regions or size; opening measures at once.
+  const isOpen = useDesktopQuickChatWindowOpen();
+  const measuring = active && isOpen !== false;
 
   useEffect(() => {
-    if (!active || !bridge || !isQuickChatWindow) return;
+    if (!measuring || !bridge || !isQuickChatWindow) return;
 
     const publishRegions = () => {
       const regions = Array.from(
@@ -545,5 +614,5 @@ export function useDesktopQuickChatInteractiveRegions(active: boolean): void {
       );
       void bridge.setInteractiveRegions([]).catch(() => {});
     };
-  }, [active, bridge, isQuickChatWindow]);
+  }, [bridge, isQuickChatWindow, measuring]);
 }

@@ -29,6 +29,7 @@
       "orbitTarget": "Orbit Target",
       "orbitTargetYSource": "Orbit Target Y Source",
       "orbitTargetYSourceLabel": "Orbit target Y source",
+      "pipTitle": "PiP camera",
       "position": "Camera Position",
       "positionYSource": "Camera Y Source",
       "positionYSourceLabel": "Camera Y source",
@@ -247,9 +248,7 @@
     }
   },
   "speech": {
-    "install": "Install offline speech recognition to use dictation and Voice Mode",
-    "installFromMainWindow": "Open App Settings → Voice in the main Animama window to download it.",
-    "unavailableHere": "Offline speech recognition for dictation and Voice Mode is not available here"
+    "skip": "Skip speech"
   },
   "suggestions": {
     "joke": "Tell me a joke",
