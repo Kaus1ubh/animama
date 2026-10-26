@@ -6317,7 +6317,7 @@ export default interface Resources {
         "downloading": "Downloading {{percent}}",
         "engines": {
           "parakeet": "<link>NVIDIA's Parakeet TDT 0.6B v2</link> transcribes English speech on this device, so your voice never leaves it.",
-          "sensevoice": "<link>Alibaba's SenseVoice-Small</link> transcribes Japanese, Korean and Chinese speech on this device, so your voice never leaves it."
+          "sensevoice": "<link>Alibaba's SenseVoice-Small</link> transcribes Japanese, Korean, Chinese and English speech on this device, so your voice never leaves it."
         },
         "gpu": {
           "description": "Faster, with live previews as you speak. Needs the CPU version and a WebGPU-capable GPU.",
@@ -6328,11 +6328,11 @@ export default interface Resources {
         "listUnavailable": "Speech downloads are unavailable right now. You can add them later in App Settings.",
         "lowSpace": "Not enough free space: downloads need {{size}} free.",
         "notDownloaded": "Not downloaded",
-        "otherLanguage": {
-          "parakeet": "Animama uses this model while the app language is English.",
-          "sensevoice": "Animama uses this model while the app language is Japanese, Korean or Chinese."
-        },
         "progressLabel": "{{label}} download progress",
+        "recognizes": {
+          "parakeet": "Recognizes English only.",
+          "sensevoice": "Recognizes Japanese, Korean, Chinese and English. It listens for the app language; with the app in English, it detects which language you speak."
+        },
         "retryDownload": "Retry download",
         "turnedOff": "Speech recognition is turned off on this server.",
         "unavailableInBuild": "Unavailable in this build.",
@@ -6539,6 +6539,9 @@ export default interface Resources {
     },
     "languageNotice": {
       "speechToText": "To use offline speech recognition in {{language}}, download its model.",
+      "speechToTextEnglishOnly": "Parakeet recognizes English only. To speak to your Animas in {{language}}, choose SenseVoice.",
+      "speechToTextModel": "To use SenseVoice, download its model.",
+      "speechToTextModelUnavailable": "SenseVoice is not available on this server.",
       "speechToTextUnavailable": "Offline speech recognition in {{language}} is not available on this server.",
       "textToSpeech": "Pocket TTS speaks English only. To hear your Animas in {{language}}, choose ElevenLabs or Gemini."
     },

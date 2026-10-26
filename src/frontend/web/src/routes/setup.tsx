@@ -122,8 +122,9 @@ function LocalSetupForm({ ownerId }: { ownerId: string }) {
     | undefined;
   const ttsProvider = resolveSetupTtsProvider(draft, savedSpeech);
   // Speech-to-Text: the web recommends the browser's recognizer, desktop the
-  // UI Locale's offline model (desktop has no browser recognizer). Read
-  // through `i18n` so the tabs follow a language switch.
+  // UI Locale's offline model (desktop has no browser recognizer), which also
+  // shows a saved offline choice without an engine. Read through `i18n` so
+  // the tabs follow a language switch.
   const sttEngine = routeOfflineSpeech(i18n.resolvedLanguage).engine;
   const sttBrowserOptions = getSttProviderOptions(
     null,
@@ -174,9 +175,16 @@ function LocalSetupForm({ ownerId }: { ownerId: string }) {
     setError(null);
     try {
       // The Speech-to-Text tab is always saved, so the recommended model
-      // applies even when untouched; an untouched Text-to-Speech default is not.
+      // applies even when untouched; an untouched Text-to-Speech default is
+      // not. Only a picked offline engine is saved: an untouched one keeps
+      // following the UI Locale.
       const patch = withVoice
-        ? { ...setupTtsPatch(draft), ...sttChoicePatch(sttChoice) }
+        ? {
+            ...setupTtsPatch(draft),
+            ...sttChoicePatch(sttChoice, {
+              saveEngine: draft.sttChoice === sttChoice,
+            }),
+          }
         : null;
       // Read-merge-write: other preferences are kept.
       if (patch) await mergePreferences.mutateAsync({ speech: patch });
@@ -300,7 +308,6 @@ function LocalSetupForm({ ownerId }: { ownerId: string }) {
                 stt={{
                   choice: sttChoice,
                   choices: sttChoices,
-                  engine: sttEngine,
                   recommended: recommendedSttChoice(sttEngine, sttChoices),
                   onChoiceChange: (choice) =>
                     updateDraft({ sttChoice: choice }),

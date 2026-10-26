@@ -58,6 +58,55 @@ describe("speech language notice", () => {
     },
   );
 
+  it.each([
+    ["ja", "日本語"],
+    ["zh-Hant", "繁體中文"],
+  ])(
+    "warns that a chosen Parakeet recognizes English only under %s",
+    async (locale, language) => {
+      runtime.capabilities = local(true);
+      await getI18n().changeLanguage(locale);
+
+      expect(
+        renderToStaticMarkup(
+          <SpeechLanguageNotice
+            direction="speechToText"
+            provider="parakeet"
+            engine="parakeet"
+          />,
+        ),
+      ).toContain(
+        getI18n().t("voice:languageNotice.speechToTextEnglishOnly", {
+          language,
+        }),
+      );
+    },
+  );
+
+  it("asks for SenseVoice's model when it is chosen under English without its set", () => {
+    const markup = renderToStaticMarkup(
+      <SpeechLanguageNotice
+        direction="speechToText"
+        provider="parakeet"
+        engine="sensevoice"
+      />,
+    );
+
+    expect(markup).toContain(
+      getI18n().t("voice:languageNotice.speechToTextModel"),
+    );
+    runtime.capabilities = local(true);
+    expect(
+      renderToStaticMarkup(
+        <SpeechLanguageNotice
+          direction="speechToText"
+          provider="parakeet"
+          engine="sensevoice"
+        />,
+      ),
+    ).toBe("");
+  });
+
   it("says when the operator does not provide the language's model", async () => {
     runtime.capabilities = {
       ...local(false),

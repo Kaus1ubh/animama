@@ -1,8 +1,8 @@
 # Voice Guide (`src/frontend/web`)
 
 Voice input uses browser recognition or offline recognition (Parakeet for
-English, SenseVoice-Small for Japanese, Korean and Chinese) with acoustic and
-semantic VAD. Output uses browser speech, PocketTTS, ElevenLabs or Gemini. See
+English, SenseVoice-Small for Japanese, Korean, Chinese and English) with
+acoustic and semantic VAD. Output uses browser speech, PocketTTS, ElevenLabs or Gemini. See
 [Avatar lip-sync](avatar-lipsync.md) for synchronization and
 [Pocket catalogs](../features/emotional-voice-catalog.md) for voice embeddings.
 
@@ -30,45 +30,56 @@ as unavailable even if Chromium exposes `SpeechRecognition` or
 with a `network` error, so desktop dictation and voice mode use offline
 recognition only when the routed engine's runtime capability is available.
 
-### Offline engine by conversation language
+### Offline engine choice
 
 The stored `parakeet` provider means offline recognition, whichever engine
-runs. When dictation or Voice Mode starts with it, `routeOfflineSpeech()`
-(`lib/speech/offline-stt/routing.ts`) chooses the engine from the conversation
+runs. The owner may choose the engine (`speech.stt_offline_engine`,
+`"parakeet"` or `"sensevoice"`); without a choice it follows the conversation
 language, which is the UI Locale
 ([ADR 0024](../../adr/0024-ui-locale-is-the-conversation-language.md),
-[ADR 0029](../../adr/0029-sensevoice-offline-speech-recognition.md)):
+[ADR 0029](../../adr/0029-sensevoice-offline-speech-recognition.md),
+[ADR 0031](../../adr/0031-offline-speech-engine-is-the-owners-choice.md)).
+When dictation or Voice Mode starts, `routeOfflineSpeech(locale, engine)`
+(`lib/speech/offline-stt/routing.ts`) returns the engine and its prompt:
 
-| UI Locale                  | Engine               | Language prompt and output                                                                 |
-| -------------------------- | -------------------- | ------------------------------------------------------------------------------------------ |
-| `en`, unset or unsupported | Parakeet TDT 0.6B v2 | none (English only)                                                                        |
-| `ja`, `ko`, `zh-Hans`      | SenseVoice-Small     | `lang_ja`, `lang_ko`, `lang_zh` (Simplified)                                               |
-| `zh-Hant`                  | SenseVoice-Small     | `lang_auto`, so Mandarin and Cantonese both work; converted to Taiwan-standard Traditional |
+| Engine (chosen, or the UI Locale's default)                 | UI Locale                  | Language prompt and output                                                                 |
+| ----------------------------------------------------------- | -------------------------- | ------------------------------------------------------------------------------------------ |
+| Parakeet TDT 0.6B v2 (default for `en`, unset, unsupported) | any                        | none (English only)                                                                        |
+| SenseVoice-Small (default for `ja`, `ko`, `zh-Hans`)        | `ja`, `ko`, `zh-Hans`      | `lang_ja`, `lang_ko`, `lang_zh` (Simplified)                                               |
+| SenseVoice-Small (default for `zh-Hant`)                    | `zh-Hant`                  | `lang_auto`, so Mandarin and Cantonese both work; converted to Taiwan-standard Traditional |
+| SenseVoice-Small (chosen)                                   | `en`, unset or unsupported | `lang_auto` (route language `auto`): detects the spoken language; no conversion            |
 
 - The route is read once per start, and unmuting Voice Mode keeps it, so a
-  locale change applies from the next start.
-- `speech.stt_parakeet_webgpu` is the GPU preference for both engines; neither
+  locale or engine change applies from the next start.
+- `offlineSttEnginePreference()` (`lib/settings/preferences.ts`) reads the
+  engine; any other stored value follows the UI Locale.
+  `speech.stt_parakeet_webgpu` is the GPU preference for both engines; no
   stored value is renamed.
 - `resolveRoutedSttProvider` (`lib/speech/stt-provider.ts`) resolves the
   provider for dictation and for Settings. A saved offline choice whose
-  SenseVoice set is missing stops with "Install offline speech recognition for
-  this language" (`languageSpeechMissing`) instead of falling back to a browser
-  recognizer, which may send audio to a cloud service. Under English, a missing
-  Parakeet set falls back to an available browser recognizer
-  (`resolvePreferredSttProvider`).
+  engine's set is missing stops (`languageMissing`) instead of falling back
+  to a browser recognizer, which may send audio to a cloud service: with
+  "Install offline speech recognition for this language"
+  (`languageSpeechMissing`) for SenseVoice under a non-English locale, or
+  `offlineSpeechMissing` for a chosen Parakeet under another locale and for
+  SenseVoice chosen under English. Only Parakeet under English falls back
+  to an available browser recognizer (`route.browserFallback`,
+  `resolvePreferredSttProvider`).
 - Segments name their engine (`SttSegmentSource` is `"parakeet"` or
   `"sensevoice"`), while the active provider stays `"parakeet"`, so Smart
-  Turn, mute and stored preferences treat both engines alike.
+  Turn, mute and stored preferences treat both engines alike. Smart Turn's
+  forced short replies are one table for every language, so `auto` needs no
+  entries of its own.
 
 ### Optional offline speech models
 
 The embedded core does not contain offline speech weights. On packaged desktop
 and built self-host, each offline engine has two downloadable sets:
 
-| Engine           | Languages                 | CPU model        | GPU acceleration add-on |
-| ---------------- | ------------------------- | ---------------- | ----------------------- |
-| Parakeet         | English                   | `parakeet-stt`   | `parakeet-stt-webgpu`   |
-| SenseVoice-Small | Japanese, Korean, Chinese | `sensevoice-stt` | `sensevoice-stt-webgpu` |
+| Engine           | Languages                          | CPU model        | GPU acceleration add-on |
+| ---------------- | ---------------------------------- | ---------------- | ----------------------- |
+| Parakeet         | English                            | `parakeet-stt`   | `parakeet-stt-webgpu`   |
+| SenseVoice-Small | Japanese, Korean, Chinese, English | `sensevoice-stt` | `sensevoice-stt-webgpu` |
 
 Each set installs in place through the backend
 [model assets](../../backend/architecture/http-api.md#model-assets) with size,
@@ -86,21 +97,23 @@ engine its **CPU | GPU** versions. The web recommends and defaults to the
 browser's recognizer (one Browser choice, saved as `browser_external`; a saved
 `browser_local` shows as Browser); desktop, which has no browser recognizer,
 recommends the UI Locale's offline engine on the CPU. Either offline engine's
-choice stores the offline provider and the GPU preference, so the UI Locale
-still picks the model, and the other engine's tab says which app language uses
-it. Selecting a tab selects the choice: App Settings saves it at once (an
-offline choice even before its set is installed), and Setup saves it at Finish,
-even untouched (`sttChoicePatch`). In Setup an offline version carries its
+choice stores the offline provider, the GPU preference and its engine
+(`sttChoicePatch`), which then runs under any UI Locale; the Browser choice
+keeps the saved GPU preference and engine. Each version says which languages
+its engine recognizes. Selecting a tab selects the choice: App Settings saves
+it at once (an offline choice even before its set is installed), and Setup
+saves it at Finish, even untouched, but saves the engine only when the owner
+picked it, so an untouched default keeps following the UI Locale. In Setup an offline version carries its
 set's download as "CPU (size)" or "GPU (size)" (`SetupSpeechChoice`), the GPU
 version a WebGPU ✓/✗ check; asking for the GPU set first says to download the
 CPU version. App Settings shows the same per-version panels
 (`OfflineSetPanel`, shared with Setup) and adds removal (the CPU set only once
 the GPU add-on is gone), the WebGPU fallback note and operator-provided sets
-without actions. The engine in use carries a "Selected" tag, and Browser is
+without actions. The engine that runs carries a "Selected" tag, and Browser is
 labelled "Browser (built-in)", described as the Web Speech API with a link to
 its documentation. Model attribution is in the packaged notices and each
 installed set's `ATTRIBUTION.md`, not in the UI. The composer's install hint
-(`OfflineSpeechDownloads routedOnly`) offers only the UI Locale's engine.
+(`OfflineSpeechDownloads routedOnly`) offers only the engine that runs.
 Every download can be skipped. Downloads
 continue in the backend after leaving Setup or Settings: the chat status lines
 show their size and progress, and `ModelDownloadToasts` (mounted in the app
@@ -126,16 +139,18 @@ cannot start. Text chat, avatar animation, microphone permission, and PocketTTS
 are independent. The main chat/settings surface offers installation; companion
 windows direct the user to main-window Settings. Browser Web Speech fallback
 remains available only where the ordinary web platform supports it; a saved
-offline choice never falls back to it for a language whose SenseVoice set is
-missing.
+offline choice whose set is missing falls back to it only for Parakeet under
+English.
 
-`SpeechLanguageNotice` sits beside the speech provider choices. With the
-offline choice under a non-English locale and no available SenseVoice set, it
-asks for the language's download; where the operator manages models, or the
-runtime reports an installed SenseVoice version that is turned off, it says
-the server does not provide offline recognition in that language. It shows
-nothing under English or once the set is available. Pocket TTS keeps its
-English-only notice.
+`SpeechLanguageNotice` sits beside the speech provider choices and takes the
+saved engine. With an offline choice that runs SenseVoice and no available
+SenseVoice set, it asks for the download (for the language, or for SenseVoice
+under English); where the operator manages models, or the runtime reports an
+installed SenseVoice version that is turned off, it says the server does not
+provide it. With Parakeet running under a non-English locale it warns that
+Parakeet recognizes English only. It shows nothing for Parakeet under English
+or once SenseVoice's set is available. Pocket TTS keeps its English-only
+notice.
 
 Installed model requests stay on the protected local origin at
 `/onnx/models/<model-id>/` and `/onnx/models/<model-id>-webgpu/`
@@ -239,16 +254,16 @@ Entrypoint:
 Rules:
 
 - both modes read fresh runtime capabilities, route the offline engine
-  (`routeOfflineSpeech()`) and resolve the provider with
+  (`routeOfflineSpeech()` with the saved engine) and resolve the provider with
   `resolveRoutedSttProvider(...)`:
   - offline recognition is used when available and selected, or as an
     available fallback when browser STT is unavailable
   - browser STT remains the normal web default when available
   - when offline recognition is resolved but the routed set is unavailable
     (for example on desktop, which has no browser fallback), the start stops
-    with `offlineSpeechMissing` (Parakeet) or `languageSpeechMissing`
-    (SenseVoice); a saved offline choice whose SenseVoice set is missing always
-    stops with `languageSpeechMissing`
+    with `offlineSpeechMissing` (Parakeet, or SenseVoice under English) or
+    `languageSpeechMissing` (SenseVoice under another locale); a saved offline choice whose set is missing always stops,
+    except Parakeet under English
   - offline startup/transcription errors surface instead of silently switching
     providers
 - desktop shell detection disables Web Speech availability; without the routed

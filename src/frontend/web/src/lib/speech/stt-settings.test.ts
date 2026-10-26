@@ -1,11 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { RuntimePlatform } from "@/platform/runtime-platform";
 import { getSttProviderOptions } from "./stt-provider";
-import {
-  getSttSettingsOptions,
-  getSttSettingsPreference,
-  getSttSettingsSelection,
-} from "./stt-settings";
+import { getSttSettingsOptions, getSttSettingsSelection } from "./stt-settings";
 
 const desktop = { kind: "desktop", isDesktop: true } as RuntimePlatform;
 const browser = { kind: "web", isDesktop: false } as RuntimePlatform;
@@ -18,43 +14,6 @@ describe("speech settings selection", () => {
       "browser_external",
     );
     expect(getSttSettingsSelection(null, true)).toBeUndefined();
-  });
-
-  it.each([
-    ["parakeet", false],
-    ["parakeet_webgpu", true],
-  ] as const)(
-    "round-trips the %s choice through saved preferences",
-    (value, gpu) => {
-      const preference = getSttSettingsPreference(value);
-      expect(preference).toEqual({
-        stt_provider: "parakeet",
-        stt_parakeet_webgpu: gpu,
-      });
-      expect(
-        getSttSettingsSelection(
-          preference!.stt_provider,
-          preference!.stt_parakeet_webgpu === true,
-        ),
-      ).toBe(value);
-    },
-  );
-
-  it.each(["browser_external", "browser_local"] as const)(
-    "preserves the saved GPU preference when selecting %s",
-    (provider) => {
-      const patch = getSttSettingsPreference(provider);
-      expect(patch).toEqual({ stt_provider: provider });
-      expect({ stt_parakeet_webgpu: true, ...patch }).toEqual({
-        stt_provider: provider,
-        stt_parakeet_webgpu: true,
-      });
-    },
-  );
-
-  it("rejects unknown choices", () => {
-    expect(getSttSettingsPreference("unknown")).toBeNull();
-    expect(getSttSettingsPreference("")).toBeNull();
   });
 });
 

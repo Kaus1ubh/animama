@@ -7,7 +7,6 @@ import {
 import {
   offlineSttModelName,
   offlineSttShortName,
-  toSttProvider,
   type SttProvider,
   type SttProviderOption,
 } from "./stt-provider";
@@ -27,8 +26,8 @@ export function getSttSettingsSelection(
 }
 
 /**
- * Both offline choices require the same base set of `engine`, the UI Locale's
- * offline engine, and both are labelled and described with its model.
+ * Both offline choices require the same base set of `engine`, the offline
+ * engine that runs, and both are labelled and described with its model.
  */
 export function getSttSettingsOptions(
   options: readonly SttProviderOption[],
@@ -57,19 +56,4 @@ export function getSttSettingsOptions(
         ]
       : [option],
   );
-}
-
-/** Browser choices leave the owner's saved Parakeet GPU preference intact. */
-export function getSttSettingsPreference(value: string): {
-  stt_provider: SttProvider;
-  stt_parakeet_webgpu?: boolean;
-} | null {
-  if (value === "parakeet_webgpu") {
-    return { stt_provider: "parakeet", stt_parakeet_webgpu: true };
-  }
-  const provider = toSttProvider(value);
-  if (!provider) return null;
-  return provider === "parakeet"
-    ? { stt_provider: provider, stt_parakeet_webgpu: false }
-    : { stt_provider: provider };
 }

@@ -20,7 +20,10 @@ import {
   alternateModelIds,
   modelDisplayName,
 } from "@/lib/chat/model-catalog";
-import type { SpeechPreferences } from "@/lib/settings/preferences";
+import {
+  offlineSttEnginePreference,
+  type SpeechPreferences,
+} from "@/lib/settings/preferences";
 import type { TtsProviderOption } from "@/lib/speech/tts-provider";
 import type { OfflineSttEngine } from "@/lib/speech/offline-stt/routing";
 import { recommendedSttChoice } from "@/lib/speech/stt-choices";
@@ -297,8 +300,9 @@ export function setupTtsOptions(
 
 /**
  * The selected Speech-to-Text choice: the owner's pick in this setup, else the
- * saved preference (an offline one shown as the UI Locale's model, either
- * browser recognizer as the browser), else the recommended one.
+ * saved preference (an offline one shown as the engine that runs: the saved
+ * engine, else `engine`, the UI Locale's; either browser recognizer as the
+ * browser), else the recommended one.
  */
 export function resolveSetupSttChoice(
   draft: Pick<SetupDraft, "sttChoice">,
@@ -309,10 +313,11 @@ export function resolveSetupSttChoice(
   if (draft.sttChoice && choices.includes(draft.sttChoice))
     return draft.sttChoice;
   const provider = saved?.stt_provider;
-  if (provider === "parakeet")
-    return saved?.stt_parakeet_webgpu === true
-      ? `${engine}_gpu`
-      : `${engine}_cpu`;
+  if (provider === "parakeet") {
+    const runs =
+      offlineSttEnginePreference({ speech: saved ?? undefined }) ?? engine;
+    return saved?.stt_parakeet_webgpu === true ? `${runs}_gpu` : `${runs}_cpu`;
+  }
   if (
     (provider === "browser_external" || provider === "browser_local") &&
     choices.includes("browser_external")

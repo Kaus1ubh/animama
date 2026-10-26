@@ -726,6 +726,29 @@ test("saving the OpenAI key chooses OpenAI; Finish saves the recommended speech 
   }
 });
 
+test("a SenseVoice pick under English is saved as the engine that runs", async () => {
+  const { page, bodies } = await mount();
+  try {
+    await toVoice(page);
+    // Parakeet, the English default, says it hears English only.
+    await page.getByText("Recognizes English only.", { exact: true }).waitFor();
+    await page.getByRole("tab", { name: /^SenseVoice/u }).click();
+    await page
+      .getByText(/^Recognizes Japanese, Korean, Chinese and English\./u)
+      .waitFor();
+    await button(page, "Finish").click();
+    await button(page, "I am 18 or older").click();
+    await page.getByText("Setup complete", { exact: true }).waitFor();
+    assert.deepEqual(bodies.settings.preferences.speech, {
+      stt_provider: "parakeet",
+      stt_parakeet_webgpu: false,
+      stt_offline_engine: "sensevoice",
+    });
+  } finally {
+    await page.close();
+  }
+});
+
 test("saving the Anthropic key chooses Claude Haiku 5.5, and Finish sends it", async () => {
   const { page, operations, bodies } = await mount();
   try {

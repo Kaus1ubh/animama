@@ -1,7 +1,10 @@
 import { useRef, type ReactNode } from "react";
 import { Trans, useTranslation } from "react-i18next";
 
-import type { SttChoice } from "@/lib/speech/stt-choices";
+import {
+  sttChoiceOfflineEngine,
+  type SttChoice,
+} from "@/lib/speech/stt-choices";
 import type { OfflineSttEngine } from "@/lib/speech/offline-stt/routing";
 import { offlineSttShortName } from "@/lib/speech/stt-provider";
 import { ModelLink } from "@/ui/components/model-link";
@@ -28,7 +31,7 @@ export type SttEngineTab = "browser" | OfflineSttEngine;
 export function sttChoiceEngine(choice: SttChoice): SttEngineTab {
   return choice === "browser_external"
     ? "browser"
-    : (choice.split("_")[0] as OfflineSttEngine);
+    : sttChoiceOfflineEngine(choice);
 }
 
 /**
@@ -165,18 +168,14 @@ function BrowserSttPanel() {
 export function OfflineEngineSettingsPanel({
   engine,
   set,
-  routed,
 }: {
   engine: OfflineSttEngine;
   set: SpeechSet;
-  /** The engine serves the UI Locale. */
-  routed: boolean;
 }) {
   return (
     <OfflineSetPanel
       engine={engine}
       set={set}
-      routed={routed}
       downloads={useOfflineSpeechDownloads(engine)}
       manage
     />

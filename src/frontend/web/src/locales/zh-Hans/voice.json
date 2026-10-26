@@ -271,6 +271,9 @@
   },
   "languageNotice": {
     "speechToText": "要以{{language}}使用离线语音识别，请下载对应的模型。",
+    "speechToTextEnglishOnly": "Parakeet 仅识别英语。要用{{language}}和 Anima 说话，请选择 SenseVoice。",
+    "speechToTextModel": "要使用 SenseVoice，请下载其模型。",
+    "speechToTextModelUnavailable": "此服务器不提供 SenseVoice。",
     "textToSpeech": "Pocket TTS 仅支持英语。要让 Anima 用{{language}}说话，请选择 ElevenLabs 或 Gemini。",
     "speechToTextUnavailable": "此服务器不提供{{language}}的离线语音识别。"
   }
