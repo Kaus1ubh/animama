@@ -87,8 +87,8 @@ The [preload bridge](../../../src/frontend/desktop/src/main-process/pip/pip-prel
 defines `window.animamaDesktop.pip`; the
 [IPC handlers](../../../src/frontend/desktop/src/main-process/pip/pip-ipc.ts)
 validate window controls and runtime messages. The bridge exposes open/close,
-state, background/size controls, visual messages and cursor subscriptions.
-Subscriptions return cleanup functions.
+state, background/size controls, the resize grip, visual messages and cursor
+subscriptions. Subscriptions return cleanup functions.
 
 The main process validates open options and runtime message envelopes before
 acting on them. `onCursorSnapshot(...)` is optional so older desktop bridges or
@@ -189,8 +189,10 @@ Desktop PiP supports two background modes:
 - `transparent`: desktop is visible behind the avatar
 - `scene`: the configured scene background is rendered
 
-The main canvas controls own the background toggle. The PiP route only renders
-the current state.
+The main canvas settings and the PiP toolbar both switch it through
+`setBackgroundMode(...)`, and the main process publishes the mode to both
+renderers. Reopened PiP keeps it while the app runs; each launch starts
+transparent.
 
 Transparency requires all layers to cooperate:
 
@@ -228,36 +230,43 @@ indicator to classify cursor position:
 - over a pass-through body area
 - over an interactive PiP zone
 
-Interactive zones keep PiP mouse input enabled:
+Two zones keep PiP mouse input enabled:
 
-- a 10px resize band on each edge
-- the top-right close button area
-- the top-left circular hover drag handle
-- the top size slider
-- the bottom-left camera preset button
+- the top 40px, where the hover toolbar sits
+- a 24px square in the bottom-right corner, where the resize grip sits
 
-The drag handle uses `-webkit-app-region: drag`; interactive controls use
-`no-drag`.
+On hover the route shows one toolbar along the top: a move icon, then camera
+preset, Scene background, size and close buttons. The toolbar background uses
+`anima-pip-drag` (`-webkit-app-region: drag`), so it moves the window; its
+buttons and slider use `anima-pip-no-drag`. The PiP body is not draggable,
+because drag-anywhere would conflict with body click-through.
 
-The PiP body is not draggable. Drag-anywhere would conflict with body
-click-through. Instead, the route shows a top-left drag handle on hover, and
-only that handle uses `anima-pip-drag`. The close button is marked `no-drag`
-so it stays clickable.
+The camera button cycles the PiP camera preset. The Scene background button is
+a toggle between the `scene` and `transparent` modes.
 
-The PiP route also shows a hover-only size slider between the drag handle and
-close button. Slider changes call `window.animamaDesktop.pip.setSizeScale(...)`,
-which resizes the native `BrowserWindow` around its current center. Wheel events
-over the PiP window use the same size-scale path. On macOS and Windows,
-click-through means wheel resize only works where the PiP window is currently
-receiving input; on Linux it works over the whole PiP rectangle because
-click-through is disabled.
+The size button swaps the camera and background buttons for a slider; the size
+button, Escape or leaving the window swaps them back. Slider changes call
+`window.animamaDesktop.pip.setSizeScale(...)`, which resizes the native
+`BrowserWindow` around its current center. Wheel events over the PiP window use
+the same size-scale path. On macOS and Windows, click-through means wheel resize
+only works where the PiP window is currently receiving input; on Linux it works
+over the whole PiP rectangle because click-through is disabled.
+
+Holding the resize grip calls `setGripResizing(true)`; releasing it calls
+`setGripResizing(false)`. Only the PiP renderer may do this. Meanwhile the main
+process polls the cursor every 16ms and scales the window from its top-left
+corner, so the bottom-right corner follows the cursor along the window's
+diagonal. Mouse input stays enabled, so the release reaches the grip wherever
+the cursor is. The drag also ends when the window blurs, hides, navigates or
+closes.
 
 The scale range is `0.275` to `1.6`. `0.5` is the default; `0.275` maps to the
-native minimum size.
+native minimum size. The window keeps its 210 × 280 aspect ratio when scaled.
 
-While the PiP window is hovered, the avatar scene opacity drops to 30%. This
-makes it easier to see what is underneath a transparent click-through PiP window
-before interacting with the desktop behind it.
+While the PiP window is hovered, the avatar scene opacity drops to 30% and a
+thin border marks the window bounds. This makes it easier to see what is
+underneath a transparent click-through PiP window before interacting with the
+desktop behind it.
 
 The boundary indicator is not driven by CSS `:hover`. Full-window drag regions
 can suppress or distort normal DOM hover behavior, especially over transparent
@@ -267,9 +276,9 @@ poll toggles `setIgnoreMouseEvents(true, { forward: true })` for body
 click-through and resets mouse input before the window hides, reloads, or
 closes.
 
-The manager publishes `DesktopPipState.isHovered` only when the boolean changes.
-The PiP route renders the resize/boundary border and close button when
-`isHovered` is true.
+The manager publishes `DesktopPipState.isHovered` only when the boolean changes,
+and keeps it true during a grip resize. The PiP route shows the border,
+toolbar and resize grip while `isHovered` is true.
 
 ## Global Cursor Look-At
 
@@ -328,5 +337,10 @@ Manual validation:
 - close button closes PiP and updates the main-window button state
 - PiP opens at Portrait (close) with the whole head in frame, in both
   background modes; the camera button and the PiP camera menu switch presets
-- border appears when the cursor is anywhere inside the PiP window bounds
+- the toolbar's Scene background toggle and the main canvas settings stay in
+  step
+- dragging the toolbar background moves the window; dragging the corner grip
+  resizes it, and clicks on the Avatar pass through to the app underneath
+- border, toolbar and grip appear when the cursor is anywhere inside the PiP
+  window bounds
 - browser web still uses Document PiP

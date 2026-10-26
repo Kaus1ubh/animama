@@ -53,7 +53,7 @@ type PipWindowManagerOptions = {
   stateChangedChannel: string;
 };
 
-type PipMouseZone = "outside" | "interactive" | "pass-through";
+export type PipMouseZone = "outside" | "interactive" | "pass-through";
 
 type Point = {
   x: number;
@@ -80,16 +80,11 @@ const MAX_PIP_SIZE_SCALE = 1.6;
 const PIP_DEFAULT_RIGHT_MARGIN = 24;
 const PIP_DEFAULT_BOTTOM_MARGIN = 32;
 const PIP_MOUSE_POLL_INTERVAL_MS = 50;
-const PIP_RESIZE_HIT_ZONE_SIZE = 10;
-const PIP_CLOSE_HIT_ZONE_SIZE = 20;
-const PIP_DRAG_HANDLE_SIZE = 20;
-const PIP_DRAG_HANDLE_LEFT = 4;
-const PIP_DRAG_HANDLE_TOP = 4;
-const PIP_SIZE_SLIDER_SIDE_OFFSET = 24;
-const PIP_CAMERA_BUTTON_SIZE = 20;
-const PIP_CAMERA_BUTTON_LEFT = 4;
-const PIP_CAMERA_BUTTON_BOTTOM = 4;
-const PIP_TOP_CONTROL_HIT_ZONE_HEIGHT = 20;
+/** The route's hover toolbar spans the top of the window, about 33px tall. */
+const PIP_TOOLBAR_HIT_ZONE_HEIGHT = 40;
+/** The route's resize grip sits in the bottom-right corner. */
+const PIP_RESIZE_GRIP_HIT_ZONE_SIZE = 24;
+const PIP_RESIZE_INTERVAL_MS = 16;
 
 function readAnimaId(value: unknown): string {
   if (typeof value !== "string") {
@@ -138,6 +133,23 @@ function resolveSizeScaleForWindowSize(width: number, height: number): number {
   const widthScale = width / DEFAULT_PIP_WIDTH;
   const heightScale = height / DEFAULT_PIP_HEIGHT;
   return clampPipSizeScale((widthScale + heightScale) / 2);
+}
+
+/**
+ * The size scale that brings the window's bottom-right corner closest to the
+ * cursor after it moved `dx`/`dy` from where a grip drag began. The aspect
+ * ratio is fixed, so the corner follows the cursor's movement along the
+ * window's diagonal.
+ */
+export function resolveCornerResizeScale(
+  startScale: number,
+  dx: number,
+  dy: number,
+): number {
+  const diagonalScale =
+    (dx * DEFAULT_PIP_WIDTH + dy * DEFAULT_PIP_HEIGHT) /
+    (DEFAULT_PIP_WIDTH ** 2 + DEFAULT_PIP_HEIGHT ** 2);
+  return clampPipSizeScale(startScale + diagonalScale);
 }
 
 function resolveWindowSizeForScale(sizeScale: number): {
@@ -246,77 +258,26 @@ function isPointInsideBounds(point: Point, bounds: Bounds): boolean {
   );
 }
 
-function isInResizeZone(
+function isInResizeGripZone(
   localX: number,
   localY: number,
   bounds: Bounds,
 ): boolean {
   return (
-    localX < PIP_RESIZE_HIT_ZONE_SIZE ||
-    localX >= bounds.width - PIP_RESIZE_HIT_ZONE_SIZE ||
-    localY < PIP_RESIZE_HIT_ZONE_SIZE ||
-    localY >= bounds.height - PIP_RESIZE_HIT_ZONE_SIZE
+    localX >= bounds.width - PIP_RESIZE_GRIP_HIT_ZONE_SIZE &&
+    localY >= bounds.height - PIP_RESIZE_GRIP_HIT_ZONE_SIZE
   );
 }
 
-function isInCloseZone(
-  localX: number,
-  localY: number,
+/**
+ * Where the cursor is relative to the PiP window. Only the hover toolbar and
+ * the resize grip take mouse input; the rest of the window passes clicks to
+ * the app underneath.
+ */
+export function classifyPipMouseZone(
+  cursor: Point,
   bounds: Bounds,
-): boolean {
-  return (
-    localX >= bounds.width - PIP_CLOSE_HIT_ZONE_SIZE &&
-    localY < PIP_CLOSE_HIT_ZONE_SIZE
-  );
-}
-
-function isInDragHandleZone(
-  localX: number,
-  localY: number,
-  bounds: Bounds,
-): boolean {
-  const dragHandleLeft = PIP_DRAG_HANDLE_LEFT;
-  const dragHandleRight = Math.min(
-    bounds.width,
-    dragHandleLeft + PIP_DRAG_HANDLE_SIZE,
-  );
-
-  return (
-    localX >= dragHandleLeft &&
-    localX < dragHandleRight &&
-    localY >= PIP_DRAG_HANDLE_TOP &&
-    localY < PIP_DRAG_HANDLE_TOP + PIP_DRAG_HANDLE_SIZE
-  );
-}
-
-function isInSizeSliderZone(
-  localX: number,
-  localY: number,
-  bounds: Bounds,
-): boolean {
-  return (
-    localX >= PIP_SIZE_SLIDER_SIDE_OFFSET &&
-    localX < bounds.width - PIP_SIZE_SLIDER_SIDE_OFFSET &&
-    localY < PIP_TOP_CONTROL_HIT_ZONE_HEIGHT
-  );
-}
-
-/** The bottom-left camera preset button. */
-function isInCameraButtonZone(
-  localX: number,
-  localY: number,
-  bounds: Bounds,
-): boolean {
-  const bottom = bounds.height - PIP_CAMERA_BUTTON_BOTTOM;
-  return (
-    localX >= PIP_CAMERA_BUTTON_LEFT &&
-    localX < PIP_CAMERA_BUTTON_LEFT + PIP_CAMERA_BUTTON_SIZE &&
-    localY >= bottom - PIP_CAMERA_BUTTON_SIZE &&
-    localY < bottom
-  );
-}
-
-function classifyPipMouseZone(cursor: Point, bounds: Bounds): PipMouseZone {
+): PipMouseZone {
   if (!isPointInsideBounds(cursor, bounds)) {
     return "outside";
   }
@@ -324,11 +285,8 @@ function classifyPipMouseZone(cursor: Point, bounds: Bounds): PipMouseZone {
   const localX = cursor.x - bounds.x;
   const localY = cursor.y - bounds.y;
   if (
-    isInResizeZone(localX, localY, bounds) ||
-    isInCloseZone(localX, localY, bounds) ||
-    isInDragHandleZone(localX, localY, bounds) ||
-    isInSizeSliderZone(localX, localY, bounds) ||
-    isInCameraButtonZone(localX, localY, bounds)
+    localY < PIP_TOOLBAR_HIT_ZONE_HEIGHT ||
+    isInResizeGripZone(localX, localY, bounds)
   ) {
     return "interactive";
   }
@@ -424,6 +382,8 @@ export class PipWindowManager {
   private pipWindow: BrowserWindow | null = null;
   private pipRuntimeStateReady = false;
   private pipRendererReady = false;
+  /** Follows the cursor while the route's resize grip is held. */
+  private gripResizeTimer: ReturnType<typeof setInterval> | null = null;
   private state: DesktopPipState = {
     isOpen: false,
     animaId: null,
@@ -536,6 +496,7 @@ export class PipWindowManager {
     };
 
     pipWindow.webContents.on("will-navigate", () => {
+      this.stopGripResize();
       this.resetPipReadiness();
       if (!pipWindow.isDestroyed() && pipWindow.isVisible()) {
         this.setPipMouseEventsIgnored(pipWindow, false);
@@ -548,6 +509,7 @@ export class PipWindowManager {
 
     const handleClosed = () => {
       if (this.pipWindow !== pipWindow) return;
+      this.stopGripResize();
       this.pipWindow = null;
       this.pipMouseEventsIgnored = false;
       this.stopMouseTracking();
@@ -565,8 +527,11 @@ export class PipWindowManager {
     });
     pipWindow.on("closed", handleClosed);
     pipWindow.on("hide", () => {
+      this.stopGripResize();
       this.setPipMouseEventsIgnored(pipWindow, false);
     });
+    // A release outside the window after it lost focus never reaches the grip.
+    pipWindow.on("blur", () => this.stopGripResize());
     await this.loadPipRoute(pipWindow, options.animaId, options.chatId);
     this.sendStateChanged();
     return this.getState();
@@ -583,6 +548,7 @@ export class PipWindowManager {
   }
 
   close(): DesktopPipState {
+    this.stopGripResize();
     const window = this.pipWindow;
     if (window && !window.isDestroyed()) {
       this.setPipMouseEventsIgnored(window, false);
@@ -625,6 +591,52 @@ export class PipWindowManager {
 
     this.sendStateChanged();
     return this.getState();
+  }
+
+  /**
+   * Starts or ends a drag of the PiP route's bottom-right resize grip. While
+   * it lasts, the window keeps its top-left corner and scales so its
+   * bottom-right corner follows the cursor, and mouse input stays on so the
+   * release reaches the grip wherever the cursor is.
+   */
+  setGripResizing(sender: WebContents, rawActive: unknown): void {
+    const window = this.pipWindow;
+    if (
+      !window ||
+      window.isDestroyed() ||
+      window.webContents.id !== sender.id
+    ) {
+      writeLog("info", "Ignored PiP resize from a renderer other than PiP");
+      return;
+    }
+    this.stopGripResize();
+    if (rawActive !== true) return;
+
+    this.setPipMouseEventsIgnored(window, false);
+    const startCursor = screen.getCursorScreenPoint();
+    const startScale = this.state.sizeScale;
+    this.gripResizeTimer = setInterval(() => {
+      if (window.isDestroyed()) {
+        this.stopGripResize();
+        return;
+      }
+      const cursor = screen.getCursorScreenPoint();
+      const sizeScale = resolveCornerResizeScale(
+        startScale,
+        cursor.x - startCursor.x,
+        cursor.y - startCursor.y,
+      );
+      if (sizeScale === this.state.sizeScale) return;
+      this.state = { ...this.state, sizeScale };
+      this.setPipWindowSizeScale(window, sizeScale, false);
+      this.sendStateChanged();
+    }, PIP_RESIZE_INTERVAL_MS);
+  }
+
+  private stopGripResize(): void {
+    if (this.gripResizeTimer === null) return;
+    clearInterval(this.gripResizeTimer);
+    this.gripResizeTimer = null;
   }
 
   publishRuntimeMessage(sender: WebContents, rawMessage: unknown): void {
@@ -824,8 +836,12 @@ export class PipWindowManager {
       const bounds = window.getBounds();
       const mouseZone = classifyPipMouseZone(cursor, bounds);
       this.sendCursorSnapshot(window, cursor, bounds);
-      this.setHovered(mouseZone !== "outside");
-      this.setPipMouseEventsIgnored(window, mouseZone === "pass-through");
+      const resizing = this.gripResizeTimer !== null;
+      this.setHovered(resizing || mouseZone !== "outside");
+      this.setPipMouseEventsIgnored(
+        window,
+        !resizing && mouseZone === "pass-through",
+      );
     }, PIP_MOUSE_POLL_INTERVAL_MS);
   }
 

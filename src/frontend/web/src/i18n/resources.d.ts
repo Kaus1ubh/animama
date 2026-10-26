@@ -1109,7 +1109,9 @@ export default interface Resources {
     },
     "pip": {
       "close": "Close picture-in-picture",
+      "controls": "Picture-in-picture controls",
       "resize": "Resize picture-in-picture",
+      "sceneBackground": "Scene background",
       "switchCamera": "Switch camera (now {{preset}})",
       "unavailable": "Picture-in-picture is unavailable. Keep using the companion in this window."
     },

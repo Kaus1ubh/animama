@@ -6,6 +6,7 @@ const PIP_TOGGLE_CHANNEL = "anima:pip:toggle";
 const PIP_GET_STATE_CHANNEL = "anima:pip:get-state";
 const PIP_SET_BACKGROUND_MODE_CHANNEL = "anima:pip:set-background-mode";
 const PIP_SET_SIZE_SCALE_CHANNEL = "anima:pip:set-size-scale";
+const PIP_SET_GRIP_RESIZING_CHANNEL = "anima:pip:set-grip-resizing";
 const PIP_PUBLISH_RUNTIME_MESSAGE_CHANNEL = "anima:pip:publish-runtime-message";
 const PIP_STATE_CHANGED_CHANNEL = "anima:pip:state-changed";
 const PIP_RUNTIME_MESSAGE_CHANNEL = "anima:pip:runtime-message";
@@ -198,6 +199,9 @@ export function createPipBridge() {
       invokePipState(PIP_SET_BACKGROUND_MODE_CHANNEL, mode),
     setSizeScale: (sizeScale: number) =>
       invokePipState(PIP_SET_SIZE_SCALE_CHANNEL, sizeScale),
+    setGripResizing: async (active: boolean) => {
+      await ipcRenderer.invoke(PIP_SET_GRIP_RESIZING_CHANNEL, active === true);
+    },
     publishRuntimeMessage: async (message: DesktopPipRuntimeMessage) => {
       await ipcRenderer.invoke(PIP_PUBLISH_RUNTIME_MESSAGE_CHANNEL, message);
     },

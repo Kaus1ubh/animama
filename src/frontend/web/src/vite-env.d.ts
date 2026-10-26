@@ -79,6 +79,8 @@ interface Window {
         mode: DesktopPipBackgroundMode,
       ): Promise<DesktopPipState>;
       setSizeScale(sizeScale: number): Promise<DesktopPipState>;
+      /** PiP renderer only: the resize grip is held (true) or released. */
+      setGripResizing?(active: boolean): Promise<void>;
       onStateChange(callback: (state: DesktopPipState) => void): () => void;
       publishRuntimeMessage(message: DesktopPipRuntimeMessage): Promise<void>;
       onRuntimeMessage(
