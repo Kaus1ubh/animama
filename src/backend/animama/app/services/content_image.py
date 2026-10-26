@@ -241,9 +241,10 @@ def derive_image_thumbnail(
 
     By default the source must be a canonical static image; ``first_frame``
     instead accepts an animated source and keeps its first frame. The image is
-    shrunk before EXIF orientation, so only the decoded source and a small copy are
-    held at once; a JPEG decodes at a reduced scale. A decoded size above
-    ``max_decoded_pixels`` is refused from the header (``image_pixel_budget``).
+    shrunk before EXIF orientation, so no full-size oriented copy is made (resampling an
+    image with alpha still holds one premultiplied working copy); a JPEG decodes at a
+    reduced scale. A decoded size above ``max_decoded_pixels`` is refused from the
+    header (``image_pixel_budget``).
     """
 
     image, source_format, source_width, source_height, frame_count = _open_bounded_image(

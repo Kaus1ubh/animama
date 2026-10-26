@@ -132,28 +132,41 @@ def test_no_more_than_the_decode_slots_decode_at_once(monkeypatch: pytest.Monkey
     from animama.app.services import content_thumbnails
     from animama.app.services.content_image import derive_image_thumbnail as real
 
+    slots = content_thumbnails.THUMBNAIL_DECODE_SLOTS
     active, peak, lock = 0, 0, threading.Lock()
+    # Decodes meet in groups of ``slots``: the limit is reached, and a third decode
+    # running alongside would raise the peak above it.
+    together = threading.Barrier(slots, timeout=10)
+    errors: list[BaseException] = []
 
     def counted(**kwargs):  # noqa: ANN003, ANN202
         nonlocal active, peak
         with lock:
             active += 1
             peak = max(peak, active)
-        time.sleep(0.05)
         try:
+            together.wait()
+            time.sleep(0.02)
             return real(**kwargs)
         finally:
             with lock:
                 active -= 1
 
+    def run(source: bytes) -> None:
+        try:
+            thumbnail_file(_verified(source))
+        except BaseException as exc:  # noqa: BLE001
+            errors.append(exc)
+
     monkeypatch.setattr("animama.app.services.content_thumbnails.derive_image_thumbnail", counted)
-    sources = [_png(300, 300, (index, 1, 2, 255)) for index in range(8)]
-    threads = [threading.Thread(target=thumbnail_file, args=(_verified(source),)) for source in sources]
+    sources = [_png(300, 300, (index, 1, 2, 255)) for index in range(4 * slots)]
+    threads = [threading.Thread(target=run, args=(source,)) for source in sources]
     for thread in threads:
         thread.start()
     for thread in threads:
         thread.join()
-    assert peak == content_thumbnails.THUMBNAIL_DECODE_SLOTS
+    assert errors == []
+    assert peak == slots
 
 
 def test_small_sources_are_not_held_in_the_thumbnail_cache() -> None:

@@ -33,8 +33,9 @@ _RASTER_EXTENSIONS = {"image/png": "png", "image/jpeg": "jpg", "image/webp": "we
 _PASSTHROUGH_TYPES = frozenset({"image/svg+xml"})
 # Roughly 1,500 thumbnails.
 _CACHE_MAX_BYTES = 8 * 1024 * 1024
-# Every canonical image (at most 4096 px a side) previews; a larger PNG or WebP
-# Appearance image, up to 40 megapixels, would hold several hundred MiB to decode.
+# Every canonical image (at most 4096 px a side) previews; a larger PNG or WebP (an
+# Appearance image up to 40 megapixels, or a pack or Scene Effect raster that saving
+# never canonicalized) would hold several hundred MiB to decode.
 THUMBNAIL_MAX_DECODED_PIXELS = 4096 * 4096
 # Decodes at once per process. A cold Library page holds this many decoded sources
 # rather than one per tile, and cache hits never wait; more decodes than a couple of
