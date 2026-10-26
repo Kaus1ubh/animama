@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+import inspect
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 
 from animama.app.chat import DirectChatTurnExecutor, DirectChatTurnRequest
@@ -11,7 +12,7 @@ from animama.app.main_structured_response import MainStructuredResponse
 from animama.domain.events import Event, EventType
 
 from .chat import EvalChats, history_rows, is_speech, replayed_reply
-from .model_calls import BudgetedModelClient, CallRecord, Clock
+from .model_calls import BudgetedModelClient, CallRecord, Clock, reply_calls
 
 __all__ = ["TurnOutcome", "execute_turn"]
 
@@ -23,7 +24,7 @@ class TurnOutcome:
     prepared: PreparedDirectChatTurn
     events: tuple[Event, ...]
     calls: tuple[CallRecord, ...]
-    """The model calls this turn made, in order: its first reply, then any repair or retry."""
+    """The model calls this turn made, in order: any memory tool rounds, its first reply, then any repair."""
     sent: float
     """Clock reading when the turn was sent, as ``chat:sse`` receives it."""
     finished: float
@@ -47,14 +48,18 @@ async def execute_turn(
     request: DirectChatTurnRequest,
     *,
     budget: BudgetedModelClient,
-    chats: EvalChats,
+    chats: EvalChats | None,
     clock: Clock,
-    on_prepared: Callable[[PreparedDirectChatTurn], None] | None = None,
+    on_prepared: Callable[[PreparedDirectChatTurn], Awaitable[None] | None] | None = None,
 ) -> TurnOutcome:
     """Send one turn, then append the history chat would replay to ``chats`` when it produced a reply.
 
+    ``chats`` is ``None`` for a turn chat persists itself (memory on, not incognito): chat's own chat manager
+    then keeps the history.
+
     ``on_prepared`` sees the prepared turn before it streams, so a measure of its prompt is kept even when
-    the stream then fails or is interrupted.
+    the stream then fails or is interrupted; it may be a coroutine function, for example one that closes the
+    turn's setup session as ``chat:sse`` does.
     """
 
     first_call = len(budget.calls)
@@ -62,7 +67,9 @@ async def execute_turn(
     sent = clock()
     prepared = await executor.prepare_turn(request)
     if on_prepared is not None:
-        on_prepared(prepared)
+        pending = on_prepared(prepared)
+        if inspect.isawaitable(pending):
+            await pending
     events: list[Event] = []
     first_output: float | None = None
     async for event in executor.stream_prepared_turn(prepared):
@@ -98,15 +105,17 @@ async def execute_turn(
     reply: MainStructuredResponse | None = None
     recovery: str | None = None
     if error is None:
+        replies = reply_calls(calls)
         replayed = replayed_reply(
-            [call.final_text for call in calls if call.final_text is not None],
+            [call.final_text for call in replies if call.final_text is not None],
             prepared.output_type,
-            first_reply_deltas=calls[0].text_deltas if calls else (),
+            first_reply_deltas=replies[0].text_deltas if replies else (),
         )
         if replayed is not None:
             reply, replay_text, recovery = replayed
-            # Chat persists nothing for an incognito turn, so the runner keeps the history it would replay.
-            chats.append(request.chat_id, history_rows(request, replay_text))
+            if chats is not None:
+                # Chat persists nothing for an incognito turn, so the runner keeps the history it would replay.
+                chats.append(request.chat_id, history_rows(request, replay_text))
     return TurnOutcome(
         prepared=prepared,
         events=tuple(events),

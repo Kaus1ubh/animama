@@ -1,12 +1,14 @@
-"""The benchmark's core-turn and long-chat run loop (spec R2, R4, R14, R15).
+"""The benchmark's run loop (spec R2, R4-R7, R14, R15).
 
-Every turn goes through chat's turn executor with the in-memory stand-ins:
-the real prompt assembly, structured reply schema, repair and salvage, and
-Gesture validation. Calls run one at a time. Each configuration first sends
-one warm-up turn, recorded but never measured; then the configurations take
-turns item by item, persona by persona, and scripted chats turn by turn, so a
-run stopped at its cap leaves every configuration with comparable coverage.
-One budget caps the calls and spend of every configuration together.
+Core turns and scripted chats go through chat's turn executor with the
+in-memory stand-ins: the real prompt assembly, structured reply schema, repair
+and salvage, and Gesture validation. Calls run one at a time. Each
+configuration first sends one warm-up turn, recorded but never measured; then
+the configurations take turns item by item, persona by persona, and scripted
+chats turn by turn, so a run stopped at its cap leaves every configuration with
+comparable coverage. The memory chats (``memory_runner``) and Memory Manager
+runs (``manager_runner``) follow on the disposable benchmark database. One
+budget caps the calls and spend of all of it together.
 """
 
 from __future__ import annotations
@@ -25,14 +27,24 @@ from animama.app.model_clients.context_budget import estimate_prompt_tokens
 from ..core.chat import EvalChats, StaticMemoryContext, build_executor, instruction_bytes, turn_request
 from ..core.model_calls import BudgetedModelClient, CallBudget, CallPrice, Clock, call_latency, seconds
 from ..core.pricing import usage_json
-from ..core.turns import execute_turn
+from ..core.turns import TurnOutcome, execute_turn
 from .configs import Configuration
-from .measures import recovery_path
+from .manager_runner import run_memory_manager
+from .measures import offered_tools, recovery_path
+from .memory_runner import (
+    BenchmarkSessions,
+    CaptureSink,
+    MemoryContestant,
+    MemoryTurn,
+    MemoryTurnSink,
+    memory_cue,
+    run_memory_chats,
+)
 from .options import PROVIDER_MODERATION, core_turn_options
-from .prompt_set import Persona, PromptSet
+from .prompt_set import MemoryChat, Persona, PromptSet
 from .speech_checks import check_speech
 
-__all__ = ["WARMUP_MESSAGE", "RunCaps", "RunOutcome", "TurnSink", "run_benchmark"]
+__all__ = ["WARMUP_MESSAGE", "RunCaps", "RunOutcome", "TurnSink", "run_benchmark", "turn_record"]
 
 WARMUP_MESSAGE = "Hi! How's your day going?"
 _OWNER_ID = "model-benchmark-owner"
@@ -61,6 +73,9 @@ class RunOutcome:
     """Per configuration, persona and language: the first turn's instruction bytes and estimated input tokens."""
     served_models: dict[str, list[str]] = field(default_factory=dict)
     native_context_compaction: dict[str, bool] = field(default_factory=dict)
+    benchmark_database: str | None = None
+    """The disposable database this run's memory work used, when it had any."""
+    japanese_search_probe: dict[str, object] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -154,13 +169,17 @@ async def run_benchmark(
     clock: Clock = time.monotonic,
     progress: TurnSink | None = None,
     outcome: RunOutcome | None = None,
+    memory_sessions: BenchmarkSessions | None = None,
 ) -> RunOutcome:
     """Run every configuration over the prompt set and send each finished turn to ``sink``.
 
-    ``prices`` maps each configuration's label to its call price; a cap on USD
-    needs every configuration priced. The run fills ``outcome`` as it goes, so
-    a caller that passes one still has the calls, spend and abort reason when
-    the run stops at a cap, fails or is cancelled.
+    Core turns and scripted chats come first, then the memory chats in every
+    arm with their captures and recall chats, then the Memory Manager runs;
+    memory work needs ``memory_sessions`` on the benchmark database. ``prices`` maps each configuration's label to
+    its call price; a cap on USD needs every configuration priced. The run
+    fills ``outcome`` as it goes, so a caller that passes one still has the
+    calls, spend and abort reason when the run stops at a cap, fails or is
+    cancelled.
     """
 
     if caps.max_usd is not None:
@@ -190,6 +209,28 @@ async def run_benchmark(
                     break
             if stopped:
                 break
+        if not stopped and prompt_set.memory_chats:
+            if memory_sessions is None:
+                raise ValueError("Memory chats need the benchmark database's sessions")
+            stopped = not await run_memory_chats(
+                prompt_set,
+                [MemoryContestant(contestant.configuration, contestant.client) for contestant in contestants],
+                sessions=memory_sessions,
+                clock=clock,
+                on_turn=_memory_turn_sink(outcome, sink, progress),
+                on_capture=_capture_sink(sink),
+            )
+        if not stopped and prompt_set.manager_runs:
+            if memory_sessions is None:
+                raise ValueError("Memory Manager runs need the benchmark database's sessions")
+            stopped = not await run_memory_manager(
+                prompt_set,
+                [(contestant.configuration, prices.get(contestant.configuration.label)) for contestant in contestants],
+                budget=budget,
+                sessions=memory_sessions,
+                sink=sink,
+                clock=clock,
+            )
         outcome.aborted = budget.refused if stopped else None
     except Exception as exc:
         outcome.aborted = f"error: {exc.__class__.__name__}"
@@ -284,38 +325,87 @@ async def _turn(
     if result.refused:
         # A turn missing a refused call (its first call or its repair) is not recorded.
         return False
+    record = turn_record(
+        configuration,
+        result,
+        outcome,
+        kind=unit.kind,
+        persona=unit.persona.id,
+        area=unit.area,
+        language=unit.language,
+        unit_id=unit.unit_id,
+        pair_id=unit.pair_id,
+        held_out=unit.held_out,
+        repeat=unit.repeat,
+        turn=unit.turn,
+        message=unit.message,
+        tags=unit.tags,
+        acceptable=unit.acceptable,
+    )
+    sink(record)
+    outcome.turns += 1
+    if progress is not None:
+        progress(record)
+    return True
+
+
+def turn_record(
+    configuration: Configuration,
+    result: TurnOutcome,
+    outcome: RunOutcome,
+    *,
+    kind: str,
+    persona: str,
+    area: str,
+    language: str,
+    unit_id: str,
+    pair_id: str | None,
+    held_out: bool,
+    repeat: int,
+    turn: int,
+    message: str,
+    tags: Sequence[str] = (),
+    acceptable: Sequence[str | None] | None = None,
+) -> dict[str, Any]:
+    """One finished turn's JSON line: what was sent, what chat played, and its calls, tokens, cost and timing.
+
+    Also adds the turn's served models to ``outcome``.
+    """
+
     reply = result.reply
     replayed_gesture = (reply.gesture or None) if reply is not None else None
     served = sorted({call.served_model for call in result.calls if call.served_model})
     known = outcome.served_models.setdefault(configuration.label, [])
     known.extend(model for model in served if model not in known)
     costs = [call.cost_usd for call in result.calls]
-    record: dict[str, Any] = {
+    return {
         "configuration": configuration.label,
         "model_provider_id": configuration.model_provider.id,
         "effort": configuration.effort,
-        "persona": unit.persona.id,
-        "kind": unit.kind,
-        "area": unit.area,
-        "language": unit.language,
-        "unit_id": unit.unit_id,
-        "pair_id": unit.pair_id,
-        "held_out": unit.held_out,
-        "tags": list(unit.tags),
-        "repeat": unit.repeat,
-        "turn": unit.turn,
-        "message": unit.message,
+        "persona": persona,
+        "kind": kind,
+        "area": area,
+        "language": language,
+        "unit_id": unit_id,
+        "pair_id": pair_id,
+        "held_out": held_out,
+        "tags": list(tags),
+        "repeat": repeat,
+        "turn": turn,
+        "message": message,
         "gesture": result.gesture,
         "replayed_gesture": replayed_gesture,
         # True when the reply named a Gesture chat dropped, for example one outside the loadout.
         "gesture_mismatch": result.error is None and replayed_gesture != result.gesture,
-        "fit": result.gesture in unit.acceptable if unit.acceptable is not None and result.error is None else None,
+        "fit": result.gesture in acceptable if acceptable is not None and result.error is None else None,
         "emotional_tone": reply.emotional_tone if reply is not None else None,
         "emotional_intensity": reply.emotional_intensity if reply is not None else None,
         "speech": reply.speech if reply is not None else None,
         "display": reply.display if reply is not None else None,
+        "remember": reply.remember if reply is not None else None,
         "speech_check": asdict(check_speech(reply.speech, reply.display)) if reply is not None else None,
         "recovery": recovery_path(result),
+        "offered_tools": offered_tools(result),
         "error": result.error,
         "calls": len(result.calls),
         "served_models": served,
@@ -327,8 +417,75 @@ async def _turn(
         "first_output_seconds": seconds(result.first_output - result.sent) if result.first_output is not None else None,
         "call_latencies": [call_latency(call) for call in result.calls],
     }
-    sink(record)
-    outcome.turns += 1
-    if progress is not None:
-        progress(record)
-    return True
+
+
+def _memory_turn_sink(outcome: RunOutcome, sink: TurnSink, progress: TurnSink | None) -> MemoryTurnSink:
+    def record(
+        contestant: MemoryContestant,
+        arm: str,
+        unit: MemoryTurn,
+        result: TurnOutcome,
+        calls: list[dict[str, Any]] | None,
+    ) -> None:
+        line = turn_record(
+            contestant.configuration,
+            result,
+            outcome,
+            kind=unit.kind,
+            persona=unit.persona.id,
+            area="memory",
+            language=unit.language,
+            unit_id=unit.unit_id,
+            pair_id=unit.pair_id,
+            held_out=unit.held_out,
+            repeat=1,
+            turn=unit.turn,
+            message=unit.message,
+        )
+        speech = line["speech"]
+        line.update(
+            arm=arm,
+            probe_id=unit.probe_id,
+            # ``None`` for a failed turn: chat persisted none of its tool exchange.
+            tool_calls=calls,
+            memory_cue=memory_cue(result),
+            expect=list(unit.expect),
+            # A recall probe with expected phrases passes when the spoken reply holds any one of them.
+            # ``None`` without expected phrases, or for a failed turn, which has no reply to check.
+            recall_match=(
+                any(phrase.casefold() in speech.casefold() for phrase in unit.expect)
+                if unit.expect and speech is not None
+                else None
+            ),
+            **unit.extra,
+        )
+        sink(line)
+        outcome.turns += 1
+        if progress is not None:
+            progress(line)
+
+    return record
+
+
+def _capture_sink(sink: TurnSink) -> CaptureSink:
+    def record(contestant: MemoryContestant, arm: str, chat: MemoryChat, snapshot: dict[str, Any]) -> None:
+        configuration = contestant.configuration
+        sink(
+            {
+                "configuration": configuration.label,
+                "model_provider_id": configuration.model_provider.id,
+                "effort": configuration.effort,
+                "kind": "capture",
+                "area": "memory",
+                "arm": arm,
+                "persona": chat.persona,
+                "language": chat.language,
+                "unit_id": chat.id,
+                "pair_id": chat.pair_id,
+                "held_out": chat.held_out,
+                "checklist": [asdict(item) for item in chat.checklist],
+                "snapshot": snapshot,
+            }
+        )
+
+    return record

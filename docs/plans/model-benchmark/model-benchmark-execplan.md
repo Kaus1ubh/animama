@@ -111,7 +111,8 @@ Ownership and boundaries:
       2026-10-25.
 - [x] Phase 3: Memory-arm seams in chat, with defaults unchanged. Passed
       review #2 (high risk) on 2026-10-25.
-- [ ] Phase 4: Multi-turn, memory-arm and Memory Manager runners.
+- [x] Phase 4: Multi-turn, memory-arm and Memory Manager runners. Passed
+      review #3 (high risk) on 2026-10-26, with both repair rounds used.
 - [ ] Phase 5: Prompt set v1, Japanese subset, fixtures and rubrics (gate
       G2).
 - [ ] Phase 6: Blind judging through `claude -p`.
@@ -218,6 +219,14 @@ were rechecked on `18d2bebd`.
     search, not through a benchmark fault.
   - Phase 4 confirms this with a read-only SQL probe, and the report states
     it as an app finding. Changing search is out of scope.
+  - **Confirmed in Phase 4** (2026-10-25, the stack's PostgreSQL):
+    - `to_tsvector('english', '週末に京都で抹茶を飲みました。')` is the single
+      token `'週末に京都で抹茶を飲みました'`;
+    - `websearch_to_tsquery('english', '京都')` and `… '抹茶'` do not match;
+    - only the whole sentence matches.
+
+    Episode search through `search_memory_files` therefore finds Japanese
+    `remember` notes only by their exact text.
 - **Turn options.**
   - `DirectChatOptions.tts` (`enabled`, `provider`, `language_code`) selects
     the Speech and Audio-tag section (`app/chat/speech_tags.py`), and the
@@ -244,6 +253,26 @@ were rechecked on `18d2bebd`.
   - Without web search (spec R2), a first turn is roughly 10k tokens on Luna
     and 12.5k on Haiku.
   - The dry run replaces these figures.
+
+### 2026-10-26, Phase 4 review
+
+- **Memory Manager effort.** Neither Memory Manager runtime takes chat's
+  reasoning effort. The Anthropic runtime sends its role default (`medium`,
+  adaptive thinking) when the row offers it; the OpenAI Agents runtime sends
+  no reasoning setting, so the provider's default applies. See D16.
+- **Memory tools differ by row.** OpenAI Responses rows offer memory writes
+  through native `apply_patch`, not `memory_write_file` and
+  `memory_apply_patch`. Turn records list the offered tools, so the report
+  compares tool use within each row's own tool set.
+- **Recovery and tool calls come from chat's own record.** A memory turn's
+  tool rounds are model calls with an empty final text, and chat rejects
+  some tool calls before its memory service sees them (an unknown tool,
+  invalid arguments, the round limit). Chat persists every tool exchange and
+  the reply's `structured_recovery` for a memory turn, so the runner reads
+  them back from the benchmark database.
+- **Japanese search, live.** The stack smoke reconfirmed the planning-time
+  finding: `京都` and `抹茶` do not match the Japanese sentence; only the whole
+  sentence does.
 
 ## Decision Log
 
@@ -413,6 +442,16 @@ were rechecked on `18d2bebd`.
   Calibration and the owner's rating time are a one-time cost of the first
   run and do not count toward the 4-hour bound. Later runs reuse the pinned
   effort.
+
+- **D16 (Phase 4 review, 2026-10-26; the owner confirms it with the run plan
+  at G3). Memory Manager runs once per catalog row.**
+  - The runtimes ignore chat's effort (see Discoveries), so a row's `none`
+    and `low` configurations would repeat the same run and double its paid
+    calls.
+  - Each row runs every Memory Manager fixture once, as its first
+    configuration and under that configuration's price. The record names the
+    row and the effort the runtime applied.
+  - The dry run counts these calls once per row.
 
 ## Implementation orientation
 
@@ -1447,13 +1486,406 @@ Completion: the tests and smokes pass, and the high-risk review passes.
 Commit `feat(evals)[p4]: add the multi-turn, memory-arm and Memory Manager
 runners`.
 
-Check record: none yet.
+Starting source: `e90e6345` (Phase 3's commit).
 
-Commits: none yet.
+**Delivered** (`scripts/evals/benchmark/`):
+- `memory_db.py`. The disposable database:
+  - created next to the application database in the same PostgreSQL;
+  - holds every application table, built from the ORM metadata as the
+    test suite builds its databases;
+  - dropped on exit, error or cancellation;
+  - named afresh for each run (`animama_benchmark_<run directory>_<UTC
+    time>_<random>`), recorded in the manifest before the run starts, and
+    checked against `animama_benchmark_*`; an existing name fails as an
+    input error;
+  - holds one idle connection for the whole run, so `cleanup`, which drops
+    leftovers that no session is using and never the application database,
+    always keeps a running benchmark's database;
+  - also holds the read-only Japanese search probe.
+- `memory_runner.py`. Memory chats in arms (a), (b) and (c), the capture
+  snapshot, and the recall chat.
+  - Each configuration, arm and chat gets its own owner and Anima.
+  - Each store is seeded with the persona's `IDENTITY.md`, the fixture's
+    `MEMORIES.md` and its shared files.
+- `manager_runner.py`. General, episode-processing and Reflection runs, each
+  through the real `MemoryManagerService` with `auto_approve_diffs`.
+  - Each catalog row runs once, at the effort its runtime applies (D16).
+  - The OpenAI Agents and Anthropic SDK calls are wrapped so they count
+    against the shared budget before they are sent, and record usage and
+    the served model.
+  - The `run` command turns Agents SDK tracing off for its process.
+- **Prompt-set format:** `memory_fixtures`, `memory_chats` (each with a
+  checklist and recall probes), `episodic_guidance` (pinned by sha256, and it
+  must name `[self]/MEMORIES.md`, per P3-F5) and `memory_manager`.
+- **Run loop:** core turns, then memory chats, then Memory Manager runs,
+  all under one call and USD budget.
+- **Turn records:**
+  - every turn records `offered_tools`: the function tools, native tools and
+    native `apply_patch` chat offered;
+  - memory and recall turns add `arm`, `tool_calls` (tool, path, ok, code),
+    `memory_cue`, `remember`, `probe_id`, `expect` and `recall_match`
+    (`None` for a failed turn). Their tool calls, recovery and reply come
+    from the rows chat persisted for the turn, including the calls chat
+    rejected;
+  - `capture` lines hold the checklist and the store snapshot;
+  - `memory_manager` lines hold the run's messages, proposals and store.
+- **Dry run:** memory turns (about 2 calls each, per configuration) and
+  Memory Manager runs (about 6 calls each, once per row) count toward the
+  planned calls, cost and time.
+- **Manifest:** records `benchmark_database`, `japanese_search_probe` and
+  `options.memory_arms`.
+- **Core changes:**
+  - `execute_turn` accepts `chats=None` for turns chat persists itself;
+  - the stand-ins `NoAnimaProfile` and `SelectedModelProvider` are public;
+  - `replayed_reply` renders `remember` only when the model has it (P3-F9);
+  - `CallRecord.tool_calls` and `reply_calls` leave tool rounds out of the
+    replayed reply and the recovery path;
+  - `execute_turn`'s `on_prepared` may be a coroutine function: a memory
+    turn closes its setup session there, as `chat:sse` does;
+  - `CallBudget.admit` and `settle` serve both budget wrappers, and
+    `catalog.llm_skip` is the one reading of `ANIMAMA_LLM_SKIP`;
+  - `turn_record` is shared by core and memory turns.
+
+**Deviations from the planned Changes:**
+- **More real repositories.** Memory runs use the production repository
+  bundle (`SQLAlchemyProductRepositories`) for Animas, chats, chat messages,
+  memory, episodes and Memory Manager data, not only for memory. They also
+  reuse production's session-backed turn recorder, episode recorder and
+  memory tool service through a `TurnSessions` stand-in
+  (`BenchmarkSessions`).
+  - The plan had kept chats and the Anima in memory. A real Anima row and
+    real chats cost nothing in a disposable database. They let OpenAI
+    Responses memory chats continue from `previous_response_id`, as in
+    production, and let Reflection read real chat turns.
+  - Only the model catalog and the Anima chat profile remain stand-ins.
+- **Schema source.** The database is built from the ORM metadata, not from
+  `0001_baseline.sql`, matching the test suite.
+- **Memory Manager composition.** It mirrors `server/memory_manager.py`,
+  because that function cannot take the configuration's row or the budget
+  hooks.
+- **No pre-send compaction on memory turns.** Memory chats of about 12
+  turns stay far below the compaction threshold; the runner composes no
+  compactor.
+- **Approvals.** The harness relies on production's `auto_approve_diffs`,
+  which the existing suite tests. The benchmark tests assert the approvals
+  each deterministic run makes, and the Anthropic runtime's budget path runs
+  on the suite's fake SDK client.
+- **Long chats.** The Phase 2 scripted-chat runner is unchanged.
+  - Incognito turns skip pre-send compaction in the app.
+  - The 30-turn chats stay far below the compaction threshold of about 90k
+    tokens.
+  - Compaction is not a v1 measure (spec).
+
+Check record (2026-10-25). Every command ran from the repository root unless
+stated, on code subtrees `scripts` `6661e5d9`, `src` `1acfeab1` (unchanged
+since Phase 3) and `tests` `9765651f`. The full pre-push suite
+(`python3 scripts/heavy-slot.py -- make check-test`) passed:
+- the typed-content audit;
+- ruff format and ruff check;
+- mypy;
+- pytest: 4958 passed, 29 skipped.
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Tests | `uv run --no-sync pytest -q tests/test_model_benchmark_memory.py tests/test_model_benchmark_runner.py tests/test_model_benchmark_core.py tests/test_gesture_selection_eval.py tests/test_episodic_memory_arm.py` | 114 passed |
+| Lint and types | `uv run --no-sync ruff check`; `ruff format --check scripts/evals tests`; `make mypy` | Passed |
+| Benchmark dry run | `… plan --prompts tests/fixtures/model_benchmark/memory_prompts.json --standard` | 148 calls (296 with repairs), about $0.053, 0.10 h |
+| Stack smoke | See below | Passed |
+
+The database tests in `tests/test_model_benchmark_memory.py` run on the
+suite's PostgreSQL. They cover:
+- a memory chat in each arm, checking channels, refusals, episodes,
+  `MEMORIES.md` edits, shared files and recall;
+- all three Memory Manager kinds under the deterministic runtime;
+- the `run` command on the mock client, with its database dropped
+  afterwards;
+- `cleanup`;
+- the name guard;
+- both Memory Manager budget wrappers, with fake SDK objects.
+
+**Stack smoke.**
+- **Stack:** `ANIMAMA_LLM_SKIP=1 ./reset.sh --name bench --base-port 8900`,
+  at `http://animama-bench.localhost:8900`, Compose project `animama-bench`.
+- **Command:**
+  `docker compose -p animama-bench exec -T -e ANIMAMA_LLM_SKIP=1 animama-server python -m scripts.evals.benchmark run --prompts /app/tests/fixtures/model_benchmark/memory_prompts.json --tier smoke --standard --max-calls 300 --max-usd 1 --price input=0.10,cached_input=0.01,cache_write=0.125,output=0.50 --output-dir /app/.animama-drafts/model-benchmark/p4-smoke`.
+- **Result:** no abort and no errors.
+  - 40 calls: 4 warm-ups plus 9 memory and recall turns × 4 configurations.
+    The deterministic Memory Manager makes no model calls.
+  - Every configuration had 3 captures, 6 memory turns, 3 recall turns and
+    3 Memory Manager runs.
+  - Arm (b)'s 12 memory turns recovered as `lenient`, because chat's mock
+    client always sends `remember` (P3-F8). The other arms were `strict`.
+  - The run's database `animama_benchmark_p4_smoke_20261026t040403` was
+    dropped. The databases afterwards were `animama`, `postgres`,
+    `template0` and `template1`.
+  - Application database counts before and after were identical
+    (`memory_entries|chats|chat_messages|memory_episode_items|anima|memory_manager_runs`
+    = `5|0|0|0|2|0`).
+  - `conditions.machine` recorded the container id; `--machine-label`
+    overrides it.
+
+Commits: Phase 3 is `e90e6345`. This phase's commit is
+`feat(evals)[p4]: add the multi-turn, memory-arm and Memory Manager
+runners`.
 
 #### Code Review #1 Findings
 
+Both high-risk reviewers reviewed the working tree on code subtrees
+`scripts` `6661e5d9`, `src` `1acfeab1` and `tests` `9765651f` (baseline
+`e90e6345`). Result: changes required.
+
+**Analysis reviewer** (blocking):
+- **P4-F1.** `execute_turn` passes tool-round calls (final text `""`) to
+  `replayed_reply`, so a memory turn that uses a tool is recorded as
+  `repaired`, and salvage reads the tool round's stream. A probe showed
+  every arm's first turn as `repaired` with no repair. Chat marks a repair
+  only from its own metadata.
+- **P4-F2.** `tool_calls` misses the calls the executor rejects before the
+  memory service (`unsupported_tool`, `invalid_arguments`,
+  `memory_tool_round_limit`, `tool_call_id_reused`,
+  `unsupported_tool_type`), inflating R5's success rate. The offered tools
+  are not recorded, and no test checks them per option, row and arm.
+- **P4-F3.** The Memory Manager runtimes ignore the configuration's effort,
+  yet records carry it; a row's runs are paid twice. At minimum record the
+  applied effort; the owner may choose one run per row.
+- **P4-F4.** The cleanup test force-drops every `animama_benchmark_*`
+  database in the PostgreSQL container that all xdist workers share, so it
+  can kill another worker's test.
+- **P4-F5.** Planned high-risk tests are missing: drop on error or
+  cancellation, no application-database session or writes, the approvals,
+  and budget wiring through the real runtimes (the non-skip branch of
+  `_service` never runs).
+
+**Checks reviewer** (every rerun passed: 114 tests, ruff, mypy, the dry
+run, a stack smoke with all 46 application table counts unchanged, and live
+cap, error, SIGINT, SIGKILL and cleanup probes; blocking):
+- **P4-C1.** No test drops the database after an error (same gap as
+  P4-F5).
+- **P4-C2.** No test shows that memory work leaves the application database
+  alone (same gap as P4-F5).
+
+**Non-blocking** (both reviewers; numbered here):
+- **P4-N1.** The database name truncates the run id after the timestamp is
+  added, so a long directory name loses the timestamp; a rerun then
+  collides with a leftover and fails with a raw `DuplicateDatabaseError`.
+- **P4-N2.** The manifest written before the run has no database name.
+- **P4-N3.** The every-arm test leaves its probe session unclosed.
+- **P4-N4.** The plan's language list ignores memory work.
+- **P4-N5.** `cleanup` force-drops databases in use and does not exclude
+  the application database's name.
+- **P4-N6.** `application_database_url` loses the SSL `connect_args` built
+  from `PGSSLMODE`.
+- **P4-N7.** The memory turn's setup session stays open across the stream;
+  production closes it first.
+- **P4-N8.** Memory turns have no pre-send compactor.
+- **P4-N9.** `_BudgetedAgentsModel` does not forward `get_retry_advice`,
+  `_supports_default_prompt_cache_key` or `close`.
+- **P4-N10.** The Memory Manager's served model is not recorded.
+- **P4-N11.** The capture snapshot excludes identity by path, omits
+  descriptions, and does not mark seeded files.
+- **P4-N12.** `recall_match` is `False` rather than `None` for a failed
+  turn.
+- **P4-N13.** The dry run prices memory calls at the core first turn's size.
+- **P4-N14.** `set_tracing_disabled(True)` is process-global and leaks into
+  later tests.
+- **P4-N15.** DRY: three `_llm_skip` copies (one without `"y"`);
+  `ManagerCalls` repeats the budget's admit and charge; `_ANIMA_MEMORIES_KIND`
+  and `SELF_MEMORIES_ALIAS` duplicate domain constants; `_episodic_guidance`
+  reuses `_LOADOUT_KEYS`; `_memory_turn_sink(unit: Any)`.
+- **P4-N16.** The `cli` and `runner` docstrings are stale.
+- **P4-N17.** No negative loader tests for the memory sections, no planner
+  allowance test and no `recall_match` miss test.
+
 #### Code Review #1 Revisions
+
+- **P4-F1: accepted.** `CallRecord.tool_calls` counts the tools a call's
+  final asked for, and `reply_calls` leaves tool rounds and failed calls out
+  of the replay and of `recovery_path`. A memory turn's recovery and reply
+  now come from the assistant row chat persisted (`structured_recovery`,
+  and the content chat replays). The every-arm test asserts 3 calls and
+  `strict` (`lenient` in arm (b)) on the tool-using turn;
+  `test_reply_calls_leave_out_tool_rounds_and_failed_calls` covers the
+  helper.
+- **P4-F2: accepted.** The recording tool wrapper is gone: tool calls are
+  read from the tool exchange chat persisted for the turn, so a rejected
+  call is recorded with its code. Every turn records `offered_tools`. The
+  fake model now also calls `web_search`, recorded as `unsupported_tool`;
+  the test asserts the memory tools offered in every arm, no web search, and
+  no tools on incognito turns.
+- **P4-F3: accepted; one run per row (D16).** The agent decided rather than
+  waiting, since the effort cannot apply and the halved spend only helps;
+  the owner confirms D16 with the run plan at G3. Records name the row, and
+  their `effort` is what `applied_effort` returns (`medium` for Haiku;
+  `None`, the provider default, for OpenAI rows). The planner counts the runs once per row.
+  `test_the_memory_manager_runs_once_per_row_at_the_runtime_effort` and the
+  planner test cover it.
+- **P4-F4: accepted.** `drop_leftover_databases` takes a `prefix` (it must
+  start with `animama_benchmark_`); the test uses a prefix of its own and
+  can no longer touch another worker's database.
+- **P4-F5, P4-C1, P4-C2: accepted.** New tests:
+  - `test_the_benchmark_database_is_dropped_on_error_and_on_cancellation`;
+  - the every-arm test compares seven application table counts before and
+    after, and makes `animama.local.database.get_engine` fail while the run
+    works;
+  - the every-arm test asserts the approvals: none for the general run, one
+    approved create for episode processing, one approved `MEMORIES.md`
+    update for Reflection;
+  - `test_the_anthropic_runtime_calls_through_the_run_budget` runs the real
+    Anthropic runtime on the suite's fake SDK client, with and without room
+    in the cap. It found that the wrapper built the SDK stream before
+    admitting the call; the stream is now built only after admission.
+  - `test_the_openai_runtime_gets_the_budgeted_model_wrapper` checks the
+    OpenAI runtime's `model_wrapper` counts against the budget. Driving the
+    Agents SDK end to end is left to the paid run's smoke.
+- **P4-N1, P4-N2: accepted.** Names are `animama_benchmark_<label>_<UTC
+  time>_<random>`, chosen before the first manifest, which records them. A
+  failed `CREATE` is an `EvalInputError`
+  (`test_an_existing_benchmark_database_is_a_clear_input_error`).
+- **P4-N3, P4-N4: accepted.**
+- **P4-N5: accepted.** `cleanup` drops without `FORCE`, reports a database
+  in use as kept, and skips the application database's name.
+- **P4-N6: deferred.** The benchmark targets the task stack's loopback
+  PostgreSQL, which uses no TLS; a TLS-only server fails at connect, clearly.
+- **P4-N7: accepted.** The memory turn closes its setup session in
+  `on_prepared`.
+- **P4-N8: rejected.** Recorded as a deviation: memory chats stay far below
+  the compaction threshold.
+- **P4-N9, P4-N10: accepted.** The wrapper forwards the three hooks; the
+  Anthropic and streamed Agents calls record the served model, and records
+  list `served_models`. A non-streamed Agents response carries no model.
+- **P4-N11: accepted in part.** The snapshot excludes identity by kind and
+  includes descriptions. Seeded files are not marked: Phase 7 scores a
+  capture against the chat's fixture, which holds the seed.
+- **P4-N12: accepted.**
+- **P4-N13: accepted as documentation.** The planner docstring says memory
+  calls are priced at the core size, and the USD cap bounds the spend.
+- **P4-N14: accepted.** Only the CLI's `main` turns tracing off.
+- **P4-N15: accepted.** One `catalog.llm_skip`; `CallBudget.admit` and
+  `settle`; the domain constants; `_PINNED_FILE_KEYS`; `MemoryTurn` is
+  typed.
+- **P4-N16: accepted.**
+- **P4-N17: accepted in part.** Seven negative loader cases and a planner
+  allowance test are added. A `recall_match` miss is left to Phase 7's
+  scoring tests, which own the recall measure.
+
+**Repair check record (2026-10-26)**, on code subtrees `scripts`
+`37aea34b`, `src` `1acfeab1` (unchanged) and `tests` `311c5597`:
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Tests | `uv run --no-sync pytest -q tests/test_model_benchmark_memory.py tests/test_model_benchmark_runner.py tests/test_model_benchmark_core.py tests/test_gesture_selection_eval.py tests/test_episodic_memory_arm.py` | 129 passed |
+| Lint and types | `uv run --no-sync ruff check`; `ruff format --check scripts/evals tests`; `make format-check`; `make mypy`; `uv run --no-sync mypy scripts/evals` | Passed |
+| Benchmark dry run | `… plan --prompts tests/fixtures/model_benchmark/memory_prompts.json --standard` | 112 calls (224 with repairs), about $0.040, 0.08 h; Memory Manager calls once per row |
+| Stack smoke | The Phase 4 smoke command, `--output-dir /app/.animama-drafts/model-benchmark/p4-repair1-smoke-2` | Passed |
+| Full suite | `python3 scripts/heavy-slot.py -- make check-test` | Passed: typed-content audit, ruff format and check, mypy; pytest 4973 passed, 29 skipped |
+
+The stack smoke made 40 calls with no abort and no errors. Arm (b)'s 12
+memory and recall turns recovered as `lenient` (P3-F8) and the others as
+`strict`. Memory Manager lines name each row once, with effort `medium` for
+Haiku and `None` for Luna. The run's database was dropped, the application
+counts stayed `5|0|0|0|2|0`, and `cleanup` found nothing to drop.
+
+The repairs went to a targeted recheck by both reviewers (Code Review #2).
+
+#### Code Review #2 Findings
+
+- **Analysis reviewer** (targeted recheck on `scripts` `37aea34b`, `src`
+  `1acfeab1`, `tests` `311c5597`): pass. Every blocking finding is
+  repaired, with no blocking regression; it accepts the N6, N8, N13 and N17
+  dispositions. Its probes confirmed the scoped cleanup with two workers and
+  an OpenAI Responses row's native `apply_patch` records. Non-blocking:
+  - **P4-R2-N1.** A failed memory turn records `tool_calls: []`, hiding
+    tools that ran before the failure.
+  - **P4-R2-N2.** `drop_leftover_databases` reports any drop error, such as
+    a permission error, as "in use".
+  - **P4-R2-N3.** `applied_effort` cannot tell the provider default from an
+    Anthropic role default of `none`.
+  - **P4-R2-N4.** No test covers an OpenAI Responses row's native
+    `apply_patch` in `offered_tools` and the saved tool calls.
+- **Checks reviewer** (same tree; every rerun passed: 129 tests, ruff, both
+  mypy runs, the dry run, a stack smoke with all 46 application table counts
+  and the write counters unchanged, SIGKILL and in-use cleanup probes):
+  checks fail. P4-C1 and P4-C2 are fixed.
+  - **P4-C3 (blocking).** `cleanup` says it keeps a running benchmark's
+    database, but the run's engine holds no connection between sessions. In
+    61% of samples during a mock run no session was connected, and a
+    `cleanup` during the run dropped the database; the run then failed with
+    `InvalidCatalogNameError`. The cleanup test held a connection by hand.
+  - Non-blocking: the P4-R2-N2 point; the P4-F3 revision named the record
+    field `applied_effort` (it is `effort`); Memory Manager lines add a
+    configuration key per row, which Phase 7 must expect.
+
+#### Code Review #2 Revisions
+
+- **P4-C3: accepted.** `benchmark_database` holds one idle connection once
+  the schema is built, so a drop without `FORCE` fails while a run is under
+  way (review #3 found a short window at startup: P4-R3-C-N1). The test now runs `cleanup` inside a live `benchmark_database`
+  context, after its only session has closed. With the held connection
+  removed, the test fails.
+- **P4-R2-N1: accepted.** A failed memory turn records `tool_calls: null`
+  (unknown). Phase 7's changes say the tool measures leave such turns out.
+- **P4-R2-N2: accepted.** Only SQLSTATE `55006` (object in use) counts as
+  in use; any other drop error is an `EvalInputError` naming the database.
+- **P4-R2-N3: rejected.** The runtime's role default is the constant
+  `medium`, which `offered_effort` either returns or drops, so the call
+  cannot resolve to `none`.
+- **P4-R2-N4: accepted.**
+  `test_an_openai_responses_row_writes_memory_through_native_apply_patch`
+  covers the offered tools, the saved call and the recovery in every arm.
+- **Field name and record shape: accepted.** The P4-F3 revision now names
+  `effort`, and Phase 7's changes describe the row-level Memory Manager
+  lines.
+
+**Repair round 2 check record (2026-10-26)**, on code subtrees `scripts`
+`56a035fc`, `src` `1acfeab1` (unchanged) and `tests` `f5074c05`:
+- the five targeted test files: 130 passed;
+- `ruff check`, `ruff format` on `scripts/evals` and the memory tests,
+  `make format-check`, `make mypy` and `mypy scripts/evals`: passed;
+- the full pre-push suite (`python3 scripts/heavy-slot.py -- make
+  check-test`): the typed-content audit, ruff format and check, and mypy
+  passed; pytest 4974 passed, 29 skipped;
+- a stack smoke on `animama-bench` with `cleanup` called repeatedly during
+  the run (`--output-dir /app/.animama-drafts/model-benchmark/p4-repair2-smoke`):
+  the one call that overlapped the run reported its database as kept, in
+  use; the run finished with no abort and 40 calls; its database was then
+  dropped, and the application counts stayed `5|0|0|0|2|0`.
+
+The repairs went to a final targeted recheck by both reviewers (Code Review
+#3), the last one the review budget allows.
+
+#### Code Review #3 Findings
+
+- **Analysis reviewer** (scripts `56a035fc`, src `1acfeab1`, tests
+  `f5074c05`; 130 targeted tests rerun with two workers): pass. The held
+  connection closes on error and cancellation before the `FORCE` drop in
+  `finally`; only SQLSTATE `55006` counts as in use; no regression in the
+  core or the Gesture harness. Non-blocking: the startup window below, and
+  no test asserts `tool_calls: null` for a failed memory turn.
+- **Checks reviewer** (same tree): checks pass. It reran the 130 tests (no
+  `SAWarning`), ruff, `make mypy` and `mypy scripts/evals`, and sampled four
+  mock runs every 20 ms: a connection was open in 110–117 of 112–118
+  samples, the gaps at startup and at the run's own drop. A `cleanup` 4 s
+  into a run kept the database, and the run finished with 40 calls and no
+  errors; repeated `cleanup` from early in a run never dropped it. All 46
+  application table counts and the write counters were unchanged.
+  Non-blocking:
+  - **P4-R3-C-N1.** A `cleanup` right after `CREATE DATABASE`, or between
+    schema creation and the held connection, still drops a starting run's
+    database; the run then fails before any model call.
+  - **P4-R3-C-N2.** A `cleanup` during a run waits about 5 s for the run's
+    sessions before failing with `55006`, and blocks the run's new
+    connections meanwhile, which distorts latency.
+
+#### Code Review #3 Revisions
+
+- **P4-R3-C-N1 and P4-R3-C-N2: deferred to documentation.** The review
+  budget is spent, so no code changes after review #3. Both failures need
+  `cleanup` to run during a run; Phase 8's README and skill say to run it
+  between runs. A startup collision fails before any spend.
+- **The untested `tool_calls: null`: accepted as is.** The branch is one
+  line with a comment, and Phase 7 consumes it.
+
+Phase 4 passed with both repair rounds used.
 
 ### Phase 5: Prompt set v1, Japanese subset, fixtures and rubrics (gate G2)
 
@@ -1649,6 +2081,14 @@ Changes:
       the companion-safety parity from Phase 2.
   - There are placeholders for the owner's recommendations on the default
     model and on the episodic-memory design.
+- **Phase 4 record shapes.**
+  - Memory Manager lines carry the row id as `configuration` (D16), so
+    `turns.jsonl` has one more key per row than the configurations.
+  - A failed memory turn records `tool_calls: null`: chat persisted none of
+    its tool exchange. The tool measures leave failed turns out, and the
+    report counts them.
+  - Seeded files are recognized by comparing a capture with the chat's
+    fixture (P4-N11).
 - **Public-safety guard.** `report` refuses to write when any judged reply,
   saved memory or prompt text appears in the output. Only ids, numbers and
   tracked identifiers are allowed.
@@ -1704,7 +2144,8 @@ Changes:
   - A benchmark README beside the inputs (location per G1) covering:
     - the commands;
     - the prompt-set format and the held-out rule;
-    - the memory arms and the benchmark database;
+    - the memory arms and the benchmark database, including that
+      `cleanup` runs between runs, not during one (P4-R3-C-N1, P4-R3-C-N2);
     - judge setup, including CLI sign-in and isolation;
     - the conditions and the time bound;
     - limitations.

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator, Callable, Sequence
 from dataclasses import dataclass, field
 from decimal import Decimal
 
@@ -24,6 +24,7 @@ __all__ = [
     "Clock",
     "UnusedModelClient",
     "call_latency",
+    "reply_calls",
     "seconds",
 ]
 
@@ -62,9 +63,28 @@ class CallBudget:
             return "max_usd"
         return None
 
+    def admit(self) -> bool:
+        """Count one more call before it is sent, or record why it is refused and return ``False``."""
+
+        refusal = self.refusal()
+        if refusal is not None:
+            self.refused = refusal
+            return False
+        self.calls += 1
+        return True
+
     def charge(self, cost_usd: Decimal) -> None:
         self.spent_usd += cost_usd
         self.largest_call_usd = max(self.largest_call_usd, cost_usd)
+
+    def settle(self, record: CallRecord, usage: Usage, price: CallPrice | None) -> None:
+        """Record a finished call's reported usage and, when ``price`` prices it, charge its cost."""
+
+        record.usage = usage
+        if price is not None:
+            record.cost_usd = price(usage)
+            if record.cost_usd is not None:
+                self.charge(record.cost_usd)
 
 
 @dataclass(slots=True)
@@ -85,6 +105,8 @@ class CallRecord:
     """The model the provider reported serving (``raw_provider_metadata["model"]``), when it reported one."""
     cost_usd: Decimal | None = None
     """The call's estimated cost, when the client prices calls and the call reported usage."""
+    tool_calls: int = 0
+    """How many tools the call's final asked for; a call that asked for any is a tool round, not a reply."""
 
 
 class BudgetedModelClient:
@@ -121,12 +143,9 @@ class BudgetedModelClient:
         return uses_native_context_compaction(self._client)
 
     async def stream(self, request: ModelClientRequest) -> AsyncIterator[ModelClientDelta]:
-        refusal = self._budget.refusal()
-        if refusal is not None:
+        if not self._budget.admit():
             self.refused = True
-            self._budget.refused = refusal
             raise ModelClientError("The evaluation call budget is spent", code=BUDGET_ERROR_CODE)
-        self._budget.calls += 1
         record = CallRecord(started=self._clock())
         self.calls.append(record)
         try:
@@ -137,12 +156,9 @@ class BudgetedModelClient:
                     record.text_deltas.append(delta.text)
                 elif delta.kind == "final" and delta.final is not None:
                     record.final_text = delta.final.text
+                    record.tool_calls = len(delta.final.tool_calls)
                     if delta.final.usage_reported:
-                        record.usage = delta.final.usage
-                        if self._price is not None:
-                            record.cost_usd = self._price(delta.final.usage)
-                            if record.cost_usd is not None:
-                                self._budget.charge(record.cost_usd)
+                        self._budget.settle(record, delta.final.usage, self._price)
                     served = delta.final.raw_provider_metadata.get("model")
                     record.served_model = served if isinstance(served, str) and served else None
                     # The final reply has arrived; a trailing ``done`` delta adds nothing to wait for.
@@ -165,6 +181,12 @@ class UnusedModelClient:
 
     async def aclose(self) -> None:
         """Nothing to close."""
+
+
+def reply_calls(calls: Sequence[CallRecord]) -> list[CallRecord]:
+    """The calls that returned a reply: the first reply, then any repair; failed calls and tool rounds are left out."""
+
+    return [call for call in calls if call.final_text is not None and not call.tool_calls]
 
 
 def seconds(value: float) -> float:

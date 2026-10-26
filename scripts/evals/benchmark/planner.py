@@ -4,8 +4,9 @@ Every figure is an estimate the owner approves a run against; the run itself
 enforces the caps. Input tokens come from chat's own prompt assembly for each
 configuration's row, measured with chat's conservative token estimate. The
 USD estimate prices every call at its first turn's size with no prompt
-caching: caching lowers it, while a long chat's growing history raises it, so
-the run's USD cap, not this figure, bounds the spend. Wall time is the planned
+caching: caching lowers it, while a long chat's growing history raises it, as
+do the memory sections and tools of memory and Memory Manager calls, so the
+run's USD cap, not this figure, bounds the spend. Wall time is the planned
 calls times a seconds-per-call allowance, plus judging.
 """
 
@@ -21,7 +22,7 @@ from animama.domain.usage import Usage
 from ..core.chat import EvalChats, StaticMemoryContext, build_executor, turn_request
 from ..core.model_calls import CallPrice, CallRecord, UnusedModelClient
 from ..core.pricing import TokenPrices, usage_json
-from .configs import Configuration, capability_problem
+from .configs import Configuration, capability_problem, first_per_row
 from .options import PROVIDER_MODERATION, core_turn_options
 from .prompt_set import PromptSet
 from .runner import WARMUP_MESSAGE, planned_turns
@@ -48,6 +49,11 @@ DEFAULT_SECONDS_PER_CALL = 2.5
 """#409 measured medians of about 2 s per turn for both built-in rows; the allowance covers repairs and p90 turns."""
 ESTIMATED_OUTPUT_TOKENS = 200
 """Output tokens allowed per call in the cost estimate: a short reply of 100-200 tokens plus any reasoning."""
+MEMORY_TURN_CALLS = 2
+"""Calls planned per memory or recall turn: the reply, plus one memory-tool round on average."""
+MANAGER_RUN_CALLS = 6
+"""Calls planned per Memory Manager run: reads, a proposal or two, and its final reply. Each row runs once."""
+MEMORY_ARM_COUNT = 3
 
 
 @dataclass(frozen=True, slots=True)
@@ -60,7 +66,31 @@ class BenchmarkPlan:
 
     @property
     def turns_per_configuration(self) -> int:
+        """Core and scripted-chat turns per configuration, its warm-up included."""
+
         return planned_turns(self.prompt_set, repeats=self.repeats, scripted_repeats=self.scripted_repeats)
+
+    @property
+    def memory_turns_per_configuration(self) -> int:
+        """Memory-chat and recall turns per configuration, across the three arms."""
+
+        return MEMORY_ARM_COUNT * sum(len(chat.turns) + len(chat.recall) for chat in self.prompt_set.memory_chats)
+
+    @property
+    def calls_per_configuration(self) -> int:
+        """Planned calls of every configuration, leaving out the Memory Manager runs its row makes once."""
+
+        return self.turns_per_configuration + MEMORY_TURN_CALLS * self.memory_turns_per_configuration
+
+    def calls_for(self, configuration: Configuration) -> int:
+        """Planned calls of one configuration, with its row's Memory Manager runs when it is the row's first."""
+
+        manager = MANAGER_RUN_CALLS * len(self.prompt_set.manager_runs)
+        return self.calls_per_configuration + (manager if configuration in first_per_row(self.runnable) else 0)
+
+    @property
+    def needs_benchmark_database(self) -> bool:
+        return bool(self.prompt_set.memory_chats or self.prompt_set.manager_runs)
 
     @property
     def runnable(self) -> tuple[Configuration, ...]:
@@ -70,9 +100,9 @@ class BenchmarkPlan:
 
     @property
     def estimated_calls(self) -> int:
-        """One call per turn; a structured repair or context retry can add one more to a turn."""
+        """Planned calls; a structured repair or context retry can add one more to a turn."""
 
-        return self.turns_per_configuration * len(self.runnable)
+        return sum(self.calls_for(configuration) for configuration in self.runnable)
 
 
 def call_price(token_prices: TokenPrices | None) -> CallPrice | None:
@@ -146,7 +176,7 @@ def estimate_usd(
         configuration.label: (
             _estimated_usd(
                 configuration,
-                plan.turns_per_configuration,
+                plan.calls_for(configuration),
                 first_turn_tokens[configuration.label],
                 prices.get(configuration.label),
             )
@@ -184,7 +214,11 @@ def render_plan(
     """Describe what a run would send and cost, and whether it fits its caps and the time bound."""
 
     prompt_set = plan.prompt_set
-    languages = sorted({item.language for item in prompt_set.items} | {c.language for c in prompt_set.scripted_chats})
+    languages = sorted(
+        {item.language for item in prompt_set.items}
+        | {chat.language for chat in prompt_set.scripted_chats}
+        | {chat.language for chat in prompt_set.memory_chats}
+    )
     lines = [
         "Model benchmark plan",
         f"Prompt set: version {prompt_set.version}, tier {plan.tier}: {len(prompt_set.items)} single-turn items, "
@@ -194,7 +228,15 @@ def render_plan(
         *(_composition_lines(prompt_set)),
         f"Repeats: {plan.repeats} for single-turn items (each under every persona), "
         f"{plan.scripted_repeats} for scripted chats",
-        f"Turns per configuration: {plan.turns_per_configuration}, one discarded warm-up included",
+        f"Turns per configuration: {plan.turns_per_configuration}, one discarded warm-up included"
+        + (
+            f"; plus {plan.memory_turns_per_configuration} memory and recall turns in {MEMORY_ARM_COUNT} arms "
+            f"(about {MEMORY_TURN_CALLS} calls each), and {len(prompt_set.manager_runs)} Memory Manager runs "
+            f"per catalog row at the runtime's own effort (about {MANAGER_RUN_CALLS} calls each), "
+            "on a disposable benchmark database"
+            if plan.needs_benchmark_database
+            else ""
+        ),
         "Configurations:",
     ]
     estimates = estimate_usd(plan, first_turn_tokens=first_turn_tokens, prices=prices)
@@ -208,7 +250,7 @@ def render_plan(
         source = "--price rates" if prices.get(configuration.label) is not None else "catalog standard rates"
         lines.append(
             f"  - {configuration.label}: ~{first_turn_tokens.get(configuration.label)} input tokens per first turn, "
-            f"{plan.turns_per_configuration} calls, {cost} ({source})"
+            f"{plan.calls_for(configuration)} calls, {cost} ({source})"
         )
     lines.append(
         f"Estimated model calls: {plan.estimated_calls}; up to {2 * plan.estimated_calls} if every reply needs "
@@ -251,6 +293,10 @@ def _composition_lines(prompt_set: PromptSet) -> list[str]:
         groups.setdefault(("items", item.area, item.language), []).append(item.held_out)
     for chat in prompt_set.scripted_chats:
         groups.setdefault(("chats", chat.area, chat.language), []).append(chat.held_out)
+    for memory_chat in prompt_set.memory_chats:
+        groups.setdefault(("memory chats", memory_chat.area, memory_chat.language), []).append(memory_chat.held_out)
+    for run in prompt_set.manager_runs:
+        groups.setdefault(("Memory Manager runs", run.kind, "en"), []).append(run.held_out)
     return [
         f"  - {kind}, {area}, {language}: {len(held)} ({sum(held)} held out)"
         for (kind, area, language), held in sorted(groups.items())

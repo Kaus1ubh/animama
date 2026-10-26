@@ -155,6 +155,15 @@ def test_usage_totals_count_completed_calls_without_usage() -> None:
     assert totals["unreported_calls"] == 1
 
 
+def test_reply_calls_leave_out_tool_rounds_and_failed_calls() -> None:
+    tool_round = model_calls.CallRecord(started=0.0, final_text="", tool_calls=1)
+    failed = model_calls.CallRecord(started=0.0)
+    reply = model_calls.CallRecord(started=0.0, final_text="{}")
+    repair = model_calls.CallRecord(started=0.0, final_text="{}")
+
+    assert model_calls.reply_calls([tool_round, failed, reply, repair]) == [reply, repair]
+
+
 def test_nearest_rank_p90_and_distribution() -> None:
     values = [float(value) for value in range(1, 11)]
 

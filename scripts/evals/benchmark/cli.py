@@ -1,9 +1,12 @@
-"""The benchmark's commands: ``plan`` (the dry run), ``run`` and ``models``.
+"""The benchmark's commands: ``plan`` (the dry run), ``run``, ``models`` and ``cleanup``.
 
 ``plan`` needs no database or model: the standard set comes from the catalog
 the code defines. ``run`` runs inside the backend container of a development
 task stack, where the configured connections and keys are; it reads the model
-catalog in a read-only transaction and never reads, prints or logs keys::
+catalog in a read-only transaction and never reads, prints or logs keys. A
+prompt set with memory work also gets a disposable benchmark database
+(``memory_db``), dropped when the run ends; ``cleanup`` drops one a killed run
+left behind::
 
     source .animama-stack.env
     docker compose -p "$COMPOSE_PROJECT_NAME" exec animama-server python -m scripts.evals.benchmark run \\
@@ -19,15 +22,17 @@ from __future__ import annotations
 import argparse
 import asyncio
 import math
-import os
 import platform
 import sys
 import time
-from collections.abc import Mapping, Sequence
+from collections.abc import AsyncIterator, Mapping, Sequence
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
+
+from agents import set_tracing_disabled
 
 from animama.app.chat import DirectChatTurnSetupError, ModelClientNotFoundError
 from animama.app.model_clients import StaticModelClientRegistry
@@ -37,6 +42,8 @@ from ..core import catalog
 from ..core.inputs import EvalInputError
 from ..core.pricing import TokenPrices, parse_token_prices
 from .configs import Configuration, builtin_chat_rows, capability_problem, parse_config, standard_configurations
+from .memory_db import benchmark_database, benchmark_database_name, drop_leftover_databases, japanese_search_probe
+from .memory_runner import ARM_BOTH, ARM_MEMORIES_MD_ONLY, ARM_REMEMBER_ONLY, BenchmarkSessions
 from .options import ELEVENLABS_VOICE, PROVIDER_MODERATION
 from .planner import (
     DEFAULT_SECONDS_PER_CALL,
@@ -134,6 +141,11 @@ def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
     )
     run.add_argument("--source-revision", default="unrecorded", help="the checkout's commit, for the report")
     commands.add_parser("models", help="print the active chat rows of the model catalog")
+    commands.add_parser(
+        "cleanup",
+        help="drop benchmark databases a killed run left behind; a database in use, such as a running "
+        "benchmark's, is kept",
+    )
     return parser.parse_args(argv)
 
 
@@ -226,7 +238,10 @@ def _manifest(
     started_at: datetime,
     outcome: RunOutcome | None,
     prices: Mapping[str, TokenPrices | None],
+    database: str | None = None,
 ) -> dict[str, Any]:
+    """The run's manifest; ``outcome`` is ``None`` before the run starts, when ``database`` names its database."""
+
     return {
         "schema": RUN_SCHEMA,
         "started_at": started_at.isoformat(),
@@ -262,12 +277,14 @@ def _manifest(
         "estimated_spend_usd": str(outcome.spent_usd) if outcome is not None else "0",
         "turns_recorded": outcome.turns if outcome is not None else 0,
         "prompts": outcome.prompts if outcome is not None else {},
+        "benchmark_database": outcome.benchmark_database if outcome is not None else database,
+        "japanese_search_probe": outcome.japanese_search_probe if outcome is not None else None,
         "conditions": {
             "machine": args.machine_label,
             "platform": platform.platform(),
             "network": args.network_label,
             "source_revision": args.source_revision,
-            "llm_skip": _llm_skip(),
+            "llm_skip": catalog.llm_skip(),
         },
         "options": {
             "voice": ELEVENLABS_VOICE.provider,
@@ -276,12 +293,10 @@ def _manifest(
             "incognito": True,
             # Core and long-chat turns run with memory influence and updates off: no memory sections or tools.
             "memory": "off",
+            # Memory chats, recall chats and Memory Manager runs have memory on in these arms.
+            "memory_arms": [ARM_REMEMBER_ONLY, ARM_MEMORIES_MD_ONLY, ARM_BOTH] if plan.needs_benchmark_database else [],
         },
     }
-
-
-def _llm_skip() -> bool:
-    return os.environ.get("ANIMAMA_LLM_SKIP", "").strip().lower() in {"1", "true", "yes", "on"}
 
 
 def _print_progress(turn: Mapping[str, Any]) -> None:
@@ -315,25 +330,32 @@ async def _run(args: argparse.Namespace) -> int:
         raise EvalInputError("The estimate exceeds the 4-hour bound; trim the plan or pass --over-time-approved")
     directory = RunDirectory(args.output_dir)
     started_at = datetime.now(UTC)
-    directory.write_manifest(_manifest(args, plan, started_at=started_at, outcome=None, prices=prices))
     # Filled as the run goes, so the manifest records a partial or failed run's calls, spend and reason too.
     outcome = RunOutcome()
+    if plan.needs_benchmark_database:
+        # Named before the first manifest, so a killed run's manifest says which database `cleanup` should drop.
+        outcome.benchmark_database = benchmark_database_name(directory.path.name)
+    directory.write_manifest(
+        _manifest(args, plan, started_at=started_at, outcome=None, prices=prices, database=outcome.benchmark_database)
+    )
     registry: StaticModelClientRegistry | None = None
     try:
         registry = catalog.build_model_client_registry()
-        await run_benchmark(
-            plan.prompt_set,
-            plan.runnable,
-            registry=registry,
-            caps=RunCaps(max_calls=args.max_calls, max_usd=args.max_usd),
-            prices={label: call_price(rates) for label, rates in prices.items()},
-            sink=directory.append_turn,
-            repeats=args.repeats,
-            scripted_repeats=args.scripted_repeats,
-            clock=time.monotonic,
-            progress=_print_progress,
-            outcome=outcome,
-        )
+        async with _memory_sessions(outcome) as memory_sessions:
+            await run_benchmark(
+                plan.prompt_set,
+                plan.runnable,
+                registry=registry,
+                caps=RunCaps(max_calls=args.max_calls, max_usd=args.max_usd),
+                prices={label: call_price(rates) for label, rates in prices.items()},
+                sink=directory.append_turn,
+                repeats=args.repeats,
+                scripted_repeats=args.scripted_repeats,
+                clock=time.monotonic,
+                progress=_print_progress,
+                outcome=outcome,
+                memory_sessions=memory_sessions,
+            )
     except Exception as exc:
         if outcome.aborted == "interrupted":
             # The run loop never started, for example the registry could not be built.
@@ -347,14 +369,40 @@ async def _run(args: argparse.Namespace) -> int:
     return 0 if outcome.aborted is None else 1
 
 
+@asynccontextmanager
+async def _memory_sessions(outcome: RunOutcome) -> AsyncIterator[BenchmarkSessions | None]:
+    """The run's disposable benchmark database when its plan has memory work, dropped when the run ends."""
+
+    name = outcome.benchmark_database
+    if name is None:
+        yield None
+        return
+    async with benchmark_database(catalog.application_database_url(), name) as factory:
+        async with factory() as session:
+            # Chat's memory search uses the english text-search configuration; record what that does to Japanese.
+            outcome.japanese_search_probe = await japanese_search_probe(session)
+        yield BenchmarkSessions(factory)
+
+
+async def _cleanup() -> int:
+    dropped, in_use = await drop_leftover_databases(catalog.application_database_url())
+    lines = [f"dropped {name}" for name in dropped] + [f"kept {name}: in use" for name in in_use]
+    print("\n".join(lines) if lines else "no benchmark databases to drop")
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parse_args(argv)
     try:
         if args.command == "models":
             return asyncio.run(_models())
+        if args.command == "cleanup":
+            return asyncio.run(_cleanup())
         if args.command == "plan":
             asyncio.run(_print_plan(args, _plan(args, builtin_chat_rows())))
             return 0
+        # The OpenAI Memory Manager runtime would otherwise export a trace of each benchmark run.
+        set_tracing_disabled(True)
         return asyncio.run(_run(args))
     except (EvalInputError, DirectChatTurnSetupError, ModelClientNotFoundError) as exc:
         print(f"error: {exc}", file=sys.stderr)

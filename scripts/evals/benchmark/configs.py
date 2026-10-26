@@ -22,6 +22,7 @@ __all__ = [
     "Configuration",
     "builtin_chat_rows",
     "capability_problem",
+    "first_per_row",
     "parse_config",
     "standard_configurations",
 ]
@@ -81,6 +82,15 @@ def parse_config(text: str, rows: Sequence[ModelProvider]) -> Configuration:
     if row is None:
         raise EvalInputError(f"--config: no catalog row {row_id!r} (see the models command)")
     return Configuration(row, effort.strip() or None)
+
+
+def first_per_row(configurations: Iterable[Configuration]) -> tuple[Configuration, ...]:
+    """The first configuration of each catalog row, in order."""
+
+    first: dict[str, Configuration] = {}
+    for configuration in configurations:
+        first.setdefault(configuration.model_provider.id, configuration)
+    return tuple(first.values())
 
 
 def capability_problem(configuration: Configuration) -> str | None:

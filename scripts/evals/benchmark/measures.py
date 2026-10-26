@@ -12,6 +12,7 @@ from typing import Any
 
 from animama.app.main_structured_response import parse_main_structured_response
 
+from ..core.model_calls import reply_calls
 from ..core.pricing import sum_usage_json
 from ..core.stats import latency_summary, longest_run, rate, token_summary
 from ..core.turns import TurnOutcome
@@ -19,6 +20,7 @@ from ..core.turns import TurnOutcome
 __all__ = [
     "RECOVERY_PATHS",
     "STYLE_VIOLATIONS",
+    "offered_tools",
     "recovery_path",
     "summarize_configuration",
     "value_distribution",
@@ -41,12 +43,28 @@ def recovery_path(outcome: TurnOutcome) -> str | None:
         return None
     if outcome.recovery is not None:
         return outcome.recovery
-    finals = [call.final_text for call in outcome.calls if call.final_text is not None]
+    finals = [call.final_text for call in reply_calls(outcome.calls) if call.final_text is not None]
     try:
         parse_main_structured_response(finals[-1], outcome.prepared.output_type)
     except ValueError:
         return "lenient"
     return "strict"
+
+
+def offered_tools(outcome: TurnOutcome) -> list[str]:
+    """The tools chat offered the model on the turn: its function tools, native tools and native ``apply_patch``."""
+
+    request = outcome.prepared.model_request
+    names: list[str] = []
+    for tool in request.prompt.tools:
+        kind = tool.get("type")
+        spec = tool.get(kind) if isinstance(kind, str) else None
+        name = spec.get("name") if isinstance(spec, Mapping) else None
+        names.append(str(name or kind))
+    names.extend(request.provider_options.native_tools)
+    if request.provider_options.memory_apply_patch_enabled:
+        names.append("apply_patch")
+    return sorted(names)
 
 
 def value_distribution(values: Sequence[Hashable | None]) -> dict[str, Any]:
@@ -108,9 +126,12 @@ def _speech_summary(turns: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
 
 
 def summarize_configuration(turns: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
-    """Deterministic measures over one configuration's recorded turns, warm-ups excluded."""
+    """Deterministic core-turn measures over one configuration's single-turn items and scripted chats.
 
-    measured = [turn for turn in turns if turn["kind"] != "warmup"]
+    Warm-ups, memory chats, recall chats and captures are left out; memory has measures of its own.
+    """
+
+    measured = [turn for turn in turns if turn["kind"] in {"single", "chat"}]
     ok = [turn for turn in measured if turn["error"] is None]
     single = [turn for turn in ok if turn["kind"] == "single"]
     chats = [turn for turn in ok if turn["kind"] == "chat"]

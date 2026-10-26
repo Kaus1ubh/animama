@@ -517,6 +517,7 @@ def test_the_run_command_writes_turns_and_a_manifest(fake_catalog: _FakeCatalog,
         "provider_moderation": True,
         "incognito": True,
         "memory": "off",
+        "memory_arms": [],
     }
     assert [c["label"] for c in manifest["configurations"]] == [c.label for c in _standard()]
     assert Decimal(manifest["estimated_spend_usd"]) > 0

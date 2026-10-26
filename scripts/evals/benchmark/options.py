@@ -18,7 +18,7 @@ from animama.app.chat.options import DirectChatOptions, DirectChatTtsOptions
 
 from ..core.chat import incognito_turn_options
 
-__all__ = ["ELEVENLABS_VOICE", "PROVIDER_MODERATION", "TurnLanguage", "core_turn_options"]
+__all__ = ["ELEVENLABS_VOICE", "PROVIDER_MODERATION", "TurnLanguage", "core_turn_options", "memory_turn_options"]
 
 ELEVENLABS_VOICE = DirectChatTtsOptions(enabled=True, provider="elevenlabs")
 PROVIDER_MODERATION = True
@@ -42,3 +42,15 @@ def core_turn_options(language: str, reasoning_effort: str | None) -> TurnLangua
     resolved = conversation_language(language)
     options = with_speech_language(incognito_turn_options(reasoning_effort, tts=ELEVENLABS_VOICE), resolved)
     return TurnLanguage(options=options, conversation_language=resolved)
+
+
+def memory_turn_options(language: str, reasoning_effort: str | None) -> TurnLanguage:
+    """Options for a memory-chat turn: memory influence and updates on, and not incognito, as a default chat is.
+
+    Chat writes memory only for such a turn, so it also persists the chat and, on OpenAI Responses, asks the
+    provider to store the response (``store=true``); every benchmark prompt and fixture is synthetic.
+    """
+
+    resolved = conversation_language(language)
+    options = DirectChatOptions(incognito=False, reasoning_effort=reasoning_effort, tts=ELEVENLABS_VOICE)
+    return TurnLanguage(options=with_speech_language(options, resolved), conversation_language=resolved)

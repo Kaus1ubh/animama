@@ -28,6 +28,7 @@ from animama.app.chat.direct_turn.message_builders import user_provider_message
 from animama.app.chat.memory_context import MEMORY_CONTEXT_METADATA_VERSION
 from animama.app.chat.options import DirectChatOptions, DirectChatTtsOptions
 from animama.app.main_structured_response import (
+    MAIN_STRUCTURED_RESPONSE_PART_REMEMBER,
     MAIN_STRUCTURED_RESPONSE_PART_SPEECH,
     MainStructuredJsonStreamParser,
     MainStructuredResponse,
@@ -47,6 +48,8 @@ from animama.domain.events import Event, EventType, UserResponsePayload
 __all__ = [
     "ESTIMATE_MODEL_PROVIDER",
     "EvalChats",
+    "NoAnimaProfile",
+    "SelectedModelProvider",
     "StaticMemoryContext",
     "build_executor",
     "history_rows",
@@ -135,7 +138,7 @@ class StaticMemoryContext:
         )
 
 
-class _SelectedModelProvider:
+class SelectedModelProvider:
     """Model-provider repository holding only the row chosen for the evaluation."""
 
     def __init__(self, model_provider: ModelProvider) -> None:
@@ -145,7 +148,7 @@ class _SelectedModelProvider:
         return self._model_provider if model_provider_id == self._model_provider.id else None
 
 
-class _NoAnimaProfile:
+class NoAnimaProfile:
     """Every evaluation turn names its model, so chat never consults an Anima chat profile."""
 
     async def resolve_for_anima(self, anima_id: str) -> None:
@@ -166,8 +169,8 @@ def build_executor(
 
     return DirectChatTurnExecutor(
         registry=StaticModelClientRegistry({model_provider.provider_type: client}),
-        profile_service=cast(AnimaChatProfileService, _NoAnimaProfile()),
-        model_providers=cast(ModelProviderRepository, _SelectedModelProvider(model_provider)),
+        profile_service=cast(AnimaChatProfileService, NoAnimaProfile()),
+        model_providers=cast(ModelProviderRepository, SelectedModelProvider(model_provider)),
         chat_manager=cast(ChatManager, chats),
         # The stand-in provides only the ``build_context`` the executor calls.
         memory_context_service=cast(DirectChatMemoryContextService, memory_context),
@@ -286,13 +289,15 @@ def replayed_reply(
     else:
         return reply, final_text, "repaired" if len(final_texts) > 1 else None
     # Chat salvages only the first reply: a salvaged reply is never repaired.
+    # The model benchmark's MEMORIES.md-only reply model has no `remember`; chat replays without it then.
+    remember = MAIN_STRUCTURED_RESPONSE_PART_REMEMBER in output_type.model_fields
     salvaged = _salvaged_reply(first_reply_deltas) if len(final_texts) == 1 else None
     if salvaged is not None:
-        return salvaged, render_main_structured_json(salvaged), "salvaged"
+        return salvaged, render_main_structured_json(salvaged, remember=remember), "salvaged"
     for text in (final_text, final_texts[0]):
         plain = plain_text_main_structured_response(text)
         if plain is not None:
-            return plain, render_main_structured_json(plain), "plain_text"
+            return plain, render_main_structured_json(plain, remember=remember), "plain_text"
     return None
 
 
