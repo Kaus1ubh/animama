@@ -240,11 +240,10 @@ class ChatManager:
         one replays its recent window.
         """
 
-        limit = self._history_limit if self._history_limit is not None else 200
         if native_compaction:
             start_turn = await self._messages.latest_compaction_block_turn(chat_id)
             if start_turn is None:
-                messages = await self._messages.recent_model_history(chat_id, limit=limit)
+                messages = await self._recent_window(chat_id)
             else:
                 messages = await self._messages.recent_model_history(chat_id, after_turn=start_turn - 1, limit=None)
             self._log.info(
@@ -268,13 +267,9 @@ class ChatManager:
                 active_compaction = candidate
 
         if active_compaction is not None and active_compaction.end_turn is not None:
-            messages = await self._messages.recent_model_history(
-                chat_id,
-                after_turn=active_compaction.end_turn,
-                limit=limit,
-            )
+            messages = await self._recent_window(chat_id, after_turn=active_compaction.end_turn)
         else:
-            messages = await self._messages.recent_model_history(chat_id, limit=limit)
+            messages = await self._recent_window(chat_id)
 
         self._log.info(
             "Chat context fetched",
@@ -283,6 +278,22 @@ class ChatManager:
             active_compaction_id=getattr(active_compaction, "id", None),
         )
         return ChatContext(messages=list(messages), active_compaction=active_compaction)
+
+    async def _recent_window(self, chat_id: str, *, after_turn: int | None = None) -> list[ChatMessage]:
+        """Return the newest history rows, starting a truncated window at a user message.
+
+        Tool calls and their results are separate rows, so a row limit can split
+        a turn. A window cut by the limit drops its leading partial turn: a tool
+        result without its call is rejected by OpenAI-compatible APIs, and every
+        retry would load the same window.
+        """
+
+        limit = self._history_limit if self._history_limit is not None else 200
+        messages = list(await self._messages.recent_model_history(chat_id, after_turn=after_turn, limit=limit))
+        if len(messages) < limit:
+            return messages
+        first_user = next((index for index, message in enumerate(messages) if message.role == MessageRole.USER), None)
+        return messages[first_user:] if first_user is not None else []
 
     async def record_turn(
         self,

@@ -1002,3 +1002,69 @@ async def test_native_compaction_without_a_block_replays_the_recent_window(async
 
     assert await messages.latest_compaction_block_turn(chat_id) is None
     assert [message.turn for message in context.messages] == list(range(11, 211))
+
+
+def _tool_round_row(chat_id: str, turn: int) -> ChatMessage:
+    """One row of a four-row tool round: user, tool call, tool result, reply."""
+
+    call_id = f"call-{(turn - 1) // 4}"
+    position = (turn - 1) % 4
+    content: str | None = None
+    if position == 0:
+        role, message_type, internal = MessageRole.USER, "message", False
+        content = f"user {turn}"
+        raw: dict[str, object] = {"role": "user", "content": content}
+    elif position == 1:
+        role, message_type, internal = MessageRole.ASSISTANT, "tool_call", True
+        raw = {
+            "role": "assistant",
+            "content": None,
+            "tool_calls": [{"id": call_id, "type": "function", "function": {"name": "recall", "arguments": "{}"}}],
+        }
+    elif position == 2:
+        role, message_type, internal = MessageRole.TOOL, "tool_result", True
+        raw = {"role": "tool", "tool_call_id": call_id, "content": "{}"}
+    else:
+        role, message_type, internal = MessageRole.ASSISTANT, "message", False
+        content = f"assistant {turn}"
+        raw = {"role": "assistant", "content": content}
+    return ChatMessage(
+        id=None,
+        chat_id=chat_id,
+        run_id=f"run-{call_id}",
+        message_type=message_type,
+        role=role,
+        content=content,
+        data=None,
+        usage=None,
+        turn=turn,
+        created_at=None,
+        internal=internal,
+        raw_provider_message=raw,
+    )
+
+
+@pytest.mark.asyncio
+async def test_truncated_history_window_never_starts_inside_a_tool_round(async_session):
+    async_session.add(ORMAnima(id="anima-split-tool-round", user_id="user-1"))
+    await async_session.commit()
+    chat_id = "chat-split-tool-round-1"
+    manager = ChatManager(
+        chats=SQLAlchemyChatRepository(async_session),
+        messages=SQLAlchemyChatMessageRepository(async_session),
+        compactions=SQLAlchemyChatCompactionRepository(async_session),
+        uow=SQLAlchemyUnitOfWork(async_session),
+        history_limit=6,
+    )
+    await manager.ensure_owned_chat(anima_id="anima-split-tool-round", chat_id=chat_id, user_id="user-1")
+    messages = SQLAlchemyChatMessageRepository(async_session)
+    # Three rounds; the newest six rows start at the second round's tool result.
+    await messages.append_many([_tool_round_row(chat_id, turn) for turn in range(1, 13)])
+    await async_session.commit()
+
+    context = await manager.get_chat_context(chat_id=chat_id)
+    native = await manager.get_chat_context(chat_id=chat_id, native_compaction=True)
+
+    # The orphaned result and its round's reply are dropped; replay starts at a user message.
+    assert [message.turn for message in context.messages] == [9, 10, 11, 12]
+    assert [message.turn for message in native.messages] == [9, 10, 11, 12]
