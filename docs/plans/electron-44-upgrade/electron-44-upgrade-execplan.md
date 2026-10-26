@@ -67,12 +67,11 @@ synchronous `safeStorage`, which Electron 45 deprecates (a reason to stay on 44)
 ## Progress
 
 - [x] Research and owner decisions (2026-10-26).
-- [ ] Phase 1: dependency upgrade, lazy Electron binary, release scanner and
-      Windows signing through electron-builder's executable editing. Code and
-      local checks done; review pending.
-- [ ] Phase 2: macOS signing rehearsal mode (code and unit checks done; review
-      pending) and the native stage, package and rehearsal (blocked: 5 GB free
-      disk).
+- [x] Phase 1: dependency upgrade, lazy Electron binary, release scanner and
+      Windows signing through electron-builder's executable editing. Review
+      round 1 and its recheck passed; native macOS evidence recorded.
+- [x] Phase 2: macOS signing rehearsal mode, native stage, package, supervised
+      launch and rehearsal. Review round 1 and its recheck passed.
 - [ ] Final integration review, full pre-push suite and PR.
 - [ ] Owner gates (see [Validation and acceptance](#validation-and-acceptance)).
 
@@ -240,7 +239,9 @@ reject the release options. No blocking findings.
 - P1-R1-02, fixed: `signingOrder` no longer handles the executable; callers leave
   it out, and the test filters it as `signWindowsApp` does.
 - P1-R1-03, accepted as an owner gate (Windows host only).
-- P1-R1-04, open until the native step below.
+- P1-R1-04, closed by the native run under Phase 2: the stage (with
+  `electronDist()`), licences, audit, `pnpm desktop:mac` against the real
+  `electron-builder.yml`, a supervised launch and the rehearsal all passed.
 - P1-R1-05, fixed in the survey. The headers were recaptured from Electron
   44.9.3's main-process `fetch` (a probe mirroring `supervisor.ts`): `accept`,
   `accept-language`, `sec-fetch-mode`, `user-agent` and the two request headers
@@ -266,8 +267,22 @@ Requirement R3. `pnpm desktop:dist:mac -- --signing-rehearsal`:
 Then: fresh darwin-arm64 stage and audit, `pnpm desktop:mac` (unsigned package),
 an isolated supervised `desktop:dev` launch against the stage, and the rehearsal.
 
-Blocked on disk space until the owner freed it (2026-10-26, 176 GB free); the
-native run then started.
+Blocked on disk space until the owner freed it (2026-10-26, 176 GB free).
+
+Native run (macOS 26 arm64, Apple M5, `src/frontend`; stage and audit at
+`6afc322f` plus the uncommitted `electronDist()` override check later committed
+in `51207c61`; package, launch and rehearsal at `629962f3`, clean tree):
+
+| Step | Result |
+| --- | --- |
+| `git lfs pull`, then `pnpm desktop:runtime:stage -- --platform darwin --arch arm64` | exit 0 in about 5 minutes; Electron 44.9.3 staged from `electronDist()` |
+| `pnpm desktop:runtime:audit -- --platform darwin --arch arm64` | `runtime audit: OK`; 4185 files, none missing or unexpected; starters with zero content diagnostics; pgvector 0.8.6; native backup restore preserved; download 393,395,495 / 786,432,000 bytes, installed 924,702,319 / 1,610,612,736 |
+| `pnpm desktop:mac` | `Unsigned development app: release/mac/Animama.app; runtime inventory: OK`; electron-builder 26.18.0 packaged Electron 44.9.3 and skipped signing (`identity: null`); `LSMinimumSystemVersion` 15.0, localized microphone prompts, unpacked input hook, no `libEGL`/`libGLESv2` |
+| Supervised launch (`ANIMAMA_DESKTOP_DEV_RUNTIME_ROOT` = the stage, `ANIMAMA_DESKTOP_DEV_USER_DATA` = `desktop/.desktop-runtime/dev`, `electron .`) | macOS asked once to let the changed development binary use the existing "Animama Safe Storage" Keychain item; the owner allowed it. Then vault, PostgreSQL, migrations and FastAPI started (`Runtime ready` in 21 s), the renderer loaded the first-run setup page (250 requests, all 200), and on quit every child stopped cleanly with nothing left running |
+| `pnpm desktop:dist:mac -- --signing-rehearsal` (no notary profile; the checked-in receipt does not match the new inventory) | exit 0 in 4 minutes: `167 native files signed and verified`; report `release_ready: false`, 8 nested bundles, `notarization: not-submitted`; DMG and ZIP built; no publish folder |
+| Independent checks of the rehearsal app | `codesign --verify --deep --strict` with the Team ID requirement: OK; hardened runtime, Developer ID chain and secure timestamp; app entitlements JIT and audio input, helpers JIT only; DMG verifies with the Team ID requirement; no `REDISTRIBUTION_REVIEW.json`; `spctl` rejects the unnotarized app, as expected |
+
+Phase 2 acceptance (R3) is met.
 
 #### Code Review #1 Findings
 
@@ -297,6 +312,26 @@ No blocking findings; acceptance waits for the native rehearsal.
 - P2-R1-04, not changed: the byte counts differ only by the missing tickets, and
   the report is never published.
 - P2-R1-05, fixed: the DMG check pins the Team ID like the leaf checks.
+
+#### Code Review #2 (repair recheck, both phases)
+
+Reviewed `629962f3` against `6afc322f` (tree `779edcc7`), high-risk tier. Every
+"fixed" disposition was confirmed, including the `release/.cache/<arch>` cache
+path and the mutation sensitivity of the new macOS tests. Rerun: desktop tests
+541 passed, 14 skipped; desktop `check:source`;
+`uv run pytest -q tests/test_desktop_credentials_route.py` 87 passed; ruff. No
+blocking findings. Non-blocking, not changed:
+
+- R2-01: no test removes the receipt entirely before a rehearsal in
+  `releaseMac`. The stale-receipt case is tested, `signMacApp`'s no-receipt path
+  is tested, and the native rehearsal ran with a non-matching receipt.
+- R2-02: `electron_use_remote_checksums` can still replace the package's pinned
+  checksums, and an existing `dist` is not re-verified; both match the old
+  install script's behavior.
+- R2-03: the new cleanup and override refusal have no direct unit test, like the
+  existing cleanup lists.
+
+Repair rounds used: one of two for each phase.
 
 ## Final integration review
 
