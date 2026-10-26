@@ -246,10 +246,7 @@
     }
   },
   "speech": {
-    "install": "받아쓰기와 음성 모드를 사용하려면 오프라인 음성 인식을 설치하세요",
-    "installFromMainWindow": "기본 Animama 창에서 앱 설정 → 음성을 열어 다운로드하세요.",
-    "skip": "읽어 주기 건너뛰기",
-    "unavailableHere": "이곳에서는 받아쓰기와 음성 모드용 오프라인 음성 인식을 사용할 수 없습니다"
+    "skip": "읽어 주기 건너뛰기"
   },
   "suggestions": {
     "rockPaperScissors": "가위바위보 하기",

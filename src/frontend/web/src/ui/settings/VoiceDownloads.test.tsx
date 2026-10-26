@@ -371,20 +371,6 @@ describe("where speech downloads are offered", () => {
       await getI18n().changeLanguage("en");
     }
   });
-  it("shows only the UI Locale's engine where routed", async () => {
-    await getI18n().changeLanguage("ko");
-    try {
-      const html = renderToStaticMarkup(
-        <OfflineSpeechDownloads heading={false} routedOnly />,
-      );
-      expect(html).not.toContain("<h3");
-      expect(engineOrder(html)).toEqual([
-        getI18n().t("voice:offlineSpeech.engines.sensevoice.languages"),
-      ]);
-    } finally {
-      await getI18n().changeLanguage("en");
-    }
-  });
   it("shows the acquire commands instead where Vite serves the operator's host sets", () => {
     manager.offered = false;
     const html = renderToStaticMarkup(<OfflineSpeechDownloads />);

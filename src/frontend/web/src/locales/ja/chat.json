@@ -246,10 +246,7 @@
     }
   },
   "speech": {
-    "install": "音声入力と音声モードを使うには、オフライン音声認識をインストールしてください",
-    "installFromMainWindow": "メインの Animama ウィンドウで「アプリ設定 → 音声」を開いてダウンロードしてください。",
-    "skip": "読み上げをスキップ",
-    "unavailableHere": "ここでは音声入力と音声モード用のオフライン音声認識を利用できません"
+    "skip": "読み上げをスキップ"
   },
   "suggestions": {
     "rockPaperScissors": "じゃんけんしよう",

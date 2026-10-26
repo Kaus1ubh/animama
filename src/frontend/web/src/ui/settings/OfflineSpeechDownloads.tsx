@@ -491,36 +491,24 @@ export async function requestModelChange(
 
 /**
  * Offline speech downloads for packaged desktop and built self-host: each
- * engine's sets, the one that runs first (`routedOnly` shows only that one).
- * Vite development serves the operator's host sets instead, so it shows how
- * to acquire them.
+ * engine's sets, the UI Locale's engine first. Vite development serves the
+ * operator's host sets instead, so it shows how to acquire them.
  */
-export function OfflineSpeechDownloads({
-  heading = true,
-  engine,
-  routedOnly = false,
-}: {
-  heading?: boolean;
-  /** The offline engine that runs; by default the UI Locale's. */
-  engine?: OfflineSttEngine;
-  routedOnly?: boolean;
-}) {
-  // Read through `i18n` so the default order follows a language switch.
+export function OfflineSpeechDownloads() {
+  // Read through `i18n` so the order follows a language switch.
   const { t, i18n } = useTranslation("voice");
   const engines = offlineSpeechEngineOrder(
-    engine ?? routeOfflineSpeech(i18n.resolvedLanguage).engine,
+    routeOfflineSpeech(i18n.resolvedLanguage).engine,
   );
   return (
     <section className="space-y-4" aria-label={t("offlineSpeech.title")}>
-      {heading ? (
-        <div className="space-y-1">
-          <h3 className="text-sm font-medium">{t("offlineSpeech.title")}</h3>
-          <p className="text-muted-foreground text-xs">
-            {t("offlineSpeech.description")}
-          </p>
-        </div>
-      ) : null}
-      {(routedOnly ? engines.slice(0, 1) : engines).map((engine) =>
+      <div className="space-y-1">
+        <h3 className="text-sm font-medium">{t("offlineSpeech.title")}</h3>
+        <p className="text-muted-foreground text-xs">
+          {t("offlineSpeech.description")}
+        </p>
+      </div>
+      {engines.map((engine) =>
         OFFLINE_SPEECH_DOWNLOADS_OFFERED ? (
           <OfflineSpeechDownloadsManager key={engine} engine={engine} />
         ) : (

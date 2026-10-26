@@ -1441,10 +1441,7 @@ export default interface Resources {
       }
     },
     "speech": {
-      "install": "Install offline speech recognition to use dictation and Voice Mode",
-      "installFromMainWindow": "Open App Settings → Voice in the main Animama window to download it.",
-      "skip": "Skip speech",
-      "unavailableHere": "Offline speech recognition for dictation and Voice Mode is not available here"
+      "skip": "Skip speech"
     },
     "suggestions": {
       "joke": "Tell me a joke",

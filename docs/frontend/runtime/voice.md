@@ -112,8 +112,9 @@ the GPU add-on is gone), the WebGPU fallback note and operator-provided sets
 without actions. The engine that runs carries a "Selected" tag, and Browser is
 labelled "Browser (built-in)", described as the Web Speech API with a link to
 its documentation. Model attribution is in the packaged notices and each
-installed set's `ATTRIBUTION.md`, not in the UI. The composer's install hint
-(`OfflineSpeechDownloads routedOnly`) offers only the engine that runs.
+installed set's `ATTRIBUTION.md`, not in the UI. The composer offers no
+downloads: without a usable engine its dictation and Voice Mode controls are
+disabled and Settings is the place to install one.
 Every download can be skipped. Downloads
 continue in the backend after leaving Setup or Settings: the chat status lines
 show their size and progress, and `ModelDownloadToasts` (mounted in the app
@@ -438,8 +439,7 @@ The GPU add-on in `OfflineSpeechDownloads` installs `parakeet-stt-webgpu` or
 `sensevoice-stt-webgpu` independently of provider selection; it never chains a
 CPU download or changes the selected provider. No reload is needed: the probe
 refreshes when the set settles, and the next dictation or Voice Mode start loads
-the GPU graph. Each engine's attribution is bundled and shown below its
-section in the composer's install hint.
+the GPU graph.
 
 Loading behavior:
 

@@ -65,13 +65,11 @@ import {
 } from "@/lib/user-files/chat-attachments";
 import { queryKeys } from "@/query/keys";
 import { useUserFiles } from "@/query/hooks/useUserFiles";
-import { useOperatorManagedModelAssets } from "@/query/hooks/useModelAssets";
 import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
 import {
   useRuntimeFeatureEnabled,
   useRuntimeFeatureUnavailableReason,
 } from "@/ui/app/RuntimeFeatureGate";
-import { OfflineSpeechDownloads } from "@/ui/settings/OfflineSpeechDownloads";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
 import {
   offlineSpeechAvailable,
@@ -291,8 +289,6 @@ export function ChatInterfaceView({
     locale: i18n.resolvedLanguage,
     capabilities: capabilities.data,
   });
-  // Operator-provided speech models cannot be installed from the composer.
-  const operatorManagedModels = useOperatorManagedModelAssets();
   const { data: anima } = useAnima(animaId);
   const { data: modelCatalog } = useModelProviders();
   const activeModel = modelCatalog?.find(
@@ -522,26 +518,6 @@ export function ChatInterfaceView({
                 />
               </div>
             </ChatInput>
-            {!speechAvailable ? (
-              <details className="text-muted-foreground mt-2 text-xs">
-                <summary>
-                  {operatorManagedModels
-                    ? t("speech.unavailableHere")
-                    : t("speech.install")}
-                </summary>
-                {quickChatSurface ? (
-                  <p>{t("speech.installFromMainWindow")}</p>
-                ) : (
-                  <div className="mt-2">
-                    <OfflineSpeechDownloads
-                      heading={false}
-                      engine={offlineRoute.engine}
-                      routedOnly
-                    />
-                  </div>
-                )}
-              </details>
-            ) : null}
             {quickChatSurface && crisisSlot ? (
               <div className="mt-2">{crisisSlot}</div>
             ) : null}
