@@ -116,7 +116,8 @@ function PreviewActor({
   const [avatarLoadAttempt, setAvatarLoadAttempt] = useState(0);
   const avatarRef = useRef<Avatar | null>(null);
   // The current instance as state, so loading follows a re-created Avatar
-  // (a new camera or canvas) instead of leaving it unloaded.
+  // (any change to the creation effect's inputs) instead of leaving it
+  // unloaded.
   const [avatarInstance, setAvatarInstance] = useState<Avatar | null>(null);
   const loadGenerationRef = useRef(0);
   const handledPlayRequestRef = useRef(0);

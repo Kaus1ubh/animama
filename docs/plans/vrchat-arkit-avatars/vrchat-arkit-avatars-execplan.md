@@ -1470,17 +1470,48 @@ and history, and conventions are met.
 - FIN-F2 also found a regression: `pnpm e2e:test:fast` failed the imported
   Particle Effect's Library preview (`accountless-imported-playback`) on 5 of
   6 runs of branch builds from Phase 4 on, against 4 of 4 passes on
-  `f9b0d8f1`. Cause, in `ContentPreviewScene.tsx` and older than this branch:
-  the dock re-creates its Avatar when its camera or canvas changes (a
-  particle target switches the dock camera), but the load and clip-bridge
-  effects ran only for a new model revision, so the re-created Avatar was
-  never loaded and the preview's play found its controller disposed. The
-  branch's extra load-time work made the race likely. Both effects now follow
-  the Avatar instance; a unit test re-creates the Avatar for a new camera and
-  fails without the fix. The bisect steps are recorded under Validation.
+  `f9b0d8f1`. The preview's play returned false (superseded or disposed
+  controller) and the dock reported "could not play". `ContentPreviewScene`
+  now keys its model load and clip bridge to the Avatar instance, so an Avatar
+  the actor re-creates is loaded rather than left empty (a unit test
+  re-creates it and fails without the change). With it the journey passed 3 of
+  3 and the fast suite 39 of 39. Cause, as far as established: an
+  instrumented pre-fix build (Code Review #4) showed no re-creation or reload
+  of the dock Avatar; the play started on a quickly loaded Avatar and was
+  superseded about 0.4 s later. The exact clearing call was not pinned down,
+  because the instrumentation shifted the timing and the step then passed. So
+  the change most likely fixes the journey by starting the first load one
+  render later, and an older race in the preview's effect clearing (which the
+  branch's load-time work exposed) remains a candidate follow-up.
 - FIN-O1, O2, O4: the guide names no prefab variant, says VN3 terms vary, and
   shows where the Unity binary lives on macOS. FIN-O3: no change. FIN-O5: the
   snapshot's delivery links are left until the PR is updated.
+
+### Code Review #4 Findings (dock fix `46fd871d`)
+
+Standard tier, by an independent sdlc-reviewer agent, read-only (the suite was
+running). Result: the code is sound as a defensive fix; one blocking record
+issue.
+
+- DOCK-F1 (required): the stated trigger ("a particle target switches the dock
+  camera") does not match R3F: changing the Canvas camera options mutates the
+  same camera, and the other inputs are stable, so the dock should not
+  re-create its Avatar.
+- DOCK-F2 (optional): on a re-creation the previous Avatar's ready state lasts
+  one commit, so a preparation in that commit reports ready for an unloaded
+  Avatar.
+- DOCK-F3 to F5 (observations): effect ordering and stale refs are correct; the
+  test fails without the fix; the suite result was still to be recorded.
+
+### Code Review #4 Revisions
+
+- DOCK-F1 accepted: an instrumented pre-fix build confirmed no re-creation or
+  reload; the FIN-F2 record, the test and the code comment now describe what
+  was observed, and the camera claim is withdrawn. The commit message of
+  `46fd871d` keeps the old wording.
+- DOCK-F2: no change (pre-existing; it needs a re-creation, which was not
+  observed).
+- DOCK-F5: the suite result is recorded under Validation.
 
 ### Deferred items (2026-10-25)
 
@@ -1571,7 +1602,12 @@ Final candidate gates (2026-10-25), on `62761276` plus the dock fix, from
   3 of 3 passed and `pnpm e2e:test:fast` 39 passed. The full `pnpm e2e:test`
   was not run; the imported-playback `@complete-anima` journey passed on the
   branch while bisecting (17.6 min).
-- Full pre-push suite: see below.
+- Full pre-push suite through `scripts/heavy-slot.py` on `46fd871d` (tree
+  `718243e9`): `make check-test` 4799 passed, 29 skipped; `pnpm verify` pass
+  (Vitest 5575 passed, 1 skipped); chunk check pass; `pnpm web:test:browser`
+  129 passed; `pnpm prettier:check` pass; `pnpm desktop:test` 535 passed, 14
+  skipped. The test name, comment and records changed after it (`node`/vitest
+  rerun of the changed test only).
 
 Earlier: full pre-push suite for Phases 1, 4 and 6, through
 `scripts/heavy-slot.py` on `51082213` (tree `ad27498a`), 2026-10-24:

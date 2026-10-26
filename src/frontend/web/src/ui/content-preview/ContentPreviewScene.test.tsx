@@ -259,12 +259,12 @@ describe("ContentPreviewScene", () => {
     expect(harness.avatars[0].loads).toEqual(["avatar-r1"]);
   });
 
-  it("loads the Avatar re-created for a new camera", async () => {
+  it("loads an Avatar the actor re-creates", async () => {
     await show(gesture("wave"), "avatar-r1");
     await finishLoads(0);
 
-    // A particle target switches the dock's camera; the actor re-creates its
-    // Avatar for the new camera, which must load rather than stay empty.
+    // Any change to the creation effect's inputs re-creates the Avatar (a new
+    // camera here); the new instance must load rather than stay empty.
     harness.three = { ...harness.three, camera: {} };
     await show(gesture("bow"), "avatar-r1");
 
