@@ -962,6 +962,14 @@ from `44c6b78e`; full suite on tree `6f139492`):
     passed.
   - Both failures rerun alone (`--grep`): 3 passed (with setup). Every journey
     has passed on the final build.
+- Review stack `animama-arbvrm` rebuilt with `--purge` from `3fb9686d`
+  (production build, http://animama-arbvrm.localhost:8900): setting Annie's
+  wind to Springs off in Anima settings stored `springs_off`, and Diagnostics,
+  reading the chat stage's Avatar, showed "Springs off · springs held at rest ·
+  Saved for this Avatar" without a reload; Materials stayed hidden for Annie;
+  reset to Automatic afterwards. Private renders of the converted test Avatar
+  with lilToon and Simple materials are in the private renders folder
+  (`p3-materials`): Simple shows correct base colours.
 
 Commits: `feat(avatars)[p3]: add per-Avatar wind and material settings`.
 
