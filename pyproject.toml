@@ -10,7 +10,8 @@ authors = [{ name = "Raymond Van" }]
 dependencies = [
     "fastapi[standard]>=0.121",
     "uvicorn[standard]>=0.30",
-    "pydantic>=2.10,<3",
+    # 2.13+ merges identical Input/Output schemas, renaming generated SDK types.
+    "pydantic>=2.10,<2.13",
     "typing-extensions>=4.12.2,<5",
     "python-dotenv>=1.0.0",
     "jinja2>=3.1",
@@ -67,7 +68,7 @@ file-worker = [
 voice = ["numpy>=2.2.0,<3"]
 viz = ["graphviz>=0.17"]
 realtime = []
-encrypt = ["cryptography>=45.0,<46"]
+encrypt = ["cryptography>=50.0,<51"]
 
 [tool.uv.sources]
 torch = [{ index = "pytorch-cpu" }]
