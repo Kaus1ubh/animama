@@ -114,7 +114,7 @@ Ownership and boundaries:
 - [x] Phase 4: Multi-turn, memory-arm and Memory Manager runners. Passed
       review #3 (high risk) on 2026-10-26, with both repair rounds used.
 - [ ] Phase 5: Prompt set v1, Japanese subset, fixtures and rubrics (gate
-      G2).
+      G2). Inputs tracked on 2026-10-26; waiting for G2.
 - [ ] Phase 6: Blind judging through `claude -p`.
 - [ ] Phase 7: Scores, statistics and report.
 - [ ] Phase 8: Skill, documentation and glossary.
@@ -1969,9 +1969,77 @@ may continue, but Phase 9 may not start.
 Completion: G2 is recorded. Commit
 `feat(evals)[p5]: add the v1 benchmark prompt set and rubrics`.
 
-Check record: none yet.
+Starting source: `a601a416` (Phase 4's commit).
 
-Commits: none yet.
+**Delivered** (`docs/benchmarks/inputs/`, drafted by sub-agents and
+assembled under seed 470 for the held-out choice):
+- `prompts.json`, version `2026-10-26.1`:
+  - 97 single-turn items: 73 English (tags: emotions and named emotions,
+    conversation beats, neutral, greetings and goodbyes, jokes, surprise,
+    praise, celebration, thinking, 7 style traps, 6 Audio-tag moments and 2
+    no-tag moments) and 24 Japanese, each paired with its English original;
+  - three scripted chats: `stressful-week` (Annie, 30 turns),
+    `trip-and-hobby` (neutral, 30 turns) and `smoke-short-chat` (6 turns,
+    smoke tier only);
+  - two memory fixtures and three memory chats of 12 turns with 9 checklist
+    items and 4 recall probes each: `new-job`, `busy-week` and
+    `new-job-ja` (the Japanese pair of `new-job`);
+  - six Memory Manager runs, two of each kind;
+  - personas `neutral` and Annie (the starter identity, D14).
+- `loadout-starter-v1.json`: the 140 Gestures of the current Included set,
+  sorted by selector and pinned by sha256 (see G2).
+- `episodic-guidance.md`: the candidate guidance for arm (b). It names
+  `[self]/MEMORIES.md` and the editing rules (P3-F5), keeps the existing
+  size and sensitivity rules, and adds a `## What's been happening` section
+  for news and decisions.
+- `rubrics.json`, version `rubrics-1`: eight rubrics (`reply`,
+  `expression`, `audio_tags`, `long_chat`, `memory_turn`, `capture`,
+  `recall`, `memory_manager`), each criterion with 1–5 anchors and an
+  example per anchor. `capture` judges each checklist item present or
+  absent, with evidence. Phase 6 builds the output schemas from them.
+- `tests/test_model_benchmark_inputs.py`: the tracked set validates, has
+  both languages and a smoke tier; the held-out share per item area is
+  18–22% and Japanese items follow their English pair; every criterion has
+  five anchors; and arm (b)'s assembled prompt names `[self]/MEMORIES.md`
+  only through the tracked guidance, on all three built-in rows.
+
+**Held-out shares** (seed 470):
+
+| Area | Held out |
+| --- | --- |
+| Single-turn items (`core`) | 18 of 97 (18.6%): 15 of 73 English and 3 of 24 Japanese, the pairs of held-out English items |
+| Long chats | 0 of 3 |
+| Memory chats | 1 of 3 (`busy-week`) |
+| Memory Manager runs | 1 of 6 (`episodes-busy-month`) |
+
+The small areas cannot reach 18–22%; G2 decides whether a long chat is held
+out (one of two full chats is 50%).
+
+Check record (2026-10-26), on the tracked inputs above:
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Manifest, selectors and pairs | `load_prompt_set(docs/benchmarks/inputs/prompts.json)` | Valid: every `acceptable` selector is in the loadout, every Japanese item names an existing English pair |
+| Input tests | `uv run --no-sync pytest -q tests/test_model_benchmark_inputs.py` | 6 passed |
+| Privacy scan | email, phone, URL, IP, card-number and key patterns over the prompts, guidance and rubrics | No personal data; one `https://example.com/recipe` link in a style-trap item and the version string matched as a phone number |
+| Full tier dry run | `… plan --prompts docs/benchmarks/inputs/prompts.json --standard --tier full` | 2,268 calls (4,536 with repairs), about $2.43, 1.57 h before judging; about 9.7k input tokens per first turn |
+| Smoke tier dry run | `… --tier smoke` | 576 calls, about $0.62, 0.40 h |
+
+**For the owner at G2** (the drafting agents flagged these):
+- **Loadout:** the current Included set of 140 Gestures, rather than the
+  plan's 95 non-idle Gestures. It matches what a new Anima equips; the 95
+  would cut prompt tokens.
+- **Acceptable Gestures:** some items' acceptable lists are judgement calls.
+- **Translations:** the 24 Japanese items and `new-job-ja` are agent
+  translations with no further check (as agreed).
+- **Candidate guidance:** the new `## What's been happening` section.
+- **Checklists:** for example, a food allergy (kiwi) is a must-keep item,
+  not a sensitive one.
+- **Held out:** the choices above, and whether to hold out a long chat.
+
+Commits: the tracked inputs are committed before G2 as
+`feat(evals)[p5]: add the v1 benchmark prompt set and rubrics`; changes from
+G2 follow as further `[p5]` commits.
 
 #### Code Review #1 Findings
 
