@@ -143,6 +143,7 @@
   "pip": {
     "close": "Close picture-in-picture",
     "resize": "Resize picture-in-picture",
+    "switchCamera": "Switch camera (now {{preset}})",
     "unavailable": "Picture-in-picture is unavailable. Keep using the companion in this window."
   },
   "quickChat": {

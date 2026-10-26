@@ -159,7 +159,7 @@ type DesktopPipCursorSnapshot = {
 };
 
 type DesktopPipRuntimeMessage = {
-  type: "ready" | "snapshot" | "incremental";
+  type: "ready" | "snapshot" | "incremental" | "camera-preset";
   sequence: number;
   sentAtMs: number;
   animaId: string;

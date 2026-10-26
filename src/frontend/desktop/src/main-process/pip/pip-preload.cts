@@ -41,7 +41,7 @@ type DesktopPipCursorSnapshot = {
 };
 
 type DesktopPipRuntimeMessage = {
-  type: "ready" | "snapshot" | "incremental";
+  type: "ready" | "snapshot" | "incremental" | "camera-preset";
   sequence: number;
   sentAtMs: number;
   animaId: string;
@@ -89,7 +89,8 @@ function normalizeRuntimeMessage(
   if (
     message.type !== "ready" &&
     message.type !== "snapshot" &&
-    message.type !== "incremental"
+    message.type !== "incremental" &&
+    message.type !== "camera-preset"
   ) {
     return null;
   }

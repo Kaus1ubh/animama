@@ -29,6 +29,7 @@
       "orbitTarget": "Orbit Target",
       "orbitTargetYSource": "Orbit Target Y Source",
       "orbitTargetYSourceLabel": "Orbit target Y source",
+      "pipTitle": "PiP camera",
       "position": "Camera Position",
       "positionYSource": "Camera Y Source",
       "positionYSourceLabel": "Camera Y source",

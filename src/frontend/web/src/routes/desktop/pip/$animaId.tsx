@@ -1,7 +1,7 @@
 "use client";
 
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { GripHorizontal, X } from "lucide-react";
+import { Camera, GripHorizontal, X } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -16,6 +16,11 @@ import { useDesktopPipRuntimeConsumer } from "@/hooks/useDesktopPipRuntimeSync";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
 import { cn } from "@/lib/utils";
 import { AvatarSceneHost } from "@/ui/main/canvas/AvatarSceneHost";
+import { cameraPresetLabel } from "@/ui/main/canvas/SceneCameraPresetControl";
+import {
+  DEFAULT_PIP_SCENE_CAMERA_PRESET,
+  SCENE_CAMERA_PRESETS,
+} from "@/ui/main/canvas/sceneCameraPresets";
 import { AnimaRouteProviders } from "@/ui/app/AnimaRouteProviders";
 import { SettingsProvider } from "@/ui/settings/SettingsProvider";
 
@@ -64,14 +69,25 @@ function clampPipSizeScale(value: number): number {
 
 function DesktopPipRoute() {
   const { t } = useTranslation("app");
+  const { t: tChat } = useTranslation("chat");
   const { animaId } = Route.useParams();
   const platform = useRuntimePlatform();
   const pipBridge =
     platform.kind === "desktop" && platform.capabilities.nativePiP
       ? (platform.desktopBridge.pip ?? null)
       : null;
-  const { backgroundMode, isHovered, sizeScale, visualState } =
-    useDesktopPipRuntimeConsumer();
+  const {
+    backgroundMode,
+    isHovered,
+    requestCameraPreset,
+    sizeScale,
+    visualState,
+  } = useDesktopPipRuntimeConsumer();
+  const cameraPreset =
+    visualState?.cameraPreset ?? DEFAULT_PIP_SCENE_CAMERA_PRESET;
+  const cameraLabel = t("pip.switchCamera", {
+    preset: cameraPresetLabel(tChat, cameraPreset),
+  });
   const sizeScaleRef = useRef(sizeScale);
   const lastWheelResizeAtRef = useRef(0);
   const [draftSizeScale, setDraftSizeScale] = useState(sizeScale);
@@ -95,6 +111,14 @@ function DesktopPipRoute() {
 
   const handleClose = () => {
     void pipBridge?.close().catch(() => {});
+  };
+
+  // Each click moves to the next preset; the owner window applies it.
+  const handleCameraPresetCycle = () => {
+    const index = SCENE_CAMERA_PRESETS.indexOf(cameraPreset);
+    requestCameraPreset(
+      SCENE_CAMERA_PRESETS[(index + 1) % SCENE_CAMERA_PRESETS.length],
+    );
   };
 
   const handleSizeScaleChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -135,9 +159,7 @@ function DesktopPipRoute() {
               isHovered && "opacity-30",
             )}
             mode="pip"
-            sceneCameraSettingsOverride={
-              visualState?.sceneCameraSettings ?? null
-            }
+            pipCameraPreset={cameraPreset}
           />
           <div
             className={cn(
@@ -177,6 +199,18 @@ function DesktopPipRoute() {
             )}
           >
             <X className="h-2 w-2" />
+          </button>
+          <button
+            type="button"
+            aria-label={cameraLabel}
+            title={cameraLabel}
+            onClick={handleCameraPresetCycle}
+            className={cn(
+              "anima-pip-no-drag bg-background/60 text-foreground/70 hover:bg-background/80 hover:text-foreground pointer-events-auto absolute bottom-1 left-1 z-50 inline-flex h-3.5 w-3.5 items-center justify-center rounded-full opacity-0 shadow-sm backdrop-blur-md transition focus-visible:opacity-100",
+              isHovered && "opacity-100",
+            )}
+          >
+            <Camera className="h-2 w-2" />
           </button>
         </div>
       </AnimaRouteProviders>

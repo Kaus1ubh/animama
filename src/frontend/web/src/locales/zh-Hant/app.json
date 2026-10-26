@@ -143,6 +143,7 @@
   "pip": {
     "close": "關閉子母畫面",
     "resize": "調整子母畫面大小",
+    "switchCamera": "切換相機（目前：{{preset}}）",
     "unavailable": "無法使用子母畫面。請繼續在此視窗中使用夥伴。"
   },
   "quickChat": {

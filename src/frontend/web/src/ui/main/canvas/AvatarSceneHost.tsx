@@ -33,6 +33,7 @@ import { type CanvasMode } from "@/ui/main/canvas/CanvasControls";
 import {
   type SceneCameraBindings,
   buildSceneCameraPreset,
+  DEFAULT_PIP_SCENE_CAMERA_PRESET,
   type SceneCameraPreset,
   type SceneCameraSettings,
   type SceneCameraYBoneBinding,
@@ -73,7 +74,8 @@ type AvatarSceneHostProps = {
   className?: string;
   isPipActive?: boolean;
   mode: AvatarSceneHostMode;
-  sceneCameraSettingsOverride?: SceneCameraSettings | null;
+  /** PiP only: the owner's PiP camera preset, framed on this Avatar. */
+  pipCameraPreset?: SceneCameraPreset;
   suspendSceneRender?: boolean;
 };
 
@@ -161,7 +163,7 @@ export function AvatarSceneHost({
   className,
   isPipActive = false,
   mode,
-  sceneCameraSettingsOverride = null,
+  pipCameraPreset: pipCameraPresetOverride = DEFAULT_PIP_SCENE_CAMERA_PRESET,
   suspendSceneRender = false,
 }: AvatarSceneHostProps) {
   const { t } = useTranslation("chat");
@@ -177,6 +179,10 @@ export function AvatarSceneHost({
     useState<SceneCameraSettings>(() => getDefaultSceneCameraPreset().settings);
   const [sceneCameraBindings, setSceneCameraBindings] =
     useState<SceneCameraBindings>(() => getDefaultSceneCameraPreset().bindings);
+  // The owner chooses PiP's preset separately from its own camera.
+  const [pipCameraPreset, setPipCameraPreset] = useState<SceneCameraPreset>(
+    DEFAULT_PIP_SCENE_CAMERA_PRESET,
+  );
   const [isCtrlPressed, setIsCtrlPressed] = useState(false);
   const [transformMode, setTransformMode] = useState<TransformMode | null>(
     null,
@@ -402,13 +408,14 @@ export function AvatarSceneHost({
     (avatar: Avatar | null) => {
       avatarRuntimeRef.current = avatar;
       setSceneAvatar(avatar);
-      if (!avatar) return;
+      // PiP frames each new Avatar from its preset below.
+      if (!avatar || mode === "pip") return;
 
       setSceneCameraSettings((current) =>
         sampleSceneCameraBindings(current, sceneCameraBindings, avatar),
       );
     },
-    [sceneCameraBindings],
+    [mode, sceneCameraBindings],
   );
   const handleSceneCameraPresetApply = useCallback(
     (preset: SceneCameraPreset) => {
@@ -456,8 +463,9 @@ export function AvatarSceneHost({
   useDesktopPipRuntimeProducer({
     avatarTransform,
     backgroundMode,
+    cameraPreset: pipCameraPreset,
     enabled: mode === "main",
-    sceneCameraSettings,
+    onCameraPresetRequest: setPipCameraPreset,
   });
 
   useEffect(() => {
@@ -470,9 +478,13 @@ export function AvatarSceneHost({
   }, [avatarTransformOverride, mode]);
 
   useEffect(() => {
-    if (mode !== "pip" || !sceneCameraSettingsOverride) return;
-    setSceneCameraSettings(sceneCameraSettingsOverride);
-  }, [mode, sceneCameraSettingsOverride]);
+    if (mode !== "pip") return;
+    const nextPreset = buildSceneCameraPreset(pipCameraPresetOverride, {
+      avatar: sceneAvatar,
+    });
+    setSceneCameraSettings(nextPreset.settings);
+    setSceneCameraBindings(nextPreset.bindings);
+  }, [mode, pipCameraPresetOverride, sceneAvatar]);
 
   useEffect(() => {
     if (showScene || isMainSceneRenderSuspended) return;
@@ -606,7 +618,13 @@ export function AvatarSceneHost({
             overlayPassthroughActive,
             showScene,
             cameraControls:
-              mode === "main" && showScene && !isPipActive ? (
+              mode === "main" && isPipActive ? (
+                <SceneCameraPresetControl
+                  title={t("canvas.camera.pipTitle")}
+                  preset={pipCameraPreset}
+                  onApplyPreset={setPipCameraPreset}
+                />
+              ) : mode === "main" && showScene ? (
                 <div className="space-y-3">
                   <SceneCameraPresetControl
                     preset={selectedCameraPreset}

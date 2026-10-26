@@ -29,6 +29,7 @@
       "orbitTarget": "環繞中心",
       "orbitTargetYSource": "環繞中心 Y 來源",
       "orbitTargetYSourceLabel": "環繞中心 Y 來源",
+      "pipTitle": "子母畫面相機",
       "position": "相機位置",
       "positionYSource": "相機 Y 來源",
       "positionYSourceLabel": "相機 Y 來源",

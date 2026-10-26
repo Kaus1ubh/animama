@@ -148,13 +148,20 @@ The main renderer publishes:
 
 - PiP background mode
 - avatar transform
-- scene camera settings
+- PiP camera preset
 - avatar runtime store snapshot
 - scene VFX state
 - avatar VFX runtime state
 - lip-sync bridge state, including audio timing offsets
 
 The PiP renderer applies snapshots to its own stores and scene props.
+
+PiP has its own camera preset, Portrait (close) by default and kept while the
+app runs. The main canvas settings show it as PiP camera while PiP is open, and
+the PiP camera button cycles it; the PiP renderer sends that request to its
+owner as a `camera-preset` runtime message. The main scene is suspended during
+PiP, so the PiP renderer frames its own Avatar from the preset whenever the
+preset or Avatar changes. The main camera, including fine-tuning, is unchanged.
 
 The producer sends an initial full snapshot when the PiP renderer sends
 `ready`, then sends throttled incremental snapshots on relevant store changes.
@@ -224,6 +231,7 @@ Interactive zones keep PiP mouse input enabled:
 - the top-right close button area
 - the top-left circular hover drag handle
 - the top size slider
+- the bottom-left camera preset button
 
 The drag handle uses `-webkit-app-region: drag`; interactive controls use
 `no-drag`.
@@ -315,5 +323,7 @@ Manual validation:
   window
 - speech audio plays only once from the main renderer
 - close button closes PiP and updates the main-window button state
+- PiP opens at Portrait (close) with the whole head in frame, in both
+  background modes; the camera button and the PiP camera menu switch presets
 - border appears when the cursor is anywhere inside the PiP window bounds
 - browser web still uses Document PiP

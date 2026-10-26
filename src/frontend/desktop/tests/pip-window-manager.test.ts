@@ -173,4 +173,33 @@ describe("PipWindowManager", () => {
     current.emit("destroyed");
     expect(pip.getState().isOpen).toBe(false);
   });
+
+  it("passes camera preset requests from PiP to its owner only", async () => {
+    const pip = manager();
+    const owner = new fake.FakeWebContents();
+    await pip.open(owner as unknown as WebContents, { animaId: "annie" });
+    const pipContents = (
+      pip as unknown as {
+        pipWindow: InstanceType<typeof fake.FakeBrowserWindow>;
+      }
+    ).pipWindow.webContents;
+    const request = {
+      type: "camera-preset",
+      sequence: 0,
+      sentAtMs: 1,
+      animaId: "annie",
+      payload: { kind: "camera-preset", preset: "full-body" },
+    };
+
+    pip.publishRuntimeMessage(pipContents as unknown as WebContents, request);
+    expect(owner.send).toHaveBeenCalledWith(
+      "pip:runtime",
+      expect.objectContaining({ type: "camera-preset" }),
+    );
+
+    // The owner sets the preset itself; it never asks PiP for one.
+    pipContents.send.mockClear();
+    pip.publishRuntimeMessage(owner as unknown as WebContents, request);
+    expect(pipContents.send).not.toHaveBeenCalled();
+  });
 });

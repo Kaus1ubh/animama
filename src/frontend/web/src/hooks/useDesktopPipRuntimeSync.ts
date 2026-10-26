@@ -16,14 +16,19 @@ import {
 } from "@/stores/avatar-lipsync-bridge-store";
 import { useAvatarRuntimeStore } from "@/stores/avatar-runtime-store";
 import { useSceneVFXStore } from "@/stores/scene-vfx-store";
-import type { SceneCameraSettings } from "@/ui/main/canvas/sceneCameraPresets";
+import {
+  isSceneCameraPreset,
+  type SceneCameraPreset,
+} from "@/ui/main/canvas/sceneCameraPresets";
 import type { AvatarTransform } from "@/ui/main/canvas/transform-state";
 
 type UseDesktopPipRuntimeProducerOptions = {
   avatarTransform: AvatarTransform;
   backgroundMode: DesktopPipBackgroundMode;
+  cameraPreset: SceneCameraPreset;
   enabled: boolean;
-  sceneCameraSettings: SceneCameraSettings;
+  /** The PiP window asked for another camera preset. */
+  onCameraPresetRequest?: (preset: SceneCameraPreset) => void;
 };
 
 type UseDesktopPipRuntimeConsumerResult = {
@@ -31,13 +36,18 @@ type UseDesktopPipRuntimeConsumerResult = {
   isHovered: boolean;
   sizeScale: number;
   visualState: DesktopPipVisualState | null;
+  /** Ask the owner window to frame PiP with `preset`. */
+  requestCameraPreset: (preset: SceneCameraPreset) => void;
 };
 
 const SNAPSHOT_THROTTLE_MS = 60;
 const DEFAULT_PIP_SIZE_SCALE = 0.5;
 
 function createRuntimeMessage(args: {
-  payload: DesktopPipVisualState | { kind: "ready" };
+  payload:
+    | DesktopPipVisualState
+    | { kind: "ready" }
+    | { kind: "camera-preset"; preset: SceneCameraPreset };
   animaId: string;
   sequence: number;
   type: DesktopPipRuntimeMessage["type"];
@@ -54,8 +64,9 @@ function createRuntimeMessage(args: {
 export function useDesktopPipRuntimeProducer({
   avatarTransform,
   backgroundMode,
+  cameraPreset,
   enabled,
-  sceneCameraSettings,
+  onCameraPresetRequest,
 }: UseDesktopPipRuntimeProducerOptions): void {
   const platform = useRuntimePlatform();
   const params = useParams({ strict: false });
@@ -70,17 +81,22 @@ export function useDesktopPipRuntimeProducer({
   const latestVisualInputsRef = useRef({
     avatarTransform,
     backgroundMode,
-    sceneCameraSettings,
+    cameraPreset,
   });
+  const onCameraPresetRequestRef = useRef(onCameraPresetRequest);
   const snapshotTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     latestVisualInputsRef.current = {
       avatarTransform,
       backgroundMode,
-      sceneCameraSettings,
+      cameraPreset,
     };
-  }, [avatarTransform, backgroundMode, sceneCameraSettings]);
+  }, [avatarTransform, backgroundMode, cameraPreset]);
+
+  useEffect(() => {
+    onCameraPresetRequestRef.current = onCameraPresetRequest;
+  }, [onCameraPresetRequest]);
 
   const publishSnapshot = useCallback(
     (messageType: DesktopPipRuntimeMessage["type"] = "snapshot") => {
@@ -115,10 +131,16 @@ export function useDesktopPipRuntimeProducer({
     if (!enabled || !pipBridge || !animaId || isPipWindow) return;
 
     const unsubscribe = pipBridge.onRuntimeMessage((message) => {
-      if (message.animaId !== animaId || message.type !== "ready") {
+      if (message.animaId !== animaId) return;
+      if (message.type === "ready") {
+        publishSnapshot("snapshot");
         return;
       }
-      publishSnapshot("snapshot");
+      if (message.type !== "camera-preset") return;
+      const payload = message.payload as { preset?: unknown } | null;
+      if (isSceneCameraPreset(payload?.preset)) {
+        onCameraPresetRequestRef.current?.(payload.preset);
+      }
     });
 
     void pipBridge
@@ -141,11 +163,11 @@ export function useDesktopPipRuntimeProducer({
   }, [
     avatarTransform,
     backgroundMode,
+    cameraPreset,
     enabled,
     isPipWindow,
     animaId,
     pipBridge,
-    sceneCameraSettings,
     scheduleSnapshot,
   ]);
 
@@ -252,5 +274,29 @@ export function useDesktopPipRuntimeConsumer(): UseDesktopPipRuntimeConsumerResu
     };
   }, [animaId, pipBridge]);
 
-  return { backgroundMode, isHovered, sizeScale, visualState };
+  const requestCameraPreset = useCallback(
+    (preset: SceneCameraPreset) => {
+      if (!pipBridge || !animaId) return;
+      // Like `ready`, a request is outside the owner's snapshot sequence.
+      void pipBridge
+        .publishRuntimeMessage(
+          createRuntimeMessage({
+            payload: { kind: "camera-preset", preset },
+            animaId,
+            sequence: 0,
+            type: "camera-preset",
+          }),
+        )
+        .catch(() => {});
+    },
+    [animaId, pipBridge],
+  );
+
+  return {
+    backgroundMode,
+    isHovered,
+    requestCameraPreset,
+    sizeScale,
+    visualState,
+  };
 }

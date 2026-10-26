@@ -36,7 +36,7 @@ export type DesktopPipCursorSnapshot = {
 };
 
 export type DesktopPipRuntimeMessage = {
-  type: "ready" | "snapshot" | "incremental";
+  type: "ready" | "snapshot" | "incremental" | "camera-preset";
   sequence: number;
   sentAtMs: number;
   animaId: string;
@@ -86,6 +86,9 @@ const PIP_DRAG_HANDLE_SIZE = 20;
 const PIP_DRAG_HANDLE_LEFT = 4;
 const PIP_DRAG_HANDLE_TOP = 4;
 const PIP_SIZE_SLIDER_SIDE_OFFSET = 24;
+const PIP_CAMERA_BUTTON_SIZE = 20;
+const PIP_CAMERA_BUTTON_LEFT = 4;
+const PIP_CAMERA_BUTTON_BOTTOM = 4;
 const PIP_TOP_CONTROL_HIT_ZONE_HEIGHT = 20;
 
 function readAnimaId(value: unknown): string {
@@ -298,6 +301,21 @@ function isInSizeSliderZone(
   );
 }
 
+/** The bottom-left camera preset button. */
+function isInCameraButtonZone(
+  localX: number,
+  localY: number,
+  bounds: Bounds,
+): boolean {
+  const bottom = bounds.height - PIP_CAMERA_BUTTON_BOTTOM;
+  return (
+    localX >= PIP_CAMERA_BUTTON_LEFT &&
+    localX < PIP_CAMERA_BUTTON_LEFT + PIP_CAMERA_BUTTON_SIZE &&
+    localY >= bottom - PIP_CAMERA_BUTTON_SIZE &&
+    localY < bottom
+  );
+}
+
 function classifyPipMouseZone(cursor: Point, bounds: Bounds): PipMouseZone {
   if (!isPointInsideBounds(cursor, bounds)) {
     return "outside";
@@ -309,7 +327,8 @@ function classifyPipMouseZone(cursor: Point, bounds: Bounds): PipMouseZone {
     isInResizeZone(localX, localY, bounds) ||
     isInCloseZone(localX, localY, bounds) ||
     isInDragHandleZone(localX, localY, bounds) ||
-    isInSizeSliderZone(localX, localY, bounds)
+    isInSizeSliderZone(localX, localY, bounds) ||
+    isInCameraButtonZone(localX, localY, bounds)
   ) {
     return "interactive";
   }
@@ -359,7 +378,8 @@ function normalizeRuntimeMessage(value: unknown): DesktopPipRuntimeMessage {
   if (
     message.type !== "ready" &&
     message.type !== "snapshot" &&
-    message.type !== "incremental"
+    message.type !== "incremental" &&
+    message.type !== "camera-preset"
   ) {
     throw new Error("Expected valid PiP runtime message type");
   }
@@ -621,11 +641,17 @@ export class PipWindowManager {
     if (!isOwnerSender && !isPipSender) {
       throw new Error("PiP runtime message came from an unknown renderer");
     }
-    if (message.type === "ready" && !isPipSender) {
-      writeLog("info", "Ignored PiP ready message from owner renderer");
+    // PiP sends readiness and camera preset requests; the owner sends state.
+    const fromPipOnly =
+      message.type === "ready" || message.type === "camera-preset";
+    if (fromPipOnly && !isPipSender) {
+      writeLog(
+        "info",
+        `Ignored PiP ${message.type} message from owner renderer`,
+      );
       return;
     }
-    if (message.type !== "ready" && !isOwnerSender) {
+    if (!fromPipOnly && !isOwnerSender) {
       writeLog("info", "Ignored PiP runtime state from PiP renderer");
       return;
     }

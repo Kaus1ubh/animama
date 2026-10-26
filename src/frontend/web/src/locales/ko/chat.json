@@ -29,6 +29,7 @@
       "orbitTarget": "궤도 중심",
       "orbitTargetYSource": "궤도 중심 Y 기준",
       "orbitTargetYSourceLabel": "궤도 중심 Y 기준",
+      "pipTitle": "PiP 카메라",
       "position": "카메라 위치",
       "positionYSource": "카메라 Y 기준",
       "positionYSourceLabel": "카메라 Y 기준",

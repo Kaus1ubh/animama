@@ -29,6 +29,7 @@
       "orbitTarget": "オービットの中心",
       "orbitTargetYSource": "オービット中心の Y 基準",
       "orbitTargetYSourceLabel": "オービット中心の Y 基準",
+      "pipTitle": "PiP のカメラ",
       "position": "カメラの位置",
       "positionYSource": "カメラの Y 基準",
       "positionYSourceLabel": "カメラの Y 基準",

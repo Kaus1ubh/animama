@@ -1110,6 +1110,7 @@ export default interface Resources {
     "pip": {
       "close": "Close picture-in-picture",
       "resize": "Resize picture-in-picture",
+      "switchCamera": "Switch camera (now {{preset}})",
       "unavailable": "Picture-in-picture is unavailable. Keep using the companion in this window."
     },
     "quickChat": {
@@ -1222,6 +1223,7 @@ export default interface Resources {
         "orbitTarget": "Orbit Target",
         "orbitTargetYSource": "Orbit Target Y Source",
         "orbitTargetYSourceLabel": "Orbit target Y source",
+        "pipTitle": "PiP camera",
         "position": "Camera Position",
         "positionYSource": "Camera Y Source",
         "positionYSourceLabel": "Camera Y source",

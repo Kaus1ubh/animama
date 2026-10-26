@@ -143,6 +143,7 @@
   "pip": {
     "close": "关闭画中画",
     "resize": "调整画中画大小",
+    "switchCamera": "切换相机（当前：{{preset}}）",
     "unavailable": "画中画不可用。请继续在此窗口中使用伙伴。"
   },
   "quickChat": {
