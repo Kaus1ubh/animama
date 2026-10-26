@@ -52,7 +52,11 @@ desktop/src/main-process/quick-chat/quick-chat-window-manager.ts
 It is a hidden, frameless, transparent, always-on-top toolbar window with a
 420 × 420 minimum size and the sandboxed `quick-chat` preload role. Hidden
 painting stays enabled and background throttling stays disabled so prewarming
-can complete before the first show.
+can complete before the first show. The hidden page therefore still reports
+itself visible and runs `requestAnimationFrame` at display rate, so the route
+marks the closed window with `data-animama-quick-chat-closed` and global CSS
+pauses its animations; an infinite animation there, such as the composer's
+shine border, would otherwise repaint the hidden window every frame.
 
 The default bounds are centered on the owner window's display work area. The
 manager recenters the existing hidden window before each visible show to avoid

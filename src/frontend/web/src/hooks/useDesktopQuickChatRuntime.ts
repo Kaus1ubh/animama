@@ -462,6 +462,50 @@ export function useDesktopQuickChatConsumer(
   };
 }
 
+/**
+ * Marks the Quick Chat document with `data-animama-quick-chat-closed` while
+ * its native window is closed, so global CSS pauses animations there.
+ *
+ * Prewarming keeps the hidden window painting with background throttling off,
+ * so the page still reports itself visible. Without the pause, an infinite
+ * animation such as the composer's shine border repaints the hidden window at
+ * display rate.
+ */
+export function usePauseClosedQuickChatAnimations(): void {
+  const platform = useRuntimePlatform();
+  const bridge = resolveQuickChatBridge(platform);
+  const isQuickChatWindow =
+    platform.kind === "desktop" &&
+    platform.desktopBridge.windowRole === "quick-chat";
+
+  useEffect(() => {
+    if (!bridge || !isQuickChatWindow) return;
+    const root = document.documentElement;
+    let disposed = false;
+    let changed = false;
+    const apply = (isOpen: boolean) => {
+      root.toggleAttribute("data-animama-quick-chat-closed", !isOpen);
+    };
+    const unsubscribe = bridge.onStateChange((state) => {
+      changed = true;
+      apply(state.isOpen);
+    });
+    void bridge
+      .getState()
+      .then((state) => {
+        // A pushed change is newer than this initial read.
+        if (!disposed && !changed) apply(state.isOpen);
+      })
+      .catch(() => {});
+
+    return () => {
+      disposed = true;
+      unsubscribe();
+      root.removeAttribute("data-animama-quick-chat-closed");
+    };
+  }, [bridge, isQuickChatWindow]);
+}
+
 export function useDesktopQuickChatInteractiveRegions(active: boolean): void {
   const platform = useRuntimePlatform();
   const bridge = resolveQuickChatBridge(platform);

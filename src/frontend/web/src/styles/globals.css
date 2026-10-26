@@ -24,6 +24,13 @@
   backdrop-filter: none !important;
 }
 
+/* The closed, prewarmed Quick Chat window still paints every animation frame. */
+[data-animama-quick-chat-closed] *,
+[data-animama-quick-chat-closed] *::before,
+[data-animama-quick-chat-closed] *::after {
+  animation-play-state: paused !important;
+}
+
 .anima-pip-drag {
   -webkit-app-region: drag;
   app-region: drag;

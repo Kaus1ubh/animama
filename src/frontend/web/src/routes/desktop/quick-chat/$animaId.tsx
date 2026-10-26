@@ -9,6 +9,7 @@ import { CompanionSafetyView } from "@/ui/safety/CompanionSafetyView";
 import {
   useDesktopQuickChatConsumer,
   useDesktopQuickChatInteractiveRegions,
+  usePauseClosedQuickChatAnimations,
 } from "@/hooks/useDesktopQuickChatRuntime";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
 import { ChatInterfaceView } from "@/ui/main/chat/ChatInterface";
@@ -80,6 +81,7 @@ function DesktopQuickChatRoute() {
   const [draftInput, setDraftInput] = useState("");
   const snapshotAnimaId = snapshot?.animaId ?? null;
   useTransparentQuickChatDocument();
+  usePauseClosedQuickChatAnimations();
   useDesktopQuickChatInteractiveRegions(isQuickChatWindow && Boolean(snapshot));
 
   useLayoutEffect(() => {
