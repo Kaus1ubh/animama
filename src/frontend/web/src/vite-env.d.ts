@@ -62,6 +62,10 @@ interface Window {
     readonly featurePacks?: import("../../shared/desktop-runtime").FeaturePacksBridge;
     readonly updates?: import("../../shared/desktop-runtime").UpdatesBridge;
     readonly locale?: import("../../shared/desktop-runtime").LocaleBridge;
+    /** Main window on Windows: colors of the window buttons over the title strip. */
+    readonly titleBar?: {
+      setColors(colors: { color: string; symbolColor: string }): Promise<void>;
+    };
     readonly fullscreen?: {
       enter(): Promise<boolean>;
       exit(): Promise<boolean>;
