@@ -199,7 +199,7 @@ tenant-inventory row for `avatar_face_part_overrides`. So:
 - [ ] Phase 2: Face parts and eye effects on shared meshes (R1, R3). Not started.
 - [ ] Phase 3: Wind and spring setting (R5). Not started; needs D2, D3 and D7.
 - [ ] Phase 4: Expression content and MMD face shapes (R4, R12). Not started.
-- [ ] Phase 5: Hands (R6). Not started; PLAN-R3-F1 and F2 open (owner).
+- [ ] Phase 5: Hands (R6). Not started.
 - [ ] Phase 6: Texture layouts (R2). Not started.
 - [ ] Phase 7: Rest pose, proportions and enhanced rendering (R9, R10). Not started.
 - [ ] Phase 8: Package sharing (R13). Not started; needs D4 and D8.
@@ -381,7 +381,16 @@ Changes:
    hand and rest-pose measurement) on both Included Avatars, per primitive
    where it applies. It is a reported measurement compared by hand between a
    phase's start and end on the same machine, not a CI threshold.
-8. Docs: `docs/frontend/runtime/avatar-vfx.md` (diagnostic codes), the user
+8. One shared load-time step: `lib/avatar/prepareLoadedVrm.ts` (new)
+   `prepareLoadedVrm(vrm, { vrmSha256 })` runs today's load-time installs
+   (`registerArkitFace`, then `applyEyelidClosureCorrection`) and is called by
+   `Avatar.load`, `scripts/animation-render/render.ts` `loadVrm` (which repeats
+   them by hand today) and the headless test loaders
+   (`motion-authoring/headlessVrm.ts`, `lib/avatar/testing/loadedTestAvatar.ts`).
+   Later phases add their installs here (Phase 4 `registerMmdFace`, Phase 5 the
+   hand wrapper, Phase 7 the arm offset), so `animation:render` and the tests
+   exercise exactly what the app runs. A refactor with no behaviour change.
+9. Docs: `docs/frontend/runtime/avatar-vfx.md` (diagnostic codes), the user
    guide per D5.
 
 Checks: unit tests for the collector on Included Avatars (no warnings) and
@@ -392,7 +401,9 @@ panel, every section, both copy actions, keyboard navigation);
 `pnpm i18n:check`; `npx vitest run src/lib/avatar src/ui` (`src/frontend/web`);
 `pnpm -s web:lint` and `pnpm -s check` (`src/frontend`); a production-build
 stack (`ANIMAMA_WEB_BUILD_MODE=production ./reset.sh --name … --base-port …`)
-showing the modal for an Included and a Local Avatar.
+showing the modal for an Included and a Local Avatar; Included
+`animation:render` and `effects:render` sheets at 0 differing pixels after the
+shared load step.
 
 Owner gate: UI review of the Diagnostics view on the live stack.
 
@@ -519,8 +530,10 @@ Backend:
    writes the value into the importer's table inside the import mutation
    (beside `resolve_catalog_avatar`) and its regenerated sidecar omits it. A
    composition without the store (Cloud after a repin) drops the value on
-   import and adds a named import notice (`avatar_setting_not_stored`), and
-   exports none.
+   import and exports none. It tells the user in the import review, before
+   they confirm: `ReviewedImportPlan` gains an optional, defaulted per-item
+   notice list (`avatar_setting_not_stored`; additive, client regenerated),
+   and the replayed `PackageImportResult` receipt is unchanged.
 4. Docs: `docs/backend/features/custom-animas-and-content.md`,
    `docs/backend/architecture/http-api.md`, `data-model.md`,
    `local-content-storage.md`.
@@ -556,8 +569,9 @@ ownership, package export with and without a value, the capability refused by
 an install without it, import moving the value into the table,
 `tests/test_alembic_fresh_install.py`, `tests/test_product_http_inventory.py`,
 a composition without the store drops an imported value with its notice);
-`pnpm openapi-ts:check`; the hosted web build (`main.hosted.tsx` through
-`pnpm build`) with the query gated off; frontend tests
+`pnpm openapi-ts:check`; the hosted web build (`pnpm web:build:hosted`) and a
+unit test that the settings query and row stay off under a hosted runtime
+capability; frontend tests
 (mode resolution, live switch without remount on the chat canvas, Springs off
 holds rest and resumes, each listed surface applies the mode, the three-vrm pin
 test); spring snapshot tests show Automatic identical to today on Included
@@ -598,8 +612,9 @@ Changes:
    VRoid part; its standard MMD morph; the ARKit mix; the VRM preset fallback.
    `lib/avatar/mmdFaceExpressions.ts` (new) `registerMmdFace(vrm)` registers
    region expressions from the spec's standard names (brows にこり, 困る, 怒り,
-   上; eyes 笑い, なごみ, びっくり, じと目; mouths にっこり, お), before
-   `registerArkitFace` at load and in `ExpressionController`. The #688 rules
+   上; eyes 笑い, なごみ, びっくり, じと目; mouths にっこり, お), installed in
+   Phase 1's shared load step before `registerArkitFace` and repeated
+   idempotently in `ExpressionController`. The #688 rules
    become per region: a region the model or MMD fills is not replaced by a mix,
    and a mix fills a region only when the shapes that region uses resolve (the
    "sufficient coverage" check per region instead of per Avatar). Record this in
@@ -610,9 +625,11 @@ Changes:
    → hiding the iris face part (Phase 2's hiding); `Fcl_MTH_Large` and
    `Fcl_MTH_A` → ARKit `jawOpen` where the model has it, else unresolved and
    reported (MMD お is not used here: it maps only to the Surprised mouth in
-   R12, and an MMD model's `oh` viseme may bind the same morph). A mood-held
-   `jawOpen` adds to the lip-sync mouth on the same morph; the Phase 4 owner
-   gate reviews it together with #688's open lip-sync stacking item.
+   R12, and an MMD model's `oh` viseme may bind the same morph). With the
+   default viseme lip sync a mood-held `jawOpen` adds to separate viseme
+   morphs; only under #688's opt-in ARKit lip-sync shaping does it stack on the
+   same `jawOpen` morph, which the Phase 4 owner gate reviews together with
+   #688's open stacking item.
 3. Positive emotions: `Fcl_MTH_Fun` resolves through the same order (MMD
    にっこり, ARKit smile) before today's `relaxed` fallback.
 4. Unresolved names are reported once per Avatar to the Phase 1 sink.
@@ -634,7 +651,9 @@ Reactions/Gestures at 0 differing pixels; the load-timing measurement; vitest, l
 check.
 
 Owner gate: private renders of moods on the converted test Avatar (R12) and of
-positive-emotion mouths on a preset-only model (R4).
+positive-emotion mouths on a preset-only model (R4); a live check of a
+mood-held `jawOpen` under lip sync, with visemes and with ARKit lip-sync
+shaping.
 
 Completion: R4 and R12 acceptance; owner gate passed.
 
@@ -671,18 +690,22 @@ Changes:
    `vrm.humanoid.update` once (the per-instance patching precedent of
    `eyelidClosure.ts`), applying a constant per-bone correction to the finger
    bones after the transfer. Every `vrm.update`, including the many
-   `vrm.update(0)` calls in the Pose creator and stages, then applies it. Give
-   the same correction to the normalized-space fitting in `handPresets.ts`
-   (thumb and pinch fits read fingertip positions in the normalized
-   hierarchy). Skip it below a small deviation tolerance, so the Included
-   Avatars take exactly today's path.
+   `vrm.update(0)` calls in the Pose creator and stages, then applies it. The
+   wrapper is installed in Phase 1's shared load step, so `animation:render`
+   and the tests run it too. Give the same correction to every reader of
+   finger geometry in normalized space: the thumb and pinch fits in
+   `handPresets.ts`, the `tip` contact points in `poses/anatomy/arms.ts` and
+   `contactPoints.ts` (29 Included content files use fingertip contacts), and
+   the motion checks in `motion-authoring/checks.ts`. Skip it below a small
+   deviation tolerance, so the Included Avatars take exactly today's path.
 3. If normalization cannot make thumbs-up, fists and pointing right on the
    converted test Avatar, stop and decide per-rig retargeting with the owner.
 4. Docs: `avatar-animation.md` hands.
 
 Checks: unit tests on a synthetic rig with rotated finger rest frames (thumbs up
 points up, fist closes, index points) through presets, a catalog pose and
-talking hands; Included `animation:render` of Double Thumbs Up and other hand
+talking hands, and a fingertip contact landing on its target; a test that
+`animation:render`'s loader installs the wrapper; Included `animation:render` of Double Thumbs Up and other hand
 Gestures (body and hands views) at 0 differing pixels; the load-timing measurement;
 vitest, lint and check.
 
@@ -755,8 +778,9 @@ Changes:
 1. Detect a rest pose that is not a T-pose at load (upper-arm and forearm
    directions from the humanoid rest against horizontal, beyond a stated
    tolerance) and report it. Try normalizing it at load (an arm-rest offset
-   through the same `vrm.humanoid.update` wrapper as Phase 5, and the same
-   offset given to the normalized-space contact and arm solvers); keep
+   through the same `vrm.humanoid.update` wrapper as Phase 5, installed in the
+   shared load step, and the same offset given to the normalized-space contact
+   and arm solvers); keep
    normalization only if Gestures on
    an A-pose synthetic model match a T-pose one, else report only and record
    why.
@@ -1079,4 +1103,26 @@ the review limit and three optional points:
 
 Disposition: the review limit is reached, so the owner decides whether to accept
 the stated fixes without another review or to waive them; no further review
-round. Phase 5 does not start until PLAN-R3-F1 and F2 are settled.
+round.
+
+### Code Review #3 Revisions
+
+The owner (2026-10-26) asked to apply PLAN-R3-F1 and F2 and the optional F3 to
+F5 without another review round:
+
+- PLAN-R3-F1: Phase 5 gives the finger correction to every normalized-space
+  reader of finger geometry (`handPresets.ts` fits, `arms.ts`/`contactPoints.ts`
+  `tip` points, `motion-authoring/checks.ts`) and adds a fingertip-contact test.
+- PLAN-R3-F2: Phase 1 adds one shared load-time step (`prepareLoadedVrm`) used by
+  `Avatar.load`, `animation:render` and the headless test loaders; Phases 4, 5
+  and 7 install their load-time work there, and Phase 5 tests that
+  `animation:render` runs the wrapper.
+- PLAN-R3-F3: the hosted check is `pnpm web:build:hosted` plus a unit test of the
+  gate under a hosted runtime capability.
+- PLAN-R3-F4: the notice goes in the import review (`ReviewedImportPlan` gains an
+  optional per-item notice list); the import receipt is unchanged.
+- PLAN-R3-F5: Phase 4 states that stacking on one morph happens only under
+  #688's opt-in ARKit lip-sync shaping, and its Owner gate lists the live check.
+
+These fixes were not re-reviewed (owner waiver of a further round); the phases'
+own reviews cover them when implemented.
