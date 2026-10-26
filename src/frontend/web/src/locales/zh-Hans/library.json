@@ -310,7 +310,8 @@
       "unsupportedReceipt": "此操作的回执不受支持，不会再次导入。",
       "uploadPaused": "上传已暂停。请选择同一文件以继续。",
       "uploadProgress": "{{received}} / {{total}}",
-      "viewInLibrary": "在资源库中查看"
+      "viewInLibrary": "在资源库中查看",
+      "avatarSettingsNotStored": "此应用不保存虚拟形象的风与材质设置，因此 {{names}} 将使用自动。"
     },
     "kinds": {
       "avatar_other": "虚拟形象",

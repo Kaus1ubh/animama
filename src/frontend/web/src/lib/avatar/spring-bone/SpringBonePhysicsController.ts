@@ -429,6 +429,14 @@ export class SpringBonePhysicsController {
     this.setParams({ enabled });
   }
 
+  /**
+   * Apply or drop wind and updraft (the Avatar's wind setting). Without them
+   * joints keep their authored gravity and drag.
+   */
+  setAmbientForces(enabled: boolean): void {
+    this._ambientForces = enabled;
+  }
+
   setParams(params: Partial<SpringBonePhysicsParams>): void {
     const wasEnabled = this._params.enabled;
     this._params = sanitizeSpringBonePhysicsParams({

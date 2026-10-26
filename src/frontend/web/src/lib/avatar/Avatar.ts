@@ -1,11 +1,11 @@
 import * as THREE from "three";
-import { VRM, VRMLoaderPlugin, VRMUtils } from "@pixiv/three-vrm";
-import {
-  VRMAnimationLoaderPlugin,
-  type VRMAnimation,
-} from "@pixiv/three-vrm-animation";
-import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { VRM, VRMUtils } from "@pixiv/three-vrm";
+import type { VRMAnimation } from "@pixiv/three-vrm-animation";
+import type {
+  GLTF,
+  GLTFLoader,
+} from "three/examples/jsm/loaders/GLTFLoader.js";
+import { createAvatarGltfLoader } from "./avatarGltfLoader";
 import { AnimationManager } from "./AnimationManager";
 import { releaseModelScene } from "./releaseModelScene";
 import type { AvatarFaceDebugBox } from "./vfx/AvatarFaceDebugBox";
@@ -87,8 +87,10 @@ import {
   retargetPoseForVrm0,
 } from "./poses/poseRetargeting";
 import { canonicalizeCustomPresetExpressions } from "./vrmExpressionPresets";
-import { withEnhancedMToonPatch } from "./enhanced-rendering/mtoonPatch";
-import { withOnDemandLilToon } from "./liltoon/lilToon";
+import {
+  lilToonMaterialStateOf,
+  type LilToonMaterialState,
+} from "./liltoon/lilToon";
 import { prepareLoadedVrm } from "./prepareLoadedVrm";
 import type { ArkitFace } from "./arkitFaceExpressions";
 import {
@@ -110,6 +112,13 @@ import {
   interpolateSamples,
 } from "./poses/animaPoseClip/interpolation";
 import type { AvatarPoseClipSnapshot, AvatarPoseSnapshot } from "./poses/types";
+import {
+  rememberAvatarFileLilToon,
+  resolveAmbientForces,
+  rendersLilToon,
+  type AvatarMaterialMode,
+  type AvatarSpringMode,
+} from "./avatarSettings";
 import {
   SpringBonePhysicsController,
   type SpringBonePhysicsParams,
@@ -382,6 +391,7 @@ export class Avatar {
   public state: AvatarAnimationState = "idle";
 
   private static _gltfLoader: GLTFLoader | null = null;
+  private static _simpleGltfLoader: GLTFLoader | null = null;
   private static _vrmaCache = new Map<string, Promise<VRMAnimation | null>>();
 
   private _camera: THREE.Object3D;
@@ -421,6 +431,11 @@ export class Avatar {
   private _vrmSha256: string | null = null;
   private _facePartCorrections: AvatarFacePartCorrections | null = null;
   private _arkitFace: ArkitFace | null = null;
+  private _springMode: AvatarSpringMode = "automatic";
+  /** Automatic's wind choice for the loaded file. */
+  private _automaticAmbientForces: boolean = true;
+  private _materialMode: AvatarMaterialMode = "automatic";
+  private _lilToonMaterials: LilToonMaterialState = "none";
   private _facePartIssues: AvatarIssue[] = [];
   private _diagnosticsListeners = new Set<() => void>();
   private _unsubscribeVfxDiagnostics: (() => void) | null = null;
@@ -433,6 +448,26 @@ export class Avatar {
   /** The face part correction last given at load or by `setFacePartCorrections`. */
   get facePartCorrections(): AvatarFacePartCorrections | null {
     return this._facePartCorrections;
+  }
+
+  /** The wind setting in effect. */
+  get springMode(): AvatarSpringMode {
+    return this._springMode;
+  }
+
+  /** Whether wind and updraft move the springs under the current setting. */
+  get ambientForces(): boolean {
+    return resolveAmbientForces(this._springMode, this._automaticAmbientForces);
+  }
+
+  /** The material setting the loaded model was built with. */
+  get materialMode(): AvatarMaterialMode {
+    return this._materialMode;
+  }
+
+  /** How the loaded file's authored lilToon materials render. */
+  get lilToonMaterials(): LilToonMaterialState {
+    return this._lilToonMaterials;
   }
 
   /** The loaded model's ARKit coverage, as the load-time installs found it. */
@@ -492,6 +527,8 @@ export class Avatar {
   ): Promise<void> {
     // Unload any existing VRM first
     this.unload();
+    this._springMode = spec.springMode ?? "automatic";
+    this._materialMode = spec.materialMode ?? "automatic";
 
     onProgress?.({ phase: "setup", message: "Setting up..." });
 
@@ -509,6 +546,7 @@ export class Avatar {
         });
       },
       spec.resourceUrls,
+      this._materialMode,
     );
     if (this._isDisposed) {
       releaseModelScene(vrm.scene);
@@ -519,8 +557,15 @@ export class Avatar {
     this.sourceKey = spec.sourceKey?.trim() || spec.filePath;
 
     this.vrm = vrm;
+    this._lilToonMaterials = lilToonMaterialStateOf(gltf);
     this._isVrm0 = isVrm0(vrm);
     this._vrmSha256 = spec.vrmSha256?.trim().toLowerCase() || null;
+    if (this._vrmSha256) {
+      rememberAvatarFileLilToon(
+        this._vrmSha256,
+        this._lilToonMaterials !== "none",
+      );
+    }
     const { arkitFace, eyelidClosure } = prepareLoadedVrm(vrm, {
       vrmSha256: this._vrmSha256,
     });
@@ -558,10 +603,7 @@ export class Avatar {
         viewportElement: this._viewportElement,
       },
     );
-    this.springBonePhysicsController = new SpringBonePhysicsController(vrm, {
-      sourceGltf: gltf,
-      ambientForces: !springsTunedWithoutAmbientForces(gltf.parser.json),
-    });
+    this._installSpringPhysics(vrm, gltf);
     this.expressionController = new ExpressionController(vrm);
     this.expressionController.setLipSyncShaping(this._lipSyncShaping);
     this.reactionClipPlayer = new ReactionClipPlayer(
@@ -639,6 +681,7 @@ export class Avatar {
       this._vrmSha256 = null;
       this._facePartCorrections = null;
       this._arkitFace = null;
+      this._lilToonMaterials = "none";
       this._facePartIssues = [];
       this.animationManager = null;
       this.expressionController = null;
@@ -892,14 +935,8 @@ export class Avatar {
     // 8. Update runtime VFX before VRM materials upload their texture transforms.
     this.vfxController?.update(delta);
 
-    // 9. Update spring-bone settings before three-vrm runs spring physics.
-    this.springBonePhysicsController?.update(delta, {
-      avatarState: this.state,
-      emotionLabel: this.emotion_label,
-    });
-
-    // 10. Update VRM internals (IK, constraints, spring bones)
-    this.vrm.update(delta);
+    // 9–10. Spring settings, then VRM internals (IK, constraints, springs).
+    this.updateModel(delta);
 
     // 11. Update particle VFX after VRM constraints/spring bones settle anchors.
     this.particleVFXController?.update(delta);
@@ -909,6 +946,47 @@ export class Avatar {
       this.springBonePhysicsController?.updateHelpers();
     // Notify after the final rendered pose and occurrence effects have settled.
     poseClipFinished?.();
+  }
+
+  /**
+   * Advance the model itself: spring settings, then three-vrm (constraints,
+   * look-at, expressions, springs, materials). Surfaces that drive the pose
+   * themselves call this instead of `vrm.update`, so the wind setting applies
+   * everywhere.
+   */
+  updateModel(delta: number): void {
+    const vrm = this.vrm;
+    if (this._isDisposed || !vrm) return;
+    this.springBonePhysicsController?.update(delta, {
+      avatarState: this.state,
+      emotionLabel: this.emotion_label,
+    });
+    vrm.update(delta);
+    // three-vrm has no switch for springs; Springs off undoes this frame's step.
+    if (this._springMode === "springs_off") vrm.springBoneManager?.reset();
+  }
+
+  /** Spring physics for a loaded model, under the current wind setting. */
+  private _installSpringPhysics(vrm: VRM, gltf: GLTF): void {
+    this._automaticAmbientForces = !springsTunedWithoutAmbientForces(
+      gltf.parser.json,
+    );
+    this.springBonePhysicsController = new SpringBonePhysicsController(vrm, {
+      sourceGltf: gltf,
+      ambientForces: this.ambientForces,
+    });
+  }
+
+  /**
+   * Change the wind setting live. Springs off returns every spring joint to
+   * its rest rotation at once; leaving it resumes the simulation from rest.
+   */
+  setSpringMode(mode: AvatarSpringMode): void {
+    if (mode === this._springMode) return;
+    this._springMode = mode;
+    this.springBonePhysicsController?.setAmbientForces(this.ambientForces);
+    if (mode === "springs_off") this.vrm?.springBoneManager?.reset();
+    this._notifyDiagnostics();
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -3178,36 +3256,38 @@ export class Avatar {
   // Shared GLTF loader (VRM + VRMA)
   // ─────────────────────────────────────────────────────────────────────────
 
-  private static _getGLTFLoader(): GLTFLoader {
-    if (Avatar._gltfLoader) return Avatar._gltfLoader;
+  private static _getGLTFLoader(lilToon: boolean = true): GLTFLoader {
+    const cached = lilToon ? Avatar._gltfLoader : Avatar._simpleGltfLoader;
+    if (cached) return cached;
 
-    const loader = Avatar._createGLTFLoader();
-    Avatar._gltfLoader = loader;
+    const loader = Avatar._createGLTFLoader(undefined, lilToon);
+    if (lilToon) Avatar._gltfLoader = loader;
+    else Avatar._simpleGltfLoader = loader;
     return loader;
   }
 
-  private static _createGLTFLoader(manager?: THREE.LoadingManager): GLTFLoader {
-    const loader = new GLTFLoader(manager);
-    // lilToon is imported only for files that declare authored lilToon materials.
-    loader.register((parser) =>
-      withEnhancedMToonPatch(withOnDemandLilToon(new VRMLoaderPlugin(parser))),
-    );
-    loader.register((parser) => new VRMAnimationLoaderPlugin(parser));
-    return loader;
+  private static _createGLTFLoader(
+    manager?: THREE.LoadingManager,
+    lilToon: boolean = true,
+  ): GLTFLoader {
+    return createAvatarGltfLoader({ manager, lilToon });
   }
 
   private static async _loadVrm(
     url: string,
     onProgress?: (loaded: number, total: number) => void,
     resourceUrls?: Readonly<Record<string, string>>,
+    materialMode: AvatarMaterialMode = "automatic",
   ): Promise<{ gltf: GLTF; vrm: VRM }> {
+    const lilToon = rendersLilToon(materialMode);
     const loader = resourceUrls
       ? Avatar._createGLTFLoader(
           new THREE.LoadingManager().setURLModifier(
             preparedModelUrlResolver(url, resourceUrls),
           ),
+          lilToon,
         )
-      : Avatar._getGLTFLoader();
+      : Avatar._getGLTFLoader(lilToon);
 
     let gltf: GLTF;
     try {

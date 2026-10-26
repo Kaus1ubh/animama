@@ -12,7 +12,11 @@ import { failureLine, WordedError } from "@/lib/errors/apiError";
 import { createLogger } from "@/lib/logger";
 import { EMPTY_RUNTIME_MEDIA_PROVIDER } from "@/lib/runtime-content/AnimaRuntimeMediaCatalog";
 import type { AnimaRuntimeCatalog } from "@/lib/runtime-content/AnimaRuntimeCatalog";
-import { resolveRuntimeAvatarFaceParts } from "@/lib/runtime-content/runtimeAvatarFaceParts";
+import {
+  resolveRuntimeAvatarFaceParts,
+  runtimeAvatarItemId,
+} from "@/lib/runtime-content/runtimeAvatarFaceParts";
+import { useAvatarLoadSettings } from "@/query/hooks/useAvatarSettings";
 import {
   runtimeContentDeliveryUrl,
   runtimeContentDownloadUrl,
@@ -53,8 +57,17 @@ export function useContentCreatorAvatar({
   // reloading the Avatar.
   const entryRef = useRef(entry);
   entryRef.current = entry;
+  const { springMode, springModeRef, materialMode } = useAvatarLoadSettings(
+    runtimeAvatarItemId(entry),
+  );
 
   useEffect(() => {
+    avatarRef.current?.setSpringMode(springMode);
+  }, [sceneObject, springMode]);
+
+  useEffect(() => {
+    // Materials are built at load; wait for the Avatar's setting.
+    if (!materialMode) return;
     const entry = entryRef.current;
     let cancelled = false;
     const controller = new AbortController();
@@ -93,6 +106,8 @@ export function useContentCreatorAvatar({
             sourceKey: entry.content_revision,
             // A saved face part correction applies in creator previews too.
             ...resolveRuntimeAvatarFaceParts(entry),
+            springMode: springModeRef.current,
+            materialMode,
           },
           (progress) => {
             if (!cancelled) {
@@ -154,13 +169,15 @@ export function useContentCreatorAvatar({
     catalog,
     entryKey,
     logger,
+    materialMode,
     onAvatarChange,
     onStatusChange,
+    springModeRef,
     viewportElement,
   ]);
 
   useFrame((_, delta) => {
-    avatarRef.current?.vrm?.update(delta);
+    avatarRef.current?.updateModel(delta);
   });
 
   return { avatar: avatarRef.current, sceneObject };

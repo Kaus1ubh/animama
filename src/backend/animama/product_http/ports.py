@@ -56,6 +56,7 @@ from animama.app.safety.crisis_resources import CrisisResourceTable
 from animama.app.services.anima_loadout_service import AnimaLoadoutService
 from animama.app.services.anima_runtime_service import AnimaRuntimeService
 from animama.app.services.avatar_face_parts_service import AvatarFacePartsService
+from animama.app.services.avatar_settings_service import AvatarSettingsService
 from animama.app.services.chat_compaction_service import ChatCompactionSettings
 from animama.app.services.chat_title_generation_service import ChatTitleGenerationSettings
 from animama.app.services.content_catalog_service import ContentCatalogService
@@ -221,7 +222,9 @@ class ProductContent:
     """Content services for one owner over one session.
 
     A composition builds them on the session its ports opened and may release
-    resources when the request ends.
+    resources when the request ends. ``avatar_settings`` is optional: a
+    composition that stores no per-owner Avatar settings leaves it ``None``
+    (and builds its package service without them).
     """
 
     catalog: ContentCatalogService
@@ -231,6 +234,7 @@ class ProductContent:
     packages: ContentPackageService
     store: ContentStore
     runtime: AnimaRuntimeService
+    avatar_settings: AvatarSettingsService | None = None
 
 
 VoiceResolver = Callable[[], Awaitable[PyElevenLabsVoice]]

@@ -264,6 +264,18 @@ CREATE TABLE avatar_face_part_overrides (
 
 -- animama-statement --
 
+CREATE TABLE avatar_setting_overrides (
+    owner_user_id character varying NOT NULL,
+    avatar_item_id character varying NOT NULL,
+    spring_mode character varying,
+    material_mode character varying,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT ck_avatar_setting_overrides_material_mode_values CHECK (((material_mode)::text = ANY ((ARRAY['liltoon'::character varying, 'simple'::character varying])::text[]))),
+    CONSTRAINT ck_avatar_setting_overrides_spring_mode_values CHECK (((spring_mode)::text = ANY ((ARRAY['on'::character varying, 'off'::character varying, 'springs_off'::character varying])::text[])))
+);
+
+-- animama-statement --
+
 CREATE TABLE avatar_upload (
     id character varying NOT NULL,
     user_id character varying NOT NULL,
@@ -1022,6 +1034,11 @@ ALTER TABLE ONLY avatar_face_part_overrides
 
 -- animama-statement --
 
+ALTER TABLE ONLY avatar_setting_overrides
+    ADD CONSTRAINT pk_avatar_setting_overrides PRIMARY KEY (owner_user_id, avatar_item_id);
+
+-- animama-statement --
+
 ALTER TABLE ONLY avatar_upload
     ADD CONSTRAINT pk_avatar_upload PRIMARY KEY (id);
 
@@ -1649,6 +1666,11 @@ ALTER TABLE ONLY avatar
 
 ALTER TABLE ONLY avatar_face_part_overrides
     ADD CONSTRAINT fk_avatar_face_part_overrides_avatar_item_id FOREIGN KEY (avatar_item_id) REFERENCES content_catalog_items(id) ON DELETE CASCADE;
+
+-- animama-statement --
+
+ALTER TABLE ONLY avatar_setting_overrides
+    ADD CONSTRAINT fk_avatar_setting_overrides_avatar_item_id FOREIGN KEY (avatar_item_id) REFERENCES content_catalog_items(id) ON DELETE CASCADE;
 
 -- animama-statement --
 

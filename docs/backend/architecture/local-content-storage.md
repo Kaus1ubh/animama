@@ -414,6 +414,11 @@ uses `animama-content-package/3`. Export resolves saved authority and exact sour
 revisions, canonicalizes descriptors and writes immutable reviewed bytes under
 `data/staging/exports`. Installation-local references are rewritten to opaque
 package entry IDs. The manifest never appears in everyday Local folders.
+An Avatar's portable sidecar may carry the exporter's owner settings
+(`spring_mode`, `material_mode`). Neither Save nor import writes them into a
+Local sidecar: Save strips them and import moves them into the importer's
+`avatar_setting_overrides` (see
+[Avatar settings](../features/custom-animas-and-content.md#avatar-settings)).
 
 Import receives sequential bounded parts directly into one private archive under
 `data/staging/imports`. Review seals its hash, validates the complete typed graph

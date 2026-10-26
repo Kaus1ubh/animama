@@ -191,6 +191,17 @@
       "pbr": "標準",
       "unlit": "Unlit"
     },
+    "materials": {
+      "label": "lilToon マテリアル",
+      "rendered": "lilToon で描画",
+      "simple": "シンプルなマテリアル",
+      "value": "{{state}} · {{why}}",
+      "why": {
+        "automatic": "自動で選択",
+        "chosen": "{{mode}} に設定",
+        "failed": "lilToon を読み込めませんでした"
+      }
+    },
     "motion": {
       "humanoidBones": "ヒューマノイドのボーン",
       "missingBones": "ない必須ボーン",
@@ -198,8 +209,14 @@
       "restPose": "基本姿勢",
       "springs": "揺れものボーン",
       "springsValue": "ジョイント {{joints}} 個 · コライダー {{colliders}} 個",
-      "wind": "風",
-      "windAutomatic": "自動"
+      "wind": "風と周囲の力",
+      "windEffect": {
+        "held": "揺れものを基本姿勢で固定",
+        "off": "風と上昇気流なし",
+        "on": "風と上昇気流あり",
+        "tunedWithout": "風と上昇気流なし：揺れものがそれらなしで調整されています"
+      },
+      "windValue": "{{mode}} · {{effect}}"
     },
     "navigationLabel": "診断のセクション",
     "no": "いいえ",
@@ -214,6 +231,10 @@
       "motion": "動き",
       "warnings": "警告",
       "warningsCount_other": "警告（{{count}}）"
+    },
+    "settingSource": {
+      "default": "デフォルトの設定",
+      "stored": "このアバター用に保存済み"
     },
     "source": {
       "live": "チャットのステージ上",

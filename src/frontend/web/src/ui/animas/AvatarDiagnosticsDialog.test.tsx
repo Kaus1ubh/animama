@@ -27,6 +27,20 @@ vi.mock("@/ui/settings/SettingsProvider", () => ({
     isUpdating: false,
   }),
 }));
+// The panel's Avatar settings rows have their own tests.
+vi.mock("@/query/hooks/useAvatarSettings", () => ({
+  useAvatarSettingsAvailable: () => ({ available: false, checking: false }),
+  useAvatarSettings: () => ({ data: undefined, isLoading: false }),
+}));
+vi.mock("@/query/mutations/useSaveAvatarSettings", () => ({
+  useSaveAvatarSettings: () => ({ mutate: vi.fn(), isPending: false }),
+}));
+vi.mock("@/query/hooks/useAnimaLoadout", () => ({
+  useAnimaLoadout: () => ({ data: undefined }),
+}));
+vi.mock("@/query/hooks/useAnimaRuntimeCatalog", () => ({
+  useAnimaRuntimeCatalog: () => ({ data: undefined }),
+}));
 const toast = vi.hoisted(() => ({ error: vi.fn(), success: vi.fn() }));
 vi.mock("sonner", () => ({ toast }));
 
@@ -77,9 +91,10 @@ const live: AvatarLiveDiagnostics = {
     missingRequiredBones: [],
     springJoints: 120,
     springColliders: 18,
-    wind: "automatic",
+    wind: { mode: "off", ambientForces: false },
     restPose: null,
   },
+  materials: { mode: "simple", lilToon: "fallback" },
   issues: [
     {
       code: "effect_face_part_missing",
@@ -106,6 +121,12 @@ const report = buildAvatarDiagnosticsReport({
     ],
   },
   live,
+  settings: {
+    springMode: "off",
+    springModeSource: "stored",
+    materialMode: "simple",
+    materialModeSource: "stored",
+  },
 });
 
 let root: Root | null = null;
@@ -159,6 +180,7 @@ describe("AvatarDiagnosticsDialog", () => {
     expect(text).toContain("KHR_texture_transform");
     expect(text).toContain("MToon 10");
     expect(text).toContain("2,048 × 1,024");
+    expect(text).toContain("Simple materials · set to Simple");
     // Focus moves into the dialog.
     expect(dialog()?.contains(document.activeElement)).toBe(true);
   });
@@ -180,6 +202,8 @@ describe("AvatarDiagnosticsDialog", () => {
 
     click("Motion");
     expect(dialog()?.textContent).toContain("120 joints · 18 colliders");
+    expect(dialog()?.textContent).toContain("Off · no wind or updraft");
+    expect(dialog()?.textContent).toContain("Saved for this Avatar");
     expect(dialog()?.textContent).toContain("Not checked yet");
 
     click("Warnings (1)");

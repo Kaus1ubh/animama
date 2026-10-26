@@ -12,6 +12,7 @@ import {
   buildAvatarDiagnosticsReport,
   type AvatarDiagnosticsIdentity,
   type AvatarDiagnosticsReport,
+  type AvatarDiagnosticsSettings,
 } from "@/lib/avatar/diagnostics/avatarDiagnosticsReport";
 import {
   mergeAvatarIssues,
@@ -21,6 +22,7 @@ import { createLogger } from "@/lib/logger";
 import {
   resolveRuntimeAvatarFaceParts,
   runtimeAvatarFacePartIssues,
+  runtimeAvatarItemId,
 } from "@/lib/runtime-content/runtimeAvatarFaceParts";
 import {
   preparedRuntimeResourceUrls,
@@ -31,6 +33,10 @@ import {
 import { adaptRuntimeSnapshot } from "@/lib/runtime-content/runtimeSnapshotAdapter";
 import { useAnimaLoadout } from "@/query/hooks/useAnimaLoadout";
 import { useAnimaRuntimeCatalog } from "@/query/hooks/useAnimaRuntimeCatalog";
+import {
+  useAvatarLoadSettings,
+  useAvatarSettings,
+} from "@/query/hooks/useAvatarSettings";
 import { useAvatarLipSyncBridgeStore } from "@/stores/avatar-lipsync-bridge-store";
 
 const logger = createLogger("AvatarDiagnostics");
@@ -109,11 +115,32 @@ export function useAvatarDiagnostics(
     }),
     [avatarSource?.source, avatarSource?.catalog_item_id],
   );
+  const storedSettings = useAvatarSettings(identity.itemId).data;
+  const settings = useMemo<AvatarDiagnosticsSettings>(
+    () =>
+      storedSettings
+        ? {
+            springMode: storedSettings.spring_mode,
+            springModeSource: storedSettings.spring_mode_source,
+            materialMode: storedSettings.material_mode,
+            materialModeSource: storedSettings.material_mode_source,
+          }
+        : null,
+    [storedSettings],
+  );
+  // An off-screen Avatar loads with its settings, as the chat would.
+  const { springModeRef, materialMode } = useAvatarLoadSettings(
+    runtimeAvatarItemId(entry),
+  );
   const [collected, setCollected] = useState<Collected>({ status: "loading" });
 
   const runtimeSettled = !runtime.isPending;
   useEffect(() => {
     if (!enabled) return;
+    if (!materialMode) {
+      setCollected({ status: "loading" });
+      return;
+    }
     if (!entry) {
       setCollected(
         runtimeSettled ? { status: "unavailable" } : { status: "loading" },
@@ -157,6 +184,8 @@ export function useAvatarDiagnostics(
             sourceKey: sourceUrl,
             resourceUrls: preparedRuntimeResourceUrls(entry),
             ...resolveRuntimeAvatarFaceParts(entry),
+            springMode: springModeRef.current,
+            materialMode,
           });
           avatar = offscreen;
         } catch (error) {
@@ -192,7 +221,7 @@ export function useAvatarDiagnostics(
       (offscreen as Avatar | null)?.dispose();
       (lease as RuntimeContentUrlLease | null)?.release();
     };
-  }, [enabled, entry, liveAvatar, runtimeSettled]);
+  }, [enabled, entry, liveAvatar, materialMode, runtimeSettled, springModeRef]);
 
   // The identity arrives with the loadout; it never reloads the Avatar.
   const state = useMemo<AvatarDiagnosticsState>(() => {
@@ -208,10 +237,11 @@ export function useAvatarDiagnostics(
         avatar: identity,
         file: collected.file,
         live,
+        settings,
         issues: collected.issues,
         effectReference: (effectId) => effectReferences.get(effectId),
       }),
     };
-  }, [collected, identity, effectReferences]);
+  }, [collected, identity, effectReferences, settings]);
   return { state: enabled ? state : { status: "loading" }, effectNames };
 }

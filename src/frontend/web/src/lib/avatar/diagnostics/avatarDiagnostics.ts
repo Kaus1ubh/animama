@@ -7,6 +7,7 @@ import {
 import { ARKIT_BLENDSHAPES } from "../arkit";
 import { arkitMixOf } from "../arkitFaceExpressions";
 import type { Avatar } from "../Avatar";
+import type { AvatarMaterialMode, AvatarSpringMode } from "../avatarSettings";
 import type {
   AvatarFacePartRole,
   AvatarFacePartSource,
@@ -51,11 +52,19 @@ export type AvatarLiveDiagnostics = {
     missingRequiredBones: string[];
     springJoints: number;
     springColliders: number;
-    /** The per-Avatar wind setting; Automatic until Avatar settings exist. */
-    wind: "automatic";
+    /** The wind setting in effect, and whether wind and updraft apply. */
+    wind: { mode: AvatarSpringMode; ambientForces: boolean };
     /** Rest-pose check; not measured yet. */
     restPose: null;
   };
+  /**
+   * How the file's authored lilToon materials render under the material
+   * setting it loaded with; null when the file has none.
+   */
+  materials: {
+    mode: AvatarMaterialMode;
+    lilToon: "rendered" | "fallback";
+  } | null;
   issues: AvatarIssue[];
 };
 
@@ -146,7 +155,7 @@ function collectMotion(avatar: Avatar): AvatarLiveDiagnostics["motion"] {
     ),
     springJoints: springs?.joints.size ?? 0,
     springColliders: springs?.colliders.length ?? 0,
-    wind: "automatic",
+    wind: { mode: avatar.springMode, ambientForces: avatar.ambientForces },
     restPose: null,
   };
 }
@@ -171,6 +180,10 @@ export function collectAvatarLiveDiagnostics(
     face: collectFace(avatar),
     expressions: collectExpressions(avatar),
     motion: collectMotion(avatar),
+    materials:
+      avatar.lilToonMaterials === "none"
+        ? null
+        : { mode: avatar.materialMode, lilToon: avatar.lilToonMaterials },
     issues,
   };
 }

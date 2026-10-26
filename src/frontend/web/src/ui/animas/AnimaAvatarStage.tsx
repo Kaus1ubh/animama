@@ -54,9 +54,13 @@ import {
   runtimeContentDownloadUrl,
   type RuntimeContentUrlLease,
 } from "@/lib/runtime-content/runtimeContentDelivery";
-import { resolveRuntimeAvatarFaceParts } from "@/lib/runtime-content/runtimeAvatarFaceParts";
+import {
+  resolveRuntimeAvatarFaceParts,
+  runtimeAvatarItemId,
+} from "@/lib/runtime-content/runtimeAvatarFaceParts";
 import type { SceneVFXRuntimeEntry } from "@/lib/scene-vfx/types";
 import { cn } from "@/lib/utils";
+import { useAvatarLoadSettings } from "@/query/hooks/useAvatarSettings";
 import { AvatarPreviewSurface } from "@/ui/avatar-preview/AvatarPreviewSurface";
 import { PlaybackObservationOutput } from "@/ui/avatar-preview/PlaybackObservationOutput";
 import { Button } from "@/ui/components/button";
@@ -152,6 +156,11 @@ function StageAvatarActor({
   });
   const { camera, gl } = useThree();
   const avatarRef = useRef<Avatar | null>(null);
+  const { springMode, springModeRef, materialMode } = useAvatarLoadSettings(
+    source.kind === "url"
+      ? runtimeAvatarItemId(source.runtimeContentEntry)
+      : null,
+  );
   const catalogSession = useMemo(() => new PreviewRuntimeCatalogSession(), []);
   const applySoundPlayer = useMemo(
     () => new ContentPreviewApplySoundPlayer(),
@@ -196,6 +205,15 @@ function StageAvatarActor({
   }, [avatarReady, clipEventBridge]);
 
   useEffect(() => {
+    avatarRef.current?.setSpringMode(springMode);
+  }, [springMode]);
+
+  useEffect(() => {
+    // Materials are built at load; wait for the Avatar's setting.
+    if (!materialMode) {
+      setStatus("loading");
+      return;
+    }
     let cancelled = false;
     const controller = new AbortController();
     const releaseAvatar = acquireContentPreviewResource("management", "avatar");
@@ -234,6 +252,8 @@ function StageAvatarActor({
           ...(source.kind === "url"
             ? resolveRuntimeAvatarFaceParts(source.runtimeContentEntry ?? null)
             : { vrmSha256: null }),
+          springMode: springModeRef.current,
+          materialMode,
         });
         if (cancelled || avatar.isDisposed || !avatar.scene) return;
         setSceneObject(avatar.scene);
@@ -287,12 +307,14 @@ function StageAvatarActor({
     catalogSession,
     gl,
     logger,
+    materialMode,
     onContentPreviewStatusChange,
     onAvatarChange,
     onSceneVFXChange,
     setErrorMessage,
     setStatus,
     source,
+    springModeRef,
     temporaryPreviewModel,
   ]);
 

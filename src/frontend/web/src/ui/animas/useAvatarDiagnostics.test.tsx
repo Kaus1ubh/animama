@@ -42,6 +42,27 @@ vi.mock("@/query/hooks/useAnimaLoadout", () => ({
     data: { avatar_source: { source: "local", catalog_item_id: "item-9" } },
   }),
 }));
+// One object each, as the real hooks keep them across renders.
+const avatarSettings = vi.hoisted(() => ({
+  stored: {
+    data: {
+      item_id: "item-9",
+      spring_mode: "off",
+      spring_mode_source: "stored",
+      material_mode: "automatic",
+      material_mode_source: "default",
+    },
+  },
+  load: {
+    springMode: "off",
+    springModeRef: { current: "off" },
+    materialMode: "automatic",
+  },
+}));
+vi.mock("@/query/hooks/useAvatarSettings", () => ({
+  useAvatarSettings: () => avatarSettings.stored,
+  useAvatarLoadSettings: () => avatarSettings.load,
+}));
 vi.mock("@/lib/runtime-content/runtimeContentDelivery", () => ({
   preparedRuntimeResourceUrls: () => undefined,
   runtimeContentDeliveryUrl: () => "/avatar-file",
@@ -202,6 +223,12 @@ describe("useAvatarDiagnostics", () => {
     if (first.status !== "ready") throw new Error("not ready");
     expect(first.live).toBe(true);
     expect(first.report).toMatchObject({ status: "loaded", issues: [] });
+    expect(first.report.settings).toEqual({
+      springMode: "off",
+      springModeSource: "stored",
+      materialMode: "automatic",
+      materialModeSource: "default",
+    });
     expect(first.report.file?.vrmVersion).toBe("1.0");
 
     // A Local effect's runtime id is a slug of its owner's name for it.

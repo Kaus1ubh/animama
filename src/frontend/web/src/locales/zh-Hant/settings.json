@@ -49,6 +49,27 @@
     }
   },
   "animaSettings": {
+    "avatar": {
+      "materials": {
+        "description": "lilToon 依作者的設計繪製此虛擬形象；簡單材質的繪製負擔較低。適用於使用此虛擬形象的所有地方，並會重新載入它。",
+        "label": "材質",
+        "modes": {
+          "automatic": "自動",
+          "liltoon": "lilToon",
+          "simple": "簡單"
+        }
+      },
+      "wind": {
+        "description": "風和上升氣流如何吹動此虛擬形象的頭髮和衣服。適用於使用此虛擬形象的所有地方。",
+        "label": "風與環境力",
+        "modes": {
+          "automatic": "自動",
+          "off": "關",
+          "on": "開",
+          "springs_off": "關閉彈簧"
+        }
+      }
+    },
     "choices": {
       "appDefaultOff": "應用程式預設（關）",
       "appDefaultOn": "應用程式預設（開）",
@@ -81,6 +102,7 @@
       }
     },
     "updateFailed": {
+      "avatar": "無法儲存虛擬形象設定。",
       "emotion": "無法更新情緒設定。",
       "memory": "無法更新記憶設定。"
     }

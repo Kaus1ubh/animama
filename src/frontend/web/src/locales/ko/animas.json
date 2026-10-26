@@ -191,6 +191,17 @@
       "pbr": "표준",
       "unlit": "Unlit"
     },
+    "materials": {
+      "label": "lilToon 머티리얼",
+      "rendered": "lilToon으로 렌더링",
+      "simple": "단순 머티리얼",
+      "value": "{{state}} · {{why}}",
+      "why": {
+        "automatic": "자동으로 선택됨",
+        "chosen": "{{mode}}(으)로 설정됨",
+        "failed": "lilToon을 불러오지 못함"
+      }
+    },
     "motion": {
       "humanoidBones": "휴머노이드 본",
       "missingBones": "없는 필수 본",
@@ -198,8 +209,14 @@
       "restPose": "기본 자세",
       "springs": "스프링 본",
       "springsValue": "조인트 {{joints}}개 · 콜라이더 {{colliders}}개",
-      "wind": "바람",
-      "windAutomatic": "자동"
+      "wind": "바람과 주변 힘",
+      "windEffect": {
+        "held": "스프링을 기본 자세로 고정",
+        "off": "바람과 상승 기류 없음",
+        "on": "바람과 상승 기류 켬",
+        "tunedWithout": "바람과 상승 기류 없음: 스프링이 이들 없이 조정됨"
+      },
+      "windValue": "{{mode}} · {{effect}}"
     },
     "navigationLabel": "진단 섹션",
     "no": "아니요",
@@ -214,6 +231,10 @@
       "motion": "움직임",
       "warnings": "경고",
       "warningsCount_other": "경고 ({{count}})"
+    },
+    "settingSource": {
+      "default": "기본 설정",
+      "stored": "이 아바타용으로 저장됨"
     },
     "source": {
       "live": "채팅 무대에 표시 중",

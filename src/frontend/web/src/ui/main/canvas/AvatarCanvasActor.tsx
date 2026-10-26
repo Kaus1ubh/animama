@@ -18,13 +18,17 @@ import { useOptionalSoundController } from "@/hooks/use-sound-controller";
 import type { SceneVFXKind } from "@/lib/scene-vfx/types";
 import { createLogger } from "@/lib/logger";
 import { runtimeContentEntryLoadKey } from "@/lib/runtime-content/animaRuntimeSnapshot";
-import { resolveRuntimeAvatarFaceParts } from "@/lib/runtime-content/runtimeAvatarFaceParts";
+import {
+  resolveRuntimeAvatarFaceParts,
+  runtimeAvatarItemId,
+} from "@/lib/runtime-content/runtimeAvatarFaceParts";
 import {
   runtimeContentDeliveryUrl,
   runtimeContentDownloadUrl,
   type RuntimeContentUrlLease,
   preparedRuntimeResourceUrls,
 } from "@/lib/runtime-content/runtimeContentDelivery";
+import { useAvatarLoadSettings } from "@/query/hooks/useAvatarSettings";
 import { useAvatarLipSyncBridgeStore } from "@/stores/avatar-lipsync-bridge-store";
 import { useAvatarRuntimeStore } from "@/stores/avatar-runtime-store";
 import { DEBUG_ENABLED } from "@/platform/env";
@@ -275,6 +279,10 @@ export function AvatarCanvasActor({
   });
   // Enhanced rendering retunes materials at load, so a change reloads the Avatar.
   const enhancedRendering = useEnhancedRenderingStore((state) => state.enabled);
+  // So does the Avatar's material setting; its wind setting applies live.
+  const { springMode, springModeRef, materialMode } = useAvatarLoadSettings(
+    runtimeAvatarItemId(runtimeAvatarEntry),
+  );
   const avatarLoadSpecRef = useRef<AvatarLoadSpec>({
     loadKey: avatarLoadKey,
     requestedAvatarPath,
@@ -313,7 +321,11 @@ export function AvatarCanvasActor({
   }, [avatarLoadKey, onAvatarInstanceChange]);
 
   useEffect(() => {
-    if (!avatarLoadKey || !motionCatalog) {
+    avatarRef.current?.setSpringMode(springMode);
+  }, [sceneObject, springMode]);
+
+  useEffect(() => {
+    if (!avatarLoadKey || !motionCatalog || !materialMode) {
       return;
     }
     const loadSpec = avatarLoadSpecRef.current;
@@ -464,6 +476,8 @@ export function AvatarCanvasActor({
             ...(filePath === loadSpec.requestedAvatarPath
               ? resolveRuntimeAvatarFaceParts(runtimeAvatarEntry)
               : {}),
+            springMode: springModeRef.current,
+            materialMode,
           });
           avatar.setClipVFXEnabled(clipVfxEnabledRef.current);
           avatar.setPoseClipExternalEventSink(poseClipEventSink);
@@ -598,10 +612,12 @@ export function AvatarCanvasActor({
     animaId,
     avatarLoadKey,
     enhancedRendering,
+    materialMode,
     poseClipEventSink,
     reactionClipEventSink,
     runtimeAvatarEntry,
     motionCatalog,
+    springModeRef,
   ]);
 
   useFrame((_state, delta) => {

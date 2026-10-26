@@ -191,6 +191,17 @@
       "pbr": "標準",
       "unlit": "Unlit"
     },
+    "materials": {
+      "label": "lilToon 材質",
+      "rendered": "使用 lilToon 算繪",
+      "simple": "簡單材質",
+      "value": "{{state}} · {{why}}",
+      "why": {
+        "automatic": "由自動選擇",
+        "chosen": "設為{{mode}}",
+        "failed": "lilToon 無法載入"
+      }
+    },
     "motion": {
       "humanoidBones": "人形骨骼",
       "missingBones": "缺少的必要骨骼",
@@ -198,8 +209,14 @@
       "restPose": "靜止姿勢",
       "springs": "彈簧骨骼",
       "springsValue": "{{joints}} 個關節 · {{colliders}} 個碰撞體",
-      "wind": "風",
-      "windAutomatic": "自動"
+      "wind": "風與環境力",
+      "windEffect": {
+        "held": "彈簧保持在靜止姿勢",
+        "off": "無風和上升氣流",
+        "on": "有風和上升氣流",
+        "tunedWithout": "無風和上升氣流：其彈簧是在沒有它們的情況下調校的"
+      },
+      "windValue": "{{mode}} · {{effect}}"
     },
     "navigationLabel": "診斷分區",
     "no": "否",
@@ -214,6 +231,10 @@
       "motion": "動態",
       "warnings": "警告",
       "warningsCount_other": "警告（{{count}}）"
+    },
+    "settingSource": {
+      "default": "預設設定",
+      "stored": "已為此虛擬形象儲存"
     },
     "source": {
       "live": "位於聊天舞台",

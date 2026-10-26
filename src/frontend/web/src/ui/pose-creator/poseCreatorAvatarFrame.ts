@@ -2,7 +2,7 @@ import type { Avatar } from "@/lib/avatar";
 
 type PoseCreatorFrameAvatar = Pick<
   Avatar,
-  "vfxController" | "vrm" | "particleVFXController"
+  "vfxController" | "updateModel" | "particleVFXController"
 >;
 
 /** Advance only the render systems owned by the Pose Creator preview. */
@@ -11,6 +11,6 @@ export function updatePoseCreatorAvatarFrame(
   delta: number,
 ): void {
   avatar?.vfxController?.update(delta);
-  avatar?.vrm?.update(delta);
+  avatar?.updateModel(delta);
   avatar?.particleVFXController?.update(delta);
 }

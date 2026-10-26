@@ -1,3 +1,4 @@
+import type { AvatarMaterialMode, AvatarSpringMode } from "../avatarSettings";
 import type { AvatarFileFacts } from "./avatarFileFacts";
 import type { AvatarLiveDiagnostics } from "./avatarDiagnostics";
 import { mergeAvatarIssues, type AvatarIssue } from "./issues";
@@ -9,6 +10,20 @@ export type AvatarDiagnosticsIdentity = {
   source: "included" | "local" | null;
   itemId: string | null;
 };
+
+/** Where a stored Avatar setting's value comes from. */
+export type AvatarSettingSource = "stored" | "default";
+
+/**
+ * The Avatar's settings as the runtime stores them. Null where the runtime
+ * keeps none (the hosted app, or an Avatar without a catalog item).
+ */
+export type AvatarDiagnosticsSettings = {
+  springMode: AvatarSpringMode;
+  springModeSource: AvatarSettingSource;
+  materialMode: AvatarMaterialMode;
+  materialModeSource: AvatarSettingSource;
+} | null;
 
 /**
  * How a report names an effect. A Local effect's runtime id is a slug of the
@@ -30,6 +45,7 @@ export type AvatarDiagnosticsReport = {
   status: "loaded" | "failed";
   file: AvatarFileFacts | null;
   live: Omit<AvatarLiveDiagnostics, "issues"> | null;
+  settings: AvatarDiagnosticsSettings;
   /**
    * Every finding, each once: file and load, then the live Avatar's. An
    * `effectId` parameter becomes `effect`, an `AvatarEffectReference`.
@@ -55,6 +71,7 @@ export function buildAvatarDiagnosticsReport(args: {
   avatar: AvatarDiagnosticsIdentity;
   file: AvatarFileFacts | null;
   live: AvatarLiveDiagnostics | null;
+  settings?: AvatarDiagnosticsSettings;
   /** Findings from outside the loaded Avatar: file, load, saved correction. */
   issues?: readonly AvatarIssue[];
   effectReference?: AvatarEffectReference;
@@ -67,6 +84,7 @@ export function buildAvatarDiagnosticsReport(args: {
     status: args.live ? "loaded" : "failed",
     file: args.file,
     live: args.live ? (live as Omit<AvatarLiveDiagnostics, "issues">) : null,
+    settings: args.settings ?? null,
     // Merged after the rewrite: two ids may share one reference.
     issues: mergeAvatarIssues(
       [...(args.issues ?? []), ...liveIssues].map((issue) =>
@@ -154,8 +172,26 @@ function liveLines(live: AvatarDiagnosticsReport["live"]): string[] {
     "",
     "Motion",
     `  Humanoid bones ${motion.humanoidBones}; missing required: ${list(motion.missingRequiredBones)}`,
-    `  Springs: ${motion.springJoints} joints, ${motion.springColliders} colliders; wind ${motion.wind}`,
+    `  Springs: ${motion.springJoints} joints, ${motion.springColliders} colliders`,
+    `  Wind setting ${motion.wind.mode}; wind and updraft ${motion.wind.ambientForces ? "on" : "off"}`,
     `  Rest pose: ${motion.restPose ?? "not checked"}`,
+    ...(live.materials
+      ? [
+          "",
+          "Materials",
+          `  lilToon materials ${live.materials.lilToon} (setting ${live.materials.mode})`,
+        ]
+      : []),
+  ];
+}
+
+function settingsLines(settings: AvatarDiagnosticsSettings): string[] {
+  if (!settings) return [];
+  return [
+    "",
+    "Avatar settings",
+    `  Wind: ${settings.springMode} (${settings.springModeSource})`,
+    `  Materials: ${settings.materialMode} (${settings.materialModeSource})`,
   ];
 }
 
@@ -170,6 +206,7 @@ export function avatarDiagnosticsText(report: AvatarDiagnosticsReport): string {
     "File",
     ...fileLines(report.file),
     ...liveLines(report.live),
+    ...settingsLines(report.settings),
     "",
     "Warnings",
     ...(report.issues.length > 0

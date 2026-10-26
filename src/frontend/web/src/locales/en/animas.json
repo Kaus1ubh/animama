@@ -196,6 +196,17 @@
       "pbr": "Standard",
       "unlit": "Unlit"
     },
+    "materials": {
+      "label": "lilToon materials",
+      "rendered": "Rendered with lilToon",
+      "simple": "Simple materials",
+      "value": "{{state}} · {{why}}",
+      "why": {
+        "automatic": "chosen by Automatic",
+        "chosen": "set to {{mode}}",
+        "failed": "lilToon could not load"
+      }
+    },
     "motion": {
       "humanoidBones": "Humanoid bones",
       "missingBones": "Missing required bones",
@@ -203,8 +214,14 @@
       "restPose": "Rest pose",
       "springs": "Spring bones",
       "springsValue": "{{joints}} joints · {{colliders}} colliders",
-      "wind": "Wind",
-      "windAutomatic": "Automatic"
+      "wind": "Wind and ambient forces",
+      "windEffect": {
+        "held": "springs held at rest",
+        "off": "no wind or updraft",
+        "on": "wind and updraft on",
+        "tunedWithout": "no wind or updraft: its springs were tuned without them"
+      },
+      "windValue": "{{mode}} · {{effect}}"
     },
     "navigationLabel": "Diagnostics sections",
     "no": "No",
@@ -220,6 +237,10 @@
       "warnings": "Warnings",
       "warningsCount_one": "Warnings ({{count}})",
       "warningsCount_other": "Warnings ({{count}})"
+    },
+    "settingSource": {
+      "default": "Default setting",
+      "stored": "Saved for this Avatar"
     },
     "source": {
       "live": "on the chat stage",

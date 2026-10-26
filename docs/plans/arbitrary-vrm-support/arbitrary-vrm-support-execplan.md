@@ -206,7 +206,9 @@ tenant-inventory row for `avatar_face_part_overrides`. So:
   checked and review passed 2026-10-26; the owner gate (private renders of the
   eye-hiding effects) is pending.
 - [ ] Phase 3: Avatar settings: wind and materials (R5, R11's Materials
-  setting). Not started.
+  setting). Implemented, checked and review passed 2026-10-26; the owner gate
+  (live wind modes, the Simple look, and acceptance of the Included Avatars'
+  spring change in creators and review renders) is pending.
 - [ ] Phase 4: Expression content and MMD face shapes (R4, R12). Not started.
 - [ ] Phase 5: Hands (R6). Not started.
 - [ ] Phase 6: Texture layouts (R2). Not started.
@@ -240,6 +242,17 @@ tenant-inventory row for `avatar_face_part_overrides`. So:
   eye, all fully moved by blink) and a few blink-moved islands inside its
   eye-layer primitive; the Included Avatars have none, so region detection
   runs everywhere without changing them.
+- 2026-10-26 (Phase 3): Mochiya writes `metallicFactor` 1 explicitly on every
+  fallback material of the converted test Avatar, so "no explicit
+  `metallicFactor`" would not have fixed its dark Simple look; every fallback
+  of a lilToon material now gets metalness 0.
+- 2026-10-26 (Phase 3): the content and Pose creators never ran the spring
+  controller, so their springs had authored settings only (no drag multiplier
+  or updraft). Moving them onto `Avatar.updateModel` gives them the chat's
+  spring behaviour.
+- 2026-10-26 (Phase 3): the runtime Avatar entry already carries its catalog
+  item (`config.avatar_catalog_item_id`); typed content previews did not, so
+  `avatarPreviewTarget` now adds it and every preview surface reads the same key.
 - 2026-10-26 (Phase 1): i18next-cli files the keys of a helper typed through a
   local alias (`type T = TFunction<"animas">`) under the default namespace and
   deletes them from the real one; the i18n guide now says so.
@@ -315,6 +328,21 @@ tenant-inventory row for `avatar_face_part_overrides`. So:
     passes the model's digest and applies the saved correction from the
     face-parts query. The digest also selects a verified eyelid-closure
     profile there, as in chat.
+- 2026-10-26, agent (Phase 3, within the plan):
+  - The wind setting travels in `AvatarLoadSpec.springMode` and changes live
+    through `Avatar.setSpringMode`; Springs off calls
+    `springBoneManager.reset()` after each `vrm.update`, since three-vrm has no
+    switch for its springs.
+  - `useAvatarLoadSettings` waits for the settings read before a surface
+    loads (materials are built at load, so a Simple Avatar is not loaded
+    twice); a failed or hosted read is Automatic at once and never blocks.
+  - The settings panel learns that a file has lilToon materials from a
+    session store `Avatar.load` fills by VRM sha256, so the Materials row
+    appears once any surface has loaded the Avatar, or while a stored choice
+    is not Automatic. Range reads of the file are not available locally, and a
+    full download only to decide one row was rejected.
+  - The backend notice for a composition without the store is a per-item
+    `notices` list on `ReviewedImportItem`, worded in the import review.
 
 ## Decisions
 
@@ -874,7 +902,11 @@ Avatars and a Mochiya-extension fixture; the full pre-push suite; the full
 Owner gate: live check of the four wind modes on the converted test Avatar and
 an Included Avatar, on the chat canvas and the Anima page; the converted test
 Avatar's Simple look (private renders) and switching between lilToon and
-Simple.
+Simple; and the owner's acceptance of the Included Avatars' spring change in
+the creators and review renders (see Code Review #1 Revisions): their hair and
+Annie's cardigan bow now move under the chat's spring settings there, about 4%
+of a review sheet's pixels. If the owner does not accept it, those surfaces
+settle Included Avatars as before Phase 3 before the phase completes.
 
 Completion: R5 acceptance and R11's Materials-setting acceptance except the
 Automatic GPU check; owner gate passed; a Cloud follow-up issue recorded
@@ -885,15 +917,187 @@ Recovery: the table and route are additive. A revert leaves stored values
 unused, and packages exported with either setting would no longer import on
 the reverted code (no compatibility handling, by owner decision).
 
-Check record: (to fill) · Commits: (to fill)
+Check record (2026-10-26, macOS arm64, worktree on `feat/arbitrary-vrm-support`
+from `44c6b78e`; full suite on tree `6f139492`):
+
+- Backend (a delegated subagent built steps 1–4; its results were read back):
+  `tests/test_avatar_settings.py` (7: per-owner save and read for Local and
+  Included Avatars, 404s and ownership, partial updates, package export with
+  and without a value, import moving the value into the table, a composition
+  without the store dropping it with its notice, 503 without the store),
+  `tests/test_alembic_fresh_install.py` (8, with the table's constraints and
+  cascade), `tests/test_product_http_inventory.py` (15, local-only routes);
+  `pnpm openapi-ts:check` current.
+- Frontend: `avatarSpringMode.test.ts` (Automatic identical to the previous
+  path on Andrew, Annie and a Mochiya-extension Andrew; live switching; Springs
+  off holds rest and resumes, pinned against three-vrm 3.5.2; fails without
+  the per-frame reset); `lilToon.test.ts` (Simple builds fallbacks without
+  importing lilToon, metalness 0 for lilToon fallbacks only, MToon kept on a
+  VRM; fails without the plugin); `useAvatarSettings.test.tsx` (waits for a
+  local read, hosted never calls the route, failure means Automatic without
+  retry); `AnimaSettingsModal.test.tsx` (rows, Automatic saved as null,
+  Materials only for lilToon files or a stored choice, none where the runtime
+  keeps none); `ContentPreviewScene.test.tsx` (waits for the material setting,
+  wind applies live, a material change reloads); Diagnostics dialog and hook
+  tests (wind effect, materials state, setting sources); import review notice.
+- Full pre-push suite on `6f139492`: `make check-test` 4,878 passed, 29
+  skipped; `pnpm web:test:browser` 131 passed; `pnpm prettier:check`,
+  `pnpm openapi-ts:check` pass. `pnpm verify` failed one new test, a timing
+  flake under load (`useAvatarSettings.test.tsx` waited one tick for the
+  query; it now waits for the result); 5,744 others passed. The first hosted
+  build timed out waiting for a heavy-job slot; both were rerun on the
+  repaired tree (Code Review #1 and #2 Revisions).
+- Full `pnpm e2e:test` (`src/frontend`, through the heavy-job slot) on the
+  disposable built stack `animama-arbvrm-e2e` (`ANIMAMA_LLM_SKIP=1`):
+  - First run, on the `6f139492` build at load average 20–30: 27 passed, 14
+    failed. A gesture save (10 s limit) and the complete-Anima import commit
+    (90 s limit) timed out; the commit finished later and left 516 items, so
+    every later test's exact cleanup failed. No backend errors were logged.
+  - Second run, stack rebuilt with `--purge` from `4be7121d` (all later changes
+    are tests, the `--thumbnail` guard and docs): 39 passed, 2 failed. "local
+    content sharing single and multiple content export" clicked Edit while the
+    Library re-rendered its search results and never navigated; "imported
+    playback covers every supported content kind" lost its page context to a
+    navigation in the scene-effect step. Both complete-Anima package journeys
+    passed.
+  - Both failures rerun alone (`--grep`): 3 passed (with setup). Every journey
+    has passed on the final build.
+
+Commits: `feat(avatars)[p3]: add per-Avatar wind and material settings`.
 
 #### Code Review #1 Findings
 
-Not run.
+Independent reviewer, high-risk tier, initial review of tree `d00a167b`
+against `44c6b78e`, with a separate checks agent rerunning the affected checks.
+
+- P3-R1-F1 (blocking): the plan's checks "live switch without remount on the
+  chat canvas" and "each listed surface applies the mode" had tests only for
+  `ContentPreviewScene`; nothing covered `AvatarCanvasActor`,
+  `AnimaAvatarStage`, `useContentCreatorAvatar`, `PoseCreatorAvatarActor` or
+  `CreateAnimaStage`, so moving `springMode` into a load effect's dependencies
+  would remount the Avatar on every wind change unnoticed.
+- P3-R1-F2 (blocking for the owner gate): no tool could render the converted
+  test Avatar's Simple look; `effects:render` loads with Automatic only.
+- P3-R1-F3 (optional): `CreateAnimaStage`'s actor kept the disposed scene in
+  state while a material change reloaded it in the same actor.
+- P3-R1-F4 (optional): Automatic ↔ lilToon reloads although both draw lilToon
+  today.
+- P3-R1-F5 (optional): the avatar-animation guide said surfaces never call
+  `vrm.update` directly; zero-delta refreshes remain.
+- P3-R1-F6 (optional): Diagnostics waits for the settings read even with a
+  live chat Avatar, and a material change re-downloads the file for its facts.
+- P3-R1-F7 (optional): `Avatar._createGLTFLoader` is a one-line pass-through.
+- Verified without findings: ownership and 404s, the local-only route and
+  hosted 503, concurrent partial updates, schema constraints, package rules,
+  the hosted frontend gate, Springs off against three-vrm 3.5.2, the Simple
+  loader, locales, repository boundaries and doc anchors.
 
 #### Code Review #1 Revisions
 
-Not run.
+- P3-R1-F1 accepted. Surface tests through a shared stand-in Avatar
+  (`lib/avatar/testing/fakeSettingsAvatar.ts`):
+  `AvatarCanvasActor.settings.test.tsx`, `AnimaAvatarStage.settings.test.tsx`,
+  `useContentCreatorAvatar.test.tsx` (the three content creators),
+  `PoseCreatorAvatarActor.settings.test.tsx` and
+  `CreateAnimaStage.settings.test.tsx`. Each waits for the material setting,
+  loads with both settings, applies a wind change to the same Avatar without a
+  new load, and reloads for a material change. The chat-canvas test fails when
+  `springMode` is put into the load effect's dependencies.
+- P3-R1-F2 accepted: `effects:render --materials automatic|liltoon|simple`
+  passes the material setting to the review Avatar (`session.ts`); documented
+  in the avatar-vfx guide. `animation:render` keeps its own loader (not needed
+  for the gate).
+- P3-R1-F3 accepted: the actor's cleanup clears its scene object.
+- P3-R1-F4 rejected: Phase 9's GPU check makes Automatic and lilToon differ,
+  and the reload refreshes Diagnostics' reason; the switch is rare.
+- P3-R1-F5 accepted: the guide now says every per-frame update goes through
+  `updateModel` and zero-delta refreshes never step the springs.
+- P3-R1-F6 and P3-R1-F7 rejected: the wait is one local read, a material change
+  reloads the chat Avatar too, and the pass-through keeps `Avatar`'s cached
+  loaders in one place.
+- Found while repairing: every review-render session settles (and, without
+  clip events, steps) through `updatePoseCreatorAvatarFrame`, so
+  `effects:render` sheets with or without clip events, thumbnails
+  (`--thumbnail`, `effects:thumbnails`) and animation reels now run the spring
+  controller as the chat does, as do `pnpm -s effects check` captures and the
+  `content:tune` preview (neither is compared with an earlier baseline);
+  `animation:render` has its own loader and resets the springs, so it is
+  unaffected. Measured on sheets without clip
+  events against `44c6b78e`: `eye_confused_swirl`, `heart_eyes`, `blush`,
+  `star3`, `single_tear`, `mouth_w`, `petrified_cracks` and `face_red` differ
+  in 4.2% of pixels (enhanced) and 3.2% (classic), all in spring-driven hair
+  and Annie's cardigan bow (diff images checked); effect pixels are unchanged
+  and renders stay deterministic. The committed picker thumbnails were not
+  regenerated; regenerated ones would differ in hair, so regenerate the set
+  together rather than a few. This departs from the spec's "0 differing
+  pixels" constraint for Included Avatars and is in Phase 3's owner gate.
+
+#### Code Review #2 Findings
+
+Independent reviewer, high-risk tier, targeted recheck of tree `4be7121d`
+against `d00a167b`. P3-R1-F1, F2, F3 and F5 resolved; the rejections of F4, F6
+and F7 hold.
+
+- P3-R2-F1 (required): the "Found while repairing" note limited the render
+  change to sheets without clip events; every session settles through the
+  Pose creator frame helper, so sheets with events, thumbnails and reels
+  change too.
+- P3-R2-F2 (required, owner decision): the measured change to Included
+  Avatars' review renders departs from the spec's "0 differing pixels unless
+  the owner accepts a specific change" constraint, and no owner acceptance was
+  recorded.
+- P3-R2-F3 (optional): the chat-canvas test defines its own stand-in Avatar,
+  although the Revisions say the surface tests share one.
+- P3-R2-F4 (optional): no test changes the wind while a load is pending, the
+  case each surface's `scene`/`sceneObject` dependency exists for.
+- P3-R2-F5 (optional): `fakeAvatarLoads`'s comment mentions wind changes it
+  does not return.
+- P3-R2-F6 (optional): `--materials` is silently ignored with `--thumbnail`.
+- P3-R2-F7 (optional): the mocked `useAvatarLoadSettings` ignores the item id,
+  so no test pins which Avatar item a surface reads.
+
+#### Code Review #2 Revisions
+
+- P3-R2-F1 accepted: the note now names every affected session and the
+  unaffected `animation:render`, and that the committed thumbnails were not
+  regenerated.
+- P3-R2-F2 accepted: the change is in Phase 3's owner gate for explicit
+  acceptance; without it, the earlier settle behaviour returns for Included
+  Avatars before Phase 3 completes.
+- P3-R2-F3 accepted: the chat-canvas test uses the shared stand-in.
+- P3-R2-F4 accepted: the chat-canvas test changes the wind while the Avatar
+  loads and expects it applied once ready; it fails without the live effect's
+  `sceneObject` dependency.
+- P3-R2-F5 accepted: comment corrected.
+- P3-R2-F6 accepted: `--materials` with `--thumbnail` is an error, as
+  `--avatar-file` is.
+- P3-R2-F7 accepted: the stand-in hook records the item each surface reads,
+  and every surface test asserts it (`avatar-1`, or Create Anima's saved item).
+- Checks on the repaired tree `179daaa2` (`src/frontend/web`): the five
+  surface tests (7 tests) pass; `tsc -p tsconfig.app.json` and `tsconfig.scripts.json`, eslint
+  and prettier on the changed files pass; `effects:render --materials simple
+  --thumbnail` exits 2 with the new message. The full frontend suite passed on
+  `4be7121d` just before these test-only and option-guard changes:
+  `pnpm verify` 5,751 passed, `pnpm web:test:browser` 131 passed,
+  `pnpm prettier:check`, `pnpm web:build:hosted`.
+
+#### Code Review #3 Findings
+
+Independent reviewer, high-risk tier, final targeted recheck of tree
+`179daaa2` against `4be7121d`: P3-R2-F1 to F7 resolved, no regressions, no
+required findings; it reran the five surface tests (7 passed), eslint, both
+tsc configurations and the `--materials`/`--thumbnail` guard. Optional:
+P3-R3-F1 (the check record still said two reruns were pending, and the round 2
+checks gave no tree), P3-R3-F2 (`effects check` and `content:tune` also settle
+through the review session), P3-R3-F3 (say what a rejected spring change
+means).
+
+#### Code Review #3 Revisions
+
+- P3-R3-F1, F2 and F3 accepted as record changes: the check record, the
+  "Found while repairing" note and the owner gate now say so. Review passed;
+  Phase 3 is ready for the owner gate once the full e2e run passes.
+
 
 ### Phase 4: Expression content and MMD face shapes
 

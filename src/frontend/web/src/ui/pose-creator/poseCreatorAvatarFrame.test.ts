@@ -4,15 +4,13 @@ import type { Avatar } from "@/lib/avatar";
 import { updatePoseCreatorAvatarFrame } from "./poseCreatorAvatarFrame";
 
 describe("updatePoseCreatorAvatarFrame", () => {
-  it("ticks avatar VFX, VRM, and particle VFX in render order", () => {
+  it("ticks avatar VFX, the model, and particle VFX in render order", () => {
     const calls: string[] = [];
     const avatar = {
       vfxController: {
         update: vi.fn(() => calls.push("avatar-vfx")),
       },
-      vrm: {
-        update: vi.fn(() => calls.push("vrm")),
-      },
+      updateModel: vi.fn(() => calls.push("model")),
       particleVFXController: {
         update: vi.fn(() => calls.push("particle-vfx")),
       },
@@ -21,9 +19,9 @@ describe("updatePoseCreatorAvatarFrame", () => {
     updatePoseCreatorAvatarFrame(avatar, 0.016);
 
     expect(avatar.vfxController?.update).toHaveBeenCalledWith(0.016);
-    expect(avatar.vrm?.update).toHaveBeenCalledWith(0.016);
+    expect(avatar.updateModel).toHaveBeenCalledWith(0.016);
     expect(avatar.particleVFXController?.update).toHaveBeenCalledWith(0.016);
-    expect(calls).toEqual(["avatar-vfx", "vrm", "particle-vfx"]);
+    expect(calls).toEqual(["avatar-vfx", "model", "particle-vfx"]);
   });
 
   it("tolerates an absent avatar", () => {

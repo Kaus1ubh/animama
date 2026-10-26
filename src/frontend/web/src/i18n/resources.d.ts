@@ -677,6 +677,17 @@ export default interface Resources {
         "pbr": "Standard",
         "unlit": "Unlit"
       },
+      "materials": {
+        "label": "lilToon materials",
+        "rendered": "Rendered with lilToon",
+        "simple": "Simple materials",
+        "value": "{{state}} · {{why}}",
+        "why": {
+          "automatic": "chosen by Automatic",
+          "chosen": "set to {{mode}}",
+          "failed": "lilToon could not load"
+        }
+      },
       "motion": {
         "humanoidBones": "Humanoid bones",
         "missingBones": "Missing required bones",
@@ -684,8 +695,14 @@ export default interface Resources {
         "restPose": "Rest pose",
         "springs": "Spring bones",
         "springsValue": "{{joints}} joints · {{colliders}} colliders",
-        "wind": "Wind",
-        "windAutomatic": "Automatic"
+        "wind": "Wind and ambient forces",
+        "windEffect": {
+          "held": "springs held at rest",
+          "off": "no wind or updraft",
+          "on": "wind and updraft on",
+          "tunedWithout": "no wind or updraft: its springs were tuned without them"
+        },
+        "windValue": "{{mode}} · {{effect}}"
       },
       "navigationLabel": "Diagnostics sections",
       "no": "No",
@@ -701,6 +718,10 @@ export default interface Resources {
         "warnings": "Warnings",
         "warningsCount_one": "Warnings ({{count}})",
         "warningsCount_other": "Warnings ({{count}})"
+      },
+      "settingSource": {
+        "default": "Default setting",
+        "stored": "Saved for this Avatar"
       },
       "source": {
         "live": "on the chat stage",
@@ -3858,6 +3879,7 @@ export default interface Resources {
         "alreadyReviewed": "This file already has a review. Discard it before choosing a replacement file.",
         "animaNote": "Creates a fresh companion with the reviewed content and configuration.",
         "animaUnavailable": "Importing an Anima package is unavailable here. Import content or export an existing Anima instead.",
+        "avatarSettingsNotStored": "This app does not keep Avatar wind and material settings, so {{names}} will use Automatic.",
         "beingProcessed": "This import is being processed. Check its result before continuing.",
         "button": "Import",
         "changeFile": "Change file",
@@ -5995,6 +6017,27 @@ export default interface Resources {
       }
     },
     "animaSettings": {
+      "avatar": {
+        "materials": {
+          "description": "lilToon draws this Avatar as authored; Simple costs less to draw. Applies wherever the Avatar is used, and reloads it.",
+          "label": "Materials",
+          "modes": {
+            "automatic": "Automatic",
+            "liltoon": "lilToon",
+            "simple": "Simple"
+          }
+        },
+        "wind": {
+          "description": "How wind and updraft move this Avatar's hair and clothes, wherever the Avatar is used.",
+          "label": "Wind and ambient forces",
+          "modes": {
+            "automatic": "Automatic",
+            "off": "Off",
+            "on": "On",
+            "springs_off": "Springs off"
+          }
+        }
+      },
       "choices": {
         "appDefaultOff": "App default (Off)",
         "appDefaultOn": "App default (On)",
@@ -6027,6 +6070,7 @@ export default interface Resources {
         }
       },
       "updateFailed": {
+        "avatar": "The Avatar setting could not be saved.",
         "emotion": "Failed to update emotion settings.",
         "memory": "Failed to update memory settings."
       }

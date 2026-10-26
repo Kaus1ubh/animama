@@ -55,6 +55,8 @@ const VIEW_LABELS = {
 };
 /** Avatar renderings `--rendering` accepts (`src/lib/avatar/enhanced-rendering`). */
 export const AVATAR_RENDERINGS = ["enhanced", "classic"];
+/** Avatar material settings `--materials` accepts (`src/lib/avatar/avatarSettings.ts`). */
+export const AVATAR_MATERIAL_MODES = ["automatic", "liltoon", "simple"];
 /** The Included Avatars every sheet and benchmark covers. */
 export const AVATARS = ["Andrew", "AvatarSample_A_1_New"];
 
@@ -132,7 +134,8 @@ const SWIFTSHADER_LAUNCH = {
  * must set `window.effectRendererReady`. `launch` holds the Playwright
  * Chromium launch options plus an optional page `viewport` and
  * `deviceScaleFactor`. `rendering` picks the app's enhanced (default) or
- * classic Avatar rendering.
+ * classic Avatar rendering; `materials` the Avatar's material setting
+ * (Automatic by default; Simple draws a lilToon Avatar's fallback materials).
  */
 export async function withRendererPage(
   {
@@ -141,6 +144,7 @@ export async function withRendererPage(
     pageDir = "effect-render",
     launch = SWIFTSHADER_LAUNCH,
     rendering = "enhanced",
+    materials = "automatic",
   },
   callback,
 ) {
@@ -177,9 +181,13 @@ export async function withRendererPage(
       ...(viewport ? { viewport } : {}),
       ...(deviceScaleFactor ? { deviceScaleFactor } : {}),
     });
-    await page.addInitScript((value) => {
-      window.__animamaRenderingOverride = value;
-    }, rendering);
+    await page.addInitScript(
+      (value) => {
+        window.__animamaRenderingOverride = value.rendering;
+        window.__animamaMaterialModeOverride = value.materials;
+      },
+      { rendering, materials },
+    );
     const errors = [];
     // Any page error (including a failed module import) ends the wait early.
     const pageError = new Promise((_, reject) =>
@@ -438,6 +446,7 @@ export async function renderEffectSheets({
   clipStem = "clip",
   localContent = null,
   rendering = "enhanced",
+  materials = "automatic",
   avatarFile = null,
   onResult,
 }) {
@@ -450,6 +459,7 @@ export async function renderEffectSheets({
         ...(avatarFile ? [avatarFile] : []),
       ],
       rendering,
+      materials,
     },
     async ({ page, fsUrl, imageUrl }) => {
       // A local Avatar file replaces both Included Avatars.
@@ -733,6 +743,8 @@ const USAGE = [
   "  --local-content <dir>   content root for library:local/... (e.g. content/local)",
   "  --size 512              thumbnail edge in pixels (256-2048), Annie only",
   "  --rendering enhanced    Avatar rendering: enhanced (the app default) or classic",
+  "  --materials automatic   the Avatar's material setting: automatic, liltoon or",
+  "                          simple (a lilToon Avatar's fallback materials)",
   "  --avatar-file <a.vrm>   render on this VRM instead of the Included Avatars,",
   "                          such as a converted Avatar kept outside the repository",
   "",
@@ -753,6 +765,7 @@ const VALUE_OPTIONS = new Set([
   "--size",
   "--threshold",
   "--rendering",
+  "--materials",
   "--avatar-file",
 ]);
 const FLAG_OPTIONS = new Set([
@@ -886,6 +899,11 @@ async function main(argv) {
       throw new EffectSourceError(
         `Invalid --rendering ${rendering}; use ${AVATAR_RENDERINGS.join(" or ")}.`,
       );
+    const materials = values["--materials"] ?? "automatic";
+    if (!AVATAR_MATERIAL_MODES.includes(materials))
+      throw new EffectSourceError(
+        `Invalid --materials ${materials}; use ${AVATAR_MATERIAL_MODES.join(", ")}.`,
+      );
     const avatarFile = values["--avatar-file"]
       ? await resolveReviewAvatarFile(
           path.resolve(cwd, values["--avatar-file"]),
@@ -894,6 +912,10 @@ async function main(argv) {
     if (avatarFile && values["--thumbnail"])
       throw new EffectSourceError(
         "--avatar-file is for review sheets; thumbnails always use Annie.",
+      );
+    if (values["--materials"] && values["--thumbnail"])
+      throw new EffectSourceError(
+        "--materials is for review sheets; thumbnails always use Annie, who has no lilToon materials.",
       );
 
     if (values["--thumbnail"]) {
@@ -979,6 +1001,7 @@ async function main(argv) {
       clip,
       localContent,
       rendering,
+      materials,
       avatarFile,
       onResult: (result) => {
         console.log(

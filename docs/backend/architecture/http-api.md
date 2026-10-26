@@ -68,6 +68,10 @@ Local setup and host/key administration schemas remain in the server composition
 - `product_http/routes/typed_content.py` (shared): typed product
   List/Get/Save/Preview routes over the shared catalog, Avatar portraits and
   face parts.
+- `server/routers/avatar_settings.py`: the owner's per-Avatar settings (wind and
+  materials). Only the local composition mounts it; without an
+  `avatar_settings` store in `ProductContent` it answers 503
+  `avatar_settings_unavailable`.
 - `product_http/routes/loadouts.py` (shared): typed Anima loadout read plus optimistic,
   idempotent family plan/commit commands.
 - `product_http/routes/anima_runtime.py` (shared): exact runtime issuance, lease
@@ -388,7 +392,7 @@ are under `/v1/content`:
 | `DELETE /package-exports/{export_id}` | Discard an inactive owned cache. |
 | `POST /package-imports` | Allocate a private stage with operation ID, filename and total byte length. |
 | `PUT /package-imports/{stage_id}/parts/{index}` | Send sequential 8 MiB binary parts (the final part may be shorter); exact retries return the original acknowledgement. |
-| `POST /package-imports/{stage_id}/review` | Seal and validate the whole archive; freeze fresh content identities, dependency copies and automatic `-2`/`-3` collision names. |
+| `POST /package-imports/{stage_id}/review` | Seal and validate the whole archive; freeze fresh content identities, dependency copies and automatic `-2`/`-3` collision names. Each item lists `notices` about what the import leaves out: `avatar_setting_not_stored` when it carries Avatar settings this composition does not store. |
 | `GET /package-imports/{stage_id}` | Read received-byte progress and the public review; no private paths or install plan are exposed. |
 | `POST /package-imports/{stage_id}/commit` | Submit the operation ID and review digest to install the whole package through one recoverable content/Anima transaction. |
 | `GET /package-operations/{operation_id}` | Resolve the durable result or report pending/recovery state before another submission. |
@@ -1416,6 +1420,20 @@ model digest returns `422 content_invalid` with reason
 `avatar_face_parts_digest_mismatch`. A Local save rewrites the sidecar and
 returns the new revision; an Included save stores only the caller's override.
 See [face-part corrections](../features/custom-animas-and-content.md#face-part-corrections).
+
+`GET /v1/avatar-content/{item_id}/settings` (`get_avatar_settings`) returns
+the caller's effective settings for a current admitted Local or Included Avatar
+as `{item_id, spring_mode, spring_mode_source, material_mode,
+material_mode_source}`. `spring_mode` is `automatic`, `on`, `off` or
+`springs_off`; `material_mode` is `automatic`, `liltoon` or `simple`; each
+source is `stored` or `default` (Automatic because nothing is saved).
+`PUT` (`save_avatar_settings`) takes `{spring_mode?, material_mode?}` and
+returns the same state: an omitted field keeps its stored value, and
+`automatic` or `null` clears it. An unknown, invalid or non-Avatar item, or
+another owner's Local Avatar, returns `404 content_not_found`; an unknown
+value or key returns 422. Saving writes no Avatar files and leaves the
+revision unchanged. Both routes are local-only. See
+[Avatar settings](../features/custom-animas-and-content.md#avatar-settings).
 
 Appearance and portrait images are typed `appearance` catalog items. Focused
 `/v1/animas/{anima_id}/appearance:plan` and `:commit` commands store

@@ -52,6 +52,14 @@ export function resolveRuntimeAvatarFaceParts(
   return { facePartCorrections, vrmSha256: runtimeAvatarModelSha256(entry) };
 }
 
+/** The Avatar catalog item behind a runtime Avatar entry, for its settings. */
+export function runtimeAvatarItemId(
+  entry: RuntimeCatalogEntry | null | undefined,
+): string | null {
+  const itemId = entry?.config.avatar_catalog_item_id;
+  return typeof itemId === "string" && itemId ? itemId : null;
+}
+
 /**
  * The sha256 of an Avatar entry's VRM file, which `Avatar.load` uses to match
  * face part corrections and verified eyelid closure profiles.

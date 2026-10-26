@@ -330,6 +330,35 @@ preview and prepared preview batches) and the runtime `avatar`. Packages carry i
 an Included Avatar, including an Anima's, merges the exporter's current
 override, so the imported Local copy keeps it.
 
+### Avatar settings
+
+Each owner may choose two settings per Avatar, wherever it is used:
+`spring_mode` (wind and ambient forces on spring bones: `automatic`, `on`,
+`off` or `springs_off`) and `material_mode` (`automatic`, `liltoon` or
+`simple`). Local and Included Avatars alike store them as one owner-scoped row
+in `avatar_setting_overrides`, keyed by Avatar item only; a missing value is
+`automatic`. Saving writes no Avatar files, mints no Avatar revision and does
+not change any runtime snapshot; clients read the settings separately and apply
+them to the loaded Avatar. An Avatar updated in place keeps the owner's
+choice; a Local Avatar file that is moved, renamed or re-added becomes a new
+item and starts at Automatic.
+`GET`/`PUT /v1/avatar-content/{item_id}/settings` read and save them; only the
+local composition serves these routes (see the
+[HTTP contract](../architecture/http-api.md#avatars-and-uploads)).
+
+The settings table is their only authority. A Local Save strips any
+`spring_mode` or `material_mode` key from an Avatar sidecar, and a value
+hand-written into a Local sidecar is admitted (an invalid one makes the Avatar
+invalid with `avatar_setting_invalid`) but never applied. A package is the one
+document that carries them: export writes the exporter's stored non-Automatic
+values into the Avatar's portable sidecar, replacing any document value, and
+they are part of the export review digest. Import writes them into the
+importer's table in the same transaction as the new Local Avatar, whose
+sidecar omits them. A composition built without the settings store exports
+none; on import its review marks the Avatar with the notice
+`avatar_setting_not_stored` before the user confirms, and the copy uses
+Automatic. The completed import receipt is the same either way.
+
 ## Local creation boundary
 
 Create Anima creates a private live companion with editable dependencies.

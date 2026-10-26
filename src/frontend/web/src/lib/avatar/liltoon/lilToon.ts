@@ -1,5 +1,10 @@
 import type { VRMLoaderPlugin } from "@pixiv/three-vrm";
 import type * as THREE from "three";
+import type {
+  GLTF,
+  GLTFLoaderPlugin,
+  GLTFParser,
+} from "three/examples/jsm/loaders/GLTFLoader.js";
 
 import { createLogger } from "@/lib/logger";
 
@@ -44,6 +49,59 @@ export type LilToonRuntime = {
 export function usesLilToonMaterials(json: unknown): boolean {
   const used = (json as { extensionsUsed?: unknown } | null)?.extensionsUsed;
   return Array.isArray(used) && used.includes(LILTOON_MATERIALS_EXTENSION);
+}
+
+/**
+ * How a loaded file's authored lilToon materials render: `none` when it has
+ * none; `fallback` when its glTF fallback materials loaded instead (the Simple
+ * material setting, or three-liltoon failed to load).
+ */
+export type LilToonMaterialState = "none" | "rendered" | "fallback";
+
+export function lilToonMaterialStateOf(gltf: GLTF): LilToonMaterialState {
+  if (!usesLilToonMaterials(gltf.parser.json)) return "none";
+  let rendered = false;
+  gltf.scene.traverse((object) => {
+    const material = (object as THREE.Mesh).material;
+    if (!material) return;
+    for (const entry of Array.isArray(material) ? material : [material]) {
+      // Set by three-liltoon's `LilToonMaterial`.
+      if ((entry as { isLilToonMaterial?: boolean }).isLilToonMaterial)
+        rendered = true;
+    }
+  });
+  return rendered ? "rendered" : "fallback";
+}
+
+/**
+ * Keep the glTF fallback of an authored lilToon material unmetallic. Mochiya
+ * writes `metallicFactor` 1, which renders a lit fallback almost black without
+ * an environment map; lilToon's own reflection is a toon highlight, not metal.
+ * GLTFLoader extends only the materials it builds itself, so this never
+ * touches a material three-liltoon built.
+ */
+export class LilToonFallbackMaterialsPlugin implements GLTFLoaderPlugin {
+  readonly name = "ANIMAMA_liltoon_fallback_materials";
+  private readonly parser: GLTFParser;
+
+  constructor(parser: GLTFParser) {
+    this.parser = parser;
+  }
+
+  extendMaterialParams(
+    materialIndex: number,
+    materialParams: { metalness?: number },
+  ): Promise<void> {
+    const material = (
+      this.parser.json as {
+        materials?: { extensions?: Record<string, unknown> }[];
+      }
+    ).materials?.[materialIndex];
+    if (material?.extensions?.[LILTOON_MATERIALS_EXTENSION]) {
+      materialParams.metalness = 0;
+    }
+    return Promise.resolve();
+  }
 }
 
 async function importLilToonRuntime(): Promise<LilToonRuntime> {

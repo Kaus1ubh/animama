@@ -26,6 +26,7 @@ import {
   avatarDiagnosticsJson,
   avatarDiagnosticsText,
   type AvatarDiagnosticsReport,
+  type AvatarSettingSource,
 } from "@/lib/avatar/diagnostics/avatarDiagnosticsReport";
 import type { AvatarMaterialKind } from "@/lib/avatar/diagnostics/avatarFileFacts";
 import type { AvatarIssue } from "@/lib/avatar/diagnostics/issues";
@@ -38,6 +39,7 @@ import {
   type SectionIcon,
 } from "@/ui/components/sectioned-modal-frame";
 import { avatarIssueText } from "./avatarIssueText";
+import { materialModeLabel, springModeLabel } from "./avatarSettingLabels";
 import { JsonTree } from "./JsonTree";
 import { useAvatarDiagnostics } from "./useAvatarDiagnostics";
 
@@ -117,6 +119,45 @@ function partSourceLabel(
     case "missing":
       return t("avatarDiagnostics.face.sources.missing");
   }
+}
+
+/** Where a stored setting comes from, under its effect; nothing when none is kept. */
+function SettingSource({ source }: { source: AvatarSettingSource | null }) {
+  const { t } = useTranslation("animas");
+  if (!source) return null;
+  return (
+    <span className="text-muted-foreground block text-xs">
+      {source === "stored"
+        ? t("avatarDiagnostics.settingSource.stored")
+        : t("avatarDiagnostics.settingSource.default")}
+    </span>
+  );
+}
+
+/** The file's lilToon materials: how they render and why. */
+function LilToonMaterialsFact({ report }: { report: AvatarDiagnosticsReport }) {
+  const { t } = useTranslation("animas");
+  const { t: tSettings } = useTranslation("settings");
+  const materials = report.live?.materials;
+  if (!materials) return null;
+  const state =
+    materials.lilToon === "rendered"
+      ? t("avatarDiagnostics.materials.rendered")
+      : t("avatarDiagnostics.materials.simple");
+  const why =
+    materials.lilToon === "fallback" && materials.mode !== "simple"
+      ? t("avatarDiagnostics.materials.why.failed")
+      : materials.mode === "automatic"
+        ? t("avatarDiagnostics.materials.why.automatic")
+        : t("avatarDiagnostics.materials.why.chosen", {
+            mode: materialModeLabel(tSettings, materials.mode),
+          });
+  return (
+    <Fact label={t("avatarDiagnostics.materials.label")}>
+      {t("avatarDiagnostics.materials.value", { state, why })}
+      <SettingSource source={report.settings?.materialModeSource ?? null} />
+    </Fact>
+  );
 }
 
 function readyLabel(
@@ -254,6 +295,7 @@ function FileSection({ report }: { report: AvatarDiagnosticsReport }) {
         <Fact label={t("avatarDiagnostics.file.materials")}>
           {kinds.length > 0 ? format.list(kinds) : t("avatarDiagnostics.none")}
         </Fact>
+        <LilToonMaterialsFact report={report} />
         <Fact label={t("avatarDiagnostics.file.textures")}>
           {t("avatarDiagnostics.file.texturesValue", {
             count: file.textures.length,
@@ -437,9 +479,18 @@ function ExpressionsSection({ report }: { report: AvatarDiagnosticsReport }) {
 
 function MotionSection({ report }: { report: AvatarDiagnosticsReport }) {
   const { t } = useTranslation("animas");
+  const { t: tSettings } = useTranslation("settings");
   const format = useFormatters();
   const motion = report.live?.motion;
   if (!motion) return <NotLoaded />;
+  const windEffect =
+    motion.wind.mode === "springs_off"
+      ? t("avatarDiagnostics.motion.windEffect.held")
+      : motion.wind.ambientForces
+        ? t("avatarDiagnostics.motion.windEffect.on")
+        : motion.wind.mode === "automatic"
+          ? t("avatarDiagnostics.motion.windEffect.tunedWithout")
+          : t("avatarDiagnostics.motion.windEffect.off");
   return (
     <FactList>
       <Fact label={t("avatarDiagnostics.motion.humanoidBones")}>
@@ -458,7 +509,11 @@ function MotionSection({ report }: { report: AvatarDiagnosticsReport }) {
         })}
       </Fact>
       <Fact label={t("avatarDiagnostics.motion.wind")}>
-        {t("avatarDiagnostics.motion.windAutomatic")}
+        {t("avatarDiagnostics.motion.windValue", {
+          mode: springModeLabel(tSettings, motion.wind.mode),
+          effect: windEffect,
+        })}
+        <SettingSource source={report.settings?.springModeSource ?? null} />
       </Fact>
       <Fact label={t("avatarDiagnostics.motion.restPose")}>
         <span className="text-muted-foreground">

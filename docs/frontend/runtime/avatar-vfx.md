@@ -740,6 +740,10 @@ and sounds on Included Gestures and Reactions, use `pnpm -s content:tune`
 - `--avatar-file <a.vrm>` renders on that VRM instead of the Included
   Avatars, for example a converted Avatar kept outside the repository; keep its
   sheets outside the repository too.
+- `--materials simple` loads the Avatar with the Simple material setting (a
+  lilToon Avatar's glTF fallback materials); `liltoon` and the default
+  `automatic` draw lilToon. Avatars without lilToon materials look the same
+  under every value.
 - `--rendering classic` renders the classic Avatar look instead of the app's
   default enhanced rendering (the chat canvas's CSS filter is not part of the
   rendered pixels). `CHROMIUM_PATH` points Playwright at a preinstalled

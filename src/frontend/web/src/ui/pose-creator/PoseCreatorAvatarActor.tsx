@@ -14,7 +14,11 @@ import {
   runtimeContentDownloadUrl,
   type RuntimeContentUrlLease,
 } from "@/lib/runtime-content/runtimeContentDelivery";
-import { resolveRuntimeAvatarFaceParts } from "@/lib/runtime-content/runtimeAvatarFaceParts";
+import {
+  resolveRuntimeAvatarFaceParts,
+  runtimeAvatarItemId,
+} from "@/lib/runtime-content/runtimeAvatarFaceParts";
+import { useAvatarLoadSettings } from "@/query/hooks/useAvatarSettings";
 import type { RuntimeCatalogEntry } from "@/lib/runtime-content/types";
 import {
   apiErrorLine,
@@ -78,11 +82,21 @@ export function PoseCreatorAvatarActor({
   const setLoadStatus = usePoseCreatorStore((state) => state.setLoadStatus);
   const setLoadProgress = usePoseCreatorStore((state) => state.setLoadProgress);
 
+  const { springMode, springModeRef, materialMode } = useAvatarLoadSettings(
+    runtimeAvatarItemId(entry),
+  );
+
   useEffect(() => {
     basePoseRef.current = basePose;
   }, [basePose]);
 
   useEffect(() => {
+    avatarRef.current?.setSpringMode(springMode);
+  }, [sceneObject, springMode]);
+
+  useEffect(() => {
+    // Materials are built at load; wait for the Avatar's setting.
+    if (!materialMode) return;
     let isCancelled = false;
     const controller = new AbortController();
     const avatar = new Avatar(camera, viewportElement, {
@@ -118,6 +132,8 @@ export function PoseCreatorAvatarActor({
             sourceKey: entry.content_revision,
             // The saved face part correction, so parts match the chat's.
             ...resolveRuntimeAvatarFaceParts(entry),
+            springMode: springModeRef.current,
+            materialMode,
           },
           (progress) => {
             if (!isCancelled) {
@@ -177,9 +193,11 @@ export function PoseCreatorAvatarActor({
     catalog,
     entry,
     logger,
+    materialMode,
     onAvatarInstanceChange,
     setLoadProgress,
     setLoadStatus,
+    springModeRef,
     viewportElement,
   ]);
 
