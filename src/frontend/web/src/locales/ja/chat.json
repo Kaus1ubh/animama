@@ -29,6 +29,7 @@
       "orbitTarget": "オービットの中心",
       "orbitTargetYSource": "オービット中心の Y 基準",
       "orbitTargetYSourceLabel": "オービット中心の Y 基準",
+      "pipTitle": "PiP のカメラ",
       "position": "カメラの位置",
       "positionYSource": "カメラの Y 基準",
       "positionYSourceLabel": "カメラの Y 基準",
@@ -245,9 +246,7 @@
     }
   },
   "speech": {
-    "install": "音声入力と音声モードを使うには、オフライン音声認識をインストールしてください",
-    "installFromMainWindow": "メインの Animama ウィンドウで「アプリ設定 → 音声」を開いてダウンロードしてください。",
-    "unavailableHere": "ここでは音声入力と音声モード用のオフライン音声認識を利用できません"
+    "skip": "読み上げをスキップ"
   },
   "suggestions": {
     "rockPaperScissors": "じゃんけんしよう",

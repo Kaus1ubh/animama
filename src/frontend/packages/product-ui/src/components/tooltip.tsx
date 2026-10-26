@@ -57,6 +57,28 @@ function TooltipContent({
 }
 
 /**
+ * A tooltip label followed by its keyboard shortcut in a keycap, for example
+ * "Dictate ⌃⌥D". Without a shortcut it renders the label alone.
+ */
+function TooltipLabel({
+  label,
+  shortcut,
+}: {
+  label: React.ReactNode;
+  shortcut?: string | null;
+}) {
+  if (!shortcut) return <>{label}</>;
+  return (
+    <span className="inline-flex items-center gap-2">
+      <span>{label}</span>
+      <kbd className="bg-background/20 text-background inline-flex h-5 items-center rounded-sm px-1.5 font-sans text-[0.6875rem] font-medium tracking-wider">
+        {shortcut}
+      </kbd>
+    </span>
+  );
+}
+
+/**
  * Tooltip text with secondary lines under it in smaller type, e.g. the speech
  * engines a voice control uses. Without lines it renders the title alone.
  */
@@ -85,5 +107,6 @@ export {
   TooltipTrigger,
   TooltipContent,
   TooltipDetails,
+  TooltipLabel,
   TooltipProvider,
 };

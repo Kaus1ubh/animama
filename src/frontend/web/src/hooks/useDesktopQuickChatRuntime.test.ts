@@ -71,3 +71,10 @@ describe("Quick Chat memory cue mirror", () => {
     expect(isQuickChatSnapshot({ ...snapshot, animaName: 7 })).toBe(false);
   });
 });
+
+describe("Quick Chat speech playback", () => {
+  it("accepts the skip-tts command from the Quick Chat window", () => {
+    expect(isQuickChatCommand({ type: "skip-tts" })).toBe(true);
+    expect(isQuickChatCommand({ type: "skip_tts" })).toBe(false);
+  });
+});

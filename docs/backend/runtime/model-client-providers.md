@@ -555,7 +555,11 @@ message instead of splitting speech and display into separate durable rows.
 
 `OpenAIResponsesHTTPAgent` continues prior Responses turns from the chat row's
 `openai_previous_response_id`. If that chat-row cursor is null, direct chat
-replays local visible history instead of sending `previous_response_id`. Active
+replays local visible history instead of sending `previous_response_id`.
+Replayed history is at most the newest 200 rows after any active compaction,
+counting stored tool calls and results; a window cut by that limit starts at its
+first user message, so a tool result is never replayed without its call
+(`ChatManager.get_chat_context`). Active
 compaction summaries are part of that replayed local context. They are not
 fetched or sent as Responses `input` on cursor-backed turns because the provider
 request carries only the stable instructions, the turn context and user input

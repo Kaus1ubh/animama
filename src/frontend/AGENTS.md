@@ -290,8 +290,8 @@ or migration behavior.
   core; never add an unsigned-worker bypass. See the staging guide for release
   input approvals, producer commands, and the outstanding native artifact gates.
 - Platform dev builds are documented in `../../docs/frontend/desktop/platforms.md`.
-- `pnpm desktop:mac` requires a complete fresh stage and audit, explicitly skips
-  ad-hoc signing, and rechecks the packaged inventory. Unlicensed decorative SFX
+- `pnpm desktop:mac` requires a complete fresh stage and audit, explicitly
+  disables signing (`identity: null`), and rechecks the packaged inventory. Unlicensed decorative SFX
   are excluded from tracked runtime definitions; never restore their ignored
   bytes or metadata as build inputs. Component tests are not substitutes for
   packaged acceptance. Windows has an unsigned development package and

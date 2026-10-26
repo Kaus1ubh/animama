@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { TooltipDetails } from "@/ui/components/tooltip";
+import { TooltipDetails, TooltipLabel } from "@/ui/components/tooltip";
 
 describe("tooltip details", () => {
   it("puts each detail on its own smaller line under the title", () => {
@@ -22,5 +22,20 @@ describe("tooltip details", () => {
     expect(renderToStaticMarkup(<TooltipDetails title="Dictate" />)).toBe(
       "Dictate",
     );
+  });
+});
+
+describe("tooltip label", () => {
+  it("puts the shortcut in a keycap after the label", () => {
+    const html = renderToStaticMarkup(
+      <TooltipLabel label="Dictate" shortcut="⌃⌥D" />,
+    );
+    expect(html).toMatch(/<span>Dictate<\/span><kbd [^>]*>⌃⌥D<\/kbd>/u);
+  });
+
+  it("renders the label alone without a shortcut", () => {
+    expect(
+      renderToStaticMarkup(<TooltipLabel label="Dictate" shortcut={null} />),
+    ).toBe("Dictate");
   });
 });

@@ -221,6 +221,22 @@ DMG/update ZIP, notarizes both, signs/staples the DMG, and verifies Gatekeeper.
 Updating runtime hashes after the outer signature would invalidate the seal.
 The helper and core must use the same pinned Apple Team ID.
 
+To exercise signing without a review receipt or Apple submission, for example
+after an Electron or electron-builder upgrade:
+
+```sh
+pnpm desktop:dist:mac -- --signing-rehearsal
+```
+
+A rehearsal signs the same nested code and seals the app with the release
+identity and entitlements, verifies every native leaf and the seal with
+`codesign --strict`, and signs the DMG. It needs no notarization profile,
+embeds no review receipt, submits nothing to Apple and writes no publish
+folder. Its `release/signing-report.json` says `release_ready: false`, so no
+publisher accepts it, and Gatekeeper rejects its unnotarized app. Like a
+candidate build, it replaces the derived files in `desktop/release/`, including
+an earlier candidate's signed app and publish folder; preserve those first.
+
 If `notarytool submit --wait` times out, preserve its submission ID and the
 already signed app. Query or wait on that exact ID before rebuilding or
 submitting another copy. A timeout, `In Progress` response, or missing stapler
@@ -273,16 +289,20 @@ pnpm desktop:dist:windows
 ```
 
 This verifies the audit and receipt, refuses active feature packs (Windows
-packs are not built yet), and builds the per-user installer without
-electron-builder's own Windows signing. Every PE file lacking a valid embedded
+packs are not built yet), and builds the per-user installer. electron-builder
+signs only through the repository's hook and pinned tools, never its Azure
+module. Every PE file lacking a valid embedded
 signature is signed with SHA-256 file and timestamp digests, timestamped by
 `http://timestamp.acs.microsoft.com`; valid embedded vendor signatures, such as
 Microsoft's, are kept after `signtool verify /pa` confirms them. A file signed
 only through a system catalog is signed, since a catalog verifies only on a
 machine holding it. Nested code under `resources` is signed
 first, deepest first. The review receipt is then added and the runtime manifest
-recomputed, since signing changes file hashes, before the outer app
-(`Animama.exe` last), the uninstaller and the installer are signed. A transient
+recomputed, since signing changes file hashes, before the outer DLLs are
+signed. electron-builder then writes `Animama.exe`'s icon and version
+resources, and the hook signs it, the uninstaller and the installer. Runtime
+files electron-builder offers to the hook while copying them are left to the
+nested step. A transient
 timestamp or network failure is retried only for the files not yet signed and
 timestamped.
 

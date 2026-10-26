@@ -4,6 +4,7 @@ import { createFullscreenBridge } from "./main-process/fullscreen/fullscreen-pre
 import { createPipBridge } from "./main-process/pip/pip-preload.cjs";
 import { createQuickChatBridge } from "./main-process/quick-chat/quick-chat-preload.cjs";
 import { createShortcutsBridge } from "./main-process/shortcuts/shortcuts-preload.cjs";
+import { createTitleBarBridge } from "./main-process/window/title-bar-preload.cjs";
 import {
   createCredentialsBridge,
   createFeaturePacksBridge,
@@ -29,6 +30,7 @@ contextBridge.exposeInMainWorld("animamaDesktop", {
   pip: createPipBridge(),
   quickChat: createQuickChatBridge(),
   shortcuts: createShortcutsBridge(),
+  titleBar: createTitleBarBridge(),
   runtime: createRuntimeBridge(),
   credentials: createCredentialsBridge(),
   featurePacks: createFeaturePacksBridge(),
