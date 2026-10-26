@@ -270,7 +270,14 @@ Private bytes, runtime snapshots, jobs, creator/import stages, exports and event
 cursors resolve the current server owner on every read/mutation. Cross-owner
 references fail closed. Runtime revisions retain lease/integrity checks and
 same-origin range semantics; private data is `Cache-Control: no-store` and never
-enters a shared CDN/service-worker cache. Content-only package import/export,
+enters a shared CDN/service-worker cache. The only exceptions a hosted server may send
+are `private` policies for Included runtime revision members and complete bundles of
+them (ADR 0028), Included content files, and the owner's content catalog revalidated
+by ETag. The hosted transport keeps each request's own cache mode, so the browser keeps
+only such replies (and only for requests that allow it); its own session and admission
+reads always use `no-store`. A kept reply outlives the session in the browser's HTTP
+cache, so a server that lets owner data be kept clears that cache when the owner signs
+out (for example with `Clear-Site-Data: "cache"` on the sign-out reply). Content-only package import/export,
 Anima export, stale revisions, drafts and ambiguous-commit recovery retain their
 existing receipts and error semantics. Anima import is denied regardless of UI.
 
