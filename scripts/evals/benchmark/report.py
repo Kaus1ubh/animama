@@ -401,10 +401,13 @@ def _memory_pairs(
     """Each Japanese memory chat against its English original, per arm: entries kept and recall matched."""
 
     pairs: dict[str, Any] = {}
+    ran = {(turn.get("unit_id"), turn.get("arm")) for turn in turns if turn.get("configuration") == label}
     for chat in prompt_set.memory_chats:
         if not chat.pair_id:
             continue
         for arm, kept in kept_by_arm.items():
+            if (chat.id, arm) not in ran or (chat.pair_id, arm) not in ran:
+                continue  # The tier ran only one of the pair.
             row = {}
             for language, chat_id in (("english", chat.pair_id), ("japanese", chat.id)):
                 entries = [value for (unit, _entry), value in kept.items() if unit == chat_id]

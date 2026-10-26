@@ -330,6 +330,9 @@ class ClaudeCli:
         return stdout.decode("utf-8", "replace").strip()
 
     async def _start(self, *argv: str, cwd: str | None) -> asyncio.subprocess.Process:
+        if os.sep in argv[0]:
+            # A path to the CLI (or a stand-in) is resolved now: calls run from an empty directory.
+            argv = (str(Path(argv[0]).resolve()), *argv[1:])
         try:
             # Its own process group, so a timeout or an interruption stops anything the CLI started too.
             return await asyncio.create_subprocess_exec(

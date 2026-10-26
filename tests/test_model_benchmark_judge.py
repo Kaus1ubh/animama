@@ -633,3 +633,16 @@ def test_the_plan_estimates_judging(tracked: prompt_set.PromptSet) -> None:
     assert seconds == sum(batches[rubric] * per_batch[rubric] for rubric in batches) / 2
     assert lines[0].startswith(f"Judging: {sum(counts.values())} items in {sum(batches.values())} batches")
     assert any("9,200 input tokens (measured)" in line for line in lines)
+
+
+def test_the_tracked_stub_cli_judges_a_whole_run_for_rehearsals(
+    run_dir: Path, tracked: prompt_set.PromptSet, rubric_set: rubrics.RubricSet, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    plan = _plan(run_dir, tracked, rubric_set)
+    # A relative path works too: it is resolved before calls start in their empty directories.
+    monkeypatch.chdir(ROOT)
+    stub_cli = judge.ClaudeCli(binary=os.path.join("scripts", "evals", "benchmark", "stub_claude.py"), timeout=60)
+
+    outcome = judge.run_judging(plan, tracked, rubric_set, effort="medium", cli=stub_cli)
+
+    assert (outcome.completed, outcome.missing, outcome.stopped) == (len(plan.batches), 0, None)

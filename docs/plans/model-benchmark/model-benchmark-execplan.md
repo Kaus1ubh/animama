@@ -119,7 +119,8 @@ Ownership and boundaries:
       2026-10-26, with both repair rounds used.
 - [x] Phase 7: Scores, statistics and report. Passed review #2 on
       2026-10-26, with one repair round used.
-- [ ] Phase 8: Skill, documentation and glossary.
+- [x] Phase 8: Skill, documentation and glossary. Rehearsed on a mock
+      stack on 2026-10-26; covered by the final integration review.
 - [ ] Phase 9: First decision run and calibration (gates G3, G4).
 - [ ] Final integration review.
 
@@ -2749,9 +2750,70 @@ Checks:
 Completion: the rehearsal is recorded. Commit
 `feat(evals)[p8]: add the model benchmark skill and docs`.
 
-Check record: none yet.
+Starting source: `33027554` (Phase 7's commit).
 
-Commits: none yet.
+**Delivered:**
+- `.agents/skills/animama-model-benchmark/`: `SKILL.md` (rules, including
+  no paid call without approved caps, the subscription-only judge and raw
+  results in drafts; the eight-step flow above), `agents/openai.yaml`, and
+  `references/` for commands (stack, plan, run, cleanup, judging, reports,
+  rehearsal), inputs and memory arms, the judge (running, stops, exit codes,
+  calibration) and reports (options, the safety check, reading).
+  `.claude/skills` is a tracked link to `.agents/skills`, so Claude Code sees
+  it too.
+- `docs/benchmarks/README.md`: the commands, inputs and held-out rule, memory
+  arms and the benchmark database (with `cleanup` between runs), the judge's
+  sign-in, isolation and calibration, conditions and the time bound, reading
+  a report, and limitations.
+- `docs/backend/features/memory-manager-and-episodic-memory.md`: a "Benchmark
+  memory arms" section saying the arms exist for benchmarking only;
+  `docs/backend/README.md` points to the benchmark README.
+- `GLOSSARY.md`: Benchmark run and Benchmark area.
+- `scripts/evals/benchmark/stub_claude.py`: an executable stand-in for the
+  Claude CLI (every criterion 3, every capture entry not saved) for free
+  rehearsals, with a test that it judges a whole run.
+
+**Deviations:**
+- The stand-in CLI is new: the rehearsal needs a judge that costs nothing,
+  and the test stub's failure modes do not belong in an owner-facing tool.
+
+**Rehearsal (2026-10-26)**, following the skill on a mock task stack
+(`ANIMAMA_LLM_SKIP=1 ./reset.sh --name bench --base-port 8900`, Compose
+project `animama-bench`, `http://animama-bench.localhost:8900`):
+- `models` listed the three built-in rows (Luna on Chat Completions hidden).
+- `plan --tier smoke --standard`: 576 calls, about $0.62, 55 judge batches,
+  0.58 h.
+- `run` with `-e ANIMAMA_LLM_SKIP=1` on the smoke tier, into
+  `.animama-drafts/model-benchmark/p8-rehearsal`: exit 0 in 22 s; 348 calls
+  and 366 records (single 128, chat 24, memory 144, recall 48, capture 12,
+  Memory Manager 6, warm-up 4) with no errors. Its database was dropped;
+  application counts stayed `5|0|0|0|2|0` before and after.
+- `judge --effort medium --claude scripts/evals/benchmark/stub_claude.py`:
+  49 batches, none missing.
+- `report`, then `report --rerender`: 223 lines, identical. The memory-only
+  smoke chat and the full-tier Japanese memory chat are absent from the smoke
+  tier, so their pair row is left out.
+- `cleanup`: nothing to drop. The stack was taken down afterwards.
+
+The rehearsal found three faults, fixed in this phase with tests where they
+apply: a relative `--claude` path failed because calls run from an empty
+directory (now resolved first); the Japanese memory-pair row appeared for a
+chat the tier did not run; and a judge plan with no results gave a confusing
+"no effort" message.
+
+Check record (2026-10-26):
+- The full pre-push suite (`python3 scripts/heavy-slot.py -- make
+  check-test`) on code subtrees `scripts` `d8e5dec9`, `src` `1acfeab1` and
+  `tests` `524ad0b0`: the typed-content audit, ruff format and check, and
+  mypy passed; pytest 5021 passed, 29 skipped.
+- After it, one test was added
+  (`test_a_japanese_memory_pair_shows_only_when_both_chats_ran`); on `tests`
+  `69d4483b` (scripts unchanged) the eight benchmark test files passed
+  (178), and `ruff check`, `make format-check` and `make mypy` passed.
+- Every link in the new and changed docs and skill files resolves, anchors
+  included.
+
+Commits: `feat(evals)[p8]: add the model benchmark skill and docs`.
 
 #### Code Review #1 Findings
 

@@ -389,3 +389,17 @@ def test_a_stopped_pilot_resumes_where_it_left_off(
     batches = len(json.loads((folder / "judge" / "plan.json").read_text(encoding="utf-8"))["batches"])
     assert len(stub.calls()) - calls == 2 * batches - 1  # The batch judged before the stop is not judged again.
     assert json.loads((folder / "result.json").read_text(encoding="utf-8"))["prompt_set_version"]
+
+
+def test_a_japanese_memory_pair_shows_only_when_both_chats_ran(tracked: prompt_set.PromptSet) -> None:
+    japanese = next(chat for chat in tracked.memory_chats if chat.pair_id)
+    original = str(japanese.pair_id)
+    english: list[dict[str, Any]] = [
+        {"configuration": "c", "kind": "recall", "unit_id": original, "arm": ARM_BOTH, "expect": []}
+    ]
+    both = [*english, {**english[0], "unit_id": japanese.id}]
+    kept = {ARM_BOTH: {(original, "entry"): 1, (japanese.id, "entry"): 0}}
+
+    assert report._memory_pairs(english, "c", tracked, kept) == {}
+    [row] = report._memory_pairs(both, "c", tracked, kept).values()
+    assert (row["english"]["kept"], row["japanese"]["kept"], row["japanese"]["keep"]) == (1, 0, 1)

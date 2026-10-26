@@ -613,9 +613,8 @@ def _report(args: argparse.Namespace) -> int:
     if effort is None and judged:
         efforts = [effort for effort in EFFORTS if (args.run_dir / JUDGE_DIR / effort).is_dir()]
         if len(efforts) != 1:
-            raise EvalInputError(
-                f"{args.run_dir} has judge results at {', '.join(efforts) or 'no effort'}; pass --effort"
-            )
+            found = f"judge results at {', '.join(efforts)}" if efforts else "a judge plan but no judge results yet"
+            raise EvalInputError(f"{args.run_dir} has {found}; pass --effort")
         effort = efforts[0]
     judge = load_judge_results(args.run_dir, effort)
     data = build_report(run.manifest, run.turns, run.prompt_set, criteria_keys(run.rubrics), judge, calibration)
