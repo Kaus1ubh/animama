@@ -101,9 +101,15 @@ function DesktopQuickChatRoute() {
       event.preventDefault();
       close();
     };
+    // A click outside Quick Chat passes through to the window below, which
+    // takes focus, so the page losing focus cancels Quick Chat. Only a page
+    // that had focus loses it: an open that macOS never focused stays open.
+    const handleBlur = () => close();
     window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("blur", handleBlur);
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("blur", handleBlur);
     };
   }, [close]);
 

@@ -57,7 +57,9 @@ can complete before the first show. The hidden page therefore still reports
 itself visible and runs `requestAnimationFrame` at display rate, so the route
 marks the closed window with `data-animama-quick-chat-closed` and global CSS
 pauses its animations; an infinite animation there, such as the composer's
-shine border, would otherwise repaint the hidden window every frame.
+shine border, would otherwise repaint the hidden window every frame. The main
+window likewise pauses its shine border while it is unfocused or PiP is open
+(`usePauseShineWhileInactive`).
 
 The default bounds are centered on the owner window's display work area. The
 manager recenters the existing hidden window before each visible show to avoid
@@ -100,8 +102,11 @@ Chat textarea receives focus.
 
 If the Quick Chat shortcut is pressed while Quick Chat is already visible for the same
 anima/chat, the window hides but the BrowserWindow and renderer stay alive for
-the next open. `Esc` and the window's `blur` hide it the same way; a click on a
-transparent region passes through to the window below, which takes focus.
+the next open. `Esc` and the page's `blur` hide it the same way; a click on a
+transparent region passes through to the window below, which takes focus. The
+page, not the native window, decides: when Quick Chat opens while another app
+is frontmost, macOS may never give it focus, and the native window can still
+report a blur, which would close it as it opened.
 The window is destroyed when the owner main renderer is destroyed.
 If the main renderer has moved to another anima, the existing hidden Quick
 Chat window reloads for the new anima. Chat-id changes update state without
@@ -221,8 +226,10 @@ Transparent document styling is activated with:
 data-animama-quick-chat="true"
 ```
 
-The Quick Chat route periodically reports interactive rectangles to the main
-process through `setInteractiveRegions`. Interactive regions include:
+While Quick Chat is open, its route reports interactive rectangles to the main
+process every 100 ms and on resize or scroll through `setInteractiveRegions`.
+It stops while the window is closed and measures again as soon as it opens.
+Interactive regions include:
 
 - the chat scroll column
 - the chat input area

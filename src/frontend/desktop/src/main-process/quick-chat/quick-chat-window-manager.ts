@@ -523,13 +523,6 @@ export class QuickChatWindowManager {
     quickChatWindow.on("hide", () => {
       this.setMouseEventsIgnored(quickChatWindow, false);
     });
-    // A click outside Quick Chat's own controls passes through to whatever is
-    // below and takes focus there, so losing focus cancels Quick Chat.
-    quickChatWindow.on("blur", () => {
-      if (this.quickChatWindow !== quickChatWindow) return;
-      if (!this.state.isOpen || !quickChatWindow.isVisible()) return;
-      this.close();
-    });
     this.bindOwnerDestroyed(ownerContents, quickChatWindow);
 
     await this.loadQuickChatRoute(
