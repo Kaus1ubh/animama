@@ -72,7 +72,7 @@ synchronous `safeStorage`, which Electron 45 deprecates (a reason to stay on 44)
       round 1 and its recheck passed; native macOS evidence recorded.
 - [x] Phase 2: macOS signing rehearsal mode, native stage, package, supervised
       launch and rehearsal. Review round 1 and its recheck passed.
-- [ ] Final integration review, full pre-push suite and PR.
+- [x] Final integration review, full pre-push suite and PR.
 - [ ] Owner gates (see [Validation and acceptance](#validation-and-acceptance)).
 
 ## Surprises & Discoveries
@@ -199,7 +199,7 @@ full pre-push suite.
 | `pnpm desktop:test:native-input` | 1046 assertions pass |
 | `pnpm desktop:build` | pass |
 | `pnpm prettier:check` | pass |
-| `pnpm audit` | no `electron`, `extract-zip`, `app-builder-lib` or `builder-util-runtime` advisory (recorded at the final tree) |
+| `pnpm audit` (2026-10-26, at `9b141a70`; lockfile unchanged since `1eee19a3`) | no `electron`, `extract-zip`, `app-builder-lib`, `builder-util-runtime` or `electron-builder` advisory; 8 remain in web and tooling packages (`sharp`, `zod`, `happy-dom`, `esbuild`, `@hey-api/openapi-ts`, `postcss-selector-parser`), outside this scope |
 
 Electron 44.9.3 reports Node 24.22.0, Chromium 152.0.7977.167, N-API 10 and a
 zstd API. Mutation check: with `signAndEditExecutable: false` restored, the new
@@ -335,11 +335,47 @@ Repair rounds used: one of two for each phase.
 
 ## Final integration review
 
-Pending.
+Reviewed `9b141a70` against `1dba3985`, high-risk tier, combined acceptance and
+cross-phase consistency, reusing the phase evidence (no checks of its own).
+
+- F-01, blocking (plan text): the Windows release-scan gate named a rehearsal,
+  which writes no publish folder for the scan to read, and only the macOS
+  receipt was called stale. Fixed: the gates now put the scan on the first signed
+  Windows candidate, keep a manual 7-Zip expansion as an interim check, and mark
+  both receipts stale.
+- F-02: the audit row lacked its final citation, and this section and the
+  outcomes were pending. Fixed: audit rerun at `9b141a70`; both sections filled.
+- F-03: `src/frontend/AGENTS.md` said `desktop:mac` "skips ad-hoc signing";
+  electron-builder 26.18 has no ad-hoc fallback, and the real risk is a
+  discovered identity. Fixed to "disables signing (`identity: null`)". The
+  README and staging guide state the outcome correctly and were left alone.
+- F-04, not changed: `ELECTRON_BUILDER_7ZIP_PATH` overrides the pinned 7-Zip for
+  the scanner and the NSIS build, as `USE_SYSTEM_7ZA` did for `7zip-bin`; it is
+  an operator's explicit choice, unlike the Electron override, which also
+  disabled the checksum check of a shipped binary.
+- F-05: a notarization resume over a rehearsal app fails closed (no ticket,
+  Gatekeeper rejects); no change.
+
+The fixes are documentation only and need no recheck; repair rounds used: one of
+two.
 
 ## Validation and acceptance
 
 Agent evidence (macOS arm64): recorded per phase.
+
+Full pre-push suite on the final code candidate `9b141a70` (tree `ca44f79d`,
+clean), through `scripts/heavy-slot.py`, 2026-10-26:
+
+| Command | Result |
+| --- | --- |
+| `make check-test` (repo root) | exit 0: ruff format and check, mypy, pytest 4873 passed, 29 skipped |
+| `pnpm verify` (`src/frontend`) | exit 0: web tests 5671 passed, 1 skipped (582 files) |
+| `pnpm web:test:browser` | exit 0: 131 passed |
+| `pnpm prettier:check` | exit 0 |
+| `pnpm desktop:test` | exit 0: 541 passed, 14 skipped |
+
+The commit after it changes only this plan and one line of
+`src/frontend/AGENTS.md`; no check covers either.
 
 Owner gates, outstanding until performed:
 
@@ -347,12 +383,19 @@ Owner gates, outstanding until performed:
   `pnpm desktop:test:vault`, `pnpm desktop:test:native-input`,
   `pnpm desktop:test:termination`, `pnpm desktop:win:installer`, then
   `pnpm desktop:dist:windows -- --signing-rehearsal`; check `Animama.exe`'s icon
-  and version details and the signing report. Run `pnpm desktop:release:scan`
-  (or expand the installer with electron-builder's 7-Zip) to exercise the
-  scanner's new 7-Zip.
-- macOS notarized candidate: record a redistribution receipt for the new
-  inventory, then `pnpm desktop:dist:mac` with the notary profile (submits to
-  Apple).
+  and version details and the signing report. As an interim check of the
+  scanner's 7-Zip, expand the rehearsal installer with electron-builder's 7-Zip
+  and confirm `resources/app.asar` is present.
+- Both redistribution receipts are stale: the licence inventory records
+  Electron's version and Chromium notices, so the checked-in `darwin-arm64`
+  (2026-09-26) and `win32-x64` (2026-10-03) receipts cannot match Electron 44
+  stages. Review each new inventory before that target's next signed candidate.
+- First signed Windows candidate: new `win32-x64` receipt, then
+  `pnpm desktop:dist:windows`, then `ANIMAMA_GITLEAKS=<verified-gitleaks>
+  pnpm desktop:release:scan`, which exercises the scanner's 7-Zip end to end. A
+  rehearsal writes no publish folder, so the scan cannot run on one.
+- macOS notarized candidate: new `darwin-arm64` receipt, then
+  `pnpm desktop:dist:mac` with the notary profile (submits to Apple).
 - Native acceptance on both platforms with Electron 44: microphone permission
   and dictation, voice mode audio, PiP, quick chat, global Press-to-talk,
   credential vault, runtime recovery, and an update check.
@@ -365,4 +408,34 @@ signing rehearsal signs local copies only; nothing is notarized or uploaded.
 
 ## Outcomes & Retrospective
 
-Pending.
+Delivered: the desktop shell on Electron 44.9.3 (Node 24.22.0, Chromium 152)
+packaged by electron-builder 26.18.0, which clears every Electron,
+`extract-zip`, `app-builder-lib` and `builder-util-runtime` advisory.
+
+- R1 (unchanged behaviour): desktop tests, real-Keychain vault, native input
+  and a supervised launch to first-run setup pass on macOS. Live features (audio,
+  PiP, quick chat, Press-to-talk, updates) and all of Windows are owner gates.
+- R2 (Windows signing with electron-builder 26.18): met in code and in a test
+  that runs electron-builder's real Windows packaging; native signing is an
+  owner gate.
+- R3 (macOS signing rehearsal): met by the native rehearsal.
+- R4 (no install-time Electron download, no `7zip-bin`): met for staging and
+  licences; the scanner's 7-Zip runs end to end only on the first signed Windows
+  candidate.
+
+Deferred follow-ups: Electron 45 with the vault's asynchronous `safeStorage`
+migration (required before Electron 46); `electron-updater` 7; electron-builder
+26.18.1 and electron-updater 6.8.12, held back as same-day releases.
+
+Lessons:
+
+- electron-builder ≥26.15 rejects `forceCodeSigning` with executable editing
+  off, and its option-object tests could not see it; a real packaging run can.
+- electron-builder's executable cache can bypass a custom signing hook when a
+  certificate variable is set.
+- The vault harness had never run on macOS; macOS's temporary folder is under a
+  symlink the vault rejects.
+- After an Electron upgrade, development builds raise a one-time Keychain prompt
+  for "Animama Safe Storage"; signed builds match by Team ID.
+
+Repair rounds used: one of two for each phase and for the final scope.
