@@ -38,7 +38,7 @@ no redirects. R2 app downloads
 also follow no redirects. No Animama account or token
 is required for the installed application.
 
-The pinned `electron-updater` 6.8.9 adapter sets `autoDownload=false` and
+The pinned `electron-updater` 6.8.11 adapter sets `autoDownload=false` and
 `autoInstallOnAppQuit=false`, permits stable forward updates for the build's own
 platform and architecture only, and disables differential downloads and web
 installers. It checks the exact approved download's size and SHA-512 and

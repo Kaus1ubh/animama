@@ -521,5 +521,5 @@
       }
     }
   ],
-  "packaged_encoder": "animama/runtime/included_derivatives.py: Pillow 12.0.0 (libwebp 1.6.0) WebP quality 90, alpha quality 100, method 4, exact"
+  "packaged_encoder": "animama/runtime/included_derivatives.py: Pillow 12.3.0 (libwebp 1.6.0) WebP quality 90, alpha quality 100, method 4, exact"
 }
