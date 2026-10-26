@@ -220,6 +220,8 @@ export async function releaseMac(args = []) {
   for (const name of [
     "publish",
     ...(!submissionId ? ["mac", "signing-report.json"] : []),
+    "size-report.json",
+    "RELEASE-NEXT-STEPS.txt",
     `Animama-${release.version}-arm64.dmg`,
     `Animama-${release.version}-arm64.zip`,
   ])
@@ -255,7 +257,17 @@ export async function releaseMac(args = []) {
     { capture: true },
   );
   if (rehearsal) {
-    run("/usr/bin/codesign", ["--verify", "--strict", dmg], { capture: true });
+    run(
+      "/usr/bin/codesign",
+      [
+        "--verify",
+        "--strict",
+        "-R",
+        `=anchor apple generic and certificate leaf[subject.OU] = "${release.publisher.team_id}"`,
+        dmg,
+      ],
+      { capture: true },
+    );
     writeJson(
       path.join(directory, "size-report.json"),
       releaseSizes(app, directory, manifest, catalog),

@@ -233,7 +233,9 @@ identity and entitlements, verifies every native leaf and the seal with
 `codesign --strict`, and signs the DMG. It needs no notarization profile,
 embeds no review receipt, submits nothing to Apple and writes no publish
 folder. Its `release/signing-report.json` says `release_ready: false`, so no
-publisher accepts it, and Gatekeeper rejects its unnotarized app.
+publisher accepts it, and Gatekeeper rejects its unnotarized app. Like a
+candidate build, it replaces the derived files in `desktop/release/`, including
+an earlier candidate's signed app and publish folder; preserve those first.
 
 If `notarytool submit --wait` times out, preserve its submission ID and the
 already signed app. Query or wait on that exact ID before rebuilding or

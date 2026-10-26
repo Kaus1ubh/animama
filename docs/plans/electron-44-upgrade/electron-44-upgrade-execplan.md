@@ -53,6 +53,12 @@ Read from Electron's `docs/breaking-changes.md` at v45.0.0 and checked against
   `openAsHidden` removed (not used); 32-bit Windows dropped (x64 only).
 - Backported 45 changes in 44.3: workers in subframes and DevTools extension
   frames. Not used.
+- 42: `clearStorageData` drops `quotas`; `product-windows.ts` passes only
+  `storages`. 44: `select-client-certificate` also fires for `net` requests such
+  as electron-updater's; the update hosts request no client certificate.
+- The embedded Node moves from 22.22.1 to 24.22.0. Desktop already builds with
+  `@types/node` 24 and tests run on Node 24. Electron 44.9.3's Windows
+  distribution has `electron.exe` as its only top-level executable.
 
 The preloads are sandboxed and use only `contextBridge` and `ipcRenderer`; the
 permission handlers allow audio-only `media` from the app origin; the vault uses
@@ -98,7 +104,14 @@ synchronous `safeStorage`, which Electron 45 deprecates (a reason to stay on 44)
   with `private_state_path_invalid` on Electron 39 and 44 alike: `os.tmpdir()`
   is under the `/var` symlink, which the vault's no-symlink path walk rejects.
   The harness now uses the temporary folder's real path.
-- 7-Zip from electron-builder 26.18 is 24.09 (arm64); `7zip-bin` shipped 16.02.
+- electron-builder 26.18's 7-Zip is 24.09 (the full `7zz` on macOS, the
+  standalone `7za` on Windows); `7zip-bin` shipped p7zip 16.02 on macOS and
+  7-Zip 21.07 on Windows. Both Windows builds are the standalone variant that
+  finds the installer's app payload by its signature.
+- electron-builder caches the edited and signed `Animama.exe` in
+  `release/.cache` when it finds a certificate (`CSC_LINK`, `WIN_CSC_LINK` or
+  certificate options). A cache hit would skip the signing hook; the release
+  builder now clears that cache first.
 
 ## Decision Log
 
@@ -193,6 +206,49 @@ Electron 44.9.3 reports Node 24.22.0, Chromium 152.0.7977.167, N-API 10 and a
 zstd API. Mutation check: with `signAndEditExecutable: false` restored, the new
 packaging test fails.
 
+#### Code Review #1 Findings
+
+Reviewed source `1eee19a3` (baseline `1dba3985`), high-risk tier, analysis
+reviewer plus a checks agent. Checks agent tree `b4458b28` (commit `6afc322f`,
+a superset of this phase): `desktop:check`, `desktop:test` (540 passed, 14
+skipped; the real electron-builder Windows build passed), `desktop:test:vault`
+(OK), `desktop:test:native-input`, `desktop:build` and desktop `prettier:check`
+all exit 0; `pnpm audit` has no `electron`, `extract-zip`, `app-builder-lib`,
+`builder-util-runtime` or `electron-builder` advisory. Its probe outside the
+repository confirmed that `signAndEditExecutable: false` makes electron-builder
+reject the release options. No blocking findings.
+
+- P1-R1-01: electron-builder's executable cache could restore a previously
+  signed `Animama.exe` and skip the hook when a certificate variable is set. The
+  post-build guard fails safely, but only after about 140 signatures.
+- P1-R1-02: `signingOrder`'s executable branch is dead and its docstring and test
+  still describe `Animama.exe` as part of the outer set.
+- P1-R1-03: nothing exercises the new 7-Zip path end to end; add a Windows
+  release scan to the owner gates.
+- P1-R1-04: real-project packaging, staging with `electronDist()`, licences and a
+  launch remain unrun (moved to the native step).
+- P1-R1-05: the breaking-change survey omitted the Node major, `clearStorageData`
+  `quotas` and `select-client-certificate` for `net`; none affect the code.
+  `tests/test_desktop_credentials_route.py` says its header capture came from
+  Electron 39.
+- P1-R1-06: `electronDist()` ignores `ELECTRON_OVERRIDE_DIST_PATH`, which skips
+  the download and checksum check.
+
+#### Code Review #1 Revisions
+
+- P1-R1-01, fixed: `releaseWindows` removes `release/.cache` before building.
+- P1-R1-02, fixed: `signingOrder` no longer handles the executable; callers leave
+  it out, and the test filters it as `signWindowsApp` does.
+- P1-R1-03, accepted as an owner gate (Windows host only).
+- P1-R1-04, open until the native step below.
+- P1-R1-05, fixed in the survey. The headers were recaptured from Electron
+  44.9.3's main-process `fetch` (a probe mirroring `supervisor.ts`): `accept`,
+  `accept-language`, `sec-fetch-mode`, `user-agent` and the two request headers
+  match the test's `NODE_FETCH`; only its comment changes.
+- P1-R1-06, fixed: `electronDist()` refuses to run with the override set.
+
+Repairs are covered by the round-1 recheck with Phase 2's repairs.
+
 ### Phase 2: macOS signing rehearsal
 
 Review tier: high risk (release signing).
@@ -210,8 +266,37 @@ Requirement R3. `pnpm desktop:dist:mac -- --signing-rehearsal`:
 Then: fresh darwin-arm64 stage and audit, `pnpm desktop:mac` (unsigned package),
 an isolated supervised `desktop:dev` launch against the stage, and the rehearsal.
 
-Blocked 2026-10-26: the build disk had 5 GB free; staging, packaging and the
-release builder's own check need more than 8 GB.
+Blocked on disk space until the owner freed it (2026-10-26, 176 GB free); the
+native run then started.
+
+#### Code Review #1 Findings
+
+Reviewed source `6afc322f` (baseline `1eee19a3`), high-risk tier. electron-builder
+26.18 accepts a function for `mac.sign` and calls it with `(options, packager)`;
+`loadReleasePolicy({ requireReview: false })` only relaxes the receipt check.
+No blocking findings; acceptance waits for the native rehearsal.
+
+- P2-R1-01: the test's fixture receipt matched, so nothing proved a rehearsal
+  works without one; `signMacApp`'s rehearsal branches were untested.
+- P2-R1-02: the docs did not say a rehearsal replaces an earlier candidate's
+  signed app and publish folder.
+- P2-R1-03: the macOS cleanup left an older `size-report.json` and
+  `RELEASE-NEXT-STEPS.txt`.
+- P2-R1-04: the rehearsal's size report is labelled as a stapled app.
+- P2-R1-05: the DMG check had no team requirement.
+
+#### Code Review #1 Revisions
+
+- P2-R1-01, fixed: the candidate test makes the receipt stale, then checks that
+  a candidate refuses it while a rehearsal reaches the builder and calls
+  `signMacApp` in rehearsal mode. A new test runs `signMacApp` in rehearsal mode
+  with `run` mocked: only `codesign` runs, no receipt is embedded and the report
+  is `release_ready: false`.
+- P2-R1-02, fixed in `releases.md`.
+- P2-R1-03, fixed.
+- P2-R1-04, not changed: the byte counts differ only by the missing tickets, and
+  the report is never published.
+- P2-R1-05, fixed: the DMG check pins the Team ID like the leaf checks.
 
 ## Final integration review
 
@@ -227,7 +312,9 @@ Owner gates, outstanding until performed:
   `pnpm desktop:test:vault`, `pnpm desktop:test:native-input`,
   `pnpm desktop:test:termination`, `pnpm desktop:win:installer`, then
   `pnpm desktop:dist:windows -- --signing-rehearsal`; check `Animama.exe`'s icon
-  and version details and the signing report.
+  and version details and the signing report. Run `pnpm desktop:release:scan`
+  (or expand the installer with electron-builder's 7-Zip) to exercise the
+  scanner's new 7-Zip.
 - macOS notarized candidate: record a redistribution receipt for the new
   inventory, then `pnpm desktop:dist:mac` with the notary profile (submits to
   Apple).
