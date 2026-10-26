@@ -4,9 +4,9 @@ Source agreement: raymond-van/animama#691 (published 2026-10-25, Agreed after
 the owner's answers on 2026-10-25; snapshot in
 [arbitrary-vrm-support-spec.md](arbitrary-vrm-support-spec.md)). The issue is
 the spec; owner decisions are in the Decision Log.
-Authorized scope: planning only (owner, 2026-10-26: "Write it in this
-session"). Implementation of any phase waits for the owner's go-ahead on this
-plan and on the open decisions that phase depends on.
+Authorized scope: the whole plan (owner, 2026-10-26: decisions D3, D4, D5 and D7
+"use recommendations", then `/implement`), in two PRs, PR A (Phases 1 to 3)
+first. Owner gates in each phase still apply.
 Merge, release and any use of third-party Avatar data beyond local testing keep
 their separate approvals.
 
@@ -199,12 +199,12 @@ tenant-inventory row for `avatar_face_part_overrides`. So:
 - [ ] Phase 1: Diagnostics and visible failures (R7, R8). Not started.
 - [ ] Phase 2: Face parts and eye effects on shared meshes (R1, R3). Not started.
 - [ ] Phase 3: Avatar settings: wind and materials (R5, R11's Materials
-  setting). Not started; needs D3 and D7.
+  setting). Not started.
 - [ ] Phase 4: Expression content and MMD face shapes (R4, R12). Not started.
 - [ ] Phase 5: Hands (R6). Not started.
 - [ ] Phase 6: Texture layouts (R2). Not started.
 - [ ] Phase 7: Rest pose, proportions and enhanced rendering (R9, R10). Not started.
-- [ ] Phase 8: Package sharing (R13). Not started; needs D4.
+- [ ] Phase 8: Package sharing (R13). Not started.
 - [ ] Phase 9 (alongside): lilToon frame cost (R11). Not started.
 - [ ] Final integration review and full pre-push suite.
 
@@ -255,30 +255,42 @@ tenant-inventory row for `avatar_face_part_overrides`. So:
   setting (Automatic, lilToon, Simple) beside the wind setting. Automatic is
   lilToon unless the measured GPU time says the machine is too slow; it applies
   on reload; an app-wide quality setting is added only if still needed.
+- 2026-10-26, owner: D3, D4, D5 and D7 take the recommendations (see
+  Decisions). D7 changes #691 R5 and answer 1, updated the same day: Avatar
+  settings are stored per owner and Avatar item outside the file, so they apply
+  live and a moved or re-added Local file starts from Automatic. Implementation
+  authorized (`/implement`).
 - 2026-10-26, agent (planning survey, within R1's "detect the same parts on
   every surface" intent): load the saved face-part correction on the four
   saved-Avatar surfaces that skip it (Phase 2). Recorded as an agent finding
   beyond the spec's wording.
 
-## Open decisions
+## Decisions
 
-Agent proposals awaiting the owner. Phases name the decisions they need.
+All settled by the owner on 2026-10-26 (D1, D2 and D8 answered directly; D3,
+D4, D5 and D7 "use recommendations"); D6 is retired. The numbers are kept for
+traceability.
 
-- D3 Included-Avatar binding for R5. Proposed: the stored value is keyed by
+- D1 PR split: two PRs (see Purpose and context).
+- D2 and D8: no backward compatibility for older app versions or packages; no
+  package capabilities.
+
+- D3 Included-Avatar binding for R5. Decided: the stored value is keyed by
   owner and Avatar item only, not by revision or file digest, so an Avatar
   update keeps the user's choice.
-- D4 Draco (R13). Proposed: accept Draco Avatars in packages and report them
+- D4 Draco (R13). Decided: accept Draco Avatars in packages and report them
   as not loadable (`avatar_extension_unsupported`) until the decoder is served.
   three 0.182 already ships it (`examples/jsm/libs/draco/`), so the cost is
   serving its `.wasm` as a runtime asset for Vite, hosted and Electron plus its
   Apache-2.0 notice, not a new dependency. Meshopt decoding ships (its decoder
   embeds its WebAssembly, so no separate asset).
-- D5 user guide (spec acceptance "the user guide"). Proposed: describe the
+- D5 user guide (spec acceptance "the user guide"). Decided: describe the
   Diagnostics view and the wind setting in
   `docs/frontend/features/anima-management.md` and the Avatar-facing notes in
   `docs/frontend/runtime/vrchat-avatar-conversion.md`; no new guide.
 - D7 where the Avatar settings live (wind for R5 and Materials for R11; a
-  deviation from the spec's "in a Local Avatar's sidecar"). Proposed: store them
+  deviation from the spec's "in a Local Avatar's sidecar", now updated in
+  #691 R5 and answer 1). Decided: store them
   per owner and Avatar item in one table
   for Local and Included Avatars alike (not in the sidecar), read it through a
   settings query and apply it to the loaded Avatar, and keep it out of the
@@ -291,9 +303,6 @@ Agent proposals awaiting the owner. Phases name the decisions they need.
   item (fresh id) and loses its setting, where a sidecar value would travel
   with the file. The alternative that keeps the sidecar keeps decision 1 and
   accepts one remount after each Local save.
-Settled: D1, D2 and D8 (owner, 2026-10-26, see the Decision Log). D6 is retired
-(it re-asked the spec's settled R12 order). The remaining numbers are kept for
-traceability.
 
 Notice (not a decision): the spec's R12 order puts a model's standard MMD
 morphs, then ARKit mixes, before its own VRM mood presets, so a model with both
@@ -503,9 +512,7 @@ loader's material choice.
 Requirements: R5, and R11's Materials setting (its Automatic GPU check comes in
 Phase 9; until then Automatic means lilToon, today's behaviour). Depends on
 Phase 1 (Diagnostics shows the effective modes),
-D3 and D7. The steps below assume D7's proposal; if the owner keeps the
-sidecar, steps 1 and 4 move the Local value into the sidecar and accept one
-remount after a Local save.
+D3 and D7 (decided).
 
 Backend:
 

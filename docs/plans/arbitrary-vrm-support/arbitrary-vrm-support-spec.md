@@ -2,8 +2,8 @@
 
 Status: Agreed
 Snapshot of https://github.com/raymond-van/animama/issues/691 (published
-2026-10-25T02:59:47Z, captured 2026-10-26T15:36:58Z after the owner's answers, the ADR
-renumbering and the per-Avatar Materials setting); the issue is authoritative.
+2026-10-25T02:59:47Z, captured 2026-10-26T15:45:01Z after the owner's answers, the ADR
+renumbering, the per-Avatar Materials setting and where settings are stored); the issue is authoritative.
 Owner decision: The owner asked for this spec and its parent issue on
 2026-10-24, answered its open questions on 2026-10-25 and accepted the
 proposed defaults for the rest.
@@ -176,11 +176,14 @@ R5 Wind and spring setting:
   hold their rest pose.
 - The setting is edited from the Anima settings for the Anima's Avatar and
   applies live without reloading the Avatar.
-- It persists per Avatar, following the face part correction precedent:
-  - in a Local Avatar's sidecar;
-  - as an owner override for an Included Avatar.
-- Packages carry it with the Avatar.
-- Unlike corrections, it is not bound to the VRM file's digest.
+- It persists per owner and Avatar item, for Local and Included Avatars
+  alike, outside the Avatar's file and sidecar, so saving neither creates a
+  new Avatar revision nor reloads the Avatar. A Local Avatar file that is
+  moved, renamed or re-added becomes a new item and starts from Automatic.
+- Packages carry it with the Avatar: export writes the exporter's value into
+  the Avatar's package entry, and import stores it for the importer.
+- Unlike corrections, it is not bound to the VRM file's digest or the Avatar's
+  revision, so an Avatar update keeps it.
 
 R6 Hands:
 
@@ -356,6 +359,9 @@ R13 Package sharing:
 Answered by the owner on 2026-10-25 (6 to 8 take the proposed defaults):
 
 1. The wind setting lives on the Avatar and follows the model file (R5).
+   Updated 2026-10-26 (owner): it is stored per owner and Avatar item rather
+   than in the file's sidecar, so it applies live; a moved or re-added Local
+   file starts from Automatic.
 2. "Springs off" is offered as a fourth value of the setting (R5).
 3. The modal is labelled **Diagnostics** and has a raw JSON view; hosted
    builds include it only if convenient (R7).
