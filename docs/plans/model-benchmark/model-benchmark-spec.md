@@ -1,11 +1,13 @@
 # Standardized model benchmark for Animama
 
-Status: Proposal
-Owner decision: Pending. The decisions come from the owner's intent-discovery
-answers on 2026-10-12 and 2026-10-25 and the owner's spec answers on
-2026-10-25. They are recorded in the discovery briefs on the issue.
-Authoritative source: this draft until `workspace-setup` publishes it to
-https://github.com/raymond-van/animama/issues/470. Discovery briefs:
+Status: Agreed
+Owner decision: Agreed on 2026-10-25. The owner asked to implement it after
+reviewing this spec and its ExecPlan (G1). The decisions come from the
+owner's intent-discovery answers on 2026-10-12 and 2026-10-25 and the
+owner's spec answers on 2026-10-25. They are recorded in the discovery
+briefs on the issue.
+Authoritative source: https://github.com/raymond-van/animama/issues/470.
+This file is a snapshot of it (see Spec below). Discovery briefs:
 https://github.com/raymond-van/animama/issues/470#issuecomment-6134798047
 (2026-10-12) and
 https://github.com/raymond-van/animama/issues/470#issuecomment-6406329265
@@ -117,9 +119,9 @@ Non-goals:
 - Gemini contestants. They wait until a Gemini chat provider exists; Gemini is
   text-to-speech only today.
 
-## Terminology
+### Terminology
 
-This spec uses these terms. Glossary entries are proposed in R20.
+This spec uses these terms. R20 adds Benchmark area and Benchmark run to the glossary.
 
 - **Benchmark area.** A group of related measures, such as core turn, or
   multi-turn and memory. The spec avoids "domain" because the repository
@@ -172,7 +174,7 @@ Locale), Conversation language, Anima memories and Reflection.
     defines.
   - **Tools.** Turns request no native tools, so web search is never offered.
     Memory tools follow the area and memory arm.
-  - **Provider storage** (proposal from 2026-10-12, to confirm at review):
+  - **Provider storage** (accepted at G1):
     - Core-turn and long-chat turns run incognito, with provider storage off
       where the provider supports it.
     - Memory turns can write memory only with incognito off. On OpenAI
@@ -379,10 +381,10 @@ Locale), Conversation language, Anima memories and Reflection.
   version.
   - Later runs do not need owner rating.
   - Japanese replies are judged by Opus alone.
-  - Proposal: the sample also settles the judge effort. Both medium and high
-    score it; the one that agrees better with the owner is pinned, and medium
-    is chosen on a tie.
-  - Proposal: calibrate again when a rubric or the judge changes.
+  - The sample also settles the judge effort. Both medium and high score it;
+    the one that agrees better with the owner is pinned, and medium is chosen
+    on a tie.
+  - Calibration is repeated when a rubric or the judge changes.
 
 ### Cost, conditions and statistics
 
@@ -417,8 +419,7 @@ Locale), Conversation language, Anima memories and Reflection.
   - **Comparisons.** Latency is compared only within one run. Quality can be
     compared across runs that use the same prompt-set version and results
     series.
-- **R16 — Statistical honesty** (from the issue's proposal; not covered in the
-  interviews, to confirm at review).
+- **R16 — Statistical honesty** (from the issue's proposal; accepted at G1).
   - Single-turn items repeat a configurable number of times.
   - Reports give sample sizes and the spread or confidence interval for each
     score.
@@ -464,7 +465,7 @@ Locale), Conversation language, Anima memories and Reflection.
   - the memory arms and their seams;
   - rubrics and judge setup, including the CLI sign-in prerequisite;
   - how to read a report.
-  Proposed glossary entries: Benchmark area and Benchmark run.
+  Glossary entries: Benchmark area and Benchmark run.
 
 ## Constraints
 
@@ -592,7 +593,8 @@ Agreed by the owner on 2026-10-25 (second discovery and spec questions):
 - **Run size.** One full run of 4 hours at most, including judging, with a
   trimmed set and 1–2 repeats.
 
-Proposals in this draft that the owner has not yet confirmed:
+Accepted at G1 on 2026-10-25, when the owner asked to implement after
+reviewing this spec and the ExecPlan:
 
 - **R2 provider storage.** Memory turns and OpenAI Memory Manager runs keep
   the app's real provider storage. This is because:
@@ -608,8 +610,7 @@ Proposals in this draft that the owner has not yet confirmed:
 - **R16 statistical honesty.** Repeats, spread and confidence intervals, and
   no ranking within the noise.
 - **Report location.** `docs/benchmarks/<YYYY-MM-DD>-<slug>.md`, with prompt
-  sets and rubrics under `docs/benchmarks/inputs/`. Alternatively, they could
-  live beside a plan.
+  sets and rubrics under `docs/benchmarks/inputs/`.
 - **Terminology.** "Benchmark area" replaces "domain". Glossary entries
   Benchmark area and Benchmark run are proposed.
 - **Standard-set protocol.** Luna runs on OpenAI Responses, its default
@@ -658,8 +659,9 @@ https://github.com/raymond-van/animama/issues/470.
 
 ## ExecPlan
 
-[model-benchmark-execplan.md](model-benchmark-execplan.md). It was revised
-against this spec on 2026-10-25 and is a draft for the owner's review at G1.
+[model-benchmark-execplan.md](https://github.com/raymond-van/animama/blob/53adb22fdf4dbb147b6e330bd631973425fa3c20/docs/plans/model-benchmark/model-benchmark-execplan.md)
+at its reviewed revision `53adb22f`. The tracked plan on the delivery branch
+holds its current progress and evidence.
 
 ## Delivery links
 
