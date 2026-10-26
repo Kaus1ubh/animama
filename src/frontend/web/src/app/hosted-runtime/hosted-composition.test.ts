@@ -137,6 +137,65 @@ describe("hosted admission and transport", () => {
       vi.unstubAllGlobals();
     }
   });
+  it("never lets the browser keep the composition's own session and admission requests", async () => {
+    vi.stubGlobal("window", {
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      localStorage: { length: 0, key: () => null },
+    });
+    vi.stubGlobal(
+      "BroadcastChannel",
+      class {
+        postMessage = vi.fn();
+        close = vi.fn();
+        onmessage = null;
+      },
+    );
+    const { composition, calls, fetch } = fixture();
+    // The age confirmation answers with the runtime context that follows it.
+    const base = fetch.getMockImplementation()!;
+    fetch.mockImplementation(async (input: RequestInfo | URL) => {
+      if (
+        new URL((input as Request).url).pathname !==
+        "/v1/hosted/age-confirmation"
+      )
+        return base(input);
+      calls.push(input as Request);
+      return Response.json(active);
+    });
+    const controller = new RuntimeController(composition);
+    const unsubscribe = composition.subscribe!(vi.fn());
+    try {
+      await controller.refresh();
+      await vi.waitFor(() =>
+        expect(
+          calls.some(
+            (call) => new URL(call.url).pathname === "/v1/hosted/events",
+          ),
+        ).toBe(true),
+      );
+      await composition.confirmAge!();
+      await composition.accountActions!.signOut();
+      const hosted = calls.filter((call) => {
+        const path = new URL(call.url).pathname;
+        return path.startsWith("/v1/hosted/") || path.startsWith("/api/cloud/");
+      });
+      expect(new Set(hosted.map((call) => new URL(call.url).pathname))).toEqual(
+        new Set([
+          "/v1/hosted/runtime-context",
+          "/v1/hosted/events",
+          "/v1/hosted/age-confirmation",
+          "/api/cloud/auth/logout",
+        ]),
+      );
+      expect(hosted.every((call) => call.cache === "no-store")).toBe(true);
+    } finally {
+      unsubscribe();
+      controller.dispose();
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("refreshes an explicitly reauthenticated lifetime even when owner and CSRF are unchanged", async () => {
     const { composition } = fixture();
     const first = await composition.readAdmission();
