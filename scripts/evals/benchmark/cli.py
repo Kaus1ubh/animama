@@ -1,4 +1,5 @@
-"""The benchmark's commands: ``plan`` (the dry run), ``run``, ``judge``, ``models`` and ``cleanup``.
+"""The benchmark's commands: ``plan`` (the dry run), ``run``, ``judge``, ``calibrate``, ``report``, ``models``
+and ``cleanup``.
 
 ``plan`` needs no database or model: the standard set comes from the catalog
 the code defines. ``run`` runs inside the backend container of a development
@@ -22,6 +23,9 @@ folder, and can be rerun to resume::
 
     uv run --no-sync python -m scripts.evals.benchmark judge --run-dir .animama-drafts/model-benchmark/<run> \
         --prompts docs/benchmarks/inputs/prompts.json --effort medium
+
+``calibrate export|import|pilot`` runs the one-time calibration the same way,
+and ``report`` renders the public-safe report from the recorded results.
 """
 
 from __future__ import annotations
@@ -36,6 +40,7 @@ import sys
 import time
 from collections.abc import AsyncIterator, Mapping, Sequence
 from contextlib import asynccontextmanager
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
@@ -50,8 +55,19 @@ from animama.domain import ModelProvider
 from ..core import catalog
 from ..core.inputs import EvalInputError
 from ..core.pricing import TokenPrices, parse_token_prices
+from . import calibrate
 from .configs import Configuration, builtin_chat_rows, capability_problem, parse_config, standard_configurations
-from .judge import DEFAULT_CONCURRENCY, EFFORTS, ClaudeCli, load_or_plan, run_judging
+from .judge import (
+    DEFAULT_CONCURRENCY,
+    EFFORTS,
+    JUDGE_DIR,
+    ClaudeCli,
+    JudgeRun,
+    inputs_fingerprint,
+    load_or_plan,
+    load_plan,
+    run_judging,
+)
 from .memory_db import benchmark_database, benchmark_database_name, drop_leftover_databases, japanese_search_probe
 from .memory_runner import ARM_BOTH, ARM_MEMORIES_MD_ONLY, ARM_REMEMBER_ONLY, BenchmarkSessions
 from .options import ELEVENLABS_VOICE, PROVIDER_MODERATION
@@ -67,10 +83,12 @@ from .planner import (
     render_plan,
     total_usd,
 )
-from .prompt_set import TIERS, load_prompt_set
+from .prompt_set import TIERS, PromptSet, load_prompt_set
+from .report import build_report, check_public_safe, criteria_keys, forbidden_texts, load_calibration, render_report
 from .results import MANIFEST, RUN_SCHEMA, TURNS, RunDirectory, read_turns
-from .rubrics import TRACKED_RUBRICS, load_rubrics
+from .rubrics import TRACKED_RUBRICS, RubricSet, load_rubrics
 from .runner import RunCaps, RunOutcome, run_benchmark
+from .scores import load_judge_results
 
 __all__ = ["main"]
 
@@ -163,24 +181,39 @@ def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
     )
     run.add_argument("--source-revision", default="unrecorded", help="the checkout's commit, for the report")
     judge = commands.add_parser("judge", help="judge a run's replies blind through the Claude CLI (on the host)")
-    judge.add_argument("--run-dir", type=Path, required=True, help="a run's output directory")
-    judge.add_argument("--prompts", type=Path, required=True, help="the run's prompt-set manifest on this machine")
-    judge.add_argument("--rubrics", type=Path, default=TRACKED_RUBRICS, help="rubric file (default: the tracked one)")
+    _run_arguments(judge)
+    _cli_arguments(judge)
     judge.add_argument("--effort", choices=EFFORTS, required=True, help="the judge's reasoning effort")
-    judge.add_argument(
-        "--concurrency",
-        type=_positive_int,
-        default=DEFAULT_CONCURRENCY,
-        help=f"parallel judge processes (default {DEFAULT_CONCURRENCY})",
-    )
     judge.add_argument("--rubric", action="append", default=[], help="judge only this rubric's batches (repeatable)")
     judge.add_argument("--batch", action="append", default=[], help="judge only this batch (repeatable)")
-    judge.add_argument("--claude", default="claude", help="the Claude CLI executable")
-    judge.add_argument("--timeout", type=_seconds, default=900.0, help="seconds allowed for one judge call")
-    judge.add_argument(
-        "--allow-unfinished",
+    calibrate_ = commands.add_parser("calibrate", help="the one-time judge calibration against the owner (host)")
+    steps = calibrate_.add_subparsers(dest="step", required=True)
+    _run_arguments(steps.add_parser("export", help="draw the blind sample and write the rating sheet"))
+    imported = steps.add_parser("import", help="check and keep the owner's ratings")
+    _run_arguments(imported)
+    imported.add_argument("--ratings", type=Path, required=True, help="the filled-in ratings.json")
+    pilot = steps.add_parser("pilot", help="judge the sample at medium and high and pin the effort")
+    _run_arguments(pilot)
+    _cli_arguments(pilot)
+    report = commands.add_parser("report", help="render the run's report from its recorded results")
+    _run_arguments(report)
+    report.add_argument("--effort", choices=EFFORTS, help="the judge results to use (default: the pinned effort)")
+    report.add_argument("--output", type=Path, help="where to write the report (default: report.md in the run)")
+    report.add_argument("--title", default="Model benchmark report", help="the report's heading")
+    report.add_argument(
+        "--recommendations",
+        type=Path,
+        help="the owner's Markdown for the Recommendations section (default: placeholders)",
+    )
+    report.add_argument(
+        "--overwrite",
         action="store_true",
-        help="judge a run whose manifest still says it is running (a run that was killed)",
+        help="replace an existing report that differs from this one",
+    )
+    report.add_argument(
+        "--rerender",
+        action="store_true",
+        help="rebuild the report and check it matches --output byte for byte, without writing",
     )
     commands.add_parser("models", help="print the active chat rows of the model catalog")
     commands.add_parser(
@@ -189,6 +222,28 @@ def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
         "benchmark's, is kept",
     )
     return parser.parse_args(argv)
+
+
+def _run_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--run-dir", type=Path, required=True, help="a run's output directory")
+    parser.add_argument("--prompts", type=Path, required=True, help="the run's prompt-set manifest on this machine")
+    parser.add_argument("--rubrics", type=Path, default=TRACKED_RUBRICS, help="rubric file (default: the tracked one)")
+    parser.add_argument(
+        "--allow-unfinished",
+        action="store_true",
+        help="use a run whose manifest still says it is running (a run that was killed)",
+    )
+
+
+def _cli_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--concurrency",
+        type=_positive_int,
+        default=DEFAULT_CONCURRENCY,
+        help=f"parallel judge processes (default {DEFAULT_CONCURRENCY})",
+    )
+    parser.add_argument("--claude", default="claude", help="the Claude CLI executable")
+    parser.add_argument("--timeout", type=_seconds, default=900.0, help="seconds allowed for one judge call")
 
 
 def _configurations(args: argparse.Namespace, rows: Sequence[Any]) -> tuple[Configuration, ...]:
@@ -434,8 +489,17 @@ async def _memory_sessions(outcome: RunOutcome) -> AsyncIterator[BenchmarkSessio
         yield BenchmarkSessions(factory)
 
 
-def _judge(args: argparse.Namespace) -> int:
-    """Judge a run at one effort; 0 when every batch is scored, 1 with missing scores, 3 when stopped early."""
+@dataclass(frozen=True, slots=True)
+class _Run:
+    manifest: dict[str, Any]
+    turns: list[dict[str, Any]]
+    turns_sha256: str
+    prompt_set: PromptSet
+    rubrics: RubricSet
+
+
+def _open_run(args: argparse.Namespace) -> _Run:
+    """A finished run with its prompt set and rubrics, checked against the run's manifest."""
 
     run_dir: Path = args.run_dir
     try:
@@ -446,18 +510,30 @@ def _judge(args: argparse.Namespace) -> int:
     if manifest.get("schema") != RUN_SCHEMA:
         raise EvalInputError(f"{run_dir}: unknown run schema {manifest.get('schema')!r}")
     if manifest.get("aborted") == "running" and not args.allow_unfinished:
-        # The judge plan is fixed to the turns judged first, so judging a run still in progress would lock it.
+        # A judge plan is fixed to the turns judged first, so using a run still in progress would lock it.
         raise EvalInputError(
-            f"{run_dir} is still running or was killed; judge it once it ends, or pass --allow-unfinished"
+            f"{run_dir} is still running or was killed; use it once it ends, or pass --allow-unfinished"
         )
     prompt_set = load_prompt_set(args.prompts)
     recorded = manifest.get("prompt_set") or {}
     changed = [key for key, value in prompt_set.hashes.items() if recorded.get(key) != value]
     if changed:
         raise EvalInputError(f"{args.prompts} is not the run's prompt set: {', '.join(changed)} differ")
-    rubrics = load_rubrics(args.rubrics)
-    turns = list(read_turns(run_dir))
-    plan = load_or_plan(run_dir, turns, hashlib.sha256(turns_bytes).hexdigest(), prompt_set, rubrics, seed=JUDGE_SEED)
+    return _Run(
+        manifest=manifest,
+        turns=list(read_turns(run_dir)),
+        turns_sha256=hashlib.sha256(turns_bytes).hexdigest(),
+        prompt_set=prompt_set,
+        rubrics=load_rubrics(args.rubrics),
+    )
+
+
+def _judge(args: argparse.Namespace) -> int:
+    """Judge a run at one effort; 0 when every batch is scored, 1 with missing scores, 3 when stopped early."""
+
+    run = _open_run(args)
+    prompt_set, rubrics = run.prompt_set, run.rubrics
+    plan = load_or_plan(args.run_dir, run.turns, run.turns_sha256, prompt_set, rubrics, seed=JUDGE_SEED)
     rubric_ids, batch_ids = set(args.rubric), set(args.batch)
     unknown = sorted(rubric_ids - {batch.rubric for batch in plan.batches}) + sorted(
         batch_ids - {batch.id for batch in plan.batches}
@@ -483,11 +559,85 @@ def _judge(args: argparse.Namespace) -> int:
         f"Judged {outcome.completed} batches, skipped {outcome.skipped} already done, {outcome.missing} missing",
         file=sys.stderr,
     )
+    return _judging_exit(outcome)
+
+
+def _judging_exit(outcome: JudgeRun) -> int:
     if outcome.stopped is not None:
         follow_up = "rerun the same command to resume" if outcome.resumable else "fix this, then rerun the command"
         print(f"Judging stopped: {outcome.stopped}. Finished batches are kept; {follow_up}.", file=sys.stderr)
         return 3
     return 1 if outcome.missing else 0
+
+
+def _calibrate(args: argparse.Namespace) -> int:
+    """The calibration steps (D15): draw the sample, import the owner's ratings, then pilot both efforts."""
+
+    run = _open_run(args)
+    if args.step == "export":
+        plan = calibrate.export(args.run_dir, run.turns, run.turns_sha256, run.prompt_set, run.rubrics, seed=JUDGE_SEED)
+        items = sum(len(batch.items) for batch in plan.batches)
+        folder = args.run_dir / calibrate.CALIBRATION_DIR
+        print(f"Calibration sample: {items} items; rate them in {folder / 'sheet.md'} and fill in "
+              f"{folder / 'ratings.json'}", file=sys.stderr)  # fmt: skip
+        return 0
+    if args.step == "import":
+        rated = calibrate.import_ratings(args.run_dir, args.ratings, run.rubrics)
+        print(f"Imported ratings for {rated} items", file=sys.stderr)
+        return 0
+    result, stopped = calibrate.pilot(
+        args.run_dir, run.turns_sha256, run.prompt_set, run.rubrics, seed=JUDGE_SEED,
+        cli=ClaudeCli(binary=args.claude, timeout=args.timeout), concurrency=args.concurrency,
+    )  # fmt: skip
+    if result is None:
+        assert stopped is not None
+        print(f"Calibration pilot: {stopped.completed} batches judged, {stopped.missing} missing; rerun it to finish",
+              file=sys.stderr)  # fmt: skip
+        return _judging_exit(stopped)
+    print(f"Pinned judge effort: {result['pinned']} (mean weighted kappa {result['mean_kappa']})", file=sys.stderr)
+    return 0
+
+
+def _report(args: argparse.Namespace) -> int:
+    """Render the report; with --rerender, check it matches the written one byte for byte (1 when not)."""
+
+    run = _open_run(args)
+    calibration = load_calibration(args.run_dir)
+    judged = (args.run_dir / JUDGE_DIR / "plan.json").exists()
+    if judged:
+        # The scores are joined to the records by line, so the plan must come from these very inputs.
+        load_plan(args.run_dir / JUDGE_DIR, inputs_fingerprint(run.turns_sha256, run.prompt_set, run.rubrics,
+                                                               JUDGE_SEED), seed=JUDGE_SEED)  # fmt: skip
+    # Without a judge plan the run is not judged yet, whatever calibration pinned.
+    effort = (args.effort or (calibration or {}).get("pinned")) if judged else None
+    if effort is None and judged:
+        efforts = [effort for effort in EFFORTS if (args.run_dir / JUDGE_DIR / effort).is_dir()]
+        if len(efforts) != 1:
+            raise EvalInputError(
+                f"{args.run_dir} has judge results at {', '.join(efforts) or 'no effort'}; pass --effort"
+            )
+        effort = efforts[0]
+    judge = load_judge_results(args.run_dir, effort)
+    data = build_report(run.manifest, run.turns, run.prompt_set, criteria_keys(run.rubrics), judge, calibration)
+    try:
+        owner = args.recommendations.read_text(encoding="utf-8") if args.recommendations else None
+    except OSError as exc:
+        raise EvalInputError(f"cannot read the recommendations file ({exc})") from exc
+    text = render_report(data, title=args.title, recommendations=owner)
+    check_public_safe(text, forbidden_texts(run.turns, run.prompt_set))
+    output: Path = args.output or args.run_dir / "report.md"
+    same = output.exists() and output.read_text(encoding="utf-8") == text
+    if args.rerender:
+        print(f"{output} {'matches' if same else 'differs from'} the re-rendered report", file=sys.stderr)
+        return 0 if same else 1
+    if output.exists() and not same and not args.overwrite:
+        raise EvalInputError(
+            f"{output} exists and differs; pass --overwrite to replace it (owner text belongs in --recommendations)"
+        )
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(text, encoding="utf-8")
+    print(f"Report: {output}", file=sys.stderr)
+    return 0
 
 
 async def _cleanup() -> int:
@@ -509,6 +659,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0
         if args.command == "judge":
             return _judge(args)
+        if args.command == "calibrate":
+            return _calibrate(args)
+        if args.command == "report":
+            return _report(args)
         # The OpenAI Memory Manager runtime would otherwise export a trace of each benchmark run.
         set_tracing_disabled(True)
         return asyncio.run(_run(args))

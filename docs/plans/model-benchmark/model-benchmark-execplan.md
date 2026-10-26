@@ -117,7 +117,8 @@ Ownership and boundaries:
       G2). G2 passed on 2026-10-26: approved as drafted.
 - [x] Phase 6: Blind judging through `claude -p`. Passed review #3 on
       2026-10-26, with both repair rounds used.
-- [ ] Phase 7: Scores, statistics and report.
+- [x] Phase 7: Scores, statistics and report. Passed review #2 on
+      2026-10-26, with one repair round used.
 - [ ] Phase 8: Skill, documentation and glossary.
 - [ ] Phase 9: First decision run and calibration (gates G3, G4).
 - [ ] Final integration review.
@@ -391,6 +392,14 @@ were rechecked on `18d2bebd`.
     within-one agreement.
   - **Ranking language:** two configurations, arms or languages are "not
     distinguishable" when their intervals overlap.
+  - **Phase 7 implementation (2026-10-26, from review).** A resampled group
+    is a single-turn item with all its personas and repeats, or a whole
+    conversation (a scripted, memory or recall chat in one arm) with all its
+    turns; English–Japanese differences are grouped by item. Kept-rate
+    differences between arms pair each must-keep checklist entry, since a run
+    has too few memory chats to resample whole. No ranking or "apart"
+    verdict rests on fewer than five groups (`MIN_GROUPS`); such results
+    read "too few to compare". The owner may change the threshold.
 - **D10 (proposed, G1). Smoke tier.**
   - `--tier smoke` takes a fixed, tracked subset of the prompt set: about 20
     single-turn items (4 of them Japanese), one persona, one repeat, one
@@ -2492,13 +2501,203 @@ Checks:
 Completion: the tests pass and the review passes. Commit
 `feat(evals)[p7]: add benchmark scoring and reports`.
 
-Check record: none yet.
+Starting source: `9b94c721` (Phase 6's commit).
 
-Commits: none yet.
+**Delivered** (`scripts/evals/benchmark/`):
+- `intervals.py` (D9, standard library only): `bootstrap_mean` resamples
+  whole groups 2,000 times with seed 470 for a 95% interval;
+  `bootstrap_paired` resamples pairs; `distinguishable` is false when
+  intervals overlap or either rests on fewer than `MIN_GROUPS` (5) groups;
+  `agreement` and `agreement_table` give quadratic-weighted kappa, exact and
+  within-one agreement.
+- `scores.py`: `load_judge_results` joins one effort's batch results back
+  to the records through the blind mapping; every planned item without a
+  completed score stays in the results as missing, with batch counts, the
+  served models, CLI versions and rubric version.
+- `report.py`: `build_report` computes, per configuration, the judged reply,
+  expression, Audio-tag and long-chat scores with intervals and missing
+  counts, every criterion, Gesture fit with an interval, the other
+  deterministic measures with their counts (recovery paths, speech checks,
+  latency, tokens, cost, priced or not), reply length, the distributions,
+  rankings (only pairs whose intervals are apart), English–Japanese pairs
+  (reply, expression, Gesture fit, same Gesture and tone, intensity and
+  tagged replies, grouped by item; and each Japanese memory chat's kept
+  entries and recall against its original), tuned and held-out splits, the
+  memory arms (capture kept, missed, noise kept, sensitive breaks and
+  unjudged captures; notes and changed files against the fixture's seed;
+  recall matches with failed turns; judged recall and memory-turn
+  criteria; tool calls per turn and success, with failed turns counted
+  apart; latency and input tokens; paired kept-rate differences), the
+  Memory Manager per row, the judge record with the family caveat,
+  calibration, conditions with each configuration's price source, and
+  inputs. `render_report` writes Markdown with the limitations and the
+  owner's recommendations, from `--recommendations` or as placeholders.
+  `check_public_safe` refuses a report that holds any reply, saved-memory,
+  tool-argument, prompt, persona, fixture or guidance line of 20 characters
+  or more that holds a letter, and names the sources it found.
+- `calibrate.py` (D15): `export` samples up to 18 English items each of the
+  `reply` and `expression` rubrics, in turn across configurations and
+  areas, as their own blind judge plan under `calibration/judge/`, with a
+  rating sheet showing each batch as the judge receives it and a
+  `ratings.json` to fill; `import_ratings` checks the owner's scores;
+  `pilot` judges the sample at medium and high, records each effort's
+  agreement per criterion, and pins the higher mean kappa over the criteria
+  both efforts scored (`pin_effort`, medium on a tie) in
+  `calibration/result.json` with the prompt-set version. Sampling gives
+  each configuration an equal share, then cycles its areas.
+- `cli.py`: `calibrate export|import|pilot` and `report [--effort]
+  [--output] [--title] [--recommendations] [--overwrite] [--rerender]`,
+  sharing the run checks of `judge`. `report` checks the judge plan's
+  fingerprint, takes the pinned effort or the one judged effort (an input
+  error otherwise), refuses to replace a differing report without
+  `--overwrite`, and with `--rerender` exits 1 unless the rebuilt report
+  matches byte for byte.
+- `judge.py`: `load_plan` and `inputs_fingerprint`, shared with the
+  calibration plan.
+- Tests: `tests/test_model_benchmark_report.py` (16): seeded and paired
+  intervals against fixed values, kappa against hand-computed examples
+  (including one that separates quadratic weights), the minimum-groups
+  rule, capture totals per arm, held-out totals, English–Japanese pairs,
+  the long-chat and Memory Manager joins, the safety guard (sources, and no
+  refusal for dividers), byte-equal re-rendering with owner text, the
+  report's effort, overwrite and fingerprint checks, equal sampling, effort
+  pinning, and the whole calibration flow on the stub CLI with a resumed
+  pilot. The judge fixture's records now carry every field a run records.
+
+**Deviations:**
+- Calibration covers the `reply` and `expression` rubrics, 36 items at
+  most, so the owner's rating stays within D15's 30–40 replies; the other
+  rubrics are judged by Opus alone. The spec's acceptance asks for agreement
+  per measure, so the owner confirms this scope at G4. The sample cannot be
+  stratified by score range, since it is drawn before any judging; it is
+  stratified by configuration, then area.
+
+**Sample report.** The Phase 4 mock smoke run, judged with the stub CLI and
+rendered with `report --title "Model benchmark report (mock smoke
+sample)"`, is in `.animama-drafts/model-benchmark/p7-sample/report.md` (223
+lines); `report --rerender` matched it byte for byte, and the safety guard
+passed. That run holds memory work only; Phase 8's mock rehearsal on a task
+stack renders a full report.
+
+Check record before review (2026-10-26), on code subtrees `scripts`
+`e5001fea`, `src` `1acfeab1` and `tests` `d5658cc0`: 167 tests across the
+eight benchmark test files; `ruff check`, `ruff format --check scripts/evals
+tests`, `make format-check`, `make mypy` and `mypy scripts/evals` passed;
+the sample report rendered and re-rendered identically.
+
+Commits: `feat(evals)[p7]: add benchmark scoring and reports`.
 
 #### Code Review #1 Findings
 
+Analysis reviewer (standard tier, initial; `scripts` `e5001fea`, `src`
+`1acfeab1`, `tests` `d5658cc0`): changes required. It reused the check
+record and probed with stubs only.
+- **P7-F1 (blocking).** The bootstrap grouped each item and persona apart
+  (and each chat turn apart), and English–Japanese pairs were resampled one
+  by one, against D9's "an item's repeats and personas" together; intervals
+  came out too narrow.
+- **P7-F2 (blocking).** Rankings and "apart" verdicts could rest on one or
+  two groups (two long-chat transcripts per configuration).
+- **P7-F3 (blocking).** `report` without `--effort` on an uncalibrated run
+  said the run was not judged and nothing was missing.
+- **P7-F4 (blocking).** English–Japanese pairs compared only the overall
+  reply score; R9 also asks for Gesture, tone, intensity, Audio tags, memory
+  behavior and the other judged scores.
+- **P7-F5 (blocking).** The memory table left out computed tokens, failed
+  turns and unjudged captures; the token mean counted unreported usage as
+  zero.
+- **P7-F6 (blocking).** The scorecard had no token column, cost showed no
+  price source, and unpriced turns read as $0.
+- **P7-F7 (blocking).** Rates (Gesture fit, strict parse, tagged replies,
+  tool success) had no sample size or interval.
+- Non-blocking: **P7-N1** uneven sampling across configurations; **P7-N2**
+  the guard refused harmless dividers and named no source, and missed the
+  Memory Manager store and tool arguments; **P7-N3** `report` overwrote
+  owner text; **P7-N4** `report` did not check the judge plan's
+  fingerprint; **P7-N5** a stopped pilot printed nothing; **P7-N6** mean
+  kappa over different criteria per effort; **P7-N7** duplicate long-chat
+  lookup; **P7-N8** kappa examples that do not prove the weighting, and
+  untested joins, verdicts, pinning, resume and sampling; **P7-N9** plan
+  wording on score ranges, the per-measure acceptance and the prompt-set
+  version in calibration results; **P7-N10** no reply-length column and no
+  memory split; **P7-N11** hard-coded memory criteria and loose typing;
+  **P7-N12** the sample report covers memory work only; **P7-N13**
+  correlated turns within a conversation.
+
 #### Code Review #1 Revisions
+
+- **P7-F1, P7-N13: accepted.** A group is a single-turn item with all its
+  personas and repeats, or a whole conversation; English–Japanese
+  differences are grouped by item. Kept-rate differences keep pairing
+  checklist entries, since a run has too few memory chats to resample
+  whole; D9 records both.
+- **P7-F2: accepted.** `MIN_GROUPS` (5): fewer groups give "too few to
+  compare" and no ranking. Recorded in D9 for the owner.
+- **P7-F3: accepted.** With a judge plan and no effort, `report` uses the
+  pinned effort or the one judged effort, and otherwise asks for
+  `--effort`. The `load_judge_results` docstring is corrected.
+- **P7-F4: accepted.** Pairs add expression, Gesture fit, same Gesture and
+  tone, intensity and tagged-reply differences, and each Japanese memory
+  chat's kept entries and recall against its original.
+- **P7-F5, P7-F6, P7-F7, P7-N10 (length): accepted.** The memory table adds
+  input tokens (unreported usage left out), failed turns and unjudged
+  captures; the scorecard adds tokens and shows "unpriced"; the conditions
+  table shows each configuration's price source; rates show their counts,
+  and Gesture fit has an interval; the reply criteria table adds the median
+  speech length.
+- **P7-N1, P7-N2, P7-N3, P7-N4, P7-N5, P7-N6, P7-N7, P7-N8, P7-N9,
+  P7-N11: accepted** as described in Delivered and the tests above.
+- **P7-N10 (memory split): rejected.** One held-out memory chat per
+  configuration cannot be compared to two tuned ones; the split stays on
+  reply scores.
+- **P7-N12: deferred** to Phase 8's mock rehearsal on a task stack, which
+  renders a full report.
+
+**Repair check record (2026-10-26)**, on code subtrees `scripts`
+`66aa957f`, `src` `1acfeab1` (unchanged) and `tests` `d7a0b3cc`: the eight
+benchmark test files, 176 passed; `ruff check`, `ruff format --check
+scripts/evals tests`, `make format-check`, `make mypy` and `mypy
+scripts/evals` passed; the sample report re-rendered and re-checked
+identically.
+
+The repairs went to a targeted recheck (Code Review #2).
+
+#### Code Review #2 Findings
+
+Analysis reviewer (`scripts` `66aa957f`, `src` `1acfeab1`, `tests`
+`d7a0b3cc`): one trivial residual; everything else accepted is resolved,
+with no regressions. Its probes confirmed the effort fallback, the
+two-group verdict, the balanced sample and the unchanged re-render.
+- **P7-F7 (residual).** The memory table's tool success was still a bare
+  percentage.
+- Non-blocking: an unreadable `--recommendations` file ended in a traceback;
+  a calibrated run with no judge plan rendered as judged at the pinned
+  effort; "Same Gesture" counts no Gesture in both replies as the same;
+  Phases 8 and 9 did not say where the owner's recommendations go; the
+  `bootstrap_mean` docstring still described only item groups.
+
+#### Code Review #2 Revisions
+
+The reviewer marked the residual a trivial standard-tier repair; the
+coordinator verified these itself.
+- **P7-F7 (residual): accepted.** `_tools` returns the call and success
+  counts, and the cell shows them.
+- **Recommendations file: accepted.** An unreadable file is an input error.
+- **No judge plan: accepted.** Without `judge/plan.json` the report reads
+  "not judged" whatever calibration pinned.
+- **Same Gesture: kept, and stated.** No Gesture is a valid choice, so the
+  report says no Gesture in both replies counts as the same.
+- **Plan wording: accepted.** Phase 8's skill steps and Phase 9 keep the
+  owner's recommendations in a file passed to `report` and `--rerender`.
+- **Docstring: accepted.**
+
+**Final check record (2026-10-26)**, on code subtrees `scripts` `6a52a235`,
+`src` `1acfeab1` (unchanged) and `tests` `4b35bb14`: the eight benchmark
+test files, 176 passed; `ruff check`, `ruff format --check scripts/evals
+tests`, `make format-check`, `make mypy` and `mypy scripts/evals` passed;
+the sample report re-rendered identically.
+
+Phase 7 passed with one repair round used.
 
 ### Phase 8: Skill, documentation and glossary
 
@@ -2518,7 +2717,10 @@ Changes:
     5. On the first run, run calibration (G4) and the effort pilot.
     6. Run `judge`, resuming across usage limits.
     7. Run `report`.
-    8. Ask the owner to write the recommendations and link the report.
+    8. Ask the owner to write the recommendations in a Markdown file kept with
+       the run, render the report again with `--recommendations <file>`
+       (and `--overwrite`), and link the report. Later `report` and
+       `--rerender` runs pass the same file.
   - The skill never starts a paid run without explicit approval of that
     run's caps.
   - `agents/openai.yaml`, and `references/` for the commands, the input
@@ -2578,8 +2780,9 @@ Steps:
 4. Run `run`, then take the stack down. Raw results stay in the drafts
    folder, and `cleanup` confirms no benchmark database remains.
 5. **G4 (owner):**
-   - `calibrate export` draws a stratified blind sample of 30–40 English
-     replies across areas, configurations and score ranges.
+   - `calibrate export` draws a stratified blind sample of up to 36 English
+     `reply` and `expression` items, spread evenly over configurations, then
+     areas (Phase 7 deviation: no score ranges before judging).
    - The owner rates it with the rubrics, and `calibrate import` records the
      ratings.
    - `calibrate pilot` judges the sample at medium and at high effort.
@@ -2587,11 +2790,13 @@ Steps:
 6. Run `judge` at the pinned effort, resuming across usage windows. Record
    the batches, missing scores and elapsed time.
 7. Run `report`. Then:
+   - Have the owner write the recommendations in a Markdown file kept with
+     the run, and render the report with `--recommendations <file>`.
    - Track the report at the location agreed at G1.
-   - Verify that `report --rerender` reproduces it byte for byte.
+   - Verify that `report --rerender`, with the same recommendations file,
+     reproduces it byte for byte.
    - Record the run's actual wall time against the 4-hour bound, excluding
      the one-time calibration.
-   - Have the owner write the recommendations.
    - Link the report from #470.
 
 Recovery:

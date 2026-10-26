@@ -60,7 +60,9 @@ __all__ = [
     "JudgeStopped",
     "PlannedBatch",
     "batch_prompt",
+    "inputs_fingerprint",
     "load_or_plan",
+    "load_plan",
     "plan_judging",
     "run_judging",
 ]
@@ -223,19 +225,22 @@ def _payload(rubric_id: str, chunk: Sequence[tuple[str, JudgeItem]]) -> dict[str
     return payload
 
 
-def load_or_plan(
-    run_directory: Path, turns: Sequence[Mapping[str, Any]], turns_sha256: str, prompt_set: PromptSet,
-    rubrics: RubricSet, *, seed: int,
-) -> JudgePlan:  # fmt: skip
-    """The run's judge plan: the one written before, which must match these inputs, or a new one."""
+def inputs_fingerprint(
+    turns_sha256: str, prompt_set: PromptSet, rubrics: RubricSet, seed: int, **extra: Any
+) -> dict[str, Any]:
+    """What a judge plan depends on; a plan is reused only for the same fingerprint."""
 
-    directory = run_directory / JUDGE_DIR
-    fingerprint = _inputs_fingerprint(turns_sha256, prompt_set, rubrics, seed)
+    return {**_inputs_fingerprint(turns_sha256, prompt_set, rubrics, seed), **extra}
+
+
+def load_plan(directory: Path, fingerprint: Mapping[str, Any], *, seed: int) -> JudgePlan | None:
+    """The plan written in ``directory`` before, which must match ``fingerprint``; ``None`` when there is none."""
+
     plan_file = directory / "plan.json"
     if not plan_file.exists():
-        return plan_judging(build_items(turns, prompt_set, rubrics), directory, seed=seed, fingerprint=fingerprint)
+        return None
     recorded = json.loads(plan_file.read_text(encoding="utf-8"))
-    if recorded.get("schema") != PLAN_SCHEMA or recorded.get("inputs") != fingerprint:
+    if recorded.get("schema") != PLAN_SCHEMA or recorded.get("inputs") != dict(fingerprint):
         raise EvalInputError(
             f"{plan_file} was planned from other inputs (turns, prompt set, rubrics, judge model, seed or batch "
             "sizes). A changed rubric or judge starts a new results series: copy the run's manifest.json and "
@@ -244,6 +249,20 @@ def load_or_plan(
     mapping = json.loads((directory / "mapping.json").read_text(encoding="utf-8"))
     batches = tuple(PlannedBatch(id=b["id"], rubric=b["rubric"], items=tuple(b["items"])) for b in recorded["batches"])
     return JudgePlan(directory=directory, seed=seed, batches=batches, mapping=mapping)
+
+
+def load_or_plan(
+    run_directory: Path, turns: Sequence[Mapping[str, Any]], turns_sha256: str, prompt_set: PromptSet,
+    rubrics: RubricSet, *, seed: int,
+) -> JudgePlan:  # fmt: skip
+    """The run's judge plan: the one written before, which must match these inputs, or a new one."""
+
+    directory = run_directory / JUDGE_DIR
+    fingerprint = inputs_fingerprint(turns_sha256, prompt_set, rubrics, seed)
+    plan = load_plan(directory, fingerprint, seed=seed)
+    if plan is not None:
+        return plan
+    return plan_judging(build_items(turns, prompt_set, rubrics), directory, seed=seed, fingerprint=fingerprint)
 
 
 def batch_prompt(payload: Mapping[str, Any], prompt_set: PromptSet) -> str:
