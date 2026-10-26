@@ -284,6 +284,18 @@ in `51207c61`; package, launch and rehearsal at `629962f3`, clean tree):
 
 Phase 2 acceptance (R3) is met.
 
+After merging `main` at `7a87aaf3` (`c666aded`; conflicts only where `main`
+replaced generated icons with checked-in `build/icon.*` files), the native run
+was repeated on the clean merge: stage, audit (`runtime audit: OK`, 4183 files,
+installed 921,974,550 bytes), `pnpm desktop:mac` (unsigned, inventory OK, the
+checked-in `icon.icns`) and `--signing-rehearsal` (166 native files signed and
+verified, 8 nested bundles, `release_ready: false`; app and DMG verify with the
+Team ID requirement; no publish folder) all exited 0. A second supervised
+launch stopped at the vault behind the same Keychain prompt (the owner's
+earlier answer was a one-time Allow) and was ended without asking again; no
+service had started. `pnpm desktop:check` and `pnpm desktop:test` (557 passed,
+14 skipped) pass on the merge.
+
 #### Code Review #1 Findings
 
 Reviewed source `6afc322f` (baseline `1eee19a3`), high-risk tier. electron-builder
@@ -363,8 +375,8 @@ two.
 
 Agent evidence (macOS arm64): recorded per phase.
 
-Full pre-push suite on the final code candidate `9b141a70` (tree `ca44f79d`,
-clean), through `scripts/heavy-slot.py`, 2026-10-26:
+Full pre-push suite on `9b141a70` (tree `ca44f79d`, clean, before merging
+`main`), through `scripts/heavy-slot.py`, 2026-10-26:
 
 | Command | Result |
 | --- | --- |
@@ -374,8 +386,7 @@ clean), through `scripts/heavy-slot.py`, 2026-10-26:
 | `pnpm prettier:check` | exit 0 |
 | `pnpm desktop:test` | exit 0: 541 passed, 14 skipped |
 
-The commit after it changes only this plan and one line of
-`src/frontend/AGENTS.md`; no check covers either.
+The suite reruns on the merged candidate; the PR records that run.
 
 Owner gates, outstanding until performed:
 
