@@ -8,17 +8,31 @@ For the auxiliary chat window, see [Quick Chat](quick-chat.md).
 
 ## Defaults
 
-| Action                   | Default                    | Type     | Availability                         |
-| ------------------------ | -------------------------- | -------- | ------------------------------------ |
-| Press to talk            | `Ctrl + Backquote`         | hold     | active Voice Mode                    |
-| Quick Chat               | `Ctrl + Slash`             | one-shot | active anima chat route              |
-| Dictation on/off         | `Ctrl + Alt + D`           | one-shot | chat-capable surface, Voice Mode off |
-| Toggle Voice Mode on/off | `Ctrl + Alt + Backquote`   | one-shot | chat-capable chat surface            |
-| Toggle mute              | `Ctrl + Shift + Backquote` | one-shot | active Voice Mode                    |
-| Skip TTS                 | `Ctrl + ArrowRight`        | one-shot | active TTS playback                  |
+Each default is one modifier and one key. One-shot shortcuts are registered
+globally and taken from every other app, so the defaults avoid letters (shell
+and text-editing commands) and keys the OS or its input methods use. macOS uses
+Control because Option with punctuation types characters (`…`, `æ`, `‘`).
+Windows and Linux use Alt because Control with `.` or Space toggles CJK input
+methods and Control with `;`, `'` or `]` are Office commands.
 
-`Backquote` is the physical key usually labeled `` ` `` or `~` on US
-keyboards. It is stored by DOM `code`, so it follows the physical key rather
+| Action                   | macOS     | Windows and Linux | Type     | Availability                         |
+| ------------------------ | --------- | ----------------- | -------- | ------------------------------------ |
+| Press to talk            | `` ⌃` ``  | `` Ctrl+` ``      | hold     | active Voice Mode                    |
+| Quick Chat               | `⌥Space`  | `Alt+Space`       | one-shot | active anima chat route              |
+| Dictation on/off         | `⌃.`      | `Alt+.`           | one-shot | chat-capable surface, Voice Mode off |
+| Toggle Voice Mode on/off | `⌃;`      | `Alt+;`           | one-shot | chat-capable chat surface            |
+| Toggle mute              | `⌃'`      | `Alt+'`           | one-shot | active Voice Mode                    |
+| Skip TTS                 | `⌃]`      | `Alt+]`           | one-shot | active TTS playback                  |
+
+`⌥Space`/`Alt+Space` is the usual AI-launcher shortcut, so it conflicts with
+ChatGPT desktop or PowerToys Run where they keep theirs, and on Windows it
+replaces the Alt+Space window menu. Press to talk is observed, not taken, so
+the focused app still receives `` Ctrl+` `` (VS Code toggles its terminal); a
+mouse button avoids that. `defaultDesktopShortcuts(os)` holds both sets, and
+the defaults are not stored: `resolveDesktopShortcuts` fills each missing or
+invalid shortcut from the running OS's set.
+
+Keys are stored by DOM `code`, so a shortcut follows the physical key rather
 than the character produced by a specific keyboard layout.
 
 ## User Behavior
@@ -54,8 +68,8 @@ Detailed rules:
   does now: Dictate or Stop dictation (Dictation on/off), Voice Mode or Stop
   Voice Mode (Toggle Voice Mode on/off) and Mute or Unmute (Toggle mute). The
   reply bubble's Skip speech button names Skip TTS. The shortcut shows in a
-  keycap after the label, written as macOS glyphs (`⌃⌥D`) on macOS and as key
-  names (`Ctrl+Alt+D`) elsewhere.
+  keycap after the label, written as macOS glyphs (`⌃.`) on macOS and as key
+  names (`Alt+.`) elsewhere. Settings writes shortcuts the same way.
 
 ## Settings UI
 
@@ -339,7 +353,7 @@ affected steps as blocked instead of substituting mocked voice state.
 2. Grant Input Monitoring to the exact application in System Settings when ready
    to continue, then quit and reopen normally if macOS requests it. Confirm the
    permission status recovers and no duplicate shortcut registrations appear.
-3. With Voice Mode active and muted, physically hold `Ctrl + Backquote`. Confirm
+3. With Voice Mode active and muted, physically hold `` ⌃` ``. Confirm
    one unmute transition, including a long hold/key repeat, then one mute on
    release. Repeat with left and right Control. Release Control before Backquote
    and confirm the final key release still clears the hold.
@@ -374,20 +388,20 @@ approval.
 ## Manual Test Checklist
 
 - With Voice Mode off, Press to talk does nothing.
-- With Voice Mode on and muted, holding `Ctrl + Backquote` unmutes; releasing
+- With Voice Mode on and muted, holding Press to talk (`` ⌃` `` / `` Ctrl+` ``) unmutes; releasing
   it mutes again.
 - With Voice Mode on and unmuted, holding and releasing Press to talk does not
   change the mute state.
 - Rebind Press to talk to an extra mouse button; holding that button unmutes and
   releasing it mutes again.
-- `Ctrl + Alt + Backquote` toggles Voice Mode.
-- `Ctrl + Shift + Backquote` toggles Voice Mode mute.
-- `Ctrl + ArrowRight` skips active TTS.
-- `Ctrl + Alt + D` starts dictation, and pressing it again stops it; it does
+- `⌃;` / `Alt+;` toggles Voice Mode.
+- `⌃'` / `Alt+'` toggles Voice Mode mute.
+- `⌃]` / `Alt+]` skips active TTS.
+- `⌃.` / `Alt+.` starts dictation, and pressing it again stops it; it does
   nothing during Voice Mode.
 - Hovering Dictate, Voice Mode and the Voice Mode mute button shows the matching
   shortcut, and the shown shortcut follows a rebinding.
-- `Ctrl + Slash` shows or hides Quick Chat on an Anima chat route, focuses the
+- `⌥Space` / `Alt+Space` shows or hides Quick Chat on an Anima chat route, focuses the
   chat input, and lets transparent outer window regions pass clicks through.
 - Recording a shortcut in settings pauses shortcut handling and persists the new
   binding.

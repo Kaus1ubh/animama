@@ -50,7 +50,7 @@ import {
   type SettingsPreferences,
 } from "@/lib/settings/preferences";
 import {
-  DEFAULT_DESKTOP_SHORTCUTS,
+  defaultDesktopShortcuts,
   formatDesktopShortcut,
   resolveDesktopShortcuts,
   shortcutFromKeyboardEvent,
@@ -199,6 +199,7 @@ function ShortcutRecorder({
   onKeyDown,
 }: ShortcutRecorderProps) {
   const { t } = useTranslation("settings");
+  const { os } = useRuntimePlatform();
   return (
     <SettingsRow
       label={label}
@@ -224,7 +225,7 @@ function ShortcutRecorder({
             ? allowMouseShortcut
               ? t("shortcuts.pressKeysOrMouse")
               : t("shortcuts.pressKeys")
-            : formatDesktopShortcut(shortcut, (button) =>
+            : formatDesktopShortcut(shortcut, os, (button) =>
                 t("shortcuts.mouseButton", { button }),
               )}
         </Button>
@@ -591,7 +592,7 @@ export function ApplicationSettingsModal({
   const [selectedGeminiModelId, setSelectedGeminiModelId] =
     useState<GeminiTtsModelId>(DEFAULT_GEMINI_TTS_MODEL_ID);
   const [desktopShortcuts, setDesktopShortcuts] = useState<DesktopShortcutMap>(
-    DEFAULT_DESKTOP_SHORTCUTS,
+    defaultDesktopShortcuts(platform.os),
   );
   const [recordingShortcutAction, setRecordingShortcutAction] =
     useState<DesktopShortcutAction | null>(null);
@@ -637,7 +638,7 @@ export function ApplicationSettingsModal({
   );
   const savedTtsEnabledRef = useRef(false);
   const savedDesktopShortcutsRef = useRef<DesktopShortcutMap>(
-    DEFAULT_DESKTOP_SHORTCUTS,
+    defaultDesktopShortcuts(platform.os),
   );
   const savedAvatarTransformControlsEnabledRef = useRef(false);
   const updateUserPreferencesRef = useRef(updateUserPreferences);
@@ -669,8 +670,9 @@ export function ApplicationSettingsModal({
     () =>
       resolveDesktopShortcuts(
         resolvedUserPreferences?.speech?.desktop_shortcuts,
+        platform.os,
       ),
-    [resolvedUserPreferences?.speech?.desktop_shortcuts],
+    [platform.os, resolvedUserPreferences?.speech?.desktop_shortcuts],
   );
   const savedAvatarTransformControlsEnabled =
     resolvedUserPreferences?.presentation?.enable_avatar_transform_controls ===

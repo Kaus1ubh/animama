@@ -2,7 +2,8 @@
 
 Desktop Quick Chat is a transparent native Electron window that renders the
 chat-only conversation UI for the current anima. It is opened from the main
-renderer through the global `Ctrl + Slash` shortcut.
+renderer through the global Quick Chat shortcut (`⌥Space` on macOS,
+`Alt+Space` on Windows and Linux).
 
 ## High-Level Flow
 
@@ -80,7 +81,7 @@ parameter. Renderers do not provide arbitrary Quick Chat URLs.
 The main renderer prewarms the Quick Chat window with `prepare(...)` while an
 Anima route is active. Prewarm creates or retargets the hidden BrowserWindow,
 loads the Quick Chat route, and lets it receive mirrored runtime state before
-the user presses `Ctrl + Slash`.
+the user presses the Quick Chat shortcut.
 
 The window starts hidden and becomes visible only after both readiness gates are
 satisfied:
@@ -97,7 +98,7 @@ opacity `0`, focuses the BrowserWindow, reveals it after a short compositor
 handoff delay, and sends a `focus-input` runtime message so the visible Quick
 Chat textarea receives focus.
 
-If `Ctrl + Slash` is pressed while Quick Chat is already visible for the same
+If the Quick Chat shortcut is pressed while Quick Chat is already visible for the same
 anima/chat, the window hides but the BrowserWindow and renderer stay alive for
 the next open. `Esc` and the window's `blur` hide it the same way; a click on a
 transparent region passes through to the window below, which takes focus.
@@ -243,7 +244,7 @@ window behavior.
 
 ## Manual Test Checklist
 
-- `Ctrl + Slash` opens Quick Chat on an Anima route.
+- The Quick Chat shortcut opens Quick Chat on an Anima route.
 - The textarea is focused immediately after the window appears, without
   selecting the hidden measurement textarea used by the shared chat input.
 - The chat input appears centered vertically in the native window.
@@ -256,11 +257,11 @@ window behavior.
   state.
 - `Esc` hides Quick Chat and keeps the renderer warm. With a menu or popover
   open, `Esc` closes that first.
-- Pressing `Ctrl + Slash` again hides Quick Chat when it targets the same
+- Pressing the Quick Chat shortcut again hides Quick Chat when it targets the same
   anima/chat.
 - Reopening Quick Chat for the same anima reuses the warm renderer and appears
   without repeating initial route loading.
-- Pressing `Ctrl + Slash` after navigating the main window to another
+- Pressing the Quick Chat shortcut after navigating the main window to another
   anima/chat retargets Quick Chat.
 - The chat column scrolls older messages.
 - Transparent outer regions pass clicks through to the desktop, and that click

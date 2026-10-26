@@ -34,40 +34,36 @@ export type DesktopShortcut = DesktopKeyboardShortcut | DesktopMouseShortcut;
 
 export type DesktopShortcutMap = Record<DesktopShortcutAction, DesktopShortcut>;
 
-export const DEFAULT_DESKTOP_SHORTCUTS: DesktopShortcutMap = {
-  press_to_talk: {
-    code: "Backquote",
-    key: "`",
-    ctrlKey: true,
-  },
-  quick_chat: {
-    code: "Slash",
-    key: "/",
-    ctrlKey: true,
-  },
-  toggle_dictation: {
-    code: "KeyD",
-    key: "d",
-    ctrlKey: true,
-    altKey: true,
-  },
-  toggle_voice_mode: {
-    code: "Backquote",
-    key: "`",
-    ctrlKey: true,
-    altKey: true,
-  },
-  toggle_voice_mute: {
-    code: "Backquote",
-    key: "`",
-    ctrlKey: true,
-    shiftKey: true,
-  },
-  skip_tts: {
-    code: "ArrowRight",
-    ctrlKey: true,
-  },
+/**
+ * Default shortcuts per OS: a modifier plus one key each. Global one-shot
+ * shortcuts are taken from every other app, so they avoid letters (shell and
+ * text-editing commands) and keys the OS or its input methods use. macOS uses
+ * Control, since Option with punctuation types characters (… æ ‘); Windows and
+ * Linux use Alt, since Control with `.` and Space toggles CJK input methods and
+ * Control with `;` `'` `]` are Office commands.
+ */
+const MACOS_DESKTOP_SHORTCUTS: DesktopShortcutMap = {
+  press_to_talk: { code: "Backquote", key: "`", ctrlKey: true },
+  quick_chat: { code: "Space", altKey: true },
+  toggle_dictation: { code: "Period", key: ".", ctrlKey: true },
+  toggle_voice_mode: { code: "Semicolon", key: ";", ctrlKey: true },
+  toggle_voice_mute: { code: "Quote", key: "'", ctrlKey: true },
+  skip_tts: { code: "BracketRight", key: "]", ctrlKey: true },
 };
+
+const OTHER_DESKTOP_SHORTCUTS: DesktopShortcutMap = {
+  press_to_talk: { code: "Backquote", key: "`", ctrlKey: true },
+  quick_chat: { code: "Space", altKey: true },
+  toggle_dictation: { code: "Period", key: ".", altKey: true },
+  toggle_voice_mode: { code: "Semicolon", key: ";", altKey: true },
+  toggle_voice_mute: { code: "Quote", key: "'", altKey: true },
+  skip_tts: { code: "BracketRight", key: "]", altKey: true },
+};
+
+/** The default shortcuts for `os` (Node's `process.platform` name). */
+export function defaultDesktopShortcuts(os: string | null): DesktopShortcutMap {
+  return os === "darwin" ? MACOS_DESKTOP_SHORTCUTS : OTHER_DESKTOP_SHORTCUTS;
+}
 
 const MODIFIER_CODES = new Set([
   "AltLeft",
@@ -239,39 +235,22 @@ export function normalizeDesktopShortcut(
   return validateDesktopShortcutShape(action, shortcut) ? fallback : shortcut;
 }
 
-export function resolveDesktopShortcuts(value: unknown): DesktopShortcutMap {
+/** Stored shortcuts with each missing or invalid one replaced by the OS default. */
+export function resolveDesktopShortcuts(
+  value: unknown,
+  os: string | null,
+): DesktopShortcutMap {
   const source = isRecord(value) ? value : {};
+  const defaults = defaultDesktopShortcuts(os);
+  const resolve = (action: DesktopShortcutAction) =>
+    normalizeDesktopShortcut(source[action], defaults[action], action);
   return {
-    press_to_talk: normalizeDesktopShortcut(
-      source.press_to_talk,
-      DEFAULT_DESKTOP_SHORTCUTS.press_to_talk,
-      "press_to_talk",
-    ),
-    quick_chat: normalizeDesktopShortcut(
-      source.quick_chat,
-      DEFAULT_DESKTOP_SHORTCUTS.quick_chat,
-      "quick_chat",
-    ),
-    toggle_dictation: normalizeDesktopShortcut(
-      source.toggle_dictation,
-      DEFAULT_DESKTOP_SHORTCUTS.toggle_dictation,
-      "toggle_dictation",
-    ),
-    toggle_voice_mode: normalizeDesktopShortcut(
-      source.toggle_voice_mode,
-      DEFAULT_DESKTOP_SHORTCUTS.toggle_voice_mode,
-      "toggle_voice_mode",
-    ),
-    toggle_voice_mute: normalizeDesktopShortcut(
-      source.toggle_voice_mute,
-      DEFAULT_DESKTOP_SHORTCUTS.toggle_voice_mute,
-      "toggle_voice_mute",
-    ),
-    skip_tts: normalizeDesktopShortcut(
-      source.skip_tts,
-      DEFAULT_DESKTOP_SHORTCUTS.skip_tts,
-      "skip_tts",
-    ),
+    press_to_talk: resolve("press_to_talk"),
+    quick_chat: resolve("quick_chat"),
+    toggle_dictation: resolve("toggle_dictation"),
+    toggle_voice_mode: resolve("toggle_voice_mode"),
+    toggle_voice_mute: resolve("toggle_voice_mute"),
+    skip_tts: resolve("skip_tts"),
   };
 }
 
@@ -372,37 +351,6 @@ function codeLabel(code: string, key?: string): string {
   return code.replace(/([a-z])([A-Z])/g, "$1 $2");
 }
 
-/**
- * Display text for a shortcut. Key names stay as the OS shows them; the caller
- * words the mouse button (for example "Mouse Button 4") in the UI Locale.
- */
-export function formatDesktopShortcut(
-  shortcut: DesktopShortcut,
-  mouseButtonLabel: (button: number) => string,
-): string {
-  if (isMouseShortcut(shortcut)) {
-    return [
-      shortcut.ctrlKey === true ? "Ctrl" : "",
-      shortcut.altKey === true ? "Alt" : "",
-      shortcut.shiftKey === true ? "Shift" : "",
-      shortcut.metaKey === true ? "Meta" : "",
-      mouseButtonLabel(shortcut.button),
-    ]
-      .filter(Boolean)
-      .join(" + ");
-  }
-
-  return [
-    shortcut.ctrlKey === true ? "Ctrl" : "",
-    shortcut.altKey === true ? "Alt" : "",
-    shortcut.shiftKey === true ? "Shift" : "",
-    shortcut.metaKey === true ? "Meta" : "",
-    codeLabel(shortcut.code, shortcut.key),
-  ]
-    .filter(Boolean)
-    .join(" + ");
-}
-
 /** macOS key glyphs for the non-letter keys a shortcut may use. */
 const APPLE_KEY_GLYPHS: Record<string, string> = {
   ArrowDown: "↓",
@@ -429,9 +377,28 @@ const ARROW_GLYPHS: Record<string, string> = {
   ArrowUp: "↑",
 };
 
+/** A shortcut's modifiers as its OS writes them, in that OS's order. */
+function modifierLabels(shortcut: DesktopShortcut, os: string | null): string[] {
+  const held = (flag: boolean | undefined, label: string) =>
+    flag === true ? [label] : [];
+  return os === "darwin"
+    ? [
+        ...held(shortcut.ctrlKey, "⌃"),
+        ...held(shortcut.altKey, "⌥"),
+        ...held(shortcut.shiftKey, "⇧"),
+        ...held(shortcut.metaKey, "⌘"),
+      ]
+    : [
+        ...held(shortcut.ctrlKey, "Ctrl"),
+        ...held(shortcut.altKey, "Alt"),
+        ...held(shortcut.shiftKey, "Shift"),
+        ...held(shortcut.metaKey, os === "win32" ? "Win" : "Super"),
+      ];
+}
+
 /**
  * Keycap text for a keyboard shortcut, written the way its OS shows them:
- * "⌃⌥D" on macOS, "Ctrl+Alt+D" elsewhere (as the creator history does).
+ * "⌃." on macOS, "Alt+." elsewhere (as the creator history does).
  */
 export function formatDesktopShortcutKeycap(
   shortcut: DesktopKeyboardShortcut,
@@ -440,24 +407,29 @@ export function formatDesktopShortcutKeycap(
   const key =
     (os === "darwin" ? APPLE_KEY_GLYPHS : ARROW_GLYPHS)[shortcut.code] ??
     codeLabel(shortcut.code, shortcut.key);
-  if (os === "darwin") {
-    return [
-      shortcut.ctrlKey === true ? "⌃" : "",
-      shortcut.altKey === true ? "⌥" : "",
-      shortcut.shiftKey === true ? "⇧" : "",
-      shortcut.metaKey === true ? "⌘" : "",
-      key,
-    ].join("");
+  const modifiers = modifierLabels(shortcut, os);
+  return os === "darwin"
+    ? [...modifiers, key].join("")
+    : [...modifiers, key].join("+");
+}
+
+/**
+ * Display text for any shortcut in its OS's style. The caller words the mouse
+ * button (for example "Mouse Button 4") in the UI Locale.
+ */
+export function formatDesktopShortcut(
+  shortcut: DesktopShortcut,
+  os: string | null,
+  mouseButtonLabel: (button: number) => string,
+): string {
+  if (!isMouseShortcut(shortcut)) {
+    return formatDesktopShortcutKeycap(shortcut, os);
   }
-  return [
-    shortcut.ctrlKey === true ? "Ctrl" : "",
-    shortcut.altKey === true ? "Alt" : "",
-    shortcut.shiftKey === true ? "Shift" : "",
-    shortcut.metaKey === true ? "Meta" : "",
-    key,
-  ]
-    .filter(Boolean)
-    .join("+");
+  const modifiers = modifierLabels(shortcut, os);
+  const button = mouseButtonLabel(shortcut.button);
+  return os === "darwin"
+    ? [modifiers.join(""), button].filter(Boolean).join(" ")
+    : [...modifiers, button].join("+");
 }
 
 /**
@@ -474,7 +446,7 @@ export function desktopChatShortcutLabels(
   voiceMute: string | null;
   skipTts: string | null;
 } {
-  const shortcuts = resolveDesktopShortcuts(value);
+  const shortcuts = resolveDesktopShortcuts(value, os);
   const format = (shortcut: DesktopShortcut) =>
     isMouseShortcut(shortcut)
       ? null

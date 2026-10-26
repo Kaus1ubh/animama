@@ -804,9 +804,14 @@ export const ChatInterface = ({
     ],
   );
 
+  const desktopOs = useRuntimePlatform().os;
   const desktopShortcuts = useMemo(
-    () => resolveDesktopShortcuts(userPreferences?.speech?.desktop_shortcuts),
-    [userPreferences?.speech?.desktop_shortcuts],
+    () =>
+      resolveDesktopShortcuts(
+        userPreferences?.speech?.desktop_shortcuts,
+        desktopOs,
+      ),
+    [desktopOs, userPreferences?.speech?.desktop_shortcuts],
   );
 
   useEffect(() => {
