@@ -7,8 +7,11 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { build, Platform, Arch } from "electron-builder";
+import { sha256 } from "../scripts/runtime/common.mjs";
 import { validateReleasePolicy } from "../scripts/runtime/release-policy.mjs";
 import {
   releaseName,
@@ -24,11 +27,14 @@ import {
   signingOrder,
   signtoolArguments,
   validateSigningReport,
+  WINDOWS_EXECUTABLE,
 } from "../scripts/runtime/windows-signing.mjs";
 import {
+  builderSigningHook,
   parseWindowsReleaseArgs,
   windowsBuilderOptions,
 } from "../scripts/runtime/release-windows.mjs";
+import { iconFile } from "../scripts/runtime/windows-resources.mjs";
 import {
   candidateDistribution,
   isWindowsReleaseName,
@@ -154,7 +160,7 @@ describe("Windows release policy", () => {
 });
 
 describe("Windows signing", () => {
-  it("finds every PE file and orders nested code deepest first, then the outer app with Animama.exe last", () => {
+  it("finds every PE file and orders nested code deepest first, then the outer files", () => {
     const root = fixture();
     const pe = Buffer.alloc(256);
     pe.write("MZ", 0, "latin1");
@@ -176,7 +182,10 @@ describe("Windows signing", () => {
     writeFileSync(path.join(root, "LICENSE.electron.txt"), "MZ text");
     const files = portableExecutables(root);
     expect(files).toHaveLength(7);
-    const order = signingOrder(files);
+    // electron-builder signs Animama.exe itself, after these.
+    const order = signingOrder(
+      files.filter((file) => file !== WINDOWS_EXECUTABLE),
+    );
     expect(order.nested).toEqual([
       "resources/app.asar.unpacked/dist/native/global_input_hook.node",
       "resources/runtime/backend/_internal/python312.dll",
@@ -184,7 +193,7 @@ describe("Windows signing", () => {
       "resources/runtime/postgresql/lib/vector.dll",
       "resources/runtime/bin/animama-process-guard.exe",
     ]);
-    expect(order.outer).toEqual(["ffmpeg.dll", "Animama.exe"]);
+    expect(order.outer).toEqual(["ffmpeg.dll"]);
   });
 
   it("reads an embedded signature from the PE certificate table, not from catalog trust", () => {
@@ -339,7 +348,7 @@ describe("Windows release candidate", () => {
     expect(() => parseWindowsReleaseArgs(["--skip-review"])).toThrow();
   });
 
-  it("signs only through the repository hook: no electron-builder editing, Azure module or SHA-1", () => {
+  it("signs only through the repository hook: no Azure module or SHA-1", () => {
     const sign = () => {};
     const afterPack = () => {};
     const options = windowsBuilderOptions({
@@ -359,7 +368,6 @@ describe("Windows release candidate", () => {
     expect(options.config.extraMetadata).toEqual({ name: "Animama" });
     expect(options.config.win).toEqual({
       icon: "icon.ico",
-      signAndEditExecutable: false,
       signtoolOptions: { signingHashAlgorithms: ["sha256"], sign },
     });
     expect(options.config.win).not.toHaveProperty("azureSignOptions");
@@ -371,6 +379,129 @@ describe("Windows release candidate", () => {
       },
     ]);
   });
+
+  it("leaves files under the app's resources to afterPack and signs the rest", () => {
+    const app = path.join(fixture(), "win-unpacked");
+    const signed = [];
+    const hook = builderSigningHook(app, (file) => signed.push(file));
+    for (const file of [
+      path.join(app, "resources/runtime/postgresql/bin/postgres.exe"),
+      path.join(app, "resources/app.asar.unpacked/tool.exe"),
+      path.join(app, "Animama.exe"),
+      path.join(app, "../Animama-0.1.1-x64-setup.exe"),
+      path.join(app, "../resources-elsewhere.exe"),
+    ])
+      hook({ path: file });
+    expect(signed.map((file) => path.relative(app, file))).toEqual([
+      "Animama.exe",
+      path.join("..", "Animama-0.1.1-x64-setup.exe"),
+      path.join("..", "resources-elsewhere.exe"),
+    ]);
+  });
+
+  it("packages through electron-builder's Windows path: runtime files wait for afterPack and Animama.exe is edited before it is signed", async () => {
+    const ResEdit = createRequire(import.meta.url)("resedit");
+    const root = fixture();
+    const write = (name, data) => {
+      mkdirSync(path.dirname(path.join(root, name)), { recursive: true });
+      writeFileSync(path.join(root, name), data);
+    };
+    const png = Buffer.from(
+      "89504e470d0a1a0a0000000d4948445200000001000000010806000000" +
+        "1f15c4890000000d49444154789c6360000002000154a24f5d0000000049454e44ae426082",
+      "hex",
+    );
+    // A stand-in electron.exe with the version strings and icon group the real one has.
+    const executable = ResEdit.NtExecutable.createEmpty(true, false);
+    const resources = ResEdit.NtExecutableResource.from(executable);
+    const info = ResEdit.Resource.VersionInfo.createEmpty();
+    info.setStringValues(
+      { lang: 1033, codepage: 1200 },
+      { FileDescription: "Electron", ProductName: "Electron" },
+    );
+    info.outputToResourceEntries(resources.entries);
+    ResEdit.Resource.IconGroupEntry.replaceIconsForResource(
+      resources.entries,
+      1,
+      1033,
+      ResEdit.Data.IconFile.from(iconFile([{ size: 16, png }])).icons.map(
+        (item) => item.data,
+      ),
+    );
+    resources.outputResource(executable);
+    write("electron/electron.exe", Buffer.from(executable.generate()));
+    write(
+      "project/package.json",
+      JSON.stringify({
+        name: "animama-desktop",
+        version: "0.1.1",
+        main: "dist/main.js",
+        author: "Animama",
+      }),
+    );
+    write("project/dist/main.js", "// main\n");
+    write("project/runtime/bin/tool.exe", "MZ runtime tool");
+    write(
+      "icon.ico",
+      iconFile([
+        { size: 16, png },
+        { size: 256, png },
+      ]),
+    );
+
+    const app = path.join(root, "project/release/win-unpacked");
+    const events = [];
+    const hook = builderSigningHook(app, (file) =>
+      events.push(["signed", path.relative(app, file), sha256(file)]),
+    );
+    const options = windowsBuilderOptions({
+      icon: path.join(root, "icon.ico"),
+      release: {
+        distribution: {
+          name: "r2",
+          base_url: "https://downloads.example.test/desktop",
+        },
+      },
+      afterPack: () => events.push(["afterPack"]),
+      sign: (configuration) => {
+        events.push(["offered", path.relative(app, configuration.path)]);
+        hook(configuration);
+      },
+    });
+    // The release options and hooks, with a stand-in project and Electron.
+    await build({
+      ...options,
+      projectDir: path.join(root, "project"),
+      targets: Platform.WINDOWS.createTarget(["dir"], Arch.x64),
+      config: {
+        ...options.config,
+        extends: null,
+        productName: "Animama",
+        electronVersion: "44.9.3",
+        electronDist: path.join(root, "electron"),
+        npmRebuild: false,
+        directories: { output: "release" },
+        files: ["dist/**/*", "package.json"],
+        extraResources: [{ from: "runtime", to: "runtime" }],
+      },
+    });
+
+    const exe = path.join(app, "Animama.exe");
+    expect(events).toEqual([
+      ["offered", path.join("resources", "runtime", "bin", "tool.exe")],
+      ["afterPack"],
+      ["offered", "Animama.exe"],
+      ["signed", "Animama.exe", sha256(exe)],
+    ]);
+    const [version] = ResEdit.Resource.VersionInfo.fromEntries(
+      ResEdit.NtExecutableResource.from(
+        ResEdit.NtExecutable.from(readFileSync(exe)),
+      ).entries,
+    );
+    expect(
+      version.getStringValues({ lang: 1033, codepage: 1200 }),
+    ).toMatchObject({ FileDescription: "Animama", ProductName: "Animama" });
+  }, 60_000);
 
   it("names Windows evidence so it cannot collide with macOS files in the shared version folder", () => {
     expect(releaseName("win32-x64", "size-report.json")).toBe(

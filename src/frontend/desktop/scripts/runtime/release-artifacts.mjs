@@ -224,15 +224,15 @@ export function releaseSbom(manifest, inventory) {
 
 /**
  * The distribution a candidate was built for, as its signing report records
- * it; null if absent. A Windows signing rehearsal is never `release_ready`, so
- * it names no distribution a publisher could accept.
+ * it; null if absent. A signing rehearsal is never `release_ready`, so it
+ * names no distribution a publisher could accept.
  */
 export function candidateDistribution(directory, target = "darwin-arm64") {
   try {
     const report = readJson(
       path.join(directory, releaseName(target, "signing-report.json")),
     );
-    if (target === "win32-x64" && report.release_ready !== true) return null;
+    if (report.release_ready !== true) return null;
     const { distribution } = report;
     return ["r2", "github"].includes(distribution?.kind) ? distribution : null;
   } catch {

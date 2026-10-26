@@ -3,7 +3,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { SUPPORTED_LOCALES } from "@animama/runtime-contracts/locale";
-import { desktopRoot } from "../scripts/runtime/common.mjs";
+import { desktopRoot, electronDist } from "../scripts/runtime/common.mjs";
 
 /**
  * Electron's own lproj folder for each translated UI Locale. Reusing them
@@ -75,8 +75,8 @@ describe("localized macOS microphone prompt", () => {
     "merges into lproj folders the Electron app already ships",
     () => {
       const electron = path.join(
-        desktopRoot,
-        "node_modules/electron/dist/Electron.app/Contents/Resources",
+        electronDist(),
+        "Electron.app/Contents/Resources",
       );
       for (const lproj of Object.values(LPROJ))
         expect(existsSync(path.join(electron, `${lproj}.lproj`)), lproj).toBe(
