@@ -428,9 +428,7 @@ class DesktopShortcutManager {
         return this.context.quickChatAvailable;
       case "toggle_dictation":
         // Dictation and Voice Mode share the microphone; one runs at a time.
-        return (
-          this.context.voiceModeAvailable && !this.context.voiceModeActive
-        );
+        return this.context.voiceModeAvailable && !this.context.voiceModeActive;
       case "toggle_voice_mode":
         return this.context.voiceModeAvailable;
       case "toggle_voice_mute":

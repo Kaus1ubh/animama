@@ -46,9 +46,10 @@ describe("validateDesktopShortcut", () => {
   });
 
   it("names the action that already uses the shortcut", () => {
-    expect(
-      validate("quick_chat", MACOS_DEFAULTS.press_to_talk),
-    ).toEqual({ reason: "in_use", action: "press_to_talk" });
+    expect(validate("quick_chat", MACOS_DEFAULTS.press_to_talk)).toEqual({
+      reason: "in_use",
+      action: "press_to_talk",
+    });
   });
 });
 
@@ -60,7 +61,11 @@ describe("default desktop shortcuts", () => {
       Object.fromEntries(
         actions.map((action) => [
           action,
-          formatDesktopShortcut(defaultDesktopShortcuts(os)[action], os, String),
+          formatDesktopShortcut(
+            defaultDesktopShortcuts(os)[action],
+            os,
+            String,
+          ),
         ]),
       );
     expect(keycaps("darwin")).toEqual({
@@ -105,7 +110,9 @@ describe("default desktop shortcuts", () => {
     expect(resolved.toggle_dictation).toEqual(
       defaultDesktopShortcuts("win32").toggle_dictation,
     );
-    expect(resolved.skip_tts).toEqual(defaultDesktopShortcuts("win32").skip_tts);
+    expect(resolved.skip_tts).toEqual(
+      defaultDesktopShortcuts("win32").skip_tts,
+    );
   });
 
   it("keep the Dictate shortcut keyboard-only", () => {
@@ -122,7 +129,12 @@ describe("default desktop shortcuts", () => {
 describe("chat shortcut keycaps", () => {
   it("follows a rebinding in the OS's style", () => {
     const preferences = {
-      toggle_dictation: { code: "KeyJ", key: "j", shiftKey: true, metaKey: true },
+      toggle_dictation: {
+        code: "KeyJ",
+        key: "j",
+        shiftKey: true,
+        metaKey: true,
+      },
     };
     expect(desktopChatShortcutLabels(preferences, "darwin")).toEqual({
       dictation: "⇧⌘J",

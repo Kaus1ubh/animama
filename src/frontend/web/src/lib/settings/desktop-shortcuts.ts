@@ -378,7 +378,10 @@ const ARROW_GLYPHS: Record<string, string> = {
 };
 
 /** A shortcut's modifiers as its OS writes them, in that OS's order. */
-function modifierLabels(shortcut: DesktopShortcut, os: string | null): string[] {
+function modifierLabels(
+  shortcut: DesktopShortcut,
+  os: string | null,
+): string[] {
   const held = (flag: boolean | undefined, label: string) =>
     flag === true ? [label] : [];
   return os === "darwin"
