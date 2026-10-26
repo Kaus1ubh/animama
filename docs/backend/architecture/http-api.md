@@ -360,9 +360,12 @@ location and recovery are in [model assets](../operations/model-assets.md#downlo
   (first frame, aspect and alpha kept) whose ETag is its own digest; smaller
   rasters and SVG return unchanged. Decoding uses the bounded image reader
   (40 million pixels, 16,384 per side), so an oversized canvas is refused from
-  its header. Thumbnails are cached in process by source digest. Other media
-  types, or an image that is over budget or cannot be decoded, fail with 422
-  `content_thumbnail_unsupported`.
+  its header. The source is shrunk before EXIF orientation and a JPEG decodes at
+  a reduced scale; a source that would still decode to more than 4096 × 4096
+  pixels (a larger PNG or WebP) is refused, and at most two decode at once per
+  process, so a preview's memory stays bounded. Thumbnails are cached in process
+  by source digest. Other media types, or an image that is over budget or cannot
+  be decoded, fail with 422 `content_thumbnail_unsupported`.
 
 In embedded desktop, byte delivery uses the exact immutable Included mount
 recorded with the item or preview. Unmounted/mismatched sources fail closed;

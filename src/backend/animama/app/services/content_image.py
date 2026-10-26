@@ -235,11 +235,15 @@ def derive_image_thumbnail(
     content: BinaryIO,
     max_dimension: int = THUMBNAIL_MAX_DIMENSION,
     first_frame: bool = False,
+    max_decoded_pixels: int | None = None,
 ) -> DerivedImageThumbnail:
     """Resize a bounded image without upscaling and encode it as WebP.
 
     By default the source must be a canonical static image; ``first_frame``
-    instead accepts an animated source and keeps its first frame.
+    instead accepts an animated source and keeps its first frame. The image is
+    shrunk before EXIF orientation, so only the decoded source and a small copy are
+    held at once; a JPEG decodes at a reduced scale. A decoded size above
+    ``max_decoded_pixels`` is refused from the header (``image_pixel_budget``).
     """
 
     image, source_format, source_width, source_height, frame_count = _open_bounded_image(
@@ -251,9 +255,13 @@ def derive_image_thumbnail(
         if not first_frame:
             _require_supported_frame_policy(source_format, frame_count)
         image.seek(0)
-        image.load()
+        # A JPEG decodes at the smallest scale that still leaves the resampling headroom
+        # ``thumbnail`` keeps (its default reducing gap of 2); other formats decode whole.
+        image.draft(None, (max_dimension * 2, max_dimension * 2))
+        if max_decoded_pixels is not None and image.width * image.height > max_decoded_pixels:
+            raise ContentFileInvalidError(field="file", reason="image_pixel_budget")
+        image.thumbnail((max_dimension, max_dimension), Image.Resampling.LANCZOS)
         oriented = ImageOps.exif_transpose(image)
-        oriented.thumbnail((max_dimension, max_dimension), Image.Resampling.LANCZOS)
         has_alpha = "A" in oriented.getbands() or "transparency" in oriented.info
         mode = "RGBA" if has_alpha else "RGB"
         stripped = Image.new(mode, oriented.size)
