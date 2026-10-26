@@ -20,6 +20,7 @@ import {
   utimesSync,
   writeFileSync,
 } from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { assertPrivateWindowsDirectory, systemPath } from "./windows-acl.mjs";
@@ -31,6 +32,20 @@ export const sourceRoot = path.join(desktopRoot, "runtime");
 export const cacheRoot = path.join(desktopRoot, ".desktop-runtime");
 // ZIP cannot represent the Unix epoch. Use one fixed, portable date everywhere.
 const normalizedTime = new Date("2000-01-01T00:00:00Z");
+
+/**
+ * Electron's binary distribution for this host. The `electron` package has no
+ * install script since Electron 42: resolving it downloads the binary on first
+ * use and verifies it against the package's pinned checksums.
+ */
+export function electronDist() {
+  const require = createRequire(path.join(desktopRoot, "package.json"));
+  require("electron");
+  return path.join(
+    path.dirname(require.resolve("electron/package.json")),
+    "dist",
+  );
+}
 
 export function readJson(file) {
   return JSON.parse(readFileSync(file, "utf8"));

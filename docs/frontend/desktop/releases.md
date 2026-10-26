@@ -273,16 +273,20 @@ pnpm desktop:dist:windows
 ```
 
 This verifies the audit and receipt, refuses active feature packs (Windows
-packs are not built yet), and builds the per-user installer without
-electron-builder's own Windows signing. Every PE file lacking a valid embedded
+packs are not built yet), and builds the per-user installer. electron-builder
+signs only through the repository's hook and pinned tools, never its Azure
+module. Every PE file lacking a valid embedded
 signature is signed with SHA-256 file and timestamp digests, timestamped by
 `http://timestamp.acs.microsoft.com`; valid embedded vendor signatures, such as
 Microsoft's, are kept after `signtool verify /pa` confirms them. A file signed
 only through a system catalog is signed, since a catalog verifies only on a
 machine holding it. Nested code under `resources` is signed
 first, deepest first. The review receipt is then added and the runtime manifest
-recomputed, since signing changes file hashes, before the outer app
-(`Animama.exe` last), the uninstaller and the installer are signed. A transient
+recomputed, since signing changes file hashes, before the outer DLLs are
+signed. electron-builder then writes `Animama.exe`'s icon and version
+resources, and the hook signs it, the uninstaller and the installer. Runtime
+files electron-builder offers to the hook while copying them are left to the
+nested step. A transient
 timestamp or network failure is retried only for the files not yet signed and
 timestamped.
 

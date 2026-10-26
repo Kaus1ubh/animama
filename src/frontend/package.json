@@ -99,7 +99,6 @@
     "onlyBuiltDependencies": [
       "@parcel/watcher",
       "core-js",
-      "electron",
       "esbuild",
       "protobufjs",
       "sharp"

@@ -33,13 +33,13 @@ import {
 } from "./release-artifacts.mjs";
 import { stageReleaseModels, verifyReleaseModels } from "./release-models.mjs";
 import { signBuilderFile, signWindowsApp } from "./sign-windows.mjs";
-import { brandPackagedApp } from "./windows-resources.mjs";
 import {
   portableExecutables,
   readSignatures,
   signatureEntry,
   signingTools,
   validateSigningReport,
+  WINDOWS_EXECUTABLE,
 } from "./windows-signing.mjs";
 
 const TARGET = "win32-x64";
@@ -53,10 +53,12 @@ export function parseWindowsReleaseArgs(args = []) {
 }
 
 /**
- * electron-builder options for the signed per-user installer. Its own Windows
- * signing and executable editing stay off: they fetch an unpinned Azure module
- * or the legacy winCodeSign archive (plan items 5 and 26). `afterPack` brands
- * and signs the app; the `sign` hook signs the uninstaller and installer.
+ * electron-builder options for the signed per-user installer. `afterPack`
+ * signs the app's nested code and DLLs; electron-builder then edits
+ * `Animama.exe`'s icon and version resources (with resedit, no tool download)
+ * and the `sign` hook signs it, the uninstaller and the installer. Signing goes
+ * only through the hook and the pinned tools, never electron-builder's Azure
+ * module (plan item 5).
  */
 export function windowsBuilderOptions({ icon, release, afterPack, sign }) {
   return {
@@ -71,11 +73,23 @@ export function windowsBuilderOptions({ icon, release, afterPack, sign }) {
       extraMetadata: { name: "Animama" },
       win: {
         icon,
-        signAndEditExecutable: false,
         signtoolOptions: { signingHashAlgorithms: ["sha256"], sign },
       },
       afterPack,
     },
+  };
+}
+
+/**
+ * The `sign` hook. electron-builder also offers each runtime `.exe` as it
+ * copies `extraResources`, before `afterPack` has checked the audited
+ * inventory; `signWindowsApp` signs everything under `resources` itself, in
+ * order, so those requests are left to it.
+ */
+export function builderSigningHook(app, signFile) {
+  const resources = path.join(path.resolve(app), "resources") + path.sep;
+  return ({ path: file }) => {
+    if (!path.resolve(file).startsWith(resources)) signFile(file);
   };
 }
 
@@ -142,6 +156,7 @@ export async function releaseWindows(args = []) {
   // missing set cannot waste a candidate's signatures.
   if (!rehearsal) verifyReleaseModels({ runtime: target.runtime });
 
+  const app = path.join(directory, "win-unpacked");
   let signed = null;
   const builderFiles = new Map();
   await build(
@@ -149,21 +164,19 @@ export async function releaseWindows(args = []) {
       icon,
       release,
       afterPack: (context) => {
-        brandPackagedApp(context, icon);
         signed = signWindowsApp(context.appOutDir, {
           release,
           tools,
           rehearsal,
         });
       },
-      sign: ({ path: file }) => {
+      sign: builderSigningHook(app, (file) => {
         const entry = signBuilderFile(file, { release, tools });
         builderFiles.set(entry.path, entry);
-      },
+      }),
     }),
   );
 
-  const app = path.join(directory, "win-unpacked");
   const runtime = path.join(app, "resources/runtime");
   const manifest = readJson(path.join(runtime, "manifest.json"));
   if (
@@ -173,12 +186,20 @@ export async function releaseWindows(args = []) {
   )
     throw new Error("Signed runtime identity mismatch");
   assertInventory(runtime, manifest.files);
+  const executable = builderFiles.get(WINDOWS_EXECUTABLE);
+  if (!executable)
+    throw new Error(
+      `electron-builder did not sign ${WINDOWS_EXECUTABLE} through the repository hook`,
+    );
   // Nothing may change a signed file between signing and the installer.
+  const entries = [...signed.files, executable].sort((a, b) =>
+    a.path < b.path ? -1 : a.path > b.path ? 1 : 0,
+  );
   const files = portableExecutables(app);
   const final = readSignatures(app, files);
   if (
-    files.join("\n") !== signed.files.map((entry) => entry.path).join("\n") ||
-    signed.files.some(
+    files.join("\n") !== entries.map((entry) => entry.path).join("\n") ||
+    entries.some(
       (entry) =>
         signatureEntry(
           entry.path,
@@ -215,8 +236,8 @@ export async function releaseWindows(args = []) {
       stage_build_id: signed.stage_build_id,
       runtime_build_id: signed.runtime_build_id,
       signed_files:
-        signed.files.filter((entry) => entry.signer === "animama").length + 2,
-      files: signed.files,
+        entries.filter((entry) => entry.signer === "animama").length + 2,
+      files: entries,
       installer: installerEntry,
       uninstaller: uninstaller ? { ...uninstaller, path: "uninstaller" } : null,
     },

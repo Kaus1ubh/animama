@@ -1820,11 +1820,9 @@ with frozen installs. Do not symlink complete installations across worktrees or
 platforms. Warm offline installs require all locked artifacts already cached;
 initial setup and missing platform binaries need network access.
 
-The frontend disables pnpm's side-effects cache because its cached Electron macOS
-framework layout expands symlinks into duplicate regular files. Installation scripts
-still run. Download reuse remains enabled; an existing expanded installation may
-need a fresh frozen install before benefiting from the layout change. This is
-separate from app signing or native acceptance.
+The `electron` package has no installation script. The desktop tools download
+its binary into `node_modules/electron/dist` on first use (verified against the
+package's checksums) and Electron's own download cache serves later worktrees.
 
 Docker copies lock/config inputs before sources and uses architecture/toolchain
 qualified BuildKit download caches. Source-only edits reuse dependency layers;

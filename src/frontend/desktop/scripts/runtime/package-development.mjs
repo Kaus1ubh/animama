@@ -4,14 +4,13 @@ import { build, Platform, Arch } from "electron-builder";
 import { desktopRoot, parseTarget, readJson, writeJson } from "./common.mjs";
 import { buildWindowsIcon } from "./icon.mjs";
 import { assertInventory, componentInventory } from "./inventory.mjs";
-import { brandPackagedApp } from "./windows-resources.mjs";
 
 /**
  * Build a local unsigned app for this host's target without mutating the
  * audited native runtime. Production signing has its own reviewed contract.
  *
- * - macOS arm64: an unsigned `.app` directory. Apple Silicon otherwise falls
- *   back to ad-hoc signing even when certificate discovery is disabled,
+ * - macOS arm64: an unsigned `.app` directory. Without `identity: null`,
+ *   electron-builder signs with any identity it discovers in the Keychain,
  *   invalidating the staged per-file hashes.
  * - Windows x64: an unsigned `win-unpacked` directory, or with `--installer`
  *   an unsigned per-user NSIS installer for local installer testing. Neither
@@ -39,15 +38,12 @@ await build({
         forceCodeSigning: false,
         // Sign nothing, so the staged runtime keeps its audited hashes even if
         // a certificate is configured; release signing is a separate contract.
-        // electron-builder's own executable editing needs a tool download
-        // that requires Developer Mode, so the hook below brands it instead.
-        win: { icon, signExts: ["!.exe"], signAndEditExecutable: false },
+        // electron-builder still edits Animama.exe's icon and version
+        // resources, exactly as for a release.
+        win: { icon, signExts: ["!.exe"] },
         // A one-click per-user install folder takes the package name:
         // %LOCALAPPDATA%\Programs\Animama, not ...\animama-desktop.
         extraMetadata: { name: "Animama" },
-        afterPack: (context) => {
-          brandPackagedApp(context, icon);
-        },
       }
     : {
         extends: extends_,

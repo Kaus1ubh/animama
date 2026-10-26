@@ -124,12 +124,15 @@ export function portableExecutables(root, isPE = isPortableExecutable) {
     .sort();
 }
 
+/** The packaged app's executable, which electron-builder edits and then signs. */
+export const WINDOWS_EXECUTABLE = "Animama.exe";
+
 /**
  * Proposal P-b's order. Nested code under `resources` (the runtime and the
  * unpacked addon) is signed first, deepest first, so the runtime manifest can
  * be re-inventoried before the outer app; `Animama.exe` is signed last.
  */
-export function signingOrder(files, executable = "Animama.exe") {
+export function signingOrder(files, executable = WINDOWS_EXECUTABLE) {
   const depthFirst = (a, b) =>
     b.split("/").length - a.split("/").length || (a < b ? -1 : a > b ? 1 : 0);
   const nested = files.filter((file) => file.startsWith("resources/"));
