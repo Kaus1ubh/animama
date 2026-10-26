@@ -1,6 +1,7 @@
 import type { TrackedEmotion } from "@/lib/emotion";
 
 import type { AmbientMood } from "./ambient";
+import type { SocialIconName } from "./social-icons";
 
 /*
  * The landing page's camera stops. Each stop frames the Avatar for
@@ -567,22 +568,33 @@ export const SITE = {
   /** The public contact address, forwarded by the domain's email routing. */
   contactEmail: "ray@animama.ai",
   /**
-   * Animama's places on other sites: the footer links them, and the page's
-   * schema.org data lists them as the organization's profiles (`sameAs`).
+   * Animama's places on other sites: the footer shows them as icons (by
+   * `icon`, see `social-icons.tsx`), and the page's schema.org data lists
+   * them as the organization's profiles (`sameAs`).
    */
   social: [
-    { label: "Discord", href: "https://discord.gg/pUHHRrZ2xg" },
-    { label: "YouTube", href: "https://www.youtube.com/@rayplusplus" },
-  ],
+    {
+      label: "Discord",
+      href: "https://discord.gg/pUHHRrZ2xg",
+      icon: "discord",
+    },
+    {
+      label: "YouTube",
+      href: "https://www.youtube.com/@rayplusplus",
+      icon: "youtube",
+    },
+  ] satisfies { label: string; href: string; icon: SocialIconName }[],
 };
 
-/** The footer's links, shared by the overlay and the prerendered page text. */
+/**
+ * The footer's text links, shared by the overlay and the prerendered page
+ * text; the social links follow them as icons.
+ */
 export const FOOTER_LINKS = [
   { label: "About", href: SITE.about },
   { label: "Privacy", href: SITE.privacy },
   { label: "Terms", href: SITE.terms },
   { label: "Contact", href: `mailto:${SITE.contactEmail}` },
-  ...SITE.social,
   { label: "Docs", href: SITE.docsUrl },
   { label: "Third-party notices", href: SITE.notices },
 ];

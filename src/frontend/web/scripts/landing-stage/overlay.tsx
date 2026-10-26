@@ -62,6 +62,7 @@ import { MoodBloom } from "./mood-bloom";
 import { PROGRAM } from "./program";
 import { LocaleFlag } from "./flags";
 import { TextShimmer } from "./text-shimmer";
+import { SocialIcon } from "./social-icons";
 import {
   BETA_ACCESS_URL,
   CLOSED_BETA,
@@ -1948,10 +1949,15 @@ function Reveal({
 
 /**
  * The page footer under the last stop's actions: the pages Cloud publishes
- * beside this one, the contact address, Animama's social links, the docs and
- * the third-party notices, then the copyright line.
+ * beside this one, the contact address, the docs and the third-party
+ * notices, then the copyright line beside Animama's social icons.
  */
 function SiteFooter({ light }: { light: boolean }) {
+  const linkClass = cn(
+    "rounded-sm outline-none focus-visible:ring-2",
+    focusRing(light),
+    light ? "hover:text-white" : "hover:text-foreground",
+  );
   return (
     <footer
       className={cn(
@@ -1965,11 +1971,7 @@ function SiteFooter({ light }: { light: boolean }) {
             <li key={label}>
               <a
                 href={href}
-                className={cn(
-                  "rounded-sm underline-offset-2 outline-none hover:underline focus-visible:ring-2",
-                  focusRing(light),
-                  light ? "hover:text-white" : "hover:text-foreground",
-                )}
+                className={cn(linkClass, "underline-offset-2 hover:underline")}
               >
                 {label}
               </a>
@@ -1977,7 +1979,23 @@ function SiteFooter({ light }: { light: boolean }) {
           ))}
         </ul>
       </nav>
-      <p className="mt-2">{SITE.copyright}</p>
+      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+        <p>{SITE.copyright}</p>
+        <ul className="flex items-center gap-3">
+          {SITE.social.map(({ label, href, icon }) => (
+            <li key={label} className="flex">
+              <a
+                href={href}
+                aria-label={label}
+                title={label}
+                className={linkClass}
+              >
+                <SocialIcon name={icon} className="size-4" />
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
     </footer>
   );
 }

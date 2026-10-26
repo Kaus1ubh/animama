@@ -355,7 +355,9 @@ export async function renderPageHtml(server) {
     `<main><section id="stop-${hero.id}"><h1>${text(hero.title)}</h1><p>${heroLine}</p><p class="scene">${text(SITE.sceneDescription)}</p></section>`,
     ...sections,
     `</main>`,
-    `<footer><nav aria-label="Footer">${FOOTER_LINKS.map(link).join(" ")}</nav><p>${escapeHtml(SITE.copyright)}</p></footer>`,
+    `<footer><nav aria-label="Footer">${[...FOOTER_LINKS, ...SITE.social]
+      .map(link)
+      .join(" ")}</nav><p>${escapeHtml(SITE.copyright)}</p></footer>`,
     `</div>`,
   ].join("");
   return { head, content };
