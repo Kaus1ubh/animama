@@ -74,13 +74,16 @@ torch = [{ index = "pytorch-cpu" }]
 torchvision = [{ index = "pytorch-cpu" }]
 
 [tool.uv]
-# Lock-only holds that keep the exported local-http contract and generated SDK stable;
-# the published wheel keeps its broader ranges.
+# Lock-only holds that keep the exported local-http contract, the generated SDK and the
+# desktop document worker stable; the published wheel keeps its broader ranges.
 constraint-dependencies = [
     # 2.13+ merges identical Input/Output schemas, renaming generated SDK types.
     "pydantic<2.13",
     # Starlette 1.x needs 0.134+, whose upload and validation-error schemas need a local-http major.
     "fastapi<0.122",
+    # torch 2.14 grows libtorch_cpu by about 140 MB, which puts the desktop document worker
+    # over its reviewed size ceiling; 2.13 already carries the advisory fix.
+    "torch<2.14",
 ]
 conflicts = [
     [
