@@ -26,6 +26,8 @@ import { cn } from "@/lib/utils";
 import { CONTINUOUS_CANVAS_RESIZE } from "@/ui/main/canvas/canvasResizeOptions";
 import { CanvasViewportProvider } from "@/ui/main/canvas/CanvasViewportContext";
 import { SceneRuntimeProvider } from "@/ui/main/canvas/SceneRuntimeContext";
+import { PacedScene } from "@/ui/main/canvas/SceneFramePacer";
+import { PREVIEW_CANVAS_DPR } from "@/ui/main/canvas/sceneFramePacing";
 import { AvatarSceneLighting } from "@/ui/main/canvas/AvatarSceneLighting";
 import {
   buildCreatorCameraPreset,
@@ -52,6 +54,11 @@ export type AvatarPreviewSurfaceProps = {
   enableRotate?: boolean;
   enableZoom?: boolean;
   enableDamping?: boolean;
+  /**
+   * Overrides the frame loop. By default an active surface renders paced
+   * (60 fps, or 30 while its actor reports an idle Avatar) and an inactive one
+   * only on demand.
+   */
   frameloop?: "always" | "demand";
   lifecycleOwner: ContentPreviewRendererOwner;
   maxDistance?: number;
@@ -153,8 +160,8 @@ export function AvatarPreviewSurface({
           <Canvas
             data-testid={canvasTestId}
             className="relative z-10 size-full"
-            dpr={[1, 2]}
-            frameloop={frameloop ?? (active ? "always" : "demand")}
+            dpr={PREVIEW_CANVAS_DPR}
+            frameloop={frameloop ?? "demand"}
             camera={{
               position: sceneVector3ToArray(camera.position),
               fov: camera.fov,
@@ -176,7 +183,7 @@ export function AvatarPreviewSurface({
               onChanged={onCameraChanged}
             />
             <AvatarSceneLighting lights={showDefaultLights} />
-            {children}
+            <PacedScene enabled={active && !frameloop}>{children}</PacedScene>
           </Canvas>
           {showSceneVFX ? (
             <SceneVFXOverlayLayers
