@@ -40,11 +40,12 @@ export type DesktopShortcutMap = Record<DesktopShortcutAction, DesktopShortcut>;
  * text-editing commands) and keys the OS or its input methods use. macOS uses
  * Control, since Option with punctuation types characters (… æ ‘); Windows and
  * Linux use Alt, since Control with `.` and Space toggles CJK input methods and
- * Control with `;` `'` `]` are Office commands.
+ * Control with `;` `'` `]` are Office commands. Quick Chat avoids Option/Alt
+ * with Space, the launcher shortcut of ChatGPT, Claude, Raycast and PowerToys.
  */
 const MACOS_DESKTOP_SHORTCUTS: DesktopShortcutMap = {
   press_to_talk: { code: "Backquote", key: "`", ctrlKey: true },
-  quick_chat: { code: "Space", altKey: true },
+  quick_chat: { code: "Slash", key: "/", ctrlKey: true },
   toggle_dictation: { code: "Period", key: ".", ctrlKey: true },
   toggle_voice_mode: { code: "Semicolon", key: ";", ctrlKey: true },
   toggle_voice_mute: { code: "Quote", key: "'", ctrlKey: true },
@@ -53,7 +54,7 @@ const MACOS_DESKTOP_SHORTCUTS: DesktopShortcutMap = {
 
 const OTHER_DESKTOP_SHORTCUTS: DesktopShortcutMap = {
   press_to_talk: { code: "Backquote", key: "`", ctrlKey: true },
-  quick_chat: { code: "Space", altKey: true },
+  quick_chat: { code: "Slash", key: "/", altKey: true },
   toggle_dictation: { code: "Period", key: ".", altKey: true },
   toggle_voice_mode: { code: "Semicolon", key: ";", altKey: true },
   toggle_voice_mute: { code: "Quote", key: "'", altKey: true },

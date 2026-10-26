@@ -18,15 +18,17 @@ methods and Control with `;`, `'` or `]` are Office commands.
 | Action                   | macOS     | Windows and Linux | Type     | Availability                         |
 | ------------------------ | --------- | ----------------- | -------- | ------------------------------------ |
 | Press to talk            | `` ⌃` ``  | `` Ctrl+` ``      | hold     | active Voice Mode                    |
-| Quick Chat               | `⌥Space`  | `Alt+Space`       | one-shot | active anima chat route              |
+| Quick Chat               | `⌃/`      | `Alt+/`           | one-shot | active anima chat route              |
 | Dictation on/off         | `⌃.`      | `Alt+.`           | one-shot | chat-capable surface, Voice Mode off |
 | Toggle Voice Mode on/off | `⌃;`      | `Alt+;`           | one-shot | chat-capable chat surface            |
 | Toggle mute              | `⌃'`      | `Alt+'`           | one-shot | active Voice Mode                    |
 | Skip TTS                 | `⌃]`      | `Alt+]`           | one-shot | active TTS playback                  |
 
-`⌥Space`/`Alt+Space` is the usual AI-launcher shortcut, so it conflicts with
-ChatGPT desktop or PowerToys Run where they keep theirs, and on Windows it
-replaces the Alt+Space window menu. Press to talk is observed, not taken, so
+Quick Chat avoids `⌥Space`/`Alt+Space`, the launcher shortcut of ChatGPT,
+Claude's quick entry, Raycast, Alfred and PowerToys Run, and on Windows the
+window menu. The defaults leave Discord's, ChatGPT's and Claude's own
+shortcuts alone: on macOS they use Command, and on Windows Discord uses
+`Ctrl+/`, `Ctrl+[` and Alt with arrows. Press to talk is observed, not taken, so
 the focused app still receives `` Ctrl+` `` (VS Code toggles its terminal); a
 mouse button avoids that. `defaultDesktopShortcuts(os)` holds both sets, and
 the defaults are not stored: `resolveDesktopShortcuts` fills each missing or
@@ -401,7 +403,7 @@ approval.
   nothing during Voice Mode.
 - Hovering Dictate, Voice Mode and the Voice Mode mute button shows the matching
   shortcut, and the shown shortcut follows a rebinding.
-- `⌥Space` / `Alt+Space` shows or hides Quick Chat on an Anima chat route, focuses the
+- `⌃/` / `Alt+/` shows or hides Quick Chat on an Anima chat route, focuses the
   chat input, and lets transparent outer window regions pass clicks through.
 - Recording a shortcut in settings pauses shortcut handling and persists the new
   binding.

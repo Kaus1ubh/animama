@@ -2,8 +2,8 @@
 
 Desktop Quick Chat is a transparent native Electron window that renders the
 chat-only conversation UI for the current anima. It is opened from the main
-renderer through the global Quick Chat shortcut (`⌥Space` on macOS,
-`Alt+Space` on Windows and Linux).
+renderer through the global Quick Chat shortcut (`⌃/` on macOS, `Alt+/` on
+Windows and Linux).
 
 ## High-Level Flow
 

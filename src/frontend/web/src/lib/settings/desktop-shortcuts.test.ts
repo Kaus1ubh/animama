@@ -70,7 +70,7 @@ describe("default desktop shortcuts", () => {
       );
     expect(keycaps("darwin")).toEqual({
       press_to_talk: "⌃`",
-      quick_chat: "⌥Space",
+      quick_chat: "⌃/",
       toggle_dictation: "⌃.",
       toggle_voice_mode: "⌃;",
       toggle_voice_mute: "⌃'",
@@ -78,7 +78,7 @@ describe("default desktop shortcuts", () => {
     });
     expect(keycaps("win32")).toEqual({
       press_to_talk: "Ctrl+`",
-      quick_chat: "Alt+Space",
+      quick_chat: "Alt+/",
       toggle_dictation: "Alt+.",
       toggle_voice_mode: "Alt+;",
       toggle_voice_mute: "Alt+'",
