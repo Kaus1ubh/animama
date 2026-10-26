@@ -53,7 +53,9 @@ Detailed rules:
 - On the desktop, the composer's tooltips name the shortcut for what the button
   does now: Dictate or Stop dictation (Dictation on/off), Voice Mode or Stop
   Voice Mode (Toggle Voice Mode on/off) and Mute or Unmute (Toggle mute). The
-  reply bubble's Skip speech button names Skip TTS.
+  reply bubble's Skip speech button names Skip TTS. The shortcut shows in a
+  keycap after the label, written as macOS glyphs (`⌃⌥D`) on macOS and as key
+  names (`Ctrl+Alt+D`) elsewhere.
 
 ## Settings UI
 

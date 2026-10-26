@@ -403,20 +403,82 @@ export function formatDesktopShortcut(
     .join(" + ");
 }
 
+/** macOS key glyphs for the non-letter keys a shortcut may use. */
+const APPLE_KEY_GLYPHS: Record<string, string> = {
+  ArrowDown: "↓",
+  ArrowLeft: "←",
+  ArrowRight: "→",
+  ArrowUp: "↑",
+  Backspace: "⌫",
+  Delete: "⌦",
+  End: "↘",
+  Enter: "↩",
+  Escape: "⎋",
+  Home: "↖",
+  NumpadEnter: "⌤",
+  PageDown: "⇟",
+  PageUp: "⇞",
+  Tab: "⇥",
+};
+
+/** Arrow keys read as arrows on every platform. */
+const ARROW_GLYPHS: Record<string, string> = {
+  ArrowDown: "↓",
+  ArrowLeft: "←",
+  ArrowRight: "→",
+  ArrowUp: "↑",
+};
+
 /**
- * Display text of the shortcuts the chat names in its tooltips: the
- * composer's microphone controls and the reply's skip-speech button. These
- * actions accept keyboard shortcuts only.
+ * Keycap text for a keyboard shortcut, written the way its OS shows them:
+ * "⌃⌥D" on macOS, "Ctrl+Alt+D" elsewhere (as the creator history does).
  */
-export function desktopChatShortcutLabels(value: unknown): {
-  dictation: string;
-  voiceMode: string;
-  voiceMute: string;
-  skipTts: string;
+export function formatDesktopShortcutKeycap(
+  shortcut: DesktopKeyboardShortcut,
+  os: string | null,
+): string {
+  const key =
+    (os === "darwin" ? APPLE_KEY_GLYPHS : ARROW_GLYPHS)[shortcut.code] ??
+    codeLabel(shortcut.code, shortcut.key);
+  if (os === "darwin") {
+    return [
+      shortcut.ctrlKey === true ? "⌃" : "",
+      shortcut.altKey === true ? "⌥" : "",
+      shortcut.shiftKey === true ? "⇧" : "",
+      shortcut.metaKey === true ? "⌘" : "",
+      key,
+    ].join("");
+  }
+  return [
+    shortcut.ctrlKey === true ? "Ctrl" : "",
+    shortcut.altKey === true ? "Alt" : "",
+    shortcut.shiftKey === true ? "Shift" : "",
+    shortcut.metaKey === true ? "Meta" : "",
+    key,
+  ]
+    .filter(Boolean)
+    .join("+");
+}
+
+/**
+ * Keycap text of the shortcuts the chat names in its tooltips: the composer's
+ * microphone controls and the reply's skip-speech button. These actions
+ * accept keyboard shortcuts only, so a mouse binding names nothing.
+ */
+export function desktopChatShortcutLabels(
+  value: unknown,
+  os: string | null,
+): {
+  dictation: string | null;
+  voiceMode: string | null;
+  voiceMute: string | null;
+  skipTts: string | null;
 } {
   const shortcuts = resolveDesktopShortcuts(value);
   const format = (shortcut: DesktopShortcut) =>
-    formatDesktopShortcut(shortcut, (button) => String(button));
+    isMouseShortcut(shortcut)
+      ? null
+      : formatDesktopShortcutKeycap(shortcut, os);
   return {
     dictation: format(shortcuts.toggle_dictation),
     voiceMode: format(shortcuts.toggle_voice_mode),

@@ -5,6 +5,7 @@ import { Button } from "@/ui/components/button";
 import {
   Tooltip,
   TooltipContent,
+  TooltipLabel,
   TooltipTrigger,
 } from "@/ui/components/tooltip";
 
@@ -16,7 +17,7 @@ export function SkipSpeechButton({
   shortcut,
   onSkip,
 }: {
-  /** Display text of the desktop Skip TTS shortcut, if there is one. */
+  /** Keycap text of the desktop Skip TTS shortcut, if there is one. */
   shortcut?: string | null;
   onSkip: () => void;
 }) {
@@ -37,7 +38,7 @@ export function SkipSpeechButton({
         </Button>
       </TooltipTrigger>
       <TooltipContent side="bottom">
-        {shortcut ? t("composer.withShortcut", { label, shortcut }) : label}
+        <TooltipLabel label={label} shortcut={shortcut} />
       </TooltipContent>
     </Tooltip>
   );

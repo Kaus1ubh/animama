@@ -128,23 +128,21 @@ describe("chat input submit state", () => {
     const options = {
       ...baseState,
       submitMode: "text-or-voice" as const,
-      voiceModeShortcut: "Ctrl + Alt + `",
+      voiceModeShortcut: "⌃⌥`",
     };
-    expect(resolveChatInputSubmitState(options).tooltip).toBe(
-      "Voice mode (Ctrl + Alt + `)",
-    );
+    expect(resolveChatInputSubmitState(options)).toMatchObject({
+      tooltip: "Voice mode",
+      tooltipShortcut: "⌃⌥`",
+    });
     expect(
-      resolveChatInputSubmitState({ ...options, isVoiceModeActive: true })
-        .tooltip,
-    ).toBe("Stop voice mode (Ctrl + Alt + `)");
+      resolveChatInputSubmitState({ ...options, isVoiceModeActive: true }),
+    ).toMatchObject({ tooltip: "Stop voice mode", tooltipShortcut: "⌃⌥`" });
     // An unavailable control explains why instead of offering the shortcut.
     expect(
-      resolveChatInputSubmitState({ ...options, voiceAvailable: false })
-        .tooltip,
-    ).toBe("Offline speech recognition is unavailable");
-    expect(
-      resolveChatInputSubmitState({ ...options, voiceModeShortcut: null })
-        .tooltip,
-    ).toBe("Voice mode");
+      resolveChatInputSubmitState({ ...options, voiceAvailable: false }),
+    ).toMatchObject({
+      tooltip: "Offline speech recognition is unavailable",
+      tooltipShortcut: null,
+    });
   });
 });

@@ -269,9 +269,9 @@ export function ChatInterfaceView({
   const chatShortcuts = useMemo(
     () =>
       platform.isDesktop
-        ? desktopChatShortcutLabels(desktopShortcutPreferences)
+        ? desktopChatShortcutLabels(desktopShortcutPreferences, platform.os)
         : null,
-    [desktopShortcutPreferences, platform.isDesktop],
+    [desktopShortcutPreferences, platform.isDesktop, platform.os],
   );
   // Offline recognition counts only with the engine that runs installed: the
   // owner's choice, else the UI Locale's.

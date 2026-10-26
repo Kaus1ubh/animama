@@ -153,8 +153,7 @@
     "speechUnavailable": "Offline speech recognition is unavailable",
     "stop": "Stop",
     "stopVoice": "Stop voice mode",
-    "voiceMode": "Voice mode",
-    "withShortcut": "{{label}} ({{shortcut}})"
+    "voiceMode": "Voice mode"
   },
   "conversation": {
     "label": "Conversation"

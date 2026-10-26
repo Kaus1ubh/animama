@@ -83,18 +83,31 @@ describe("desktop Dictate shortcut", () => {
   });
 });
 
-describe("chat shortcut labels", () => {
-  it("formats the shortcuts the chat tooltips name, following preferences", () => {
-    expect(desktopChatShortcutLabels(undefined)).toEqual({
-      dictation: "Ctrl + Alt + D",
-      voiceMode: "Ctrl + Alt + `",
-      voiceMute: "Ctrl + Shift + `",
-      skipTts: "Ctrl + Arrow Right",
+describe("chat shortcut keycaps", () => {
+  it("writes shortcuts as macOS glyphs on macOS and as key names elsewhere", () => {
+    expect(desktopChatShortcutLabels(undefined, "darwin")).toEqual({
+      dictation: "⌃⌥D",
+      voiceMode: "⌃⌥`",
+      voiceMute: "⌃⇧`",
+      skipTts: "⌃→",
     });
-    expect(
-      desktopChatShortcutLabels({
-        toggle_dictation: { code: "KeyJ", key: "j", metaKey: true },
-      }).dictation,
-    ).toBe("Meta + J");
+    expect(desktopChatShortcutLabels(undefined, "win32")).toEqual({
+      dictation: "Ctrl+Alt+D",
+      voiceMode: "Ctrl+Alt+`",
+      voiceMute: "Ctrl+Shift+`",
+      skipTts: "Ctrl+→",
+    });
+  });
+
+  it("follows a rebinding", () => {
+    const preferences = {
+      toggle_dictation: { code: "KeyJ", key: "j", shiftKey: true, metaKey: true },
+    };
+    expect(desktopChatShortcutLabels(preferences, "darwin").dictation).toBe(
+      "⇧⌘J",
+    );
+    expect(desktopChatShortcutLabels(preferences, "linux").dictation).toBe(
+      "Shift+Meta+J",
+    );
   });
 });

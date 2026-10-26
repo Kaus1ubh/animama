@@ -1360,8 +1360,7 @@ export default interface Resources {
         "stt": "STT: {{stt}}",
         "tts": "TTS: {{tts}}",
         "ttsOff": "Off"
-      },
-      "withShortcut": "{{label}} ({{shortcut}})"
+      }
     },
     "header": {
       "anima": {

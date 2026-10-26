@@ -164,8 +164,7 @@
       "stt": "STT：{{stt}}",
       "tts": "TTS：{{tts}}",
       "ttsOff": "關閉"
-    },
-    "withShortcut": "{{label}}（{{shortcut}}）"
+    }
   },
   "header": {
     "anima": {

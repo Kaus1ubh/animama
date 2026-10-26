@@ -18,6 +18,8 @@ export type ChatInputSubmitState = {
   icon: ChatInputSubmitIcon;
   label: string;
   tooltip: string | null;
+  /** The tooltip's keyboard shortcut, shown in a keycap after it. */
+  tooltipShortcut?: string | null;
 };
 
 /**
@@ -93,7 +95,8 @@ export function resolveChatInputSubmitState(
       disabled,
       icon: "stop",
       label: t("composer.stopVoice"),
-      tooltip: withShortcut(t("composer.stopVoice"), voiceModeShortcut, t),
+      tooltip: t("composer.stopVoice"),
+      tooltipShortcut: voiceModeShortcut,
     };
   }
 
@@ -103,16 +106,9 @@ export function resolveChatInputSubmitState(
     icon: "voice",
     label: t("composer.voiceMode"),
     tooltip: voiceAvailable
-      ? withShortcut(t("composer.voiceMode"), voiceModeShortcut, t)
+      ? t("composer.voiceMode")
       : t("composer.speechUnavailable"),
+    // An unavailable control explains why instead of offering the shortcut.
+    tooltipShortcut: voiceAvailable ? voiceModeShortcut : null,
   };
-}
-
-/** `label` followed by its shortcut in parentheses, when there is one. */
-export function withShortcut(
-  label: string,
-  shortcut: string | null | undefined,
-  t: TFunction<"product"> = productEnglishT(),
-): string {
-  return shortcut ? t("composer.withShortcut", { label, shortcut }) : label;
 }

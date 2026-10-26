@@ -19,6 +19,7 @@ import {
   Tooltip,
   TooltipContent,
   TooltipDetails,
+  TooltipLabel,
   TooltipTrigger,
 } from "./tooltip";
 import {
@@ -82,7 +83,7 @@ function measureTextareaHeight(
   };
 }
 
-/** A shortcut's display text, for example "Ctrl + Alt + D", per mic action. */
+/** A shortcut's keycap text, for example "⌃⌥D" or "Ctrl+Alt+D", per mic action. */
 export type ChatInputMicShortcuts = {
   dictation?: string | null;
   voiceMode?: string | null;
@@ -615,7 +616,12 @@ function ChatInputSubmit({
       <TooltipTrigger asChild>{button}</TooltipTrigger>
       <TooltipContent side="bottom">
         <TooltipDetails
-          title={submitState.tooltip}
+          title={
+            <TooltipLabel
+              label={submitState.tooltip}
+              shortcut={submitState.tooltipShortcut}
+            />
+          }
           lines={
             submitState.action === "start-voice" && !submitState.disabled
               ? context.voiceModeDetails

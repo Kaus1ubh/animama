@@ -148,8 +148,7 @@
     "speechUnavailable": "オフライン音声認識は利用できません",
     "stop": "停止",
     "stopVoice": "音声モードを停止",
-    "voiceMode": "音声モード",
-    "withShortcut": "{{label}}（{{shortcut}}）"
+    "voiceMode": "音声モード"
   },
   "conversation": {
     "label": "会話"

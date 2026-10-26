@@ -148,8 +148,7 @@
     "speechUnavailable": "离线语音识别不可用",
     "stop": "停止",
     "stopVoice": "停止语音模式",
-    "voiceMode": "语音模式",
-    "withShortcut": "{{label}}（{{shortcut}}）"
+    "voiceMode": "语音模式"
   },
   "conversation": {
     "label": "对话"

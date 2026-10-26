@@ -13,7 +13,7 @@ vi.mock("@/query/hooks/useModelProviders", () => ({
 }));
 // The desktop app has global shortcuts, so tooltips name them.
 vi.mock("@/platform/RuntimePlatformProvider", () => ({
-  useRuntimePlatform: () => ({ isDesktop: true }),
+  useRuntimePlatform: () => ({ isDesktop: true, os: "darwin" }),
 }));
 vi.mock("@/lib/speech/stt-provider", () => ({
   isWebSpeechSupported: () => true,
