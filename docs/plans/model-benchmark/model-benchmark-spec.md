@@ -658,9 +658,8 @@ https://github.com/raymond-van/animama/issues/470.
 
 ## ExecPlan
 
-[model-benchmark-execplan.md](model-benchmark-execplan.md). It is a draft
-written on 2026-10-12, before the 2026-10-25 decisions. `to-execplan` must
-revise it against this spec before the owner's review at G1.
+[model-benchmark-execplan.md](model-benchmark-execplan.md). It was revised
+against this spec on 2026-10-25 and is a draft for the owner's review at G1.
 
 ## Delivery links
 
