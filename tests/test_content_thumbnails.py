@@ -130,9 +130,9 @@ def test_no_more_than_the_decode_slots_decode_at_once(monkeypatch: pytest.Monkey
     import time
 
     from animama.app.services import content_thumbnails
+    from animama.app.services.content_image import derive_image_thumbnail as real
 
     active, peak, lock = 0, 0, threading.Lock()
-    real = content_thumbnails.derive_image_thumbnail
 
     def counted(**kwargs):  # noqa: ANN003, ANN202
         nonlocal active, peak
@@ -146,7 +146,7 @@ def test_no_more_than_the_decode_slots_decode_at_once(monkeypatch: pytest.Monkey
             with lock:
                 active -= 1
 
-    monkeypatch.setattr(content_thumbnails, "derive_image_thumbnail", counted)
+    monkeypatch.setattr("animama.app.services.content_thumbnails.derive_image_thumbnail", counted)
     sources = [_png(300, 300, (index, 1, 2, 255)) for index in range(8)]
     threads = [threading.Thread(target=thumbnail_file, args=(_verified(source),)) for source in sources]
     for thread in threads:
