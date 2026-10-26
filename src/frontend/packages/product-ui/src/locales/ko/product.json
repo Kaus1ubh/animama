@@ -148,7 +148,8 @@
     "speechUnavailable": "오프라인 음성 인식을 사용할 수 없습니다",
     "stop": "중지",
     "stopVoice": "음성 모드 중지",
-    "voiceMode": "음성 모드"
+    "voiceMode": "음성 모드",
+    "withShortcut": "{{label}} ({{shortcut}})"
   },
   "conversation": {
     "label": "대화"

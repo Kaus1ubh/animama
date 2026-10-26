@@ -6,6 +6,7 @@ import type {
 export type DesktopShortcutAction =
   | "press_to_talk"
   | "quick_chat"
+  | "toggle_dictation"
   | "toggle_voice_mode"
   | "toggle_voice_mute"
   | "skip_tts";
@@ -43,6 +44,12 @@ export const DEFAULT_DESKTOP_SHORTCUTS: DesktopShortcutMap = {
     code: "Slash",
     key: "/",
     ctrlKey: true,
+  },
+  toggle_dictation: {
+    code: "KeyD",
+    key: "d",
+    ctrlKey: true,
+    altKey: true,
   },
   toggle_voice_mode: {
     code: "Backquote",
@@ -245,6 +252,11 @@ export function resolveDesktopShortcuts(value: unknown): DesktopShortcutMap {
       DEFAULT_DESKTOP_SHORTCUTS.quick_chat,
       "quick_chat",
     ),
+    toggle_dictation: normalizeDesktopShortcut(
+      source.toggle_dictation,
+      DEFAULT_DESKTOP_SHORTCUTS.toggle_dictation,
+      "toggle_dictation",
+    ),
     toggle_voice_mode: normalizeDesktopShortcut(
       source.toggle_voice_mode,
       DEFAULT_DESKTOP_SHORTCUTS.toggle_voice_mode,
@@ -389,4 +401,26 @@ export function formatDesktopShortcut(
   ]
     .filter(Boolean)
     .join(" + ");
+}
+
+/**
+ * Display text of the shortcuts the chat names in its tooltips: the
+ * composer's microphone controls and the reply's skip-speech button. These
+ * actions accept keyboard shortcuts only.
+ */
+export function desktopChatShortcutLabels(value: unknown): {
+  dictation: string;
+  voiceMode: string;
+  voiceMute: string;
+  skipTts: string;
+} {
+  const shortcuts = resolveDesktopShortcuts(value);
+  const format = (shortcut: DesktopShortcut) =>
+    formatDesktopShortcut(shortcut, (button) => String(button));
+  return {
+    dictation: format(shortcuts.toggle_dictation),
+    voiceMode: format(shortcuts.toggle_voice_mode),
+    voiceMute: format(shortcuts.toggle_voice_mute),
+    skipTts: format(shortcuts.skip_tts),
+  };
 }

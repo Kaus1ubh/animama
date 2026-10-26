@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   DEFAULT_DESKTOP_SHORTCUTS,
+  desktopChatShortcutLabels,
+  resolveDesktopShortcuts,
   validateDesktopShortcut,
 } from "./desktop-shortcuts";
 
@@ -43,5 +45,56 @@ describe("validateDesktopShortcut", () => {
     expect(
       validate("quick_chat", DEFAULT_DESKTOP_SHORTCUTS.press_to_talk),
     ).toEqual({ reason: "in_use", action: "press_to_talk" });
+  });
+});
+
+describe("desktop Dictate shortcut", () => {
+  it("defaults to Ctrl + Alt + D and fills in for stored maps without it", () => {
+    expect(DEFAULT_DESKTOP_SHORTCUTS.toggle_dictation).toMatchObject({
+      code: "KeyD",
+      ctrlKey: true,
+      altKey: true,
+    });
+    // Preferences saved before the Dictate shortcut existed omit it.
+    const resolved = resolveDesktopShortcuts({
+      quick_chat: { code: "KeyQ", ctrlKey: true },
+    });
+    expect(resolved.toggle_dictation).toEqual(
+      DEFAULT_DESKTOP_SHORTCUTS.toggle_dictation,
+    );
+    expect(resolved.quick_chat).toEqual({ code: "KeyQ", ctrlKey: true });
+  });
+
+  it("is keyboard-only and conflicts with the other actions", () => {
+    expect(
+      validateDesktopShortcut(
+        "toggle_dictation",
+        { type: "mouse", button: 4 },
+        DEFAULT_DESKTOP_SHORTCUTS,
+      ),
+    ).toEqual({ reason: "mouse_press_to_talk_only" });
+    expect(
+      validateDesktopShortcut(
+        "toggle_dictation",
+        DEFAULT_DESKTOP_SHORTCUTS.quick_chat,
+        DEFAULT_DESKTOP_SHORTCUTS,
+      ),
+    ).toEqual({ reason: "in_use", action: "quick_chat" });
+  });
+});
+
+describe("chat shortcut labels", () => {
+  it("formats the shortcuts the chat tooltips name, following preferences", () => {
+    expect(desktopChatShortcutLabels(undefined)).toEqual({
+      dictation: "Ctrl + Alt + D",
+      voiceMode: "Ctrl + Alt + `",
+      voiceMute: "Ctrl + Shift + `",
+      skipTts: "Ctrl + Arrow Right",
+    });
+    expect(
+      desktopChatShortcutLabels({
+        toggle_dictation: { code: "KeyJ", key: "j", metaKey: true },
+      }).dictation,
+    ).toBe("Meta + J");
   });
 });

@@ -169,6 +169,7 @@ type DesktopPipRuntimeMessage = {
 type DesktopShortcutAction =
   | "press_to_talk"
   | "quick_chat"
+  | "toggle_dictation"
   | "toggle_voice_mode"
   | "toggle_voice_mute"
   | "skip_tts";

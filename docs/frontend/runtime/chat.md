@@ -587,6 +587,12 @@ Avatar-only mode renders no transcript and so no cue.
 it after SSE completion and cancels playback on Stop, error or navigation.
 Provider selection, buffering and timing are documented in [Voice](voice.md).
 
+While a reply is spoken, the latest assistant bubble shows a `FastForward`
+button ("Skip speech", `SkipSpeechButton.tsx`) beside any memory cue. It calls
+the session's `handleSkipTts`, like the desktop Skip TTS shortcut, and stops
+playback without changing Voice Mode. Quick Chat mirrors it through the
+`ttsAudioActive` voice state and a `skip-tts` command.
+
 ## 8) Avatar updates from chat
 
 `useChatSession` updates avatar runtime store on run events:

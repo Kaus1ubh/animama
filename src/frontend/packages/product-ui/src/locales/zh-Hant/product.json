@@ -148,7 +148,8 @@
     "speechUnavailable": "離線語音辨識無法使用",
     "stop": "停止",
     "stopVoice": "停止語音模式",
-    "voiceMode": "語音模式"
+    "voiceMode": "語音模式",
+    "withShortcut": "{{label}}（{{shortcut}}）"
   },
   "conversation": {
     "label": "對話"

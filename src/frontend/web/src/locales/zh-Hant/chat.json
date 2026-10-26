@@ -163,7 +163,8 @@
       "stt": "STT：{{stt}}",
       "tts": "TTS：{{tts}}",
       "ttsOff": "關閉"
-    }
+    },
+    "withShortcut": "{{label}}（{{shortcut}}）"
   },
   "header": {
     "anima": {
@@ -247,6 +248,7 @@
   "speech": {
     "install": "安裝離線語音辨識以使用聽寫和語音模式",
     "installFromMainWindow": "請在 Animama 主視窗中開啟「應用程式設定 → 語音」進行下載。",
+    "skip": "略過朗讀",
     "unavailableHere": "此處無法使用聽寫和語音模式所需的離線語音辨識"
   },
   "suggestions": {

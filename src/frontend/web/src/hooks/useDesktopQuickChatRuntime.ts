@@ -30,6 +30,8 @@ export type DesktopQuickChatVoiceState = {
   isDictationPreparing: boolean;
   isUserSpeaking: boolean;
   isVoiceMicMuted: boolean;
+  /** A reply is being spoken, so Quick Chat offers to skip it. */
+  ttsAudioActive: boolean;
 };
 
 export type DesktopQuickChatSnapshot = {
@@ -67,6 +69,7 @@ export type DesktopQuickChatCommand =
   | { type: "start-voice-mode" }
   | { type: "stop-mic-session" }
   | { type: "toggle-voice-mute" }
+  | { type: "skip-tts" }
   | { type: "refresh-model-state" }
   | { type: "dismiss-crisis-card" }
   /** Opens a memory cue's `MEMORIES.md` entry in the main window's Memory workspace. */
@@ -81,6 +84,7 @@ export type DesktopQuickChatCommandHandlers = {
   startVoiceMode: () => void;
   stopMicSession: () => void;
   toggleVoiceMute: () => void;
+  skipTts: () => void;
   refreshModelState: () => void;
   dismissCrisisCard: () => void;
   openMemoryEntry: (entryId: string) => void;
@@ -154,6 +158,7 @@ export function isQuickChatCommand(
     case "start-voice-mode":
     case "stop-mic-session":
     case "toggle-voice-mute":
+    case "skip-tts":
     case "refresh-model-state":
     case "dismiss-crisis-card":
       return true;
@@ -300,6 +305,9 @@ export function useDesktopQuickChatOwner({
           return;
         case "toggle-voice-mute":
           currentHandlers.toggleVoiceMute();
+          return;
+        case "skip-tts":
+          currentHandlers.skipTts();
           return;
         case "refresh-model-state":
           currentHandlers.refreshModelState();

@@ -33,6 +33,7 @@ export function resolveChatInputSubmitState(
     isVoiceModeActive,
     disabled,
     voiceAvailable = true,
+    voiceModeShortcut = null,
   }: {
     submitMode: ChatInputSubmitMode;
     hasText: boolean;
@@ -41,6 +42,8 @@ export function resolveChatInputSubmitState(
     isVoiceModeActive: boolean;
     disabled: boolean;
     voiceAvailable?: boolean;
+    /** Display text of the Voice Mode on/off shortcut, if the host has one. */
+    voiceModeShortcut?: string | null;
   },
   t: TFunction<"product"> = productEnglishT(),
 ): ChatInputSubmitState {
@@ -90,7 +93,7 @@ export function resolveChatInputSubmitState(
       disabled,
       icon: "stop",
       label: t("composer.stopVoice"),
-      tooltip: t("composer.stopVoice"),
+      tooltip: withShortcut(t("composer.stopVoice"), voiceModeShortcut, t),
     };
   }
 
@@ -100,7 +103,16 @@ export function resolveChatInputSubmitState(
     icon: "voice",
     label: t("composer.voiceMode"),
     tooltip: voiceAvailable
-      ? t("composer.voiceMode")
+      ? withShortcut(t("composer.voiceMode"), voiceModeShortcut, t)
       : t("composer.speechUnavailable"),
   };
+}
+
+/** `label` followed by its shortcut in parentheses, when there is one. */
+export function withShortcut(
+  label: string,
+  shortcut: string | null | undefined,
+  t: TFunction<"product"> = productEnglishT(),
+): string {
+  return shortcut ? t("composer.withShortcut", { label, shortcut }) : label;
 }

@@ -26,6 +26,7 @@ export const SHORTCUTS_STATUS_CHANGED_CHANNEL =
 type DesktopShortcutAction =
   | "press_to_talk"
   | "quick_chat"
+  | "toggle_dictation"
   | "toggle_voice_mode"
   | "toggle_voice_mute"
   | "skip_tts";
@@ -104,6 +105,7 @@ const MODIFIER_CODES = new Set([
 const ACTIONS: DesktopShortcutAction[] = [
   "press_to_talk",
   "quick_chat",
+  "toggle_dictation",
   "toggle_voice_mode",
   "toggle_voice_mute",
   "skip_tts",
@@ -111,6 +113,7 @@ const ACTIONS: DesktopShortcutAction[] = [
 
 const ONE_SHOT_ACTIONS: DesktopOneShotShortcutAction[] = [
   "quick_chat",
+  "toggle_dictation",
   "toggle_voice_mode",
   "toggle_voice_mute",
   "skip_tts",
@@ -423,6 +426,11 @@ class DesktopShortcutManager {
         return this.context.voiceModeActive;
       case "quick_chat":
         return this.context.quickChatAvailable;
+      case "toggle_dictation":
+        // Dictation and Voice Mode share the microphone; one runs at a time.
+        return (
+          this.context.voiceModeAvailable && !this.context.voiceModeActive
+        );
       case "toggle_voice_mode":
         return this.context.voiceModeAvailable;
       case "toggle_voice_mute":

@@ -918,6 +918,9 @@ function ChatInputDictation({
   const onVoiceMicToggle = context.onVoiceMicToggle;
   const dictationStream = context.dictationStream;
   const hasDictationStream = Boolean(dictationStream);
+  const shortcuts = context.micShortcuts;
+  const withShortcut = (label: string, shortcut: string | null | undefined) =>
+    shortcut ? t("composer.withShortcut", { label, shortcut }) : label;
   const micWaveformMode =
     context.micWaveformMode ??
     (context.showMicWaveform === false ? "none" : "live");
@@ -1000,7 +1003,10 @@ function ChatInputDictation({
             </Button>
           </TooltipTrigger>
           <TooltipContent avoidCollisions={false} side="bottom">
-            {actionLabel}
+            {withShortcut(
+              actionLabel,
+              isVoiceMode ? shortcuts?.voiceMute : shortcuts?.dictation,
+            )}
           </TooltipContent>
         </Tooltip>
       </div>
@@ -1028,7 +1034,10 @@ function ChatInputDictation({
           Mode, so the engine line stays visible. */}
       <TooltipContent side="bottom">
         <TooltipDetails
-          title={t("composer.dictation.start")}
+          title={withShortcut(
+            t("composer.dictation.start"),
+            shortcuts?.dictation,
+          )}
           lines={engineDetails}
         />
       </TooltipContent>

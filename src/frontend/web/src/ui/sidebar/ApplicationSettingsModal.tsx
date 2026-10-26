@@ -243,6 +243,8 @@ function shortcutActionLabel(
       return t("shortcuts.actions.press_to_talk");
     case "quick_chat":
       return t("shortcuts.actions.quick_chat");
+    case "toggle_dictation":
+      return t("shortcuts.actions.toggle_dictation");
     case "toggle_voice_mode":
       return t("shortcuts.actions.toggle_voice_mode");
     case "toggle_voice_mute":
@@ -543,6 +545,7 @@ const shortcutRows: Array<{
 }> = [
   { action: "press_to_talk", allowMouseShortcut: true },
   { action: "quick_chat" },
+  { action: "toggle_dictation" },
   { action: "toggle_voice_mode" },
   { action: "toggle_voice_mute" },
   { action: "skip_tts" },

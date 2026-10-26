@@ -82,6 +82,13 @@ function measureTextareaHeight(
   };
 }
 
+/** A shortcut's display text, for example "Ctrl + Alt + D", per mic action. */
+export type ChatInputMicShortcuts = {
+  dictation?: string | null;
+  voiceMode?: string | null;
+  voiceMute?: string | null;
+};
+
 interface ChatInputContextValue {
   value?: string;
   onChange?: React.ChangeEventHandler<HTMLTextAreaElement>;
@@ -90,6 +97,8 @@ interface ChatInputContextValue {
   voiceAvailable?: boolean;
   /** Lines under the Voice Mode tooltip, e.g. its speech engines. */
   voiceModeDetails?: readonly string[] | null;
+  /** Display text of the host's microphone shortcuts, shown in tooltips. */
+  micShortcuts?: ChatInputMicShortcuts | null;
   loading?: boolean;
   onStop?: () => void;
   activeMicMode?: ChatInputMicMode | null;
@@ -135,6 +144,7 @@ function ChatInput({
   onVoice,
   voiceAvailable = true,
   voiceModeDetails,
+  micShortcuts,
   loading,
   onStop,
   activeMicMode,
@@ -225,6 +235,7 @@ function ChatInput({
     onVoice,
     voiceAvailable,
     voiceModeDetails,
+    micShortcuts,
     loading,
     onStop,
     activeMicMode,
@@ -533,6 +544,7 @@ function ChatInputSubmit({
       isVoiceModeActive,
       disabled: Boolean(disabled),
       voiceAvailable: context.voiceAvailable,
+      voiceModeShortcut: context.micShortcuts?.voiceMode,
     },
     t,
   );

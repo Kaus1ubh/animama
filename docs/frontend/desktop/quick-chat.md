@@ -95,7 +95,9 @@ Chat textarea receives focus.
 
 If `Ctrl + Slash` is pressed while Quick Chat is already visible for the same
 anima/chat, the window hides but the BrowserWindow and renderer stay alive for
-the next open. The window is destroyed when the owner main renderer is destroyed.
+the next open. `Esc` and the window's `blur` hide it the same way; a click on a
+transparent region passes through to the window below, which takes focus.
+The window is destroyed when the owner main renderer is destroyed.
 If the main renderer has moved to another anima, the existing hidden Quick
 Chat window reloads for the new anima. Chat-id changes update state without
 forcing a reload because the route is anima-scoped and the mirrored snapshot
@@ -248,7 +250,8 @@ window behavior.
 - Typing and Enter submit through the main renderer.
 - New conversation creation updates the main route and the mirrored Quick Chat
   state.
-- `Esc` hides Quick Chat and keeps the renderer warm.
+- `Esc` hides Quick Chat and keeps the renderer warm. With a menu or popover
+  open, `Esc` closes that first.
 - Pressing `Ctrl + Slash` again hides Quick Chat when it targets the same
   anima/chat.
 - Reopening Quick Chat for the same anima reuses the warm renderer and appears
@@ -256,7 +259,8 @@ window behavior.
 - Pressing `Ctrl + Slash` after navigating the main window to another
   anima/chat retargets Quick Chat.
 - The chat column scrolls older messages.
-- Transparent outer regions pass clicks through to the desktop.
+- Transparent outer regions pass clicks through to the desktop, and that click
+  hides Quick Chat: losing focus to another window or app cancels it.
 - Voice, mute, dictation, and stop icons mirror the main renderer's coarse
   state without starting a second mic capture.
 - The synthetic waveform idles while listening or muted and animates when the

@@ -163,7 +163,8 @@
       "stt": "STT：{{stt}}",
       "tts": "TTS：{{tts}}",
       "ttsOff": "关闭"
-    }
+    },
+    "withShortcut": "{{label}}（{{shortcut}}）"
   },
   "header": {
     "anima": {
@@ -247,6 +248,7 @@
   "speech": {
     "install": "安装离线语音识别以使用听写和语音模式",
     "installFromMainWindow": "请在 Animama 主窗口中打开“应用设置 → 语音”进行下载。",
+    "skip": "跳过朗读",
     "unavailableHere": "此处无法使用听写和语音模式所需的离线语音识别"
   },
   "suggestions": {

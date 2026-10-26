@@ -1358,7 +1358,8 @@ export default interface Resources {
         "stt": "STT: {{stt}}",
         "tts": "TTS: {{tts}}",
         "ttsOff": "Off"
-      }
+      },
+      "withShortcut": "{{label}} ({{shortcut}})"
     },
     "header": {
       "anima": {
@@ -1442,6 +1443,7 @@ export default interface Resources {
     "speech": {
       "install": "Install offline speech recognition to use dictation and Voice Mode",
       "installFromMainWindow": "Open App Settings → Voice in the main Animama window to download it.",
+      "skip": "Skip speech",
       "unavailableHere": "Offline speech recognition for dictation and Voice Mode is not available here"
     },
     "suggestions": {
@@ -6113,6 +6115,7 @@ export default interface Resources {
         "press_to_talk": "Press to talk",
         "quick_chat": "Quick Chat",
         "skip_tts": "Skip TTS",
+        "toggle_dictation": "Dictation on/off",
         "toggle_voice_mode": "Voice Mode on/off",
         "toggle_voice_mute": "Toggle mute"
       },

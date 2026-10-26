@@ -94,7 +94,8 @@ function DesktopQuickChatRoute() {
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
+      // An open menu or popover handles its own Escape first.
+      if (event.key !== "Escape" || event.defaultPrevented) return;
       event.preventDefault();
       close();
     };
@@ -178,6 +179,8 @@ function DesktopQuickChatRoute() {
           onSubmit={handleSubmit}
           onVoiceMicToggle={() => sendCommand({ type: "toggle-voice-mute" })}
           onVoiceModeStart={() => sendCommand({ type: "start-voice-mode" })}
+          ttsAudioActive={snapshot.voice.ttsAudioActive}
+          onSkipTts={() => sendCommand({ type: "skip-tts" })}
           animaId={animaId}
           promptSuggestions={snapshot.promptSuggestions}
           quickChatSurface
