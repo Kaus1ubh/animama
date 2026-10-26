@@ -351,7 +351,7 @@ function ManagementPanel({
           >
             <TabsList
               ref={tabListRef}
-              className="border-border/70 flex h-auto w-full justify-start overflow-x-auto rounded-none border-b bg-transparent p-0 [scrollbar-width:none] sm:grid sm:grid-cols-5"
+              className="border-border/70 flex h-auto w-full [scrollbar-width:none] justify-start overflow-x-auto rounded-none border-b bg-transparent p-0 sm:grid sm:grid-cols-5"
             >
               {ANIMA_MANAGEMENT_TABS.map((tab) => (
                 <TabsTrigger

@@ -93,6 +93,82 @@ def test_an_oversized_canvas_is_refused_from_its_header(side: int, reason: str) 
     assert file.handle.closed
 
 
+def _jpeg(width: int, height: int, exif: bytes | None = None) -> bytes:
+    output = BytesIO()
+    image = Image.linear_gradient("L").resize((width, height)).convert("RGB")
+    image.save(output, format="JPEG", quality=80, **({"exif": exif} if exif else {}))
+    return output.getvalue()
+
+
+def test_a_source_that_would_decode_beyond_the_budget_is_refused_but_a_large_jpeg_decodes_small(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from animama.app.services import content_thumbnails
+
+    # A JPEG decodes at a reduced scale (2048 px at one eighth is 256 px); a PNG cannot.
+    monkeypatch.setattr(content_thumbnails, "THUMBNAIL_MAX_DECODED_PIXELS", 300 * 300)
+    png = _verified(_png(512, 512, (4, 5, 6, 255)))
+    with pytest.raises(ContentThumbnailError) as refused:
+        thumbnail_file(png)
+    assert getattr(refused.value.__cause__, "reason", None) == "image_pixel_budget"
+    assert png.handle.closed
+    jpeg = thumbnail_file(_verified(_jpeg(2048, 2048), "image/jpeg"))
+    with Image.open(jpeg.handle) as image:
+        assert image.size == (THUMBNAIL_EDGE, THUMBNAIL_EDGE)
+
+
+def test_exif_orientation_is_applied_after_shrinking() -> None:
+    exif = Image.Exif()
+    exif[0x0112] = 6  # Rotate 90 degrees clockwise to display.
+    thumbnail = thumbnail_file(_verified(_jpeg(1024, 512, exif.tobytes()), "image/jpeg"))
+    with Image.open(thumbnail.handle) as image:
+        assert image.size == (THUMBNAIL_EDGE // 2, THUMBNAIL_EDGE)
+
+
+def test_no_more_than_the_decode_slots_decode_at_once(monkeypatch: pytest.MonkeyPatch) -> None:
+    import threading
+    import time
+
+    from animama.app.services import content_thumbnails
+    from animama.app.services.content_image import derive_image_thumbnail as real
+
+    slots = content_thumbnails.THUMBNAIL_DECODE_SLOTS
+    active, peak, lock = 0, 0, threading.Lock()
+    # Decodes meet in groups of ``slots``: the limit is reached, and a third decode
+    # running alongside would raise the peak above it.
+    together = threading.Barrier(slots, timeout=10)
+    errors: list[BaseException] = []
+
+    def counted(**kwargs):  # noqa: ANN003, ANN202
+        nonlocal active, peak
+        with lock:
+            active += 1
+            peak = max(peak, active)
+        try:
+            together.wait()
+            time.sleep(0.02)
+            return real(**kwargs)
+        finally:
+            with lock:
+                active -= 1
+
+    def run(source: bytes) -> None:
+        try:
+            thumbnail_file(_verified(source))
+        except BaseException as exc:  # noqa: BLE001
+            errors.append(exc)
+
+    monkeypatch.setattr("animama.app.services.content_thumbnails.derive_image_thumbnail", counted)
+    sources = [_png(300, 300, (index, 1, 2, 255)) for index in range(4 * slots)]
+    threads = [threading.Thread(target=run, args=(source,)) for source in sources]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    assert errors == []
+    assert peak == slots
+
+
 def test_small_sources_are_not_held_in_the_thumbnail_cache() -> None:
     from animama.app.services import content_thumbnails
 

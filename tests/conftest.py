@@ -146,7 +146,7 @@ def request_principal_override() -> Iterator[RequestPrincipalOverride]:
 
 try:
     # testcontainers is optional for devs who don't run tests
-    from testcontainers.postgres import PostgresContainer  # type: ignore
+    from testcontainers.postgres import PostgresContainer
 except Exception as e:  # pragma: no cover - import error surfaced when running tests
     raise RuntimeError("testcontainers is required to run the test suite. Install extras from requirements.txt") from e
 
