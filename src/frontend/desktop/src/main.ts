@@ -1,4 +1,11 @@
-import { app, BrowserWindow, safeStorage, session, shell } from "electron";
+import {
+  app,
+  BrowserWindow,
+  nativeImage,
+  safeStorage,
+  session,
+  shell,
+} from "electron";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -77,6 +84,21 @@ try {
 }
 // Taskbar grouping and notifications use the ID the installer's shortcuts carry.
 if (process.platform === "win32") app.setAppUserModelId("com.animama.desktop");
+
+/**
+ * Unpackaged runs launch Electron's own binary, so they would show its icon.
+ * Packaged builds carry the app icon in their bundle or executable instead.
+ */
+function showDevelopmentIcon(): void {
+  if (app.isPackaged) return;
+  const build = join(app.getAppPath(), "build");
+  if (process.platform === "darwin") {
+    app.dock?.setIcon(nativeImage.createFromPath(join(build, "icon-mac.png")));
+    return;
+  }
+  const icon = nativeImage.createFromPath(join(build, "icon.png"));
+  app.on("browser-window-created", (_event, window) => window.setIcon(icon));
+}
 
 // The lock precedes database migrations, sessions, safeStorage, logs and services.
 const ownsInstance = app.requestSingleInstanceLock();
@@ -486,6 +508,7 @@ else {
   void app
     .whenReady()
     .then(async () => {
+      showDevelopmentIcon();
       // Replaces Electron's English default menu before any window opens.
       applyApplicationMenu(shellLocale.strings);
       if (identityError) {

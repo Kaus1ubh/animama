@@ -65,6 +65,8 @@ It is disabled while another reply is active or the composer contains a draft.
 The user decides whether to resend, including after a suggested rate-limit delay.
 POST streams are never automatically retried. Intentional Stop remains quiet and
 does not imply that the upstream provider stopped generating or billing.
+Switching chats or starting a new one while a reply streams stops it the same
+way, so it cannot speak, animate or report errors in the next chat.
 
 An in-stream error is terminal: subsequent duplicate errors, text and
 `run.completed` cannot turn that failure into a successful cached answer. EOF

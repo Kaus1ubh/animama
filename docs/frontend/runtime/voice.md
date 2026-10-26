@@ -356,10 +356,19 @@ previews show interim text while a window is open; see
   engine worker, smart-turn worker, turn id, and text/audio buffers.
 - `unmuteVoiceMic()` resumes capture for the same voice turn and reuses the
   smart-turn worker when possible.
-- `stopDictation()` fully tears down the active voice session.
+- `stopDictation()` fully tears down the active voice session and discards an
+  unfinished voice turn. Stopping dictation instead keeps the phrase being
+  spoken: it flushes the open MicVAD window and, for offline engines, waits up
+  to `OFFLINE_STOP_TRANSCRIPTION_WAIT_MS` (5 s) for windows still being
+  transcribed; for browser recognition it calls `stop()` rather than `abort()`,
+  accepts that phrase's final result until recognition ends (up to 1.5 s), and
+  keeps any words that never finalized. A switch between dictation and Voice
+  Mode, and unmount, stop without this flush: the input already holds the
+  visible words.
 - The silence reset timer is provider-agnostic: if stale transcript or
   smart-turn audio remains after the timeout, it rotates to a new `turnId` and
-  clears the visible chat input.
+  removes that spoken turn from the chat input. Text typed before Voice Mode or
+  held from an unsent turn stays.
 
 ### Offline STT details
 
@@ -644,7 +653,7 @@ Voice-mode silence reset behavior:
 - Reset is deferred while a smart-turn inference job is active, then retried after a short delay.
 - Reset is also deferred while an end-turn auto-submit is pending.
 - The timeout is cancelled on resumed speech (`onSpeechStart` / `onSpeechRealStart`) and does not continually churn during long idle periods.
-- `ChatInterface` clears visible input text when this timeout reset fires, keeping UI text aligned with internal buffer resets.
+- `ChatInterface` removes the reset turn's dictated text from the input when this timeout reset fires, keeping UI text aligned with internal buffer resets.
 
 ### Acoustic VAD gating
 
@@ -769,6 +778,15 @@ Inference result:
   - `> 0.2` => `end_turn`
   - else => `continue`
 
+Failures: the worker client fails every pending request when the worker
+reports `error` or `messageerror`, and bounds each request
+(`SMART_TURN_LOAD_TIMEOUT_MS`, 30 s, which also replaces the worker;
+`SMART_TURN_PREDICT_TIMEOUT_MS`, 4 s; `SMART_TURN_DISPOSE_TIMEOUT_MS`, 2 s,
+after which the worker is terminated). A failed load fails Voice Mode start. A
+failed or timed-out prediction ends the turn on the acoustic end of speech
+(`source: "acoustic_fallback"`, submitted as `silence_timeout`) so the words are
+sent rather than left for the silence reset.
+
 ### Rolling audio and supersession behavior
 
 In `use-dictation.ts`:
@@ -795,16 +813,28 @@ When semantic result is `end_turn`:
 
 1. Queue a pending end-turn submit request (`queuePendingVoiceEndTurn`).
 2. Immediately try to submit using committed transcript (`submitPendingVoiceEndTurn("smart_turn_decision")`).
-3. If committed transcript is not ready yet, keep pending and wait for
-   transcript updates (`submitPendingVoiceEndTurn("transcript_update")`).
-4. If still pending at timeout (`SMART_TURN_END_TURN_WAIT_MS`, currently `1000ms`):
-   - first fallback to buffered `finalText`
-   - then fallback to buffered `interimText`
+3. Hold the submit while the turn is not over or its text is incomplete:
+   - real speech in a new window means the owner kept talking: the pending
+     submit is dropped, and the next speech end checks the whole turn again
+   - a window not yet confirmed as speech holds the submit until MicVAD
+     confirms or discards it (`"speech_window_update"`)
+   - Web Speech interim text for the turn means the latest phrase's final has
+     not arrived; the submit waits for it (`"transcript_update"`, checked after
+     each recognition result is stored)
+4. If still held at timeout (`SMART_TURN_END_TURN_WAIT_MS`, currently `1000ms`),
+   submit the committed transcript (or buffered `finalText` when nothing was
+   committed) followed by any unfinalized interim text.
 5. If transcript and callback are present, invoke `onVoiceAutoSubmit(...)`.
-6. `ChatInterface` forwards to `handleSubmitText(...)` with:
+6. `ChatInterface` sends the input's typed or held text followed by the spoken
+   text through `handleSubmitText(...)` with:
    - `inputMode: "voice"`
-   - `submitReason: "semantic_end_turn"`
+   - `submitReason: "semantic_end_turn"`, or `"silence_timeout"` for an
+     acoustic fallback
    - `turnId`, `smartTurnJobId`, `smartTurnScore`, `smartTurnLatencyMs`
+
+   `handleSubmitText` resolves `false` when the message is not accepted (a
+   reply is still streaming, or the chat cannot send yet); the text then stays
+   in the input and joins the next voice turn or a manual send.
 7. rotate to a new `turnId` and reset per-turn smart-turn state
 
 If no transcript/callback exists:
@@ -815,8 +845,7 @@ If no transcript/callback exists:
 Provider timing:
 
 - Browser STT may run smart-turn before final browser text has arrived, so the
-  pending submit path often waits for transcript updates or uses timeout
-  fallback buffers.
+  pending submit usually waits for the final or uses the timeout fallback.
 - Offline STT commits final text before running smart-turn for the accepted
   window, so `smart_turn_decision` usually submits immediately when the
   semantic decision is `end_turn`.

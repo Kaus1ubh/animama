@@ -16,7 +16,7 @@ import {
   sha256,
   writeJson,
 } from "./common.mjs";
-import { buildWindowsIcon } from "./icon.mjs";
+import { windowsIcon } from "./icon.mjs";
 import { assertInventory, inventoryId } from "./inventory.mjs";
 import {
   builderPublishConfig,
@@ -122,7 +122,6 @@ export async function releaseWindows(args = []) {
     "x64",
   ]);
   const tools = signingTools();
-  const icon = await buildWindowsIcon();
   const directory = path.join(desktopRoot, "release");
   const installerName = `Animama-${release.version}-x64-setup.exe`;
   const installer = path.join(directory, installerName);
@@ -146,10 +145,10 @@ export async function releaseWindows(args = []) {
   const builderFiles = new Map();
   await build(
     windowsBuilderOptions({
-      icon,
+      icon: windowsIcon,
       release,
       afterPack: (context) => {
-        brandPackagedApp(context, icon);
+        brandPackagedApp(context, windowsIcon);
         signed = signWindowsApp(context.appOutDir, {
           release,
           tools,

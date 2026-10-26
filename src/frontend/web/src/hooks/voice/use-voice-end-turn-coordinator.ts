@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef } from "react";
 import type { Logger } from "@/lib/logger";
 import type { SttProvider } from "@/lib/speech/stt-provider";
 import type { AcousticTurnGateState } from "@/lib/voice/acoustic-vad-gate";
+import { joinSpeechText } from "@/lib/speech/speech-text";
 import { getVoiceDebugSink } from "@/lib/voice/voiceDebugSink";
 import type { BrowserSpeechTextBuffers } from "@/hooks/voice/browser-recognition-runtime";
 
@@ -15,15 +16,22 @@ type AvatarVoicePhase =
   | "semantic_check"
   | "submitting";
 
-type VoiceAutoSubmitPayload = {
+/**
+ * What ended the turn: Smart Turn's decision, or, when no decision could be
+ * made (the model failed or timed out), the acoustic end of speech.
+ */
+export type VoiceEndTurnSource = "smart_turn_v3" | "acoustic_fallback";
+
+export type VoiceAutoSubmitPayload = {
   text: string;
   turnId: string;
   jobId: string;
-  probability: number;
+  /** Smart Turn's probability; null for an acoustic fallback. */
+  probability: number | null;
   threshold: number;
   latencyMs: number;
   decision: "end_turn";
-  source: "smart_turn_v3";
+  source: VoiceEndTurnSource;
 };
 
 type VoiceAutoSubmitHandler =
@@ -34,24 +42,30 @@ type PendingVoiceEndTurn = {
   turnId: string;
   jobId: string;
   provider: SttProvider;
-  probability: number;
+  probability: number | null;
   threshold: number;
   latencyMs: number;
+  source: VoiceEndTurnSource;
   createdAtMs: number;
+  /** The transcript wait ran out while the send was held. */
+  timedOut: boolean;
 };
 
 type QueuePendingVoiceEndTurnArgs = {
   provider: SttProvider;
   turnId: string;
   jobId: string;
-  probability: number;
+  probability: number | null;
   threshold: number;
   latencyMs: number;
+  source?: VoiceEndTurnSource;
 };
 
 type SubmitPendingVoiceEndTurnTrigger =
   | "smart_turn_decision"
   | "transcript_update"
+  /** A speech window was confirmed as speech or discarded as noise. */
+  | "speech_window_update"
   | "timeout";
 
 type UseVoiceEndTurnCoordinatorArgs = {
@@ -126,36 +140,60 @@ export function useVoiceEndTurnCoordinator({
         return false;
       }
 
+      if (trigger === "timeout") pending.timedOut = true;
       const gateState = getGateState();
-      let transcriptToSubmit =
-        gateState && gateState.turnId === pending.turnId
-          ? gateState.transcriptCommitted.trim()
-          : "";
+      const isPendingTurnGate = gateState?.turnId === pending.turnId;
+      const openWindow = isPendingTurnGate ? gateState.activeWindow : null;
+      if (openWindow?.isRealSpeech) {
+        // The owner kept talking, so the turn is not over; the next speech
+        // end checks the whole turn again.
+        clearPendingVoiceEndTurn("speech_resumed");
+        return false;
+      }
+      if (openWindow) {
+        // Hold until VAD confirms the new sound as speech or discards it.
+        return false;
+      }
+
+      const buffers = getSpeechBuffers();
+      const isPendingTurnBuffer = buffers?.turnId === pending.turnId;
+      // Web Speech words not yet final; their final result usually follows the
+      // end of speech, so the send waits for it until the wait runs out.
+      const unfinalizedText = isPendingTurnBuffer
+        ? buffers.interimText.trim()
+        : "";
+      if (unfinalizedText && !pending.timedOut) {
+        return false;
+      }
+
+      let transcriptToSubmit = isPendingTurnGate
+        ? gateState.transcriptCommitted.trim()
+        : "";
       let transcriptSource:
         | "committed"
+        | "committed_with_interim"
         | "final_timeout_fallback"
         | "interim_timeout_fallback" = "committed";
 
-      if (!transcriptToSubmit && trigger === "timeout") {
-        const buffers = getSpeechBuffers();
-        if (buffers && buffers.turnId === pending.turnId) {
-          const bufferedFinal = buffers.finalText.trim();
-          const bufferedInterim = buffers.interimText.trim();
-          if (bufferedFinal) {
-            transcriptToSubmit = bufferedFinal;
-            transcriptSource = "final_timeout_fallback";
-          } else if (bufferedInterim) {
-            transcriptToSubmit = bufferedInterim;
-            transcriptSource = "interim_timeout_fallback";
-          }
+      if (!transcriptToSubmit && pending.timedOut && isPendingTurnBuffer) {
+        const bufferedFinal = buffers.finalText.trim();
+        if (bufferedFinal) {
+          transcriptToSubmit = bufferedFinal;
+          transcriptSource = "final_timeout_fallback";
         }
+      }
+      if (unfinalizedText) {
+        transcriptSource = transcriptToSubmit
+          ? "committed_with_interim"
+          : "interim_timeout_fallback";
+        transcriptToSubmit = joinSpeechText(
+          transcriptToSubmit,
+          unfinalizedText,
+        );
       }
 
       if (!transcriptToSubmit) {
-        if (trigger === "timeout") {
-          const buffers = getSpeechBuffers();
-          const isPendingTurnBuffer =
-            Boolean(buffers) && buffers?.turnId === pending.turnId;
+        if (pending.timedOut) {
           const debugStore = getVoiceDebugSink();
           debugStore?.pushSmartTurnEvent({
             type: "auto_submit_skipped",
@@ -175,9 +213,7 @@ export function useVoiceEndTurnCoordinator({
               jobId: pending.jobId,
               waitMs,
               hasBufferedFinal:
-                isPendingTurnBuffer && Boolean(buffers?.finalText),
-              hasBufferedInterim:
-                isPendingTurnBuffer && Boolean(buffers?.interimText),
+                isPendingTurnBuffer && Boolean(buffers.finalText),
             },
           );
           clearPendingVoiceEndTurn("timeout_no_transcript");
@@ -245,7 +281,7 @@ export function useVoiceEndTurnCoordinator({
           threshold: pending.threshold,
           latencyMs: pending.latencyMs,
           decision: "end_turn",
-          source: "smart_turn_v3",
+          source: pending.source,
         });
         clearPendingVoiceEndTurn("submitted");
         onRotateTurn("semantic_end_turn");
@@ -296,7 +332,9 @@ export function useVoiceEndTurnCoordinator({
         probability: args.probability,
         threshold: args.threshold,
         latencyMs: args.latencyMs,
+        source: args.source ?? "smart_turn_v3",
         createdAtMs: Date.now(),
+        timedOut: false,
       };
 
       clearPendingVoiceEndTurnTimer();

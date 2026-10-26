@@ -299,6 +299,8 @@ window.fixture = {
     ].map((queryKey) => queryClient.getQueryState(queryKey)?.isInvalidated),
   }),
   switchChat: () => api.switchChat(),
+  submitText: (text) =>
+    api.handleSubmitText({ text, inputMode: "voice", clearInput: true }),
   setHistory: (chatId, messages) => {
     histories[chatId] = messages;
   },

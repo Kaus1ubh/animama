@@ -206,6 +206,29 @@ The staging command clears only its target directory, not `dev`.
 Never put user data inside `darwin-arm64/runtime`. Both overrides are
 development-only and rejected in packaged mode.
 
+## App Icons
+
+Every package and installer takes its icon from `desktop/build`, generated
+from the brand mark `web/public/brand/animama-mark.png`:
+
+| File           | Used for                                                                                     |
+| -------------- | -------------------------------------------------------------------------------------------- |
+| `icon.icns`    | macOS app bundle and signed DMG: the mark on a pale-sky tile following Apple's 1024 px grid. |
+| `icon-mac.png` | The 1024 px macOS tile itself; unpackaged macOS runs show it in the Dock.                    |
+| `icon.ico`     | Windows executable, NSIS installer and uninstaller (16–256 px, transparent mark).            |
+| `icon.png`     | Linux AppImage and unpackaged Windows/Linux window icons (1024 px, transparent mark).        |
+
+The macOS tile must stay an opaque rounded square of exactly the grid's
+824 px body; macOS 26 puts any other shape on a gray plate. To change the
+mark or the tile colours and scale in `desktop/scripts/runtime/icon.mjs`,
+regenerate all four files on macOS from `src/frontend` and commit them:
+
+```sh
+pnpm desktop:icons
+```
+
+The output is deterministic, so an unchanged source reproduces identical files.
+
 ## Platform And Release Gates
 
 | Target                             | Current status                                                                                  |
