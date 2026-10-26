@@ -80,6 +80,149 @@
     },
     "zoom": "배율 {{zoom}}×"
   },
+  "avatarDiagnostics": {
+    "close": "닫기",
+    "copied": "보고서를 복사했습니다.",
+    "copyFailed": "클립보드에 복사할 수 없습니다.",
+    "copyReport": "보고서 복사",
+    "description": "Animama가 이 아바타 파일에서 찾은 내용과 재생 방식입니다.",
+    "expressions": {
+      "arkit": "ARKit 얼굴 셰이프",
+      "arkitValue": "{{total}}개 중 {{resolved}}개",
+      "customNames_other": "사용자 지정 이름 {{count}}개",
+      "fromArkit": "{{name}} (ARKit)",
+      "missing": "없는 표정",
+      "playsFaces": "기분을 ARKit 셰이프로 재생",
+      "present": "표준 표정",
+      "unresolved": "요청됐지만 이 아바타에 없음"
+    },
+    "face": {
+      "confidence": "신뢰도",
+      "foundBy": "찾은 방법",
+      "landmarks": "얼굴 랜드마크",
+      "meshParts": "메시 부분",
+      "part": "부위",
+      "ready": "준비됨",
+      "sources": {
+        "corrected": "사용자 수정",
+        "missing": "찾지 못함",
+        "names": "머티리얼 이름",
+        "signals": "모델 데이터"
+      },
+      "textureAnchors": "얼굴 텍스처 앵커",
+      "unavailable": "사용 불가"
+    },
+    "file": {
+      "extensionsRequired": "필수 확장",
+      "extensionsUsed": "사용한 확장",
+      "format": "형식",
+      "formatNotVrm": "{{container}} · VRM 아님",
+      "formatVrm": "{{container}} · VRM {{version}}",
+      "imageExternal": "파일 외부",
+      "imageFormat": "형식",
+      "imagePixels": "픽셀",
+      "imagesCaption": "포함된 이미지",
+      "imageSize": "크기",
+      "materialKind": "{{kind}} {{number}}",
+      "materials": "머티리얼",
+      "meshes": "메시",
+      "meshesValue": "메시 {{meshes}}개, 메시 부분 {{primitives}}개(셰이프 키 포함 {{morphed}}개)",
+      "size": "파일 크기",
+      "textures": "이미지",
+      "texturesValue_other": "이미지 {{count}}개 · {{size}}",
+      "unreadable": "이 파일을 glTF 또는 VRM 파일로 읽을 수 없습니다."
+    },
+    "identity": {
+      "included": "기본 제공 아바타",
+      "local": "로컬 아바타",
+      "unknown": "아바타"
+    },
+    "issues": {
+      "anchors_face_skin_missing": "얼굴 피부를 찾지 못해 얼굴에 그리는 효과를 배치할 수 없습니다.",
+      "anchors_landmarks_unavailable": "얼굴 랜드마크를 사용할 수 없어 얼굴에 그리는 효과를 배치할 수 없습니다.",
+      "anchors_mouth_missing": "얼굴 텍스처에서 입 위치를 찾지 못했습니다.",
+      "anchors_projection_failed": "얼굴 텍스처를 매핑할 수 없어 얼굴에 그리는 효과를 배치할 수 없습니다.",
+      "anEffect": "효과",
+      "avatar_load_failed": "아바타를 불러올 수 없습니다. 파일에서 필수 확장을 확인하세요.",
+      "effect_attachment_limit": "{{effect}}을(를) 제거했습니다. 몸, 스티커, 실루엣 효과는 한 번에 최대 {{limit}}개까지 표시됩니다.",
+      "effect_face_part_missing": "{{effect}}을(를) 건너뛰었습니다. 이 아바타에서 {{part}}을(를) 찾지 못했습니다.",
+      "effect_face_skin_required": "{{effect}}에는 얼굴 피부가 필요하지만 찾지 못했습니다.",
+      "effect_load_failed": "{{effect}}의 이미지를 불러올 수 없습니다.",
+      "effect_overlay_required": "{{effect}}은(는) 이 얼굴에서 오버레이 모드가 필요합니다.",
+      "effect_placement_failed": "{{effect}}을(를) 이 아바타에 배치할 수 없습니다.",
+      "effect_skin_color_unavailable": "{{effect}}의 배경에 쓸 얼굴 피부색을 가져올 수 없습니다.",
+      "effect_target_incompatible": "{{effect}}이(가) 배치된 부분에 맞지 않습니다.",
+      "effect_target_unknown": "{{effect}}이(가) 존재하지 않는 모델 부분을 가리킵니다.",
+      "effect_target_unresolved": "{{effect}}에 맞는 부분을 이 아바타에서 찾지 못했습니다.",
+      "effect_unknown": "이 설치에서 사용할 수 없는 효과가 있습니다.",
+      "effect_wrong_kind": "{{effect}}을(를) 이 방식으로 표시할 수 없습니다.",
+      "face_parts_correction_digest_unknown": "이 파일의 다이제스트를 알 수 없어 저장된 얼굴 부위 수정을 무시했습니다.",
+      "face_parts_correction_invalid": "저장된 얼굴 부위 수정을 읽을 수 없어 무시했습니다.",
+      "face_parts_correction_other_file": "저장된 얼굴 부위 수정이 다른 파일용이라 무시했습니다.",
+      "face_parts_correction_schema_unsupported": "저장된 얼굴 부위 수정이 지원되지 않는 형식이라 무시했습니다.",
+      "face_parts_correction_unknown_bindings_other": "{{part}}의 저장된 수정이 이 모델에 없는 메시 부분 {{count}}개를 가리킵니다.",
+      "face_parts_detection_failed": "얼굴 부위를 찾지 못해 효과를 머티리얼 이름으로 배치합니다.",
+      "face_parts_expressions_missing": "모델에 눈 깜빡임 또는 “aa” 표정이 없어 얼굴 피부와 눈 세부를 찾을 수 없습니다.",
+      "file_unavailable": "아바타 파일을 다운로드할 수 없습니다.",
+      "file_unreadable": "아바타 파일이 읽을 수 있는 glTF 또는 VRM 파일이 아닙니다.",
+      "landmarks_anchor_missing": "얼굴 랜드마크를 고정할 머리를 찾지 못했습니다.",
+      "landmarks_eyes_missing": "얼굴에서 눈을 찾지 못해 눈 효과를 사용할 수 없습니다.",
+      "landmarks_face_bounds_failed": "얼굴 피부의 크기를 측정할 수 없습니다.",
+      "landmarks_face_skin_missing": "얼굴 피부를 찾지 못해 얼굴 랜드마크를 사용할 수 없습니다.",
+      "scene_bindings_unavailable": "불러온 모델의 메시 부분 목록을 만들 수 없습니다.",
+      "springs_helper_failed": "스프링 본 가이드를 그릴 수 없습니다.",
+      "springs_metadata_missing": "파일에 스프링 본 설정이 없어 스프링이 절반 세기로 움직입니다.",
+      "springs_source_unavailable": "파일의 스프링 본 데이터를 읽을 수 없어 기본 설정을 사용합니다.",
+      "springs_unmapped_joints_other": "스프링 조인트 {{count}}개를 파일의 스프링 데이터와 연결할 수 없습니다."
+    },
+    "json": {
+      "copied": "JSON을 복사했습니다.",
+      "copy": "JSON 복사",
+      "description": "같은 보고서를 데이터로 보여 줍니다. 지원팀과 공유할 때 사용하세요."
+    },
+    "loading": "아바타를 읽는 중…",
+    "materialKinds": {
+      "liltoon": "lilToon",
+      "mtoon": "MToon",
+      "pbr": "표준",
+      "unlit": "Unlit"
+    },
+    "motion": {
+      "humanoidBones": "휴머노이드 본",
+      "missingBones": "없는 필수 본",
+      "notChecked": "아직 확인하지 않음",
+      "restPose": "기본 자세",
+      "springs": "스프링 본",
+      "springsValue": "조인트 {{joints}}개 · 콜라이더 {{colliders}}개",
+      "wind": "바람",
+      "windAutomatic": "자동"
+    },
+    "navigationLabel": "진단 섹션",
+    "no": "아니요",
+    "none": "없음",
+    "notLoaded": "아바타를 불러올 수 없어 파일 정보만 표시합니다.",
+    "privacy": "보고서에는 개수, 표준 이름, 코드만 담기며 파일 경로나 이름은 담기지 않습니다.",
+    "sections": {
+      "expressions": "표정",
+      "face": "얼굴",
+      "file": "파일",
+      "json": "원본 JSON",
+      "motion": "움직임",
+      "warnings": "경고",
+      "warningsCount_other": "경고 ({{count}})"
+    },
+    "source": {
+      "live": "채팅 무대에 표시 중",
+      "offscreen": "이 화면을 위해 불러옴"
+    },
+    "title": "아바타 진단",
+    "unavailable": "이 Anima에는 확인할 아바타가 없습니다.",
+    "unknown": "알 수 없음",
+    "warnings": {
+      "none": "문제가 없습니다."
+    },
+    "yes": "예"
+  },
   "badges": {
     "starter": "기본 제공",
     "starterShort": "기"

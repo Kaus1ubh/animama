@@ -106,6 +106,7 @@ describe("authored facial behavior", () => {
     landmarks = {
       status: "ready",
       warnings: [],
+      issues: [],
       anchorName: "head",
       anchorType: "bone",
       faceBindingKey: "face",
@@ -135,6 +136,7 @@ describe("authored facial behavior", () => {
     anchors = {
       status: "ready",
       warnings: [],
+      issues: [],
       faceBindingKey: "face",
       faceMaterialName: "Face Skin",
       anchors: {
@@ -501,6 +503,7 @@ describe("authored facial behavior", () => {
       },
       eyeWhite: [],
       diagnostics: [],
+      issues: [],
     };
     const partController = new AvatarVFXController({
       ...avatar,

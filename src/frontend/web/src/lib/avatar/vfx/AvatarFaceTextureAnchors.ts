@@ -1,6 +1,7 @@
 import * as THREE from "three";
 
 import type { Avatar } from "../Avatar";
+import { addAvatarIssue, type AvatarIssue } from "../diagnostics/issues";
 import type {
   AvatarFaceTextureAnchorSnapshot,
   AvatarFaceTextureAnchorsSnapshot,
@@ -88,10 +89,12 @@ type MouthSearchWindow = {
 
 function createEmptySnapshot(
   warnings: string[] = [],
+  issues: AvatarIssue[] = [],
 ): AvatarFaceTextureAnchorsSnapshot {
   return {
     status: "unavailable",
     warnings,
+    issues,
     faceBindingKey: null,
     faceMaterialName: null,
     anchors: {
@@ -386,6 +389,7 @@ export class AvatarFaceTextureAnchors {
   private readonly _avatar: Avatar;
   private _snapshot: AvatarFaceTextureAnchorsSnapshot = createEmptySnapshot();
   private _warnings: string[] = [];
+  private _issues: AvatarIssue[] = [];
 
   constructor(avatar: Avatar) {
     this._avatar = avatar;
@@ -398,29 +402,50 @@ export class AvatarFaceTextureAnchors {
 
   dispose(): void {
     this._warnings = [];
+    this._issues = [];
     this._snapshot = createEmptySnapshot();
+  }
+
+  /** Record a finding as dev-panel text and as a stable code. */
+  private _warn(issue: AvatarIssue, message: string): void {
+    this._warnings.push(message);
+    addAvatarIssue(this._issues, issue);
+  }
+
+  /** Stop building: the snapshot holds only the findings so far. */
+  private _unavailable(): void {
+    this._snapshot = createEmptySnapshot(
+      [...this._warnings],
+      [...this._issues],
+    );
   }
 
   private _build(): void {
     const faceLandmarks = this._avatar.faceLandmarks?.getSnapshot() ?? null;
     const anchorObject = this._avatar.faceLandmarks?.getAnchorObject() ?? null;
     if (!faceLandmarks || faceLandmarks.status !== "ready" || !anchorObject) {
-      this._warnings.push(
+      this._warn(
+        { code: "anchors_landmarks_unavailable" },
         "Face landmarks are unavailable for texture anchors.",
       );
-      this._snapshot = createEmptySnapshot([...this._warnings]);
+      this._unavailable();
       return;
     }
 
     const runtimeResult = buildRuntimePrimitiveBindings(this._avatar);
-    this._warnings.push(...runtimeResult.warnings);
+    for (const warning of runtimeResult.warnings) {
+      this._warn({ code: "scene_bindings_unavailable" }, warning);
+    }
     const faceBinding = resolveAvatarFacePartEntries(
       this._avatar,
       runtimeResult.entries,
     ).face;
     if (!faceBinding) {
-      this._warnings.push("No face skin part was detected on this avatar.");
-      this._snapshot = createEmptySnapshot([...this._warnings]);
+      this._warn(
+        { code: "anchors_face_skin_missing" },
+        "No face skin part was detected on this avatar.",
+      );
+      this._unavailable();
       return;
     }
 
@@ -430,10 +455,11 @@ export class AvatarFaceTextureAnchors {
       faceLandmarks,
     });
     if (!projection) {
-      this._warnings.push(
+      this._warn(
+        { code: "anchors_projection_failed" },
         "Unable to prepare face texture anchor projection data.",
       );
-      this._snapshot = createEmptySnapshot([...this._warnings]);
+      this._unavailable();
       return;
     }
 
@@ -442,7 +468,10 @@ export class AvatarFaceTextureAnchors {
       faceLandmarks,
     });
     if (!mouth) {
-      this._warnings.push("Unable to resolve a mouth texture anchor.");
+      this._warn(
+        { code: "anchors_mouth_missing" },
+        "Unable to resolve a mouth texture anchor.",
+      );
     }
 
     const flattenSample = this._resolveFlattenSampleRegion({
@@ -467,6 +496,7 @@ export class AvatarFaceTextureAnchors {
     const snapshot: AvatarFaceTextureAnchorsSnapshot = {
       status: "ready",
       warnings: [...this._warnings],
+      issues: [...this._issues],
       faceBindingKey: faceBinding.bindingKey,
       faceMaterialName: faceBinding.materialName,
       anchors: {

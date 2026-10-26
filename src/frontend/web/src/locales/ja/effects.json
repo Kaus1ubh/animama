@@ -375,7 +375,6 @@
     },
     "previewAvatarFailed": "プレビュー用のアバターを読み込めません。",
     "previewNoun": "プレビュー",
-    "previewWarning": "プレビュー用のアバターで、このエフェクトに関する問題が報告されました。",
     "recoveredDraft": "ローカルの下書きを復元しました",
     "recovery": {
       "unavailable": "ブラウザーのクラッシュ復元を利用できません。保存が完了するまでこのタブを開いたままにしてください。"

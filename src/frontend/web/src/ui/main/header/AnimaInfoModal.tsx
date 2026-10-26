@@ -539,7 +539,7 @@ function AnimaProfile({
               <h2 className="mb-4 text-xl font-semibold">
                 {t("profile.settingsTitle", { name: displayName })}
               </h2>
-              <AnimaSettingsModal />
+              <AnimaSettingsModal animaId={anima?.id} />
             </div>
           ) : null}
         </div>

@@ -1,6 +1,7 @@
 import * as THREE from "three";
 
 import type { Avatar } from "../Avatar";
+import { addAvatarIssue, type AvatarIssue } from "../diagnostics/issues";
 import type {
   AvatarFaceBoxCoordinate,
   AvatarFaceEyeLandmarkSnapshot,
@@ -152,10 +153,12 @@ function cloneWorldPoint(
 
 function createEmptySnapshot(
   warnings: string[] = [],
+  issues: AvatarIssue[] = [],
 ): AvatarFaceLandmarksSnapshot {
   return {
     status: "unavailable",
     warnings,
+    issues,
     anchorName: null,
     anchorType: null,
     faceBindingKey: null,
@@ -188,6 +191,7 @@ export class AvatarFaceLandmarks {
     right: null,
   };
   private _warnings: string[] = [];
+  private _issues: AvatarIssue[] = [];
   private _snapshot: AvatarFaceLandmarksSnapshot = createEmptySnapshot();
   private _isDisposed = false;
 
@@ -212,6 +216,7 @@ export class AvatarFaceLandmarks {
     return {
       status: "ready",
       warnings: [...this._warnings],
+      issues: [...this._issues],
       anchorName: this._anchorObject?.name?.trim() || null,
       anchorType: this._anchorObject?.type ?? null,
       faceBindingKey: this._faceBindingKey,
@@ -239,7 +244,14 @@ export class AvatarFaceLandmarks {
     this._boxHoverFrontZLocal = null;
     this._eyes = { left: null, right: null };
     this._warnings = [];
+    this._issues = [];
     this._snapshot = createEmptySnapshot();
+  }
+
+  /** Record a finding as dev-panel text and as a stable code. */
+  private _warn(issue: AvatarIssue, message: string): void {
+    this._warnings.push(message);
+    addAvatarIssue(this._issues, issue);
   }
 
   private _serializeEyeLandmark(
@@ -284,14 +296,21 @@ export class AvatarFaceLandmarks {
 
     if (!faceBinding || !anchorObject) {
       if (!faceBinding) {
-        this._warnings.push("No face skin part was detected on this avatar.");
+        this._warn(
+          { code: "landmarks_face_skin_missing" },
+          "No face skin part was detected on this avatar.",
+        );
       }
       if (!anchorObject) {
-        this._warnings.push(
+        this._warn(
+          { code: "landmarks_anchor_missing" },
           "No anchor object was available for face landmarks.",
         );
       }
-      this._snapshot = createEmptySnapshot([...this._warnings]);
+      this._snapshot = createEmptySnapshot(
+        [...this._warnings],
+        [...this._issues],
+      );
       return;
     }
 
@@ -301,10 +320,17 @@ export class AvatarFaceLandmarks {
       anchorObject,
     });
     if (!faceBounds) {
-      this._warnings.push(
+      this._warn(
+        {
+          code: "landmarks_face_bounds_failed",
+          params: { binding: faceBinding.bindingKey },
+        },
         `Unable to compute face bounds for ${faceBinding.bindingKey}.`,
       );
-      this._snapshot = createEmptySnapshot([...this._warnings]);
+      this._snapshot = createEmptySnapshot(
+        [...this._warnings],
+        [...this._issues],
+      );
       return;
     }
 
@@ -335,7 +361,8 @@ export class AvatarFaceLandmarks {
     const rightKeys = new Set(parts.rightEyes.map((entry) => entry.bindingKey));
 
     if (eyeIslands.length === 0) {
-      this._warnings.push(
+      this._warn(
+        { code: "landmarks_eyes_missing" },
         "No eye iris landmark islands were derived from the current bindings.",
       );
     } else {

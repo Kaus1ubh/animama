@@ -157,7 +157,11 @@ frame cost on the GPU.
 Then upload it as a Local Avatar on a local stack, for example by choosing it
 in Create Anima (Upload VRM), and check motion, springs, blink, visemes and
 look-at in the chat canvas. Correct its face parts in the Avatar Effect
-creator's Face parts panel if needed.
+creator's Face parts panel if needed. The Anima's [Avatar
+diagnostics](../features/anima-management.md#avatar-diagnostics) list what
+Animama found (required extensions, face parts, ARKit coverage, springs and
+warnings); their copied report holds no paths or names, so it can be shared
+for a private Avatar.
 
 Known limits of a Mochiya 0.1.4 export:
 

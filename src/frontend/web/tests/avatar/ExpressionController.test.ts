@@ -197,3 +197,59 @@ describe("ExpressionController lip-sync segments", () => {
     expect(expressionManager.getValue("aa")).toBe(0);
   });
 });
+
+describe("ExpressionController unresolved expression names", () => {
+  it("lists names clips and overlays ask for that the model lacks, once each", () => {
+    const { controller } = createController();
+    let notified = 0;
+    controller.setUnresolvedExpressionListener(() => {
+      notified += 1;
+    });
+
+    controller.setClipExpressionPrecedence({
+      weight: 1,
+      expressions: { angry: 1, surprised: 0.5, Fcl_EYE_Missing: 1 },
+    });
+    controller.setExpressionOverlay("reaction-1", {
+      surprised: 1,
+      wink_custom: 0.4,
+    });
+    controller.setExpressionOverlay("reaction-2", { blink: 1 });
+
+    expect(controller.unresolvedExpressionNames).toEqual([
+      "surprised",
+      "Fcl_EYE_Missing",
+      "wink_custom",
+    ]);
+    // One notice per call that found a new name.
+    expect(notified).toBe(2);
+  });
+
+  it("counts a VRoid part as played when its mood preset stands in", () => {
+    // A preset-only model: happy, but no VRoid parts.
+    const expressionManager = new MockExpressionManager(["happy", "blink"]);
+    const controller = new ExpressionController({
+      expressionManager,
+      scene: { traverse: () => {} },
+    } as never);
+
+    controller.setExpressionOverlay("reaction-1", {
+      Fcl_BRW_Joy: 1,
+      Fcl_EYE_Joy: 0.8,
+    });
+    controller.setClipExpressionPrecedence({
+      weight: 1,
+      expressions: { Fcl_EYE_Joy: 1, Fcl_BRW_Angry: 1 },
+    });
+
+    // Joy parts play as happy; the angry part has no angry preset to play.
+    expect(controller.unresolvedExpressionNames).toEqual(["Fcl_BRW_Angry"]);
+  });
+
+  it("forgets the names when disposed", () => {
+    const { controller } = createController();
+    controller.setExpressionOverlay("reaction-1", { surprised: 1 });
+    controller.dispose();
+    expect(controller.unresolvedExpressionNames).toEqual([]);
+  });
+});

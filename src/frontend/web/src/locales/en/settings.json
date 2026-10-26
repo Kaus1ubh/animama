@@ -56,10 +56,16 @@
       "on": "On"
     },
     "headings": {
+      "avatar": "Avatar",
       "emotion": "Emotion",
       "memory": "Memory"
     },
     "rows": {
+      "avatar_diagnostics": {
+        "description": "See what Animama found in this Anima's Avatar, and copy a report for support.",
+        "label": "Avatar diagnostics",
+        "open": "Open diagnostics"
+      },
       "emotion_updates": {
         "description": "Update emotional state during chat. When off, new emotion reactions stop; gestures still play.",
         "tooltip": "When off, the existing mood is preserved and gestures still play."

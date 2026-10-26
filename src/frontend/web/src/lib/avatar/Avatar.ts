@@ -88,9 +88,14 @@ import {
 } from "./poses/poseRetargeting";
 import { canonicalizeCustomPresetExpressions } from "./vrmExpressionPresets";
 import { withEnhancedMToonPatch } from "./enhanced-rendering/mtoonPatch";
-import { registerArkitFace } from "./arkitFaceExpressions";
 import { withOnDemandLilToon } from "./liltoon/lilToon";
-import { applyEyelidClosureCorrection } from "./eyelidClosure";
+import { prepareLoadedVrm } from "./prepareLoadedVrm";
+import type { ArkitFace } from "./arkitFaceExpressions";
+import {
+  collectAvatarLiveDiagnostics,
+  type AvatarLiveDiagnostics,
+} from "./diagnostics/avatarDiagnostics";
+import type { AvatarIssue } from "./diagnostics/issues";
 import {
   countAnimaPoseClipEventsByKind,
   DEFAULT_ANIMA_POSE_CLIP_TRANSITION,
@@ -415,6 +420,10 @@ export class Avatar {
   private _isVrm0: boolean = false;
   private _vrmSha256: string | null = null;
   private _facePartCorrections: AvatarFacePartCorrections | null = null;
+  private _arkitFace: ArkitFace | null = null;
+  private _facePartIssues: AvatarIssue[] = [];
+  private _diagnosticsListeners = new Set<() => void>();
+  private _unsubscribeVfxDiagnostics: (() => void) | null = null;
 
   /** sha256 of the loaded VRM bytes, when the load supplied it. */
   get vrmSha256(): string | null {
@@ -424,6 +433,36 @@ export class Avatar {
   /** The face part correction last given at load or by `setFacePartCorrections`. */
   get facePartCorrections(): AvatarFacePartCorrections | null {
     return this._facePartCorrections;
+  }
+
+  /** The loaded model's ARKit coverage, as the load-time installs found it. */
+  get arkitFace(): ArkitFace | null {
+    return this._arkitFace;
+  }
+
+  /** Findings this Avatar recorded itself (not its parts' or controllers'). */
+  get loadIssues(): readonly AvatarIssue[] {
+    return this._facePartIssues;
+  }
+
+  /** What Diagnostics shows for the loaded model; null before a load. */
+  getDiagnostics(): AvatarLiveDiagnostics | null {
+    return this.vrm ? collectAvatarLiveDiagnostics(this) : null;
+  }
+
+  /**
+   * Called when `getDiagnostics()` may have changed: a load or unload, a face
+   * part change, an effect warning or an expression the model cannot play.
+   */
+  subscribeDiagnostics(listener: () => void): () => void {
+    this._diagnosticsListeners.add(listener);
+    return () => {
+      this._diagnosticsListeners.delete(listener);
+    };
+  }
+
+  private _notifyDiagnostics(): void {
+    for (const listener of [...this._diagnosticsListeners]) listener();
   }
 
   constructor(
@@ -482,9 +521,10 @@ export class Avatar {
     this.vrm = vrm;
     this._isVrm0 = isVrm0(vrm);
     this._vrmSha256 = spec.vrmSha256?.trim().toLowerCase() || null;
-    // ARKit mixes must exist before the eyelid correction measures them.
-    registerArkitFace(vrm);
-    const eyelidClosure = applyEyelidClosureCorrection(vrm, this._vrmSha256);
+    const { arkitFace, eyelidClosure } = prepareLoadedVrm(vrm, {
+      vrmSha256: this._vrmSha256,
+    });
+    this._arkitFace = arkitFace;
     if (eyelidClosure) {
       logger.info("Load", "Eyelid closure correction", eyelidClosure);
     }
@@ -540,12 +580,19 @@ export class Avatar {
     this.faceLandmarks = new AvatarFaceLandmarks(this);
     this.faceTextureAnchors = new AvatarFaceTextureAnchors(this);
     this.vfxController = new AvatarVFXController(this, this._mediaCatalog);
+    this._unsubscribeVfxDiagnostics = this.vfxController.subscribe(() =>
+      this._notifyDiagnostics(),
+    );
+    this.expressionController.setUnresolvedExpressionListener(() =>
+      this._notifyDiagnostics(),
+    );
     this.particleVFXController = new ParticleVFXController(
       this,
       this._mediaCatalog,
     );
     this._syncPoseClipEventSink();
     this._syncReactionClipEventSink();
+    this._notifyDiagnostics();
 
     onProgress?.({ phase: "animation", ratio: 1, message: "Ready" });
   }
@@ -573,6 +620,8 @@ export class Avatar {
       this.faceTextureAnchors = null;
       this.faceLandmarks?.dispose();
       this.faceLandmarks = null;
+      this._unsubscribeVfxDiagnostics?.();
+      this._unsubscribeVfxDiagnostics = null;
       this.vfxController?.dispose();
       this.vfxController = null;
       this.particleVFXController?.dispose();
@@ -589,8 +638,11 @@ export class Avatar {
       this.facePartMap = null;
       this._vrmSha256 = null;
       this._facePartCorrections = null;
+      this._arkitFace = null;
+      this._facePartIssues = [];
       this.animationManager = null;
       this.expressionController = null;
+      this._notifyDiagnostics();
     }
     this._isVrm0 = false;
     this.state = "idle";
@@ -618,6 +670,7 @@ export class Avatar {
   dispose(): void {
     this.unload();
     this._isDisposed = true;
+    this._diagnosticsListeners.clear();
     // Callers' closures can outlive a disposed Avatar; holding their sinks,
     // providers or canvas would keep their previous model state alive.
     this._poseClipExternalEventSink = null;
@@ -709,12 +762,14 @@ export class Avatar {
     this.faceTextureAnchors = new AvatarFaceTextureAnchors(this);
     this.setFaceDebugBoxVisible(this._faceDebugVisible);
     await this.vfxController?.refreshFaceParts();
+    this._notifyDiagnostics();
   }
 
   private _detectFaceParts(
     corrections: AvatarFacePartCorrections | null,
   ): void {
     this._facePartCorrections = corrections;
+    this._facePartIssues = [];
     if (!this.vrm || !this.sourceGltf) {
       this.facePartMap = null;
       return;
@@ -731,6 +786,7 @@ export class Avatar {
       // An unusual model must not fail the load: without a part map,
       // landmarks and VFX bindings use material names as before.
       this.facePartMap = null;
+      this._facePartIssues = [{ code: "face_parts_detection_failed" }];
       logger.warn("FaceParts", "Face part detection failed; using names", {
         reason: "avatar_face_parts_detection_failed",
         error: error instanceof Error ? error.message : String(error),

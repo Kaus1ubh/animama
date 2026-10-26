@@ -1,0 +1,90 @@
+/**
+ * Stable, machine-readable Avatar findings. Each site that logs or lists an
+ * English warning for the dev panels also records one of these, so the
+ * Diagnostics view can show localized text and reports stay free of model,
+ * material and effect names. Parameters hold only counts, part roles, binding
+ * keys and runtime effect ids; a Local effect's runtime id derives from its
+ * name, so shareable reports replace it (`avatarDiagnosticsReport.ts`).
+ */
+export const AVATAR_ISSUE_CODES = [
+  // The file and its load (Diagnostics' off-screen load).
+  "file_unavailable",
+  "file_unreadable",
+  "avatar_load_failed",
+  // The live scene's primitives could not be listed.
+  "scene_bindings_unavailable",
+  // Face parts (`vfx/faceParts.ts`, `Avatar`, `runtimeAvatarFaceParts.ts`).
+  "face_parts_detection_failed",
+  "face_parts_expressions_missing",
+  "face_parts_correction_invalid",
+  "face_parts_correction_schema_unsupported",
+  "face_parts_correction_other_file",
+  "face_parts_correction_digest_unknown",
+  "face_parts_correction_unknown_bindings",
+  // Face landmarks (`vfx/AvatarFaceLandmarks.ts`).
+  "landmarks_face_skin_missing",
+  "landmarks_anchor_missing",
+  "landmarks_face_bounds_failed",
+  "landmarks_eyes_missing",
+  // Face texture anchors (`vfx/AvatarFaceTextureAnchors.ts`).
+  "anchors_landmarks_unavailable",
+  "anchors_face_skin_missing",
+  "anchors_projection_failed",
+  "anchors_mouth_missing",
+  // Springs (`spring-bone/`).
+  "springs_source_unavailable",
+  "springs_metadata_missing",
+  "springs_unmapped_joints",
+  "springs_helper_failed",
+  // Effects (`vfx/AvatarVFXController.ts`).
+  "effect_unknown",
+  "effect_wrong_kind",
+  "effect_target_unknown",
+  "effect_load_failed",
+  "effect_placement_failed",
+  "effect_attachment_limit",
+  "effect_face_part_missing",
+  "effect_target_unresolved",
+  "effect_target_incompatible",
+  "effect_overlay_required",
+  "effect_face_skin_required",
+  "effect_skin_color_unavailable",
+] as const;
+
+export type AvatarIssueCode = (typeof AVATAR_ISSUE_CODES)[number];
+
+/** Parameters an issue's catalog text may interpolate. */
+export type AvatarIssueParams = Readonly<Record<string, string | number>>;
+
+export type AvatarIssue = {
+  readonly code: AvatarIssueCode;
+  readonly params?: AvatarIssueParams;
+};
+
+function issueKey(issue: AvatarIssue): string {
+  const params = Object.entries(issue.params ?? {}).sort(([a], [b]) =>
+    a < b ? -1 : a > b ? 1 : 0,
+  );
+  return JSON.stringify([issue.code, params]);
+}
+
+/** Append an issue unless an equal one (same code and parameters) is listed. */
+export function addAvatarIssue(
+  issues: AvatarIssue[],
+  issue: AvatarIssue,
+): void {
+  const key = issueKey(issue);
+  if (issues.some((listed) => issueKey(listed) === key)) return;
+  issues.push(issue);
+}
+
+/** The issues of several sources, each listed once, in first-seen order. */
+export function mergeAvatarIssues(
+  ...sources: readonly (readonly AvatarIssue[] | null | undefined)[]
+): AvatarIssue[] {
+  const merged: AvatarIssue[] = [];
+  for (const source of sources) {
+    for (const issue of source ?? []) addAvatarIssue(merged, issue);
+  }
+  return merged;
+}

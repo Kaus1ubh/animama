@@ -19,8 +19,11 @@ can see what and why in a Diagnostics view, and can turn wind or spring physics
 off for a model that suffers from them. The Included Avatars, both VRoid
 exports, behave exactly as before.
 
-Starting source: `main` at `a94f8369` (PR #688 merged). Plan branch:
-`docs/arbitrary-vrm-support-plan`. Implementation uses two task branches and
+Starting source: `main` at `a94f8369` (PR #688 merged). Task branch for PR A:
+`feat/arbitrary-vrm-support` (the plan branch renamed; it holds the plan
+commits), in the session's own worktree with backend (`uv sync --python
+3.12.13`) and frontend dependencies installed; no stack yet. Implementation
+uses two task branches and
 PRs (owner, 2026-10-26): PR A for Phases 1 to 3, then PR B for Phases 4 to 9 on
 a branch cut from `main` after PR A merges.
 
@@ -196,7 +199,9 @@ tenant-inventory row for `avatar_face_part_overrides`. So:
 
 ## Progress
 
-- [ ] Phase 1: Diagnostics and visible failures (R7, R8). Not started.
+- [ ] Phase 1: Diagnostics and visible failures (R7, R8). Implemented,
+  checked and review passed 2026-10-26; the owner's UI review of the
+  Diagnostics view is pending.
 - [ ] Phase 2: Face parts and eye effects on shared meshes (R1, R3). Not started.
 - [ ] Phase 3: Avatar settings: wind and materials (R5, R11's Materials
   setting). Not started.
@@ -225,6 +230,12 @@ tenant-inventory row for `avatar_face_part_overrides`. So:
 - 2026-10-26: an older install rejects a package whose Avatar sidecar has an
   unknown key with the generic `package_entry_invalid`; a package capability
   in `SUPPORTED_CAPABILITIES` makes it fail with `package_capability_unsupported`.
+- 2026-10-26 (Phase 1): `motion-authoring/headlessVrm.ts` cannot run the shared
+  load step: `vrm:inspect` and the motion checks load through it and must see
+  the file's own expressions before Animama registers any.
+- 2026-10-26 (Phase 1): i18next-cli files the keys of a helper typed through a
+  local alias (`type T = TFunction<"animas">`) under the default namespace and
+  deletes them from the real one; the i18n guide now says so.
 
 ## Decision Log
 
@@ -264,6 +275,16 @@ tenant-inventory row for `avatar_face_part_overrides`. So:
   every surface" intent): load the saved face-part correction on the four
   saved-Avatar surfaces that skip it (Phase 2). Recorded as an agent finding
   beyond the spec's wording.
+- 2026-10-26, agent (Phase 1, within the plan): the shared load step runs in
+  `Avatar.load`, `scripts/animation-render/render.ts` and
+  `testing/loadedTestAvatar.ts`, not `headlessVrm.ts` (see Surprises).
+  Diagnostics renders in hosted builds too: it uses only the runtime snapshot,
+  loadout, content delivery and `Avatar`, with no hosted-only work. The copied
+  text report is English with stable codes for support; the dialog itself is
+  localized. The dialog reuses Application Settings' `SectionedModalFrame`, so
+  no layout alternatives were put to the owner before the owner's UI review.
+  The Avatar Effect creator's toolbar now words the preview Avatar's findings
+  from their codes instead of showing the controllers' English text.
 
 ## Decisions
 
@@ -394,8 +415,9 @@ Changes:
    `prepareLoadedVrm(vrm, { vrmSha256 })` runs today's load-time installs
    (`registerArkitFace`, then `applyEyelidClosureCorrection`) and is called by
    `Avatar.load`, `scripts/animation-render/render.ts` `loadVrm` (which repeats
-   them by hand today) and the headless test loaders
-   (`motion-authoring/headlessVrm.ts`, `lib/avatar/testing/loadedTestAvatar.ts`).
+   them by hand today) and the headless test helper
+   (`lib/avatar/testing/loadedTestAvatar.ts`; not `motion-authoring/headlessVrm.ts`,
+   see Surprises).
    Later phases add their installs here (Phase 4 `registerMmdFace`, Phase 5 the
    hand wrapper, Phase 7 the arm offset), so `animation:render` and the tests
    exercise exactly what the app runs. A refactor with no behaviour change.
@@ -423,15 +445,115 @@ committed.
 Recovery: read-only collection; reverting removes the section and dialog
 without data changes.
 
-Check record: (to fill) · Commits: (to fill)
+Check record (2026-10-26, macOS arm64, worktree on `feat/arbitrary-vrm-support`
+from `30b71570`; tree recorded with the commit):
+
+- `npx vitest run src/lib/avatar src/ui tests/avatar` (`src/frontend/web`):
+  313 files, 3,248 passed, 2 skipped.
+- `pnpm -s check`, `pnpm -s web:lint`, `pnpm -s prettier:check`,
+  `pnpm -s i18n:check` (`src/frontend`): pass.
+- Review renders, phase start (`30b71570` sources) against the end:
+  `effects:render` of `heart_eyes`, `blush`, `sweat_drop`,
+  `little-devil-horns`, `gray-silhouette`, `mouth_w` and `face_red`, and
+  `animation:render` of `air-guitar` and `apology-bow`: 0 differing pixels
+  (max channel delta 0) on all nine sheets.
+- Included baselines committed (`includedAvatarBaselines.test.ts`, Andrew,
+  Annie and the VRM 0 fixture); adding the `issues` fields changed them only
+  by empty `issues` arrays.
+- Load-time correction path (`ANIMAMA_AVATAR_LOAD_TIMING=1 npx vitest run
+  src/lib/avatar/avatarLoadTiming.test.ts`, median of 5 after 1 warm-up): Andrew
+  57.3 ms (17 primitives, 3.37 ms each), Annie 45.3 ms (15, 3.02 ms each). The
+  baseline for later phases.
+- Production-build stack (`ANIMAMA_WEB_BUILD_MODE=production ./reset.sh
+  --name arbvrm --base-port 8900`, built from this tree), 1440x900 and 900x800,
+  light and forced dark: the dialog opened from Anima settings for Annie
+  (Included, on the chat stage), Andrew (Included, loaded off screen from the
+  Animas page, with its loading state) and a Local Avatar created through
+  Create Anima's upload from the repository's VRM 0 test fixture; every section
+  rendered real data, no warnings on the three. The pane denies clipboard
+  writes, so Copy showed its failure notice there; the copy paths are covered
+  by the dialog test. The stack showed `lookUp`–`lookRight` as missing on
+  Avatars that look with bones; fixed (they count only for expression look-at)
+  and covered in the collector test.
+
+Commits: `feat(avatars)[p1]: add Avatar diagnostics and coded warnings`.
 
 #### Code Review #1 Findings
 
-Not run.
+Independent reviewer, standard tier, initial review of the working tree
+`59032356` against `30b71570`; affected checks rerun by a checks agent (vitest
+165 passed, tsc, lint, Prettier: pass).
+
+- P1-R1-F1 (blocking): reports carried `effectId`, a runtime id that for a
+  Local Avatar Effect is a slug of its user-entered name (`localContentLogicalKey`
+  → `_runtime_id`), contrary to R7 and the reports' own privacy statement.
+- P1-R1-F2 (blocking): `setExpressionOverlay` listed VRoid brow, eye and
+  whole-face parts as unplayable although their mood preset plays them, and
+  the clip path missed a part whose preset is also missing; the two paths
+  disagreed.
+- P1-R1-F3 (blocking): no test or recorded check that the real effect-skip
+  path records its code or that the creator shows the notice.
+- Optional: per-frame cost of the new name checks; truncated GLBs lose their
+  JSON facts and invalid buffer-view offsets read wrongly; the creator's
+  English detail is replaced by catalog wording; load errors are swallowed;
+  `runtimeAvatarFacePartIssues` parses the correction a second time; the
+  Local file's blob is held until close; a live reload shows "failed"; the
+  hosted statement in the guide reads as tested; no
+  `acquireContentPreviewResource` slot; `avatarIssueText` is shared across
+  two feature folders.
 
 #### Code Review #1 Revisions
 
-Not run.
+- F1 accepted: shareable reports replace `effectId` with `effect`, the
+  effect's `source:item_id` from the runtime snapshot, or `unlisted`
+  (`AvatarEffectReference` in `avatarDiagnosticsReport.ts`); the dialog keeps
+  the raw findings to name effects on screen. Report and hook tests use a
+  name-derived id and assert it is absent from the JSON and text; docs and the
+  `issues.ts` comment updated.
+- F2 accepted: one rule for emotions, clips and overlays, applied to the names
+  as requested: a name plays if the model has it, its ARKit mapping, or its
+  VRoid part's mood preset; found names are cached, so per-frame overlays only
+  look up a set (also answers the per-frame note). New test: Joy parts on a
+  preset-only model are not listed; an angry part without `angry` is.
+- F3 accepted: the existing real-path tests now assert the recorded codes
+  (`effect_face_part_missing` from `reportUnavailableFacePart`,
+  `effect_attachment_limit` from the fifth attachment). Live check on the
+  stack: an effect painted on Eyelashes previewed on Annie (no detected
+  eyelashes) shows the localized skip notice on the stage and as the toolbar's
+  validation issue; the creator does not apply a skipped effect, so
+  controller-coded lines appear there only for degraded applies, worded by the
+  dialog-tested `avatarIssueText`.
+- Optional, accepted: a truncated GLB keeps its complete chunks' facts and
+  invalid offsets read nothing (test added); load and file errors are logged
+  with the error; the content lease is released once its bytes are read; a
+  reloading chat Avatar shows the loading state; the guide states hosted
+  support as a design property.
+- Optional, not taken: the second correction parse (one small `safeParse`;
+  keeps the `Avatar.load` spec unchanged); the preview resource slot (a
+  development-only counter for preview canvases; the dialog's Avatar renders
+  nothing); moving `avatarIssueText` (no cycle). The creator's lost English
+  detail goes to the owner's UI review.
+- Rechecks after the repairs: vitest `src/lib/avatar src/ui tests/avatar`
+  313 files, 3,251 passed, 2 skipped; tsc, `pnpm -s web:lint` and
+  `pnpm -s prettier:check` pass. Targeted recheck: Code Review #2.
+
+#### Code Review #2 Findings
+
+Targeted recheck of tree `f7eb959a`: P1-R1-F1, F2 and F3 resolved; no
+required findings. Optional:
+
+- P1-R2-F1: the sidebar's Warnings count used the report's merged findings
+  while the section lists the on-screen ones, which can differ.
+- P1-R2-F2: `avatar-vfx.md` still called issue parameters "content item ids".
+
+#### Code Review #2 Revisions
+
+- P1-R2-F1 accepted: the count uses the on-screen findings.
+- P1-R2-F2 accepted: the guide says "runtime effect ids" and that reports
+  name effects by source and item id.
+- Trivial repairs verified by the coordinator: `npx vitest run src/ui/animas`
+  and tsc pass; the doc change is wording. Review passed; Phase 1 ready for the
+  owner's UI review.
 
 ### Phase 2: Face parts and eye effects on shared meshes
 

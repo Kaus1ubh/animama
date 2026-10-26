@@ -387,7 +387,7 @@ function ManagementPanel({
           ) : activeTab === "loadout" ? (
             <AnimaLoadout animaId={anima.id} onStagePreview={onStagePreview} />
           ) : (
-            <AnimaSettingsModal />
+            <AnimaSettingsModal animaId={anima.id} />
           )}
         </div>
       </aside>

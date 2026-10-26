@@ -1,3 +1,4 @@
+import type { AvatarIssue } from "../diagnostics/issues";
 import type { AvatarVFXSide, AvatarVFXTextureAnchor } from "./types";
 import type { AvatarFaceLandmarkVector } from "./landmark-types";
 
@@ -43,6 +44,8 @@ export type AvatarFaceTextureFlattenRegionSnapshot = {
 export type AvatarFaceTextureAnchorsSnapshot = {
   status: "unavailable" | "ready";
   warnings: string[];
+  /** `warnings` as stable codes, for the Diagnostics view. */
+  issues: AvatarIssue[];
   faceBindingKey: string | null;
   faceMaterialName: string | null;
   anchors: {

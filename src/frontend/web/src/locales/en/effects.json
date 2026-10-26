@@ -375,7 +375,6 @@
     },
     "previewAvatarFailed": "Unable to load the preview Avatar.",
     "previewNoun": "preview",
-    "previewWarning": "The preview Avatar reported a problem with this effect.",
     "recoveredDraft": "Recovered local draft",
     "recovery": {
       "unavailable": "Browser crash recovery is unavailable. Keep this tab open until Save completes."

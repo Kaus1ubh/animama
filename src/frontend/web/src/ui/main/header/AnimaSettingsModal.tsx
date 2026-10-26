@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback } from "react";
+import { Stethoscope } from "lucide-react";
+import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import {
@@ -12,6 +13,8 @@ import {
   type BehaviorOverride,
 } from "@/lib/settings/behavior-defaults";
 import { cn } from "@/lib/utils";
+import { AvatarDiagnosticsDialog } from "@/ui/animas/AvatarDiagnosticsDialog";
+import { Button } from "@/ui/components/button";
 import {
   Select,
   SelectContent,
@@ -97,7 +100,42 @@ function InheritableSettingRow({
   );
 }
 
-export function AnimaSettingsModal() {
+/** The Anima's Avatar diagnostics, opened in their own dialog. */
+function AvatarDiagnosticsRow({ animaId }: { animaId: string }) {
+  const { t } = useTranslation("settings");
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="border-border/60 bg-background flex flex-col gap-3 rounded-lg border px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+      <div className="min-w-0">
+        <p className="text-foreground text-sm font-medium">
+          {t("animaSettings.rows.avatar_diagnostics.label")}
+        </p>
+        <p className="text-muted-foreground text-xs">
+          {t("animaSettings.rows.avatar_diagnostics.description")}
+        </p>
+      </div>
+      <Button
+        variant="outline"
+        className="w-full shrink-0 sm:w-48"
+        onClick={() => setOpen(true)}
+      >
+        <Stethoscope /> {t("animaSettings.rows.avatar_diagnostics.open")}
+      </Button>
+      <AvatarDiagnosticsDialog
+        animaId={animaId}
+        open={open}
+        onOpenChange={setOpen}
+      />
+    </div>
+  );
+}
+
+type AnimaSettingsModalProps = {
+  /** The Anima whose Avatar the Diagnostics section describes. */
+  animaId?: string | null;
+};
+
+export function AnimaSettingsModal({ animaId }: AnimaSettingsModalProps = {}) {
   const { t } = useTranslation("settings");
   const {
     userPreferences,
@@ -181,6 +219,17 @@ export function AnimaSettingsModal() {
           />
         </div>
       </div>
+
+      {animaId ? (
+        <div>
+          <p className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
+            {t("animaSettings.headings.avatar")}
+          </p>
+          <div className="mt-3 grid gap-3">
+            <AvatarDiagnosticsRow animaId={animaId} />
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

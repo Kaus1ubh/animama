@@ -327,6 +327,21 @@ effect and part and lists it in its snapshot warnings, which the VRM debug
 panel shows. In chat, the Gesture or Reaction continues without the effect. The
 creator names the missing part on its stage and toolbar.
 
+### Diagnostic codes
+
+Every finding the face parts, landmarks, texture anchors, springs and the VFX
+controller report carries a stable code with parameters (part roles, binding
+keys, counts, runtime effect ids) beside its English text, in `issues` next to
+the existing `diagnostics` or `warnings`. A Local effect's runtime id derives
+from its name, so shareable reports name effects by source and item id
+instead. `lib/avatar/diagnostics/issues.ts`
+lists the codes, such as `face_parts_correction_other_file`,
+`landmarks_eyes_missing` and `effect_face_part_missing`. [Avatar
+diagnostics](../features/anima-management.md#avatar-diagnostics) and the Avatar
+Effect creator's toolbar word them from the `animas` catalog; the English text
+remains for logs and the debug panels. A new warning gets a code there and a
+catalog entry in every locale.
+
 ## 6) Attachments beyond the face
 
 Body, sticker and silhouette effects need no face part. They follow the Avatar
@@ -817,6 +832,7 @@ per render; a silhouette adds one skinned draw per overlaid primitive (about
 | Save fails naming a field                                                                                  | The backend refused the definition (`avatar_effect_definition_invalid`); the creator opens and outlines the control. Fix that value.                                                                                       |
 | "Conversion required" at Save, preview, Equip or import                                                    | A `/1` definition. Rescan or run `content_cli` for Local content, the conversion script for a descriptor folder; re-export a package from a converted installation. A failed Local conversion is listed in Content Health. |
 | Effect never appears on one Avatar                                                                         | The snapshot or **Effect warnings** list `avatar_effect_face_part_unavailable`: open **Face parts**, correct the missing or uncertain part and save.                                                                       |
+| An effect is skipped or degraded on one Avatar in chat                                                     | Anima settings → **Avatar diagnostics** → **Warnings** names the effect and the reason, with its [code](#diagnostic-codes).                                                                                                |
 | A saved correction has no effect                                                                           | The VRM bytes changed (`vrm_sha256` mismatch) or an Included Avatar's revision changed; correct the parts again.                                                                                                           |
 | Requests reading Avatars or starting chat fail with `relation "avatar_face_part_overrides" does not exist` | The development database predates the table. Reset it (see [development operations](../../backend/operations/development.md#database)).                                                                                    |
 | A body, sticker or silhouette effect vanished                                                              | A fifth attachment replaced the oldest (`avatar_effect_attachment_limit`).                                                                                                                                                 |

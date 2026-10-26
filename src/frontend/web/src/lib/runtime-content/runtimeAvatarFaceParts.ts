@@ -1,5 +1,6 @@
 import { zAvatarFacePartCorrection } from "@animama/runtime-contracts/validators";
 
+import type { AvatarIssue } from "@/lib/avatar/diagnostics/issues";
 import type { AvatarFacePartCorrections } from "@/lib/avatar/vfx/faceParts";
 import { createLogger } from "@/lib/logger";
 
@@ -12,6 +13,20 @@ export type RuntimeAvatarFaceParts = {
   facePartCorrections: AvatarFacePartCorrections | null;
   vrmSha256: string | null;
 };
+
+/**
+ * The Diagnostics finding for an Avatar entry's saved face part correction:
+ * one that does not parse is dropped at load and reported here.
+ */
+export function runtimeAvatarFacePartIssues(
+  entry: RuntimeCatalogEntry | null,
+): AvatarIssue[] {
+  const raw = entry?.config.face_parts;
+  if (raw === undefined || raw === null) return [];
+  return zAvatarFacePartCorrection.safeParse(raw).success
+    ? []
+    : [{ code: "face_parts_correction_invalid" }];
+}
 
 /**
  * Read the Avatar's effective face part correction (forwarded in the runtime

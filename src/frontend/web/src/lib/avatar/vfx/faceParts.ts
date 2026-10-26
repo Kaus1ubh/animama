@@ -13,6 +13,7 @@ import * as THREE from "three";
 import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 
 import type { Avatar } from "../Avatar";
+import { addAvatarIssue, type AvatarIssue } from "../diagnostics/issues";
 import { buildRuntimePrimitiveBindings } from "../vrmEditorInspection";
 import { readVertexPosition } from "./avatarPrimitiveUtils";
 import type { RuntimePrimitiveBindingEntry } from "./avatarPrimitiveUtils";
@@ -91,6 +92,8 @@ export type AvatarFacePartMap = {
   /** Eye-bone primitives classified as eye whites; diagnostic only. */
   eyeWhite: string[];
   diagnostics: string[];
+  /** `diagnostics` as stable codes, for the Diagnostics view. */
+  issues: AvatarIssue[];
 };
 
 export type DetectAvatarFacePartsOptions = {
@@ -164,7 +167,14 @@ type Context = {
   anchor: THREE.Object3D;
   frontSign: 1 | -1;
   diagnostics: string[];
+  issues: AvatarIssue[];
 };
+
+/** Record a finding as dev-panel text and as a stable code. */
+function report(context: Context, issue: AvatarIssue, message: string): void {
+  context.diagnostics.push(message);
+  addAvatarIssue(context.issues, issue);
+}
 
 /**
  * Identify face skin, irises (per side), eye highlights, eye lines, eyelashes
@@ -189,6 +199,7 @@ export function detectAvatarFaceParts(
     anchor,
     frontSign: vrm.meta?.metaVersion === "0" ? -1 : 1,
     diagnostics: [],
+    issues: [],
   };
 
   const signals = detectFromSignals(context);
@@ -213,6 +224,7 @@ export function detectAvatarFaceParts(
     parts,
     eyeWhite: signals.eyeWhite,
     diagnostics: context.diagnostics,
+    issues: context.issues,
   };
 }
 
@@ -452,7 +464,9 @@ function detectFromSignals(context: Context): {
   const blink = collectMorphBinds(vrm, "blink");
   const aa = collectMorphBinds(vrm, "aa");
   if (blink.size === 0 || aa.size === 0) {
-    context.diagnostics.push(
+    report(
+      context,
+      { code: "face_parts_expressions_missing" },
       "The VRM has no blink or aa morph target; face skin and eye details cannot be found from expressions.",
     );
   }
@@ -936,7 +950,15 @@ export function detectAvatarFacePartsByName(
     sourceGltf: gltf,
   }).entries;
   return detectFromNames(
-    { vrm, gltf, entries, anchor: vrm.scene, frontSign: 1, diagnostics: [] },
+    {
+      vrm,
+      gltf,
+      entries,
+      anchor: vrm.scene,
+      frontSign: 1,
+      diagnostics: [],
+      issues: [],
+    },
     source,
   );
 }
@@ -1055,18 +1077,28 @@ function applyCorrections(
   const corrections = options.corrections;
   if (!corrections) return;
   if (corrections.schema !== AVATAR_FACE_PARTS_SCHEMA) {
-    context.diagnostics.push(
+    report(
+      context,
+      { code: "face_parts_correction_schema_unsupported" },
       `Ignored face part corrections with unsupported schema ${String(corrections.schema)}.`,
     );
     return;
   }
   const digest = options.vrmSha256?.trim().toLowerCase() ?? "";
   if (!digest || corrections.vrm_sha256.trim().toLowerCase() !== digest) {
-    context.diagnostics.push(
-      digest
-        ? "Ignored face part corrections made for different VRM bytes."
-        : "Ignored face part corrections because the VRM digest is unknown.",
-    );
+    if (digest) {
+      report(
+        context,
+        { code: "face_parts_correction_other_file" },
+        "Ignored face part corrections made for different VRM bytes.",
+      );
+    } else {
+      report(
+        context,
+        { code: "face_parts_correction_digest_unknown" },
+        "Ignored face part corrections because the VRM digest is unknown.",
+      );
+    }
     return;
   }
   const known = new Set(context.entries.map((entry) => entry.bindingKey));
@@ -1076,7 +1108,12 @@ function applyCorrections(
     const bindings = unique(requested).filter((key) => known.has(key));
     const unknown = requested.filter((key) => !known.has(key));
     if (unknown.length > 0) {
-      context.diagnostics.push(
+      report(
+        context,
+        {
+          code: "face_parts_correction_unknown_bindings",
+          params: { part: role, count: unknown.length },
+        },
         `Ignored unknown ${role} correction bindings: ${unknown.join(", ")}.`,
       );
     }

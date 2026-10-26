@@ -56,10 +56,16 @@
       "on": "开"
     },
     "headings": {
+      "avatar": "虚拟形象",
       "emotion": "情绪",
       "memory": "记忆"
     },
     "rows": {
+      "avatar_diagnostics": {
+        "description": "查看 Animama 在此 Anima 的虚拟形象中发现的内容，并复制报告以便寻求支持。",
+        "label": "虚拟形象诊断",
+        "open": "打开诊断"
+      },
       "emotion_updates": {
         "description": "在聊天中更新情绪状态。关闭后，新的情绪反应会停止，但动作仍会播放。",
         "tooltip": "关闭后，会保留当前心情，动作仍会播放。"

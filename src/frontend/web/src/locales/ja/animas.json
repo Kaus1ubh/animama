@@ -80,6 +80,149 @@
     },
     "zoom": "ズーム {{zoom}}×"
   },
+  "avatarDiagnostics": {
+    "close": "閉じる",
+    "copied": "レポートをコピーしました。",
+    "copyFailed": "クリップボードにコピーできませんでした。",
+    "copyReport": "レポートをコピー",
+    "description": "Animama がこのアバターのファイルで見つけた内容と、その再生方法です。",
+    "expressions": {
+      "arkit": "ARKit の顔シェイプ",
+      "arkitValue": "{{total}} 個中 {{resolved}} 個",
+      "customNames_other": "カスタム名 {{count}} 個",
+      "fromArkit": "{{name}}（ARKit）",
+      "missing": "ない表情",
+      "playsFaces": "気分を ARKit シェイプで再生",
+      "present": "標準の表情",
+      "unresolved": "要求されたがこのアバターにないもの"
+    },
+    "face": {
+      "confidence": "信頼度",
+      "foundBy": "検出方法",
+      "landmarks": "顔のランドマーク",
+      "meshParts": "メッシュパーツ",
+      "part": "パーツ",
+      "ready": "準備完了",
+      "sources": {
+        "corrected": "あなたの修正",
+        "missing": "見つかりません",
+        "names": "マテリアル名",
+        "signals": "モデルのデータ"
+      },
+      "textureAnchors": "顔テクスチャのアンカー",
+      "unavailable": "利用不可"
+    },
+    "file": {
+      "extensionsRequired": "必須の拡張機能",
+      "extensionsUsed": "使用している拡張機能",
+      "format": "形式",
+      "formatNotVrm": "{{container}} · VRM ではありません",
+      "formatVrm": "{{container}} · VRM {{version}}",
+      "imageExternal": "ファイル外",
+      "imageFormat": "形式",
+      "imagePixels": "ピクセル",
+      "imagesCaption": "埋め込み画像",
+      "imageSize": "サイズ",
+      "materialKind": "{{kind}} {{number}}",
+      "materials": "マテリアル",
+      "meshes": "メッシュ",
+      "meshesValue": "メッシュ {{meshes}} 個、メッシュパーツ {{primitives}} 個（シェイプキー付き {{morphed}} 個）",
+      "size": "ファイルサイズ",
+      "textures": "画像",
+      "texturesValue_other": "画像 {{count}} 枚 · {{size}}",
+      "unreadable": "このファイルは glTF または VRM ファイルとして読み取れませんでした。"
+    },
+    "identity": {
+      "included": "同梱アバター",
+      "local": "ローカルアバター",
+      "unknown": "アバター"
+    },
+    "issues": {
+      "anchors_face_skin_missing": "顔の肌が見つからないため、顔に描くエフェクトを配置できません。",
+      "anchors_landmarks_unavailable": "顔のランドマークが利用できないため、顔に描くエフェクトを配置できません。",
+      "anchors_mouth_missing": "顔のテクスチャ上に口の位置が見つかりませんでした。",
+      "anchors_projection_failed": "顔のテクスチャを対応付けられないため、顔に描くエフェクトを配置できません。",
+      "anEffect": "エフェクト",
+      "avatar_load_failed": "アバターを読み込めませんでした。「ファイル」で必須の拡張機能を確認してください。",
+      "effect_attachment_limit": "{{effect}} を外しました：体・ステッカー・シルエットのエフェクトは同時に最大 {{limit}} 個までです。",
+      "effect_face_part_missing": "{{effect}} をスキップしました：このアバターでは{{part}}が検出されていません。",
+      "effect_face_skin_required": "{{effect}} には顔の肌が必要ですが、見つかりませんでした。",
+      "effect_load_failed": "{{effect}} の画像を読み込めませんでした。",
+      "effect_overlay_required": "{{effect}} はこの顔ではオーバーレイモードが必要です。",
+      "effect_placement_failed": "{{effect}} をこのアバターに配置できませんでした。",
+      "effect_skin_color_unavailable": "{{effect}} の背景に使う顔の肌の色を取得できませんでした。",
+      "effect_target_incompatible": "{{effect}} は配置先のパーツに合いません。",
+      "effect_target_unknown": "{{effect}} は存在しないモデルのパーツを指定しています。",
+      "effect_target_unresolved": "{{effect}} に合うパーツがこのアバターに見つかりませんでした。",
+      "effect_unknown": "このインストールでは利用できないエフェクトがあります。",
+      "effect_wrong_kind": "{{effect}} はこの方法では表示できません。",
+      "face_parts_correction_digest_unknown": "このファイルのダイジェストが不明なため、保存された顔パーツの修正を無視しました。",
+      "face_parts_correction_invalid": "保存された顔パーツの修正を読み取れなかったため、無視しました。",
+      "face_parts_correction_other_file": "保存された顔パーツの修正は別のファイル用に作られたため、無視しました。",
+      "face_parts_correction_schema_unsupported": "保存された顔パーツの修正は未対応の形式のため、無視しました。",
+      "face_parts_correction_unknown_bindings_other": "{{part}}の保存された修正は、このモデルにないメッシュパーツを {{count}} 個指定しています。",
+      "face_parts_detection_failed": "顔のパーツを検出できなかったため、エフェクトはマテリアル名で配置されます。",
+      "face_parts_expressions_missing": "モデルに瞬きまたは「aa」の表情がないため、顔の肌と目の細部をそこから見つけられません。",
+      "file_unavailable": "アバターのファイルをダウンロードできませんでした。",
+      "file_unreadable": "アバターのファイルは読み取り可能な glTF または VRM ファイルではありません。",
+      "landmarks_anchor_missing": "顔のランドマークを固定する頭が見つかりませんでした。",
+      "landmarks_eyes_missing": "顔に目が見つからないため、目のエフェクトは利用できません。",
+      "landmarks_face_bounds_failed": "顔の肌の大きさを測れませんでした。",
+      "landmarks_face_skin_missing": "顔の肌が見つからないため、顔のランドマークは利用できません。",
+      "scene_bindings_unavailable": "読み込んだモデルのメッシュパーツを一覧にできませんでした。",
+      "springs_helper_failed": "揺れものボーンのガイドを描画できませんでした。",
+      "springs_metadata_missing": "ファイルに揺れものボーンの設定がないため、揺れは半分の強さになります。",
+      "springs_source_unavailable": "ファイルの揺れものボーンのデータを読み取れなかったため、既定の設定を使います。",
+      "springs_unmapped_joints_other": "揺れもののジョイント {{count}} 個をファイルのデータと対応付けられませんでした。"
+    },
+    "json": {
+      "copied": "JSON をコピーしました。",
+      "copy": "JSON をコピー",
+      "description": "同じレポートをデータ形式で表示します。サポートへの共有用です。"
+    },
+    "loading": "アバターを読み取っています…",
+    "materialKinds": {
+      "liltoon": "lilToon",
+      "mtoon": "MToon",
+      "pbr": "標準",
+      "unlit": "Unlit"
+    },
+    "motion": {
+      "humanoidBones": "ヒューマノイドのボーン",
+      "missingBones": "ない必須ボーン",
+      "notChecked": "未確認",
+      "restPose": "基本姿勢",
+      "springs": "揺れものボーン",
+      "springsValue": "ジョイント {{joints}} 個 · コライダー {{colliders}} 個",
+      "wind": "風",
+      "windAutomatic": "自動"
+    },
+    "navigationLabel": "診断のセクション",
+    "no": "いいえ",
+    "none": "なし",
+    "notLoaded": "アバターを読み込めなかったため、ファイルの情報のみ表示しています。",
+    "privacy": "レポートには件数、標準の名前、コードのみが含まれ、ファイルパスや名前は含まれません。",
+    "sections": {
+      "expressions": "表情",
+      "face": "顔",
+      "file": "ファイル",
+      "json": "JSON データ",
+      "motion": "動き",
+      "warnings": "警告",
+      "warningsCount_other": "警告（{{count}}）"
+    },
+    "source": {
+      "live": "チャットのステージ上",
+      "offscreen": "この画面用に読み込み"
+    },
+    "title": "アバター診断",
+    "unavailable": "この Anima には確認できるアバターがありません。",
+    "unknown": "不明",
+    "warnings": {
+      "none": "問題は見つかりませんでした。"
+    },
+    "yes": "はい"
+  },
   "badges": {
     "starter": "同梱",
     "starterShort": "同"

@@ -56,10 +56,16 @@
       "on": "オン"
     },
     "headings": {
+      "avatar": "アバター",
       "emotion": "感情",
       "memory": "記憶"
     },
     "rows": {
+      "avatar_diagnostics": {
+        "description": "Animama がこの Anima のアバターで見つけた内容を確認し、サポート用のレポートをコピーできます。",
+        "label": "アバター診断",
+        "open": "診断を開く"
+      },
       "emotion_updates": {
         "description": "チャット中に感情の状態を更新します。オフにすると新しい感情のリアクションは止まりますが、ジェスチャーは再生されます。",
         "tooltip": "オフにすると、今の気分は保たれ、ジェスチャーは引き続き再生されます。"

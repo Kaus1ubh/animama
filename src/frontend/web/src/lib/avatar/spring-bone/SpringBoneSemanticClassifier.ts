@@ -5,6 +5,8 @@ import type {
 } from "three/examples/jsm/loaders/GLTFLoader.js";
 import type { VRM, VRMSpringBoneJoint } from "@pixiv/three-vrm";
 
+import { addAvatarIssue, type AvatarIssue } from "../diagnostics/issues";
+
 import {
   DEFAULT_SPRING_BONE_SEMANTIC_PROFILES,
   UNPROFILED_SPRING_BONE_INTENSITY_SCALE,
@@ -158,7 +160,11 @@ export type SpringBoneSemanticClassification = {
   counts: SpringBoneSemanticJointCounts;
   assignmentCount: number;
   warnings: string[];
+  /** `warnings` as stable codes, for the Diagnostics view. */
+  issues: AvatarIssue[];
 };
+
+type Findings = { warnings: string[]; issues: AvatarIssue[] };
 
 export type SpringBoneSemanticClassifierInput = {
   vrm: VRM;
@@ -212,7 +218,7 @@ export function buildSpringBoneSemanticAssignments({
     SpringBoneSemanticAssignment
   >();
   const counts = createEmptySpringBoneSemanticJointCounts();
-  const warnings: string[] = [];
+  const findings: Findings = { warnings: [], issues: [] };
   const manager = vrm.springBoneManager;
 
   if (!manager) {
@@ -221,7 +227,7 @@ export function buildSpringBoneSemanticAssignments({
       assignments,
       counts,
       assignmentCount: 0,
-      warnings,
+      ...findings,
     };
   }
 
@@ -231,14 +237,16 @@ export function buildSpringBoneSemanticAssignments({
 
   if (!rawJson) {
     pushWarning(
-      warnings,
+      findings,
+      { code: "springs_source_unavailable" },
       "Spring-bone semantic classifier could not inspect source glTF JSON.",
     );
   }
 
   if (!parserAssociations) {
     pushWarning(
-      warnings,
+      findings,
+      { code: "springs_source_unavailable" },
       "Spring-bone semantic classifier could not inspect parser associations.",
     );
   }
@@ -247,7 +255,7 @@ export function buildSpringBoneSemanticAssignments({
     for (const joint of joints) {
       assignFallback(assignments, counts, joint, null);
     }
-    return finalizeClassification(assignments, counts, warnings);
+    return finalizeClassification(assignments, counts, findings);
   }
 
   const nodes = readRawNodes(rawJson);
@@ -259,7 +267,8 @@ export function buildSpringBoneSemanticAssignments({
 
   if (vrm1Chains.length === 0 && vrm0Chains.length === 0) {
     pushWarning(
-      warnings,
+      findings,
+      { code: "springs_metadata_missing" },
       "No VRM spring-bone metadata found; defaulting unprofiled assignments to half intensity.",
     );
   }
@@ -298,18 +307,19 @@ export function buildSpringBoneSemanticAssignments({
 
   if (counts.unmapped > 0) {
     pushWarning(
-      warnings,
+      findings,
+      { code: "springs_unmapped_joints", params: { count: counts.unmapped } },
       `${counts.unmapped} spring-bone semantic assignment(s) could not be mapped to raw VRM metadata.`,
     );
   }
 
-  return finalizeClassification(assignments, counts, warnings);
+  return finalizeClassification(assignments, counts, findings);
 }
 
 function finalizeClassification(
   assignments: Map<VRMSpringBoneJoint, SpringBoneSemanticAssignment>,
   counts: SpringBoneSemanticJointCounts,
-  warnings: string[],
+  findings: Findings,
 ): SpringBoneSemanticClassification {
   return {
     ready: true,
@@ -323,7 +333,8 @@ function finalizeClassification(
       ).length,
     },
     assignmentCount: assignments.size,
-    warnings: warnings.slice(-MAX_SEMANTIC_WARNINGS),
+    warnings: findings.warnings.slice(-MAX_SEMANTIC_WARNINGS),
+    issues: findings.issues,
   };
 }
 
@@ -796,7 +807,12 @@ function createEmptySpringBoneSemanticJointCounts(): SpringBoneSemanticJointCoun
   };
 }
 
-function pushWarning(warnings: string[], warning: string): void {
-  if (warnings.includes(warning)) return;
-  warnings.push(warning);
+function pushWarning(
+  findings: Findings,
+  issue: AvatarIssue,
+  warning: string,
+): void {
+  addAvatarIssue(findings.issues, issue);
+  if (findings.warnings.includes(warning)) return;
+  findings.warnings.push(warning);
 }
