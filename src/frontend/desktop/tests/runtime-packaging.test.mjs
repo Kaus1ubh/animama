@@ -1059,7 +1059,7 @@ Load command 4
       run,
     }));
     vi.doMock("../scripts/runtime/icon.mjs", () => ({
-      buildIcon: async () => "fixture.icns",
+      macIcon: "fixture.icns",
     }));
     vi.doMock("electron-builder", () => ({
       build,
