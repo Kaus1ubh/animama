@@ -10,8 +10,7 @@ authors = [{ name = "Raymond Van" }]
 dependencies = [
     "fastapi[standard]>=0.121",
     "uvicorn[standard]>=0.30",
-    # 2.13+ merges identical Input/Output schemas, renaming generated SDK types.
-    "pydantic>=2.10,<2.13",
+    "pydantic>=2.10,<3",
     "typing-extensions>=4.12.2,<5",
     "python-dotenv>=1.0.0",
     "jinja2>=3.1",
@@ -75,6 +74,14 @@ torch = [{ index = "pytorch-cpu" }]
 torchvision = [{ index = "pytorch-cpu" }]
 
 [tool.uv]
+# Lock-only holds that keep the exported local-http contract and generated SDK stable;
+# the published wheel keeps its broader ranges.
+constraint-dependencies = [
+    # 2.13+ merges identical Input/Output schemas, renaming generated SDK types.
+    "pydantic<2.13",
+    # Starlette 1.x needs 0.134+, whose upload and validation-error schemas need a local-http major.
+    "fastapi<0.122",
+]
 conflicts = [
     [
         { group = "dev" },
