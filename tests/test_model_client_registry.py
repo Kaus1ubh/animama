@@ -9,6 +9,7 @@ from typing import Any
 import httpx
 import pytest
 from openai import APIStatusError
+from openai._models import construct_type
 from openai.types.chat import ChatCompletionChunk, ChatCompletionFunctionToolParam, ChatCompletionToolUnionParam
 from openai.types.responses import (
     ResponseCompletedEvent,
@@ -19,6 +20,7 @@ from openai.types.responses import (
     ResponseIncompleteEvent,
     ResponseOutputItemAddedEvent,
     ResponseOutputItemDoneEvent,
+    ResponseStreamEvent,
     ResponseTextDeltaEvent,
     ResponseTextDoneEvent,
     ResponseWebSearchCallCompletedEvent,
@@ -1331,6 +1333,43 @@ async def test_openai_responses_client_uses_sdk_stream_and_scoped_cursor() -> No
     assert final.usage.output_tokens_details.reasoning_tokens == 3
     assert dict(final.raw_provider_metadata)["response_id"] == "resp_2"
     assert dict(final.raw_provider_metadata)["previous_response_id"] == "resp_1"
+
+
+@pytest.mark.asyncio
+async def test_openai_responses_client_accepts_response_done_without_newer_sdk_fields() -> None:
+    """Compatible servers end with response.done and may omit fields newer SDKs require."""
+    usage = _responses_usage()
+    usage["input_tokens_details"] = {"cached_tokens": 2}
+    # Built like the SDK stream parser, which leaves an untyped event's response as a dict.
+    done_event = construct_type(
+        type_=ResponseStreamEvent,
+        value={"type": "response.done", "sequence_number": 3, "response": _response_payload(usage=usage)},
+    )
+    fake_openai = _FakeOpenAIClient(
+        [],
+        response_events=[
+            _responses_text_delta_event('{"speech":"Hello"}', sequence_number=1),
+            _responses_text_done_event('{"speech":"Hello"}', sequence_number=2),
+            done_event,
+        ],
+    )
+    client = OpenAIResponsesModelClient(
+        api_key="sk-test",
+        client=fake_openai,  # type: ignore[arg-type]
+        timeout=12.0,
+    )
+
+    deltas = await _collect(
+        client.stream(_spec(provider_type=OPENAI_RESPONSES_HTTP_PROVIDER_TYPE, messages=_messages_with_instructions()))
+    )
+
+    public_deltas = _public_deltas(deltas)
+    assert [delta.kind for delta in public_deltas] == ["text_delta", "final", "done"]
+    final = public_deltas[1].final
+    assert final is not None
+    assert final.text == '{"speech":"Hello"}'
+    assert final.usage.input_tokens == 4
+    assert final.usage.input_tokens_details.cached_tokens == 2
 
 
 @pytest.mark.asyncio
