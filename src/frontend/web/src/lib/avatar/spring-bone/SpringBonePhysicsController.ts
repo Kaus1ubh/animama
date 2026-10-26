@@ -104,6 +104,8 @@ export type SpringBonePhysicsSnapshot = {
   ready: boolean;
   disposed: boolean;
   hasManager: boolean;
+  /** False for Avatars whose springs ignore wind and the updraft. */
+  ambientForces: boolean;
   jointCount: number;
   colliderCount: number;
   cachedJointCount: number;
@@ -131,7 +133,33 @@ export type SpringBonePhysicsControllerOptions = {
   sourceGltf?: GLTF | null;
   parserJson?: unknown | null;
   associations?: GLTF["parser"]["associations"] | null;
+  /**
+   * Whether wind, the updraft and the zero-gravity baseline apply (default
+   * true). See `springsTunedWithoutAmbientForces`.
+   */
+  ambientForces?: boolean;
 };
+
+/**
+ * glTF extension Mochiya Avatar Tools writes into every Avatar it converts,
+ * including VRChat Avatars; see docs/frontend/runtime/vrchat-avatar-conversion.md.
+ */
+const MOCHIYA_CONVERSION_EXTENSION = "MOCHIYA_avatar_composition";
+
+/**
+ * Whether an Avatar's springs were tuned without ambient forces, so wind and
+ * the updraft must not be added. VRChat PhysBones hold their shape with low
+ * pull and little gravity, and VRChat adds no ambient forces; converted to VRM
+ * springs, that tuning is far softer than VRM-authored hair, and the updraft
+ * lifts a hanging ponytail straight up. Detected from the extension Mochiya
+ * Avatar Tools adds to every Avatar it converts, so it holds only while a
+ * re-export keeps that extension.
+ */
+export function springsTunedWithoutAmbientForces(parserJson: unknown): boolean {
+  const used = (parserJson as { extensionsUsed?: unknown } | null)
+    ?.extensionsUsed;
+  return Array.isArray(used) && used.includes(MOCHIYA_CONVERSION_EXTENSION);
+}
 
 type OriginalSpringJointSettings = {
   stiffness: number;
@@ -154,6 +182,7 @@ export class SpringBonePhysicsController {
     OriginalSpringJointSettings
   >();
   private _isDisposed: boolean = false;
+  private _ambientForces: boolean;
   private _overridingSettings: boolean = false;
   private _elapsedSec: number = 0;
   private _nextGustChangeAtSec: number = 0;
@@ -179,6 +208,7 @@ export class SpringBonePhysicsController {
 
   constructor(vrm: VRM, options: SpringBonePhysicsControllerOptions = {}) {
     this._vrm = vrm;
+    this._ambientForces = options.ambientForces ?? true;
     this._semanticClassification = buildSpringBoneSemanticAssignments({
       vrm,
       sourceGltf: options.sourceGltf,
@@ -223,8 +253,9 @@ export class SpringBonePhysicsController {
       );
       const resolvedParams = this._resolveProfileParams(profile);
       const wind = this._resolveWindAndUpdraft(resolvedParams);
-      const windStrength = wind.windStrength * intensityScale;
-      const updraftStrength = wind.updraftStrength * intensityScale;
+      const ambientScale = this._ambientForces ? intensityScale : 0;
+      const windStrength = wind.windStrength * ambientScale;
+      const updraftStrength = wind.updraftStrength * ambientScale;
       const gravityMultiplier = scaleSpringBoneMultiplier(
         resolvedParams.gravityMultiplier,
         intensityScale,
@@ -242,7 +273,9 @@ export class SpringBonePhysicsController {
           : original.gravityPower;
       const baseGravity = baseGravityPower * gravityMultiplier;
 
-      settings.dragForce = original.dragForce * dragMultiplier;
+      // three-vrm's inertia is 1 − drag; above 1 it turns negative. Included
+      // Avatars stay at or below it; converted PhysBones can author 0.86.
+      settings.dragForce = Math.min(1, original.dragForce * dragMultiplier);
 
       this._originalGravityDir.copy(original.gravityDir);
       if (this._originalGravityDir.lengthSq() < MIN_FORCE_LENGTH) {
@@ -333,6 +366,7 @@ export class SpringBonePhysicsController {
       ready: Boolean(this._vrm && !this._isDisposed),
       disposed: this._isDisposed,
       hasManager: Boolean(manager),
+      ambientForces: this._ambientForces,
       jointCount: manager?.joints.size ?? 0,
       colliderCount: manager?.colliders.length ?? 0,
       cachedJointCount: this._originalSettings.size,

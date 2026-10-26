@@ -454,6 +454,11 @@ export type AvatarVFXModelProfile = {
     left: AvatarVFXNormalizedRect;
     right: AvatarVFXNormalizedRect;
     mirrorRight: boolean;
+    /** Where each eye's art may draw, when its cell reaches past its iris. */
+    clip?: {
+      left: AvatarVFXNormalizedRect;
+      right: AvatarVFXNormalizedRect;
+    };
   };
   faceLayout?: {
     rect: AvatarVFXNormalizedRect;

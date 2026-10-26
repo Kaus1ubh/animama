@@ -61,6 +61,7 @@ export class PreviewPlayer {
   private readonly renderer: THREE.WebGLRenderer;
   private readonly scene: THREE.Scene;
   private readonly camera: THREE.PerspectiveCamera;
+  private readonly disposeRenderer: () => void;
   private session: EffectSession | null = null;
   private framing: Framing | null = null;
   private frame: number | null = null;
@@ -77,6 +78,7 @@ export class PreviewPlayer {
     this.renderer = stage.renderer;
     this.scene = stage.scene;
     this.camera = stage.camera;
+    this.disposeRenderer = stage.disposeRenderer;
   }
 
   /** Open a fresh Avatar for `request` and play its clip in real time. */
@@ -196,7 +198,7 @@ export class PreviewPlayer {
 
   dispose(): void {
     this.stop();
-    this.renderer.dispose();
+    this.disposeRenderer();
     this.review.dispose();
   }
 }

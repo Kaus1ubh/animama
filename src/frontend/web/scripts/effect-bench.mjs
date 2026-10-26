@@ -2,6 +2,7 @@ import { realpath, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { resolveAvatarFile } from "./avatar-file.mjs";
 import {
   AVATARS,
   AVATAR_RENDERINGS,
@@ -78,6 +79,7 @@ const USAGE = [
   "  --local-content <dir>  content root for library:local/... sources",
   "  --headed            skip the headless attempt",
   "  --rendering enhanced  Avatar rendering: enhanced (the app default) or classic",
+  "  --avatar-file <a.vrm>  measure this VRM instead of the Included Avatars",
   "  --json <file>       also write the results as JSON",
 ].join("\n");
 
@@ -121,6 +123,7 @@ export async function runEffectBench({
   effectSpecs = DEFAULT_FACE_EFFECTS,
   headed = false,
   rendering = "enhanced",
+  avatarFile = null,
   sourceOptions = {},
   log = console.log,
 } = {}) {
@@ -135,7 +138,10 @@ export async function runEffectBench({
         localContent: sourceOptions.localContent ?? null,
         pageDir: "effect-bench",
         launch,
-        extraRoots: await sourceRoots(effects),
+        extraRoots: [
+          ...(await sourceRoots(effects)),
+          ...(avatarFile ? [avatarFile] : []),
+        ],
         rendering,
       },
       async ({ page, fsUrl, imageUrl }) => {
@@ -148,10 +154,19 @@ export async function runEffectBench({
         for (const effect of effects)
           pageEffects.push(await pageEffect(effect, imageUrl));
         const results = [];
-        for (const id of AVATARS) {
+        // A local Avatar file replaces both Included Avatars.
+        const avatars = avatarFile
+          ? [
+              {
+                id: path.basename(avatarFile).replace(/\.vrm$/i, ""),
+                url: fsUrl(avatarFile),
+              },
+            ]
+          : AVATARS.map((id) => ({ id, url: avatarFileUrl(fsUrl, id) }));
+        for (const avatar of avatars) {
           results.push(
             await page.evaluate((request) => window.runEffectBench(request), {
-              avatar: { id, url: avatarFileUrl(fsUrl, id) },
+              avatar,
               clip,
               effects: pageEffects,
               width: VIEWPORT.width,
@@ -281,6 +296,7 @@ async function main(argv) {
         "--local-content",
         "--json",
         "--rendering",
+        "--avatar-file",
       ].includes(arg)
     ) {
       values[arg] = argv[++index];
@@ -323,6 +339,12 @@ async function main(argv) {
         ? await realpath(path.resolve(cwd, values["--local-content"]))
         : null,
     };
+    if (values["--reaction"] && values["--avatar-file"]) {
+      console.log(
+        `--avatar-file applies to the effects benchmark, not --reaction.\n\n${USAGE}`,
+      );
+      return 2;
+    }
     if (values["--reaction"]) {
       const replayFrames = Number(values["--replay"] ?? 90);
       if (!Number.isInteger(replayFrames) || replayFrames < 1) {
@@ -353,6 +375,9 @@ async function main(argv) {
       frames,
       warmupFrames,
       rounds,
+      avatarFile: values["--avatar-file"]
+        ? await resolveAvatarFile(path.resolve(cwd, values["--avatar-file"]))
+        : null,
       clipSpec: values["--clip"] ?? DEFAULT_CLIP,
       effectSpecs: values["--effects"]?.split(",") ?? DEFAULT_FACE_EFFECTS,
       headed: flags.has("--headed"),

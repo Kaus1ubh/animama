@@ -21,7 +21,7 @@ export type IncludedAvatarId = keyof typeof INCLUDED_AVATAR_FILES;
  * Textures are irrelevant to kinematics and cannot decode outside a browser,
  * so every texture resolves to an empty placeholder.
  */
-class PlaceholderTexturePlugin implements GLTFLoaderPlugin {
+export class PlaceholderTexturePlugin implements GLTFLoaderPlugin {
   readonly name = "ANIMAMA_placeholder_textures";
 
   private readonly parser: GLTFParser;

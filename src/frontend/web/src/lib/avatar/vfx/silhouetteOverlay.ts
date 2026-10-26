@@ -122,6 +122,8 @@ export type SilhouetteOverlay = {
 type MaterialWithMap = THREE.Material & {
   map?: THREE.Texture | null;
   isOutline?: boolean;
+  /** Set by three-liltoon's `LilToonMaterial`. */
+  isLilToonMaterial?: boolean;
 };
 
 /**
@@ -199,6 +201,19 @@ export function averageArtColor(image: CanvasImageSource): THREE.Color {
   }
 }
 
+/**
+ * The overlay reproduces an MToon or glTF primitive's depth exactly; one unit
+ * of bias absorbs precision noise. A slope factor or more units would also
+ * pass layered cloth just behind (seen as double coverage at a VRoid sample's
+ * cuffs).
+ * three-liltoon skins and projects in its own order, so its depth drifts
+ * further: eight units hide that without a slope factor, and its silhouette
+ * edges can still differ by a pixel.
+ */
+function polygonOffsetUnits(source: MaterialWithMap): number {
+  return source.isLilToonMaterial ? -8 : -1;
+}
+
 function createOverlayMaterial(
   source: MaterialWithMap,
   shared: SilhouetteUniforms,
@@ -227,12 +242,9 @@ function createOverlayMaterial(
     depthTest: true,
     depthWrite: false,
     depthFunc: THREE.LessEqualDepth,
-    // The overlay reproduces its primitive's depth exactly; one unit of bias
-    // absorbs precision noise. A slope factor or more units would also pass
-    // layered cloth just behind (seen as double coverage at a VRoid sample's cuffs).
     polygonOffset: true,
     polygonOffsetFactor: 0,
-    polygonOffsetUnits: -1,
+    polygonOffsetUnits: polygonOffsetUnits(source),
     side: source.side,
     toneMapped: false,
   });

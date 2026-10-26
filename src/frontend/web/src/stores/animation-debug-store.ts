@@ -143,6 +143,10 @@ type AnimationDebugStoreState = {
   springBoneProfileDrafts: AnimationDebugSpringBoneProfileDraft[];
   automaticAnimationPlaybackEnabled: boolean;
   vrmaRootedPlaybackEnabled: boolean;
+  /** Whether `vowel5` lip sync shapes the mouth with ARKit mixes. */
+  arkitLipSyncEnabled: boolean;
+  /** Whether the target Avatar has every ARKit vowel shape. */
+  arkitLipSyncAvailable: boolean;
   idleStintQuietIntervalSec: number;
   setOpen: (open: boolean) => void;
   toggleOpen: () => void;
@@ -197,6 +201,7 @@ type AnimationDebugStoreState = {
   resetSpringBoneDefaults: () => void;
   setAutomaticAnimationPlaybackEnabled: (enabled: boolean) => void;
   setVrmaRootedPlaybackEnabled: (enabled: boolean) => void;
+  setArkitLipSyncEnabled: (enabled: boolean) => void;
   setIdleStintQuietIntervalSec: (value: number) => void;
   clearActiveOffsets: () => void;
 };
@@ -218,6 +223,8 @@ export const useAnimationDebugStore = create<AnimationDebugStoreState>(
     automaticAnimationPlaybackEnabled:
       DEFAULT_AUTOMATIC_ANIMATION_PLAYBACK_ENABLED,
     vrmaRootedPlaybackEnabled: DEFAULT_VRMA_ROOTED_PLAYBACK_ENABLED,
+    arkitLipSyncEnabled: false,
+    arkitLipSyncAvailable: false,
     idleStintQuietIntervalSec: DEFAULT_IDLE_STINT_QUIET_INTERVAL_SEC_DRAFT,
     setOpen: (isOpen) => set({ isOpen }),
     toggleOpen: () => set((state) => ({ isOpen: !state.isOpen })),
@@ -238,6 +245,8 @@ export const useAnimationDebugStore = create<AnimationDebugStoreState>(
         automaticAnimationPlaybackEnabled:
           target.avatar.isAutomaticAnimationPlaybackEnabled(),
         vrmaRootedPlaybackEnabled: target.avatar.isVrmaRootedPlaybackEnabled(),
+        arkitLipSyncEnabled: target.avatar.getLipSyncShaping() === "arkit",
+        arkitLipSyncAvailable: target.avatar.canShapeLipSyncWithArkit(),
         idleStintQuietIntervalSec: target.avatar.getIdleStintQuietIntervalSec(),
       });
     },
@@ -261,6 +270,8 @@ export const useAnimationDebugStore = create<AnimationDebugStoreState>(
           automaticAnimationPlaybackEnabled:
             DEFAULT_AUTOMATIC_ANIMATION_PLAYBACK_ENABLED,
           vrmaRootedPlaybackEnabled: DEFAULT_VRMA_ROOTED_PLAYBACK_ENABLED,
+          arkitLipSyncEnabled: false,
+          arkitLipSyncAvailable: false,
           idleStintQuietIntervalSec:
             DEFAULT_IDLE_STINT_QUIET_INTERVAL_SEC_DRAFT,
         };
@@ -304,6 +315,9 @@ export const useAnimationDebugStore = create<AnimationDebugStoreState>(
         vrmaRootedPlaybackEnabled:
           target?.avatar.isVrmaRootedPlaybackEnabled() ??
           DEFAULT_VRMA_ROOTED_PLAYBACK_ENABLED,
+        arkitLipSyncEnabled: target?.avatar.getLipSyncShaping() === "arkit",
+        arkitLipSyncAvailable:
+          target?.avatar.canShapeLipSyncWithArkit() ?? false,
         idleStintQuietIntervalSec:
           target?.avatar.getIdleStintQuietIntervalSec() ??
           DEFAULT_IDLE_STINT_QUIET_INTERVAL_SEC_DRAFT,
@@ -647,6 +661,13 @@ export const useAnimationDebugStore = create<AnimationDebugStoreState>(
           vrmaRootedPlaybackEnabled:
             state.target?.avatar.isVrmaRootedPlaybackEnabled() ?? enabled,
         };
+      }),
+    setArkitLipSyncEnabled: (enabled) =>
+      set((state) => {
+        const shaping = state.target?.avatar.setLipSyncShaping(
+          enabled ? "arkit" : "visemes",
+        );
+        return { arkitLipSyncEnabled: shaping === "arkit" };
       }),
     setIdleStintQuietIntervalSec: (value) =>
       set((state) => {

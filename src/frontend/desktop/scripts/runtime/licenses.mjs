@@ -27,8 +27,10 @@ import { PRIVATE_PACKS } from "./private-packs.mjs";
 import { PROCESS_GUARD } from "./process-guard.mjs";
 import { VC_RUNTIME_DLL } from "./windows-platform.mjs";
 
+// "NOTICES" too: three-liltoon ships lilToon's and its bundled shaders' notices
+// as dist/THIRD_PARTY_NOTICES.md.
 const NOTICE_NAME =
-  /(?:^|[._ -])(?:licen[cs]e|copying|notice|copyright)(?:[._ -]|$)/iu;
+  /(?:^|[._ -])(?:licen[cs]e|copying|notices?|copyright)(?:[._ -]|$)/iu;
 // Source and map files can share notice words (for example an icon named
 // "copyright.js"), whereas bundle notices use text extensions such as
 // "bundle.js.LICENSE.txt".

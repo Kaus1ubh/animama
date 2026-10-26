@@ -17,6 +17,17 @@ export type AvatarFaceBoxCoordinate = {
   w: number;
 };
 
+/**
+ * A rectangle in texture space: UV as glTF stores it, so `y` runs down from
+ * the image's top edge, like a texture canvas.
+ */
+export type AvatarFaceTextureRect = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
 export type AvatarFaceEyeLandmarkSnapshot = {
   bindingKey: string;
   materialName: string | null;
@@ -28,6 +39,11 @@ export type AvatarFaceEyeLandmarkSnapshot = {
   projectedFrontWorld: AvatarFaceLandmarkVector | null;
   normalizedBoxCoord: AvatarFaceBoxCoordinate;
   projectedBoxCoord: AvatarFaceBoxCoordinate;
+  /**
+   * Where the eye's iris art lies on its texture: the island's UV bounds, or
+   * those of a larger-texture layer over the whole eye. Null without UVs.
+   */
+  textureRect: AvatarFaceTextureRect | null;
 };
 
 export type AvatarFaceLandmarksSnapshot = {

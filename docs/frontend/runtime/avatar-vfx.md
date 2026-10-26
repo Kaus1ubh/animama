@@ -208,13 +208,27 @@ replaces that instance.
 
 - **`full` and `eyes`** use the part's texture layout, so full-face art must
   match the Avatar's UV layout. `hideParts` hides other detected parts while
-  the effect is active.
+  the effect is active. `eyes` art is drawn for a VRoid iris texture: one
+  iris per half, the art cell being the whole half, about twice the iris.
+  When an iris does not sit in its half that way (inside it, roughly centred,
+  covering at least 40% of it in each direction), as on an Avatar whose eyes
+  share a texture atlas with other parts, `resolveIrisEyeLayout` draws each
+  eye's art in a cell 1.9 times its own iris rectangle, clipped to that
+  rectangle so it cannot reach the other eye. The iris rectangle is that of
+  the eye landmark's island, or of a layer over the whole eye with a larger
+  texture area (its painted art). Eyes sharing one rectangle draw the same
+  art, unmirrored.
 - **Decals** (`undereye`, `blush`, `mouth`) are placed at UV anchors that
   `AvatarFaceTextureAnchors` computes at load: a 3D landmark is projected onto
-  the `face_skin` mesh and its UV is interpolated. The anchor sets position,
-  pivot and reference size; it does not clip the art, so a tear can run below
-  the eye. `span` stretches one image across both anchors; use it only for art
-  drawn that way.
+  the `face_skin` mesh and its UV is interpolated. Projection stays on the face
+  skin's own UV island, because a converted Avatar's face primitive can also
+  hold its neck, inner mouth or eye sockets on other parts of the texture: the
+  island nearest the point between the eyes among those spanning both eye
+  centres, within half the eyes' spacing of that point. Without one (a face
+  unwrapped in two halves) the whole primitive is used. The anchor sets position, pivot and
+  reference size; it does not clip the art, so a tear can run below the eye.
+  `span` stretches one image across both anchors; use it only for art drawn
+  that way.
 
 ### Floating effects (`face_landmark`)
 
@@ -693,6 +707,9 @@ and sounds on Included Gestures and Reactions, use `pnpm -s content:tune`
 - `--diff` counts a pixel when a channel changes by more than `--threshold`
   (default 8 of 255) and writes a diff image. The same source and revision diff
   to 0 pixels.
+- `--avatar-file <a.vrm>` renders on that VRM instead of the Included
+  Avatars, for example a converted Avatar kept outside the repository; keep its
+  sheets outside the repository too.
 - `--rendering classic` renders the classic Avatar look instead of the app's
   default enhanced rendering (the chat canvas's CSS filter is not part of the
   rendered pixels). `CHROMIUM_PATH` points Playwright at a preinstalled
@@ -769,8 +786,9 @@ animated eye plane, a body effect and a silhouette). The scenarios alternate
 over `--rounds` passes, and GPU samples voided by a disjoint event are dropped
 and counted. The budget is a mean added frame time of at most 2 ms. A software
 WebGL renderer is refused. Options: `--frames`, `--warmup`, `--rounds`,
-`--clip`, `--effects`, `--headed`, `--json <file>` and `--rendering
-<enhanced|classic>`.
+`--clip`, `--effects`, `--headed`, `--json <file>`, `--rendering
+<enhanced|classic>` and `--avatar-file <a.vrm>`, which measures that VRM
+instead of the Included Avatars (not with `--reaction`).
 
 `--reaction <path|library:reaction/...>` measures one Reaction's Avatar,
 Particle and Scene Effects instead: the Reaction replays every `--replay`
@@ -816,6 +834,17 @@ per render; a silhouette adds one skinned draw per overlaid primitive (about
 
 - Detection is tuned and tested on the two Included (VRoid) Avatars; other
   models may need a correction. Without eye bones, side assignment may be wrong.
+  With both eye bones, eye landmarks skip islands wider than the distance
+  between them, such as a dome some VRChat eye meshes put around each
+  eyeball.
+- The mouth anchor follows the vertices the mouth shapes (`aa`, `ee`, `ih`,
+  `oh`, `ou`) move most, or an estimate without them; on a face whose jaw
+  moves with those shapes (Lapwing), mouth decals sit slightly low.
+- `full` art covers the face skin's whole texture. On a texture atlas it also
+  tints the other parts that primitive maps there (neck, inner mouth).
+- An iris layout assumes each eye's UVs run like VRoid's (not mirrored per
+  eye), and the painted-art layer is chosen by texture area, so a stretched
+  layer covering the whole eye can be taken for it.
 - Hidden face parts and face cleanup cannot fade; they switch at half the
   event's envelope.
 - Decal quality depends on the cached anchors, and cleanup quality on the

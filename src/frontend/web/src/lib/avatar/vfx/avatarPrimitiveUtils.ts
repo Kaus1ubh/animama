@@ -20,6 +20,44 @@ export type CollectedPrimitiveData = {
   uniqueVertexIndices: number[];
 };
 
+/** Disjoint sets of vertex indices, for splitting a primitive into islands. */
+export class UnionFind {
+  private readonly _parent = new Map<number, number>();
+
+  add(value: number): void {
+    if (!this._parent.has(value)) {
+      this._parent.set(value, value);
+    }
+  }
+
+  find(value: number): number {
+    if (!this._parent.has(value)) {
+      this._parent.set(value, value);
+      return value;
+    }
+    // Iterative, so long chains on large primitives cannot overflow the stack.
+    let root = value;
+    for (let parent = this._parent.get(root)!; parent !== root; ) {
+      root = parent;
+      parent = this._parent.get(root)!;
+    }
+    for (let node = value; node !== root; ) {
+      const next = this._parent.get(node)!;
+      this._parent.set(node, root);
+      node = next;
+    }
+    return root;
+  }
+
+  union(a: number, b: number): void {
+    const rootA = this.find(a);
+    const rootB = this.find(b);
+    if (rootA !== rootB) {
+      this._parent.set(rootB, rootA);
+    }
+  }
+}
+
 export function collectPrimitiveData(args: {
   avatar: Avatar;
   binding: RuntimePrimitiveBindingEntry;

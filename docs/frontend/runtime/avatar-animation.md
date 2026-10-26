@@ -689,6 +689,9 @@ from `src/frontend/web`:
   Avatars, each with its own prepared clip; a 2.0 clip supplies its contacts
   and `plantFeet`.
 - `pnpm -s animation:render <clip.json> --out <dir>` draws review sheets.
+  `--avatar-file <a.vrm>` draws them on that VRM instead of the Included
+  Avatars, for example a converted Avatar kept outside the repository; keep
+  its sheets outside the repository too.
 - `pnpm -s animation:reel --gestures|--reactions|--effects [<source>...] --out <file.mp4>`
   records a 1920×1080, 30 fps video of every Included Gesture, Reaction (by
   emotion, then intensity) or Avatar, Particle and Scene Effect
@@ -892,6 +895,10 @@ Important behavior:
   targets when a VRM 0 file has no expressions for them. An expression with a
   native `overrideBlink` keeps it uncorrected. Load paths that know the model digest must pass it;
   the review harness pages hash their Avatar files for parity.
+- Morph targets become expressions: every morph-target name is registered as
+  an expression of the same name (case-sensitive) unless the file already has
+  one. ARKit face shapes are also registered under their canonical ARKit names
+  (see below).
 - Lip-sync has:
   - segment scheduling by audio start,
   - interpolation between frames,
@@ -899,6 +906,43 @@ Important behavior:
   - post-segment decay back to neutral.
 
 See [Avatar lip-sync](avatar-lipsync.md) for how each reply's mouth is planned.
+
+#### ARKit face shapes
+
+Avatars made for VRChat or face tracking often carry Apple's 52 ARKit face
+shapes under their own spelling. At construction, `ExpressionController`
+resolves them from each mesh's morph-target names (`arkitFaceCapability.ts`)
+and registers each found shape under its canonical name from `arkit.ts`, bound
+to every mesh's own spelling: `mouthSmileLeft` drives the face's
+`MouthSmile_L` and the teeth's `mouthSmileLeft`. Matching on each mesh, in
+order of preference:
+
+1. the exact canonical name, then a case-insensitive match;
+2. the same words with separators, camel case and the side token ignored:
+   `_L`/`_R`, `.L`/`.R`, `Left`/`Right`, also mid-name as in SRanipal's
+   `Eye_Left_Blink`;
+3. a face-tracking alias for shapes whose words differ, such as Unified
+   Expressions' `EyeClosedLeft` (`eyeBlinkLeft`) or `MouthCornerPullLeft`
+   (`mouthSmileLeft`). The table is `FACE_TRACKING_ALIASES`.
+
+An unsided ARKit shape such as `browInnerUp` or `cheekPuff` that an Avatar
+splits into halves binds both. Several equally good candidates leave the shape
+unresolved on that mesh, and the controller logs them as ambiguous. A name the
+file already uses for an expression keeps that expression.
+`getArkitFaceCapability()` returns the resolved shapes, the missing ones and the
+ambiguous candidates. `getAvailableExpressions()` lists each resolved shape
+once, under its canonical name. When an Avatar has every shape the emotion table
+uses, its mood presets and VRoid parts also become ARKit mixes; see
+[ARKit Avatars](avatar-emotion.md#arkit-avatars).
+
+`pnpm -s vrm:inspect <file.vrm>` (from `src/frontend/web`) reports the same
+resolution for a file before import, including shapes found under another
+spelling, ARKit-named expressions the file authors itself, and whether
+Animama will play the Avatar's faces as ARKit mixes. It also reports
+the VRM version, extensions, materials, images, and each mesh's size and
+morph-target names with where they are stored: three.js reads only mesh-level
+`extras.targetNames`, so names stored only per primitive never reach the app.
+Add `--json` for the full report.
 
 ### `ProceduralAnimationController`
 
@@ -1262,6 +1306,19 @@ Responsibilities:
 Current defaults keep spring physics enabled, use a stronger drag multiplier,
 apply a subtle updraft, enable gust shaping, and keep helpers hidden.
 
+Avatars converted by Mochiya Avatar Tools, the supported VRChat conversion
+route, get no ambient forces: no wind, no updraft and, at the default gravity
+multiplier, no zero-gravity baseline. `Avatar.load` detects them by the
+`MOCHIYA_avatar_composition` glTF extension Mochiya adds to every Avatar it
+converts (`springsTunedWithoutAmbientForces`), so detection holds only while a
+re-export keeps that extension. The snapshot and the debug panel's Spring Bones
+section report it ("Ambient forces: off (converted Avatar)"). Their springs come from
+PhysBones tuned with low pull and little gravity for a world without ambient
+forces. VRM-authored hair is stiff enough to resist the updraft; such springs
+are not, and a hanging ponytail would point straight up. The drag multiplier
+still applies. Effective drag never exceeds 1 on any Avatar, because three-vrm's
+inertia is 1 − drag; converted PhysBones can author drag up to about 0.86.
+
 Semantic profile behavior:
 
 - `hair` receives the global spring-bone controls at full intensity.
@@ -1494,6 +1551,44 @@ preference into `useEnhancedRenderingStore`
   pixels by `applyChatCanvasGrade` rather than a canvas `filter`. The
   background stays transparent with no glow. It follows the setting at
   capture time, as the Avatar's materials did at load.
+
+#### Authored lilToon materials
+
+Avatars converted from VRChat by Mochiya Avatar Tools carry their lilToon
+settings in the `MOCHIYA_materials_liltoon` glTF extension, beside plain glTF
+fallback materials. `withOnDemandLilToon` (`src/lib/avatar/liltoon/lilToon.ts`)
+wraps the VRM loader plugin. For a file whose `extensionsUsed` lists the
+extension, it imports [three-liltoon](https://github.com/mochiya-labs/three-liltoon)
+and builds a `LilToonMaterial` for each material that carries it. It also
+adapts colour and UV expression binds to those materials.
+
+- **Loaded on demand:** other files never import the package, about 1.9 MB of
+  shader code in its own chunk. Their materials load exactly as before, so the
+  enhanced and classic looks above are unchanged for them.
+- **Render passes:** once the package has loaded, `AvatarSceneLighting` and the
+  review stage install lilToon's outline and extra passes on their renderers
+  (`installLilToonRenderingWhenLoaded`). The passes stay until the canvas
+  unmounts, so after a lilToon Avatar each render of that canvas also walks
+  the scene for lilToon materials; other materials draw as before.
+- **Lighting:** lilToon reads only the first visible directional light plus the
+  ambient and hemisphere lights, so the enhanced look's fill and rim lights do
+  not reach it. Tone mapping applies to both looks; the MToon retune does not.
+- **Fallback:** in development and the review tools, a failed import loads the
+  glTF fallback materials instead, and a later Avatar retries. In a built app a
+  failed chunk download shows the app's reload screen (`PageLoadError`), as for
+  any other lazily loaded code. The `vrm:optimize` compare page uses its own
+  loader and always draws the fallback materials; `animation:render` loads
+  lilToon as the app does.
+- **Silhouettes and release:** silhouette overlays bias lilToon materials eight
+  depth units, because lilToon skins and projects in its own order.
+  `releaseModelScene` disposes their `lilToonTextures`, which neither
+  `VRMUtils.deepDispose` nor the material's `dispose` releases.
+- **Frame cost:** lilToon shading is much heavier than MToon. On an Apple M5 at
+  the chat canvas's 1600×1200 and DPR 2, measured back to back under equal load
+  with `effects:bench --avatar-file` (2026-10-25), a converted Avatar's GPU time
+  per frame was 30.8 ms with lilToon, 0.8 ms with the fallback materials and
+  1.2 ms for Andrew; at DPR 1 it was 6.2 ms with lilToon, so the cost is mostly
+  per pixel. Reducing it is tracked in #691 (R11).
 
 On an Apple M5 the enhanced look adds about 0.1–0.15 ms per frame over classic.
 Review renders and benchmarks use enhanced rendering unless given

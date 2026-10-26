@@ -1,8 +1,7 @@
-import { PerspectiveCamera } from "three";
 import { describe, expect, it, vi } from "vitest";
 
-import { Avatar } from "./Avatar";
-import { loadTestAvatarWithGltf } from "./motion-authoring/testing/includedAvatars";
+import type { Avatar } from "./Avatar";
+import { loadedTestAvatar } from "./testing/loadedTestAvatar";
 import { AVATAR_FACE_PARTS_SCHEMA } from "./vfx/faceParts";
 
 const detection = vi.hoisted(() => ({ fail: false }));
@@ -22,14 +21,8 @@ vi.mock("./vfx/faceParts", async (importOriginal) => {
 const DIGEST = "c".repeat(64);
 
 /** An Avatar holding a real Included VRM, as `Avatar.load` leaves it. */
-async function loadedAnnie(): Promise<Avatar> {
-  const { vrm, gltf } = await loadTestAvatarWithGltf("AvatarSample_A_1_New");
-  const avatar = new Avatar(new PerspectiveCamera());
-  avatar.vrm = vrm;
-  avatar.sourceGltf = gltf;
-  (avatar as unknown as { _vrmSha256: string })._vrmSha256 = DIGEST;
-  await avatar.setFacePartCorrections(null);
-  return avatar;
+function loadedAnnie(): Promise<Avatar> {
+  return loadedTestAvatar("AvatarSample_A_1_New", DIGEST);
 }
 
 describe("Avatar.setFacePartCorrections", () => {
