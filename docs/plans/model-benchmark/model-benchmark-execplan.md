@@ -105,7 +105,8 @@ Ownership and boundaries:
       the Decision Log).
 - [x] Workspace setup (2026-10-26, recorded under Setup and execution
       rules).
-- [ ] Phase 1: Shared evaluation core extracted; Gesture harness unchanged.
+- [x] Phase 1: Shared evaluation core extracted; Gesture harness unchanged.
+      Passed review #2 on 2026-10-26.
 - [ ] Phase 2: Core-turn runner, turn options and dry run.
 - [ ] Phase 3: Memory-arm seams in chat, with defaults unchanged.
 - [ ] Phase 4: Multi-turn, memory-arm and Memory Manager runners.
@@ -583,13 +584,132 @@ Completion: the checks pass and the review passes. Commit
 Recovery: a pure refactor. Revert the commit if the parity diff cannot be
 made clean.
 
-Check record: none yet.
+Check record (2026-10-26). Every command ran from the repository root on
+working tree `baac7590` (index-copy hash; starting commit `23cf9faf`):
 
-Commits: none yet.
+| Check | Command | Result |
+| --- | --- | --- |
+| Dry-run parity | The documented dry run in `gesture-selection-eval.md`, `--repeats 3 --scripted-repeats 1 --max-calls 800`, on `23cf9faf` and on the tree, then `diff` | Identical; exit 0 |
+| Run parity | `PYTHONPATH=. uv run --no-sync python <scratch>/p1_parity.py <dir>` on both | Identical `results.json` (wall-clock timestamps removed) and `summary.md`; 263 calls, 240 turns, 23 repairs |
+| Tests | `uv run --no-sync pytest -q tests/test_model_benchmark_core.py tests/test_gesture_selection_eval.py` | 44 passed (30 existing, unchanged; 14 new) |
+| Lint | `uv run --no-sync ruff check` | Passed |
+| Format | `uv run --no-sync ruff format --check scripts/evals tests`; `make format-check` | Passed |
+| Types | `make mypy` | Passed (865 files) |
+
+- **Run parity.** `p1_parity.py` is a scratch script, not tracked. It loads
+  the tracked baseline and candidate loadouts and the #409 prompt set, and
+  runs `run_evaluation` against a deterministic fake client and fake clock.
+  The fake answers every eleventh call with invalid JSON, so structured
+  repairs are exercised.
+- **Mock composition.** The existing test
+  `test_cli_composition_runs_against_the_mock_model_client` covers the
+  `ANIMAMA_LLM_SKIP=1` composition through `_run`, so no stack smoke was
+  needed for parity.
+- **Intended differences:**
+  - `_NoAnimaProfile`'s never-expected error now reads "The evaluation
+    always names its model provider";
+  - call records gain `served_model`, which the Gesture harness does not
+    output;
+  - the file can no longer run as a plain script. Its documented
+    `python -m scripts.evals.gesture_selection` form is unchanged.
+- **Deviations from the planned Changes:**
+  - `write_outputs` stays in the Gesture harness. The benchmark writes JSON
+    Lines and a manifest (D3), not `results.json` and `summary.md`, so a
+    shared writer would have one user.
+  - The turn request builder takes `conversation_language` and
+    `provider_moderation`, defaulting to an English turn without
+    moderation. Native tools stay `DirectChatOptions`' default empty tuple,
+    so no turn offers web search (spec R2). No parameter is needed for a
+    value that never changes.
+
+Repair round 1 re-ran every check above on working tree `48a1736e` (`scripts/evals` subtree `12103475`; the plan holds only its own records). The
+dry-run and run parity were identical again, 46 tests passed, and ruff,
+both format checks and `make mypy` passed.
+
+Commits: `refactor(evals)[p1]: extract the shared evaluation core` (its hash is
+recorded in Phase 2's record).
 
 #### Code Review #1 Findings
 
+Reviewer: an independent `sdlc-reviewer` subagent at the standard tier, on
+working tree `baac7590` against `23cf9faf`. It reused every check in the
+record and reran none; it ran three read-only `--help` probes as evidence for
+P1-F6. Its result: changes required.
+
+It confirmed:
+- the extraction is faithful apart from the declared differences;
+- the R19 surface is unchanged: the docstring, `__all__`, the CLI and the
+  result schema;
+- the patched names still resolve through module globals, and database
+  imports stay lazy;
+- budget, refusal, abort and history-replay semantics are unchanged;
+- the new tests cover what the plan requires.
+
+The findings:
+- **P1-F1 (required).** The plan lists "writing outputs with an injected
+  renderer" as moving, but `write_outputs` stayed in the harness and the
+  record does not say so.
+- **P1-F2 (required).** The plan says the request builder takes the
+  conversation language and native tools, but `turn_request` takes neither,
+  and that is not recorded. Phase 2's Japanese turns need the language.
+- **P1-F3 (optional).** Measuring the prompt after the stream leaves
+  `instruction_bytes` and the token estimate `null` when the first turn of a
+  loadout is interrupted. That is a partial-result change beyond the
+  declared latency difference.
+- **P1-F4 (optional).** `build_executor(memory_context: object)` disables
+  type checking on the parameter that Phases 3 and 4 vary.
+- **P1-F5 (optional).** The new comment claims #409 measured the no-tags
+  speech rules. The Speech section postdates #409 (`dfbcbc46`, 2026-10-14).
+- **P1-F6 (optional).** The leftover shebang suggests the file runs as a
+  plain script. Relative imports now prevent that; the `-m` form still
+  works.
+
 #### Code Review #1 Revisions
+
+- **P1-F1: accepted.** `write_outputs` stays in the harness, and the
+  deviation is recorded above with its reason.
+- **P1-F2: accepted.**
+  - `core.chat.turn_request` gained `conversation_language` and
+    `provider_moderation` (defaults: none, false).
+  - The new test `test_turn_request_carries_the_language_and_moderation`
+    covers them.
+  - Native tools are recorded as a deviation (above).
+- **P1-F3: accepted.**
+  - `core.turns.execute_turn` gained `on_prepared`, called after prepare and
+    before the stream.
+  - The harness measures the prompt there, as the baseline did, so the
+    latency difference is withdrawn from the declared list.
+  - The new test `test_execute_turn_shows_the_prepared_turn_before_it_streams`
+    covers the order. Run parity stays identical.
+- **P1-F4: accepted.** `build_executor` takes
+  `DirectChatMemoryContextService | StaticMemoryContext`. The cast for the
+  stand-in remains, with a comment.
+- **P1-F5: accepted.** The comment now reads "No voice, as in #409's runs;
+  the prompt now carries the no-tags speech rules."
+- **P1-F6: accepted.** The shebang is removed. The plain-script change is
+  declared above.
+
+Verification: the repair-round check record above. P1-F5 and P1-F6 are
+trivial repairs, verified by the checks. P1-F2, P1-F3 and P1-F4 go to a
+targeted recheck (Code Review #2). Repair rounds left after this one: 1.
+
+#### Code Review #2 Findings
+
+Reviewer: the same independent `sdlc-reviewer`, in a targeted recheck (repair
+round 1) on working tree `48a1736e` against `23cf9faf`. It reused the
+repair-round checks and reran none. Its result: pass.
+
+- **P1-F2, P1-F3 and P1-F4:** resolved, with no regression. `on_prepared`
+  restores the baseline's measurement point.
+- **P1-F1, P1-F5 and P1-F6:** no problem.
+- **P1-F7 (optional):** a leftover empty `Code Review #1 Revisions` heading in
+  this plan.
+
+#### Code Review #2 Revisions
+
+- **P1-F7: accepted.** The stray heading was replaced by these sections.
+
+Phase 1 passed with one repair round used.
 
 ### Phase 2: Core-turn runner, turn options and dry run
 
