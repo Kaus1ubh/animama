@@ -1,4 +1,4 @@
-# 0031: VRM stays the Avatar container; ARKit shapes are a face capability
+# 0032: VRM stays the Avatar container; ARKit shapes are a face capability
 
 - Status: accepted
 - Recorded: 2026-10-24

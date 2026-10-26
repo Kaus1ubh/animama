@@ -1611,6 +1611,14 @@ Final candidate gates (2026-10-25), on `62761276` plus the dock fix, from
   skipped. The test name, comment and records changed after it (`node`/vitest
   rerun of the changed test only).
 
+After merging `main` (46 commits, `86e15d31`; the only conflict was the ADR
+index, where this branch's ADR became 0032), the full pre-push suite through
+`scripts/heavy-slot.py` on `86e15d31`: `make check-test` 4850 passed, 29
+skipped; `pnpm verify` pass (Vitest 5665 passed, 1 skipped); chunk check
+pass; `pnpm web:test:browser` 131 passed; `pnpm prettier:check` pass;
+`pnpm desktop:test` 539 passed, 14 skipped. The render diff and browser
+journeys above were not rerun on the merge.
+
 Earlier: full pre-push suite for Phases 1, 4 and 6, through
 `scripts/heavy-slot.py` on `51082213` (tree `ad27498a`), 2026-10-24:
 
