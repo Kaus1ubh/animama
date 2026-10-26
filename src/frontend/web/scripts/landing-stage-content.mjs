@@ -254,6 +254,7 @@ export async function renderPageHtml(server) {
     STAGE_STOPS,
     STAGE_AVATARS,
     SITE,
+    FOOTER_LINKS,
     CLOSED_BETA,
     BETA_ACCESS_URL,
     voice,
@@ -282,6 +283,7 @@ export async function renderPageHtml(server) {
         url: SITE.url,
         logo,
         email: SITE.contactEmail,
+        sameAs: SITE.social.map(({ href }) => href),
       },
       {
         "@type": "SoftwareApplication",
@@ -353,16 +355,7 @@ export async function renderPageHtml(server) {
     `<main><section id="stop-${hero.id}"><h1>${text(hero.title)}</h1><p>${heroLine}</p><p class="scene">${text(SITE.sceneDescription)}</p></section>`,
     ...sections,
     `</main>`,
-    `<footer><nav aria-label="Footer">${[
-      { label: "About", href: SITE.about },
-      { label: "Privacy", href: SITE.privacy },
-      { label: "Terms", href: SITE.terms },
-      { label: "Contact", href: `mailto:${SITE.contactEmail}` },
-      { label: "Docs", href: SITE.docsUrl },
-      { label: "Third-party notices", href: SITE.notices },
-    ]
-      .map(link)
-      .join(" ")}</nav><p>${escapeHtml(SITE.copyright)}</p></footer>`,
+    `<footer><nav aria-label="Footer">${FOOTER_LINKS.map(link).join(" ")}</nav><p>${escapeHtml(SITE.copyright)}</p></footer>`,
     `</div>`,
   ].join("");
   return { head, content };

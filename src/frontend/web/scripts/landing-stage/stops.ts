@@ -550,7 +550,8 @@ export const SITE = {
   shareImage: "og-image.jpg",
   shareImageAlt:
     "Annie, an Animama companion, under the words Meet your Anima.",
-  copyright: "© 2026 Animama. All rights reserved.",
+  /** Matches the repository's LICENSE and the desktop app's copyright. */
+  copyright: "© 2026 Raymond Van. All rights reserved.",
   /** What the 3D stage shows, for screen readers (it is hidden from them). */
   sceneDescription:
     "{name}, an animated 3D Anima, walks in and waves, then shows {possessive} gestures, emotions and memories as you scroll.",
@@ -565,7 +566,26 @@ export const SITE = {
   terms: "/terms/",
   /** The public contact address, forwarded by the domain's email routing. */
   contactEmail: "ray@animama.ai",
+  /**
+   * Animama's places on other sites: the footer links them, and the page's
+   * schema.org data lists them as the organization's profiles (`sameAs`).
+   */
+  social: [
+    { label: "Discord", href: "https://discord.gg/pUHHRrZ2xg" },
+    { label: "YouTube", href: "https://www.youtube.com/@rayplusplus" },
+  ],
 };
+
+/** The footer's links, shared by the overlay and the prerendered page text. */
+export const FOOTER_LINKS = [
+  { label: "About", href: SITE.about },
+  { label: "Privacy", href: SITE.privacy },
+  { label: "Terms", href: SITE.terms },
+  { label: "Contact", href: `mailto:${SITE.contactEmail}` },
+  ...SITE.social,
+  { label: "Docs", href: SITE.docsUrl },
+  { label: "Third-party notices", href: SITE.notices },
+];
 
 /** Stops with their `beta` copy applied while `CLOSED_BETA` is on. */
 function withBetaCopy(stops: StageStop[]): StageStop[] {

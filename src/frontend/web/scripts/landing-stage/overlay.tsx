@@ -65,6 +65,7 @@ import { TextShimmer } from "./text-shimmer";
 import {
   BETA_ACCESS_URL,
   CLOSED_BETA,
+  FOOTER_LINKS,
   SITE,
   STAGE_AVATARS,
   STAGE_STOPS,
@@ -1947,18 +1948,10 @@ function Reveal({
 
 /**
  * The page footer under the last stop's actions: the pages Cloud publishes
- * beside this one, the contact address, the docs and the third-party
- * notices, then the copyright line.
+ * beside this one, the contact address, Animama's social links, the docs and
+ * the third-party notices, then the copyright line.
  */
 function SiteFooter({ light }: { light: boolean }) {
-  const links = [
-    { label: "About", href: SITE.about },
-    { label: "Privacy", href: SITE.privacy },
-    { label: "Terms", href: SITE.terms },
-    { label: "Contact", href: `mailto:${SITE.contactEmail}` },
-    { label: "Docs", href: DOCS_URL },
-    { label: "Third-party notices", href: SITE.notices },
-  ];
   return (
     <footer
       className={cn(
@@ -1968,7 +1961,7 @@ function SiteFooter({ light }: { light: boolean }) {
     >
       <nav aria-label="Footer">
         <ul className="flex flex-wrap gap-x-4 gap-y-1">
-          {links.map(({ label, href }) => (
+          {FOOTER_LINKS.map(({ label, href }) => (
             <li key={label}>
               <a
                 href={href}

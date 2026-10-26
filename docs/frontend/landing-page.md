@@ -49,9 +49,11 @@ with `build.pack_site` to check it before relying on the package set.
   launch to restore the rest.
 - `SITE`: the canonical address, docs link, title, share image, copyright
   line, the 3D scene's description for screen readers, the contact address,
-  and the About, Privacy and Terms pages that Animama Cloud publishes on the
-  same host. The header's About and the footer under the last stop link
-  them; the development server does not serve them.
+  the social links (Discord, YouTube; also the schema.org `sameAs`), and the
+  About, Privacy and Terms pages that Animama Cloud publishes on the same
+  host. The header's About and the footer under the last stop
+  (`FOOTER_LINKS`) link them; the development server does not serve the
+  Cloud pages.
 
 The page's text, title, description, sharing tags, icons and schema.org data
 are generated from these settings into `index.html`
