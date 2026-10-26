@@ -86,10 +86,10 @@ The guardrails appear once per turn, at the end of the stable instructions
 
 | Path | Request order |
 | --- | --- |
-| Chat Completions with a developer role | system (stable instructions); developer (app compaction summary, when there is one); history; developer (turn context); user |
+| Chat Completions with a developer role | system (stable instructions); developer (app compaction summary, when there is one); history; developer (turn context, when there is any); user |
 | Chat Completions without a developer role (the row lacks the role, or its connection sets `fold_developer_role`) | system (stable instructions, a `# Turn Context` description of the block, the compaction summary, then the guardrails); history; user (a `<turn_context>` block holding the turn context, when there is any, then the user's words) |
-| OpenAI Responses | `instructions` (stable instructions); input: developer item (turn context), user item |
-| Anthropic Messages | `system` (stable instructions); history, starting at the latest compaction block when the server has compacted; user; mid-conversation `system` message (turn context) |
+| OpenAI Responses | `instructions` (stable instructions); input: developer item (turn context, when there is any), user item |
+| Anthropic Messages | `system` (stable instructions); history, starting at the latest compaction block when the server has compacted; user; mid-conversation `system` message (turn context, when there is any) |
 
 On Responses the chain lives in OpenAI server state (`previous_response_id`,
 `store: true`). With a cursor, a request sends only the new items. Each turn's
@@ -152,7 +152,7 @@ other OpenAI-compatible servers never receive them. Anthropic uses its own
   - on Anthropic, text in the user turn after the tool results or after the
     invalid reply, because Haiku 5.5 may ignore a system message placed right
     after tool results. With no reply before it, the text joins the
-    turn-context message.
+    turn-context message, or the user's turn when there is no turn context.
 - On Anthropic, each round resends the earlier rounds' assistant content
   exactly as returned (a compaction block, signed thinking, text, web-search
   blocks and `tool_use`), carried in the request-local continuation. A round

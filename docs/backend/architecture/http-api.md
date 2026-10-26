@@ -879,7 +879,8 @@ context yet. When a turn has context, direct chat adds one request-local
 it starts with a `# List of memory files` section. The list includes only
 user-scope file entries (`anima_id IS NULL`), uses cached paths such as
 `PROFILE.md`, and omits anima-scoped files and tree formatting. Any attached-file
-list follows. The Companion Guardrails end the system instructions only. `disable_memory_influence`
+list follows. The Companion Guardrails end the system instructions; the turn
+context does not repeat them. `disable_memory_influence`
 suppresses the list and `MEMORIES.md` while keeping required anima identity
 active. Rows that do not support OpenAI's `developer` message role, including
 every row on a connection with the `fold_developer_role` compatibility option,

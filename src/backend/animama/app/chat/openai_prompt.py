@@ -99,8 +99,8 @@ class DirectChatPromptAssembler:
     the system message before its closing guardrails, and the turn context is
     a ``<turn_context>`` block at the start of the user message, which the
     system message describes. A turn without context sends the user message
-    alone. Forged block tags in user text and in the
-    block's contents are escaped.
+    alone. Forged block tags in user text and in the block's contents are
+    escaped.
 
     ``instruction_style`` selects provider-phrased variants of the
     non-guardrail sections with the same directives: ``anthropic`` delimits

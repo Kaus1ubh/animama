@@ -75,10 +75,17 @@ Guardrails apply".
 
 - Instruction text grows by a small fixed section, sent once per turn inside
   the cached system instructions.
-- The last instruction text before the user's words is now the turn context
-  (the memory map and attachment metadata) when a turn has any. The
-  guardrail's stated precedence covers it, but in long chats the guardrail
+- Text can now follow the guardrail that its precedence statement ("the Anima
+  Identity, memory and every earlier instruction") does not name as later
+  text. The history follows it, as before; so do the turn context's memory map
+  (file paths and descriptions, which fall under "memory"), the attached-file
+  list (labelled untrusted metadata whose instructions are never followed)
+  and, on rows with a developer role, the app compaction summary (a developer
+  message after the system message that records earlier conversation). They
+  are accepted as context, not instructions. In long chats the guardrail also
   sits further from the latest message than under the 2026-10-09 placement.
+  Widening the guardrail's wording to cover later text would be a wording
+  change for the owner.
 - Exact-prompt tests assert that the guardrail, byte-identical to
   `COMPANION_GUARDRAILS`, ends the system instructions exactly once on every
   provider path, and that a turn without context sends the user message alone.

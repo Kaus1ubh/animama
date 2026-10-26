@@ -5,7 +5,7 @@ The direct-chat assembler produces one OpenAI-compatible message list (see
 
     system (stable instructions, ending with the Companion Guardrails)
     history ...
-    developer (turn context: memory map, attachments, then the guardrails)
+    [developer (turn context: memory map, attachments), when the turn has any]
     user (the user's new message)
     [this turn's tool exchanges, an invalid reply, forced-final or repair text]
 
@@ -18,9 +18,10 @@ This module maps it to Anthropic's positions (D20, D21):
   History may start with the assistant row that holds the chat's latest
   compaction block (the API ignores whatever precedes it); that block carries
   a ``cache_control`` breakpoint, and so does the last history block.
-- The user's new message is a user turn, followed by the turn context as a
-  mid-conversation ``system`` message: Anthropic accepts a system message only
-  after a user turn, so it follows the user's words. No tagged block is used.
+- The user's new message is a user turn, followed by the turn context, when
+  there is any, as a mid-conversation ``system`` message: Anthropic accepts a
+  system message only after a user turn, so it follows the user's words. No
+  tagged block is used; a turn without context ends on the user turn.
 - Within a turn, each round's assistant content is resent exactly as Anthropic
   returned it (compaction, signed thinking, text, server web-search blocks,
   ``tool_use``), taken from the continuation cursor. Forced-final and repair

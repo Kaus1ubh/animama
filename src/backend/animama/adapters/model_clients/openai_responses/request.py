@@ -126,7 +126,8 @@ def responses_input_items(spec: ModelClientRequest, *, has_previous_response_id:
 
     With previous_response_id the stored response already holds earlier items,
     so only new ones are sent: on a turn's first request the turn-context
-    developer item and the user message (plus any instruction after them), and
+    developer item (when the turn has context) and the user message (plus any
+    instruction after them), and
     on a tool continuation the trailing tool outputs (plus a forced-final or
     repair instruction after them). Without a cursor the whole history is
     replayed in the same order, with explicit cache breakpoints on the last two

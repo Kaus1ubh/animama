@@ -57,7 +57,7 @@ from tests.anthropic_fakes import (
 ANTHROPIC = "AnthropicMessagesHTTPAgent"
 GUARDRAILS = COMPANION_GUARDRAILS.strip()
 SYSTEM_TEXT = f"# Core Instructions\n\nYou are Mira.\n\n{GUARDRAILS}"
-CONTEXT_TEXT = f"# List of memory files\n\nfiles: []\n\n{GUARDRAILS}"
+CONTEXT_TEXT = "# List of memory files\n\nfiles: []"
 RESPONSE_SCHEMA = {
     "type": "object",
     "properties": {
@@ -105,10 +105,15 @@ def _messages(
     history: list[dict[str, Any]] | None = None,
     user: str = "What did I plan for the garden?",
     extra: list[dict[str, Any]] | None = None,
+    context: str | None = CONTEXT_TEXT,
 ) -> tuple[dict[str, Any], ...]:
+    """The assembler's layout; ``context=None`` is a turn with no memory map or attachments."""
+
     messages: list[dict[str, Any]] = [{"role": "system", "content": SYSTEM_TEXT}]
     messages += history or []
-    messages += [{"role": "developer", "content": CONTEXT_TEXT}, {"role": "user", "content": user}]
+    if context is not None:
+        messages.append({"role": "developer", "content": context})
+    messages.append({"role": "user", "content": user})
     messages += extra or []
     return tuple(messages)
 
@@ -183,10 +188,25 @@ def test_request_places_stable_system_history_user_then_turn_context_with_breakp
         "role": "user",
         "content": [{"type": "text", "text": "What did I plan for the garden?"}],
     }
-    # The turn context follows the user's words and ends with the guardrails; no tagged block.
+    # The turn context follows the user's words without the guardrails (ADR 0008); no tagged block.
     assert params["messages"][3] == {"role": "system", "content": CONTEXT_TEXT}
-    assert params["messages"][-1]["content"].endswith(GUARDRAILS)
     assert "<turn_context" not in json.dumps(params)
+
+
+def test_a_turn_without_context_ends_on_the_user_turn() -> None:
+    history: list[dict[str, Any]] = [
+        {"role": "user", "content": "Hi Mira"},
+        {"role": "assistant", "content": [{"type": "text", "text": structured_reply("Hello!")}]},
+    ]
+    params = messages_request_params(_request(messages=_messages(history=history, context=None)))
+
+    assert params["system"][0]["text"].endswith(GUARDRAILS)
+    assert [message["role"] for message in params["messages"]] == ["user", "assistant", "user"]
+    assert params["messages"][1]["content"][-1]["cache_control"] == {"type": "ephemeral"}
+    assert params["messages"][-1] == {
+        "role": "user",
+        "content": [{"type": "text", "text": "What did I plan for the garden?"}],
+    }
 
 
 def test_request_never_sends_sampling_parameters_or_a_prefill() -> None:
@@ -540,6 +560,22 @@ def test_an_instruction_with_no_reply_before_it_joins_the_turn_context_message()
     assert [message["role"] for message in params["messages"]] == ["user", "system"]
     assert params["messages"][-1]["content"] == f"{CONTEXT_TEXT}\n\n{instruction}"
     assert params["messages"][-1]["content"].endswith(GUARDRAILS)
+
+
+def test_an_instruction_with_no_reply_or_context_before_it_joins_the_user_turn() -> None:
+    instruction = f"Produce the final answer.\n\n{GUARDRAILS}"
+    params = messages_request_params(
+        _request(
+            tool_choice="none",
+            messages=_messages(context=None, extra=[{"role": "developer", "content": instruction}]),
+        )
+    )
+
+    assert [message["role"] for message in params["messages"]] == ["user"]
+    assert params["messages"][0]["content"] == [
+        {"type": "text", "text": "What did I plan for the garden?"},
+        {"type": "text", "text": instruction},
+    ]
 
 
 @pytest.mark.asyncio
