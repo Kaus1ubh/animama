@@ -333,7 +333,7 @@ def _responses_usage() -> dict[str, Any]:
         "input_tokens": 4,
         "output_tokens": 6,
         "total_tokens": 10,
-        "input_tokens_details": {"cached_tokens": 2},
+        "input_tokens_details": {"cache_write_tokens": 0, "cached_tokens": 2},
         "output_tokens_details": {"reasoning_tokens": 3},
     }
 
