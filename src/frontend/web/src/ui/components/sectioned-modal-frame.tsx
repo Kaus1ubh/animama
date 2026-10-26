@@ -103,7 +103,7 @@ export function SectionedModalFrame<T extends string>({
             <div className="relative z-20 mb-3">{sidebarHeader}</div>
           ) : null}
           {/* Phones show the sections as one sideways-scrolling row. */}
-          <nav className="flex min-h-0 gap-2 overflow-y-auto max-md:-mx-3 max-md:overflow-x-auto max-md:px-3 max-md:[scrollbar-width:none] md:flex-col md:gap-1">
+          <nav className="flex min-h-0 gap-2 overflow-y-auto max-md:-mx-3 max-md:[scrollbar-width:none] max-md:overflow-x-auto max-md:px-3 md:flex-col md:gap-1">
             {sections.map((section) => {
               const active = section === activeSection;
               const Icon: SectionIcon | undefined = sectionIcons?.[section];

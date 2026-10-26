@@ -67,13 +67,21 @@ file-worker = [
 voice = ["numpy>=2.2.0,<3"]
 viz = ["graphviz>=0.17"]
 realtime = []
-encrypt = ["cryptography>=45.0,<46"]
+encrypt = ["cryptography>=50.0,<51"]
 
 [tool.uv.sources]
 torch = [{ index = "pytorch-cpu" }]
 torchvision = [{ index = "pytorch-cpu" }]
 
 [tool.uv]
+# Lock-only holds that keep the exported local-http contract and generated SDK stable;
+# the published wheel keeps its broader ranges.
+constraint-dependencies = [
+    # 2.13+ merges identical Input/Output schemas, renaming generated SDK types.
+    "pydantic<2.13",
+    # Starlette 1.x needs 0.134+, whose upload and validation-error schemas need a local-http major.
+    "fastapi<0.122",
+]
 conflicts = [
     [
         { group = "dev" },
