@@ -822,7 +822,49 @@ and counted. The budget is a mean added frame time of at most 2 ms. A software
 WebGL renderer is refused. Options: `--frames`, `--warmup`, `--rounds`,
 `--clip`, `--effects`, `--headed`, `--json <file>`, `--rendering
 <enhanced|classic>` and `--avatar-file <a.vrm>`, which measures that VRM
-instead of the Included Avatars (not with `--reaction`).
+instead of the Included Avatars (not with `--reaction`). Further options, not
+with `--reaction`: `--materials <automatic|liltoon|simple>` loads the Avatar
+with that Materials setting; `--pixel-ratios 1,1.5,2` repeats each measurement
+at those device pixel ratios; and `--fps <n>` paces frames like the app
+(`nextSceneFrame`; chat renders at 60 fps, or 30 while idle) instead of using
+every display frame.
+
+Pace GPU comparisons with `--fps 60`. Headless Chromium can run at 120 frames
+per second. A heavy Avatar then saturates the GPU, and the timer query also
+counts queued work, so a lilToon Avatar's GPU time reads high and changes
+inconsistently. Light loads can run at a lower GPU clock, so their absolute
+times read higher than a busy GPU's would. Compare results only from runs made
+under the same conditions. Each pass's GPU mean is kept in the JSON
+(`passes`), so another job using the GPU shows up as drift between rounds.
+
+`--breakdown <materials,features,layers,mixed|all>` breaks the Avatar's plain
+frame cost down instead (no effects). The baseline alternates with scenarios
+that each change one thing. Every scenario reports GPU and CPU time, draw
+calls and triangles from `renderer.info`. It also reports the share of the
+Avatar's pixels that change in one probe frame of the same pose:
+
+- **materials:** each glTF material hidden, and each drawn alone;
+- **features:** each lilToon feature switched off on every material that
+  uses it (toon shadow, rim, matcaps, emission, normal maps, reflection and
+  the other `_Use*` switches; the outline pass, the two-pass pre-pass,
+  blending and alpha test through the shader variant), then all but
+  transparency together. Prototype drawing changes follow; none of them
+  ships. They are blending off on opaque materials, a depth pre-pass for
+  opaque lilToon primitives, morph targets dropped, and morph weights read
+  from a uniform array;
+- **layers:** each structural layer hidden: the eye stack, irises, eye
+  highlights, eye-bone eye whites, eye lines, eyelashes, face skin and hair
+  as face-part detection finds them, the alpha-blended and alpha-tested
+  primitives, and the rest;
+- **mixed:** lilToon on chosen materials, with the rest drawn with the glTF
+  fallbacks of a second, Simple load of the file.
+
+`--apply <ids>` applies feature scenarios by id (for example
+`outline,depth-prepass`) to every measurement. It measures a combination, or
+a breakdown on top of one. The output names materials by glTF index and
+layers by structure, never by the file's material or mesh names. It labels
+the Avatar with its file name, so rename a private file before sharing
+results.
 
 `--reaction <path|library:reaction/...>` measures one Reaction's Avatar,
 Particle and Scene Effects instead: the Reaction replays every `--replay`

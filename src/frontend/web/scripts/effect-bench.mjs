@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { resolveAvatarFile } from "./avatar-file.mjs";
 import {
   AVATARS,
+  AVATAR_MATERIAL_MODES,
   AVATAR_RENDERINGS,
   avatarFileUrl,
   pageClipMedia,
@@ -23,6 +24,7 @@ import {
  * Frame-cost benchmark for Avatar Effects on the GPU.
  *
  *   pnpm -s effects:bench [--frames 600] [--warmup 120] [--rounds 2] [--headed] [--json out.json]
+ *   pnpm -s effects:bench --avatar-file a.vrm --breakdown all [--materials simple] [--pixel-ratios 1,1.5,2]
  *
  * For each Included Avatar it plays a looping Gesture through
  * `Avatar.update` on a chat-equivalent canvas (DPR 2, antialiasing, the chat's
@@ -40,6 +42,39 @@ import {
  * rate is uncapped so the interval between frames includes the DOM layers'
  * style, layout and compositing. The budget is a mean added frame interval
  * (and GPU time) of at most 4 ms.
+ *
+ * `--materials` loads the Avatar with that material setting (Simple draws a
+ * lilToon Avatar's glTF fallbacks); `--pixel-ratios` repeats each
+ * measurement at other device pixel ratios, for how the cost scales with
+ * resolution; and `--fps` paces frames like the app instead of using every
+ * display frame. Pace GPU comparisons with `--fps 60`: unpaced headless runs
+ * can reach 120 fps, where a heavy Avatar saturates the GPU and its timer
+ * queries also count queued work.
+ *
+ * With `--breakdown <kinds>` it breaks the plain Avatar's frame cost down
+ * instead (no effects): the baseline alternates with scenarios that each
+ * change one thing, and each reports its GPU and CPU time, draw calls and
+ * triangles from `renderer.info`, and the share of the Avatar's pixels that
+ * change in a probe frame of the same pose:
+ *
+ *   materials  each glTF material hidden, and drawn alone;
+ *   features   each lilToon feature switched off on every material using it
+ *              (toon shadow, rim, matcaps, emission, normal maps, outline
+ *              pass, two-pass pre-pass, blending, alpha test, …), then all
+ *              but transparency together, then prototype drawing changes
+ *              (blending off on opaque materials, a depth pre-pass, morph
+ *              targets dropped, morph weights from uniforms);
+ *   layers     each structural layer hidden: the eye stack, irises, eye
+ *              highlights, eye-bone eye whites, eye lines, eyelashes, face
+ *              skin and hair as face-part detection finds them, the
+ *              alpha-blended and alpha-tested primitives, and the rest;
+ *   mixed      chosen materials drawn with their glTF fallbacks, borrowed
+ *              from a second, Simple load of the file.
+ *
+ * `--apply <ids>` applies feature scenarios to every measurement, to time a
+ * combination or break one down further. Materials are named by glTF index
+ * and layers by structure, never by the file's material or mesh names; the
+ * Avatar itself is labelled with its file name.
  *
  * Chromium runs headless with Metal/GPU flags; when the WebGL renderer is a
  * software one (SwiftShader), or with `--headed`, it runs in a small headed
@@ -65,6 +100,12 @@ const GPU_ARGS = [
 const VIEWPORT = { width: 800, height: 600 };
 /** The chat's typical Retina density, for the canvas and the DOM Scene layers. */
 const DEVICE_SCALE = 2;
+/** What `--breakdown` varies (`effect-bench/breakdown.ts`). */
+export const BREAKDOWN_KINDS = ["materials", "features", "layers", "mixed"];
+/** Highest `--pixel-ratios` value: twice the chat's own maximum. */
+const MAX_PIXEL_RATIO = 4;
+/** Highest `--fps` value. */
+const MAX_FPS = 240;
 
 const USAGE = [
   "Usage: pnpm -s effects:bench [options]",
@@ -80,6 +121,15 @@ const USAGE = [
   "  --headed            skip the headless attempt",
   "  --rendering enhanced  Avatar rendering: enhanced (the app default) or classic",
   "  --avatar-file <a.vrm>  measure this VRM instead of the Included Avatars",
+  "  --materials automatic  the Avatar's material setting: automatic, liltoon or",
+  "                      simple (a lilToon Avatar's fallback materials)",
+  `  --pixel-ratios ${DEVICE_SCALE}    device pixel ratios to measure, comma-separated (e.g. 1,1.5,2)`,
+  "  --fps <n>           render at most n frames per second, paced like the app",
+  "                      (an idle chat renders at 30); every display frame by default",
+  "  --breakdown <kinds> break the plain frame cost down instead of timing effects:",
+  `                      comma-separated ${BREAKDOWN_KINDS.join(", ")}, or all`,
+  "  --apply <ids>       apply feature scenarios (ids a features breakdown lists,",
+  "                      e.g. outline,shadow,depth-prepass) to every measurement",
   "  --json <file>       also write the results as JSON",
 ].join("\n");
 
@@ -114,7 +164,23 @@ function format(stats) {
     : "n/a";
 }
 
-/** Run every Avatar on the first launch whose WebGL renderer is a GPU. */
+/** The Avatars a run measures: `avatarFile`, or both Included Avatars. */
+function benchAvatars(avatarFile, fsUrl) {
+  return avatarFile
+    ? [
+        {
+          id: path.basename(avatarFile).replace(/\.vrm$/i, ""),
+          url: fsUrl(avatarFile),
+        },
+      ]
+    : AVATARS.map((id) => ({ id, url: avatarFileUrl(fsUrl, id) }));
+}
+
+/**
+ * Run every Avatar at every pixel ratio on the first launch whose WebGL
+ * renderer is a GPU. With `breakdown` kinds, each run breaks the plain
+ * Avatar's frame cost down instead of timing the effects.
+ */
 export async function runEffectBench({
   frames = 600,
   warmupFrames = 120,
@@ -123,14 +189,20 @@ export async function runEffectBench({
   effectSpecs = DEFAULT_FACE_EFFECTS,
   headed = false,
   rendering = "enhanced",
+  materials = "automatic",
+  pixelRatios = [DEVICE_SCALE],
+  fps = null,
+  apply = [],
+  breakdown = null,
   avatarFile = null,
   sourceOptions = {},
   log = console.log,
 } = {}) {
   const clip = (await resolveClipSource(clipSpec, sourceOptions)).clip;
   const effects = [];
-  for (const spec of effectSpecs)
-    effects.push(await resolveEffectSource(spec, sourceOptions));
+  if (!breakdown)
+    for (const spec of effectSpecs)
+      effects.push(await resolveEffectSource(spec, sourceOptions));
   for (const launch of launchCandidates(headed)) {
     const mode = launch.headless ? "headless" : "headed";
     const outcome = await withRendererPage(
@@ -154,29 +226,33 @@ export async function runEffectBench({
         for (const effect of effects)
           pageEffects.push(await pageEffect(effect, imageUrl));
         const results = [];
-        // A local Avatar file replaces both Included Avatars.
-        const avatars = avatarFile
-          ? [
-              {
-                id: path.basename(avatarFile).replace(/\.vrm$/i, ""),
-                url: fsUrl(avatarFile),
-              },
-            ]
-          : AVATARS.map((id) => ({ id, url: avatarFileUrl(fsUrl, id) }));
-        for (const avatar of avatars) {
-          results.push(
-            await page.evaluate((request) => window.runEffectBench(request), {
+        for (const avatar of benchAvatars(avatarFile, fsUrl)) {
+          for (const pixelRatio of pixelRatios) {
+            const request = {
               avatar,
               clip,
-              effects: pageEffects,
               width: VIEWPORT.width,
               height: VIEWPORT.height,
-              pixelRatio: DEVICE_SCALE,
+              pixelRatio,
+              materialMode: materials,
+              fps,
+              apply,
               warmupFrames,
               frames,
               rounds,
-            }),
-          );
+            };
+            results.push(
+              breakdown
+                ? await page.evaluate(
+                    (value) => window.runEffectBenchBreakdown(value),
+                    { ...request, breakdown },
+                  )
+                : await page.evaluate((value) => window.runEffectBench(value), {
+                    ...request,
+                    effects: pageEffects,
+                  }),
+            );
+          }
         }
         return { mode, info, results };
       },
@@ -278,37 +354,136 @@ function reportReaction(outcome, rounds) {
   return overBudget;
 }
 
-async function main(argv) {
+/** A signed difference in milliseconds, for "added" columns. */
+function signed(ms) {
+  return `${ms >= 0 ? "+" : "−"}${Math.abs(ms).toFixed(2)}`;
+}
+
+/** Print the effects comparison; returns whether it is over budget. */
+function reportEffects(outcome, rounds) {
+  let overBudget = false;
+  for (const result of outcome.results) {
+    const added = result.heavy.cpu.mean - result.none.cpu.mean;
+    const addedGpu =
+      result.heavy.gpu && result.none.gpu
+        ? result.heavy.gpu.mean - result.none.gpu.mean
+        : null;
+    overBudget ||= added > BUDGET_MS || (addedGpu ?? 0) > BUDGET_MS;
+    const materials = [
+      ...(result.materialMode === "automatic"
+        ? []
+        : [`, ${result.materialMode} materials`]),
+      ...(result.applied.length ? [`, with ${result.applied.join(", ")}`] : []),
+    ].join("");
+    console.log(
+      [
+        `${result.avatar} (${result.drawingBuffer.width}×${result.drawingBuffer.height}${materials}, ${result.none.cpu.samples} frames per scenario in ${rounds} alternating rounds; ${result.none.disjointFrames + result.heavy.disjointFrames} GPU samples voided by disjoint events)`,
+        `  no effects: CPU ${format(result.none.cpu)}; GPU ${format(result.none.gpu)}; ${result.none.drawCalls} draw calls`,
+        `  heavy:      CPU ${format(result.heavy.cpu)}; GPU ${format(result.heavy.gpu)}; ${result.heavy.drawCalls} draw calls`,
+        `  added mean: CPU ${added.toFixed(2)} ms; GPU ${addedGpu === null ? "n/a" : `${addedGpu.toFixed(2)} ms`} (budget ${BUDGET_MS} ms)`,
+        `  active: ${result.activeEffectIds.join(", ")}`,
+        ...result.warnings.map((warning) => `  warning: ${warning}`),
+      ].join("\n"),
+    );
+  }
+  return overBudget;
+}
+
+const BREAKDOWN_HEADINGS = {
+  materials: "materials (hidden, or drawn alone):",
+  features: "lilToon features (off on every material that uses them):",
+  layers: "layers (hidden):",
+  mixed: "lilToon on chosen materials (the rest drawn with glTF fallbacks):",
+};
+
+/** Print breakdown results: structure, baseline, then each scenario's cost. */
+function reportBreakdown(outcome, rounds) {
+  for (const result of outcome.results) {
+    const { baseline, structure } = result;
+    const voided = [baseline, ...result.scenarios].reduce(
+      (total, scenario) => total + scenario.disjointFrames,
+      0,
+    );
+    const lines = [
+      `${result.avatar} breakdown at DPR ${result.pixelRatio} (${result.drawingBuffer.width}×${result.drawingBuffer.height}; materials ${result.materialMode}, lilToon ${result.lilToonMaterials}${result.applied.length ? `, with ${result.applied.join(", ")}` : ""}; ${baseline.cpu.samples} frames per scenario in ${rounds} alternating rounds; ${voided} GPU samples voided by disjoint events)`,
+      `  structure: ${structure.materials.length} materials, ${structure.primitives} primitives, ${structure.triangles} triangles; the Avatar covers ${result.avatarPixels} pixels`,
+      ...structure.materials.map(
+        (material) =>
+          `    ${material.index === null ? "unassigned material" : `material #${material.index}`}: ${material.kind}, ${material.blendState}; ${material.primitives} primitives, ${material.triangles} triangles, ${material.morphTargets} morph targets${material.features.length ? `; features ${material.features.join(", ")}` : ""}${material.parts.length ? `; holds ${material.parts.join(", ")}` : ""}`,
+      ),
+      `  baseline: GPU ${format(baseline.gpu)}; CPU ${format(baseline.cpu)}; ${baseline.drawCalls} draw calls, ${baseline.triangles} triangles; ${baseline.frameRate.toFixed(1)} fps${baseline.gpu ? `, GPU busy ${((baseline.gpu.mean * baseline.frameRate) / 10).toFixed(0)}%; GPU per pass ${baseline.passes.map((ms) => ms.toFixed(2)).join(", ")} ms` : ""}`,
+    ];
+    let group = null;
+    for (const scenario of result.scenarios) {
+      if (scenario.group !== group) {
+        group = scenario.group;
+        lines.push(`  ${BREAKDOWN_HEADINGS[group] ?? `${group}:`}`);
+      }
+      const gpu =
+        scenario.gpu && baseline.gpu
+          ? `GPU ${scenario.gpu.mean.toFixed(2)} ms (${signed(scenario.gpu.mean - baseline.gpu.mean)})`
+          : "GPU n/a";
+      lines.push(
+        `    ${scenario.label}: ${gpu}; CPU ${scenario.cpu.mean.toFixed(2)} ms; ${scenario.drawCalls} draw calls, ${scenario.triangles} triangles; ${(scenario.changedPixels * 100).toFixed(1)}% of the Avatar's pixels change`,
+      );
+    }
+    lines.push(...result.notes.map((note) => `  note: ${note}`));
+    console.log(lines.join("\n"));
+  }
+}
+
+/** A comma-separated list option, trimmed, without empty entries. */
+function listOf(value) {
+  return value
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
+const VALUE_OPTIONS = [
+  "--frames",
+  "--warmup",
+  "--rounds",
+  "--clip",
+  "--effects",
+  "--reaction",
+  "--replay",
+  "--local-content",
+  "--json",
+  "--rendering",
+  "--avatar-file",
+  "--materials",
+  "--pixel-ratios",
+  "--fps",
+  "--breakdown",
+  "--apply",
+];
+/** Options that only the effects benchmark (and its breakdown) takes. */
+const EFFECTS_ONLY_OPTIONS = [
+  "--avatar-file",
+  "--materials",
+  "--pixel-ratios",
+  "--fps",
+  "--breakdown",
+  "--apply",
+];
+
+/**
+ * Parse and check the command line. Returns `{ help: true }`, `{ error }`
+ * (a message for the usage text) or `{ options }`; paths stay unresolved.
+ */
+export function parseBenchArgs(argv) {
   const values = {};
   const flags = new Set();
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === "--headed" || arg === "--help") flags.add(arg);
-    else if (
-      [
-        "--frames",
-        "--warmup",
-        "--rounds",
-        "--clip",
-        "--effects",
-        "--reaction",
-        "--replay",
-        "--local-content",
-        "--json",
-        "--rendering",
-        "--avatar-file",
-      ].includes(arg)
-    ) {
+    else if (VALUE_OPTIONS.includes(arg)) {
+      if (index + 1 >= argv.length) return { error: `${arg} takes a value.` };
       values[arg] = argv[++index];
-    } else {
-      console.log(`Unknown argument ${arg}.\n\n${USAGE}`);
-      return 2;
-    }
+    } else return { error: `Unknown argument ${arg}.` };
   }
-  if (flags.has("--help")) {
-    console.log(USAGE);
-    return 0;
-  }
+  if (flags.has("--help")) return { help: true };
   const frames = Number(values["--frames"] ?? 600);
   const warmupFrames = Number(values["--warmup"] ?? 120);
   const rounds = Number(values["--rounds"] ?? 2);
@@ -318,40 +493,64 @@ async function main(argv) {
       (value) => Number.isInteger(value) && value >= 0 && value <= 100_000,
     ) ||
     frames < 1
-  ) {
-    console.log(
-      `--frames, --warmup and --rounds take whole counts.\n\n${USAGE}`,
-    );
-    return 2;
-  }
+  )
+    return { error: "--frames, --warmup and --rounds take whole counts." };
   const rendering = values["--rendering"] ?? "enhanced";
-  if (!AVATAR_RENDERINGS.includes(rendering)) {
-    console.log(
-      `--rendering takes ${AVATAR_RENDERINGS.join(" or ")}.\n\n${USAGE}`,
-    );
-    return 2;
-  }
-  const cwd = process.env.INIT_CWD ?? process.cwd();
-  try {
-    const sourceOptions = {
-      cwd,
-      localContent: values["--local-content"]
-        ? await realpath(path.resolve(cwd, values["--local-content"]))
-        : null,
+  if (!AVATAR_RENDERINGS.includes(rendering))
+    return { error: `--rendering takes ${AVATAR_RENDERINGS.join(" or ")}.` };
+  const materials = values["--materials"] ?? "automatic";
+  if (!AVATAR_MATERIAL_MODES.includes(materials))
+    return {
+      error: `--materials takes ${AVATAR_MATERIAL_MODES.join(", ")}.`,
     };
-    if (values["--reaction"] && values["--avatar-file"]) {
-      console.log(
-        `--avatar-file applies to the effects benchmark, not --reaction.\n\n${USAGE}`,
-      );
-      return 2;
-    }
-    if (values["--reaction"]) {
-      const replayFrames = Number(values["--replay"] ?? 90);
-      if (!Number.isInteger(replayFrames) || replayFrames < 1) {
-        console.log(`--replay takes a whole number of frames.\n\n${USAGE}`);
-        return 2;
-      }
-      const outcome = await runReactionBench({
+  const pixelRatios = values["--pixel-ratios"]
+    ? listOf(values["--pixel-ratios"]).map(Number)
+    : [DEVICE_SCALE];
+  if (
+    pixelRatios.length === 0 ||
+    !pixelRatios.every(
+      (value) =>
+        Number.isFinite(value) && value > 0 && value <= MAX_PIXEL_RATIO,
+    )
+  )
+    return {
+      error: `--pixel-ratios takes numbers above 0 and at most ${MAX_PIXEL_RATIO}, comma-separated.`,
+    };
+  const fps = values["--fps"] === undefined ? null : Number(values["--fps"]);
+  if (fps !== null && !(Number.isFinite(fps) && fps >= 1 && fps <= MAX_FPS))
+    return { error: `--fps takes a number from 1 to ${MAX_FPS}.` };
+  let breakdown = null;
+  if (values["--breakdown"] !== undefined) {
+    const kinds = listOf(values["--breakdown"]);
+    breakdown = kinds.includes("all")
+      ? [...BREAKDOWN_KINDS]
+      : BREAKDOWN_KINDS.filter((kind) => kinds.includes(kind));
+    const unknown = kinds.filter(
+      (kind) => kind !== "all" && !BREAKDOWN_KINDS.includes(kind),
+    );
+    if (unknown.length || breakdown.length === 0)
+      return {
+        error: `--breakdown takes ${BREAKDOWN_KINDS.join(", ")} or all, comma-separated.`,
+      };
+    if (values["--effects"] !== undefined)
+      return {
+        error:
+          "--effects applies to the effects comparison; --breakdown measures the Avatar without effects.",
+      };
+  }
+  if (values["--reaction"] !== undefined) {
+    const misplaced = EFFECTS_ONLY_OPTIONS.find(
+      (option) => values[option] !== undefined,
+    );
+    if (misplaced)
+      return {
+        error: `${misplaced} applies to the effects benchmark, not --reaction.`,
+      };
+    const replayFrames = Number(values["--replay"] ?? 90);
+    if (!Number.isInteger(replayFrames) || replayFrames < 1)
+      return { error: "--replay takes a whole number of frames." };
+    return {
+      options: {
         reactionSpec: values["--reaction"],
         frames,
         warmupFrames,
@@ -359,56 +558,82 @@ async function main(argv) {
         replayFrames,
         headed: flags.has("--headed"),
         rendering,
-        sourceOptions,
-      });
+        localContent: values["--local-content"] ?? null,
+        json: values["--json"] ?? null,
+      },
+    };
+  }
+  return {
+    options: {
+      frames,
+      warmupFrames,
+      rounds,
+      avatarFile: values["--avatar-file"] ?? null,
+      clipSpec: values["--clip"] ?? DEFAULT_CLIP,
+      effectSpecs: values["--effects"]
+        ? listOf(values["--effects"])
+        : DEFAULT_FACE_EFFECTS,
+      headed: flags.has("--headed"),
+      rendering,
+      materials,
+      pixelRatios,
+      fps,
+      apply: values["--apply"] ? listOf(values["--apply"]) : [],
+      breakdown,
+      localContent: values["--local-content"] ?? null,
+      json: values["--json"] ?? null,
+    },
+  };
+}
+
+async function main(argv) {
+  const parsed = parseBenchArgs(argv);
+  if (parsed.help) {
+    console.log(USAGE);
+    return 0;
+  }
+  if (parsed.error) {
+    console.log(`${parsed.error}\n\n${USAGE}`);
+    return 2;
+  }
+  const { localContent, json, ...options } = parsed.options;
+  const cwd = process.env.INIT_CWD ?? process.cwd();
+  try {
+    const sourceOptions = {
+      cwd,
+      localContent: localContent
+        ? await realpath(path.resolve(cwd, localContent))
+        : null,
+    };
+    const writeJson = async (outcome) => {
+      if (!json) return;
+      const file = path.resolve(cwd, json);
+      await writeFile(file, JSON.stringify(outcome, null, 2));
+      console.log(`Wrote ${file}`);
+    };
+    if (options.reactionSpec) {
+      const outcome = await runReactionBench({ ...options, sourceOptions });
       console.log(`Mode: ${outcome.mode}; renderer: ${outcome.info.renderer}`);
-      const overBudget = reportReaction(outcome, rounds);
-      if (values["--json"]) {
-        const file = path.resolve(cwd, values["--json"]);
-        await writeFile(file, JSON.stringify(outcome, null, 2));
-        console.log(`Wrote ${file}`);
-      }
+      const overBudget = reportReaction(outcome, options.rounds);
+      await writeJson(outcome);
       if (overBudget) console.log(`Over the ${REACTION_BUDGET_MS} ms budget.`);
       return 0;
     }
     const outcome = await runEffectBench({
-      frames,
-      warmupFrames,
-      rounds,
-      avatarFile: values["--avatar-file"]
-        ? await resolveAvatarFile(path.resolve(cwd, values["--avatar-file"]))
+      ...options,
+      avatarFile: options.avatarFile
+        ? await resolveAvatarFile(path.resolve(cwd, options.avatarFile))
         : null,
-      clipSpec: values["--clip"] ?? DEFAULT_CLIP,
-      effectSpecs: values["--effects"]?.split(",") ?? DEFAULT_FACE_EFFECTS,
-      headed: flags.has("--headed"),
-      rendering,
       sourceOptions,
     });
     console.log(`Mode: ${outcome.mode}; renderer: ${outcome.info.renderer}`);
-    let overBudget = false;
-    for (const result of outcome.results) {
-      const added = result.heavy.cpu.mean - result.none.cpu.mean;
-      const addedGpu =
-        result.heavy.gpu && result.none.gpu
-          ? result.heavy.gpu.mean - result.none.gpu.mean
-          : null;
-      overBudget ||= added > BUDGET_MS || (addedGpu ?? 0) > BUDGET_MS;
-      console.log(
-        [
-          `${result.avatar} (${result.drawingBuffer.width}×${result.drawingBuffer.height}, ${result.none.cpu.samples} frames per scenario in ${rounds} alternating rounds; ${result.none.disjointFrames + result.heavy.disjointFrames} GPU samples voided by disjoint events)`,
-          `  no effects: CPU ${format(result.none.cpu)}; GPU ${format(result.none.gpu)}; ${result.none.drawCalls} draw calls`,
-          `  heavy:      CPU ${format(result.heavy.cpu)}; GPU ${format(result.heavy.gpu)}; ${result.heavy.drawCalls} draw calls`,
-          `  added mean: CPU ${added.toFixed(2)} ms; GPU ${addedGpu === null ? "n/a" : `${addedGpu.toFixed(2)} ms`} (budget ${BUDGET_MS} ms)`,
-          `  active: ${result.activeEffectIds.join(", ")}`,
-          ...result.warnings.map((warning) => `  warning: ${warning}`),
-        ].join("\n"),
-      );
+    if (options.breakdown) {
+      reportBreakdown(outcome, options.rounds);
+      await writeJson(outcome);
+      return 0;
     }
-    if (values["--json"]) {
-      const file = path.resolve(cwd, values["--json"]);
-      await writeFile(file, JSON.stringify(outcome, null, 2));
-      console.log(`Wrote ${file}`);
-    }
+    const overBudget = reportEffects(outcome, options.rounds);
+    await writeJson(outcome);
     if (overBudget) console.log(`Over the ${BUDGET_MS} ms budget.`);
     return 0;
   } catch (error) {
