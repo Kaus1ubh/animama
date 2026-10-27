@@ -52,7 +52,8 @@ or Included Avatars with synthetic additions.
 - [x] Investigation (2026-10-27): GPU trace, full-clock breakdown, hair
   outline diagnosis; recorded below.
 - [x] Phase 1: full-clock measurement in `effects:bench` (review passed).
-- [ ] Phase 2: opaque lilToon surfaces and outlines without blending.
+- [x] Phase 2: opaque lilToon surfaces and outlines without blending (review
+  passed; owner gate pending: accept the pre-pass edge-sample difference).
 - [ ] Phase 3: morph-weight textures without per-frame reallocation.
 - [ ] Phase 4: vertex-colour outlines (runtime fallback and export).
 - [ ] Phase 5: Unity parity report and fixes.
@@ -156,6 +157,8 @@ primitives, 67,698 triangles; 19 draws and 131,137 triangles with outlines),
 - 2026-10-27, agent: merged `feat/arbitrary-vrm-support-pr-b` at `d5818800`
   (#744's Automatic keeps lilToon with a frame-rate cap) into this branch
   before Phase 1; it touches none of this plan's files.
+- 2026-10-27, agent (Phase 2 review): Phases 2 and 3 raised to high risk
+  because they patch a runtime dependency (P2-R1-F1).
 - 2026-10-27, agent (Phase 1, within the plan): the R2 target compares
   saturated wall time per frame, not a traced GPU-only figure, because
   Instruments' attach mode hung and saved no trace; the Included Avatars are
@@ -334,7 +337,8 @@ two rounds. Phase 1 complete.
 
 ### Phase 2: Opaque lilToon surfaces and outlines without blending
 
-Review tier: standard (rendering change verified by exact comparisons).
+Review tier: high risk (a patch of a runtime dependency changes which
+dependency code resolves; raised from standard by Code Review #1, P2-R1-F1).
 
 Requirements: R2, R6. Changes (three-liltoon patch, D1): a material whose
 render mode is opaque (its shader writes alpha 1) and whose colour blend is
@@ -356,9 +360,175 @@ Owner gate: the measured result.
 
 Recovery: the patch is one file; reverting it restores 0.1.9's behaviour.
 
+Starting source: `07a2e70b` (Phase 1).
+
+Implemented: `src/frontend/patches/@mochiya__three-liltoon@0.1.9.patch`
+(registered in `src/frontend/package.json` and `pnpm-lock.yaml`, described in
+`patches/README.md`): `applyLilToonPassState` sets `NoBlending` for the
+`forward` and `outline` passes of opaque render mode when colour blends Add
+One/Zero and alpha blends Add One with Zero or One-minus-source-alpha. It is
+reapplied wherever three-liltoon reapplies render state (construction, shader
+variant and render-state property changes, outline synchronisation).
+`web/src/lib/avatar/liltoon/threeLilToonPatch.test.ts` runs the installed
+package. The breakdown gains `feature:authored-blending` (lilToon's own
+blending back on opaque surfaces; outlines stay unblended) so the patch's
+effect is measurable within one run, and `blendingOff` became `setBlending`.
+avatar-animation.md documents the unblended passes, the pre-pass's new
+coverage and its edge-sample difference, and the measured cost.
+
+D2 measured: with the opaque passes unblended, the depth pre-pass covers 9 of
+the converted test Avatar's 11 primitives and does most of the saving, so it
+stays. Exact comparisons separated the two changes:
+
+- Blending off alone (same frame, SwiftShader, DPR 2, pre-pass disabled):
+  0 differing RGB or alpha bytes over 380,619 covered pixels.
+- With the pre-pass covering the unblended primitives: one pixel per frame
+  differs, a multisample edge sample (RGB delta 4, alpha 255 against 191 in
+  the probe; delta up to 21 in `animation:render` sheets). The pre-pass skins
+  with three.js, which differs slightly from lilToon's skinning, so at a
+  silhouette it can cover a sample the surface does not.
+- `animation:render` of the shy-finger-poke loop at 0, 0.5 and 1 s, patched
+  against unpatched, `effects:render --diff --threshold 0`: 3 of 3,864,832
+  pixels (the same face-tile pixel in each row), max channel delta 21; the
+  same with the hair outline's vertex-colour mode off: 3 pixels, so the hair
+  outline defect is not involved.
+
+Measured (saturated, `--frames 400 --rounds 4 --breakdown features`, DPR 2,
+alternating, under other sessions' load): patched with the pre-pass 5.54 ms
+per frame (passes 5.44, 4.84, 5.41, 6.48); lilToon's own blending on opaque
+surfaces 12.79 ms (+7.25); unblended without the pre-pass 11.93 ms (+6.39).
+At DPR 1 the run was CPU-bound (CPU 1.71 ms against 2.29 ms frames) and showed
+no difference. Paced at 60 fps (`--frames 1200 --rounds 4`): 9.56 ms against
+11.14 ms with lilToon's own blending and 10.64 ms without the pre-pass. An
+earlier run with only the surfaces unblended (`--apply opaque-blending`,
+outlines still blended) found the pre-pass neutral; the difference is
+unexplained but the later run's four rounds agree.
+
+Check record (2026-10-27, macOS arm64, Apple M5, working tree `e1be3c2ad3ce1741e002f81e0c86eed61e039874`):
+
+- `npx vitest run src/lib/avatar/liltoon/threeLilToonPatch.test.ts`
+  (`src/frontend/web`): 4 passed; against the unpatched package (a temporary
+  copy importing its `dist/index.js`): 3 failed, as expected.
+- `npx vitest run src/lib/avatar`: 98 files, 1485 tests passed (2 skipped).
+- `node --test scripts/effect-bench/breakdownPlan.test.ts`: 3 passed.
+- `npx tsc --noEmit -p tsconfig.app.json` and `-p tsconfig.scripts.json`:
+  passed; `npx eslint scripts/effect-bench/breakdown.ts
+  src/lib/avatar/liltoon/threeLilToonPatch.test.ts`: passed.
+- Benches and exact comparisons as above (private renders).
+- Included Avatars: not rerun; three-liltoon is imported only for files that
+  declare its extension, so neither the patch nor the breakdown scenario
+  reaches them. The final candidate's renders cover them.
+
+Owner gate (pending): accept the pre-pass's edge-sample difference (about one
+pixel per frame on the converted test Avatar) for the measured saving, or
+keep the pre-pass off for lilToon primitives.
+
+#### Code Review #1 Findings
+
+Independent reviewer (assigned standard tier, initial review) of the working
+tree against `07a2e70b`; reused the record's checks (Phase 2 files unchanged
+since tree `e1be3c2a`), ran a read-only probe. Result: blocked.
+
+- P2-R1-F1 (required): a patch of a runtime dependency, its lockfile and
+  `patchedDependencies` are "dependencies, build" changes, high risk under
+  SDLC review tiers (the CI validation policy also selects every suite for
+  them); Phase 3 extends the same patch.
+- P2-R1-F2 (required): an opaque lilToon surface hidden with lilToon's
+  `_Invisible` toggle (the shader collapses its vertices; `visible` stays
+  true) was blocked from the pre-pass only by its alpha blend; unblended, it
+  would take the pre-pass and leave invisible occluders (holes).
+- P2-R1-F3 (required): `depthPrepass.ts` comments still said three-liltoon
+  blends every material, that most converted Avatars take no pre-pass and
+  that the pre-pass never changes a pixel.
+- P2-R1-F4 (required): `pnpm verify` and the plan's exact comparison on an
+  Included Avatar with synthetic lilToon materials were missing.
+- Optional: a stale JSDoc above `setBlending`; `blendsLikeOpaque`'s doc and
+  label described the unpatched state; the test's type widening was
+  unnecessary (`pass` is declared, marked internal); untested branches of the
+  rule (alpha factor, equation, outline overrides, cutout outline); the
+  frame-cost paragraph's absolute figures could read as a slowdown;
+  `patches/README.md` read as covering one patch; record entries lacked
+  working directories.
+
+#### Code Review #1 Revisions
+
+- P2-R1-F1 accepted: Phases 2 and 3 are high risk; Phase 2 adds the full
+  pre-push suite and a checks subagent before its recheck.
+- P2-R1-F2 accepted: `depthPrepassBlocker` returns `hidden` for a lilToon
+  surface whose `lilToonProperties._Invisible` is non-zero
+  (`LilToonSurfaceFacts` gains `lilToonProperties`); a test builds the
+  installed package's material with and without `_Invisible` (red before
+  the fix, green after).
+- P2-R1-F3 accepted: the file comment now describes unblended opaque
+  surfaces taking the pre-pass and the measured edge-sample difference.
+- P2-R1-F4 accepted: the Included Avatar Andrew with synthetic lilToon
+  materials (its 12 alpha-tested materials as opaque `Hidden/lilToonOutline`,
+  its 5 blended ones as `Hidden/lilToonTransparent`; built in scratch space
+  from the Included file) rendered patched against unpatched with
+  `animation:render` at 0, 0.5 and 1 s: 0 differing pixels (`effects:render
+  --diff --threshold 0`). `pnpm verify` runs within the full pre-push suite
+  below.
+- Optional findings: all accepted (comments and label updated, test typing
+  simplified, four branch tests added, frame-cost paragraph leads with the
+  in-run comparison, README says "Each patch", working directories recorded
+  below).
+
+Repair check record (2026-10-27, macOS arm64, Apple M5; Phase 4 and 5 drafts
+set aside, so the working tree held Phase 2 only):
+
+- Full pre-push suite on tree `c35ca085` through
+  `python3 scripts/heavy-slot.py`: `make check-test` (root) passed (328 s);
+  `pnpm web:test:browser` (`src/frontend`) passed (583 s); `pnpm
+  prettier:check` (`src/frontend`) passed; `pnpm verify` (`src/frontend`)
+  failed in `tsc -b` on the new branch test's array of differently shaped
+  property objects.
+- Fix: the test's cases are typed `Record<string, number>[]` (test file
+  only). `npx tsc --noEmit -p tsconfig.app.json` (`src/frontend/web`) passed;
+  `pnpm verify` (`src/frontend`, heavy slot) passed on tree `1de985b0`
+  (check, lint, unit tests, build; the patched three-liltoon builds into its
+  own lazy chunk). The other three suite steps stay valid: the fix touches
+  one unit test file they do not run or format differently.
+- `npx vitest run src/lib/avatar/liltoon` (`src/frontend/web`): 55 passed
+  before the typing fix; the patch tests 6 passed after it.
+- The Andrew synthetic-fixture comparison ran on the patch as recorded at
+  tree `e1be3c2a` (unchanged since); the `_Invisible` fix cannot affect it.
+
+#### Code Review #2 Findings
+
+Targeted recheck (repair round 1, high-risk tier) on tree `f51c70d2` (Phase 2
+only): P2-R1-F1 to F4 and the optional items resolved, no regressions.
+Non-blocking: the module comment's "opaque surfaces" was broader than the
+rule; the doc's pre-pass conditions omitted the Invisible toggle; the Andrew
+comparison lacked a tree; formatting of the retyped test was covered only by
+the earlier `prettier:check`. Result: pass.
+
+Independent checks (checks subagent, same tree `f51c70d2`, all from the
+directories named): `pnpm install --frozen-lockfile --offline`
+(`src/frontend`) passed and the patch's sha256 matches the lockfile's
+`patch_hash`; `web/node_modules/@mochiya/three-liltoon` resolves to the
+patched copy; `npx vitest run src/lib/avatar/liltoon
+src/lib/avatar/vfx/silhouetteOverlay.test.ts
+src/lib/avatar/releaseModelScene.test.ts` (`src/frontend/web`) 59 passed;
+`node --test scripts/effect-bench/breakdownPlan.test.ts
+scripts/effect-bench.test.mjs` 7 passed; both `tsc -p` configurations and
+`npx eslint src/lib/avatar/liltoon scripts/effect-bench` passed; the patch
+tests against the unpatched package failed 4 of 6 as expected (the 2 passing
+guard behaviour the patch leaves alone).
+
+#### Code Review #2 Revisions
+
+Non-blocking notes applied by the coordinator: the module comment now says
+"opaque surfaces whose blend replaces the target"; avatar-animation.md lists
+the Invisible toggle among the pre-pass conditions; the Andrew tree is
+recorded above; `npx prettier --check` on the five changed TypeScript files
+(`src/frontend/web`) passed and `npx vitest run
+src/lib/avatar/liltoon/depthPrepass.test.ts` passed on tree `6311d20a600a066e1a15afec6a01bd1fa597a9f8`.
+Repair budget used: one of two rounds. Phase 2 is complete for the agent; the
+owner gate (the pre-pass's edge-sample difference) remains.
+
 ### Phase 3: Morph-weight textures without per-frame reallocation
 
-Review tier: light.
+Review tier: high risk (extends the dependency patch; see P2-R1-F1).
 
 Requirements: R2. Changes (patch): weight textures keyed by mesh (or sized to
 the largest target count among a material's meshes) so a shared material

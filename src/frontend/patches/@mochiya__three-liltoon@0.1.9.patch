@@ -1,0 +1,28 @@
+diff --git a/dist/chunk-KNGRDLOZ.js b/dist/chunk-KNGRDLOZ.js
+index 780338f2028b8ff0e11f0f7f0b03ed2af7013e20..48af714444bc81de5d6c22a73a3987fdb287ae5f 100644
+--- a/dist/chunk-KNGRDLOZ.js
++++ b/dist/chunk-KNGRDLOZ.js
+@@ -1,4 +1,4 @@
+-import { Vector3, Matrix4, Vector2, CubeTexture, Vector4, Color, AmbientLight, HemisphereLight, RawShaderMaterial, GLSL3, DirectionalLight, DataTexture, RGBAFormat, UnsignedByteType, RepeatWrapping, LinearFilter, CustomBlending, NearestFilter, NearestMipmapNearestFilter, NearestMipmapLinearFilter, RedFormat, FloatType, LinearToneMapping, ReinhardToneMapping, CineonToneMapping, ACESFilmicToneMapping, AgXToneMapping, NeutralToneMapping, CustomToneMapping, ShaderChunk, NoToneMapping, SRGBColorSpace, HalfFloatType, LinearSRGBColorSpace, LinearMipmapLinearFilter, ClampToEdgeWrapping, LinearMipmapNearestFilter, BufferAttribute, FrontSide, BackSide, DoubleSide, LessEqualDepth, AlwaysDepth, GreaterEqualDepth, NotEqualDepth, GreaterDepth, EqualDepth, LessDepth, NeverDepth, SrcAlphaFactor, OneMinusSrcAlphaFactor, SrcAlphaSaturateFactor, OneMinusDstAlphaFactor, DstAlphaFactor, OneMinusSrcColorFactor, OneMinusDstColorFactor, SrcColorFactor, DstColorFactor, OneFactor, ZeroFactor, AddEquation, MaxEquation, MinEquation, ReverseSubtractEquation, SubtractEquation, AlwaysStencilFunc, GreaterEqualStencilFunc, NotEqualStencilFunc, GreaterStencilFunc, LessEqualStencilFunc, EqualStencilFunc, LessStencilFunc, NeverStencilFunc, KeepStencilOp, DecrementWrapStencilOp, IncrementWrapStencilOp, InvertStencilOp, DecrementStencilOp, IncrementStencilOp, ReplaceStencilOp, ZeroStencilOp } from 'three';
++import { Vector3, Matrix4, Vector2, CubeTexture, Vector4, Color, AmbientLight, HemisphereLight, RawShaderMaterial, GLSL3, DirectionalLight, DataTexture, RGBAFormat, UnsignedByteType, RepeatWrapping, LinearFilter, CustomBlending, NoBlending, NearestFilter, NearestMipmapNearestFilter, NearestMipmapLinearFilter, RedFormat, FloatType, LinearToneMapping, ReinhardToneMapping, CineonToneMapping, ACESFilmicToneMapping, AgXToneMapping, NeutralToneMapping, CustomToneMapping, ShaderChunk, NoToneMapping, SRGBColorSpace, HalfFloatType, LinearSRGBColorSpace, LinearMipmapLinearFilter, ClampToEdgeWrapping, LinearMipmapNearestFilter, BufferAttribute, FrontSide, BackSide, DoubleSide, LessEqualDepth, AlwaysDepth, GreaterEqualDepth, NotEqualDepth, GreaterDepth, EqualDepth, LessDepth, NeverDepth, SrcAlphaFactor, OneMinusSrcAlphaFactor, SrcAlphaSaturateFactor, OneMinusDstAlphaFactor, DstAlphaFactor, OneMinusSrcColorFactor, OneMinusDstColorFactor, SrcColorFactor, DstColorFactor, OneFactor, ZeroFactor, AddEquation, MaxEquation, MinEquation, ReverseSubtractEquation, SubtractEquation, AlwaysStencilFunc, GreaterEqualStencilFunc, NotEqualStencilFunc, GreaterStencilFunc, LessEqualStencilFunc, EqualStencilFunc, LessStencilFunc, NeverStencilFunc, KeepStencilOp, DecrementWrapStencilOp, IncrementWrapStencilOp, InvertStencilOp, DecrementStencilOp, IncrementStencilOp, ReplaceStencilOp, ZeroStencilOp } from 'three';
+ 
+ // src/generated/textureSemantics.ts
+ var LILTOON_TEXTURE_SEMANTICS = {
+@@ -6954,8 +6954,17 @@ function applyLilToonPassState(material, mode, properties, pass) {
+       _StencilWriteMask: 255
+     });
+   applyLilToonRenderState(material, mode, mappedProperties);
++  if (mode === "opaque" && (pass === "forward" || pass === "outline") && replacesOpaqueTarget(material))
++    material.blending = NoBlending;
+   material.forceSinglePass = true;
+ }
++// Animama patch: lilToon's opaque forward and outline passes write alpha 1, so
++// colour One/Zero with alpha One and Zero or One-minus-source-alpha (lilToon's
++// default) replaces the target exactly. Drawing them unblended gives the same
++// pixels and lets tile-based GPUs remove hidden surfaces.
++function replacesOpaqueTarget(material) {
++  return material.blendEquation === AddEquation && material.blendSrc === OneFactor && material.blendDst === ZeroFactor && (material.blendEquationAlpha ?? material.blendEquation) === AddEquation && (material.blendSrcAlpha ?? material.blendSrc) === OneFactor && [ZeroFactor, OneMinusSrcAlphaFactor].includes(material.blendDstAlpha ?? material.blendDst);
++}
+ 
+ // src/renderer/vertexInputs.ts
+ var defaults = {

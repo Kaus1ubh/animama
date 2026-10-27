@@ -249,11 +249,12 @@ function switchOff(
 }
 
 /**
- * Whether a lilToon material draws opaque colour with blending enabled:
- * three-liltoon sets `CustomBlending` on every material, with One and Zero
- * colour factors for opaque and cutout ones. Drawing it without blending
- * gives the same colour; only the canvas alpha can differ, where the alpha
- * factors blend and the material's alpha is below 1.
+ * Whether a lilToon material draws opaque colour with blending enabled: One
+ * and Zero colour factors under `CustomBlending`. Animama's three-liltoon
+ * patch draws opaque surfaces whose alpha also replaces unblended, so this
+ * finds cutout materials and opaque ones with another alpha blend. Drawing
+ * them without blending gives the same colour; only the canvas alpha can
+ * differ, where the alpha factors blend and the material's alpha is below 1.
  */
 function blendsLikeOpaque(material: LilToonMaterial): boolean {
   return (
@@ -292,10 +293,16 @@ function blendStateOf(material: THREE.Material): string {
   }
 }
 
-/** Draw `materials` with blending off; the undo restores their blending. */
-function blendingOff(materials: readonly LilToonMaterial[]): () => void {
+/**
+ * Draw `materials` with `blending` (their blend factors stay as lilToon set
+ * them); the undo restores each material's own mode.
+ */
+function setBlending(
+  materials: readonly LilToonMaterial[],
+  blending: THREE.Blending,
+): () => void {
   const before = materials.map((material) => material.blending);
-  for (const material of materials) material.blending = THREE.NoBlending;
+  for (const material of materials) material.blending = blending;
   return () =>
     materials.forEach((material, index) => {
       material.blending = before[index]!;
@@ -401,8 +408,22 @@ function featureScenarios(
     scenarios.push({
       id: "feature:opaque-blending",
       group: "features",
-      label: `blending on opaque and cutout materials off (${opaqueBlended.length} of ${materials.length} lilToon materials; same colour)`,
-      apply: () => blendingOff(opaqueBlended),
+      label: `blending off on materials that blend opaque colour (${opaqueBlended.length} of ${materials.length} lilToon materials; same colour)`,
+      apply: () => setBlending(opaqueBlended, THREE.NoBlending),
+    });
+  // Animama's three-liltoon patch draws opaque surfaces and their outlines
+  // unblended; this restores lilToon's own blend state on the surfaces.
+  const unblended = materials.filter(
+    (material) =>
+      material.renderMode === "opaque" &&
+      material.blending === THREE.NoBlending,
+  );
+  if (unblended.length)
+    scenarios.push({
+      id: "feature:authored-blending",
+      group: "features",
+      label: `lilToon's own blending on opaque surfaces (${unblended.length} of ${materials.length} lilToon materials; same colour; outlines stay unblended)`,
+      apply: () => setBlending(unblended, THREE.CustomBlending),
     });
   const prepassed =
     lilToonDepthPrepassEnabled(renderer) && avatar.scene
@@ -445,7 +466,7 @@ function featureScenarios(
 }
 
 /** Render-state changes, applied after feature switches that reset state. */
-const RENDER_STATE_CHANGES = ["opaque-blending"];
+const RENDER_STATE_CHANGES = ["opaque-blending", "authored-blending"];
 
 /**
  * Apply feature scenarios by id (`shadow`, `outline`, `opaque-blending`,
