@@ -341,7 +341,9 @@ marks a part absent), and the VRM file's `vrm_sha256`.
 Primitive keys are stable only for identical VRM bytes. A correction whose
 `vrm_sha256` does not match the loaded file is ignored with a diagnostic, so it
 never applies to a different model; clearing it restores detection. The chat
-canvas passes the correction and the VRM digest to `Avatar.load`;
+canvas and Avatar previews (the Library dock, Included Avatars picked in the
+creators, Avatar Diagnostics) pass the correction and the VRM digest to
+`Avatar.load`;
 `Avatar.setFacePartCorrections` rebuilds the parts, landmarks, anchors and
 bindings and re-applies the active effects.
 

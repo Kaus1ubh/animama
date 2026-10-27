@@ -229,7 +229,9 @@ tenant-inventory row for `avatar_face_part_overrides`. So:
   (R5, R7 and R11 entry points; owner, 2026-10-27). Implemented, checked and
   review passed 2026-10-27 on `feat/arbitrary-vrm-support-pr-b`;
   `pnpm e2e:test:fast` waits for PR B's final candidate; the owner's UI review
-  is pending.
+  is pending. Step 8 (saved corrections in previews, with a preview-dock Stop
+  fix and an Avatar Effect creator URL fix) implemented and reviewed
+  2026-10-27.
 - [ ] Final integration review and full pre-push suite. PR A: `main` at
   `d30a6ddc` merged in on 2026-10-27 (one conflict, in `AnimaAvatarStage.tsx`,
   both sides kept); `local-http` 17.0.0, `runtime-contracts` 0.17.0 and
@@ -2292,6 +2294,123 @@ a commit not yet made.
 - P10-R2-F2: the Commits line keeps the subject, as the other phases do.
 - Review passed. Phase 10 is agent-ready except `pnpm e2e:test:fast`; the
   owner's UI review is pending.
+
+#### Step 8: saved face-part corrections in previews
+
+Why PR A's fix broke the journeys, from a fresh built stack of PR B with the
+fix re-applied (the fast suite once, then the two journeys three times each)
+and PR A's own run evidence:
+
+- The imported-playback journey's `error` after Stop matches a preview-dock
+  race: Stop cleared effects and set the host to `ready` but did not end the
+  play still preparing, whose later failure then reported `error` over it.
+  What made Stop land during preparation in PR A's runs is unconfirmed: the
+  Library particle preview uses the preview Anima's runtime Avatar (not
+  `avatarPreviewTarget`), and no Avatar on a fresh e2e stack has a saved
+  correction, so the forward probably changed no loaded entry there. The race
+  is fixed either way: `ContentPreviewScene` gives each play a token that Stop
+  and deactivation retire, so a preparation still in flight neither starts
+  playback nor reports (idle animations included), and the host's Stop clears
+  the resource-loading overlay that preparation set. Scene tests stop a play
+  still preparing and then fail it or let it succeed; a host test stops during
+  dependency loading (each fails before the change).
+- The Gesture creator discard failure is an editor route that never renders
+  after Library Edit (URL changed or not, no name field within the timeout).
+  The same failure hits other editor journeys (Pose content sharing, Local
+  Gesture discard, Scene discard, Eye = guides) in different suite runs,
+  including PR A's run on `44c6b78e` before the correction existed, and every
+  one passes when rerun alone. It is a suite-load flake independent of the
+  correction, listed as a follow-up in PR B's report.
+- With the fix re-applied (`typedMetadata` keeps `face_parts`;
+  `avatarPreviewEntry` forwards `config.face_parts`, so Library previews,
+  creator picks and the Avatar-item Diagnostics source load with the saved
+  correction): the imported-playback and Gesture discard journeys passed 3 of
+  3 each after a full fast run on the same stack.
+- Found on the way, failing on `main` too: "vfx guides preserve authored JSON
+  with replacement artwork and animation" reported one Avatar VFX warning,
+  `Failed to load VFX asset "blob:…"`. The Avatar Effect creator revoked a
+  replaced image's object URL in the effect cleanup, while an apply of the
+  new document with the old URL (made in the render before the new file's
+  URL existed) was still loading it. `useAvatarEffectImageUrls` now revokes a
+  URL only once its replacement is in use (a hook test fails on the old
+  ordering); the journey then passed 3 of 3 on a rebuilt stack.
+
+Checks (2026-10-27, `src/frontend/web`, tree `27860bda`; repaired tree in Code
+Review #1 Revisions below): `npx vitest run src/ui/content-preview
+src/lib/content src/ui/avatar-effect-creator` 63 files, 398 passed; `tsc`,
+eslint and Prettier on the changed files pass.
+E2E on fresh built stacks of that working tree: the two journeys above 3 of 3
+each; the vfx guides journey 3 of 3 after the creator fix; the fast suite's
+remaining failures (two to four editor-route journeys per run) each passed
+when rerun alone.
+
+##### Step 8 Code Review #1 Findings
+
+Independent reviewer, standard tier, on tree `27860bda`. Sound: the Stop
+token's coverage of effect and motion playback, re-Play, deactivation and
+StrictMode; forwarding `face_parts` (both sides of the creator's comparison are
+zod-parsed, so no needless refresh); `useAvatarEffectImageUrls` (the
+consumer's `removeEffect` bumps the apply token before the hook revokes).
+Reran vitest over the changed modules' consumers (167 files, 1,091 passed).
+
+- P10S8-R1-F1 (blocking): Stop during a clip's dependency preparation left
+  the dock's resource-loading overlay up, because the retired play no longer
+  cleared it and the host's Stop did not.
+- P10S8-R1-F2 (blocking, record): the record claimed the correction made Stop
+  land during preparation, without evidence; the Library particle preview's
+  Avatar does not pass through the forward, and no fresh-stack Avatar has a
+  correction.
+- P10S8-R1-F3 (comment): the creator still said Included previews load
+  without the correction.
+- Optional: idle animations ignored the token; the hook's unmount test
+  asserted nothing; only the failure path of a stopped preparation was
+  tested; a correction saved for an Included Avatar does not change cached
+  preview keys within their grant window (not a regression); record hygiene
+  and two doc lines.
+
+##### Step 8 Code Review #1 Revisions
+
+- F1 accepted: the host's Stop clears `dependenciesLoading`, as Replay does;
+  a host test stops during dependency loading (fails without the change).
+- F2 accepted: the record now says the trigger in PR A's runs is unconfirmed
+  and why the forward probably changed nothing there; the race fix stands on
+  its own evidence.
+- F3 accepted: the comment names a correction saved after load or a cached
+  preview.
+- Optional taken: idle animations pass `isCurrent`; a scene test lets a
+  stopped preparation succeed and checks it does not play; the hook test
+  asserts the revokes on unmount; the record's tree, follow-up and Progress
+  line; `content-previews.md` and `avatar-vfx.md` say Avatar previews load
+  with the saved correction. Not taken: invalidating cached previews when a
+  correction is saved (the creator's own compare-and-apply covers its stage;
+  the dock reloads on the next grant).
+- Checks on the repaired tree `597e891c` (`src/frontend/web`): `tsc`; eslint
+  on the changed directories; `npx vitest run src/ui/content-preview
+  src/lib/content src/ui/avatar-effect-creator src/ui/library src/ui/animas
+  src/ui/content-creator src/ui/pose-creator` 133 files, 825 passed;
+  Prettier on the changed files. Targeted recheck: Step 8 Code Review #2.
+  E2E was not rerun on the repaired tree; the final candidate's runs cover it.
+
+##### Step 8 Code Review #2 Findings
+
+Targeted recheck of `597e891c`: F2, F3 and the optional items resolved; F1
+partly. P10S8-R2-F1 (required): a play retired while its Reaction or pose clip
+was still loading raised the resource-loading overlay after the host's Stop had
+cleared it, because the raise followed the clip load without checking the
+token (a scratch test showed the last value reported was `true`).
+P10S8-R2-F2 (required, record): the E2E sentence had moved under the repaired
+tree's checks, crediting runs to a tree they did not use.
+
+##### Step 8 Code Review #2 Revisions
+
+- R2-F1 accepted: `playContentPreviewMotion` returns right after a Reaction or
+  pose clip loads when the play is no longer current, before any dependency
+  preparation. A `playback.test.ts` case per clip kind fails before the change
+  (the overlay raised once) and passes after; `src/lib/content-preview` and
+  `src/ui/content-preview` vitest 19 files, 110 passed. A trivial repair,
+  verified by that test.
+- R2-F2 accepted: the E2E sentence is back with the `27860bda` checks, and
+  the repaired tree's line says E2E was not rerun.
 
 ## Final integration review
 

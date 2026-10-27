@@ -40,6 +40,8 @@ function avatarPreviewEntry(
       ...object(object(metadata.spec).presentation),
       // The Avatar item, so the preview loads with its saved settings.
       ...(preview.item_id ? { avatar_catalog_item_id: preview.item_id } : {}),
+      // Its saved face part correction, as the Anima runtime entry carries it.
+      ...(metadata.face_parts ? { face_parts: metadata.face_parts } : {}),
     },
     content_revision: preview.revision,
     source: { type: "authorized_files", files },

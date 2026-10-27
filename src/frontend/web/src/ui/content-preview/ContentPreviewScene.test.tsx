@@ -29,6 +29,8 @@ const harness = vi.hoisted(() => ({
     camera: {},
     gl: { domElement: {} },
   },
+  /** The motion playback each play request starts. */
+  playMotion: async () => false as boolean,
 }));
 
 vi.mock("@/lib/avatar", () => ({
@@ -125,7 +127,7 @@ vi.mock("@/lib/content-preview/effects", () => ({
 }));
 vi.mock("@/lib/content-preview/playback", () => ({
   boundedContentPreviewFrameDelta: (delta: number) => delta,
-  playContentPreviewMotion: async () => false,
+  playContentPreviewMotion: () => harness.playMotion(),
 }));
 vi.mock("@/lib/content-preview/lifecycle", () => ({
   acquireContentPreviewResource: () => () => undefined,
@@ -179,7 +181,11 @@ let root: Root;
 let preparationRequest = 0;
 
 /** Render one new preparation, as the host does for each prepared target. */
-async function show(target: ContentPreviewTarget, avatarRevision: string) {
+async function show(
+  target: ContentPreviewTarget,
+  avatarRevision: string,
+  requests: { play?: number; stop?: number } = {},
+) {
   preparationRequest += 1;
   const props: ComponentProps<typeof ContentPreviewScene> = {
     active: true,
@@ -187,10 +193,10 @@ async function show(target: ContentPreviewTarget, avatarRevision: string) {
     avatarEntry: avatarEntry(avatarRevision),
     catalog,
     loop: false,
-    playRequest: 0,
+    playRequest: requests.play ?? 0,
     preparationRequest,
     resetCameraRequest: 0,
-    stopRequest: 0,
+    stopRequest: requests.stop ?? 0,
     target,
     moveAvatar: false,
     onAvatarChange: noop,
@@ -225,6 +231,7 @@ beforeEach(() => {
     materialMode: "automatic",
   };
   harness.three = { camera: {}, gl: { domElement: {} } };
+  harness.playMotion = async () => false;
   preparationRequest = 0;
   container = document.createElement("div");
   document.body.append(container);
@@ -376,5 +383,45 @@ describe("ContentPreviewScene", () => {
       loads: ["avatar-r2"],
       disposed: false,
     });
+  });
+});
+
+describe("ContentPreviewScene Stop", () => {
+  it("ends a play still preparing: its later failure reports nothing", async () => {
+    let fail: (error: Error) => void = noop;
+    harness.playMotion = () =>
+      new Promise<boolean>((_resolve, reject) => {
+        fail = reject;
+      });
+    // One target object, as the host keeps it across Play and Stop.
+    const wave = gesture("wave");
+    await show(wave, "avatar-r1");
+    await finishLoads(0);
+    await show(wave, "avatar-r1", { play: 1 });
+    expect(onStatusChange).toHaveBeenCalledWith("loading", expect.any(String));
+
+    // The host's Stop: status "ready", then the preparation fails.
+    await show(wave, "avatar-r1", { play: 1, stop: 1 });
+    onStatusChange.mockClear();
+    await act(async () => fail(new Error("Effect load aborted.")));
+
+    expect(onStatusChange).not.toHaveBeenCalledWith("error", expect.anything());
+  });
+
+  it("ends a play still preparing: its later success does not play", async () => {
+    let succeed: (played: boolean) => void = noop;
+    harness.playMotion = () =>
+      new Promise<boolean>((resolve) => {
+        succeed = resolve;
+      });
+    const wave = gesture("wave");
+    await show(wave, "avatar-r1");
+    await finishLoads(0);
+    await show(wave, "avatar-r1", { play: 1 });
+    await show(wave, "avatar-r1", { play: 1, stop: 1 });
+    onStatusChange.mockClear();
+    await act(async () => succeed(true));
+
+    expect(onStatusChange).not.toHaveBeenCalledWith("playing");
   });
 });

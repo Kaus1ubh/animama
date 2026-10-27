@@ -167,7 +167,12 @@ function typedMetadata(item: TypedCatalogTransport): Record<string, unknown> {
         defaults: item.defaults,
       };
     case "avatar":
-      return { ...common, compatibility: item.compatibility };
+      return {
+        ...common,
+        compatibility: item.compatibility,
+        // The saved correction, so a preview loads the parts chat uses.
+        face_parts: item.face_parts ?? null,
+      };
     case "appearance":
       return {
         ...common,

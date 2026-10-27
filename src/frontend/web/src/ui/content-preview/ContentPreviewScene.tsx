@@ -132,6 +132,10 @@ function PreviewActor({
   const [avatarInstance, setAvatarInstance] = useState<Avatar | null>(null);
   const loadGenerationRef = useRef(0);
   const handledPlayRequestRef = useRef(0);
+  // Stop and deactivation end the current play: a preparation still in flight
+  // then neither starts playback nor reports its failure over the host's
+  // "ready".
+  const playTokenRef = useRef(0);
   const firstMotionFrameRef = useRef(false);
   const [sceneObject, setSceneObject] = useState<Object3D | null>(null);
   const [avatarRoot, setAvatarRoot] = useState<Group | null>(null);
@@ -281,6 +285,7 @@ function PreviewActor({
 
   useEffect(() => {
     const avatar = avatarRef.current;
+    playTokenRef.current += 1;
     clipEventBridge.reset();
     avatar?.resetAnimations();
     clearContentPreviewEffects({
@@ -293,6 +298,7 @@ function PreviewActor({
 
   useEffect(() => {
     if (active) return;
+    playTokenRef.current += 1;
     const avatar = avatarRef.current;
     clipEventBridge.reset();
     avatar?.resetAnimations();
@@ -328,6 +334,8 @@ function PreviewActor({
       return;
     handledPlayRequestRef.current = playRequest;
     let cancelled = false;
+    const token = ++playTokenRef.current;
+    const isCurrent = () => !cancelled && playTokenRef.current === token;
     clipEventBridge.reset();
     avatar.resetAnimations();
     clearContentPreviewEffects({
@@ -344,7 +352,7 @@ function PreviewActor({
             catalog,
             command: effectCommand,
             onSceneVFXChange,
-            isCurrent: () => !cancelled,
+            isCurrent,
             playApplySound: (runtimeId) =>
               applySoundPlayer.play(catalog, runtimeId),
             stopApplySound: applySoundPlayer.stop,
@@ -361,12 +369,12 @@ function PreviewActor({
           catalog,
           target,
           loop,
-          isCurrent: () => !cancelled,
+          isCurrent,
           onFinished: () => onStatusChange("ready"),
           onMissingDependencies,
           onDependenciesLoadingChange,
         });
-        if (!cancelled && didPlay) {
+        if (isCurrent() && didPlay) {
           // Flush the zero-time expression overlay before the immediate
           // Playing render exposes its observation snapshot.
           avatar.update(0);
@@ -376,7 +384,7 @@ function PreviewActor({
           onStatusChange("playing");
         }
       } catch (error) {
-        if (!cancelled) onStatusChange("error", errorMessage(error));
+        if (isCurrent()) onStatusChange("error", errorMessage(error));
       }
     })();
     return () => {
