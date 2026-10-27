@@ -131,7 +131,8 @@ describe("PiP voice messages", () => {
     expect(isDesktopPipVoiceState({ ...idle, activeMode: "phone" })).toBe(
       false,
     );
-    const { canStartVoice: _, ...partial } = idle;
+    const partial: Partial<DesktopPipVoiceState> = { ...idle };
+    delete partial.canStartVoice;
     expect(isDesktopPipVoiceState(partial)).toBe(false);
     expect(isDesktopPipVoiceState(null)).toBe(false);
   });
@@ -210,23 +211,58 @@ describe("useDesktopPipVoiceOwner", () => {
     });
   });
 
-  it("runs the three voice commands PiP sends for this Anima", async () => {
-    await mount(idle);
+  it("runs the voice commands PiP sends for this Anima's session", async () => {
     const command = (value: unknown, animaId?: string) =>
       deliver(message("voice-command", { command: value }, { animaId }));
 
+    await mount(idle);
     command("start-voice-mode");
+    expect(handlers.startVoiceMode).toHaveBeenCalledOnce();
+    // Nothing to mute or stop while the microphone is idle.
     command("toggle-voice-mute");
     command("stop-mic-session");
-    expect(handlers.startVoiceMode).toHaveBeenCalledOnce();
+    expect(handlers.toggleVoiceMute).not.toHaveBeenCalled();
+    expect(handlers.stopMicSession).not.toHaveBeenCalled();
+
+    await mount(speaking);
+    command("toggle-voice-mute");
+    command("stop-mic-session");
+    command("start-voice-mode");
     expect(handlers.toggleVoiceMute).toHaveBeenCalledOnce();
     expect(handlers.stopMicSession).toHaveBeenCalledOnce();
+    expect(handlers.startVoiceMode).toHaveBeenCalledOnce();
 
     command("start-dictation");
     command("toString");
-    command("start-voice-mode", "other");
-    deliver(message("camera-preset", { command: "start-voice-mode" }));
-    expect(handlers.startVoiceMode).toHaveBeenCalledOnce();
+    command("stop-mic-session", "other");
+    deliver(message("camera-preset", { command: "stop-mic-session" }));
+    expect(handlers.stopMicSession).toHaveBeenCalledOnce();
+  });
+
+  it("does not start voice mode the main window cannot start", async () => {
+    await mount({ ...idle, canStartVoice: false });
+    deliver(message("voice-command", { command: "start-voice-mode" }));
+    expect(handlers.startVoiceMode).not.toHaveBeenCalled();
+  });
+
+  it("clears PiP's controls when the chat leaves, and only while PiP is open", async () => {
+    await mount(speaking);
+    act(() => root.unmount());
+    expect(published("voice")).toHaveLength(0);
+
+    root = createRoot(container);
+    bridge.initialState = Promise.resolve(pipState(true));
+    await mount(speaking);
+    act(() => root.unmount());
+    root = createRoot(container);
+    expect(published("voice").at(-1)?.payload).toEqual({
+      activeMode: null,
+      canStartVoice: false,
+      isDictationPreparing: false,
+      isMicCaptureActive: false,
+      isUserSpeaking: false,
+      isVoiceMicMuted: false,
+    });
   });
 
   it("stays idle inside the PiP window", async () => {
@@ -253,18 +289,18 @@ describe("useDesktopPipVoiceConsumer", () => {
     await act(async () => root.render(<Consumer />));
   });
 
-  it("shows the newest valid state for its Anima", () => {
+  it("shows the latest valid state for its Anima", () => {
     expect(latest?.voice).toBeNull();
-    deliver(message("voice", speaking, { sequence: 2 }));
+    deliver(message("voice", speaking, { sequence: 9 }));
     expect(latest?.voice).toEqual(speaking);
 
+    deliver(message("voice", idle, { animaId: "other" }));
+    deliver(message("voice", { activeMode: "voice" }));
+    deliver(message("snapshot", idle));
+    expect(latest?.voice).toEqual(speaking);
+
+    // A remounted chat starts its sequence again; arrival order wins.
     deliver(message("voice", idle, { sequence: 1 }));
-    deliver(message("voice", idle, { sequence: 3, animaId: "other" }));
-    deliver(message("voice", { activeMode: "voice" }, { sequence: 4 }));
-    deliver(message("snapshot", idle, { sequence: 5 }));
-    expect(latest?.voice).toEqual(speaking);
-
-    deliver(message("voice", idle, { sequence: 6 }));
     expect(latest?.voice).toEqual(idle);
   });
 

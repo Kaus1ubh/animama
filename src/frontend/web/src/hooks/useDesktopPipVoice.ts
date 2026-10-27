@@ -65,6 +65,31 @@ export function isDesktopPipVoiceCommand(
   return typeof value === "string" && Object.hasOwn(VOICE_COMMANDS, value);
 }
 
+/** What PiP shows once no main-window chat can act on its commands. */
+const NO_VOICE: DesktopPipVoiceState = {
+  activeMode: null,
+  canStartVoice: false,
+  isDictationPreparing: false,
+  isMicCaptureActive: false,
+  isUserSpeaking: false,
+  isVoiceMicMuted: false,
+};
+
+/** A command from PiP still fits the session, which may have moved on. */
+function commandFits(
+  command: DesktopPipVoiceCommand,
+  voice: DesktopPipVoiceState,
+): boolean {
+  switch (command) {
+    case "start-voice-mode":
+      return voice.activeMode === null && voice.canStartVoice;
+    case "toggle-voice-mute":
+      return voice.activeMode === "voice";
+    case "stop-mic-session":
+      return voice.activeMode !== null;
+  }
+}
+
 function voiceMessage(
   type: "voice" | "voice-command",
   animaId: string,
@@ -101,6 +126,7 @@ export function useDesktopPipVoiceOwner({
   const { isPipWindow, pipBridge } = usePipBridge();
   const enabled = Boolean(pipBridge && animaId && !isPipWindow);
   const [pipOpen, setPipOpen] = useState(false);
+  const pipOpenRef = useRef(false);
   const handlersRef = useRef(handlers);
   const voiceRef = useRef(voice);
   const sequenceRef = useRef(0);
@@ -109,21 +135,27 @@ export function useDesktopPipVoiceOwner({
     handlersRef.current = handlers;
   }, [handlers]);
 
-  const publish = useCallback(() => {
-    if (!enabled || !pipBridge || !animaId) return;
-    sequenceRef.current += 1;
-    void pipBridge
-      .publishRuntimeMessage(
-        voiceMessage("voice", animaId, sequenceRef.current, voiceRef.current),
-      )
-      .catch(() => {});
-  }, [animaId, enabled, pipBridge]);
+  const send = useCallback(
+    (state: DesktopPipVoiceState) => {
+      if (!enabled || !pipBridge || !animaId) return;
+      sequenceRef.current += 1;
+      void pipBridge
+        .publishRuntimeMessage(
+          voiceMessage("voice", animaId, sequenceRef.current, state),
+        )
+        .catch(() => {});
+    },
+    [animaId, enabled, pipBridge],
+  );
+  const publish = useCallback(() => send(voiceRef.current), [send]);
 
   useEffect(() => {
     if (!enabled || !pipBridge || !animaId) return;
     let changed = false;
-    const follow = (state: DesktopPipState) =>
-      setPipOpen(state.isOpen && state.animaId === animaId);
+    const follow = (state: DesktopPipState) => {
+      pipOpenRef.current = state.isOpen && state.animaId === animaId;
+      setPipOpen(pipOpenRef.current);
+    };
     const unsubscribeState = pipBridge.onStateChange((state) => {
       changed = true;
       follow(state);
@@ -143,16 +175,23 @@ export function useDesktopPipVoiceOwner({
       const command = isRecord(message.payload)
         ? message.payload.command
         : null;
-      if (isDesktopPipVoiceCommand(command)) {
+      if (
+        isDesktopPipVoiceCommand(command) &&
+        commandFits(command, voiceRef.current)
+      ) {
         handlersRef.current[VOICE_COMMANDS[command]]();
       }
     });
     return () => {
       unsubscribeState();
       unsubscribeRuntime();
+      // Leaving (Avatar-only view, another Anima) ends this chat's session,
+      // and nothing here would answer PiP's commands.
+      if (pipOpenRef.current) send(NO_VOICE);
+      pipOpenRef.current = false;
       setPipOpen(false);
     };
-  }, [animaId, enabled, pipBridge, publish]);
+  }, [animaId, enabled, pipBridge, publish, send]);
 
   const {
     activeMode,
@@ -197,20 +236,19 @@ export function useDesktopPipVoiceConsumer(): {
   const params = useParams({ strict: false });
   const animaId = typeof params?.animaId === "string" ? params.animaId : null;
   const [voice, setVoice] = useState<DesktopPipVoiceState | null>(null);
-  const sequenceRef = useRef(0);
 
   useEffect(() => {
     if (!pipBridge || !animaId) return;
+    // States arrive in the order the main window sent them. A remounted owner
+    // starts its sequence again, so the sequence cannot order them.
     return pipBridge.onRuntimeMessage((message) => {
       if (
         message.animaId !== animaId ||
         message.type !== "voice" ||
-        !isDesktopPipVoiceState(message.payload) ||
-        message.sequence < sequenceRef.current
+        !isDesktopPipVoiceState(message.payload)
       ) {
         return;
       }
-      sequenceRef.current = message.sequence;
       setVoice(message.payload);
     });
   }, [animaId, pipBridge]);
