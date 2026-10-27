@@ -307,6 +307,38 @@ Important behavior:
   diagnostics. Manual debug reaction playback is runtime-only:
   it does not enqueue planner events or mutate canonical emotion state.
 
+#### Hand rest normalization
+
+Hand shapes, catalog poses (including `relaxedRest`), Gesture hand tracks,
+talking hands, VRMA playback and Pose creator authoring all write finger
+rotations for VRoid's hand: at rest its fingers lie straight along the arm,
+palms down, with the thumbs angled forward. A model whose hand rests otherwise
+(fingers bent down, the hand rolled, thumbs further forward, as on many
+converted VRChat Avatars) would bend them in the wrong planes.
+
+At load, `prepareLoadedVrm` calls `installHandRestNormalization`
+(`poses/anatomy/handRest.ts`). It measures each hand and finger bone's rest
+frame (bone direction and palm normal) against VRoid's, measured on Annie, and
+when any differs by 5° or more it normalizes both hands:
+
+- The instance's `humanoid.update` transfers each corrected bone's rotation N
+  as `W_parent⁻¹ · N · W_bone`, where `W` turns the model's rest frame into
+  VRoid's, and restores the authored rotations afterwards. Every `vrm.update`
+  passes through it, so every writer above is covered, in the app,
+  `animation:render` and the tests alike.
+- The normalized rig's hand and finger child offsets (and three-vrm's
+  normalized rest pose) are turned by their parent's `W`, so the normalized
+  hand has VRoid's shape with the model's lengths. Readers of normalized
+  geometry (thumb and pinch fits, fingertip and palm contacts, Pose creator
+  markers) then see the hand as drawn.
+- Each bone is measured from its nearest present ancestor, as three-vrm
+  parents it; a bone with nothing to measure (no later bone in its digit)
+  follows its parent rigidly.
+
+The Included Avatars and VRoid models are within the tolerance and take the
+same path as before. A normalized hand rests straight, palm down, like
+VRoid's; the idle pose bends it as on the Included Avatars.
+
 ### Pose and clip JSON artifacts
 
 `AnimaPose` and `AnimaPoseClip` are separate JSON artifacts. `animaPoseClip/2.0`
@@ -887,9 +919,10 @@ Important behavior:
   (inspectors, `getValue`), and every path that updates the manager — chat,
   creator writes, previews and review renders — gets the same correction.
   The profile is chosen by the VRM's `vrmSha256`: verified for Annie (k 0.2164).
-  Other Avatars, including Andrew, get happy 1 / k 0.2 for
-  each of happy and relaxed whose morphs measurably move blink's vertices
-  closed, and nothing otherwise. VRoid's eye parts `Fcl_EYE_Joy` and
+  Other VRoid faces (with VRoid eye parts of their own), including Andrew, get
+  happy 1 / k 0.2 for each of happy and relaxed whose morphs measurably move
+  blink's vertices closed, and nothing otherwise. Other models are measured
+  instead ([Faces on non-VRoid Avatars](avatar-emotion.md#faces-on-non-vroid-avatars)). VRoid's eye parts `Fcl_EYE_Joy` and
   `Fcl_EYE_Fun` carry all of happy's and relaxed's eyelid motion, so they take
   the same factors; the correction registers them from the face's morph
   targets when a VRM 0 file has no expressions for them. An expression with a
@@ -931,9 +964,9 @@ unresolved on that mesh, and the controller logs them as ambiguous. A name the
 file already uses for an expression keeps that expression.
 `getArkitFaceCapability()` returns the resolved shapes, the missing ones and the
 ambiguous candidates. `getAvailableExpressions()` lists each resolved shape
-once, under its canonical name. When an Avatar has every shape the emotion table
-uses, its mood presets and VRoid parts also become ARKit mixes; see
-[ARKit Avatars](avatar-emotion.md#arkit-avatars).
+once, under its canonical name. Each mood region whose shapes the Avatar has
+also plays an ARKit mix, after the Avatar's own VRoid parts and standard MMD
+morphs; see [Faces on non-VRoid Avatars](avatar-emotion.md#faces-on-non-vroid-avatars).
 
 `pnpm -s vrm:inspect <file.vrm>` (from `src/frontend/web`) reports the same
 resolution for a file before import, including shapes found under another

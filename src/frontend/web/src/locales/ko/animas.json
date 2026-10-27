@@ -94,7 +94,17 @@
       "missing": "없는 표정",
       "playsFaces": "기분을 ARKit 셰이프로 재생",
       "present": "표준 표정",
-      "unresolved": "요청됐지만 이 아바타에 없음"
+      "unresolved": "요청됐지만 이 아바타에 없음",
+      "fromMmd": "{{name}} (MMD)",
+      "moods": "기분 얼굴",
+      "moodValue": "눈썹 {{brow}} · 눈 {{eye}} · 입 {{mouth}}",
+      "regionSources": {
+        "vroid": "자체 파츠",
+        "mmd": "MMD",
+        "arkit": "ARKit",
+        "preset": "프리셋",
+        "none": "없음"
+      }
     },
     "face": {
       "confidence": "신뢰도",
@@ -177,7 +187,9 @@
       "springs_helper_failed": "스프링 본 가이드를 그릴 수 없습니다.",
       "springs_metadata_missing": "파일에 스프링 본 설정이 없어 스프링이 절반 세기로 움직입니다.",
       "springs_source_unavailable": "파일의 스프링 본 데이터를 읽을 수 없어 기본 설정을 사용합니다.",
-      "springs_unmapped_joints_other": "스프링 조인트 {{count}}개를 파일의 스프링 데이터와 연결할 수 없습니다."
+      "springs_unmapped_joints_other": "스프링 조인트 {{count}}개를 파일의 스프링 데이터와 연결할 수 없습니다.",
+      "face_expressions_none": "이 아바타에는 기분용 얼굴 셰이프(VRoid 파츠, MMD 모프, ARKit 셰이프, 기분 프리셋)가 없어 얼굴은 무표정으로 유지됩니다. 기분은 동작과 효과로 표현됩니다.",
+      "iris_hide_unavailable": "콘텐츠가 눈동자를 숨기도록 했지만(Fcl_EYE_Iris_Hide) 이 아바타의 눈동자 메시 파츠는 숨길 수 없습니다. 찾지 못했거나 얼굴 피부와 메시 파츠를 공유합니다."
     },
     "json": {
       "collapseAll": "모두 접기",

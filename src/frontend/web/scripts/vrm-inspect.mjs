@@ -153,8 +153,11 @@ async function inspectLoadedFace(bytes) {
     const { resolveArkitFacesPerMesh } = await web.load(
       path.join(webRoot, "src/lib/avatar/arkitFaceCapability.ts"),
     );
-    const { registerArkitFace } = await web.load(
+    const { ownFaceNames, registerArkitFace } = await web.load(
       path.join(webRoot, "src/lib/avatar/arkitFaceExpressions.ts"),
+    );
+    const { registerMmdFace } = await web.load(
+      path.join(webRoot, "src/lib/avatar/mmdFaceExpressions.ts"),
     );
     const vrm = await web.module.loadHeadlessVrm(
       bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
@@ -170,15 +173,18 @@ async function inspectLoadedFace(bytes) {
     const authored = [...capability.resolved.keys()].filter((canonical) =>
       vrm.expressionManager?.getExpression(canonical),
     );
-    // The same decision `Avatar.load` makes (after `authored` is read, since
-    // registering adds the canonical names).
-    const { playsFacesWithArkit } = registerArkitFace(vrm);
+    // The same decisions `Avatar.load` makes, MMD morphs first (after
+    // `authored` is read, since registering adds the canonical names).
+    registerMmdFace(vrm, ownFaceNames(vrm));
+    const { playsFacesWithArkit, moods } = registerArkitFace(vrm);
     return {
       morphNames: new Set(meshNames.flat()).size,
       arkit: {
         resolved: capability.resolved.size,
         total: capability.resolved.size + capability.missing.length,
         playsFacesWithArkit,
+        // Each mood preset's region sources (brow, eye, mouth).
+        moods,
         authored,
         // Shapes found under another name, to check the matching by eye.
         renamed: Object.fromEntries(
@@ -247,9 +253,16 @@ export function formatReport(report) {
   if (arkit.resolved > 0)
     lines.push(
       arkit.playsFacesWithArkit
-        ? "  Animama plays this Avatar's faces as ARKit mixes"
-        : "  Animama plays the file's presets (it lacks a table shape or has VRoid mood parts)",
+        ? "  Animama plays some of this Avatar's mood regions as ARKit mixes"
+        : "  Animama plays the file's presets (no mood region has all its table shapes, or it has VRoid mood parts)",
     );
+  lines.push(
+    "mood faces (brow/eye/mouth):",
+    ...Object.entries(arkit.moods).map(
+      ([preset, regions]) =>
+        `  ${preset}: ${regions.brow}/${regions.eye}/${regions.mouth}`,
+    ),
+  );
   if (arkit.authored.length)
     lines.push(`  authored by the file: ${arkit.authored.join(", ")}`);
   for (const [canonical, morphs] of Object.entries(arkit.renamed))

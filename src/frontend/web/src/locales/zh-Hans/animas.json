@@ -94,7 +94,17 @@
       "missing": "缺少的表情",
       "playsFaces": "通过 ARKit 形态播放情绪",
       "present": "标准表情",
-      "unresolved": "被请求但此虚拟形象没有"
+      "unresolved": "被请求但此虚拟形象没有",
+      "fromMmd": "{{name}}（MMD）",
+      "moods": "情绪面部",
+      "moodValue": "眉毛 {{brow}} · 眼睛 {{eye}} · 嘴 {{mouth}}",
+      "regionSources": {
+        "vroid": "自带部件",
+        "mmd": "MMD",
+        "arkit": "ARKit",
+        "preset": "预设",
+        "none": "无"
+      }
     },
     "face": {
       "confidence": "置信度",
@@ -177,7 +187,9 @@
       "springs_helper_failed": "无法绘制弹簧骨骼参考线。",
       "springs_metadata_missing": "文件没有弹簧骨骼设置，因此弹簧以一半强度摆动。",
       "springs_source_unavailable": "无法读取文件的弹簧骨骼数据，因此弹簧使用默认设置。",
-      "springs_unmapped_joints_other": "有 {{count}} 个弹簧关节无法与文件的弹簧数据对应。"
+      "springs_unmapped_joints_other": "有 {{count}} 个弹簧关节无法与文件的弹簧数据对应。",
+      "face_expressions_none": "此虚拟形象没有用于情绪的面部形态（VRoid 部件、MMD 变形、ARKit 形态或情绪预设），因此面部保持中性；情绪通过动作和特效表现。",
+      "iris_hide_unavailable": "内容要求隐藏瞳孔（Fcl_EYE_Iris_Hide），但无法隐藏此虚拟形象的瞳孔网格部件：未找到，或与面部皮肤共用网格部件。"
     },
     "json": {
       "collapseAll": "全部折叠",

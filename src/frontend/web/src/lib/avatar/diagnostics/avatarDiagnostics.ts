@@ -5,7 +5,12 @@ import {
 } from "@pixiv/three-vrm";
 
 import { ARKIT_BLENDSHAPES } from "../arkit";
-import { arkitMixOf } from "../arkitFaceExpressions";
+import type { FaceRegion } from "../arkitFaceCompositions";
+import {
+  arkitMixOf,
+  isAnimamaFaceExpression,
+  type FaceRegionSource,
+} from "../arkitFaceExpressions";
 import type { Avatar } from "../Avatar";
 import type { AvatarMaterialMode, AvatarSpringMode } from "../avatarSettings";
 import type {
@@ -24,8 +29,16 @@ export type AvatarDiagnosticsFacePart = {
   confidence: number;
 };
 
-/** Where a standard expression the Avatar plays comes from. */
-export type AvatarExpressionSource = "model" | "arkit";
+/**
+ * Where a standard expression the Avatar plays comes from: the file, an ARKit
+ * mix, or Animama's composition of MMD morphs (and ARKit mixes) by region.
+ */
+export type AvatarExpressionSource = "model" | "arkit" | "mmd";
+
+/** Where each region of a mood preset's face comes from (R12). */
+export type AvatarMoodFace = {
+  preset: string;
+} & Record<FaceRegion, FaceRegionSource>;
 
 /**
  * Facts read from a loaded Avatar. Names are limited to standard vocabularies
@@ -44,6 +57,8 @@ export type AvatarLiveDiagnostics = {
     presets: { name: string; source: AvatarExpressionSource }[];
     missingPresets: string[];
     arkit: { resolved: number; total: number; playsFaces: boolean };
+    /** Each mood preset's face, region by region, as emotions play it. */
+    moods: AvatarMoodFace[];
     /** Names emotions or clips asked for that the Avatar cannot play. */
     unresolved: { names: string[]; otherCount: number };
   };
@@ -117,7 +132,11 @@ function collectExpressions(
     if (expression) {
       presets.push({
         name,
-        source: arkitMixOf(expression) ? "arkit" : "model",
+        source: arkitMixOf(expression)
+          ? "arkit"
+          : isAnimamaFaceExpression(expression)
+            ? "mmd"
+            : "model",
       });
     } else if (looksWithExpressions || !LOOK_PRESETS.has(name)) {
       // A model that looks with its eye bones does not need look expressions.
@@ -135,12 +154,33 @@ function collectExpressions(
       total: ARKIT_BLENDSHAPES.length,
       playsFaces: arkitFace?.playsFacesWithArkit ?? false,
     },
+    moods: Object.entries(arkitFace?.moods ?? {}).map(([preset, regions]) => ({
+      preset,
+      ...regions,
+    })),
     unresolved: {
       names: unresolved.filter(isStandardExpressionName),
       otherCount: unresolved.filter((name) => !isStandardExpressionName(name))
         .length,
     },
   };
+}
+
+/**
+ * A face with nothing to play moods (no VRoid parts, MMD morphs, ARKit shapes
+ * or mood presets) stays neutral: lids are not lowered and mouth visemes are
+ * not used for moods (owner decision 8), so say so.
+ */
+function expressionIssues(
+  expressions: AvatarLiveDiagnostics["expressions"],
+): AvatarIssue[] {
+  const neutral =
+    expressions.moods.length > 0 &&
+    expressions.moods.every(
+      (mood) =>
+        mood.brow === "none" && mood.eye === "none" && mood.mouth === "none",
+    );
+  return neutral ? [{ code: "face_expressions_none" }] : [];
 }
 
 function collectMotion(avatar: Avatar): AvatarLiveDiagnostics["motion"] {
@@ -168,8 +208,10 @@ function collectMotion(avatar: Avatar): AvatarLiveDiagnostics["motion"] {
 export function collectAvatarLiveDiagnostics(
   avatar: Avatar,
 ): AvatarLiveDiagnostics {
+  const expressions = collectExpressions(avatar);
   const issues = mergeAvatarIssues(
     avatar.loadIssues,
+    expressionIssues(expressions),
     avatar.facePartMap?.issues,
     avatar.getFaceLandmarksSnapshot()?.issues,
     avatar.getFaceTextureAnchorsSnapshot()?.issues,
@@ -178,7 +220,7 @@ export function collectAvatarLiveDiagnostics(
   );
   return {
     face: collectFace(avatar),
-    expressions: collectExpressions(avatar),
+    expressions,
     motion: collectMotion(avatar),
     materials:
       avatar.lilToonMaterials === "none"

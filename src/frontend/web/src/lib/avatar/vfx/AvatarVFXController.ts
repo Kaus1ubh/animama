@@ -491,6 +491,9 @@ function shouldForceBlink(effect: AvatarVFXCatalogEntry): boolean {
   return isEyeHoverVFXEntry(effect) && (effect.forceBlink ?? true);
 }
 
+/** The hiding source `Fcl_EYE_Iris_Hide` counts under, beside effects. */
+const IRIS_HIDE_SOURCE = "expression:Fcl_EYE_Iris_Hide";
+
 /**
  * Whether hiding these roles hides a mesh that serves `roles`. A mesh that is
  * also face skin or an iris stays visible unless that role is hidden too, so
@@ -1910,6 +1913,8 @@ export class AvatarVFXController {
   private _warnings: string[] = [];
   private _issues: AvatarIssue[] = [];
   private readonly _regionHider = new PrimitiveRegionHider();
+  /** Bindings hidden for `Fcl_EYE_Iris_Hide`, or null while it is not held. */
+  private _irisHideKeys: string[] | null = null;
   private _snapshot: AvatarVFXSnapshot;
   private _observationSnapshot: AvatarVFXObservationSnapshot;
   private _isDisposed = false;
@@ -2702,6 +2707,9 @@ export class AvatarVFXController {
         this._applyTokens.get(effect.appliedEffectId) ?? 0,
       ]),
     );
+    // Shown again before the bindings are rebuilt, then hidden again on them.
+    const irisHidden = this._irisHideKeys !== null;
+    this.setIrisHidden(false);
     // Body, sticker and silhouette effects use no face part and stay as they are.
     this._clearFaceEffects();
     this._bindings.forEach((binding) => {
@@ -2712,6 +2720,7 @@ export class AvatarVFXController {
     this._warnings = [];
     this._issues = [];
     this._rebuildBindings();
+    if (irisHidden) this.setIrisHidden(true);
     this._emit();
 
     for (const effect of ordered) {
@@ -2994,6 +3003,7 @@ export class AvatarVFXController {
 
   dispose(): void {
     if (this._isDisposed) return;
+    this.setIrisHidden(false);
     this._pendingTransformRedraws.clear();
     this.clearAllEffects();
     this._regionHider.restoreAll();
@@ -4455,7 +4465,7 @@ export class AvatarVFXController {
 
   private _applyAutoDisabledBindings(
     sourceEffectId: string,
-    sourceBinding: BindingState,
+    sourceBinding: BindingState | null,
     disableTargetRoles: AvatarVFXTargetRole[],
   ): string[] {
     if (disableTargetRoles.length === 0) return [];
@@ -4463,7 +4473,7 @@ export class AvatarVFXController {
 
     const disabledBindingKeys: string[] = [];
     this._bindings.forEach((binding) => {
-      if (binding.bindingKey === sourceBinding.bindingKey) return;
+      if (binding.bindingKey === sourceBinding?.bindingKey) return;
       if (!bindingIsHiddenByRoles(binding.targetRoles, disableTargetRoles)) {
         return;
       }
@@ -4475,6 +4485,35 @@ export class AvatarVFXController {
       disabledBindingKeys.push(binding.bindingKey);
     });
     return disabledBindingKeys;
+  }
+
+  /**
+   * Hide the irises while `Fcl_EYE_Iris_Hide` is held on a model without a
+   * shape of that name (`irisHideExpression.ts`), as eye effects hide parts:
+   * counted with them, and applied again when the face parts are rebuilt.
+   */
+  setIrisHidden(hidden: boolean): void {
+    if (this._isDisposed || hidden === (this._irisHideKeys !== null)) return;
+    if (hidden) {
+      this._irisHideKeys = this._applyAutoDisabledBindings(
+        IRIS_HIDE_SOURCE,
+        null,
+        ["eye_iris"],
+      );
+      if (this._irisHideKeys.length === 0) {
+        // No iris was found, or it shares a mesh part with the face skin.
+        this._pushWarning(
+          { code: "iris_hide_unavailable" },
+          "Fcl_EYE_Iris_Hide plays, but no iris mesh part can be hidden on this Avatar.",
+        );
+      }
+    } else {
+      this._releaseAutoDisabledBindings({
+        appliedEffectId: IRIS_HIDE_SOURCE,
+        disabledBindingKeys: this._irisHideKeys ?? [],
+      });
+      this._irisHideKeys = null;
+    }
   }
 
   /**
@@ -4519,7 +4558,10 @@ export class AvatarVFXController {
   }
 
   private _releaseAutoDisabledBindings(
-    activeEffect: ActiveBindingEffect,
+    activeEffect: Pick<
+      ActiveBindingEffect,
+      "appliedEffectId" | "disabledBindingKeys"
+    >,
   ): void {
     this._regionHider.release(activeEffect.appliedEffectId);
     const disabledBindingKeys = activeEffect.disabledBindingKeys;

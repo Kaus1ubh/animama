@@ -91,6 +91,7 @@ import {
   lilToonMaterialStateOf,
   type LilToonMaterialState,
 } from "./liltoon/lilToon";
+import { irisHideBindOf } from "./irisHideExpression";
 import { prepareLoadedVrm } from "./prepareLoadedVrm";
 import type { ArkitFace } from "./arkitFaceExpressions";
 import {
@@ -566,12 +567,18 @@ export class Avatar {
         this._lilToonMaterials !== "none",
       );
     }
-    const { arkitFace, eyelidClosure } = prepareLoadedVrm(vrm, {
+    const { arkitFace, eyelidClosure, handRest } = prepareLoadedVrm(vrm, {
       vrmSha256: this._vrmSha256,
     });
     this._arkitFace = arkitFace;
     if (eyelidClosure) {
       logger.info("Load", "Eyelid closure correction", eyelidClosure);
+    }
+    if (handRest) {
+      logger.info("Load", "Hand rest normalized to VRoid's", {
+        bones: handRest.bones.size,
+        maxDegrees: Math.round(handRest.maxDegrees),
+      });
     }
     this.poseController = new PoseController(vrm, {
       isVrm0: this._isVrm0,
@@ -625,6 +632,10 @@ export class Avatar {
     this._unsubscribeVfxDiagnostics = this.vfxController.subscribe(() =>
       this._notifyDiagnostics(),
     );
+    // `Fcl_EYE_Iris_Hide` on a model without that shape hides its irises.
+    irisHideBindOf(vrm)?.setListener((hidden) =>
+      this.vfxController?.setIrisHidden(hidden),
+    );
     this.expressionController.setUnresolvedExpressionListener(() =>
       this._notifyDiagnostics(),
     );
@@ -664,6 +675,7 @@ export class Avatar {
       this.faceLandmarks = null;
       this._unsubscribeVfxDiagnostics?.();
       this._unsubscribeVfxDiagnostics = null;
+      irisHideBindOf(this.vrm)?.setListener(null);
       this.vfxController?.dispose();
       this.vfxController = null;
       this.particleVFXController?.dispose();

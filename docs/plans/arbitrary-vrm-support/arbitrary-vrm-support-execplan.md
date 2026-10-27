@@ -210,8 +210,11 @@ tenant-inventory row for `avatar_face_part_overrides`. So:
   setting). Implemented, checked and review passed 2026-10-26; the owner
   accepted the Included Avatars' spring change on 2026-10-27; the rest of the
   owner gate (live wind modes, the Simple look) is pending.
-- [ ] Phase 4: Expression content and MMD face shapes (R4, R12). Not started.
-- [ ] Phase 5: Hands (R6). Not started.
+- [ ] Phase 4: Expression content and MMD face shapes (R4, R12). Implemented,
+  checked and review passed 2026-10-27; the owner gate (private mood renders,
+  live lip-sync checks, two confirmations) is pending.
+- [ ] Phase 5: Hands (R6). Implemented, checked and review passed
+  2026-10-27; the owner gate (private hand Gesture renders) is pending.
 - [ ] Phase 6: Texture layouts (R2). Not started.
 - [ ] Phase 7: Rest pose, proportions and enhanced rendering (R9, R10). Not started.
 - [ ] Phase 8: Package sharing (R13). Not started.
@@ -394,6 +397,50 @@ tenant-inventory row for `avatar_face_part_overrides`. So:
   and load state (`onAvatarStateChange`) to the upload step. The Library
   dialog opens Diagnostics nested inside it, so Escape closes Diagnostics
   first.
+- 2026-10-27, agent (Phase 4, within the plan; recorded in `avatar-emotion.md`):
+  - #688's per-Avatar rules became per region. A region plays the model's own
+    VRoid part, else its standard MMD morph, else the ARKit mix when every
+    shape that region of the table uses resolves, else the preset fallback.
+    So an Avatar missing a table shape now plays its other regions' mixes.
+  - The whole-face names (the mood preset and `Fcl_ALL_<Mood>`) combine their
+    regions' MMD morphs and ARKit mixes and replace an authored preset, as the
+    mixes did. A mood with a region neither covers keeps the file's own preset
+    whole: one preset cannot be split by region, and a partial face would be
+    worse than today's. Without an own preset that region stays neutral.
+    Content keying a single region still plays its MMD morph or mix.
+  - `Fcl_EYE_Close`, `_L` and `_R` play ARKit's blink shapes as before, else
+    the blink presets. `Fcl_EYE_Iris_Hide` is an expression whose bind tells
+    `AvatarVFXController.setIrisHidden` when it is held (weight 0.5 or more),
+    counted with effects that hide parts; `animation:render`, which has no
+    effect controller, does not hide irises.
+  - Emotion-map names the Avatar cannot play are reported (for example
+    `Fcl_MTH_Large` without `jawOpen` beside a resolved smile), except when the
+    whole positive-mood fallback (`relaxed`) replaces the map's names.
+  - Eyelid closure measures every lid-closing expression's share of blink's
+    motion on models without VRoid eye parts of their own. VRoid faces keep
+    the default profile instead of a digest pin for Andrew: their smiling eyes
+    are an arc that the share along blink's motion understates (about 0.62 for
+    happy on VRoid samples, where Annie's verified profile needs 1), so
+    measuring them would let blink collapse the lashes. Annie keeps her
+    verified profile; Andrew, a VRoid face, keeps the default as before.
+- 2026-10-27, agent (Phase 5, within the plan):
+  - The correction is exact rather than a constant multiplier after the
+    transfer: the wrapper sets each corrected bone's normalized rotation N to
+    `W_parent⁻¹ · N · W_bone` for three-vrm's transfer and restores it after,
+    which equals the constant post-transfer form only when N and W share an
+    axis.
+  - Instead of giving each normalized-space reader the correction, the
+    normalized rig's hand and finger child offsets (and three-vrm's normalized
+    rest pose, used by resets) are turned by their parent's `W` once at load.
+    With the exact correction every bone's drawn frame is its normalized frame
+    times `W`, so the normalized rig then matches the drawn hand and the
+    thumb and pinch fits, contact points and motion checks need no change.
+  - The hand bone itself is corrected with the fingers: the converted test
+    Avatar's hand rests bent about 22° down and rolled about 20°, and
+    straightening only the fingers would kink them against the palm.
+  - The reference frames are Annie's (Andrew agrees within 0.2°) and the
+    tolerance is 5°; the Included Avatars and the VRM 0 VRoid fixture measure
+    under it, the converted test Avatar 38° over 32 bones.
 
 ## Decisions
 
@@ -1213,21 +1260,147 @@ check.
 Owner gate: private renders of moods on the converted test Avatar (R12) and of
 positive-emotion mouths on a preset-only model (R4); a live check of a
 mood-held `jawOpen` under lip sync, with visemes and with ARKit lip-sync
-shaping.
+shaping, and of a surprised face while speaking on an MMD model (its お and
+`oh` viseme may bind one morph); confirmation that a partly covered mood keeps
+the file's own preset whole (Decision Log); acceptance of the one-pixel
+`double-take` render difference (check record).
 
 Completion: R4 and R12 acceptance; owner gate passed.
 
 Recovery: load-time registration only.
 
-Check record: (to fill) · Commits: (to fill)
+Check record (2026-10-27, macOS arm64, worktree on
+`feat/arbitrary-vrm-support-pr-b` from `06d381c9`):
+
+- New tests: `mmdFaceExpressions.test.ts` (each mapped region plays its MMD
+  morph; a mood MMD covers fully is composed and replaces the authored
+  preset, one it covers partly keeps the preset while its MMD region still
+  plays for a part; MMD plus ARKit fills sad's eyes and mouth from ARKit with
+  ARKit's brows still; positive emotions smile with にっこり; `Fcl_MTH_Large`
+  reported without `jawOpen`; blink stays within shut under 笑い; the `aa`
+  viseme stays still for moods), `includedFaceNames.test.ts` (every one of the
+  18 `Fcl_*` names in `content/included` plays on a preset-only model or is
+  reported, and only mouth parts are reported; a model with only a blink and
+  visemes stays neutral, shows no viseme motion for moods and gets
+  `face_expressions_none`; `Fcl_EYE_Iris_Hide` reports its held state and a
+  model's own shape wins) and a `facial-controls.test.ts` case (irises hidden
+  while held, counted with an effect that hides them, re-hidden after the
+  bindings rebuild). Updated: the ARKit per-region rules
+  (`arkitFaceExpressions.test.ts`: a missing table shape now leaves only its
+  region; a partly covered mood keeps the authored preset; the Perfect Sync
+  fixture has all VRoid parts) and eyelid closure (`eyelidClosure.test.ts`:
+  measured shares on a non-VRoid model; VRoid faces keep the default).
+  Included baselines unchanged.
+- `npx vitest run src/lib/avatar src/ui tests/avatar` (`src/frontend/web`):
+  331 files, 3,320 passed, 2 skipped; `node --test scripts/vrm-inspect.test.mjs
+  scripts/vrm-bake-expressions.test.mjs`: 10 passed; tsc (`tsconfig.app.json`,
+  `tsconfig.scripts.json`), `pnpm -s web:lint`, `pnpm -s i18n:check`: pass;
+  Prettier on the changed files: pass.
+- Review renders, `06d381c9` against the phase end, enhanced and classic:
+  `effects:render` with `--expression` happy, relaxed, sad, angry,
+  surprised and `Fcl_MTH_Fun`, and `--with-clip` Reactions `joy-3`,
+  `amusement-2`, `sadness-2`, `anger-2`, `fear-2`, `embarrassment-2` and the
+  Gestures `shy-finger-poke-loop` and `double-take`: 27 of 28 sheets at 0
+  differing pixels. `double-take` (enhanced) differs in one pixel (Andrew's
+  face tile at 2 s, channel delta 19), reproducibly; the phase-start
+  `AvatarVFXController.ts` gives 0, and so does no change, but an inert edit
+  of that module (an unused constant) gives the same pixel, so it is render
+  timing, not behaviour. (One sheet failed once when a source edit reloaded
+  the review page mid-run; rerendered.)
+- Load-time corrections (`avatarLoadTiming.test.ts`, median of 5): Andrew
+  56.9 ms before, 56.5 ms after (17 primitives); Annie 45.4 ms before, 46.2 ms
+  after (15).
+- `vrm:inspect` on the converted test Avatar (private): every MMD standard
+  morph and 52 of 52 ARKit shapes; happy, relaxed and surprised play MMD in
+  all three regions, sad an MMD brow with ARKit eyes and mouth, angry MMD
+  brows and eyes with an ARKit mouth.
+
+Commits: `feat(avatars)[p4]: play moods from MMD morphs and ARKit mixes region by region`
 
 #### Code Review #1 Findings
 
-Not run.
+Independent reviewer, standard tier, initial review of working tree `cc5c3be2`
+against `06d381c9`; it reran the full avatar and UI vitest set (3,320 passed),
+the script tests, both tsc configurations and eslint on the changed files, and
+probed empty presets out of tree.
+
+- P4-R1-F1 (blocking): the measured eyelid share (an average along blink's
+  motion) understates arc-shaped smiling eyes, which the Decision Log itself
+  shows for VRoid (0.62 where 1 is needed); MMD 笑い is that shape, and a
+  non-VRoid model's closing `happy` dropped from 1 to its share. The only test
+  used a linear fixture.
+- P4-R1-F2 (blocking): three-vrm registers every preset, so an empty preset
+  counted as the file's own: a partly covered mood kept it whole and played
+  nothing, nothing was reported, and a model with only empty presets got no
+  `face_expressions_none`.
+- P4-R1-F3 (blocking): `Fcl_EYE_Iris_Hide` always counted as resolved, but
+  hiding nothing (no iris, or an iris in the face skin's primitive) was never
+  reported.
+- P4-R1-F4 (blocking, trivial): `avatar-animation.md` (two passages) and
+  `vrm-bake-expressions.mjs` (header, JSDoc, comment and rule) still described
+  the per-Avatar ARKit rule and VRoid constants for every model.
+- Optional: お may share a morph with the `oh` viseme (add to the live
+  check); a partly covered mood keeping the preset departs from the literal
+  region order (owner confirmation); the one-pixel render difference needs
+  owner acceptance; `coversArkitTable` and `MmdFace.parts` unused; MMD binding
+  duplicated `registerMorphExpression`; `isAnimamaFaceExpression` left out the
+  iris expression; delight's two smile parts bind にっこり twice (mirrors ARKit).
 
 #### Code Review #1 Revisions
 
-Not run.
+- F1 accepted. Measured: on Annie happy shares 0.62 of blink's motion on
+  average and 0.69 at the lid's own vertices (90th percentile of per-vertex
+  shares where blink moves at least a quarter of its furthest vertex); relaxed
+  0.145; on Andrew 0.75 and 0.13; on the converted test Avatar (private) 笑い
+  0.98 and なごみ 0.91 at the lid. Non-ARKit expressions now correct by that
+  lid share divided by Annie's happy (0.69), which reproduces her verified
+  relaxed (0.21 against 0.2164) and Andrew's default (0.19 against 0.2) and
+  gives the converted Avatar's 笑い full suppression; ARKit mixes keep #688's
+  share. New test: the calibration reproduces Annie's verified profile; the
+  笑い fixture expects blink below the remaining 0.4. `avatar-emotion.md`
+  reworded.
+- F2 accepted: a preset that binds nothing counts as absent for region
+  sources, keeping a preset whole and the neutral-face finding, and an
+  expression that binds nothing (except `neutral`) counts as unresolved.
+  Tests: empty presets on an MMD model (sad plays 困る), only empty presets
+  (`face_expressions_none`, sad and `Fcl_EYE_Sorrow` reported); the controller
+  test mock now returns bound expressions.
+- F3 accepted: `setIrisHidden(true)` hiding nothing records
+  `iris_hide_unavailable` (5 locales). Test: a controller without iris parts.
+- F4 accepted: both passages and the bake script updated; the bake rule is now
+  per mood (a mood whose shapes all resolve is composed by the app).
+- Optional, accepted: the live-check and owner items added to the owner gate;
+  `coversArkitTable` and its test removed; `registerMmdFace` returns nothing
+  and binds through `morphTargetExpression` (`morphTargetExpressions.ts`);
+  the iris expression counts as Animama's. Not taken: delight's double smile
+  (the ARKit mixes do the same; the R4 render shows it).
+- Rechecks on the repaired tree: `npx vitest run src/lib/avatar src/ui
+  tests/avatar` 332 files, 3,321 passed, 2 skipped, with the two controller
+  failures above fixed and their suite rerun (`tests/avatar` and the
+  controller tests, 331 passed); script tests 10 passed; both tsc
+  configurations, `web:lint` and `i18n:check` pass; `expr-happy`, `joy-3` and
+  `shy-finger-poke-loop` (enhanced) rerendered at 0 differing pixels against
+  `06d381c9`. Targeted recheck: Code Review #2.
+
+#### Code Review #2 Findings
+
+Targeted recheck of working tree `e8f2eb97`: P4-R1-F1 to F4 and the accepted
+optional items resolved, no blocking regressions. The reviewer reran the full
+avatar and UI vitest set (331 files, 3,323 passed, 2 skipped), the script
+tests, both tsc configurations, eslint on the changed files and
+`i18n:check`, and repeated the calibration and empty-preset probes. Optional:
+a composite of MMD and ARKit regions is measured as a composite even when its
+eye region is an ARKit `eyeBlink` mix (on the converted test Avatar `sad`
+corrects 0.29 instead of 0.20, so blinks during sad stop at about 91% closed);
+`ARKIT_COMPOSITION_SHAPES` and `measureEyelidClosure` are now test-only; an
+empty authored preset is still listed as present (pre-existing).
+
+#### Code Review #2 Revisions
+
+- The composite's measurement is kept: it errs toward lids that never pass
+  shut, and the owner's mood renders and live check cover the look. The other
+  optional notes are left as they are.
+- Review passed. Phase 4 is agent-ready; the owner gate is pending.
 
 ### Phase 5: Hands
 
@@ -1276,15 +1449,96 @@ Completion: R6 acceptance; owner gate passed.
 
 Recovery: load-time correction only.
 
-Check record: (to fill) · Commits: (to fill)
+Check record (2026-10-27, macOS arm64, worktree on
+`feat/arbitrary-vrm-support-pr-b` from `dc5dc5f2`):
+
+- New `poses/anatomy/handRest.test.ts` on a synthetic VRM 1.0 humanoid whose
+  hand rests bent 30° and rolled 20°: VRoid-like hands and both Included
+  Avatars are left alone (no normalization, three-vrm's own `update`); the
+  turned hand rests as VRoid's; a curl and a thumb raise bend as on VRoid
+  while the authored rotations stay as written; thumbs-up, fist and point
+  hand shapes (`handShapeRotations`, thumb fits included) match VRoid's; the
+  contact solver's forward kinematics put the fingertip on the drawn one
+  (within 0.1 mm), and
+  a pose reset keeps the normalized hand's shape; `prepareLoadedVrm` installs
+  it and `animation:render`'s `render.ts` loads through `prepareLoadedVrm`.
+- `npx vitest run src/lib/avatar src/ui tests/avatar` (`src/frontend/web`):
+  332 files, 3,331 passed, 2 skipped; tsc (`tsconfig.app.json`), eslint and
+  Prettier on the changed files: pass.
+- `animation:render` of Double Thumbs Up, Count on Fingers, Cheeky Finger
+  Guns and Double Peace Pop, body and right-hand views, `dc5dc5f2` against the
+  phase end: 8 sheets at 0 differing pixels.
+- Load-time corrections (median of 5): Andrew 58.9 ms (Phase 4 end 56.5),
+  Annie 47.3 ms (46.2), measured at load average 7 from other sessions; the
+  added measurement is 32 frame comparisons.
+- Private: the converted test Avatar is normalized (38° at most, 32 bones);
+  its Double Thumbs Up, Count on Fingers, Cheeky Finger Guns and Double Peace
+  Pop hand renders are in the private renders folder (`p5-hands`): thumbs up,
+  fists and pointing read correctly, for the owner gate.
+
+Commits: `feat(avatars)[p5]: normalize hands that rest unlike VRoid's`
 
 #### Code Review #1 Findings
 
-Not run.
+Independent reviewer, standard tier, initial review of working tree `cec89ecb`
+against `dc5dc5f2`. It confirmed the design argument by probe (random raw rest
+rotations, extra non-humanoid nodes, VRM 1 and VRM 0, both hands, random poses:
+normalized and drawn joints within 1.1e-15 m) and the Included margins (Annie
+0.04°, Andrew 0.16°, the VRM 0 fixture 0.19°).
+
+- P5-R1-F1 (blocking): the chain assumed every finger bone exists. A digit
+  with an unmapped intermediate bone, or a thumb without a metacarpal (three-vrm
+  produces that for some VRM 0 files), was left uncorrected under a corrected
+  hand, with its offsets turned by an absent parent: joints up to 50 mm from
+  the drawn ones and curls 10–16° off.
+- P5-R1-F2 (blocking): the Checks ask for a catalog pose and talking hands;
+  neither had a case, and the fingertip case compares forward kinematics with
+  the drawn tip rather than solving a contact.
+- Optional: no VRM 0 or right-hand case; the guide listed the motion checks
+  (which load without `prepareLoadedVrm`) among readers; `handRestNormalizationOf`
+  only served the test; no load log line; `frameRotation` degenerates when a
+  segment runs along the palm normal; the `render.ts` check is a source match.
 
 #### Code Review #1 Revisions
 
-Not run.
+- F1 accepted: each digit's present bones are measured from the nearest
+  present one before it, as three-vrm parents them; a bone with nothing to
+  measure follows its parent rigidly; offsets and the wrapper use those
+  parents (`bones` map with `parent`). Tests: without an intermediate bone and
+  without a metacarpal, normalized and drawn joints agree (under 1 µm) and the
+  index and thumb bend as on VRoid (both fail on the reviewed tree, per the
+  reviewer's probe).
+- F2 accepted: a `relaxedRest` case through `applyCanonicalPose` (the motion
+  checks' and playback's path) matches VRoid's bends; talking hands write the
+  same normalized rotations and pass through the same wrapper, which the
+  rig-level tests cover, so they get no case of their own. The record now
+  calls the fingertip case a forward-kinematics check: the contact solver uses
+  that FK.
+- Optional, accepted: the VRM 0 fixture joins the left-alone case (both hands
+  are measured on every model); guide wording; `handRestNormalizationOf`
+  removed; `Avatar.load` logs a normalization; `frameRotation` returns
+  identity without a frame. Not taken: a turned VRM 0 rig (the reviewer's
+  probe found it within 1.42°) and a runtime check of `render.ts` (a browser
+  script; the source check stays).
+- Rechecks: `npx vitest run src/lib/avatar/poses src/lib/avatar/prepareLoadedVrm.test.ts
+  src/lib/avatar/avatarLoadTiming.test.ts src/lib/avatar/includedAvatarBaselines.test.ts
+  tests/avatar` 38 files, 788 passed; tsc and eslint on the changed files pass
+  (working tree `e49ec26d`). Targeted recheck: Code Review #2.
+
+#### Code Review #2 Findings
+
+Targeted recheck of working tree `e49ec26d`: P5-R1-F1 and F2 resolved, no
+regressions. The reviewer's probe covered seven combinations of unmapped
+bones on both hands, VRM 1 and VRM 0 (normalized and drawn joints within
+7.3e-16 m; bends within 1.2° of a VRoid-like rig missing the same bones), the
+unchanged full chains and the degenerate-frame fallback. Optional: the module
+comment still listed the motion checks; the check record named no trees.
+
+#### Code Review #2 Revisions
+
+- The module comment now names Pose creator markers instead (wording,
+  verified by reading); the review rechecks name their tree. Review passed.
+  Phase 5 is agent-ready; the owner gate is pending.
 
 ### Phase 6: Texture layouts
 

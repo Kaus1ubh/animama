@@ -84,6 +84,7 @@ const live: AvatarLiveDiagnostics = {
     ],
     missingPresets: ["lookUp"],
     arkit: { resolved: 41, total: 52, playsFaces: true },
+    moods: [{ preset: "happy", brow: "mmd", eye: "mmd", mouth: "arkit" }],
     unresolved: { names: ["surprised"], otherCount: 2 },
   },
   motion: {

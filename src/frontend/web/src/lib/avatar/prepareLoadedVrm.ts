@@ -1,15 +1,27 @@
 import type { VRM } from "@pixiv/three-vrm";
 
-import { type ArkitFace, registerArkitFace } from "./arkitFaceExpressions";
+import {
+  type ArkitFace,
+  ownFaceNames,
+  registerArkitFace,
+} from "./arkitFaceExpressions";
 import {
   applyEyelidClosureCorrection,
   type EyelidClosureCorrection,
 } from "./eyelidClosure";
+import { registerIrisHideExpression } from "./irisHideExpression";
+import { registerMmdFace } from "./mmdFaceExpressions";
+import {
+  installHandRestNormalization,
+  type HandRestNormalization,
+} from "./poses/anatomy/handRest";
 
 /** What the load-time installs found on a model. */
 export type PreparedVrm = {
   readonly arkitFace: ArkitFace;
   readonly eyelidClosure: EyelidClosureCorrection | null;
+  /** The hand rest normalization, or null for VRoid-like hands. */
+  readonly handRest: HandRestNormalization | null;
 };
 
 /**
@@ -18,8 +30,10 @@ export type PreparedVrm = {
  * (`scripts/animation-render`) and Avatar test helpers play a model the same
  * way. Call it once after loading and expression canonicalization.
  *
- * ARKit mixes are registered before the eyelid closure correction, which
- * measures them. Both steps are idempotent.
+ * The face names content keys are registered region by region (MMD morphs,
+ * then ARKit mixes, then `Fcl_EYE_Iris_Hide`) before the eyelid closure
+ * correction, which measures them. Hands whose rest differs from VRoid's are
+ * normalized (`handRest.ts`). Every step is idempotent.
  *
  * `vrm:inspect` and the motion checks load models without it, because they
  * read the file's own expressions before Animama adds any.
@@ -28,7 +42,10 @@ export function prepareLoadedVrm(
   vrm: VRM,
   options: { vrmSha256: string | null | undefined },
 ): PreparedVrm {
+  registerMmdFace(vrm, ownFaceNames(vrm));
   const arkitFace = registerArkitFace(vrm);
+  registerIrisHideExpression(vrm, ownFaceNames(vrm));
   const eyelidClosure = applyEyelidClosureCorrection(vrm, options.vrmSha256);
-  return { arkitFace, eyelidClosure };
+  const handRest = installHandRestNormalization(vrm);
+  return { arkitFace, eyelidClosure, handRest };
 }
