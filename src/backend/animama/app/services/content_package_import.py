@@ -46,6 +46,7 @@ from animama.app.services.content_kind_registry import (
 )
 from animama.app.services.content_names import folding_drops_characters, name_hash
 from animama.app.services.content_package_archive import InspectedPackage, InspectedPackageEntry
+from animama.app.services.content_package_capabilities import undecoded_gltf_extensions
 from animama.app.services.content_package_export import _json_stream, portable_json
 from animama.app.services.content_portability import is_non_portable
 from animama.app.services.local_content_mutations import _finish_owned_work, mutation_digest
@@ -287,7 +288,8 @@ class ContentPackageImportService:
                     item_id=str(uuid4()),
                     logical_key=f"local:{entry.kind.value}:{uuid4().hex}",
                     relative_locator=locator,
-                    notices=self._notices(inspected.entries[entry.package_entry_id].document),
+                    # Reads each Avatar's model header: off the event loop, like inspection.
+                    notices=await asyncio.to_thread(self._notices, inspected.entries[entry.package_entry_id]),
                 )
             )
         anima = inspected.manifest.anima
@@ -316,12 +318,18 @@ class ContentPackageImportService:
             non_portable=_plan_non_portable(inspected.manifest, visible),
         )
 
-    def _notices(self, document: TypedContentDocument) -> tuple[ImportItemNotice, ...]:
-        """Name what this composition cannot keep of one entry, before the user confirms."""
+    def _notices(self, entry: InspectedPackageEntry) -> tuple[ImportItemNotice, ...]:
+        """Name what this installation cannot keep or show of one entry, before the user confirms."""
 
-        if self._avatar_settings is None and isinstance(document, AvatarDocumentV1) and document_settings(document):
-            return ("avatar_setting_not_stored",)
-        return ()
+        document = entry.document
+        if not isinstance(document, AvatarDocumentV1):
+            return ()
+        notices: list[ImportItemNotice] = []
+        if self._avatar_settings is None and document_settings(document):
+            notices.append("avatar_setting_not_stored")
+        if _avatar_model_undecodable(entry):
+            notices.append("avatar_extension_unsupported")
+        return tuple(notices)
 
     async def _validate_prerequisite(self, identity: str, *, lock: bool = False) -> None:
         if self._uow is None or self._default_model is None:
@@ -706,6 +714,16 @@ class ContentPackageImportService:
         return PackageOperationStatus(
             operation_id=operation_id, state=state, stage_id=stage.stage_id, review_digest=stage.review_digest
         )
+
+
+def _avatar_model_undecodable(entry: InspectedPackageEntry) -> bool:
+    """Whether an Avatar entry's validated model (its one VRM file) uses an extension the runtime cannot decode."""
+
+    model = next((path for path in entry.files if PurePosixPath(path).suffix.lower() == ".vrm"), None)
+    if model is None:
+        return False
+    with entry.open_file(model) as content:
+        return bool(undecoded_gltf_extensions(content))
 
 
 def _plan_non_portable(

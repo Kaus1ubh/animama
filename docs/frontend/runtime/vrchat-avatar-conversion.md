@@ -208,10 +208,12 @@ accept both mesh compressions an optimizer may add
 ([Avatar files in packages](../../backend/features/custom-animas-and-content.md#avatar-files-in-packages)):
 
 - `EXT_meshopt_compression` (gltfpack, gltf-transform `meshopt`) loads: every
-  Avatar loader registers three's meshopt decoder, whose WebAssembly is
-  embedded in its module (`configureAvatarGltfLoader`).
+  Avatar loader imports three's meshopt decoder when a file uses it
+  (`configureAvatarGltfLoader`). Its WebAssembly is embedded in the module, so
+  the page's CSP must allow `'wasm-unsafe-eval'` (the app's does).
 - `KHR_draco_mesh_compression` imports, but Animama does not serve the Draco
-  decoder yet, so the Avatar does not load. Its Diagnostics name the extension
+  decoder yet, so the Avatar does not load. The import review says so before
+  the import, and its Diagnostics name the extension
   (`avatar_extension_unsupported`). Compress with meshopt instead.
 
 Any other extension a file requires that the runtime cannot load
@@ -219,4 +221,3 @@ Any other extension a file requires that the runtime cannot load
 also fails the load with that finding, rather than drawing the Avatar without
 it. Diagnostics reads it from the file before loading, so it shows for an
 upload in Create Anima, an Avatar in the Library and an Anima's Avatar alike.
-The import review does not name it yet.

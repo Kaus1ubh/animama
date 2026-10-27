@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { unloadableGltfExtensions } from "./avatarGltfExtensions";
+import fixture from "@/lib/content/fixtures/package-capabilities.json";
+
+import {
+  LOADABLE_GLTF_EXTENSIONS,
+  UNDECODED_GLTF_EXTENSIONS,
+  unloadableGltfExtensions,
+} from "./avatarGltfExtensions";
 
 describe("unloadableGltfExtensions", () => {
   it("accepts required extensions the loaders can load", () => {
@@ -54,5 +60,16 @@ describe("unloadableGltfExtensions", () => {
         extensionsRequired: [1, null],
       }),
     ).toEqual([]);
+  });
+});
+
+describe("the glTF extension lists", () => {
+  it("are package validation's: loadable plus undecoded (shared fixture)", () => {
+    expect(
+      [...LOADABLE_GLTF_EXTENSIONS, ...UNDECODED_GLTF_EXTENSIONS].sort(),
+    ).toEqual(fixture.gltfExtensions.accepted);
+    expect([...UNDECODED_GLTF_EXTENSIONS].sort()).toEqual(
+      fixture.gltfExtensions.undecoded,
+    );
   });
 });

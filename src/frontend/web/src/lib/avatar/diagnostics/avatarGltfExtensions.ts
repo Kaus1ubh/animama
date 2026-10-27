@@ -3,8 +3,10 @@
  * three's GLTFLoader built-ins whose decoders Animama serves (meshopt, not
  * Draco or Basis), the VRM and VRM Animation plugins, and the extensions
  * Mochiya Avatar Tools writes into converted Avatars. Package validation
- * (`content_package_capabilities.py` `_GLTF_EXTENSIONS`) also accepts Draco,
- * so a shared Draco Avatar imports and is then reported as not loadable.
+ * (`content_package_capabilities.py` `_GLTF_EXTENSIONS`) accepts these and
+ * `UNDECODED_GLTF_EXTENSIONS` (the shared `package-capabilities.json` fixture
+ * pins both lists), so a shared Draco Avatar imports with a notice and is
+ * reported as not loadable.
  */
 export const LOADABLE_GLTF_EXTENSIONS: ReadonlySet<string> = new Set([
   // @pixiv/three-vrm and @pixiv/three-vrm-animation.
@@ -48,7 +50,7 @@ export const LOADABLE_GLTF_EXTENSIONS: ReadonlySet<string> = new Set([
  * file uses it, even beside uncompressed fallbacks, so it counts when only
  * used.
  */
-const UNDECODED_GLTF_EXTENSIONS: ReadonlySet<string> = new Set([
+export const UNDECODED_GLTF_EXTENSIONS: ReadonlySet<string> = new Set([
   "KHR_draco_mesh_compression",
 ]);
 

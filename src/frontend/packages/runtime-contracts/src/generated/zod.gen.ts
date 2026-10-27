@@ -1175,7 +1175,7 @@ export const zImagePresentation = z.object({
     zoom: z.number().gte(1).lte(4)
 });
 
-export const zImportItemNotice = z.literal('avatar_setting_not_stored');
+export const zImportItemNotice = z.enum(['avatar_setting_not_stored', 'avatar_extension_unsupported']);
 
 /**
  * ImportedPackageItem

@@ -102,13 +102,17 @@ _PARTICLE_BEHAVIORS = frozenset(
 # register the VRM, VRMAnimation and lilToon plugins and the meshopt decoder on
 # Three's GLTFLoader (``avatarGltfLoader.ts``). Packages also accept what
 # converted and optimized Avatars carry: Mochiya Avatar Tools' extensions and
-# both mesh compressions. The Draco decoder is not served yet, so the runtime
-# reports a Draco Avatar as not loadable (``avatar_extension_unsupported``)
-# instead of the package refusing it. Basis textures stay out: no decoder.
-# Adding a name needs no package capability; an older reader that lacks it
-# rejects the package with ``package_definition_invalid``.
+# both mesh compressions. The Draco decoder is not served yet, so the import
+# review and the runtime report a Draco Avatar as not loadable
+# (``avatar_extension_unsupported``) instead of the package refusing it. Basis
+# textures stay out: no decoder. Adding a name needs no package capability; an
+# older reader that lacks it rejects the package with
+# ``package_definition_invalid``. The web runtime's loadable list plus
+# ``UNDECODED_GLTF_EXTENSIONS`` is this list (pinned by the shared
+# ``package-capabilities.json`` fixture).
 _GLTF_EXTENSIONS = frozenset(
-    "VRM VRMC_vrm VRMC_vrm_animation VRMC_springBone VRMC_materials_mtoon VRMC_node_constraint "
+    "VRM VRMC_vrm VRMC_vrm_animation VRMC_springBone VRMC_springBone_extended_collider VRMC_materials_mtoon "
+    "VRMC_node_constraint "
     "VRMC_materials_hdr_emissiveMultiplier KHR_lights_punctual KHR_materials_clearcoat KHR_materials_dispersion "
     "KHR_materials_ior KHR_materials_sheen KHR_materials_specular KHR_materials_transmission "
     "KHR_materials_iridescence KHR_materials_anisotropy KHR_materials_unlit KHR_materials_volume "
@@ -116,6 +120,9 @@ _GLTF_EXTENSIONS = frozenset(
     "EXT_texture_webp EXT_texture_avif EXT_mesh_gpu_instancing "
     "MOCHIYA_avatar_composition MOCHIYA_materials_liltoon EXT_meshopt_compression KHR_draco_mesh_compression".split()
 )
+# Accepted compression the runtime cannot decode yet (web
+# ``UNDECODED_GLTF_EXTENSIONS``); three fails on it wherever it is used.
+UNDECODED_GLTF_EXTENSIONS = frozenset({"KHR_draco_mesh_compression"})
 
 
 def _require(condition: bool, message: str, path: str | None = None) -> None:
@@ -938,7 +945,8 @@ def _particle(value: dict[str, Any], document: TypedContentDocument) -> None:
     _require(emitters > 0, "Particle resource must contain an emitter")
 
 
-def _gltf(content: BinaryIO, relative_path: str) -> str:
+def _gltf_json(content: BinaryIO) -> dict[str, Any]:
+    """The bounded JSON document of a GLB, or of a JSON glTF file."""
     prefix = content.read(20)
     if prefix[:4] == b"glTF":
         _require(len(prefix) == 20, "Truncated GLB header")
@@ -947,10 +955,25 @@ def _gltf(content: BinaryIO, relative_path: str) -> str:
             version == 2 and chunk_type == 0x4E4F534A and 0 < length <= MAX_DEFINITION_BYTES and total >= length + 20,
             "Unsupported GLB container",
         )
-        value = _read_json(content, size=length)
-    else:
-        content.seek(0)
-        value = _read_json(content)
+        return _read_json(content, size=length)
+    content.seek(0)
+    return _read_json(content)
+
+
+def undecoded_gltf_extensions(content: BinaryIO) -> tuple[str, ...]:
+    """The accepted extensions a glTF file uses that the runtime cannot decode, sorted."""
+    value = _gltf_json(content)
+    used = {
+        name
+        for field in ("extensionsRequired", "extensionsUsed")
+        for name in _array(value.get(field, []), field)
+        if isinstance(name, str)
+    }
+    return tuple(sorted(used & UNDECODED_GLTF_EXTENSIONS))
+
+
+def _gltf(content: BinaryIO, relative_path: str) -> str:
+    value = _gltf_json(content)
     for field in ("buffers", "images"):
         for resource in _array(value.get(field, []), f"glTF {field}"):
             uri = _object(resource, f"glTF {field}").get("uri")

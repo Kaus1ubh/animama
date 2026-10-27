@@ -25,7 +25,12 @@ from tests.anima_creation_service_support import (
     write_file,
     write_json,
 )
-from tests.content_package_helpers import CONVERTED_AVATAR_EXTENSIONS, reviewed_export, reviewed_import
+from tests.content_package_helpers import (
+    CONVERTED_AVATAR_EXTENSIONS,
+    review_import,
+    reviewed_export,
+    reviewed_import,
+)
 
 
 async def _package(
@@ -131,9 +136,14 @@ async def test_avatar_file_using_a_converter_or_compression_extension_exports_an
         original = vrm("Converted avatar", uses=extension)
         write_file(fixture.paths.local_root / "avatars/local-avatar.vrm", original)
         catalog, _content, packages, exported = await _package(async_session, fixture)
-        command = await reviewed_import(
+        review, command = await review_import(
             packages, user_id=fixture.owner, archive_path=exported.path, operation_id=f"import-{extension}"
         )
+        # The review names an Avatar the runtime cannot decode; it still imports.
+        notices = {item.kind: item.notices for item in review.items}
+        undecoded = extension == "KHR_draco_mesh_compression"
+        assert notices[ContentKind.AVATAR] == (("avatar_extension_unsupported",) if undecoded else ())
+        assert all(item.notices == () for item in review.items if item.kind is not ContentKind.AVATAR)
         result = await packages.imports.commit(**command)
         copied_id = next(item.item_id for item in result.items if item.kind is ContentKind.AVATAR)
         copied = await catalog.get_visible_item(item_id=copied_id, user_id=fixture.owner)
