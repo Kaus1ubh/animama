@@ -115,16 +115,20 @@ Animama found in the Anima's Avatar and how it plays it:
   spring joints and colliders, and the wind setting in effect with whether
   wind and updraft apply. Each setting also shows whether it is saved for the Avatar or the
   default.
-- **Warnings**: every face-part, landmark, texture-anchor, spring and effect
-  finding, once each, and each glTF extension the file needs that Animama
-  cannot load (such as Draco compression), read from the file before loading.
+- **Warnings**: every face-part, landmark, texture-anchor, expression (no
+  usable face expressions; `Fcl_EYE_Iris_Hide` with no iris part to hide),
+  spring and effect finding, once each, and each glTF extension the file needs
+  that Animama cannot load (such as Draco compression), read from the file
+  before loading.
 
 Diagnostics describes one of three sources (`useAvatarDiagnostics`):
 
 - an Anima's Avatar (this row): the Avatar on the chat stage when that Anima
   is there. Only this source lists effect warnings, which depend on the
   Anima's Gestures and Reactions; the other two leave out the effect
-  findings the dock's or stage's own previews leave on their Avatar;
+  findings the dock's or stage's own previews leave on their Avatar (other
+  findings from content played there, such as an iris hide with no iris part
+  or a mood the Avatar lacks, still show until that Avatar reloads);
 - an Avatar item, from the Library's Avatar settings: the preview dock's
   Avatar when the dock shows that revision of the item
   (`usePreviewDockAvatarStore`);

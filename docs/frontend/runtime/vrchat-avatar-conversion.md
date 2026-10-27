@@ -152,7 +152,8 @@ Check that:
   Gesture renders below show the arms after Animama's normalization, so they
   do not reveal an A-pose export;
 - the ARKit count is complete, with any renamed matches as expected, and
-  inspect says Animama plays the Avatar's faces as ARKit mixes.
+  inspect's "mood faces (brow/eye/mouth)" list shows every mood region played
+  from an MMD morph (`mmd`) or an ARKit mix (`arkit`).
 
 `pnpm -s animation:render <gesture.json> --out <private-dir> --avatar-file
 <private-dir>/<Avatar>.vrm` draws Gesture review sheets on it, and
@@ -193,11 +194,12 @@ Keep those renders private as well.
 Effects painted onto the face texture (blush, tears, iris overlays such as
 star eyes) find the face's own UV island and each iris's texture rectangle,
 so they also work on Avatars whose face shares a texture atlas with the body
-and whose eye layers share one mesh, as Lapwing's do (see
+and whose eye layers share one mesh, as many converted Avatars' do (see
 [Painted effects](avatar-vfx.md#painted-effects-face_surface)). Mouth decals
-can sit slightly low on such a face, and whole-face art (`face_red`,
-`petrified_cracks`, `texture_*`) covers the face primitive's whole texture,
-so on an atlas it also tints the other parts drawn from it.
+can sit slightly low on such a face. Whole-face art (`face_red`,
+`petrified_cracks`, `texture_*`) is clipped to the face skin's own triangles,
+so on an atlas it leaves the other parts drawn from that texture (body, inner
+mouth, eyes) untouched.
 
 To make the file emote in other VRM apps as well, bake its mood presets into a
 copy with `pnpm -s vrm:bake-expressions` (see

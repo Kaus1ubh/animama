@@ -145,7 +145,7 @@ function jointGap(vrm: VRM): number {
   return gap;
 }
 
-/** Bent 30° down and rolled 20°: about the converted test Avatar's hand. */
+/** Bent 30° down and rolled 20°: a converted VRChat-style hand rest. */
 const TILTED = new THREE.Quaternion()
   .setFromAxisAngle(new THREE.Vector3(0, 0, 1), (-30 * Math.PI) / 180)
   .multiply(

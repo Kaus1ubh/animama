@@ -222,8 +222,9 @@ tenant-inventory row for `avatar_face_part_overrides`. So:
   band, private Gesture renders on the T-pose and A-pose exports, the R10
   departure) is pending.
 - [ ] Phase 8: Package sharing (R13). Implemented, checked and review passed
-  2026-10-27 (merged into PR B); the full `pnpm e2e:test` runs on the final
-  candidate, and the package-set bumps at PR time.
+  2026-10-27 (merged into PR B); `local-http` 18.0.0 and `runtime-contracts`
+  0.18.0 for the import notice (`45d207a8`); the full `pnpm e2e:test` runs on
+  the final candidate.
 - [ ] Phase 9 (alongside): lilToon frame cost (R11). Implemented, checked and
   review passed 2026-10-27 (merged into PR B); the owner gate (the measured
   result against the target, the 8 ms threshold, the pre-pass and
@@ -240,7 +241,11 @@ tenant-inventory row for `avatar_face_part_overrides`. So:
   both sides kept); `local-http` 17.0.0, `runtime-contracts` 0.17.0 and
   `product-ui` 0.18.0 for the new route and declarations (package-set
   compatibility check passed against `d30a6ddc`); final integration review
-  #1 blocked on FI-1, fixed.
+  #1 blocked on FI-1, whose fix was backed out of PR A and landed in Phase 10
+  step 8. PR B: `main` at `fd4c86c5` (PR A merged) merged in; final
+  integration review #1 (2026-10-27) found no code defect and blocked on a
+  stale guide sentence and private measurements in the record, both fixed;
+  the full pre-push suite on PR B's final candidate follows.
 
 ## Surprises & Discoveries
 
@@ -447,11 +452,11 @@ tenant-inventory row for `avatar_face_part_overrides`. So:
     times `W`, so the normalized rig then matches the drawn hand and the
     thumb and pinch fits, contact points and motion checks need no change.
   - The hand bone itself is corrected with the fingers: the converted test
-    Avatar's hand rests bent about 22° down and rolled about 20°, and
+    Avatar's hand rests bent down and rolled well beyond the tolerance, and
     straightening only the fingers would kink them against the palm.
   - The reference frames are Annie's (Andrew agrees within 0.2°) and the
     tolerance is 5°; the Included Avatars and the VRM 0 VRoid fixture measure
-    under it, the converted test Avatar 38° over 32 bones.
+    under it, the converted test Avatar beyond it on 32 bones.
 - 2026-10-27, agent (Phase 7, within the plan except the last bullet):
   - `handRest.ts` became `restNormalization.ts` (`installRestNormalization`):
     arms join the hands in one wrapper and one offset pass. Each upper arm and
@@ -464,7 +469,7 @@ tenant-inventory row for `avatar_face_part_overrides`. So:
     synthetic model match the T-pose one (directions within 1e-5 rad, joints
     within 1 µm), so normalization is kept rather than report-only. The
     Included Avatars and the VRM 0 fixture rest in an exact T-pose; the
-    converted test Avatar's arms are within 5° of one and are not normalized,
+    converted test Avatar's arms are within the arm tolerance and are not normalized,
     and its hand correction is now measured against its forearm.
   - Body effects scale by `avatarScale` (rest head height above the feet over
     1.25 m, the contacts' measure), not bounding height: the converted test
@@ -1418,8 +1423,8 @@ probed empty presets out of tree.
 - F1 accepted. Measured: on Annie happy shares 0.62 of blink's motion on
   average and 0.69 at the lid's own vertices (90th percentile of per-vertex
   shares where blink moves at least a quarter of its furthest vertex); relaxed
-  0.145; on Andrew 0.75 and 0.13; on the converted test Avatar (private) 笑い
-  0.98 and なごみ 0.91 at the lid. Non-ARKit expressions now correct by that
+  0.145; on Andrew 0.75 and 0.13; on the converted test Avatar (private) its
+  smile morphs close the lid almost fully. Non-ARKit expressions now correct by that
   lid share divided by Annie's happy (0.69), which reproduces her verified
   relaxed (0.21 against 0.2164) and Andrew's default (0.19 against 0.2) and
   gives the converted Avatar's 笑い full suppression; ARKit mixes keep #688's
@@ -1457,8 +1462,8 @@ avatar and UI vitest set (331 files, 3,323 passed, 2 skipped), the script
 tests, both tsc configurations, eslint on the changed files and
 `i18n:check`, and repeated the calibration and empty-preset probes. Optional:
 a composite of MMD and ARKit regions is measured as a composite even when its
-eye region is an ARKit `eyeBlink` mix (on the converted test Avatar `sad`
-corrects 0.29 instead of 0.20, so blinks during sad stop at about 91% closed);
+eye region is an ARKit `eyeBlink` mix (on the converted test Avatar, blinks
+during `sad` then stop slightly short of fully closed);
 `ARKIT_COMPOSITION_SHAPES` and `measureEyelidClosure` are now test-only; an
 empty authored preset is still listed as present (pre-existing).
 
@@ -1538,7 +1543,8 @@ Check record (2026-10-27, macOS arm64, worktree on
 - Load-time corrections (median of 5): Andrew 58.9 ms (Phase 4 end 56.5),
   Annie 47.3 ms (46.2), measured at load average 7 from other sessions; the
   added measurement is 32 frame comparisons.
-- Private: the converted test Avatar is normalized (38° at most, 32 bones);
+- Private: the converted test Avatar is normalized (beyond the tolerance, 32
+  bones);
   its Double Thumbs Up, Count on Fingers, Cheeky Finger Guns and Double Peace
   Pop hand renders are in the private renders folder (`p5-hands`): thumbs up,
   fists and pointing read correctly, for the owner gate.
@@ -1812,11 +1818,11 @@ Check record (2026-10-27, macOS arm64, worktree on
   render timing.
 - Load-time corrections (median of 5): Andrew 55.4 ms, Annie 46.1 ms (Phase 5
   end 58.9 and 47.3), at load average 5.
-- Private: the converted test Avatar's T-pose export rests within 5° of a
-  T-pose (arms not normalized; hands normalized against the forearm, 32
-  bones) and its size is inside the band. An A-pose export of the same
-  Avatar (`-animamaKeepPose`, private) measures 48° (arms normalized, hands
-  41° against the forearm, 36 bones). Double Thumbs Up, Count on Fingers,
+- Private: the converted test Avatar's T-pose export rests within the arm
+  tolerance of a T-pose (arms not normalized; hands normalized against the
+  forearm, 32 bones) and its size is inside the band. An A-pose export of the
+  same Avatar (`-animamaKeepPose`, private) is far beyond the arm tolerance
+  (arms normalized; hands normalized against the forearm, 36 bones). Double Thumbs Up, Count on Fingers,
   Cheeky Finger Guns and Double Peace Pop on both exports, body and
   right-hand views, are in the private renders folder (`p7-arms`) for the
   owner gate: thumbs up, pointing and palms read the same on both; the
@@ -1870,8 +1876,9 @@ resizes and live transform updates); the licence boundary holds.
   `handsNormalized` now means the hands themselves were corrected. Test: arms
   8° down with the hand along the forearm report the same hand angle as the
   level rig and install nothing. The converted test Avatar's hand correction
-  is now 40.8° against its forearm (was 38° absolute; its forearm rests 4.5°
-  up), so its private hand renders are redone for the gate.
+  is now measured against its forearm, which rests slightly raised (within
+  the arm tolerance), so it differs by that tilt from the absolute one and its
+  private hand renders are redone for the gate.
 - F6 accepted: the A-pose test now uses unit quaternions, a wrist rotation,
   the hand-to-finger direction and a 1e-5 rad tolerance.
 - F2 accepted: the guide describes load-time normalization and points to
@@ -2693,6 +2700,58 @@ no conflicts and no contract or package change from `main`.
 - The package-set check, the Included render diffs and the load timing above
   still apply: the code differs from `f420eeb5`/`5470e01d` only by the backed-out
   preview change and `main`'s backend dependency update.
+
+### PR B Final Integration Review #1 Findings
+
+Independent reviewer on `0d9b117e` against `main` `fd4c86c5` (Phases 4–10,
+the step 8 work and the creator fix `8a045a0a`; 27 commits). No code defect
+across phases: one load step (`prepareLoadedVrm`) for MMD, ARKit, iris hide,
+eyelid correction and rest normalization on every load path; iris hiding
+through Phase 2's bindings and Phase 6's clip independent of hidden regions;
+every Avatar loader through `configureAvatarGltfLoader`; the web extension
+lists equal the backend's (fixture-pinned) and the import notice and
+Diagnostics share `avatar_extension_unsupported`; contract versions agree in
+`contracts/versions.json`, `hosted-web.md`, `http-api.md` and the packages;
+the Cloud repin note's facts hold against Cloud `main`; Automatic's GPU note
+precedes the chat Avatar's load; Diagnostics sources and step 8's correction
+agree; no Alembic, Cloud import, generated-file or debug leftovers; commit
+messages clean.
+
+- PRB-R1-F1 (required): `vrchat-avatar-conversion.md` still said whole-face
+  art tints the other parts of an atlas, contradicting Phase 6.
+- PRB-R1-F2 (required): the plan and a test comment recorded rig and morph
+  measurements of the converted test Avatar (angles, lid shares), which are
+  not counts, timings or pass/fail.
+- Optional: F3 the conversion guide's inspect check predates Phase 4's
+  per-region output; F4 the Diagnostics Warnings list omitted expression
+  findings; F5 item and upload Diagnostics keep content-triggered findings
+  without an effect id (iris hide, missing moods) from the dock or stage
+  Avatar; F6 the pre-pass and GPU check walk the scene per frame once a
+  lilToon Avatar loaded (input to the owner's pre-pass decision); F7 Progress
+  records; minor exports used only in their module.
+
+Acceptance (R1–R13): R2, R8 met; R4, R9, R12, R13 met by tests with owner
+gates or the full e2e pending; R5, R6, R7, R10, R11 owner-gated (R10 a
+recorded departure, R11 with the target not met and Automatic deciding); R1
+and R3 delivered by PR A, with step 8 adding the saved correction to Library
+previews, creator picks and item Diagnostics.
+
+### PR B Final Integration Review #1 Revisions
+
+- F1 accepted: the guide says whole-face art is clipped to the face skin's
+  triangles and leaves the atlas's other parts untouched (and no longer names
+  the model in that sentence).
+- F2 accepted: the figures are now tolerance-relative or qualitative (Phase 4
+  lid shares and sad blink, Phase 5 hand and bone notes, Phase 7 rest poses
+  and the forearm-relative note) and the test comment describes a generic
+  converted hand. Bone counts and timings stay.
+- F3, F4 accepted; F5 documented in `anima-management.md` (findings from
+  content played on the dock or stage Avatar show until it reloads); F7
+  accepted (this record and Progress). F6 goes to the owner's pre-pass
+  decision. Not taken: the module-only exports (used by tests or harmless).
+- Verified by reading (wording only). The full pre-push suite, including
+  `pnpm openapi-ts:check` and `pnpm web:build:hosted` as the reviewer asked,
+  runs once on the final candidate.
 
 ## Validation and acceptance
 
