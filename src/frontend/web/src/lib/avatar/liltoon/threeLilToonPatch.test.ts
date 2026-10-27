@@ -95,3 +95,83 @@ describe("three-liltoon opaque passes (Animama patch)", () => {
     expect(surface.blending).toBe(THREE.NoBlending);
   });
 });
+
+describe("three-liltoon morph weights (Animama patch)", () => {
+  /** A mesh with `count` morph targets on a one-triangle geometry. */
+  function morphedMesh(material: LilToonMaterial, count: number): THREE.Mesh {
+    const geometry = new THREE.BufferGeometry();
+    const positions = new THREE.Float32BufferAttribute(new Float32Array(9), 3);
+    geometry.setAttribute("position", positions);
+    geometry.morphAttributes.position = Array.from({ length: count }, () =>
+      positions.clone(),
+    );
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.updateMorphTargets();
+    return mesh;
+  }
+
+  // Only the capability the weight upload reads.
+  const renderer = {
+    capabilities: { maxTextureSize: 4096 },
+  } as unknown as THREE.WebGLRenderer;
+
+  it("keeps one weight texture per mesh when meshes share a material", () => {
+    const material = new LilToonMaterial({
+      shaderVariant: "lilToon",
+      properties: {},
+    });
+    const face = morphedMesh(material, 155);
+    const body = morphedMesh(material, 36);
+    const weightsFor = (mesh: THREE.Mesh) => {
+      material.updateDeformationUniforms(mesh, renderer);
+      return material.uniforms.mochiyaMorphWeights!.value as THREE.DataTexture;
+    };
+
+    const faceWeights = weightsFor(face);
+    const bodyWeights = weightsFor(body);
+    expect(faceWeights.image.width).toBe(155);
+    expect(bodyWeights.image.width).toBe(36);
+    // Alternating draws reuse each mesh's texture and upload nothing new.
+    const versions = [faceWeights.version, bodyWeights.version];
+    expect(weightsFor(face)).toBe(faceWeights);
+    expect(weightsFor(body)).toBe(bodyWeights);
+    expect([faceWeights.version, bodyWeights.version]).toEqual(versions);
+    // A changed weight uploads that mesh's texture only.
+    face.morphTargetInfluences![3] = 0.5;
+    weightsFor(face);
+    expect(faceWeights.version).toBe(versions[0]! + 1);
+    expect(bodyWeights.version).toBe(versions[1]);
+    // Releasing the material releases every mesh's texture, not just the last.
+    const disposed: THREE.Texture[] = [];
+    for (const texture of [faceWeights, bodyWeights])
+      texture.addEventListener("dispose", () => disposed.push(texture));
+    material.dispose();
+    expect(disposed).toEqual(
+      expect.arrayContaining([faceWeights, bodyWeights]),
+    );
+  });
+
+  it("replaces a mesh's texture when its target count changes", () => {
+    const material = new LilToonMaterial({
+      shaderVariant: "lilToon",
+      properties: {},
+    });
+    const mesh = morphedMesh(material, 4);
+    material.updateDeformationUniforms(mesh, renderer);
+    const before = material.uniforms.mochiyaMorphWeights!
+      .value as THREE.DataTexture;
+    let disposed = false;
+    before.addEventListener("dispose", () => (disposed = true));
+    mesh.geometry.morphAttributes.position!.push(
+      mesh.geometry.morphAttributes.position![0]!.clone(),
+    );
+    mesh.updateMorphTargets();
+    material.updateDeformationUniforms(mesh, renderer);
+    const after = material.uniforms.mochiyaMorphWeights!
+      .value as THREE.DataTexture;
+    expect(after).not.toBe(before);
+    expect(after.image.width).toBe(5);
+    expect(disposed).toBe(true);
+    material.dispose();
+  });
+});

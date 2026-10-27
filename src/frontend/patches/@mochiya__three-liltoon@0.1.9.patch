@@ -1,5 +1,5 @@
 diff --git a/dist/chunk-KNGRDLOZ.js b/dist/chunk-KNGRDLOZ.js
-index 780338f2028b8ff0e11f0f7f0b03ed2af7013e20..48af714444bc81de5d6c22a73a3987fdb287ae5f 100644
+index 780338f2028b8ff0e11f0f7f0b03ed2af7013e20..a1a098ef04b26a9f06f5763bac29ae0efe6c836d 100644
 --- a/dist/chunk-KNGRDLOZ.js
 +++ b/dist/chunk-KNGRDLOZ.js
 @@ -1,4 +1,4 @@
@@ -8,7 +8,57 @@ index 780338f2028b8ff0e11f0f7f0b03ed2af7013e20..48af714444bc81de5d6c22a73a3987fd
  
  // src/generated/textureSemantics.ts
  var LILTOON_TEXTURE_SEMANTICS = {
-@@ -6954,8 +6954,17 @@ function applyLilToonPassState(material, mode, properties, pass) {
+@@ -1973,6 +1973,11 @@ var RendererContext = class {
+ };
+ var MorphWeights = class {
+   uniform = { value: null };
++  // Animama patch: one weight texture per mesh, so a material shared by meshes
++  // with different morph-target counts reuses each mesh's texture and uploads
++  // only changed weights, instead of reallocating a texture on every draw.
++  #textures = /* @__PURE__ */ new WeakMap();
++  #allocated = /* @__PURE__ */ new Set();
+   update(mesh, maxTextureSize) {
+     const count = (mesh.geometry.morphAttributes.position || mesh.geometry.morphAttributes.normal)?.length ?? 0;
+     if (!count) return;
+@@ -1982,9 +1987,12 @@ var MorphWeights = class {
+       throw new Error(
+         "[three-liltoon] Morph weights exceed this device's texture size limit."
+       );
+-    let texture = this.uniform.value;
++    let texture = this.#textures.get(mesh);
+     if (!texture || texture.image.width !== width || texture.image.height !== height) {
+-      this.dispose();
++      if (texture) {
++        texture.dispose();
++        this.#allocated.delete(texture);
++      }
+       texture = new DataTexture(
+         new Float32Array(width * height),
+         width,
+@@ -1993,8 +2001,10 @@ var MorphWeights = class {
+         FloatType
+       );
+       texture.name = "three-liltoon morph weights";
+-      this.uniform.value = texture;
++      this.#textures.set(mesh, texture);
++      this.#allocated.add(texture);
+     }
++    this.uniform.value = texture;
+     const data = texture.image.data;
+     let changed = texture.version === 0;
+     for (let i = 0; i < count; i++) {
+@@ -2007,7 +2017,9 @@ var MorphWeights = class {
+     if (changed) texture.needsUpdate = true;
+   }
+   dispose() {
+-    this.uniform.value?.dispose();
++    for (const texture of this.#allocated) texture.dispose();
++    this.#allocated.clear();
++    this.#textures = /* @__PURE__ */ new WeakMap();
+     this.uniform.value = null;
+   }
+ };
+@@ -6954,8 +6966,17 @@ function applyLilToonPassState(material, mode, properties, pass) {
        _StencilWriteMask: 255
      });
    applyLilToonRenderState(material, mode, mappedProperties);

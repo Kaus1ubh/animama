@@ -14,12 +14,15 @@ plugin, check the upstream empty-root handling and rerun these tests before
 removing or rebasing the patch. See issue
 [#45](https://github.com/raymond-van/animama/issues/45).
 
-`@mochiya/three-liltoon@0.1.9` draws lilToon's opaque surface and outline
-passes without blending when their blend state replaces the target exactly
-(colour One/Zero; alpha One with Zero or One-minus-source-alpha). Those
-shaders write alpha 1, so the pixels are unchanged, and unblended draws let
-Animama's depth pre-pass cover them (the main saving on an Apple M5) and
-tile-based GPUs skip hidden surfaces. `web/src/lib/avatar/liltoon/threeLilToonPatch.test.ts` runs the installed
-package; when upgrading, check whether upstream draws opaque passes unblended
-before rebasing or removing the patch. See issue
-[#752](https://github.com/raymond-van/animama/issues/752).
+`@mochiya/three-liltoon@0.1.9` draws lilToon's opaque surface and outline passes
+without blending when their blend state replaces the target exactly (colour
+One/Zero; alpha One with Zero or One-minus-source-alpha). Those shaders write
+alpha 1, so the pixels are unchanged, and unblended draws let Animama's depth
+pre-pass cover them (the main saving on an Apple M5) and tile-based GPUs skip
+hidden surfaces. `web/src/lib/avatar/liltoon/threeLilToonPatch.test.ts` runs the
+installed package; when upgrading, check whether upstream draws opaque passes
+unblended and still keeps one morph-weight texture per material before
+rebasing or removing the patch. The same patch keeps one
+morph-weight texture per mesh instead of one per material: a material shared by
+meshes with different morph-target counts otherwise reallocated its texture on
+every draw. See issue [#752](https://github.com/raymond-van/animama/issues/752).

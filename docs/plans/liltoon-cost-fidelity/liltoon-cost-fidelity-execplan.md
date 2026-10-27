@@ -54,7 +54,8 @@ or Included Avatars with synthetic additions.
 - [x] Phase 1: full-clock measurement in `effects:bench` (review passed).
 - [x] Phase 2: opaque lilToon surfaces and outlines without blending (review
   passed; owner gate pending: accept the pre-pass edge-sample difference).
-- [ ] Phase 3: morph-weight textures without per-frame reallocation.
+- [x] Phase 3: morph-weight textures without per-frame reallocation (high
+  risk; review and checks passed).
 - [ ] Phase 4: vertex-colour outlines (runtime fallback; export held
   upstream pending the owner's acceptance).
 - [ ] Phase 5: Unity parity report and fixes.
@@ -158,6 +159,8 @@ primitives, 67,698 triangles; 19 draws and 131,137 triangles with outlines),
 - 2026-10-27, agent: merged `feat/arbitrary-vrm-support-pr-b` at `d5818800`
   (#744's Automatic keeps lilToon with a frame-rate cap) into this branch
   before Phase 1; it touches none of this plan's files.
+- 2026-10-27, agent (Phase 3): morph weights stay in a texture, now per
+  mesh; a uniform-array path is left to upstream (rationale in Phase 3).
 - 2026-10-27, agent: Phase 4 before Phase 3 (its work was ready and touches
   no patch file). Its export change moved upstream: UniVRM's VRM 1.0 writer
   drops vertex colours regardless of settings.
@@ -552,6 +555,111 @@ when the count fits the vertex uniform budget, keeping the texture otherwise.
 Checks: the WebGL call probe shows no texture creation per frame; morph
 expressions render as before (exact comparison with an expression held);
 bench before and after.
+
+Starting source: `1f1b33c2` (Phase 4).
+
+Implemented: the patch's `MorphWeights` keeps a weight texture per mesh
+(`WeakMap`, with a set for disposal) and points the material's uniform at the
+drawn mesh's texture, so alternating meshes reuse their own textures and only
+changed weights upload. Reading weights from a uniform array when the count
+fits was not pursued: this plan's full-clock breakdown put that prototype
+(surface pass only) at −6% of the traced frame (vertex 1.42 → 0.85 ms), but
+it needs a second shader path with its own uniform budget per material and
+device, which belongs in three-liltoon rather than a local patch; it goes
+into the upstream drafts instead (Decision Log).
+`threeLilToonPatch.test.ts` drives `updateDeformationUniforms` with two meshes
+of 155 and 36 targets sharing a material (red before: a new texture on every
+alternation); `patches/README.md` describes the change.
+
+Check record (2026-10-27, macOS arm64, Apple M5; Phase 5 drafts set aside;
+working tree `7bdfa297fd0526d661d17c4c172047d53deaadb0`):
+
+- `npx vitest run src/lib/avatar/liltoon src/lib/avatar/vfx/silhouetteOverlay.test.ts
+  src/lib/avatar/releaseModelScene.test.ts` (`src/frontend/web`): 63 passed;
+  `npx tsc --noEmit -p tsconfig.app.json` and `npx eslint src/lib/avatar/liltoon`
+  passed.
+- Exact comparison, Phase 3 patch against the Phase 2 patch (`animation:render`
+  of the shy-finger-poke loop, which animates face shapes, at 0, 0.5 and 1 s on
+  the converted test Avatar; `--diff --threshold 0`): 0 differing pixels.
+- WebGL call probe of a timed frame: no `createTexture`, `deleteTexture` or
+  `texStorage2D` (6 each before); `texSubImage2D` 8, the bone textures (14
+  before).
+- Saturated bench A/B/A (Phase 3, Phase 2, Phase 3; `--frames 600 --rounds
+  3`, DPR 2): 5.83 ms (passes 7.32, 5.29, 4.88), 4.83 ms, 4.62 ms per frame.
+  No measurable frame-time change under the machine's load; the change
+  removes per-frame allocations and uploads rather than GPU work.
+- Red before: the new test failed against the Phase 2 patch (a new texture
+  on the second draw of the same mesh) and passes with this one.
+- Commands: the call probe is a scratch Playwright script that wraps every
+  `WebGL2RenderingContext` method in the bench page and logs the calls
+  between the bench's `beginQuery` and `endQuery`; the render comparison and
+  the bench ran from `src/frontend/web` (`pnpm -s animation:render …
+  --avatar-file …`, `pnpm -s effects:bench --avatar-file … --materials
+  liltoon --saturate 10 --fps 60 --frames 600 --warmup 60 --rounds 3`), the
+  Phase 2 patch selected by pointing `web/node_modules/@mochiya/three-liltoon`
+  at its store copy and back.
+- R6: three-liltoon is imported only for files that declare its extension,
+  so Included Avatars cannot reach the patch.
+- Full pre-push suite on tree `7bdfa297` (heavy slot): `make check-test`
+  (root) passed (272 s); `pnpm verify` (`src/frontend`) passed (169 s);
+  `pnpm prettier:check` passed; `pnpm web:test:browser` 130 of 131 passed,
+  the failure being `initial-navigation-diagnostics.browser.test.mjs` ("a
+  real hanging subresource still fails the original 10s load wait"), a
+  timing test unrelated to lilToon that passed in Phase 2's suite and passed
+  2 of 2 when rerun alone (`node --test --test-concurrency=1
+  scripts/initial-navigation-diagnostics.browser.test.mjs`, heavy slot):
+  a flake under load.
+
+#### Code Review #1 Findings
+
+Independent reviewer (high-risk tier, initial review) of tree `6f67e019`
+against `1f1b33c2`: no blocking findings. Verified per-draw texture binding
+(three re-reads the uniform's value on each upload), outline and auxiliary
+pass ownership, disposal through `VRMUtils.deepDispose`, resizing, context
+loss, and that the Phase 2 hunks are unchanged. Optional: P3-R1-F1 no test
+asserts that disposing the material releases every mesh's texture (a rebase
+restoring upstream's `dispose` would leak); P3-R1-F2 the uniform-array
+rationale cited #691's paced figures instead of this plan's full-clock one
+and did not answer the "when it fits" fallback; P3-R1-F3 record details
+(probe command, red-before run, working directories, R6 reasoning);
+P3-R1-F4 the README's upgrade advice named only the blending change.
+Observation: a shared material alternating between meshes of different
+target counts still flips `MORPHTARGETS_COUNT` per draw, re-selecting the
+program (CPU work); noted for the upstream drafts.
+
+#### Code Review #1 Revisions
+
+All four accepted: tests assert that disposing the material fires `dispose`
+on both meshes' textures and that a mesh's texture is replaced (and the old
+one disposed) when its target count changes; the rationale above; the record
+details above; the README's upgrade advice.
+
+Revision check record (tree `28f092f7`): `pnpm verify` and `pnpm
+prettier:check` (`src/frontend`, heavy slot) passed. Independent checks
+subagent on the same tree: `pnpm install --frozen-lockfile --offline` passed
+and the patch's sha256 (`000df545…`) matches the lockfile's `patch_hash`;
+`npx vitest run src/lib/avatar/liltoon src/lib/avatar/vfx/silhouetteOverlay.test.ts
+src/lib/avatar/releaseModelScene.test.ts` (`src/frontend/web`) 6 files, 64
+tests passed; `tsc -p tsconfig.app.json` and eslint passed; the patch tests
+against the Phase-2-only package failed the shared-material test (the resize
+test passes there, since upstream already reallocates on resize, so it only
+guards the per-mesh path) and against the unpatched package failed 5 of 8.
+The suite's `make check-test` and `web:test:browser` runs on `7bdfa297` stay
+valid: the revisions changed only this unit-test file, the README and the
+plan, which they do not run.
+
+#### Code Review #2 Findings
+
+Targeted recheck (repair round 1, high-risk tier) on tree `28f092f7`: all
+four repairs verified, no regressions (the patch and lockfile unchanged since
+review #1). Non-blocking: this revision check record was missing; the
+uniform-array rationale argued that the saving had been outweighed, when
+Phase 2 made vertex work a larger share. Result: pass.
+
+#### Code Review #2 Revisions
+
+Both applied above (record and wording). Repair budget used: one of two
+rounds. Phase 3 complete.
 
 ### Phase 4: Vertex-colour outlines
 
