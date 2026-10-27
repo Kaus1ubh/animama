@@ -60,7 +60,9 @@ or Included Avatars with synthetic additions.
   upstream, owner-accepted D7).
 - [x] Phase 5: Unity parity report and fixes (high risk; SH-direction guard,
   parity renders; review and checks passed).
-- [ ] Phase 6: upstream texts.
+- [x] Phase 6: upstream texts drafted in
+  [upstream-drafts.md](upstream-drafts.md); posting waits for the owner's
+  approval of the exact text.
 - [ ] Phase 7: documentation and final integration review.
 
 ## Surprises & Discoveries
@@ -828,8 +830,8 @@ Implemented:
 - Fix (patch): the 12 generated vertex shaders that normalize the SH
   direction for OpenLit's indirect light now use no direction when it is
   zero (`dot(S, S) < 1e-12 ? vec3(0.0) : normalize(S)`), giving the constant
-  term as indirect light. Test: every SH-direction `normalize` in the
-  `lilToon`, cutout and transparent vertex shaders is guarded (red before).
+  term as indirect light. Test: every SH-direction `normalize` in the eight
+  surface families' vertex shaders is guarded (red before).
 
 Verifying the reference (Unity, private project copy, batch mode with
 graphics): Unity's lighting state matched the request (linear colour space,
@@ -974,6 +976,16 @@ see zero when no directional light exists and an authored override is zero);
 Mochiya Avatar Tools (exporting the vertex colours and second UV set lilToon
 reads, and authored blendshape weights). Nothing is posted without the
 owner's approval of the exact text.
+
+Implemented: [upstream-drafts.md](upstream-drafts.md) holds five
+three-liltoon texts (A opaque blending, B morph weights and the define flip,
+C absent vertex colour, D the SH-direction guard with the light-direction
+edge case, E the MatCap question) and one for Mochiya Avatar Tools (vertex
+colours, second UV set, blendshape weights). Figures are taken from this
+plan's check records; the texts name no Avatar and include no renders. The
+final integration review covers this light phase.
+
+Owner gate: approve, edit or drop each text, and choose where it is posted.
 
 ### Phase 7: Documentation and final integration review
 
