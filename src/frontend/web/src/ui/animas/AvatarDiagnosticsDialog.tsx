@@ -41,7 +41,11 @@ import {
 import { avatarIssueText } from "./avatarIssueText";
 import { materialModeLabel, springModeLabel } from "./avatarSettingLabels";
 import { JsonTree } from "./JsonTree";
-import { useAvatarDiagnostics } from "./useAvatarDiagnostics";
+import {
+  useAvatarDiagnostics,
+  type AvatarDiagnosticsSource,
+  type AvatarDiagnosticsView,
+} from "./useAvatarDiagnostics";
 
 type DiagnosticsSection =
   | "file"
@@ -632,28 +636,55 @@ function identityLabel(
       return t("avatarDiagnostics.identity.included");
     case "local":
       return t("avatarDiagnostics.identity.local");
+    case "upload":
+      return t("avatarDiagnostics.identity.upload");
     default:
       return t("avatarDiagnostics.identity.unknown");
   }
 }
 
+/** Where the live facts come from: the Avatar on screen, or a load for this view. */
+function liveSourceLabel(
+  t: TFunction<"animas">,
+  kind: AvatarDiagnosticsSource["kind"],
+  live: boolean,
+): string {
+  if (kind === "upload") {
+    return live
+      ? t("avatarDiagnostics.source.uploadStage")
+      : t("avatarDiagnostics.source.notLoaded");
+  }
+  if (!live) return t("avatarDiagnostics.source.offscreen");
+  return kind === "anima"
+    ? t("avatarDiagnostics.source.live")
+    : t("avatarDiagnostics.source.dock");
+}
+
 type AvatarDiagnosticsDialogProps = {
-  animaId: string;
+  source: AvatarDiagnosticsSource;
+  /**
+   * Diagnostics the caller already collects for `source`, so the dialog does
+   * not read the Avatar a second time.
+   */
+  view?: AvatarDiagnosticsView;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 };
 
 /**
- * Avatar Diagnostics: what Animama found in an Anima's Avatar file and how it
- * plays it, with a shareable report free of paths and names.
+ * Avatar Diagnostics: what Animama found in an Avatar file and how it plays
+ * it, with a shareable report free of paths and names. It describes an
+ * Anima's Avatar, an Avatar item or an unsaved upload (`source`).
  */
 export function AvatarDiagnosticsDialog({
-  animaId,
+  source,
+  view,
   open,
   onOpenChange,
 }: AvatarDiagnosticsDialogProps) {
   const { t } = useTranslation("animas");
-  const { state, effectNames } = useAvatarDiagnostics(animaId, open);
+  const own = useAvatarDiagnostics(source, open && !view);
+  const { state, effectNames } = view ?? own;
   const [section, setSection] = useState<DiagnosticsSection>("file");
   const report = state.status === "ready" ? state.report : null;
   const json = useMemo(
@@ -726,9 +757,11 @@ export function AvatarDiagnosticsDialog({
                 <p className="text-muted-foreground text-xs">
                   {identityLabel(t, report)}
                   {" · "}
-                  {state.status === "ready" && state.live
-                    ? t("avatarDiagnostics.source.live")
-                    : t("avatarDiagnostics.source.offscreen")}
+                  {liveSourceLabel(
+                    t,
+                    source.kind,
+                    state.status === "ready" && state.live,
+                  )}
                 </p>
               ) : null}
               <Button

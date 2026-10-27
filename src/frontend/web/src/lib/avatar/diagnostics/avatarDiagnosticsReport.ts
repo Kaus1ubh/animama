@@ -5,9 +5,12 @@ import { mergeAvatarIssues, type AvatarIssue } from "./issues";
 
 export const AVATAR_DIAGNOSTICS_SCHEMA = "animama/avatar-diagnostics/1";
 
-/** Which Avatar a report describes: its content source and item id only. */
+/**
+ * Which Avatar a report describes: its content source and item id only. An
+ * unsaved upload (Create Anima) is named by kind alone, with no item id.
+ */
 export type AvatarDiagnosticsIdentity = {
-  source: "included" | "local" | null;
+  source: "included" | "local" | "upload" | null;
   itemId: string | null;
 };
 

@@ -102,6 +102,8 @@
   },
   "inventory": {
     "actions": {
+      "avatarSettings": "Avatar settings",
+      "avatarSettingsShort": "Settings",
       "createAnima": "Create Anima",
       "draft": "Draft",
       "edit": "Edit",
@@ -114,6 +116,12 @@
       "stop": "Stop",
       "useInGesture": "Use in Gesture",
       "useInReaction": "Use in Reaction"
+    },
+    "avatarSettings": {
+      "description": "Settings for {{name}}. They apply wherever this Avatar is used.",
+      "diagnostics": "See what Animama found in this Avatar, and copy a report for support.",
+      "diagnosticsOnly": "See what Animama found in {{name}}.",
+      "title": "Avatar settings"
     },
     "groups": {
       "avatarEffects": "Avatar Effects",

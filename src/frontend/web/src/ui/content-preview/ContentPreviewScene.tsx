@@ -39,6 +39,10 @@ import {
 } from "@/lib/runtime-content/runtimeContentDelivery";
 import { useAvatarLoadSettings } from "@/query/hooks/useAvatarSettings";
 import {
+  registerPreviewDockAvatar,
+  unregisterPreviewDockAvatar,
+} from "@/stores/preview-dock-avatar-store";
+import {
   resolveRuntimeAvatarFaceParts,
   runtimeAvatarItemId,
 } from "@/lib/runtime-content/runtimeAvatarFaceParts";
@@ -165,6 +169,7 @@ function PreviewActor({
       avatarRef.current = null;
       setAvatarInstance(null);
       onAvatarChange(null);
+      unregisterPreviewDockAvatar(avatar);
       avatar.dispose();
       releaseAvatar();
     };
@@ -198,6 +203,8 @@ function PreviewActor({
     const generation = ++loadGenerationRef.current;
     const controller = new AbortController();
     avatarLoadRef.current = "loading";
+    // Diagnostics reads the dock's Avatar only once this load has finished.
+    unregisterPreviewDockAvatar(avatar);
     setSceneObject(null);
     setAvatarReadyKey(null);
     onStatusChange("loading", t("preview.loadingAvatar"));
@@ -228,6 +235,7 @@ function PreviewActor({
           return;
         }
         avatar.setAutomaticAnimationPlaybackEnabled(false);
+        registerPreviewDockAvatar(avatar, runtimeAvatarItemId(entry));
         avatarLoadRef.current = "ready";
         setSceneObject(avatar.scene);
         setAvatarReadyKey(avatarSourceKey);

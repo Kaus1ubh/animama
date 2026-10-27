@@ -136,7 +136,8 @@
     "identity": {
       "included": "內建虛擬形象",
       "local": "本機虛擬形象",
-      "unknown": "虛擬形象"
+      "unknown": "虛擬形象",
+      "upload": "未儲存的上傳"
     },
     "issues": {
       "anchors_face_skin_missing": "找不到臉部皮膚，因此無法放置繪於臉部的特效。",
@@ -238,7 +239,10 @@
     },
     "source": {
       "live": "位於聊天舞台",
-      "offscreen": "為此檢視載入"
+      "offscreen": "為此檢視載入",
+      "dock": "位於預覽中",
+      "uploadStage": "位於預覽舞台",
+      "notLoaded": "未能載入"
     },
     "title": "虛擬形象診斷",
     "unavailable": "此 Anima 沒有可檢查的虛擬形象。",

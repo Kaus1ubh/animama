@@ -23,6 +23,7 @@ import {
   Play,
   Plus,
   Search,
+  SlidersHorizontal,
   Sparkles,
   WandSparkles,
 } from "lucide-react";
@@ -74,6 +75,10 @@ import {
   ActionManageDialog,
   type ManageActionTarget,
 } from "@/ui/action-manage/ActionManageDialog";
+import {
+  LibraryAvatarSettingsDialog,
+  type LibraryAvatarTarget,
+} from "./LibraryAvatarSettingsDialog";
 import { LibrarySoundDialog } from "./LibrarySoundDialog";
 import { LibraryFilterMenu } from "./LibraryFilterMenu";
 import { LibraryProductRow, type LibraryLayout } from "./LibraryProductRow";
@@ -450,6 +455,8 @@ export function LibraryContentInventory({
     sort: search.sort,
     enabled: includes("avatars"),
   });
+  const [avatarSettings, setAvatarSettings] =
+    useState<LibraryAvatarTarget | null>(null);
   const [managedSound, setManagedSound] = useState<PyCatalogViewItem | null>(
     null,
   );
@@ -760,6 +767,31 @@ export function LibraryContentInventory({
                         </Button>
                       </ActionTooltip>
                       {avatar.catalog_item_id ? (
+                        <ActionTooltip
+                          label={t("inventory.actions.avatarSettings")}
+                          layout={layout}
+                        >
+                          <Button
+                            size={layout === "grid" ? "icon-sm" : "sm"}
+                            variant="outline"
+                            onClick={() => {
+                              soundPreview.stop();
+                              setAvatarSettings({
+                                itemId: avatar.catalog_item_id!,
+                                source: avatar.origin,
+                                name: avatar.name,
+                              });
+                            }}
+                            aria-label={t("inventory.actions.avatarSettings")}
+                          >
+                            <SlidersHorizontal />
+                            {layout === "list"
+                              ? ` ${t("inventory.actions.avatarSettingsShort")}`
+                              : null}
+                          </Button>
+                        </ActionTooltip>
+                      ) : null}
+                      {avatar.catalog_item_id ? (
                         <RuntimeFeatureGate
                           capability="anima_creation"
                           unavailable={(reason) => (
@@ -858,6 +890,13 @@ export function LibraryContentInventory({
           <Sparkles className="mx-auto size-5" />
           <p className="mt-2 font-medium">{t("inventory.uploadsSeparate")}</p>
         </div>
+      ) : null}
+      {avatarSettings ? (
+        <LibraryAvatarSettingsDialog
+          key={avatarSettings.itemId}
+          avatar={avatarSettings}
+          onClose={() => setAvatarSettings(null)}
+        />
       ) : null}
       {managedSound ? (
         <LibrarySoundDialog

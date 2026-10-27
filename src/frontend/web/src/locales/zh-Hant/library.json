@@ -112,7 +112,9 @@
       "preview": "預覽",
       "stop": "停止",
       "useInGesture": "在動作中使用",
-      "useInReaction": "在反應中使用"
+      "useInReaction": "在反應中使用",
+      "avatarSettings": "虛擬形象設定",
+      "avatarSettingsShort": "設定"
     },
     "groups": {
       "avatarEffects": "形象特效",
@@ -135,7 +137,13 @@
     "noMatches": "沒有符合的項目。",
     "retry": "重試",
     "search": "搜尋資源庫",
-    "uploadsSeparate": "聊天上傳在下方單獨管理。"
+    "uploadsSeparate": "聊天上傳在下方單獨管理。",
+    "avatarSettings": {
+      "title": "虛擬形象設定",
+      "description": "{{name}} 的設定。適用於使用此虛擬形象的所有地方。",
+      "diagnosticsOnly": "查看 Animama 在 {{name}} 中發現的內容。",
+      "diagnostics": "查看 Animama 在此虛擬形象中發現的內容，並複製報告以尋求支援。"
+    }
   },
   "page": {
     "actionFilters": {

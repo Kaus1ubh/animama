@@ -217,7 +217,10 @@ tenant-inventory row for `avatar_face_part_overrides`. So:
 - [ ] Phase 8: Package sharing (R13). Not started.
 - [ ] Phase 9 (alongside): lilToon frame cost (R11). Not started.
 - [ ] Phase 10: Diagnostics and Avatar settings in the Library and Create Anima
-  (R5, R7 and R11 entry points; owner, 2026-10-27). Not started; PR B.
+  (R5, R7 and R11 entry points; owner, 2026-10-27). Implemented, checked and
+  review passed 2026-10-27 on `feat/arbitrary-vrm-support-pr-b`;
+  `pnpm e2e:test:fast` waits for PR B's final candidate; the owner's UI review
+  is pending.
 - [ ] Final integration review and full pre-push suite.
 
 ## Surprises & Discoveries
@@ -363,6 +366,25 @@ tenant-inventory row for `avatar_face_part_overrides`. So:
   preview, in PR B (Phase 10). Create Anima gets no settings, since an unsaved
   upload has no Avatar item to store them on. Issue #691's spec lists them
   since 2026-10-27 (R5, R7, R11, their acceptance and decision 9).
+- 2026-10-27, agent (Phase 10 step 4, within the plan): no backend field. The
+  backend keeps no file facts (an item's catalog `metadata` is its sidecar
+  projection, and `validate_vrm_stream`'s facts are discarded), so a field
+  would need scan-time persistence of file facts, an API field, a regenerated
+  client, package-set bumps and a Cloud repin for one row. The Library's
+  Avatar settings dialog instead reads the item's file facts when this
+  session does not yet know whether the file has lilToon materials
+  (`useAvatarItemFileTraits`), once per file per session, into the same
+  `useAvatarFileTraitsStore`, so the Anima settings then show the row too.
+  This narrows Phase 3's rejection of "a full download only to decide one
+  row" to the panels that are always shown: the Library dialog is opened
+  deliberately. A file whose glTF cannot be read is remembered as without
+  lilToon, so it is not read again. The phase stays at the standard tier.
+- 2026-10-27, agent (Phase 10, within the plan): the preview dock publishes
+  its loaded Avatar and item id (`stores/preview-dock-avatar-store.ts`) so
+  Diagnostics for that item reads it; Create Anima's stage lifts its Avatar
+  and load state (`onAvatarStateChange`) to the upload step. The Library
+  dialog opens Diagnostics nested inside it, so Escape closes Diagnostics
+  first.
 
 ## Decisions
 
@@ -1527,15 +1549,110 @@ passed.
 Recovery: UI only, plus an additive read-only field if step 4 adds it; removing
 the entry points leaves the Anima settings as Phase 3 left them.
 
-Check record: (to fill) · Commits: (to fill)
+Check record (2026-10-27, macOS arm64, worktree on
+`feat/arbitrary-vrm-support-pr-b` from `cae68160`; working tree `f18131e3`):
+
+- New tests: `useAvatarDiagnostics.test.tsx` (an Avatar item off screen and
+  from the dock, an upload while the stage loads, with its Avatar and after a
+  failed load; upload reports hold no file name or item id; the Anima source
+  unchanged), `LibraryAvatarSettingsDialog.test.tsx` (real settings hooks over
+  a mocked SDK: both rows once the file is known to have lilToon materials,
+  no read for a known file, a wind change reaching the dock's load settings
+  without a material change, Diagnostics for the item, Diagnostics only in the
+  hosted runtime), `LibraryContentInventory.test.tsx` (the action on Included
+  and Local cards in both layouts, none without a catalog item),
+  `CreateAnimaUploadDiagnostics.test.tsx`, `CreateAnimaAvatarStep.test.tsx`,
+  `CreateAnimaStage.settings.test.tsx` (loading, ready and failed states) and
+  `ContentPreviewScene.test.tsx` (the dock publishes its Avatar only after a
+  finished load).
+- `npx vitest run src/lib/avatar src/ui src/stores src/lib/content
+  tests/avatar` (`src/frontend/web`): 381 files, 3,733 passed, 2 skipped.
+- `npx tsc -p tsconfig.app.json --noEmit` (`src/frontend/web`),
+  `pnpm -s i18n:check`, `pnpm -s web:lint` (`src/frontend`): pass; Prettier
+  on the changed files: pass.
+- Production-build stack `animama-arbvrmb` (http://animama-arbvrmb.localhost:9000,
+  built from this tree), 1440x900 and 900x800, light and dark: the action in
+  the grid and list layouts; Annie's dialog (no Materials row, no lilToon);
+  Diagnostics nested in it ("Included Avatar · loaded for this view", and
+  "in the preview" after Preview); Escape closes Diagnostics only; Springs off
+  saved in the dialog showed "Springs off · springs held at rest · Saved for
+  this Avatar" in Diagnostics reading the dock's Avatar, without a reload
+  (reset to Automatic afterwards); Create Anima with Included bytes as an
+  upload showed "No problems found." and "Unsaved upload · on the preview
+  stage"; a synthetic Draco-required VRM showed "Animama could not load this
+  Avatar." and "Unsaved upload · not loaded" with the load error.
+- Not run here: `pnpm verify` as one command (its parts above were run
+  separately; the Vite bundle was built by the stack) and
+  `pnpm e2e:test:fast`, deferred to PR B's final candidate with the other
+  phases' user-facing changes, so Completion stays open until it passes; the
+  converted test Avatar on the stack (the owner gate).
+
+Commits: `feat(avatars)[p10]: offer Avatar settings and Diagnostics in the
+Library and Create Anima`.
 
 #### Code Review #1 Findings
 
-Not run.
+Independent reviewer, standard tier, initial review of the working tree
+(`f18131e3`, then `b36cadb6` with only plan records changed) against
+`cae68160`; recorded checks reused.
+
+- P10-R1-F1 (blocking): Library Diagnostics (and the dock) loaded an Avatar
+  item without its saved face part correction: the preview entry carried no
+  `face_parts`, although the `:preview` route returns the effective one.
+- P10-R1-F2 (blocking): item and upload Diagnostics listed effect findings
+  that the dock's or creator stage's own previews left on their Avatar,
+  contrary to R7 ("effect warnings only from an Anima"); two new tests
+  asserted that behaviour.
+- Optional: P10-R1-F3, the dock store matched by item id only (an older
+  revision could be described); P10-R1-F4, the upload status line and its
+  dialog each read the file, plus two nits (`NO_UPLOAD`, the stage importing
+  its type from the diagnostics component); P10-R1-F5, two doc gaps; P10-R1-F6,
+  the step-4 entry should say it narrows Phase 3's rejection, and an
+  unreadable file was read again on each open; P10-R1-F7, the record should
+  mark `pnpm verify` and e2e as not run. Step 4's choice assessed as sound.
 
 #### Code Review #1 Revisions
 
-Not run.
+- F1 accepted: the Avatar typed metadata and `avatarPreviewEntry` carry the
+  item's `face_parts`, the same two changes PR A's `5470e01d` makes (so the
+  code merges cleanly); dock previews and Library Diagnostics then load and report
+  the saved correction. Test: an item whose correction is invalid reports
+  `face_parts_correction_invalid`; PR A's `avatarPreviewTarget.test.ts` covers
+  the entry once merged.
+- F2 accepted: for the item and upload sources the hook drops live findings
+  that name an effect (`params.effectId`) from the screen and the report. The
+  dock test now expects only the non-effect finding, and the upload status
+  counts 2 of 3 findings; both fail without the filter.
+- F3 accepted: the dock's Avatar is used only when its VRM sha256 matches the
+  item's; test: an older revision in the dock loads off screen.
+- F4 accepted: the dialog takes an optional `view`, so the upload status line
+  and its dialog share one read; `NO_UPLOAD` removed; `CreationStageAvatar`
+  lives in `CreateAnimaStage.tsx`.
+- F5 accepted: `anima-management.md` names the preview route and the effect
+  rule; `custom-anima-creation.md` points to the upload status.
+- F6 accepted: Decision Log entry extended; unreadable files are remembered.
+- F7 accepted: the check record says what was not run and why.
+- Rechecks: `npx vitest run src/ui/animas src/ui/create-anima src/ui/library
+  src/lib/content src/ui/content-preview` 100 files, 652 passed; tsc pass.
+  Targeted recheck: Code Review #2.
+
+#### Code Review #2 Findings
+
+Targeted recheck of working tree `dc282576` against `b36cadb6`: P10-R1-F1 to
+F7 resolved, no regressions. The reviewer reran the consumers of the changed
+preview entry (`src/ui/content-creator`, `src/ui/avatar-effect-creator`,
+`src/ui/pose-creator`, `src/lib/content-preview`: 66 files, 400 passed) and
+an in-memory `git merge-tree` with `feat/arbitrary-vrm-support` (code merges
+cleanly; this plan conflicts). Optional: P10-R2-F1, the F1 revision said the
+merge is clean although the plan conflicts; P10-R2-F2, the Commits line names
+a commit not yet made.
+
+#### Code Review #2 Revisions
+
+- P10-R2-F1 accepted: the revision now says the code merges cleanly.
+- P10-R2-F2: the Commits line keeps the subject, as the other phases do.
+- Review passed. Phase 10 is agent-ready except `pnpm e2e:test:fast`; the
+  owner's UI review is pending.
 
 ## Final integration review
 

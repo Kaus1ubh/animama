@@ -136,7 +136,8 @@
     "identity": {
       "included": "기본 제공 아바타",
       "local": "로컬 아바타",
-      "unknown": "아바타"
+      "unknown": "아바타",
+      "upload": "저장되지 않은 업로드"
     },
     "issues": {
       "anchors_face_skin_missing": "얼굴 피부를 찾지 못해 얼굴에 그리는 효과를 배치할 수 없습니다.",
@@ -238,7 +239,10 @@
     },
     "source": {
       "live": "채팅 무대에 표시 중",
-      "offscreen": "이 화면을 위해 불러옴"
+      "offscreen": "이 화면을 위해 불러옴",
+      "dock": "미리 보기에 표시 중",
+      "uploadStage": "미리 보기 무대에 표시 중",
+      "notLoaded": "불러오지 못함"
     },
     "title": "아바타 진단",
     "unavailable": "이 Anima에는 확인할 아바타가 없습니다.",

@@ -620,7 +620,8 @@ export default interface Resources {
       "identity": {
         "included": "Included Avatar",
         "local": "Local Avatar",
-        "unknown": "Avatar"
+        "unknown": "Avatar",
+        "upload": "Unsaved upload"
       },
       "issues": {
         "anEffect": "An effect",
@@ -724,8 +725,11 @@ export default interface Resources {
         "stored": "Saved for this Avatar"
       },
       "source": {
+        "dock": "in the preview",
         "live": "on the chat stage",
-        "offscreen": "loaded for this view"
+        "notLoaded": "not loaded",
+        "offscreen": "loaded for this view",
+        "uploadStage": "on the preview stage"
       },
       "title": "Avatar diagnostics",
       "unavailable": "This Anima has no Avatar to check.",
@@ -1795,6 +1799,14 @@ export default interface Resources {
         "item": "{{name}} · {{id}}",
         "replace": "Replace this Avatar",
         "title": "This Avatar name is already used"
+      },
+      "diagnostics": {
+        "checking": "Checking this Avatar…",
+        "failed": "Animama could not load this Avatar.",
+        "noProblems": "No problems found.",
+        "problems_one": "{{count}} problem found.",
+        "problems_other": "{{count}} problems found.",
+        "view": "View diagnostics"
       },
       "discardUpload": "Discard unsaved upload",
       "emptyIncluded": "No Included Avatars are available. You can use My Content or upload a VRM.",
@@ -3729,6 +3741,8 @@ export default interface Resources {
     },
     "inventory": {
       "actions": {
+        "avatarSettings": "Avatar settings",
+        "avatarSettingsShort": "Settings",
         "createAnima": "Create Anima",
         "draft": "Draft",
         "edit": "Edit",
@@ -3741,6 +3755,12 @@ export default interface Resources {
         "stop": "Stop",
         "useInGesture": "Use in Gesture",
         "useInReaction": "Use in Reaction"
+      },
+      "avatarSettings": {
+        "description": "Settings for {{name}}. They apply wherever this Avatar is used.",
+        "diagnostics": "See what Animama found in this Avatar, and copy a report for support.",
+        "diagnosticsOnly": "See what Animama found in {{name}}.",
+        "title": "Avatar settings"
       },
       "groups": {
         "avatarEffects": "Avatar Effects",

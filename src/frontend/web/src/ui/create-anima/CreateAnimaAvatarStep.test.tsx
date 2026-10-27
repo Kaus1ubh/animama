@@ -15,6 +15,16 @@ import { checkCreationVrm } from "./createAnimaFiles";
 import { parseCreateAnimaSearch } from "./createAnimaSearch";
 import { ref } from "./createAnimaTestFixtures";
 
+vi.mock("./CreateAnimaUploadDiagnostics", () => ({
+  CreateAnimaUploadDiagnostics: ({
+    file,
+    stage,
+  }: {
+    file: File;
+    stage: { status: string };
+  }) => <p data-upload-diagnostics={stage.status}>{file.name}</p>,
+}));
+
 function avatar(
   item_id: string,
   source: "included" | "local",
@@ -141,5 +151,41 @@ describe("Avatar handoff and admission", () => {
     expect(html).not.toContain("Choose a VRM file</button>");
     expect(html).not.toContain("VRM 0.0 or 1.0");
     expect(html).not.toContain("Selected: selected-avatar");
+  });
+
+  it("shows the chosen file's Diagnostics status under its preview", () => {
+    const props = {
+      draft: newCreateAnimaDraft(),
+      sources: {
+        avatars: {
+          data: [],
+          isLoading: false,
+          isError: false,
+          refetch: vi.fn(),
+        },
+      } as unknown as AnimaCreationSources,
+      operations: {
+        saveAvatar: { mutateAsync: vi.fn() },
+      } as unknown as AnimaCreationOperations,
+      fileInputRef: createRef<HTMLInputElement>(),
+      onFile: vi.fn(),
+      onSelect: vi.fn(async () => undefined),
+      onWorking: vi.fn(),
+    };
+    const chosen = renderToStaticMarkup(
+      <CreateAnimaAvatarStep
+        {...props}
+        file={new File([new Uint8Array(8)], "upload.vrm")}
+        stageAvatar={{ avatar: null, status: "failed" }}
+      />,
+    );
+    expect(chosen).toContain('data-upload-diagnostics="failed"');
+    expect(chosen.indexOf("Previewing")).toBeLessThan(
+      chosen.indexOf("data-upload-diagnostics"),
+    );
+    // No file, no status: a saved Avatar's settings and Diagnostics live elsewhere.
+    expect(
+      renderToStaticMarkup(<CreateAnimaAvatarStep {...props} file={null} />),
+    ).not.toContain("data-upload-diagnostics");
   });
 });

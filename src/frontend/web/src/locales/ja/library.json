@@ -112,7 +112,9 @@
       "preview": "プレビュー",
       "stop": "停止",
       "useInGesture": "ジェスチャーで使用",
-      "useInReaction": "リアクションで使用"
+      "useInReaction": "リアクションで使用",
+      "avatarSettings": "アバター設定",
+      "avatarSettingsShort": "設定"
     },
     "groups": {
       "avatarEffects": "アバターエフェクト",
@@ -135,7 +137,13 @@
     "noMatches": "一致する項目はありません。",
     "retry": "再試行",
     "search": "ライブラリを検索",
-    "uploadsSeparate": "チャットのアップロードは下で個別に管理します。"
+    "uploadsSeparate": "チャットのアップロードは下で個別に管理します。",
+    "avatarSettings": {
+      "title": "アバター設定",
+      "description": "{{name}} の設定です。このアバターを使うすべての場所に適用されます。",
+      "diagnosticsOnly": "Animama が {{name}} で見つけた内容を確認できます。",
+      "diagnostics": "Animama がこのアバターで見つけた内容を確認し、サポート用のレポートをコピーできます。"
+    }
   },
   "page": {
     "actionFilters": {

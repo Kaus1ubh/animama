@@ -102,7 +102,14 @@
     "search": "アバターを検索",
     "searchPlaceholder": "アバターを検索…",
     "showMore": "さらにアバターを表示",
-    "upload": "VRM をアップロード"
+    "upload": "VRM をアップロード",
+    "diagnostics": {
+      "checking": "このアバターを確認しています…",
+      "noProblems": "問題は見つかりませんでした。",
+      "failed": "Animama はこのアバターを読み込めませんでした。",
+      "view": "診断を表示",
+      "problems_other": "{{count}} 件の問題が見つかりました。"
+    }
   },
   "completion": {
     "degraded": "一部のランタイムコンテンツは利用できません。Anima は正常に作成されました。",

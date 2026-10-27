@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PreviewRuntimeCatalogSession } from "@/lib/content-preview/PreviewRuntimeCatalogSession";
 import type { ContentPreviewTarget } from "@/lib/content-preview/types";
 import type { RuntimeCatalogEntry } from "@/lib/runtime-content/types";
+import { usePreviewDockAvatarStore } from "@/stores/preview-dock-avatar-store";
 import { DEFAULT_AVATAR_TRANSFORM } from "@/ui/main/canvas/transform-state";
 import { ContentPreviewScene } from "./ContentPreviewScene";
 
@@ -143,7 +144,7 @@ function avatarEntry(revision: string): RuntimeCatalogEntry {
     display_name: "Annie",
     description: null,
     config_schema_version: 1,
-    config: {},
+    config: { avatar_catalog_item_id: "item-annie" },
     content_revision: revision,
     source: { type: "public_url", url: "/fixtures/annie.vrm" },
   };
@@ -276,6 +277,25 @@ describe("ContentPreviewScene Avatar settings", () => {
 });
 
 describe("ContentPreviewScene", () => {
+  it("publishes its Avatar to Diagnostics only while a load has finished", async () => {
+    const dock = () => usePreviewDockAvatarStore.getState();
+    await show(gesture("wave"), "avatar-r1");
+    expect(dock().avatar).toBeNull();
+    await finishLoads(0);
+    expect(dock().avatar).not.toBeNull();
+    expect(dock().itemId).toBe("item-annie");
+
+    // A new model revision withdraws it until that load finishes.
+    await show(gesture("wave"), "avatar-r2");
+    expect(dock().avatar).toBeNull();
+    await finishLoads(1);
+    expect(dock().avatar).not.toBeNull();
+
+    act(() => root.unmount());
+    expect(dock()).toEqual({ avatar: null, itemId: null });
+    root = createRoot(container);
+  });
+
   it("reuses the loaded Avatar for a target with the same model revision", async () => {
     await show(gesture("wave"), "avatar-r1");
     await finishLoads(0);

@@ -112,7 +112,9 @@
       "preview": "预览",
       "stop": "停止",
       "useInGesture": "在动作中使用",
-      "useInReaction": "在反应中使用"
+      "useInReaction": "在反应中使用",
+      "avatarSettings": "虚拟形象设置",
+      "avatarSettingsShort": "设置"
     },
     "groups": {
       "avatarEffects": "形象特效",
@@ -135,7 +137,13 @@
     "noMatches": "没有匹配的项目。",
     "retry": "重试",
     "search": "搜索资源库",
-    "uploadsSeparate": "聊天上传在下方单独管理。"
+    "uploadsSeparate": "聊天上传在下方单独管理。",
+    "avatarSettings": {
+      "title": "虚拟形象设置",
+      "description": "{{name}} 的设置。适用于使用此虚拟形象的所有地方。",
+      "diagnosticsOnly": "查看 Animama 在 {{name}} 中发现的内容。",
+      "diagnostics": "查看 Animama 在此虚拟形象中发现的内容，并复制报告以便寻求支持。"
+    }
   },
   "page": {
     "actionFilters": {

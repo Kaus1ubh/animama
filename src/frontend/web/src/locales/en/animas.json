@@ -139,7 +139,8 @@
     "identity": {
       "included": "Included Avatar",
       "local": "Local Avatar",
-      "unknown": "Avatar"
+      "unknown": "Avatar",
+      "upload": "Unsaved upload"
     },
     "issues": {
       "anchors_face_skin_missing": "No face skin was found, so painted face effects cannot be placed.",
@@ -243,8 +244,11 @@
       "stored": "Saved for this Avatar"
     },
     "source": {
+      "dock": "in the preview",
       "live": "on the chat stage",
-      "offscreen": "loaded for this view"
+      "notLoaded": "not loaded",
+      "offscreen": "loaded for this view",
+      "uploadStage": "on the preview stage"
     },
     "title": "Avatar diagnostics",
     "unavailable": "This Anima has no Avatar to check.",

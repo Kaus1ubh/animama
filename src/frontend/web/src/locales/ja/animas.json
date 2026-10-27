@@ -136,7 +136,8 @@
     "identity": {
       "included": "同梱アバター",
       "local": "ローカルアバター",
-      "unknown": "アバター"
+      "unknown": "アバター",
+      "upload": "未保存のアップロード"
     },
     "issues": {
       "anchors_face_skin_missing": "顔の肌が見つからないため、顔に描くエフェクトを配置できません。",
@@ -238,7 +239,10 @@
     },
     "source": {
       "live": "チャットのステージ上",
-      "offscreen": "この画面用に読み込み"
+      "offscreen": "この画面用に読み込み",
+      "dock": "プレビューに表示中",
+      "uploadStage": "プレビューのステージ上",
+      "notLoaded": "読み込めませんでした"
     },
     "title": "アバター診断",
     "unavailable": "この Anima には確認できるアバターがありません。",

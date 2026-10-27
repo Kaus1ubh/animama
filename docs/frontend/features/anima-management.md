@@ -69,8 +69,14 @@ wherever that Avatar is used:
   [Authored lilToon materials](../runtime/avatar-animation.md#authored-liltoon-materials)),
   or while a stored choice is not Automatic. Materials are built at load, so
   a change reloads the Avatar wherever it is shown. Whether a file has lilToon
-  materials is known once any surface has loaded it in this session
+  materials is known once any surface has loaded it in this session, or the
+  Library's Avatar settings have read its file facts
   (`useAvatarFileTraitsStore`, keyed by the VRM's sha256).
+
+The Library offers the same rows for any Avatar item (see
+[Library](library.md)); both use `AvatarSettingsRows`, keyed by Avatar item.
+Create Anima has no settings: an unsaved upload has no Avatar item to keep
+them for.
 
 Automatic is stored as no value. Every surface that loads a saved Avatar (chat
 canvas, Anima page stage, content previews, the content creators, the Pose
@@ -104,18 +110,33 @@ Animama found in the Anima's Avatar and how it plays it:
 - **Warnings**: every face-part, landmark, texture-anchor, spring and effect
   finding, once each.
 
-It reads the Avatar on the chat stage when that Anima is there; otherwise it
-loads the Avatar separately, with its saved face part correction, and releases
-it on close. An Avatar that does not load still shows its file facts and the
-load error. **Copy report** copies a plain-text report and **Raw JSON** shows
+Diagnostics describes one of three sources (`useAvatarDiagnostics`):
+
+- an Anima's Avatar (this row): the Avatar on the chat stage when that Anima
+  is there. Only this source lists effect warnings, which depend on the
+  Anima's Gestures and Reactions; the other two leave out the effect
+  findings the dock's or stage's own previews leave on their Avatar;
+- an Avatar item, from the Library's Avatar settings: the preview dock's
+  Avatar when the dock shows that revision of the item
+  (`usePreviewDockAvatarStore`);
+- an unsaved upload, from Create Anima: file facts from the chosen file and
+  live facts from the creator stage's Avatar once it loads. Under
+  "Previewing …" the step shows one status line (checking, no problems found,
+  the number of problems, or that the file could not load) with **View
+  diagnostics**.
+
+Without an Avatar on screen, it loads the Avatar separately, with its saved
+face part correction and settings, and releases it on close. An Avatar that
+does not load still shows its file facts and the load error. **Copy report** copies a plain-text report and **Raw JSON** shows
 the same `animama/avatar-diagnostics/1` report as a collapsible tree, with
 Copy JSON for the whole document. Reports identify the
 Avatar, and any effect a warning names, by source and item id
-(`local:<item id>`), and hold counts, standard names (VRM expressions and
+(`local:<item id>`), an unsaved upload by kind alone (`upload`), and hold counts, standard names (VRM expressions and
 bones, ARKit shapes, VRoid `Fcl_` parts) and codes only: no file paths, URLs,
 or Avatar, material, effect or custom expression names. The dialog itself
-names effects on screen. Diagnostics uses only the runtime snapshot, loadout
-and content delivery, with nothing local-only, so hosted builds include it.
+names effects on screen. Diagnostics uses only the runtime snapshot, loadout,
+the shared Avatar preview route and content delivery, with nothing
+local-only, so hosted builds include it.
 
 ## Loadout
 

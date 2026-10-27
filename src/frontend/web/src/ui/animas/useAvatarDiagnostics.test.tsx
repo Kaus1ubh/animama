@@ -6,9 +6,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Avatar } from "@/lib/avatar";
 import type { AvatarLiveDiagnostics } from "@/lib/avatar/diagnostics/avatarDiagnostics";
 import type { AvatarIssue } from "@/lib/avatar/diagnostics/issues";
+import { avatarDiagnosticsText } from "@/lib/avatar/diagnostics/avatarDiagnosticsReport";
 import { useAvatarLipSyncBridgeStore } from "@/stores/avatar-lipsync-bridge-store";
 import {
+  registerPreviewDockAvatar,
+  usePreviewDockAvatarStore,
+} from "@/stores/preview-dock-avatar-store";
+import {
   useAvatarDiagnostics,
+  type AvatarDiagnosticsSource,
   type AvatarDiagnosticsView,
 } from "./useAvatarDiagnostics";
 
@@ -19,18 +25,40 @@ const runtime = vi.hoisted(() => ({
     source: { type: "public_url" },
   },
   release: vi.fn(),
+  apiClient: {},
+  /** The item entry's saved face part correction, as the preview carries it. */
+  itemFaceParts: undefined as unknown,
+  itemEntry: vi.fn(async (_client: unknown, itemId: string) => ({
+    runtime_id: `preview-${itemId}`,
+    config: {
+      avatar_catalog_item_id: itemId,
+      ...(runtime.itemFaceParts ? { face_parts: runtime.itemFaceParts } : {}),
+    },
+    source: {
+      type: "authorized_files",
+      files: [{ role: "model", filename: "m.vrm", sha256: "sha-item" }],
+    },
+  })),
+}));
+vi.mock("@animama/product-ui", () => ({
+  useProductApiClient: () => runtime.apiClient,
+}));
+vi.mock("@/lib/content/avatarPreviewTarget", () => ({
+  avatarItemRuntimeEntry: runtime.itemEntry,
 }));
 vi.mock("@/query/hooks/useAnimaRuntimeCatalog", () => ({
-  useAnimaRuntimeCatalog: () => ({
-    data: {
-      avatar_effects: [
-        {
-          runtime_id: "ray-secret-blush",
-          name: "Ray Secret Blush",
-          source: { source: "local", item_id: "item-fx" },
-        },
-      ],
-    },
+  useAnimaRuntimeCatalog: (animaId: string | null) => ({
+    data: animaId
+      ? {
+          avatar_effects: [
+            {
+              runtime_id: "ray-secret-blush",
+              name: "Ray Secret Blush",
+              source: { source: "local", item_id: "item-fx" },
+            },
+          ],
+        }
+      : undefined,
     isPending: false,
   }),
 }));
@@ -53,6 +81,7 @@ const avatarSettings = vi.hoisted(() => ({
       material_mode_source: "default",
     },
   },
+  none: { data: undefined },
   load: {
     springMode: "off",
     springModeRef: { current: "off" },
@@ -60,7 +89,9 @@ const avatarSettings = vi.hoisted(() => ({
   },
 }));
 vi.mock("@/query/hooks/useAvatarSettings", () => ({
-  useAvatarSettings: () => avatarSettings.stored,
+  // Without an item (an unsaved upload) the real query never runs.
+  useAvatarSettings: (itemId: string | null) =>
+    itemId ? avatarSettings.stored : avatarSettings.none,
   useAvatarLoadSettings: () => avatarSettings.load,
 }));
 vi.mock("@/lib/runtime-content/runtimeContentDelivery", () => ({
@@ -103,11 +134,12 @@ const dracoGlb = () =>
   });
 
 /** The chat stage's Avatar, as far as the hook reads it. */
-function stageAvatar() {
+function stageAvatar(vrmSha256: string | null = null) {
   const listeners = new Set<() => void>();
   let issues: AvatarIssue[] = [];
   const avatar = {
     vrm: {},
+    vrmSha256,
     getDiagnostics: () => ({ issues }) as unknown as AvatarLiveDiagnostics,
     subscribeDiagnostics: (listener: () => void) => {
       listeners.add(listener);
@@ -128,25 +160,30 @@ function stageAvatar() {
 let root: Root | null = null;
 let view: AvatarDiagnosticsView | null = null;
 
+const ANIMA: AvatarDiagnosticsSource = { kind: "anima", animaId: "anima-1" };
+
 function Probe({
+  source,
   enabled,
   onView,
 }: {
+  source: AvatarDiagnosticsSource;
   enabled: boolean;
   onView: (next: AvatarDiagnosticsView) => void;
 }) {
-  const next = useAvatarDiagnostics("anima-1", enabled);
+  const next = useAvatarDiagnostics(source, enabled);
   useEffect(() => onView(next));
   return null;
 }
 
-function render(enabled: boolean) {
+function render(enabled: boolean, source: AvatarDiagnosticsSource = ANIMA) {
   const container = document.createElement("div");
   document.body.append(container);
   act(() => {
     root ??= createRoot(container);
     root.render(
       <Probe
+        source={source}
         enabled={enabled}
         onView={(next) => {
           view = next;
@@ -176,6 +213,7 @@ beforeEach(() => {
   vi.spyOn(console, "warn").mockImplementation(() => {});
   vi.spyOn(console, "error").mockImplementation(() => {});
   runtime.release.mockReset();
+  runtime.itemEntry.mockClear();
 });
 
 afterEach(() => {
@@ -184,6 +222,7 @@ afterEach(() => {
   view = null;
   vi.unstubAllGlobals();
   useAvatarLipSyncBridgeStore.setState({ avatar: null, avatarAnimaId: null });
+  usePreviewDockAvatarStore.setState({ avatar: null, itemId: null });
   document.body.replaceChildren();
 });
 
@@ -271,6 +310,162 @@ describe("useAvatarDiagnostics", () => {
       expect(view!.state.status).toBe("unavailable");
     } finally {
       runtime.entry = entry;
+    }
+  });
+
+  it("loads an Avatar item off screen when the preview dock shows another", async () => {
+    serve(dracoGlb());
+    // The dock shows a different item, so its Avatar is not this one.
+    registerPreviewDockAvatar(stageAvatar().avatar, "item-other");
+    render(true, { kind: "avatar", itemId: "item-7", source: "included" });
+    await settle(() => view?.state.status === "ready");
+
+    const state = view!.state;
+    if (state.status !== "ready") throw new Error("not ready");
+    expect(runtime.itemEntry).toHaveBeenCalledWith(
+      runtime.apiClient,
+      "item-7",
+      expect.any(AbortSignal),
+    );
+    expect(state.live).toBe(false);
+    expect(state.report).toMatchObject({
+      avatar: { source: "included", itemId: "item-7" },
+      status: "failed",
+      file: { extensionsRequired: ["KHR_draco_mesh_compression"] },
+      issues: [{ code: "avatar_load_failed" }],
+    });
+    // Effect warnings belong to an Anima's loadout only.
+    expect(view!.effectNames.size).toBe(0);
+    render(false);
+    expect(runtime.release).toHaveBeenCalled();
+  });
+
+  it("reads an Avatar item from the preview dock when it shows that item", async () => {
+    serve(glb({ extensions: { VRMC_vrm: { specVersion: "1.0" } } }));
+    const dock = stageAvatar("sha-item");
+    registerPreviewDockAvatar(dock.avatar, "item-7");
+    render(true, { kind: "avatar", itemId: "item-7", source: "local" });
+    await settle(() => view?.state.status === "ready");
+
+    const state = view!.state;
+    if (state.status !== "ready") throw new Error("not ready");
+    expect(state.live).toBe(true);
+    expect(state.report).toMatchObject({
+      avatar: { source: "local", itemId: "item-7" },
+      status: "loaded",
+      file: { vrmVersion: "1.0" },
+    });
+    // Effect findings from the dock's own previews belong to no Anima.
+    const springs = { code: "springs_metadata_missing" } as AvatarIssue;
+    act(() =>
+      dock.report([
+        springs,
+        {
+          code: "effect_attachment_limit",
+          params: { effectId: "dock-preview-fx" },
+        },
+      ]),
+    );
+    const next = view!.state;
+    if (next.status !== "ready") throw new Error("not ready");
+    expect(next.issues).toEqual([springs]);
+    expect(next.report.issues).toEqual([springs]);
+    // The dock owns its Avatar.
+    render(false);
+    expect(dock.dispose).not.toHaveBeenCalled();
+  });
+
+  it("loads an Avatar item off screen when the dock holds an older revision", async () => {
+    serve(dracoGlb());
+    registerPreviewDockAvatar(stageAvatar("sha-older").avatar, "item-7");
+    render(true, { kind: "avatar", itemId: "item-7", source: "local" });
+    await settle(() => view?.state.status === "ready");
+    const state = view!.state;
+    if (state.status !== "ready") throw new Error("not ready");
+    expect(state.live).toBe(false);
+    expect(state.report.issues).toEqual([{ code: "avatar_load_failed" }]);
+  });
+
+  it("reports an Avatar item's invalid saved face part correction", async () => {
+    serve(dracoGlb());
+    runtime.itemFaceParts = { schema: "not-a-correction" };
+    try {
+      render(true, { kind: "avatar", itemId: "item-7", source: "local" });
+      await settle(() => view?.state.status === "ready");
+      const state = view!.state;
+      if (state.status !== "ready") throw new Error("not ready");
+      expect(state.report.issues).toContainEqual({
+        code: "face_parts_correction_invalid",
+      });
+    } finally {
+      runtime.itemFaceParts = undefined;
+    }
+  });
+
+  it("describes an unsaved upload from its file and the stage's Avatar", async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+    const file = new File(
+      [glb({ extensions: { VRM: { specVersion: "0.0" } } })],
+      "Secret Name Of Model.vrm",
+    );
+    const stage = stageAvatar();
+    render(true, { kind: "upload", file, avatar: null, stage: "loading" });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+    expect(view!.state.status).toBe("loading");
+
+    render(true, {
+      kind: "upload",
+      file,
+      avatar: stage.avatar,
+      stage: "ready",
+    });
+    await settle(() => view?.state.status === "ready");
+    const state = view!.state;
+    if (state.status !== "ready") throw new Error("not ready");
+    expect(state.live).toBe(true);
+    expect(state.report).toMatchObject({
+      avatar: { source: "upload", itemId: null },
+      status: "loaded",
+      settings: null,
+      file: { vrmVersion: "0.x" },
+      issues: [],
+    });
+    // The file is read locally; nothing is downloaded or loaded again.
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(runtime.itemEntry).not.toHaveBeenCalled();
+    expect(JSON.stringify(state.report)).not.toContain("Secret");
+    render(false, {
+      kind: "upload",
+      file,
+      avatar: stage.avatar,
+      stage: "ready",
+    });
+    expect(stage.dispose).not.toHaveBeenCalled();
+  });
+
+  it("keeps an upload's file facts and the load error when the stage fails", async () => {
+    const file = new File([dracoGlb()], "Secret Name Of Model.vrm");
+    render(true, { kind: "upload", file, avatar: null, stage: "failed" });
+    await settle(() => view?.state.status === "ready");
+    const state = view!.state;
+    if (state.status !== "ready") throw new Error("not ready");
+    expect(state.live).toBe(false);
+    expect(state.report).toMatchObject({
+      avatar: { source: "upload", itemId: null },
+      status: "failed",
+      file: { extensionsRequired: ["KHR_draco_mesh_compression"] },
+      issues: [{ code: "avatar_load_failed" }],
+    });
+    // A report names an upload by kind only.
+    for (const text of [
+      JSON.stringify(state.report),
+      avatarDiagnosticsText(state.report),
+    ]) {
+      expect(text).not.toContain("Secret");
+      expect(text).not.toContain(".vrm");
     }
   });
 });
