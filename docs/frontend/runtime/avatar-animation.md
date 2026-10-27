@@ -1638,9 +1638,25 @@ adapts colour and UV expression binds to those materials.
   ([Avatar settings](../features/anima-management.md#avatar-settings)) loads
   it through a loader without `withOnDemandLilToon` (`createAvatarGltfLoader`
   in `avatarGltfLoader.ts`), so the glTF fallback materials load and
-  three-liltoon is not imported. Automatic and lilToon load lilToon; an
-  Automatic GPU check is planned in #691 (R11). `Avatar.lilToonMaterials`
-  reports `rendered`, `fallback` or `none`.
+  three-liltoon is not imported. lilToon always loads lilToon; Automatic
+  loads it unless the GPU check below chose Simple. `Avatar.lilToonMaterials`
+  reports `rendered`, `fallback` or `none`, and `Avatar.automaticMaterials`
+  what Automatic chose and why.
+- **GPU check for Automatic** (`lilToonGpuCheck.ts`): the chat canvas
+  (`AvatarSceneLighting measureLilToonGpu` in `Scene.tsx`) times its first
+  lilToon frames on the GPU with `EXT_disjoint_timer_query_webgl2`. It skips
+  60 warm-up frames and times the next 60 that draw a lilToon Avatar on a
+  drawing buffer of at least one million pixels, then stores their median
+  in `localStorage` per GPU (vendor and renderer strings) and per viewer.
+  Frames another timer query already wraps, such as `effects:bench`'s, are
+  skipped, and repeated disjoint timings give up for the session. Each load
+  under Automatic reads the stored value for the GPU the latest Avatar
+  canvas uses. Above `LILTOON_AUTOMATIC_MAX_FRAME_MS` (8 ms, about half a
+  60 fps frame) it loads Simple; otherwise it loads lilToon. A new
+  measurement applies from the next load, and changing the constant needs no
+  new measurement. A GPU not measured yet, or a browser without the timer
+  extension (stored as unsupported), keeps lilToon. Blocked storage counts
+  as not measured. Diagnostics shows the decision and its reason.
 - **Fallback base colours:** Mochiya writes `metallicFactor` 1 on the fallback
   materials, which renders them almost black without an environment map.
   `LilToonFallbackMaterialsPlugin` builds fallbacks of lilToon materials with

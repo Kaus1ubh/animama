@@ -91,6 +91,10 @@ import {
   lilToonMaterialStateOf,
   type LilToonMaterialState,
 } from "./liltoon/lilToon";
+import {
+  automaticMaterialsDecision,
+  type AutomaticMaterialsDecision,
+} from "./liltoon/lilToonGpuCheck";
 import { irisHideBindOf } from "./irisHideExpression";
 import { prepareLoadedVrm } from "./prepareLoadedVrm";
 import type { ArkitFace } from "./arkitFaceExpressions";
@@ -436,6 +440,7 @@ export class Avatar {
   /** Automatic's wind choice for the loaded file. */
   private _automaticAmbientForces: boolean = true;
   private _materialMode: AvatarMaterialMode = "automatic";
+  private _automaticMaterials: AutomaticMaterialsDecision | null = null;
   private _lilToonMaterials: LilToonMaterialState = "none";
   private _facePartIssues: AvatarIssue[] = [];
   private _diagnosticsListeners = new Set<() => void>();
@@ -464,6 +469,14 @@ export class Avatar {
   /** The material setting the loaded model was built with. */
   get materialMode(): AvatarMaterialMode {
     return this._materialMode;
+  }
+
+  /**
+   * What the Materials setting's Automatic chose for this load and why (the
+   * GPU check); null under an explicit lilToon or Simple setting.
+   */
+  get automaticMaterials(): AutomaticMaterialsDecision | null {
+    return this._automaticMaterials;
   }
 
   /** How the loaded file's authored lilToon materials render. */
@@ -530,6 +543,8 @@ export class Avatar {
     this.unload();
     this._springMode = spec.springMode ?? "automatic";
     this._materialMode = spec.materialMode ?? "automatic";
+    this._automaticMaterials =
+      this._materialMode === "automatic" ? automaticMaterialsDecision() : null;
 
     onProgress?.({ phase: "setup", message: "Setting up..." });
 
@@ -547,7 +562,7 @@ export class Avatar {
         });
       },
       spec.resourceUrls,
-      this._materialMode,
+      this._automaticMaterials?.choice ?? this._materialMode,
     );
     if (this._isDisposed) {
       releaseModelScene(vrm.scene);
@@ -694,6 +709,7 @@ export class Avatar {
       this._facePartCorrections = null;
       this._arkitFace = null;
       this._lilToonMaterials = "none";
+      this._automaticMaterials = null;
       this._facePartIssues = [];
       this.animationManager = null;
       this.expressionController = null;

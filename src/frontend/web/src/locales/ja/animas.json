@@ -206,11 +206,16 @@
     },
     "materials": {
       "label": "lilToon マテリアル",
+      "milliseconds": "{{value}} ms",
       "rendered": "lilToon で描画",
       "simple": "シンプルなマテリアル",
       "value": "{{state}} · {{why}}",
       "why": {
         "automatic": "自動で選択",
+        "automaticFast": "自動で選択: この GPU は lilToon の 1 フレームを {{measured}} で描画（上限 {{threshold}} 以内）",
+        "automaticNotMeasured": "自動で選択: この GPU の lilToon のフレーム時間はまだ計測されていません",
+        "automaticSlow": "自動で選択: この GPU は lilToon の 1 フレームに {{measured}} かかり、上限 {{threshold}} を超えました",
+        "automaticUnsupported": "自動で選択: このブラウザーでは GPU の時間を計測できません",
         "chosen": "{{mode}} に設定",
         "failed": "lilToon を読み込めませんでした"
       }

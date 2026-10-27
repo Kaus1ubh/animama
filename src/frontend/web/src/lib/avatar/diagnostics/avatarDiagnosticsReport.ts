@@ -1,4 +1,5 @@
 import type { AvatarMaterialMode, AvatarSpringMode } from "../avatarSettings";
+import type { AutomaticMaterialsDecision } from "../liltoon/lilToonGpuCheck";
 import type { AvatarFileFacts } from "./avatarFileFacts";
 import type { AvatarLiveDiagnostics } from "./avatarDiagnostics";
 import { mergeAvatarIssues, type AvatarIssue } from "./issues";
@@ -184,9 +185,29 @@ function liveLines(live: AvatarDiagnosticsReport["live"]): string[] {
           "",
           "Materials",
           `  lilToon materials ${live.materials.lilToon} (setting ${live.materials.mode})`,
+          ...(live.materials.automatic
+            ? [`  ${automaticMaterialsLine(live.materials.automatic)}`]
+            : []),
         ]
       : []),
   ];
+}
+
+/** Why Automatic chose lilToon or Simple, in the report's plain English. */
+export function automaticMaterialsLine(
+  decision: AutomaticMaterialsDecision,
+): string {
+  const chose = `Automatic chose ${decision.choice === "simple" ? "Simple" : "lilToon"}`;
+  const threshold = `${decision.thresholdMs.toFixed(1)} ms`;
+  switch (decision.reason) {
+    case "fast":
+    case "slow":
+      return `${chose}: a lilToon frame took ${decision.frameMs!.toFixed(1)} ms of GPU time on this GPU (${decision.pixels} pixels), ${decision.reason === "slow" ? "above" : "within"} the ${threshold} threshold`;
+    case "not_measured":
+      return `${chose}: this GPU's lilToon frame time is not measured yet (threshold ${threshold})`;
+    case "unsupported":
+      return `${chose}: this browser cannot time the GPU (threshold ${threshold})`;
+  }
 }
 
 function settingsLines(settings: AvatarDiagnosticsSettings): string[] {

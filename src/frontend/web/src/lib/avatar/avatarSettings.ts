@@ -15,9 +15,10 @@ import { create } from "zustand";
 export type AvatarSpringMode = "automatic" | "on" | "off" | "springs_off";
 
 /**
- * How authored lilToon materials render. Automatic is lilToon (a GPU check
- * comes later); Simple uses the file's glTF fallback materials, which cost far
- * less per frame.
+ * How authored lilToon materials render. Automatic is lilToon unless this
+ * machine's measured lilToon frame time is too slow, then Simple
+ * (`liltoon/lilToonGpuCheck.ts`); Simple uses the file's glTF fallback
+ * materials, which cost far less per frame.
  */
 export type AvatarMaterialMode = "automatic" | "liltoon" | "simple";
 
@@ -53,7 +54,10 @@ export function resolveAmbientForces(
   }
 }
 
-/** Whether lilToon materials load under a mode. */
+/**
+ * Whether lilToon materials load under a mode. `Avatar.load` resolves
+ * Automatic through the GPU check first; here Automatic means lilToon.
+ */
 export function rendersLilToon(mode: AvatarMaterialMode): boolean {
   return mode !== "simple";
 }

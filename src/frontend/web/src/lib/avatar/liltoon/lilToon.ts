@@ -9,6 +9,10 @@ import type {
 import { createLogger } from "@/lib/logger";
 
 import { installLilToonDepthPrepass } from "./depthPrepass";
+import {
+  installLilToonGpuCheck,
+  rememberAvatarCanvasGpu,
+} from "./lilToonGpuCheck";
 
 /**
  * Authored lilToon materials through three-liltoon, loaded only when needed.
@@ -181,15 +185,28 @@ export function loadLilToonRuntime(): Promise<LilToonRuntime> {
 /**
  * Install lilToon's passes on `renderer` as soon as the runtime is loaded (at
  * once if it already is). Returns a cleanup that releases the passes or stops
- * waiting.
+ * waiting. The renderer's GPU is noted at once, so the Materials setting's
+ * Automatic can look up its measurement before the next Avatar loads
+ * (`lilToonGpuCheck.ts`). With `measureGpu` (the chat canvas), the canvas
+ * also times its first lilToon frames for that measurement.
  */
 export function installLilToonRenderingWhenLoaded(
   renderer: THREE.WebGLRenderer,
+  { measureGpu = false }: { measureGpu?: boolean } = {},
 ): () => void {
+  rememberAvatarCanvasGpu(renderer);
   let release: (() => void) | null = null;
   const install = (runtime: LilToonRuntime) => {
     loadedListeners.delete(install);
-    release = runtime.enableRendering(renderer);
+    const releasePasses = runtime.enableRendering(renderer);
+    // Outermost, so it times the passes and the pre-pass as well.
+    const releaseCheck = measureGpu
+      ? installLilToonGpuCheck(renderer)
+      : () => undefined;
+    release = () => {
+      releaseCheck();
+      releasePasses();
+    };
   };
   if (loadedRuntime) notify(install, loadedRuntime);
   else loadedListeners.add(install);
