@@ -573,9 +573,19 @@ export default interface Resources {
         "customNames_one": "{{count}} custom name",
         "customNames_other": "{{count}} custom names",
         "fromArkit": "{{name}} (ARKit)",
+        "fromMmd": "{{name}} (MMD)",
         "missing": "Missing expressions",
+        "moodValue": "Brows {{brow}} · eyes {{eye}} · mouth {{mouth}}",
+        "moods": "Mood faces",
         "playsFaces": "Moods play through ARKit shapes",
         "present": "Standard expressions",
+        "regionSources": {
+          "arkit": "ARKit",
+          "mmd": "MMD",
+          "none": "none",
+          "preset": "preset",
+          "vroid": "own parts"
+        },
         "unresolved": "Requested but not on this Avatar"
       },
       "face": {
@@ -643,6 +653,7 @@ export default interface Resources {
         "effect_unknown": "An effect is not available in this installation.",
         "effect_wrong_kind": "{{effect}} cannot be shown this way.",
         "eye_detail_not_hidden": "{{effect}} plays, but the {{part, lowercase}} inside a shared mesh part could not be hidden.",
+        "face_expressions_none": "This Avatar has no face shapes for moods (no VRoid parts, MMD morphs, ARKit shapes or mood presets), so its face stays neutral; moods show through motion and effects.",
         "face_parts_correction_digest_unknown": "The saved face part correction was ignored because this file's digest is unknown.",
         "face_parts_correction_invalid": "The saved face part correction could not be read and was ignored.",
         "face_parts_correction_other_file": "The saved face part correction was made for a different file and was ignored.",
@@ -653,6 +664,7 @@ export default interface Resources {
         "face_parts_expressions_missing": "The model has no blink or “aa” expression, so its face skin and eye details cannot be found from them.",
         "file_unavailable": "The Avatar file could not be downloaded.",
         "file_unreadable": "The Avatar file is not a readable glTF or VRM file.",
+        "iris_hide_unavailable": "Content asked to hide the irises (Fcl_EYE_Iris_Hide), but no iris mesh part of this Avatar can be hidden: none was found, or it shares a mesh part with the face skin.",
         "landmarks_anchor_missing": "No head was found to anchor face landmarks.",
         "landmarks_eyes_missing": "No eyes were found on the face, so eye effects are unavailable.",
         "landmarks_face_bounds_failed": "The face skin could not be measured.",

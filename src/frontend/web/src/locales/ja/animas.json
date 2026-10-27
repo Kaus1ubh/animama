@@ -94,7 +94,17 @@
       "missing": "ない表情",
       "playsFaces": "気分を ARKit シェイプで再生",
       "present": "標準の表情",
-      "unresolved": "要求されたがこのアバターにないもの"
+      "unresolved": "要求されたがこのアバターにないもの",
+      "fromMmd": "{{name}}（MMD）",
+      "moods": "気分の顔",
+      "moodValue": "眉 {{brow}}・目 {{eye}}・口 {{mouth}}",
+      "regionSources": {
+        "vroid": "独自パーツ",
+        "mmd": "MMD",
+        "arkit": "ARKit",
+        "preset": "プリセット",
+        "none": "なし"
+      }
     },
     "face": {
       "confidence": "信頼度",
@@ -176,7 +186,9 @@
       "springs_helper_failed": "揺れものボーンのガイドを描画できませんでした。",
       "springs_metadata_missing": "ファイルに揺れものボーンの設定がないため、揺れは半分の強さになります。",
       "springs_source_unavailable": "ファイルの揺れものボーンのデータを読み取れなかったため、既定の設定を使います。",
-      "springs_unmapped_joints_other": "揺れもののジョイント {{count}} 個をファイルのデータと対応付けられませんでした。"
+      "springs_unmapped_joints_other": "揺れもののジョイント {{count}} 個をファイルのデータと対応付けられませんでした。",
+      "face_expressions_none": "このアバターには気分用の顔のシェイプ（VRoid パーツ、MMD モーフ、ARKit シェイプ、気分プリセット）がないため、顔は無表情のままです。気分は動きとエフェクトで表されます。",
+      "iris_hide_unavailable": "コンテンツが瞳を隠すよう指定しました（Fcl_EYE_Iris_Hide）が、このアバターの瞳のメッシュパーツは隠せません。見つからないか、顔の肌とメッシュパーツを共有しています。"
     },
     "json": {
       "collapseAll": "すべて折りたたむ",

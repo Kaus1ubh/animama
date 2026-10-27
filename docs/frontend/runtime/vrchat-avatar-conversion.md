@@ -8,7 +8,7 @@ the VRChat visemes, blink and look-at, and carries the lilToon material settings
 in a `MOCHIYA_materials_liltoon` extension. Face shapes keep their names, so
 Animama finds the Avatar's ARKit shapes
 ([ARKit face shapes](avatar-animation.md#arkit-face-shapes)) and plays emotions
-through them ([ARKit Avatars](avatar-emotion.md#arkit-avatars)).
+through them and its standard MMD morphs ([Faces on non-VRoid Avatars](avatar-emotion.md#faces-on-non-vroid-avatars)).
 
 ## Licence first
 
@@ -195,4 +195,4 @@ so on an atlas it also tints the other parts drawn from it.
 
 To make the file emote in other VRM apps as well, bake its mood presets into a
 copy with `pnpm -s vrm:bake-expressions` (see
-[ARKit Avatars](avatar-emotion.md#arkit-avatars)).
+[Faces on non-VRoid Avatars](avatar-emotion.md#faces-on-non-vroid-avatars)).

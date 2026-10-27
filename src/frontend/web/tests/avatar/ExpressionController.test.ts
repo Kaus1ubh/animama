@@ -25,8 +25,13 @@ class MockExpressionManager {
     return this.values.get(name) ?? 0;
   }
 
-  getExpression(): null {
-    return null;
+  /** A supported name binds something, as a model's own expression does. */
+  getExpression(
+    name: string,
+  ): { expressionName: string; binds: unknown[] } | null {
+    return this._supported.has(name)
+      ? { expressionName: name, binds: [{}] }
+      : null;
   }
 
   registerExpression(): void {}

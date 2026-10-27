@@ -42,6 +42,10 @@ export function avatarIssueText(
       t("avatarDiagnostics.issues.face_parts_correction_other_file"),
     face_parts_correction_digest_unknown: () =>
       t("avatarDiagnostics.issues.face_parts_correction_digest_unknown"),
+    iris_hide_unavailable: () =>
+      t("avatarDiagnostics.issues.iris_hide_unavailable"),
+    face_expressions_none: () =>
+      t("avatarDiagnostics.issues.face_expressions_none"),
     face_parts_correction_unknown_bindings: () =>
       t("avatarDiagnostics.issues.face_parts_correction_unknown_bindings", {
         count,

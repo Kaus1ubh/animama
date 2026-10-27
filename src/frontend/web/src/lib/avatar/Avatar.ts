@@ -91,6 +91,7 @@ import {
   lilToonMaterialStateOf,
   type LilToonMaterialState,
 } from "./liltoon/lilToon";
+import { irisHideBindOf } from "./irisHideExpression";
 import { prepareLoadedVrm } from "./prepareLoadedVrm";
 import type { ArkitFace } from "./arkitFaceExpressions";
 import {
@@ -625,6 +626,10 @@ export class Avatar {
     this._unsubscribeVfxDiagnostics = this.vfxController.subscribe(() =>
       this._notifyDiagnostics(),
     );
+    // `Fcl_EYE_Iris_Hide` on a model without that shape hides its irises.
+    irisHideBindOf(vrm)?.setListener((hidden) =>
+      this.vfxController?.setIrisHidden(hidden),
+    );
     this.expressionController.setUnresolvedExpressionListener(() =>
       this._notifyDiagnostics(),
     );
@@ -664,6 +669,7 @@ export class Avatar {
       this.faceLandmarks = null;
       this._unsubscribeVfxDiagnostics?.();
       this._unsubscribeVfxDiagnostics = null;
+      irisHideBindOf(this.vrm)?.setListener(null);
       this.vfxController?.dispose();
       this.vfxController = null;
       this.particleVFXController?.dispose();

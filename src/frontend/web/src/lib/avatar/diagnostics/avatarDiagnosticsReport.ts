@@ -168,6 +168,7 @@ function liveLines(live: AvatarDiagnosticsReport["live"]): string[] {
     `  Presets: ${list(expressions.presets.map((preset) => `${preset.name} (${preset.source})`))}`,
     `  Missing presets: ${list(expressions.missingPresets)}`,
     `  ARKit shapes ${expressions.arkit.resolved}/${expressions.arkit.total}; faces play through ARKit: ${expressions.arkit.playsFaces ? "yes" : "no"}`,
+    `  Mood faces (brow/eye/mouth): ${list(expressions.moods.map((mood) => `${mood.preset} ${mood.brow}/${mood.eye}/${mood.mouth}`))}`,
     `  Requested but unavailable: ${list(expressions.unresolved.names)}` +
       (expressions.unresolved.otherCount > 0
         ? ` (+${expressions.unresolved.otherCount} custom)`

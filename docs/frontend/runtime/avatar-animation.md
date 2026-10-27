@@ -887,9 +887,10 @@ Important behavior:
   (inspectors, `getValue`), and every path that updates the manager — chat,
   creator writes, previews and review renders — gets the same correction.
   The profile is chosen by the VRM's `vrmSha256`: verified for Annie (k 0.2164).
-  Other Avatars, including Andrew, get happy 1 / k 0.2 for
-  each of happy and relaxed whose morphs measurably move blink's vertices
-  closed, and nothing otherwise. VRoid's eye parts `Fcl_EYE_Joy` and
+  Other VRoid faces (with VRoid eye parts of their own), including Andrew, get
+  happy 1 / k 0.2 for each of happy and relaxed whose morphs measurably move
+  blink's vertices closed, and nothing otherwise. Other models are measured
+  instead ([Faces on non-VRoid Avatars](avatar-emotion.md#faces-on-non-vroid-avatars)). VRoid's eye parts `Fcl_EYE_Joy` and
   `Fcl_EYE_Fun` carry all of happy's and relaxed's eyelid motion, so they take
   the same factors; the correction registers them from the face's morph
   targets when a VRM 0 file has no expressions for them. An expression with a
@@ -931,9 +932,9 @@ unresolved on that mesh, and the controller logs them as ambiguous. A name the
 file already uses for an expression keeps that expression.
 `getArkitFaceCapability()` returns the resolved shapes, the missing ones and the
 ambiguous candidates. `getAvailableExpressions()` lists each resolved shape
-once, under its canonical name. When an Avatar has every shape the emotion table
-uses, its mood presets and VRoid parts also become ARKit mixes; see
-[ARKit Avatars](avatar-emotion.md#arkit-avatars).
+once, under its canonical name. Each mood region whose shapes the Avatar has
+also plays an ARKit mix, after the Avatar's own VRoid parts and standard MMD
+morphs; see [Faces on non-VRoid Avatars](avatar-emotion.md#faces-on-non-vroid-avatars).
 
 `pnpm -s vrm:inspect <file.vrm>` (from `src/frontend/web`) reports the same
 resolution for a file before import, including shapes found under another

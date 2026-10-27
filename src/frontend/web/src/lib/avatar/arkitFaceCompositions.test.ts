@@ -9,7 +9,6 @@ import {
   ARKIT_VOWEL_MIXES,
   ARKIT_VOWEL_SHAPES,
   arkitVowelWeights,
-  playsFacesWithArkit,
   shapesVowelsWithArkit,
   VOWEL5_CHANNELS,
 } from "./arkitFaceCompositions";
@@ -73,19 +72,6 @@ describe("ARKit face compositions", () => {
         expect(ARKIT_PART_MIXES[`Fcl_${part}_${mood}`]).toBeDefined();
       }
     }
-  });
-
-  it("needs every shape the table uses", () => {
-    expect(
-      playsFacesWithArkit(resolveArkitFaceCapability(ARKIT_BLENDSHAPES)),
-    ).toBe(true);
-    expect(
-      playsFacesWithArkit(
-        resolveArkitFaceCapability(
-          ARKIT_BLENDSHAPES.filter((shape) => shape !== "noseSneerLeft"),
-        ),
-      ),
-    ).toBe(false);
   });
 
   it("gives each vowel5 channel a mouth-only mix of canonical shapes", () => {

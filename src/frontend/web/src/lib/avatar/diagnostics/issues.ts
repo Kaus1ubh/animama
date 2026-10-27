@@ -21,6 +21,8 @@ export const AVATAR_ISSUE_CODES = [
   "face_parts_correction_other_file",
   "face_parts_correction_digest_unknown",
   "face_parts_correction_unknown_bindings",
+  // Expressions (`diagnostics/avatarDiagnostics.ts`).
+  "face_expressions_none",
   // Face landmarks (`vfx/AvatarFaceLandmarks.ts`).
   "landmarks_face_skin_missing",
   "landmarks_anchor_missing",
@@ -50,6 +52,8 @@ export const AVATAR_ISSUE_CODES = [
   "effect_face_skin_required",
   "effect_skin_color_unavailable",
   "eye_detail_not_hidden",
+  // `Fcl_EYE_Iris_Hide` on a model without that shape (`irisHideExpression.ts`).
+  "iris_hide_unavailable",
 ] as const;
 
 export type AvatarIssueCode = (typeof AVATAR_ISSUE_CODES)[number];

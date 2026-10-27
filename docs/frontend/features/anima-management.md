@@ -101,8 +101,9 @@ Animama found in the Anima's Avatar and how it plays it:
   correction, or not at all) and whether face landmarks and texture anchors
   are ready.
 - **Expressions**: the standard VRM expressions present, those played through
-  ARKit mixes, ARKit shape coverage, and names Gestures, Reactions or moods
-  asked for that the Avatar lacks.
+  ARKit mixes or MMD morphs, ARKit shape coverage, each mood's source per face
+  region ([Faces on non-VRoid Avatars](../runtime/avatar-emotion.md#faces-on-non-vroid-avatars)),
+  and names Gestures, Reactions or moods asked for that the Avatar lacks.
 - **Motion**: humanoid bones, missing required bones, spring joints and
   colliders, and the wind setting in effect with whether wind and updraft
   apply. Each setting also shows whether it is saved for the Avatar or the

@@ -21,6 +21,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { useFormatters } from "@animama/product-ui/i18n";
 
+import type { FaceRegionSource } from "@/lib/avatar/arkitFaceExpressions";
 import type { AvatarFacePartSource } from "@/lib/avatar/vfx/faceParts";
 import {
   avatarDiagnosticsJson,
@@ -162,6 +163,24 @@ function LilToonMaterialsFact({ report }: { report: AvatarDiagnosticsReport }) {
       <SettingSource source={report.settings?.materialModeSource ?? null} />
     </Fact>
   );
+}
+
+function regionSourceLabel(
+  t: TFunction<"animas">,
+  source: FaceRegionSource,
+): string {
+  switch (source) {
+    case "vroid":
+      return t("avatarDiagnostics.expressions.regionSources.vroid");
+    case "mmd":
+      return t("avatarDiagnostics.expressions.regionSources.mmd");
+    case "arkit":
+      return t("avatarDiagnostics.expressions.regionSources.arkit");
+    case "preset":
+      return t("avatarDiagnostics.expressions.regionSources.preset");
+    case "none":
+      return t("avatarDiagnostics.expressions.regionSources.none");
+  }
 }
 
 function readyLabel(
@@ -452,7 +471,11 @@ function ExpressionsSection({ report }: { report: AvatarDiagnosticsReport }) {
               ? t("avatarDiagnostics.expressions.fromArkit", {
                   name: preset.name,
                 })
-              : preset.name,
+              : preset.source === "mmd"
+                ? t("avatarDiagnostics.expressions.fromMmd", {
+                    name: preset.name,
+                  })
+                : preset.name,
           )}
           none={t("avatarDiagnostics.none")}
         />
@@ -473,6 +496,28 @@ function ExpressionsSection({ report }: { report: AvatarDiagnosticsReport }) {
         {expressions.arkit.playsFaces
           ? t("avatarDiagnostics.yes")
           : t("avatarDiagnostics.no")}
+      </Fact>
+      <Fact label={t("avatarDiagnostics.expressions.moods")}>
+        {expressions.moods.length > 0 ? (
+          <ul className="grid gap-1">
+            {expressions.moods.map((mood) => (
+              <li key={mood.preset} className="flex flex-wrap gap-x-2">
+                <span className="font-mono text-xs">{mood.preset}</span>
+                <span className="text-muted-foreground">
+                  {t("avatarDiagnostics.expressions.moodValue", {
+                    brow: regionSourceLabel(t, mood.brow),
+                    eye: regionSourceLabel(t, mood.eye),
+                    mouth: regionSourceLabel(t, mood.mouth),
+                  })}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <span className="text-muted-foreground">
+            {t("avatarDiagnostics.none")}
+          </span>
+        )}
       </Fact>
       <Fact label={t("avatarDiagnostics.expressions.unresolved")}>
         <Names names={unresolved} none={t("avatarDiagnostics.none")} />

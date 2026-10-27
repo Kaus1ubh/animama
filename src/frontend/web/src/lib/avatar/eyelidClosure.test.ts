@@ -10,7 +10,9 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { ExpressionController } from "./ExpressionController";
 import {
   applyEyelidClosureCorrection,
+  CLOSED_LID_PEAK_SHARE,
   DEFAULT_EYELID_CLOSURE_PROFILE,
+  measureEyelidClosure,
   VERIFIED_EYELID_CLOSURE_PROFILES,
 } from "./eyelidClosure";
 import {
@@ -235,7 +237,7 @@ describe("eyelid closure for Avatars without a verified profile", () => {
     });
   });
 
-  it("uses the default profile when happy and relaxed close the eyelids", async () => {
+  it("uses the default profile on a VRoid face whose happy and relaxed close the eyelids", async () => {
     const { vrm } = await loadTestAvatarWithGltf("AvatarSample_A_1_New");
     expect(applyEyelidClosureCorrection(vrm, null)).toEqual({
       source: "default",
@@ -253,11 +255,29 @@ describe("eyelid closure for Avatars without a verified profile", () => {
     );
   });
 
-  it("only corrects expressions whose morphs move the eyelids", () => {
+  it("calibrates the measured closure so it reproduces Annie's verified profile", async () => {
+    const { vrm } = await loadTestAvatarWithGltf("AvatarSample_A_1_New");
+    const measured = (name: string) =>
+      Math.min(
+        1,
+        measureEyelidClosure(vrm, name)!.peak / CLOSED_LID_PEAK_SHARE,
+      );
+    // Her lids close fully under happy, as her verified profile has it…
+    expect(measured("happy")).toBeGreaterThan(0.99);
+    // …and relaxed lands near the verified 0.2164.
+    expect(measured("relaxed")).toBeCloseTo(0.2164, 1);
+  });
+
+  it("measures other models, correcting only expressions that move the eyelids", () => {
     const vrm = syntheticVrm({ happyMovesEyelid: false });
     expect(applyEyelidClosureCorrection(vrm, "not-a-known-digest")).toEqual({
-      source: "default",
-      profile: { happy: 0, relaxed: DEFAULT_EYELID_CLOSURE_PROFILE.relaxed },
+      source: "measured",
+      // relaxed moves the lid a fifth of blink's motion, calibrated so that
+      // VRoid's happy counts as closed.
+      profile: {
+        happy: 0,
+        relaxed: expect.closeTo(0.2 / CLOSED_LID_PEAK_SHARE, 5),
+      },
     });
     setWeights(vrm, { happy: 1, blink: 1 });
     expect(morphInfluence(vrm, "blink")).toBe(1);
