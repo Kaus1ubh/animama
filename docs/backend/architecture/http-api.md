@@ -395,7 +395,7 @@ are under `/v1/content`:
 | `DELETE /package-exports/{export_id}` | Discard an inactive owned cache. |
 | `POST /package-imports` | Allocate a private stage with operation ID, filename and total byte length. |
 | `PUT /package-imports/{stage_id}/parts/{index}` | Send sequential 8 MiB binary parts (the final part may be shorter); exact retries return the original acknowledgement. |
-| `POST /package-imports/{stage_id}/review` | Seal and validate the whole archive; freeze fresh content identities, dependency copies and automatic `-2`/`-3` collision names. Each item lists `notices` about what the import leaves out: `avatar_setting_not_stored` when it carries Avatar settings this composition does not store. |
+| `POST /package-imports/{stage_id}/review` | Seal and validate the whole archive; freeze fresh content identities, dependency copies and automatic `-2`/`-3` collision names. Each item lists `notices` about what the import leaves out: `avatar_setting_not_stored` when it carries Avatar settings this composition does not store, and `avatar_extension_unsupported` when an Avatar's model uses a glTF extension the runtime cannot decode yet (Draco; it still imports). |
 | `GET /package-imports/{stage_id}` | Read received-byte progress and the public review; no private paths or install plan are exposed. |
 | `POST /package-imports/{stage_id}/commit` | Submit the operation ID and review digest to install the whole package through one recoverable content/Anima transaction. |
 | `GET /package-operations/{operation_id}` | Resolve the durable result or report pending/recovery state before another submission. |

@@ -133,6 +133,18 @@ const dracoGlb = () =>
     meshes: [{ primitives: [{ attributes: {} }] }],
   });
 
+/**
+ * What Diagnostics finds for `dracoGlb`: the extension, named from the file
+ * before any load, then the failed load.
+ */
+const DRACO_FINDINGS: AvatarIssue[] = [
+  {
+    code: "avatar_extension_unsupported",
+    params: { extension: "KHR_draco_mesh_compression" },
+  },
+  { code: "avatar_load_failed" },
+];
+
 /** The chat stage's Avatar, as far as the hook reads it. */
 function stageAvatar(vrmSha256: string | null = null) {
   const listeners = new Set<() => void>();
@@ -240,7 +252,7 @@ describe("useAvatarDiagnostics", () => {
       status: "failed",
       file: { extensionsRequired: ["KHR_draco_mesh_compression"] },
       live: null,
-      issues: [{ code: "avatar_load_failed" }],
+      issues: DRACO_FINDINGS,
     });
     expect(view!.effectNames.get("ray-secret-blush")).toBe("Ray Secret Blush");
 
@@ -332,7 +344,7 @@ describe("useAvatarDiagnostics", () => {
       avatar: { source: "included", itemId: "item-7" },
       status: "failed",
       file: { extensionsRequired: ["KHR_draco_mesh_compression"] },
-      issues: [{ code: "avatar_load_failed" }],
+      issues: DRACO_FINDINGS,
     });
     // Effect warnings belong to an Anima's loadout only.
     expect(view!.effectNames.size).toBe(0);
@@ -383,7 +395,7 @@ describe("useAvatarDiagnostics", () => {
     const state = view!.state;
     if (state.status !== "ready") throw new Error("not ready");
     expect(state.live).toBe(false);
-    expect(state.report.issues).toEqual([{ code: "avatar_load_failed" }]);
+    expect(state.report.issues).toEqual(DRACO_FINDINGS);
   });
 
   it("reports an Avatar item's invalid saved face part correction", async () => {
@@ -457,7 +469,7 @@ describe("useAvatarDiagnostics", () => {
       avatar: { source: "upload", itemId: null },
       status: "failed",
       file: { extensionsRequired: ["KHR_draco_mesh_compression"] },
-      issues: [{ code: "avatar_load_failed" }],
+      issues: DRACO_FINDINGS,
     });
     // A report names an upload by kind only.
     for (const text of [

@@ -3,13 +3,17 @@
  * English warning for the dev panels also records one of these, so the
  * Diagnostics view can show localized text and reports stay free of model,
  * material and effect names. Parameters hold only counts, part roles, binding
- * keys and runtime effect ids; a Local effect's runtime id derives from its
- * name, so shareable reports replace it (`avatarDiagnosticsReport.ts`).
+ * keys, glTF extension names and runtime effect ids; a Local effect's runtime
+ * id derives from its name, so shareable reports replace it
+ * (`avatarDiagnosticsReport.ts`).
  */
 export const AVATAR_ISSUE_CODES = [
   // The file and its load (Diagnostics' off-screen load).
   "file_unavailable",
   "file_unreadable",
+  // A glTF extension the file needs that the runtime cannot load
+  // (`avatarGltfExtensions.ts`); read from the file, before any load.
+  "avatar_extension_unsupported",
   "avatar_load_failed",
   // The live scene's primitives could not be listed.
   "scene_bindings_unavailable",

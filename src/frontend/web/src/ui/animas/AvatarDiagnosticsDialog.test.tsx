@@ -229,6 +229,30 @@ describe("AvatarDiagnosticsDialog", () => {
     );
   });
 
+  it("names an extension the runtime cannot load", () => {
+    diagnostics.view = {
+      state: {
+        status: "ready",
+        report,
+        issues: [
+          {
+            code: "avatar_extension_unsupported",
+            params: { extension: "KHR_draco_mesh_compression" },
+          },
+          { code: "avatar_load_failed" },
+        ],
+        live: false,
+      },
+      effectNames: new Map(),
+    };
+    render();
+    click("Open diagnostics");
+    click("Warnings (2)");
+    expect(dialog()?.textContent).toContain(
+      "The file requires KHR_draco_mesh_compression, a glTF extension this app cannot load yet, so the Avatar cannot be shown.",
+    );
+  });
+
   it("expands and collapses the Raw JSON tree", () => {
     render();
     click("Open diagnostics");

@@ -1,4 +1,6 @@
 import { LILTOON_MATERIALS_EXTENSION } from "../liltoon/lilToon";
+import { unloadableGltfExtensions } from "./avatarGltfExtensions";
+import type { AvatarIssue } from "./issues";
 
 /** How a material is drawn, as its file declares it. */
 export type AvatarMaterialKind = "mtoon" | "liltoon" | "unlit" | "pbr";
@@ -277,4 +279,17 @@ export function readAvatarFileFacts(
     materialKinds: readMaterialKinds(json),
     textures: readTextures(json, bin),
   };
+}
+
+/**
+ * What an Avatar file's facts report before any load: an unreadable file, or
+ * each glTF extension it needs that the runtime cannot load (the load then
+ * fails rather than drawing the file without it).
+ */
+export function avatarFileIssues(facts: AvatarFileFacts | null): AvatarIssue[] {
+  if (!facts) return [{ code: "file_unreadable" }];
+  return unloadableGltfExtensions(facts).map((extension) => ({
+    code: "avatar_extension_unsupported",
+    params: { extension },
+  }));
 }

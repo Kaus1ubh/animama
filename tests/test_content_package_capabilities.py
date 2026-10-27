@@ -12,16 +12,20 @@ import pytest
 
 from animama.app.services.content_kind_registry import CONTENT_KIND_REGISTRY
 from animama.app.services.content_package_capabilities import (
+    _GLTF_EXTENSIONS,
     BUILTIN_POSES,
+    UNDECODED_GLTF_EXTENSIONS,
     derive_capabilities,
     derive_document_capabilities,
     derive_file_capabilities,
+    undecoded_gltf_extensions,
     validate_avatar_effect_document,
     validate_capabilities,
     validate_declared_capabilities,
 )
 from animama.domain.content_catalog import ContentKind
 from animama.domain.content_documents import AvatarEffectDocumentV1, ContentDocumentError, TypedContentDocument
+from tests.content_package_helpers import CONVERTED_AVATAR_EXTENSIONS
 
 FRONTEND = Path(__file__).parents[1] / "src/frontend/web/src/lib"
 FIXTURES = json.loads((FRONTEND / "content/fixtures/package-capabilities.json").read_text())
@@ -420,7 +424,8 @@ def test_declared_glb_json_size_is_checked_before_reading_it() -> None:
         derive_file_capabilities(document.kind, document, "model.vrm", io.BytesIO(oversized))
 
 
-@pytest.mark.parametrize("extension", ["UNKNOWN_custom_player", "KHR_draco_mesh_compression"])
+# Basis textures need a decoder the web loaders do not configure.
+@pytest.mark.parametrize("extension", ["UNKNOWN_custom_player", "KHR_texture_basisu"])
 def test_gltf_cannot_require_an_unavailable_runtime_plugin(extension: str) -> None:
     document = _document("gesture")
     data = {
@@ -430,6 +435,26 @@ def test_gltf_cannot_require_an_unavailable_runtime_plugin(extension: str) -> No
     }
     with pytest.raises(ContentDocumentError):
         derive_file_capabilities(document.kind, document, "motion.vrma", io.BytesIO(json.dumps(data).encode()))
+
+
+@pytest.mark.parametrize("extension", sorted(CONVERTED_AVATAR_EXTENSIONS))
+@pytest.mark.parametrize("field", ["extensionsUsed", "extensionsRequired", "extensions"])
+def test_avatar_may_use_converter_and_compression_extensions(extension: str, field: str) -> None:
+    # Draco is accepted too: the runtime reports a Draco Avatar as not loadable
+    # rather than the package refusing it.
+    document = _document("avatar")
+    data: dict[str, Any] = {
+        "asset": {"version": "2.0"},
+        "extensionsUsed": ["VRMC_vrm"],
+        "extensions": {"VRMC_vrm": {"specVersion": "1.0"}},
+    }
+    if field == "extensions":
+        data["extensions"][extension] = {}
+    else:
+        data.setdefault(field, []).append(extension)
+    assert derive_file_capabilities(document.kind, document, "model.vrm", io.BytesIO(json.dumps(data).encode())) == (
+        "VRMC_vrm/1.0",
+    )
 
 
 def test_self_contained_vrma_buffer_is_not_an_external_resource() -> None:
@@ -514,3 +539,17 @@ def test_clip_effect_overrides_are_checked_against_the_bundled_effect(tmp_path: 
         derive_capabilities(document.kind, document, {"action.json": path}, documents=documents)
     assert error.value.code == "package_definition_invalid"
     assert error.value.field == "event.star.override.attachment.kind"
+
+
+def test_gltf_extension_lists_match_the_web_runtime() -> None:
+    """The web runtime loads every accepted extension but the undecoded ones (shared fixture)."""
+
+    assert sorted(_GLTF_EXTENSIONS) == FIXTURES["gltfExtensions"]["accepted"]
+    assert sorted(UNDECODED_GLTF_EXTENSIONS) == FIXTURES["gltfExtensions"]["undecoded"]
+
+
+@pytest.mark.parametrize("extension", CONVERTED_AVATAR_EXTENSIONS)
+def test_undecoded_gltf_extensions_names_draco_wherever_it_is_used(extension: str) -> None:
+    used_only = {"asset": {"version": "2.0"}, "extensionsUsed": [extension]}
+    expected = ("KHR_draco_mesh_compression",) if extension == "KHR_draco_mesh_compression" else ()
+    assert undecoded_gltf_extensions(io.BytesIO(json.dumps(used_only).encode())) == expected

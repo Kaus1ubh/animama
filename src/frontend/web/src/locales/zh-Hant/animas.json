@@ -155,6 +155,7 @@
       "anchors_mouth_missing": "在臉部紋理上找不到嘴的位置。",
       "anchors_projection_failed": "無法對應臉部紋理，因此無法放置繪於臉部的特效。",
       "anEffect": "某個特效",
+      "avatar_extension_unsupported": "此檔案需要 glTF 擴充 {{extension}}，但此應用程式尚無法載入，因此無法顯示虛擬形象。",
       "avatar_load_failed": "無法載入虛擬形象。請在「檔案」中檢查其必要擴充。",
       "effect_attachment_limit": "已移除 {{effect}}：身體、貼紙或剪影特效最多同時顯示 {{limit}} 個。",
       "effect_face_part_missing": "已略過 {{effect}}：此虛擬形象未識別到{{part}}。",

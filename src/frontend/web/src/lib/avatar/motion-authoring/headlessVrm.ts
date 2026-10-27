@@ -7,6 +7,7 @@ import type {
   GLTFParser,
 } from "three/examples/jsm/loaders/GLTFLoader.js";
 
+import { configureAvatarGltfLoader } from "../configureAvatarGltfLoader";
 import { canonicalizeCustomPresetExpressions } from "../vrmExpressionPresets";
 
 /** Included Avatars used for motion authoring checks: Andrew and Annie. */
@@ -72,7 +73,7 @@ export async function loadHeadlessVrmWithGltf(
   bytes: ArrayBuffer,
   options: { removeUnnecessaryVertices?: boolean } = {},
 ): Promise<{ vrm: VRM; gltf: GLTF }> {
-  const loader = new GLTFLoader();
+  const loader = configureAvatarGltfLoader(new GLTFLoader());
   loader.register((parser) => new PlaceholderTexturePlugin(parser));
   loader.register((parser) => new VRMLoaderPlugin(parser));
   const gltf = await loader.parseAsync(bytes, "");

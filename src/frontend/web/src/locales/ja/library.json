@@ -319,7 +319,8 @@
       "uploadPaused": "アップロードを一時停止しました。再開するには同じファイルを選択してください。",
       "uploadProgress": "{{total}} 中 {{received}}",
       "viewInLibrary": "ライブラリで表示",
-      "avatarSettingsNotStored": "このアプリはアバターの風とマテリアルの設定を保存しないため、{{names}} は自動を使います。"
+      "avatarSettingsNotStored": "このアプリはアバターの風とマテリアルの設定を保存しないため、{{names}} は自動を使います。",
+      "avatarsNotLoadable_other": "{{names}} はインポートされますが、このバージョンの Animama ではまだ表示できません。モデルがアプリで展開できないメッシュ圧縮を使っています。必要なものはアバター診断で確認できます。"
     },
     "kinds": {
       "avatar_other": "アバター",

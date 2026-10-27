@@ -6,6 +6,7 @@ import { parseAnimaPoseClip } from "@/lib/avatar/poses/animaPoseClip";
 import { createAnimaPoseClipProgram } from "@/lib/avatar/poses/animaPoseClip/program";
 import { getResolvedAvatarPose } from "@/lib/avatar/poses/catalog";
 import { canonicalizeCustomPresetExpressions } from "@/lib/avatar/vrmExpressionPresets";
+import { configureAvatarGltfLoader } from "@/lib/avatar/configureAvatarGltfLoader";
 import { prepareLoadedVrm } from "@/lib/avatar/prepareLoadedVrm";
 import {
   installLilToonRenderingWhenLoaded,
@@ -68,7 +69,7 @@ const viewsFor = (
 };
 
 async function loadVrm(url: string): Promise<VRM> {
-  const loader = new GLTFLoader();
+  const loader = configureAvatarGltfLoader(new GLTFLoader());
   // Authored lilToon materials render as in the app; other files are untouched.
   loader.register((parser) => withOnDemandLilToon(new VRMLoaderPlugin(parser)));
   const gltf = await loader.loadAsync(url);

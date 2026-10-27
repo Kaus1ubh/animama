@@ -1850,7 +1850,7 @@ export type ImagePresentation = {
     zoom: number;
 };
 
-export type ImportItemNotice = 'avatar_setting_not_stored';
+export type ImportItemNotice = 'avatar_setting_not_stored' | 'avatar_extension_unsupported';
 
 /**
  * ImportedPackageItem

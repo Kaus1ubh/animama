@@ -111,7 +111,8 @@ Animama found in the Anima's Avatar and how it plays it:
   wind and updraft apply. Each setting also shows whether it is saved for the Avatar or the
   default.
 - **Warnings**: every face-part, landmark, texture-anchor, spring and effect
-  finding, once each.
+  finding, once each, and each glTF extension the file needs that Animama
+  cannot load (such as Draco compression), read from the file before loading.
 
 Diagnostics describes one of three sources (`useAvatarDiagnostics`):
 

@@ -2,6 +2,7 @@ import { VRMLoaderPlugin, VRMUtils, type VRM } from "@pixiv/three-vrm";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
+import { configureAvatarGltfLoader } from "@/lib/avatar/configureAvatarGltfLoader";
 import { withEnhancedMToonPatch } from "@/lib/avatar/enhanced-rendering/mtoonPatch";
 import { applyCanonicalPose } from "@/lib/avatar/motion-authoring/kinematics";
 import { canonicalizeCustomPresetExpressions } from "@/lib/avatar/vrmExpressionPresets";
@@ -106,7 +107,7 @@ async function render(
   scene.add(sun);
   const camera = new THREE.PerspectiveCamera(30, 1, 0.05, 20);
   for (const file of files) {
-    const loader = new GLTFLoader();
+    const loader = configureAvatarGltfLoader(new GLTFLoader());
     loader.register((parser) =>
       withEnhancedMToonPatch(new VRMLoaderPlugin(parser)),
     );

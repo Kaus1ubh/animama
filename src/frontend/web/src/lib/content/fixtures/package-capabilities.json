@@ -442,5 +442,40 @@
     "thinking-hand-on-chin",
     "thinking-head-scratch-1",
     "thinking-head-scratch-2"
-  ]
+  ],
+  "gltfExtensions": {
+    "accepted": [
+      "EXT_materials_bump",
+      "EXT_mesh_gpu_instancing",
+      "EXT_meshopt_compression",
+      "EXT_texture_avif",
+      "EXT_texture_webp",
+      "KHR_draco_mesh_compression",
+      "KHR_lights_punctual",
+      "KHR_materials_anisotropy",
+      "KHR_materials_clearcoat",
+      "KHR_materials_dispersion",
+      "KHR_materials_emissive_strength",
+      "KHR_materials_ior",
+      "KHR_materials_iridescence",
+      "KHR_materials_sheen",
+      "KHR_materials_specular",
+      "KHR_materials_transmission",
+      "KHR_materials_unlit",
+      "KHR_materials_volume",
+      "KHR_mesh_quantization",
+      "KHR_texture_transform",
+      "MOCHIYA_avatar_composition",
+      "MOCHIYA_materials_liltoon",
+      "VRM",
+      "VRMC_materials_hdr_emissiveMultiplier",
+      "VRMC_materials_mtoon",
+      "VRMC_node_constraint",
+      "VRMC_springBone",
+      "VRMC_springBone_extended_collider",
+      "VRMC_vrm",
+      "VRMC_vrm_animation"
+    ],
+    "undecoded": ["KHR_draco_mesh_compression"]
+  }
 }
