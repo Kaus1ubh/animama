@@ -1772,9 +1772,12 @@ adapts colour and UV expression binds to those materials.
   their GPU share is lower). The same run alternated with the code from
   before this work's lilToon changes, where that lilToon frame took 9.1–9.3 ms
   and the fallback materials and Included Avatars measured about the same as
-  after (2026-10-27). Absolute lilToon times have varied between runs by three
-  to four times (about 2.7–10 ms before the change) while the Included
-  Avatars stayed near 1 ms, so compare only runs made together. Frames paced
+  after (2026-10-27). The first lilToon Avatar a fresh bench page renders
+  runs about three times slower than the same Avatar loaded again in that
+  page (5.1–5.2 against 1.8–1.9 ms after the change, 9.6–10.8 against
+  2.7–3.0 ms before it), with the same draws and resolution; the cause is not
+  known. `effects:bench` loads one Avatar per launch, so it measures that
+  first state. Compare only runs made together. Frames paced
   like the app (`--fps 60`) also leave the GPU at a lower clock when the work
   is light, so paced timings narrow the differences between frames and
   understate the savings of a change. Before the change, outlines acted as a

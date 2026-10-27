@@ -76,6 +76,9 @@ Open after Phase 7:
   `lilToonGpuCheck.ts`'s `METHOD` so viewers measure again, reconsider timing
   at a known clock state (Surprises 1), and propose Automatic's threshold for
   the owner's approval.
+- [ ] Follow-up (not in this plan): find why the first lilToon Avatar in a
+  fresh page renders about three times slower than later loads, and which
+  state the app runs in (Validation, idle-machine recheck).
 
 ## Surprises & Discoveries
 
@@ -1210,9 +1213,23 @@ percentile 9.63 and 9.36 ms against means of 9.11 and 9.26 ms), so the clock
 did not change within those passes. Either way the spec's target of about an
 Included Avatar's cost is not met; the rest needs fewer authored features
 (toon shadow and reflection each about a sixth of the frame before the
-change), which changes the look. This is for the owner's cost gate; a quiet
-run with and without the bench's idle gaps before each pass would settle the
-absolute figure.
+change), which changes the look. This is for the owner's cost gate.
+
+Idle-machine recheck (2026-10-27, after Phase 7; owner's request; one heavy
+slot, Phase 1 tree `07a2e70b` against `54d76369`, each also with the bench's
+idle gaps set to 0 in scratch copies, alternating over two rounds):
+`effects:bench --saturate 10` put the lilToon frame at 9.08–10.15 ms before
+and 4.95–4.97 ms after (about 52%), and with no idle gaps 8.97–9.00 against
+4.44–4.45 ms (49%); the Included Avatars stayed at 0.70–0.87 ms throughout.
+Neither load nor the idle gaps explain the earlier 2.7–3.1 ms. In one page
+that loads the Avatar several times, the first load is the slow one: 9.6–10.8
+then 2.7–3.0 ms before the change, 5.1–5.2 then 1.8–1.9 ms after it (about
+65% in that state), with equal draws, triangles and resolution, and eight
+passes over about 30 s of the first load did not speed up. The shipped bench
+loads one Avatar per launch and so measures the first-load state. The cause,
+and which state the app runs in, are not established; if the app runs in the
+later state, the lilToon frame after the change (1.8–1.9 ms) is close to an
+Included Avatar's (Andrew 1.0–1.5 ms in the same pages).
 
 ## Idempotence and recovery
 
