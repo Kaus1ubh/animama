@@ -1736,10 +1736,16 @@ adapts colour and UV expression binds to those materials.
   of GPU time per frame with lilToon (up to 9.7 ms under heavier load), 1.0–1.6
   ms with its fallback materials, and 1.7–3.0 ms for the Included Avatars.
   These absolute values move with the GPU's clock and other jobs, so compare
-  only runs made together. Drawn on all nine opaque primitives (before
-  alpha-blending surfaces were excluded), the depth pre-pass saved 0.5–0.6 ms
-  in those runs with no pixel changed in exact render comparisons; under
-  heavier load a prototype saved up to 3.5 ms.
+  only runs made together. Paced frames also leave the GPU at a lower clock
+  when the work is light, so a light frame reads slower than it is: paced
+  timings narrow the differences between frames and understate the savings of
+  a change. `effects:bench --saturate 10` renders frames back to back at the
+  GPU's top clock instead. At DPR 2 a converted Avatar's lilToon frame then
+  took about 2.7–3.1 ms, its fallback materials 0.9–1.7 ms and Andrew at most
+  1.3 ms (CPU-bound, so its GPU share is lower). Drawn on all nine opaque
+  primitives (before alpha-blending surfaces were excluded), the depth
+  pre-pass saved 0.5–0.6 ms in those runs with no pixel changed in exact
+  render comparisons; under heavier load a prototype saved up to 3.5 ms.
   Outlines already act as a partial pre-pass: switching them off made frames
   slower. Lowering the pixel ratio or switching off toon shadow, reflection,
   rim or normal maps saved little, and no combination brought lilToon near an

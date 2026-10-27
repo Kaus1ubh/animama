@@ -158,8 +158,10 @@ Check that:
 `pnpm -s animation:render <gesture.json> --out <private-dir> --avatar-file
 <private-dir>/<Avatar>.vrm` draws Gesture review sheets on it, and
 `pnpm -s effects:bench --avatar-file <private-dir>/<Avatar>.vrm` measures its
-frame cost on the GPU. Add `--fps 60 --breakdown all` to break that cost down
-by material, lilToon feature and layer.
+frame cost on the GPU. Add `--saturate 10 --breakdown all` to break that cost
+down by material, lilToon feature and layer at the GPU's top clock (paced runs
+understate savings; see
+[frame-cost benchmark](avatar-vfx.md#frame-cost-benchmark)).
 
 Then upload it as a Local Avatar on a local stack, for example by choosing it
 in Create Anima (Upload VRM), and check motion, springs, blink, visemes and

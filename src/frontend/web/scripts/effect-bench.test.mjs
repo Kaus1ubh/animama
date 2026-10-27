@@ -9,6 +9,7 @@ test("defaults keep the effects comparison at the chat's DPR", () => {
   assert.deepEqual(options.pixelRatios, [2]);
   assert.equal(options.materials, "automatic");
   assert.equal(options.fps, null);
+  assert.equal(options.saturate, null);
   assert.deepEqual(options.apply, []);
   assert.equal(options.breakdown, null);
 });
@@ -38,6 +39,19 @@ test("breakdown options parse into kinds, pixel ratios and changes", () => {
   ]);
 });
 
+test("--saturate takes a batch of back-to-back frames for full-clock timing", () => {
+  const { options } = parseBenchArgs([
+    "--breakdown",
+    "features",
+    "--saturate",
+    "10",
+    "--fps",
+    "60",
+  ]);
+  assert.equal(options.saturate, 10);
+  assert.equal(options.fps, 60);
+});
+
 test("invalid values and misplaced options are refused", () => {
   for (const argv of [
     ["--breakdown", "shadows"],
@@ -46,6 +60,11 @@ test("invalid values and misplaced options are refused", () => {
     ["--pixel-ratios", "0"],
     ["--pixel-ratios", "2,x"],
     ["--fps", "0"],
+    ["--saturate", "0"],
+    ["--saturate", "1.5"],
+    ["--saturate", "101"],
+    ["--saturate", "x"],
+    ["--reaction", "r", "--saturate", "10"],
     ["--breakdown", "features", "--effects", "a"],
     ["--reaction", "r", "--pixel-ratios", "1"],
     ["--reaction", "r", "--breakdown", "features"],
