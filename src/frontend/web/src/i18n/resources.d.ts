@@ -1320,8 +1320,10 @@ export default interface Resources {
       "controls": "Picture-in-picture controls",
       "resize": "Resize picture-in-picture",
       "sceneBackground": "Scene background",
+      "stopVoiceMode": "Stop voice mode",
       "switchCamera": "Switch camera (now {{preset}})",
-      "unavailable": "Picture-in-picture is unavailable. Keep using the companion in this window."
+      "unavailable": "Picture-in-picture is unavailable. Keep using the companion in this window.",
+      "voiceMode": "Voice mode"
     },
     "quickChat": {
       "incompatibleModel": "That model keeps conversations differently. Open the main chat to continue in a new chat.",
@@ -6371,6 +6373,7 @@ export default interface Resources {
         "quick_chat": "Quick Chat",
         "skip_tts": "Skip TTS",
         "toggle_dictation": "Dictation on/off",
+        "toggle_pip": "Picture-in-picture on/off",
         "toggle_voice_mode": "Voice Mode on/off",
         "toggle_voice_mute": "Toggle mute"
       },

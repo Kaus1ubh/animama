@@ -72,7 +72,7 @@
     "actionFailed": "The action could not finish. Open Logs, or quit and reopen Animama after fixing the problem.",
     "genericError": "Startup could not finish. Open Logs for details, fix the problem, and retry. Your local data has been preserved.",
     "secureStorage": {
-      "macos": "macOS secure storage is unavailable. Unlock your login keychain and retry.",
+      "macos": "macOS secure storage is unavailable. Unlock your login keychain and allow Animama to use it, then quit and reopen Animama.",
       "windows": "Windows protected storage is unavailable for this account. Sign in to Windows with your own account, not a temporary profile, and retry."
     },
     "freshProfile": {

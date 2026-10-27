@@ -58,6 +58,7 @@ function AnimaRuntimeLayout() {
       <CompanionSafetyProvider key={animaId}>
         <MainShell
           avatarOnlyOverlay={<AvatarOnlySafetyOverlay />}
+          pipShortcutEnabled={confirmed}
           // Delay chat's voice, Quick Chat and native shortcut handlers while
           // the heavier avatar/content preparation runs behind the age dialog.
           chatPanel={({ canvasMode }) =>

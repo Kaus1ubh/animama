@@ -367,6 +367,7 @@
       "quick_chat": "快速聊天",
       "skip_tts": "略過朗讀",
       "toggle_dictation": "開關聽寫",
+      "toggle_pip": "開關子母畫面",
       "toggle_voice_mode": "開關語音模式",
       "toggle_voice_mute": "切換靜音"
     },

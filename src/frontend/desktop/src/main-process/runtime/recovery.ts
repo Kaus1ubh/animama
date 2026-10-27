@@ -9,6 +9,14 @@ import type { RuntimeIpcCallers } from "./ipc.js";
 
 /** Runtime error codes with their own advice; other codes show the generic text. */
 const ADVICE_CODES = Object.keys(en.startup.advice);
+/** Errors that Retry in the same process cannot clear. */
+const NO_RETRY_CODES = [
+  "update_install_timeout",
+  "owned_services_stop_failed",
+  "database_schema_mismatch",
+  "data_path_too_long",
+  "administrator_launch_unsupported",
+];
 
 /**
  * Every text the page shows, in the shell locale. The page script runs in the
@@ -158,13 +166,18 @@ export function createRuntimePage(
 ): string {
   const nonce = randomBytes(18).toString("base64");
   const text = pageText(strings, platform);
+  // Electron keeps a refused macOS Keychain answer until the app restarts.
+  const noRetry =
+    platform === "darwin"
+      ? [...NO_RETRY_CODES, "secure_storage_unavailable"]
+      : NO_RETRY_CODES;
   return `<!doctype html><html lang="${strings.locale}" dir="${strings.dir}"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:; script-src 'nonce-${nonce}'"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Animama</title>
 <style>${styles}</style></head><body data-state="starting"><main><img class="mark" src="${mark}" alt=""><h1 id="title">Animama</h1><p id="message" role="status">${escapeHtml(text.status.preparing)}</p><div class="bar" id="bar" aria-hidden="true"><span></span></div><p class="detail" id="detail" hidden><span id="code"></span><br><span id="backup"></span></p><div class="actions" id="actions" hidden><button id="retry" class="primary" hidden>${escapeHtml(text.actions.retry)}</button><button id="logs" class="outline">${escapeHtml(text.actions.openLogs)}</button><button id="backups" class="outline" hidden>${escapeHtml(text.actions.openBackups)}</button><button id="quit" class="ghost">${escapeHtml(text.actions.quit)}</button></div></main>
 <script nonce="${nonce}">
 const runtime=window.animamaDesktop?.runtime;
 const $=(id)=>document.getElementById(id);
 const text=${scriptJson(text)};
-const noRetry=['update_install_timeout','owned_services_stop_failed','database_schema_mismatch','data_path_too_long','administrator_launch_unsupported'];
+const noRetry=${scriptJson(noRetry)};
 // Startup normally finishes well within this; past it, offer Logs and Quit.
 const STALL_MS=20000;
 let state='starting',stalled=false,stallTimer;

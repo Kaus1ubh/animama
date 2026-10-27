@@ -75,6 +75,7 @@ describe("default desktop shortcuts", () => {
       toggle_voice_mode: "⌃;",
       toggle_voice_mute: "⌃'",
       skip_tts: "⌃]",
+      toggle_pip: "⌃,",
     });
     expect(keycaps("win32")).toEqual({
       press_to_talk: "Ctrl+`",
@@ -83,6 +84,7 @@ describe("default desktop shortcuts", () => {
       toggle_voice_mode: "Alt+;",
       toggle_voice_mute: "Alt+'",
       skip_tts: "Alt+]",
+      toggle_pip: "Alt+,",
     });
   });
 
@@ -98,7 +100,7 @@ describe("default desktop shortcuts", () => {
   });
 
   it("fill in for stored maps that omit or break a shortcut", () => {
-    // Preferences saved before the Dictate shortcut existed omit it.
+    // Preferences saved before the Dictate and PiP shortcuts existed omit them.
     const resolved = resolveDesktopShortcuts(
       {
         quick_chat: { code: "KeyQ", ctrlKey: true },
@@ -109,6 +111,9 @@ describe("default desktop shortcuts", () => {
     expect(resolved.quick_chat).toEqual({ code: "KeyQ", ctrlKey: true });
     expect(resolved.toggle_dictation).toEqual(
       defaultDesktopShortcuts("win32").toggle_dictation,
+    );
+    expect(resolved.toggle_pip).toEqual(
+      defaultDesktopShortcuts("win32").toggle_pip,
     );
     expect(resolved.skip_tts).toEqual(
       defaultDesktopShortcuts("win32").skip_tts,

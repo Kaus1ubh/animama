@@ -47,7 +47,10 @@ window's display work area, with a small margin so OS taskbars and docks are not
 covered. The default size scale is `0.5`.
 
 It uses the floating always-on-top level and remains visible across workspaces,
-including fullscreen workspaces.
+including fullscreen workspaces. On macOS it is a non-activating panel, which
+floats over full-screen apps while Animama stays in the Dock and Command-Tab.
+Electron's default for full-screen visibility hides the Dock icon instead, so
+`floatOnAllWorkspaces` passes `skipTransformProcessType`.
 
 The Linux `type: "toolbar"` hint makes the window easier to identify in window
 managers. Tiling window managers may still need explicit user rules.
@@ -78,8 +81,11 @@ The preload identifies the auxiliary window as `windowRole: "pip"`, selected
 by `--animama-window-role=pip` at window creation.
 
 Web hooks use the role to keep PiP controls and runtime producers active only
-in the main window. PiP renderers can send `ready` messages and consume visual
-state, but they cannot publish owner-only runtime snapshots.
+in the main window. The main process routes runtime messages by sender: PiP may
+send `ready`, `camera-preset` and `voice-command`; only the window that opened
+PiP may send Avatar `snapshot`/`incremental` state and `voice` state. Only
+Avatar state counts toward the readiness that shows the window, so voice state
+cannot make PiP visible early.
 
 ## IPC Surface
 
@@ -235,8 +241,8 @@ Two zones keep PiP mouse input enabled:
 - the top 40px, where the hover toolbar sits
 - a 24px square in the bottom-right corner, where the resize grip sits
 
-On hover the route shows one toolbar along the top: a move icon, then camera
-preset, Scene background, size and close buttons. The toolbar background uses
+On hover the route shows one toolbar along the top: a move icon, the voice
+controls, then camera preset, Scene background, size and close buttons. The toolbar background uses
 `anima-pip-drag` (`-webkit-app-region: drag`), so it moves the window; its
 buttons and slider use `anima-pip-no-drag`. The PiP body is not draggable,
 because drag-anywhere would conflict with body click-through.
@@ -244,7 +250,19 @@ because drag-anywhere would conflict with body click-through.
 The camera button cycles the PiP camera preset. The Scene background button is
 a toggle between the `scene` and `transparent` modes.
 
-The size button swaps the camera and background buttons for a slider; the size
+The voice controls are the chat input's, acting on the main window's chat
+([`useDesktopPipVoice`](../../../src/frontend/web/src/hooks/useDesktopPipVoice.ts)):
+the voice-mode button while the microphone is idle and voice mode can start;
+during voice mode a small synthetic waveform, the mute toggle and stop. While
+the main window dictates, PiP shows only the waveform and stop, since it has no
+text field. The waveform is CSS animation that runs only while the user speaks
+unmuted; no audio crosses windows. The main window publishes its state only
+while PiP is open for its Anima, clears PiP's controls when its chat unmounts
+(Avatar-only view, another Anima), and ignores a command that no longer fits
+the session. In a narrow PiP the waveform, then the camera button, then the
+separator give way to the voice controls.
+
+The size button swaps the voice, camera and background buttons for a slider; the size
 button, Escape or leaving the window swaps them back. Slider changes call
 `window.animamaDesktop.pip.setSizeScale(...)`, which resizes the native
 `BrowserWindow` around its current center. Wheel events over the PiP window use
@@ -335,6 +353,9 @@ Manual validation:
   window
 - speech audio plays only once from the main renderer
 - close button closes PiP and updates the main-window button state
+- the PiP toolbar starts voice mode, mutes and unmutes, and stops it; changes
+  made in the main window (composer, shortcut, Quick Chat) show in PiP, and
+  switching the main window to Avatar-only clears PiP's voice controls
 - PiP opens at Portrait (close) with the whole head in frame, in both
   background modes; the camera button and the PiP camera menu switch presets
 - the toolbar's Scene background toggle and the main canvas settings stay in

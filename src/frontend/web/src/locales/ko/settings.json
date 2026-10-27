@@ -367,6 +367,7 @@
       "quick_chat": "빠른 채팅",
       "skip_tts": "TTS 건너뛰기",
       "toggle_dictation": "받아쓰기 켜기/끄기",
+      "toggle_pip": "화면 속 화면 켜기/끄기",
       "toggle_voice_mode": "음성 모드 켜기/끄기",
       "toggle_voice_mute": "음소거 전환"
     },

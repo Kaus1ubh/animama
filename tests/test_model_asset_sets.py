@@ -166,9 +166,17 @@ def clock() -> Clock:
     return Clock()
 
 
+async def _no_backoff(delay: float) -> None:
+    """Resume interrupted transfers without waiting out the retry delay."""
+
+
 def _service(data_root: Path, release: SetRelease, clock: Clock | None = None) -> ModelAssetService:
     return ModelAssetService(
-        _catalog(), FilesystemModelAssetStore(data_root), release.fetcher(), clock=clock or Clock()
+        _catalog(),
+        FilesystemModelAssetStore(data_root),
+        release.fetcher(),
+        clock=clock or Clock(),
+        sleep=_no_backoff,
     )
 
 
@@ -413,7 +421,7 @@ async def test_free_space_counts_only_the_remaining_bytes(
 ) -> None:
     release.respond("model.onnx", interrupted_after(1000))
     store = FilesystemModelAssetStore(data_root)
-    service = ModelAssetService(_catalog(), store, release.fetcher())
+    service = ModelAssetService(_catalog(), store, release.fetcher(), sleep=_no_backoff)
     assert await _install(service) == "failed"
     remaining = len(FILES["model.onnx"]) - 1000 + INSTALL_HEADROOM_BYTES
 
