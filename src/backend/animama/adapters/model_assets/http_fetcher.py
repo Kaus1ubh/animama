@@ -72,7 +72,9 @@ class HttpAssetFetcher:
                         raise AssetFetchError("asset_size_invalid", f"Asset {asset_id} declared a different size")
                     yield FetchedBody(body_start, _translate_errors(asset_id, response.aiter_raw()))
             except httpx.HTTPError as error:
-                raise AssetFetchError("asset_download_failed", f"Asset {asset_id} transfer failed: {error}") from error
+                raise AssetFetchError(
+                    "asset_download_failed", f"Asset {asset_id} transfer failed: {_describe(error)}"
+                ) from error
 
 
 def _body_start(asset_id: str, file: AssetFile, start: int, response: httpx.Response) -> int:
@@ -95,4 +97,13 @@ async def _translate_errors(asset_id: str, chunks: AsyncIterator[bytes]) -> Asyn
         async for chunk in chunks:
             yield chunk
     except httpx.HTTPError as error:
-        raise AssetFetchError("asset_download_failed", f"Asset {asset_id} transfer was interrupted") from error
+        raise AssetFetchError(
+            "asset_download_failed", f"Asset {asset_id} transfer was interrupted: {_describe(error)}"
+        ) from error
+
+
+def _describe(error: httpx.HTTPError) -> str:
+    """Name the transport failure for logs; some httpx errors carry an empty message."""
+
+    message = str(error)
+    return f"{type(error).__name__}: {message}" if message else type(error).__name__
