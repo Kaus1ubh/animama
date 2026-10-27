@@ -565,9 +565,24 @@ function MotionSection({ report }: { report: AvatarDiagnosticsReport }) {
         <SettingSource source={report.settings?.springModeSource ?? null} />
       </Fact>
       <Fact label={t("avatarDiagnostics.motion.restPose")}>
-        <span className="text-muted-foreground">
-          {t("avatarDiagnostics.motion.notChecked")}
-        </span>
+        {motion.restPose ? (
+          t("avatarDiagnostics.motion.restPoseValue", {
+            arms: motion.restPose.armsNormalized
+              ? t("avatarDiagnostics.motion.arms.normalized", {
+                  degrees: motion.restPose.armDegrees,
+                })
+              : t("avatarDiagnostics.motion.arms.tPose"),
+            hands: motion.restPose.handsNormalized
+              ? t("avatarDiagnostics.motion.hands.normalized", {
+                  degrees: motion.restPose.handDegrees,
+                })
+              : t("avatarDiagnostics.motion.hands.vroid"),
+          })
+        ) : (
+          <span className="text-muted-foreground">
+            {t("avatarDiagnostics.motion.notChecked")}
+          </span>
+        )}
       </Fact>
     </FactList>
   );

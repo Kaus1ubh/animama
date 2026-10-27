@@ -229,7 +229,16 @@
         "on": "有風和上升氣流",
         "tunedWithout": "無風和上升氣流：其彈簧是在沒有它們的情況下調校的"
       },
-      "windValue": "{{mode}} · {{effect}}"
+      "windValue": "{{mode}} · {{effect}}",
+      "restPoseValue": "{{arms}} · {{hands}}",
+      "arms": {
+        "tPose": "T 姿勢",
+        "normalized": "手臂靜止時偏離 T 姿勢 {{degrees}}°，已正規化"
+      },
+      "hands": {
+        "vroid": "手部與 VRoid 相同",
+        "normalized": "手部已按 VRoid 正規化（{{degrees}}°）"
+      }
     },
     "navigationLabel": "診斷分區",
     "no": "否",

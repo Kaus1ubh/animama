@@ -104,9 +104,11 @@ Animama found in the Anima's Avatar and how it plays it:
   ARKit mixes or MMD morphs, ARKit shape coverage, each mood's source per face
   region ([Faces on non-VRoid Avatars](../runtime/avatar-emotion.md#faces-on-non-vroid-avatars)),
   and names Gestures, Reactions or moods asked for that the Avatar lacks.
-- **Motion**: humanoid bones, missing required bones, spring joints and
-  colliders, and the wind setting in effect with whether wind and updraft
-  apply. Each setting also shows whether it is saved for the Avatar or the
+- **Motion**: humanoid bones, missing required bones, the rest pose (arms
+  from a T-pose and hands from VRoid's, and whether each was normalized:
+  [Rest normalization](../runtime/avatar-animation.md#rest-normalization)),
+  spring joints and colliders, and the wind setting in effect with whether
+  wind and updraft apply. Each setting also shows whether it is saved for the Avatar or the
   default.
 - **Warnings**: every face-part, landmark, texture-anchor, spring and effect
   finding, once each.

@@ -702,10 +702,19 @@ export default interface Resources {
         }
       },
       "motion": {
+        "arms": {
+          "normalized": "arms rest {{degrees}}° from a T-pose, normalized",
+          "tPose": "T-pose"
+        },
+        "hands": {
+          "normalized": "hands normalized to VRoid's ({{degrees}}°)",
+          "vroid": "hands like VRoid's"
+        },
         "humanoidBones": "Humanoid bones",
         "missingBones": "Missing required bones",
         "notChecked": "Not checked yet",
         "restPose": "Rest pose",
+        "restPoseValue": "{{arms}} · {{hands}}",
         "springs": "Spring bones",
         "springsValue": "{{joints}} joints · {{colliders}} colliders",
         "wind": "Wind and ambient forces",

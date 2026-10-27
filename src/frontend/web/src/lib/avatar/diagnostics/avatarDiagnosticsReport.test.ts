@@ -88,6 +88,27 @@ describe("Avatar diagnostics reports", () => {
       expect(text).toContain(`\n${heading}\n`);
     }
     expect(text).toContain("  - face_parts_correction_invalid");
+    // Andrew rests in VRoid's T-pose: measured, nothing normalized.
+    expect(report.live?.motion.restPose).toMatchObject({
+      armDegrees: 0,
+      armsNormalized: false,
+      handsNormalized: false,
+    });
+    expect(text).toMatch(
+      /Rest pose: arms 0° from a T-pose, hands \d+° from VRoid's\n/,
+    );
+    const aPose = structuredClone(report);
+    aPose.live!.motion.restPose = {
+      armDegrees: 40,
+      handDegrees: 7,
+      armsNormalized: true,
+      handsNormalized: true,
+    };
+    expect(avatarDiagnosticsText(aPose)).toContain(
+      "Rest pose: arms 40° from a T-pose (normalized), hands 7° from VRoid's (normalized)",
+    );
+    aPose.live!.motion.restPose = null;
+    expect(avatarDiagnosticsText(aPose)).toContain("Rest pose: not checked\n");
     expect(JSON.parse(avatarDiagnosticsJson(report))).toEqual(report);
   });
 

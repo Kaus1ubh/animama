@@ -178,7 +178,11 @@ function liveLines(live: AvatarDiagnosticsReport["live"]): string[] {
     `  Humanoid bones ${motion.humanoidBones}; missing required: ${list(motion.missingRequiredBones)}`,
     `  Springs: ${motion.springJoints} joints, ${motion.springColliders} colliders`,
     `  Wind setting ${motion.wind.mode}; wind and updraft ${motion.wind.ambientForces ? "on" : "off"}`,
-    `  Rest pose: ${motion.restPose ?? "not checked"}`,
+    `  Rest pose: ${
+      motion.restPose
+        ? `arms ${motion.restPose.armDegrees}° from a T-pose${motion.restPose.armsNormalized ? " (normalized)" : ""}, hands ${motion.restPose.handDegrees}° from VRoid's${motion.restPose.handsNormalized ? " (normalized)" : ""}`
+        : "not checked"
+    }`,
     ...(live.materials
       ? [
           "",

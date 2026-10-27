@@ -908,3 +908,54 @@ describe.each(AVATARS)("ArmReachSolver on %s", (id) => {
     expect(miss(avatar, contact)).toBeLessThan(0.005);
   });
 });
+
+describe("contact scale", () => {
+  it("solves the same arm turn on a uniformly larger model (R9)", () => {
+    const vrm = vrms.get("AvatarSample_A_1_New")!;
+    const factor = 1.5;
+    // The same model at 1.5 times the size: CanonicalSkeleton reads only
+    // the metadata version and each normalized node's rest position.
+    const larger = {
+      meta: vrm.meta,
+      humanoid: {
+        getNormalizedBoneNode: (bone: VRMHumanBoneName) => {
+          const node = vrm.humanoid.getNormalizedBoneNode(bone);
+          return (
+            node && { position: node.position.clone().multiplyScalar(factor) }
+          );
+        },
+      },
+    } as unknown as VRM;
+    const { joints, contact } = SCENARIOS[0];
+    const solve = (model: VRM) => {
+      const skeleton = new CanonicalSkeleton(model);
+      const scale = avatarScale(skeleton);
+      const pose = new SkeletonPose(skeleton).setPose(posed(joints));
+      const target = contactTargetPosition(
+        pose,
+        contact,
+        scale,
+        new Vector3(),
+      )!;
+      return {
+        scale,
+        // `posed` shifts the hips by fixed metres: compare from the hips.
+        target: target.clone().sub(pose.position("hips")!),
+        ...new ArmReachSolver(skeleton, "right").solve(
+          pose,
+          contact,
+          target,
+          1,
+        ),
+      };
+    };
+    const base = solve(vrm);
+    const scaled = solve(larger);
+    expect(scaled.scale).toBeCloseTo(base.scale * factor, 9);
+    expect(
+      scaled.target.distanceTo(base.target.clone().multiplyScalar(factor)),
+    ).toBeLessThan(1e-9);
+    expect(scaled.upperArm.angleTo(base.upperArm)).toBeLessThan(1e-6);
+    expect(scaled.lowerArm.angleTo(base.lowerArm)).toBeLessThan(1e-6);
+  });
+});

@@ -369,7 +369,11 @@ delegates them to `AvatarAttachmentEffects`.
   anchors (for example `chest` → `upperChest` → `spine` → `hips`). `offset` is
   in metres in the bone's frame (+x toward the viewer's right when facing the
   Avatar, +y up, +z forward, on VRM 0 and 1); `size` is the plane height in
-  metres. It faces each camera (`facing: "camera"`) or keeps the bone's
+  metres. Both are authored for the Included Avatars: a model whose
+  `avatarScale` (rest head height above the feet over 1.25 m, the measure
+  contacts use) lies outside `BODY_EFFECT_SCALE_BAND` (0.91–1.2, the Included
+  Avatars' 1.012 and 1.094 widened by 10%) scales them by its size over the
+  nearer edge. It faces each camera (`facing: "camera"`) or keeps the bone's
   orientation (`"bone"`).
 - **`sticker`**: a camera-facing image beside the head (`around: "head"`) or
   the body centre (between the hips and head). `size` and the screen-plane

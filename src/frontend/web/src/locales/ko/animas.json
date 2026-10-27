@@ -229,7 +229,16 @@
         "on": "바람과 상승 기류 켬",
         "tunedWithout": "바람과 상승 기류 없음: 스프링이 이들 없이 조정됨"
       },
-      "windValue": "{{mode}} · {{effect}}"
+      "windValue": "{{mode}} · {{effect}}",
+      "restPoseValue": "{{arms}} · {{hands}}",
+      "arms": {
+        "tPose": "T 포즈",
+        "normalized": "팔이 T 포즈에서 {{degrees}}° 벗어나 있어 정규화함"
+      },
+      "hands": {
+        "vroid": "손은 VRoid와 같음",
+        "normalized": "손을 VRoid에 맞춰 정규화({{degrees}}°)"
+      }
     },
     "navigationLabel": "진단 섹션",
     "no": "아니요",

@@ -92,6 +92,7 @@ import {
   type LilToonMaterialState,
 } from "./liltoon/lilToon";
 import { irisHideBindOf } from "./irisHideExpression";
+import type { RestPoseCheck } from "./poses/anatomy/restNormalization";
 import { prepareLoadedVrm } from "./prepareLoadedVrm";
 import type { ArkitFace } from "./arkitFaceExpressions";
 import {
@@ -432,6 +433,7 @@ export class Avatar {
   private _vrmSha256: string | null = null;
   private _facePartCorrections: AvatarFacePartCorrections | null = null;
   private _arkitFace: ArkitFace | null = null;
+  private _restPose: RestPoseCheck | null = null;
   private _springMode: AvatarSpringMode = "automatic";
   /** Automatic's wind choice for the loaded file. */
   private _automaticAmbientForces: boolean = true;
@@ -474,6 +476,10 @@ export class Avatar {
   /** The loaded model's ARKit coverage, as the load-time installs found it. */
   get arkitFace(): ArkitFace | null {
     return this._arkitFace;
+  }
+  /** How far the loaded model rests from VRoid's T-pose, and what was normalized. */
+  get restPose(): RestPoseCheck | null {
+    return this._restPose;
   }
 
   /** Findings this Avatar recorded itself (not its parts' or controllers'). */
@@ -567,17 +573,20 @@ export class Avatar {
         this._lilToonMaterials !== "none",
       );
     }
-    const { arkitFace, eyelidClosure, handRest } = prepareLoadedVrm(vrm, {
+    const { arkitFace, eyelidClosure, restPose } = prepareLoadedVrm(vrm, {
       vrmSha256: this._vrmSha256,
     });
     this._arkitFace = arkitFace;
+    this._restPose = restPose;
     if (eyelidClosure) {
       logger.info("Load", "Eyelid closure correction", eyelidClosure);
     }
-    if (handRest) {
-      logger.info("Load", "Hand rest normalized to VRoid's", {
-        bones: handRest.bones.size,
-        maxDegrees: Math.round(handRest.maxDegrees),
+    if (restPose.normalization) {
+      logger.info("Load", "Rest pose normalized to VRoid's", {
+        arms: restPose.armsNormalized,
+        hands: restPose.handsNormalized,
+        bones: restPose.normalization.bones.size,
+        maxDegrees: Math.round(restPose.normalization.maxDegrees),
       });
     }
     this.poseController = new PoseController(vrm, {
@@ -693,6 +702,7 @@ export class Avatar {
       this._vrmSha256 = null;
       this._facePartCorrections = null;
       this._arkitFace = null;
+      this._restPose = null;
       this._lilToonMaterials = "none";
       this._facePartIssues = [];
       this.animationManager = null;

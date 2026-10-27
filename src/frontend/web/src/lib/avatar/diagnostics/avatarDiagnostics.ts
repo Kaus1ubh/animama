@@ -69,8 +69,16 @@ export type AvatarLiveDiagnostics = {
     springColliders: number;
     /** The wind setting in effect, and whether wind and updraft apply. */
     wind: { mode: AvatarSpringMode; ambientForces: boolean };
-    /** Rest-pose check; not measured yet. */
-    restPose: null;
+    /**
+     * How far the arms and hands rest from VRoid's T-pose (degrees) and
+     * whether they were normalized; null before a load measured them.
+     */
+    restPose: {
+      armDegrees: number;
+      handDegrees: number;
+      armsNormalized: boolean;
+      handsNormalized: boolean;
+    } | null;
   };
   /**
    * How the file's authored lilToon materials render under the material
@@ -196,7 +204,14 @@ function collectMotion(avatar: Avatar): AvatarLiveDiagnostics["motion"] {
     springJoints: springs?.joints.size ?? 0,
     springColliders: springs?.colliders.length ?? 0,
     wind: { mode: avatar.springMode, ambientForces: avatar.ambientForces },
-    restPose: null,
+    restPose: avatar.restPose
+      ? {
+          armDegrees: Math.round(avatar.restPose.armDegrees),
+          handDegrees: Math.round(avatar.restPose.handDegrees),
+          armsNormalized: avatar.restPose.armsNormalized,
+          handsNormalized: avatar.restPose.handsNormalized,
+        }
+      : null,
   };
 }
 

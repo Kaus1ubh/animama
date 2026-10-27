@@ -216,7 +216,10 @@ tenant-inventory row for `avatar_face_part_overrides`. So:
 - [ ] Phase 5: Hands (R6). Implemented, checked and review passed
   2026-10-27; the owner gate (private hand Gesture renders) is pending.
 - [ ] Phase 6: Texture layouts (R2). Not started.
-- [ ] Phase 7: Rest pose, proportions and enhanced rendering (R9, R10). Not started.
+- [ ] Phase 7: Rest pose, proportions and enhanced rendering (R9, R10).
+  Implemented, checked and review passed 2026-10-27; the owner gate (scaling
+  band, private Gesture renders on the T-pose and A-pose exports, the R10
+  departure) is pending.
 - [ ] Phase 8: Package sharing (R13). Not started.
 - [ ] Phase 9 (alongside): lilToon frame cost (R11). Not started.
 - [ ] Phase 10: Diagnostics and Avatar settings in the Library and Create Anima
@@ -441,6 +444,45 @@ tenant-inventory row for `avatar_face_part_overrides`. So:
   - The reference frames are Annie's (Andrew agrees within 0.2°) and the
     tolerance is 5°; the Included Avatars and the VRM 0 VRoid fixture measure
     under it, the converted test Avatar 38° over 32 bones.
+- 2026-10-27, agent (Phase 7, within the plan except the last bullet):
+  - `handRest.ts` became `restNormalization.ts` (`installRestNormalization`):
+    arms join the hands in one wrapper and one offset pass. Each upper arm and
+    forearm is measured against VRoid's horizontal T-pose with a 10° tolerance;
+    normalized arms are exact like hands. Hands are measured against VRoid's
+    as carried by their own forearm (review P7-R1-F5), so an arm's tilt never
+    counts against its hand; a corrected forearm carries its hand, rigidly when
+    the palm cannot be measured (P7-R1-F1), and adds the hand's own correction
+    only when the hands are beyond their tolerance. Gestures on a 40° A-pose
+    synthetic model match the T-pose one (directions within 1e-5 rad, joints
+    within 1 µm), so normalization is kept rather than report-only. The
+    Included Avatars and the VRM 0 fixture rest in an exact T-pose; the
+    converted test Avatar's arms are within 5° of one and are not normalized,
+    and its hand correction is now measured against its forearm.
+  - Body effects scale by `avatarScale` (rest head height above the feet over
+    1.25 m, the contacts' measure), not bounding height: the converted test
+    Avatar's bounding height is inflated by hair and accessories, while its head
+    height puts it just below Annie (1.012). The proposed band is 0.91–1.2 (the
+    Included 1.012 and 1.094 widened by 10%), scaling by size over the nearer
+    edge outside it, so the size is continuous at the edges. The scale is on
+    the effect's root group, so offset and size scale together and the Avatar
+    Effect creator's drags (in that group's frame) and resizes (ratios) stay
+    consistent.
+  - Contacts stay on `avatarScale`; the arm solver already uses the model's
+    own arm lengths. Head size is not measured separately: on the converted
+    test Avatar the face's depth in front of the head joint matches Annie's
+    to within a millimetre.
+  - Departure from step 3 (and PLAN-F5), for the owner: non-VRoid MToon models
+    keep every material as authored (R10's "switched off consistently")
+    instead of a role-based retune. There is no non-VRoid MToon reference
+    model to tune or judge the shade and rim colours on, and the face-part map
+    gives face skin but no reliable split between body skin and cloth, so the
+    "cannot all be assigned" fallback would apply to nearly every model. The
+    retune now requires VRoid's face skin material name, which also removes
+    today's partial retune of models with VRoid-like suffixes (on renamed
+    copies of the Included Avatars 14 and 18 materials would have been
+    retuned beside authored ones). Such models keep the enhanced lights, tone
+    mapping and chat filter on their authored materials: "classic" applies per
+    material, not to the scene. A role-based retune remains a follow-up.
 
 ## Decisions
 
@@ -1622,21 +1664,155 @@ renders in both looks at 0 differing pixels; the load-timing measurement; vitest
 and check.
 
 Owner gate: the scaling band proposal and, if normalization lands, Gesture
-renders on the converted test Avatar.
+renders on the converted test Avatar. Added at Phase 7 (review P7-R1-F3): the
+R10 departure (non-VRoid MToon models keep authored materials under the
+enhanced lights, instead of step 3's role-based retune; see the Decision Log).
 
 Completion: R9 and R10 acceptance; owner gate passed.
 
 Recovery: load-time only.
 
-Check record: (to fill) · Commits: (to fill)
+Delivered (see the Decision Log for the choices): arm rest normalization in
+`poses/anatomy/restNormalization.ts` (renamed from `handRest.ts`), with the
+measurement on `Avatar.restPose` and in Avatar Diagnostics (Motion, "Rest
+pose"); body effects scaled by `avatarScale` outside the proposed 0.91–1.2
+band (`AvatarAttachmentEffects.ts`); contacts unchanged; enhanced MToon retune
+limited to VRoid exports (`mtoonPatch.ts`), every other model consistently
+authored; docs in `avatar-animation.md`, `avatar-vfx.md` and
+`anima-management.md`.
+
+Check record (2026-10-27, macOS arm64, worktree on
+`feat/arbitrary-vrm-support-pr-b` from `1ae2f37e`):
+
+- Unit tests: a 40° A-pose synthetic model is normalized and plays a Gesture
+  as the T-pose one does (`restNormalization.test.ts`); body effects keep
+  factor 1 at the Included sizes and band edges and scale offset and size
+  together on a 1.6× synthetic model (`AvatarAttachmentEffects.test.ts`); a
+  1.5× copy of Annie's skeleton solves the same arm turn for a chin contact
+  (`arms.test.ts`, "contact scale"); a non-VRoid MToon material set with
+  VRoid-like suffixes keeps every material authored (`mtoonPatch.test.ts`).
+- Mixed-look check on real data, standing in for the planned render check
+  (it compares every built material's parameters, which a render cannot):
+  the app's patched loader on copies of Annie and Andrew with VRoid's face
+  marker renamed retunes 0 materials (the previous patch would have retuned
+  14 and 18 beside authored ones); the originals still retune 18 and 20, as
+  before.
+- `npx vitest run src/lib/avatar src/ui/animas src/ui/avatar-effect-creator`
+  (`src/frontend/web`): 118 files, 1,526 passed, 2 skipped; `tsc -p
+  tsconfig.app.json`, eslint on the changed files and `pnpm i18n:check`
+  (`src/frontend`): pass.
+- Included renders, `1ae2f37e` against the phase end (source tree
+  `b4026e1e`): six moods and four Reaction/Gesture clips in both looks,
+  four body-plane effects (`rawr_lettering_chest`, `heart_pop`, `glowstick`,
+  `cupid_arrow_stuck`) and four hand Gestures (body and right-hand views):
+  32 sheets at 0 differing pixels. One (Shy Finger Poke, classic) first
+  differed by 4 pixels; two reruns of the same source gave 4 and 0, so it is
+  render timing.
+- Load-time corrections (median of 5): Andrew 55.4 ms, Annie 46.1 ms (Phase 5
+  end 58.9 and 47.3), at load average 5.
+- Private: the converted test Avatar's T-pose export rests within 5° of a
+  T-pose (arms not normalized; hands normalized against the forearm, 32
+  bones) and its size is inside the band. An A-pose export of the same
+  Avatar (`-animamaKeepPose`, private) measures 48° (arms normalized, hands
+  41° against the forearm, 36 bones). Double Thumbs Up, Count on Fingers,
+  Cheeky Finger Guns and Double Peace Pop on both exports, body and
+  right-hand views, are in the private renders folder (`p7-arms`) for the
+  owner gate: thumbs up, pointing and palms read the same on both; the
+  sheets differ by 1.3–1.6% (body) and 21–24% (hand close-ups, framing and
+  sleeve shifts), from the exports' different skin bindings.
+- After Code Review #1 (tree `75abdbb5`): `restNormalization.test.ts`
+  15 passed; the same vitest set 118 files, 1,529 passed, 2 skipped; tsc,
+  eslint and Prettier on the changed files pass; the eight Included Gesture
+  sheets again at 0 differing pixels against `1ae2f37e`.
+
+Commits: `feat(avatars)[p7]: normalize A-posed arms and size body effects by the Avatar`
 
 #### Code Review #1 Findings
 
-Not run.
+Independent reviewer, standard tier, initial review of working tree `5063845c`
+against `1ae2f37e`. Body-effect scaling was verified correct (VRM 0 yaw,
+`facing: "bone"` and camera billboards, the creator's offset frame, drags,
+resizes and live transform updates); the licence boundary holds.
+
+- P7-R1-F1 (blocking): with the arms normalized, a hand that cannot be
+  measured (no little finger, or no finger bones) stayed out of the
+  correction under a corrected forearm: its normalized joints sat 0.137 m
+  from the drawn ones on a 40° A-pose probe and wrist poses bent 11.9° off.
+- P7-R1-F2 (blocking): `vrchat-avatar-conversion.md` still said an A-pose
+  export plays Gestures with the arms too low, and that the Gesture renders
+  show the rest pose.
+- P7-R1-F3 (record): the R10 departure was not in the owner gate.
+- P7-R1-F4 (owner gate): normalization landed, but no Gesture renders on a
+  real A-pose export; the only evidence was a synthetic rig.
+- Optional: F5 hands were measured absolutely, so an arm 5–10° off (within
+  its tolerance) counted against the hand (an 8° wrist kink on a probe) and
+  Diagnostics' hand figure included the arm angle; F6 the A-pose test's
+  0.02 rad tolerance and missing hand rotation; F7 no Diagnostics or report
+  test of the rest-pose text; F8 a non-positive head height would scale
+  body effects to zero, and the scale guard repeats `prepareV2`'s; F9 the
+  render check is a loader count (say so); the creator's "centimetres" hint
+  is reference centimetres outside the band; locale key order.
 
 #### Code Review #1 Revisions
 
-Not run.
+- F1 accepted: hands are collected per side first; under a corrected forearm
+  the hand and its present fingers take the forearm's correction (rigidly
+  when the palm cannot be measured), parented as three-vrm parents them.
+  Tests: A-posed rigs without a little finger and without finger bones keep
+  normalized and drawn joints within 1 µm and bend the wrist as the T-pose
+  rig does (within 1e-5 rad); both fail on the reviewed tree.
+- F5 accepted with F1: each hand is measured against VRoid's carried by its
+  own forearm's rest direction, and a corrected forearm adds the hand's own
+  correction only when the hands exceed their tolerance (otherwise an A-posed
+  VRoid-like hand would be straightened by its sub-tolerance residual).
+  `handsNormalized` now means the hands themselves were corrected. Test: arms
+  8° down with the hand along the forearm report the same hand angle as the
+  level rig and install nothing. The converted test Avatar's hand correction
+  is now 40.8° against its forearm (was 38° absolute; its forearm rests 4.5°
+  up), so its private hand renders are redone for the gate.
+- F6 accepted: the A-pose test now uses unit quaternions, a wrist rotation,
+  the hand-to-finger direction and a 1e-5 rad tolerance.
+- F2 accepted: the guide describes load-time normalization and points to
+  Diagnostics' "Rest pose"; the Gesture renders no longer serve as the check.
+  The rewritten sentence also drops the model's name.
+- F3 accepted: the owner gate lists the R10 departure and its "authored
+  materials under the enhanced lights" reading.
+- F4 accepted: see the check record's private renders.
+- F7 accepted: the dialog test shows an A-pose rest pose; the report test
+  checks Andrew's measured T-pose and the normalized wording.
+- F8 accepted in part: a non-finite or non-positive size keeps factor 1.
+  Not taken: sharing the guard with `prepareV2`, which builds its own
+  skeleton for the solvers anyway.
+- F9 accepted: the check record calls the mixed-look check a loader count
+  standing in for a render (stronger: it compares every material's
+  parameters).
+- Not taken: the creator hint (reference centimetres is what the creator
+  edits on every model) and locale key order (style only).
+- Licence: the Decision Log's figures for the converted test Avatar are now
+  qualitative.
+
+#### Code Review #2 Findings
+
+Targeted recheck of tree `75abdbb5`: every round-1 finding resolved, no
+blocking findings. A probe of 300 combinations (both sides, VRM 0 and 1, five
+arm rests, three hand rests, five bone sets, a pose touching every chain) kept
+normalized and drawn joints within 7.4e-16 m and posed directions with the
+reference rig; the new tests fail on the round-1 code. Against `1ae2f37e`'s
+hand normalization, a level forearm gives identical bones, parents and
+rotations; a tilted one differs by exactly its tilt, as F5 intends. Optional:
+N1 the `handDegrees`/`handsNormalized` doc comments; N2 an antecedent in the
+guide; N3 the dialog's null rest-pose branch lost its assertion; N4 an
+unmeasurable hand reports 0°; N5 the check record's angles for the converted
+test Avatar (Phase 5's record set the precedent; the owner's call); N6 name
+the check tree.
+
+#### Code Review #2 Revisions
+
+- N1, N2 and N6 taken (comments, wording and tree only; verified by the
+  rest-normalization tests and `tsc`). N4 is now stated in the doc comment
+  rather than changed. N3 taken in the report test (a rest pose not checked);
+  the dialog's matching branch is one ternary over the same value. N5 left
+  for the owner gate.
 
 ### Phase 8: Package sharing
 

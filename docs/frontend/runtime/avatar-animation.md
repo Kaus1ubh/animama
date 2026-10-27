@@ -307,37 +307,50 @@ Important behavior:
   diagnostics. Manual debug reaction playback is runtime-only:
   it does not enqueue planner events or mutate canonical emotion state.
 
-#### Hand rest normalization
+#### Rest normalization
 
-Hand shapes, catalog poses (including `relaxedRest`), Gesture hand tracks,
-talking hands, VRMA playback and Pose creator authoring all write finger
-rotations for VRoid's hand: at rest its fingers lie straight along the arm,
-palms down, with the thumbs angled forward. A model whose hand rests otherwise
-(fingers bent down, the hand rolled, thumbs further forward, as on many
-converted VRChat Avatars) would bend them in the wrong planes.
+Catalog poses (including `relaxedRest`), Gestures, hand shapes, talking hands,
+VRMA playback and Pose creator authoring all write rotations for VRoid's rest:
+arms straight out to the sides (a T-pose), and hands with the fingers straight
+along the arm, palms down and the thumbs angled forward. A model that rests
+otherwise (an A-pose; fingers bent down, the hand rolled or thumbs further
+forward, as on many converted VRChat Avatars) would move its arms and fingers
+in the wrong planes.
 
-At load, `prepareLoadedVrm` calls `installHandRestNormalization`
-(`poses/anatomy/handRest.ts`). It measures each hand and finger bone's rest
-frame (bone direction and palm normal) against VRoid's, measured on Annie, and
-when any differs by 5° or more it normalizes both hands:
+At load, `prepareLoadedVrm` calls `installRestNormalization`
+(`poses/anatomy/restNormalization.ts`). It measures each upper arm and forearm
+against horizontal, and each hand and finger bone's rest frame (bone direction
+and palm normal) against VRoid's, measured on Annie and carried by the hand's
+own forearm's rest direction, so an arm's tilt never counts against its hand.
+Arms 10° or more from a T-pose are normalized, and a corrected forearm carries
+its hand and fingers with it (rigidly when the hand cannot be measured, as on
+a hand without a little finger or finger bones). Hands are normalized when they
+differ by 5° or more:
 
 - The instance's `humanoid.update` transfers each corrected bone's rotation N
   as `W_parent⁻¹ · N · W_bone`, where `W` turns the model's rest frame into
   VRoid's, and restores the authored rotations afterwards. Every `vrm.update`
   passes through it, so every writer above is covered, in the app,
   `animation:render` and the tests alike.
-- The normalized rig's hand and finger child offsets (and three-vrm's
-  normalized rest pose) are turned by their parent's `W`, so the normalized
-  hand has VRoid's shape with the model's lengths. Readers of normalized
-  geometry (thumb and pinch fits, fingertip and palm contacts, Pose creator
-  markers) then see the hand as drawn.
+- The normalized rig's child offsets below each corrected bone (and three-vrm's
+  normalized rest pose) are turned by their parent's `W`, so the normalized arm
+  and hand have VRoid's shape with the model's lengths. Readers of normalized
+  geometry (the arm-contact solver, thumb and pinch fits, fingertip and palm
+  contacts, Pose creator markers) then see the arm as drawn.
 - Each bone is measured from its nearest present ancestor, as three-vrm
   parents it; a bone with nothing to measure (no later bone in its digit)
   follows its parent rigidly.
 
-The Included Avatars and VRoid models are within the tolerance and take the
-same path as before. A normalized hand rests straight, palm down, like
-VRoid's; the idle pose bends it as on the Included Avatars.
+`Avatar.restPose` keeps the measurement, and Avatar Diagnostics shows it under
+Motion ("Rest pose"). The Included Avatars and VRoid models are within both
+tolerances and take the same path as before. A normalized hand rests straight,
+palm down, like VRoid's; the idle pose bends it as on the Included Avatars.
+
+Contact offsets scale with `avatarScale` (rest head height above the feet over
+1.25 m), and the solver reaches with the model's own arm lengths, so a
+uniformly larger model solves the same arm turns. Head proportions are not
+measured separately, so a model whose head is unusually large or small for its
+height places face contacts proportionally to its height.
 
 ### Pose and clip JSON artifacts
 
@@ -1578,12 +1591,16 @@ canvas between enhanced and classic rendering. `SettingsProvider` mirrors the
 preference into `useEnhancedRenderingStore`
 (`src/lib/avatar/enhanced-rendering/`), which non-React code reads.
 
-- **Materials:** `withEnhancedMToonPatch` retunes VRoid MToon materials in the
-  glTF after three-vrm's VRM 0.x conversion and before any material is built:
-  coloured shadows, a crisper terminator, rim light and screen-space outlines.
-  Colours come from VRoid material-name suffixes (`_SKIN`, `_CLOTH`, `_HAIR`,
-  `vroidPalette.ts`) tuned on Annie, so other models can look off; eyes, brows
-  and mouth stay flat. A change reloads the chat Avatar
+- **Materials:** `withEnhancedMToonPatch` retunes a VRoid export's MToon
+  materials in the glTF after three-vrm's VRM 0.x conversion and before any
+  material is built: coloured shadows, a crisper terminator, rim light and
+  screen-space outlines. Colours come from VRoid material-name suffixes
+  (`_SKIN`, `_CLOTH`, `_HAIR`, `vroidPalette.ts`) tuned on Annie; eyes, brows
+  and mouth stay flat. A model is a VRoid export when an MToon material carries
+  VRoid's face skin name (`_Face_` with `_SKIN`). Every other model keeps all
+  its materials as authored, even ones with VRoid-like suffixes, so no Avatar
+  mixes retuned and authored materials; the lights and tone mapping below
+  apply to all models. A change reloads the chat Avatar
   (`AvatarCanvasActor`); other canvases pick it up on their next load.
 - **Lights and tone mapping:** `AvatarSceneLighting` gives the chat, preview
   and Create Anima canvases three-point lighting (`ENHANCED_SCENE_LIGHTS`) and

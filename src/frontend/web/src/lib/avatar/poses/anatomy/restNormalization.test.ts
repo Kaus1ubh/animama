@@ -10,11 +10,15 @@ import { CanonicalSkeleton, SkeletonPose } from "./arms";
 import { handShapeRotations } from "./handPresets";
 import { applyCanonicalPose } from "../../motion-authoring/kinematics";
 import { AVATAR_POSE_CATALOG, RELAXED_REST_POSE_ID } from "../catalog";
-import { HAND_REST_TOLERANCE, installHandRestNormalization } from "./handRest";
+import {
+  ARM_REST_TOLERANCE,
+  HAND_REST_TOLERANCE,
+  installRestNormalization,
+} from "./restNormalization";
 
 /**
  * VRoid's left hand in VRM 1.0 axes: each child's offset from its parent
- * (the hand's from the lower arm), as `handRest.ts` measures it on Annie.
+ * (the hand's from the lower arm), as `restNormalization.ts` measures it on Annie.
  */
 const VROID_LEFT: Record<string, { parent: string; offset: number[] }> = {
   leftHand: { parent: "leftLowerArm", offset: [0.2, 0, 0] },
@@ -57,6 +61,8 @@ const VROID_LEFT: Record<string, { parent: string; offset: number[] }> = {
 function rotatedHandRig(
   rest: THREE.Quaternion,
   unmapped: readonly string[] = [],
+  /** Turns the forearm and everything below it at the shoulder (an A-pose). */
+  armRest: THREE.Quaternion = new THREE.Quaternion(),
 ): VRM {
   const scene = new THREE.Group();
   const nodes: Record<string, THREE.Object3D> = {};
@@ -69,14 +75,20 @@ function rotatedHandRig(
   };
   add("hips", scene, [0, 1, 0]);
   add("leftUpperArm", nodes.hips!, [0.2, 0.4, 0]);
-  add("leftLowerArm", nodes.leftUpperArm!, [0.25, 0, 0]);
+  add(
+    "leftLowerArm",
+    nodes.leftUpperArm!,
+    new THREE.Vector3(0.25, 0, 0).applyQuaternion(armRest).toArray(),
+  );
   for (const [name, { parent, offset }] of Object.entries(VROID_LEFT)) {
-    // The wrist turns everything below it; the hand's own offset stays.
-    const turned =
-      parent === "leftLowerArm"
-        ? offset
-        : new THREE.Vector3().fromArray(offset).applyQuaternion(rest).toArray();
-    add(name, nodes[parent]!, turned);
+    // The shoulder turns the arm; the wrist turns the hand below it.
+    const turn =
+      parent === "leftLowerArm" ? armRest : armRest.clone().multiply(rest);
+    add(
+      name,
+      nodes[parent]!,
+      new THREE.Vector3().fromArray(offset).applyQuaternion(turn).toArray(),
+    );
   }
   scene.updateMatrixWorld(true);
   // An unmapped bone stays in the skeleton but is not a humanoid bone.
@@ -90,14 +102,24 @@ function rotatedHandRig(
   return { scene, humanoid, meta: { metaVersion: "1" } } as unknown as VRM;
 }
 
+/** The drawn direction between two skeleton nodes, mapped or not. */
 const rawDirection = (vrm: VRM, from: string, to: string) => {
   vrm.scene.updateMatrixWorld(true);
-  const position = (bone: string) =>
-    vrm.humanoid
-      .getRawBoneNode(bone as VRMHumanBoneName)!
-      .getWorldPosition(new THREE.Vector3());
+  const position = (name: string) =>
+    vrm.scene.getObjectByName(name)!.getWorldPosition(new THREE.Vector3());
   return position(to).sub(position(from)).normalize();
 };
+
+/** A unit rotation from rounded components, for test poses. */
+const unit = (x: number, y: number, z: number, w: number) =>
+  new THREE.Quaternion(x, y, z, w).normalize().toArray();
+
+/** Turned about the forward axis at the shoulder: the arm hangs this far down. */
+const armDown = (degrees: number) =>
+  new THREE.Quaternion().setFromAxisAngle(
+    new THREE.Vector3(0, 0, 1),
+    (-degrees * Math.PI) / 180,
+  );
 
 /**
  * The largest distance between a hand or finger bone's normalized joint and
@@ -107,7 +129,7 @@ function jointGap(vrm: VRM): number {
   vrm.humanoid.update();
   vrm.scene.updateMatrixWorld(true);
   let gap = 0;
-  for (const bone of Object.keys(VROID_LEFT)) {
+  for (const bone of ["leftLowerArm", ...Object.keys(VROID_LEFT)]) {
     const normalized = vrm.humanoid.getNormalizedBoneNode(
       bone as VRMHumanBoneName,
     );
@@ -136,7 +158,8 @@ const TILTED = new THREE.Quaternion()
 describe("hand rest normalization", () => {
   it("leaves VRoid-like hands, the Included Avatars among them, alone", async () => {
     expect(
-      installHandRestNormalization(rotatedHandRig(new THREE.Quaternion())),
+      installRestNormalization(rotatedHandRig(new THREE.Quaternion()))
+        .normalization,
     ).toBeNull();
     for (const id of [
       "AvatarSample_A_1_New",
@@ -145,7 +168,9 @@ describe("hand rest normalization", () => {
     ] as const) {
       const { vrm } = await loadTestAvatarWithGltf(id);
       const update = vrm.humanoid.update;
-      expect(prepareLoadedVrm(vrm, { vrmSha256: null }).handRest).toBeNull();
+      expect(
+        prepareLoadedVrm(vrm, { vrmSha256: null }).restPose.normalization,
+      ).toBeNull();
       expect(vrm.humanoid.update, `${id} keeps three-vrm's update`).toBe(
         update,
       );
@@ -154,11 +179,11 @@ describe("hand rest normalization", () => {
 
   it("straightens a turned hand to VRoid's rest", () => {
     const vrm = rotatedHandRig(TILTED);
-    const normalization = installHandRestNormalization(vrm)!;
+    const normalization = installRestNormalization(vrm).normalization!;
     expect(normalization.maxDegrees).toBeGreaterThan(
       (HAND_REST_TOLERANCE * 180) / Math.PI,
     );
-    expect(installHandRestNormalization(vrm), "once per model").toBe(
+    expect(installRestNormalization(vrm).normalization, "once per model").toBe(
       normalization,
     );
     vrm.humanoid.update();
@@ -180,7 +205,7 @@ describe("hand rest normalization", () => {
 
   it("bends fingers and thumbs in VRoid's planes", () => {
     const vrm = rotatedHandRig(TILTED);
-    installHandRestNormalization(vrm);
+    installRestNormalization(vrm);
     const reference = rotatedHandRig(new THREE.Quaternion());
     // A curl and a thumb raise, as hand shapes write them.
     const pose = {
@@ -216,7 +241,7 @@ describe("hand rest normalization", () => {
     "shapes a %s on the turned hand as on VRoid's",
     (preset) => {
       const vrm = rotatedHandRig(TILTED);
-      installHandRestNormalization(vrm);
+      installRestNormalization(vrm);
       const reference = rotatedHandRig(new THREE.Quaternion());
       for (const rig of [vrm, reference]) {
         const rotations = handShapeRotations(
@@ -252,7 +277,7 @@ describe("hand rest normalization", () => {
 
   it("bends the idle catalog pose's fingers as on VRoid's", () => {
     const vrm = rotatedHandRig(TILTED);
-    installHandRestNormalization(vrm);
+    installRestNormalization(vrm);
     const reference = rotatedHandRig(new THREE.Quaternion());
     const relaxedRest = AVATAR_POSE_CATALOG[RELAXED_REST_POSE_ID]!.humanoid!;
     for (const rig of [vrm, reference]) applyCanonicalPose(rig, relaxedRest);
@@ -278,7 +303,7 @@ describe("hand rest normalization", () => {
     "keeps the drawn hand on the normalized one without %s bone",
     (_, unmapped) => {
       const vrm = rotatedHandRig(TILTED, unmapped);
-      expect(installHandRestNormalization(vrm)).not.toBeNull();
+      expect(installRestNormalization(vrm).normalization).not.toBeNull();
       const reference = rotatedHandRig(new THREE.Quaternion(), unmapped);
       const pose = {
         leftIndexProximal: { rotation: [0, 0, 0.5, 0.866] },
@@ -303,9 +328,99 @@ describe("hand rest normalization", () => {
     },
   );
 
+  it("moves an A-posed arm through Gestures as a T-posed one", () => {
+    const vrm = rotatedHandRig(new THREE.Quaternion(), [], armDown(40));
+    const check = installRestNormalization(vrm);
+    expect(check.armDegrees).toBeGreaterThan(
+      (ARM_REST_TOLERANCE * 180) / Math.PI,
+    );
+    expect(check.armsNormalized).toBe(true);
+    // The hand rests as VRoid's on its forearm: carried, not corrected.
+    expect(check.handsNormalized).toBe(false);
+    const reference = rotatedHandRig(new THREE.Quaternion());
+    expect(installRestNormalization(reference).armsNormalized).toBe(false);
+    // An arm raised forward and bent, with a curled finger.
+    const pose = {
+      leftUpperArm: {
+        rotation: unit(0, 0.38, 0.2, 0.9),
+      },
+      leftLowerArm: { rotation: unit(0, 0.5, 0, 0.866) },
+      leftHand: { rotation: unit(0, 0.259, 0, 0.966) },
+      leftIndexProximal: { rotation: unit(0, 0, 0.5, 0.866) },
+    } as const;
+    for (const rig of [vrm, reference]) {
+      rig.humanoid.setNormalizedPose(pose as never);
+      rig.humanoid.update();
+    }
+    for (const [from, to] of [
+      ["leftUpperArm", "leftLowerArm"],
+      ["leftLowerArm", "leftHand"],
+      ["leftHand", "leftMiddleProximal"],
+      ["leftIndexIntermediate", "leftIndexDistal"],
+    ]) {
+      expect(
+        rawDirection(vrm, from!, to!).angleTo(
+          rawDirection(reference, from!, to!),
+        ),
+        `A-pose: ${from}`,
+      ).toBeLessThan(1e-5);
+    }
+    expect(jointGap(vrm)).toBeLessThan(1e-6);
+  });
+
+  it.each([
+    [
+      "without a little finger",
+      ["leftLittleProximal", "leftLittleIntermediate", "leftLittleDistal"],
+    ],
+    [
+      "without finger bones",
+      Object.keys(VROID_LEFT).filter((bone) => bone !== "leftHand"),
+    ],
+  ])(
+    "carries a hand it cannot measure on a corrected forearm (%s)",
+    (_label, unmapped) => {
+      const vrm = rotatedHandRig(new THREE.Quaternion(), unmapped, armDown(40));
+      const check = installRestNormalization(vrm);
+      expect(check.armsNormalized).toBe(true);
+      expect(check.normalization!.bones.has("leftHand")).toBe(true);
+      const reference = rotatedHandRig(new THREE.Quaternion(), unmapped);
+      // A wrist flex on a raised arm.
+      const pose = {
+        leftUpperArm: { rotation: unit(0, 0, 0.259, 0.966) },
+        leftHand: { rotation: unit(0, 0.259, 0, 0.966) },
+      } as const;
+      for (const rig of [vrm, reference]) {
+        rig.humanoid.setNormalizedPose(pose as never);
+        rig.humanoid.update();
+      }
+      expect(
+        rawDirection(vrm, "leftHand", "leftMiddleProximal").angleTo(
+          rawDirection(reference, "leftHand", "leftMiddleProximal"),
+        ),
+      ).toBeLessThan(1e-5);
+      expect(jointGap(vrm)).toBeLessThan(1e-6);
+    },
+  );
+
+  it("measures a hand against its own forearm within the arm tolerance", () => {
+    // Arms 8° down, the hand straight along the forearm: nothing to correct.
+    const check = installRestNormalization(
+      rotatedHandRig(new THREE.Quaternion(), [], armDown(8)),
+    );
+    expect(check.armsNormalized).toBe(false);
+    expect(check.armDegrees).toBeCloseTo(8, 1);
+    expect(check.handsNormalized).toBe(false);
+    const level = installRestNormalization(
+      rotatedHandRig(new THREE.Quaternion()),
+    );
+    expect(check.handDegrees).toBeCloseTo(level.handDegrees, 3);
+    expect(check.normalization).toBeNull();
+  });
+
   it("gives readers of the normalized rig the hand as drawn", () => {
     const vrm = rotatedHandRig(TILTED);
-    installHandRestNormalization(vrm);
+    installRestNormalization(vrm);
     const pose = {
       leftIndexProximal: { rotation: [0, 0, 0.5, 0.866] },
       leftIndexIntermediate: { rotation: [0, 0, 0.6, 0.8] },
@@ -343,7 +458,9 @@ describe("hand rest normalization", () => {
 
   it("is installed by the shared load step that animation:render uses", async () => {
     const vrm = rotatedHandRig(TILTED);
-    expect(prepareLoadedVrm(vrm, { vrmSha256: null }).handRest).not.toBeNull();
+    expect(
+      prepareLoadedVrm(vrm, { vrmSha256: null }).restPose.normalization,
+    ).not.toBeNull();
     const render = await readFile(
       fileURLToPath(
         new URL(

@@ -122,8 +122,11 @@ VRM 1.0 requires a T-pose rest pose, and VRChat Avatars are often modelled in
 an A-pose. The script therefore poses the instance from its Unity humanoid
 T-pose first, like UniVRM's "T-Pose (unity internal)" button, and logs
 `Applied the humanoid T-pose`. Pass `-animamaKeepPose` to export the modelled
-pose instead. An A-pose export plays every Gesture with the arms as far too
-low as the A-pose angle (about 48° for Lapwing).
+pose instead. Animama normalizes arms that rest 10° or more from a T-pose when
+it loads them
+([Rest normalization](avatar-animation.md#rest-normalization)), so an A-pose
+export still plays Gestures with its arms where a T-pose export's go, but other
+VRM tools expect the T-pose.
 
 The metadata arguments fill `VRMC_vrm.meta`. Its permissions stay at UniVRM's
 restrictive defaults: only the author may use the Avatar, and redistribution and
@@ -144,8 +147,10 @@ Check that:
   not support Mochiya's extensions, so reduce an oversized Avatar's textures in
   Unity and export again;
 - every face mesh stores its names at mesh level, not "primitives only";
-- the rest pose is a T-pose: arms straight out to the sides (the Gesture
-  renders below show it quickly);
+- the rest pose is a T-pose: arms straight out to the sides. Avatar
+  Diagnostics shows the measured rest pose under Motion ("Rest pose"); the
+  Gesture renders below show the arms after Animama's normalization, so they
+  do not reveal an A-pose export;
 - the ARKit count is complete, with any renamed matches as expected, and
   inspect says Animama plays the Avatar's faces as ARKit mixes.
 

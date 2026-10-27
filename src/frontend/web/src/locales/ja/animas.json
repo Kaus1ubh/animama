@@ -229,7 +229,16 @@
         "on": "風と上昇気流あり",
         "tunedWithout": "風と上昇気流なし：揺れものがそれらなしで調整されています"
       },
-      "windValue": "{{mode}} · {{effect}}"
+      "windValue": "{{mode}} · {{effect}}",
+      "restPoseValue": "{{arms}}・{{hands}}",
+      "arms": {
+        "tPose": "T ポーズ",
+        "normalized": "腕が T ポーズから {{degrees}}° 離れて休止、正規化済み"
+      },
+      "hands": {
+        "vroid": "手は VRoid と同じ",
+        "normalized": "手を VRoid に合わせて正規化（{{degrees}}°）"
+      }
     },
     "navigationLabel": "診断のセクション",
     "no": "いいえ",

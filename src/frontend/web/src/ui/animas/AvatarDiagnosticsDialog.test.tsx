@@ -93,7 +93,12 @@ const live: AvatarLiveDiagnostics = {
     springJoints: 120,
     springColliders: 18,
     wind: { mode: "off", ambientForces: false },
-    restPose: null,
+    restPose: {
+      armDegrees: 40,
+      handDegrees: 2,
+      armsNormalized: true,
+      handsNormalized: false,
+    },
   },
   materials: { mode: "simple", lilToon: "fallback" },
   issues: [
@@ -205,7 +210,9 @@ describe("AvatarDiagnosticsDialog", () => {
     expect(dialog()?.textContent).toContain("120 joints · 18 colliders");
     expect(dialog()?.textContent).toContain("Off · no wind or updraft");
     expect(dialog()?.textContent).toContain("Saved for this Avatar");
-    expect(dialog()?.textContent).toContain("Not checked yet");
+    expect(dialog()?.textContent).toContain(
+      "arms rest 40° from a T-pose, normalized · hands like VRoid's",
+    );
 
     click("Warnings (1)");
     expect(dialog()?.textContent).toContain(
