@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from animama.server.app import app
-from animama.server.export_openapi import export_openapi, main
+from animama.server.export_openapi import _binary_uploads_as_format, export_openapi, main
 
 
 def test_export_openapi_is_deterministic_and_does_not_run_startup(tmp_path: Path) -> None:
@@ -21,9 +21,29 @@ def test_export_openapi_is_deterministic_and_does_not_run_startup(tmp_path: Path
 
     assert output.read_bytes() == first
     assert first.endswith(b"\n")
-    assert json.loads(first) == app.openapi()
+    assert json.loads(first) == _binary_uploads_as_format(app.openapi())
     assert app.state.open_api_export_startup_marker is startup_marker
     assert not list(output.parent.glob("*.tmp"))
+
+
+def test_export_openapi_describes_file_uploads_as_binary_strings(tmp_path: Path) -> None:
+    # The pinned SDK generator types contentMediaType strings as text instead of Blob | File.
+    output = tmp_path / "schema.json"
+
+    export_openapi(output)
+
+    schemas = json.loads(output.read_text())["components"]["schemas"]
+    assert schemas["Body_save_avatar_portrait"]["properties"]["file"] == {
+        "format": "binary",
+        "title": "File",
+        "type": "string",
+    }
+    assert schemas["Body_save_avatar_content"]["properties"]["files"]["anyOf"][0]["items"] == {
+        "format": "binary",
+        "type": "string",
+    }
+    assert "contentMediaType" not in output.read_text()
+    assert "contentMediaType" in json.dumps(app.openapi())
 
 
 def test_export_openapi_cli_requires_and_writes_explicit_output(tmp_path: Path) -> None:

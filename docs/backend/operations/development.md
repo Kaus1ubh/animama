@@ -530,7 +530,10 @@ running stack:
 uv run python -m animama.server.export_openapi --output /tmp/animama-openapi.json
 ```
 
-The exporter writes atomically. The frontend `pnpm openapi-ts` wrapper manages
+The exporter writes atomically. It describes binary fields (uploads and `bytes`)
+as `format: binary` strings instead of FastAPI's
+`contentMediaType: application/octet-stream`, which the pinned SDK generator
+would type as text. The frontend `pnpm openapi-ts` wrapper manages
 its own temporary schema, passes it to the generator, and removes it on success
 or failure; normal client generation should use that wrapper.
 
@@ -1820,11 +1823,9 @@ with frozen installs. Do not symlink complete installations across worktrees or
 platforms. Warm offline installs require all locked artifacts already cached;
 initial setup and missing platform binaries need network access.
 
-The frontend disables pnpm's side-effects cache because its cached Electron macOS
-framework layout expands symlinks into duplicate regular files. Installation scripts
-still run. Download reuse remains enabled; an existing expanded installation may
-need a fresh frozen install before benefiting from the layout change. This is
-separate from app signing or native acceptance.
+The `electron` package has no installation script. The desktop tools download
+its binary into `node_modules/electron/dist` on first use (verified against the
+package's checksums) and Electron's own download cache serves later worktrees.
 
 Docker copies lock/config inputs before sources and uses architecture/toolchain
 qualified BuildKit download caches. Source-only edits reuse dependency layers;

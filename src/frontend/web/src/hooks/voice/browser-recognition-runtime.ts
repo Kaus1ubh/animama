@@ -93,7 +93,6 @@ type ProcessBrowserRecognitionResultArgs = {
   pushGateDecision: (decision: Omit<VadGateDecisionDebug, "id">) => void;
   onCommittedSegment: (args: { text: string; turnId: string }) => void;
   syncGateDebugStats: () => void;
-  onVoiceTranscriptUpdate: () => void;
 };
 
 type ProcessBrowserRecognitionResultOutput = {
@@ -433,7 +432,6 @@ export function processBrowserRecognitionResult({
   pushGateDecision,
   onCommittedSegment,
   syncGateDebugStats,
-  onVoiceTranscriptUpdate,
 }: ProcessBrowserRecognitionResultArgs): ProcessBrowserRecognitionResultOutput {
   const { finalSegments, interimSegments } = collectBrowserSpeechSegments(
     event,
@@ -662,9 +660,6 @@ export function processBrowserRecognitionResult({
   }
 
   syncGateDebugStats();
-  if (mode === "voice") {
-    onVoiceTranscriptUpdate();
-  }
 
   return {
     nextGateState: currentGateState,

@@ -296,8 +296,11 @@ export class SpringBonePhysicsController {
       }
 
       if (fanOrigin && updraftStrength > 0) {
-        joint.bone.updateWorldMatrix(true, false);
-        joint.bone.getWorldPosition(this._jointWorldPosition);
+        // The falloff is soft, so the joint's world matrix from the latest
+        // full update (this frame's look-at pass or the last render) is close
+        // enough. Updating each joint's parent chain here recomputed the
+        // shared hair chains for every joint, twice, every frame.
+        this._jointWorldPosition.setFromMatrixPosition(joint.bone.matrixWorld);
 
         const dx = this._jointWorldPosition.x - fanOrigin.x;
         const dz = this._jointWorldPosition.z - fanOrigin.z;
@@ -607,10 +610,11 @@ export class SpringBonePhysicsController {
     const rightFoot = humanoid?.getNormalizedBoneNode("rightFoot");
     if (!leftFoot || !rightFoot) return null;
 
+    // `getWorldPosition` would update each chain a second time.
     leftFoot.updateWorldMatrix(true, false);
     rightFoot.updateWorldMatrix(true, false);
-    leftFoot.getWorldPosition(this._leftFootPosition);
-    rightFoot.getWorldPosition(this._rightFootPosition);
+    this._leftFootPosition.setFromMatrixPosition(leftFoot.matrixWorld);
+    this._rightFootPosition.setFromMatrixPosition(rightFoot.matrixWorld);
 
     this._fanOrigin
       .copy(this._leftFootPosition)

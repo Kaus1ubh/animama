@@ -15,6 +15,7 @@ type UseDesktopVoiceShortcutsArgs = {
   isVoiceMicMuted: boolean;
   ttsAudioActive: boolean;
   onQuickChat?: () => void;
+  onToggleDictation: () => void;
   onToggleVoiceMode: () => void;
   onToggleVoiceMute: () => void;
   onMuteVoiceMic: (options?: {
@@ -32,6 +33,7 @@ export function useDesktopVoiceShortcuts({
   isVoiceMicMuted,
   ttsAudioActive,
   onQuickChat,
+  onToggleDictation,
   onToggleVoiceMode,
   onToggleVoiceMute,
   onMuteVoiceMic,
@@ -48,6 +50,7 @@ export function useDesktopVoiceShortcuts({
     isVoiceMicMuted,
   });
   const callbacksRef = useRef({
+    onToggleDictation,
     onToggleVoiceMode,
     onToggleVoiceMute,
     onQuickChat,
@@ -58,6 +61,7 @@ export function useDesktopVoiceShortcuts({
 
   useEffect(() => {
     callbacksRef.current = {
+      onToggleDictation,
       onToggleVoiceMode,
       onToggleVoiceMute,
       onQuickChat,
@@ -69,6 +73,7 @@ export function useDesktopVoiceShortcuts({
     onMuteVoiceMic,
     onQuickChat,
     onSkipTts,
+    onToggleDictation,
     onToggleVoiceMute,
     onToggleVoiceMode,
     onUnmuteVoiceMic,
@@ -224,6 +229,10 @@ export function useDesktopVoiceShortcuts({
       const callbacks = callbacksRef.current;
       if (event.action === "quick_chat" && event.phase === "down") {
         callbacks.onQuickChat?.();
+        return;
+      }
+      if (event.action === "toggle_dictation" && event.phase === "down") {
+        callbacks.onToggleDictation();
         return;
       }
       if (event.action === "toggle_voice_mode" && event.phase === "down") {

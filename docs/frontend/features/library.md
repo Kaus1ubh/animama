@@ -51,7 +51,8 @@ never re-downloads it.
 
 Tiles show the `variant=thumbnail` copy of an item's first image (a WebP of at
 most 128 pixels) and load it only near the viewport, keeping the family icon
-until it draws. A Particle tile reads its manifest's tint only once its texture
+until it draws, or if the image is too large to preview. A Particle tile reads its
+manifest's tint only once its texture
 has loaded.
 
 An attention indicator exposes affected items, validation details and Retry scan

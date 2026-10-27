@@ -193,7 +193,7 @@ export function AppShell({ children, className }: AppShellProps) {
     <AppShellContext.Provider value={value}>
       <div
         className={cn(
-          "bg-background dark:bg-background relative mx-auto flex h-screen w-full flex-1 flex-col overflow-hidden",
+          "bg-background dark:bg-background h-app relative mx-auto flex w-full flex-1 flex-col overflow-hidden",
           className,
         )}
       >

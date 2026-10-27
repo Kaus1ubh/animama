@@ -65,6 +65,7 @@ import {
   DEFAULT_SCENE_ORBIT_TARGET,
   type SceneCameraSettings,
 } from "@/ui/main/canvas/sceneCameraPresets";
+import { useSceneFrameDemand } from "@/ui/main/canvas/sceneFramePacing";
 
 type StageStatus = "idle" | "loading" | "ready" | "error";
 
@@ -152,6 +153,8 @@ function StageAvatarActor({
   });
   const { camera, gl } = useThree();
   const avatarRef = useRef<Avatar | null>(null);
+  // An idle Avatar with no preview playing lets the stage render at 30 fps.
+  const frameDemand = useSceneFrameDemand();
   const catalogSession = useMemo(() => new PreviewRuntimeCatalogSession(), []);
   const applySoundPlayer = useMemo(
     () => new ContentPreviewApplySoundPlayer(),
@@ -420,6 +423,11 @@ function StageAvatarActor({
     const avatar = avatarRef.current;
     avatar?.update(delta);
     const watch = completionWatchRef.current;
+    if (frameDemand) {
+      frameDemand.avatarIdle = Boolean(
+        avatar?.isReady && !watch && !avatar.isMotionActive(),
+      );
+    }
     if (!avatar || !watch) return;
     const active =
       watch.type === "reaction_clip"

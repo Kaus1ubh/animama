@@ -160,12 +160,15 @@ export function createHostedComposition(
       if (!csrf) throw new Error("A current hosted CSRF token is required");
       headers.set("X-Animama-CSRF", csrf);
     }
+    // The caller's cache mode is kept: the hosted API marks each reply's own policy and
+    // admits a cacheable one only on its reviewed paths (Included runtime bytes, Included
+    // content files, the content catalog), so a byte read or catalog poll can revalidate
+    // while every other reply stays `private, no-store`.
     const response = await options.fetch(
       traceProductRequest(
         new Request(request, {
           headers,
           credentials: "same-origin",
-          cache: "no-store",
           redirect: "error",
         }),
       ),
@@ -185,6 +188,10 @@ export function createHostedComposition(
     }
     return response;
   };
+
+  /** The composition's own session and admission requests, never served from a cache. */
+  const sessionFetch = (path: string, init: RequestInit = {}) =>
+    authorizedFetch(path, { ...init, cache: "no-store" });
 
   async function refusedForAgeConfirmation(
     refusal: Response,
@@ -221,7 +228,7 @@ export function createHostedComposition(
   }
 
   async function json<T>(path: string, init?: RequestInit): Promise<T> {
-    const response = await authorizedFetch(path, init);
+    const response = await sessionFetch(path, init);
     if (!response.ok)
       throw new Error(`Hosted request failed (${response.status})`);
     return response.json() as Promise<T>;
@@ -269,7 +276,7 @@ export function createHostedComposition(
   async function liveSession(
     signal?: AbortSignal,
   ): Promise<{ csrf: string; generation: string | null } | null> {
-    const response = await authorizedFetch("/v1/hosted/runtime-context", {
+    const response = await sessionFetch("/v1/hosted/runtime-context", {
       signal,
     });
     let live: { csrf: string; generation: string | null } | null = null;
@@ -366,7 +373,7 @@ export function createHostedComposition(
   // Attempts are not tied to an admission read: a superseded read must not
   // abandon a setup request whose reply would otherwise be lost.
   const setup = createAccountSetup((idempotencyKey) =>
-    authorizedFetch("/v1/hosted/bootstrap:ensure", {
+    sessionFetch("/v1/hosted/bootstrap:ensure", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ idempotency_key: idempotencyKey }),
@@ -552,7 +559,7 @@ export function createHostedComposition(
 
   /** Relays the person's explicit answer; the reply is the runtime context that follows. */
   async function confirmAge(): Promise<RuntimeAdmission> {
-    const response = await authorizedFetch("/v1/hosted/age-confirmation", {
+    const response = await sessionFetch("/v1/hosted/age-confirmation", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ adult_confirmed: true }),
@@ -587,7 +594,7 @@ export function createHostedComposition(
     if (signedOut || signedOutElsewhere) return { status: "sign-in-required" };
     if (takeSignInError())
       return { status: "unavailable", message: signInErrorMessage() };
-    const response = await authorizedFetch("/v1/hosted/runtime-context", {
+    const response = await sessionFetch("/v1/hosted/runtime-context", {
       signal,
     });
     signal?.throwIfAborted();
@@ -641,7 +648,7 @@ export function createHostedComposition(
     void (async () => {
       let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
       try {
-        const response = await authorizedFetch("/v1/hosted/events", {
+        const response = await sessionFetch("/v1/hosted/events", {
           signal: controller.signal,
         });
         if (!response.ok || !response.body) {

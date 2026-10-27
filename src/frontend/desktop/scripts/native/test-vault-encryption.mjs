@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -24,7 +24,11 @@ await build({
 });
 const electron = createRequire(import.meta.url)("electron");
 const { ELECTRON_RUN_AS_NODE: _, ...env } = process.env;
-const root = mkdtempSync(path.join(tmpdir(), "animama-vault-harness-"));
+// The vault refuses symlinked parents; macOS's temporary folder is under the
+// /var symlink.
+const root = mkdtempSync(
+  path.join(realpathSync(tmpdir()), "animama-vault-harness-"),
+);
 try {
   const result = spawnSync(electron, [outfile, root], {
     stdio: "inherit",

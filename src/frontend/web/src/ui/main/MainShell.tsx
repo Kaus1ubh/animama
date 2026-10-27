@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import { useFullscreen } from "@/hooks/useFullscreen";
 import { usePictureInPicture } from "@/hooks/usePictureInPicture";
 import { cn } from "@/lib/utils";
+import { usePauseShineWhileInactive } from "@/hooks/usePauseShineWhileInactive";
 import type { AppShellSidebarLayoutStyle } from "@/ui/app/appShellSidebarLayout";
 import {
   CanvasControls,
@@ -60,6 +61,7 @@ export function MainShell({
     suspendMainScene,
     togglePip,
   } = usePictureInPicture({ canvasMode, setCanvasMode });
+  usePauseShineWhileInactive(isPipActive);
   const { isFullscreen, enterFullscreen, exitFullscreen } =
     useFullscreen(canvasWrapperRef);
 

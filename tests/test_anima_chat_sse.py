@@ -84,6 +84,7 @@ from animama.server.routers import router as api_router
 from animama.server.runtime_credentials import runtime_credentials
 from animama.server.schemas.chat import PyAnimaChatRequest
 from animama.server.schemas.elevenlabs import PyElevenLabsRealtimeTtsSessionResponse
+from tests.route_support import served_routes
 
 
 def _function_tool(tool: ChatCompletionToolUnionParam) -> ChatCompletionFunctionToolParam:
@@ -1084,8 +1085,8 @@ async def _seed_visible_chat_messages(async_session, *, chat_id: str, contents: 
 
 def test_chat_sse_route_is_mounted_and_dispatch_sse_is_retired() -> None:
     paths = {getattr(route, "path", None) for route in router.routes}
-    api_paths = {getattr(route, "path", None) for route in api_router.routes}
-    endpoints = {getattr(route, "path", None): getattr(route, "endpoint", None) for route in api_router.routes}
+    api_paths = {getattr(route, "path", None) for route in served_routes(api_router)}
+    endpoints = {getattr(route, "path", None): getattr(route, "endpoint", None) for route in served_routes(api_router)}
     assert "/v1/animas/{anima_id}/chat:sse" in paths
     assert "/v1/animas/{anima_id}/chat:sse" in api_paths
     assert endpoints["/v1/animas/{anima_id}/chat:sse"] is not None

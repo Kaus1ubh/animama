@@ -8,7 +8,7 @@ import json
 import math
 import subprocess
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import PIL
 import pytest
@@ -137,7 +137,7 @@ def _source_tree(root: Path) -> list[str]:
 
 def _decode(path: Path) -> list[tuple[int, int, int, int]]:
     with Image.open(path) as image:
-        return list(image.convert("RGBA").getdata())
+        return list(cast(tuple[tuple[int, int, int, int], ...], image.convert("RGBA").get_flattened_data()))
 
 
 def test_converts_effect_art_and_rewrites_every_reference(tmp_path: Path) -> None:

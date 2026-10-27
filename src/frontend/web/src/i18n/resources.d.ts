@@ -1109,7 +1109,10 @@ export default interface Resources {
     },
     "pip": {
       "close": "Close picture-in-picture",
+      "controls": "Picture-in-picture controls",
       "resize": "Resize picture-in-picture",
+      "sceneBackground": "Scene background",
+      "switchCamera": "Switch camera (now {{preset}})",
       "unavailable": "Picture-in-picture is unavailable. Keep using the companion in this window."
     },
     "quickChat": {
@@ -1222,6 +1225,7 @@ export default interface Resources {
         "orbitTarget": "Orbit Target",
         "orbitTargetYSource": "Orbit Target Y Source",
         "orbitTargetYSourceLabel": "Orbit target Y source",
+        "pipTitle": "PiP camera",
         "position": "Camera Position",
         "positionYSource": "Camera Y Source",
         "positionYSourceLabel": "Camera Y source",
@@ -1440,9 +1444,7 @@ export default interface Resources {
       }
     },
     "speech": {
-      "install": "Install offline speech recognition to use dictation and Voice Mode",
-      "installFromMainWindow": "Open App Settings → Voice in the main Animama window to download it.",
-      "unavailableHere": "Offline speech recognition for dictation and Voice Mode is not available here"
+      "skip": "Skip speech"
     },
     "suggestions": {
       "joke": "Tell me a joke",
@@ -4410,7 +4412,7 @@ export default interface Resources {
     "credentials": {
       "allFailed": "The changes could not finish. Check runtime recovery, then retry. Saved keys are never shown here.",
       "connectionKey": "Model connection key",
-      "description": "Add an OpenAI or Anthropic key for cloud chat or an ElevenLabs or Gemini key for voices. Keys for other model servers are entered on each connection in App Settings → Models. Keys are encrypted with this computer’s secure storage and never shown again. Changes apply as soon as you save. You can change them later in App Settings → API Keys.",
+      "description": "Keys are encrypted with this computer’s secure storage and never shown again. Changes apply as soon as you save.",
       "failure": {
         "full": "This computer already stores the most model connection keys it allows ({{max, number}}). Remove the key from a connection you no longer use, then retry.",
         "line": "{{name}}: {{message}}",
@@ -6113,6 +6115,7 @@ export default interface Resources {
         "press_to_talk": "Press to talk",
         "quick_chat": "Quick Chat",
         "skip_tts": "Skip TTS",
+        "toggle_dictation": "Dictation on/off",
         "toggle_voice_mode": "Voice Mode on/off",
         "toggle_voice_mute": "Toggle mute"
       },
@@ -6496,20 +6499,13 @@ export default interface Resources {
         "notReady": "The installation is not ready. Reopen and retry.",
         "statusUnavailable": "Download status is unavailable. Reopen and retry."
       },
-      "installed": "Installed",
-      "installedWithNote": "Installed · {{note}}",
-      "lowSpace": "Not enough free space: downloads need {{size}} free.",
       "notAvailable": "Not available",
-      "progressLabel": "{{label}} download progress",
       "remove": "Remove",
-      "retry": "Retry download",
       "sections": {
-        "speechToText": "Speech-to-Text",
         "voiceClone": "Voice Clone"
       },
       "size": "{{size}} download",
-      "sizeRetry": "{{size}} download · Retry available",
-      "verifying": "Verifying download…"
+      "sizeRetry": "{{size}} download · Retry available"
     },
     "gemini": {
       "descriptors": {
@@ -6591,22 +6587,13 @@ export default interface Resources {
       }
     },
     "offlineSpeech": {
-      "checking": "Checking offline speech recognition…",
-      "cpu": {
-        "download": "Download CPU model",
-        "label": "CPU model",
-        "remove": "Remove CPU model"
-      },
-      "description": "Dictation and Voice Mode transcribe on this device, so audio never leaves it.",
       "developmentAcquire": "This development stack serves speech models from the host: run {{cpuCommand}} (and {{gpuCommand}} for GPU acceleration), then rerun {{resetCommand}}.",
       "engines": {
         "parakeet": {
-          "attribution": "Model attribution (CC BY 4.0)",
           "languages": "English",
           "model": "Parakeet TDT 0.6B v2 by NVIDIA"
         },
         "sensevoice": {
-          "attribution": "Model attribution (FunASR Model License)",
           "languages": "Japanese, Korean and Chinese",
           "model": "SenseVoice-Small by Alibaba"
         }
@@ -6622,27 +6609,16 @@ export default interface Resources {
       },
       "gpu": {
         "blocked": {
-          "checking": "Checking WebGPU support…",
-          "missing": "GPU acceleration is unavailable in this build.",
-          "needsCpu": "Download the CPU model first.",
-          "noWebgpu": "WebGPU is not available in this browser or on this device."
+          "needsCpu": "Download the CPU model first."
         },
-        "description": "Faster recognition with live previews. Requires the CPU model and a WebGPU-capable device.",
-        "download": "Download GPU acceleration",
         "fellBack": "WebGPU failed to load last time, so speech recognition used the CPU.",
-        "label": "GPU acceleration",
-        "remove": "Remove GPU acceleration",
-        "removeFirst": "Remove GPU acceleration first.",
-        "unavailableNow": "GPU acceleration is unavailable right now."
+        "removeFirst": "Remove GPU acceleration first."
       },
-      "listUnavailable": "Speech downloads are unavailable. Reopen Settings to retry.",
       "refusals": {
         "busy": "This model is still changing. Retry in a moment.",
         "changeFailed": "The change could not finish. Retry in a moment.",
         "inUse": "Speech recognition is in use. Close dictation and Voice Mode to remove it."
-      },
-      "title": "Offline speech recognition",
-      "turnedOff": "Offline speech recognition is turned off on this server."
+      }
     },
     "pocket": {
       "accents": {

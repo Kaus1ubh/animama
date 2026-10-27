@@ -18,6 +18,7 @@ import path from "node:path";
 import {
   assertInventory,
   assertPortablePath,
+  inventoryId,
   inventoryTree,
 } from "../scripts/runtime/inventory.mjs";
 import {
@@ -1059,13 +1060,15 @@ Load command 4
       run,
     }));
     vi.doMock("../scripts/runtime/icon.mjs", () => ({
-      buildIcon: async () => "fixture.icns",
+      macIcon: "fixture.icns",
     }));
     vi.doMock("electron-builder", () => ({
       build,
       Arch: { arm64: "arm64" },
       Platform: { MAC: { createTarget: () => "fixture-target" } },
     }));
+    const signMacApp = vi.fn();
+    vi.doMock("../scripts/runtime/sign-macos.mjs", () => ({ signMacApp }));
     try {
       const { releaseMac } =
         await import("../scripts/runtime/release-macos.mjs");
@@ -1097,7 +1100,14 @@ Load command 4
       const submissionId = "a6210454-8054-477c-9b26-b752441828c8";
       expect(
         parseMacReleaseArgs(["--resume-app-notarization", submissionId]),
-      ).toEqual({ submissionId });
+      ).toEqual({ submissionId, rehearsal: false });
+      expect(parseMacReleaseArgs(["--signing-rehearsal"])).toEqual({
+        submissionId: null,
+        rehearsal: true,
+      });
+      expect(() =>
+        parseMacReleaseArgs(["--signing-rehearsal", "--skip-review"]),
+      ).toThrow("Expected no arguments");
       expect(() => parseMacReleaseArgs(["--resume"])).toThrow(
         "Expected no arguments",
       );
@@ -1125,6 +1135,22 @@ Load command 4
         },
       ]);
       expect(resumed.config.mac).not.toHaveProperty("sign");
+      // A rehearsal needs neither a notarization profile nor a matching
+      // review receipt, and still signs through the hook in rehearsal mode.
+      const inventory = path.join(runtime, "licenses/inventory.json");
+      json(inventory, { changed: true });
+      await expect(releaseMac()).rejects.toThrow("Redistribution review");
+      vi.stubEnv("ANIMAMA_MACOS_NOTARY_PROFILE", "");
+      await expect(releaseMac()).rejects.toThrow(
+        "notarization Keychain profile",
+      );
+      await expect(releaseMac(["--signing-rehearsal"])).rejects.toBe(stop);
+      build.mock.lastCall[0].config.mac.sign({ app: "/tmp/Animama.app" });
+      expect(signMacApp).toHaveBeenCalledWith("/tmp/Animama.app", {
+        rehearsal: true,
+      });
+      json(inventory, {});
+      vi.stubEnv("ANIMAMA_MACOS_NOTARY_PROFILE", "fixture-notary");
       json(path.join(runtime, "pack-catalog.json"), {
         entries: ["document-processing", "expanded-included-content"].map(
           (id) => ({ id, signing: { publisher: "TESTTEAM01" } }),
@@ -1146,13 +1172,14 @@ Load command 4
       await expect(releaseMac()).rejects.toThrow(
         "ANIMAMA_RELEASE_DISTRIBUTION",
       );
-      expect(build).toHaveBeenCalledTimes(1);
+      expect(build).toHaveBeenCalledTimes(2);
     } finally {
       for (const module of [
         "node:fs",
         "../scripts/runtime/common.mjs",
         "../scripts/runtime/icon.mjs",
         "electron-builder",
+        "../scripts/runtime/sign-macos.mjs",
       ])
         vi.doUnmock(module);
       vi.unstubAllEnvs();
@@ -1378,6 +1405,94 @@ Load command 4
     ).toThrow("does not cover these exact artifacts");
   });
 
+  it("signs a macOS rehearsal with no review receipt and nothing sent to Apple", async () => {
+    const root = fixture();
+    const source = path.join(root, "inputs");
+    const app = path.join(root, "release/mac/Animama.app");
+    const runtime = path.join(app, "Contents/Resources/runtime");
+    mkdirSync(path.join(runtime, "licenses"), { recursive: true });
+    mkdirSync(path.join(app, "Contents/MacOS"), { recursive: true });
+    mkdirSync(source);
+    const json = (file, value) => writeFileSync(file, JSON.stringify(value));
+    // A Mach-O magic number is all nestedCode needs to find native code.
+    writeFileSync(
+      path.join(app, "Contents/MacOS/Animama"),
+      Buffer.from("cffaedfe00000000", "hex"),
+    );
+    json(path.join(root, "package.json"), { version: "0.1.0" });
+    const r2 = {
+      base_url: "https://downloads.example.test/desktop",
+      bucket: "example-releases",
+    };
+    json(path.join(source, "release-policy.json"), {
+      schema: "animama-release-policy/3",
+      distributions: { r2, github: { owner: "example", repo: "releases" } },
+      channel: "stable",
+      distribution_basis: {
+        commercial: false,
+        pocket_tts_onnx_license: "CC-BY-4.0",
+      },
+      redistribution_reviews: {},
+    });
+    json(path.join(source, "feature-pack-releases.json"), {
+      macos: {
+        team_id: "TESTTEAM01",
+        signing_identity: "Developer ID Application: Fixture (TESTTEAM01)",
+        designated_requirement: "identifier com.animama.document-worker",
+      },
+      packs: {
+        "expanded-included-content": { release_status: "deferred" },
+        "document-processing": { release_status: "deferred" },
+      },
+    });
+    json(path.join(runtime, "licenses/inventory.json"), {});
+    json(path.join(runtime, "update-policy.json"), {
+      schema: "animama-update-policy/2",
+      distribution: { kind: "r2", base_url: r2.base_url },
+      channel: "stable",
+      team_id: "TESTTEAM01",
+    });
+    const files = inventoryTree(runtime);
+    json(path.join(runtime, "manifest.json"), {
+      app_version: "0.1.0",
+      files,
+      build_id: inventoryId(files),
+    });
+    const run = vi.fn();
+    vi.resetModules();
+    vi.doMock("../scripts/runtime/common.mjs", async () => ({
+      ...(await vi.importActual("../scripts/runtime/common.mjs")),
+      desktopRoot: root,
+      sourceRoot: source,
+      run,
+    }));
+    try {
+      const { signMacApp } = await import("../scripts/runtime/sign-macos.mjs");
+      signMacApp(app, { rehearsal: true });
+      const commands = run.mock.calls.map(([command]) => command);
+      expect(new Set(commands)).toEqual(new Set(["/usr/bin/codesign"]));
+      // Nested code, the outer seal, its verification and each native leaf.
+      expect(commands).toHaveLength(4);
+      expect(
+        existsSync(path.join(runtime, "licenses/REDISTRIBUTION_REVIEW.json")),
+      ).toBe(false);
+      expect(
+        JSON.parse(
+          readFileSync(path.join(root, "release/signing-report.json"), "utf8"),
+        ),
+      ).toMatchObject({
+        release_ready: false,
+        notarization: "not-submitted",
+        staple: "none",
+        gatekeeper: "not-assessed",
+        native_files: ["Contents/MacOS/Animama"],
+      });
+    } finally {
+      vi.doUnmock("../scripts/runtime/common.mjs");
+      vi.resetModules();
+    }
+  });
+
   it("reads the distribution a runtime and a candidate were sealed for", () => {
     const root = fixture();
     const r2 = {
@@ -1393,12 +1508,18 @@ Load command 4
     expect(sealedDistribution(root)).toEqual(r2);
     writeFileSync(
       path.join(root, "signing-report.json"),
-      JSON.stringify({ distribution: r2 }),
+      JSON.stringify({ release_ready: true, distribution: r2 }),
     );
     expect(candidateDistribution(root)).toEqual(r2);
+    // A signing rehearsal's report never names a publishable distribution.
     writeFileSync(
       path.join(root, "signing-report.json"),
-      JSON.stringify({ distribution: { kind: "s3" } }),
+      JSON.stringify({ release_ready: false, distribution: r2 }),
+    );
+    expect(candidateDistribution(root)).toBeNull();
+    writeFileSync(
+      path.join(root, "signing-report.json"),
+      JSON.stringify({ release_ready: true, distribution: { kind: "s3" } }),
     );
     expect(candidateDistribution(root)).toBeNull();
   });

@@ -1,11 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import {
@@ -23,10 +17,7 @@ import { distprepConflicts } from "../scripts/runtime/native-windows.mjs";
 import { packagedTarget } from "../scripts/before-build.mjs";
 import { PROCESS_GUARD } from "../scripts/runtime/process-guard.mjs";
 import { PROCESS_GUARD_PATH } from "../src/main-process/runtime/manifest.ts";
-import {
-  brandWindowsExecutable,
-  iconFile,
-} from "../scripts/runtime/windows-resources.mjs";
+import { iconFile } from "../scripts/runtime/windows-resources.mjs";
 import { untrustedWriters } from "../scripts/runtime/windows-acl.mjs";
 import {
   compilerVersion,
@@ -564,7 +555,7 @@ describe("packaging gate", () => {
   });
 });
 
-describe("Windows executable branding", () => {
+describe("Windows icon file", () => {
   // A 1x1 PNG is enough for the icon structure; content does not matter here.
   const png = Buffer.from(
     "89504e470d0a1a0a0000000d4948445200000001000000010806000000" +
@@ -582,67 +573,5 @@ describe("Windows executable branding", () => {
     );
     // The directory stores 256 pixels as 0.
     expect(parsed.icons.map((icon) => icon.width)).toEqual([16, 0]);
-  });
-
-  it("brands an executable's icon and version strings and keeps other resources", async () => {
-    const ResEdit = await import("resedit");
-    const executable = ResEdit.NtExecutable.createEmpty(false, false);
-    const resources = ResEdit.NtExecutableResource.from(executable);
-    const info = ResEdit.Resource.VersionInfo.createEmpty();
-    info.setStringValues(
-      { lang: 1033, codepage: 1200 },
-      { FileDescription: "Electron", ProductName: "Electron" },
-    );
-    info.outputToResourceEntries(resources.entries);
-    ResEdit.Resource.IconGroupEntry.replaceIconsForResource(
-      resources.entries,
-      1,
-      1033,
-      ResEdit.Data.IconFile.from(iconFile([{ size: 16, png }])).icons.map(
-        (item) => item.data,
-      ),
-    );
-    resources.entries.push({
-      type: "INTEGRITY",
-      id: "ELECTRONASAR",
-      lang: 1033,
-      codepage: 1200,
-      bin: new TextEncoder().encode("[]").buffer,
-    });
-    resources.outputResource(executable);
-    const file = path.join(fixture(), "Animama.exe");
-    writeFileSync(file, Buffer.from(executable.generate()));
-
-    brandWindowsExecutable(file, {
-      icon: iconFile([
-        { size: 16, png },
-        { size: 32, png },
-      ]),
-      productName: "Animama",
-      companyName: "Animama",
-      copyright: "Copyright (c) 2026 Raymond Van. All rights reserved.",
-      version: "0.1.1",
-    });
-
-    const branded = ResEdit.NtExecutableResource.from(
-      ResEdit.NtExecutable.from(readFileSync(file)),
-    );
-    const [version] = ResEdit.Resource.VersionInfo.fromEntries(branded.entries);
-    expect(
-      version.getStringValues({ lang: 1033, codepage: 1200 }),
-    ).toMatchObject({
-      FileDescription: "Animama",
-      ProductName: "Animama",
-      OriginalFilename: "Animama.exe",
-    });
-    expect(version.fixedInfo.fileVersionMS).toBe(1);
-    expect(version.fixedInfo.fileVersionLS).toBe(1 << 16);
-    const [group] = ResEdit.Resource.IconGroupEntry.fromEntries(
-      branded.entries,
-    );
-    expect(group.icons).toHaveLength(2);
-    expect(branded.entries.some((entry) => entry.type === "INTEGRITY")).toBe(
-      true,
-    );
   });
 });

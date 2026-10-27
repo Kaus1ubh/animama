@@ -675,6 +675,23 @@ export class Avatar {
     return this.state;
   }
 
+  /**
+   * Whether anything beyond the idle loop is playing: a non-idle state
+   * (listening, thinking, a gesture or speech), a pose or reaction clip, or an
+   * Avatar or particle effect. The scene renders at its full rate while this
+   * holds. Read every frame, so it reads cached state and allocates nothing.
+   */
+  isMotionActive(): boolean {
+    return (
+      this.state !== "idle" ||
+      this.isClipActive() ||
+      Boolean(this.reactionClipPlayer?.isActive()) ||
+      (this.particleVFXController?.getSnapshot().activeCount ?? 0) > 0 ||
+      (this.vfxController?.getObservationSnapshot().activeEffects.length ?? 0) >
+        0
+    );
+  }
+
   setFaceDebugBoxVisible(visible: boolean): void {
     if (!__ANIMAMA_DEV_BUILD__ || !DEBUG_ENABLED) return;
     this._faceDebugVisible = visible;
