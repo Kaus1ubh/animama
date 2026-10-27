@@ -66,7 +66,7 @@ const measured = (
   ...frameMs: number[]
 ): Extract<LilToonGpuMeasurement, { status: "measured" }> => ({
   status: "measured",
-  method: 2,
+  method: 3,
   samples: frameMs.map((value) => sample(value)),
 });
 
@@ -232,7 +232,7 @@ describe("decideAutomaticMaterials", () => {
     // Measurements over a week old are confirmed again first.
     const stale: LilToonGpuMeasurement = {
       status: "measured",
-      method: 2,
+      method: 3,
       samples: [sample(40, 9), sample(36, 8)],
     };
     expect(decideAutomaticMaterials(stale, NOW)).toMatchObject({
@@ -268,7 +268,7 @@ describe("decideAutomaticMaterials", () => {
       samples: 0,
     });
     expect(
-      decideAutomaticMaterials({ status: "unsupported", method: 2 }),
+      decideAutomaticMaterials({ status: "unsupported", method: 3 }),
     ).toMatchObject({ choice: "liltoon", reason: "unsupported", fpsCap: null });
   });
 });
@@ -287,7 +287,7 @@ describe("lilToonGpuCheckDue", () => {
   });
 
   it("checks a browser that could not time the GPU again each session", () => {
-    const unsupported = { status: "unsupported", method: 2 } as const;
+    const unsupported = { status: "unsupported", method: 3 } as const;
     expect(lilToonGpuCheckDue(unsupported, false, NOW)).toBe(true);
     expect(lilToonGpuCheckDue(unsupported, true, NOW)).toBe(false);
   });
@@ -321,7 +321,7 @@ describe("stored measurements", () => {
 
   it("ignore other methods and bad data", () => {
     const storage = memoryStorage();
-    writeLilToonGpuMeasurement("gpu-a", { ...measured(9), method: 1 }, storage);
+    writeLilToonGpuMeasurement("gpu-a", { ...measured(9), method: 2 }, storage);
     expect(readLilToonGpuMeasurement("gpu-a", storage)).toBeNull();
     writeLilToonGpuMeasurement(
       "gpu-a",
@@ -339,7 +339,7 @@ describe("stored measurements", () => {
     storage.setItem(
       "animama.lilToonGpuCheck",
       JSON.stringify({
-        "gpu-b": { ...sample(9), status: "measured", method: 1 },
+        "gpu-b": { ...sample(9), status: "measured", method: 2 },
       }),
     );
     expect(readLilToonGpuMeasurement("gpu-b", storage)).toBeNull();
@@ -387,7 +387,7 @@ describe("automaticMaterialsDecision", () => {
     // A browser found unable to time the GPU: still lilToon, uncapped.
     writeLilToonGpuMeasurement(
       "gpu-a",
-      { status: "unsupported", method: 2 },
+      { status: "unsupported", method: 3 },
       storage,
     );
     expect(automaticDecisionSinceLoad(atLoad)).toBeNull();
@@ -491,7 +491,7 @@ describe("installLilToonGpuCheck", () => {
     expect(renderer.render).toBe(render);
     expect(readLilToonGpuMeasurement("Apple | Apple M5", storage)).toEqual({
       status: "unsupported",
-      method: 2,
+      method: 3,
     });
   });
 

@@ -51,6 +51,18 @@ import {
  * can reach 120 fps, where a heavy Avatar saturates the GPU and its timer
  * queries also count queued work.
  *
+ * Paced GPU times follow the GPU's clock: a lightly loaded GPU runs slower, so
+ * a lighter frame can take about as long and savings look smaller than they
+ * are. `--saturate <n>` measures the work instead: each sample renders n
+ * frames back to back and waits for the GPU with a 1-pixel readback
+ * (`finish()` does not wait in Chromium), keeping the GPU at its top clock.
+ * It reports wall time per frame in place of GPU time, and the submission
+ * time per frame as CPU time; where the two are close the run is CPU-bound and
+ * the GPU's share is hidden. `--fps` then only sets the animation step. Each
+ * pass starts with idle gaps (400 ms before its warm-up, 150 ms before its
+ * measured frames), so a GPU trace taken alongside (Instruments' Metal System
+ * Trace on macOS) can be cut into passes.
+ *
  * With `--breakdown <kinds>` it breaks the plain Avatar's frame cost down
  * instead (no effects): the baseline alternates with scenarios that each
  * change one thing, and each reports its GPU and CPU time, draw calls and
@@ -107,6 +119,8 @@ export const BREAKDOWN_KINDS = ["materials", "features", "layers", "mixed"];
 const MAX_PIXEL_RATIO = 4;
 /** Highest `--fps` value. */
 const MAX_FPS = 240;
+/** Highest `--saturate` batch. */
+const MAX_SATURATE = 100;
 
 const USAGE = [
   "Usage: pnpm -s effects:bench [options]",
@@ -127,6 +141,8 @@ const USAGE = [
   `  --pixel-ratios ${DEVICE_SCALE}    device pixel ratios to measure, comma-separated (e.g. 1,1.5,2)`,
   "  --fps <n>           render at most n frames per second, paced like the app",
   "                      (an idle chat renders at 30); every display frame by default",
+  "  --saturate <n>      time batches of n frames rendered back to back, which keep",
+  "                      the GPU at its top clock; reports wall time per frame",
   "  --breakdown <kinds> break the plain frame cost down instead of timing effects:",
   `                      comma-separated ${BREAKDOWN_KINDS.join(", ")}, or all`,
   "  --apply <ids>       apply feature scenarios (ids a features breakdown lists,",
@@ -157,6 +173,11 @@ function launchCandidates(headed, extraArgs = []) {
     },
     headedLaunch,
   ];
+}
+
+/** What GPU samples hold: timer queries, or saturated wall time per frame. */
+function gpuLabel(result) {
+  return result.saturate ? "frame (saturated)" : "GPU";
 }
 
 function format(stats) {
@@ -193,6 +214,7 @@ export async function runEffectBench({
   materials = "automatic",
   pixelRatios = [DEVICE_SCALE],
   fps = null,
+  saturate = null,
   apply = [],
   breakdown = null,
   avatarFile = null,
@@ -237,6 +259,7 @@ export async function runEffectBench({
               pixelRatio,
               materialMode: materials,
               fps,
+              saturate,
               apply,
               warmupFrames,
               frames,
@@ -355,6 +378,13 @@ function reportReaction(outcome, rounds) {
   return overBudget;
 }
 
+/** "600 frames", or "60 samples of 10 back-to-back frames" when saturated. */
+function sampleCount(result, scenario) {
+  return result.saturate
+    ? `${scenario.cpu.samples} samples of ${result.saturate} back-to-back frames`
+    : `${scenario.cpu.samples} frames`;
+}
+
 /** A signed difference in milliseconds, for "added" columns. */
 function signed(ms) {
   return `${ms >= 0 ? "+" : "−"}${Math.abs(ms).toFixed(2)}`;
@@ -378,10 +408,10 @@ function reportEffects(outcome, rounds) {
     ].join("");
     console.log(
       [
-        `${result.avatar} (${result.drawingBuffer.width}×${result.drawingBuffer.height}${materials}, ${result.none.cpu.samples} frames per scenario in ${rounds} alternating rounds; ${result.none.disjointFrames + result.heavy.disjointFrames} GPU samples voided by disjoint events)`,
-        `  no effects: CPU ${format(result.none.cpu)}; GPU ${format(result.none.gpu)}; ${result.none.drawCalls} draw calls`,
-        `  heavy:      CPU ${format(result.heavy.cpu)}; GPU ${format(result.heavy.gpu)}; ${result.heavy.drawCalls} draw calls`,
-        `  added mean: CPU ${added.toFixed(2)} ms; GPU ${addedGpu === null ? "n/a" : `${addedGpu.toFixed(2)} ms`} (budget ${BUDGET_MS} ms)`,
+        `${result.avatar} (${result.drawingBuffer.width}×${result.drawingBuffer.height}${materials}, ${sampleCount(result, result.none)} per scenario in ${rounds} alternating rounds${result.saturate ? "" : `; ${result.none.disjointFrames + result.heavy.disjointFrames} GPU samples voided by disjoint events`})`,
+        `  no effects: CPU ${format(result.none.cpu)}; ${gpuLabel(result)} ${format(result.none.gpu)}; ${result.none.drawCalls} draw calls`,
+        `  heavy:      CPU ${format(result.heavy.cpu)}; ${gpuLabel(result)} ${format(result.heavy.gpu)}; ${result.heavy.drawCalls} draw calls`,
+        `  added mean: CPU ${added.toFixed(2)} ms; ${gpuLabel(result)} ${addedGpu === null ? "n/a" : `${addedGpu.toFixed(2)} ms`} (budget ${BUDGET_MS} ms)`,
         `  active: ${result.activeEffectIds.join(", ")}`,
         ...result.warnings.map((warning) => `  warning: ${warning}`),
       ].join("\n"),
@@ -406,13 +436,13 @@ function reportBreakdown(outcome, rounds) {
       0,
     );
     const lines = [
-      `${result.avatar} breakdown at DPR ${result.pixelRatio} (${result.drawingBuffer.width}×${result.drawingBuffer.height}; materials ${result.materialMode}, lilToon ${result.lilToonMaterials}${result.applied.length ? `, with ${result.applied.join(", ")}` : ""}; ${baseline.cpu.samples} frames per scenario in ${rounds} alternating rounds; ${voided} GPU samples voided by disjoint events)`,
+      `${result.avatar} breakdown at DPR ${result.pixelRatio} (${result.drawingBuffer.width}×${result.drawingBuffer.height}; materials ${result.materialMode}, lilToon ${result.lilToonMaterials}${result.applied.length ? `, with ${result.applied.join(", ")}` : ""}; ${sampleCount(result, baseline)} per scenario in ${rounds} alternating rounds${result.saturate ? "" : `; ${voided} GPU samples voided by disjoint events`})`,
       `  structure: ${structure.materials.length} materials, ${structure.primitives} primitives, ${structure.triangles} triangles; the Avatar covers ${result.avatarPixels} pixels`,
       ...structure.materials.map(
         (material) =>
           `    ${material.index === null ? "unassigned material" : `material #${material.index}`}: ${material.kind}, ${material.blendState}${material.prepassBlocker === null ? ", depth pre-pass" : material.kind.startsWith("lilToon") ? `, no depth pre-pass (${material.prepassBlocker})` : ""}; ${material.primitives} primitives, ${material.triangles} triangles, ${material.morphTargets} morph targets${material.features.length ? `; features ${material.features.join(", ")}` : ""}${material.parts.length ? `; holds ${material.parts.join(", ")}` : ""}`,
       ),
-      `  baseline: GPU ${format(baseline.gpu)}; CPU ${format(baseline.cpu)}; ${baseline.drawCalls} draw calls, ${baseline.triangles} triangles; ${baseline.frameRate.toFixed(1)} fps${baseline.gpu ? `, GPU busy ${((baseline.gpu.mean * baseline.frameRate) / 10).toFixed(0)}%; GPU per pass ${baseline.passes.map((ms) => ms.toFixed(2)).join(", ")} ms` : ""}`,
+      `  baseline: ${gpuLabel(result)} ${format(baseline.gpu)}; CPU ${format(baseline.cpu)}; ${baseline.drawCalls} draw calls, ${baseline.triangles} triangles${result.saturate ? "" : `; ${baseline.frameRate.toFixed(1)} fps`}${baseline.gpu ? `${result.saturate ? "" : `, GPU busy ${((baseline.gpu.mean * baseline.frameRate) / 10).toFixed(0)}%`}; ${gpuLabel(result)} per pass ${baseline.passes.map((ms) => ms.toFixed(2)).join(", ")} ms` : ""}`,
     ];
     let group = null;
     for (const scenario of result.scenarios) {
@@ -422,8 +452,8 @@ function reportBreakdown(outcome, rounds) {
       }
       const gpu =
         scenario.gpu && baseline.gpu
-          ? `GPU ${scenario.gpu.mean.toFixed(2)} ms (${signed(scenario.gpu.mean - baseline.gpu.mean)})`
-          : "GPU n/a";
+          ? `${gpuLabel(result)} ${scenario.gpu.mean.toFixed(2)} ms (${signed(scenario.gpu.mean - baseline.gpu.mean)})`
+          : `${gpuLabel(result)} n/a`;
       lines.push(
         `    ${scenario.label}: ${gpu}; CPU ${scenario.cpu.mean.toFixed(2)} ms; ${scenario.drawCalls} draw calls, ${scenario.triangles} triangles; ${(scenario.changedPixels * 100).toFixed(1)}% of the Avatar's pixels change`,
       );
@@ -456,6 +486,7 @@ const VALUE_OPTIONS = [
   "--materials",
   "--pixel-ratios",
   "--fps",
+  "--saturate",
   "--breakdown",
   "--apply",
 ];
@@ -465,6 +496,7 @@ const EFFECTS_ONLY_OPTIONS = [
   "--materials",
   "--pixel-ratios",
   "--fps",
+  "--saturate",
   "--breakdown",
   "--apply",
 ];
@@ -520,6 +552,15 @@ export function parseBenchArgs(argv) {
   const fps = values["--fps"] === undefined ? null : Number(values["--fps"]);
   if (fps !== null && !(Number.isFinite(fps) && fps >= 1 && fps <= MAX_FPS))
     return { error: `--fps takes a number from 1 to ${MAX_FPS}.` };
+  const saturate =
+    values["--saturate"] === undefined ? null : Number(values["--saturate"]);
+  if (
+    saturate !== null &&
+    !(Number.isInteger(saturate) && saturate >= 1 && saturate <= MAX_SATURATE)
+  )
+    return {
+      error: `--saturate takes a whole number of frames from 1 to ${MAX_SATURATE}.`,
+    };
   let breakdown = null;
   if (values["--breakdown"] !== undefined) {
     const kinds = listOf(values["--breakdown"]);
@@ -579,6 +620,7 @@ export function parseBenchArgs(argv) {
       materials,
       pixelRatios,
       fps,
+      saturate,
       apply: values["--apply"] ? listOf(values["--apply"]) : [],
       breakdown,
       localContent: values["--local-content"] ?? null,

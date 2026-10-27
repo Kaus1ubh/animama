@@ -158,8 +158,10 @@ Check that:
 `pnpm -s animation:render <gesture.json> --out <private-dir> --avatar-file
 <private-dir>/<Avatar>.vrm` draws Gesture review sheets on it, and
 `pnpm -s effects:bench --avatar-file <private-dir>/<Avatar>.vrm` measures its
-frame cost on the GPU. Add `--fps 60 --breakdown all` to break that cost down
-by material, lilToon feature and layer.
+frame cost on the GPU. Add `--saturate 10 --breakdown all` to break that cost
+down by material, lilToon feature and layer at the GPU's top clock (paced runs
+understate savings; see
+[frame-cost benchmark](avatar-vfx.md#frame-cost-benchmark)).
 
 Then upload it as a Local Avatar on a local stack, for example by choosing it
 in Create Anima (Upload VRM), and check motion, springs, blink, visemes and
@@ -179,6 +181,17 @@ Known limits of a Mochiya 0.1.4 export:
   writes `metallicFactor` 1 on those fallbacks, so Animama draws them with
   metalness 0; the `vrm:optimize` compare page uses its own loader and still
   shows them much darker than in Unity.
+- Vertex colours are not exported: UniVRM's VRM 1.0 mesh writer (0.131.2)
+  writes positions, normals, the first UV set, skinning and morph targets
+  only. lilToon
+  outlines that read baked vertex colours (`_OutlineVertexR2Width` 2, common
+  on hair) therefore fall back to the mesh normal in Animama, so their tips
+  draw a little heavier than in Unity (see
+  [Outlines from vertex colours](avatar-animation.md#authored-liltoon-materials)).
+- Authored blendshape weights are not exported either. A shape key a VRChat
+  Avatar keeps at a non-zero weight (for example one that keeps an accessory
+  clear of clothing) is at zero in the VRM, so that part can sit differently
+  than in Unity.
 - PhysBone gravity converts to very small VRM gravity values, and the springs
   rely on the shape they were modelled in. Animama therefore adds no wind or
   updraft to Avatars converted by Mochiya under the Automatic wind setting (see
@@ -204,6 +217,34 @@ mouth, eyes) untouched.
 To make the file emote in other VRM apps as well, bake its mood presets into a
 copy with `pnpm -s vrm:bake-expressions` (see
 [Faces on non-VRoid Avatars](avatar-emotion.md#faces-on-non-vroid-avatars)).
+
+## Compare with Unity
+
+To check how closely Animama draws an Avatar's lilToon materials, render the
+same views in both:
+
+1. `pnpm -s avatar:parity-render --avatar-file <private-dir>/<Avatar>.vrm
+   --out <private-dir>/parity` (from `src/frontend/web`) draws the rest pose
+   from the front, the face and the face from its right, with one white key
+   light and white ambient light, no tone mapping, on SwiftShader. It writes
+   `animama-<view>.png` and `views.json` (cameras and lights in three.js
+   coordinates).
+2. Copy `scripts/avatars/unity/AnimamaReferenceRender.cs` beside the batch
+   export script in the Unity project and run, with graphics,
+   `Unity -batchmode -quit -projectPath <project> -logFile render.log
+   -executeMethod AnimamaReferenceRender.Render -animamaPrefab
+   Assets/.../Avatar.prefab -animamaViews <private-dir>/parity/views.json
+   -animamaOutDir <private-dir>/parity/unity`. It poses the prefab as the
+   export does and renders each view with the same camera and lights; its
+   ambient is barely directional, because lilToon's lighting is undefined for
+   a perfectly uniform ambient.
+3. Compare with `pnpm -s effects:render --diff <animama.png> <unity.png>
+   --threshold 8`. Lit areas should match to within a step or two. Known
+   differences: the export limits above, outline and silhouette edges, and a
+   faint MatCap highlight some hair materials show in Unity but not in
+   Animama (cause not yet known).
+
+These renders show a third-party Avatar: keep them private.
 
 ## Sharing a converted Avatar
 
