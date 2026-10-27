@@ -848,10 +848,10 @@ Avatar's pixels that change in one probe frame of the same pose:
   uses it (toon shadow, rim, matcaps, emission, normal maps, reflection and
   the other `_Use*` switches; the outline pass, the two-pass pre-pass,
   blending and alpha test through the shader variant), then all but
-  transparency together. Prototype drawing changes follow; none of them
-  ships. They are blending off on opaque materials, a depth pre-pass for
-  opaque lilToon primitives, morph targets dropped, and morph weights read
-  from a uniform array;
+  transparency together. Then the runtime's depth pre-pass for opaque lilToon
+  primitives is switched off, and prototype drawing changes follow; none of
+  them ships. They are blending off on opaque materials, morph targets
+  dropped, and morph weights read from a uniform array;
 - **layers:** each structural layer hidden: the eye stack, irises, eye
   highlights, eye-bone eye whites, eye lines, eyelashes, face skin and hair
   as face-part detection finds them, the alpha-blended and alpha-tested
@@ -860,7 +860,7 @@ Avatar's pixels that change in one probe frame of the same pose:
   fallbacks of a second, Simple load of the file.
 
 `--apply <ids>` applies feature scenarios by id (for example
-`outline,depth-prepass`) to every measurement. It measures a combination, or
+`outline,shadow`) to every measurement. It measures a combination, or
 a breakdown on top of one. The output names materials by glTF index and
 layers by structure, never by the file's material or mesh names. It labels
 the Avatar with its file name, so rename a private file before sharing

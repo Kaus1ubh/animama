@@ -450,7 +450,7 @@ async function withBenchStage<T>(
     camera.lookAt(orbitTarget.x, orbitTarget.y, orbitTarget.z);
     camera.updateProjectionMatrix();
     if (request.clip) avatar.playAnimaPoseClip(request.clip as AnimaPoseClip);
-    const changes = applyFeatureChanges(avatar, request.apply ?? []);
+    const changes = applyFeatureChanges(avatar, renderer, request.apply ?? []);
     undoChanges = changes.undo;
     if (changes.unknown.length)
       throw new Error(
@@ -548,9 +548,10 @@ async function runBreakdown(
       });
     return await withBenchStage(
       request,
-      async ({ avatar, facts, measure, capture, result }) => {
+      async ({ renderer, avatar, facts, measure, capture, result }) => {
         const { structure, scenarios, notes } = planBreakdown(
           avatar,
+          renderer,
           request.breakdown,
           fallback ? materialsByBinding(fallback) : new Map(),
         );

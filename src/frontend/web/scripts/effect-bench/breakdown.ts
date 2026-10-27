@@ -2,6 +2,12 @@ import type { LilToonMaterial } from "@mochiya/three-liltoon";
 import * as THREE from "three";
 
 import type { Avatar } from "@/lib/avatar";
+import {
+  depthPrepassBlocker,
+  depthPrepassMeshes,
+  lilToonDepthPrepassEnabled,
+  setLilToonDepthPrepassEnabled,
+} from "@/lib/avatar/liltoon/depthPrepass";
 import { AVATAR_FACE_PART_LABELS } from "@/lib/avatar/vfx/faceParts";
 import { PrimitiveRegionHider } from "@/lib/avatar/vfx/primitiveRegionHiding";
 import { buildRuntimePrimitiveBindings } from "@/lib/avatar/vrmEditorInspection";
@@ -23,9 +29,10 @@ import {
  * each material hidden and alone, each lilToon feature off, each structural
  * layer hidden, and (with a second, Simple load of the same file) chosen
  * materials drawn with their glTF fallbacks. The features group also times
- * prototype changes to how lilToon draws, none of them shipped: blending off
- * on opaque materials (three-liltoon enables it with One and Zero factors), a
- * depth pre-pass, morph targets dropped, and morph weights read from uniforms.
+ * the runtime's depth pre-pass off, and prototype changes to how lilToon
+ * draws, none of them shipped: blending off on opaque materials (three-liltoon
+ * enables it with One and Zero factors), morph targets dropped, and morph
+ * weights read from uniforms.
  * Every scenario returns an undo, so one Avatar serves them all. Materials are
  * named by glTF index, never by the file's own names.
  */
@@ -53,6 +60,8 @@ type MaterialSummary = {
   kind: string;
   /** Its blend state in words. */
   blendState: string;
+  /** Why it takes no depth pre-pass, or null when it takes one. */
+  prepassBlocker: string | null;
   /** lilToon features it uses (`breakdownPlan.ts` ids). */
   features: string[];
   primitives: number;
@@ -295,42 +304,11 @@ function blendingOff(materials: readonly LilToonMaterial[]): () => void {
     });
 }
 
-/**
- * Draw each opaque lilToon primitive's depth first, with colour writes off,
- * so a fragment hidden behind another is rejected before the lilToon shader
- * runs. A small polygon offset keeps the pre-pass depth just behind the
- * surface, so lilToon's own vertex code never fails the depth test against
- * it. The undo removes the pre-pass.
- */
-function depthPrepass(primitives: readonly Primitive[]): () => void {
-  const material = new THREE.MeshBasicMaterial({
-    colorWrite: false,
-    polygonOffset: true,
-    polygonOffsetFactor: 1,
-    polygonOffsetUnits: 1,
-  });
-  const proxies = primitives.map(({ mesh }) => {
-    const skinned = mesh as THREE.SkinnedMesh;
-    let proxy: THREE.Mesh;
-    if (skinned.isSkinnedMesh) {
-      const skinnedProxy = new THREE.SkinnedMesh(mesh.geometry, material);
-      skinnedProxy.bindMode = skinned.bindMode;
-      skinnedProxy.bind(skinned.skeleton, skinned.bindMatrix);
-      proxy = skinnedProxy;
-    } else proxy = new THREE.Mesh(mesh.geometry, material);
-    proxy.name = `${mesh.uuid}:bench-depth-prepass`;
-    proxy.morphTargetDictionary = mesh.morphTargetDictionary;
-    proxy.morphTargetInfluences = mesh.morphTargetInfluences;
-    proxy.frustumCulled = false;
-    // Before lilToon's outline proxies (renderOrder − 1) and the surfaces.
-    proxy.renderOrder = mesh.renderOrder - 2;
-    mesh.add(proxy);
-    return proxy;
-  });
-  return () => {
-    for (const proxy of proxies) proxy.removeFromParent();
-    material.dispose();
-  };
+/** Switch the runtime's depth pre-pass off; the undo switches it on again. */
+function depthPrepassOff(renderer: THREE.WebGLRenderer): () => void {
+  const before = lilToonDepthPrepassEnabled(renderer);
+  setLilToonDepthPrepassEnabled(renderer, false);
+  return () => setLilToonDepthPrepassEnabled(renderer, before);
 }
 
 /**
@@ -388,7 +366,11 @@ function morphWeightsFromUniforms(
  * uses it, then all but transparency together) or change how opaque lilToon
  * materials draw (blending off, a depth pre-pass).
  */
-function featureScenarios(primitives: readonly Primitive[]): Scenario[] {
+function featureScenarios(
+  primitives: readonly Primitive[],
+  avatar: Avatar,
+  renderer: THREE.WebGLRenderer,
+): Scenario[] {
   const materials = uniqueLilToonMaterials(primitives);
   const scenarios: Scenario[] = [];
   const usersOf = (id: string) =>
@@ -424,17 +406,20 @@ function featureScenarios(primitives: readonly Primitive[]): Scenario[] {
       label: `blending on opaque and cutout materials off (${opaqueBlended.length} of ${materials.length} lilToon materials; same colour)`,
       apply: () => blendingOff(opaqueBlended),
     });
-  const opaque = primitives.filter(
-    (primitive) =>
-      asLilToon(primitive.material)?.renderMode === "opaque" &&
-      !Array.isArray(primitive.mesh.material),
-  );
-  if (opaque.length)
+  const prepassed =
+    lilToonDepthPrepassEnabled(renderer) && avatar.scene
+      ? depthPrepassMeshes(
+          avatar.scene,
+          new WeakSet(),
+          renderer.getContext().getContextAttributes()?.stencil ?? true,
+        ).length
+      : 0;
+  if (prepassed)
     scenarios.push({
       id: "feature:depth-prepass",
       group: "features",
-      label: `depth pre-pass for opaque lilToon primitives added (${opaque.length} of ${primitives.length} primitives)`,
-      apply: () => depthPrepass(opaque),
+      label: `depth pre-pass off (it draws ${prepassed} of ${primitives.length} primitives' depth first)`,
+      apply: () => depthPrepassOff(renderer),
     });
   const morphed = primitives.filter(
     (primitive) =>
@@ -462,7 +447,7 @@ function featureScenarios(primitives: readonly Primitive[]): Scenario[] {
 }
 
 /** Render-state changes, applied after feature switches that reset state. */
-const RENDER_STATE_CHANGES = ["opaque-blending", "depth-prepass"];
+const RENDER_STATE_CHANGES = ["opaque-blending"];
 
 /**
  * Apply feature scenarios by id (`shadow`, `outline`, `opaque-blending`,
@@ -471,10 +456,11 @@ const RENDER_STATE_CHANGES = ["opaque-blending", "depth-prepass"];
  */
 export function applyFeatureChanges(
   avatar: Avatar,
+  renderer: THREE.WebGLRenderer,
   ids: readonly string[],
 ): { undo: () => void; unknown: string[] } {
   if (ids.length === 0) return { undo: () => undefined, unknown: [] };
-  const scenarios = featureScenarios(primitivesOf(avatar));
+  const scenarios = featureScenarios(primitivesOf(avatar), avatar, renderer);
   const undos: (() => void)[] = [];
   const unknown: string[] = [];
   // A shader-variant switch reapplies lilToon's render state, so blending
@@ -526,6 +512,7 @@ function layersOf(avatar: Avatar, primitives: Primitive[]): Layer[] {
  */
 export function planBreakdown(
   avatar: Avatar,
+  renderer: THREE.WebGLRenderer,
   kinds: readonly BreakdownKind[],
   fallbackMaterials: ReadonlyMap<string, THREE.Material | THREE.Material[]>,
 ): { structure: Structure; scenarios: Scenario[]; notes: string[] } {
@@ -541,6 +528,9 @@ export function planBreakdown(
       index,
       kind: kindOf(members[0]!.material),
       blendState: blendStateOf(members[0]!.material),
+      prepassBlocker: Array.isArray(members[0]!.mesh.material)
+        ? "several_materials"
+        : depthPrepassBlocker(members[0]!.material),
       features: lilToonFeatures(members[0]!.material),
       primitives: members.length,
       triangles: sum(members.map((member) => member.triangles)),
@@ -597,7 +587,7 @@ export function planBreakdown(
   if (kinds.includes("features")) {
     if (lilToonMaterials.length === 0)
       notes.push("features: the Avatar draws no lilToon materials");
-    scenarios.push(...featureScenarios(primitives));
+    scenarios.push(...featureScenarios(primitives, avatar, renderer));
   }
 
   if (kinds.includes("layers")) {

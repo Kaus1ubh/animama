@@ -61,9 +61,10 @@ import {
  *   features   each lilToon feature switched off on every material using it
  *              (toon shadow, rim, matcaps, emission, normal maps, outline
  *              pass, two-pass pre-pass, blending, alpha test, …), then all
- *              but transparency together, then prototype drawing changes
- *              (blending off on opaque materials, a depth pre-pass, morph
- *              targets dropped, morph weights from uniforms);
+ *              but transparency together, then the runtime's depth
+ *              pre-pass off and prototype drawing changes (blending off on
+ *              opaque materials, morph targets dropped, morph weights from
+ *              uniforms);
  *   layers     each structural layer hidden: the eye stack, irises, eye
  *              highlights, eye-bone eye whites, eye lines, eyelashes, face
  *              skin and hair as face-part detection finds them, the
@@ -409,7 +410,7 @@ function reportBreakdown(outcome, rounds) {
       `  structure: ${structure.materials.length} materials, ${structure.primitives} primitives, ${structure.triangles} triangles; the Avatar covers ${result.avatarPixels} pixels`,
       ...structure.materials.map(
         (material) =>
-          `    ${material.index === null ? "unassigned material" : `material #${material.index}`}: ${material.kind}, ${material.blendState}; ${material.primitives} primitives, ${material.triangles} triangles, ${material.morphTargets} morph targets${material.features.length ? `; features ${material.features.join(", ")}` : ""}${material.parts.length ? `; holds ${material.parts.join(", ")}` : ""}`,
+          `    ${material.index === null ? "unassigned material" : `material #${material.index}`}: ${material.kind}, ${material.blendState}${material.prepassBlocker === null ? ", depth pre-pass" : material.kind.startsWith("lilToon") ? `, no depth pre-pass (${material.prepassBlocker})` : ""}; ${material.primitives} primitives, ${material.triangles} triangles, ${material.morphTargets} morph targets${material.features.length ? `; features ${material.features.join(", ")}` : ""}${material.parts.length ? `; holds ${material.parts.join(", ")}` : ""}`,
       ),
       `  baseline: GPU ${format(baseline.gpu)}; CPU ${format(baseline.cpu)}; ${baseline.drawCalls} draw calls, ${baseline.triangles} triangles; ${baseline.frameRate.toFixed(1)} fps${baseline.gpu ? `, GPU busy ${((baseline.gpu.mean * baseline.frameRate) / 10).toFixed(0)}%; GPU per pass ${baseline.passes.map((ms) => ms.toFixed(2)).join(", ")} ms` : ""}`,
     ];
