@@ -6,7 +6,9 @@ import asyncio
 import gzip
 import hashlib
 import json
+import logging
 from collections.abc import AsyncIterator, Callable
+from contextlib import asynccontextmanager
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -15,13 +17,18 @@ import pytest
 from fastapi import FastAPI
 
 from animama.adapters.model_assets import FilesystemModelAssetStore, HttpAssetFetcher
-from animama.app.ports.model_assets import AssetFetchError
-from animama.app.services.model_asset_service import ModelAssetService, load_packaged_asset_catalog
+from animama.app.ports.model_assets import AssetFetchError, FetchedBody
+from animama.app.services.model_asset_service import (
+    TRANSFER_RETRY_DELAYS,
+    ModelAssetService,
+    load_packaged_asset_catalog,
+)
 from animama.domain.model_assets import (
     ASSET_CATALOG_SCHEMA,
     INSTALL_HEADROOM_BYTES,
     AssetCatalog,
     AssetDescriptor,
+    AssetFile,
     AssetRemovalVeto,
     parse_asset_catalog,
 )
@@ -76,8 +83,52 @@ class Release:
         return HttpAssetFetcher(transport=httpx.MockTransport(self.handler))
 
 
+class FlakyFetcher:
+    """An in-memory ``AssetFetcher`` honoring resume offsets.
+
+    Each positional count breaks one request's body after that many bytes, in
+    request order; later requests send the whole remainder.
+    """
+
+    def __init__(self, *breaks: int, body: bytes = PAYLOAD) -> None:
+        self.starts: list[int] = []
+        self._breaks = list(breaks)
+        self._body = body
+
+    @asynccontextmanager
+    async def stream(self, asset_id: str, file: AssetFile, *, start: int = 0) -> AsyncIterator[FetchedBody]:
+        self.starts.append(start)
+        cut = self._breaks.pop(0) if self._breaks else None
+        yield FetchedBody(start, self._chunks(asset_id, self._body[start:], cut))
+
+    @staticmethod
+    async def _chunks(asset_id: str, remainder: bytes, cut: int | None) -> AsyncIterator[bytes]:
+        if cut is None:
+            yield remainder
+            return
+        if cut:
+            yield remainder[:cut]
+        raise AssetFetchError("asset_download_failed", f"Asset {asset_id} transfer was interrupted: ReadTimeout")
+
+
+class Backoff:
+    """Record transfer retry delays instead of waiting them out."""
+
+    def __init__(self) -> None:
+        self.delays: list[float] = []
+
+    async def __call__(self, delay: float) -> None:
+        self.delays.append(delay)
+
+
 def _service(data_root: Path, release: Release, catalog: AssetCatalog | None = None) -> ModelAssetService:
-    return ModelAssetService(catalog or _catalog(), FilesystemModelAssetStore(data_root), release.fetcher())
+    return ModelAssetService(
+        catalog or _catalog(), FilesystemModelAssetStore(data_root), release.fetcher(), sleep=Backoff()
+    )
+
+
+def _flaky_service(data_root: Path, fetcher: FlakyFetcher, backoff: Backoff) -> ModelAssetService:
+    return ModelAssetService(_catalog(), FilesystemModelAssetStore(data_root), fetcher, sleep=backoff)
 
 
 def _files(root: Path) -> list[Path]:
@@ -351,7 +402,9 @@ async def test_failed_downloads_install_nothing(
     state = await service.wait("voice-a")
 
     assert (state.status, state.reason) == ("failed", reason)
-    assert len(release.requests) == 1  # Redirects are never followed.
+    # Redirects are never followed; only a body broken mid-stream is requested again.
+    retries = len(TRANSFER_RETRY_DELAYS) if reason_id == "interrupted" else 0
+    assert len(release.requests) == 1 + retries
     assert _installed(data_root) == []
     # Only an interrupted transfer keeps its received prefix for resume; corrupt bytes are discarded.
     assert [path.stat().st_size for path in _staged(data_root)] == ([100] if reason_id == "interrupted" else [])
@@ -489,6 +542,103 @@ async def test_concurrent_installs_share_one_download(data_root: Path, release: 
         await service.wait("voice-a")
     assert len(release.requests) == 1
     assert service.state("voice-a").status == "installed"
+
+
+# Interrupted transfers
+
+
+async def test_an_interrupted_transfer_resumes_from_its_staged_prefix(data_root: Path) -> None:
+    fetcher, backoff = FlakyFetcher(100, 1000), Backoff()
+    service = _flaky_service(data_root, fetcher, backoff)
+
+    service.install("voice-a")
+    state = await service.wait("voice-a")
+
+    assert state.status == "installed"
+    assert fetcher.starts == [0, 100, 1100]
+    # Each attempt grew the staged prefix, so the backoff never escalated.
+    assert backoff.delays == [TRANSFER_RETRY_DELAYS[0]] * 2
+    (installed,) = _installed(data_root)
+    assert installed.read_bytes() == PAYLOAD
+    assert _staged(data_root) == []
+
+
+async def test_repeated_interruptions_without_progress_fail_and_keep_the_prefix(data_root: Path) -> None:
+    fetcher, backoff = FlakyFetcher(100, *[0] * len(TRANSFER_RETRY_DELAYS)), Backoff()
+    service = _flaky_service(data_root, fetcher, backoff)
+
+    service.install("voice-a")
+    state = await service.wait("voice-a")
+
+    assert (state.status, state.reason) == ("failed", "asset_download_failed")
+    assert fetcher.starts == [0] + [100] * len(TRANSFER_RETRY_DELAYS)
+    assert backoff.delays == list(TRANSFER_RETRY_DELAYS)
+    assert [path.stat().st_size for path in _staged(data_root)] == [100]
+
+    # A later install resumes from the kept prefix.
+    service.install("voice-a")
+    assert (await service.wait("voice-a")).status == "installed"
+    assert fetcher.starts[-1] == 100
+
+
+@pytest.mark.parametrize(
+    ("body", "reason"),
+    [
+        (PAYLOAD[:-1], "asset_size_invalid"),
+        (PAYLOAD + b"x", "asset_size_invalid"),
+        (b"\0" * len(PAYLOAD), "asset_hash_invalid"),
+    ],
+    ids=["short", "long", "hash"],
+)
+async def test_integrity_failures_are_not_retried(data_root: Path, body: bytes, reason: str) -> None:
+    fetcher, backoff = FlakyFetcher(body=body), Backoff()
+    service = _flaky_service(data_root, fetcher, backoff)
+
+    service.install("voice-a")
+    state = await service.wait("voice-a")
+
+    assert (state.status, state.reason) == ("failed", reason)
+    assert fetcher.starts == [0]
+    assert backoff.delays == []
+    assert _staged(data_root) == []
+
+
+async def test_removal_cancels_a_pending_transfer_retry(data_root: Path) -> None:
+    waiting, never = asyncio.Event(), asyncio.Event()
+
+    async def stalled(delay: float) -> None:
+        waiting.set()
+        await never.wait()
+
+    fetcher = FlakyFetcher(100)
+    service = ModelAssetService(_catalog(), FilesystemModelAssetStore(data_root), fetcher, sleep=stalled)
+    service.install("voice-a")
+    await asyncio.wait_for(waiting.wait(), 5)
+    assert service.state("voice-a").bytes_downloaded == 100
+
+    removed = await service.remove("voice-a")
+
+    assert removed.status == "not_installed"
+    assert fetcher.starts == [0]
+    assert _installed(data_root) == []
+    assert _staged(data_root) == []
+
+
+async def test_an_interrupted_http_body_logs_its_cause_and_resumes_with_a_range(
+    data_root: Path, release: Release, caplog: pytest.LogCaptureFixture
+) -> None:
+    release.routes["/voices/test/voice-a.bin"] = lambda: httpx.Response(200, content=_interrupted())
+    service = _service(data_root, release)
+
+    with caplog.at_level(logging.WARNING, logger="animama.app.services.model_asset_service"):
+        service.install("voice-a")
+        state = await service.wait("voice-a")
+
+    assert (state.status, state.reason) == ("failed", "asset_download_failed")
+    ranges = [request.headers.get("range") for request in release.requests]
+    assert ranges == [None] + ["bytes=100-"] * len(TRANSFER_RETRY_DELAYS)
+    # The log names the transport failure, not just that the transfer stopped.
+    assert "transfer was interrupted: ReadError: connection reset" in caplog.text
 
 
 # Removal

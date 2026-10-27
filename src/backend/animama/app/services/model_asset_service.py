@@ -8,8 +8,10 @@ installed.
 
 Interrupted transfers resume: staged bytes survive failures, cancellation of
 the process and restarts, are rehashed when the file is reopened, and the
-remainder is requested with an HTTP range. An integrity failure discards that
-file's staged bytes, and an explicit cancel or removal discards all of them.
+remainder is requested with an HTTP range. A body that breaks mid-stream is
+requested again from its staged prefix after a short backoff before the install
+fails. An integrity failure discards that file's staged bytes and is never
+retried, and an explicit cancel or removal discards all of them.
 
 Progress, failures and use leases are in memory; installed state is read from
 the store, so it survives restarts.
@@ -47,6 +49,10 @@ PACKAGED_ASSET_CATALOG = "model-assets.v1.json"
 LEASE_TTL_SECONDS: Final = 30.0
 # Bounds memory if a client keeps inventing lease IDs; expired leases are pruned first.
 MAX_LEASES_PER_ASSET: Final = 32
+# Seconds to wait before each resume of a body that broke mid-stream. Once they
+# are spent the interruption fails the install; an attempt that grew the staged
+# prefix starts the schedule again, so a slow, flaky link keeps making progress.
+TRANSFER_RETRY_DELAYS: Final = (1.0, 2.0, 4.0)
 
 T = TypeVar("T")
 
@@ -134,7 +140,8 @@ class ModelAssetService:
     Two removal guards are built in: a live use lease refuses removal with
     ``model_asset_in_use``, and an installed or downloading dependent refuses
     removal of its requirement with ``model_asset_required_by``. ``clock`` is a
-    monotonic time source, replaceable in tests.
+    monotonic time source and ``sleep`` waits out a transfer retry delay; both
+    are replaceable in tests.
     """
 
     def __init__(
@@ -144,11 +151,13 @@ class ModelAssetService:
         fetcher: AssetFetcher,
         *,
         clock: Callable[[], float] = time.monotonic,
+        sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
     ) -> None:
         self._catalog = catalog
         self._store = store
         self._fetcher = fetcher
         self._clock = clock
+        self._sleep = sleep
         self._tasks: dict[str, asyncio.Task[None]] = {}
         self._progress: dict[str, int] = {}
         self._verified: dict[str, int] = {}
@@ -431,22 +440,9 @@ class ModelAssetService:
 
         staged: StagedFile = await _run_blocking(self._store.open_staged, asset, file)
         try:
-            received = staged.size
-            self._progress[asset.id] = completed + received
-            if received < file.size:
-                async with self._fetcher.stream(asset.id, file, start=received) as body:
-                    if body.start != received:
-                        # The server sent the whole file instead of the remainder.
-                        await _run_blocking(staged.restart)
-                        received = 0
-                    async for chunk in body.chunks:
-                        received += len(chunk)
-                        # Abort as soon as the stream exceeds the pinned length.
-                        if received > file.size:
-                            raise _InstallFailure("asset_size_invalid")
-                        await _run_blocking(staged.write, chunk)
-                        self._progress[asset.id] = completed + received
-            if received != file.size:
+            self._progress[asset.id] = completed + staged.size
+            await self._stream_remainder(asset, file, staged, completed)
+            if staged.size != file.size:
                 raise _InstallFailure("asset_size_invalid")
             if staged.hexdigest() != file.sha256:
                 raise _InstallFailure("asset_hash_invalid")
@@ -464,9 +460,70 @@ class ModelAssetService:
                     staged.discard()
             raise
 
+    async def _stream_remainder(
+        self, asset: AssetDescriptor, file: AssetFile, staged: StagedFile, completed: int
+    ) -> None:
+        """Fetch the bytes after the staged prefix, resuming a body that breaks mid-stream.
+
+        Each interruption waits for the next ``TRANSFER_RETRY_DELAYS`` entry and
+        requests the remainder again. The last interruption, and any failure
+        before a response body was accepted, propagates. The staged file stays
+        open across attempts, so a resume does not rehash the prefix.
+        """
+
+        retries = 0
+        while staged.size < file.size:
+            prefix = staged.size
+            interruption = await self._stream_once(asset, file, staged, completed)
+            if interruption is None:
+                return
+            if staged.size > prefix:
+                retries = 0
+            if retries == len(TRANSFER_RETRY_DELAYS):
+                raise interruption
+            delay = TRANSFER_RETRY_DELAYS[retries]
+            retries += 1
+            logger.warning(
+                "Model asset %s file %s stopped at %d of %d bytes; resuming in %g s: %s",
+                asset.id,
+                file.path,
+                staged.size,
+                file.size,
+                delay,
+                interruption,
+            )
+            # Cancel and removal interrupt this wait like any other download step.
+            await self._sleep(delay)
+
+    async def _stream_once(
+        self, asset: AssetDescriptor, file: AssetFile, staged: StagedFile, completed: int
+    ) -> AssetFetchError | None:
+        """Append one response body to ``staged`` from its current size.
+
+        Returns the fetch error when the body breaks after the response was
+        accepted, leaving the received bytes staged. Refused responses and
+        bodies longer than the pinned size raise.
+        """
+
+        async with self._fetcher.stream(asset.id, file, start=staged.size) as body:
+            if body.start != staged.size:
+                # The server sent the whole file instead of the remainder.
+                await _run_blocking(staged.restart)
+            try:
+                async for chunk in body.chunks:
+                    # Abort as soon as the stream exceeds the pinned length.
+                    if staged.size + len(chunk) > file.size:
+                        raise _InstallFailure("asset_size_invalid")
+                    await _run_blocking(staged.write, chunk)
+                    self._progress[asset.id] = completed + staged.size
+            except AssetFetchError as error:
+                return error
+        return None
+
 
 __all__ = [
     "LEASE_TTL_SECONDS",
+    "TRANSFER_RETRY_DELAYS",
     "AssetBusyError",
     "AssetInstallRefusedError",
     "AssetLeaseLimitError",

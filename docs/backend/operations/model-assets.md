@@ -173,8 +173,15 @@ It is the same FastAPI code on desktop and self-host, and it needs no restart.
   installed, and a partial set is never served.
 - Staged bytes survive failures and restarts. A retry rehashes them and
   requests only the remainder with an HTTP range (a `200` reply restarts that
-  file). A file failing its size or digest is discarded and downloaded again;
-  Remove/cancel discards all staged bytes. Startup deletes staging that cannot
+  file). A body that breaks mid-stream is resumed automatically, waiting 1, 2
+  and then 4 seconds; an attempt that stages more bytes restarts that
+  schedule, and the install fails as `asset_download_failed` only when the
+  waits run out. Each resume and the final failure are logged with the
+  transport error (for example `ReadTimeout` or `RemoteProtocolError`). A
+  failure before a body arrives (an HTTP error, a refused host or a mismatched
+  range) is not retried. A file failing its size or digest is discarded and
+  downloaded again on the next install; Remove/cancel discards all staged
+  bytes, including during a resume wait. Startup deletes staging that cannot
   resume and stored assets whose IDs left the catalog.
 - `<data_root>` is `ANIMAMA_DATA_ROOT`: `<userData>/data` on desktop and
   `/var/lib/animama/data` in Compose (the `ANIMAMA_DATA_HOST_PATH` bind
