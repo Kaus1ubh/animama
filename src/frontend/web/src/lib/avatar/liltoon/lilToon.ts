@@ -199,10 +199,14 @@ export function installLilToonRenderingWhenLoaded(
   const install = (runtime: LilToonRuntime) => {
     loadedListeners.delete(install);
     const releasePasses = runtime.enableRendering(renderer);
-    // Outermost, so it times the passes and the pre-pass as well.
-    const releaseCheck = measureGpu
-      ? installLilToonGpuCheck(renderer)
-      : () => undefined;
+    let releaseCheck: () => void = () => undefined;
+    try {
+      // Outermost, so it times the passes and the pre-pass as well.
+      if (measureGpu) releaseCheck = installLilToonGpuCheck(renderer);
+    } catch (error) {
+      releasePasses();
+      throw error;
+    }
     release = () => {
       releaseCheck();
       releasePasses();

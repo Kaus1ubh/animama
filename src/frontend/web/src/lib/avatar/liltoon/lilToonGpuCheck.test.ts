@@ -44,7 +44,9 @@ function refusingStorage(): Storage {
   };
 }
 
-const measured = (frameMs: number): LilToonGpuMeasurement => ({
+const measured = (
+  frameMs: number,
+): Extract<LilToonGpuMeasurement, { status: "measured" }> => ({
   status: "measured",
   method: 1,
   frameMs,
@@ -59,20 +61,38 @@ const DEBUG = {
   UNMASKED_RENDERER_WEBGL: 0x9246,
 };
 
+/** A callback that always returns `value`. */
+const constant =
+  <T>(value: T) =>
+  (): T =>
+    value;
+
 /**
- * A WebGL2 context stand-in whose timer queries finish at once with
- * `frameNs` of GPU time.
+ * A WebGL2 context stand-in whose timer queries finish at once. `frameNs`
+ * gives each timed frame's GPU time (by the order queries began), and
+ * `disjoint` whether each read of the disjoint flag reports an event.
  */
 function fakeGl({
   timer = true,
-  frameNs = 9_000_000,
-  disjoint = false,
+  frameNs = constant(9_000_000),
+  disjoint = constant(false),
   width = 1600,
   height = 1200,
   gpu = "Apple M5",
+}: {
+  timer?: boolean;
+  frameNs?: (frame: number) => number;
+  disjoint?: (read: number) => boolean;
+  width?: number;
+  height?: number;
+  gpu?: string;
 } = {}) {
   let active: object | null = null;
+  let begun = 0;
+  let disjointReads = 0;
+  const times = new Map<object, number>();
   const gl = {
+    disjointReads: () => disjointReads,
     drawingBufferWidth: width,
     drawingBufferHeight: height,
     VENDOR: 0x1f00,
@@ -90,7 +110,7 @@ function fakeGl({
           : null,
     getParameter: (pname: number) =>
       pname === TIMER.GPU_DISJOINT_EXT
-        ? disjoint
+        ? disjoint(disjointReads++)
         : pname === DEBUG.UNMASKED_VENDOR_WEBGL
           ? "Apple"
           : pname === DEBUG.UNMASKED_RENDERER_WEBGL
@@ -100,13 +120,14 @@ function fakeGl({
     deleteQuery: vi.fn(),
     beginQuery: (_target: number, query: object) => {
       active = query;
+      times.set(query, frameNs(begun++));
     },
     endQuery: () => {
       active = null;
     },
     getQuery: () => active,
-    getQueryParameter: (_query: object, pname: number) =>
-      pname === gl.QUERY_RESULT_AVAILABLE ? true : frameNs,
+    getQueryParameter: (query: object, pname: number) =>
+      pname === gl.QUERY_RESULT_AVAILABLE ? true : times.get(query),
   };
   return gl;
 }
@@ -180,6 +201,16 @@ describe("decideAutomaticMaterials", () => {
 });
 
 describe("stored measurements", () => {
+  it("ignore a measurement of a canvas smaller than a chat canvas", () => {
+    const storage = memoryStorage();
+    writeLilToonGpuMeasurement(
+      "gpu-a",
+      { ...measured(9), pixels: LILTOON_GPU_CHECK.minPixels - 1 },
+      storage,
+    );
+    expect(readLilToonGpuMeasurement("gpu-a", storage)).toBeNull();
+  });
+
   it("keep one result per GPU and ignore other methods and bad data", () => {
     const storage = memoryStorage();
     writeLilToonGpuMeasurement("gpu-a", measured(9), storage);
@@ -229,7 +260,7 @@ describe("installLilToonGpuCheck", () => {
   it("times lilToon frames after the warm-up and stores the median", () => {
     vi.spyOn(console, "info").mockImplementation(() => {});
     const storage = memoryStorage();
-    const gl = fakeGl({ frameNs: 9_600_000 });
+    const gl = fakeGl({ frameNs: () => 9_600_000 });
     const { renderer, render } = fakeRenderer(gl);
     const release = installLilToonGpuCheck(renderer, storage);
 
@@ -291,9 +322,38 @@ describe("installLilToonGpuCheck", () => {
 
   it("gives up for the session when the GPU keeps reporting disjoint timings", () => {
     const storage = memoryStorage();
-    const { renderer } = fakeRenderer(fakeGl({ disjoint: true }));
+    const gl = fakeGl({ disjoint: () => true });
+    const { renderer } = fakeRenderer(gl);
     installLilToonGpuCheck(renderer, storage);
     renderFrames(renderer, lilToonScene(), ALL_FRAMES * 2);
     expect(readLilToonGpuMeasurement("Apple | Apple M5", storage)).toBeNull();
+    // It stops reading the flag once it has given up.
+    expect(gl.disjointReads()).toBe(LILTOON_GPU_CHECK.maxDisjoint + 1);
+  });
+
+  it("keeps timing after a few disjoint events and stores the median", () => {
+    vi.spyOn(console, "info").mockImplementation(() => {});
+    const storage = memoryStorage();
+    // Two slow outliers in every ten frames: the mean would be 12.4 ms.
+    const gl = fakeGl({
+      frameNs: (frame) => (frame % 10 < 2 ? 30_000_000 : 8_000_000),
+      disjoint: (read) => read < 3,
+    });
+    const { renderer } = fakeRenderer(gl);
+    installLilToonGpuCheck(renderer, storage);
+    renderFrames(renderer, lilToonScene(), ALL_FRAMES + 10);
+    expect(
+      readLilToonGpuMeasurement("Apple | Apple M5", storage),
+    ).toMatchObject({ status: "measured", frameMs: 8 });
+  });
+
+  it("reads the disjoint flag only for frames it timed", () => {
+    const gl = fakeGl();
+    const { renderer } = fakeRenderer(gl);
+    installLilToonGpuCheck(renderer, memoryStorage());
+    // Warm-up frames and frames without lilToon start no timer query.
+    renderFrames(renderer, new THREE.Scene(), 20);
+    renderFrames(renderer, lilToonScene(), LILTOON_GPU_CHECK.warmupFrames);
+    expect(gl.disjointReads()).toBe(0);
   });
 });

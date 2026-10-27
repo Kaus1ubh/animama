@@ -68,6 +68,11 @@ type SceneProps = {
   onAvatarInstanceChange?: (avatar: Avatar | null) => void;
   onAvatarTransformChange?: (transform: AvatarTransform) => void;
   playRuntimeVfxSounds?: boolean;
+  /**
+   * Time this canvas's first lilToon frames for the Materials setting's
+   * Automatic; the main canvas only, not Picture in Picture.
+   */
+  measureLilToonGpu?: boolean;
   sceneEffectsEnabled?: boolean;
   sceneCameraSettings: SceneCameraSettings;
   transparentBackground?: boolean;
@@ -142,6 +147,7 @@ export default function Scene({
   onAvatarInstanceChange,
   onAvatarTransformChange,
   playRuntimeVfxSounds = true,
+  measureLilToonGpu = false,
   sceneEffectsEnabled = true,
   sceneCameraSettings,
   transparentBackground = false,
@@ -309,7 +315,7 @@ export default function Scene({
             orbitControlsRef={orbitControlsRef}
             settings={sceneCameraSettings}
           />
-          <AvatarSceneLighting measureLilToonGpu />
+          <AvatarSceneLighting measureLilToonGpu={measureLilToonGpu} />
           {/* {isDev ? <axesHelper args={[5]} /> : null}
         {isDev ? (
           <Grid

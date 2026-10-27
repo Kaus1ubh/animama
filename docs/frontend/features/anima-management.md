@@ -100,7 +100,8 @@ Animama found in the Anima's Avatar and how it plays it:
   lilToon materials, whether they render with lilToon or as Simple materials
   and why. Under Automatic it gives the GPU check's result: the measured
   lilToon frame time against the limit, or that this GPU is not measured yet
-  or the browser cannot time the GPU (lilToon in both cases).
+  or the browser cannot time the GPU (lilToon in both cases). Clearing the
+  measurement measures again ([GPU check](../runtime/avatar-animation.md#authored-liltoon-materials)).
 - **Face**: how each face part was found (model data, material names, a saved
   correction, or not at all) and whether face landmarks and texture anchors
   are ready.

@@ -611,6 +611,7 @@ export function AvatarSceneHost({
                 onAvatarInstanceChange={handleAvatarInstanceChange}
                 onAvatarTransformChange={handleAvatarTransformChange}
                 playRuntimeVfxSounds={mode === "main"}
+                measureLilToonGpu={mode === "main"}
                 sceneCameraSettings={sceneCameraSettings}
                 transformMode={activeTransformMode}
                 transparentBackground={transparentBackground}

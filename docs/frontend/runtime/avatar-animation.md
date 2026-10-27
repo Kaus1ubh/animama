@@ -1644,8 +1644,15 @@ adapts colour and UV expression binds to those materials.
   clothing, hair behind the face) before the lilToon shader runs. Its meshes
   exist only while the renderer draws, like lilToon's outlines. Its depth
   sits eight units and one slope step behind the surface, the drift between
-  lilToon's skinning and three.js's, so every surface still passes its own
-  test and no pixel changes. A frame draws without it when a visible material
+  lilToon's skinning and three.js's, so a surface drawn at its own depth
+  still passes its own test. A primitive takes the pre-pass only when its
+  material replaces colour and alpha (blend factors One and Zero, or no
+  blending), has no alpha-to-coverage and no polygon offset of its own
+  (`depthPrepassBlocker`); otherwise a fragment it rejects could have shown in
+  the canvas's alpha or its offset surface could fail the test. three-liltoon
+  blends alpha with One and One-minus-source-alpha by default, so most
+  converted Avatars take no pre-pass (the converted test Avatar takes it on
+  none of its primitives). A frame draws without it when a visible material
   tests depth other than less, less-or-equal or always, or writes stencil into
   a target with a stencil buffer (Avatar canvases have none).
 - **Lighting:** lilToon reads only the first visible directional light plus the
@@ -1659,8 +1666,9 @@ adapts colour and UV expression binds to those materials.
   loads it unless the GPU check below chose Simple. `Avatar.lilToonMaterials`
   reports `rendered`, `fallback` or `none`, and `Avatar.automaticMaterials`
   what Automatic chose and why.
-- **GPU check for Automatic** (`lilToonGpuCheck.ts`): the chat canvas
-  (`AvatarSceneLighting measureLilToonGpu` in `Scene.tsx`) times its first
+- **GPU check for Automatic** (`lilToonGpuCheck.ts`): the main Avatar canvas
+  (`AvatarSceneHost` in `main` mode, which passes `measureLilToonGpu` to
+  `Scene`: chat and any surface that reuses it) times its first
   lilToon frames on the GPU with `EXT_disjoint_timer_query_webgl2`. It skips
   60 warm-up frames and times the next 60 that draw a lilToon Avatar on a
   drawing buffer of at least one million pixels, then stores their median
@@ -1673,7 +1681,19 @@ adapts colour and UV expression binds to those materials.
   measurement applies from the next load, and changing the constant needs no
   new measurement. A GPU not measured yet, or a browser without the timer
   extension (stored as unsupported), keeps lilToon. Blocked storage counts
-  as not measured. Diagnostics shows the decision and its reason.
+  as not measured. Picture in Picture and the other Avatar canvases
+  (previews, Create Anima, the review tools) never measure, though their
+  loads read the result. Diagnostics shows the decision and its reason. The time
+  is compared as measured, not scaled by canvas size: on an Apple M5 a
+  converted Avatar's lilToon frame took 5.3–6.0 ms from 1.0 to 5.9 million
+  drawing-buffer pixels, where Andrew's grew from 2.4 to 4.5 ms (the
+  default window's chat canvas is about 3.7 million pixels at DPR 2).
+- **Measuring again:** a GPU is measured once per viewer. Removing the
+  `animama.lilToonGpuCheck` key from the app's `localStorage` (for example in
+  the developer tools) measures every GPU again on its next lilToon frames,
+  and the next load after that uses the new result. Raising `METHOD` in
+  `lilToonGpuCheck.ts` makes every viewer measure again, for a changed
+  measurement or a rendering change that moves lilToon's cost.
 - **Fallback base colours:** Mochiya writes `metallicFactor` 1 on the fallback
   materials, which renders them almost black without an environment map.
   `LilToonFallbackMaterialsPlugin` builds fallbacks of lilToon materials with
@@ -1695,8 +1715,10 @@ adapts colour and UV expression binds to those materials.
   of GPU time per frame with lilToon (up to 9.7 ms under heavier load), 1.0–1.6
   ms with its fallback materials, and 1.7–3.0 ms for the Included Avatars.
   These absolute values move with the GPU's clock and other jobs, so compare
-  only runs made together. In those runs the depth pre-pass saved 0.5–0.6 ms
-  with no pixel changed; under heavier load a prototype saved up to 3.5 ms.
+  only runs made together. Drawn on all nine opaque primitives (before
+  alpha-blending surfaces were excluded), the depth pre-pass saved 0.5–0.6 ms
+  in those runs with no pixel changed in exact render comparisons; under
+  heavier load a prototype saved up to 3.5 ms.
   Outlines already act as a partial pre-pass: switching them off made frames
   slower. Lowering the pixel ratio or switching off toon shadow, reflection,
   rim or normal maps saved little, and no combination brought lilToon near an
