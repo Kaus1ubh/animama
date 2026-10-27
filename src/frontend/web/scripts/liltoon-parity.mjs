@@ -76,15 +76,23 @@ async function main(argv) {
   }
   const outDir = path.resolve(cwd, out);
   await mkdir(outDir, { recursive: true });
-  const { images, views } = await withRendererPage(
-    { pageDir: "liltoon-parity", extraRoots: [file] },
-    ({ page, fsUrl }) =>
-      page.evaluate((request) => window.renderLilToonParity(request), {
-        url: fsUrl(file),
-        width,
-        height,
-      }),
-  );
+  let result;
+  try {
+    result = await withRendererPage(
+      { pageDir: "liltoon-parity", extraRoots: [file] },
+      ({ page, fsUrl }) =>
+        page.evaluate((request) => window.renderLilToonParity(request), {
+          url: fsUrl(file),
+          width,
+          height,
+        }),
+    );
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exitCode = 1;
+    return;
+  }
+  const { images, views } = result;
   for (const image of images) {
     const target = path.join(outDir, `animama-${image.name}.png`);
     await writeFile(target, Buffer.from(image.dataUrl.split(",")[1], "base64"));

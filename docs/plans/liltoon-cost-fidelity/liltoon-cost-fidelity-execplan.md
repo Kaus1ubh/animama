@@ -63,7 +63,19 @@ or Included Avatars with synthetic additions.
 - [x] Phase 6: upstream texts drafted in
   [upstream-drafts.md](upstream-drafts.md); posting waits for the owner's
   approval of the exact text.
-- [ ] Phase 7: documentation and final integration review.
+- [x] Phase 7: documentation, R6 and R2 evidence, final integration review
+  (three rounds) and the full pre-push suite.
+
+Open after Phase 7:
+
+- [ ] Owner gates: the R4 report and the look in private renders, including
+  D4's question whether the app's tone mapping and chat filter should keep
+  applying to authored lilToon materials; the measured cost against R2's
+  target (see Validation); the upstream texts.
+- [ ] D5 (approved): once #744 merges, merge `main` into this branch, raise
+  `lilToonGpuCheck.ts`'s `METHOD` so viewers measure again, reconsider timing
+  at a known clock state (Surprises 1), and propose Automatic's threshold for
+  the owner's approval.
 
 ## Surprises & Discoveries
 
@@ -445,9 +457,9 @@ Check record (2026-10-27, macOS arm64, Apple M5, working tree `e1be3c2ad3ce1741e
   declare its extension, so neither the patch nor the breakdown scenario
   reaches them. The final candidate's renders cover them.
 
-Owner gate (pending): accept the pre-pass's edge-sample difference (about one
-pixel per frame on the converted test Avatar) for the measured saving, or
-keep the pre-pass off for lilToon primitives.
+Owner gate: the owner accepted the pre-pass's edge-sample difference (about
+one pixel per frame on the converted test Avatar) for the measured saving
+(D6, 2026-10-27); the pre-pass stays on for lilToon primitives.
 
 #### Code Review #1 Findings
 
@@ -549,8 +561,8 @@ the Invisible toggle among the pre-pass conditions; the Andrew tree is
 recorded above; `npx prettier --check` on the five changed TypeScript files
 (`src/frontend/web`) passed and `npx vitest run
 src/lib/avatar/liltoon/depthPrepass.test.ts` passed on tree `6311d20a600a066e1a15afec6a01bd1fa597a9f8`.
-Repair budget used: one of two rounds. Phase 2 is complete for the agent; the
-owner gate (the pre-pass's edge-sample difference) remains.
+Repair budget used: one of two rounds. Phase 2 complete; the owner accepted
+the pre-pass's edge-sample difference (D6).
 
 ### Phase 3: Morph-weight textures without per-frame reallocation
 
@@ -708,7 +720,8 @@ Implemented:
    Unity does.
 2. Export: not possible in Animama's batch export. UniVRM 0.131.2's VRM 1.0
    writer (`MeshWriter.ExportMeshDivided`) writes positions, normals, the
-   first UV set and skinning only, and `VRM10ExportSettings.MeshExportSettings`
+   first UV set, skinning and morph targets only, and
+   `VRM10ExportSettings.MeshExportSettings`
    returns new settings without `ExportVertexColor`; a private test export
    with Mochiya changed to set it still had no `COLOR_0`. The fix moves to the
    upstream drafts (Phase 6); vrchat-avatar-conversion.md lists the limit.
@@ -865,7 +878,7 @@ and hands. Restoring the second UV set as well changed no pixel.)
 | Lit areas | none: identical to within 1 of 255 at every sampled point | matches |
 | Dark patches at hair bang tips | outline vertex colours dropped by UniVRM's VRM 1.0 writer | runtime fallback (Phase 4); export upstream (D7) |
 | Shadowed hair, sleeves and face side darker | OpenLit's indirect light undefined for the web ABI's directionless ambient | fixed (this phase) |
-| Bag strap and overalls under the jacket | authored blendshape weights (a shape key at 100) not exported | export upstream; not fixable in Animama without the data |
+| An accessory and a clothing layer under the outer layer | authored blendshape weights (a shape key at 100) not exported | export upstream; not fixable in Animama without the data |
 | Soft highlight band on the hair (+3 to +10 of 255) | the hair's MatCap contributes nothing in Animama, with or without the second UV set or its blend mask; cause not identified | open (Phase 6 asks upstream) |
 | Outline and silhouette edges (about 1–2% of pixels) | sub-pixel rasterization and outline width differences | not pursued |
 | The app's look (tone mapping, enhanced lights) | excluded from parity renders by design (D4) | owner's call |
@@ -993,24 +1006,241 @@ Review tier: standard. Update avatar-animation.md (frame cost, depth pre-pass,
 measurement method) and vrchat-avatar-conversion.md (vertex colours), run the
 final integration review and the full pre-push suite on the final candidate.
 
+Starting source: `c972e647` (Phase 6).
+
+Implemented: the docs named above were updated in their phases; this pass
+rewrapped the depth pre-pass paragraph, restated the patch README as the
+patch's three changes with one upgrade check, and worded the open MatCap
+difference as current behaviour. The parity tool now prints a render failure's
+message and exits 1, like its sibling tools (deferred from Phase 5's
+Code Review #2). Checks (`src/frontend/web`): `node --test
+scripts/liltoon-parity.test.mjs` 2 of 2, eslint and Prettier on the script
+clean, and a render of a corrupt file exits 1 with Playwright's message
+(tree `737bfbe9`, whose code the later revisions leave unchanged).
+
+R6 and R2 evidence (2026-10-27, macOS arm64, Apple M5; one heavy-slot job
+alternating a detached checkout of `07a2e70b` (Phase 1: no patch, the same
+render paths as `b3eb81b3` plus `--saturate`) with the candidate tree
+`737bfbe9`; outputs private):
+
+- Exact renders, baseline against candidate, `--diff --threshold 0`:
+  `animation:render` of shy-finger-poke-loop at 0, 0.5 and 1 s on the
+  Included Avatars, 0 of 1824×1018 pixels; `effects:render
+  library:texture_sick_1 --times 0.5,1` on the Included Avatars, 0 of
+  1600×668; the same on the converted test Avatar with `--materials simple`,
+  0 of 832×668.
+- `effects:bench --saturate 10 --fps 60 --frames 400 --warmup 60 --rounds 2`,
+  run twice as baseline then candidate; each value is one invocation's mean
+  over its two in-invocation rounds, plain frame (no effects), ms per frame:
+
+  | Avatar | Baseline | Candidate |
+  |---|---|---|
+  | Andrew | 0.96, 0.86 | 0.82, 0.82 |
+  | AvatarSample_A_1_New | 0.87, 0.85 | 0.84, 0.85 |
+  | converted test Avatar, Simple | 0.81, 0.76 | 0.85, 0.81 |
+  | converted test Avatar, lilToon | 9.11, 9.26 | 4.77, 4.56 |
+
+  Included Avatars and Simple materials are unchanged within the rounds'
+  spread (draw calls equal); the lilToon frame fell to 51% (draw calls 19 to
+  28: the pre-pass draws).
+
 ## Final integration review
 
-Not started.
+### Final Review #1 Findings
+
+Independent reviewer (standard tier, final integration mode) of tree
+`737bfbe9` against `b3eb81b3`, covering cross-phase behaviour, light Phase 6
+and the Phase 7 edits. Verified: the patch's three changes in the installed
+package (12 of 12 SH sites guarded); Phase 4's mode change keeps Phase 2's
+unblended state; the pre-pass decides per frame; three-liltoon stays lazily
+imported; the Phase 7 edits; no private names, paths or files in the diff;
+no Cloud, generated-client or migration changes. Result: blocked.
+
+- FI-F1 (required): draft A quoted absolute times taken under load, and its
+  "current state" was the bench scenario that re-blends surfaces only
+  (outlines stay unblended), not upstream's state.
+- FI-F2 (required): the Frame cost doc's absolute figures were measured
+  before the opaque passes were unblended but read as current.
+- FI-F3 (required): R6's renders and bench were promised for the final
+  candidate but not scheduled.
+- FI-F4 (required): Progress lacked D5, the open owner gates and the merge
+  after #744; Phase 7's check record lacked a tree; no final R2 figure or
+  post-change comparison with an Included Avatar.
+- Optional: FI-F5 draft D compared unlike columns (like for like 10.8% to
+  3.0%); FI-F6 draft C proposed a mode 1 fallback Animama does not do;
+  FI-F7 draft B went beyond the record (mesh roles, "common"), and its
+  uniform-array figure was surface-only and pre-change; FI-F8 the Mochiya
+  draft needs `ExportUvSecondary` verified, versions, and morph targets
+  among what the writer keeps; FI-F9 the three-liltoon texts need versions,
+  draft D should say the guard belongs where shaders are generated, and its
+  `ShadeSH9ToonDouble` attribution needs checking; FI-F10 draft E listed the
+  third-party material's exact values and the docs described its outfit;
+  FI-F11 stale Phase 2 gate lines and recovery text.
+
+### Final Review #1 Revisions
+
+All accepted.
+
+- FI-F1: draft A now gives same-run relative figures (surfaces unblended
+  −7% with outlines unblended throughout; 43% with the pre-pass), and the
+  second run's figures against the unpatched package (4.6–4.8 against
+  9.1–9.3 ms), noting load.
+- FI-F2: Frame cost in avatar-animation.md now gives the post-change
+  figures from Phase 7's run beside the baseline and labels the earlier
+  breakdown figures as before the change; "more than halved" became "about
+  halved".
+- FI-F3: Phase 7's run rendered and benched the Included Avatars and the
+  Simple materials against the Phase 1 tree: 0 differing pixels, frame times
+  unchanged (Phase 7 record).
+- FI-F4: Progress lists the open owner gates and D5; Phase 7's check record
+  names its tree; Validation records R2's figure and that the spec's target
+  is not met, for the owner's cost gate.
+- FI-F5 to F9: draft D compares like for like (10.8% to 3.0%) and says the
+  guard belongs where shaders are generated (`ShadeSH9ToonDouble`'s
+  `normalize` confirmed in `openlit_core.hlsl`); draft C falls back for mode
+  2 only; draft B keeps to the recorded counts and qualifies the
+  uniform-array figure; the Mochiya draft names Mochiya Avatar Tools 0.1.4 and
+  UniVRM 0.131.2, adds morph targets, and states that the default export
+  profile sets `ExportVertexColor` and `ExportUvSecondary` to 0 (both
+  confirmed in the package sources); each three-liltoon text names its
+  version.
+- FI-F10: draft E names the MatCap features without the material's values;
+  the docs, drafts and R4 table describe the blendshape case generically.
+- FI-F11: the Phase 2 gate lines and the recovery text are current.
+
+### Final Review #2 Findings
+
+Targeted recheck (repair round 1) on tree `79896b4f`: no code changed since
+`737bfbe9`; FI-F1 to FI-F11 resolved except as below; `07a2e70b` is a valid
+baseline for renders and benches (it differs from `b3eb81b3` only in the
+bench's `--saturate` addition and docs); privacy scan clean. Result: blocked.
+
+- FR2-F1 (required): the R2 paragraph's 5.5 times and the doc's "quieter
+  run" rest on an unexplained 3–4 times difference between the earlier
+  version of the saturated mode (2.7–3.1 ms) and every run of the shipped
+  mode (9–13 ms), while the CPU-bound Included Avatars stayed near 1 ms; the
+  idle gaps before each pass are one possible cause. Also "the attainable
+  saving" should be "the main one".
+- Optional: FR2-F2 the uniform-array figure was the frame's vertex time, not
+  the surface pass's; FR2-F3 draft A and the doc credited the second run to
+  unblending alone; FR2-F4 "first UV set and skinning only" remained in the
+  conversion guide and the plan; FR2-F5 the outline pre-pass sentence was
+  measured before the change; FR2-F6 draft D should quote the source line
+  and drop the unrecorded "edges" claim; FR2-F7 name Mochiya's profile;
+  FR2-F8 the D6 gate line read as open and D5's item omitted the clock-state
+  point; the bench table's values needed defining; the suite result is still
+  to be recorded.
+
+### Final Review #2 Revisions
+
+All accepted (text only). FR2-F1: Validation now states the ratio comes from
+one run of the shipped mode, that the Included figure is CPU-bound, that the
+earlier mode measured 3–4 times lower for a reason not established, that the
+baseline samples were steady within each pass in Phase 7's run, and that a
+quiet run with and without the idle gaps would settle the absolute figure;
+"the main saving" replaces "the attainable saving". The doc now says lilToon
+times have varied by three to four times between runs while the Included
+Avatars stayed near 1 ms. FR2-F2 to F8 and the table definition applied as
+suggested. Repair budget used: two of two rounds; Final Review #3
+(targeted) follows.
+
+### Final Review #3 Findings
+
+Targeted recheck on tree `5ee345f8`: no code changed since `737bfbe9`;
+FR2-F1 to F8 resolved apart from two wording errors. Result: blocked on
+FR3-F1 and FR3-F2.
+
+- FR3-F1 (required): the R2 paragraph said the CPU-bound Included figure
+  overstates the GPU ratio; it understates it (their GPU time is below their
+  frame time, while the lilToon frame is GPU-bound).
+- FR3-F2 (required): "up to three times (2.7–9.3 ms)" understated the
+  variation between runs; Phase 1's shipped-mode baseline was 10.19 ms, so it
+  is three to four times.
+- Optional: FR3-F3 steady samples show the clock did not change within a
+  pass, not that the idle gaps left it alone, and the p95 figures were not
+  recorded; FR3-F4 "measured the same" overstated the table; FR3-F5 draft A
+  omitted the outline fallback from the patched build; FR3-F6 the saturated
+  mode is meant to keep the top clock, which the unexplained difference
+  leaves unproven.
+
+### Final Review #3 Revisions
+
+All accepted and applied as wording changes, which this review policy lets
+the coordinator verify below the high-risk tier: the R2 paragraph now says
+the GPU ratio is larger than 5.5 times while the absolute lilToon time may
+be overstated (net direction unknown), records the p95 figures and limits
+the steady-sample conclusion to within a pass; the doc and the Final Review
+#2 Revisions say three to four times (about 2.7–10 ms); "about the same";
+draft A names the outline fallback; the doc and draft A say the saturated
+mode is meant to keep the top clock. Verified by rereading each edited
+paragraph against the Phase 1, Phase 7 and Decision Log records; no code
+changed, so the suite below stands. No repair rounds remain; nothing is
+blocking.
+
+Full pre-push suite (`python3 scripts/heavy-slot.py -- bash prepush.sh`,
+2026-10-27, macOS arm64, Apple M5) on tree `79896b4f`, whose code is that of
+every later tree (docs changed only): `make check-test` (repository root)
+4906 passed, 29 skipped; `pnpm verify` (`src/frontend`) passed, vitest 5969
+passed and 2 skipped; `pnpm web:test:browser` 131 of 131; `pnpm
+prettier:check` passed.
 
 ## Validation and acceptance
 
 Per #752: R1 recorded (Phase 1); R2 before and after in one run with exact
-render comparisons (Phases 2–3); R3 private renders and fixture tests (Phase
-4); R4 report (Phase 5); R5 drafts (Phase 6); R6 Included renders 0 px, bench
-unchanged and the pre-push suite (Phase 7). Owner gates as listed per phase.
+render comparisons (Phases 2–3, and Phase 7's run); R3 private renders and
+fixture tests (Phase 4); R4 report (Phase 5); R5 drafts (Phase 6); R6
+Included renders 0 px, bench unchanged and the pre-push suite (Phase 7).
+Owner gates as listed per phase.
+
+R2's figure: R1 showed the cost is fragment shading of large layered
+surfaces, with blending keeping the GPU from rejecting hidden layers. Without
+changing the look, the main saving is to let hidden layers be rejected (the
+uniform-array morph weights, about 6% of a traced frame, went upstream), so
+the plan's figure is the saturated frame about halved in one run. Phase 7's
+run measured 51% (4.6–4.8 ms against 9.1–9.3 ms). In that one run of the
+shipped `--saturate` mode the lilToon frame is about 5.5 times an Included
+Avatar's (0.82–0.85 ms). The Included Avatars are CPU-bound there, so their
+GPU time is lower and the GPU ratio is larger than that; but an earlier
+version of the mode (Phase 1, before the ramp) measured the lilToon frame
+3–4 times lower (2.7–3.1 ms) for a reason not established, so the absolute
+lilToon time may be overstated. The net direction is unknown. Every run of
+the shipped mode put the lilToon frame at 9–13 ms before the change, and in
+Phase 7's run each baseline invocation's samples were steady (95th
+percentile 9.63 and 9.36 ms against means of 9.11 and 9.26 ms), so the clock
+did not change within those passes. Either way the spec's target of about an
+Included Avatar's cost is not met; the rest needs fewer authored features
+(toon shadow and reflection each about a sixth of the frame before the
+change), which changes the look. This is for the owner's cost gate; a quiet
+run with and without the bench's idle gaps before each pass would settle the
+absolute figure.
 
 ## Idempotence and recovery
 
 Runtime changes live in the three-liltoon patch and Animama's integration and
-revert cleanly. Export changes affect only new exports; existing files keep
-working through the runtime fallback. Measurements and renders are repeatable
+revert cleanly. Export changes are held upstream (D7); files keep working
+through the runtime fallback, and a later export with vertex colours draws
+them as authored. Measurements and renders are repeatable
 and stay outside the repository.
 
 ## Outcomes & Retrospective
 
-Not started.
+Delivered: full-clock measurement (`effects:bench --saturate`); opaque
+lilToon surfaces and outlines drawn unblended so Animama's depth pre-pass
+covers them, which about halved the converted test Avatar's saturated frame
+with no pixel changed except about one edge sample per frame (D6); one
+morph-weight texture per mesh; a vertex-colour outline fallback with a
+warning; a defined SH direction that brings shadowed areas to Unity's; Unity
+parity tooling and the R4 report; upstream drafts. Included Avatars and
+Simple materials render identically and cost the same.
+
+Not met or open: R2's target of about an Included Avatar's cost (the rest is
+authored shading; the absolute figure varies between runs for a reason not
+established); the export half of R3 and the blendshape weights (upstream,
+D7); the hair MatCap band (cause unknown, asked upstream); the owner gates
+and D5 listed under Progress.
+
+Lessons: paced GPU timer readings follow the GPU's clock, so a light frame
+reads slow and savings look small; compare saturated runs alternated in one
+job, and keep the absolute figures out of conclusions. Unity's own lilToon
+output is undefined for a perfectly uniform ambient, so a reference render
+needs a slightly directional one.

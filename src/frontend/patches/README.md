@@ -14,19 +14,22 @@ plugin, check the upstream empty-root handling and rerun these tests before
 removing or rebasing the patch. See issue
 [#45](https://github.com/raymond-van/animama/issues/45).
 
-`@mochiya/three-liltoon@0.1.9` draws lilToon's opaque surface and outline passes
-without blending when their blend state replaces the target exactly (colour
-One/Zero; alpha One with Zero or One-minus-source-alpha). Those shaders write
-alpha 1, so the pixels are unchanged, and unblended draws let Animama's depth
-pre-pass cover them (the main saving on an Apple M5) and tile-based GPUs skip
-hidden surfaces. `web/src/lib/avatar/liltoon/threeLilToonPatch.test.ts` runs the
-installed package; when upgrading, check whether upstream draws opaque passes
-unblended and still keeps one morph-weight texture per material before
-rebasing or removing the patch. The same patch keeps one
-morph-weight texture per mesh instead of one per material: a material shared by
-meshes with different morph-target counts otherwise reallocated its texture on
-every draw. It also guards the 12 places the generated vertex shaders normalize the
-spherical-harmonics direction, which the web lighting ABI leaves at zero, so
-lilToon's environment-lit shadows are defined on every GPU (check whether
-upstream guards it before rebasing). See issue
+The `@mochiya/three-liltoon@0.1.9` patch makes three changes:
+
+- It draws lilToon's opaque surface and outline passes without blending when
+  their blend state replaces the target exactly (colour One/Zero; alpha One
+  with Zero or One-minus-source-alpha). Those shaders write alpha 1, so the
+  pixels are unchanged, and unblended draws let Animama's depth pre-pass cover
+  them (the main saving on an Apple M5) and tile-based GPUs skip hidden
+  surfaces.
+- It keeps one morph-weight texture per mesh instead of one per material; a
+  material shared by meshes with different morph-target counts otherwise
+  reallocates its texture on every draw.
+- It guards the 12 places the generated vertex shaders normalize the
+  spherical-harmonics direction, which the web lighting ABI leaves at zero, so
+  lilToon's environment-lit shadows are defined on every GPU.
+
+`web/src/lib/avatar/liltoon/threeLilToonPatch.test.ts` runs the installed
+package. When upgrading, check which of the three upstream now handles, drop
+those parts and rerun the tests. See issue
 [#752](https://github.com/raymond-van/animama/issues/752).

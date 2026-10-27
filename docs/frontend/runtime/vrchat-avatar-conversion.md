@@ -182,15 +182,16 @@ Known limits of a Mochiya 0.1.4 export:
   metalness 0; the `vrm:optimize` compare page uses its own loader and still
   shows them much darker than in Unity.
 - Vertex colours are not exported: UniVRM's VRM 1.0 mesh writer (0.131.2)
-  writes positions, normals, the first UV set and skinning only. lilToon
+  writes positions, normals, the first UV set, skinning and morph targets
+  only. lilToon
   outlines that read baked vertex colours (`_OutlineVertexR2Width` 2, common
   on hair) therefore fall back to the mesh normal in Animama, so their tips
   draw a little heavier than in Unity (see
   [Outlines from vertex colours](avatar-animation.md#authored-liltoon-materials)).
 - Authored blendshape weights are not exported either. A shape key a VRChat
-  Avatar keeps at a non-zero weight (for example one that lifts a bag strap
-  over a jacket) is at zero in the VRM, so that part can sit differently than
-  in Unity.
+  Avatar keeps at a non-zero weight (for example one that keeps an accessory
+  clear of clothing) is at zero in the VRM, so that part can sit differently
+  than in Unity.
 - PhysBone gravity converts to very small VRM gravity values, and the springs
   rely on the shape they were modelled in. Animama therefore adds no wind or
   updraft to Avatars converted by Mochiya under the Automatic wind setting (see
@@ -241,7 +242,7 @@ same views in both:
    --threshold 8`. Lit areas should match to within a step or two. Known
    differences: the export limits above, outline and silhouette edges, and a
    faint MatCap highlight some hair materials show in Unity but not in
-   Animama (under investigation).
+   Animama (cause not yet known).
 
 These renders show a third-party Avatar: keep them private.
 

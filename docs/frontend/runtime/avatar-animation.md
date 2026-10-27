@@ -1656,17 +1656,18 @@ adapts colour and UV expression binds to those materials.
   still passes its own test. A primitive takes the pre-pass only when its
   material replaces colour and alpha (blend factors One and Zero, or no
   blending), has no alpha-to-coverage and no polygon offset of its own, and
-  is not hidden by lilToon's Invisible toggle (`depthPrepassBlocker`); otherwise a fragment it rejects could have shown in
-  the canvas's alpha or its offset surface could fail the test. With the
-  opaque passes unblended, the converted test Avatar takes it on 9 of its 11
-  primitives, which more than halved its frame on an Apple M5 at the chat
-  canvas (see Frame cost). The pre-pass skins with three.js, whose result
-  differs slightly from lilToon's, so at a silhouette it can cover a
-  multisample sample that the surface does not: exact render comparisons of
-  that Avatar changed about one edge pixel per frame (channel delta up to 21).
-  A frame draws without it when a visible material
-  tests depth other than less, less-or-equal or always, or writes stencil into
-  a target with a stencil buffer (Avatar canvases have none).
+  is not hidden by lilToon's Invisible toggle (`depthPrepassBlocker`);
+  otherwise a fragment it rejects could have shown in the canvas's alpha or
+  its offset surface could fail the test. With the opaque passes unblended,
+  the converted test Avatar takes it on 9 of its 11 primitives, which about
+  halved its frame on an Apple M5 at the chat canvas (see Frame cost).
+  The pre-pass skins with three.js, whose result differs slightly from
+  lilToon's, so at a silhouette it can cover a multisample sample that the
+  surface does not: exact render comparisons of that Avatar changed about one
+  edge pixel per frame (channel delta up to 21). A frame draws without it
+  when a visible material tests depth other than less, less-or-equal or
+  always, or writes stencil into a target with a stencil buffer (Avatar
+  canvases have none).
 - **Lighting:** lilToon reads only the first visible directional light plus the
   ambient and hemisphere lights, so the enhanced look's fill and rim lights do
   not reach it. Tone mapping applies to both looks; the MToon retune does not.
@@ -1764,30 +1765,25 @@ adapts colour and UV expression binds to those materials.
   `releaseModelScene` disposes their `lilToonTextures`, which neither
   `VRMUtils.deepDispose` nor the material's `dispose` releases.
 - **Frame cost:** lilToon shading is much heavier than MToon. On an Apple M5
-  at the chat canvas (800×600 at DPR 2, frames paced at 60 fps with
-  `effects:bench --fps 60`, 2026-10-27), a converted Avatar took about 5–7 ms
-  of GPU time per frame with lilToon (up to 9.7 ms under heavier load), 1.0–1.6
-  ms with its fallback materials, and 1.7–3.0 ms for the Included Avatars.
-  These absolute values move with the GPU's clock and other jobs, so compare
-  only runs made together. Paced frames also leave the GPU at a lower clock
-  when the work is light, so a light frame reads slower than it is: paced
-  timings narrow the differences between frames and understate the savings of
-  a change. `effects:bench --saturate 10` renders frames back to back at the
-  GPU's top clock instead. At DPR 2 a converted Avatar's lilToon frame then
-  took about 2.7–3.1 ms, its fallback materials 0.9–1.7 ms and Andrew at most
-  1.3 ms (CPU-bound, so its GPU share is lower). Drawing the opaque passes
-  unblended with the depth pre-pass covering them cut the converted
-  Avatar's full-clock frame to 43% in one run (4 alternating rounds at
-  DPR 2): 5.5 ms against 12.8 ms with lilToon's own blending, and 11.9 ms
-  unblended without the pre-pass; paced, 9.6 against 11.1 ms. That run was
-  under other jobs' load, so its absolute times exceed the quieter figures
-  above.
-  Outlines already act as a partial pre-pass: switching them off made frames
-  slower. At full clock, switching off toon shadow or reflection saved about a
-  sixth of the frame each, but changes the look, so authored features stay
-  on. Most of the cost is fragment shading of large layered surfaces (the
-  clothing material alone took about 60% of it). `effects:bench --breakdown`
-  breaks the cost down by material, lilToon feature and layer.
+  at the chat canvas (800×600 at DPR 2) with `effects:bench --saturate 10`,
+  which is meant to keep the GPU at its top clock, a converted Avatar's
+  lilToon frame took 4.6–4.8 ms, and its fallback materials and the Included
+  Avatars about 0.8 ms each (the Included Avatars are CPU-bound there, so
+  their GPU share is lower). The same run alternated with the code from
+  before this work's lilToon changes, where that lilToon frame took 9.1–9.3 ms
+  and the fallback materials and Included Avatars measured about the same as
+  after (2026-10-27). Absolute lilToon times have varied between runs by three
+  to four times (about 2.7–10 ms before the change) while the Included
+  Avatars stayed near 1 ms, so compare only runs made together. Frames paced
+  like the app (`--fps 60`) also leave the GPU at a lower clock when the work
+  is light, so paced timings narrow the differences between frames and
+  understate the savings of a change. Before the change, outlines acted as a
+  partial pre-pass (switching them off made frames slower), and switching off
+  toon shadow or reflection saved about a sixth of the frame each, but
+  changes the look, so authored features stay on. Most of the cost is
+  fragment shading of large layered surfaces (the clothing material alone
+  took about 60% of it before the change). `effects:bench --breakdown` breaks
+  the cost down by material, lilToon feature and layer.
 
 On an Apple M5 the enhanced look adds about 0.1–0.15 ms per frame over classic.
 Review renders and benchmarks use enhanced rendering unless given
