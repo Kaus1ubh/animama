@@ -220,7 +220,9 @@ tenant-inventory row for `avatar_face_part_overrides`. So:
   Implemented, checked and review passed 2026-10-27; the owner gate (scaling
   band, private Gesture renders on the T-pose and A-pose exports, the R10
   departure) is pending.
-- [ ] Phase 8: Package sharing (R13). Not started.
+- [ ] Phase 8: Package sharing (R13). Implemented, checked and review passed
+  2026-10-27 (merged into PR B); the full `pnpm e2e:test` runs on the final
+  candidate, and the package-set bumps at PR time.
 - [ ] Phase 9 (alongside): lilToon frame cost (R11). Not started.
 - [ ] Phase 10: Diagnostics and Avatar settings in the Library and Create Anima
   (R5, R7 and R11 entry points; owner, 2026-10-27). Implemented, checked and
@@ -1848,15 +1850,125 @@ Completion: R13 acceptance.
 Recovery: the allowlist change is additive; reverting it makes packages with
 these Avatars fail to import again.
 
-Check record: (to fill) · Commits: (to fill)
+Delivered: package validation (`_GLTF_EXTENSIONS`) accepts the four
+extensions and `VRMC_springBone_extended_collider` (which `vrm:optimize`
+keeps); one shared `configureAvatarGltfLoader` gives every Avatar loader (app,
+headless, `animation:render`, the `vrm:optimize` compare page) the meshopt
+decoder, imported only for a file that uses or requires meshopt, and fails a
+file whose required extensions the runtime cannot load, naming them; one web
+list (`avatarGltfExtensions.ts`) drives that and Diagnostics' pre-load finding
+`avatar_extension_unsupported`; the import review marks such an Avatar with
+the notice `avatar_extension_unsupported` (a new `ImportItemNotice` value) before the user
+confirms; a shared fixture pins the backend list to the web loaders' list plus
+the undecoded one (Draco, accepted and reported per D4). Docs: backend
+`custom-animas-and-content.md` and `http-api.md`, `vrchat-avatar-conversion.md`,
+`vrm-optimization.md`.
+
+Contract: the new notice value changes the local HTTP schema and the
+generated client, so PR B needs local-http 18.0.0 and runtime-contracts 0.18.0
+relative to `main` after PR A (checked with `package_set.py compare` at PR
+time).
+
+Cloud repin note: hosted content-only package import is live (Cloud runs the
+shared `ContentPackageService` with Anima import disabled), so on repin the
+allowlist and the import notice take effect there: a meshopt, Draco or
+converter Avatar in a content package is accepted, and a Draco one shows the
+notice. Until then Cloud's backend rejects such files with the generic
+`package_definition_invalid`. The hosted web bundle loads the meshopt decoder
+only for such a file, under a CSP that already allows `'wasm-unsafe-eval'`;
+the landing site never decodes one. The repin should check that a meshopt
+Avatar imports and loads under the hosted CSP and that a Draco Avatar shows
+the notice, admit local-http 18 / runtime-contracts 0.18, and revisit Cloud's
+tenant inventory, which still lists `content_package_import.py` as excluded.
+
+Check record (2026-10-27, macOS arm64, worktree `feat/arbitrary-vrm-support-p8`
+from `06d381c9`; integrated with the PR B branch at `00e070eb`, tree
+`dce9dc4f`, each through `scripts/heavy-slot.py`): `make check-test`,
+`pnpm verify`, `pnpm web:test:browser`, `pnpm prettier:check` and
+`pnpm desktop:test` all exit 0. Code Review #1's checks reviewer reran the
+affected checks on the same tree, all passing: backend pytest on the 64
+affected files (1,103 passed) and the two named files (94 passed), ruff and
+format on the changed Python, vitest on the changed tests (472 passed) and
+every related test (2,044 passed), `pnpm check`, eslint, the
+`animation:render` browser test (2/2), `vrm:inspect` tests (3/3) and smoke
+runs of `vrm:optimize compare` and `verify`. After the repair (tree
+`ceed698c`): backend pytest on the 65 affected files 1,127 passed; ruff and
+format; eslint and related vitest on the changed files; `pnpm prettier:check`;
+`pnpm check` (after regenerating the i18n types) all pass. The optional
+round-2 changes (commit `b192d6b2`): the loader and import-review tests,
+eslint, `tsc` and ruff format pass. Merged into PR B: `tsc`, `i18n:check` and
+vitest on `src/lib/avatar src/ui/library src/ui/animas src/lib/content`
+(168 files, 1,887 passed). The full `pnpm e2e:test` runs on the final
+candidate.
+
+Commits: `feat(packages)[p8]: share Avatars that use converter, meshopt and Draco extensions`,
+`fix(packages)[p8]: name undecodable Avatars on import and load meshopt on demand`
 
 #### Code Review #1 Findings
 
-Not run.
+High-risk tier: an independent analysis reviewer and an independent checks
+reviewer (all checks passed; see the check record) on `00e070eb`. Every Avatar
+and VRMA loader goes through the shared configuration; a required unknown
+extension fails before any parse; the Included Avatars are unaffected; fixtures
+are synthetic.
+
+- P8-R1-F1 (blocking): R13 says an Avatar the runtime cannot load is reported
+  on import and in Diagnostics; only Diagnostics reported it.
+- P8-R1-F2 (blocking): the meshopt module compiles its WebAssembly when
+  evaluated, and its static import reached the landing site through `Avatar`,
+  whose CSP refuses WebAssembly: a console error on every page load.
+- P8-R1-F3 (record): the Cloud repin note was missing.
+- Optional: N1 `VRMC_springBone_extended_collider` loadable but refused by
+  packages, with no test pinning the two lists; N2 the Draco test passed
+  for an unrelated reason; N3 meshoptimizer's MIT notice in the runtime
+  notices; N4 name the extension in the backend's rejection; N5 meshopt in
+  the debug VRM editor.
 
 #### Code Review #1 Revisions
 
-Not run.
+- F1 accepted: the review's per-item `notices` gain
+  `avatar_extension_unsupported`, read from the Avatar model's glTF header
+  (`undecoded_gltf_extensions`, sharing the bounded reader with validation);
+  the import review lists such Avatars; SDK regenerated; locales in five
+  languages. Tests: the parametrized import test asserts the notice for Draco
+  only; a unit test of the reader; an import-review UI case.
+- F2 accepted: the decoder is imported in the loader plugin's `beforeRoot`
+  only for a meshopt file. A test counts zero module evaluations for a plain
+  file.
+- F3 accepted: the Cloud repin note above.
+- N1 accepted: the extension is accepted, and the shared fixture pins the
+  backend list to the web lists (tests on both sides). N2 accepted: the test
+  uses a VRM-shaped file and asserts three's own refusal, which comes before
+  any plugin. N3 deferred to the release licence review (runtime notices
+  need `license-sources.json` groups and per-path source-review records). N4
+  rejected: the archive inspector reports only the error code, so the
+  message never reaches the user. N5 deferred (debug only).
+
+#### Code Review #2 Findings
+
+Targeted recheck (high risk, with reruns: ruff, backend pytest 153, the SDK
+check, vitest 31 and related 2,001, eslint, `pnpm check`, `vrm:inspect`) of
+tree `ceed698c`: F1, F2, N1 and N2 resolved. A Node probe decoded required
+and used-only meshopt files; a Vite build put the decoder in its own chunk,
+reached only by dynamic import; hostile inputs to the header reader stayed
+bounded.
+
+- P8-R2-F1 (blocking, record): the drafted repin note said hosted beta had no
+  package import; Cloud runs content-only package import, so the change takes
+  effect there on repin.
+- Optional: F2 the notice read ran on the event loop; F3 a file listing
+  meshopt only as required got no decoder; the decoder's retry comment
+  overstated (a failed compile stayed cached).
+
+#### Code Review #2 Revisions
+
+- R2-F1 accepted: the repin note above says hosted import is live and what
+  the repin should check, and flags Cloud's stale inventory row.
+- Optional, all taken in `b192d6b2`: notices are computed with
+  `asyncio.to_thread`; the decoder loads when meshopt is used or required; a
+  failed import or compile is no longer cached. Verified by the loader and
+  import-review tests, eslint, `tsc` and ruff. The note's text is checked in
+  PR B's final integration review.
 
 ### Phase 9 (alongside): lilToon frame cost
 
