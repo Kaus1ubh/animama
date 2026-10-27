@@ -215,7 +215,8 @@ tenant-inventory row for `avatar_face_part_overrides`. So:
   live lip-sync checks, two confirmations) is pending.
 - [ ] Phase 5: Hands (R6). Implemented, checked and review passed
   2026-10-27; the owner gate (private hand Gesture renders) is pending.
-- [ ] Phase 6: Texture layouts (R2). Not started.
+- [ ] Phase 6: Texture layouts (R2). Implemented, checked and review passed
+  2026-10-27 (merged into PR B); no owner gate.
 - [ ] Phase 7: Rest pose, proportions and enhanced rendering (R9, R10).
   Implemented, checked and review passed 2026-10-27; the owner gate (scaling
   band, private Gesture renders on the T-pose and A-pose exports, the R10
@@ -1614,15 +1615,92 @@ Completion: R2 acceptance.
 
 Recovery: placement only; no data change.
 
-Check record: (to fill) · Commits: (to fill)
+Delivered: `full` art on a `face_skin` binding is clipped (a cached `Path2D`
+per binding and slot in `drawCompositedLayerCanvas`) to the face skin's own
+triangles on that image: the face's UV island (`selectFaceIsland`, shared with
+the anchors) plus islands outside its front-view outline (VRoid's ears), less
+the part map's eye-line and lash `regions` and, in a face primitive under 90%
+head-weighted, triangles not weighted to the head; the clip is made only when
+the image is shared with another primitive or those rules drop triangles, so
+VRoid faces on their own texture (the Included Avatars) draw as before. An
+opaque clipped replacement hides the original only inside its clip.
+`textureUvMapping.ts` maps UVs to image positions through `Texture.matrix`
+(three-vrm fills it from `KHR_texture_transform` and VRM 0 `_MainTex_ST`) and
+the wrap modes, for face anchors, `meshUvLocator.ts`, the clip and iris
+rectangles; the creator's surface hits map through the transform. Mirrored
+iris UVs are detected per eye and flipped per cell in `resolveIrisEyeLayout`
+(compositor, guides and drag handles). Docs: `avatar-vfx.md`.
+
+Check record (2026-10-27, macOS arm64, worktree `feat/arbitrary-vrm-support-p6`
+from `1ae2f37e`, final tree `dc7a0c22`): `npx vitest run src/lib/avatar src/ui
+tests/avatar` (`src/frontend/web`) 334 files passed, 1 skipped, 3,367 tests
+passed; `npx tsc -p tsconfig.app.json --noEmit` and `pnpm -s web:lint` exit 0;
+Prettier on the changed TS clean; Included renders of 12 painted and iris
+effects (face_red, texture_black_1, petrified_cracks, pale_blue_shade,
+texture_sick_1, blush, blush_band, mouth_w, single_tear, star3, heart_eyes,
+eye_confused_swirl) in both looks, `1ae2f37e` against `dc7a0c22`: 24 sheets at
+0 differing pixels. Merged into PR B (`90087fc7`): `tsc` and the same vitest
+set (337 files, 3,391 passed). Private renders on a converted model: not made
+(optional for this phase).
+
+Commits: `feat(avatars)[p6]: keep painted face art on the face's own texture region`,
+`fix(avatars)[p6]: clip whole-face art to the face island inside shared primitives`
 
 #### Code Review #1 Findings
 
-Not run.
+Independent reviewer, standard tier, on `76774ad9`. Verified correct: the UV
+mapping against three's shader (matrix, then wrap, mirrored repeat and
+negative tiles), `flipY`, the VRM 0 tiling port, the atlas test on shared
+image sources, winding, iris mirroring, cache invalidation, the
+`readPrimitiveVertexOrder` refactor and the licence boundary.
+
+- P6-R1-F1 (blocking): the clip kept every head-weighted triangle of a face
+  primitive, so an inner mouth, teeth, eyes or lash regions inside it still
+  took whole-face art; a head-skinned face primitive with an inner mouth on its
+  own texture got no clip; lash regions hidden by an eye effect made the cached
+  clip depend on order.
+- Optional: F2 the clip was retraced on every 30 Hz redraw; F3 a clipped
+  static replacement in a later segment let the original show through its
+  transparent pixels; F4/F5 docs precision (growth, mip seams, the VRoid
+  claim); F6 records and departures; F7 an unused helper.
 
 #### Code Review #1 Revisions
 
-Not run.
+- F1 accepted, with one departure: the clip keeps the face's island plus
+  islands outside its front-view outline, not the face island alone, because
+  VRoid's ears are separate islands (the face island is 3,288 of 4,232
+  triangles on the Included faces) and a face-island-only rule would clip the
+  Included Avatars. Eye-line and lash regions are removed by triangle number
+  before the island search, so hidden regions cannot change the clip. Tests:
+  an inner-mouth island and lash strands inside Annie's face primitive, a
+  hidden-lash equivalence, a region unit test and the VRoid face kept whole.
+- F2, F3, F4, F5 and F7 accepted (a cached `Path2D`; segment 0 clears the
+  original inside each opaque clipped replacement; docs; helper removed).
+- F6 departures recorded here: `readPrimitiveVertexOrder` and an exported
+  `selectFaceIsland` instead of exporting `selectFaceIslandTriangles` as is;
+  iris rectangles map through the iris texture's own transform; the creator's
+  surface hits map through the transform.
+
+#### Code Review #2 Findings
+
+Targeted recheck of `9dbf00c2`: every round-1 finding resolved; the outer-island
+rule accepted as a sound reading of R2 ("its UV island or islands"; VRoid's
+ears are face skin), orientation-safe on VRM 0. Mutation runs confirmed the
+tests discriminate (face island only fails 7; no region removal, no island
+selection, no head filter, `complete` forced and no base clear each fail at
+least one), except that nothing tests the `baseClips` rebuild trigger.
+Optional: that test; two doc precision notes (the main-files row; the head
+filter applies under 90% head-weighted); an image whose UVs or positions are
+interleaved stays unclipped; the island analysis runs per slot and could be
+cached per binding.
+
+#### Code Review #2 Revisions
+
+- Both doc notes taken (verified by reading). Not taken, recorded as
+  follow-ups: a `baseClips` trigger test (its path is exercised only when a
+  clipped replacement's opacity crosses 1) and caching the selection per
+  binding (a one-time cost per face slot). Interleaved attributes already keep
+  the face pipeline off, as before.
 
 ### Phase 7: Rest pose, proportions and enhanced rendering
 

@@ -24,7 +24,7 @@ Frontend paths are relative to `src/frontend/web/src/`.
 | Parser and limits      | `lib/avatar/vfx/definition.ts`, `effect-image-limits.ts`, `effect-image.ts`, `effectSource.ts`                                                         |
 | Runtime                | `lib/avatar/vfx/AvatarVFXController.ts`, `AvatarAttachmentEffects.ts`, `silhouetteOverlay.ts`, `animation.ts`, `types.ts`                              |
 | Face parts and anchors | `lib/avatar/vfx/faceParts.ts`, `profiles.ts` (name fallback), `AvatarFaceLandmarks.ts`, `AvatarFaceTextureAnchors.ts`, `lib/avatar/humanoidAnchors.ts` |
-| Texture layouts        | `lib/avatar/vfx/textureUvMapping.ts` (UVs to image positions), `faceSkinClip.ts` (whole-face clip on shared textures)                                  |
+| Texture layouts        | `lib/avatar/vfx/textureUvMapping.ts` (UVs to image positions), `faceSkinClip.ts` (clips whole-face art to the face skin)                               |
 | Creator                | `ui/avatar-effect-creator/`, editor document `lib/avatar/vfx/editor/`, shared creator code `ui/content-creator/`                                       |
 | Template picker        | `lib/effects/effectTemplates.ts`, `ui/create/EffectTemplatePickerDialog.tsx`, thumbnails `assets/effect-templates/`                                    |
 | Conversion             | `src/backend/animama/app/services/avatar_effect_conversion.py`, `scripts/content/convert_avatar_effects.py`                                            |
@@ -214,7 +214,9 @@ replaces that instance.
   face's UV island (`selectFaceIsland`, as anchors use) and the islands
   outside its outline in the front view, such as VRoid's ears, less any
   eye-line or lash `regions` and, in a primitive that also holds the neck or
-  body, the triangles not weighted to the head (`createFaceVertexFilter`).
+  body (under 90% head-weighted), the triangles not weighted to the head
+  (`createFaceVertexFilter`); a small neck island on a mostly head-weighted
+  face primitive lies outside the outline and keeps the art.
   An inner mouth, teeth or eyes inside the face's outline are left out. The
   clip is made only where it removes something: when another primitive's
   material also draws the image (a texture atlas), or when those rules drop
