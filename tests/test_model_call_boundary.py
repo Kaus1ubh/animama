@@ -336,7 +336,7 @@ async def test_memory_manager_wraps_the_actual_sdk_model_and_caps_all_runner_pat
 @pytest.mark.asyncio
 @pytest.mark.parametrize("api", ["chat", "responses"])
 async def test_bounded_sdk_calls_do_not_retry_http_errors(api):
-    import httpx
+    import httpx2
     from openai import AsyncOpenAI
 
     from animama.adapters.model_clients import OpenAIChatCompletionsModelClient, OpenAIResponsesModelClient
@@ -345,11 +345,11 @@ async def test_bounded_sdk_calls_do_not_retry_http_errors(api):
 
     def handle(value):
         sent.append(value)
-        return httpx.Response(
+        return httpx2.Response(
             429, json={"error": {"message": "rate limited", "type": "rate_limit_error", "code": "rate_limit_exceeded"}}
         )
 
-    sdk = AsyncOpenAI(api_key="fixture-only", http_client=httpx.AsyncClient(transport=httpx.MockTransport(handle)))
+    sdk = AsyncOpenAI(api_key="fixture-only", http_client=httpx2.AsyncClient(transport=httpx2.MockTransport(handle)))
     cls = OpenAIChatCompletionsModelClient if api == "chat" else OpenAIResponsesModelClient
     client = cls(client=sdk)
     boundary = Boundary()

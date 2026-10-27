@@ -64,7 +64,7 @@ class OpenAIAgentsRunner:
         ``turn_budget`` gives the resumed run that many more model turns. A
         resumed state keeps its turn count and its own ``max_turns``; the SDK
         ignores the ``max_turns`` passed to ``Runner.run`` with a state
-        (openai-agents 0.18). The budget is therefore written to the snapshot's
+        (openai-agents 0.18 through 0.24). The budget is therefore written to the snapshot's
         public ``max_turns`` field, relative to its ``current_turn``, before
         ``RunState.from_json`` reads it.
         """
