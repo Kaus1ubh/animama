@@ -696,14 +696,16 @@ export default interface Resources {
         "milliseconds": "{{value}} ms",
         "nextLoad": "Next load: {{state}} · {{why}} (measured since this load)",
         "rendered": "Rendered with lilToon",
+        "renderedAt": "Rendered with lilToon at {{fps}} fps",
         "simple": "Simple materials",
         "value": "{{state}} · {{why}}",
         "why": {
           "automatic": "chosen by Automatic",
-          "automaticFast": "chosen by Automatic: this GPU drew a lilToon frame in {{measured}}, within the {{threshold}} limit",
           "automaticNotMeasured": "chosen by Automatic: this GPU's lilToon frame time is not measured yet",
-          "automaticSlow": "chosen by Automatic: this GPU drew a lilToon frame in {{measured}}, over the {{threshold}} limit",
+          "automaticRemeasuring": "chosen by Automatic: this GPU drew a lilToon frame in {{measured}}, over the {{budget}} budget for {{fps}} fps; measuring again before choosing Simple",
+          "automaticSlow": "chosen by Automatic: this GPU drew a lilToon frame in {{measured}}, over the {{budget}} budget for {{fps}} fps",
           "automaticUnsupported": "chosen by Automatic: this browser cannot time the GPU",
+          "automaticWithin": "chosen by Automatic: this GPU drew a lilToon frame in {{measured}}, within the {{budget}} budget for {{fps}} fps",
           "chosen": "set to {{mode}}",
           "failed": "lilToon could not load"
         }
@@ -6071,7 +6073,7 @@ export default interface Resources {
     "animaSettings": {
       "avatar": {
         "materials": {
-          "description": "lilToon draws this Avatar as authored; Simple costs less to draw. Automatic uses lilToon unless this device's GPU drew it too slowly, then Simple. Applies wherever the Avatar is used, and reloads it.",
+          "description": "lilToon draws this Avatar as authored; Simple costs less to draw. Automatic keeps lilToon and lowers the frame rate to 45, 30 or 24 fps when this device's GPU needs it; it uses Simple only when even 24 fps is too much. Applies wherever the Avatar is used, and reloads it.",
           "label": "Materials",
           "modes": {
             "automatic": "Automatic",

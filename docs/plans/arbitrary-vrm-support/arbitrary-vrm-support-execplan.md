@@ -227,9 +227,12 @@ tenant-inventory row for `avatar_face_part_overrides`. So:
   0.18.0 for the import notice (`45d207a8`); the full `pnpm e2e:test` runs on
   the final candidate.
 - [ ] Phase 9 (alongside): lilToon frame cost (R11). Implemented, checked and
-  review passed 2026-10-27 (merged into PR B); the owner gate (the measured
-  result against the target, the 8 ms threshold, the pre-pass and
-  re-measurement options) is pending.
+  review passed 2026-10-27 (merged into PR B). The owner's frame-cap decision
+  (Decision Log, 2026-10-27) replaced the 8 ms threshold and the
+  re-measurement options; its repair passed Code Review #3 the same day. The
+  owner gate (the measured result against the target, the inert pre-pass,
+  whether the cap should differ while the Avatar speaks, and a live check of
+  the cap) is pending.
 - [ ] Phase 10: Diagnostics and Avatar settings in the Library and Create Anima
   (R5, R7 and R11 entry points; owner, 2026-10-27). Implemented, checked and
   review passed 2026-10-27 on `feat/arbitrary-vrm-support-pr-b`;
@@ -514,6 +517,27 @@ tenant-inventory row for `avatar_face_part_overrides`. So:
     proposed 8 ms threshold; for the owner: the threshold, and whether to
     re-measure (near or over the threshold, by age) instead of the documented
     manual reset. Only the main canvas measures. No app-wide setting.
+- 2026-10-27, owner (relayed by the PR A session): Automatic is lilToon-first.
+  Under Automatic a lilToon Avatar keeps lilToon, and the canvas showing it
+  renders at the highest of 60, 45, 30 or 24 fps its GPU sustains; Simple only
+  below 24 fps or when the user picks it. This replaces the 8 ms threshold and
+  settles Phase 9's threshold and re-measurement gate items. Agent choices
+  within it (Phase 9, "Owner decision repair"):
+  - Budget: frame time × 1.3 within the frame interval (60 fps up to 12.8 ms,
+    45 up to 17.1, 30 up to 25.6, 24 up to 32.1), the owner's suggested
+    headroom; the only tuning evidence is the reference GPU's.
+  - Robustness: one measurement per session until three are kept, then
+    weekly; the fastest decides. Simple needs two measurements too slow for
+    24 fps with the newest under a week old; until then lilToon at 24 fps,
+    because only lilToon frames can be measured again.
+  - Materials and cap are chosen at load; a later measurement applies from
+    the next load (Diagnostics "Next load").
+  - The cap applies on every paced canvas showing the Avatar, Picture in
+    Picture included (it shares the chat `Scene`), active or idle (idle is
+    the lower of the cap and 30), speaking included. Explicit lilToon is never
+    capped; Avatars without lilToon materials, such as the Included ones, are
+    unaffected.
+  - For the owner: whether the cap should differ while the Avatar speaks.
 
 ## Decisions
 
@@ -2198,7 +2222,8 @@ The 12.45 ms reading was steady across its passes and opened the descending
 run: a heavier regime the M5 entered at times under other sessions' load. One
 such reading during the one-time measurement would keep the M5 on Simple
 under Automatic until the stored result is cleared (documented reset; the
-policy is the owner's).
+policy is the owner's). Superseded by the owner's frame-cap decision: see
+"Owner decision repair" below.
 
 Check record (2026-10-27, macOS arm64, worktree `feat/arbitrary-vrm-support-p9`
 from `1ae2f37e`, merged with `main` `fd4c86c5`; final tree at `fbbca3f8`,
@@ -2288,6 +2313,96 @@ the threshold; evidence from one GPU only.
 - R2-F1 accepted (trivial, verified by reading the code path): both now say
   to reload. Not taken: keeping the passes on a failed check install (the
   path is practically unreachable; failing whole is the simpler contract).
+
+#### Owner decision repair: Automatic frame cap
+
+The owner's decision of 2026-10-27 (Decision Log) replaces step 3's
+threshold, as a repair within this phase's review budget. The live check
+prompted it: the reference M5 stored 14.4 ms once under other sessions' load
+against 5.5–7 ms in the bench, which the threshold turned into Simple.
+
+- `liltoon/lilToonGpuCheck.ts`: `decideAutomaticMaterials` returns the frame
+  cap (`fpsCap`), the rate judged (`budgetFps`), the sample count and the
+  reasons `fast`, `capped`, `remeasuring`, `slow`, `not_measured` and
+  `unsupported`. Each GPU keeps its newest three measurements (`METHOD` 2,
+  so earlier single results are measured again). `lilToonGpuCheckDue` and an
+  hourly check while the main canvas stays mounted implement the
+  re-measurement; repeated disjoint timings wait for the next check.
+  `LILTOON_AUTOMATIC_MAX_FRAME_MS` is gone.
+- `canvasFrameCap.ts`: caps keyed by canvas element, the lowest winning.
+  `Avatar.load` sets its cap on the canvas it was constructed with when its
+  lilToon materials rendered under Automatic; `unload` clears it. Every paced
+  Avatar canvas constructs its Avatars with `gl.domElement` (chat and PiP
+  `AvatarCanvasActor`, the Anima page stage, the content preview dock, the
+  content and Pose creators, Create Anima's stage and preview); the
+  off-screen Diagnostics load has no canvas.
+- `SceneFramePacer` reads its canvas's cap each display frame;
+  `sceneTargetFps` takes the lower of the scene's rate and the cap.
+- Diagnostics names the rate ("Rendered with lilToon at 45 fps") and gives
+  the fastest measurement against that rate's budget, or "measuring again
+  before choosing Simple"; the report line likewise. The Materials
+  description says Automatic lowers the frame rate. Five languages.
+- From the live-check recheck (below): the probe's `powerPreference`
+  (R-F2), and "Next load" now compares only materials and cap, so finding
+  that a browser cannot time the GPU no longer shows as a change.
+- Tests: tier boundaries (12.8/12.9, 17.0/17.1, 25.6/25.7 and 32.0/32.1 ms);
+  Simple only after two recent too-slow measurements, and staleness; recovery
+  to a faster later measurement; measuring once per session until three,
+  then after a week while the canvas stays mounted; rolling storage and the
+  method change; a full `Avatar.load` capping its canvas (lilToon under
+  Automatic) and not (explicit lilToon; a file without lilToon); the pacer
+  rendering 30 of 120 display frames a second under a 30 cap and 60 once it
+  lifts; capped pacing at 45 and 24 fps on 60, 120 and 144 Hz; the lowest
+  cap of several; stored measurements kept in a session that cannot time the
+  GPU; dialog and report text. Mutations: without the Avatar's
+  cap or the pacer's read, the respective test fails.
+- Check record (2026-10-27, `src/frontend/web`, tree `11464869` before this
+  line): `npx tsc -p tsconfig.app.json --noEmit`; eslint and Prettier on the
+  changed TS/TSX files; `pnpm i18n:check`; `npx vitest run src/lib/avatar
+  src/ui tests/avatar src/lib/content src/lib/content-preview src/query
+  src/routes` 425 files passed, 1 skipped, 3,959 tests passed; the two
+  mutations above. Not run here: the final candidate's frontend suite and
+  e2e, and a live check on the converted test Avatar.
+
+#### Code Review #3 Findings
+
+Targeted recheck of the repair (tree `a39247c5`), standard tier, final round.
+No code defect. Required:
+
+- P9-R3-F1 (records): Phase 9's Progress entry still listed the 8 ms
+  threshold and re-measurement as owner gate items and omitted the speaking
+  question.
+
+Optional: a load overlapping another on one Avatar (the preview dock reuses
+its Avatar) could leave the earlier load's cap on a file without lilToon,
+because the cap was set only for rendered lilToon; a session without the
+timer extension overwrote stored measurements with "unsupported"; a disjoint
+give-up could retry at once after a long round; three comments still said
+"first lilToon frames"; no test of 24 fps at 120 Hz; "the fastest of 1
+measurements" in the report; the Japanese settings text listed the rates
+without "or"; the per-surface `gl.domElement` construction is shown by
+reading (all seven paced Avatar constructions; none missed), not a test.
+Owner gate: the spec snapshot and issue #691 still describe Automatic as
+"lilToon unless too slow, then Simple"; the live check of the cap; the 1.3×
+headroom rests on one GPU; measurements now often run on capped canvases.
+
+#### Code Review #3 Revisions
+
+- P9-R3-F1 accepted (trivial, verified by reading): Progress updated.
+- Optional taken: `Avatar.load` always sets its cap (null without rendered
+  lilToon); a session that cannot time the GPU marks only an unmeasured GPU
+  unsupported (test added); a give-up schedules the next check; the three
+  comments; a 24 fps at 120 Hz assertion; "the only lilToon frame
+  measurement" for one; 「45、30 または 24 fps」. Affected checks
+  (`src/frontend/web`): tsc, eslint, Prettier, `pnpm i18n:check`, and vitest
+  on `src/lib/avatar/liltoon src/lib/avatar/avatarMaterialMode.test.ts
+  src/lib/avatar/canvasFrameCap.test.ts src/lib/avatar/diagnostics
+  src/ui/animas/AvatarDiagnosticsDialog.test.tsx src/ui/main/canvas` 20 files,
+  133 tests passed. Not taken: a per-surface construction test (seven call
+  sites read; a source scan would be brittle).
+- Spec: R11's Automatic bullet and decision 7 in the tracked snapshot now
+  record the owner's frame cap; updating issue #691's text is the owner's
+  call.
 
 ### Phase 10: Diagnostics and Avatar settings in the Library and Create Anima
 
@@ -2840,6 +2955,50 @@ Library's Avatar settings); all worked except:
   `fd4c86c5`: 20 sheets at 0 differing pixels (Shy Finger Poke, enhanced,
   first differed by 4 pixels and re-rendered twice at 0). The live recheck on
   the converted test Avatar is the PR A session's, on the new head.
+
+### PR B live check #1 Recheck Findings
+
+Targeted recheck of `22cd2c31` (tree `6ad5bef5`; the check record's tree
+`f7f27dee` differs only in the ExecPlan), standard tier. F1 is resolved: the
+blink fill order is own preset with binds, then MMD, then ARKit; refilling is
+idempotent; the filled presets stay under three-vrm's name-based
+`overrideBlink`; the eyelid correction's skip covers both fills; both
+Included Avatars bind their own blink presets and have no MMD blink morphs,
+so neither fill applies to them. F2 is resolved where one GPU draws
+everything. Required:
+
+- PRB-LC1-R-F1 (docs): `avatar-emotion.md` still said only the mood table's
+  MMD names are used and did not describe the blink fill;
+  `avatar-animation.md` described the pre-fix lookup (latest canvas only),
+  and neither it nor `anima-management.md` mentioned "Next load".
+- PRB-LC1-R-F2: the probe's context asked for the default `powerPreference`
+  while R3F's canvases ask for `"high-performance"`, so on a two-GPU machine
+  honouring it (Intel MacBook Pros) the probe could name the integrated GPU
+  and Library loads would read no measurement (safe: lilToon). Apple Silicon
+  is unaffected.
+
+Optional: "not measured" to "unsupported" showed as a Next-load change; the
+Japanese Next-load string used 測定 beside 計測; the ARKit test's last
+assertion passes without the fill, and no test fills `blink` from まばたき;
+on faces with MMD and ARKit, `blinkLeft` plays ウィンク while
+`Fcl_EYE_Close_L` keeps ARKit's (the Phase 4 part order); `faceParts.ts` now
+sees a filled `blink` on files whose own is empty. Owner check: in the live
+recheck, `blinkLeft` closes the converted Avatar's own left eye.
+
+### PR B live check #1 Recheck Revisions
+
+- R-F1 accepted (trivial, docs; verified by reading against the code):
+  `avatar-emotion.md` names the blink morphs and gains a bullet on the fill
+  order, `overrideBlink` and the correction; `avatar-animation.md` and
+  `anima-management.md` describe the probe and "Next load", rewritten with
+  Phase 9's frame-cap repair.
+- R-F2 accepted (one line, in the frame-cap repair): the probe asks for
+  `powerPreference: "high-performance"` for both context types. Not unit
+  tested (the tests inject the probed GPU; happy-dom has no WebGL).
+- Optional taken: Next load compares materials and cap only (tested); 計測 in
+  the Japanese string. Not taken: the test and `faceParts.ts` notes (no
+  defect; the Included Avatars bind their own `blink`) and the mixed-face
+  wink order (Phase 4's documented order).
 
 ## Validation and acceptance
 

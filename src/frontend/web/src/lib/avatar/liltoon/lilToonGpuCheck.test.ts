@@ -2,16 +2,22 @@ import * as THREE from "three";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
-  LILTOON_AUTOMATIC_MAX_FRAME_MS,
   LILTOON_GPU_CHECK,
+  LILTOON_GPU_SAMPLES,
+  LILTOON_REMEASURE_AFTER_MS,
+  automaticDecisionSinceLoad,
   automaticMaterialsDecision,
   decideAutomaticMaterials,
   installLilToonGpuCheck,
+  lilToonFrameBudgetMs,
+  lilToonGpuCheckDue,
   readLilToonGpuMeasurement,
+  recordLilToonGpuSample,
   rememberAvatarCanvasGpu,
   resetAvatarCanvasGpuForTesting,
   writeLilToonGpuMeasurement,
   type LilToonGpuMeasurement,
+  type LilToonGpuSample,
 } from "./lilToonGpuCheck";
 
 /** A per-viewer storage stand-in. */
@@ -44,15 +50,24 @@ function refusingStorage(): Storage {
   };
 }
 
-const measured = (
-  frameMs: number,
-): Extract<LilToonGpuMeasurement, { status: "measured" }> => ({
-  status: "measured",
-  method: 1,
+const NOW = Date.parse("2026-10-27T12:00:00.000Z");
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** One measurement, taken `daysAgo` before `NOW`. */
+const sample = (frameMs: number, daysAgo = 0): LilToonGpuSample => ({
   frameMs,
   frames: 60,
   pixels: 1_920_000,
-  measuredAt: "2026-10-27T00:00:00.000Z",
+  measuredAt: new Date(NOW - daysAgo * DAY_MS).toISOString(),
+});
+
+/** A GPU's stored measurements, oldest first, all taken today. */
+const measured = (
+  ...frameMs: number[]
+): Extract<LilToonGpuMeasurement, { status: "measured" }> => ({
+  status: "measured",
+  method: 2,
+  samples: frameMs.map((value) => sample(value)),
 });
 
 const TIMER = { TIME_ELAPSED_EXT: 0x88bf, GPU_DISJOINT_EXT: 0x8fbb };
@@ -167,36 +182,114 @@ const ALL_FRAMES =
 afterEach(() => {
   resetAvatarCanvasGpuForTesting();
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 describe("decideAutomaticMaterials", () => {
-  it("chooses Simple above the threshold and lilToon otherwise", () => {
-    expect(decideAutomaticMaterials(measured(9.6))).toEqual({
+  it("keeps lilToon at the highest frame rate whose budget the frame fits", () => {
+    // Budgets with 1.3× headroom: 12.8, 17.1, 25.6 and 32.1 ms.
+    expect(lilToonFrameBudgetMs(60)).toBeCloseTo(12.82, 2);
+    expect(lilToonFrameBudgetMs(24)).toBeCloseTo(32.05, 2);
+    const cases: [number, number, string][] = [
+      [5.5, 60, "fast"],
+      [12.8, 60, "fast"],
+      [12.9, 45, "capped"],
+      [14.4, 45, "capped"],
+      [17.0, 45, "capped"],
+      [17.1, 30, "capped"],
+      [25.6, 30, "capped"],
+      [25.7, 24, "capped"],
+      [32.0, 24, "capped"],
+    ];
+    for (const [frameMs, fpsCap, reason] of cases)
+      expect(decideAutomaticMaterials(measured(frameMs), NOW)).toMatchObject({
+        choice: "liltoon",
+        reason,
+        fpsCap,
+        budgetFps: fpsCap,
+        frameMs,
+        samples: 1,
+      });
+  });
+
+  it("loads Simple only after two recent measurements too slow for 24 fps", () => {
+    // One measurement: lilToon at 24 fps, so the canvas can measure again.
+    expect(decideAutomaticMaterials(measured(32.1), NOW)).toMatchObject({
+      choice: "liltoon",
+      reason: "remeasuring",
+      fpsCap: 24,
+      budgetFps: 24,
+    });
+    expect(decideAutomaticMaterials(measured(40, 33), NOW)).toEqual({
       choice: "simple",
       reason: "slow",
-      frameMs: 9.6,
+      fpsCap: null,
+      budgetFps: 24,
+      frameMs: 33,
       pixels: 1_920_000,
-      thresholdMs: LILTOON_AUTOMATIC_MAX_FRAME_MS,
+      samples: 2,
     });
-    expect(decideAutomaticMaterials(measured(5.2))).toMatchObject({
+    // Measurements over a week old are confirmed again first.
+    const stale: LilToonGpuMeasurement = {
+      status: "measured",
+      method: 2,
+      samples: [sample(40, 9), sample(36, 8)],
+    };
+    expect(decideAutomaticMaterials(stale, NOW)).toMatchObject({
       choice: "liltoon",
-      reason: "fast",
-    });
-    expect(decideAutomaticMaterials(measured(5.2), 4)).toMatchObject({
-      choice: "simple",
-      thresholdMs: 4,
+      reason: "remeasuring",
+      fpsCap: 24,
     });
   });
 
-  it("keeps lilToon when nothing was measured or the GPU cannot be timed", () => {
-    expect(decideAutomaticMaterials(null)).toMatchObject({
+  it("uses the fastest stored measurement, so a later faster one recovers", () => {
+    // One taken while the machine was busy, then an idle one.
+    expect(decideAutomaticMaterials(measured(14.4, 6), NOW)).toMatchObject({
+      choice: "liltoon",
+      reason: "fast",
+      fpsCap: 60,
+      frameMs: 6,
+      samples: 2,
+    });
+    expect(decideAutomaticMaterials(measured(40, 20), NOW)).toMatchObject({
+      choice: "liltoon",
+      fpsCap: 30,
+    });
+  });
+
+  it("keeps lilToon uncapped when nothing was measured or the GPU cannot be timed", () => {
+    expect(decideAutomaticMaterials(null)).toEqual({
       choice: "liltoon",
       reason: "not_measured",
+      fpsCap: null,
+      budgetFps: null,
       frameMs: null,
+      pixels: null,
+      samples: 0,
     });
     expect(
-      decideAutomaticMaterials({ status: "unsupported", method: 1 }),
-    ).toMatchObject({ choice: "liltoon", reason: "unsupported" });
+      decideAutomaticMaterials({ status: "unsupported", method: 2 }),
+    ).toMatchObject({ choice: "liltoon", reason: "unsupported", fpsCap: null });
+  });
+});
+
+describe("lilToonGpuCheckDue", () => {
+  it("measures each session until three measurements, then weekly", () => {
+    expect(lilToonGpuCheckDue(null, false, NOW)).toBe(true);
+    expect(lilToonGpuCheckDue(measured(9), false, NOW)).toBe(true);
+    expect(lilToonGpuCheckDue(measured(9), true, NOW)).toBe(false);
+    const full = measured(9, 8, 7);
+    expect(full.samples).toHaveLength(LILTOON_GPU_SAMPLES);
+    expect(lilToonGpuCheckDue(full, false, NOW)).toBe(false);
+    expect(
+      lilToonGpuCheckDue(full, true, NOW + LILTOON_REMEASURE_AFTER_MS + 1),
+    ).toBe(true);
+  });
+
+  it("checks a browser that could not time the GPU again each session", () => {
+    const unsupported = { status: "unsupported", method: 2 } as const;
+    expect(lilToonGpuCheckDue(unsupported, false, NOW)).toBe(true);
+    expect(lilToonGpuCheckDue(unsupported, true, NOW)).toBe(false);
   });
 });
 
@@ -205,22 +298,51 @@ describe("stored measurements", () => {
     const storage = memoryStorage();
     writeLilToonGpuMeasurement(
       "gpu-a",
-      { ...measured(9), pixels: LILTOON_GPU_CHECK.minPixels - 1 },
+      {
+        ...measured(9),
+        samples: [{ ...sample(9), pixels: LILTOON_GPU_CHECK.minPixels - 1 }],
+      },
       storage,
     );
     expect(readLilToonGpuMeasurement("gpu-a", storage)).toBeNull();
   });
 
-  it("keep one result per GPU and ignore other methods and bad data", () => {
+  it("keep the newest three measurements per GPU", () => {
     const storage = memoryStorage();
-    writeLilToonGpuMeasurement("gpu-a", measured(9), storage);
-    writeLilToonGpuMeasurement("gpu-b", measured(4), storage);
-    expect(readLilToonGpuMeasurement("gpu-a", storage)).toEqual(measured(9));
+    for (const frameMs of [14.4, 6, 7, 8])
+      recordLilToonGpuSample("gpu-a", sample(frameMs), storage);
+    recordLilToonGpuSample("gpu-b", sample(4), storage);
+    expect(readLilToonGpuMeasurement("gpu-a", storage)).toEqual(
+      measured(6, 7, 8),
+    );
     expect(readLilToonGpuMeasurement("gpu-b", storage)).toEqual(measured(4));
     expect(readLilToonGpuMeasurement("gpu-c", storage)).toBeNull();
+  });
 
-    writeLilToonGpuMeasurement("gpu-a", { ...measured(9), method: 0 }, storage);
+  it("ignore other methods and bad data", () => {
+    const storage = memoryStorage();
+    writeLilToonGpuMeasurement("gpu-a", { ...measured(9), method: 1 }, storage);
     expect(readLilToonGpuMeasurement("gpu-a", storage)).toBeNull();
+    writeLilToonGpuMeasurement(
+      "gpu-a",
+      { ...measured(9), samples: [{ ...sample(9), measuredAt: "never" }] },
+      storage,
+    );
+    expect(readLilToonGpuMeasurement("gpu-a", storage)).toBeNull();
+    writeLilToonGpuMeasurement(
+      "gpu-a",
+      { ...measured(), samples: [] },
+      storage,
+    );
+    expect(readLilToonGpuMeasurement("gpu-a", storage)).toBeNull();
+    // The previous method's single result: measured again.
+    storage.setItem(
+      "animama.lilToonGpuCheck",
+      JSON.stringify({
+        "gpu-b": { ...sample(9), status: "measured", method: 1 },
+      }),
+    );
+    expect(readLilToonGpuMeasurement("gpu-b", storage)).toBeNull();
     storage.setItem("animama.lilToonGpuCheck", "not json");
     expect(readLilToonGpuMeasurement("gpu-b", storage)).toBeNull();
   });
@@ -242,17 +364,36 @@ describe("automaticMaterialsDecision", () => {
     expect(automaticMaterialsDecision().reason).toBe("not_measured");
 
     const slowGpu = fakeGl({ gpu: "Slow GPU" });
-    writeLilToonGpuMeasurement("Apple | Slow GPU", measured(12), storage);
+    writeLilToonGpuMeasurement("Apple | Slow GPU", measured(20), storage);
     rememberAvatarCanvasGpu(fakeRenderer(slowGpu).renderer);
     expect(automaticMaterialsDecision()).toMatchObject({
-      choice: "simple",
-      reason: "slow",
-      frameMs: 12,
+      choice: "liltoon",
+      reason: "capped",
+      fpsCap: 30,
+      frameMs: 20,
     });
 
     // A different GPU has its own (here missing) measurement.
     rememberAvatarCanvasGpu(fakeRenderer(fakeGl({ gpu: "Other" })).renderer);
     expect(automaticMaterialsDecision().reason).toBe("not_measured");
+  });
+
+  it("reports a change since a load only when the materials or cap change", () => {
+    const storage = memoryStorage();
+    vi.stubGlobal("localStorage", storage);
+    resetAvatarCanvasGpuForTesting("gpu-a");
+    const atLoad = automaticMaterialsDecision();
+    expect(automaticDecisionSinceLoad(atLoad)).toBeNull();
+    // A browser found unable to time the GPU: still lilToon, uncapped.
+    writeLilToonGpuMeasurement(
+      "gpu-a",
+      { status: "unsupported", method: 2 },
+      storage,
+    );
+    expect(automaticDecisionSinceLoad(atLoad)).toBeNull();
+    writeLilToonGpuMeasurement("gpu-a", measured(14.4), storage);
+    expect(automaticDecisionSinceLoad(atLoad)).toMatchObject({ fpsCap: 45 });
+    expect(automaticDecisionSinceLoad(null)).toBeNull();
   });
 });
 
@@ -271,23 +412,76 @@ describe("installLilToonGpuCheck", () => {
       readLilToonGpuMeasurement("Apple | Apple M5", storage),
     ).toMatchObject({
       status: "measured",
-      frameMs: 9.6,
-      frames: LILTOON_GPU_CHECK.frames,
-      pixels: 1600 * 1200,
+      samples: [
+        {
+          frameMs: 9.6,
+          frames: LILTOON_GPU_CHECK.frames,
+          pixels: 1600 * 1200,
+        },
+      ],
     });
     release();
     expect(renderer.render).toBe(render);
   });
 
-  it("reuses a stored measurement instead of timing again", () => {
+  it("measures once per session until it has three measurements", () => {
+    vi.spyOn(console, "info").mockImplementation(() => {});
     const storage = memoryStorage();
-    writeLilToonGpuMeasurement("Apple | Apple M5", measured(5), storage);
-    const { renderer, render } = fakeRenderer(fakeGl());
+    const frameTimes = () =>
+      (
+        readLilToonGpuMeasurement("Apple | Apple M5", storage) as {
+          samples: LilToonGpuSample[];
+        }
+      ).samples.map((entry) => entry.frameMs);
+    writeLilToonGpuMeasurement("Apple | Apple M5", measured(14.4), storage);
+
+    const first = fakeRenderer(fakeGl({ frameNs: constant(6_000_000) }));
+    installLilToonGpuCheck(first.renderer, storage);
+    renderFrames(first.renderer, lilToonScene(), ALL_FRAMES * 2);
+    expect(frameTimes()).toEqual([14.4, 6]);
+
+    // A remounted chat canvas in the same session measures nothing.
+    const again = fakeRenderer(fakeGl({ frameNs: constant(7_000_000) }));
+    installLilToonGpuCheck(again.renderer, storage);
+    renderFrames(again.renderer, lilToonScene(), ALL_FRAMES);
+    expect(frameTimes()).toEqual([14.4, 6]);
+
+    // The next session measures once more; with three it stops.
+    resetAvatarCanvasGpuForTesting();
+    const next = fakeRenderer(fakeGl({ frameNs: constant(7_000_000) }));
+    installLilToonGpuCheck(next.renderer, storage);
+    renderFrames(next.renderer, lilToonScene(), ALL_FRAMES);
+    expect(frameTimes()).toEqual([14.4, 6, 7]);
+    resetAvatarCanvasGpuForTesting();
+    const settled = fakeRenderer(fakeGl({ frameNs: constant(5_000_000) }));
+    installLilToonGpuCheck(settled.renderer, storage);
+    renderFrames(settled.renderer, lilToonScene(), ALL_FRAMES);
+    expect(frameTimes()).toEqual([14.4, 6, 7]);
+  });
+
+  it("measures again once the newest measurement is a week old", () => {
+    vi.spyOn(console, "info").mockImplementation(() => {});
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(NOW);
+    const storage = memoryStorage();
+    writeLilToonGpuMeasurement("Apple | Apple M5", measured(9, 9, 9), storage);
+    const { renderer } = fakeRenderer(fakeGl({ frameNs: constant(5e6) }));
     installLilToonGpuCheck(renderer, storage);
-    expect(renderer.render).toBe(render);
+    renderFrames(renderer, lilToonScene(), ALL_FRAMES);
     expect(readLilToonGpuMeasurement("Apple | Apple M5", storage)).toEqual(
-      measured(5),
+      measured(9, 9, 9),
     );
+
+    // The canvas stays mounted; it looks again at its next hourly check.
+    vi.setSystemTime(
+      NOW + LILTOON_REMEASURE_AFTER_MS + LILTOON_GPU_CHECK.recheckMs,
+    );
+    renderFrames(renderer, lilToonScene(), ALL_FRAMES);
+    const stored = readLilToonGpuMeasurement("Apple | Apple M5", storage);
+    expect(
+      stored?.status === "measured" &&
+        stored.samples.map((entry) => entry.frameMs),
+    ).toEqual([9, 9, 5]);
   });
 
   it("stores unsupported where the browser cannot time the GPU", () => {
@@ -297,8 +491,20 @@ describe("installLilToonGpuCheck", () => {
     expect(renderer.render).toBe(render);
     expect(readLilToonGpuMeasurement("Apple | Apple M5", storage)).toEqual({
       status: "unsupported",
-      method: 1,
+      method: 2,
     });
+  });
+
+  it("keeps stored measurements in a session that cannot time the GPU", () => {
+    const storage = memoryStorage();
+    writeLilToonGpuMeasurement("Apple | Apple M5", measured(20), storage);
+    installLilToonGpuCheck(
+      fakeRenderer(fakeGl({ timer: false })).renderer,
+      storage,
+    );
+    expect(readLilToonGpuMeasurement("Apple | Apple M5", storage)).toEqual(
+      measured(20),
+    );
   });
 
   it("times nothing without lilToon, on small canvases or inside another timer", () => {
@@ -320,7 +526,9 @@ describe("installLilToonGpuCheck", () => {
     expect(readLilToonGpuMeasurement("Apple | Apple M5", storage)).toBeNull();
   });
 
-  it("gives up for the session when the GPU keeps reporting disjoint timings", () => {
+  it("gives up until its next check when the GPU keeps reporting disjoint timings", () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(NOW);
     const storage = memoryStorage();
     const gl = fakeGl({ disjoint: () => true });
     const { renderer } = fakeRenderer(gl);
@@ -329,6 +537,9 @@ describe("installLilToonGpuCheck", () => {
     expect(readLilToonGpuMeasurement("Apple | Apple M5", storage)).toBeNull();
     // It stops reading the flag once it has given up.
     expect(gl.disjointReads()).toBe(LILTOON_GPU_CHECK.maxDisjoint + 1);
+    vi.setSystemTime(NOW + LILTOON_GPU_CHECK.recheckMs);
+    renderFrames(renderer, lilToonScene(), ALL_FRAMES * 2);
+    expect(gl.disjointReads()).toBe(2 * (LILTOON_GPU_CHECK.maxDisjoint + 1));
   });
 
   it("keeps timing after a few disjoint events and stores the median", () => {
@@ -344,7 +555,7 @@ describe("installLilToonGpuCheck", () => {
     renderFrames(renderer, lilToonScene(), ALL_FRAMES + 10);
     expect(
       readLilToonGpuMeasurement("Apple | Apple M5", storage),
-    ).toMatchObject({ status: "measured", frameMs: 8 });
+    ).toMatchObject({ status: "measured", samples: [{ frameMs: 8 }] });
   });
 
   it("reads the disjoint flag only for frames it timed", () => {

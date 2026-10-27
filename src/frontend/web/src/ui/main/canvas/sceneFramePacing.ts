@@ -68,14 +68,22 @@ export function useSceneFrameDemand(): SceneFrameDemand | null {
  */
 export const PREVIEW_CANVAS_DPR: [number, number] = [1, 1.5];
 
-/** The frame rate the scene needs now. */
+/**
+ * The frame rate the scene needs now, at most `capFps`: the canvas's frame
+ * cap (`canvasFrameCap`), set by an Avatar whose lilToon frames this GPU
+ * draws too slowly for the full rate. An idle Avatar's rate stays at or
+ * below the cap.
+ */
 export function sceneTargetFps(
   demand: SceneFrameDemand,
   nowMs: number,
+  capFps: number | null = null,
 ): number {
-  return demand.avatarIdle && nowMs - demand.lastInputMs > SCENE_INPUT_ACTIVE_MS
-    ? IDLE_SCENE_FPS
-    : ACTIVE_SCENE_FPS;
+  const fps =
+    demand.avatarIdle && nowMs - demand.lastInputMs > SCENE_INPUT_ACTIVE_MS
+      ? IDLE_SCENE_FPS
+      : ACTIVE_SCENE_FPS;
+  return capFps === null ? fps : Math.min(fps, capFps);
 }
 
 /**

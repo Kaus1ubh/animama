@@ -1662,39 +1662,59 @@ adapts colour and UV expression binds to those materials.
   ([Avatar settings](../features/anima-management.md#avatar-settings)) loads
   it through a loader without `withOnDemandLilToon` (`createAvatarGltfLoader`
   in `avatarGltfLoader.ts`), so the glTF fallback materials load and
-  three-liltoon is not imported. lilToon always loads lilToon; Automatic
-  loads it unless the GPU check below chose Simple. `Avatar.lilToonMaterials`
-  reports `rendered`, `fallback` or `none`, and `Avatar.automaticMaterials`
-  what Automatic chose and why.
+  three-liltoon is not imported. lilToon always loads lilToon at the full
+  frame rate; Automatic loads lilToon at the frame rate the GPU check below
+  allows, or Simple. `Avatar.lilToonMaterials` reports `rendered`, `fallback`
+  or `none`, and `Avatar.automaticMaterials` what Automatic chose (materials
+  and frame cap) and why.
 - **GPU check for Automatic** (`lilToonGpuCheck.ts`): the main Avatar canvas
   (`AvatarSceneHost` in `main` mode, which passes `measureLilToonGpu` to
-  `Scene`: chat and any surface that reuses it) times its first
-  lilToon frames on the GPU with `EXT_disjoint_timer_query_webgl2`. It skips
-  60 warm-up frames and times the next 60 that draw a lilToon Avatar on a
-  drawing buffer of at least one million pixels, then stores their median
-  in `localStorage` per GPU (vendor and renderer strings) and per viewer.
-  Frames another timer query already wraps, such as `effects:bench`'s, are
-  skipped, and repeated disjoint timings give up for the session. Each load
-  under Automatic reads the stored value for the GPU the latest Avatar
-  canvas uses. Above `LILTOON_AUTOMATIC_MAX_FRAME_MS` (8 ms, about half a
-  60 fps frame) it loads Simple; otherwise it loads lilToon. A new
-  measurement applies from the next load, and changing the constant needs no
-  new measurement. A GPU not measured yet, or a browser without the timer
-  extension (stored as unsupported), keeps lilToon. Blocked storage counts
-  as not measured. Picture in Picture and the other Avatar canvases
-  (previews, Create Anima, the review tools) never measure, though their
-  loads read the result. Diagnostics shows the decision and its reason. The time
-  is compared as measured, not scaled by canvas size: on an Apple M5 a
-  converted Avatar's lilToon frame took 5.3–6.0 ms from 1.0 to 5.9 million
-  drawing-buffer pixels, where Andrew's grew from 2.4 to 4.5 ms (the
-  default window's chat canvas is about 3.7 million pixels at DPR 2).
-- **Measuring again:** a GPU is measured once per viewer. Removing the
-  `animama.lilToonGpuCheck` key from the app's `localStorage` (for example in
-  the developer tools) and reloading the app measures every GPU again on its
-  next lilToon frames (the check reads storage when the main canvas mounts),
-  and the next load after that uses the new result. Raising `METHOD` in
-  `lilToonGpuCheck.ts` makes every viewer measure again, for a changed
-  measurement or a rendering change that moves lilToon's cost.
+  `Scene`: chat and any surface that reuses it) times lilToon frames on the
+  GPU with `EXT_disjoint_timer_query_webgl2`. A measurement skips 60 warm-up
+  frames, times the next 60 that draw a lilToon Avatar on a drawing buffer
+  of at least one million pixels, and adds their median to the GPU's
+  measurements in `localStorage`, per GPU (vendor and renderer strings) and
+  per viewer; the newest three are kept. Frames another timer query already
+  wraps, such as `effects:bench`'s, are skipped, and repeated disjoint
+  timings give up until the next hourly check. Picture in Picture and the
+  other Avatar canvases (previews, Create Anima, the review tools) never
+  measure, though their loads read the result.
+- **Automatic's choice** (`decideAutomaticMaterials`): each load under
+  Automatic reads the measurements of the GPU the latest Avatar canvas uses
+  or, before any canvas has mounted (the Library, an off-screen Diagnostics
+  load), of the GPU a short-lived WebGL context names; it asks for
+  `powerPreference: "high-performance"`, as R3F's canvases do, so a machine
+  with two GPUs names the same one. The fastest measurement decides: lilToon
+  at the highest of 60, 45, 30 and 24 fps whose budget it fits, the frame
+  time times `LILTOON_FRAME_HEADROOM` (1.3) within the frame interval (60 fps
+  up to 12.8 ms, 45 up to 17.1, 30 up to 25.6, 24 up to 32.1). Slower than
+  that, it loads Simple once two measurements agree and the newest is under a
+  week old; until then it loads lilToon at 24 fps, because only lilToon
+  frames can be measured again. A GPU not measured yet, or a browser without
+  the timer extension (stored as unsupported), keeps lilToon uncapped;
+  blocked storage counts as not measured. The time is compared as measured,
+  not scaled by canvas size: on an Apple M5 a converted Avatar's lilToon
+  frame took 5.3–6.0 ms from 1.0 to 5.9 million drawing-buffer pixels,
+  where Andrew's grew from 2.4 to 4.5 ms (the default window's chat canvas
+  is about 3.7 million pixels at DPR 2).
+- **Frame cap:** a loaded lilToon Avatar under Automatic sets its cap on the
+  canvas it was constructed with (`canvasFrameCap.ts`, keyed by the R3F
+  canvas element; cleared on unload), and that canvas's `SceneFramePacer`
+  renders at most that often ([Frame rate](#frame-rate)). An Avatar without
+  lilToon materials, such as an Included Avatar, one whose lilToon failed to
+  load, and an explicit lilToon setting set none.
+- **Measuring again:** the chat canvas measures a GPU once per session (an
+  app launch or page load) until it has three measurements, then whenever
+  the newest is over a week old (checked when the main canvas mounts and
+  hourly while it stays mounted). Automatic uses the fastest, so a
+  measurement taken while the machine was busy gives way to a faster later
+  one. Materials and the cap are chosen at load, so a new measurement
+  applies from the next load; Diagnostics shows a "Next load" line when it
+  would change either. Removing the `animama.lilToonGpuCheck` key from the
+  app's `localStorage` (for example in the developer tools) and reloading
+  measures every GPU from scratch. Raising `METHOD` in `lilToonGpuCheck.ts`
+  does that for every viewer, for a changed measurement or a rendering
+  change that moves lilToon's cost.
 - **Fallback base colours:** Mochiya writes `metallicFactor` 1 on the fallback
   materials, which renders them almost black without an environment map.
   `LilToonFallbackMaterialsPlugin` builds fallbacks of lilToon materials with
@@ -1796,6 +1816,12 @@ input, and in PiP the desktop cursor feed, keep the full rate for
 `SCENE_INPUT_ACTIVE_MS` (1.5 s) so cursor look-at stays smooth. Scenes with a
 custom `avatarActor` never report idle and keep 60 fps. Delta-time consumers see
 the real interval since the previous rendered frame.
+
+A canvas showing a lilToon Avatar that Automatic capped (45, 30 or 24 fps on a
+GPU too slow for 60; see the [frame cap](#authored-liltoon-materials)) renders
+at most at the cap, active or idle; idle uses the lower of the cap and 30.
+Picture in Picture shares the chat `Scene`, so the cap applies there too, as on
+every `PacedScene` canvas below.
 
 The other Avatar canvases use the same `PacedScene` wrapper. An active
 `AvatarPreviewSurface` (the Animas page, the Library preview, creators and

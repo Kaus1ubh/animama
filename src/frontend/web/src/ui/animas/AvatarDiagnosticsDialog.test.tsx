@@ -196,30 +196,80 @@ describe("AvatarDiagnosticsDialog", () => {
     expect(dialog()?.contains(document.activeElement)).toBe(true);
   });
 
+  const measured = { frameMs: null, pixels: null, samples: 0 } as const;
   it.each([
     [
       "fallback",
-      { choice: "simple", reason: "slow", frameMs: 9.64, pixels: 1_920_000 },
-      "Simple materials · chosen by Automatic: this GPU drew a lilToon frame in 9.6 ms, over the 8 ms limit",
-    ],
-    [
-      "rendered",
-      { choice: "liltoon", reason: "fast", frameMs: 5.2, pixels: 1_920_000 },
-      "Rendered with lilToon · chosen by Automatic: this GPU drew a lilToon frame in 5.2 ms, within the 8 ms limit",
+      {
+        choice: "simple",
+        reason: "slow",
+        fpsCap: null,
+        budgetFps: 24,
+        frameMs: 40.04,
+        pixels: 1_920_000,
+        samples: 2,
+      },
+      "Simple materials · chosen by Automatic: this GPU drew a lilToon frame in 40 ms, over the 32.1 ms budget for 24 fps",
     ],
     [
       "rendered",
       {
         choice: "liltoon",
+        reason: "remeasuring",
+        fpsCap: 24,
+        budgetFps: 24,
+        frameMs: 40,
+        pixels: 1_920_000,
+        samples: 1,
+      },
+      "Rendered with lilToon at 24 fps · chosen by Automatic: this GPU drew a lilToon frame in 40 ms, over the 32.1 ms budget for 24 fps; measuring again before choosing Simple",
+    ],
+    [
+      "rendered",
+      {
+        choice: "liltoon",
+        reason: "capped",
+        fpsCap: 45,
+        budgetFps: 45,
+        frameMs: 14.4,
+        pixels: 1_920_000,
+        samples: 1,
+      },
+      "Rendered with lilToon at 45 fps · chosen by Automatic: this GPU drew a lilToon frame in 14.4 ms, within the 17.1 ms budget for 45 fps",
+    ],
+    [
+      "rendered",
+      {
+        choice: "liltoon",
+        reason: "fast",
+        fpsCap: 60,
+        budgetFps: 60,
+        frameMs: 5.2,
+        pixels: 1_920_000,
+        samples: 3,
+      },
+      "Rendered with lilToon at 60 fps · chosen by Automatic: this GPU drew a lilToon frame in 5.2 ms, within the 12.8 ms budget for 60 fps",
+    ],
+    [
+      "rendered",
+      {
+        ...measured,
+        choice: "liltoon",
         reason: "not_measured",
-        frameMs: null,
-        pixels: null,
+        fpsCap: null,
+        budgetFps: null,
       },
       "Rendered with lilToon · chosen by Automatic: this GPU's lilToon frame time is not measured yet",
     ],
     [
       "rendered",
-      { choice: "liltoon", reason: "unsupported", frameMs: null, pixels: null },
+      {
+        ...measured,
+        choice: "liltoon",
+        reason: "unsupported",
+        fpsCap: null,
+        budgetFps: null,
+      },
       "Rendered with lilToon · chosen by Automatic: this browser cannot time the GPU",
     ],
   ] as const)(
@@ -233,7 +283,7 @@ describe("AvatarDiagnosticsDialog", () => {
           materials: {
             mode: "automatic",
             lilToon,
-            automatic: { ...decision, thresholdMs: 8 },
+            automatic: decision,
             nextLoad: null,
           },
         },
@@ -266,16 +316,20 @@ describe("AvatarDiagnosticsDialog", () => {
           automatic: {
             choice: "liltoon",
             reason: "not_measured",
+            fpsCap: null,
+            budgetFps: null,
             frameMs: null,
             pixels: null,
-            thresholdMs: 8,
+            samples: 0,
           },
           nextLoad: {
-            choice: "simple",
-            reason: "slow",
+            choice: "liltoon",
+            reason: "capped",
+            fpsCap: 45,
+            budgetFps: 45,
             frameMs: 14.4,
             pixels: 5_184_000,
-            thresholdMs: 8,
+            samples: 1,
           },
         },
       },
@@ -296,10 +350,10 @@ describe("AvatarDiagnosticsDialog", () => {
       "Rendered with lilToon · chosen by Automatic: this GPU's lilToon frame time is not measured yet",
     );
     expect(dialog()?.textContent).toContain(
-      "Next load: Simple materials · chosen by Automatic: this GPU drew a lilToon frame in 14.4 ms, over the 8 ms limit (measured since this load)",
+      "Next load: Rendered with lilToon at 45 fps · chosen by Automatic: this GPU drew a lilToon frame in 14.4 ms, within the 17.1 ms budget for 45 fps (measured since this load)",
     );
     expect(avatarDiagnosticsText(measuredReport)).toContain(
-      "  Next load: Automatic chose Simple: a lilToon frame took 14.4 ms of GPU time on this GPU (5184000 pixels), above the 8.0 ms threshold (measured since this load)",
+      "  Next load: Automatic chose lilToon at 45 fps: the only lilToon frame measurement on this GPU took 14.4 ms of GPU time (5184000 pixels), within the 17.1 ms budget for 45 fps (measured since this load)",
     );
   });
 

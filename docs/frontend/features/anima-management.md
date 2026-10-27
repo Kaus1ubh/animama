@@ -67,8 +67,9 @@ wherever that Avatar is used:
 - **Materials**: Automatic, lilToon or Simple, shown only for a file with
   authored lilToon materials (see
   [Authored lilToon materials](../runtime/avatar-animation.md#authored-liltoon-materials)),
-  or while a stored choice is not Automatic. Automatic loads lilToon unless
-  this machine's GPU drew a lilToon frame too slowly, then Simple (the GPU
+  or while a stored choice is not Automatic. Automatic loads lilToon and
+  lowers the canvas's frame rate to 45, 30 or 24 fps where this machine's GPU
+  needs it, and Simple only when it cannot draw lilToon at 24 fps (the GPU
   check in the linked section). Materials are built at load, so
   a change reloads the Avatar wherever it is shown. Whether a file has lilToon
   materials is known once any surface has loaded it in this session, or the
@@ -98,10 +99,12 @@ Animama found in the Anima's Avatar and how it plays it:
   extensions, mesh, mesh-part and material counts by kind (MToon, lilToon,
   unlit, standard), each embedded image's pixel size and, for a file with
   lilToon materials, whether they render with lilToon or as Simple materials
-  and why. Under Automatic it gives the GPU check's result: the measured
-  lilToon frame time against the limit, or that this GPU is not measured yet
-  or the browser cannot time the GPU (lilToon in both cases). Clearing the
-  measurement measures again ([GPU check](../runtime/avatar-animation.md#authored-liltoon-materials)).
+  and why. Under Automatic it gives the GPU check's result: the frame rate
+  lilToon renders at and the fastest measured lilToon frame time against that
+  rate's budget, or that this GPU is not measured yet or the browser cannot
+  time the GPU (lilToon in both cases). A "Next load" line says what the next
+  load uses when a measurement since this load changes the materials or frame
+  rate. Clearing the measurements measures again ([GPU check](../runtime/avatar-animation.md#authored-liltoon-materials)).
 - **Face**: how each face part was found (model data, material names, a saved
   correction, or not at all) and whether face landmarks and texture anchors
   are ready.
