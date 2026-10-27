@@ -100,7 +100,12 @@ const live: AvatarLiveDiagnostics = {
       handsNormalized: false,
     },
   },
-  materials: { mode: "simple", lilToon: "fallback", automatic: null },
+  materials: {
+    mode: "simple",
+    lilToon: "fallback",
+    automatic: null,
+    nextLoad: null,
+  },
   issues: [
     {
       code: "effect_face_part_missing",
@@ -229,6 +234,7 @@ describe("AvatarDiagnosticsDialog", () => {
             mode: "automatic",
             lilToon,
             automatic: { ...decision, thresholdMs: 8 },
+            nextLoad: null,
           },
         },
         settings: null,
@@ -247,6 +253,55 @@ describe("AvatarDiagnosticsDialog", () => {
       expect(dialog()?.textContent).toContain(expected);
     },
   );
+
+  it("says what the next load uses after a measurement since this load", () => {
+    const measuredReport = buildAvatarDiagnosticsReport({
+      avatar: { source: "local", itemId: "item-9" },
+      file: report.file,
+      live: {
+        ...live,
+        materials: {
+          mode: "automatic",
+          lilToon: "rendered",
+          automatic: {
+            choice: "liltoon",
+            reason: "not_measured",
+            frameMs: null,
+            pixels: null,
+            thresholdMs: 8,
+          },
+          nextLoad: {
+            choice: "simple",
+            reason: "slow",
+            frameMs: 14.4,
+            pixels: 5_184_000,
+            thresholdMs: 8,
+          },
+        },
+      },
+      settings: null,
+    });
+    diagnostics.view = {
+      state: {
+        status: "ready",
+        report: measuredReport,
+        issues: live.issues,
+        live: false,
+      },
+      effectNames: new Map(),
+    };
+    render();
+    click("Open diagnostics");
+    expect(dialog()?.textContent).toContain(
+      "Rendered with lilToon · chosen by Automatic: this GPU's lilToon frame time is not measured yet",
+    );
+    expect(dialog()?.textContent).toContain(
+      "Next load: Simple materials · chosen by Automatic: this GPU drew a lilToon frame in 14.4 ms, over the 8 ms limit (measured since this load)",
+    );
+    expect(avatarDiagnosticsText(measuredReport)).toContain(
+      "  Next load: Automatic chose Simple: a lilToon frame took 14.4 ms of GPU time on this GPU (5184000 pixels), above the 8.0 ms threshold (measured since this load)",
+    );
+  });
 
   it("shows every section", () => {
     render();

@@ -194,9 +194,22 @@ function LilToonMaterialsFact({ report }: { report: AvatarDiagnosticsReport }) {
         : materials.automatic
           ? automaticMaterialsWhy(t, format, materials.automatic)
           : t("avatarDiagnostics.materials.why.automatic");
+  // A measurement stored since this load: the next load uses it.
+  const next = materials.nextLoad;
   return (
     <Fact label={t("avatarDiagnostics.materials.label")}>
       {t("avatarDiagnostics.materials.value", { state, why })}
+      {next ? (
+        <span className="text-muted-foreground block">
+          {t("avatarDiagnostics.materials.nextLoad", {
+            state:
+              next.choice === "simple"
+                ? t("avatarDiagnostics.materials.simple")
+                : t("avatarDiagnostics.materials.rendered"),
+            why: automaticMaterialsWhy(t, format, next),
+          })}
+        </span>
+      ) : null}
       <SettingSource source={report.settings?.materialModeSource ?? null} />
     </Fact>
   );

@@ -694,6 +694,7 @@ export default interface Resources {
       "materials": {
         "label": "lilToon materials",
         "milliseconds": "{{value}} ms",
+        "nextLoad": "Next load: {{state}} · {{why}} (measured since this load)",
         "rendered": "Rendered with lilToon",
         "simple": "Simple materials",
         "value": "{{state}} · {{why}}",

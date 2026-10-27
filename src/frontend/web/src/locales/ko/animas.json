@@ -208,6 +208,7 @@
     "materials": {
       "label": "lilToon 머티리얼",
       "milliseconds": "{{value}}ms",
+      "nextLoad": "다음 로드: {{state}} · {{why}} (이번 로드 이후 측정)",
       "rendered": "lilToon으로 렌더링",
       "simple": "단순 머티리얼",
       "value": "{{state}} · {{why}}",

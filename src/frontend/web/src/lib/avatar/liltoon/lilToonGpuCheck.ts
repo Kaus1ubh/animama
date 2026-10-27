@@ -213,6 +213,31 @@ export function gpuIdentityOf(gl: WebGLRenderingContext): string | null {
 }
 
 let currentGpu: string | null = null;
+/** The GPU a short-lived context names, once per session (undefined: not yet). */
+let probedGpu: string | null | undefined;
+
+/**
+ * The GPU a fresh WebGL context draws on, for a load before any Avatar canvas
+ * has noted one (an off-screen Diagnostics load, the Library before a
+ * preview): one context, released at once and named once per session, so
+ * every surface looks up the same stored measurement.
+ */
+function probeGpu(): string | null {
+  if (probedGpu !== undefined) return probedGpu;
+  probedGpu = null;
+  try {
+    const canvas = document.createElement("canvas");
+    const gl = (canvas.getContext("webgl2") ??
+      canvas.getContext("webgl")) as WebGLRenderingContext | null;
+    if (gl) {
+      probedGpu = gpuIdentityOf(gl);
+      gl.getExtension("WEBGL_lose_context")?.loseContext();
+    }
+  } catch {
+    // No DOM or no WebGL: the GPU stays unnamed and Automatic keeps lilToon.
+  }
+  return probedGpu;
+}
 
 /**
  * Note the GPU an Avatar canvas draws on, so Automatic can look up its
@@ -226,16 +251,41 @@ export function rememberAvatarCanvasGpu(renderer: THREE.WebGLRenderer): void {
   }
 }
 
-/** What Automatic chooses on the GPU the latest Avatar canvas draws on. */
+/**
+ * What Automatic chooses now: the stored measurement of the GPU the latest
+ * Avatar canvas draws on, or of the probed GPU before any canvas noted one.
+ * Every Avatar load under Automatic asks this, on every surface.
+ */
 export function automaticMaterialsDecision(): AutomaticMaterialsDecision {
-  return decideAutomaticMaterials(
-    currentGpu ? readLilToonGpuMeasurement(currentGpu) : null,
-  );
+  const gpu = currentGpu ?? probeGpu();
+  return decideAutomaticMaterials(gpu ? readLilToonGpuMeasurement(gpu) : null);
 }
 
-/** Forget the noted GPU, for tests. */
-export function resetAvatarCanvasGpuForTesting(gpu: string | null = null) {
+/**
+ * Automatic's decision now, when a measurement stored since an Avatar loaded
+ * changes the one it loaded with (`atLoad`); null when unchanged or not under
+ * Automatic. Materials are built at load, so the next load uses it.
+ */
+export function automaticDecisionSinceLoad(
+  atLoad: AutomaticMaterialsDecision | null,
+): AutomaticMaterialsDecision | null {
+  if (!atLoad) return null;
+  const now = automaticMaterialsDecision();
+  return now.reason === atLoad.reason && now.frameMs === atLoad.frameMs
+    ? null
+    : now;
+}
+
+/**
+ * Forget the noted GPU, for tests; `probed` stands in for the GPU a fresh
+ * context would name (undefined: probe again).
+ */
+export function resetAvatarCanvasGpuForTesting(
+  gpu: string | null = null,
+  probed?: string | null,
+) {
   currentGpu = gpu;
+  probedGpu = probed;
 }
 
 type TimerExtension = { TIME_ELAPSED_EXT: number; GPU_DISJOINT_EXT: number };

@@ -208,6 +208,7 @@
     "materials": {
       "label": "lilToon マテリアル",
       "milliseconds": "{{value}} ms",
+      "nextLoad": "次回の読み込み: {{state}} · {{why}}（この読み込みの後に測定）",
       "rendered": "lilToon で描画",
       "simple": "シンプルなマテリアル",
       "value": "{{state}} · {{why}}",

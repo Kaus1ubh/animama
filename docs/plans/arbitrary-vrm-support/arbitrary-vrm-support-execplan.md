@@ -2786,6 +2786,61 @@ previews, creator picks and item Diagnostics.
   particle-preview symptom.
 - Not run: hosted validation (disabled); live owner checks (owner gates).
 
+### PR B live check #1 Findings
+
+The PR A session checked PR B's head `9a97029a` live on a production stack
+with the converted test Avatar (Create Anima upload, chat, Diagnostics, wind
+and Materials, a Reaction, a hand Gesture, an eye effect in the creator, the
+Library's Avatar settings); all worked except:
+
+- PRB-LC1-F1 (Phase 4, R4): winks dropped. After a chat turn, Diagnostics
+  listed `blinkLeft` as requested but not on this Avatar: the file has no
+  `blinkLeft`/`blinkRight` preset binds, though it has ARKit
+  `eyeBlinkLeft`/`eyeBlinkRight` and MMD wink morphs. The per-region fallback
+  covered moods and VRoid parts but never filled an empty blink preset.
+- PRB-LC1-F2 (Phase 9, R11): Automatic applied inconsistently. With a
+  measurement stored (over the threshold), the Library's off-screen
+  Diagnostics load still chose lilToon as "not measured", before and after a
+  reload, while the chat stage chose Simple after the reload; and right after
+  the measurement the chat stage's Diagnostics said only "not measured yet".
+  Automatic looked up the measurement for the GPU the latest Avatar canvas
+  noted, and a load before any canvas mounted (the Library, off-screen
+  Diagnostics) had none; Diagnostics showed only the decision made at load.
+
+### PR B live check #1 Revisions
+
+- F1: an empty `blink`, `blinkLeft` or `blinkRight` preset (three-vrm
+  registers every preset) now plays the standard MMD morph (まばたき, ウィンク,
+  ウィンク右; ウィンク closes the model's left eye as `blinkLeft` does), else
+  its ARKit eye closing (`eyeBlinkLeft`/`eyeBlinkRight`), before VRoid's
+  `Fcl_EYE_Close*` parts copy the presets; a preset that binds anything stays
+  the file's own. The eyelid closure correction skips the three blink presets,
+  which it exists to scale (a filled `blink` would otherwise override itself).
+  Tests: MMD-only and ARKit-only synthetic faces play each wink on the right
+  eye, keep an own `blink`, and an ARKit-filled `blink` closes fully (both
+  fail before the change; the latter also fails without the correction's
+  skip). On the converted test Avatar (private probe) `blinkLeft` and
+  `blinkRight` now play its MMD winks and its own `blink` is kept.
+- F2: when no Avatar canvas has noted its GPU yet, Automatic names it from a
+  short-lived WebGL context (once per session), so every load (chat, Anima
+  page, dock, creators, Create Anima, off-screen Diagnostics) reads the same
+  stored measurement in `Avatar.load`; each of those surfaces' settings tests
+  already shows it passes the setting through. A measurement completed during
+  a session applies from the next load (materials are built at load, as the
+  setting says); Diagnostics now also shows "Next load: …" when a
+  measurement stored since this load changes the choice (report line and
+  dialog, five languages). Tests: Automatic reads the measurement with no
+  canvas noted (fails without the probe), a measurement stored after a load
+  is reported and used by the next load, and the dialog and report text.
+- Checks (`src/frontend/web`, tree `f7f27dee` before these records): `pnpm
+  i18n:check`; `npx tsc -p tsconfig.app.json --noEmit`; eslint on the changed
+  files; `npx vitest run src/lib/avatar src/ui tests/avatar src/lib/content
+  src/lib/content-preview src/query src/routes` 423 files, 3,943 passed;
+  Included renders of the six moods and four clips in both looks against
+  `fd4c86c5`: 20 sheets at 0 differing pixels (Shy Finger Poke, enhanced,
+  first differed by 4 pixels and re-rendered twice at 0). The live recheck on
+  the converted test Avatar is the PR A session's, on the new head.
+
 ## Validation and acceptance
 
 Spec acceptance criteria, with these checks (from `src/frontend` unless noted):

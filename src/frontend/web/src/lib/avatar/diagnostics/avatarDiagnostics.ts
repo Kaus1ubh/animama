@@ -13,7 +13,10 @@ import {
 } from "../arkitFaceExpressions";
 import type { Avatar } from "../Avatar";
 import type { AvatarMaterialMode, AvatarSpringMode } from "../avatarSettings";
-import type { AutomaticMaterialsDecision } from "../liltoon/lilToonGpuCheck";
+import {
+  automaticDecisionSinceLoad,
+  type AutomaticMaterialsDecision,
+} from "../liltoon/lilToonGpuCheck";
 import type {
   AvatarFacePartRole,
   AvatarFacePartSource,
@@ -88,8 +91,14 @@ export type AvatarLiveDiagnostics = {
   materials: {
     mode: AvatarMaterialMode;
     lilToon: "rendered" | "fallback";
-    /** What Automatic chose and why; null under lilToon or Simple. */
+    /** What Automatic chose at load and why; null under lilToon or Simple. */
     automatic: AutomaticMaterialsDecision | null;
+    /**
+     * What Automatic would choose now, when a GPU measurement stored since
+     * this load changes it: materials are built at load, so the next load
+     * uses it. Null otherwise.
+     */
+    nextLoad: AutomaticMaterialsDecision | null;
   } | null;
   issues: AvatarIssue[];
 };
@@ -247,6 +256,7 @@ export function collectAvatarLiveDiagnostics(
             mode: avatar.materialMode,
             lilToon: avatar.lilToonMaterials,
             automatic: avatar.automaticMaterials,
+            nextLoad: automaticDecisionSinceLoad(avatar.automaticMaterials),
           },
     issues,
   };

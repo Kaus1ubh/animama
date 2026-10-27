@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { Avatar } from "./Avatar";
 import type { AvatarMaterialMode } from "./avatarSettings";
 import {
+  automaticDecisionSinceLoad,
   resetAvatarCanvasGpuForTesting,
   writeLilToonGpuMeasurement,
 } from "./liltoon/lilToonGpuCheck";
@@ -32,13 +33,20 @@ async function loaderMode(
   return { mode: loadVrm.mock.calls[0]![3], avatar };
 }
 
-function storeMeasurement(frameMs: number) {
+/** Per-viewer storage, empty. */
+function stubStorage() {
   const values = new Map<string, string>();
   vi.stubGlobal("localStorage", {
     getItem: (key: string) => values.get(key) ?? null,
     setItem: (key: string, value: string) => void values.set(key, value),
   });
-  resetAvatarCanvasGpuForTesting("Apple | Test GPU");
+}
+
+function storeMeasurement(frameMs: number, options: { stub?: boolean } = {}) {
+  if (options.stub !== false) {
+    stubStorage();
+    resetAvatarCanvasGpuForTesting("Apple | Test GPU");
+  }
   writeLilToonGpuMeasurement("Apple | Test GPU", {
     status: "measured",
     method: 1,
@@ -72,7 +80,7 @@ describe("Avatar Materials setting", () => {
     storeMeasurement(4);
     expect((await loaderMode("automatic")).mode).toBe("liltoon");
     vi.restoreAllMocks();
-    resetAvatarCanvasGpuForTesting();
+    resetAvatarCanvasGpuForTesting(null, null);
     const unmeasured = await loaderMode("automatic");
     expect(unmeasured.mode).toBe("liltoon");
     expect(unmeasured.avatar.automaticMaterials?.reason).toBe("not_measured");
@@ -85,5 +93,37 @@ describe("Avatar Materials setting", () => {
     expect(liltoon.avatar.automaticMaterials).toBeNull();
     vi.restoreAllMocks();
     expect((await loaderMode("simple")).mode).toBe("simple");
+  });
+
+  it("Automatic reads the stored measurement before any canvas notes its GPU", async () => {
+    // An off-screen Diagnostics or Library load: no Avatar canvas mounted
+    // yet, so the GPU a fresh context names is looked up instead.
+    storeMeasurement(12);
+    resetAvatarCanvasGpuForTesting(null, "Apple | Test GPU");
+    const { mode, avatar } = await loaderMode("automatic");
+    expect(mode).toBe("simple");
+    expect(avatar.automaticMaterials?.reason).toBe("slow");
+  });
+
+  it("uses a measurement stored after a load from the next load on", async () => {
+    stubStorage();
+    resetAvatarCanvasGpuForTesting("Apple | Test GPU");
+    const first = await loaderMode("automatic");
+    expect(first.mode).toBe("liltoon");
+    expect(automaticDecisionSinceLoad(first.avatar.automaticMaterials)).toBe(
+      null,
+    );
+
+    // The chat canvas finishes its measurement while this Avatar is shown.
+    storeMeasurement(14.4, { stub: false });
+    expect(
+      automaticDecisionSinceLoad(first.avatar.automaticMaterials),
+    ).toMatchObject({ choice: "simple", reason: "slow", frameMs: 14.4 });
+    vi.restoreAllMocks();
+    const next = await loaderMode("automatic");
+    expect(next.mode).toBe("simple");
+    expect(automaticDecisionSinceLoad(next.avatar.automaticMaterials)).toBe(
+      null,
+    );
   });
 });

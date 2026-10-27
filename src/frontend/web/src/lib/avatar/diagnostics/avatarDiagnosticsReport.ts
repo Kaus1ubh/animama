@@ -192,6 +192,11 @@ function liveLines(live: AvatarDiagnosticsReport["live"]): string[] {
           ...(live.materials.automatic
             ? [`  ${automaticMaterialsLine(live.materials.automatic)}`]
             : []),
+          ...(live.materials.nextLoad
+            ? [
+                `  Next load: ${automaticMaterialsLine(live.materials.nextLoad)} (measured since this load)`,
+              ]
+            : []),
         ]
       : []),
   ];

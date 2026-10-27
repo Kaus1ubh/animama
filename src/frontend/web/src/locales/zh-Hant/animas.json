@@ -208,6 +208,7 @@
     "materials": {
       "label": "lilToon 材質",
       "milliseconds": "{{value}} 毫秒",
+      "nextLoad": "下次載入：{{state}} · {{why}}（在本次載入後測得）",
       "rendered": "使用 lilToon 算繪",
       "simple": "簡單材質",
       "value": "{{state}} · {{why}}",
