@@ -118,6 +118,9 @@ configured remote AI/voice providers. An installed offline speech model
 transcribes offline; that does not make
 remote chat work offline. Desktop does not need an Animama account for local use.
 
+To open Animama when you log in, turn on Settings → General → **Launch at
+login**. If macOS or Windows blocks it, the setting says where to allow it.
+
 Starter portraits and speech-engine assets are included; your own Local media
 can be imported. Complete starter animation acquisition remains a release gate. See
 [Content policy](../../../content/included/README.md).

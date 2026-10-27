@@ -286,6 +286,7 @@
     "microphone": "麦克风",
     "profile": "个人资料",
     "speechToText": "语音转文本",
+    "startup": "启动",
     "textToSpeech": "文字转语音",
     "webSearch": "网页搜索"
   },
@@ -298,6 +299,15 @@
     "label": "语言",
     "saveFailed": "无法更改语言。",
     "systemDefaultResolved": "系统默认（{{language}}）"
+  },
+  "launchAtLogin": {
+    "label": "登录时启动",
+    "description": "登录电脑时自动打开 Animama。",
+    "blocked": {
+      "macos": "在“系统设置 → 通用 → 登录项与扩展”中允许之前，Animama 不会在登录时打开。",
+      "windows": "在“设置 → 应用 → 启动”中开启之前，Animama 不会在登录时打开。"
+    },
+    "updateFailed": "无法更改“登录时启动”。"
   },
   "modal": {
     "close": "关闭应用设置",

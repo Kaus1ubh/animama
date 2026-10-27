@@ -286,6 +286,7 @@
     "microphone": "마이크",
     "profile": "프로필",
     "speechToText": "음성 텍스트 변환",
+    "startup": "시작",
     "textToSpeech": "텍스트 음성 변환",
     "webSearch": "웹 검색"
   },
@@ -298,6 +299,15 @@
     "label": "언어",
     "saveFailed": "언어를 변경하지 못했습니다.",
     "systemDefaultResolved": "시스템 기본값 ({{language}})"
+  },
+  "launchAtLogin": {
+    "label": "로그인 시 실행",
+    "description": "컴퓨터에 로그인하면 Animama를 자동으로 엽니다.",
+    "blocked": {
+      "macos": "시스템 설정 → 일반 → 로그인 항목 및 확장 프로그램에서 허용할 때까지 Animama는 로그인 시 열리지 않습니다.",
+      "windows": "설정 → 앱 → 시작 프로그램에서 켤 때까지 Animama는 로그인 시 열리지 않습니다."
+    },
+    "updateFailed": "로그인 시 실행 설정을 변경하지 못했습니다."
   },
   "modal": {
     "close": "앱 설정 닫기",
