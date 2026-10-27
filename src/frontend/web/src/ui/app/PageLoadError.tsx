@@ -17,7 +17,7 @@ export function subscribeToAppFileErrors(
 export function PageLoadError() {
   const { t } = useTranslation("app");
   return (
-    <main className="bg-background text-foreground min-h-app flex items-center justify-center px-6">
+    <main className="bg-background text-foreground min-h-app mt-(--app-titlebar-height) flex items-center justify-center px-6">
       <section className="border-border bg-card max-w-md space-y-4 rounded-2xl border p-6 text-center">
         <h1 className="text-lg font-semibold">{t("pageLoadError.title")}</h1>
         <p className="text-muted-foreground text-sm">
