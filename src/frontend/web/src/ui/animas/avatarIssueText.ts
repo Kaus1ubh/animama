@@ -27,6 +27,10 @@ export function avatarIssueText(
   const texts: Record<AvatarIssueCode, () => string> = {
     file_unavailable: () => t("avatarDiagnostics.issues.file_unavailable"),
     file_unreadable: () => t("avatarDiagnostics.issues.file_unreadable"),
+    avatar_extension_unsupported: () =>
+      t("avatarDiagnostics.issues.avatar_extension_unsupported", {
+        extension: String(params.extension ?? ""),
+      }),
     avatar_load_failed: () => t("avatarDiagnostics.issues.avatar_load_failed"),
     scene_bindings_unavailable: () =>
       t("avatarDiagnostics.issues.scene_bindings_unavailable"),

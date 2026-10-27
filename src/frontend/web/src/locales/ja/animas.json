@@ -145,6 +145,7 @@
       "anchors_mouth_missing": "顔のテクスチャ上に口の位置が見つかりませんでした。",
       "anchors_projection_failed": "顔のテクスチャを対応付けられないため、顔に描くエフェクトを配置できません。",
       "anEffect": "エフェクト",
+      "avatar_extension_unsupported": "このファイルには glTF 拡張機能 {{extension}} が必要ですが、このアプリではまだ読み込めないため、アバターを表示できません。",
       "avatar_load_failed": "アバターを読み込めませんでした。「ファイル」で必須の拡張機能を確認してください。",
       "effect_attachment_limit": "{{effect}} を外しました：体・ステッカー・シルエットのエフェクトは同時に最大 {{limit}} 個までです。",
       "effect_face_part_missing": "{{effect}} をスキップしました：このアバターでは{{part}}が検出されていません。",

@@ -196,3 +196,27 @@ so on an atlas it also tints the other parts drawn from it.
 To make the file emote in other VRM apps as well, bake its mood presets into a
 copy with `pnpm -s vrm:bake-expressions` (see
 [ARKit Avatars](avatar-emotion.md#arkit-avatars)).
+
+## Sharing a converted Avatar
+
+Share an Avatar only when its licence allows redistribution; most VN3 terms
+forbid it (see [Licence first](#licence-first)). When it does, Library sharing
+exports it like any Local Avatar. Packages accept Mochiya's
+`MOCHIYA_avatar_composition` and `MOCHIYA_materials_liltoon` extensions, so
+the receiver gets the same lilToon materials and spring handling. They also
+accept both mesh compressions an optimizer may add
+([Avatar files in packages](../../backend/features/custom-animas-and-content.md#avatar-files-in-packages)):
+
+- `EXT_meshopt_compression` (gltfpack, gltf-transform `meshopt`) loads: every
+  Avatar loader registers three's meshopt decoder, whose WebAssembly is
+  embedded in its module (`configureAvatarGltfLoader`).
+- `KHR_draco_mesh_compression` imports, but Animama does not serve the Draco
+  decoder yet, so the Avatar does not load. Its Diagnostics name the extension
+  (`avatar_extension_unsupported`). Compress with meshopt instead.
+
+Any other extension a file requires that the runtime cannot load
+(`LOADABLE_GLTF_EXTENSIONS` in `lib/avatar/diagnostics/avatarGltfExtensions.ts`)
+also fails the load with that finding, rather than drawing the Avatar without
+it. Diagnostics reads it from the file before loading, so it shows for an
+upload in Create Anima, an Avatar in the Library and an Anima's Avatar alike.
+The import review does not name it yet.

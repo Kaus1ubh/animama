@@ -22,6 +22,7 @@ from animama.app.services.content_package_capabilities import (
 )
 from animama.domain.content_catalog import ContentKind
 from animama.domain.content_documents import AvatarEffectDocumentV1, ContentDocumentError, TypedContentDocument
+from tests.content_package_helpers import CONVERTED_AVATAR_EXTENSIONS
 
 FRONTEND = Path(__file__).parents[1] / "src/frontend/web/src/lib"
 FIXTURES = json.loads((FRONTEND / "content/fixtures/package-capabilities.json").read_text())
@@ -420,7 +421,8 @@ def test_declared_glb_json_size_is_checked_before_reading_it() -> None:
         derive_file_capabilities(document.kind, document, "model.vrm", io.BytesIO(oversized))
 
 
-@pytest.mark.parametrize("extension", ["UNKNOWN_custom_player", "KHR_draco_mesh_compression"])
+# Basis textures need a decoder the web loaders do not configure.
+@pytest.mark.parametrize("extension", ["UNKNOWN_custom_player", "KHR_texture_basisu"])
 def test_gltf_cannot_require_an_unavailable_runtime_plugin(extension: str) -> None:
     document = _document("gesture")
     data = {
@@ -430,6 +432,26 @@ def test_gltf_cannot_require_an_unavailable_runtime_plugin(extension: str) -> No
     }
     with pytest.raises(ContentDocumentError):
         derive_file_capabilities(document.kind, document, "motion.vrma", io.BytesIO(json.dumps(data).encode()))
+
+
+@pytest.mark.parametrize("extension", sorted(CONVERTED_AVATAR_EXTENSIONS))
+@pytest.mark.parametrize("field", ["extensionsUsed", "extensionsRequired", "extensions"])
+def test_avatar_may_use_converter_and_compression_extensions(extension: str, field: str) -> None:
+    # Draco is accepted too: the runtime reports a Draco Avatar as not loadable
+    # rather than the package refusing it.
+    document = _document("avatar")
+    data: dict[str, Any] = {
+        "asset": {"version": "2.0"},
+        "extensionsUsed": ["VRMC_vrm"],
+        "extensions": {"VRMC_vrm": {"specVersion": "1.0"}},
+    }
+    if field == "extensions":
+        data["extensions"][extension] = {}
+    else:
+        data.setdefault(field, []).append(extension)
+    assert derive_file_capabilities(document.kind, document, "model.vrm", io.BytesIO(json.dumps(data).encode())) == (
+        "VRMC_vrm/1.0",
+    )
 
 
 def test_self_contained_vrma_buffer_is_not_an_external_resource() -> None:

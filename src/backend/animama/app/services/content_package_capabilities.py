@@ -98,16 +98,23 @@ _PARTICLE_BEHAVIORS = frozenset(
     "ColorOverLife ForceOverLife FrameOverLife LimitSpeedOverLife Noise OrbitOverLife Rotation3DOverLife "
     "RotationOverLife SizeOverLife SpeedOverLife TurbulenceField WidthOverLength".split()
 )
-# Avatar.ts registers VRM + VRMAnimation plugins on Three's GLTFLoader. Draco,
-# Meshopt and Basis decoders are not configured there, so their required formats
-# cannot be treated as available just because the upstream loader knows the name.
+# glTF extensions a packaged VRM or VRMA may use or require. The web loaders
+# register the VRM, VRMAnimation and lilToon plugins and the meshopt decoder on
+# Three's GLTFLoader (``avatarGltfLoader.ts``). Packages also accept what
+# converted and optimized Avatars carry: Mochiya Avatar Tools' extensions and
+# both mesh compressions. The Draco decoder is not served yet, so the runtime
+# reports a Draco Avatar as not loadable (``avatar_extension_unsupported``)
+# instead of the package refusing it. Basis textures stay out: no decoder.
+# Adding a name needs no package capability; an older reader that lacks it
+# rejects the package with ``package_definition_invalid``.
 _GLTF_EXTENSIONS = frozenset(
     "VRM VRMC_vrm VRMC_vrm_animation VRMC_springBone VRMC_materials_mtoon VRMC_node_constraint "
     "VRMC_materials_hdr_emissiveMultiplier KHR_lights_punctual KHR_materials_clearcoat KHR_materials_dispersion "
     "KHR_materials_ior KHR_materials_sheen KHR_materials_specular KHR_materials_transmission "
     "KHR_materials_iridescence KHR_materials_anisotropy KHR_materials_unlit KHR_materials_volume "
     "KHR_texture_transform KHR_mesh_quantization KHR_materials_emissive_strength EXT_materials_bump "
-    "EXT_texture_webp EXT_texture_avif EXT_mesh_gpu_instancing".split()
+    "EXT_texture_webp EXT_texture_avif EXT_mesh_gpu_instancing "
+    "MOCHIYA_avatar_composition MOCHIYA_materials_liltoon EXT_meshopt_compression KHR_draco_mesh_compression".split()
 )
 
 

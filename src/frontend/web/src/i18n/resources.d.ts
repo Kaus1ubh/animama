@@ -629,6 +629,7 @@ export default interface Resources {
         "anchors_landmarks_unavailable": "Face landmarks are unavailable, so painted face effects cannot be placed.",
         "anchors_mouth_missing": "No mouth position was found on the face texture.",
         "anchors_projection_failed": "The face texture could not be mapped, so painted face effects cannot be placed.",
+        "avatar_extension_unsupported": "The file requires {{extension}}, a glTF extension this app cannot load yet, so the Avatar cannot be shown.",
         "avatar_load_failed": "The Avatar could not be loaded. Check its required extensions under File.",
         "effect_attachment_limit": "{{effect}} was removed: at most {{limit}} body, sticker or silhouette effects can show at once.",
         "effect_face_part_missing": "{{effect}} was skipped: this Avatar has no detected {{part, lowercase}}.",

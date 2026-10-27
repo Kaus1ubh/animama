@@ -7,6 +7,7 @@ import { PerspectiveCamera } from "three";
 import { Avatar } from "@/lib/avatar";
 import { avatarItemRuntimeEntry } from "@/lib/content/avatarPreviewTarget";
 import {
+  avatarFileIssues,
   readAvatarFileFacts,
   type AvatarFileFacts,
 } from "@/lib/avatar/diagnostics/avatarFileFacts";
@@ -219,7 +220,7 @@ export function useAvatarDiagnostics(
         const response = await fetch(lease.url, { signal });
         if (!response.ok) throw new Error("avatar_model_fetch_failed");
         file = readAvatarFileFacts(await response.arrayBuffer());
-        if (!file) issues.push({ code: "file_unreadable" });
+        issues.push(...avatarFileIssues(file));
       } catch (error) {
         if (signal.aborted) return;
         logger.warn("Load", "Diagnostics could not read the Avatar file", {
@@ -358,7 +359,7 @@ function collectUpload(
     let facts: AvatarFileFacts | null = null;
     try {
       facts = readAvatarFileFacts(await file.arrayBuffer());
-      if (!facts) issues.push({ code: "file_unreadable" });
+      issues.push(...avatarFileIssues(facts));
     } catch (error) {
       logger.warn("Load", "Diagnostics could not read the chosen file", {
         reason: "avatar_diagnostics_file_unavailable",

@@ -51,7 +51,9 @@ def glb(document: dict[str, Any]) -> bytes:
     return struct.pack("<4sII", b"glTF", 2, 20 + len(encoded)) + struct.pack("<II", len(encoded), 0x4E4F534A) + encoded
 
 
-def vrm(label: str = "avatar", version: str = "1.0") -> bytes:
+def vrm(label: str = "avatar", version: str = "1.0", *, uses: str | None = None) -> bytes:
+    """A synthetic VRM. ``uses`` adds one glTF extension as used, required and a
+    root extension, every place package validation reads extension names."""
     names = sorted(REQUIRED_VRM_HUMANOID_BONES)
     extension = "VRMC_vrm" if version == "1.0" else "VRM"
     bones = (
@@ -59,14 +61,17 @@ def vrm(label: str = "avatar", version: str = "1.0") -> bytes:
         if version == "1.0"
         else [{"bone": name, "node": index} for index, name in enumerate(names)]
     )
-    return glb(
-        {
-            "asset": {"version": "2.0", "generator": label},
-            "nodes": [{"name": name} for name in names],
-            "extensionsUsed": [extension],
-            "extensions": {extension: {"specVersion": version, "humanoid": {"humanBones": bones}}},
-        }
-    )
+    document: dict[str, Any] = {
+        "asset": {"version": "2.0", "generator": label},
+        "nodes": [{"name": name} for name in names],
+        "extensionsUsed": [extension],
+        "extensions": {extension: {"specVersion": version, "humanoid": {"humanBones": bones}}},
+    }
+    if uses:
+        document["extensionsUsed"].append(uses)
+        document["extensionsRequired"] = [uses]
+        document["extensions"][uses] = {}
+    return glb(document)
 
 
 def vrma() -> bytes:
