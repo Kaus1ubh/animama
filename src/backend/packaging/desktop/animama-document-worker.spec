@@ -13,7 +13,8 @@ datas = collect_data_files("animama", excludes=["**/__pycache__/**"])
 datas += [(str(resources), "document-resources")]
 for distribution in importlib.metadata.distributions():
     datas += copy_metadata(distribution.metadata["Name"])
-for package in ("docling", "docling_core", "docling_ibm_models", "docling_parse", "tiktoken_ext", "certifi"):
+# docling_core's HTML serializer imports latex2mathml, which reads its symbol table at import.
+for package in ("docling", "docling_core", "docling_ibm_models", "docling_parse", "latex2mathml", "tiktoken_ext", "certifi"):
     datas += collect_data_files(package)
 hidden = collect_submodules("tiktoken_ext") + collect_submodules("docling")
 hidden += collect_submodules("docling_core") + collect_submodules("docling_ibm_models")

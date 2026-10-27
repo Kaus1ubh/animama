@@ -23,6 +23,13 @@ def _encoded(
     return output.getvalue()
 
 
+def _pixel(image: Image.Image, xy: tuple[int, int]) -> tuple[int, ...]:
+    """Return a multi-band pixel; Pillow types getpixel() for every image mode."""
+    pixel = image.getpixel(xy)
+    assert isinstance(pixel, tuple)
+    return pixel
+
+
 @pytest.mark.parametrize(
     ("format_name", "extension", "mode"),
     [
@@ -63,14 +70,14 @@ def test_static_sources_become_stripped_bounded_webp(
         assert not canonical.getexif()
         assert "icc_profile" not in canonical.info
         assert "comment" not in canonical.info
-        red, green, blue, alpha = canonical.convert("RGBA").getpixel((0, 0))
+        red, green, blue, alpha = _pixel(canonical.convert("RGBA"), (0, 0))
         assert abs(red - 255) <= 12
         assert green <= 12
         assert blue <= 12
         expected_alpha = 128 if mode == "RGBA" else 255
         assert abs(alpha - expected_alpha) <= 3
         if mode == "P":
-            assert canonical.convert("RGBA").getpixel((11, 7))[3] <= 3
+            assert _pixel(canonical.convert("RGBA"), (11, 7))[3] <= 3
 
 
 def test_large_image_resizes_without_upscaling() -> None:
@@ -120,7 +127,7 @@ def test_mpo_selects_primary_picture_and_warns() -> None:
     assert result.source_frame_count == 2
     assert result.warnings == ("multi_picture_primary_frame_selected",)
     with Image.open(BytesIO(result.content)) as canonical:
-        red, green, blue = canonical.convert("RGB").getpixel((0, 0))
+        red, green, blue = _pixel(canonical.convert("RGB"), (0, 0))
         assert red > 200
         assert green < 50
         assert blue < 50
@@ -180,8 +187,8 @@ def test_avatar_portrait_preserves_transparency_and_is_metadata_free() -> None:
         assert canonical.mode == "RGBA"
         assert canonical.size == (512, 512)
         assert not canonical.getexif()
-        assert canonical.getpixel((0, 0))[3] <= 3
-        assert abs(canonical.getpixel((512 // 2, 512 // 2))[3] - 220) <= 8
+        assert _pixel(canonical, (0, 0))[3] <= 3
+        assert abs(_pixel(canonical, (512 // 2, 512 // 2))[3] - 220) <= 8
 
 
 @pytest.mark.parametrize(

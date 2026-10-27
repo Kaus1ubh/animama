@@ -2,10 +2,9 @@ import type { GeminiTtsCapability } from "@animama/runtime-contracts/api-types";
 import type { OfflineSttEngine } from "@/lib/speech/offline-stt/routing";
 import type { MicSensitivity } from "@/lib/voice/microphone-preferences";
 import type { AppearanceOverrides } from "@/lib/theme/appearance-overrides";
-import {
-  DEFAULT_DESKTOP_SHORTCUTS,
-  type DesktopShortcut,
-  type DesktopShortcutAction,
+import type {
+  DesktopShortcut,
+  DesktopShortcutAction,
 } from "@/lib/settings/desktop-shortcuts";
 
 export type PreferenceToggleSection = {
@@ -168,7 +167,7 @@ export const DEFAULT_ANIMAMA_PREFERENCES: SettingsPreferences = {
     tts_enabled: true,
     tts_provider: "pocket_tts",
     tts_elevenlabs_model_id: DEFAULT_ELEVENLABS_TTS_MODEL_ID,
-    desktop_shortcuts: DEFAULT_DESKTOP_SHORTCUTS,
+    // Desktop shortcuts default per OS through `resolveDesktopShortcuts`.
   },
   presentation: {
     enable_avatar_transform_controls: false,

@@ -41,6 +41,7 @@ import {
   type ClipOwnedSceneVFXRecord,
 } from "./clip-owned-scene-vfx";
 import { observeFirstPosedFrame } from "./firstPosedFrame";
+import { useSceneFrameDemand } from "./sceneFramePacing";
 
 const PRELOAD_CONCURRENCY = 3;
 const PARTICLE_VFX_PRELOAD_CONCURRENCY = 2;
@@ -620,9 +621,15 @@ export function AvatarCanvasActor({
     springModeRef,
   ]);
 
+  // A loading actor keeps the scene at its full rate.
+  const frameDemand = useSceneFrameDemand();
+
   useFrame((_state, delta) => {
     const avatar = avatarRef.current;
-    if (!avatar?.isReady || !firstFrameRef.current?.rendered) return;
+    if (!avatar?.isReady || !firstFrameRef.current?.rendered) {
+      if (frameDemand) frameDemand.avatarIdle = false;
+      return;
+    }
 
     const runtimeState = useAvatarRuntimeStore.getState();
     const nowMs = Date.now();
@@ -673,6 +680,10 @@ export function AvatarCanvasActor({
     avatar.update(delta, {
       speechTiming: lipSyncBridge.getSpeechTimingContext(preferredSpeechRunId),
     });
+    if (frameDemand) {
+      frameDemand.avatarIdle =
+        runtimeState.interactionPhase === "idle" && !avatar.isMotionActive();
+    }
 
     if (__ANIMAMA_DEV_BUILD__ && DEBUG_ENABLED)
       latestPlannerOutputRef.current = motionOutput;

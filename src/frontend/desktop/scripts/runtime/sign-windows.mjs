@@ -13,14 +13,17 @@ import {
   signFiles,
   signingOrder,
   verifyEmbeddedSignatures,
+  WINDOWS_EXECUTABLE,
 } from "./windows-signing.mjs";
 
 /**
- * Sign a packaged Windows app in place, before electron-builder builds its
- * uninstaller and installer (proposal P-b). Every PE file without a valid
- * signature is signed and valid vendor signatures are kept. Nested code is
- * signed first; the runtime manifest is then re-inventoried, since signing
- * changes file hashes; the outer app, `Animama.exe` last, is signed after it.
+ * Sign a packaged Windows app in place from electron-builder's `afterPack`
+ * hook (proposal P-b). Every PE file without a valid signature is signed and
+ * valid vendor signatures are kept. Nested code is signed first; the runtime
+ * manifest is then re-inventoried, since signing changes file hashes; the
+ * outer DLLs follow. `Animama.exe` is left alone: electron-builder edits its
+ * icon and version resources after this hook, then signs it last through
+ * {@link signBuilderFile}.
  *
  * A signing rehearsal signs the same files but carries no redistribution
  * receipt, so the release gate never accepts its output.
@@ -32,7 +35,9 @@ export function signWindowsApp(app, { release, tools, rehearsal }) {
   assertInventory(runtime, manifest.files);
   if (!rehearsal) verifyRedistributionReview(runtime, release);
   const stageBuildId = manifest.build_id;
-  const files = portableExecutables(app);
+  const files = portableExecutables(app).filter(
+    (file) => file !== WINDOWS_EXECUTABLE,
+  );
   const before = readSignatures(app, files);
   const { nested, outer } = signingOrder(files);
   const unsigned = (list) =>
@@ -68,7 +73,7 @@ export function signWindowsApp(app, { release, tools, rehearsal }) {
   };
 }
 
-/** electron-builder's signing hook for the uninstaller and installer it builds. */
+/** Sign a file electron-builder hands to its signing hook: `Animama.exe`, the uninstaller or the installer. */
 export function signBuilderFile(file, { release, tools }) {
   signFiles([file], tools, release.windowsPublisher);
   const name = path.basename(file);

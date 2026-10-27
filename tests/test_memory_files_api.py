@@ -31,6 +31,7 @@ from animama.server.schemas.memory_entry import (
     PySearchMemoryFilesDebugRequest,
 )
 from tests.product_http_support import TEST_POLICY
+from tests.route_support import served_routes
 
 
 def _user(user_id: str) -> RequestPrincipal:
@@ -307,7 +308,7 @@ async def test_version_routes_return_content_free_pages_and_adjacent_details(
 def test_version_metadata_and_routes_have_no_memory_entry_revision_compatibility() -> None:
     current_table = Base.metadata.tables["memory_entries"]
     version_table = Base.metadata.tables["memory_entry_versions"]
-    route_paths = {getattr(route, "path", None) for route in app.routes if hasattr(route, "path")}
+    route_paths = {getattr(route, "path", None) for route in served_routes(app) if hasattr(route, "path")}
 
     assert "revision" not in current_table.c
     assert "version" in current_table.c
@@ -1278,7 +1279,7 @@ async def test_recursive_delete_hides_larger_subtree_and_writes_descendant_delet
 
 
 def test_openapi_includes_memory_entry_routes_and_not_retired_file_or_block_routes() -> None:
-    paths = {getattr(route, "path", None) for route in api_router.routes}
+    paths = {getattr(route, "path", None) for route in served_routes(api_router)}
     assert "/v1/memory/entries" in paths
     assert "/v1/memory/entries/by-path" in paths
     assert "/v1/memory/entries/{entry_id}" in paths

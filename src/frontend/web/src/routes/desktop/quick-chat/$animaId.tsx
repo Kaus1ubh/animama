@@ -9,6 +9,7 @@ import { CompanionSafetyView } from "@/ui/safety/CompanionSafetyView";
 import {
   useDesktopQuickChatConsumer,
   useDesktopQuickChatInteractiveRegions,
+  usePauseClosedQuickChatAnimations,
 } from "@/hooks/useDesktopQuickChatRuntime";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
 import { ChatInterfaceView } from "@/ui/main/chat/ChatInterface";
@@ -80,6 +81,7 @@ function DesktopQuickChatRoute() {
   const [draftInput, setDraftInput] = useState("");
   const snapshotAnimaId = snapshot?.animaId ?? null;
   useTransparentQuickChatDocument();
+  usePauseClosedQuickChatAnimations();
   useDesktopQuickChatInteractiveRegions(isQuickChatWindow && Boolean(snapshot));
 
   useLayoutEffect(() => {
@@ -94,13 +96,20 @@ function DesktopQuickChatRoute() {
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
+      // An open menu or popover handles its own Escape first.
+      if (event.key !== "Escape" || event.defaultPrevented) return;
       event.preventDefault();
       close();
     };
+    // A click outside Quick Chat passes through to the window below, which
+    // takes focus, so the page losing focus cancels Quick Chat. Only a page
+    // that had focus loses it: an open that macOS never focused stays open.
+    const handleBlur = () => close();
     window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("blur", handleBlur);
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("blur", handleBlur);
     };
   }, [close]);
 
@@ -178,6 +187,8 @@ function DesktopQuickChatRoute() {
           onSubmit={handleSubmit}
           onVoiceMicToggle={() => sendCommand({ type: "toggle-voice-mute" })}
           onVoiceModeStart={() => sendCommand({ type: "start-voice-mode" })}
+          ttsAudioActive={snapshot.voice.ttsAudioActive}
+          onSkipTts={() => sendCommand({ type: "skip-tts" })}
           animaId={animaId}
           promptSuggestions={snapshot.promptSuggestions}
           quickChatSurface

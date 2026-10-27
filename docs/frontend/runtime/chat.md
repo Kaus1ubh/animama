@@ -65,6 +65,8 @@ It is disabled while another reply is active or the composer contains a draft.
 The user decides whether to resend, including after a suggested rate-limit delay.
 POST streams are never automatically retried. Intentional Stop remains quiet and
 does not imply that the upstream provider stopped generating or billing.
+Switching chats or starting a new one while a reply streams stops it the same
+way, so it cannot speak, animate or report errors in the next chat.
 
 An in-stream error is terminal: subsequent duplicate errors, text and
 `run.completed` cannot turn that failure into a successful cached answer. EOF
@@ -586,6 +588,12 @@ Avatar-only mode renders no transcript and so no cue.
 `useChatSession` starts a TTS run at dispatch, appends speakable tokens, completes
 it after SSE completion and cancels playback on Stop, error or navigation.
 Provider selection, buffering and timing are documented in [Voice](voice.md).
+
+While a reply is spoken, the latest assistant bubble shows a `FastForward`
+button ("Skip speech", `SkipSpeechButton.tsx`) beside any memory cue. It calls
+the session's `handleSkipTts`, like the desktop Skip TTS shortcut, and stops
+playback without changing Voice Mode. Quick Chat mirrors it through the
+`ttsAudioActive` voice state and a `skip-tts` command.
 
 ## 8) Avatar updates from chat
 

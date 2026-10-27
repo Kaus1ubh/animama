@@ -5,6 +5,7 @@ import {
   cacheRoot,
   copyTree,
   desktopRoot,
+  electronDist,
   executableSuffix,
   frontendRoot,
   nativeLockFile,
@@ -160,11 +161,9 @@ try {
     throw new Error(
       "Electron does not match the pinned runtime source manifest",
     );
-  copyTree(
-    path.join(desktopRoot, "node_modules/electron/dist"),
-    path.join(target.output, "electron"),
-    { preserveLinks: true },
-  );
+  copyTree(electronDist(), path.join(target.output, "electron"), {
+    preserveLinks: true,
+  });
   normalizeTree(path.join(target.output, "app"));
   writeJson(path.join(target.runtime, "build-evidence.json"), {
     schema: "animama-desktop-build-evidence/1",

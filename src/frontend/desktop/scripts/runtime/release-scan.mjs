@@ -52,12 +52,17 @@ const MACHO_MAGIC = ["cffaedfe", "cefaedfe", "cafebabe", "bebafeca"];
 // "MZ": a Windows PE executable, which may also be a PyInstaller archive.
 const PE_MAGIC = "4d5a";
 
-/** The 7-Zip that electron-builder itself uses (`7zip-bin`, pinned by the lockfile). */
-function sevenZip() {
+/**
+ * The 7-Zip that electron-builder itself uses to build the installer:
+ * app-builder-lib (pinned by the lockfile) downloads it on first use and
+ * verifies it against its pinned SHA-256, or reuses the copy the build cached.
+ */
+async function sevenZip() {
   let resolve = createRequire(path.join(desktopRoot, "package.json"));
-  for (const name of ["electron-builder", "builder-util"])
+  for (const name of ["electron-builder", "app-builder-lib"])
     resolve = createRequire(resolve.resolve(`${name}/package.json`));
-  return resolve("7zip-bin").path7za;
+  const { getPath7za } = resolve("./out/toolsets/7zip.js");
+  return getPath7za();
 }
 
 const pins = () =>
@@ -282,7 +287,7 @@ async function expandArchive(kind, file, into, work) {
   else if (kind === "zip" && process.platform === "darwin")
     tool(work, "ditto", ["-x", "-k", file, into]);
   else if (kind === "zip" || kind === "7z") {
-    tool(work, sevenZip(), ["x", "-y", "-bd", `-o${into}`, file]);
+    tool(work, await sevenZip(), ["x", "-y", "-bd", `-o${into}`, file]);
     // 7-Zip finds the installer's app payload by its signature; prove it did.
     if (
       file.endsWith("-setup.exe") &&

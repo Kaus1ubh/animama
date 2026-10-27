@@ -9906,6 +9906,16 @@ export type UserFileProcessingCapability = {
  */
 export type ValidationError = {
     /**
+     * Context
+     */
+    ctx?: {
+        [key: string]: unknown;
+    };
+    /**
+     * Input
+     */
+    input?: unknown;
+    /**
      * Location
      */
     loc: Array<string | number>;

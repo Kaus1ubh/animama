@@ -9,11 +9,7 @@ import type {
 } from "@/lib/types/voice-types";
 import { useAvatarRuntimeStore } from "@/stores/avatar-runtime-store";
 import { useAvatarLipSyncBridgeStore } from "@/stores/avatar-lipsync-bridge-store";
-import {
-  useSceneVFXStore,
-  type SceneVFXActiveByKind,
-} from "@/stores/scene-vfx-store";
-import type { SceneCameraSettings } from "@/ui/main/canvas/sceneCameraPresets";
+import type { SceneCameraPreset } from "@/ui/main/canvas/sceneCameraPresets";
 import type { AvatarTransform } from "@/ui/main/canvas/transform-state";
 
 export type DesktopPipAvatarRuntimeSnapshot = {
@@ -64,9 +60,17 @@ export type DesktopPipVisualState = {
   kind: "visual-state";
   backgroundMode: DesktopPipBackgroundMode;
   avatarTransform: AvatarTransform;
-  sceneCameraSettings: SceneCameraSettings;
+  /**
+   * The PiP camera preset. PiP frames its own Avatar with it: the owner's
+   * scene is suspended during PiP, so it cannot measure the Avatar.
+   */
+  cameraPreset: SceneCameraPreset;
+  /**
+   * Scene effects are not mirrored: the PiP renderer plays the Avatar's
+   * clips, and with them their scene effects, in its own scene VFX store.
+   * Replacing that store from the suspended main scene cleared them.
+   */
   avatarRuntime: DesktopPipAvatarRuntimeSnapshot;
-  sceneVfx: SceneVFXActiveByKind;
   lipSync: DesktopPipLipSyncSnapshot;
 };
 
@@ -139,15 +143,14 @@ export function captureDesktopPipLipSyncSnapshot(): DesktopPipLipSyncSnapshot {
 export function captureDesktopPipVisualState(args: {
   avatarTransform: AvatarTransform;
   backgroundMode: DesktopPipBackgroundMode;
-  sceneCameraSettings: SceneCameraSettings;
+  cameraPreset: SceneCameraPreset;
 }): DesktopPipVisualState {
   return {
     kind: "visual-state",
     backgroundMode: args.backgroundMode,
     avatarTransform: cloneJsonLike(args.avatarTransform),
-    sceneCameraSettings: cloneJsonLike(args.sceneCameraSettings),
+    cameraPreset: args.cameraPreset,
     avatarRuntime: captureDesktopPipAvatarRuntimeSnapshot(),
-    sceneVfx: cloneJsonLike(useSceneVFXStore.getState().activeByKind),
     lipSync: captureDesktopPipLipSyncSnapshot(),
   };
 }
@@ -176,8 +179,6 @@ export function applyDesktopPipVisualState(state: DesktopPipVisualState): void {
     emotionalState: state.avatarRuntime.emotionalState,
     lastEmotionEventId: state.avatarRuntime.lastEmotionEventId,
   });
-
-  useSceneVFXStore.getState().replaceActiveByKind(state.sceneVfx);
 
   const currentLipSyncState = useAvatarLipSyncBridgeStore.getState();
   const hasLipSyncState =

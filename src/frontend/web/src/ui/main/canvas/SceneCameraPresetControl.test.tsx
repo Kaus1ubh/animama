@@ -23,4 +23,16 @@ describe("camera preset dropdown", () => {
     expect(html).toContain("Full body (close)");
     expect(html).toContain("Portrait (close)");
   });
+
+  it("names the camera it controls", () => {
+    const html = renderToStaticMarkup(
+      <SceneCameraPresetControl
+        title="PiP camera"
+        preset="portrait-close"
+        onApplyPreset={vi.fn()}
+      />,
+    );
+    expect(html).toContain('aria-label="PiP camera"');
+    expect(html).toContain('value="portrait-close" selected=""');
+  });
 });

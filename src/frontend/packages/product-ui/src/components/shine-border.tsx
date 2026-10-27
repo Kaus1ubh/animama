@@ -55,6 +55,8 @@ export function ShineBorder({
           ...style,
         } as React.CSSProperties
       }
+      // Hosts pause the shine while its window is not in use (`globals.css`).
+      data-slot="shine-border"
       className={cn(
         "motion-safe:animate-shine pointer-events-none absolute inset-0 size-full rounded-[inherit]",
         className,

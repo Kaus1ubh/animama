@@ -65,6 +65,7 @@
     "desktop:test": "pnpm --filter @animama/runtime-contracts build && node desktop/scripts/run-tests.mjs",
     "desktop:runtime:stage": "pnpm --filter animama-desktop runtime:stage",
     "desktop:runtime:audit": "pnpm --filter animama-desktop runtime:audit",
+    "desktop:icons": "pnpm --filter animama-desktop icons",
     "desktop:runtime:packs": "pnpm --filter animama-desktop runtime:packs",
     "desktop:runtime:document-worker": "pnpm --filter animama-desktop runtime:document-worker",
     "desktop:dist:mac": "pnpm --filter animama-desktop release:mac",
@@ -86,20 +87,19 @@
     "poses:check": "node scripts/generate-pose-catalog.mjs --check"
   },
   "devDependencies": {
-    "@hey-api/openapi-ts": "^0.90.3",
+    "@animama/runtime-contracts": "workspace:*",
+    "@hey-api/openapi-ts": "^0.90.10",
+    "esbuild": "0.27.7",
     "i18next-cli": "1.74.1",
-    "knip": "6.34.0",
+    "knip": "6.43.0",
     "playwright": "1.58.2",
     "sharp": "0.34.5",
-    "esbuild": "0.27.7",
-    "typescript": "6.0.3",
-    "@animama/runtime-contracts": "workspace:*"
+    "typescript": "6.0.3"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
       "@parcel/watcher",
       "core-js",
-      "electron",
       "esbuild",
       "protobufjs",
       "sharp"

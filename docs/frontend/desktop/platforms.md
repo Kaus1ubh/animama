@@ -89,10 +89,10 @@ The unsigned development bundle is written to
 contains the frozen backend, native PostgreSQL/pgvector, immutable core content,
 and production web files outside ASAR. FastAPI serves the web files; Electron
 main owns native supervision and independent recovery.
-The development packager explicitly disables both certificate and ad-hoc
-signing, then verifies the copied runtime against the audited file inventory.
-`CSC_IDENTITY_AUTO_DISCOVERY=false` alone is insufficient: electron-builder's
-Apple-silicon fallback can change native hashes through ad-hoc signing.
+The development packager explicitly disables signing (`identity: null`), then
+verifies the copied runtime against the audited file inventory. Otherwise
+electron-builder would sign with any Developer ID identity it finds in the
+Keychain, changing native hashes.
 `desktop/release/development-package-report.json` records the result and actual
 installed size. This local bundle is not a notarized distribution artifact.
 `pnpm desktop:pack` aliases this same macOS development producer;
@@ -152,8 +152,9 @@ it. `desktop:win:installer` also builds
 `desktop/release/Animama-<version>-x64-setup.exe`, an unsigned one-click
 per-user installer for local installer testing. Windows may warn about an
 unsigned installer; none of these artifacts is a release. The development
-package signs nothing, so the staged runtime keeps its audited hashes, and the
-build host needs no Developer Mode.
+package signs nothing, so the staged runtime keeps its audited hashes.
+electron-builder writes `Animama.exe`'s icon and version resources itself, with
+no tool download, so the build host needs no Developer Mode.
 
 The installer puts Animama in `%LOCALAPPDATA%\Programs\Animama` without a UAC
 prompt and adds Start menu and Desktop shortcuts; it refuses Windows builds
@@ -205,6 +206,29 @@ The application treats that data directory as durable, not as build output.
 The staging command clears only its target directory, not `dev`.
 Never put user data inside `darwin-arm64/runtime`. Both overrides are
 development-only and rejected in packaged mode.
+
+## App Icons
+
+Every package and installer takes its icon from `desktop/build`, generated
+from the brand mark `web/public/brand/animama-mark.png`:
+
+| File           | Used for                                                                                     |
+| -------------- | -------------------------------------------------------------------------------------------- |
+| `icon.icns`    | macOS app bundle and signed DMG: the mark on a pale-sky tile following Apple's 1024 px grid. |
+| `icon-mac.png` | The 1024 px macOS tile itself; unpackaged macOS runs show it in the Dock.                    |
+| `icon.ico`     | Windows executable, NSIS installer and uninstaller (16–256 px, transparent mark).            |
+| `icon.png`     | Linux AppImage and unpackaged Windows/Linux window icons (1024 px, transparent mark).        |
+
+The macOS tile must stay an opaque rounded square of exactly the grid's
+824 px body; macOS 26 puts any other shape on a gray plate. To change the
+mark or the tile colours and scale in `desktop/scripts/runtime/icon.mjs`,
+regenerate all four files on macOS from `src/frontend` and commit them:
+
+```sh
+pnpm desktop:icons
+```
+
+The output is deterministic, so an unchanged source reproduces identical files.
 
 ## Platform And Release Gates
 

@@ -11,6 +11,7 @@ const SHORTCUTS_STATUS_CHANGED_CHANNEL = "anima:shortcuts:status-changed";
 type DesktopShortcutAction =
   | "press_to_talk"
   | "quick_chat"
+  | "toggle_dictation"
   | "toggle_voice_mode"
   | "toggle_voice_mute"
   | "skip_tts";
@@ -98,6 +99,7 @@ function normalizeShortcutEvent(value: unknown): DesktopShortcutEvent | null {
   if (
     value.action !== "press_to_talk" &&
     value.action !== "quick_chat" &&
+    value.action !== "toggle_dictation" &&
     value.action !== "toggle_voice_mode" &&
     value.action !== "toggle_voice_mute" &&
     value.action !== "skip_tts"

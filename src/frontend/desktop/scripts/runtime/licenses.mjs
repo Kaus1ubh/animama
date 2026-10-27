@@ -12,6 +12,7 @@ import path from "node:path";
 import {
   buildPython,
   desktopRoot,
+  electronDist,
   filesIn,
   frontendRoot,
   nativeLockFile,
@@ -188,7 +189,6 @@ export function writeLicenses(target, contentInventory) {
       source: "https://visualstudio.microsoft.com/license-terms/",
       review: "pending",
     });
-  const electronDist = path.join(desktopRoot, "node_modules/electron/dist");
   records.push({
     id: "electron",
     name: "Electron + Chromium",
@@ -200,7 +200,7 @@ export function writeLicenses(target, contentInventory) {
     review: "pending",
     notices: ["LICENSE", "LICENSES.chromium.html"].map((name) => ({
       path: name,
-      text: readFileSync(path.join(electronDist, name), "utf8"),
+      text: readFileSync(path.join(electronDist(), name), "utf8"),
     })),
   });
   const contentRecords = new Map();

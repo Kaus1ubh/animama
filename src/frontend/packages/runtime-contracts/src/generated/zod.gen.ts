@@ -6776,6 +6776,8 @@ export const zUserFileProcessingCapability = z.object({
  * ValidationError
  */
 export const zValidationError = z.object({
+    ctx: z.optional(z.record(z.string(), z.unknown())),
+    input: z.optional(z.unknown()),
     loc: z.array(z.union([z.string(), z.int()])),
     msg: z.string(),
     type: z.string()

@@ -46,7 +46,7 @@ _STATUS: tuple[tuple[type[VoiceCatalogUploadError], int], ...] = (
     (VoiceCatalogUploadStateError, status.HTTP_409_CONFLICT),
     (VoiceCatalogSaveConflictError, status.HTTP_409_CONFLICT),
     (VoiceCatalogUploadExpiredError, status.HTTP_410_GONE),
-    (VoiceCatalogBytesInvalidError, status.HTTP_422_UNPROCESSABLE_ENTITY),
+    (VoiceCatalogBytesInvalidError, status.HTTP_422_UNPROCESSABLE_CONTENT),
     (VoiceCatalogStorageError, status.HTTP_507_INSUFFICIENT_STORAGE),
 )
 

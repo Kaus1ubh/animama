@@ -277,7 +277,7 @@ export function AnimaCarousel({
         <div
           ref={scrollContainerRef}
           className={cn(
-            "flex h-full snap-x snap-mandatory gap-2 overflow-x-auto [scrollbar-width:thin]",
+            "flex h-full snap-x snap-mandatory [scrollbar-width:thin] gap-2 overflow-x-auto",
             showNavigationButtons ? "px-11" : "px-1",
             compact &&
               "min-h-[4.5rem] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",

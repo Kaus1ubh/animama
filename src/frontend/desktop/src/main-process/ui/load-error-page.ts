@@ -34,6 +34,15 @@ export function createLoadErrorHtml(
         min-height: 100vh;
       }
 
+      /* Moves the window, which has no native title bar on macOS and Windows. */
+      .title-bar {
+        -webkit-app-region: drag;
+        app-region: drag;
+        height: env(titlebar-area-height, 0px);
+        inset: 0 0 auto;
+        position: fixed;
+      }
+
       main {
         margin: 0 auto;
         max-width: 680px;
@@ -63,6 +72,7 @@ export function createLoadErrorHtml(
     </style>
   </head>
   <body>
+    <div class="title-bar"></div>
     <main>
       <h1>Anima could not load</h1>
       <p>The desktop shell could not reach <code>${escapeHtml(targetUrl)}</code>.</p>

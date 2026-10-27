@@ -25,6 +25,7 @@ from animama.server.routers import model_configuration, router as shared_router
 from animama.server.routers.model_configuration import get_model_connection_probe
 from tests.local_http_client import local_client
 from tests.product_http_support import install_local_ports
+from tests.route_support import served_routes
 
 
 class _FakeProbe:
@@ -539,11 +540,11 @@ def test_only_the_local_composition_mounts_model_configuration_routes(tmp_path):
     from animama.server.app import create_local_app
 
     configuration_paths = {route.path for route in model_configuration.router.routes if isinstance(route, APIRoute)}
-    shared_paths = {route.path for route in shared_router.routes if isinstance(route, APIRoute)}
+    shared_paths = {route.path for route in served_routes(shared_router) if isinstance(route, APIRoute)}
     local_app = create_local_app(
         runtime_settings=Settings(animama_content_root=tmp_path / "content", animama_data_root=tmp_path / "data")
     )
-    local_paths = {route.path for route in local_app.routes if isinstance(route, APIRoute)}
+    local_paths = {route.path for route in served_routes(local_app) if isinstance(route, APIRoute)}
 
     assert "/v1/model-connections" in configuration_paths
     assert "/v1/model-connection-presets/openrouter/models" in configuration_paths

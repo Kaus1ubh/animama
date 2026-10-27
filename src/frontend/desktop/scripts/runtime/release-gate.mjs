@@ -12,7 +12,7 @@ try {
     await (await import("./smoke-windows.mjs")).smokeWindows(args);
   else
     throw new Error(
-      "Expected mac [--resume-app-notarization <submission-id>], windows [--signing-rehearsal], smoke-mac --artifact <signed.dmg> or smoke-windows --artifact <setup.exe>",
+      "Expected mac [--signing-rehearsal | --resume-app-notarization <submission-id>], windows [--signing-rehearsal], smoke-mac --artifact <signed.dmg> or smoke-windows --artifact <setup.exe>",
     );
 } catch (error) {
   console.error(
