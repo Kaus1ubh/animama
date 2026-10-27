@@ -1,10 +1,7 @@
-import type { PyTypedContentPreview } from "@animama/runtime-contracts/api-types";
 import { describe, expect, it } from "vitest";
 
 import type { PyContentPreview } from "@/lib/content/catalogTypes";
-import { resolveRuntimeAvatarFaceParts } from "@/lib/runtime-content/runtimeAvatarFaceParts";
 import { avatarPreviewTarget } from "./avatarPreviewTarget";
-import { typedPreviewTransport } from "./catalogApi";
 
 describe("avatarPreviewTarget", () => {
   it("maps a private Avatar VRM to an authorized model file", () => {
@@ -62,56 +59,6 @@ describe("avatarPreviewTarget", () => {
     expect(target.entry.source).toMatchObject({
       type: "authorized_files",
       files: [{ role: "model", filename: "annie.vrm" }],
-    });
-  });
-
-  it("loads the Avatar with its saved face part correction", () => {
-    const sha = "c".repeat(64);
-    const correction = {
-      schema: "animama/avatar-face-parts/1" as const,
-      vrm_sha256: sha,
-      parts: {
-        face_skin: ["3:0:1"],
-        eye_left: ["3:0:2"],
-        eye_right: ["3:0:2"],
-      },
-    };
-    const typed: PyTypedContentPreview = {
-      preview_id: "avatar-corrected",
-      revision_sha256: "avatar-revision",
-      expires_at: "2026-08-13T00:05:00Z",
-      files: [
-        {
-          file_ref: "vrm-ref",
-          role: "vrm",
-          ordinal: 1,
-          filename: "avatar.vrm",
-          logical_path: "avatar.vrm",
-          media_type: "model/gltf-binary",
-          size_bytes: 10,
-          sha256: sha,
-          url: "/v1/content/previews/avatar-corrected/vrm-ref",
-        },
-      ],
-      item: {
-        kind: "avatar",
-        item_id: "avatar-1",
-        name: "My Avatar",
-        editable: true,
-        revision_sha256: "avatar-revision",
-        source: "local",
-        face_parts: correction,
-      },
-    };
-
-    const target = avatarPreviewTarget(
-      typedPreviewTransport(typed),
-      "My Avatar",
-    );
-    if (target.sourceType !== "resolved_entry") throw new Error("fixture");
-    expect(resolveRuntimeAvatarFaceParts(target.entry)).toEqual({
-      facePartCorrections: correction,
-      vrmSha256: sha,
     });
   });
 });

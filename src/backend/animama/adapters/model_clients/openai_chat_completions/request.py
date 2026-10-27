@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-import httpx
+import httpx2
 
 from animama.app.model_catalog import STRUCTURED_OUTPUT_TRANSPORT_JSON_OBJECT
 from animama.app.model_clients import ModelClientProviderError, ModelClientRequest
@@ -24,7 +24,9 @@ from .._common import jsonable, openai_cache_breakpoint_text_part
 _CACHE_BREAKPOINT_REPLY_COUNT = 2
 
 
-def create_chat_completion_kwargs(spec: ModelClientRequest, *, timeout: float | httpx.Timeout | None) -> dict[str, Any]:
+def create_chat_completion_kwargs(
+    spec: ModelClientRequest, *, timeout: float | httpx2.Timeout | None
+) -> dict[str, Any]:
     """Translate a provider-neutral request into Chat Completions SDK kwargs.
 
     The selected row's connection compatibility options decide which
