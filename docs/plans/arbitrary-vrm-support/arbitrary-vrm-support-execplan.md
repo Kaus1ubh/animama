@@ -224,7 +224,10 @@ tenant-inventory row for `avatar_face_part_overrides`. So:
 - [ ] Phase 8: Package sharing (R13). Implemented, checked and review passed
   2026-10-27 (merged into PR B); the full `pnpm e2e:test` runs on the final
   candidate, and the package-set bumps at PR time.
-- [ ] Phase 9 (alongside): lilToon frame cost (R11). Not started.
+- [ ] Phase 9 (alongside): lilToon frame cost (R11). Implemented, checked and
+  review passed 2026-10-27 (merged into PR B); the owner gate (the measured
+  result against the target, the 8 ms threshold, the pre-pass and
+  re-measurement options) is pending.
 - [ ] Phase 10: Diagnostics and Avatar settings in the Library and Create Anima
   (R5, R7 and R11 entry points; owner, 2026-10-27). Implemented, checked and
   review passed 2026-10-27 on `feat/arbitrary-vrm-support-pr-b`;
@@ -488,6 +491,23 @@ tenant-inventory row for `avatar_face_part_overrides`. So:
     retuned beside authored ones). Such models keep the enhanced lights, tone
     mapping and chat filter on their authored materials: "classic" applies per
     material, not to the scene. A role-based retune remains a follow-up.
+- 2026-10-27, agent (Phase 9, within the plan; owner gate items marked):
+  - Measurements run paced at 60 fps: unpaced, a lilToon Avatar saturates the
+    GPU and the timer counts queued work, which most likely explains R11's
+    30.8 ms baseline. Paced, the converted test Avatar takes about 5.5–7 ms
+    against 1.7–3 ms for the Included Avatars; the target is not met.
+  - The cost is spread over large surfaces and does not grow with pixels; no
+    feature or layer cut reaches the target, and the outline pass must stay
+    (it acts as a partial depth pre-pass).
+  - A depth pre-pass ships but covers only surfaces that replace colour and
+    alpha, which excludes three-liltoon's default alpha blend: for the owner,
+    keep it (safe, no saving on known Avatars), admit materials proven opaque
+    (a texture scan at load), accept alpha-only differences (one rule; 0
+    differing pixels in renders), or remove it. Blending off is not shipped.
+  - Automatic uses a one-time GPU measurement per viewer and GPU with a
+    proposed 8 ms threshold; for the owner: the threshold, and whether to
+    re-measure (near or over the threshold, by age) instead of the documented
+    manual reset. Only the main canvas measures. No app-wide setting.
 
 ## Decisions
 
@@ -2094,15 +2114,170 @@ Completion: R11 acceptance; owner gate passed.
 Recovery: rendering changes are runtime only; an app-wide preference, if added,
 is optional with a default.
 
-Check record: (to fill) · Commits: (to fill)
+Measurement (step 1). Method: `effects:bench` on an Apple M5, headless
+Chromium with ANGLE Metal, the chat canvas 800×600, enhanced rendering, the
+default looping Gesture, paced at 60 fps (`--fps 60`: unpaced runs reach about
+116 fps and a lilToon Avatar then saturates the GPU, so the timer counts queued
+work; the 2026-10-24 figures in R11 were most likely unpaced), 120 warm-up
+frames and 4 rounds of 80 measured frames per pass, scenarios alternating with
+the baseline within a run. Other sessions' jobs ran throughout: baselines moved
+between runs, so deltas are within one run. GPU ms per frame:
+
+| Avatar | DPR 1 | DPR 1.5 | DPR 2 | Draw calls / triangles |
+|---|---|---|---|---|
+| converted test Avatar, lilToon | 5.60 | 6.04 | 5.78 | 19 / 131,137 |
+| same Avatar, Simple | 0.97 | 1.16 | 1.61 | 11 / 67,698 |
+| Andrew | 1.97 | 2.35 | 2.30 | 27 / 82,040 |
+| Annie | 1.62 | 1.69 | 2.05 | 24 / 56,194 |
+
+Breakdown at DPR 2 (one run, baseline 7.55 ms): hiding the largest garment
+material −1.52 and the face skin −1.28; by layer, body and clothing −2.38, face
+−0.64, hair −0.62, eye stack −0.38 (no hot spot; no separate shadow mesh);
+features off: toon shadow −1.13, reflection −1.27, normal maps −0.57, rim
+−0.22, each changing at most 0.2% of pixels under the chat lights; turning the
+outline pass off costs +6.4 (it acts as a partial depth pre-pass); morph targets
+−0.2 to −0.6. lilToon on one material only: 3.6–6.3 ms for the large
+materials, 1.8–2.4 for the small ones; all fallback 1.74. A resolution-
+independent floor of about 4–5 ms is unexplained (a GPU capture is left for
+later).
+
+Levers (step 2): a lower pixel ratio gains little at 60 fps (DPR 1 still
+5.4–5.9 ms); an idle frame-rate cap halves GPU busy time but not per-frame
+cost (the app already idles at 30 fps); feature cuts total −1 to −3 ms and
+never reach the target; lilToon on chosen materials reaches about 2 ms only
+when the large materials fall back (effectively Simple); a depth pre-pass and
+blending off on opaque materials change no colour. The depth pre-pass
+(`liltoon/depthPrepass.ts`, outlines kept) saved 0.5–0.6 ms when it covered
+the nine opaque primitives (6.08 vs 6.60 at DPR 2, 6.52 vs 7.13 at DPR 1; up
+to 3.5 under heavier load), with 0 differing pixels in private renders
+(`effects:render --materials liltoon`, front, three-quarter and face views at
+0.5 and 1 s, SwiftShader, `--diff --threshold 0`, max channel delta 0; with a
+head sticker, an eye effect using face cleanup and eye-detail hiding, and a
+silhouette; a determinism run 0). Review then made it refuse any surface
+whose alpha blends (lilToon's opaque output alpha is texture alpha times
+`_Color.a`, so canvas alpha could depend on what is behind), alpha-to-coverage
+and any polygon offset. three-liltoon blends alpha One/One-minus-source on
+every material, so the shipped pre-pass covers 0 of the converted test
+Avatar's 11 primitives and saves nothing there. Not shipped: blending off.
+The lilToon Avatar therefore takes about 2–3 times an Included Avatar, and the
+target needs Automatic (step 3).
+
+Automatic (step 3): the main canvas (chat; not PiP or previews) times 60
+lilToon frames after 60 warm-up frames with `EXT_disjoint_timer_query_webgl2`
+(available in Chromium and the Electron browser pane on this machine) on a
+drawing buffer of at least 1 million pixels, and stores the median per GPU in
+per-viewer storage (`liltoon/lilToonGpuCheck.ts`); under Automatic,
+`Avatar.load` picks Simple when that median exceeds
+`LILTOON_AUTOMATIC_MAX_FRAME_MS` (proposed 8 ms, half a 60 fps frame; the M5
+measures about 5.5–7 ms without the pre-pass and keeps lilToon), and lilToon
+when unmeasured, unsupported or storage is blocked; it applies from the next
+load, and Diagnostics says what Automatic chose and why. No app-wide setting
+was added. The raw median is compared because lilToon's cost did not grow
+with pixels (GPU ms per frame, ascending / descending runs, pre-pass on as at
+`fbbca3f8`):
+
+| Drawing-buffer pixels | lilToon | Andrew |
+|---|---|---|
+| 1.00 million | 5.94 / 5.91 | 2.44 / 2.43 |
+| 1.92 million | 5.80 / 5.96 | 2.98 / 2.99 |
+| 3.71 million | 5.28 / 5.65 | 3.93 / 3.97 |
+| 5.88 million | 5.52 / 5.45 | 4.56 / 4.49 |
+| 7.68 million | 5.55 / 12.45 | 4.67 / 4.82 |
+
+The 12.45 ms reading was steady across its passes and opened the descending
+run: a heavier regime the M5 entered at times under other sessions' load. One
+such reading during the one-time measurement would keep the M5 on Simple
+under Automatic until the stored result is cleared (documented reset; the
+policy is the owner's).
+
+Check record (2026-10-27, macOS arm64, worktree `feat/arbitrary-vrm-support-p9`
+from `1ae2f37e`, merged with `main` `fd4c86c5`; final tree at `fbbca3f8`,
+`src/frontend/web`): `npx tsc -p tsconfig.app.json --noEmit` and `-p
+tsconfig.scripts.json`; eslint and Prettier on the changed files; vitest on
+`src/lib/avatar src/ui/animas src/ui/main/canvas src/ui/library src/query/hooks
+src/ui/create-anima src/ui/content-preview src/ui/content-creator
+src/ui/pose-creator` 201 files passed, 1 skipped, 2,057 tests passed;
+`pnpm i18n:check`; `node --test` on the bench tests 6/6. Included Avatars' bench
+output and draw calls unchanged by the bench edit (27 and 24 draw calls).
+Merged into PR B with the repair: `pnpm i18n:check`, both `tsc` configs and
+`npx vitest run src/lib/avatar src/ui tests/avatar src/lib/content
+src/lib/content-preview src/query src/routes` (423 files, 3,938 passed). Not run here: `pnpm verify`,
+`web:test:browser` and e2e (the final candidate's full suite), and a live app
+check of the GPU check.
+
+Commits: `feat(avatars)[p9]: break down lilToon frame cost in effects:bench`,
+`feat(avatars)[p9]: draw opaque lilToon depth first`,
+`feat(avatars)[p9]: let Automatic choose Simple on slow GPUs`,
+`fix(avatars)[p9]: keep the pre-pass and GPU check within their evidence`,
+`docs(avatars)[p9]: record lilToon frame cost measurement, checks and reviews`
 
 #### Code Review #1 Findings
 
-Not run.
+Independent reviewer, standard tier, on `fbbca3f8` (no high-risk trigger: no
+preference, API or settings contract; the measurement cache is per device and
+the GPU name appears in no report or log). Confirmed: skinned and morphed
+pre-pass meshes share the skeleton and influences; layers, side, culling and
+render order copied; override and stencil checks; release order; Included
+Avatars never load the runtime and the default bench is unchanged.
+
+- P9-R1-F1 (blocking): the pre-pass ignored a material's own polygon offset,
+  so a surface with a positive offset would fail its depth test behind its
+  own pre-pass (holes); also alpha-to-coverage and non-replacing alpha blends.
+- P9-R1-F2 (blocking): the 8 ms threshold came from the bench at 1.92 million
+  pixels while the app measured any main canvas of at least 1 million pixels
+  (about 3.7 million in the default window) and ignored the stored count;
+  PiP also measured.
+- P9-R1-F3 (owner policy; minimum required): one measurement stays in force;
+  document the reset path.
+- P9-R1-F4 (evidence): the pixel claim needed its method and coverage of eye
+  hiding and silhouettes.
+- P9-R1-F5 (record): this section had no table, decisions or check record.
+- Optional: disjoint-event handling, release on a failed install, a second
+  install, measurement validation, tests that tell a median from a mean, one
+  shared lilToon-surface predicate, the Materials setting's description.
 
 #### Code Review #1 Revisions
 
-Not run.
+- F1 accepted: the pre-pass also refuses alpha-blending surfaces, alpha to
+  coverage and any polygon offset; unit tests for each. Consequence recorded
+  above: it covers no default lilToon material.
+- F2 accepted: the scaling bench above supports the raw comparison (stated
+  beside the constant and in the docs); only the main canvas measures
+  (`Scene` `measureLilToonGpu`, `AvatarSceneHost` passes it for `main`).
+- F3: the reset path is documented ("Measuring again" in
+  `avatar-animation.md`, linked from `anima-management.md`); the policy goes
+  to the owner gate.
+- F4 accepted: the method and the three effects are in the measurement above.
+- F5 accepted: this section and the Decision Log.
+- Optional, all taken (`474e54aa`): the disjoint flag is read after a result
+  is available and only while timing; a failed check install releases the
+  passes; a second install shares the first; stored measurements need the
+  pixel minimum; `liltoon/lilToonSurface.ts` is shared by the pre-pass, the
+  check and the bench; the Materials description mentions Automatic's GPU
+  check in five languages. Checks on `474e54aa` (`src/frontend/web`): both
+  `tsc` configs; eslint and Prettier on the changed files; vitest on
+  `src/lib/avatar src/ui/animas src/ui/main/canvas src/ui/library
+  src/query/hooks src/ui/create-anima src/ui/content-preview
+  src/ui/content-creator src/ui/pose-creator src/routes` 207 files passed,
+  2,112 tests passed; `pnpm i18n:check`; the bench tests 6/6.
+
+#### Code Review #2 Findings
+
+Targeted recheck of `474e54aa`: every code finding resolved with no
+regression (the blend rule matches three's state handling; only the main
+canvas measures, checked at every caller; the shared predicate behaves as
+before at all three sites). P9-R2-F1 (wording): the docs and the module
+comment said removing the key re-measures on the next lilToon frames, but the
+check reads storage when the main canvas mounts, so it takes a reload.
+Optional: keep lilToon's passes when only the optional GPU check fails to
+install. Owner decisions: ship an inert pre-pass; one-shot measurement near
+the threshold; evidence from one GPU only.
+
+#### Code Review #2 Revisions
+
+- R2-F1 accepted (trivial, verified by reading the code path): both now say
+  to reload. Not taken: keeping the passes on a failed check install (the
+  path is practically unreachable; failing whole is the simpler contract).
 
 ### Phase 10: Diagnostics and Avatar settings in the Library and Create Anima
 

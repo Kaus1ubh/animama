@@ -20,7 +20,8 @@ import { isLilToonSurface } from "./lilToonSurface";
  * lilToon; Diagnostics says which (`AutomaticMaterialsDecision`).
  *
  * A GPU is measured once per viewer. Removing the storage key, or raising
- * `METHOD` below, measures every GPU again on its next lilToon frames.
+ * `METHOD` below, measures every GPU again once the main canvas next mounts
+ * (the check reads storage when it installs), on its next lilToon frames.
  */
 
 const logger = createLogger("LilToonGpuCheck");

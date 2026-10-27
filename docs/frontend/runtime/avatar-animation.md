@@ -1690,7 +1690,8 @@ adapts colour and UV expression binds to those materials.
   default window's chat canvas is about 3.7 million pixels at DPR 2).
 - **Measuring again:** a GPU is measured once per viewer. Removing the
   `animama.lilToonGpuCheck` key from the app's `localStorage` (for example in
-  the developer tools) measures every GPU again on its next lilToon frames,
+  the developer tools) and reloading the app measures every GPU again on its
+  next lilToon frames (the check reads storage when the main canvas mounts),
   and the next load after that uses the new result. Raising `METHOD` in
   `lilToonGpuCheck.ts` makes every viewer measure again, for a changed
   measurement or a rendering change that moves lilToon's cost.
