@@ -69,8 +69,8 @@ type SceneProps = {
   onAvatarTransformChange?: (transform: AvatarTransform) => void;
   playRuntimeVfxSounds?: boolean;
   /**
-   * Time this canvas's first lilToon frames for the Materials setting's
-   * Automatic; the main canvas only, not Picture in Picture.
+   * Time this canvas's lilToon frames when the Materials setting's Automatic
+   * needs a measurement; the main canvas only, not Picture in Picture.
    */
   measureLilToonGpu?: boolean;
   sceneEffectsEnabled?: boolean;

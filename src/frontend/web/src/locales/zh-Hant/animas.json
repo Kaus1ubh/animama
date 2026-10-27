@@ -210,14 +210,16 @@
       "milliseconds": "{{value}} 毫秒",
       "nextLoad": "下次載入：{{state}} · {{why}}（在本次載入後測得）",
       "rendered": "使用 lilToon 算繪",
+      "renderedAt": "使用 lilToon 算繪（{{fps}} fps）",
       "simple": "簡單材質",
       "value": "{{state}} · {{why}}",
       "why": {
         "automatic": "由自動選擇",
-        "automaticFast": "由自動選擇：此 GPU 繪製一幀 lilToon 用時 {{measured}}，未超過 {{threshold}} 上限",
         "automaticNotMeasured": "由自動選擇：尚未測量此 GPU 的 lilToon 幀時間",
-        "automaticSlow": "由自動選擇：此 GPU 繪製一幀 lilToon 用時 {{measured}}，超過 {{threshold}} 上限",
+        "automaticRemeasuring": "由自動選擇：此 GPU 繪製一幀 lilToon 用時 {{measured}}，超過 {{fps}} fps 的 {{budget}} 上限；改用簡單材質前會再次測量",
+        "automaticSlow": "由自動選擇：此 GPU 繪製一幀 lilToon 用時 {{measured}}，超過 {{fps}} fps 的 {{budget}} 上限",
         "automaticUnsupported": "由自動選擇：此瀏覽器無法測量 GPU 時間",
+        "automaticWithin": "由自動選擇：此 GPU 繪製一幀 lilToon 用時 {{measured}}，未超過 {{fps}} fps 的 {{budget}} 上限",
         "chosen": "設為{{mode}}",
         "failed": "lilToon 無法載入"
       }

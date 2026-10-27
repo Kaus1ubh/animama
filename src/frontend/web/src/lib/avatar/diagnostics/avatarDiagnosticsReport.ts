@@ -1,5 +1,8 @@
 import type { AvatarMaterialMode, AvatarSpringMode } from "../avatarSettings";
-import type { AutomaticMaterialsDecision } from "../liltoon/lilToonGpuCheck";
+import {
+  lilToonFrameBudgetMs,
+  type AutomaticMaterialsDecision,
+} from "../liltoon/lilToonGpuCheck";
 import type { AvatarFileFacts } from "./avatarFileFacts";
 import type { AvatarLiveDiagnostics } from "./avatarDiagnostics";
 import { mergeAvatarIssues, type AvatarIssue } from "./issues";
@@ -202,20 +205,39 @@ function liveLines(live: AvatarDiagnosticsReport["live"]): string[] {
   ];
 }
 
-/** Why Automatic chose lilToon or Simple, in the report's plain English. */
+/**
+ * Why Automatic chose lilToon (at which frame rate) or Simple, in the
+ * report's plain English.
+ */
 export function automaticMaterialsLine(
   decision: AutomaticMaterialsDecision,
 ): string {
-  const chose = `Automatic chose ${decision.choice === "simple" ? "Simple" : "lilToon"}`;
-  const threshold = `${decision.thresholdMs.toFixed(1)} ms`;
+  const chose = `Automatic chose ${
+    decision.choice === "simple"
+      ? "Simple"
+      : decision.fpsCap
+        ? `lilToon at ${decision.fpsCap} fps`
+        : "lilToon"
+  }`;
+  if (decision.reason === "not_measured")
+    return `${chose}: this GPU's lilToon frame time is not measured yet`;
+  if (decision.reason === "unsupported")
+    return `${chose}: this browser cannot time the GPU`;
+  const fps = decision.budgetFps!;
+  const budget = `the ${lilToonFrameBudgetMs(fps).toFixed(1)} ms budget for ${fps} fps`;
+  const which =
+    decision.samples === 1
+      ? "the only lilToon frame measurement"
+      : `the fastest of ${decision.samples} lilToon frame measurements`;
+  const measured = `${chose}: ${which} on this GPU took ${decision.frameMs!.toFixed(1)} ms of GPU time (${decision.pixels} pixels)`;
   switch (decision.reason) {
     case "fast":
+    case "capped":
+      return `${measured}, within ${budget}`;
+    case "remeasuring":
+      return `${measured}, over ${budget}; measuring again before choosing Simple`;
     case "slow":
-      return `${chose}: a lilToon frame took ${decision.frameMs!.toFixed(1)} ms of GPU time on this GPU (${decision.pixels} pixels), ${decision.reason === "slow" ? "above" : "within"} the ${threshold} threshold`;
-    case "not_measured":
-      return `${chose}: this GPU's lilToon frame time is not measured yet (threshold ${threshold})`;
-    case "unsupported":
-      return `${chose}: this browser cannot time the GPU (threshold ${threshold})`;
+      return `${measured}, over ${budget}`;
   }
 }
 

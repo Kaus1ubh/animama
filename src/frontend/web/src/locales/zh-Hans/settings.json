@@ -51,7 +51,7 @@
   "animaSettings": {
     "avatar": {
       "materials": {
-        "description": "lilToon 按作者的设计绘制此虚拟形象；简单材质的绘制开销更低。自动使用 lilToon，若此设备的 GPU 绘制过慢则改用简单材质。适用于使用此虚拟形象的所有地方，并会重新加载它。",
+        "description": "lilToon 按作者的设计绘制此虚拟形象；简单材质的绘制开销更低。自动使用 lilToon，并在此设备的 GPU 需要时将帧率降至 45、30 或 24 fps；只有连 24 fps 都负担不了时才改用简单材质。适用于使用此虚拟形象的所有地方，并会重新加载它。",
         "label": "材质",
         "modes": {
           "automatic": "自动",

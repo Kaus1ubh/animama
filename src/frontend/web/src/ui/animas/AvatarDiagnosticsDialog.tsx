@@ -30,7 +30,10 @@ import {
   type AvatarSettingSource,
 } from "@/lib/avatar/diagnostics/avatarDiagnosticsReport";
 import type { AvatarMaterialKind } from "@/lib/avatar/diagnostics/avatarFileFacts";
-import type { AutomaticMaterialsDecision } from "@/lib/avatar/liltoon/lilToonGpuCheck";
+import {
+  lilToonFrameBudgetMs,
+  type AutomaticMaterialsDecision,
+} from "@/lib/avatar/liltoon/lilToonGpuCheck";
 import type { AvatarIssue } from "@/lib/avatar/diagnostics/issues";
 import { cn } from "@/lib/utils";
 import { facePartRoleName } from "@/ui/avatar-effect-creator/facePartsPanel";
@@ -140,7 +143,7 @@ function SettingSource({ source }: { source: AvatarSettingSource | null }) {
   );
 }
 
-/** Why Automatic chose this look: the GPU check's result. */
+/** Why Automatic chose this look and frame rate: the GPU check's result. */
 function automaticMaterialsWhy(
   t: TFunction<"animas">,
   format: ReturnType<typeof useFormatters>,
@@ -150,22 +153,40 @@ function automaticMaterialsWhy(
     t("avatarDiagnostics.materials.milliseconds", {
       value: format.number(value, { maximumFractionDigits: 1 }),
     });
+  const fps = decision.budgetFps ?? 0;
+  const measured = {
+    measured: ms(decision.frameMs ?? 0),
+    budget: ms(lilToonFrameBudgetMs(fps)),
+    fps,
+  };
   switch (decision.reason) {
     case "fast":
-      return t("avatarDiagnostics.materials.why.automaticFast", {
-        measured: ms(decision.frameMs ?? 0),
-        threshold: ms(decision.thresholdMs),
-      });
+    case "capped":
+      return t("avatarDiagnostics.materials.why.automaticWithin", measured);
+    case "remeasuring":
+      return t(
+        "avatarDiagnostics.materials.why.automaticRemeasuring",
+        measured,
+      );
     case "slow":
-      return t("avatarDiagnostics.materials.why.automaticSlow", {
-        measured: ms(decision.frameMs ?? 0),
-        threshold: ms(decision.thresholdMs),
-      });
+      return t("avatarDiagnostics.materials.why.automaticSlow", measured);
     case "not_measured":
       return t("avatarDiagnostics.materials.why.automaticNotMeasured");
     case "unsupported":
       return t("avatarDiagnostics.materials.why.automaticUnsupported");
   }
+}
+
+/** How the file's lilToon materials render, with Automatic's frame cap. */
+function lilToonStateLabel(
+  t: TFunction<"animas">,
+  rendered: boolean,
+  decision: AutomaticMaterialsDecision | null,
+): string {
+  if (!rendered) return t("avatarDiagnostics.materials.simple");
+  return decision?.fpsCap
+    ? t("avatarDiagnostics.materials.renderedAt", { fps: decision.fpsCap })
+    : t("avatarDiagnostics.materials.rendered");
 }
 
 /** The file's lilToon materials: how they render and why. */
@@ -175,10 +196,11 @@ function LilToonMaterialsFact({ report }: { report: AvatarDiagnosticsReport }) {
   const format = useFormatters();
   const materials = report.live?.materials;
   if (!materials) return null;
-  const state =
-    materials.lilToon === "rendered"
-      ? t("avatarDiagnostics.materials.rendered")
-      : t("avatarDiagnostics.materials.simple");
+  const state = lilToonStateLabel(
+    t,
+    materials.lilToon === "rendered",
+    materials.automatic,
+  );
   // The look the setting asked for; Automatic asks for its GPU check's choice.
   const asked =
     materials.mode === "automatic"
@@ -202,10 +224,7 @@ function LilToonMaterialsFact({ report }: { report: AvatarDiagnosticsReport }) {
       {next ? (
         <span className="text-muted-foreground block">
           {t("avatarDiagnostics.materials.nextLoad", {
-            state:
-              next.choice === "simple"
-                ? t("avatarDiagnostics.materials.simple")
-                : t("avatarDiagnostics.materials.rendered"),
+            state: lilToonStateLabel(t, next.choice === "liltoon", next),
             why: automaticMaterialsWhy(t, format, next),
           })}
         </span>

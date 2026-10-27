@@ -210,14 +210,16 @@
       "milliseconds": "{{value}}ms",
       "nextLoad": "다음 로드: {{state}} · {{why}} (이번 로드 이후 측정)",
       "rendered": "lilToon으로 렌더링",
+      "renderedAt": "lilToon으로 렌더링({{fps}}fps)",
       "simple": "단순 머티리얼",
       "value": "{{state}} · {{why}}",
       "why": {
         "automatic": "자동으로 선택됨",
-        "automaticFast": "자동으로 선택됨: 이 GPU는 lilToon 프레임 하나를 {{measured}}에 그렸습니다(한도 {{threshold}} 이내)",
         "automaticNotMeasured": "자동으로 선택됨: 이 GPU의 lilToon 프레임 시간은 아직 측정되지 않았습니다",
-        "automaticSlow": "자동으로 선택됨: 이 GPU는 lilToon 프레임 하나에 {{measured}}이(가) 걸려 한도 {{threshold}}을(를) 넘었습니다",
+        "automaticRemeasuring": "자동으로 선택됨: 이 GPU는 lilToon 프레임 하나에 {{measured}}이(가) 걸려 {{fps}}fps 한도 {{budget}}을(를) 넘었습니다. 단순으로 바꾸기 전에 다시 측정합니다",
+        "automaticSlow": "자동으로 선택됨: 이 GPU는 lilToon 프레임 하나에 {{measured}}이(가) 걸려 {{fps}}fps 한도 {{budget}}을(를) 넘었습니다",
         "automaticUnsupported": "자동으로 선택됨: 이 브라우저에서는 GPU 시간을 측정할 수 없습니다",
+        "automaticWithin": "자동으로 선택됨: 이 GPU는 lilToon 프레임 하나를 {{measured}}에 그렸습니다({{fps}}fps 한도 {{budget}} 이내)",
         "chosen": "{{mode}}(으)로 설정됨",
         "failed": "lilToon을 불러오지 못함"
       }

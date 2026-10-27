@@ -162,33 +162,54 @@ describe("Avatar diagnostics reports", () => {
 
 describe("automaticMaterialsLine", () => {
   const decision = {
+    fpsCap: null,
+    budgetFps: null,
     frameMs: null,
     pixels: null,
-    thresholdMs: 8,
+    samples: 0,
   } as const;
 
-  it("states the measured time, the threshold and the choice", () => {
+  it("states the fastest measurement, the frame rate's budget and the choice", () => {
     expect(
       automaticMaterialsLine({
         ...decision,
         choice: "simple",
         reason: "slow",
-        frameMs: 9.64,
+        budgetFps: 24,
+        frameMs: 40.04,
         pixels: 1_920_000,
+        samples: 2,
       }),
     ).toBe(
-      "Automatic chose Simple: a lilToon frame took 9.6 ms of GPU time on this GPU (1920000 pixels), above the 8.0 ms threshold",
+      "Automatic chose Simple: the fastest of 2 lilToon frame measurements on this GPU took 40.0 ms of GPU time (1920000 pixels), over the 32.1 ms budget for 24 fps",
     );
     expect(
       automaticMaterialsLine({
         ...decision,
         choice: "liltoon",
-        reason: "fast",
-        frameMs: 5.2,
+        reason: "remeasuring",
+        fpsCap: 24,
+        budgetFps: 24,
+        frameMs: 40,
         pixels: 1_920_000,
+        samples: 1,
       }),
     ).toBe(
-      "Automatic chose lilToon: a lilToon frame took 5.2 ms of GPU time on this GPU (1920000 pixels), within the 8.0 ms threshold",
+      "Automatic chose lilToon at 24 fps: the only lilToon frame measurement on this GPU took 40.0 ms of GPU time (1920000 pixels), over the 32.1 ms budget for 24 fps; measuring again before choosing Simple",
+    );
+    expect(
+      automaticMaterialsLine({
+        ...decision,
+        choice: "liltoon",
+        reason: "capped",
+        fpsCap: 45,
+        budgetFps: 45,
+        frameMs: 14.4,
+        pixels: 1_920_000,
+        samples: 3,
+      }),
+    ).toBe(
+      "Automatic chose lilToon at 45 fps: the fastest of 3 lilToon frame measurements on this GPU took 14.4 ms of GPU time (1920000 pixels), within the 17.1 ms budget for 45 fps",
     );
   });
 
@@ -200,7 +221,7 @@ describe("automaticMaterialsLine", () => {
         reason: "not_measured",
       }),
     ).toBe(
-      "Automatic chose lilToon: this GPU's lilToon frame time is not measured yet (threshold 8.0 ms)",
+      "Automatic chose lilToon: this GPU's lilToon frame time is not measured yet",
     );
     expect(
       automaticMaterialsLine({
@@ -208,8 +229,6 @@ describe("automaticMaterialsLine", () => {
         choice: "liltoon",
         reason: "unsupported",
       }),
-    ).toBe(
-      "Automatic chose lilToon: this browser cannot time the GPU (threshold 8.0 ms)",
-    );
+    ).toBe("Automatic chose lilToon: this browser cannot time the GPU");
   });
 });

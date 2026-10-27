@@ -38,6 +38,24 @@ describe("scene frame pacing", () => {
     expect(nextSceneFrame(10_008, 10_000, 60)).toBeNull();
   });
 
+  it("renders capped canvases at 45 and 24 fps on 60, 120 and 144 Hz displays", () => {
+    expect(renderedFrames(60, 45)).toBeCloseTo(45, 0);
+    expect(renderedFrames(120, 45)).toBeCloseTo(45, 0);
+    expect(renderedFrames(144, 45)).toBeCloseTo(45, 0);
+    expect(renderedFrames(60, 24)).toBeCloseTo(24, 0);
+    expect(renderedFrames(120, 24)).toBeCloseTo(24, 0);
+    expect(renderedFrames(144, 24)).toBeCloseTo(24, 0);
+  });
+
+  it("never exceeds the canvas's frame cap, idle or active", () => {
+    const demand = createSceneFrameDemand();
+    expect(sceneTargetFps(demand, 10_000, null)).toBe(ACTIVE_SCENE_FPS);
+    expect(sceneTargetFps(demand, 10_000, 45)).toBe(45);
+    demand.avatarIdle = true;
+    expect(sceneTargetFps(demand, 10_000, 45)).toBe(IDLE_SCENE_FPS);
+    expect(sceneTargetFps(demand, 10_000, 24)).toBe(24);
+  });
+
   it("drops to the idle rate only for an idle Avatar without recent input", () => {
     const demand = createSceneFrameDemand();
     expect(sceneTargetFps(demand, 10_000)).toBe(ACTIVE_SCENE_FPS);

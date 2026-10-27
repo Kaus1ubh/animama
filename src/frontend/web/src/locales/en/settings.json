@@ -51,7 +51,7 @@
   "animaSettings": {
     "avatar": {
       "materials": {
-        "description": "lilToon draws this Avatar as authored; Simple costs less to draw. Automatic uses lilToon unless this device's GPU drew it too slowly, then Simple. Applies wherever the Avatar is used, and reloads it.",
+        "description": "lilToon draws this Avatar as authored; Simple costs less to draw. Automatic keeps lilToon and lowers the frame rate to 45, 30 or 24 fps when this device's GPU needs it; it uses Simple only when even 24 fps is too much. Applies wherever the Avatar is used, and reloads it.",
         "label": "Materials",
         "modes": {
           "automatic": "Automatic",

@@ -95,6 +95,7 @@ import {
   automaticMaterialsDecision,
   type AutomaticMaterialsDecision,
 } from "./liltoon/lilToonGpuCheck";
+import { setCanvasFrameCap } from "./canvasFrameCap";
 import { irisHideBindOf } from "./irisHideExpression";
 import type { RestPoseCheck } from "./poses/anatomy/restNormalization";
 import { prepareLoadedVrm } from "./prepareLoadedVrm";
@@ -669,6 +670,17 @@ export class Avatar {
     );
     this._syncPoseClipEventSink();
     this._syncReactionClipEventSink();
+    // Automatic's lilToon frame cap, on the canvas this Avatar draws on. Set
+    // either way: a load that overlapped this one may have set a cap.
+    if (this._viewportElement) {
+      setCanvasFrameCap(
+        this._viewportElement,
+        this,
+        this._lilToonMaterials === "rendered"
+          ? (this._automaticMaterials?.fpsCap ?? null)
+          : null,
+      );
+    }
     this._notifyDiagnostics();
 
     onProgress?.({ phase: "animation", ratio: 1, message: "Ready" });
@@ -680,6 +692,8 @@ export class Avatar {
   unload(): void {
     // Detach before any controller cleanup so no frame can draw a half-released model.
     this.vrm?.scene.removeFromParent();
+    if (this._viewportElement)
+      setCanvasFrameCap(this._viewportElement, this, null);
     this._poseClipOnFinished = null;
     this.springBonePhysicsController?.dispose();
     this.springBonePhysicsController = null;

@@ -14,8 +14,8 @@ import { avatarSceneLights } from "./sceneCameraPresets";
  * passes once an Avatar with lilToon materials has loaded. `lights={false}` keeps
  * only the tone mapping, for canvases that bring their own lights.
  * `measureLilToonGpu` (the main Avatar canvas, never Picture in Picture or
- * previews) times the first lilToon frames for the Materials setting's
- * Automatic.
+ * previews) times lilToon frames whenever the Materials setting's Automatic
+ * needs a measurement (`lilToonGpuCheck.ts`).
  */
 export function AvatarSceneLighting({
   lights = true,

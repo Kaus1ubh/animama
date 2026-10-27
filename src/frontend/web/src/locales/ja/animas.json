@@ -208,16 +208,18 @@
     "materials": {
       "label": "lilToon マテリアル",
       "milliseconds": "{{value}} ms",
-      "nextLoad": "次回の読み込み: {{state}} · {{why}}（この読み込みの後に測定）",
+      "nextLoad": "次回の読み込み: {{state}} · {{why}}（この読み込みの後に計測）",
       "rendered": "lilToon で描画",
+      "renderedAt": "lilToon で描画（{{fps}} fps）",
       "simple": "シンプルなマテリアル",
       "value": "{{state}} · {{why}}",
       "why": {
         "automatic": "自動で選択",
-        "automaticFast": "自動で選択: この GPU は lilToon の 1 フレームを {{measured}} で描画（上限 {{threshold}} 以内）",
         "automaticNotMeasured": "自動で選択: この GPU の lilToon のフレーム時間はまだ計測されていません",
-        "automaticSlow": "自動で選択: この GPU は lilToon の 1 フレームに {{measured}} かかり、上限 {{threshold}} を超えました",
+        "automaticRemeasuring": "自動で選択: この GPU は lilToon の 1 フレームに {{measured}} かかり、{{fps}} fps の上限 {{budget}} を超えました。シンプルにする前にもう一度計測します",
+        "automaticSlow": "自動で選択: この GPU は lilToon の 1 フレームに {{measured}} かかり、{{fps}} fps の上限 {{budget}} を超えました",
         "automaticUnsupported": "自動で選択: このブラウザーでは GPU の時間を計測できません",
+        "automaticWithin": "自動で選択: この GPU は lilToon の 1 フレームを {{measured}} で描画（{{fps}} fps の上限 {{budget}} 以内）",
         "chosen": "{{mode}} に設定",
         "failed": "lilToon を読み込めませんでした"
       }

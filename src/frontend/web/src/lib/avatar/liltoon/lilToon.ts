@@ -188,7 +188,7 @@ export function loadLilToonRuntime(): Promise<LilToonRuntime> {
  * waiting. The renderer's GPU is noted at once, so the Materials setting's
  * Automatic can look up its measurement before the next Avatar loads
  * (`lilToonGpuCheck.ts`). With `measureGpu` (the chat canvas), the canvas
- * also times its first lilToon frames for that measurement.
+ * also times lilToon frames whenever a measurement is due.
  */
 export function installLilToonRenderingWhenLoaded(
   renderer: THREE.WebGLRenderer,
