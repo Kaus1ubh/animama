@@ -857,7 +857,8 @@ def _search_memory_files_tool() -> dict[str, Any]:
                 "include_episodic_memory": {
                     "type": "boolean",
                     "description": (
-                        "true also searches the episode log of past chats; false searches memory files only."
+                        "true also searches the episode log of past chats, so use true to recall them; false searches "
+                        "memory files only."
                     ),
                 },
             }

@@ -257,10 +257,12 @@ about 6,000 characters, and never to frame the relationship as missing the
 user, loneliness, jealousy or discouraging other relationships. The always-present
 memory guidance says how `remember` (the shared episode log) differs from
 `MEMORIES.md` (what the relationship means). It also says that notes from past
-chats are logged and searchable, tells the model to search memory before
+chats are logged and searchable, tells the model to search or read memory before
 answering about the user's news, plans, projects or something they said earlier,
 and before saying it does not remember, and to retry an empty search once with
-other words. Unrelated technical and attachment questions skip memory.
+other words. It skips memory when the answer is already in the conversation or
+instructions, and for unrelated technical and attachment questions. Anthropic
+Memory Manager runs reuse the chat search tool's description.
 
 When memory influence is enabled, direct chat attaches:
 

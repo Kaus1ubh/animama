@@ -2643,7 +2643,7 @@ async def test_direct_turn_memory_tool_option_gating() -> None:
     fourth_system_content = _text(fourth_prompt.messages[0]["content"])
     assert isinstance(fourth_system_content, str)
     assert isinstance(fourth_system_content, str)
-    assert "Do not search memory for an unrelated technical or attachment question" in fourth_system_content
+    assert "or for an unrelated technical or attachment question" in fourth_system_content
     # The attachment guidance and file list arrive in the turn context, not the cached system message.
     fourth_turn_context = _text(fourth_prompt.messages[-2]["content"])
     assert "user's source documents for this turn" in str(fourth_turn_context)

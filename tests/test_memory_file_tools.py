@@ -244,12 +244,13 @@ def test_write_tools_carry_the_description_maintenance_rule(name: str) -> None:
 def test_memory_guidance_prompts_searching_past_chats_before_answering_from_memory() -> None:
     assert "Notes from past chats with this user are logged there" in MEMORY_SYSTEM_GUIDANCE
     assert f"`{MEMORY_TOOL_SEARCH_MEMORY_FILES}` searches that log" in MEMORY_SYSTEM_GUIDANCE
-    assert "search memory before you answer a question about the user's news, plans, projects" in (
+    assert "search or read memory before you answer a question about the user's news, plans, projects" in (
         MEMORY_SYSTEM_GUIDANCE
     )
     assert "before you say you do not remember something" in MEMORY_SYSTEM_GUIDANCE
     assert "If a search finds nothing relevant, search once more with other words." in MEMORY_SYSTEM_GUIDANCE
-    assert "unrelated technical or attachment question" in MEMORY_SYSTEM_GUIDANCE
+    assert "Skip this when the answer is already in this conversation" in MEMORY_SYSTEM_GUIDANCE
+    assert "or for an unrelated technical or attachment question" in MEMORY_SYSTEM_GUIDANCE
 
 
 def test_search_memory_tool_advises_distinctive_keywords_matched_on_any_word() -> None:
@@ -314,7 +315,10 @@ def test_memory_tool_schemas_are_strict_and_do_not_expose_expected_version() -> 
         },
         "include_episodic_memory": {
             "type": "boolean",
-            "description": "true also searches the episode log of past chats; false searches memory files only.",
+            "description": (
+                "true also searches the episode log of past chats, so use true to recall them; false searches "
+                "memory files only."
+            ),
         },
     }
     assert search_tool["function"]["parameters"]["required"] == ["query", "include_episodic_memory"]
