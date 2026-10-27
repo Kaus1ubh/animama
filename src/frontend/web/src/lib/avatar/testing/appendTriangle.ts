@@ -15,8 +15,11 @@ import {
  * `corners` are points in `anchor`'s space (the face landmarks' head space)
  * and `uv` the texture coordinate of each corner. Other attributes copy
  * vertex 0 and morph targets leave the triangle in place, so skinning at rest
- * and expressions keep it where it was put. The mesh must be at its bind pose
- * with relative morph targets, as a loaded VRM is.
+ * and expressions keep it where it was put, unless `morph` moves it by
+ * `offset` (anchor space) in the given morph targets (a lash blink closes) or
+ * `joint` skins it wholly to one skeleton bone (a neck under the face). The
+ * mesh must be at its bind pose with relative morph targets, as a loaded VRM
+ * is.
  */
 export function appendTriangle(args: {
   avatar: Avatar;
@@ -24,6 +27,8 @@ export function appendTriangle(args: {
   anchor: THREE.Object3D;
   corners: readonly [THREE.Vector3, THREE.Vector3, THREE.Vector3];
   uv: readonly [[number, number], [number, number], [number, number]];
+  morph?: { targets: readonly number[]; offset: THREE.Vector3 };
+  joint?: number;
 }): void {
   const { anchor, corners, uv } = args;
   const mesh = args.binding.object;
@@ -70,12 +75,22 @@ export function appendTriangle(args: {
       // Quantized values would silently truncate the placed corners.
       throw new Error(`Attribute ${name} is not plain float`);
     }
+    const skin =
+      args.joint === undefined
+        ? null
+        : name === "skinIndex"
+          ? [args.joint, 0, 0, 0]
+          : name === "skinWeight"
+            ? [1, 0, 0, 0]
+            : null;
     const values =
       name === "position"
         ? (corner: number) => positions[corner].toArray()
         : name === "uv"
           ? (corner: number) => uv[corner]
-          : () => template(attribute);
+          : skin
+            ? () => skin
+            : () => template(attribute);
     geometry.setAttribute(name, extend(attribute, values));
   }
   if (Object.keys(geometry.morphAttributes).length > 0) {
@@ -86,12 +101,29 @@ export function appendTriangle(args: {
       string,
       (THREE.BufferAttribute | THREE.InterleavedBufferAttribute)[]
     >;
+    const delta = args.morph
+      ? corners.map((corner, index) =>
+          mesh
+            .worldToLocal(
+              anchor.localToWorld(corner.clone().add(args.morph!.offset)),
+            )
+            .sub(positions[index]),
+        )
+      : null;
     for (const [name, targets] of Object.entries(morphAttributes)) {
-      morphAttributes[name] = targets.map((target) => {
+      morphAttributes[name] = targets.map((target, targetIndex) => {
         if (!(target instanceof THREE.BufferAttribute)) {
           throw new Error(`Morph attribute ${name} is interleaved`);
         }
-        return extend(target, () => new Array(target.itemSize).fill(0));
+        const moves =
+          name === "position" &&
+          delta !== null &&
+          args.morph!.targets.includes(targetIndex);
+        return extend(target, (corner) =>
+          moves
+            ? delta[corner].toArray().slice(0, target.itemSize)
+            : new Array(target.itemSize).fill(0),
+        );
       });
     }
   }

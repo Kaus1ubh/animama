@@ -254,6 +254,7 @@
       "alreadyReviewed": "This file already has a review. Discard it before choosing a replacement file.",
       "animaNote": "Creates a fresh companion with the reviewed content and configuration.",
       "animaUnavailable": "Importing an Anima package is unavailable here. Import content or export an existing Anima instead.",
+      "avatarSettingsNotStored": "This app does not keep Avatar wind and material settings, so {{names}} will use Automatic.",
       "beingProcessed": "This import is being processed. Check its result before continuing.",
       "button": "Import",
       "changeFile": "Change file",

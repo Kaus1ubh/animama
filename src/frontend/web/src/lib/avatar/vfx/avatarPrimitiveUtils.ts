@@ -142,7 +142,7 @@ export function collectPrimitiveData(args: {
 }
 
 export function resolvePrimitiveVertexRange(
-  avatar: Avatar,
+  avatar: Pick<Avatar, "sourceGltf">,
   binding: RuntimePrimitiveBindingEntry,
 ): PrimitiveVertexRange | null {
   const geometry = binding.object.geometry;

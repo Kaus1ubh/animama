@@ -39,6 +39,7 @@ function partMap(
     },
     eyeWhite: [],
     diagnostics: [],
+    issues: [],
   };
 }
 

@@ -58,12 +58,7 @@ import { preflightContentFile, sha256File } from "@/lib/content/contentUploads";
 import { createUniqueContentName } from "@/lib/content/uniqueContentName";
 import { previewSoundForCopy } from "@/lib/content/previewSound";
 import { avatarEffectTemplate } from "@/lib/effects/effectTemplates";
-import {
-  apiErrorLine,
-  failureLine,
-  uncodedErrorText,
-  WordedError,
-} from "@/lib/errors/apiError";
+import { failureLine, WordedError } from "@/lib/errors/apiError";
 import { useAvatarFaceParts } from "@/query/hooks/useAvatarFaceParts";
 import { useAvatarEffect, useSoundEffects } from "@/query/hooks/useEffects";
 import { AvatarPreviewSurface } from "@/ui/avatar-preview/AvatarPreviewSurface";
@@ -93,6 +88,7 @@ import {
 } from "@/ui/content-creator/contentCreatorModelPreview";
 import { CreatorTemplateDraftDialog } from "@/ui/content-creator/CreatorTemplateDraftDialog";
 import { CreatorTimelineTransport } from "@/ui/content-creator/CreatorTimeline";
+import { avatarIssueText } from "@/ui/animas/avatarIssueText";
 import { useContentCreatorAvatar } from "@/ui/content-creator/useContentCreatorAvatar";
 import { useContentCreatorModelPreview } from "@/ui/content-creator/useContentCreatorModelPreview";
 import { useCreatorLeaveGuard } from "@/ui/content-creator/useCreatorLeaveGuard";
@@ -183,6 +179,7 @@ export function AvatarEffectCreatorPage({
   templateId?: string;
 }) {
   const { t, i18n } = useTranslation("effects");
+  const { t: tAnimas } = useTranslation("animas");
   const formatters = useFormatters();
   const navigate = useNavigate();
   const userId = useRuntimeCacheKey();
@@ -1045,10 +1042,13 @@ export function AvatarEffectCreatorPage({
               ? validation.map((issue) => issue.message)
               : []),
             ...(missingPartMessage ? [missingPartMessage] : []),
-            // Runtime diagnostics are English; elsewhere they become detail.
-            ...(vfxSnapshot?.warnings ?? []).map((warning) =>
-              apiErrorLine(
-                uncodedErrorText(warning, t("creator.previewWarning")),
+            // What the preview Avatar skipped or degraded, as Diagnostics
+            // words it; the only effect here is the one being edited.
+            ...(vfxSnapshot?.issues ?? []).map((issue) =>
+              avatarIssueText(
+                tAnimas,
+                issue,
+                () => document.name.trim() || undefined,
               ),
             ),
             ...[

@@ -49,6 +49,27 @@
     }
   },
   "animaSettings": {
+    "avatar": {
+      "materials": {
+        "description": "lilToon은 제작자가 만든 그대로 그리고, 단순은 그리는 부담이 적습니다. 이 아바타를 사용하는 모든 곳에 적용되며 아바타를 다시 불러옵니다.",
+        "label": "머티리얼",
+        "modes": {
+          "automatic": "자동",
+          "liltoon": "lilToon",
+          "simple": "단순"
+        }
+      },
+      "wind": {
+        "description": "바람과 상승 기류가 이 아바타의 머리카락과 옷을 어떻게 움직일지 정합니다. 이 아바타를 사용하는 모든 곳에 적용됩니다.",
+        "label": "바람과 주변 힘",
+        "modes": {
+          "automatic": "자동",
+          "off": "끔",
+          "on": "켬",
+          "springs_off": "스프링 끔"
+        }
+      }
+    },
     "choices": {
       "appDefaultOff": "앱 기본값(끔)",
       "appDefaultOn": "앱 기본값(켬)",
@@ -56,10 +77,16 @@
       "on": "켬"
     },
     "headings": {
+      "avatar": "아바타",
       "emotion": "감정",
       "memory": "기억"
     },
     "rows": {
+      "avatar_diagnostics": {
+        "description": "Animama가 이 Anima의 아바타에서 찾은 내용을 보고, 지원용 보고서를 복사합니다.",
+        "label": "아바타 진단",
+        "open": "진단 열기"
+      },
       "emotion_updates": {
         "description": "채팅 중에 감정 상태를 업데이트합니다. 끄면 새 감정 리액션은 멈추지만 제스처는 계속 재생됩니다.",
         "tooltip": "끄면 현재 기분이 유지되고 제스처는 계속 재생됩니다."
@@ -75,6 +102,7 @@
       }
     },
     "updateFailed": {
+      "avatar": "아바타 설정을 저장하지 못했습니다.",
       "emotion": "감정 설정을 업데이트하지 못했습니다.",
       "memory": "기억 설정을 업데이트하지 못했습니다."
     }

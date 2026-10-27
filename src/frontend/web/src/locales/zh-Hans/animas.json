@@ -80,6 +80,174 @@
     },
     "zoom": "缩放 {{zoom}}×"
   },
+  "avatarDiagnostics": {
+    "close": "关闭",
+    "copied": "已复制报告。",
+    "copyFailed": "无法复制到剪贴板。",
+    "copyReport": "复制报告",
+    "description": "Animama 在此虚拟形象的文件中发现的内容，以及它的播放方式。",
+    "expressions": {
+      "arkit": "ARKit 面部形态",
+      "arkitValue": "{{resolved}} / {{total}}",
+      "customNames_other": "{{count}} 个自定义名称",
+      "fromArkit": "{{name}}（ARKit）",
+      "missing": "缺少的表情",
+      "playsFaces": "通过 ARKit 形态播放情绪",
+      "present": "标准表情",
+      "unresolved": "被请求但此虚拟形象没有"
+    },
+    "face": {
+      "confidence": "置信度",
+      "foundBy": "识别方式",
+      "landmarks": "面部特征点",
+      "meshParts": "网格部件",
+      "part": "部位",
+      "ready": "就绪",
+      "sharedRegions_other": "共享部件内 {{count}} 处",
+      "sources": {
+        "corrected": "你的修正",
+        "missing": "未找到",
+        "names": "材质名称",
+        "signals": "模型数据"
+      },
+      "textureAnchors": "面部纹理锚点",
+      "unavailable": "不可用"
+    },
+    "file": {
+      "extensionsRequired": "必需扩展",
+      "extensionsUsed": "使用的扩展",
+      "format": "格式",
+      "formatNotVrm": "{{container}} · 不是 VRM",
+      "formatVrm": "{{container}} · VRM {{version}}",
+      "imageExternal": "位于文件外",
+      "imageFormat": "格式",
+      "imagePixels": "像素",
+      "imagesCaption": "嵌入的图像",
+      "imageSize": "大小",
+      "materialKind": "{{kind}} {{number}}",
+      "materials": "材质",
+      "meshes": "网格",
+      "meshesValue": "{{meshes}} 个网格，{{primitives}} 个网格部件（{{morphed}} 个带形态键）",
+      "size": "文件大小",
+      "textures": "图像",
+      "texturesValue_other": "{{count}} 张图像 · {{size}}",
+      "unreadable": "无法将此文件读取为 glTF 或 VRM 文件。"
+    },
+    "identity": {
+      "included": "内置虚拟形象",
+      "local": "本地虚拟形象",
+      "unknown": "虚拟形象"
+    },
+    "issues": {
+      "anchors_face_skin_missing": "未找到面部皮肤，因此无法放置绘于面部的特效。",
+      "anchors_landmarks_unavailable": "面部特征点不可用，因此无法放置绘于面部的特效。",
+      "anchors_mouth_missing": "在面部纹理上未找到嘴的位置。",
+      "anchors_projection_failed": "无法映射面部纹理，因此无法放置绘于面部的特效。",
+      "anEffect": "某个特效",
+      "avatar_load_failed": "无法加载虚拟形象。请在“文件”中检查其必需扩展。",
+      "effect_attachment_limit": "已移除 {{effect}}：身体、贴纸或剪影特效最多同时显示 {{limit}} 个。",
+      "effect_face_part_missing": "已跳过 {{effect}}：此虚拟形象未识别到{{part}}。",
+      "effect_face_skin_required": "{{effect}} 需要面部皮肤，但未找到。",
+      "effect_load_failed": "{{effect}} 无法加载其图像。",
+      "effect_overlay_required": "{{effect}} 在此面部上需要叠加模式。",
+      "effect_placement_failed": "{{effect}} 无法放置到此虚拟形象上。",
+      "effect_skin_color_unavailable": "{{effect}} 无法为背景取样面部肤色。",
+      "effect_target_incompatible": "{{effect}} 与其放置的部件不匹配。",
+      "effect_target_unknown": "{{effect}} 指定了不存在的模型部件。",
+      "effect_target_unresolved": "{{effect}} 在此虚拟形象上找不到适合的部件。",
+      "effect_unknown": "有一个特效在此安装中不可用。",
+      "effect_wrong_kind": "{{effect}} 无法以这种方式显示。",
+      "eye_detail_not_hidden": "{{effect}} 会播放，但无法隐藏共享网格部件中的{{part}}。",
+      "face_parts_correction_digest_unknown": "此文件的摘要未知，因此忽略了已保存的面部部位修正。",
+      "face_parts_correction_invalid": "无法读取已保存的面部部位修正，已忽略。",
+      "face_parts_correction_other_file": "已保存的面部部位修正是为其他文件制作的，已忽略。",
+      "face_parts_correction_schema_unsupported": "已保存的面部部位修正格式不受支持，已忽略。",
+      "face_parts_correction_unknown_bindings_other": "{{part}}的已保存修正指定了此模型没有的 {{count}} 个网格部件。",
+      "face_parts_detection_failed": "无法识别面部部位，因此按材质名称放置特效。",
+      "face_parts_expressions_missing": "模型没有眨眼或“aa”表情，因此无法据此找到面部皮肤和眼部细节。",
+      "file_unavailable": "无法下载虚拟形象文件。",
+      "file_unreadable": "虚拟形象文件不是可读取的 glTF 或 VRM 文件。",
+      "landmarks_anchor_missing": "未找到用于固定面部特征点的头部。",
+      "landmarks_eyes_missing": "面部未找到眼睛，因此眼部特效不可用。",
+      "landmarks_face_bounds_failed": "无法测量面部皮肤。",
+      "landmarks_face_skin_missing": "未找到面部皮肤，因此面部特征点不可用。",
+      "scene_bindings_unavailable": "无法列出已加载模型的网格部件。",
+      "springs_helper_failed": "无法绘制弹簧骨骼参考线。",
+      "springs_metadata_missing": "文件没有弹簧骨骼设置，因此弹簧以一半强度摆动。",
+      "springs_source_unavailable": "无法读取文件的弹簧骨骼数据，因此弹簧使用默认设置。",
+      "springs_unmapped_joints_other": "有 {{count}} 个弹簧关节无法与文件的弹簧数据对应。"
+    },
+    "json": {
+      "collapseAll": "全部折叠",
+      "copied": "已复制 JSON。",
+      "copy": "复制 JSON",
+      "description": "以数据形式显示同一份报告，便于与支持人员分享。",
+      "expandAll": "全部展开"
+    },
+    "loading": "正在读取虚拟形象…",
+    "materialKinds": {
+      "liltoon": "lilToon",
+      "mtoon": "MToon",
+      "pbr": "标准",
+      "unlit": "Unlit"
+    },
+    "materials": {
+      "label": "lilToon 材质",
+      "rendered": "使用 lilToon 渲染",
+      "simple": "简单材质",
+      "value": "{{state}} · {{why}}",
+      "why": {
+        "automatic": "由自动选择",
+        "chosen": "设为{{mode}}",
+        "failed": "lilToon 无法加载"
+      }
+    },
+    "motion": {
+      "humanoidBones": "人形骨骼",
+      "missingBones": "缺少的必需骨骼",
+      "notChecked": "尚未检查",
+      "restPose": "静止姿势",
+      "springs": "弹簧骨骼",
+      "springsValue": "{{joints}} 个关节 · {{colliders}} 个碰撞体",
+      "wind": "风与环境力",
+      "windEffect": {
+        "held": "弹簧保持在静止姿势",
+        "off": "无风和上升气流",
+        "on": "有风和上升气流",
+        "tunedWithout": "无风和上升气流：其弹簧是在没有它们的情况下调校的"
+      },
+      "windValue": "{{mode}} · {{effect}}"
+    },
+    "navigationLabel": "诊断分区",
+    "no": "否",
+    "none": "无",
+    "notLoaded": "无法加载虚拟形象，因此只显示其文件信息。",
+    "privacy": "报告只包含数量、标准名称和代码，不含文件路径或名称。",
+    "sections": {
+      "expressions": "表情",
+      "face": "面部",
+      "file": "文件",
+      "json": "原始 JSON",
+      "motion": "动态",
+      "warnings": "警告",
+      "warningsCount_other": "警告（{{count}}）"
+    },
+    "settingSource": {
+      "default": "默认设置",
+      "stored": "已为此虚拟形象保存"
+    },
+    "source": {
+      "live": "位于聊天舞台",
+      "offscreen": "为此视图加载"
+    },
+    "title": "虚拟形象诊断",
+    "unavailable": "此 Anima 没有可检查的虚拟形象。",
+    "unknown": "未知",
+    "warnings": {
+      "none": "未发现问题。"
+    },
+    "yes": "是"
+  },
   "badges": {
     "starter": "内置",
     "starterShort": "内"

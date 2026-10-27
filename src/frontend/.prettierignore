@@ -3,3 +3,5 @@ shared/src/ui/components/**
 web/src/locales/**
 web/src/i18n/resources.d.ts
 packages/product-ui/src/locales/**
+# Included Avatar face baselines are written by vitest (`npx vitest run -u`).
+web/src/lib/avatar/testing/baselines/**

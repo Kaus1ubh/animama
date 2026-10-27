@@ -49,6 +49,27 @@
     }
   },
   "animaSettings": {
+    "avatar": {
+      "materials": {
+        "description": "lilToon は作者の意図どおりに描画し、シンプルは描画の負荷が軽くなります。このアバターを使うすべての場所に適用され、アバターを読み込み直します。",
+        "label": "マテリアル",
+        "modes": {
+          "automatic": "自動",
+          "liltoon": "lilToon",
+          "simple": "シンプル"
+        }
+      },
+      "wind": {
+        "description": "風と上昇気流でこのアバターの髪や服をどう揺らすか。このアバターを使うすべての場所に適用されます。",
+        "label": "風と周囲の力",
+        "modes": {
+          "automatic": "自動",
+          "off": "オフ",
+          "on": "オン",
+          "springs_off": "揺れものオフ"
+        }
+      }
+    },
     "choices": {
       "appDefaultOff": "アプリのデフォルト（オフ）",
       "appDefaultOn": "アプリのデフォルト（オン）",
@@ -56,10 +77,16 @@
       "on": "オン"
     },
     "headings": {
+      "avatar": "アバター",
       "emotion": "感情",
       "memory": "記憶"
     },
     "rows": {
+      "avatar_diagnostics": {
+        "description": "Animama がこの Anima のアバターで見つけた内容を確認し、サポート用のレポートをコピーできます。",
+        "label": "アバター診断",
+        "open": "診断を開く"
+      },
       "emotion_updates": {
         "description": "チャット中に感情の状態を更新します。オフにすると新しい感情のリアクションは止まりますが、ジェスチャーは再生されます。",
         "tooltip": "オフにすると、今の気分は保たれ、ジェスチャーは引き続き再生されます。"
@@ -75,6 +102,7 @@
       }
     },
     "updateFailed": {
+      "avatar": "アバターの設定を保存できませんでした。",
       "emotion": "感情の設定を更新できませんでした。",
       "memory": "記憶の設定を更新できませんでした。"
     }

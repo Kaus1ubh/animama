@@ -215,6 +215,18 @@ def test_routers_mount_the_served_routes_in_inventory_order() -> None:
     assert mounted == served
 
 
+def test_avatar_settings_routes_belong_to_the_local_composition() -> None:
+    # Only the local composition stores per-owner Avatar settings, so a consumer
+    # mounting ROUTERS never serves them (its ProductContent may omit the store).
+    specs = {
+        (spec.method, spec.handler): spec for spec in ROUTES if spec.path == "/v1/avatar-content/{item_id}/settings"
+    }
+    assert set(specs) == {("GET", "get_avatar_settings"), ("PUT", "save_avatar_settings")}
+    assert all(spec.disposition == "local" for spec in specs.values())
+    shared_paths = {route.path for router in ROUTERS for route in router.routes if isinstance(route, APIRoute)}
+    assert "/v1/avatar-content/{item_id}/settings" not in shared_paths
+
+
 def test_route_specs_reject_mismatched_stage_or_capability() -> None:
     with pytest.raises(ValueError, match="stage"):
         RouteSpec("GET", "/v1/chats", "list_chats", "shared", "read")

@@ -16,7 +16,14 @@ const harness = vi.hoisted(() => ({
     loads: string[];
     disposed: boolean;
     pending: Deferred[];
+    /** Each load's settings, then each live wind change. */
+    settings: string[];
   }>,
+  settings: {
+    springMode: "automatic",
+    springModeRef: { current: "automatic" },
+    materialMode: "automatic" as string | null,
+  },
   three: {
     camera: {},
     gl: { domElement: {} },
@@ -29,6 +36,7 @@ vi.mock("@/lib/avatar", () => ({
       loads: [] as string[],
       disposed: false,
       pending: [] as Deferred[],
+      settings: [] as string[],
     };
     isReady = false;
     isDisposed = false;
@@ -36,8 +44,17 @@ vi.mock("@/lib/avatar", () => ({
     constructor() {
       harness.avatars.push(this.record);
     }
-    load({ sourceKey }: { sourceKey: string }) {
+    load({
+      sourceKey,
+      springMode,
+      materialMode,
+    }: {
+      sourceKey: string;
+      springMode: string;
+      materialMode: string;
+    }) {
       this.record.loads.push(sourceKey);
+      this.record.settings.push(`load ${springMode} ${materialMode}`);
       this.isReady = false;
       this.scene = null;
       return new Promise<void>((resolve, reject) => {
@@ -56,10 +73,16 @@ vi.mock("@/lib/avatar", () => ({
       this.isReady = false;
       this.record.disposed = true;
     }
+    setSpringMode(mode: string) {
+      this.record.settings.push(`wind ${mode}`);
+    }
     setAutomaticAnimationPlaybackEnabled() {}
     resetAnimations() {}
     update() {}
   },
+}));
+vi.mock("@/query/hooks/useAvatarSettings", () => ({
+  useAvatarLoadSettings: () => harness.settings,
 }));
 vi.mock("@react-three/fiber", () => ({
   useThree: () => harness.three,
@@ -195,6 +218,11 @@ async function failLoads(index: number) {
 
 beforeEach(() => {
   harness.avatars = [];
+  harness.settings = {
+    springMode: "automatic",
+    springModeRef: { current: "automatic" },
+    materialMode: "automatic",
+  };
   harness.three = { camera: {}, gl: { domElement: {} } };
   preparationRequest = 0;
   container = document.createElement("div");
@@ -205,6 +233,46 @@ beforeEach(() => {
 afterEach(() => {
   act(() => root.unmount());
   container.remove();
+});
+
+/**
+ * The Avatar's settings as `useAvatarLoadSettings` reports them; its ref is
+ * one object for the component's life.
+ */
+function settings(springMode: string, materialMode: string | null) {
+  harness.settings.springModeRef.current = springMode;
+  harness.settings = {
+    springMode,
+    springModeRef: harness.settings.springModeRef,
+    materialMode,
+  };
+}
+
+describe("ContentPreviewScene Avatar settings", () => {
+  it("waits for the material setting, then loads with both settings", async () => {
+    settings("automatic", null);
+    await show(gesture("wave"), "avatar-r1");
+    expect(harness.avatars[0].loads).toEqual([]);
+
+    settings("springs_off", "simple");
+    await show(gesture("wave"), "avatar-r1");
+    expect(harness.avatars[0].settings).toContain("load springs_off simple");
+  });
+
+  it("changes the wind live and reloads only for a material change", async () => {
+    await show(gesture("wave"), "avatar-r1");
+    await finishLoads(0);
+
+    settings("off", "automatic");
+    await show(gesture("wave"), "avatar-r1");
+    expect(harness.avatars[0].loads).toEqual(["avatar-r1"]);
+    expect(harness.avatars[0].settings.at(-1)).toBe("wind off");
+
+    settings("off", "simple");
+    await show(gesture("wave"), "avatar-r1");
+    expect(harness.avatars[0].loads).toEqual(["avatar-r1", "avatar-r1"]);
+    expect(harness.avatars[0].settings.at(-1)).toBe("load off simple");
+  });
 });
 
 describe("ContentPreviewScene", () => {

@@ -271,14 +271,17 @@ VRM specification does not define. `detectAvatarFaceParts`
 
 | Part                             | Signal                                                                                                                                                                                                                                                                         |
 | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `eye_left`, `eye_right` (irises) | Primitives with at least half their skin weight on the humanoid `leftEye`/`rightEye` bones (or whose material a look-at expression moves through a texture transform). Iris, white and highlight are told apart by projected area and depth. One primitive may hold both eyes. |
-| `face_skin`                      | The head-skinned primitive of the mesh that both `blink` and `aa` morph, with the most area around the eyes.                                                                                                                                                                   |
+| `eye_left`, `eye_right` (irises) | Primitives with at least half their skin weight on the humanoid `leftEye`/`rightEye` bones (or whose material a look-at expression moves through a texture transform). Without either, the head-skinned primitives over the eyelids `blink` moves on the face skin and within that eye region, each side by the head's left-right axis. Iris, white and highlight are told apart by projected area and depth. One primitive may hold both eyes. |
+| `face_skin`                      | The head-skinned primitive of the mesh that both `blink` and `aa` morph, with the most area around the eyes. A face skinned partly to the neck or body (under 90% head weight) wins instead when its head-weighted vertices cover more and blink moves it; primitives on spring joints (merged-in hair) never do.                                       |
 | `eye_highlight`                  | Separated from the iris by size and depth.                                                                                                                                                                                                                                     |
-| `eyeline`, `eyelash`             | Small primitives of the face mesh that `blink` moves almost entirely; the larger is the eye line.                                                                                                                                                                              |
+| `eyeline`, `eyelash`             | Small primitives of the face mesh that `blink` moves almost entirely; the larger is the eye line. Islands of the face or eye primitives that `blink` moves the same way are part `regions` (triangle lists, runtime only): lashes, or each eye's largest island as its line when no line primitive exists. |
 | `hair`                           | Primitives in the head subtree with a real share of spring-joint weight (used to keep forehead and top planes clear).                                                                                                                                                          |
 
 Each part reports its `node:mesh:primitive` bindings, a source (`signals`,
-`names`, `corrected` or `missing`) and a confidence. Material and node names
+`names`, `corrected` or `missing`) and a confidence. Face landmarks span every
+`face_skin` binding (a correction may list several), counting only the
+head-weighted vertices of one that also holds the neck or body; texture
+anchors project onto the face binding nearest the eyes. Material and node names
 (`profiles.ts`) are a fallback per part; if detection itself fails, the Avatar
 still loads with name matching and logs `avatar_face_parts_detection_failed`.
 Detection takes a few milliseconds per Avatar and never writes world matrices.
@@ -317,6 +320,18 @@ it, and an effect on any of those roles uses it. A part the user changed comes
 first, so it is the binding's primary role, and correcting Eyelashes to the
 eye-line mesh paints eyelash effects there while eye-line effects still work.
 Hiding eye details never hides a mesh that is also face skin or an iris.
+Regions of those meshes are hidden instead: while the effect is on, their
+triangles are rewritten in place as degenerate triangles
+(`PrimitiveRegionHider`, reference-counted per effect, outlines included) and
+restored when the last effect using them ends, and before face parts are
+detected again. A region in an unindexed primitive cannot be hidden; the
+effect still plays and reports `eye_detail_not_hidden`. When a face has no
+line or lash geometry at all, its lashes are taken to be painted into the face
+texture, and eye cleanup covers each eyelid `blink` moves rather than an
+eye-sized region; lines painted beside lash geometry are not cleaned up. The
+Face parts panel shows a part found only as regions as "Found inside another
+mesh part"; correcting that part replaces its regions with the chosen
+primitives.
 
 ### Missing parts
 
@@ -326,6 +341,21 @@ The controller logs one `avatar_effect_face_part_unavailable` warning per
 effect and part and lists it in its snapshot warnings, which the VRM debug
 panel shows. In chat, the Gesture or Reaction continues without the effect. The
 creator names the missing part on its stage and toolbar.
+
+### Diagnostic codes
+
+Every finding the face parts, landmarks, texture anchors, springs and the VFX
+controller report carries a stable code with parameters (part roles, binding
+keys, counts, runtime effect ids) beside its English text, in `issues` next to
+the existing `diagnostics` or `warnings`. A Local effect's runtime id derives
+from its name, so shareable reports name effects by source and item id
+instead. `lib/avatar/diagnostics/issues.ts`
+lists the codes, such as `face_parts_correction_other_file`,
+`landmarks_eyes_missing` and `effect_face_part_missing`. [Avatar
+diagnostics](../features/anima-management.md#avatar-diagnostics) and the Avatar
+Effect creator's toolbar word them from the `animas` catalog; the English text
+remains for logs and the debug panels. A new warning gets a code there and a
+catalog entry in every locale.
 
 ## 6) Attachments beyond the face
 
@@ -710,6 +740,10 @@ and sounds on Included Gestures and Reactions, use `pnpm -s content:tune`
 - `--avatar-file <a.vrm>` renders on that VRM instead of the Included
   Avatars, for example a converted Avatar kept outside the repository; keep its
   sheets outside the repository too.
+- `--materials simple` loads the Avatar with the Simple material setting (a
+  lilToon Avatar's glTF fallback materials); `liltoon` and the default
+  `automatic` draw lilToon. Avatars without lilToon materials look the same
+  under every value.
 - `--rendering classic` renders the classic Avatar look instead of the app's
   default enhanced rendering (the chat canvas's CSS filter is not part of the
   rendered pixels). `CHROMIUM_PATH` points Playwright at a preinstalled
@@ -817,6 +851,7 @@ per render; a silhouette adds one skinned draw per overlaid primitive (about
 | Save fails naming a field                                                                                  | The backend refused the definition (`avatar_effect_definition_invalid`); the creator opens and outlines the control. Fix that value.                                                                                       |
 | "Conversion required" at Save, preview, Equip or import                                                    | A `/1` definition. Rescan or run `content_cli` for Local content, the conversion script for a descriptor folder; re-export a package from a converted installation. A failed Local conversion is listed in Content Health. |
 | Effect never appears on one Avatar                                                                         | The snapshot or **Effect warnings** list `avatar_effect_face_part_unavailable`: open **Face parts**, correct the missing or uncertain part and save.                                                                       |
+| An effect is skipped or degraded on one Avatar in chat                                                     | Anima settings → **Avatar diagnostics** → **Warnings** names the effect and the reason, with its [code](#diagnostic-codes).                                                                                                |
 | A saved correction has no effect                                                                           | The VRM bytes changed (`vrm_sha256` mismatch) or an Included Avatar's revision changed; correct the parts again.                                                                                                           |
 | Requests reading Avatars or starting chat fail with `relation "avatar_face_part_overrides" does not exist` | The development database predates the table. Reset it (see [development operations](../../backend/operations/development.md#database)).                                                                                    |
 | A body, sticker or silhouette effect vanished                                                              | A fifth attachment replaced the oldest (`avatar_effect_attachment_limit`).                                                                                                                                                 |
@@ -832,8 +867,10 @@ per render; a silhouette adds one skinned draw per overlaid primitive (about
 
 ## 12) Limitations
 
-- Detection is tuned and tested on the two Included (VRoid) Avatars; other
-  models may need a correction. Without eye bones, side assignment may be wrong.
+- Detection is tuned on the two Included (VRoid) Avatars and tested on them
+  with synthetic additions (lashes inside the face mesh, a face skinned partly
+  to the neck, no eye bones); other models may need a correction. A model with
+  neither eye bones nor `blink` has no eyes to find.
   With both eye bones, eye landmarks skip islands wider than the distance
   between them, such as a dome some VRChat eye meshes put around each
   eyeball.

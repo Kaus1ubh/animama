@@ -281,6 +281,38 @@ describe("Library sharing", () => {
     expect(page).toContain("Uses this app&#x27;s copy");
     expect(page).toContain("Not available here");
   });
+  it("tells the user before importing which Avatar settings will not be kept", () => {
+    const review = (notices?: "avatar_setting_not_stored"[]) => ({
+      screen: "import-review" as const,
+      importReview: {
+        anima: null,
+        expires_at: "2030-01-01",
+        filename: "hello.zip",
+        items: [
+          {
+            entry_id: "one",
+            kind: "avatar" as const,
+            name: "Lark",
+            original_name: "Lark",
+            selected: true,
+            ...(notices ? { notices } : {}),
+          },
+        ],
+        kind: "content" as const,
+        operation_id: "o",
+        package_sha256: "s",
+        required_count: 0,
+        review_digest: "d",
+        selected_count: 1,
+        size_bytes: 100,
+        stage_id: "stage",
+      },
+    });
+    expect(html(review())).not.toContain("will use Automatic");
+    expect(html(review(["avatar_setting_not_stored"]))).toContain(
+      "This app does not keep Avatar wind and material settings, so Lark will use Automatic.",
+    );
+  });
   it("does not offer replacement or discard for an unconfirmed commit", () => {
     const page = html({
       screen: "import-recovery",

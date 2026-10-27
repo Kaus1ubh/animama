@@ -165,6 +165,9 @@ export const queryKeys = {
     /** An Avatar's effective face part correction and revision. */
     faceParts: (userId: string, itemId: string) =>
       [...queryKeys.avatars.all(userId), "face-parts", itemId] as const,
+    /** An Avatar's wind and material settings (local runtimes only). */
+    settings: (userId: string, itemId: string) =>
+      [...queryKeys.avatars.all(userId), "settings", itemId] as const,
     /** An Avatar item's preview files, for creator model previews. */
     preview: (userId: string, itemId: string) =>
       [...queryKeys.avatars.all(userId), "preview", itemId] as const,

@@ -137,6 +137,7 @@ describe("read-only placement guides", () => {
     landmarks = {
       status: "ready",
       warnings: [],
+      issues: [],
       anchorName: "head",
       anchorType: "bone",
       faceBindingKey: "face",
@@ -166,6 +167,7 @@ describe("read-only placement guides", () => {
     anchors = {
       status: "ready",
       warnings: [],
+      issues: [],
       faceBindingKey: "face",
       faceMaterialName: "Face Skin",
       anchors: {

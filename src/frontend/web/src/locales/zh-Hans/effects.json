@@ -375,7 +375,6 @@
     },
     "previewAvatarFailed": "无法加载预览虚拟形象。",
     "previewNoun": "预览",
-    "previewWarning": "预览虚拟形象报告了此特效的问题。",
     "recoveredDraft": "已恢复本地草稿",
     "recovery": {
       "unavailable": "浏览器崩溃恢复不可用。请在保存完成前保持此标签页打开。"
@@ -444,6 +443,7 @@
       "corrected": "已修正",
       "detected": "已检测 · {{confidence, number(style: percent)}}",
       "foundByName": "按名称找到 · {{confidence, number(style: percent)}}，请检查",
+      "insideShared": "在其他网格部件中找到",
       "missing": "缺失",
       "uncertain": "已检测 · {{confidence, number(style: percent)}}，请检查"
     },

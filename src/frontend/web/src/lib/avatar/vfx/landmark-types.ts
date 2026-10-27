@@ -1,3 +1,5 @@
+import type { AvatarIssue } from "../diagnostics/issues";
+
 export type AvatarFaceLandmarkVector = {
   x: number;
   y: number;
@@ -49,6 +51,8 @@ export type AvatarFaceEyeLandmarkSnapshot = {
 export type AvatarFaceLandmarksSnapshot = {
   status: "unavailable" | "ready";
   warnings: string[];
+  /** `warnings` as stable codes, for the Diagnostics view. */
+  issues: AvatarIssue[];
   anchorName: string | null;
   anchorType: string | null;
   faceBindingKey: string | null;

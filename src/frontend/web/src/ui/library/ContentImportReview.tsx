@@ -25,6 +25,10 @@ export function ContentImportReview({ flow }: { flow: LibrarySharingFlow }) {
     originalName: item.original_name,
   }));
   const renamed = items.some((item) => item.name !== item.originalName);
+  // Avatars whose packaged wind or material setting this app cannot keep.
+  const settingsNotStored = review.items
+    .filter((item) => item.notices?.includes("avatar_setting_not_stored"))
+    .map((item) => item.name);
   return (
     <>
       <ol
@@ -97,6 +101,13 @@ export function ContentImportReview({ flow }: { flow: LibrarySharingFlow }) {
         )}
         <SharingRequiredItems items={items.filter((item) => !item.selected)} />
         <SharingNonPortableItems items={review.non_portable ?? []} />
+        {settingsNotStored.length > 0 ? (
+          <p className="border-warning/30 bg-warning/10 rounded-xl border p-4 text-sm">
+            {t("sharing.import.avatarSettingsNotStored", {
+              names: formatters.list(settingsNotStored),
+            })}
+          </p>
+        ) : null}
       </section>
       <p className="text-muted-foreground border-t pt-4 text-sm">
         {renamed

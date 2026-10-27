@@ -18,6 +18,7 @@ from animama.adapters.package_inspection import LocalPackageInspector
 from animama.app.contracts.content_package import PackageManifest
 from animama.app.contracts.content_package_import import (
     ImportedPackageItem,
+    ImportItemNotice,
     LegacyImportedPackageItem,
     LegacyPackageImportResult,
     PackageImportResult,
@@ -31,9 +32,11 @@ from animama.app.contracts.content_package_import import (
 )
 from animama.app.contracts.portable_anima import PortableAnima, PortableGestureSelection
 from animama.app.ports.anima_aggregate_port import AnimaAggregateUnitOfWork
+from animama.app.ports.avatar_settings import AvatarSettingOverrideRepository
 from animama.app.ports.content_package_staging import PackageInspector, PackageStageLease, PackageStages
 from animama.app.ports.content_publication import ContentMutations
 from animama.app.services.anima_aggregate_materializer import AnimaAggregateMaterializer
+from animama.app.services.avatar_settings import document_settings, strip_document_settings
 from animama.app.services.content_catalog_service import ContentCatalogService
 from animama.app.services.content_kind_registry import (
     MAX_JSON_BYTES,
@@ -59,6 +62,7 @@ from animama.domain.content_catalog import (
     PreparedPackageEntry,
     PreparedPackageFile,
 )
+from animama.domain.content_documents import AvatarDocumentV1, TypedContentDocument
 
 
 def import_request_digest(review_digest: str) -> str:
@@ -111,7 +115,9 @@ class ContentPackageImportService:
 
     The optional Anima unit of work must use the catalog's database session. It
     never commits independently and is required for Avatar registration as well
-    as complete Anima imports.
+    as complete Anima imports. The optional Avatar settings store must use that
+    session too; without it, packaged Avatar settings are dropped with a review
+    notice.
     """
 
     def __init__(
@@ -125,6 +131,7 @@ class ContentPackageImportService:
         uow: AnimaAggregateUnitOfWork | None = None,
         default_model_provider_id: str | None = None,
         max_identity_bytes: int = ANIMA_IDENTITY_MAX_BYTES,
+        avatar_setting_overrides: AvatarSettingOverrideRepository | None = None,
     ) -> None:
         if mutations is not content.mutations:
             raise ValueError("package imports must use the content publication authority")
@@ -139,6 +146,7 @@ class ContentPackageImportService:
         self._max_identity_bytes = min(max_identity_bytes, ANIMA_IDENTITY_MAX_BYTES)
         self._inspector = inspector or LocalPackageInspector(store=self._store)
         self._allow_anima_import = allow_anima_import
+        self._avatar_settings = avatar_setting_overrides
 
     def _admit_manifest(self, manifest: PackageManifest) -> None:
         """The composition may forbid creation while retaining content packages."""
@@ -279,6 +287,7 @@ class ContentPackageImportService:
                     item_id=str(uuid4()),
                     logical_key=f"local:{entry.kind.value}:{uuid4().hex}",
                     relative_locator=locator,
+                    notices=self._notices(inspected.entries[entry.package_entry_id].document),
                 )
             )
         anima = inspected.manifest.anima
@@ -306,6 +315,13 @@ class ContentPackageImportService:
             default_model_provider_id=self._default_model if anima is not None else None,
             non_portable=_plan_non_portable(inspected.manifest, visible),
         )
+
+    def _notices(self, document: TypedContentDocument) -> tuple[ImportItemNotice, ...]:
+        """Name what this composition cannot keep of one entry, before the user confirms."""
+
+        if self._avatar_settings is None and isinstance(document, AvatarDocumentV1) and document_settings(document):
+            return ("avatar_setting_not_stored",)
+        return ()
 
     async def _validate_prerequisite(self, identity: str, *, lock: bool = False) -> None:
         if self._uow is None or self._default_model is None:
@@ -480,11 +496,14 @@ class ContentPackageImportService:
         # The Library's Avatar catalog resolves logical Avatar mappings, including
         # standalone models. Register them in the same files/SQL/receipt mutation;
         # full Anima materialization below reuses these exact mappings.
-        for installed_item in installed.values():
+        for entry_id, installed_item in installed.items():
             if installed_item.kind is ContentKind.AVATAR:
                 if self._uow is None:
                     raise ContentConflictError("package_avatar_import_unavailable")
                 await self._uow.avatars.resolve_catalog_avatar(user_id=user_id, item=installed_item)
+                await self._store_avatar_settings(
+                    user_id=user_id, item=installed_item, document=inspected.entries[entry_id].document
+                )
         anima_id = None
         if plan.anima is not None:
             assert self._uow is not None and self._default_model is not None
@@ -514,6 +533,21 @@ class ContentPackageImportService:
             anima_id=anima_id,
         )
 
+    async def _store_avatar_settings(
+        self, *, user_id: str, item: CatalogContentEntry, document: TypedContentDocument
+    ) -> None:
+        """Move a packaged Avatar's settings into the importer's table, in the import's transaction.
+
+        The new Local sidecar never carries them. Without a settings store the
+        review already reported ``avatar_setting_not_stored`` and the value is dropped.
+        """
+
+        if self._avatar_settings is None or not isinstance(document, AvatarDocumentV1):
+            return
+        values = document_settings(document)
+        if values:
+            await self._avatar_settings.update(owner_user_id=user_id, avatar_item_id=item.id, changes=values)
+
     @staticmethod
     def _prepare(plan: ReviewedImportPlan, inspected: InspectedPackage) -> tuple[PreparedPackageEntry, ...]:
         """Rewrite bounded JSON; reopen verified binary resources only when consumed."""
@@ -538,6 +572,9 @@ class ContentPackageImportService:
                 document["provenance"] = entry.license.model_dump(exclude_none=True)
             if item.kind is ContentKind.POSE:
                 document["pose"] = {**document["pose"], "id": item.logical_key, "name": item.name}
+            if item.kind is ContentKind.AVATAR:
+                # Settings move into the importer's table; Local sidecars never carry them.
+                strip_document_settings(document)
             if item.kind is ContentKind.APPEARANCE:
                 document.pop("avatar_model", None)
                 document["presentation"] = (

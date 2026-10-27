@@ -6,9 +6,9 @@ Each route has one disposition:
   ``stage`` (2 owner-scoped, 3 content, 4 paid utilities, 5 chat streaming). Every
   composition mounts it.
 - ``local``: owned by the local composition (installation bootstrap and runtime
-  context, model custody, owner events, archive, ElevenLabs audio isolation,
-  Gemini voice samples, health, telemetry and the web asset catch-all). A consumer serves its own
-  equivalent or nothing.
+  context, model custody, owner events, archive, per-owner Avatar settings,
+  ElevenLabs audio isolation, Gemini voice samples, health, telemetry and the web
+  asset catch-all). A consumer serves its own equivalent or nothing.
 - ``hosted-excluded``: withheld by a false permission in
   ``contracts/runtime-capabilities/hosted.json``, named by ``capability``.
 
@@ -242,6 +242,9 @@ ROUTES: tuple[RouteSpec, ...] = (
     _shared(3, "PUT", "/v1/avatar-content/{item_id}/portrait", "save_avatar_portrait", "write"),
     _shared(3, "GET", "/v1/avatar-content/{item_id}/face-parts", "get_avatar_face_parts", "read"),
     _shared(3, "PUT", "/v1/avatar-content/{item_id}/face-parts", "save_avatar_face_parts", "write"),
+    # Per-owner Avatar settings (wind, materials) are stored only by the local composition.
+    _local("GET", "/v1/avatar-content/{item_id}/settings", "get_avatar_settings", "read"),
+    _local("PUT", "/v1/avatar-content/{item_id}/settings", "save_avatar_settings", "write"),
     # Chats
     _shared(2, "POST", "/v1/chats", "create_chat", "write"),
     _shared(2, "GET", "/v1/chats", "list_chats", "read"),
