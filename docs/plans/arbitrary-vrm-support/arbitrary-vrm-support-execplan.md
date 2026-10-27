@@ -6,7 +6,8 @@ the owner's answers on 2026-10-25; snapshot in
 the spec; owner decisions are in the Decision Log.
 Authorized scope: the whole plan (owner, 2026-10-26: decisions D3, D4, D5 and D7
 "use recommendations", then `/implement`), in two PRs, PR A (Phases 1 to 3)
-first. Owner gates in each phase still apply.
+first; Phase 10 added to PR B by the owner on 2026-10-27. Owner gates in each
+phase still apply.
 Merge, release and any use of third-party Avatar data beyond local testing keep
 their separate approvals.
 
@@ -24,8 +25,8 @@ Starting source: `main` at `a94f8369` (PR #688 merged). Task branch for PR A:
 commits), in the session's own worktree with backend (`uv sync --python
 3.12.13`) and frontend dependencies installed; no stack yet. Implementation
 uses two task branches and
-PRs (owner, 2026-10-26): PR A for Phases 1 to 3, then PR B for Phases 4 to 9 on
-a branch cut from `main` after PR A merges.
+PRs (owner, 2026-10-26): PR A for Phases 1 to 3, then PR B for Phases 4 to 10
+on a branch cut from `main` after PR A merges.
 
 ### What #688 already provides (do not re-specify)
 
@@ -215,6 +216,8 @@ tenant-inventory row for `avatar_face_part_overrides`. So:
 - [ ] Phase 7: Rest pose, proportions and enhanced rendering (R9, R10). Not started.
 - [ ] Phase 8: Package sharing (R13). Not started.
 - [ ] Phase 9 (alongside): lilToon frame cost (R11). Not started.
+- [ ] Phase 10: Diagnostics and Avatar settings in the Library and Create Anima
+  (R5, R7 and R11 entry points; owner, 2026-10-27). Not started; PR B.
 - [ ] Final integration review and full pre-push suite.
 
 ## Surprises & Discoveries
@@ -256,6 +259,13 @@ tenant-inventory row for `avatar_face_part_overrides`. So:
 - 2026-10-26 (Phase 1): i18next-cli files the keys of a helper typed through a
   local alias (`type T = TFunction<"animas">`) under the default namespace and
   deletes them from the real one; the i18n guide now says so.
+- 2026-10-27 (agent live check on the Phase 3 review stack): the converted test
+  Avatar uploads through Create Anima's file input and works in chat, on the
+  Anima page and in the Library; Diagnostics, Off, Springs off, Simple and an
+  eye-hiding effect behave. Wind On lifts its ponytail and side hair straight
+  up, because the updraft is far stronger than springs tuned without ambient
+  forces; Automatic avoids it. Whether On should warn or scale its forces to
+  the Avatar's springs is open with the owner.
 
 ## Decision Log
 
@@ -343,6 +353,11 @@ tenant-inventory row for `avatar_face_part_overrides`. So:
     full download only to decide one row was rejected.
   - The backend notice for a composition without the store is a per-item
     `notices` list on `ReviewedImportItem`, worded in the import review.
+- 2026-10-27, owner: offer Diagnostics and the wind and Materials settings on
+  Library Avatar cards, and a Diagnostics link on Create Anima's upload
+  preview, in PR B (Phase 10). Create Anima gets no settings, since an unsaved
+  upload has no Avatar item to store them on. Issue #691's spec does not list
+  these entry points yet.
 
 ## Decisions
 
@@ -1430,14 +1445,100 @@ Not run.
 
 Not run.
 
+### Phase 10: Diagnostics and Avatar settings in the Library and Create Anima
+
+Review tier: standard, or high risk if step 4 adds the backend field (API
+contract and generated client). New entry points for Phase 1's Diagnostics and
+Phase 3's settings; no new setting.
+
+Requirements: R7 and the R5/R11 settings, offered where Avatars are managed
+(owner, 2026-10-27; see the Decision Log). Depends on Phases 1 and 3 (on `main`
+once PR A merges) and on none of Phases 4 to 9, so it may run first in PR B.
+
+Changes:
+
+1. Diagnostics sources (`ui/animas/useAvatarDiagnostics.ts`): take a source
+   instead of an Anima id:
+   - an Anima, as today (its live chat Avatar or an off-screen load, with its
+     effect warnings);
+   - an Avatar item, Included or Local, through `previewCatalogItem` and
+     `avatarPreviewTarget`: the preview dock's Avatar when the dock shows that
+     item, otherwise an off-screen load;
+   - an unsaved upload: file facts from the chosen `File`, live facts from the
+     Create Anima stage's Avatar once it loads.
+   Effect warnings appear only for an Anima, since they depend on its Gestures
+   and Reactions. The dialog's context line names the source; a report
+   identifies an upload by kind only (no item id, no file name).
+2. Shared settings rows: move `AvatarSettingsRows` and `AvatarSettingRow` out
+   of `AnimaSettingsModal.tsx` into a component keyed by Avatar item id, beside
+   `avatarSettingLabels.ts`, used by the Anima settings and the Library, with
+   Phase 3's rules (local runtimes only, Automatic saved as null, a toast on a
+   failed save).
+3. Library (`ui/library/LibraryContentInventory.tsx`): each Avatar card with a
+   catalog item gains an "Avatar settings" action in the grid and list layouts.
+   It opens a dialog with Wind and ambient forces, Materials and "Open
+   diagnostics"; where settings are unavailable (the hosted app) the dialog
+   offers Diagnostics only. A wind change reaches the dock preview live.
+4. The Materials row before any load: Phase 3 learns that a file has lilToon
+   materials only from an Avatar loaded in this session, so a Library dialog
+   for an Avatar not yet loaded could not show the row. Prefer a read-only
+   field on the Avatar item listing the file's glTF material extensions
+   (`content_gltf.py` already reads `extensionsUsed` when the file is saved);
+   then the Anima settings show the row before a load too. It adds an API
+   field, backend docs and a generated-client update. Otherwise the Library
+   dialog reads file facts when it opens. Record the choice in the Decision Log.
+5. Create Anima (`ui/create-anima/CreateAnimaAvatarStep.tsx`,
+   `CreateAnimaStage.tsx`): under "Previewing …", a one-line status from the
+   stage's Avatar (checking, no problems found, or the number of problems) with
+   "View diagnostics", which opens the dialog for the unsaved upload. A file
+   that fails to load still gets the status and a dialog with its file facts
+   and the load error. No Avatar settings here: an unsaved upload has no Avatar
+   item to store them on.
+6. Strings in the 5 locales; designed with the `animama-ui` skill (1440×900,
+   then about 900 px, light and dark).
+7. Docs: `docs/frontend/features/library.md` (the Avatar card action) and
+   `docs/frontend/features/anima-management.md` (the settings follow the Avatar
+   and are also in the Library; Create Anima's upload status).
+
+Checks: hook tests for the three sources (the Anima source unchanged; an Avatar
+item off screen and from the dock; an upload with and without the stage's
+Avatar; a failed load keeps file facts); Library tests (the action on Included
+and Local cards in both layouts, settings rows hidden in the hosted runtime,
+Diagnostics still offered, a wind change reaching the dock without a reload);
+Create Anima step tests (the status after a file is chosen, the link opening
+the upload's dialog, a failed load); a report test that an upload report holds
+no file name; `pnpm i18n:check`; `pnpm verify`; with step 4's field, backend
+tests, `make check-test` and `pnpm openapi-ts:check`; `pnpm e2e:test:fast` on a
+disposable built stack.
+
+Owner gate: UI review on the live stack of the Library action and dialog, and of
+Create Anima's upload status with the converted test Avatar.
+
+Completion: Diagnostics and both settings reachable from Included and Local
+Avatar cards, and Diagnostics from Create Anima's upload preview; owner gate
+passed.
+
+Recovery: UI only, plus an additive read-only field if step 4 adds it; removing
+the entry points leaves the Anima settings as Phase 3 left them.
+
+Check record: (to fill) · Commits: (to fill)
+
+#### Code Review #1 Findings
+
+Not run.
+
+#### Code Review #1 Revisions
+
+Not run.
+
 ## Final integration review
 
 Run once per PR. PR A's covers Phases 1 to 3 (R5, R7, R8 and R1/R3) and PR B's
-covers combined acceptance R1–R13, every failure kind from later phases
-appearing in Diagnostics (R8), the licence boundary across each PR's diff and
-history, documentation accuracy and any phase without its own review. Then the
-full pre-push suite once on each PR's final candidate; its results go in that
-PR.
+covers combined acceptance R1–R13, Phase 10's entry points, every failure kind
+from later phases appearing in Diagnostics (R8), the licence boundary across
+each PR's diff and history, documentation accuracy and any phase without its
+own review. Then the full pre-push suite once on each PR's final candidate; its
+results go in that PR.
 
 ## Validation and acceptance
 
@@ -1454,7 +1555,8 @@ Spec acceptance criteria, with these checks (from `src/frontend` unless noted):
   flake: #709 (Library particle preview race).
 - Owner-only checks: Diagnostics (Phase 1); eye effects (Phase 2); wind modes
   and the Simple look (Phase 3); moods (Phase 4); hands (Phase 5); scaling band (Phase 7); the
-  lilToon look and cost (Phase 9).
+  lilToon look and cost (Phase 9); the Library and Create Anima entry points
+  (Phase 10).
 
 ## Idempotence and recovery
 
