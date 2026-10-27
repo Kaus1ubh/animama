@@ -213,6 +213,72 @@ describe("PipWindowManager", () => {
     expect(pipContents.send).not.toHaveBeenCalled();
   });
 
+  it("relays voice state from the owner and voice commands from PiP, one way each", async () => {
+    const pip = manager();
+    const owner = new fake.FakeWebContents();
+    await pip.open(owner as unknown as WebContents, { animaId: "annie" });
+    const pipContents = pipWindowOf(pip).webContents;
+    const message = (type: string, payload: unknown) => ({
+      type,
+      sequence: 1,
+      sentAtMs: 1,
+      animaId: "annie",
+      payload,
+    });
+    const voice = message("voice", { activeMode: "voice" });
+    const command = message("voice-command", { command: "toggle-voice-mute" });
+
+    pip.publishRuntimeMessage(owner as unknown as WebContents, voice);
+    expect(pipContents.send).toHaveBeenCalledWith(
+      "pip:runtime",
+      expect.objectContaining({ type: "voice" }),
+    );
+    pip.publishRuntimeMessage(pipContents as unknown as WebContents, command);
+    expect(owner.send).toHaveBeenCalledWith(
+      "pip:runtime",
+      expect.objectContaining({ type: "voice-command" }),
+    );
+
+    // PiP never reports voice state, and the owner never sends PiP commands.
+    owner.send.mockClear();
+    pipContents.send.mockClear();
+    pip.publishRuntimeMessage(pipContents as unknown as WebContents, voice);
+    pip.publishRuntimeMessage(owner as unknown as WebContents, command);
+    expect(owner.send).not.toHaveBeenCalled();
+    expect(pipContents.send).not.toHaveBeenCalled();
+  });
+
+  it("shows PiP after the first Avatar snapshot, not after voice state", async () => {
+    const pip = manager();
+    const owner = new fake.FakeWebContents();
+    await pip.open(owner as unknown as WebContents, { animaId: "annie" });
+    const window = pipWindowOf(pip);
+    const show = vi.spyOn(window, "show");
+    const message = (type: string) => ({
+      type,
+      sequence: 1,
+      sentAtMs: 1,
+      animaId: "annie",
+      payload: null,
+    });
+
+    pip.publishRuntimeMessage(
+      window.webContents as unknown as WebContents,
+      message("ready"),
+    );
+    pip.publishRuntimeMessage(
+      owner as unknown as WebContents,
+      message("voice"),
+    );
+    expect(show).not.toHaveBeenCalled();
+
+    pip.publishRuntimeMessage(
+      owner as unknown as WebContents,
+      message("snapshot"),
+    );
+    expect(show).toHaveBeenCalledOnce();
+  });
+
   it("scales from the top-left corner while PiP holds its resize grip", async () => {
     const pip = manager();
     const owner = new fake.FakeWebContents();
